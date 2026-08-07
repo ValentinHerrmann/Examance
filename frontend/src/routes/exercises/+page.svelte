@@ -10,11 +10,16 @@
   import { get } from "svelte/store";
 
   import LatexEditor, { type DiffDecorationConfig, type DiffLineDecoration, type DiffLinePaddingDecoration, type DiffWordDecoration, type DiffGapDecoration } from "$lib/components/LatexEditor.svelte";
-  import LatexViewer from "$lib/components/LatexViewer.svelte";
   import { highlightLatexToHtml } from "$lib/latex/highlighter";
   import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
-  import { diffLines, diffWords } from "diff";
+  import ExerciseFilterSidebar from "$lib/components/exercise-library/ExerciseFilterSidebar.svelte";
+  import ExerciseGroupList from "$lib/components/exercise-library/ExerciseGroupList.svelte";
+  import GroupEditModal from "$lib/components/exercise-library/GroupEditModal.svelte";
+  import RegroupModal from "$lib/components/exercise-library/RegroupModal.svelte";
+  import DeleteExerciseModal from "$lib/components/exercise-library/DeleteExerciseModal.svelte";
+  import VariantModal from "$lib/components/exercise-library/VariantModal.svelte";
+  import ExerciseDiffModal from "$lib/components/exercise-library/ExerciseDiffModal.svelte";
 
   let exercises: ExerciseRecord[] = [];
   let selectedTopic: string = "ALL";
@@ -60,18 +65,6 @@
 
   // Expanded groups tracking — use object for Svelte reactivity
   let expandedGroups: { [groupId: string]: boolean } = {};
-
-  interface DiffToken {
-    text: string;
-    type: "added" | "removed" | "unchanged";
-  }
-
-  interface DiffLine {
-    lineNumber?: number;
-    text?: string;
-    type: "added" | "removed" | "unchanged" | "empty" | "modified";
-    tokens?: DiffToken[];
-  }
 
   /* ── Exercise Grouping ── */
 
@@ -158,258 +151,6 @@
     expandedGroups = { ...expandedGroups, [groupId]: !expandedGroups[groupId] };
   }
 
-  function isGroupExpanded(groupId: string): boolean {
-    return !!expandedGroups[groupId];
-  }
-
-  function getGroupRepresentative(group: ExerciseGroup): ExerciseRecord {
-    return group.allMembers[0]?.ex || { id: "", name: group.name } as ExerciseRecord;
-  }
-
-  function buildWordTokens(
-    leftStr: string,
-    rightStr: string,
-  ): { leftTokens: DiffToken[]; rightTokens: DiffToken[] } {
-    const wordDiff = diffWords(leftStr, rightStr);
-    const leftTokens: DiffToken[] = [];
-    const rightTokens: DiffToken[] = [];
-
-    for (const part of wordDiff) {
-      if (part.removed) {
-        leftTokens.push({ text: part.value, type: "removed" });
-      } else if (part.added) {
-        rightTokens.push({ text: part.value, type: "added" });
-      } else {
-        leftTokens.push({ text: part.value, type: "unchanged" });
-        rightTokens.push({ text: part.value, type: "unchanged" });
-      }
-    }
-
-    return { leftTokens, rightTokens };
-  }
-
-  function stringSimilarity(str1: string, str2: string): number {
-    if (str1 === str2) return 1.0;
-    if (!str1 || !str2) return 0.0;
-
-    const s1 = str1.trim();
-    const s2 = str2.trim();
-    if (s1 === s2) return 0.98;
-
-    const len1 = s1.length;
-    const len2 = s2.length;
-    const maxLen = Math.max(len1, len2);
-    if (maxLen === 0) return 1.0;
-
-    const matrix: number[] = new Array(len2 + 1);
-    for (let j = 0; j <= len2; j++) matrix[j] = j;
-
-    for (let i = 1; i <= len1; i++) {
-      let prev = i;
-      for (let j = 1; j <= len2; j++) {
-        const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
-        const current = Math.min(
-          matrix[j] + 1,
-          prev + 1,
-          matrix[j - 1] + cost,
-        );
-        matrix[j - 1] = prev;
-        prev = current;
-      }
-      matrix[len2] = prev;
-    }
-
-    return 1.0 - matrix[len2] / maxLen;
-  }
-
-  function computeSideBySideDiff(
-    leftText: string,
-    rightText: string,
-  ): { leftLines: DiffLine[]; rightLines: DiffLine[] } {
-    const a = (leftText || "")
-      .replace(/\r\n/g, "\n")
-      .replace(/\n$/, "")
-      .split("\n");
-    const b = (rightText || "")
-      .replace(/\r\n/g, "\n")
-      .replace(/\n$/, "")
-      .split("\n");
-
-    if (a.length === 1 && a[0] === "") a.pop();
-    if (b.length === 1 && b[0] === "") b.pop();
-
-    const N = a.length;
-    const M = b.length;
-
-    if (N === 0 && M === 0) {
-      return { leftLines: [], rightLines: [] };
-    }
-
-    if (N === 0) {
-      const rightLines = b.map((line, idx) => ({
-        lineNumber: idx + 1,
-        text: line,
-        type: "added" as const,
-        tokens: [{ text: line, type: "added" as const }],
-      }));
-      const leftLines = b.map(() => ({ text: "", type: "empty" as const }));
-      return { leftLines, rightLines };
-    }
-
-    if (M === 0) {
-      const leftLines = a.map((line, idx) => ({
-        lineNumber: idx + 1,
-        text: line,
-        type: "removed" as const,
-        tokens: [{ text: line, type: "removed" as const }],
-      }));
-      const rightLines = a.map(() => ({ text: "", type: "empty" as const }));
-      return { leftLines, rightLines };
-    }
-
-    const simMatrix: number[][] = Array.from({ length: N }, () =>
-      new Array(M).fill(0),
-    );
-    for (let i = 0; i < N; i++) {
-      for (let j = 0; j < M; j++) {
-        simMatrix[i][j] = stringSimilarity(a[i], b[j]);
-      }
-    }
-
-    const GAP_PENALTY = -0.4;
-    const dp: number[][] = Array.from({ length: N + 1 }, () =>
-      new Array(M + 1).fill(0),
-    );
-
-    for (let i = 0; i <= N; i++) dp[i][0] = i * GAP_PENALTY;
-    for (let j = 0; j <= M; j++) dp[0][j] = j * GAP_PENALTY;
-
-    for (let i = 1; i <= N; i++) {
-      for (let j = 1; j <= M; j++) {
-        const sim = simMatrix[i - 1][j - 1];
-        let matchScore: number;
-        if (sim === 1.0) {
-          matchScore = 2.0;
-        } else if (sim >= 0.35) {
-          matchScore = 2.0 * sim;
-        } else {
-          matchScore = -0.8;
-        }
-
-        const scoreDiag = dp[i - 1][j - 1] + matchScore;
-        const scoreUp = dp[i - 1][j] + GAP_PENALTY;
-        const scoreLeft = dp[i][j - 1] + GAP_PENALTY;
-
-        dp[i][j] = Math.max(scoreDiag, scoreUp, scoreLeft);
-      }
-    }
-
-    const ops: Array<{
-      op: "MATCH" | "MODIFY" | "DELETE" | "INSERT";
-      i: number;
-      j: number;
-    }> = [];
-    let i = N;
-    let j = M;
-
-    while (i > 0 || j > 0) {
-      if (i > 0 && j > 0) {
-        const sim = simMatrix[i - 1][j - 1];
-        let matchScore: number;
-        if (sim === 1.0) {
-          matchScore = 2.0;
-        } else if (sim >= 0.35) {
-          matchScore = 2.0 * sim;
-        } else {
-          matchScore = -0.8;
-        }
-
-        if (dp[i][j] === dp[i - 1][j - 1] + matchScore) {
-          const opType =
-            sim === 1.0 ? "MATCH" : sim >= 0.35 ? "MODIFY" : "DELETE";
-          if (opType !== "DELETE") {
-            ops.push({ op: opType, i: i - 1, j: j - 1 });
-            i--;
-            j--;
-            continue;
-          }
-        }
-      }
-
-      if (i > 0 && dp[i][j] === dp[i - 1][j] + GAP_PENALTY) {
-        ops.push({ op: "DELETE", i: i - 1, j: -1 });
-        i--;
-      } else if (j > 0 && dp[i][j] === dp[i][j - 1] + GAP_PENALTY) {
-        ops.push({ op: "INSERT", i: -1, j: j - 1 });
-        j--;
-      } else {
-        if (i > 0) {
-          ops.push({ op: "DELETE", i: i - 1, j: -1 });
-          i--;
-        } else {
-          ops.push({ op: "INSERT", i: -1, j: j - 1 });
-          j--;
-        }
-      }
-    }
-
-    ops.reverse();
-
-    const leftLines: DiffLine[] = [];
-    const rightLines: DiffLine[] = [];
-    let leftLineNum = 1;
-    let rightLineNum = 1;
-
-    for (const op of ops) {
-      if (op.op === "MATCH") {
-        leftLines.push({
-          lineNumber: leftLineNum++,
-          text: a[op.i],
-          type: "unchanged",
-          tokens: [{ text: a[op.i], type: "unchanged" }],
-        });
-        rightLines.push({
-          lineNumber: rightLineNum++,
-          text: b[op.j],
-          type: "unchanged",
-          tokens: [{ text: b[op.j], type: "unchanged" }],
-        });
-      } else if (op.op === "MODIFY") {
-        const { leftTokens, rightTokens } = buildWordTokens(a[op.i], b[op.j]);
-        leftLines.push({
-          lineNumber: leftLineNum++,
-          text: a[op.i],
-          type: "modified",
-          tokens: leftTokens,
-        });
-        rightLines.push({
-          lineNumber: rightLineNum++,
-          text: b[op.j],
-          type: "modified",
-          tokens: rightTokens,
-        });
-      } else if (op.op === "DELETE") {
-        leftLines.push({
-          lineNumber: leftLineNum++,
-          text: a[op.i],
-          type: "removed",
-          tokens: [{ text: a[op.i], type: "removed" }],
-        });
-        rightLines.push({ text: "", type: "empty" });
-      } else if (op.op === "INSERT") {
-        leftLines.push({ text: "", type: "empty" });
-        rightLines.push({
-          lineNumber: rightLineNum++,
-          text: b[op.j],
-          type: "added",
-          tokens: [{ text: b[op.j], type: "added" }],
-        });
-      }
-    }
-
-    return { leftLines, rightLines };
-  }
-
   $: activeDiffGroupExercises = diffGroupExercises.map(
     (e) => exercises.find((x) => x.id === e.id) || e
   );
@@ -445,209 +186,6 @@
 
   $: isDiffLeftDirty = diffLeftEx ? diffLeftLatex !== (diffLeftEx.latexBody || "") : false;
   $: isDiffRightDirty = diffRightEx ? diffRightLatex !== (diffRightEx.latexBody || "") : false;
-
-  // Lazy: compute diff dynamically from editable buffers when modal is open
-  $: sideBySideDiff = isDiffModalOpen
-    ? computeSideBySideDiff(diffLeftLatex, diffRightLatex)
-    : { leftLines: [], rightLines: [] };
-
-  function buildAlignedDiffDecorations(
-    sideBySide: { leftLines: DiffLine[]; rightLines: DiffLine[] },
-    leftHeights: Map<number, number>,
-    rightHeights: Map<number, number>
-  ): { leftConfig: DiffDecorationConfig; rightConfig: DiffDecorationConfig } {
-    const DEFAULT_LINE_HEIGHT_PX = 24;
-
-    const leftDecoLines: DiffLineDecoration[] = [];
-    const leftPaddings: DiffLinePaddingDecoration[] = [];
-    const leftGaps: DiffGapDecoration[] = [];
-
-    const rightDecoLines: DiffLineDecoration[] = [];
-    const rightPaddings: DiffLinePaddingDecoration[] = [];
-    const rightGaps: DiffGapDecoration[] = [];
-
-    let currentLeftDocLine = 0;
-    let currentRightDocLine = 0;
-
-    let pendingLeftGapPx = 0;
-    let pendingRightGapPx = 0;
-
-    const N = Math.max(sideBySide.leftLines.length, sideBySide.rightLines.length);
-
-    for (let i = 0; i < N; i++) {
-      const leftItem = sideBySide.leftLines[i];
-      const rightItem = sideBySide.rightLines[i];
-
-      const isLeftEmpty = !leftItem || leftItem.type === "empty";
-      const isRightEmpty = !rightItem || rightItem.type === "empty";
-
-      let hLeft = 0;
-      if (!isLeftEmpty && leftItem.lineNumber !== undefined) {
-        hLeft = leftHeights.get(leftItem.lineNumber) ?? DEFAULT_LINE_HEIGHT_PX;
-      }
-
-      let hRight = 0;
-      if (!isRightEmpty && rightItem.lineNumber !== undefined) {
-        hRight = rightHeights.get(rightItem.lineNumber) ?? DEFAULT_LINE_HEIGHT_PX;
-      }
-
-      const hTarget = Math.max(hLeft, hRight, DEFAULT_LINE_HEIGHT_PX);
-
-      // Handle Left side
-      if (isLeftEmpty) {
-        pendingLeftGapPx += hTarget;
-      } else {
-        if (pendingLeftGapPx > 0) {
-          leftGaps.push({
-            afterLineNumber: currentLeftDocLine,
-            gapPx: pendingLeftGapPx
-          });
-          pendingLeftGapPx = 0;
-        }
-        currentLeftDocLine++;
-        const lineNumber = leftItem.lineNumber ?? currentLeftDocLine;
-
-        const words: DiffWordDecoration[] = [];
-        if (leftItem.tokens && leftItem.type === "modified") {
-          let col = 0;
-          for (const token of leftItem.tokens) {
-            const tokenLen = token.text.length;
-            if (token.type !== "unchanged") {
-              words.push({
-                startCol: col,
-                endCol: col + tokenLen,
-                type: token.type
-              });
-            }
-            col += tokenLen;
-          }
-        }
-
-        if (leftItem.type !== "empty") {
-          leftDecoLines.push({
-            lineNumber,
-            type: leftItem.type,
-            words: words.length > 0 ? words : undefined
-          });
-        }
-
-        if (hTarget > hLeft + 0.5) {
-          leftPaddings.push({
-            lineNumber,
-            paddingPx: hTarget - hLeft
-          });
-        }
-      }
-
-      // Handle Right side
-      if (isRightEmpty) {
-        pendingRightGapPx += hTarget;
-      } else {
-        if (pendingRightGapPx > 0) {
-          rightGaps.push({
-            afterLineNumber: currentRightDocLine,
-            gapPx: pendingRightGapPx
-          });
-          pendingRightGapPx = 0;
-        }
-        currentRightDocLine++;
-        const lineNumber = rightItem.lineNumber ?? currentRightDocLine;
-
-        const words: DiffWordDecoration[] = [];
-        if (rightItem.tokens && rightItem.type === "modified") {
-          let col = 0;
-          for (const token of rightItem.tokens) {
-            const tokenLen = token.text.length;
-            if (token.type !== "unchanged") {
-              words.push({
-                startCol: col,
-                endCol: col + tokenLen,
-                type: token.type
-              });
-            }
-            col += tokenLen;
-          }
-        }
-
-        if (rightItem.type !== "empty") {
-          rightDecoLines.push({
-            lineNumber,
-            type: rightItem.type,
-            words: words.length > 0 ? words : undefined
-          });
-        }
-
-        if (hTarget > hRight + 0.5) {
-          rightPaddings.push({
-            lineNumber,
-            paddingPx: hTarget - hRight
-          });
-        }
-      }
-    }
-
-    if (pendingLeftGapPx > 0) {
-      leftGaps.push({
-        afterLineNumber: currentLeftDocLine,
-        gapPx: pendingLeftGapPx
-      });
-    }
-
-    if (pendingRightGapPx > 0) {
-      rightGaps.push({
-        afterLineNumber: currentRightDocLine,
-        gapPx: pendingRightGapPx
-      });
-    }
-
-    return {
-      leftConfig: { lines: leftDecoLines, paddings: leftPaddings, gaps: leftGaps },
-      rightConfig: { lines: rightDecoLines, paddings: rightPaddings, gaps: rightGaps }
-    };
-  }
-
-  let diffLeftEditor: LatexEditor | undefined;
-  let diffRightEditor: LatexEditor | undefined;
-  let isSyncingDiffScroll = false;
-
-  $: leftLineHeights = (diffLeftEditor && isDiffModalOpen && diffLeftLatex !== undefined)
-    ? diffLeftEditor.getLineHeights()
-    : new Map<number, number>();
-
-  $: rightLineHeights = (diffRightEditor && isDiffModalOpen && diffRightLatex !== undefined)
-    ? diffRightEditor.getLineHeights()
-    : new Map<number, number>();
-
-  $: alignedDiffDecorations = isDiffModalOpen
-    ? buildAlignedDiffDecorations(sideBySideDiff, leftLineHeights, rightLineHeights)
-    : null;
-
-  $: leftDiffDecorations = alignedDiffDecorations?.leftConfig ?? null;
-  $: rightDiffDecorations = alignedDiffDecorations?.rightConfig ?? null;
-
-  function handleDiffLeftScroll() {
-    if (isSyncingDiffScroll || !diffLeftEditor || !diffRightEditor) return;
-    isSyncingDiffScroll = true;
-    const { scrollTop, scrollLeft } = diffLeftEditor.getScroll();
-    diffRightEditor.setScroll(scrollTop, scrollLeft);
-    requestAnimationFrame(() => {
-      isSyncingDiffScroll = false;
-    });
-  }
-
-  function handleDiffRightScroll() {
-    if (isSyncingDiffScroll || !diffLeftEditor || !diffRightEditor) return;
-    isSyncingDiffScroll = true;
-    const { scrollTop, scrollLeft } = diffRightEditor.getScroll();
-    diffLeftEditor.setScroll(scrollTop, scrollLeft);
-    requestAnimationFrame(() => {
-      isSyncingDiffScroll = false;
-    });
-  }
-
-  // Preview state
-  let isPreviewLoading = false;
-  let previewPdfUrl: string | null = null;
 
   $: availableTopics = Array.from(
     new Set(
@@ -1227,341 +765,46 @@
   </button>
 
   <div class="library-layout">
-    <div class="filter-sidebar" class:collapsed={filterCollapsed}>
-      <div class="search-box">
-        <input
-          type="text"
-          placeholder="Search exercises by name, topic, grade, subject, or LaTeX content..."
-          bind:value={searchQuery}
-        />
-      </div>
+    <ExerciseFilterSidebar
+      bind:searchQuery
+      bind:selectedGrade
+      bind:selectedSubject
+      selectedTopic={selectedTopic}
+      {filterCollapsed}
+      {availableTopics}
+      {availableGrades}
+      {availableSubjects}
+      {allGroups}
+      onTopicChange={(topic) => (selectedTopic = topic)}
+    />
 
-      <div class="filter-selects">
-        {#if availableGrades.length > 0}
-          <div class="select-group">
-            <label for="grade-select">Grade:</label>
-            <select id="grade-select" bind:value={selectedGrade}>
-              <option value="ALL">All Grades</option>
-              {#each availableGrades as g}
-                <option value={g}>Grade {g}</option>
-              {/each}
-            </select>
-          </div>
-        {/if}
-
-        {#if availableSubjects.length > 0}
-          <div class="select-group">
-            <label for="subject-select">Subject:</label>
-            <select id="subject-select" bind:value={selectedSubject}>
-              <option value="ALL">All Subjects</option>
-              {#each availableSubjects as s}
-                <option value={s}>{s}</option>
-              {/each}
-            </select>
-          </div>
-        {/if}
-      </div>
-
-      <div class="topic-pills">
-        <button
-          class="pill"
-          class:active={selectedTopic === "ALL"}
-          on:click={() => (selectedTopic = "ALL")}
-        >
-          All Topics ({allGroups.length})
-        </button>
-        {#each availableTopics as topic}
-          {@const groupCount = allGroups.filter((g) => g.topicTag === topic).length}
-          <button
-            class="pill"
-            class:active={selectedTopic === topic}
-            on:click={() => (selectedTopic = topic)}
-          >
-            {topic} ({groupCount})
-          </button>
-        {/each}
-      </div>
-    </div>
-
-    {#if isLoading}
-      <div class="loading is-loading">Loading exercise library...</div>
-    {:else if filteredGroups.length === 0}
-      <div class="empty-state">
-        <p>No exercises found matching your criteria.</p>
-        <button class="create-btn" on:click={openCreateModal}
-          >Create First Exercise</button
-        >
-      </div>
-    {:else}
-      <div class="exercise-group-list">
-        {#each filteredGroups as group}
-          {@const rep = getGroupRepresentative(group)}
-          {@const variantCount = group.variants.size}
-          {@const isExpanded = !!expandedGroups[group.groupId]}
-          <div class="exercise-group-card">
-          <!-- ── Group Header (always visible) ── -->
-          <div
-            class="group-header"
-            role="button"
-            tabindex="0"
-            aria-expanded={isExpanded}
-            on:click={() => toggleGroup(group.groupId)}
-            on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleGroup(group.groupId); } }}
-          >
-            <div class="group-title-row">
-              <h3>{group.name || "Untitled"}</h3>
-              <div class="group-meta">
-                {#if group.topicTag}
-                  <span class="topic-badge">{group.topicTag}</span>
-                {/if}
-                {#if rep?.grade}
-                  <span class="meta-badge grade-badge">Klasse {rep.grade}</span>
-                {/if}
-                {#if rep?.subject}
-                  <span class="meta-badge subject-badge">{rep.subject}</span>
-                {/if}
-                <span class="score-badge">
-                  {group.variants.size > 1 && group.minPoints !== group.maxPoints
-                    ? `${group.minPoints}-${group.maxPoints} Pkt`
-                    : `${group.maxPoints} Pkt`}
-                </span>
-                <span class="variant-count-badge">{variantCount} variant{variantCount !== 1 ? 's' : ''}</span>
-                <button
-                  class="group-action-btn edit-group-btn"
-                  title="Edit Group Metadata (Name, Topic Tag, Grade, Subject)"
-                  aria-label="Edit Group Metadata"
-                  on:click|stopPropagation={() => openGroupModal(group)}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <!-- Variant pills row (collapsed preview) -->
-            {#if !isExpanded}
-              <div class="variant-pills-row">
-                {#each group.variants.keys() as vKey}
-                  {@const vMembers = group.variants.get(vKey) || []}
-                  {@const latestVer = vMembers[0]?.version || 1}
-                  <span class="variant-pill{vKey !== '_General' ? ' has-variant' : ''}">
-                    {vKey} <strong>v{latestVer}</strong>
-                  </span>
-                {/each}
-              </div>
-            {/if}
-
-            <button class="expand-toggle" class:expanded={isExpanded}>
-              {isExpanded ? '▲' : '▼'}
-            </button>
-          </div>
-
-          <!-- ── Expanded Body ── -->
-          {#if isExpanded}
-            <div class="group-body">
-              {#each group.variants as [vKey, vMembers]}
-                <div class="variant-section">
-                  <div class="variant-header">
-                    <span class="variant-label{vKey !== '_General' ? ' has-variant' : ''}">
-                      {vKey}
-                    </span>
-                    <span class="variant-version">v{vMembers[0]?.version || 1}{vMembers[0]?.isCurrent ? ' ← current' : ''}</span>
-                  </div>
-
-                  {#each vMembers as member}
-                    <div class="variant-member">
-                      <div class="member-info">
-                        <span class="member-version-badge">v{member.version}</span>
-                        {#if member.isCurrent}
-                          <span class="current-tag">current</span>
-                        {/if}
-                      </div>
-
-                      <div class="snippet-preview">
-                        <LatexViewer code={(member.ex.latexBody || "").slice(0, 150) + "..."} snippet={true} />
-                      </div>
-
-                      <div class="member-actions">
-                        <button
-                          class="action-btn edit-btn"
-                          title="Edit exercise"
-                          on:click={() => openEditModal(member.ex)}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                          </svg>
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          class="action-btn version-btn"
-                          title="Create new version"
-                          on:click={() => openNewVersionModal(member.ex)}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <line x1="12" y1="18" x2="12" y2="12"></line>
-                            <line x1="9" y1="15" x2="15" y2="15"></line>
-                          </svg>
-                          <span>+Ver</span>
-                        </button>
-                        <button
-                          class="action-btn diff-btn"
-                          title="Compare LaTeX diff"
-                          on:click={() => openDiffModal(member.ex)}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M16 3h5v5"></path>
-                            <path d="M8 21H3v-5"></path>
-                            <path d="M21 3L14 10"></path>
-                            <path d="M3 21l7-7"></path>
-                          </svg>
-                          <span>Diff</span>
-                        </button>
-                        <button
-                          class="action-btn regroup-btn"
-                          title="Re-group exercise"
-                          on:click={() => openRegroupModal(member.ex)}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M14 4h6v6"></path>
-                            <path d="M10 20H4v-6"></path>
-                            <path d="M20 4L14 10"></path>
-                            <path d="M4 20l6-6"></path>
-                          </svg>
-                          <span>Regroup</span>
-                        </button>
-                        <button
-                          class="action-btn delete-btn"
-                          title="Delete exercise"
-                          on:click={() => openDeleteModal(member.ex)}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  {/each}
-                </div>
-              {/each}
-
-              <!-- Group-level actions -->
-              <div class="group-actions">
-                <button
-                  class="group-action-btn edit-group-btn"
-                  title="Edit Group Metadata (Name, Topic Tag, Grade, Subject)"
-                  on:click={() => openGroupModal(group)}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                  </svg>
-                  <span>Edit Group</span>
-                </button>
-                <button
-                  class="group-action-btn variant-btn"
-                  title="Create parallel variant"
-                  on:click={() => openVariantModal(rep)}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="3" width="7" height="7" rx="1"></rect>
-                    <rect x="14" y="3" width="7" height="7" rx="1"></rect>
-                    <rect x="14" y="14" width="7" height="7" rx="1"></rect>
-                    <path d="M6 10v7a2 2 0 0 0 2 2h6"></path>
-                  </svg>
-                  <span>+ Variant</span>
-                </button>
-                <button
-                  class="group-action-btn version-btn"
-                  title="Create new version of first variant"
-                  on:click={() => openNewVersionModal(rep)}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <line x1="12" y1="18" x2="12" y2="12"></line>
-                    <line x1="9" y1="15" x2="15" y2="15"></line>
-                  </svg>
-                  <span>+ Version</span>
-                </button>
-              </div>
-            </div>
-          {/if}
-        </div>
-      {/each}
-    </div>
-  {/if}
+    <ExerciseGroupList
+      {isLoading}
+      {filteredGroups}
+      {expandedGroups}
+      onToggleGroup={toggleGroup}
+      onEditGroup={openGroupModal}
+      onEditExercise={openEditModal}
+      onNewVersion={openNewVersionModal}
+      onDiff={openDiffModal}
+      onRegroup={openRegroupModal}
+      onDelete={openDeleteModal}
+      onOpenVariant={openVariantModal}
+      onCreateFirst={openCreateModal}
+    />
   </div>
 </div>
 
-{#if isVariantModalOpen && variantBaseEx}
-  <div
-    class="modal-backdrop"
-    role="button"
-    tabindex="-1"
-    on:click|self={requestCloseVariantModal}
-    on:keydown|self={(e) => e.key === "Escape" && requestCloseVariantModal()}
-  >
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Create Parallel Exercise Variant</h3>
-        <button class="close-btn" on:click={requestCloseVariantModal}
-          >✕</button
-        >
-      </div>
-
-      <div class="modal-body">
-        <p class="desc-text">
-          Variants share the same exercise group metadata but use a different
-          theme (e.g. Möbel, Fahrzeug, Wildtier).
-        </p>
-
-        <div class="live-notice" style="margin-bottom: 1rem;">
-          📌 Group Context: <strong>{variantBaseEx.name}</strong> ({variantBaseEx.topicTag || '_General'}{variantBaseEx.grade ? `, Klasse ${variantBaseEx.grade}` : ''})
-        </div>
-
-        <div class="form-group">
-          <label for="variantKey">Variant Theme / Key</label>
-          <input
-            id="variantKey"
-            type="text"
-            bind:value={variantKey}
-            placeholder="e.g. Moebel, Fahrzeug, Wildtier"
-            required
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="variantBody"
-            >LaTeX Body (\\begin&#123;Aufgabe&#125;...)</label
-          >
-          <LatexEditor bind:value={variantLatexBody} rows={8} />
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="cancel-btn" on:click={requestCloseVariantModal}
-          >Cancel</button
-        >
-        <button class="save-btn" on:click={handleSaveVariant}
-          >Save Variant</button
-        >
-      </div>
-    </div>
-  </div>
-{/if}
-
-<ConfirmDialog
-  isOpen={showVariantConfirmClose}
-  title="Discard Variant Changes?"
-  message="You have unsaved changes in this variant form. Discarding will lose your changes."
-  confirmText="Discard Changes"
-  cancelText="Keep Editing"
-  on:confirm={forceCloseVariantModal}
-  on:cancel={() => (showVariantConfirmClose = false)}
+<VariantModal
+  isOpen={isVariantModalOpen}
+  {variantBaseEx}
+  bind:variantKey
+  bind:variantLatexBody
+  showConfirmClose={showVariantConfirmClose}
+  onRequestClose={requestCloseVariantModal}
+  onSave={handleSaveVariant}
+  onForceCloseConfirm={forceCloseVariantModal}
+  onCancelConfirmClose={() => (showVariantConfirmClose = false)}
 />
 
 <ExerciseEditorModal
@@ -1573,282 +816,55 @@
   on:save={handleExerciseSaved}
 />
 
-<!-- EDIT GROUP METADATA MODAL -->
-{#if isGroupModalOpen && editingGroup}
-  <div
-    class="modal-backdrop"
-    role="button"
-    tabindex="-1"
-    on:click|self={() => (isGroupModalOpen = false)}
-    on:keydown|self={(e) => e.key === "Escape" && (isGroupModalOpen = false)}
-  >
-    <div class="modal-content small-modal">
-      <div class="modal-header">
-        <h3>Edit Exercise Group Metadata</h3>
-        <button class="close-btn" on:click={() => (isGroupModalOpen = false)}>✕</button>
-      </div>
+<GroupEditModal
+  isOpen={isGroupModalOpen}
+  {editingGroup}
+  bind:groupEditorName
+  bind:groupEditorTopicTag
+  bind:groupEditorGrade
+  bind:groupEditorSubject
+  {isGroupSaving}
+  onSave={handleSaveGroupMetadata}
+  onClose={() => (isGroupModalOpen = false)}
+/>
 
-      <div class="modal-body">
-        <div class="live-notice" style="margin-bottom: 1rem;">
-          ℹ️ Changes apply to all variants ({editingGroup.allMembers.length}) in this group.
-        </div>
+<RegroupModal
+  isOpen={isRegroupModalOpen}
+  {regroupingExercise}
+  bind:regroupTargetGroupId
+  groups={allGroups}
+  onSave={handleSaveRegroup}
+  onClose={() => (isRegroupModalOpen = false)}
+/>
 
-        <div class="form-group">
-          <label for="groupEditorName">Exercise Group Name</label>
-          <input
-            id="groupEditorName"
-            type="text"
-            bind:value={groupEditorName}
-            required
-          />
-        </div>
+<DeleteExerciseModal
+  isOpen={isDeleteModalOpen}
+  {deletingExercise}
+  {isDeleteLoading}
+  {deleteUsageInfo}
+  onConfirm={handleConfirmDelete}
+  onClose={() => (isDeleteModalOpen = false)}
+/>
 
-        <div class="form-group">
-          <label for="groupEditorTopic">Topic Tag</label>
-          <input
-            id="groupEditorTopic"
-            type="text"
-            bind:value={groupEditorTopicTag}
-            placeholder="_Vererbung"
-            required
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="groupEditorGrade">Grade / Klasse</label>
-          <input
-            id="groupEditorGrade"
-            type="text"
-            bind:value={groupEditorGrade}
-            placeholder="e.g. 10, 10a, 12"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="groupEditorSubject">Subject / Fach</label>
-          <input
-            id="groupEditorSubject"
-            type="text"
-            bind:value={groupEditorSubject}
-            placeholder="e.g. Informatik, Mathematik"
-          />
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="cancel-btn" on:click={() => (isGroupModalOpen = false)}>Cancel</button>
-        <button class="save-btn" on:click={handleSaveGroupMetadata} disabled={isGroupSaving}>
-          {isGroupSaving ? "Saving..." : "Save Group Metadata"}
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
-
-<!-- RE-GROUP MODAL -->
-{#if isRegroupModalOpen && regroupingExercise}
-  <div
-    class="modal-backdrop"
-    on:click|self={() => (isRegroupModalOpen = false)}
-    on:keydown|self={(e) => e.key === "Escape" && (isRegroupModalOpen = false)}
-    tabindex="-1"
-    role="dialog"
-  >
-    <div class="modal-content small-modal">
-      <div class="modal-header">
-        <h3>Re-group Exercise</h3>
-        <button class="close-btn" on:click={() => (isRegroupModalOpen = false)}>✕</button>
-      </div>
-
-      <div class="modal-body">
-        <p style="margin-top: 0; margin-bottom: 1.25rem; color: #e2e8f0;">
-          Move <strong>{regroupingExercise.name}</strong> to a different variant group.
-        </p>
-        
-        <div class="form-group">
-          <label for="targetGroup">Target Group</label>
-          <select id="targetGroup" bind:value={regroupTargetGroupId}>
-            <option value="NEW">+ Create New Group</option>
-            {#each groupExercises(exercises) as group}
-              {#if group.groupId !== regroupingExercise.exerciseGroupId}
-                <option value={group.groupId}>{group.name}</option>
-              {/if}
-            {/each}
-          </select>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="cancel-btn" on:click={() => (isRegroupModalOpen = false)}>Cancel</button>
-        <button class="save-btn" on:click={handleSaveRegroup}>Move</button>
-      </div>
-    </div>
-  </div>
-{/if}
-
-{#if isDeleteModalOpen && deletingExercise}
-  <div
-    class="modal-backdrop"
-    role="button"
-    tabindex="-1"
-    on:click|self={() => (isDeleteModalOpen = false)}
-    on:keydown|self={(e) => e.key === "Escape" && (isDeleteModalOpen = false)}
-  >
-    <div class="modal-content small-modal">
-      <div class="modal-header">
-        <h3>Delete Exercise: {deletingExercise.name || "Untitled"}</h3>
-        <button class="close-btn" on:click={() => (isDeleteModalOpen = false)}>✕</button>
-      </div>
-
-      <div class="modal-body">
-        {#if isDeleteLoading}
-          <p>Checking exercise usage in exams...</p>
-        {:else if deleteUsageInfo && deleteUsageInfo.examCount > 0}
-          <div class="warning-box">
-            <h4>⚠️ Warning: Exercise in Use</h4>
-            <p>
-              This exercise is currently referenced in <strong>{deleteUsageInfo.examCount}</strong> exam(s):
-            </p>
-            <ul class="exam-list">
-              {#each deleteUsageInfo.exams as exam}
-                <li>
-                  <strong>{exam.title}</strong>
-                  {#if exam.datum}<span class="exam-date">({exam.datum})</span>{/if}
-                </li>
-              {/each}
-            </ul>
-            <p class="warning-note">
-              Deleting it will permanently remove it from the library and unlink it from these exams.
-            </p>
-          </div>
-        {:else}
-          <p>Are you sure you want to delete this exercise from your library?</p>
-        {/if}
-      </div>
-
-      <div class="modal-footer">
-        <button class="cancel-btn" on:click={() => (isDeleteModalOpen = false)}>Cancel</button>
-        <button class="delete-confirm-btn" on:click={handleConfirmDelete} disabled={isDeleteLoading}>
-          Delete Anyway
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
-
-{#if isDiffModalOpen}
-  <div
-    class="modal-backdrop"
-    role="button"
-    tabindex="-1"
-    on:click|self={requestCloseDiffModal}
-    on:keydown|self={(e) => e.key === "Escape" && requestCloseDiffModal()}
-  >
-    <div class="modal-content large-modal">
-      <div class="modal-header">
-        <h3>Exercise LaTeX Code Diff Comparison</h3>
-        <button class="close-btn" on:click={requestCloseDiffModal}>✕</button>
-      </div>
-
-      <div class="modal-body">
-        <div class="diff-selectors">
-          <div class="diff-select-group">
-            <label for="diffLeftSelect">Base / Left Version:</label>
-            <select id="diffLeftSelect" bind:value={diffLeftId}>
-              {#each activeDiffGroupExercises as ex}
-                <option value={ex.id}>
-                  {getDiffSelectLabel(ex)}
-                </option>
-              {/each}
-            </select>
-          </div>
-
-          <div class="diff-select-group">
-            <label for="diffRightSelect">Compared / Right Version:</label>
-            <select id="diffRightSelect" bind:value={diffRightId}>
-              {#each activeDiffGroupExercises as ex}
-                <option value={ex.id}>
-                  {getDiffSelectLabel(ex)}
-                </option>
-              {/each}
-            </select>
-          </div>
-        </div>
-
-        <div class="diff-panes">
-          <div class="diff-pane">
-            <div class="diff-pane-header">
-              <h4>Left: {diffLeftEx?.name || "Original"} (v{diffLeftEx?.version || 1})</h4>
-              <div class="pane-controls">
-                {#if isDiffLeftDirty}
-                  <button
-                    type="button"
-                    class="save-pane-btn"
-                    on:click={handleSaveDiffLeft}
-                    disabled={isSavingDiffLeft}
-                  >
-                    {isSavingDiffLeft ? "Saving..." : "Save Left"}
-                  </button>
-                {/if}
-              </div>
-            </div>
-
-            <div class="diff-editor-wrapper">
-              <LatexEditor
-                bind:this={diffLeftEditor}
-                bind:value={diffLeftLatex}
-                rows={16}
-                diffDecorations={leftDiffDecorations}
-                on:scroll={handleDiffLeftScroll}
-              />
-            </div>
-          </div>
-
-          <div class="diff-pane">
-            <div class="diff-pane-header">
-              <h4>Right: {diffRightEx?.name || "Compared"} (v{diffRightEx?.version || 1})</h4>
-              <div class="pane-controls">
-                {#if isDiffRightDirty}
-                  <button
-                    type="button"
-                    class="save-pane-btn"
-                    on:click={handleSaveDiffRight}
-                    disabled={isSavingDiffRight}
-                  >
-                    {isSavingDiffRight ? "Saving..." : "Save Right"}
-                  </button>
-                {/if}
-              </div>
-            </div>
-
-            <div class="diff-editor-wrapper">
-              <LatexEditor
-                bind:this={diffRightEditor}
-                bind:value={diffRightLatex}
-                rows={16}
-                diffDecorations={rightDiffDecorations}
-                on:scroll={handleDiffRightScroll}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="cancel-btn" on:click={requestCloseDiffModal}>Close</button>
-      </div>
-    </div>
-  </div>
-{/if}
-
-<ConfirmDialog
-  isOpen={showDiffConfirmClose}
-  title="Discard Unsaved Diff Changes?"
-  message="You have unsaved changes in the LaTeX diff editor. Discarding will lose your changes."
-  confirmText="Discard Changes"
-  cancelText="Keep Editing"
-  on:confirm={forceCloseDiffModal}
-  on:cancel={() => (showDiffConfirmClose = false)}
+<ExerciseDiffModal
+  isOpen={isDiffModalOpen}
+  {activeDiffGroupExercises}
+  bind:diffLeftId
+  bind:diffRightId
+  {diffLeftEx}
+  {diffRightEx}
+  bind:diffLeftLatex
+  bind:diffRightLatex
+  {isDiffLeftDirty}
+  {isDiffRightDirty}
+  {isSavingDiffLeft}
+  {isSavingDiffRight}
+  onSaveLeft={handleSaveDiffLeft}
+  onSaveRight={handleSaveDiffRight}
+  onRequestClose={requestCloseDiffModal}
+  showConfirmClose={showDiffConfirmClose}
+  onForceCloseConfirm={forceCloseDiffModal}
+  onCancelConfirmClose={() => (showDiffConfirmClose = false)}
 />
 
 <style>
@@ -1890,14 +906,6 @@
     background: #0369a1;
   }
 
-  .filter-sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    position: sticky;
-    top: 0.5rem;
-  }
-
   .library-layout {
     display: grid;
     grid-template-columns: 200px 1fr;
@@ -1922,383 +930,12 @@
     .library-layout {
       grid-template-columns: 1fr;
     }
-    .filter-sidebar {
-      position: static;
-    }
   }
 
   @media (max-width: 767px) {
     .filter-toggle-btn {
       display: block;
     }
-    .filter-sidebar.collapsed {
-      display: none;
-    }
-  }
-
-  .search-box input {
-    width: 100%;
-    padding: 0.75rem;
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 8px;
-    color: white;
-    box-sizing: border-box;
-  }
-
-  .topic-pills {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    width: 100%;
-  }
-
-  .pill {
-    background: #1e293b;
-    border: 1px solid #334155;
-    color: #cbd5e1;
-    padding: 0.375rem 0.75rem;
-    border-radius: 16px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    width: 100%;
-    text-align: left;
-    box-sizing: border-box;
-  }
-
-  .pill.active {
-    background: #0284c7;
-    border-color: #38bdf8;
-    color: white;
-    font-weight: 600;
-  }
-
-  /* ── Group List Layout ── */
-  .exercise-group-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .exercise-group-card {
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 10px;
-    overflow: hidden;
-  }
-
-  /* ── Group Header ── */
-  .group-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 1.25rem;
-    cursor: pointer;
-    user-select: none;
-    transition: background 0.15s ease;
-  }
-
-  .group-header:hover {
-    background: rgba(56, 189, 248, 0.04);
-  }
-
-  .group-title-row {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .group-title-row h3 {
-    margin: 0;
-    color: #38bdf8;
-    font-size: 1.1rem;
-  }
-
-  .group-meta {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-
-  .topic-badge {
-    background: #334155;
-    color: #cbd5e1;
-    font-size: 0.75rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-  }
-
-  .meta-badge {
-    font-size: 0.75rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-  }
-
-  .grade-badge {
-    background: #1e1b4b;
-    color: #c7d2fe;
-    border: 1px solid #4338ca;
-  }
-
-  .subject-badge {
-    background: #064e3b;
-    color: #a7f3d0;
-    border: 1px solid #047857;
-  }
-
-  .filter-selects {
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-  }
-
-  .select-group {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #cbd5e1;
-    font-size: 0.875rem;
-  }
-
-  .select-group select {
-    background: #1e293b;
-    border: 1px solid #334155;
-    color: white;
-    padding: 0.375rem 0.75rem;
-    border-radius: 6px;
-    font-size: 0.85rem;
-  }
-
-  .score-badge {
-    background: #0369a1;
-    color: #e0f2fe;
-    font-size: 0.75rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-    font-weight: 600;
-  }
-
-  .variant-count-badge {
-    background: #0f172a;
-    color: #94a3b8;
-    font-size: 0.75rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-  }
-
-  /* Variant pills shown in collapsed state */
-  .variant-pills-row {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    margin-top: 0.5rem;
-  }
-
-  .variant-pill {
-    font-size: 0.78rem;
-    padding: 0.2rem 0.6rem;
-    border-radius: 12px;
-    background: #0f172a;
-    color: #94a3b8;
-    border: 1px solid #334155;
-  }
-
-  .variant-pill.has-variant {
-    background: rgba(139, 92, 246, 0.15);
-    color: #c4b5fd;
-    border-color: #8b5cf6;
-  }
-
-  .expand-toggle {
-    background: transparent;
-    border: none;
-    color: #64748b;
-    font-size: 1rem;
-    cursor: pointer;
-    padding: 0.25rem 0.5rem;
-    transition: color 0.15s ease, transform 0.2s ease;
-    flex-shrink: 0;
-    margin-top: 0.25rem;
-  }
-
-  .expand-toggle.expanded {
-    color: #38bdf8;
-  }
-
-  /* ── Group Body (expanded) ── */
-  .group-body {
-    border-top: 1px solid #334155;
-    padding: 1rem 1.25rem 1.25rem;
-    background: rgba(15, 23, 42, 0.3);
-  }
-
-  .variant-section {
-    margin-bottom: 1rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid rgba(51, 65, 85, 0.5);
-  }
-
-  .variant-section:last-of-type {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-  }
-
-  .variant-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .variant-label {
-    font-size: 0.9rem;
-    font-weight: 700;
-    padding: 0.2rem 0.6rem;
-    border-radius: 6px;
-    background: #334155;
-    color: #cbd5e1;
-  }
-
-  .variant-label.has-variant {
-    background: rgba(139, 92, 246, 0.25);
-    color: #ddd6fe;
-  }
-
-  .variant-version {
-    font-size: 0.8rem;
-    color: #64748b;
-  }
-
-  .variant-member {
-    margin-left: 0.5rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .member-info {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    margin-bottom: 0.5rem;
-  }
-
-  .member-version-badge {
-    background: #0f172a;
-    color: #64748b;
-    font-size: 0.75rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-  }
-
-  .current-tag {
-    font-size: 0.7rem;
-    padding: 0.1rem 0.4rem;
-    border-radius: 4px;
-    background: rgba(34, 197, 94, 0.15);
-    color: #86efac;
-    font-weight: 600;
-    text-transform: uppercase;
-  }
-
-  .snippet-preview {
-    background: #0f172a;
-    padding: 0.75rem;
-    border-radius: 6px;
-    margin-bottom: 0.75rem;
-    font-size: 0.8rem;
-    color: #94a3b8;
-    max-height: 80px;
-    overflow: hidden;
-  }
-
-  .member-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.375rem;
-    justify-content: flex-end;
-  }
-
-  /* ── Group-level actions ── */
-  .group-actions {
-    display: flex;
-    gap: 0.5rem;
-    padding-top: 1rem;
-    border-top: 1px dashed rgba(51, 65, 85, 0.6);
-    margin-top: 0.5rem;
-    justify-content: flex-end;
-  }
-
-  .group-action-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.45rem 0.75rem;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    font-size: 0.8rem;
-    font-weight: 600;
-    white-space: nowrap;
-    transition: background 0.15s ease, opacity 0.15s ease;
-  }
-
-  /* ── Action Buttons ── */
-  .action-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.375rem 0.55rem;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    font-size: 0.775rem;
-    font-weight: 600;
-    white-space: nowrap;
-    line-height: 1;
-    transition: background 0.15s ease, opacity 0.15s ease;
-  }
-
-  .action-btn svg {
-    flex-shrink: 0;
-  }
-
-  .edit-btn {
-    background: #334155;
-    color: white;
-  }
-
-  .delete-btn {
-    background: rgba(239, 68, 68, 0.2);
-    color: #fca5a5;
-  }
-
-  .version-btn {
-    background: #334155;
-    color: #38bdf8;
-  }
-
-  .group-action-btn.version-btn {
-    background: #334155;
-    color: #38bdf8;
-  }
-
-  .variant-btn {
-    background: #4c1d95;
-    color: #ddd6fe;
-  }
-
-  .group-action-btn.variant-btn {
-    background: #4c1d95;
-    color: #ddd6fe;
-  }
-
-  .diff-btn {
-    background: #1e3a8a;
-    color: #93c5fd;
   }
 
   /* ── Modal styling ── */
@@ -2450,12 +1087,6 @@
     cursor: pointer;
   }
 
-  .loading,
-  .empty-state {
-    text-align: center;
-    padding: 3rem;
-    color: #94a3b8;
-  }
 
   .delete-confirm-btn {
     background: #dc2626;

@@ -11,6 +11,8 @@
   } from "$lib/stores/storagePolicy";
   import type { StudentRecord } from "$lib/db/schema";
   import { onMount } from "svelte";
+  import SettingsForm from "$lib/components/settings/SettingsForm.svelte";
+  import GdprErasureTable from "$lib/components/settings/GdprErasureTable.svelte";
 
   let students: StudentRecord[] = [];
   let isErasing = false;
@@ -89,122 +91,18 @@
       <div class="status-banner">{statusMsg}</div>
     {/if}
 
-    <div class="card" id="storage-policy">
-      <h3>1. Global Data Storage Strategy</h3>
-      <p class="description">Select where your exams, exercises, student identities, and results are stored:</p>
-      <div class="policy-options">
-        <label class="option-card" class:active={$storagePolicyStore.storageMode === "all-local"}>
-          <input
-            type="radio"
-            name="storageMode"
-            value="all-local"
-            checked={$storagePolicyStore.storageMode === "all-local"}
-            on:change={() => handleStorageModeChange("all-local")}
-          />
-          <div>
-            <strong>All Local (Privacy First)</strong>
-            <p>Exams, exercise library, student identities, and scans stored 100% locally in your browser IndexedDB.</p>
-          </div>
-        </label>
+    <SettingsForm
+      storageMode={$storagePolicyStore.storageMode}
+      latexCompilation={$storagePolicyStore.latexCompilation}
+      onStorageModeChange={handleStorageModeChange}
+      onLatexChange={handleLatexChange}
+    />
 
-        <label class="option-card" class:active={$storagePolicyStore.storageMode === "all-server"}>
-          <input
-            type="radio"
-            name="storageMode"
-            value="all-server"
-            checked={$storagePolicyStore.storageMode === "all-server"}
-            on:change={() => handleStorageModeChange("all-server")}
-          />
-          <div>
-            <strong>All Server</strong>
-            <p>All data synchronized and stored on the secure BlindGrade server.</p>
-          </div>
-        </label>
-
-        <label class="option-card" class:active={$storagePolicyStore.storageMode === "hybrid"}>
-          <input
-            type="radio"
-            name="storageMode"
-            value="hybrid"
-            checked={$storagePolicyStore.storageMode === "hybrid"}
-            on:change={() => handleStorageModeChange("hybrid")}
-          />
-          <div>
-            <strong>Hybrid Mode (Library on Server, Results Local)</strong>
-            <p>Exercise library and exam templates on server, but student identities and grade submissions stay 100% on your local device.</p>
-          </div>
-        </label>
-      </div>
-
-      <h3 style="margin-top: 1.5rem;">2. LaTeX Compilation</h3>
-      <p class="description">Select where LaTeX files are compiled (independent of storage strategy):</p>
-      <div class="policy-options">
-        <label class="option-card" class:active={$storagePolicyStore.latexCompilation === "local"}>
-          <input
-            type="radio"
-            name="latexCompilation"
-            value="local"
-            checked={$storagePolicyStore.latexCompilation === "local"}
-            on:change={() => handleLatexChange("local")}
-          />
-          <div>
-            <strong>Local Client (WebAssembly)</strong>
-            <p>Compiles inside your browser without sending source to any server.</p>
-          </div>
-        </label>
-        <label class="option-card" class:active={$storagePolicyStore.latexCompilation === "server"}>
-          <input
-            type="radio"
-            name="latexCompilation"
-            value="server"
-            checked={$storagePolicyStore.latexCompilation === "server"}
-            on:change={() => handleLatexChange("server")}
-          />
-          <div>
-            <strong>Server (Tectonic)</strong>
-            <p>High performance server-side compilation. Requires authenticated account.</p>
-          </div>
-        </label>
-      </div>
-    </div>
-
-
-    <div class="card">
-      <h3>GDPR Art. 17 — Manage Student Identities & Erasure</h3>
-      {#if students.length === 0}
-        <p class="empty">
-          No student identity records stored in current session.
-        </p>
-      {:else}
-        <table class="students-table">
-          <thead>
-            <tr>
-              <th>Pseudonym ID</th>
-              <th>Fallback Code</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each students as st}
-              <tr>
-                <td class="mono">{st.pseudonymId}</td>
-                <td>{st.fallbackCode}</td>
-                <td>
-                  <button
-                    class="erase-btn"
-                    on:click={() =>
-                      handleEraseStudent(st.pseudonymId, st.examId)}
-                    disabled={isErasing}
-                  >
-                    Erase (Art. 17)
-                  </button>
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      {/if}
-    </div>
+    <GdprErasureTable
+      {students}
+      {isErasing}
+      onErase={handleEraseStudent}
+    />
 
     <div class="card danger-card">
       <h3>Session Data Hygiene</h3>
@@ -240,79 +138,8 @@
     border: 1px solid #334155;
   }
 
-  .description {
-    color: #94a3b8;
-    font-size: 0.9rem;
-    margin-bottom: 1.25rem;
-  }
-
-  .policy-options {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    width: 100%;
-  }
-
-  .option-card {
-    width: 100%;
-    box-sizing: border-box;
-    display: flex;
-    gap: 0.75rem;
-    align-items: flex-start;
-    background: #0f172a;
-    border: 1px solid #334155;
-    padding: 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-
-  .option-card.active {
-    border-color: #38bdf8;
-    background: rgba(56, 189, 248, 0.05);
-  }
-
-  .option-card strong {
-    color: #f8fafc;
-    display: block;
-    margin-bottom: 0.25rem;
-  }
-
-  .option-card p {
-    margin: 0;
-    font-size: 0.85rem;
-    color: #94a3b8;
-  }
-
   .danger-card {
     border-color: #ef4444;
-  }
-
-  .students-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 1rem;
-  }
-
-  th,
-  td {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid #334155;
-  }
-
-  .mono {
-    font-family: monospace;
-    font-size: 0.875rem;
-    color: #38bdf8;
-  }
-
-  .erase-btn {
-    background: #ef4444;
-    color: white;
-    border: none;
-    padding: 0.375rem 0.75rem;
-    border-radius: 4px;
-    cursor: pointer;
   }
 
   .clear-btn {
@@ -331,11 +158,6 @@
     padding: 0.75rem;
     border-radius: 6px;
     margin-bottom: 1.5rem;
-  }
-
-  .empty {
-    color: #94a3b8;
-    font-size: 0.875rem;
   }
 
   .modal-backdrop {

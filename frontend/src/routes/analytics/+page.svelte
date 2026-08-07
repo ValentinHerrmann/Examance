@@ -8,35 +8,11 @@
   import type { ExamRecord, ExerciseRecord } from '$lib/db/schema';
   import { loadExamsEncrypted, loadExercisesEncrypted, decryptExercise, decryptScore } from '$lib/db/dbEncryption';
   import { submissionRepository } from '$lib/repositories/submissionRepository';
-
-  interface ExercisePerformance {
-    id: string;
-    name: string;
-    topicTag?: string;
-    grade?: string;
-    subject?: string;
-    totalAppeared: number;
-    avgScorePercent: number | null;
-    flaggedProblematic: boolean;
-  }
-
-  interface VariantDetail {
-    exerciseId: string;
-    variantKey: string;
-    name: string;
-    maxPoints: number;
-    totalAppeared: number;
-    avgScorePercent: number | null;
-  }
-
-  interface VariantGroupComparison {
-    groupId: string;
-    groupName: string;
-    topicTag?: string;
-    variants: VariantDetail[];
-    maxDeltaPercent: number | null;
-    flaggedFairnessIssue: boolean;
-  }
+  import type { ExercisePerformance, VariantDetail, VariantGroupComparison } from '$lib/analytics/analyticsTypes';
+  import AnalyticsStateBanner from '$lib/components/analytics/AnalyticsStateBanner.svelte';
+  import KpiSummaryBar from '$lib/components/analytics/KpiSummaryBar.svelte';
+  import VariantFairnessTable from '$lib/components/analytics/VariantFairnessTable.svelte';
+  import ExerciseQualityTable from '$lib/components/analytics/ExerciseQualityTable.svelte';
 
   let isInitializing = true;
   let activeLoadPromise: Promise<void> | null = null;
@@ -151,10 +127,14 @@
       }
     }
 
-    // Group scores by exercise ID (include every individually graded exercise)
+    // Only include scores from graded submissions to avoid stale/orphaned scores
+    // from ungraded submissions polluting the analytics
+    const gradedSubmissionIds = new Set(gradedSubmissions.map((s) => s.id));
+
+    // Group scores by exercise ID (only from graded submissions)
     const scoresByExercise = new Map<string, number[]>();
     for (const sc of allScores) {
-      if (typeof sc.score === 'number' && !isNaN(sc.score)) {
+      if (typeof sc.score === 'number' && !isNaN(sc.score) && gradedSubmissionIds.has(sc.submissionId)) {
         if (!scoresByExercise.has(sc.exerciseId)) {
           scoresByExercise.set(sc.exerciseId, []);
         }
@@ -372,246 +352,34 @@
   </div>
 
   {#if isInitializing}
-    <div class="loading-state">
-      <p>Loading analytics data across all exams...</p>
-    </div>
+    <AnalyticsStateBanner variant="loading" />
   {:else if !$isUnlocked}
-    <div class="locked-state">
-      <h2>Session Locked</h2>
-      <p>Please unlock your session to access global analytics.</p>
-      <a href="/unlock" class="unlock-link">Unlock Session</a>
-    </div>
+    <AnalyticsStateBanner variant="locked" />
   {:else}
     <!-- KPI Overview Row -->
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <span class="kpi-title">Total Analyzed Exams</span>
-        <span class="kpi-value">{exams.length}</span>
-      </div>
-
-      <div class="kpi-card">
-        <span class="kpi-title">Submissions Processed</span>
-        <span class="kpi-value">{totalSubmissionsCount}</span>
-        <span class="kpi-sub">({gradedSubmissionsCount} graded)</span>
-      </div>
-
-      <div class="kpi-card">
-        <span class="kpi-title">Avg. Score (pts)</span>
-        <span class="kpi-value">
-          {overallAvgScore !== null ? `${overallAvgScore} pts` : 'N/A'}
-        </span>
-        <span class="kpi-sub">{overallAvgScore !== null ? 'Across graded exams' : 'No scores recorded'}</span>
-      </div>
-
-      <div class="kpi-card danger-card">
-        <span class="kpi-title">Flagged Exercises (&lt; 60%)</span>
-        <span class="kpi-value">{exerciseStats.filter((e) => e.flaggedProblematic).length}</span>
-      </div>
-    </div>
-
-    {#if gradedSubmissionsCount === 0}
-      <div class="notice-banner">
-        ℹ️ <strong>No graded submissions recorded yet.</strong> As student scans are uploaded and scored, real-time cross-exam averages, quality metrics, and variant difficulty comparisons will automatically calculate below.
-      </div>
-    {/if}
+    <KpiSummaryBar
+      examsCount={exams.length}
+      {totalSubmissionsCount}
+      {gradedSubmissionsCount}
+      {overallAvgScore}
+      flaggedCount={exerciseStats.filter((e) => e.flaggedProblematic).length}
+    />
 
     <div class="analytics-sections-grid">
       <!-- Section 1: Variant Fairness & Difficulty Comparison -->
-      <div class="section-card margin-bottom">
-        <div class="section-header-row">
-          <div class="section-title-group">
-            <h3>🔀 Exercise Variant Difficulty & Fairness Comparison</h3>
-            <p>Compare performance between different question variants (e.g. Gruppe A vs Gruppe B) to detect unintended difficulty imbalances.</p>
-          </div>
-          {#if variantGroups.some((g) => g.variants.some((v) => v.avgScorePercent === null))}
-            <button
-              class="toggle-btn"
-              on:click={() => (showAllExercises = !showAllExercises)}
-            >
-              {showAllExercises ? 'Show Only Graded Exercises' : 'Show All Exercises (Inc. Ungraded)'}
-            </button>
-          {/if}
-        </div>
+      <VariantFairnessTable
+        {variantGroups}
+        {displayedVariantGroups}
+        bind:showAll={showAllExercises}
+      />
 
-        {#if displayedVariantGroups.length === 0}
-          <div class="empty-analytics-box">
-            <div class="empty-icon">🔀</div>
-            <h4>No Multi-Variant Exercise Groups Configured</h4>
-            <p>
-              {#if variantGroups.length > 0}
-                {variantGroups.length} multi-variant question group(s) are linked to your exams, but none have student grades recorded yet.
-              {:else}
-                When you create exercises with variants (e.g. Variant A & Variant B for different test groups), side-by-side fairness ratings and difficulty delta metrics will appear here.
-              {/if}
-            </p>
-            {#if variantGroups.length > 0}
-              <button
-                class="secondary-toggle-btn"
-                on:click={() => (showAllExercises = !showAllExercises)}
-              >
-                {showAllExercises ? 'Hide Ungraded Exercises' : `Show All ${variantGroups.length} Variant Groups`}
-              </button>
-            {/if}
-          </div>
-        {:else}
-          <div class="variant-groups-list">
-            {#each displayedVariantGroups as vGroup}
-              <div class="variant-group-card" class:fairness-warning={vGroup.flaggedFairnessIssue}>
-                <div class="variant-group-header">
-                  <div>
-                    <h4>{vGroup.groupName}</h4>
-                    {#if vGroup.topicTag}
-                      <span class="tag">{vGroup.topicTag}</span>
-                    {/if}
-                  </div>
-                  {#if vGroup.maxDeltaPercent !== null}
-                    <div class="delta-badge" class:warning={vGroup.flaggedFairnessIssue}>
-                      {#if vGroup.flaggedFairnessIssue}
-                        ⚠️ {vGroup.maxDeltaPercent}% Difficulty Disparity
-                      {:else}
-                        ✓ {vGroup.maxDeltaPercent}% Variance (Balanced)
-                      {/if}
-                    </div>
-                  {:else if vGroup.variants.some((v) => v.avgScorePercent !== null)}
-                    <span class="status-badge neutral">Partial Data (1 Variant Graded)</span>
-                  {:else}
-                    <span class="status-badge neutral">Awaiting Grading Scores</span>
-                  {/if}
-                </div>
-
-              <table class="analytics-table compact">
-                <thead>
-                  <tr>
-                    <th>Variant Key</th>
-                    <th>Max Points</th>
-                    <th>Avg Score %</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each vGroup.variants as v}
-                    <tr>
-                      <td class="variant-key-cell">
-                        <span class="variant-badge">{v.variantKey}</span>
-                      </td>
-                      <td>{v.maxPoints} Pkt</td>
-                      <td>
-                        {#if v.avgScorePercent !== null}
-                          <div class="score-bar-container">
-                            <div
-                              class="score-bar"
-                              style="width: {v.avgScorePercent}%"
-                              class:low-bar={v.avgScorePercent < 60}
-                            ></div>
-                            <span class="score-text">{v.avgScorePercent}%</span>
-                          </div>
-                        {:else}
-                          <span class="no-data-text">N/A (Not Graded)</span>
-                        {/if}
-                      </td>
-                      <td>
-                        {#if v.avgScorePercent === null}
-                          <span class="status-badge neutral">No Graded Data</span>
-                        {:else if v.avgScorePercent < 60}
-                          <span class="status-badge danger">Harder Variant</span>
-                        {:else}
-                          <span class="status-badge success">Normal Range</span>
-                        {/if}
-                      </td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </div>
-
-    <!-- Section 2: Cross-Exam Exercise Quality Metrics -->
-    <div class="section-card">
-      <div class="section-header-row">
-        <div class="section-title-group">
-          <h3>📈 Exercise & Question Quality Metrics</h3>
-          <p>Identify questions that consistently produce low average scores across multiple years or exam sessions.</p>
-        </div>
-
-        {#if exerciseStats.some((e) => e.avgScorePercent === null)}
-          <button
-            class="toggle-btn"
-            on:click={() => (showAllExercises = !showAllExercises)}
-          >
-            {showAllExercises ? 'Show Only Graded Exercises' : 'Show All Exercises (Inc. Ungraded)'}
-          </button>
-        {/if}
-      </div>
-
-      {#if displayedExerciseStats.length === 0}
-        <div class="empty-analytics-box">
-          <div class="empty-icon">📊</div>
-          <h4>No Graded Exercise Performance Data Available</h4>
-          <p>
-            {#if exerciseStats.length > 0}
-              {exerciseStats.length} question(s) are linked across your {exams.length} exam(s), but none have student grades recorded yet.
-            {:else}
-              No exercises have been linked to your exams yet.
-            {/if}
-          </p>
-          {#if exerciseStats.length > 0}
-            <button
-              class="secondary-toggle-btn"
-              on:click={() => (showAllExercises = !showAllExercises)}
-            >
-              {showAllExercises ? 'Hide Ungraded Exercises' : `Show All ${exerciseStats.length} Linked Questions`}
-            </button>
-          {/if}
-        </div>
-      {:else}
-        <table class="analytics-table">
-          <thead>
-            <tr>
-              <th>Exercise Name</th>
-              <th>Topic Tag</th>
-              <th>Exams Included</th>
-              <th>Avg Score %</th>
-              <th>Quality Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each displayedExerciseStats as ex}
-              <tr class:problematic-row={ex.flaggedProblematic}>
-                <td class="ex-name">{ex.name}</td>
-                <td><span class="tag">{ex.topicTag || 'General'}</span></td>
-                <td>{ex.totalAppeared} Exam(s)</td>
-                <td>
-                  {#if ex.avgScorePercent !== null}
-                    <div class="score-bar-container">
-                      <div
-                        class="score-bar"
-                        style="width: {ex.avgScorePercent}%"
-                        class:low-bar={ex.flaggedProblematic}
-                      ></div>
-                      <span class="score-text">{ex.avgScorePercent}%</span>
-                    </div>
-                  {:else}
-                    <span class="no-data-text">N/A (Not Graded)</span>
-                  {/if}
-                </td>
-                <td>
-                  {#if ex.avgScorePercent === null}
-                    <span class="status-badge neutral">No Graded Data</span>
-                  {:else if ex.flaggedProblematic}
-                    <span class="status-badge danger">⚠️ High Failure Rate</span>
-                  {:else}
-                    <span class="status-badge success">✓ Balanced</span>
-                  {/if}
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      {/if}
-    </div>
+      <!-- Section 2: Cross-Exam Exercise Quality Metrics -->
+      <ExerciseQualityTable
+        {exerciseStats}
+        {displayedExerciseStats}
+        examsCount={exams.length}
+        bind:showAll={showAllExercises}
+      />
     </div>
   {/if}
 </div>
@@ -651,321 +419,5 @@
     margin: 0.35rem 0 0 0;
     color: #94a3b8;
     font-size: 0.95rem;
-  }
-
-  .loading-state,
-  .locked-state {
-    text-align: center;
-    padding: 4rem 2rem;
-    background: #1e293b;
-    border-radius: 12px;
-    border: 1px dashed #334155;
-  }
-
-  .unlock-link {
-    display: inline-block;
-    margin-top: 1rem;
-    padding: 0.625rem 1.25rem;
-    background: #0284c7;
-    color: white;
-    text-decoration: none;
-    border-radius: 6px;
-    font-weight: 600;
-  }
-
-  .kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1.25rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .kpi-card {
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 10px;
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  .kpi-card.danger-card {
-    border-color: #ef4444;
-    background: rgba(239, 68, 68, 0.1);
-  }
-
-  .kpi-title {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: #94a3b8;
-  }
-
-  .kpi-value {
-    font-size: 2rem;
-    font-weight: 800;
-    color: #f8fafc;
-  }
-
-  .kpi-sub {
-    font-size: 0.75rem;
-    color: #64748b;
-  }
-
-  .notice-banner {
-    background: #1e293b;
-    border: 1px solid #0284c7;
-    color: #cbd5e1;
-    padding: 0.85rem 1.25rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
-    font-size: 0.9rem;
-  }
-
-  .section-card {
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 12px;
-    padding: 1.75rem;
-  }
-
-  .section-card.margin-bottom {
-    margin-bottom: 0;
-  }
-
-  .section-header-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .section-title-group h3 {
-    margin: 0 0 0.35rem 0;
-    font-size: 1.25rem;
-    color: #f8fafc;
-  }
-
-  .section-title-group p {
-    margin: 0;
-    font-size: 0.875rem;
-    color: #94a3b8;
-  }
-
-  .toggle-btn {
-    background: #334155;
-    color: #38bdf8;
-    border: 1px solid #0284c7;
-    padding: 0.45rem 0.85rem;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s ease;
-  }
-
-  .toggle-btn:hover {
-    background: #0284c7;
-    color: white;
-  }
-
-  .empty-analytics-box {
-    text-align: center;
-    padding: 3rem 1.5rem;
-    background: #0f172a;
-    border: 1px dashed #334155;
-    border-radius: 10px;
-    margin-top: 1rem;
-  }
-
-  .empty-icon {
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .empty-analytics-box h4 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.15rem;
-    color: #f8fafc;
-  }
-
-  .empty-analytics-box p {
-    margin: 0 0 1.25rem 0;
-    font-size: 0.9rem;
-    color: #94a3b8;
-    max-width: 540px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .secondary-toggle-btn {
-    background: #0284c7;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .secondary-toggle-btn:hover {
-    background: #0369a1;
-  }
-
-  .variant-groups-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .variant-group-card {
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 10px;
-    padding: 1.25rem;
-  }
-
-  .variant-group-card.fairness-warning {
-    border-color: #eab308;
-  }
-
-  .variant-group-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-  }
-
-  .variant-group-header h4 {
-    margin: 0 0 0.25rem 0;
-    font-size: 1.1rem;
-    color: #38bdf8;
-  }
-
-  .delta-badge {
-    font-size: 0.8rem;
-    font-weight: 600;
-    padding: 0.3rem 0.75rem;
-    border-radius: 6px;
-    background: #1e293b;
-    color: #10b981;
-    border: 1px solid #047857;
-  }
-
-  .delta-badge.warning {
-    background: rgba(234, 179, 8, 0.15);
-    color: #fef08a;
-    border-color: #eab308;
-  }
-
-  .variant-key-cell {
-    width: 130px;
-  }
-
-  .variant-badge {
-    font-size: 0.75rem;
-    font-weight: 700;
-    padding: 0.2rem 0.55rem;
-    background: #0284c7;
-    color: white;
-    border-radius: 4px;
-  }
-
-  .analytics-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.9rem;
-  }
-
-  .analytics-table.compact td,
-  .analytics-table.compact th {
-    padding: 0.65rem 0.85rem;
-  }
-
-  .analytics-table th {
-    text-align: left;
-    padding: 0.75rem 1rem;
-    background: #0f172a;
-    color: #cbd5e1;
-    border-bottom: 1px solid #334155;
-    font-weight: 600;
-  }
-
-  .analytics-table td {
-    padding: 0.85rem 1rem;
-    border-bottom: 1px solid #334155;
-    color: #cbd5e1;
-  }
-
-  .problematic-row {
-    background: rgba(239, 68, 68, 0.05);
-  }
-
-  .ex-name {
-    font-weight: 600;
-    color: #f8fafc;
-  }
-
-  .tag {
-    font-size: 0.75rem;
-    padding: 0.2rem 0.5rem;
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 4px;
-    color: #38bdf8;
-  }
-
-  .score-bar-container {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    width: 160px;
-  }
-
-  .score-bar {
-    height: 8px;
-    background: #10b981;
-    border-radius: 4px;
-    transition: width 0.3s ease;
-  }
-
-  .score-bar.low-bar {
-    background: #ef4444;
-  }
-
-  .score-text {
-    font-weight: 600;
-    font-size: 0.85rem;
-  }
-
-  .no-data-text {
-    color: #64748b;
-    font-size: 0.85rem;
-    font-style: italic;
-  }
-
-  .status-badge {
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.25rem 0.6rem;
-    border-radius: 4px;
-  }
-
-  .status-badge.danger {
-    background: #7f1d1d;
-    color: #fecdd3;
-  }
-
-  .status-badge.success {
-    background: #064e3b;
-    color: #a7f3d0;
-  }
-
-  .status-badge.neutral {
-    background: #334155;
-    color: #94a3b8;
   }
 </style>

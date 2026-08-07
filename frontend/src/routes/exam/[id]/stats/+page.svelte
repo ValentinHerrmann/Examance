@@ -3,32 +3,17 @@
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
   import { afterNavigate } from '$app/navigation';
+  import { get } from 'svelte/store';
+  import StatsPage from '$lib/components/stats/StatsPage.svelte';
   import type { ExamRecord, ExerciseRecord, SubmissionRecord, StudentRecord, ExerciseScoreRecord } from '$lib/db/schema';
-  import {
-    loadExamEncrypted,
-    loadExamExercisesEncrypted,
-    decryptScore,
-  } from '$lib/db/dbEncryption';
+  import { loadExamEncrypted, loadExamExercisesEncrypted, decryptScore } from '$lib/db/dbEncryption';
   import { submissionRepository } from '$lib/repositories/submissionRepository';
   import { studentRepository } from '$lib/repositories/studentRepository';
   import { sessionStore } from '$lib/stores/session';
-  import {
-    calculateSummaryStats,
-    calculateSubmissionPercentage,
-    calculatePercentageHistogram,
-    type SummaryStats,
-    type PercentageHistogramBin,
-  } from '$lib/analytics/stats';
-  import {
-    calculateGradeDistribution,
-    getPresetCutoffs,
-    type GradeDistributionBucket,
-  } from '$lib/analytics/gradingKey';
+  import { calculateSubmissionPercentage, calculatePercentageHistogram, type PercentageHistogramBin } from '$lib/analytics/stats';
+  import { calculateGradeDistribution, getPresetCutoffs, type GradeDistributionBucket } from '$lib/analytics/gradingKey';
   import { exportGradesToCsv } from '$lib/analytics/csvExport';
-  import { get } from 'svelte/store';
   import { db } from '$lib/db/db';
-  import { Chart, Svg, Axis, Bars } from 'layerchart';
-  import { scaleBand } from 'd3-scale';
 
   $: examId = $page.params.id || '';
 
@@ -36,22 +21,13 @@
   let exercises: ExerciseRecord[] = [];
   let submissions: SubmissionRecord[] = [];
   let students: StudentRecord[] = [];
-  let stats: SummaryStats | null = null;
   let showConfirmModal = false;
-
-  // Percentage-based stats (includes partially graded)
   let percentageBins: PercentageHistogramBin[] = [];
   let gradeBuckets: GradeDistributionBucket[] = [];
   let meanPercentage = 0;
   let medianPercentage = 0;
   let stdDevPercentage = 0;
-  // Raw percentages array, used reactively to recalculate grade distribution when grading key changes
   let allPercentages: number[] = [];
-
-  // Chart dimensions (updated on resize)
-  let chartWidth = 700;
-
-  // Track whether data has been loaded to prevent rendering charts with empty data
   let dataLoaded = false;
 
   $: if (browser && examId && $sessionStore.sessionKey) {
@@ -68,10 +44,6 @@
     if (examId && $sessionStore.sessionKey) {
       await loadStats(examId);
     }
-    // Set responsive width
-    if (browser) {
-      chartWidth = Math.min(700, window.innerWidth - 80);
-    }
   });
 
   async function loadStats(id: string) {
@@ -82,20 +54,9 @@
     submissions = await submissionRepository.getByExamId(id, key);
     students = await studentRepository.getByExamId(id, key);
 
-    // --- Legacy stats based on fully graded totalScore ---
-    const scores = submissions
-      .map((s) => s.totalScore)
-      .filter((s): s is number => s !== undefined && s !== null);
-    stats = calculateSummaryStats(scores);
-
-    // --- Percentage-based stats including partially graded submissions ---
     const exerciseMaxPoints = exercises.map((ex) => ex.maxPoints || 0);
-
-    // Load and decrypt all exercise scores, grouped by submissionId
     const rawAllScores = await db.exerciseScores.toArray();
-    const decryptedScores = await Promise.all(
-      rawAllScores.map((sc) => decryptScore(sc, key))
-    );
+    const decryptedScores = await Promise.all(rawAllScores.map((sc) => decryptScore(sc, key)));
     const scoresBySubmission = new Map<string, ExerciseScoreRecord[]>();
     for (const sc of decryptedScores) {
       if (!scoresBySubmission.has(sc.submissionId)) {
@@ -105,18 +66,14 @@
     }
 
     const percentages: number[] = [];
-
     for (const sub of submissions) {
       const rawScores = scoresBySubmission.get(sub.id) || [];
-      // Build a map of exerciseId -> score
       const scoreMap = new Map<string, number>();
       for (const rs of rawScores) {
         if (typeof rs.score === 'number' && !isNaN(rs.score)) {
           scoreMap.set(rs.exerciseId, rs.score);
         }
       }
-
-      // Build ordered score array matching exercise order
       const orderedScores = exercises.map((ex) => scoreMap.get(ex.id) ?? null);
       const entry = calculateSubmissionPercentage(exerciseMaxPoints, orderedScores);
       if (entry) {
@@ -124,19 +81,11 @@
       }
     }
 
-    // Store raw percentages for reactive grade recalculation
     allPercentages = percentages;
-
-    // Calculate percentage histogram
     percentageBins = calculatePercentageHistogram(percentages);
-
-    // Mark data as loaded
     dataLoaded = true;
-
-    // Calculate grade distribution based on exam's grading key
     gradeBuckets = calculateGradeDistribution(percentages, exam?.gradingKey);
 
-    // Calculate mean/median/stdDev of percentages
     if (percentages.length > 0) {
       const sorted = [...percentages].sort((a, b) => a - b);
       const sum = percentages.reduce((a, b) => a + b, 0);
@@ -160,29 +109,10 @@
 
   $: submissionsWithAnyGrade = percentageBins.reduce((sum, b) => sum + b.count, 0);
 
-  // Prepare histogram data for Layerchart (filter out empty bins to prevent NaN errors)
-  $: histogramData = percentageBins
-    .filter((bin) => bin.count > 0)
-    .map((bin) => ({
-      label: `${bin.binStart}-${bin.binEnd}%`,
-      count: bin.count,
-    }));
-
-  // Reactive: recalculate grade distribution whenever grading key or percentages change
-  // Fall back to default linear_50 grading key if none is configured
   $: {
     const effectiveKey = exam?.gradingKey || { preset: 'linear_50' as const, cutoffs: getPresetCutoffs('linear_50') };
     gradeBuckets = calculateGradeDistribution(allPercentages, effectiveKey);
   }
-
-  // Prepare grade data for Layerchart (filter out empty buckets)
-  $: gradeData = gradeBuckets
-    .filter((bucket) => bucket.count > 0)
-    .map((bucket) => ({
-      grade: String(bucket.grade),
-      label: bucket.label,
-      count: bucket.count,
-    }));
 
   async function confirmAndExport() {
     showConfirmModal = false;
@@ -195,366 +125,23 @@
         totalScore: typeof sub?.totalScore === 'number' ? sub.totalScore : 'Ungraded',
       };
     });
-
     await exportGradesToCsv(examId, exam?.title || 'Exam', rows, key);
-  }
-
-  // Chart scales (must be persistent instances, not created inline in template)
-  const histogramXScale = scaleBand();
-  const gradeYScale = scaleBand();
-
-  // Chart color constants
-  const barFill = '#0284c7';
-  const barHoverFill = '#38bdf8';
-  const tickColor = '#94a3b8';
-
-  // Hover handlers typed
-  function handleBarPointerEnter(e: PointerEvent) {
-    const bar = (e.currentTarget as Element).querySelector('rect, path');
-    if (bar) bar.setAttribute('fill', barHoverFill);
-  }
-
-  function handleBarPointerLeave(e: PointerEvent) {
-    const bar = (e.currentTarget as Element).querySelector('rect, path');
-    if (bar) bar.setAttribute('fill', barFill);
   }
 </script>
 
-<div class="stats-page">
-  <h2>Class Grade Analytics & Export</h2>
-
-  {#if submissions.length > 0}
-    <div class="status-banner">
-      <span>
-        Status: <strong>{submissionsWithAnyGrade} von {submissions.length}</strong> Abgaben mit mindestens einer korrigierten Aufgabe.
-      </span>
-      {#if fullyGradedCount < submissionsWithAnyGrade}
-        <span class="partial-indicator">
-          ({submissionsWithAnyGrade - fullyGradedCount} teilweise korrigiert, {fullyGradedCount} vollständig)
-        </span>
-      {/if}
-      {#if submissionsWithAnyGrade < submissions.length}
-        <span class="pending-indicator">
-          ({submissions.length - submissionsWithAnyGrade} noch nicht begonnen)
-        </span>
-      {/if}
-    </div>
-  {/if}
-
-  {#if submissionsWithAnyGrade > 0}
-    <!-- Percentage-based Stats Cards -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <span class="label">Submissions (mit Noten)</span>
-        <span class="value">{submissionsWithAnyGrade}</span>
-      </div>
-      <div class="stat-card">
-        <span class="label">Ø Prozent</span>
-        <span class="value">{meanPercentage}%</span>
-      </div>
-      <div class="stat-card">
-        <span class="label">StdAbw</span>
-        <span class="value">{stdDevPercentage}%</span>
-      </div>
-      <div class="stat-card">
-        <span class="label">Median</span>
-        <span class="value">{medianPercentage}%</span>
-      </div>
-    </div>
-
-    <!-- Percentage Histogram using Layerchart -->
-    <div class="histogram-section">
-      <h3>📊 Prozentverteilung</h3>
-      {#if dataLoaded && histogramData.length > 0}
-        <div class="chart-container histogram-container">
-          <Chart
-            data={histogramData}
-            x="label"
-            y="count"
-            xScale={histogramXScale}
-            yDomain={[0, Math.max(1, ...histogramData.map(d => d.count))]}
-            padding={{ top: 20, right: 20, bottom: 60, left: 50 }}
-            width={chartWidth}
-            height={250}
-          >
-            <Svg>
-              <Axis
-                placement="bottom"
-                tickLength={0}
-                tickLabelProps={{
-                  dy: 12,
-                  transform: 'rotate(-45)',
-                  fill: tickColor,
-                  fontSize: 11,
-                }}
-                rule={{ style: 'stroke: #64748b' }}
-              />
-              <Axis
-                placement="left"
-                tickLength={0}
-                tickLabelProps={{ fill: tickColor, fontSize: 11 }}
-                rule={{ style: 'stroke: #64748b' }}
-                grid={{ style: 'stroke: #334155' }}
-              />
-              <Bars
-                data={histogramData}
-                x="label"
-                y="count"
-                fill={barFill}
-                radius={4}
-                rounded="top"
-                stroke="none"
-                onpointerenter={handleBarPointerEnter}
-                onpointerleave={handleBarPointerLeave}
-              />
-            </Svg>
-          </Chart>
-        </div>
-      {/if}
-    </div>
-
-    <!-- Grade Distribution using Layerchart -->
-    {#if dataLoaded && gradeData.length > 0}
-      <div class="grade-distribution-section">
-        <h3>🎯 Notenverteilung</h3>
-        <p class="grading-key-label">
-          Bewertungsmaßstab: {exam?.gradingKey?.preset === 'linear_50' ? 'Linear (50%)' : exam?.gradingKey?.preset === 'linear_40' ? 'Linear (40%)' : exam?.gradingKey?.preset === 'even_split' ? 'Gleichmäßig' : exam?.gradingKey ? 'Benutzerdefiniert' : 'Standard (50%)'}
-        </p>
-        <div class="chart-container grade-container">
-          <Chart
-            data={gradeData}
-            y="grade"
-            x="count"
-            yScale={gradeYScale}
-            xDomain={[0, Math.max(1, ...gradeData.map(d => d.count))]}
-            padding={{ top: 10, right: 60, bottom: 10, left: 140 }}
-            width={chartWidth}
-            height={Math.max(200, gradeData.length * 50)}
-          >
-            <Svg>
-              <Axis
-                placement="left"
-                tickLength={0}
-                tickLabelProps={{ fill: '#38bdf8', fontSize: 16, fontWeight: 700 }}
-                rule={false}
-              />
-              <Axis
-                placement="bottom"
-                tickLength={0}
-                tickLabelProps={{ fill: tickColor, fontSize: 11 }}
-                rule={{ style: 'stroke: #64748b' }}
-                grid={{ style: 'stroke: #334155' }}
-              />
-              <Bars
-                data={gradeData}
-                y="grade"
-                x="count"
-                fill={barFill}
-                radius={4}
-                rounded="right"
-                stroke="none"
-                onpointerenter={handleBarPointerEnter}
-                onpointerleave={handleBarPointerLeave}
-              />
-            </Svg>
-          </Chart>
-        </div>
-      </div>
-    {/if}
-  {:else}
-    <div class="empty-stats">
-      <p>Noch keine Aufgaben korrigiert. Die Statistiken erscheinen hier, sobald du mit der Korrektur beginnst.</p>
-    </div>
-  {/if}
-
-  <div class="export-section">
-    <button class="export-btn" on:click={() => (showConfirmModal = true)}>
-      Export Grades CSV (Excel Compatible)
-    </button>
-  </div>
-
-  {#if showConfirmModal}
-    <div class="modal-overlay">
-      <div class="modal-card">
-        <h3>Confirm Data Export</h3>
-        <p>
-          You are exporting unencrypted student grade data to CSV.
-          An immutable audit log entry will be created capturing this action.
-        </p>
-        <div class="modal-actions">
-          <button class="cancel-btn" on:click={() => (showConfirmModal = false)}>Cancel</button>
-          <button class="confirm-btn" on:click={confirmAndExport}>
-            I confirm I am authorized to export this data
-          </button>
-        </div>
-      </div>
-    </div>
-  {/if}
-</div>
-
-<style>
-  .stats-page {
-    padding: 1.5rem;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  h2 { color: #38bdf8; }
-
-  .status-banner {
-    margin-bottom: 1rem;
-    color: #94a3b8;
-    font-size: 0.95rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
-  .partial-indicator {
-    color: #fbbf24;
-  }
-
-  .pending-indicator {
-    color: #64748b;
-  }
-
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    margin-bottom: 2rem;
-  }
-
-  @media (max-width: 768px) {
-    .stats-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-
-  .stat-card {
-    background: #1e293b;
-    padding: 1.25rem;
-    border-radius: 8px;
-    text-align: center;
-    border: 1px solid #334155;
-  }
-
-  .stat-card .label { font-size: 0.75rem; color: #94a3b8; display: block; }
-  .stat-card .value { font-size: 1.75rem; font-weight: 700; color: #38bdf8; }
-
-  .histogram-section {
-    background: #0f172a;
-    padding: 1.5rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
-  }
-
-  .histogram-section h3 {
-    margin-top: 0;
-    color: #f8fafc;
-  }
-
-  .chart-container {
-    margin-top: 1rem;
-    overflow: hidden;
-    position: relative;
-  }
-
-   .histogram-container {
-    height: 290px;
-  }
-
-  .grade-container {
-    height: 350px;
-  }
-
-  /* Grade Distribution */
-  .grade-distribution-section {
-    background: #0f172a;
-    padding: 1.5rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
-  }
-
-  .grade-distribution-section h3 {
-    margin-top: 0;
-    color: #f8fafc;
-  }
-
-  .grading-key-label {
-    font-size: 0.8rem;
-    color: #64748b;
-    margin-bottom: 1rem;
-  }
-
-  .empty-stats {
-    background: #1e293b;
-    padding: 2rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
-    text-align: center;
-    color: #64748b;
-    border: 1px dashed #334155;
-  }
-
-  .export-btn {
-    padding: 0.875rem 1.5rem;
-    background: #0284c7;
-    color: white;
-    font-weight: 600;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-  .export-btn:hover {
-    background: #0369a1;
-  }
-
-  .modal-overlay {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.7);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .modal-card {
-    background: #1e293b;
-    padding: 2rem;
-    border-radius: 10px;
-    max-width: 450px;
-    border: 1px solid #334155;
-  }
-
-  .modal-card h3 {
-    color: #38bdf8;
-    margin-top: 0;
-  }
-
-  .modal-card p {
-    color: #cbd5e1;
-  }
-
-  .modal-actions {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1.5rem;
-  }
-
-  .cancel-btn, .confirm-btn {
-    padding: 0.625rem 1rem;
-    border: none;
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-    color: white;
-  }
-
-  .cancel-btn { background: #334155; }
-  .cancel-btn:hover { background: #475569; }
-  .confirm-btn { background: #0284c7; }
-  .confirm-btn:hover { background: #0369a1; }
-</style>
+<StatsPage
+  {submissionsWithAnyGrade}
+  submissionsLength={submissions.length}
+  {fullyGradedCount}
+  {meanPercentage}
+  {stdDevPercentage}
+  {medianPercentage}
+  {dataLoaded}
+  {exam}
+  bins={percentageBins}
+  {gradeBuckets}
+  {showConfirmModal}
+  onOpenExport={() => (showConfirmModal = true)}
+  onConfirmExport={confirmAndExport}
+  onCancelExport={() => (showConfirmModal = false)}
+/>
