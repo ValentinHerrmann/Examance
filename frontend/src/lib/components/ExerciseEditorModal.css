@@ -1,0 +1,413 @@
+.exercise-editor-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.exercise-editor-modal-content {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  width: 95vw;
+  max-width: 1700px;
+  height: 92vh;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.exercise-editor-modal-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #334155;
+  flex-shrink: 0;
+  background: #1e293b;
+}
+
+.exercise-editor-modal-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.exercise-editor-modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.exercise-editor-modal-version-badge {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.exercise-editor-modal-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #f1f5f9;
+}
+
+.exercise-editor-modal-close-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.exercise-editor-modal-close-btn:hover {
+  color: #f1f5f9;
+}
+
+.exercise-editor-modal-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+}
+
+.exercise-editor-modal-hdr-group-info {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.exercise-editor-modal-hdr-label {
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.exercise-editor-modal-hdr-name {
+  color: #f1f5f9;
+  font-weight: 600;
+}
+
+.exercise-editor-modal-hdr-pill {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.exercise-editor-modal-hdr-form-grid {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.exercise-editor-modal-hdr-field {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.exercise-editor-modal-hdr-field label {
+  color: #94a3b8;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.exercise-editor-modal-hdr-field input {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  color: #f1f5f9;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.825rem;
+}
+
+.exercise-editor-modal-hdr-field input:focus {
+  outline: none;
+  border-color: #38bdf8;
+}
+
+.exercise-editor-modal-error-banner {
+  background: rgba(239, 68, 68, 0.15);
+  border-left: 4px solid #ef4444;
+  color: #fca5a5;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: "Fira Code", monospace;
+  flex-shrink: 0;
+}
+
+.exercise-editor-modal-body {
+  padding: 1.25rem;
+  overflow: hidden;
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 1100px) {
+  .exercise-editor-modal-body {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+}
+
+.exercise-editor-modal-editor-column {
+  display: flex;
+  flex-direction: column;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.exercise-editor-modal-editor-column.exercise-editor-modal-expanded {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  gap: 0;
+}
+
+.exercise-editor-modal-editor-column.exercise-editor-modal-collapsed {
+  width: 38px;
+  flex: 0 0 38px;
+  min-width: 38px;
+  padding: 0;
+}
+
+.exercise-editor-modal-panel-header-bar {
+  background: #1e293b;
+  border: none;
+  border-bottom: 1px solid #334155;
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.exercise-editor-modal-panel-header-bar:hover {
+  background: #334155;
+}
+
+.exercise-editor-modal-panel-header-bar:hover .exercise-editor-modal-header-icon {
+  color: #38bdf8;
+}
+
+.exercise-editor-modal-header-icon {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #94a3b8;
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.exercise-editor-modal-panel-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.exercise-editor-modal-panel-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  white-space: nowrap;
+}
+
+.exercise-editor-modal-score-indicator-badge {
+  font-size: 0.75rem;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.exercise-editor-modal-score-indicator-badge strong {
+  color: #38bdf8;
+}
+
+.exercise-editor-modal-panel-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.exercise-editor-modal-preview-btn-inline {
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.exercise-editor-modal-preview-btn-inline:hover:not(:disabled) {
+  background: #0369a1;
+}
+
+.exercise-editor-modal-vertical-latex-strip {
+  width: 100%;
+  height: 100%;
+  background: #0f172a;
+  border: none;
+  color: #94a3b8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem 0.2rem;
+  gap: 1rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.exercise-editor-modal-vertical-latex-strip:hover {
+  background: #1e293b;
+  color: #38bdf8;
+}
+
+.exercise-editor-modal-vertical-latex-strip .exercise-editor-modal-strip-icon {
+  font-size: 0.9rem;
+  font-weight: bold;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.exercise-editor-modal-vertical-latex-strip:hover .exercise-editor-modal-strip-icon {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+
+.exercise-editor-modal-vertical-latex-strip .exercise-editor-modal-strip-emoji {
+  font-size: 0.95rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.exercise-editor-modal-vertical-latex-strip .exercise-editor-modal-strip-title {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+.exercise-editor-modal-form-group.exercise-editor-modal-latex-editor-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0.5rem;
+}
+
+.exercise-editor-modal-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.exercise-editor-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  background: #0f172a;
+  border-top: 1px solid #334155;
+}
+
+.exercise-editor-modal-cancel-btn {
+  background: #334155;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.exercise-editor-modal-cancel-btn:hover {
+  background: #475569;
+}
+
+.exercise-editor-modal-save-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.exercise-editor-modal-save-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.exercise-editor-modal-save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

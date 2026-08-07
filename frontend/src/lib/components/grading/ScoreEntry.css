@@ -1,0 +1,113 @@
+.score-entry-ex-list-header {
+  flex-shrink: 0;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid #1e293b;
+  background: #1e293b;
+}
+
+.score-entry-ex-list-header h3 {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+.score-entry-header-sub {
+  font-size: 0.675rem;
+  color: #64748b;
+}
+
+.score-entry-ex-list-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.score-entry-ex-item-compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.5rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  gap: 0.4rem;
+}
+
+.score-entry-ex-item-compact:hover {
+  border-color: #475569;
+  background: #273549;
+}
+
+.score-entry-ex-item-compact.score-entry-active {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.15);
+}
+
+.score-entry-ex-num-box {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.score-entry-ex-num {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #f1f5f9;
+}
+
+.score-entry-target-dot {
+  font-size: 0.75rem;
+}
+
+.score-entry-ex-score-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.score-entry-ex-score-wrap input {
+  width: 48px;
+  padding: 0.2rem 0.3rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  color: #38bdf8;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.score-entry-ex-max-pts {
+  font-size: 0.725rem;
+  color: #94a3b8;
+}
+
+.score-entry-reset-btn-compact {
+  padding: 0 0.3rem;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  border-radius: 3px;
+}
+
+.score-entry-reset-btn-compact:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.score-entry-override-indicator {
+  color: #f59e0b;
+  font-size: 1rem;
+  line-height: 1;
+}

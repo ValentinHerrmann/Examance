@@ -1,25 +1,8 @@
 <script lang="ts">
+  import "./ExerciseGroupList.css";
   import type { ExerciseRecord } from "$lib/db/schema";
   import LatexViewer from "$lib/components/LatexViewer.svelte";
-
-  interface VariantMember {
-    ex: ExerciseRecord;
-    variantLabel: string;
-    version: number;
-    isCurrent: boolean;
-  }
-
-  interface ExerciseGroup {
-    groupId: string;
-    name: string;
-    topicTag: string;
-    grade?: string;
-    subject?: string;
-    maxPoints: number;
-    minPoints: number;
-    variants: Map<string, VariantMember[]>;
-    allMembers: VariantMember[];
-  }
+  import { getGroupRepresentative, type ExerciseGroup } from "./ExerciseGroupList";
 
   export let isLoading = false;
   export let filteredGroups: ExerciseGroup[] = [];
@@ -33,55 +16,51 @@
   export let onDelete: (ex: ExerciseRecord) => void;
   export let onOpenVariant: (ex: ExerciseRecord) => void;
   export let onCreateFirst: () => void;
-
-  function getGroupRepresentative(group: ExerciseGroup): ExerciseRecord {
-    return group.allMembers[0]?.ex || ({ id: "", name: group.name } as ExerciseRecord);
-  }
 </script>
 
 {#if isLoading}
-  <div class="loading is-loading">Loading exercise library...</div>
+  <div class="exercise-group-list-loading is-loading">Loading exercise library...</div>
 {:else if filteredGroups.length === 0}
-  <div class="empty-state">
+  <div class="exercise-group-list-empty-state">
     <p>No exercises found matching your criteria.</p>
-    <button class="create-btn" on:click={onCreateFirst}>Create First Exercise</button>
+    <button class="exercise-group-list-create-btn" on:click={onCreateFirst}>Create First Exercise</button>
   </div>
 {:else}
-  <div class="exercise-group-list">
+  <div class="exercise-group-list-exercise-group-list">
     {#each filteredGroups as group}
       {@const rep = getGroupRepresentative(group)}
       {@const variantCount = group.variants.size}
       {@const isExpanded = !!expandedGroups[group.groupId]}
-      <div class="exercise-group-card">
+      <div class="exercise-group-list-exercise-group-card">
         <!-- ── Group Header (always visible) ── -->
         <div
-          class="group-header"
+          class="exercise-group-list-group-header"
           role="button"
           tabindex="0"
           aria-expanded={isExpanded}
           on:click={() => onToggleGroup(group.groupId)}
           on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleGroup(group.groupId); } }}
         >
-          <div class="group-title-row">
+          <div class="exercise-group-list-group-title-row">
             <h3>{group.name || "Untitled"}</h3>
-            <div class="group-meta">
+            <div class="exercise-group-list-group-meta">
               {#if group.topicTag}
-                <span class="topic-badge">{group.topicTag}</span>
+                <span class="exercise-group-list-topic-badge">{group.topicTag}</span>
               {/if}
               {#if rep?.grade}
-                <span class="meta-badge grade-badge">Klasse {rep.grade}</span>
+                <span class="exercise-group-list-meta-badge exercise-group-list-grade-badge">Klasse {rep.grade}</span>
               {/if}
               {#if rep?.subject}
-                <span class="meta-badge subject-badge">{rep.subject}</span>
+                <span class="exercise-group-list-meta-badge exercise-group-list-subject-badge">{rep.subject}</span>
               {/if}
-              <span class="score-badge">
+              <span class="exercise-group-list-score-badge">
                 {group.variants.size > 1 && group.minPoints !== group.maxPoints
                   ? `${group.minPoints}-${group.maxPoints} Pkt`
                   : `${group.maxPoints} Pkt`}
               </span>
-              <span class="variant-count-badge">{variantCount} variant{variantCount !== 1 ? 's' : ''}</span>
+              <span class="exercise-group-list-variant-count-badge">{variantCount} variant{variantCount !== 1 ? 's' : ''}</span>
               <button
-                class="group-action-btn edit-group-btn"
+                class="exercise-group-list-group-action-btn edit-group-btn"
                 title="Edit Group Metadata (Name, Topic Tag, Grade, Subject)"
                 aria-label="Edit Group Metadata"
                 on:click|stopPropagation={() => onEditGroup(group)}
@@ -96,50 +75,50 @@
 
           <!-- Variant pills row (collapsed preview) -->
           {#if !isExpanded}
-            <div class="variant-pills-row">
+            <div class="exercise-group-list-variant-pills-row">
               {#each group.variants.keys() as vKey}
                 {@const vMembers = group.variants.get(vKey) || []}
                 {@const latestVer = vMembers[0]?.version || 1}
-                <span class="variant-pill{vKey !== '_General' ? ' has-variant' : ''}">
+                <span class="exercise-group-list-variant-pill{vKey !== '_General' ? ' has-variant' : ''}">
                   {vKey} <strong>v{latestVer}</strong>
                 </span>
               {/each}
             </div>
           {/if}
 
-          <button class="expand-toggle" class:expanded={isExpanded}>
+          <button class="exercise-group-list-expand-toggle" class:expanded={isExpanded}>
             {isExpanded ? '▲' : '▼'}
           </button>
         </div>
 
         <!-- ── Expanded Body ── -->
         {#if isExpanded}
-          <div class="group-body">
+          <div class="exercise-group-list-group-body">
             {#each group.variants as [vKey, vMembers]}
-              <div class="variant-section">
-                <div class="variant-header">
-                  <span class="variant-label{vKey !== '_General' ? ' has-variant' : ''}">
+              <div class="exercise-group-list-variant-section">
+                <div class="exercise-group-list-variant-header">
+                  <span class="exercise-group-list-variant-label{vKey !== '_General' ? ' has-variant' : ''}">
                     {vKey}
                   </span>
-                  <span class="variant-version">v{vMembers[0]?.version || 1}{vMembers[0]?.isCurrent ? ' ← current' : ''}</span>
+                  <span class="exercise-group-list-variant-version">v{vMembers[0]?.version || 1}{vMembers[0]?.isCurrent ? ' ← current' : ''}</span>
                 </div>
 
                 {#each vMembers as member}
-                  <div class="variant-member">
-                    <div class="member-info">
-                      <span class="member-version-badge">v{member.version}</span>
+                  <div class="exercise-group-list-variant-member">
+                    <div class="exercise-group-list-member-info">
+                      <span class="exercise-group-list-member-version-badge">v{member.version}</span>
                       {#if member.isCurrent}
-                        <span class="current-tag">current</span>
+                        <span class="exercise-group-list-current-tag">current</span>
                       {/if}
                     </div>
 
-                    <div class="snippet-preview">
+                    <div class="exercise-group-list-snippet-preview">
                       <LatexViewer code={(member.ex.latexBody || "").slice(0, 150) + "..."} snippet={true} />
                     </div>
 
-                    <div class="member-actions">
+                    <div class="exercise-group-list-member-actions">
                       <button
-                        class="action-btn edit-btn"
+                        class="exercise-group-list-action-btn exercise-group-list-edit-btn"
                         title="Edit exercise"
                         on:click={() => onEditExercise(member.ex)}
                       >
@@ -150,7 +129,7 @@
                         <span>Edit</span>
                       </button>
                       <button
-                        class="action-btn version-btn"
+                        class="exercise-group-list-action-btn exercise-group-list-version-btn"
                         title="Create new version"
                         on:click={() => onNewVersion(member.ex)}
                       >
@@ -162,7 +141,7 @@
                         <span>+Ver</span>
                       </button>
                       <button
-                        class="action-btn diff-btn"
+                        class="exercise-group-list-action-btn exercise-group-list-diff-btn"
                         title="Compare LaTeX diff"
                         on:click={() => onDiff(member.ex)}
                       >
@@ -175,7 +154,7 @@
                         <span>Diff</span>
                       </button>
                       <button
-                        class="action-btn regroup-btn"
+                        class="exercise-group-list-action-btn regroup-btn"
                         title="Re-group exercise"
                         on:click={() => onRegroup(member.ex)}
                       >
@@ -188,7 +167,7 @@
                         <span>Regroup</span>
                       </button>
                       <button
-                        class="action-btn delete-btn"
+                        class="exercise-group-list-action-btn exercise-group-list-delete-btn"
                         title="Delete exercise"
                         on:click={() => onDelete(member.ex)}
                       >
@@ -204,9 +183,9 @@
             {/each}
 
             <!-- Group-level actions -->
-            <div class="group-actions">
+            <div class="exercise-group-list-group-actions">
               <button
-                class="group-action-btn edit-group-btn"
+                class="exercise-group-list-group-action-btn edit-group-btn"
                 title="Edit Group Metadata (Name, Topic Tag, Grade, Subject)"
                 on:click={() => onEditGroup(group)}
               >
@@ -217,7 +196,7 @@
                 <span>Edit Group</span>
               </button>
               <button
-                class="group-action-btn variant-btn"
+                class="exercise-group-list-group-action-btn exercise-group-list-variant-btn"
                 title="Create parallel variant"
                 on:click={() => onOpenVariant(rep)}
               >
@@ -230,7 +209,7 @@
                 <span>+ Variant</span>
               </button>
               <button
-                class="group-action-btn version-btn"
+                class="exercise-group-list-group-action-btn exercise-group-list-version-btn"
                 title="Create new version of first variant"
                 on:click={() => onNewVersion(rep)}
               >
@@ -249,330 +228,3 @@
   </div>
 {/if}
 
-<style>
-  .loading,
-  .empty-state {
-    text-align: center;
-    padding: 3rem;
-    color: #94a3b8;
-  }
-
-  .create-btn {
-    background: #0284c7;
-    color: white;
-    border: none;
-    padding: 0.625rem 1.25rem;
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .create-btn:hover {
-    background: #0369a1;
-  }
-
-  /* ── Group List Layout ── */
-  .exercise-group-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .exercise-group-card {
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 10px;
-    overflow: hidden;
-  }
-
-  /* ── Group Header ── */
-  .group-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 1.25rem;
-    cursor: pointer;
-    user-select: none;
-    transition: background 0.15s ease;
-  }
-
-  .group-header:hover {
-    background: rgba(56, 189, 248, 0.04);
-  }
-
-  .group-title-row {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .group-title-row h3 {
-    margin: 0;
-    color: #38bdf8;
-    font-size: 1.1rem;
-  }
-
-  .group-meta {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-
-  .topic-badge {
-    background: #334155;
-    color: #cbd5e1;
-    font-size: 0.75rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-  }
-
-  .meta-badge {
-    font-size: 0.75rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-  }
-
-  .grade-badge {
-    background: #1e1b4b;
-    color: #c7d2fe;
-    border: 1px solid #4338ca;
-  }
-
-  .subject-badge {
-    background: #064e3b;
-    color: #a7f3d0;
-    border: 1px solid #047857;
-  }
-
-  .score-badge {
-    background: #0369a1;
-    color: #e0f2fe;
-    font-size: 0.75rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-    font-weight: 600;
-  }
-
-  .variant-count-badge {
-    background: #0f172a;
-    color: #94a3b8;
-    font-size: 0.75rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-  }
-
-  /* Variant pills shown in collapsed state */
-  .variant-pills-row {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    margin-top: 0.5rem;
-  }
-
-  .variant-pill {
-    font-size: 0.78rem;
-    padding: 0.2rem 0.6rem;
-    border-radius: 12px;
-    background: #0f172a;
-    color: #94a3b8;
-    border: 1px solid #334155;
-  }
-
-  .variant-pill.has-variant {
-    background: rgba(139, 92, 246, 0.15);
-    color: #c4b5fd;
-    border-color: #8b5cf6;
-  }
-
-  .expand-toggle {
-    background: transparent;
-    border: none;
-    color: #64748b;
-    font-size: 1rem;
-    cursor: pointer;
-    padding: 0.25rem 0.5rem;
-    transition: color 0.15s ease, transform 0.2s ease;
-    flex-shrink: 0;
-    margin-top: 0.25rem;
-  }
-
-  .expand-toggle.expanded {
-    color: #38bdf8;
-  }
-
-  /* ── Group Body (expanded) ── */
-  .group-body {
-    border-top: 1px solid #334155;
-    padding: 1rem 1.25rem 1.25rem;
-    background: rgba(15, 23, 42, 0.3);
-  }
-
-  .variant-section {
-    margin-bottom: 1rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid rgba(51, 65, 85, 0.5);
-  }
-
-  .variant-section:last-of-type {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-  }
-
-  .variant-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .variant-label {
-    font-size: 0.9rem;
-    font-weight: 700;
-    padding: 0.2rem 0.6rem;
-    border-radius: 6px;
-    background: #334155;
-    color: #cbd5e1;
-  }
-
-  .variant-label.has-variant {
-    background: rgba(139, 92, 246, 0.25);
-    color: #ddd6fe;
-  }
-
-  .variant-version {
-    font-size: 0.8rem;
-    color: #64748b;
-  }
-
-  .variant-member {
-    margin-left: 0.5rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .member-info {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    margin-bottom: 0.5rem;
-  }
-
-  .member-version-badge {
-    background: #0f172a;
-    color: #64748b;
-    font-size: 0.75rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-  }
-
-  .current-tag {
-    font-size: 0.7rem;
-    padding: 0.1rem 0.4rem;
-    border-radius: 4px;
-    background: rgba(34, 197, 94, 0.15);
-    color: #86efac;
-    font-weight: 600;
-    text-transform: uppercase;
-  }
-
-  .snippet-preview {
-    background: #0f172a;
-    padding: 0.75rem;
-    border-radius: 6px;
-    margin-bottom: 0.75rem;
-    font-size: 0.8rem;
-    color: #94a3b8;
-    max-height: 80px;
-    overflow: hidden;
-  }
-
-  .member-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.375rem;
-    justify-content: flex-end;
-  }
-
-  /* ── Group-level actions ── */
-  .group-actions {
-    display: flex;
-    gap: 0.5rem;
-    padding-top: 1rem;
-    border-top: 1px dashed rgba(51, 65, 85, 0.6);
-    margin-top: 0.5rem;
-    justify-content: flex-end;
-  }
-
-  .group-action-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.45rem 0.75rem;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    font-size: 0.8rem;
-    font-weight: 600;
-    white-space: nowrap;
-    transition: background 0.15s ease, opacity 0.15s ease;
-  }
-
-  /* ── Action Buttons ── */
-  .action-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.375rem 0.55rem;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    font-size: 0.775rem;
-    font-weight: 600;
-    white-space: nowrap;
-    line-height: 1;
-    transition: background 0.15s ease, opacity 0.15s ease;
-  }
-
-  .action-btn svg {
-    flex-shrink: 0;
-  }
-
-  .edit-btn {
-    background: #334155;
-    color: white;
-  }
-
-  .delete-btn {
-    background: rgba(239, 68, 68, 0.2);
-    color: #fca5a5;
-  }
-
-  .version-btn {
-    background: #334155;
-    color: #38bdf8;
-  }
-
-  .group-action-btn.version-btn {
-    background: #334155;
-    color: #38bdf8;
-  }
-
-  .variant-btn {
-    background: #4c1d95;
-    color: #ddd6fe;
-  }
-
-  .group-action-btn.variant-btn {
-    background: #4c1d95;
-    color: #ddd6fe;
-  }
-
-  .diff-btn {
-    background: #1e3a8a;
-    color: #93c5fd;
-  }
-</style>

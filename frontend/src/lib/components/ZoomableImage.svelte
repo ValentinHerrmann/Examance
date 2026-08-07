@@ -1,4 +1,6 @@
 <script lang="ts">
+  import "./ZoomableImage.css";
+
   export let src: string;
   export let alt: string = '';
 
@@ -90,7 +92,7 @@
 </script>
 
 <div
-  class="zoomable-container"
+  class="zoomable-image-container"
   class:grabbing={isDragging}
   class:zoomed={zoomLevel > 1}
   on:wheel|preventDefault={handleWheel}
@@ -103,98 +105,15 @@
   <img
     src={src}
     alt={alt}
-    class="zoomable-image"
+    class="zoomable-image-image"
     style="transform: translate({panX}px, {panY}px) scale({zoomLevel});"
     draggable="false"
   />
 
-  <div class="zoom-controls">
-    <button class="zoom-btn" on:click={zoomOut} title="Zoom Out">−</button>
-    <span class="zoom-level">{Math.round(zoomLevel * 100)}%</span>
-    <button class="zoom-btn" on:click={zoomIn} title="Zoom In">+</button>
-    <button class="zoom-btn reset-btn" on:click={reset} title="Reset to Fit">Fit</button>
+  <div class="zoomable-image-zoom-controls">
+    <button class="zoomable-image-zoom-btn" on:click={zoomOut} title="Zoom Out">−</button>
+    <span class="zoomable-image-zoom-level">{Math.round(zoomLevel * 100)}%</span>
+    <button class="zoomable-image-zoom-btn" on:click={zoomIn} title="Zoom In">+</button>
+    <button class="zoomable-image-zoom-btn zoomable-image-reset-btn" on:click={reset} title="Reset to Fit">Fit</button>
   </div>
 </div>
-
-<style>
-  .zoomable-container {
-    position: relative;
-    width: 100%;
-    min-height: 200px;
-    max-height: 70vh;
-    overflow: hidden;
-    cursor: grab;
-    background: #1e293b;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    user-select: none;
-  }
-
-  .zoomable-container.grabbing {
-    cursor: grabbing;
-  }
-
-  .zoomable-container.zoomed {
-    cursor: grab;
-  }
-
-  .zoomable-image {
-    max-width: 100%;
-    max-height: 70vh;
-    object-fit: contain;
-    transition: transform 0.05s ease-out;
-    transform-origin: center center;
-    pointer-events: none;
-  }
-
-  .zoom-controls {
-    position: absolute;
-    bottom: 12px;
-    right: 12px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    background: rgba(15, 23, 42, 0.85);
-    border-radius: 8px;
-    padding: 4px 8px;
-    backdrop-filter: blur(4px);
-    z-index: 10;
-  }
-
-  .zoom-btn {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    color: #f8fafc;
-    font-size: 1.1rem;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: background 0.15s;
-  }
-
-  .zoom-btn:hover {
-    background: rgba(148, 163, 184, 0.2);
-  }
-
-  .zoom-btn.reset-btn {
-    width: auto;
-    padding: 0 8px;
-    font-size: 0.8rem;
-    font-weight: 600;
-  }
-
-  .zoom-level {
-    color: #94a3b8;
-    font-size: 0.8rem;
-    font-weight: 500;
-    min-width: 42px;
-    text-align: center;
-    font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
-  }
-</style>

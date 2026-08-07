@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./GradingWorkspace.css";
   import type { ExamRecord, ExerciseRecord, SubmissionRecord } from "$lib/db/schema";
   import type { GradeDetail } from "$lib/analytics/gradingKey";
   import { gradingStore } from "$lib/grading/gradingStore";
@@ -52,8 +53,8 @@
   {calculatedGrade}
 />
 
-<div class="grading-workspace">
-  <div class="canvas-panel">
+<div class="grading-workspace-grading-workspace">
+  <div class="grading-workspace-canvas-panel">
     <AnnotationToolbar onClearRequested={requestClearAnnotations} />
 
     <ScanCanvasViewer
@@ -74,10 +75,10 @@
     />
   </div>
 
-  <div class="grading-panel">
+  <div class="grading-workspace-grading-panel">
     <ScoreEntry {exercises} />
 
-    <div class="grading-panel-pinned">
+    <div class="grading-workspace-grading-panel-pinned">
       <GradeSummaryCard
         {isFullyGraded}
         {totalScore}
@@ -102,54 +103,3 @@
   }}
   onCancel={cancelClearAnnotations}
 />
-
-<style>
-  .grading-workspace {
-    flex: 1;
-    min-height: 0;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 280px;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    width: 100%;
-    height: calc(100vh - 44px);
-    box-sizing: border-box;
-    overflow: hidden;
-  }
-
-  .canvas-panel {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;
-    background: #020617;
-    border: 1px solid #1e293b;
-    border-radius: 8px;
-    overflow: hidden;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .grading-panel {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;
-    background: #0f172a;
-    border: 1px solid #1e293b;
-    border-radius: 8px;
-    box-sizing: border-box;
-    overflow: hidden;
-  }
-
-  .grading-panel-pinned {
-    flex-shrink: 0;
-    padding: 0.65rem 0.75rem;
-    background: #1e293b;
-    border-top: 1px solid #334155;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-</style>

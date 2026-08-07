@@ -1,0 +1,67 @@
+.annotation-toolbar-floating-annotation-palette {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.35rem;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(51, 65, 85, 0.8);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  max-height: calc(100% - 3rem);
+  overflow-y: auto;
+}
+
+.annotation-toolbar-floating-annotation-palette button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 40px;
+  padding: 0.15rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.annotation-toolbar-floating-annotation-palette button:hover {
+  background: #1e293b;
+  color: #f8fafc;
+}
+
+.annotation-toolbar-floating-annotation-palette button.annotation-toolbar-active {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
+
+.annotation-toolbar-tool-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.annotation-toolbar-tool-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  margin-top: 0.1rem;
+}
+
+.annotation-toolbar-palette-divider {
+  height: 1px;
+  background: #334155;
+  margin: 0.15rem 0.2rem;
+}
+
+.annotation-toolbar-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #f87171 !important;
+}

@@ -1,0 +1,34 @@
+.dashboard-filter-bar-dashboard-filter-bar {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-filter-bar-dashboard-search-input {
+  flex: 1;
+  min-width: 240px;
+  padding: 0.625rem 0.875rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: white;
+}
+
+.dashboard-filter-bar-select-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #cbd5e1;
+  font-size: 0.875rem;
+}
+
+.dashboard-filter-bar-select-group select {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}

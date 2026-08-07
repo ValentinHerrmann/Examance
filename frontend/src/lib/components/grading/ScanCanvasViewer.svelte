@@ -11,6 +11,7 @@
    * page — it is the highest-risk area (submission switching, redraw timing,
    * pinch-zoom) so every function here is a close 1:1 port of the original.
    */
+  import "./ScanCanvasViewer.css";
   import { tick } from "svelte";
   import { get } from "svelte/store";
   import type { SubmissionRecord, ExerciseRecord } from "$lib/db/schema";
@@ -19,6 +20,7 @@
   import { decrypt } from "$lib/crypto/aesGcm";
   import { gradingStore, type VectorStroke } from "$lib/grading/gradingStore";
   import { recalculateAutoScores } from "$lib/grading/autoScore";
+  import { getAutoCropBounds } from "./ScanCanvasViewer";
 
   export let examId: string;
   export let submission: SubmissionRecord | undefined;
@@ -61,53 +63,6 @@
     const state = get(gradingStore);
     const next = recalculateAutoScores(exercises, strokes, state.scoreInputs, state.manualOverride);
     gradingStore.setScoreInputs(next);
-  }
-
-  function getAutoCropBounds(ctx: CanvasRenderingContext2D, width: number, height: number) {
-    try {
-      const imgData = ctx.getImageData(0, 0, width, height);
-      const data = imgData.data;
-
-      let minX = width;
-      let minY = height;
-      let maxX = 0;
-      let maxY = 0;
-
-      const step = 4;
-      for (let y = 0; y < height; y += step) {
-        for (let x = 0; x < width; x += step) {
-          const idx = (y * width + x) * 4;
-          const r = data[idx];
-          const g = data[idx + 1];
-          const b = data[idx + 2];
-          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-
-          if (lum < 225) {
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-          }
-        }
-      }
-
-      if (maxX <= minX || maxY <= minY) {
-        return { x: 0, y: 0, w: width, h: height };
-      }
-
-      const pad = 20;
-      const cropX = Math.max(0, minX - pad);
-      const cropY = Math.max(0, minY - pad);
-      const cropW = Math.min(width - cropX, (maxX - minX) + pad * 2);
-      const cropH = Math.min(height - cropY, (maxY - minY) + pad * 2);
-
-      if (cropW < width * 0.95 || cropH < height * 0.95) {
-        return { x: cropX, y: cropY, w: cropW, h: cropH };
-      }
-    } catch (e) {
-      console.error("Auto crop calculation failed:", e);
-    }
-    return { x: 0, y: 0, w: width, h: height };
   }
 
   export function toggleAutoCrop() {
@@ -634,12 +589,12 @@
   }
 </script>
 
-<div class="canvas-viewport" bind:this={canvasViewport} on:wheel={handleWheel}>
-  <div class="canvas-zoom-wrapper" style="width: {$gradingStore.zoomScale * 100}%; max-width: 100%; position: relative; display: block; margin: 0 auto;">
-    <canvas bind:this={scanCanvas} class="scan-canvas"></canvas>
+<div class="scan-canvas-viewer-canvas-viewport" bind:this={canvasViewport} on:wheel={handleWheel}>
+  <div class="scan-canvas-viewer-canvas-zoom-wrapper" style="width: {$gradingStore.zoomScale * 100}%; max-width: 100%; position: relative; display: block; margin: 0 auto;">
+    <canvas bind:this={scanCanvas} class="scan-canvas-viewer-scan-canvas"></canvas>
     <canvas
       bind:this={overlayCanvas}
-      class="overlay-canvas"
+      class="scan-canvas-viewer-overlay-canvas"
       on:pointerdown={handlePointerDown}
       on:pointermove={handlePointerMove}
       on:pointerup={handlePointerUp}
@@ -647,37 +602,3 @@
     ></canvas>
   </div>
 </div>
-
-<style>
-  .canvas-viewport {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    position: relative;
-    background: #020617;
-    box-sizing: border-box;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    padding: 0.5rem;
-  }
-
-  .scan-canvas {
-    display: block;
-    width: 100%;
-    height: auto;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
-    border-radius: 4px;
-  }
-
-  .overlay-canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    cursor: crosshair;
-  }
-</style>
