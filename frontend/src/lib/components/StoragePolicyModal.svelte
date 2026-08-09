@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./StoragePolicyModal.css";
   import { createEventDispatcher, onMount } from "svelte";
   import { get } from "svelte/store";
   import {
@@ -91,7 +92,7 @@
     tabindex="-1"
     on:click|self={handleClose}
   >
-    <div class="modal-scale-in flex max-h-[90vh] w-full max-w-[900px] flex-col overflow-hidden rounded-xl border border-sky-400 bg-slate-800 text-slate-50 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6)]" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="storage-policy-scale-in flex max-h-[90vh] w-full max-w-[900px] flex-col overflow-hidden rounded-xl border border-sky-400 bg-slate-800 text-slate-50 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6)]" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="flex items-center justify-between border-b border-slate-700 bg-slate-900 px-6 py-5">
         <h3 id="modal-title" class="m-0 text-[1.15rem] text-sky-400">Storage & Server Configuration</h3>
         <button type="button" class="cursor-pointer rounded border-0 bg-transparent p-1 text-[1.2rem] leading-none text-slate-400 transition-colors duration-150 ease-[ease] hover:text-slate-100" on:click={handleClose}>×</button>
@@ -215,20 +216,3 @@
     </div>
   </div>
 {/if}
-
-<style>
-  .modal-scale-in {
-    animation: scaleIn 0.15s ease-out;
-  }
-
-  @keyframes scaleIn {
-    from {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-</style>

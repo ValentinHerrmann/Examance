@@ -1,0 +1,18 @@
+.grading-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #090d16;
+  color: #f8fafc;
+}
+
+.exam-grade-empty {
+  text-align: center;
+  padding: 4rem;
+  color: #94a3b8;
+}

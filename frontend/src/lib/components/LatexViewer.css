@@ -1,0 +1,21 @@
+.token-comment {
+  color: #94a3b8;
+  font-style: italic;
+}
+.token-keyword {
+  color: #ec4899;
+  font-weight: bold;
+}
+.token-macro {
+  color: #38bdf8;
+  font-weight: 600;
+}
+.token-bracket {
+  color: #f59e0b;
+}
+.token-string {
+  color: #a855f7;
+}
+.token-number {
+  color: #10b981;
+}

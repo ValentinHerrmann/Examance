@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./+page.css";
   import { page } from "$app/stores";
   export let params;
   import { onMount, onDestroy } from "svelte";
@@ -215,7 +216,7 @@
 
 <div class="grading-page">
   {#if submissions.length === 0}
-    <div class="empty">No submissions to grade for this exam.</div>
+    <div class="exam-grade-empty">No submissions to grade for this exam.</div>
   {:else}
     <GradingWorkspace
       {examId}
@@ -239,24 +240,3 @@
     />
   {/if}
 </div>
-
-<style>
-  .grading-page {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    min-height: 0;
-    max-width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    background: #090d16;
-    color: #f8fafc;
-  }
-
-  .empty {
-    text-align: center;
-    padding: 4rem;
-    color: #94a3b8;
-  }
-</style>

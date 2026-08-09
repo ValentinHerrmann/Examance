@@ -1,0 +1,48 @@
+.ksb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.ksb-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ksb-card.ksb-danger-card {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.ksb-title {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.ksb-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.ksb-sub {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.ksb-notice-banner {
+  background: #1e293b;
+  border: 1px solid #0284c7;
+  color: #cbd5e1;
+  padding: 0.85rem 1.25rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  font-size: 0.9rem;
+}

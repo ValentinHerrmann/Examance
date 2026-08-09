@@ -1,0 +1,237 @@
+.vft-section-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1.75rem;
+}
+
+.vft-section-card.vft-margin-bottom {
+  margin-bottom: 0;
+}
+
+.vft-section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.vft-section-title-group h3 {
+  margin: 0 0 0.35rem 0;
+  font-size: 1.25rem;
+  color: #f8fafc;
+}
+
+.vft-section-title-group p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #94a3b8;
+}
+
+.vft-toggle-btn {
+  background: #334155;
+  color: #38bdf8;
+  border: 1px solid #0284c7;
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.vft-toggle-btn:hover {
+  background: #0284c7;
+  color: white;
+}
+
+.vft-empty-analytics-box {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  background: #0f172a;
+  border: 1px dashed #334155;
+  border-radius: 10px;
+  margin-top: 1rem;
+}
+
+.vft-empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.vft-empty-analytics-box h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.15rem;
+  color: #f8fafc;
+}
+
+.vft-empty-analytics-box p {
+  margin: 0 0 1.25rem 0;
+  font-size: 0.9rem;
+  color: #94a3b8;
+  max-width: 540px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.vft-secondary-toggle-btn {
+  background: #0284c7;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vft-secondary-toggle-btn:hover {
+  background: #0369a1;
+}
+
+.variant-groups-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.variant-group-card {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.variant-group-card.fairness-warning {
+  border-color: #eab308;
+}
+
+.variant-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.variant-group-header h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.1rem;
+  color: #38bdf8;
+}
+
+.delta-badge {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  border-radius: 6px;
+  background: #1e293b;
+  color: #10b981;
+  border: 1px solid #047857;
+}
+
+.delta-badge.vft-warning {
+  background: rgba(234, 179, 8, 0.15);
+  color: #fef08a;
+  border-color: #eab308;
+}
+
+.variant-key-cell {
+  width: 130px;
+}
+
+.variant-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  background: #0284c7;
+  color: white;
+  border-radius: 4px;
+}
+
+.vft-analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.vft-analytics-table.vft-compact td,
+.vft-analytics-table.vft-compact th {
+  padding: 0.65rem 0.85rem;
+}
+
+.vft-analytics-table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  background: #0f172a;
+  color: #cbd5e1;
+  border-bottom: 1px solid #334155;
+  font-weight: 600;
+}
+
+.vft-analytics-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #334155;
+  color: #cbd5e1;
+}
+
+.vft-tag {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  color: #38bdf8;
+}
+
+.vft-score-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 160px;
+}
+
+.vft-score-bar {
+  height: 8px;
+  background: #10b981;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.vft-score-bar.vft-low-bar {
+  background: #ef4444;
+}
+
+.vft-score-text {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.vft-no-data-text {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.vft-status-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+}
+
+.vft-status-badge.vft-danger {
+  background: #7f1d1d;
+  color: #fecdd3;
+}
+
+.vft-status-badge.vft-success {
+  background: #064e3b;
+  color: #a7f3d0;
+}
+
+.vft-status-badge.vft-neutral {
+  background: #334155;
+  color: #94a3b8;
+}

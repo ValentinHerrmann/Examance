@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./+layout.css";
   import { page } from "$app/stores";
   export let params;
   import { onMount } from "svelte";
@@ -62,30 +63,3 @@
     <slot />
   </div>
 </div>
-
-<style>
-  .exam-layout {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    padding: 0.75rem 1.25rem;
-    max-width: 100%;
-    width: 100%;
-    margin: 0 auto;
-    box-sizing: border-box;
-  }
-
-  .exam-layout.is-grading {
-    padding: 0;
-    height: 100%;
-  }
-
-  .exam-content {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-</style>

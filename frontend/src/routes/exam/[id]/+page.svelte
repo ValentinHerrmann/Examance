@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./+page.css";
   import { page } from "$app/stores";
   export let params;
   import { onMount } from "svelte";
@@ -958,7 +959,7 @@ ${exerciseInputs}
 />
 
     {#if exportSuccess}
-      <div class="success-banner">
+      <div class="exam-success-banner">
         .bgproj archive successfully packed and downloaded.
       </div>
     {/if}
@@ -970,7 +971,7 @@ ${exerciseInputs}
         Generate printable A4 PDF exams using the Schulaufgabe template layout.
       </p>
 
-      <div class="controls-row">
+      <div class="exam-controls-row">
         <button
           class="compile-btn"
           class:is-loading={isPreviewLoading}
@@ -1015,10 +1016,10 @@ ${exerciseInputs}
       {/if}
 
       {#if compileNotice}
-        <div class="notice">{compileNotice}</div>
+        <div class="exam-notice">{compileNotice}</div>
       {/if}
       {#if errorMsg}
-        <div class="error-banner">{errorMsg}</div>
+        <div class="exam-error-banner">{errorMsg}</div>
       {/if}
     </div>
 
@@ -1056,211 +1057,3 @@ ${exerciseInputs}
   on:cancel={() => (showLibraryConfirm = false)}
 />
 
-<style>
-  .exam-detail-page {
-    width: 100%;
-  }
-
-  .exam-two-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-    align-items: start;
-  }
-
-  @media (max-width: 1199px) {
-    .exam-two-col {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  .pdf-compile-section {
-    background: #1e293b;
-    border: 1px solid #334155;
-    padding: 1.5rem;
-    border-radius: 10px;
-  }
-
-  .pdf-compile-section h3 {
-    margin-top: 0;
-    color: #38bdf8;
-  }
-
-  .pdf-compile-section .desc {
-    font-size: 0.875rem;
-    color: #94a3b8;
-    margin-bottom: 1rem;
-  }
-
-  .controls-row {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-
-  .compile-btn {
-    padding: 0.625rem 1.25rem;
-    background: #0284c7;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .compile-btn:hover {
-    background: #0369a1;
-  }
-
-  .solution-btn {
-    padding: 0.625rem 1.25rem;
-    background: #10b981;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .solution-btn:hover {
-    background: #059669;
-  }
-
-  .notice {
-    margin-top: 0.75rem;
-    font-size: 0.875rem;
-    color: #38bdf8;
-  }
-
-  .error-banner {
-    background: rgba(239, 68, 68, 0.2);
-    color: #fca5a5;
-    padding: 1rem;
-    border-radius: 6px;
-    margin-top: 1rem;
-    white-space: pre-wrap;
-    word-break: break-all;
-    max-height: 300px;
-    overflow-y: auto;
-    font-family: "Fira Code", monospace;
-  }
-
-  .nav-cards {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.5rem;
-    margin-bottom: 2.5rem;
-  }
-
-  .nav-card {
-    background: #1e293b;
-    padding: 1.5rem;
-    border-radius: 10px;
-    border: 1px solid #334155;
-    text-decoration: none;
-    color: inherit;
-    transition:
-      transform 0.15s ease,
-      border-color 0.15s ease;
-  }
-
-  .nav-card:hover {
-    transform: translateY(-2px);
-    border-color: #38bdf8;
-  }
-
-  .nav-card h3 {
-    margin: 0 0 0.5rem 0;
-    color: #38bdf8;
-  }
-
-  .nav-card p {
-    font-size: 0.875rem;
-    color: #94a3b8;
-    margin: 0 0 1rem 0;
-  }
-
-  .nav-card .count {
-    font-size: 0.75rem;
-    background: #0f172a;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    color: #cbd5e1;
-  }
-
-  .success-banner {
-    background: rgba(34, 197, 94, 0.2);
-    border: 1px solid #22c55e;
-    color: #86efac;
-    padding: 0.75rem;
-    border-radius: 6px;
-    margin-bottom: 1.5rem;
-  }
-
-  .exam-workflow-tabs {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
-    background: #1e293b;
-    padding: 0.4rem;
-    border-radius: 8px;
-    border: 1px solid #334155;
-  }
-
-  .tab-btn {
-    flex: 1;
-    text-align: center;
-    padding: 0.6rem 0.85rem;
-    color: #cbd5e1;
-    text-decoration: none;
-    font-weight: 500;
-    font-size: 0.875rem;
-    border-radius: 6px;
-    transition: background 0.15s ease, color 0.15s ease;
-  }
-
-  .tab-btn:hover {
-    background: #334155;
-    color: white;
-  }
-
-  .tab-btn.active {
-    background: #0284c7;
-    color: white;
-    font-weight: 600;
-  }
-
-  .tab-btn.highlight {
-    color: #38bdf8;
-  }
-
-  .tab-btn.highlight:hover {
-    background: rgba(2, 132, 199, 0.2);
-  }
-
-  .local-fallback-banner {
-    background: rgba(234, 179, 8, 0.15);
-    border: 1px solid #eab308;
-    color: #fef08a;
-    padding: 0.75rem 1.25rem;
-    border-radius: 8px;
-    margin-bottom: 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-
-  .sync-now-btn {
-    background: #eab308;
-    color: #0f172a;
-    font-weight: 700;
-    border: none;
-    padding: 0.4rem 0.85rem;
-    border-radius: 6px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .sync-now-btn:hover {
-    background: #facc15;
-  }
-</style>

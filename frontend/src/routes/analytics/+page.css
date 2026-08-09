@@ -1,0 +1,35 @@
+.analytics-container {
+  padding: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+  color: #f8fafc;
+}
+
+.analytics-sections-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 1199px) {
+  .analytics-sections-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.analytics-header {
+  margin-bottom: 2rem;
+}
+
+.analytics-header h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: #38bdf8;
+}
+
+.analytics-subtitle {
+  margin: 0.35rem 0 0 0;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}

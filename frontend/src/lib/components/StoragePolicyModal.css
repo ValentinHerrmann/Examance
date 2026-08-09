@@ -1,0 +1,14 @@
+.storage-policy-scale-in {
+  animation: storage-policy-scale-in 0.15s ease-out;
+}
+
+@keyframes storage-policy-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./ExamLivePreviewPanel.css";
   import DualPdfPreview from "$lib/components/DualPdfPreview.svelte";
 
   export let previewPdfUrl: string | null;
@@ -8,7 +9,7 @@
 </script>
 
 {#if previewPdfUrl || previewSolutionPdfUrl}
-  <div class="preview-container">
+  <div class="exam-live-preview-container">
     <h4>Complete Exam PDF Live Preview</h4>
     <DualPdfPreview
       {previewPdfUrl}
@@ -22,18 +23,3 @@
     />
   </div>
 {/if}
-
-<style>
-  .preview-container {
-    background: #1e293b;
-    border: 1px solid #0284c7;
-    border-radius: 10px;
-    padding: 1rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .preview-container h4 {
-    margin-top: 0;
-    color: #38bdf8;
-  }
-</style>

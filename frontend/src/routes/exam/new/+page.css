@@ -1,0 +1,50 @@
+.new-exam-page {
+  padding: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.new-exam-page h2 {
+  color: #38bdf8;
+  margin-bottom: 1.5rem;
+}
+
+.exam-new-submit-btn {
+  width: 100%;
+  padding: 0.875rem;
+  background: #16a34a;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.exam-new-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.exam-new-error-banner {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+  font-family: "Fira Code", monospace;
+}
+
+@media (max-width: 640px), (max-height: 760px) and (orientation: landscape) {
+  .new-exam-page {
+    padding: 1rem;
+  }
+
+  .exam-new-submit-btn {
+    width: 100%;
+  }
+}

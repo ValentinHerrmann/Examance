@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./ExamMetadata.css";
   import type { ExamRecord } from '$lib/db/schema';
 
   export let exam: ExamRecord | null;
@@ -12,7 +13,7 @@
 {#if exam}
   <div class="exam-metadata">
     <h2>{exam.title}</h2>
-    <div class="meta-grid">
+    <div class="emd-meta-grid">
       {#if exam.testart}<span>Art: {exam.testart}</span>{/if}
       {#if exam.klasse}<span>Klasse: {exam.klasse}</span>{/if}
       {#if exam.fach}<span>Fach: {exam.fach}</span>{/if}
@@ -31,37 +32,8 @@
   </div>
 
   {#if storagePolicy === 'all-local'}
-    <div class="local-banner">
+    <div class="emd-local-banner">
       <span>💾 Lokal gespeichert — Synchronisieren mit Server für Export & Statistik</span>
     </div>
   {/if}
 {/if}
-
-<style>
-  .exam-metadata {
-    margin-bottom: 1.5rem;
-  }
-
-  h2 {
-    color: #38bdf8;
-    margin-bottom: 0.75rem;
-  }
-
-  .meta-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    color: #94a3b8;
-    font-size: 0.9rem;
-  }
-
-  .local-banner {
-    background: #1e293b;
-    border: 1px solid #f59e0b;
-    border-radius: 6px;
-    padding: 0.75rem 1rem;
-    color: #fbbf24;
-    font-size: 0.85rem;
-    margin-bottom: 1.5rem;
-  }
-</style>

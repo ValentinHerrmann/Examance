@@ -1,4 +1,5 @@
 <script lang="ts">
+  import './StatsPage.css';
   import type { ExamRecord } from '$lib/db/schema';
   import type { PercentageHistogramBin } from '$lib/analytics/stats';
   import type { GradeDistributionBucket } from '$lib/analytics/gradingKey';
@@ -27,17 +28,17 @@
   <h2>Class Grade Analytics & Export</h2>
 
   {#if submissionsLength > 0}
-    <div class="status-banner">
+    <div class="stats-page-status-banner">
       <span>
         Status: <strong>{submissionsWithAnyGrade} von {submissionsLength}</strong> Abgaben mit mindestens einer korrigierten Aufgabe.
       </span>
       {#if fullyGradedCount < submissionsWithAnyGrade}
-        <span class="partial-indicator">
+        <span class="stats-page-partial-indicator">
           ({submissionsWithAnyGrade - fullyGradedCount} teilweise korrigiert, {fullyGradedCount} vollständig)
         </span>
       {/if}
       {#if submissionsWithAnyGrade < submissionsLength}
-        <span class="pending-indicator">
+        <span class="stats-page-pending-indicator">
           ({submissionsLength - submissionsWithAnyGrade} noch nicht begonnen)
         </span>
       {/if}
@@ -58,13 +59,13 @@
       <GradeDistribution {exam} {gradeBuckets} />
     {/if}
   {:else}
-    <div class="empty-stats">
+    <div class="stats-page-empty-stats">
       <p>Noch keine Aufgaben korrigiert. Die Statistiken erscheinen hier, sobald du mit der Korrektur beginnst.</p>
     </div>
   {/if}
 
-  <div class="export-section">
-    <button class="export-btn" on:click={onOpenExport}>
+  <div class="stats-page-export-section">
+    <button class="stats-page-export-btn" on:click={onOpenExport}>
       Export Grades CSV (Excel Compatible)
     </button>
   </div>
@@ -73,61 +74,3 @@
     <StatsExportModal onConfirm={onConfirmExport} onCancel={onCancelExport} />
   {/if}
 </div>
-
-<style>
-  .stats-page {
-    padding: 1.5rem;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  h2 {
-    color: #38bdf8;
-  }
-
-  .status-banner {
-    margin-bottom: 1rem;
-    color: #94a3b8;
-    font-size: 0.95rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
-  .partial-indicator {
-    color: #fbbf24;
-  }
-
-  .pending-indicator {
-    color: #64748b;
-  }
-
-  .empty-stats {
-    background: #1e293b;
-    padding: 2rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
-    text-align: center;
-    color: #64748b;
-    border: 1px dashed #334155;
-  }
-
-  .export-section {
-    margin-top: 1rem;
-  }
-
-  .export-btn {
-    padding: 0.875rem 1.5rem;
-    background: #0284c7;
-    color: white;
-    font-weight: 600;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-  .export-btn:hover {
-    background: #0369a1;
-  }
-</style>

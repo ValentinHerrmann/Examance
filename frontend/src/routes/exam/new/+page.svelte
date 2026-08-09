@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./+page.css";
   import { onMount } from "svelte";
   import { db } from "$lib/db/db";
   import { sessionStore, isAuthenticated } from "$lib/stores/session";
@@ -486,7 +487,7 @@ ${exerciseInputs}
   <h2>Create Exam (Assembly from Exercise Library)</h2>
 
   {#if errorMsg}
-    <div class="error-banner">{errorMsg}</div>
+    <div class="exam-new-error-banner">{errorMsg}</div>
   {/if}
 
   <form on:submit|preventDefault={handleCreateExam}>
@@ -548,7 +549,7 @@ ${exerciseInputs}
 
     <button
       type="submit"
-      class="submit-btn"
+      class="exam-new-submit-btn"
       class:is-loading={isLoading}
       disabled={isLoading || selectedExercises.length === 0}
     >
@@ -563,56 +564,3 @@ ${exerciseInputs}
     on:save={handleQuickEditSaved}
   />
 </div>
-
-<style>
-  .new-exam-page {
-    padding: 1.5rem;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  h2 {
-    color: #38bdf8;
-    margin-bottom: 1.5rem;
-  }
-
-  .submit-btn {
-    width: 100%;
-    padding: 0.875rem;
-    background: #16a34a;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-  }
-
-  .submit-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .error-banner {
-    background: rgba(239, 68, 68, 0.2);
-    color: #fca5a5;
-    padding: 0.75rem;
-    border-radius: 6px;
-    margin-bottom: 1.5rem;
-    white-space: pre-wrap;
-    word-break: break-all;
-    max-height: 300px;
-    overflow-y: auto;
-    font-family: "Fira Code", monospace;
-  }
-
-  @media (max-width: 640px), (max-height: 760px) and (orientation: landscape) {
-    .new-exam-page {
-      padding: 1rem;
-    }
-
-    .submit-btn {
-      width: 100%;
-    }
-  }
-</style>

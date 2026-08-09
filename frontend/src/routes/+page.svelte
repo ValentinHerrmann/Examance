@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./+page.css";
   import { isUnlocked, isAuthenticated, sessionStore } from '$lib/stores/session';
   import { db } from '$lib/db/db';
   import type { ExamRecord } from '$lib/db/schema';
@@ -296,7 +297,7 @@
         gradeCount={availableGrades.length}
       />
 
-      <div class="exam-main">
+      <div class="dashboard-exam-main">
         {#if expiredExam}
           <RetentionModal {expiredExam} onExtend={handleExtendRetention} onDelete={handleDeleteExpiredExam} />
         {/if}
@@ -325,28 +326,3 @@
 </div>
 
 
-
-<style>
-  .dashboard {
-    padding: 1.5rem;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .dashboard-body {
-    display: grid;
-    grid-template-columns: 280px 1fr;
-    gap: 1.5rem;
-    align-items: start;
-  }
-
-  .exam-main {
-    min-width: 0;
-  }
-
-  @media (max-width: 1199px) {
-    .dashboard-body {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>

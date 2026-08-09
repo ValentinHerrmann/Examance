@@ -1,0 +1,12 @@
+.exam-live-preview-container {
+  background: #1e293b;
+  border: 1px solid #0284c7;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.exam-live-preview-container h4 {
+  margin-top: 0;
+  color: #38bdf8;
+}

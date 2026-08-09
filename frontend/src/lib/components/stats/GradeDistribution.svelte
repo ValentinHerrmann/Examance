@@ -1,4 +1,5 @@
 <script lang="ts">
+  import './GradeDistribution.css';
   import type { ExamRecord } from '$lib/db/schema';
   import type { GradeDistributionBucket } from '$lib/analytics/gradingKey';
   import { Chart, Svg, Axis, Bars } from 'layerchart';
@@ -43,10 +44,10 @@
 
 <div class="grade-distribution-section">
   <h3>🎯 Notenverteilung</h3>
-  <p class="grading-key-label">
+  <p class="grade-distribution-grading-key-label">
     Bewertungsmaßstab: {#if exam?.gradingKey?.preset === 'linear_50'}Linear (50%){:else if exam?.gradingKey?.preset === 'linear_40'}Linear (40%){:else if exam?.gradingKey?.preset === 'even_split'}Gleichmäßig{:else if exam?.gradingKey}Benutzerdefiniert{:else}Standard (50%){/if}
   </p>
-  <div class="chart-container grade-container">
+  <div class="grade-distribution-chart-container grade-distribution-grade-container">
     <Chart
       data={gradeData}
       y="grade"
@@ -86,33 +87,3 @@
     </Chart>
   </div>
 </div>
-
-<style>
-  .grade-distribution-section {
-    background: #0f172a;
-    padding: 1.5rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
-  }
-
-  .grade-distribution-section h3 {
-    margin-top: 0;
-    color: #f8fafc;
-  }
-
-  .grading-key-label {
-    font-size: 0.8rem;
-    color: #64748b;
-    margin-bottom: 1rem;
-  }
-
-  .chart-container {
-    margin-top: 1rem;
-    overflow: hidden;
-    position: relative;
-  }
-
-  .grade-container {
-    height: 350px;
-  }
-</style>

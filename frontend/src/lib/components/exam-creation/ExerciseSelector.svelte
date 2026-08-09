@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./ExerciseSelector.css";
   import type { ExerciseRecord } from "$lib/db/schema";
   import ExerciseLibraryPicker from "$lib/components/exercise-library/ExerciseLibraryPicker.svelte";
   import ExercisePreviewDrawer from "$lib/components/exercise-library/ExercisePreviewDrawer.svelte";
@@ -70,13 +71,13 @@
   }
 </script>
 
-<div class="section-card">
-  <div class="section-header">
+<div class="exercise-selector-card">
+  <div class="exercise-selector-header">
     <h3>2. Select Exercises</h3>
-    <div class="tabs">
+    <div class="exercise-selector-tabs">
       <button
         type="button"
-        class="tab-btn"
+        class="exercise-selector-tab-btn"
         class:active={activeTab === "library"}
         on:click={() => (activeTab = "library")}
       >
@@ -84,7 +85,7 @@
       </button>
       <button
         type="button"
-        class="tab-btn"
+        class="exercise-selector-tab-btn"
         class:active={activeTab === "custom"}
         on:click={() => (activeTab = "custom")}
       >
@@ -131,70 +132,3 @@
     onQuickEdit={handleDrawerQuickEdit}
   />
 {/if}
-
-<style>
-  .section-card {
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 10px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .section-card h3 {
-    margin-top: 0;
-    color: #f8fafc;
-    font-size: 1.1rem;
-  }
-
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-    margin-bottom: 1rem;
-  }
-
-  .tabs {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
-  .tab-btn {
-    background: #0f172a;
-    border: 1px solid #334155;
-    color: #94a3b8;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-  }
-
-  .tab-btn.active {
-    background: #0284c7;
-    border-color: #38bdf8;
-    color: white;
-  }
-
-  @media (max-width: 900px) {
-    .section-header {
-      align-items: stretch;
-    }
-
-    .tabs {
-      width: 100%;
-    }
-
-    .tab-btn {
-      flex: 1 1 220px;
-    }
-  }
-
-  @media (max-width: 640px), (max-height: 760px) and (orientation: landscape) {
-    .section-card {
-      padding: 1rem;
-    }
-  }
-</style>

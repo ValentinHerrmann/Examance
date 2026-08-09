@@ -1,0 +1,55 @@
+.stats-page {
+  padding: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.stats-page h2 {
+  color: #38bdf8;
+}
+
+.stats-page-status-banner {
+  margin-bottom: 1rem;
+  color: #94a3b8;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.stats-page-partial-indicator {
+  color: #fbbf24;
+}
+
+.stats-page-pending-indicator {
+  color: #64748b;
+}
+
+.stats-page-empty-stats {
+  background: #1e293b;
+  padding: 2rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  text-align: center;
+  color: #64748b;
+  border: 1px dashed #334155;
+}
+
+.stats-page-export-section {
+  margin-top: 1rem;
+}
+
+.stats-page-export-btn {
+  padding: 0.875rem 1.5rem;
+  background: #0284c7;
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.stats-page-export-btn:hover {
+  background: #0369a1;
+}

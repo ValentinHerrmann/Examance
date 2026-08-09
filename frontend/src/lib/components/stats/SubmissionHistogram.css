@@ -1,0 +1,21 @@
+.submission-histogram-section {
+  background: #0f172a;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.submission-histogram-section h3 {
+  margin-top: 0;
+  color: #f8fafc;
+}
+
+.submission-histogram-chart-container {
+  margin-top: 1rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.submission-histogram-container {
+  height: 290px;
+}

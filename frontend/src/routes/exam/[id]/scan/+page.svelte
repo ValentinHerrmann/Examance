@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./+page.css";
   import { page } from "$app/stores";
   export let params;
   import { goto } from "$app/navigation";
@@ -1022,15 +1023,3 @@
   error={previewError}
   onClose={closePreview}
 />
-
-<style>
-  .scan-ingestion-page {
-    max-width: 100%;
-    margin: 2rem auto;
-    padding: 1rem;
-  }
-
-  h2 {
-    color: #38bdf8;
-  }
-</style>

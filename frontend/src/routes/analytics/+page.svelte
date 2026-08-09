@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./+page.css";
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
   import { afterNavigate } from '$app/navigation';
@@ -347,7 +348,7 @@
   <div class="analytics-header">
     <div>
       <h1>Global Multi-Exam Analytics</h1>
-      <p class="subtitle">Cross-exam performance tracking, exercise quality metrics & variant comparison</p>
+      <p class="analytics-subtitle">Cross-exam performance tracking, exercise quality metrics & variant comparison</p>
     </div>
   </div>
 
@@ -383,41 +384,3 @@
     </div>
   {/if}
 </div>
-
-<style>
-  .analytics-container {
-    padding: 2rem;
-    width: 100%;
-    box-sizing: border-box;
-    color: #f8fafc;
-  }
-
-  .analytics-sections-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-    align-items: start;
-  }
-
-  @media (max-width: 1199px) {
-    .analytics-sections-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  .analytics-header {
-    margin-bottom: 2rem;
-  }
-
-  h1 {
-    margin: 0;
-    font-size: 2rem;
-    color: #38bdf8;
-  }
-
-  .subtitle {
-    margin: 0.35rem 0 0 0;
-    color: #94a3b8;
-    font-size: 0.95rem;
-  }
-</style>

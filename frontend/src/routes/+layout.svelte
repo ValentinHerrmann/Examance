@@ -1,5 +1,6 @@
 <script lang="ts">
   import "../app.css";
+  import "./+layout.css";
   import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
@@ -185,44 +186,3 @@
     on:close={() => (isSettingsModalOpen = false)}
   />
 </div>
-
-<style>
-  :global(body) {
-    margin: 0;
-    padding: 0;
-    font-family:
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      Roboto,
-      sans-serif;
-    background-color: #0f172a;
-    color: #f8fafc;
-  }
-
-  :global(.is-loading) {
-    animation: pulse 1.5s infinite ease-in-out !important;
-    pointer-events: none;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-
-  .app-layout {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-  }
-
-  .app-main {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-  }
-</style>

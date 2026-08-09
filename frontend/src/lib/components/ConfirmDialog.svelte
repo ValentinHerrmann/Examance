@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./ConfirmDialog.css";
   import { createEventDispatcher } from "svelte";
 
   export let isOpen = false;
@@ -38,7 +39,7 @@
     on:click|self={handleCancel}
   >
     <div
-      class="w-full max-w-[440px] overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-2xl animate-[scaleIn_0.15s_ease-out]"
+      class="w-full max-w-[440px] overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-2xl animate-[confirm-dialog-scale-in_0.15s_ease-out]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
@@ -63,16 +64,3 @@
     </div>
   </div>
 {/if}
-
-<style>
-  @keyframes scaleIn {
-    from {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-</style>

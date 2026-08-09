@@ -1,0 +1,110 @@
+.admin-users-page {
+  padding: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.user-mgmt-header h2 {
+  margin: 0;
+  color: #f8fafc;
+}
+
+.user-mgmt-header p {
+  margin-top: 0.5rem;
+  color: #94a3b8;
+}
+
+.user-mgmt-form-card,
+.user-mgmt-state-card {
+  max-width: 720px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-top: 1rem;
+}
+
+.user-mgmt-state-card.danger {
+  border-color: #ef4444;
+}
+
+.user-mgmt-sub {
+  color: #94a3b8;
+  margin-top: 0.25rem;
+}
+
+.user-mgmt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+.admin-users-page label {
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.admin-users-page input,
+.admin-users-page select {
+  padding: 0.625rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #475569;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 0.95rem;
+}
+
+.admin-users-page input:focus,
+.admin-users-page select:focus {
+  outline: none;
+  border-color: #38bdf8;
+}
+
+.admin-users-page small {
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.user-mgmt-primary-btn,
+.user-mgmt-primary-link {
+  display: inline-block;
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.user-mgmt-primary-btn:hover,
+.user-mgmt-primary-link:hover {
+  background: #0369a1;
+}
+
+.user-mgmt-primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.user-mgmt-banner {
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.user-mgmt-banner.success {
+  border: 1px solid #16a34a;
+  background: rgba(22, 163, 74, 0.2);
+  color: #86efac;
+}
+
+.user-mgmt-banner.error {
+  border: 1px solid #dc2626;
+  background: rgba(220, 38, 38, 0.2);
+  color: #fca5a5;
+}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./+page.css";
   import { goto } from "$app/navigation";
   import { deriveKey, deriveKeyWithFallback, generateSalt, getUserSalt, getUserSessionNonce } from "$lib/crypto/keyDerivation";
   import {
@@ -115,19 +116,3 @@
     onUnlockLocal={handleUnlockLocal}
   />
 </div>
-
-<style>
-  .unlock-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: calc(100vh - 28px);
-    padding: 2rem 1.5rem;
-    box-sizing: border-box;
-    background-color: #0f172a;
-    color: #f8fafc;
-    max-width: 960px;
-    margin: 0 auto;
-  }
-</style>

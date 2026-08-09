@@ -1,0 +1,32 @@
+.stats-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .stats-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.stats-cards-card {
+  background: #1e293b;
+  padding: 1.25rem;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid #334155;
+}
+
+.stats-cards-card .label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  display: block;
+}
+
+.stats-cards-card .value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #38bdf8;
+}

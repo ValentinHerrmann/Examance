@@ -1,4 +1,5 @@
 <script lang="ts">
+  import './SubmissionHistogram.css';
   import type { PercentageHistogramBin } from '$lib/analytics/stats';
   import { Chart, Svg, Axis, Bars } from 'layerchart';
   import { scaleBand } from 'd3-scale';
@@ -38,10 +39,10 @@
   }
 </script>
 
-<div class="histogram-section">
+<div class="submission-histogram-section">
   <h3>📊 Prozentverteilung</h3>
   {#if histogramData.length > 0}
-    <div class="chart-container histogram-container">
+    <div class="submission-histogram-chart-container submission-histogram-container">
       <Chart
         data={histogramData}
         x="label"
@@ -87,27 +88,3 @@
     </div>
   {/if}
 </div>
-
-<style>
-  .histogram-section {
-    background: #0f172a;
-    padding: 1.5rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
-  }
-
-  .histogram-section h3 {
-    margin-top: 0;
-    color: #f8fafc;
-  }
-
-  .chart-container {
-    margin-top: 1rem;
-    overflow: hidden;
-    position: relative;
-  }
-
-  .histogram-container {
-    height: 290px;
-  }
-</style>
