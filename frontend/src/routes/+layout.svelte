@@ -26,6 +26,7 @@
   import StatusBar from "$lib/components/layout/StatusBar.svelte";
   import StoragePolicyModal from "$lib/components/StoragePolicyModal.svelte";
   import SessionTimeoutWarning from "$lib/components/SessionTimeoutWarning.svelte";
+  import HttpCatModal from "$lib/components/HttpCatModal.svelte";
 
   let fileInput: HTMLInputElement;
   let isSettingsModalOpen = false;
@@ -151,6 +152,7 @@
 />
 
 <SessionTimeoutWarning />
+<HttpCatModal />
 
 <div class="app-layout">
   {#if $isUnlocked && $page.url.pathname !== "/unlock"}

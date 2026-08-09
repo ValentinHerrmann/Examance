@@ -11,6 +11,7 @@
 import { get } from 'svelte/store';
 import { sessionStore } from '$lib/stores/session';
 import { backendStore } from '$lib/stores/backendStore';
+import { httpErrorStore } from '$lib/stores/httpErrorStore';
 
 function getBaseUrl(): string {
   const url = get(backendStore);
@@ -57,10 +58,8 @@ async function refreshToken(): Promise<void> {
       credentials: 'include',
     });
     if (!resp.ok) {
-      if (typeof window !== 'undefined' && window.location.pathname !== '/unlock') {
-        window.location.href = '/unlock';
-      }
-      throw new ApiError(resp.status, 'ERR_SESSION_EXPIRED', 'Session expired');
+      const err = await parseError(resp);
+      throw err;
     }
   } catch (err: any) {
     if (err instanceof ApiError) throw err;
@@ -68,11 +67,19 @@ async function refreshToken(): Promise<void> {
   }
 }
 
+async function handleNonOkResponse(resp: Response, silentError?: boolean): Promise<never> {
+  const err = await parseError(resp);
+  if (!silentError) {
+    httpErrorStore.showError(err.status, err.message, err.code);
+  }
+  throw err;
+}
+
 async function request<T>(
   method: string,
   path: string,
   body?: unknown,
-  options: { binary?: boolean } = {}
+  options: { binary?: boolean; silentError?: boolean } = {}
 ): Promise<T> {
   const headers: Record<string, string> = {};
   let bodyInit: BodyInit | undefined;
@@ -101,7 +108,15 @@ async function request<T>(
         refreshPromise = null;
       });
     }
-    await refreshPromise;
+    try {
+      await refreshPromise;
+    } catch (err: any) {
+      if (!options.silentError) {
+        const status = err instanceof ApiError && err.status ? err.status : 401;
+        httpErrorStore.showError(status, err?.message || 'Unauthorized', err?.code || 'ERR_UNAUTHORIZED');
+      }
+      throw err;
+    }
 
     // Retry original request after refresh
     const retryResp = await fetch(`${getBaseUrl()}${path}`, {
@@ -111,14 +126,14 @@ async function request<T>(
       credentials: 'include',
     });
     if (!retryResp.ok) {
-      throw await parseError(retryResp);
+      await handleNonOkResponse(retryResp, options.silentError);
     }
     if (options.binary) return retryResp.arrayBuffer() as unknown as T;
     return retryResp.json() as Promise<T>;
   }
 
   if (!resp.ok) {
-    throw await parseError(resp);
+    await handleNonOkResponse(resp, options.silentError);
   }
 
   if (resp.status === 204) return undefined as T;

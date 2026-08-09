@@ -68,7 +68,7 @@ Frontend → **Cloudflare Pages** via git integration (build `npm run build` in 
 
 ## Standing instructions
 
-- **Validate before done**: run `make lint`/`make test-backend` or `make lint-frontend`/`make test-frontend` (whichever side you touched) before calling a change finished. Mirrors CI (`.github/workflows/ci.yml`), which also runs `pip-audit`/`npm audit` (fail on HIGH) and SRI verification.
+- **Only basic verification**: Extensive testing will be done by a human.
 - **Security/privacy first**: client-side encryption-at-rest, GDPR-regulated data. Call out any change touching auth, crypto, or retention — read `docs/data_flow_and_security.md` and `docs/breach_response_checklist.md` first.
 - **No secrets in commits**: never commit `backend/.env` or real secret values. `backend/.env.example` is a template.
 - **Dep managers**: `uv` backend, `npm` frontend. No pip, poetry, yarn.
