@@ -1,0 +1,150 @@
+.exercise-first-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.exercise-first-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #0f172a;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #334155;
+}
+
+.exercise-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.exercise-chip {
+  padding: 0.4rem 0.75rem;
+  background: #1e293b;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.exercise-chip:hover {
+  background: #334155;
+  color: white;
+}
+
+.exercise-chip.active {
+  background: #0284c7;
+  color: white;
+  border-color: #38bdf8;
+  font-weight: 600;
+}
+
+.exercise-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.exercise-info h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #38bdf8;
+}
+
+.exercise-max-tag {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  background: #1e293b;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid #334155;
+}
+
+.exercise-grid-table-container {
+  overflow-x: auto;
+}
+
+.exercise-grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.exercise-grid-table th,
+.exercise-grid-table td {
+  padding: 0.6rem 0.85rem;
+  text-align: left;
+  border-bottom: 1px solid #334155;
+}
+
+.exercise-grid-table th {
+  background: #0f172a;
+  color: #94a3b8;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.exercise-grid-table tr:hover td {
+  background: rgba(51, 65, 85, 0.3);
+}
+
+.exercise-score-input {
+  width: 90px;
+  padding: 0.4rem 0.6rem;
+  background: #0f172a;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  color: #f8fafc;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.exercise-score-input:focus {
+  outline: none;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.3);
+}
+
+.exercise-score-input.invalid {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+
+.exercise-grid-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0f172a;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.exercise-grid-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #94a3b8;
+}
+
+.exercise-grid-empty button {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: #0284c7;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+}

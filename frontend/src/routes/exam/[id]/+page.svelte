@@ -27,6 +27,7 @@
   import { formatExerciseLatex, parseExerciseScore } from "$lib/latex/scoreParser";
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
+  import { studentRepository } from "$lib/repositories/studentRepository";
   import { uint8ArrayToBase64 } from "$lib/crypto/aesGcm";
   import { ensure64CharHex } from "$lib/crypto/hmac";
   import { sessionStore, isAuthenticated } from "$lib/stores/session";
@@ -879,6 +880,7 @@ ${exerciseInputs}
     try {
       for (const sub of submissions) {
         await submissionRepository.delete(exam.id, sub.id);
+        await studentRepository.delete(exam.id, sub.pseudonymHash);
       }
       submissions = await submissionRepository.getByExamId(
         exam.id,

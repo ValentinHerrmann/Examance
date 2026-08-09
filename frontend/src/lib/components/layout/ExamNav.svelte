@@ -8,6 +8,7 @@
   export let isSetupActive: boolean;
   export let isScanActive: boolean;
   export let isGradeActive: boolean;
+  export let isManualActive: boolean = false;
   export let isStatsActive: boolean;
 </script>
 
@@ -25,5 +26,6 @@
   <a href="/exam/{examId}" class="exam-nav-tab-btn" class:active={isSetupActive}>1. Setup & Exercises</a>
   <a href="/exam/{examId}/scan" class="exam-nav-tab-btn" class:active={isScanActive}>2. Scan Ingestion ({submissionCount})</a>
   <a href="/exam/{examId}/grade" class="exam-nav-tab-btn" class:active={isGradeActive}>3. Anonymous Grading</a>
-  <a href="/exam/{examId}/stats" class="exam-nav-tab-btn highlight" class:active={isStatsActive}>📊 4. Analysis & Statistics</a>
+  <a href="/exam/{examId}/manual" class="exam-nav-tab-btn" class:active={isManualActive}>4. Paper & Excel Entry</a>
+  <a href="/exam/{examId}/stats" class="exam-nav-tab-btn highlight" class:active={isStatsActive}>📊 5. Analysis & Statistics</a>
 </div>

@@ -1,0 +1,170 @@
+.student-first-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.student-first-picker-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #0f172a;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #334155;
+}
+
+.student-picker-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.student-picker-select {
+  padding: 0.45rem 0.8rem;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  color: #f8fafc;
+  font-size: 0.9rem;
+  min-width: 220px;
+}
+
+.student-nav-btn {
+  padding: 0.45rem 0.75rem;
+  background: #334155;
+  color: #f8fafc;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.student-nav-btn:hover:not(:disabled) {
+  background: #475569;
+}
+
+.student-nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.student-summary-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #1e293b;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  border: 1px solid #334155;
+}
+
+.student-summary-info h3 {
+  margin: 0 0 0.2rem 0;
+  font-size: 1.15rem;
+  color: #f8fafc;
+}
+
+.student-summary-info p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.student-grade-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+}
+
+.student-grade-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.student-grade-label {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+
+.student-exercise-table-container {
+  overflow-x: auto;
+}
+
+.student-exercise-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.student-exercise-table th,
+.student-exercise-table td {
+  padding: 0.65rem 0.85rem;
+  text-align: left;
+  border-bottom: 1px solid #334155;
+}
+
+.student-exercise-table th {
+  background: #0f172a;
+  color: #94a3b8;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.student-score-input {
+  width: 90px;
+  padding: 0.4rem 0.6rem;
+  background: #0f172a;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  color: #f8fafc;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.student-score-input:focus {
+  outline: none;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.3);
+}
+
+.student-score-input.invalid {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+
+.student-first-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0f172a;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #334155;
+}
+
+.student-save-btn {
+  padding: 0.6rem 1.5rem;
+  background: #10b981;
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.student-save-btn:hover {
+  background: #059669;
+}

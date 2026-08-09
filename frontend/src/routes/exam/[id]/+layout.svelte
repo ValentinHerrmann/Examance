@@ -43,6 +43,7 @@
   $: isSetupActive = pathname === `/exam/${examId}` || pathname === `/exam/${examId}/`;
   $: isScanActive = pathname.startsWith(`/exam/${examId}/scan`);
   $: isGradeActive = pathname.startsWith(`/exam/${examId}/grade`);
+  $: isManualActive = pathname.startsWith(`/exam/${examId}/manual`);
   $: isStatsActive = pathname.startsWith(`/exam/${examId}/stats`);
 </script>
 
@@ -55,6 +56,7 @@
       {isSetupActive}
       {isScanActive}
       {isGradeActive}
+      {isManualActive}
       {isStatsActive}
     />
   {/if}
