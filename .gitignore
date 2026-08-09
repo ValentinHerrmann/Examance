@@ -218,7 +218,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-frontend/node_modules
+node_modules/
 frontend/.svelte-kit
 latex-sample-project
 backend/blindgrade.db
