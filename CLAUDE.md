@@ -67,7 +67,7 @@ Frontend → **Cloudflare Pages** via git integration (build `npm run build` in 
 `backend/.env.example` → `backend/.env`. Postgres + Redis via `docker-compose.yml`. `CORS_ALLOWED_ORIGINS` defaults to `http://localhost:5173` + `https://examance.pages.dev`, plus `CORS_ALLOWED_ORIGIN_REGEX` for `*.valentin-herrmann.com`. No wildcard fallback; an empty list is a hard startup error (`require_cors_origins`, `backend/app/config.py`). Override explicitly for any other origin.
 
 ## Standing instructions
-
+- **Prefer cheaper models** for mechanical or well-defined work. Escalate only when reasoning complexity really demands it.
 - **Only basic verification**: Extensive testing will be done by a human.
 - **Security/privacy first**: client-side encryption-at-rest, GDPR-regulated data. Call out any change touching auth, crypto, or retention — read `docs/data_flow_and_security.md` and `docs/breach_response_checklist.md` first.
 - **No secrets in commits**: never commit `backend/.env` or real secret values. `backend/.env.example` is a template.
