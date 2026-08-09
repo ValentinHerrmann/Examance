@@ -11,11 +11,11 @@ NOT by an in-process scheduler — avoids multi-worker duplication.
 from __future__ import annotations
 
 import asyncio
-import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from typing import NoReturn
 
 import click
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.config import settings  # noqa: F401 — validates config at import
@@ -26,7 +26,7 @@ def cli() -> None:
     """Examance management commands."""
 
 
-def _raise_schema_hint(exc: Exception) -> None:
+def _raise_schema_hint(exc: Exception) -> NoReturn:
     """Convert DB schema errors into actionable CLI guidance."""
     msg = str(exc).lower()
     if "no such table" in msg or "undefined table" in msg:
@@ -58,7 +58,7 @@ def create_invite(expires_days: int, created_by: str | None) -> None:
 
     raw_token = generate_invite_token()
     token_hash = hash_token(raw_token)
-    expires_at = datetime.now(tz=timezone.utc) + timedelta(days=expires_days)
+    expires_at = datetime.now(tz=UTC) + timedelta(days=expires_days)
 
     created_by_uuid = uuid.UUID(created_by) if created_by else None
 
@@ -196,7 +196,6 @@ def run_retention(dry_run: bool) -> None:
     Designed to be called by an EXTERNAL cron job (not in-process scheduler).
     Safe to run multiple times — idempotent (already deleted rows are skipped).
     """
-    from app.models.exam import Exam
     from app.services.retention import run as _run
 
     count = asyncio.run(_run(dry_run=dry_run))
@@ -205,6 +204,34 @@ def run_retention(dry_run: bool) -> None:
         click.echo(f"[dry-run] Would soft-delete {count} exam(s).")
     else:
         click.echo(f"Soft-deleted {count} exam(s) past retention date.")
+
+
+@cli.command("export-openapi")
+@click.option(
+    "--output",
+    "-o",
+    default="docs/openapi.json",
+    show_default=True,
+    help="Output JSON file path.",
+)
+def export_openapi(output: str) -> None:
+    """Export static OpenAPI 3.0 specification as JSON."""
+    import json
+    from pathlib import Path
+
+    from app.main import create_app
+
+    app = create_app()
+    openapi_schema = app.openapi()
+
+    out_path = Path(output)
+    if not out_path.is_absolute():
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        out_path = repo_root / output
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(openapi_schema, indent=2) + "\n", encoding="utf-8")
+    click.echo(f"Exported OpenAPI specification to {out_path}")
 
 
 if __name__ == "__main__":

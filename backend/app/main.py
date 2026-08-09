@@ -1,8 +1,8 @@
 """FastAPI application factory, middleware registration, lifespan."""
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -27,10 +27,82 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 def create_app() -> FastAPI:
+    openapi_tags = [
+        {
+            "name": "auth",
+            "description": (
+                "Authentication & session lifecycle (login, register, token refresh, logout) "
+                "via HTTP-only cookies."
+            ),
+        },
+        {
+            "name": "compile",
+            "description": "LaTeX document compilation service via sandboxed Tectonic engine.",
+        },
+        {
+            "name": "exams",
+            "description": (
+                "Exam creation, metadata updates, exercise linking, and full PDF compilation."
+            ),
+        },
+        {
+            "name": "exercises",
+            "description": (
+                "Exercise library management, versioning, variants, grouping, "
+                "and adoption tracking."
+            ),
+        },
+        {
+            "name": "students",
+            "description": (
+                "Encrypted student identity management and GDPR Art. 17 "
+                "right-to-erasure processing."
+            ),
+        },
+        {
+            "name": "submissions",
+            "description": (
+                "Encrypted submission scan uploads, canvas annotation ciphertexts, "
+                "and anonymized score tracking."
+            ),
+        },
+        {
+            "name": "admin",
+            "description": (
+                "System administration, user provision, audit logging, "
+                "and k-anonymity class statistics (k >= 5)."
+            ),
+        },
+        {
+            "name": "user",
+            "description": (
+                "Teacher data lifecycle management (soft-delete and 7-day retention purge/restore)."
+            ),
+        },
+        {
+            "name": "meta",
+            "description": "System health and operational monitoring.",
+        },
+    ]
+
+    description = (
+        "Privacy-first anonymous exam grading backend.\n\n"
+        "## Key Security & Architecture Features\n"
+        "- **Zero-Knowledge Encryption**: Student PII, submission scans, and annotations "
+        "are encrypted client-side (Argon2id + AES-256-GCM) before reaching the server.\n"
+        "- **Session Hygiene**: State stored in HttpOnly cookies (`access_token` 15 min, "
+        "`refresh_token` 7 days with rotation & reuse detection).\n"
+        "- **Privacy Safeguards**: LaTeX requests redacted in logs (`LaTeXRequest`), "
+        "IP addresses stored as SHA-256 hashes, k-anonymity (k >= 5) enforced on class stats.\n"
+        "- **LaTeX Engine**: Compilation rendered using sandboxed Tectonic "
+        "(`tectonic --untrusted`)."
+    )
+
     app = FastAPI(
         title="Examance API",
         version="0.1.0",
-        description="Privacy-first anonymous exam grading backend.",
+        description=description,
+        openapi_tags=openapi_tags,
         docs_url="/api/docs",
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
@@ -65,7 +137,7 @@ def create_app() -> FastAPI:
     app.include_router(user.router, prefix=API_PREFIX)
 
     @app.get("/api/health", tags=["meta"])
-    async def health() -> dict:
+    async def health() -> dict[str, str]:
         return {"status": "ok"}
 
     return app

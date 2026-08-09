@@ -604,6 +604,26 @@ async def test_create_exam_wrong_method(
         assert st_resp2.status_code == 401
 
 
+def test_export_openapi_cli(tmp_path: Path) -> None:
+    """CLI export-openapi command dumps valid OpenAPI 3.0 specification JSON."""
+    import json
+    from pathlib import Path
+    from click.testing import CliRunner
+    from app.cli import cli
+
+    out_file = tmp_path / "openapi.json"
+    runner = CliRunner()
+    result = runner.invoke(cli, ["export-openapi", "--output", str(out_file)])
+
+    assert result.exit_code == 0
+    assert "Exported OpenAPI specification" in result.output
+    assert out_file.exists()
+
+    content = json.loads(out_file.read_text(encoding="utf-8"))
+    assert content["info"]["title"] == "Examance API"
+    assert "/api/v1/auth/login" in content["paths"]
+
+
 
 
 
