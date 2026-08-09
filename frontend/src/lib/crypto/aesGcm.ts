@@ -34,14 +34,16 @@ export function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
  * Encrypt plaintext with AES-256-GCM.
  * Generates a fresh random 12-byte IV on every call.
  */
-export async function encrypt(key: CryptoKey, plaintext: Uint8Array): Promise<EncryptResult> {
-  const iv = new Uint8Array(12);
-  crypto.getRandomValues(iv); // Fresh random IV — never reuse
+export async function encrypt(key: CryptoKey, plaintext: Uint8Array, customIv?: Uint8Array): Promise<EncryptResult> {
+  const iv = customIv ?? new Uint8Array(12);
+  if (!customIv) {
+    crypto.getRandomValues(iv); // Fresh random IV — never reuse
+  }
 
   const plaintextBuffer = toArrayBuffer(plaintext);
 
   const ciphertextBuffer = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
+    { name: 'AES-GCM', iv: toArrayBuffer(iv) },
     key,
     plaintextBuffer
   );
@@ -96,6 +98,29 @@ export async function decrypt(
   }
 
   throw primaryErr || new Error('Decryption failed: no valid key provided');
+}
+
+/**
+ * Encrypt JSON-serializable data with AES-256-GCM.
+ */
+export async function encryptJson<T>(data: T, key: CryptoKey, customIv?: Uint8Array): Promise<EncryptResult> {
+  const jsonStr = JSON.stringify(data);
+  const bytes = new TextEncoder().encode(jsonStr);
+  return encrypt(key, bytes, customIv);
+}
+
+/**
+ * Decrypt AES-256-GCM ciphertext back into JSON object.
+ */
+export async function decryptJson<T>(
+  key: CryptoKey | null | undefined,
+  ciphertext: Uint8Array,
+  iv: Uint8Array,
+  fallbackKey?: CryptoKey | null
+): Promise<T> {
+  const decryptedBytes = await decrypt(key, ciphertext, iv, fallbackKey);
+  const jsonStr = new TextDecoder().decode(decryptedBytes);
+  return JSON.parse(jsonStr) as T;
 }
 
 /** Safe Uint8Array to Base64 string converter (chunks array to prevent call stack size exceeded). */

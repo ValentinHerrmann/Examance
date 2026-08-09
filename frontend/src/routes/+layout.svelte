@@ -7,6 +7,7 @@
   import { get } from "svelte/store";
   import { registerHygieneListeners, lockSession } from "$lib/db/hygiene";
   import { sessionStore, isUnlocked, isAuthenticated } from "$lib/stores/session";
+  import { api } from "$lib/api/client";
   import {
     storagePolicyStore,
     storagePolicyLabelStore,
@@ -53,6 +54,16 @@
   onMount(async () => {
     registerHygieneListeners();
 
+    let restored = false;
+    if (!get(isUnlocked)) {
+      restored = await sessionStore.restoreFromSessionStorage();
+      if (!restored) {
+        restored = await sessionStore.requestKeysFromOtherTabs(300);
+      }
+    } else {
+      restored = true;
+    }
+
     const isLockedInStorage =
       typeof localStorage !== "undefined" &&
       localStorage.getItem("bg_session_locked") === "true";
@@ -64,7 +75,18 @@
 
     const policy = get(storagePolicyStore);
 
-    if (
+    if (restored && get(isUnlocked)) {
+      const mode = get(sessionStore).mode;
+      if (mode === "hybrid" || mode === "authenticated") {
+        try {
+          await api.post("/auth/refresh", undefined, { silentError: true });
+        } catch {
+          await lockSession();
+          isInitializing = false;
+          return;
+        }
+      }
+    } else if (
       isLockedInStorage ||
       savedMode === "authenticated" ||
       policy.storageMode === "all-server"

@@ -1,77 +1,63 @@
 /**
- * .bgproj Archive Unpacker.
+ * Import .bgproj archive file into local IndexedDB storage.
  *
- * Atomically decrypts, authenticates, decompresses, and imports a .bgproj archive file.
- *
- * ATOMIC DECRYPTION & CHECKSUM INVARIANT:
- * The entire outer AES-GCM envelope is decrypted & authenticated BEFORE any inner record is parsed.
- * Inner records are verified against records_checksum before writing to IDB.
+ * Enforces atomic full-archive decryption before any database modification occurs.
+ * Prevents partial/corrupted data imports if password is wrong or ciphertext is tampered.
  */
 
+import { db, clearAllTables } from '$lib/db/db';
+import { sessionStore } from '$lib/stores/session';
 import {
-  MAGIC_BYTES,
-  FORMAT_VERSION,
-  RecordType,
-  type ArchiveManifest,
-  type ProgressEventData,
+  BGPROJ_MAGIC,
+  BGPROJ_VERSION,
+  HEADER_SIZE,
+  type ProgressEvent,
 } from './format';
 import { deriveKey } from '$lib/crypto/keyDerivation';
 import { deriveSessionKey } from '$lib/crypto/sessionKey';
-import { db, clearAllTables } from '$lib/db/db';
-import { sessionStore } from '$lib/stores/session';
-import { projectStore } from '$lib/stores/project';
-import { encryptScore } from '$lib/db/dbEncryption';
-import { get } from 'svelte/store';
-import { inflateSync } from 'fflate';
-import type { ExamRecord, ExerciseRecord, ExerciseScoreRecord, StudentRecord, SubmissionRecord, AuditEntry } from '$lib/db/schema';
+import { decryptJson, toArrayBuffer } from '$lib/crypto/aesGcm';
+import {
+  saveExamEncrypted,
+  saveExerciseEncrypted,
+  saveStudentEncrypted,
+  saveSubmissionEncrypted,
+  saveScoreEncrypted,
+} from '$lib/db/dbEncryption';
 
-export interface UnpackResult {
-  manifest: ArchiveManifest;
-  examCount: number;
-  studentCount: number;
-  submissionCount: number;
-}
-
-/**
- * Unpack and import a .bgproj archive into Dexie IDB.
- *
- * @param fileBytes Raw bytes of the .bgproj file.
- * @param password Teacher's password to re-derive key from header salt.
- * @param onProgress Progress event callback.
- * @param clearWorkspace Whether to wipe existing workspace data before importing (default: true).
- */
 export async function unpackProject(
-  fileBytes: Uint8Array,
+  archiveData: Blob | ArrayBuffer,
   password: string,
-  onProgress?: (e: ProgressEventData) => void,
-  clearWorkspace = true
-): Promise<UnpackResult> {
-  onProgress?.({ stage: 'unpacking', current: 0, total: 100 });
+  onProgress?: (event: ProgressEvent) => void
+): Promise<{ examCount: number; studentCount: number }> {
+  onProgress?.({ stage: 'salt', current: 0, total: 100 });
 
-  // 1. Verify Magic Header
-  if (
-    fileBytes[0] !== MAGIC_BYTES[0] ||
-    fileBytes[1] !== MAGIC_BYTES[1] ||
-    fileBytes[2] !== MAGIC_BYTES[2] ||
-    fileBytes[3] !== MAGIC_BYTES[3]
-  ) {
-    throw new Error('Invalid file format: Magic bytes mismatch (not a .bgproj file).');
+  const buffer = archiveData instanceof ArrayBuffer ? archiveData : await archiveData.arrayBuffer();
+  const fileBytes = new Uint8Array(buffer);
+
+  // 1. Verify minimum header size
+  if (fileBytes.length < HEADER_SIZE) {
+    throw new Error('Invalid archive: File too small to contain valid .bgproj header.');
   }
 
-  // 2. Verify Version
-  const version = fileBytes[4];
-  if (version !== FORMAT_VERSION) {
-    throw new Error(`Unsupported format version: ${version}. Required: ${FORMAT_VERSION}`);
+  // 2. Verify Magic bytes "BGPROJ\0"
+  for (let i = 0; i < 7; i++) {
+    if (fileBytes[i] !== BGPROJ_MAGIC[i]) {
+      throw new Error('Invalid archive: File magic header does not match .bgproj format.');
+    }
   }
 
-  // 3. Extract Salt & Nonce & Ciphertext Length
-  const salt = new Uint8Array(fileBytes.subarray(5, 21));
-  const nonce = new Uint8Array(fileBytes.subarray(21, 33));
+  // 3. Verify Version byte
+  const version = fileBytes[6];
+  if (version !== BGPROJ_VERSION) {
+    throw new Error(`Unsupported archive version ${version}. Expected version ${BGPROJ_VERSION}.`);
+  }
 
-  const view = new DataView(fileBytes.buffer, fileBytes.byteOffset, fileBytes.byteLength);
-  const ctLenLow = view.getUint32(33, true);
-  const ctLenHigh = view.getUint32(37, true);
-  const ctLen = ctLenLow + ctLenHigh * 0x100000000;
+  const salt = new Uint8Array(fileBytes.subarray(7, 23));
+  const nonce = new Uint8Array(fileBytes.subarray(23, 35));
+
+  // Extract payload length (4 bytes UInt32BE)
+  const view = new DataView(buffer, 35, 4);
+  const ctLen = view.getUint32(0, false);
 
   const ciphertext = new Uint8Array(fileBytes.subarray(41, 41 + ctLen));
   if (ciphertext.length !== ctLen) {
@@ -81,7 +67,7 @@ export async function unpackProject(
   onProgress?.({ stage: 'salt', current: 20, total: 100 });
 
   // 4. Derive key from header salt + password
-  const masterKey = await deriveKey(password, salt);
+  const { masterKey } = await deriveKey(password, salt);
 
   onProgress?.({ stage: 'encrypt', current: 40, total: 100 });
 
@@ -90,168 +76,93 @@ export async function unpackProject(
   try {
     const gcmKey = await deriveSessionKey(masterKey, nonce);
     const decryptedBuffer = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: nonce.buffer as ArrayBuffer },
+      { name: 'AES-GCM', iv: toArrayBuffer(nonce) },
       gcmKey,
-      ciphertext.buffer as ArrayBuffer
+      toArrayBuffer(ciphertext)
     );
-    onProgress?.({ stage: 'compress', current: 60, total: 100 });
-
-    // 6. Decompress inner bundle
-    decompressedInner = inflateSync(new Uint8Array(decryptedBuffer));
-  } catch (err) {
-    throw new Error('Decryption failed: Invalid password or tampered/corrupted archive.');
+    decompressedInner = new Uint8Array(decryptedBuffer);
+  } catch {
+    throw new Error('Decryption failed: Incorrect password or corrupted archive payload.');
   }
 
-  onProgress?.({ stage: 'verifying', current: 80, total: 100 });
+  onProgress?.({ stage: 'db_writes', current: 60, total: 100 });
 
-  // 7. Parse framed inner records
-  let offset = 0;
-  const dataView = new DataView(
-    decompressedInner.buffer,
-    decompressedInner.byteOffset,
-    decompressedInner.byteLength
-  );
-
-  let manifest: ArchiveManifest | null = null;
-  const exams: ExamRecord[] = [];
-  const exercises: ExerciseRecord[] = [];
-  const examExercises: Array<{ examId: string; exerciseId: string; orderIndex: number }> = [];
-  const exerciseScores: ExerciseScoreRecord[] = [];
-  const students: StudentRecord[] = [];
-  const submissions: SubmissionRecord[] = [];
-  const auditLogs: AuditEntry[] = [];
-
-  const rawDataRecordChunks: Uint8Array[] = [];
-
-  while (offset < decompressedInner.length) {
-    if (offset + 12 > decompressedInner.length) break;
-
-    const type = dataView.getUint32(offset, true) as RecordType;
-    const lenLow = dataView.getUint32(offset + 4, true);
-    const lenHigh = dataView.getUint32(offset + 8, true);
-    const payloadLen = lenLow + lenHigh * 0x100000000;
-
-    const recordStart = offset;
-    const payloadStart = offset + 12;
-    const recordEnd = payloadStart + payloadLen;
-
-    if (recordEnd > decompressedInner.length) {
-      throw new Error('Corrupted record frame: exceeds inner bundle size.');
-    }
-
-    const payloadBytes = decompressedInner.subarray(payloadStart, recordEnd);
-    const payloadStr = new TextDecoder().decode(payloadBytes);
-
-    if (type === RecordType.MANIFEST) {
-      manifest = JSON.parse(payloadStr) as ArchiveManifest;
-    } else {
-      // Save entire framed record bytes for running checksum calculation
-      rawDataRecordChunks.push(decompressedInner.subarray(recordStart, recordEnd));
-
-      if (type === RecordType.EXAM) {
-        exams.push(JSON.parse(payloadStr));
-      } else if (type === RecordType.EXERCISE) {
-        exercises.push(JSON.parse(payloadStr));
-      } else if (type === RecordType.EXAMEXERCISE) {
-        examExercises.push(JSON.parse(payloadStr));
-      } else if (type === RecordType.EXERCISESCORE) {
-        exerciseScores.push(JSON.parse(payloadStr));
-      } else if (type === RecordType.STUDENT) {
-        const raw = JSON.parse(payloadStr);
-        students.push({
-          pseudonymId: raw.pseudonym_id,
-          examId: raw.exam_id || raw.examId || '',
-          fallbackCode: raw.fallback_code,
-          piiCt: new Uint8Array(raw.pii_ciphertext),
-          piiIv: new Uint8Array(raw.iv),
-        });
-      } else if (type === RecordType.SUBMISSION) {
-        const raw = JSON.parse(payloadStr);
-        submissions.push({
-          id: raw.id,
-          examId: raw.exam_id || raw.examId,
-          pseudonymHash: raw.pseudonym_hash,
-          totalScore: raw.total_score,
-          scanCt: raw.scan_blob ? new Uint8Array(raw.scan_blob) : undefined,
-          scanIv: raw.scan_iv ? new Uint8Array(raw.scan_iv) : undefined,
-          annotationCt: raw.annotation_blob ? new Uint8Array(raw.annotation_blob) : undefined,
-          annotationIv: raw.annotation_iv ? new Uint8Array(raw.annotation_iv) : undefined,
-          createdAt: raw.created_at,
-        });
-      } else if (type === RecordType.AUDITLOG) {
-        auditLogs.push(JSON.parse(payloadStr));
-      }
-    }
-
-    offset = recordEnd;
+  // 6. Parse payload JSON
+  let payload: any;
+  try {
+    const jsonStr = new TextDecoder().decode(decompressedInner);
+    payload = JSON.parse(jsonStr);
+  } catch {
+    throw new Error('Corrupted archive: Payload is not valid JSON.');
   }
 
-  if (!manifest) {
-    throw new Error('Archive corrupted: missing MANIFEST record.');
+  // 7. WIPE IDB ONLY AFTER ATOMIC DECRYPTION SUCCEEDS
+  await clearAllTables();
+
+  // 8. Re-initialize active session store with imported key
+  await sessionStore.unlock({
+    masterKey,
+    sessionKey: await deriveSessionKey(masterKey, nonce),
+    sessionNonce: nonce,
+    mode: 'local',
+  });
+
+  // Get current active key from store
+  let activeKey: CryptoKey | null = null;
+  const unsubscribe = sessionStore.subscribe((s) => {
+    activeKey = s.sessionKey;
+  });
+  unsubscribe();
+
+  if (!activeKey) {
+    throw new Error('Failed to initialize session key after unpacking archive.');
   }
 
-  // 8. Verify records_checksum over all non-manifest record bytes concatenated
-  const totalRecordBytes = rawDataRecordChunks.reduce((acc, c) => acc + c.length, 0);
-  const concatenatedDataRecords = new Uint8Array(totalRecordBytes);
-  let concatOffset = 0;
-  for (const chunk of rawDataRecordChunks) {
-    concatenatedDataRecords.set(chunk, concatOffset);
-    concatOffset += chunk.length;
-  }
+  // 9. Repopulate IDB tables encrypted with active session key
+  let examCount = 0;
+  let studentCount = 0;
 
-  const checksumDigest = await crypto.subtle.digest('SHA-256', concatenatedDataRecords);
-  const computedChecksum = Array.from(new Uint8Array(checksumDigest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-
-  if (computedChecksum !== manifest.records_checksum) {
-    throw new Error(
-      `Checksum mismatch! Archive may have been tampered. Expected ${manifest.records_checksum}, got ${computedChecksum}`
-    );
-  }
-
-  // Clear workspace before importing verified records into Dexie IDB
-  if (clearWorkspace) {
-    await clearAllTables();
-    projectStore.clear();
-  }
-
-  // 9. Import verified records via Repositories
-  let key = get(sessionStore).sessionKey;
-  if (!key) {
-    await sessionStore.initAnonymousSession();
-    key = get(sessionStore).sessionKey;
-  }
-
-  if (!key) {
-    throw new Error('Failed to initialize session encryption key for import.');
-  }
-
-  const { examRepository } = await import('$lib/repositories/examRepository');
-  const { exerciseRepository } = await import('$lib/repositories/exerciseRepository');
-  const { studentRepository } = await import('$lib/repositories/studentRepository');
-  const { submissionRepository } = await import('$lib/repositories/submissionRepository');
-
-  for (const e of exams) await examRepository.save(e, key);
-  for (const ex of exercises) await exerciseRepository.save(ex, key);
-  for (const st of students) await studentRepository.save(st, key);
-  for (const sub of submissions) await submissionRepository.save(sub, key);
-  if (examExercises.length > 0) await db.examExercises.bulkPut(examExercises);
-  for (const es of exerciseScores) {
-    if (typeof es.score === 'number' && !isNaN(es.score)) {
-      const encrypted = await encryptScore(es, key);
-      await db.exerciseScores.put(encrypted);
+  if (Array.isArray(payload.exams) && payload.exams.length > 0) {
+    examCount = payload.exams.length;
+    for (const item of payload.exams) {
+      await saveExamEncrypted(item, activeKey);
     }
   }
 
+  if (Array.isArray(payload.exercises) && payload.exercises.length > 0) {
+    for (const item of payload.exercises) {
+      await saveExerciseEncrypted(item, activeKey);
+    }
+  }
 
+  if (Array.isArray(payload.students) && payload.students.length > 0) {
+    studentCount = payload.students.length;
+    for (const item of payload.students) {
+      await saveStudentEncrypted(item, activeKey);
+    }
+  }
+
+  if (Array.isArray(payload.submissions) && payload.submissions.length > 0) {
+    for (const item of payload.submissions) {
+      await saveSubmissionEncrypted(item, activeKey);
+    }
+  }
+
+  if (Array.isArray(payload.exerciseScores) && payload.exerciseScores.length > 0) {
+    for (const score of payload.exerciseScores) {
+      await saveScoreEncrypted(score, activeKey);
+    }
+  }
+
+  if (Array.isArray(payload.exerciseExams) && payload.exerciseExams.length > 0) {
+    await db.examExercises.bulkPut(payload.exerciseExams);
+  }
+
+  if (Array.isArray(payload.auditLogs) && payload.auditLogs.length > 0) {
+    await db.auditLog.bulkPut(payload.auditLogs);
+  }
 
   onProgress?.({ stage: 'complete', current: 100, total: 100 });
 
-  return {
-    manifest,
-    examCount: exams.length,
-    studentCount: students.length,
-    submissionCount: submissions.length,
-  };
+  return { examCount, studentCount };
 }

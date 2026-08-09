@@ -142,10 +142,10 @@ async function request<T>(
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>('GET', path),
-  post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
-  patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
-  delete: <T>(path: string) => request<T>('DELETE', path),
+  get: <T>(path: string, options?: { silentError?: boolean }) => request<T>('GET', path, undefined, options),
+  post: <T>(path: string, body?: unknown, options?: { silentError?: boolean }) => request<T>('POST', path, body, options),
+  patch: <T>(path: string, body: unknown, options?: { silentError?: boolean }) => request<T>('PATCH', path, body, options),
+  delete: <T>(path: string, options?: { silentError?: boolean }) => request<T>('DELETE', path, undefined, options),
   postBinary: (path: string, data: Uint8Array) =>
     request<ArrayBuffer>('POST', path, data, { binary: true }),
   postJsonForBinary: (path: string, body: unknown) =>

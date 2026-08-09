@@ -35,7 +35,7 @@ export async function deriveSessionKey(
     },
     masterKey,
     { name: 'AES-GCM', length: 256 },
-    false, // non-extractable
+    true, // extractable for tab session storage
     ['encrypt', 'decrypt']
   );
 }
@@ -57,7 +57,7 @@ export async function deriveLegacySessionKey(
     },
     masterKey,
     { name: 'AES-GCM', length: 256 },
-    false,
+    true,
     ['encrypt', 'decrypt']
   );
 }

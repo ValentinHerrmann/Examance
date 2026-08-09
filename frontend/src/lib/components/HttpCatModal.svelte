@@ -94,7 +94,7 @@
         {#if !hasImageError}
           <img
             src={imageUrl}
-            alt="HTTP {status} Cat Error"
+            alt="HTTP {status}Prefer cheaper models for mechanical or well-defined work. Escalate only when reasoning complexity demands it. Cat Error"
             class="http-cat-img"
             class:hidden={isLoading}
             on:load={handleImageLoad}

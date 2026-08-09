@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto'; // In-memory IndexedDB mock for Vitest — must be imported before Dexie db module
 import { describe, it, expect, beforeEach } from 'vitest';
+import { get } from 'svelte/store';
 import { packProject } from '../src/lib/archive/packer';
 import { unpackProject } from '../src/lib/archive/unpacker';
 import { db } from '../src/lib/db/db';
@@ -31,7 +32,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
       'raw',
       rawKey,
       { name: 'AES-GCM', length: 256 },
-      false,
+      true,
       ['encrypt', 'decrypt']
     );
     sessionStore.unlock({
@@ -63,7 +64,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
 
     // Pack project
     const packedBytes = await packProject(testPassword);
-    expect(packedBytes.length).toBeGreaterThan(41); // Larger than header
+    expect(packedBytes.size).toBeGreaterThan(41); // Larger than header
 
     // Clear local DB before import
     await db.exams.clear();
@@ -75,11 +76,12 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     expect(result.studentCount).toBe(1);
 
     // Verify restored IDB contents
-    const restoredExams = await loadExamsEncrypted(testKey);
+    const currentKey = get(sessionStore).sessionKey!;
+    const restoredExams = await loadExamsEncrypted(currentKey);
     expect(restoredExams).toHaveLength(1);
     expect(restoredExams[0].title).toBe('Mathematics Final Exam');
 
-    const restoredStudents = await loadStudentsEncrypted(testKey);
+    const restoredStudents = await loadStudentsEncrypted(currentKey);
     expect(restoredStudents).toHaveLength(1);
     expect(restoredStudents[0].fallbackCode).toBe('A-X7K2M9');
   });
@@ -121,7 +123,8 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     const result = await unpackProject(packedBytes, testPassword);
     expect(result.examCount).toBe(1);
 
-    const restoredExercises = await loadExamExercisesEncrypted(examId, testKey);
+    const currentKey = get(sessionStore).sessionKey!;
+    const restoredExercises = await loadExamExercisesEncrypted(examId, currentKey);
     expect(restoredExercises).toHaveLength(1);
     expect(restoredExercises[0].id).toBe(exerciseId);
     expect(restoredExercises[0].name).toBe('Kinematics Problem');
@@ -139,17 +142,19 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     });
 
     // Export twice with identical data & password
-    const pack1 = await packProject(testPassword);
-    const pack2 = await packProject(testPassword);
+    const pack1Blob = await packProject(testPassword);
+    const pack2Blob = await packProject(testPassword);
+    const pack1 = new Uint8Array(await pack1Blob.arrayBuffer());
+    const pack2 = new Uint8Array(await pack2Blob.arrayBuffer());
 
-    // Salt (bytes 5..20) must be different
-    const salt1 = pack1.subarray(5, 21);
-    const salt2 = pack2.subarray(5, 21);
+    // Salt (bytes 7..22) must be different
+    const salt1 = pack1.subarray(7, 23);
+    const salt2 = pack2.subarray(7, 23);
     expect(salt1).not.toEqual(salt2);
 
-    // Nonce (bytes 21..32) must be different
-    const nonce1 = pack1.subarray(21, 33);
-    const nonce2 = pack2.subarray(21, 33);
+    // Nonce (bytes 23..34) must be different
+    const nonce1 = pack1.subarray(23, 35);
+    const nonce2 = pack2.subarray(23, 35);
     expect(nonce1).not.toEqual(nonce2);
 
     // Ciphertext bytes must be completely different
@@ -172,9 +177,9 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     await expect(unpackProject(packed, 'WrongPassword')).rejects.toThrow();
 
     // Tampered payload byte
-    const tampered = new Uint8Array(packed);
-    tampered[tampered.length - 5] ^= 0xff;
-    await expect(unpackProject(tampered, testPassword)).rejects.toThrow();
+    const packedBytes = new Uint8Array(await packed.arrayBuffer());
+    packedBytes[packedBytes.length - 5] ^= 0xff;
+    await expect(unpackProject(packedBytes, testPassword)).rejects.toThrow();
   });
 
   it('wipes pre-existing database records when unpacking a new project', async () => {
@@ -215,7 +220,8 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     expect(result.examCount).toBe(1);
 
     // 5. Verify only Project B exists in DB, Project A was completely wiped
-    const currentExams = await loadExamsEncrypted(testKey);
+    const currentKey = get(sessionStore).sessionKey!;
+    const currentExams = await loadExamsEncrypted(currentKey);
     expect(currentExams).toHaveLength(1);
     expect(currentExams[0].id).toBe('new-exam-id');
     expect(currentExams[0].title).toBe('New Biology Exam');

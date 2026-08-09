@@ -1,7 +1,8 @@
 /**
  * Key derivation — Argon2id master key from password + salt.
  *
- * Uses argon2-browser WASM. The derived key is a non-extractable AES-256-GCM CryptoKey.
+ * Uses argon2-browser WASM. The derived key is a non-extractable HKDF CryptoKey.
+ * Per WebCrypto specification, HKDF keys MUST have extractable=false.
  * The WASM binary is integrity-verified via wasmIntegrityCheck() before first use.
  */
 
@@ -77,13 +78,16 @@ export async function getUserSessionNonce(email: string): Promise<Uint8Array> {
   return new Uint8Array(digest).slice(0, 12);
 }
 
+export interface DerivedKeyResult {
+  masterKey: CryptoKey;
+  rawKey: Uint8Array;
+}
+
 /**
- * Derive a master AES-256-GCM CryptoKey from password + salt via Argon2id.
- *
- * Deterministic: same password + same salt → same key material.
- * The returned CryptoKey has extractable=false.
+ * Derive a master HKDF CryptoKey from password + salt via PBKDF2.
+ * Returns both the HKDF CryptoKey (extractable=false) and the raw derived bytes.
  */
-export async function derivePbkdf2Key(password: string, salt: Uint8Array): Promise<CryptoKey> {
+export async function derivePbkdf2Key(password: string, salt: Uint8Array): Promise<DerivedKeyResult> {
   const passKey = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(password),
@@ -101,19 +105,21 @@ export async function derivePbkdf2Key(password: string, salt: Uint8Array): Promi
     passKey,
     256
   );
-  return crypto.subtle.importKey(
+  const rawKey = new Uint8Array(derivedBits);
+  const masterKey = await crypto.subtle.importKey(
     'raw',
-    toArrayBuffer(new Uint8Array(derivedBits)),
+    toArrayBuffer(rawKey),
     'HKDF',
-    false,
+    false, // HKDF keys must have extractable=false per WebCrypto spec
     ['deriveKey', 'deriveBits']
   );
+  return { masterKey, rawKey };
 }
 
 /**
  * Derive master CryptoKey via Argon2id (if available) or PBKDF2.
  */
-export async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
+export async function deriveKey(password: string, salt: Uint8Array): Promise<DerivedKeyResult> {
   try {
     const argon2 = await getArgon2();
     const result = await argon2.hash({
@@ -125,17 +131,26 @@ export async function deriveKey(password: string, salt: Uint8Array): Promise<Cry
       parallelism: 4,
       hashLen: 32,
     });
-    return crypto.subtle.importKey(
+    const rawKey = new Uint8Array(result.hash);
+    const masterKey = await crypto.subtle.importKey(
       'raw',
-      toArrayBuffer(result.hash),
+      toArrayBuffer(rawKey),
       'HKDF',
-      false, // non-extractable
+      false, // HKDF keys must have extractable=false per WebCrypto spec
       ['deriveKey', 'deriveBits']
     );
+    return { masterKey, rawKey };
   } catch (err: any) {
     console.warn('[Crypto Warning] Argon2 WASM unavailable, falling back to WebCrypto PBKDF2:', err?.message || err);
     return derivePbkdf2Key(password, salt);
   }
+}
+
+export interface DerivedKeyWithFallbackResult {
+  masterKey: CryptoKey;
+  rawMasterKey: Uint8Array;
+  fallbackMasterKey: CryptoKey | null;
+  rawFallbackMasterKey: Uint8Array | null;
 }
 
 /**
@@ -145,16 +160,19 @@ export async function deriveKey(password: string, salt: Uint8Array): Promise<Cry
 export async function deriveKeyWithFallback(
   password: string,
   salt: Uint8Array
-): Promise<{ masterKey: CryptoKey; fallbackMasterKey: CryptoKey | null }> {
-  const masterKey = await deriveKey(password, salt);
+): Promise<DerivedKeyWithFallbackResult> {
+  const { masterKey, rawKey: rawMasterKey } = await deriveKey(password, salt);
   let fallbackMasterKey: CryptoKey | null = null;
+  let rawFallbackMasterKey: Uint8Array | null = null;
   try {
-    // Derive PBKDF2 key as secondary fallback if primary derived via Argon2id
-    fallbackMasterKey = await derivePbkdf2Key(password, salt);
+    const fallbackRes = await derivePbkdf2Key(password, salt);
+    fallbackMasterKey = fallbackRes.masterKey;
+    rawFallbackMasterKey = fallbackRes.rawKey;
   } catch {
     fallbackMasterKey = null;
+    rawFallbackMasterKey = null;
   }
-  return { masterKey, fallbackMasterKey };
+  return { masterKey, rawMasterKey, fallbackMasterKey, rawFallbackMasterKey };
 }
 
 /**
@@ -176,7 +194,6 @@ export async function deriveRawKeyMaterial(
     hashLen: 32,
   });
 
-  // Import as HKDF key material (extractable=false, usage=deriveKey)
   return crypto.subtle.importKey(
     'raw',
     toArrayBuffer(result.hash),
