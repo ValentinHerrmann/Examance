@@ -1,6 +1,4 @@
 <script lang="ts">
-  import "./ZoomableImage.css";
-
   export let src: string;
   export let alt: string = '';
 
@@ -92,9 +90,7 @@
 </script>
 
 <div
-  class="zoomable-image-container"
-  class:grabbing={isDragging}
-  class:zoomed={zoomLevel > 1}
+  class="relative flex min-h-[200px] max-h-[70vh] w-full select-none items-center justify-center overflow-hidden rounded-md bg-slate-800 {isDragging ? 'cursor-grabbing' : 'cursor-grab'}"
   on:wheel|preventDefault={handleWheel}
   on:mousedown={handleMouseDown}
   on:mousemove={handleMouseMove}
@@ -105,15 +101,15 @@
   <img
     src={src}
     alt={alt}
-    class="zoomable-image-image"
+    class="pointer-events-none max-h-[70vh] max-w-full origin-center object-contain transition-transform duration-[50ms] ease-out"
     style="transform: translate({panX}px, {panY}px) scale({zoomLevel});"
     draggable="false"
   />
 
-  <div class="zoomable-image-zoom-controls">
-    <button class="zoomable-image-zoom-btn" on:click={zoomOut} title="Zoom Out">−</button>
-    <span class="zoomable-image-zoom-level">{Math.round(zoomLevel * 100)}%</span>
-    <button class="zoomable-image-zoom-btn" on:click={zoomIn} title="Zoom In">+</button>
-    <button class="zoomable-image-zoom-btn zoomable-image-reset-btn" on:click={reset} title="Reset to Fit">Fit</button>
+  <div class="absolute bottom-3 right-3 z-10 flex items-center gap-1 rounded-lg bg-slate-900/85 px-2 py-1 backdrop-blur-sm">
+    <button class="flex h-8 w-8 items-center justify-center rounded border-none bg-transparent text-lg text-slate-50 transition-colors duration-150 hover:bg-slate-400/20" on:click={zoomOut} title="Zoom Out">−</button>
+    <span class="min-w-[42px] text-center font-mono text-[0.8rem] font-medium text-slate-400">{Math.round(zoomLevel * 100)}%</span>
+    <button class="flex h-8 w-8 items-center justify-center rounded border-none bg-transparent text-lg text-slate-50 transition-colors duration-150 hover:bg-slate-400/20" on:click={zoomIn} title="Zoom In">+</button>
+    <button class="flex h-8 w-auto items-center justify-center rounded border-none bg-transparent px-2 text-[0.8rem] font-semibold text-slate-50 transition-colors duration-150 hover:bg-slate-400/20" on:click={reset} title="Reset to Fit">Fit</button>
   </div>
 </div>

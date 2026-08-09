@@ -1,5 +1,4 @@
 <script lang="ts">
-  import './DualPdfPreview.css';
   import { createEventDispatcher } from 'svelte';
 
   export let previewPdfUrl: string | null = null;
@@ -30,27 +29,28 @@
 </script>
 
 <div
-  class="dual-pdf-preview-previews-container"
-  class:dual-pdf-preview-all-collapsed={!showAngabePreview && !showLoesungPreview}
+  class="flex w-full gap-2 overflow-hidden"
   style="height: {height};"
 >
   <!-- Tab 1: Angabe / Exercise / Exam -->
   <div
-    class="dual-pdf-preview-pdf-panel"
-    class:dual-pdf-preview-expanded={showAngabePreview}
-    class:dual-pdf-preview-collapsed={!showAngabePreview}
+    class="flex flex-col overflow-hidden rounded-lg border border-slate-700 bg-slate-900 transition-all duration-200"
+    class:flex-1={showAngabePreview}
+    class:min-w-0={showAngabePreview}
+    class:w-10={!showAngabePreview}
+    class:shrink-0={!showAngabePreview}
   >
     {#if showAngabePreview}
       <button
         type="button"
-        class="dual-pdf-preview-pdf-panel-header"
+        class="flex w-full items-center justify-between gap-2 border-b border-slate-700 bg-slate-800 px-3 py-2 text-left text-slate-200 hover:bg-slate-700"
         on:click={handleToggleAngabe}
         title="Click to collapse {titleAngabe} PDF"
       >
-        <span class="dual-pdf-preview-panel-title">{emojiAngabe} {titleAngabe}</span>
-        <span class="dual-pdf-preview-header-icon">›</span>
+        <span class="truncate text-sm font-medium">{emojiAngabe} {titleAngabe}</span>
+        <span class="text-slate-400">›</span>
       </button>
-      <div class="dual-pdf-preview-pdf-panel-body">
+      <div class="min-h-0 flex-1">
         {#if previewPdfUrl}
           <iframe
             src={previewPdfUrl}
@@ -59,7 +59,7 @@
             height="100%"
           ></iframe>
         {:else}
-          <div class="dual-pdf-preview-preview-placeholder">
+          <div class="flex h-full items-center justify-center p-4 text-center text-sm text-slate-500">
             {placeholderText}
           </div>
         {/if}
@@ -67,34 +67,36 @@
     {:else}
       <button
         type="button"
-        class="dual-pdf-preview-vertical-header-strip"
+        class="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-800 py-3 text-slate-300 hover:bg-slate-700"
         on:click={handleToggleAngabe}
         title="Click to expand {titleAngabe} PDF"
       >
-        <span class="dual-pdf-preview-strip-icon">‹</span>
-        <span class="dual-pdf-preview-strip-emoji">{emojiAngabe}</span>
-        <span class="dual-pdf-preview-strip-title">{titleAngabe} PDF</span>
+        <span class="text-slate-400">‹</span>
+        <span>{emojiAngabe}</span>
+        <span class="[writing-mode:vertical-rl] text-xs">{titleAngabe} PDF</span>
       </button>
     {/if}
   </div>
 
   <!-- Tab 2: Lösung / Solution / Answer Key -->
   <div
-    class="dual-pdf-preview-pdf-panel"
-    class:dual-pdf-preview-expanded={showLoesungPreview}
-    class:dual-pdf-preview-collapsed={!showLoesungPreview}
+    class="flex flex-col overflow-hidden rounded-lg border border-slate-700 bg-slate-900 transition-all duration-200"
+    class:flex-1={showLoesungPreview}
+    class:min-w-0={showLoesungPreview}
+    class:w-10={!showLoesungPreview}
+    class:shrink-0={!showLoesungPreview}
   >
     {#if showLoesungPreview}
       <button
         type="button"
-        class="dual-pdf-preview-pdf-panel-header"
+        class="flex w-full items-center justify-between gap-2 border-b border-slate-700 bg-slate-800 px-3 py-2 text-left text-slate-200 hover:bg-slate-700"
         on:click={handleToggleLoesung}
         title="Click to collapse {titleLoesung} PDF"
       >
-        <span class="dual-pdf-preview-panel-title">{emojiLoesung} {titleLoesung}</span>
-        <span class="dual-pdf-preview-header-icon">›</span>
+        <span class="truncate text-sm font-medium">{emojiLoesung} {titleLoesung}</span>
+        <span class="text-slate-400">›</span>
       </button>
-      <div class="dual-pdf-preview-pdf-panel-body">
+      <div class="min-h-0 flex-1">
         {#if previewSolutionPdfUrl}
           <iframe
             src={previewSolutionPdfUrl}
@@ -103,7 +105,7 @@
             height="100%"
           ></iframe>
         {:else}
-          <div class="dual-pdf-preview-preview-placeholder">
+          <div class="flex h-full items-center justify-center p-4 text-center text-sm text-slate-500">
             {placeholderText}
           </div>
         {/if}
@@ -111,13 +113,13 @@
     {:else}
       <button
         type="button"
-        class="dual-pdf-preview-vertical-header-strip"
+        class="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-800 py-3 text-slate-300 hover:bg-slate-700"
         on:click={handleToggleLoesung}
         title="Click to expand {titleLoesung} PDF"
       >
-        <span class="dual-pdf-preview-strip-icon">‹</span>
-        <span class="dual-pdf-preview-strip-emoji">{emojiLoesung}</span>
-        <span class="dual-pdf-preview-strip-title">{titleLoesung} PDF</span>
+        <span class="text-slate-400">‹</span>
+        <span>{emojiLoesung}</span>
+        <span class="[writing-mode:vertical-rl] text-xs">{titleLoesung} PDF</span>
       </button>
     {/if}
   </div>

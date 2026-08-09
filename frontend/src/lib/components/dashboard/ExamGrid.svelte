@@ -1,6 +1,4 @@
 <script lang="ts">
-  import './ExamGrid.css';
-
   import type { ExamRecord } from '$lib/db/schema';
 
   export let exams: ExamRecord[];
@@ -10,46 +8,53 @@
 </script>
 
 {#if exams.length === 0}
-  <div class="exam-grid-empty-state">
-    <p>No exams match your search or filter criteria.</p>
+  <div class="rounded-xl border border-dashed border-slate-700 bg-slate-800 px-8 py-16 text-center">
+    <p class="text-lg text-slate-400">No exams match your search or filter criteria.</p>
   </div>
 {:else}
-  <div class="exam-grid-exams-grid">
+  <div class="grid gap-6" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
     {#each exams as exam}
       {@const stats = examStatsMap.get(exam.id)}
       <div
-        class="exam-grid-exam-card exam-grid-clickable-card"
+        class="cursor-pointer rounded-lg border border-slate-700 bg-slate-800 p-6 transition-colors duration-150 ease-in-out hover:border-sky-400 hover:bg-slate-700"
         role="button"
         tabindex="0"
         on:click={() => onNavigate(exam.id)}
         on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate(exam.id); } }}
       >
-        <h3>{exam.title || 'Untitled Exam'}</h3>
-        <div class="exam-grid-exam-tags">
+        <h3 class="m-0 mb-2 text-sky-400">{exam.title || 'Untitled Exam'}</h3>
+        <div class="mb-3 flex flex-wrap gap-1.5">
           {#if exam.klasse}
-            <span class="exam-grid-exam-tag exam-grid-grade-tag">Klasse {exam.klasse}</span>
+            <span class="rounded border border-indigo-700 bg-indigo-950 px-2 py-0.5 text-xs text-indigo-200"
+              >Klasse {exam.klasse}</span
+            >
           {/if}
           {#if exam.fach}
-            <span class="exam-grid-exam-tag exam-grid-subject-tag">{exam.fach}</span>
+            <span class="rounded border border-emerald-700 bg-emerald-900 px-2 py-0.5 text-xs text-emerald-200"
+              >{exam.fach}</span
+            >
           {/if}
           {#if exam.testart}
-            <span class="exam-grid-exam-tag exam-grid-testart-tag">{exam.testart}</span>
+            <span class="rounded bg-slate-700 px-2 py-0.5 text-xs text-slate-200">{exam.testart}</span>
           {/if}
           {#if stats?.avgScore !== undefined && stats.avgScore !== null}
-            <span class="exam-grid-exam-tag exam-grid-avg-grade-tag">Ø {stats.avgScore} Pkt</span>
+            <span class="rounded bg-sky-600 px-2 py-0.5 text-xs font-semibold text-sky-100">Ø {stats.avgScore} Pkt</span>
           {/if}
         </div>
         {#if exam.datum}
-          <p class="exam-grid-date">Datum: {exam.datum}</p>
+          <p class="mb-1 text-sm text-slate-300">Datum: {exam.datum}</p>
         {:else if exam.createdAt}
-          <p class="exam-grid-date">Datum: {new Date(exam.createdAt).toLocaleDateString()}</p>
+          <p class="mb-1 text-sm text-slate-300">Datum: {new Date(exam.createdAt).toLocaleDateString()}</p>
         {/if}
         {#if exam.retentionUntil}
-          <p class="exam-grid-retention-info">Retention until: {exam.retentionUntil}</p>
+          <p class="mb-4 text-xs text-slate-500">Retention until: {exam.retentionUntil}</p>
         {/if}
-        <div class="exam-grid-actions">
-          <a href="/exam/{exam.id}" on:click|stopPropagation>Open Exam</a>
-          <button class="exam-grid-card-delete-btn" on:click|stopPropagation={() => onDelete(exam.id, exam.title)}>Delete</button>
+        <div class="flex items-center justify-between">
+          <a href="/exam/{exam.id}" class="font-medium text-sky-400 no-underline" on:click|stopPropagation>Open Exam</a>
+          <button
+            class="rounded border border-red-500 bg-transparent px-2.5 py-1 text-[0.8rem] text-red-500 hover:bg-red-500 hover:text-white"
+            on:click|stopPropagation={() => onDelete(exam.id, exam.title)}>Delete</button
+          >
         </div>
       </div>
     {/each}

@@ -1,28 +1,28 @@
 <script lang="ts">
-  import './KpiSidebar.css';
-
   export let totalExams: number;
   export let subjectCount: number;
   export let gradeCount: number;
 </script>
 
-<div class="kpi-sidebar-kpi-sidebar">
-  <div class="kpi-sidebar-kpi-grid">
-    <div class="kpi-sidebar-kpi-card">
-      <span class="kpi-sidebar-kpi-title">Total Exams</span>
-      <span class="kpi-sidebar-kpi-value">{totalExams}</span>
+<div class="flex flex-col gap-3">
+  <div class="flex flex-col gap-3 max-[1199px]:grid max-[1199px]:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
+    <div class="flex flex-col gap-2 rounded-lg border border-slate-700 bg-slate-800 p-5">
+      <span class="text-[0.8rem] font-medium text-slate-400">Total Exams</span>
+      <span class="text-[1.75rem] font-bold text-slate-50">{totalExams}</span>
     </div>
-    <div class="kpi-sidebar-kpi-card">
-      <span class="kpi-sidebar-kpi-title">Configured Subjects</span>
-      <span class="kpi-sidebar-kpi-value">{subjectCount}</span>
+    <div class="flex flex-col gap-2 rounded-lg border border-slate-700 bg-slate-800 p-5">
+      <span class="text-[0.8rem] font-medium text-slate-400">Configured Subjects</span>
+      <span class="text-[1.75rem] font-bold text-slate-50">{subjectCount}</span>
     </div>
-    <div class="kpi-sidebar-kpi-card">
-      <span class="kpi-sidebar-kpi-title">Grade Levels</span>
-      <span class="kpi-sidebar-kpi-value">{gradeCount}</span>
+    <div class="flex flex-col gap-2 rounded-lg border border-slate-700 bg-slate-800 p-5">
+      <span class="text-[0.8rem] font-medium text-slate-400">Grade Levels</span>
+      <span class="text-[1.75rem] font-bold text-slate-50">{gradeCount}</span>
     </div>
-    <div class="kpi-sidebar-kpi-card kpi-sidebar-highlight">
-      <span class="kpi-sidebar-kpi-title">Global Analytics</span>
-      <a href="/analytics" class="kpi-sidebar-kpi-link">View Multi-Exam Stats →</a>
+    <div class="flex flex-col gap-2 rounded-lg border border-sky-600 bg-sky-600/10 p-5">
+      <span class="text-[0.8rem] font-medium text-slate-400">Global Analytics</span>
+      <a href="/analytics" class="mt-auto text-sm font-semibold text-sky-400 no-underline hover:underline"
+        >View Multi-Exam Stats →</a
+      >
     </div>
   </div>
 </div>

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./ExerciseGroupList.css";
   import type { ExerciseRecord } from "$lib/db/schema";
   import LatexViewer from "$lib/components/LatexViewer.svelte";
   import { getGroupRepresentative, type ExerciseGroup } from "./ExerciseGroupList";
@@ -16,51 +15,71 @@
   export let onDelete: (ex: ExerciseRecord) => void;
   export let onOpenVariant: (ex: ExerciseRecord) => void;
   export let onCreateFirst: () => void;
+
+  const groupActionBtnBase =
+    "inline-flex items-center gap-[0.35rem] whitespace-nowrap rounded-md border-0 px-3 py-[0.45rem] text-[0.8rem] font-semibold cursor-pointer transition-colors duration-150 ease-[ease]";
+  const groupActionBtnVersion = `${groupActionBtnBase} bg-slate-700 text-sky-400`;
+  const groupActionBtnVariant = `${groupActionBtnBase} bg-violet-900 text-violet-200`;
+
+  const actionBtnBase =
+    "inline-flex items-center gap-[0.35rem] whitespace-nowrap rounded-md border-0 px-[0.55rem] py-[0.375rem] text-[0.775rem] font-semibold leading-none cursor-pointer transition-colors duration-150 ease-[ease]";
+  const actionBtnEdit = `${actionBtnBase} bg-slate-700 text-white`;
+  const actionBtnDelete = `${actionBtnBase} bg-red-500/20 text-red-300`;
+  const actionBtnVersion = `${actionBtnBase} bg-slate-700 text-sky-400`;
+  const actionBtnDiff = `${actionBtnBase} bg-blue-900 text-blue-300`;
+
+  const variantPillBase =
+    "rounded-xl border border-slate-700 bg-slate-900 px-[0.6rem] py-[0.2rem] text-[0.78rem] text-slate-400";
+  const variantPillHasVariant =
+    "rounded-xl border border-violet-500 bg-violet-500/15 px-[0.6rem] py-[0.2rem] text-[0.78rem] text-violet-300";
+
+  const variantLabelBase = "rounded-md bg-slate-700 px-[0.6rem] py-[0.2rem] text-[0.9rem] font-bold text-slate-300";
+  const variantLabelHasVariant = "rounded-md bg-violet-500/25 px-[0.6rem] py-[0.2rem] text-[0.9rem] font-bold text-violet-200";
 </script>
 
 {#if isLoading}
-  <div class="exercise-group-list-loading is-loading">Loading exercise library...</div>
+  <div class="p-12 text-center text-slate-400">Loading exercise library...</div>
 {:else if filteredGroups.length === 0}
-  <div class="exercise-group-list-empty-state">
+  <div class="p-12 text-center text-slate-400">
     <p>No exercises found matching your criteria.</p>
-    <button class="exercise-group-list-create-btn" on:click={onCreateFirst}>Create First Exercise</button>
+    <button class="cursor-pointer rounded-md border-0 bg-sky-600 px-5 py-[0.625rem] font-semibold text-white hover:bg-sky-700" on:click={onCreateFirst}>Create First Exercise</button>
   </div>
 {:else}
-  <div class="exercise-group-list-exercise-group-list">
+  <div class="flex flex-col gap-4">
     {#each filteredGroups as group}
       {@const rep = getGroupRepresentative(group)}
       {@const variantCount = group.variants.size}
       {@const isExpanded = !!expandedGroups[group.groupId]}
-      <div class="exercise-group-list-exercise-group-card">
+      <div class="overflow-hidden rounded-[10px] border border-slate-700 bg-slate-800">
         <!-- ── Group Header (always visible) ── -->
         <div
-          class="exercise-group-list-group-header"
+          class="flex select-none items-start gap-4 p-5 cursor-pointer transition-colors duration-150 ease-[ease] hover:bg-sky-400/[0.04]"
           role="button"
           tabindex="0"
           aria-expanded={isExpanded}
           on:click={() => onToggleGroup(group.groupId)}
           on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleGroup(group.groupId); } }}
         >
-          <div class="exercise-group-list-group-title-row">
-            <h3>{group.name || "Untitled"}</h3>
-            <div class="exercise-group-list-group-meta">
+          <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+            <h3 class="m-0 text-[1.1rem] text-sky-400">{group.name || "Untitled"}</h3>
+            <div class="flex flex-wrap items-center gap-2">
               {#if group.topicTag}
-                <span class="exercise-group-list-topic-badge">{group.topicTag}</span>
+                <span class="rounded bg-slate-700 px-2 py-[0.15rem] text-xs text-slate-300">{group.topicTag}</span>
               {/if}
               {#if rep?.grade}
-                <span class="exercise-group-list-meta-badge exercise-group-list-grade-badge">Klasse {rep.grade}</span>
+                <span class="rounded border border-indigo-700 bg-indigo-950 px-2 py-[0.15rem] text-xs text-indigo-200">Klasse {rep.grade}</span>
               {/if}
               {#if rep?.subject}
-                <span class="exercise-group-list-meta-badge exercise-group-list-subject-badge">{rep.subject}</span>
+                <span class="rounded border border-emerald-700 bg-emerald-900 px-2 py-[0.15rem] text-xs text-emerald-200">{rep.subject}</span>
               {/if}
-              <span class="exercise-group-list-score-badge">
+              <span class="rounded bg-sky-700 px-2 py-[0.15rem] text-xs font-semibold text-sky-100">
                 {group.variants.size > 1 && group.minPoints !== group.maxPoints
                   ? `${group.minPoints}-${group.maxPoints} Pkt`
                   : `${group.maxPoints} Pkt`}
               </span>
-              <span class="exercise-group-list-variant-count-badge">{variantCount} variant{variantCount !== 1 ? 's' : ''}</span>
+              <span class="rounded bg-slate-900 px-2 py-[0.15rem] text-xs text-slate-400">{variantCount} variant{variantCount !== 1 ? 's' : ''}</span>
               <button
-                class="exercise-group-list-group-action-btn edit-group-btn"
+                class={groupActionBtnBase}
                 title="Edit Group Metadata (Name, Topic Tag, Grade, Subject)"
                 aria-label="Edit Group Metadata"
                 on:click|stopPropagation={() => onEditGroup(group)}
@@ -75,50 +94,50 @@
 
           <!-- Variant pills row (collapsed preview) -->
           {#if !isExpanded}
-            <div class="exercise-group-list-variant-pills-row">
+            <div class="mt-2 flex flex-wrap gap-2">
               {#each group.variants.keys() as vKey}
                 {@const vMembers = group.variants.get(vKey) || []}
                 {@const latestVer = vMembers[0]?.version || 1}
-                <span class="exercise-group-list-variant-pill{vKey !== '_General' ? ' has-variant' : ''}">
+                <span class={vKey !== '_General' ? variantPillHasVariant : variantPillBase}>
                   {vKey} <strong>v{latestVer}</strong>
                 </span>
               {/each}
             </div>
           {/if}
 
-          <button class="exercise-group-list-expand-toggle" class:expanded={isExpanded}>
+          <button class="mt-1 shrink-0 cursor-pointer border-0 bg-transparent px-2 py-1 text-base transition-colors duration-150 ease-[ease] {isExpanded ? 'text-sky-400' : 'text-slate-500'}">
             {isExpanded ? '▲' : '▼'}
           </button>
         </div>
 
         <!-- ── Expanded Body ── -->
         {#if isExpanded}
-          <div class="exercise-group-list-group-body">
-            {#each group.variants as [vKey, vMembers]}
-              <div class="exercise-group-list-variant-section">
-                <div class="exercise-group-list-variant-header">
-                  <span class="exercise-group-list-variant-label{vKey !== '_General' ? ' has-variant' : ''}">
+          <div class="border-t border-slate-700 bg-slate-900/30 px-5 pb-5 pt-4">
+            {#each group.variants as [vKey, vMembers], vIdx}
+              <div class="{vIdx === group.variants.size - 1 ? '' : 'mb-4 border-b border-slate-700/50 pb-4'}">
+                <div class="mb-3 flex items-center gap-3">
+                  <span class={vKey !== '_General' ? variantLabelHasVariant : variantLabelBase}>
                     {vKey}
                   </span>
-                  <span class="exercise-group-list-variant-version">v{vMembers[0]?.version || 1}{vMembers[0]?.isCurrent ? ' ← current' : ''}</span>
+                  <span class="text-[0.8rem] text-slate-500">v{vMembers[0]?.version || 1}{vMembers[0]?.isCurrent ? ' ← current' : ''}</span>
                 </div>
 
                 {#each vMembers as member}
-                  <div class="exercise-group-list-variant-member">
-                    <div class="exercise-group-list-member-info">
-                      <span class="exercise-group-list-member-version-badge">v{member.version}</span>
+                  <div class="mb-3 ml-2">
+                    <div class="mb-2 flex items-center gap-2">
+                      <span class="rounded bg-slate-900 px-2 py-[0.15rem] text-xs text-slate-500">v{member.version}</span>
                       {#if member.isCurrent}
-                        <span class="exercise-group-list-current-tag">current</span>
+                        <span class="rounded bg-green-500/15 px-[0.4rem] py-[0.1rem] text-[0.7rem] font-semibold uppercase text-green-300">current</span>
                       {/if}
                     </div>
 
-                    <div class="exercise-group-list-snippet-preview">
+                    <div class="mb-3 max-h-20 overflow-hidden rounded-md bg-slate-900 p-3 text-[0.8rem] text-slate-400">
                       <LatexViewer code={(member.ex.latexBody || "").slice(0, 150) + "..."} snippet={true} />
                     </div>
 
-                    <div class="exercise-group-list-member-actions">
+                    <div class="flex flex-wrap justify-end gap-[0.375rem]">
                       <button
-                        class="exercise-group-list-action-btn exercise-group-list-edit-btn"
+                        class={actionBtnEdit}
                         title="Edit exercise"
                         on:click={() => onEditExercise(member.ex)}
                       >
@@ -129,7 +148,7 @@
                         <span>Edit</span>
                       </button>
                       <button
-                        class="exercise-group-list-action-btn exercise-group-list-version-btn"
+                        class={actionBtnVersion}
                         title="Create new version"
                         on:click={() => onNewVersion(member.ex)}
                       >
@@ -141,7 +160,7 @@
                         <span>+Ver</span>
                       </button>
                       <button
-                        class="exercise-group-list-action-btn exercise-group-list-diff-btn"
+                        class={actionBtnDiff}
                         title="Compare LaTeX diff"
                         on:click={() => onDiff(member.ex)}
                       >
@@ -154,7 +173,7 @@
                         <span>Diff</span>
                       </button>
                       <button
-                        class="exercise-group-list-action-btn regroup-btn"
+                        class={actionBtnBase}
                         title="Re-group exercise"
                         on:click={() => onRegroup(member.ex)}
                       >
@@ -167,7 +186,7 @@
                         <span>Regroup</span>
                       </button>
                       <button
-                        class="exercise-group-list-action-btn exercise-group-list-delete-btn"
+                        class={actionBtnDelete}
                         title="Delete exercise"
                         on:click={() => onDelete(member.ex)}
                       >
@@ -183,9 +202,9 @@
             {/each}
 
             <!-- Group-level actions -->
-            <div class="exercise-group-list-group-actions">
+            <div class="mt-2 flex justify-end gap-2 border-t border-dashed border-slate-700/60 pt-4">
               <button
-                class="exercise-group-list-group-action-btn edit-group-btn"
+                class={groupActionBtnBase}
                 title="Edit Group Metadata (Name, Topic Tag, Grade, Subject)"
                 on:click={() => onEditGroup(group)}
               >
@@ -196,7 +215,7 @@
                 <span>Edit Group</span>
               </button>
               <button
-                class="exercise-group-list-group-action-btn exercise-group-list-variant-btn"
+                class={groupActionBtnVariant}
                 title="Create parallel variant"
                 on:click={() => onOpenVariant(rep)}
               >
@@ -209,7 +228,7 @@
                 <span>+ Variant</span>
               </button>
               <button
-                class="exercise-group-list-group-action-btn exercise-group-list-version-btn"
+                class={groupActionBtnVersion}
                 title="Create new version of first variant"
                 on:click={() => onNewVersion(rep)}
               >

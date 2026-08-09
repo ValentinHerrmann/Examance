@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./ExerciseFilterSidebar.css";
   import type { ExerciseRecord } from "$lib/db/schema";
 
   interface ExerciseGroup {
@@ -24,22 +23,32 @@
   export let availableSubjects: string[] = [];
   export let allGroups: ExerciseGroup[] = [];
   export let onTopicChange: (topic: string) => void;
+
+  const pillBase =
+    "w-full box-border rounded-2xl border border-slate-700 bg-slate-800 px-3 py-[0.375rem] text-left text-[0.85rem] text-slate-300 cursor-pointer";
+  const pillActive =
+    "w-full box-border rounded-2xl border border-sky-400 bg-sky-600 px-3 py-[0.375rem] text-left text-[0.85rem] font-semibold text-white cursor-pointer";
 </script>
 
-<div class="exercise-filter-sidebar-filter-sidebar" class:collapsed={filterCollapsed}>
-  <div class="exercise-filter-sidebar-search-box">
+<div class="flex flex-col gap-4 sticky top-2 {filterCollapsed ? 'max-md:hidden' : ''}">
+  <div>
     <input
       type="text"
       placeholder="Search exercises by name, topic, grade, subject, or LaTeX content..."
       bind:value={searchQuery}
+      class="box-border w-full rounded-lg border border-slate-700 bg-slate-800 p-3 text-white"
     />
   </div>
 
-  <div class="exercise-filter-sidebar-filter-selects">
+  <div class="flex flex-wrap gap-6">
     {#if availableGrades.length > 0}
-      <div class="exercise-filter-sidebar-select-group">
+      <div class="flex items-center gap-2 text-sm text-slate-300">
         <label for="grade-select">Grade:</label>
-        <select id="grade-select" bind:value={selectedGrade}>
+        <select
+          id="grade-select"
+          bind:value={selectedGrade}
+          class="rounded-md border border-slate-700 bg-slate-800 px-3 py-[0.375rem] text-[0.85rem] text-white"
+        >
           <option value="ALL">All Grades</option>
           {#each availableGrades as g}
             <option value={g}>Grade {g}</option>
@@ -49,9 +58,13 @@
     {/if}
 
     {#if availableSubjects.length > 0}
-      <div class="exercise-filter-sidebar-select-group">
+      <div class="flex items-center gap-2 text-sm text-slate-300">
         <label for="subject-select">Subject:</label>
-        <select id="subject-select" bind:value={selectedSubject}>
+        <select
+          id="subject-select"
+          bind:value={selectedSubject}
+          class="rounded-md border border-slate-700 bg-slate-800 px-3 py-[0.375rem] text-[0.85rem] text-white"
+        >
           <option value="ALL">All Subjects</option>
           {#each availableSubjects as s}
             <option value={s}>{s}</option>
@@ -61,10 +74,9 @@
     {/if}
   </div>
 
-  <div class="exercise-filter-sidebar-topic-pills">
+  <div class="flex w-full flex-col gap-[0.375rem]">
     <button
-      class="exercise-filter-sidebar-pill"
-      class:active={selectedTopic === "ALL"}
+      class={selectedTopic === "ALL" ? pillActive : pillBase}
       on:click={() => onTopicChange("ALL")}
     >
       All Topics ({allGroups.length})
@@ -72,8 +84,7 @@
     {#each availableTopics as topic}
       {@const groupCount = allGroups.filter((g) => g.topicTag === topic).length}
       <button
-        class="exercise-filter-sidebar-pill"
-        class:active={selectedTopic === topic}
+        class={selectedTopic === topic ? pillActive : pillBase}
         on:click={() => onTopicChange(topic)}
       >
         {topic} ({groupCount})

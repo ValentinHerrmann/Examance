@@ -1,7 +1,11 @@
 <script lang="ts">
-  import './GradingKeyEditor.css';
   import type { GradingKeyConfig, GradeCutoff } from '$lib/db/schema';
   import { getPresetCutoffs } from '$lib/analytics/gradingKey';
+
+  const presetBtnBase =
+    "cursor-pointer rounded-md border-0 bg-transparent px-[0.65rem] py-[0.35rem] text-xs font-medium text-slate-300 transition-all duration-150 ease-[ease] hover:bg-slate-700 hover:text-white";
+  const presetBtnActive =
+    "cursor-pointer rounded-md border-0 bg-indigo-600 px-[0.65rem] py-[0.35rem] text-xs font-semibold text-white shadow-[0_1px_3px_rgba(0,0,0,0.3)]";
 
   export let gradingKey: GradingKeyConfig = {
     preset: 'linear_50',
@@ -28,78 +32,75 @@
   }
 </script>
 
-<div class="grading-key-editor-grading-key-editor">
-  <div class="grading-key-editor-editor-header">
-    <div class="grading-key-editor-title-group">
-      <h4 class="grading-key-editor-title">
-        <svg class="grading-key-editor-header-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+<div class="my-4 flex flex-col gap-5 rounded-xl border border-slate-700 bg-slate-900 p-5">
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div class="flex flex-col gap-1">
+      <h4 class="m-0 flex items-center gap-2 text-[1.05rem] font-semibold text-slate-50">
+        <svg class="h-5 w-5 shrink-0 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
         Notenschlüssel (Noten 1 bis 6)
       </h4>
-      <p class="grading-key-editor-subtitle">
+      <p class="m-0 text-[0.8rem] text-slate-400">
         Definiere die Mindestprozentgrenzen für die automatische Notenberechnung in der Korrekturansicht.
       </p>
     </div>
 
     <!-- Presets -->
-    <div class="grading-key-editor-presets-bar">
+    <div class="flex flex-wrap items-center gap-[0.375rem] rounded-lg border border-slate-700 bg-slate-800 p-1">
       <button
         type="button"
-        class="grading-key-editor-preset-btn"
-        class:grading-key-editor-active={gradingKey.preset === 'linear_50'}
+        class={gradingKey.preset === 'linear_50' ? presetBtnActive : presetBtnBase}
         on:click={() => applyPreset('linear_50')}
       >
         Klassisch (50% = Note 4)
       </button>
       <button
         type="button"
-        class="grading-key-editor-preset-btn"
-        class:grading-key-editor-active={gradingKey.preset === 'linear_40'}
+        class={gradingKey.preset === 'linear_40' ? presetBtnActive : presetBtnBase}
         on:click={() => applyPreset('linear_40')}
       >
         Oberstufe (40% = Note 4)
       </button>
       <button
         type="button"
-        class="grading-key-editor-preset-btn"
-        class:grading-key-editor-active={gradingKey.preset === 'even_split'}
+        class={gradingKey.preset === 'even_split' ? presetBtnActive : presetBtnBase}
         on:click={() => applyPreset('even_split')}
       >
         Gleichmäßig
       </button>
       {#if gradingKey.preset === 'custom'}
-        <span class="grading-key-editor-custom-badge">Individuell</span>
+        <span class="px-2 font-mono text-[0.7rem] text-indigo-400">Individuell</span>
       {/if}
     </div>
   </div>
 
   <!-- Cutoffs Grid -->
-  <div class="grading-key-editor-cutoffs-grid">
+  <div class="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3">
     {#each gradingKey.cutoffs as cutoff, idx}
-      <div class="grading-key-editor-cutoff-card">
-        <div class="grading-key-editor-card-header">
-          <span class="grading-key-editor-grade-badge">
+      <div class="flex flex-col gap-2 rounded-lg border border-slate-700 bg-slate-800 p-3">
+        <div class="flex items-center justify-between">
+          <span class="inline-flex items-center justify-center rounded-md border border-indigo-500/30 bg-indigo-500/20 px-2 py-[0.15rem] text-xs font-bold text-indigo-300">
             Note {cutoff.grade}
           </span>
-          <span class="grading-key-editor-grade-label">{cutoff.label}</span>
+          <span class="text-xs font-medium text-slate-300">{cutoff.label}</span>
         </div>
 
-        <div class="grading-key-editor-card-input-row">
-          <span class="grading-key-editor-input-prefix">Ab</span>
+        <div class="flex items-center gap-[0.375rem]">
+          <span class="text-xs text-slate-400">Ab</span>
           <input
             type="number"
             min="0"
             max="100"
             step="0.01"
-            class="grading-key-editor-percentage-input"
+            class="w-[75px] rounded-md border border-slate-700 bg-slate-900 px-[0.35rem] py-1 text-center text-sm font-semibold text-slate-50 focus:border-indigo-500 focus:shadow-[0_0_0_2px_rgba(99,102,241,0.2)] focus:outline-none"
             bind:value={cutoff.minPercentage}
             on:input={handleInputChange}
           />
-          <span class="grading-key-editor-input-suffix">%</span>
+          <span class="text-xs text-slate-400">%</span>
         </div>
 
-        <div class="grading-key-editor-range-hint">
+        <div class="font-mono text-[0.7rem] text-slate-500">
           {#if idx === 0}
             {cutoff.minPercentage}% – 100%
           {:else}

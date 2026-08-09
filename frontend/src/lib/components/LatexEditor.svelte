@@ -38,7 +38,6 @@
 </script>
 
 <script lang="ts">
-  import "./LatexEditor.css";
   import { onMount, onDestroy, createEventDispatcher } from "svelte";
   import { EditorView, keymap, drawSelection, lineNumbers } from "@codemirror/view";
   import { EditorState, Compartment } from "@codemirror/state";
@@ -227,4 +226,47 @@
   });
 </script>
 
-<div class="latex-editor-wrapper" bind:this={container}></div>
+<div class="flex w-full h-full flex-1 min-h-0 flex-col overflow-hidden" bind:this={container}></div>
+
+<style>
+  :global(.cm-diff-line-added) {
+    background-color: rgba(16, 185, 129, 0.15) !important;
+  }
+  :global(.cm-diff-line-removed) {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+  }
+  :global(.cm-diff-line-modified) {
+    background-color: rgba(245, 158, 11, 0.15) !important;
+  }
+  :global(.cm-diff-word-added) {
+    background-color: rgba(16, 185, 129, 0.35);
+    color: #6ee7b7;
+    border-radius: 2px;
+    text-decoration: underline;
+  }
+  :global(.cm-diff-word-removed) {
+    background-color: rgba(239, 68, 68, 0.35);
+    color: #fca5a5;
+    border-radius: 2px;
+    text-decoration: line-through;
+  }
+  :global(.cm-diff-line-padding) {
+    display: block;
+    box-sizing: border-box;
+    background: transparent;
+  }
+  :global(.cm-diff-gap-spacer) {
+    background-color: rgba(15, 23, 42, 0.6);
+    background-image: repeating-linear-gradient(
+      45deg,
+      #1e293b 0,
+      #1e293b 8px,
+      #0f172a 8px,
+      #0f172a 16px
+    );
+    border-top: 1px dashed #334155;
+    border-bottom: 1px dashed #334155;
+    display: block;
+    box-sizing: border-box;
+  }
+</style>

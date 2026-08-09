@@ -2,9 +2,10 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import wasm from 'vite-plugin-wasm';
 import topLevelAwait from 'vite-plugin-top-level-await';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  plugins: [wasm(), topLevelAwait(), sveltekit()],
+  plugins: [tailwindcss(), wasm(), topLevelAwait(), sveltekit()],
   test: {
     alias: {
       'argon2-browser': '/home/vale/_GITHUB/ValentinHerrmann/BlindGrade/frontend/tests/mocks/argon2Mock.ts',

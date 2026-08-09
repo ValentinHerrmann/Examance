@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./ConfirmDialog.css";
   import { createEventDispatcher } from "svelte";
 
   export let isOpen = false;
@@ -33,34 +32,47 @@
 
 {#if isOpen}
   <div
-    class="confirm-dialog-backdrop"
+    class="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/85 p-4 backdrop-blur-sm"
     role="button"
     tabindex="-1"
     on:click|self={handleCancel}
   >
     <div
-      class="confirm-dialog-modal"
+      class="w-full max-w-[440px] overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-2xl animate-[scaleIn_0.15s_ease-out]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
     >
-      <div class="confirm-dialog-header">
-        <h3 id="confirm-dialog-title">⚠️ {title}</h3>
-        <button type="button" class="confirm-dialog-close-btn" on:click={handleCancel}>✕</button>
+      <div class="flex items-center justify-between border-b border-slate-700 px-6 py-5">
+        <h3 id="confirm-dialog-title" class="m-0 flex items-center gap-2 text-lg text-slate-100">⚠️ {title}</h3>
+        <button type="button" class="rounded p-1 text-lg leading-none text-slate-400 transition-colors duration-150 hover:text-slate-100" on:click={handleCancel}>✕</button>
       </div>
 
-      <div class="confirm-dialog-body">
-        <p>{message}</p>
+      <div class="p-6 text-[0.95rem] leading-[1.5] text-slate-300">
+        <p class="m-0">{message}</p>
       </div>
 
-      <div class="confirm-dialog-footer">
-        <button type="button" class="confirm-dialog-keep-btn" on:click={handleCancel}>
+      <div class="flex justify-end gap-3 border-t border-slate-700 bg-slate-900 px-6 py-4">
+        <button type="button" class="rounded-md border-none bg-slate-700 px-4 py-2 text-sm font-semibold text-white transition-colors duration-150 hover:bg-slate-600" on:click={handleCancel}>
           {cancelText}
         </button>
-        <button type="button" class="confirm-dialog-discard-btn" on:click={handleConfirm}>
+        <button type="button" class="rounded-md border-none bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors duration-150 hover:bg-red-700" on:click={handleConfirm}>
           {confirmText}
         </button>
       </div>
     </div>
   </div>
 {/if}
+
+<style>
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+</style>

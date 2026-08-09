@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./DeleteExerciseModal.css";
   import type { ExerciseRecord } from "$lib/db/schema";
 
   export let isOpen = false;
@@ -12,36 +11,36 @@
 
 {#if isOpen && deletingExercise}
   <div
-    class="delete-exercise-modal-backdrop"
+    class="fixed inset-0 w-screen h-screen bg-black/75 flex justify-center items-center z-[100]"
     role="button"
     tabindex="-1"
     on:click|self={onClose}
     on:keydown|self={(e) => e.key === "Escape" && onClose()}
   >
-    <div class="delete-exercise-modal-content delete-exercise-modal-small-modal">
-      <div class="delete-exercise-modal-header">
-        <h3>Delete Exercise: {deletingExercise.name || "Untitled"}</h3>
-        <button class="delete-exercise-modal-close-btn" on:click={onClose}>✕</button>
+    <div class="bg-slate-800 border border-slate-700 rounded-xl w-[90%] max-w-[500px] max-h-[90vh] flex flex-col overflow-hidden">
+      <div class="flex justify-between items-center px-6 py-4 border-b border-slate-700">
+        <h3 class="m-0 text-sky-400">Delete Exercise: {deletingExercise.name || "Untitled"}</h3>
+        <button class="bg-transparent border-none text-slate-400 text-xl cursor-pointer" on:click={onClose}>✕</button>
       </div>
 
-      <div class="delete-exercise-modal-body">
+      <div class="p-6 overflow-y-auto flex-1">
         {#if isDeleteLoading}
           <p>Checking exercise usage in exams...</p>
         {:else if deleteUsageInfo && deleteUsageInfo.examCount > 0}
-          <div class="delete-exercise-modal-warning-box">
-            <h4>⚠️ Warning: Exercise in Use</h4>
+          <div class="bg-red-500/15 border border-red-500 rounded-lg p-4 text-red-300">
+            <h4 class="m-0 mb-2 text-red-400">⚠️ Warning: Exercise in Use</h4>
             <p>
               This exercise is currently referenced in <strong>{deleteUsageInfo.examCount}</strong> exam(s):
             </p>
-            <ul class="delete-exercise-modal-exam-list">
+            <ul class="my-2 pl-6 text-slate-200">
               {#each deleteUsageInfo.exams as exam}
                 <li>
                   <strong>{exam.title}</strong>
-                  {#if exam.datum}<span class="delete-exercise-modal-exam-date">({exam.datum})</span>{/if}
+                  {#if exam.datum}<span class="text-slate-400 text-[0.85rem] ml-[0.35rem]">({exam.datum})</span>{/if}
                 </li>
               {/each}
             </ul>
-            <p class="delete-exercise-modal-warning-note">
+            <p class="text-[0.85rem] mt-3 text-slate-300">
               Deleting it will permanently remove it from the library and unlink it from these exams.
             </p>
           </div>
@@ -50,9 +49,13 @@
         {/if}
       </div>
 
-      <div class="delete-exercise-modal-footer">
-        <button class="delete-exercise-modal-cancel-btn" on:click={onClose}>Cancel</button>
-        <button class="delete-exercise-modal-delete-confirm-btn" on:click={onConfirm} disabled={isDeleteLoading}>
+      <div class="flex justify-end gap-4 px-6 py-4 border-t border-slate-700">
+        <button class="bg-slate-700 text-white border-none px-5 py-2.5 rounded-md cursor-pointer" on:click={onClose}>Cancel</button>
+        <button
+          class="bg-red-600 text-white border-none px-5 py-2.5 rounded-md font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          on:click={onConfirm}
+          disabled={isDeleteLoading}
+        >
           Delete Anyway
         </button>
       </div>

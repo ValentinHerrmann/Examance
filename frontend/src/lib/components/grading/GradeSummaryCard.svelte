@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./GradeSummaryCard.css";
   import type { GradeDetail } from "$lib/analytics/gradingKey";
 
   export let isFullyGraded: boolean;

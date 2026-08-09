@@ -4,7 +4,6 @@
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import { computeSideBySideDiff, buildAlignedDiffDecorations } from "$lib/latex/diff";
   import { getDiffSelectLabel } from "./ExerciseDiffModal";
-  import "./ExerciseDiffModal.css";
 
   export let isOpen = false;
   export let activeDiffGroupExercises: ExerciseRecord[] = [];
@@ -71,23 +70,23 @@
 
 {#if isOpen}
   <div
-    class="exercise-diff-modal-backdrop"
+    class="fixed inset-0 w-screen h-screen bg-black/75 flex justify-center items-center z-[100]"
     role="button"
     tabindex="-1"
     on:click|self={onRequestClose}
     on:keydown|self={(e) => e.key === "Escape" && onRequestClose()}
   >
-    <div class="exercise-diff-modal-content exercise-diff-modal-large-modal">
-      <div class="exercise-diff-modal-header">
-        <h3>Exercise LaTeX Code Diff Comparison</h3>
-        <button class="exercise-diff-modal-close-btn" on:click={onRequestClose}>✕</button>
+    <div class="bg-slate-800 border border-slate-700 rounded-xl w-[90%] max-w-[1400px] max-h-[95vh] flex flex-col overflow-hidden">
+      <div class="flex justify-between items-center px-6 py-4 border-b border-slate-700">
+        <h3 class="m-0 text-sky-400">Exercise LaTeX Code Diff Comparison</h3>
+        <button class="bg-transparent border-none text-slate-400 text-xl cursor-pointer" on:click={onRequestClose}>✕</button>
       </div>
 
-      <div class="exercise-diff-modal-body">
-        <div class="exercise-diff-modal-diff-selectors">
-          <div class="exercise-diff-modal-diff-select-group">
-            <label for="diffLeftSelect">Base / Left Version:</label>
-            <select id="diffLeftSelect" bind:value={diffLeftId}>
+      <div class="p-6 overflow-y-auto flex-1">
+        <div class="flex gap-6 mb-6 bg-slate-900 p-4 rounded-lg">
+          <div class="flex flex-col gap-1.5 flex-1">
+            <label for="diffLeftSelect" class="text-sm text-slate-300">Base / Left Version:</label>
+            <select id="diffLeftSelect" bind:value={diffLeftId} class="p-2 bg-slate-800 border border-slate-700 rounded-md text-white">
               {#each activeDiffGroupExercises as ex}
                 <option value={ex.id}>
                   {getDiffSelectLabel(ex)}
@@ -96,9 +95,9 @@
             </select>
           </div>
 
-          <div class="exercise-diff-modal-diff-select-group">
-            <label for="diffRightSelect">Compared / Right Version:</label>
-            <select id="diffRightSelect" bind:value={diffRightId}>
+          <div class="flex flex-col gap-1.5 flex-1">
+            <label for="diffRightSelect" class="text-sm text-slate-300">Compared / Right Version:</label>
+            <select id="diffRightSelect" bind:value={diffRightId} class="p-2 bg-slate-800 border border-slate-700 rounded-md text-white">
               {#each activeDiffGroupExercises as ex}
                 <option value={ex.id}>
                   {getDiffSelectLabel(ex)}
@@ -108,15 +107,15 @@
           </div>
         </div>
 
-        <div class="exercise-diff-modal-diff-panes">
-          <div class="exercise-diff-modal-diff-pane">
-            <div class="exercise-diff-modal-diff-pane-header">
-              <h4>Left: {diffLeftEx?.name || "Original"} (v{diffLeftEx?.version || 1})</h4>
-              <div class="exercise-diff-modal-pane-controls">
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+              <h4 class="m-0 text-sky-400 text-[0.9rem]">Left: {diffLeftEx?.name || "Original"} (v{diffLeftEx?.version || 1})</h4>
+              <div class="flex items-center gap-2">
                 {#if isDiffLeftDirty}
                   <button
                     type="button"
-                    class="exercise-diff-modal-save-pane-btn"
+                    class="bg-emerald-500 text-white border-none px-[0.6rem] py-1 text-xs font-semibold rounded cursor-pointer transition-colors duration-150 enabled:hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed"
                     on:click={onSaveLeft}
                     disabled={isSavingDiffLeft}
                   >
@@ -126,7 +125,7 @@
               </div>
             </div>
 
-            <div class="exercise-diff-modal-diff-editor-wrapper">
+            <div class="max-h-[450px] h-[450px] rounded-lg overflow-hidden">
               <LatexEditor
                 bind:this={diffLeftEditor}
                 bind:value={diffLeftLatex}
@@ -137,14 +136,14 @@
             </div>
           </div>
 
-          <div class="exercise-diff-modal-diff-pane">
-            <div class="exercise-diff-modal-diff-pane-header">
-              <h4>Right: {diffRightEx?.name || "Compared"} (v{diffRightEx?.version || 1})</h4>
-              <div class="exercise-diff-modal-pane-controls">
+          <div>
+            <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+              <h4 class="m-0 text-sky-400 text-[0.9rem]">Right: {diffRightEx?.name || "Compared"} (v{diffRightEx?.version || 1})</h4>
+              <div class="flex items-center gap-2">
                 {#if isDiffRightDirty}
                   <button
                     type="button"
-                    class="exercise-diff-modal-save-pane-btn"
+                    class="bg-emerald-500 text-white border-none px-[0.6rem] py-1 text-xs font-semibold rounded cursor-pointer transition-colors duration-150 enabled:hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed"
                     on:click={onSaveRight}
                     disabled={isSavingDiffRight}
                   >
@@ -154,7 +153,7 @@
               </div>
             </div>
 
-            <div class="exercise-diff-modal-diff-editor-wrapper">
+            <div class="max-h-[450px] h-[450px] rounded-lg overflow-hidden">
               <LatexEditor
                 bind:this={diffRightEditor}
                 bind:value={diffRightLatex}
@@ -167,8 +166,8 @@
         </div>
       </div>
 
-      <div class="exercise-diff-modal-footer">
-        <button class="exercise-diff-modal-cancel-btn" on:click={onRequestClose}>Close</button>
+      <div class="flex justify-end gap-4 px-6 py-4 border-t border-slate-700">
+        <button class="bg-slate-700 text-white border-none px-5 py-2.5 rounded-md cursor-pointer" on:click={onRequestClose}>Close</button>
       </div>
     </div>
   </div>

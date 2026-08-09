@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./GradingWorkspace.css";
   import type { ExamRecord, ExerciseRecord, SubmissionRecord } from "$lib/db/schema";
   import type { GradeDetail } from "$lib/analytics/gradingKey";
   import { gradingStore } from "$lib/grading/gradingStore";
@@ -53,8 +52,8 @@
   {calculatedGrade}
 />
 
-<div class="grading-workspace-grading-workspace">
-  <div class="grading-workspace-canvas-panel">
+<div class="box-border grid h-[calc(100vh-44px)] w-full flex-1 min-h-0 grid-cols-[minmax(0,1fr)_280px] gap-2 overflow-hidden p-2">
+  <div class="relative flex w-full min-w-0 min-h-0 h-full flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-950">
     <AnnotationToolbar onClearRequested={requestClearAnnotations} />
 
     <ScanCanvasViewer
@@ -75,10 +74,10 @@
     />
   </div>
 
-  <div class="grading-workspace-grading-panel">
+  <div class="box-border flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
     <ScoreEntry {exercises} />
 
-    <div class="grading-workspace-grading-panel-pinned">
+    <div class="flex shrink-0 flex-col gap-2 border-t border-slate-700 bg-slate-800 px-3 py-[0.65rem]">
       <GradeSummaryCard
         {isFullyGraded}
         {totalScore}

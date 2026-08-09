@@ -11,7 +11,6 @@
    * page — it is the highest-risk area (submission switching, redraw timing,
    * pinch-zoom) so every function here is a close 1:1 port of the original.
    */
-  import "./ScanCanvasViewer.css";
   import { tick } from "svelte";
   import { get } from "svelte/store";
   import type { SubmissionRecord, ExerciseRecord } from "$lib/db/schema";
@@ -589,12 +588,16 @@
   }
 </script>
 
-<div class="scan-canvas-viewer-canvas-viewport" bind:this={canvasViewport} on:wheel={handleWheel}>
-  <div class="scan-canvas-viewer-canvas-zoom-wrapper" style="width: {$gradingStore.zoomScale * 100}%; max-width: 100%; position: relative; display: block; margin: 0 auto;">
-    <canvas bind:this={scanCanvas} class="scan-canvas-viewer-scan-canvas"></canvas>
+<div
+  class="flex flex-1 min-h-0 w-full h-full items-start justify-center overflow-auto relative box-border bg-[#020617] p-2"
+  bind:this={canvasViewport}
+  on:wheel={handleWheel}
+>
+  <div class="relative mx-auto block max-w-full" style="width: {$gradingStore.zoomScale * 100}%;">
+    <canvas bind:this={scanCanvas} class="block w-full h-auto rounded shadow-[0_8px_30px_rgba(0,0,0,0.7)]"></canvas>
     <canvas
       bind:this={overlayCanvas}
-      class="scan-canvas-viewer-overlay-canvas"
+      class="absolute left-0 top-0 h-full w-full cursor-crosshair"
       on:pointerdown={handlePointerDown}
       on:pointermove={handlePointerMove}
       on:pointerup={handlePointerUp}

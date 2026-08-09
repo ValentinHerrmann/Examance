@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./ExerciseEditorModal.css";
   import { createEventDispatcher, onDestroy } from "svelte";
   import { get } from "svelte/store";
   import type { ExerciseRecord } from "$lib/db/schema";
@@ -349,27 +348,33 @@
       isSaving = false;
     }
   }
+
+  const editorColumnBase =
+    "flex flex-col h-full min-h-0 overflow-hidden rounded-lg border border-slate-700 bg-slate-900 transition-all duration-200 ease-[ease]";
+  $: editorColumnClass = showLatexPanel
+    ? `${editorColumnBase} flex-1 min-w-0 p-0 gap-0`
+    : `${editorColumnBase} w-[38px] flex-[0_0_38px] min-w-[38px] p-0`;
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
 
 {#if isOpen}
   <div
-    class="exercise-editor-modal-backdrop"
+    class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/80 p-6 backdrop-blur-[4px]"
     role="button"
     tabindex="-1"
     on:click|self={requestClose}
   >
     <div
-      class="exercise-editor-modal-content"
+      class="flex h-[92vh] max-h-[92vh] w-[95vw] max-w-[1700px] flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="exercise-editor-title"
     >
-      <div class="exercise-editor-modal-header">
-        <div class="exercise-editor-modal-header-top">
-          <div class="exercise-editor-modal-title-group">
-            <h3 id="exercise-editor-title">
+      <div class="flex shrink-0 flex-col gap-[0.65rem] border-b border-slate-700 bg-slate-800 px-5 py-4">
+        <div class="flex w-full items-center justify-between">
+          <div class="flex items-center gap-[0.65rem]">
+            <h3 id="exercise-editor-title" class="m-0 text-[1.15rem] text-slate-100">
               {isCreatingVersion
                 ? `New Version: ${editorName}`
                 : editingExercise
@@ -377,86 +382,92 @@
                   : "Create New Exercise"}
             </h3>
             {#if isCreatingVersion}
-              <span class="exercise-editor-modal-version-badge">v{(versionBaseEx?.version || 1) + 1}</span>
+              <span class="rounded bg-sky-400/15 border border-sky-400/30 px-2 py-[0.15rem] text-xs font-semibold text-sky-400">v{(versionBaseEx?.version || 1) + 1}</span>
             {/if}
           </div>
-          <button type="button" class="exercise-editor-modal-close-btn" on:click={requestClose}>✕</button>
+          <button type="button" class="cursor-pointer rounded border-0 bg-transparent p-1 text-[1.25rem] leading-none text-slate-400 hover:text-slate-100" on:click={requestClose}>✕</button>
         </div>
 
-        <div class="exercise-editor-modal-header-meta">
+        <div class="flex flex-wrap items-center gap-[0.85rem] rounded-md border border-slate-700 bg-slate-900 px-3 py-2">
           {#if editingExercise || isCreatingVersion}
-            <div class="exercise-editor-modal-hdr-group-info">
-              <span class="exercise-editor-modal-hdr-label">Exercise Group:</span>
-              <strong class="exercise-editor-modal-hdr-name">{editorName}</strong>
-              <span class="exercise-editor-modal-hdr-pill">🏷️ {editorTopicTag}</span>
+            <div class="flex flex-wrap items-center gap-[0.45rem] text-[0.85rem]">
+              <span class="text-[0.8rem] text-slate-400">Exercise Group:</span>
+              <strong class="font-semibold text-slate-100">{editorName}</strong>
+              <span class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.15rem] text-xs text-slate-300">🏷️ {editorTopicTag}</span>
               {#if editorGrade}
-                <span class="exercise-editor-modal-hdr-pill">🎓 Grade {editorGrade}</span>
+                <span class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.15rem] text-xs text-slate-300">🎓 Grade {editorGrade}</span>
               {/if}
               {#if editorSubject}
-                <span class="exercise-editor-modal-hdr-pill">📚 {editorSubject}</span>
+                <span class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.15rem] text-xs text-slate-300">📚 {editorSubject}</span>
               {/if}
             </div>
 
-            <div class="exercise-editor-modal-hdr-field">
-              <label for="editorVariantKey">Variant Key:</label>
+            <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
+              <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-slate-400">Variant Key:</label>
               <input
                 id="editorVariantKey"
                 type="text"
                 bind:value={editorVariantKey}
                 placeholder="e.g. Moebel, Fahrzeug"
+                class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
               />
             </div>
           {:else}
-            <div class="exercise-editor-modal-hdr-form-grid">
-              <div class="exercise-editor-modal-hdr-field">
-                <label for="editorName">Name *</label>
+            <div class="flex w-full flex-wrap items-center gap-[0.65rem]">
+              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
+                <label for="editorName" class="whitespace-nowrap font-semibold text-slate-400">Name *</label>
                 <input
                   id="editorName"
                   type="text"
                   bind:value={editorName}
                   required
                   placeholder="Group Name"
+                  class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
                 />
               </div>
 
-              <div class="exercise-editor-modal-hdr-field">
-                <label for="editorTopic">Topic *</label>
+              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
+                <label for="editorTopic" class="whitespace-nowrap font-semibold text-slate-400">Topic *</label>
                 <input
                   id="editorTopic"
                   type="text"
                   bind:value={editorTopicTag}
                   placeholder="_Vererbung"
                   required
+                  class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
                 />
               </div>
 
-              <div class="exercise-editor-modal-hdr-field">
-                <label for="editorGrade">Grade</label>
+              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
+                <label for="editorGrade" class="whitespace-nowrap font-semibold text-slate-400">Grade</label>
                 <input
                   id="editorGrade"
                   type="text"
                   bind:value={editorGrade}
                   placeholder="e.g. 10"
+                  class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
                 />
               </div>
 
-              <div class="exercise-editor-modal-hdr-field">
-                <label for="editorSubject">Subject</label>
+              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
+                <label for="editorSubject" class="whitespace-nowrap font-semibold text-slate-400">Subject</label>
                 <input
                   id="editorSubject"
                   type="text"
                   bind:value={editorSubject}
                   placeholder="e.g. Informatik"
+                  class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
                 />
               </div>
 
-              <div class="exercise-editor-modal-hdr-field">
-                <label for="editorVariantKey">Variant Key</label>
+              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
+                <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-slate-400">Variant Key</label>
                 <input
                   id="editorVariantKey"
                   type="text"
                   bind:value={editorVariantKey}
                   placeholder="e.g. Moebel"
+                  class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
                 />
               </div>
             </div>
@@ -465,56 +476,51 @@
       </div>
 
       {#if errorMsg}
-        <div class="exercise-editor-modal-error-banner">{errorMsg}</div>
+        <div class="shrink-0 overflow-y-auto max-h-[200px] whitespace-pre-wrap break-all border-l-4 border-red-500 bg-red-500/15 px-6 py-3 text-[0.875rem] text-red-300 font-mono">{errorMsg}</div>
       {/if}
 
-      <div class="exercise-editor-modal-body">
-        <div
-          class="exercise-editor-modal-editor-column"
-          class:exercise-editor-modal-expanded={showLatexPanel}
-          class:exercise-editor-modal-collapsed={!showLatexPanel}
-        >
+      <div class="flex min-h-0 flex-1 gap-4 overflow-hidden p-5 max-[1100px]:flex-col max-[1100px]:overflow-y-auto">
+        <div class={editorColumnClass}>
           {#if showLatexPanel}
             <button
               type="button"
-              class="exercise-editor-modal-panel-header-bar"
+              class="box-border flex w-full shrink-0 cursor-pointer items-center justify-between gap-2 border-0 border-b border-slate-700 bg-slate-800 px-3 py-2 text-left transition-colors duration-150 ease-[ease] hover:bg-slate-700 group"
               on:click={handleToggleLatex}
               title="Click to collapse LaTeX Code Panel"
             >
-              <div class="exercise-editor-modal-panel-header-left">
-                <span class="exercise-editor-modal-panel-title">💻 LaTeX Source Code</span>
-                <span class="exercise-editor-modal-score-indicator-badge">
-                  Auto-Score: <strong>{parseExerciseScore(editorLatexBody)} Pkt</strong>
+              <div class="flex min-w-0 items-center gap-2">
+                <span class="whitespace-nowrap text-[0.85rem] font-semibold text-slate-100">💻 LaTeX Source Code</span>
+                <span class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded border border-sky-400/20 bg-sky-400/10 px-2 py-[0.15rem] text-xs text-sky-400">
+                  Auto-Score: <strong class="text-sky-400">{parseExerciseScore(editorLatexBody)} Pkt</strong>
                 </span>
               </div>
-              <div class="exercise-editor-modal-panel-header-right">
+              <div class="flex shrink-0 items-center gap-2">
                 <button
                   type="button"
-                  class="exercise-editor-modal-preview-btn-inline"
-                  class:is-loading={isPreviewLoading}
+                  class="shrink-0 cursor-pointer rounded border-0 bg-sky-600 px-3 py-[0.35rem] text-[0.8rem] font-semibold text-white transition-colors duration-150 ease-[ease] [&:hover:not(:disabled)]:bg-sky-700"
                   on:click|stopPropagation={handlePreviewExercise}
                   disabled={isPreviewLoading}
                   title="Compile & preview exercise PDF"
                 >
                   {isPreviewLoading ? "Compiling..." : "🔍 Live Preview PDF"}
                 </button>
-                <span class="exercise-editor-modal-header-icon">›</span>
+                <span class="shrink-0 text-base font-bold text-slate-400 transition-colors duration-150 ease-[ease] group-hover:text-sky-400">›</span>
               </div>
             </button>
 
-            <div class="exercise-editor-modal-form-group exercise-editor-modal-latex-editor-group">
+            <div class="flex min-h-0 flex-1 flex-col gap-[0.4rem] overflow-hidden p-2">
               <LatexEditor bind:value={editorLatexBody} rows={12} />
             </div>
           {:else}
             <button
               type="button"
-              class="exercise-editor-modal-vertical-latex-strip"
+              class="flex h-full w-full flex-col items-center gap-4 border-0 bg-slate-900 px-[0.2rem] py-3 text-slate-400 transition-all duration-150 ease-[ease] hover:bg-slate-800 hover:text-sky-400 group"
               on:click={handleToggleLatex}
               title="Click to expand LaTeX Code Panel"
             >
-              <span class="exercise-editor-modal-strip-icon">›</span>
-              <span class="exercise-editor-modal-strip-emoji">💻</span>
-              <span class="exercise-editor-modal-strip-title">LaTeX Source Code ({parseExerciseScore(editorLatexBody)} Pkt)</span>
+              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-slate-700 bg-slate-800 text-[0.9rem] font-bold group-hover:border-sky-400 group-hover:bg-sky-600 group-hover:text-white">›</span>
+              <span class="shrink-0 text-[0.95rem] leading-none">💻</span>
+              <span class="whitespace-nowrap text-[0.8rem] font-semibold tracking-[0.5px]" style="writing-mode: vertical-rl; transform: rotate(180deg);">LaTeX Source Code ({parseExerciseScore(editorLatexBody)} Pkt)</span>
             </button>
           {/if}
         </div>
@@ -530,12 +536,11 @@
         />
       </div>
 
-      <div class="exercise-editor-modal-footer">
-        <button type="button" class="exercise-editor-modal-cancel-btn" on:click={requestClose}>Cancel</button>
+      <div class="flex justify-end gap-3 border-t border-slate-700 bg-slate-900 px-6 py-5">
+        <button type="button" class="cursor-pointer rounded-md border-0 bg-slate-700 px-5 py-[0.6rem] text-[0.875rem] font-semibold text-white hover:bg-slate-600" on:click={requestClose}>Cancel</button>
         <button
           type="button"
-          class="exercise-editor-modal-save-btn"
-          class:is-loading={isSaving}
+          class="cursor-pointer rounded-md border-0 bg-blue-600 px-5 py-[0.6rem] text-[0.875rem] font-semibold text-white [&:hover:not(:disabled)]:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
           on:click={handleSaveExercise}
           disabled={isSaving}
         >

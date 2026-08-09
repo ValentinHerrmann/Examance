@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "../app.css";
   import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
@@ -45,9 +46,10 @@
     }
   }
 
+  registerNavigationGuard();
+
   onMount(async () => {
     registerHygieneListeners();
-    registerNavigationGuard();
 
     const isLockedInStorage =
       typeof localStorage !== "undefined" &&
