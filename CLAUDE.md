@@ -68,12 +68,14 @@ Frontend → **Cloudflare Pages** via git integration (build `npm run build` in 
 
 ## Standing instructions
 - **Prefer cheaper models** for mechanical or well-defined work. Escalate only when reasoning complexity really demands it.
-- **Only basic verification**: Extensive testing will be done by a human.
+- **Only basic verification, dont run unittests**: Extensive testing will be done by a human.
 - **Security/privacy first**: client-side encryption-at-rest, GDPR-regulated data. Call out any change touching auth, crypto, or retention — read `docs/data_flow_and_security.md` and `docs/breach_response_checklist.md` first.
 - **No secrets in commits**: never commit `backend/.env` or real secret values. `backend/.env.example` is a template.
 - **Dep managers**: `uv` backend, `npm` frontend. No pip, poetry, yarn.
 - **Local mode is the default** for exercise/exam management — don't default to server endpoints when local-only paths exist.
 - Mind WASM/Argon2 asset resolution (`busytex.wasm`, `argon2.wasm`) in frontend bundling config.
 - Don't run non-terminating npm commands (dev servers, watch mode) unless asked.
+- **Persist plans in the repo**: any multi-step plan, design, or task-progress tracker must live in a tracked `.md` file — `PLAN.md` at repo root for single active plan, or `docs/plans/<name>.md` if multiple in flight. Update as work progresses so state survives session reset or infrastructure loss.
+- If you find out something, which should be known for future agent-sessions (e.g. structural or constraints), add it to CLAUDE.MD
 
 Supersedes `.github/copilot-instructions.md` (kept for Copilot, which doesn't read this file) — update both.
