@@ -2,6 +2,7 @@
   import "./ExamMetadataEditor.css";
   import type { GradingKeyConfig } from '$lib/db/schema';
   import GradingKeyEditor from '$lib/components/GradingKeyEditor.svelte';
+  import LatexEditor from '$lib/components/LatexEditor.svelte';
 
   export let isOpen: boolean = false;
   export let editTitle: string;
@@ -63,8 +64,10 @@
         </div>
 
         <div class="eme-form-group eme-full-width">
-          <label for="editInfoText">Info Text (LaTeX list)</label>
-          <textarea id="editInfoText" rows="4" bind:value={editInfoText}></textarea>
+          <label>Info Text (LaTeX list)</label>
+          <div class="eme-latex-editor-wrap">
+            <LatexEditor bind:value={editInfoText} rows={4} />
+          </div>
         </div>
 
         <div class="grading-key-block">

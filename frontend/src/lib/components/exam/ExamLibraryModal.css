@@ -15,9 +15,9 @@
   background: #1e293b;
   border: 1px solid #334155;
   border-radius: 12px;
-  width: min(96vw, 1080px);
-  max-width: 1080px;
-  max-height: 88vh;
+  width: min(96vw, 1500px);
+  max-width: 1500px;
+  max-height: min(92vh, 1000px);
   display: flex;
   flex-direction: column;
 }
@@ -51,6 +51,38 @@
   gap: 1rem;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+.elm-modal-columns {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.elm-col-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 1100px) {
+  .elm-modal-columns--split {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .elm-modal-columns--split .elm-col-list {
+    flex: 1 1 62%;
+  }
+
+  .elm-modal-columns--split .elm-mc-staging-box {
+    flex: 0 0 clamp(340px, 34%, 460px);
+    max-height: none;
+    overflow-y: auto;
+  }
 }
 
 .elm-tab-bar {
@@ -98,6 +130,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  max-height: 45vh;
+  overflow-y: auto;
 }
 
 .elm-mc-staging-header {
@@ -140,6 +174,11 @@
   font-weight: 500;
   margin-bottom: 0.15rem;
   display: block;
+}
+
+.elm-mc-staging-editor-wrap {
+  display: block;
+  flex-shrink: 0;
 }
 
 .elm-mc-staging-input,
@@ -196,7 +235,9 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-height: min(64vh, 680px);
+  flex: 1 1 auto;
+  min-height: 240px;
+  max-height: none;
   overflow-y: auto;
 }
 
@@ -346,4 +387,18 @@
   gap: 0.75rem;
   padding: 1rem 1.5rem;
   border-top: 1px solid #334155;
+}
+
+@media (max-width: 640px), (max-height: 760px) and (orientation: landscape) {
+  .elm-modal-body {
+    padding: 1rem;
+  }
+
+  .library-picker-list {
+    min-height: 180px;
+  }
+
+  .elm-mc-staging-box {
+    max-height: 40vh;
+  }
 }

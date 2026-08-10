@@ -3,6 +3,7 @@
   import type { ExerciseRecord } from '$lib/db/schema';
   import ExerciseLibraryPicker from '$lib/components/exercise-library/ExerciseLibraryPicker.svelte';
   import ExercisePreviewDrawer from '$lib/components/exercise-library/ExercisePreviewDrawer.svelte';
+  import LatexEditor from '$lib/components/LatexEditor.svelte';
 
   interface VariantMember {
     ex: ExerciseRecord;
@@ -92,7 +93,7 @@
     on:click|self={onRequestClose}
     on:keydown|self={(e) => e.key === 'Escape' && onRequestClose()}
   >
-    <div class="elm-modal-content" style="max-width: 900px; width: 95%;">
+    <div class="elm-modal-content">
       <div class="elm-modal-header">
         <h3>Link Exercises from Library</h3>
         <button class="elm-close-btn" on:click={onRequestClose}>✕</button>
@@ -120,26 +121,32 @@
           </button>
         </div>
 
-        <ExerciseLibraryPicker
-          {filteredGroups}
-          {totalVariantsCount}
-          {availableGrades}
-          {availableSubjects}
-          {availableTopics}
-          bind:searchQuery={librarySearch}
-          bind:selectedGradeFilter
-          bind:selectedSubjectFilter
-          bind:selectedTopicFilter
-          typeFilter={activeTab}
-          {activeVariantPerGroup}
-          {selectedLibraryIds}
-          {mcStagingIds}
-          {onToggleSelection}
-          {onToggleMcStaging}
-          {onSetGroupVariant}
-          onQuickEdit={onQuickEdit || (() => {})}
-          onOpenPreview={openPreviewModal}
-        />
+        <div
+          class="elm-modal-columns"
+          class:elm-modal-columns--split={activeTab === 'mc' && mcStagingExercises.length > 0}
+        >
+          <div class="elm-col-list">
+            <ExerciseLibraryPicker
+              {filteredGroups}
+              {totalVariantsCount}
+              {availableGrades}
+              {availableSubjects}
+              {availableTopics}
+              bind:searchQuery={librarySearch}
+              bind:selectedGradeFilter
+              bind:selectedSubjectFilter
+              bind:selectedTopicFilter
+              typeFilter={activeTab}
+              {activeVariantPerGroup}
+              {selectedLibraryIds}
+              {mcStagingIds}
+              {onToggleSelection}
+              {onToggleMcStaging}
+              {onSetGroupVariant}
+              onQuickEdit={onQuickEdit || (() => {})}
+              onOpenPreview={openPreviewModal}
+            />
+          </div>
 
         {#if activeTab === 'mc' && mcStagingExercises.length > 0}
           <div class="elm-mc-staging-box">
@@ -178,8 +185,10 @@
                 <input id="mc-group-title-modal" type="text" bind:value={mcStagingTitle} class="elm-mc-staging-input" />
               </div>
               <div>
-                <label class="elm-mc-staging-label" for="mc-group-scoring-modal">Scoring Scheme</label>
-                <textarea id="mc-group-scoring-modal" bind:value={mcStagingScoringText} rows="2" class="elm-mc-staging-textarea"></textarea>
+                <label class="elm-mc-staging-label">Scoring Scheme</label>
+                <div class="elm-mc-staging-editor-wrap">
+                  <LatexEditor bind:value={mcStagingScoringText} rows={3} />
+                </div>
               </div>
               <button
                 type="button"
@@ -197,6 +206,7 @@
             </div>
           </div>
         {/if}
+        </div>
       </div>
 
       <div class="elm-modal-footer">
