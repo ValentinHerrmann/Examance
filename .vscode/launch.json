@@ -27,7 +27,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "cwd": "${workspaceFolder}/frontend",
-      "console": "integratedTerminal"
+      "console": "integratedTerminal",
+      "serverReadyAction": {
+        "pattern": "Local:\\s+http://localhost:5173",
+        "action": "startDebugging",
+        "name": "Frontend Browser"
+      }
     },
     {
       "name": "Frontend Browser",
@@ -35,13 +40,17 @@
       "request": "launch",
       "url": "http://localhost:5173",
       "webRoot": "${workspaceFolder}/frontend",
-      "preLaunchTask": "Wait 1s"
+      "runtimeExecutable": "/usr/bin/google-chrome-stable",
+      "sourceMapPathOverrides": {
+        " /src/*": "${webRoot}/src/*",
+        "/@fs/*": "/*"
+      }
     }
   ],
   "compounds": [
     {
       "name": "Debug",
-      "configurations": ["Backend", "Frontend Server", "Frontend Browser"],
+      "configurations": ["Backend", "Frontend Server"],
       "stopAll": true
     }
   ]
