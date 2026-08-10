@@ -29,10 +29,7 @@ export async function openBgprojArchive(file: File, password: string): Promise<b
  * @throws Error if export fails
  */
 export async function exportBgprojArchive(password: string, filename = "workspace.bgproj"): Promise<void> {
-  const bytes = await packProject(password);
-  const blob = new Blob([bytes.buffer as ArrayBuffer], {
-    type: "application/octet-stream",
-  });
+  const blob = await packProject(password);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

@@ -15,6 +15,7 @@ import Dexie, { type Table } from 'dexie';
 import type {
   AuditEntry,
   ExamExerciseRecord,
+  ExamMcGroupRecord,
   ExamRecord,
   ExerciseRecord,
   ExerciseScoreRecord,
@@ -26,6 +27,7 @@ export class BlindGradeDB extends Dexie {
   exams!: Table<ExamRecord>;
   exercises!: Table<ExerciseRecord>;
   examExercises!: Table<ExamExerciseRecord>;
+  examMcGroups!: Table<ExamMcGroupRecord>;
   students!: Table<StudentRecord>;
   submissions!: Table<SubmissionRecord>;
   exerciseScores!: Table<ExerciseScoreRecord>;
@@ -75,6 +77,17 @@ export class BlindGradeDB extends Dexie {
       exams: 'id, teacherId, retentionUntil',
       exercises: 'id, examId, topicTag, grade, subject, name, exerciseGroupId, variantKey, isCurrent',
       examExercises: '[examId+exerciseId], examId, exerciseId, orderIndex',
+      students: 'pseudonymId, examId, fallbackCode',
+      submissions: 'id, examId, pseudonymHash',
+      exerciseScores: 'id, submissionId, exerciseId',
+      auditLog: 'id, action, timestamp',
+    });
+
+    this.version(6).stores({
+      exams: 'id, teacherId, retentionUntil',
+      exercises: 'id, examId, topicTag, grade, subject, name, exerciseGroupId, variantKey, isCurrent',
+      examExercises: '[examId+exerciseId], examId, exerciseId, orderIndex, mcGroupId',
+      examMcGroups: 'id, examId, orderIndex',
       students: 'pseudonymId, examId, fallbackCode',
       submissions: 'id, examId, pseudonymHash',
       exerciseScores: 'id, submissionId, exerciseId',
@@ -130,6 +143,7 @@ export async function clearAllTables(): Promise<void> {
       db.exams.clear(),
       db.exercises.clear(),
       db.examExercises.clear(),
+      db.examMcGroups.clear(),
       db.students.clear(),
       db.submissions.clear(),
       db.exerciseScores.clear(),

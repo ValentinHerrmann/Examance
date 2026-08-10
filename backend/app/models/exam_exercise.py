@@ -19,3 +19,7 @@ class ExamExercise(Base):
         ForeignKey("exercises.id", ondelete="CASCADE"), primary_key=True
     )
     order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    mc_group_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("exam_mc_groups.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    sub_index: Mapped[int | None] = mapped_column(Integer, nullable=True)

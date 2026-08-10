@@ -17,11 +17,13 @@ class ExerciseCreate(BaseModel):
     latex_body: str = ""
     max_points: float = 0.0
     order_index: int = 1
-    question_type: Literal["free_text", "mc", "sc", "tf"] = "free_text"
+    question_type: str = "free_text"
     correct_answers: dict | None = None
     penalty: float = 0.0
     exercise_group_id: uuid.UUID | None = None
     variant_key: str | None = None
+    mc_group_id: uuid.UUID | None = None
+    sub_index: int | None = None
 
 
 class ExerciseUpdate(BaseModel):
@@ -33,6 +35,9 @@ class ExerciseUpdate(BaseModel):
     max_points: float | None = None
     exercise_group_id: uuid.UUID | None = None
     variant_key: str | None = None
+    question_type: str | None = None
+    correct_answers: dict | None = None
+    penalty: float | None = None
 
 
 class ExerciseGroupUpdate(BaseModel):
@@ -69,6 +74,35 @@ class ExerciseResponse(BaseModel):
     question_type: str = "free_text"
     correct_answers: dict | None = None
     penalty: float = 0.0
+    mc_group_id: uuid.UUID | None = None
+    sub_index: int | None = None
+
+
+class ExamMcGroupCreate(BaseModel):
+    id: uuid.UUID | None = None
+    title: str = "Grundlagen"
+    scoring_text: str = (
+        "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. "
+        "Pro Teilaufgabe aber immer $\\geq$0BE"
+    )
+    order_index: int = 1
+
+
+class ExamMcGroupResponse(BaseModel):
+    id: uuid.UUID
+    exam_id: uuid.UUID
+    title: str
+    scoring_text: str
+    order_index: int
+    member_ids: list[uuid.UUID] = []
+
+
+class ExerciseLinkCreate(BaseModel):
+    """Links an existing library exercise to an exam, with optional MC group membership."""
+    exercise_id: uuid.UUID
+    order_index: int = 1
+    mc_group_id: uuid.UUID | None = None
+    sub_index: int | None = None
 
 
 class ExamCreate(BaseModel):
@@ -84,7 +118,9 @@ class ExamCreate(BaseModel):
     lehrernachname: str | None = None
     info_text: str | None = None
     exercise_ids: list[uuid.UUID] = []
+    exercise_links: list[ExerciseLinkCreate] = []
     exercises: list[ExerciseCreate] = []
+    mc_groups: list[ExamMcGroupCreate] = []
 
 
 class ExamUpdate(BaseModel):
@@ -99,6 +135,8 @@ class ExamUpdate(BaseModel):
     lehrernachname: str | None = None
     info_text: str | None = None
     exercise_ids: list[uuid.UUID] | None = None
+    exercise_links: list[ExerciseLinkCreate] | None = None
+    mc_groups: list[ExamMcGroupCreate] | None = None
 
 
 class ExamResponse(BaseModel):
@@ -117,6 +155,7 @@ class ExamResponse(BaseModel):
     lehrernachname: str | None = None
     info_text: str | None = None
     exercises: list[ExerciseResponse] = []
+    mc_groups: list[ExamMcGroupResponse] = []
 
 
 class ExamUsageItem(BaseModel):

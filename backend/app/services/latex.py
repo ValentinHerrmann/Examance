@@ -5,6 +5,7 @@ import asyncio
 import logging
 import shutil
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -168,23 +169,99 @@ def format_exercise_latex(latex_body: str | None, title: str) -> str:
     return f"{prefix}{body}{suffix}"
 
 
+def format_mc_group_latex(
+    members: list[Any],
+    group_title: str,
+    scoring_text: str,
+) -> str:
+    """Build one \\begin{Aufgabe} block with enumerate[label=\\alph*)] for an MC group."""
+    items = "\n".join(
+        f"\\item {getattr(ex, 'latex_body', None) or ''}" for ex in members
+    )
+    return (
+        f"\\begin{{Aufgabe}}{{{group_title}}}"
+        f" Kreuze jeweils die korrekten Lösungen an. Mehrere können, mind. eine ist jeweils richtig."
+        f" Für falsch gesetzte Kreuze werden Punkte abgezogen (pro Teilaufgabe immer $\\geq 0$ Punkte)\n\n"
+        f"\\begin{{enumerate}}[label=\\alph*)]\n"
+        f"{items}\n"
+        f"\\end{{enumerate}}\n\n"
+        f"\\LoesungLeer{{{scoring_text}}}{{0pt}}\n"
+        f"\\end{{Aufgabe}}"
+    )
+
+
 async def compile_exam_latex(
     exam_model: Any,
-    exercises: list[Any],
+    exercises: list[tuple[Any, int, uuid.UUID | None, int | None]],
+    mc_groups: list[Any] | None = None,
     show_answers: bool = False,
 ) -> bytes:
     """
     Build complete LaTeX document for an Exam model and compile it.
+
+    exercises: list of (Exercise, order_index, mc_group_id, sub_index)
+    mc_groups: list of ExamMcGroup (or dicts) with id, title, scoring_text, order_index
     """
     extra_files: dict[str, str] = {}
     exercise_inputs: list[str] = []
 
-    for idx, ex in enumerate(exercises):
-        filename = f"exercises/ex_{idx + 1}.tex"
+    # Build mc_group lookup: id -> (group_obj, sorted_members)
+    mc_group_map: dict[uuid.UUID, tuple[Any, list[Any]]] = {}
+    if mc_groups:
+        for g in mc_groups:
+            gid = getattr(g, "id", None) or (g.get("id") if isinstance(g, dict) else None)
+            if gid:
+                mc_group_map[gid] = (g, [])
+
+    # Assign exercises to groups or keep as solo
+    solo_exercises: list[tuple[Any, int]] = []
+    for idx, item in enumerate(exercises, start=1):
+        if isinstance(item, tuple):
+            if len(item) == 4:
+                ex, order_idx, mc_group_id, sub_idx = item
+            else:
+                ex, order_idx = item[0], item[1]
+                mc_group_id, sub_idx = None, None
+        else:
+            ex = item
+            order_idx = getattr(ex, "order_index", idx) or idx
+            mc_group_id, sub_idx = None, None
+
+        if mc_group_id and mc_group_id in mc_group_map:
+            mc_group_map[mc_group_id][1].append((ex, sub_idx or 0))
+        else:
+            solo_exercises.append((ex, order_idx or idx))
+
+    # Collect all items (solo or mc_group) with their order_index for sorting
+    items_with_order: list[tuple[int, str, str]] = []  # (order_index, filename, latex)
+
+    for ex, order_idx in solo_exercises:
+        filename = f"exercises/ex_{order_idx}.tex"
         ex_name = getattr(ex, "name", None) or (ex.get("name") if isinstance(ex, dict) else None)
-        title = ex_name or f"Aufgabe {idx + 1}"
+        title = ex_name or f"Aufgabe {order_idx}"
         latex_body = getattr(ex, "latex_body", None) if not isinstance(ex, dict) else ex.get("latex_body")
-        extra_files[filename] = format_exercise_latex(latex_body, title)
+        items_with_order.append((order_idx, filename, format_exercise_latex(latex_body, title)))
+
+    if mc_groups:
+        for g in mc_groups:
+            gid = getattr(g, "id", None) or (g.get("id") if isinstance(g, dict) else None)
+            if not gid or gid not in mc_group_map:
+                continue
+            _, members_with_sub = mc_group_map[gid]
+            members_sorted = [ex for ex, _ in sorted(members_with_sub, key=lambda t: t[1])]
+            g_order = getattr(g, "order_index", None) or (g.get("order_index") if isinstance(g, dict) else 1) or 1
+            g_title = getattr(g, "title", None) or (g.get("title") if isinstance(g, dict) else "Grundlagen") or "Grundlagen"
+            g_scoring = (
+                getattr(g, "scoring_text", None)
+                or (g.get("scoring_text") if isinstance(g, dict) else None)
+                or "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE"
+            )
+            filename = f"exercises/mc_group_{gid}.tex"
+            items_with_order.append((g_order, filename, format_mc_group_latex(members_sorted, g_title, g_scoring)))
+
+    items_with_order.sort(key=lambda t: t[0])
+    for _, filename, latex in items_with_order:
+        extra_files[filename] = latex
         exercise_inputs.append(f"\\input{{{filename}}}")
 
     opts = ["sans", "punkte"]

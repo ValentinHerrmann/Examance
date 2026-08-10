@@ -7,7 +7,7 @@
   import type { ExerciseRecord } from "$lib/db/schema";
   import { loadExercisesEncrypted, saveExerciseEncrypted, saveExamEncrypted, encryptExercise } from "$lib/db/dbEncryption";
   import { api } from "$lib/api/client";
-  import { parseExerciseScore, formatExerciseLatex } from "$lib/latex/scoreParser";
+  import { parseExerciseScore, formatExerciseLatex, formatMcGroupLatex } from "$lib/latex/scoreParser";
   import { compileLatex } from "$lib/latex/compiler";
   import { get } from "svelte/store";
   import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
@@ -41,11 +41,53 @@
   // Library & Selection state
   let libraryExercises: ExerciseRecord[] = [];
   let selectedLibraryIds: string[] = [];
+
+  // MC group staging & finalized groups
+  interface McGroup {
+    id: string;
+    title: string;
+    scoringText: string;
+    memberIds: string[];
+  }
+
+  interface ExamItemRef {
+    type: "exercise" | "mc_group";
+    id: string;
+  }
+
+  let mcStagingIds: string[] = [];
+  let mcGroups: McGroup[] = [];
+  let examItems: ExamItemRef[] = [];
   let selectedTopicFilter: string = "ALL";
   let selectedGradeFilter: string = "ALL";
   let selectedSubjectFilter: string = "ALL";
   let searchQuery: string = "";
   let activeTab: "library" | "custom" = "library";
+
+  $: {
+    const currentIds = new Set(selectedLibraryIds);
+    const currentMcGroupIds = new Set(mcGroups.map((g) => g.id));
+
+    let updated = examItems.filter((item) =>
+      item.type === "exercise" ? currentIds.has(item.id) : currentMcGroupIds.has(item.id)
+    );
+
+    const existingExIds = new Set(updated.filter((i) => i.type === "exercise").map((i) => i.id));
+    for (const id of selectedLibraryIds) {
+      if (!existingExIds.has(id)) {
+        updated.push({ type: "exercise", id });
+      }
+    }
+
+    const existingMcIds = new Set(updated.filter((i) => i.type === "mc_group").map((i) => i.id));
+    for (const group of mcGroups) {
+      if (!existingMcIds.has(group.id)) {
+        updated.push({ type: "mc_group", id: group.id });
+      }
+    }
+
+    examItems = updated;
+  }
 
   // Quick exercise editor state
   let isQuickEditorOpen = false;
@@ -130,8 +172,6 @@ Frage hier eingeben... \\BE
   ).sort();
 
   $: filteredLibrary = libraryExercises.filter((ex) => {
-    const matchesTopic =
-      selectedTopicFilter === "ALL" || ex.topicTag === selectedTopicFilter;
     const matchesGrade =
       selectedGradeFilter === "ALL" || ex.grade === selectedGradeFilter;
     const matchesSubject =
@@ -145,7 +185,7 @@ Frage hier eingeben... \\BE
       (ex.subject && ex.subject.toLowerCase().includes(q)) ||
       (ex.variantKey && ex.variantKey.toLowerCase().includes(q)) ||
       (ex.latexBody && ex.latexBody.toLowerCase().includes(q));
-    return matchesTopic && matchesGrade && matchesSubject && matchesSearch;
+    return matchesGrade && matchesSubject && matchesSearch;
   });
 
   $: filteredGroups = groupExercises(filteredLibrary);
@@ -155,10 +195,23 @@ Frage hier eingeben... \\BE
     .map((id) => libraryExercises.find((e) => e.id === id))
     .filter((e): e is ExerciseRecord => Boolean(e));
 
-  $: totalPoints = selectedExercises.reduce(
-    (sum, ex) => sum + (parseExerciseScore(ex.latexBody || "") || ex.maxPoints || 0),
-    0,
-  );
+  $: mcGroupExercises = mcGroups.map((g) => ({
+    group: g,
+    members: g.memberIds
+      .map((id) => libraryExercises.find((e) => e.id === id))
+      .filter((e): e is ExerciseRecord => Boolean(e)),
+  }));
+
+  $: totalPoints =
+    selectedExercises.reduce(
+      (sum, ex) => sum + (parseExerciseScore(ex.latexBody || "") || ex.maxPoints || 0),
+      0,
+    ) +
+    mcGroupExercises.reduce(
+      (sum, { members }) =>
+        sum + members.reduce((s, ex) => s + (parseExerciseScore(ex.latexBody || "") || ex.maxPoints || 0), 0),
+      0,
+    );
 
   onMount(() => {
     loadLibrary();
@@ -282,12 +335,55 @@ Frage hier eingeben... \\BE
     }
   }
 
+  function toggleMcStaging(id: string) {
+    if (mcStagingIds.includes(id)) {
+      mcStagingIds = mcStagingIds.filter((i) => i !== id);
+    } else {
+      if (mcStagingIds.length >= 4) return;
+      mcStagingIds = [...mcStagingIds, id];
+    }
+  }
+
+  function reorderMcStaging(index: number, direction: "up" | "down") {
+    const targetIdx = direction === "up" ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= mcStagingIds.length) return;
+    const copy = [...mcStagingIds];
+    [copy[index], copy[targetIdx]] = [copy[targetIdx], copy[index]];
+    mcStagingIds = copy;
+  }
+
+  function finalizeMcGroup(groupTitle: string, scoringText: string) {
+    if (mcStagingIds.length < 1 || mcStagingIds.length > 4) return;
+    mcGroups = [
+      ...mcGroups,
+      {
+        id: crypto.randomUUID(),
+        title: groupTitle,
+        scoringText,
+        memberIds: [...mcStagingIds],
+      },
+    ];
+    mcStagingIds = [];
+  }
+
+  function removeMcGroup(id: string) {
+    mcGroups = mcGroups.filter((g) => g.id !== id);
+  }
+
   function moveExercise(index: number, direction: "up" | "down") {
     const targetIdx = direction === "up" ? index - 1 : index + 1;
     if (targetIdx < 0 || targetIdx >= selectedLibraryIds.length) return;
     const copy = [...selectedLibraryIds];
     [copy[index], copy[targetIdx]] = [copy[targetIdx], copy[index]];
     selectedLibraryIds = copy;
+  }
+
+  function moveExamItem(index: number, direction: "up" | "down") {
+    const targetIdx = direction === "up" ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= examItems.length) return;
+    const copy = [...examItems];
+    [copy[index], copy[targetIdx]] = [copy[targetIdx], copy[index]];
+    examItems = copy;
   }
 
   async function handleAddCustomExercise() {
@@ -335,7 +431,7 @@ Frage hier eingeben... \\BE
   }
 
   async function handleLivePreview() {
-    if (selectedExercises.length === 0) {
+    if (selectedExercises.length === 0 && mcGroupExercises.length === 0) {
       alert("Please select at least one exercise to preview.");
       return;
     }
@@ -343,13 +439,31 @@ Frage hier eingeben... \\BE
     isPreviewLoading = true;
     errorMsg = "";
     try {
-      const exerciseInputs = selectedExercises
-        .map((ex, idx) =>
-          formatExerciseLatex(
-            ex.latexBody,
-            ex.name || `Aufgabe ${idx + 1}`,
-          ),
-        )
+      let exerciseCount = 0;
+      const exerciseInputs = examItems
+        .map((item) => {
+          if (item.type === "exercise") {
+            const ex = selectedExercises.find((e) => e.id === item.id);
+            if (!ex) return "";
+            exerciseCount++;
+            return formatExerciseLatex(
+              ex.latexBody,
+              ex.name || `Aufgabe ${exerciseCount}`,
+            );
+          } else {
+            const group = mcGroups.find((g) => g.id === item.id);
+            if (!group) return "";
+            const members = group.memberIds
+              .map((id) => libraryExercises.find((e) => e.id === id))
+              .filter((e): e is ExerciseRecord => Boolean(e));
+            return formatMcGroupLatex(
+              members.map((m) => m.latexBody || ""),
+              group.title,
+              group.scoringText,
+            );
+          }
+        })
+        .filter(Boolean)
         .join("\n\n");
 
       const getPreamble = (options: string) => `\\documentclass[a4paper]{article}
@@ -414,7 +528,7 @@ ${exerciseInputs}
       errorMsg = "Exam title is required.";
       return;
     }
-    if (selectedLibraryIds.length === 0) {
+    if (selectedLibraryIds.length === 0 && mcGroups.length === 0) {
       errorMsg = "Please select at least one exercise for the exam.";
       return;
     }
@@ -445,13 +559,65 @@ ${exerciseInputs}
         createdAt: new Date().toISOString(),
       }, key);
 
-      // Save junction links in IDB
-      const examExerciseRecords = selectedLibraryIds.map((exId, idx) => ({
-        examId,
-        exerciseId: exId,
-        orderIndex: idx + 1,
-      }));
+      // Save junction links in IDB following examItems order
+      let order = 1;
+      const examExerciseRecords: any[] = [];
+      const examMcGroupRecords: any[] = [];
+      const exerciseLinksPayload: any[] = [];
+      const mcGroupsPayload: any[] = [];
+
+      for (const item of examItems) {
+        if (item.type === "exercise") {
+          examExerciseRecords.push({
+            examId,
+            exerciseId: item.id,
+            orderIndex: order,
+          });
+          exerciseLinksPayload.push({
+            exercise_id: item.id,
+            order_index: order,
+          });
+          order++;
+        } else if (item.type === "mc_group") {
+          const group = mcGroups.find((g) => g.id === item.id);
+          if (group) {
+            examMcGroupRecords.push({
+              id: group.id,
+              examId,
+              title: group.title,
+              scoringText: group.scoringText,
+              orderIndex: order,
+            });
+            mcGroupsPayload.push({
+              id: group.id,
+              title: group.title,
+              scoring_text: group.scoringText,
+              order_index: order,
+            });
+            group.memberIds.forEach((exId, subIdx) => {
+              examExerciseRecords.push({
+                examId,
+                exerciseId: exId,
+                orderIndex: order,
+                mcGroupId: group.id,
+                subIndex: subIdx + 1,
+              });
+              exerciseLinksPayload.push({
+                exercise_id: exId,
+                order_index: order,
+                mc_group_id: group.id,
+                sub_index: subIdx + 1,
+              });
+            });
+            order++;
+          }
+        }
+      }
+
       await db.examExercises.bulkPut(examExerciseRecords);
+      if (examMcGroupRecords.length > 0) {
+        await db.examMcGroups.bulkPut(examMcGroupRecords);
+      }
 
       if ($storagePolicyStore.storageMode !== "all-local") {
         try {
@@ -466,7 +632,8 @@ ${exerciseInputs}
             lehrernachname,
             info_text: infoText,
             retention_until: retentionUntil,
-            exercise_ids: selectedLibraryIds,
+            mc_groups: mcGroupsPayload,
+            exercise_links: exerciseLinksPayload,
           });
         } catch (apiErr) {
           console.warn("Failed to sync exam to server:", apiErr);
@@ -510,6 +677,8 @@ ${exerciseInputs}
     <ExerciseSelector
       bind:activeTab
       {selectedLibraryIds}
+      {mcStagingIds}
+      {libraryExercises}
       {filteredGroups}
       {totalVariantsCount}
       {availableGrades}
@@ -525,6 +694,9 @@ ${exerciseInputs}
       bind:customLatexBody
       bind:saveCustomToLibrary
       onToggleSelection={toggleLibrarySelection}
+      onToggleMcStaging={toggleMcStaging}
+      onReorderMcStaging={reorderMcStaging}
+      onFinalizeMcGroup={finalizeMcGroup}
       onSetGroupVariant={setGroupVariant}
       onQuickEdit={openQuickEdit}
       onAddCustomExercise={handleAddCustomExercise}
@@ -532,12 +704,15 @@ ${exerciseInputs}
 
     <SelectedExercisesList
       {selectedExercises}
+      {mcGroups}
+      {libraryExercises}
       {totalPoints}
       {isPreviewLoading}
       onLivePreview={handleLivePreview}
       onQuickEdit={openQuickEdit}
       onMoveExercise={moveExercise}
       onRemove={toggleLibrarySelection}
+      onRemoveMcGroup={removeMcGroup}
     />
 
     <ExamLivePreviewPanel
@@ -551,7 +726,7 @@ ${exerciseInputs}
       type="submit"
       class="exam-new-submit-btn"
       class:is-loading={isLoading}
-      disabled={isLoading || selectedExercises.length === 0}
+      disabled={isLoading || (selectedExercises.length === 0 && mcGroups.length === 0)}
     >
       {isLoading ? "Creating Exam..." : "Save Exam & Continue"}
     </button>

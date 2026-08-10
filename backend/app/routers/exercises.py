@@ -277,6 +277,12 @@ async def update_exercise(
         ex.exercise_group_id = body.exercise_group_id
     if body.variant_key is not None:
         ex.variant_key = body.variant_key
+    if body.question_type is not None:
+        ex.question_type = body.question_type
+    if body.correct_answers is not None:
+        ex.correct_answers = body.correct_answers
+    if body.penalty is not None:
+        ex.penalty = body.penalty
 
     # Cascade group metadata changes if exercise belongs to a group
     if ex.exercise_group_id and (
@@ -425,9 +431,9 @@ async def create_new_variant(
         exercise_group_id=group_id,
         variant_key=body.variant_key,
         is_current=True,
-        question_type=body.question_type,
-        correct_answers=body.correct_answers,
-        penalty=body.penalty,
+        question_type=base_ex.question_type,
+        correct_answers=base_ex.correct_answers,
+        penalty=base_ex.penalty,
     )
     db.add(variant_ex)
     await db.flush()

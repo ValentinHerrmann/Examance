@@ -29,7 +29,7 @@
 </script>
 
 <div
-  class="flex w-full gap-2 overflow-hidden"
+  class="flex flex-1 min-w-0 w-full gap-2 overflow-hidden"
   style="height: {height};"
 >
   <!-- Tab 1: Angabe / Exercise / Exam -->

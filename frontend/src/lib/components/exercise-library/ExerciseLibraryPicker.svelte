@@ -32,10 +32,16 @@
   export let selectedTopicFilter: string;
   export let activeVariantPerGroup: Record<string, string>;
   export let selectedLibraryIds: string[];
+  export let mcStagingIds: string[] = [];
   export let onToggleSelection: (id: string) => void;
+  export let onToggleMcStaging: (id: string) => void = () => {};
   export let onSetGroupVariant: (groupId: string, vKey: string) => void;
   export let onQuickEdit: (ex: ExerciseRecord) => void;
   export let onOpenPreview: (ex: ExerciseRecord) => void;
+
+  function isMcType(ex: ExerciseRecord): boolean {
+    return ex.questionType === "mc" || ex.questionType === "sc";
+  }
 
   const pillBase =
     "cursor-pointer rounded-xl border border-slate-700 bg-slate-900 px-[0.6rem] py-1 text-[0.8rem] text-slate-300";
@@ -62,6 +68,9 @@
     "flex items-start gap-[0.85rem] rounded-[10px] border border-slate-700 bg-slate-800 p-[0.85rem_1rem] transition-colors duration-150 ease-[ease] hover:border-slate-600 hover:bg-[#223044] max-[900px]:flex-wrap";
   const rowSelected =
     "flex items-start gap-[0.85rem] rounded-[10px] border border-sky-600 bg-sky-600/10 p-[0.85rem_1rem] transition-colors duration-150 ease-[ease] max-[900px]:flex-wrap";
+  $: displayedGroups = selectedTopicFilter === "ALL"
+    ? filteredGroups
+    : filteredGroups.filter((g) => g.topicTag === selectedTopicFilter);
 </script>
 
 <div class="flex flex-col gap-3 mb-4">
@@ -73,7 +82,7 @@
       class="w-full box-border flex-[1_1_280px] rounded-md border border-slate-700 bg-slate-900 p-[0.625rem] text-white"
     />
     <span class="whitespace-nowrap text-[0.8rem] font-medium text-slate-400 max-[900px]:whitespace-normal">
-      {filteredGroups.length} Exercise Groups ({totalVariantsCount} Variants)
+      {displayedGroups.length} Exercise Groups ({totalVariantsCount} Variants)
     </span>
   </div>
 
@@ -124,19 +133,20 @@
   </div>
 </div>
 
-{#if filteredGroups.length === 0}
+{#if displayedGroups.length === 0}
   <div class="p-6 text-center text-[0.9rem] text-slate-400">
     No exercise groups found in library matching filter criteria.
   </div>
 {:else}
   <div class="flex max-h-[min(58vh,620px)] flex-col gap-3 overflow-y-auto pr-2 max-[900px]:max-h-[min(64vh,720px)]">
-    {#each filteredGroups as group}
+    {#each displayedGroups as group}
       {@const activeVKey = activeVariantPerGroup[group.groupId] || Array.from(group.variants.keys())[0] || "_General"}
       {@const vMembers = group.variants.get(activeVKey) || []}
       {@const activeMember = vMembers[0]}
       {@const activeEx = activeMember?.ex}
-      {@const isSelected = activeEx ? selectedLibraryIds.includes(activeEx.id) : false}
-      {@const groupSelectedCount = group.allMembers.filter(m => selectedLibraryIds.includes(m.ex.id)).length}
+      {@const isMc = activeEx ? isMcType(activeEx) : false}
+      {@const isSelected = activeEx ? (isMc ? mcStagingIds.includes(activeEx.id) : selectedLibraryIds.includes(activeEx.id)) : false}
+      {@const groupSelectedCount = group.allMembers.filter(m => selectedLibraryIds.includes(m.ex.id) || mcStagingIds.includes(m.ex.id)).length}
       {@const score = activeEx ? (parseExerciseScore(activeEx.latexBody || "") || activeEx.maxPoints || 0) : 0}
 
       <div class={groupSelectedCount > 0 ? rowSelected : rowBase}>
@@ -146,9 +156,10 @@
             <input
               type="checkbox"
               checked={isSelected}
-              on:change={() => onToggleSelection(activeEx.id)}
-              title={isSelected ? "Remove from exam" : "Add to exam"}
-              class="h-4 w-4 cursor-pointer accent-sky-600"
+              disabled={isMc && !isSelected && mcStagingIds.length >= 4}
+              on:change={() => (isMc ? onToggleMcStaging(activeEx.id) : onToggleSelection(activeEx.id))}
+              title={isMc ? (isSelected ? "Remove from MC staging area" : mcStagingIds.length >= 4 ? "Max 4 sub-questions per MC group reached" : "Add to MC staging area") : (isSelected ? "Remove from exam" : "Add to exam")}
+              class="h-4 w-4 cursor-pointer accent-sky-600 disabled:opacity-40 disabled:cursor-not-allowed"
             />
           {/if}
         </div>
@@ -162,9 +173,15 @@
               <span class="rounded px-[0.45rem] py-[0.1rem] text-[0.72rem] font-medium bg-slate-700 text-slate-300">{group.topicTag}</span>
             {/if}
 
+            {#if isMc}
+              <span class="rounded border border-amber-500 bg-amber-500/15 px-[0.4rem] py-[0.05rem] text-[0.72rem] font-semibold text-amber-400">
+                MC
+              </span>
+            {/if}
+
             {#if groupSelectedCount > 0}
               <span class="rounded border border-emerald-500 bg-emerald-500/15 px-[0.4rem] py-[0.05rem] text-[0.72rem] font-semibold text-emerald-400">
-                ✓ {groupSelectedCount} in exam
+                ✓ {groupSelectedCount} {isMc ? "staged" : "in exam"}
               </span>
             {/if}
           </div>

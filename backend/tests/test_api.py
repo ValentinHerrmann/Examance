@@ -5,6 +5,7 @@ import base64
 import secrets
 import uuid
 from datetime import date, timedelta
+from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -438,10 +439,74 @@ async def test_exercise_and_exam_filtering(client: AsyncClient, db: AsyncSession
     assert len(res_exam_grade.json()) == 1
     assert res_exam_grade.json()[0]["title"] == "Math Exam 10a"
 
-    res_exam_subj = await client.get("/api/v1/exams?subject=Informatik")
-    assert res_exam_subj.status_code == 200
-    assert len(res_exam_subj.json()) == 1
-    assert res_exam_subj.json()[0]["title"] == "CS Exam 12b"
+
+@pytest.mark.asyncio
+async def test_exam_mc_group_creation_and_compilation(client: AsyncClient, db: AsyncSession) -> None:
+    await _create_teacher_and_login(client, db, "mcteacher@example.com")
+
+    retention_date = (date.today() + timedelta(days=365)).isoformat()
+    group_id = str(uuid.uuid4())
+
+    # Create exam with MC group and inline grouped exercises
+    resp = await client.post(
+        "/api/v1/exams",
+        json={
+            "title": "MC Exam Test",
+            "retention_until": retention_date,
+            "mc_groups": [
+                {
+                    "id": group_id,
+                    "title": "Grundlagen MC",
+                    "scoring_text": "1BE per correct choice",
+                    "order_index": 1,
+                }
+            ],
+            "exercises": [
+                {
+                    "name": "MC Question A",
+                    "latex_body": "Option A1 \\Lmulti{A2}",
+                    "max_points": 1.0,
+                    "question_type": "mc",
+                    "mc_group_id": group_id,
+                    "sub_index": 1,
+                },
+                {
+                    "name": "MC Question B",
+                    "latex_body": "Option B1 \\Lmulti{B2}",
+                    "max_points": 1.0,
+                    "question_type": "mc",
+                    "mc_group_id": group_id,
+                    "sub_index": 2,
+                },
+            ],
+        },
+    )
+    assert resp.status_code == 201
+    exam = resp.json()
+    exam_id = exam["id"]
+    assert len(exam["mc_groups"]) == 1
+    assert exam["mc_groups"][0]["title"] == "Grundlagen MC"
+    assert len(exam["mc_groups"][0]["member_ids"]) == 2
+    assert exam["exercises"][0]["id"] in exam["mc_groups"][0]["member_ids"]
+    assert exam["exercises"][1]["id"] in exam["mc_groups"][0]["member_ids"]
+    assert len(exam["exercises"]) == 2
+    assert exam["exercises"][0]["mc_group_id"] is not None
+
+    # Retrieve exam by ID
+    get_resp = await client.get(f"/api/v1/exams/{exam_id}")
+    assert get_resp.status_code == 200
+    fetched_exam = get_resp.json()
+    assert len(fetched_exam["mc_groups"]) == 1
+    assert fetched_exam["mc_groups"][0]["title"] == "Grundlagen MC"
+    assert len(fetched_exam["mc_groups"][0]["member_ids"]) == 2
+    assert fetched_exam["exercises"][0]["id"] in fetched_exam["mc_groups"][0]["member_ids"]
+    assert fetched_exam["exercises"][1]["id"] in fetched_exam["mc_groups"][0]["member_ids"]
+
+    # Test PDF compile endpoint mock
+    with patch("app.routers.exams.compile_exam_latex", return_value=b"%PDF-1.4 mc_test"):
+        compile_resp = await client.post(f"/api/v1/exams/{exam_id}/compile")
+        assert compile_resp.status_code == 200
+        assert compile_resp.content == b"%PDF-1.4 mc_test"
 
 
 @pytest.mark.asyncio

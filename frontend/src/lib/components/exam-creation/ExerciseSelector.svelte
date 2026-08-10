@@ -27,6 +27,26 @@
   export let activeTab: "library" | "custom";
   export let selectedLibraryIds: string[];
 
+  // MC group staging
+  export let mcStagingIds: string[] = [];
+  export let libraryExercises: ExerciseRecord[] = [];
+  export let onToggleMcStaging: (id: string) => void = () => {};
+  export let onReorderMcStaging: ((index: number, direction: "up" | "down") => void) | undefined = undefined;
+  export let onFinalizeMcGroup: (title: string, scoringText: string) => void = () => {};
+
+  let mcStagingTitle = "Grundlagen";
+  let mcStagingScoringText =
+    "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE";
+
+  $: mcStagingExercises = mcStagingIds
+    .map((id) => libraryExercises.find((e) => e.id === id))
+    .filter((e): e is ExerciseRecord => Boolean(e));
+
+  function handleFinalizeMcGroup() {
+    onFinalizeMcGroup(mcStagingTitle, mcStagingScoringText);
+    mcStagingTitle = "Grundlagen";
+  }
+
   // Library picker data & filters
   export let filteredGroups: ExerciseGroup[];
   export let totalVariantsCount: number;
@@ -107,11 +127,64 @@
       bind:selectedTopicFilter
       {activeVariantPerGroup}
       {selectedLibraryIds}
+      {mcStagingIds}
       {onToggleSelection}
+      {onToggleMcStaging}
       {onSetGroupVariant}
       {onQuickEdit}
       onOpenPreview={openPreviewModal}
     />
+
+    {#if mcStagingExercises.length > 0}
+      <div class="mt-4 rounded-[10px] border border-amber-500/60 bg-amber-500/5 p-4">
+        <h4 class="mb-2 text-sm font-semibold text-amber-400">MC Group Staging Area ({mcStagingExercises.length} sub-exercises)</h4>
+        <ul class="mb-3 flex flex-col gap-1">
+          {#each mcStagingExercises as ex, i}
+            <li class="flex items-center justify-between text-sm text-slate-300">
+              <span>{String.fromCharCode(97 + i)}) {ex.name || "Untitled"}</span>
+              <div class="flex items-center gap-1.5">
+                {#if onReorderMcStaging}
+                  <button
+                    type="button"
+                    class="px-1 text-xs text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400"
+                    disabled={i === 0}
+                    on:click={() => onReorderMcStaging && onReorderMcStaging(i, "up")}
+                    title="Move up"
+                  >↑</button>
+                  <button
+                    type="button"
+                    class="px-1 text-xs text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400"
+                    disabled={i === mcStagingExercises.length - 1}
+                    on:click={() => onReorderMcStaging && onReorderMcStaging(i, "down")}
+                    title="Move down"
+                  >↓</button>
+                {/if}
+                <button type="button" class="text-xs text-red-400 hover:text-red-300 ml-1" on:click={() => onToggleMcStaging(ex.id)}>Remove</button>
+              </div>
+            </li>
+          {/each}
+        </ul>
+        <div class="flex flex-col gap-2">
+          <label class="text-xs text-slate-400" for="mc-group-title">MC Group Title</label>
+          <input id="mc-group-title" type="text" bind:value={mcStagingTitle} class="rounded-md border border-slate-700 bg-slate-900 p-2 text-sm text-white" />
+          <label class="text-xs text-slate-400" for="mc-group-scoring">Scoring Scheme</label>
+          <textarea id="mc-group-scoring" bind:value={mcStagingScoringText} rows="2" class="rounded-md border border-slate-700 bg-slate-900 p-2 text-sm text-white"></textarea>
+          <button
+            type="button"
+            class="mt-1 self-start rounded-md border border-amber-500 bg-amber-500/15 px-3 py-1.5 text-sm font-semibold text-amber-300 hover:bg-amber-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={mcStagingExercises.length < 1 || mcStagingExercises.length > 4}
+            on:click={handleFinalizeMcGroup}
+          >
+            Add MC Group to Exam ({mcStagingExercises.length} sub-exercises)
+          </button>
+          {#if mcStagingExercises.length < 1}
+            <span class="text-xs text-slate-500">Select 1 to 4 sub-exercises to form a group.</span>
+          {:else if mcStagingExercises.length > 4}
+            <span class="text-xs text-amber-400">Maximum 4 sub-exercises allowed per MC group.</span>
+          {/if}
+        </div>
+      </div>
+    {/if}
   {:else}
     <CustomExerciseForm
       bind:customName

@@ -225,7 +225,7 @@
 
 
 
-      alert(`Import successful! Loaded ${res.examCount} exam(s) and ${res.submissionCount} submission(s).`);
+      alert(`Import successful! Loaded ${res.examCount} exam(s) and ${res.studentCount} student(s).`);
       await refreshExams();
     } catch (err: any) {
       alert(`Import failed: ${err.message}`);

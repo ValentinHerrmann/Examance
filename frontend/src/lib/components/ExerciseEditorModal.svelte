@@ -8,6 +8,7 @@
   import { saveExerciseEncrypted, loadExercisesEncrypted } from "$lib/db/dbEncryption";
   import { api } from "$lib/api/client";
   import { parseExerciseScore, formatExerciseLatex } from "$lib/latex/scoreParser";
+  import { parseMcOptions, buildMcOptionsLatex, type McOption } from "$lib/latex/mcOptions";
   import { compileLatex } from "$lib/latex/compiler";
   import LatexEditor from "./LatexEditor.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
@@ -30,6 +31,10 @@
   let editorSubject = "";
   let editorVariantKey = "";
   let editorLatexBody = "";
+  let editorQuestionType: "free_text" | "mc" = "free_text";
+  let mcQuestionText = "";
+  let mcOptions: McOption[] = [];
+  let mcOptionsError = "";
 
   // Initial state for dirty tracking
   let initialName = "";
@@ -38,6 +43,7 @@
   let initialSubject = "";
   let initialVariantKey = "";
   let initialLatexBody = "";
+  let initialQuestionType: "free_text" | "mc" = "free_text";
 
   // Confirmation modal state
   let showConfirmClose = false;
@@ -75,6 +81,7 @@
       editorSubject = versionBaseEx.subject || "";
       editorVariantKey = versionBaseEx.variantKey || "";
       editorLatexBody = versionBaseEx.latexBody || "";
+      editorQuestionType = versionBaseEx.questionType === "mc" ? "mc" : "free_text";
     } else if (editingExercise) {
       editorName = editingExercise.name || "Untitled";
       editorTopicTag = editingExercise.topicTag || "_General";
@@ -82,13 +89,15 @@
       editorSubject = editingExercise.subject || "";
       editorVariantKey = editingExercise.variantKey || "";
       editorLatexBody = editingExercise.latexBody || "";
+      editorQuestionType = editingExercise.questionType === "mc" ? "mc" : "free_text";
     } else {
       editorName = "New_Exercise";
       editorTopicTag = "_General";
       editorGrade = "";
       editorSubject = "";
       editorVariantKey = "";
-      editorLatexBody = `\\begin{Aufgabe}{Neue Aufgabe}\nFrage hier eingeben... \\BE\n\\end{Aufgabe}`;
+      editorLatexBody = "Frage hier eingeben...";
+      editorQuestionType = "free_text";
     }
 
     initialName = editorName;
@@ -97,12 +106,63 @@
     initialSubject = editorSubject;
     initialVariantKey = editorVariantKey;
     initialLatexBody = editorLatexBody;
+    initialQuestionType = editorQuestionType;
     showAngabePreview = true;
     showLoesungPreview = false;
     showConfirmClose = false;
     errorMsg = "";
+    mcOptionsError = "";
+    syncMcStateFromLatex();
 
     cleanupPreview();
+  }
+
+  function syncMcStateFromLatex() {
+    const parsed = parseMcOptions(editorLatexBody);
+    mcQuestionText = parsed.questionText;
+    mcOptions = parsed.options;
+  }
+
+  function regenerateMcLatex() {
+    editorLatexBody = buildMcOptionsLatex(mcQuestionText, mcOptions);
+  }
+
+  function handleQuestionTypeChange() {
+    if (editorQuestionType !== "free_text" && mcOptions.length === 0) {
+      mcQuestionText = mcQuestionText.trim() || "Frage hier eingeben...";
+      mcOptions = [
+        { text: "", correct: false },
+        { text: "", correct: false },
+      ];
+      regenerateMcLatex();
+    }
+  }
+
+  function updateMcQuestionText(text: string) {
+    mcQuestionText = text;
+    regenerateMcLatex();
+  }
+
+  function updateOptionText(index: number, text: string) {
+    mcOptions = mcOptions.map((o, i) => (i === index ? { ...o, text } : o));
+    regenerateMcLatex();
+  }
+
+  function toggleOptionCorrect(index: number) {
+    mcOptions = mcOptions.map((o, i) => (i === index ? { ...o, correct: !o.correct } : o));
+    regenerateMcLatex();
+  }
+
+  function addMcOption() {
+    if (mcOptions.length >= 8) return;
+    mcOptions = [...mcOptions, { text: "", correct: false }];
+    regenerateMcLatex();
+  }
+
+  function removeMcOption(index: number) {
+    if (mcOptions.length <= 2) return;
+    mcOptions = mcOptions.filter((_, i) => i !== index);
+    regenerateMcLatex();
   }
 
   function cleanupPreview() {
@@ -128,7 +188,8 @@
         editorGrade !== initialGrade ||
         editorSubject !== initialSubject) ||
     editorVariantKey !== initialVariantKey ||
-    editorLatexBody !== initialLatexBody;
+    editorLatexBody !== initialLatexBody ||
+    editorQuestionType !== initialQuestionType;
 
   function requestClose() {
     if (isDirty) {
@@ -208,9 +269,23 @@
       return;
     }
 
+    if (editorQuestionType !== "free_text") {
+      if (mcOptions.length < 2) {
+        errorMsg = "Multiple Choice exercise must have at least 2 options.";
+        return;
+      }
+      if (!mcOptions.some((o) => o.correct)) {
+        errorMsg = "At least one option must be marked as correct.";
+        return;
+      }
+    }
+
     isSaving = true;
     errorMsg = "";
     const key = get(sessionStore).sessionKey;
+
+    const optionsArray = editorQuestionType !== "free_text" ? mcOptions.map((o) => o.text) : undefined;
+    const correctIndices = editorQuestionType !== "free_text" ? mcOptions.flatMap((o, i) => (o.correct ? [i] : [])) : undefined;
 
     try {
       if (isCreatingVersion && versionBaseEx) {
@@ -222,6 +297,8 @@
             grade: editorGrade.trim() || null,
             subject: editorSubject.trim() || null,
             latex_body: editorLatexBody,
+            question_type: editorQuestionType,
+            correct_answers: editorQuestionType !== "free_text" ? { options: optionsArray, correct: correctIndices } : null,
           })) as any;
 
           savedEx = {
@@ -234,7 +311,9 @@
             latexBody: res.latex_body || editorLatexBody,
             maxPoints: res.max_points || parseExerciseScore(editorLatexBody),
             version: res.version || (versionBaseEx.version || 1) + 1,
-            questionType: res.question_type || "free_text",
+            questionType: res.question_type || editorQuestionType,
+            options: optionsArray,
+            correctAnswers: correctIndices,
             penalty: res.penalty || 0,
             exerciseGroupId: res.exercise_group_id || versionBaseEx.exerciseGroupId,
             variantKey: res.variant_key || editorVariantKey.trim() || undefined,
@@ -258,6 +337,9 @@
             latexBody: editorLatexBody,
             maxPoints: parseExerciseScore(editorLatexBody),
             version: (versionBaseEx.version || 1) + 1,
+            questionType: editorQuestionType,
+            options: optionsArray,
+            correctAnswers: correctIndices,
             exerciseGroupId: groupId,
             variantKey: editorVariantKey.trim() || undefined,
             isCurrent: true,
@@ -285,7 +367,9 @@
         latexBody: editorLatexBody,
         maxPoints: computedScore,
         version: editingExercise ? editingExercise.version : 1,
-        questionType: editingExercise?.questionType || "free_text",
+        questionType: editorQuestionType,
+        options: optionsArray,
+        correctAnswers: correctIndices,
         penalty: editingExercise?.penalty || 0,
         exerciseGroupId: editingExercise?.exerciseGroupId,
         variantKey: editorVariantKey.trim() || undefined,
@@ -315,24 +399,23 @@
 
       if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
         try {
+          const payload = {
+            name: record.name,
+            topic_tag: record.topicTag,
+            grade: record.grade || null,
+            subject: record.subject || null,
+            latex_body: record.latexBody,
+            variant_key: record.variantKey || null,
+            question_type: record.questionType || "free_text",
+            correct_answers: editorQuestionType !== "free_text" ? { options: optionsArray, correct: correctIndices } : null,
+            penalty: record.penalty || 0,
+          };
           if (editingExercise) {
-            await api.patch(`/exercises/${id}`, {
-              name: record.name,
-              topic_tag: record.topicTag,
-              grade: record.grade || null,
-              subject: record.subject || null,
-              latex_body: record.latexBody,
-              variant_key: record.variantKey || null,
-            });
+            await api.patch(`/exercises/${id}`, payload);
           } else {
             await api.post("/exercises", {
               id: record.id,
-              name: record.name,
-              topic_tag: record.topicTag,
-              grade: record.grade || null,
-              subject: record.subject || null,
-              latex_body: record.latexBody,
-              variant_key: record.variantKey || null,
+              ...payload,
             });
           }
         } catch (apiErr) {
@@ -470,6 +553,40 @@
                   class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
                 />
               </div>
+
+              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
+                <span class="whitespace-nowrap font-semibold text-slate-400">Exercise Type:</span>
+                <div class="inline-flex rounded-md border border-slate-700 bg-slate-900 p-0.5">
+                  <button
+                    type="button"
+                    class={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
+                      editorQuestionType === "free_text"
+                        ? "bg-sky-600 text-white shadow-sm"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                    on:click={() => {
+                      editorQuestionType = "free_text";
+                      handleQuestionTypeChange();
+                    }}
+                  >
+                    📝 Free Text
+                  </button>
+                  <button
+                    type="button"
+                    class={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
+                      editorQuestionType === "mc"
+                        ? "bg-sky-600 text-white shadow-sm"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                    on:click={() => {
+                      editorQuestionType = "mc";
+                      handleQuestionTypeChange();
+                    }}
+                  >
+                    ☑️ Multiple Choice (MC)
+                  </button>
+                </div>
+              </div>
             </div>
           {/if}
         </div>
@@ -509,6 +626,74 @@
             </button>
 
             <div class="flex min-h-0 flex-1 flex-col gap-[0.4rem] overflow-hidden p-2">
+              {#if editorQuestionType !== "free_text"}
+                <div class="flex flex-col gap-3 rounded-lg border border-slate-700 bg-slate-800/90 p-3 text-xs">
+                  <div class="flex items-center justify-between">
+                    <span class="font-semibold text-sky-400">
+                      Structured Options Editor (MC)
+                    </span>
+                    <span class="text-[0.75rem] text-slate-400">
+                      Multiple correct options allowed
+                    </span>
+                  </div>
+
+                  <div class="flex flex-col gap-1">
+                    <label class="font-semibold text-slate-300">Question Text / Intro</label>
+                    <LatexEditor bind:value={mcQuestionText} rows={4} on:change={regenerateMcLatex} />
+                  </div>
+
+                  <div class="flex flex-col gap-2">
+                    <div class="flex items-center justify-between text-slate-300 font-semibold">
+                      <span>Options ({mcOptions.length})</span>
+                      <button
+                        type="button"
+                        class="rounded bg-sky-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        on:click={addMcOption}
+                        disabled={mcOptions.length >= 8}
+                      >
+                        + Add Option
+                      </button>
+                    </div>
+
+                    {#each mcOptions as option, index}
+                      <div class="flex items-center gap-2 rounded border border-slate-700/80 bg-slate-900/80 p-2">
+                        <input
+                          type="checkbox"
+                          checked={option.correct}
+                          on:change={() => toggleOptionCorrect(index)}
+                          title="Mark option as correct"
+                          class="h-4 w-4 rounded border-slate-700 bg-slate-800 text-sky-500 focus:ring-sky-400"
+                        />
+
+                        <input
+                          type="text"
+                          value={option.text}
+                          on:input={(e) => updateOptionText(index, e.currentTarget.value)}
+                          placeholder={`Option ${index + 1} text`}
+                          class="flex-1 rounded border border-slate-700 bg-slate-800 px-2 py-1 text-slate-100 placeholder-slate-500 focus:border-sky-400 focus:outline-none"
+                        />
+
+                        <span class={`text-[0.7rem] font-semibold px-1.5 py-0.5 rounded ${option.correct ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'text-slate-500'}`}>
+                          {option.correct ? "Richtig" : "Falsch"}
+                        </span>
+
+                        <button
+                          type="button"
+                          class="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-red-400 disabled:opacity-30 disabled:hover:text-slate-400"
+                          on:click={() => removeMcOption(index)}
+                          disabled={mcOptions.length <= 2}
+                          title="Remove option"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+              <div class="flex items-center justify-between px-1 text-xs">
+                <span class="font-semibold text-slate-300">Preview / Composed LaTeX Source</span>
+              </div>
               <LatexEditor bind:value={editorLatexBody} rows={12} />
             </div>
           {:else}

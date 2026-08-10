@@ -726,8 +726,10 @@
           exerciseGroupId: groupId,
           variantKey: variantKey,
           isCurrent: true,
-          questionType: "free_text",
-          penalty: 0,
+          questionType: variantBaseEx.questionType,
+          options: variantBaseEx.options,
+          correctAnswers: variantBaseEx.correctAnswers,
+          penalty: variantBaseEx.penalty ?? 0,
           updatedAt: new Date().toISOString(),
         };
         await db.exercises.put(variantRecord);

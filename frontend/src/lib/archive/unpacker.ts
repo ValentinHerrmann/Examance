@@ -25,13 +25,18 @@ import {
 } from '$lib/db/dbEncryption';
 
 export async function unpackProject(
-  archiveData: Blob | ArrayBuffer,
+  archiveData: Blob | ArrayBuffer | Uint8Array,
   password: string,
   onProgress?: (event: ProgressEvent) => void
 ): Promise<{ examCount: number; studentCount: number }> {
   onProgress?.({ stage: 'salt', current: 0, total: 100 });
 
-  const buffer = archiveData instanceof ArrayBuffer ? archiveData : await archiveData.arrayBuffer();
+  const buffer =
+    archiveData instanceof ArrayBuffer
+      ? archiveData
+      : archiveData instanceof Uint8Array
+        ? toArrayBuffer(archiveData)
+        : await archiveData.arrayBuffer();
   const fileBytes = new Uint8Array(buffer);
 
   // 1. Verify minimum header size
@@ -156,6 +161,10 @@ export async function unpackProject(
 
   if (Array.isArray(payload.exerciseExams) && payload.exerciseExams.length > 0) {
     await db.examExercises.bulkPut(payload.exerciseExams);
+  }
+
+  if (Array.isArray(payload.examMcGroups) && payload.examMcGroups.length > 0) {
+    await db.examMcGroups.bulkPut(payload.examMcGroups);
   }
 
   if (Array.isArray(payload.auditLogs) && payload.auditLogs.length > 0) {

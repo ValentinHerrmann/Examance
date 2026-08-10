@@ -62,12 +62,18 @@ Tracked source is tiny (172 files in `frontend/src`, 44 in `backend/app`, ~1 MB)
 
 Frontend → **Cloudflare Pages** via git integration (build `npm run build` in `frontend/`, output `frontend/build/`). Origins `examance.pages.dev` plus a custom domain under `valentin-herrmann.com`, both CORS-allowed. No `wrangler.toml` or CF deploy step in-repo — dashboard-managed. Backend hosting isn't declared in-repo; don't assume where it runs.
 
+## Multiple Choice (MC) Data Model
+
+- **MC Question**: An individual `Exercise` / `ExerciseRecord` (`question_type: mc|sc|tf`, `correct_answers` JSON / `options` & `correctAnswers` arrays, `penalty`). Reuses the standard `exercise_group_id` + `variant_key` mechanism for variants.
+- **MC Group (`\McExercise{a}{b}{c}`)**: A per-exam layout container (`ExamMcGroup` / `ExamMcGroupRecord`, 2–4 sub-items) linking member exercises via `ExamExercise.mc_group_id` and `sub_index`. Rendered into a single `\begin{Aufgabe}` by `format_mc_group_latex()`.
+- **Grading & Statistics Invariant**: Grading and statistics are strictly per-question (`exerciseId`), treating `ExamMcGroup` solely as LaTeX rendering and layout metadata.
+
 ## Environment
 
 `backend/.env.example` → `backend/.env`. Postgres + Redis via `docker-compose.yml`. `CORS_ALLOWED_ORIGINS` defaults to `http://localhost:5173` + `https://examance.pages.dev`, plus `CORS_ALLOWED_ORIGIN_REGEX` for `*.valentin-herrmann.com`. No wildcard fallback; an empty list is a hard startup error (`require_cors_origins`, `backend/app/config.py`). Override explicitly for any other origin.
 
 ## Standing instructions
-- **Prefer cheaper models** for mechanical or well-defined work. Escalate only when reasoning complexity really demands it.
+- **Prefer cheaper models** for mechanical or well-defined work; aggressively hand-off work to cheaper models; expensive models are on a tight budget! Escalate only when reasoning complexity really demands it.
 - **Only basic verification, dont run unittests**: Extensive testing will be done by a human.
 - **Security/privacy first**: client-side encryption-at-rest, GDPR-regulated data. Call out any change touching auth, crypto, or retention — read `docs/data_flow_and_security.md` and `docs/breach_response_checklist.md` first.
 - **No secrets in commits**: never commit `backend/.env` or real secret values. `backend/.env.example` is a template.
@@ -75,7 +81,5 @@ Frontend → **Cloudflare Pages** via git integration (build `npm run build` in 
 - **Local mode is the default** for exercise/exam management — don't default to server endpoints when local-only paths exist.
 - Mind WASM/Argon2 asset resolution (`busytex.wasm`, `argon2.wasm`) in frontend bundling config.
 - Don't run non-terminating npm commands (dev servers, watch mode) unless asked.
-- **Persist plans in the repo**: any multi-step plan, design, or task-progress tracker must live in a tracked `.md` file — `PLAN.md` at repo root for single active plan, or `docs/plans/<name>.md` if multiple in flight. Update as work progresses so state survives session reset or infrastructure loss.
-- If you find out something, which should be known for future agent-sessions (e.g. structural or constraints), add it to CLAUDE.MD
-
-Supersedes `.github/copilot-instructions.md` (kept for Copilot, which doesn't read this file) — update both.
+- If you find out something, which should be known for future agent-sessions (e.g. structural or constraints), add it to CLAUDE.MD but do no clutter it!
+- **NEVER USE WRITING GIT COMMANDS!** (like commit, push, branch, ...)

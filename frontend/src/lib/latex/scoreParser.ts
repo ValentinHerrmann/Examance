@@ -52,3 +52,24 @@ export function formatExerciseLatex(latexBody: string | undefined | null, title:
 
   return `${prefix}${body}${suffix}`;
 }
+
+/**
+ * Formats a list of MC sub-exercise bodies into one \begin{Aufgabe} block with enumerate[label=\alph*)].
+ */
+export function formatMcGroupLatex(
+  memberBodies: string[],
+  groupTitle: string,
+  scoringText: string
+): string {
+  const items = memberBodies.map((b) => `\\item ${b}`).join("\n");
+  return (
+    `\\begin{Aufgabe}{${groupTitle}}` +
+    ` Kreuze jeweils die korrekten Lösungen an. Mehrere können, mind. eine ist jeweils richtig.` +
+    ` Für falsch gesetzte Kreuze werden Punkte abgezogen (pro Teilaufgabe immer $\\geq 0$ Punkte)\n\n` +
+    `\\begin{enumerate}[label=\\alph*)]\n` +
+    `${items}\n` +
+    `\\end{enumerate}\n\n` +
+    `\\LoesungLeer{${scoringText}}{0pt}\n` +
+    `\\end{Aufgabe}`
+  );
+}

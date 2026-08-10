@@ -63,8 +63,9 @@ export async function packProject(
   const exerciseScores = await Promise.all(rawScores.map(s => decryptScore(s, key)));
   const rawAuditLogs = await db.auditLog.toArray();
 
-  // Load junction table linking exercises to exams
+  // Load junction table linking exercises to exams and MC groups
   const exerciseExams = await db.examExercises.toArray();
+  const examMcGroups = await db.examMcGroups.toArray();
 
   onProgress?.({
     phase: 'encrypting',
@@ -77,14 +78,14 @@ export async function packProject(
   const archivedStudents = await Promise.all(
     students.map(async s => ({
       ...s,
-      pseudonymHash: await hmacSha256Hex(s.studentId, archiveHmacKey),
+      pseudonymHash: await hmacSha256Hex(s.pseudonymId, archiveHmacKey),
     }))
   );
 
   const archivedSubmissions = await Promise.all(
     submissions.map(async sub => ({
       ...sub,
-      pseudonymHash: await hmacSha256Hex(sub.anonymousId, archiveHmacKey),
+      pseudonymHash: await hmacSha256Hex(sub.pseudonymHash, archiveHmacKey),
     }))
   );
 
@@ -95,6 +96,7 @@ export async function packProject(
     submissions: archivedSubmissions,
     exerciseScores,
     exerciseExams,
+    examMcGroups,
     auditLogs: rawAuditLogs,
   };
 

@@ -76,6 +76,18 @@ export interface ExamExerciseRecord {
   examId: string;
   exerciseId: string;
   orderIndex: number;
+  /** UUID shared by all sub-exercises grouped into one MC Aufgabe block. */
+  mcGroupId?: string;
+  /** 1-based position within the MC group (a, b, c...). */
+  subIndex?: number;
+}
+
+export interface ExamMcGroupRecord {
+  id: string;          // groupId (UUID)
+  examId: string;
+  title: string;       // e.g. "Grundlagen"
+  scoringText: string; // e.g. "Für jedes korrekte Kreuz 1BE; für jedes falsche -0,5BE. ..."
+  orderIndex: number;  // position of this MC block in the exam
 }
 
 export interface ExerciseScoreRecord {
