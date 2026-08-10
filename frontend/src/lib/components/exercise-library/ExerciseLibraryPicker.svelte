@@ -30,6 +30,7 @@
   export let selectedGradeFilter: string;
   export let selectedSubjectFilter: string;
   export let selectedTopicFilter: string;
+  export let typeFilter: "normal" | "mc" = "normal";
   export let activeVariantPerGroup: Record<string, string>;
   export let selectedLibraryIds: string[];
   export let mcStagingIds: string[] = [];
@@ -68,9 +69,15 @@
     "flex items-start gap-[0.85rem] rounded-[10px] border border-slate-700 bg-slate-800 p-[0.85rem_1rem] transition-colors duration-150 ease-[ease] hover:border-slate-600 hover:bg-[#223044] max-[900px]:flex-wrap";
   const rowSelected =
     "flex items-start gap-[0.85rem] rounded-[10px] border border-sky-600 bg-sky-600/10 p-[0.85rem_1rem] transition-colors duration-150 ease-[ease] max-[900px]:flex-wrap";
-  $: displayedGroups = selectedTopicFilter === "ALL"
-    ? filteredGroups
-    : filteredGroups.filter((g) => g.topicTag === selectedTopicFilter);
+  $: displayedGroups = filteredGroups.filter((g) => {
+    if (selectedTopicFilter !== "ALL" && g.topicTag !== selectedTopicFilter) return false;
+    const activeVKey = activeVariantPerGroup[g.groupId] || Array.from(g.variants.keys())[0] || "_General";
+    const vMembers = g.variants.get(activeVKey) || [];
+    const activeEx = vMembers[0]?.ex;
+    if (!activeEx) return false;
+    const isMc = isMcType(activeEx);
+    return typeFilter === "mc" ? isMc : !isMc;
+  });
 </script>
 
 <div class="flex flex-col gap-3 mb-4">

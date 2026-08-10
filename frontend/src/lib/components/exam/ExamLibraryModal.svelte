@@ -50,6 +50,12 @@
   export let onApply: () => void;
   export let onRequestClose: () => void;
 
+  let activeTab: "normal" | "mc" = "normal";
+
+  $: if (editingMcGroupId) {
+    activeTab = "mc";
+  }
+
   let mcStagingTitle = "Grundlagen";
   let mcStagingScoringText =
     "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE";
@@ -93,6 +99,27 @@
       </div>
 
       <div class="elm-modal-body">
+        <div class="elm-tab-bar">
+          <button
+            type="button"
+            class="elm-tab-btn"
+            class:active={activeTab === 'normal'}
+            disabled={Boolean(editingMcGroupId)}
+            title={editingMcGroupId ? "Finish editing MC group first" : "Show normal exercises"}
+            on:click={() => (activeTab = 'normal')}
+          >
+            Normal Exercises
+          </button>
+          <button
+            type="button"
+            class="elm-tab-btn"
+            class:active={activeTab === 'mc'}
+            on:click={() => (activeTab = 'mc')}
+          >
+            MC Groups
+          </button>
+        </div>
+
         <ExerciseLibraryPicker
           {filteredGroups}
           {totalVariantsCount}
@@ -103,6 +130,7 @@
           bind:selectedGradeFilter
           bind:selectedSubjectFilter
           bind:selectedTopicFilter
+          typeFilter={activeTab}
           {activeVariantPerGroup}
           {selectedLibraryIds}
           {mcStagingIds}
@@ -113,7 +141,7 @@
           onOpenPreview={openPreviewModal}
         />
 
-        {#if mcStagingExercises.length > 0}
+        {#if activeTab === 'mc' && mcStagingExercises.length > 0}
           <div class="elm-mc-staging-box">
             <h4 class="elm-mc-staging-header">
               {editingMcGroupId ? "Edit MC Group" : "MC Group Staging Area"} ({mcStagingExercises.length} sub-exercises)
