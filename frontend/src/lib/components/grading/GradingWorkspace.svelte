@@ -2,11 +2,13 @@
   import type { ExamRecord, ExerciseRecord, SubmissionRecord } from "$lib/db/schema";
   import type { GradeDetail } from "$lib/analytics/gradingKey";
   import { gradingStore } from "$lib/grading/gradingStore";
+  import { isMcQuestion } from "$lib/grading/mcScore";
   import GradingHeader from "./GradingHeader.svelte";
   import GradeSummaryCard from "./GradeSummaryCard.svelte";
   import ZoomPageControls from "./ZoomPageControls.svelte";
   import AnnotationToolbar from "./AnnotationToolbar.svelte";
   import ScoreEntry from "./ScoreEntry.svelte";
+  import McAnswerReview from "./McAnswerReview.svelte";
   import ClearAnnotationsModal from "./ClearAnnotationsModal.svelte";
   import LastSubmissionModal from "./LastSubmissionModal.svelte";
   import GradingActions from "./GradingActions.svelte";
@@ -33,6 +35,8 @@
   export let onStayOnLastSub: () => void;
 
   let viewerRef: ScanCanvasViewer;
+
+  $: activeExercise = exercises.find((e) => e.id === $gradingStore.activeExerciseId);
 
   function requestClearAnnotations() {
     gradingStore.setShowClearConfirmModal(true);
@@ -76,6 +80,10 @@
 
   <div class="box-border flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
     <ScoreEntry {exercises} />
+
+    {#if activeExercise && isMcQuestion(activeExercise)}
+      <McAnswerReview exercise={activeExercise} />
+    {/if}
 
     <div class="flex shrink-0 flex-col gap-2 border-t border-slate-700 bg-slate-800 px-3 py-[0.65rem]">
       <GradeSummaryCard

@@ -111,6 +111,45 @@ def test_format_exercise_latex_cases() -> None:
     res5 = format_exercise_latex(None, "Leere Aufgabe")
     assert res5 == "\\begin{Aufgabe}{Leere Aufgabe}\n\\end{Aufgabe}"
 
+    # Case 6: Title with LaTeX special chars (e.g. the default "New_Exercise"
+    # name) must be escaped, or Tectonic fails with "Missing $ inserted"
+    # on the bare underscore -- see format_mc_group_latex test below for the
+    # exact two-exercise scenario this was reported against.
+    res6 = format_exercise_latex("Frage hier eingeben...", "New_Exercise")
+    assert res6 == "\\begin{Aufgabe}{New\\_Exercise}\nFrage hier eingeben...\n\\end{Aufgabe}"
+
+
+def test_escape_tex() -> None:
+    from app.services.latex import escape_tex
+
+    assert escape_tex("New_Exercise") == "New\\_Exercise"
+    assert escape_tex("100% & #1 ~ ^2 $ \\ {x}") == (
+        "100\\% \\& \\#1 \\textasciitilde{} \\textasciicircum{}2 \\$ "
+        "\\textbackslash{} \\{x\\}"
+    )
+    assert escape_tex(None) == ""
+    assert escape_tex("") == ""
+    assert escape_tex("Plain text") == "Plain text"
+
+
+def test_format_mc_group_latex_escapes_default_titles() -> None:
+    """Two MC exercises left at the default name "New_Exercise" used to
+    produce '! Missing $ inserted' on Tectonic pass 1, because the bare
+    underscore in the un-renamed title was spliced straight into
+    \\begin{Aufgabe}{New_Exercise} (a text-mode LaTeX argument)."""
+    from app.services.latex import format_mc_group_latex
+
+    members = [
+        {"id": "ex-1", "latex_body": "\\LoesungMulti[2]{\\Lmulti{Richtig} \\multi{Falsch}}"},
+        {"id": "ex-2", "latex_body": "\\LoesungMulti[2]{\\Lmulti{Richtig} \\multi{Falsch}}"},
+    ]
+    result = format_mc_group_latex(members, "New_Exercise", "1BE pro Kreuz")
+
+    assert "\\begin{Aufgabe}{New\\_Exercise}" in result
+    assert "New_Exercise}" not in result  # unescaped form must not survive
+    assert "\\item \\OmrExercise{ex-1}" in result
+    assert "\\item \\OmrExercise{ex-2}" in result
+
 
 @pytest.mark.asyncio
 async def test_compile_latex_auto_wraps_snippet() -> None:

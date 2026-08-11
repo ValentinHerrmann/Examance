@@ -116,6 +116,7 @@ export const examRepository = {
     await db.examExercises.where('examId').equals(id).delete();
     await db.submissions.where('examId').equals(id).delete();
     await db.students.where('examId').equals(id).delete();
+    await db.omrTemplates.delete(id); // id === examId (one template per exam)
 
     const policy = get(storagePolicyStore);
     if (policy.storageMode !== 'all-local') {

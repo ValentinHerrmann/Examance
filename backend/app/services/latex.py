@@ -23,6 +23,36 @@ class CompilationError(Exception):
     """Raised when Tectonic exits non-zero or the process fails."""
 
 
+_TEX_ESCAPE_MAP = {
+    "\\": r"\textbackslash{}",
+    "&": r"\&",
+    "%": r"\%",
+    "$": r"\$",
+    "#": r"\#",
+    "_": r"\_",
+    "{": r"\{",
+    "}": r"\}",
+    "~": r"\textasciitilde{}",
+    "^": r"\textasciicircum{}",
+}
+
+
+def escape_tex(text: str | None) -> str:
+    """
+    Escape LaTeX special characters in plain (non-LaTeX) user text before
+    it's interpolated into a command argument, e.g. \\begin{Aufgabe}{<title>}.
+
+    Do NOT use this on fields that are legitimately raw LaTeX by design
+    (`latex_body`, `info_text`/`\\Info{}`) -- only on plain-text metadata
+    like titles, scoring text, class, date, etc.
+    """
+    if not text:
+        return ""
+    # Single pass over the original characters (not sequential str.replace
+    # calls), so an escaped char's own backslash never gets re-escaped.
+    return "".join(_TEX_ESCAPE_MAP.get(ch, ch) for ch in text)
+
+
 def _extract_tex_error(stderr_text: str, tmpdir: Path) -> str:
     """Extract a meaningful TeX error message from stderr or main.log."""
     log_file = tmpdir / "main.log"
@@ -147,18 +177,25 @@ async def compile_latex(
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-def format_exercise_latex(latex_body: str | None, title: str) -> str:
+def format_exercise_latex(latex_body: str | None, title: str, exercise_id: Any = None) -> str:
     """
     Format exercise LaTeX code ensuring \\begin{Aufgabe}{<title>} and \\end{Aufgabe} tags exist.
     - If \\begin{Aufgabe} is missing, prepends \\begin{Aufgabe}{<title>}.
     - If \\end{Aufgabe} is missing, appends \\end{Aufgabe}.
+
+    If `exercise_id` is given, injects `\\OmrExercise{<id>}` right before the body
+    (mirrors frontend/src/lib/latex/scoreParser.ts::formatExerciseLatex). Inert
+    unless the body uses \\multi/\\Lmulti (Loesung.sty), so it's safe to inject
+    unconditionally, including for free-text exercises.
     """
     body = latex_body or ""
+    if exercise_id:
+        body = f"\\OmrExercise{{{exercise_id}}}\n{body}"
     prefix = ""
     suffix = ""
 
     if r"\begin{Aufgabe}" not in body:
-        prefix = f"\\begin{{Aufgabe}}{{{title}}}\n"
+        prefix = f"\\begin{{Aufgabe}}{{{escape_tex(title)}}}\n"
 
     if r"\end{Aufgabe}" not in body:
         if body and not body.endswith("\n"):
@@ -174,18 +211,32 @@ def format_mc_group_latex(
     group_title: str,
     scoring_text: str,
 ) -> str:
-    """Build one \\begin{Aufgabe} block with enumerate[label=\\alph*)] for an MC group."""
+    """
+    Build one \\begin{Aufgabe} block with enumerate[label=\\alph*)] for an MC group.
+
+    Each member gets `\\OmrExercise{<id>}` injected before its body -- grading
+    and statistics still key strictly on exerciseId (CLAUDE.md invariant); the
+    group remains layout-only.
+    """
+
+    def _member_id(ex: Any) -> Any:
+        return ex.get("id") if isinstance(ex, dict) else getattr(ex, "id", None)
+
+    def _member_latex_body(ex: Any) -> str:
+        body = ex.get("latex_body") if isinstance(ex, dict) else getattr(ex, "latex_body", None)
+        return body or ""
+
     items = "\n".join(
-        f"\\item {getattr(ex, 'latex_body', None) or ''}" for ex in members
+        f"\\item \\OmrExercise{{{_member_id(ex)}}}\n{_member_latex_body(ex)}" for ex in members
     )
     return (
-        f"\\begin{{Aufgabe}}{{{group_title}}}"
+        f"\\begin{{Aufgabe}}{{{escape_tex(group_title)}}}"
         f" Kreuze jeweils die korrekten Lösungen an. Mehrere können, mind. eine ist jeweils richtig."
         f" Für falsch gesetzte Kreuze werden Punkte abgezogen (pro Teilaufgabe immer $\\geq 0$ Punkte)\n\n"
         f"\\begin{{enumerate}}[label=\\alph*)]\n"
         f"{items}\n"
         f"\\end{{enumerate}}\n\n"
-        f"\\LoesungLeer{{{scoring_text}}}{{0pt}}\n"
+        f"\\LoesungLeer{{{escape_tex(scoring_text)}}}{{0pt}}\n"
         f"\\end{{Aufgabe}}"
     )
 
@@ -240,7 +291,9 @@ async def compile_exam_latex(
         ex_name = getattr(ex, "name", None) or (ex.get("name") if isinstance(ex, dict) else None)
         title = ex_name or f"Aufgabe {order_idx}"
         latex_body = getattr(ex, "latex_body", None) if not isinstance(ex, dict) else ex.get("latex_body")
-        items_with_order.append((order_idx, filename, format_exercise_latex(latex_body, title)))
+        ex_id = ex.get("id") if isinstance(ex, dict) else getattr(ex, "id", None)
+        ex_latex = format_exercise_latex(latex_body, title, ex_id)
+        items_with_order.append((order_idx, filename, ex_latex))
 
     if mc_groups:
         for g in mc_groups:
@@ -269,12 +322,15 @@ async def compile_exam_latex(
         opts.append("antworten")
     opts_str = ",".join(opts)
 
-    testart = exam_model.testart or "Kurzarbeit"
-    klasse = exam_model.klasse or ""
-    datum = exam_model.datum or ""
-    nr = exam_model.nr or "1"
-    fach = exam_model.fach or "Informatik"
-    lehrernachname = exam_model.lehrernachname or ""
+    # Plain-text metadata -- escaped before interpolation into LaTeX macro
+    # args below. info_text is intentionally NOT escaped: \Info{} holds raw
+    # LaTeX markup by convention (e.g. \begin{itemize}...\end{itemize}).
+    testart = escape_tex(exam_model.testart or "Kurzarbeit")
+    klasse = escape_tex(exam_model.klasse or "")
+    datum = escape_tex(exam_model.datum or "")
+    nr = escape_tex(exam_model.nr or "1")
+    fach = escape_tex(exam_model.fach or "Informatik")
+    lehrernachname = escape_tex(exam_model.lehrernachname or "")
     info_text = exam_model.info_text or ""
 
     inputs_str = "\n\n".join(exercise_inputs)

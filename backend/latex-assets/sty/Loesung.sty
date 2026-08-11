@@ -135,13 +135,38 @@ escapeinside={(*@}{@*)}
 	\end{tikzpicture} 
 }
 
-\newcommand{\multi}{\item[$\circ$]}
+% --- OMR: MC option bubbles ------------------------------------------------
+% \OmrExercise{<exerciseId>} is injected by the assembly layer (frontend
+% scoreParser.ts / backend latex.py) immediately before each MC exercise's
+% latexBody. It does not change \multi/\Lmulti's call signature -- stored
+% latexBody strings keep working untouched. Each bubble gets an invisible
+% \href{omr://<exerciseId>/<optionIndex>}{...} link so the client can read
+% back exact rects via pdfjs page.getAnnotations() from a blank compile.
+\newcommand*{\CurrentOmrId}{unassigned}
+\newcounter{OmrOptCount}
+\newcommand{\OmrExercise}[1]{\gdef\CurrentOmrId{#1}\setcounter{OmrOptCount}{0}}
+
+\newlength{\OmrBoxSize}
+\setlength{\OmrBoxSize}{4.5mm}
+% #1 (optional) = tikz drawing commands for the mark inside the box, e.g. an X
+\newcommand{\OmrBox}[1][]{%
+	\tikz[baseline=-0.5ex]{%
+		\draw[black,line width=0.4pt] (0,0) rectangle (\OmrBoxSize,\OmrBoxSize);%
+		#1%
+	}%
+}
+
+\newcommand{\multi}{\item[\href{omr://\CurrentOmrId/\theOmrOptCount}{\OmrBox}\hspace{2mm}]\stepcounter{OmrOptCount}}
 \newcommand{\Lmulti}{%
 	\ifcsname TaskScore\endcsname\else\gdef\TaskScore{0}\fi%
 	\ifthenelse
 	{\boolean{Antworten}}
-	{\xdef\TaskScore{\fpeval{\TaskScore + 1}}  \color{\LFarbe}\item[X]\color{black}}
-	{\xdef\TaskScore{\fpeval{\TaskScore + 1}} \item[$\circ$]}
+	{\xdef\TaskScore{\fpeval{\TaskScore + 1}}%
+	 \item[\href{omr://\CurrentOmrId/\theOmrOptCount}{\OmrBox[\node at (0.5\OmrBoxSize,0.5\OmrBoxSize) {\textcolor{\LFarbe}{X}};]}\hspace{2mm}]%
+	 \stepcounter{OmrOptCount}}
+	{\xdef\TaskScore{\fpeval{\TaskScore + 1}}%
+	 \item[\href{omr://\CurrentOmrId/\theOmrOptCount}{\OmrBox}\hspace{2mm}]%
+	 \stepcounter{OmrOptCount}}
  }
 
 \newcommand\liniert[2][1.2cm]{% 

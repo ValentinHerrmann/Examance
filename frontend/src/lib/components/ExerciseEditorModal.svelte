@@ -35,6 +35,8 @@
   let mcQuestionText = "";
   let mcOptions: McOption[] = [];
   let mcOptionsError = "";
+  /** Points deducted per wrongly-crossed MC option (right-minus-wrong scoring). Matches the printed scoring text convention. */
+  let editorPenalty = 0.5;
 
   // Initial state for dirty tracking
   let initialName = "";
@@ -44,6 +46,7 @@
   let initialVariantKey = "";
   let initialLatexBody = "";
   let initialQuestionType: "free_text" | "mc" = "free_text";
+  let initialPenalty = 0.5;
 
   // Confirmation modal state
   let showConfirmClose = false;
@@ -82,6 +85,7 @@
       editorVariantKey = versionBaseEx.variantKey || "";
       editorLatexBody = versionBaseEx.latexBody || "";
       editorQuestionType = versionBaseEx.questionType === "mc" ? "mc" : "free_text";
+      editorPenalty = versionBaseEx.penalty || 0.5;
     } else if (editingExercise) {
       editorName = editingExercise.name || "Untitled";
       editorTopicTag = editingExercise.topicTag || "_General";
@@ -90,6 +94,7 @@
       editorVariantKey = editingExercise.variantKey || "";
       editorLatexBody = editingExercise.latexBody || "";
       editorQuestionType = editingExercise.questionType === "mc" ? "mc" : "free_text";
+      editorPenalty = editingExercise.penalty || 0.5;
     } else {
       editorName = "New_Exercise";
       editorTopicTag = "_General";
@@ -98,6 +103,7 @@
       editorVariantKey = "";
       editorLatexBody = "Frage hier eingeben...";
       editorQuestionType = "free_text";
+      editorPenalty = 0.5;
     }
 
     initialName = editorName;
@@ -107,6 +113,7 @@
     initialVariantKey = editorVariantKey;
     initialLatexBody = editorLatexBody;
     initialQuestionType = editorQuestionType;
+    initialPenalty = editorPenalty;
     showAngabePreview = true;
     showLoesungPreview = false;
     showConfirmClose = false;
@@ -189,7 +196,8 @@
         editorSubject !== initialSubject) ||
     editorVariantKey !== initialVariantKey ||
     editorLatexBody !== initialLatexBody ||
-    editorQuestionType !== initialQuestionType;
+    editorQuestionType !== initialQuestionType ||
+    (editorQuestionType !== "free_text" && editorPenalty !== initialPenalty);
 
   function requestClose() {
     if (isDirty) {
@@ -278,6 +286,7 @@
         errorMsg = "At least one option must be marked as correct.";
         return;
       }
+      regenerateMcLatex();
     }
 
     isSaving = true;
@@ -314,7 +323,7 @@
             questionType: res.question_type || editorQuestionType,
             options: optionsArray,
             correctAnswers: correctIndices,
-            penalty: res.penalty || 0,
+            penalty: res.penalty ?? editorPenalty,
             exerciseGroupId: res.exercise_group_id || versionBaseEx.exerciseGroupId,
             variantKey: res.variant_key || editorVariantKey.trim() || undefined,
             isCurrent: res.is_current ?? true,
@@ -340,6 +349,7 @@
             questionType: editorQuestionType,
             options: optionsArray,
             correctAnswers: correctIndices,
+            penalty: editorPenalty,
             exerciseGroupId: groupId,
             variantKey: editorVariantKey.trim() || undefined,
             isCurrent: true,
@@ -370,7 +380,7 @@
         questionType: editorQuestionType,
         options: optionsArray,
         correctAnswers: correctIndices,
-        penalty: editingExercise?.penalty || 0,
+        penalty: editorQuestionType !== "free_text" ? editorPenalty : editingExercise?.penalty || 0,
         exerciseGroupId: editingExercise?.exerciseGroupId,
         variantKey: editorVariantKey.trim() || undefined,
         isCurrent: editingExercise?.isCurrent ?? true,
@@ -640,6 +650,20 @@
                   <div class="flex flex-col gap-1">
                     <label class="font-semibold text-slate-300">Question Text / Intro</label>
                     <LatexEditor bind:value={mcQuestionText} rows={4} on:change={regenerateMcLatex} />
+                  </div>
+
+                  <div class="flex flex-col gap-1">
+                    <label class="font-semibold text-slate-300" for="mc-penalty">
+                      Penalty per wrong cross (points deducted, right-minus-wrong)
+                    </label>
+                    <input
+                      id="mc-penalty"
+                      type="number"
+                      step="0.25"
+                      min="0"
+                      bind:value={editorPenalty}
+                      class="w-24 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-100 focus:border-sky-400 focus:outline-none"
+                    />
                   </div>
 
                   <div class="flex flex-col gap-2">

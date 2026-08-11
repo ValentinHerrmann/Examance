@@ -421,7 +421,7 @@ async def compile_exam_endpoint(
         exam.compilation_status = "failed"
         await db.flush()
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
             headers={"code": "ERR_COMPILE_FAILED"},
         )

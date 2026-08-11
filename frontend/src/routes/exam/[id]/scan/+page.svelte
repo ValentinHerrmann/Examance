@@ -19,11 +19,16 @@
     saveStudentEncrypted,
     saveSubmissionEncrypted,
     decryptStudent,
+    loadExamExercisesEncrypted,
+    loadOmrTemplateEncrypted,
+    saveScoreEncrypted,
   } from "$lib/db/dbEncryption";
+  import { computeMcExercisesHash } from "$lib/grading/mcExerciseHash";
+  import { isMcQuestion } from "$lib/grading/mcScore";
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
   import { studentRepository } from "$lib/repositories/studentRepository";
-  import type { StudentRecord } from "$lib/db/schema";
+  import type { StudentRecord, OmrPageTemplate } from "$lib/db/schema";
   import { onMount, onDestroy } from "svelte";
   import { get } from "svelte/store";
   import { WorkerPool } from "$lib/workers/pool";
@@ -31,6 +36,12 @@
     QrWorkerRequest,
     QrWorkerResponse,
   } from "$lib/workers/qrWorker";
+  import type {
+    OmrWorkerRequest,
+    OmrWorkerResponse,
+    OmrExerciseResult,
+    OmrExerciseAnswerKey,
+  } from "$lib/workers/omrWorker";
   import { parseStudentQr } from "$lib/utils/studentQr";
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import type { PDFDocument, PDFPage } from "pdf-lib";
@@ -90,6 +101,55 @@
   let previewLoading = false;
   let previewError = "";
   let qrPool: WorkerPool<QrWorkerRequest, QrWorkerResponse> | null = null;
+  let omrPool: WorkerPool<OmrWorkerRequest, OmrWorkerResponse> | null = null;
+
+  /** Per-page bubble/fiducial rects captured by "Prepare OMR" on the exam page; empty if unavailable. */
+  let omrTemplatePages: OmrPageTemplate[] = [];
+  let omrAnswerKeys: OmrExerciseAnswerKey[] = [];
+  let omrAvailable = false;
+  let omrBanner = "";
+
+  /** Loads the exam's OMR template + MC answer key, gating auto-grading on a fresh (non-stale) template. */
+  async function loadOmrContext() {
+    const key = get(sessionStore).sessionKey;
+    try {
+      const exercises = await loadExamExercisesEncrypted(examId, key);
+      const mcExercises = exercises.filter(isMcQuestion);
+      if (mcExercises.length === 0) {
+        omrAvailable = false;
+        omrBanner = "";
+        return;
+      }
+      const existing = await loadOmrTemplateEncrypted(examId, key);
+      if (!existing || !existing.payload) {
+        omrAvailable = false;
+        omrBanner =
+          'MC auto-grading unavailable until you run "Prepare OMR" on the exam page — scans will still be imported normally.';
+        return;
+      }
+      const currentHash = await computeMcExercisesHash(mcExercises);
+      if (existing.record.exercisesHash !== currentHash) {
+        omrAvailable = false;
+        omrBanner =
+          'OMR template is stale (answer key changed since it was captured) — re-run "Prepare OMR" on the exam page to enable MC auto-grading for this scan.';
+        return;
+      }
+      omrTemplatePages = existing.payload.pages;
+      omrAnswerKeys = mcExercises.map((e) => ({
+        exerciseId: e.id,
+        questionType: e.questionType as "mc" | "sc" | "tf",
+        correctAnswers: e.correctAnswers ?? [],
+        penalty: e.penalty ?? 0,
+        maxPoints: e.maxPoints,
+      }));
+      omrAvailable = true;
+      omrBanner = "";
+    } catch (err) {
+      console.error("Failed to load OMR context:", err);
+      omrAvailable = false;
+      omrBanner = "";
+    }
+  }
 
   onMount(() => {
     if (browser) {
@@ -106,12 +166,21 @@
           }),
         monitor,
       );
+      omrPool = new WorkerPool(
+        () =>
+          new Worker(new URL("$lib/workers/omrWorker.ts", import.meta.url), {
+            type: "module",
+          }),
+        monitor,
+      );
       refreshUnmatched();
       loadScannedSubmissions();
+      loadOmrContext();
     }
 
     return () => {
       qrPool?.terminate();
+      omrPool?.terminate();
       if (previewObjectUrl) {
         URL.revokeObjectURL(previewObjectUrl);
       }
@@ -638,6 +707,10 @@
     const booklets: StudentBooklet[] = [];
     let processedPages = 0;
     let totalPagesCount = 0;
+    let omrAlignmentFailures = 0;
+    let omrMinFiducialsFound: number | null = null;
+    /** Accumulates OMR results per booklet across all its pages, merged into scores once subId exists. */
+    const omrResultsByPseudonym = new Map<string, OmrExerciseResult[]>();
 
     // --- PASS 1: Calculate total pages for progress bar ---
     const fileInfos: any[] = [];
@@ -738,6 +811,37 @@
           }
         }
 
+        // Reuse the imageData already rasterized for QR decode — no second pass, no second
+        // rasterization. Position within the booklet maps 1:1 to the blank template's page
+        // index, since a scanned booklet is expected to follow the exam's own page order.
+        if (omrPool && omrAvailable && currentBooklet) {
+          const pageIndexInBooklet = currentBooklet.pageRefs.length - 1;
+          const pageTemplate = omrTemplatePages[pageIndexInBooklet];
+          if (pageTemplate && (pageTemplate.bubbles.length > 0 || pageTemplate.fiducials.length > 0)) {
+            try {
+              const omrRes = await omrPool.dispatch({
+                type: "OMR_PROCESS",
+                imageData,
+                pageTemplate,
+                scanScale: 2.0,
+                answerKeys: omrAnswerKeys,
+              });
+              if (omrRes.type === "OMR_RESULT") {
+                const list = omrResultsByPseudonym.get(currentBooklet.pseudonymId) ?? [];
+                list.push(...omrRes.results);
+                omrResultsByPseudonym.set(currentBooklet.pseudonymId, list);
+                if (omrRes.alignmentFailed) omrAlignmentFailures++;
+                omrMinFiducialsFound =
+                  omrMinFiducialsFound === null
+                    ? omrRes.fiducialsFound
+                    : Math.min(omrMinFiducialsFound, omrRes.fiducialsFound);
+              }
+            } catch (omrErr) {
+              console.warn(`OMR processing failed for page in ${fileName}:`, omrErr);
+            }
+          }
+        }
+
         monitor?.checkMemoryHealth();
       }
 
@@ -831,6 +935,40 @@
         key,
       );
 
+      const omrResults = omrResultsByPseudonym.get(booklet.pseudonymId) ?? [];
+      for (const r of omrResults) {
+        const failed = r.confidence === "failed";
+        const nonBlankBubbles = r.bubbles.filter((b) => b.state !== "blank");
+        await saveScoreEncrypted(
+          {
+            id: crypto.randomUUID(),
+            submissionId: subId,
+            exerciseId: r.exerciseId,
+            // A failed alignment has no trustworthy score — leave it unset so it hydrates as
+            // "ungraded" (grade/+page.svelte) instead of silently contributing a 0.
+            score: failed ? undefined : r.score,
+            selectedOptions: failed ? [] : r.selectedOptions,
+            omrMeta: {
+              confidence: r.confidence,
+              source: "omr",
+              flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
+              detections:
+                !failed && nonBlankBubbles.length > 0
+                  ? {
+                      pageIndex: r.pageIndex,
+                      bubbles: nonBlankBubbles.map((b) => ({
+                        optionIndex: b.optionIndex,
+                        state: b.state as "ambiguous" | "marked",
+                        rect: b.rect,
+                      })),
+                    }
+                  : undefined,
+            },
+          },
+          key,
+        );
+      }
+
       newlyIngestedCount++;
       scannedCount++;
 
@@ -840,6 +978,13 @@
     await loadScannedSubmissions();
     isProcessing = false;
     statusText = `Complete! Ingested ${files.length} file(s) (${processedPages} page(s)) into ${newlyIngestedCount} student submission booklet(s).`;
+
+    if (omrAvailable && omrAlignmentFailures > 0) {
+      omrBanner =
+        `OMR alignment failed on ${omrAlignmentFailures} page(s)` +
+        (omrMinFiducialsFound !== null ? ` (as few as ${omrMinFiducialsFound}/4 corner markers detected)` : "") +
+        ` — those MC exercises were imported ungraded and need manual grading. Check the scan quality (crop/skew/print margins) near the page corners.`;
+    }
   }
 
   async function updateFallbackCode(item: UnmatchedSubmission) {
@@ -995,6 +1140,10 @@
   <h2>Scan Ingestion Pipeline</h2>
 
   <HardwareProfileCard {hwProfile} inConstrainedMode={monitor?.inConstrainedMode} />
+
+  {#if omrBanner}
+    <div class="omr-banner">{omrBanner}</div>
+  {/if}
 
   <UploadPanel {isProcessing} {progress} {statusText} onFileUpload={handleFileUpload} />
 

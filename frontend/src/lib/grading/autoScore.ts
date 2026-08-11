@@ -10,6 +10,7 @@
 
 import type { ExerciseRecord } from '$lib/db/schema';
 import type { VectorStroke } from './gradingStore';
+import { isMcQuestion } from './mcScore';
 
 export function recalculateAutoScores(
   exercises: ExerciseRecord[],
@@ -20,6 +21,10 @@ export function recalculateAutoScores(
   const next: Record<string, number | null> = { ...scoreInputs };
 
   for (const ex of exercises) {
+    // MC/SC/TF exercises are scored by mcScore.ts (OMR-derived or manually toggled in
+    // McAnswerReview), never by summing check/minus stamps — a stray stamp landing near
+    // an MC region must not silently overwrite its score.
+    if (isMcQuestion(ex)) continue;
     if (manualOverride[ex.id]) continue;
     let positivePoints = 0;
     let negativePoints = 0;

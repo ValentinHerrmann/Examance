@@ -53,8 +53,8 @@
 }
 
 \def\quartcheckmark{%
-    \tikz\draw[scale=0.4,fill=black](0,.35) -- (.25,0) -- (1,.7) -- (.25,.15) -- 
-    cycle (0.65,0.1) -- (0.67,0.1)  -- (0.6,0.8) -- cycle  -- 
+    \tikz\draw[scale=0.4,fill=black](0,.35) -- (.25,0) -- (1,.7) -- (.25,.15) --
+    cycle (0.65,0.1) -- (0.67,0.1)  -- (0.6,0.8) -- cycle  --
     cycle (0.85,0.3) -- (0.87,0.2)  -- (0.8,0.9) -- cycle;%
 }
 
@@ -208,7 +208,7 @@
         \end{minipage}
     }
     \normalsize
-    
+
     \vspace{-0.7cm}
     \textcolor{lightgray}{\noindent\rule{\textwidth}{0.5pt}}
     \end{center}
@@ -216,7 +216,7 @@
 
 % Setup headers and footers at document start
 \AtBeginDocument{
-    \lhead{\ifnum\thepage=1 
+    \lhead{\ifnum\thepage=1
     {\includegraphics[height=9mm]{logo_mtg.pdf}}
     \else
     \Nrtext. \Testarttesttext \ in \Fachtext%Name:
@@ -247,6 +247,47 @@
 }
 
 % ==============================================================================
+% 6b. OMR Fiducial Markers (every page, absolute position via eso-pic)
+% ==============================================================================
+% Four corner markers let the client locate a homography from a photographed
+% scan back to the compiled PDF's coordinate space (see frontend omrWorker.ts).
+% Unlike \Namenszeile, these must appear on EVERY page, since MC questions can
+% land on any page -- \AddToShipoutPictureBG (eso-pic) re-runs per shipout.
+% Each marker also carries an invisible \href link (like the OMR bubbles in
+% Loesung.sty) so the same pdfjs getAnnotations() pass extracts both in one go.
+\newlength{\OmrFiducialSize}
+\setlength{\OmrFiducialSize}{8mm}
+\newlength{\OmrFiducialInset}
+\setlength{\OmrFiducialInset}{5mm}
+
+% Solid black square with a white/black inset -- cheap to find as the largest
+% dark blob in each page-corner quadrant via flood fill.
+\newcommand{\OmrFiducialShape}{%
+    \begin{tikzpicture}
+        \fill[black] (0,0) rectangle (\OmrFiducialSize,\OmrFiducialSize);
+        \fill[white] (0.2\OmrFiducialSize,0.2\OmrFiducialSize) rectangle (0.8\OmrFiducialSize,0.8\OmrFiducialSize);
+        \fill[black] (0.35\OmrFiducialSize,0.35\OmrFiducialSize) rectangle (0.65\OmrFiducialSize,0.65\OmrFiducialSize);
+    \end{tikzpicture}%
+}
+
+% #1 = corner index (0=bottom-left,1=bottom-right,2=top-right,3=top-left),
+% #2/#3 = offset from the page's lower-left corner, as TeX lengths (not bare
+% \put numbers -- \LenToUnit converts a length to the decimal \put expects
+% under the current \unitlength; \AtPageLowerLeft anchors the origin so 0,0
+% is the physical lower-left corner regardless of margins, matching the
+% 0=BL,1=BR,2=TR,3=TL convention omrWorker.ts assumes).
+\newcommand{\OmrFiducialAt}[3]{%
+    \AtPageLowerLeft{\put(\LenToUnit{#2},\LenToUnit{#3}){\href{omr://__fid__/#1}{\OmrFiducialShape}}}%
+}
+
+\AddToShipoutPictureBG{%
+    \OmrFiducialAt{0}{\OmrFiducialInset}{\OmrFiducialInset}%
+    \OmrFiducialAt{1}{\dimexpr\paperwidth-\OmrFiducialInset-\OmrFiducialSize\relax}{\OmrFiducialInset}%
+    \OmrFiducialAt{2}{\dimexpr\paperwidth-\OmrFiducialInset-\OmrFiducialSize\relax}{\dimexpr\paperheight-\OmrFiducialInset-\OmrFiducialSize\relax}%
+    \OmrFiducialAt{3}{\OmrFiducialInset}{\dimexpr\paperheight-\OmrFiducialInset-\OmrFiducialSize\relax}%
+}
+
+% ==============================================================================
 % 7. Points Table Generation at Document End
 % ==============================================================================
 
@@ -273,7 +314,7 @@
                 \last=\expandafter{\the\last&}%
                 \stepcounter{i}%
         \repeat
-        
+
         \noindent\begin{tabularx}{\textwidth}{|*{\N}{C|}C|C|}\hline
             \the\cols & $\sum$ & Note\\\hline
             \the\scorecols & \formatScore{\TotalScoreG} & \\\cline{1-\theNotenzeile}
@@ -297,11 +338,11 @@
 \newenvironment{Aufgabe}[2][]
 {%
 \begin{minipage}[t]{\textwidth}
-    \neverindent 
+    \neverindent
     \gdef\TaskScore{0}% Reset task score accumulator for the new exercise
     \def\ManualScore{#1}% Store optional override
     \stepcounter{Punkte}%
-    
+
     % Read from .aux to populate the score box
     \ifcsname AufgabeScore\thePunkte\endcsname
         \edef\Pkt{\csname AufgabeScore\thePunkte\endcsname}%
@@ -318,14 +359,14 @@
     \fi
     \vspace{.1mm}%
     \par\noindent
-    
+
     % Wrapfigure floats the score box right
     \begin{wrapfigure}{r}{3cm}
-        \vspace{\wrapvspace}% 
+        \vspace{\wrapvspace}%
         \raggedleft
         \Large\framebox[1.1\width]{ ~~~~~ / ~\PrintPkt~}%
     \end{wrapfigure}%
-    
+
     % Print title
     \textbf{\Large (\thePunkte) #2} \quad
     \ignorespaces \normalsize
@@ -338,10 +379,10 @@
     \else
         \xdef\FinalScore{\ManualScore}%
     \fi
-    
+
     % Write the evaluated score to the .aux file for the next run
     \immediate\write\@auxout{\string\expandafter\string\gdef\string\csname\space AufgabeScore\thePunkte\string\endcsname{\FinalScore}}%
-    
+
     % Add current score to global exam total
     \xdef\TotalScoreG{\fpeval{\TotalScoreG + \FinalScore}}%
 \end{minipage}

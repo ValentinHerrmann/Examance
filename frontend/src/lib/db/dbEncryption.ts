@@ -21,6 +21,8 @@ import type {
   SubmissionRecord,
   AuditEntry,
   GradingKeyConfig,
+  OmrTemplateRecord,
+  OmrTemplatePayload,
 } from './schema';
 
 const encoder = new TextEncoder();
@@ -289,12 +291,14 @@ export async function decryptExercise(exercise: ExerciseRecord, key: CryptoKey |
 interface ScorePayload {
   score?: number;
   selectedOptions?: number[];
+  omrMeta?: ExerciseScoreRecord['omrMeta'];
 }
 
 export async function encryptScore(scoreRec: ExerciseScoreRecord, key: CryptoKey | null): Promise<ExerciseScoreRecord> {
   const payload: ScorePayload = {
     score: scoreRec.score,
     selectedOptions: scoreRec.selectedOptions,
+    omrMeta: scoreRec.omrMeta,
   };
 
   let payloadCt = scoreRec.payloadCt;
@@ -321,6 +325,7 @@ export async function encryptScore(scoreRec: ExerciseScoreRecord, key: CryptoKey
     exerciseId: scoreRec.exerciseId,
     score: scoreRec.score,
     selectedOptions: scoreRec.selectedOptions,
+    omrMeta: scoreRec.omrMeta,
     payloadCt,
     payloadIv,
   };
@@ -333,6 +338,7 @@ export async function decryptScore(scoreRec: ExerciseScoreRecord, key: CryptoKey
     exerciseId: scoreRec.exerciseId,
     score: scoreRec.score,
     selectedOptions: scoreRec.selectedOptions,
+    omrMeta: scoreRec.omrMeta,
     payloadCt: scoreRec.payloadCt,
     payloadIv: scoreRec.payloadIv,
   };
@@ -564,6 +570,84 @@ export async function decryptAuditEntry(entry: AuditEntry, key: CryptoKey | null
     console.error('Failed to decrypt audit entry payload:', err);
     return baseRecord;
   }
+}
+
+// ---------------------------------------------------------------------------
+// OmrTemplateRecord
+// ---------------------------------------------------------------------------
+// One per exam (id === examId). Holds bubble/fiducial rects extracted from a
+// blank compile via pdfjs getAnnotations() -- follows the ScoreRecord pattern
+// above (direct db.* access, no repository) since there's just one record per
+// exam and no cross-record queries beyond examId lookup.
+
+export async function encryptOmrTemplate(
+  tpl: OmrTemplateRecord,
+  key: CryptoKey | null,
+  payload: OmrTemplatePayload
+): Promise<OmrTemplateRecord> {
+  let payloadCt = tpl.payloadCt;
+  let payloadIv = tpl.payloadIv;
+
+  if (key) {
+    const jsonStr = JSON.stringify(payload);
+    const { ct, iv } = await encryptBytes(key, encoder.encode(jsonStr));
+    payloadCt = ct;
+    payloadIv = iv;
+  }
+
+  return {
+    id: tpl.id,
+    examId: tpl.examId,
+    exercisesHash: tpl.exercisesHash,
+    createdAt: tpl.createdAt,
+    payloadCt,
+    payloadIv,
+  };
+}
+
+export async function decryptOmrTemplate(
+  tpl: OmrTemplateRecord,
+  key: CryptoKey | null
+): Promise<OmrTemplatePayload | null> {
+  if (!key || !tpl.payloadCt || !tpl.payloadIv || tpl.payloadCt.byteLength < 16) {
+    return null;
+  }
+  try {
+    const bytes = await decryptBytes(key, tpl.payloadCt, tpl.payloadIv);
+    return JSON.parse(decoder.decode(bytes)) as OmrTemplatePayload;
+  } catch (err) {
+    console.error('Failed to decrypt OMR template record:', err);
+    return null;
+  }
+}
+
+/** Loads the OMR template for an exam (undefined if none has been captured yet). */
+export async function loadOmrTemplateEncrypted(
+  examId: string,
+  key: CryptoKey | null
+): Promise<{ record: OmrTemplateRecord; payload: OmrTemplatePayload | null } | undefined> {
+  const record = await db.omrTemplates.get(examId);
+  if (!record) return undefined;
+  const payload = await decryptOmrTemplate(record, key);
+  return { record, payload };
+}
+
+/** Saves (overwrites) the OMR template for an exam. `id` is always set to `examId`. */
+export async function saveOmrTemplateEncrypted(
+  examId: string,
+  exercisesHash: string,
+  payload: OmrTemplatePayload,
+  key: CryptoKey | null
+): Promise<string> {
+  const tpl: OmrTemplateRecord = {
+    id: examId,
+    examId,
+    exercisesHash,
+    createdAt: new Date().toISOString(),
+  };
+  const encrypted = await encryptOmrTemplate(tpl, key, payload);
+  await db.omrTemplates.put(encrypted);
+  return examId;
 }
 
 // ---------------------------------------------------------------------------

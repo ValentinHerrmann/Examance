@@ -90,13 +90,35 @@ export interface ExamMcGroupRecord {
   orderIndex: number;  // position of this MC block in the exam
 }
 
+/** Provenance/confidence of an OMR-derived MC score, set by omrWorker.ts / cleared on manual edit. */
+export interface OmrScoreMeta {
+  confidence: 'high' | 'ambiguous' | 'failed';
+  source: 'omr' | 'manual';
+  /** Option indices the worker flagged as uncertain (light mark, partial erase, multi-mark on sc/tf). */
+  flaggedOptions?: number[];
+  /** Detected bubble boxes for the grading viewer to draw over the scan (non-blank only, to
+   *  keep the encrypted payload small). Carried forward across manual `McAnswerReview`
+   *  toggles — it documents what the scanner saw, which stays true after a correction. */
+  detections?: {
+    /** 0-based, matches OmrPageTemplate.pageIndex. */
+    pageIndex: number;
+    bubbles: {
+      optionIndex: number;
+      state: 'ambiguous' | 'marked';
+      /** Normalized [minX, minY, maxX, maxY] in [0,1] of the scan page's (width, height). */
+      rect: [number, number, number, number];
+    }[];
+  };
+}
+
 export interface ExerciseScoreRecord {
   id: string;               // UUID
   submissionId: string;
   exerciseId: string;
   score?: number;
   selectedOptions?: number[];
-  /** AES-256-GCM encrypted payload containing score and selectedOptions. */
+  omrMeta?: OmrScoreMeta;
+  /** AES-256-GCM encrypted payload containing score, selectedOptions, and omrMeta. */
   payloadCt?: Uint8Array;
   /** 12-byte GCM IV for payloadCt. */
   payloadIv?: Uint8Array;
@@ -137,6 +159,48 @@ export interface SubmissionRecord {
   annotationIv?: Uint8Array;
   createdAt: string;
   /** AES-256-GCM encrypted payload containing totalScore. */
+  payloadCt?: Uint8Array;
+  /** 12-byte GCM IV for payloadCt. */
+  payloadIv?: Uint8Array;
+}
+
+/** One MC option bubble's location on a compiled exam page, in PDF points (72/in). */
+export interface OmrBubbleRect {
+  exerciseId: string;
+  optionIndex: number;
+  /** PDF user-space rect [x0, y0, x1, y1], origin bottom-left of the page. */
+  rect: [number, number, number, number];
+}
+
+/** One corner fiducial marker's location on a compiled exam page, in PDF points. */
+export interface OmrFiducialRect {
+  /** 0=bottom-left, 1=bottom-right, 2=top-right, 3=top-left. */
+  corner: 0 | 1 | 2 | 3;
+  rect: [number, number, number, number];
+}
+
+export interface OmrPageTemplate {
+  pageIndex: number;
+  pageWidthPt: number;
+  pageHeightPt: number;
+  fiducials: OmrFiducialRect[];
+  bubbles: OmrBubbleRect[];
+}
+
+export interface OmrTemplatePayload {
+  pages: OmrPageTemplate[];
+}
+
+export interface OmrTemplateRecord {
+  /** Equal to examId — one template per exam. */
+  id: string;
+  examId: string;
+  /** Hash of the ordered (exerciseId, questionType, options.length, correctAnswers, penalty)
+   *  tuples this template was built from — used to detect a stale template after an
+   *  answer-key edit. Never silently regenerated; the UI gates on a mismatch. */
+  exercisesHash: string;
+  createdAt: string;
+  /** AES-256-GCM encrypted payload containing { pages: OmrPageTemplate[] }. */
   payloadCt?: Uint8Array;
   /** 12-byte GCM IV for payloadCt. */
   payloadIv?: Uint8Array;

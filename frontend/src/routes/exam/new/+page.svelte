@@ -449,6 +449,7 @@ Frage hier eingeben... \\BE
             return formatExerciseLatex(
               ex.latexBody,
               ex.name || `Aufgabe ${exerciseCount}`,
+              ex.id,
             );
           } else {
             const group = mcGroups.find((g) => g.id === item.id);
@@ -457,7 +458,7 @@ Frage hier eingeben... \\BE
               .map((id) => libraryExercises.find((e) => e.id === id))
               .filter((e): e is ExerciseRecord => Boolean(e));
             return formatMcGroupLatex(
-              members.map((m) => m.latexBody || ""),
+              members.map((m) => ({ id: m.id, latexBody: m.latexBody || "" })),
               group.title,
               group.scoringText,
             );

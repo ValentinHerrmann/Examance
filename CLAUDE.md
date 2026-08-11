@@ -80,6 +80,7 @@ Frontend → **Cloudflare Pages** via git integration (build `npm run build` in 
 - **Dep managers**: `uv` backend, `npm` frontend. No pip, poetry, yarn.
 - **Local mode is the default** for exercise/exam management — don't default to server endpoints when local-only paths exist.
 - Mind WASM/Argon2 asset resolution (`busytex.wasm`, `argon2.wasm`) in frontend bundling config.
+- **busytex local-compile quirks** (`frontend/src/lib/latex/compiler.ts`/`compiler.worker.ts`): (1) first-ever local compile in a cold browser session can throw spurious `File 'X.sty' not found` errors (e.g. `ulem.sty`) while `texlive-extra` is still downloading/indexing — self-resolves on retry once cached, not a packaging bug. (2) Local (WASM XeLaTeX) compiles can silently drop exercise content that the same source compiles fine on the server — `compiler.worker.ts` only reports failure when the engine itself reports `!success`, so a non-fatal LaTeX error mid-document (e.g. an unavailable package/macro used only inside an exercise body) can produce a PDF that's missing content without surfacing an error. Root cause not yet isolated — needs the browser console log from a local compile to identify the failing package/macro.
 - Don't run non-terminating npm commands (dev servers, watch mode) unless asked.
 - If you find out something, which should be known for future agent-sessions (e.g. structural or constraints), add it to CLAUDE.MD but do no clutter it!
 - **NEVER USE WRITING GIT COMMANDS!** (like commit, push, branch, ...)

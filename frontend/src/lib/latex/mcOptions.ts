@@ -6,6 +6,8 @@
  * \Lmulti marks a correct option.
  */
 
+import { escapeLatex } from "./scoreParser";
+
 export interface McOption {
   text: string;
   correct: boolean;
@@ -45,10 +47,15 @@ export function parseMcOptions(latexBody: string | undefined | null): McOptionsP
 
 /**
  * Builds a MC exercise's latex body from question text + structured options.
+ *
+ * Option/question text is plain user input, not raw LaTeX by design (see
+ * escapeLatex's doc comment in scoreParser.ts) -- escaped here so a stray
+ * %/#/_/&/{/} doesn't silently break the \LoesungMulti block (and with it,
+ * every \multi/\Lmulti omr:// annotation the OMR template capture relies on).
  */
 export function buildMcOptionsLatex(questionText: string, options: McOption[]): string {
   const lines = options
-    .map((o) => `  \\${o.correct ? "Lmulti" : "multi"}{${o.text}}`)
+    .map((o) => `  \\${o.correct ? "Lmulti" : "multi"}{${escapeLatex(o.text)}}`)
     .join("\n");
-  return `${questionText.trim()}\n\n\\LoesungMulti[${options.length}]{\n${lines}\n}`;
+  return `${escapeLatex(questionText.trim())}\n\n\\LoesungMulti[${options.length}]{\n${lines}\n}`;
 }

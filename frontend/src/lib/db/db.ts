@@ -19,6 +19,7 @@ import type {
   ExamRecord,
   ExerciseRecord,
   ExerciseScoreRecord,
+  OmrTemplateRecord,
   StudentRecord,
   SubmissionRecord,
 } from './schema';
@@ -32,6 +33,7 @@ export class BlindGradeDB extends Dexie {
   submissions!: Table<SubmissionRecord>;
   exerciseScores!: Table<ExerciseScoreRecord>;
   auditLog!: Table<AuditEntry>;
+  omrTemplates!: Table<OmrTemplateRecord>;
 
   constructor() {
     super('BlindGrade');
@@ -93,6 +95,21 @@ export class BlindGradeDB extends Dexie {
       exerciseScores: 'id, submissionId, exerciseId',
       auditLog: 'id, action, timestamp',
     });
+
+    // v7: adds omrTemplates (one per exam, keyed by examId) for MC auto-grading —
+    // captures bubble/fiducial rects extracted from a blank compile via pdfjs
+    // getAnnotations(). See docs/data_flow_and_security.md and the OMR plan.
+    this.version(7).stores({
+      exams: 'id, teacherId, retentionUntil',
+      exercises: 'id, examId, topicTag, grade, subject, name, exerciseGroupId, variantKey, isCurrent',
+      examExercises: '[examId+exerciseId], examId, exerciseId, orderIndex, mcGroupId',
+      examMcGroups: 'id, examId, orderIndex',
+      students: 'pseudonymId, examId, fallbackCode',
+      submissions: 'id, examId, pseudonymHash',
+      exerciseScores: 'id, submissionId, exerciseId',
+      auditLog: 'id, action, timestamp',
+      omrTemplates: 'id, examId',
+    });
   }
 }
 
@@ -148,6 +165,7 @@ export async function clearAllTables(): Promise<void> {
       db.submissions.clear(),
       db.exerciseScores.clear(),
       db.auditLog.clear(),
+      db.omrTemplates.clear(),
     ]);
   } catch {
     // Ignore clear errors on un-opened DB

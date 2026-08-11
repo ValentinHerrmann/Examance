@@ -40,6 +40,14 @@
   let strokes: VectorStroke[] = [];
   $: strokes = $gradingStore.currentStrokes;
 
+  // Redraw when OMR detections change (submission switch, or a manual toggle in
+  // McAnswerReview carrying `detections` forward) — mirrors how `strokes` above tracks the
+  // store, but this pass is a fully separate (non-persisted, non-erasable) overlay so it
+  // can't just reuse the stroke-edit call sites.
+  $: if (overlayCanvas && $gradingStore.mcState) {
+    redrawOverlay();
+  }
+
   let loadedSubId: string | null = null;
 
   // PDF page navigation state (local — mirrors pdfDoc/pdfBytes which are not
@@ -583,6 +591,38 @@
         const p = stroke.points[0];
         ctx.font = "bold 24px sans-serif";
         ctx.fillText("FF", p.x, p.y);
+      }
+    }
+
+    drawOmrDetections(ctx, currentPage);
+  }
+
+  /**
+   * Draws a box over every OMR-detected mark on the currently-displayed page, across all MC
+   * exercises (not just the active one) — a separate, non-persisted draw pass appended after
+   * the annotation strokes above: never pushed into `strokes`, so it isn't erasable and
+   * doesn't feed recalcScores(). Red solid = confidently marked, amber dashed = ambiguous.
+   * Rects are normalized [minX,minY,maxX,maxY] in [0,1] of the scan page (set by omrWorker.ts),
+   * so they scale correctly regardless of the canvas's actual raster resolution/zoom.
+   */
+  function drawOmrDetections(ctx: CanvasRenderingContext2D, currentPage: number) {
+    const mcState = get(gradingStore).mcState;
+    const w = overlayCanvas.width;
+    const h = overlayCanvas.height;
+
+    for (const state of Object.values(mcState)) {
+      const detections = state.omrMeta?.detections;
+      if (!detections || detections.pageIndex + 1 !== currentPage) continue;
+
+      for (const bubble of detections.bubbles) {
+        const [x0, y0, x1, y1] = bubble.rect;
+        const marked = bubble.state === "marked";
+        ctx.save();
+        ctx.strokeStyle = marked ? "#ef4444" : "#f59e0b";
+        ctx.lineWidth = 3;
+        ctx.setLineDash(marked ? [] : [6, 4]);
+        ctx.strokeRect(x0 * w, y0 * h, (x1 - x0) * w, (y1 - y0) * h);
+        ctx.restore();
       }
     }
   }

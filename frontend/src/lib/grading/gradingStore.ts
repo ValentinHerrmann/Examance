@@ -21,6 +21,7 @@
  */
 
 import { writable, get } from 'svelte/store';
+import type { OmrScoreMeta } from '$lib/db/schema';
 
 export type ToolType =
   | 'pen'
@@ -47,6 +48,12 @@ export interface VectorStroke {
   pageNumber?: number;
 }
 
+/** Detected/edited MC/SC/TF answer state for one exercise, keyed by exerciseId. */
+export interface McAnswerState {
+  selectedOptions: number[];
+  omrMeta?: OmrScoreMeta;
+}
+
 export interface GradingState {
   // Navigation / identity
   currentIndex: number;
@@ -55,6 +62,9 @@ export interface GradingState {
   scoreInputs: Record<string, number | null>;
   manualOverride: Record<string, boolean>;
   activeExerciseId: string;
+
+  /** MC/SC/TF answer review state — omitted for exercises with no stored score yet. */
+  mcState: Record<string, McAnswerState>;
 
   // Save/modal status
   isSaving: boolean;
@@ -79,6 +89,7 @@ const INITIAL_STATE: GradingState = {
   scoreInputs: {},
   manualOverride: {},
   activeExerciseId: '',
+  mcState: {},
   isSaving: false,
   showLastSubModal: false,
   showClearConfirmModal: false,
@@ -125,6 +136,14 @@ function createGradingStore() {
 
     setActiveExerciseId(exerciseId: string) {
       update((s) => ({ ...s, activeExerciseId: exerciseId }));
+    },
+
+    setMcState(mcState: Record<string, McAnswerState>) {
+      update((s) => ({ ...s, mcState }));
+    },
+
+    setMcStateForExercise(exerciseId: string, state: McAnswerState) {
+      update((s) => ({ ...s, mcState: { ...s.mcState, [exerciseId]: state } }));
     },
 
     setSaving(isSaving: boolean) {

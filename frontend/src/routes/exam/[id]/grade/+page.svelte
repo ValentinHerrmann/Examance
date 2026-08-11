@@ -4,7 +4,7 @@
   export let params;
   import { onMount, onDestroy } from "svelte";
   import { db } from "$lib/db/db";
-  import type { SubmissionRecord, ExerciseRecord, ExamRecord } from "$lib/db/schema";
+  import type { SubmissionRecord, ExerciseRecord, ExamRecord, OmrScoreMeta } from "$lib/db/schema";
   import {
     loadExamEncrypted,
     loadExamExercisesEncrypted,
@@ -21,6 +21,7 @@
   import { decrypt, encrypt } from "$lib/crypto/aesGcm";
   import { get } from "svelte/store";
   import { gradingStore } from "$lib/grading/gradingStore";
+  import { isMcQuestion } from "$lib/grading/mcScore";
   import GradingWorkspace from "$lib/components/grading/GradingWorkspace.svelte";
 
   const examId = $page.params.id || "";
@@ -79,6 +80,7 @@
   async function initExerciseScores(sub: SubmissionRecord) {
     gradingStore.setManualOverride({});
     gradingStore.setScoreInputs({});
+    gradingStore.setMcState({});
     if (exercises.length > 0 && !get(gradingStore).activeExerciseId) {
       gradingStore.setActiveExerciseId(exercises[0].id);
     }
@@ -98,6 +100,7 @@
     }
 
     const newScoreInputs: Record<string, number | null> = {};
+    const newMcState: Record<string, { selectedOptions: number[]; omrMeta?: OmrScoreMeta }> = {};
     const manualOverride = get(gradingStore).manualOverride;
     for (const ex of exercises) {
       const existing = existingMap.get(ex.id);
@@ -112,8 +115,15 @@
       } else {
         newScoreInputs[ex.id] = null;
       }
+      if (isMcQuestion(ex) && existing) {
+        newMcState[ex.id] = {
+          selectedOptions: existing.selectedOptions ?? [],
+          omrMeta: existing.omrMeta,
+        };
+      }
     }
     gradingStore.setScoreInputs(newScoreInputs);
+    gradingStore.setMcState(newMcState);
   }
 
   function handleSubmissionHydrated(fullSub: SubmissionRecord) {
@@ -130,6 +140,7 @@
       const key = get(sessionStore).sessionKey;
 
       // Save individual exercise scores if graded, delete if reset to ungraded
+      const mcState = get(gradingStore).mcState;
       for (const ex of exercises) {
         const val = scoreInputs[ex.id];
         if (val !== null && val !== undefined && !isNaN(val)) {
@@ -139,11 +150,14 @@
             .and((item) => item.exerciseId === ex.id)
             .first();
 
+          const mc = isMcQuestion(ex) ? mcState[ex.id] : undefined;
           await saveScoreEncrypted({
             id: existing ? existing.id : crypto.randomUUID(),
             submissionId: currentSub.id,
             exerciseId: ex.id,
             score: val,
+            selectedOptions: mc?.selectedOptions,
+            omrMeta: mc?.omrMeta,
           }, key);
         } else {
           await deleteScoreEncrypted(currentSub.id, ex.id);

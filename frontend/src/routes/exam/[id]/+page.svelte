@@ -10,6 +10,10 @@
     ExerciseRecord,
     SubmissionRecord,
     ExamMcGroupRecord,
+    OmrTemplatePayload,
+    OmrPageTemplate,
+    OmrBubbleRect,
+    OmrFiducialRect,
   } from "$lib/db/schema";
   import {
     loadExamEncrypted,
@@ -22,15 +26,26 @@
     decryptSubmission,
     decryptStudent,
     encryptExercise,
+    loadOmrTemplateEncrypted,
+    saveOmrTemplateEncrypted,
+    loadScoresEncrypted,
+    saveScoreEncrypted,
   } from "$lib/db/dbEncryption";
+  import { computeMcExercisesHash } from "$lib/grading/mcExerciseHash";
+  import { isMcQuestion } from "$lib/grading/mcScore";
   import { packProject } from "$lib/archive/packer";
   import { compileLatex } from "$lib/latex/compiler";
   import { formatExerciseLatex, formatMcGroupLatex, parseExerciseScore } from "$lib/latex/scoreParser";
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
   import { studentRepository } from "$lib/repositories/studentRepository";
-  import { uint8ArrayToBase64 } from "$lib/crypto/aesGcm";
+  import { uint8ArrayToBase64, decrypt } from "$lib/crypto/aesGcm";
   import { ensure64CharHex } from "$lib/crypto/hmac";
+  import type {
+    OmrWorkerRequest,
+    OmrWorkerResponse,
+    OmrExerciseAnswerKey,
+  } from "$lib/workers/omrWorker";
   import { sessionStore, isAuthenticated } from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { get } from "svelte/store";
@@ -52,6 +67,7 @@
     title: string;
     scoringText: string;
     memberIds: string[];
+    orderIndex?: number;
   }
 
   interface ExamItemRef {
@@ -92,10 +108,15 @@
   let isExporting = false;
   let exportSuccess = false;
 
-  let isCompiling = false;
   let isPreviewLoading = false;
   let compileNotice = "";
   let errorMsg = "";
+
+  let isPreparingOmr = false;
+  let omrPrepareMessage = "";
+  let omrTemplateStatus: "none" | "ready" | "stale" | "checking" = "checking";
+  let isRerunningMc = false;
+  let rerunMcMessage = "";
 
   let previewPdfUrl: string | null = null;
   let previewSolutionPdfUrl: string | null = null;
@@ -223,8 +244,73 @@
         } catch {}
       }
       submissions = await submissionRepository.getByExamId(id, key);
+      await checkOmrTemplateStatus(id);
     } catch (err) {
       console.error("Failed to load exam from DB:", err);
+    }
+  }
+
+  /**
+   * Collects the MC-relevant exercises in exam order, mirroring buildExerciseInputs()'s
+   * traversal. Resolves every id (standalone or group member) from a single merged
+   * lookup built once per call -- `exercises` wins over `libraryExercises` on id
+   * collision, since it's the authoritative per-exam copy. Previously this used two
+   * independently-ordered `.find()` fallbacks per member, which could resolve to a
+   * different set/instance depending on whether `libraryExercises` had finished
+   * loading yet -- producing a different MC answer-key hash across calls (e.g.
+   * handlePrepareOmr() vs. checkOmrTemplateStatus()) and a spurious "stale" banner
+   * even right after a successful capture.
+   */
+  function collectMcExercises(): ExerciseRecord[] {
+    const byId = new Map<string, ExerciseRecord>();
+    for (const ex of libraryExercises) byId.set(ex.id, ex);
+    for (const ex of exercises) byId.set(ex.id, ex);
+
+    const result: ExerciseRecord[] = [];
+    for (const item of examItems) {
+      if (item.type === "exercise") {
+        const ex = byId.get(item.id);
+        if (ex) result.push(ex);
+      } else {
+        const group = mcGroups.find((g) => g.id === item.id);
+        if (!group) continue;
+        for (const memberId of group.memberIds) {
+          const member = byId.get(memberId);
+          if (member) result.push(member);
+        }
+      }
+    }
+    return result.filter(isMcQuestion);
+  }
+
+  /**
+   * Hash of the exam's MC exercises' answer-key fields (shared with the scan-ingest
+   * staleness check via mcExerciseHash.ts). Used to detect a stale OMR template after
+   * an answer-key edit — never used to silently regenerate one.
+   */
+  async function computeExercisesHash(): Promise<string> {
+    return computeMcExercisesHash(collectMcExercises());
+  }
+
+  async function checkOmrTemplateStatus(id: string) {
+    omrTemplateStatus = "checking";
+    try {
+      const mcExercises = collectMcExercises();
+      if (mcExercises.length === 0) {
+        omrTemplateStatus = "none";
+        return;
+      }
+      const key = get(sessionStore).sessionKey;
+      const existing = await loadOmrTemplateEncrypted(id, key);
+      if (!existing || !existing.payload) {
+        omrTemplateStatus = "none";
+        return;
+      }
+      const currentHash = await computeExercisesHash();
+      omrTemplateStatus = existing.record.exercisesHash === currentHash ? "ready" : "stale";
+    } catch (err) {
+      console.error("Failed to check OMR template status:", err);
+      omrTemplateStatus = "none";
     }
   }
 
@@ -446,6 +532,7 @@
           return formatExerciseLatex(
             ex.latexBody,
             ex.name || `Aufgabe ${exerciseCount}`,
+            ex.id,
           );
         } else {
           const group = mcGroups.find((g) => g.id === item.id);
@@ -454,7 +541,7 @@
             .map((id) => libraryExercises.find((e) => e.id === id) || exercises.find((e) => e.id === id))
             .filter((e): e is ExerciseRecord => Boolean(e));
           return formatMcGroupLatex(
-            members.map((m) => m.latexBody || ""),
+            members.map((m) => ({ id: m.id, latexBody: m.latexBody || "" })),
             group.title,
             group.scoringText,
           );
@@ -464,39 +551,35 @@
       .join("\n\n");
   }
 
-  async function handleDownloadExamPdf(showAnswers = false) {
+  async function handlePrepareOmr() {
     if (!exam) return;
-    isCompiling = true;
+    isPreparingOmr = true;
+    omrPrepareMessage = "Checking MC exercises...";
     errorMsg = "";
 
-    const useLocal = $storagePolicyStore.latexCompilation === "local";
-    if (!useLocal && !$isAuthenticated) {
-      errorMsg = "Please log in to compile LaTeX on the server.";
-      isCompiling = false;
-      return;
-    }
-
-    compileNotice = "Compiling PDF...";
-
     try {
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
-        const pdfBuffer = await api.getBinary(
-          `/exams/${exam.id}/compile?answers=${showAnswers}`,
-        );
-        const blob = new Blob([pdfBuffer], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${exam.title}${showAnswers ? "_Loesung" : ""}.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
-      } else {
-        const exerciseInputs = buildExerciseInputs();
+      const mcExercises = collectMcExercises();
+      if (mcExercises.length === 0) {
+        errorMsg = "OMR preparation failed: no MC exercises found in this exam.";
+        isPreparingOmr = false;
+        return;
+      }
 
-        const opts = ["sans", "punkte"];
-        if (showAnswers) opts.push("antworten");
+      const invalidExs = mcExercises.filter(
+        (ex) => !ex.latexBody || (!ex.latexBody.includes("\\multi") && !ex.latexBody.includes("\\Lmulti"))
+      );
+      if (invalidExs.length > 0) {
+        const names = invalidExs.map((ex) => `'${ex.name || ex.id}'`).join(", ");
+        errorMsg = `OMR preparation failed: MC exercise(s) ${names} do not contain \\multi or \\Lmulti option bubbles in their LaTeX body. Please check and edit the exercise options.`;
+        isPreparingOmr = false;
+        return;
+      }
 
-        const fullTex = `\\documentclass[a4paper]{article}
+      omrPrepareMessage = "Compiling blank exam...";
+      const exerciseInputs = buildExerciseInputs();
+      const opts = ["sans", "punkte"];
+
+      const fullTex = `\\documentclass[a4paper]{article}
 \\usepackage[${opts.join(",")}]{sty/Schulaufgabe}
 \\Info{${exam.infoText || ""}}
 \\Fach{${exam.fach || "Informatik"}}
@@ -520,37 +603,260 @@ ${exerciseInputs}
 
 \\end{document}`;
 
-        const result = await compileLatex(fullTex, useLocal, (status) => {
-          if (status === 'downloading') {
-            compileNotice = "Loading local LaTeX compiler... (Downloading ~32MB on first load, please wait)";
-          } else if (status === 'compiling') {
-            compileNotice = "Compiling PDF...";
-          }
-        });
-        const blob = new Blob([result.pdfBytes.buffer as ArrayBuffer], {
-          type: "application/pdf",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${exam.title}${showAnswers ? "_Loesung" : ""}.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
+      const useLocal = $storagePolicyStore.latexCompilation === "local";
+      if (!useLocal && !$isAuthenticated) {
+        errorMsg = "Please log in to compile LaTeX on the server.";
+        isPreparingOmr = false;
+        return;
       }
 
-      const key = get(sessionStore).sessionKey;
-      exam.compilationStatus = "compiled";
-      await saveExamEncrypted(exam, key);
-      compileNotice = `Downloaded ${showAnswers ? "Solution / Answer Key" : "Exam PDF"}.`;
-    } catch (err: any) {
-      if (exam) {
-        const key = get(sessionStore).sessionKey;
-        exam.compilationStatus = "failed";
-        await saveExamEncrypted(exam, key);
+      const result = await compileLatex(fullTex, useLocal, (status) => {
+        if (status === "downloading") {
+          omrPrepareMessage = "Loading local LaTeX compiler... (Downloading ~32MB on first load, please wait)";
+        } else if (status === "compiling") {
+          omrPrepareMessage = "Compiling blank exam...";
+        }
+      });
+
+      omrPrepareMessage = "Extracting bubble positions...";
+
+      const pdfjsLib = await import("pdfjs-dist");
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
       }
-      errorMsg = err.message || "Compilation failed.";
+      const pdfDoc = await pdfjsLib.getDocument({ data: result.pdfBytes }).promise;
+
+      const pages: OmrPageTemplate[] = [];
+      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        const pdfPage = await pdfDoc.getPage(pageNum);
+        const viewport = pdfPage.getViewport({ scale: 1 });
+        const annotations = await pdfPage.getAnnotations();
+
+        const bubbles: OmrBubbleRect[] = [];
+        const fiducials: OmrFiducialRect[] = [];
+
+        for (const ann of annotations) {
+          if (ann.subtype !== "Link") continue;
+          const uri: string = ann.unsafeUrl ?? ann.url ?? "";
+          const match = /^omr:\/\/([^/]+)\/(\d+)$/.exec(uri);
+          if (!match) continue;
+          const [, token, idxStr] = match;
+          const rect = ann.rect as [number, number, number, number];
+          if (token === "__fid__") {
+            const corner = Number(idxStr);
+            if (corner === 0 || corner === 1 || corner === 2 || corner === 3) {
+              fiducials.push({ corner, rect });
+            }
+          } else {
+            bubbles.push({ exerciseId: token, optionIndex: Number(idxStr), rect });
+          }
+        }
+
+        pages.push({
+          pageIndex: pageNum - 1,
+          pageWidthPt: viewport.width,
+          pageHeightPt: viewport.height,
+          fiducials,
+          bubbles,
+        });
+      }
+
+      const payload: OmrTemplatePayload = { pages };
+      const exercisesHash = await computeExercisesHash();
+      const key = get(sessionStore).sessionKey;
+      await saveOmrTemplateEncrypted(exam.id, exercisesHash, payload, key);
+      omrTemplateStatus = "ready";
+      const totalBubbles = pages.reduce((sum, p) => sum + p.bubbles.length, 0);
+      const mcExerciseCount = collectMcExercises().length;
+
+      // A page with <4 fiducials or a template with zero bubbles despite having MC exercises
+      // means the compile did not actually emit `omr://` link annotations (most likely the
+      // LaTeX fiducial/bubble macros silently dropped content) — the template is useless for
+      // alignment even though the compile itself "succeeded". Fail loudly here instead of
+      // reporting success and letting every scan later fail alignment silently.
+      const shortPages = pages.filter((p) => p.fiducials.length < 4).map((p) => p.pageIndex + 1);
+      if (mcExerciseCount > 0 && totalBubbles === 0) {
+        omrTemplateStatus = "stale";
+        omrPrepareMessage = "";
+        errorMsg =
+          "OMR preparation failed: the compiled exam has no MC bubble markers at all. " +
+          "The LaTeX MC/OMR macros likely failed to render — check that the exam actually contains MC exercises and that sty/Loesung.sty is up to date.";
+      } else if (shortPages.length > 0) {
+        omrTemplateStatus = "stale";
+        omrPrepareMessage = "";
+        errorMsg =
+          `OMR preparation failed: page(s) ${shortPages.join(", ")} have fewer than 4 corner fiducial markers ` +
+          `(needed for scan alignment). The LaTeX fiducial macros likely failed to render on those pages — ` +
+          "re-check sty/Schulaufgabe.sty and re-run Prepare OMR.";
+      } else {
+        omrPrepareMessage = `OMR template saved (${pages.length} page(s), ${totalBubbles} bubble(s), 4 fiducials/page).`;
+      }
+    } catch (err: any) {
+      errorMsg = err.message || "Failed to prepare OMR template.";
+      omrPrepareMessage = "";
     } finally {
-      isCompiling = false;
+      isPreparingOmr = false;
+    }
+  }
+
+  /**
+   * Re-scores already-scanned submissions against the current OMR template — for exams
+   * scanned before "Prepare OMR" was run, or after the answer key changed and the template
+   * was refreshed. Skips any exercise the teacher has already hand-graded (`omrMeta.source
+   * === "manual"`); overwrites OMR-derived scores in place (reuses their `id`).
+   */
+  async function handleRerunMcDetection() {
+    if (!exam || omrTemplateStatus !== "ready" || submissions.length === 0) return;
+    isRerunningMc = true;
+    rerunMcMessage = "Loading OMR template...";
+    errorMsg = "";
+
+    try {
+      const key = get(sessionStore).sessionKey;
+      const templateResult = await loadOmrTemplateEncrypted(exam.id, key);
+      if (!templateResult || !templateResult.payload) {
+        rerunMcMessage = "";
+        errorMsg = "No OMR template found — run Prepare OMR first.";
+        return;
+      }
+      const templatePages = templateResult.payload.pages;
+
+      const mcExercises = collectMcExercises();
+      const answerKeys: OmrExerciseAnswerKey[] = mcExercises.map((e) => ({
+        exerciseId: e.id,
+        questionType: e.questionType as "mc" | "sc" | "tf",
+        correctAnswers: e.correctAnswers ?? [],
+        penalty: e.penalty ?? 0,
+        maxPoints: e.maxPoints,
+      }));
+
+      const pdfjsLib = await import("pdfjs-dist");
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+      }
+
+      const worker = new Worker(new URL("$lib/workers/omrWorker.ts", import.meta.url), {
+        type: "module",
+      });
+      const runOmr = (req: OmrWorkerRequest): Promise<OmrWorkerResponse> =>
+        new Promise((resolve, reject) => {
+          const onMessage = (event: MessageEvent<OmrWorkerResponse>) => {
+            worker.removeEventListener("message", onMessage);
+            worker.removeEventListener("error", onError);
+            resolve(event.data);
+          };
+          const onError = (err: ErrorEvent) => {
+            worker.removeEventListener("message", onMessage);
+            worker.removeEventListener("error", onError);
+            reject(err.error || new Error(err.message));
+          };
+          worker.addEventListener("message", onMessage);
+          worker.addEventListener("error", onError);
+          worker.postMessage(req);
+        });
+
+      const scanScale = 2.0;
+      let processed = 0;
+      let updated = 0;
+      let alignmentFailures = 0;
+
+      try {
+        for (const sub of submissions) {
+          processed++;
+          rerunMcMessage = `Processing submission ${processed}/${submissions.length}...`;
+          if (!sub.scanCt || !sub.scanIv) continue;
+
+          let pdfBytes: Uint8Array;
+          try {
+            pdfBytes = await decrypt(key, sub.scanCt, sub.scanIv);
+          } catch (err) {
+            console.warn(`Failed to decrypt scan for submission ${sub.id}:`, err);
+            continue;
+          }
+
+          const existingScores = await loadScoresEncrypted(sub.id, key);
+          const existingByExercise = new Map(existingScores.map((s) => [s.exerciseId, s]));
+
+          const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+          for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+            const pageTemplate = templatePages[pageNum - 1];
+            if (!pageTemplate || (pageTemplate.bubbles.length === 0 && pageTemplate.fiducials.length === 0)) {
+              continue;
+            }
+
+            const pdfPage = await pdfDoc.getPage(pageNum);
+            const viewport = pdfPage.getViewport({ scale: scanScale });
+            const canvas = document.createElement("canvas");
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) continue;
+            await pdfPage.render({ canvas, canvasContext: ctx, viewport }).promise;
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            const response = await runOmr({
+              type: "OMR_PROCESS",
+              imageData,
+              pageTemplate,
+              scanScale,
+              answerKeys,
+            });
+            if (response.type !== "OMR_RESULT") continue;
+
+            if (response.alignmentFailed) alignmentFailures++;
+
+            for (const r of response.results) {
+              const existing = existingByExercise.get(r.exerciseId);
+              if (existing?.omrMeta?.source === "manual") continue;
+
+              const failed = r.confidence === "failed";
+              const nonBlankBubbles = r.bubbles.filter((b) => b.state !== "blank");
+              await saveScoreEncrypted(
+                {
+                  id: existing?.id ?? crypto.randomUUID(),
+                  submissionId: sub.id,
+                  exerciseId: r.exerciseId,
+                  // Leave unset on alignment failure so it hydrates as "ungraded" rather than
+                  // silently contributing a 0 to the total (grade/+page.svelte).
+                  score: failed ? undefined : r.score,
+                  selectedOptions: failed ? [] : r.selectedOptions,
+                  omrMeta: {
+                    confidence: r.confidence,
+                    source: "omr",
+                    flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
+                    detections:
+                      !failed && nonBlankBubbles.length > 0
+                        ? {
+                            pageIndex: r.pageIndex,
+                            bubbles: nonBlankBubbles.map((b) => ({
+                              optionIndex: b.optionIndex,
+                              state: b.state as "ambiguous" | "marked",
+                              rect: b.rect,
+                            })),
+                          }
+                        : undefined,
+                  },
+                },
+                key,
+              );
+              updated++;
+            }
+          }
+        }
+      } finally {
+        worker.terminate();
+      }
+
+      rerunMcMessage =
+        `MC detection re-run complete: ${updated} score(s) updated across ${processed} submission(s).` +
+        (alignmentFailures > 0
+          ? ` ${alignmentFailures} page(s) failed alignment — those exercises need manual grading.`
+          : "");
+    } catch (err: any) {
+      errorMsg = err.message || "Failed to re-run MC detection.";
+      rerunMcMessage = "";
+    } finally {
+      isRerunningMc = false;
     }
   }
 
@@ -1260,22 +1566,41 @@ ${exerciseInputs}
 
         <button
           class="compile-btn"
-          class:is-loading={isCompiling}
-          on:click={() => handleDownloadExamPdf(false)}
-          disabled={isCompiling}
+          class:is-loading={isPreparingOmr}
+          on:click={handlePrepareOmr}
+          disabled={isPreparingOmr || exercises.length === 0}
+          title="Compiles a blank exam locally and captures MC bubble positions for automatic grading during scan."
         >
-          {isCompiling ? "Compiling..." : "📄 Download Exam PDF"}
+          {isPreparingOmr
+            ? "Preparing OMR..."
+            : omrTemplateStatus === "stale"
+              ? "🎯 Re-run Prepare OMR"
+              : "🎯 Prepare OMR"}
         </button>
 
         <button
-          class="solution-btn"
-          class:is-loading={isCompiling}
-          on:click={() => handleDownloadExamPdf(true)}
-          disabled={isCompiling}
+          class="compile-btn"
+          class:is-loading={isRerunningMc}
+          on:click={handleRerunMcDetection}
+          disabled={isRerunningMc || omrTemplateStatus !== "ready" || submissions.length === 0}
+          title="Re-scores already-scanned submissions against the current OMR template. Skips exercises already hand-graded."
         >
-          {isCompiling ? "Compiling..." : "📝 Download Answer Key"}
+          {isRerunningMc ? "Re-running MC detection..." : "🔁 Re-run MC detection"}
         </button>
       </div>
+
+      {#if omrTemplateStatus === "stale"}
+        <div class="exam-notice exam-notice--warning">
+          MC answer key changed since the OMR template was captured — auto-grading may be
+          inaccurate until you re-run "Prepare OMR".
+        </div>
+      {/if}
+      {#if omrPrepareMessage}
+        <div class="exam-notice">{omrPrepareMessage}</div>
+      {/if}
+      {#if rerunMcMessage}
+        <div class="exam-notice">{rerunMcMessage}</div>
+      {/if}
 
       {#if previewPdfUrl || previewSolutionPdfUrl}
         <div style="margin-top: 1rem;">
