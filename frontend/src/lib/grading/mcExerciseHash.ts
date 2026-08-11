@@ -14,16 +14,61 @@
 
 import type { ExerciseRecord } from '$lib/db/schema';
 import { isMcQuestion } from './mcScore';
+import { parseMcOptions } from '$lib/latex/mcOptions';
 import {
   loadExamExercisesEncrypted,
   loadExercisesEncrypted,
   loadLocalMcGroups,
-  type McGroup,
 } from '$lib/db/dbEncryption';
 
 export interface McGroupLike {
   id: string;
   memberIds: string[];
+}
+
+/**
+ * Normalizes an ExerciseRecord so that `options` (string[]) and `correctAnswers` (number[])
+ * are consistently populated for MC/SC/TF exercises.
+ *
+ * Handles:
+ * 1. `correctAnswers` given as backend JSON object `{ options: string[], correct: number[] }`
+ * 2. Missing `options` or `correctAnswers` by parsing `latexBody` via `parseMcOptions`
+ */
+export function normalizeMcExercise(ex: ExerciseRecord): ExerciseRecord {
+  if (!isMcQuestion(ex)) return ex;
+
+  let options: string[] = Array.isArray(ex.options) ? [...ex.options] : [];
+  let correctAnswers: number[] = [];
+
+  const rawAnswers = ex.correctAnswers as any;
+  if (rawAnswers && typeof rawAnswers === 'object' && !Array.isArray(rawAnswers)) {
+    if (Array.isArray(rawAnswers.options) && options.length === 0) {
+      options = rawAnswers.options;
+    }
+    if (Array.isArray(rawAnswers.correct)) {
+      correctAnswers = rawAnswers.correct;
+    }
+  } else if (Array.isArray(rawAnswers)) {
+    correctAnswers = rawAnswers;
+  }
+
+  if ((options.length === 0 || correctAnswers.length === 0) && ex.latexBody) {
+    const parsed = parseMcOptions(ex.latexBody);
+    if (parsed.options.length > 0) {
+      if (options.length === 0) {
+        options = parsed.options.map((o) => o.text);
+      }
+      if (correctAnswers.length === 0) {
+        correctAnswers = parsed.options.flatMap((o, i) => (o.correct ? [i] : []));
+      }
+    }
+  }
+
+  return {
+    ...ex,
+    options,
+    correctAnswers,
+  };
 }
 
 /**
@@ -36,8 +81,8 @@ export function resolveMcExercises(
   mcGroups: McGroupLike[]
 ): ExerciseRecord[] {
   const byId = new Map<string, ExerciseRecord>();
-  for (const ex of libraryExercises) byId.set(ex.id, ex);
-  for (const ex of exercises) byId.set(ex.id, ex);
+  for (const ex of libraryExercises) byId.set(ex.id, normalizeMcExercise(ex));
+  for (const ex of exercises) byId.set(ex.id, normalizeMcExercise(ex));
 
   const groupMemberIds = new Set<string>();
   for (const group of mcGroups) {
@@ -50,9 +95,10 @@ export function resolveMcExercises(
   const addedIds = new Set<string>();
 
   for (const ex of exercises) {
-    if (!groupMemberIds.has(ex.id) && !addedIds.has(ex.id)) {
-      result.push(ex);
-      addedIds.add(ex.id);
+    const normalized = normalizeMcExercise(ex);
+    if (!groupMemberIds.has(normalized.id) && !addedIds.has(normalized.id)) {
+      result.push(normalized);
+      addedIds.add(normalized.id);
     }
   }
 
@@ -103,8 +149,9 @@ interface McAnswerKeyTuple {
 
 /** Filters to MC-relevant exercises and reduces each to its answer-key-affecting fields. */
 export function toMcAnswerKeyTuples(exercises: ExerciseRecord[]): McAnswerKeyTuple[] {
-  return exercises
+  const exs = exercises
     .filter(isMcQuestion)
+    .map(normalizeMcExercise)
     .map((e) => ({
       id: e.id,
       questionType: e.questionType,
@@ -113,6 +160,7 @@ export function toMcAnswerKeyTuples(exercises: ExerciseRecord[]): McAnswerKeyTup
       penalty: e.penalty ?? 0,
     }))
     .sort((a, b) => a.id.localeCompare(b.id));
+  return exs;
 }
 
 /** SHA-256 hex digest of the exam's ordered-by-id MC answer-key tuples. */

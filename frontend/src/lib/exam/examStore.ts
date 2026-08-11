@@ -13,6 +13,7 @@ import { api } from "$lib/api/client";
 import { submissionRepository } from "$lib/repositories/submissionRepository";
 import { sessionStore, isAuthenticated } from "$lib/stores/session";
 import { storagePolicyStore } from "$lib/stores/storagePolicy";
+import { normalizeMcExercise } from "$lib/grading/mcExerciseHash";
 
 export interface ExamPageState {
   exam: ExamRecord | null;
@@ -58,7 +59,7 @@ export async function loadExamData(id: string): Promise<ExamPageState> {
           compilationStatus: remoteExam.compilation_status,
           createdAt: remoteExam.created_at,
         };
-        state.exercises = remoteExam.exercises.map((e: any) => ({
+        state.exercises = remoteExam.exercises.map((e: any) => normalizeMcExercise({
           id: e.id,
           name: e.name,
           topicTag: e.topic_tag,
@@ -67,6 +68,8 @@ export async function loadExamData(id: string): Promise<ExamPageState> {
           version: e.version || 1,
           orderIndex: e.order_index,
           questionType: e.question_type || "free_text",
+          options: e.options,
+          correctAnswers: e.correct_answers || e.correctAnswers,
           penalty: e.penalty || 0,
         }));
 

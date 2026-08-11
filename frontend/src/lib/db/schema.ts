@@ -49,6 +49,8 @@ export interface ExerciseRecord {
   teacherId?: string;
   examId?: string;
   orderIndex?: number;
+  mcGroupId?: string;
+  subIndex?: number;
   title?: string;
   name?: string;
   latexBody?: string;

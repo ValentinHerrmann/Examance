@@ -5,9 +5,10 @@ import { storagePolicyStore } from '$lib/stores/storagePolicy';
 import { encryptExercise, decryptExercise } from '$lib/db/dbEncryption';
 import { enqueueRequest } from '$lib/services/offlineQueue';
 import type { ExerciseRecord } from '$lib/db/schema';
+import { normalizeMcExercise } from '$lib/grading/mcExerciseHash';
 
 function mapApiToExerciseRecord(raw: any): ExerciseRecord {
-  return {
+  const baseRecord: ExerciseRecord = {
     id: raw.id,
     teacherId: raw.teacher_id || raw.teacherId,
     examId: raw.exam_id || raw.examId,
@@ -30,6 +31,8 @@ function mapApiToExerciseRecord(raw: any): ExerciseRecord {
     correctAnswers: raw.correct_answers || raw.correctAnswers || [],
     penalty: raw.penalty || 0,
   };
+
+  return normalizeMcExercise(baseRecord);
 }
 
 function mapExerciseRecordToApi(ex: ExerciseRecord): any {

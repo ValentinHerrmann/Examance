@@ -33,7 +33,7 @@
     loadLocalMcGroups,
     type McGroup,
   } from "$lib/db/dbEncryption";
-  import { computeMcExercisesHash, resolveMcExercises } from "$lib/grading/mcExerciseHash";
+  import { computeMcExercisesHash, resolveMcExercises, normalizeMcExercise } from "$lib/grading/mcExerciseHash";
   import { isMcQuestion } from "$lib/grading/mcScore";
   import { packProject } from "$lib/archive/packer";
   import { compileLatex } from "$lib/latex/compiler";
@@ -145,7 +145,7 @@
             compilationStatus: remoteExam.compilation_status,
             createdAt: remoteExam.created_at,
           };
-          exercises = remoteExam.exercises.map((e: any) => ({
+          exercises = remoteExam.exercises.map((e: any) => normalizeMcExercise({
             id: e.id,
             name: e.name,
             topicTag: e.topic_tag,
@@ -154,6 +154,8 @@
             version: e.version || 1,
             orderIndex: e.order_index,
             questionType: e.question_type || "free_text",
+            options: e.options,
+            correctAnswers: e.correct_answers || e.correctAnswers,
             penalty: e.penalty || 0,
             mcGroupId: e.mc_group_id || undefined,
             subIndex: e.sub_index || undefined,
@@ -1397,13 +1399,6 @@ ${exerciseInputs}
     }
 
     try {
-      if ($storagePolicyStore.storageMode !== "all-local") {
-        await api.patch(`/exams/${currentExamId}`, {
-          mc_groups: mcGroupsPayload,
-          exercise_links: exerciseLinksPayload,
-        });
-      }
-
       await db.examMcGroups.where("examId").equals(currentExamId).delete();
       if (mcGroupRecords.length > 0) {
         await db.examMcGroups.bulkPut(mcGroupRecords);
@@ -1412,7 +1407,20 @@ ${exerciseInputs}
       await db.examExercises.where("examId").equals(currentExamId).delete();
       await db.examExercises.bulkPut(examExerciseRecords);
     } catch (err) {
-      console.error("Failed to update exercise links:", err);
+      console.error("Failed to update local exercise links:", err);
+      errorMsg = "Failed to save exercise links locally. Please retry.";
+      return;
+    }
+
+    if ($storagePolicyStore.storageMode !== "all-local") {
+      try {
+        await api.patch(`/exams/${currentExamId}`, {
+          mc_groups: mcGroupsPayload,
+          exercise_links: exerciseLinksPayload,
+        });
+      } catch (err) {
+        console.error("Failed to sync exercise links to server:", err);
+      }
     }
   }
 
