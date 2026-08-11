@@ -98,15 +98,16 @@ export interface OmrScoreMeta {
   source: 'omr' | 'manual';
   /** Option indices the worker flagged as uncertain (light mark, partial erase, multi-mark on sc/tf). */
   flaggedOptions?: number[];
-  /** Detected bubble boxes for the grading viewer to draw over the scan (non-blank only, to
-   *  keep the encrypted payload small). Carried forward across manual `McAnswerReview`
-   *  toggles — it documents what the scanner saw, which stays true after a correction. */
+  /** Detected bubble boxes for the grading viewer to draw over the scan, for every option
+   *  (including blank ones — needed to place the "missing" annotation on correct options the
+   *  student didn't mark). Carried forward across manual `McAnswerReview` toggles — it
+   *  documents what the scanner saw, which stays true after a correction. */
   detections?: {
     /** 0-based, matches OmrPageTemplate.pageIndex. */
     pageIndex: number;
     bubbles: {
       optionIndex: number;
-      state: 'ambiguous' | 'marked';
+      state: 'ambiguous' | 'marked' | 'blank';
       /** Normalized [minX, minY, maxX, maxY] in [0,1] of the scan page's (width, height). */
       rect: [number, number, number, number];
     }[];

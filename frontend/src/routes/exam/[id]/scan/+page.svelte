@@ -22,9 +22,12 @@
     loadExamExercisesEncrypted,
     loadOmrTemplateEncrypted,
     saveScoreEncrypted,
+    loadScoresEncrypted,
+    loadLocalMcGroups,
   } from "$lib/db/dbEncryption";
   import { computeMcExercisesHash, loadExamMcExercises } from "$lib/grading/mcExerciseHash";
   import { isMcQuestion } from "$lib/grading/mcScore";
+  import { drawOmrOverlayForPage, type McOverlayState } from "$lib/grading/omrOverlay";
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
   import { studentRepository } from "$lib/repositories/studentRepository";
@@ -448,6 +451,24 @@
         strokes = JSON.parse(new TextDecoder().decode(annBytes));
       }
 
+      // Load MC/SC/TF auto-grading overlay data (mirrors ScanCanvasViewer's gradingStore
+      // state) so the exported PDF shows the same OMR annotations as the grading UI.
+      const exercises = await loadExamExercisesEncrypted(examId, key || fallbackKey);
+      const scores = await loadScoresEncrypted(sub.id, key || fallbackKey);
+      const mcState: Record<string, McOverlayState> = {};
+      const scoreInputs: Record<string, number | null | undefined> = {};
+      for (const sc of scores) {
+        if (sc.omrMeta) mcState[sc.exerciseId] = { omrMeta: sc.omrMeta };
+        scoreInputs[sc.exerciseId] = sc.score;
+      }
+      const mcGroups = await loadLocalMcGroups(examId).catch(() => []);
+      const subExerciseLetters = new Map<string, string>();
+      for (const group of mcGroups) {
+        group.memberIds.forEach((exerciseId, idx) => {
+          subExerciseLetters.set(exerciseId, String.fromCharCode(97 + idx));
+        });
+      }
+
       const { PDFDocument } = await import("pdf-lib");
       const outputPdf = await PDFDocument.create();
 
@@ -503,6 +524,7 @@
           if (pageStrokes.length > 0) {
             drawStrokesOnCanvas(ctx, pageStrokes);
           }
+          drawOmrOverlayForPage(ctx, canvas.width, canvas.height, pageNum, mcState, exercises, subExerciseLetters, scoreInputs);
 
           const pngBytes = await canvasToPng(canvas);
           const pngImage = await outputPdf.embedPng(pngBytes);
@@ -523,6 +545,7 @@
         if (pageStrokes.length > 0) {
           drawStrokesOnCanvas(ctx, pageStrokes);
         }
+        drawOmrOverlayForPage(ctx, canvas.width, canvas.height, 1, mcState, exercises, subExerciseLetters, scoreInputs);
 
         const pngBytes = await canvasToPng(canvas);
         const pngImage = await outputPdf.embedPng(pngBytes);
@@ -946,7 +969,6 @@
       const omrResults = omrResultsByPseudonym.get(booklet.pseudonymId) ?? [];
       for (const r of omrResults) {
         const failed = r.confidence === "failed";
-        const nonBlankBubbles = r.bubbles.filter((b) => b.state !== "blank");
         await saveScoreEncrypted(
           {
             id: crypto.randomUUID(),
@@ -961,12 +983,12 @@
               source: "omr",
               flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
               detections:
-                !failed && nonBlankBubbles.length > 0
+                !failed && r.bubbles.length > 0
                   ? {
                       pageIndex: r.pageIndex,
-                      bubbles: nonBlankBubbles.map((b) => ({
+                      bubbles: r.bubbles.map((b) => ({
                         optionIndex: b.optionIndex,
-                        state: b.state as "ambiguous" | "marked",
+                        state: b.state as "ambiguous" | "marked" | "blank",
                         rect: b.rect,
                       })),
                     }

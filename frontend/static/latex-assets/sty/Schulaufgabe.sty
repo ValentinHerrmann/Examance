@@ -257,9 +257,11 @@
 % land on any page -- \AddToShipoutPictureBG (eso-pic) re-runs per shipout.
 % Each marker also carries an invisible \href link (like the OMR bubbles in
 % Loesung.sty) so the same pdfjs getAnnotations() pass extracts both in one go.
-% Note: Header height/insets (packages.sty headheight + \fancyheadoffset) and
-% footer table placement (packages.sty bottom + tabularx inset) are deliberately
-% sized so rendered content stays outside the 13mm corner fiducial zone (5mm inset + 8mm size).
+% Note: fiducials sit inside the header's own vertical band (headheight/top
+% margin unchanged) -- only \fancyheadoffset (packages.sty headheight stays as
+% original) nudges \lhead/\rhead content 3mm inward so it clears the corners
+% horizontally. Footer table placement (packages.sty bottom + tabularx inset)
+% is sized so it stays outside the 13mm corner fiducial zone (5mm inset + 8mm size).
 \newlength{\OmrFiducialSize}
 \setlength{\OmrFiducialSize}{8mm}
 \newlength{\OmrFiducialInset}

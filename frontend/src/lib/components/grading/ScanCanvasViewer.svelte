@@ -19,12 +19,35 @@
   import { decrypt } from "$lib/crypto/aesGcm";
   import { gradingStore, type VectorStroke } from "$lib/grading/gradingStore";
   import { recalculateAutoScores } from "$lib/grading/autoScore";
+  import { loadLocalMcGroups } from "$lib/db/dbEncryption";
+  import { drawMissingSymbol, drawCheckmark, drawOmrOverlayForPage } from "$lib/grading/omrOverlay";
   import { getAutoCropBounds } from "./ScanCanvasViewer";
 
   export let examId: string;
   export let submission: SubmissionRecord | undefined;
   export let exercises: ExerciseRecord[];
   export let onSubmissionHydrated: (fullSub: SubmissionRecord) => void;
+
+  // ExerciseRecord.mcGroupId/subIndex are not populated for exam-linked exercises (the
+  // exam-specific placement lives only in ExamExerciseRecord) — load the real group/letter
+  // mapping once per exam for the "a) 1/2" sub-exercise sum stamp in drawOmrDetections().
+  let subExerciseLetters: Map<string, string> = new Map();
+  let loadedGroupsExamId: string | null = null;
+  $: if (examId && examId !== loadedGroupsExamId) {
+    loadedGroupsExamId = examId;
+    loadMcGroupLetters(examId);
+  }
+
+  async function loadMcGroupLetters(id: string) {
+    const groups = await loadLocalMcGroups(id).catch(() => []);
+    const next = new Map<string, string>();
+    for (const group of groups) {
+      group.memberIds.forEach((exerciseId, idx) => {
+        next.set(exerciseId, String.fromCharCode(97 + idx));
+      });
+    }
+    subExerciseLetters = next;
+  }
 
   let scanCanvas: HTMLCanvasElement;
   let overlayCanvas: HTMLCanvasElement;
@@ -44,7 +67,7 @@
   // McAnswerReview carrying `detections` forward) — mirrors how `strokes` above tracks the
   // store, but this pass is a fully separate (non-persisted, non-erasable) overlay so it
   // can't just reuse the stroke-edit call sites.
-  $: if (overlayCanvas && $gradingStore.mcState) {
+  $: if (overlayCanvas && ($gradingStore.mcState || subExerciseLetters)) {
     redrawOverlay();
   }
 
@@ -523,18 +546,10 @@
         }
       } else if (stroke.tool === "check_full" || stroke.tool === "check") {
         const p = stroke.points[0];
-        ctx.beginPath();
-        ctx.moveTo(p.x - 14, p.y - 2);
-        ctx.lineTo(p.x - 4, p.y + 10);
-        ctx.lineTo(p.x + 16, p.y - 18);
-        ctx.stroke();
+        drawCheckmark(ctx, p.x, p.y);
       } else if (stroke.tool === "check_half") {
         const p = stroke.points[0];
-        ctx.beginPath();
-        ctx.moveTo(p.x - 14, p.y - 2);
-        ctx.lineTo(p.x - 4, p.y + 10);
-        ctx.lineTo(p.x + 16, p.y - 18);
-        ctx.stroke();
+        drawCheckmark(ctx, p.x, p.y);
         // 1 crossing line
         ctx.beginPath();
         ctx.moveTo(p.x + 1, p.y - 12);
@@ -542,11 +557,7 @@
         ctx.stroke();
       } else if (stroke.tool === "check_quarter") {
         const p = stroke.points[0];
-        ctx.beginPath();
-        ctx.moveTo(p.x - 14, p.y - 2);
-        ctx.lineTo(p.x - 4, p.y + 10);
-        ctx.lineTo(p.x + 16, p.y - 18);
-        ctx.stroke();
+        drawCheckmark(ctx, p.x, p.y);
         // 2 crossing lines
         ctx.beginPath();
         ctx.moveTo(p.x - 2, p.y - 13);
@@ -573,16 +584,7 @@
         ctx.font = "bold italic 30px serif";
         ctx.fillText("f", p.x, p.y);
       } else if (stroke.tool === "missing") {
-        const p = stroke.points[0];
-        ctx.beginPath();
-        ctx.moveTo(p.x - 12, p.y - 18);
-        ctx.lineTo(p.x, p.y + 4);
-        ctx.lineTo(p.x + 12, p.y - 18);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(p.x - 15, p.y - 8);
-        ctx.lineTo(p.x + 15, p.y - 8);
-        ctx.stroke();
+        drawMissingSymbol(ctx, stroke.points[0].x, stroke.points[0].y);
       } else if (stroke.tool === "wf") {
         const p = stroke.points[0];
         ctx.font = "bold 24px sans-serif";
@@ -598,33 +600,25 @@
   }
 
   /**
-   * Draws a box over every OMR-detected mark on the currently-displayed page, across all MC
-   * exercises (not just the active one) — a separate, non-persisted draw pass appended after
-   * the annotation strokes above: never pushed into `strokes`, so it isn't erasable and
-   * doesn't feed recalcScores(). Red solid = confidently marked, amber dashed = ambiguous.
-   * Rects are normalized [minX,minY,maxX,maxY] in [0,1] of the scan page (set by omrWorker.ts),
-   * so they scale correctly regardless of the canvas's actual raster resolution/zoom.
+   * Draws OMR-derived annotations (per-option score stamps, missing-option symbols,
+   * per-sub-exercise "a) 1/2" totals) over every MC/SC/TF exercise on the currently-displayed
+   * page — a separate, non-persisted draw pass appended after the annotation strokes above:
+   * never pushed into `strokes`, so it isn't erasable and doesn't feed recalcScores(). Shared
+   * with the graded-PDF export (routes/exam/[id]/scan/+page.svelte) via omrOverlay.ts so both
+   * render identical annotations.
    */
   function drawOmrDetections(ctx: CanvasRenderingContext2D, currentPage: number) {
-    const mcState = get(gradingStore).mcState;
-    const w = overlayCanvas.width;
-    const h = overlayCanvas.height;
-
-    for (const state of Object.values(mcState)) {
-      const detections = state.omrMeta?.detections;
-      if (!detections || detections.pageIndex + 1 !== currentPage) continue;
-
-      for (const bubble of detections.bubbles) {
-        const [x0, y0, x1, y1] = bubble.rect;
-        const marked = bubble.state === "marked";
-        ctx.save();
-        ctx.strokeStyle = marked ? "#ef4444" : "#f59e0b";
-        ctx.lineWidth = 3;
-        ctx.setLineDash(marked ? [] : [6, 4]);
-        ctx.strokeRect(x0 * w, y0 * h, (x1 - x0) * w, (y1 - y0) * h);
-        ctx.restore();
-      }
-    }
+    const state = get(gradingStore);
+    drawOmrOverlayForPage(
+      ctx,
+      overlayCanvas.width,
+      overlayCanvas.height,
+      currentPage,
+      state.mcState,
+      exercises,
+      subExerciseLetters,
+      state.scoreInputs
+    );
   }
 </script>
 

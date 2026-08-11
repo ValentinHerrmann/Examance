@@ -216,18 +216,21 @@
 
 % Setup headers and footers at document start
 \AtBeginDocument{
-    \fancyheadoffset[L]{3mm}
-    \fancyheadoffset[R]{3mm}
+    \fancyheadoffset[L]{5mm}
+    \fancyheadoffset[R]{5mm}
     \lhead{\ifnum\thepage=1
-    {\includegraphics[height=9mm]{logo_mtg.pdf}}
+    {\hspace{1cm}\includegraphics[height=9mm]{logo_mtg.pdf}}
     \else
-    \Nrtext. \Testarttesttext \ in \Fachtext%Name:
+    \hspace{1cm}\Nrtext. \Testarttesttext \ in \Fachtext%Name:
     \fi}
     \rhead{
     \ifnum\thepage=1
-    {
-    \Datumtext \\
-    Klasse \Klassetext \ (\Lehrernachnametext)}
+    {%
+    \begin{tabular}[b]{@{}r@{}}
+        \Datumtext \\
+        Klasse \Klassetext \ (\Lehrernachnametext)
+    \end{tabular}\hspace*{1cm}%
+    }
     \else
     \fi
     }
@@ -257,9 +260,11 @@
 % land on any page -- \AddToShipoutPictureBG (eso-pic) re-runs per shipout.
 % Each marker also carries an invisible \href link (like the OMR bubbles in
 % Loesung.sty) so the same pdfjs getAnnotations() pass extracts both in one go.
-% Note: Header height/insets (packages.sty headheight + \fancyheadoffset) and
-% footer table placement (packages.sty bottom + tabularx inset) are deliberately
-% sized so rendered content stays outside the 13mm corner fiducial zone (5mm inset + 8mm size).
+% Note: fiducials sit inside the header's own vertical band (headheight/top
+% margin unchanged) -- only \fancyheadoffset (packages.sty headheight stays as
+% original) nudges \lhead/\rhead content 3mm inward so it clears the corners
+% horizontally. Footer table placement (packages.sty bottom + tabularx inset)
+% is sized so it stays outside the 13mm corner fiducial zone (5mm inset + 8mm size).
 \newlength{\OmrFiducialSize}
 \setlength{\OmrFiducialSize}{8mm}
 \newlength{\OmrFiducialInset}
