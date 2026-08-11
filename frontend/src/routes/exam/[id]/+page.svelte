@@ -559,6 +559,7 @@
 
     try {
       const mcExercises = collectMcExercises();
+      console.log("[PrepareOMR] MC exercises count:", mcExercises.length, mcExercises.map((e) => ({ id: e.id, name: e.name })));
       if (mcExercises.length === 0) {
         errorMsg = "OMR preparation failed: no MC exercises found in this exam.";
         isPreparingOmr = false;
@@ -584,11 +585,7 @@
 \\Info{${exam.infoText || ""}}
 \\Fach{${exam.fach || "Informatik"}}
 \\Lehrernachname{${exam.lehrernachname || ""}}
-\\usepackage{bbding}
-\\usepackage{pifont}
 \\usepackage{fontspec}
-\\usepackage{framed}
-\\usepackage{enumitem}
 \\usetikzlibrary{shapes.geometric, arrows}
 \\usepackage{sty/tikz-uml}
 \\neverindent
@@ -604,6 +601,12 @@ ${exerciseInputs}
 \\end{document}`;
 
       const useLocal = $storagePolicyStore.latexCompilation === "local";
+      const omrExCount = (fullTex.match(/\\OmrExercise/g) || []).length;
+      const multiCount = (fullTex.match(/\\multi/g) || []).length;
+      const lmultiCount = (fullTex.match(/\\Lmulti/g) || []).length;
+      console.log(
+        `[PrepareOMR] LaTeX macro counts in fullTex: \\OmrExercise=${omrExCount}, \\multi=${multiCount}, \\Lmulti=${lmultiCount}, fullTex length=${fullTex.length}`
+      );
       if (!useLocal && !$isAuthenticated) {
         errorMsg = "Please log in to compile LaTeX on the server.";
         isPreparingOmr = false;
@@ -618,6 +621,10 @@ ${exerciseInputs}
         }
       });
 
+      console.log(
+        `[PrepareOMR] LaTeX compile finished: pdfBytes=${result.pdfBytes?.length ?? 0}, engineUsed=${result.engineUsed ?? (useLocal ? "local" : "server")}, usedFallback=${result.usedFallback ?? false}`
+      );
+
       omrPrepareMessage = "Extracting bubble positions...";
 
       const pdfjsLib = await import("pdfjs-dist");
@@ -625,6 +632,7 @@ ${exerciseInputs}
         pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
       }
       const pdfDoc = await pdfjsLib.getDocument({ data: result.pdfBytes }).promise;
+      console.log(`[PrepareOMR] pdfDoc loaded: numPages=${pdfDoc.numPages}`);
 
       const pages: OmrPageTemplate[] = [];
       for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
@@ -634,12 +642,20 @@ ${exerciseInputs}
 
         const bubbles: OmrBubbleRect[] = [];
         const fiducials: OmrFiducialRect[] = [];
+        let linkAnnCount = 0;
+        let matchedOmrCount = 0;
+        const rejectedUris: string[] = [];
 
         for (const ann of annotations) {
           if (ann.subtype !== "Link") continue;
+          linkAnnCount++;
           const uri: string = ann.unsafeUrl ?? ann.url ?? "";
           const match = /^omr:\/\/([^/]+)\/(\d+)$/.exec(uri);
-          if (!match) continue;
+          if (!match) {
+            if (uri && rejectedUris.length < 5) rejectedUris.push(uri);
+            continue;
+          }
+          matchedOmrCount++;
           const [, token, idxStr] = match;
           const rect = ann.rect as [number, number, number, number];
           if (token === "__fid__") {
@@ -652,6 +668,11 @@ ${exerciseInputs}
           }
         }
 
+        console.log(
+          `[PrepareOMR] Page ${pageNum}: totalAnnotations=${annotations.length}, linkAnnotations=${linkAnnCount}, matchedOmrLinks=${matchedOmrCount} (fiducials=${fiducials.length}, bubbles=${bubbles.length})` +
+            (rejectedUris.length > 0 ? `, non-OMR Link URIs sample: ${JSON.stringify(rejectedUris)}` : "")
+        );
+
         pages.push({
           pageIndex: pageNum - 1,
           pageWidthPt: viewport.width,
@@ -660,6 +681,11 @@ ${exerciseInputs}
           bubbles,
         });
       }
+
+      console.log(
+        "[PrepareOMR] Pages extraction summary:",
+        pages.map((p) => ({ page: p.pageIndex + 1, fiducials: p.fiducials.length, bubbles: p.bubbles.length }))
+      );
 
       const payload: OmrTemplatePayload = { pages };
       const exercisesHash = await computeExercisesHash();
@@ -676,6 +702,9 @@ ${exerciseInputs}
       // reporting success and letting every scan later fail alignment silently.
       const shortPages = pages.filter((p) => p.fiducials.length < 4).map((p) => p.pageIndex + 1);
       if (mcExerciseCount > 0 && totalBubbles === 0) {
+        console.warn(
+          `[PrepareOMR] FAILED: totalBubbles is 0 despite ${mcExerciseCount} MC exercise(s). Macro counts in fullTex were: \\OmrExercise=${omrExCount}, \\multi=${multiCount}, \\Lmulti=${lmultiCount}`
+        );
         omrTemplateStatus = "stale";
         omrPrepareMessage = "";
         errorMsg =
@@ -875,11 +904,7 @@ ${exerciseInputs}
 \\Info{${currentExam.infoText || ""}}
 \\Fach{${currentExam.fach || "Informatik"}}
 \\Lehrernachname{${currentExam.lehrernachname || ""}}
-\\usepackage{bbding}
-\\usepackage{pifont}
 \\usepackage{fontspec}
-\\usepackage{framed}
-\\usepackage{enumitem}
 \\usetikzlibrary{shapes.geometric, arrows}
 \\usepackage{sty/tikz-uml}
 \\neverindent

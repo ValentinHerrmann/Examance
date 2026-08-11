@@ -277,7 +277,8 @@
 % is the physical lower-left corner regardless of margins, matching the
 % 0=BL,1=BR,2=TR,3=TL convention omrWorker.ts assumes).
 \newcommand{\OmrFiducialAt}[3]{%
-    \AtPageLowerLeft{\put(\LenToUnit{#2},\LenToUnit{#3}){\href{omr://__fid__/#1}{\OmrFiducialShape}}}%
+    \typeout{[OMR-TRACE] OmrFiducialAt corner=#1 x=#2 y=#3}%
+    \AtPageLowerLeft{\put(\LenToUnit{#2},\LenToUnit{#3}){\OmrLink{\OmrFiducialSize}{\OmrFiducialSize}{omr://__fid__/#1}\OmrFiducialShape}}%
 }
 
 \AddToShipoutPictureBG{%

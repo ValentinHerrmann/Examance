@@ -92,10 +92,6 @@ async def compile_latex(
     if "\\documentclass" not in latex_source:
         latex_source = f"""\\documentclass[a4paper]{{article}}
 \\usepackage[sans,punkte]{{sty/Schulaufgabe}}
-\\usepackage{{bbding}}
-\\usepackage{{pifont}}
-\\usepackage{{framed}}
-\\usepackage{{enumitem}}
 \\usetikzlibrary{{shapes.geometric, arrows}}
 \\usepackage{{sty/tikz-uml}}
 \\neverindent
@@ -127,6 +123,26 @@ async def compile_latex(
         tex_file = tmpdir / "main.tex"
         tex_file.write_text(latex_source, encoding="utf-8")
 
+        # Dump compilation source and extra files to server console for debugging
+        logger.warning(
+            "[TECTONIC-START] Starting latex compilation (preview=%s). main.tex (%d chars):\n--- START main.tex ---\n%s\n--- END main.tex ---",
+            preview,
+            len(latex_source),
+            latex_source,
+        )
+        if extra_files:
+            for rel_path, content in extra_files.items():
+                logger.warning(
+                    "[TECTONIC-START] Extra file '%s' (%d chars):\n--- START %s ---\n%s\n--- END %s ---",
+                    rel_path,
+                    len(content),
+                    rel_path,
+                    content,
+                    rel_path,
+                )
+        else:
+            logger.warning("[TECTONIC-START] No extra_files provided.")
+
         cmd = [
             "tectonic",
             "-k",
@@ -154,15 +170,27 @@ async def compile_latex(
                 await proc.communicate()
                 raise
 
+            log_file = tmpdir / "main.log"
+            log_content = ""
+            if log_file.exists():
+                try:
+                    log_content = log_file.read_text(encoding="utf-8", errors="replace")
+                except Exception:
+                    pass
+
+            href_count = latex_source.count("omr://")
+            logger.warning(
+                "[TECTONIC-LOG] Pass %d finished (exit %d). main.tex len=%d, omr_href_count=%d.\n--- TEKTONIC main.log ---\n%s\n--- END main.log ---",
+                pass_idx + 1,
+                proc.returncode,
+                len(latex_source),
+                href_count,
+                log_content if log_content else "(main.log empty or missing)"
+            )
+
             if proc.returncode != 0:
                 raw_stderr = stderr.decode(errors="replace")
                 err_snippet = _extract_tex_error(raw_stderr, tmpdir)
-                logger.warning(
-                    "Tectonic compilation pass %d failed (exit %d). stderr: %s",
-                    pass_idx + 1,
-                    proc.returncode,
-                    err_snippet,
-                )
                 raise CompilationError(
                     f"Tectonic compilation pass {pass_idx + 1} failed (exit {proc.returncode}): {err_snippet}"
                 )
@@ -341,11 +369,7 @@ async def compile_exam_latex(
 \\Info{{{info_text}}}
 \\Fach{{{fach}}}
 \\Lehrernachname{{{lehrernachname}}}
-\\usepackage{{bbding}}
-\\usepackage{{pifont}}
 \\usepackage{{fontspec}}
-\\usepackage{{framed}}
-\\usepackage{{enumitem}}
 
 \\usetikzlibrary{{shapes.geometric, arrows}}
 \\usepackage{{sty/tikz-uml}}

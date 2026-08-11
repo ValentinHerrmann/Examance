@@ -40,11 +40,18 @@
 \renewcommand{\umlfillcolor}{white}
 \renewcommand{\umldrawcolor}{black}
 
+\RequirePackage{bbding}
+\RequirePackage{pifont}
+\RequirePackage{framed}
+\RequirePackage{enumitem}
+
 % OMR: absolute-position fiducial markers on every page (eso-pic), and
 % invisible link annotations on OMR bubbles/fiducials so the client can
 % extract exact bubble rects from the compiled PDF (pdfjs getAnnotations()).
 % hidelinks is essential -- without it every bubble gets a coloured frame.
+% hyperref must be loaded AFTER enumitem and framed so itemize/description
+% macro overrides do not strip link annotations.
 \RequirePackage{eso-pic}
-\RequirePackage[hidelinks]{hyperref}
+\RequirePackage[hidelinks,final]{hyperref}
 
 \endinput

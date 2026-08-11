@@ -144,28 +144,45 @@ escapeinside={(*@}{@*)}
 % back exact rects via pdfjs page.getAnnotations() from a blank compile.
 \newcommand*{\CurrentOmrId}{unassigned}
 \newcounter{OmrOptCount}
-\newcommand{\OmrExercise}[1]{\gdef\CurrentOmrId{#1}\setcounter{OmrOptCount}{0}}
+\newcommand{\OmrExercise}[1]{%
+	\gdef\CurrentOmrId{#1}%
+	\setcounter{OmrOptCount}{0}%
+	\typeout{[OMR-TRACE] OmrExercise id=#1}%
+}
+
+% Direct xdvipdfmx link annotation primitive for non-text graphics (TikZ)
+\newcommand{\OmrLink}[3]{%
+  \edef\w{\the\dimexpr#1\relax}%
+  \edef\h{\the\dimexpr#2\relax}%
+  \special{pdf:ann width \w\space height \h\space depth 0pt << /Subtype /Link /A << /S /URI /URI (#3) >> >>}%
+}
 
 \newlength{\OmrBoxSize}
 \setlength{\OmrBoxSize}{4.5mm}
 % #1 (optional) = tikz drawing commands for the mark inside the box, e.g. an X
 \newcommand{\OmrBox}[1][]{%
+	\typeout{[OMR-TRACE] OmrBox id=\CurrentOmrId opt=\theOmrOptCount}%
+	\OmrLink{\OmrBoxSize}{\OmrBoxSize}{omr://\CurrentOmrId/\theOmrOptCount}%
 	\tikz[baseline=-0.5ex]{%
 		\draw[black,line width=0.4pt] (0,0) rectangle (\OmrBoxSize,\OmrBoxSize);%
 		#1%
 	}%
 }
 
-\newcommand{\multi}{\item[\href{omr://\CurrentOmrId/\theOmrOptCount}{\OmrBox}\hspace{2mm}]\stepcounter{OmrOptCount}}
+\newcommand{\multi}{%
+	\typeout{[OMR-TRACE] multi id=\CurrentOmrId opt=\theOmrOptCount}%
+	\item[{\OmrBox}\hspace{2mm}]\stepcounter{OmrOptCount}%
+}
 \newcommand{\Lmulti}{%
+	\typeout{[OMR-TRACE] Lmulti id=\CurrentOmrId opt=\theOmrOptCount}%
 	\ifcsname TaskScore\endcsname\else\gdef\TaskScore{0}\fi%
 	\ifthenelse
 	{\boolean{Antworten}}
 	{\xdef\TaskScore{\fpeval{\TaskScore + 1}}%
-	 \item[\href{omr://\CurrentOmrId/\theOmrOptCount}{\OmrBox[\node at (0.5\OmrBoxSize,0.5\OmrBoxSize) {\textcolor{\LFarbe}{X}};]}\hspace{2mm}]%
+	 \item[{{\OmrBox[\node at (0.5\OmrBoxSize,0.5\OmrBoxSize) {\textcolor{\LFarbe}{X}};]}}\hspace{2mm}]
 	 \stepcounter{OmrOptCount}}
 	{\xdef\TaskScore{\fpeval{\TaskScore + 1}}%
-	 \item[\href{omr://\CurrentOmrId/\theOmrOptCount}{\OmrBox}\hspace{2mm}]%
+	 \item[{\OmrBox}\hspace{2mm}]%
 	 \stepcounter{OmrOptCount}}
  }
 

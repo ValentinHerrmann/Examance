@@ -102,6 +102,19 @@ self.onmessage = (e: MessageEvent) => {
       console.log("Compilation finished. PDF Bytes:", result.pdf?.length);
       if (!result.success) {
         console.error("Compilation LOG error:", result.log);
+      } else if (result.log) {
+        const warnings = result.log
+          .split("\n")
+          .filter(
+            (line: string) =>
+              line.includes("Undefined control sequence") ||
+              line.includes("LaTeX Warning") ||
+              line.includes("Missing ") ||
+              line.includes("omr")
+          );
+        if (warnings.length > 0) {
+          console.warn("[CompilerWorker] Successful compile produced LaTeX warnings/notices:", warnings);
+        }
       }
 
       if (result.success && result.pdf) {
