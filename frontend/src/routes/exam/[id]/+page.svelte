@@ -30,8 +30,10 @@
     saveOmrTemplateEncrypted,
     loadScoresEncrypted,
     saveScoreEncrypted,
+    loadLocalMcGroups,
+    type McGroup,
   } from "$lib/db/dbEncryption";
-  import { computeMcExercisesHash } from "$lib/grading/mcExerciseHash";
+  import { computeMcExercisesHash, resolveMcExercises } from "$lib/grading/mcExerciseHash";
   import { isMcQuestion } from "$lib/grading/mcScore";
   import { packProject } from "$lib/archive/packer";
   import { compileLatex } from "$lib/latex/compiler";
@@ -61,14 +63,6 @@
   import ExamLibraryModal from "$lib/components/exam/ExamLibraryModal.svelte";
 
   $: examId = $page.params.id || "";
-
-  interface McGroup {
-    id: string;
-    title: string;
-    scoringText: string;
-    memberIds: string[];
-    orderIndex?: number;
-  }
 
   interface ExamItemRef {
     type: "exercise" | "mc_group";
@@ -129,23 +123,6 @@
 
   let isLocalFallback = false;
   let isSyncingSingle = false;
-
-  async function loadLocalMcGroups(examId: string): Promise<McGroup[]> {
-    const groupRecords = await db.examMcGroups.where("examId").equals(examId).toArray();
-    groupRecords.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
-    const result: McGroup[] = [];
-    for (const g of groupRecords) {
-      const links = await db.examExercises.where("mcGroupId").equals(g.id).toArray();
-      links.sort((a, b) => (a.subIndex || 0) - (b.subIndex || 0));
-      result.push({
-        id: g.id,
-        title: g.title,
-        scoringText: g.scoringText,
-        memberIds: links.map((l) => l.exerciseId),
-      });
-    }
-    return result;
-  }
 
   async function loadExam(id: string) {
     const key = get(sessionStore).sessionKey;
@@ -262,25 +239,7 @@
    * even right after a successful capture.
    */
   function collectMcExercises(): ExerciseRecord[] {
-    const byId = new Map<string, ExerciseRecord>();
-    for (const ex of libraryExercises) byId.set(ex.id, ex);
-    for (const ex of exercises) byId.set(ex.id, ex);
-
-    const result: ExerciseRecord[] = [];
-    for (const item of examItems) {
-      if (item.type === "exercise") {
-        const ex = byId.get(item.id);
-        if (ex) result.push(ex);
-      } else {
-        const group = mcGroups.find((g) => g.id === item.id);
-        if (!group) continue;
-        for (const memberId of group.memberIds) {
-          const member = byId.get(memberId);
-          if (member) result.push(member);
-        }
-      }
-    }
-    return result.filter(isMcQuestion);
+    return resolveMcExercises(exercises, libraryExercises, mcGroups);
   }
 
   /**
@@ -1358,9 +1317,30 @@ ${exerciseInputs}
     saveExerciseLinks();
   }
 
+  function getEffectiveExamItems(): ExamItemRef[] {
+    const validIds = new Set([
+      ...exercises.map((e) => e.id),
+      ...mcGroups.map((g) => g.id),
+    ]);
+    const currentItems = examItems.filter((item) => validIds.has(item.id));
+    const currentItemIds = new Set(currentItems.map((item) => item.id));
+
+    const missingExercises = exercises
+      .filter((e) => !mcGroups.some((g) => g.memberIds.includes(e.id)) && !currentItemIds.has(e.id))
+      .map((e) => ({ type: "exercise" as const, id: e.id }));
+
+    const missingGroups = mcGroups
+      .filter((g) => !currentItemIds.has(g.id))
+      .map((g) => ({ type: "mc_group" as const, id: g.id }));
+
+    return [...currentItems, ...missingExercises, ...missingGroups];
+  }
+
   async function saveExerciseLinks() {
     if (!exam) return;
     const currentExamId = exam.id;
+    const itemsToSave = getEffectiveExamItems();
+    examItems = itemsToSave;
 
     let order = 1;
     const exerciseLinksPayload: any[] = [];
@@ -1368,7 +1348,7 @@ ${exerciseInputs}
     const examExerciseRecords: any[] = [];
     const mcGroupRecords: any[] = [];
 
-    for (const item of examItems) {
+    for (const item of itemsToSave) {
       if (item.type === "exercise") {
         exerciseLinksPayload.push({
           exercise_id: item.id,

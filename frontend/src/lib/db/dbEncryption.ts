@@ -729,5 +729,31 @@ export async function saveScoreEncrypted(scoreRec: ExerciseScoreRecord, key: Cry
   return scoreRec.id;
 }
 
+export interface McGroup {
+  id: string;
+  title: string;
+  scoringText: string;
+  memberIds: string[];
+  orderIndex?: number;
+}
+
+export async function loadLocalMcGroups(examId: string): Promise<McGroup[]> {
+  const groupRecords = await db.examMcGroups.where("examId").equals(examId).toArray();
+  groupRecords.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+  const result: McGroup[] = [];
+  for (const g of groupRecords) {
+    const links = await db.examExercises.where("mcGroupId").equals(g.id).toArray();
+    links.sort((a, b) => (a.subIndex || 0) - (b.subIndex || 0));
+    result.push({
+      id: g.id,
+      title: g.title,
+      scoringText: g.scoringText,
+      memberIds: links.map((l) => l.exerciseId),
+      orderIndex: g.orderIndex,
+    });
+  }
+  return result;
+}
+
 
 

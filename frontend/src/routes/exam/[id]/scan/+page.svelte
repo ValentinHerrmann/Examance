@@ -23,7 +23,7 @@
     loadOmrTemplateEncrypted,
     saveScoreEncrypted,
   } from "$lib/db/dbEncryption";
-  import { computeMcExercisesHash } from "$lib/grading/mcExerciseHash";
+  import { computeMcExercisesHash, loadExamMcExercises } from "$lib/grading/mcExerciseHash";
   import { isMcQuestion } from "$lib/grading/mcScore";
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
@@ -113,8 +113,7 @@
   async function loadOmrContext() {
     const key = get(sessionStore).sessionKey;
     try {
-      const exercises = await loadExamExercisesEncrypted(examId, key);
-      const mcExercises = exercises.filter(isMcQuestion);
+      const mcExercises = await loadExamMcExercises(examId, key);
       if (mcExercises.length === 0) {
         omrAvailable = false;
         omrBanner = "";
