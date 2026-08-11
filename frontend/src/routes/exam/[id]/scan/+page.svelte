@@ -988,7 +988,7 @@
                       pageIndex: r.pageIndex,
                       bubbles: r.bubbles.map((b) => ({
                         optionIndex: b.optionIndex,
-                        state: b.state as "ambiguous" | "marked" | "blank",
+                        state: b.state,
                         rect: b.rect,
                       })),
                     }

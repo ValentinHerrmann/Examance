@@ -95,7 +95,15 @@ export function drawOmrOverlayForPage(
       bboxMinY = Math.min(bboxMinY, y0 * h);
       bboxMaxY = Math.max(bboxMaxY, y1 * h);
 
-      if (bubble.state === 'blank') {
+      if (bubble.state === 'blank' || bubble.state === 'undone') {
+        if (bubble.state === 'undone') {
+          ctx.save();
+          ctx.strokeStyle = '#64748b'; // slate-500 — visually distinct from amber "ambiguous"
+          ctx.lineWidth = 2;
+          ctx.setLineDash([2, 3]);
+          ctx.strokeRect(x0 * w, y0 * h, (x1 - x0) * w, (y1 - y0) * h);
+          ctx.restore();
+        }
         if (isCorrectOption) {
           ctx.save();
           ctx.strokeStyle = '#ef4444';
@@ -107,13 +115,21 @@ export function drawOmrOverlayForPage(
         continue;
       }
 
-      const marked = bubble.state === 'marked';
+      const marked = bubble.state === 'marked' || bubble.state === 'redone';
       ctx.save();
       ctx.strokeStyle = marked ? '#ef4444' : '#f59e0b';
       ctx.lineWidth = 3;
       ctx.setLineDash(marked ? [] : [6, 4]);
       ctx.strokeRect(x0 * w, y0 * h, (x1 - x0) * w, (y1 - y0) * h);
       ctx.restore();
+
+      if (bubble.state === 'redone') {
+        ctx.save();
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.strokeRect((x0 - (x1 - x0) * 0.9) * w, y0 * h, (x1 - x0) * 0.8 * w, (y1 - y0) * h);
+        ctx.restore();
+      }
 
       ctx.save();
       ctx.strokeStyle = '#ef4444';

@@ -34,7 +34,9 @@ export interface OmrWorkerRequest {
 export interface OmrBubbleReading {
   optionIndex: number;
   fillRatio: number;
-  state: 'blank' | 'ambiguous' | 'marked';
+  state: 'blank' | 'ambiguous' | 'marked' | 'undone' | 'redone';
+  /** Redo-zone fill ratio, only computed when the bubble's template has a redoRect. */
+  redoRatio?: number;
   /** Bubble's bbox in scan-pixel space, normalized to [0,1] of (width, height) as
    *  [minX, minY, maxX, maxY] — resolution-independent so the grading viewer (which
    *  re-rasterizes at its own scale) can draw a detection box without knowing this
@@ -70,6 +72,10 @@ export type OmrWorkerResponse =
 /** Fill-ratio confidence bands: below is blank, above is a confident mark. */
 const AMBIGUOUS_LOW = 0.15;
 const MARKED_HIGH = 0.45;
+
+/** At/above this, the box is essentially solid black — treated as "undo" rather than a cross,
+ *  but only for bubbles whose template has a redoRect (see bubbleState below). */
+const FILLED_HIGH = 0.75;
 
 /** Fraction of each side of the page searched for a corner's fiducial. */
 const QUADRANT_FRACTION = 0.4;
@@ -357,10 +363,15 @@ function sampleFillRatio(
   return total > 0 ? darkCount / total : 0;
 }
 
-function bubbleState(ratio: number): 'blank' | 'ambiguous' | 'marked' {
-  if (ratio >= MARKED_HIGH) return 'marked';
-  if (ratio >= AMBIGUOUS_LOW) return 'ambiguous';
-  return 'blank';
+function bubbleState(
+  ratio: number,
+  redoRatio: number | undefined
+): 'blank' | 'ambiguous' | 'marked' | 'undone' | 'redone' {
+  if (ratio < AMBIGUOUS_LOW) return 'blank';
+  if (ratio < MARKED_HIGH) return 'ambiguous';
+  if (redoRatio === undefined || ratio < FILLED_HIGH) return 'marked';
+  // Solid fill + template has a redo zone: undone unless the redo zone itself is marked.
+  return redoRatio >= MARKED_HIGH ? 'redone' : 'undone';
 }
 
 self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
@@ -497,17 +508,32 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
       const bubbleReadings: OmrBubbleReading[] = bubbleRects.map((b) => {
         const bbox = bubbleBBoxInImage(H, b.rect, scanScale, pageTemplate.pageHeightPt);
         const ratio = sampleFillRatio(dark, width, height, bbox);
+
+        let redoRatio: number | undefined;
+        if (b.redoRect && ratio >= FILLED_HIGH) {
+          const redoBbox = bubbleBBoxInImage(H, b.redoRect, scanScale, pageTemplate.pageHeightPt);
+          redoRatio = sampleFillRatio(dark, width, height, redoBbox);
+        } else if (b.redoRect) {
+          redoRatio = 0;
+        }
+
         const rect: [number, number, number, number] = [
           Math.min(1, Math.max(0, bbox.minX / width)),
           Math.min(1, Math.max(0, bbox.minY / height)),
           Math.min(1, Math.max(0, bbox.maxX / width)),
           Math.min(1, Math.max(0, bbox.maxY / height)),
         ];
-        return { optionIndex: b.optionIndex, fillRatio: ratio, state: bubbleState(ratio), rect };
+        return {
+          optionIndex: b.optionIndex,
+          fillRatio: ratio,
+          redoRatio,
+          state: bubbleState(ratio, redoRatio),
+          rect,
+        };
       });
 
       const selectedOptions = bubbleReadings
-        .filter((r) => r.state !== 'blank')
+        .filter((r) => r.state !== 'blank' && r.state !== 'undone')
         .map((r) => r.optionIndex);
       const flaggedOptions = bubbleReadings
         .filter((r) => r.state === 'ambiguous')

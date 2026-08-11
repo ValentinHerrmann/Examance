@@ -37,7 +37,7 @@
           ...omrMeta.detections,
           bubbles: omrMeta.detections.bubbles.map((b) => ({
             ...b,
-            state: next.includes(b.optionIndex) ? "marked" : "blank",
+            state: next.includes(b.optionIndex) ? ("marked" as const) : ("blank" as const),
           })),
         }
       : undefined;

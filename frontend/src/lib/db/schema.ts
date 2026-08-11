@@ -107,7 +107,7 @@ export interface OmrScoreMeta {
     pageIndex: number;
     bubbles: {
       optionIndex: number;
-      state: 'ambiguous' | 'marked' | 'blank';
+      state: 'ambiguous' | 'marked' | 'blank' | 'undone' | 'redone';
       /** Normalized [minX, minY, maxX, maxY] in [0,1] of the scan page's (width, height). */
       rect: [number, number, number, number];
     }[];
@@ -173,6 +173,9 @@ export interface OmrBubbleRect {
   optionIndex: number;
   /** PDF user-space rect [x0, y0, x1, y1], origin bottom-left of the page. */
   rect: [number, number, number, number];
+  /** Redo-zone rect immediately left of the box (PDF points), present only on exams
+   *  compiled after undo/redo support was added. Absent → worker uses legacy 2-band logic. */
+  redoRect?: [number, number, number, number];
 }
 
 /** One corner fiducial marker's location on a compiled exam page, in PDF points. */

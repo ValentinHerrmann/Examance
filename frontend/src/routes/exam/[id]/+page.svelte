@@ -607,26 +607,35 @@ ${exerciseInputs}
         let matchedOmrCount = 0;
         const rejectedUris: string[] = [];
 
+        const redoRects = new Map<string, [number, number, number, number]>();
+
         for (const ann of annotations) {
           if (ann.subtype !== "Link") continue;
           linkAnnCount++;
           const uri: string = ann.unsafeUrl ?? ann.url ?? "";
-          const match = /^omr:\/\/([^/]+)\/(\d+)$/.exec(uri);
+          const match = /^omr:\/\/([^/]+)\/(\d+)(\/redo)?$/.exec(uri);
           if (!match) {
             if (uri && rejectedUris.length < 5) rejectedUris.push(uri);
             continue;
           }
           matchedOmrCount++;
-          const [, token, idxStr] = match;
+          const [, token, idxStr, isRedo] = match;
           const rect = ann.rect as [number, number, number, number];
           if (token === "__fid__") {
             const corner = Number(idxStr);
             if (corner === 0 || corner === 1 || corner === 2 || corner === 3) {
               fiducials.push({ corner, rect });
             }
+          } else if (isRedo) {
+            redoRects.set(`${token}|${idxStr}`, rect);
           } else {
             bubbles.push({ exerciseId: token, optionIndex: Number(idxStr), rect });
           }
+        }
+
+        for (const b of bubbles) {
+          const redoRect = redoRects.get(`${b.exerciseId}|${b.optionIndex}`);
+          if (redoRect) b.redoRect = redoRect;
         }
 
         console.log(
@@ -800,7 +809,7 @@ ${exerciseInputs}
               if (existing?.omrMeta?.source === "manual") continue;
 
               const failed = r.confidence === "failed";
-              const nonBlankBubbles = r.bubbles.filter((b) => b.state !== "blank");
+              const nonBlankBubbles = r.bubbles.filter((b) => b.state !== "blank" && b.state !== "undone");
               await saveScoreEncrypted(
                 {
                   id: existing?.id ?? crypto.randomUUID(),
@@ -820,7 +829,7 @@ ${exerciseInputs}
                             pageIndex: r.pageIndex,
                             bubbles: nonBlankBubbles.map((b) => ({
                               optionIndex: b.optionIndex,
-                              state: b.state as "ambiguous" | "marked",
+                              state: b.state,
                               rect: b.rect,
                             })),
                           }

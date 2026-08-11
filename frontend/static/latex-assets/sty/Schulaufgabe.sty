@@ -216,18 +216,21 @@
 
 % Setup headers and footers at document start
 \AtBeginDocument{
-    \fancyheadoffset[L]{3mm}
-    \fancyheadoffset[R]{3mm}
+    \fancyheadoffset[L]{5mm}
+    \fancyheadoffset[R]{5mm}
     \lhead{\ifnum\thepage=1
-    {\includegraphics[height=9mm]{logo_mtg.pdf}}
+    {\hspace{1cm}\includegraphics[height=9mm]{logo_mtg.pdf}}
     \else
-    \Nrtext. \Testarttesttext \ in \Fachtext%Name:
+    \hspace{1cm}\Nrtext. \Testarttesttext \ in \Fachtext%Name:
     \fi}
     \rhead{
     \ifnum\thepage=1
-    {
-    \Datumtext \\
-    Klasse \Klassetext \ (\Lehrernachnametext)}
+    {%
+    \begin{tabular}[b]{@{}r@{}}
+        \Datumtext \\
+        Klasse \Klassetext \ (\Lehrernachnametext)
+    \end{tabular}\hspace*{1cm}%
+    }
     \else
     \fi
     }

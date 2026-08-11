@@ -159,9 +159,16 @@ escapeinside={(*@}{@*)}
 
 \newlength{\OmrBoxSize}
 \setlength{\OmrBoxSize}{4.5mm}
+\newlength{\OmrRedoZoneWidth}
+\setlength{\OmrRedoZoneWidth}{4mm}
 % #1 (optional) = tikz drawing commands for the mark inside the box, e.g. an X
 \newcommand{\OmrBox}[1][]{%
 	\typeout{[OMR-TRACE] OmrBox id=\CurrentOmrId opt=\theOmrOptCount}%
+	% Zero net width: the redo-zone link protrudes into the label's existing left margin
+	% instead of pushing the box itself right -- the box's own position must stay pixel-exact
+	% to before this feature existed, or already-printed/scanned exam sheets misalign against
+	% a freshly-recaptured OMR template.
+	\makebox[0pt][r]{\OmrLink{\OmrRedoZoneWidth}{\OmrBoxSize}{omr://\CurrentOmrId/\theOmrOptCount/redo}}%
 	\OmrLink{\OmrBoxSize}{\OmrBoxSize}{omr://\CurrentOmrId/\theOmrOptCount}%
 	\tikz[baseline=-0.5ex]{%
 		\draw[black,line width=0.4pt] (0,0) rectangle (\OmrBoxSize,\OmrBoxSize);%
