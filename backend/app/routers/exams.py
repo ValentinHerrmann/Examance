@@ -106,7 +106,7 @@ async def _fetch_exam_exercises(
         select(Exercise, ExamExercise.order_index, ExamExercise.mc_group_id, ExamExercise.sub_index)
         .join(ExamExercise, Exercise.id == ExamExercise.exercise_id)
         .where(ExamExercise.exam_id == exam_id)
-        .order_by(ExamExercise.order_index.asc())
+        .order_by(ExamExercise.order_index.asc(), ExamExercise.sub_index.asc())
     )
     rows = result.all()
     if rows:

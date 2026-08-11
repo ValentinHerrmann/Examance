@@ -47,7 +47,7 @@
       on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectExercise(ex.id); }}
     >
       <div class="flex items-center gap-1">
-        <span class="text-[0.8rem] font-bold text-slate-100">Q{ex.orderIndex}</span>
+        <span class="text-[0.8rem] font-bold text-slate-100">Q{ex.orderIndex}{#if ex.subIndex}&nbsp;{String.fromCharCode(96 + ex.subIndex)}){/if}</span>
         {#if ex.id === $gradingStore.activeExerciseId}
           <span class="text-xs" title="Stamp Target">🎯</span>
         {/if}

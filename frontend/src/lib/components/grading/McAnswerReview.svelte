@@ -29,12 +29,22 @@
         ? selectedOptions.filter((o) => o !== idx)
         : [...selectedOptions, idx].sort((a, b) => a - b);
 
+    // Rewrite each bubble's detected state to match the correction so the scan overlay
+    // (omrOverlay.ts, drawn purely from bubble.state) reflects what the teacher decided,
+    // not the original OMR reading. Rects/pageIndex stay put — only state is teacher-authored now.
+    const correctedDetections = omrMeta?.detections
+      ? {
+          ...omrMeta.detections,
+          bubbles: omrMeta.detections.bubbles.map((b) => ({
+            ...b,
+            state: next.includes(b.optionIndex) ? "marked" : "blank",
+          })),
+        }
+      : undefined;
+
     gradingStore.setMcStateForExercise(exercise.id, {
       selectedOptions: next,
-      // Carry the OMR-detected boxes forward across a manual correction — they document
-      // what the scanner actually saw on the page, which stays true even if the teacher
-      // decides the reading was wrong (e.g. a stray mark vs. a real answer).
-      omrMeta: { confidence: "high", source: "manual", detections: omrMeta?.detections },
+      omrMeta: { confidence: "high", source: "manual", detections: correctedDetections },
     });
 
     const score = computeMcScore(

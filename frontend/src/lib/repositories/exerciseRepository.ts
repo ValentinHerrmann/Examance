@@ -13,6 +13,8 @@ function mapApiToExerciseRecord(raw: any): ExerciseRecord {
     teacherId: raw.teacher_id || raw.teacherId,
     examId: raw.exam_id || raw.examId,
     orderIndex: raw.order_index ?? raw.orderIndex ?? 0,
+    subIndex: raw.sub_index ?? raw.subIndex,
+    mcGroupId: raw.mc_group_id || raw.mcGroupId,
     title: raw.name || raw.title || 'Exercise',
     name: raw.name || raw.title,
     latexBody: raw.latex_body || raw.latexBody || '',
@@ -69,14 +71,14 @@ export const exerciseRepository = {
     const policy = get(storagePolicyStore);
     if (policy.storageMode === 'all-local') {
       const links = await db.examExercises.where('examId').equals(examId).toArray();
-      links.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+      links.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0) || (a.subIndex || 0) - (b.subIndex || 0));
       if (links.length > 0) {
         const exercises: ExerciseRecord[] = [];
         for (const link of links) {
           const rawEx = await db.exercises.get(link.exerciseId);
           if (rawEx) {
             const ex = await decryptExercise(rawEx, key);
-            exercises.push({ ...ex, orderIndex: link.orderIndex });
+            exercises.push({ ...ex, orderIndex: link.orderIndex, subIndex: link.subIndex, mcGroupId: link.mcGroupId });
           }
         }
         return exercises;
@@ -86,17 +88,19 @@ export const exerciseRepository = {
     } else {
       try {
         const rawList = await api.get<any[]>(`/exams/${examId}/exercises`);
-        return rawList.map(mapApiToExerciseRecord);
+        const mapped = rawList.map(mapApiToExerciseRecord);
+        mapped.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0) || (a.subIndex || 0) - (b.subIndex || 0));
+        return mapped;
       } catch (err: any) {
         const links = await db.examExercises.where('examId').equals(examId).toArray();
-        links.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+        links.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0) || (a.subIndex || 0) - (b.subIndex || 0));
         if (links.length > 0) {
           const exercises: ExerciseRecord[] = [];
           for (const link of links) {
             const rawEx = await db.exercises.get(link.exerciseId);
             if (rawEx) {
               const ex = await decryptExercise(rawEx, key);
-              exercises.push({ ...ex, orderIndex: link.orderIndex });
+              exercises.push({ ...ex, orderIndex: link.orderIndex, subIndex: link.subIndex, mcGroupId: link.mcGroupId });
             }
           }
           return exercises;
