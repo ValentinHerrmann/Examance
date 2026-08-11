@@ -224,3 +224,4 @@ latex-sample-project
 backend/blindgrade.db
 frontend/static/core/busytex/
 PLAN.md
+tmp/

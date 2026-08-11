@@ -708,6 +708,8 @@
     let totalPagesCount = 0;
     let omrAlignmentFailures = 0;
     let omrMinFiducialsFound: number | null = null;
+    const omrMissingCorners = new Set<string>();
+    const CORNER_NAMES = ["bottom-left", "bottom-right", "top-right", "top-left"];
     /** Accumulates OMR results per booklet across all its pages, merged into scores once subId exists. */
     const omrResultsByPseudonym = new Map<string, OmrExerciseResult[]>();
 
@@ -834,6 +836,13 @@
                   omrMinFiducialsFound === null
                     ? omrRes.fiducialsFound
                     : Math.min(omrMinFiducialsFound, omrRes.fiducialsFound);
+                if (omrRes.fiducialCorners) {
+                  for (let c = 0; c < 4; c++) {
+                    if (!omrRes.fiducialCorners.includes(c)) {
+                      omrMissingCorners.add(CORNER_NAMES[c]);
+                    }
+                  }
+                }
               }
             } catch (omrErr) {
               console.warn(`OMR processing failed for page in ${fileName}:`, omrErr);
@@ -979,9 +988,11 @@
     statusText = `Complete! Ingested ${files.length} file(s) (${processedPages} page(s)) into ${newlyIngestedCount} student submission booklet(s).`;
 
     if (omrAvailable && omrAlignmentFailures > 0) {
+      const missingList = Array.from(omrMissingCorners).join(", ");
+      const missingDetails = missingList ? ` missing: ${missingList}` : "";
       omrBanner =
         `OMR alignment failed on ${omrAlignmentFailures} page(s)` +
-        (omrMinFiducialsFound !== null ? ` (as few as ${omrMinFiducialsFound}/4 corner markers detected)` : "") +
+        (omrMinFiducialsFound !== null ? ` (as few as ${omrMinFiducialsFound}/4 corner markers detected${missingDetails})` : "") +
         ` — those MC exercises were imported ungraded and need manual grading. Check the scan quality (crop/skew/print margins) near the page corners.`;
     }
   }

@@ -408,7 +408,7 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
       const maxDistPx = FIDUCIAL_MAX_DIST_FRACTION * Math.min(width, height);
 
       const [qx0, qy0, qx1, qy1] = quadrantForCorner(corner, width, height);
-      const detected = findBestFiducialBlob(
+      let detected = findBestFiducialBlob(
         dark,
         visited,
         width,
@@ -421,6 +421,30 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
         expectedY,
         maxDistPx
       );
+
+      // Tight-window retry if quadrant search failed (e.g. fiducial merged with nearby content)
+      if (!detected) {
+        const half = Math.ceil(Math.sqrt(expectedAreaPx) * 1.5);
+        const tx0 = Math.max(0, Math.floor(expectedX - half));
+        const ty0 = Math.max(0, Math.floor(expectedY - half));
+        const tx1 = Math.min(width, Math.ceil(expectedX + half));
+        const ty1 = Math.min(height, Math.ceil(expectedY + half));
+        const retryVisited = new Uint8Array(width * height);
+        detected = findBestFiducialBlob(
+          dark,
+          retryVisited,
+          width,
+          tx0,
+          ty0,
+          tx1,
+          ty1,
+          expectedAreaPx,
+          expectedX,
+          expectedY,
+          maxDistPx
+        );
+      }
+
       if (!detected) continue;
 
       srcPts.push([expectedX, expectedY]);

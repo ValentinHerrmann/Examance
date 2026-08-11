@@ -216,6 +216,8 @@
 
 % Setup headers and footers at document start
 \AtBeginDocument{
+    \fancyheadoffset[L]{3mm}
+    \fancyheadoffset[R]{3mm}
     \lhead{\ifnum\thepage=1
     {\includegraphics[height=9mm]{logo_mtg.pdf}}
     \else
@@ -255,6 +257,9 @@
 % land on any page -- \AddToShipoutPictureBG (eso-pic) re-runs per shipout.
 % Each marker also carries an invisible \href link (like the OMR bubbles in
 % Loesung.sty) so the same pdfjs getAnnotations() pass extracts both in one go.
+% Note: Header height/insets (packages.sty headheight + \fancyheadoffset) and
+% footer table placement (packages.sty bottom + tabularx inset) are deliberately
+% sized so rendered content stays outside the 13mm corner fiducial zone (5mm inset + 8mm size).
 \newlength{\OmrFiducialSize}
 \setlength{\OmrFiducialSize}{8mm}
 \newlength{\OmrFiducialInset}
@@ -316,7 +321,7 @@
                 \stepcounter{i}%
         \repeat
 
-        \noindent\begin{tabularx}{\textwidth}{|*{\N}{C|}C|C|}\hline
+        \noindent\hspace{3mm}\begin{tabularx}{\dimexpr\textwidth-6mm\relax}{|*{\N}{C|}C|C|}\hline
             \the\cols & $\sum$ & Note\\\hline
             \the\scorecols & \formatScore{\TotalScoreG} & \\\cline{1-\theNotenzeile}
             \the\last &&\\\hline
