@@ -1,14 +1,16 @@
 """User management router — /api/v1/user for storage policy actions (purge/restore)."""
 from __future__ import annotations
 
-from datetime import date, datetime, timezone, timedelta
+from datetime import date, datetime, timedelta, UTC
 
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_teacher
+from app.models.audit_log import AuditLog
 from app.models.exam import Exam
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
@@ -30,8 +32,8 @@ async def purge_server_student_data(
 
     LaTeX exercise templates and exam structures remain intact.
     """
-    now = datetime.now(timezone.utc)
-    retention_until = date.today() + timedelta(days=7)
+    now = datetime.now(UTC)
+    retention_until = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)
 
     # Get all exam IDs belonging to this teacher
     exam_ids_result = await db.execute(
@@ -153,4 +155,145 @@ async def restore_server_data(
         "status": "ok",
         "restored_student_identities": restored_students_count,
         "restored_submissions": restored_submissions_count,
+    }
+
+
+@router.get("/me/export", status_code=status.HTTP_200_OK)
+async def export_own_data(
+    request: Request,
+    teacher: Teacher = Depends(get_current_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    GDPR Art. 15/20 — machine-readable copy of the account holder's own data.
+
+    Covers only what the server holds *about the teacher*: account fields, the
+    exams they authored, and their audit trail. Student payloads are deliberately
+    excluded — they are encrypted with a key the server never has, and they are
+    not the teacher's personal data. Use the client-side per-student export for
+    a student's Art. 15 request.
+    """
+    exams_res = await db.execute(
+        select(Exam).where(Exam.teacher_id == teacher.id).order_by(Exam.created_at.asc())
+    )
+    audit_res = await db.execute(
+        select(AuditLog)
+        .where(AuditLog.teacher_id == teacher.id)
+        .order_by(AuditLog.created_at.asc())
+    )
+
+    await audit_svc.write(
+        db,
+        teacher_id=teacher.id,
+        teacher_email=teacher.email,
+        action="EXPORT",
+        target_id=str(teacher.id),
+        request_ip=request.client.host if request.client else None,
+    )
+
+    return {
+        "generated_at": datetime.now(UTC).isoformat(),
+        "account": {
+            "id": str(teacher.id),
+            "email": teacher.email,
+            "role": teacher.role,
+            "created_at": teacher.created_at.isoformat() if teacher.created_at else None,
+        },
+        "exams": [
+            {
+                "id": str(exam.id),
+                "title": exam.title,
+                "klasse": exam.klasse,
+                "fach": exam.fach,
+                "datum": exam.datum,
+                "created_at": exam.created_at.isoformat() if exam.created_at else None,
+                "retention_until": exam.retention_until.isoformat(),
+                "deleted_at": exam.deleted_at.isoformat() if exam.deleted_at else None,
+            }
+            for exam in exams_res.scalars().all()
+        ],
+        "audit_log": [
+            {
+                "action": entry.action,
+                "target_hash": entry.target_hash,
+                "created_at": entry.created_at.isoformat(),
+            }
+            for entry in audit_res.scalars().all()
+        ],
+    }
+
+
+@router.delete("/me", status_code=status.HTTP_200_OK)
+async def delete_own_account(
+    request: Request,
+    teacher: Teacher = Depends(get_current_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    GDPR Art. 17 — erase the account holder's own account and authored content.
+
+    Student identities and submissions under the teacher's exams are soft-deleted
+    with the standard grace period and erased by the retention job, matching
+    `purge-server-student-data`.
+
+    Audit rows are kept, with `teacher_id` nulled by the FK's ON DELETE SET NULL
+    and the email snapshot left in place: Art. 17(3)(b) permits retaining what is
+    needed for a legal obligation, and the trail exists to evidence lawful
+    handling of student data. Those rows age out under AUDIT_LOG_RETENTION_DAYS
+    rather than living forever.
+    """
+    now = datetime.now(UTC)
+    retention_until = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)
+
+    exam_ids = (
+        await db.execute(select(Exam.id).where(Exam.teacher_id == teacher.id))
+    ).scalars().all()
+
+    purged_students = 0
+    purged_submissions = 0
+    if exam_ids:
+        students_res = await db.execute(
+            update(StudentIdentity)
+            .where(
+                StudentIdentity.exam_id.in_(exam_ids),
+                StudentIdentity.deleted_at.is_(None),
+            )
+            .values(deleted_at=now, retention_until=retention_until)
+        )
+        purged_students = students_res.rowcount
+        submissions_res = await db.execute(
+            update(ScanSubmission)
+            .where(
+                ScanSubmission.exam_id.in_(exam_ids),
+                ScanSubmission.deleted_at.is_(None),
+            )
+            .values(deleted_at=now, retention_until=retention_until)
+        )
+        purged_submissions = submissions_res.rowcount
+
+        await db.execute(
+            update(Exam)
+            .where(Exam.teacher_id == teacher.id, Exam.deleted_at.is_(None))
+            .values(deleted_at=now, retention_until=retention_until)
+        )
+
+    # Written before the row disappears — audit_svc snapshots the email.
+    await audit_svc.write(
+        db,
+        teacher_id=teacher.id,
+        teacher_email=teacher.email,
+        action="DELETE",
+        target_id=str(teacher.id),
+        request_ip=request.client.host if request.client else None,
+    )
+    await db.flush()
+
+    await db.delete(teacher)
+
+    return {
+        "status": "ok",
+        "account_deleted": True,
+        "purged_student_identities": purged_students,
+        "purged_submissions": purged_submissions,
+        "retention_until": retention_until.isoformat(),
     }

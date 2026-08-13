@@ -2,10 +2,38 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.config import settings
+
+
+def validate_retention_until(value: date | None) -> date | None:
+    """
+    Keep the retention date inside the configured window.
+
+    The upper bound enforces Art. 5(1)(e): nothing may be scheduled to be kept
+    indefinitely. The lower bound is off by default (RETENTION_MIN_DAYS = 0) so
+    a teacher can still delete a draft immediately — see the note in config.py.
+    """
+    if value is None:
+        return None
+    today = date.today()
+    earliest = today + timedelta(days=settings.RETENTION_MIN_DAYS)
+    latest = today + timedelta(days=settings.RETENTION_MAX_DAYS)
+    if value < earliest:
+        raise ValueError(
+            f"retention_until must be at least {settings.RETENTION_MIN_DAYS} days out "
+            f"(earliest allowed: {earliest.isoformat()})."
+        )
+    if value > latest:
+        raise ValueError(
+            f"retention_until must be at most {settings.RETENTION_MAX_DAYS} days out "
+            f"(latest allowed: {latest.isoformat()})."
+        )
+    return value
 
 
 class ExerciseCreate(BaseModel):
@@ -122,6 +150,8 @@ class ExamCreate(BaseModel):
     exercises: list[ExerciseCreate] = []
     mc_groups: list[ExamMcGroupCreate] = []
 
+    _check_retention = field_validator("retention_until")(validate_retention_until)
+
 
 class ExamUpdate(BaseModel):
     title: str | None = None
@@ -137,6 +167,8 @@ class ExamUpdate(BaseModel):
     exercise_ids: list[uuid.UUID] | None = None
     exercise_links: list[ExerciseLinkCreate] | None = None
     mc_groups: list[ExamMcGroupCreate] | None = None
+
+    _check_retention = field_validator("retention_until")(validate_retention_until)
 
 
 class ExamResponse(BaseModel):

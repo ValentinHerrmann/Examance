@@ -52,8 +52,11 @@ export async function eraseStudent(pseudonymId: string, examId: string): Promise
     }
 
     const allSubs = await submissionRepository.getByExamId(examId, key);
-    // Filter matching submissions
-    const matchingSubs = allSubs.filter((s) => s.pseudonymHash);
+    // Match THIS student's submissions only. Locally `pseudonymHash` holds the
+    // raw pseudonymId (see scan/+page.svelte), so compare against it directly.
+    // A truthiness check here would match every submission in the exam and
+    // erase every other student's work along with this one's.
+    const matchingSubs = allSubs.filter((s) => s.pseudonymHash === pseudonymId);
     submissionsCount = matchingSubs.length;
 
     // Delete student identity record

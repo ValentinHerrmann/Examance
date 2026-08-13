@@ -15,6 +15,24 @@
   import { onMount } from "svelte";
   import SettingsForm from "$lib/components/settings/SettingsForm.svelte";
   import GdprErasureTable from "$lib/components/settings/GdprErasureTable.svelte";
+  import { exportStudentData, toDownloadableJson } from "$lib/gdpr/subjectAccess";
+
+  /** GDPR Art. 15 — hand the data subject a readable copy of their own data. */
+  async function handleExportStudent(pseudonymId: string) {
+    statusMsg = "";
+    try {
+      const data = await exportStudentData(pseudonymId);
+      const url = URL.createObjectURL(toDownloadableJson(data));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `auskunft-${pseudonymId.slice(0, 8)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      statusMsg = "Subject access export downloaded.";
+    } catch (err: any) {
+      statusMsg = err?.message ?? "Export failed.";
+    }
+  }
 
   let students: StudentRecord[] = [];
   let isErasing = false;
@@ -107,6 +125,7 @@
       {students}
       {isErasing}
       onErase={handleEraseStudent}
+      onExport={handleExportStudent}
     />
 
     <div class="settings-card settings-danger-card">

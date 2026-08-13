@@ -191,19 +191,29 @@ def set_password(email: str, password: str) -> None:
 @click.option("--dry-run", is_flag=True, default=False, help="Print actions without DB writes.")
 def run_retention(dry_run: bool) -> None:
     """
-    Soft-delete exams whose retention_until date has passed.
+    Apply the retention policy (GDPR Art. 5(1)(e)).
+
+    Soft-deletes exams past retention_until and stamps their student identities
+    and submissions for erasure; hard-deletes those whose grace period has
+    elapsed; removes audit entries past their retention period.
 
     Designed to be called by an EXTERNAL cron job (not in-process scheduler).
     Safe to run multiple times — idempotent (already deleted rows are skipped).
+
+    This job is the ONLY thing that erases expired student data. If it is not
+    scheduled, nothing is ever deleted.
     """
     from app.services.retention import run as _run
 
-    count = asyncio.run(_run(dry_run=dry_run))
+    try:
+        count = asyncio.run(_run(dry_run=dry_run))
+    except (OperationalError, ProgrammingError) as exc:
+        _raise_schema_hint(exc)
 
     if dry_run:
-        click.echo(f"[dry-run] Would soft-delete {count} exam(s).")
+        click.echo(f"[dry-run] Would affect {count} record(s) across exams, student data and audit entries.")
     else:
-        click.echo(f"Soft-deleted {count} exam(s) past retention date.")
+        click.echo(f"Retention run complete: {count} record(s) affected.")
 
 
 @cli.command("export-openapi")

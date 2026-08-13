@@ -52,6 +52,26 @@ class Settings(BaseSettings):
     # Environment
     ENVIRONMENT: str = "production"
 
+    # Retention bounds.
+    #
+    # MAX enforces Art. 5(1)(e) storage limitation: no exam may be scheduled to
+    # live indefinitely.
+    #
+    # MIN is a floor on how soon an exam may be scheduled for deletion, and
+    # defaults to 0 — i.e. none. A teacher must stay free to delete a draft or a
+    # practice exam immediately; forcing a floor would work against the erasure
+    # the regulation wants. The statutory duty to retain graded written work
+    # (set by state school law, e.g. BaySchO in Bavaria) binds the school as an
+    # organisational control over official records, not this field on every exam
+    # object. Schools that do want it enforced in software can raise this.
+    RETENTION_MIN_DAYS: int = 0
+    RETENTION_MAX_DAYS: int = 3650          # 10 years
+    # Grace period between soft-delete and irreversible erasure.
+    RETENTION_GRACE_DAYS: int = 7
+    # Audit entries carry teacher_email and ip_hash. Art. 17(3) justifies
+    # keeping them, but not indefinitely.
+    AUDIT_LOG_RETENTION_DAYS: int = 365
+
     # Body size limits (bytes)
     BODY_LIMIT_COMPILE: int = 2 * 1024 * 1024       # 2 MB
     BODY_LIMIT_SUBMISSION: int = 50 * 1024 * 1024   # 50 MB
