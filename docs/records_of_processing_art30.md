@@ -1,0 +1,62 @@
+# Record of Processing Activities — Art. 30 GDPR
+
+*Verzeichnis von Verarbeitungstätigkeiten*
+
+Two variants follow. Use §A if the school runs Examance itself or teachers use `local-only` mode (school = sole controller). Use §A **and** §B if a third party hosts the backend (school = controller, operator = processor); each party keeps its own record.
+
+Fields in *[brackets]* must be completed. Technical fields are pre-filled from the codebase and should be re-checked whenever the architecture changes.
+
+---
+
+## A. Controller's record — Art. 30(1)
+
+| Field | Entry |
+| :--- | :--- |
+| **1. Controller** | *[School name, address]* |
+| Representative | *[Head teacher / Schulleitung]* |
+| **2. Data Protection Officer** | *[name, address, email]* |
+| **3. Purposes of processing** | Authoring, conducting and grading written examinations; returning grades to pupils; producing class-level performance statistics for teaching review. |
+| **4. Legal basis** | Art. 6(1)(e) GDPR — task carried out in the public interest / exercise of official authority — in conjunction with *[Art. 85 BayEUG and BaySchO for Bavaria; state equivalent otherwise]*. **Not** consent. |
+| **5. Categories of data subjects** | Pupils (predominantly minors); teaching staff using the application. |
+| **6. Categories of personal data** | Pupils: name, pupil number, submitted examination paper (scan), grading annotations, per-exercise and total scores. Teachers: email address, role, authored exam metadata, login/export/deletion events, SHA-256 hash of request IP. |
+| **7. Special categories (Art. 9)** | None processed by design. *[Confirm no health or disability data is entered in free-text fields such as `info_text`.]* |
+| **8. Recipients** | Internal: the teaching staff assigned to the exam; school administration where grades are transferred. External: see §B sub-processors, if a hosted deployment is used. |
+| **9. Third-country transfers** | *[None if self-hosted in the EU/EEA. If the web interface is served by Cloudflare Pages: transfer to the USA — record the transfer basis (EU–US Data Privacy Framework and/or SCCs) and the transfer impact assessment.]* |
+| **10. Erasure deadlines** | Each exam carries a `retention_until` date. On expiry, identities and submissions are marked for deletion and irreversibly erased after a grace period (`RETENTION_GRACE_DAYS`, default 7 days). Audit entries are deleted after `AUDIT_LOG_RETENTION_DAYS` (default 365). Statutory retention for graded work under *[state school regulation]* takes precedence and is managed as a records-management control, not by this field. |
+| **11. Technical and organisational measures (Art. 32)** | Summary below; full description in `data_flow_and_security.md` and `DPA_template.md` §2. |
+
+### TOM summary (Art. 30(1)(g) → Art. 32)
+
+- **Encryption:** pupil identity data, submission scans and grading annotations are encrypted in the browser (AES-256-GCM) with a key derived from a teacher passphrase via Argon2id; the key is never transmitted. Server-side plaintext is limited to per-submission scores and exam metadata.
+- **Pseudonymisation:** submissions are keyed by HMAC-SHA-256 of a pupil identifier; the raw identifier does not reach the server.
+- **Access control:** cookie-based sessions (HttpOnly, Secure), short-lived access tokens with rotating refresh tokens and reuse detection, role separation (teacher/admin), and ownership checks on every object-level endpoint.
+- **Resilience and abuse resistance:** rate limiting on authentication endpoints, request body size limits, strict CORS allowlist, Origin checks on state-changing requests, sandboxed LaTeX compilation.
+- **Confidentiality of statistics:** class statistics are suppressed below k = 5.
+- **Accountability:** append-only audit trail of logins, exports and deletions, with IP addresses stored only as hashes.
+- **Availability:** *[describe backup and restore arrangements — the application does not provide them]*.
+
+---
+
+## B. Processor's record — Art. 30(2)
+
+Complete only for a hosted deployment.
+
+| Field | Entry |
+| :--- | :--- |
+| **1. Processor** | *[Operator name, address]* |
+| Representative / DPO | *[name, contact]* |
+| **2. Controllers on whose behalf processing occurs** | *[List of schools, or reference to the contract register]* |
+| **3. Categories of processing** | Storage of client-encrypted pupil identity data, submission scans and annotations; storage of per-submission scores and exam metadata in plaintext; server-side LaTeX compilation; account and session management; audit logging. |
+| **4. Third-country transfers** | *[As above.]* |
+| **5. Technical and organisational measures** | As in §A, plus infrastructure measures: *[hosting location, physical security, patching, backup encryption, personnel confidentiality undertakings]*. |
+| **6. Sub-processors** | *[Name each: web interface hosting, database hosting, cache hosting. Categories are not sufficient under Art. 28(2).]* |
+
+---
+
+## Review
+
+| Version | Date | Author | Change |
+| :--- | :--- | :--- | :--- |
+| 1.0 | *[date]* | *[name]* | Initial record |
+
+Review at least annually and whenever the processing changes materially.
