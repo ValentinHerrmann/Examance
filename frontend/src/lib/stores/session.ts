@@ -404,6 +404,9 @@ function createSessionStore() {
       if (!ch) return false;
 
       return new Promise<boolean>((resolve) => {
+        // `handler` closes over `timer` and the timeout callback closes over
+        // `handler`, so the declaration cannot be merged with its assignment.
+        // eslint-disable-next-line prefer-const
         let timer: ReturnType<typeof setTimeout>;
 
         const handler = async (event: MessageEvent) => {

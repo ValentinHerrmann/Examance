@@ -46,8 +46,14 @@ jobs:
           SECRET_KEY: test-secret-key-not-for-production
           CORS_ALLOWED_ORIGINS: '["http://localhost:5173"]'
         run: cd backend && pytest --cov=app --cov-report=xml
-      - name: pip-audit (fail on HIGH CVEs)
-        run: pip install pip-audit && pip-audit -r backend/pyproject.toml --severity high
+      # NOTE: pip-audit has no --severity flag, and -r expects a requirements
+      # file rather than a pyproject. The previous invocation combined both and
+      # exited 2 on an argument error, so this step never actually audited
+      # anything. Auditing the project path checks the declared dependency set
+      # and fails on ANY known advisory, which is stricter than the "HIGH only"
+      # the step name used to claim.
+      - name: pip-audit (fail on any known advisory)
+        run: pip install pip-audit && pip-audit backend/
 
   frontend:
     name: Frontend — lint, typecheck, unit tests
@@ -58,7 +64,9 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: frontend/package.json
+          # npm's cache key must come from the lockfile; package.json does not
+          # pin resolved versions.
+          cache-dependency-path: frontend/package-lock.json
       - name: Install deps
         run: cd frontend && npm ci
       - name: ESLint

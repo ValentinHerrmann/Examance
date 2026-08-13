@@ -26,7 +26,7 @@ async function getArgon2(): Promise<any> {
     return (self as any).argon2;
   }
   try {
-    // @ts-ignore
+    // @ts-expect-error — argon2-browser ships no types for the bundled build
     const argon2Module = await import('argon2-browser/dist/argon2-bundled.min.js');
     const mod: any = (argon2Module as any).default || argon2Module;
     if (mod && typeof mod.hash === 'function') {
@@ -39,7 +39,7 @@ async function getArgon2(): Promise<any> {
     // Try main package export as secondary fallback
   }
   try {
-    // @ts-ignore
+    // @ts-expect-error — argon2-browser ships no type declarations
     const argon2Module = await import('argon2-browser');
     const mod: any = (argon2Module as any).default || argon2Module;
     if (mod && typeof mod.hash === 'function') {
