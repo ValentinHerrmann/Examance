@@ -545,30 +545,45 @@ async def test_exercise_usage_and_deletion(client: AsyncClient, db: AsyncSession
 
 @pytest.mark.asyncio
 async def test_cors_preflight_origins(client: AsyncClient) -> None:
-    # 1. Cloudflare pages origin
+    """
+    Preflight must reflect whatever origin allowlist is configured.
+
+    Driven off `settings` rather than hardcoded production hostnames: CI narrows
+    CORS_ALLOWED_ORIGINS to localhost, so asserting against examance.pages.dev
+    made the test depend on ambient configuration rather than on behaviour.
+    """
+    from app.config import settings
+
+    allowed = settings.CORS_ALLOWED_ORIGINS[0]
+
+    # 1. An explicitly allowlisted origin is echoed back.
     resp = await client.options(
         "/api/v1/auth/login",
         headers={
-            "Origin": "https://examance.pages.dev",
+            "Origin": allowed,
             "Access-Control-Request-Method": "POST",
             "Access-Control-Request-Headers": "content-type",
         },
     )
     assert resp.status_code == 200
-    assert resp.headers.get("access-control-allow-origin") == "https://examance.pages.dev"
+    assert resp.headers.get("access-control-allow-origin") == allowed
 
-    # 2. valentin-herrmann.com subdomain
-    resp_sub = await client.options(
-        "/api/v1/auth/login",
-        headers={
-            "Origin": "https://sub.valentin-herrmann.com",
-            "Access-Control-Request-Method": "POST",
-        },
-    )
-    assert resp_sub.status_code == 200
-    assert resp_sub.headers.get("access-control-allow-origin") == "https://sub.valentin-herrmann.com"
+    # 2. An origin matching CORS_ALLOWED_ORIGIN_REGEX, when one is configured.
+    if settings.CORS_ALLOWED_ORIGIN_REGEX:
+        resp_sub = await client.options(
+            "/api/v1/auth/login",
+            headers={
+                "Origin": "https://sub.valentin-herrmann.com",
+                "Access-Control-Request-Method": "POST",
+            },
+        )
+        assert resp_sub.status_code == 200
+        assert (
+            resp_sub.headers.get("access-control-allow-origin")
+            == "https://sub.valentin-herrmann.com"
+        )
 
-    # 3. Unauthorized origin
+    # 3. An unlisted origin is never echoed back.
     resp_unauth = await client.options(
         "/api/v1/auth/login",
         headers={
@@ -577,6 +592,16 @@ async def test_cors_preflight_origins(client: AsyncClient) -> None:
         },
     )
     assert resp_unauth.headers.get("access-control-allow-origin") is None
+
+    # 4. The regex must not be suffix-extendable.
+    resp_suffix = await client.options(
+        "/api/v1/auth/login",
+        headers={
+            "Origin": "https://sub.valentin-herrmann.com.attacker.test",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    assert resp_suffix.headers.get("access-control-allow-origin") is None
 
 
 async def test_list_student_identities(
