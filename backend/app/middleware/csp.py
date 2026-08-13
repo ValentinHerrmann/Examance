@@ -12,9 +12,6 @@ class CSPMiddleware(BaseHTTPMiddleware):
     """Inject a strict Content-Security-Policy header on every response."""
 
     def _build_csp(self) -> str:
-        backend_origins = "; ".join(
-            f"connect-src 'self' {o}" for o in settings.CORS_ALLOWED_ORIGINS
-        )
         # Inline styles are permitted only for SvelteKit hydration.
         # script-src 'self' — no eval, no inline scripts.
         return (

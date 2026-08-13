@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import jwt
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_teacher
 from app.middleware.rate_limit import limiter
@@ -19,8 +20,6 @@ from app.schemas.auth import AuthResponse, LoginRequest, RegisterRequest
 from app.services import audit as audit_svc
 from app.services.crypto import hash_password, hash_token, needs_rehash, verify_password
 from app.services.jwt import create_access_token, create_refresh_token, decode_token
-
-from app.config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -78,7 +77,7 @@ async def register(
     Requires a valid, unexpired, unused invite_token.
     On success, sets auth cookies and returns { email, role }.
     """
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     normalized_email = body.email.strip().lower()
 
     # Validate invite token
@@ -131,18 +130,17 @@ async def register(
     # Issue tokens
     access_token = create_access_token(teacher.id, teacher.email, teacher.role)
     refresh_jwt, jti = create_refresh_token(teacher.id, teacher.email, teacher.role)
-    from app.config import settings
 
     refresh_token_record = RefreshToken(
         jti=jti,
         teacher_id=teacher.id,
-        expires_at=datetime.now(tz=timezone.utc)
+        expires_at=datetime.now(tz=UTC)
         # timedelta applied at decode; store expiry matching JWT
         # We decode to get exp from the jwt
     )
     # Derive expiry from the token itself
     decoded = decode_token(refresh_jwt)
-    refresh_token_record.expires_at = datetime.fromtimestamp(decoded["exp"], tz=timezone.utc)
+    refresh_token_record.expires_at = datetime.fromtimestamp(decoded["exp"], tz=UTC)
     db.add(refresh_token_record)
 
     _set_auth_cookies(
@@ -193,7 +191,7 @@ async def login(
     rt = RefreshToken(
         jti=jti,
         teacher_id=teacher.id,
-        expires_at=datetime.fromtimestamp(decoded["exp"], tz=timezone.utc),
+        expires_at=datetime.fromtimestamp(decoded["exp"], tz=UTC),
     )
     db.add(rt)
 
@@ -205,7 +203,6 @@ async def login(
         request_ip=request.client.host if request.client else None,
     )
 
-    from app.config import settings
 
     _set_auth_cookies(
         response,
@@ -239,7 +236,7 @@ async def refresh(
     try:
         payload = decode_token(refresh_token)
     except jwt.InvalidTokenError:
-        raise credentials_exc
+        raise credentials_exc from None
 
     if payload.get("type") != "refresh":
         raise credentials_exc
@@ -280,11 +277,10 @@ async def refresh(
     new_rt = RefreshToken(
         jti=new_jti,
         teacher_id=teacher.id,
-        expires_at=datetime.fromtimestamp(decoded["exp"], tz=timezone.utc),
+        expires_at=datetime.fromtimestamp(decoded["exp"], tz=UTC),
     )
     db.add(new_rt)
 
-    from app.config import settings
 
     _set_auth_cookies(
         response,

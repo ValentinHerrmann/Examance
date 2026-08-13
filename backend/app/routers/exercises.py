@@ -15,9 +15,10 @@ from app.dependencies import (
     get_exercise_for_teacher,
     get_readable_exercise,
 )
-from app.models.exercise import Exercise
 from app.models.exam import Exam
 from app.models.exam_exercise import ExamExercise
+from app.models.exercise import Exercise
+from app.models.exercise_group import ExerciseGroup
 from app.models.teacher import Teacher
 from app.schemas.exam import (
     ExamUsageItem,
@@ -28,8 +29,6 @@ from app.schemas.exam import (
     ExerciseUpdate,
     ExerciseUsageResponse,
 )
-
-from app.models.exercise_group import ExerciseGroup
 
 router = APIRouter(prefix="/exercises", tags=["exercises"])
 
@@ -151,7 +150,7 @@ async def update_exercise_group(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseGroupResponse:
-    """Update exercise group metadata (name, topic_tag, grade, subject) and cascade to all member variants."""
+    """Update group metadata and cascade it to every member variant."""
     res = await db.execute(
         select(ExerciseGroup).where(
             ExerciseGroup.id == group_id,
@@ -160,7 +159,9 @@ async def update_exercise_group(
     )
     group = res.scalar_one_or_none()
     if not group:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise group not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Exercise group not found"
+        )
 
     if body.name is not None:
         group.name = body.name
@@ -280,6 +281,7 @@ async def get_exercise(
 async def update_exercise(
     body: ExerciseUpdate,
     ex: Exercise = Depends(get_exercise_for_teacher),
+    teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseResponse:
     """Update a library exercise in place."""
@@ -297,7 +299,7 @@ async def update_exercise(
     elif body.max_points is not None:
         ex.max_points = body.max_points
     if body.exercise_group_id is not None:
-        await _require_own_group(body.exercise_group_id, ex.teacher_id, db)
+        await _require_own_group(body.exercise_group_id, teacher.id, db)
         ex.exercise_group_id = body.exercise_group_id
     if body.variant_key is not None:
         ex.variant_key = body.variant_key
@@ -318,7 +320,7 @@ async def update_exercise(
         group_res = await db.execute(
             select(ExerciseGroup).where(
                 ExerciseGroup.id == ex.exercise_group_id,
-                ExerciseGroup.teacher_id == ex.teacher_id,
+                ExerciseGroup.teacher_id == teacher.id,
             )
         )
         group = group_res.scalar_one_or_none()
@@ -336,7 +338,7 @@ async def update_exercise(
         ex_res = await db.execute(
             select(Exercise).where(
                 Exercise.exercise_group_id == ex.exercise_group_id,
-                Exercise.teacher_id == ex.teacher_id,
+                Exercise.teacher_id == teacher.id,
             )
         )
         for sister in ex_res.scalars().all():
@@ -353,7 +355,11 @@ async def update_exercise(
     return _to_res(ex)
 
 
-@router.post("/{exercise_id}/new-version", response_model=ExerciseResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{exercise_id}/new-version",
+    response_model=ExerciseResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_new_version(
     body: ExerciseUpdate,
     old_ex: Exercise = Depends(get_exercise_for_teacher),
@@ -410,7 +416,11 @@ async def create_new_version(
     return _to_res(new_ex)
 
 
-@router.post("/{exercise_id}/new-variant", response_model=ExerciseResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{exercise_id}/new-variant",
+    response_model=ExerciseResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_new_variant(
     body: ExerciseCreate,
     base_ex: Exercise = Depends(get_exercise_for_teacher),

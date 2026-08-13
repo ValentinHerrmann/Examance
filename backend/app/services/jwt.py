@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
 import jwt
 
@@ -12,7 +13,7 @@ ALGORITHM = settings.JWT_ALGORITHM  # "HS256" — set at startup, never dynamic
 
 
 def _now_utc() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 def create_access_token(teacher_id: uuid.UUID, email: str, role: str) -> str:
@@ -53,7 +54,7 @@ def create_refresh_token(teacher_id: uuid.UUID, email: str, role: str) -> tuple[
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM), jti
 
 
-def decode_token(token: str) -> dict:
+def decode_token(token: str) -> dict[str, Any]:
     """
     Decode and verify *token*.
 

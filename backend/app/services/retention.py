@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import date, datetime, timedelta, UTC
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import select, update
 

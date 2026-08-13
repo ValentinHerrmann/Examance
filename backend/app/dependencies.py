@@ -38,9 +38,9 @@ async def get_current_teacher(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session expired.",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
     except jwt.InvalidTokenError:
-        raise credentials_exc
+        raise credentials_exc from None
 
     if payload.get("type") != "access":
         raise credentials_exc
@@ -52,7 +52,7 @@ async def get_current_teacher(
     try:
         teacher_id = uuid.UUID(teacher_id_str)
     except ValueError:
-        raise credentials_exc
+        raise credentials_exc from None
 
     result = await db.execute(select(Teacher).where(Teacher.id == teacher_id))
     teacher = result.scalar_one_or_none()

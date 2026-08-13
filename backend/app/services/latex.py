@@ -206,7 +206,7 @@ async def compile_latex(
                 _stdout, _stderr = await asyncio.wait_for(
                     proc.communicate(), timeout=timeout
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 proc.kill()
                 await proc.communicate()
                 raise
@@ -285,8 +285,10 @@ def format_mc_group_latex(
     )
     return (
         f"\\begin{{Aufgabe}}{{{escape_tex(group_title)}}}"
-        f" Kreuze jeweils die korrekten Lösungen an. Mehrere können, mind. eine ist jeweils richtig."
-        f" Für falsch gesetzte Kreuze werden Punkte abgezogen (pro Teilaufgabe immer $\\geq 0$ Punkte)\n\n"
+        f" Kreuze jeweils die korrekten Lösungen an."
+        f" Mehrere können, mind. eine ist jeweils richtig."
+        f" Für falsch gesetzte Kreuze werden Punkte abgezogen"
+        f" (pro Teilaufgabe immer $\\geq 0$ Punkte)\n\n"
         f"\\begin{{enumerate}}[label=\\alph*)]\n"
         f"{items}\n"
         f"\\end{{enumerate}}\n\n"
@@ -344,7 +346,9 @@ async def compile_exam_latex(
         filename = f"exercises/ex_{order_idx}.tex"
         ex_name = getattr(ex, "name", None) or (ex.get("name") if isinstance(ex, dict) else None)
         title = ex_name or f"Aufgabe {order_idx}"
-        latex_body = getattr(ex, "latex_body", None) if not isinstance(ex, dict) else ex.get("latex_body")
+        latex_body = (
+            ex.get("latex_body") if isinstance(ex, dict) else getattr(ex, "latex_body", None)
+        )
         ex_id = ex.get("id") if isinstance(ex, dict) else getattr(ex, "id", None)
         ex_latex = format_exercise_latex(latex_body, title, ex_id)
         items_with_order.append((order_idx, filename, ex_latex))
@@ -356,15 +360,28 @@ async def compile_exam_latex(
                 continue
             _, members_with_sub = mc_group_map[gid]
             members_sorted = [ex for ex, _ in sorted(members_with_sub, key=lambda t: t[1])]
-            g_order = getattr(g, "order_index", None) or (g.get("order_index") if isinstance(g, dict) else 1) or 1
-            g_title = getattr(g, "title", None) or (g.get("title") if isinstance(g, dict) else "Grundlagen") or "Grundlagen"
+            g_order = (
+                getattr(g, "order_index", None)
+                or (g.get("order_index") if isinstance(g, dict) else 1)
+                or 1
+            )
+            g_title = (
+                getattr(g, "title", None)
+                or (g.get("title") if isinstance(g, dict) else "Grundlagen")
+                or "Grundlagen"
+            )
             g_scoring = (
                 getattr(g, "scoring_text", None)
                 or (g.get("scoring_text") if isinstance(g, dict) else None)
-                or "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE"
+                or (
+                    "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE."
+                    " Pro Teilaufgabe aber immer $\\geq$0BE"
+                )
             )
             filename = f"exercises/mc_group_{gid}.tex"
-            items_with_order.append((g_order, filename, format_mc_group_latex(members_sorted, g_title, g_scoring)))
+            items_with_order.append(
+                (g_order, filename, format_mc_group_latex(members_sorted, g_title, g_scoring))
+            )
 
     items_with_order.sort(key=lambda t: t[0])
     for _, filename, latex in items_with_order:

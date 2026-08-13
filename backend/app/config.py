@@ -6,7 +6,6 @@ import json
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 # Signing keys that ship in this repository / in example configs. Usable for
 # local development, never for a deployment that holds real data.
 PLACEHOLDER_SECRET_KEYS = frozenset(
@@ -22,7 +21,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # Database
-    DATABASE_URL: str = "sqlite+aiosqlite:///:memory:"  # asyncpg URL for application (or SQLite in tests)
+    # asyncpg URL for the application (or SQLite in tests)
+    DATABASE_URL: str = "sqlite+aiosqlite:///:memory:"
     DATABASE_URL_SYNC: str = ""  # psycopg2 URL for Alembic (derived if absent)
 
     # Redis
@@ -84,7 +84,10 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             v_str = v.strip()
             if v_str.startswith("["):
-                return json.loads(v_str)
+                parsed = json.loads(v_str)
+                if not isinstance(parsed, list):
+                    raise ValueError("Expected a JSON array of origin strings.")
+                return [str(origin) for origin in parsed]
             return [origin.strip() for origin in v_str.split(",") if origin.strip()]
         return v  # type: ignore[return-value]
 
@@ -141,4 +144,4 @@ class Settings(BaseSettings):
         return self.ENVIRONMENT == "development"
 
 
-settings = Settings()  # type: ignore[call-arg]
+settings = Settings()

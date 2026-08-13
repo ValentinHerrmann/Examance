@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import re
 
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+from starlette.types import ASGIApp
 
 from app.config import settings
 
@@ -26,8 +27,8 @@ class OriginGuardMiddleware(BaseHTTPMiddleware):
     server-to-server calls) do not send one, and those are not CSRF-reachable.
     """
 
-    def __init__(self, app: object) -> None:
-        super().__init__(app)  # type: ignore[arg-type]
+    def __init__(self, app: ASGIApp) -> None:
+        super().__init__(app)
         self._allowed = frozenset(settings.CORS_ALLOWED_ORIGINS)
         self._pattern = (
             re.compile(settings.CORS_ALLOWED_ORIGIN_REGEX)
@@ -42,7 +43,7 @@ class OriginGuardMiddleware(BaseHTTPMiddleware):
         # let evil.valentin-herrmann.com.attacker.test through.
         return self._pattern is not None and self._pattern.fullmatch(origin) is not None
 
-    async def dispatch(self, request: Request, call_next: object) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if request.method in _STATE_CHANGING:
             origin = request.headers.get("origin")
             if origin is not None and not self._is_allowed(origin):
@@ -50,4 +51,4 @@ class OriginGuardMiddleware(BaseHTTPMiddleware):
                     status_code=403,
                     content={"detail": "Origin not allowed.", "code": "ERR_ORIGIN_REJECTED"},
                 )
-        return await call_next(request)  # type: ignore[operator,return-value]
+        return await call_next(request)

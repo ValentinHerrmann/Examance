@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import base64
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
@@ -41,8 +41,14 @@ async def list_submissions(
             pseudonym_hmac=s.pseudonym_hmac,
             total_score=s.total_score,
             scan_iv_b64=base64.b64encode(s.scan_iv).decode() if s.scan_iv else None,
-            annotation_ciphertext_b64=base64.b64encode(s.annotation_ciphertext).decode() if s.annotation_ciphertext else None,
-            annotation_iv_b64=base64.b64encode(s.annotation_iv).decode() if s.annotation_iv else None,
+            annotation_ciphertext_b64=(
+                base64.b64encode(s.annotation_ciphertext).decode()
+                if s.annotation_ciphertext
+                else None
+            ),
+            annotation_iv_b64=(
+                base64.b64encode(s.annotation_iv).decode() if s.annotation_iv else None
+            ),
             created_at=s.created_at,
         )
         for s in subs
@@ -198,10 +204,18 @@ async def get_submission(
         exam_id=sub.exam_id,
         pseudonym_hmac=sub.pseudonym_hmac,
         total_score=sub.total_score,
-        scan_ciphertext_b64=base64.b64encode(sub.scan_ciphertext).decode() if sub.scan_ciphertext else None,
+        scan_ciphertext_b64=(
+            base64.b64encode(sub.scan_ciphertext).decode() if sub.scan_ciphertext else None
+        ),
         scan_iv_b64=base64.b64encode(sub.scan_iv).decode(),
-        annotation_ciphertext_b64=base64.b64encode(sub.annotation_ciphertext).decode() if sub.annotation_ciphertext else None,
-        annotation_iv_b64=base64.b64encode(sub.annotation_iv).decode() if sub.annotation_iv else None,
+        annotation_ciphertext_b64=(
+            base64.b64encode(sub.annotation_ciphertext).decode()
+            if sub.annotation_ciphertext
+            else None
+        ),
+        annotation_iv_b64=(
+            base64.b64encode(sub.annotation_iv).decode() if sub.annotation_iv else None
+        ),
         created_at=sub.created_at,
     )
 
@@ -234,8 +248,14 @@ async def update_score(
         pseudonym_hmac=sub.pseudonym_hmac,
         total_score=sub.total_score,
         scan_iv_b64=base64.b64encode(sub.scan_iv).decode() if sub.scan_iv else None,
-        annotation_ciphertext_b64=base64.b64encode(sub.annotation_ciphertext).decode() if sub.annotation_ciphertext else None,
-        annotation_iv_b64=base64.b64encode(sub.annotation_iv).decode() if sub.annotation_iv else None,
+        annotation_ciphertext_b64=(
+            base64.b64encode(sub.annotation_ciphertext).decode()
+            if sub.annotation_ciphertext
+            else None
+        ),
+        annotation_iv_b64=(
+            base64.b64encode(sub.annotation_iv).decode() if sub.annotation_iv else None
+        ),
         created_at=sub.created_at,
     )
 
@@ -283,7 +303,7 @@ async def delete_submission(
     if sub is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found.")
 
-    sub.deleted_at = datetime.now(timezone.utc)
+    sub.deleted_at = datetime.now(UTC)
     await db.flush()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from typing import Any
 
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -13,7 +14,7 @@ from sqlalchemy.orm import DeclarativeBase
 from app.config import settings
 
 is_sqlite = settings.DATABASE_URL.startswith("sqlite")
-engine_kwargs = {"echo": settings.is_dev}
+engine_kwargs: dict[str, Any] = {"echo": settings.is_dev}
 if not is_sqlite:
     engine_kwargs.update({"pool_pre_ping": True, "pool_size": 10, "max_overflow": 20})
 

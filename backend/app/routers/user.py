@@ -1,10 +1,12 @@
 """User management router — /api/v1/user for storage policy actions (purge/restore)."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, UTC
+from datetime import UTC, date, datetime, timedelta
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, Request, status
-from sqlalchemy import select, update
+from sqlalchemy import Result, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -20,12 +22,24 @@ from app.services import audit as audit_svc
 router = APIRouter(prefix="/user", tags=["user"])
 
 
+def _rowcount(result: Result[Any]) -> int:
+    """
+    Read the affected-row count off a DML result.
+
+    `AsyncSession.execute` is typed as returning `Result`, but a DML statement
+    always yields a `CursorResult`, which is where `rowcount` lives. The cast
+    keeps that narrowing in one place instead of at every call site.
+    """
+    return cast("CursorResult[Any]", result).rowcount
+
+
+
 @router.post("/purge-server-student-data", status_code=status.HTTP_200_OK)
 async def purge_server_student_data(
     request: Request,
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """
     Soft-delete all student identities and scan submissions belonging to the current teacher
     with a 7-day retention grace period before hard deletion.
@@ -59,7 +73,7 @@ async def purge_server_student_data(
         .values(deleted_at=now, retention_until=retention_until)
     )
     students_res = await db.execute(students_update)
-    purged_students_count = students_res.rowcount
+    purged_students_count = _rowcount(students_res)
 
     # Soft-delete scan submissions
     submissions_update = (
@@ -71,7 +85,7 @@ async def purge_server_student_data(
         .values(deleted_at=now, retention_until=retention_until)
     )
     submissions_res = await db.execute(submissions_update)
-    purged_submissions_count = submissions_res.rowcount
+    purged_submissions_count = _rowcount(submissions_res)
 
     # Audit log
     await audit_svc.write(
@@ -96,7 +110,7 @@ async def restore_server_data(
     request: Request,
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """
     Restore soft-deleted student identities and scan submissions for the current teacher
     if they are within the 7-day retention grace period.
@@ -126,7 +140,7 @@ async def restore_server_data(
         .values(deleted_at=None, retention_until=None)
     )
     students_res = await db.execute(students_update)
-    restored_students_count = students_res.rowcount
+    restored_students_count = _rowcount(students_res)
 
     # Restore scan submissions
     submissions_update = (
@@ -139,7 +153,7 @@ async def restore_server_data(
         .values(deleted_at=None, retention_until=None)
     )
     submissions_res = await db.execute(submissions_update)
-    restored_submissions_count = submissions_res.rowcount
+    restored_submissions_count = _rowcount(submissions_res)
 
     # Audit log
     await audit_svc.write(
@@ -163,7 +177,7 @@ async def export_own_data(
     request: Request,
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """
     GDPR Art. 15/20 — machine-readable copy of the account holder's own data.
 
@@ -228,7 +242,7 @@ async def delete_own_account(
     request: Request,
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """
     GDPR Art. 17 — erase the account holder's own account and authored content.
 
@@ -260,7 +274,7 @@ async def delete_own_account(
             )
             .values(deleted_at=now, retention_until=retention_until)
         )
-        purged_students = students_res.rowcount
+        purged_students = _rowcount(students_res)
         submissions_res = await db.execute(
             update(ScanSubmission)
             .where(
@@ -269,7 +283,7 @@ async def delete_own_account(
             )
             .values(deleted_at=now, retention_until=retention_until)
         )
-        purged_submissions = submissions_res.rowcount
+        purged_submissions = _rowcount(submissions_res)
 
         await db.execute(
             update(Exam)

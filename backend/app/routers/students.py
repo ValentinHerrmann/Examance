@@ -4,14 +4,13 @@ from __future__ import annotations
 import base64
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_exam_for_teacher
 from app.models.exam import Exam
 from app.models.student_identity import StudentIdentity
-from app.models.scan_submission import ScanSubmission
 from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
 from app.schemas.student import StudentIdentityCreate, StudentIdentityResponse
 from app.services import audit as audit_svc
@@ -95,15 +94,14 @@ async def erase_student_identity(
     )
     identity = result.scalar_one_or_none()
     if identity is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student identity not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Student identity not found."
+        )
 
     # Hard delete student identity (cascade deletes submissions due to FK constraint)
     await db.delete(identity)
 
     # Record AuditLog entry with snapshot of teacher email
-    teacher_result = await db.execute(
-        select(Exam.teacher_id).where(Exam.id == exam.id)
-    )
     from app.models.teacher import Teacher
     t_res = await db.execute(select(Teacher).where(Teacher.id == exam.teacher_id))
     teacher = t_res.scalar_one()

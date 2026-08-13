@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, timedelta
-from typing import Literal
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -46,7 +46,7 @@ class ExerciseCreate(BaseModel):
     max_points: float = 0.0
     order_index: int = 1
     question_type: str = "free_text"
-    correct_answers: dict | None = None
+    correct_answers: dict[str, Any] | None = None
     penalty: float = 0.0
     exercise_group_id: uuid.UUID | None = None
     variant_key: str | None = None
@@ -64,7 +64,7 @@ class ExerciseUpdate(BaseModel):
     exercise_group_id: uuid.UUID | None = None
     variant_key: str | None = None
     question_type: str | None = None
-    correct_answers: dict | None = None
+    correct_answers: dict[str, Any] | None = None
     penalty: float | None = None
 
 
@@ -100,7 +100,7 @@ class ExerciseResponse(BaseModel):
     is_current: bool = True
     order_index: int = 1
     question_type: str = "free_text"
-    correct_answers: dict | None = None
+    correct_answers: dict[str, Any] | None = None
     penalty: float = 0.0
     mc_group_id: uuid.UUID | None = None
     sub_index: int | None = None

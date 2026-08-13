@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import quote
 
@@ -315,7 +315,11 @@ async def create_exam(
     # 3. Create and link inline exercises
     if body.exercises:
         for ex_data in body.exercises:
-            computed_score = parse_exercise_score(ex_data.latex_body) if ex_data.latex_body else ex_data.max_points
+            computed_score = (
+                parse_exercise_score(ex_data.latex_body)
+                if ex_data.latex_body
+                else ex_data.max_points
+            )
             ex = Exercise(
                 teacher_id=teacher.id,
                 name=ex_data.name,
@@ -438,7 +442,7 @@ async def delete_exam(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Soft-delete an exam."""
-    exam.deleted_at = datetime.now(tz=timezone.utc)
+    exam.deleted_at = datetime.now(tz=UTC)
 
 
 @router.post("/{exam_id}/compile")
@@ -462,7 +466,7 @@ async def compile_exam_endpoint(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail="Compilation timed out.",
             headers={"code": "ERR_COMPILE_TIMEOUT"},
-        )
+        ) from None
     except CompilationError as exc:
         exam.compilation_status = "failed"
         await db.flush()
@@ -470,7 +474,7 @@ async def compile_exam_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
             headers={"code": "ERR_COMPILE_FAILED"},
-        )
+        ) from exc
 
     # RFC 6266. The title is user-controlled: a quote would break out of the
     # quoted-string and let the download filename be spoofed, and a CR/LF would

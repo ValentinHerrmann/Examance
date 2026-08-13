@@ -211,7 +211,10 @@ def run_retention(dry_run: bool) -> None:
         _raise_schema_hint(exc)
 
     if dry_run:
-        click.echo(f"[dry-run] Would affect {count} record(s) across exams, student data and audit entries.")
+        click.echo(
+            f"[dry-run] Would affect {count} record(s) across exams, "
+            "student data and audit entries."
+        )
     else:
         click.echo(f"Retention run complete: {count} record(s) affected.")
 

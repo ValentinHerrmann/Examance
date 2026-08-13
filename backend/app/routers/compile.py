@@ -39,14 +39,14 @@ async def compile_latex_endpoint(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail="Compilation timed out.",
             headers={"code": "ERR_COMPILE_TIMEOUT"},
-        )
+        ) from None
     except CompilationError as exc:
         logger.info("LaTeX preview compilation failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
             headers={"code": "ERR_COMPILE_FAILED"},
-        )
+        ) from exc
 
     return Response(
         content=pdf_bytes,
