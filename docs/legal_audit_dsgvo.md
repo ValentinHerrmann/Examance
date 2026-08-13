@@ -167,6 +167,21 @@ The endpoints holding student data (`routers/submissions.py`, `routers/students.
 
 This distinction is recorded deliberately so that, if the defect is ever assessed retrospectively, it is not over-reported as an Art. 33 notifiable breach on the strength of the security finding's severity alone. It was still a genuine Art. 32 failure and has been fixed.
 
+### L16 — Third-party asset loads disclosed every user to CDNs · Art. 13(1)(e), 30(1)(d), 44 ff. · [C+P] · **Fixed**
+
+**The original security review missed this entire class of defect.** It audited what the application sends to its own backend and did not check what the browser fetches from other origins. Two live third-party loads were found afterwards:
+
+- **pdf.js worker** — `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/<version>/pdf.worker.min.mjs`, on five call sites in the exam, scan and grading views. It executed on every PDF open, i.e. in the core grading workflow.
+- **`http.cat` status images** — `HttpCatModal` is mounted globally in `routes/+layout.svelte` and requested `https://http.cat/<status>` on **every** API error.
+
+Neither is a disclosure of exam content: only request metadata leaves the browser. But that metadata — IP address, User-Agent, `Referer`, timing, and in the `http.cat` case the failing status code — is personal data, sent to operators in a third country, on the ordinary path of a teacher's work. That makes them recipients under Art. 13(1)(e) and Art. 30(1)(d), and a Chapter V transfer. None was named in any document; `docs/` stated the opposite.
+
+**Fixed:** the pdf.js worker is bundled and served from our own origin (`src/lib/pdf/pdfjs.ts`). The `http.cat` image is removed — the modal now renders the status code and text locally. Redistributing the artwork was not an option, as it is not licensed for reuse.
+
+Two controls now hold the line, which is the point of the finding: the CSP is `default-src 'self'` with no CDN allowances, so a reintroduced load is *blocked* rather than silently working; and `frontend/tests/cspHeaders.test.ts` fails the build if any file under `frontend/src/` names an off-origin host outside a small allowlist (XML namespaces, `localhost`, and a form placeholder).
+
+**Note for a reader assessing the past:** these loads were live in every deployed version before this branch. If a retrospective assessment is needed, the exposure is request metadata only, continuous, to Cloudflare Inc. (pdf.js) and the `http.cat` operator.
+
 ---
 
 ## 5. Honest caveats
@@ -178,6 +193,7 @@ Things a reader should not conclude from this document:
 - **Vaults written before the PBKDF2 increase** are still openable via a decrypt-only legacy path at 1,000 iterations, until re-encrypted. Data protected only by that key is materially weaker.
 - **Subresource integrity is not enforced.** `sri-manifest.json` declares `"enforced": false`; no WASM binary is vendored or hash-verified. The build step reports the absence of the control rather than pretending to pass. The Argon2 module that derives every key is therefore loaded unverified.
 - **One dependency advisory is open and cannot currently be closed.** Vite carries a path-traversal advisory in its dev server (GHSA-4w7w-66w2-5vf9), fixed only in versions above 6.4.1. That upgrade is unreachable while the project is on Svelte 4: `@sveltejs/vite-plugin-svelte` 3.x is the last line supporting Svelte 4 and pins `vite ^5`, and every later version requires Svelte 5. Vite 8 was attempted and reverted — the build fails because `vite-plugin-top-level-await` resolves esbuild out of Vite's distribution, which Vite 8 replaced with rolldown. The affected code is the development server, which does not run in production: the frontend ships as static files. The CI `npm audit` step is deliberately left **failing** rather than narrowed, so the open advisory stays visible. Closing it means migrating Svelte 4 → 5.
+- **This review missed the third-party asset loads on its first pass** (L16). The methodology audited requests to our own backend and did not enumerate what the browser fetches from other origins; two CDN loads were live in every deployed version until they were found afterwards. Treat the "no external hosts" property as resting on the CSP and the test that now enforce it, not on the thoroughness of this document.
 - **The full LaTeX compile path was not executed end-to-end** during this work: the sandbox could not reach Tectonic's TeX Live bundle. `--untrusted` was confirmed to be a real, documented flag on the pinned version and its placement is unit-tested, but a live compile should be run before deployment.
 
 ---
