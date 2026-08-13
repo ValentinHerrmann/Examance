@@ -1,4 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
+import { safeLocalStorage } from '$lib/utils/storage';
 
 const BACKEND_URL_KEY = 'bg_backend_url';
 
@@ -51,23 +52,17 @@ function safeNormalize(raw: string): string {
 
 function createBackendStore() {
     let initialUrl = '';
-    if (typeof localStorage !== 'undefined') {
-        // A value already in storage is re-validated: it may predate this check
-        // or have been written by something other than the settings form.
-        initialUrl = safeNormalize(localStorage.getItem(BACKEND_URL_KEY) || '');
-    }
+    initialUrl = safeNormalize(safeLocalStorage.getItem(BACKEND_URL_KEY) || '');
 
     const { subscribe, set } = writable<string>(initialUrl);
 
     /** Validate, persist and publish. Throws on an unusable address. */
     const persist = (url: string) => {
         const normalized = normalizeBackendUrl(url);
-        if (typeof localStorage !== 'undefined') {
-            if (normalized) {
-                localStorage.setItem(BACKEND_URL_KEY, normalized);
-            } else {
-                localStorage.removeItem(BACKEND_URL_KEY);
-            }
+        if (normalized) {
+            safeLocalStorage.setItem(BACKEND_URL_KEY, normalized);
+        } else {
+            safeLocalStorage.removeItem(BACKEND_URL_KEY);
         }
         set(normalized);
     };
@@ -81,16 +76,11 @@ function createBackendStore() {
         saveSuccessfulBackendUrl: persist,
         set: persist,
         restoreSavedUrl: () => {
-            let saved = '';
-            if (typeof localStorage !== 'undefined') {
-                saved = safeNormalize(localStorage.getItem(BACKEND_URL_KEY) || '');
-            }
+            const saved = safeNormalize(safeLocalStorage.getItem(BACKEND_URL_KEY) || '');
             set(saved);
         },
         clear: () => {
-            if (typeof localStorage !== 'undefined') {
-                localStorage.removeItem(BACKEND_URL_KEY);
-            }
+            safeLocalStorage.removeItem(BACKEND_URL_KEY);
             set('');
         }
     };

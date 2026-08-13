@@ -1,4 +1,5 @@
 import { writable, derived } from 'svelte/store';
+import { safeLocalStorage } from '$lib/utils/storage';
 
 export type StorageMode = 'all-server' | 'all-local' | 'hybrid';
 
@@ -47,30 +48,28 @@ export function getStoragePolicyBadge(policy: StoragePolicy): { icon: string; te
 }
 
 function getInitialPolicy(): StoragePolicy {
-    if (typeof localStorage !== 'undefined') {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                let storageMode: StorageMode = DEFAULT_POLICY.storageMode;
-                let latexCompilation: 'server' | 'local' = DEFAULT_POLICY.latexCompilation;
+    const saved = safeLocalStorage.getItem(STORAGE_KEY);
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            let storageMode: StorageMode = DEFAULT_POLICY.storageMode;
+            let latexCompilation: 'server' | 'local' = DEFAULT_POLICY.latexCompilation;
 
-                if (parsed.storageMode === 'all-server' || parsed.storageMode === 'all-local' || parsed.storageMode === 'hybrid') {
-                    storageMode = parsed.storageMode;
-                } else if (parsed.examAndExerciseStorage === 'server' && parsed.resultsAndStudentsData === 'server') {
-                    storageMode = 'all-server';
-                } else if (parsed.examAndExerciseStorage === 'server' && parsed.resultsAndStudentsData === 'local') {
-                    storageMode = 'hybrid';
-                }
-
-                if (parsed.latexCompilation === 'server' || parsed.latexCompilation === 'local') {
-                    latexCompilation = parsed.latexCompilation;
-                }
-
-                return { storageMode, latexCompilation };
-            } catch {
-                return DEFAULT_POLICY;
+            if (parsed.storageMode === 'all-server' || parsed.storageMode === 'all-local' || parsed.storageMode === 'hybrid') {
+                storageMode = parsed.storageMode;
+            } else if (parsed.examAndExerciseStorage === 'server' && parsed.resultsAndStudentsData === 'server') {
+                storageMode = 'all-server';
+            } else if (parsed.examAndExerciseStorage === 'server' && parsed.resultsAndStudentsData === 'local') {
+                storageMode = 'hybrid';
             }
+
+            if (parsed.latexCompilation === 'server' || parsed.latexCompilation === 'local') {
+                latexCompilation = parsed.latexCompilation;
+            }
+
+            return { storageMode, latexCompilation };
+        } catch {
+            return DEFAULT_POLICY;
         }
     }
     return DEFAULT_POLICY;
@@ -82,17 +81,13 @@ function createStoragePolicyStore() {
     return {
         subscribe,
         setPolicy(policy: StoragePolicy) {
-            if (typeof localStorage !== 'undefined') {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(policy));
-            }
+            safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify(policy));
             set(policy);
         },
         updateSetting<K extends keyof StoragePolicy>(key: K, value: StoragePolicy[K]) {
             update((current) => {
                 const next = { ...current, [key]: value };
-                if (typeof localStorage !== 'undefined') {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-                }
+                safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify(next));
                 return next;
             });
         }

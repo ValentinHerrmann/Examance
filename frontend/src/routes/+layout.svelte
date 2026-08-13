@@ -13,6 +13,7 @@
     storagePolicyLabelStore,
     storagePolicyBadgeStore,
   } from "$lib/stores/storagePolicy";
+  import { safeLocalStorage } from "$lib/utils/storage";
   import { effectiveBackendStore } from "$lib/stores/backendStore";
   import { registerNavigationGuard, isGradeActivePath, isPublicPath } from "$lib/stores/navigationStore";
   import {
@@ -65,13 +66,9 @@
     }
 
     const isLockedInStorage =
-      typeof localStorage !== "undefined" &&
-      localStorage.getItem("bg_session_locked") === "true";
+      safeLocalStorage.getItem("bg_session_locked") === "true";
 
-    const savedMode =
-      typeof localStorage !== "undefined"
-        ? localStorage.getItem("bg_session_mode")
-        : null;
+    const savedMode = safeLocalStorage.getItem("bg_session_mode");
 
     const policy = get(storagePolicyStore);
 

@@ -102,8 +102,13 @@
     } catch (err: any) {
       // Revert store to last saved URL if authentication failed
       backendStore.restoreSavedUrl();
+      // "Failed to fetch" is the browser's opaque network error for CORS
+      // preflight rejections. Give users a concrete hint.
+      const raw: string = err.message || '';
       errorMsg =
-        err.message || "Unlock failed. Check your password or credentials.";
+        raw === 'Failed to fetch'
+          ? 'Could not reach the server. If you are using a local backend, make sure it is running and has CORS enabled for this origin.'
+          : raw || 'Unlock failed. Check your password or credentials.';
     } finally {
       isLoading = false;
     }
