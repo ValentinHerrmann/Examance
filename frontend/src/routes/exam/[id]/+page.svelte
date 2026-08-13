@@ -1,6 +1,7 @@
 <script lang="ts">
   import "./+page.css";
   import { page } from "$app/stores";
+  import { loadPdfjs } from "$lib/pdf/pdfjs";
   export let params;
   import { onMount } from "svelte";
   import { browser } from "$app/environment";
@@ -588,10 +589,7 @@ ${exerciseInputs}
 
       omrPrepareMessage = "Extracting bubble positions...";
 
-      const pdfjsLib = await import("pdfjs-dist");
-      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-      }
+      const pdfjsLib = await loadPdfjs();
       const pdfDoc = await pdfjsLib.getDocument({ data: result.pdfBytes }).promise;
       console.log(`[PrepareOMR] pdfDoc loaded: numPages=${pdfDoc.numPages}`);
 
@@ -729,10 +727,7 @@ ${exerciseInputs}
         maxPoints: e.maxPoints,
       }));
 
-      const pdfjsLib = await import("pdfjs-dist");
-      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-      }
+      const pdfjsLib = await loadPdfjs();
 
       const worker = new Worker(new URL("$lib/workers/omrWorker.ts", import.meta.url), {
         type: "module",

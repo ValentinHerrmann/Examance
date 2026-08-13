@@ -15,15 +15,13 @@ const config = {
     alias: {
       $lib: './src/lib',
     },
-    // Pin the build "version" instead of letting SvelteKit default to
-    // Date.now(). That value is embedded verbatim in the inline hydration
-    // <script> SvelteKit injects into every prerendered page (as the
-    // `__sveltekit_<hash>` global). If it changes on every build, so does
-    // the script's SHA-256 hash — which breaks the pinned `script-src`
-    // hash we ship in frontend/static/_headers for Cloudflare Pages.
-    version: {
-      name: 'examance-static',
-    },
+    // NOTE: `kit.version.name` is deliberately left at its default (Date.now()).
+    // It used to be pinned so the inline hydration script's SHA-256 stayed
+    // stable for the hand-written CSP hash in static/_headers. That never
+    // worked — the same script also embeds the content-hashed entry chunk
+    // filenames, which change on any bundle change — and pinning the version
+    // costs SvelteKit its "a new deployment exists" detection. The hash is now
+    // derived from the build output by scripts/generate-csp-headers.mjs.
   },
 };
 

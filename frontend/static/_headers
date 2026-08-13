@@ -11,22 +11,35 @@
 # connect-src must list the backend origins users actually configure. Update it
 # together with CORS_ALLOWED_ORIGINS in the backend.
 #
-# script-src also carries the hash of SvelteKit's inline hydration bootstrap
-# script (the one adapter-static injects into every prerendered index.html
-# to kick off `import("/_app/immutable/entry/start...")`). That script's
-# content — and therefore its hash — is only stable across builds because
-# svelte.config.js pins `kit.version.name` to a constant instead of the
-# default Date.now(). If you ever change that inline bootstrap (SvelteKit
-# upgrade, custom app.html script, etc.), regenerate the hash with:
-#   node -e "const c=require('crypto'),h=require('fs').readFileSync('build/index.html','utf8').match(/<script>([\s\S]*?)<\/script>/)[1];console.log('sha256-'+c.createHash('sha256').update(h,'utf8').digest('base64'))"
+# THIS FILE IS A TEMPLATE. The `__INLINE_SCRIPT_HASHES__` token in script-src
+# is replaced during `npm run build` by scripts/generate-csp-headers.mjs, which
+# hashes the inline scripts that actually ended up in build/**/*.html.
+#
+# SvelteKit injects an inline hydration bootstrap into every prerendered page,
+# and that script hard-codes the content-hashed entry chunk filenames
+# (`import("/_app/immutable/entry/start.<hash>.js")`). Those names change with
+# any bundle change — including ones we do not control, such as a patch-level
+# Vite/Rollup bump or a different Node version in the Pages build image — so a
+# hash pinned here by hand goes stale and the deployed app dies with
+# "Executing inline script violates the following Content Security Policy
+# directive" while local dev keeps working. Never hard-code the hash again;
+# leave the placeholder in place and let the build fill it in.
+#
+# If the build step is skipped the placeholder survives, browsers ignore the
+# unknown source expression, and inline script stays blocked — fail-closed.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-04YzmV0NyxDPRxtqiAn9tOLVtNjwvDYTqm7ZbDoS0mA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.valentin-herrmann.com; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' __INLINE_SCRIPT_HASHES__; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.valentin-herrmann.com; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(self), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
+
+# pdf.js ships its worker as .mjs; make the JS MIME type explicit so the
+# module worker is accepted regardless of the host's extension mapping.
+/_app/immutable/assets/*.mjs
+  Content-Type: text/javascript
 
 /core/busytex/*.wasm
   Content-Type: application/wasm
