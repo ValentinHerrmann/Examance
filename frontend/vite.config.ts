@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import wasm from 'vite-plugin-wasm';
@@ -8,7 +9,7 @@ export default defineConfig({
   plugins: [tailwindcss(), wasm(), topLevelAwait(), sveltekit()],
   test: {
     alias: {
-      'argon2-browser': '/home/vale/_GITHUB/ValentinHerrmann/BlindGrade/frontend/tests/mocks/argon2Mock.ts',
+      'argon2-browser': fileURLToPath(new URL('./tests/mocks/argon2Mock.ts', import.meta.url)),
     },
   },
   worker: {

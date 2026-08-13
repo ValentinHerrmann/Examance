@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -14,6 +15,7 @@ from app.dependencies import get_exam_for_teacher
 from app.models.exam import Exam
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
+from app.schemas.binary import GCM_IV_BYTES, decode_b64
 from app.schemas.submission import SubmissionCreate, SubmissionResponse, SubmissionScoreUpdate
 
 router = APIRouter(prefix="/exams/{exam_id}/submissions", tags=["submissions"])
@@ -54,11 +56,21 @@ async def upload_submission(
     db: AsyncSession = Depends(get_db),
 ) -> SubmissionResponse:
     """Upload encrypted scan submission."""
-    # Ensure student identity exists first to satisfy foreign key constraint
+    # Ensure student identity exists first to satisfy foreign key constraint.
+    # The FK is on pseudonym_hmac alone, so an identity registered under another
+    # exam must be rejected rather than silently reused — otherwise a submission
+    # ends up linked across exam (and tenant) boundaries. Mirrors the 409 in
+    # routers/students.py.
     student_res = await db.execute(
         select(StudentIdentity).where(StudentIdentity.pseudonym_hmac == body.pseudonym_hmac)
     )
-    if not student_res.scalar_one_or_none():
+    existing_identity = student_res.scalar_one_or_none()
+    if existing_identity is not None and existing_identity.exam_id != exam.id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Student identity belongs to another exam.",
+        )
+    if existing_identity is None:
         db.add(
             StudentIdentity(
                 pseudonym_hmac=body.pseudonym_hmac,
@@ -70,10 +82,26 @@ async def upload_submission(
         )
         await db.flush()
 
-    scan_bytes = base64.b64decode(body.scan_ciphertext_b64) if body.scan_ciphertext_b64 else None
-    scan_iv = base64.b64decode(body.scan_iv_b64) if body.scan_iv_b64 else b""
-    ann_bytes = base64.b64decode(body.annotation_ciphertext_b64) if body.annotation_ciphertext_b64 else None
-    ann_iv = base64.b64decode(body.annotation_iv_b64) if body.annotation_iv_b64 else None
+    scan_bytes = (
+        decode_b64(body.scan_ciphertext_b64, "scan_ciphertext_b64")
+        if body.scan_ciphertext_b64
+        else None
+    )
+    scan_iv = (
+        decode_b64(body.scan_iv_b64, "scan_iv_b64", expected_len=GCM_IV_BYTES)
+        if body.scan_iv_b64
+        else b""
+    )
+    ann_bytes = (
+        decode_b64(body.annotation_ciphertext_b64, "annotation_ciphertext_b64")
+        if body.annotation_ciphertext_b64
+        else None
+    )
+    ann_iv = (
+        decode_b64(body.annotation_iv_b64, "annotation_iv_b64", expected_len=GCM_IV_BYTES)
+        if body.annotation_iv_b64
+        else None
+    )
 
     # Handle submission upsert if ID already exists
     if body.id:
@@ -125,7 +153,14 @@ async def upload_submission(
         kwargs["id"] = body.id
     sub = ScanSubmission(**kwargs)
     db.add(sub)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A submission with this id already exists.",
+        ) from None
 
     return SubmissionResponse(
         id=sub.id,

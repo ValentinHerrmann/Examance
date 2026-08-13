@@ -67,8 +67,11 @@ export async function decrypt(
 ): Promise<Uint8Array> {
   const ciphertextBuffer = toArrayBuffer(ciphertext);
   const ivBuffer = toArrayBuffer(iv);
-  const activeFallbackKey =
-    fallbackKey ?? (typeof window !== 'undefined' ? get(sessionStore).fallbackSessionKey : null);
+  const storedSession = typeof window !== 'undefined' ? get(sessionStore) : null;
+  const activeFallbackKey = fallbackKey ?? storedSession?.fallbackSessionKey ?? null;
+  // Records written before the PBKDF2 iteration increase are sealed under the
+  // old parameters. Decrypt-only: nothing is ever re-encrypted with this key.
+  const legacyKey = storedSession?.legacySessionKey ?? null;
 
   let primaryErr: any = null;
   if (key) {
@@ -84,16 +87,17 @@ export async function decrypt(
     }
   }
 
-  if (activeFallbackKey) {
+  for (const candidate of [activeFallbackKey, legacyKey]) {
+    if (!candidate) continue;
     try {
       const plaintextBuffer = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: ivBuffer },
-        activeFallbackKey,
+        candidate,
         ciphertextBuffer
       );
       return new Uint8Array(plaintextBuffer);
     } catch {
-      // Fallback also failed, ignore error to throw primary error below
+      // Try the next candidate; the primary error is thrown if all fail.
     }
   }
 

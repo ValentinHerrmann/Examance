@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from "$app/navigation";
   import "./+page.css";
   import { db } from "$lib/db/db";
   import { eraseStudent } from "$lib/gdpr/erasure";
@@ -21,7 +22,10 @@
 
   onMount(async () => {
     if (!$isUnlocked) {
-      await sessionStore.initAnonymousSession();
+      // Keys are passphrase-derived and never persisted — send the user to
+      // /unlock rather than silently reconstructing a session.
+      await goto("/unlock");
+      return;
     }
     const key = get(sessionStore).sessionKey;
     students = await studentRepository.getAll(key);

@@ -1,16 +1,30 @@
 """Shared pytest fixtures."""
 from __future__ import annotations
 
-import asyncio
-from collections.abc import AsyncGenerator
+import os
 
-import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+# Must be set before `app.config` is imported: Settings is instantiated at
+# import time and, outside development, refuses to start on a placeholder
+# SECRET_KEY. Rate limiting is disabled so the suite can register/log in
+# repeatedly from one client address without tripping the production limits.
+os.environ.setdefault("ENVIRONMENT", "development")
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+os.environ.setdefault("RATE_LIMIT_STORAGE_URI", "memory://")
 
-from app.database import Base, get_db
-from app.main import app
+import asyncio  # noqa: E402
+from collections.abc import AsyncGenerator  # noqa: E402
+
+import pytest  # noqa: E402
+import pytest_asyncio  # noqa: E402
+from httpx import ASGITransport, AsyncClient  # noqa: E402
+from sqlalchemy.ext.asyncio import (  # noqa: E402
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+
+from app.database import Base, get_db  # noqa: E402
+from app.main import app  # noqa: E402
 
 # In-memory SQLite for tests (fast, no Docker dependency for unit tests)
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"

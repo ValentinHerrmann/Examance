@@ -50,10 +50,13 @@ export async function fetchAndVerifyWasm(url: string, packageKey: string): Promi
   const hexHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
   const actualFormattedHash = `sha256-${hexHash}`;
 
-  // In development mode with placeholder hashes, skip strict match if configured, otherwise enforce
+  // A placeholder means the binary was never vendored and hashed. Returning the
+  // buffer anyway would make this function a no-op that *looks* like a control,
+  // which is worse than having none — so it fails closed.
   if (expectedHash.includes('PLACEHOLDER')) {
-    console.warn(`[SRI Warning] Skipping hash verification for ${packageKey} due to PLACEHOLDER manifest hash.`);
-    return buffer;
+    throw new Error(
+      `SRI manifest entry for ${packageKey} is a placeholder — refusing to load an unverified binary.`
+    );
   }
 
   if (actualFormattedHash !== expectedHash) {

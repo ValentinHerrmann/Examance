@@ -1,18 +1,27 @@
 """Pydantic schemas for auth endpoints."""
 from __future__ import annotations
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
+
+# Matches the policy already enforced by AdminCreateUserRequest and the
+# `create-user` / `set-password` CLI commands.
+PASSWORD_MIN_LENGTH = 12
+PASSWORD_MAX_LENGTH = 256
 
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
     invite_token: str
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    # Bounded above only. A minimum here would let an attacker distinguish
+    # "password too short" from "wrong password" and leak the policy applied
+    # to an existing account; the upper bound keeps an oversized string from
+    # reaching the 64 MiB-per-hash Argon2id verifier.
+    password: str = Field(max_length=PASSWORD_MAX_LENGTH)
 
 
 class AuthResponse(BaseModel):

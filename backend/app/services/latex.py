@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import shutil
 import tempfile
 import uuid
@@ -13,6 +14,15 @@ logger = logging.getLogger(__name__)
 
 PREVIEW_TIMEOUT_SECONDS = 30
 COMPILE_TIMEOUT_SECONDS = 120
+
+# Secondary defence behind `tectonic --untrusted`: reject the obvious ways a
+# document asks for a file outside its working directory. TeX can construct
+# paths in many ways, so this is a tripwire, not the boundary.
+_ABSOLUTE_OR_PARENT_PATH = re.compile(
+    r"\\(?:input|include|InputIfFileExists|openin|openout|write|read"
+    r"|lstinputlisting|includegraphics|import|subimport|verbatiminput)"
+    r"\s*(?:\[[^\]]*\])?\s*\{?\s*(?:/|\.\./|~|\\\\)",
+)
 
 ASSETS_DIR = Path(__file__).resolve().parents[2] / "latex-assets"
 if not ASSETS_DIR.exists():
@@ -53,30 +63,66 @@ def escape_tex(text: str | None) -> str:
     return "".join(_TEX_ESCAPE_MAP.get(ch, ch) for ch in text)
 
 
-def _extract_tex_error(stderr_text: str, tmpdir: Path) -> str:
-    """Extract a meaningful TeX error message from stderr or main.log."""
+def reject_unsafe_paths(latex_source: str) -> None:
+    """
+    Raise CompilationError if *latex_source* references an absolute or parent path.
+
+    A TeX document can read arbitrary files (``\\input{/app/.env}``) and typeset
+    them into the resulting PDF. ``--untrusted`` is the real control; this check
+    fails fast with a clearer message and covers the common cases.
+    """
+    if _ABSOLUTE_OR_PARENT_PATH.search(latex_source):
+        raise CompilationError(
+            "Absolute and parent-directory file references are not permitted."
+        )
+
+
+def _safe_extra_file_path(tmpdir: Path, rel_path: str) -> Path:
+    """
+    Resolve *rel_path* inside *tmpdir*, refusing anything that escapes it.
+
+    Callers currently pass server-generated names, but this function is public
+    and one caller change away from being an arbitrary-write primitive.
+    """
+    resolved_root = tmpdir.resolve()
+    target = (resolved_root / rel_path).resolve()
+    if target != resolved_root and resolved_root not in target.parents:
+        raise CompilationError("Invalid extra file path.")
+    return target
+
+
+_MAX_ERROR_LINES = 5
+_MAX_ERROR_LINE_CHARS = 200
+
+
+def _extract_tex_error(tmpdir: Path) -> str:
+    """
+    Extract the TeX diagnostic lines from main.log, and nothing else.
+
+    Only lines TeX itself emits as errors (those beginning with "!") are kept.
+    The surrounding log echoes source context — including the contents of any
+    file the document pulled in — so forwarding arbitrary log or stderr text to
+    the caller would turn a failed compile into a file-disclosure channel.
+    """
     log_file = tmpdir / "main.log"
-    error_lines = []
+    error_lines: list[str] = []
 
     if log_file.exists():
         try:
             log_content = log_file.read_text(encoding="utf-8", errors="replace")
-            for line in log_content.splitlines():
-                line_str = line.strip()
-                if line_str.startswith("!") or " Error:" in line_str or "error:" in line_str.lower():
-                    error_lines.append(line_str)
-        except Exception:
-            pass
+        except OSError:
+            log_content = ""
+        for line in log_content.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("!"):
+                error_lines.append(stripped[:_MAX_ERROR_LINE_CHARS])
+            if len(error_lines) >= _MAX_ERROR_LINES:
+                break
 
     if error_lines:
-        return " | ".join(error_lines[:5])
+        return " | ".join(error_lines)
 
-    lines = stderr_text.splitlines()
-    filtered = [l.strip() for l in lines if l.strip() and not l.strip().startswith("warning:")]
-    if filtered:
-        return " ".join(filtered[-5:])
-
-    return stderr_text[:1000].replace("\n", " ")
+    return "No TeX diagnostic was produced; check the document for errors."
 
 
 async def compile_latex(
@@ -89,6 +135,10 @@ async def compile_latex(
 
     Copies sty/ and img/ from ASSETS_DIR into temp working directory.
     """
+    reject_unsafe_paths(latex_source)
+    for content in (extra_files or {}).values():
+        reject_unsafe_paths(content)
+
     if "\\documentclass" not in latex_source:
         latex_source = f"""\\documentclass[a4paper]{{article}}
 \\usepackage[sans,punkte]{{sty/Schulaufgabe}}
@@ -116,35 +166,26 @@ async def compile_latex(
         # Write extra files (e.g. exercise fragments)
         if extra_files:
             for rel_path, content in extra_files.items():
-                target_path = tmpdir / rel_path
+                target_path = _safe_extra_file_path(tmpdir, rel_path)
                 target_path.parent.mkdir(parents=True, exist_ok=True)
                 target_path.write_text(content, encoding="utf-8")
 
         tex_file = tmpdir / "main.tex"
         tex_file.write_text(latex_source, encoding="utf-8")
 
-        # Dump compilation source and extra files to server console for debugging
-        logger.warning(
-            "[TECTONIC-START] Starting latex compilation (preview=%s). main.tex (%d chars):\n--- START main.tex ---\n%s\n--- END main.tex ---",
+        # Document content is NEVER logged — see schemas/latex.py. Sizes only.
+        logger.debug(
+            "Starting LaTeX compilation (preview=%s, main.tex=%d chars, extra_files=%d)",
             preview,
             len(latex_source),
-            latex_source,
+            len(extra_files or {}),
         )
-        if extra_files:
-            for rel_path, content in extra_files.items():
-                logger.warning(
-                    "[TECTONIC-START] Extra file '%s' (%d chars):\n--- START %s ---\n%s\n--- END %s ---",
-                    rel_path,
-                    len(content),
-                    rel_path,
-                    content,
-                    rel_path,
-                )
-        else:
-            logger.warning("[TECTONIC-START] No extra_files provided.")
 
         cmd = [
             "tectonic",
+            # Refuses shell-escape and filesystem access outside the working
+            # directory. Must precede the input path.
+            "--untrusted",
             "-k",
             str(tex_file),
             "--outdir",
@@ -162,7 +203,7 @@ async def compile_latex(
             )
 
             try:
-                _stdout, stderr = await asyncio.wait_for(
+                _stdout, _stderr = await asyncio.wait_for(
                     proc.communicate(), timeout=timeout
                 )
             except asyncio.TimeoutError:
@@ -170,29 +211,14 @@ async def compile_latex(
                 await proc.communicate()
                 raise
 
-            log_file = tmpdir / "main.log"
-            log_content = ""
-            if log_file.exists():
-                try:
-                    log_content = log_file.read_text(encoding="utf-8", errors="replace")
-                except Exception:
-                    pass
-
-            href_count = latex_source.count("omr://")
-            logger.warning(
-                "[TECTONIC-LOG] Pass %d finished (exit %d). main.tex len=%d, omr_href_count=%d.\n--- TEKTONIC main.log ---\n%s\n--- END main.log ---",
-                pass_idx + 1,
-                proc.returncode,
-                len(latex_source),
-                href_count,
-                log_content if log_content else "(main.log empty or missing)"
+            logger.debug(
+                "LaTeX pass %d finished (exit %d)", pass_idx + 1, proc.returncode
             )
 
             if proc.returncode != 0:
-                raw_stderr = stderr.decode(errors="replace")
-                err_snippet = _extract_tex_error(raw_stderr, tmpdir)
+                err_snippet = _extract_tex_error(tmpdir)
                 raise CompilationError(
-                    f"Tectonic compilation pass {pass_idx + 1} failed (exit {proc.returncode}): {err_snippet}"
+                    f"LaTeX compilation failed on pass {pass_idx + 1}: {err_snippet}"
                 )
 
         pdf_path = tmpdir / "main.pdf"

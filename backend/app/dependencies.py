@@ -5,11 +5,12 @@ import uuid
 
 import jwt
 from fastapi import Cookie, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.exam import Exam
+from app.models.exercise import Exercise
 from app.models.teacher import Teacher
 from app.services.jwt import decode_token
 
@@ -91,3 +92,52 @@ async def get_exam_for_teacher(
         # 401 not 404 — per API contract: never leak resource existence
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated.")
     return exam
+
+
+async def get_exercise_for_teacher(
+    exercise_id: uuid.UUID,
+    teacher: Teacher = Depends(get_current_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> Exercise:
+    """
+    Return the exercise only if it belongs to *teacher*.
+
+    Use for every write path. Published exercises (`is_public`) are deliberately
+    NOT writable by non-owners — sharing grants read access only.
+
+    Raises 404 (not 403) so a non-owner cannot distinguish "exists but is
+    someone else's" from "does not exist".
+    """
+    result = await db.execute(
+        select(Exercise).where(
+            Exercise.id == exercise_id,
+            Exercise.teacher_id == teacher.id,
+        )
+    )
+    exercise = result.scalar_one_or_none()
+    if exercise is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")
+    return exercise
+
+
+async def get_readable_exercise(
+    exercise_id: uuid.UUID,
+    teacher: Teacher = Depends(get_current_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> Exercise:
+    """
+    Return the exercise if *teacher* owns it or it was explicitly published.
+
+    Read-only counterpart to `get_exercise_for_teacher`; mirrors the ownership
+    predicate already applied by `list_exercises`.
+    """
+    result = await db.execute(
+        select(Exercise).where(
+            Exercise.id == exercise_id,
+            or_(Exercise.teacher_id == teacher.id, Exercise.is_public.is_(True)),
+        )
+    )
+    exercise = result.scalar_one_or_none()
+    if exercise is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")
+    return exercise

@@ -2,10 +2,20 @@
 from __future__ import annotations
 
 import json
-from typing import Annotated
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# Signing keys that ship in this repository / in example configs. Usable for
+# local development, never for a deployment that holds real data.
+PLACEHOLDER_SECRET_KEYS = frozenset(
+    {
+        "dev-secret-key-change-me-in-production-32-chars-long!",
+        "CHANGE_ME_IN_PRODUCTION_USE_openssl_rand_hex_32",
+        "test-secret-key-not-for-production",
+    }
+)
 
 
 class Settings(BaseSettings):
@@ -18,8 +28,15 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
+    # Rate limiting — storage defaults to REDIS_URL so counters are shared
+    # across uvicorn workers. Override with "memory://" only for dev/tests.
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_STORAGE_URI: str = ""
+
     # JWT / Auth
-    SECRET_KEY: str = "dev-secret-key-change-me-in-production-32-chars-long!"
+    # Development-only default. `validate_secret_key` below rejects it whenever
+    # ENVIRONMENT != "development", so it can never reach a real deployment.
+    SECRET_KEY: str = "dev-secret-key-change-me-in-production-32-chars-long!"  # noqa: S105
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_TTL_MINUTES: int = 15
     REFRESH_TOKEN_TTL_DAYS: int = 7
@@ -27,6 +44,10 @@ class Settings(BaseSettings):
     # CORS — required; app refuses to start if unset or empty
     CORS_ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "https://examance.pages.dev"]
     CORS_ALLOWED_ORIGIN_REGEX: str | None = r"https://([a-zA-Z0-9-]+\.)*valentin-herrmann\.com"
+
+    # Host header allowlist (Host-spoofing protection). Deployment-specific, so
+    # it stays opt-in: TrustedHostMiddleware is only registered when non-empty.
+    ALLOWED_HOSTS: list[str] = []
 
     # Environment
     ENVIRONMENT: str = "production"
@@ -37,7 +58,7 @@ class Settings(BaseSettings):
     BODY_LIMIT_STUDENTS: int = 1 * 1024 * 1024      # 1 MB
     BODY_LIMIT_DEFAULT: int = 256 * 1024             # 256 KB
 
-    @field_validator("CORS_ALLOWED_ORIGINS", mode="before")
+    @field_validator("ALLOWED_HOSTS", "CORS_ALLOWED_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: object) -> list[str]:
         if isinstance(v, str):
@@ -48,7 +69,7 @@ class Settings(BaseSettings):
         return v  # type: ignore[return-value]
 
     @model_validator(mode="after")
-    def require_cors_origins(self) -> "Settings":
+    def require_cors_origins(self) -> Settings:
         if not self.CORS_ALLOWED_ORIGINS:
             raise ValueError(
                 "CORS_ALLOWED_ORIGINS must be set and non-empty. "
@@ -57,7 +78,36 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def derive_sync_url(self) -> "Settings":
+    def validate_secret_key(self) -> Settings:
+        """
+        Refuse to start outside development with a published or too-short key.
+
+        SECRET_KEY signs both access and refresh tokens; a known value lets
+        anyone mint an admin token. Generate one with: openssl rand -hex 32
+        """
+        if self.is_dev:
+            return self
+        if self.SECRET_KEY in PLACEHOLDER_SECRET_KEYS:
+            raise ValueError(
+                "SECRET_KEY is set to a published placeholder value. "
+                "Generate a unique key with: openssl rand -hex 32"
+            )
+        if len(self.SECRET_KEY) < 32:
+            raise ValueError(
+                "SECRET_KEY must be at least 32 characters outside development. "
+                "Generate one with: openssl rand -hex 32"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def derive_rate_limit_storage(self) -> Settings:
+        """Default the rate-limit backend to Redis; in-memory only in dev."""
+        if not self.RATE_LIMIT_STORAGE_URI:
+            self.RATE_LIMIT_STORAGE_URI = "memory://" if self.is_dev else self.REDIS_URL
+        return self
+
+    @model_validator(mode="after")
+    def derive_sync_url(self) -> Settings:
         if not self.DATABASE_URL_SYNC:
             # Derive sync DB URL from async DB URL
             self.DATABASE_URL_SYNC = (

@@ -12,6 +12,7 @@ from app.dependencies import get_exam_for_teacher
 from app.models.exam import Exam
 from app.models.student_identity import StudentIdentity
 from app.models.scan_submission import ScanSubmission
+from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
 from app.schemas.student import StudentIdentityCreate, StudentIdentityResponse
 from app.services import audit as audit_svc
 
@@ -25,9 +26,11 @@ async def upload_student_identity(
     db: AsyncSession = Depends(get_db),
 ) -> StudentIdentityResponse:
     """Upload encrypted student identity ciphertext. Handles upsert for duplicate pseudonym_hmac."""
-    pii_bytes = base64.b64decode(body.pii_ciphertext_b64)
-    iv_bytes = base64.b64decode(body.iv_b64)
-    salt_bytes = base64.b64decode(body.encryption_salt_b64)
+    pii_bytes = decode_b64(body.pii_ciphertext_b64, "pii_ciphertext_b64")
+    iv_bytes = decode_b64(body.iv_b64, "iv_b64", expected_len=GCM_IV_BYTES)
+    salt_bytes = decode_b64(
+        body.encryption_salt_b64, "encryption_salt_b64", expected_len=ARGON2_SALT_BYTES
+    )
 
     # Check if student identity already exists
     result = await db.execute(

@@ -8,10 +8,13 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from app.config import settings
 from app.middleware.body_limit import BodyLimitMiddleware
 from app.middleware.cors import add_cors_middleware
 from app.middleware.csp import CSPMiddleware
+from app.middleware.origin_guard import OriginGuardMiddleware
 from app.middleware.rate_limit import limiter
 from app.routers import admin, auth, compile, exams, exercises, students, submissions, user
 
@@ -103,9 +106,12 @@ def create_app() -> FastAPI:
         version="0.1.0",
         description=description,
         openapi_tags=openapi_tags,
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
-        openapi_url="/api/openapi.json",
+        # Interactive docs enumerate every route and parameter, including the
+        # admin surface. Offline reference stays available via
+        # `python -m app.cli export-openapi`.
+        docs_url="/api/docs" if settings.is_dev else None,
+        redoc_url="/api/redoc" if settings.is_dev else None,
+        openapi_url="/api/openapi.json" if settings.is_dev else None,
         lifespan=lifespan,
     )
 
@@ -122,6 +128,11 @@ def create_app() -> FastAPI:
 
     # Middleware — registration order matters (last added = outermost)
     app.add_middleware(BodyLimitMiddleware)
+    if settings.ALLOWED_HOSTS:
+        # Opt-in: rejects requests with an unexpected Host header. Left off when
+        # unset so a deployment cannot be locked out by a wrong default.
+        app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
+    app.add_middleware(OriginGuardMiddleware)
     app.add_middleware(CSPMiddleware)
     add_cors_middleware(app)  # Must be after BodyLimit so CORS headers appear on 413 too
 

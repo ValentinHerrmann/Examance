@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_teacher
+from app.middleware.rate_limit import limiter
 from app.models.invite import InviteToken
 from app.models.refresh_token import RefreshToken
 from app.models.teacher import Teacher
@@ -47,11 +48,24 @@ def _set_auth_cookies(
 
 
 def _clear_auth_cookies(response: Response) -> None:
-    response.delete_cookie(ACCESS_COOKIE, path="/")
-    response.delete_cookie(REFRESH_COOKIE, path="/api/v1/auth/refresh")
+    """
+    Clear both auth cookies.
+
+    The delete must repeat the attributes the cookie was set with. A
+    ``SameSite=None`` cookie sent back without ``Secure`` is rejected outright
+    by Chrome and Firefox, so an attribute mismatch here silently leaves the
+    access cookie in place until it expires.
+    """
+    response.delete_cookie(ACCESS_COOKIE, path="/", **_COOKIE_KWARGS)  # type: ignore[arg-type]
+    response.delete_cookie(
+        REFRESH_COOKIE,
+        path="/api/v1/auth/refresh",
+        **_COOKIE_KWARGS,  # type: ignore[arg-type]
+    )
 
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/hour")
 async def register(
     body: RegisterRequest,
     request: Request,
@@ -141,6 +155,7 @@ async def register(
 
 
 @router.post("/login", response_model=AuthResponse)
+@limiter.limit("10/minute;50/hour")
 async def login(
     body: LoginRequest,
     request: Request,
@@ -202,7 +217,9 @@ async def login(
 
 
 @router.post("/refresh", response_model=AuthResponse)
+@limiter.limit("30/minute")
 async def refresh(
+    request: Request,  # Required by slowapi for rate limiting
     response: Response,
     refresh_token: str | None = Cookie(default=None),
     db: AsyncSession = Depends(get_db),

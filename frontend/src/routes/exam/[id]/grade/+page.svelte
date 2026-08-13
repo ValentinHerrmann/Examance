@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from "$app/navigation";
   import "./+page.css";
   import { page } from "$app/stores";
   export let params;
@@ -54,7 +55,8 @@
   onMount(async () => {
     if (!examId) return;
     if (!get(isUnlocked)) {
-      await sessionStore.initAnonymousSession();
+      await goto("/unlock");
+      return;
     }
     const key = get(sessionStore).sessionKey;
     exam = (await loadExamEncrypted(examId, key)) || null;

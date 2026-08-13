@@ -24,7 +24,7 @@ async def _create_teacher_and_login(client: AsyncClient, db: AsyncSession, email
 
     login_resp = await client.post(
         "/api/v1/auth/register",
-        json={"email": email, "password": "Password123!", "invite_token": raw_token},
+        json={"email": email, "password": "Password123!-ok", "invite_token": raw_token},
     )
     client.cookies.update(login_resp.cookies)
 
@@ -34,7 +34,7 @@ async def _create_teacher_and_login(client: AsyncClient, db: AsyncSession, email
         await db.execute(update(Teacher).where(Teacher.email == email).values(role="admin"))
         await db.commit()
         # Re-login to get updated token
-        login_resp2 = await client.post("/api/v1/auth/login", json={"email": email, "password": "Password123!"})
+        login_resp2 = await client.post("/api/v1/auth/login", json={"email": email, "password": "Password123!-ok"})
         client.cookies.update(login_resp2.cookies)
 
 
@@ -606,8 +606,8 @@ async def test_list_student_identities(
         json={
             "pseudonym_hmac": pseudonym_hmac,
             "pii_ciphertext_b64": base64.b64encode(b"fake-encrypted-pii").decode(),
-            "iv_b64": base64.b64encode(secrets.token_bytes(16)).decode(),
-            "encryption_salt_b64": base64.b64encode(secrets.token_bytes(32)).decode(),
+            "iv_b64": base64.b64encode(secrets.token_bytes(12)).decode(),
+            "encryption_salt_b64": base64.b64encode(secrets.token_bytes(16)).decode(),
         },
     )
     assert st_resp.status_code == 201
@@ -648,8 +648,8 @@ async def test_create_exam_wrong_method(
         json={
             "pseudonym_hmac": pseudonym_hmac,
             "pii_ciphertext_b64": base64.b64encode(b"fake-encrypted-pii").decode(),
-            "iv_b64": base64.b64encode(secrets.token_bytes(16)).decode(),
-            "encryption_salt_b64": base64.b64encode(secrets.token_bytes(32)).decode(),
+            "iv_b64": base64.b64encode(secrets.token_bytes(12)).decode(),
+            "encryption_salt_b64": base64.b64encode(secrets.token_bytes(16)).decode(),
         },
     )
     assert st_resp.status_code == 201
@@ -662,8 +662,8 @@ async def test_create_exam_wrong_method(
             json={
                 "pseudonym_hmac": pseudonym_hmac,
                 "pii_ciphertext_b64": base64.b64encode(b"fake-encrypted-pii").decode(),
-                "iv_b64": base64.b64encode(secrets.token_bytes(16)).decode(),
-                "encryption_salt_b64": base64.b64encode(secrets.token_bytes(32)).decode(),
+                "iv_b64": base64.b64encode(secrets.token_bytes(12)).decode(),
+                "encryption_salt_b64": base64.b64encode(secrets.token_bytes(16)).decode(),
             },
         )
         assert st_resp2.status_code == 401

@@ -63,6 +63,96 @@ async def test_tectonic_subprocess_args() -> None:
     assert any("-k" in args for args in captured_args)
     assert len(captured_args) == 2
 
+    # --untrusted blocks shell-escape and filesystem access outside the working
+    # directory, and must precede the input path to take effect.
+    for args in captured_args:
+        assert "--untrusted" in args, args
+        assert args.index("--untrusted") < args.index("-k"), args
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        r"\input{/etc/passwd}",
+        r"\input{/app/.env}",
+        r"\include{../../secrets}",
+        r"\InputIfFileExists{/proc/self/environ}{}{}",
+        r"\includegraphics{../outside.png}",
+        r"\lstinputlisting{/app/backend/.env}",
+        r"\input {/etc/passwd}",
+        r"\includegraphics[width=1cm]{/etc/hostname}",
+    ],
+)
+def test_reject_unsafe_paths_blocks_absolute_and_parent_references(source: str) -> None:
+    from app.services.latex import CompilationError as CE
+    from app.services.latex import reject_unsafe_paths
+
+    with pytest.raises(CE, match="not permitted"):
+        reject_unsafe_paths(source)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        r"\input{exercises/ex_1.tex}",
+        r"\includegraphics{img/Logo.png}",
+        r"\usepackage{sty/Schulaufgabe}",
+        r"\begin{Aufgabe}{Titel}\BE\end{Aufgabe}",
+    ],
+)
+def test_reject_unsafe_paths_allows_normal_documents(source: str) -> None:
+    from app.services.latex import reject_unsafe_paths
+
+    reject_unsafe_paths(source)  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_compile_latex_rejects_absolute_input() -> None:
+    """The guard fires before any subprocess is spawned."""
+    with pytest.raises(CompilationError, match="not permitted"):
+        await compile_latex(r"\documentclass{article}\input{/etc/passwd}")
+
+
+def test_extra_file_paths_cannot_escape_workdir() -> None:
+    import tempfile
+    from pathlib import Path
+
+    from app.services.latex import CompilationError as CE
+    from app.services.latex import _safe_extra_file_path
+
+    tmpdir = Path(tempfile.mkdtemp())
+    assert _safe_extra_file_path(tmpdir, "exercises/ex_1.tex").is_relative_to(tmpdir.resolve())
+    for bad in ("../escape.tex", "../../etc/passwd", "/etc/passwd"):
+        with pytest.raises(CE, match="Invalid extra file path"):
+            _safe_extra_file_path(tmpdir, bad)
+
+
+def test_tex_error_extraction_does_not_leak_log_context() -> None:
+    """
+    main.log echoes source context around an error. Only the TeX diagnostic
+    lines ("!") may reach the client — never the echoed content.
+    """
+    import tempfile
+    from pathlib import Path
+
+    from app.services.latex import _extract_tex_error
+
+    tmpdir = Path(tempfile.mkdtemp())
+    (tmpdir / "main.log").write_text(
+        "This is TeX, Version 3.14\n"
+        "! Undefined control sequence.\n"
+        "l.42 \\badmacro root:x:0:0:SUPERSECRET:/root:/bin/bash\n"
+        "Package fontspec Info: something harmless\n"
+        "! LaTeX Error: File 'missing.sty' not found.\n",
+        encoding="utf-8",
+    )
+
+    msg = _extract_tex_error(tmpdir)
+    assert "Undefined control sequence" in msg
+    assert "File 'missing.sty' not found" in msg
+    assert "SUPERSECRET" not in msg
+    assert "root:x:0:0" not in msg
+
 
 def test_parse_exercise_score_lmulti_and_be() -> None:
     from app.routers.exercises import parse_exercise_score

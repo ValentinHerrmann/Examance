@@ -86,18 +86,11 @@
           return;
         }
       }
-    } else if (
-      isLockedInStorage ||
-      savedMode === "authenticated" ||
-      policy.storageMode === "all-server"
-    ) {
-      if (!get(isUnlocked) && $page.url.pathname !== "/unlock") {
-        await goto("/unlock");
-      }
-    } else {
-      if (!get(isUnlocked)) {
-        await sessionStore.initAnonymousSession();
-      }
+    } else if (!get(isUnlocked) && !isUnlockPath($page.url.pathname)) {
+      // Local mode no longer auto-unlocks: its keys come from a passphrase the
+      // user supplies, and nothing derived from it is persisted. Every locked
+      // session therefore goes through /unlock, whichever mode it is in.
+      await goto("/unlock");
     }
     isInitializing = false;
   });

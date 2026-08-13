@@ -1,12 +1,15 @@
 """Exams router — /api/v1/exams/*"""
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import delete, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -120,6 +123,52 @@ async def _fetch_exam_exercises(
     return [(ex, ex.order_index, None, None) for ex in old_exs]
 
 
+async def _resolve_linkable_exercise(
+    exercise_id: uuid.UUID, teacher: Teacher, db: AsyncSession
+) -> Exercise:
+    """
+    Load an exercise *teacher* is allowed to place into their own exam.
+
+    Own exercises plus explicitly published ones. Unknown or foreign private
+    exercises raise 404 — without this check, linking an arbitrary UUID turns
+    the exam read/compile endpoints into a cross-tenant disclosure channel.
+    """
+    res = await db.execute(
+        select(Exercise).where(
+            Exercise.id == exercise_id,
+            or_(Exercise.teacher_id == teacher.id, Exercise.is_public.is_(True)),
+        )
+    )
+    ex = res.scalar_one_or_none()
+    if ex is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Referenced exercise not found.",
+        )
+    return ex
+
+
+def _resolve_mc_group_id(
+    client_group_id: uuid.UUID | None,
+    id_map: dict[uuid.UUID, uuid.UUID],
+) -> uuid.UUID | None:
+    """
+    Map a client-supplied MC group id onto the group just persisted for this exam.
+
+    An id that is not in *id_map* does not belong to this exam's groups and is
+    rejected rather than stored verbatim.
+    """
+    if client_group_id is None:
+        return None
+    resolved = id_map.get(client_group_id)
+    if resolved is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unknown mc_group_id for this exam.",
+        )
+    return resolved
+
+
 async def _fetch_exam_mc_groups(exam_id: uuid.UUID, db: AsyncSession) -> list[ExamMcGroup]:
     result = await db.execute(
         select(ExamMcGroup)
@@ -217,7 +266,17 @@ async def create_exam(
         kwargs["id"] = body.id
     exam = Exam(**kwargs)
     db.add(exam)
-    await db.flush()
+    # Client-chosen ids let local-mode records keep their UUID when syncing. A
+    # collision must be a deterministic 409, not an IntegrityError surfacing as
+    # a 500 — which would distinguish "id exists" from "id is free".
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An exam with this id already exists.",
+        ) from None
 
     # Persist MC groups first so we can map client IDs to DB IDs
     mc_group_id_map: dict[uuid.UUID, uuid.UUID] = {}
@@ -230,36 +289,28 @@ async def create_exam(
     # 1. Link existing library exercises via exercise_links (mc-aware)
     if body.exercise_links:
         for link_data in body.exercise_links:
-            res = await db.execute(select(Exercise).where(Exercise.id == link_data.exercise_id))
-            ex = res.scalar_one_or_none()
-            if ex:
-                resolved_group_id = None
-                if link_data.mc_group_id and link_data.mc_group_id in mc_group_id_map:
-                    resolved_group_id = mc_group_id_map[link_data.mc_group_id]
-                elif link_data.mc_group_id:
-                    resolved_group_id = link_data.mc_group_id
-                effective_order = link_data.order_index or order
-                link = ExamExercise(
-                    exam_id=exam.id,
-                    exercise_id=ex.id,
-                    order_index=effective_order,
-                    mc_group_id=resolved_group_id,
-                    sub_index=link_data.sub_index,
-                )
-                db.add(link)
-                linked_exercises.append((ex, effective_order, resolved_group_id, link_data.sub_index))
-                order = effective_order + 1
+            ex = await _resolve_linkable_exercise(link_data.exercise_id, teacher, db)
+            resolved_group_id = _resolve_mc_group_id(link_data.mc_group_id, mc_group_id_map)
+            effective_order = link_data.order_index or order
+            link = ExamExercise(
+                exam_id=exam.id,
+                exercise_id=ex.id,
+                order_index=effective_order,
+                mc_group_id=resolved_group_id,
+                sub_index=link_data.sub_index,
+            )
+            db.add(link)
+            linked_exercises.append((ex, effective_order, resolved_group_id, link_data.sub_index))
+            order = effective_order + 1
 
     # 2. Link existing library exercise IDs (legacy, no mc info)
     elif body.exercise_ids:
         for eid in body.exercise_ids:
-            res = await db.execute(select(Exercise).where(Exercise.id == eid))
-            ex = res.scalar_one_or_none()
-            if ex:
-                link = ExamExercise(exam_id=exam.id, exercise_id=ex.id, order_index=order)
-                db.add(link)
-                linked_exercises.append((ex, order, None, None))
-                order += 1
+            ex = await _resolve_linkable_exercise(eid, teacher, db)
+            link = ExamExercise(exam_id=exam.id, exercise_id=ex.id, order_index=order)
+            db.add(link)
+            linked_exercises.append((ex, order, None, None))
+            order += 1
 
     # 3. Create and link inline exercises
     if body.exercises:
@@ -279,11 +330,7 @@ async def create_exam(
             db.add(ex)
             await db.flush()
 
-            resolved_group_id = None
-            if ex_data.mc_group_id and ex_data.mc_group_id in mc_group_id_map:
-                resolved_group_id = mc_group_id_map[ex_data.mc_group_id]
-            elif ex_data.mc_group_id:
-                resolved_group_id = ex_data.mc_group_id
+            resolved_group_id = _resolve_mc_group_id(ex_data.mc_group_id, mc_group_id_map)
 
             link = ExamExercise(
                 exam_id=exam.id,
@@ -327,6 +374,7 @@ async def list_exam_exercises(
 async def update_exam(
     body: ExamUpdate,
     exam: Exam = Depends(get_exam_for_teacher),
+    teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ExamResponse:
     """Update exam details and exercise links."""
@@ -361,14 +409,11 @@ async def update_exam(
     if body.exercise_links is not None:
         await db.execute(delete(ExamExercise).where(ExamExercise.exam_id == exam.id))
         for link_data in body.exercise_links:
-            resolved_group_id = None
-            if link_data.mc_group_id and link_data.mc_group_id in mc_group_id_map:
-                resolved_group_id = mc_group_id_map[link_data.mc_group_id]
-            elif link_data.mc_group_id:
-                resolved_group_id = link_data.mc_group_id
+            ex = await _resolve_linkable_exercise(link_data.exercise_id, teacher, db)
+            resolved_group_id = _resolve_mc_group_id(link_data.mc_group_id, mc_group_id_map)
             db.add(ExamExercise(
                 exam_id=exam.id,
-                exercise_id=link_data.exercise_id,
+                exercise_id=ex.id,
                 order_index=link_data.order_index,
                 mc_group_id=resolved_group_id,
                 sub_index=link_data.sub_index,
@@ -377,7 +422,8 @@ async def update_exam(
         await db.execute(delete(ExamExercise).where(ExamExercise.exam_id == exam.id))
         order = 1
         for eid in body.exercise_ids:
-            db.add(ExamExercise(exam_id=exam.id, exercise_id=eid, order_index=order))
+            ex = await _resolve_linkable_exercise(eid, teacher, db)
+            db.add(ExamExercise(exam_id=exam.id, exercise_id=ex.id, order_index=order))
             order += 1
 
     await db.flush()
@@ -426,9 +472,18 @@ async def compile_exam_endpoint(
             headers={"code": "ERR_COMPILE_FAILED"},
         )
 
-    filename = f"Exam_{exam.title.replace(' ', '_')}{'_answers' if answers else ''}.pdf"
+    # RFC 6266. The title is user-controlled: a quote would break out of the
+    # quoted-string and let the download filename be spoofed, and a CR/LF would
+    # be rejected downstream as a malformed header.
+    safe_title = re.sub(r"[^A-Za-z0-9._-]", "_", exam.title)[:100] or "exam"
+    filename = f"Exam_{safe_title}{'_answers' if answers else ''}.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{filename}"; '
+                f"filename*=UTF-8''{quote(filename)}"
+            )
+        },
     )
