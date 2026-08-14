@@ -182,7 +182,25 @@ jobs:
           envs: BACKEND_IMAGE,APP_VERSION,DEPLOY_APP_DIR,REGISTRY_USER,REGISTRY_TOKEN
           script: |
             set -euo pipefail
-            cd "${DEPLOY_APP_DIR}/prod"
+
+            # `set -u` does not catch this: the variable is set, just empty,
+            # which would silently make the target "/prod".
+            if [ -z "${DEPLOY_APP_DIR:-}" ]; then
+              echo "ERROR: DEPLOY_APP_DIR is empty." >&2
+              echo "Set it under Settings -> Environments -> production -> Variables." >&2
+              exit 1
+            fi
+
+            TARGET="${DEPLOY_APP_DIR}/prod"
+            cd "$TARGET"
+
+            # The env file holds this environment's SECRET_KEY and database
+            # password, so it is created once by hand and never by CI.
+            if [ ! -f .env ]; then
+              echo "ERROR: ${TARGET}/.env not found on the server." >&2
+              echo "Create it from deploy/env.prod.example — see docs/deployment.md section 6." >&2
+              exit 1
+            fi
 
             echo "${REGISTRY_TOKEN}" | docker login ghcr.io -u "${REGISTRY_USER}" --password-stdin
 
