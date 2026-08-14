@@ -66,6 +66,13 @@ class Settings(BaseSettings):
     # Environment
     ENVIRONMENT: str = "production"
 
+    # Build version, baked into the image at build time (Dockerfile ARG/ENV
+    # APP_VERSION) from the repository-root VERSION file. Informational only:
+    # it is reported by GET /api/health so the frontend can tell whether it is
+    # talking to a compatible server. Production builds carry a bare semver
+    # ("1.4.0"); preview builds append the short commit SHA ("1.4.0-a1b2c3d").
+    APP_VERSION: str = "0.0.0-dev"
+
     # Retention bounds.
     #
     # MAX enforces Art. 5(1)(e) storage limitation: no exam may be scheduled to

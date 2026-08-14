@@ -15,6 +15,12 @@
   } from "$lib/stores/storagePolicy";
   import { safeLocalStorage } from "$lib/utils/storage";
   import { effectiveBackendStore } from "$lib/stores/backendStore";
+  import {
+    frontendVersion,
+    backendVersionStore,
+    versionStatus,
+    refreshBackendVersion,
+  } from "$lib/stores/versionStore";
   import { registerNavigationGuard, isGradeActivePath, isPublicPath } from "$lib/stores/navigationStore";
   import {
     openBgprojArchive,
@@ -37,6 +43,13 @@
   let showFocusNav = false;
 
   $: isGradeActive = isGradeActivePath($page.url.pathname);
+
+  // Re-probe the server's version whenever the address changes or the session
+  // unlocks. `refreshBackendVersion` de-duplicates concurrent calls, so the
+  // overlap with the onMount call below is harmless.
+  $: if (typeof window !== "undefined" && ($effectiveBackendStore || $isUnlocked)) {
+    void refreshBackendVersion();
+  }
 
   $: if (!isInitializing && !$isUnlocked && typeof window !== "undefined" && !isPublicPath($page.url.pathname)) {
     goto("/unlock");
@@ -200,6 +213,9 @@
     policyLabel={$storagePolicyLabelStore}
     backendLabel={$effectiveBackendStore || ""}
     unlocked={$isUnlocked}
+    {frontendVersion}
+    backendVersion={$backendVersionStore}
+    versionStatus={$versionStatus}
   />
 
   <StoragePolicyModal

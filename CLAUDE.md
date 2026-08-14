@@ -60,7 +60,16 @@ Tracked source is tiny (172 files in `frontend/src`, 44 in `backend/app`, ~1 MB)
 
 ## Deployment
 
-Frontend → **Cloudflare Pages** via git integration (build `npm run build` in `frontend/`, output `frontend/build/`). Origins `examance.pages.dev` plus a custom domain under `valentin-herrmann.com`, both CORS-allowed. No `wrangler.toml` or CF deploy step in-repo — dashboard-managed. Backend hosting isn't declared in-repo; don't assume where it runs.
+Full picture with diagrams: `docs/deployment.md`. Summary:
+
+Two independent instances, production and preview, always on the same version. Root `/VERSION` (bare semver, no `v`) is the single source of truth — `frontend/package.json` and `backend/pyproject.toml` versions are **not** part of the chain, don't "sync" them. Prod version = `VERSION` verbatim; preview = `VERSION` + `-` + 7-char commit SHA. A differing major version means frontend and backend are incompatible.
+
+- Release published (`deploy-release.yml`) → writes `VERSION` to the default branch, force-pushes to branch `release`, builds `ghcr.io/<owner>/examance-backend:<version>`, deploys over SSH. Trigger is `published`, **not** `created` — `created` also fires on draft-save.
+- Non-draft PR (`deploy-preview.yml`) → force-pushes PR head to branch `preview`, builds `:sha-<sha>`, deploys to the preview stack. Draft PRs and fork PRs deploy nothing.
+
+Frontend → **Cloudflare Pages** via git integration (build `npm run build` in `frontend/`, output `frontend/build/`), building **only** `release` (production) and `preview` (preview). Dashboard-managed, no `wrangler.toml` in-repo. Version reaches the bundle through Vite `define` (`__APP_VERSION__`, computed in `vite.config.ts` from `CF_PAGES_BRANCH`/`CF_PAGES_COMMIT_SHA`) and is shown in `StatusBar.svelte`, coloured by `compareVersions()` in `lib/stores/versionStore.ts`.
+
+Backend → `deploy/docker-compose.deploy.yml` on one SSH host, two isolated stacks (`docker compose -p examance-prod` :8000, `-p examance-preview` :8001). Project names namespace containers *and* volumes, so preview never touches production data. The dev `docker-compose.yml` is a separate, dev-only file — its `retention-cron` is broken (busybox calling `docker exec`, hardcoded container name) but inert behind `profiles: [prod]`; the working one lives in the deploy file. Version is baked in via `--build-arg APP_VERSION` → `Settings.APP_VERSION` → `GET /api/health`, which returns `{"status": "ok", "version": ...}` unauthenticated by design. Migrations run **forward only** on deploy; rolling back an image does not undo them.
 
 Response headers come from `frontend/static/_headers`, which is a **template**: `npm run build` runs `scripts/generate-csp-headers.mjs`, which replaces the `__INLINE_SCRIPT_HASHES__` token in `script-src` with the SHA-256 of every inline script in `build/**/*.html`. Never hard-code a `sha256-` literal there — SvelteKit's inline bootstrap embeds the content-hashed entry chunk filenames, so its hash changes with any bundle change (including a dependency or Node version difference between your machine and the Pages build image) and a pinned hash takes the deployed app down with "Executing inline script violates the following Content Security Policy directive". `tests/cspHeaders.test.ts` guards this.
 

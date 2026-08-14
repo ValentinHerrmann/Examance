@@ -103,7 +103,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="Examance API",
-        version="0.1.0",
+        version=settings.APP_VERSION,
         description=description,
         openapi_tags=openapi_tags,
         # Interactive docs enumerate every route and parameter, including the
@@ -149,7 +149,11 @@ def create_app() -> FastAPI:
 
     @app.get("/api/health", tags=["meta"])
     async def health() -> dict[str, str]:
-        return {"status": "ok"}
+        # `version` is deliberately public. It is how the frontend detects that
+        # it is talking to an incompatible server (differing major version), and
+        # it is the same class of information a Server header already leaks. No
+        # authentication, crypto or retention behaviour depends on it.
+        return {"status": "ok", "version": settings.APP_VERSION}
 
     return app
 
