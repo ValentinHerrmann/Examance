@@ -1,6 +1,7 @@
 """Compile router — POST /api/v1/compile/latex"""
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -10,6 +11,8 @@ from app.middleware.rate_limit import limiter
 from app.models.teacher import Teacher
 from app.schemas.latex import LaTeXRequest
 from app.services.latex import CompilationError, compile_latex
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/compile", tags=["compile"])
 
@@ -27,6 +30,7 @@ async def compile_latex_endpoint(
     Rate limited: 10 req/min per IP.
     Body limit: 2 MB (enforced by BodyLimitMiddleware).
     LaTeX source is NEVER logged — see LaTeXRequest.__repr__ and latex service.
+    The 422 detail carries only TeX diagnostics, never raw engine or log output.
     """
     try:
         pdf_bytes = await compile_latex(body.latex, preview=True)
@@ -35,13 +39,14 @@ async def compile_latex_endpoint(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail="Compilation timed out.",
             headers={"code": "ERR_COMPILE_TIMEOUT"},
-        )
+        ) from None
     except CompilationError as exc:
+        logger.info("LaTeX preview compilation failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
             headers={"code": "ERR_COMPILE_FAILED"},
-        )
+        ) from exc
 
     return Response(
         content=pdf_bytes,

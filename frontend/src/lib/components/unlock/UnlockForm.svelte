@@ -7,6 +7,12 @@
   export let isLoading: boolean;
   export let onUnlock: () => void;
   export let onUnlockLocal: () => void;
+  export let localPassphrase: string;
+  export let localPassphraseConfirm: string;
+  /** First use on this device, or a legacy vault being migrated — confirm the passphrase. */
+  export let isNewLocalVault: boolean;
+  /** A vault created before the passphrase change; unlocking re-encrypts it. */
+  export let needsLegacyMigration: boolean;
 </script>
 
 <div class="unlock-header">
@@ -29,18 +35,62 @@
       Ideal for solo offline grading. All data is encrypted with local keys and stored directly in your browser.
     </p>
     <ul class="features-list">
-      <li>✨ Zero setup or registration needed</li>
-      <li>🔒 Full offline GDPR encryption</li>
+      <li>✨ No registration needed</li>
+      <li>🔒 Encrypted at rest with your passphrase</li>
       <li>💾 Export/Import workspace as .bgproj file</li>
     </ul>
-    <button
-      type="button"
-      class="local-unlock-btn"
-      on:click={onUnlockLocal}
-      disabled={isLoading}
-    >
-      Start Local Mode
-    </button>
+
+    {#if needsLegacyMigration}
+      <p class="local-notice">
+        This workspace was created with an older version that kept its key in
+        browser storage. Choose a passphrase now — your existing data will be
+        re-encrypted with it.
+      </p>
+    {/if}
+
+    <form on:submit|preventDefault={onUnlockLocal} class="local-form">
+      <div class="form-group">
+        <label for="localPassphrase">
+          {isNewLocalVault ? "Choose a passphrase" : "Workspace passphrase"}
+        </label>
+        <input
+          id="localPassphrase"
+          type="password"
+          autocomplete={isNewLocalVault ? "new-password" : "current-password"}
+          bind:value={localPassphrase}
+          placeholder="At least 12 characters"
+          disabled={isLoading}
+        />
+      </div>
+
+      {#if isNewLocalVault}
+        <div class="form-group">
+          <label for="localPassphraseConfirm">Repeat passphrase</label>
+          <input
+            id="localPassphraseConfirm"
+            type="password"
+            autocomplete="new-password"
+            bind:value={localPassphraseConfirm}
+            disabled={isLoading}
+          />
+        </div>
+        <p class="local-warning">
+          There is no recovery. The passphrase never leaves this device and is
+          never stored, so if you forget it the workspace cannot be opened.
+          Keep a .bgproj export as a backup.
+        </p>
+      {/if}
+
+      <button type="submit" class="local-unlock-btn" disabled={isLoading}>
+        {#if needsLegacyMigration}
+          Set passphrase & migrate
+        {:else if isNewLocalVault}
+          Create Local Workspace
+        {:else}
+          Unlock Local Workspace
+        {/if}
+      </button>
+    </form>
   </div>
 
   <!-- Option B: Cloud Account -->
@@ -92,3 +142,30 @@
     </form>
   </div>
 </div>
+
+<style>
+  /* New styles live in the component, not the sibling .css file. */
+  .local-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+    margin-top: auto;
+  }
+
+  .local-notice,
+  .local-warning {
+    margin: 0 0 0.5rem;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    text-align: left;
+  }
+
+  .local-notice {
+    color: #fcd34d;
+  }
+
+  .local-warning {
+    color: #94a3b8;
+  }
+</style>

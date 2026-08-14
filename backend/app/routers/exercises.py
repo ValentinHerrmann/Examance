@@ -6,13 +6,19 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_teacher
-from app.models.exercise import Exercise
+from app.dependencies import (
+    get_current_teacher,
+    get_exercise_for_teacher,
+    get_readable_exercise,
+)
 from app.models.exam import Exam
 from app.models.exam_exercise import ExamExercise
+from app.models.exercise import Exercise
+from app.models.exercise_group import ExerciseGroup
 from app.models.teacher import Teacher
 from app.schemas.exam import (
     ExamUsageItem,
@@ -23,8 +29,6 @@ from app.schemas.exam import (
     ExerciseUpdate,
     ExerciseUsageResponse,
 )
-
-from app.models.exercise_group import ExerciseGroup
 
 router = APIRouter(prefix="/exercises", tags=["exercises"])
 
@@ -68,6 +72,24 @@ def _to_res(ex: Exercise) -> ExerciseResponse:
         correct_answers=ex.correct_answers,
         penalty=ex.penalty,
     )
+
+
+async def _require_own_group(
+    group_id: uuid.UUID, teacher_id: uuid.UUID, db: AsyncSession
+) -> ExerciseGroup:
+    """Return the group only if *teacher_id* owns it, else 404."""
+    res = await db.execute(
+        select(ExerciseGroup).where(
+            ExerciseGroup.id == group_id,
+            ExerciseGroup.teacher_id == teacher_id,
+        )
+    )
+    group = res.scalar_one_or_none()
+    if group is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Exercise group not found"
+        )
+    return group
 
 
 @router.get("", response_model=list[ExerciseResponse])
@@ -128,7 +150,7 @@ async def update_exercise_group(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseGroupResponse:
-    """Update exercise group metadata (name, topic_tag, grade, subject) and cascade to all member variants."""
+    """Update group metadata and cascade it to every member variant."""
     res = await db.execute(
         select(ExerciseGroup).where(
             ExerciseGroup.id == group_id,
@@ -137,7 +159,9 @@ async def update_exercise_group(
     )
     group = res.scalar_one_or_none()
     if not group:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise group not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Exercise group not found"
+        )
 
     if body.name is not None:
         group.name = body.name
@@ -148,8 +172,14 @@ async def update_exercise_group(
     if body.subject is not None:
         group.subject = body.subject
 
-    # Cascade changes to all exercises in group
-    ex_res = await db.execute(select(Exercise).where(Exercise.exercise_group_id == group_id))
+    # Cascade changes to all exercises in group — scoped to the owner so a shared
+    # group id can never reach another teacher's rows.
+    ex_res = await db.execute(
+        select(Exercise).where(
+            Exercise.exercise_group_id == group_id,
+            Exercise.teacher_id == teacher.id,
+        )
+    )
     for ex in ex_res.scalars().all():
         if body.name is not None:
             ex.name = body.name
@@ -199,13 +229,11 @@ async def create_exercise(
         await db.flush()
         group_id = group.id
     else:
-        group_res = await db.execute(select(ExerciseGroup).where(ExerciseGroup.id == group_id))
-        group = group_res.scalar_one_or_none()
-        if group:
-            group_name = group.name
-            group_topic = group.topic_tag
-            group_grade = group.grade
-            group_subject = group.subject
+        group = await _require_own_group(group_id, teacher.id, db)
+        group_name = group.name
+        group_topic = group.topic_tag
+        group_grade = group.grade
+        group_subject = group.subject
 
     kwargs = {
         "teacher_id": teacher.id,
@@ -227,39 +255,36 @@ async def create_exercise(
         kwargs["id"] = body.id
     ex = Exercise(**kwargs)
     db.add(ex)
-    await db.flush()
+    # See create_exam: a client-chosen id collision is a 409, never a 500 that
+    # would reveal that the id is already taken (possibly by another teacher).
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An exercise with this id already exists.",
+        ) from None
 
     return _to_res(ex)
 
 
 @router.get("/{exercise_id}", response_model=ExerciseResponse)
 async def get_exercise(
-    exercise_id: uuid.UUID,
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    ex: Exercise = Depends(get_readable_exercise),
 ) -> ExerciseResponse:
-    """Get an exercise from the library."""
-    result = await db.execute(select(Exercise).where(Exercise.id == exercise_id))
-    ex = result.scalar_one_or_none()
-    if not ex:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")
-
+    """Get an exercise from the library (own exercises or published ones)."""
     return _to_res(ex)
 
 
 @router.patch("/{exercise_id}", response_model=ExerciseResponse)
 async def update_exercise(
-    exercise_id: uuid.UUID,
     body: ExerciseUpdate,
+    ex: Exercise = Depends(get_exercise_for_teacher),
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseResponse:
     """Update a library exercise in place."""
-    result = await db.execute(select(Exercise).where(Exercise.id == exercise_id))
-    ex = result.scalar_one_or_none()
-    if not ex:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")
-
     if body.name is not None:
         ex.name = body.name
     if body.topic_tag is not None:
@@ -274,6 +299,7 @@ async def update_exercise(
     elif body.max_points is not None:
         ex.max_points = body.max_points
     if body.exercise_group_id is not None:
+        await _require_own_group(body.exercise_group_id, teacher.id, db)
         ex.exercise_group_id = body.exercise_group_id
     if body.variant_key is not None:
         ex.variant_key = body.variant_key
@@ -291,7 +317,12 @@ async def update_exercise(
         or body.grade is not None
         or body.subject is not None
     ):
-        group_res = await db.execute(select(ExerciseGroup).where(ExerciseGroup.id == ex.exercise_group_id))
+        group_res = await db.execute(
+            select(ExerciseGroup).where(
+                ExerciseGroup.id == ex.exercise_group_id,
+                ExerciseGroup.teacher_id == teacher.id,
+            )
+        )
         group = group_res.scalar_one_or_none()
         if group:
             if body.name is not None:
@@ -303,8 +334,13 @@ async def update_exercise(
             if body.subject is not None:
                 group.subject = body.subject
 
-        # Cascade to all exercise variants in group
-        ex_res = await db.execute(select(Exercise).where(Exercise.exercise_group_id == ex.exercise_group_id))
+        # Cascade to all exercise variants in group — owner-scoped
+        ex_res = await db.execute(
+            select(Exercise).where(
+                Exercise.exercise_group_id == ex.exercise_group_id,
+                Exercise.teacher_id == teacher.id,
+            )
+        )
         for sister in ex_res.scalars().all():
             if body.name is not None:
                 sister.name = body.name
@@ -319,19 +355,18 @@ async def update_exercise(
     return _to_res(ex)
 
 
-@router.post("/{exercise_id}/new-version", response_model=ExerciseResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{exercise_id}/new-version",
+    response_model=ExerciseResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_new_version(
-    exercise_id: uuid.UUID,
     body: ExerciseUpdate,
+    old_ex: Exercise = Depends(get_exercise_for_teacher),
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseResponse:
     """Create a new corrected version of an existing exercise (archives previous version)."""
-    result = await db.execute(select(Exercise).where(Exercise.id == exercise_id))
-    old_ex = result.scalar_one_or_none()
-    if not old_ex:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")
-
     # Mark old version as not current
     old_ex.is_current = False
 
@@ -349,8 +384,7 @@ async def create_new_version(
         group_id = group.id
         old_ex.exercise_group_id = group_id
     else:
-        group_res = await db.execute(select(ExerciseGroup).where(ExerciseGroup.id == group_id))
-        group = group_res.scalar_one_or_none()
+        group = await _require_own_group(group_id, teacher.id, db)
 
     group_name = group.name if group else old_ex.name
     group_topic = group.topic_tag if group else old_ex.topic_tag
@@ -382,19 +416,18 @@ async def create_new_version(
     return _to_res(new_ex)
 
 
-@router.post("/{exercise_id}/new-variant", response_model=ExerciseResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{exercise_id}/new-variant",
+    response_model=ExerciseResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_new_variant(
-    exercise_id: uuid.UUID,
     body: ExerciseCreate,
+    base_ex: Exercise = Depends(get_exercise_for_teacher),
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseResponse:
     """Create a new parallel variant (e.g. Möbel/Fahrzeug/Wildtier) under the same group."""
-    result = await db.execute(select(Exercise).where(Exercise.id == exercise_id))
-    base_ex = result.scalar_one_or_none()
-    if not base_ex:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")
-
     group_id = base_ex.exercise_group_id
     if not group_id:
         group = ExerciseGroup(
@@ -409,8 +442,7 @@ async def create_new_variant(
         group_id = group.id
         base_ex.exercise_group_id = group_id
     else:
-        group_res = await db.execute(select(ExerciseGroup).where(ExerciseGroup.id == group_id))
-        group = group_res.scalar_one_or_none()
+        group = await _require_own_group(group_id, teacher.id, db)
 
     group_name = group.name if group else base_ex.name
     group_topic = group.topic_tag if group else base_ex.topic_tag
@@ -443,21 +475,21 @@ async def create_new_variant(
 
 @router.get("/{exercise_id}/usage", response_model=ExerciseUsageResponse)
 async def get_exercise_usage(
-    exercise_id: uuid.UUID,
+    ex: Exercise = Depends(get_readable_exercise),
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseUsageResponse:
-    """Get count and details of non-deleted exams referencing this exercise."""
-    ex_res = await db.execute(select(Exercise).where(Exercise.id == exercise_id))
-    ex = ex_res.scalar_one_or_none()
-    if not ex:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")
+    """
+    Get count and details of non-deleted exams referencing this exercise.
 
+    Only the caller's own exams are reported, so usage of a published exercise
+    in another teacher's exam is never disclosed.
+    """
     query = (
         select(Exam)
         .join(ExamExercise, ExamExercise.exam_id == Exam.id)
         .where(
-            ExamExercise.exercise_id == exercise_id,
+            ExamExercise.exercise_id == ex.id,
             Exam.deleted_at.is_(None),
             Exam.teacher_id == teacher.id,
         )
@@ -490,9 +522,20 @@ async def delete_exercise(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Delete an exercise from the library."""
-    result = await db.execute(select(Exercise).where(Exercise.id == exercise_id))
+    """
+    Delete an exercise from the caller's own library.
+
+    Idempotent: always 204, whether or not a row was removed. Only exercises
+    owned by *teacher* are ever deleted, so a foreign id is a silent no-op —
+    which also keeps the response from revealing that the id exists.
+    """
+    result = await db.execute(
+        select(Exercise).where(
+            Exercise.id == exercise_id,
+            Exercise.teacher_id == teacher.id,
+        )
+    )
     ex = result.scalar_one_or_none()
-    if ex:
+    if ex is not None:
         await db.delete(ex)
 

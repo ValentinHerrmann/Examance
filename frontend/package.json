@@ -7,8 +7,9 @@
     "predev": "npx texlyre-busytex download-assets static/core && node scripts/process-large-files.mjs static && cp -r ../backend/latex-assets static/ && node scripts/generate-latex-assets-index.js",
     "dev": "vite dev",
     "prebuild": "npx texlyre-busytex download-assets static/core && node scripts/process-large-files.mjs static && cp -r ../backend/latex-assets static/ && node scripts/generate-latex-assets-index.js",
-    "build": "vite build && npm run process-large-files",
+    "build": "vite build && npm run process-large-files && npm run csp:headers",
     "process-large-files": "node scripts/process-large-files.mjs build",
+    "csp:headers": "node scripts/generate-csp-headers.mjs build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -35,12 +36,15 @@
     "zxing-wasm": "^1.2.3"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.44.0",
     "@sveltejs/adapter-static": "^3.0.0",
     "@sveltejs/vite-plugin-svelte": "^3.1.0",
     "@tailwindcss/vite": "^4.3.3",
+    "@types/d3-scale": "^4.0.9",
     "@types/diff": "^7.0.2",
     "@types/qrcode": "^1.5.0",
+    "d3-scale": "^4.0.2",
     "eslint": "^9.5.0",
     "eslint-plugin-svelte": "^2.39.0",
     "fake-indexeddb": "^6.0.0",
@@ -49,9 +53,10 @@
     "svelte-check": "^3.7.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.4.0",
-    "vite": "^5.2.0",
+    "typescript-eslint": "^8.67.0",
+    "vite": "^5.4.21",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.6.0",
-    "vitest": "^1.6.0"
+    "vitest": "^4.1.10"
   }
 }

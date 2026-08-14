@@ -3,30 +3,19 @@
   import { httpErrorStore } from "$lib/stores/httpErrorStore";
   import "./HttpCatModal.css";
 
-  let isLoading = true;
-  let hasImageError = false;
+  // This modal used to render an image from the http.cat service, which
+  // disclosed the user's IP, User-Agent and the failing status code to a third
+  // party on every API error — in an app whose compliance documents state the
+  // browser contacts no external host. The artwork is not licensed for
+  // redistribution, so self-hosting it was not an option; the status is
+  // rendered as text instead. See docs/legal_audit_dsgvo.md, finding L16.
 
   $: status = $httpErrorStore.status;
-  $: imageUrl = `https://http.cat/${status}`;
-
-  $: if ($httpErrorStore.isOpen) {
-    isLoading = true;
-    hasImageError = false;
-  }
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === "Escape" && $httpErrorStore.isOpen) {
       httpErrorStore.closeError();
     }
-  }
-
-  function handleImageLoad() {
-    isLoading = false;
-  }
-
-  function handleImageError() {
-    isLoading = false;
-    hasImageError = true;
   }
 
   onMount(() => {
@@ -80,32 +69,14 @@
         ✕
       </button>
 
-      <div class="http-cat-header">
+      <div class="http-cat-header" id="http-cat-title">
+        {statusText}
       </div>
 
       <div class="http-cat-image-container">
-        {#if isLoading}
-          <div class="http-cat-spinner-container">
-            <div class="http-cat-spinner"></div>
-            <p>Loading cat image...</p>
-          </div>
-        {/if}
-
-        {#if !hasImageError}
-          <img
-            src={imageUrl}
-            alt="HTTP {status}Prefer cheaper models for mechanical or well-defined work. Escalate only when reasoning complexity demands it. Cat Error"
-            class="http-cat-img"
-            class:hidden={isLoading}
-            on:load={handleImageLoad}
-            on:error={handleImageError}
-          />
-        {:else}
-          <div class="http-cat-fallback">
-            <div class="http-cat-badge">{status}</div>
-            <p>Could not load cat image from http.cat</p>
-          </div>
-        {/if}
+        <div class="http-cat-fallback">
+          <div class="http-cat-badge">{status}</div>
+        </div>
       </div>
     </div>
   </div>

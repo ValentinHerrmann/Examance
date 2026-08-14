@@ -1,4 +1,6 @@
 {
+  "_comment": "Subresource-integrity manifest. `enforced` is false because no WASM binary is vendored in static/wasm/ yet, so there is nothing to hash. Vendor the binaries, replace every PLACEHOLDER with the real sha256, wire fetchAndVerifyWasm() into the loaders, then set enforced=true. verify-sri.mjs fails the build on any placeholder once enforced is true, and sri.ts refuses to return an unverified buffer regardless.",
+  "enforced": false,
   "wasm": {
     "argon2-browser@1.18.0": "sha256-PLACEHOLDER_FILL_AFTER_VENDORING",
     "opencv.js@4.10.0": "sha256-PLACEHOLDER_FILL_AFTER_VENDORING",

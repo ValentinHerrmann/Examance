@@ -29,9 +29,14 @@ export function checkSimdSupport(): boolean {
 
 /** Probe current browser environment hardware profile. */
 export function detectHardware(): HardwareProfile {
-  const logicalCores = navigator.hardwareConcurrency || 2;
+  // `navigator` is guarded like `window` below: it does not exist under SSR or
+  // prerendering, nor on Node < 21, so an unguarded read crashes rather than
+  // falling back. The conservative defaults below are the intended behaviour
+  // when the probe cannot run.
+  const nav = typeof navigator !== 'undefined' ? navigator : undefined;
+  const logicalCores = nav?.hardwareConcurrency || 2;
   // deviceMemory is rounded to powers of 2 by browsers; Firefox privacy.resistFingerprinting omits it
-  const estimatedRAMGB = (navigator as any).deviceMemory || 2;
+  const estimatedRAMGB = (nav as any)?.deviceMemory || 2;
   const simdSupported = checkSimdSupport();
   const fileSystemAccessAPI = typeof window !== 'undefined' && 'showSaveFilePicker' in window;
 

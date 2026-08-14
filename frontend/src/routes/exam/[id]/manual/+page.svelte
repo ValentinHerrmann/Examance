@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from "$app/navigation";
   import "./+page.css";
   import { page } from "$app/stores";
   import { onMount } from "svelte";
@@ -14,7 +15,8 @@
 
   onMount(async () => {
     if (!get(isUnlocked)) {
-      await sessionStore.initAnonymousSession();
+      await goto("/unlock");
+      return;
     }
     initialized = true;
   });

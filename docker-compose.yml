@@ -36,7 +36,10 @@ services:
       DATABASE_URL: postgresql+asyncpg://blindgrade:blindgrade@db:5432/blindgrade
       DATABASE_URL_SYNC: postgresql+psycopg2://blindgrade:blindgrade@db:5432/blindgrade
       REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: "CHANGE_ME_IN_PRODUCTION_USE_openssl_rand_hex_32"
+      # No default: compose refuses to start until SECRET_KEY is set in the
+      # environment or in a .env file next to this compose file.
+      # Generate one with: openssl rand -hex 32
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set — generate with "openssl rand -hex 32"}
       JWT_ALGORITHM: HS256
       ACCESS_TOKEN_TTL_MINUTES: 15
       REFRESH_TOKEN_TTL_DAYS: 7

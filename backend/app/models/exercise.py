@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING, Any
 
-from typing import TYPE_CHECKING
-
-from sqlalchemy import Enum, Float, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import JSON, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -44,7 +43,7 @@ class Exercise(Base):
         nullable=False,
         default="free_text",
     )
-    correct_answers: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    correct_answers: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     penalty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
     def __repr__(self) -> str:

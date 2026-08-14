@@ -73,7 +73,14 @@
       statusMsg = "Please enter a backend server address.";
       return;
     }
-    backendStore.saveSuccessfulBackendUrl(trimmed);
+    try {
+      backendStore.saveSuccessfulBackendUrl(trimmed);
+    } catch (err: any) {
+      // Rejected addresses must be reported, not swallowed: this value decides
+      // where session cookies and the login request are sent.
+      statusMsg = err?.message ?? "That backend server address is not valid.";
+      return;
+    }
     statusMsg = `Backend server address updated to: ${$effectiveBackendStore}`;
   }
 

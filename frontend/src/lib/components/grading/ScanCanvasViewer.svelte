@@ -12,6 +12,7 @@
    * pinch-zoom) so every function here is a close 1:1 port of the original.
    */
   import { tick } from "svelte";
+  import { loadPdfjs } from "$lib/pdf/pdfjs";
   import { get } from "svelte/store";
   import type { SubmissionRecord, ExerciseRecord } from "$lib/db/schema";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
@@ -168,10 +169,7 @@
         // PDF path: load with pdf.js and render current page
         pdfBytes = decryptedBytes;
 
-        const pdfjsLib = await import("pdfjs-dist");
-        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-        }
+        const pdfjsLib = await loadPdfjs();
 
         pdfDoc = await pdfjsLib.getDocument({ data: decryptedBytes }).promise;
         gradingStore.setPdfPaging(1, pdfDoc.numPages, true);

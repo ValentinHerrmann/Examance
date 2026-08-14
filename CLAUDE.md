@@ -62,6 +62,10 @@ Tracked source is tiny (172 files in `frontend/src`, 44 in `backend/app`, ~1 MB)
 
 Frontend → **Cloudflare Pages** via git integration (build `npm run build` in `frontend/`, output `frontend/build/`). Origins `examance.pages.dev` plus a custom domain under `valentin-herrmann.com`, both CORS-allowed. No `wrangler.toml` or CF deploy step in-repo — dashboard-managed. Backend hosting isn't declared in-repo; don't assume where it runs.
 
+Response headers come from `frontend/static/_headers`, which is a **template**: `npm run build` runs `scripts/generate-csp-headers.mjs`, which replaces the `__INLINE_SCRIPT_HASHES__` token in `script-src` with the SHA-256 of every inline script in `build/**/*.html`. Never hard-code a `sha256-` literal there — SvelteKit's inline bootstrap embeds the content-hashed entry chunk filenames, so its hash changes with any bundle change (including a dependency or Node version difference between your machine and the Pages build image) and a pinned hash takes the deployed app down with "Executing inline script violates the following Content Security Policy directive". `tests/cspHeaders.test.ts` guards this.
+
+The policy is `script-src 'self'` with no CDN allowances: third-party assets (e.g. the pdf.js worker, see `src/lib/pdf/pdfjs.ts`) must be bundled and served from our own origin — required by the CSP and by the "no third-party transfer" claims in `docs/`.
+
 ## Multiple Choice (MC) Data Model
 
 - **MC Question**: An individual `Exercise` / `ExerciseRecord` (`question_type: mc|sc|tf`, `correct_answers` JSON / `options` & `correctAnswers` arrays, `penalty`). Reuses the standard `exercise_group_id` + `variant_key` mechanism for variants.
@@ -70,7 +74,7 @@ Frontend → **Cloudflare Pages** via git integration (build `npm run build` in 
 
 ## Environment
 
-`backend/.env.example` → `backend/.env`. Postgres + Redis via `docker-compose.yml`. `CORS_ALLOWED_ORIGINS` defaults to `http://localhost:5173` + `https://examance.pages.dev`, plus `CORS_ALLOWED_ORIGIN_REGEX` for `*.valentin-herrmann.com`. No wildcard fallback; an empty list is a hard startup error (`require_cors_origins`, `backend/app/config.py`). Override explicitly for any other origin.
+`backend/.env.example` → `backend/.env`. Postgres + Redis via `docker-compose.yml`. `CORS_ALLOWED_ORIGINS` defaults to `http://localhost:5173` + `https://examance.pages.dev`, plus `CORS_ALLOWED_ORIGIN_REGEX` covering `*.valentin-herrmann.com` and `*.examance.pages.dev` preview subdomains. In development (`ENVIRONMENT=development`), `effective_cors_origin_regex` dynamically allows arbitrary loopback/localhost ports. No wildcard fallback; an empty list is a hard startup error (`require_cors_origins`, `backend/app/config.py`). Override explicitly for any other origin.
 
 ## Standing instructions
 - **Prefer cheaper models** for mechanical or well-defined work; aggressively hand-off work to cheaper models; expensive models are on a tight budget! Escalate only when reasoning complexity really demands it.
@@ -84,3 +88,4 @@ Frontend → **Cloudflare Pages** via git integration (build `npm run build` in 
 - Don't run non-terminating npm commands (dev servers, watch mode) unless asked.
 - If you find out something, which should be known for future agent-sessions (e.g. structural or constraints), add it to CLAUDE.MD but do no clutter it!
 - **NEVER USE WRITING GIT COMMANDS!** (like commit, push, branch, ...)
+- **Following mode strictly**: Never edit files in planning mode!

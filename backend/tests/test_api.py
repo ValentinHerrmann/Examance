@@ -24,7 +24,7 @@ async def _create_teacher_and_login(client: AsyncClient, db: AsyncSession, email
 
     login_resp = await client.post(
         "/api/v1/auth/register",
-        json={"email": email, "password": "Password123!", "invite_token": raw_token},
+        json={"email": email, "password": "Password123!-ok", "invite_token": raw_token},
     )
     client.cookies.update(login_resp.cookies)
 
@@ -34,7 +34,7 @@ async def _create_teacher_and_login(client: AsyncClient, db: AsyncSession, email
         await db.execute(update(Teacher).where(Teacher.email == email).values(role="admin"))
         await db.commit()
         # Re-login to get updated token
-        login_resp2 = await client.post("/api/v1/auth/login", json={"email": email, "password": "Password123!"})
+        login_resp2 = await client.post("/api/v1/auth/login", json={"email": email, "password": "Password123!-ok"})
         client.cookies.update(login_resp2.cookies)
 
 
@@ -545,30 +545,45 @@ async def test_exercise_usage_and_deletion(client: AsyncClient, db: AsyncSession
 
 @pytest.mark.asyncio
 async def test_cors_preflight_origins(client: AsyncClient) -> None:
-    # 1. Cloudflare pages origin
+    """
+    Preflight must reflect whatever origin allowlist is configured.
+
+    Driven off `settings` rather than hardcoded production hostnames: CI narrows
+    CORS_ALLOWED_ORIGINS to localhost, so asserting against examance.pages.dev
+    made the test depend on ambient configuration rather than on behaviour.
+    """
+    from app.config import settings
+
+    allowed = settings.CORS_ALLOWED_ORIGINS[0]
+
+    # 1. An explicitly allowlisted origin is echoed back.
     resp = await client.options(
         "/api/v1/auth/login",
         headers={
-            "Origin": "https://examance.pages.dev",
+            "Origin": allowed,
             "Access-Control-Request-Method": "POST",
             "Access-Control-Request-Headers": "content-type",
         },
     )
     assert resp.status_code == 200
-    assert resp.headers.get("access-control-allow-origin") == "https://examance.pages.dev"
+    assert resp.headers.get("access-control-allow-origin") == allowed
 
-    # 2. valentin-herrmann.com subdomain
-    resp_sub = await client.options(
-        "/api/v1/auth/login",
-        headers={
-            "Origin": "https://sub.valentin-herrmann.com",
-            "Access-Control-Request-Method": "POST",
-        },
-    )
-    assert resp_sub.status_code == 200
-    assert resp_sub.headers.get("access-control-allow-origin") == "https://sub.valentin-herrmann.com"
+    # 2. An origin matching effective_cors_origin_regex, when one is configured.
+    if settings.effective_cors_origin_regex:
+        resp_sub = await client.options(
+            "/api/v1/auth/login",
+            headers={
+                "Origin": "https://sub.valentin-herrmann.com",
+                "Access-Control-Request-Method": "POST",
+            },
+        )
+        assert resp_sub.status_code == 200
+        assert (
+            resp_sub.headers.get("access-control-allow-origin")
+            == "https://sub.valentin-herrmann.com"
+        )
 
-    # 3. Unauthorized origin
+    # 3. An unlisted origin is never echoed back.
     resp_unauth = await client.options(
         "/api/v1/auth/login",
         headers={
@@ -577,6 +592,16 @@ async def test_cors_preflight_origins(client: AsyncClient) -> None:
         },
     )
     assert resp_unauth.headers.get("access-control-allow-origin") is None
+
+    # 4. The regex must not be suffix-extendable.
+    resp_suffix = await client.options(
+        "/api/v1/auth/login",
+        headers={
+            "Origin": "https://sub.valentin-herrmann.com.attacker.test",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    assert resp_suffix.headers.get("access-control-allow-origin") is None
 
 
 async def test_list_student_identities(
@@ -606,8 +631,8 @@ async def test_list_student_identities(
         json={
             "pseudonym_hmac": pseudonym_hmac,
             "pii_ciphertext_b64": base64.b64encode(b"fake-encrypted-pii").decode(),
-            "iv_b64": base64.b64encode(secrets.token_bytes(16)).decode(),
-            "encryption_salt_b64": base64.b64encode(secrets.token_bytes(32)).decode(),
+            "iv_b64": base64.b64encode(secrets.token_bytes(12)).decode(),
+            "encryption_salt_b64": base64.b64encode(secrets.token_bytes(16)).decode(),
         },
     )
     assert st_resp.status_code == 201
@@ -648,8 +673,8 @@ async def test_create_exam_wrong_method(
         json={
             "pseudonym_hmac": pseudonym_hmac,
             "pii_ciphertext_b64": base64.b64encode(b"fake-encrypted-pii").decode(),
-            "iv_b64": base64.b64encode(secrets.token_bytes(16)).decode(),
-            "encryption_salt_b64": base64.b64encode(secrets.token_bytes(32)).decode(),
+            "iv_b64": base64.b64encode(secrets.token_bytes(12)).decode(),
+            "encryption_salt_b64": base64.b64encode(secrets.token_bytes(16)).decode(),
         },
     )
     assert st_resp.status_code == 201
@@ -662,8 +687,8 @@ async def test_create_exam_wrong_method(
             json={
                 "pseudonym_hmac": pseudonym_hmac,
                 "pii_ciphertext_b64": base64.b64encode(b"fake-encrypted-pii").decode(),
-                "iv_b64": base64.b64encode(secrets.token_bytes(16)).decode(),
-                "encryption_salt_b64": base64.b64encode(secrets.token_bytes(32)).decode(),
+                "iv_b64": base64.b64encode(secrets.token_bytes(12)).decode(),
+                "encryption_salt_b64": base64.b64encode(secrets.token_bytes(16)).decode(),
             },
         )
         assert st_resp2.status_code == 401

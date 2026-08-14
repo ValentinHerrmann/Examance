@@ -28,11 +28,26 @@ if (!existsSync(manifestPath)) {
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
 let hasErrors = false;
 
+// Placeholders are only tolerated while the control is explicitly declared
+// unimplemented. Once `enforced` is true they fail the build, so this step can
+// never report success without actually having verified something.
+const enforced = manifest.enforced === true;
+if (!enforced) {
+  console.warn(
+    '\n[SRI] NOT ENFORCED — sri-manifest.json declares "enforced": false.\n' +
+    '      No WASM binary is vendored in static/wasm/, so nothing is verified.\n' +
+    '      This step is reporting the absence of a control, not its success.\n'
+  );
+}
+
 // 1. Verify WASM section
 if (manifest.wasm) {
   for (const [pkg, expectedHash] of Object.entries(manifest.wasm)) {
     if (expectedHash.includes('PLACEHOLDER')) {
-      console.warn(`[SRI Warning] ${pkg} has placeholder hash.`);
+      if (enforced) {
+        console.error(`[SRI] ${pkg} still has a placeholder hash — refusing to pass.`);
+        hasErrors = true;
+      }
       continue;
     }
     // Clean name from package key
@@ -59,7 +74,10 @@ if (manifest.js) {
   const buildAssetsDir = join(root, 'build', 'assets');
   for (const [pkg, expectedHash] of Object.entries(manifest.js)) {
     if (expectedHash.includes('PLACEHOLDER')) {
-      console.warn(`[SRI Warning] ${pkg} has placeholder hash.`);
+      if (enforced) {
+        console.error(`[SRI] ${pkg} still has a placeholder hash — refusing to pass.`);
+        hasErrors = true;
+      }
       continue;
     }
     if (!existsSync(buildAssetsDir)) {

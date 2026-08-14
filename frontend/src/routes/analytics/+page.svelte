@@ -2,7 +2,7 @@
   import "./+page.css";
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
-  import { afterNavigate } from '$app/navigation';
+  import { afterNavigate, goto } from '$app/navigation';
   import { get } from 'svelte/store';
   import { sessionStore, isUnlocked } from '$lib/stores/session';
   import { db } from '$lib/db/db';
@@ -47,7 +47,8 @@
   onMount(async () => {
     try {
       if (!$isUnlocked) {
-        await sessionStore.initAnonymousSession();
+        await goto("/unlock");
+        return;
       }
       await triggerAnalyticsLoad();
     } finally {

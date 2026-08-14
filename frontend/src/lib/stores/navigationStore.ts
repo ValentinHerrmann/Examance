@@ -54,3 +54,14 @@ export function isGradeActivePath(pathname: string): boolean {
 export function isUnlockPath(pathname: string): boolean {
   return pathname === "/unlock";
 }
+
+/**
+ * Paths that must render without an unlocked session.
+ *
+ * The Impressum and the Datenschutzerklärung have to be reachable by anyone,
+ * without logging in (§ 5 DDG, Art. 12 DSGVO) — redirecting them to /unlock
+ * would defeat their purpose.
+ */
+export function isPublicPath(pathname: string): boolean {
+  return isUnlockPath(pathname) || pathname.startsWith("/legal");
+}

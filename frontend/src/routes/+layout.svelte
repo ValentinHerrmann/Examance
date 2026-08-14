@@ -13,8 +13,9 @@
     storagePolicyLabelStore,
     storagePolicyBadgeStore,
   } from "$lib/stores/storagePolicy";
+  import { safeLocalStorage } from "$lib/utils/storage";
   import { effectiveBackendStore } from "$lib/stores/backendStore";
-  import { registerNavigationGuard, isGradeActivePath, isUnlockPath } from "$lib/stores/navigationStore";
+  import { registerNavigationGuard, isGradeActivePath, isPublicPath } from "$lib/stores/navigationStore";
   import {
     openBgprojArchive,
     exportBgprojArchive,
@@ -37,7 +38,7 @@
 
   $: isGradeActive = isGradeActivePath($page.url.pathname);
 
-  $: if (!isInitializing && !$isUnlocked && typeof window !== "undefined" && !isUnlockPath($page.url.pathname)) {
+  $: if (!isInitializing && !$isUnlocked && typeof window !== "undefined" && !isPublicPath($page.url.pathname)) {
     goto("/unlock");
   }
 
@@ -65,13 +66,9 @@
     }
 
     const isLockedInStorage =
-      typeof localStorage !== "undefined" &&
-      localStorage.getItem("bg_session_locked") === "true";
+      safeLocalStorage.getItem("bg_session_locked") === "true";
 
-    const savedMode =
-      typeof localStorage !== "undefined"
-        ? localStorage.getItem("bg_session_mode")
-        : null;
+    const savedMode = safeLocalStorage.getItem("bg_session_mode");
 
     const policy = get(storagePolicyStore);
 
@@ -86,18 +83,11 @@
           return;
         }
       }
-    } else if (
-      isLockedInStorage ||
-      savedMode === "authenticated" ||
-      policy.storageMode === "all-server"
-    ) {
-      if (!get(isUnlocked) && $page.url.pathname !== "/unlock") {
-        await goto("/unlock");
-      }
-    } else {
-      if (!get(isUnlocked)) {
-        await sessionStore.initAnonymousSession();
-      }
+    } else if (!get(isUnlocked) && !isPublicPath($page.url.pathname)) {
+      // Local mode no longer auto-unlocks: its keys come from a passphrase the
+      // user supplies, and nothing derived from it is persisted. Every locked
+      // session therefore goes through /unlock, whichever mode it is in.
+      await goto("/unlock");
     }
     isInitializing = false;
   });
@@ -197,6 +187,13 @@
     <slot />
   </main>
 
+  <!-- § 5 DDG requires the Impressum to be reachable from every page. -->
+  <nav class="legal-links" aria-label="Rechtliche Hinweise">
+    <a href="/legal/impressum">Impressum</a>
+    <span aria-hidden="true">·</span>
+    <a href="/legal/datenschutz">Datenschutz</a>
+  </nav>
+
   <StatusBar
     onStorageClick={handleFooterClick}
     policyIcon={$storagePolicyBadgeStore.icon}
@@ -210,3 +207,24 @@
     on:close={() => (isSettingsModalOpen = false)}
   />
 </div>
+
+<style>
+  .legal-links {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    color: #64748b;
+  }
+
+  .legal-links a {
+    color: #94a3b8;
+    text-decoration: none;
+  }
+
+  .legal-links a:hover {
+    color: #e2e8f0;
+    text-decoration: underline;
+  }
+</style>

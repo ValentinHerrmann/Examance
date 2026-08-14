@@ -16,6 +16,7 @@ import { writable, derived, get } from 'svelte/store';
 import { deriveKeyWithFallback, generateSalt } from '$lib/crypto/keyDerivation';
 import { deriveSessionKey, generateSessionNonce } from '$lib/crypto/sessionKey';
 import { uint8ArrayToBase64, base64ToUint8Array, toArrayBuffer } from '$lib/crypto/aesGcm';
+import { safeLocalStorage, safeSessionStorage } from '$lib/utils/storage';
 
 export interface SessionState {
   mode: 'local' | 'hybrid' | 'authenticated' | null;
@@ -24,6 +25,8 @@ export interface SessionState {
   sessionKey: CryptoKey | null;           // HKDF-derived AES-GCM key from masterKey + nonce
   fallbackSessionKey: CryptoKey | null;   // PBKDF2 alternative key for robust decryption
   fallbackMasterKeyRaw: Uint8Array | null;
+  legacySessionKey: CryptoKey | null;     // PBKDF2 @ old iteration count — DECRYPT ONLY
+  legacyMasterKeyRaw: Uint8Array | null;
   sessionNonce: Uint8Array | null;
   lockedAt: number | null;                // Unix ms
   isDirty: boolean;                       // Unsaved IDB changes
@@ -38,6 +41,8 @@ const INITIAL_STATE: SessionState = {
   sessionKey: null,
   fallbackSessionKey: null,
   fallbackMasterKeyRaw: null,
+  legacySessionKey: null,
+  legacyMasterKeyRaw: null,
   sessionNonce: null,
   lockedAt: null,
   isDirty: false,
@@ -50,11 +55,55 @@ const SESSION_STORAGE_KEYS = {
   SESSION_KEY: 'bg_session_key',
   FALLBACK_MASTER_KEY_RAW: 'bg_session_fallback_master_key_raw',
   FALLBACK_SESSION_KEY: 'bg_session_fallback_key',
+  LEGACY_MASTER_KEY_RAW: 'bg_session_legacy_master_key_raw',
+  LEGACY_SESSION_KEY: 'bg_session_legacy_key',
   SESSION_NONCE: 'bg_session_nonce',
   EMAIL: 'bg_session_email',
   ROLE: 'bg_session_role',
   MODE: 'bg_session_mode',
 } as const;
+
+/**
+ * localStorage keys for the local-only vault.
+ *
+ * SALT and NONCE are not secret — they are derivation parameters that must
+ * survive across sessions. LEGACY_PASSWORD is the pre-passphrase design: a
+ * random password kept in cleartext beside the data it protected. It is only
+ * ever read, to migrate such a vault, and is deleted once that succeeds.
+ */
+const LOCAL_VAULT_KEYS = {
+  SALT: 'bg_anon_salt',
+  NONCE: 'bg_anon_nonce',
+  LEGACY_PASSWORD: 'bg_anon_pwd',
+} as const;
+
+/** True when a local vault has been initialised on this device. */
+export function hasLocalVault(): boolean {
+  return safeLocalStorage.getItem(LOCAL_VAULT_KEYS.SALT) !== null;
+}
+
+/** True when this device still holds a vault keyed by the old stored password. */
+export function hasLegacyLocalVault(): boolean {
+  return safeLocalStorage.getItem(LOCAL_VAULT_KEYS.LEGACY_PASSWORD) !== null;
+}
+
+function readOrCreateLocalVaultParams(): { salt: Uint8Array; sessionNonce: Uint8Array } {
+  const saltB64 = safeLocalStorage.getItem(LOCAL_VAULT_KEYS.SALT);
+  const nonceB64 = safeLocalStorage.getItem(LOCAL_VAULT_KEYS.NONCE);
+
+  if (saltB64 && nonceB64) {
+    return {
+      salt: base64ToUint8Array(saltB64),
+      sessionNonce: base64ToUint8Array(nonceB64),
+    };
+  }
+
+  const salt = generateSalt();
+  const sessionNonce = generateSessionNonce();
+  safeLocalStorage.setItem(LOCAL_VAULT_KEYS.SALT, uint8ArrayToBase64(salt));
+  safeLocalStorage.setItem(LOCAL_VAULT_KEYS.NONCE, uint8ArrayToBase64(sessionNonce));
+  return { salt, sessionNonce };
+}
 
 async function exportSessionKeyToBase64(key: CryptoKey | null): Promise<string | null> {
   if (!key) return null;
@@ -89,8 +138,7 @@ async function importSessionKeyFromBase64(b64: string): Promise<CryptoKey> {
 }
 
 function clearSessionStorage() {
-  if (typeof sessionStorage === 'undefined') return;
-  Object.values(SESSION_STORAGE_KEYS).forEach((k) => sessionStorage.removeItem(k));
+  Object.values(SESSION_STORAGE_KEYS).forEach((k) => safeSessionStorage.removeItem(k));
 }
 
 async function saveToSessionStorage(params: {
@@ -98,45 +146,61 @@ async function saveToSessionStorage(params: {
   sessionKey: CryptoKey;
   fallbackSessionKey?: CryptoKey | null;
   fallbackMasterKeyRaw?: Uint8Array | null;
+  legacySessionKey?: CryptoKey | null;
+  legacyMasterKeyRaw?: Uint8Array | null;
   sessionNonce: Uint8Array;
   email?: string | null;
   role?: 'teacher' | 'admin' | null;
   mode: 'local' | 'hybrid' | 'authenticated';
 }) {
-  if (typeof sessionStorage === 'undefined') return;
+  if (!safeSessionStorage.isAvailable()) return;
   try {
     const sessionB64 = await exportSessionKeyToBase64(params.sessionKey);
     const fallbackB64 = await exportSessionKeyToBase64(params.fallbackSessionKey ?? null);
+    const legacyB64 = await exportSessionKeyToBase64(params.legacySessionKey ?? null);
 
     if (params.masterKeyRaw) {
-      sessionStorage.setItem(
+      safeSessionStorage.setItem(
         SESSION_STORAGE_KEYS.MASTER_KEY_RAW,
         uint8ArrayToBase64(params.masterKeyRaw)
       );
     }
     if (sessionB64) {
-      sessionStorage.setItem(SESSION_STORAGE_KEYS.SESSION_KEY, sessionB64);
+      safeSessionStorage.setItem(SESSION_STORAGE_KEYS.SESSION_KEY, sessionB64);
     }
     if (params.fallbackMasterKeyRaw) {
-      sessionStorage.setItem(
+      safeSessionStorage.setItem(
         SESSION_STORAGE_KEYS.FALLBACK_MASTER_KEY_RAW,
         uint8ArrayToBase64(params.fallbackMasterKeyRaw)
       );
     } else {
-      sessionStorage.removeItem(SESSION_STORAGE_KEYS.FALLBACK_MASTER_KEY_RAW);
+      safeSessionStorage.removeItem(SESSION_STORAGE_KEYS.FALLBACK_MASTER_KEY_RAW);
     }
     if (fallbackB64) {
-      sessionStorage.setItem(SESSION_STORAGE_KEYS.FALLBACK_SESSION_KEY, fallbackB64);
+      safeSessionStorage.setItem(SESSION_STORAGE_KEYS.FALLBACK_SESSION_KEY, fallbackB64);
     } else {
-      sessionStorage.removeItem(SESSION_STORAGE_KEYS.FALLBACK_SESSION_KEY);
+      safeSessionStorage.removeItem(SESSION_STORAGE_KEYS.FALLBACK_SESSION_KEY);
     }
-    sessionStorage.setItem(
+    if (params.legacyMasterKeyRaw) {
+      safeSessionStorage.setItem(
+        SESSION_STORAGE_KEYS.LEGACY_MASTER_KEY_RAW,
+        uint8ArrayToBase64(params.legacyMasterKeyRaw)
+      );
+    } else {
+      safeSessionStorage.removeItem(SESSION_STORAGE_KEYS.LEGACY_MASTER_KEY_RAW);
+    }
+    if (legacyB64) {
+      safeSessionStorage.setItem(SESSION_STORAGE_KEYS.LEGACY_SESSION_KEY, legacyB64);
+    } else {
+      safeSessionStorage.removeItem(SESSION_STORAGE_KEYS.LEGACY_SESSION_KEY);
+    }
+    safeSessionStorage.setItem(
       SESSION_STORAGE_KEYS.SESSION_NONCE,
       uint8ArrayToBase64(params.sessionNonce)
     );
-    sessionStorage.setItem(SESSION_STORAGE_KEYS.MODE, params.mode);
-    if (params.email) sessionStorage.setItem(SESSION_STORAGE_KEYS.EMAIL, params.email);
-    if (params.role) sessionStorage.setItem(SESSION_STORAGE_KEYS.ROLE, params.role);
+    safeSessionStorage.setItem(SESSION_STORAGE_KEYS.MODE, params.mode);
+    if (params.email) safeSessionStorage.setItem(SESSION_STORAGE_KEYS.EMAIL, params.email);
+    if (params.role) safeSessionStorage.setItem(SESSION_STORAGE_KEYS.ROLE, params.role);
   } catch (err) {
     console.warn('[SessionStore] Could not save keys to sessionStorage:', err);
   }
@@ -205,18 +269,18 @@ function createSessionStore() {
       sessionKey: CryptoKey;
       fallbackSessionKey?: CryptoKey | null;
       fallbackMasterKeyRaw?: Uint8Array | null;
+      legacySessionKey?: CryptoKey | null;
+      legacyMasterKeyRaw?: Uint8Array | null;
       sessionNonce: Uint8Array;
       email?: string;
       role?: 'teacher' | 'admin';
       mode?: 'local' | 'hybrid' | 'authenticated';
     }) {
       const mode = params.mode ?? 'authenticated';
-      if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem('bg_session_locked');
-        localStorage.setItem('bg_session_mode', mode);
-        if (params.email) {
-          localStorage.setItem('bg_user_email', params.email);
-        }
+      safeLocalStorage.removeItem('bg_session_locked');
+      safeLocalStorage.setItem('bg_session_mode', mode);
+      if (params.email) {
+        safeLocalStorage.setItem('bg_user_email', params.email);
       }
 
       await saveToSessionStorage({
@@ -224,6 +288,8 @@ function createSessionStore() {
         sessionKey: params.sessionKey,
         fallbackSessionKey: params.fallbackSessionKey,
         fallbackMasterKeyRaw: params.fallbackMasterKeyRaw,
+        legacySessionKey: params.legacySessionKey,
+        legacyMasterKeyRaw: params.legacyMasterKeyRaw,
         sessionNonce: params.sessionNonce,
         email: params.email,
         role: params.role,
@@ -238,6 +304,8 @@ function createSessionStore() {
         sessionKey: params.sessionKey,
         fallbackSessionKey: params.fallbackSessionKey ?? null,
         fallbackMasterKeyRaw: params.fallbackMasterKeyRaw ?? null,
+        legacySessionKey: params.legacySessionKey ?? null,
+        legacyMasterKeyRaw: params.legacyMasterKeyRaw ?? null,
         sessionNonce: params.sessionNonce,
         lockedAt: null,
         email: params.email ?? s.email,
@@ -247,12 +315,12 @@ function createSessionStore() {
 
     /** Restore session keys from tab-isolated sessionStorage across F5 reloads. */
     async restoreFromSessionStorage(): Promise<boolean> {
-      if (typeof sessionStorage === 'undefined') return false;
+      if (!safeSessionStorage.isAvailable()) return false;
 
-      const masterRawB64 = sessionStorage.getItem(SESSION_STORAGE_KEYS.MASTER_KEY_RAW);
-      const sessionB64 = sessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION_KEY);
-      const nonceB64 = sessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION_NONCE);
-      const mode = sessionStorage.getItem(SESSION_STORAGE_KEYS.MODE) as SessionState['mode'];
+      const masterRawB64 = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.MASTER_KEY_RAW);
+      const sessionB64 = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION_KEY);
+      const nonceB64 = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION_NONCE);
+      const mode = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.MODE) as SessionState['mode'];
 
       if (!sessionB64 || !nonceB64 || !mode) {
         return false;
@@ -269,8 +337,8 @@ function createSessionStore() {
           masterKey = await importMasterKeyFromRawBytes(masterKeyRaw);
         }
 
-        const fallbackB64 = sessionStorage.getItem(SESSION_STORAGE_KEYS.FALLBACK_SESSION_KEY);
-        const fallbackMasterRawB64 = sessionStorage.getItem(SESSION_STORAGE_KEYS.FALLBACK_MASTER_KEY_RAW);
+        const fallbackB64 = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.FALLBACK_SESSION_KEY);
+        const fallbackMasterRawB64 = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.FALLBACK_MASTER_KEY_RAW);
         let fallbackSessionKey: CryptoKey | null = null;
         let fallbackMasterKeyRaw: Uint8Array | null = null;
         if (fallbackB64) {
@@ -280,8 +348,19 @@ function createSessionStore() {
           fallbackMasterKeyRaw = base64ToUint8Array(fallbackMasterRawB64);
         }
 
-        const email = sessionStorage.getItem(SESSION_STORAGE_KEYS.EMAIL);
-        const role = sessionStorage.getItem(SESSION_STORAGE_KEYS.ROLE) as SessionState['role'];
+        const legacyB64 = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.LEGACY_SESSION_KEY);
+        const legacyMasterRawB64 = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.LEGACY_MASTER_KEY_RAW);
+        let legacySessionKey: CryptoKey | null = null;
+        let legacyMasterKeyRaw: Uint8Array | null = null;
+        if (legacyB64) {
+          legacySessionKey = await importSessionKeyFromBase64(legacyB64);
+        }
+        if (legacyMasterRawB64) {
+          legacyMasterKeyRaw = base64ToUint8Array(legacyMasterRawB64);
+        }
+
+        const email = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.EMAIL);
+        const role = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.ROLE) as SessionState['role'];
 
         update((s) => ({
           ...s,
@@ -291,6 +370,8 @@ function createSessionStore() {
           sessionKey,
           fallbackSessionKey,
           fallbackMasterKeyRaw,
+          legacySessionKey,
+          legacyMasterKeyRaw,
           sessionNonce,
           lockedAt: null,
           email: email ?? s.email,
@@ -315,6 +396,9 @@ function createSessionStore() {
       if (!ch) return false;
 
       return new Promise<boolean>((resolve) => {
+        // `handler` closes over `timer` and the timeout callback closes over
+        // `handler`, so the declaration cannot be merged with its assignment.
+        // eslint-disable-next-line prefer-const
         let timer: ReturnType<typeof setTimeout>;
 
         const handler = async (event: MessageEvent) => {
@@ -384,46 +468,52 @@ function createSessionStore() {
       });
     },
 
-    /** Automatically unlock an anonymous local session with persistent keys in localStorage. */
-    async initAnonymousSession(force = false) {
-      if (typeof localStorage === 'undefined') return;
-
-      if (!force && localStorage.getItem('bg_session_locked') === 'true') {
-        return;
+    /**
+     * Unlock the local-only workspace from a user-supplied passphrase.
+     *
+     * The passphrase is never persisted. Only the salt and the session nonce
+     * are kept in localStorage; neither is secret, and both are required to
+     * re-derive the same keys on the next unlock.
+     *
+     * Earlier builds generated a random password and stored it in localStorage
+     * next to the encrypted IndexedDB it protected, which meant encryption at
+     * rest offered no protection against anyone holding the browser profile.
+     * A vault created that way is detected by `hasLegacyLocalVault()` and
+     * migrated by `migrateLegacyLocalVault()`.
+     */
+    async unlockLocalSession(passphrase: string) {
+      if (!passphrase) {
+        throw new Error('A passphrase is required to unlock the local workspace.');
       }
 
-      let pwd = localStorage.getItem('bg_anon_pwd');
-      let saltB64 = localStorage.getItem('bg_anon_salt');
-      let nonceB64 = localStorage.getItem('bg_anon_nonce');
-      let salt: Uint8Array;
-      let sessionNonce: Uint8Array;
+      const { salt, sessionNonce } = readOrCreateLocalVaultParams();
+      const {
+        masterKey,
+        rawMasterKey,
+        fallbackMasterKey,
+        rawFallbackMasterKey,
+        legacyMasterKey,
+        rawLegacyMasterKey,
+      } = await deriveKeyWithFallback(passphrase, salt);
 
-      if (!pwd || !saltB64 || !nonceB64) {
-        pwd = crypto.randomUUID() + '-' + crypto.randomUUID();
-        salt = generateSalt();
-        sessionNonce = generateSessionNonce();
-        localStorage.setItem('bg_anon_pwd', pwd);
-        localStorage.setItem('bg_anon_salt', btoa(String.fromCharCode(...salt)));
-        localStorage.setItem('bg_anon_nonce', btoa(String.fromCharCode(...sessionNonce)));
-      } else {
-        salt = new Uint8Array(atob(saltB64).split('').map((c) => c.charCodeAt(0)));
-        sessionNonce = new Uint8Array(atob(nonceB64).split('').map((c) => c.charCodeAt(0)));
-      }
-
-      const { masterKey, rawMasterKey, fallbackMasterKey, rawFallbackMasterKey } = await deriveKeyWithFallback(pwd, salt);
       const sessionKey = await deriveSessionKey(masterKey, sessionNonce);
       const fallbackSessionKey = fallbackMasterKey
         ? await deriveSessionKey(fallbackMasterKey, sessionNonce)
         : null;
+      const legacySessionKey = legacyMasterKey
+        ? await deriveSessionKey(legacyMasterKey, sessionNonce)
+        : null;
 
-      localStorage.removeItem('bg_session_locked');
-      localStorage.setItem('bg_session_mode', 'local');
+      safeLocalStorage.removeItem('bg_session_locked');
+      safeLocalStorage.setItem('bg_session_mode', 'local');
 
       await saveToSessionStorage({
         masterKeyRaw: rawMasterKey,
         sessionKey,
         fallbackSessionKey,
         fallbackMasterKeyRaw: rawFallbackMasterKey,
+        legacySessionKey,
+        legacyMasterKeyRaw: rawLegacyMasterKey,
         sessionNonce,
         mode: 'local',
       });
@@ -436,7 +526,84 @@ function createSessionStore() {
         sessionKey,
         fallbackSessionKey,
         fallbackMasterKeyRaw: rawFallbackMasterKey,
+        legacySessionKey,
+        legacyMasterKeyRaw: rawLegacyMasterKey,
         sessionNonce,
+        lockedAt: null,
+        email: null,
+        role: null,
+      }));
+    },
+
+    /**
+     * Migrate a vault created by the old "password in localStorage" design.
+     *
+     * Re-encrypts every record from the generated password's key to a key
+     * derived from *newPassphrase*, then deletes the stored password. On any
+     * failure nothing is deleted and the old password still opens the vault,
+     * so the migration is safe to retry.
+     */
+    async migrateLegacyLocalVault(newPassphrase: string) {
+      if (!newPassphrase) {
+        throw new Error('A passphrase is required to migrate the local workspace.');
+      }
+      if (!safeLocalStorage.isAvailable()) {
+        throw new Error('Local storage is unavailable.');
+      }
+
+      const legacyPassword = safeLocalStorage.getItem(LOCAL_VAULT_KEYS.LEGACY_PASSWORD);
+      if (!legacyPassword) {
+        throw new Error('No legacy local workspace to migrate.');
+      }
+
+      const { salt: oldSalt, sessionNonce: oldNonce } = readOrCreateLocalVaultParams();
+
+      // Old key: whatever the previous build would have derived.
+      const oldDerived = await deriveKeyWithFallback(legacyPassword, oldSalt);
+      const oldSessionKey = await deriveSessionKey(oldDerived.masterKey, oldNonce);
+
+      // New key: fresh salt and nonce, so the new vault shares no derivation
+      // parameters with the compromised one.
+      const newSalt = generateSalt();
+      const newNonce = generateSessionNonce();
+      const newDerived = await deriveKeyWithFallback(newPassphrase, newSalt);
+      const newSessionKey = await deriveSessionKey(newDerived.masterKey, newNonce);
+
+      const { rekeyDatabase } = await import('$lib/db/rekey');
+      await rekeyDatabase(oldSessionKey, newSessionKey);
+
+      // Only now is the cleartext password removed and the parameters swapped.
+      safeLocalStorage.setItem(LOCAL_VAULT_KEYS.SALT, uint8ArrayToBase64(newSalt));
+      safeLocalStorage.setItem(LOCAL_VAULT_KEYS.NONCE, uint8ArrayToBase64(newNonce));
+      safeLocalStorage.removeItem(LOCAL_VAULT_KEYS.LEGACY_PASSWORD);
+
+      const fallbackSessionKey = newDerived.fallbackMasterKey
+        ? await deriveSessionKey(newDerived.fallbackMasterKey, newNonce)
+        : null;
+
+      safeLocalStorage.removeItem('bg_session_locked');
+      safeLocalStorage.setItem('bg_session_mode', 'local');
+
+      await saveToSessionStorage({
+        masterKeyRaw: newDerived.rawMasterKey,
+        sessionKey: newSessionKey,
+        fallbackSessionKey,
+        fallbackMasterKeyRaw: newDerived.rawFallbackMasterKey,
+        sessionNonce: newNonce,
+        mode: 'local',
+      });
+
+      update((s) => ({
+        ...s,
+        mode: 'local',
+        masterKey: newDerived.masterKey,
+        masterKeyRaw: newDerived.rawMasterKey,
+        sessionKey: newSessionKey,
+        fallbackSessionKey,
+        fallbackMasterKeyRaw: newDerived.rawFallbackMasterKey,
+        legacySessionKey: null,
+        legacyMasterKeyRaw: null,
+        sessionNonce: newNonce,
         lockedAt: null,
         email: null,
         role: null,
@@ -445,9 +612,7 @@ function createSessionStore() {
 
     /** Wipe all key material and lock UI across all tabs. */
     lock() {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('bg_session_locked', 'true');
-      }
+      safeLocalStorage.setItem('bg_session_locked', 'true');
       clearSessionStorage();
 
       if (syncChannel) {

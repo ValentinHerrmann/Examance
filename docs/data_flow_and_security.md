@@ -10,7 +10,11 @@ Examance uses a zero-knowledge, client-side encryption-at-rest model designed to
 
 ### Core Invariants
 1. **No Unauthenticated DevTools Access**: When a user is locked or logged out, browser DevTools inspection reveals **zero unencrypted text** (no LaTeX preamble/body, exam metadata, answer keys, fallback codes, or raw scores). Storage is either completely purged (`server-synced` mode) or stored as opaque AES-256-GCM binary ciphertexts (`local-only` mode).
-2. **Non-Extractable In-Memory Keys**: Crypto keys (`masterKey`, `sessionKey`) exist solely in volatile JavaScript memory as non-extractable Web Crypto `CryptoKey` handles. They are never written to LocalStorage, SessionStorage, or IndexedDB.
+2. **Key material is passphrase-derived and tab-scoped.** The master key is derived from a passphrase the user enters; **the passphrase itself is never persisted anywhere**. To survive an F5 reload, the derived `sessionKey` and master key bytes are written to **`sessionStorage`**, which is per-tab and cleared when the tab closes; they are also wiped on manual lock, on inactivity timeout, and on a lock broadcast from another tab. `localStorage` holds only the Argon2id salt, the session nonce, and non-secret UI state — never a key or a passphrase. **Nothing derived from the passphrase is written to IndexedDB.**
+
+   *This is a deliberate trade of key exposure for usability: while a tab is unlocked, script running on the origin can read the session key out of `sessionStorage`. The alternative — re-prompting on every reload — was judged worse for the grading workflow. It also means the vault is only as private as the browser profile is: anyone who can run script on this origin, or who reaches an already-unlocked tab, can read the data.*
+
+   *Earlier builds of the anonymous local mode generated a random password and stored it in `localStorage`, beside the IndexedDB it protected. That defeated encryption at rest entirely and has been removed; existing vaults are migrated on next unlock.*
 3. **Data Loss Prevention**: Edits and grading annotations are protected against tab closing/reloading (`beforeunload`) and SvelteKit client-side SPA navigation (`beforeNavigate` via `sessionStore.isDirty`).
 
 ---
@@ -33,7 +37,7 @@ flowchart TD
 ```
 
 ### Cryptographic Algorithms
-* **Key Derivation (Master Key)**: Argon2id (`time=3, memory=64MB, parallelism=4, hashLen=32`).
+* **Key Derivation (Master Key)**: Argon2id (`time=3, memory=64MB, parallelism=4, hashLen=32`). Where the Argon2 WASM module is unavailable, PBKDF2-HMAC-SHA-256 at 600,000 iterations is used instead (OWASP 2024 minimum). A decrypt-only path at the superseded 1,000-iteration parameter exists solely to open and re-encrypt vaults written before that increase.
 * **Session Key Derivation**: HKDF-SHA-256 combining `masterKey` and a fresh 12-byte `sessionNonce`.
 * **Symmetric Encryption**: AES-256-GCM with fresh 12-byte IV generated per operation via `crypto.getRandomValues`.
 
@@ -71,7 +75,7 @@ sequenceDiagram
 
     Note over Page,IDB: Active Session (Data Unlocked in Memory)
 
-    User->>Page: Lock Session / Inactivity Timeout (30 min)
+    User->>Page: Lock Session / Inactivity Timeout (60 min)
     Page->>Memory: Wipe Crypto Keys & Nonce from RAM
     alt Storage Policy == 'server-synced'
         Page->>IDB: Wipe IndexedDB (wipeDatabase())

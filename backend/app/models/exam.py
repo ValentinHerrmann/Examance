@@ -3,15 +3,12 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Date, DateTime, Enum, ForeignKey, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-
-
-from typing import TYPE_CHECKING
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
     from app.models.exercise import Exercise
@@ -46,7 +43,9 @@ class Exam(Base):
     lehrernachname: Mapped[str | None] = mapped_column(String(100), nullable=True)
     info_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    exercises: Mapped[list[Exercise]] = relationship("Exercise", backref="exam", cascade="all, delete-orphan")
+    exercises: Mapped[list[Exercise]] = relationship(
+        "Exercise", backref="exam", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"Exam(id={self.id!r}, title={self.title!r})"

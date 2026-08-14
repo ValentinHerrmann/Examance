@@ -1,5 +1,8 @@
+import { fileURLToPath } from 'node:url';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
+// defineConfig from vitest/config, not vite — it is the overload that knows
+// about the `test` block below.
+import { defineConfig } from 'vitest/config';
 import wasm from 'vite-plugin-wasm';
 import topLevelAwait from 'vite-plugin-top-level-await';
 import tailwindcss from '@tailwindcss/vite';
@@ -8,7 +11,7 @@ export default defineConfig({
   plugins: [tailwindcss(), wasm(), topLevelAwait(), sveltekit()],
   test: {
     alias: {
-      'argon2-browser': '/home/vale/_GITHUB/ValentinHerrmann/BlindGrade/frontend/tests/mocks/argon2Mock.ts',
+      'argon2-browser': fileURLToPath(new URL('./tests/mocks/argon2Mock.ts', import.meta.url)),
     },
   },
   worker: {

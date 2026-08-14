@@ -28,7 +28,7 @@ async def test_register_with_valid_invite(client: AsyncClient, db: AsyncSession)
     raw_token = await _create_invite(db)
     resp = await client.post(
         "/api/v1/auth/register",
-        json={"email": "teacher@example.com", "password": "s3cr3t!!", "invite_token": raw_token},
+        json={"email": "teacher@example.com", "password": "s3cr3t!!-min12", "invite_token": raw_token},
     )
     assert resp.status_code == 201
     body = resp.json()
@@ -43,7 +43,7 @@ async def test_register_with_valid_invite(client: AsyncClient, db: AsyncSession)
 async def test_register_with_invalid_invite(client: AsyncClient) -> None:
     resp = await client.post(
         "/api/v1/auth/register",
-        json={"email": "bad@example.com", "password": "s3cr3t!!", "invite_token": "not-a-real-token"},
+        json={"email": "bad@example.com", "password": "s3cr3t!!-min12", "invite_token": "not-a-real-token"},
     )
     assert resp.status_code == 401
 
@@ -53,7 +53,7 @@ async def test_register_with_expired_invite(client: AsyncClient, db: AsyncSessio
     raw_token = await _create_invite(db, days=-1)  # Already expired
     resp = await client.post(
         "/api/v1/auth/register",
-        json={"email": "exp@example.com", "password": "s3cr3t!!", "invite_token": raw_token},
+        json={"email": "exp@example.com", "password": "s3cr3t!!-min12", "invite_token": raw_token},
     )
     assert resp.status_code == 401
 
@@ -64,12 +64,12 @@ async def test_register_with_used_invite(client: AsyncClient, db: AsyncSession) 
     # Use it once
     await client.post(
         "/api/v1/auth/register",
-        json={"email": "first@example.com", "password": "s3cr3t!!", "invite_token": raw_token},
+        json={"email": "first@example.com", "password": "s3cr3t!!-min12", "invite_token": raw_token},
     )
     # Try to reuse
     resp = await client.post(
         "/api/v1/auth/register",
-        json={"email": "second@example.com", "password": "s3cr3t!!", "invite_token": raw_token},
+        json={"email": "second@example.com", "password": "s3cr3t!!-min12", "invite_token": raw_token},
     )
     assert resp.status_code == 401
 
@@ -79,11 +79,11 @@ async def test_login_success_and_cookie(client: AsyncClient, db: AsyncSession) -
     raw_token = await _create_invite(db)
     await client.post(
         "/api/v1/auth/register",
-        json={"email": "login@example.com", "password": "s3cr3t!!", "invite_token": raw_token},
+        json={"email": "login@example.com", "password": "s3cr3t!!-min12", "invite_token": raw_token},
     )
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "login@example.com", "password": "s3cr3t!!"},
+        json={"email": "login@example.com", "password": "s3cr3t!!-min12"},
     )
     assert resp.status_code == 200
     assert "access_token" in resp.cookies
@@ -95,13 +95,21 @@ async def test_login_success_and_cookie(client: AsyncClient, db: AsyncSession) -
 @pytest.mark.asyncio
 async def test_login_wrong_password(client: AsyncClient, db: AsyncSession) -> None:
     raw_token = await _create_invite(db)
-    await client.post(
+    registered = await client.post(
         "/api/v1/auth/register",
-        json={"email": "wrongpw@example.com", "password": "correct", "invite_token": raw_token},
+        json={
+            "email": "wrongpw@example.com",
+            "password": "correct-password",
+            "invite_token": raw_token,
+        },
     )
+    # Assert the account really exists, so the 401 below proves a rejected
+    # password rather than a missing user.
+    assert registered.status_code == 201, registered.text
+
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "wrongpw@example.com", "password": "WRONG"},
+        json={"email": "wrongpw@example.com", "password": "WRONG-but-long-enough"},
     )
     assert resp.status_code == 401
 
@@ -117,11 +125,11 @@ async def test_logout_clears_cookies(client: AsyncClient, db: AsyncSession) -> N
     raw_token = await _create_invite(db)
     await client.post(
         "/api/v1/auth/register",
-        json={"email": "logout@example.com", "password": "s3cr3t!!", "invite_token": raw_token},
+        json={"email": "logout@example.com", "password": "s3cr3t!!-min12", "invite_token": raw_token},
     )
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "logout@example.com", "password": "s3cr3t!!"},
+        json={"email": "logout@example.com", "password": "s3cr3t!!-min12"},
     )
     assert "access_token" in resp.cookies
 

@@ -3,11 +3,9 @@ from __future__ import annotations
 
 import math
 import uuid
-from typing import Annotated
-from typing import Literal, cast
+from typing import Annotated, Literal, cast
 
-from fastapi import APIRouter, Depends, Query, status
-from fastapi import HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,7 +41,9 @@ async def create_user(
     Password is Argon2id-hashed server-side. Duplicate emails are rejected.
     """
     normalized_email = body.email.strip().lower()
-    existing = await db.execute(select(Teacher).where(func.lower(Teacher.email) == normalized_email))
+    existing = await db.execute(
+        select(Teacher).where(func.lower(Teacher.email) == normalized_email)
+    )
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -105,7 +105,10 @@ async def get_exam_stats(
             mean_score=None,
             std_dev=None,
             k_anonymity_satisfied=False,
-            suppressed_reason=f"Class statistics suppressed: sample size ({count}) is less than k={K_ANONYMITY_THRESHOLD} threshold.",
+            suppressed_reason=(
+                f"Class statistics suppressed: sample size ({count}) is less "
+                f"than k={K_ANONYMITY_THRESHOLD} threshold."
+            ),
         )
 
     mean = sum(scores) / count

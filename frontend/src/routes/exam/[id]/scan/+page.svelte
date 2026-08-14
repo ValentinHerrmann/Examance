@@ -1,6 +1,7 @@
 <script lang="ts">
   import "./+page.css";
   import { page } from "$app/stores";
+  import { loadPdfjs } from "$lib/pdf/pdfjs";
   export let params;
   import { goto } from "$app/navigation";
   import { browser } from "$app/environment";
@@ -502,10 +503,7 @@
 
       if (isPdf) {
         // Original PDF path: render each page with pdf.js, draw annotations, embed as PNG
-        const pdfjsLib = await import("pdfjs-dist");
-        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-        }
+        const pdfjsLib = await loadPdfjs();
 
         const pdfDoc = await pdfjsLib.getDocument({ data: scanBytes }).promise;
 
@@ -743,10 +741,7 @@
     for (const file of files) {
       if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
         try {
-          const pdfjsLib = await import("pdfjs-dist");
-          if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-          }
+          const pdfjsLib = await loadPdfjs();
           const fileUrl = URL.createObjectURL(file);
           const loadingTask = pdfjsLib.getDocument({ url: fileUrl });
           const pdf = await loadingTask.promise;
