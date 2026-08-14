@@ -9,6 +9,20 @@ import { uint8ArrayToBase64, base64ToUint8Array } from '$lib/crypto/aesGcm';
 import { ensure64CharHex } from '$lib/crypto/hmac';
 import { examRepository } from '$lib/repositories/examRepository';
 
+export function mapApiToSubmissionRecord(s: any, fallbackExamId: string): SubmissionRecord {
+  return {
+    id: s.id,
+    examId: s.exam_id || fallbackExamId,
+    pseudonymHash: s.pseudonym_hmac || s.pseudonymHash,
+    totalScore: s.total_score ?? s.totalScore,
+    createdAt: s.created_at || s.createdAt || new Date().toISOString(),
+    scanCt: s.scan_ciphertext_b64 ? base64ToUint8Array(s.scan_ciphertext_b64) : undefined,
+    scanIv: s.scan_iv_b64 ? base64ToUint8Array(s.scan_iv_b64) : undefined,
+    annotationCt: s.annotation_ciphertext_b64 ? base64ToUint8Array(s.annotation_ciphertext_b64) : undefined,
+    annotationIv: s.annotation_iv_b64 ? base64ToUint8Array(s.annotation_iv_b64) : undefined,
+  };
+}
+
 export const submissionRepository = {
   async getAll(key: CryptoKey | null): Promise<SubmissionRecord[]> {
     const policy = get(storagePolicyStore);
@@ -22,17 +36,7 @@ export const submissionRepository = {
         const allSubmissions: SubmissionRecord[] = [];
         for (const exam of exams) {
           const rawList = await api.get<any[]>(`/exams/${exam.id}/submissions`);
-          allSubmissions.push(...rawList.map((s: any) => ({
-            id: s.id,
-            examId: s.exam_id || exam.id,
-            pseudonymHash: s.pseudonym_hmac || s.pseudonymHash,
-            totalScore: s.total_score ?? s.totalScore,
-            createdAt: s.created_at || s.createdAt || new Date().toISOString(),
-            scanCt: s.scan_ciphertext_b64 ? base64ToUint8Array(s.scan_ciphertext_b64) : undefined,
-            scanIv: s.scan_iv_b64 ? base64ToUint8Array(s.scan_iv_b64) : undefined,
-            annotationCt: s.annotation_ciphertext_b64 ? base64ToUint8Array(s.annotation_ciphertext_b64) : undefined,
-            annotationIv: s.annotation_iv_b64 ? base64ToUint8Array(s.annotation_iv_b64) : undefined,
-          })));
+          allSubmissions.push(...rawList.map((s: any) => mapApiToSubmissionRecord(s, exam.id)));
         }
         return allSubmissions;
       } catch {
@@ -49,17 +53,7 @@ export const submissionRepository = {
     } else {
       try {
         const rawList = await api.get<any[]>(`/exams/${examId}/submissions`);
-        return rawList.map((s: any) => ({
-          id: s.id,
-          examId: s.exam_id || examId,
-          pseudonymHash: s.pseudonym_hmac || s.pseudonymHash,
-          totalScore: s.total_score ?? s.totalScore,
-          createdAt: s.created_at || s.createdAt || new Date().toISOString(),
-          scanCt: s.scan_ciphertext_b64 ? base64ToUint8Array(s.scan_ciphertext_b64) : undefined,
-          scanIv: s.scan_iv_b64 ? base64ToUint8Array(s.scan_iv_b64) : undefined,
-          annotationCt: s.annotation_ciphertext_b64 ? base64ToUint8Array(s.annotation_ciphertext_b64) : undefined,
-          annotationIv: s.annotation_iv_b64 ? base64ToUint8Array(s.annotation_iv_b64) : undefined,
-        }));
+        return rawList.map((s: any) => mapApiToSubmissionRecord(s, examId));
       } catch {
         return [];
       }
@@ -74,17 +68,7 @@ export const submissionRepository = {
     } else {
       try {
         const s = await api.get<any>(`/exams/${examId}/submissions/${id}`);
-        return {
-          id: s.id,
-          examId: s.exam_id || examId,
-          pseudonymHash: s.pseudonym_hmac || s.pseudonymHash,
-          totalScore: s.total_score ?? s.totalScore,
-          createdAt: s.created_at || s.createdAt || new Date().toISOString(),
-          scanCt: s.scan_ciphertext_b64 ? base64ToUint8Array(s.scan_ciphertext_b64) : undefined,
-          scanIv: s.scan_iv_b64 ? base64ToUint8Array(s.scan_iv_b64) : undefined,
-          annotationCt: s.annotation_ciphertext_b64 ? base64ToUint8Array(s.annotation_ciphertext_b64) : undefined,
-          annotationIv: s.annotation_iv_b64 ? base64ToUint8Array(s.annotation_iv_b64) : undefined,
-        };
+        return mapApiToSubmissionRecord(s, examId);
       } catch {
         return null;
       }

@@ -43,6 +43,7 @@
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
   import { studentRepository } from "$lib/repositories/studentRepository";
+  import { mapApiToExamRecord } from "$lib/repositories/examRepository";
   import { uint8ArrayToBase64, decrypt } from "$lib/crypto/aesGcm";
   import { ensure64CharHex } from "$lib/crypto/hmac";
   import type {
@@ -132,22 +133,7 @@
       if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
         try {
           const remoteExam = (await api.get(`/exams/${id}`)) as any;
-          exam = {
-            id: remoteExam.id,
-            teacherId: remoteExam.teacher_id,
-            title: remoteExam.title,
-            testart: remoteExam.testart,
-            grade: remoteExam.grade,
-            klasse: remoteExam.klasse,
-            datum: remoteExam.datum,
-            nr: remoteExam.nr,
-            fach: remoteExam.fach,
-            lehrernachname: remoteExam.lehrernachname,
-            infoText: remoteExam.info_text,
-            retentionUntil: remoteExam.retention_until,
-            compilationStatus: remoteExam.compilation_status,
-            createdAt: remoteExam.created_at,
-          };
+          exam = mapApiToExamRecord(remoteExam);
           exercises = remoteExam.exercises.map((e: any) => normalizeMcExercise({
             id: e.id,
             name: e.name,

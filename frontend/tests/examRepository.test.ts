@@ -84,6 +84,55 @@ describe('examRepository mapping & saving', () => {
     expect(payload.grading_key).toEqual({ preset: 'linear_40', cutoffs: [] });
   });
 
+  it('maps every ExamRecord field from a full API response (regression test for dropped fields on reload)', () => {
+    const raw = {
+      id: 'ex-full',
+      teacher_id: 't-1',
+      title: 'Full Exam',
+      testart: 'Klausur',
+      grade: '10',
+      klasse: 'b',
+      datum: '14.08.2026',
+      nr: '2',
+      fach: 'Mathematik',
+      lehrernachname: 'Schmidt',
+      info_text: 'No calculator',
+      grading_key: { preset: 'linear_40', cutoffs: [{ minPercentage: 50, grade: '4' }] },
+      latex_preamble: '\\usepackage{amsmath}',
+      latex_template: '\\documentclass{article}',
+      num_versions: 2,
+      retention_until: '2027-08-14',
+      compilation_status: 'compiled',
+      created_at: '2026-08-01T00:00:00Z',
+    };
+
+    const mapped = mapApiToExamRecord(raw);
+
+    expect(mapped.gradingKey).toEqual(raw.grading_key);
+    expect(mapped.latexPreamble).toBe(raw.latex_preamble);
+    expect(mapped.latexTemplate).toBe(raw.latex_template);
+    expect(mapped.numVersions).toBe(raw.num_versions);
+    expect(mapped.compilationStatus).toBe('compiled');
+    expect(mapped.retentionUntil).toBe('2027-08-14');
+  });
+
+  it('getById maps grading_key from server response (guards against the [id] page reload bug)', async () => {
+    storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'server' });
+    (api.get as any).mockResolvedValue({
+      id: 'ex-1',
+      teacher_id: 't-1',
+      title: 'Test',
+      grading_key: { preset: 'even_split', cutoffs: [] },
+      retention_until: '2027-01-01',
+      compilation_status: 'pending',
+      created_at: '2026-01-01T00:00:00Z',
+    });
+
+    const exam = await examRepository.getById('ex-1', null);
+
+    expect(exam?.gradingKey).toEqual({ preset: 'even_split', cutoffs: [] });
+  });
+
   it('issues PATCH request for existing exam ID on save', async () => {
     (api.patch as any).mockResolvedValueOnce({ status: 'ok' });
 

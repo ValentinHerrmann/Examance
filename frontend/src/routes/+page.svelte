@@ -13,7 +13,7 @@
 
   import { storagePolicyStore } from '$lib/stores/storagePolicy';
   import { api } from '$lib/api/client';
-  import { examRepository } from '$lib/repositories/examRepository';
+  import { examRepository, mapApiToExamRecord } from '$lib/repositories/examRepository';
   import { submissionRepository } from '$lib/repositories/submissionRepository';
   import { offlineQueue } from '$lib/services/offlineQueue';
   import { goto } from '$app/navigation';
@@ -82,24 +82,7 @@
     if ($isAuthenticated && $storagePolicyStore.storageMode !== 'all-local') {
       try {
         const remoteExamsRaw = (await api.get('/exams')) as any[];
-        const remoteExams: ExamRecord[] = remoteExamsRaw.map((e: any) => ({
-          id: e.id,
-          teacherId: e.teacher_id,
-          title: e.title,
-          testart: e.testart || undefined,
-          grade: e.grade || undefined,
-          klasse: e.klasse || undefined,
-          datum: e.datum || undefined,
-          nr: e.nr || undefined,
-          fach: e.fach || undefined,
-          lehrernachname: e.lehrernachname || undefined,
-          infoText: e.info_text || undefined,
-          gradingKey: e.grading_key || undefined,
-          latexTemplate: e.latex_template || '',
-          compilationStatus: e.compilation_status || 'pending',
-          retentionUntil: e.retention_until || '',
-          createdAt: e.created_at || new Date().toISOString(),
-        }));
+        const remoteExams: ExamRecord[] = remoteExamsRaw.map(mapApiToExamRecord);
 
         // Check offline queue for pending exam creations
         const pendingQueue = get(offlineQueue);
