@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./UnlockForm.css";
+  import SuggestInput from "$lib/components/common/SuggestInput.svelte";
   export let backendUrl: string;
   export let email: string;
   export let password: string;
@@ -105,9 +106,9 @@
     <form on:submit|preventDefault={onUnlock} class="cloud-form">
       <div class="form-group">
         <label for="backendUrl">Backend Server URL</label>
-        <input
+        <SuggestInput
           id="backendUrl"
-          type="text"
+          storageKey="backend.url"
           bind:value={backendUrl}
           placeholder="e.g. http://localhost:8000"
           required

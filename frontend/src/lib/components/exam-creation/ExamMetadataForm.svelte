@@ -1,13 +1,35 @@
 <script lang="ts">
   import "./ExamMetadataForm.css";
+  import SuggestInput from "$lib/components/common/SuggestInput.svelte";
+  import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from "$lib/utils/examLabel";
   export let title: string;
   export let testart: string;
-  export let klasse: string;
+  export let grade: string = "";
+  export let klasse: string = "";
   export let nr: string;
   export let datum: string;
   export let fach: string;
   export let lehrernachname: string;
   export let infoText: string;
+
+  $: fullCoursePreview = formatExamCourse(grade, klasse);
+
+  let datumDate = "";
+  let dauer = "";
+  let lastSyncedDatum = "";
+
+  $: if (datum !== lastSyncedDatum) {
+    lastSyncedDatum = datum;
+    const parsed = parseDatumAndDauer(datum);
+    datumDate = parsed.datumDate;
+    dauer = parsed.dauer;
+  }
+
+  function handleDatumDateOrDauerChange() {
+    const formatted = formatDatumAndDauer(datumDate, dauer);
+    datum = formatted;
+    lastSyncedDatum = formatted;
+  }
 </script>
 
 <div class="exam-metadata-form-card">
@@ -24,12 +46,12 @@
     />
   </div>
 
-  <div class="exam-metadata-form-grid-3">
+  <div class="exam-metadata-form-grid-4">
     <div class="exam-metadata-form-group">
       <label for="testart">Testart (\Testart)</label>
-      <input
+      <SuggestInput
         id="testart"
-        type="text"
+        storageKey="exam.testart"
         bind:value={testart}
         placeholder="Kurzarbeit"
         required
@@ -37,13 +59,23 @@
     </div>
 
     <div class="exam-metadata-form-group">
-      <label for="klasse">Klasse (\Klasse)</label>
-      <input
-        id="klasse"
-        type="text"
-        bind:value={klasse}
-        placeholder="10a"
+      <label for="grade">Jahrgangsstufe (Grade)</label>
+      <SuggestInput
+        id="grade"
+        storageKey="exam.grade"
+        bind:value={grade}
+        placeholder="10"
         required
+      />
+    </div>
+
+    <div class="exam-metadata-form-group">
+      <label for="klasse">Klasse / Kurs</label>
+      <SuggestInput
+        id="klasse"
+        storageKey="exam.klasse"
+        bind:value={klasse}
+        placeholder="a"
       />
     </div>
 
@@ -53,23 +85,42 @@
     </div>
   </div>
 
-  <div class="exam-metadata-form-grid-3">
+  {#if fullCoursePreview}
+    <div class="course-preview-badge">
+      <span>Vorschau <code>\Klasse&#123;{fullCoursePreview}&#125;</code>:</span>
+      <span class="preview-badge-value">{fullCoursePreview}</span>
+    </div>
+  {/if}
+
+  <div class="exam-metadata-form-grid-4">
     <div class="exam-metadata-form-group">
-      <label for="datum">Datum & Dauer (\Datum)</label>
+      <label for="datumDate">Datum (\Datum)</label>
       <input
-        id="datum"
+        id="datumDate"
         type="text"
-        bind:value={datum}
-        placeholder="20.05.2025 (30 Min)"
+        bind:value={datumDate}
+        on:input={handleDatumDateOrDauerChange}
+        placeholder="20.05.2025"
         required
       />
     </div>
 
     <div class="exam-metadata-form-group">
+      <label for="dauer">Dauer</label>
+      <SuggestInput
+        id="dauer"
+        storageKey="exam.dauer"
+        bind:value={dauer}
+        on:input={handleDatumDateOrDauerChange}
+        placeholder="30 Min"
+      />
+    </div>
+
+    <div class="exam-metadata-form-group">
       <label for="fach">Fach (\Fach)</label>
-      <input
+      <SuggestInput
         id="fach"
-        type="text"
+        storageKey="exam.fach"
         bind:value={fach}
         placeholder="Informatik"
         required
@@ -78,9 +129,9 @@
 
     <div class="exam-metadata-form-group">
       <label for="lehrer">Lehrer Nachname (\Lehrernachname)</label>
-      <input
+      <SuggestInput
         id="lehrer"
-        type="text"
+        storageKey="exam.lehrernachname"
         bind:value={lehrernachname}
         placeholder="Her"
         required
@@ -93,3 +144,4 @@
     <textarea id="info" rows="2" bind:value={infoText}></textarea>
   </div>
 </div>
+

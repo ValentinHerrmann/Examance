@@ -5,7 +5,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, String, Text, func
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, JSON, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -36,12 +36,14 @@ class Exam(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     testart: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    grade: Mapped[str | None] = mapped_column(String(50), nullable=True)
     klasse: Mapped[str | None] = mapped_column(String(50), nullable=True)
     datum: Mapped[str | None] = mapped_column(String(100), nullable=True)
     nr: Mapped[str | None] = mapped_column(String(10), nullable=True)
     fach: Mapped[str | None] = mapped_column(String(100), nullable=True)
     lehrernachname: Mapped[str | None] = mapped_column(String(100), nullable=True)
     info_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    grading_key: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     exercises: Mapped[list[Exercise]] = relationship(
         "Exercise", backref="exam", cascade="all, delete-orphan"

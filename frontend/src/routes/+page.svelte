@@ -13,7 +13,7 @@
 
   import { storagePolicyStore } from '$lib/stores/storagePolicy';
   import { api } from '$lib/api/client';
-  import { examRepository } from '$lib/repositories/examRepository';
+  import { examRepository, mapApiToExamRecord } from '$lib/repositories/examRepository';
   import { submissionRepository } from '$lib/repositories/submissionRepository';
   import { offlineQueue } from '$lib/services/offlineQueue';
   import { goto } from '$app/navigation';
@@ -39,7 +39,7 @@
   let selectedSubjectFilter = 'ALL';
 
   $: availableGrades = Array.from(
-    new Set(exams.map((e) => e.klasse).filter((k): k is string => Boolean(k)))
+    new Set(exams.map((e) => e.grade).filter((g): g is string => Boolean(g)))
   ).sort();
 
   $: availableSubjects = Array.from(
@@ -47,12 +47,16 @@
   ).sort();
 
   $: filteredExams = exams.filter((e) => {
-    const matchesGrade = selectedGradeFilter === 'ALL' || e.klasse === selectedGradeFilter;
+    const matchesGrade =
+      selectedGradeFilter === 'ALL' ||
+      e.grade === selectedGradeFilter ||
+      (!e.grade && e.klasse === selectedGradeFilter);
     const matchesSubject = selectedSubjectFilter === 'ALL' || e.fach === selectedSubjectFilter;
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !q ||
       (e.title && e.title.toLowerCase().includes(q)) ||
+      (e.grade && e.grade.toLowerCase().includes(q)) ||
       (e.klasse && e.klasse.toLowerCase().includes(q)) ||
       (e.fach && e.fach.toLowerCase().includes(q)) ||
       (e.testart && e.testart.toLowerCase().includes(q));
@@ -78,22 +82,7 @@
     if ($isAuthenticated && $storagePolicyStore.storageMode !== 'all-local') {
       try {
         const remoteExamsRaw = (await api.get('/exams')) as any[];
-        const remoteExams: ExamRecord[] = remoteExamsRaw.map((e: any) => ({
-          id: e.id,
-          teacherId: e.teacher_id,
-          title: e.title,
-          testart: e.testart || undefined,
-          klasse: e.klasse || undefined,
-          datum: e.datum || undefined,
-          nr: e.nr || undefined,
-          fach: e.fach || undefined,
-          lehrernachname: e.lehrernachname || undefined,
-          infoText: e.info_text || undefined,
-          latexTemplate: e.latex_template || '',
-          compilationStatus: e.compilation_status || 'pending',
-          retentionUntil: e.retention_until || '',
-          createdAt: e.created_at || new Date().toISOString(),
-        }));
+        const remoteExams: ExamRecord[] = remoteExamsRaw.map(mapApiToExamRecord);
 
         // Check offline queue for pending exam creations
         const pendingQueue = get(offlineQueue);

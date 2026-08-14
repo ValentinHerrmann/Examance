@@ -13,6 +13,7 @@
   } from "$lib/stores/session";
   import { api } from "$lib/api/client";
   import { backendStore } from "$lib/stores/backendStore";
+  import { recordValue } from "$lib/utils/recentValues";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { get } from "svelte/store";
   import UnlockForm from "$lib/components/unlock/UnlockForm.svelte";
@@ -72,6 +73,7 @@
 
       // Save backend URL to localStorage ONLY after successful login
       backendStore.saveSuccessfulBackendUrl(trimmedBackendUrl);
+      recordValue("backend.url", trimmedBackendUrl);
 
       // Persist server mode configuration in browser if previously set to all-local
       if (get(storagePolicyStore).storageMode === "all-local") {

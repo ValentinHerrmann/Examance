@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ExamRecord } from '$lib/db/schema';
+  import { formatExamCourse } from '$lib/utils/examLabel';
 
   export let exams: ExamRecord[];
   export let examStatsMap: Map<string, { avgScore: number | null; count: number }>;
@@ -15,6 +16,7 @@
   <div class="grid gap-6" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
     {#each exams as exam}
       {@const stats = examStatsMap.get(exam.id)}
+      {@const courseLabel = formatExamCourse(exam.grade, exam.klasse)}
       <div
         class="cursor-pointer rounded-lg border border-slate-700 bg-slate-800 p-6 transition-colors duration-150 ease-in-out hover:border-sky-400 hover:bg-slate-700"
         role="button"
@@ -24,9 +26,9 @@
       >
         <h3 class="m-0 mb-2 text-sky-400">{exam.title || 'Untitled Exam'}</h3>
         <div class="mb-3 flex flex-wrap gap-1.5">
-          {#if exam.klasse}
+          {#if courseLabel}
             <span class="rounded border border-indigo-700 bg-indigo-950 px-2 py-0.5 text-xs text-indigo-200"
-              >Klasse {exam.klasse}</span
+              >Klasse {courseLabel}</span
             >
           {/if}
           {#if exam.fach}

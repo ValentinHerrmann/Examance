@@ -1,6 +1,7 @@
 <script lang="ts">
   import "./CustomExerciseForm.css";
   import LatexEditor from "$lib/components/LatexEditor.svelte";
+  import SuggestInput from "$lib/components/common/SuggestInput.svelte";
 
   export let customName: string;
   export let customTopicTag: string;
@@ -22,9 +23,9 @@
     </div>
     <div class="custom-exercise-form-group">
       <label for="customTopic">Topic Tag</label>
-      <input
+      <SuggestInput
         id="customTopic"
-        type="text"
+        storageKey="exercise.topic"
         bind:value={customTopicTag}
         placeholder="_Vererbung"
       />

@@ -1,6 +1,7 @@
 <script lang="ts">
   import "./ExamNav.css";
   import type { ExamRecord } from "$lib/db/schema";
+  import { formatExamCourse } from "$lib/utils/examLabel";
 
   export let exam: ExamRecord;
   export let examId: string;
@@ -16,7 +17,7 @@
   <div class="exam-nav-header-main">
     <h2>{exam.title || "Exam"}</h2>
     <span class="exam-nav-meta">
-      {exam.testart || "Kurzarbeit"} | Klasse: {exam.klasse || "-"} | Fach: {exam.fach || "-"} | Datum: {exam.datum || "-"}
+      {exam.testart || "Kurzarbeit"} | Klasse: {formatExamCourse(exam.grade, exam.klasse) || "-"} | Fach: {exam.fach || "-"} | Datum: {exam.datum || "-"}
     </span>
   </div>
   <a href="/" class="exam-nav-back-link">← Back to Dashboard</a>

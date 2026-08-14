@@ -412,13 +412,14 @@ async def test_exercise_and_exam_filtering(client: AsyncClient, db: AsyncSession
     assert res_search.status_code == 200
     assert len(res_search.json()) == 1
 
-    # Create exams with grade (klasse) and subject (fach)
+    # Create exams with grade and course (klasse) and subject (fach)
     retention_date = (date.today() + timedelta(days=365)).isoformat()
     await client.post(
         "/api/v1/exams",
         json={
             "title": "Math Exam 10a",
-            "klasse": "10a",
+            "grade": "10",
+            "klasse": "a",
             "fach": "Mathematik",
             "retention_until": retention_date,
         },
@@ -427,17 +428,65 @@ async def test_exercise_and_exam_filtering(client: AsyncClient, db: AsyncSession
         "/api/v1/exams",
         json={
             "title": "CS Exam 12b",
-            "klasse": "12b",
+            "grade": "12",
+            "klasse": "b",
             "fach": "Informatik",
             "retention_until": retention_date,
         },
     )
 
-    # Filter exams by grade and subject
-    res_exam_grade = await client.get("/api/v1/exams?grade=10a")
+    # Filter exams by grade (school year)
+    res_exam_grade = await client.get("/api/v1/exams?grade=10")
     assert res_exam_grade.status_code == 200
     assert len(res_exam_grade.json()) == 1
     assert res_exam_grade.json()[0]["title"] == "Math Exam 10a"
+    assert res_exam_grade.json()[0]["grade"] == "10"
+    assert res_exam_grade.json()[0]["klasse"] == "a"
+
+
+@pytest.mark.asyncio
+async def test_update_exam_metadata_patch_repeatedly(client: AsyncClient, db: AsyncSession) -> None:
+    await _create_teacher_and_login(client, db, "patcheditor@example.com")
+    retention_date = (date.today() + timedelta(days=365)).isoformat()
+    exam_id = str(uuid.uuid4())
+
+    # Create exam initially
+    res_create = await client.post(
+        "/api/v1/exams",
+        json={
+            "id": exam_id,
+            "title": "Original Exam Title",
+            "grade": "10",
+            "klasse": "a",
+            "retention_until": retention_date,
+        },
+    )
+    assert res_create.status_code == 201
+
+    # PATCH metadata twice in succession
+    res_patch_1 = await client.patch(
+        f"/api/v1/exams/{exam_id}",
+        json={
+            "title": "Updated Exam Title",
+            "grade": "10",
+            "klasse": "b",
+        },
+    )
+    assert res_patch_1.status_code == 200
+    assert res_patch_1.json()["title"] == "Updated Exam Title"
+    assert res_patch_1.json()["klasse"] == "b"
+
+    res_patch_2 = await client.patch(
+        f"/api/v1/exams/{exam_id}",
+        json={
+            "title": "Updated Exam Title 2",
+            "grade": "11",
+            "klasse": "c",
+        },
+    )
+    assert res_patch_2.status_code == 200
+    assert res_patch_2.json()["title"] == "Updated Exam Title 2"
+    assert res_patch_2.json()["grade"] == "11"
 
 
 @pytest.mark.asyncio

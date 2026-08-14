@@ -13,6 +13,8 @@
   import LatexEditor from "./LatexEditor.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import DualPdfPreview from "./DualPdfPreview.svelte";
+  import SuggestInput from "$lib/components/common/SuggestInput.svelte";
+  import { recordValue } from "$lib/utils/recentValues";
 
   export let isOpen = false;
   export let editingExercise: ExerciseRecord | null = null;
@@ -289,6 +291,10 @@
       regenerateMcLatex();
     }
 
+    if (editorTopicTag) recordValue("exercise.topic", editorTopicTag);
+    if (editorGrade) recordValue("exercise.grade", editorGrade);
+    if (editorSubject) recordValue("exercise.subject", editorSubject);
+
     isSaving = true;
     errorMsg = "";
     const key = get(sessionStore).sessionKey;
@@ -521,9 +527,9 @@
 
               <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
                 <label for="editorTopic" class="whitespace-nowrap font-semibold text-slate-400">Topic *</label>
-                <input
+                <SuggestInput
                   id="editorTopic"
-                  type="text"
+                  storageKey="exercise.topic"
                   bind:value={editorTopicTag}
                   placeholder="_Vererbung"
                   required
@@ -533,9 +539,9 @@
 
               <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
                 <label for="editorGrade" class="whitespace-nowrap font-semibold text-slate-400">Grade</label>
-                <input
+                <SuggestInput
                   id="editorGrade"
-                  type="text"
+                  storageKey="exercise.grade"
                   bind:value={editorGrade}
                   placeholder="e.g. 10"
                   class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
@@ -544,9 +550,9 @@
 
               <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
                 <label for="editorSubject" class="whitespace-nowrap font-semibold text-slate-400">Subject</label>
-                <input
+                <SuggestInput
                   id="editorSubject"
-                  type="text"
+                  storageKey="exercise.subject"
                   bind:value={editorSubject}
                   placeholder="e.g. Informatik"
                   class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"

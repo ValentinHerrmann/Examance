@@ -21,6 +21,7 @@ const ALLOWED_HOSTS = new Set(['www.w3.org', 'localhost', 'api.example.org']);
 function sourceFiles(dir: string): string[] {
   const found: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('.')) continue;
     const full = join(dir, entry.name);
     if (entry.isDirectory()) found.push(...sourceFiles(full));
     else if (/\.(ts|js|svelte|css)$/.test(entry.name)) found.push(full);

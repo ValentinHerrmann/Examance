@@ -217,6 +217,7 @@ async def export_own_data(
             {
                 "id": str(exam.id),
                 "title": exam.title,
+                "grade": exam.grade,
                 "klasse": exam.klasse,
                 "fach": exam.fach,
                 "datum": exam.datum,
