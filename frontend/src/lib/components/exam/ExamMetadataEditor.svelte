@@ -3,6 +3,8 @@
   import type { GradingKeyConfig } from '$lib/db/schema';
   import GradingKeyEditor from '$lib/components/GradingKeyEditor.svelte';
   import LatexEditor from '$lib/components/LatexEditor.svelte';
+  import SuggestInput from '$lib/components/common/SuggestInput.svelte';
+  import { recordValue } from '$lib/utils/recentValues';
 
   export let isOpen: boolean = false;
   export let editTitle: string;
@@ -17,6 +19,14 @@
   export let editGradingKey: GradingKeyConfig;
   export let onSave: () => void;
   export let onCancel: () => void;
+
+  function handleSave() {
+    if (editTestart) recordValue("exam.testart", editTestart);
+    if (editKlasse) recordValue("exam.klasse", editKlasse);
+    if (editFach) recordValue("exam.fach", editFach);
+    if (editLehrernachname) recordValue("exam.lehrernachname", editLehrernachname);
+    onSave();
+  }
 </script>
 
 {#if isOpen}
@@ -35,11 +45,11 @@
           </div>
           <div class="eme-form-group">
             <label for="editTestart">Testart</label>
-            <input id="editTestart" type="text" bind:value={editTestart} />
+            <SuggestInput id="editTestart" storageKey="exam.testart" bind:value={editTestart} />
           </div>
           <div class="eme-form-group">
             <label for="editKlasse">Klasse</label>
-            <input id="editKlasse" type="text" bind:value={editKlasse} />
+            <SuggestInput id="editKlasse" storageKey="exam.klasse" bind:value={editKlasse} />
           </div>
           <div class="eme-form-group">
             <label for="editDatum">Datum / Dauer</label>
@@ -51,11 +61,11 @@
           </div>
           <div class="eme-form-group">
             <label for="editFach">Fach</label>
-            <input id="editFach" type="text" bind:value={editFach} />
+            <SuggestInput id="editFach" storageKey="exam.fach" bind:value={editFach} />
           </div>
           <div class="eme-form-group">
             <label for="editLehrernachname">Lehrernachname</label>
-            <input id="editLehrernachname" type="text" bind:value={editLehrernachname} />
+            <SuggestInput id="editLehrernachname" storageKey="exam.lehrernachname" bind:value={editLehrernachname} />
           </div>
           <div class="eme-form-group">
             <label for="editRetention">Retention Until</label>
@@ -77,7 +87,7 @@
 
       <div class="eme-modal-footer">
         <button class="eme-btn-cancel" on:click={onCancel}>Abbrechen</button>
-        <button class="eme-btn-save" on:click={onSave}>Speichern</button>
+        <button class="eme-btn-save" on:click={handleSave}>Speichern</button>
       </div>
     </div>
   </div>

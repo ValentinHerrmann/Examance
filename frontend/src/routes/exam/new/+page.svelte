@@ -8,6 +8,7 @@
   import { loadExercisesEncrypted, saveExerciseEncrypted, saveExamEncrypted, encryptExercise } from "$lib/db/dbEncryption";
   import { api } from "$lib/api/client";
   import { parseExerciseScore, formatExerciseLatex, formatMcGroupLatex } from "$lib/latex/scoreParser";
+  import { recordValue } from "$lib/utils/recentValues";
   import { compileLatex } from "$lib/latex/compiler";
   import { get } from "svelte/store";
   import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
@@ -533,6 +534,12 @@ ${exerciseInputs}
       errorMsg = "Please select at least one exercise for the exam.";
       return;
     }
+
+    // Record metadata inputs to recent values
+    if (testart) recordValue("exam.testart", testart);
+    if (klasse) recordValue("exam.klasse", klasse);
+    if (fach) recordValue("exam.fach", fach);
+    if (lehrernachname) recordValue("exam.lehrernachname", lehrernachname);
 
     isLoading = true;
     errorMsg = "";

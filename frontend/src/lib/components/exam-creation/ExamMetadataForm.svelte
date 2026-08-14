@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./ExamMetadataForm.css";
+  import SuggestInput from "$lib/components/common/SuggestInput.svelte";
   export let title: string;
   export let testart: string;
   export let klasse: string;
@@ -27,9 +28,9 @@
   <div class="exam-metadata-form-grid-3">
     <div class="exam-metadata-form-group">
       <label for="testart">Testart (\Testart)</label>
-      <input
+      <SuggestInput
         id="testart"
-        type="text"
+        storageKey="exam.testart"
         bind:value={testart}
         placeholder="Kurzarbeit"
         required
@@ -38,9 +39,9 @@
 
     <div class="exam-metadata-form-group">
       <label for="klasse">Klasse (\Klasse)</label>
-      <input
+      <SuggestInput
         id="klasse"
-        type="text"
+        storageKey="exam.klasse"
         bind:value={klasse}
         placeholder="10a"
         required
@@ -67,9 +68,9 @@
 
     <div class="exam-metadata-form-group">
       <label for="fach">Fach (\Fach)</label>
-      <input
+      <SuggestInput
         id="fach"
-        type="text"
+        storageKey="exam.fach"
         bind:value={fach}
         placeholder="Informatik"
         required
@@ -78,9 +79,9 @@
 
     <div class="exam-metadata-form-group">
       <label for="lehrer">Lehrer Nachname (\Lehrernachname)</label>
-      <input
+      <SuggestInput
         id="lehrer"
-        type="text"
+        storageKey="exam.lehrernachname"
         bind:value={lehrernachname}
         placeholder="Her"
         required

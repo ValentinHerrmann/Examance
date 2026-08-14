@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
+  import SuggestInput from "$lib/components/common/SuggestInput.svelte";
+  import { recordValue } from "$lib/utils/recentValues";
 
   interface VariantMember {
     ex: ExerciseRecord;
@@ -29,6 +31,13 @@
   export let isGroupSaving = false;
   export let onSave: () => void;
   export let onClose: () => void;
+
+  function handleSave() {
+    if (groupEditorTopicTag) recordValue("exercise.topic", groupEditorTopicTag);
+    if (groupEditorGrade) recordValue("exercise.grade", groupEditorGrade);
+    if (groupEditorSubject) recordValue("exercise.subject", groupEditorSubject);
+    onSave();
+  }
 </script>
 
 {#if isOpen && editingGroup}
@@ -63,9 +72,9 @@
 
         <div class="mb-4 flex flex-col gap-[0.375rem]">
           <label for="groupEditorTopic" class="text-sm text-slate-300">Topic Tag</label>
-          <input
+          <SuggestInput
             id="groupEditorTopic"
-            type="text"
+            storageKey="exercise.topic"
             bind:value={groupEditorTopicTag}
             placeholder="_Vererbung"
             required
@@ -75,9 +84,9 @@
 
         <div class="mb-4 flex flex-col gap-[0.375rem]">
           <label for="groupEditorGrade" class="text-sm text-slate-300">Grade / Klasse</label>
-          <input
+          <SuggestInput
             id="groupEditorGrade"
-            type="text"
+            storageKey="exercise.grade"
             bind:value={groupEditorGrade}
             placeholder="e.g. 10, 10a, 12"
             class="rounded-md border border-slate-700 bg-slate-900 p-[0.625rem] text-white"
@@ -86,9 +95,9 @@
 
         <div class="mb-4 flex flex-col gap-[0.375rem]">
           <label for="groupEditorSubject" class="text-sm text-slate-300">Subject / Fach</label>
-          <input
+          <SuggestInput
             id="groupEditorSubject"
-            type="text"
+            storageKey="exercise.subject"
             bind:value={groupEditorSubject}
             placeholder="e.g. Informatik, Mathematik"
             class="rounded-md border border-slate-700 bg-slate-900 p-[0.625rem] text-white"
@@ -100,7 +109,7 @@
         <button class="cursor-pointer rounded-md border-0 bg-slate-700 px-5 py-[0.625rem] text-white" on:click={onClose}>Cancel</button>
         <button
           class="cursor-pointer rounded-md border-0 bg-green-600 px-5 py-[0.625rem] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-          on:click={onSave}
+          on:click={handleSave}
           disabled={isGroupSaving}
         >
           {isGroupSaving ? "Saving..." : "Save Group Metadata"}
