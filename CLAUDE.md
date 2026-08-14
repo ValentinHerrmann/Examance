@@ -74,7 +74,7 @@ The policy is `script-src 'self'` with no CDN allowances: third-party assets (e.
 
 ## Environment
 
-`backend/.env.example` → `backend/.env`. Postgres + Redis via `docker-compose.yml`. `CORS_ALLOWED_ORIGINS` defaults to `http://localhost:5173` + `https://examance.pages.dev`, plus `CORS_ALLOWED_ORIGIN_REGEX` for `*.valentin-herrmann.com`. No wildcard fallback; an empty list is a hard startup error (`require_cors_origins`, `backend/app/config.py`). Override explicitly for any other origin.
+`backend/.env.example` → `backend/.env`. Postgres + Redis via `docker-compose.yml`. `CORS_ALLOWED_ORIGINS` defaults to `http://localhost:5173` + `https://examance.pages.dev`, plus `CORS_ALLOWED_ORIGIN_REGEX` covering `*.valentin-herrmann.com` and `*.examance.pages.dev` preview subdomains. In development (`ENVIRONMENT=development`), `effective_cors_origin_regex` dynamically allows arbitrary loopback/localhost ports. No wildcard fallback; an empty list is a hard startup error (`require_cors_origins`, `backend/app/config.py`). Override explicitly for any other origin.
 
 ## Standing instructions
 - **Prefer cheaper models** for mechanical or well-defined work; aggressively hand-off work to cheaper models; expensive models are on a tight budget! Escalate only when reasoning complexity really demands it.
@@ -88,3 +88,4 @@ The policy is `script-src 'self'` with no CDN allowances: third-party assets (e.
 - Don't run non-terminating npm commands (dev servers, watch mode) unless asked.
 - If you find out something, which should be known for future agent-sessions (e.g. structural or constraints), add it to CLAUDE.MD but do no clutter it!
 - **NEVER USE WRITING GIT COMMANDS!** (like commit, push, branch, ...)
+- **Following mode strictly**: Never edit files in planning mode!
