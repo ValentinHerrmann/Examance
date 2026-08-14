@@ -139,12 +139,14 @@ class ExamCreate(BaseModel):
     latex_template: str = ""
     retention_until: date
     testart: str | None = None
+    grade: str | None = None
     klasse: str | None = None
     datum: str | None = None
     nr: str | None = None
     fach: str | None = None
     lehrernachname: str | None = None
     info_text: str | None = None
+    grading_key: dict[str, Any] | None = None
     exercise_ids: list[uuid.UUID] = []
     exercise_links: list[ExerciseLinkCreate] = []
     exercises: list[ExerciseCreate] = []
@@ -158,12 +160,14 @@ class ExamUpdate(BaseModel):
     latex_template: str | None = None
     retention_until: date | None = None
     testart: str | None = None
+    grade: str | None = None
     klasse: str | None = None
     datum: str | None = None
     nr: str | None = None
     fach: str | None = None
     lehrernachname: str | None = None
     info_text: str | None = None
+    grading_key: dict[str, Any] | None = None
     exercise_ids: list[uuid.UUID] | None = None
     exercise_links: list[ExerciseLinkCreate] | None = None
     mc_groups: list[ExamMcGroupCreate] | None = None
@@ -180,12 +184,14 @@ class ExamResponse(BaseModel):
     created_at: datetime
     retention_until: date
     testart: str | None = None
+    grade: str | None = None
     klasse: str | None = None
     datum: str | None = None
     nr: str | None = None
     fach: str | None = None
     lehrernachname: str | None = None
     info_text: str | None = None
+    grading_key: dict[str, Any] | None = None
     exercises: list[ExerciseResponse] = []
     mc_groups: list[ExamMcGroupResponse] = []
 

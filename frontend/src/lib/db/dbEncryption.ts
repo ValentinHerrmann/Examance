@@ -47,6 +47,7 @@ async function decryptBytes(key: CryptoKey, ct: Uint8Array, iv: Uint8Array, fall
 interface ExamPayload {
   title?: string;
   testart?: string;
+  grade?: string;
   klasse?: string;
   datum?: string;
   nr?: string;
@@ -63,6 +64,7 @@ export async function encryptExam(exam: ExamRecord, key: CryptoKey | null): Prom
   const payload: ExamPayload = {
     title: exam.title,
     testart: exam.testart,
+    grade: exam.grade,
     klasse: exam.klasse,
     datum: exam.datum,
     nr: exam.nr,
@@ -105,6 +107,7 @@ export async function encryptExam(exam: ExamRecord, key: CryptoKey | null): Prom
     isDirty: exam.isDirty,
     title: exam.title,
     testart: exam.testart,
+    grade: exam.grade,
     klasse: exam.klasse,
     datum: exam.datum,
     nr: exam.nr,
@@ -130,6 +133,7 @@ export async function decryptExam(exam: ExamRecord, key: CryptoKey | null): Prom
     isDirty: exam.isDirty,
     title: exam.title,
     testart: exam.testart,
+    grade: exam.grade,
     klasse: exam.klasse,
     datum: exam.datum,
     nr: exam.nr,

@@ -47,6 +47,17 @@ _TEX_ESCAPE_MAP = {
 }
 
 
+def format_exam_course(grade: str | None, klasse: str | None) -> str:
+    """Concatenate grade and course (e.g. grade="10", klasse="a" -> "10a")."""
+    g = (grade or "").strip()
+    k = (klasse or "").strip()
+    if g and k:
+        if k.lower().startswith(g.lower()):
+            return k
+        return f"{g}{k}"
+    return g or k or ""
+
+
 def escape_tex(text: str | None) -> str:
     """
     Escape LaTeX special characters in plain (non-LaTeX) user text before
@@ -397,7 +408,9 @@ async def compile_exam_latex(
     # args below. info_text is intentionally NOT escaped: \Info{} holds raw
     # LaTeX markup by convention (e.g. \begin{itemize}...\end{itemize}).
     testart = escape_tex(exam_model.testart or "Kurzarbeit")
-    klasse = escape_tex(exam_model.klasse or "")
+    raw_grade = getattr(exam_model, "grade", None)
+    raw_klasse = getattr(exam_model, "klasse", None)
+    klasse = escape_tex(format_exam_course(raw_grade, raw_klasse))
     datum = escape_tex(exam_model.datum or "")
     nr = escape_tex(exam_model.nr or "1")
     fach = escape_tex(exam_model.fach or "Informatik")

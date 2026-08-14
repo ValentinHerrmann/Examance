@@ -1,6 +1,7 @@
 <script lang="ts">
   import "./ExamMetadata.css";
   import type { ExamRecord } from '$lib/db/schema';
+  import { formatExamCourse } from '$lib/utils/examLabel';
 
   export let exam: ExamRecord | null;
   export let totalPoints: number;
@@ -8,6 +9,8 @@
   export let studentsCount: number;
   export let gradedCount: number;
   export let storagePolicy: string;
+
+  $: courseLabel = exam ? formatExamCourse(exam.grade, exam.klasse) : '';
 </script>
 
 {#if exam}
@@ -15,7 +18,7 @@
     <h2>{exam.title}</h2>
     <div class="emd-meta-grid">
       {#if exam.testart}<span>Art: {exam.testart}</span>{/if}
-      {#if exam.klasse}<span>Klasse: {exam.klasse}</span>{/if}
+      {#if courseLabel}<span>Klasse: {courseLabel}</span>{/if}
       {#if exam.fach}<span>Fach: {exam.fach}</span>{/if}
       {#if exam.lehrernachname}<span>Lehrer: {exam.lehrernachname}</span>{/if}
       {#if exam.datum}<span>Datum: {exam.datum}</span>{/if}

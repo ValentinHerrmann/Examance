@@ -16,6 +16,7 @@
     OmrBubbleRect,
     OmrFiducialRect,
   } from "$lib/db/schema";
+  import { formatExamCourse } from "$lib/utils/examLabel";
   import {
     loadExamEncrypted,
     saveExamEncrypted,
@@ -136,6 +137,7 @@
             teacherId: remoteExam.teacher_id,
             title: remoteExam.title,
             testart: remoteExam.testart,
+            grade: remoteExam.grade,
             klasse: remoteExam.klasse,
             datum: remoteExam.datum,
             nr: remoteExam.nr,
@@ -285,6 +287,7 @@
         id: exam.id,
         title: exam.title || "Unbenannte Prüfung",
         testart: exam.testart,
+        grade: exam.grade,
         klasse: exam.klasse,
         datum: exam.datum,
         nr: exam.nr,
@@ -554,7 +557,7 @@
 \\WarningsOff
 \\begin{document}
 \\Testart{${exam.testart || "Kurzarbeit"}}
-\\Klasse{${exam.klasse || ""}}
+\\Klasse{${formatExamCourse(exam.grade, exam.klasse)}}
 \\Datum{${exam.datum || ""}}
 \\Nr{${exam.nr || "1"}}
 
@@ -876,7 +879,7 @@ ${exerciseInputs}
 \\WarningsOff
 \\begin{document}
 \\Testart{${currentExam.testart || "Kurzarbeit"}}
-\\Klasse{${currentExam.klasse || ""}}
+\\Klasse{${formatExamCourse(currentExam.grade, currentExam.klasse)}}
 \\Datum{${currentExam.datum || ""}}
 \\Nr{${currentExam.nr || "1"}}
 
@@ -917,6 +920,7 @@ ${exerciseInputs}
   let isEditingMetadata = false;
   let editTitle = "";
   let editTestart = "";
+  let editGrade = "";
   let editKlasse = "";
   let editDatum = "";
   let editNr = "";
@@ -932,6 +936,7 @@ ${exerciseInputs}
   let initialMetadata = {
     title: "",
     testart: "",
+    grade: "",
     klasse: "",
     datum: "",
     nr: "",
@@ -946,6 +951,7 @@ ${exerciseInputs}
     isEditingMetadata &&
     (editTitle !== initialMetadata.title ||
       editTestart !== initialMetadata.testart ||
+      editGrade !== initialMetadata.grade ||
       editKlasse !== initialMetadata.klasse ||
       editDatum !== initialMetadata.datum ||
       editNr !== initialMetadata.nr ||
@@ -1108,6 +1114,7 @@ ${exerciseInputs}
     if (!exam) return;
     editTitle = exam.title || "";
     editTestart = exam.testart || "Kurzarbeit";
+    editGrade = exam.grade || "";
     editKlasse = exam.klasse || "";
     editDatum = exam.datum || "";
     editNr = exam.nr || "1";
@@ -1123,6 +1130,7 @@ ${exerciseInputs}
     initialMetadata = {
       title: editTitle,
       testart: editTestart,
+      grade: editGrade,
       klasse: editKlasse,
       datum: editDatum,
       nr: editNr,
@@ -1155,18 +1163,21 @@ ${exerciseInputs}
         await api.patch(`/exams/${exam.id}`, {
           title: editTitle,
           testart: editTestart,
+          grade: editGrade,
           klasse: editKlasse,
           datum: editDatum,
           nr: editNr,
           fach: editFach,
           lehrernachname: editLehrernachname,
           info_text: editInfoText,
+          grading_key: editGradingKey,
           retention_until: editRetentionUntil,
         });
       }
 
       exam.title = editTitle;
       exam.testart = editTestart;
+      exam.grade = editGrade;
       exam.klasse = editKlasse;
       exam.datum = editDatum;
       exam.nr = editNr;
@@ -1536,6 +1547,7 @@ ${exerciseInputs}
       isOpen={isEditingMetadata}
       bind:editTitle
       bind:editTestart
+      bind:editGrade
       bind:editKlasse
       bind:editDatum
       bind:editNr

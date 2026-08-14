@@ -6,18 +6,20 @@ import { encryptExam, decryptExam } from '$lib/db/dbEncryption';
 import { enqueueRequest } from '$lib/services/offlineQueue';
 import type { ExamRecord } from '$lib/db/schema';
 
-function mapApiToExamRecord(raw: any): ExamRecord {
+export function mapApiToExamRecord(raw: any): ExamRecord {
   return {
     id: raw.id,
     teacherId: raw.teacher_id || raw.teacherId || '',
     title: raw.title,
     testart: raw.testart,
+    grade: raw.grade,
     klasse: raw.klasse,
     datum: raw.datum,
     nr: raw.nr,
     fach: raw.fach,
     lehrernachname: raw.lehrernachname,
     infoText: raw.info_text || raw.infoText,
+    gradingKey: raw.grading_key || raw.gradingKey,
     latexPreamble: raw.latex_preamble || raw.latexPreamble,
     latexTemplate: raw.latex_template || raw.latexTemplate,
     numVersions: raw.num_versions || raw.numVersions || 1,
@@ -27,17 +29,19 @@ function mapApiToExamRecord(raw: any): ExamRecord {
   };
 }
 
-function mapExamRecordToApi(exam: ExamRecord): any {
+export function mapExamRecordToApi(exam: ExamRecord): any {
   return {
     id: exam.id,
     title: exam.title || 'Unbenannte Prüfung',
     testart: exam.testart,
+    grade: exam.grade,
     klasse: exam.klasse,
     datum: exam.datum,
     nr: exam.nr,
     fach: exam.fach,
     lehrernachname: exam.lehrernachname,
     info_text: exam.infoText,
+    grading_key: exam.gradingKey,
     latex_preamble: exam.latexPreamble,
     latex_template: exam.latexTemplate,
     retention_until: exam.retentionUntil,
@@ -92,10 +96,26 @@ export const examRepository = {
       await db.exams.put(encrypted);
     } else {
       const payload = mapExamRecordToApi(exam);
-      try {
-        await api.post('/exams', payload);
-      } catch (err: any) {
-        enqueueRequest('/exams', 'POST', payload);
+      if (exam.id) {
+        try {
+          await api.patch(`/exams/${exam.id}`, payload);
+        } catch (err: any) {
+          if (err?.status === 404) {
+            try {
+              await api.post('/exams', payload);
+            } catch (postErr: any) {
+              enqueueRequest('/exams', 'POST', payload);
+            }
+          } else {
+            enqueueRequest(`/exams/${exam.id}`, 'PATCH', payload);
+          }
+        }
+      } else {
+        try {
+          await api.post('/exams', payload);
+        } catch (err: any) {
+          enqueueRequest('/exams', 'POST', payload);
+        }
       }
     }
   },

@@ -79,12 +79,14 @@ def _to_exam_response(
         created_at=e.created_at,
         retention_until=e.retention_until,
         testart=e.testart,
+        grade=e.grade,
         klasse=e.klasse,
         datum=e.datum,
         nr=e.nr,
         fach=e.fach,
         lehrernachname=e.lehrernachname,
         info_text=e.info_text,
+        grading_key=e.grading_key,
         exercises=[_to_exercise_response(ex, idx, gid, sidx) for ex, idx, gid, sidx in exercises],
         mc_groups=[
             ExamMcGroupResponse(
@@ -193,7 +195,7 @@ async def list_exams(
     )
 
     if grade:
-        query = query.where(Exam.klasse == grade)
+        query = query.where(Exam.grade == grade)
 
     if subject:
         query = query.where(Exam.fach == subject)
@@ -203,6 +205,7 @@ async def list_exams(
         query = query.where(
             or_(
                 Exam.title.ilike(search_pattern),
+                Exam.grade.ilike(search_pattern),
                 Exam.klasse.ilike(search_pattern),
                 Exam.fach.ilike(search_pattern),
             )
@@ -255,12 +258,14 @@ async def create_exam(
         "latex_template": body.latex_template,
         "retention_until": body.retention_until,
         "testart": body.testart,
+        "grade": body.grade,
         "klasse": body.klasse,
         "datum": body.datum,
         "nr": body.nr,
         "fach": body.fach,
         "lehrernachname": body.lehrernachname,
         "info_text": body.info_text,
+        "grading_key": body.grading_key,
     }
     if body.id:
         kwargs["id"] = body.id
@@ -390,6 +395,8 @@ async def update_exam(
         exam.retention_until = body.retention_until
     if body.testart is not None:
         exam.testart = body.testart
+    if body.grade is not None:
+        exam.grade = body.grade
     if body.klasse is not None:
         exam.klasse = body.klasse
     if body.datum is not None:
@@ -402,6 +409,8 @@ async def update_exam(
         exam.lehrernachname = body.lehrernachname
     if body.info_text is not None:
         exam.info_text = body.info_text
+    if body.grading_key is not None:
+        exam.grading_key = body.grading_key
 
     if body.mc_groups is not None:
         await db.execute(delete(ExamMcGroup).where(ExamMcGroup.exam_id == exam.id))

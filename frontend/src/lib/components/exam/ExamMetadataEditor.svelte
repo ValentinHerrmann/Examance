@@ -5,11 +5,13 @@
   import LatexEditor from '$lib/components/LatexEditor.svelte';
   import SuggestInput from '$lib/components/common/SuggestInput.svelte';
   import { recordValue } from '$lib/utils/recentValues';
+  import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from '$lib/utils/examLabel';
 
   export let isOpen: boolean = false;
   export let editTitle: string;
   export let editTestart: string;
-  export let editKlasse: string;
+  export let editGrade: string = "";
+  export let editKlasse: string = "";
   export let editDatum: string;
   export let editNr: string;
   export let editFach: string;
@@ -20,11 +22,33 @@
   export let onSave: () => void;
   export let onCancel: () => void;
 
+  $: fullCoursePreview = formatExamCourse(editGrade, editKlasse);
+
+  let editDatumDate = "";
+  let editDauer = "";
+  let lastSyncedEditDatum = "";
+
+  $: if (editDatum !== lastSyncedEditDatum) {
+    lastSyncedEditDatum = editDatum;
+    const parsed = parseDatumAndDauer(editDatum);
+    editDatumDate = parsed.datumDate;
+    editDauer = parsed.dauer;
+  }
+
+  function handleDatumDateOrDauerChange() {
+    const formatted = formatDatumAndDauer(editDatumDate, editDauer);
+    editDatum = formatted;
+    lastSyncedEditDatum = formatted;
+  }
+
   function handleSave() {
+    handleDatumDateOrDauerChange();
     if (editTestart) recordValue("exam.testart", editTestart);
+    if (editGrade) recordValue("exam.grade", editGrade);
     if (editKlasse) recordValue("exam.klasse", editKlasse);
     if (editFach) recordValue("exam.fach", editFach);
     if (editLehrernachname) recordValue("exam.lehrernachname", editLehrernachname);
+    if (editDauer) recordValue("exam.dauer", editDauer);
     onSave();
   }
 </script>
@@ -48,12 +72,28 @@
             <SuggestInput id="editTestart" storageKey="exam.testart" bind:value={editTestart} />
           </div>
           <div class="eme-form-group">
-            <label for="editKlasse">Klasse</label>
-            <SuggestInput id="editKlasse" storageKey="exam.klasse" bind:value={editKlasse} />
+            <label for="editGrade">Jahrgangsstufe (Grade)</label>
+            <SuggestInput id="editGrade" storageKey="exam.grade" bind:value={editGrade} placeholder="10" />
           </div>
           <div class="eme-form-group">
-            <label for="editDatum">Datum / Dauer</label>
-            <input id="editDatum" type="text" bind:value={editDatum} />
+            <label for="editKlasse">Klasse / Kurs</label>
+            <SuggestInput id="editKlasse" storageKey="exam.klasse" bind:value={editKlasse} placeholder="a" />
+          </div>
+        {#if fullCoursePreview}
+          <div class="eme-form-group eme-full-width">
+            <div class="eme-course-preview">
+              <span class="eme-preview-label">Vorschau <code>\Klasse&#123;{fullCoursePreview}&#125;</code>:</span>
+              <span class="eme-preview-badge">{fullCoursePreview}</span>
+            </div>
+          </div>
+        {/if}
+          <div class="eme-form-group">
+            <label for="editDatumDate">Datum (\Datum)</label>
+            <input id="editDatumDate" type="text" bind:value={editDatumDate} on:input={handleDatumDateOrDauerChange} placeholder="14.08.2026" />
+          </div>
+          <div class="eme-form-group">
+            <label for="editDauer">Dauer</label>
+            <SuggestInput id="editDauer" storageKey="exam.dauer" bind:value={editDauer} on:input={handleDatumDateOrDauerChange} placeholder="30 Min" />
           </div>
           <div class="eme-form-group">
             <label for="editNr">Prüfungsnummer (Nr)</label>
@@ -92,3 +132,4 @@
     </div>
   </div>
 {/if}
+

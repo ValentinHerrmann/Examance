@@ -19,11 +19,13 @@
   import ExerciseSelector from "$lib/components/exam-creation/ExerciseSelector.svelte";
   import SelectedExercisesList from "$lib/components/exam-creation/SelectedExercisesList.svelte";
   import ExamLivePreviewPanel from "$lib/components/exam-creation/ExamLivePreviewPanel.svelte";
+  import { formatExamCourse } from "$lib/utils/examLabel";
 
   // Metadata
   let title = "";
   let testart = "Kurzarbeit";
-  let klasse = "10a";
+  let grade = "10";
+  let klasse = "a";
   let datum = new Date().toLocaleDateString("de-DE") + " (30 Minuten)";
   let nr = "1";
   let fach = "Informatik";
@@ -484,7 +486,7 @@ Frage hier eingeben... \\BE
 \\WarningsOff
 \\begin{document}
 \\Testart{${testart}}
-\\Klasse{${klasse}}
+\\Klasse{${formatExamCourse(grade, klasse)}}
 \\Datum{${datum}}
 \\Nr{${nr}}
 
@@ -537,6 +539,7 @@ ${exerciseInputs}
 
     // Record metadata inputs to recent values
     if (testart) recordValue("exam.testart", testart);
+    if (grade) recordValue("exam.grade", grade);
     if (klasse) recordValue("exam.klasse", klasse);
     if (fach) recordValue("exam.fach", fach);
     if (lehrernachname) recordValue("exam.lehrernachname", lehrernachname);
@@ -555,6 +558,7 @@ ${exerciseInputs}
         teacherId: $sessionStore.email || "local-teacher",
         title,
         testart,
+        grade,
         klasse,
         datum,
         nr,
@@ -633,12 +637,14 @@ ${exerciseInputs}
             id: examId,
             title,
             testart,
+            grade,
             klasse,
             datum,
             nr,
             fach,
             lehrernachname,
             info_text: infoText,
+            grading_key: gradingKey,
             retention_until: retentionUntil,
             mc_groups: mcGroupsPayload,
             exercise_links: exerciseLinksPayload,
@@ -669,6 +675,7 @@ ${exerciseInputs}
     <ExamMetadataForm
       bind:title
       bind:testart
+      bind:grade
       bind:klasse
       bind:nr
       bind:datum

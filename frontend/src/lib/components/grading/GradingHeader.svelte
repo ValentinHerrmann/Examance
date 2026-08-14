@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ExamRecord, SubmissionRecord } from "$lib/db/schema";
+  import { formatExamCourse } from "$lib/utils/examLabel";
 
   export let examId: string;
   export let exam: ExamRecord | null;
@@ -19,7 +20,7 @@
     <div class="flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap">
       <span class="overflow-hidden text-ellipsis text-[0.95rem] font-bold text-sky-400">{exam?.title || "Exam"}</span>
       <span class="text-xs text-slate-500">
-        {exam?.testart || "Kurzarbeit"} • Klasse: {exam?.klasse || "-"} • Fach: {exam?.fach || "-"}
+        {exam?.testart || "Kurzarbeit"} • Klasse: {formatExamCourse(exam?.grade, exam?.klasse) || "-"} • Fach: {exam?.fach || "-"}
       </span>
     </div>
   </div>

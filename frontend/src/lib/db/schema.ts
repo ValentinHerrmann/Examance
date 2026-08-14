@@ -24,6 +24,7 @@ export interface ExamRecord {
   teacherId: string;
   title?: string;
   testart?: string;
+  grade?: string;
   klasse?: string;
   datum?: string;
   nr?: string;
