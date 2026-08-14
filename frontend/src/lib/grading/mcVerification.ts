@@ -26,17 +26,35 @@ export interface McDetectionItem {
 export interface McExerciseBreakdown {
   exerciseId: string;
   exerciseLabel: string;
+  /** Questions (submission × this exercise) at each confidence level — matches the queues. */
   high: number;
   ambiguous: number;
   failed: number;
   total: number;
+  /** Physically marked bubbles across all submissions of this exercise, informational only. */
+  markedBoxes: number;
 }
 
 export interface McVerificationStats {
-  totalDetected: number;
-  high: number;
-  ambiguous: number;
-  failed: number;
+  /**
+   * Question-level counts — one per (submission, exercise) pair, exactly what
+   * the "Failed" / "Unsure" / "High confidence" queues below list and what
+   * `Verify Item` steps through. This is the number that answers "how many
+   * things do I still need to look at", so it must not scale with how many
+   * bubbles happen to be marked on any one question — a high-confidence
+   * 4-answer MC tick is exactly as "1 thing to check" as a blank one.
+   */
+  totalQuestions: number;
+  highQuestions: number;
+  ambiguousQuestions: number;
+  failedQuestions: number;
+  /**
+   * Physically marked bubbles across the whole exam — informational total,
+   * shown alongside the question counts but never as the headline "needs
+   * review" number, since a routine, unambiguous multi-select answer
+   * inflates it without needing any verification at all.
+   */
+  totalMarkedBoxes: number;
   perExercise: McExerciseBreakdown[];
   items: McDetectionItem[];
 }
@@ -47,13 +65,14 @@ export interface McVerificationStats {
  * question (and its scan crop) at once. An exam with 30 students × 5 MC
  * questions produces up to 150 items here, not 30 (submissions) or 1 (exam).
  *
- * The numeric *counts* (`totalDetected`, `high`, `ambiguous`, `failed`, and the
- * per-exercise breakdown), however, are sums of `markedCount` — one physically
- * marked bubble on the scan — not one per item. A single MC question where a
- * student ticked 3 boxes is 3 detections, not 1; a question left entirely
- * blank is 0. Do not swap these back to `items.length`-based counts; that's
- * what "counted by question, not by marked box" describes and is the bug this
- * comment is here to prevent regressing.
+ * `totalQuestions`/`highQuestions`/`ambiguousQuestions`/`failedQuestions` count
+ * at this same item granularity — one per question, regardless of how many
+ * bubbles were marked on it. `totalMarkedBoxes` (and each exercise's
+ * `markedBoxes`) is the other axis: a sum of `markedCount`, one per
+ * physically-marked bubble. Do not conflate the two — swapping the headline
+ * "needs review" numbers to box counts is what made them scale with
+ * marks-per-question independent of confidence, which is the bug these two
+ * separate sets of fields exist to prevent regressing into.
  */
 export async function computeMcVerificationStats(
   examId: string,
@@ -87,9 +106,24 @@ export async function computeMcVerificationStats(
 
   const items: McDetectionItem[] = [];
   for (const sub of submissions) {
-    const scores = await loadScoresEncrypted(sub.id, key);
+    const rawScores = await loadScoresEncrypted(sub.id, key);
     const label = await labelFor(sub);
-    for (const sc of scores) {
+
+    // Defensive: there should be at most one score row per (submission, exercise),
+    // but nothing enforces that at the storage layer (ingestion `put()`s a fresh
+    // id every time). If a submission was ever re-ingested, stale duplicate rows
+    // would otherwise be counted as separate questions/boxes here, inflating
+    // every total. Keep the last one per exercise, preferring a manual
+    // correction over a raw OMR read if both exist.
+    const scoreByExercise = new Map<string, (typeof rawScores)[number]>();
+    for (const sc of rawScores) {
+      const existing = scoreByExercise.get(sc.exerciseId);
+      if (!existing || existing.omrMeta?.source !== "manual") {
+        scoreByExercise.set(sc.exerciseId, sc);
+      }
+    }
+
+    for (const sc of scoreByExercise.values()) {
       const ex = exerciseById.get(sc.exerciseId);
       if (!ex || !sc.omrMeta) continue;
       const flaggedOptions = sc.omrMeta.flaggedOptions ?? [];
@@ -109,30 +143,34 @@ export async function computeMcVerificationStats(
   }
 
   const perExerciseMap = new Map<string, McExerciseBreakdown>();
-  let totalDetected = 0;
-  let high = 0;
-  let ambiguous = 0;
-  let failed = 0;
+  let totalQuestions = 0;
+  let highQuestions = 0;
+  let ambiguousQuestions = 0;
+  let failedQuestions = 0;
+  let totalMarkedBoxes = 0;
   for (const it of items) {
     let b = perExerciseMap.get(it.exerciseId);
     if (!b) {
-      b = { exerciseId: it.exerciseId, exerciseLabel: it.exerciseLabel, high: 0, ambiguous: 0, failed: 0, total: 0 };
+      b = { exerciseId: it.exerciseId, exerciseLabel: it.exerciseLabel, high: 0, ambiguous: 0, failed: 0, total: 0, markedBoxes: 0 };
       perExerciseMap.set(it.exerciseId, b);
     }
-    b[it.confidence] += it.markedCount;
-    b.total += it.markedCount;
+    b[it.confidence] += 1;
+    b.total += 1;
+    b.markedBoxes += it.markedCount;
 
-    totalDetected += it.markedCount;
-    if (it.confidence === "high") high += it.markedCount;
-    else if (it.confidence === "ambiguous") ambiguous += it.markedCount;
-    else failed += it.markedCount;
+    totalQuestions += 1;
+    totalMarkedBoxes += it.markedCount;
+    if (it.confidence === "high") highQuestions += 1;
+    else if (it.confidence === "ambiguous") ambiguousQuestions += 1;
+    else failedQuestions += 1;
   }
 
   return {
-    totalDetected,
-    high,
-    ambiguous,
-    failed,
+    totalQuestions,
+    highQuestions,
+    ambiguousQuestions,
+    failedQuestions,
+    totalMarkedBoxes,
     perExercise: Array.from(perExerciseMap.values()),
     items,
   };

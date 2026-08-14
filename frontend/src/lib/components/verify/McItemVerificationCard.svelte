@@ -43,22 +43,20 @@
 
   $: currentScore = scoreRecord?.score ?? 0;
 
-  // Toggling an option rewrites every bubble's `state` field (see
-  // applyMcCorrection), producing a new `detections` object each time even
-  // though the crop itself — which only depends on page + bubble
-  // positions, not their marked/blank state — hasn't changed. Re-rendering
-  // it on every click would also fail: loadCrop hands scanPdfBytes to
-  // pdf.js, which detaches its ArrayBuffer, so anything past the first call
-  // with the same bytes needs a fresh key to even want to re-run.
+  // Redraws whenever the bubble positions OR their marked/blank state change —
+  // the overlay (checkmarks/boxes, drawn from `omrMeta`) needs to reflect a
+  // toggle immediately, same as the grading canvas. `renderMcCrop` hands
+  // pdf.js a disposable copy of `scanPdfBytes` internally, so re-rendering
+  // repeatedly with the same source bytes is safe.
   $: cropKey = omrMeta?.detections
-    ? `${omrMeta.detections.pageIndex}:${omrMeta.detections.bubbles.map((b) => `${b.optionIndex}:${b.rect.join(",")}`).join("|")}`
+    ? `${omrMeta.detections.pageIndex}:${omrMeta.detections.bubbles.map((b) => `${b.optionIndex}:${b.state}:${b.rect.join(",")}`).join("|")}`
     : "";
 
   let lastLoadedCropKey = "";
   $: {
     if (scanPdfBytes && omrMeta?.detections && cropKey && cropKey !== lastLoadedCropKey) {
       lastLoadedCropKey = cropKey;
-      loadCrop(scanPdfBytes, omrMeta.detections.pageIndex, omrMeta.detections.bubbles);
+      loadCrop(scanPdfBytes, omrMeta.detections.pageIndex, omrMeta.detections.bubbles, omrMeta);
     } else if (!cropKey) {
       cropDataUrl = null;
       lastLoadedCropKey = "";
@@ -68,7 +66,8 @@
   async function loadCrop(
     pdfBytes: Uint8Array,
     pageIndex: number,
-    bubbles: Array<{ optionIndex: number; rect: [number, number, number, number] }>
+    bubbles: Array<{ optionIndex: number; rect: [number, number, number, number] }>,
+    currentOmrMeta: OmrScoreMeta
   ) {
     loadingCrop = true;
     cropError = "";
@@ -78,6 +77,7 @@
         pageIndex,
         bubbles,
         scale: 3.0,
+        overlay: { exercise, omrMeta: currentOmrMeta },
       });
     } catch (err: any) {
       console.error("Failed to render crop:", err);
@@ -112,7 +112,7 @@
   }
 </script>
 
-<div class="rounded-xl border border-slate-700 bg-slate-800 p-6 space-y-6 shadow-xl max-w-4xl mx-auto">
+<div class="rounded-xl border border-slate-700 bg-slate-800 p-6 space-y-6 shadow-xl max-w-[1600px] mx-auto">
   <!-- Top Bar: Header & Counter -->
   <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-700 pb-4">
     <div>
@@ -140,9 +140,9 @@
     </div>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
     <!-- Left Column: Scan Bubble Crop -->
-    <div class="rounded-lg border border-slate-700 bg-slate-900 p-4 flex flex-col items-center justify-center min-h-[220px]">
+    <div class="rounded-lg border border-slate-700 bg-slate-900 p-4 flex flex-col items-center justify-center min-h-[320px]">
       <div class="text-xs font-medium text-slate-400 mb-2 w-full flex justify-between">
         <span>Scan Crop</span>
         <span class="font-mono text-[0.7rem] text-slate-500">
@@ -155,11 +155,11 @@
       {:else if cropError}
         <div class="text-xs text-red-400 py-12">{cropError}</div>
       {:else if cropDataUrl}
-        <div class="relative max-w-full overflow-hidden rounded border border-slate-700 bg-white">
+        <div class="relative w-full overflow-hidden rounded border border-slate-700 bg-white">
           <img
             src={cropDataUrl}
             alt="Scan Crop for {exercise.name}"
-            class="max-h-[300px] w-auto object-contain"
+            class="max-h-[70vh] w-full object-contain"
           />
         </div>
       {:else}
@@ -200,7 +200,7 @@
               type="button"
               on:click={() => handleToggleOption(idx)}
               disabled={isSaving}
-              class="w-full flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-xs transition-all duration-150 cursor-pointer
+              class="w-full flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-all duration-150 cursor-pointer
                 {isSelected ? 'border-sky-400 bg-sky-400/15 font-semibold' : 'border-slate-700 bg-slate-900 hover:border-slate-500'}
                 {isFlagged ? 'border-dashed border-amber-500' : ''}"
             >

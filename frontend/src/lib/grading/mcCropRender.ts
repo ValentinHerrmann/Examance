@@ -1,4 +1,6 @@
 import { loadPdfjs } from '$lib/pdf/pdfjs';
+import { drawOmrOverlayForPage } from '$lib/grading/omrOverlay';
+import type { ExerciseRecord, OmrScoreMeta } from '$lib/db/schema';
 
 export interface McCropOptions {
   pdfBytes: Uint8Array;
@@ -11,6 +13,15 @@ export interface McCropOptions {
   scale?: number;
   paddingX?: number;
   paddingY?: number;
+  /**
+   * Draws the same red/amber bubble-box + checkmark/missing-symbol overlay used on the
+   * grading canvas (`omrOverlay.ts`) onto the page before cropping, so what the crop shows
+   * matches what a grader sees in the canvas workspace exactly.
+   */
+  overlay?: {
+    exercise: ExerciseRecord;
+    omrMeta: OmrScoreMeta;
+  };
 }
 
 /**
@@ -25,6 +36,7 @@ export async function renderMcCrop(options: McCropOptions): Promise<string> {
     scale = 3.0,
     paddingX = 0.15,
     paddingY = 0.08,
+    overlay,
   } = options;
 
   const pdfjsLib = await loadPdfjs();
@@ -46,6 +58,19 @@ export async function renderMcCrop(options: McCropOptions): Promise<string> {
   if (!ctx) throw new Error('Failed to get 2d context for PDF rendering');
 
   await pdfPage.render({ canvasContext: ctx, viewport } as any).promise;
+
+  if (overlay) {
+    drawOmrOverlayForPage(
+      ctx,
+      canvas.width,
+      canvas.height,
+      targetPageIndex + 1,
+      { [overlay.exercise.id]: { omrMeta: overlay.omrMeta } },
+      [overlay.exercise],
+      new Map(), // no sub-exercise letter/running-total stamp in the single-item crop view
+      {}
+    );
+  }
 
   let minX = 1;
   let minY = 1;

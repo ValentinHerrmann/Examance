@@ -295,7 +295,7 @@
       {errorMsg}
     </div>
   {:else if stats}
-    {#if stats.totalDetected === 0}
+    {#if stats.totalQuestions === 0}
       <div class="rounded-lg border border-slate-700 bg-slate-800 p-8 text-center">
         <h3 class="text-base font-semibold text-slate-200 mb-2">No MC Detections Found</h3>
         <p class="text-xs text-slate-400 max-w-md mx-auto mb-4">

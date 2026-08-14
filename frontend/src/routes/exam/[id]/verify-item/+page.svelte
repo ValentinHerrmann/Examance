@@ -166,7 +166,7 @@
   }
 </script>
 
-<div class="p-6 max-w-7xl mx-auto">
+<div class="p-6 max-w-[1700px] mx-auto">
   <div class="mb-6 flex items-center justify-between">
     <a
       href={`/exam/${examId}/verify`}

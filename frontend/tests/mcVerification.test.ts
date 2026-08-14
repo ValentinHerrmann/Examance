@@ -75,13 +75,40 @@ describe("computeMcVerificationStats", () => {
     expect(stats.items.length).toBe(6);
     expect(stats.perExercise.length).toBe(3);
 
-    // but the counts are marked boxes: 2+1+1(failed)+1+1+1 = 7, not items.length (6).
-    expect(stats.totalDetected).toBe(7);
-    expect(stats.high).toBe(4); // ex-1/sub-1 (2) + ex-1/sub-2 (1) + ex-2/sub-2 (1)
-    expect(stats.ambiguous).toBe(2); // ex-2/sub-1 (1, selected+flagged same box) + ex-3/sub-2 (1)
-    expect(stats.failed).toBe(1); // ex-3/sub-1
+    // Headline counts are question-level (one per item), not scaled by how many boxes
+    // were ticked on any one question — that's the "multiplies exercises by marks"
+    // regression this test guards against.
+    expect(stats.totalQuestions).toBe(6);
+    expect(stats.highQuestions).toBe(3); // ex-1/sub-1, ex-1/sub-2, ex-2/sub-2
+    expect(stats.ambiguousQuestions).toBe(2); // ex-2/sub-1, ex-3/sub-2
+    expect(stats.failedQuestions).toBe(1); // ex-3/sub-1
 
+    // Marked-box totals are a separate, informational axis: 2+1+1(failed)+1+1+1 = 7.
+    expect(stats.totalMarkedBoxes).toBe(7);
     expect(stats.items.find((i) => i.exerciseId === "ex-1" && i.submissionId === "sub-1")?.markedCount).toBe(2);
     expect(stats.items.find((i) => i.exerciseId === "ex-3" && i.submissionId === "sub-1")?.markedCount).toBe(1);
+
+    const ex1Breakdown = stats.perExercise.find((b) => b.exerciseId === "ex-1");
+    expect(ex1Breakdown?.total).toBe(2); // 2 questions (sub-1, sub-2), not 3 marked boxes
+    expect(ex1Breakdown?.markedBoxes).toBe(3); // 2 (sub-1) + 1 (sub-2)
+  });
+
+  it("dedupes stale duplicate score rows for the same (submission, exercise) pair", async () => {
+    const mockExercises = [{ id: "ex-1", questionType: "sc", title: "Q1", maxPoints: 1, penalty: 0 }] as any[];
+    const mockSubmissions = [{ id: "sub-1", examId: "exam-100", pseudonymHash: "hash-1" }] as any[];
+
+    vi.mocked(mcExerciseHash.loadExamMcExercises).mockResolvedValue(mockExercises);
+    vi.mocked(submissionRepository.getByExamId).mockResolvedValue(mockSubmissions);
+    vi.mocked(studentRepository.getByExamId).mockResolvedValue([] as any[]);
+
+    vi.mocked(dbEncryption.loadScoresEncrypted).mockResolvedValue([
+      { id: "stale", submissionId: "sub-1", exerciseId: "ex-1", selectedOptions: [0], omrMeta: { confidence: "high", source: "omr" } },
+      { id: "fresh", submissionId: "sub-1", exerciseId: "ex-1", selectedOptions: [1], omrMeta: { confidence: "ambiguous", source: "omr", flaggedOptions: [1] } },
+    ] as any[]);
+
+    const stats = await computeMcVerificationStats("exam-100", null);
+
+    expect(stats.items.length).toBe(1);
+    expect(stats.totalQuestions).toBe(1);
   });
 });

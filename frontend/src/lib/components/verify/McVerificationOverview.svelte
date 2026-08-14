@@ -11,45 +11,54 @@
 </script>
 
 <div class="space-y-6 mb-8">
+  <!-- Headline: how many questions still need a look — one per (submission, exercise),
+       regardless of how many bubbles were ticked on any single one of them. -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
     <div class="rounded-lg border border-slate-700 bg-slate-800 p-4">
-      <div class="text-xs font-medium text-slate-400">Total Marked Boxes</div>
-      <div class="mt-1 text-2xl font-bold text-slate-100">{stats.totalDetected}</div>
+      <div class="text-xs font-medium text-slate-400">Total Questions Graded</div>
+      <div class="mt-1 text-2xl font-bold text-slate-100">{stats.totalQuestions}</div>
     </div>
     <div class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4">
       <div class="text-xs font-medium text-emerald-400">High Confidence</div>
       <div class="mt-1 text-2xl font-bold text-emerald-300">
-        {stats.high}
+        {stats.highQuestions}
         <span class="text-xs font-normal text-emerald-400/80">
-          ({stats.totalDetected > 0 ? Math.round((stats.high / stats.totalDetected) * 100) : 0}%)
+          ({stats.totalQuestions > 0 ? Math.round((stats.highQuestions / stats.totalQuestions) * 100) : 0}%)
         </span>
       </div>
     </div>
     <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
       <div class="text-xs font-medium text-amber-400">Unsure / Ambiguous</div>
       <div class="mt-1 text-2xl font-bold text-amber-300">
-        {stats.ambiguous}
+        {stats.ambiguousQuestions}
         <span class="text-xs font-normal text-amber-400/80">
-          ({stats.totalDetected > 0 ? Math.round((stats.ambiguous / stats.totalDetected) * 100) : 0}%)
+          ({stats.totalQuestions > 0 ? Math.round((stats.ambiguousQuestions / stats.totalQuestions) * 100) : 0}%)
         </span>
       </div>
     </div>
     <div class="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
       <div class="text-xs font-medium text-red-400">Failed Detections</div>
       <div class="mt-1 text-2xl font-bold text-red-300">
-        {stats.failed}
+        {stats.failedQuestions}
         <span class="text-xs font-normal text-red-400/80">
-          ({stats.totalDetected > 0 ? Math.round((stats.failed / stats.totalDetected) * 100) : 0}%)
+          ({stats.totalQuestions > 0 ? Math.round((stats.failedQuestions / stats.totalQuestions) * 100) : 0}%)
         </span>
       </div>
     </div>
   </div>
 
+  <p class="text-xs text-slate-500">
+    {stats.totalMarkedBoxes} individual bubble{stats.totalMarkedBoxes === 1 ? "" : "s"} marked across all
+    {stats.totalQuestions} question{stats.totalQuestions === 1 ? "" : "s"} — that count is informational
+    only (a routine multi-answer tick isn't "questionable" just because it has several boxes) and doesn't
+    factor into the confidence percentages above.
+  </p>
+
   {#if sortedExerciseBreakdown.length > 0}
     <div class="rounded-lg border border-slate-700 bg-slate-800 overflow-hidden">
       <div class="border-b border-slate-700 px-4 py-3 bg-slate-800/80">
         <h3 class="text-sm font-semibold text-slate-200">Per-Question Breakdown</h3>
-        <p class="mt-0.5 text-[0.7rem] text-slate-500">Counts are marked boxes, not students — a question with several ticks counts each one.</p>
+        <p class="mt-0.5 text-[0.7rem] text-slate-500">High / Unsure / Failed / Total are questions (one per submission); Marks is the informational bubble tally.</p>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-xs text-slate-300">
@@ -60,6 +69,7 @@
               <th class="px-4 py-2.5 text-right text-amber-400">Unsure</th>
               <th class="px-4 py-2.5 text-right text-red-400">Failed</th>
               <th class="px-4 py-2.5 text-right">Total</th>
+              <th class="px-4 py-2.5 text-right text-slate-500">Marks</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-700/50">
@@ -70,6 +80,7 @@
                 <td class="px-4 py-2.5 text-right font-mono text-amber-400">{row.ambiguous}</td>
                 <td class="px-4 py-2.5 text-right font-mono text-red-400">{row.failed}</td>
                 <td class="px-4 py-2.5 text-right font-mono text-slate-400">{row.total}</td>
+                <td class="px-4 py-2.5 text-right font-mono text-slate-500">{row.markedBoxes}</td>
               </tr>
             {/each}
           </tbody>
