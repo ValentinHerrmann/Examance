@@ -72,7 +72,8 @@ describe('examRepository mapping & saving', () => {
       lehrernachname: 'Müller',
       infoText: 'Calculator allowed',
       gradingKey: { preset: 'linear_40', cutoffs: [] },
-      compilationStatus: 'completed',
+      retentionUntil: '2027-08-14',
+      compilationStatus: 'compiled',
       createdAt: '2026-08-14T00:00:00.000Z',
     };
 
@@ -143,6 +144,7 @@ describe('examRepository mapping & saving', () => {
       testart: 'Kurzarbeit',
       grade: '10',
       klasse: 'b',
+      retentionUntil: '2027-08-14',
       compilationStatus: 'pending',
       createdAt: '2026-08-14T00:00:00.000Z',
     };
@@ -168,6 +170,7 @@ describe('examRepository mapping & saving', () => {
       testart: 'Kurzarbeit',
       grade: '9',
       klasse: 'c',
+      retentionUntil: '2027-08-14',
       compilationStatus: 'pending',
       createdAt: '2026-08-14T00:00:00.000Z',
     };
