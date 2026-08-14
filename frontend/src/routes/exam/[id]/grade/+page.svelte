@@ -70,6 +70,10 @@
       const idx = submissions.findIndex((s) => s.id === targetId);
       if (idx >= 0) gradingStore.setCurrentIndex(idx);
     }
+    const targetExerciseId = $page.url.searchParams.get('exerciseId');
+    if (targetExerciseId && exercises.some((e) => e.id === targetExerciseId)) {
+      gradingStore.setActiveExerciseId(targetExerciseId);
+    }
     if (submissions.length > 0) {
       await initExerciseScores(submissions[get(gradingStore).currentIndex]);
     }

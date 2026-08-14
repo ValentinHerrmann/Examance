@@ -112,8 +112,6 @@
   let isPreparingOmr = false;
   let omrPrepareMessage = "";
   let omrTemplateStatus: "none" | "ready" | "stale" | "checking" = "checking";
-  let isRerunningMc = false;
-  let rerunMcMessage = "";
 
   let previewPdfUrl: string | null = null;
   let previewSolutionPdfUrl: string | null = null;
@@ -685,170 +683,13 @@ ${exerciseInputs}
     }
   }
 
-  /**
-   * Re-scores already-scanned submissions against the current OMR template — for exams
-   * scanned before "Prepare OMR" was run, or after the answer key changed and the template
-   * was refreshed. Skips any exercise the teacher has already hand-graded (`omrMeta.source
-   * === "manual"`); overwrites OMR-derived scores in place (reuses their `id`).
-   */
-  async function handleRerunMcDetection() {
-    if (!exam || omrTemplateStatus !== "ready" || submissions.length === 0) return;
-    isRerunningMc = true;
-    rerunMcMessage = "Loading OMR template...";
-    errorMsg = "";
-
-    try {
-      const key = get(sessionStore).sessionKey;
-      const templateResult = await loadOmrTemplateEncrypted(exam.id, key);
-      if (!templateResult || !templateResult.payload) {
-        rerunMcMessage = "";
-        errorMsg = "No OMR template found — run Prepare OMR first.";
-        return;
-      }
-      const templatePages = templateResult.payload.pages;
-
-      const mcExercises = collectMcExercises();
-      const answerKeys: OmrExerciseAnswerKey[] = mcExercises.map((e) => ({
-        exerciseId: e.id,
-        questionType: e.questionType as "mc" | "sc" | "tf",
-        correctAnswers: e.correctAnswers ?? [],
-        penalty: e.penalty ?? 0,
-        maxPoints: e.maxPoints,
-      }));
-
-      const pdfjsLib = await loadPdfjs();
-
-      const worker = new Worker(new URL("$lib/workers/omrWorker.ts", import.meta.url), {
-        type: "module",
-      });
-      const runOmr = (req: OmrWorkerRequest): Promise<OmrWorkerResponse> =>
-        new Promise((resolve, reject) => {
-          const onMessage = (event: MessageEvent<OmrWorkerResponse>) => {
-            worker.removeEventListener("message", onMessage);
-            worker.removeEventListener("error", onError);
-            resolve(event.data);
-          };
-          const onError = (err: ErrorEvent) => {
-            worker.removeEventListener("message", onMessage);
-            worker.removeEventListener("error", onError);
-            reject(err.error || new Error(err.message));
-          };
-          worker.addEventListener("message", onMessage);
-          worker.addEventListener("error", onError);
-          worker.postMessage(req);
-        });
-
-      const scanScale = 2.0;
-      let processed = 0;
-      let updated = 0;
-      let alignmentFailures = 0;
-
-      try {
-        for (const sub of submissions) {
-          processed++;
-          rerunMcMessage = `Processing submission ${processed}/${submissions.length}...`;
-          if (!sub.scanCt || !sub.scanIv) continue;
-
-          let pdfBytes: Uint8Array;
-          try {
-            pdfBytes = await decrypt(key, sub.scanCt, sub.scanIv);
-          } catch (err) {
-            console.warn(`Failed to decrypt scan for submission ${sub.id}:`, err);
-            continue;
-          }
-
-          const existingScores = await loadScoresEncrypted(sub.id, key);
-          const existingByExercise = new Map(existingScores.map((s) => [s.exerciseId, s]));
-
-          const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
-          for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-            const pageTemplate = templatePages[pageNum - 1];
-            if (!pageTemplate || (pageTemplate.bubbles.length === 0 && pageTemplate.fiducials.length === 0)) {
-              continue;
-            }
-
-            const pdfPage = await pdfDoc.getPage(pageNum);
-            const viewport = pdfPage.getViewport({ scale: scanScale });
-            const canvas = document.createElement("canvas");
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) continue;
-            await pdfPage.render({ canvas, canvasContext: ctx, viewport }).promise;
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-            const response = await runOmr({
-              type: "OMR_PROCESS",
-              imageData,
-              pageTemplate,
-              scanScale,
-              answerKeys,
-            });
-            if (response.type !== "OMR_RESULT") continue;
-
-            if (response.alignmentFailed) alignmentFailures++;
-
-            for (const r of response.results) {
-              const existing = existingByExercise.get(r.exerciseId);
-              if (existing?.omrMeta?.source === "manual") continue;
-
-              const failed = r.confidence === "failed";
-              const nonBlankBubbles = r.bubbles.filter((b) => b.state !== "blank" && b.state !== "undone");
-              await saveScoreEncrypted(
-                {
-                  id: existing?.id ?? crypto.randomUUID(),
-                  submissionId: sub.id,
-                  exerciseId: r.exerciseId,
-                  // Leave unset on alignment failure so it hydrates as "ungraded" rather than
-                  // silently contributing a 0 to the total (grade/+page.svelte).
-                  score: failed ? undefined : r.score,
-                  selectedOptions: failed ? [] : r.selectedOptions,
-                  omrMeta: {
-                    confidence: r.confidence,
-                    source: "omr",
-                    flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
-                    detections:
-                      !failed && nonBlankBubbles.length > 0
-                        ? {
-                            pageIndex: r.pageIndex,
-                            bubbles: nonBlankBubbles.map((b) => ({
-                              optionIndex: b.optionIndex,
-                              state: b.state,
-                              rect: b.rect,
-                            })),
-                          }
-                        : undefined,
-                  },
-                },
-                key,
-              );
-              updated++;
-            }
-          }
-        }
-      } finally {
-        worker.terminate();
-      }
-
-      rerunMcMessage =
-        `MC detection re-run complete: ${updated} score(s) updated across ${processed} submission(s).` +
-        (alignmentFailures > 0
-          ? ` ${alignmentFailures} page(s) failed alignment — those exercises need manual grading.`
-          : "");
-    } catch (err: any) {
-      errorMsg = err.message || "Failed to re-run MC detection.";
-      rerunMcMessage = "";
-    } finally {
-      isRerunningMc = false;
-    }
-  }
-
   async function handlePreviewExam() {
     if (!exam || (exercises.length === 0 && mcGroups.length === 0)) return;
     const currentExam = exam;
     isPreviewLoading = true;
     compileNotice = "";
     errorMsg = "";
+    let compileSucceeded = false;
 
     try {
       const exerciseInputs = buildExerciseInputs();
@@ -896,10 +737,20 @@ ${exerciseInputs}
       previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
 
       compileNotice = "";
+      compileSucceeded = true;
     } catch (err: any) {
       errorMsg = `Preview failed: ${err.message || "Unknown compilation error"}`;
     } finally {
       isPreviewLoading = false;
+    }
+
+    // Auto-refresh the OMR template after every successful compile so it never silently
+    // drifts out of sync with the exam layout — mirrors clicking "Prepare OMR" by hand.
+    // Only runs when the exam actually has MC exercises; handlePrepareOmr() itself handles
+    // the "no MC exercises" case as a no-op-with-error, which we don't want to surface here
+    // as an unprompted error banner, so we gate on collectMcExercises() first.
+    if (compileSucceeded && collectMcExercises().length > 0) {
+      await handlePrepareOmr();
     }
   }
 
@@ -1572,49 +1423,37 @@ ${exerciseInputs}
       <div class="exam-controls-row">
         <button
           class="compile-btn"
-          class:is-loading={isPreviewLoading}
+          class:is-loading={isPreviewLoading || isPreparingOmr}
           on:click={handlePreviewExam}
-          disabled={isPreviewLoading || exercises.length === 0}
+          disabled={isPreviewLoading || isPreparingOmr || exercises.length === 0}
+          title="Compiles the exam PDF and (if it has MC exercises) automatically refreshes the OMR bubble template right after."
         >
-          {isPreviewLoading ? "Compiling Previews..." : "🔍 Live Preview PDF"}
-        </button>
-
-        <button
-          class="compile-btn"
-          class:is-loading={isPreparingOmr}
-          on:click={handlePrepareOmr}
-          disabled={isPreparingOmr || exercises.length === 0}
-          title="Compiles a blank exam locally and captures MC bubble positions for automatic grading during scan."
-        >
-          {isPreparingOmr
-            ? "Preparing OMR..."
-            : omrTemplateStatus === "stale"
-              ? "🎯 Re-run Prepare OMR"
-              : "🎯 Prepare OMR"}
-        </button>
-
-        <button
-          class="compile-btn"
-          class:is-loading={isRerunningMc}
-          on:click={handleRerunMcDetection}
-          disabled={isRerunningMc || omrTemplateStatus !== "ready" || submissions.length === 0}
-          title="Re-scores already-scanned submissions against the current OMR template. Skips exercises already hand-graded."
-        >
-          {isRerunningMc ? "Re-running MC detection..." : "🔁 Re-run MC detection"}
+          {isPreviewLoading
+            ? "Compiling Previews..."
+            : isPreparingOmr
+              ? "Preparing OMR..."
+              : "🔍 Live Preview PDF"}
         </button>
       </div>
 
       {#if omrTemplateStatus === "stale"}
-        <div class="exam-notice exam-notice--warning">
-          MC answer key changed since the OMR template was captured — auto-grading may be
-          inaccurate until you re-run "Prepare OMR".
+        <div class="exam-notice exam-notice--warning flex items-center justify-between">
+          <span>
+            MC answer key changed since the OMR template was captured — auto-grading may be
+            inaccurate until you refresh the OMR template.
+          </span>
+          <button
+            type="button"
+            class="ml-3 text-xs underline font-medium text-amber-300 hover:text-amber-100 disabled:opacity-50 cursor-pointer"
+            on:click={handlePrepareOmr}
+            disabled={isPreparingOmr}
+          >
+            {isPreparingOmr ? "Refreshing OMR..." : "Refresh OMR now"}
+          </button>
         </div>
       {/if}
       {#if omrPrepareMessage}
         <div class="exam-notice">{omrPrepareMessage}</div>
-      {/if}
-      {#if rerunMcMessage}
-        <div class="exam-notice">{rerunMcMessage}</div>
       {/if}
 
       {#if previewPdfUrl || previewSolutionPdfUrl}

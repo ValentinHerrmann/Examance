@@ -5,7 +5,7 @@
   // alongside it (toggling an option here writes straight into scoreInputs).
   import type { ExerciseRecord } from "$lib/db/schema";
   import { gradingStore } from "$lib/grading/gradingStore";
-  import { computeMcScore, type McQuestionType } from "$lib/grading/mcScore";
+  import { applyMcCorrection, type McQuestionType } from "$lib/grading/mcScore";
 
   export let exercise: ExerciseRecord;
 
@@ -21,40 +21,22 @@
   $: multiMarkWarning = isSingleAnswer && selectedOptions.length > 1;
 
   function toggleOption(idx: number) {
-    const next = isSingleAnswer
-      ? selectedOptions.includes(idx)
-        ? []
-        : [idx]
-      : selectedOptions.includes(idx)
-        ? selectedOptions.filter((o) => o !== idx)
-        : [...selectedOptions, idx].sort((a, b) => a - b);
-
-    // Rewrite each bubble's detected state to match the correction so the scan overlay
-    // (omrOverlay.ts, drawn purely from bubble.state) reflects what the teacher decided,
-    // not the original OMR reading. Rects/pageIndex stay put — only state is teacher-authored now.
-    const correctedDetections = omrMeta?.detections
-      ? {
-          ...omrMeta.detections,
-          bubbles: omrMeta.detections.bubbles.map((b) => ({
-            ...b,
-            state: next.includes(b.optionIndex) ? ("marked" as const) : ("blank" as const),
-          })),
-        }
-      : undefined;
-
-    gradingStore.setMcStateForExercise(exercise.id, {
-      selectedOptions: next,
-      omrMeta: { confidence: "high", source: "manual", detections: correctedDetections },
-    });
-
-    const score = computeMcScore(
+    const { nextSelectedOptions, nextScore, nextOmrMeta } = applyMcCorrection(
       questionType,
-      next,
+      selectedOptions,
+      idx,
       correctAnswers,
       exercise.penalty ?? 0,
       exercise.maxPoints,
+      omrMeta
     );
-    gradingStore.setScoreInput(exercise.id, score);
+
+    gradingStore.setMcStateForExercise(exercise.id, {
+      selectedOptions: nextSelectedOptions,
+      omrMeta: nextOmrMeta,
+    });
+
+    gradingStore.setScoreInput(exercise.id, nextScore);
     gradingStore.setManualOverrideFlag(exercise.id, true);
   }
 </script>
