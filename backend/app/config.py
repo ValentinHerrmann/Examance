@@ -16,6 +16,11 @@ PLACEHOLDER_SECRET_KEYS = frozenset(
     }
 )
 
+# Loopback origins on arbitrary ports (http/https on localhost or 127.0.0.1).
+# Appended to effective_cors_origin_regex ONLY when ENVIRONMENT == "development"
+# to permit local frontend debugging without enabling local CSRF in production.
+LOCALHOST_CORS_ORIGIN_REGEX = r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -43,7 +48,16 @@ class Settings(BaseSettings):
 
     # CORS — required; app refuses to start if unset or empty
     CORS_ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "https://examance.pages.dev"]
-    CORS_ALLOWED_ORIGIN_REGEX: str | None = r"https://([a-zA-Z0-9-]+\.)*valentin-herrmann\.com"
+    # Production base regex (fullmatch):
+    #   - https://<anything>.valentin-herrmann.com and the bare apex domain
+    #   - https://examance.pages.dev and any Cloudflare Pages preview
+    #     subdomain of it (https://<branch>.examance.pages.dev)
+    # Note: Localhost origins (any port) are appended dynamically via
+    # `effective_cors_origin_regex` only when `ENVIRONMENT == "development"`.
+    CORS_ALLOWED_ORIGIN_REGEX: str | None = (
+        r"https://([a-zA-Z0-9-]+\.)*valentin-herrmann\.com"
+        r"|https://([a-zA-Z0-9-]+\.)?examance\.pages\.dev"
+    )
 
     # Host header allowlist (Host-spoofing protection). Deployment-specific, so
     # it stays opt-in: TrustedHostMiddleware is only registered when non-empty.
@@ -142,6 +156,23 @@ class Settings(BaseSettings):
     @property
     def is_dev(self) -> bool:
         return self.ENVIRONMENT == "development"
+
+    @property
+    def effective_cors_origin_regex(self) -> str | None:
+        """
+        Return the combined CORS origin regex.
+
+        In development (ENVIRONMENT == "development"), arbitrary ports on
+        localhost and 127.0.0.1 are also permitted to allow local frontend
+        debugging with varying ports. In production, loopback origins on
+        arbitrary ports are excluded to prevent local dev CSRF vectors against
+        hosted instances.
+        """
+        if not self.is_dev:
+            return self.CORS_ALLOWED_ORIGIN_REGEX
+        if self.CORS_ALLOWED_ORIGIN_REGEX:
+            return f"{self.CORS_ALLOWED_ORIGIN_REGEX}|{LOCALHOST_CORS_ORIGIN_REGEX}"
+        return LOCALHOST_CORS_ORIGIN_REGEX
 
 
 settings = Settings()

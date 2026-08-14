@@ -31,8 +31,8 @@ class OriginGuardMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self._allowed = frozenset(settings.CORS_ALLOWED_ORIGINS)
         self._pattern = (
-            re.compile(settings.CORS_ALLOWED_ORIGIN_REGEX)
-            if settings.CORS_ALLOWED_ORIGIN_REGEX
+            re.compile(settings.effective_cors_origin_regex)
+            if settings.effective_cors_origin_regex
             else None
         )
 

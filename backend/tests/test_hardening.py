@@ -6,6 +6,7 @@ logout cookie clearing, and the CSRF origin backstop.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import re
 
 import pytest
 from httpx import AsyncClient
@@ -70,6 +71,28 @@ def test_rate_limit_storage_defaults_to_redis_outside_dev() -> None:
 def test_rate_limit_storage_defaults_to_memory_in_dev() -> None:
     settings = Settings(ENVIRONMENT="development", RATE_LIMIT_STORAGE_URI="")
     assert settings.RATE_LIMIT_STORAGE_URI == "memory://"
+
+
+def test_effective_cors_origin_regex_in_dev() -> None:
+    settings = Settings(_env_file=None, ENVIRONMENT="development")
+    assert settings.effective_cors_origin_regex is not None
+    pattern = re.compile(settings.effective_cors_origin_regex)
+    assert pattern.fullmatch("http://localhost:8000")
+    assert pattern.fullmatch("http://127.0.0.1:9999")
+    assert pattern.fullmatch("https://sub.valentin-herrmann.com")
+    assert pattern.fullmatch("https://claude-fullstack.examance.pages.dev")
+    assert not pattern.fullmatch("https://attacker.com")
+
+
+def test_effective_cors_origin_regex_in_production() -> None:
+    settings = Settings(_env_file=None, ENVIRONMENT="production", SECRET_KEY=STRONG_KEY)
+    assert settings.effective_cors_origin_regex is not None
+    pattern = re.compile(settings.effective_cors_origin_regex)
+    assert not pattern.fullmatch("http://localhost:8000")
+    assert not pattern.fullmatch("http://127.0.0.1:9999")
+    assert pattern.fullmatch("https://sub.valentin-herrmann.com")
+    assert pattern.fullmatch("https://claude-fullstack.examance.pages.dev")
+    assert not pattern.fullmatch("https://attacker.com")
 
 
 # --- Registration password policy ------------------------------------------

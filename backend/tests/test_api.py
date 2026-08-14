@@ -568,8 +568,8 @@ async def test_cors_preflight_origins(client: AsyncClient) -> None:
     assert resp.status_code == 200
     assert resp.headers.get("access-control-allow-origin") == allowed
 
-    # 2. An origin matching CORS_ALLOWED_ORIGIN_REGEX, when one is configured.
-    if settings.CORS_ALLOWED_ORIGIN_REGEX:
+    # 2. An origin matching effective_cors_origin_regex, when one is configured.
+    if settings.effective_cors_origin_regex:
         resp_sub = await client.options(
             "/api/v1/auth/login",
             headers={
