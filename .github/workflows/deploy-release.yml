@@ -140,6 +140,12 @@ jobs:
     name: Deploy backend (production)
     needs: [version, backend-image]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Lets this job's own GITHUB_TOKEN pull from GHCR — each job mints its
+      # own token, valid for that job's duration, so no long-lived PAT is
+      # needed just to let the server authenticate during this run.
+      packages: read
     environment:
       name: production
       url: ${{ vars.BACKEND_PUBLIC_URL }}
@@ -164,8 +170,10 @@ jobs:
           BACKEND_IMAGE: ${{ needs.backend-image.outputs.image }}
           APP_VERSION: ${{ needs.version.outputs.version }}
           DEPLOY_APP_DIR: ${{ vars.DEPLOY_APP_DIR }}
-          REGISTRY_USER: ${{ secrets.DEPLOY_REGISTRY_USER }}
-          REGISTRY_TOKEN: ${{ secrets.DEPLOY_REGISTRY_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+          # This job's own GITHUB_TOKEN, not a stored secret — minted at job
+          # start, valid only for this run, revoked automatically afterwards.
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
