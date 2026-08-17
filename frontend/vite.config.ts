@@ -41,7 +41,7 @@ function computeAppVersion(): string {
  * versionStore.ts): a release build links to its GitHub Release, a preview or
  * dev build links to the exact commit it was built from.
  */
-const REPO_URL = 'https://github.com/ValentinHerrmann/BlindGrade';
+const REPO_URL = 'https://github.com/ValentinHerrmann/Examance';
 
 /** Full commit SHA of this build, when Cloudflare Pages provides one. */
 function computeCommitSha(): string {
