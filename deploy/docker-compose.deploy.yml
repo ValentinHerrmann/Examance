@@ -81,7 +81,7 @@ services:
     # Bound to loopback only: nginx on the host terminates TLS and proxies to
     # this port. Publishing on 0.0.0.0 would expose the API without TLS.
     ports:
-      - "0.0.0.0:${APP_PORT:-8000}:8000"
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
