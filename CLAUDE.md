@@ -4,7 +4,7 @@
 
 Examance = product name. "BlindGrade" = old name, still the repo name and some internal identifiers (DB user, default CORS origin). Legacy, not bugs — don't "fix".
 
-Privacy-first, zero-knowledge-encrypted anonymous exam grading. LaTeX exams, QR-decoded pseudonymous submissions, canvas-annotation grading, analytics. Client-side encryption at rest: Argon2id + HKDF-SHA-256 + AES-256-GCM (`docs/data_flow_and_security.md`). Storage modes: `local-only` (IndexedDB/Dexie, default), `server-synced`.
+Privacy-first, zero-knowledge-encrypted anonymous exam grading. LaTeX exams, QR-decoded pseudonymous submissions, canvas-annotation grading, analytics. Client-side encryption at rest: Argon2id + HKDF-SHA-256 + AES-256-GCM (`docs/data_flow_and_security.md`). Storage modes (`lib/stores/storagePolicy.ts`): `all-local` (IndexedDB/Dexie, default), `all-server`, `hybrid` (exercises/exams on server, student identity/submissions local).
 
 ## Architecture
 
@@ -17,10 +17,10 @@ Privacy-first, zero-knowledge-encrypted anonymous exam grading. LaTeX exams, QR-
 
 **Frontend** `frontend/` — SvelteKit 2.5 on **Svelte 4 (not 5)**, TypeScript, Vite 5, Tailwind v4, `adapter-static` → `frontend/build/`. `argon2-browser`, `dexie` (IndexedDB, primary encrypted store in local mode), `pdf-lib`/`pdfjs-dist`, `zxing-wasm` (QR decode) / `qrcode` (generate), `texlyre-busytex` (WASM LaTeX via Tectonic).
 
-- `src/lib/{analytics,api,archive,components,crypto,db,exam,exercise-library,gdpr,grading,hardware,latex,repositories,services,stores,utils,workers}`; `src/routes/{admin,analytics,exam,exercises,settings,unlock}`.
+- `src/lib/{analytics,api,archive,components,crypto,db,exam,exercise-library,gdpr,grading,hardware,latex,pdf,repositories,services,stores,utils,workers}`; `src/routes/{admin,analytics,exam,exercises,forgot-password,legal,reset-password,settings,unlock}`.
 - **Components**: new ones → `src/lib/components/<feature>/`. Nine legacy ones sit loose at `components/` root (`ConfirmDialog`, `DualPdfPreview`, `ExerciseEditorModal`, `GradingKeyEditor`, `LatexEditor`, `LatexViewer`, `SessionTimeoutWarning`, `StoragePolicyModal`, `ZoomableImage`) — leftovers, don't copy. Routes hold data-loading, handlers, session state; components hold markup. Wire with callback props (`onAction={handler}`, `bind:value`), **not** `createEventDispatcher` — 5 legacy roots still use it (`ConfirmDialog`, `DualPdfPreview`, `ExerciseEditorModal`, `LatexEditor`, `StoragePolicyModal`); don't follow. Prop-drilling exception: `src/lib/grading/gradingStore.ts`, leaf grading components subscribe directly (15+ interdependent fields, justified in-file).
 - **Styles**: in the component's own `<style>` block. No sibling `.css` file — existing ones are mid-migration away, not the model.
-- **Known gaps** (don't reflexively fix; flag if touched): `npm run lint` runs `eslint .` but no eslint config exists anywhere, despite installed deps and CI running the step. `svelte-check` has 2 pre-existing errors — `d3-scale` types in `SubmissionHistogram.svelte`/`GradeDistribution.svelte`; `d3-scale` isn't in `frontend/package.json` at all, resolving only transitively via `layerchart` (latent breakage, not just missing types).
+- **Known gaps** (don't reflexively fix; flag if touched): `svelte-check` has 2 pre-existing errors — `d3-scale` types in `SubmissionHistogram.svelte`/`GradeDistribution.svelte`. `d3-scale` and `@types/d3-scale` are both listed in `frontend/package.json`, but `@types/d3-scale` is missing from `node_modules` (stale install, checked 2026-08-17) — a plain reinstall would likely fix it, but don't `npm install` casually (see below).
 
 ## Commands
 
@@ -91,7 +91,7 @@ The policy is `script-src 'self'` with no CDN allowances: third-party assets (e.
 - **Security/privacy first**: client-side encryption-at-rest, GDPR-regulated data. Call out any change touching auth, crypto, or retention — read `docs/data_flow_and_security.md` and `docs/breach_response_checklist.md` first.
 - **No secrets in commits**: never commit `backend/.env` or real secret values. `backend/.env.example` is a template.
 - **Dep managers**: `uv` backend, `npm` frontend. No pip, poetry, yarn.
-- **Local mode is the default** for exercise/exam management — don't default to server endpoints when local-only paths exist.
+- **Local mode is the default** for exercise/exam management — don't default to server endpoints when `all-local` paths exist.
 - Mind WASM/Argon2 asset resolution (`busytex.wasm`, `argon2.wasm`) in frontend bundling config.
 - **busytex local-compile quirks** (`frontend/src/lib/latex/compiler.ts`/`compiler.worker.ts`): (1) first-ever local compile in a cold browser session can throw spurious `File 'X.sty' not found` errors (e.g. `ulem.sty`) while `texlive-extra` is still downloading/indexing — self-resolves on retry once cached, not a packaging bug. (2) Local (WASM XeLaTeX) compiles can silently drop exercise content that the same source compiles fine on the server — `compiler.worker.ts` only reports failure when the engine itself reports `!success`, so a non-fatal LaTeX error mid-document (e.g. an unavailable package/macro used only inside an exercise body) can produce a PDF that's missing content without surfacing an error. Root cause not yet isolated — needs the browser console log from a local compile to identify the failing package/macro.
 - Don't run non-terminating npm commands (dev servers, watch mode) unless asked.

@@ -15,10 +15,10 @@ Examance supports two deployment shapes, and the duties differ. Every finding be
 
 | Deployment | Controller | Processor | Notes |
 | :--- | :--- | :--- | :--- |
-| **A — School self-hosts.** The school runs the backend, or teachers use `local-only` mode with no backend at all. | The school | none | No Art. 28 contract needed. The school owes Art. 30 records, the Art. 35 DPIA, and the Art. 13 notice directly. |
+| **A — School self-hosts.** The school runs the backend, or teachers use `all-local` mode with no backend at all. | The school | none | No Art. 28 contract needed. The school owes Art. 30 records, the Art. 35 DPIA, and the Art. 13 notice directly. |
 | **B — A third party hosts for schools.** | Each school | The operator | Art. 28 contract required before any processing — see `DPA_template.md`. The operator owes Art. 32 measures, Art. 33(2) notification to the school, and sub-processor transparency. |
 
-In **both** shapes the school is the controller: it decides that exams are graded and why. The teacher is not a separate controller; they act for the school. In `local-only` mode the data never leaves the teacher's browser, which changes the technical exposure but **not** the school's controllership — see L12.
+In **both** shapes the school is the controller: it decides that exams are graded and why. The teacher is not a separate controller; they act for the school. In `all-local` mode the data never leaves the teacher's browser, which changes the technical exposure but **not** the school's controllership — see L12. `hybrid` mode sits between the two: student identity and submissions stay local like `all-local`, but exercises and exam metadata go to a backend like shape B.
 
 ---
 
@@ -32,7 +32,7 @@ DSGVO applies directly. BDSG supplements it. For a public school, the decisive a
 | Supplementary state data-protection law | **BayDSG** | *[state DSG]* |
 | Competent supervisory authority | **Bayerischer Landesbeauftragter für den Datenschutz (BayLfD)** — public bodies, including state schools. **Not** BayLDA, which supervises the private sector. | *[authority competent for public bodies]* |
 | Statutory retention for written exam work | Set by BaySchO — **confirm the current period with the school's DPO**; this audit does not fix a number | *[period]* |
-| Processing on private devices | Bavarian rules restrict processing student data on privately owned devices — relevant to `local-only` mode, see L12 | *[state rules]* |
+| Processing on private devices | Bavarian rules restrict processing student data on privately owned devices — relevant to `all-local` mode, and to `hybrid` mode for the student data it keeps local, see L12 | *[state rules]* |
 
 **Why Bavaria is assumed:** the codebase is built around Bavarian exam terminology — `testart` defaults to *Kurzarbeit*, the LaTeX package is `Schulaufgabe.sty`, and scoring uses *BE* (Bewertungseinheiten). If the deployment is in another Land, change the table above; nothing else in this document depends on it.
 
@@ -44,7 +44,7 @@ Derived from the backend models and `data_flow_and_security.md` §3. "Pseudonymo
 
 | Data | Category | Where | Encrypted at rest? |
 | :--- | :--- | :--- | :--- |
-| Student name, student number | Personal, of a minor | Browser IndexedDB; server only if `server-synced` | Yes — AES-256-GCM, key never leaves the browser |
+| Student name, student number | Personal, of a minor | Browser IndexedDB; server only in `all-server` mode | Yes — AES-256-GCM, key never leaves the browser |
 | Submission scan (exam paper) | Personal, of a minor | as above | Yes |
 | Grading annotations | Personal, of a minor | as above | Yes |
 | `total_score` per submission | **Pseudonymous, plaintext** | Server (`scan_submissions`) | **No** |
@@ -139,13 +139,13 @@ No document stated why the processing is lawful. For a Bavarian public school it
 
 The Datenschutzerklärung template states this with a placeholder for the state-law citation. The controller must confirm it.
 
-### L12 — `local-only` puts student data on the teacher's device · Art. 32; state rules on private devices · [C] · **Improved, residual risk stands**
+### L12 — `all-local` (and `hybrid`) put student data on the teacher's device · Art. 32; state rules on private devices · [C] · **Improved, residual risk stands**
 
-`local-only` is the default mode: student identities, scans and annotations live in the teacher's browser profile. Until this change set, the anonymous variant generated a random password and stored it **in cleartext in `localStorage`, beside the IndexedDB it protected** — so encryption at rest gave no protection whatsoever against anyone with access to the browser profile.
+`all-local` is the default mode: student identities, scans and annotations live in the teacher's browser profile. `hybrid` mode keeps the same student-data exposure — only exercises and exam metadata move to a backend there. Until this change set, the anonymous variant generated a random password and stored it **in cleartext in `localStorage`, beside the IndexedDB it protected** — so encryption at rest gave no protection whatsoever against anyone with access to the browser profile.
 
 **Fixed:** the vault is now keyed by a passphrase the user supplies, which is never persisted; only the salt and nonce are stored. Existing vaults are re-encrypted on next unlock.
 
-**Residual risk, stated deliberately:** while a tab is unlocked, the derived session key sits in `sessionStorage` so the workspace survives a page reload. Anyone who can run script on the origin, or who reaches an already-unlocked tab, can read the data. `local-only` protects a *stored* device, not an *unattended* one.
+**Residual risk, stated deliberately:** while a tab is unlocked, the derived session key sits in `sessionStorage` so the workspace survives a page reload. Anyone who can run script on the origin, or who reaches an already-unlocked tab, can read the data. `all-local` (and `hybrid`, for its local portion) protects a *stored* device, not an *unattended* one.
 
 **Open for the controller:** Bavarian rules restrict processing student data on privately owned devices. If teachers use personal laptops, the school must authorise it and set conditions (full-disk encryption, screen lock, no shared profiles). This is an organisational control the software cannot supply.
 
@@ -182,6 +182,14 @@ Two controls now hold the line, which is the point of the finding: the CSP is `d
 
 **Note for a reader assessing the past:** these loads were live in every deployed version before this branch. If a retrospective assessment is needed, the exposure is request metadata only, continuous, to Cloudflare Inc. (pdf.js) and the `http.cat` operator.
 
+### L17 — Student name and fallback code stored in plaintext in IndexedDB · Art. 5(1)(f), 32 · [C+P] · **Open**
+
+`encryptStudent()` (`lib/db/dbEncryption.ts`) writes `fallbackCode`, `studentName` and `studentNumber` into the returned `StudentRecord` **in addition to** the encrypted `payloadCt`/`payloadIv` it produces from the same fields, and `studentRepository.ts` persists that record as-is via `db.students.put()`. `fallbackCode` is also a plaintext Dexie index (`db.ts`: `students: 'pseudonymId, examId, fallbackCode'`).
+
+This contradicts `data_flow_and_security.md` Core Invariant 1 ("zero unencrypted text" when locked) for exactly the fields — a pupil's name and ID number — that invariant exists to protect, in both `all-local` and `hybrid` mode.
+
+**Found during a documentation review** (2026-08-17) while verifying the storage table in §3 against the live schema; not yet fixed. Flagging here per standing instruction to call out anything touching crypto/storage rather than resolve it silently.
+
 ---
 
 ## 5. Honest caveats
@@ -210,6 +218,7 @@ Ordered by what blocks a school deployment.
 6. **Decide the private-device question** (L12) if teachers use personal machines.
 7. **Set a real `SECRET_KEY`** and confirm the app refuses to start without one — it now does.
 8. **Consider enforcing SRI** (§5) by vendoring and hashing the WASM binaries.
+9. **Fix the plaintext student-data leak in IndexedDB** (L17). Blocking: it breaks the encryption-at-rest guarantee this document otherwise relies on.
 
 ---
 

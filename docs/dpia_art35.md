@@ -33,7 +33,7 @@ Two criteria are met (evaluation/scoring; vulnerable data subjects), so a DPIA i
 *[Complete for your deployment. Draw the data inventory from `legal_audit_dsgvo.md` §3 and the data flows from `data_flow_and_security.md`.]*
 
 - Purpose and context: *[…]*
-- Deployment shape: *[school self-hosted / third-party hosted / local-only]*
+- Deployment shape: *[school self-hosted / third-party hosted]*; storage mode: *[`all-local` / `all-server` / `hybrid` — see `data_flow_and_security.md` §3]*
 - Data categories, subjects and volumes: *[…]*
 - Retention: *[…]*
 - Recipients and sub-processors: *[…]*
@@ -55,7 +55,7 @@ Rate each risk to the **rights and freedoms of the data subject**, not to the sc
 | :-- | :--- | :--- | :--- | :--- | :--- | :--- |
 | R1 | Unauthorised disclosure of a pupil's exam paper or grade | Server compromise | *[…]* | High | Client-side AES-256-GCM; server never holds the key | *[…]* |
 | R2 | Disclosure of grades via plaintext `total_score` on the server | Server compromise | *[…]* | Medium | Pseudonymous only; k ≥ 5 suppression on aggregates | *[…]* |
-| R3 | Disclosure from a teacher's device in `local-only` mode | Lost, stolen or shared device | *[…]* | High | Passphrase-derived key, not persisted; session auto-locks after 60 min | Session key is in `sessionStorage` while unlocked — an unattended unlocked device is exposed |
+| R3 | Disclosure from a teacher's device — applies in `all-local` mode, and in `hybrid` mode for student identity/submission data specifically | Lost, stolen or shared device | *[…]* | High | Passphrase-derived key, not persisted; session auto-locks after 60 min | Session key is in `sessionStorage` while unlocked — an unattended unlocked device is exposed |
 | R4 | Loss of pupil work | Forgotten passphrase; no recovery by design | *[…]* | Medium | `.bgproj` export as backup | Depends on whether teachers actually take backups |
 | R5 | Data kept beyond its purpose | Retention job not scheduled | *[…]* | Medium | Automated cascade erasure with grace period | Requires the cron job to actually run — verify in deployment |
 | R6 | Grade tampering | Compromised teacher account | *[…]* | High | Rate-limited auth, refresh-token reuse detection, append-only audit trail | *[…]* |

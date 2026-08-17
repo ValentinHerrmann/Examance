@@ -9,7 +9,9 @@ This document describes the privacy-first data storage architecture, client-side
 Examance uses a zero-knowledge, client-side encryption-at-rest model designed to prevent unauthorized access to sensitive exam data, student PII, scan images, and grading scores—even when inspecting browser storage via Developer Tools.
 
 ### Core Invariants
-1. **No Unauthenticated DevTools Access**: When a user is locked or logged out, browser DevTools inspection reveals **zero unencrypted text** (no LaTeX preamble/body, exam metadata, answer keys, fallback codes, or raw scores). Storage is either completely purged (`server-synced` mode) or stored as opaque AES-256-GCM binary ciphertexts (`local-only` mode).
+1. **No Unauthenticated DevTools Access**: When a user is locked or logged out, browser DevTools inspection reveals **zero unencrypted text** (no LaTeX preamble/body, exam metadata, answer keys, fallback codes, or raw scores). Storage is either completely purged (`all-server` mode) or stored as opaque AES-256-GCM binary ciphertexts (`all-local` / `hybrid` mode).
+
+   ***Known exception (2026-08-17, open):*** `students.put()` currently writes `fallbackCode`, `studentName` and `studentNumber` **in plaintext** alongside the encrypted `payloadCt`/`payloadIv` (`lib/db/dbEncryption.ts` `encryptStudent`, called from `lib/repositories/studentRepository.ts`), and `fallbackCode` is a plaintext Dexie index (`db.ts`, `students: 'pseudonymId, examId, fallbackCode'`). This breaks Invariant 1 for student names/IDs while a session is locked. Confirmed as a real bug, not yet fixed — see `legal_audit_dsgvo.md` §4 for the tracked finding.
 2. **Key material is passphrase-derived and tab-scoped.** The master key is derived from a passphrase the user enters; **the passphrase itself is never persisted anywhere**. To survive an F5 reload, the derived `sessionKey` and master key bytes are written to **`sessionStorage`**, which is per-tab and cleared when the tab closes; they are also wiped on manual lock, on inactivity timeout, and on a lock broadcast from another tab. `localStorage` holds only the Argon2id salt, the session nonce, and non-secret UI state — never a key or a passphrase. **Nothing derived from the passphrase is written to IndexedDB.**
 
    *This is a deliberate trade of key exposure for usability: while a tab is unlocked, script running on the origin can read the session key out of `sessionStorage`. The alternative — re-prompting on every reload — was judged worse for the grading workflow. It also means the vault is only as private as the browser profile is: anyone who can run script on this origin, or who reaches an already-unlocked tab, can read the data.*
@@ -48,11 +50,13 @@ flowchart TD
 | Entity Table | Plaintext Index Fields | Encrypted Payload (`payloadCt` & `payloadIv`) | DevTools Exposure when Locked/Logged Out |
 | :--- | :--- | :--- | :--- |
 | `exams` | `id, teacherId, retentionUntil` | Title, LaTeX preamble, LaTeX template, info text, testart, klasse, datum, nr, fach, teacher name | Opaque Binary Ciphertext / Purged |
-| `exercises` | `id, examId, topicTag, maxPoints` | Title, exercise name, LaTeX body, answer choices, correct answers | Opaque Binary Ciphertext / Purged |
-| `examExercises` | `[examId+exerciseId], orderIndex` | N/A (UUID links only) | Standard IDB table |
-| `students` | `pseudonymId, examId` | Fallback booklet code (`fallbackCode`), student PII (`piiCt`) | Opaque Binary Ciphertext / Purged |
+| `exercises` | `id, examId, topicTag, grade, subject, name, exerciseGroupId, variantKey, isCurrent` | Title, exercise name, LaTeX body, answer choices, correct answers | Opaque Binary Ciphertext / Purged |
+| `examExercises` | `[examId+exerciseId], examId, exerciseId, orderIndex, mcGroupId` | N/A (UUID links only) | Standard IDB table |
+| `examMcGroups` | `id, examId, orderIndex` | N/A — title, scoring text and order are layout metadata for MC-group LaTeX rendering only, not exercise content; see CLAUDE.md "Multiple Choice (MC) Data Model" | Standard IDB table |
+| `students` | `pseudonymId, examId, fallbackCode` | Student PII (`piiCt`) | Opaque Binary Ciphertext / Purged. **Known exception:** `fallbackCode`, `studentName`, `studentNumber` are currently also written in plaintext — see the callout in §1. |
 | `submissions` | `id, examId, pseudonymHash` | Total score (`totalScore`), scan image blob (`scanCt`), annotations vector layer (`annotationCt`) | Opaque Binary Ciphertext / Purged |
 | `exerciseScores` | `id, submissionId, exerciseId` | Score value (`score`), selected options | Opaque Binary Ciphertext / Purged |
+| `omrTemplates` | `id, examId` | Detected bubble/fiducial page rects (`OmrTemplatePayload.pages`), used for MC auto-grading | Opaque Binary Ciphertext / Purged |
 | `auditLog` | `id, action, timestamp` | Action note details | Opaque Binary Ciphertext / Purged |
 
 ---
@@ -77,10 +81,10 @@ sequenceDiagram
 
     User->>Page: Lock Session / Inactivity Timeout (60 min)
     Page->>Memory: Wipe Crypto Keys & Nonce from RAM
-    alt Storage Policy == 'server-synced'
+    alt Storage Policy == 'all-server'
         Page->>IDB: Wipe IndexedDB (wipeDatabase())
         Note over IDB: IndexedDB completely empty in DevTools
-    else Storage Policy == 'local-only'
+    else Storage Policy == 'all-local' / 'hybrid'
         Note over IDB: IndexedDB contains only encrypted Uint8Array blobs
     end
 
@@ -101,7 +105,7 @@ sequenceDiagram
 
     rect rgb(30, 41, 59)
     note right of User: Local-to-Server Sync
-    User->>Store: Switch to 'server-synced'
+    User->>Store: Switch to 'all-server'
     Store->>IDB: Read & Decrypt local records
     Store->>Server: POST /exams & /exercises
     Store->>Server: POST /exams/{id}/students (Client-encrypted PII)
@@ -110,7 +114,7 @@ sequenceDiagram
 
     rect rgb(30, 41, 59)
     note right of User: Server-to-Local Purge
-    User->>Store: Switch to 'local-only'
+    User->>Store: Switch to 'all-local'
     Store->>User: Download encrypted .bgproj backup archive
     Store->>Server: POST /user/purge-server-student-data
     Server-->>Store: Soft-delete student data (7-day temporary retention)
