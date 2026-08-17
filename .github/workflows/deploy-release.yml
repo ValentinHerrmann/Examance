@@ -151,7 +151,7 @@ jobs:
       packages: read
     environment:
       name: production
-      url: ${{ vars.BACKEND_PUBLIC_URL || 'https://api.examance.valentin-herrmann.com/' }}
+      url: ${{ vars.BACKEND_PUBLIC_URL || 'https://api-examance.valentin-herrmann.com/' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
