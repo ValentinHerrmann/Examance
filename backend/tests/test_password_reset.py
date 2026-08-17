@@ -128,7 +128,8 @@ async def test_admin_create_user_and_password_reset_flow(
 
     # 6. Complete password reset via POST /auth/reset-password
     # Generate a known token via service helper
-    raw_token = await create_and_send_reset_token(db, new_teacher)
+    raw_token, reset_sent = await create_and_send_reset_token(db, new_teacher)
+    assert reset_sent is True
 
     reset_res = await client.post(
         "/api/v1/auth/reset-password",
@@ -250,3 +251,81 @@ async def test_admin_forced_password_reset(client: AsyncClient, db: AsyncSession
         json={"email": "teacher-to-reset@example.com", "password": "OldWorkingPassword123!"},
     )
     assert old_pw_login.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_email_sending_dev_vs_production_mode() -> None:
+    from app.services.email import send_email
+
+    # Dev mode with no SMTP_HOST should log and return True
+    with patch.object(settings, "SMTP_HOST", None), patch.object(settings, "ENVIRONMENT", "development"):
+        success = await send_email("test@example.com", "Subject", "Body text")
+        assert success is True
+
+    # Production mode with no SMTP_HOST should return False (failed send)
+    with patch.object(settings, "SMTP_HOST", None), patch.object(settings, "ENVIRONMENT", "production"):
+        success = await send_email("test@example.com", "Subject", "Body text")
+        assert success is False
+
+
+@pytest.mark.asyncio
+async def test_admin_create_user_email_failure_reported(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    admin = Teacher(
+        email="admin-emailfail@example.com",
+        password_hash=hash_password("AdminPass12345!"),
+        role="admin",
+    )
+    db.add(admin)
+    await db.commit()
+
+    login_res = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "admin-emailfail@example.com", "password": "AdminPass12345!"},
+    )
+    assert login_res.status_code == 200
+    client.cookies.update(login_res.cookies)
+
+    with patch("app.services.email.send_email", return_value=False):
+        create_res = await client.post(
+            "/api/v1/admin/users",
+            json={"email": "newteacher-fail@example.com", "role": "teacher"},
+        )
+        assert create_res.status_code == 201
+        body = create_res.json()
+        assert body["email"] == "newteacher-fail@example.com"
+        assert body["password_reset_sent"] is False
+
+
+@pytest.mark.asyncio
+async def test_admin_reset_password_email_failure_reported(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    admin = Teacher(
+        email="admin-rfail@example.com",
+        password_hash=hash_password("AdminPass12345!"),
+        role="admin",
+    )
+    teacher = Teacher(
+        email="teacher-rfail@example.com",
+        password_hash=hash_password("TeacherPass123!"),
+        role="teacher",
+    )
+    db.add_all([admin, teacher])
+    await db.commit()
+
+    login_res = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "admin-rfail@example.com", "password": "AdminPass12345!"},
+    )
+    assert login_res.status_code == 200
+    client.cookies.update(login_res.cookies)
+
+    with patch("app.services.email.send_email", return_value=False):
+        reset_res = await client.post(f"/api/v1/admin/users/{teacher.id}/reset-password")
+        assert reset_res.status_code == 200
+        body = reset_res.json()
+        assert body["password_reset_sent"] is False
+        assert "failed to send email" in body["message"]
+

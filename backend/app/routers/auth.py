@@ -80,7 +80,7 @@ async def forgot_password(
     teacher = result.scalar_one_or_none()
 
     if teacher:
-        await create_and_send_reset_token(db, teacher)
+        _token, _sent = await create_and_send_reset_token(db, teacher)
         await audit_svc.write(
             db,
             teacher_id=teacher.id,

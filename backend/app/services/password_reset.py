@@ -21,10 +21,14 @@ def hash_reset_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
 
-async def create_and_send_reset_token(db: AsyncSession, teacher: Teacher) -> str:
+async def create_and_send_reset_token(
+    db: AsyncSession, teacher: Teacher
+) -> tuple[str, bool]:
     """
     Generate a single-use password reset token, persist its hash, invalidate prior
     unused tokens for this teacher, and send a reset email.
+
+    Returns a tuple of (raw_token, email_sent_successfully).
     """
     raw_token = secrets.token_urlsafe(32)
     token_hash = hash_reset_token(raw_token)
@@ -64,14 +68,14 @@ async def create_and_send_reset_token(db: AsyncSession, teacher: Teacher) -> str
         f"<p>If you did not request this, you can ignore this email.</p>"
     )
 
-    await email_svc.send_email(
+    sent = await email_svc.send_email(
         to_email=teacher.email,
         subject=subject,
         body_text=body_text,
         body_html=body_html,
     )
 
-    return raw_token
+    return raw_token, sent
 
 
 async def verify_reset_token(

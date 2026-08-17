@@ -31,6 +31,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from app.database import AsyncSessionLocal
     from app.services.bootstrap import create_initial_admin
 
+    if not settings.SMTP_HOST:
+        if not settings.is_dev:
+            logging.getLogger("app.main").warning(
+                "SMTP_HOST is not configured! Password reset and user creation emails will fail to send in environment '%s'.",
+                settings.ENVIRONMENT,
+            )
+        else:
+            logging.getLogger("app.main").info(
+                "SMTP_HOST is not set; running email service in development log-only mode."
+            )
+
     async with AsyncSessionLocal() as session:
         await create_initial_admin(session)
 

@@ -60,13 +60,13 @@ async def create_user(
     await db.flush()
     await db.refresh(user)
 
-    await create_and_send_reset_token(db, user)
+    _token, reset_sent = await create_and_send_reset_token(db, user)
 
     await audit_svc.write(
         db,
         teacher_id=admin.id,
         teacher_email=admin.email,
-        action="CREATE_USER",
+        action="CREATE_USER" if reset_sent else "CREATE_USER_EMAIL_FAILED",
         target_id=str(user.id),
     )
     await db.flush()
@@ -76,7 +76,7 @@ async def create_user(
         email=user.email,
         role=cast(Literal["teacher", "admin"], user.role),
         created_at=user.created_at,
-        password_reset_sent=True,
+        password_reset_sent=reset_sent,
     )
 
 
@@ -100,20 +100,25 @@ async def reset_user_password(
             detail="User not found.",
         )
 
-    await create_and_send_reset_token(db, user)
+    _token, reset_sent = await create_and_send_reset_token(db, user)
 
     await audit_svc.write(
         db,
         teacher_id=admin.id,
         teacher_email=admin.email,
-        action="PASSWORD_RESET_REQUESTED",
+        action="PASSWORD_RESET_REQUESTED" if reset_sent else "PASSWORD_RESET_EMAIL_FAILED",
         target_id=str(user.id),
     )
 
+    if reset_sent:
+        msg = f"Password reset link generated and sent to {user.email}."
+    else:
+        msg = f"Password reset token generated, but failed to send email to {user.email}."
+
     return AdminResetPasswordResponse(
-        message=f"Password reset link generated and sent to {user.email}.",
+        message=msg,
         user_id=user.id,
-        password_reset_sent=True,
+        password_reset_sent=reset_sent,
     )
 
 

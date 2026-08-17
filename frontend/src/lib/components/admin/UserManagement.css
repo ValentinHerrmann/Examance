@@ -103,6 +103,12 @@
   color: #86efac;
 }
 
+.user-mgmt-banner.warning {
+  border: 1px solid #d97706;
+  background: rgba(217, 119, 6, 0.2);
+  color: #fde047;
+}
+
 .user-mgmt-banner.error {
   border: 1px solid #dc2626;
   background: rgba(220, 38, 38, 0.2);

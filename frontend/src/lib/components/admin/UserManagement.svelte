@@ -11,6 +11,7 @@
 
   let isSubmitting = false;
   let errorMsg = '';
+  let warningMsg = '';
   let successMsg = '';
 
   $: canAccess = $isUnlocked && $sessionStore.role === 'admin';
@@ -35,6 +36,7 @@
 
   async function handleCreateUser() {
     errorMsg = '';
+    warningMsg = '';
     successMsg = '';
 
     if (!canAccess) {
@@ -56,7 +58,11 @@
         payload
       );
 
-      successMsg = `Created ${created.role} account for ${created.email}. Password setup email has been sent.`;
+      if (created.password_reset_sent) {
+        successMsg = `Created ${created.role} account for ${created.email}. Password setup email has been sent.`;
+      } else {
+        warningMsg = `Created ${created.role} account for ${created.email}, but email delivery failed. Please check SMTP configuration on the server.`;
+      }
       email = '';
       sessionStore.setDirty(false);
     } catch (err: unknown) {
@@ -97,6 +103,9 @@
     <div class="user-mgmt-form-card">
       {#if successMsg}
         <div class="user-mgmt-banner success">{successMsg}</div>
+      {/if}
+      {#if warningMsg}
+        <div class="user-mgmt-banner warning">{warningMsg}</div>
       {/if}
       {#if errorMsg}
         <div class="user-mgmt-banner error">{errorMsg}</div>

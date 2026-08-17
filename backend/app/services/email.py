@@ -49,15 +49,22 @@ async def send_email(
     body_html: str | None = None,
 ) -> bool:
     """
-    Send an email via SMTP or log it if SMTP_HOST is not configured.
+    Send an email via SMTP or log it in dev mode if SMTP_HOST is not configured.
     """
     if not settings.SMTP_HOST:
-        logger.info(
-            "[DEV MODE EMAIL] To: %s | Subject: %s\nBody:\n%s",
+        if settings.is_dev:
+            logger.info(
+                "[DEV MODE EMAIL] To: %s | Subject: %s\nBody:\n%s",
+                to_email,
+                subject,
+                body_text,
+            )
+            return True
+        logger.error(
+            "SMTP_HOST is not configured in environment '%s'; cannot send email to %s",
+            settings.ENVIRONMENT,
             to_email,
-            subject,
-            body_text,
         )
-        return True
+        return False
 
     return await asyncio.to_thread(_send_sync, to_email, subject, body_text, body_html)

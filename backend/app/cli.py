@@ -62,13 +62,14 @@ def send_password_reset(email: str) -> None:
                 if teacher is None:
                     raise click.ClickException("No user found with this email.")
 
-                await create_and_send_reset_token(db, teacher)
+                _raw_token, sent = await create_and_send_reset_token(db, teacher)
                 await db.commit()
+                if sent:
+                    click.echo(f"Password reset link generated and sent to: {normalized_email}")
+                else:
+                    click.echo(f"Password reset token generated, but failed to send email to: {normalized_email}")
             except (OperationalError, ProgrammingError) as exc:
                 _raise_schema_hint(exc)
-
-    asyncio.run(_send())
-    click.echo(f"Password reset link generated and sent to: {normalized_email}")
 
 
 @cli.command("create-user")
