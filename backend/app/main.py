@@ -1,6 +1,7 @@
 """FastAPI application factory, middleware registration, lifespan."""
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -17,6 +18,11 @@ from app.middleware.csp import CSPMiddleware
 from app.middleware.origin_guard import OriginGuardMiddleware
 from app.middleware.rate_limit import limiter
 from app.routers import admin, auth, compile, exams, exercises, students, submissions, user
+
+logging.basicConfig(
+    level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
+    format="%(levelname)s:\t%(name)s - %(message)s",
+)
 
 
 @asynccontextmanager

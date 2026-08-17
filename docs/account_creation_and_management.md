@@ -57,7 +57,28 @@ Admins can trigger a password reset for any existing user via the Admin UI or CL
 
 ---
 
-## 5. Architectural Roadmap: Self-Registration with Admin Approval
+## 5. Troubleshooting: Initial Admin Bootstrap
+
+If `POST /api/v1/auth/login` returns `401 Unauthorized` for the initial admin account configured in `.env`:
+
+1. **Check container logs**:
+   ```bash
+   docker compose -p examance-preview -f docker-compose.deploy.yml logs backend | grep -i bootstrap
+   ```
+2. **Interpret the log output**:
+   - **`INITIAL_ADMIN_EMAIL / INITIAL_ADMIN_PASSWORD not set...`**: Verify `.env` on the server contains non-empty `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD`. Ensure values containing `#` are enclosed in double quotes.
+   - **`Initial admin user (...) already exists, but credentials or role do not match...`**: The account was created earlier under different credentials or role. Bootstrap will not overwrite existing accounts. Reset the password via CLI:
+     ```bash
+     docker compose -p examance-preview -f docker-compose.deploy.yml --env-file .env exec backend python -m app.cli set-password --email <admin-email>
+     ```
+   - **No log output**: `LOG_LEVEL` may be set above `INFO` or the container was not recreated after updating `.env`. Force recreate the backend container:
+     ```bash
+     docker compose -p examance-preview -f docker-compose.deploy.yml --env-file .env up -d --force-recreate backend
+     ```
+
+---
+
+## 6. Architectural Roadmap: Self-Registration with Admin Approval
 
 The user management subsystem is designed to support self-registration in future releases:
 - Unapproved self-registered accounts will remain in a pending state with `password_hash = None`.

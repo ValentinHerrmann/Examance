@@ -65,6 +65,7 @@ class Settings(BaseSettings):
 
     # Environment
     ENVIRONMENT: str = "production"
+    LOG_LEVEL: str = "INFO"
 
     # Build version, baked into the image at build time (Dockerfile ARG/ENV
     # APP_VERSION) from the repository-root VERSION file. Informational only:

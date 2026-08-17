@@ -15,7 +15,6 @@ from app.models.teacher import Teacher
 from app.services.bootstrap import create_initial_admin
 from app.services.crypto import hash_password
 from app.services.password_reset import (
-    complete_password_reset,
     create_and_send_reset_token,
     hash_reset_token,
 )
@@ -36,11 +35,39 @@ async def test_initial_admin_bootstrap(db: AsyncSession) -> None:
         assert admin.role == "admin"
         assert admin.password_hash is not None
 
-        # Re-run bootstrap (should be idempotent)
+        # Re-run bootstrap (should be idempotent with matching credentials)
         await create_initial_admin(db)
         res2 = await db.execute(select(Teacher).where(Teacher.email == "bootstrapadmin@example.com"))
         all_admins = res2.scalars().all()
         assert len(all_admins) == 1
+
+
+@pytest.mark.asyncio
+async def test_initial_admin_bootstrap_credential_mismatch_warning(
+    db: AsyncSession, caplog: pytest.LogCaptureFixture
+) -> None:
+    existing_user = Teacher(
+        email="mismatchadmin@example.com",
+        password_hash=hash_password("OriginalPassword123!"),
+        role="teacher",
+    )
+    db.add(existing_user)
+    await db.commit()
+
+    with patch.object(settings, "INITIAL_ADMIN_EMAIL", "mismatchadmin@example.com"), \
+         patch.object(settings, "INITIAL_ADMIN_PASSWORD", "NewConfiguredPassword123!"), \
+         caplog.at_level("WARNING"):
+
+        await create_initial_admin(db)
+
+        assert any(
+            "already exists, but credentials or role do not match" in record.message
+            for record in caplog.records
+        )
+
+    res = await db.execute(select(Teacher).where(Teacher.email == "mismatchadmin@example.com"))
+    teacher = res.scalar_one()
+    assert teacher.role == "teacher"
 
 
 @pytest.mark.asyncio

@@ -46,6 +46,7 @@ services:
       # Required — no wildcard default; app refuses to start if unset
       CORS_ALLOWED_ORIGINS: '["http://localhost:5173", "https://examance.pages.dev"]'
       ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
       INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@example.com}
       INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-admin-change-me-in-production-12345}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
