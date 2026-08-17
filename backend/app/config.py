@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from urllib.parse import urlparse
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -14,6 +15,21 @@ PLACEHOLDER_SECRET_KEYS = frozenset(
         "CHANGE_ME_IN_PRODUCTION_USE_openssl_rand_hex_32",
         "test-secret-key-not-for-production",
     }
+)
+
+# Free, instantly-provisioned hosting domains. They are heavily abused for
+# phishing and therefore carry a poor reputation on URI blocklists (SURBL /
+# URIBL / Spamhaus DBL). A password-reset mail linking to one of them gets
+# rejected by outbound relays with a body-URL rule, e.g.
+#   550 5.7.1 Refused by local policy. Sending of SPAM is not permitted! (B-URL)
+# Use a custom domain that matches the SMTP_FROM_EMAIL domain instead.
+BLOCKLISTED_LINK_DOMAINS = (
+    ".pages.dev",
+    ".workers.dev",
+    ".vercel.app",
+    ".netlify.app",
+    ".web.app",
+    ".firebaseapp.com",
 )
 
 # Loopback origins on arbitrary ports (http/https on localhost or 127.0.0.1).
@@ -178,6 +194,27 @@ class Settings(BaseSettings):
                     "INITIAL_ADMIN_PASSWORD must be at least 12 characters outside development "
                     "and cannot be a published placeholder value."
                 )
+        return self
+
+    @model_validator(mode="after")
+    def validate_frontend_url_for_email(self) -> Settings:
+        """
+        Refuse to start when password-reset links would point at a blocklisted domain.
+
+        Only enforced when mail is actually delivered (SMTP_HOST set) outside
+        development, since that is the configuration in which the relay rejects
+        the message at DATA time — long after the user requested the reset.
+        """
+        if self.is_dev or not self.SMTP_HOST:
+            return self
+        host = urlparse(self.FRONTEND_URL).hostname or ""
+        if host.endswith(BLOCKLISTED_LINK_DOMAINS):
+            raise ValueError(
+                f"FRONTEND_URL host '{host}' is a free-hosting domain commonly listed on "
+                "URL blocklists; outbound mail relays reject password-reset links pointing "
+                "there. Point FRONTEND_URL at a custom domain (ideally sharing the registrable "
+                "domain of SMTP_FROM_EMAIL), or leave SMTP_HOST unset to disable email delivery."
+            )
         return self
 
     @model_validator(mode="after")

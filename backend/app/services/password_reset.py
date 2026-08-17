@@ -63,7 +63,6 @@ async def create_and_send_reset_token(
         f"<p>Hello,</p>"
         f"<p>A password set or reset link was generated for your account (<strong>{teacher.email}</strong>).</p>"
         f'<p><a href="{reset_link}">Click here to set your password</a></p>'
-        f"<p>Or copy and paste this URL into your browser:<br><code>{reset_link}</code></p>"
         f"<p>This link expires in {settings.PASSWORD_RESET_TOKEN_TTL_HOURS} hours.</p>"
         f"<p>If you did not request this, you can ignore this email.</p>"
     )

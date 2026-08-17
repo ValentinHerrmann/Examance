@@ -92,6 +92,60 @@ def test_production_rejects_short_initial_admin_password() -> None:
         )
 
 
+# --- FRONTEND_URL / email link validation -----------------------------------
+
+
+def test_production_rejects_blocklisted_frontend_url_when_smtp_configured() -> None:
+    """Reset links on *.pages.dev get the mail bounced by relays with a (B-URL) rule."""
+    with pytest.raises(ValidationError, match="blocklists"):
+        Settings(
+            ENVIRONMENT="production",
+            SECRET_KEY=STRONG_KEY,
+            SMTP_HOST="mail.example.com",
+            FRONTEND_URL="https://preview.examance.pages.dev/",
+        )
+
+
+def test_blocklisted_frontend_url_allowed_without_smtp() -> None:
+    """No SMTP host means no mail is sent, so the link domain cannot bounce anything."""
+    settings = Settings(
+        ENVIRONMENT="production",
+        SECRET_KEY=STRONG_KEY,
+        FRONTEND_URL="https://preview.examance.pages.dev/",
+    )
+    assert settings.FRONTEND_URL == "https://preview.examance.pages.dev/"
+
+
+def test_development_allows_blocklisted_frontend_url() -> None:
+    settings = Settings(
+        ENVIRONMENT="development",
+        SMTP_HOST="mail.example.com",
+        FRONTEND_URL="https://preview.examance.pages.dev/",
+    )
+    assert settings.SMTP_HOST == "mail.example.com"
+
+
+def test_custom_domain_frontend_url_accepted_with_smtp() -> None:
+    settings = Settings(
+        ENVIRONMENT="production",
+        SECRET_KEY=STRONG_KEY,
+        SMTP_HOST="mail.example.com",
+        FRONTEND_URL="https://preview.examance.valentin-herrmann.com/",
+    )
+    assert settings.FRONTEND_URL.endswith("valentin-herrmann.com/")
+
+
+def test_blocklist_matches_only_on_domain_boundary() -> None:
+    """'mypages.dev' merely ends in the same letters — it must not be blocked."""
+    settings = Settings(
+        ENVIRONMENT="production",
+        SECRET_KEY=STRONG_KEY,
+        SMTP_HOST="mail.example.com",
+        FRONTEND_URL="https://mypages.dev/",
+    )
+    assert settings.FRONTEND_URL == "https://mypages.dev/"
+
+
 # --- Password policy --------------------------------------------------------
 
 

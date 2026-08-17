@@ -33,14 +33,6 @@ def _send_sync(
         if body_html:
             msg.add_alternative(body_html, subtype="html")
 
-        raw_msg = msg.as_string()
-        logger.info(
-            "[TEMP SMTP DEBUG] Preparing to send email to %s\n--- HEADERS ---\n%s\n--- RAW MESSAGE ---\n%s\n----------------",
-            to_email,
-            "\n".join(f"{k}: {v}" for k, v in msg.items()),
-            raw_msg,
-        )
-
         with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
             if settings.SMTP_USE_TLS:
                 server.starttls()
@@ -50,12 +42,12 @@ def _send_sync(
         logger.info("Sent email to %s with subject: %s", to_email, subject)
         return True
     except Exception as exc:
-        raw_msg_str = raw_msg if "raw_msg" in locals() else "N/A"
+        # Never log the message body: it carries the live password-reset token.
         logger.error(
-            "Failed to send email to %s: %s\n--- FAILED RAW MESSAGE ---\n%s\n----------------",
+            "Failed to send email to %s with subject '%s': %s",
             to_email,
+            subject,
             exc,
-            raw_msg_str,
             exc_info=True,
         )
         return False

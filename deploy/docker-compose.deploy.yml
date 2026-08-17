@@ -35,7 +35,9 @@ x-backend-env: &backend-env
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
   INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
   INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
-  FRONTEND_URL: ${FRONTEND_URL:-https://examance.pages.dev}
+  # Default must stay off *.pages.dev — that domain is URL-blocklisted and mail
+  # relays reject password-reset links pointing at it (see config.py).
+  FRONTEND_URL: ${FRONTEND_URL:-https://examance.valentin-herrmann.com}
   SMTP_HOST: ${SMTP_HOST:-}
   SMTP_PORT: ${SMTP_PORT:-587}
   SMTP_USERNAME: ${SMTP_USERNAME:-}
