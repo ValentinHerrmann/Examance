@@ -58,7 +58,7 @@ jobs:
       contents: write
     environment:
       name: preview
-      url: https://preview.examance.pages.dev/
+      url: https://prev-examance.valentin-herrmann.com/
     steps:
       - name: Checkout PR head
         uses: actions/checkout@v4

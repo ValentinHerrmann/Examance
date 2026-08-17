@@ -102,7 +102,7 @@ def test_production_rejects_blocklisted_frontend_url_when_smtp_configured() -> N
             ENVIRONMENT="production",
             SECRET_KEY=STRONG_KEY,
             SMTP_HOST="mail.example.com",
-            FRONTEND_URL="https://preview.examance.pages.dev/",
+            FRONTEND_URL="https://prev-examance.valentin-herrmann.com/",
         )
 
 
@@ -111,16 +111,16 @@ def test_blocklisted_frontend_url_allowed_without_smtp() -> None:
     settings = Settings(
         ENVIRONMENT="production",
         SECRET_KEY=STRONG_KEY,
-        FRONTEND_URL="https://preview.examance.pages.dev/",
+        FRONTEND_URL="https://prev-examance.valentin-herrmann.com/",
     )
-    assert settings.FRONTEND_URL == "https://preview.examance.pages.dev/"
+    assert settings.FRONTEND_URL == "https://prev-examance.valentin-herrmann.com/"
 
 
 def test_development_allows_blocklisted_frontend_url() -> None:
     settings = Settings(
         ENVIRONMENT="development",
         SMTP_HOST="mail.example.com",
-        FRONTEND_URL="https://preview.examance.pages.dev/",
+        FRONTEND_URL="https://prev-examance.valentin-herrmann.com/",
     )
     assert settings.SMTP_HOST == "mail.example.com"
 
