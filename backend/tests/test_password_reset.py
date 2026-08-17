@@ -329,3 +329,33 @@ async def test_admin_reset_password_email_failure_reported(
         assert body["password_reset_sent"] is False
         assert "failed to send email" in body["message"]
 
+
+def test_send_sync_includes_date_and_message_id_headers() -> None:
+    from app.services.email import _send_sync
+    from unittest.mock import MagicMock
+
+    mock_smtp_inst = MagicMock()
+    with patch.object(settings, "SMTP_HOST", "smtp.example.com"), \
+         patch.object(settings, "SMTP_FROM_EMAIL", "noreply@examance.com"), \
+         patch("smtplib.SMTP") as mock_smtp_cls:
+
+        mock_smtp_cls.return_value.__enter__.return_value = mock_smtp_inst
+
+        success = _send_sync(
+            to_email="recipient@example.com",
+            subject="Test Subject",
+            body_text="Test plain text",
+            body_html="<p>Test HTML</p>",
+        )
+
+        assert success is True
+        mock_smtp_inst.send_message.assert_called_once()
+        sent_msg = mock_smtp_inst.send_message.call_args[0][0]
+        assert sent_msg["Subject"] == "Test Subject"
+        assert sent_msg["From"] == "noreply@examance.com"
+        assert sent_msg["To"] == "recipient@example.com"
+        assert sent_msg["Date"] is not None
+        assert sent_msg["Message-ID"] is not None
+        assert "examance.com" in sent_msg["Message-ID"]
+
+

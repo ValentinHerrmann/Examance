@@ -6,6 +6,7 @@ import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formatdate, make_msgid
 
 from app.config import settings
 
@@ -24,6 +25,10 @@ def _send_sync(
         msg["Subject"] = subject
         msg["From"] = settings.SMTP_FROM_EMAIL
         msg["To"] = to_email
+        msg["Date"] = formatdate(localtime=True)
+
+        domain = settings.SMTP_FROM_EMAIL.split("@")[-1] if "@" in settings.SMTP_FROM_EMAIL else None
+        msg["Message-ID"] = make_msgid(domain=domain)
 
         msg.attach(MIMEText(body_text, "plain", "utf-8"))
         if body_html:
@@ -34,7 +39,7 @@ def _send_sync(
                 server.starttls()
             if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
                 server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-            server.sendmail(settings.SMTP_FROM_EMAIL, [to_email], msg.as_string())
+            server.send_message(msg)
         logger.info("Sent email to %s with subject: %s", to_email, subject)
         return True
     except Exception as exc:
