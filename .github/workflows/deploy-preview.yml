@@ -138,7 +138,7 @@ jobs:
       packages: read
     environment:
       name: preview
-      url: ${{ vars.BACKEND_PUBLIC_URL }}
+      url: ${{ vars.BACKEND_PUBLIC_URL || 'https://prev.api.examance.valentin-herrmann.com/' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
