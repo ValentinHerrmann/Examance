@@ -4,8 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+from email.message import EmailMessage
 from email.utils import formatdate, make_msgid
 
 from app.config import settings
@@ -21,7 +20,7 @@ def _send_sync(
 ) -> bool:
     """Synchronous SMTP email delivery."""
     try:
-        msg = MIMEMultipart("alternative")
+        msg = EmailMessage()
         msg["Subject"] = subject
         msg["From"] = settings.SMTP_FROM_EMAIL
         msg["To"] = to_email
@@ -30,9 +29,9 @@ def _send_sync(
         domain = settings.SMTP_FROM_EMAIL.split("@")[-1] if "@" in settings.SMTP_FROM_EMAIL else None
         msg["Message-ID"] = make_msgid(domain=domain)
 
-        msg.attach(MIMEText(body_text, "plain", "utf-8"))
+        msg.set_content(body_text)
         if body_html:
-            msg.attach(MIMEText(body_html, "html", "utf-8"))
+            msg.add_alternative(body_html, subtype="html")
 
         raw_msg = msg.as_string()
         logger.info(
