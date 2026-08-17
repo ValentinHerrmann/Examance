@@ -88,4 +88,4 @@ The policy is `script-src 'self'` with no CDN allowances: third-party assets (e.
 - Don't run non-terminating npm commands (dev servers, watch mode) unless asked.
 - If you find out something, which should be known for future agent-sessions (e.g. structural or constraints), add it to CLAUDE.MD but do no clutter it!
 - **NEVER USE WRITING GIT COMMANDS!** (like commit, push, branch, ...)
-- **Following mode strictly**: Never edit files in planning mode!
+- **Follow Claude-Code Mode strictly**: Never edit files in planning mode; do not even ask for it! Just make a PLAN in PLAN MODE!
