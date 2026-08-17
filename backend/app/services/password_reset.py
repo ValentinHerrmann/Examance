@@ -12,8 +12,8 @@ from app.config import settings
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.teacher import Teacher
-from app.services.crypto import hash_password
 from app.services import email as email_svc
+from app.services.crypto import hash_password
 
 
 def hash_reset_token(raw_token: str) -> str:
@@ -61,7 +61,8 @@ async def create_and_send_reset_token(
     )
     body_html = (
         f"<p>Hello,</p>"
-        f"<p>A password set or reset link was generated for your account (<strong>{teacher.email}</strong>).</p>"
+        "<p>A password set or reset link was generated for your account "
+        f"(<strong>{teacher.email}</strong>).</p>"
         f'<p><a href="{reset_link}">Click here to set your password</a></p>'
         f"<p>This link expires in {settings.PASSWORD_RESET_TOKEN_TTL_HOURS} hours.</p>"
         f"<p>If you did not request this, you can ignore this email.</p>"
