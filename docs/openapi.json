@@ -3,34 +3,84 @@
   "info": {
     "title": "Examance API",
     "description": "Privacy-first anonymous exam grading backend.\n\n## Key Security & Architecture Features\n- **Zero-Knowledge Encryption**: Student PII, submission scans, and annotations are encrypted client-side (Argon2id + AES-256-GCM) before reaching the server.\n- **Session Hygiene**: State stored in HttpOnly cookies (`access_token` 15 min, `refresh_token` 7 days with rotation & reuse detection).\n- **Privacy Safeguards**: LaTeX requests redacted in logs (`LaTeXRequest`), IP addresses stored as SHA-256 hashes, k-anonymity (k >= 5) enforced on class stats.\n- **LaTeX Engine**: Compilation rendered using sandboxed Tectonic (`tectonic --untrusted`).",
-    "version": "0.1.0"
+    "version": "0.0.0-dev"
   },
   "paths": {
-    "/api/v1/auth/register": {
+    "/api/v1/auth/forgot-password": {
       "post": {
         "tags": [
           "auth"
         ],
-        "summary": "Register",
-        "description": "Create a teacher account.\n\nRequires a valid, unexpired, unused invite_token.\nOn success, sets auth cookies and returns { email, role }.",
-        "operationId": "register_api_v1_auth_register_post",
+        "summary": "Forgot Password",
+        "description": "Request a password reset link sent to the user's email address.",
+        "operationId": "forgot_password_api_v1_auth_forgot_password_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RegisterRequest"
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "201": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthResponse"
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Forgot Password Api V1 Auth Forgot Password Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/reset-password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Reset Password",
+        "description": "Set a new password using a valid single-use reset token.",
+        "operationId": "reset_password_api_v1_auth_reset_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Reset Password Api V1 Auth Reset Password Post"
                 }
               }
             }
@@ -205,7 +255,7 @@
           "compile"
         ],
         "summary": "Compile Latex Endpoint",
-        "description": "Compile LaTeX source to PDF via Tectonic.\n\nRate limited: 10 req/min per IP.\nBody limit: 2 MB (enforced by BodyLimitMiddleware).\nLaTeX source is NEVER logged \u2014 see LaTeXRequest.__repr__ and latex service.",
+        "description": "Compile LaTeX source to PDF via Tectonic.\n\nRate limited: 10 req/min per IP.\nBody limit: 2 MB (enforced by BodyLimitMiddleware).\nLaTeX source is NEVER logged \u2014 see LaTeXRequest.__repr__ and latex service.\nThe 422 detail carries only TeX diagnostics, never raw engine or log output.",
         "operationId": "compile_latex_endpoint_api_v1_compile_latex_post",
         "parameters": [
           {
@@ -937,7 +987,7 @@
           "exercises"
         ],
         "summary": "Update Exercise Group",
-        "description": "Update exercise group metadata (name, topic_tag, grade, subject) and cascade to all member variants.",
+        "description": "Update group metadata and cascade it to every member variant.",
         "operationId": "update_exercise_group_api_v1_exercises_groups__group_id__patch",
         "parameters": [
           {
@@ -1007,7 +1057,7 @@
           "exercises"
         ],
         "summary": "Get Exercise",
-        "description": "Get an exercise from the library.",
+        "description": "Get an exercise from the library (own exercises or published ones).",
         "operationId": "get_exercise_api_v1_exercises__exercise_id__get",
         "parameters": [
           {
@@ -1133,7 +1183,7 @@
           "exercises"
         ],
         "summary": "Delete Exercise",
-        "description": "Delete an exercise from the library.",
+        "description": "Delete an exercise from the caller's own library.\n\nIdempotent: always 204, whether or not a row was removed. Only exercises\nowned by *teacher* are ever deleted, so a foreign id is a silent no-op \u2014\nwhich also keeps the response from revealing that the id exists.",
         "operationId": "delete_exercise_api_v1_exercises__exercise_id__delete",
         "parameters": [
           {
@@ -1326,7 +1376,7 @@
           "exercises"
         ],
         "summary": "Get Exercise Usage",
-        "description": "Get count and details of non-deleted exams referencing this exercise.",
+        "description": "Get count and details of non-deleted exams referencing this exercise.\n\nOnly the caller's own exams are reported, so usage of a published exercise\nin another teacher's exam is never disclosed.",
         "operationId": "get_exercise_usage_api_v1_exercises__exercise_id__usage_get",
         "parameters": [
           {
@@ -1986,7 +2036,7 @@
           "admin"
         ],
         "summary": "Create User",
-        "description": "Create a teacher/admin account (Admin only).\n\nPassword is Argon2id-hashed server-side. Duplicate emails are rejected.",
+        "description": "Create a teacher/admin account without a password (Admin only).\n\nGenerates and emails a single-use password set token to the user.",
         "operationId": "create_user_api_v1_admin_users_post",
         "parameters": [
           {
@@ -2023,6 +2073,66 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AdminCreateUserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{user_id}/reset-password": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Reset User Password",
+        "description": "Trigger an admin-forced password reset for an existing user (Admin only).\n\nGenerates and emails a single-use password reset token. The user's existing\npassword remains active until they set a new password via the link.",
+        "operationId": "reset_user_password_api_v1_admin_users__user_id__reset_password_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminResetPasswordResponse"
                 }
               }
             }
@@ -2280,6 +2390,110 @@
         }
       }
     },
+    "/api/v1/user/me/export": {
+      "get": {
+        "tags": [
+          "user"
+        ],
+        "summary": "Export Own Data",
+        "description": "GDPR Art. 15/20 \u2014 machine-readable copy of the account holder's own data.\n\nCovers only what the server holds *about the teacher*: account fields, the\nexams they authored, and their audit trail. Student payloads are deliberately\nexcluded \u2014 they are encrypted with a key the server never has, and they are\nnot the teacher's personal data. Use the client-side per-student export for\na student's Art. 15 request.",
+        "operationId": "export_own_data_api_v1_user_me_export_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Export Own Data Api V1 User Me Export Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/me": {
+      "delete": {
+        "tags": [
+          "user"
+        ],
+        "summary": "Delete Own Account",
+        "description": "GDPR Art. 17 \u2014 erase the account holder's own account and authored content.\n\nStudent identities and submissions under the teacher's exams are soft-deleted\nwith the standard grace period and erased by the retention job, matching\n`purge-server-student-data`.\n\nAudit rows are kept, with `teacher_id` nulled by the FK's ON DELETE SET NULL\nand the email snapshot left in place: Art. 17(3)(b) permits retaining what is\nneeded for a legal obligation, and the trail exists to evidence lawful\nhandling of student data. Those rows age out under AUDIT_LOG_RETENTION_DAYS\nrather than living forever.",
+        "operationId": "delete_own_account_api_v1_user_me_delete",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Own Account Api V1 User Me Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "tags": [
@@ -2315,12 +2529,6 @@
             "format": "email",
             "title": "Email"
           },
-          "password": {
-            "type": "string",
-            "maxLength": 256,
-            "minLength": 12,
-            "title": "Password"
-          },
           "role": {
             "type": "string",
             "enum": [
@@ -2333,8 +2541,7 @@
         },
         "type": "object",
         "required": [
-          "email",
-          "password"
+          "email"
         ],
         "title": "AdminCreateUserRequest"
       },
@@ -2361,6 +2568,11 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "password_reset_sent": {
+            "type": "boolean",
+            "title": "Password Reset Sent",
+            "default": true
           }
         },
         "type": "object",
@@ -2371,6 +2583,30 @@
           "created_at"
         ],
         "title": "AdminCreateUserResponse"
+      },
+      "AdminResetPasswordResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "password_reset_sent": {
+            "type": "boolean",
+            "title": "Password Reset Sent",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "user_id"
+        ],
+        "title": "AdminResetPasswordResponse"
       },
       "AuditLogResponse": {
         "properties": {
@@ -2557,6 +2793,17 @@
             ],
             "title": "Testart"
           },
+          "grade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grade"
+          },
           "klasse": {
             "anyOf": [
               {
@@ -2623,6 +2870,18 @@
             ],
             "title": "Info Text"
           },
+          "grading_key": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grading Key"
+          },
           "exercise_ids": {
             "items": {
               "type": "string",
@@ -2632,12 +2891,28 @@
             "title": "Exercise Ids",
             "default": []
           },
+          "exercise_links": {
+            "items": {
+              "$ref": "#/components/schemas/ExerciseLinkCreate"
+            },
+            "type": "array",
+            "title": "Exercise Links",
+            "default": []
+          },
           "exercises": {
             "items": {
               "$ref": "#/components/schemas/ExerciseCreate"
             },
             "type": "array",
             "title": "Exercises",
+            "default": []
+          },
+          "mc_groups": {
+            "items": {
+              "$ref": "#/components/schemas/ExamMcGroupCreate"
+            },
+            "type": "array",
+            "title": "Mc Groups",
             "default": []
           }
         },
@@ -2647,6 +2922,83 @@
           "retention_until"
         ],
         "title": "ExamCreate"
+      },
+      "ExamMcGroupCreate": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "default": "Grundlagen"
+          },
+          "scoring_text": {
+            "type": "string",
+            "title": "Scoring Text",
+            "default": "F\u00fcr jedes korrekte Kreuz 1BE; f\u00fcr jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE"
+          },
+          "order_index": {
+            "type": "integer",
+            "title": "Order Index",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "title": "ExamMcGroupCreate"
+      },
+      "ExamMcGroupResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "exam_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Exam Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "scoring_text": {
+            "type": "string",
+            "title": "Scoring Text"
+          },
+          "order_index": {
+            "type": "integer",
+            "title": "Order Index"
+          },
+          "member_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Member Ids",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "exam_id",
+          "title",
+          "scoring_text",
+          "order_index"
+        ],
+        "title": "ExamMcGroupResponse"
       },
       "ExamResponse": {
         "properties": {
@@ -2693,6 +3045,17 @@
             ],
             "title": "Testart"
           },
+          "grade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grade"
+          },
           "klasse": {
             "anyOf": [
               {
@@ -2759,12 +3122,32 @@
             ],
             "title": "Info Text"
           },
+          "grading_key": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grading Key"
+          },
           "exercises": {
             "items": {
               "$ref": "#/components/schemas/ExerciseResponse"
             },
             "type": "array",
             "title": "Exercises",
+            "default": []
+          },
+          "mc_groups": {
+            "items": {
+              "$ref": "#/components/schemas/ExamMcGroupResponse"
+            },
+            "type": "array",
+            "title": "Mc Groups",
             "default": []
           }
         },
@@ -2827,6 +3210,17 @@
             ],
             "title": "Testart"
           },
+          "grade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grade"
+          },
           "klasse": {
             "anyOf": [
               {
@@ -2893,6 +3287,18 @@
             ],
             "title": "Info Text"
           },
+          "grading_key": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grading Key"
+          },
           "exercise_ids": {
             "anyOf": [
               {
@@ -2907,6 +3313,34 @@
               }
             ],
             "title": "Exercise Ids"
+          },
+          "exercise_links": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ExerciseLinkCreate"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exercise Links"
+          },
+          "mc_groups": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ExamMcGroupCreate"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mc Groups"
           }
         },
         "type": "object",
@@ -3011,12 +3445,6 @@
           },
           "question_type": {
             "type": "string",
-            "enum": [
-              "free_text",
-              "mc",
-              "sc",
-              "tf"
-            ],
             "title": "Question Type",
             "default": "free_text"
           },
@@ -3059,6 +3487,29 @@
               }
             ],
             "title": "Variant Key"
+          },
+          "mc_group_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mc Group Id"
+          },
+          "sub_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sub Index"
           }
         },
         "type": "object",
@@ -3177,6 +3628,49 @@
         },
         "type": "object",
         "title": "ExerciseGroupUpdate"
+      },
+      "ExerciseLinkCreate": {
+        "properties": {
+          "exercise_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Exercise Id"
+          },
+          "order_index": {
+            "type": "integer",
+            "title": "Order Index",
+            "default": 1
+          },
+          "mc_group_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mc Group Id"
+          },
+          "sub_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sub Index"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exercise_id"
+        ],
+        "title": "ExerciseLinkCreate",
+        "description": "Links an existing library exercise to an exam, with optional MC group membership."
       },
       "ExerciseResponse": {
         "properties": {
@@ -3316,6 +3810,29 @@
             "type": "number",
             "title": "Penalty",
             "default": 0.0
+          },
+          "mc_group_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mc Group Id"
+          },
+          "sub_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sub Index"
           }
         },
         "type": "object",
@@ -3414,6 +3931,40 @@
               }
             ],
             "title": "Variant Key"
+          },
+          "question_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question Type"
+          },
+          "correct_answers": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct Answers"
+          },
+          "penalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Penalty"
           }
         },
         "type": "object",
@@ -3439,6 +3990,20 @@
           "exam_count"
         ],
         "title": "ExerciseUsageResponse"
+      },
+      "ForgotPasswordRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "ForgotPasswordRequest"
       },
       "HTTPValidationError": {
         "properties": {
@@ -3475,6 +4040,7 @@
           },
           "password": {
             "type": "string",
+            "maxLength": 256,
             "title": "Password"
           }
         },
@@ -3485,29 +4051,25 @@
         ],
         "title": "LoginRequest"
       },
-      "RegisterRequest": {
+      "ResetPasswordRequest": {
         "properties": {
-          "email": {
+          "token": {
             "type": "string",
-            "format": "email",
-            "title": "Email"
+            "title": "Token"
           },
-          "password": {
+          "new_password": {
             "type": "string",
-            "title": "Password"
-          },
-          "invite_token": {
-            "type": "string",
-            "title": "Invite Token"
+            "maxLength": 256,
+            "minLength": 12,
+            "title": "New Password"
           }
         },
         "type": "object",
         "required": [
-          "email",
-          "password",
-          "invite_token"
+          "token",
+          "new_password"
         ],
-        "title": "RegisterRequest"
+        "title": "ResetPasswordRequest"
       },
       "StudentIdentityCreate": {
         "properties": {

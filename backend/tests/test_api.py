@@ -13,29 +13,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
 from app.models.teacher import Teacher
-from app.services.crypto import hash_password, generate_invite_token, hash_token
-from app.models.invite import InviteToken
+from app.services.crypto import hash_password
 
 
 async def _create_teacher_and_login(client: AsyncClient, db: AsyncSession, email: str, role: str = "teacher") -> None:
-    raw_token = generate_invite_token()
-    db.add(InviteToken(token_hash=hash_token(raw_token), expires_at=date.today() + timedelta(days=1)))
+    teacher = Teacher(
+        email=email,
+        password_hash=hash_password("Password123!-ok"),
+        role=role,
+    )
+    db.add(teacher)
     await db.commit()
 
     login_resp = await client.post(
-        "/api/v1/auth/register",
-        json={"email": email, "password": "Password123!-ok", "invite_token": raw_token},
+        "/api/v1/auth/login",
+        json={"email": email, "password": "Password123!-ok"},
     )
     client.cookies.update(login_resp.cookies)
-
-    # Set role if admin
-    if role == "admin":
-        from sqlalchemy import update
-        await db.execute(update(Teacher).where(Teacher.email == email).values(role="admin"))
-        await db.commit()
-        # Re-login to get updated token
-        login_resp2 = await client.post("/api/v1/auth/login", json={"email": email, "password": "Password123!-ok"})
-        client.cookies.update(login_resp2.cookies)
 
 
 @pytest.mark.asyncio
@@ -210,23 +204,23 @@ async def test_admin_can_create_teacher_user(client: AsyncClient, db: AsyncSessi
     create_resp = await client.post(
         "/api/v1/admin/users",
         json={
-            "email": "newteacher@example.com",
-            "password": "StrongPassw0rd!",
+            "email": "newteacher-api@example.com",
             "role": "teacher",
         },
     )
     assert create_resp.status_code == 201
     body = create_resp.json()
-    assert body["email"] == "newteacher@example.com"
+    assert body["email"] == "newteacher-api@example.com"
     assert body["role"] == "teacher"
+    assert body["password_reset_sent"] is True
 
-    # Verify created account can authenticate
+    # Verify created account has no password set and returns 401 ERR_PASSWORD_NOT_SET
     login_resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "newteacher@example.com", "password": "StrongPassw0rd!"},
+        json={"email": "newteacher-api@example.com", "password": "AnyPassword123!"},
     )
-    assert login_resp.status_code == 200
-    assert "access_token" in login_resp.cookies
+    assert login_resp.status_code == 401
+    assert login_resp.headers.get("code") == "ERR_PASSWORD_NOT_SET"
 
 
 @pytest.mark.asyncio
@@ -237,7 +231,6 @@ async def test_non_admin_cannot_create_users(client: AsyncClient, db: AsyncSessi
         "/api/v1/admin/users",
         json={
             "email": "blocked@example.com",
-            "password": "StrongPassw0rd!",
             "role": "teacher",
         },
     )

@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, JSON, String, Text, func
+from sqlalchemy import JSON, Date, DateTime, Enum, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -43,7 +43,7 @@ class Exam(Base):
     fach: Mapped[str | None] = mapped_column(String(100), nullable=True)
     lehrernachname: Mapped[str | None] = mapped_column(String(100), nullable=True)
     info_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    grading_key: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    grading_key: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     exercises: Mapped[list[Exercise]] = relationship(
         "Exercise", backref="exam", cascade="all, delete-orphan"

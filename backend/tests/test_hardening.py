@@ -14,22 +14,10 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import PLACEHOLDER_SECRET_KEYS, Settings
-from app.models.invite import InviteToken
-from app.services.crypto import generate_invite_token, hash_token
+from app.models.teacher import Teacher
+from app.services.crypto import hash_password
 
 STRONG_KEY = "b9f2c1a0" * 8  # 64 chars, stands in for `openssl rand -hex 32`
-
-
-async def _create_invite(db: AsyncSession) -> str:
-    raw = generate_invite_token()
-    db.add(
-        InviteToken(
-            token_hash=hash_token(raw),
-            expires_at=datetime.now(tz=timezone.utc) + timedelta(days=7),
-        )
-    )
-    await db.commit()
-    return raw
 
 
 # --- SECRET_KEY validation -------------------------------------------------
@@ -95,33 +83,79 @@ def test_effective_cors_origin_regex_in_production() -> None:
     assert not pattern.fullmatch("https://attacker.com")
 
 
-# --- Registration password policy ------------------------------------------
+def test_production_rejects_short_initial_admin_password() -> None:
+    with pytest.raises(ValidationError, match="at least 12 characters"):
+        Settings(
+            ENVIRONMENT="production",
+            SECRET_KEY=STRONG_KEY,
+            INITIAL_ADMIN_PASSWORD="too-short",
+        )
+
+
+# --- FRONTEND_URL / email link validation -----------------------------------
+
+
+def test_production_rejects_blocklisted_frontend_url_when_smtp_configured() -> None:
+    """Reset links on *.pages.dev get the mail bounced by relays with a (B-URL) rule."""
+    with pytest.raises(ValidationError, match="blocklists"):
+        Settings(
+            ENVIRONMENT="production",
+            SECRET_KEY=STRONG_KEY,
+            SMTP_HOST="mail.example.com",
+            FRONTEND_URL="https://prev-examance.valentin-herrmann.com/",
+        )
+
+
+def test_blocklisted_frontend_url_allowed_without_smtp() -> None:
+    """No SMTP host means no mail is sent, so the link domain cannot bounce anything."""
+    settings = Settings(
+        ENVIRONMENT="production",
+        SECRET_KEY=STRONG_KEY,
+        FRONTEND_URL="https://prev-examance.valentin-herrmann.com/",
+    )
+    assert settings.FRONTEND_URL == "https://prev-examance.valentin-herrmann.com/"
+
+
+def test_development_allows_blocklisted_frontend_url() -> None:
+    settings = Settings(
+        ENVIRONMENT="development",
+        SMTP_HOST="mail.example.com",
+        FRONTEND_URL="https://prev-examance.valentin-herrmann.com/",
+    )
+    assert settings.SMTP_HOST == "mail.example.com"
+
+
+def test_custom_domain_frontend_url_accepted_with_smtp() -> None:
+    settings = Settings(
+        ENVIRONMENT="production",
+        SECRET_KEY=STRONG_KEY,
+        SMTP_HOST="mail.example.com",
+        FRONTEND_URL="https://preview.examance.valentin-herrmann.com/",
+    )
+    assert settings.FRONTEND_URL.endswith("valentin-herrmann.com/")
+
+
+def test_blocklist_matches_only_on_domain_boundary() -> None:
+    """'mypages.dev' merely ends in the same letters — it must not be blocked."""
+    settings = Settings(
+        ENVIRONMENT="production",
+        SECRET_KEY=STRONG_KEY,
+        SMTP_HOST="mail.example.com",
+        FRONTEND_URL="https://mypages.dev/",
+    )
+    assert settings.FRONTEND_URL == "https://mypages.dev/"
+
+
+# --- Password policy --------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_register_rejects_short_password(client: AsyncClient, db: AsyncSession) -> None:
-    raw_token = await _create_invite(db)
+async def test_reset_password_rejects_short_password(client: AsyncClient) -> None:
     resp = await client.post(
-        "/api/v1/auth/register",
-        json={"email": "short@example.com", "password": "sh0rt!", "invite_token": raw_token},
+        "/api/v1/auth/reset-password",
+        json={"token": "some-token", "new_password": "sh0rt!"},
     )
     assert resp.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_register_accepts_policy_compliant_password(
-    client: AsyncClient, db: AsyncSession
-) -> None:
-    raw_token = await _create_invite(db)
-    resp = await client.post(
-        "/api/v1/auth/register",
-        json={
-            "email": "longenough@example.com",
-            "password": "twelve-chars-plus",
-            "invite_token": raw_token,
-        },
-    )
-    assert resp.status_code == 201, resp.text
 
 
 @pytest.mark.asyncio
@@ -145,15 +179,19 @@ async def test_logout_clears_cookies_with_matching_attributes(
     A SameSite=None cookie deleted without Secure is dropped by the browser,
     leaving the session alive. The delete must repeat the set attributes.
     """
-    raw_token = await _create_invite(db)
-    await client.post(
-        "/api/v1/auth/register",
-        json={
-            "email": "logout-attrs@example.com",
-            "password": "twelve-chars-plus",
-            "invite_token": raw_token,
-        },
+    teacher = Teacher(
+        email="logout-attrs@example.com",
+        password_hash=hash_password("twelve-chars-plus"),
+        role="teacher",
     )
+    db.add(teacher)
+    await db.commit()
+
+    login_resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "logout-attrs@example.com", "password": "twelve-chars-plus"},
+    )
+    client.cookies.update(login_resp.cookies)
 
     resp = await client.post("/api/v1/auth/logout")
     assert resp.status_code == 204

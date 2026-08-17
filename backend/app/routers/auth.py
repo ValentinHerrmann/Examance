@@ -13,13 +13,13 @@ from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_teacher
 from app.middleware.rate_limit import limiter
-from app.models.invite import InviteToken
 from app.models.refresh_token import RefreshToken
 from app.models.teacher import Teacher
-from app.schemas.auth import AuthResponse, LoginRequest, RegisterRequest
+from app.schemas.auth import AuthResponse, ForgotPasswordRequest, LoginRequest, ResetPasswordRequest
 from app.services import audit as audit_svc
-from app.services.crypto import hash_password, hash_token, needs_rehash, verify_password
+from app.services.crypto import hash_password, needs_rehash, verify_password
 from app.services.jwt import create_access_token, create_refresh_token, decode_token
+from app.services.password_reset import complete_password_reset, create_and_send_reset_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -63,93 +63,67 @@ def _clear_auth_cookies(response: Response) -> None:
     )
 
 
-@router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
 @limiter.limit("5/hour")
-async def register(
-    body: RegisterRequest,
+async def forgot_password(
+    body: ForgotPasswordRequest,
     request: Request,
-    response: Response,
     db: AsyncSession = Depends(get_db),
-) -> AuthResponse:
+) -> dict[str, str]:
     """
-    Create a teacher account.
-
-    Requires a valid, unexpired, unused invite_token.
-    On success, sets auth cookies and returns { email, role }.
+    Request a password reset link sent to the user's email address.
     """
-    now = datetime.now(tz=UTC)
     normalized_email = body.email.strip().lower()
-
-    # Validate invite token
-    token_hash = hash_token(body.invite_token)
     result = await db.execute(
-        select(InviteToken).where(
-            InviteToken.token_hash == token_hash,
-            InviteToken.used_by.is_(None),
-            InviteToken.expires_at > now,
-        )
-    )
-    invite = result.scalar_one_or_none()
-    if invite is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid, expired, or already-used invite token.",
-            headers={"code": "ERR_INVALID_INVITE"},
-        )
-
-    # Check email uniqueness
-    existing = await db.execute(
         select(Teacher).where(func.lower(Teacher.email) == normalized_email)
     )
-    if existing.scalar_one_or_none() is not None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Registration failed.",  # Don't reveal email existence
-            headers={"code": "ERR_REGISTRATION_FAILED"},
+    teacher = result.scalar_one_or_none()
+
+    if teacher:
+        _token, _sent = await create_and_send_reset_token(db, teacher)
+        await audit_svc.write(
+            db,
+            teacher_id=teacher.id,
+            teacher_email=teacher.email,
+            action="PASSWORD_RESET_REQUESTED",
+            request_ip=request.client.host if request.client else None,
         )
 
-    teacher = Teacher(
-        email=normalized_email,
-        password_hash=hash_password(body.password),
-        role="teacher",
-    )
-    db.add(teacher)
-    await db.flush()  # Get teacher.id before commit
+    return {
+        "message": (
+            "If an account exists for that email, a password reset link has been sent."
+        )
+    }
 
-    # Mark invite as used
-    invite.used_by = teacher.id
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+@limiter.limit("5/hour")
+async def reset_password(
+    body: ResetPasswordRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """
+    Set a new password using a valid single-use reset token.
+    """
+    try:
+        teacher = await complete_password_reset(db, body.token, body.new_password)
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(err),
+            headers={"code": "ERR_INVALID_TOKEN"},
+        ) from err
 
     await audit_svc.write(
         db,
         teacher_id=teacher.id,
         teacher_email=teacher.email,
-        action="LOGIN",
+        action="PASSWORD_RESET_COMPLETED",
         request_ip=request.client.host if request.client else None,
     )
 
-    # Issue tokens
-    access_token = create_access_token(teacher.id, teacher.email, teacher.role)
-    refresh_jwt, jti = create_refresh_token(teacher.id, teacher.email, teacher.role)
-
-    refresh_token_record = RefreshToken(
-        jti=jti,
-        teacher_id=teacher.id,
-        expires_at=datetime.now(tz=UTC)
-        # timedelta applied at decode; store expiry matching JWT
-        # We decode to get exp from the jwt
-    )
-    # Derive expiry from the token itself
-    decoded = decode_token(refresh_jwt)
-    refresh_token_record.expires_at = datetime.fromtimestamp(decoded["exp"], tz=UTC)
-    db.add(refresh_token_record)
-
-    _set_auth_cookies(
-        response,
-        access_token,
-        refresh_jwt,
-        refresh_max_age=settings.REFRESH_TOKEN_TTL_DAYS * 86400,
-    )
-    return AuthResponse(email=teacher.email, role=teacher.role)
+    return {"message": "Password has been successfully set. You can now log in."}
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -169,9 +143,22 @@ async def login(
     result = await db.execute(select(Teacher).where(func.lower(Teacher.email) == normalized_email))
     teacher = result.scalar_one_or_none()
 
+    if teacher and teacher.password_hash is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=(
+                "Password has not been set for this account. "
+                "Please set a password using the link sent to your email."
+            ),
+            headers={"code": "ERR_PASSWORD_NOT_SET"},
+        )
+
     # Constant-time: always call verify_password even if teacher not found
     dummy_hash = "$argon2id$v=19$m=65536,t=3,p=4$fakesaltfakesalt$fakehashfakehashfakehashfakehash"
-    password_ok = verify_password(body.password, teacher.password_hash if teacher else dummy_hash)
+    password_ok = verify_password(
+        body.password,
+        teacher.password_hash if (teacher and teacher.password_hash) else dummy_hash,
+    )
 
     if not teacher or not password_ok:
         raise HTTPException(

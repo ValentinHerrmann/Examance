@@ -43,7 +43,7 @@ authority. Do this first, before Phase 2 below.
   - Verify whether encrypted PII blobs (`pii_ciphertext`) were accessed.
   - Verify separately whether **plaintext** data was accessed: per-submission `total_score`, exam metadata (title, class, subject, date), teacher email addresses, and audit entries are **not** encrypted server-side.
 - [ ] **6. Assess whether the Art. 34(3)(a) encryption exemption actually applies.** It exempts you from notifying data subjects only where the data is unintelligible to the attacker. Do not assert it without checking all of the following; if any is false, the exemption does not hold:
-  - The compromise was limited to server-side storage, and no client device or browser profile was involved. Session keys live in `sessionStorage` on the teacher's device while unlocked, and in `local-only` mode the vault lives only there.
+  - The compromise was limited to server-side storage, and no client device or browser profile was involved. Session keys live in `sessionStorage` on the teacher's device while unlocked, and in `all-local` mode the vault lives only there.
   - No passphrase was compromised. Keys are derived from a teacher passphrase; a weak or reused passphrase is offline-guessable against an exfiltrated dump.
   - The affected vaults were not written before the PBKDF2 iteration increase (1,000 → 600,000). Data still readable via the legacy decrypt path has materially weaker protection.
   - Only encrypted fields were exposed — see item 5.

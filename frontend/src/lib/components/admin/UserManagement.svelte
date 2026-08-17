@@ -7,17 +7,17 @@
   type UserRole = 'teacher' | 'admin';
 
   let email = '';
-  let password = '';
   let role: UserRole = 'teacher';
 
   let isSubmitting = false;
   let errorMsg = '';
+  let warningMsg = '';
   let successMsg = '';
 
   $: canAccess = $isUnlocked && $sessionStore.role === 'admin';
 
   $: {
-    if (email.trim() || password) {
+    if (email.trim()) {
       sessionStore.setDirty(true);
     }
   }
@@ -31,13 +31,12 @@
   function validate(): string | null {
     const normalizedEmail = email.trim();
     if (!normalizedEmail) return 'Email is required.';
-    if (!password) return 'Password is required.';
-    if (password.length < 12) return 'Password must be at least 12 characters long.';
     return null;
   }
 
   async function handleCreateUser() {
     errorMsg = '';
+    warningMsg = '';
     successMsg = '';
 
     if (!canAccess) {
@@ -53,14 +52,18 @@
 
     isSubmitting = true;
     try {
-      const payload = { email: email.trim(), password, role };
-      const created = await api.post<{ id: string; email: string; role: UserRole }>(
+      const payload = { email: email.trim(), role };
+      const created = await api.post<{ id: string; email: string; role: UserRole; password_reset_sent: boolean }>(
         '/admin/users',
         payload
       );
 
-      successMsg = `Created ${created.role} account for ${created.email}.`;
-      password = '';
+      if (created.password_reset_sent) {
+        successMsg = `Created ${created.role} account for ${created.email}. Password setup email has been sent.`;
+      } else {
+        warningMsg = `Created ${created.role} account for ${created.email}, but email delivery failed. Please check SMTP configuration on the server.`;
+      }
+      email = '';
       sessionStore.setDirty(false);
     } catch (err: unknown) {
       if (err instanceof ApiError) {
@@ -101,6 +104,9 @@
       {#if successMsg}
         <div class="user-mgmt-banner success">{successMsg}</div>
       {/if}
+      {#if warningMsg}
+        <div class="user-mgmt-banner warning">{warningMsg}</div>
+      {/if}
       {#if errorMsg}
         <div class="user-mgmt-banner error">{errorMsg}</div>
       {/if}
@@ -116,20 +122,6 @@
             autocomplete="off"
             required
           />
-        </div>
-
-        <div class="user-mgmt-field">
-          <label for="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            bind:value={password}
-            placeholder="At least 12 characters"
-            autocomplete="new-password"
-            required
-            minlength="12"
-          />
-          <small>Stored only as Argon2id hash on server.</small>
         </div>
 
         <div class="user-mgmt-field">

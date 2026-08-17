@@ -135,6 +135,9 @@
           placeholder="Enter password"
           required
         />
+        <div class="forgot-password-link">
+          <a href="/forgot-password">Forgot password?</a>
+        </div>
       </div>
 
       <button type="submit" class="submit-btn" class:is-loading={isLoading} disabled={isLoading}>
