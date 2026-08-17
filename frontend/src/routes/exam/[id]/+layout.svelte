@@ -42,6 +42,7 @@
 
   $: isSetupActive = pathname === `/exam/${examId}` || pathname === `/exam/${examId}/`;
   $: isScanActive = pathname.startsWith(`/exam/${examId}/scan`);
+  $: isVerifyActive = pathname.startsWith(`/exam/${examId}/verify`);
   $: isGradeActive = pathname.startsWith(`/exam/${examId}/grade`);
   $: isManualActive = pathname.startsWith(`/exam/${examId}/manual`);
   $: isStatsActive = pathname.startsWith(`/exam/${examId}/stats`);
@@ -55,6 +56,7 @@
       {submissionCount}
       {isSetupActive}
       {isScanActive}
+      {isVerifyActive}
       {isGradeActive}
       {isManualActive}
       {isStatsActive}

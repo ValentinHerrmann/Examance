@@ -7,6 +7,8 @@
  * enter scoring (see the Grading & Statistics Invariant in CLAUDE.md).
  */
 
+import type { OmrScoreMeta } from '$lib/db/schema';
+
 export type McQuestionType = 'mc' | 'sc' | 'tf';
 
 /**
@@ -58,4 +60,66 @@ export function computeMcScore(
   if (isExactMatch) return maxPoints;
   if (selectedOptions.length > 0 && penalty < 0) return penalty;
   return 0;
+}
+
+export type { OmrScoreMeta };
+
+export interface McCorrectionResult {
+  nextSelectedOptions: number[];
+  nextScore: number;
+  nextOmrMeta: OmrScoreMeta;
+}
+
+/**
+ * Toggles an option index for an MC/SC/TF exercise and returns the updated selectedOptions,
+ * score, and omrMeta (marking source as manual and confidence as high).
+ */
+export function applyMcCorrection(
+  questionType: McQuestionType,
+  selectedOptions: number[],
+  toggledOptionIdx: number,
+  correctAnswers: number[],
+  penalty: number,
+  maxPoints: number,
+  omrMeta?: OmrScoreMeta
+): McCorrectionResult {
+  const isSingleAnswer = questionType === 'sc' || questionType === 'tf';
+
+  const nextSelectedOptions = isSingleAnswer
+    ? selectedOptions.includes(toggledOptionIdx)
+      ? []
+      : [toggledOptionIdx]
+    : selectedOptions.includes(toggledOptionIdx)
+      ? selectedOptions.filter((o) => o !== toggledOptionIdx)
+      : [...selectedOptions, toggledOptionIdx].sort((a, b) => a - b);
+
+  const correctedDetections = omrMeta?.detections
+    ? {
+        ...omrMeta.detections,
+        bubbles: omrMeta.detections.bubbles.map((b) => ({
+          ...b,
+          state: (nextSelectedOptions.includes(b.optionIndex) ? 'marked' : 'blank') as 'marked' | 'blank',
+        })),
+      }
+    : undefined;
+
+  const nextOmrMeta: OmrScoreMeta = {
+    confidence: 'high',
+    source: 'manual',
+    detections: correctedDetections,
+  };
+
+  const nextScore = computeMcScore(
+    questionType,
+    nextSelectedOptions,
+    correctAnswers,
+    penalty,
+    maxPoints
+  );
+
+  return {
+    nextSelectedOptions,
+    nextScore,
+    nextOmrMeta,
+  };
 }
