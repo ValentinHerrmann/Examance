@@ -77,16 +77,16 @@ function ss(): Storage | null {
 
 export const safeLocalStorage = {
   getItem: (key: string): string | null => ls() ? safeGet(ls()!, key) : null,
-  setItem: (key: string, value: string): void => { ls() && safeSet(ls()!, key, value); },
-  removeItem: (key: string): void => { ls() && safeRemove(ls()!, key); },
+  setItem: (key: string, value: string): void => { if (ls()) safeSet(ls()!, key, value); },
+  removeItem: (key: string): void => { if (ls()) safeRemove(ls()!, key); },
   /** True when localStorage is accessible in this browser context. */
   isAvailable: (): boolean => ls() !== null,
 };
 
 export const safeSessionStorage = {
   getItem: (key: string): string | null => ss() ? safeGet(ss()!, key) : null,
-  setItem: (key: string, value: string): void => { ss() && safeSet(ss()!, key, value); },
-  removeItem: (key: string): void => { ss() && safeRemove(ss()!, key); },
+  setItem: (key: string, value: string): void => { if (ss()) safeSet(ss()!, key, value); },
+  removeItem: (key: string): void => { if (ss()) safeRemove(ss()!, key); },
   /** True when sessionStorage is accessible in this browser context. */
   isAvailable: (): boolean => ss() !== null,
 };

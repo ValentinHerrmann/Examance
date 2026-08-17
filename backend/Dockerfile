@@ -22,6 +22,12 @@ RUN curl -fsSL -o /tmp/tectonic.tar.gz \
  && rm /tmp/tectonic.tar.gz \
  && tectonic --version
 
+# Build version, reported by GET /api/health. Passed by the deploy workflows
+# from the repository-root VERSION file; the default keeps local builds honest
+# about being untagged rather than claiming a release number.
+ARG APP_VERSION=0.0.0-dev
+ENV APP_VERSION=${APP_VERSION}
+
 # Install uv (fast Python package manager)
 RUN pip install uv --no-cache-dir
 

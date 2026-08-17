@@ -9,10 +9,13 @@ PASSWORD_MIN_LENGTH = 12
 PASSWORD_MAX_LENGTH = 256
 
 
-class RegisterRequest(BaseModel):
+class ForgotPasswordRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
-    invite_token: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
 
 
 class LoginRequest(BaseModel):

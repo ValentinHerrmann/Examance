@@ -1,0 +1,238 @@
+name: Deploy Release
+
+# Publishing a GitHub Release is the only action required to ship production.
+# The version comes from the release tag.
+#
+# `published` rather than `created`: `created` also fires when a draft release
+# is saved, which would deploy unfinished releases.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to deploy, e.g. 1.4.0 (no leading v)"
+        required: true
+        type: string
+
+# Never interrupt a production deploy midway.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: examance-backend
+
+jobs:
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - name: Resolve and validate semantic version
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "release" ]; then
+            RAW="$TAG_NAME"
+          else
+            RAW="$INPUT_VERSION"
+          fi
+          VERSION="${RAW#v}"
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "ERROR: '$RAW' is not [major].[minor].[patch]" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Deploying version $VERSION"
+
+  frontend:
+    name: Publish frontend to release branch
+    needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    environment:
+      name: production
+      url: https://examance.valentin-herrmann.com/
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Write VERSION and publish to the release branch
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          printf '%s\n' "$VERSION" > VERSION
+          git add VERSION
+
+          # The commit that lands on the default branch carries [skip ci] so it
+          # does not re-trigger the CI workflow...
+          git commit -m "chore: release $VERSION [skip ci]" --allow-empty
+          git push origin "HEAD:refs/heads/$DEFAULT_BRANCH"
+
+          # ...but the copy pushed to `release` must NOT, or Cloudflare Pages
+          # skips the production build.
+          git commit --amend -m "chore: release $VERSION"
+          git push origin HEAD:refs/heads/release --force
+
+  backend-image:
+    name: Build backend image
+    needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
+
+      - name: Compute image reference
+        id: meta
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          OWNER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          BASE="ghcr.io/${OWNER}/${IMAGE_NAME}"
+          echo "image=${BASE}:${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "latest=${BASE}:latest" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          build-args: |
+            APP_VERSION=${{ needs.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: |
+            ${{ steps.meta.outputs.image }}
+            ${{ steps.meta.outputs.latest }}
+
+  backend-deploy:
+    name: Deploy backend (production)
+    needs: [version, backend-image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Lets this job's own GITHUB_TOKEN pull from GHCR — each job mints its
+      # own token, valid for that job's duration, so no long-lived PAT is
+      # needed just to let the server authenticate during this run.
+      packages: read
+    environment:
+      name: production
+      url: ${{ vars.BACKEND_PUBLIC_URL || 'https://api-examance.valentin-herrmann.com/' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy compose file to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || '22' }}
+          source: deploy/docker-compose.deploy.yml
+          target: ${{ vars.DEPLOY_APP_DIR }}/prod
+          strip_components: 1
+
+      - name: Pull image, migrate and restart
+        uses: appleboy/ssh-action@v0.1.7
+        env:
+          BACKEND_IMAGE: ${{ needs.backend-image.outputs.image }}
+          APP_VERSION: ${{ needs.version.outputs.version }}
+          DEPLOY_APP_DIR: ${{ vars.DEPLOY_APP_DIR }}
+          REGISTRY_USER: ${{ github.actor }}
+          # This job's own GITHUB_TOKEN, not a stored secret — minted at job
+          # start, valid only for this run, revoked automatically afterwards.
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || '22' }}
+          envs: BACKEND_IMAGE,APP_VERSION,DEPLOY_APP_DIR,REGISTRY_USER,REGISTRY_TOKEN
+          script: |
+            set -euo pipefail
+
+            # `set -u` does not catch this: the variable is set, just empty,
+            # which would silently make the target "/prod".
+            if [ -z "${DEPLOY_APP_DIR:-}" ]; then
+              echo "ERROR: DEPLOY_APP_DIR is empty." >&2
+              echo "Set it under Settings -> Environments -> production -> Variables." >&2
+              exit 1
+            fi
+
+            TARGET="${DEPLOY_APP_DIR}/prod"
+            cd "$TARGET"
+
+            # The env file holds this environment's SECRET_KEY and database
+            # password, so it is created once by hand and never by CI.
+            if [ ! -f .env ]; then
+              echo "ERROR: ${TARGET}/.env not found on the server." >&2
+              echo "Create it from deploy/env.prod.example — see docs/deployment.md section 6." >&2
+              exit 1
+            fi
+
+            echo "${REGISTRY_TOKEN}" | docker login ghcr.io -u "${REGISTRY_USER}" --password-stdin
+
+            # Record the image this environment runs, so a bare `compose up` on
+            # the server reproduces exactly what CI deployed.
+            sed -i "s|^BACKEND_IMAGE=.*|BACKEND_IMAGE=${BACKEND_IMAGE}|" .env
+            grep -q '^BACKEND_IMAGE=' .env || echo "BACKEND_IMAGE=${BACKEND_IMAGE}" >> .env
+
+            COMPOSE="docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env"
+
+            $COMPOSE pull
+            # Migrations run forward only. A rollback to an older image does NOT
+            # undo them — see docs/deployment.md.
+            $COMPOSE --profile tools run --rm migrate
+            $COMPOSE up -d --remove-orphans
+
+            APP_PORT=$(grep -E '^APP_PORT=' .env | cut -d= -f2)
+            APP_PORT="${APP_PORT:-8000}"
+            for i in $(seq 1 30); do
+              REPORTED=$(curl -sf "http://127.0.0.1:${APP_PORT}/api/health" \
+                | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p') || true
+              if [ "$REPORTED" = "$APP_VERSION" ]; then
+                echo "Healthy on $APP_VERSION"
+                docker image prune -f
+                exit 0
+              fi
+              sleep 2
+            done
+
+            echo "ERROR: backend did not report version ${APP_VERSION} within 60s (last: '${REPORTED:-none}')" >&2
+            $COMPOSE logs --tail 200 backend >&2
+            exit 1

@@ -47,17 +47,21 @@ Examance uses secure, HttpOnly, SameSite-protected cookies for session managemen
 - **`access_token`**: Short-lived JWT (15-minute validity) used for API authorization.
 - **`refresh_token`**: Long-lived JWT (7-day validity) used to obtain new access tokens.
 
-Cookies are issued automatically upon successful login (`POST /api/v1/auth/login`) or registration (`POST /api/v1/auth/register`) and cleared upon logout (`POST /api/v1/auth/logout`).
+Cookies are issued automatically upon successful login (`POST /api/v1/auth/login`) and cleared upon logout (`POST /api/v1/auth/logout`). There is no public self-registration endpoint — accounts are provisioned by an admin or by the initial-admin bootstrap; see `account_creation_and_management.md`.
 
 ### Refresh Token Rotation & Reuse Detection
 - Every refresh token contains a unique JWT ID (`jti`).
 - Exchanging a refresh token via `POST /api/v1/auth/refresh` invalidates the old `jti` and issues a new refresh token.
 - If a previously used `jti` is presented again (indicating token theft or replay), the entire token family for that session is immediately revoked and the user is logged out.
 
-### One-Time Invite Tokens
-- Teacher registration requires a valid one-time invite token generated via CLI (`python -m app.cli create-invite`).
-- Raw invite tokens are SHA-256 hashed prior to DB insertion; raw values are never stored.
-- Tokens expire after a configurable duration (default 7 days) and are single-use.
+### Initial Admin Bootstrap & Admin User Provisioning
+- The backend automatically creates an initial `admin` user on startup if `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` are configured in `.env`.
+- Admins create user accounts via `POST /api/v1/admin/users` without specifying passwords. Accounts are created with uninitialized password hashes (`password_hash = None`), and single-use password reset tokens are emailed automatically.
+
+### Single-Use Password Reset Tokens
+- Password reset links carry 32-byte URL-safe raw tokens.
+- The server stores only SHA-256 hashes of reset tokens. Tokens expire after a configurable duration (default 24 hours) and are invalidated immediately upon use.
+- Completing a password reset (`POST /api/v1/auth/reset-password`) sets the new password and revokes all active refresh tokens for the user account.
 
 ### CORS & Security Policies
 - **CORS Allowed Origins**: Explicitly restricted to configured origins (e.g., `https://examance.pages.dev`, `http://localhost:5173`, and `*.valentin-herrmann.com` subdomains).
@@ -93,15 +97,16 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
-| `POST` | `/api/v1/auth/register` | Register Account | No (Invite Required) | Registers a new teacher account using a valid invite token. Sets session cookies. |
-| `POST` | `/api/v1/auth/login` | Teacher Login | No | Authenticates email and password. Sets `access_token` and `refresh_token` cookies. |
+| `POST` | `/api/v1/auth/login` | User Login | No | Authenticates email and password. Returns `401 ERR_PASSWORD_NOT_SET` if account password is uninitialized. Sets `access_token` and `refresh_token` cookies. |
+| `POST` | `/api/v1/auth/forgot-password` | Request Reset Link | No | Generates single-use reset token and emails link to user. Returns generic success message to prevent email enumeration. |
+| `POST` | `/api/v1/auth/reset-password` | Complete Reset | No | Validates token, sets new user password, marks token used, and revokes active refresh tokens. |
 | `POST` | `/api/v1/auth/refresh` | Refresh Session | Yes (`refresh_token`) | Rotates refresh token and issues new access token cookie. |
 | `POST` | `/api/v1/auth/logout` | Logout | Yes | Invalidates session and clears session cookies. |
 
 #### Auth Request & Response Schemas
 - **`LoginRequest`**: `{"email": "string", "password": "string"}`
-- **`RegisterRequest`**: `{"email": "string", "password": "string", "invite_token": "string"}`
-- **`TokenResponse`**: `{"access_token": "string", "token_type": "bearer"}`
+- **`ForgotPasswordRequest`**: `{"email": "string"}`
+- **`ResetPasswordRequest`**: `{"token": "string", "new_password": "string"}`
 
 ---
 
@@ -123,9 +128,11 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 |---|---|---|---|---|
 | `POST` | `/api/v1/exams` | Create Exam | Yes | Creates a new exam with title, template, retention date, and optional exercises. |
 | `GET` | `/api/v1/exams` | List Exams | Yes | Lists all active (non-deleted) exams owned by the authenticated teacher. |
-| `GET` | `/api/v1/exams/{exam_id}` | Get Exam Details | Yes | Retrieves full exam metadata and linked exercise order. |
+| `GET` | `/api/v1/exams/{exam_id}` | Get Exam Details | Yes | Retrieves full exam metadata and live-linked exercises. |
+| `PATCH` | `/api/v1/exams/{exam_id}` | Update Exam | Yes | Updates exam details and exercise links. |
 | `DELETE` | `/api/v1/exams/{exam_id}` | Soft-Delete Exam | Yes | Soft-deletes exam and marks it inaccessible. |
 | `GET` | `/api/v1/exams/{exam_id}/exercises` | List Exam Exercises | Yes | Retrieves exercises linked to the specified exam in display order. |
+| `POST` | `/api/v1/exams/{exam_id}/compile` | Compile Exam | Yes | Compiles the complete exam LaTeX document from its live-linked library exercises; returns `application/pdf`. |
 
 #### Exam Query Parameters & Schemas
 - **Query Filters** (`GET /api/v1/exams`): `grade` (string), `subject` (string).
@@ -157,11 +164,13 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 |---|---|---|---|---|
 | `POST` | `/api/v1/exercises` | Create Exercise | Yes | Creates new exercise entry in library (version 1). |
 | `GET` | `/api/v1/exercises` | List Exercises | Yes | Searches and lists exercise library with topic, grade, and subject filtering. |
-| `GET` | `/api/v1/exercises/{id}` | Get Exercise | Yes | Retrieves single exercise detail by ID. |
+| `GET` | `/api/v1/exercises/{id}` | Get Exercise | Yes | Retrieves a single exercise (own exercises or published ones). |
+| `PATCH` | `/api/v1/exercises/{id}` | Update Exercise | Yes | Updates a library exercise in place. |
+| `PATCH` | `/api/v1/exercises/groups/{group_id}` | Update Exercise Group | Yes | Updates group metadata and cascades it to every member variant. |
 | `POST` | `/api/v1/exercises/{id}/new-version` | Create Version | Yes | Creates a new version of an exercise, updating `is_current`. |
 | `POST` | `/api/v1/exercises/{id}/new-variant` | Create Variant | Yes | Creates a parallel variant within the same exercise group. |
 | `GET` | `/api/v1/exercises/{id}/usage` | Exercise Usage | Yes | Lists exams referencing this exercise and count. |
-| `DELETE` | `/api/v1/exercises/{id}` | Delete Exercise | Yes | Soft-deletes exercise from library. |
+| `DELETE` | `/api/v1/exercises/{id}` | Delete Exercise | Yes | Soft-deletes exercise from the caller's own library. Idempotent (always `204`); a foreign id is a silent no-op. |
 
 #### Exercise Query Parameters
 - **Query Filters** (`GET /api/v1/exercises`): `search` (string), `topic_tag` (string), `grade` (string), `subject` (string).
@@ -192,8 +201,11 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
+| `GET` | `/api/v1/exams/{exam_id}/submissions` | List Submissions | Yes | Lists all non-deleted submissions for an exam. |
 | `POST` | `/api/v1/exams/{exam_id}/submissions` | Upload Submission | Yes | Stores/upserts encrypted scan submission and anonymized score. |
 | `GET` | `/api/v1/exams/{exam_id}/submissions/{submission_id}` | Get Submission | Yes | Retrieves single encrypted submission payload. |
+| `PATCH` | `/api/v1/exams/{exam_id}/submissions/{submission_id}/score` | Update Score | Yes | Updates the plaintext `total_score` used for server-side statistics. |
+| `DELETE` | `/api/v1/exams/{exam_id}/submissions/{submission_id}/grading` | Clear Grading | Yes | Clears all grading data (score + annotations) for a submission, without deleting it. |
 | `DELETE` | `/api/v1/exams/{exam_id}/submissions/{submission_id}` | Delete Submission | Yes | Deletes specified submission scan. |
 
 #### Submission Payload
@@ -214,7 +226,14 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
 | `GET` | `/api/v1/admin/stats/{exam_id}` | Class Statistics | Yes (Admin) | Evaluates $k$-anonymity ($k \ge 5$) and returns aggregate exam stats. |
-| `POST` | `/api/v1/admin/users` | Create User | Yes (Admin) | Directly provisions a new teacher or admin account. |
+| `POST` | `/api/v1/admin/users` | Create User | Yes (Admin) | Provisions a new teacher or admin account without a password (`password_hash = None`) and sends a reset token via email. |
+| `POST` | `/api/v1/admin/users/{user_id}/reset-password` | Force Password Reset | Yes (Admin) | Generates and emails a single-use password reset link for an existing user account. |
+| `GET` | `/api/v1/admin/audit` | List Audit Logs | Yes (Admin) | Paginated audit log listing. |
+
+#### Admin User Creation Schemas
+- **`AdminCreateUserRequest`**: `{"email": "teacher@school.com", "role": "teacher"}`
+- **`AdminCreateUserResponse`**: `{"id": "uuid...", "email": "teacher@school.com", "role": "teacher", "created_at": "...", "password_reset_sent": true}`
+- **`AdminResetPasswordResponse`**: `{"message": "Password reset link generated...", "user_id": "uuid...", "password_reset_sent": true}`
 
 #### Admin Stats Response Example
 ```json
@@ -234,7 +253,10 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
-| `DELETE` | `/api/v1/user/me` | Delete Account | Yes | Soft-deletes teacher account and schedules full data purge after 7-day retention period. |
+| `POST` | `/api/v1/user/purge-server-student-data` | Purge Server Student Data | Yes | Soft-deletes this teacher's server-side student identities and submissions (7-day retention grace) — the local→`all-local` migration step in `data_flow_and_security.md` §5. |
+| `POST` | `/api/v1/user/restore-server-data` | Restore Server Data | Yes | Restores soft-deleted student identities and submissions for the current teacher, if still within the 7-day grace period. |
+| `GET` | `/api/v1/user/me/export` | Export Own Data | Yes | GDPR Art. 15/20 export of what the server holds *about the teacher*: account fields, authored exams, audit trail. Does **not** cover student data — see §4.5/§4.6 for that. |
+| `DELETE` | `/api/v1/user/me` | Delete Account | Yes | GDPR Art. 17 — soft-deletes the teacher's account and authored content (exams, student identities, submissions) on the standard grace period, then schedules irreversible erasure. |
 
 ---
 
@@ -242,7 +264,7 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
-| `GET` | `/api/health` | Health Check | No | Returns system operational status `{"status": "ok"}`. |
+| `GET` | `/api/health` | Health Check | No | Returns `{"status": "ok", "version": "1.4.0"}`. The version is deliberately public — it is how the frontend detects an incompatible backend; see `deployment.md` §4. |
 
 ---
 
@@ -253,5 +275,7 @@ To export a static copy of the OpenAPI 3.0 specification JSON file for offline i
 ```bash
 python -m app.cli export-openapi --output docs/openapi.json
 ```
+
+Run this from the **repository root**, not from `backend/`: a relative `--output` is resolved against the repo root regardless of current working directory (`export_openapi()` in `app/cli.py` anchors it via `Path(__file__).resolve().parent.parent.parent`), so `docs/openapi.json` is correct from anywhere but `../docs/openapi.json` silently writes one directory above the repo.
 
 The exported specification file is saved at [docs/openapi.json](docs/openapi.json).

@@ -1,6 +1,7 @@
 """FastAPI application factory, middleware registration, lifespan."""
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -18,11 +19,33 @@ from app.middleware.origin_guard import OriginGuardMiddleware
 from app.middleware.rate_limit import limiter
 from app.routers import admin, auth, compile, exams, exercises, students, submissions, user
 
+logging.basicConfig(
+    level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
+    format="%(levelname)s:\t%(name)s - %(message)s",
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan — run startup/shutdown logic here."""
-    # Future: warm up DB connection pool, verify Tectonic binary exists, etc.
+    from app.database import AsyncSessionLocal
+    from app.services.bootstrap import create_initial_admin
+
+    if not settings.SMTP_HOST:
+        if not settings.is_dev:
+            logging.getLogger("app.main").warning(
+                "SMTP_HOST is not configured! Password reset and user creation emails "
+                "will fail to send in environment '%s'.",
+                settings.ENVIRONMENT,
+            )
+        else:
+            logging.getLogger("app.main").info(
+                "SMTP_HOST is not set; running email service in development log-only mode."
+            )
+
+    async with AsyncSessionLocal() as session:
+        await create_initial_admin(session)
+
     yield
     # Shutdown: close engine
     from app.database import engine
@@ -103,7 +126,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="Examance API",
-        version="0.1.0",
+        version=settings.APP_VERSION,
         description=description,
         openapi_tags=openapi_tags,
         # Interactive docs enumerate every route and parameter, including the
@@ -149,7 +172,11 @@ def create_app() -> FastAPI:
 
     @app.get("/api/health", tags=["meta"])
     async def health() -> dict[str, str]:
-        return {"status": "ok"}
+        # `version` is deliberately public. It is how the frontend detects that
+        # it is talking to an incompatible server (differing major version), and
+        # it is the same class of information a Server header already leaks. No
+        # authentication, crypto or retention behaviour depends on it.
+        return {"status": "ok", "version": settings.APP_VERSION}
 
     return app
 

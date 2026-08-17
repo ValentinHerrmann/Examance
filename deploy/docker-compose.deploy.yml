@@ -1,0 +1,148 @@
+# Server-side stack for a deployed Examance instance.
+#
+# This file is NOT the development stack — see ../docker-compose.yml for that.
+# The differences are deliberate: the backend image is pulled from the registry
+# instead of built, there is no source bind mount and no --reload, and every
+# port except the API is kept off the network.
+#
+# One copy of this file runs per environment, isolated by compose project name:
+#
+#   docker compose -p examance-prod    --env-file .env up -d
+#   docker compose -p examance-preview --env-file .env up -d
+#
+# The project name namespaces both container names and named volumes, so
+# examance-prod_pg_data and examance-preview_pg_data can never collide and a
+# preview deployment can never reach production data.
+#
+# Apply migrations before starting the API:
+#   docker compose -p <project> --env-file .env run --rm migrate
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-blindgrade}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-blindgrade}
+  DATABASE_URL_SYNC: postgresql+psycopg2://${POSTGRES_USER:-blindgrade}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-blindgrade}
+  REDIS_URL: redis://redis:6379/0
+  # No default: compose refuses to start until SECRET_KEY is set in the env
+  # file. Generate one per environment with: openssl rand -hex 32
+  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set — generate with "openssl rand -hex 32"}
+  JWT_ALGORITHM: HS256
+  ACCESS_TOKEN_TTL_MINUTES: ${ACCESS_TOKEN_TTL_MINUTES:-15}
+  REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
+  # Required — the app refuses to start on an empty list, and there is no
+  # wildcard fallback. Must name the frontend origin for THIS environment.
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS must be set}
+  ALLOWED_HOSTS: ${ALLOWED_HOSTS:-[]}
+  ENVIRONMENT: ${ENVIRONMENT:-production}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
+  INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+  # Default must stay off *.pages.dev — that domain is URL-blocklisted and mail
+  # relays reject password-reset links pointing at it (see config.py).
+  FRONTEND_URL: ${FRONTEND_URL:-https://examance.valentin-herrmann.com}
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USERNAME: ${SMTP_USERNAME:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@examance.com}
+  SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+  PASSWORD_RESET_TOKEN_TTL_HOURS: ${PASSWORD_RESET_TOKEN_TTL_HOURS:-24}
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-blindgrade}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: ${POSTGRES_DB:-blindgrade}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    # Deliberately no `ports:` — Postgres is reachable only on the compose
+    # network. Use `docker compose exec db psql` for maintenance.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-blindgrade}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Deliberately no `ports:` — rate-limit counters are internal state.
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot: `docker compose run --rm migrate`. Never started by `up`, so a
+  # restart cannot re-run migrations behind your back.
+  migrate:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
+    environment: *backend-env
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["alembic", "upgrade", "head"]
+    profiles:
+      - tools
+    restart: "no"
+
+  backend:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
+    restart: unless-stopped
+    environment: *backend-env
+    # Bound to loopback only: nginx on the host terminates TLS and proxies to
+    # this port. Publishing on 0.0.0.0 would expose the API without TLS.
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # --forwarded-allow-ips names the reverse proxy. Behind the host's nginx,
+    # requests arrive from the docker bridge gateway, not 127.0.0.1, so the
+    # image default would ignore X-Forwarded-For and attribute every request to
+    # the proxy. Set PROXY_ALLOWED_IPS to the bridge gateway/CIDR — never "*",
+    # which would let any client spoof its own rate-limit bucket and poison the
+    # audit log's IP hashes.
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - ${PROXY_ALLOWED_IPS:-127.0.0.1}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health').status == 200 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # Retention sweep, once a day.
+  #
+  # Runs the backend image directly rather than shelling out to `docker exec`
+  # from a busybox container the way the development compose file does — that
+  # variant cannot work, because busybox ships no docker CLI and the container
+  # name it targets is not the one a project-named stack produces.
+  retention-cron:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          sleep 86400
+          python -m app.cli run-retention || echo "retention sweep failed" >&2
+        done
+
+volumes:
+  pg_data:

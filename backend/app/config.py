@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from urllib.parse import urlparse
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -14,6 +15,21 @@ PLACEHOLDER_SECRET_KEYS = frozenset(
         "CHANGE_ME_IN_PRODUCTION_USE_openssl_rand_hex_32",
         "test-secret-key-not-for-production",
     }
+)
+
+# Free, instantly-provisioned hosting domains. They are heavily abused for
+# phishing and therefore carry a poor reputation on URI blocklists (SURBL /
+# URIBL / Spamhaus DBL). A password-reset mail linking to one of them gets
+# rejected by outbound relays with a body-URL rule, e.g.
+#   550 5.7.1 Refused by local policy. Sending of SPAM is not permitted! (B-URL)
+# Use a custom domain that matches the SMTP_FROM_EMAIL domain instead.
+BLOCKLISTED_LINK_DOMAINS = (
+    ".pages.dev",
+    ".workers.dev",
+    ".vercel.app",
+    ".netlify.app",
+    ".web.app",
+    ".firebaseapp.com",
 )
 
 # Loopback origins on arbitrary ports (http/https on localhost or 127.0.0.1).
@@ -65,6 +81,14 @@ class Settings(BaseSettings):
 
     # Environment
     ENVIRONMENT: str = "production"
+    LOG_LEVEL: str = "INFO"
+
+    # Build version, baked into the image at build time (Dockerfile ARG/ENV
+    # APP_VERSION) from the repository-root VERSION file. Informational only:
+    # it is reported by GET /api/health so the frontend can tell whether it is
+    # talking to a compatible server. Production builds carry a bare semver
+    # ("1.4.0"); preview builds append the short commit SHA ("1.4.0-a1b2c3d").
+    APP_VERSION: str = "0.0.0-dev"
 
     # Retention bounds.
     #
@@ -91,6 +115,24 @@ class Settings(BaseSettings):
     BODY_LIMIT_SUBMISSION: int = 50 * 1024 * 1024   # 50 MB
     BODY_LIMIT_STUDENTS: int = 1 * 1024 * 1024      # 1 MB
     BODY_LIMIT_DEFAULT: int = 256 * 1024             # 256 KB
+
+    # Initial admin bootstrap credentials
+    INITIAL_ADMIN_EMAIL: str | None = None
+    INITIAL_ADMIN_PASSWORD: str | None = None
+
+    # SMTP configuration for email notification / password reset delivery
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM_EMAIL: str = "noreply@examance.com"
+    SMTP_USE_TLS: bool = True
+
+    # Frontend base URL for email link generation
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # Password reset configuration
+    PASSWORD_RESET_TOKEN_TTL_HOURS: int = 24
 
     @field_validator("ALLOWED_HOSTS", "CORS_ALLOWED_ORIGINS", mode="before")
     @classmethod
@@ -133,6 +175,45 @@ class Settings(BaseSettings):
             raise ValueError(
                 "SECRET_KEY must be at least 32 characters outside development. "
                 "Generate one with: openssl rand -hex 32"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_initial_admin_password(self) -> Settings:
+        """
+        Refuse to start outside development with a published or too-short initial admin password.
+        """
+        if self.is_dev:
+            return self
+        if self.INITIAL_ADMIN_PASSWORD is not None:
+            if (
+                self.INITIAL_ADMIN_PASSWORD in PLACEHOLDER_SECRET_KEYS
+                or len(self.INITIAL_ADMIN_PASSWORD) < 12
+            ):
+                raise ValueError(
+                    "INITIAL_ADMIN_PASSWORD must be at least 12 characters outside development "
+                    "and cannot be a published placeholder value."
+                )
+        return self
+
+    @model_validator(mode="after")
+    def validate_frontend_url_for_email(self) -> Settings:
+        """
+        Refuse to start when password-reset links would point at a blocklisted domain.
+
+        Only enforced when mail is actually delivered (SMTP_HOST set) outside
+        development, since that is the configuration in which the relay rejects
+        the message at DATA time — long after the user requested the reset.
+        """
+        if self.is_dev or not self.SMTP_HOST:
+            return self
+        host = urlparse(self.FRONTEND_URL).hostname or ""
+        if host.endswith(BLOCKLISTED_LINK_DOMAINS):
+            raise ValueError(
+                f"FRONTEND_URL host '{host}' is a free-hosting domain commonly listed on "
+                "URL blocklists; outbound mail relays reject password-reset links pointing "
+                "there. Point FRONTEND_URL at a custom domain (ideally sharing the registrable "
+                "domain of SMTP_FROM_EMAIL), or leave SMTP_HOST unset to disable email delivery."
             )
         return self
 

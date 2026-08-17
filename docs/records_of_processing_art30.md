@@ -2,7 +2,7 @@
 
 *Verzeichnis von Verarbeitungstätigkeiten*
 
-Two variants follow. Use §A if the school runs Examance itself or teachers use `local-only` mode (school = sole controller). Use §A **and** §B if a third party hosts the backend (school = controller, operator = processor); each party keeps its own record.
+Two variants follow. Use §A if the school runs Examance itself or teachers use `all-local` mode (school = sole controller). Use §A **and** §B if a third party hosts the backend (school = controller, operator = processor) — this includes `hybrid` mode, since exercises and exam metadata reach that party's server even though student identity and submissions do not; each party keeps its own record.
 
 Fields in *[brackets]* must be completed. Technical fields are pre-filled from the codebase and should be re-checked whenever the architecture changes.
 

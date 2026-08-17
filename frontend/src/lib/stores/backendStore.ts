@@ -50,9 +50,21 @@ function safeNormalize(raw: string): string {
     }
 }
 
+/**
+ * Build-time default so a production frontend points at the production API and
+ * a preview frontend at the preview API without the user typing an address
+ * (see PUBLIC_DEFAULT_BACKEND_URL in vite.config.ts). It is only a default: a
+ * saved address always wins, it goes through the same validation as any typed
+ * address, and an unusable value is ignored rather than failing the app.
+ */
+function defaultBackendUrl(): string {
+    return safeNormalize(__DEFAULT_BACKEND_URL__ || '');
+}
+
 function createBackendStore() {
     let initialUrl = '';
-    initialUrl = safeNormalize(safeLocalStorage.getItem(BACKEND_URL_KEY) || '');
+    initialUrl =
+        safeNormalize(safeLocalStorage.getItem(BACKEND_URL_KEY) || '') || defaultBackendUrl();
 
     const { subscribe, set } = writable<string>(initialUrl);
 
@@ -77,7 +89,7 @@ function createBackendStore() {
         set: persist,
         restoreSavedUrl: () => {
             const saved = safeNormalize(safeLocalStorage.getItem(BACKEND_URL_KEY) || '');
-            set(saved);
+            set(saved || defaultBackendUrl());
         },
         clear: () => {
             safeLocalStorage.removeItem(BACKEND_URL_KEY);

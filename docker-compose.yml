@@ -46,6 +46,17 @@ services:
       # Required — no wildcard default; app refuses to start if unset
       CORS_ALLOWED_ORIGINS: '["http://localhost:5173", "https://examance.pages.dev"]'
       ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@example.com}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-admin-change-me-in-production-12345}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@examance.com}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+      PASSWORD_RESET_TOKEN_TTL_HOURS: ${PASSWORD_RESET_TOKEN_TTL_HOURS:-24}
     ports:
       - "8000:8000"
     depends_on:
