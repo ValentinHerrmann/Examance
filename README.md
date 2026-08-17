@@ -2,7 +2,7 @@
 
 Privacy-first, zero-knowledge-encrypted anonymous exam grading. Teachers author LaTeX exams, print QR-coded booklets, scan and grade submissions against a pseudonym rather than a name, and get class-level analytics — all with student identity, scans and grading annotations encrypted client-side before they ever reach a server (or without a server at all, in the default local-only mode). Repo name `BlindGrade` is legacy; the product is Examance.
 
-[Concept Pitch](docs/BlindGrade_Presentation.pdf) · ![Concept Poster](docs/BlindGrade_Poster.png)
+[Concept Pitch](docs/concept_pitch.md) ([slides PDF](docs/concept_pitch.pdf)) — problem, feature walkthrough with current screenshots, security modes. (Superseded [slide deck](docs/BlindGrade_Presentation.pdf) / [poster](docs/BlindGrade_Poster.png) kept for reference — pre-rename, AI-generated mockups, not current UI.)
 
 ## Quickstart
 
@@ -38,6 +38,9 @@ Backend API at `http://localhost:8000/api/docs`, frontend at `http://localhost:5
 | `make retention-dry` | dry-run the GDPR retention job, no DB writes |
 
 ## Documentation
+
+**Pitch** — what it does and why, with current screenshots:
+* [Concept Pitch](docs/concept_pitch.md) — long-form doc · [slides PDF](docs/concept_pitch.pdf) — same content as a presentation deck ([Marp](https://marp.app) source: `docs/concept_pitch_slides.md`, rebuild with `npx @marp-team/marp-cli --allow-local-files docs/concept_pitch_slides.md -o docs/concept_pitch.pdf`)
 
 **Developer** — architecture, API, accounts:
 * [Data Flow, Encryption-at-Rest & DevTools Security Architecture](docs/data_flow_and_security.md) — client-side crypto, storage modes, session hygiene
