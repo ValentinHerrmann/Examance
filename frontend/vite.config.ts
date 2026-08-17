@@ -35,6 +35,19 @@ function computeAppVersion(): string {
   return sha ? `${readVersionFile()}-${sha}` : readVersionFile();
 }
 
+/**
+ * The GitHub repository this frontend is published from — used to build a
+ * clickable link next to the version tag in the status bar (see
+ * versionStore.ts): a release build links to its GitHub Release, a preview or
+ * dev build links to the exact commit it was built from.
+ */
+const REPO_URL = 'https://github.com/ValentinHerrmann/BlindGrade';
+
+/** Full commit SHA of this build, when Cloudflare Pages provides one. */
+function computeCommitSha(): string {
+  return process.env.CF_PAGES_COMMIT_SHA ?? '';
+}
+
 // Seeds the backend address on a fresh browser profile so a production frontend
 // defaults to the production API and a preview frontend to the preview API. It
 // is only a default — the value is revalidated by normalizeBackendUrl() and the
@@ -45,6 +58,8 @@ export default defineConfig({
   plugins: [tailwindcss(), wasm(), topLevelAwait(), sveltekit()],
   define: {
     __APP_VERSION__: JSON.stringify(computeAppVersion()),
+    __APP_COMMIT_SHA__: JSON.stringify(computeCommitSha()),
+    __REPO_URL__: JSON.stringify(REPO_URL),
     __DEFAULT_BACKEND_URL__: JSON.stringify(DEFAULT_BACKEND_URL),
   },
   test: {

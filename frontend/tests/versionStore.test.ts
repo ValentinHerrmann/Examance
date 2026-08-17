@@ -4,6 +4,8 @@ import {
   compareVersions,
   refreshBackendVersion,
   backendVersionStore,
+  versionUrlFor,
+  repoUrl,
 } from '../src/lib/stores/versionStore';
 import { backendStore } from '../src/lib/stores/backendStore';
 
@@ -52,6 +54,23 @@ describe('compareVersions', () => {
   it('is no-server when no backend is configured', () => {
     expect(compareVersions('1.4.0', null, false)).toBe('no-server');
     expect(compareVersions('1.4.0', '1.4.0', false)).toBe('no-server');
+  });
+});
+
+describe('versionUrlFor', () => {
+  it('links a tagged release to its GitHub Release', () => {
+    expect(versionUrlFor('1.4.0', '')).toBe(`${repoUrl}/releases/tag/v1.4.0`);
+    expect(versionUrlFor('1.4.0', 'a1b2c3d')).toBe(`${repoUrl}/releases/tag/v1.4.0`);
+  });
+
+  it('links a preview build to the exact commit it was built from', () => {
+    expect(versionUrlFor('1.4.0-a1b2c3d', 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2')).toBe(
+      `${repoUrl}/commit/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2`
+    );
+  });
+
+  it('has no link for a build with no commit SHA (local dev)', () => {
+    expect(versionUrlFor('0.0.0-dev', '')).toBeNull();
   });
 });
 

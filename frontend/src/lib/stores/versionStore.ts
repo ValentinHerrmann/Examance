@@ -8,6 +8,29 @@ import { effectiveBackendStore } from '$lib/stores/backendStore';
  */
 export const frontendVersion: string = __APP_VERSION__;
 
+/** GitHub repository this frontend is published from (see vite.config.ts). */
+export const repoUrl: string = __REPO_URL__;
+
+/**
+ * Where the version tag in the status bar should link to.
+ *
+ * A bare semver ("1.4.0") is a tagged release, so it links to the matching
+ * GitHub Release. Anything else — a preview build ("1.4.0-a1b2c3d") or local
+ * dev ("0.0.0-dev") — is not tagged, so it links to the exact commit it was
+ * built from instead, when that commit is known. Local dev builds carry no
+ * commit SHA, so they get no link at all.
+ */
+export function versionUrlFor(version: string, commitSha: string): string | null {
+    if (!version.includes('-')) return `${repoUrl}/releases/tag/v${version}`;
+    return commitSha ? `${repoUrl}/commit/${commitSha}` : null;
+}
+
+/** Link target for this build's own version tag. */
+export const frontendVersionUrl: string | null = versionUrlFor(
+    frontendVersion,
+    __APP_COMMIT_SHA__
+);
+
 export type VersionStatus =
     /** Frontend and server report the same build. */
     | 'match'

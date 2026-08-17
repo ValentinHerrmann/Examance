@@ -17,6 +17,7 @@
   import { effectiveBackendStore } from "$lib/stores/backendStore";
   import {
     frontendVersion,
+    frontendVersionUrl,
     backendVersionStore,
     versionStatus,
     refreshBackendVersion,
@@ -214,6 +215,7 @@
     backendLabel={$effectiveBackendStore || ""}
     unlocked={$isUnlocked}
     {frontendVersion}
+    versionUrl={frontendVersionUrl}
     backendVersion={$backendVersionStore}
     versionStatus={$versionStatus}
   />
