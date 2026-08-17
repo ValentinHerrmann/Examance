@@ -26,7 +26,8 @@ def _send_sync(
         msg["To"] = to_email
         msg["Date"] = formatdate(localtime=True)
 
-        domain = settings.SMTP_FROM_EMAIL.split("@")[-1] if "@" in settings.SMTP_FROM_EMAIL else None
+        from_email = settings.SMTP_FROM_EMAIL
+        domain = from_email.split("@")[-1] if "@" in from_email else None
         msg["Message-ID"] = make_msgid(domain=domain)
 
         msg.set_content(body_text)

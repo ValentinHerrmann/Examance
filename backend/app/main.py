@@ -34,7 +34,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if not settings.SMTP_HOST:
         if not settings.is_dev:
             logging.getLogger("app.main").warning(
-                "SMTP_HOST is not configured! Password reset and user creation emails will fail to send in environment '%s'.",
+                "SMTP_HOST is not configured! Password reset and user creation emails "
+                "will fail to send in environment '%s'.",
                 settings.ENVIRONMENT,
             )
         else:

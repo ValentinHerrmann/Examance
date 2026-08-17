@@ -11,7 +11,6 @@ NOT by an in-process scheduler — avoids multi-worker duplication.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime, timedelta
 from typing import NoReturn
 
 import click
@@ -67,7 +66,10 @@ def send_password_reset(email: str) -> None:
                 if sent:
                     click.echo(f"Password reset link generated and sent to: {normalized_email}")
                 else:
-                    click.echo(f"Password reset token generated, but failed to send email to: {normalized_email}")
+                    click.echo(
+                        "Password reset token generated, but failed to send email to: "
+                        f"{normalized_email}"
+                    )
             except (OperationalError, ProgrammingError) as exc:
                 _raise_schema_hint(exc)
 

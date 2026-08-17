@@ -146,7 +146,10 @@ async def login(
     if teacher and teacher.password_hash is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Password has not been set for this account. Please set a password using the link sent to your email.",
+            detail=(
+                "Password has not been set for this account. "
+                "Please set a password using the link sent to your email."
+            ),
             headers={"code": "ERR_PASSWORD_NOT_SET"},
         )
 
