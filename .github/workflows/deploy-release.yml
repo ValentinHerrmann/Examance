@@ -57,7 +57,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    url: https://examance.valentin-herrmann.com/
+    environment:
+      name: production
+      url: https://examance.valentin-herrmann.com/
     steps:
       - name: Checkout default branch
         uses: actions/checkout@v4
@@ -141,7 +143,6 @@ jobs:
     name: Deploy backend (production)
     needs: [version, backend-image]
     runs-on: ubuntu-latest
-    url: https://api.examance.valentin-herrmann.com/
     permissions:
       contents: read
       # Lets this job's own GITHUB_TOKEN pull from GHCR — each job mints its
