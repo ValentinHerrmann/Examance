@@ -101,7 +101,7 @@ async function request<T>(
     credentials: 'include', // Always include httpOnly cookies
   });
 
-  if (resp.status === 401) {
+  if (resp.status === 401 && !path.startsWith('/auth/')) {
     // Deduplicate concurrent refresh attempts
     if (!refreshPromise) {
       refreshPromise = refreshToken().finally(() => {

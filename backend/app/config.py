@@ -99,6 +99,24 @@ class Settings(BaseSettings):
     BODY_LIMIT_STUDENTS: int = 1 * 1024 * 1024      # 1 MB
     BODY_LIMIT_DEFAULT: int = 256 * 1024             # 256 KB
 
+    # Initial admin bootstrap credentials
+    INITIAL_ADMIN_EMAIL: str | None = None
+    INITIAL_ADMIN_PASSWORD: str | None = None
+
+    # SMTP configuration for email notification / password reset delivery
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM_EMAIL: str = "noreply@examance.com"
+    SMTP_USE_TLS: bool = True
+
+    # Frontend base URL for email link generation
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # Password reset configuration
+    PASSWORD_RESET_TOKEN_TTL_HOURS: int = 24
+
     @field_validator("ALLOWED_HOSTS", "CORS_ALLOWED_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: object) -> list[str]:
@@ -141,6 +159,24 @@ class Settings(BaseSettings):
                 "SECRET_KEY must be at least 32 characters outside development. "
                 "Generate one with: openssl rand -hex 32"
             )
+        return self
+
+    @model_validator(mode="after")
+    def validate_initial_admin_password(self) -> Settings:
+        """
+        Refuse to start outside development with a published or too-short initial admin password.
+        """
+        if self.is_dev:
+            return self
+        if self.INITIAL_ADMIN_PASSWORD is not None:
+            if (
+                self.INITIAL_ADMIN_PASSWORD in PLACEHOLDER_SECRET_KEYS
+                or len(self.INITIAL_ADMIN_PASSWORD) < 12
+            ):
+                raise ValueError(
+                    "INITIAL_ADMIN_PASSWORD must be at least 12 characters outside development "
+                    "and cannot be a published placeholder value."
+                )
         return self
 
     @model_validator(mode="after")

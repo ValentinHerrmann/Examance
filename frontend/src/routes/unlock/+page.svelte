@@ -11,7 +11,7 @@
     hasLocalVault,
     sessionStore,
   } from "$lib/stores/session";
-  import { api } from "$lib/api/client";
+  import { api, ApiError } from "$lib/api/client";
   import { backendStore } from "$lib/stores/backendStore";
   import { recordValue } from "$lib/utils/recentValues";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
@@ -69,7 +69,7 @@
       }>("/auth/login", {
         email: normalizedEmail,
         password,
-      });
+      }, { silentError: true });
 
       // Save backend URL to localStorage ONLY after successful login
       backendStore.saveSuccessfulBackendUrl(trimmedBackendUrl);
@@ -104,13 +104,17 @@
     } catch (err: any) {
       // Revert store to last saved URL if authentication failed
       backendStore.restoreSavedUrl();
-      // "Failed to fetch" is the browser's opaque network error for CORS
-      // preflight rejections. Give users a concrete hint.
-      const raw: string = err.message || '';
-      errorMsg =
-        raw === 'Failed to fetch'
-          ? 'Could not reach the server. If you are using a local backend, make sure it is running and has CORS enabled for this origin.'
-          : raw || 'Unlock failed. Check your password or credentials.';
+      if (err instanceof ApiError && err.code === 'ERR_PASSWORD_NOT_SET') {
+        errorMsg = 'Your account password has not been set yet. Please check your email for a password setup link, or use "Forgot password?" below.';
+      } else {
+        // "Failed to fetch" is the browser's opaque network error for CORS
+        // preflight rejections. Give users a concrete hint.
+        const raw: string = err.message || '';
+        errorMsg =
+          raw === 'Failed to fetch'
+            ? 'Could not reach the server. If you are using a local backend, make sure it is running and has CORS enabled for this origin.'
+            : raw || 'Unlock failed. Check your password or credentials.';
+      }
     } finally {
       isLoading = false;
     }

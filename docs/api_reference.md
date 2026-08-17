@@ -54,10 +54,14 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 - Exchanging a refresh token via `POST /api/v1/auth/refresh` invalidates the old `jti` and issues a new refresh token.
 - If a previously used `jti` is presented again (indicating token theft or replay), the entire token family for that session is immediately revoked and the user is logged out.
 
-### One-Time Invite Tokens
-- Teacher registration requires a valid one-time invite token generated via CLI (`python -m app.cli create-invite`).
-- Raw invite tokens are SHA-256 hashed prior to DB insertion; raw values are never stored.
-- Tokens expire after a configurable duration (default 7 days) and are single-use.
+### Initial Admin Bootstrap & Admin User Provisioning
+- The backend automatically creates an initial `admin` user on startup if `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` are configured in `.env`.
+- Admins create user accounts via `POST /api/v1/admin/users` without specifying passwords. Accounts are created with uninitialized password hashes (`password_hash = None`), and single-use password reset tokens are emailed automatically.
+
+### Single-Use Password Reset Tokens
+- Password reset links carry 32-byte URL-safe raw tokens.
+- The server stores only SHA-256 hashes of reset tokens. Tokens expire after a configurable duration (default 24 hours) and are invalidated immediately upon use.
+- Completing a password reset (`POST /api/v1/auth/reset-password`) sets the new password and revokes all active refresh tokens for the user account.
 
 ### CORS & Security Policies
 - **CORS Allowed Origins**: Explicitly restricted to configured origins (e.g., `https://examance.pages.dev`, `http://localhost:5173`, and `*.valentin-herrmann.com` subdomains).
@@ -93,15 +97,16 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
-| `POST` | `/api/v1/auth/register` | Register Account | No (Invite Required) | Registers a new teacher account using a valid invite token. Sets session cookies. |
-| `POST` | `/api/v1/auth/login` | Teacher Login | No | Authenticates email and password. Sets `access_token` and `refresh_token` cookies. |
+| `POST` | `/api/v1/auth/login` | User Login | No | Authenticates email and password. Returns `401 ERR_PASSWORD_NOT_SET` if account password is uninitialized. Sets `access_token` and `refresh_token` cookies. |
+| `POST` | `/api/v1/auth/forgot-password` | Request Reset Link | No | Generates single-use reset token and emails link to user. Returns generic success message to prevent email enumeration. |
+| `POST` | `/api/v1/auth/reset-password` | Complete Reset | No | Validates token, sets new user password, marks token used, and revokes active refresh tokens. |
 | `POST` | `/api/v1/auth/refresh` | Refresh Session | Yes (`refresh_token`) | Rotates refresh token and issues new access token cookie. |
 | `POST` | `/api/v1/auth/logout` | Logout | Yes | Invalidates session and clears session cookies. |
 
 #### Auth Request & Response Schemas
 - **`LoginRequest`**: `{"email": "string", "password": "string"}`
-- **`RegisterRequest`**: `{"email": "string", "password": "string", "invite_token": "string"}`
-- **`TokenResponse`**: `{"access_token": "string", "token_type": "bearer"}`
+- **`ForgotPasswordRequest`**: `{"email": "string"}`
+- **`ResetPasswordRequest`**: `{"token": "string", "new_password": "string"}`
 
 ---
 
@@ -214,7 +219,13 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
 | `GET` | `/api/v1/admin/stats/{exam_id}` | Class Statistics | Yes (Admin) | Evaluates $k$-anonymity ($k \ge 5$) and returns aggregate exam stats. |
-| `POST` | `/api/v1/admin/users` | Create User | Yes (Admin) | Directly provisions a new teacher or admin account. |
+| `POST` | `/api/v1/admin/users` | Create User | Yes (Admin) | Provisions a new teacher or admin account without a password (`password_hash = None`) and sends a reset token via email. |
+| `POST` | `/api/v1/admin/users/{user_id}/reset-password` | Force Password Reset | Yes (Admin) | Generates and emails a single-use password reset link for an existing user account. |
+
+#### Admin User Creation Schemas
+- **`AdminCreateUserRequest`**: `{"email": "teacher@school.com", "role": "teacher"}`
+- **`AdminCreateUserResponse`**: `{"id": "uuid...", "email": "teacher@school.com", "role": "teacher", "created_at": "...", "password_reset_sent": true}`
+- **`AdminResetPasswordResponse`**: `{"message": "Password reset link generated...", "user_id": "uuid...", "password_reset_sent": true}`
 
 #### Admin Stats Response Example
 ```json

@@ -41,48 +41,34 @@ def _raise_schema_hint(exc: Exception) -> NoReturn:
     raise click.ClickException(f"Database operation failed: {exc}")
 
 
-@cli.command("create-invite")
-@click.option("--expires-days", default=7, show_default=True, help="Token validity in days.")
-@click.option("--created-by", default=None, help="Admin teacher UUID (optional).")
-def create_invite(expires_days: int, created_by: str | None) -> None:
-    """
-    Generate a one-time invite token and print it to stdout.
+@cli.command("send-password-reset")
+@click.option("--email", required=True, help="User email.")
+def send_password_reset(email: str) -> None:
+    """Generate and email a password reset link for an existing user account."""
+    from app.models.teacher import Teacher
+    from app.services.password_reset import create_and_send_reset_token
 
-    The raw token is printed ONCE and never stored — only its SHA-256 hash is stored.
-    Share the printed token securely with the new teacher.
-    """
-    import uuid
+    normalized_email = email.strip().lower()
 
-    from app.models.invite import InviteToken
-    from app.services.crypto import generate_invite_token, hash_token
-
-    raw_token = generate_invite_token()
-    token_hash = hash_token(raw_token)
-    expires_at = datetime.now(tz=UTC) + timedelta(days=expires_days)
-
-    created_by_uuid = uuid.UUID(created_by) if created_by else None
-
-    async def _insert() -> None:
+    async def _send() -> None:
         from app.database import AsyncSessionLocal
 
         async with AsyncSessionLocal() as db:
             try:
-                record = InviteToken(
-                    token_hash=token_hash,
-                    created_by=created_by_uuid,
-                    expires_at=expires_at,
+                result = await db.execute(
+                    select(Teacher).where(func.lower(Teacher.email) == normalized_email)
                 )
-                db.add(record)
+                teacher = result.scalar_one_or_none()
+                if teacher is None:
+                    raise click.ClickException("No user found with this email.")
+
+                await create_and_send_reset_token(db, teacher)
                 await db.commit()
             except (OperationalError, ProgrammingError) as exc:
                 _raise_schema_hint(exc)
 
-    asyncio.run(_insert())
-
-    click.echo(f"\n{'='*60}")
-    click.echo(f"Invite token (share this ONCE — not stored):\n\n  {raw_token}\n")
-    click.echo(f"Expires: {expires_at.isoformat()}")
-    click.echo(f"{'='*60}\n")
+    asyncio.run(_send())
+    click.echo(f"Password reset link generated and sent to: {normalized_email}")
 
 
 @cli.command("create-user")

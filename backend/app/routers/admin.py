@@ -17,11 +17,12 @@ from app.models.teacher import Teacher
 from app.schemas.admin import (
     AdminCreateUserRequest,
     AdminCreateUserResponse,
+    AdminResetPasswordResponse,
     AuditLogResponse,
     ClassStatsResponse,
 )
 from app.services import audit as audit_svc
-from app.services.crypto import hash_password
+from app.services.password_reset import create_and_send_reset_token
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -36,9 +37,9 @@ async def create_user(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AdminCreateUserResponse:
     """
-    Create a teacher/admin account (Admin only).
+    Create a teacher/admin account without a password (Admin only).
 
-    Password is Argon2id-hashed server-side. Duplicate emails are rejected.
+    Generates and emails a single-use password set token to the user.
     """
     normalized_email = body.email.strip().lower()
     existing = await db.execute(
@@ -52,12 +53,14 @@ async def create_user(
 
     user = Teacher(
         email=normalized_email,
-        password_hash=hash_password(body.password),
+        password_hash=None,
         role=body.role,
     )
     db.add(user)
     await db.flush()
     await db.refresh(user)
+
+    await create_and_send_reset_token(db, user)
 
     await audit_svc.write(
         db,
@@ -66,7 +69,6 @@ async def create_user(
         action="CREATE_USER",
         target_id=str(user.id),
     )
-    # Ensure DB constraint issues are surfaced before sending a success response.
     await db.flush()
 
     return AdminCreateUserResponse(
@@ -74,6 +76,44 @@ async def create_user(
         email=user.email,
         role=cast(Literal["teacher", "admin"], user.role),
         created_at=user.created_at,
+        password_reset_sent=True,
+    )
+
+
+@router.post("/users/{user_id}/reset-password", status_code=status.HTTP_200_OK)
+async def reset_user_password(
+    user_id: uuid.UUID,
+    admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> AdminResetPasswordResponse:
+    """
+    Trigger an admin-forced password reset for an existing user (Admin only).
+
+    Generates and emails a single-use password reset token. The user's existing
+    password remains active until they set a new password via the link.
+    """
+    result = await db.execute(select(Teacher).where(Teacher.id == user_id))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    await create_and_send_reset_token(db, user)
+
+    await audit_svc.write(
+        db,
+        teacher_id=admin.id,
+        teacher_email=admin.email,
+        action="PASSWORD_RESET_REQUESTED",
+        target_id=str(user.id),
+    )
+
+    return AdminResetPasswordResponse(
+        message=f"Password reset link generated and sent to {user.email}.",
+        user_id=user.id,
+        password_reset_sent=True,
     )
 
 

@@ -29,6 +29,8 @@ class AuditLog(Base):
             "VIEW",
             "EXTEND_RETENTION",
             "CREATE_USER",
+            "PASSWORD_RESET_REQUESTED",
+            "PASSWORD_RESET_COMPLETED",
             name="audit_action",
         ),
         nullable=False,

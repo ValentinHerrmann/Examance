@@ -5,7 +5,7 @@ from app.models.exam_exercise import ExamExercise
 from app.models.exam_mc_group import ExamMcGroup
 from app.models.exercise import Exercise
 from app.models.exercise_group import ExerciseGroup
-from app.models.invite import InviteToken
+from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
@@ -13,7 +13,7 @@ from app.models.teacher import Teacher
 
 __all__ = [
     "Teacher",
-    "InviteToken",
+    "PasswordResetToken",
     "RefreshToken",
     "Exam",
     "Exercise",

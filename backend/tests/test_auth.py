@@ -1,86 +1,28 @@
-"""Phase 1 auth integration tests."""
+"""Auth integration tests (login, logout, session security)."""
 from __future__ import annotations
-
-from datetime import datetime, timedelta, timezone
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.invite import InviteToken
-from app.services.crypto import hash_token, generate_invite_token
+from app.models.teacher import Teacher
+from app.services.crypto import hash_password
 
 
-async def _create_invite(db: AsyncSession, *, days: int = 7) -> str:
-    """Helper: insert an invite token, return the raw token string."""
-    raw = generate_invite_token()
-    invite = InviteToken(
-        token_hash=hash_token(raw),
-        expires_at=datetime.now(tz=timezone.utc) + timedelta(days=days),
+async def _create_test_teacher(db: AsyncSession, email: str, password: str = "s3cr3t!!-min12") -> Teacher:
+    teacher = Teacher(
+        email=email,
+        password_hash=hash_password(password),
+        role="teacher",
     )
-    db.add(invite)
+    db.add(teacher)
     await db.commit()
-    return raw
-
-
-@pytest.mark.asyncio
-async def test_register_with_valid_invite(client: AsyncClient, db: AsyncSession) -> None:
-    raw_token = await _create_invite(db)
-    resp = await client.post(
-        "/api/v1/auth/register",
-        json={"email": "teacher@example.com", "password": "s3cr3t!!-min12", "invite_token": raw_token},
-    )
-    assert resp.status_code == 201
-    body = resp.json()
-    assert body["email"] == "teacher@example.com"
-    assert body["role"] == "teacher"
-    # Access token must be in httpOnly cookie, NOT in response body
-    assert "access_token" not in body
-    assert "access_token" in resp.cookies
-
-
-@pytest.mark.asyncio
-async def test_register_with_invalid_invite(client: AsyncClient) -> None:
-    resp = await client.post(
-        "/api/v1/auth/register",
-        json={"email": "bad@example.com", "password": "s3cr3t!!-min12", "invite_token": "not-a-real-token"},
-    )
-    assert resp.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_register_with_expired_invite(client: AsyncClient, db: AsyncSession) -> None:
-    raw_token = await _create_invite(db, days=-1)  # Already expired
-    resp = await client.post(
-        "/api/v1/auth/register",
-        json={"email": "exp@example.com", "password": "s3cr3t!!-min12", "invite_token": raw_token},
-    )
-    assert resp.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_register_with_used_invite(client: AsyncClient, db: AsyncSession) -> None:
-    raw_token = await _create_invite(db)
-    # Use it once
-    await client.post(
-        "/api/v1/auth/register",
-        json={"email": "first@example.com", "password": "s3cr3t!!-min12", "invite_token": raw_token},
-    )
-    # Try to reuse
-    resp = await client.post(
-        "/api/v1/auth/register",
-        json={"email": "second@example.com", "password": "s3cr3t!!-min12", "invite_token": raw_token},
-    )
-    assert resp.status_code == 401
+    return teacher
 
 
 @pytest.mark.asyncio
 async def test_login_success_and_cookie(client: AsyncClient, db: AsyncSession) -> None:
-    raw_token = await _create_invite(db)
-    await client.post(
-        "/api/v1/auth/register",
-        json={"email": "login@example.com", "password": "s3cr3t!!-min12", "invite_token": raw_token},
-    )
+    await _create_test_teacher(db, "login@example.com", "s3cr3t!!-min12")
     resp = await client.post(
         "/api/v1/auth/login",
         json={"email": "login@example.com", "password": "s3cr3t!!-min12"},
@@ -90,28 +32,34 @@ async def test_login_success_and_cookie(client: AsyncClient, db: AsyncSession) -
     assert "refresh_token" in resp.cookies
     body = resp.json()
     assert "access_token" not in body  # Never in body
+    assert body["email"] == "login@example.com"
+    assert body["role"] == "teacher"
+
+
+@pytest.mark.asyncio
+async def test_login_uninitialized_password(client: AsyncClient, db: AsyncSession) -> None:
+    # Account created without password
+    teacher = Teacher(email="uninit@example.com", password_hash=None, role="teacher")
+    db.add(teacher)
+    await db.commit()
+
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "uninit@example.com", "password": "s3cr3t!!-min12"},
+    )
+    assert resp.status_code == 401
+    assert resp.headers.get("code") == "ERR_PASSWORD_NOT_SET"
 
 
 @pytest.mark.asyncio
 async def test_login_wrong_password(client: AsyncClient, db: AsyncSession) -> None:
-    raw_token = await _create_invite(db)
-    registered = await client.post(
-        "/api/v1/auth/register",
-        json={
-            "email": "wrongpw@example.com",
-            "password": "correct-password",
-            "invite_token": raw_token,
-        },
-    )
-    # Assert the account really exists, so the 401 below proves a rejected
-    # password rather than a missing user.
-    assert registered.status_code == 201, registered.text
-
+    await _create_test_teacher(db, "wrongpw@example.com", "correct-password")
     resp = await client.post(
         "/api/v1/auth/login",
         json={"email": "wrongpw@example.com", "password": "WRONG-but-long-enough"},
     )
     assert resp.status_code == 401
+    assert resp.headers.get("code") == "ERR_INVALID_CREDENTIALS"
 
 
 @pytest.mark.asyncio
@@ -122,11 +70,7 @@ async def test_protected_endpoint_without_cookie(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_logout_clears_cookies(client: AsyncClient, db: AsyncSession) -> None:
-    raw_token = await _create_invite(db)
-    await client.post(
-        "/api/v1/auth/register",
-        json={"email": "logout@example.com", "password": "s3cr3t!!-min12", "invite_token": raw_token},
-    )
+    await _create_test_teacher(db, "logout@example.com", "s3cr3t!!-min12")
     resp = await client.post(
         "/api/v1/auth/login",
         json={"email": "logout@example.com", "password": "s3cr3t!!-min12"},

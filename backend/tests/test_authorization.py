@@ -18,8 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database import get_db
 from app.main import app
-from app.models.invite import InviteToken
-from app.services.crypto import generate_invite_token, hash_token
+from app.models.teacher import Teacher
+from app.services.crypto import hash_password
 
 PASSWORD = "correct-horse-battery-staple"
 
@@ -47,19 +47,19 @@ async def clients(engine) -> AsyncGenerator[tuple[AsyncClient, AsyncClient], Non
 
 
 async def _register(client: AsyncClient, db: AsyncSession, email: str) -> None:
-    raw = generate_invite_token()
-    db.add(
-        InviteToken(
-            token_hash=hash_token(raw),
-            expires_at=datetime.now(tz=timezone.utc) + timedelta(days=7),
-        )
+    teacher = Teacher(
+        email=email,
+        password_hash=hash_password(PASSWORD),
+        role="teacher",
     )
+    db.add(teacher)
     await db.commit()
     resp = await client.post(
-        "/api/v1/auth/register",
-        json={"email": email, "password": PASSWORD, "invite_token": raw},
+        "/api/v1/auth/login",
+        json={"email": email, "password": PASSWORD},
     )
-    assert resp.status_code == 201, resp.text
+    assert resp.status_code == 200, resp.text
+    client.cookies.update(resp.cookies)
 
 
 async def _create_exercise(client: AsyncClient, name: str) -> str:

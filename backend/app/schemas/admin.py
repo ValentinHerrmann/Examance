@@ -29,7 +29,6 @@ class ClassStatsResponse(BaseModel):
 
 class AdminCreateUserRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=12, max_length=256)
     role: Literal["teacher", "admin"] = "teacher"
 
 
@@ -38,3 +37,10 @@ class AdminCreateUserResponse(BaseModel):
     email: str
     role: Literal["teacher", "admin"]
     created_at: datetime
+    password_reset_sent: bool = True
+
+
+class AdminResetPasswordResponse(BaseModel):
+    message: str
+    user_id: uuid.UUID
+    password_reset_sent: bool = True

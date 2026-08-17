@@ -15,7 +15,7 @@ class Teacher(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)  # Argon2id
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Argon2id; None if uninitialized
     role: Mapped[str] = mapped_column(
         Enum("teacher", "admin", name="teacher_role"),
         nullable=False,

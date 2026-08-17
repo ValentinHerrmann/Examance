@@ -183,3 +183,18 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.unlock-options-grid .forgot-password-link {
+  text-align: right;
+  margin-top: 0.25rem;
+}
+
+.unlock-options-grid .forgot-password-link a {
+  font-size: 0.8rem;
+  color: #38bdf8;
+  text-decoration: none;
+}
+
+.unlock-options-grid .forgot-password-link a:hover {
+  text-decoration: underline;
+}

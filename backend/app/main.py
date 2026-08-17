@@ -22,7 +22,12 @@ from app.routers import admin, auth, compile, exams, exercises, students, submis
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan — run startup/shutdown logic here."""
-    # Future: warm up DB connection pool, verify Tectonic binary exists, etc.
+    from app.database import AsyncSessionLocal
+    from app.services.bootstrap import create_initial_admin
+
+    async with AsyncSessionLocal() as session:
+        await create_initial_admin(session)
+
     yield
     # Shutdown: close engine
     from app.database import engine

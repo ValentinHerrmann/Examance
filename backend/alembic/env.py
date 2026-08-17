@@ -9,7 +9,7 @@ from app.config import settings
 from app.database import Base  # noqa: F401 — ensures all models are registered
 # Import all models so Alembic autogenerate detects them
 import app.models.teacher          # noqa: F401
-import app.models.invite            # noqa: F401
+import app.models.password_reset_token # noqa: F401
 import app.models.exam              # noqa: F401
 import app.models.exercise          # noqa: F401
 import app.models.student_identity  # noqa: F401
