@@ -31,24 +31,25 @@ export interface ServerImportResult {
 }
 
 function describeError(err: any): string {
-  if (err?.message) return String(err.message);
-  return 'Unknown server error';
+  const status = err?.status ? `HTTP ${err.status}` : 'error';
+  const detail = err?.message ? String(err.message) : 'Unknown server error';
+  return `${status} — ${detail}`;
 }
 
 /**
  * POST `body` to `path`, retrying once under a fresh UUID if the id is taken.
- * Returns the id the server actually created, or null if the record failed.
+ * Returns the full created record, or null if it failed.
  */
 async function createWithIdFallback(
   path: string,
   body: any
-): Promise<{ id: string | null; error?: string }> {
+): Promise<{ created: any | null; error?: string }> {
   try {
     const res = (await api.post<any>(path, body, { silentError: true })) as any;
-    return { id: res?.id ?? body.id ?? null };
+    return { created: res ?? { ...body } };
   } catch (err: any) {
     if (err?.status !== 409) {
-      return { id: null, error: describeError(err) };
+      return { created: null, error: describeError(err) };
     }
   }
 
@@ -57,9 +58,9 @@ async function createWithIdFallback(
   const retryBody = { ...body, id: crypto.randomUUID() };
   try {
     const res = (await api.post<any>(path, retryBody, { silentError: true })) as any;
-    return { id: res?.id ?? retryBody.id };
+    return { created: res ?? { ...retryBody } };
   } catch (err: any) {
-    return { id: null, error: describeError(err) };
+    return { created: null, error: describeError(err) };
   }
 }
 
@@ -75,16 +76,38 @@ export async function importPayloadToServer(payload: any): Promise<ServerImportR
   const mcGroups: any[] = Array.isArray(payload.examMcGroups) ? payload.examMcGroups : [];
 
   // 1. Exercises first — exams link to them by id.
+  //
+  // The archived exercise_group_id belongs to the exporting account, and
+  // create_exercise rejects a group the caller does not own with a 404. So the
+  // group is re-created here instead: the first member of each archived group is
+  // sent without one (the backend mints a fresh group), and the id it returns is
+  // reused for that group's remaining members. Variant/version grouping survives
+  // under ids the importing account owns.
+  const groupIdMap = new Map<string, string>();
+
   for (const ex of exercises) {
     const label = ex.title || ex.name || ex.id;
-    const { id, error } = await createWithIdFallback('/exercises', mapExerciseRecordToApi(ex));
-    if (!id) {
+    const body = mapExerciseRecordToApi(ex);
+    const archivedGroupId = ex.exerciseGroupId;
+
+    if (archivedGroupId && groupIdMap.has(archivedGroupId)) {
+      body.exercise_group_id = groupIdMap.get(archivedGroupId);
+    } else {
+      delete body.exercise_group_id;
+    }
+
+    const { created, error } = await createWithIdFallback('/exercises', body);
+    if (!created?.id) {
       errors.push(`Exercise "${label}": ${error}`);
       continue;
     }
+
+    if (archivedGroupId && !groupIdMap.has(archivedGroupId) && created.exercise_group_id) {
+      groupIdMap.set(archivedGroupId, created.exercise_group_id);
+    }
     if (ex.id) {
       createdExerciseIds.add(ex.id);
-      if (id !== ex.id) idMap.set(ex.id, id);
+      if (created.id !== ex.id) idMap.set(ex.id, created.id);
     }
   }
 
@@ -112,14 +135,14 @@ export async function importPayloadToServer(payload: any): Promise<ServerImportR
       }));
 
     const body = { ...mapExamRecordToApi(exam), exercise_links, mc_groups };
-    const { id, error } = await createWithIdFallback('/exams', body);
-    if (!id) {
+    const { created, error } = await createWithIdFallback('/exams', body);
+    if (!created?.id) {
       errors.push(`Exam "${label}": ${error}`);
       continue;
     }
     if (exam.id) {
       createdExamIds.add(exam.id);
-      if (id !== exam.id) idMap.set(exam.id, id);
+      if (created.id !== exam.id) idMap.set(exam.id, created.id);
     }
   }
 

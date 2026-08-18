@@ -63,19 +63,16 @@ async def upload_submission(
 ) -> SubmissionResponse:
     """Upload encrypted scan submission."""
     # Ensure student identity exists first to satisfy foreign key constraint.
-    # The FK is on pseudonym_hmac alone, so an identity registered under another
-    # exam must be rejected rather than silently reused — otherwise a submission
-    # ends up linked across exam (and tenant) boundaries. Mirrors the 409 in
-    # routers/students.py.
+    # The FK spans (pseudonym_hmac, exam_id), so an identity is looked up within
+    # this exam only; the database itself now prevents a submission from linking
+    # to an identity in another exam (and therefore another tenant).
     student_res = await db.execute(
-        select(StudentIdentity).where(StudentIdentity.pseudonym_hmac == body.pseudonym_hmac)
+        select(StudentIdentity).where(
+            StudentIdentity.pseudonym_hmac == body.pseudonym_hmac,
+            StudentIdentity.exam_id == exam.id,
+        )
     )
     existing_identity = student_res.scalar_one_or_none()
-    if existing_identity is not None and existing_identity.exam_id != exam.id:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Student identity belongs to another exam.",
-        )
     if existing_identity is None:
         db.add(
             StudentIdentity(
