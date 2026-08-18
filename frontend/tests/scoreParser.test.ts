@@ -65,4 +65,23 @@ describe('formatExerciseLatex', () => {
     expect(result).toContain('\\begin{Aufgabe}{Test}');
     expect(result).toContain('\\end{Aufgabe}');
   });
+
+  it('injects \\OmrExercise when exerciseId is provided', () => {
+    const result = formatExerciseLatex('Berechne 2+2.', 'Test', 'ex-123');
+    expect(result).toContain('\\OmrExercise{ex-123}');
+    expect(result).toContain('\\begin{Aufgabe}{Test}');
+    expect(result).toContain('Berechne 2+2.');
+    expect(result).toContain('\\end{Aufgabe}');
+  });
+
+  it('preserves existing \\begin{Aufgabe} ... \\end{Aufgabe} structure', () => {
+    const customBody = `\\begin{Aufgabe}[12] Klassendiagramm\nInhalt\n\\end{Aufgabe}\n\\newcommand{\\LsgDiagramm}{...}\n\\LoesungKaro{\\LsgDiagramm}{40}`;
+    const result = formatExerciseLatex(customBody, 'Klassendiagramm', 'ex-456');
+    expect(result).toContain('\\OmrExercise{ex-456}');
+    expect(result).toContain('\\begin{Aufgabe}[12] Klassendiagramm');
+    expect(result).toContain('\\LoesungKaro{\\LsgDiagramm}{40}');
+    // Should not add redundant outer \begin{Aufgabe} or \end{Aufgabe}
+    expect(result.split('\\begin{Aufgabe}').length - 1).toBe(1);
+    expect(result.split('\\end{Aufgabe}').length - 1).toBe(1);
+  });
 });

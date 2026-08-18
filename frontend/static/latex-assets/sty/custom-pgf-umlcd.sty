@@ -12,6 +12,7 @@
 UML Class Diagrams.]
 
 \RequirePackage{tikz}
+\makeatletter
 
 \usetikzlibrary{arrows,shapes.multipart,backgrounds,fit}
 \tikzstyle{help lines}+=[blue!50,very thin,dashed]
@@ -280,19 +281,30 @@ minimum height=1cm, node distance=2cm]
 
 \newcommand{\instanceOf}[1]{\def\@instanceOf{#1}}
 
-\newcommand{\association}[6]{
-\draw [umlcd style] (#1) -- (#4)
-node[near start, above]{#2}
-node[pos=0.1, below]{#3}
-node[near end, above]{#5}
-node[pos=0.9, below]{#6};
+\newcommand{\association}[6]{%
+  \def\umlcd@target{#4}%
+  \ifx\umlcd@target\empty
+    \def\umlcd@target{#5}%
+  \fi
+  \draw [umlcd style] (#1) -- (\umlcd@target)
+  node[near start, above]{#2}
+  node[pos=0.1, below]{#3}
+  node[near end, above]{#5}
+  node[pos=0.9, below]{#6};
 }
 
-\newcommand{\unidirectionalAssociation}[6]{
-\draw [umlcd style, ->] (#1) -- (#5)
-node[pos=0.1, below]{#2}
-node[pos=0.5, above]{#3}
-node[pos=0.9, below]{#4};
+\newcommand{\unidirectionalAssociation}[6]{%
+  \def\umlcd@target{#5}%
+  \ifx\umlcd@target\empty
+    \draw [umlcd style, ->] (#1) -- (#4)
+    node[pos=0.1, below]{#2}
+    node[pos=0.9, below]{#3};
+  \else
+    \draw [umlcd style, ->] (#1) -- (#5)
+    node[pos=0.1, below]{#2}
+    node[pos=0.5, above]{#3}
+    node[pos=0.9, below]{#4};
+  \fi
 }
 
 
@@ -375,4 +387,5 @@ node[near end, below]{#3};
 \makeatother
 
 %%% End of pgf-umlcd.sty
+\makeatother
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
