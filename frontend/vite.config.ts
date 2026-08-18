@@ -22,15 +22,34 @@ function readVersionFile(): string {
 }
 
 /**
+ * PREVIEW_VERSION is written by .github/workflows/deploy-preview.yml's
+ * `frontend` job as an extra commit on the `preview` branch, holding the full
+ * `<release>-PR#<number> [<built-at>]` string composed there — Cloudflare
+ * Pages has no notion of PR numbers, so this is the only way to get one into
+ * the build. Absent on ad-hoc/manual preview builds that skip that job.
+ */
+function readPreviewVersionFile(): string {
+  try {
+    return readFileSync(fileURLToPath(new URL('../PREVIEW_VERSION', import.meta.url)), 'utf-8').trim();
+  } catch {
+    return '';
+  }
+}
+
+/**
  * Cloudflare Pages sets CF_PAGES_BRANCH/CF_PAGES_COMMIT_SHA on every build.
  * `release` is the production branch; anything else (in practice `preview`) is
- * a preview deployment and gets the short commit SHA appended, so a preview
- * build is never mistaken for the release it was branched from.
+ * a preview deployment, so a preview build is never mistaken for the release
+ * it was branched from.
  */
 function computeAppVersion(): string {
   const branch = process.env.CF_PAGES_BRANCH;
   if (!branch) return '0.0.0-dev'; // local dev, vitest, ad-hoc builds
   if (branch === 'release') return readVersionFile();
+  const preview = readPreviewVersionFile();
+  if (preview) return preview;
+  // Fallback for a preview build that never went through deploy-preview.yml
+  // (e.g. a manual branch push straight to `preview`): short commit SHA.
   const sha = (process.env.CF_PAGES_COMMIT_SHA ?? '').slice(0, 7);
   return sha ? `${readVersionFile()}-${sha}` : readVersionFile();
 }

@@ -39,7 +39,7 @@ Pursuant to GDPR Article 32, the Processor implements the following security gua
 
 ## 3. Data Subject Rights & Erasure
 
-3.1 **Right to Erasure (Art. 17):** The Controller may execute an immediate, cascading hard-deletion of student identities and linked submission records via the API (`DELETE /api/v1/exams/{id}/students/{pseudonym_hmac}`) or the local settings management view.
+3.1 **Right to Erasure (Art. 17):** The Controller may execute an immediate, cascading hard-deletion of student identities and linked submission records via the API (`DELETE /api/v1/exams/{id}/students/{pseudonym_hmac}`) or the local settings management view. Student identities are scoped to a single exam, so this call erases the pupil's identity and submissions **for that exam only**; erasing a pupil across several exams requires one call per exam.
 3.2 **Audit Trail:** Every deletion generates an immutable audit record in the `audit_logs` table capturing the Controller's email and a SHA-256 hash of the target record.
 
 ---

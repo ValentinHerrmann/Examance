@@ -5,8 +5,11 @@
  * Prevents partial/corrupted data imports if password is wrong or ciphertext is tampered.
  */
 
+import { get } from 'svelte/store';
 import { db, clearAllTables } from '$lib/db/db';
 import { sessionStore } from '$lib/stores/session';
+import { storagePolicyStore } from '$lib/stores/storagePolicy';
+import { offlineQueue } from '$lib/services/offlineQueue';
 import {
   BGPROJ_MAGIC,
   BGPROJ_VERSION,
@@ -22,13 +25,16 @@ import {
   saveStudentEncrypted,
   saveSubmissionEncrypted,
   saveScoreEncrypted,
+  encryptExam,
+  encryptExercise,
 } from '$lib/db/dbEncryption';
+import { importPayloadToServer } from './serverImport';
 
 export async function unpackProject(
   archiveData: Blob | ArrayBuffer | Uint8Array,
   password: string,
   onProgress?: (event: ProgressEvent) => void
-): Promise<{ examCount: number; studentCount: number }> {
+): Promise<{ examCount: number; studentCount: number; errors: string[] }> {
   onProgress?.({ stage: 'salt', current: 0, total: 100 });
 
   const buffer =
@@ -104,12 +110,17 @@ export async function unpackProject(
   // 7. WIPE IDB ONLY AFTER ATOMIC DECRYPTION SUCCEEDS
   await clearAllTables();
 
-  // 8. Re-initialize active session store with imported key
+  // 8. Re-initialize active session store with imported key.
+  // Preserve the existing session mode (e.g. 'authenticated'/'hybrid') instead of
+  // forcing 'local' — otherwise an authenticated user's session gets silently
+  // downgraded, which disables proactive token refresh and causes a burst of 401s
+  // on the next server request.
+  const priorMode = get(sessionStore).mode;
   await sessionStore.unlock({
     masterKey,
     sessionKey: await deriveSessionKey(masterKey, nonce),
     sessionNonce: nonce,
-    mode: 'local',
+    mode: priorMode ?? 'local',
   });
 
   // Get current active key from store
@@ -123,48 +134,106 @@ export async function unpackProject(
     throw new Error('Failed to initialize session key after unpacking archive.');
   }
 
-  // 9. Repopulate IDB tables encrypted with active session key
-  let examCount = 0;
-  let studentCount = 0;
+  // 9. Persist the archive contents.
+  //
+  // In server-backed modes the exam/exercise records must be *created* under the
+  // importing account: saveExamEncrypted/saveExerciseEncrypted route through
+  // examRepository.save()/exerciseRepository.save(), which PATCH an id the
+  // account does not own and never write IndexedDB. importPayloadToServer()
+  // creates them instead and reports any id substitutions it had to make.
+  const isServerBacked = get(storagePolicyStore).storageMode !== 'all-local';
+  const errors: string[] = [];
+  let idMap = new Map<string, string>();
 
-  if (Array.isArray(payload.exams) && payload.exams.length > 0) {
-    examCount = payload.exams.length;
-    for (const item of payload.exams) {
+  const exams: any[] = Array.isArray(payload.exams) ? payload.exams : [];
+  const exercises: any[] = Array.isArray(payload.exercises) ? payload.exercises : [];
+  const examCount = exams.length;
+  const studentCount = Array.isArray(payload.students) ? payload.students.length : 0;
+
+  /** Rewrites an archived id to the id actually created on the server. */
+  const remap = (id: string | undefined) => (id ? (idMap.get(id) ?? id) : id);
+
+  if (isServerBacked) {
+    const result = await importPayloadToServer(payload);
+    idMap = result.idMap;
+    errors.push(...result.errors);
+
+    // Mirror into IndexedDB so the local cache is warm before the first refresh.
+    for (const exam of exams) {
+      if (!result.createdExamIds.has(exam.id)) continue;
+      await db.exams.put(await encryptExam({ ...exam, id: remap(exam.id) }, activeKey));
+    }
+    for (const ex of exercises) {
+      if (!result.createdExerciseIds.has(ex.id)) continue;
+      await db.exercises.put(
+        await encryptExercise(
+          { ...ex, id: remap(ex.id), examId: remap(ex.examId) },
+          activeKey
+        )
+      );
+    }
+  } else {
+    for (const item of exams) {
       await saveExamEncrypted(item, activeKey);
     }
-  }
-
-  if (Array.isArray(payload.exercises) && payload.exercises.length > 0) {
-    for (const item of payload.exercises) {
+    for (const item of exercises) {
       await saveExerciseEncrypted(item, activeKey);
     }
   }
 
-  if (Array.isArray(payload.students) && payload.students.length > 0) {
-    studentCount = payload.students.length;
+  // Students, submissions and scores go through their repositories in every mode
+  // — those already keep identity data local in hybrid mode — but must point at
+  // the exam ids that actually got created.
+  //
+  // Those repositories swallow server rejections into the offline queue, which
+  // silently discards anything that is not a network error. A student identity
+  // is globally unique by pseudonym_hmac and bound to a single exam, so an
+  // archive re-imported onto the backend it came from is rejected with a 409;
+  // the queue delta is the only signal available here, so report it rather than
+  // let the records disappear unannounced.
+  const queuedBefore = get(offlineQueue).length;
+
+  if (Array.isArray(payload.students)) {
     for (const item of payload.students) {
-      await saveStudentEncrypted(item, activeKey);
+      await saveStudentEncrypted({ ...item, examId: remap(item.examId) }, activeKey);
     }
   }
 
-  if (Array.isArray(payload.submissions) && payload.submissions.length > 0) {
+  if (Array.isArray(payload.submissions)) {
     for (const item of payload.submissions) {
-      await saveSubmissionEncrypted(item, activeKey);
+      await saveSubmissionEncrypted({ ...item, examId: remap(item.examId) }, activeKey);
     }
   }
 
-  if (Array.isArray(payload.exerciseScores) && payload.exerciseScores.length > 0) {
+  const queuedAfter = get(offlineQueue).length;
+  if (isServerBacked && queuedAfter > queuedBefore) {
+    errors.push(
+      `${queuedAfter - queuedBefore} student/submission record(s) were rejected by the server. ` +
+        `This happens when the archive is re-imported onto the same server it was exported ` +
+        `from: those student identities already belong to the original exam.`
+    );
+  }
+
+  if (Array.isArray(payload.exerciseScores)) {
     for (const score of payload.exerciseScores) {
-      await saveScoreEncrypted(score, activeKey);
+      await saveScoreEncrypted({ ...score, exerciseId: remap(score.exerciseId) }, activeKey);
     }
   }
 
   if (Array.isArray(payload.exerciseExams) && payload.exerciseExams.length > 0) {
-    await db.examExercises.bulkPut(payload.exerciseExams);
+    await db.examExercises.bulkPut(
+      payload.exerciseExams.map((j: any) => ({
+        ...j,
+        examId: remap(j.examId),
+        exerciseId: remap(j.exerciseId),
+      }))
+    );
   }
 
   if (Array.isArray(payload.examMcGroups) && payload.examMcGroups.length > 0) {
-    await db.examMcGroups.bulkPut(payload.examMcGroups);
+    await db.examMcGroups.bulkPut(
+      payload.examMcGroups.map((g: any) => ({ ...g, examId: remap(g.examId) }))
+    );
   }
 
   if (Array.isArray(payload.auditLogs) && payload.auditLogs.length > 0) {
@@ -173,5 +242,5 @@ export async function unpackProject(
 
   onProgress?.({ stage: 'complete', current: 100, total: 100 });
 
-  return { examCount, studentCount };
+  return { examCount, studentCount, errors };
 }

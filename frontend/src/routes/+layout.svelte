@@ -17,7 +17,7 @@
   import { effectiveBackendStore } from "$lib/stores/backendStore";
   import {
     frontendVersion,
-    frontendVersionUrl,
+    displayVersionUrl,
     backendVersionStore,
     versionStatus,
     refreshBackendVersion,
@@ -30,6 +30,7 @@
     confirmWorkspaceReplace,
     confirmWorkspaceClear,
     promptArchivePassword,
+    formatImportSummary,
   } from "$lib/services/archiveService";
   import AppHeader from "$lib/components/layout/AppHeader.svelte";
   import StatusBar from "$lib/components/layout/StatusBar.svelte";
@@ -133,8 +134,8 @@
     }
 
     try {
-      await openBgprojArchive(file, password);
-      alert("Successfully imported project archive!");
+      const res = await openBgprojArchive(file, password);
+      alert(formatImportSummary(res));
       window.location.href = "/";
     } catch (err: any) {
       alert(`Failed to import archive: ${err.message}`);
@@ -215,7 +216,7 @@
     backendLabel={$effectiveBackendStore || ""}
     unlocked={$isUnlocked}
     {frontendVersion}
-    versionUrl={frontendVersionUrl}
+    versionUrl={$displayVersionUrl}
     backendVersion={$backendVersionStore}
     versionStatus={$versionStatus}
   />

@@ -31,18 +31,18 @@ async def upload_student_identity(
         body.encryption_salt_b64, "encryption_salt_b64", expected_len=ARGON2_SALT_BYTES
     )
 
-    # Check if student identity already exists
+    # Check if this exam already holds the identity. Identities are keyed by
+    # (pseudonym_hmac, exam_id), so the same hmac under a different exam is a
+    # different identity and must not be matched here.
     result = await db.execute(
-        select(StudentIdentity).where(StudentIdentity.pseudonym_hmac == body.pseudonym_hmac)
+        select(StudentIdentity).where(
+            StudentIdentity.pseudonym_hmac == body.pseudonym_hmac,
+            StudentIdentity.exam_id == exam.id,
+        )
     )
     existing = result.scalar_one_or_none()
 
     if existing:
-        if existing.exam_id != exam.id:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Student identity belongs to another exam.",
-            )
         existing.pii_ciphertext = pii_bytes
         existing.iv = iv_bytes
         existing.encryption_salt = salt_bytes

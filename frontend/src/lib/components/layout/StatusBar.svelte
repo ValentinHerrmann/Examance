@@ -19,24 +19,25 @@
     "no-server": "version-unknown",
   };
 
-  $: versionLabel =
-    backendVersion && backendVersion !== frontendVersion
-      ? `v${frontendVersion} / ${backendVersion}`
-      : `v${frontendVersion}`;
+  // Prefer backend version for display when available — it's authoritative
+  // (server is the source of truth for compatibility). Fall back to frontend
+  // version for local-only mode or when backend is unreachable.
+  $: versionLabel = backendVersion ? `v${backendVersion}` : `v${frontendVersion}`;
 
+  const displayVersion = backendVersion || frontendVersion;
   $: versionTitle = {
-    match: `App and server both run v${frontendVersion}`,
-    mismatch: `App v${frontendVersion}, server v${backendVersion} — versions differ but stay compatible`,
-    incompatible: `App v${frontendVersion}, server v${backendVersion} — different major version, these are incompatible`,
-    unknown: `App v${frontendVersion} — server version unavailable`,
-    "no-server": `App v${frontendVersion} — no server configured`,
+    match: `App and server both run v${displayVersion}`,
+    mismatch: `App v${displayVersion} — versions differ but stay compatible`,
+    incompatible: `App v${displayVersion} — incompatible major version`,
+    unknown: `App v${displayVersion} — server version unavailable`,
+    "no-server": `App v${displayVersion} — no server configured`,
   }[versionStatus];
 
-  // Bare semver ("1.4.0") is a tagged release; anything else was built from a
-  // specific commit. Reflected in the tooltip so the link target is obvious
-  // before it's clicked.
+  // Bare semver ("1.4.0") is a tagged release; PR builds link to the PR,
+  // others to the commit. Reflected in the tooltip so the link target is
+  // obvious before it's clicked.
   $: versionLinkTitle = versionUrl
-    ? `${versionTitle} — ${frontendVersion.includes("-") ? "open build commit on GitHub" : "open release on GitHub"}`
+    ? `${versionTitle} — ${displayVersion.includes("PR#") ? "open pull request on GitHub" : displayVersion.includes("-") ? "open build commit on GitHub" : "open release on GitHub"}`
     : versionTitle;
 </script>
 

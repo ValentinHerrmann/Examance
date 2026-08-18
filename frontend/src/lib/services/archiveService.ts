@@ -9,15 +9,38 @@ import { unpackProject } from "$lib/archive/unpacker";
  *
  * @param file - The .bgproj file to import
  * @param password - Password to decrypt the archive
- * @returns true if successful
+ * @returns Import counts plus any per-record failures the caller should surface
  * @throws Error if import fails or password is rejected
  */
-export async function openBgprojArchive(file: File, password: string): Promise<boolean> {
+export async function openBgprojArchive(
+  file: File,
+  password: string
+): Promise<{ examCount: number; studentCount: number; errors: string[] }> {
   const buffer = new Uint8Array(await file.arrayBuffer());
   await clearAllTables();
   projectStore.clear();
-  await unpackProject(buffer, password);
-  return true;
+  return unpackProject(buffer, password);
+}
+
+/**
+ * Builds the user-facing summary for a finished import. Records that the server
+ * rejected are listed explicitly — they are silently dropped otherwise, which is
+ * what made a failed import look successful.
+ */
+export function formatImportSummary(result: {
+  examCount: number;
+  studentCount: number;
+  errors: string[];
+}): string {
+  const loaded = `Loaded ${result.examCount} exam(s) and ${result.studentCount} student(s).`;
+  if (result.errors.length === 0) {
+    return `Import successful! ${loaded}`;
+  }
+  return (
+    `Import finished with ${result.errors.length} problem(s). ${loaded}\n\n` +
+    `The following could not be saved to the server:\n` +
+    result.errors.map((e) => `• ${e}`).join('\n')
+  );
 }
 
 /**
