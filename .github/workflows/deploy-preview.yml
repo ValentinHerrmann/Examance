@@ -34,10 +34,11 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
-      - name: Compose <latest-release>-<short-sha>
+      - name: Compose <latest-release>-PR#<number> [<built-at>]
         id: resolve
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number || 'manual' }}
         run: |
           set -euo pipefail
           BASE=$(tr -d ' \t\r\n' < VERSION)
@@ -45,10 +46,11 @@ jobs:
             echo "ERROR: VERSION file is empty" >&2
             exit 1
           fi
-          SHORT_SHA=$(printf '%s' "$HEAD_SHA" | cut -c1-7)
-          echo "version=${BASE}-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          BUILT_AT=$(date -u +'%d.%m.%Y | %H:%M')
+          VERSION="${BASE}-PR#${PR_NUMBER} [${BUILT_AT}]"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
-          echo "Preview version ${BASE}-${SHORT_SHA}"
+          echo "Preview version ${VERSION}"
 
   frontend:
     name: Publish frontend to preview branch
@@ -66,10 +68,21 @@ jobs:
           ref: ${{ needs.version.outputs.sha }}
           fetch-depth: 0
 
-      # Cloudflare Pages builds only `preview`, so a single force-push here is
-      # the whole preview deployment. The build derives its version from
-      # CF_PAGES_BRANCH/CF_PAGES_COMMIT_SHA, giving the same
-      # <latest-release>-<short-sha> string computed above.
+      # Cloudflare Pages builds only `preview` and has no notion of PR numbers,
+      # so the version string computed above is stamped into a file the build
+      # reads directly (see readPreviewVersionFile() in vite.config.ts) for the
+      # version display and PR linking.
+      - name: Stamp preview version file
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$VERSION" > PREVIEW_VERSION
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add PREVIEW_VERSION
+          git commit -m "chore: stamp preview version ${VERSION}" --quiet
+
       - name: Force-push to preview branch
         run: |
           set -euo pipefail

@@ -4,7 +4,8 @@ import { effectiveBackendStore } from '$lib/stores/backendStore';
 /**
  * Build version of this frontend bundle, inlined by Vite (see vite.config.ts).
  * Production builds carry a bare semver ("1.4.0"); preview builds append the
- * short commit SHA ("1.4.0-a1b2c3d"); local dev is "0.0.0-dev".
+ * PR number and build timestamp ("1.4.0-PR#123 [18.08.2026 | 14:32]"); local
+ * dev is "0.0.0-dev".
  */
 export const frontendVersion: string = __APP_VERSION__;
 
@@ -15,13 +16,20 @@ export const repoUrl: string = __REPO_URL__;
  * Where the version tag in the status bar should link to.
  *
  * A bare semver ("1.4.0") is a tagged release, so it links to the matching
- * GitHub Release. Anything else — a preview build ("1.4.0-a1b2c3d") or local
- * dev ("0.0.0-dev") — is not tagged, so it links to the exact commit it was
- * built from instead, when that commit is known. Local dev builds carry no
- * commit SHA, so they get no link at all.
+ * GitHub Release. A preview build with PR format ("1.4.0-PR#123 [...]") links
+ * to the PR. Other builds ("1.4.0-a1b2c3d" or local dev "0.0.0-dev") are not
+ * tagged, so they link to the exact commit when known. Local dev builds carry
+ * no commit SHA, so they get no link at all.
  */
 export function versionUrlFor(version: string, commitSha: string): string | null {
     if (!version.includes('-')) return `${repoUrl}/releases/tag/v${version}`;
+
+    // Preview build with PR format: extract PR number and link to it
+    const prMatch = version.match(/PR#(\d+)/);
+    if (prMatch) {
+        return `${repoUrl}/pull/${prMatch[1]}`;
+    }
+
     return commitSha ? `${repoUrl}/commit/${commitSha}` : null;
 }
 
@@ -76,6 +84,20 @@ export const versionStatus: Readable<VersionStatus> = derived(
     [backendVersionStore, effectiveBackendStore],
     ([$backendVersion, $backendUrl]) =>
         compareVersions(frontendVersion, $backendVersion, Boolean($backendUrl))
+);
+
+/**
+ * URL for the display version (backend when available, else frontend).
+ * Prefers backend because it's the authoritative version for compatibility.
+ */
+export const displayVersionUrl: Readable<string | null> = derived(
+    [backendVersionStore],
+    ([$backendVersion]) => {
+        if ($backendVersion) {
+            return versionUrlFor($backendVersion, __APP_COMMIT_SHA__);
+        }
+        return frontendVersionUrl;
+    }
 );
 
 let inFlight: Promise<void> | null = null;

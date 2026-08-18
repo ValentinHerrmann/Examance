@@ -10,7 +10,7 @@ There are two fully independent instances, **production** and **preview**.
 | | Production | Preview |
 |---|---|---|
 | Trigger | GitHub Release published | Non-draft PR opened / pushed to |
-| Version | `1.4.0` (from the release tag) | `1.4.0-a1b2c3d` (latest release + short commit SHA) |
+| Version | `1.4.0` (from the release tag) | `1.4.0-PR#123 [18.08.2026 \| 14:32]` (latest release + PR number + build timestamp) |
 | Frontend branch | `release` | `preview` |
 | Pages environment | Production | Preview |
 | Image tag | `ghcr.io/…/examance-backend:1.4.0` + `:latest` | `…:sha-<full-sha>` + `:preview` |
@@ -144,11 +144,11 @@ sequenceDiagram
 
     D->>GA: Open non-draft PR / push to it
     Note over GA: Draft PRs and fork PRs deploy nothing
-    GA->>GA: version = cat VERSION + "-" + short SHA
+    GA->>GA: version = cat VERSION + "-PR#<number> [<built-at>]"
     par Frontend
-        GA->>P: force-push PR head
+        GA->>P: commit PREVIEW_VERSION, force-push PR head
         P->>CF: build (CF_PAGES_BRANCH=preview)
-        CF->>CF: __APP_VERSION__ = "1.4.0-a1b2c3d"
+        CF->>CF: __APP_VERSION__ = "1.4.0-PR#123 [18.08.2026 | 14:32]"
     and Backend
         GA->>GR: push :sha-<full> and :preview
         GA->>S: ssh — pull, migrate, up -d (project examance-preview)
@@ -165,14 +165,14 @@ There is exactly **one** preview instance, shared by all open PRs — the newest
 `/VERSION` at the repository root is the single source of truth. It holds a bare semver (`1.4.0`, no `v`) and is written by the release workflow from the release tag. `frontend/package.json` and `backend/pyproject.toml` versions are **not** part of this chain.
 
 ```
-Production build   1.4.0                 VERSION verbatim
-Preview build      1.4.0-a1b2c3d         VERSION + "-" + 7-char commit SHA
-Local dev          0.0.0-dev
+Production build   1.4.0                                  VERSION verbatim
+Preview build       1.4.0-PR#123 [18.08.2026 | 14:32]        VERSION + "-PR#<number> [<built-at>]"
+Local dev           0.0.0-dev
 ```
 
 How it reaches each artefact:
 
-- **Frontend** — `frontend/vite.config.ts` reads `../VERSION` at config-eval time and inlines the result via Vite `define` as `__APP_VERSION__`. It picks the preview form whenever `CF_PAGES_BRANCH` is set to anything other than `release`. Because `define` substitutes a literal into an already-bundled same-origin chunk, no new inline script appears and the CSP hashing in `frontend/scripts/generate-csp-headers.mjs` is unaffected.
+- **Frontend** — `frontend/vite.config.ts` reads `../VERSION` at config-eval time and inlines the result via Vite `define` as `__APP_VERSION__`. For a preview build (`CF_PAGES_BRANCH` set to anything other than `release`) it instead reads `../PREVIEW_VERSION` — a file `deploy-preview.yml`'s `frontend` job stamps as an extra commit on the `preview` branch, since Cloudflare Pages has no notion of PR numbers on its own. A preview build that never went through that job (a manual push straight to `preview`) falls back to `VERSION` + the short commit SHA. Because `define` substitutes a literal into an already-bundled same-origin chunk, no new inline script appears and the CSP hashing in `frontend/scripts/generate-csp-headers.mjs` is unaffected.
 - **Backend** — `docker build --build-arg APP_VERSION=…` → `ENV APP_VERSION` in `backend/Dockerfile` → `Settings.APP_VERSION` in `backend/app/config.py` → reported by `GET /api/health` and used as the FastAPI `version`.
 
 `GET /api/health` now returns:
