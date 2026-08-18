@@ -87,7 +87,8 @@ class Settings(BaseSettings):
     # APP_VERSION) from the repository-root VERSION file. Informational only:
     # it is reported by GET /api/health so the frontend can tell whether it is
     # talking to a compatible server. Production builds carry a bare semver
-    # ("1.4.0"); preview builds append the short commit SHA ("1.4.0-a1b2c3d").
+    # ("1.4.0"); preview builds append the PR number and build timestamp
+    # ("1.4.0-PR#123 [18.08.2026 | 14:32]"), composed in deploy-preview.yml.
     APP_VERSION: str = "0.0.0-dev"
 
     # Retention bounds.
