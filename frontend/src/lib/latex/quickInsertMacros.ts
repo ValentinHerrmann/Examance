@@ -23,12 +23,22 @@ export interface QuickInsertTemplate {
 
 export interface QuickInsertMacro {
   id: string;
+  /** Natural-language button text, e.g. "Bold text". */
   label: string;
-  category: "solutions" | "scoring" | "generic";
+  category: "solutions" | "scoring" | "formatting" | "generic";
+  /** Natural-language explanation, shown in the tooltip body. */
   description: string;
+  /** Literal LaTeX skeleton, shown as a code preview in the tooltip. */
+  preview: string;
   args: QuickInsertArg[];
   buildTemplate: (args: string[]) => QuickInsertTemplate;
-  warnConflictsWithStructuredEditor?: boolean;
+  /**
+   * Which argument receives a wrapped selection (default 0). Macros whose
+   * meaningful "content" argument isn't the first one — e.g. \textcolor's
+   * text comes after the color — set this so a selection lands where a
+   * user would expect, instead of overwriting an unrelated argument.
+   */
+  selectionArgIndex?: number;
 }
 
 /**
@@ -54,153 +64,218 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
   // --- solutions (Loesung.sty) ---
   {
     id: "loesung",
-    label: "\\Loesung",
+    label: "Solution text",
     category: "solutions",
-    description: "\\Loesung{text} — shown only in the answer key",
+    description: "Shown only in the answer key.",
+    preview: "\\Loesung{text}",
     args: [{ placeholder: "text" }],
     buildTemplate: (a) => templateJoin(["\\Loesung{", "}"], a)
   },
   {
     id: "loesung-replace",
-    label: "\\LoesungReplace",
+    label: "Replace in answer key",
     category: "solutions",
-    description: "\\LoesungReplace{solution}{blankContent} — different content in answer key vs. student copy",
+    description: "Different content in the answer key vs. the student copy.",
+    preview: "\\LoesungReplace{solution}{blankContent}",
     args: [{ placeholder: "solution" }, { placeholder: "blankContent" }],
     buildTemplate: (a) => templateJoin(["\\LoesungReplace{", "}{", "}"], a)
   },
   {
     id: "loesung-leer",
-    label: "\\LoesungLeer",
+    label: "Blank space",
     category: "solutions",
-    description: "\\LoesungLeer{solution}{blankHeight} — solution vs. blank vertical space",
+    description: "Solution vs. blank vertical space.",
+    preview: "\\LoesungLeer{solution}{blankHeight}",
     args: [{ placeholder: "solution" }, { placeholder: "2cm" }],
     buildTemplate: (a) => templateJoin(["\\LoesungLeer{", "}{", "}"], a)
   },
   {
     id: "loesung-img",
-    label: "\\LoesungImg",
+    label: "Solution image",
     category: "solutions",
-    description: "\\LoesungImg{solutionImg}{blankImg}{width} — different image in answer key vs. student copy",
+    description: "Different image in the answer key vs. the student copy.",
+    preview: "\\LoesungImg{solutionImg}{blankImg}{width}",
     args: [{ placeholder: "solutionImg" }, { placeholder: "blankImg" }, { placeholder: "5cm" }],
     buildTemplate: (a) => templateJoin(["\\LoesungImg{", "}{", "}{", "}"], a)
   },
   {
     id: "loesung-luecke",
-    label: "\\LoesungLuecke",
+    label: "Fill-in blank",
     category: "solutions",
-    description: "\\LoesungLuecke{solution}{width} — fill-in-the-blank: solution vs. a ruled line",
+    description: "Solution vs. a ruled line to fill in.",
+    preview: "\\LoesungLuecke{solution}{width}",
     args: [{ placeholder: "solution" }, { placeholder: "3cm" }],
     buildTemplate: (a) => templateJoin(["\\LoesungLuecke{", "}{", "}"], a)
   },
   {
     id: "loesung-karo",
-    label: "\\LoesungKaro",
+    label: "Graph paper",
     category: "solutions",
-    description: "\\LoesungKaro{solution}{n} — solution vs. n rows of graph-paper squares",
+    description: "Solution vs. rows of graph-paper squares.",
+    preview: "\\LoesungKaro{solution}{n}",
     args: [{ placeholder: "solution" }, { placeholder: "3" }],
     buildTemplate: (a) => templateJoin(["\\LoesungKaro{", "}{", "}"], a)
   },
   {
     id: "loesung-line",
-    label: "\\LoesungLine",
+    label: "Ruled lines",
     category: "solutions",
-    description: "\\LoesungLine{solution}{n} — solution vs. n ruled writing lines",
+    description: "Solution vs. ruled writing lines.",
+    preview: "\\LoesungLine{solution}{n}",
     args: [{ placeholder: "solution" }, { placeholder: "3" }],
     buildTemplate: (a) => templateJoin(["\\LoesungLine{", "}{", "}"], a)
   },
   {
     id: "loesung-form",
-    label: "\\LoesungForm",
+    label: "Fillable field",
     category: "solutions",
-    description: "\\LoesungForm{width}{multiline} — fillable PDF form text field",
+    description: "A fillable PDF form text field.",
+    preview: "\\LoesungForm{width}{multiline}",
     args: [{ placeholder: "5cm" }, { placeholder: "false" }],
     buildTemplate: (a) => templateJoin(["\\LoesungForm{", "}{", "}"], a)
   },
   {
     id: "kariert",
-    label: "\\kariert",
+    label: "Graph paper (raw)",
     category: "solutions",
-    description: "\\kariert[cellSize]{rows} — graph-paper squares",
+    description: "Rows of graph-paper squares, without an answer-key toggle.",
+    preview: "\\kariert[cellSize]{rows}",
     args: [{ placeholder: "0.5cm", optional: true }, { placeholder: "3" }],
-    buildTemplate: (a) => templateJoin(["\\kariert[", "]{", "}"], a)
+    buildTemplate: (a) => templateJoin(["\\kariert[", "]{", "}"], a),
+    selectionArgIndex: 1
   },
   {
     id: "liniert",
-    label: "\\liniert",
+    label: "Ruled lines (raw)",
     category: "solutions",
-    description: "\\liniert[lineHeight]{n} — n ruled writing lines",
+    description: "Ruled writing lines, without an answer-key toggle.",
+    preview: "\\liniert[lineHeight]{n}",
     args: [{ placeholder: "0.8cm", optional: true }, { placeholder: "3" }],
-    buildTemplate: (a) => templateJoin(["\\liniert[", "]{", "}"], a)
-  },
-  {
-    id: "loesung-multi",
-    label: "\\LoesungMulti",
-    category: "solutions",
-    description: "\\LoesungMulti[cols]{...} — multi-column option list (used by MC exercises)",
-    args: [{ placeholder: "2" }],
-    buildTemplate: (a) =>
-      templateJoin(["\\LoesungMulti[", "]{\n  \\multi{option}\n  \\Lmulti{option}\n}"], a),
-    warnConflictsWithStructuredEditor: true
-  },
-  {
-    id: "multi",
-    label: "\\multi",
-    category: "solutions",
-    description: "\\multi{text} — a wrong MC option",
-    args: [{ placeholder: "text" }],
-    buildTemplate: (a) => templateJoin(["\\multi{", "}"], a),
-    warnConflictsWithStructuredEditor: true
-  },
-  {
-    id: "lmulti",
-    label: "\\Lmulti",
-    category: "solutions",
-    description: "\\Lmulti{text} — a correct MC option",
-    args: [{ placeholder: "text" }],
-    buildTemplate: (a) => templateJoin(["\\Lmulti{", "}"], a),
-    warnConflictsWithStructuredEditor: true
+    buildTemplate: (a) => templateJoin(["\\liniert[", "]{", "}"], a),
+    selectionArgIndex: 1
   },
 
   // --- scoring (Schulaufgabe.sty) ---
   {
     id: "be",
-    label: "\\BE",
+    label: "Full point",
     category: "scoring",
-    description: "\\BE — award 1 point",
+    description: "Award 1 point.",
+    preview: "\\BE",
     args: [],
     buildTemplate: () => ({ text: "\\BE", argOffsets: [] })
   },
   {
     id: "hbe",
-    label: "\\hBE",
+    label: "Half point",
     category: "scoring",
-    description: "\\hBE — award 0.5 points",
+    description: "Award 0.5 points.",
+    preview: "\\hBE",
     args: [],
     buildTemplate: () => ({ text: "\\hBE", argOffsets: [] })
   },
   {
     id: "qbe",
-    label: "\\qBE",
+    label: "Quarter point",
     category: "scoring",
-    description: "\\qBE — award 0.25 points",
+    description: "Award 0.25 points.",
+    preview: "\\qBE",
     args: [],
     buildTemplate: () => ({ text: "\\qBE", argOffsets: [] })
+  },
+
+  // --- formatting ---
+  {
+    id: "textbf",
+    label: "Bold text",
+    category: "formatting",
+    description: "Bold text.",
+    preview: "\\textbf{text}",
+    args: [{ placeholder: "text" }],
+    buildTemplate: (a) => templateJoin(["\\textbf{", "}"], a)
+  },
+  {
+    id: "textit",
+    label: "Italic text",
+    category: "formatting",
+    description: "Italic text.",
+    preview: "\\textit{text}",
+    args: [{ placeholder: "text" }],
+    buildTemplate: (a) => templateJoin(["\\textit{", "}"], a)
+  },
+  {
+    id: "textcolor",
+    label: "Colored text",
+    category: "formatting",
+    description: "Colored text — edit the color name or hex code.",
+    preview: "\\textcolor{color}{text}",
+    args: [{ placeholder: "red" }, { placeholder: "text" }],
+    buildTemplate: (a) => templateJoin(["\\textcolor{", "}{", "}"], a),
+    selectionArgIndex: 1
+  },
+  {
+    id: "fontsize-footnotesize",
+    label: "Small text",
+    category: "formatting",
+    description: "Footnote-sized text.",
+    preview: "{\\footnotesize text}",
+    args: [{ placeholder: "text" }],
+    buildTemplate: (a) => templateJoin(["{\\footnotesize ", "}"], a)
+  },
+  {
+    id: "fontsize-large",
+    label: "Slightly larger text",
+    category: "formatting",
+    description: "Slightly larger text.",
+    preview: "{\\large text}",
+    args: [{ placeholder: "text" }],
+    buildTemplate: (a) => templateJoin(["{\\large ", "}"], a)
+  },
+  {
+    id: "fontsize-Large",
+    label: "Larger text",
+    category: "formatting",
+    description: "Larger text.",
+    preview: "{\\Large text}",
+    args: [{ placeholder: "text" }],
+    buildTemplate: (a) => templateJoin(["{\\Large ", "}"], a)
+  },
+  {
+    id: "fontsize-LARGE",
+    label: "Large heading text",
+    category: "formatting",
+    description: "Large heading-sized text.",
+    preview: "{\\LARGE text}",
+    args: [{ placeholder: "text" }],
+    buildTemplate: (a) => templateJoin(["{\\LARGE ", "}"], a)
+  },
+  {
+    id: "fontsize-huge",
+    label: "Huge text",
+    category: "formatting",
+    description: "Huge text.",
+    preview: "{\\huge text}",
+    args: [{ placeholder: "text" }],
+    buildTemplate: (a) => templateJoin(["{\\huge ", "}"], a)
   },
 
   // --- generic LaTeX ---
   {
     id: "includegraphics",
-    label: "\\includegraphics",
+    label: "Image",
     category: "generic",
-    description: "\\includegraphics[width=]{path} — insert an image",
+    description: "Insert an image.",
+    preview: "\\includegraphics[width=]{path}",
     args: [{ placeholder: "8cm", optional: true }, { placeholder: "image.png" }],
-    buildTemplate: (a) => templateJoin(["\\includegraphics[width=", "]{", "}"], a)
+    buildTemplate: (a) => templateJoin(["\\includegraphics[width=", "]{", "}"], a),
+    selectionArgIndex: 1
   },
   {
     id: "tabular",
-    label: "tabular",
+    label: "Table",
     category: "generic",
-    description: "\\begin{tabular}{ll}...\\end{tabular} — a simple table",
+    description: "A simple table.",
+    preview: "\\begin{tabular}{ll}...\\end{tabular}",
     args: [{ placeholder: "ll" }],
     buildTemplate: (a) =>
       templateJoin(
@@ -210,49 +285,37 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
   },
   {
     id: "itemize",
-    label: "itemize",
+    label: "Bullet list",
     category: "generic",
-    description: "\\begin{itemize}...\\end{itemize} — a bullet list",
+    description: "A bullet list.",
+    preview: "\\begin{itemize}...\\end{itemize}",
     args: [{ placeholder: "item" }],
     buildTemplate: (a) => templateJoin(["\\begin{itemize}\n  \\item ", "\n  \\item item\n\\end{itemize}"], a)
   },
   {
     id: "enumerate",
-    label: "enumerate",
+    label: "Numbered list",
     category: "generic",
-    description: "\\begin{enumerate}...\\end{enumerate} — a numbered list",
+    description: "A numbered list.",
+    preview: "\\begin{enumerate}...\\end{enumerate}",
     args: [{ placeholder: "item" }],
     buildTemplate: (a) => templateJoin(["\\begin{enumerate}\n  \\item ", "\n  \\item item\n\\end{enumerate}"], a)
   },
   {
-    id: "textbf",
-    label: "\\textbf",
-    category: "generic",
-    description: "\\textbf{text} — bold text",
-    args: [{ placeholder: "text" }],
-    buildTemplate: (a) => templateJoin(["\\textbf{", "}"], a)
-  },
-  {
-    id: "textit",
-    label: "\\textit",
-    category: "generic",
-    description: "\\textit{text} — italic text",
-    args: [{ placeholder: "text" }],
-    buildTemplate: (a) => templateJoin(["\\textit{", "}"], a)
-  },
-  {
     id: "inline-math",
-    label: "$...$",
+    label: "Inline math",
     category: "generic",
-    description: "$...$ — inline math",
+    description: "Inline math.",
+    preview: "$...$",
     args: [{ placeholder: "x" }],
     buildTemplate: (a) => templateJoin(["$", "$"], a)
   },
   {
     id: "center",
-    label: "center",
+    label: "Centered content",
     category: "generic",
-    description: "\\begin{center}...\\end{center} — centered content",
+    description: "Centered content.",
+    preview: "\\begin{center}...\\end{center}",
     args: [{ placeholder: "content" }],
     buildTemplate: (a) => templateJoin(["\\begin{center}\n  ", "\n\\end{center}"], a)
   }

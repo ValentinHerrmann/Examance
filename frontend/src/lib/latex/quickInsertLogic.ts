@@ -13,10 +13,11 @@ export interface QuickInsertResult {
 /**
  * Computes the document change + resulting selection for inserting a macro
  * at [from,to) (the current CodeMirror selection). If selectedText is
- * non-empty it is wrapped as the macro's first argument; remaining
- * arguments (and all arguments, if nothing was selected) are filled with
- * placeholder text. The returned selection spans the first placeholder
- * still left to fill, so the user can type-to-replace it immediately.
+ * non-empty it is wrapped into the macro's selectionArgIndex argument
+ * (default 0); remaining arguments (and all arguments, if nothing was
+ * selected) are filled with placeholder text. The returned selection spans
+ * the next placeholder still left to fill, so the user can type-to-replace
+ * it immediately.
  */
 export function computeQuickInsert(
   macro: QuickInsertMacro,
@@ -33,14 +34,15 @@ export function computeQuickInsert(
   }
 
   const hasSelection = selectedText.length > 0;
-  const args = hasSelection
-    ? [selectedText, ...macro.args.slice(1).map((a) => a.placeholder)]
-    : macro.args.map((a) => a.placeholder);
+  const selectionArgIndex = macro.selectionArgIndex ?? 0;
+  const args = macro.args.map((a, i) =>
+    hasSelection && i === selectionArgIndex ? selectedText : a.placeholder
+  );
 
   const { text, argOffsets } = macro.buildTemplate(args);
 
-  const placeholderIndex = hasSelection ? 1 : 0;
-  const offset = argOffsets[placeholderIndex];
+  const placeholderIndex = hasSelection ? args.findIndex((_, i) => i !== selectionArgIndex) : 0;
+  const offset = placeholderIndex >= 0 ? argOffsets[placeholderIndex] : undefined;
 
   if (!offset) {
     return {

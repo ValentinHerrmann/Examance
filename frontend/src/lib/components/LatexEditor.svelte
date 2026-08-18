@@ -58,16 +58,15 @@
   export let readonly: boolean = false;
   export let diffDecorations: DiffDecorationConfig | null = null;
   export let showQuickInsert: boolean = false;
-  export let disabledMacroIds: string[] = [];
 
-  $: visibleMacros = QUICK_INSERT_MACROS.filter((m) => !disabledMacroIds.includes(m.id));
-  $: macroCategories = (["solutions", "scoring", "generic"] as const).map((category) => ({
+  $: macroCategories = (["solutions", "scoring", "formatting", "generic"] as const).map((category) => ({
     category,
-    macros: visibleMacros.filter((m) => m.category === category)
+    macros: QUICK_INSERT_MACROS.filter((m) => m.category === category)
   }));
   const categoryLabels: Record<QuickInsertMacro["category"], string> = {
     solutions: "Solutions",
     scoring: "Scoring",
+    formatting: "Formatting",
     generic: "Generic"
   };
 
@@ -81,6 +80,30 @@
       selection: EditorSelection.range(result.selection.anchor, result.selection.head)
     });
     view.focus();
+  }
+
+  const TOOLTIP_OPEN_DELAY_MS = 120;
+  let hoveredMacro: QuickInsertMacro | null = null;
+  let tooltipX = 0;
+  let tooltipY = 0;
+  let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function scheduleTooltip(macro: QuickInsertMacro, target: HTMLElement) {
+    if (hoverTimer) clearTimeout(hoverTimer);
+    const rect = target.getBoundingClientRect();
+    hoverTimer = setTimeout(() => {
+      hoveredMacro = macro;
+      tooltipX = rect.left;
+      tooltipY = rect.bottom + 6;
+    }, TOOLTIP_OPEN_DELAY_MS);
+  }
+
+  function hideTooltip() {
+    if (hoverTimer) {
+      clearTimeout(hoverTimer);
+      hoverTimer = null;
+    }
+    hoveredMacro = null;
   }
 
   const dispatch = createEventDispatcher<{
@@ -245,6 +268,7 @@
   }
 
   onDestroy(() => {
+    if (hoverTimer) clearTimeout(hoverTimer);
     if (view) {
       if (handleScrollListener && view.scrollDOM) {
         view.scrollDOM.removeEventListener("scroll", handleScrollListener);
@@ -266,9 +290,12 @@
             {#each macros as macro (macro.id)}
               <button
                 type="button"
-                class="rounded border border-slate-700 bg-slate-900 px-2 py-0.5 font-mono text-[0.7rem] text-sky-300 hover:border-sky-400 hover:bg-slate-800"
-                title={macro.description}
+                class="rounded border border-slate-700 bg-slate-900 px-2 py-0.5 text-[0.7rem] text-sky-300 hover:border-sky-400 hover:bg-slate-800"
                 on:click={() => insertMacro(macro)}
+                on:mouseenter={(e) => scheduleTooltip(macro, e.currentTarget)}
+                on:mouseleave={hideTooltip}
+                on:focus={(e) => scheduleTooltip(macro, e.currentTarget)}
+                on:blur={hideTooltip}
               >
                 {macro.label}
               </button>
@@ -280,3 +307,13 @@
   {/if}
   <div class="flex w-full flex-1 min-h-0 flex-col overflow-hidden" bind:this={container}></div>
 </div>
+
+{#if hoveredMacro}
+  <div
+    class="pointer-events-none fixed z-50 flex max-w-xs flex-col gap-1 rounded border border-slate-700 bg-slate-900 px-2 py-1.5 text-[0.7rem] shadow-lg"
+    style="left: {tooltipX}px; top: {tooltipY}px;"
+  >
+    <span class="text-slate-300">{hoveredMacro.description}</span>
+    <code class="rounded bg-slate-950 px-1.5 py-1 font-mono text-sky-300">{hoveredMacro.preview}</code>
+  </div>
+{/if}
