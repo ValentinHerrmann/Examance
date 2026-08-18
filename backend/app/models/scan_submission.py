@@ -4,7 +4,16 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, LargeBinary, String, func
+from sqlalchemy import (
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    ForeignKeyConstraint,
+    LargeBinary,
+    String,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -13,15 +22,22 @@ from app.database import Base
 class ScanSubmission(Base):
     __tablename__ = "scan_submissions"
 
+    # The identity FK spans both columns because student_identities is keyed by
+    # (pseudonym_hmac, exam_id) — a submission can only reference an identity
+    # registered under its own exam, which the database now enforces directly.
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["pseudonym_hmac", "exam_id"],
+            ["student_identities.pseudonym_hmac", "student_identities.exam_id"],
+            ondelete="CASCADE",
+        ),
+    )
+
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     exam_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("exams.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    pseudonym_hmac: Mapped[str] = mapped_column(
-        ForeignKey("student_identities.pseudonym_hmac", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
+    pseudonym_hmac: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     total_score: Mapped[float | None] = mapped_column(Float, nullable=True)  # Plaintext for stats
     scan_path: Mapped[str | None] = mapped_column(String(1000), nullable=True)  # Hybrid Mode only
     scan_ciphertext: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)

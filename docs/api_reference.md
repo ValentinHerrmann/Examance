@@ -183,7 +183,20 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 |---|---|---|---|---|
 | `POST` | `/api/v1/exams/{exam_id}/students` | Upload Student PII | Yes | Stores/upserts client-side encrypted student PII record. |
 | `GET` | `/api/v1/exams/{exam_id}/students` | List Exam Students | Yes | Lists encrypted student records associated with exam. |
-| `DELETE` | `/api/v1/exams/{exam_id}/students/{pseudonym_hmac}` | GDPR Erasure | Yes | GDPR Art. 17 right-to-erasure deletion of student record. |
+| `DELETE` | `/api/v1/exams/{exam_id}/students/{pseudonym_hmac}` | GDPR Erasure | Yes | GDPR Art. 17 right-to-erasure deletion of student record. Scoped to this exam only — see note below. |
+
+> **Identity scope.** A student identity is keyed by `(pseudonym_hmac, exam_id)`, not by
+> `pseudonym_hmac` alone. The same pupil appearing in two exams is two independent
+> identities, so erasure removes the record for the named exam only. This also allows a
+> workspace archive to be imported into a different account on the same server.
+>
+> **Known gap.** The per-exam derivation described above is not yet implemented on the
+> client: `ensure64CharHex()` (`frontend/src/lib/crypto/hmac.ts`) currently computes an
+> unkeyed SHA-256 of the raw pseudonym UUID, with no exam secret mixed in. The correct
+> helper (`hmacPseudonymId()`) exists but has no call sites. Until that is wired up, the
+> same pupil UUID produces the same `pseudonym_hmac` in every exam, so the server could in
+> principle correlate a pupil across exams. Fixing it requires a re-keying strategy, since
+> the server cannot re-derive the values itself.
 
 #### Student Identity Payload
 ```json

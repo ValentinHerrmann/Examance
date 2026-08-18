@@ -5,6 +5,7 @@
   import type { ExamRecord } from '$lib/db/schema';
   import { loadExamsEncrypted, saveExamEncrypted, encryptExam, encryptExercise } from '$lib/db/dbEncryption';
   import { unpackProject } from '$lib/archive/unpacker';
+  import { formatImportSummary } from '$lib/services/archiveService';
   import { clearAllTables } from '$lib/db/db';
   import { projectStore } from '$lib/stores/project';
   import { checkRetention, type RetentionCheckResult } from '$lib/gdpr/retention';
@@ -110,10 +111,24 @@
         await db.exams.bulkPut(encryptedExams);
 
 
-        // Also sync remote exercises and junction records to IndexedDB for offline export
+        // Also sync remote exercises, junction records and MC groups to IndexedDB
+        // for offline export — nothing else writes these tables in all-server
+        // mode, so without this a .bgproj export ships them empty.
         const remoteExercises: any[] = [];
         const junctionRecords: any[] = [];
+        const mcGroupRecords: any[] = [];
         for (const e of remoteExamsRaw) {
+          if (Array.isArray(e.mc_groups)) {
+            for (const g of e.mc_groups) {
+              mcGroupRecords.push({
+                id: g.id,
+                examId: e.id,
+                title: g.title,
+                scoringText: g.scoring_text,
+                orderIndex: g.order_index,
+              });
+            }
+          }
           if (Array.isArray(e.exercises)) {
             for (let idx = 0; idx < e.exercises.length; idx++) {
               const ex = e.exercises[idx];
@@ -148,6 +163,9 @@
         }
         if (junctionRecords.length > 0) {
           await db.examExercises.bulkPut(junctionRecords);
+        }
+        if (mcGroupRecords.length > 0) {
+          await db.examMcGroups.bulkPut(mcGroupRecords);
         }
       } catch (apiErr) {
         console.warn('Failed to fetch remote exams, falling back to IDB:', apiErr);
@@ -214,7 +232,7 @@
 
 
 
-      alert(`Import successful! Loaded ${res.examCount} exam(s) and ${res.studentCount} student(s).`);
+      alert(formatImportSummary(res));
       await refreshExams();
     } catch (err: any) {
       alert(`Import failed: ${err.message}`);

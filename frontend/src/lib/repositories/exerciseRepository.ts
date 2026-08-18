@@ -5,7 +5,7 @@ import { storagePolicyStore } from '$lib/stores/storagePolicy';
 import { encryptExercise, decryptExercise } from '$lib/db/dbEncryption';
 import { enqueueRequest } from '$lib/services/offlineQueue';
 import type { ExerciseRecord } from '$lib/db/schema';
-import { normalizeMcExercise } from '$lib/grading/mcExerciseHash';
+import { normalizeMcExercise, serializeMcAnswers } from '$lib/grading/mcExerciseHash';
 
 function mapApiToExerciseRecord(raw: any): ExerciseRecord {
   const baseRecord: ExerciseRecord = {
@@ -37,17 +37,23 @@ function mapApiToExerciseRecord(raw: any): ExerciseRecord {
   return normalizeMcExercise(baseRecord);
 }
 
-function mapExerciseRecordToApi(ex: ExerciseRecord): any {
+export function mapExerciseRecordToApi(ex: ExerciseRecord): any {
   return {
     id: ex.id,
     name: ex.title || ex.name || 'Exercise',
     latex_body: ex.latexBody || '',
     max_points: ex.maxPoints,
     topic_tag: ex.topicTag,
+    grade: ex.grade,
+    subject: ex.subject,
     question_type: ex.questionType || 'free_text',
-    options: ex.options,
-    correct_answers: ex.correctAnswers,
+    // The backend stores the answer key as a JSON object; sending the raw
+    // `correctAnswers` array is rejected with a 422. `options` is not a field on
+    // ExerciseCreate at all — it travels inside correct_answers.
+    correct_answers: serializeMcAnswers(ex),
     penalty: ex.penalty || 0,
+    exercise_group_id: ex.exerciseGroupId,
+    variant_key: ex.variantKey,
   };
 }
 
