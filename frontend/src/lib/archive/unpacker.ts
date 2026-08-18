@@ -5,8 +5,11 @@
  * Prevents partial/corrupted data imports if password is wrong or ciphertext is tampered.
  */
 
+import { get } from 'svelte/store';
 import { db, clearAllTables } from '$lib/db/db';
 import { sessionStore } from '$lib/stores/session';
+import { storagePolicyStore } from '$lib/stores/storagePolicy';
+import { api } from '$lib/api/client';
 import {
   BGPROJ_MAGIC,
   BGPROJ_VERSION,
@@ -104,12 +107,17 @@ export async function unpackProject(
   // 7. WIPE IDB ONLY AFTER ATOMIC DECRYPTION SUCCEEDS
   await clearAllTables();
 
-  // 8. Re-initialize active session store with imported key
+  // 8. Re-initialize active session store with imported key.
+  // Preserve the existing session mode (e.g. 'authenticated'/'hybrid') instead of
+  // forcing 'local' — otherwise an authenticated user's session gets silently
+  // downgraded, which disables proactive token refresh and causes a burst of 401s
+  // on the next server request.
+  const priorMode = get(sessionStore).mode;
   await sessionStore.unlock({
     masterKey,
     sessionKey: await deriveSessionKey(masterKey, nonce),
     sessionNonce: nonce,
-    mode: 'local',
+    mode: priorMode ?? 'local',
   });
 
   // Get current active key from store
@@ -169,6 +177,38 @@ export async function unpackProject(
 
   if (Array.isArray(payload.auditLogs) && payload.auditLogs.length > 0) {
     await db.auditLog.bulkPut(payload.auditLogs);
+  }
+
+  // 10. Sync exercise↔exam links and MC groups to the server. exerciseRepository.save()
+  // only POSTs bare exercise fields (no exam_id/order_index), so without this step
+  // imported exercises land on the server unlinked from their exam. Mirrors the
+  // PATCH /exams/{id} { exercise_links, mc_groups } pattern used by
+  // routes/exam/[id]/+page.svelte's saveExerciseLinks().
+  if (get(storagePolicyStore).storageMode !== 'all-local' && Array.isArray(payload.exerciseExams)) {
+    const examIds = new Set<string>(payload.exerciseExams.map((j: any) => j.examId));
+    for (const examId of examIds) {
+      const links = payload.exerciseExams.filter((j: any) => j.examId === examId);
+      const groups = Array.isArray(payload.examMcGroups)
+        ? payload.examMcGroups.filter((g: any) => g.examId === examId)
+        : [];
+      const exercise_links = links.map((j: any) => ({
+        exercise_id: j.exerciseId,
+        order_index: j.orderIndex,
+        mc_group_id: j.mcGroupId,
+        sub_index: j.subIndex,
+      }));
+      const mc_groups = groups.map((g: any) => ({
+        id: g.id,
+        title: g.title,
+        scoring_text: g.scoringText,
+        order_index: g.orderIndex,
+      }));
+      try {
+        await api.patch(`/exams/${examId}`, { exercise_links, mc_groups });
+      } catch (err) {
+        console.warn(`Failed to sync exercise links for imported exam ${examId}:`, err);
+      }
+    }
   }
 
   onProgress?.({ stage: 'complete', current: 100, total: 100 });
