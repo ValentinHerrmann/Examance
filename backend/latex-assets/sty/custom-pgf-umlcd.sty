@@ -212,7 +212,6 @@ minimum height=1cm, node distance=2cm]
 \protected@xdef\umlcdPackageFit{\umlcdPackageFitOld (\umlcdClassName)}
 }
 
-\makeatletter
 \@ifundefined{attribute}{
 \newcommand{\attribute}[1]{%
 \ifnum\c@umlcdClassAttributesNum=0
@@ -236,7 +235,6 @@ minimum height=1cm, node distance=2cm]
 \stepcounter{umlcdClassAttributesNum}
 }
 }
-\makeatother
 
 \newcommand{\operation}[2][1]{%
 \stepcounter{umlcdClassOperationsNum}
@@ -374,7 +372,6 @@ node[near end, below]{#3};
 }
 }
 
-\makeatletter
 \@ifundefined{umlnote}{
   \newcommand{\umlnote}[1][]{
     \node[umlcd style, anchor=north, draw,shape=umlcdnote, text width=4cm, #1]
@@ -384,7 +381,6 @@ node[near end, below]{#3};
     \node[umlcd style, anchor=north, draw,shape=umlcdnote, text width=4cm, #1]
   }
 }
-\makeatother
 
 %%% End of pgf-umlcd.sty
 \makeatother
