@@ -25,22 +25,18 @@ escapeinside={(*@}{@*)}
   }%
 }
 
-\providecommand{\LSG}[2]{
-	\ifthenelse
-	{\boolean{Antworten}}
-	{
-        \textcolor{\LFarbe}{
-            \renewcommand{\umltextcolor}{\LFarbe}
-            \renewcommand{\umldrawcolor}{\LFarbe}
-            #1
-            \renewcommand{\umltextcolor}{black}
-            \renewcommand{\umldrawcolor}{black}
-        }
-    }
-	{
-        \setbox0=\vbox{#1}%
-        #2
-    }
+\providecommand{\LSG}[2]{%
+	\ifthenelse{\boolean{Antworten}}{%
+        \textcolor{\LFarbe}{%
+            \renewcommand{\umltextcolor}{\LFarbe}%
+            \renewcommand{\umldrawcolor}{\LFarbe}%
+            #1%
+            \renewcommand{\umltextcolor}{black}%
+            \renewcommand{\umldrawcolor}{black}%
+        }%
+    }{%
+        #2%
+    }%
 }
 
 %Befehl für ein Leerfeld mit fester höhe
