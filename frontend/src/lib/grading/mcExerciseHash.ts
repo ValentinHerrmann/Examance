@@ -72,6 +72,24 @@ export function normalizeMcExercise(ex: ExerciseRecord): ExerciseRecord {
 }
 
 /**
+ * Inverse of `normalizeMcExercise`: serializes an exercise's answer key into the
+ * `{ options, correct }` JSON object the backend stores in `correct_answers`
+ * (`ExerciseCreate.correct_answers` is `dict[str, Any] | None` — a bare array is
+ * rejected with a 422). Free-text exercises have no answer key and serialize to
+ * `null`.
+ */
+export function serializeMcAnswers(
+  ex: ExerciseRecord
+): { options: string[]; correct: number[] } | null {
+  if (!isMcQuestion(ex)) return null;
+  const normalized = normalizeMcExercise(ex);
+  return {
+    options: normalized.options ?? [],
+    correct: normalized.correctAnswers ?? [],
+  };
+}
+
+/**
  * Resolves the MC-relevant exercises for an exam given its exercises, library exercises,
  * and MC groups. Deduplicates and unwraps MC group members.
  */
