@@ -154,6 +154,14 @@
                 examId: e.id,
                 exerciseId: ex.id,
                 orderIndex,
+                // MC membership MUST be carried over. These records are written
+                // with bulkPut on the [examId+exerciseId] primary key, so a
+                // junction rebuilt without mcGroupId/subIndex overwrites the
+                // stored one and erases the exercise's MC group membership —
+                // after which the group renders empty and its members show up
+                // as standalone exercises.
+                mcGroupId: ex.mc_group_id ?? ex.mcGroupId ?? undefined,
+                subIndex: ex.sub_index ?? ex.subIndex ?? undefined,
               });
             }
           }
@@ -161,6 +169,30 @@
         if (remoteExercises.length > 0) {
           const encExercises = await Promise.all(remoteExercises.map((ex) => encryptExercise(ex, key)));
           await db.exercises.bulkPut(encExercises);
+        }
+        // Prune before writing: the server is authoritative for these tables in
+        // server-backed modes, so a link or group it no longer knows about must
+        // not survive locally and resurface as a phantom exercise/group.
+        const syncedExamIds = remoteExamsRaw.map((e: any) => e.id).filter(Boolean);
+        for (const syncedExamId of syncedExamIds) {
+          const keptExerciseIds = new Set(
+            junctionRecords.filter((j) => j.examId === syncedExamId).map((j) => j.exerciseId)
+          );
+          const staleLinks = await db.examExercises.where('examId').equals(syncedExamId).toArray();
+          for (const link of staleLinks) {
+            if (!keptExerciseIds.has(link.exerciseId)) {
+              await db.examExercises.delete([syncedExamId, link.exerciseId]);
+            }
+          }
+          const keptGroupIds = new Set(
+            mcGroupRecords.filter((g) => g.examId === syncedExamId).map((g) => g.id)
+          );
+          const staleGroups = await db.examMcGroups.where('examId').equals(syncedExamId).toArray();
+          for (const group of staleGroups) {
+            if (!keptGroupIds.has(group.id)) {
+              await db.examMcGroups.delete(group.id);
+            }
+          }
         }
         if (junctionRecords.length > 0) {
           await db.examExercises.bulkPut(junctionRecords);

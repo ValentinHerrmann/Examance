@@ -31,7 +31,10 @@
 
   function memberExercises(group: McGroup): ExerciseRecord[] {
     return group.memberIds
-      .map((id) => libraryExercises.find((e) => e.id === id) || exercises.find((e) => e.id === id))
+      // `exercises` first: it is the authoritative per-exam copy, and
+      // `libraryExercises` may still be loading (or hold a different variant of
+      // the same id). Same precedence as resolveMcExercises().
+      .map((id) => exercises.find((e) => e.id === id) || libraryExercises.find((e) => e.id === id))
       .filter((e): e is ExerciseRecord => Boolean(e));
   }
 

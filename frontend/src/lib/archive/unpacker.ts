@@ -221,19 +221,30 @@ export async function unpackProject(
     }
   }
 
+  // MC groups before the junctions: the junctions carry mcGroupId, and a group
+  // whose exam was remapped onto a fresh id needs a fresh id of its own —
+  // otherwise re-importing an archive into the DB it came from would rewrite
+  // the original exam's groups. Both sides use the same map, so membership
+  // survives the remapping.
+  const mcGroupIdMap = new Map<string, string>();
+  if (Array.isArray(payload.examMcGroups) && payload.examMcGroups.length > 0) {
+    const groupRecords = payload.examMcGroups.map((g: any) => {
+      const remappedExamId = remap(g.examId);
+      const groupId = remappedExamId === g.examId ? g.id : crypto.randomUUID();
+      if (groupId !== g.id) mcGroupIdMap.set(g.id, groupId);
+      return { ...g, id: groupId, examId: remappedExamId };
+    });
+    await db.examMcGroups.bulkPut(groupRecords);
+  }
+
   if (Array.isArray(payload.exerciseExams) && payload.exerciseExams.length > 0) {
     await db.examExercises.bulkPut(
       payload.exerciseExams.map((j: any) => ({
         ...j,
         examId: remap(j.examId),
         exerciseId: remap(j.exerciseId),
+        mcGroupId: j.mcGroupId ? (mcGroupIdMap.get(j.mcGroupId) ?? j.mcGroupId) : undefined,
       }))
-    );
-  }
-
-  if (Array.isArray(payload.examMcGroups) && payload.examMcGroups.length > 0) {
-    await db.examMcGroups.bulkPut(
-      payload.examMcGroups.map((g: any) => ({ ...g, examId: remap(g.examId) }))
     );
   }
 

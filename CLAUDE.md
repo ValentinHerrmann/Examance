@@ -106,6 +106,10 @@ English with a `🌐` toggle in `StatusBar.svelte` and a radio section in `Setti
 - **MC Question**: An individual `Exercise` / `ExerciseRecord` (`question_type: mc|sc|tf`, `correct_answers` JSON / `options` & `correctAnswers` arrays, `penalty`). Reuses the standard `exercise_group_id` + `variant_key` mechanism for variants.
 - **MC Group (`\McExercise{a}{b}{c}`)**: A per-exam layout container (`ExamMcGroup` / `ExamMcGroupRecord`, 2–4 sub-items) linking member exercises via `ExamExercise.mc_group_id` and `sub_index`. Rendered into a single `\begin{Aufgabe}` by `format_mc_group_latex()`.
 - **Grading & Statistics Invariant**: Grading and statistics are strictly per-question (`exerciseId`), treating `ExamMcGroup` solely as LaTeX rendering and layout metadata.
+- **Group membership lives on the junction row**, not on the exercise: `ExamExercise.mc_group_id`/`sub_index` server-side, `examExercises.mcGroupId`/`subIndex` in Dexie. The Dexie primary key is `[examId+exerciseId]`, so **any `examExercises.put`/`bulkPut` that omits those two fields silently dissolves the group** — the group then renders empty and its members reappear as standalone exercises. Always merge onto the stored record or carry `mc_group_id`/`sub_index` through from the API response.
+- Group ids are **client-chosen and stable** (like exam/exercise ids); `_persist_mc_groups` keeps them and answers 409 on collision. `exam_exercises.mc_group_id` is `ON DELETE SET NULL` — dissolving a group must never delete its members' exam links.
+- `PATCH /exams/{id}` replaces `mc_groups` and `exercise_links` wholesale. An exercise may appear **once** in `exercise_links` (under its group if grouped) — `(exam_id, exercise_id)` is the primary key. `exam/[id]/+page.svelte`'s `buildExamLinkPayload()` is the single builder for both the Dexie records and that payload; don't hand-roll a second one.
+- `examItems` (the exam page's item order) is view state, rebuilt on load from the persisted `order_index` values via `buildExamItems()`. Group members share their group's `order_index`.
 
 ## LaTeX Resource Files
 
@@ -122,6 +126,9 @@ Teacher-uploaded files an exercise's LaTeX references (`\includegraphics{figure.
 
 ## Gotchas worth knowing
 
+- **A swallowed API error still opens the global HTTP error modal.** `api.*` calls `httpErrorStore.showError()` before throwing, so a `try { … } catch {}` around a best-effort request produces a dialog for a failure nobody handles. Pass `silentError: true` on anything with a local fallback, an offline-queue fallback, or an expected 409.
+- **`POST /exams` and `POST /exercises` are create-only** — a known id answers 409. Re-queuing that POST can never succeed; update with `PATCH` instead.
+- **`POST /auth/refresh` rotates the refresh token and treats a second use of a revoked one as theft**, revoking every session the teacher has. `client.ts` therefore both deduplicates concurrent refreshes and, for `REFRESH_GRACE_MS` after a successful one, retries a 401 instead of refreshing again. Do not remove either guard.
 - **A 500 has to carry CORS headers itself.** The global handler in `app/main.py` runs in `ServerErrorMiddleware`, outside `CORSMiddleware`, so an unhandled exception reaches the browser as "No 'Access-Control-Allow-Origin' header" and the real fault is invisible. The handler echoes an allowlisted `Origin` for that reason (`is_allowed_origin`, `app/middleware/cors.py`) — do not remove it.
 - **One shared preview stack.** `deploy-preview.yml` force-pushes the PR head to `preview`; the newest non-draft PR push wins for *both* frontend and backend. Testing PR A while PR B was pushed later means testing B. The status bar version carries the PR number — check it before debugging.
 
