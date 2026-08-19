@@ -13,7 +13,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config import settings
 from app.middleware.body_limit import BodyLimitMiddleware
-from app.middleware.cors import add_cors_middleware
+from app.middleware.cors import add_cors_middleware, is_allowed_origin
 from app.middleware.csp import CSPMiddleware
 from app.middleware.origin_guard import OriginGuardMiddleware
 from app.middleware.rate_limit import limiter
@@ -144,9 +144,25 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        # This handler runs in ServerErrorMiddleware, which sits OUTSIDE
+        # CORSMiddleware, so its response would otherwise reach the browser
+        # without Access-Control-Allow-Origin. The fetch then fails as a CORS
+        # error and the actual fault — a crashed handler, an unreachable Redis,
+        # a missing engine binary — is invisible to whoever is debugging it.
+        # The headers are added here by hand, for allowlisted origins only.
+        logging.getLogger("app.main").exception(
+            "Unhandled exception on %s %s", request.method, request.url.path
+        )
+        headers: dict[str, str] = {}
+        origin = request.headers.get("origin")
+        if is_allowed_origin(origin) and origin is not None:
+            headers["Access-Control-Allow-Origin"] = origin
+            headers["Access-Control-Allow-Credentials"] = "true"
+            headers["Vary"] = "Origin"
         return JSONResponse(
             status_code=500,
-            content={"detail": "Internal server error"},
+            content={"detail": "Internal server error", "code": "ERR_INTERNAL"},
+            headers=headers,
         )
 
     # Middleware — registration order matters (last added = outermost)

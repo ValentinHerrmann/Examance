@@ -147,12 +147,15 @@ export const exerciseRepository = {
     if (policy.storageMode === 'all-local') {
       await db.exercises.delete(id);
       await db.examExercises.where('exerciseId').equals(id).delete();
+      await db.exerciseResources.where('exerciseId').equals(id).delete();
     } else {
       try {
         await api.delete(`/exercises/${id}`);
       } catch (err: any) {
         enqueueRequest(`/exercises/${id}`, 'DELETE');
       }
+      // The server cascades its own rows; drop the local mirror either way.
+      await db.exerciseResources.where('exerciseId').equals(id).delete();
     }
   },
 };

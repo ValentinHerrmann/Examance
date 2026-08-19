@@ -10,6 +10,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from app.services.latex_resources import validate_resource_name
+
 logger = logging.getLogger(__name__)
 
 PREVIEW_TIMEOUT_SECONDS = 30
@@ -140,11 +142,19 @@ async def compile_latex(
     latex_source: str,
     extra_files: dict[str, str] | None = None,
     preview: bool = True,
+    binary_files: dict[str, bytes] | None = None,
 ) -> bytes:
     """
     Compile *latex_source* with Tectonic and return raw PDF bytes.
 
     Copies sty/ and img/ from ASSETS_DIR into temp working directory.
+
+    *binary_files* are teacher-uploaded resources (images, PDFs, data files)
+    keyed by the flat name the document references. They are written after the
+    bundled assets and their names are validated by
+    ``app.services.latex_resources``, so a resource can neither escape the
+    working directory nor shadow a bundled .sty. They exist only for the
+    lifetime of this compilation.
     """
     reject_unsafe_paths(latex_source)
     for content in (extra_files or {}).values():
@@ -181,15 +191,26 @@ async def compile_latex(
                 target_path.parent.mkdir(parents=True, exist_ok=True)
                 target_path.write_text(content, encoding="utf-8")
 
+        # Write teacher-uploaded resources flat next to main.tex, after the
+        # bundled assets so the copy loop above can never clobber one.
+        if binary_files:
+            for rel_path, blob in binary_files.items():
+                target_path = _safe_extra_file_path(tmpdir, validate_resource_name(rel_path))
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                target_path.write_bytes(blob)
+
         tex_file = tmpdir / "main.tex"
         tex_file.write_text(latex_source, encoding="utf-8")
 
         # Document content is NEVER logged — see schemas/latex.py. Sizes only.
         logger.debug(
-            "Starting LaTeX compilation (preview=%s, main.tex=%d chars, extra_files=%d)",
+            "Starting LaTeX compilation (preview=%s, main.tex=%d chars, extra_files=%d, "
+            "resources=%d/%d bytes)",
             preview,
             len(latex_source),
             len(extra_files or {}),
+            len(binary_files or {}),
+            sum(len(b) for b in (binary_files or {}).values()),
         )
 
         cmd = [
@@ -313,12 +334,15 @@ async def compile_exam_latex(
     exercises: list[tuple[Any, int, uuid.UUID | None, int | None]],
     mc_groups: list[Any] | None = None,
     show_answers: bool = False,
+    binary_files: dict[str, bytes] | None = None,
 ) -> bytes:
     """
     Build complete LaTeX document for an Exam model and compile it.
 
     exercises: list of (Exercise, order_index, mc_group_id, sub_index)
     mc_groups: list of ExamMcGroup (or dicts) with id, title, scoring_text, order_index
+    binary_files: resource files of the exam's exercises, merged by the caller
+        (see app.services.latex_resources.merge_resources)
     """
     extra_files: dict[str, str] = {}
     exercise_inputs: list[str] = []
@@ -444,4 +468,6 @@ async def compile_exam_latex(
 \\end{{document}}
 """
 
-    return await compile_latex(main_tex, extra_files=extra_files, preview=False)
+    return await compile_latex(
+        main_tex, extra_files=extra_files, preview=False, binary_files=binary_files
+    )

@@ -10,6 +10,8 @@
   import { parseExerciseScore, formatExerciseLatex } from "$lib/latex/scoreParser";
   import { parseMcOptions, buildMcOptionsLatex, type McOption } from "$lib/latex/mcOptions";
   import { compileLatex } from "$lib/latex/compiler";
+  import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
+  import ExerciseResourcePanel from "$lib/components/exercise/ExerciseResourcePanel.svelte";
   import LatexEditor from "./LatexEditor.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import DualPdfPreview from "./DualPdfPreview.svelte";
@@ -53,6 +55,17 @@
   // Confirmation modal state
   let showConfirmClose = false;
 
+  /**
+   * Staging area for resource files, always a fresh id.
+   *
+   * Files are attached to it while the dialog is open — which is what makes
+   * uploading (and previewing) work before the exercise exists anywhere — and
+   * committed onto the real exercise on save. Closing without saving throws
+   * the staged set away, like every other field in this dialog.
+   */
+  let resourceStagingId = "";
+  let resourcesCommitted = false;
+
   // Preview state
   let isPreviewLoading = false;
   let previewPdfUrl: string | null = null;
@@ -63,6 +76,31 @@
   $: hasAnyPreview = showAngabePreview || showLoesungPreview;
   let isSaving = false;
   let errorMsg = "";
+
+  /**
+   * Move the staged files onto the exercise that was just written. Upload
+   * failures are reported but never fail the save — the exercise itself is
+   * already stored, and the files stay staged locally.
+   */
+  async function commitStagedResources(exerciseId: string, key: CryptoKey | null) {
+    try {
+      const { errors } = await exerciseResourceRepository.commit(
+        resourceStagingId,
+        exerciseId,
+        key
+      );
+      resourcesCommitted = true;
+      if (errors.length > 0) {
+        console.warn("Some resource files could not be synced:", errors);
+      }
+    } catch (err) {
+      console.warn("Failed to store resource files:", err);
+    }
+  }
+
+  function insertResourceSnippet(snippet: string) {
+    editorLatexBody = `${editorLatexBody}\n${snippet}\n`;
+  }
 
   function handleToggleLatex() {
     showLatexPanel = !showLatexPanel;
@@ -116,6 +154,19 @@
     initialLatexBody = editorLatexBody;
     initialQuestionType = editorQuestionType;
     initialPenalty = editorPenalty;
+    // Seed the staging area from whichever exercise is being edited or
+    // versioned; a new version therefore starts with the base version's
+    // figures without ever writing back to it.
+    resourceStagingId = crypto.randomUUID();
+    resourcesCommitted = false;
+    const resourceSourceId = isCreatingVersion ? versionBaseEx?.id : editingExercise?.id;
+    if (resourceSourceId) {
+      void exerciseResourceRepository.seedStaging(
+        resourceSourceId,
+        resourceStagingId,
+        get(sessionStore).sessionKey
+      );
+    }
     showAngabePreview = true;
     showLoesungPreview = false;
     showConfirmClose = false;
@@ -212,6 +263,11 @@
   function forceClose() {
     showConfirmClose = false;
     cleanupPreview();
+    // Staged files belong to the dialog, not to the library: unless they were
+    // committed by a save, they go with it.
+    if (!resourcesCommitted && resourceStagingId) {
+      void exerciseResourceRepository.deleteForExercise(resourceStagingId);
+    }
     dispatch("close");
   }
 
@@ -255,16 +311,34 @@
       const fullTexLoesung = `${getPreamble('sans,antworten')}\n\\setboolean{Antworten}{true}\n\\begin{document}\n\\leavevmode\\par\n${formattedBody}\n\\end{document}`;
 
       const useLocal = $storagePolicyStore.latexCompilation === "local";
+      // Staged files are inlined: they may not exist on the server yet, and in
+      // the unsaved case they never will until the dialog is saved.
+      const collected = await exerciseResourceRepository.collectForCompile(
+        [{ id: resourceStagingId, label: editorName || "Aufgabe", staged: true }],
+        get(sessionStore).sessionKey,
+        true
+      );
+      const compileOpts = {
+        resources: collected.inline,
+        resourceExerciseIds: collected.exerciseIds
+      };
 
-      const resAngabe = await compileLatex(fullTexAngabe, useLocal, undefined, false);
+      const resAngabe = await compileLatex(fullTexAngabe, useLocal, undefined, false, compileOpts);
       const blobAngabe = new Blob([resAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       previewPdfUrl = URL.createObjectURL(blobAngabe);
 
-      const resLoesung = await compileLatex(fullTexLoesung, useLocal, undefined, false);
+      const resLoesung = await compileLatex(fullTexLoesung, useLocal, undefined, false, compileOpts);
       const blobLoesung = new Blob([resLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
       previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
+
+      // A missing figure does not fail the engine — say so instead of handing
+      // back a PDF with a silent hole in it.
+      const missing = [...(resAngabe.missingGraphics ?? []), ...(resLoesung.missingGraphics ?? [])];
+      if (missing.length > 0) {
+        errorMsg = `Preview rendered, but a graphic could not be loaded: ${missing[0]}`;
+      }
     } catch (err: any) {
       console.error("Exercise preview failed:", err);
       errorMsg = `Preview failed: ${err.message || "Unknown compilation error"}`;
@@ -365,6 +439,9 @@
           await saveExerciseEncrypted(savedEx, key);
         }
 
+        // A new version is a new exercise row; the staged set (the base
+        // version's files plus anything added here) becomes its file set.
+        await commitStagedResources(savedEx.id, key);
         dispatch("save", { exercise: savedEx, isNewVersion: true });
         forceClose();
         return;
@@ -439,6 +516,7 @@
         }
       }
 
+      await commitStagedResources(record.id, key);
       dispatch("save", { exercise: record, isNewVersion: false });
       forceClose();
     } catch (err: any) {
@@ -730,6 +808,11 @@
                 <span class="font-semibold text-slate-300">Preview / Composed LaTeX Source</span>
               </div>
               <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert />
+
+              <ExerciseResourcePanel
+                exerciseId={resourceStagingId}
+                onInsert={insertResourceSnippet}
+              />
             </div>
           {:else}
             <button

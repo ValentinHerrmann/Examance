@@ -191,6 +191,20 @@ export function looksLikeMissingBundledPackage(log: string | undefined | null): 
   return !!log && MISSING_PACKAGE_FILE_PATTERN.test(log);
 }
 
+// A missing figure is not fatal to XeLaTeX: it typesets a box and carries on,
+// so the compile "succeeds" with the picture silently absent. Surfacing it is
+// the difference between a teacher noticing now and noticing on exam day.
+export const MISSING_GRAPHICS_PATTERN =
+  /(File `[^']+\.(png|jpe?g|pdf|eps)' not found|Unable to load picture|Cannot determine size of graphic)/i;
+
+export function extractMissingGraphics(log: string | undefined | null): string[] {
+  if (!log) return [];
+  return log
+    .split("\n")
+    .filter((line) => MISSING_GRAPHICS_PATTERN.test(line))
+    .map((line) => line.trim());
+}
+
 async function recoverFromPossiblyCorruptedCache(): Promise<void> {
   resetRunner();
   try {
@@ -203,7 +217,11 @@ async function recoverFromPossiblyCorruptedCache(): Promise<void> {
 let compileQueue: Promise<void> = Promise.resolve();
 
 self.onmessage = (e: MessageEvent) => {
-  const { id, latexSource } = e.data;
+  const { id, latexSource, resources } = e.data as {
+    id: number;
+    latexSource: string;
+    resources?: { filename: string; content: Uint8Array }[];
+  };
 
   compileQueue = compileQueue.then(async () => {
     const runCompile = async () => {
@@ -216,6 +234,18 @@ self.onmessage = (e: MessageEvent) => {
       }
 
       const additionalFiles = await loadAdditionalFiles();
+
+      // Teacher-uploaded resources go in flat, after the bundled assets, and
+      // never over one: a name that would shadow an asset is already refused
+      // at upload time (lib/latex/resources.ts), this is the second line.
+      const bundledPaths = new Set(additionalFiles.map((f) => f.path));
+      for (const res of resources ?? []) {
+        if (bundledPaths.has(res.filename)) {
+          console.warn(`[CompilerWorker] Skipping resource '${res.filename}': bundled asset owns that name.`);
+          continue;
+        }
+        additionalFiles.push({ path: res.filename, content: res.content });
+      }
 
       return xelatex.compile({
         input: latexSource,
@@ -246,7 +276,8 @@ self.onmessage = (e: MessageEvent) => {
               line.includes("Undefined control sequence") ||
               line.includes("LaTeX Warning") ||
               line.includes("Missing ") ||
-              line.includes("omr")
+              line.includes("omr") ||
+              MISSING_GRAPHICS_PATTERN.test(line)
           );
         if (warnings.length > 0) {
           console.warn("[CompilerWorker] Successful compile produced LaTeX warnings/notices:", warnings);
@@ -254,7 +285,12 @@ self.onmessage = (e: MessageEvent) => {
       }
 
       if (result.success && result.pdf) {
-        self.postMessage({ id, success: true, pdfBytes: result.pdf });
+        self.postMessage({
+          id,
+          success: true,
+          pdfBytes: result.pdf,
+          missingGraphics: extractMissingGraphics(result.log)
+        });
       } else {
         resetRunner();
         self.postMessage({ id, success: false, error: result.log || "Compilation failed" });

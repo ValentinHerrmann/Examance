@@ -16,6 +16,7 @@ import { get } from 'svelte/store';
 import type {
   ExamRecord,
   ExerciseRecord,
+  ExerciseResourceRecord,
   ExerciseScoreRecord,
   StudentRecord,
   SubmissionRecord,
@@ -38,6 +39,34 @@ async function encryptBytes(key: CryptoKey, bytes: Uint8Array): Promise<{ ct: Ui
 async function decryptBytes(key: CryptoKey, ct: Uint8Array, iv: Uint8Array, fallbackKey?: CryptoKey | null): Promise<Uint8Array> {
   const activeFallbackKey = fallbackKey ?? (typeof window !== 'undefined' ? get(sessionStore).fallbackSessionKey : null);
   return await decrypt(key, ct, iv, activeFallbackKey);
+}
+
+// ---------------------------------------------------------------------------
+// ExerciseResourceRecord — raw file bytes, encrypted like a scan
+// ---------------------------------------------------------------------------
+
+export async function encryptResource(
+  resource: ExerciseResourceRecord,
+  bytes: Uint8Array,
+  key: CryptoKey | null
+): Promise<ExerciseResourceRecord> {
+  if (!key) {
+    return { ...resource, data: bytes, dataCt: undefined, dataIv: undefined };
+  }
+  const { ct, iv } = await encryptBytes(key, bytes);
+  return { ...resource, data: undefined, dataCt: ct, dataIv: iv };
+}
+
+/** Returns the resource's raw bytes, decrypting them if a key is available. */
+export async function decryptResourceBytes(
+  resource: ExerciseResourceRecord,
+  key: CryptoKey | null
+): Promise<Uint8Array> {
+  if (resource.dataCt && resource.dataIv) {
+    if (!key) throw new Error('Session is locked — unlock to read resource files.');
+    return await decryptBytes(key, resource.dataCt, resource.dataIv);
+  }
+  return resource.data ?? new Uint8Array(0);
 }
 
 // ---------------------------------------------------------------------------

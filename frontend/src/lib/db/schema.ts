@@ -75,6 +75,37 @@ export interface ExerciseRecord {
   payloadIv?: Uint8Array;
 }
 
+/**
+ * A file attached to an exercise so its LaTeX can reference it by name
+ * (`\includegraphics{figure.png}`, `\input{data.tex}`, ...).
+ *
+ * The bytes are AES-256-GCM encrypted (`dataCt`/`dataIv`) exactly like a scan;
+ * `data` only holds plaintext bytes when no session key is available, mirroring
+ * how the other encrypt helpers degrade. `filename`, `mimeType` and `byteSize`
+ * stay in the clear because they are Dexie index/display fields.
+ */
+export interface ExerciseResourceRecord {
+  id: string;            // UUID
+  exerciseId: string;
+  /** Sanitized, flat name referenced from the LaTeX source. Unique per exercise. */
+  filename: string;
+  mimeType: string;
+  byteSize: number;
+  createdAt?: string;
+  /** AES-256-GCM ciphertext of the raw file bytes. */
+  dataCt?: Uint8Array;
+  /** 12-byte GCM IV for dataCt. */
+  dataIv?: Uint8Array;
+  /** Raw bytes — only set when the record was written without a session key. */
+  data?: Uint8Array;
+  /** Local bytes exist that the server has not been given yet. */
+  pendingUpload?: boolean;
+  /** Row id on the server, when this file has been uploaded. */
+  remoteId?: string;
+  /** Exercise the server files this resource under (differs while staging). */
+  remoteExerciseId?: string;
+}
+
 export interface ExamExerciseRecord {
   examId: string;
   exerciseId: string;
