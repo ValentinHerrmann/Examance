@@ -53,24 +53,24 @@
 <footer class="vscode-statusbar">
   <button
     type="button"
+    on:click={toggleLocale}
+    class="statusbar-item statusbar-locale"
+    title={$t("statusBar.languageHint", { language: nextLocaleLabel })}
+  >
+    <span class="statusbar-icon">{LOCALE_FLAG[$locale]}</span>
+    <span class="statusbar-label">{$locale.toUpperCase()}</span>
+  </button>
+
+  <button
+    type="button"
     on:click={onStorageClick}
-    class="statusbar-item"
+    class="statusbar-item statusbar-right"
     title={unlocked
       ? $t("statusBar.storageSettingsHint")
       : $t("statusBar.lockedHint")}
   >
     <span class="statusbar-icon">{policyIcon}</span>
     <span class="statusbar-label">{policyLabel}</span>
-  </button>
-
-  <button
-    type="button"
-    on:click={toggleLocale}
-    class="statusbar-item statusbar-locale statusbar-right"
-    title={$t("statusBar.languageHint", { language: nextLocaleLabel })}
-  >
-    <span class="statusbar-icon">{LOCALE_FLAG[$locale]}</span>
-    <span class="statusbar-label">{$locale.toUpperCase()}</span>
   </button>
 
   <button
