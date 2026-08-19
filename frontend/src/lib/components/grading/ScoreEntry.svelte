@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
   import { gradingStore } from "$lib/grading/gradingStore";
+  import { t } from "$lib/i18n";
 
   export let exercises: ExerciseRecord[];
 
@@ -33,8 +34,8 @@
 </script>
 
 <div class="shrink-0 border-b border-slate-800 bg-slate-800 px-3 py-[0.6rem]">
-  <h3 class="m-0 text-sm font-bold text-sky-400">Exercises ({exercises.length})</h3>
-  <span class="text-[0.675rem] text-slate-500">Click row to set stamp target</span>
+  <h3 class="m-0 text-sm font-bold text-sky-400">{$t("grading.scoreEntry.title", { count: exercises.length })}</h3>
+  <span class="text-[0.675rem] text-slate-500">{$t("grading.scoreEntry.hint")}</span>
 </div>
 
 <div class="flex flex-1 min-h-0 flex-col gap-[0.35rem] overflow-y-auto p-2">
@@ -49,7 +50,7 @@
       <div class="flex items-center gap-1">
         <span class="text-[0.8rem] font-bold text-slate-100">Q{ex.orderIndex}{#if ex.subIndex}&nbsp;{String.fromCharCode(96 + ex.subIndex)}){/if}</span>
         {#if ex.id === $gradingStore.activeExerciseId}
-          <span class="text-xs" title="Stamp Target">🎯</span>
+          <span class="text-xs" title={$t("grading.scoreEntry.stampTarget")}>🎯</span>
         {/if}
       </div>
 
@@ -69,12 +70,12 @@
         <button
           type="button"
           class="cursor-pointer rounded-[3px] bg-transparent px-[0.3rem] py-0 text-[0.9rem] leading-none text-slate-500 transition-colors duration-150 ease-[ease] hover:bg-red-500/15 hover:text-red-500"
-          title="Als unkorrigiert zurücksetzen"
+          title={$t("grading.scoreEntry.resetTitle")}
           on:click={(e) => resetScore(ex, e)}>×</button>
       </div>
 
       {#if $gradingStore.manualOverride[ex.id]}
-        <span class="text-base leading-none text-amber-500" title="Manually edited">•</span>
+        <span class="text-base leading-none text-amber-500" title={$t("grading.scoreEntry.manualEdit")}>•</span>
       {/if}
     </div>
   {/each}

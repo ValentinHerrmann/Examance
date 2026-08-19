@@ -1,5 +1,7 @@
 <script lang="ts">
   import "./ExerciseQualityTable.css";
+  import { t } from '$lib/i18n';
+  import { fmt } from '$lib/utils/format';
   import type { ExercisePerformance } from '$lib/analytics/analyticsTypes';
 
   export let exerciseStats: ExercisePerformance[];
@@ -11,8 +13,8 @@
 <div class="eqt-section-card">
   <div class="eqt-section-header-row">
     <div class="eqt-section-title-group">
-      <h3>📈 Exercise & Question Quality Metrics</h3>
-      <p>Identify questions that consistently produce low average scores across multiple years or exam sessions.</p>
+      <h3>{$t('stats.exerciseQuality.title')}</h3>
+      <p>{$t('stats.exerciseQuality.description')}</p>
     </div>
 
     {#if exerciseStats.some((e) => e.avgScorePercent === null)}
@@ -20,7 +22,7 @@
         class="eqt-toggle-btn"
         on:click={() => (showAll = !showAll)}
       >
-        {showAll ? 'Show Only Graded Exercises' : 'Show All Exercises (Inc. Ungraded)'}
+        {showAll ? $t('stats.shared.toggleShowGraded') : $t('stats.shared.toggleShowAll')}
       </button>
     {/if}
   </div>
@@ -28,12 +30,12 @@
   {#if displayedExerciseStats.length === 0}
     <div class="eqt-empty-analytics-box">
       <div class="eqt-empty-icon">📊</div>
-      <h4>No Graded Exercise Performance Data Available</h4>
+      <h4>{$t('stats.exerciseQuality.emptyTitle')}</h4>
       <p>
         {#if exerciseStats.length > 0}
-          {exerciseStats.length} question(s) are linked across your {examsCount} exam(s), but none have student grades recorded yet.
+          {$t('stats.exerciseQuality.emptyWithData', { count: $fmt.number(exerciseStats.length), examsCount: $fmt.number(examsCount) })}
         {:else}
-          No exercises have been linked to your exams yet.
+          {$t('stats.exerciseQuality.emptyNoData')}
         {/if}
       </p>
       {#if exerciseStats.length > 0}
@@ -41,7 +43,7 @@
           class="eqt-secondary-toggle-btn"
           on:click={() => (showAll = !showAll)}
         >
-          {showAll ? 'Hide Ungraded Exercises' : `Show All ${exerciseStats.length} Linked Questions`}
+          {showAll ? $t('stats.shared.hideUngraded') : $t('stats.exerciseQuality.showAllLinked', { count: $fmt.number(exerciseStats.length) })}
         </button>
       {/if}
     </div>
@@ -49,19 +51,19 @@
     <table class="eqt-analytics-table">
       <thead>
         <tr>
-          <th>Exercise Name</th>
-          <th>Topic Tag</th>
-          <th>Exams Included</th>
-          <th>Avg Score %</th>
-          <th>Quality Status</th>
+          <th>{$t('stats.exerciseQuality.colName')}</th>
+          <th>{$t('stats.exerciseQuality.colTopicTag')}</th>
+          <th>{$t('stats.exerciseQuality.colExamsIncluded')}</th>
+          <th>{$t('stats.exerciseQuality.colAvgScore')}</th>
+          <th>{$t('stats.exerciseQuality.colQualityStatus')}</th>
         </tr>
       </thead>
       <tbody>
         {#each displayedExerciseStats as ex}
           <tr class:eqt-problematic-row={ex.flaggedProblematic}>
             <td class="eqt-ex-name">{ex.name}</td>
-            <td><span class="eqt-tag">{ex.topicTag || 'General'}</span></td>
-            <td>{ex.totalAppeared} Exam(s)</td>
+            <td><span class="eqt-tag">{ex.topicTag || $t('stats.exerciseQuality.generalTag')}</span></td>
+            <td>{$t('stats.exerciseQuality.examsCountSuffix', { count: $fmt.number(ex.totalAppeared) })}</td>
             <td>
               {#if ex.avgScorePercent !== null}
                 <div class="eqt-score-bar-container">
@@ -70,19 +72,19 @@
                     style="width: {ex.avgScorePercent}%"
                     class:eqt-low-bar={ex.flaggedProblematic}
                   ></div>
-                  <span class="eqt-score-text">{ex.avgScorePercent}%</span>
+                  <span class="eqt-score-text">{$fmt.percent(ex.avgScorePercent / 100, 0)}</span>
                 </div>
               {:else}
-                <span class="eqt-no-data-text">N/A (Not Graded)</span>
+                <span class="eqt-no-data-text">{$t('stats.shared.notGraded')}</span>
               {/if}
             </td>
             <td>
               {#if ex.avgScorePercent === null}
-                <span class="eqt-status-badge eqt-neutral">No Graded Data</span>
+                <span class="eqt-status-badge eqt-neutral">{$t('stats.shared.noGradedData')}</span>
               {:else if ex.flaggedProblematic}
-                <span class="eqt-status-badge eqt-danger">⚠️ High Failure Rate</span>
+                <span class="eqt-status-badge eqt-danger">{$t('stats.exerciseQuality.highFailureRate')}</span>
               {:else}
-                <span class="eqt-status-badge eqt-success">✓ Balanced</span>
+                <span class="eqt-status-badge eqt-success">{$t('stats.exerciseQuality.balanced')}</span>
               {/if}
             </td>
           </tr>

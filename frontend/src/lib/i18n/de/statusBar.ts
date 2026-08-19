@@ -1,0 +1,16 @@
+export const statusBar = {
+    storageSettingsHint: 'Klicken, um Speicher- und Datenschutzeinstellungen zu ändern',
+    lockedHint: 'Sitzung gesperrt — Klicken zum Entsperren',
+    backendConfigureHint: 'Klicken, um die Serveradresse zu konfigurieren',
+    backendCurrent: 'Aktueller Server',
+    noServer: 'Kein Server konfiguriert',
+    languageHint: 'Sprache wechseln ({language})',
+    versionMatch: 'App und Server laufen beide mit v{version}',
+    versionMismatch: 'App v{version} — Versionen unterscheiden sich, bleiben aber kompatibel',
+    versionIncompatible: 'App v{version} — inkompatible Hauptversion',
+    versionUnknown: 'App v{version} — Serverversion nicht verfügbar',
+    versionNoServer: 'App v{version} — kein Server konfiguriert',
+    linkPullRequest: 'Pull Request auf GitHub öffnen',
+    linkCommit: 'Build-Commit auf GitHub öffnen',
+    linkRelease: 'Release auf GitHub öffnen',
+} as const;

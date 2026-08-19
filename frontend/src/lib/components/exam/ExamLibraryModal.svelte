@@ -4,6 +4,7 @@
   import ExerciseLibraryPicker from '$lib/components/exercise-library/ExerciseLibraryPicker.svelte';
   import ExercisePreviewDrawer from '$lib/components/exercise-library/ExercisePreviewDrawer.svelte';
   import LatexEditor from '$lib/components/LatexEditor.svelte';
+  import { t } from '$lib/i18n';
 
   interface VariantMember {
     ex: ExerciseRecord;
@@ -58,6 +59,8 @@
   }
 
   let mcStagingTitle = "Grundlagen";
+  // MC scoring rubric sentence — exam CONTENT that flows verbatim into the compiled LaTeX/PDF.
+  // Stays German by design (see i18n brief "Do NOT translate"), not a UI string.
   let mcStagingScoringText =
     "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE";
 
@@ -95,7 +98,7 @@
   >
     <div class="elm-modal-content">
       <div class="elm-modal-header">
-        <h3>Link Exercises from Library</h3>
+        <h3>{$t("exam.libraryModal.header")}</h3>
         <button class="elm-close-btn" on:click={onRequestClose}>✕</button>
       </div>
 
@@ -106,10 +109,10 @@
             class="elm-tab-btn"
             class:active={activeTab === 'normal'}
             disabled={Boolean(editingMcGroupId)}
-            title={editingMcGroupId ? "Finish editing MC group first" : "Show normal exercises"}
+            title={editingMcGroupId ? $t("exam.libraryModal.finishEditingFirst") : $t("exam.libraryModal.showNormalExercises")}
             on:click={() => (activeTab = 'normal')}
           >
-            Normal Exercises
+            {$t("exam.libraryModal.normalTab")}
           </button>
           <button
             type="button"
@@ -117,7 +120,7 @@
             class:active={activeTab === 'mc'}
             on:click={() => (activeTab = 'mc')}
           >
-            MC Groups
+            {$t("exam.libraryModal.mcTab")}
           </button>
         </div>
 
@@ -151,12 +154,12 @@
         {#if activeTab === 'mc' && mcStagingExercises.length > 0}
           <div class="elm-mc-staging-box">
             <h4 class="elm-mc-staging-header">
-              {editingMcGroupId ? "Edit MC Group" : "MC Group Staging Area"} ({mcStagingExercises.length} sub-exercises)
+              {editingMcGroupId ? $t("exam.libraryModal.stagingHeaderEdit") : $t("exam.libraryModal.stagingHeaderNew")} {$t("exam.libraryModal.subExercisesCount", { count: mcStagingExercises.length })}
             </h4>
             <ul class="elm-mc-staging-list">
               {#each mcStagingExercises as ex, i}
                 <li class="elm-mc-staging-item">
-                  <span>{String.fromCharCode(97 + i)}) {ex.name || "Untitled"}</span>
+                  <span>{String.fromCharCode(97 + i)}) {ex.name || $t("exam.page.library.untitled")}</span>
                   <div style="display: flex; gap: 0.375rem; align-items: center;">
                     {#if onReorderMcStaging}
                       <button
@@ -164,28 +167,28 @@
                         style="background: none; border: none; color: #94a3b8; cursor: pointer; padding: 0 4px;"
                         disabled={i === 0}
                         on:click={() => onReorderMcStaging && onReorderMcStaging(i, "up")}
-                        title="Move up"
+                        title={$t("exam.libraryModal.moveUp")}
                       >↑</button>
                       <button
                         type="button"
                         style="background: none; border: none; color: #94a3b8; cursor: pointer; padding: 0 4px;"
                         disabled={i === mcStagingExercises.length - 1}
                         on:click={() => onReorderMcStaging && onReorderMcStaging(i, "down")}
-                        title="Move down"
+                        title={$t("exam.libraryModal.moveDown")}
                       >↓</button>
                     {/if}
-                    <button type="button" style="background: none; border: none; color: #f87171; cursor: pointer;" on:click={() => onToggleMcStaging(ex.id)}>Remove</button>
+                    <button type="button" style="background: none; border: none; color: #f87171; cursor: pointer;" on:click={() => onToggleMcStaging(ex.id)}>{$t("exam.libraryModal.remove")}</button>
                   </div>
                 </li>
               {/each}
             </ul>
             <div class="elm-mc-staging-form">
               <div>
-                <label class="elm-mc-staging-label" for="mc-group-title-modal">MC Group Title</label>
+                <label class="elm-mc-staging-label" for="mc-group-title-modal">{$t("exam.libraryModal.groupTitleLabel")}</label>
                 <input id="mc-group-title-modal" type="text" bind:value={mcStagingTitle} class="elm-mc-staging-input" />
               </div>
               <div>
-                <label class="elm-mc-staging-label">Scoring Scheme</label>
+                <label class="elm-mc-staging-label">{$t("exam.libraryModal.scoringSchemeLabel")}</label>
                 <div class="elm-mc-staging-editor-wrap">
                   <LatexEditor bind:value={mcStagingScoringText} rows={3} />
                 </div>
@@ -196,12 +199,12 @@
                 disabled={mcStagingExercises.length < 1 || mcStagingExercises.length > 4}
                 on:click={handleFinalizeMcGroup}
               >
-                {editingMcGroupId ? "Update MC Group" : "Add MC Group to Exam"} ({mcStagingExercises.length} sub-exercises)
+                {editingMcGroupId ? $t("exam.libraryModal.updateGroupButton") : $t("exam.libraryModal.addGroupButton")} {$t("exam.libraryModal.subExercisesCount", { count: mcStagingExercises.length })}
               </button>
               {#if mcStagingExercises.length < 1}
-                <span style="font-size: 0.75rem; color: #64748b;">Select 1 to 4 sub-exercises to form a group.</span>
+                <span style="font-size: 0.75rem; color: #64748b;">{$t("exam.libraryModal.selectHint")}</span>
               {:else if mcStagingExercises.length > 4}
-                <span style="font-size: 0.75rem; color: #fbbf24;">Maximum 4 sub-exercises allowed per MC group.</span>
+                <span style="font-size: 0.75rem; color: #fbbf24;">{$t("exam.libraryModal.maxHint")}</span>
               {/if}
             </div>
           </div>
@@ -210,8 +213,8 @@
       </div>
 
       <div class="elm-modal-footer">
-        <button class="elm-cancel-btn" on:click={onRequestClose}>Cancel</button>
-        <button class="elm-save-btn" on:click={onApply}>Apply Linked Exercises</button>
+        <button class="elm-cancel-btn" on:click={onRequestClose}>{$t("common.cancel")}</button>
+        <button class="elm-save-btn" on:click={onApply}>{$t("exam.libraryModal.applyButton")}</button>
       </div>
     </div>
   </div>

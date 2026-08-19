@@ -2,6 +2,7 @@ import { clearAllTables } from "$lib/db/db";
 import { projectStore } from "$lib/stores/project";
 import { packProject } from "$lib/archive/packer";
 import { unpackProject } from "$lib/archive/unpacker";
+import { translate } from "$lib/i18n";
 
 /**
  * Opens a .bgproj archive file by unpacking it into the local workspace.
@@ -32,13 +33,19 @@ export function formatImportSummary(result: {
   studentCount: number;
   errors: string[];
 }): string {
-  const loaded = `Loaded ${result.examCount} exam(s) and ${result.studentCount} student(s).`;
+  const loaded = translate("workspace.archive.summaryLoaded", {
+    examCount: result.examCount,
+    studentCount: result.studentCount,
+  });
   if (result.errors.length === 0) {
-    return `Import successful! ${loaded}`;
+    return translate("workspace.archive.summarySuccess", { loaded });
   }
   return (
-    `Import finished with ${result.errors.length} problem(s). ${loaded}\n\n` +
-    `The following could not be saved to the server:\n` +
+    translate("workspace.archive.summaryProblems", {
+      errorCount: result.errors.length,
+      loaded,
+    }) +
+    `\n\n${translate("workspace.archive.summaryProblemsHeading")}\n` +
     result.errors.map((e) => `• ${e}`).join('\n')
   );
 }
@@ -75,9 +82,7 @@ export async function clearWorkspace(): Promise<void> {
  * @returns true if user confirmed
  */
 export function confirmWorkspaceReplace(): boolean {
-  return confirm(
-    "Opening a new .bgproj file will replace your current workspace and clear existing local data. Unsaved changes will be lost. Continue?"
-  );
+  return confirm(translate("workspace.archive.confirmReplace"));
 }
 
 /**
@@ -85,9 +90,7 @@ export function confirmWorkspaceReplace(): boolean {
  * @returns true if user confirmed
  */
 export function confirmWorkspaceClear(): boolean {
-  return confirm(
-    "Are you sure you want to close this project and clear all local workspace data? Unsaved changes will be lost."
-  );
+  return confirm(translate("workspace.archive.confirmClear"));
 }
 
 /**

@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from "svelte";
   import { httpErrorStore } from "$lib/stores/httpErrorStore";
   import "./HttpCatModal.css";
+  import { t, tOptional } from "$lib/i18n";
 
   // This modal used to render an image from the http.cat service, which
   // disclosed the user's IP, User-Agent and the failing status code to a third
@@ -30,23 +31,11 @@
     }
   });
 
-  const statusTitles: Record<number, string> = {
-    400: "Bad Request",
-    401: "Unauthorized",
-    403: "Forbidden",
-    404: "Not Found",
-    408: "Request Timeout",
-    409: "Conflict",
-    418: "I'm a teapot",
-    422: "Unprocessable Entity",
-    429: "Too Many Requests",
-    500: "Internal Server Error",
-    502: "Bad Gateway",
-    503: "Service Unavailable",
-    504: "Gateway Timeout",
-  };
-
-  $: statusText = statusTitles[status] || "HTTP Error";
+  // Status titles live in the catalogs under `errors.http.<status>`; an
+  // unmapped status falls back to a generic label. `$t` is referenced so the
+  // title re-renders on a language switch.
+  $: statusText =
+    $tOptional(`errors.http.${status}`) ?? $t("errors.httpFallback");
 </script>
 
 {#if $httpErrorStore.isOpen}
@@ -63,7 +52,7 @@
       <button
         type="button"
         class="http-cat-close-btn"
-        aria-label="Close"
+        aria-label={$t("common.close")}
         on:click={() => httpErrorStore.closeError()}
       >
         ✕

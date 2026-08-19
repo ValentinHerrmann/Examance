@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t } from "$lib/i18n";
+
   /** Page heading, e.g. "Impressum". */
   export let title: string;
   /** Short line under the heading. */
@@ -18,7 +20,7 @@
   </div>
 
   <footer class="legal-footer">
-    <a href="/">&larr; Back to Examance</a>
+    <a href="/">&larr; {$t("legal.backToHome")}</a>
   </footer>
 </article>
 

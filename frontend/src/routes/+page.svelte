@@ -18,6 +18,7 @@
   import { submissionRepository } from '$lib/repositories/submissionRepository';
   import { offlineQueue } from '$lib/services/offlineQueue';
   import { goto } from '$app/navigation';
+  import { translate } from '$lib/i18n';
 
   import DashboardSessionState from '$lib/components/dashboard/DashboardSessionState.svelte';
   import DashboardHeader from '$lib/components/dashboard/DashboardHeader.svelte';
@@ -216,18 +217,18 @@
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
 
-    const password = prompt('Enter password to decrypt and import .bgproj archive:');
+    const password = prompt(translate('dashboard.importPasswordPrompt'));
     if (!password) return;
 
     isImporting = true;
-    importStatus = 'Decrypting & unpacking archive...';
+    importStatus = translate('dashboard.importDecrypting');
 
     try {
       const buffer = new Uint8Array(await file.arrayBuffer());
       await clearAllTables();
       projectStore.clear();
       const res = await unpackProject(buffer, password, (p) => {
-        importStatus = `Status: ${p.stage} (${p.current}%)`;
+        importStatus = translate('dashboard.importStatus', { stage: p.stage, current: p.current });
       });
 
 
@@ -235,7 +236,7 @@
       alert(formatImportSummary(res));
       await refreshExams();
     } catch (err: any) {
-      alert(`Import failed: ${err.message}`);
+      alert(translate('dashboard.importFailed', { message: err.message }));
     } finally {
       isImporting = false;
       importStatus = '';
@@ -275,12 +276,19 @@
   }
 
   async function handleDeleteDashboardExam(id: string, title?: string) {
-    if (!confirm(`Are you sure you want to delete exam "${title || 'Untitled'}"?`)) return;
+    if (
+      !confirm(
+        translate('dashboard.deleteExamConfirm', {
+          title: title || translate('dashboard.deleteExamFallbackTitle'),
+        })
+      )
+    )
+      return;
     try {
       await examRepository.delete(id);
       await refreshExams();
     } catch (err: any) {
-      alert(`Delete failed: ${err.message}`);
+      alert(translate('dashboard.deleteFailed', { message: err.message }));
     }
   }
 

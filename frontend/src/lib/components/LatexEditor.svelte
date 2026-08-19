@@ -52,6 +52,7 @@
   } from "./LatexEditor";
   import { QUICK_INSERT_MACROS, type QuickInsertMacro } from "$lib/latex/quickInsertMacros";
   import { computeQuickInsert } from "$lib/latex/quickInsertLogic";
+  import { t, type TranslationKey } from "$lib/i18n";
 
   export let value: string = "";
   export let rows: number = 8;
@@ -63,12 +64,20 @@
     category,
     macros: QUICK_INSERT_MACROS.filter((m) => m.category === category)
   }));
-  const categoryLabels: Record<QuickInsertMacro["category"], string> = {
-    solutions: "Solutions",
-    scoring: "Scoring",
-    formatting: "Formatting",
-    generic: "Generic"
-  };
+  $: categoryLabels = {
+    solutions: $t("editor.categories.solutions"),
+    scoring: $t("editor.categories.scoring"),
+    formatting: $t("editor.categories.formatting"),
+    generic: $t("editor.categories.generic")
+  } satisfies Record<QuickInsertMacro["category"], string>;
+
+  // Palette text is keyed by macro id, so the key is only known at runtime and
+  // has to be cast. A key missing from the catalogs renders as the key itself
+  // rather than an empty button.
+  $: macroLabel = (macro: QuickInsertMacro) =>
+    $t(`editor.macros.${macro.id}.label` as TranslationKey);
+  $: macroDescription = (macro: QuickInsertMacro) =>
+    $t(`editor.macros.${macro.id}.description` as TranslationKey);
 
   function insertMacro(macro: QuickInsertMacro) {
     if (!view) return;
@@ -297,7 +306,7 @@
                 on:focus={(e) => scheduleTooltip(macro, e.currentTarget)}
                 on:blur={hideTooltip}
               >
-                {macro.label}
+                {macroLabel(macro)}
               </button>
             {/each}
           </div>
@@ -313,7 +322,7 @@
     class="pointer-events-none fixed z-50 flex max-w-xs flex-col gap-1 rounded border border-slate-700 bg-slate-900 px-2 py-1.5 text-[0.7rem] shadow-lg"
     style="left: {tooltipX}px; top: {tooltipY}px;"
   >
-    <span class="text-slate-300">{hoveredMacro.description}</span>
+    <span class="text-slate-300">{macroDescription(hoveredMacro)}</span>
     <code class="rounded bg-slate-950 px-1.5 py-1 font-mono text-sky-300">{hoveredMacro.preview}</code>
   </div>
 {/if}

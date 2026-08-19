@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./AppHeader.css";
+  import { t } from "$lib/i18n";
   import WorkspaceMenu from "./WorkspaceMenu.svelte";
   import SessionInfo from "./SessionInfo.svelte";
 
@@ -17,23 +18,23 @@
 <header class="app-header">
   <div class="app-header-brand">
     <a href="/">
-      <img src="/favicon.png" alt="Examance logo" class="app-header-brand-logo" />
+      <img src="/favicon.png" alt={$t("nav.logoAlt")} class="app-header-brand-logo" />
       <span>Examance</span>
     </a>
   </div>
   <nav class="app-header-nav-links">
-    <a href="/">Dashboard</a>
-    <a href="/exercises">Exercise Library</a>
-    <a href="/analytics">Analytics</a>
+    <a href="/">{$t("nav.dashboard")}</a>
+    <a href="/exercises">{$t("nav.exerciseLibrary")}</a>
+    <a href="/analytics">{$t("nav.analytics")}</a>
     {#if userRole === "admin"}
-      <a href="/admin/users">User Management</a>
+      <a href="/admin/users">{$t("nav.userManagement")}</a>
     {/if}
-    <a href="/settings">Settings</a>
+    <a href="/settings">{$t("nav.settings")}</a>
   </nav>
   <div class="app-header-right">
     <div class="workspace-menu-container">
       <button class="app-header-action-btn" on:click={onToggleWorkspaceMenu}>
-        ⚙️ Workspace ▾
+        ⚙️ {$t("nav.workspace")} ▾
       </button>
       <WorkspaceMenu
         isOpen={isWorkspaceMenuOpen}

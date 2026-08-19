@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./UnmatchedResolver.css";
+  import { t } from "$lib/i18n";
   interface UnmatchedSubmission {
     submissionId: string;
     studentId: string;
@@ -13,10 +14,9 @@
 
 {#if unmatchedList.length > 0}
   <div class="unmatched-section">
-    <h3>Unmatched Submissions (Fallback Code Entry Needed)</h3>
+    <h3>{$t("scanning.unmatchedResolver.title")}</h3>
     <p class="desc">
-      The following booklet submissions could not read a QR code
-      automatically. Enter the fallback code printed on the cover page.
+      {$t("scanning.unmatchedResolver.description")}
     </p>
 
     <div class="unmatched-table">
@@ -25,10 +25,10 @@
           <span class="current-tag">{item.currentFallback}</span>
           <input
             type="text"
-            placeholder="Enter printed fallback code (e.g. A-X7K2M9)"
+            placeholder={$t("scanning.unmatchedResolver.placeholder")}
             bind:value={item.newCode}
           />
-          <button on:click={() => onUpdateFallbackCode(item)}>Link Code</button>
+          <button on:click={() => onUpdateFallbackCode(item)}>{$t("scanning.unmatchedResolver.linkCode")}</button>
         </div>
       {/each}
     </div>

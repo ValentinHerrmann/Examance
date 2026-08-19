@@ -15,6 +15,7 @@
   import DualPdfPreview from "./DualPdfPreview.svelte";
   import SuggestInput from "$lib/components/common/SuggestInput.svelte";
   import { recordValue } from "$lib/utils/recentValues";
+  import { t, translate } from "$lib/i18n";
 
   export let isOpen = false;
   export let editingExercise: ExerciseRecord | null = null;
@@ -80,7 +81,7 @@
 
   function initForm() {
     if (isCreatingVersion && versionBaseEx) {
-      editorName = versionBaseEx.name || "Untitled";
+      editorName = versionBaseEx.name || translate("exercises.untitled");
       editorTopicTag = versionBaseEx.topicTag || "_General";
       editorGrade = versionBaseEx.grade || "";
       editorSubject = versionBaseEx.subject || "";
@@ -89,7 +90,7 @@
       editorQuestionType = versionBaseEx.questionType === "mc" ? "mc" : "free_text";
       editorPenalty = versionBaseEx.penalty || 0.5;
     } else if (editingExercise) {
-      editorName = editingExercise.name || "Untitled";
+      editorName = editingExercise.name || translate("exercises.untitled");
       editorTopicTag = editingExercise.topicTag || "_General";
       editorGrade = editingExercise.grade || "";
       editorSubject = editingExercise.subject || "";
@@ -267,7 +268,7 @@
       previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
     } catch (err: any) {
       console.error("Exercise preview failed:", err);
-      errorMsg = `Preview failed: ${err.message || "Unknown compilation error"}`;
+      errorMsg = translate("exercises.editor.previewFailed", { message: err.message || translate("exercises.editor.previewFailedUnknown") });
     } finally {
       isPreviewLoading = false;
     }
@@ -275,17 +276,17 @@
 
   async function handleSaveExercise() {
     if (!editorName.trim()) {
-      errorMsg = "Exercise name is required.";
+      errorMsg = translate("exercises.editor.nameRequired");
       return;
     }
 
     if (editorQuestionType !== "free_text") {
       if (mcOptions.length < 2) {
-        errorMsg = "Multiple Choice exercise must have at least 2 options.";
+        errorMsg = translate("exercises.editor.mcMinOptions");
         return;
       }
       if (!mcOptions.some((o) => o.correct)) {
-        errorMsg = "At least one option must be marked as correct.";
+        errorMsg = translate("exercises.editor.mcCorrectRequired");
         return;
       }
       regenerateMcLatex();
@@ -442,7 +443,7 @@
       dispatch("save", { exercise: record, isNewVersion: false });
       forceClose();
     } catch (err: any) {
-      errorMsg = `Failed to save exercise: ${err.message}`;
+      errorMsg = translate("exercises.editor.saveFailed", { message: err.message });
     } finally {
       isSaving = false;
     }
@@ -475,10 +476,10 @@
           <div class="flex items-center gap-[0.65rem]">
             <h3 id="exercise-editor-title" class="m-0 text-[1.15rem] text-slate-100">
               {isCreatingVersion
-                ? `New Version: ${editorName}`
+                ? $t("exercises.editor.titleNewVersion", { name: editorName })
                 : editingExercise
-                  ? `Edit Exercise: ${editorName}`
-                  : "Create New Exercise"}
+                  ? $t("exercises.editor.titleEdit", { name: editorName })
+                  : $t("exercises.editor.titleCreate")}
             </h3>
             {#if isCreatingVersion}
               <span class="rounded bg-sky-400/15 border border-sky-400/30 px-2 py-[0.15rem] text-xs font-semibold text-sky-400">v{(versionBaseEx?.version || 1) + 1}</span>
@@ -490,11 +491,11 @@
         <div class="flex flex-wrap items-center gap-[0.85rem] rounded-md border border-slate-700 bg-slate-900 px-3 py-2">
           {#if editingExercise || isCreatingVersion}
             <div class="flex flex-wrap items-center gap-[0.45rem] text-[0.85rem]">
-              <span class="text-[0.8rem] text-slate-400">Exercise Group:</span>
+              <span class="text-[0.8rem] text-slate-400">{$t("exercises.editor.groupLabel")}</span>
               <strong class="font-semibold text-slate-100">{editorName}</strong>
               <span class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.15rem] text-xs text-slate-300">🏷️ {editorTopicTag}</span>
               {#if editorGrade}
-                <span class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.15rem] text-xs text-slate-300">🎓 Grade {editorGrade}</span>
+                <span class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.15rem] text-xs text-slate-300">{$t("exercises.editor.gradeBadge", { grade: editorGrade })}</span>
               {/if}
               {#if editorSubject}
                 <span class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.15rem] text-xs text-slate-300">📚 {editorSubject}</span>
@@ -502,31 +503,31 @@
             </div>
 
             <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-              <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-slate-400">Variant Key:</label>
+              <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.variantKeyLabel")}</label>
               <input
                 id="editorVariantKey"
                 type="text"
                 bind:value={editorVariantKey}
-                placeholder="e.g. Moebel, Fahrzeug"
+                placeholder={$t("exercises.editor.variantKeyPlaceholder")}
                 class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
               />
             </div>
           {:else}
             <div class="flex w-full flex-wrap items-center gap-[0.65rem]">
               <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <label for="editorName" class="whitespace-nowrap font-semibold text-slate-400">Name *</label>
+                <label for="editorName" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.nameLabel")}</label>
                 <input
                   id="editorName"
                   type="text"
                   bind:value={editorName}
                   required
-                  placeholder="Group Name"
+                  placeholder={$t("exercises.editor.namePlaceholder")}
                   class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
                 />
               </div>
 
               <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <label for="editorTopic" class="whitespace-nowrap font-semibold text-slate-400">Topic *</label>
+                <label for="editorTopic" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.topicLabel")}</label>
                 <SuggestInput
                   id="editorTopic"
                   storageKey="exercise.topic"
@@ -538,40 +539,40 @@
               </div>
 
               <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <label for="editorGrade" class="whitespace-nowrap font-semibold text-slate-400">Grade</label>
+                <label for="editorGrade" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.gradeLabel")}</label>
                 <SuggestInput
                   id="editorGrade"
                   storageKey="exercise.grade"
                   bind:value={editorGrade}
-                  placeholder="e.g. 10"
+                  placeholder={$t("exercises.editor.gradePlaceholder")}
                   class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
                 />
               </div>
 
               <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <label for="editorSubject" class="whitespace-nowrap font-semibold text-slate-400">Subject</label>
+                <label for="editorSubject" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.subjectLabel")}</label>
                 <SuggestInput
                   id="editorSubject"
                   storageKey="exercise.subject"
                   bind:value={editorSubject}
-                  placeholder="e.g. Informatik"
+                  placeholder={$t("exercises.editor.subjectPlaceholder")}
                   class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
                 />
               </div>
 
               <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-slate-400">Variant Key</label>
+                <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.variantKeyLabelPlain")}</label>
                 <input
                   id="editorVariantKey"
                   type="text"
                   bind:value={editorVariantKey}
-                  placeholder="e.g. Moebel"
+                  placeholder={$t("exercises.editor.variantKeyPlaceholderPlain")}
                   class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
                 />
               </div>
 
               <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <span class="whitespace-nowrap font-semibold text-slate-400">Exercise Type:</span>
+                <span class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.exerciseTypeLabel")}</span>
                 <div class="inline-flex rounded-md border border-slate-700 bg-slate-900 p-0.5">
                   <button
                     type="button"
@@ -585,7 +586,7 @@
                       handleQuestionTypeChange();
                     }}
                   >
-                    📝 Free Text
+                    {$t("exercises.editor.freeTextButton")}
                   </button>
                   <button
                     type="button"
@@ -599,7 +600,7 @@
                       handleQuestionTypeChange();
                     }}
                   >
-                    ☑️ Multiple Choice (MC)
+                    {$t("exercises.editor.mcButton")}
                   </button>
                 </div>
               </div>
@@ -619,12 +620,12 @@
               type="button"
               class="box-border flex w-full shrink-0 cursor-pointer items-center justify-between gap-2 border-0 border-b border-slate-700 bg-slate-800 px-3 py-2 text-left transition-colors duration-150 ease-[ease] hover:bg-slate-700 group"
               on:click={handleToggleLatex}
-              title="Click to collapse LaTeX Code Panel"
+              title={$t("exercises.editor.collapseLatexTitle")}
             >
               <div class="flex min-w-0 items-center gap-2">
-                <span class="whitespace-nowrap text-[0.85rem] font-semibold text-slate-100">💻 LaTeX Source Code</span>
+                <span class="whitespace-nowrap text-[0.85rem] font-semibold text-slate-100">{$t("exercises.editor.latexSourceCodeLabel")}</span>
                 <span class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded border border-sky-400/20 bg-sky-400/10 px-2 py-[0.15rem] text-xs text-sky-400">
-                  Auto-Score: <strong class="text-sky-400">{parseExerciseScore(editorLatexBody)} Pkt</strong>
+                  {$t("exercises.editor.autoScoreLabel", { score: parseExerciseScore(editorLatexBody) })}
                 </span>
               </div>
               <div class="flex shrink-0 items-center gap-2">
@@ -633,9 +634,9 @@
                   class="shrink-0 cursor-pointer rounded border-0 bg-sky-600 px-3 py-[0.35rem] text-[0.8rem] font-semibold text-white transition-colors duration-150 ease-[ease] [&:hover:not(:disabled)]:bg-sky-700"
                   on:click|stopPropagation={handlePreviewExercise}
                   disabled={isPreviewLoading}
-                  title="Compile & preview exercise PDF"
+                  title={$t("exercises.editor.previewButtonTitle")}
                 >
-                  {isPreviewLoading ? "Compiling..." : "🔍 Live Preview PDF"}
+                  {isPreviewLoading ? $t("exercises.editor.previewButtonLoading") : $t("exercises.editor.previewButton")}
                 </button>
                 <span class="shrink-0 text-base font-bold text-slate-400 transition-colors duration-150 ease-[ease] group-hover:text-sky-400">›</span>
               </div>
@@ -646,15 +647,15 @@
                 <div class="flex flex-col gap-3 rounded-lg border border-slate-700 bg-slate-800/90 p-3 text-xs">
                   <div class="flex items-center justify-between">
                     <span class="font-semibold text-sky-400">
-                      Structured Options Editor (MC)
+                      {$t("exercises.editor.mcEditorTitle")}
                     </span>
                     <span class="text-[0.75rem] text-slate-400">
-                      Multiple correct options allowed
+                      {$t("exercises.editor.mcEditorHint")}
                     </span>
                   </div>
 
                   <div class="flex flex-col gap-1">
-                    <label class="font-semibold text-slate-300">Question Text / Intro</label>
+                    <label class="font-semibold text-slate-300">{$t("exercises.editor.mcQuestionTextLabel")}</label>
                     <LatexEditor
                       bind:value={mcQuestionText}
                       rows={4}
@@ -665,7 +666,7 @@
 
                   <div class="flex flex-col gap-1">
                     <label class="font-semibold text-slate-300" for="mc-penalty">
-                      Penalty per wrong cross (points deducted, right-minus-wrong)
+                      {$t("exercises.editor.mcPenaltyLabel")}
                     </label>
                     <input
                       id="mc-penalty"
@@ -679,14 +680,14 @@
 
                   <div class="flex flex-col gap-2">
                     <div class="flex items-center justify-between text-slate-300 font-semibold">
-                      <span>Options ({mcOptions.length})</span>
+                      <span>{$t("exercises.editor.mcOptionsLabel", { count: mcOptions.length })}</span>
                       <button
                         type="button"
                         class="rounded bg-sky-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         on:click={addMcOption}
                         disabled={mcOptions.length >= 8}
                       >
-                        + Add Option
+                        {$t("exercises.editor.mcAddOptionButton")}
                       </button>
                     </div>
 
@@ -696,7 +697,7 @@
                           type="checkbox"
                           checked={option.correct}
                           on:change={() => toggleOptionCorrect(index)}
-                          title="Mark option as correct"
+                          title={$t("exercises.editor.mcOptionCorrectTitle")}
                           class="h-4 w-4 rounded border-slate-700 bg-slate-800 text-sky-500 focus:ring-sky-400"
                         />
 
@@ -704,12 +705,12 @@
                           type="text"
                           value={option.text}
                           on:input={(e) => updateOptionText(index, e.currentTarget.value)}
-                          placeholder={`Option ${index + 1} text`}
+                          placeholder={$t("exercises.editor.mcOptionPlaceholder", { number: index + 1 })}
                           class="flex-1 rounded border border-slate-700 bg-slate-800 px-2 py-1 text-slate-100 placeholder-slate-500 focus:border-sky-400 focus:outline-none"
                         />
 
                         <span class={`text-[0.7rem] font-semibold px-1.5 py-0.5 rounded ${option.correct ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'text-slate-500'}`}>
-                          {option.correct ? "Richtig" : "Falsch"}
+                          {option.correct ? $t("exercises.editor.mcOptionCorrect") : $t("exercises.editor.mcOptionIncorrect")}
                         </span>
 
                         <button
@@ -717,7 +718,7 @@
                           class="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-red-400 disabled:opacity-30 disabled:hover:text-slate-400"
                           on:click={() => removeMcOption(index)}
                           disabled={mcOptions.length <= 2}
-                          title="Remove option"
+                          title={$t("exercises.editor.mcOptionRemoveTitle")}
                         >
                           ✕
                         </button>
@@ -727,7 +728,7 @@
                 </div>
               {/if}
               <div class="flex items-center justify-between px-1 text-xs">
-                <span class="font-semibold text-slate-300">Preview / Composed LaTeX Source</span>
+                <span class="font-semibold text-slate-300">{$t("exercises.editor.latexPreviewLabel")}</span>
               </div>
               <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert />
             </div>
@@ -736,11 +737,11 @@
               type="button"
               class="flex h-full w-full flex-col items-center gap-4 border-0 bg-slate-900 px-[0.2rem] py-3 text-slate-400 transition-all duration-150 ease-[ease] hover:bg-slate-800 hover:text-sky-400 group"
               on:click={handleToggleLatex}
-              title="Click to expand LaTeX Code Panel"
+              title={$t("exercises.editor.expandLatexTitle")}
             >
               <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-slate-700 bg-slate-800 text-[0.9rem] font-bold group-hover:border-sky-400 group-hover:bg-sky-600 group-hover:text-white">›</span>
               <span class="shrink-0 text-[0.95rem] leading-none">💻</span>
-              <span class="whitespace-nowrap text-[0.8rem] font-semibold tracking-[0.5px]" style="writing-mode: vertical-rl; transform: rotate(180deg);">LaTeX Source Code ({parseExerciseScore(editorLatexBody)} Pkt)</span>
+              <span class="whitespace-nowrap text-[0.8rem] font-semibold tracking-[0.5px]" style="writing-mode: vertical-rl; transform: rotate(180deg);">{$t("exercises.editor.latexPanelCollapsedLabel", { score: parseExerciseScore(editorLatexBody) })}</span>
             </button>
           {/if}
         </div>
@@ -750,14 +751,14 @@
           {previewSolutionPdfUrl}
           bind:showAngabePreview
           bind:showLoesungPreview
-          titleAngabe="Exercise"
-          titleLoesung="Solution"
-          placeholderText="Click 'Live Preview PDF' to render"
+          titleAngabe={$t("exercises.editor.previewAngabeTitle")}
+          titleLoesung={$t("exercises.editor.previewLoesungTitle")}
+          placeholderText={$t("exercises.editor.previewPlaceholder")}
         />
       </div>
 
       <div class="flex justify-end gap-3 border-t border-slate-700 bg-slate-900 px-6 py-5">
-        <button type="button" class="cursor-pointer rounded-md border-0 bg-slate-700 px-5 py-[0.6rem] text-[0.875rem] font-semibold text-white hover:bg-slate-600" on:click={requestClose}>Cancel</button>
+        <button type="button" class="cursor-pointer rounded-md border-0 bg-slate-700 px-5 py-[0.6rem] text-[0.875rem] font-semibold text-white hover:bg-slate-600" on:click={requestClose}>{$t("common.cancel")}</button>
         <button
           type="button"
           class="cursor-pointer rounded-md border-0 bg-blue-600 px-5 py-[0.6rem] text-[0.875rem] font-semibold text-white [&:hover:not(:disabled)]:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -765,10 +766,10 @@
           disabled={isSaving}
         >
           {isSaving
-            ? "Saving..."
+            ? $t("exercises.editor.saveButtonSaving")
             : isCreatingVersion
-              ? "Save New Version"
-              : "Save Exercise"}
+              ? $t("exercises.editor.saveButtonNewVersion")
+              : $t("exercises.editor.saveButton")}
         </button>
       </div>
     </div>
@@ -777,10 +778,10 @@
 
 <ConfirmDialog
   isOpen={showConfirmClose}
-  title="Discard Exercise Changes?"
-  message="You have modified fields in this exercise. Discarding will lose your unsaved changes."
-  confirmText="Discard Changes"
-  cancelText="Keep Editing"
+  title={$t("exercises.editor.discardTitle")}
+  message={$t("exercises.editor.discardMessage")}
+  confirmText={$t("exercises.confirmDiscard.confirmText")}
+  cancelText={$t("exercises.confirmDiscard.cancelText")}
   on:confirm={forceClose}
   on:cancel={() => (showConfirmClose = false)}
 />

@@ -1,6 +1,7 @@
 <script lang="ts">
   import "./UnlockForm.css";
   import SuggestInput from "$lib/components/common/SuggestInput.svelte";
+  import { t } from "$lib/i18n";
   export let backendUrl: string;
   export let email: string;
   export let password: string;
@@ -18,8 +19,8 @@
 
 <div class="unlock-header">
   <img src="/favicon.png" alt="Examance logo" class="unlock-banner-logo" />
-  <h1>Welcome to Examance</h1>
-  <p class="unlock-subtitle">Privacy-First Anonymous Exam Management & Grading</p>
+  <h1>{$t("auth.unlock.title")}</h1>
+  <p class="unlock-subtitle">{$t("auth.unlock.subtitle")}</p>
 </div>
 
 {#if errorMsg}
@@ -29,44 +30,42 @@
 <div class="unlock-options-grid">
   <!-- Option A: Local Mode -->
   <div class="option-card local-card">
-    <div class="card-badge">No Account Required</div>
+    <div class="card-badge">{$t("auth.unlock.local.noAccountRequired")}</div>
     <div class="card-icon">🛡️</div>
-    <h2>Start Local Workspace</h2>
+    <h2>{$t("auth.unlock.local.startWorkspace")}</h2>
     <p class="description">
-      Ideal for solo offline grading. All data is encrypted with local keys and stored directly in your browser.
+      {$t("auth.unlock.local.description")}
     </p>
     <ul class="features-list">
-      <li>✨ No registration needed</li>
-      <li>🔒 Encrypted at rest with your passphrase</li>
-      <li>💾 Export/Import workspace as .bgproj file</li>
+      <li>{$t("auth.unlock.local.featureNoRegistration")}</li>
+      <li>{$t("auth.unlock.local.featureEncrypted")}</li>
+      <li>{$t("auth.unlock.local.featureExportImport")}</li>
     </ul>
 
     {#if needsLegacyMigration}
       <p class="local-notice">
-        This workspace was created with an older version that kept its key in
-        browser storage. Choose a passphrase now — your existing data will be
-        re-encrypted with it.
+        {$t("auth.unlock.local.legacyMigrationNotice")}
       </p>
     {/if}
 
     <form on:submit|preventDefault={onUnlockLocal} class="local-form">
       <div class="form-group">
         <label for="localPassphrase">
-          {isNewLocalVault ? "Choose a passphrase" : "Workspace passphrase"}
+          {isNewLocalVault ? $t("auth.unlock.local.choosePassphrase") : $t("auth.unlock.local.workspacePassphrase")}
         </label>
         <input
           id="localPassphrase"
           type="password"
           autocomplete={isNewLocalVault ? "new-password" : "current-password"}
           bind:value={localPassphrase}
-          placeholder="At least 12 characters"
+          placeholder={$t("auth.unlock.local.passphrasePlaceholder")}
           disabled={isLoading}
         />
       </div>
 
       {#if isNewLocalVault}
         <div class="form-group">
-          <label for="localPassphraseConfirm">Repeat passphrase</label>
+          <label for="localPassphraseConfirm">{$t("auth.unlock.local.repeatPassphrase")}</label>
           <input
             id="localPassphraseConfirm"
             type="password"
@@ -76,19 +75,17 @@
           />
         </div>
         <p class="local-warning">
-          There is no recovery. The passphrase never leaves this device and is
-          never stored, so if you forget it the workspace cannot be opened.
-          Keep a .bgproj export as a backup.
+          {$t("auth.unlock.local.noRecoveryWarning")}
         </p>
       {/if}
 
       <button type="submit" class="local-unlock-btn" disabled={isLoading}>
         {#if needsLegacyMigration}
-          Set passphrase & migrate
+          {$t("auth.unlock.local.setPassphraseAndMigrate")}
         {:else if isNewLocalVault}
-          Create Local Workspace
+          {$t("auth.unlock.local.createWorkspace")}
         {:else}
-          Unlock Local Workspace
+          {$t("auth.unlock.local.unlockWorkspace")}
         {/if}
       </button>
     </form>
@@ -96,52 +93,52 @@
 
   <!-- Option B: Cloud Account -->
   <div class="option-card cloud-card">
-    <div class="card-badge cloud">School Account</div>
+    <div class="card-badge cloud">{$t("auth.unlock.cloud.schoolAccount")}</div>
     <div class="card-icon">☁️</div>
-    <h2>Connect to Cloud Server</h2>
+    <h2>{$t("auth.unlock.cloud.connectToServer")}</h2>
     <p class="description">
-      Sync exams across devices and connect with your institution's backend server.
+      {$t("auth.unlock.cloud.description")}
     </p>
 
     <form on:submit|preventDefault={onUnlock} class="cloud-form">
       <div class="form-group">
-        <label for="backendUrl">Backend Server URL</label>
+        <label for="backendUrl">{$t("auth.unlock.cloud.backendUrl")}</label>
         <SuggestInput
           id="backendUrl"
           storageKey="backend.url"
           bind:value={backendUrl}
-          placeholder="e.g. http://localhost:8000"
+          placeholder={$t("auth.unlock.cloud.backendUrlPlaceholder")}
           required
         />
       </div>
 
       <div class="form-group">
-        <label for="email">Email</label>
+        <label for="email">{$t("auth.unlock.cloud.email")}</label>
         <input
           id="email"
           type="email"
           bind:value={email}
-          placeholder="teacher@school.example"
+          placeholder={$t("auth.unlock.cloud.emailPlaceholder")}
           required
         />
       </div>
 
       <div class="form-group">
-        <label for="password">Password</label>
+        <label for="password">{$t("auth.unlock.cloud.password")}</label>
         <input
           id="password"
           type="password"
           bind:value={password}
-          placeholder="Enter password"
+          placeholder={$t("auth.unlock.cloud.passwordPlaceholder")}
           required
         />
         <div class="forgot-password-link">
-          <a href="/forgot-password">Forgot password?</a>
+          <a href="/forgot-password">{$t("auth.unlock.cloud.forgotPassword")}</a>
         </div>
       </div>
 
       <button type="submit" class="submit-btn" class:is-loading={isLoading} disabled={isLoading}>
-        {isLoading ? "Authenticating..." : "Connect & Sign In"}
+        {isLoading ? $t("auth.unlock.cloud.authenticating") : $t("auth.unlock.cloud.connectAndSignIn")}
       </button>
     </form>
   </div>

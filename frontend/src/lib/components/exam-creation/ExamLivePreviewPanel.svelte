@@ -1,6 +1,7 @@
 <script lang="ts">
   import "./ExamLivePreviewPanel.css";
   import DualPdfPreview from "$lib/components/DualPdfPreview.svelte";
+  import { t } from "$lib/i18n";
 
   export let previewPdfUrl: string | null;
   export let previewSolutionPdfUrl: string | null;
@@ -10,16 +11,16 @@
 
 {#if previewPdfUrl || previewSolutionPdfUrl}
   <div class="exam-live-preview-container">
-    <h4>Complete Exam PDF Live Preview</h4>
+    <h4>{$t("examCreation.livePreviewPanel.heading")}</h4>
     <DualPdfPreview
       {previewPdfUrl}
       {previewSolutionPdfUrl}
       bind:showAngabePreview
       bind:showLoesungPreview
-      titleAngabe="Exam"
-      titleLoesung="Answer Key"
+      titleAngabe={$t("examCreation.livePreviewPanel.titleAngabe")}
+      titleLoesung={$t("examCreation.livePreviewPanel.titleLoesung")}
       height="600px"
-      placeholderText="Click 'Generate Live Preview' to render"
+      placeholderText={$t("examCreation.livePreviewPanel.placeholderText")}
     />
   </div>
 {/if}

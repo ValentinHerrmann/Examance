@@ -1,6 +1,7 @@
 import { beforeNavigate } from "$app/navigation";
 import { get } from "svelte/store";
 import { sessionStore } from "./session";
+import { translate } from "$lib/i18n";
 
 /**
  * Registers a navigation guard that warns the user about unsaved changes
@@ -12,7 +13,7 @@ export function registerNavigationGuard(): void {
   beforeNavigate(({ cancel }) => {
     const session = get(sessionStore);
     if (session.isDirty) {
-      if (!confirm("You have unsaved changes. Are you sure you want to leave this page?")) {
+      if (!confirm(translate("common.unsavedChangesConfirm"))) {
         cancel();
       }
     }

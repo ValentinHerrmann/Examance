@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { McDetectionItem } from "$lib/grading/mcVerification";
+  import { t } from "$lib/i18n";
 
   export let title: string;
   export let items: McDetectionItem[] = [];
@@ -35,15 +36,15 @@
               <div class="flex flex-wrap items-center gap-3">
                 {#if item.confidence === "failed"}
                   <span class="px-2 py-0.5 text-[0.7rem] font-semibold rounded bg-red-500/20 text-red-400 border border-red-500/30">
-                    Failed
+                    {$t("scanning.queue.failed")}
                   </span>
                 {:else if item.confidence === "ambiguous"}
                   <span class="px-2 py-0.5 text-[0.7rem] font-semibold rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                    Unsure
+                    {$t("scanning.queue.unsure")}
                   </span>
                 {:else}
                   <span class="px-2 py-0.5 text-[0.7rem] font-semibold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    High
+                    {$t("scanning.queue.high")}
                   </span>
                 {/if}
 
@@ -55,12 +56,12 @@
 
                 {#if item.flaggedOptions.length > 0}
                   <span class="text-[0.65rem] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                    Flagged opt: {item.flaggedOptions.map((o) => o + 1).join(", ")}
+                    {$t("scanning.queue.flaggedOptions", { options: item.flaggedOptions.map((o) => o + 1).join(", ") })}
                   </span>
                 {/if}
 
                 {#if item.source === "manual"}
-                  <span class="text-[0.65rem] text-slate-500 italic">Manual</span>
+                  <span class="text-[0.65rem] text-slate-500 italic">{$t("scanning.queue.manual")}</span>
                 {/if}
               </div>
 
@@ -70,15 +71,15 @@
                   on:click={() => onVerifyItem(item)}
                   class="px-2.5 py-1 text-xs font-medium rounded bg-sky-600 hover:bg-sky-500 text-white transition-colors cursor-pointer"
                 >
-                  Verify Item →
+                  {$t("scanning.queue.verifyItem")}
                 </button>
                 <button
                   type="button"
                   on:click={() => onOpenGrading(item)}
                   class="px-2 py-1 text-xs font-medium rounded border border-slate-700 bg-slate-900 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
-                  title="Open full canvas workspace"
+                  title={$t("scanning.queue.openGrading")}
                 >
-                  Canvas ↗
+                  {$t("scanning.queue.canvas")}
                 </button>
               </div>
             </div>

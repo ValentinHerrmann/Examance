@@ -2,6 +2,7 @@
   import type { ExerciseRecord } from "$lib/db/schema";
   import { parseExerciseScore } from "$lib/latex/scoreParser";
   import LatexViewer from "$lib/components/LatexViewer.svelte";
+  import { t } from "$lib/i18n";
 
   export let previewModalEx: ExerciseRecord;
   export let isModalSelected: boolean;
@@ -42,9 +43,9 @@
           {#if previewModalEx.topicTag}
             <span class="rounded bg-slate-700 px-[0.4rem] py-[0.1rem] text-xs text-slate-300">{previewModalEx.topicTag}</span>
           {/if}
-          <span class="rounded bg-sky-700 px-2 py-[0.15rem] text-xs font-semibold text-sky-100">{modalScore} Pkt</span>
+          <span class="rounded bg-sky-700 px-2 py-[0.15rem] text-xs font-semibold text-sky-100">{$t("exercises.previewDrawer.pointsBadge", { score: modalScore })}</span>
           <span class="rounded bg-slate-700 px-2 py-[0.15rem] text-xs text-slate-300"
-            >Version {previewModalEx.version}</span
+            >{$t("exercises.previewDrawer.versionBadge", { version: previewModalEx.version })}</span
           >
           {#if previewModalEx.questionType}
             <span class="rounded bg-slate-600 px-2 py-[0.15rem] text-xs uppercase text-slate-100"
@@ -58,7 +59,7 @@
 
     <div class="flex-1 overflow-y-auto px-6 py-5">
       <div class="flex flex-col gap-[0.4rem]">
-        <div class="text-[0.78rem] font-semibold uppercase tracking-[0.05em] text-slate-400">LaTeX Source Code</div>
+        <div class="text-[0.78rem] font-semibold uppercase tracking-[0.05em] text-slate-400">{$t("exercises.previewDrawer.latexSourceCodeLabel")}</div>
         <LatexViewer code={previewModalEx.latexBody || "\\begin{Aufgabe}{}\n\\end{Aufgabe}"} maxHeight="350px" />
       </div>
     </div>
@@ -70,22 +71,22 @@
         on:click={() => onToggleSelection(previewModalEx.id)}
       >
         {isModalSelected
-          ? "✓ Selected in Exam (Click to Remove)"
-          : "+ Select for Exam"}
+          ? $t("exercises.previewDrawer.selectedButton")
+          : $t("exercises.previewDrawer.selectButton")}
       </button>
       <button
         type="button"
         class="cursor-pointer rounded-md border border-slate-600 bg-slate-700 px-4 py-2 text-[0.85rem] font-semibold text-sky-400 hover:bg-slate-600"
         on:click={() => onQuickEdit(previewModalEx)}
       >
-        ✏️ Quick Edit
+        {$t("exercises.previewDrawer.quickEditButton")}
       </button>
       <button
         type="button"
         class="cursor-pointer rounded-md border-0 bg-slate-700 px-4 py-2 text-[0.85rem] text-slate-300 hover:bg-slate-600 hover:text-white"
         on:click={onClose}
       >
-        Close
+        {$t("common.close")}
       </button>
     </div>
   </div>

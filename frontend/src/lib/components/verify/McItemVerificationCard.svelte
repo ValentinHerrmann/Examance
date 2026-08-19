@@ -3,6 +3,7 @@
   import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "$lib/db/schema";
   import { applyMcCorrection, type McQuestionType } from "$lib/grading/mcScore";
   import { renderMcCrop } from "$lib/grading/mcCropRender";
+  import { t, translate } from "$lib/i18n";
 
   export let exercise: ExerciseRecord;
   export let studentLabel: string;
@@ -81,7 +82,7 @@
       });
     } catch (err: any) {
       console.error("Failed to render crop:", err);
-      cropError = "Failed to render scan crop.";
+      cropError = translate("scanning.itemCard.cropRenderError");
     } finally {
       loadingCrop = false;
     }
@@ -117,16 +118,16 @@
   <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-700 pb-4">
     <div>
       <div class="text-xs font-semibold uppercase tracking-wider text-sky-400">
-        Verification • Student: <span class="text-slate-100 font-bold">{studentLabel}</span>
+        {$t("scanning.itemCard.verificationLabel")} <span class="text-slate-100 font-bold">{studentLabel}</span>
       </div>
       <h3 class="text-lg font-bold text-slate-100 mt-0.5">
-        {exercise.name || exercise.title || "MC Exercise"}
+        {exercise.name || exercise.title || $t("scanning.itemCard.defaultExerciseName")}
       </h3>
     </div>
     <div class="flex items-center gap-3">
       {#if totalItems > 0}
         <span class="text-xs text-slate-400 font-mono">
-          Item {currentIndex + 1} of {totalItems}
+          {$t("scanning.itemCard.itemCounter", { current: currentIndex + 1, total: totalItems })}
         </span>
       {/if}
       <button
@@ -134,7 +135,7 @@
         on:click={onOpenGrading}
         class="px-3 py-1.5 text-xs font-medium rounded border border-slate-600 bg-slate-900 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer flex items-center gap-1.5"
       >
-        <span>Canvas Workspace</span>
+        <span>{$t("scanning.itemCard.canvasWorkspace")}</span>
         <span>↗</span>
       </button>
     </div>
@@ -144,27 +145,27 @@
     <!-- Left Column: Scan Bubble Crop -->
     <div class="rounded-lg border border-slate-700 bg-slate-900 p-4 flex flex-col items-center justify-center min-h-[320px]">
       <div class="text-xs font-medium text-slate-400 mb-2 w-full flex justify-between">
-        <span>Scan Crop</span>
+        <span>{$t("scanning.itemCard.scanCrop")}</span>
         <span class="font-mono text-[0.7rem] text-slate-500">
-          Source: {source} • {confidence}
+          {$t("scanning.itemCard.sourceConfidence", { source, confidence })}
         </span>
       </div>
 
       {#if loadingCrop}
-        <div class="text-xs text-slate-400 animate-pulse py-12">Rendering scan crop...</div>
+        <div class="text-xs text-slate-400 animate-pulse py-12">{$t("scanning.itemCard.renderingCrop")}</div>
       {:else if cropError}
         <div class="text-xs text-red-400 py-12">{cropError}</div>
       {:else if cropDataUrl}
         <div class="relative w-full overflow-hidden rounded border border-slate-700 bg-white">
           <img
             src={cropDataUrl}
-            alt="Scan Crop for {exercise.name}"
+            alt={$t("scanning.itemCard.scanCropAlt", { name: exercise.name || "" })}
             class="max-h-[70vh] w-full object-contain"
           />
         </div>
       {:else}
         <div class="text-xs text-slate-500 italic py-12 text-center">
-          No scan crop available for this item.
+          {$t("scanning.itemCard.noCrop")}
         </div>
       {/if}
     </div>
@@ -174,20 +175,20 @@
       <div>
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-            Confirm Answers
+            {$t("scanning.itemCard.confirmAnswers")}
           </span>
           <span class="text-xs font-bold font-mono text-emerald-400">
-            Score: {currentScore} / {exercise.maxPoints} Pkt
+            {$t("scanning.itemCard.scoreLabel", { score: currentScore, maxPoints: exercise.maxPoints })}
           </span>
         </div>
 
         {#if confidence === "failed"}
           <div class="mb-3 rounded border border-red-500/40 bg-red-500/10 p-2 text-xs text-red-400">
-            Detection failed on this scan page. Please manually select the marked options.
+            {$t("scanning.itemCard.detectionFailed")}
           </div>
         {:else if confidence === "ambiguous"}
           <div class="mb-3 rounded border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-300">
-            Ambiguous detection — verify that the checked options match the scan crop.
+            {$t("scanning.itemCard.ambiguousDetection")}
           </div>
         {/if}
 
@@ -208,13 +209,13 @@
               <div class="flex items-center gap-2">
                 {#if isSelected}
                   <span class={isCorrect ? "text-emerald-400 font-bold" : "text-red-400 font-bold"}>
-                    {isCorrect ? "✓ Correct" : "✗ Incorrect"}
+                    {isCorrect ? $t("scanning.itemCard.correct") : $t("scanning.itemCard.incorrect")}
                   </span>
                 {:else if isCorrect}
-                  <span class="text-slate-500 text-[0.7rem]">(Key: ✓)</span>
+                  <span class="text-slate-500 text-[0.7rem]">{$t("scanning.itemCard.keyCorrect")}</span>
                 {/if}
                 {#if isFlagged}
-                  <span class="text-amber-400 font-bold" title="Flagged as uncertain">?</span>
+                  <span class="text-amber-400 font-bold" title={$t("scanning.itemCard.flaggedTitle")}>?</span>
                 {/if}
               </div>
             </button>
@@ -230,7 +231,7 @@
           disabled={currentIndex <= 0}
           class="px-4 py-2 text-xs font-medium rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer disabled:opacity-40"
         >
-          ← Previous
+          {$t("scanning.itemCard.previous")}
         </button>
 
         <button
@@ -239,7 +240,7 @@
           disabled={currentIndex >= totalItems - 1}
           class="px-5 py-2 text-xs font-semibold rounded bg-sky-600 hover:bg-sky-500 text-white transition-colors cursor-pointer disabled:opacity-40"
         >
-          Next Item →
+          {$t("scanning.itemCard.nextItem")}
         </button>
       </div>
     </div>

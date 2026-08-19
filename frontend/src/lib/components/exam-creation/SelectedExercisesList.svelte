@@ -9,6 +9,7 @@
   import "./SelectedExercisesList.css";
   import type { ExerciseRecord } from "$lib/db/schema";
   import { parseExerciseScore } from "$lib/latex/scoreParser";
+  import { t } from "$lib/i18n";
 
   interface McGroup {
     id: string;
@@ -49,8 +50,7 @@
 <div class="selected-exercises-list-card">
   <div class="selected-exercises-list-header">
     <h3>
-      3. Exam Structure ({totalItemCount} Items | Total: {totalPoints}
-      Pkt)
+      {$t("examCreation.selectedList.heading", { count: totalItemCount, points: totalPoints })}
     </h3>
     <button
       type="button"
@@ -59,13 +59,13 @@
       on:click={onLivePreview}
       disabled={isPreviewLoading || totalItemCount === 0}
     >
-      {isPreviewLoading ? "Compiling Preview..." : "🔍 Live Preview PDF"}
+      {isPreviewLoading ? $t("examCreation.selectedList.previewButtonCompiling") : $t("examCreation.selectedList.previewButton")}
     </button>
   </div>
 
   {#if totalItemCount === 0}
     <div class="selected-exercises-list-empty-hint">
-      No exercises selected yet. Pick exercises from the library above.
+      {$t("examCreation.selectedList.emptyHint")}
     </div>
   {:else}
     <div class="selected-exercises-list-container">
@@ -82,13 +82,13 @@
                   {#if ex.topicTag}
                     <span class="selected-exercises-list-topic-tag">{ex.topicTag}</span>
                   {/if}
-                  <span class="selected-exercises-list-score-badge">{score} Pkt</span>
+                  <span class="selected-exercises-list-score-badge">{score} {$t("examCreation.selectedList.pointsAbbrev")}</span>
                 </div>
                 <div class="selected-exercises-list-order-controls">
                   <button
                     type="button"
                     class="selected-exercises-list-edit-item-btn"
-                    title="Quick Edit Exercise Globally"
+                    title={$t("examCreation.selectedList.quickEditTitle")}
                     on:click={() => onQuickEdit(ex)}
                   >
                     ✏️
@@ -126,9 +126,9 @@
                 <div class="selected-exercises-list-item-info" style="justify-content: space-between;">
                   <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                     <span class="selected-exercises-list-order-num">({idx + 1})</span>
-                    <strong>MC Aufgabe: {group.title}</strong>
-                    <span class="selected-exercises-list-topic-tag">MC ({memberExercises(group).length} sub-items)</span>
-                    <span class="selected-exercises-list-score-badge">{groupPoints(group)} Pkt</span>
+                    <strong>{$t("examCreation.selectedList.mcGroupLabel", { title: group.title })}</strong>
+                    <span class="selected-exercises-list-topic-tag">{$t("examCreation.selectedList.mcGroupSubItems", { count: memberExercises(group).length })}</span>
+                    <span class="selected-exercises-list-score-badge">{groupPoints(group)} {$t("examCreation.selectedList.pointsAbbrev")}</span>
                   </div>
                   <div class="selected-exercises-list-order-controls">
                     <button
@@ -175,13 +175,13 @@
               {#if ex.topicTag}
                 <span class="selected-exercises-list-topic-tag">{ex.topicTag}</span>
               {/if}
-              <span class="selected-exercises-list-score-badge">{score} Pkt</span>
+              <span class="selected-exercises-list-score-badge">{score} {$t("examCreation.selectedList.pointsAbbrev")}</span>
             </div>
             <div class="selected-exercises-list-order-controls">
               <button
                 type="button"
                 class="selected-exercises-list-edit-item-btn"
-                title="Quick Edit Exercise Globally"
+                title={$t("examCreation.selectedList.quickEditTitle")}
                 on:click={() => onQuickEdit(ex)}
               >
                 ✏️
@@ -216,9 +216,9 @@
         {#each mcGroups as group}
           <div class="selected-exercises-list-item" style="flex-direction: column; align-items: stretch; gap: 0.4rem;">
             <div class="selected-exercises-list-item-info">
-              <strong>MC Aufgabe: {group.title}</strong>
-              <span class="selected-exercises-list-topic-tag">MC ({memberExercises(group).length} sub-items)</span>
-              <span class="selected-exercises-list-score-badge">{groupPoints(group)} Pkt</span>
+              <strong>{$t("examCreation.selectedList.mcGroupLabel", { title: group.title })}</strong>
+              <span class="selected-exercises-list-topic-tag">{$t("examCreation.selectedList.mcGroupSubItems", { count: memberExercises(group).length })}</span>
+              <span class="selected-exercises-list-score-badge">{groupPoints(group)} {$t("examCreation.selectedList.pointsAbbrev")}</span>
               <button
                 type="button"
                 class="selected-exercises-list-remove-btn"

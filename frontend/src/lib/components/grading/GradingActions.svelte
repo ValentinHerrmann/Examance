@@ -1,5 +1,6 @@
 <script lang="ts">
   import { gradingStore } from "$lib/grading/gradingStore";
+  import { t } from "$lib/i18n";
 
   // Async persistence and navigation stay route-owned; this component only
   // forwards user intent via callback props.
@@ -14,7 +15,7 @@
   on:click={onSave}
   disabled={$gradingStore.isSaving}
 >
-  {$gradingStore.isSaving ? "Speichern..." : "💾 Note & Anmerkungen speichern"}
+  {$gradingStore.isSaving ? $t("grading.actions.saving") : $t("grading.actions.save")}
 </button>
 
 <div class="flex gap-2">
@@ -22,9 +23,9 @@
     class="flex-1 py-[0.4rem] px-2 bg-slate-700 text-slate-300 border-none rounded-md text-[0.775rem] font-medium cursor-pointer transition-colors duration-150 hover:enabled:bg-slate-600 hover:enabled:text-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
     on:click={onPrev}
     disabled={currentIndex === 0}
-  >◀ Vorheriger</button>
+  >{$t("grading.actions.prev")}</button>
   <button
     class="flex-1 py-[0.4rem] px-2 bg-slate-700 text-slate-300 border-none rounded-md text-[0.775rem] font-medium cursor-pointer transition-colors duration-150 hover:enabled:bg-slate-600 hover:enabled:text-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
     on:click={onNext}
-  >Nächster Schüler ▶</button>
+  >{$t("grading.actions.next")}</button>
 </div>

@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { api, ApiError } from '$lib/api/client';
   import { isUnlocked, sessionStore } from '$lib/stores/session';
+  import { t, translate } from '$lib/i18n';
 
   type UserRole = 'teacher' | 'admin';
 
@@ -30,7 +31,7 @@
 
   function validate(): string | null {
     const normalizedEmail = email.trim();
-    if (!normalizedEmail) return 'Email is required.';
+    if (!normalizedEmail) return translate('admin.users.emailRequired');
     return null;
   }
 
@@ -40,7 +41,7 @@
     successMsg = '';
 
     if (!canAccess) {
-      errorMsg = 'Admin access is required.';
+      errorMsg = translate('admin.users.accessRequired');
       return;
     }
 
@@ -59,23 +60,23 @@
       );
 
       if (created.password_reset_sent) {
-        successMsg = `Created ${created.role} account for ${created.email}. Password setup email has been sent.`;
+        successMsg = translate('admin.users.createdSuccess', { role: created.role, email: created.email });
       } else {
-        warningMsg = `Created ${created.role} account for ${created.email}, but email delivery failed. Please check SMTP configuration on the server.`;
+        warningMsg = translate('admin.users.createdWarning', { role: created.role, email: created.email });
       }
       email = '';
       sessionStore.setDirty(false);
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         if (err.status === 403) {
-          errorMsg = 'Only admins can create users.';
+          errorMsg = translate('admin.users.onlyAdminsCanCreate');
         } else if (err.status === 409) {
-          errorMsg = 'A user with this email already exists.';
+          errorMsg = translate('admin.users.emailExists');
         } else {
           errorMsg = err.message;
         }
       } else {
-        errorMsg = 'Failed to create user. Please try again.';
+        errorMsg = translate('admin.users.createFailed');
       }
     } finally {
       isSubmitting = false;
@@ -85,19 +86,19 @@
 
 <div class="admin-users-page">
   <div class="user-mgmt-header">
-    <h2>User Management</h2>
-    <p>Create teacher or admin accounts for Hybrid Server Mode.</p>
+    <h2>{$t("admin.users.pageTitle")}</h2>
+    <p>{$t("admin.users.pageSubtitle")}</p>
   </div>
 
   {#if !$isUnlocked}
     <div class="user-mgmt-state-card">
-      <p>Session is locked. Unlock to continue.</p>
-      <a href="/unlock" class="user-mgmt-primary-link">Go to Unlock</a>
+      <p>{$t("admin.users.locked")}</p>
+      <a href="/unlock" class="user-mgmt-primary-link">{$t("admin.users.goToUnlock")}</a>
     </div>
   {:else if $sessionStore.role !== 'admin'}
     <div class="user-mgmt-state-card danger">
-      <p>Admin role required.</p>
-      <p class="user-mgmt-sub">Sign in with an admin account to create users.</p>
+      <p>{$t("admin.users.roleRequired")}</p>
+      <p class="user-mgmt-sub">{$t("admin.users.roleRequiredSub")}</p>
     </div>
   {:else}
     <div class="user-mgmt-form-card">
@@ -113,28 +114,28 @@
 
       <form on:submit|preventDefault={handleCreateUser}>
         <div class="user-mgmt-field">
-          <label for="email">Email</label>
+          <label for="email">{$t("admin.users.emailLabel")}</label>
           <input
             id="email"
             type="email"
             bind:value={email}
-            placeholder="teacher@school.example"
+            placeholder={$t("admin.users.emailPlaceholder")}
             autocomplete="off"
             required
           />
         </div>
 
         <div class="user-mgmt-field">
-          <label for="role">Role</label>
+          <label for="role">{$t("admin.users.roleLabel")}</label>
           <select id="role" bind:value={role}>
-            <option value="teacher">Teacher</option>
-            <option value="admin">Admin</option>
+            <option value="teacher">{$t("admin.users.roleTeacher")}</option>
+            <option value="admin">{$t("admin.users.roleAdmin")}</option>
           </select>
-          <small>Create admin accounts only when operationally necessary.</small>
+          <small>{$t("admin.users.adminHint")}</small>
         </div>
 
         <button class="user-mgmt-primary-btn" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Creating User...' : 'Create User'}
+          {isSubmitting ? $t("admin.users.creating") : $t("admin.users.createButton")}
         </button>
       </form>
     </div>

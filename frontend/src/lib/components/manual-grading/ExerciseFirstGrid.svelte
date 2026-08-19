@@ -8,6 +8,7 @@
   import { saveScoreEncrypted, deleteScoreEncrypted, saveSubmissionEncrypted } from "$lib/db/dbEncryption";
   import { buildSubmissionMap } from "$lib/utils/studentLookup";
   import type { ExerciseRecord, StudentRecord, SubmissionRecord } from "$lib/db/schema";
+  import { t } from "$lib/i18n";
 
   export let examId: string;
   export let exercises: ExerciseRecord[] = [];
@@ -164,13 +165,13 @@
 <div class="exercise-first-grid">
   {#if exercises.length === 0}
     <div class="exercise-grid-empty">
-      <p>No exercises defined for this exam yet.</p>
-      <a href="/exam/{examId}" style="color: #38bdf8; text-decoration: underline;">Go to Setup & Exercises</a>
+      <p>{$t("grading.manual.exerciseFirst.noExercises")}</p>
+      <a href="/exam/{examId}" style="color: #38bdf8; text-decoration: underline;">{$t("grading.manual.exerciseFirst.goToSetup")}</a>
     </div>
   {:else if students.length === 0}
     <div class="exercise-grid-empty">
-      <p>No students in the roster for this exam.</p>
-      <button on:click={onOpenRoster}>👥 Open Student Roster to Add Students</button>
+      <p>{$t("grading.manual.exerciseFirst.noStudents")}</p>
+      <button on:click={onOpenRoster}>{$t("grading.manual.exerciseFirst.openRoster")}</button>
     </div>
   {:else}
     <div class="exercise-first-header">
@@ -181,7 +182,7 @@
             class:active={ex.id === activeExerciseId}
             on:click={() => (activeExerciseId = ex.id)}
           >
-            {ex.name || `Ex ${idx + 1}`} ({ex.maxPoints} pts)
+            {ex.name || $t("grading.manual.exerciseFirst.exerciseFallback", { index: idx + 1 })} {$t("grading.manual.exerciseFirst.pointsSuffix", { points: ex.maxPoints })}
           </button>
         {/each}
       </div>
@@ -189,7 +190,7 @@
       {#if activeExercise}
         <div class="exercise-info">
           <h3>{activeExercise.name}</h3>
-          <span class="exercise-max-tag">Max Points: <strong>{activeExercise.maxPoints}</strong></span>
+          <span class="exercise-max-tag">{$t("grading.manual.exerciseFirst.maxPointsLabel")} <strong>{activeExercise.maxPoints}</strong></span>
         </div>
       {/if}
     </div>
@@ -198,11 +199,11 @@
       <table class="exercise-grid-table">
         <thead>
           <tr>
-            <th>#</th>
-            <th>Student Name</th>
-            <th>Student ID</th>
-            <th>Score / Max ({activeExercise?.maxPoints ?? 0} pts)</th>
-            <th>Submission Status</th>
+            <th>{$t("grading.manual.exerciseFirst.colNum")}</th>
+            <th>{$t("grading.manual.exerciseFirst.colName")}</th>
+            <th>{$t("grading.manual.exerciseFirst.colId")}</th>
+            <th>{$t("grading.manual.exerciseFirst.colScore", { max: activeExercise?.maxPoints ?? 0 })}</th>
+            <th>{$t("grading.manual.exerciseFirst.colStatus")}</th>
           </tr>
         </thead>
         <tbody>
@@ -213,7 +214,7 @@
             {@const isInvalid = valStr !== "" && (isNaN(numVal) || numVal < 0 || (activeExercise && numVal > activeExercise.maxPoints))}
             <tr>
               <td>{i + 1}</td>
-              <td><strong>{st.studentName || "(Unnamed)"}</strong></td>
+              <td><strong>{st.studentName || $t("grading.manual.exerciseFirst.unnamed")}</strong></td>
               <td>{st.studentNumber || "-"}</td>
               <td>
                 <input
@@ -234,12 +235,12 @@
               <td>
                 {#if sub?.totalScore !== undefined}
                   <span style="color: #34d399; font-size: 0.825rem; font-weight: 500;">
-                    ✓ Total: {sub.totalScore} pts
+                    {$t("grading.manual.exerciseFirst.totalScore", { score: sub.totalScore })}
                   </span>
                 {:else if activeScores.length > 0}
-                  <span style="color: #cbd5e1; font-size: 0.825rem;">In progress</span>
+                  <span style="color: #cbd5e1; font-size: 0.825rem;">{$t("grading.manual.exerciseFirst.inProgress")}</span>
                 {:else}
-                  <span style="color: #64748b; font-size: 0.825rem;">Ungraded</span>
+                  <span style="color: #64748b; font-size: 0.825rem;">{$t("grading.manual.exerciseFirst.ungraded")}</span>
                 {/if}
               </td>
             </tr>
@@ -250,10 +251,10 @@
 
     <div class="exercise-grid-footer">
       <div>
-        Graded: <strong>{gradedCount} / {students.length}</strong> students
+        {$t("grading.manual.exerciseFirst.graded", { graded: gradedCount, total: students.length })}
       </div>
       <div>
-        Average Score for {activeExercise?.name}: <strong>{avgScore} / {activeExercise?.maxPoints} pts</strong>
+        {$t("grading.manual.exerciseFirst.average", { name: activeExercise?.name ?? "", avg: avgScore, max: activeExercise?.maxPoints ?? 0 })}
       </div>
     </div>
   {/if}

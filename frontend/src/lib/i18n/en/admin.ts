@@ -1,0 +1,36 @@
+import type { Translations } from '../types';
+
+export const admin: Translations['admin'] = {
+    users: {
+        pageTitle: 'User Management',
+        pageSubtitle: 'Create teacher or admin accounts for Hybrid Server Mode.',
+        locked: 'Session is locked. Unlock to continue.',
+        goToUnlock: 'Go to Unlock',
+        roleRequired: 'Admin role required.',
+        roleRequiredSub: 'Sign in with an admin account to create users.',
+        emailLabel: 'Email',
+        emailPlaceholder: 'teacher@school.example',
+        roleLabel: 'Role',
+        roleTeacher: 'Teacher',
+        roleAdmin: 'Admin',
+        adminHint: 'Create admin accounts only when operationally necessary.',
+        createButton: 'Create User',
+        creating: 'Creating User...',
+        emailRequired: 'Email is required.',
+        accessRequired: 'Admin access is required.',
+        createdSuccess: 'Created {role} account for {email}. Password setup email has been sent.',
+        createdWarning: 'Created {role} account for {email}, but email delivery failed. Please check SMTP configuration on the server.',
+        onlyAdminsCanCreate: 'Only admins can create users.',
+        emailExists: 'A user with this email already exists.',
+        createFailed: 'Failed to create user. Please try again.',
+    },
+    gdprErasureTable: {
+        title: 'GDPR Art. 15 & 17 — Student Identities, Access & Erasure',
+        empty: 'No student identity records stored in current session.',
+        columnPseudonymId: 'Pseudonym ID',
+        columnFallbackCode: 'Fallback Code',
+        columnActions: 'Actions',
+        exportButton: 'Export (Art. 15)',
+        eraseButton: 'Erase (Art. 17)',
+    },
+};

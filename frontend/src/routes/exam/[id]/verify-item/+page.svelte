@@ -5,6 +5,7 @@
   import { browser } from "$app/environment";
   import { get } from "svelte/store";
   import { sessionStore, isUnlocked } from "$lib/stores/session";
+  import { t, translate } from "$lib/i18n";
   import {
     computeMcVerificationStats,
     type McVerificationStats,
@@ -85,13 +86,13 @@
 
       currentExercise = exercises.find((e) => e.id === exerciseId) || null;
       if (!currentExercise) {
-        errorMsg = "Exercise not found for this exam.";
+        errorMsg = translate("scanning.verifyItem.exerciseNotFound");
         loading = false;
         return;
       }
 
       if (!submission) {
-        errorMsg = "Submission record not found.";
+        errorMsg = translate("scanning.verifyItem.submissionNotFound");
         loading = false;
         return;
       }
@@ -99,7 +100,9 @@
       const matchingItem = stats.items.find(
         (i) => i.submissionId === submissionId && i.exerciseId === exerciseId
       );
-      studentLabel = matchingItem?.studentLabel || `Submission (${submissionId.slice(0, 8)})`;
+      studentLabel =
+        matchingItem?.studentLabel ||
+        translate("scanning.verifyItem.submissionLabelFallback", { shortId: submissionId.slice(0, 8) });
 
       if (submission.scanCt && submission.scanIv) {
         try {
@@ -116,7 +119,7 @@
       currentScoreRecord = scores.find((s) => s.exerciseId === exerciseId) || null;
     } catch (err: any) {
       console.error("Failed to load MC verification item:", err);
-      errorMsg = err.message || "Failed to load item.";
+      errorMsg = err.message || translate("scanning.verifyItem.loadError");
     } finally {
       loading = false;
     }
@@ -172,12 +175,12 @@
       href={`/exam/${examId}/verify`}
       class="text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1"
     >
-      ← Back to MC Verification Overview
+      {$t("scanning.verifyItem.backLink")}
     </a>
   </div>
 
   {#if loading}
-    <div class="p-12 text-center text-sm text-slate-400">Loading exercise scan crop...</div>
+    <div class="p-12 text-center text-sm text-slate-400">{$t("scanning.verifyItem.loading")}</div>
   {:else if errorMsg}
     <div class="p-4 rounded border border-red-500/40 bg-red-500/10 text-red-400 text-xs max-w-xl mx-auto">
       {errorMsg}

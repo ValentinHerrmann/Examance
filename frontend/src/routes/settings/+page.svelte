@@ -16,6 +16,14 @@
   import SettingsForm from "$lib/components/settings/SettingsForm.svelte";
   import GdprErasureTable from "$lib/components/settings/GdprErasureTable.svelte";
   import { exportStudentData, toDownloadableJson } from "$lib/gdpr/subjectAccess";
+  import {
+    locale,
+    setLocale,
+    t,
+    translate,
+    LOCALE_LABELS,
+    type Locale,
+  } from "$lib/i18n";
 
   /** GDPR Art. 15 — hand the data subject a readable copy of their own data. */
   async function handleExportStudent(pseudonymId: string) {
@@ -28,9 +36,9 @@
       link.download = `auskunft-${pseudonymId.slice(0, 8)}.json`;
       link.click();
       URL.revokeObjectURL(url);
-      statusMsg = "Subject access export downloaded.";
+      statusMsg = translate("settings.status.exportDownloaded");
     } catch (err: any) {
-      statusMsg = err?.message ?? "Export failed.";
+      statusMsg = err?.message ?? translate("settings.status.exportFailed");
     }
   }
 
@@ -51,55 +59,56 @@
 
   async function handleLatexChange(val: "server" | "local") {
     if (val === "server" && !get(isAuthenticated)) {
-      alert("Server compilation requires an authenticated session. Please log in.");
+      alert(translate("settings.alerts.serverCompileNeedsAuth"));
       window.location.href = "/unlock";
       return;
     }
     storagePolicyStore.updateSetting("latexCompilation", val);
-    statusMsg = `LaTeX Compilation set to ${val}.`;
+    statusMsg = translate("settings.status.latexSet", { mode: val });
   }
 
   async function handleStorageModeChange(val: StorageMode) {
     if (val === $storagePolicyStore.storageMode) return;
 
     if ((val === "all-server" || val === "hybrid") && !get(isAuthenticated)) {
-      alert("Server storage modes require an authenticated session. Please log in.");
+      alert(translate("settings.alerts.serverStorageNeedsAuth"));
       window.location.href = "/unlock";
       return;
     }
 
-    const confirmed = confirm(
-      "Changing storage mode requires clearing the current active session state. Please make sure you have exported a .bgproj backup first!\n\nDo you want to proceed and switch storage mode?"
-    );
+    const confirmed = confirm(translate("settings.alerts.storageModeConfirm"));
     if (!confirmed) return;
 
     await wipeDatabase();
     storagePolicyStore.updateSetting("storageMode", val);
-    statusMsg = `Global Storage Mode updated to ${val}. Session cleared.`;
+    statusMsg = translate("settings.status.storageModeSet", { mode: val });
     window.location.reload();
   }
 
+  function handleLocaleChange(val: Locale) {
+    if (val === $locale) return;
+    setLocale(val);
+    statusMsg = translate("settings.status.languageSet", {
+      language: LOCALE_LABELS[val],
+    });
+  }
+
   async function handleEraseStudent(pseudonymId: string, examId: string) {
-    if (
-      !confirm(
-        "Are you sure you want to permanently erase this student identity and all submissions?",
-      )
-    )
-      return;
+    if (!confirm(translate("settings.alerts.eraseStudentConfirm"))) return;
     isErasing = true;
     try {
       await eraseStudent(pseudonymId, examId);
       students = students.filter((s) => s.pseudonymId !== pseudonymId);
-      statusMsg = `Student ${pseudonymId} successfully erased.`;
+      statusMsg = translate("settings.status.studentErased", { id: pseudonymId });
     } catch (err: any) {
-      alert(`Erasure failed: ${err.message}`);
+      alert(translate("settings.alerts.eraseFailed", { message: err.message }));
     } finally {
       isErasing = false;
     }
   }
 
   async function handleClearAllSessionData() {
-    if (!confirm("Wipe all local session data from IndexedDB?")) return;
+    if (!confirm(translate("settings.hygiene.confirm"))) return;
     await wipeDatabase();
     sessionStore.lock();
     window.location.href = "/unlock";
@@ -108,7 +117,7 @@
 
 {#if $isUnlocked}
   <div class="settings-page">
-    <h2>Settings & Privacy Configuration</h2>
+    <h2>{$t("settings.pageTitle")}</h2>
 
     {#if statusMsg}
       <div class="settings-status-banner">{statusMsg}</div>
@@ -117,8 +126,10 @@
     <SettingsForm
       storageMode={$storagePolicyStore.storageMode}
       latexCompilation={$storagePolicyStore.latexCompilation}
+      uiLocale={$locale}
       onStorageModeChange={handleStorageModeChange}
       onLatexChange={handleLatexChange}
+      onLocaleChange={handleLocaleChange}
     />
 
     <GdprErasureTable
@@ -129,13 +140,10 @@
     />
 
     <div class="settings-card settings-danger-card">
-      <h3>Session Data Hygiene</h3>
-      <p>
-        Permanently clear all cached exam, student, and scan data from local
-        browser storage.
-      </p>
+      <h3>{$t("settings.hygiene.heading")}</h3>
+      <p>{$t("settings.hygiene.description")}</p>
       <button class="settings-clear-btn" on:click={handleClearAllSessionData}
-        >Clear All Session Data</button
+        >{$t("settings.hygiene.button")}</button
       >
     </div>
   </div>

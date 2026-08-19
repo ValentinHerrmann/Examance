@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
   import { parseExerciseScore } from "$lib/latex/scoreParser";
+  import { t } from "$lib/i18n";
 
   interface VariantMember {
     ex: ExerciseRecord;
@@ -84,23 +85,23 @@
   <div class="flex flex-wrap items-center justify-between gap-4 max-[900px]:items-stretch">
     <input
       type="text"
-      placeholder="Search exercise library by name, topic, grade, subject, variant, or LaTeX content..."
+      placeholder={$t("exercises.libraryPicker.searchPlaceholder")}
       bind:value={searchQuery}
       class="w-full box-border flex-[1_1_280px] rounded-md border border-slate-700 bg-slate-900 p-[0.625rem] text-white"
     />
     <span class="whitespace-nowrap text-[0.8rem] font-medium text-slate-400 max-[900px]:whitespace-normal">
-      {displayedGroups.length} Exercise Groups ({totalVariantsCount} Variants)
+      {$t("exercises.libraryPicker.groupsSummary", { groups: displayedGroups.length, variants: totalVariantsCount })}
     </span>
   </div>
 
   <div class="flex flex-wrap items-center gap-x-4 gap-y-3 max-[900px]:flex-col max-[900px]:items-stretch">
     {#if availableGrades.length > 0}
       <div class="flex min-w-0 flex-[0_1_240px] items-center gap-2 text-sm text-slate-300 max-[900px]:w-full max-[900px]:flex-auto">
-        <label for="picker-grade">Grade:</label>
+        <label for="picker-grade">{$t("exercises.libraryPicker.gradeLabel")}</label>
         <select id="picker-grade" bind:value={selectedGradeFilter} class="w-full min-w-0 rounded-md border border-slate-700 bg-slate-800 px-3 py-[0.375rem] text-[0.85rem] text-white focus:border-sky-400 focus:shadow-[0_0_0_1px_rgba(56,189,248,0.25)] focus:outline-none">
-          <option value="ALL">All Grades</option>
+          <option value="ALL">{$t("exercises.libraryPicker.allGrades")}</option>
           {#each availableGrades as g}
-            <option value={g}>Grade {g}</option>
+            <option value={g}>{$t("exercises.libraryPicker.gradeOption", { grade: g })}</option>
           {/each}
         </select>
       </div>
@@ -108,9 +109,9 @@
 
     {#if availableSubjects.length > 0}
       <div class="flex min-w-0 flex-[0_1_240px] items-center gap-2 text-sm text-slate-300 max-[900px]:w-full max-[900px]:flex-auto">
-        <label for="picker-subject">Subject:</label>
+        <label for="picker-subject">{$t("exercises.libraryPicker.subjectLabel")}</label>
         <select id="picker-subject" bind:value={selectedSubjectFilter} class="w-full min-w-0 rounded-md border border-slate-700 bg-slate-800 px-3 py-[0.375rem] text-[0.85rem] text-white focus:border-sky-400 focus:shadow-[0_0_0_1px_rgba(56,189,248,0.25)] focus:outline-none">
-          <option value="ALL">All Subjects</option>
+          <option value="ALL">{$t("exercises.libraryPicker.allSubjects")}</option>
           {#each availableSubjects as s}
             <option value={s}>{s}</option>
           {/each}
@@ -125,7 +126,7 @@
       class={selectedTopicFilter === "ALL" ? pillActive : pillBase}
       on:click={() => (selectedTopicFilter = "ALL")}
     >
-      All ({filteredGroups.length})
+      {$t("exercises.libraryPicker.allTopics", { count: filteredGroups.length })}
     </button>
     {#each availableTopics as topic}
       {@const groupCount = filteredGroups.filter((g) => g.topicTag === topic).length}
@@ -142,7 +143,7 @@
 
 {#if displayedGroups.length === 0}
   <div class="p-6 text-center text-[0.9rem] text-slate-400">
-    No exercise groups found in library matching filter criteria.
+    {$t("exercises.libraryPicker.empty")}
   </div>
 {:else}
   <div class="flex max-h-[min(58vh,620px)] flex-col gap-3 overflow-y-auto pr-2 max-[900px]:max-h-[min(64vh,720px)]">
@@ -165,7 +166,7 @@
               checked={isSelected}
               disabled={isMc && !isSelected && mcStagingIds.length >= 4}
               on:change={() => (isMc ? onToggleMcStaging(activeEx.id) : onToggleSelection(activeEx.id))}
-              title={isMc ? (isSelected ? "Remove from MC staging area" : mcStagingIds.length >= 4 ? "Max 4 sub-questions per MC group reached" : "Add to MC staging area") : (isSelected ? "Remove from exam" : "Add to exam")}
+              title={isMc ? (isSelected ? $t("exercises.libraryPicker.checkboxRemoveMcStaging") : mcStagingIds.length >= 4 ? $t("exercises.libraryPicker.checkboxMaxMcReached") : $t("exercises.libraryPicker.checkboxAddMcStaging")) : (isSelected ? $t("exercises.libraryPicker.checkboxRemoveFromExam") : $t("exercises.libraryPicker.checkboxAddToExam"))}
               class="h-4 w-4 cursor-pointer accent-sky-600 disabled:opacity-40 disabled:cursor-not-allowed"
             />
           {/if}
@@ -188,7 +189,7 @@
 
             {#if groupSelectedCount > 0}
               <span class="rounded border border-emerald-500 bg-emerald-500/15 px-[0.4rem] py-[0.05rem] text-[0.72rem] font-semibold text-emerald-400">
-                ✓ {groupSelectedCount} {isMc ? "staged" : "in exam"}
+                ✓ {isMc ? $t("exercises.libraryPicker.stagedCount", { count: groupSelectedCount }) : $t("exercises.libraryPicker.inExamCount", { count: groupSelectedCount })}
               </span>
             {/if}
           </div>
@@ -203,7 +204,7 @@
                   type="button"
                   class={variantPillClass(vKey === activeVKey, hasSelected)}
                   on:click={() => onSetGroupVariant(group.groupId, vKey)}
-                  title={`Switch to variant "${vKey}"`}
+                  title={$t("exercises.libraryPicker.switchVariantTitle", { key: vKey })}
                 >
                   {#if hasSelected}
                     <span class="text-[0.7rem] font-bold text-emerald-400">✓</span>
@@ -219,34 +220,34 @@
         <div class="ml-auto flex flex-wrap items-start justify-end gap-2 whitespace-nowrap max-[900px]:w-full max-[900px]:ml-0 max-[900px]:flex-wrap max-[900px]:justify-start">
           <span class="rounded bg-sky-700 px-2 py-[0.15rem] text-xs font-semibold text-sky-100">
             {group.variants.size > 1 && group.minPoints !== group.maxPoints
-              ? `${group.minPoints}-${group.maxPoints} Pkt`
-              : `${score} Pkt`}
+              ? $t("exercises.libraryPicker.pointsRange", { min: group.minPoints, max: group.maxPoints })
+              : $t("exercises.libraryPicker.pointsSingle", { score })}
           </span>
 
           {#if activeEx}
             <button
               type="button"
               class="inline-flex items-center gap-1 rounded border border-slate-600 bg-slate-700 px-2 py-1 text-xs font-medium text-slate-100 transition-all duration-150 ease-[ease] hover:border-sky-400 hover:bg-slate-600 hover:text-sky-400"
-              title="Quick Edit Exercise Globally"
+              title={$t("exercises.libraryPicker.quickEditTitle")}
               on:click={() => onQuickEdit(activeEx)}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
               </svg>
-              <span>Quick Edit</span>
+              <span>{$t("exercises.libraryPicker.quickEditText")}</span>
             </button>
             <button
               type="button"
               class="inline-flex items-center gap-1 rounded border border-slate-700 bg-transparent px-2 py-1 text-xs font-medium text-sky-400 transition-all duration-150 ease-[ease] hover:border-sky-400 hover:bg-slate-800"
-              title="Quick Preview LaTeX Code"
+              title={$t("exercises.libraryPicker.quickPreviewTitle")}
               on:click={() => onOpenPreview(activeEx)}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                 <circle cx="12" cy="12" r="3"></circle>
               </svg>
-              <span>Preview</span>
+              <span>{$t("common.preview")}</span>
             </button>
           {/if}
         </div>

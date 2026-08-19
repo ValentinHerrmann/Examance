@@ -1,5 +1,6 @@
 <script lang="ts">
   import { gradingStore } from "$lib/grading/gradingStore";
+  import { t } from "$lib/i18n";
 
   export let examId: string;
   export let onStay: () => void;
@@ -11,23 +12,23 @@
       <div class="flex h-14 w-14 items-center justify-center rounded-full bg-indigo-500/20 text-[1.75rem]">
         🏁
       </div>
-      <h3 class="m-0 text-xl text-slate-50">Ende der Arbeiten</h3>
+      <h3 class="m-0 text-xl text-slate-50">{$t("grading.lastSubmission.title")}</h3>
       <p class="m-0 text-sm text-slate-400">
-        Du hast die letzte Arbeit dieser Prüfung erreicht. Alle vorliegenden Abgaben wurden korrigiert.
+        {$t("grading.lastSubmission.body")}
       </p>
       <div class="mt-2 flex w-full flex-col gap-2">
         <a
           href="/exam/{examId}"
           class="box-border w-full rounded-lg bg-indigo-600 px-4 py-[0.65rem] text-center text-sm font-semibold text-white no-underline transition-colors duration-150 ease-[ease] hover:bg-indigo-700"
         >
-          Zurück zur Prüfungsübersicht
+          {$t("grading.lastSubmission.backToOverview")}
         </a>
         <button
           type="button"
           class="w-full cursor-pointer rounded-lg border border-slate-600 bg-slate-700 px-4 py-[0.55rem] text-[0.8rem] font-medium text-slate-300 transition-all duration-150 ease-[ease] hover:bg-slate-600 hover:text-white"
           on:click={onStay}
         >
-          Auf dieser Seite bleiben
+          {$t("grading.lastSubmission.stayHere")}
         </button>
       </div>
     </div>

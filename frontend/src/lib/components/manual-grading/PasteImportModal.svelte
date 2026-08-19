@@ -17,6 +17,7 @@
     StudentRecord,
     SubmissionRecord,
   } from "$lib/db/schema";
+  import { t } from "$lib/i18n";
 
   export let examId: string;
   export let exercises: ExerciseRecord[] = [];
@@ -278,26 +279,26 @@
 <div class="paste-modal-backdrop" on:click|self={onClose}>
   <div class="paste-modal">
     <div class="paste-modal-header">
-      <h2>📋 Import Scores & Roster from Excel (Copy-Paste)</h2>
+      <h2>{$t("grading.manual.paste.title")}</h2>
       <button class="paste-modal-close" on:click={onClose}>✕</button>
     </div>
 
     <div class="paste-modal-body">
       <div class="paste-step-indicator">
-        <span class="paste-step-dot" class:active={step === 1}>Step 1: Paste TSV</span>
-        <span class="paste-step-dot" class:active={step === 2}>Step 2: Preview & Map</span>
-        <span class="paste-step-dot" class:active={step === 3}>Step 3: Confirm</span>
+        <span class="paste-step-dot" class:active={step === 1}>{$t("grading.manual.paste.step1")}</span>
+        <span class="paste-step-dot" class:active={step === 2}>{$t("grading.manual.paste.step2")}</span>
+        <span class="paste-step-dot" class:active={step === 3}>{$t("grading.manual.paste.step3")}</span>
       </div>
 
       {#if step === 1}
         <div>
           <p style="margin-top: 0; color: #cbd5e1;">
-            Select cells in Excel / Google Sheets, copy (Ctrl+C), and paste below (Ctrl+V):
+            {$t("grading.manual.paste.pasteHint")}
           </p>
           <textarea
             class="paste-textarea"
             bind:value={rawTsv}
-            placeholder={"Name\tID\tMax. Pts. Ex1\tMax. Pts. Ex2\tMax. Pts. Ex3\nMusterfrau, Karin\t12345\t5.5\t10\t8\nMustermann, Peter\t67890\t4.0\t8.5\t7"}
+            placeholder={$t("grading.manual.paste.textareaPlaceholder")}
           ></textarea>
         </div>
       {:else if step === 2}
@@ -305,7 +306,7 @@
           <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 0.75rem;">
             <label style="color: #cbd5e1; font-size: 0.85rem;">
               <input type="checkbox" bind:checked={autoCreateStudents} />
-              Auto-create missing students in roster
+              {$t("grading.manual.paste.autoCreate")}
             </label>
           </div>
 
@@ -313,9 +314,9 @@
             <table class="paste-preview-table">
               <thead>
                 <tr>
-                  <th>Status</th>
-                  <th>Parsed Name</th>
-                  <th>Student ID</th>
+                  <th>{$t("grading.manual.paste.colStatus")}</th>
+                  <th>{$t("grading.manual.paste.colName")}</th>
+                  <th>{$t("grading.manual.paste.colId")}</th>
                   {#each exercises as ex, idx}
                     <th>{ex.name} ({ex.maxPoints}p)</th>
                   {/each}
@@ -326,11 +327,11 @@
                   <tr>
                     <td>
                       {#if row.matchedStudent}
-                        <span class="paste-match-badge matched">Matched</span>
+                        <span class="paste-match-badge matched">{$t("grading.manual.paste.matched")}</span>
                       {:else if autoCreateStudents}
-                        <span class="paste-match-badge new">+ New Student</span>
+                        <span class="paste-match-badge new">{$t("grading.manual.paste.newStudent")}</span>
                       {:else}
-                        <span class="paste-match-badge skipped">Skipped</span>
+                        <span class="paste-match-badge skipped">{$t("grading.manual.paste.skipped")}</span>
                       {/if}
                     </td>
                     <td><strong>{row.rawName}</strong></td>
@@ -350,13 +351,13 @@
         </div>
       {:else if step === 3}
         <div style="text-align: center; padding: 1.5rem 0;">
-          <h3 style="color: #38bdf8; margin-top: 0;">Ready to Import</h3>
+          <h3 style="color: #38bdf8; margin-top: 0;">{$t("grading.manual.paste.readyTitle")}</h3>
           <p style="color: #cbd5e1;">
-            Importing <strong>{parsedRows.length}</strong> student records into exam scores.
+            {$t("grading.manual.paste.importingRecords", { count: parsedRows.length })}
           </p>
           {#if parsedRows.some((r) => r.isNew && autoCreateStudents)}
             <p style="color: #fbbf24; font-size: 0.85rem;">
-              ⚠️ {parsedRows.filter((r) => r.isNew).length} new student(s) will be added to the roster.
+              {$t("grading.manual.paste.newStudentsWarning", { count: parsedRows.filter((r) => r.isNew).length })}
             </p>
           {/if}
         </div>
@@ -364,7 +365,7 @@
     </div>
 
     <div class="paste-modal-footer">
-      <button class="paste-modal-btn secondary" on:click={onClose}>Cancel</button>
+      <button class="paste-modal-btn secondary" on:click={onClose}>{$t("common.cancel")}</button>
 
       <div>
         {#if step === 1}
@@ -373,21 +374,21 @@
             disabled={!rawTsv.trim()}
             on:click={parseTsvData}
           >
-            Next: Preview & Map →
+            {$t("grading.manual.paste.nextPreview")}
           </button>
         {:else if step === 2}
           <button class="paste-modal-btn secondary" on:click={() => (step = 1)}>
-            ← Back
+            {$t("grading.manual.paste.back")}
           </button>
           <button class="paste-modal-btn primary" on:click={() => (step = 3)}>
-            Next: Confirm →
+            {$t("grading.manual.paste.nextConfirm")}
           </button>
         {:else if step === 3}
           <button class="paste-modal-btn secondary" on:click={() => (step = 2)}>
-            ← Back
+            {$t("grading.manual.paste.back")}
           </button>
           <button class="paste-modal-btn primary" on:click={executeImport}>
-            ✓ Execute Import
+            {$t("grading.manual.paste.executeImport")}
           </button>
         {/if}
       </div>

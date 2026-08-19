@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api, ApiError } from "$lib/api/client";
+  import { t, translate } from "$lib/i18n";
 
   let token = "";
   let newPassword = "";
@@ -13,7 +14,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     token = urlParams.get("token") || "";
     if (!token) {
-      errorMsg = "Password reset token is missing from the link. Please check your reset email.";
+      errorMsg = translate("auth.resetPassword.errors.tokenMissingOnLoad");
     }
   });
 
@@ -22,22 +23,22 @@
     successMsg = "";
 
     if (!token) {
-      errorMsg = "Password reset token is missing.";
+      errorMsg = translate("auth.resetPassword.errors.tokenMissing");
       return;
     }
 
     if (!newPassword) {
-      errorMsg = "Please enter a new password.";
+      errorMsg = translate("auth.resetPassword.errors.enterNewPassword");
       return;
     }
 
     if (newPassword.length < 12) {
-      errorMsg = "Password must be at least 12 characters long.";
+      errorMsg = translate("auth.resetPassword.errors.passwordTooShort");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      errorMsg = "Passwords do not match.";
+      errorMsg = translate("auth.resetPassword.errors.passwordsDoNotMatch");
       return;
     }
 
@@ -48,14 +49,14 @@
         { token, new_password: newPassword },
         { silentError: true }
       );
-      successMsg = res.message || "Password has been successfully set. You can now sign in.";
+      successMsg = res.message || translate("auth.resetPassword.defaultSuccess");
       newPassword = "";
       confirmPassword = "";
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         errorMsg = err.message;
       } else {
-        errorMsg = "Failed to reset password. Please check your connection and try again.";
+        errorMsg = translate("auth.resetPassword.errors.failed");
       }
     } finally {
       isSubmitting = false;
@@ -67,14 +68,14 @@
   <div class="reset-password-card">
     <div class="card-header">
       <img src="/favicon.png" alt="Examance logo" class="brand-logo" />
-      <h1>Set New Password</h1>
-      <p class="subtitle">Choose a new password for your Examance account.</p>
+      <h1>{$t("auth.resetPassword.title")}</h1>
+      <p class="subtitle">{$t("auth.resetPassword.subtitle")}</p>
     </div>
 
     {#if successMsg}
       <div class="banner success">{successMsg}</div>
       <div class="action-box">
-        <a href="/unlock" class="primary-btn-link">Proceed to Sign In</a>
+        <a href="/unlock" class="primary-btn-link">{$t("auth.resetPassword.proceedToSignIn")}</a>
       </div>
     {:else}
       {#if errorMsg}
@@ -83,12 +84,12 @@
 
       <form on:submit|preventDefault={handleResetPassword}>
         <div class="form-group">
-          <label for="newPassword">New Password</label>
+          <label for="newPassword">{$t("auth.resetPassword.newPasswordLabel")}</label>
           <input
             id="newPassword"
             type="password"
             bind:value={newPassword}
-            placeholder="At least 12 characters"
+            placeholder={$t("auth.resetPassword.newPasswordPlaceholder")}
             autocomplete="new-password"
             minlength="12"
             required
@@ -97,12 +98,12 @@
         </div>
 
         <div class="form-group">
-          <label for="confirmPassword">Confirm New Password</label>
+          <label for="confirmPassword">{$t("auth.resetPassword.confirmPasswordLabel")}</label>
           <input
             id="confirmPassword"
             type="password"
             bind:value={confirmPassword}
-            placeholder="Repeat new password"
+            placeholder={$t("auth.resetPassword.confirmPasswordPlaceholder")}
             autocomplete="new-password"
             minlength="12"
             required
@@ -111,13 +112,13 @@
         </div>
 
         <button type="submit" class="submit-btn" disabled={isSubmitting || !token}>
-          {isSubmitting ? "Setting Password..." : "Set New Password"}
+          {isSubmitting ? $t("auth.resetPassword.setting") : $t("auth.resetPassword.setPassword")}
         </button>
       </form>
     {/if}
 
     <div class="card-footer">
-      <a href="/unlock" class="back-link">&larr; Back to Unlock / Sign In</a>
+      <a href="/unlock" class="back-link">{$t("auth.resetPassword.backToUnlock")}</a>
     </div>
   </div>
 </div>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
+  import { t } from "$lib/i18n";
 
   export let isOpen = false;
   export let deletingExercise: ExerciseRecord | null = null;
@@ -19,18 +20,18 @@
   >
     <div class="bg-slate-800 border border-slate-700 rounded-xl w-[90%] max-w-[500px] max-h-[90vh] flex flex-col overflow-hidden">
       <div class="flex justify-between items-center px-6 py-4 border-b border-slate-700">
-        <h3 class="m-0 text-sky-400">Delete Exercise: {deletingExercise.name || "Untitled"}</h3>
+        <h3 class="m-0 text-sky-400">{$t("exercises.deleteModal.title", { name: deletingExercise.name || $t("exercises.untitled") })}</h3>
         <button class="bg-transparent border-none text-slate-400 text-xl cursor-pointer" on:click={onClose}>✕</button>
       </div>
 
       <div class="p-6 overflow-y-auto flex-1">
         {#if isDeleteLoading}
-          <p>Checking exercise usage in exams...</p>
+          <p>{$t("exercises.deleteModal.checkingUsage")}</p>
         {:else if deleteUsageInfo && deleteUsageInfo.examCount > 0}
           <div class="bg-red-500/15 border border-red-500 rounded-lg p-4 text-red-300">
-            <h4 class="m-0 mb-2 text-red-400">⚠️ Warning: Exercise in Use</h4>
+            <h4 class="m-0 mb-2 text-red-400">{$t("exercises.deleteModal.warningTitle")}</h4>
             <p>
-              This exercise is currently referenced in <strong>{deleteUsageInfo.examCount}</strong> exam(s):
+              {$t("exercises.deleteModal.usageInfo", { count: deleteUsageInfo.examCount })}
             </p>
             <ul class="my-2 pl-6 text-slate-200">
               {#each deleteUsageInfo.exams as exam}
@@ -41,22 +42,22 @@
               {/each}
             </ul>
             <p class="text-[0.85rem] mt-3 text-slate-300">
-              Deleting it will permanently remove it from the library and unlink it from these exams.
+              {$t("exercises.deleteModal.usageWarning")}
             </p>
           </div>
         {:else}
-          <p>Are you sure you want to delete this exercise from your library?</p>
+          <p>{$t("exercises.deleteModal.confirmPlain")}</p>
         {/if}
       </div>
 
       <div class="flex justify-end gap-4 px-6 py-4 border-t border-slate-700">
-        <button class="bg-slate-700 text-white border-none px-5 py-2.5 rounded-md cursor-pointer" on:click={onClose}>Cancel</button>
+        <button class="bg-slate-700 text-white border-none px-5 py-2.5 rounded-md cursor-pointer" on:click={onClose}>{$t("common.cancel")}</button>
         <button
           class="bg-red-600 text-white border-none px-5 py-2.5 rounded-md font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           on:click={onConfirm}
           disabled={isDeleteLoading}
         >
-          Delete Anyway
+          {$t("exercises.deleteModal.deleteAnyway")}
         </button>
       </div>
     </div>

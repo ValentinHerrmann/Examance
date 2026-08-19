@@ -1,6 +1,7 @@
 <script lang="ts">
   import "./StatusBar.css";
   import type { VersionStatus } from "$lib/stores/versionStore";
+  import { locale, t, toggleLocale, LOCALE_LABELS } from "$lib/i18n";
   export let onStorageClick: () => void;
   export let policyIcon: string = "";
   export let policyLabel: string = "";
@@ -26,19 +27,22 @@
 
   const displayVersion = backendVersion || frontendVersion;
   $: versionTitle = {
-    match: `App and server both run v${displayVersion}`,
-    mismatch: `App v${displayVersion} — versions differ but stay compatible`,
-    incompatible: `App v${displayVersion} — incompatible major version`,
-    unknown: `App v${displayVersion} — server version unavailable`,
-    "no-server": `App v${displayVersion} — no server configured`,
+    match: $t("statusBar.versionMatch", { version: displayVersion }),
+    mismatch: $t("statusBar.versionMismatch", { version: displayVersion }),
+    incompatible: $t("statusBar.versionIncompatible", { version: displayVersion }),
+    unknown: $t("statusBar.versionUnknown", { version: displayVersion }),
+    "no-server": $t("statusBar.versionNoServer", { version: displayVersion }),
   }[versionStatus];
 
   // Bare semver ("1.4.0") is a tagged release; PR builds link to the PR,
   // others to the commit. Reflected in the tooltip so the link target is
   // obvious before it's clicked.
   $: versionLinkTitle = versionUrl
-    ? `${versionTitle} — ${displayVersion.includes("PR#") ? "open pull request on GitHub" : displayVersion.includes("-") ? "open build commit on GitHub" : "open release on GitHub"}`
+    ? `${versionTitle} — ${displayVersion.includes("PR#") ? $t("statusBar.linkPullRequest") : displayVersion.includes("-") ? $t("statusBar.linkCommit") : $t("statusBar.linkRelease")}`
     : versionTitle;
+
+  // The next language in the cycle — what a click switches to.
+  $: nextLocaleLabel = LOCALE_LABELS[$locale === "de" ? "en" : "de"];
 </script>
 
 <footer class="vscode-statusbar">
@@ -47,8 +51,8 @@
     on:click={onStorageClick}
     class="statusbar-item"
     title={unlocked
-      ? "Click to change storage & privacy settings"
-      : "Session locked — Click to unlock"}
+      ? $t("statusBar.storageSettingsHint")
+      : $t("statusBar.lockedHint")}
   >
     <span class="statusbar-icon">{policyIcon}</span>
     <span class="statusbar-label">{policyLabel}</span>
@@ -58,10 +62,20 @@
     type="button"
     on:click={onStorageClick}
     class="statusbar-item statusbar-right"
-    title={unlocked ? "Click to configure backend server address" : "Current Backend Server"}
+    title={unlocked ? $t("statusBar.backendConfigureHint") : $t("statusBar.backendCurrent")}
   >
     <span class="statusbar-icon">🖥️</span>
-    <span class="statusbar-label">{backendLabel || "No Server Configured"}</span>
+    <span class="statusbar-label">{backendLabel || $t("statusBar.noServer")}</span>
+  </button>
+
+  <button
+    type="button"
+    on:click={toggleLocale}
+    class="statusbar-item statusbar-locale"
+    title={$t("statusBar.languageHint", { language: nextLocaleLabel })}
+  >
+    <span class="statusbar-icon">🌐</span>
+    <span class="statusbar-label">{$locale.toUpperCase()}</span>
   </button>
 
   {#if versionUrl}
@@ -84,6 +98,12 @@
 </footer>
 
 <style>
+  /* Uppercase two-letter code keeps the item narrow in both languages. */
+  .statusbar-locale .statusbar-label {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em;
+  }
+
   /* Default: no link target (e.g. local dev build), so it must not look
      clickable. */
   .statusbar-version {

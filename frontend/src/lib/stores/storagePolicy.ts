@@ -1,5 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import { safeLocalStorage } from '$lib/utils/storage';
+import { t, translate } from '$lib/i18n';
 
 export type StorageMode = 'all-server' | 'all-local' | 'hybrid';
 
@@ -16,12 +17,14 @@ export const DEFAULT_POLICY: StoragePolicy = {
 };
 
 export function getStoragePolicyLabel(policy: StoragePolicy): string {
-    const modeLabel = policy.storageMode === 'all-server' 
-        ? 'All Server' 
-        : policy.storageMode === 'all-local' 
-            ? 'All Local' 
-            : 'Hybrid (Exercises Server, Students Local)';
-    const latexLabel = policy.latexCompilation === 'server' ? 'LaTeX Server' : 'LaTeX Local';
+    const modeLabel = policy.storageMode === 'all-server'
+        ? translate('storagePolicy.allServer')
+        : policy.storageMode === 'all-local'
+            ? translate('storagePolicy.allLocal')
+            : translate('storagePolicy.hybrid');
+    const latexLabel = policy.latexCompilation === 'server'
+        ? translate('storagePolicy.latexServer')
+        : translate('storagePolicy.latexLocal');
     return `${modeLabel} | ${latexLabel}`;
 }
 
@@ -29,20 +32,20 @@ export function getStoragePolicyBadge(policy: StoragePolicy): { icon: string; te
     if (policy.storageMode === 'all-local') {
         return {
             icon: '🛡️',
-            text: 'All Local',
-            title: 'Everything stored locally in browser IndexedDB',
+            text: translate('storagePolicy.allLocal'),
+            title: translate('storagePolicy.allLocalTitle'),
         };
     } else if (policy.storageMode === 'all-server') {
         return {
             icon: '☁️',
-            text: 'All Server',
-            title: 'Everything stored and synced with backend server',
+            text: translate('storagePolicy.allServer'),
+            title: translate('storagePolicy.allServerTitle'),
         };
     } else {
         return {
             icon: '🔀',
-            text: 'Hybrid Mode',
-            title: 'Exercises & Exams on server, Student identity & submissions local',
+            text: translate('storagePolicy.hybridShort'),
+            title: translate('storagePolicy.hybridTitle'),
         };
     }
 }
@@ -96,13 +99,15 @@ function createStoragePolicyStore() {
 
 export const storagePolicyStore = createStoragePolicyStore();
 
+// `t` is a dependency so switching language re-renders these labels; the
+// translated text itself is read imperatively inside the getters.
 export const storagePolicyLabelStore = derived(
-    storagePolicyStore,
-    ($policy) => getStoragePolicyLabel($policy)
+    [storagePolicyStore, t],
+    ([$policy]) => getStoragePolicyLabel($policy)
 );
 
 export const storagePolicyBadgeStore = derived(
-    storagePolicyStore,
-    ($policy) => getStoragePolicyBadge($policy)
+    [storagePolicyStore, t],
+    ([$policy]) => getStoragePolicyBadge($policy)
 );
 

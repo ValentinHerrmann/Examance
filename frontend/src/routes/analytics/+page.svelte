@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./+page.css";
+  import { t } from '$lib/i18n';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
   import { afterNavigate, goto } from '$app/navigation';
@@ -348,8 +349,8 @@
 <div class="analytics-container">
   <div class="analytics-header">
     <div>
-      <h1>Global Multi-Exam Analytics</h1>
-      <p class="analytics-subtitle">Cross-exam performance tracking, exercise quality metrics & variant comparison</p>
+      <h1>{$t('stats.analyticsPage.heading')}</h1>
+      <p class="analytics-subtitle">{$t('stats.analyticsPage.subtitle')}</p>
     </div>
   </div>
 

@@ -20,13 +20,19 @@
   import SelectedExercisesList from "$lib/components/exam-creation/SelectedExercisesList.svelte";
   import ExamLivePreviewPanel from "$lib/components/exam-creation/ExamLivePreviewPanel.svelte";
   import { formatExamCourse } from "$lib/utils/examLabel";
+  import { t, translate } from "$lib/i18n";
+
+  // This is exam CONTENT written into the `datum` field and printed verbatim in the
+  // German exam PDF (see \Datum in the LaTeX preamble below) — not UI copy, so it is
+  // deliberately not translated and not routed through the locale formatter.
+  const DATUM_DURATION_SUFFIX_DE = " (30 Minuten)";
 
   // Metadata
   let title = "";
   let testart = "Kurzarbeit";
   let grade = "10";
   let klasse = "a";
-  let datum = new Date().toLocaleDateString("de-DE") + " (30 Minuten)";
+  let datum = new Date().toLocaleDateString("de-DE") + DATUM_DURATION_SUFFIX_DE;
   let nr = "1";
   let fach = "Informatik";
   let lehrernachname = "";
@@ -391,7 +397,7 @@ Frage hier eingeben... \\BE
 
   async function handleAddCustomExercise() {
     if (!customName.trim()) {
-      alert("Exercise name is required.");
+      alert(translate("examCreation.errors.customExerciseNameRequired"));
       return;
     }
 
@@ -435,7 +441,7 @@ Frage hier eingeben... \\BE
 
   async function handleLivePreview() {
     if (selectedExercises.length === 0 && mcGroupExercises.length === 0) {
-      alert("Please select at least one exercise to preview.");
+      alert(translate("examCreation.errors.selectAtLeastOneForPreview"));
       return;
     }
 
@@ -499,14 +505,14 @@ ${exerciseInputs}
 
       const useLocal = $storagePolicyStore.latexCompilation === "local";
       if (useLocal) {
-        errorMsg = "Compiling PDF...";
+        errorMsg = translate("examCreation.status.compilingPdf");
       }
 
       const resAngabe = await compileLatex(fullTexAngabe, useLocal, (status) => {
         if (status === 'downloading') {
-          errorMsg = "Loading local LaTeX compiler... (Downloading ~32MB on first load, please wait)";
+          errorMsg = translate("examCreation.status.loadingLocalCompiler");
         } else if (status === 'compiling') {
-          errorMsg = "Compiling PDF...";
+          errorMsg = translate("examCreation.status.compilingPdf");
         }
       }, false);
 
@@ -521,7 +527,7 @@ ${exerciseInputs}
 
       errorMsg = ""; // clear loading message
     } catch (err: any) {
-      errorMsg = err.message || "Preview compilation failed.";
+      errorMsg = err.message || translate("examCreation.errors.previewCompilationFailed");
     } finally {
       isPreviewLoading = false;
     }
@@ -529,11 +535,11 @@ ${exerciseInputs}
 
   async function handleCreateExam() {
     if (!title.trim()) {
-      errorMsg = "Exam title is required.";
+      errorMsg = translate("examCreation.errors.titleRequired");
       return;
     }
     if (selectedLibraryIds.length === 0 && mcGroups.length === 0) {
-      errorMsg = "Please select at least one exercise for the exam.";
+      errorMsg = translate("examCreation.errors.selectAtLeastOneExercise");
       return;
     }
 
@@ -657,7 +663,7 @@ ${exerciseInputs}
       sessionStore.setDirty(false);
       window.location.href = `/exam/${examId}`;
     } catch (err: any) {
-      errorMsg = err.message || "Failed to create exam.";
+      errorMsg = err.message || translate("examCreation.errors.createExamFailed");
     } finally {
       isLoading = false;
     }
@@ -665,7 +671,7 @@ ${exerciseInputs}
 </script>
 
 <div class="new-exam-page">
-  <h2>Create Exam (Assembly from Exercise Library)</h2>
+  <h2>{$t("examCreation.page.heading")}</h2>
 
   {#if errorMsg}
     <div class="exam-new-error-banner">{errorMsg}</div>
@@ -743,7 +749,7 @@ ${exerciseInputs}
       class:is-loading={isLoading}
       disabled={isLoading || (selectedExercises.length === 0 && mcGroups.length === 0)}
     >
-      {isLoading ? "Creating Exam..." : "Save Exam & Continue"}
+      {isLoading ? $t("examCreation.status.creatingExam") : $t("examCreation.submit.saveAndContinue")}
     </button>
   </form>
 

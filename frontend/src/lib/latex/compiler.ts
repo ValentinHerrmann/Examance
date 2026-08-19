@@ -6,6 +6,7 @@
  */
 
 import { api } from '$lib/api/client';
+import { translate } from '$lib/i18n';
 
 export interface CompileResult {
   pdfBytes: Uint8Array;
@@ -97,7 +98,7 @@ export async function compileLatex(
     try {
       return await compileLocalWasm(latexSource, onStatus);
     } catch (err: any) {
-      if (promptFallback && typeof window !== 'undefined' && window.confirm("Local LaTeX compilation failed. Do you want to try compiling on the server?")) {
+      if (promptFallback && typeof window !== 'undefined' && window.confirm(translate('misc.compiler.localFailedTryServer'))) {
         const result = await compileOnServer(latexSource);
         return { ...result, usedFallback: true };
       }
