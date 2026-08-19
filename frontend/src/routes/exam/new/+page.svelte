@@ -10,6 +10,7 @@
   import { parseExerciseScore, formatExerciseLatex, formatMcGroupLatex } from "$lib/latex/scoreParser";
   import { recordValue } from "$lib/utils/recentValues";
   import { compileLatex } from "$lib/latex/compiler";
+  import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
   import { get } from "svelte/store";
   import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
   import GradingKeyEditor from "$lib/components/GradingKeyEditor.svelte";
@@ -508,19 +509,37 @@ ${exerciseInputs}
         errorMsg = translate("examCreation.status.compilingPdf");
       }
 
+      // Resource files of every exercise in the draft exam (see
+      // lib/latex/resources.ts for the flat-filename rules). The local engine
+      // needs the bytes; the server loads its own rows from the exercise ids.
+      const collectedResources = await exerciseResourceRepository.collectForCompile(
+        [
+          ...selectedExercises.map((ex) => ({ id: ex.id, label: ex.name })),
+          ...mcGroupExercises.flatMap(({ group, members }) =>
+            members.map((ex) => ({ id: ex.id, label: ex.name || group.title }))
+          ),
+        ],
+        get(sessionStore).sessionKey,
+        useLocal
+      );
+      const compileOpts = {
+        resources: collectedResources.inline,
+        resourceExerciseIds: collectedResources.exerciseIds,
+      };
+
       const resAngabe = await compileLatex(fullTexAngabe, useLocal, (status) => {
         if (status === 'downloading') {
           errorMsg = translate("examCreation.status.loadingLocalCompiler");
         } else if (status === 'compiling') {
           errorMsg = translate("examCreation.status.compilingPdf");
         }
-      }, false);
+      }, false, compileOpts);
 
       const blobAngabe = new Blob([resAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       previewPdfUrl = URL.createObjectURL(blobAngabe);
 
-      const resLoesung = await compileLatex(fullTexLoesung, useLocal, undefined, false);
+      const resLoesung = await compileLatex(fullTexLoesung, useLocal, undefined, false, compileOpts);
       const blobLoesung = new Blob([resLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
       previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);

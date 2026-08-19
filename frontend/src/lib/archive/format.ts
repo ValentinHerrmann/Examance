@@ -52,6 +52,7 @@ export enum RecordType {
   AUDITLOG = 6,
   EXERCISESCORE = 7,
   EXAMEXERCISE = 8,
+  EXERCISERESOURCE = 9,
 }
 
 export interface ArchiveManifest {

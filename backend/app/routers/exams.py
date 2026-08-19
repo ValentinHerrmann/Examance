@@ -27,7 +27,9 @@ from app.schemas.exam import (
     ExamUpdate,
     ExerciseResponse,
 )
+from app.services.exercise_resource_store import load_resources_for_exercises
 from app.services.latex import CompilationError, compile_exam_latex
+from app.services.latex_resources import ResourceError
 
 router = APIRouter(prefix="/exams", tags=["exams"])
 
@@ -458,14 +460,30 @@ async def delete_exam(
 async def compile_exam_endpoint(
     answers: bool = False,
     exam: Exam = Depends(get_exam_for_teacher),
+    teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     """Compile complete exam LaTeX document using live-linked library exercises."""
     ex_tuples = await _fetch_exam_exercises(exam.id, db)
     mc_groups = await _fetch_exam_mc_groups(exam.id, db)
 
+    # Resources live on the server in server/hybrid mode, so the browser never
+    # uploads them for a compile — they are read straight out of the database.
     try:
-        pdf_bytes = await compile_exam_latex(exam, ex_tuples, mc_groups, show_answers=answers)
+        binary_files = await load_resources_for_exercises(
+            [t[0].id for t in ex_tuples if getattr(t[0], "id", None)], teacher.id, db
+        )
+    except ResourceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+            headers={"code": "ERR_COMPILE_FAILED"},
+        ) from exc
+
+    try:
+        pdf_bytes = await compile_exam_latex(
+            exam, ex_tuples, mc_groups, show_answers=answers, binary_files=binary_files
+        )
         exam.compilation_status = "compiled"
         await db.flush()
     except TimeoutError:
@@ -483,6 +501,14 @@ async def compile_exam_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
             headers={"code": "ERR_COMPILE_FAILED"},
+        ) from exc
+    except OSError as exc:
+        exam.compilation_status = "failed"
+        await db.flush()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The LaTeX compilation service is unavailable.",
+            headers={"code": "ERR_COMPILE_UNAVAILABLE"},
         ) from exc
 
     # RFC 6266. The title is user-controlled: a quote would break out of the

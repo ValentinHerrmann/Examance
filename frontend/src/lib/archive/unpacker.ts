@@ -18,7 +18,7 @@ import {
 } from './format';
 import { deriveKey } from '$lib/crypto/keyDerivation';
 import { deriveSessionKey } from '$lib/crypto/sessionKey';
-import { decryptJson, toArrayBuffer } from '$lib/crypto/aesGcm';
+import { base64ToUint8Array, decryptJson, toArrayBuffer } from '$lib/crypto/aesGcm';
 import {
   saveExamEncrypted,
   saveExerciseEncrypted,
@@ -27,6 +27,7 @@ import {
   saveScoreEncrypted,
   encryptExam,
   encryptExercise,
+  encryptResource,
 } from '$lib/db/dbEncryption';
 import { importPayloadToServer } from './serverImport';
 
@@ -234,6 +235,28 @@ export async function unpackProject(
     await db.examMcGroups.bulkPut(
       payload.examMcGroups.map((g: any) => ({ ...g, examId: remap(g.examId) }))
     );
+  }
+
+  if (Array.isArray(payload.exerciseResources) && payload.exerciseResources.length > 0) {
+    // The packer stored plaintext bytes as base64; re-encrypt them under this
+    // session's key and follow the exercise id remapping, so a re-imported
+    // exercise keeps its figures.
+    for (const r of payload.exerciseResources) {
+      const bytes = base64ToUint8Array(r.dataB64 ?? '');
+      const record = await encryptResource(
+        {
+          id: r.id,
+          exerciseId: remap(r.exerciseId) ?? r.exerciseId,
+          filename: r.filename,
+          mimeType: r.mimeType ?? 'application/octet-stream',
+          byteSize: bytes.length,
+          createdAt: r.createdAt,
+        },
+        bytes,
+        activeKey
+      );
+      await db.exerciseResources.put(record);
+    }
   }
 
   if (Array.isArray(payload.auditLogs) && payload.auditLogs.length > 0) {

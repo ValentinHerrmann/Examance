@@ -99,12 +99,28 @@ async function request<T>(
     }
   }
 
-  const resp = await fetch(`${getBaseUrl()}${path}`, {
-    method,
-    headers,
-    body: bodyInit,
-    credentials: 'include', // Always include httpOnly cookies
-  });
+  let resp: Response;
+  try {
+    resp = await fetch(`${getBaseUrl()}${path}`, {
+      method,
+      headers,
+      body: bodyInit,
+      credentials: 'include', // Always include httpOnly cookies
+    });
+  } catch (err: any) {
+    // fetch only rejects when no usable response arrived at all: the server is
+    // unreachable, or it answered without the CORS headers the browser needs
+    // (which is what an unhandled server error used to look like from here).
+    const netErr = new ApiError(
+      0,
+      'ERR_NETWORK',
+      'No response from the server. It may be unreachable, or it rejected the request before answering.'
+    );
+    if (!options.silentError) {
+      httpErrorStore.showError(netErr.status, netErr.message, netErr.code);
+    }
+    throw netErr;
+  }
 
   if (resp.status === 401 && !path.startsWith('/auth/')) {
     // Deduplicate concurrent refresh attempts
@@ -157,7 +173,8 @@ export const api = {
   delete: <T>(path: string, options?: { silentError?: boolean }) => request<T>('DELETE', path, undefined, options),
   postBinary: (path: string, data: Uint8Array) =>
     request<ArrayBuffer>('POST', path, data, { binary: true }),
-  postJsonForBinary: (path: string, body: unknown) =>
-    request<ArrayBuffer>('POST', path, body, { binary: true }),
-  getBinary: (path: string) => request<ArrayBuffer>('GET', path, undefined, { binary: true }),
+  postJsonForBinary: (path: string, body: unknown, options?: { silentError?: boolean }) =>
+    request<ArrayBuffer>('POST', path, body, { ...options, binary: true }),
+  getBinary: (path: string, options?: { silentError?: boolean }) =>
+    request<ArrayBuffer>('GET', path, undefined, { ...options, binary: true }),
 };

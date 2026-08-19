@@ -34,7 +34,7 @@ Two criteria are met (evaluation/scoring; vulnerable data subjects), so a DPIA i
 
 - Purpose and context: *[…]*
 - Deployment shape: *[school self-hosted / third-party hosted]*; storage mode: *[`all-local` / `all-server` / `hybrid` — see `data_flow_and_security.md` §3]*
-- Data categories, subjects and volumes: *[…]*
+- Data categories, subjects and volumes: *[…]*  Include teacher-uploaded exercise resource files: arbitrary file types are permitted, so the content is not constrained by the schema. In `all-local` mode they are encrypted in the browser; in `all-server`/`hybrid` mode they are stored as plaintext blobs alongside the exercise LaTeX.
 - Retention: *[…]*
 - Recipients and sub-processors: *[…]*
 
@@ -89,7 +89,7 @@ Rate each risk to the **rights and freedoms of the data subject**, not to the sc
 
 ## Review
 
-A DPIA is not a one-off. Re-assess when the processing changes — a new deployment mode, a new sub-processor, automated grading without human review, or a materially different data category — and at least annually.
+A DPIA is not a one-off. Re-assess when the processing changes — a new deployment mode, a new sub-processor, automated grading without human review, or a materially different data category (teacher-uploaded resource files are such a category: unconstrained file content attached to exercises) — and at least annually.
 
 | Version | Date | Author | Change |
 | :--- | :--- | :--- | :--- |

@@ -112,7 +112,12 @@ class Settings(BaseSettings):
     AUDIT_LOG_RETENTION_DAYS: int = 365
 
     # Body size limits (bytes)
-    BODY_LIMIT_COMPILE: int = 2 * 1024 * 1024       # 2 MB
+    # Compile requests carry the document plus, in local-storage mode, every
+    # resource file it references (base64, so ~4/3 of the raw bytes). The
+    # 10/min rate limit on the compile route bounds the volume this allows.
+    BODY_LIMIT_COMPILE: int = 28 * 1024 * 1024      # 28 MB
+    # Single resource-file upload: 5 MB raw, base64-inflated, plus JSON slack.
+    BODY_LIMIT_RESOURCE: int = 7 * 1024 * 1024      # 7 MB
     BODY_LIMIT_SUBMISSION: int = 50 * 1024 * 1024   # 50 MB
     BODY_LIMIT_STUDENTS: int = 1 * 1024 * 1024      # 1 MB
     BODY_LIMIT_DEFAULT: int = 256 * 1024             # 256 KB

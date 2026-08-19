@@ -5,6 +5,7 @@ from app.models.exam_exercise import ExamExercise
 from app.models.exam_mc_group import ExamMcGroup
 from app.models.exercise import Exercise
 from app.models.exercise_group import ExerciseGroup
+from app.models.exercise_resource import ExerciseResource
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.scan_submission import ScanSubmission
@@ -18,6 +19,7 @@ __all__ = [
     "Exam",
     "Exercise",
     "ExerciseGroup",
+    "ExerciseResource",
     "ExamExercise",
     "ExamMcGroup",
     "StudentIdentity",

@@ -74,6 +74,9 @@ export async function importPayloadToServer(payload: any): Promise<ServerImportR
   const exams: ExamRecord[] = Array.isArray(payload.exams) ? payload.exams : [];
   const junctions: any[] = Array.isArray(payload.exerciseExams) ? payload.exerciseExams : [];
   const mcGroups: any[] = Array.isArray(payload.examMcGroups) ? payload.examMcGroups : [];
+  const resources: any[] = Array.isArray(payload.exerciseResources)
+    ? payload.exerciseResources
+    : [];
 
   // 1. Exercises first — exams link to them by id.
   //
@@ -108,6 +111,23 @@ export async function importPayloadToServer(payload: any): Promise<ServerImportR
     if (ex.id) {
       createdExerciseIds.add(ex.id);
       if (created.id !== ex.id) idMap.set(ex.id, created.id);
+    }
+  }
+
+  // 1b. Resource files of those exercises. They follow the same id remapping;
+  // a rejection is reported but never aborts the rest of the import, since a
+  // missing figure is far less costly than a lost exercise.
+  for (const res of resources) {
+    if (!res?.exerciseId || !createdExerciseIds.has(res.exerciseId)) continue;
+    const exerciseId = idMap.get(res.exerciseId) ?? res.exerciseId;
+    try {
+      await api.post(`/exercises/${exerciseId}/resources`, {
+        filename: res.filename,
+        mime_type: res.mimeType ?? 'application/octet-stream',
+        content_b64: res.dataB64 ?? '',
+      });
+    } catch (err: any) {
+      errors.push(`Resource "${res.filename}": ${describeError(err)}`);
     }
   }
 

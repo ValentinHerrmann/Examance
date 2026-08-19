@@ -8,6 +8,7 @@
  *   students     — { pseudonymId, fallbackCode, piiCt, piiIv } — PII encrypted
  *   submissions  — scan + annotation ciphertexts only
  *   auditLog     — local audit trail, merged into .bgproj on export
+ *   exerciseResources — encrypted LaTeX resource files, one row per attachment
  */
 
 import { browser } from '$app/environment';
@@ -18,6 +19,7 @@ import type {
   ExamMcGroupRecord,
   ExamRecord,
   ExerciseRecord,
+  ExerciseResourceRecord,
   ExerciseScoreRecord,
   OmrTemplateRecord,
   StudentRecord,
@@ -32,6 +34,7 @@ export class BlindGradeDB extends Dexie {
   students!: Table<StudentRecord>;
   submissions!: Table<SubmissionRecord>;
   exerciseScores!: Table<ExerciseScoreRecord>;
+  exerciseResources!: Table<ExerciseResourceRecord>;
   auditLog!: Table<AuditEntry>;
   omrTemplates!: Table<OmrTemplateRecord>;
 
@@ -110,6 +113,22 @@ export class BlindGradeDB extends Dexie {
       auditLog: 'id, action, timestamp',
       omrTemplates: 'id, examId',
     });
+
+    // v8: adds exerciseResources — teacher-uploaded files (images, PDFs, data
+    // files) that an exercise's LaTeX references by flat filename. Bytes are
+    // encrypted; filename/mimeType/byteSize are plaintext index fields.
+    this.version(8).stores({
+      exams: 'id, teacherId, retentionUntil',
+      exercises: 'id, examId, topicTag, grade, subject, name, exerciseGroupId, variantKey, isCurrent',
+      examExercises: '[examId+exerciseId], examId, exerciseId, orderIndex, mcGroupId',
+      examMcGroups: 'id, examId, orderIndex',
+      students: 'pseudonymId, examId, fallbackCode',
+      submissions: 'id, examId, pseudonymHash',
+      exerciseScores: 'id, submissionId, exerciseId',
+      auditLog: 'id, action, timestamp',
+      omrTemplates: 'id, examId',
+      exerciseResources: 'id, exerciseId, [exerciseId+filename]',
+    });
   }
 }
 
@@ -166,6 +185,7 @@ export async function clearAllTables(): Promise<void> {
       db.exerciseScores.clear(),
       db.auditLog.clear(),
       db.omrTemplates.clear(),
+      db.exerciseResources.clear(),
     ]);
   } catch {
     // Ignore clear errors on un-opened DB

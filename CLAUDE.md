@@ -107,6 +107,24 @@ English with a `🌐` toggle in `StatusBar.svelte` and a radio section in `Setti
 - **MC Group (`\McExercise{a}{b}{c}`)**: A per-exam layout container (`ExamMcGroup` / `ExamMcGroupRecord`, 2–4 sub-items) linking member exercises via `ExamExercise.mc_group_id` and `sub_index`. Rendered into a single `\begin{Aufgabe}` by `format_mc_group_latex()`.
 - **Grading & Statistics Invariant**: Grading and statistics are strictly per-question (`exerciseId`), treating `ExamMcGroup` solely as LaTeX rendering and layout metadata.
 
+## LaTeX Resource Files
+
+Teacher-uploaded files an exercise's LaTeX references (`\includegraphics{figure.png}`, `\input{data.tex}`). Any file type is allowed **except SVG** (refused with a convert-to-PDF hint — `frontend/src/lib/latex/resources.ts`, mirrored in `backend/app/services/latex_resources.py`; keep the two in sync).
+
+- Attached **per exercise**, referenced by **flat sanitized filename** — files are written next to `main.tex` in both engines, never in a subdirectory. Names that collide with a bundled `latex-assets` file (including the worker's flattened `sty/x.sty` → `x.sty`) are rejected at upload.
+- Limits: 5 MB per file, 25 MB per exercise, 20 MB / 30 files per compile request; `BODY_LIMIT_COMPILE` is 28 MB and `BODY_LIMIT_RESOURCE` 7 MB.
+- Storage: Dexie table `exerciseResources` (v8), bytes AES-256-GCM encrypted; server table `exercise_resources`, bytes **plaintext** — same treatment as `exercises.latex_body`, since Tectonic cannot read ciphertext.
+- The editor stages files under a throwaway id (`ExerciseResourcePanel` gets a staging id, never the exercise id) and `exerciseResourceRepository.commit()` moves the staged set onto the exercise on save — that is what makes uploading and previewing work before an exercise exists. Cancel discards. The staged set is authoritative on commit: files removed while editing are deleted server-side too.
+- Local compile: `compiler.ts` → worker `additionalFiles`. Server compile sends `resource_exercise_ids` for saved exercises (server reads its own rows) and inline base64 only for staged/local-only files. `POST /exams/{id}/compile` always reads the rows from the DB.
+- Two exercises with *different* files under the same name is a hard error before compiling (`mergeResources`); identical bytes are deduped.
+- Resource API calls pass `silentError` and report in the panel — a 404 for an exercise the server has never seen must not raise the global toast.
+- A missing graphic does not fail XeLaTeX. The worker reports `missingGraphics` and callers surface it — do not treat a successful compile as proof the figures rendered.
+
+## Gotchas worth knowing
+
+- **A 500 has to carry CORS headers itself.** The global handler in `app/main.py` runs in `ServerErrorMiddleware`, outside `CORSMiddleware`, so an unhandled exception reaches the browser as "No 'Access-Control-Allow-Origin' header" and the real fault is invisible. The handler echoes an allowlisted `Origin` for that reason (`is_allowed_origin`, `app/middleware/cors.py`) — do not remove it.
+- **One shared preview stack.** `deploy-preview.yml` force-pushes the PR head to `preview`; the newest non-draft PR push wins for *both* frontend and backend. Testing PR A while PR B was pushed later means testing B. The status bar version carries the PR number — check it before debugging.
+
 ## Environment
 
 `backend/.env.example` → `backend/.env`. Postgres + Redis via `docker-compose.yml`. `CORS_ALLOWED_ORIGINS` defaults to `http://localhost:5173` + `https://examance.pages.dev`, plus `CORS_ALLOWED_ORIGIN_REGEX` covering `*.valentin-herrmann.com` and `*.examance.pages.dev` preview subdomains. In development (`ENVIRONMENT=development`), `effective_cors_origin_regex` dynamically allows arbitrary loopback/localhost ports. No wildcard fallback; an empty list is a hard startup error (`require_cors_origins`, `backend/app/config.py`). Override explicitly for any other origin.

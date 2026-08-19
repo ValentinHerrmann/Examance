@@ -117,8 +117,29 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 | `POST` | `/api/v1/compile/latex` | Compile LaTeX | Yes | Compiles raw LaTeX code into PDF bytes using sandboxed Tectonic engine. |
 
 #### Compile Request & Response
-- **Request Body**: `{"latex": "\\documentclass{article}..."}`
+- **Request Body**:
+  ```json
+  {
+    "latex": "\\documentclass{article}...",
+    "resources": [{ "filename": "figure.png", "content_b64": "iVBORw0..." }],
+    "resource_exercise_ids": ["uuid..."]
+  }
+  ```
+- **`resource_exercise_ids`** (optional): exercises whose stored resource files the server
+  should load from its own database, so a client in server/hybrid mode does not upload bytes
+  the server already has. Only exercises the caller may read are honoured; unknown ids are
+  ignored. Where a filename appears in both, the inline copy wins — it is the caller's
+  current, possibly unsaved version.
+- **`resources`** (optional): files the document references by name. They are written
+  flat next to `main.tex` for this compilation only and discarded with the temp
+  directory — nothing is persisted. Limits: ≤ 30 files, ≤ 5 MB each, ≤ 20 MB total;
+  the route's body limit is 28 MB. Names are sanitised, must not collide with a
+  bundled LaTeX asset, and `.svg` is rejected (convert to PDF — it stays vector).
 - **Response**: Binary stream (`application/pdf`).
+- **Errors**: `422 ERR_COMPILE_FAILED` (TeX diagnostics), `422 ERR_RESOURCE_INVALID` (a resource
+  name is not usable), `503 ERR_COMPILE_UNAVAILABLE` (the engine itself is missing or cannot
+  run), `504 ERR_COMPILE_TIMEOUT`. Unhandled faults return `500 ERR_INTERNAL` **with** CORS
+  headers, so a browser reports the status rather than a phantom CORS failure.
 
 ---
 
@@ -171,9 +192,22 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 | `POST` | `/api/v1/exercises/{id}/new-variant` | Create Variant | Yes | Creates a parallel variant within the same exercise group. |
 | `GET` | `/api/v1/exercises/{id}/usage` | Exercise Usage | Yes | Lists exams referencing this exercise and count. |
 | `DELETE` | `/api/v1/exercises/{id}` | Delete Exercise | Yes | Soft-deletes exercise from the caller's own library. Idempotent (always `204`); a foreign id is a silent no-op. |
+| `GET` | `/api/v1/exercises/{id}/resources` | List Resources | Yes | Metadata of the exercise's resource files (no bytes). Readable for own and published exercises. |
+| `POST` | `/api/v1/exercises/{id}/resources` | Upload Resource | Yes | Attaches a file (base64). Re-using a filename replaces that file. Body limit 7 MB; 5 MB per file, 25 MB per exercise. |
+| `GET` | `/api/v1/exercises/{id}/resources/{resource_id}` | Download Resource | Yes | Raw bytes. Only `image/png`, `image/jpeg` and `application/pdf` are served under their own type; anything else is `application/octet-stream` as an attachment, always with `X-Content-Type-Options: nosniff`. |
+| `PATCH` | `/api/v1/exercises/{id}/resources/{resource_id}` | Rename Resource | Yes | Renames the file. The LaTeX source referencing it must be updated separately. |
+| `DELETE` | `/api/v1/exercises/{id}/resources/{resource_id}` | Delete Resource | Yes | Removes one resource file. Idempotent (`204`). |
 
 #### Exercise Query Parameters
 - **Query Filters** (`GET /api/v1/exercises`): `search` (string), `topic_tag` (string), `grade` (string), `subject` (string).
+
+#### Exercise Resource Schemas
+- **`ExerciseResourceCreate`**: `{"filename": "figure.png", "mime_type": "image/png", "content_b64": "iVBORw0..."}`
+- **`ExerciseResourceResponse`**: `{"id": "uuid", "exercise_id": "uuid", "filename": "figure.png", "mime_type": "image/png", "byte_size": 20481, "created_at": "..."}`
+- Resource bytes are stored in plaintext on the server (like `latex_body`) and copied
+  onto new versions and variants of the exercise. `POST /api/v1/exams/{id}/compile`
+  loads them from the database, so the client never uploads them for a server-side
+  exam compile.
 
 ---
 

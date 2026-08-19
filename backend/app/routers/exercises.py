@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +19,9 @@ from app.models.exam import Exam
 from app.models.exam_exercise import ExamExercise
 from app.models.exercise import Exercise
 from app.models.exercise_group import ExerciseGroup
+from app.models.exercise_resource import ExerciseResource
 from app.models.teacher import Teacher
+from app.schemas.binary import decode_b64
 from app.schemas.exam import (
     ExamUsageItem,
     ExerciseCreate,
@@ -28,6 +30,16 @@ from app.schemas.exam import (
     ExerciseResponse,
     ExerciseUpdate,
     ExerciseUsageResponse,
+)
+from app.schemas.resource import (
+    ExerciseResourceCreate,
+    ExerciseResourceRename,
+    ExerciseResourceResponse,
+)
+from app.services.latex_resources import (
+    MAX_EXERCISE_RESOURCE_BYTES,
+    MAX_RESOURCE_BYTES,
+    resolve_content_disposition,
 )
 
 router = APIRouter(prefix="/exercises", tags=["exercises"])
@@ -412,6 +424,7 @@ async def create_new_version(
     )
     db.add(new_ex)
     await db.flush()
+    await _copy_resources(old_ex.id, new_ex.id, db)
 
     return _to_res(new_ex)
 
@@ -469,6 +482,7 @@ async def create_new_variant(
     )
     db.add(variant_ex)
     await db.flush()
+    await _copy_resources(base_ex.id, variant_ex.id, db)
 
     return _to_res(variant_ex)
 
@@ -539,3 +553,223 @@ async def delete_exercise(
     if ex is not None:
         await db.delete(ex)
 
+
+
+# --- Resource files -------------------------------------------------------
+#
+# Files a teacher attaches to an exercise so its LaTeX can reference them
+# (\includegraphics{figure.png}, \input{data.tex}, ...). Bytes are stored in
+# plaintext, exactly like latex_body; the zero-knowledge path is all-local
+# mode, where they never leave the browser. See docs/data_flow_and_security.md.
+
+
+async def _copy_resources(source_id: uuid.UUID, target_id: uuid.UUID, db: AsyncSession) -> None:
+    """Duplicate every resource of *source_id* onto *target_id*.
+
+    A new version or variant is a separate exercise row, and its LaTeX still
+    references the same figures — so the files travel with it.
+    """
+    rows = (
+        (
+            await db.execute(
+                select(ExerciseResource).where(ExerciseResource.exercise_id == source_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for row in rows:
+        db.add(
+            ExerciseResource(
+                exercise_id=target_id,
+                filename=row.filename,
+                mime_type=row.mime_type,
+                byte_size=row.byte_size,
+                content=row.content,
+            )
+        )
+    if rows:
+        await db.flush()
+
+
+async def _get_resource(
+    exercise_id: uuid.UUID, resource_id: uuid.UUID, db: AsyncSession
+) -> ExerciseResource:
+    result = await db.execute(
+        select(ExerciseResource).where(
+            ExerciseResource.id == resource_id,
+            ExerciseResource.exercise_id == exercise_id,
+        )
+    )
+    row: ExerciseResource | None = result.scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
+    return row
+
+
+@router.get("/{exercise_id}/resources", response_model=list[ExerciseResourceResponse])
+async def list_exercise_resources(
+    ex: Exercise = Depends(get_readable_exercise),
+    db: AsyncSession = Depends(get_db),
+) -> list[ExerciseResourceResponse]:
+    """List an exercise's resource files (metadata only, no bytes)."""
+    rows = (
+        (
+            await db.execute(
+                select(ExerciseResource)
+                .where(ExerciseResource.exercise_id == ex.id)
+                .order_by(ExerciseResource.filename)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [ExerciseResourceResponse.model_validate(r) for r in rows]
+
+
+@router.post(
+    "/{exercise_id}/resources",
+    response_model=ExerciseResourceResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_exercise_resource(
+    body: ExerciseResourceCreate,
+    ex: Exercise = Depends(get_exercise_for_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> ExerciseResourceResponse:
+    """
+    Attach a file to an exercise. Uploading an existing filename replaces it.
+
+    The filename is sanitised and checked against the bundled LaTeX assets by
+    the schema; SVG is refused there with a convert-to-PDF hint.
+    """
+    content = decode_b64(body.content_b64, "content_b64")
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Resource content must not be empty."
+        )
+    if len(content) > MAX_RESOURCE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=(
+                f"File exceeds the {MAX_RESOURCE_BYTES // (1024 * 1024)} MB per-file limit."
+            ),
+            headers={"code": "ERR_PAYLOAD_TOO_LARGE"},
+        )
+
+    existing = (
+        (
+            await db.execute(
+                select(ExerciseResource).where(ExerciseResource.exercise_id == ex.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    replaced = next((r for r in existing if r.filename == body.filename), None)
+    used = sum(r.byte_size for r in existing if r is not replaced)
+    if used + len(content) > MAX_EXERCISE_RESOURCE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=(
+                "This exercise's resource files would exceed the "
+                f"{MAX_EXERCISE_RESOURCE_BYTES // (1024 * 1024)} MB limit."
+            ),
+            headers={"code": "ERR_PAYLOAD_TOO_LARGE"},
+        )
+
+    if replaced is not None:
+        replaced.mime_type = body.mime_type
+        replaced.byte_size = len(content)
+        replaced.content = content
+        await db.flush()
+        updated: ExerciseResourceResponse = ExerciseResourceResponse.model_validate(replaced)
+        return updated
+
+    row = ExerciseResource(
+        exercise_id=ex.id,
+        filename=body.filename,
+        mime_type=body.mime_type,
+        byte_size=len(content),
+        content=content,
+    )
+    db.add(row)
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A resource with this name already exists for this exercise.",
+        ) from None
+    created: ExerciseResourceResponse = ExerciseResourceResponse.model_validate(row)
+    return created
+
+
+@router.get("/{exercise_id}/resources/{resource_id}")
+async def download_exercise_resource(
+    resource_id: uuid.UUID,
+    ex: Exercise = Depends(get_readable_exercise),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """
+    Return a resource's raw bytes.
+
+    Only png/jpeg/pdf are served under their own media type; anything else is
+    an opaque download. A stored text/html file returned inline from the API
+    origin would be stored XSS, so the type is never taken at face value and
+    sniffing is disabled.
+    """
+    row = await _get_resource(ex.id, resource_id, db)
+    media_type, disposition = resolve_content_disposition(row.mime_type)
+    return Response(
+        content=row.content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'{disposition}; filename="{row.filename}"',
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "sandbox; default-src 'none'",
+        },
+    )
+
+
+@router.patch("/{exercise_id}/resources/{resource_id}", response_model=ExerciseResourceResponse)
+async def rename_exercise_resource(
+    resource_id: uuid.UUID,
+    body: ExerciseResourceRename,
+    ex: Exercise = Depends(get_exercise_for_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> ExerciseResourceResponse:
+    """Rename a resource file (the LaTeX source must be updated by the caller)."""
+    row = await _get_resource(ex.id, resource_id, db)
+    row.filename = body.filename
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A resource with this name already exists for this exercise.",
+        ) from None
+    renamed: ExerciseResourceResponse = ExerciseResourceResponse.model_validate(row)
+    return renamed
+
+
+@router.delete(
+    "/{exercise_id}/resources/{resource_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_exercise_resource(
+    resource_id: uuid.UUID,
+    ex: Exercise = Depends(get_exercise_for_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Delete one resource file. Idempotent."""
+    result = await db.execute(
+        select(ExerciseResource).where(
+            ExerciseResource.id == resource_id,
+            ExerciseResource.exercise_id == ex.id,
+        )
+    )
+    doomed: ExerciseResource | None = result.scalar_one_or_none()
+    if doomed is not None:
+        await db.delete(doomed)

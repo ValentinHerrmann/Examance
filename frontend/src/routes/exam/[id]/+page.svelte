@@ -42,6 +42,7 @@
   import { formatExerciseLatex, formatMcGroupLatex, parseExerciseScore } from "$lib/latex/scoreParser";
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
+  import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
   import { studentRepository } from "$lib/repositories/studentRepository";
   import { mapApiToExamRecord } from "$lib/repositories/examRepository";
   import { uint8ArrayToBase64, decrypt } from "$lib/crypto/aesGcm";
@@ -425,6 +426,12 @@
         await db.exerciseScores.where("submissionId").equals(subId).delete();
       }
 
+      // Resource files hang off the exercises that are about to disappear.
+      const examExerciseIds = (await db.exercises.where("examId").equals(exam.id).toArray()).map((e) => e.id);
+      for (const exerciseId of examExerciseIds) {
+        await db.exerciseResources.where("exerciseId").equals(exerciseId).delete();
+      }
+
       await db.exams.delete(exam.id);
       await db.exercises.where("examId").equals(exam.id).delete();
       await db.examExercises.where("examId").equals(exam.id).delete();
@@ -501,6 +508,46 @@
       .join("\n\n");
   }
 
+  /**
+   * Resource files of every exercise in this exam, ready for the compiler.
+   *
+   * Files are written flat, so two exercises carrying different files under the
+   * same name is a conflict the teacher has to resolve; mergeResources() (in
+   * lib/latex/resources.ts) raises it before anything is compiled.
+   */
+  async function collectExamResources() {
+    const owners: { id: string; label?: string }[] = [];
+    let exerciseCount = 0;
+    for (const item of examItems) {
+      if (item.type === "exercise") {
+        const ex = exercises.find((e) => e.id === item.id);
+        if (ex) owners.push({ id: ex.id, label: ex.name || `Aufgabe ${++exerciseCount}` });
+      } else {
+        const group = mcGroups.find((g) => g.id === item.id);
+        for (const memberId of group?.memberIds ?? []) {
+          const member =
+            libraryExercises.find((e) => e.id === memberId) ||
+            exercises.find((e) => e.id === memberId);
+          if (member) owners.push({ id: member.id, label: member.name || group?.title });
+        }
+      }
+    }
+    // The local engine needs the bytes in the browser; the server can load its
+    // own rows from the database, so it only gets the exercise ids.
+    const needBytes = $storagePolicyStore.latexCompilation === "local";
+    return exerciseResourceRepository.collectForCompile(
+      owners,
+      get(sessionStore).sessionKey,
+      needBytes
+    );
+  }
+
+  /** The resource half of a compileLatex() options object for this exam. */
+  async function compileResourceOptions() {
+    const collected = await collectExamResources();
+    return { resources: collected.inline, resourceExerciseIds: collected.exerciseIds };
+  }
+
   async function handlePrepareOmr() {
     if (!exam) return;
     isPreparingOmr = true;
@@ -569,7 +616,7 @@ ${exerciseInputs}
         } else if (status === "compiling") {
           omrPrepareMessage = translate("exam.page.omr.compilingBlank");
         }
-      });
+      }, true, await compileResourceOptions());
 
       console.log(
         `[PrepareOMR] LaTeX compile finished: pdfBytes=${result.pdfBytes?.length ?? 0}, engineUsed=${result.engineUsed ?? (useLocal ? "local" : "server")}, usedFallback=${result.usedFallback ?? false}`
@@ -717,6 +764,7 @@ ${exerciseInputs}
       const fullTexLoesung = getPreamble("sans,punkte,antworten");
 
       const useLocal = $storagePolicyStore.latexCompilation === "local";
+      const compileOpts = await compileResourceOptions();
 
       const resAngabe = await compileLatex(fullTexAngabe, useLocal, (status) => {
         if (status === 'downloading') {
@@ -724,16 +772,21 @@ ${exerciseInputs}
         } else if (status === 'compiling') {
           compileNotice = translate("exam.page.preview.compiling");
         }
-      }, false);
+      }, false, compileOpts);
 
       const blobAngabe = new Blob([resAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       previewPdfUrl = URL.createObjectURL(blobAngabe);
 
-      const resLoesung = await compileLatex(fullTexLoesung, useLocal, undefined, false);
+      const resLoesung = await compileLatex(fullTexLoesung, useLocal, undefined, false, compileOpts);
       const blobLoesung = new Blob([resLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
       previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
+
+      const missing = [...(resAngabe.missingGraphics ?? []), ...(resLoesung.missingGraphics ?? [])];
+      if (missing.length > 0) {
+        errorMsg = `Compiled, but a graphic could not be loaded: ${missing[0]}`;
+      }
 
       compileNotice = "";
       compileSucceeded = true;
