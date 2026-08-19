@@ -121,15 +121,25 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
   ```json
   {
     "latex": "\\documentclass{article}...",
-    "resources": [{ "filename": "figure.png", "content_b64": "iVBORw0..." }]
+    "resources": [{ "filename": "figure.png", "content_b64": "iVBORw0..." }],
+    "resource_exercise_ids": ["uuid..."]
   }
   ```
+- **`resource_exercise_ids`** (optional): exercises whose stored resource files the server
+  should load from its own database, so a client in server/hybrid mode does not upload bytes
+  the server already has. Only exercises the caller may read are honoured; unknown ids are
+  ignored. Where a filename appears in both, the inline copy wins — it is the caller's
+  current, possibly unsaved version.
 - **`resources`** (optional): files the document references by name. They are written
   flat next to `main.tex` for this compilation only and discarded with the temp
   directory — nothing is persisted. Limits: ≤ 30 files, ≤ 5 MB each, ≤ 20 MB total;
   the route's body limit is 28 MB. Names are sanitised, must not collide with a
   bundled LaTeX asset, and `.svg` is rejected (convert to PDF — it stays vector).
 - **Response**: Binary stream (`application/pdf`).
+- **Errors**: `422 ERR_COMPILE_FAILED` (TeX diagnostics), `422 ERR_RESOURCE_INVALID` (a resource
+  name is not usable), `503 ERR_COMPILE_UNAVAILABLE` (the engine itself is missing or cannot
+  run), `504 ERR_COMPILE_TIMEOUT`. Unhandled faults return `500 ERR_INTERNAL` **with** CORS
+  headers, so a browser reports the status rather than a phantom CORS failure.
 
 ---
 

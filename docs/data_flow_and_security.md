@@ -70,6 +70,10 @@ default `all-local` mode, where the bytes never leave the browser except inline 
 a server *compile* request, which writes them to a temp directory that is deleted
 with the process.
 
+While the exercise editor is open the files live under a throwaway staging id in the same
+table and are committed onto the exercise (and uploaded, in server/hybrid mode) only when the
+editor is saved; closing without saving deletes them.
+
 Teachers are warned in the upload UI not to attach files containing personal data
 of pupils. Resource files follow their exercise's lifecycle (`ON DELETE CASCADE`),
 which — like exercises themselves — is outside the exam retention sweep.

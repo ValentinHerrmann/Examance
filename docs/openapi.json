@@ -255,7 +255,7 @@
           "compile"
         ],
         "summary": "Compile Latex Endpoint",
-        "description": "Compile LaTeX source to PDF via Tectonic.\n\nAttached resource files (images, PDFs, data files) travel inline as base64\nand exist only for this compilation \u2014 they are written into the temp\nworking directory and deleted with it.\n\nRate limited: 10 req/min per IP.\nBody limit: BODY_LIMIT_COMPILE (enforced by BodyLimitMiddleware).\nLaTeX source is NEVER logged \u2014 see LaTeXRequest.__repr__ and latex service.\nThe 422 detail carries only TeX diagnostics, never raw engine or log output.",
+        "description": "Compile LaTeX source to PDF via Tectonic.\n\nResource files (images, PDFs, data files) reach the working directory two\nways: `resource_exercise_ids` names exercises whose stored files the server\nloads itself, and `resources` carries files the server cannot know about \u2014\nan unsaved exercise, or a client that keeps everything local. Both are\nwritten into the temp working directory and deleted with it.\n\nRate limited: 10 req/min per IP.\nBody limit: BODY_LIMIT_COMPILE (enforced by BodyLimitMiddleware).\nLaTeX source is NEVER logged \u2014 see LaTeXRequest.__repr__ and latex service.\nThe 422 detail carries only TeX diagnostics, never raw engine or log output.",
         "operationId": "compile_latex_endpoint_api_v1_compile_latex_post",
         "parameters": [
           {
@@ -4447,6 +4447,15 @@
             },
             "type": "array",
             "title": "Resources"
+          },
+          "resource_exercise_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Resource Exercise Ids"
           }
         },
         "type": "object",

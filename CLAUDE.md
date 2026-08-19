@@ -88,9 +88,16 @@ Teacher-uploaded files an exercise's LaTeX references (`\includegraphics{figure.
 - Attached **per exercise**, referenced by **flat sanitized filename** — files are written next to `main.tex` in both engines, never in a subdirectory. Names that collide with a bundled `latex-assets` file (including the worker's flattened `sty/x.sty` → `x.sty`) are rejected at upload.
 - Limits: 5 MB per file, 25 MB per exercise, 20 MB / 30 files per compile request; `BODY_LIMIT_COMPILE` is 28 MB and `BODY_LIMIT_RESOURCE` 7 MB.
 - Storage: Dexie table `exerciseResources` (v8), bytes AES-256-GCM encrypted; server table `exercise_resources`, bytes **plaintext** — same treatment as `exercises.latex_body`, since Tectonic cannot read ciphertext.
-- Local compile: `compiler.ts` → worker `additionalFiles`. Server compile: inline base64 on `POST /compile/latex` (ephemeral). `POST /exams/{id}/compile` reads the rows from the DB instead.
+- The editor stages files under a throwaway id (`ExerciseResourcePanel` gets a staging id, never the exercise id) and `exerciseResourceRepository.commit()` moves the staged set onto the exercise on save — that is what makes uploading and previewing work before an exercise exists. Cancel discards. The staged set is authoritative on commit: files removed while editing are deleted server-side too.
+- Local compile: `compiler.ts` → worker `additionalFiles`. Server compile sends `resource_exercise_ids` for saved exercises (server reads its own rows) and inline base64 only for staged/local-only files. `POST /exams/{id}/compile` always reads the rows from the DB.
 - Two exercises with *different* files under the same name is a hard error before compiling (`mergeResources`); identical bytes are deduped.
+- Resource API calls pass `silentError` and report in the panel — a 404 for an exercise the server has never seen must not raise the global toast.
 - A missing graphic does not fail XeLaTeX. The worker reports `missingGraphics` and callers surface it — do not treat a successful compile as proof the figures rendered.
+
+## Gotchas worth knowing
+
+- **A 500 has to carry CORS headers itself.** The global handler in `app/main.py` runs in `ServerErrorMiddleware`, outside `CORSMiddleware`, so an unhandled exception reaches the browser as "No 'Access-Control-Allow-Origin' header" and the real fault is invisible. The handler echoes an allowlisted `Origin` for that reason (`is_allowed_origin`, `app/middleware/cors.py`) — do not remove it.
+- **One shared preview stack.** `deploy-preview.yml` force-pushes the PR head to `preview`; the newest non-draft PR push wins for *both* frontend and backend. Testing PR A while PR B was pushed later means testing B. The status bar version carries the PR number — check it before debugging.
 
 ## Environment
 

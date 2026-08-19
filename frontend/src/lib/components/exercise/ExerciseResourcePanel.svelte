@@ -14,7 +14,11 @@
     validateResource,
   } from "$lib/latex/resources";
 
-  /** Exercise the files belong to. Must be stable before the first upload. */
+  /**
+   * Staging area the files belong to. The editor passes a staging id, not the
+   * exercise id, so files can be attached before the exercise exists; they are
+   * committed onto the exercise when the editor is saved.
+   */
   export let exerciseId: string;
   /** Called with the LaTeX snippet that references the clicked file. */
   export let onInsert: (snippet: string) => void = () => {};
@@ -41,23 +45,29 @@
 
   async function load() {
     try {
-      resources = await exerciseResourceRepository.list(exerciseId);
+      resources = await exerciseResourceRepository.listLocal(exerciseId);
       await buildThumbnails();
     } catch (err: any) {
       errorMsg = err?.message || "Could not load resource files.";
     }
   }
 
+  /**
+   * Only files whose bytes are already here get a thumbnail. Rows seeded from
+   * the server carry metadata only, and downloading every figure just to draw a
+   * 36px square would make opening the editor expensive.
+   */
   async function buildThumbnails() {
     const key = get(sessionStore).sessionKey;
     for (const res of resources) {
       if (thumbnails[res.id] || !res.mimeType.startsWith("image/")) continue;
+      if (!res.dataCt && !res.data) continue;
       try {
         const bytes = await exerciseResourceRepository.getBytes(res, key);
         const url = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer], { type: res.mimeType }));
         thumbnails = { ...thumbnails, [res.id]: url };
       } catch {
-        // A locked session or a missing server blob just means no thumbnail.
+        // A locked session just means no thumbnail.
       }
     }
   }
@@ -85,9 +95,8 @@
           const filename = await validateResource(file, pending);
           pending += file.size;
           const bytes = new Uint8Array(await file.arrayBuffer());
-          await exerciseResourceRepository.save(
+          await exerciseResourceRepository.stage(
             exerciseId,
-            crypto.randomUUID(),
             filename,
             guessMimeType(filename, file.type),
             bytes,
@@ -121,7 +130,7 @@
     if (!window.confirm(`Delete "${res.filename}"? References to it in the LaTeX source will stop resolving.`)) {
       return;
     }
-    await exerciseResourceRepository.delete(res);
+    await exerciseResourceRepository.remove(res);
     revokeThumbnails();
     await load();
     onChange();
@@ -186,8 +195,8 @@
   />
 
   <p class="hint">
-    Reference a file by its name, e.g. <code>\includegraphics{"{figure.png}"}</code>. Do not upload
-    files containing personal data of pupils.
+    Reference a file by its name, e.g. <code>\includegraphics{"{figure.png}"}</code>. Files are
+    stored when you save the exercise. Do not upload files containing personal data of pupils.
   </p>
 
   {#if errorMsg}

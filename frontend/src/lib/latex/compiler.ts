@@ -102,13 +102,16 @@ async function compileLocalWasm(
  * @param opts.resources Files the document references by name (images, PDFs,
  *   data files). They are placed flat next to main.tex in both engines; on the
  *   server they travel inline and are discarded with the temp directory.
+ * @param opts.resourceExerciseIds Saved exercises whose stored files the server
+ *   should load from its own database — used instead of inlining bytes the
+ *   server already has. Ignored by the local engine, which cannot read them.
  */
 export async function compileLatex(
   latexSource: string,
   useLocal = false,
   onStatus?: (status: string) => void,
   promptFallback = true,
-  opts: { resources?: LatexResourceFile[] } = {}
+  opts: { resources?: LatexResourceFile[]; resourceExerciseIds?: string[] } = {}
 ): Promise<CompileResult> {
   // Throws on a real filename conflict between two exercises — surfacing that
   // beats compiling a document where one figure silently wins.
@@ -119,18 +122,19 @@ export async function compileLatex(
       return await compileLocalWasm(latexSource, onStatus, resources);
     } catch (err: any) {
       if (promptFallback && typeof window !== 'undefined' && window.confirm("Local LaTeX compilation failed. Do you want to try compiling on the server?")) {
-        const result = await compileOnServer(latexSource, resources);
+        const result = await compileOnServer(latexSource, resources, opts.resourceExerciseIds);
         return { ...result, usedFallback: true };
       }
       throw err;
     }
   }
-  return compileOnServer(latexSource, resources);
+  return compileOnServer(latexSource, resources, opts.resourceExerciseIds);
 }
 
 async function compileOnServer(
   latexSource: string,
-  resources: LatexResourceFile[] = []
+  resources: LatexResourceFile[] = [],
+  resourceExerciseIds: string[] = []
 ): Promise<CompileResult> {
   try {
     const pdfBuffer = await api.postJsonForBinary(
@@ -140,7 +144,8 @@ async function compileOnServer(
         resources: resources.map((r) => ({
           filename: r.filename,
           content_b64: uint8ArrayToBase64(r.content)
-        }))
+        })),
+        resource_exercise_ids: resourceExerciseIds
       }
     );
     return {
@@ -149,6 +154,15 @@ async function compileOnServer(
       engineUsed: 'server',
     };
   } catch (err: any) {
+    // Status 0 means the browser never got a usable response: the request was
+    // blocked, the server crashed before CORS headers were written, or the API
+    // is a different version than this build. Saying so beats "unknown error".
+    if (err?.status === 0 || err?.code === 'ERR_NETWORK') {
+      throw new Error(
+        'LaTeX compilation failed: no response from the server. It may be unreachable, ' +
+          'or running a different version of the API than this app.'
+      );
+    }
     throw new Error(`LaTeX Compilation failed: ${err.message || 'Unknown error'}`);
   }
 }

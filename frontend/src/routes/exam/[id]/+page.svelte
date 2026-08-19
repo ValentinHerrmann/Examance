@@ -531,7 +531,20 @@
         }
       }
     }
-    return exerciseResourceRepository.collectForCompile(owners, get(sessionStore).sessionKey);
+    // The local engine needs the bytes in the browser; the server can load its
+    // own rows from the database, so it only gets the exercise ids.
+    const needBytes = $storagePolicyStore.latexCompilation === "local";
+    return exerciseResourceRepository.collectForCompile(
+      owners,
+      get(sessionStore).sessionKey,
+      needBytes
+    );
+  }
+
+  /** The resource half of a compileLatex() options object for this exam. */
+  async function compileResourceOptions() {
+    const collected = await collectExamResources();
+    return { resources: collected.inline, resourceExerciseIds: collected.exerciseIds };
   }
 
   async function handlePrepareOmr() {
@@ -602,7 +615,7 @@ ${exerciseInputs}
         } else if (status === "compiling") {
           omrPrepareMessage = "Compiling blank exam...";
         }
-      }, true, { resources: await collectExamResources() });
+      }, true, await compileResourceOptions());
 
       console.log(
         `[PrepareOMR] LaTeX compile finished: pdfBytes=${result.pdfBytes?.length ?? 0}, engineUsed=${result.engineUsed ?? (useLocal ? "local" : "server")}, usedFallback=${result.usedFallback ?? false}`
@@ -752,7 +765,7 @@ ${exerciseInputs}
       const fullTexLoesung = getPreamble("sans,punkte,antworten");
 
       const useLocal = $storagePolicyStore.latexCompilation === "local";
-      const compileOpts = { resources: await collectExamResources() };
+      const compileOpts = await compileResourceOptions();
 
       const resAngabe = await compileLatex(fullTexAngabe, useLocal, (status) => {
         if (status === 'downloading') {

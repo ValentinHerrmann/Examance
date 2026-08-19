@@ -504,17 +504,21 @@ ${exerciseInputs}
       }
 
       // Resource files of every exercise in the draft exam (see
-      // lib/latex/resources.ts for the flat-filename rules).
+      // lib/latex/resources.ts for the flat-filename rules). The local engine
+      // needs the bytes; the server loads its own rows from the exercise ids.
+      const collectedResources = await exerciseResourceRepository.collectForCompile(
+        [
+          ...selectedExercises.map((ex) => ({ id: ex.id, label: ex.name })),
+          ...mcGroupExercises.flatMap(({ group, members }) =>
+            members.map((ex) => ({ id: ex.id, label: ex.name || group.title }))
+          ),
+        ],
+        get(sessionStore).sessionKey,
+        useLocal
+      );
       const compileOpts = {
-        resources: await exerciseResourceRepository.collectForCompile(
-          [
-            ...selectedExercises.map((ex) => ({ id: ex.id, label: ex.name })),
-            ...mcGroupExercises.flatMap(({ group, members }) =>
-              members.map((ex) => ({ id: ex.id, label: ex.name || group.title }))
-            ),
-          ],
-          get(sessionStore).sessionKey
-        ),
+        resources: collectedResources.inline,
+        resourceExerciseIds: collectedResources.exerciseIds,
       };
 
       const resAngabe = await compileLatex(fullTexAngabe, useLocal, (status) => {

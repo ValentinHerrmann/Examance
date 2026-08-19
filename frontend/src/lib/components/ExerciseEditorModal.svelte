@@ -56,12 +56,15 @@
   let showConfirmClose = false;
 
   /**
-   * Id the exercise will be saved under. Resource files are stored against it
-   * immediately, so uploading a figure before the first save works; if the
-   * editor is closed without saving, those orphan rows are cleaned up.
+   * Staging area for resource files, always a fresh id.
+   *
+   * Files are attached to it while the dialog is open — which is what makes
+   * uploading (and previewing) work before the exercise exists anywhere — and
+   * committed onto the real exercise on save. Closing without saving throws
+   * the staged set away, like every other field in this dialog.
    */
-  let resourceExerciseId = "";
-  let resourceOwnerIsUnsaved = false;
+  let resourceStagingId = "";
+  let resourcesCommitted = false;
 
   // Preview state
   let isPreviewLoading = false;
@@ -73,6 +76,27 @@
   $: hasAnyPreview = showAngabePreview || showLoesungPreview;
   let isSaving = false;
   let errorMsg = "";
+
+  /**
+   * Move the staged files onto the exercise that was just written. Upload
+   * failures are reported but never fail the save — the exercise itself is
+   * already stored, and the files stay staged locally.
+   */
+  async function commitStagedResources(exerciseId: string, key: CryptoKey | null) {
+    try {
+      const { errors } = await exerciseResourceRepository.commit(
+        resourceStagingId,
+        exerciseId,
+        key
+      );
+      resourcesCommitted = true;
+      if (errors.length > 0) {
+        console.warn("Some resource files could not be synced:", errors);
+      }
+    } catch (err) {
+      console.warn("Failed to store resource files:", err);
+    }
+  }
 
   function insertResourceSnippet(snippet: string) {
     editorLatexBody = `${editorLatexBody}\n${snippet}\n`;
@@ -130,11 +154,19 @@
     initialLatexBody = editorLatexBody;
     initialQuestionType = editorQuestionType;
     initialPenalty = editorPenalty;
-    // A new version/variant starts from its base exercise's files; they are
-    // copied onto the new row on save.
-    resourceExerciseId =
-      (isCreatingVersion ? versionBaseEx?.id : editingExercise?.id) || crypto.randomUUID();
-    resourceOwnerIsUnsaved = !isCreatingVersion && !editingExercise;
+    // Seed the staging area from whichever exercise is being edited or
+    // versioned; a new version therefore starts with the base version's
+    // figures without ever writing back to it.
+    resourceStagingId = crypto.randomUUID();
+    resourcesCommitted = false;
+    const resourceSourceId = isCreatingVersion ? versionBaseEx?.id : editingExercise?.id;
+    if (resourceSourceId) {
+      void exerciseResourceRepository.seedStaging(
+        resourceSourceId,
+        resourceStagingId,
+        get(sessionStore).sessionKey
+      );
+    }
     showAngabePreview = true;
     showLoesungPreview = false;
     showConfirmClose = false;
@@ -231,10 +263,10 @@
   function forceClose() {
     showConfirmClose = false;
     cleanupPreview();
-    // Files uploaded for an exercise that was never saved would otherwise
-    // linger in IndexedDB with no owner.
-    if (resourceOwnerIsUnsaved && resourceExerciseId) {
-      void exerciseResourceRepository.deleteForExercise(resourceExerciseId);
+    // Staged files belong to the dialog, not to the library: unless they were
+    // committed by a save, they go with it.
+    if (!resourcesCommitted && resourceStagingId) {
+      void exerciseResourceRepository.deleteForExercise(resourceStagingId);
     }
     dispatch("close");
   }
@@ -279,11 +311,17 @@
       const fullTexLoesung = `${getPreamble('sans,antworten')}\n\\setboolean{Antworten}{true}\n\\begin{document}\n\\leavevmode\\par\n${formattedBody}\n\\end{document}`;
 
       const useLocal = $storagePolicyStore.latexCompilation === "local";
-      const resourceFiles = await exerciseResourceRepository.collectForCompile(
-        [{ id: resourceExerciseId, label: editorName || "Aufgabe" }],
-        get(sessionStore).sessionKey
+      // Staged files are inlined: they may not exist on the server yet, and in
+      // the unsaved case they never will until the dialog is saved.
+      const collected = await exerciseResourceRepository.collectForCompile(
+        [{ id: resourceStagingId, label: editorName || "Aufgabe", staged: true }],
+        get(sessionStore).sessionKey,
+        true
       );
-      const compileOpts = { resources: resourceFiles };
+      const compileOpts = {
+        resources: collected.inline,
+        resourceExerciseIds: collected.exerciseIds
+      };
 
       const resAngabe = await compileLatex(fullTexAngabe, useLocal, undefined, false, compileOpts);
       const blobAngabe = new Blob([resAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
@@ -401,21 +439,16 @@
           await saveExerciseEncrypted(savedEx, key);
         }
 
-        // A new version is a new exercise row; its LaTeX still references the
-        // same files. The server copies them itself for server/hybrid mode.
-        if ($storagePolicyStore.storageMode === "all-local") {
-          await exerciseResourceRepository.copyTo(versionBaseEx.id, savedEx.id, key);
-        }
-
-        resourceOwnerIsUnsaved = false;
+        // A new version is a new exercise row; the staged set (the base
+        // version's files plus anything added here) becomes its file set.
+        await commitStagedResources(savedEx.id, key);
         dispatch("save", { exercise: savedEx, isNewVersion: true });
         forceClose();
         return;
       }
 
       const computedScore = parseExerciseScore(editorLatexBody);
-      // resourceExerciseId is the id any already-uploaded resource points at.
-      const id = editingExercise?.id || resourceExerciseId;
+      const id = editingExercise?.id || crypto.randomUUID();
 
       const record: ExerciseRecord = {
         id,
@@ -483,7 +516,7 @@
         }
       }
 
-      resourceOwnerIsUnsaved = false;
+      await commitStagedResources(record.id, key);
       dispatch("save", { exercise: record, isNewVersion: false });
       forceClose();
     } catch (err: any) {
@@ -777,7 +810,7 @@
               <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert />
 
               <ExerciseResourcePanel
-                exerciseId={resourceExerciseId}
+                exerciseId={resourceStagingId}
                 onInsert={insertResourceSnippet}
               />
             </div>

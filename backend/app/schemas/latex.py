@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -73,6 +74,11 @@ class LaTeXResource(BaseModel):
 class LaTeXRequest(BaseModel):
     latex: str
     resources: list[LaTeXResource] = Field(default_factory=list)
+    #: Exercises whose stored resource files this document needs. The server
+    #: loads them from the database, so a client in server/hybrid mode does not
+    #: upload bytes the server already has. Only exercises the caller may read
+    #: are honoured; unknown ids are ignored.
+    resource_exercise_ids: list[UUID] = Field(default_factory=list, max_length=100)
 
     @field_validator("latex")
     @classmethod

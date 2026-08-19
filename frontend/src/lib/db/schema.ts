@@ -98,6 +98,12 @@ export interface ExerciseResourceRecord {
   dataIv?: Uint8Array;
   /** Raw bytes — only set when the record was written without a session key. */
   data?: Uint8Array;
+  /** Local bytes exist that the server has not been given yet. */
+  pendingUpload?: boolean;
+  /** Row id on the server, when this file has been uploaded. */
+  remoteId?: string;
+  /** Exercise the server files this resource under (differs while staging). */
+  remoteExerciseId?: string;
 }
 
 export interface ExamExerciseRecord {
