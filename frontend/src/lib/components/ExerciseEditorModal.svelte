@@ -655,7 +655,12 @@
 
                   <div class="flex flex-col gap-1">
                     <label class="font-semibold text-slate-300">Question Text / Intro</label>
-                    <LatexEditor bind:value={mcQuestionText} rows={4} on:change={regenerateMcLatex} />
+                    <LatexEditor
+                      bind:value={mcQuestionText}
+                      rows={4}
+                      showQuickInsert
+                      on:change={regenerateMcLatex}
+                    />
                   </div>
 
                   <div class="flex flex-col gap-1">
@@ -724,7 +729,7 @@
               <div class="flex items-center justify-between px-1 text-xs">
                 <span class="font-semibold text-slate-300">Preview / Composed LaTeX Source</span>
               </div>
-              <LatexEditor bind:value={editorLatexBody} rows={12} />
+              <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert />
             </div>
           {:else}
             <button
