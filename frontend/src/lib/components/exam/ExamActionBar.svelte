@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./ExamActionBar.css";
+  import { t } from "$lib/i18n";
   export let examId: string;
   export let onEdit: () => void;
   export let onDelete: () => void;
@@ -15,33 +16,33 @@
 <div class="exam-actions">
   <div class="actions-left">
     <button class="eab-btn eab-primary" on:click={onAddExercises}>
-      + Aufgaben hinzufügen
+      {$t("exam.actionBar.addExercises")}
     </button>
     {#if storagePolicy === 'all-local'}
       <button class="eab-btn eab-secondary" on:click={onScan}>
-        📷 Scannen
+        {$t("exam.actionBar.scan")}
       </button>
     {/if}
   </div>
 
   <div class="actions-right">
     <button class="eab-btn eab-secondary" on:click={onGrade}>
-      ✏️ Korrigieren
+      {$t("exam.actionBar.grade")}
     </button>
     <button class="eab-btn eab-secondary" on:click={onStats}>
-      📊 Statistik
+      {$t("exam.actionBar.stats")}
     </button>
     <button class="eab-btn eab-secondary" on:click={onEdit}>
-      ⚙️ Bearbeiten
+      {$t("exam.actionBar.edit")}
     </button>
     <button class="eab-btn eab-danger" on:click={onDeleteAllSubmissions}>
-      🗑️ Abgaben löschen
+      {$t("exam.actionBar.deleteSubmissions")}
     </button>
     <button class="eab-btn eab-danger" on:click={onExport}>
-      ↓ Export
+      {$t("exam.actionBar.export")}
     </button>
     <button class="eab-btn eab-danger" on:click={onDelete}>
-      ✕ Löschen
+      {$t("exam.actionBar.delete")}
     </button>
   </div>
 </div>

@@ -1,16 +1,19 @@
 <script lang="ts">
   import "./SettingsForm.css";
   import type { StorageMode } from "$lib/stores/storagePolicy";
+  import { t, LOCALES, LOCALE_LABELS, type Locale } from "$lib/i18n";
 
   export let storageMode: StorageMode;
   export let latexCompilation: "server" | "local";
+  export let uiLocale: Locale;
   export let onStorageModeChange: (val: StorageMode) => void;
   export let onLatexChange: (val: "server" | "local") => void;
+  export let onLocaleChange: (val: Locale) => void;
 </script>
 
 <div class="settings-form-card" id="storage-policy">
-  <h3>1. Global Data Storage Strategy</h3>
-  <p class="settings-form-description">Select where your exams, exercises, student identities, and results are stored:</p>
+  <h3>{$t("settings.storage.heading")}</h3>
+  <p class="settings-form-description">{$t("settings.storage.description")}</p>
   <div class="settings-form-policy-options">
     <label class="settings-form-option-card" class:active={storageMode === "all-local"}>
       <input
@@ -21,8 +24,8 @@
         on:change={() => onStorageModeChange("all-local")}
       />
       <div>
-        <strong>All Local (Privacy First)</strong>
-        <p>Exams, exercise library, student identities, and scans stored 100% locally in your browser IndexedDB.</p>
+        <strong>{$t("settings.storage.allLocalTitle")}</strong>
+        <p>{$t("settings.storage.allLocalText")}</p>
       </div>
     </label>
 
@@ -35,8 +38,8 @@
         on:change={() => onStorageModeChange("all-server")}
       />
       <div>
-        <strong>All Server</strong>
-        <p>All data synchronized and stored on the secure BlindGrade server.</p>
+        <strong>{$t("settings.storage.allServerTitle")}</strong>
+        <p>{$t("settings.storage.allServerText")}</p>
       </div>
     </label>
 
@@ -49,14 +52,14 @@
         on:change={() => onStorageModeChange("hybrid")}
       />
       <div>
-        <strong>Hybrid Mode (Library on Server, Results Local)</strong>
-        <p>Exercise library and exam templates on server, but student identities and grade submissions stay 100% on your local device.</p>
+        <strong>{$t("settings.storage.hybridTitle")}</strong>
+        <p>{$t("settings.storage.hybridText")}</p>
       </div>
     </label>
   </div>
 
-  <h3 style="margin-top: 1.5rem;">2. LaTeX Compilation</h3>
-  <p class="settings-form-description">Select where LaTeX files are compiled (independent of storage strategy):</p>
+  <h3 style="margin-top: 1.5rem;">{$t("settings.latex.heading")}</h3>
+  <p class="settings-form-description">{$t("settings.latex.description")}</p>
   <div class="settings-form-policy-options">
     <label class="settings-form-option-card" class:active={latexCompilation === "local"}>
       <input
@@ -67,8 +70,8 @@
         on:change={() => onLatexChange("local")}
       />
       <div>
-        <strong>Local Client (WebAssembly)</strong>
-        <p>Compiles inside your browser without sending source to any server.</p>
+        <strong>{$t("settings.latex.localTitle")}</strong>
+        <p>{$t("settings.latex.localText")}</p>
       </div>
     </label>
     <label class="settings-form-option-card" class:active={latexCompilation === "server"}>
@@ -80,9 +83,29 @@
         on:change={() => onLatexChange("server")}
       />
       <div>
-        <strong>Server (Tectonic)</strong>
-        <p>High performance server-side compilation. Requires authenticated account.</p>
+        <strong>{$t("settings.latex.serverTitle")}</strong>
+        <p>{$t("settings.latex.serverText")}</p>
       </div>
     </label>
+  </div>
+
+  <h3 style="margin-top: 1.5rem;">{$t("settings.language.heading")}</h3>
+  <p class="settings-form-description">{$t("settings.language.description")}</p>
+  <div class="settings-form-policy-options">
+    {#each LOCALES as code (code)}
+      <label class="settings-form-option-card" class:active={uiLocale === code}>
+        <input
+          type="radio"
+          name="uiLocale"
+          value={code}
+          checked={uiLocale === code}
+          on:change={() => onLocaleChange(code)}
+        />
+        <div>
+          <strong>{LOCALE_LABELS[code]}</strong>
+          <p>{$t("settings.language.hint")}</p>
+        </div>
+      </label>
+    {/each}
   </div>
 </div>

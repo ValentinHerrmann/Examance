@@ -1,5 +1,6 @@
 <script lang="ts">
   import { api, ApiError } from "$lib/api/client";
+  import { t, translate } from "$lib/i18n";
 
   let email = "";
   let isSubmitting = false;
@@ -12,7 +13,7 @@
 
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
-      errorMsg = "Please enter your email address.";
+      errorMsg = translate("auth.forgotPassword.errors.enterEmail");
       return;
     }
 
@@ -23,13 +24,13 @@
         { email: normalizedEmail },
         { silentError: true }
       );
-      successMsg = res.message || "If an account with that email exists, password reset instructions have been sent.";
+      successMsg = res.message || translate("auth.forgotPassword.defaultSuccess");
       email = "";
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         errorMsg = err.message;
       } else {
-        errorMsg = "Failed to send reset link. Please check your connection and try again.";
+        errorMsg = translate("auth.forgotPassword.errors.failed");
       }
     } finally {
       isSubmitting = false;
@@ -41,8 +42,8 @@
   <div class="forgot-password-card">
     <div class="card-header">
       <img src="/favicon.png" alt="Examance logo" class="brand-logo" />
-      <h1>Reset Password</h1>
-      <p class="subtitle">Enter your account email to receive a password reset link.</p>
+      <h1>{$t("auth.forgotPassword.title")}</h1>
+      <p class="subtitle">{$t("auth.forgotPassword.subtitle")}</p>
     </div>
 
     {#if successMsg}
@@ -54,24 +55,24 @@
 
     <form on:submit|preventDefault={handleForgotPassword}>
       <div class="form-group">
-        <label for="email">Email Address</label>
+        <label for="email">{$t("auth.forgotPassword.emailLabel")}</label>
         <input
           id="email"
           type="email"
           bind:value={email}
-          placeholder="teacher@school.example"
+          placeholder={$t("auth.forgotPassword.emailPlaceholder")}
           required
           disabled={isSubmitting}
         />
       </div>
 
       <button type="submit" class="submit-btn" disabled={isSubmitting}>
-        {isSubmitting ? "Sending Reset Link..." : "Send Password Reset Link"}
+        {isSubmitting ? $t("auth.forgotPassword.sending") : $t("auth.forgotPassword.sendLink")}
       </button>
     </form>
 
     <div class="card-footer">
-      <a href="/unlock" class="back-link">&larr; Back to Unlock / Sign In</a>
+      <a href="/unlock" class="back-link">{$t("auth.forgotPassword.backToUnlock")}</a>
     </div>
   </div>
 </div>

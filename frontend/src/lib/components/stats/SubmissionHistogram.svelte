@@ -1,5 +1,6 @@
 <script lang="ts">
   import './SubmissionHistogram.css';
+  import { t } from '$lib/i18n';
   import type { PercentageHistogramBin } from '$lib/analytics/stats';
   import { Chart, Svg, Axis, Bars } from 'layerchart';
   import { scaleBand } from 'd3-scale';
@@ -40,7 +41,7 @@
 </script>
 
 <div class="submission-histogram-section">
-  <h3>📊 Prozentverteilung</h3>
+  <h3>{$t('stats.submissionHistogram.title')}</h3>
   {#if histogramData.length > 0}
     <div class="submission-histogram-chart-container submission-histogram-container">
       <Chart

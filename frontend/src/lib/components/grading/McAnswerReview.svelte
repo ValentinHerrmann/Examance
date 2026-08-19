@@ -6,6 +6,7 @@
   import type { ExerciseRecord } from "$lib/db/schema";
   import { gradingStore } from "$lib/grading/gradingStore";
   import { applyMcCorrection, type McQuestionType } from "$lib/grading/mcScore";
+  import { t } from "$lib/i18n";
 
   export let exercise: ExerciseRecord;
 
@@ -42,16 +43,16 @@
 </script>
 
 <div class="shrink-0 border-t border-slate-700 bg-slate-800 px-3 py-2">
-  <h4 class="m-0 mb-1.5 text-xs font-bold text-sky-400">MC Answer Review</h4>
+  <h4 class="m-0 mb-1.5 text-xs font-bold text-sky-400">{$t("grading.mcReview.title")}</h4>
 
   {#if alignmentFailed}
     <div class="rounded border border-red-500/40 bg-red-500/10 px-2 py-1 text-[0.7rem] text-red-400">
-      Page alignment failed for this scan — grade this question manually.
+      {$t("grading.mcReview.alignmentFailed")}
     </div>
   {:else}
     {#if multiMarkWarning}
       <div class="mb-1.5 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[0.7rem] text-amber-400">
-        Multiple marks detected on a single-choice question — please confirm the correct one.
+        {$t("grading.mcReview.multiMarkWarning")}
       </div>
     {/if}
 
@@ -72,7 +73,7 @@
             <span class={isCorrect ? "text-emerald-400" : "text-red-400"}>{isCorrect ? "✓" : "✗"}</span>
           {/if}
           {#if isFlagged}
-            <span class="text-amber-500" title="Uncertain mark — please confirm">?</span>
+            <span class="text-amber-500" title={$t("grading.mcReview.uncertainMark")}>?</span>
           {/if}
         </button>
       {/each}
@@ -80,9 +81,9 @@
 
     {#if omrMeta}
       <div class="mt-1 text-[0.65rem] text-slate-500">
-        Source: {omrMeta.source === "omr" ? "auto-detected" : "manual"}
+        {$t("grading.mcReview.source", { source: omrMeta.source === "omr" ? $t("grading.mcReview.sourceAuto") : $t("grading.mcReview.sourceManual") })}
         {#if omrMeta.source === "omr"}
-          · confidence: {omrMeta.confidence}
+          {$t("grading.mcReview.confidence", { confidence: omrMeta.confidence })}
         {/if}
       </div>
     {/if}

@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./WorkspaceMenu.css";
+  import { t } from "$lib/i18n";
   export let isOpen = false;
   export let onToggleMenu: () => void;
   export let onOpenArchive: () => void;
@@ -24,8 +25,8 @@
 
 {#if isOpen}
   <div class="workspace-dropdown">
-    <button on:click={handleOpen}>📂 Open .bgproj</button>
-    <button on:click={handleExport}>💾 Export .bgproj</button>
-    <button class="danger" on:click={handleClear}>❌ Clear Workspace</button>
+    <button on:click={handleOpen}>{$t("workspace.menu.open")}</button>
+    <button on:click={handleExport}>{$t("workspace.menu.export")}</button>
+    <button class="danger" on:click={handleClear}>{$t("workspace.menu.clear")}</button>
   </div>
 {/if}

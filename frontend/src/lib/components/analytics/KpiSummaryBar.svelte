@@ -1,5 +1,7 @@
 <script lang="ts">
   import "./KpiSummaryBar.css";
+  import { t } from '$lib/i18n';
+  import { fmt } from '$lib/utils/format';
   export let examsCount: number;
   export let totalSubmissionsCount: number;
   export let gradedSubmissionsCount: number;
@@ -9,32 +11,33 @@
 
 <div class="ksb-grid">
   <div class="ksb-card">
-    <span class="ksb-title">Total Analyzed Exams</span>
-    <span class="ksb-value">{examsCount}</span>
+    <span class="ksb-title">{$t('stats.kpi.totalExams')}</span>
+    <span class="ksb-value">{$fmt.number(examsCount)}</span>
   </div>
 
   <div class="ksb-card">
-    <span class="ksb-title">Submissions Processed</span>
-    <span class="ksb-value">{totalSubmissionsCount}</span>
-    <span class="ksb-sub">({gradedSubmissionsCount} graded)</span>
+    <span class="ksb-title">{$t('stats.kpi.submissionsProcessed')}</span>
+    <span class="ksb-value">{$fmt.number(totalSubmissionsCount)}</span>
+    <span class="ksb-sub">{$t('stats.kpi.gradedSuffix', { count: $fmt.number(gradedSubmissionsCount) })}</span>
   </div>
 
   <div class="ksb-card">
-    <span class="ksb-title">Avg. Score (pts)</span>
+    <span class="ksb-title">{$t('stats.kpi.avgScore')}</span>
     <span class="ksb-value">
-      {overallAvgScore !== null ? `${overallAvgScore} pts` : 'N/A'}
+      {overallAvgScore !== null ? $t('stats.kpi.avgScoreValue', { score: $fmt.number(overallAvgScore) }) : $t('stats.kpi.avgScoreNA')}
     </span>
-    <span class="ksb-sub">{overallAvgScore !== null ? 'Across graded exams' : 'No scores recorded'}</span>
+    <span class="ksb-sub">{overallAvgScore !== null ? $t('stats.kpi.avgScoreAcrossGraded') : $t('stats.kpi.avgScoreNoRecords')}</span>
   </div>
 
   <div class="ksb-card ksb-danger-card">
-    <span class="ksb-title">Flagged Exercises (&lt; 60%)</span>
-    <span class="ksb-value">{flaggedCount}</span>
+    <span class="ksb-title">{$t('stats.kpi.flaggedExercises')}</span>
+    <span class="ksb-value">{$fmt.number(flaggedCount)}</span>
   </div>
 </div>
 
 {#if gradedSubmissionsCount === 0}
   <div class="ksb-notice-banner">
-    ℹ️ <strong>No graded submissions recorded yet.</strong> As student scans are uploaded and scored, real-time cross-exam averages, quality metrics, and variant difficulty comparisons will automatically calculate below.
+    ℹ️ <strong>{$t('stats.kpi.noticeBannerLead')}</strong>
+    {$t('stats.kpi.noticeBannerBody')}
   </div>
 {/if}

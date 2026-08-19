@@ -10,6 +10,7 @@
 
 import { get } from 'svelte/store';
 import { sessionStore } from '$lib/stores/session';
+import { translate, translateOptional } from '$lib/i18n';
 import { backendStore } from '$lib/stores/backendStore';
 import { httpErrorStore } from '$lib/stores/httpErrorStore';
 
@@ -35,7 +36,7 @@ export class ApiError extends Error {
 async function parseError(response: Response): Promise<ApiError> {
   try {
     const body = await response.json();
-    let detailStr = 'Unknown error';
+    let detailStr = translate('errors.unknown');
     if (typeof body.detail === 'string') {
       detailStr = body.detail;
     } else if (body.detail !== undefined && body.detail !== null) {
@@ -43,7 +44,11 @@ async function parseError(response: Response): Promise<ApiError> {
     } else if (body.message) {
       detailStr = String(body.message);
     }
-    return new ApiError(response.status, body.code ?? 'ERR_UNKNOWN', detailStr);
+    const code = body.code ?? 'ERR_UNKNOWN';
+    // The backend ships an English `detail` next to a machine-readable `code`.
+    // Prefer a localized message for known codes and keep the server text as
+    // the fallback so unmapped errors stay diagnosable.
+    return new ApiError(response.status, code, translateOptional(`errors.code.${code}`) ?? detailStr);
   } catch {
     return new ApiError(response.status, 'ERR_UNKNOWN', response.statusText);
   }
@@ -63,7 +68,7 @@ async function refreshToken(): Promise<void> {
     }
   } catch (err: any) {
     if (err instanceof ApiError) throw err;
-    throw new ApiError(0, 'ERR_NETWORK', err?.message || 'Server unreachable');
+    throw new ApiError(0, 'ERR_NETWORK', err?.message || translate('errors.network'));
   }
 }
 
@@ -129,7 +134,11 @@ async function request<T>(
     } catch (err: any) {
       if (!options.silentError) {
         const status = err instanceof ApiError && err.status ? err.status : 401;
-        httpErrorStore.showError(status, err?.message || 'Unauthorized', err?.code || 'ERR_UNAUTHORIZED');
+        httpErrorStore.showError(
+          status,
+          err?.message || translate('errors.unauthorized'),
+          err?.code || 'ERR_UNAUTHORIZED'
+        );
       }
       throw err;
     }

@@ -1,16 +1,17 @@
 <script lang="ts">
   import "./AnalyticsStateBanner.css";
+  import { t } from '$lib/i18n';
   export let variant: 'loading' | 'locked';
 </script>
 
 {#if variant === 'loading'}
   <div class="asb-loading-state">
-    <p>Loading analytics data across all exams...</p>
+    <p>{$t('stats.analyticsBanner.loading')}</p>
   </div>
 {:else}
   <div class="asb-locked-state">
-    <h2>Session Locked</h2>
-    <p>Please unlock your session to access global analytics.</p>
-    <a href="/unlock" class="asb-unlock-link">Unlock Session</a>
+    <h2>{$t('stats.analyticsBanner.lockedTitle')}</h2>
+    <p>{$t('stats.analyticsBanner.lockedBody')}</p>
+    <a href="/unlock" class="asb-unlock-link">{$t('stats.analyticsBanner.unlockLink')}</a>
   </div>
 {/if}

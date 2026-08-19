@@ -5,6 +5,7 @@
   import { browser } from "$app/environment";
   import { get } from "svelte/store";
   import { sessionStore, isUnlocked } from "$lib/stores/session";
+  import { t, translate } from "$lib/i18n";
   import {
     computeMcVerificationStats,
     type McVerificationStats,
@@ -65,7 +66,7 @@
       stats = await computeMcVerificationStats(examId, get(sessionStore).sessionKey);
     } catch (err: any) {
       console.error("Failed to load MC verification data:", err);
-      errorMsg = `Failed to load MC verification data: ${err.message || err}`;
+      errorMsg = translate("scanning.verify.loadError", { message: err.message || err });
     } finally {
       loading = false;
     }
@@ -74,7 +75,7 @@
   async function handleRerunMcDetection() {
     if (!examId || isRerunningMc) return;
     isRerunningMc = true;
-    rerunMcMessage = "Loading OMR template...";
+    rerunMcMessage = translate("scanning.verify.loadingTemplate");
     rerunMcError = "";
 
     try {
@@ -82,7 +83,7 @@
       const templateResult = await loadOmrTemplateEncrypted(examId, key);
       if (!templateResult || !templateResult.payload) {
         rerunMcMessage = "";
-        rerunMcError = "No OMR template found — run Prepare OMR on the exam setup page first.";
+        rerunMcError = translate("scanning.verify.noTemplate");
         return;
       }
       const templatePages = templateResult.payload.pages;
@@ -94,7 +95,7 @@
 
       if (submissions.length === 0) {
         rerunMcMessage = "";
-        rerunMcError = "No submissions ingested yet.";
+        rerunMcError = translate("scanning.verify.noSubmissions");
         return;
       }
 
@@ -136,7 +137,10 @@
       try {
         for (const sub of submissions) {
           processed++;
-          rerunMcMessage = `Processing submission ${processed}/${submissions.length}...`;
+          rerunMcMessage = translate("scanning.verify.processingSubmission", {
+            current: processed,
+            total: submissions.length,
+          });
           if (!sub.scanCt || !sub.scanIv) continue;
 
           let pdfBytes: Uint8Array;
@@ -219,13 +223,13 @@
       }
 
       rerunMcMessage =
-        `MC detection re-run complete: ${updated} score(s) updated across ${processed} submission(s).` +
+        translate("scanning.verify.rerunComplete", { updated, processed }) +
         (alignmentFailures > 0
-          ? ` ${alignmentFailures} page(s) failed alignment — those exercises need manual grading.`
+          ? translate("scanning.verify.rerunAlignmentFailures", { count: alignmentFailures })
           : "");
       await refresh();
     } catch (err: any) {
-      rerunMcError = err.message || "Failed to re-run MC detection.";
+      rerunMcError = err.message || translate("scanning.verify.rerunError");
       rerunMcMessage = "";
     } finally {
       isRerunningMc = false;
@@ -252,9 +256,9 @@
 <div class="p-6 max-w-7xl mx-auto">
   <div class="flex items-center justify-between mb-6">
     <div>
-      <h2 class="text-xl font-bold text-slate-100">Verify MC Detections</h2>
+      <h2 class="text-xl font-bold text-slate-100">{$t("scanning.verify.heading")}</h2>
       <p class="text-xs text-slate-400 mt-1">
-        Review automatically detected multiple choice answers. Confirm uncertain readings or jump to manual grading.
+        {$t("scanning.verify.description")}
       </p>
     </div>
     <div class="flex items-center gap-2">
@@ -264,7 +268,7 @@
         disabled={isRerunningMc || loading}
         class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-sky-700/80 hover:bg-sky-600 text-sky-100 transition-colors cursor-pointer disabled:opacity-50"
       >
-        {isRerunningMc ? "Re-running MC detection..." : "🔁 Re-run MC detection"}
+        {isRerunningMc ? $t("scanning.verify.rerunning") : $t("scanning.verify.rerun")}
       </button>
       <button
         type="button"
@@ -272,7 +276,7 @@
         disabled={loading || isRerunningMc}
         class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer disabled:opacity-50"
       >
-        {loading ? "Refreshing..." : "↻ Refresh Data"}
+        {loading ? $t("scanning.verify.refreshing") : $t("scanning.verify.refresh")}
       </button>
     </div>
   </div>
@@ -289,7 +293,7 @@
   {/if}
 
   {#if loading && !stats}
-    <div class="p-8 text-center text-sm text-slate-400">Loading MC verification data...</div>
+    <div class="p-8 text-center text-sm text-slate-400">{$t("scanning.verify.loading")}</div>
   {:else if errorMsg}
     <div class="p-4 rounded border border-red-500/40 bg-red-500/10 text-red-400 text-xs mb-6">
       {errorMsg}
@@ -297,22 +301,22 @@
   {:else if stats}
     {#if stats.totalQuestions === 0}
       <div class="rounded-lg border border-slate-700 bg-slate-800 p-8 text-center">
-        <h3 class="text-base font-semibold text-slate-200 mb-2">No MC Detections Found</h3>
+        <h3 class="text-base font-semibold text-slate-200 mb-2">{$t("scanning.verify.emptyTitle")}</h3>
         <p class="text-xs text-slate-400 max-w-md mx-auto mb-4">
-          There are no OMR detection results for this exam yet. Make sure you have prepared OMR on the exam page and ingested scans with MC questions.
+          {$t("scanning.verify.emptyDescription")}
         </p>
         <div class="flex justify-center gap-3">
           <a
             href={`/exam/${examId}`}
             class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-slate-900 hover:bg-slate-750 text-slate-200 transition-colors"
           >
-            ← Exam Setup
+            {$t("scanning.verify.examSetup")}
           </a>
           <a
             href={`/exam/${examId}/scan`}
             class="px-3 py-1.5 text-xs font-medium rounded bg-sky-600 hover:bg-sky-500 text-white transition-colors"
           >
-            Go to Scan Ingestion →
+            {$t("scanning.verify.goToScan")}
           </a>
         </div>
       </div>
@@ -320,25 +324,25 @@
       <McVerificationOverview {stats} />
 
       <McVerificationQueue
-        title="a) Failed Detections"
+        title={$t("scanning.verify.queueFailed")}
         items={failedItems}
-        emptyMessage="No failed detections 🎉"
+        emptyMessage={$t("scanning.verify.emptyFailed")}
         onVerifyItem={(item) => openVerifyItem(item, "failed")}
         onOpenGrading={openInGrading}
       />
 
       <McVerificationQueue
-        title="b) Unsure / Ambiguous Detections"
+        title={$t("scanning.verify.queueUnsure")}
         items={unsureItems}
-        emptyMessage="No unsure detections left to confirm 🎉"
+        emptyMessage={$t("scanning.verify.emptyUnsure")}
         onVerifyItem={(item) => openVerifyItem(item, "unsure")}
         onOpenGrading={openInGrading}
       />
 
       <McVerificationQueue
-        title="c) All Other Detections"
+        title={$t("scanning.verify.queueOther")}
         items={otherItems}
-        emptyMessage="No high-confidence detections found."
+        emptyMessage={$t("scanning.verify.emptyOther")}
         onVerifyItem={(item) => openVerifyItem(item, "all")}
         onOpenGrading={openInGrading}
       />

@@ -6,6 +6,7 @@
  */
 
 import { api } from '$lib/api/client';
+import { translate } from '$lib/i18n';
 import { uint8ArrayToBase64 } from '$lib/crypto/aesGcm';
 import { mergeResources, type LatexResourceFile } from './resources';
 
@@ -121,7 +122,7 @@ export async function compileLatex(
     try {
       return await compileLocalWasm(latexSource, onStatus, resources);
     } catch (err: any) {
-      if (promptFallback && typeof window !== 'undefined' && window.confirm("Local LaTeX compilation failed. Do you want to try compiling on the server?")) {
+      if (promptFallback && typeof window !== 'undefined' && window.confirm(translate('misc.compiler.localFailedTryServer'))) {
         const result = await compileOnServer(latexSource, resources, opts.resourceExerciseIds);
         return { ...result, usedFallback: true };
       }

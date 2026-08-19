@@ -1,5 +1,6 @@
 <script lang="ts">
   import { gradingStore } from "$lib/grading/gradingStore";
+  import { t } from "$lib/i18n";
 
   // Destructive action confirm/cancel are callback props out to the parent,
   // which gates the actual clearing behind the user's explicit confirmation.
@@ -21,9 +22,9 @@
       >
         🗑
       </div>
-      <h3 class="m-0 text-slate-50 text-xl">Alle Anmerkungen löschen?</h3>
+      <h3 class="m-0 text-slate-50 text-xl">{$t("grading.clearModal.title")}</h3>
       <p class="m-0 text-slate-400 text-sm">
-        Möchtest du wirklich alle Zeichnungen und Stempel auf dieser Seite löschen? Dies setzt auch die automatisch berechneten Punkte zurück.
+        {$t("grading.clearModal.body")}
       </p>
       <div class="flex flex-col gap-2 w-full mt-2">
         <button
@@ -31,14 +32,14 @@
           class="w-full py-[0.65rem] px-4 bg-red-600 text-white border-none rounded-lg font-semibold text-sm cursor-pointer transition-colors duration-150 hover:bg-red-700"
           on:click={onConfirm}
         >
-          Löschen bestätigen
+          {$t("grading.clearModal.confirm")}
         </button>
         <button
           type="button"
           class="w-full py-[0.55rem] px-4 bg-slate-700 text-slate-300 border border-slate-600 rounded-lg font-medium text-[0.8rem] cursor-pointer transition-all duration-150 hover:bg-slate-600 hover:text-white"
           on:click={onCancel}
         >
-          Abbrechen
+          {$t("common.cancel")}
         </button>
       </div>
     </div>

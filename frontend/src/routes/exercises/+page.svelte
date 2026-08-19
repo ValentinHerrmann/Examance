@@ -9,6 +9,7 @@
   import { api } from "$lib/api/client";
   import { parseExerciseScore } from "$lib/latex/scoreParser";
   import { get } from "svelte/store";
+  import { t, translate } from "$lib/i18n";
 
   import LatexEditor, { type DiffDecorationConfig, type DiffLineDecoration, type DiffLinePaddingDecoration, type DiffWordDecoration, type DiffGapDecoration } from "$lib/components/LatexEditor.svelte";
   import { highlightLatexToHtml } from "$lib/latex/highlighter";
@@ -92,7 +93,7 @@
     const buckets = new Map<string, ExerciseRecord[]>();
 
     for (const ex of exs) {
-      const key = ex.exerciseGroupId || (`name:${ex.name || "Untitled"}`);
+      const key = ex.exerciseGroupId || (`name:${ex.name || translate("exercises.untitled")}`);
       if (!buckets.has(key)) buckets.set(key, []);
       buckets.get(key)!.push(ex);
     }
@@ -103,7 +104,7 @@
       const currentMembers = members.filter((m) => m.isCurrent !== false);
       if (currentMembers.length === 0) continue;
 
-      const name = currentMembers[0]?.name || "Untitled";
+      const name = currentMembers[0]?.name || translate("exercises.untitled");
       const topicTag = currentMembers[0]?.topicTag || "_General";
       const grade = currentMembers[0]?.grade;
       const subject = currentMembers[0]?.subject;
@@ -157,9 +158,9 @@
   );
 
   function getDiffSelectLabel(ex: ExerciseRecord): string {
-    const name = ex.name || "Untitled";
+    const name = ex.name || translate("exercises.untitled");
     const v = ex.version || 1;
-    const variantStr = ex.variantKey ? `, Variant: ${ex.variantKey}` : "";
+    const variantStr = ex.variantKey ? translate("exercises.page.diffSelectVariantSuffix", { key: ex.variantKey }) : "";
     return `${name} (v${v}${variantStr})`;
   }
 
@@ -272,7 +273,7 @@
         exercises = await loadExercisesEncrypted(key);
       }
     } catch (err: any) {
-      errorMsg = err.message || "Failed to load exercise library.";
+      errorMsg = err.message || translate("exercises.page.loadFailed");
     } finally {
       isLoading = false;
     }
@@ -326,7 +327,7 @@
   async function handleSaveGroupMetadata() {
     if (!editingGroup) return;
     if (!groupEditorName.trim()) {
-      alert("Group name is required.");
+      alert(translate("exercises.page.groupNameRequired"));
       return;
     }
 
@@ -396,7 +397,7 @@
       editingGroup = null;
       await loadExercises();
     } catch (err: any) {
-      alert(`Failed to save group metadata: ${err.message}`);
+      alert(translate("exercises.page.groupSaveFailed", { message: err.message }));
     } finally {
       isGroupSaving = false;
     }
@@ -482,7 +483,7 @@
       regroupingExercise = null;
       await loadExercises();
     } catch (err: any) {
-      alert(`Failed to regroup: ${err.message}`);
+      alert(translate("exercises.page.regroupFailed", { message: err.message }));
     }
   }
 
@@ -522,7 +523,7 @@
       isDeleteModalOpen = false;
       deletingExercise = null;
     } catch (err: any) {
-      alert(`Failed to delete exercise: ${err.message}`);
+      alert(translate("exercises.page.deleteFailed", { message: err.message }));
     }
   }
 
@@ -618,7 +619,7 @@
       await db.exercises.put(encrypted);
       await loadExercises();
     } catch (err: any) {
-      alert(`Failed to save left exercise: ${err.message}`);
+      alert(translate("exercises.page.diffSaveLeftFailed", { message: err.message }));
     } finally {
       isSavingDiffLeft = false;
     }
@@ -649,7 +650,7 @@
       await db.exercises.put(encrypted);
       await loadExercises();
     } catch (err: any) {
-      alert(`Failed to save right exercise: ${err.message}`);
+      alert(translate("exercises.page.diffSaveRightFailed", { message: err.message }));
     } finally {
       isSavingDiffRight = false;
     }
@@ -699,7 +700,7 @@
   async function handleSaveVariant() {
     if (!variantBaseEx) return;
     if (!variantKey.trim()) {
-      alert("Variant key (e.g. Moebel, Fahrzeug, Wildtier) is required.");
+      alert(translate("exercises.page.variantKeyRequired"));
       return;
     }
 
@@ -739,9 +740,9 @@
 
       forceCloseVariantModal();
       await loadExercises();
-      alert(`New variant "${variantKey}" created.`);
+      alert(translate("exercises.page.variantCreated", { key: variantKey }));
     } catch (err: any) {
-      alert(`Failed to create variant: ${err.message}`);
+      alert(translate("exercises.page.variantCreateFailed", { message: err.message }));
     }
   }
 </script>
@@ -751,13 +752,13 @@
 
   <div class="exercises-page-header">
     <div>
-      <h2>Exercise Library (Aufgabenkatalog)</h2>
+      <h2>{$t("exercises.page.title")}</h2>
       <p class="exercises-subtitle">
-        Reusable LaTeX exercise collection live-linked across your exams.
+        {$t("exercises.page.subtitle")}
       </p>
     </div>
     <button class="exercises-create-btn" on:click={openCreateModal}
-      >+ Create New Exercise</button
+      >{$t("exercises.page.createButton")}</button
     >
   </div>
 
@@ -766,7 +767,7 @@
   {/if}
 
   <button class="exercises-filter-toggle-btn" on:click={() => (filterCollapsed = !filterCollapsed)}>
-    {filterCollapsed ? '▼ Show Filters' : '▲ Hide Filters'}
+    {filterCollapsed ? $t("exercises.page.showFilters") : $t("exercises.page.hideFilters")}
   </button>
 
   <div class="exercises-library-layout">

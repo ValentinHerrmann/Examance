@@ -2,6 +2,7 @@
   import "./ExamMetadataForm.css";
   import SuggestInput from "$lib/components/common/SuggestInput.svelte";
   import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from "$lib/utils/examLabel";
+  import { t } from "$lib/i18n";
   export let title: string;
   export let testart: string;
   export let grade: string = "";
@@ -33,114 +34,114 @@
 </script>
 
 <div class="exam-metadata-form-card">
-  <h3>1. Exam Metadata</h3>
+  <h3>{$t("examCreation.metadataForm.heading")}</h3>
 
   <div class="exam-metadata-form-group">
-    <label for="title">Exam Title</label>
+    <label for="title">{$t("examCreation.metadataForm.titleLabel")}</label>
     <input
       id="title"
       type="text"
       bind:value={title}
-      placeholder="e.g. 2. Kurzarbeit 10a Informatik"
+      placeholder={$t("examCreation.metadataForm.titlePlaceholder")}
       required
     />
   </div>
 
   <div class="exam-metadata-form-grid-4">
     <div class="exam-metadata-form-group">
-      <label for="testart">Testart (\Testart)</label>
+      <label for="testart">{$t("examCreation.metadataForm.testartLabel")}</label>
       <SuggestInput
         id="testart"
         storageKey="exam.testart"
         bind:value={testart}
-        placeholder="Kurzarbeit"
+        placeholder={$t("examCreation.metadataForm.testartPlaceholder")}
         required
       />
     </div>
 
     <div class="exam-metadata-form-group">
-      <label for="grade">Jahrgangsstufe (Grade)</label>
+      <label for="grade">{$t("examCreation.metadataForm.gradeLabel")}</label>
       <SuggestInput
         id="grade"
         storageKey="exam.grade"
         bind:value={grade}
-        placeholder="10"
+        placeholder={$t("examCreation.metadataForm.gradePlaceholder")}
         required
       />
     </div>
 
     <div class="exam-metadata-form-group">
-      <label for="klasse">Klasse / Kurs</label>
+      <label for="klasse">{$t("examCreation.metadataForm.klasseLabel")}</label>
       <SuggestInput
         id="klasse"
         storageKey="exam.klasse"
         bind:value={klasse}
-        placeholder="a"
+        placeholder={$t("examCreation.metadataForm.klassePlaceholder")}
       />
     </div>
 
     <div class="exam-metadata-form-group">
-      <label for="nr">Nummer (\Nr)</label>
-      <input id="nr" type="text" bind:value={nr} placeholder="1" required />
+      <label for="nr">{$t("examCreation.metadataForm.nrLabel")}</label>
+      <input id="nr" type="text" bind:value={nr} placeholder={$t("examCreation.metadataForm.nrPlaceholder")} required />
     </div>
   </div>
 
   {#if fullCoursePreview}
     <div class="course-preview-badge">
-      <span>Vorschau <code>\Klasse&#123;{fullCoursePreview}&#125;</code>:</span>
+      <span>{$t("examCreation.metadataForm.coursePreviewLabel")} <code>\Klasse&#123;{fullCoursePreview}&#125;</code>:</span>
       <span class="preview-badge-value">{fullCoursePreview}</span>
     </div>
   {/if}
 
   <div class="exam-metadata-form-grid-4">
     <div class="exam-metadata-form-group">
-      <label for="datumDate">Datum (\Datum)</label>
+      <label for="datumDate">{$t("examCreation.metadataForm.datumLabel")}</label>
       <input
         id="datumDate"
         type="text"
         bind:value={datumDate}
         on:input={handleDatumDateOrDauerChange}
-        placeholder="20.05.2025"
+        placeholder={$t("examCreation.metadataForm.datumPlaceholder")}
         required
       />
     </div>
 
     <div class="exam-metadata-form-group">
-      <label for="dauer">Dauer</label>
+      <label for="dauer">{$t("examCreation.metadataForm.dauerLabel")}</label>
       <SuggestInput
         id="dauer"
         storageKey="exam.dauer"
         bind:value={dauer}
         on:input={handleDatumDateOrDauerChange}
-        placeholder="30 Min"
+        placeholder={$t("examCreation.metadataForm.dauerPlaceholder")}
       />
     </div>
 
     <div class="exam-metadata-form-group">
-      <label for="fach">Fach (\Fach)</label>
+      <label for="fach">{$t("examCreation.metadataForm.fachLabel")}</label>
       <SuggestInput
         id="fach"
         storageKey="exam.fach"
         bind:value={fach}
-        placeholder="Informatik"
+        placeholder={$t("examCreation.metadataForm.fachPlaceholder")}
         required
       />
     </div>
 
     <div class="exam-metadata-form-group">
-      <label for="lehrer">Lehrer Nachname (\Lehrernachname)</label>
+      <label for="lehrer">{$t("examCreation.metadataForm.lehrerLabel")}</label>
       <SuggestInput
         id="lehrer"
         storageKey="exam.lehrernachname"
         bind:value={lehrernachname}
-        placeholder="Her"
+        placeholder={$t("examCreation.metadataForm.lehrerPlaceholder")}
         required
       />
     </div>
   </div>
 
   <div class="exam-metadata-form-group">
-    <label for="info">Header Info Instructions (\Info)</label>
+    <label for="info">{$t("examCreation.metadataForm.infoLabel")}</label>
     <textarea id="info" rows="2" bind:value={infoText}></textarea>
   </div>
 </div>

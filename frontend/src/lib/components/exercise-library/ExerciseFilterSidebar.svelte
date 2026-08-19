@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
+  import { t } from "$lib/i18n";
 
   interface ExerciseGroup {
     groupId: string;
@@ -34,7 +35,7 @@
   <div>
     <input
       type="text"
-      placeholder="Search exercises by name, topic, grade, subject, or LaTeX content..."
+      placeholder={$t("exercises.filterSidebar.searchPlaceholder")}
       bind:value={searchQuery}
       class="box-border w-full rounded-lg border border-slate-700 bg-slate-800 p-3 text-white"
     />
@@ -43,15 +44,15 @@
   <div class="flex flex-wrap gap-6">
     {#if availableGrades.length > 0}
       <div class="flex items-center gap-2 text-sm text-slate-300">
-        <label for="grade-select">Grade:</label>
+        <label for="grade-select">{$t("exercises.filterSidebar.gradeLabel")}</label>
         <select
           id="grade-select"
           bind:value={selectedGrade}
           class="rounded-md border border-slate-700 bg-slate-800 px-3 py-[0.375rem] text-[0.85rem] text-white"
         >
-          <option value="ALL">All Grades</option>
+          <option value="ALL">{$t("exercises.filterSidebar.allGrades")}</option>
           {#each availableGrades as g}
-            <option value={g}>Grade {g}</option>
+            <option value={g}>{$t("exercises.filterSidebar.gradeOption", { grade: g })}</option>
           {/each}
         </select>
       </div>
@@ -59,13 +60,13 @@
 
     {#if availableSubjects.length > 0}
       <div class="flex items-center gap-2 text-sm text-slate-300">
-        <label for="subject-select">Subject:</label>
+        <label for="subject-select">{$t("exercises.filterSidebar.subjectLabel")}</label>
         <select
           id="subject-select"
           bind:value={selectedSubject}
           class="rounded-md border border-slate-700 bg-slate-800 px-3 py-[0.375rem] text-[0.85rem] text-white"
         >
-          <option value="ALL">All Subjects</option>
+          <option value="ALL">{$t("exercises.filterSidebar.allSubjects")}</option>
           {#each availableSubjects as s}
             <option value={s}>{s}</option>
           {/each}
@@ -79,7 +80,7 @@
       class={selectedTopic === "ALL" ? pillActive : pillBase}
       on:click={() => onTopicChange("ALL")}
     >
-      All Topics ({allGroups.length})
+      {$t("exercises.filterSidebar.allTopics", { count: allGroups.length })}
     </button>
     {#each availableTopics as topic}
       {@const groupCount = allGroups.filter((g) => g.topicTag === topic).length}

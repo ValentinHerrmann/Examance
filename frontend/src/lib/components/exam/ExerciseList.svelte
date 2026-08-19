@@ -9,6 +9,7 @@
   import "./ExerciseList.css";
   import type { ExerciseRecord } from '$lib/db/schema';
   import { parseExerciseScore } from '$lib/latex/scoreParser';
+  import { t } from '$lib/i18n';
 
   interface McGroup {
     id: string;
@@ -45,7 +46,7 @@
 </script>
 
 <div class="exercise-list">
-  <h3>Aufgaben ({totalItemCount})</h3>
+  <h3>{$t("exam.exerciseList.heading", { count: totalItemCount })}</h3>
 
   {#if examItems.length > 0}
     {#each examItems as item, idx (item.id)}
@@ -55,7 +56,7 @@
           <div class="exercise-item">
             <div class="exercise-info">
               <span class="exercise-number">{idx + 1}.</span>
-              <span class="exercise-title">{exercise.name || exercise.title || 'Untitled'}</span>
+              <span class="exercise-title">{exercise.name || exercise.title || $t("exam.exerciseList.untitled")}</span>
               {#if exercise.topicTag}
                 <span class="exercise-tag topic">{exercise.topicTag}</span>
               {/if}
@@ -63,10 +64,10 @@
                 <span class="exercise-tag topic" style="background-color: #0284c7; color: white;">{exercise.questionType.toUpperCase()}</span>
               {/if}
               {#if exercise.variantKey}
-                <span class="exercise-tag variant">Variant: {exercise.variantKey}</span>
+                <span class="exercise-tag variant">{$t("exam.exerciseList.variant", { key: exercise.variantKey })}</span>
               {/if}
               <span class="exercise-tag version">v{exercise.version || 1}</span>
-              <span class="exercise-points">{exercise.maxPoints} Pkt</span>
+              <span class="exercise-points">{exercise.maxPoints} {$t("exam.exerciseList.points")}</span>
             </div>
             <div class="exercise-actions">
               <button
@@ -90,9 +91,9 @@
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
               <div class="exercise-info">
                 <span class="exercise-number">{idx + 1}.</span>
-                <strong class="exercise-title">MC Gruppe: {group.title}</strong>
-                <span class="exercise-tag topic" style="background-color: #0369a1; color: white;">MC ({memberExercises(group).length} Teilaufgaben)</span>
-                <span class="exercise-points">{groupPoints(group)} Pkt</span>
+                <strong class="exercise-title">{$t("exam.exerciseList.mcGroupLabel", { title: group.title })}</strong>
+                <span class="exercise-tag topic" style="background-color: #0369a1; color: white;">{$t("exam.exerciseList.subExercisesCount", { count: memberExercises(group).length })}</span>
+                <span class="exercise-points">{groupPoints(group)} {$t("exam.exerciseList.points")}</span>
               </div>
               <div class="exercise-actions">
                 {#if onEditMcGroup}
@@ -101,8 +102,8 @@
                     class="exercise-edit-btn"
                     on:click={() => onEditMcGroup(group.id)}
                     style="background: none; border: none; color: #38bdf8; cursor: pointer; font-size: 0.85rem; padding: 0 4px;"
-                    title="Edit MC Group"
-                  >✏️ Edit</button>
+                    title={$t("exam.exerciseList.editGroup")}
+                  >{$t("exam.exerciseList.editGroupButton")}</button>
                 {/if}
                 {#if onMoveExamItem}
                   <button
@@ -137,7 +138,7 @@
       <div class="exercise-item">
         <div class="exercise-info">
           <span class="exercise-number">{i + 1}.</span>
-          <span class="exercise-title">{exercise.name || exercise.title || 'Untitled'}</span>
+          <span class="exercise-title">{exercise.name || exercise.title || $t("exam.exerciseList.untitled")}</span>
           {#if exercise.topicTag}
             <span class="exercise-tag topic">{exercise.topicTag}</span>
           {/if}
@@ -145,10 +146,10 @@
             <span class="exercise-tag topic" style="background-color: #0284c7; color: white;">{exercise.questionType.toUpperCase()}</span>
           {/if}
           {#if exercise.variantKey}
-            <span class="exercise-tag variant">Variant: {exercise.variantKey}</span>
+            <span class="exercise-tag variant">{$t("exam.exerciseList.variant", { key: exercise.variantKey })}</span>
           {/if}
           <span class="exercise-tag version">v{exercise.version || 1}</span>
-          <span class="exercise-points">{exercise.maxPoints} Pkt</span>
+          <span class="exercise-points">{exercise.maxPoints} {$t("exam.exerciseList.points")}</span>
         </div>
         <div class="exercise-actions">
           <button class="exercise-move-btn" on:click={() => onMoveUp && onMoveUp(i)} disabled={i === 0}>↑</button>
@@ -162,9 +163,9 @@
       <div class="exercise-item" style="flex-direction: column; align-items: stretch; gap: 0.4rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
           <div class="exercise-info">
-            <strong class="exercise-title">MC Gruppe: {group.title}</strong>
-            <span class="exercise-tag topic" style="background-color: #0369a1; color: white;">MC ({memberExercises(group).length} Teilaufgaben)</span>
-            <span class="exercise-points">{groupPoints(group)} Pkt</span>
+            <strong class="exercise-title">{$t("exam.exerciseList.mcGroupLabel", { title: group.title })}</strong>
+            <span class="exercise-tag topic" style="background-color: #0369a1; color: white;">{$t("exam.exerciseList.subExercisesCount", { count: memberExercises(group).length })}</span>
+            <span class="exercise-points">{groupPoints(group)} {$t("exam.exerciseList.points")}</span>
           </div>
           <div class="exercise-actions">
             {#if onEditMcGroup}
@@ -173,8 +174,8 @@
                 class="exercise-edit-btn"
                 on:click={() => onEditMcGroup(group.id)}
                 style="background: none; border: none; color: #38bdf8; cursor: pointer; font-size: 0.85rem; padding: 0 4px;"
-                title="Edit MC Group"
-              >✏️ Edit</button>
+                title={$t("exam.exerciseList.editGroup")}
+              >{$t("exam.exerciseList.editGroupButton")}</button>
             {/if}
             {#if onRemoveMcGroup}
               <button class="exercise-remove-btn" on:click={() => onRemoveMcGroup(group.id)}>✕</button>
@@ -192,7 +193,7 @@
 
   {#if totalItemCount === 0}
     <div class="empty-exercises">
-      <p>Noch keine Aufgaben hinzugefügt.</p>
+      <p>{$t("exam.exerciseList.empty")}</p>
     </div>
   {/if}
 </div>

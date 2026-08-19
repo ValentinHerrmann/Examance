@@ -1,5 +1,7 @@
 <script lang="ts">
   import './StatsPage.css';
+  import { t } from '$lib/i18n';
+  import { fmt } from '$lib/utils/format';
   import type { ExamRecord } from '$lib/db/schema';
   import type { PercentageHistogramBin } from '$lib/analytics/stats';
   import type { GradeDistributionBucket } from '$lib/analytics/gradingKey';

@@ -4,6 +4,7 @@
   import ExerciseLibraryPicker from "$lib/components/exercise-library/ExerciseLibraryPicker.svelte";
   import ExercisePreviewDrawer from "$lib/components/exercise-library/ExercisePreviewDrawer.svelte";
   import CustomExerciseForm from "$lib/components/exam-creation/CustomExerciseForm.svelte";
+  import { t } from "$lib/i18n";
 
   interface VariantMember {
     ex: ExerciseRecord;
@@ -34,6 +35,8 @@
   export let onReorderMcStaging: ((index: number, direction: "up" | "down") => void) | undefined = undefined;
   export let onFinalizeMcGroup: (title: string, scoringText: string) => void = () => {};
 
+  // "Grundlagen" and the scoring sentence below are default exam CONTENT that ends up
+  // printed in the German exam PDF (MC scoring rubric) — not UI text, left untranslated.
   let mcStagingTitle = "Grundlagen";
   let mcStagingScoringText =
     "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE";
@@ -93,7 +96,7 @@
 
 <div class="exercise-selector-card">
   <div class="exercise-selector-header">
-    <h3>2. Select Exercises</h3>
+    <h3>{$t("examCreation.exerciseSelector.heading")}</h3>
     <div class="exercise-selector-tabs">
       <button
         type="button"
@@ -101,7 +104,7 @@
         class:active={activeTab === "library"}
         on:click={() => (activeTab = "library")}
       >
-        📚 From Library ({selectedLibraryIds.length} Selected)
+        {$t("examCreation.exerciseSelector.tabLibrary", { count: selectedLibraryIds.length })}
       </button>
       <button
         type="button"
@@ -109,7 +112,7 @@
         class:active={activeTab === "custom"}
         on:click={() => (activeTab = "custom")}
       >
-        ✏️ Create Custom Exercise
+        {$t("examCreation.exerciseSelector.tabCustom")}
       </button>
     </div>
   </div>
@@ -137,11 +140,11 @@
 
     {#if mcStagingExercises.length > 0}
       <div class="mt-4 rounded-[10px] border border-amber-500/60 bg-amber-500/5 p-4">
-        <h4 class="mb-2 text-sm font-semibold text-amber-400">MC Group Staging Area ({mcStagingExercises.length} sub-exercises)</h4>
+        <h4 class="mb-2 text-sm font-semibold text-amber-400">{$t("examCreation.exerciseSelector.mcStaging.heading", { count: mcStagingExercises.length })}</h4>
         <ul class="mb-3 flex flex-col gap-1">
           {#each mcStagingExercises as ex, i}
             <li class="flex items-center justify-between text-sm text-slate-300">
-              <span>{String.fromCharCode(97 + i)}) {ex.name || "Untitled"}</span>
+              <span>{String.fromCharCode(97 + i)}) {ex.name || $t("examCreation.exerciseSelector.mcStaging.untitled")}</span>
               <div class="flex items-center gap-1.5">
                 {#if onReorderMcStaging}
                   <button
@@ -149,25 +152,25 @@
                     class="px-1 text-xs text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400"
                     disabled={i === 0}
                     on:click={() => onReorderMcStaging && onReorderMcStaging(i, "up")}
-                    title="Move up"
+                    title={$t("examCreation.exerciseSelector.mcStaging.moveUp")}
                   >↑</button>
                   <button
                     type="button"
                     class="px-1 text-xs text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400"
                     disabled={i === mcStagingExercises.length - 1}
                     on:click={() => onReorderMcStaging && onReorderMcStaging(i, "down")}
-                    title="Move down"
+                    title={$t("examCreation.exerciseSelector.mcStaging.moveDown")}
                   >↓</button>
                 {/if}
-                <button type="button" class="text-xs text-red-400 hover:text-red-300 ml-1" on:click={() => onToggleMcStaging(ex.id)}>Remove</button>
+                <button type="button" class="text-xs text-red-400 hover:text-red-300 ml-1" on:click={() => onToggleMcStaging(ex.id)}>{$t("examCreation.exerciseSelector.mcStaging.remove")}</button>
               </div>
             </li>
           {/each}
         </ul>
         <div class="flex flex-col gap-2">
-          <label class="text-xs text-slate-400" for="mc-group-title">MC Group Title</label>
+          <label class="text-xs text-slate-400" for="mc-group-title">{$t("examCreation.exerciseSelector.mcStaging.titleLabel")}</label>
           <input id="mc-group-title" type="text" bind:value={mcStagingTitle} class="rounded-md border border-slate-700 bg-slate-900 p-2 text-sm text-white" />
-          <label class="text-xs text-slate-400" for="mc-group-scoring">Scoring Scheme</label>
+          <label class="text-xs text-slate-400" for="mc-group-scoring">{$t("examCreation.exerciseSelector.mcStaging.scoringLabel")}</label>
           <textarea id="mc-group-scoring" bind:value={mcStagingScoringText} rows="2" class="rounded-md border border-slate-700 bg-slate-900 p-2 text-sm text-white"></textarea>
           <button
             type="button"
@@ -175,12 +178,12 @@
             disabled={mcStagingExercises.length < 1 || mcStagingExercises.length > 4}
             on:click={handleFinalizeMcGroup}
           >
-            Add MC Group to Exam ({mcStagingExercises.length} sub-exercises)
+            {$t("examCreation.exerciseSelector.mcStaging.addButton", { count: mcStagingExercises.length })}
           </button>
           {#if mcStagingExercises.length < 1}
-            <span class="text-xs text-slate-500">Select 1 to 4 sub-exercises to form a group.</span>
+            <span class="text-xs text-slate-500">{$t("examCreation.exerciseSelector.mcStaging.hintSelectRange")}</span>
           {:else if mcStagingExercises.length > 4}
-            <span class="text-xs text-amber-400">Maximum 4 sub-exercises allowed per MC group.</span>
+            <span class="text-xs text-amber-400">{$t("examCreation.exerciseSelector.mcStaging.hintMaxExceeded")}</span>
           {/if}
         </div>
       </div>

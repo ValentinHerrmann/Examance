@@ -1,6 +1,7 @@
 <script lang="ts">
   import "./+page.css";
   import { goto } from "$app/navigation";
+  import { translate } from "$lib/i18n";
   import { deriveKey, deriveKeyWithFallback, generateSalt, getUserSalt, getUserSessionNonce } from "$lib/crypto/keyDerivation";
   import {
     deriveSessionKey,
@@ -37,17 +38,17 @@
     errorMsg = "";
     const trimmedBackendUrl = backendUrl.trim();
     if (!trimmedBackendUrl) {
-      errorMsg = "Please enter a server address.";
+      errorMsg = translate("auth.unlock.errors.enterServerAddress");
       return;
     }
 
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
-      errorMsg = "Please enter your email.";
+      errorMsg = translate("auth.unlock.errors.enterEmail");
       return;
     }
     if (!password) {
-      errorMsg = "Please enter your password.";
+      errorMsg = translate("auth.unlock.errors.enterPassword");
       return;
     }
 
@@ -56,7 +57,7 @@
     try {
       backendStore.setTransient(trimmedBackendUrl);
     } catch (err: any) {
-      errorMsg = err?.message ?? "That backend server address is not valid.";
+      errorMsg = err?.message ?? translate("auth.unlock.errors.invalidBackendUrl");
       return;
     }
 
@@ -105,15 +106,15 @@
       // Revert store to last saved URL if authentication failed
       backendStore.restoreSavedUrl();
       if (err instanceof ApiError && err.code === 'ERR_PASSWORD_NOT_SET') {
-        errorMsg = 'Your account password has not been set yet. Please check your email for a password setup link, or use "Forgot password?" below.';
+        errorMsg = translate("auth.unlock.errors.passwordNotSet");
       } else {
         // "Failed to fetch" is the browser's opaque network error for CORS
         // preflight rejections. Give users a concrete hint.
         const raw: string = err.message || '';
         errorMsg =
           raw === 'Failed to fetch'
-            ? 'Could not reach the server. If you are using a local backend, make sure it is running and has CORS enabled for this origin.'
-            : raw || 'Unlock failed. Check your password or credentials.';
+            ? translate("auth.unlock.errors.couldNotReachServer")
+            : raw || translate("auth.unlock.errors.unlockFailed");
       }
     } finally {
       isLoading = false;
@@ -124,16 +125,16 @@
     errorMsg = "";
 
     if (!localPassphrase) {
-      errorMsg = "Please enter a passphrase for your local workspace.";
+      errorMsg = translate("auth.unlock.errors.enterLocalPassphrase");
       return;
     }
     if (isNewLocalVault || needsLegacyMigration) {
       if (localPassphrase.length < LOCAL_PASSPHRASE_MIN_LENGTH) {
-        errorMsg = `Passphrase must be at least ${LOCAL_PASSPHRASE_MIN_LENGTH} characters.`;
+        errorMsg = translate("auth.unlock.errors.passphraseTooShort", { minLength: LOCAL_PASSPHRASE_MIN_LENGTH });
         return;
       }
       if (localPassphrase !== localPassphraseConfirm) {
-        errorMsg = "The two passphrases do not match.";
+        errorMsg = translate("auth.unlock.errors.passphrasesDoNotMatch");
         return;
       }
     }
@@ -152,7 +153,7 @@
 
       await goto("/");
     } catch (err: any) {
-      errorMsg = err?.message || "Failed to initialize local session.";
+      errorMsg = err?.message || translate("auth.unlock.errors.localSessionInitFailed");
     } finally {
       isLoading = false;
     }

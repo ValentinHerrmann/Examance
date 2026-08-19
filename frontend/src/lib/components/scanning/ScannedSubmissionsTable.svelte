@@ -1,5 +1,7 @@
 <script lang="ts">
   import "./ScannedSubmissionsTable.css";
+  import { t } from "$lib/i18n";
+  import { fmt } from "$lib/utils/format";
   interface ScannedSubmissionItem {
     id: string;
     pseudonymHash: string;
@@ -28,45 +30,45 @@
 
 <div class="scans-overview-section">
   <div class="scans-overview-header">
-    <h3>Ingested Scans ({scannedSubmissions.length})</h3>
+    <h3>{$t("scanning.submissionsTable.title", { count: scannedSubmissions.length })}</h3>
     {#if scannedSubmissions.length > 0}
       <button class="btn-delete-all" on:click={onDeleteAll}>
-        Delete All Scans
+        {$t("scanning.submissionsTable.deleteAll")}
       </button>
     {/if}
   </div>
   {#if scannedSubmissions.length === 0}
-    <p class="empty-msg">No scans ingested for this exam yet.</p>
+    <p class="empty-msg">{$t("scanning.submissionsTable.empty")}</p>
   {:else}
     <div class="scans-table">
       <div class="table-header">
-        <span>Student Name</span>
-        <span>Student ID</span>
-        <span>Fallback Code</span>
-        <span>Date Ingested</span>
-        <span>Action</span>
+        <span>{$t("scanning.submissionsTable.colStudentName")}</span>
+        <span>{$t("scanning.submissionsTable.colStudentId")}</span>
+        <span>{$t("scanning.submissionsTable.colFallbackCode")}</span>
+        <span>{$t("scanning.submissionsTable.colDateIngested")}</span>
+        <span>{$t("scanning.submissionsTable.colAction")}</span>
       </div>
       {#each scannedSubmissions as item}
         <div class="table-row">
-          <span class="student-name" title={`Submission ID: ${item.id}`}>
-            {item.studentName || 'Unmatched Student'}
+          <span class="student-name" title={$t("scanning.submissionsTable.submissionIdTitle", { id: item.id })}>
+            {item.studentName || $t("scanning.submissionsTable.unmatchedStudent")}
           </span>
-          <span class="student-number" title={`Pseudonym: ${item.pseudonymHash}`}>
+          <span class="student-number" title={$t("scanning.submissionsTable.pseudonymTitle", { hash: item.pseudonymHash })}>
             {item.studentNumber || '—'}
           </span>
           <span class="scanned-submissions-badge" class:unmatched={item.fallbackCode.startsWith('UNMATCHED-')}>
             {item.fallbackCode}
           </span>
-          <span class="scanned-submissions-time">{new Date(item.createdAt).toLocaleString()}</span>
+          <span class="scanned-submissions-time">{$fmt.dateTime(item.createdAt)}</span>
           <div class="action-buttons">
-            <button class="btn-preview" on:click={() => onPreview(item)}>Preview Scan</button>
-            <button class="btn-grade" on:click={() => onGoToGrading(item)}>Go to Grading</button>
+            <button class="btn-preview" on:click={() => onPreview(item)}>{$t("scanning.submissionsTable.preview")}</button>
+            <button class="btn-grade" on:click={() => onGoToGrading(item)}>{$t("scanning.submissionsTable.goToGrading")}</button>
             <button class="btn-export" disabled={exportingId === item.id} on:click={() => onExportPdf(item)}>
-              {exportingId === item.id ? 'Exporting…' : 'Export PDF'}
+              {exportingId === item.id ? $t("scanning.submissionsTable.exporting") : $t("scanning.submissionsTable.exportPdf")}
             </button>
-            <button class="btn-split" on:click={() => onSplit(item)}>Split</button>
-            <button class="btn-delete-grading" disabled={!isGraded(item)} on:click={() => onDeleteGrading(item)}>Delete Grading</button>
-            <button class="btn-delete" on:click={() => onDelete(item)}>Delete</button>
+            <button class="btn-split" on:click={() => onSplit(item)}>{$t("scanning.submissionsTable.split")}</button>
+            <button class="btn-delete-grading" disabled={!isGraded(item)} on:click={() => onDeleteGrading(item)}>{$t("scanning.submissionsTable.deleteGrading")}</button>
+            <button class="btn-delete" on:click={() => onDelete(item)}>{$t("scanning.submissionsTable.delete")}</button>
           </div>
         </div>
       {/each}

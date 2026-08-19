@@ -1,5 +1,6 @@
 <script lang="ts">
   import { gradingStore } from "$lib/grading/gradingStore";
+  import { t } from "$lib/i18n";
 
   export let onPagePrev: () => void;
   export let onPageNext: () => void;
@@ -21,15 +22,15 @@
       class={zoomBtn}
       on:click={onPagePrev}
       disabled={$gradingStore.currentPage <= 1}
-      title="Vorherige Seite (Pfeil links)"
+      title={$t("grading.zoom.pagePrevTitle")}
     >◀</button>
-    <span>S. {$gradingStore.currentPage}/{$gradingStore.totalPages}</span>
+    <span>{$t("grading.zoom.pageIndicator", { current: $gradingStore.currentPage, total: $gradingStore.totalPages })}</span>
     <button
       type="button"
       class={zoomBtn}
       on:click={onPageNext}
       disabled={$gradingStore.currentPage >= $gradingStore.totalPages}
-      title="Nächste Seite (Pfeil rechts)"
+      title={$t("grading.zoom.pageNextTitle")}
     >▶</button>
     <div class="mx-[0.15rem] h-4 w-px bg-slate-700"></div>
   {/if}
@@ -37,28 +38,28 @@
     type="button"
     class={$gradingStore.isAutoCropEnabled ? zoomBtnActive : zoomBtn}
     on:click={onToggleAutoCrop}
-    title={$gradingStore.isAutoCropEnabled ? "Ränder zugeschnitten (Klicken zum Zurücksetzen)" : "Ränder zuschneiden"}
+    title={$gradingStore.isAutoCropEnabled ? $t("grading.zoom.autoCropOnTitle") : $t("grading.zoom.autoCropOffTitle")}
   >
-    ✂️ {$gradingStore.isAutoCropEnabled ? "Zuschnitt" : "Ganze Seite"}
+    ✂️ {$gradingStore.isAutoCropEnabled ? $t("grading.zoom.autoCropOn") : $t("grading.zoom.autoCropOff")}
   </button>
   <div class="mx-[0.15rem] h-4 w-px bg-slate-700"></div>
   <button
     type="button"
     class={zoomBtn}
     on:click={onZoomOut}
-    title="Verkleinern (-)"
+    title={$t("grading.zoom.zoomOutTitle")}
   >➖</button>
-  <span class="px-1 font-mono font-bold text-slate-200">{$gradingStore.zoomScale === 1.0 ? "Fit" : `${Math.round($gradingStore.zoomScale * 100)}%`}</span>
+  <span class="px-1 font-mono font-bold text-slate-200">{$gradingStore.zoomScale === 1.0 ? $t("grading.zoom.fitLabel") : `${Math.round($gradingStore.zoomScale * 100)}%`}</span>
   <button
     type="button"
     class={zoomBtn}
     on:click={onZoomIn}
-    title="Vergrößern (+)"
+    title={$t("grading.zoom.zoomInTitle")}
   >➕</button>
   <button
     type="button"
     class={zoomBtn}
     on:click={onResetZoom}
-    title="Anpassen (Fit)"
-  >Fit</button>
+    title={$t("grading.zoom.fitTitle")}
+  >{$t("grading.zoom.fitLabel")}</button>
 </div>

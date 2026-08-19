@@ -24,6 +24,7 @@
   import { gradingStore } from "$lib/grading/gradingStore";
   import { isMcQuestion } from "$lib/grading/mcScore";
   import GradingWorkspace from "$lib/components/grading/GradingWorkspace.svelte";
+  import { t, translate } from "$lib/i18n";
 
   const examId = $page.params.id || "";
 
@@ -195,9 +196,9 @@
         });
       }
       sessionStore.setDirty(false);
-      alert("Score and annotations saved successfully!");
+      alert(translate("grading.page.saveSuccess"));
     } catch (err: any) {
-      alert(`Failed to save score: ${err.message}`);
+      alert(translate("grading.page.saveFailed", { message: err.message }));
     } finally {
       gradingStore.setSaving(false);
     }
@@ -209,7 +210,7 @@
       return;
     }
     if (get(gradingStore).currentStrokes.length > 0) {
-      if (!confirm("You have unsaved annotations for this student. Move to next student anyway?")) {
+      if (!confirm(translate("grading.page.unsavedNext"))) {
         return;
       }
     }
@@ -219,7 +220,7 @@
 
   function prevStudent() {
     if (get(gradingStore).currentStrokes.length > 0) {
-      if (!confirm("You have unsaved annotations for this student. Move to previous student anyway?")) {
+      if (!confirm(translate("grading.page.unsavedPrev"))) {
         return;
       }
     }
@@ -236,7 +237,7 @@
 
 <div class="grading-page">
   {#if submissions.length === 0}
-    <div class="exam-grade-empty">No submissions to grade for this exam.</div>
+    <div class="exam-grade-empty">{$t("grading.page.empty")}</div>
   {:else}
     <GradingWorkspace
       {examId}

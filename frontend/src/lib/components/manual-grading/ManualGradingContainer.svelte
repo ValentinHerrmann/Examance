@@ -20,6 +20,7 @@
   import ExerciseFirstGrid from "./ExerciseFirstGrid.svelte";
   import StudentFirstGrid from "./StudentFirstGrid.svelte";
   import PasteImportModal from "./PasteImportModal.svelte";
+  import { t } from "$lib/i18n";
 
   export let examId: string;
 
@@ -77,15 +78,15 @@
 <div class="manual-grading-container">
   <div class="manual-grading-header">
     <div>
-      <h1>Paper & Excel Grade Entry</h1>
-      <p>Enter exam points directly without scanning paper booklets, or paste score matrices from Excel.</p>
+      <h1>{$t("grading.manual.container.title")}</h1>
+      <p>{$t("grading.manual.container.subtitle")}</p>
     </div>
     <div class="manual-grading-header-actions">
       <button
         class="manual-grading-import-btn"
         on:click={() => (showImportModal = true)}
       >
-        📋 Import from Excel (Ctrl+V)
+        {$t("grading.manual.container.importButton")}
       </button>
     </div>
   </div>
@@ -96,27 +97,27 @@
       class:active={activeTab === "exercise-first"}
       on:click={() => (activeTab = "exercise-first")}
     >
-      📝 Exercise-First Entry (All Students per Exercise)
+      {$t("grading.manual.container.tabExerciseFirst")}
     </button>
     <button
       class="manual-grading-tab-btn"
       class:active={activeTab === "student-first"}
       on:click={() => (activeTab = "student-first")}
     >
-      👤 Student-First Entry (All Exercises per Student)
+      {$t("grading.manual.container.tabStudentFirst")}
     </button>
     <button
       class="manual-grading-tab-btn"
       class:active={activeTab === "roster"}
       on:click={() => (activeTab = "roster")}
     >
-      👥 Student Roster ({students.length})
+      {$t("grading.manual.container.tabRoster", { count: students.length })}
     </button>
   </div>
 
   <div class="manual-grading-body">
     {#if loading}
-      <div class="manual-grading-loading">Loading exam data...</div>
+      <div class="manual-grading-loading">{$t("grading.manual.container.loading")}</div>
     {:else if activeTab === "roster"}
       <RosterManager
         {examId}

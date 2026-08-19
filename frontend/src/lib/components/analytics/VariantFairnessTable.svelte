@@ -1,5 +1,7 @@
 <script lang="ts">
   import "./VariantFairnessTable.css";
+  import { t } from '$lib/i18n';
+  import { fmt } from '$lib/utils/format';
   import type { VariantGroupComparison } from '$lib/analytics/analyticsTypes';
 
   export let variantGroups: VariantGroupComparison[];
@@ -10,15 +12,15 @@
 <div class="vft-section-card vft-margin-bottom">
   <div class="vft-section-header-row">
     <div class="vft-section-title-group">
-      <h3>🔀 Exercise Variant Difficulty & Fairness Comparison</h3>
-      <p>Compare performance between different question variants (e.g. Gruppe A vs Gruppe B) to detect unintended difficulty imbalances.</p>
+      <h3>{$t('stats.variantFairness.title')}</h3>
+      <p>{$t('stats.variantFairness.description')}</p>
     </div>
     {#if variantGroups.some((g) => g.variants.some((v) => v.avgScorePercent === null))}
       <button
         class="vft-toggle-btn"
         on:click={() => (showAll = !showAll)}
       >
-        {showAll ? 'Show Only Graded Exercises' : 'Show All Exercises (Inc. Ungraded)'}
+        {showAll ? $t('stats.shared.toggleShowGraded') : $t('stats.shared.toggleShowAll')}
       </button>
     {/if}
   </div>
@@ -26,12 +28,12 @@
   {#if displayedVariantGroups.length === 0}
     <div class="vft-empty-analytics-box">
       <div class="vft-empty-icon">🔀</div>
-      <h4>No Multi-Variant Exercise Groups Configured</h4>
+      <h4>{$t('stats.variantFairness.emptyTitle')}</h4>
       <p>
         {#if variantGroups.length > 0}
-          {variantGroups.length} multi-variant question group(s) are linked to your exams, but none have student grades recorded yet.
+          {$t('stats.variantFairness.emptyWithData', { count: $fmt.number(variantGroups.length) })}
         {:else}
-          When you create exercises with variants (e.g. Variant A & Variant B for different test groups), side-by-side fairness ratings and difficulty delta metrics will appear here.
+          {$t('stats.variantFairness.emptyNoData')}
         {/if}
       </p>
       {#if variantGroups.length > 0}
@@ -39,7 +41,7 @@
           class="vft-secondary-toggle-btn"
           on:click={() => (showAll = !showAll)}
         >
-          {showAll ? 'Hide Ungraded Exercises' : `Show All ${variantGroups.length} Variant Groups`}
+          {showAll ? $t('stats.shared.hideUngraded') : $t('stats.variantFairness.showAllGroups', { count: $fmt.number(variantGroups.length) })}
         </button>
       {/if}
     </div>
@@ -57,25 +59,25 @@
             {#if vGroup.maxDeltaPercent !== null}
               <div class="delta-badge" class:vft-warning={vGroup.flaggedFairnessIssue}>
                 {#if vGroup.flaggedFairnessIssue}
-                  ⚠️ {vGroup.maxDeltaPercent}% Difficulty Disparity
+                  {$t('stats.variantFairness.difficultyDisparity', { delta: $fmt.number(vGroup.maxDeltaPercent) })}
                 {:else}
-                  ✓ {vGroup.maxDeltaPercent}% Variance (Balanced)
+                  {$t('stats.variantFairness.varianceBalanced', { delta: $fmt.number(vGroup.maxDeltaPercent) })}
                 {/if}
               </div>
             {:else if vGroup.variants.some((v) => v.avgScorePercent !== null)}
-              <span class="vft-status-badge vft-neutral">Partial Data (1 Variant Graded)</span>
+              <span class="vft-status-badge vft-neutral">{$t('stats.variantFairness.partialData')}</span>
             {:else}
-              <span class="vft-status-badge vft-neutral">Awaiting Grading Scores</span>
+              <span class="vft-status-badge vft-neutral">{$t('stats.variantFairness.awaitingScores')}</span>
             {/if}
           </div>
 
           <table class="vft-analytics-table vft-compact">
             <thead>
               <tr>
-                <th>Variant Key</th>
-                <th>Max Points</th>
-                <th>Avg Score %</th>
-                <th>Status</th>
+                <th>{$t('stats.variantFairness.colVariantKey')}</th>
+                <th>{$t('stats.variantFairness.colMaxPoints')}</th>
+                <th>{$t('stats.variantFairness.colAvgScore')}</th>
+                <th>{$t('stats.variantFairness.colStatus')}</th>
               </tr>
             </thead>
             <tbody>
@@ -84,7 +86,7 @@
                   <td class="variant-key-cell">
                     <span class="variant-badge">{v.variantKey}</span>
                   </td>
-                  <td>{v.maxPoints} Pkt</td>
+                  <td>{$t('stats.variantFairness.maxPointsSuffix', { points: $fmt.number(v.maxPoints) })}</td>
                   <td>
                     {#if v.avgScorePercent !== null}
                       <div class="vft-score-bar-container">
@@ -93,19 +95,19 @@
                           style="width: {v.avgScorePercent}%"
                           class:vft-low-bar={v.avgScorePercent < 60}
                         ></div>
-                        <span class="vft-score-text">{v.avgScorePercent}%</span>
+                        <span class="vft-score-text">{$fmt.percent(v.avgScorePercent / 100, 0)}</span>
                       </div>
                     {:else}
-                      <span class="vft-no-data-text">N/A (Not Graded)</span>
+                      <span class="vft-no-data-text">{$t('stats.shared.notGraded')}</span>
                     {/if}
                   </td>
                   <td>
                     {#if v.avgScorePercent === null}
-                      <span class="vft-status-badge vft-neutral">No Graded Data</span>
+                      <span class="vft-status-badge vft-neutral">{$t('stats.shared.noGradedData')}</span>
                     {:else if v.avgScorePercent < 60}
-                      <span class="vft-status-badge vft-danger">Harder Variant</span>
+                      <span class="vft-status-badge vft-danger">{$t('stats.variantFairness.harderVariant')}</span>
                     {:else}
-                      <span class="vft-status-badge vft-success">Normal Range</span>
+                      <span class="vft-status-badge vft-success">{$t('stats.variantFairness.normalRange')}</span>
                     {/if}
                   </td>
                 </tr>

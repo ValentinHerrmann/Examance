@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { GradingKeyConfig, GradeCutoff } from '$lib/db/schema';
   import { getPresetCutoffs } from '$lib/analytics/gradingKey';
+  import { t } from '$lib/i18n';
 
   const presetBtnBase =
     "cursor-pointer rounded-md border-0 bg-transparent px-[0.65rem] py-[0.35rem] text-xs font-medium text-slate-300 transition-all duration-150 ease-[ease] hover:bg-slate-700 hover:text-white";
@@ -39,10 +40,10 @@
         <svg class="h-5 w-5 shrink-0 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
-        Notenschlüssel (Noten 1 bis 6)
+        {$t("exam.gradingKeyEditor.heading")}
       </h4>
       <p class="m-0 text-[0.8rem] text-slate-400">
-        Definiere die Mindestprozentgrenzen für die automatische Notenberechnung in der Korrekturansicht.
+        {$t("exam.gradingKeyEditor.description")}
       </p>
     </div>
 
@@ -53,24 +54,24 @@
         class={gradingKey.preset === 'linear_50' ? presetBtnActive : presetBtnBase}
         on:click={() => applyPreset('linear_50')}
       >
-        Klassisch (50% = Note 4)
+        {$t("exam.gradingKeyEditor.presets.standard")}
       </button>
       <button
         type="button"
         class={gradingKey.preset === 'linear_40' ? presetBtnActive : presetBtnBase}
         on:click={() => applyPreset('linear_40')}
       >
-        Oberstufe (40% = Note 4)
+        {$t("exam.gradingKeyEditor.presets.upperSecondary")}
       </button>
       <button
         type="button"
         class={gradingKey.preset === 'even_split' ? presetBtnActive : presetBtnBase}
         on:click={() => applyPreset('even_split')}
       >
-        Gleichmäßig
+        {$t("exam.gradingKeyEditor.presets.even")}
       </button>
       {#if gradingKey.preset === 'custom'}
-        <span class="px-2 font-mono text-[0.7rem] text-indigo-400">Individuell</span>
+        <span class="px-2 font-mono text-[0.7rem] text-indigo-400">{$t("exam.gradingKeyEditor.custom")}</span>
       {/if}
     </div>
   </div>
@@ -81,13 +82,13 @@
       <div class="flex flex-col gap-2 rounded-lg border border-slate-700 bg-slate-800 p-3">
         <div class="flex items-center justify-between">
           <span class="inline-flex items-center justify-center rounded-md border border-indigo-500/30 bg-indigo-500/20 px-2 py-[0.15rem] text-xs font-bold text-indigo-300">
-            Note {cutoff.grade}
+            {$t("exam.gradingKeyEditor.gradeLabel", { grade: cutoff.grade })}
           </span>
           <span class="text-xs font-medium text-slate-300">{cutoff.label}</span>
         </div>
 
         <div class="flex items-center gap-[0.375rem]">
-          <span class="text-xs text-slate-400">Ab</span>
+          <span class="text-xs text-slate-400">{$t("exam.gradingKeyEditor.from")}</span>
           <input
             type="number"
             min="0"

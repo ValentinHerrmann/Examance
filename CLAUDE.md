@@ -20,7 +20,7 @@ Privacy-first, zero-knowledge-encrypted anonymous exam grading. LaTeX exams, QR-
 - `src/lib/{analytics,api,archive,components,crypto,db,exam,exercise-library,gdpr,grading,hardware,latex,pdf,repositories,services,stores,utils,workers}`; `src/routes/{admin,analytics,exam,exercises,forgot-password,legal,reset-password,settings,unlock}`.
 - **Components**: new ones → `src/lib/components/<feature>/`. Nine legacy ones sit loose at `components/` root (`ConfirmDialog`, `DualPdfPreview`, `ExerciseEditorModal`, `GradingKeyEditor`, `LatexEditor`, `LatexViewer`, `SessionTimeoutWarning`, `StoragePolicyModal`, `ZoomableImage`) — leftovers, don't copy. Routes hold data-loading, handlers, session state; components hold markup. Wire with callback props (`onAction={handler}`, `bind:value`), **not** `createEventDispatcher` — 5 legacy roots still use it (`ConfirmDialog`, `DualPdfPreview`, `ExerciseEditorModal`, `LatexEditor`, `StoragePolicyModal`); don't follow. Prop-drilling exception: `src/lib/grading/gradingStore.ts`, leaf grading components subscribe directly (15+ interdependent fields, justified in-file).
 - **Styles**: in the component's own `<style>` block. No sibling `.css` file — existing ones are mid-migration away, not the model.
-- **Known gaps** (don't reflexively fix; flag if touched): `svelte-check` has 2 pre-existing errors — `d3-scale` types in `SubmissionHistogram.svelte`/`GradeDistribution.svelte`. `d3-scale` and `@types/d3-scale` are both listed in `frontend/package.json`, but `@types/d3-scale` is missing from `node_modules` (stale install, checked 2026-08-17) — a plain reinstall would likely fix it, but don't `npm install` casually (see below).
+- **Known gaps** (don't reflexively fix; flag if touched): the 2 long-standing `svelte-check` errors for `d3-scale` types in `SubmissionHistogram.svelte`/`GradeDistribution.svelte` were a stale-install artefact — `npm install --ignore-scripts` pulled in the missing `@types/d3-scale` and they are gone (2026-08-19). `--ignore-scripts` is the safe way to reinstall: it skips the `postinstall` that re-downloads busytex. `svelte-check --threshold error` should now be clean; treat any error as new.
 
 ## Commands
 
@@ -74,6 +74,32 @@ Backend → `deploy/docker-compose.deploy.yml` on one SSH host, two isolated sta
 Response headers come from `frontend/static/_headers`, which is a **template**: `npm run build` runs `scripts/generate-csp-headers.mjs`, which replaces the `__INLINE_SCRIPT_HASHES__` token in `script-src` with the SHA-256 of every inline script in `build/**/*.html`. Never hard-code a `sha256-` literal there — SvelteKit's inline bootstrap embeds the content-hashed entry chunk filenames, so its hash changes with any bundle change (including a dependency or Node version difference between your machine and the Pages build image) and a pinned hash takes the deployed app down with "Executing inline script violates the following Content Security Policy directive". `tests/cspHeaders.test.ts` guards this.
 
 The policy is `script-src 'self'` with no CDN allowances: third-party assets (e.g. the pdf.js worker, see `src/lib/pdf/pdfjs.ts`) must be bundled and served from our own origin — required by the CSP and by the "no third-party transfer" claims in `docs/`.
+
+## i18n (German / English)
+
+UI text lives in typed catalogs under `frontend/src/lib/i18n/`; the app ships German and
+English with a `🌐` toggle in `StatusBar.svelte` and a radio section in `SettingsForm.svelte`.
+
+- `de/<ns>.ts` is the **source of truth** (`export const <ns> = {...} as const`).
+  `en/<ns>.ts` is annotated `Translations['<ns>']`, so a missing or misspelled key is a
+  `svelte-check` error. `types.ts` widens the `as const` literals back to `string` — German
+  pins the key *structure*, not the wording. Both are aggregated by `de/index.ts` / `en/index.ts`;
+  a new namespace must be added to both.
+- Markup: `{$t("ns.key")}`, `{$t("ns.key", { name })}`. Plain `.ts`, `alert`/`confirm`/`prompt`:
+  `translate("ns.key")`. Runtime-composed keys: `tOptional` / `translateOptional`.
+  Dates and numbers: `$fmt.date` / `$fmt.number` / `$fmt.percent` from `lib/utils/format.ts`.
+- Locale is `bg_locale` in `safeLocalStorage`, detected as saved → `navigator.language` → `en`.
+  Missing key falls back to German, then to the key itself. Interpolation only — no ICU plurals.
+- Backend errors are localized **client-side** by the `code` the API sends alongside its English
+  `detail` (`errors.code.<CODE>`, applied in `lib/api/client.ts`); `err.message` stays the fallback.
+  No backend or `Teacher` model changes.
+- **Exam/PDF output is deliberately NOT translated** — `Schulaufgabe.sty` captions,
+  `\begin{Aufgabe}`, `\Loesung*`, the MC rubric prose, and German seed defaults
+  (`testart`/`fach`/`title`) are exam content and a stable macro API. `routes/exam/new` keeps
+  `toLocaleDateString("de-DE")` because that value is printed in the PDF.
+- Legal pages: German is legally binding (§ 5 DDG, Art. 12 DSGVO). `en/legal.ts` holds the
+  German text as a placeholder — **never** machine-translate it.
+- `tests/locale.test.ts` guards detection, persistence, interpolation and de/en key parity.
 
 ## Multiple Choice (MC) Data Model
 

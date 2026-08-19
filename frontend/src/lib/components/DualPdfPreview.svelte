@@ -1,16 +1,23 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { t } from '$lib/i18n';
 
   export let previewPdfUrl: string | null = null;
   export let previewSolutionPdfUrl: string | null = null;
   export let showAngabePreview: boolean = true;
   export let showLoesungPreview: boolean = false;
-  export let titleAngabe: string = "Exercise";
-  export let titleLoesung: string = "Solution";
+  // Left undefined so the catalog default stays reactive to the language
+  // switch; callers can still pass an explicit pane title.
+  export let titleAngabe: string | undefined = undefined;
+  export let titleLoesung: string | undefined = undefined;
   export let emojiAngabe: string = "📄";
   export let emojiLoesung: string = "📝";
   export let height: string = "100%";
-  export let placeholderText: string = "Click compile to render preview";
+  export let placeholderText: string | undefined = undefined;
+
+  $: angabeTitle = titleAngabe ?? $t("editor.pdfPreview.titleAngabe");
+  $: loesungTitle = titleLoesung ?? $t("editor.pdfPreview.titleLoesung");
+  $: placeholder = placeholderText ?? $t("editor.pdfPreview.placeholder");
 
   const dispatch = createEventDispatcher<{
     toggleAngabe: boolean;
@@ -45,22 +52,22 @@
         type="button"
         class="flex w-full items-center justify-between gap-2 border-b border-slate-700 bg-slate-800 px-3 py-2 text-left text-slate-200 hover:bg-slate-700"
         on:click={handleToggleAngabe}
-        title="Click to collapse {titleAngabe} PDF"
+        title={$t("editor.pdfPreview.collapse", { title: angabeTitle })}
       >
-        <span class="truncate text-sm font-medium">{emojiAngabe} {titleAngabe}</span>
+        <span class="truncate text-sm font-medium">{emojiAngabe} {angabeTitle}</span>
         <span class="text-slate-400">›</span>
       </button>
       <div class="min-h-0 flex-1">
         {#if previewPdfUrl}
           <iframe
             src={previewPdfUrl}
-            title="{titleAngabe} Preview"
+            title={$t("editor.pdfPreview.frameTitle", { title: angabeTitle })}
             width="100%"
             height="100%"
           ></iframe>
         {:else}
           <div class="flex h-full items-center justify-center p-4 text-center text-sm text-slate-500">
-            {placeholderText}
+            {placeholder}
           </div>
         {/if}
       </div>
@@ -69,11 +76,11 @@
         type="button"
         class="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-800 py-3 text-slate-300 hover:bg-slate-700"
         on:click={handleToggleAngabe}
-        title="Click to expand {titleAngabe} PDF"
+        title={$t("editor.pdfPreview.expand", { title: angabeTitle })}
       >
         <span class="text-slate-400">‹</span>
         <span>{emojiAngabe}</span>
-        <span class="[writing-mode:vertical-rl] text-xs">{titleAngabe} PDF</span>
+        <span class="[writing-mode:vertical-rl] text-xs">{angabeTitle} PDF</span>
       </button>
     {/if}
   </div>
@@ -91,22 +98,22 @@
         type="button"
         class="flex w-full items-center justify-between gap-2 border-b border-slate-700 bg-slate-800 px-3 py-2 text-left text-slate-200 hover:bg-slate-700"
         on:click={handleToggleLoesung}
-        title="Click to collapse {titleLoesung} PDF"
+        title={$t("editor.pdfPreview.collapse", { title: loesungTitle })}
       >
-        <span class="truncate text-sm font-medium">{emojiLoesung} {titleLoesung}</span>
+        <span class="truncate text-sm font-medium">{emojiLoesung} {loesungTitle}</span>
         <span class="text-slate-400">›</span>
       </button>
       <div class="min-h-0 flex-1">
         {#if previewSolutionPdfUrl}
           <iframe
             src={previewSolutionPdfUrl}
-            title="{titleLoesung} Preview"
+            title={$t("editor.pdfPreview.frameTitle", { title: loesungTitle })}
             width="100%"
             height="100%"
           ></iframe>
         {:else}
           <div class="flex h-full items-center justify-center p-4 text-center text-sm text-slate-500">
-            {placeholderText}
+            {placeholder}
           </div>
         {/if}
       </div>
@@ -115,11 +122,11 @@
         type="button"
         class="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-800 py-3 text-slate-300 hover:bg-slate-700"
         on:click={handleToggleLoesung}
-        title="Click to expand {titleLoesung} PDF"
+        title={$t("editor.pdfPreview.expand", { title: loesungTitle })}
       >
         <span class="text-slate-400">‹</span>
         <span>{emojiLoesung}</span>
-        <span class="[writing-mode:vertical-rl] text-xs">{titleLoesung} PDF</span>
+        <span class="[writing-mode:vertical-rl] text-xs">{loesungTitle} PDF</span>
       </button>
     {/if}
   </div>

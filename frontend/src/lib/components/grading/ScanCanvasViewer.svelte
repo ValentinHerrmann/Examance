@@ -23,6 +23,7 @@
   import { loadLocalMcGroups } from "$lib/db/dbEncryption";
   import { drawMissingSymbol, drawCheckmark, drawOmrOverlayForPage } from "$lib/grading/omrOverlay";
   import { getAutoCropBounds } from "./ScanCanvasViewer";
+  import { translate } from "$lib/i18n";
 
   export let examId: string;
   export let submission: SubmissionRecord | undefined;
@@ -144,7 +145,7 @@
       ctx.fillRect(0, 0, 600, 800);
       ctx.fillStyle = "#94a3b8";
       ctx.font = "16px sans-serif";
-      ctx.fillText("[ Scan Image Missing / Unencrypted ]", 150, 400);
+      ctx.fillText(translate("grading.canvas.scanMissing"), 150, 400);
       return;
     }
 
@@ -256,7 +257,7 @@
         ctx.fillRect(0, 0, 600, 800);
         ctx.fillStyle = "#ef4444";
         ctx.font = "16px sans-serif";
-        ctx.fillText("[ Scan Decryption Failed — Key Mismatch or Data Corrupted ]", 80, 400);
+        ctx.fillText(translate("grading.canvas.scanDecryptFailed"), 80, 400);
       }
     }
   }

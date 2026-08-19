@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getRecentValues, recordValue, removeValue } from "$lib/utils/recentValues";
+  import { t } from "$lib/i18n";
 
   export let storageKey: string = "";
   export let extraSuggestions: string[] = [];
@@ -146,7 +147,7 @@
     >
       {#if filteredSuggestions.length === 0}
         <li class="px-3 py-2 text-center text-xs italic text-slate-400 select-none">
-          No previous entries yet
+          {$t("exercises.suggestInput.noEntries")}
         </li>
       {:else}
         {#each filteredSuggestions as suggestion, i}
@@ -161,8 +162,8 @@
             {#if storageKey && recentList.includes(suggestion)}
               <button
                 type="button"
-                title="Remove entry"
-                aria-label="Remove entry"
+                title={$t("exercises.suggestInput.removeEntry")}
+                aria-label={$t("exercises.suggestInput.removeEntry")}
                 class="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded text-xs text-slate-400 opacity-60 transition-opacity hover:bg-red-500/30 hover:text-red-300 group-hover:opacity-100"
                 on:mousedown|preventDefault|stopPropagation={(e) => handleRemove(e, suggestion)}
               >

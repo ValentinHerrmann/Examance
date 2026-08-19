@@ -1,50 +1,50 @@
 <script lang="ts">
   import LegalPage from "$lib/components/legal/LegalPage.svelte";
+  import { t } from "$lib/i18n";
 </script>
 
 <svelte:head>
-  <title>Impressum — Examance</title>
+  <title>{$t("legal.impressum.pageTitle")}</title>
 </svelte:head>
 
-<LegalPage title="Impressum" subtitle="Anbieterkennzeichnung nach § 5 DDG">
+<LegalPage title={$t("legal.impressum.title")} subtitle={$t("legal.impressum.subtitle")}>
   <p class="todo-banner">
-    <strong>Vor dem Produktivbetrieb ausfüllen.</strong> Die markierten Felder
-    müssen durch die Angaben des tatsächlichen Betreibers ersetzt werden. Ein
-    unvollständiges Impressum ist abmahnfähig.
+    <strong>{$t("legal.impressum.todoBanner.strong")}</strong>
+    {$t("legal.impressum.todoBanner.text")}
   </p>
 
-  <h2>Diensteanbieter</h2>
+  <h2>{$t("legal.impressum.provider.heading")}</h2>
   <p>
-    <span class="placeholder">[Name der Schule / des Schulträgers]</span><br />
-    <span class="placeholder">[Straße und Hausnummer]</span><br />
-    <span class="placeholder">[PLZ und Ort]</span><br />
-    Deutschland
+    <span class="placeholder">{$t("legal.impressum.provider.namePlaceholder")}</span><br />
+    <span class="placeholder">{$t("legal.impressum.provider.streetPlaceholder")}</span><br />
+    <span class="placeholder">{$t("legal.impressum.provider.cityPlaceholder")}</span><br />
+    {$t("legal.impressum.provider.country")}
   </p>
 
-  <h2>Vertretungsberechtigt</h2>
+  <h2>{$t("legal.impressum.representative.heading")}</h2>
   <p>
-    <span class="placeholder">[Name der Schulleitung bzw. der vertretungsberechtigten Person]</span>
+    <span class="placeholder">{$t("legal.impressum.representative.namePlaceholder")}</span>
   </p>
 
-  <h2>Kontakt</h2>
+  <h2>{$t("legal.impressum.contact.heading")}</h2>
   <p>
-    Telefon: <span class="placeholder">[Telefonnummer]</span><br />
-    E-Mail: <span class="placeholder">[E-Mail-Adresse]</span>
+    {$t("legal.impressum.contact.phoneLabel")} <span class="placeholder">{$t("legal.impressum.contact.phonePlaceholder")}</span><br />
+    {$t("legal.impressum.contact.emailLabel")} <span class="placeholder">{$t("legal.impressum.contact.emailPlaceholder")}</span>
   </p>
 
-  <h2>Zuständige Aufsichtsbehörde</h2>
+  <h2>{$t("legal.impressum.authority.heading")}</h2>
   <p>
-    <span class="placeholder">[Zuständiges Staatliches Schulamt / Ministerium]</span>
+    <span class="placeholder">{$t("legal.impressum.authority.placeholder")}</span>
   </p>
 
-  <h2>Verantwortlich für den Inhalt</h2>
+  <h2>{$t("legal.impressum.responsible.heading")}</h2>
   <p>
-    <span class="placeholder">[Name, Anschrift]</span>
+    <span class="placeholder">{$t("legal.impressum.responsible.placeholder")}</span>
   </p>
 
-  <h2>Datenschutz</h2>
+  <h2>{$t("legal.impressum.privacy.heading")}</h2>
   <p>
-    Informationen zur Verarbeitung personenbezogener Daten finden Sie in der
-    <a href="/legal/datenschutz">Datenschutzerklärung</a>.
+    {$t("legal.impressum.privacy.textBefore")}
+    <a href="/legal/datenschutz">{$t("legal.impressum.privacy.linkText")}</a>.
   </p>
 </LegalPage>

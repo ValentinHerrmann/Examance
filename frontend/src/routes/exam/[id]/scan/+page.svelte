@@ -54,6 +54,7 @@
   import UnmatchedResolver from "$lib/components/scanning/UnmatchedResolver.svelte";
   import ScannedSubmissionsTable from "$lib/components/scanning/ScannedSubmissionsTable.svelte";
   import ScanPreviewModal from "$lib/components/scanning/ScanPreviewModal.svelte";
+  import { t, translate } from "$lib/i18n";
 
   const examId = $page.params.id || "";
 
@@ -67,7 +68,7 @@
   let monitor: PipelineMonitor;
   let isProcessing = false;
   let progress = 0;
-  let statusText = "Ready to ingest scan files.";
+  let statusText = translate("scanning.status.ready");
   let scannedCount = 0;
 
   interface UnmatchedSubmission {
@@ -126,15 +127,13 @@
       const existing = await loadOmrTemplateEncrypted(examId, key);
       if (!existing || !existing.payload) {
         omrAvailable = false;
-        omrBanner =
-          'MC auto-grading unavailable until you run "Prepare OMR" on the exam page — scans will still be imported normally.';
+        omrBanner = translate("scanning.omrBanner.notPrepared");
         return;
       }
       const currentHash = await computeMcExercisesHash(mcExercises);
       if (existing.record.exercisesHash !== currentHash) {
         omrAvailable = false;
-        omrBanner =
-          'OMR template is stale (answer key changed since it was captured) — re-run "Prepare OMR" on the exam page to enable MC auto-grading for this scan.';
+        omrBanner = translate("scanning.omrBanner.stale");
         return;
       }
       omrTemplatePages = existing.payload.pages;
@@ -159,8 +158,7 @@
       hwProfile = detectHardware();
       monitor = new PipelineMonitor(hwProfile);
       monitor.on("downgrade", () => {
-        statusText =
-          "Memory limit reached! Downgraded to assembly-line processing mode.";
+        statusText = translate("scanning.status.memoryDowngraded");
       });
       qrPool = new WorkerPool(
         () =>
@@ -280,7 +278,7 @@
 
     if (!scanCt || !scanIv || (!key && !fallbackKey)) {
       previewLoading = false;
-      previewError = "Scan data or session encryption key missing.";
+      previewError = translate("scanning.errorPreviewMissingData");
       return;
     }
 
@@ -299,7 +297,7 @@
       previewObjectUrl = URL.createObjectURL(blob);
     } catch (err) {
       console.error("Preview decryption failed:", err);
-      previewError = "Failed to decrypt scan data.";
+      previewError = translate("scanning.errorPreviewDecrypt");
     } finally {
       previewLoading = false;
     }
@@ -317,7 +315,7 @@
   }
 
   async function handleDeleteScan(item: ScannedSubmissionItem) {
-    if (!confirm("Are you sure you want to delete this scan submission?")) return;
+    if (!confirm(translate("scanning.confirmDeleteScan"))) return;
     try {
       await submissionRepository.delete(examId, item.id);
       // Also remove the associated student record to prevent orphaned UNMATCHED entries
@@ -325,7 +323,7 @@
       await refreshUnmatched();
       await loadScannedSubmissions();
     } catch (err: any) {
-      alert(`Failed to delete scan: ${err?.message || err}`);
+      alert(translate("scanning.errorDeleteScan", { message: err?.message || err }));
     }
   }
 
@@ -334,13 +332,13 @@
   }
 
   async function handleDeleteGrading(item: ScannedSubmissionItem) {
-    if (!confirm("Are you sure you want to delete the grading for this submission? This will clear all annotations and the score.")) return;
+    if (!confirm(translate("scanning.confirmDeleteGrading"))) return;
     try {
       const key = get(sessionStore).sessionKey;
       await submissionRepository.clearGrading(examId, item.id, key);
       await loadScannedSubmissions();
     } catch (err: any) {
-      alert(`Failed to delete grading: ${err?.message || err}`);
+      alert(translate("scanning.errorDeleteGrading", { message: err?.message || err }));
     }
   }
 
@@ -567,7 +565,7 @@
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
-      alert(`Failed to export PDF: ${err?.message || err}`);
+      alert(translate("scanning.errorExportPdf", { message: err?.message || err }));
     } finally {
       exportingId = null;
     }
@@ -577,7 +575,7 @@
     if (scannedSubmissions.length === 0) return;
     if (
       !confirm(
-        `Are you sure you want to delete ALL ${scannedSubmissions.length} ingested scan(s) for this exam? This action cannot be undone.`
+        translate("scanning.confirmDeleteAllScans", { count: scannedSubmissions.length })
       )
     ) {
       return;
@@ -591,7 +589,7 @@
       await refreshUnmatched();
       await loadScannedSubmissions();
     } catch (err: any) {
-      alert(`Failed to delete all scans: ${err?.message || err}`);
+      alert(translate("scanning.errorDeleteAllScans", { message: err?.message || err }));
     }
   }
 
@@ -736,7 +734,7 @@
 
     // --- PASS 1: Calculate total pages for progress bar ---
     const fileInfos: any[] = [];
-    statusText = "Analyzing files...";
+    statusText = translate("scanning.status.analyzingFiles");
 
     for (const file of files) {
       if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
@@ -768,7 +766,11 @@
       async function processScannedPage(fileName: string, imageData: ImageData, pageRef: PdfPageRef) {
         processedPages++;
         progress = Math.round((processedPages / Math.max(totalPagesCount, 1)) * 50);
-        statusText = `Scanning page ${processedPages} of ${totalPagesCount}: ${fileName}`;
+        statusText = translate("scanning.status.scanningPage", {
+          current: processedPages,
+          total: totalPagesCount,
+          fileName,
+        });
 
         let qrResult: QrWorkerResponse | null = null;
         if (qrPool) {
@@ -914,7 +916,11 @@
     let newlyIngestedCount = 0;
     for (let bIdx = 0; bIdx < booklets.length; bIdx++) {
       const booklet = booklets[bIdx];
-      statusText = `Saving student booklet ${bIdx + 1} of ${booklets.length} (${booklet.pageRefs.length} page(s))...`;
+      statusText = translate("scanning.status.savingBooklet", {
+        current: bIdx + 1,
+        total: booklets.length,
+        pages: booklet.pageRefs.length,
+      });
       progress = 50 + Math.round(((bIdx + 1) / Math.max(booklets.length, 1)) * 50);
 
       // Assemble a new PDF by copying pages from the source documents
@@ -1002,15 +1008,25 @@
     await refreshUnmatched();
     await loadScannedSubmissions();
     isProcessing = false;
-    statusText = `Complete! Ingested ${files.length} file(s) (${processedPages} page(s)) into ${newlyIngestedCount} student submission booklet(s).`;
+    statusText = translate("scanning.status.complete", {
+      fileCount: files.length,
+      pageCount: processedPages,
+      bookletCount: newlyIngestedCount,
+    });
 
     if (omrAvailable && omrAlignmentFailures > 0) {
       const missingList = Array.from(omrMissingCorners).join(", ");
-      const missingDetails = missingList ? ` missing: ${missingList}` : "";
-      omrBanner =
-        `OMR alignment failed on ${omrAlignmentFailures} page(s)` +
-        (omrMinFiducialsFound !== null ? ` (as few as ${omrMinFiducialsFound}/4 corner markers detected${missingDetails})` : "") +
-        ` — those MC exercises were imported ungraded and need manual grading. Check the scan quality (crop/skew/print margins) near the page corners.`;
+      const fiducialDetail =
+        omrMinFiducialsFound !== null
+          ? translate("scanning.omrBanner.alignmentFiducialDetail", {
+              found: omrMinFiducialsFound,
+              missing: missingList,
+            })
+          : "";
+      omrBanner = translate("scanning.omrBanner.alignmentFailed", {
+        count: omrAlignmentFailures,
+        fiducialDetail,
+      });
     }
   }
 
@@ -1038,16 +1054,16 @@
       await saveStudentEncrypted(st, key);
       await refreshUnmatched();
       await loadScannedSubmissions();
-      alert(`Updated fallback code to "${st.fallbackCode}"`);
+      alert(translate("scanning.fallbackCodeUpdated", { code: st.fallbackCode }));
     }
   }
 
   async function handleSplitSubmission(item: ScannedSubmissionItem) {
-    const input = prompt("Enter the 1-based page number where the second submission begins (e.g. enter 3 to split pages 1-2 into Submission 1 and pages 3+ into Submission 2):");
+    const input = prompt(translate("scanning.splitPrompt"));
     if (!input) return;
     const splitPage = parseInt(input, 10);
     if (isNaN(splitPage) || splitPage <= 1) {
-      alert("Invalid page number. Split page must be 2 or greater.");
+      alert(translate("scanning.splitInvalidPage"));
       return;
     }
 
@@ -1066,7 +1082,7 @@
     }
 
     if (!scanCt || !scanIv || (!key && !fallbackKey)) {
-      alert("Scan data or session encryption key missing. Cannot split scan.");
+      alert(translate("scanning.splitMissingData"));
       return;
     }
 
@@ -1079,7 +1095,7 @@
       const totalPages = srcPdf.getPageCount();
 
       if (splitPage > totalPages) {
-        alert(`Cannot split at page ${splitPage}: scan PDF only has ${totalPages} page(s).`);
+        alert(translate("scanning.splitExceedsPages", { splitPage, totalPages }));
         return;
       }
 
@@ -1155,16 +1171,22 @@
 
       await refreshUnmatched();
       await loadScannedSubmissions();
-      alert(`Split submission into 2 PDFs (Pages 1–${splitPage - 1} and Pages ${splitPage}–${totalPages})!`);
+      alert(
+        translate("scanning.splitSuccess", {
+          firstEnd: splitPage - 1,
+          secondStart: splitPage,
+          totalPages,
+        })
+      );
     } catch (err: any) {
       console.error("Split submission failed:", err);
-      alert(`Failed to split submission: ${err?.message || err}`);
+      alert(translate("scanning.splitError", { message: err?.message || err }));
     }
   }
 </script>
 
 <div class="scan-ingestion-page">
-  <h2>Scan Ingestion Pipeline</h2>
+  <h2>{$t("scanning.pageTitle")}</h2>
 
   <HardwareProfileCard {hwProfile} inConstrainedMode={monitor?.inConstrainedMode} />
 

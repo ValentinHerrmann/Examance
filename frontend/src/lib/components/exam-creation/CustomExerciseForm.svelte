@@ -2,6 +2,7 @@
   import "./CustomExerciseForm.css";
   import LatexEditor from "$lib/components/LatexEditor.svelte";
   import SuggestInput from "$lib/components/common/SuggestInput.svelte";
+  import { t } from "$lib/i18n";
 
   export let customName: string;
   export let customTopicTag: string;
@@ -13,43 +14,42 @@
 <div class="custom-exercise-form">
   <div class="custom-exercise-form-grid">
     <div class="custom-exercise-form-group">
-      <label for="customName">Exercise Name</label>
+      <label for="customName">{$t("examCreation.customExerciseForm.nameLabel")}</label>
       <input
         id="customName"
         type="text"
         bind:value={customName}
-        placeholder="Custom_1"
+        placeholder={$t("examCreation.customExerciseForm.namePlaceholder")}
       />
     </div>
     <div class="custom-exercise-form-group">
-      <label for="customTopic">Topic Tag</label>
+      <label for="customTopic">{$t("examCreation.customExerciseForm.topicLabel")}</label>
       <SuggestInput
         id="customTopic"
         storageKey="exercise.topic"
         bind:value={customTopicTag}
-        placeholder="_Vererbung"
+        placeholder={$t("examCreation.customExerciseForm.topicPlaceholder")}
       />
     </div>
   </div>
 
   <div class="custom-exercise-form-group">
-    <label for="customBody"
-      >LaTeX Body (\begin&#123;Aufgabe&#125;...)</label
-    >
+    <!-- \begin{Aufgabe} is a LaTeX environment name, not UI text — left untranslated. -->
+    <label for="customBody">{$t("examCreation.customExerciseForm.bodyLabel")}</label>
     <LatexEditor bind:value={customLatexBody} rows={6} />
   </div>
 
   <div class="custom-exercise-form-actions">
     <label class="custom-exercise-form-checkbox-label">
       <input type="checkbox" bind:checked={saveCustomToLibrary} />
-      Save to Exercise Library for future exams
+      {$t("examCreation.customExerciseForm.saveToLibraryLabel")}
     </label>
     <button
       type="button"
       class="custom-exercise-form-add-btn"
       on:click={onAddCustomExercise}
     >
-      + Add to Exam
+      {$t("examCreation.customExerciseForm.addButton")}
     </button>
   </div>
 </div>

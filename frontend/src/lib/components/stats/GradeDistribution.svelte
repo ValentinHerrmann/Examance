@@ -1,5 +1,6 @@
 <script lang="ts">
   import './GradeDistribution.css';
+  import { t } from '$lib/i18n';
   import type { ExamRecord } from '$lib/db/schema';
   import type { GradeDistributionBucket } from '$lib/analytics/gradingKey';
   import { Chart, Svg, Axis, Bars } from 'layerchart';
@@ -43,9 +44,9 @@
 </script>
 
 <div class="grade-distribution-section">
-  <h3>🎯 Notenverteilung</h3>
+  <h3>{$t('stats.gradeDistribution.title')}</h3>
   <p class="grade-distribution-grading-key-label">
-    Bewertungsmaßstab: {#if exam?.gradingKey?.preset === 'linear_50'}Linear (50%){:else if exam?.gradingKey?.preset === 'linear_40'}Linear (40%){:else if exam?.gradingKey?.preset === 'even_split'}Gleichmäßig{:else if exam?.gradingKey}Benutzerdefiniert{:else}Standard (50%){/if}
+    {$t('stats.gradeDistribution.gradingKeyPrefix')} {#if exam?.gradingKey?.preset === 'linear_50'}{$t('stats.gradeDistribution.presets.linear50')}{:else if exam?.gradingKey?.preset === 'linear_40'}{$t('stats.gradeDistribution.presets.linear40')}{:else if exam?.gradingKey?.preset === 'even_split'}{$t('stats.gradeDistribution.presets.evenSplit')}{:else if exam?.gradingKey}{$t('stats.gradeDistribution.presets.custom')}{:else}{$t('stats.gradeDistribution.presets.standard')}{/if}
   </p>
   <div class="grade-distribution-chart-container grade-distribution-grade-container">
     <Chart

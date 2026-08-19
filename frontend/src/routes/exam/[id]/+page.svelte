@@ -65,6 +65,7 @@
   import ExerciseList from "$lib/components/exam/ExerciseList.svelte";
   import ExamMetadataEditor from "$lib/components/exam/ExamMetadataEditor.svelte";
   import ExamLibraryModal from "$lib/components/exam/ExamLibraryModal.svelte";
+  import { t, translate } from "$lib/i18n";
 
   $: examId = $page.params.id || "";
 
@@ -195,7 +196,7 @@
             exercises = await loadExamExercisesEncrypted(id, key);
             mcGroups = await loadLocalMcGroups(id);
           } else {
-            errorMsg = "Exam not found or has been deleted from server.";
+            errorMsg = translate("exam.page.examNotFoundOrDeleted");
             console.error("Exam not found on server or locally:", serverErr);
           }
         }
@@ -270,7 +271,7 @@
       // 1. Post exam
       await api.post("/exams", {
         id: exam.id,
-        title: exam.title || "Unbenannte Prüfung",
+        title: exam.title || translate("exam.page.untitledExam"),
         testart: exam.testart,
         grade: exam.grade,
         klasse: exam.klasse,
@@ -310,7 +311,7 @@
         try {
           await api.post("/exercises", {
             id: ex.id,
-            name: ex.title || ex.name || "Exercise",
+            name: ex.title || ex.name || translate("common.exercise"),
             latex_body: ex.latexBody || "",
             max_points: ex.maxPoints,
             topic_tag: ex.topicTag,
@@ -399,9 +400,9 @@
       }
 
       isLocalFallback = false;
-      alert("Exam successfully synced to server!");
+      alert(translate("exam.page.sync.success"));
     } catch (err: any) {
-      alert(`Failed to sync exam to server: ${err.message}`);
+      alert(translate("exam.page.sync.failed", { message: err.message }));
     } finally {
       isSyncingSingle = false;
     }
@@ -411,7 +412,7 @@
     if (!exam) return;
     if (
       !confirm(
-        `Are you sure you want to delete exam "${exam.title}" and all its submissions?`,
+        translate("exam.page.delete.confirmMessage", { title: exam.title }),
       )
     )
       return;
@@ -447,12 +448,12 @@
 
       window.location.href = "/";
     } catch (err: any) {
-      alert(`Delete failed: ${err.message}`);
+      alert(translate("exam.page.delete.failed", { message: err.message }));
     }
   }
 
   async function handleExportArchive() {
-    const password = prompt("Enter password to encrypt .bgproj archive:");
+    const password = prompt(translate("exam.page.export.passwordPrompt"));
     if (!password) return;
 
     isExporting = true;
@@ -466,7 +467,7 @@
       URL.revokeObjectURL(url);
       exportSuccess = true;
     } catch (err: any) {
-      alert(`Export failed: ${err.message}`);
+      alert(translate("exam.page.export.failed", { message: err.message }));
     } finally {
       isExporting = false;
     }
@@ -550,14 +551,14 @@
   async function handlePrepareOmr() {
     if (!exam) return;
     isPreparingOmr = true;
-    omrPrepareMessage = "Checking MC exercises...";
+    omrPrepareMessage = translate("exam.page.omr.checkingExercises");
     errorMsg = "";
 
     try {
       const mcExercises = collectMcExercises();
       console.log("[PrepareOMR] MC exercises count:", mcExercises.length, mcExercises.map((e) => ({ id: e.id, name: e.name })));
       if (mcExercises.length === 0) {
-        errorMsg = "OMR preparation failed: no MC exercises found in this exam.";
+        errorMsg = translate("exam.page.omr.noExercisesError");
         isPreparingOmr = false;
         return;
       }
@@ -567,12 +568,12 @@
       );
       if (invalidExs.length > 0) {
         const names = invalidExs.map((ex) => `'${ex.name || ex.id}'`).join(", ");
-        errorMsg = `OMR preparation failed: MC exercise(s) ${names} do not contain \\multi or \\Lmulti option bubbles in their LaTeX body. Please check and edit the exercise options.`;
+        errorMsg = translate("exam.page.omr.invalidExercisesError", { names });
         isPreparingOmr = false;
         return;
       }
 
-      omrPrepareMessage = "Compiling blank exam...";
+      omrPrepareMessage = translate("exam.page.omr.compilingBlank");
       const exerciseInputs = buildExerciseInputs();
       const opts = ["sans", "punkte"];
 
@@ -604,16 +605,16 @@ ${exerciseInputs}
         `[PrepareOMR] LaTeX macro counts in fullTex: \\OmrExercise=${omrExCount}, \\multi=${multiCount}, \\Lmulti=${lmultiCount}, fullTex length=${fullTex.length}`
       );
       if (!useLocal && !$isAuthenticated) {
-        errorMsg = "Please log in to compile LaTeX on the server.";
+        errorMsg = translate("exam.page.omr.loginRequired");
         isPreparingOmr = false;
         return;
       }
 
       const result = await compileLatex(fullTex, useLocal, (status) => {
         if (status === "downloading") {
-          omrPrepareMessage = "Loading local LaTeX compiler... (Downloading ~32MB on first load, please wait)";
+          omrPrepareMessage = translate("exam.page.omr.loadingCompiler");
         } else if (status === "compiling") {
-          omrPrepareMessage = "Compiling blank exam...";
+          omrPrepareMessage = translate("exam.page.omr.compilingBlank");
         }
       }, true, await compileResourceOptions());
 
@@ -621,7 +622,7 @@ ${exerciseInputs}
         `[PrepareOMR] LaTeX compile finished: pdfBytes=${result.pdfBytes?.length ?? 0}, engineUsed=${result.engineUsed ?? (useLocal ? "local" : "server")}, usedFallback=${result.usedFallback ?? false}`
       );
 
-      omrPrepareMessage = "Extracting bubble positions...";
+      omrPrepareMessage = translate("exam.page.omr.extractingBubbles");
 
       const pdfjsLib = await loadPdfjs();
       const pdfDoc = await pdfjsLib.getDocument({ data: result.pdfBytes }).promise;
@@ -709,21 +710,19 @@ ${exerciseInputs}
         );
         omrTemplateStatus = "stale";
         omrPrepareMessage = "";
-        errorMsg =
-          "OMR preparation failed: the compiled exam has no MC bubble markers at all. " +
-          "The LaTeX MC/OMR macros likely failed to render — check that the exam actually contains MC exercises and that sty/Loesung.sty is up to date.";
+        errorMsg = translate("exam.page.omr.noBubblesError");
       } else if (shortPages.length > 0) {
         omrTemplateStatus = "stale";
         omrPrepareMessage = "";
-        errorMsg =
-          `OMR preparation failed: page(s) ${shortPages.join(", ")} have fewer than 4 corner fiducial markers ` +
-          `(needed for scan alignment). The LaTeX fiducial macros likely failed to render on those pages — ` +
-          "re-check sty/Schulaufgabe.sty and re-run Prepare OMR.";
+        errorMsg = translate("exam.page.omr.shortFiducialsError", { pages: shortPages.join(", ") });
       } else {
-        omrPrepareMessage = `OMR template saved (${pages.length} page(s), ${totalBubbles} bubble(s), 4 fiducials/page).`;
+        omrPrepareMessage = translate("exam.page.omr.templateSaved", {
+          pageCount: pages.length,
+          bubbleCount: totalBubbles,
+        });
       }
     } catch (err: any) {
-      errorMsg = err.message || "Failed to prepare OMR template.";
+      errorMsg = err.message || translate("exam.page.omr.failedGeneric");
       omrPrepareMessage = "";
     } finally {
       isPreparingOmr = false;
@@ -769,9 +768,9 @@ ${exerciseInputs}
 
       const resAngabe = await compileLatex(fullTexAngabe, useLocal, (status) => {
         if (status === 'downloading') {
-          compileNotice = "Loading local LaTeX compiler... (Downloading ~32MB on first load, please wait)";
+          compileNotice = translate("exam.page.preview.loadingCompiler");
         } else if (status === 'compiling') {
-          compileNotice = "Compiling PDF...";
+          compileNotice = translate("exam.page.preview.compiling");
         }
       }, false, compileOpts);
 
@@ -792,7 +791,9 @@ ${exerciseInputs}
       compileNotice = "";
       compileSucceeded = true;
     } catch (err: any) {
-      errorMsg = `Preview failed: ${err.message || "Unknown compilation error"}`;
+      errorMsg = translate("exam.page.preview.failed", {
+        message: err.message || translate("exam.page.preview.unknownError"),
+      });
     } finally {
       isPreviewLoading = false;
     }
@@ -922,7 +923,7 @@ ${exerciseInputs}
       const currentMembers = members.filter((m) => m.isCurrent !== false);
       if (currentMembers.length === 0) continue;
 
-      const name = currentMembers[0]?.name || "Untitled";
+      const name = currentMembers[0]?.name || translate("exam.page.library.untitled");
       const topicTag = currentMembers[0]?.topicTag || "_General";
       const grade = currentMembers[0]?.grade;
       const subject = currentMembers[0]?.subject;
@@ -1080,9 +1081,9 @@ ${exerciseInputs}
       await saveExamEncrypted(exam, key);
 
       forceCancelMetadata();
-      alert("Exam details updated successfully.");
+      alert(translate("exam.page.metadata.saveSuccess"));
     } catch (err: any) {
-      alert(`Failed to save exam details: ${err.message}`);
+      alert(translate("exam.page.metadata.saveFailed", { message: err.message }));
     }
   }
 
@@ -1313,7 +1314,7 @@ ${exerciseInputs}
       await db.examExercises.bulkPut(examExerciseRecords);
     } catch (err) {
       console.error("Failed to update local exercise links:", err);
-      errorMsg = "Failed to save exercise links locally. Please retry.";
+      errorMsg = translate("exam.page.exerciseLinks.saveFailed");
       return;
     }
 
@@ -1365,12 +1366,12 @@ ${exerciseInputs}
   async function handleDeleteAllSubmissions() {
     if (!exam) return;
     if (submissions.length === 0) {
-      alert("No submissions to delete.");
+      alert(translate("exam.page.submissions.noneToDelete"));
       return;
     }
     if (
       !confirm(
-        `Are you sure you want to delete all ${submissions.length} submission(s) for this exam? This cannot be undone.`,
+        translate("exam.page.submissions.confirmDeleteAll", { count: submissions.length }),
       )
     )
       return;
@@ -1385,9 +1386,9 @@ ${exerciseInputs}
         exam.id,
         get(sessionStore).sessionKey,
       );
-      alert("All submissions deleted.");
+      alert(translate("exam.page.submissions.allDeleted"));
     } catch (err: any) {
-      alert(`Failed to delete submissions: ${err.message}`);
+      alert(translate("exam.page.submissions.deleteFailed", { message: err.message }));
     } finally {
       isDeletingAllSubmissions = false;
     }
@@ -1397,19 +1398,19 @@ ${exerciseInputs}
 <div class="exam-detail-page">
   {#if isLocalFallback}
     <div class="local-fallback-banner">
-      <span>ℹ️ This exam is currently loaded from local browser storage.</span>
+      <span>{$t("exam.page.localFallback.banner")}</span>
       <button
         class="sync-now-btn"
         on:click={syncCurrentExamToServer}
         disabled={isSyncingSingle}
       >
-        {isSyncingSingle ? "Syncing..." : "Sync to Server Now"}
+        {isSyncingSingle ? $t("exam.page.localFallback.syncing") : $t("exam.page.localFallback.syncNow")}
       </button>
     </div>
   {/if}
 
   {#if !exam}
-    <div class="loading">Loading exam details...</div>
+    <div class="loading">{$t("exam.page.loading")}</div>
   {:else}
     <ExamMetadata
       {exam}
@@ -1452,25 +1453,25 @@ ${exerciseInputs}
 
 <ConfirmDialog
   isOpen={showMetadataConfirm}
-  title="Discard Metadata Changes?"
-  message="You have unsaved changes in metadata fields. Are you sure you want to discard them?"
-  confirmText="Discard Changes"
-  cancelText="Keep Editing"
+  title={$t("exam.page.metadata.discardTitle")}
+  message={$t("exam.page.metadata.discardMessage")}
+  confirmText={$t("exam.page.metadata.discardConfirm")}
+  cancelText={$t("exam.page.metadata.discardKeepEditing")}
   on:confirm={forceCancelMetadata}
   on:cancel={() => (showMetadataConfirm = false)}
 />
 
     {#if exportSuccess}
       <div class="exam-success-banner">
-        .bgproj archive successfully packed and downloaded.
+        {$t("exam.page.export.successBanner")}
       </div>
     {/if}
 
     <div class="exam-two-col">
       <div class="pdf-compile-section">
-      <h3>LaTeX Exam Compilation & Download</h3>
+      <h3>{$t("exam.page.compileSection.heading")}</h3>
       <p class="desc">
-        Generate printable A4 PDF exams using the Schulaufgabe template layout.
+        {$t("exam.page.compileSection.description")}
       </p>
 
       <div class="exam-controls-row">
@@ -1479,21 +1480,20 @@ ${exerciseInputs}
           class:is-loading={isPreviewLoading || isPreparingOmr}
           on:click={handlePreviewExam}
           disabled={isPreviewLoading || isPreparingOmr || exercises.length === 0}
-          title="Compiles the exam PDF and (if it has MC exercises) automatically refreshes the OMR bubble template right after."
+          title={$t("exam.page.compileSection.liveTooltip")}
         >
           {isPreviewLoading
-            ? "Compiling Previews..."
+            ? $t("exam.page.preview.compilingPreviews")
             : isPreparingOmr
-              ? "Preparing OMR..."
-              : "🔍 Live Preview PDF"}
+              ? $t("exam.page.omr.preparing")
+              : $t("exam.page.preview.liveButton")}
         </button>
       </div>
 
       {#if omrTemplateStatus === "stale"}
         <div class="exam-notice exam-notice--warning flex items-center justify-between">
           <span>
-            MC answer key changed since the OMR template was captured — auto-grading may be
-            inaccurate until you refresh the OMR template.
+            {$t("exam.page.omr.staleWarning")}
           </span>
           <button
             type="button"
@@ -1501,7 +1501,7 @@ ${exerciseInputs}
             on:click={handlePrepareOmr}
             disabled={isPreparingOmr}
           >
-            {isPreparingOmr ? "Refreshing OMR..." : "Refresh OMR now"}
+            {isPreparingOmr ? $t("exam.page.omr.refreshing") : $t("exam.page.omr.refreshNow")}
           </button>
         </div>
       {/if}
@@ -1516,10 +1516,10 @@ ${exerciseInputs}
             {previewSolutionPdfUrl}
             bind:showAngabePreview
             bind:showLoesungPreview
-            titleAngabe="Exam"
-            titleLoesung="Answer Key"
+            titleAngabe={$t("exam.page.pdfPreview.titleAngabe")}
+            titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
             height="550px"
-            placeholderText="Click 'Live Preview PDF' to render"
+            placeholderText={$t("exam.page.pdfPreview.placeholder")}
           />
         </div>
       {/if}
@@ -1577,10 +1577,10 @@ ${exerciseInputs}
 
 <ConfirmDialog
   isOpen={showLibraryConfirm}
-  title="Discard Exercise Selections?"
-  message="You have unsaved changes in your selected exercises. Are you sure you want to exit without applying?"
-  confirmText="Discard Changes"
-  cancelText="Keep Editing"
+  title={$t("exam.page.library.discardTitle")}
+  message={$t("exam.page.library.discardMessage")}
+  confirmText={$t("exam.page.metadata.discardConfirm")}
+  cancelText={$t("exam.page.metadata.discardKeepEditing")}
   on:confirm={forceCloseLibraryModal}
   on:cancel={() => (showLibraryConfirm = false)}
 />

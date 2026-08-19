@@ -1,6 +1,7 @@
 <script lang="ts">
   import "./GdprErasureTable.css";
   import type { StudentRecord } from "$lib/db/schema";
+  import { t } from "$lib/i18n";
 
   export let students: StudentRecord[];
   export let isErasing: boolean;
@@ -9,18 +10,18 @@
 </script>
 
 <div class="gdpr-erasure-table-card">
-  <h3>GDPR Art. 15 &amp; 17 — Student Identities, Access &amp; Erasure</h3>
+  <h3>{$t("admin.gdprErasureTable.title")}</h3>
   {#if students.length === 0}
     <p class="gdpr-erasure-table-empty">
-      No student identity records stored in current session.
+      {$t("admin.gdprErasureTable.empty")}
     </p>
   {:else}
     <table class="gdpr-erasure-table-students-table">
       <thead>
         <tr>
-          <th>Pseudonym ID</th>
-          <th>Fallback Code</th>
-          <th>Actions</th>
+          <th>{$t("admin.gdprErasureTable.columnPseudonymId")}</th>
+          <th>{$t("admin.gdprErasureTable.columnFallbackCode")}</th>
+          <th>{$t("admin.gdprErasureTable.columnActions")}</th>
         </tr>
       </thead>
       <tbody>
@@ -34,14 +35,14 @@
                 on:click={() => onExport(st.pseudonymId)}
                 disabled={isErasing}
               >
-                Export (Art. 15)
+                {$t("admin.gdprErasureTable.exportButton")}
               </button>
               <button
                 class="gdpr-erasure-table-erase-btn"
                 on:click={() => onErase(st.pseudonymId, st.examId)}
                 disabled={isErasing}
               >
-                Erase (Art. 17)
+                {$t("admin.gdprErasureTable.eraseButton")}
               </button>
             </td>
           </tr>

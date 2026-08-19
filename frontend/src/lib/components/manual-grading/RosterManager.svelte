@@ -7,6 +7,7 @@
   import { saveSubmissionEncrypted } from "$lib/db/dbEncryption";
   import { buildSubmissionMap } from "$lib/utils/studentLookup";
   import type { StudentRecord, SubmissionRecord } from "$lib/db/schema";
+  import { t, translate } from "$lib/i18n";
 
   export let examId: string;
   export let students: StudentRecord[] = [];
@@ -120,7 +121,7 @@
   }
 
   async function handleDelete(st: StudentRecord) {
-    if (!confirm(`Delete student "${st.studentName || st.studentNumber || st.pseudonymId}"? This will also remove any scores for this student.`)) {
+    if (!confirm(translate("grading.manual.roster.deleteConfirm", { name: st.studentName || st.studentNumber || st.pseudonymId }))) {
       return;
     }
     const key = get(sessionStore).sessionKey;
@@ -135,20 +136,20 @@
 
 <div class="roster-manager">
   <div class="roster-add-card">
-    <h3>➕ Add Student to Roster</h3>
+    <h3>{$t("grading.manual.roster.addTitle")}</h3>
     <form on:submit|preventDefault={handleAddSingle} class="roster-form-row">
       <div class="roster-form-field">
-        <label for="student-name">Student Name (e.g. "Musterfrau, Karin")</label>
+        <label for="student-name">{$t("grading.manual.roster.nameLabel")}</label>
         <input
           id="student-name"
           type="text"
           bind:value={newName}
-          placeholder="Name"
+          placeholder={$t("grading.manual.roster.namePlaceholder")}
           required
         />
       </div>
       <div class="roster-form-field">
-        <label for="student-number">Student ID / Matrikel-Nr (Optional)</label>
+        <label for="student-number">{$t("grading.manual.roster.numberLabel")}</label>
         <input
           id="student-number"
           type="text"
@@ -157,7 +158,7 @@
         />
       </div>
       <div class="roster-form-field">
-        <label for="fallback-code">Fallback Code (Optional)</label>
+        <label for="fallback-code">{$t("grading.manual.roster.fallbackLabel")}</label>
         <input
           id="fallback-code"
           type="text"
@@ -165,28 +166,28 @@
           placeholder="ABC1"
         />
       </div>
-      <button type="submit" class="roster-add-btn">Add Student</button>
+      <button type="submit" class="roster-add-btn">{$t("grading.manual.roster.addButton")}</button>
     </form>
 
     <button
       class="roster-bulk-toggle"
       on:click={() => (showBulk = !showBulk)}
     >
-      {showBulk ? "Hide Bulk Paste" : "📋 Paste Roster List (Multiple Students)"}
+      {showBulk ? $t("grading.manual.roster.hideBulk") : $t("grading.manual.roster.showBulk")}
     </button>
 
     {#if showBulk}
       <div class="roster-bulk-box">
         <p style="font-size: 0.8rem; color: #94a3b8; margin: 0;">
-          Paste list of students, one per line (Format: <code>Name [Tab or Comma] StudentNumber</code>):
+          {$t("grading.manual.roster.bulkHintPrefix")} <code>Name [Tab or Comma] StudentNumber</code>{$t("grading.manual.roster.bulkHintSuffix")}
         </p>
         <textarea
           bind:value={bulkText}
           placeholder={"Musterfrau, Karin\t12345\nMustermann, Peter\t67890\n ..."}
         ></textarea>
         <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-          <button class="roster-action-btn" on:click={() => (showBulk = false)}>Cancel</button>
-          <button class="roster-add-btn" on:click={handleAddBulk}>Import Roster Lines</button>
+          <button class="roster-action-btn" on:click={() => (showBulk = false)}>{$t("common.cancel")}</button>
+          <button class="roster-add-btn" on:click={handleAddBulk}>{$t("grading.manual.roster.bulkImport")}</button>
         </div>
       </div>
     {/if}
@@ -195,18 +196,18 @@
   <div class="roster-table-container">
     {#if students.length === 0}
       <div class="roster-empty-state">
-        No students in this exam yet. Add a student above or import from Excel.
+        {$t("grading.manual.roster.emptyState")}
       </div>
     {:else}
       <table class="roster-table">
         <thead>
           <tr>
-            <th>#</th>
-            <th>Student Name</th>
-            <th>Student ID / Number</th>
-            <th>Pseudonym / Code</th>
-            <th>Type</th>
-            <th>Actions</th>
+            <th>{$t("grading.manual.roster.colNum")}</th>
+            <th>{$t("grading.manual.roster.colName")}</th>
+            <th>{$t("grading.manual.roster.colNumber")}</th>
+            <th>{$t("grading.manual.roster.colPseudonym")}</th>
+            <th>{$t("grading.manual.roster.colType")}</th>
+            <th>{$t("grading.manual.roster.colActions")}</th>
           </tr>
         </thead>
         <tbody>
@@ -223,7 +224,7 @@
                     style="padding: 0.2rem 0.4rem; background: #0f172a; border: 1px solid #0284c7; color: white; border-radius: 4px;"
                   />
                 {:else}
-                  <strong>{st.studentName || "(Unnamed)"}</strong>
+                  <strong>{st.studentName || $t("grading.manual.roster.unnamed")}</strong>
                 {/if}
               </td>
               <td>
@@ -244,18 +245,18 @@
               </td>
               <td>
                 {#if isScanned}
-                  <span class="roster-badge scanned">QR Scanned</span>
+                  <span class="roster-badge scanned">{$t("grading.manual.roster.scanned")}</span>
                 {:else}
-                  <span class="roster-badge manual">Manual</span>
+                  <span class="roster-badge manual">{$t("grading.manual.roster.manual")}</span>
                 {/if}
               </td>
               <td>
                 {#if editingPseudonymId === st.pseudonymId}
-                  <button class="roster-action-btn" on:click={() => saveEdit(st)}>Save</button>
-                  <button class="roster-action-btn" on:click={cancelEdit}>Cancel</button>
+                  <button class="roster-action-btn" on:click={() => saveEdit(st)}>{$t("common.save")}</button>
+                  <button class="roster-action-btn" on:click={cancelEdit}>{$t("common.cancel")}</button>
                 {:else}
-                  <button class="roster-action-btn" on:click={() => startEdit(st)}>Edit</button>
-                  <button class="roster-action-btn delete" on:click={() => handleDelete(st)}>Delete</button>
+                  <button class="roster-action-btn" on:click={() => startEdit(st)}>{$t("common.edit")}</button>
+                  <button class="roster-action-btn delete" on:click={() => handleDelete(st)}>{$t("common.delete")}</button>
                 {/if}
               </td>
             </tr>

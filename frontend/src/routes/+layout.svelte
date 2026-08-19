@@ -37,6 +37,7 @@
   import StoragePolicyModal from "$lib/components/StoragePolicyModal.svelte";
   import SessionTimeoutWarning from "$lib/components/SessionTimeoutWarning.svelte";
   import HttpCatModal from "$lib/components/HttpCatModal.svelte";
+  import { locale, t, translate } from "$lib/i18n";
 
   let fileInput: HTMLInputElement;
   let isSettingsModalOpen = false;
@@ -45,6 +46,12 @@
   let showFocusNav = false;
 
   $: isGradeActive = isGradeActivePath($page.url.pathname);
+
+  // app.html ships a static <html lang="en">; keep it truthful so screen
+  // readers and browser translation follow the selected language.
+  $: if (typeof document !== "undefined") {
+    document.documentElement.lang = $locale;
+  }
 
   // Re-probe the server's version whenever the address changes or the session
   // unlocks. `refreshBackendVersion` de-duplicates concurrent calls, so the
@@ -127,7 +134,7 @@
       return;
     }
 
-    const password = promptArchivePassword("Enter password for this .bgproj archive:");
+    const password = promptArchivePassword(translate("workspace.archive.promptImportPassword"));
     if (!password) {
       input.value = "";
       return;
@@ -138,20 +145,20 @@
       alert(formatImportSummary(res));
       window.location.href = "/";
     } catch (err: any) {
-      alert(`Failed to import archive: ${err.message}`);
+      alert(translate("workspace.archive.importFailed", { message: err.message }));
     } finally {
       input.value = "";
     }
   }
 
   async function handleExportBgproj() {
-    const password = promptArchivePassword("Enter password to encrypt .bgproj archive:");
+    const password = promptArchivePassword(translate("workspace.archive.promptExportPassword"));
     if (!password) return;
 
     try {
       await exportBgprojArchive(password);
     } catch (err: any) {
-      alert(`Export failed: ${err.message}`);
+      alert(translate("workspace.archive.exportFailed", { message: err.message }));
     }
   }
 
@@ -162,10 +169,10 @@
 
     try {
       await clearWorkspace();
-      alert("Workspace cleared successfully.");
+      alert(translate("workspace.archive.cleared"));
       window.location.href = "/";
     } catch (err: any) {
-      alert(`Failed to clear workspace: ${err.message}`);
+      alert(translate("workspace.archive.clearFailed", { message: err.message }));
     }
   }
 </script>
@@ -203,10 +210,10 @@
   </main>
 
   <!-- § 5 DDG requires the Impressum to be reachable from every page. -->
-  <nav class="legal-links" aria-label="Rechtliche Hinweise">
-    <a href="/legal/impressum">Impressum</a>
+  <nav class="legal-links" aria-label={$t("workspace.legalNavLabel")}>
+    <a href="/legal/impressum">{$t("nav.imprint")}</a>
     <span aria-hidden="true">·</span>
-    <a href="/legal/datenschutz">Datenschutz</a>
+    <a href="/legal/datenschutz">{$t("nav.privacy")}</a>
   </nav>
 
   <StatusBar

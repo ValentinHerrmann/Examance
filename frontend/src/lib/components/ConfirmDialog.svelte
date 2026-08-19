@@ -1,12 +1,21 @@
 <script lang="ts">
   import "./ConfirmDialog.css";
   import { createEventDispatcher } from "svelte";
+  import { t } from "$lib/i18n";
 
   export let isOpen = false;
-  export let title = "Unsaved Changes";
-  export let message = "You have unsaved changes that will be lost. Are you sure you want to exit without saving?";
-  export let confirmText = "Discard Changes";
-  export let cancelText = "Keep Editing";
+  // Defaults come from the catalog, so an unspecified prop still follows the
+  // selected language. `undefined` rather than a literal keeps the fallback
+  // reactive instead of freezing the language at component creation.
+  export let title: string | undefined = undefined;
+  export let message: string | undefined = undefined;
+  export let confirmText: string | undefined = undefined;
+  export let cancelText: string | undefined = undefined;
+
+  $: resolvedTitle = title ?? $t("editor.confirmDialog.title");
+  $: resolvedMessage = message ?? $t("editor.confirmDialog.message");
+  $: resolvedConfirmText = confirmText ?? $t("editor.confirmDialog.confirmText");
+  $: resolvedCancelText = cancelText ?? $t("editor.confirmDialog.cancelText");
 
   const dispatch = createEventDispatcher<{
     confirm: void;
@@ -45,20 +54,20 @@
       aria-labelledby="confirm-dialog-title"
     >
       <div class="flex items-center justify-between border-b border-slate-700 px-6 py-5">
-        <h3 id="confirm-dialog-title" class="m-0 flex items-center gap-2 text-lg text-slate-100">⚠️ {title}</h3>
+        <h3 id="confirm-dialog-title" class="m-0 flex items-center gap-2 text-lg text-slate-100">⚠️ {resolvedTitle}</h3>
         <button type="button" class="rounded p-1 text-lg leading-none text-slate-400 transition-colors duration-150 hover:text-slate-100" on:click={handleCancel}>✕</button>
       </div>
 
       <div class="p-6 text-[0.95rem] leading-[1.5] text-slate-300">
-        <p class="m-0">{message}</p>
+        <p class="m-0">{resolvedMessage}</p>
       </div>
 
       <div class="flex justify-end gap-3 border-t border-slate-700 bg-slate-900 px-6 py-4">
         <button type="button" class="rounded-md border-none bg-slate-700 px-4 py-2 text-sm font-semibold text-white transition-colors duration-150 hover:bg-slate-600" on:click={handleCancel}>
-          {cancelText}
+          {resolvedCancelText}
         </button>
         <button type="button" class="rounded-md border-none bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors duration-150 hover:bg-red-700" on:click={handleConfirm}>
-          {confirmText}
+          {resolvedConfirmText}
         </button>
       </div>
     </div>

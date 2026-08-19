@@ -14,6 +14,7 @@
     StudentRecord,
     SubmissionRecord,
   } from "$lib/db/schema";
+  import { t } from "$lib/i18n";
 
   export let exam: ExamRecord | null = null;
   export let examId: string;
@@ -158,23 +159,23 @@
 <div class="student-first-grid">
   {#if students.length === 0}
     <div style="text-align: center; padding: 3rem 1rem; color: #94a3b8;">
-      <p>No students in the roster for this exam.</p>
+      <p>{$t("grading.manual.studentFirst.noStudents")}</p>
       <button
         style="margin-top: 1rem; padding: 0.5rem 1rem; background: #0284c7; color: white; border: none; border-radius: 6px; cursor: pointer;"
         on:click={onOpenRoster}
       >
-        👥 Open Student Roster to Add Students
+        {$t("grading.manual.studentFirst.openRoster")}
       </button>
     </div>
   {:else if exercises.length === 0}
     <div style="text-align: center; padding: 3rem 1rem; color: #94a3b8;">
-      <p>No exercises defined for this exam.</p>
-      <a href="/exam/{examId}" style="color: #38bdf8; text-decoration: underline;">Go to Setup & Exercises</a>
+      <p>{$t("grading.manual.studentFirst.noExercises")}</p>
+      <a href="/exam/{examId}" style="color: #38bdf8; text-decoration: underline;">{$t("grading.manual.studentFirst.goToSetup")}</a>
     </div>
   {:else}
     <div class="student-first-picker-bar">
       <div class="student-picker-controls">
-        <label for="student-select" style="font-size: 0.85rem; color: #cbd5e1;">Select Student:</label>
+        <label for="student-select" style="font-size: 0.85rem; color: #cbd5e1;">{$t("grading.manual.studentFirst.selectStudent")}</label>
         <select
           id="student-select"
           class="student-picker-select"
@@ -183,7 +184,7 @@
         >
           {#each students as st, idx}
             <option value={idx}>
-              {idx + 1}. {st.studentName || "(Unnamed)"} {st.studentNumber ? `(${st.studentNumber})` : ""}
+              {idx + 1}. {st.studentName || $t("grading.manual.studentFirst.unnamed")} {st.studentNumber ? `(${st.studentNumber})` : ""}
             </option>
           {/each}
         </select>
@@ -195,7 +196,7 @@
           disabled={currentStudentIndex === 0}
           on:click={prevStudent}
         >
-          ← Previous Student
+          {$t("grading.manual.studentFirst.prevStudent")}
         </button>
         <span style="font-size: 0.85rem; color: #94a3b8;">
           {currentStudentIndex + 1} / {students.length}
@@ -205,7 +206,7 @@
           disabled={currentStudentIndex >= students.length - 1}
           on:click={nextStudent}
         >
-          Next Student →
+          {$t("grading.manual.studentFirst.nextStudent")}
         </button>
       </div>
     </div>
@@ -213,24 +214,24 @@
     {#if currentStudent}
       <div class="student-summary-card">
         <div class="student-summary-info">
-          <h3>{currentStudent.studentName || "(Unnamed Student)"}</h3>
-          <p>Student ID: {currentStudent.studentNumber || "-"} | Pseudonym: {currentStudent.fallbackCode || currentStudent.pseudonymId.slice(0, 8)}</p>
+          <h3>{currentStudent.studentName || $t("grading.manual.studentFirst.unnamedStudent")}</h3>
+          <p>{$t("grading.manual.studentFirst.studentInfo", { number: currentStudent.studentNumber || "-", code: currentStudent.fallbackCode || currentStudent.pseudonymId.slice(0, 8) })}</p>
         </div>
 
         <div class="student-grade-badge">
           {#if isFullyGraded && gradeDetail}
             <div class="student-grade-value">{gradeDetail.grade}</div>
-            <div class="student-grade-label">{gradeDetail.label} ({sumGradedScores} / {totalMaxPoints} pts)</div>
+            <div class="student-grade-label">{$t("grading.manual.studentFirst.gradeLabelPoints", { label: gradeDetail.label, score: sumGradedScores, max: totalMaxPoints })}</div>
           {:else if parsedScores.some((s) => s !== null)}
             <div class="student-grade-value" style="color: #f59e0b; font-size: 1.25rem;">
-              {sumGradedScores} / {totalMaxPoints} pts
+              {$t("grading.manual.studentFirst.pointsFraction", { score: sumGradedScores, max: totalMaxPoints })}
             </div>
-            <div class="student-grade-label">Incomplete grading</div>
+            <div class="student-grade-label">{$t("grading.manual.studentFirst.incompleteGrading")}</div>
           {:else}
             <div class="student-grade-value" style="color: #64748b; font-size: 1.1rem;">
-              Ungraded
+              {$t("grading.manual.studentFirst.ungraded")}
             </div>
-            <div class="student-grade-label">0 / {totalMaxPoints} pts</div>
+            <div class="student-grade-label">{$t("grading.manual.studentFirst.pointsFraction", { score: 0, max: totalMaxPoints })}</div>
           {/if}
         </div>
       </div>
@@ -239,10 +240,10 @@
         <table class="student-exercise-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Exercise Name</th>
-              <th>Max Points</th>
-              <th>Score Input</th>
+              <th>{$t("grading.manual.studentFirst.colNum")}</th>
+              <th>{$t("grading.manual.studentFirst.colName")}</th>
+              <th>{$t("grading.manual.studentFirst.colMax")}</th>
+              <th>{$t("grading.manual.studentFirst.colScore")}</th>
             </tr>
           </thead>
           <tbody>
@@ -253,7 +254,7 @@
               <tr>
                 <td>{idx + 1}</td>
                 <td><strong>{ex.name}</strong></td>
-                <td>{ex.maxPoints} pts</td>
+                <td>{$t("grading.manual.studentFirst.pointsSuffix", { points: ex.maxPoints })}</td>
                 <td>
                   <input
                     type="text"
@@ -282,17 +283,17 @@
           disabled={currentStudentIndex === 0}
           on:click={prevStudent}
         >
-          ← Save & Previous Student
+          {$t("grading.manual.studentFirst.savePrev")}
         </button>
         <button class="student-save-btn" on:click={handleSaveCurrentStudent}>
-          ✓ Save Student Scores
+          {$t("grading.manual.studentFirst.saveScores")}
         </button>
         <button
           class="student-nav-btn"
           disabled={currentStudentIndex >= students.length - 1}
           on:click={nextStudent}
         >
-          Save & Next Student →
+          {$t("grading.manual.studentFirst.saveNext")}
         </button>
       </div>
     {/if}
