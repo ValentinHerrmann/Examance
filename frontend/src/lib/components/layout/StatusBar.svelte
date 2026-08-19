@@ -43,6 +43,11 @@
 
   // The next language in the cycle — what a click switches to.
   $: nextLocaleLabel = LOCALE_LABELS[$locale === "de" ? "en" : "de"];
+
+  const LOCALE_FLAG: Record<string, string> = {
+    de: "🇩🇪",
+    en: "🇬🇧",
+  };
 </script>
 
 <footer class="vscode-statusbar">
@@ -60,22 +65,22 @@
 
   <button
     type="button"
-    on:click={onStorageClick}
-    class="statusbar-item statusbar-right"
-    title={unlocked ? $t("statusBar.backendConfigureHint") : $t("statusBar.backendCurrent")}
+    on:click={toggleLocale}
+    class="statusbar-item statusbar-locale statusbar-right"
+    title={$t("statusBar.languageHint", { language: nextLocaleLabel })}
   >
-    <span class="statusbar-icon">🖥️</span>
-    <span class="statusbar-label">{backendLabel || $t("statusBar.noServer")}</span>
+    <span class="statusbar-icon">{LOCALE_FLAG[$locale]}</span>
+    <span class="statusbar-label">{$locale.toUpperCase()}</span>
   </button>
 
   <button
     type="button"
-    on:click={toggleLocale}
-    class="statusbar-item statusbar-locale"
-    title={$t("statusBar.languageHint", { language: nextLocaleLabel })}
+    on:click={onStorageClick}
+    class="statusbar-item"
+    title={unlocked ? $t("statusBar.backendConfigureHint") : $t("statusBar.backendCurrent")}
   >
-    <span class="statusbar-icon">🌐</span>
-    <span class="statusbar-label">{$locale.toUpperCase()}</span>
+    <span class="statusbar-icon">🖥️</span>
+    <span class="statusbar-label">{backendLabel || $t("statusBar.noServer")}</span>
   </button>
 
   {#if versionUrl}
