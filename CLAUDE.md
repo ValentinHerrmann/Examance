@@ -123,6 +123,8 @@ Teacher-uploaded files an exercise's LaTeX references (`\includegraphics{figure.
 ## Gotchas worth knowing
 
 - **A 500 has to carry CORS headers itself.** The global handler in `app/main.py` runs in `ServerErrorMiddleware`, outside `CORSMiddleware`, so an unhandled exception reaches the browser as "No 'Access-Control-Allow-Origin' header" and the real fault is invisible. The handler echoes an allowlisted `Origin` for that reason (`is_allowed_origin`, `app/middleware/cors.py`) — do not remove it.
+- **`ci.yml` installs unpinned deps.** `uv pip install -e ".[dev]"` and `npm ci` both resolve to the newest allowed versions, so a new mypy or a fresh advisory turns CI red without a code change. The frontend `npm audit` gate is deliberately scoped to `--omit=dev`: the build toolchain (Vite/SvelteKit/Svelte 4) carries advisories that only a Svelte 5 + Vite 7 migration would clear, and none of it ships to a browser. `@sveltejs/kit` sits in `devDependencies` for that reason — that is where the SvelteKit template puts it too.
+
 - **One shared preview stack.** `deploy-preview.yml` force-pushes the PR head to `preview`; the newest non-draft PR push wins for *both* frontend and backend. Testing PR A while PR B was pushed later means testing B. The status bar version carries the PR number — check it before debugging.
 
 ## Environment

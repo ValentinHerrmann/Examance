@@ -143,7 +143,9 @@ async def login(
     result = await db.execute(select(Teacher).where(func.lower(Teacher.email) == normalized_email))
     teacher = result.scalar_one_or_none()
 
-    if teacher and teacher.password_hash is None:
+    stored_hash = teacher.password_hash if teacher else None
+
+    if teacher and stored_hash is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=(
@@ -155,12 +157,9 @@ async def login(
 
     # Constant-time: always call verify_password even if teacher not found
     dummy_hash = "$argon2id$v=19$m=65536,t=3,p=4$fakesaltfakesalt$fakehashfakehashfakehashfakehash"
-    password_ok = verify_password(
-        body.password,
-        teacher.password_hash if (teacher and teacher.password_hash) else dummy_hash,
-    )
+    password_ok = verify_password(body.password, stored_hash if stored_hash else dummy_hash)
 
-    if not teacher or not password_ok:
+    if not teacher or stored_hash is None or not password_ok:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials.",
@@ -168,7 +167,7 @@ async def login(
         )
 
     # Rehash if parameters changed
-    if needs_rehash(teacher.password_hash):
+    if needs_rehash(stored_hash):
         teacher.password_hash = hash_password(body.password)
 
     access_token = create_access_token(teacher.id, teacher.email, teacher.role)

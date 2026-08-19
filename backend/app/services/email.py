@@ -19,6 +19,14 @@ def _send_sync(
     body_html: str | None = None,
 ) -> bool:
     """Synchronous SMTP email delivery."""
+    smtp_host = settings.SMTP_HOST
+    if not smtp_host:
+        # send_email() already guards this; repeating it here keeps the helper
+        # safe on its own and stops smtplib from silently falling back to
+        # localhost when no relay is configured.
+        logger.error("SMTP_HOST is not configured; cannot send email to %s", to_email)
+        return False
+
     try:
         msg = EmailMessage()
         msg["Subject"] = subject
@@ -34,7 +42,7 @@ def _send_sync(
         if body_html:
             msg.add_alternative(body_html, subtype="html")
 
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+        with smtplib.SMTP(smtp_host, settings.SMTP_PORT, timeout=10) as server:
             if settings.SMTP_USE_TLS:
                 server.starttls()
             if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
