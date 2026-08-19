@@ -18,6 +18,7 @@ from app.models.exam import Exam
 from app.models.exam_exercise import ExamExercise
 from app.models.exam_mc_group import ExamMcGroup
 from app.models.exercise import Exercise
+from app.models.exercise_resource import ExerciseResource
 from app.models.teacher import Teacher
 from app.routers.exercises import parse_exercise_score
 from app.schemas.exam import (
@@ -28,6 +29,7 @@ from app.schemas.exam import (
     ExerciseResponse,
 )
 from app.services.latex import CompilationError, compile_exam_latex
+from app.services.latex_resources import ResourceError, merge_resources
 
 router = APIRouter(prefix="/exams", tags=["exams"])
 
@@ -454,6 +456,29 @@ async def delete_exam(
     exam.deleted_at = datetime.now(tz=UTC)
 
 
+async def _collect_exam_resources(
+    ex_tuples: list[tuple[Any, int, uuid.UUID | None, int | None]],
+    db: AsyncSession,
+) -> dict[str, bytes]:
+    """Merge the resource files of every exercise in the exam into one flat map."""
+    exercise_ids = [t[0].id for t in ex_tuples if getattr(t[0], "id", None)]
+    if not exercise_ids:
+        return {}
+
+    rows = (
+        await db.execute(
+            select(ExerciseResource).where(ExerciseResource.exercise_id.in_(exercise_ids))
+        )
+    ).scalars().all()
+
+    labels = {
+        t[0].id: (getattr(t[0], "name", None) or f"Aufgabe {t[1]}") for t in ex_tuples if t[0]
+    }
+    return merge_resources(
+        [(labels.get(r.exercise_id, "?"), r.filename, r.content) for r in rows]
+    )
+
+
 @router.post("/{exam_id}/compile")
 async def compile_exam_endpoint(
     answers: bool = False,
@@ -464,8 +489,21 @@ async def compile_exam_endpoint(
     ex_tuples = await _fetch_exam_exercises(exam.id, db)
     mc_groups = await _fetch_exam_mc_groups(exam.id, db)
 
+    # Resources live on the server in server/hybrid mode, so the browser never
+    # uploads them for a compile — they are read straight out of the database.
     try:
-        pdf_bytes = await compile_exam_latex(exam, ex_tuples, mc_groups, show_answers=answers)
+        binary_files = await _collect_exam_resources(ex_tuples, db)
+    except ResourceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+            headers={"code": "ERR_COMPILE_FAILED"},
+        ) from exc
+
+    try:
+        pdf_bytes = await compile_exam_latex(
+            exam, ex_tuples, mc_groups, show_answers=answers, binary_files=binary_files
+        )
         exam.compilation_status = "compiled"
         await db.flush()
     except TimeoutError:

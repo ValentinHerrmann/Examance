@@ -27,13 +27,19 @@ async def compile_latex_endpoint(
     """
     Compile LaTeX source to PDF via Tectonic.
 
+    Attached resource files (images, PDFs, data files) travel inline as base64
+    and exist only for this compilation — they are written into the temp
+    working directory and deleted with it.
+
     Rate limited: 10 req/min per IP.
-    Body limit: 2 MB (enforced by BodyLimitMiddleware).
+    Body limit: BODY_LIMIT_COMPILE (enforced by BodyLimitMiddleware).
     LaTeX source is NEVER logged — see LaTeXRequest.__repr__ and latex service.
     The 422 detail carries only TeX diagnostics, never raw engine or log output.
     """
     try:
-        pdf_bytes = await compile_latex(body.latex, preview=True)
+        pdf_bytes = await compile_latex(
+            body.latex, preview=True, binary_files=body.binary_files()
+        )
     except TimeoutError:
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,

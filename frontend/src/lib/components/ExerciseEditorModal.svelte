@@ -10,6 +10,8 @@
   import { parseExerciseScore, formatExerciseLatex } from "$lib/latex/scoreParser";
   import { parseMcOptions, buildMcOptionsLatex, type McOption } from "$lib/latex/mcOptions";
   import { compileLatex } from "$lib/latex/compiler";
+  import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
+  import ExerciseResourcePanel from "$lib/components/exercise/ExerciseResourcePanel.svelte";
   import LatexEditor from "./LatexEditor.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import DualPdfPreview from "./DualPdfPreview.svelte";
@@ -53,6 +55,14 @@
   // Confirmation modal state
   let showConfirmClose = false;
 
+  /**
+   * Id the exercise will be saved under. Resource files are stored against it
+   * immediately, so uploading a figure before the first save works; if the
+   * editor is closed without saving, those orphan rows are cleaned up.
+   */
+  let resourceExerciseId = "";
+  let resourceOwnerIsUnsaved = false;
+
   // Preview state
   let isPreviewLoading = false;
   let previewPdfUrl: string | null = null;
@@ -63,6 +73,10 @@
   $: hasAnyPreview = showAngabePreview || showLoesungPreview;
   let isSaving = false;
   let errorMsg = "";
+
+  function insertResourceSnippet(snippet: string) {
+    editorLatexBody = `${editorLatexBody}\n${snippet}\n`;
+  }
 
   function handleToggleLatex() {
     showLatexPanel = !showLatexPanel;
@@ -116,6 +130,11 @@
     initialLatexBody = editorLatexBody;
     initialQuestionType = editorQuestionType;
     initialPenalty = editorPenalty;
+    // A new version/variant starts from its base exercise's files; they are
+    // copied onto the new row on save.
+    resourceExerciseId =
+      (isCreatingVersion ? versionBaseEx?.id : editingExercise?.id) || crypto.randomUUID();
+    resourceOwnerIsUnsaved = !isCreatingVersion && !editingExercise;
     showAngabePreview = true;
     showLoesungPreview = false;
     showConfirmClose = false;
@@ -212,6 +231,11 @@
   function forceClose() {
     showConfirmClose = false;
     cleanupPreview();
+    // Files uploaded for an exercise that was never saved would otherwise
+    // linger in IndexedDB with no owner.
+    if (resourceOwnerIsUnsaved && resourceExerciseId) {
+      void exerciseResourceRepository.deleteForExercise(resourceExerciseId);
+    }
     dispatch("close");
   }
 
@@ -255,16 +279,28 @@
       const fullTexLoesung = `${getPreamble('sans,antworten')}\n\\setboolean{Antworten}{true}\n\\begin{document}\n\\leavevmode\\par\n${formattedBody}\n\\end{document}`;
 
       const useLocal = $storagePolicyStore.latexCompilation === "local";
+      const resourceFiles = await exerciseResourceRepository.collectForCompile(
+        [{ id: resourceExerciseId, label: editorName || "Aufgabe" }],
+        get(sessionStore).sessionKey
+      );
+      const compileOpts = { resources: resourceFiles };
 
-      const resAngabe = await compileLatex(fullTexAngabe, useLocal, undefined, false);
+      const resAngabe = await compileLatex(fullTexAngabe, useLocal, undefined, false, compileOpts);
       const blobAngabe = new Blob([resAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       previewPdfUrl = URL.createObjectURL(blobAngabe);
 
-      const resLoesung = await compileLatex(fullTexLoesung, useLocal, undefined, false);
+      const resLoesung = await compileLatex(fullTexLoesung, useLocal, undefined, false, compileOpts);
       const blobLoesung = new Blob([resLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
       previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
+
+      // A missing figure does not fail the engine — say so instead of handing
+      // back a PDF with a silent hole in it.
+      const missing = [...(resAngabe.missingGraphics ?? []), ...(resLoesung.missingGraphics ?? [])];
+      if (missing.length > 0) {
+        errorMsg = `Preview rendered, but a graphic could not be loaded: ${missing[0]}`;
+      }
     } catch (err: any) {
       console.error("Exercise preview failed:", err);
       errorMsg = `Preview failed: ${err.message || "Unknown compilation error"}`;
@@ -365,13 +401,21 @@
           await saveExerciseEncrypted(savedEx, key);
         }
 
+        // A new version is a new exercise row; its LaTeX still references the
+        // same files. The server copies them itself for server/hybrid mode.
+        if ($storagePolicyStore.storageMode === "all-local") {
+          await exerciseResourceRepository.copyTo(versionBaseEx.id, savedEx.id, key);
+        }
+
+        resourceOwnerIsUnsaved = false;
         dispatch("save", { exercise: savedEx, isNewVersion: true });
         forceClose();
         return;
       }
 
       const computedScore = parseExerciseScore(editorLatexBody);
-      const id = editingExercise?.id || crypto.randomUUID();
+      // resourceExerciseId is the id any already-uploaded resource points at.
+      const id = editingExercise?.id || resourceExerciseId;
 
       const record: ExerciseRecord = {
         id,
@@ -439,6 +483,7 @@
         }
       }
 
+      resourceOwnerIsUnsaved = false;
       dispatch("save", { exercise: record, isNewVersion: false });
       forceClose();
     } catch (err: any) {
@@ -730,6 +775,11 @@
                 <span class="font-semibold text-slate-300">Preview / Composed LaTeX Source</span>
               </div>
               <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert />
+
+              <ExerciseResourcePanel
+                exerciseId={resourceExerciseId}
+                onInsert={insertResourceSnippet}
+              />
             </div>
           {:else}
             <button

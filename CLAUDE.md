@@ -81,6 +81,17 @@ The policy is `script-src 'self'` with no CDN allowances: third-party assets (e.
 - **MC Group (`\McExercise{a}{b}{c}`)**: A per-exam layout container (`ExamMcGroup` / `ExamMcGroupRecord`, 2–4 sub-items) linking member exercises via `ExamExercise.mc_group_id` and `sub_index`. Rendered into a single `\begin{Aufgabe}` by `format_mc_group_latex()`.
 - **Grading & Statistics Invariant**: Grading and statistics are strictly per-question (`exerciseId`), treating `ExamMcGroup` solely as LaTeX rendering and layout metadata.
 
+## LaTeX Resource Files
+
+Teacher-uploaded files an exercise's LaTeX references (`\includegraphics{figure.png}`, `\input{data.tex}`). Any file type is allowed **except SVG** (refused with a convert-to-PDF hint — `frontend/src/lib/latex/resources.ts`, mirrored in `backend/app/services/latex_resources.py`; keep the two in sync).
+
+- Attached **per exercise**, referenced by **flat sanitized filename** — files are written next to `main.tex` in both engines, never in a subdirectory. Names that collide with a bundled `latex-assets` file (including the worker's flattened `sty/x.sty` → `x.sty`) are rejected at upload.
+- Limits: 5 MB per file, 25 MB per exercise, 20 MB / 30 files per compile request; `BODY_LIMIT_COMPILE` is 28 MB and `BODY_LIMIT_RESOURCE` 7 MB.
+- Storage: Dexie table `exerciseResources` (v8), bytes AES-256-GCM encrypted; server table `exercise_resources`, bytes **plaintext** — same treatment as `exercises.latex_body`, since Tectonic cannot read ciphertext.
+- Local compile: `compiler.ts` → worker `additionalFiles`. Server compile: inline base64 on `POST /compile/latex` (ephemeral). `POST /exams/{id}/compile` reads the rows from the DB instead.
+- Two exercises with *different* files under the same name is a hard error before compiling (`mergeResources`); identical bytes are deduped.
+- A missing graphic does not fail XeLaTeX. The worker reports `missingGraphics` and callers surface it — do not treat a successful compile as proof the figures rendered.
+
 ## Environment
 
 `backend/.env.example` → `backend/.env`. Postgres + Redis via `docker-compose.yml`. `CORS_ALLOWED_ORIGINS` defaults to `http://localhost:5173` + `https://examance.pages.dev`, plus `CORS_ALLOWED_ORIGIN_REGEX` covering `*.valentin-herrmann.com` and `*.examance.pages.dev` preview subdomains. In development (`ENVIRONMENT=development`), `effective_cors_origin_regex` dynamically allows arbitrary loopback/localhost ports. No wildcard fallback; an empty list is a hard startup error (`require_cors_origins`, `backend/app/config.py`). Override explicitly for any other origin.

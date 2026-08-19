@@ -23,13 +23,14 @@ import {
 import { deriveKey, generateSalt } from '$lib/crypto/keyDerivation';
 import { deriveArchiveSecret, deriveSessionKey } from '$lib/crypto/sessionKey';
 import { hmacSha256Hex, importHmacKey } from '$lib/crypto/hmac';
-import { encryptJson } from '$lib/crypto/aesGcm';
+import { encryptJson, uint8ArrayToBase64 } from '$lib/crypto/aesGcm';
 import {
   loadExamsEncrypted,
   loadExercisesEncrypted,
   loadStudentsEncrypted,
   loadSubmissionsEncrypted,
   decryptScore,
+  decryptResourceBytes,
 } from '$lib/db/dbEncryption';
 
 export async function packProject(
@@ -67,6 +68,22 @@ export async function packProject(
   const exerciseExams = await db.examExercises.toArray();
   const examMcGroups = await db.examMcGroups.toArray();
 
+  // Resource files are unwrapped like every other record — decrypted with the
+  // current session key and base64'd, because JSON cannot carry raw bytes. The
+  // archive envelope itself is what protects them; the importer re-encrypts
+  // under its own key.
+  const exerciseResources = await Promise.all(
+    (await db.exerciseResources.toArray()).map(async r => ({
+      id: r.id,
+      exerciseId: r.exerciseId,
+      filename: r.filename,
+      mimeType: r.mimeType,
+      byteSize: r.byteSize,
+      createdAt: r.createdAt,
+      dataB64: uint8ArrayToBase64(await decryptResourceBytes(r, key)),
+    }))
+  );
+
   onProgress?.({
     phase: 'encrypting',
     current: 30,
@@ -97,6 +114,7 @@ export async function packProject(
     exerciseScores,
     exerciseExams,
     examMcGroups,
+    exerciseResources,
     auditLogs: rawAuditLogs,
   };
 

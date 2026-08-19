@@ -57,7 +57,22 @@ flowchart TD
 | `submissions` | `id, examId, pseudonymHash` | Total score (`totalScore`), scan image blob (`scanCt`), annotations vector layer (`annotationCt`) | Opaque Binary Ciphertext / Purged |
 | `exerciseScores` | `id, submissionId, exerciseId` | Score value (`score`), selected options | Opaque Binary Ciphertext / Purged |
 | `omrTemplates` | `id, examId` | Detected bubble/fiducial page rects (`OmrTemplatePayload.pages`), used for MC auto-grading | Opaque Binary Ciphertext / Purged |
+| `exerciseResources` | `id, exerciseId, [exerciseId+filename]` | Raw file bytes (`dataCt`) of a teacher-uploaded LaTeX resource (image, PDF, data file). `filename`, `mimeType` and `byteSize` stay plaintext — they are index/display fields, not content | Opaque Binary Ciphertext / Purged |
 | `auditLog` | `id, action, timestamp` | Action note details | Opaque Binary Ciphertext / Purged |
+
+### Exercise resource files on the server
+
+In `all-server` and `hybrid` mode an exercise's resource files are stored in the
+`exercise_resources` table as **plaintext bytes**, exactly as `exercises.latex_body`
+is plaintext there: an exercise kept on the server is server-readable by design,
+and the Tectonic compiler cannot read ciphertext. The zero-knowledge path is the
+default `all-local` mode, where the bytes never leave the browser except inline in
+a server *compile* request, which writes them to a temp directory that is deleted
+with the process.
+
+Teachers are warned in the upload UI not to attach files containing personal data
+of pupils. Resource files follow their exercise's lifecycle (`ON DELETE CASCADE`),
+which — like exercises themselves — is outside the exam retention sweep.
 
 ---
 

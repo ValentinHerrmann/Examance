@@ -131,6 +131,12 @@ export const examRepository = {
       await db.exerciseScores.where('submissionId').equals(subId).delete();
     }
 
+    // Resource files hang off the exercises that are about to disappear.
+    const examExerciseIds = (await db.exercises.where('examId').equals(id).toArray()).map((e) => e.id);
+    for (const exerciseId of examExerciseIds) {
+      await db.exerciseResources.where('exerciseId').equals(exerciseId).delete();
+    }
+
     await db.exams.delete(id);
     await db.exercises.where('examId').equals(id).delete();
     await db.examExercises.where('examId').equals(id).delete();

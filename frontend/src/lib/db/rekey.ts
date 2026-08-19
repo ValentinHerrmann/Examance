@@ -16,6 +16,7 @@ import {
   decryptExam,
   decryptExercise,
   decryptOmrTemplate,
+  decryptResourceBytes,
   decryptScore,
   decryptStudent,
   decryptSubmission,
@@ -23,6 +24,7 @@ import {
   encryptExam,
   encryptExercise,
   encryptOmrTemplate,
+  encryptResource,
   encryptScore,
   encryptStudent,
   encryptSubmission,
@@ -36,6 +38,7 @@ export interface RekeyResult {
   exerciseScores: number;
   auditLog: number;
   omrTemplates: number;
+  exerciseResources: number;
 }
 
 async function rekeyTable<T>(
@@ -71,6 +74,7 @@ export async function rekeyDatabase(
     exerciseScores: 0,
     auditLog: 0,
     omrTemplates: 0,
+    exerciseResources: 0,
   };
 
   await db.transaction(
@@ -83,6 +87,7 @@ export async function rekeyDatabase(
       db.exerciseScores,
       db.auditLog,
       db.omrTemplates,
+      db.exerciseResources,
     ],
     async () => {
       const exams = await rekeyTable(
@@ -123,6 +128,15 @@ export async function rekeyDatabase(
         templates.push(await encryptOmrTemplate(tpl, newKey, payload));
       }
 
+      // Resource files keep their bytes in a dedicated ciphertext field rather
+      // than the JSON payload, so they are re-sealed by hand.
+      const rawResources = await db.exerciseResources.toArray();
+      const resources = [];
+      for (const res of rawResources) {
+        const bytes = await decryptResourceBytes(res, oldKey);
+        resources.push(await encryptResource(res, bytes, newKey));
+      }
+
       // Write only after every record has been re-sealed, so a decryption
       // failure aborts before anything is overwritten.
       await db.exams.bulkPut(exams);
@@ -132,6 +146,7 @@ export async function rekeyDatabase(
       await db.exerciseScores.bulkPut(scores);
       await db.auditLog.bulkPut(audit);
       await db.omrTemplates.bulkPut(templates);
+      await db.exerciseResources.bulkPut(resources);
 
       result.exams = exams.length;
       result.exercises = exercises.length;
@@ -140,6 +155,7 @@ export async function rekeyDatabase(
       result.exerciseScores = scores.length;
       result.auditLog = audit.length;
       result.omrTemplates = templates.length;
+      result.exerciseResources = resources.length;
     }
   );
 

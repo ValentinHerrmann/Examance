@@ -44,7 +44,10 @@ async def purge_server_student_data(
     Soft-delete all student identities and scan submissions belonging to the current teacher
     with a 7-day retention grace period before hard deletion.
 
-    LaTeX exercise templates and exam structures remain intact.
+    LaTeX exercise templates and exam structures remain intact — including the
+    resource files attached to exercises, which are teacher-authored content,
+    not student data. A file that does contain personal data (e.g. a photo of a
+    pupil) has to be deleted with the exercise or the file itself.
     """
     now = datetime.now(UTC)
     retention_until = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)

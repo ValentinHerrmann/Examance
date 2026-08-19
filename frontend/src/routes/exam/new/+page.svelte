@@ -10,6 +10,7 @@
   import { parseExerciseScore, formatExerciseLatex, formatMcGroupLatex } from "$lib/latex/scoreParser";
   import { recordValue } from "$lib/utils/recentValues";
   import { compileLatex } from "$lib/latex/compiler";
+  import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
   import { get } from "svelte/store";
   import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
   import GradingKeyEditor from "$lib/components/GradingKeyEditor.svelte";
@@ -502,19 +503,33 @@ ${exerciseInputs}
         errorMsg = "Compiling PDF...";
       }
 
+      // Resource files of every exercise in the draft exam (see
+      // lib/latex/resources.ts for the flat-filename rules).
+      const compileOpts = {
+        resources: await exerciseResourceRepository.collectForCompile(
+          [
+            ...selectedExercises.map((ex) => ({ id: ex.id, label: ex.name })),
+            ...mcGroupExercises.flatMap(({ group, members }) =>
+              members.map((ex) => ({ id: ex.id, label: ex.name || group.title }))
+            ),
+          ],
+          get(sessionStore).sessionKey
+        ),
+      };
+
       const resAngabe = await compileLatex(fullTexAngabe, useLocal, (status) => {
         if (status === 'downloading') {
           errorMsg = "Loading local LaTeX compiler... (Downloading ~32MB on first load, please wait)";
         } else if (status === 'compiling') {
           errorMsg = "Compiling PDF...";
         }
-      }, false);
+      }, false, compileOpts);
 
       const blobAngabe = new Blob([resAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       previewPdfUrl = URL.createObjectURL(blobAngabe);
 
-      const resLoesung = await compileLatex(fullTexLoesung, useLocal, undefined, false);
+      const resLoesung = await compileLatex(fullTexLoesung, useLocal, undefined, false, compileOpts);
       const blobLoesung = new Blob([resLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
       previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);

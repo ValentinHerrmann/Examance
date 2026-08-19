@@ -516,6 +516,8 @@
         await api.delete(`/exercises/${deletingExercise.id}`);
       }
       await db.exercises.delete(deletingExercise.id);
+      // Attached resource files have no owner once the exercise is gone.
+      await db.exerciseResources.where("exerciseId").equals(deletingExercise.id).delete();
       await loadExercises();
       isDeleteModalOpen = false;
       deletingExercise = null;
