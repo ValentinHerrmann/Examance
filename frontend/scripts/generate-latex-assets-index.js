@@ -13,6 +13,7 @@ function walkDir(dir) {
     const list = fs.readdirSync(dir);
     for (const file of list) {
         if (file === 'index.json') continue; // Skip the index file itself
+        if (file.startsWith('main.')) continue; // Skip template main.tex and build artifacts
         const filePath = path.join(dir, file);
         const stat = fs.statSync(filePath);
         if (stat && stat.isDirectory()) {

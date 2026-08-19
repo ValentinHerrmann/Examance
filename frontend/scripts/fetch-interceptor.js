@@ -25,6 +25,48 @@
     return chunkManifestPromise;
   }
 
+  // Builds a ReadableStream that concatenates the bodies of `responses` in
+  // order while counting the raw (pre-decompression) bytes seen. If the
+  // manifest declares an expected size and the actual byte count doesn't
+  // match once every response body is drained, the stream is errored
+  // instead of closed. This turns a silently truncated/corrupted chunk
+  // download (e.g. a flaky connection or a stale/short CDN cache entry)
+  // into a hard, visible failure instead of a partially-mounted virtual
+  // filesystem downstream (see: busytex compiles failing with spurious
+  // "File `X.sty' not found" errors for packages that are actually
+  // bundled, because the archive containing them got cut off mid-download).
+  function createVerifiedStream(responses, expectedSize, describeSource) {
+    return new ReadableStream({
+      async start(controller) {
+        let received = 0;
+        try {
+          for (const res of responses) {
+            if (!res.body) continue;
+            const reader = res.body.getReader();
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              received += value.byteLength;
+              controller.enqueue(value);
+            }
+          }
+
+          if (typeof expectedSize === 'number' && expectedSize > 0 && received !== expectedSize) {
+            controller.error(new Error(
+              `Incomplete download for ${describeSource}: received ${received} bytes, expected ${expectedSize} bytes. ` +
+              `The cached or downloaded asset is truncated/corrupted.`
+            ));
+            return;
+          }
+
+          controller.close();
+        } catch (err) {
+          controller.error(err);
+        }
+      }
+    });
+  }
+
   globalScope.fetch = async function (...args) {
     const requestTarget = args[0];
     const urlStr = typeof requestTarget === 'string'
@@ -41,9 +83,10 @@
         if (entry.chunks.length === 1) {
           const response = await originalFetch(entry.chunks[0], args[1]);
           if (response.ok) {
+            const verifiedStream = createVerifiedStream([response], entry.gzippedSize, pathname);
             const body = entry.gzipped && typeof DecompressionStream !== 'undefined'
-              ? response.body.pipeThrough(new DecompressionStream('gzip'))
-              : response.body;
+              ? verifiedStream.pipeThrough(new DecompressionStream('gzip'))
+              : verifiedStream;
 
             const contentType = pathname.endsWith('.wasm')
               ? 'application/wasm'
@@ -64,21 +107,7 @@
           const responses = await Promise.all(entry.chunks.map(chunkUrl => originalFetch(chunkUrl, args[1])));
           const allOk = responses.every(r => r.ok);
           if (allOk) {
-            const combinedStream = new ReadableStream({
-              async start(controller) {
-                for (const res of responses) {
-                  if (res.body) {
-                    const reader = res.body.getReader();
-                    while (true) {
-                      const { done, value } = await reader.read();
-                      if (done) break;
-                      controller.enqueue(value);
-                    }
-                  }
-                }
-                controller.close();
-              }
-            });
+            const combinedStream = createVerifiedStream(responses, entry.gzippedSize, pathname);
 
             const body = entry.gzipped && typeof DecompressionStream !== 'undefined'
               ? combinedStream.pipeThrough(new DecompressionStream('gzip'))
@@ -95,6 +124,8 @@
                 'Content-Type': contentType
               }
             });
+          } else {
+            throw new Error(`Failed to fetch one or more chunks for ${pathname}`);
           }
         }
       }

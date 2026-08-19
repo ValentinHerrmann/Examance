@@ -311,3 +311,29 @@ async def test_compile_exam_latex_fallback_wrapping() -> None:
 
     assert pdf_bytes == b"%PDF-1.4 fake"
 
+
+@pytest.mark.asyncio
+async def test_compile_class_diagram_solution_mode() -> None:
+    """Class diagram macros (\\operation, \\attribute, etc.) inside \\LoesungKaro
+    must compile without 'Missing number' errors in solution mode (Antworten=true)."""
+    import shutil
+    if not shutil.which("tectonic"):
+        pytest.skip("tectonic binary not available")
+
+    snippet = r"""
+\setboolean{Antworten}{true}
+\begin{Aufgabe}[12]{Klassendiagramm}
+Zeichne das Klassendiagramm.
+\end{Aufgabe}
+\newcommand{\LsgDiagramm}{\begin{tikzpicture}
+    \begin{class}[text width = 7.5cm]{Wall}{0,11}
+        \attribute{x : int [0,5P]}
+        \operation{Wall(posX : int, posY : int) [0,5P]}
+    \end{class}
+\end{tikzpicture}}
+\LoesungKaro{\LsgDiagramm}{40}
+"""
+    pdf_bytes = await compile_latex(snippet, preview=True)
+    assert pdf_bytes.startswith(b"%PDF-")
+
+

@@ -48,6 +48,56 @@ if (!globalScope.__busytex_fetch_intercepted__) {
     return fallbackHeader || 'application/octet-stream';
   }
 
+  /**
+   * Builds a ReadableStream that concatenates the bodies of `responses` in
+   * order while counting the raw (pre-decompression) bytes seen. If the
+   * manifest declares an expected size and the actual byte count doesn't
+   * match once every response body is drained, the stream is errored
+   * instead of closed. This turns a silently truncated/corrupted chunk
+   * download (e.g. a flaky connection or a stale/short CDN cache entry)
+   * into a hard, visible failure instead of a partially-mounted virtual
+   * filesystem downstream (busytex compiling with spurious "File `X.sty'
+   * not found" errors for packages that are actually bundled, because the
+   * archive containing them got cut off mid-download).
+   */
+  function createVerifiedStream(
+    responses: Response[],
+    expectedSize: number | undefined,
+    describeSource: string
+  ): ReadableStream<any> {
+    return new ReadableStream<any>({
+      async start(controller) {
+        let received = 0;
+        try {
+          for (const res of responses) {
+            if (!res.body) continue;
+            const reader = res.body.getReader();
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              received += value.byteLength;
+              controller.enqueue(value);
+            }
+          }
+
+          if (typeof expectedSize === 'number' && expectedSize > 0 && received !== expectedSize) {
+            controller.error(
+              new Error(
+                `Incomplete download for ${describeSource}: received ${received} bytes, expected ${expectedSize} bytes. ` +
+                  `The cached or downloaded asset is truncated/corrupted.`
+              )
+            );
+            return;
+          }
+
+          controller.close();
+        } catch (err) {
+          controller.error(err);
+        }
+      }
+    });
+  }
+
   async function handleSingleChunk(
     chunkUrl: string,
     pathname: string,
@@ -57,9 +107,10 @@ if (!globalScope.__busytex_fetch_intercepted__) {
     const response = await originalFetch(chunkUrl, init);
     if (!response.ok) return null;
 
-    let body = response.body;
-    if (entry.gzipped && typeof DecompressionStream !== 'undefined' && response.body) {
-      body = response.body.pipeThrough(new DecompressionStream('gzip'));
+    const verifiedStream = createVerifiedStream([response], entry.gzippedSize, pathname);
+    let body: ReadableStream<any> = verifiedStream;
+    if (entry.gzipped && typeof DecompressionStream !== 'undefined') {
+      body = verifiedStream.pipeThrough(new DecompressionStream('gzip'));
     }
 
     const contentType = getContentType(pathname, response.headers.get('content-type'));
@@ -82,25 +133,13 @@ if (!globalScope.__busytex_fetch_intercepted__) {
     init?: RequestInit
   ): Promise<Response | null> {
     const responses = await Promise.all(chunks.map((url) => originalFetch(url, init)));
-    if (!responses.every((r) => r.ok)) return null;
+    if (!responses.every((r) => r.ok)) {
+      throw new Error(`Failed to fetch one or more chunks for ${pathname}`);
+    }
 
-    const combinedStream = new ReadableStream({
-      async start(controller) {
-        for (const res of responses) {
-          if (res.body) {
-            const reader = res.body.getReader();
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              controller.enqueue(value);
-            }
-          }
-        }
-        controller.close();
-      }
-    });
+    const combinedStream = createVerifiedStream(responses, entry.gzippedSize, pathname);
 
-    let body: ReadableStream<Uint8Array> = combinedStream;
+    let body: ReadableStream<any> = combinedStream;
     if (entry.gzipped && typeof DecompressionStream !== 'undefined') {
       body = combinedStream.pipeThrough(new DecompressionStream('gzip'));
     }
