@@ -64,7 +64,7 @@
   <button
     type="button"
     on:click={onStorageClick}
-    class="statusbar-item statusbar-right"
+    class="statusbar-item"
     title={unlocked
       ? $t("statusBar.storageSettingsHint")
       : $t("statusBar.lockedHint")}
@@ -76,7 +76,7 @@
   <button
     type="button"
     on:click={onStorageClick}
-    class="statusbar-item"
+    class="statusbar-item statusbar-right"
     title={unlocked ? $t("statusBar.backendConfigureHint") : $t("statusBar.backendCurrent")}
   >
     <span class="statusbar-icon">🖥️</span>
