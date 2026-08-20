@@ -54,7 +54,7 @@
   }
 </script>
 
-<Modal open={isOpen} size="md" title={$t("exam.metadataEditor.heading")} onClose={onCancel}>
+<Modal open={isOpen} size="lg" title={$t("exam.metadataEditor.heading")} onClose={onCancel}>
   <div class="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
     <div class="flex flex-col gap-1">
       <label for="editTitle" class="text-[0.8125rem] text-muted">{$t("exam.metadataEditor.examTitle")}</label>

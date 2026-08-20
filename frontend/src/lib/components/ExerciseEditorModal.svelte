@@ -72,7 +72,10 @@
   let isPreviewLoading = false;
   let previewPdfUrl: string | null = null;
   let previewSolutionPdfUrl: string | null = null;
-  let showAngabePreview = true;
+  // Both panes start collapsed: there is nothing to preview until the user
+  // compiles, so reserving half the dialog for an empty placeholder on open
+  // wastes space. Expanding either pane is still one click away.
+  let showAngabePreview = false;
   let showLoesungPreview = false;
   let showLatexPanel = true;
   $: hasAnyPreview = showAngabePreview || showLoesungPreview;
@@ -169,7 +172,7 @@
         get(sessionStore).sessionKey
       );
     }
-    showAngabePreview = true;
+    showAngabePreview = false;
     showLoesungPreview = false;
     showConfirmClose = false;
     errorMsg = "";
@@ -334,6 +337,10 @@
       const blobLoesung = new Blob([resLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
       previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
+
+      // Panes start collapsed (nothing to show); now that a PDF exists, open
+      // the exam pane so the compile result is actually visible.
+      showAngabePreview = true;
 
       // A missing figure does not fail the engine — say so instead of handing
       // back a PDF with a silent hole in it.
