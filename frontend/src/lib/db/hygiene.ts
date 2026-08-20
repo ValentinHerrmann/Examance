@@ -20,12 +20,14 @@ import { clearAllTables } from './db';
 import { sessionStore } from '$lib/stores/session';
 import { storagePolicyStore } from '$lib/stores/storagePolicy';
 import { get, writable } from 'svelte/store';
+import { clearCompileCache } from '$lib/latex/compileCache';
 
 import { api } from '$lib/api/client';
 
-/** Clear all IDB data. Returns true if successful, false on error. */
+/** Clear all IDB data and compilation cache. Returns true if successful, false on error. */
 export async function wipeDatabase(): Promise<boolean> {
   try {
+    clearCompileCache();
     await clearAllTables();
     return true;
   } catch {
@@ -34,9 +36,10 @@ export async function wipeDatabase(): Promise<boolean> {
   }
 }
 
-/** Lock the session: wipe keys from store, set lockedAt, and wipe DB if server-synced. */
+/** Lock the session: wipe keys from store, set lockedAt, clear compilation cache, and wipe DB if server-synced. */
 export async function lockSession(): Promise<void> {
   timeUntilLock.set(null);
+  clearCompileCache();
   sessionStore.lock();
   try {
     await api.post('/auth/logout');

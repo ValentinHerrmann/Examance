@@ -1,6 +1,6 @@
 <script lang="ts">
   import "./+page.css";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { db } from "$lib/db/db";
   import { sessionStore, isAuthenticated } from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
@@ -9,7 +9,7 @@
   import { api } from "$lib/api/client";
   import { parseExerciseScore, formatExerciseLatex, formatMcGroupLatex } from "$lib/latex/scoreParser";
   import { recordValue } from "$lib/utils/recentValues";
-  import { compileLatex } from "$lib/latex/compiler";
+  import { compileWithCache, getLatestForSlot, invalidateOwner } from "$lib/latex/compileCache";
   import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
   import { get } from "svelte/store";
   import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
@@ -149,6 +149,7 @@ Frage hier eingeben... \\BE
   let saveCustomToLibrary = true;
 
   // State
+  let draftExamId = "draft-new-exam";
   let isLoading = false;
   let errorMsg = "";
   let previewPdfUrl: string | null = null;
@@ -156,6 +157,30 @@ Frage hier eingeben... \\BE
   let showAngabePreview = true;
   let showLoesungPreview = false;
   let isPreviewLoading = false;
+
+  onDestroy(() => {
+    if (previewPdfUrl) {
+      URL.revokeObjectURL(previewPdfUrl);
+      previewPdfUrl = null;
+    }
+    if (previewSolutionPdfUrl) {
+      URL.revokeObjectURL(previewSolutionPdfUrl);
+      previewSolutionPdfUrl = null;
+    }
+  });
+
+  function restoreCachedPreviews() {
+    const angabeCached = getLatestForSlot({ kind: "exam", id: draftExamId, variant: "angabe" });
+    if (angabeCached) {
+      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+      previewPdfUrl = URL.createObjectURL(new Blob([angabeCached.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" }));
+    }
+    const loesungCached = getLatestForSlot({ kind: "exam", id: draftExamId, variant: "loesung" });
+    if (loesungCached) {
+      if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
+      previewSolutionPdfUrl = URL.createObjectURL(new Blob([loesungCached.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" }));
+    }
+  }
 
   $: availableTopics = Array.from(
     new Set(
@@ -225,6 +250,7 @@ Frage hier eingeben... \\BE
 
   onMount(() => {
     loadLibrary();
+    restoreCachedPreviews();
   });
 
   function groupExercises(exs: ExerciseRecord[]): ExerciseGroup[] {
@@ -527,19 +553,33 @@ ${exerciseInputs}
         resourceExerciseIds: collectedResources.exerciseIds,
       };
 
-      const resAngabe = await compileLatex(fullTexAngabe, useLocal, (status) => {
-        if (status === 'downloading') {
-          errorMsg = translate("examCreation.status.loadingLocalCompiler");
-        } else if (status === 'compiling') {
-          errorMsg = translate("examCreation.status.compilingPdf");
-        }
-      }, false, compileOpts);
+      const resAngabe = await compileWithCache(
+        { kind: "exam", id: draftExamId, variant: "angabe" },
+        fullTexAngabe,
+        useLocal,
+        (status) => {
+          if (status === 'downloading') {
+            errorMsg = translate("examCreation.status.loadingLocalCompiler");
+          } else if (status === 'compiling') {
+            errorMsg = translate("examCreation.status.compilingPdf");
+          }
+        },
+        false,
+        compileOpts
+      );
 
       const blobAngabe = new Blob([resAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       previewPdfUrl = URL.createObjectURL(blobAngabe);
 
-      const resLoesung = await compileLatex(fullTexLoesung, useLocal, undefined, false, compileOpts);
+      const resLoesung = await compileWithCache(
+        { kind: "exam", id: draftExamId, variant: "loesung" },
+        fullTexLoesung,
+        useLocal,
+        undefined,
+        false,
+        compileOpts
+      );
       const blobLoesung = new Blob([resLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
       previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
@@ -680,6 +720,7 @@ ${exerciseInputs}
       }
 
       sessionStore.setDirty(false);
+      invalidateOwner("exam", draftExamId);
       window.location.href = `/exam/${examId}`;
     } catch (err: any) {
       errorMsg = err.message || translate("examCreation.errors.createExamFailed");

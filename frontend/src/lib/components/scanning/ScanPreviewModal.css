@@ -40,6 +40,32 @@
   font-size: 1.1rem;
 }
 
+.scan-preview-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.scan-preview-modal-download-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  background-color: #334155;
+  color: #e2e8f0;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.scan-preview-modal-download-btn:hover {
+  background-color: #475569;
+  color: #ffffff;
+}
+
 .scan-preview-modal-close-btn {
   background: none;
   border: none;

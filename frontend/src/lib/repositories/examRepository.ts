@@ -5,6 +5,7 @@ import { storagePolicyStore } from '$lib/stores/storagePolicy';
 import { encryptExam, decryptExam } from '$lib/db/dbEncryption';
 import { enqueueRequest } from '$lib/services/offlineQueue';
 import type { ExamRecord } from '$lib/db/schema';
+import { invalidateOwner } from '$lib/latex/compileCache';
 
 export function mapApiToExamRecord(raw: any): ExamRecord {
   return {
@@ -123,6 +124,8 @@ export const examRepository = {
   },
 
   async delete(id: string): Promise<void> {
+    invalidateOwner('exam', id);
+    invalidateOwner('omr-blank', id);
     if (!db.exams) return;
 
     // Collect submission IDs first to clean up exercise scores
