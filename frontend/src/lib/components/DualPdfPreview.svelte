@@ -2,6 +2,7 @@
   import { createEventDispatcher } from "svelte";
   import { t } from "$lib/i18n";
   import { isDesktop } from "$lib/stores/viewport";
+  import PdfEmbedViewer from "$lib/components/PdfEmbedViewer.svelte";
 
   export let previewPdfUrl: string | null = null;
   export let previewSolutionPdfUrl: string | null = null;
@@ -83,23 +84,44 @@
       class:shrink-0={!showAngabePreview}
     >
       {#if showAngabePreview}
-        <button
-          type="button"
-          class={paneHeader}
-          on:click={handleToggleAngabe}
-          title={$t("editor.pdfPreview.collapse", { title: angabeTitle })}
-        >
-          <span class="truncate text-sm font-medium">{emojiAngabe} {angabeTitle}</span>
-          <span class="text-muted">›</span>
-        </button>
-        <div class="min-h-0 flex-1">
+        <div class="flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-1.5 text-slate-200">
+          <button
+            type="button"
+            class="flex flex-1 items-center gap-2 truncate text-left hover:text-white"
+            on:click={handleToggleAngabe}
+            title={$t("editor.pdfPreview.collapse", { title: angabeTitle })}
+          >
+            <span class="truncate text-sm font-medium">{emojiAngabe} {angabeTitle}</span>
+          </button>
+          <div class="flex shrink-0 items-center gap-2">
+            {#if previewPdfUrl}
+              <a
+                href={previewPdfUrl}
+                download={`${angabeTitle}.pdf`}
+                class="flex items-center gap-1 rounded border border-line bg-surface-inset px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-line-strong hover:text-white"
+                title={$t("common.download")}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span>{$t("common.download")}</span>
+              </a>
+            {/if}
+            <button
+              type="button"
+              class="px-1 text-muted hover:text-white"
+              on:click={handleToggleAngabe}
+              title={$t("editor.pdfPreview.collapse", { title: angabeTitle })}
+            >
+              ›
+            </button>
+          </div>
+        </div>
+        <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: angabeTitle })}>
           {#if previewPdfUrl}
-            <iframe
-              src={previewPdfUrl}
-              title={$t("editor.pdfPreview.frameTitle", { title: angabeTitle })}
-              width="100%"
-              height="100%"
-            ></iframe>
+            <PdfEmbedViewer src={previewPdfUrl} />
           {:else}
             <div class="flex h-full items-center justify-center p-4 text-center text-sm text-subtle">
               {placeholder}
@@ -129,23 +151,44 @@
       class:shrink-0={!showLoesungPreview}
     >
       {#if showLoesungPreview}
-        <button
-          type="button"
-          class={paneHeader}
-          on:click={handleToggleLoesung}
-          title={$t("editor.pdfPreview.collapse", { title: loesungTitle })}
-        >
-          <span class="truncate text-sm font-medium">{emojiLoesung} {loesungTitle}</span>
-          <span class="text-muted">›</span>
-        </button>
-        <div class="min-h-0 flex-1">
+        <div class="flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-1.5 text-slate-200">
+          <button
+            type="button"
+            class="flex flex-1 items-center gap-2 truncate text-left hover:text-white"
+            on:click={handleToggleLoesung}
+            title={$t("editor.pdfPreview.collapse", { title: loesungTitle })}
+          >
+            <span class="truncate text-sm font-medium">{emojiLoesung} {loesungTitle}</span>
+          </button>
+          <div class="flex shrink-0 items-center gap-2">
+            {#if previewSolutionPdfUrl}
+              <a
+                href={previewSolutionPdfUrl}
+                download={`${loesungTitle}.pdf`}
+                class="flex items-center gap-1 rounded border border-line bg-surface-inset px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-line-strong hover:text-white"
+                title={$t("common.download")}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span>{$t("common.download")}</span>
+              </a>
+            {/if}
+            <button
+              type="button"
+              class="px-1 text-muted hover:text-white"
+              on:click={handleToggleLoesung}
+              title={$t("editor.pdfPreview.collapse", { title: loesungTitle })}
+            >
+              ›
+            </button>
+          </div>
+        </div>
+        <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: loesungTitle })}>
           {#if previewSolutionPdfUrl}
-            <iframe
-              src={previewSolutionPdfUrl}
-              title={$t("editor.pdfPreview.frameTitle", { title: loesungTitle })}
-              width="100%"
-              height="100%"
-            ></iframe>
+            <PdfEmbedViewer src={previewSolutionPdfUrl} />
           {:else}
             <div class="flex h-full items-center justify-center p-4 text-center text-sm text-subtle">
               {placeholder}
@@ -188,14 +231,9 @@
       {/each}
     </div>
 
-    <div class="min-h-0 flex-1">
+    <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: activePane.title })}>
       {#if activePane.url}
-        <iframe
-          src={activePane.url}
-          title={$t("editor.pdfPreview.frameTitle", { title: activePane.title })}
-          width="100%"
-          height="100%"
-        ></iframe>
+        <PdfEmbedViewer src={activePane.url} />
       {:else}
         <div class="flex h-full items-center justify-center p-4 text-center text-sm text-subtle">
           {placeholder}

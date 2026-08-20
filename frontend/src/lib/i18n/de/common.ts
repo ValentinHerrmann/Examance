@@ -47,5 +47,5 @@ export const common = {
     saving: 'Speichert…',
     saved: 'Gespeichert',
     unsavedChangesConfirm: 'Es gibt ungespeicherte Änderungen. Möchten Sie diese Seite wirklich verlassen?',
-    deleting: 'Löscht…',
+    deleting: 'Löscht…'
 } as const;

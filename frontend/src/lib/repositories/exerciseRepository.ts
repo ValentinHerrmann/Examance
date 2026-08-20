@@ -6,6 +6,7 @@ import { encryptExercise, decryptExercise } from '$lib/db/dbEncryption';
 import { enqueueRequest } from '$lib/services/offlineQueue';
 import type { ExerciseRecord } from '$lib/db/schema';
 import { normalizeMcExercise, serializeMcAnswers } from '$lib/grading/mcExerciseHash';
+import { invalidateOwner } from '$lib/latex/compileCache';
 
 function mapApiToExerciseRecord(raw: any): ExerciseRecord {
   const baseRecord: ExerciseRecord = {
@@ -163,6 +164,7 @@ export const exerciseRepository = {
   },
 
   async delete(id: string): Promise<void> {
+    invalidateOwner('exercise', id);
     const policy = get(storagePolicyStore);
     if (policy.storageMode === 'all-local') {
       await db.exercises.delete(id);

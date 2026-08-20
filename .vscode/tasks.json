@@ -8,7 +8,9 @@
       "options": {
         "cwd": "${workspaceFolder}/backend",
         "env": {
-          "DATABASE_URL_SYNC": "postgresql+psycopg2://blindgrade:blindgrade@localhost:5432/blindgrade"
+          "DATABASE_URL_SYNC": "postgresql+psycopg2://blindgrade:blindgrade@localhost:5432/blindgrade",
+          "ENVIRONMENT": "development",
+          "SECRET_KEY": "dev-secret-key-change-me-in-production-32-chars-long!"
         }
       },
       "problemMatcher": []
