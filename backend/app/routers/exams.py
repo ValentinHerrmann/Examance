@@ -8,7 +8,7 @@ from typing import Any
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -173,6 +173,27 @@ def _resolve_mc_group_id(
     return resolved
 
 
+def _dedupe_exercise_links(links: list[Any]) -> list[Any]:
+    """
+    Collapse repeated exercise_ids in an exercise_links payload.
+
+    (exam_id, exercise_id) is the exam_exercises primary key, so an exercise
+    listed twice — e.g. once standalone and once as an MC group member — used to
+    raise an IntegrityError and surface as a 500. The entry carrying MC group
+    membership wins; otherwise the first occurrence does.
+    """
+    kept: dict[uuid.UUID, Any] = {}
+    order: list[uuid.UUID] = []
+    for link in links:
+        existing = kept.get(link.exercise_id)
+        if existing is None:
+            kept[link.exercise_id] = link
+            order.append(link.exercise_id)
+        elif existing.mc_group_id is None and link.mc_group_id is not None:
+            kept[link.exercise_id] = link
+    return [kept[eid] for eid in order]
+
+
 async def _fetch_exam_mc_groups(exam_id: uuid.UUID, db: AsyncSession) -> list[ExamMcGroup]:
     result = await db.execute(
         select(ExamMcGroup)
@@ -229,21 +250,38 @@ async def _persist_mc_groups(
     mc_groups_data: list[Any],
     db: AsyncSession,
 ) -> dict[uuid.UUID, uuid.UUID]:
-    """Create ExamMcGroup rows and return {client_id: db_id} mapping."""
+    """
+    Create ExamMcGroup rows and return the {client_id: db_id} mapping.
+
+    A client-supplied id is kept verbatim, exactly like Exam.id and Exercise.id.
+    Minting a fresh id here instead meant every save handed the client a *new*
+    group id, so the local (IndexedDB) group records and everything referencing
+    them drifted out of sync with the server on every single write.
+    """
     id_map: dict[uuid.UUID, uuid.UUID] = {}
     for g in mc_groups_data:
-        new_id = uuid.uuid4()
-        client_id = g.id or new_id
+        group_id = g.id or uuid.uuid4()
         group = ExamMcGroup(
-            id=new_id,
+            id=group_id,
             exam_id=exam_id,
             title=g.title,
             scoring_text=g.scoring_text,
             order_index=g.order_index,
         )
         db.add(group)
-        id_map[client_id] = new_id
-    await db.flush()
+        # Both directions resolve, so a payload may address a group either by the
+        # id it sent or by the id a previous response handed back.
+        id_map[group_id] = group_id
+        if g.id is not None:
+            id_map[g.id] = group_id
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An MC group with this id already exists.",
+        ) from None
     return id_map
 
 
@@ -295,7 +333,7 @@ async def create_exam(
 
     # 1. Link existing library exercises via exercise_links (mc-aware)
     if body.exercise_links:
-        for link_data in body.exercise_links:
+        for link_data in _dedupe_exercise_links(body.exercise_links):
             ex = await _resolve_linkable_exercise(link_data.exercise_id, teacher, db)
             resolved_group_id = _resolve_mc_group_id(link_data.mc_group_id, mc_group_id_map)
             effective_order = link_data.order_index or order
@@ -415,15 +453,26 @@ async def update_exam(
         exam.grading_key = body.grading_key
 
     if body.mc_groups is not None:
+        # Detach the links before dropping the groups. exam_exercises.mc_group_id
+        # is a real FK, so deleting a group would otherwise take its member rows
+        # with it — silently removing those exercises from the exam.
+        await db.execute(
+            update(ExamExercise)
+            .where(ExamExercise.exam_id == exam.id)
+            .values(mc_group_id=None, sub_index=None)
+        )
         await db.execute(delete(ExamMcGroup).where(ExamMcGroup.exam_id == exam.id))
         await db.flush()
         mc_group_id_map = await _persist_mc_groups(exam.id, body.mc_groups, db)
     else:
-        mc_group_id_map = {}
+        # Groups untouched: links may still address the groups already on the exam.
+        existing_groups = await _fetch_exam_mc_groups(exam.id, db)
+        mc_group_id_map = {g.id: g.id for g in existing_groups}
 
     if body.exercise_links is not None:
         await db.execute(delete(ExamExercise).where(ExamExercise.exam_id == exam.id))
-        for link_data in body.exercise_links:
+        await db.flush()
+        for link_data in _dedupe_exercise_links(body.exercise_links):
             ex = await _resolve_linkable_exercise(link_data.exercise_id, teacher, db)
             resolved_group_id = _resolve_mc_group_id(link_data.mc_group_id, mc_group_id_map)
             db.add(ExamExercise(

@@ -52,18 +52,25 @@ export async function flushOfflineQueue(): Promise<void> {
     if (currentQueue.length === 0) return;
 
     const remaining: QueuedRequest[] = [];
-    for (const req of currentQueue) {
+    // silentError throughout: a replay is a background retry of something the
+    // user already moved on from. A 409 for a record that meanwhile made it to
+    // the server is expected, and popping the global HTTP error modal once per
+    // queued request turns one hiccup into a wall of dialogs.
+    for (let i = 0; i < currentQueue.length; i++) {
+      const req = currentQueue[i];
       try {
         if (req.method === 'POST') {
-          await api.post(req.url, req.body);
+          await api.post(req.url, req.body, { silentError: true });
         } else if (req.method === 'PATCH') {
-          await api.patch(req.url, req.body);
+          await api.patch(req.url, req.body, { silentError: true });
         } else if (req.method === 'DELETE') {
-          await api.delete(req.url);
+          await api.delete(req.url, { silentError: true });
         }
       } catch (err: any) {
         if (err?.code === 'ERR_NETWORK' || (typeof navigator !== 'undefined' && !navigator.onLine)) {
-          remaining.push(req);
+          // Still offline: keep this request *and everything queued behind it*.
+          // Dropping the tail here silently lost writes the user had made.
+          remaining.push(...currentQueue.slice(i));
           break;
         }
       }

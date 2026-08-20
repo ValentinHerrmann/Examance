@@ -55,6 +55,17 @@ async function parseError(response: Response): Promise<ApiError> {
 }
 
 let refreshPromise: Promise<void> | null = null;
+let lastRefreshAt = 0;
+
+/**
+ * How long after a successful refresh a fresh 401 is treated as "this request
+ * was already in flight with the old access cookie" rather than "the session is
+ * gone". POST /auth/refresh rotates the refresh token and treats a *second* use
+ * of an already-revoked one as token theft — it then revokes the whole family,
+ * logging the user out. Requests that raced the rotation must therefore retry,
+ * never refresh again.
+ */
+const REFRESH_GRACE_MS = 5000;
 
 async function refreshToken(): Promise<void> {
   try {
@@ -66,6 +77,7 @@ async function refreshToken(): Promise<void> {
       const err = await parseError(resp);
       throw err;
     }
+    lastRefreshAt = Date.now();
   } catch (err: any) {
     if (err instanceof ApiError) throw err;
     throw new ApiError(0, 'ERR_NETWORK', err?.message || translate('errors.network'));
@@ -123,14 +135,17 @@ async function request<T>(
   }
 
   if (resp.status === 401 && !path.startsWith('/auth/')) {
-    // Deduplicate concurrent refresh attempts
-    if (!refreshPromise) {
+    // Deduplicate concurrent refresh attempts. A request that 401'd because it
+    // raced a refresh that has just succeeded is retried straight away — asking
+    // for a second rotation would trip the backend's token-theft detection and
+    // revoke every session this teacher has.
+    if (!refreshPromise && Date.now() - lastRefreshAt >= REFRESH_GRACE_MS) {
       refreshPromise = refreshToken().finally(() => {
         refreshPromise = null;
       });
     }
     try {
-      await refreshPromise;
+      if (refreshPromise) await refreshPromise;
     } catch (err: any) {
       if (!options.silentError) {
         const status = err instanceof ApiError && err.status ? err.status : 401;
@@ -153,6 +168,7 @@ async function request<T>(
     if (!retryResp.ok) {
       await handleNonOkResponse(retryResp, options.silentError);
     }
+    if (retryResp.status === 204) return undefined as T;
     if (options.binary) return retryResp.arrayBuffer() as unknown as T;
     return retryResp.json() as Promise<T>;
   }

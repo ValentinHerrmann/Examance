@@ -65,7 +65,8 @@ export const exerciseRepository = {
       return Promise.all(raw.map((ex) => decryptExercise(ex, key)));
     } else {
       try {
-        const rawList = await api.get<any[]>('/exercises');
+        // silentError: the caller falls back to the local copy on failure.
+        const rawList = await api.get<any[]>('/exercises', { silentError: true });
         return rawList.map(mapApiToExerciseRecord);
       } catch (err: any) {
         return [];
@@ -93,7 +94,7 @@ export const exerciseRepository = {
       return Promise.all(raw.map((ex) => decryptExercise(ex, key)));
     } else {
       try {
-        const rawList = await api.get<any[]>(`/exams/${examId}/exercises`);
+        const rawList = await api.get<any[]>(`/exams/${examId}/exercises`, { silentError: true });
         const mapped = rawList.map(mapApiToExerciseRecord);
         mapped.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0) || (a.subIndex || 0) - (b.subIndex || 0));
         return mapped;
@@ -126,18 +127,37 @@ export const exerciseRepository = {
       const encrypted = await encryptExercise(ex, key);
       await db.exercises.put(encrypted);
       if (ex.examId) {
+        // Merge onto the stored junction instead of replacing it: the record
+        // also carries the exercise's MC group membership (mcGroupId/subIndex),
+        // which an exercise-level save knows nothing about and must not drop.
+        const existingLink = await db.examExercises.get([ex.examId, ex.id]);
         await db.examExercises.put({
+          ...(existingLink ?? {}),
           examId: ex.examId,
           exerciseId: ex.id,
-          orderIndex: ex.orderIndex || 0,
+          orderIndex: ex.orderIndex || existingLink?.orderIndex || 0,
+          mcGroupId: ex.mcGroupId ?? existingLink?.mcGroupId,
+          subIndex: ex.subIndex ?? existingLink?.subIndex,
         });
       }
     } else {
       const payload = mapExerciseRecordToApi(ex);
       try {
-        await api.post('/exercises', payload);
+        await api.post('/exercises', payload, { silentError: true });
       } catch (err: any) {
-        enqueueRequest('/exercises', 'POST', payload);
+        // POST /exercises is create-only and answers 409 for an id it already
+        // knows. Re-queuing that POST could never succeed — it just replayed the
+        // same conflict on every flush. An existing exercise is a PATCH.
+        if (err?.status === 409) {
+          const { id: _id, ...patchPayload } = payload;
+          try {
+            await api.patch(`/exercises/${ex.id}`, patchPayload, { silentError: true });
+          } catch {
+            enqueueRequest(`/exercises/${ex.id}`, 'PATCH', patchPayload);
+          }
+        } else {
+          enqueueRequest('/exercises', 'POST', payload);
+        }
       }
     }
   },

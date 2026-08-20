@@ -57,7 +57,9 @@ export const examRepository = {
       return Promise.all(raw.map((e) => decryptExam(e, key)));
     } else {
       try {
-        const rawList = await api.get<any[]>('/exams');
+        // silentError: every failure here falls back to the local copy, so the
+        // global HTTP error modal would fire for an outcome the user never sees.
+        const rawList = await api.get<any[]>('/exams', { silentError: true });
         return rawList.map(mapApiToExamRecord);
       } catch (err: any) {
         if (policy.storageMode === 'hybrid') {
@@ -78,7 +80,7 @@ export const examRepository = {
       return decryptExam(raw, key);
     } else {
       try {
-        const raw = await api.get<any>(`/exams/${id}`);
+        const raw = await api.get<any>(`/exams/${id}`, { silentError: true });
         return mapApiToExamRecord(raw);
       } catch (err: any) {
         const raw = await db.exams.get(id);
@@ -98,11 +100,11 @@ export const examRepository = {
       const payload = mapExamRecordToApi(exam);
       if (exam.id) {
         try {
-          await api.patch(`/exams/${exam.id}`, payload);
+          await api.patch(`/exams/${exam.id}`, payload, { silentError: true });
         } catch (err: any) {
           if (err?.status === 404) {
             try {
-              await api.post('/exams', payload);
+              await api.post('/exams', payload, { silentError: true });
             } catch (postErr: any) {
               enqueueRequest('/exams', 'POST', payload);
             }
@@ -112,7 +114,7 @@ export const examRepository = {
         }
       } else {
         try {
-          await api.post('/exams', payload);
+          await api.post('/exams', payload, { silentError: true });
         } catch (err: any) {
           enqueueRequest('/exams', 'POST', payload);
         }
@@ -140,6 +142,7 @@ export const examRepository = {
     await db.exams.delete(id);
     await db.exercises.where('examId').equals(id).delete();
     await db.examExercises.where('examId').equals(id).delete();
+    await db.examMcGroups.where('examId').equals(id).delete();
     await db.submissions.where('examId').equals(id).delete();
     await db.students.where('examId').equals(id).delete();
     await db.omrTemplates.delete(id); // id === examId (one template per exam)
@@ -147,7 +150,7 @@ export const examRepository = {
     const policy = get(storagePolicyStore);
     if (policy.storageMode !== 'all-local') {
       try {
-        await api.delete(`/exams/${id}`);
+        await api.delete(`/exams/${id}`, { silentError: true });
       } catch (err: any) {
         enqueueRequest(`/exams/${id}`, 'DELETE');
       }
