@@ -102,8 +102,17 @@
     const rect = target.getBoundingClientRect();
     hoverTimer = setTimeout(() => {
       hoveredMacro = macro;
-      tooltipX = rect.left;
-      tooltipY = rect.bottom + 6;
+
+      // Clamp to the viewport: anchored straight to the trigger's coordinates,
+      // the tooltip hung off the screen near the right and bottom edges.
+      const width = 320; // matches max-w-xs
+      const estimatedHeight = 96;
+      const margin = 8;
+      tooltipX = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin));
+      tooltipY =
+        rect.bottom + 6 + estimatedHeight > window.innerHeight - margin
+          ? Math.max(margin, rect.top - estimatedHeight - 6)
+          : rect.bottom + 6;
     }, TOOLTIP_OPEN_DELAY_MS);
   }
 
@@ -319,8 +328,8 @@
 
 {#if hoveredMacro}
   <div
-    class="pointer-events-none fixed z-50 flex max-w-xs flex-col gap-1 rounded border border-slate-700 bg-slate-900 px-2 py-1.5 text-[0.7rem] shadow-lg"
-    style="left: {tooltipX}px; top: {tooltipY}px;"
+    class="pointer-events-none fixed flex max-w-xs flex-col gap-1 rounded border border-line bg-surface-base px-2 py-1.5 text-[0.7rem] shadow-lg"
+    style="left: {tooltipX}px; top: {tooltipY}px; z-index: var(--z-toast);"
   >
     <span class="text-slate-300">{macroDescription(hoveredMacro)}</span>
     <code class="rounded bg-slate-950 px-1.5 py-1 font-mono text-sky-300">{hoveredMacro.preview}</code>

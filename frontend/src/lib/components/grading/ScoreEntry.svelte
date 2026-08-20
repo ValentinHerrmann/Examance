@@ -64,7 +64,7 @@
           placeholder="–"
           value={$gradingStore.scoreInputs[ex.id] ?? ''}
           on:input={(e) => handleScoreInput(ex, e)}
-          class="w-12 rounded border border-slate-700 bg-slate-900 px-[0.3rem] py-[0.2rem] text-right text-[0.8rem] font-bold text-sky-400"
+          class="min-h-9 w-14 rounded border border-line bg-surface-base px-1.5 py-1 text-right text-sm font-bold text-accent"
         />
         <span class="text-[0.725rem] text-slate-400">/ {ex.maxPoints}</span>
         <button

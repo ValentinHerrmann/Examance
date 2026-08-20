@@ -13,6 +13,7 @@
   import LastSubmissionModal from "./LastSubmissionModal.svelte";
   import GradingActions from "./GradingActions.svelte";
   import ScanCanvasViewer from "./ScanCanvasViewer.svelte";
+  import { t } from "$lib/i18n";
 
   export let examId: string;
   export let exam: ExamRecord | null;
@@ -36,6 +37,13 @@
 
   let viewerRef: ScanCanvasViewer;
 
+  /* Below `lg` the score panel is a bottom sheet rather than a fixed 280px
+   * column — at phone widths that column left the scan about 70px of space.
+   * Collapsed it shows only the summary + navigation; expanded it takes the
+   * screen for score entry. Irrelevant from `lg` up, where both fit side by
+   * side. */
+  let isScorePanelExpanded = false;
+
   $: activeExercise = exercises.find((e) => e.id === $gradingStore.activeExerciseId);
 
   function requestClearAnnotations() {
@@ -56,8 +64,14 @@
   {calculatedGrade}
 />
 
-<div class="box-border grid h-[calc(100vh-44px)] w-full flex-1 min-h-0 grid-cols-[minmax(0,1fr)_280px] gap-2 overflow-hidden p-2">
-  <div class="relative flex w-full min-w-0 min-h-0 h-full flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-950">
+<!-- `h-full` rather than a `calc(100vh - 44px)` magic number: the app shell
+     already sizes this pane, and the old value broke as soon as the header
+     wrapped to a second line. -->
+<div
+  class="box-border grid h-full min-h-0 w-full flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] gap-2 overflow-hidden p-2
+    lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-1"
+>
+  <div class="relative flex h-full min-h-0 w-full min-w-0 flex-col gap-1.5 overflow-hidden rounded-lg border border-slate-800 bg-slate-950 lg:gap-0">
     <AnnotationToolbar onClearRequested={requestClearAnnotations} />
 
     <ScanCanvasViewer
@@ -78,12 +92,31 @@
     />
   </div>
 
-  <div class="box-border flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
-    <ScoreEntry {exercises} />
+  <div
+    class="box-border flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-900
+      {isScorePanelExpanded ? 'h-[70dvh]' : ''} lg:h-full"
+  >
+    <button
+      type="button"
+      class="flex shrink-0 cursor-pointer items-center justify-between gap-2 border-none border-b border-line bg-surface-inset px-3 py-2 text-sm font-semibold text-content lg:hidden"
+      aria-expanded={isScorePanelExpanded}
+      on:click={() => (isScorePanelExpanded = !isScorePanelExpanded)}
+    >
+      <span>{$t("grading.workspace.scorePanel")}</span>
+      <span aria-hidden="true">{isScorePanelExpanded ? "▼" : "▲"}</span>
+    </button>
 
-    {#if activeExercise && isMcQuestion(activeExercise)}
-      <McAnswerReview exercise={activeExercise} />
-    {/if}
+    <div
+      class="flex min-h-0 flex-1 flex-col overflow-hidden {isScorePanelExpanded
+        ? ''
+        : 'hidden'} lg:flex"
+    >
+      <ScoreEntry {exercises} />
+
+      {#if activeExercise && isMcQuestion(activeExercise)}
+        <McAnswerReview exercise={activeExercise} />
+      {/if}
+    </div>
 
     <div class="flex shrink-0 flex-col gap-2 border-t border-slate-700 bg-slate-800 px-3 py-[0.65rem]">
       <GradeSummaryCard

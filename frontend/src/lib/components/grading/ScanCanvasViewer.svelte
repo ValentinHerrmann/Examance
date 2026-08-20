@@ -11,7 +11,7 @@
    * page — it is the highest-risk area (submission switching, redraw timing,
    * pinch-zoom) so every function here is a close 1:1 port of the original.
    */
-  import { tick } from "svelte";
+  import { tick, onMount } from "svelte";
   import { loadPdfjs } from "$lib/pdf/pdfjs";
   import { get } from "svelte/store";
   import type { SubmissionRecord, ExerciseRecord } from "$lib/db/schema";
@@ -513,6 +513,27 @@
     fitToPage();
   }
 
+  /* Re-fit when the pane changes size — rotating a tablet or opening the score
+   * sheet used to leave the scan at a zoom computed for the old width. */
+  onMount(() => {
+    if (!canvasViewport || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    let lastWidth = canvasViewport.clientWidth;
+    const observer = new ResizeObserver(() => {
+      const width = canvasViewport.clientWidth;
+      // Ignore sub-pixel jitter and height-only changes.
+      if (Math.abs(width - lastWidth) < 24) {
+        return;
+      }
+      lastWidth = width;
+      fitToPage();
+    });
+    observer.observe(canvasViewport);
+    return () => observer.disconnect();
+  });
+
   function redrawOverlay() {
     if (!overlayCanvas) return;
     const ctx = overlayCanvas.getContext("2d")!;
@@ -622,15 +643,17 @@
 </script>
 
 <div
-  class="flex flex-1 min-h-0 w-full h-full items-start justify-center overflow-auto relative box-border bg-[#020617] p-2"
+  class="scroll-pane relative box-border h-full min-h-0 w-full flex-1 overflow-auto overscroll-contain bg-[#020617] p-2"
   bind:this={canvasViewport}
   on:wheel={handleWheel}
 >
-  <div class="relative mx-auto block max-w-full" style="width: {$gradingStore.zoomScale * 100}%;">
+  <!-- No `max-w-full` here: it silently clamped every zoom above 100% instead
+       of letting the viewport scroll, so zooming in did nothing. -->
+  <div class="relative mx-auto block" style="width: {$gradingStore.zoomScale * 100}%;">
     <canvas bind:this={scanCanvas} class="block w-full h-auto rounded shadow-[0_8px_30px_rgba(0,0,0,0.7)]"></canvas>
     <canvas
       bind:this={overlayCanvas}
-      class="absolute left-0 top-0 h-full w-full cursor-crosshair"
+      class="absolute top-0 left-0 h-full w-full cursor-crosshair touch-none"
       on:pointerdown={handlePointerDown}
       on:pointermove={handlePointerMove}
       on:pointerup={handlePointerUp}
