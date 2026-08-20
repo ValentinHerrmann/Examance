@@ -151,12 +151,16 @@ describe('examRepository mapping & saving', () => {
 
     await examRepository.save(exam, null);
 
-    expect(api.patch).toHaveBeenCalledWith('/exams/exam-99', expect.objectContaining({
-      id: 'exam-99',
-      title: 'Updated Exam Title',
-      grade: '10',
-      klasse: 'b',
-    }));
+    expect(api.patch).toHaveBeenCalledWith(
+      '/exams/exam-99',
+      expect.objectContaining({
+        id: 'exam-99',
+        title: 'Updated Exam Title',
+        grade: '10',
+        klasse: 'b',
+      }),
+      { silentError: true },
+    );
     expect(api.post).not.toHaveBeenCalled();
   });
 
@@ -177,11 +181,15 @@ describe('examRepository mapping & saving', () => {
 
     await examRepository.save(exam, null);
 
-    expect(api.post).toHaveBeenCalledWith('/exams', expect.objectContaining({
-      title: 'New Exam Title',
-      grade: '9',
-      klasse: 'c',
-    }));
+    expect(api.post).toHaveBeenCalledWith(
+      '/exams',
+      expect.objectContaining({
+        title: 'New Exam Title',
+        grade: '9',
+        klasse: 'c',
+      }),
+      { silentError: true },
+    );
     expect(api.patch).not.toHaveBeenCalled();
   });
 });
