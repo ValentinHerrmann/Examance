@@ -740,12 +740,18 @@
       if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
         try {
           const pdfjsLib = await loadPdfjs();
-          const fileUrl = URL.createObjectURL(file);
-          const loadingTask = pdfjsLib.getDocument({ url: fileUrl });
+          // `{ data }` hands pdf.js the bytes directly. The earlier `{ url:
+          // URL.createObjectURL(file) }` made pdf.js issue its own internal
+          // fetch against the blob: URL, which is connect-src-governed (not
+          // img-src) and got blocked by CSP — img-src already allows blob:,
+          // but nothing here was an image load. Matches the PASS 2 pattern
+          // a few hundred lines below, which never had this problem.
+          const fileBytes = new Uint8Array(await file.arrayBuffer());
+          const loadingTask = pdfjsLib.getDocument({ data: fileBytes });
           const pdf = await loadingTask.promise;
 
           totalPagesCount += pdf.numPages;
-          fileInfos.push({ file, type: "pdf", pdf, loadingTask, fileUrl });
+          fileInfos.push({ file, type: "pdf", pdf, loadingTask });
         } catch (pdfErr) {
           console.error("Failed to load PDF:", pdfErr);
         }
@@ -905,7 +911,6 @@
 
         // Clean up PDF.js resources
         await info.loadingTask.destroy();
-        URL.revokeObjectURL(info.fileUrl);
 
       } else {
         // Image files are no longer supported — skip with warning
