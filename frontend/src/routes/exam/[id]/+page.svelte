@@ -45,6 +45,7 @@
   import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
   import { studentRepository } from "$lib/repositories/studentRepository";
   import { mapApiToExamRecord } from "$lib/repositories/examRepository";
+  import { mapExerciseRecordToApi } from "$lib/repositories/exerciseRepository";
   import { uint8ArrayToBase64, decrypt } from "$lib/crypto/aesGcm";
   import { ensure64CharHex } from "$lib/crypto/hmac";
   import type {
@@ -80,28 +81,16 @@
   let examItems: ExamItemRef[] = [];
   let submissions: SubmissionRecord[] = [];
 
+  // Keeps examItems in step with exercises/mcGroups: drops refs to items that
+  // disappeared and appends newly added ones. Shares getEffectiveExamItems() so
+  // the rendered order and the order written to storage can never disagree.
   $: {
-    const validIds = new Set([
-      ...exercises.map((e) => e.id),
-      ...mcGroups.map((g) => g.id),
-    ]);
-    const currentItems = examItems.filter((item) => validIds.has(item.id));
-    const currentItemIds = new Set(currentItems.map((item) => item.id));
-
-    const missingExercises = exercises
-      .filter((e) => !mcGroups.some((g) => g.memberIds.includes(e.id)) && !currentItemIds.has(e.id))
-      .map((e) => ({ type: "exercise" as const, id: e.id }));
-
-    const missingGroups = mcGroups
-      .filter((g) => !currentItemIds.has(g.id))
-      .map((g) => ({ type: "mc_group" as const, id: g.id }));
-
+    const nextItems = computeExamItems(examItems, exercises, mcGroups);
     if (
-      currentItems.length !== examItems.length ||
-      missingExercises.length > 0 ||
-      missingGroups.length > 0
+      nextItems.length !== examItems.length ||
+      nextItems.some((item, i) => item.id !== examItems[i]?.id)
     ) {
-      examItems = [...currentItems, ...missingExercises, ...missingGroups];
+      examItems = nextItems;
     }
   }
   let isExporting = false;
@@ -127,12 +116,70 @@
   let isLocalFallback = false;
   let isSyncingSingle = false;
 
+  /**
+   * Guards against overlapping loadExam() runs. The `$: loadExam(examId)` block
+   * re-fires on any `$page` update, and two in-flight loads each delete and
+   * re-write this exam's examMcGroups/examExercises rows — interleaved, that
+   * leaves the local MC groups empty. Only the newest run may write.
+   */
+  let loadSeq = 0;
+
+  /**
+   * Rebuilds the exam's item order from the persisted order indices.
+   *
+   * `examItems` is view state, not a stored record, so it has to be derived on
+   * every load. Deriving it as "standalone exercises, then groups" (what the
+   * reactive top-up below does for genuinely new items) moved every MC group to
+   * the bottom of the exam on each re-open. Group members share their group's
+   * order index, so the group sorts at that position and its members are not
+   * emitted separately.
+   */
+  function buildExamItems(exs: ExerciseRecord[], groups: McGroup[]): ExamItemRef[] {
+    const memberIds = new Set(groups.flatMap((g) => g.memberIds));
+    const entries: { order: number; item: ExamItemRef }[] = [];
+
+    exs.forEach((ex, idx) => {
+      if (memberIds.has(ex.id)) return;
+      entries.push({ order: ex.orderIndex ?? idx + 1, item: { type: "exercise", id: ex.id } });
+    });
+
+    groups.forEach((g, idx) => {
+      const memberOrders = g.memberIds
+        .map((id) => exs.find((e) => e.id === id)?.orderIndex)
+        .filter((o): o is number => typeof o === "number");
+      const order =
+        g.orderIndex ??
+        (memberOrders.length > 0 ? Math.min(...memberOrders) : exs.length + idx + 1);
+      entries.push({ order, item: { type: "mc_group", id: g.id } });
+    });
+
+    return entries
+      .map((entry, idx) => ({ ...entry, idx }))
+      .sort((a, b) => a.order - b.order || a.idx - b.idx)
+      .map((entry) => entry.item);
+  }
+
+  function mapRemoteMcGroups(rawGroups: any[]): McGroup[] {
+    return rawGroups.map((g: any, idx: number) => ({
+      id: g.id,
+      title: g.title,
+      scoringText: g.scoring_text ?? g.scoringText,
+      memberIds: (g.member_ids || g.members || []).map((m: any) =>
+        typeof m === "string" ? m : m.id,
+      ),
+      orderIndex: g.order_index ?? g.orderIndex ?? idx + 1,
+    }));
+  }
+
   async function loadExam(id: string) {
+    const seq = ++loadSeq;
+    const isStale = () => seq !== loadSeq;
     const key = get(sessionStore).sessionKey;
     try {
       if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
         try {
           const remoteExam = (await api.get(`/exams/${id}`)) as any;
+          if (isStale()) return;
           exam = mapApiToExamRecord(remoteExam);
           exercises = remoteExam.exercises.map((e: any) => normalizeMcExercise({
             id: e.id,
@@ -150,29 +197,25 @@
             subIndex: e.sub_index || undefined,
           }));
           if (remoteExam.mc_groups && Array.isArray(remoteExam.mc_groups)) {
-            mcGroups = remoteExam.mc_groups.map((g: any) => ({
-              id: g.id,
-              title: g.title,
-              scoringText: g.scoring_text,
-              memberIds: (g.member_ids || g.members || []).map((m: any) => typeof m === "string" ? m : m.id),
-            }));
+            mcGroups = mapRemoteMcGroups(remoteExam.mc_groups);
             const mcGroupRecords = mcGroups.map((g, idx) => ({
               id: g.id,
               examId: id,
               title: g.title,
               scoringText: g.scoringText,
-              orderIndex: g.orderIndex || (idx + 1),
+              orderIndex: g.orderIndex ?? idx + 1,
             }));
+            if (isStale()) return;
             await db.examMcGroups.where("examId").equals(id).delete();
             if (mcGroupRecords.length > 0) {
               await db.examMcGroups.bulkPut(mcGroupRecords);
             }
           } else {
             mcGroups = await loadLocalMcGroups(id);
+            if (isStale()) return;
           }
           if (exercises.length > 0) {
             const encExs = await Promise.all(exercises.map((ex: any) => encryptExercise(ex, key)));
-            await db.exercises.bulkPut(encExs);
             const junctions = exercises.map((ex: any, idx: number) => ({
               examId: id,
               exerciseId: ex.id,
@@ -180,9 +223,15 @@
               mcGroupId: ex.mcGroupId || undefined,
               subIndex: ex.subIndex || undefined,
             }));
+            if (isStale()) return;
+            await db.exercises.bulkPut(encExs);
+            // Replace, don't merge: a link the server dropped must not survive
+            // locally and reappear as a phantom exercise on the next open.
+            await db.examExercises.where("examId").equals(id).delete();
             await db.examExercises.bulkPut(junctions);
           } else {
             const localExs = await loadExamExercisesEncrypted(id, key);
+            if (isStale()) return;
             if (localExs.length > 0) {
               exercises = localExs;
             }
@@ -190,11 +239,14 @@
           isLocalFallback = false;
         } catch (serverErr) {
           // Fall back to IndexedDB if exam is not on server
-          exam = (await loadExamEncrypted(id, key)) || null;
+          const localExam = (await loadExamEncrypted(id, key)) || null;
+          if (isStale()) return;
+          exam = localExam;
           if (exam) {
             isLocalFallback = true;
             exercises = await loadExamExercisesEncrypted(id, key);
             mcGroups = await loadLocalMcGroups(id);
+            if (isStale()) return;
           } else {
             errorMsg = translate("exam.page.examNotFoundOrDeleted");
             console.error("Exam not found on server or locally:", serverErr);
@@ -202,16 +254,23 @@
         }
       } else {
         isLocalFallback = false;
-        exam = (await loadExamEncrypted(id, key)) || null;
-        exercises = await loadExamExercisesEncrypted(id, key);
-        mcGroups = await loadLocalMcGroups(id);
+        const localExam = (await loadExamEncrypted(id, key)) || null;
+        const localExercises = await loadExamExercisesEncrypted(id, key);
+        const localGroups = await loadLocalMcGroups(id);
+        if (isStale()) return;
+        exam = localExam;
+        exercises = localExercises;
+        mcGroups = localGroups;
       }
+      examItems = buildExamItems(exercises, mcGroups);
       if (browser && key) {
         try {
           libraryExercises = await loadExercisesEncrypted(key);
         } catch {}
       }
-      submissions = await submissionRepository.getByExamId(id, key);
+      const loadedSubmissions = await submissionRepository.getByExamId(id, key);
+      if (isStale()) return;
+      submissions = loadedSubmissions;
       await checkOmrTemplateStatus(id);
     } catch (err) {
       console.error("Failed to load exam from DB:", err);
@@ -268,9 +327,36 @@
     if (!exam) return;
     isSyncingSingle = true;
     try {
-      // 1. Post exam
-      await api.post("/exams", {
-        id: exam.id,
+      // 1. Push exercises first — the exam's links reference them, and the
+      //    server rejects a link to an exercise it does not know.
+      //    POST is create-only (409 on a known id), so an already-synced
+      //    exercise is updated with PATCH instead. silentError keeps these
+      //    expected conflicts out of the global HTTP error modal.
+      for (const ex of exercises) {
+        const exercisePayload = mapExerciseRecordToApi(ex);
+        try {
+          await api.post("/exercises", exercisePayload, { silentError: true });
+        } catch (err: any) {
+          if (err?.status === 409) {
+            const { id: _ignored, ...patchPayload } = exercisePayload;
+            try {
+              await api.patch(`/exercises/${ex.id}`, patchPayload, { silentError: true });
+            } catch (patchErr) {
+              // A published exercise owned by someone else is read-only for us.
+              // It is already on the server, which is all the links need.
+              console.warn("Could not update exercise on server:", ex.id, patchErr);
+            }
+          } else {
+            console.warn("Could not push exercise to server:", ex.id, err);
+          }
+        }
+      }
+
+      // 2. Push the exam with its links. One payload, built from the same
+      //    helper the incremental save uses, so an exercise is never listed
+      //    both standalone and as an MC group member.
+      const { mcGroupsPayload, exerciseLinksPayload } = buildExamLinkPayload();
+      const examPayload = {
         title: exam.title || translate("exam.page.untitledExam"),
         testart: exam.testart,
         grade: exam.grade,
@@ -284,70 +370,15 @@
         retention_until:
           exam.retentionUntil ||
           new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10),
-        mc_groups: mcGroups.map((g, idx) => ({
-          id: g.id,
-          title: g.title,
-          scoring_text: g.scoringText,
-          order_index: exercises.length + idx + 1,
-        })),
-        exercise_links: [
-          ...exercises.map((ex, idx) => ({
-            exercise_id: ex.id,
-            order_index: idx + 1,
-          })),
-          ...mcGroups.flatMap((g, gIdx) =>
-            g.memberIds.map((exId, subIdx) => ({
-              exercise_id: exId,
-              order_index: exercises.length + gIdx + 1,
-              mc_group_id: g.id,
-              sub_index: subIdx + 1,
-            }))
-          ),
-        ],
-      });
-
-      // 2. Post exercises
-      for (const ex of exercises) {
-        try {
-          await api.post("/exercises", {
-            id: ex.id,
-            name: ex.title || ex.name || translate("common.exercise"),
-            latex_body: ex.latexBody || "",
-            max_points: ex.maxPoints,
-            topic_tag: ex.topicTag,
-            question_type: ex.questionType || "free_text",
-            options: ex.options,
-            correct_answers: ex.correctAnswers,
-            penalty: ex.penalty || 0,
-          });
-        } catch {}
-      }
-
-      // Link exercises
+        mc_groups: mcGroupsPayload,
+        exercise_links: exerciseLinksPayload,
+      };
       try {
-        await api.patch(`/exams/${exam.id}`, {
-          mc_groups: mcGroups.map((g, idx) => ({
-            id: g.id,
-            title: g.title,
-            scoring_text: g.scoringText,
-            order_index: exercises.length + idx + 1,
-          })),
-          exercise_links: [
-            ...exercises.map((ex, idx) => ({
-              exercise_id: ex.id,
-              order_index: idx + 1,
-            })),
-            ...mcGroups.flatMap((g, gIdx) =>
-              g.memberIds.map((exId, subIdx) => ({
-                exercise_id: exId,
-                order_index: exercises.length + gIdx + 1,
-                mc_group_id: g.id,
-                sub_index: subIdx + 1,
-              }))
-            ),
-          ],
-        });
-      } catch {}
+        await api.post("/exams", { id: exam.id, ...examPayload }, { silentError: true });
+      } catch (err: any) {
+        if (err?.status !== 409) throw err;
+        await api.patch(`/exams/${exam.id}`, examPayload, { silentError: true });
+      }
 
       // 3. Post students
       const localStudents = await db.students
@@ -367,7 +398,7 @@
             pii_ciphertext_b64: ctB64,
             iv_b64: ivB64,
             encryption_salt_b64: emptySaltB64,
-          });
+          }, { silentError: true });
         } catch {}
       }
 
@@ -395,7 +426,7 @@
             annotation_iv_b64: sub.annotationIv
               ? uint8ArrayToBase64(sub.annotationIv)
               : undefined,
-          });
+          }, { silentError: true });
         } catch {}
       }
 
@@ -1225,43 +1256,62 @@ ${exerciseInputs}
     saveExerciseLinks();
   }
 
-  function getEffectiveExamItems(): ExamItemRef[] {
-    const validIds = new Set([
-      ...exercises.map((e) => e.id),
-      ...mcGroups.map((g) => g.id),
-    ]);
-    const currentItems = examItems.filter((item) => validIds.has(item.id));
+  function computeExamItems(
+    current: ExamItemRef[],
+    exs: ExerciseRecord[],
+    groups: McGroup[],
+  ): ExamItemRef[] {
+    const validIds = new Set([...exs.map((e) => e.id), ...groups.map((g) => g.id)]);
+    const currentItems = current.filter((item) => validIds.has(item.id));
     const currentItemIds = new Set(currentItems.map((item) => item.id));
 
-    const missingExercises = exercises
-      .filter((e) => !mcGroups.some((g) => g.memberIds.includes(e.id)) && !currentItemIds.has(e.id))
+    const missingExercises = exs
+      .filter((e) => !groups.some((g) => g.memberIds.includes(e.id)) && !currentItemIds.has(e.id))
       .map((e) => ({ type: "exercise" as const, id: e.id }));
 
-    const missingGroups = mcGroups
+    const missingGroups = groups
       .filter((g) => !currentItemIds.has(g.id))
       .map((g) => ({ type: "mc_group" as const, id: g.id }));
 
     return [...currentItems, ...missingExercises, ...missingGroups];
   }
 
-  async function saveExerciseLinks() {
-    if (!exam) return;
-    const currentExamId = exam.id;
-    const itemsToSave = getEffectiveExamItems();
-    examItems = itemsToSave;
+  function getEffectiveExamItems(): ExamItemRef[] {
+    return computeExamItems(examItems, exercises, mcGroups);
+  }
 
-    let order = 1;
-    const exerciseLinksPayload: any[] = [];
+  interface ExamLinkPayload {
+    mcGroupsPayload: any[];
+    exerciseLinksPayload: any[];
+    mcGroupRecords: any[];
+    examExerciseRecords: any[];
+    items: ExamItemRef[];
+  }
+
+  /**
+   * Single source of truth for "what this exam contains, in what order" — used
+   * for both the local Dexie records and the server payload, so the two can
+   * never describe a different exam.
+   *
+   * MC group members are emitted **only** under their group. Listing them
+   * standalone as well produced two links for the same (exam, exercise), which
+   * is the exam_exercises primary key.
+   */
+  function buildExamLinkPayload(): ExamLinkPayload {
+    const currentExamId = exam?.id ?? "";
+    const items = getEffectiveExamItems();
     const mcGroupsPayload: any[] = [];
-    const examExerciseRecords: any[] = [];
+    const exerciseLinksPayload: any[] = [];
     const mcGroupRecords: any[] = [];
+    const examExerciseRecords: any[] = [];
+    const linkedExerciseIds = new Set<string>();
+    let order = 1;
 
-    for (const item of itemsToSave) {
+    for (const item of items) {
       if (item.type === "exercise") {
-        exerciseLinksPayload.push({
-          exercise_id: item.id,
-          order_index: order,
-        });
+        if (linkedExerciseIds.has(item.id)) continue;
+        linkedExerciseIds.add(item.id);
+        exerciseLinksPayload.push({ exercise_id: item.id, order_index: order });
         examExerciseRecords.push({
           examId: currentExamId,
           exerciseId: item.id,
@@ -1270,48 +1320,64 @@ ${exerciseInputs}
         order++;
       } else if (item.type === "mc_group") {
         const group = mcGroups.find((g) => g.id === item.id);
-        if (group) {
-          mcGroupsPayload.push({
-            id: group.id,
-            title: group.title,
-            scoring_text: group.scoringText,
+        if (!group) continue;
+        mcGroupsPayload.push({
+          id: group.id,
+          title: group.title,
+          scoring_text: group.scoringText,
+          order_index: order,
+        });
+        mcGroupRecords.push({
+          id: group.id,
+          examId: currentExamId,
+          title: group.title,
+          scoringText: group.scoringText,
+          orderIndex: order,
+        });
+        let subIndex = 1;
+        for (const exId of group.memberIds) {
+          if (linkedExerciseIds.has(exId)) continue;
+          linkedExerciseIds.add(exId);
+          exerciseLinksPayload.push({
+            exercise_id: exId,
             order_index: order,
+            mc_group_id: group.id,
+            sub_index: subIndex,
           });
-          mcGroupRecords.push({
-            id: group.id,
+          examExerciseRecords.push({
             examId: currentExamId,
-            title: group.title,
-            scoringText: group.scoringText,
+            exerciseId: exId,
             orderIndex: order,
+            mcGroupId: group.id,
+            subIndex,
           });
-          group.memberIds.forEach((exId, subIdx) => {
-            exerciseLinksPayload.push({
-              exercise_id: exId,
-              order_index: order,
-              mc_group_id: group.id,
-              sub_index: subIdx + 1,
-            });
-            examExerciseRecords.push({
-              examId: currentExamId,
-              exerciseId: exId,
-              orderIndex: order,
-              mcGroupId: group.id,
-              subIndex: subIdx + 1,
-            });
-          });
-          order++;
+          subIndex++;
         }
+        order++;
       }
     }
 
+    return { mcGroupsPayload, exerciseLinksPayload, mcGroupRecords, examExerciseRecords, items };
+  }
+
+  async function saveExerciseLinks() {
+    if (!exam) return;
+    const currentExamId = exam.id;
+    const { mcGroupsPayload, exerciseLinksPayload, mcGroupRecords, examExerciseRecords, items } =
+      buildExamLinkPayload();
+    examItems = items;
+
     try {
+      await db.examExercises.where("examId").equals(currentExamId).delete();
+      await db.examExercises.bulkPut(examExerciseRecords);
+
+      // Groups after the links: exam_exercises rows reference them, and this
+      // ordering keeps the local tables consistent even if the write is
+      // interrupted between the two statements.
       await db.examMcGroups.where("examId").equals(currentExamId).delete();
       if (mcGroupRecords.length > 0) {
         await db.examMcGroups.bulkPut(mcGroupRecords);
       }
-
-      await db.examExercises.where("examId").equals(currentExamId).delete();
-      await db.examExercises.bulkPut(examExerciseRecords);
     } catch (err) {
       console.error("Failed to update local exercise links:", err);
       errorMsg = translate("exam.page.exerciseLinks.saveFailed");
@@ -1320,12 +1386,17 @@ ${exerciseInputs}
 
     if ($storagePolicyStore.storageMode !== "all-local") {
       try {
-        await api.patch(`/exams/${currentExamId}`, {
-          mc_groups: mcGroupsPayload,
-          exercise_links: exerciseLinksPayload,
-        });
+        // silentError: the failure is reported inline below, and the global
+        // HTTP error modal on top of an autosave is pure noise.
+        await api.patch(
+          `/exams/${currentExamId}`,
+          { mc_groups: mcGroupsPayload, exercise_links: exerciseLinksPayload },
+          { silentError: true },
+        );
+        errorMsg = "";
       } catch (err) {
         console.error("Failed to sync exercise links to server:", err);
+        errorMsg = translate("exam.page.exerciseLinks.saveFailed");
       }
     }
   }
