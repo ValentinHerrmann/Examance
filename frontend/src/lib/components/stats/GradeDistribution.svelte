@@ -5,24 +5,18 @@
   import type { GradeDistributionBucket } from '$lib/analytics/gradingKey';
   import { Chart, Svg, Axis, Bars } from 'layerchart';
   import { scaleBand } from 'd3-scale';
-  import { onMount } from 'svelte';
-  import { browser } from '$app/environment';
+  import { viewportWidth } from '$lib/stores/viewport';
 
   export let exam: ExamRecord | null;
   export let gradeBuckets: GradeDistributionBucket[];
 
-  let chartWidth = 700;
   const barFill = '#0284c7';
   const barHoverFill = '#38bdf8';
   const tickColor = '#94a3b8';
 
   const gradeYScale = scaleBand();
 
-  onMount(() => {
-    if (browser) {
-      chartWidth = Math.min(700, window.innerWidth - 80);
-    }
-  });
+  $: chartWidth = Math.min(700, $viewportWidth - 80);
 
   $: gradeData = gradeBuckets
     .filter((bucket) => bucket.count > 0)
@@ -48,7 +42,7 @@
   <p class="grade-distribution-grading-key-label">
     {$t('stats.gradeDistribution.gradingKeyPrefix')} {#if exam?.gradingKey?.preset === 'linear_50'}{$t('stats.gradeDistribution.presets.linear50')}{:else if exam?.gradingKey?.preset === 'linear_40'}{$t('stats.gradeDistribution.presets.linear40')}{:else if exam?.gradingKey?.preset === 'even_split'}{$t('stats.gradeDistribution.presets.evenSplit')}{:else if exam?.gradingKey}{$t('stats.gradeDistribution.presets.custom')}{:else}{$t('stats.gradeDistribution.presets.standard')}{/if}
   </p>
-  <div class="grade-distribution-chart-container grade-distribution-grade-container">
+  <div class="grade-distribution-chart-container h-[clamp(15rem,45vw,22rem)]">
     <Chart
       data={gradeData}
       y="grade"

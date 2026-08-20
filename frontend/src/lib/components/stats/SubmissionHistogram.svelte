@@ -4,23 +4,17 @@
   import type { PercentageHistogramBin } from '$lib/analytics/stats';
   import { Chart, Svg, Axis, Bars } from 'layerchart';
   import { scaleBand } from 'd3-scale';
-  import { onMount } from 'svelte';
-  import { browser } from '$app/environment';
+  import { viewportWidth } from '$lib/stores/viewport';
 
   export let bins: PercentageHistogramBin[];
 
-  let chartWidth = 700;
   const barFill = '#0284c7';
   const barHoverFill = '#38bdf8';
   const tickColor = '#94a3b8';
 
   const histogramXScale = scaleBand();
 
-  onMount(() => {
-    if (browser) {
-      chartWidth = Math.min(700, window.innerWidth - 80);
-    }
-  });
+  $: chartWidth = Math.min(700, $viewportWidth - 80);
 
   $: histogramData = bins
     .filter((bin) => bin.count > 0)
@@ -43,7 +37,7 @@
 <div class="submission-histogram-section">
   <h3>{$t('stats.submissionHistogram.title')}</h3>
   {#if histogramData.length > 0}
-    <div class="submission-histogram-chart-container submission-histogram-container">
+    <div class="submission-histogram-chart-container h-[clamp(15rem,45vw,22rem)]">
       <Chart
         data={histogramData}
         x="label"

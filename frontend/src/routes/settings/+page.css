@@ -1,35 +1,3 @@
-.settings-page {
-  padding: 2rem;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.settings-page h2 {
-  color: #38bdf8;
-}
-
-.settings-card {
-  background: #1e293b;
-  padding: 1.5rem;
-  border-radius: 10px;
-  margin-bottom: 2rem;
-  border: 1px solid #334155;
-}
-
-.settings-danger-card {
-  border-color: #ef4444;
-}
-
-.settings-clear-btn {
-  background: #dc2626;
-  color: white;
-  font-weight: 600;
-  border: none;
-  padding: 0.75rem 1.25rem;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
 .settings-status-banner {
   background: rgba(34, 197, 94, 0.2);
   color: #86efac;

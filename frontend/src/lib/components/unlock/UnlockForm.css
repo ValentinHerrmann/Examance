@@ -13,7 +13,7 @@
 
 .unlock-header h1 {
   margin: 0;
-  font-size: 2.25rem;
+  font-size: clamp(1.75rem, 6vw, 2.25rem);
   font-weight: 800;
   color: #38bdf8;
 }
@@ -37,17 +37,20 @@
   box-sizing: border-box;
 }
 
+/* Mobile-first: one card per row, splitting into two once there is room. */
 .unlock-options-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
   width: 100%;
   max-width: 880px;
+  min-width: 0;
 }
 
-@media (max-width: 768px) {
+@media (min-width: 768px) {
   .unlock-options-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
   }
 }
 
@@ -55,7 +58,10 @@
   background: #1e293b;
   border: 1px solid #334155;
   border-radius: 12px;
-  padding: 2rem;
+  /* Grid items default to `min-width: auto`, so without this the card refuses
+     to shrink below its content and spills off a 360px screen. */
+  min-width: 0;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -64,8 +70,8 @@
 
 .unlock-options-grid .card-badge {
   position: absolute;
-  top: 1.25rem;
-  right: 1.25rem;
+  top: 0.85rem;
+  right: 0.85rem;
   font-size: 0.75rem;
   font-weight: 600;
   padding: 0.25rem 0.6rem;
@@ -88,7 +94,9 @@
 
 .unlock-options-grid .option-card h2 {
   margin: 0 0 0.5rem 0;
-  font-size: 1.35rem;
+  /* Leaves room for the absolutely-positioned badge on a narrow card. */
+  padding-right: 5.5rem;
+  font-size: 1.25rem;
   color: #f8fafc;
 }
 
@@ -102,7 +110,8 @@
 .unlock-options-grid .features-list {
   list-style: none;
   padding: 0;
-  margin: 0 0 2rem 0;
+  margin: 0 0 1.5rem 0;
+  overflow-wrap: anywhere;
   font-size: 0.875rem;
   color: #cbd5e1;
   display: flex;
@@ -130,12 +139,16 @@
 }
 
 .unlock-options-grid .form-group input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  /* 16px keeps iOS Safari from zooming the page on focus. */
+  font-size: 1rem;
   padding: 0.55rem 0.75rem;
   background: #0f172a;
   border: 1px solid #334155;
   border-radius: 6px;
   color: #f8fafc;
-  font-size: 0.875rem;
 }
 
 .unlock-options-grid .form-group input:focus {
@@ -197,4 +210,15 @@
 
 .unlock-options-grid .forgot-password-link a:hover {
   text-decoration: underline;
+}
+
+@media (min-width: 640px) {
+  .unlock-options-grid .option-card {
+    padding: 2rem;
+  }
+
+  .unlock-options-grid .card-badge {
+    top: 1.25rem;
+    right: 1.25rem;
+  }
 }

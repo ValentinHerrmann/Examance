@@ -2,6 +2,7 @@
   import "./GdprErasureTable.css";
   import type { StudentRecord } from "$lib/db/schema";
   import { t } from "$lib/i18n";
+  import { TableScroller } from "$lib/components/ui";
 
   export let students: StudentRecord[];
   export let isErasing: boolean;
@@ -16,39 +17,41 @@
       {$t("admin.gdprErasureTable.empty")}
     </p>
   {:else}
-    <table class="gdpr-erasure-table-students-table">
-      <thead>
-        <tr>
-          <th>{$t("admin.gdprErasureTable.columnPseudonymId")}</th>
-          <th>{$t("admin.gdprErasureTable.columnFallbackCode")}</th>
-          <th>{$t("admin.gdprErasureTable.columnActions")}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each students as st}
+    <TableScroller label={$t("admin.gdprErasureTable.title")}>
+      <table class="gdpr-erasure-table-students-table">
+        <thead>
           <tr>
-            <td class="gdpr-erasure-table-mono">{st.pseudonymId}</td>
-            <td>{st.fallbackCode}</td>
-            <td class="gdpr-actions">
-              <button
-                class="gdpr-export-btn"
-                on:click={() => onExport(st.pseudonymId)}
-                disabled={isErasing}
-              >
-                {$t("admin.gdprErasureTable.exportButton")}
-              </button>
-              <button
-                class="gdpr-erasure-table-erase-btn"
-                on:click={() => onErase(st.pseudonymId, st.examId)}
-                disabled={isErasing}
-              >
-                {$t("admin.gdprErasureTable.eraseButton")}
-              </button>
-            </td>
+            <th>{$t("admin.gdprErasureTable.columnPseudonymId")}</th>
+            <th>{$t("admin.gdprErasureTable.columnFallbackCode")}</th>
+            <th>{$t("admin.gdprErasureTable.columnActions")}</th>
           </tr>
-        {/each}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {#each students as st}
+            <tr>
+              <td class="gdpr-erasure-table-mono">{st.pseudonymId}</td>
+              <td>{st.fallbackCode}</td>
+              <td class="gdpr-actions">
+                <button
+                  class="gdpr-export-btn"
+                  on:click={() => onExport(st.pseudonymId)}
+                  disabled={isErasing}
+                >
+                  {$t("admin.gdprErasureTable.exportButton")}
+                </button>
+                <button
+                  class="gdpr-erasure-table-erase-btn"
+                  on:click={() => onErase(st.pseudonymId, st.examId)}
+                  disabled={isErasing}
+                >
+                  {$t("admin.gdprErasureTable.eraseButton")}
+                </button>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </TableScroller>
   {/if}
 </div>
 

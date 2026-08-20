@@ -47,7 +47,7 @@
     />
   </div>
 
-  <div class="exam-metadata-form-grid-4">
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
     <div class="exam-metadata-form-group">
       <label for="testart">{$t("examCreation.metadataForm.testartLabel")}</label>
       <SuggestInput
@@ -93,7 +93,7 @@
     </div>
   {/if}
 
-  <div class="exam-metadata-form-grid-4">
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
     <div class="exam-metadata-form-group">
       <label for="datumDate">{$t("examCreation.metadataForm.datumLabel")}</label>
       <input

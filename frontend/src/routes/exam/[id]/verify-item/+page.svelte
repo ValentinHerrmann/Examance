@@ -17,6 +17,7 @@
   import { decrypt } from "$lib/crypto/aesGcm";
   import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "$lib/db/schema";
   import McItemVerificationCard from "$lib/components/verify/McItemVerificationCard.svelte";
+  import { PageShell } from "$lib/components/ui";
 
   $: examId = $page.params.id || "";
   $: submissionId = $page.url.searchParams.get("submissionId") || "";
@@ -169,7 +170,7 @@
   }
 </script>
 
-<div class="p-6 max-w-[1700px] mx-auto">
+<PageShell width="full">
   <div class="mb-6 flex items-center justify-between">
     <a
       href={`/exam/${examId}/verify`}
@@ -199,4 +200,4 @@
       onOpenGrading={handleOpenGrading}
     />
   {/if}
-</div>
+</PageShell>

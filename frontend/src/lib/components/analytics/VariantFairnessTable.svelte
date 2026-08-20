@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./VariantFairnessTable.css";
+  import { TableScroller } from "$lib/components/ui";
   import { t } from '$lib/i18n';
   import { fmt } from '$lib/utils/format';
   import type { VariantGroupComparison } from '$lib/analytics/analyticsTypes';
@@ -71,6 +72,7 @@
             {/if}
           </div>
 
+          <TableScroller>
           <table class="vft-analytics-table vft-compact">
             <thead>
               <tr>
@@ -114,6 +116,7 @@
               {/each}
             </tbody>
           </table>
+          </TableScroller>
         </div>
       {/each}
     </div>

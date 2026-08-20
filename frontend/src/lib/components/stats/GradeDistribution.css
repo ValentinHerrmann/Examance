@@ -18,10 +18,5 @@
 
 .grade-distribution-chart-container {
   margin-top: 1rem;
-  overflow: hidden;
   position: relative;
-}
-
-.grade-distribution-grade-container {
-  height: 350px;
 }

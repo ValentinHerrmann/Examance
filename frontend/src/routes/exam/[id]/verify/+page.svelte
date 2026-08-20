@@ -6,6 +6,7 @@
   import { get } from "svelte/store";
   import { sessionStore, isUnlocked } from "$lib/stores/session";
   import { t, translate } from "$lib/i18n";
+  import { PageShell } from "$lib/components/ui";
   import {
     computeMcVerificationStats,
     type McVerificationStats,
@@ -253,7 +254,7 @@
   ) ?? [];
 </script>
 
-<div class="p-6 max-w-7xl mx-auto">
+<PageShell width="wide">
   <div class="flex items-center justify-between mb-6">
     <div>
       <h2 class="text-xl font-bold text-slate-100">{$t("scanning.verify.heading")}</h2>
@@ -308,7 +309,7 @@
         <div class="flex justify-center gap-3">
           <a
             href={`/exam/${examId}`}
-            class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-slate-900 hover:bg-slate-750 text-slate-200 transition-colors"
+            class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-slate-900 hover:bg-surface-inset text-slate-200 transition-colors"
           >
             {$t("scanning.verify.examSetup")}
           </a>
@@ -348,4 +349,4 @@
       />
     {/if}
   {/if}
-</div>
+</PageShell>

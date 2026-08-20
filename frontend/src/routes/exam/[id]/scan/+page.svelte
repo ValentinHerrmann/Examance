@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./+page.css";
   import { page } from "$app/stores";
   import { loadPdfjs } from "$lib/pdf/pdfjs";
   export let params;
@@ -51,6 +50,7 @@
   import type { PDFDocument, PDFPage } from "pdf-lib";
   import HardwareProfileCard from "$lib/components/scanning/HardwareProfileCard.svelte";
   import UploadPanel from "$lib/components/scanning/UploadPanel.svelte";
+  import { PageHeader, PageShell } from "$lib/components/ui";
   import UnmatchedResolver from "$lib/components/scanning/UnmatchedResolver.svelte";
   import ScannedSubmissionsTable from "$lib/components/scanning/ScannedSubmissionsTable.svelte";
   import ScanPreviewModal from "$lib/components/scanning/ScanPreviewModal.svelte";
@@ -1185,13 +1185,15 @@
   }
 </script>
 
-<div class="scan-ingestion-page">
-  <h2>{$t("scanning.pageTitle")}</h2>
+<PageShell width="full">
+  <PageHeader title={$t("scanning.pageTitle")} />
 
   <HardwareProfileCard {hwProfile} inConstrainedMode={monitor?.inConstrainedMode} />
 
   {#if omrBanner}
-    <div class="omr-banner">{omrBanner}</div>
+    <div class="my-4 rounded-md border border-amber-400 bg-amber-400/10 px-4 py-3 text-sm text-amber-400">
+      {omrBanner}
+    </div>
   {/if}
 
   <UploadPanel {isProcessing} {progress} {statusText} onFileUpload={handleFileUpload} />
@@ -1210,7 +1212,7 @@
     onDelete={handleDeleteScan}
     onDeleteAll={handleDeleteAllScans}
   />
-</div>
+</PageShell>
 
 <ScanPreviewModal
   open={previewModalOpen}

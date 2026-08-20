@@ -29,7 +29,7 @@
   flex-direction: column;
   gap: 0.35rem;
   flex: 1;
-  min-width: 180px;
+  min-width: min(180px, 100%);
 }
 
 .roster-form-field label {

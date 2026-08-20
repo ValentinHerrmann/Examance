@@ -1,7 +1,8 @@
 .grading-page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  /* The app shell already sizes this; a second 100vh here overflowed it. */
+  height: 100%;
   min-height: 0;
   max-width: 100%;
   margin: 0;

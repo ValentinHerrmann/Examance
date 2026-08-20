@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./ExerciseQualityTable.css";
+  import { TableScroller } from "$lib/components/ui";
   import { t } from '$lib/i18n';
   import { fmt } from '$lib/utils/format';
   import type { ExercisePerformance } from '$lib/analytics/analyticsTypes';
@@ -48,6 +49,7 @@
       {/if}
     </div>
   {:else}
+    <TableScroller>
     <table class="eqt-analytics-table">
       <thead>
         <tr>
@@ -91,5 +93,6 @@
         {/each}
       </tbody>
     </table>
+    </TableScroller>
   {/if}
 </div>

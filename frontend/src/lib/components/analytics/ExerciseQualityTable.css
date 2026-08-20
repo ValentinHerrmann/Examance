@@ -6,6 +6,7 @@
 }
 
 .eqt-section-header-row {
+  flex-wrap: wrap;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;

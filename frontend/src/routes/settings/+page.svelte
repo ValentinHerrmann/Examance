@@ -24,6 +24,7 @@
     LOCALE_LABELS,
     type Locale,
   } from "$lib/i18n";
+  import { PageShell, PageHeader, Card, Button } from "$lib/components/ui";
 
   /** GDPR Art. 15 — hand the data subject a readable copy of their own data. */
   async function handleExportStudent(pseudonymId: string) {
@@ -116,8 +117,8 @@
 </script>
 
 {#if $isUnlocked}
-  <div class="settings-page">
-    <h2>{$t("settings.pageTitle")}</h2>
+  <PageShell>
+    <PageHeader title={$t("settings.pageTitle")} />
 
     {#if statusMsg}
       <div class="settings-status-banner">{statusMsg}</div>
@@ -139,12 +140,10 @@
       onExport={handleExportStudent}
     />
 
-    <div class="settings-card settings-danger-card">
-      <h3>{$t("settings.hygiene.heading")}</h3>
-      <p>{$t("settings.hygiene.description")}</p>
-      <button class="settings-clear-btn" on:click={handleClearAllSessionData}
-        >{$t("settings.hygiene.button")}</button
-      >
-    </div>
-  </div>
+    <Card tone="danger" class="mb-8">
+      <h3 class="m-0 mb-2 text-accent">{$t("settings.hygiene.heading")}</h3>
+      <p class="mt-0 mb-4 text-muted">{$t("settings.hygiene.description")}</p>
+      <Button variant="danger" onClick={handleClearAllSessionData}>{$t("settings.hygiene.button")}</Button>
+    </Card>
+  </PageShell>
 {/if}

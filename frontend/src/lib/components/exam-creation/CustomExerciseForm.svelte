@@ -12,7 +12,7 @@
 </script>
 
 <div class="custom-exercise-form">
-  <div class="custom-exercise-form-grid">
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
     <div class="custom-exercise-form-group">
       <label for="customName">{$t("examCreation.customExerciseForm.nameLabel")}</label>
       <input

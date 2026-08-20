@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./+page.css";
   import { isUnlocked, isAuthenticated, sessionStore } from '$lib/stores/session';
   import { db } from '$lib/db/db';
   import type { ExamRecord } from '$lib/db/schema';
@@ -27,6 +26,7 @@
   import OnboardingEmptyState from '$lib/components/dashboard/OnboardingEmptyState.svelte';
   import DashboardFilterBar from '$lib/components/dashboard/DashboardFilterBar.svelte';
   import ExamGrid from '$lib/components/dashboard/ExamGrid.svelte';
+  import { PageShell } from '$lib/components/ui';
 
 
   let exams: ExamRecord[] = [];
@@ -329,7 +329,7 @@
   }
 </script>
 
-<div class="dashboard">
+<PageShell width="full">
   {#if isInitializing}
     <DashboardSessionState mode="loading" />
   {:else if !$isUnlocked}
@@ -337,14 +337,16 @@
   {:else}
     <DashboardHeader {isImporting} {importStatus} onImportArchive={handleImportArchive} />
 
-    <div class="dashboard-body">
-      <KpiSidebar
-        totalExams={exams.length}
-        subjectCount={availableSubjects.length}
-        gradeCount={availableGrades.length}
-      />
+    <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,17.5rem)_minmax(0,1fr)]">
+      <div class="order-last min-w-0 xl:order-none">
+        <KpiSidebar
+          totalExams={exams.length}
+          subjectCount={availableSubjects.length}
+          gradeCount={availableGrades.length}
+        />
+      </div>
 
-      <div class="dashboard-exam-main">
+      <div class="min-w-0">
         {#if expiredExam}
           <RetentionModal {expiredExam} onExtend={handleExtendRetention} onDelete={handleDeleteExpiredExam} />
         {/if}
@@ -370,6 +372,6 @@
       </div>
     </div>
   {/if}
-</div>
+</PageShell>
 
 
