@@ -4,8 +4,17 @@
 # is the one that renders the app, holds session key material, and decrypts
 # student PII in memory — it needs its own headers.
 #
-# 'wasm-unsafe-eval' is required by argon2-browser, zxing-wasm and busytex.
-# blob: covers the compiler worker, pdf.js rendering, and PDF iframe previews.
+# 'wasm-unsafe-eval' is required by argon2-browser, zxing-wasm, busytex and
+# EmbedPDF's PDFium engine.
+# blob: covers the compiler worker, the EmbedPDF render worker (worker-src),
+# and pdf.js rendering. PDF previews (compiled Angabe/Lösung, scanned
+# submissions) are rendered in-page by EmbedPDF (see lib/pdf/embedpdf.ts)
+# instead of an <iframe>/<object> pointed at a blob: URL, so frame-src no
+# longer needs blob: for that — kept at 'self' only, in case a same-origin
+# frame is ever needed elsewhere. connect-src carries blob: explicitly
+# (rather than relying on the CSP spec's implicit same-origin blob: match)
+# because EmbedPDF fetches the decrypted scan/compiled PDF via a blob: URL
+# passed as its `src` config.
 # camera=(self) keeps QR scanning working; every other permission is denied.
 #
 # connect-src must allow connection to the backend server origins configured by
@@ -31,7 +40,7 @@
 # If the build step is skipped the placeholder survives, browsers ignore the
 # unknown source expression, and inline script stays blocked — fail-closed.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' __INLINE_SCRIPT_HASHES__; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' __INLINE_SCRIPT_HASHES__; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' blob: https: http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
@@ -43,6 +52,12 @@
 # module worker is accepted regardless of the host's extension mapping.
 /_app/immutable/assets/*.mjs
   Content-Type: text/javascript
+
+# EmbedPDF's PDFium engine (lib/pdf/embedpdf.ts) ends up hashed into this
+# directory via a Vite `?url` import — same belt-and-suspenders MIME
+# override as pdf.worker's .mjs above.
+/_app/immutable/assets/*.wasm
+  Content-Type: application/wasm
 
 /core/busytex/*.wasm
   Content-Type: application/wasm
