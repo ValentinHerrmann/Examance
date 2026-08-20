@@ -9,7 +9,7 @@
   import { api } from "$lib/api/client";
   import { parseExerciseScore, formatExerciseLatex } from "$lib/latex/scoreParser";
   import { parseMcOptions, buildMcOptionsLatex, type McOption } from "$lib/latex/mcOptions";
-  import { compileLatex } from "$lib/latex/compiler";
+  import { compileWithCache, getLatestForSlot } from "$lib/latex/compileCache";
   import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
   import ExerciseResourcePanel from "$lib/components/exercise/ExerciseResourcePanel.svelte";
   import LatexEditor from "./LatexEditor.svelte";
@@ -176,6 +176,18 @@
     syncMcStateFromLatex();
 
     cleanupPreview();
+    if (editingExercise?.id) {
+      const cachedAngabe = getLatestForSlot({ kind: "exercise", id: editingExercise.id, variant: "angabe" });
+      if (cachedAngabe) {
+        const blobAngabe = new Blob([cachedAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+        previewPdfUrl = URL.createObjectURL(blobAngabe);
+      }
+      const cachedLoesung = getLatestForSlot({ kind: "exercise", id: editingExercise.id, variant: "loesung" });
+      if (cachedLoesung) {
+        const blobLoesung = new Blob([cachedLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+        previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
+      }
+    }
   }
 
   function syncMcStateFromLatex() {
@@ -324,12 +336,27 @@
         resourceExerciseIds: collected.exerciseIds
       };
 
-      const resAngabe = await compileLatex(fullTexAngabe, useLocal, undefined, false, compileOpts);
+      const exerciseTargetId = editingExercise?.id || resourceStagingId;
+      const resAngabe = await compileWithCache(
+        { kind: "exercise", id: exerciseTargetId, variant: "angabe" },
+        fullTexAngabe,
+        useLocal,
+        undefined,
+        false,
+        compileOpts
+      );
       const blobAngabe = new Blob([resAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       previewPdfUrl = URL.createObjectURL(blobAngabe);
 
-      const resLoesung = await compileLatex(fullTexLoesung, useLocal, undefined, false, compileOpts);
+      const resLoesung = await compileWithCache(
+        { kind: "exercise", id: exerciseTargetId, variant: "loesung" },
+        fullTexLoesung,
+        useLocal,
+        undefined,
+        false,
+        compileOpts
+      );
       const blobLoesung = new Blob([resLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
       previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);

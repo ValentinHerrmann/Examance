@@ -35,15 +35,16 @@
     },
     {
       "name": "Frontend Browser",
-      "type": "chrome",
+      "type": "firefox",
       "request": "launch",
       "url": "http://localhost:5173",
       "webRoot": "${workspaceFolder}/frontend",
-      "runtimeExecutable": "/usr/bin/google-chrome-stable",
-      "sourceMapPathOverrides": {
-        " /src/*": "${webRoot}/src/*",
-        "/@fs/*": "/*"
-      }
+      "pathMappings": [
+        {
+          "url": "http://localhost:5173",
+          "path": "${workspaceFolder}/frontend"
+        }
+      ]
     }
   ],
   "compounds": [

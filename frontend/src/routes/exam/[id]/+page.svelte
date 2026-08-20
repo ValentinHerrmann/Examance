@@ -3,7 +3,7 @@
   import { page } from "$app/stores";
   import { loadPdfjs } from "$lib/pdf/pdfjs";
   export let params;
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { browser } from "$app/environment";
   import { db } from "$lib/db/db";
   import type {
@@ -38,7 +38,7 @@
   import { computeMcExercisesHash, resolveMcExercises, normalizeMcExercise } from "$lib/grading/mcExerciseHash";
   import { isMcQuestion } from "$lib/grading/mcScore";
   import { packProject } from "$lib/archive/packer";
-  import { compileLatex } from "$lib/latex/compiler";
+  import { compileWithCache, getLatestForSlot, invalidateOwner } from "$lib/latex/compileCache";
   import { formatExerciseLatex, formatMcGroupLatex, parseExerciseScore } from "$lib/latex/scoreParser";
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
@@ -109,8 +109,37 @@
   let showAngabePreview = true;
   let showLoesungPreview = false;
 
+  function restoreCachedPreviews(id: string) {
+    if (!previewPdfUrl) {
+      const cachedAngabe = getLatestForSlot({ kind: "exam", id, variant: "angabe" });
+      if (cachedAngabe) {
+        const blobAngabe = new Blob([cachedAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+        previewPdfUrl = URL.createObjectURL(blobAngabe);
+      }
+    }
+    if (!previewSolutionPdfUrl) {
+      const cachedLoesung = getLatestForSlot({ kind: "exam", id, variant: "loesung" });
+      if (cachedLoesung) {
+        const blobLoesung = new Blob([cachedLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+        previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
+      }
+    }
+  }
+
+  onDestroy(() => {
+    if (previewPdfUrl) {
+      URL.revokeObjectURL(previewPdfUrl);
+      previewPdfUrl = null;
+    }
+    if (previewSolutionPdfUrl) {
+      URL.revokeObjectURL(previewSolutionPdfUrl);
+      previewSolutionPdfUrl = null;
+    }
+  });
+
   $: if (browser && examId) {
     loadExam(examId);
+    restoreCachedPreviews(examId);
   }
 
   let isLocalFallback = false;
@@ -464,6 +493,7 @@
       }
 
       await db.exams.delete(exam.id);
+      invalidateOwner("exam", exam.id);
       await db.exercises.where("examId").equals(exam.id).delete();
       await db.examExercises.where("examId").equals(exam.id).delete();
       await db.submissions.where("examId").equals(exam.id).delete();
@@ -641,13 +671,20 @@ ${exerciseInputs}
         return;
       }
 
-      const result = await compileLatex(fullTex, useLocal, (status) => {
-        if (status === "downloading") {
-          omrPrepareMessage = translate("exam.page.omr.loadingCompiler");
-        } else if (status === "compiling") {
-          omrPrepareMessage = translate("exam.page.omr.compilingBlank");
-        }
-      }, true, await compileResourceOptions());
+      const result = await compileWithCache(
+        { kind: "omr-blank", id: exam.id, variant: "blank" },
+        fullTex,
+        useLocal,
+        (status) => {
+          if (status === "downloading") {
+            omrPrepareMessage = translate("exam.page.omr.loadingCompiler");
+          } else if (status === "compiling") {
+            omrPrepareMessage = translate("exam.page.omr.compilingBlank");
+          }
+        },
+        true,
+        await compileResourceOptions()
+      );
 
       console.log(
         `[PrepareOMR] LaTeX compile finished: pdfBytes=${result.pdfBytes?.length ?? 0}, engineUsed=${result.engineUsed ?? (useLocal ? "local" : "server")}, usedFallback=${result.usedFallback ?? false}`
@@ -797,19 +834,33 @@ ${exerciseInputs}
       const useLocal = $storagePolicyStore.latexCompilation === "local";
       const compileOpts = await compileResourceOptions();
 
-      const resAngabe = await compileLatex(fullTexAngabe, useLocal, (status) => {
-        if (status === 'downloading') {
-          compileNotice = translate("exam.page.preview.loadingCompiler");
-        } else if (status === 'compiling') {
-          compileNotice = translate("exam.page.preview.compiling");
-        }
-      }, false, compileOpts);
+      const resAngabe = await compileWithCache(
+        { kind: "exam", id: currentExam.id, variant: "angabe" },
+        fullTexAngabe,
+        useLocal,
+        (status) => {
+          if (status === 'downloading') {
+            compileNotice = translate("exam.page.preview.loadingCompiler");
+          } else if (status === 'compiling') {
+            compileNotice = translate("exam.page.preview.compiling");
+          }
+        },
+        false,
+        compileOpts
+      );
 
       const blobAngabe = new Blob([resAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       previewPdfUrl = URL.createObjectURL(blobAngabe);
 
-      const resLoesung = await compileLatex(fullTexLoesung, useLocal, undefined, false, compileOpts);
+      const resLoesung = await compileWithCache(
+        { kind: "exam", id: currentExam.id, variant: "loesung" },
+        fullTexLoesung,
+        useLocal,
+        undefined,
+        false,
+        compileOpts
+      );
       const blobLoesung = new Blob([resLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
       previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
