@@ -1,7 +1,7 @@
 <script lang="ts">
-  import "./ScanPreviewModal.css";
   import ZoomableImage from "$lib/components/ZoomableImage.svelte";
   import { t } from "$lib/i18n";
+  import { Modal } from "$lib/components/ui";
 
   interface ScannedSubmissionItem {
     id: string;
@@ -26,28 +26,26 @@
   export let onClose: () => void;
 </script>
 
-{#if open}
-  <div class="scan-preview-modal-backdrop" on:click={onClose} role="presentation">
-    <div class="scan-preview-modal-card" on:click|stopPropagation role="dialog" aria-modal="true">
-      <div class="scan-preview-modal-header">
-        <h3>{$t("scanning.previewModal.title", { label: item?.fallbackCode || item?.id || "" })}</h3>
-        <button class="scan-preview-modal-close-btn" on:click={onClose}>&times;</button>
-      </div>
-      <div class="scan-preview-modal-body">
-        {#if loading}
-          <div class="preview-status">{$t("scanning.previewModal.decrypting")}</div>
-        {:else if error}
-          <div class="preview-error">{error}</div>
-        {:else if objectUrl}
-          {#if isPdf}
-            <object data={objectUrl} type="application/pdf" class="preview-pdf">
-              <iframe src={objectUrl} title={$t("scanning.previewModal.pdfTitle")} class="preview-pdf"></iframe>
-            </object>
-          {:else}
-            <ZoomableImage src={objectUrl} alt={$t("scanning.previewModal.imageAlt")} />
-          {/if}
-        {/if}
-      </div>
-    </div>
+<Modal
+  {open}
+  size="lg"
+  bare
+  title={$t("scanning.previewModal.title", { label: item?.fallbackCode || item?.id || "" })}
+  onClose={onClose}
+>
+  <div class="flex min-h-[300px] items-center justify-center p-6">
+    {#if loading}
+      <div class="font-medium text-accent">{$t("scanning.previewModal.decrypting")}</div>
+    {:else if error}
+      <div class="font-medium text-red-400">{error}</div>
+    {:else if objectUrl}
+      {#if isPdf}
+        <object data={objectUrl} type="application/pdf" class="h-[70dvh] max-h-full w-full rounded-lg border-0">
+          <iframe src={objectUrl} title={$t("scanning.previewModal.pdfTitle")} class="h-[70dvh] max-h-full w-full rounded-lg border-0"></iframe>
+        </object>
+      {:else}
+        <ZoomableImage src={objectUrl} alt={$t("scanning.previewModal.imageAlt")} />
+      {/if}
+    {/if}
   </div>
-{/if}
+</Modal>

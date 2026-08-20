@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
   import { t } from "$lib/i18n";
+  import { controlClass } from "$lib/components/ui";
 
   interface ExerciseGroup {
     groupId: string;
@@ -18,37 +19,38 @@
   export let selectedGrade = "ALL";
   export let selectedSubject = "ALL";
   export let selectedTopic = "ALL";
-  export let filterCollapsed = true;
   export let availableTopics: string[] = [];
   export let availableGrades: string[] = [];
   export let availableSubjects: string[] = [];
   export let allGroups: ExerciseGroup[] = [];
   export let onTopicChange: (topic: string) => void;
 
+  /* Topic pills wrap into rows when the panel is wide (drawer / stacked) and
+   * stack into a column in the desktop sidebar. */
   const pillBase =
-    "w-full box-border rounded-2xl border border-slate-700 bg-slate-800 px-3 py-[0.375rem] text-left text-[0.85rem] text-slate-300 cursor-pointer";
+    "box-border min-h-9 cursor-pointer rounded-2xl border border-line bg-surface-raised px-3 py-1.5 text-left text-sm text-slate-300 hover:border-line-strong";
   const pillActive =
-    "w-full box-border rounded-2xl border border-sky-400 bg-sky-600 px-3 py-[0.375rem] text-left text-[0.85rem] font-semibold text-white cursor-pointer";
+    "box-border min-h-9 cursor-pointer rounded-2xl border border-accent bg-accent-strong px-3 py-1.5 text-left text-sm font-semibold text-white";
 </script>
 
-<div class="flex flex-col gap-4 sticky top-2 {filterCollapsed ? 'max-md:hidden' : ''}">
+<div class="flex min-w-0 flex-col gap-4">
   <div>
     <input
       type="text"
       placeholder={$t("exercises.filterSidebar.searchPlaceholder")}
       bind:value={searchQuery}
-      class="box-border w-full rounded-lg border border-slate-700 bg-slate-800 p-3 text-white"
+      class={controlClass}
     />
   </div>
 
-  <div class="flex flex-wrap gap-6">
+  <div class="flex flex-wrap gap-3 sm:gap-6">
     {#if availableGrades.length > 0}
-      <div class="flex items-center gap-2 text-sm text-slate-300">
-        <label for="grade-select">{$t("exercises.filterSidebar.gradeLabel")}</label>
+      <div class="flex min-w-0 flex-1 items-center gap-2 text-sm text-slate-300">
+        <label class="shrink-0" for="grade-select">{$t("exercises.filterSidebar.gradeLabel")}</label>
         <select
           id="grade-select"
           bind:value={selectedGrade}
-          class="rounded-md border border-slate-700 bg-slate-800 px-3 py-[0.375rem] text-[0.85rem] text-white"
+          class={controlClass}
         >
           <option value="ALL">{$t("exercises.filterSidebar.allGrades")}</option>
           {#each availableGrades as g}
@@ -59,12 +61,12 @@
     {/if}
 
     {#if availableSubjects.length > 0}
-      <div class="flex items-center gap-2 text-sm text-slate-300">
-        <label for="subject-select">{$t("exercises.filterSidebar.subjectLabel")}</label>
+      <div class="flex min-w-0 flex-1 items-center gap-2 text-sm text-slate-300">
+        <label class="shrink-0" for="subject-select">{$t("exercises.filterSidebar.subjectLabel")}</label>
         <select
           id="subject-select"
           bind:value={selectedSubject}
-          class="rounded-md border border-slate-700 bg-slate-800 px-3 py-[0.375rem] text-[0.85rem] text-white"
+          class={controlClass}
         >
           <option value="ALL">{$t("exercises.filterSidebar.allSubjects")}</option>
           {#each availableSubjects as s}
@@ -75,7 +77,7 @@
     {/if}
   </div>
 
-  <div class="flex w-full flex-col gap-[0.375rem]">
+  <div class="flex w-full flex-row flex-wrap gap-1.5 lg:flex-col lg:flex-nowrap">
     <button
       class={selectedTopic === "ALL" ? pillActive : pillBase}
       on:click={() => onTopicChange("ALL")}

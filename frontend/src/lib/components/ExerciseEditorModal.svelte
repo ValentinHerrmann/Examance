@@ -18,6 +18,7 @@
   import SuggestInput from "$lib/components/common/SuggestInput.svelte";
   import { recordValue } from "$lib/utils/recentValues";
   import { t, translate } from "$lib/i18n";
+  import { Modal } from "$lib/components/ui";
 
   export let isOpen = false;
   export let editingExercise: ExerciseRecord | null = null;
@@ -531,23 +532,15 @@
     "flex flex-col h-full min-h-0 overflow-hidden rounded-lg border border-slate-700 bg-slate-900 transition-all duration-200 ease-[ease]";
   $: editorColumnClass = showLatexPanel
     ? `${editorColumnBase} flex-1 min-w-0 p-0 gap-0`
-    : `${editorColumnBase} w-[38px] flex-[0_0_38px] min-w-[38px] p-0`;
+    : `${editorColumnBase} w-full h-10 flex-none min-w-0 p-0 lg:h-full lg:w-[38px] lg:flex-[0_0_38px] lg:min-w-[38px]`;
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
 
 {#if isOpen}
-  <div
-    class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/80 p-6 backdrop-blur-[4px]"
-    role="button"
-    tabindex="-1"
-    on:click|self={requestClose}
-  >
+  <Modal open={isOpen} size="full" bare onClose={requestClose} labelledBy="exercise-editor-title">
     <div
-      class="flex h-[92vh] max-h-[92vh] w-[95vw] max-w-[1700px] flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="exercise-editor-title"
+      class="flex h-full max-h-full w-full flex-col overflow-hidden"
     >
       <div class="flex shrink-0 flex-col gap-[0.65rem] border-b border-slate-700 bg-slate-800 px-5 py-4">
         <div class="flex w-full items-center justify-between">
@@ -691,7 +684,7 @@
         <div class="shrink-0 overflow-y-auto max-h-[200px] whitespace-pre-wrap break-all border-l-4 border-red-500 bg-red-500/15 px-6 py-3 text-[0.875rem] text-red-300 font-mono">{errorMsg}</div>
       {/if}
 
-      <div class="flex min-h-0 flex-1 gap-4 overflow-hidden p-5 max-[1100px]:flex-col max-[1100px]:overflow-y-auto">
+      <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5 lg:flex-row lg:overflow-hidden">
         <div class={editorColumnClass}>
           {#if showLatexPanel}
             <button
@@ -818,13 +811,15 @@
           {:else}
             <button
               type="button"
-              class="flex h-full w-full flex-col items-center gap-4 border-0 bg-slate-900 px-[0.2rem] py-3 text-slate-400 transition-all duration-150 ease-[ease] hover:bg-slate-800 hover:text-sky-400 group"
+              class="flex h-full w-full flex-row items-center gap-4 border-0 bg-slate-900 px-3 py-[0.2rem] text-slate-400 transition-all duration-150 ease-[ease] hover:bg-slate-800 hover:text-sky-400 group lg:flex-col lg:px-[0.2rem] lg:py-3"
               on:click={handleToggleLatex}
               title={$t("exercises.editor.expandLatexTitle")}
             >
-              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-slate-700 bg-slate-800 text-[0.9rem] font-bold group-hover:border-sky-400 group-hover:bg-sky-600 group-hover:text-white">›</span>
+              <span class="flex h-6 w-6 shrink-0 rotate-90 items-center justify-center rounded border border-slate-700 bg-slate-800 text-[0.9rem] font-bold group-hover:border-sky-400 group-hover:bg-sky-600 group-hover:text-white lg:rotate-0">›</span>
               <span class="shrink-0 text-[0.95rem] leading-none">💻</span>
-              <span class="whitespace-nowrap text-[0.8rem] font-semibold tracking-[0.5px]" style="writing-mode: vertical-rl; transform: rotate(180deg);">{$t("exercises.editor.latexPanelCollapsedLabel", { score: parseExerciseScore(editorLatexBody) })}</span>
+              <span
+                class="whitespace-nowrap text-[0.8rem] font-semibold tracking-[0.5px] lg:[writing-mode:vertical-rl] lg:[transform:rotate(180deg)]"
+              >{$t("exercises.editor.latexPanelCollapsedLabel", { score: parseExerciseScore(editorLatexBody) })}</span>
             </button>
           {/if}
         </div>
@@ -856,7 +851,7 @@
         </button>
       </div>
     </div>
-  </div>
+  </Modal>
 {/if}
 
 <ConfirmDialog

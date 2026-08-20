@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./PasteImportModal.css";
   import { get } from "svelte/store";
   import { sessionStore } from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
@@ -18,6 +17,7 @@
     SubmissionRecord,
   } from "$lib/db/schema";
   import { t } from "$lib/i18n";
+  import { Modal, Button, TableScroller } from "$lib/components/ui";
 
   export let examId: string;
   export let exercises: ExerciseRecord[] = [];
@@ -274,124 +274,116 @@
     onImportComplete();
     onClose();
   }
+
+  const stepDotBase = "rounded px-[0.6rem] py-[0.2rem] text-xs bg-surface-inset text-muted";
+  const stepDotActive = "rounded px-[0.6rem] py-[0.2rem] text-xs bg-accent-strong text-white font-semibold";
 </script>
 
-<div class="paste-modal-backdrop" on:click|self={onClose}>
-  <div class="paste-modal">
-    <div class="paste-modal-header">
-      <h2>{$t("grading.manual.paste.title")}</h2>
-      <button class="paste-modal-close" on:click={onClose}>✕</button>
-    </div>
+<Modal open={true} size="md" title={$t("grading.manual.paste.title")} onClose={onClose}>
+  <div class="mb-2 flex gap-2">
+    <span class={step === 1 ? stepDotActive : stepDotBase}>{$t("grading.manual.paste.step1")}</span>
+    <span class={step === 2 ? stepDotActive : stepDotBase}>{$t("grading.manual.paste.step2")}</span>
+    <span class={step === 3 ? stepDotActive : stepDotBase}>{$t("grading.manual.paste.step3")}</span>
+  </div>
 
-    <div class="paste-modal-body">
-      <div class="paste-step-indicator">
-        <span class="paste-step-dot" class:active={step === 1}>{$t("grading.manual.paste.step1")}</span>
-        <span class="paste-step-dot" class:active={step === 2}>{$t("grading.manual.paste.step2")}</span>
-        <span class="paste-step-dot" class:active={step === 3}>{$t("grading.manual.paste.step3")}</span>
+  {#if step === 1}
+    <div>
+      <p class="mt-0 text-content/90">
+        {$t("grading.manual.paste.pasteHint")}
+      </p>
+      <textarea
+        class="min-h-[180px] w-full resize-y rounded-md border border-line-strong bg-surface-base p-3 font-mono text-[0.85rem] text-content focus:border-accent-strong focus:outline-none"
+        bind:value={rawTsv}
+        placeholder={$t("grading.manual.paste.textareaPlaceholder")}
+      ></textarea>
+    </div>
+  {:else if step === 2}
+    <div>
+      <div class="mb-3 flex items-center gap-4">
+        <label class="text-[0.85rem] text-content/90">
+          <input type="checkbox" bind:checked={autoCreateStudents} />
+          {$t("grading.manual.paste.autoCreate")}
+        </label>
       </div>
 
-      {#if step === 1}
-        <div>
-          <p style="margin-top: 0; color: #cbd5e1;">
-            {$t("grading.manual.paste.pasteHint")}
-          </p>
-          <textarea
-            class="paste-textarea"
-            bind:value={rawTsv}
-            placeholder={$t("grading.manual.paste.textareaPlaceholder")}
-          ></textarea>
-        </div>
-      {:else if step === 2}
-        <div>
-          <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 0.75rem;">
-            <label style="color: #cbd5e1; font-size: 0.85rem;">
-              <input type="checkbox" bind:checked={autoCreateStudents} />
-              {$t("grading.manual.paste.autoCreate")}
-            </label>
-          </div>
-
-          <div class="paste-preview-table-container">
-            <table class="paste-preview-table">
-              <thead>
+      <div class="max-h-[40dvh] overflow-y-auto rounded-md border border-line">
+        <TableScroller>
+          <table class="w-full border-collapse text-[0.85rem]">
+            <thead>
+              <tr>
+                <th class="sticky top-0 border-b border-line bg-surface-base px-3 py-2 text-left font-semibold text-muted">{$t("grading.manual.paste.colStatus")}</th>
+                <th class="sticky top-0 border-b border-line bg-surface-base px-3 py-2 text-left font-semibold text-muted">{$t("grading.manual.paste.colName")}</th>
+                <th class="sticky top-0 border-b border-line bg-surface-base px-3 py-2 text-left font-semibold text-muted">{$t("grading.manual.paste.colId")}</th>
+                {#each exercises as ex, idx}
+                  <th class="sticky top-0 border-b border-line bg-surface-base px-3 py-2 text-left font-semibold text-muted">{ex.name} ({ex.maxPoints}p)</th>
+                {/each}
+              </tr>
+            </thead>
+            <tbody>
+              {#each parsedRows as row}
                 <tr>
-                  <th>{$t("grading.manual.paste.colStatus")}</th>
-                  <th>{$t("grading.manual.paste.colName")}</th>
-                  <th>{$t("grading.manual.paste.colId")}</th>
-                  {#each exercises as ex, idx}
-                    <th>{ex.name} ({ex.maxPoints}p)</th>
+                  <td class="border-b border-line px-3 py-2">
+                    {#if row.matchedStudent}
+                      <span class="inline-block rounded bg-emerald-500/15 px-[0.4rem] py-[0.15rem] text-xs font-medium text-emerald-400">{$t("grading.manual.paste.matched")}</span>
+                    {:else if autoCreateStudents}
+                      <span class="inline-block rounded bg-amber-500/15 px-[0.4rem] py-[0.15rem] text-xs font-medium text-amber-400">{$t("grading.manual.paste.newStudent")}</span>
+                    {:else}
+                      <span class="inline-block rounded bg-slate-500/20 px-[0.4rem] py-[0.15rem] text-xs font-medium text-muted">{$t("grading.manual.paste.skipped")}</span>
+                    {/if}
+                  </td>
+                  <td class="border-b border-line px-3 py-2"><strong>{row.rawName}</strong></td>
+                  <td class="border-b border-line px-3 py-2">{row.rawNumber || "-"}</td>
+                  {#each row.scores as score, idx}
+                    {@const maxP = exercises[idx]?.maxPoints || 0}
+                    {@const isInvalid = score !== null && (score < 0 || score > maxP)}
+                    <td class="border-b border-line px-3 py-2 {isInvalid ? 'font-bold text-red-500' : ''}">
+                      {score !== null ? score : "-"}
+                    </td>
                   {/each}
                 </tr>
-              </thead>
-              <tbody>
-                {#each parsedRows as row}
-                  <tr>
-                    <td>
-                      {#if row.matchedStudent}
-                        <span class="paste-match-badge matched">{$t("grading.manual.paste.matched")}</span>
-                      {:else if autoCreateStudents}
-                        <span class="paste-match-badge new">{$t("grading.manual.paste.newStudent")}</span>
-                      {:else}
-                        <span class="paste-match-badge skipped">{$t("grading.manual.paste.skipped")}</span>
-                      {/if}
-                    </td>
-                    <td><strong>{row.rawName}</strong></td>
-                    <td>{row.rawNumber || "-"}</td>
-                    {#each row.scores as score, idx}
-                      {@const maxP = exercises[idx]?.maxPoints || 0}
-                      {@const isInvalid = score !== null && (score < 0 || score > maxP)}
-                      <td style={isInvalid ? "color: #ef4444; font-weight: bold;" : ""}>
-                        {score !== null ? score : "-"}
-                      </td>
-                    {/each}
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      {:else if step === 3}
-        <div style="text-align: center; padding: 1.5rem 0;">
-          <h3 style="color: #38bdf8; margin-top: 0;">{$t("grading.manual.paste.readyTitle")}</h3>
-          <p style="color: #cbd5e1;">
-            {$t("grading.manual.paste.importingRecords", { count: parsedRows.length })}
-          </p>
-          {#if parsedRows.some((r) => r.isNew && autoCreateStudents)}
-            <p style="color: #fbbf24; font-size: 0.85rem;">
-              {$t("grading.manual.paste.newStudentsWarning", { count: parsedRows.filter((r) => r.isNew).length })}
-            </p>
-          {/if}
-        </div>
-      {/if}
-    </div>
-
-    <div class="paste-modal-footer">
-      <button class="paste-modal-btn secondary" on:click={onClose}>{$t("common.cancel")}</button>
-
-      <div>
-        {#if step === 1}
-          <button
-            class="paste-modal-btn primary"
-            disabled={!rawTsv.trim()}
-            on:click={parseTsvData}
-          >
-            {$t("grading.manual.paste.nextPreview")}
-          </button>
-        {:else if step === 2}
-          <button class="paste-modal-btn secondary" on:click={() => (step = 1)}>
-            {$t("grading.manual.paste.back")}
-          </button>
-          <button class="paste-modal-btn primary" on:click={() => (step = 3)}>
-            {$t("grading.manual.paste.nextConfirm")}
-          </button>
-        {:else if step === 3}
-          <button class="paste-modal-btn secondary" on:click={() => (step = 2)}>
-            {$t("grading.manual.paste.back")}
-          </button>
-          <button class="paste-modal-btn primary" on:click={executeImport}>
-            {$t("grading.manual.paste.executeImport")}
-          </button>
-        {/if}
+              {/each}
+            </tbody>
+          </table>
+        </TableScroller>
       </div>
     </div>
-  </div>
-</div>
+  {:else if step === 3}
+    <div class="py-6 text-center">
+      <h3 class="mt-0 text-accent">{$t("grading.manual.paste.readyTitle")}</h3>
+      <p class="text-content/90">
+        {$t("grading.manual.paste.importingRecords", { count: parsedRows.length })}
+      </p>
+      {#if parsedRows.some((r) => r.isNew && autoCreateStudents)}
+        <p class="text-[0.85rem] text-amber-400">
+          {$t("grading.manual.paste.newStudentsWarning", { count: parsedRows.filter((r) => r.isNew).length })}
+        </p>
+      {/if}
+    </div>
+  {/if}
+
+  <svelte:fragment slot="footer">
+    <Button variant="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
+
+    <div class="ml-auto flex gap-2">
+      {#if step === 1}
+        <Button variant="primary" disabled={!rawTsv.trim()} onClick={parseTsvData}>
+          {$t("grading.manual.paste.nextPreview")}
+        </Button>
+      {:else if step === 2}
+        <Button variant="secondary" onClick={() => (step = 1)}>
+          {$t("grading.manual.paste.back")}
+        </Button>
+        <Button variant="primary" onClick={() => (step = 3)}>
+          {$t("grading.manual.paste.nextConfirm")}
+        </Button>
+      {:else if step === 3}
+        <Button variant="secondary" onClick={() => (step = 2)}>
+          {$t("grading.manual.paste.back")}
+        </Button>
+        <Button variant="primary" onClick={executeImport}>
+          {$t("grading.manual.paste.executeImport")}
+        </Button>
+      {/if}
+    </div>
+  </svelte:fragment>
+</Modal>
