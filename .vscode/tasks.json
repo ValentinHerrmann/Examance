@@ -2,6 +2,18 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Alembic Migrate",
+      "type": "shell",
+      "command": "${workspaceFolder}/backend/.venv/bin/alembic upgrade head",
+      "options": {
+        "cwd": "${workspaceFolder}/backend",
+        "env": {
+          "DATABASE_URL_SYNC": "postgresql+psycopg2://blindgrade:blindgrade@localhost:5432/blindgrade"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Wait 1s",
       "type": "shell",
       "command": "sleep 1",
