@@ -210,10 +210,17 @@
   </main>
 
   <!-- § 5 DDG requires the Impressum to be reachable from every page. -->
-  <nav class="legal-links" aria-label={$t("workspace.legalNavLabel")}>
-    <a href="/legal/impressum">{$t("nav.imprint")}</a>
+  <nav
+    class="flex shrink-0 flex-wrap justify-center gap-2 px-3 py-2 text-xs text-subtle"
+    aria-label={$t("workspace.legalNavLabel")}
+  >
+    <a href="/legal/impressum" class="text-muted no-underline hover:text-slate-200 hover:underline">
+      {$t("nav.imprint")}
+    </a>
     <span aria-hidden="true">·</span>
-    <a href="/legal/datenschutz">{$t("nav.privacy")}</a>
+    <a href="/legal/datenschutz" class="text-muted no-underline hover:text-slate-200 hover:underline">
+      {$t("nav.privacy")}
+    </a>
   </nav>
 
   <StatusBar
@@ -234,23 +241,3 @@
   />
 </div>
 
-<style>
-  .legal-links {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    font-size: 0.75rem;
-    color: #64748b;
-  }
-
-  .legal-links a {
-    color: #94a3b8;
-    text-decoration: none;
-  }
-
-  .legal-links a:hover {
-    color: #e2e8f0;
-    text-decoration: underline;
-  }
-</style>

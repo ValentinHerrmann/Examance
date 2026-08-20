@@ -16,6 +16,9 @@ export const grading = {
         idPrefix: 'ID: ',
         gradeLabel: 'Note:',
     },
+    workspace: {
+        scorePanel: 'Bewertung',
+    },
     toolbar: {
         pen: 'Stift',
         penTitle: 'Freihand-Stift (Rot)',

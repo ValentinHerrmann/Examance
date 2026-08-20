@@ -152,6 +152,7 @@ export const exam = {
         empty: 'Noch keine Aufgaben hinzugefügt.',
     },
     nav: {
+        tabsLabel: 'Prüfungsschritte',
         examFallback: 'Prüfung',
         backToDashboard: '← Zurück zum Dashboard',
         tabs: {

@@ -154,6 +154,7 @@ export const exam: Translations['exam'] = {
         empty: 'No exercises added yet.',
     },
     nav: {
+        tabsLabel: 'Exam workflow',
         examFallback: 'Exam',
         backToDashboard: '← Back to Dashboard',
         tabs: {

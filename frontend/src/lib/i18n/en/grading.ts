@@ -18,6 +18,9 @@ export const grading: Translations['grading'] = {
         idPrefix: 'ID: ',
         gradeLabel: 'Grade:',
     },
+    workspace: {
+        scorePanel: 'Scoring',
+    },
     toolbar: {
         pen: 'Pen',
         penTitle: 'Freehand pen (red)',

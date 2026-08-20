@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./StatusBar.css";
   import type { VersionStatus } from "$lib/stores/versionStore";
   import { locale, t, toggleLocale, LOCALE_LABELS } from "$lib/i18n";
   export let onStorageClick: () => void;
@@ -50,7 +49,9 @@
   };
 </script>
 
-<footer class="vscode-statusbar">
+<footer
+  class="scroll-pane flex shrink-0 items-center gap-1 overflow-x-auto bg-[#007acc] px-2 py-1 font-mono text-xs font-medium whitespace-nowrap text-white sm:px-4"
+>
   <button
     type="button"
     on:click={toggleLocale}
@@ -70,7 +71,7 @@
       : $t("statusBar.lockedHint")}
   >
     <span class="statusbar-icon">{policyIcon}</span>
-    <span class="statusbar-label">{policyLabel}</span>
+    <span class="statusbar-label hidden max-w-[20ch] truncate sm:inline">{policyLabel}</span>
   </button>
 
   <button
@@ -80,7 +81,9 @@
     title={unlocked ? $t("statusBar.backendConfigureHint") : $t("statusBar.backendCurrent")}
   >
     <span class="statusbar-icon">🖥️</span>
-    <span class="statusbar-label">{backendLabel || $t("statusBar.noServer")}</span>
+    <span class="statusbar-label hidden max-w-[16ch] truncate sm:inline md:max-w-[32ch]">
+      {backendLabel || $t("statusBar.noServer")}
+    </span>
   </button>
 
   {#if versionUrl}
@@ -103,6 +106,35 @@
 </footer>
 
 <style>
+  /* Shared shape for every status-bar entry. Kept here rather than repeated as
+     a utility string on each of the four items. */
+  .statusbar-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    flex-shrink: 0;
+    color: #ffffff;
+    text-decoration: none;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    transition: background 0.15s ease;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+  }
+
+  .statusbar-item:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  /* Pushes the backend + version cluster to the trailing edge. */
+  .statusbar-right {
+    margin-left: auto;
+  }
+
   /* Uppercase two-letter code keeps the item narrow in both languages. */
   .statusbar-locale .statusbar-label {
     font-variant-numeric: tabular-nums;

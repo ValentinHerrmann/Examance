@@ -7,6 +7,7 @@ export const nav: Translations['nav'] = {
     userManagement: 'User Management',
     settings: 'Settings',
     workspace: 'Workspace',
+    menuLabel: 'Main menu',
     logoAlt: 'Examance logo',
     imprint: 'Imprint',
     privacy: 'Privacy Policy',
