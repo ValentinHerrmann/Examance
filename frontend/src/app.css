@@ -1,1 +1,100 @@
 @import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+ * Design tokens.
+ *
+ * The palette below is the one the app already used; the hex values are the
+ * Tailwind slate/sky shades that were hardcoded across components. Naming them
+ * here makes `bg-surface-raised`, `text-muted`, `border-line` etc. available as
+ * utilities so components stop spelling the raw colour out.
+ *
+ * Breakpoints are Tailwind's defaults on purpose (sm 640 / md 768 / lg 1024 /
+ * xl 1280 / 2xl 1536). Layout code is mobile-first: unprefixed classes describe
+ * the phone and `md:`/`lg:`/`xl:` add back. Do not introduce `max-*:` variants
+ * or raw media queries.
+ * ------------------------------------------------------------------------ */
+@theme {
+  --color-surface-base: #0f172a;
+  --color-surface-raised: #1e293b;
+  --color-surface-sunken: #090d16;
+  --color-surface-inset: #334155;
+  --color-line: #334155;
+  --color-line-strong: #475569;
+  --color-accent: #38bdf8;
+  --color-accent-strong: #0284c7;
+  --color-accent-hover: #0369a1;
+  --color-content: #f8fafc;
+  --color-muted: #94a3b8;
+  --color-subtle: #64748b;
+
+  /* Content width scale, replacing the ad-hoc per-page pixel caps. */
+  /* Names here must not collide with Tailwind's built-in width keywords —
+     a token called `full` would redefine `w-full` / `max-w-full` app-wide. */
+  --container-form: 480px;
+  --container-narrow: 720px;
+  --container-wide: 1280px;
+  --container-page: 1700px;
+}
+
+/* Single z-index ladder. Anything layered picks one of these. */
+:root {
+  --z-dropdown: 1000;
+  --z-modal: 2000;
+  --z-toast: 3000;
+
+  color-scheme: dark;
+}
+
+html {
+  /* Stops iOS Safari from inflating text in landscape. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  background-color: var(--color-surface-base);
+  color: var(--color-content);
+  /* Nothing may push the document sideways; panes scroll internally instead. */
+  overflow-x: hidden;
+}
+
+/* Touch targets: coarse pointers get a comfortable minimum on controls that
+ * would otherwise inherit a mouse-sized hit area. */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  a.touch-target,
+  select {
+    min-height: 2.25rem;
+  }
+}
+
+.is-loading {
+  animation: pulse 1.5s infinite ease-in-out !important;
+  pointer-events: none;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Thin scrollbars inside panes, so an internally-scrolling column does not lose
+ * a chunk of its width on desktop platforms that reserve space for them. */
+.scroll-pane {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
