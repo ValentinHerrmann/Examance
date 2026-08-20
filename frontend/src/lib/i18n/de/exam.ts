@@ -94,7 +94,6 @@ export const exam = {
         delete: '✕ Löschen',
     },
     metadata: {
-        type: 'Art',
         submissions: 'Abgaben',
         graded: 'Korrigiert',
         localBanner: '💾 Lokal gespeichert — Synchronisieren mit Server für Export & Statistik',
