@@ -537,8 +537,14 @@
 
   const editorColumnBase =
     "flex flex-col h-full min-h-0 overflow-hidden rounded-lg border border-slate-700 bg-slate-900 transition-all duration-200 ease-[ease]";
+  // Below `lg` this column stacks above DualPdfPreview instead of sitting
+  // beside it. DualPdfPreview carries its own explicit `min-height: 18rem`
+  // (DualPdfPreview.svelte), which flexbox honours as a real floor; this
+  // column's `overflow-hidden` resets its own automatic minimum to 0, so
+  // without a matching floor here the flex distribution squeezes it toward
+  // nothing first — collapsing the LaTeX/MC inputs to invisible on phones.
   $: editorColumnClass = showLatexPanel
-    ? `${editorColumnBase} flex-1 min-w-0 p-0 gap-0`
+    ? `${editorColumnBase} min-h-[20rem] flex-1 min-w-0 p-0 gap-0 lg:min-h-0`
     : `${editorColumnBase} w-full h-10 flex-none min-w-0 p-0 lg:h-full lg:w-[38px] lg:flex-[0_0_38px] lg:min-w-[38px]`;
 </script>
 

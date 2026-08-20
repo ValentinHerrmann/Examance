@@ -60,6 +60,15 @@
   export let diffDecorations: DiffDecorationConfig | null = null;
   export let showQuickInsert: boolean = false;
 
+  // Applied to both wrapper divs below, not just CodeMirror's internal nodes.
+  // Ancestors that mix `flex-1`/`h-full`/`min-h-0` (the exercise editor's
+  // stacked-on-phone column, in particular) can resolve these wrappers to
+  // ~0px during flex layout since they had no explicit floor of their own —
+  // CodeMirror would then paint content that overflowed a collapsed box
+  // rather than a visibly-sized editor. An explicit min-height here beats
+  // that regardless of how the ancestors' flex math comes out.
+  $: wrapperMinHeight = `${Math.max(rows, 3) * 1.5}rem`;
+
   $: macroCategories = (["solutions", "scoring", "formatting", "generic"] as const).map((category) => ({
     category,
     macros: QUICK_INSERT_MACROS.filter((m) => m.category === category)
@@ -208,7 +217,7 @@
   }
 
   onMount(() => {
-    const minHeight = `${Math.max(rows, 3) * 1.5}rem`;
+    const minHeight = wrapperMinHeight;
 
     const state = EditorState.create({
       doc: value,
@@ -296,7 +305,10 @@
   });
 </script>
 
-<div class="flex w-full h-full flex-1 min-h-0 flex-col overflow-hidden">
+<div
+  class="flex w-full h-full flex-1 min-h-0 flex-col overflow-hidden"
+  style="min-height: {wrapperMinHeight}"
+>
   {#if showQuickInsert && !readonly}
     <div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-slate-700 bg-slate-800 px-2 py-1.5">
       {#each macroCategories as { category, macros } (category)}
@@ -323,7 +335,11 @@
       {/each}
     </div>
   {/if}
-  <div class="flex w-full flex-1 min-h-0 flex-col overflow-hidden" bind:this={container}></div>
+  <div
+    class="flex w-full flex-1 min-h-0 flex-col overflow-hidden"
+    style="min-height: {wrapperMinHeight}"
+    bind:this={container}
+  ></div>
 </div>
 
 {#if hoveredMacro}
