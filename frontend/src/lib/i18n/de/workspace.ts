@@ -27,5 +27,4 @@ export const workspace = {
         summaryProblems: 'Import mit {errorCount} Problem(en) abgeschlossen. {loaded}',
         summaryProblemsHeading: 'Folgendes konnte nicht auf dem Server gespeichert werden:',
     },
-    legalNavLabel: 'Rechtliche Hinweise',
 } as const;

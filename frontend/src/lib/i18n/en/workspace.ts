@@ -29,5 +29,4 @@ export const workspace: Translations['workspace'] = {
         summaryProblems: 'Import finished with {errorCount} problem(s). {loaded}',
         summaryProblemsHeading: 'The following could not be saved to the server:',
     },
-    legalNavLabel: 'Legal notices',
 };

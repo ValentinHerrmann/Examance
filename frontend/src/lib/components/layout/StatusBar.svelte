@@ -74,6 +74,19 @@
     <span class="statusbar-label hidden max-w-[20ch] truncate sm:inline">{policyLabel}</span>
   </button>
 
+  <!-- § 5 DDG requires the Impressum to be reachable from every page; folded
+       in here rather than a dedicated footer bar so it doesn't cost every
+       page a second reserved strip of height. -->
+  <a href="/legal/impressum" class="statusbar-item" title={$t("nav.imprint")}>
+    <span class="statusbar-icon">📄</span>
+    <span class="statusbar-label hidden sm:inline">{$t("nav.imprint")}</span>
+  </a>
+
+  <a href="/legal/datenschutz" class="statusbar-item" title={$t("nav.privacy")}>
+    <span class="statusbar-icon">🔒</span>
+    <span class="statusbar-label hidden sm:inline">{$t("nav.privacy")}</span>
+  </a>
+
   <button
     type="button"
     on:click={onStorageClick}
