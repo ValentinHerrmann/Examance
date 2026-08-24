@@ -21,6 +21,40 @@
   let isOpen = false;
   let highlightedIndex = -1;
 
+  /* The dropdown is positioned `fixed` against the input's own box rather than
+   * absolutely inside the wrapper: several callers (the exercise editor, the
+   * exam metadata editor) sit inside `overflow: hidden` / `overflow-y: auto`
+   * containers that clipped it away entirely. Fixed positioning escapes those,
+   * and the placement flips above the field when there is not enough room
+   * below — which is most of the time on a phone in landscape. */
+  let dropdownStyle = "";
+
+  function updateDropdownPosition() {
+    if (!inputEl || typeof window === "undefined") {
+      return;
+    }
+
+    const rect = inputEl.getBoundingClientRect();
+    const gap = 4;
+    const maxHeight = 224; // matches max-h-56
+    const below = window.innerHeight - rect.bottom - gap;
+    const above = rect.top - gap;
+    const openUp = below < Math.min(maxHeight, 160) && above > below;
+    const available = Math.max(120, Math.min(maxHeight, openUp ? above : below));
+
+    // Never let the list hang off the right edge on a narrow screen.
+    const width = Math.min(rect.width, window.innerWidth - 16);
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+
+    dropdownStyle = openUp
+      ? `position: fixed; left: ${left}px; width: ${width}px; bottom: ${window.innerHeight - rect.top + gap}px; max-height: ${available}px; z-index: var(--z-dropdown);`
+      : `position: fixed; left: ${left}px; width: ${width}px; top: ${rect.bottom + gap}px; max-height: ${available}px; z-index: var(--z-dropdown);`;
+  }
+
+  $: if (isOpen) {
+    updateDropdownPosition();
+  }
+
   const instanceId = Math.random().toString(36).substring(2, 9);
   $: dropdownId = id ? `${id}-listbox` : `suggest-listbox-${instanceId}`;
 
@@ -115,6 +149,11 @@
   }
 </script>
 
+<svelte:window
+  on:resize={() => isOpen && updateDropdownPosition()}
+  on:scroll|capture={() => isOpen && updateDropdownPosition()}
+/>
+
 <div class="relative w-full" bind:this={wrapperEl}>
   <input
     bind:this={inputEl}
@@ -142,7 +181,8 @@
   {#if isOpen && !disabled}
     <ul
       id={dropdownId}
-      class="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-[1100] m-0 max-h-56 overflow-y-auto rounded-lg border border-slate-700 bg-slate-800 p-1 shadow-2xl list-none"
+      class="scroll-pane m-0 list-none overflow-y-auto overscroll-contain rounded-lg border border-line bg-surface-raised p-1 shadow-2xl"
+      style={dropdownStyle}
       role="listbox"
     >
       {#if filteredSuggestions.length === 0}

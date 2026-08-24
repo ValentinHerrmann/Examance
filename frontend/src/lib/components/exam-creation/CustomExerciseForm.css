@@ -5,12 +5,6 @@
   margin-bottom: 1rem;
 }
 
-.custom-exercise-form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
 .custom-exercise-form label {
   font-size: 0.875rem;
   color: #cbd5e1;

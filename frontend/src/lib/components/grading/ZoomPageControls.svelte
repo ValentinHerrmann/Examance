@@ -10,12 +10,19 @@
   export let onResetZoom: () => void;
 
   const zoomBtn =
-    "rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-xs font-medium text-slate-300 transition-all duration-150 ease-[ease] hover:bg-slate-700 hover:text-slate-50";
+    "shrink-0 rounded-md border border-line bg-surface-raised px-2 py-1 text-xs font-medium text-slate-300 transition-colors duration-150 hover:bg-line-strong hover:text-slate-50";
   const zoomBtnActive =
-    "rounded-md border border-sky-400 bg-sky-600 px-2 py-1 text-xs font-medium text-white transition-all duration-150 ease-[ease]";
+    "shrink-0 rounded-md border border-accent bg-accent-strong px-2 py-1 text-xs font-medium text-white transition-colors duration-150";
 </script>
 
-<div class="absolute bottom-3 right-3 z-30 flex items-center gap-[0.35rem] rounded-[10px] border border-slate-700/80 bg-slate-900/90 px-[0.6rem] py-[0.35rem] text-xs shadow-[0_10px_25px_-5px_rgba(0,0,0,0.5)] backdrop-blur-sm">
+<!--
+  Docked below the canvas on small screens, floating over it from `lg` up —
+  same reasoning as the annotation toolbar.
+-->
+<div
+  class="scroll-pane z-30 flex shrink-0 items-center justify-center gap-1.5 overflow-x-auto rounded-lg border border-slate-700/80 bg-slate-900/90 px-2 py-1.5 text-xs backdrop-blur-sm
+    lg:absolute lg:right-3 lg:bottom-3 lg:justify-end lg:gap-[0.35rem] lg:overflow-visible lg:rounded-[10px] lg:px-[0.6rem] lg:py-[0.35rem] lg:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.5)]"
+>
   {#if $gradingStore.isScanPdf && $gradingStore.totalPages > 1}
     <button
       type="button"

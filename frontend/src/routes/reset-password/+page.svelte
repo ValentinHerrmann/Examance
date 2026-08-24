@@ -64,8 +64,8 @@
   }
 </script>
 
-<div class="reset-password-container">
-  <div class="reset-password-card">
+<div class="reset-password-container flex min-h-full items-center justify-center box-border px-4 py-8 sm:px-6 sm:py-12">
+  <div class="reset-password-card w-full max-w-form">
     <div class="card-header">
       <img src="/favicon.png" alt="Examance logo" class="brand-logo" />
       <h1>{$t("auth.resetPassword.title")}</h1>
@@ -125,12 +125,6 @@
 
 <style>
   .reset-password-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: calc(100vh - 28px);
-    padding: 2rem 1.5rem;
-    box-sizing: border-box;
     background-color: #0f172a;
     color: #f8fafc;
   }
@@ -140,8 +134,6 @@
     border: 1px solid #334155;
     border-radius: 12px;
     padding: 2.5rem;
-    width: 100%;
-    max-width: 440px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
   }
 

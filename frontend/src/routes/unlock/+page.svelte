@@ -160,7 +160,7 @@
   }
 </script>
 
-<div class="unlock-container">
+<div class="unlock-container flex min-h-full flex-col items-center justify-center box-border px-4 py-8 sm:px-6 sm:py-12">
   <UnlockForm
     bind:backendUrl
     bind:email

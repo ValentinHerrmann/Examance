@@ -7,16 +7,30 @@
   // the store directly for this action.
   export let onClearRequested: () => void;
 
+  /* One recipe for all toolbar buttons — this string used to be pasted 13
+   * times in this file. `shrink-0` keeps them finger-sized in the docked strip
+   * instead of squeezing to fit. */
+  const toolBtn =
+    "flex h-10 w-11 shrink-0 cursor-pointer flex-col items-center justify-center rounded-lg " +
+    "border border-transparent bg-transparent p-[0.15rem] text-slate-400 " +
+    "transition-all duration-150 hover:bg-slate-800 hover:text-slate-50";
+
   function selectTool(tool: ToolType) {
     gradingStore.setDrawTool(tool);
   }
 </script>
 
+<!--
+  Below `lg` the toolbar docks as a horizontal strip above the canvas: floating
+  it there covered most of the scan on a phone. From `lg` up it returns to the
+  overlay position, where there is room to spare.
+-->
 <div
-  class="absolute top-3 left-3 z-30 flex flex-col gap-[0.2rem] p-[0.35rem] bg-slate-900/92 backdrop-blur-sm border border-slate-700/80 rounded-xl shadow-[0_10px_25px_-5px_rgba(0,0,0,0.5)] max-h-[calc(100%-3rem)] overflow-y-auto"
+  class="scroll-pane z-30 flex shrink-0 flex-row gap-1 overflow-x-auto rounded-lg border border-slate-700/80 bg-slate-900/92 p-1.5 backdrop-blur-sm
+    lg:absolute lg:top-3 lg:left-3 lg:max-h-[calc(100%-3rem)] lg:flex-col lg:gap-[0.2rem] lg:overflow-x-visible lg:overflow-y-auto lg:rounded-xl lg:p-[0.35rem] lg:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.5)]"
 >
   <button
-    class="flex flex-col items-center justify-center w-11 h-10 p-[0.15rem] bg-transparent border border-transparent rounded-lg text-slate-400 cursor-pointer transition-all duration-150 hover:bg-slate-800 hover:text-slate-50"
+    class={toolBtn}
     class:bg-sky-600={$gradingStore.drawTool === "pen"}
     class:!text-white={$gradingStore.drawTool === "pen"}
     class:border-sky-400={$gradingStore.drawTool === "pen"}
@@ -28,7 +42,7 @@
     <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.pen")}</span>
   </button>
   <button
-    class="flex flex-col items-center justify-center w-11 h-10 p-[0.15rem] bg-transparent border border-transparent rounded-lg text-slate-400 cursor-pointer transition-all duration-150 hover:bg-slate-800 hover:text-slate-50"
+    class={toolBtn}
     class:bg-sky-600={$gradingStore.drawTool === "line"}
     class:!text-white={$gradingStore.drawTool === "line"}
     class:border-sky-400={$gradingStore.drawTool === "line"}
@@ -40,7 +54,7 @@
     <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.line")}</span>
   </button>
   <button
-    class="flex flex-col items-center justify-center w-11 h-10 p-[0.15rem] bg-transparent border border-transparent rounded-lg text-slate-400 cursor-pointer transition-all duration-150 hover:bg-slate-800 hover:text-slate-50"
+    class={toolBtn}
     class:bg-sky-600={$gradingStore.drawTool === "eraser"}
     class:!text-white={$gradingStore.drawTool === "eraser"}
     class:border-sky-400={$gradingStore.drawTool === "eraser"}
@@ -55,7 +69,7 @@
   <div class="h-px bg-slate-700 mx-[0.2rem] my-[0.15rem]"></div>
 
   <button
-    class="flex flex-col items-center justify-center w-11 h-10 p-[0.15rem] bg-transparent border border-transparent rounded-lg text-slate-400 cursor-pointer transition-all duration-150 hover:bg-slate-800 hover:text-slate-50"
+    class={toolBtn}
     class:bg-sky-600={$gradingStore.drawTool === "check_full" || $gradingStore.drawTool === "check"}
     class:!text-white={$gradingStore.drawTool === "check_full" || $gradingStore.drawTool === "check"}
     class:border-sky-400={$gradingStore.drawTool === "check_full" || $gradingStore.drawTool === "check"}
@@ -67,7 +81,7 @@
     <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.checkFull")}</span>
   </button>
   <button
-    class="flex flex-col items-center justify-center w-11 h-10 p-[0.15rem] bg-transparent border border-transparent rounded-lg text-slate-400 cursor-pointer transition-all duration-150 hover:bg-slate-800 hover:text-slate-50"
+    class={toolBtn}
     class:bg-sky-600={$gradingStore.drawTool === "check_half"}
     class:!text-white={$gradingStore.drawTool === "check_half"}
     class:border-sky-400={$gradingStore.drawTool === "check_half"}
@@ -79,7 +93,7 @@
     <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.checkHalf")}</span>
   </button>
   <button
-    class="flex flex-col items-center justify-center w-11 h-10 p-[0.15rem] bg-transparent border border-transparent rounded-lg text-slate-400 cursor-pointer transition-all duration-150 hover:bg-slate-800 hover:text-slate-50"
+    class={toolBtn}
     class:bg-sky-600={$gradingStore.drawTool === "check_quarter"}
     class:!text-white={$gradingStore.drawTool === "check_quarter"}
     class:border-sky-400={$gradingStore.drawTool === "check_quarter"}
@@ -94,7 +108,7 @@
   <div class="h-px bg-slate-700 mx-[0.2rem] my-[0.15rem]"></div>
 
   <button
-    class="flex flex-col items-center justify-center w-11 h-10 p-[0.15rem] bg-transparent border border-transparent rounded-lg text-slate-400 cursor-pointer transition-all duration-150 hover:bg-slate-800 hover:text-slate-50"
+    class={toolBtn}
     class:bg-sky-600={$gradingStore.drawTool === "minus_full"}
     class:!text-white={$gradingStore.drawTool === "minus_full"}
     class:border-sky-400={$gradingStore.drawTool === "minus_full"}
@@ -106,7 +120,7 @@
     <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.minusFull")}</span>
   </button>
   <button
-    class="flex flex-col items-center justify-center w-11 h-10 p-[0.15rem] bg-transparent border border-transparent rounded-lg text-slate-400 cursor-pointer transition-all duration-150 hover:bg-slate-800 hover:text-slate-50"
+    class={toolBtn}
     class:bg-sky-600={$gradingStore.drawTool === "minus_half"}
     class:!text-white={$gradingStore.drawTool === "minus_half"}
     class:border-sky-400={$gradingStore.drawTool === "minus_half"}
@@ -118,7 +132,7 @@
     <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.minusHalf")}</span>
   </button>
   <button
-    class="flex flex-col items-center justify-center w-11 h-10 p-[0.15rem] bg-transparent border border-transparent rounded-lg text-slate-400 cursor-pointer transition-all duration-150 hover:bg-slate-800 hover:text-slate-50"
+    class={toolBtn}
     class:bg-sky-600={$gradingStore.drawTool === "minus_quarter"}
     class:!text-white={$gradingStore.drawTool === "minus_quarter"}
     class:border-sky-400={$gradingStore.drawTool === "minus_quarter"}
@@ -133,7 +147,7 @@
   <div class="h-px bg-slate-700 mx-[0.2rem] my-[0.15rem]"></div>
 
   <button
-    class="flex flex-col items-center justify-center w-11 h-10 p-[0.15rem] bg-transparent border border-transparent rounded-lg text-slate-400 cursor-pointer transition-all duration-150 hover:bg-slate-800 hover:text-slate-50"
+    class={toolBtn}
     class:bg-sky-600={$gradingStore.drawTool === "wrong" || $gradingStore.drawTool === "cross"}
     class:!text-white={$gradingStore.drawTool === "wrong" || $gradingStore.drawTool === "cross"}
     class:border-sky-400={$gradingStore.drawTool === "wrong" || $gradingStore.drawTool === "cross"}
@@ -145,7 +159,7 @@
     <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.wrong")}</span>
   </button>
   <button
-    class="flex flex-col items-center justify-center w-11 h-10 p-[0.15rem] bg-transparent border border-transparent rounded-lg text-slate-400 cursor-pointer transition-all duration-150 hover:bg-slate-800 hover:text-slate-50"
+    class={toolBtn}
     class:bg-sky-600={$gradingStore.drawTool === "missing"}
     class:!text-white={$gradingStore.drawTool === "missing"}
     class:border-sky-400={$gradingStore.drawTool === "missing"}
@@ -157,7 +171,7 @@
     <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.missing")}</span>
   </button>
   <button
-    class="flex flex-col items-center justify-center w-11 h-10 p-[0.15rem] bg-transparent border border-transparent rounded-lg text-slate-400 cursor-pointer transition-all duration-150 hover:bg-slate-800 hover:text-slate-50"
+    class={toolBtn}
     class:bg-sky-600={$gradingStore.drawTool === "wf"}
     class:!text-white={$gradingStore.drawTool === "wf"}
     class:border-sky-400={$gradingStore.drawTool === "wf"}
@@ -169,7 +183,7 @@
     <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.wf")}</span>
   </button>
   <button
-    class="flex flex-col items-center justify-center w-11 h-10 p-[0.15rem] bg-transparent border border-transparent rounded-lg text-slate-400 cursor-pointer transition-all duration-150 hover:bg-slate-800 hover:text-slate-50"
+    class={toolBtn}
     class:bg-sky-600={$gradingStore.drawTool === "ff"}
     class:!text-white={$gradingStore.drawTool === "ff"}
     class:border-sky-400={$gradingStore.drawTool === "ff"}

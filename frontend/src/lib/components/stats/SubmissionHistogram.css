@@ -12,10 +12,5 @@
 
 .submission-histogram-chart-container {
   margin-top: 1rem;
-  overflow: hidden;
   position: relative;
-}
-
-.submission-histogram-container {
-  height: 290px;
 }

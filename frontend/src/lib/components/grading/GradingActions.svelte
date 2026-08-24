@@ -18,7 +18,7 @@
   {$gradingStore.isSaving ? $t("grading.actions.saving") : $t("grading.actions.save")}
 </button>
 
-<div class="flex gap-2">
+<div class="flex flex-wrap gap-2">
   <button
     class="flex-1 py-[0.4rem] px-2 bg-slate-700 text-slate-300 border-none rounded-md text-[0.775rem] font-medium cursor-pointer transition-colors duration-150 hover:enabled:bg-slate-600 hover:enabled:text-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
     on:click={onPrev}

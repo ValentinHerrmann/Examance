@@ -1,14 +1,3 @@
-.new-exam-page {
-  padding: 1.5rem;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.new-exam-page h2 {
-  color: #38bdf8;
-  margin-bottom: 1.5rem;
-}
-
 .exam-new-submit-btn {
   width: 100%;
   padding: 0.875rem;
@@ -39,12 +28,3 @@
   font-family: "Fira Code", monospace;
 }
 
-@media (max-width: 640px), (max-height: 760px) and (orientation: landscape) {
-  .new-exam-page {
-    padding: 1rem;
-  }
-
-  .exam-new-submit-btn {
-    width: 100%;
-  }
-}

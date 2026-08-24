@@ -91,7 +91,7 @@
 </script>
 
 <div
-  class="relative flex min-h-[200px] max-h-[70vh] w-full select-none items-center justify-center overflow-hidden rounded-md bg-slate-800 {isDragging ? 'cursor-grabbing' : 'cursor-grab'}"
+  class="relative flex max-h-[70dvh] min-h-[200px] w-full touch-none select-none items-center justify-center overflow-hidden rounded-md bg-slate-800 {isDragging ? 'cursor-grabbing' : 'cursor-grab'}"
   on:wheel|preventDefault={handleWheel}
   on:mousedown={handleMouseDown}
   on:mousemove={handleMouseMove}
@@ -102,7 +102,7 @@
   <img
     src={src}
     alt={alt}
-    class="pointer-events-none max-h-[70vh] max-w-full origin-center object-contain transition-transform duration-[50ms] ease-out"
+    class="pointer-events-none max-h-[70dvh] max-w-full origin-center object-contain transition-transform duration-[50ms] ease-out"
     style="transform: translate({panX}px, {panY}px) scale({zoomLevel});"
     draggable="false"
   />

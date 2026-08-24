@@ -121,6 +121,7 @@
 }
 
 .exercise-grid-footer {
+  flex-wrap: wrap;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -130,6 +131,7 @@
   border: 1px solid #334155;
   font-size: 0.85rem;
   color: #94a3b8;
+  gap: 0.75rem;
 }
 
 .exercise-grid-empty {

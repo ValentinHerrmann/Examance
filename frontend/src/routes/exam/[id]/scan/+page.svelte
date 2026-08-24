@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./+page.css";
   import { page } from "$app/stores";
   import { loadPdfjs } from "$lib/pdf/pdfjs";
   export let params;
@@ -51,6 +50,7 @@
   import type { PDFDocument, PDFPage } from "pdf-lib";
   import HardwareProfileCard from "$lib/components/scanning/HardwareProfileCard.svelte";
   import UploadPanel from "$lib/components/scanning/UploadPanel.svelte";
+  import { PageHeader, PageShell } from "$lib/components/ui";
   import UnmatchedResolver from "$lib/components/scanning/UnmatchedResolver.svelte";
   import ScannedSubmissionsTable from "$lib/components/scanning/ScannedSubmissionsTable.svelte";
   import ScanPreviewModal from "$lib/components/scanning/ScanPreviewModal.svelte";
@@ -740,12 +740,18 @@
       if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
         try {
           const pdfjsLib = await loadPdfjs();
-          const fileUrl = URL.createObjectURL(file);
-          const loadingTask = pdfjsLib.getDocument({ url: fileUrl });
+          // `{ data }` hands pdf.js the bytes directly. The earlier `{ url:
+          // URL.createObjectURL(file) }` made pdf.js issue its own internal
+          // fetch against the blob: URL, which is connect-src-governed (not
+          // img-src) and got blocked by CSP — img-src already allows blob:,
+          // but nothing here was an image load. Matches the PASS 2 pattern
+          // a few hundred lines below, which never had this problem.
+          const fileBytes = new Uint8Array(await file.arrayBuffer());
+          const loadingTask = pdfjsLib.getDocument({ data: fileBytes });
           const pdf = await loadingTask.promise;
 
           totalPagesCount += pdf.numPages;
-          fileInfos.push({ file, type: "pdf", pdf, loadingTask, fileUrl });
+          fileInfos.push({ file, type: "pdf", pdf, loadingTask });
         } catch (pdfErr) {
           console.error("Failed to load PDF:", pdfErr);
         }
@@ -905,7 +911,6 @@
 
         // Clean up PDF.js resources
         await info.loadingTask.destroy();
-        URL.revokeObjectURL(info.fileUrl);
 
       } else {
         // Image files are no longer supported — skip with warning
@@ -1185,13 +1190,15 @@
   }
 </script>
 
-<div class="scan-ingestion-page">
-  <h2>{$t("scanning.pageTitle")}</h2>
+<PageShell width="full">
+  <PageHeader title={$t("scanning.pageTitle")} />
 
   <HardwareProfileCard {hwProfile} inConstrainedMode={monitor?.inConstrainedMode} />
 
   {#if omrBanner}
-    <div class="omr-banner">{omrBanner}</div>
+    <div class="my-4 rounded-md border border-amber-400 bg-amber-400/10 px-4 py-3 text-sm text-amber-400">
+      {omrBanner}
+    </div>
   {/if}
 
   <UploadPanel {isProcessing} {progress} {statusText} onFileUpload={handleFileUpload} />
@@ -1210,7 +1217,7 @@
     onDelete={handleDeleteScan}
     onDeleteAll={handleDeleteAllScans}
   />
-</div>
+</PageShell>
 
 <ScanPreviewModal
   open={previewModalOpen}

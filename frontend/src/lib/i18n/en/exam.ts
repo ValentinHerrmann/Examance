@@ -96,7 +96,6 @@ export const exam: Translations['exam'] = {
         delete: '✕ Delete',
     },
     metadata: {
-        type: 'Type',
         submissions: 'Submissions',
         graded: 'Graded',
         localBanner: '💾 Stored locally — sync with server for export & statistics',
@@ -154,6 +153,7 @@ export const exam: Translations['exam'] = {
         empty: 'No exercises added yet.',
     },
     nav: {
+        tabsLabel: 'Exam workflow',
         examFallback: 'Exam',
         backToDashboard: '← Back to Dashboard',
         tabs: {

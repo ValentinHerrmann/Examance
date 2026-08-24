@@ -5,6 +5,7 @@
   import { computeSideBySideDiff, buildAlignedDiffDecorations } from "$lib/latex/diff";
   import { getDiffSelectLabel } from "./ExerciseDiffModal";
   import { t } from "$lib/i18n";
+  import { Modal, Button, Select } from "$lib/components/ui";
 
   export let isOpen = false;
   export let activeDiffGroupExercises: ExerciseRecord[] = [];
@@ -69,110 +70,83 @@
   }
 </script>
 
-{#if isOpen}
-  <div
-    class="fixed inset-0 w-screen h-screen bg-black/75 flex justify-center items-center z-[100]"
-    role="button"
-    tabindex="-1"
-    on:click|self={onRequestClose}
-    on:keydown|self={(e) => e.key === "Escape" && onRequestClose()}
-  >
-    <div class="bg-slate-800 border border-slate-700 rounded-xl w-[90%] max-w-[1400px] max-h-[95vh] flex flex-col overflow-hidden">
-      <div class="flex justify-between items-center px-6 py-4 border-b border-slate-700">
-        <h3 class="m-0 text-sky-400">{$t("exercises.diffModal.title")}</h3>
-        <button class="bg-transparent border-none text-slate-400 text-xl cursor-pointer" on:click={onRequestClose}>✕</button>
-      </div>
+<Modal open={isOpen} size="xl" title={$t("exercises.diffModal.title")} onClose={onRequestClose}>
+  <div class="mb-6 flex flex-col gap-4 rounded-lg bg-surface-inset p-4 sm:flex-row sm:gap-6">
+    <div class="flex flex-1 flex-col gap-1.5">
+      <label for="diffLeftSelect" class="text-sm text-muted">{$t("exercises.diffModal.baseLabel")}</label>
+      <Select id="diffLeftSelect" bind:value={diffLeftId}>
+        {#each activeDiffGroupExercises as ex}
+          <option value={ex.id}>
+            {getDiffSelectLabel(ex)}
+          </option>
+        {/each}
+      </Select>
+    </div>
 
-      <div class="p-6 overflow-y-auto flex-1">
-        <div class="flex gap-6 mb-6 bg-slate-900 p-4 rounded-lg">
-          <div class="flex flex-col gap-1.5 flex-1">
-            <label for="diffLeftSelect" class="text-sm text-slate-300">{$t("exercises.diffModal.baseLabel")}</label>
-            <select id="diffLeftSelect" bind:value={diffLeftId} class="p-2 bg-slate-800 border border-slate-700 rounded-md text-white">
-              {#each activeDiffGroupExercises as ex}
-                <option value={ex.id}>
-                  {getDiffSelectLabel(ex)}
-                </option>
-              {/each}
-            </select>
-          </div>
+    <div class="flex flex-1 flex-col gap-1.5">
+      <label for="diffRightSelect" class="text-sm text-muted">{$t("exercises.diffModal.comparedLabel")}</label>
+      <Select id="diffRightSelect" bind:value={diffRightId}>
+        {#each activeDiffGroupExercises as ex}
+          <option value={ex.id}>
+            {getDiffSelectLabel(ex)}
+          </option>
+        {/each}
+      </Select>
+    </div>
+  </div>
 
-          <div class="flex flex-col gap-1.5 flex-1">
-            <label for="diffRightSelect" class="text-sm text-slate-300">{$t("exercises.diffModal.comparedLabel")}</label>
-            <select id="diffRightSelect" bind:value={diffRightId} class="p-2 bg-slate-800 border border-slate-700 rounded-md text-white">
-              {#each activeDiffGroupExercises as ex}
-                <option value={ex.id}>
-                  {getDiffSelectLabel(ex)}
-                </option>
-              {/each}
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
-              <h4 class="m-0 text-sky-400 text-[0.9rem]">{$t("exercises.diffModal.leftHeading", { name: diffLeftEx?.name || $t("exercises.diffModal.leftOriginalFallback"), version: diffLeftEx?.version || 1 })}</h4>
-              <div class="flex items-center gap-2">
-                {#if isDiffLeftDirty}
-                  <button
-                    type="button"
-                    class="bg-emerald-500 text-white border-none px-[0.6rem] py-1 text-xs font-semibold rounded cursor-pointer transition-colors duration-150 enabled:hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed"
-                    on:click={onSaveLeft}
-                    disabled={isSavingDiffLeft}
-                  >
-                    {isSavingDiffLeft ? $t("exercises.diffModal.saving") : $t("exercises.diffModal.saveLeft")}
-                  </button>
-                {/if}
-              </div>
-            </div>
-
-            <div class="max-h-[450px] h-[450px] rounded-lg overflow-hidden">
-              <LatexEditor
-                bind:this={diffLeftEditor}
-                bind:value={diffLeftLatex}
-                rows={16}
-                diffDecorations={leftDiffDecorations}
-                on:scroll={handleDiffLeftScroll}
-              />
-            </div>
-          </div>
-
-          <div>
-            <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
-              <h4 class="m-0 text-sky-400 text-[0.9rem]">{$t("exercises.diffModal.rightHeading", { name: diffRightEx?.name || $t("exercises.diffModal.rightComparedFallback"), version: diffRightEx?.version || 1 })}</h4>
-              <div class="flex items-center gap-2">
-                {#if isDiffRightDirty}
-                  <button
-                    type="button"
-                    class="bg-emerald-500 text-white border-none px-[0.6rem] py-1 text-xs font-semibold rounded cursor-pointer transition-colors duration-150 enabled:hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed"
-                    on:click={onSaveRight}
-                    disabled={isSavingDiffRight}
-                  >
-                    {isSavingDiffRight ? $t("exercises.diffModal.saving") : $t("exercises.diffModal.saveRight")}
-                  </button>
-                {/if}
-              </div>
-            </div>
-
-            <div class="max-h-[450px] h-[450px] rounded-lg overflow-hidden">
-              <LatexEditor
-                bind:this={diffRightEditor}
-                bind:value={diffRightLatex}
-                rows={16}
-                diffDecorations={rightDiffDecorations}
-                on:scroll={handleDiffRightScroll}
-              />
-            </div>
-          </div>
+  <div class="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div>
+      <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h4 class="m-0 text-[0.9rem] text-accent">{$t("exercises.diffModal.leftHeading", { name: diffLeftEx?.name || $t("exercises.diffModal.leftOriginalFallback"), version: diffLeftEx?.version || 1 })}</h4>
+        <div class="flex items-center gap-2">
+          {#if isDiffLeftDirty}
+            <Button variant="primary" size="sm" onClick={onSaveLeft} disabled={isSavingDiffLeft}>
+              {isSavingDiffLeft ? $t("exercises.diffModal.saving") : $t("exercises.diffModal.saveLeft")}
+            </Button>
+          {/if}
         </div>
       </div>
 
-      <div class="flex justify-end gap-4 px-6 py-4 border-t border-slate-700">
-        <button class="bg-slate-700 text-white border-none px-5 py-2.5 rounded-md cursor-pointer" on:click={onRequestClose}>{$t("common.close")}</button>
+      <div class="h-[450px] max-h-[450px] overflow-hidden rounded-lg">
+        <LatexEditor
+          bind:this={diffLeftEditor}
+          bind:value={diffLeftLatex}
+          rows={16}
+          diffDecorations={leftDiffDecorations}
+          on:scroll={handleDiffLeftScroll}
+        />
+      </div>
+    </div>
+
+    <div>
+      <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h4 class="m-0 text-[0.9rem] text-accent">{$t("exercises.diffModal.rightHeading", { name: diffRightEx?.name || $t("exercises.diffModal.rightComparedFallback"), version: diffRightEx?.version || 1 })}</h4>
+        <div class="flex items-center gap-2">
+          {#if isDiffRightDirty}
+            <Button variant="primary" size="sm" onClick={onSaveRight} disabled={isSavingDiffRight}>
+              {isSavingDiffRight ? $t("exercises.diffModal.saving") : $t("exercises.diffModal.saveRight")}
+            </Button>
+          {/if}
+        </div>
+      </div>
+
+      <div class="h-[450px] max-h-[450px] overflow-hidden rounded-lg">
+        <LatexEditor
+          bind:this={diffRightEditor}
+          bind:value={diffRightLatex}
+          rows={16}
+          diffDecorations={rightDiffDecorations}
+          on:scroll={handleDiffRightScroll}
+        />
       </div>
     </div>
   </div>
-{/if}
+
+  <svelte:fragment slot="footer">
+    <Button variant="secondary" onClick={onRequestClose}>{$t("common.close")}</Button>
+  </svelte:fragment>
+</Modal>
 
 <ConfirmDialog
   isOpen={showConfirmClose}

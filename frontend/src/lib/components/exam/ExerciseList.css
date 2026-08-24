@@ -9,6 +9,7 @@
 
 .exercise-item {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem 1rem;
@@ -20,8 +21,10 @@
 
 .exercise-info {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .exercise-number {
@@ -61,6 +64,7 @@
 
 .exercise-actions {
   display: flex;
+  flex-shrink: 0;
   gap: 0.25rem;
 }
 

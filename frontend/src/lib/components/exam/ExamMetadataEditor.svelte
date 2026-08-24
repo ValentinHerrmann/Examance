@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./ExamMetadataEditor.css";
   import type { GradingKeyConfig } from '$lib/db/schema';
   import GradingKeyEditor from '$lib/components/GradingKeyEditor.svelte';
   import LatexEditor from '$lib/components/LatexEditor.svelte';
@@ -7,6 +6,7 @@
   import { recordValue } from '$lib/utils/recentValues';
   import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from '$lib/utils/examLabel';
   import { t } from '$lib/i18n';
+  import { Modal, Button, controlClass } from '$lib/components/ui';
 
   export let isOpen: boolean = false;
   export let editTitle: string;
@@ -54,83 +54,69 @@
   }
 </script>
 
-{#if isOpen}
-  <div class="eme-modal-overlay" on:click={onCancel}>
-    <div class="eme-editor-modal" on:click|stopPropagation>
-      <div class="eme-modal-header">
-        <h3>{$t("exam.metadataEditor.heading")}</h3>
-        <button class="eme-close-btn" on:click={onCancel}>✕</button>
-      </div>
-
-      <div class="eme-editor-content">
-        <div class="eme-form-grid">
-          <div class="eme-form-group">
-            <label for="editTitle">{$t("exam.metadataEditor.examTitle")}</label>
-            <input id="editTitle" type="text" bind:value={editTitle} />
-          </div>
-          <div class="eme-form-group">
-            <label for="editTestart">{$t("exam.metadataEditor.testart")}</label>
-            <SuggestInput id="editTestart" storageKey="exam.testart" bind:value={editTestart} />
-          </div>
-          <div class="eme-form-group">
-            <label for="editGrade">{$t("exam.metadataEditor.grade")}</label>
-            <SuggestInput id="editGrade" storageKey="exam.grade" bind:value={editGrade} placeholder="10" />
-          </div>
-          <div class="eme-form-group">
-            <label for="editKlasse">{$t("exam.metadataEditor.klasse")}</label>
-            <SuggestInput id="editKlasse" storageKey="exam.klasse" bind:value={editKlasse} placeholder="a" />
-          </div>
-        {#if fullCoursePreview}
-          <div class="eme-form-group eme-full-width">
-            <div class="eme-course-preview">
-              <span class="eme-preview-label">{$t("exam.metadataEditor.coursePreview")} <code>\Klasse&#123;{fullCoursePreview}&#125;</code>:</span>
-              <span class="eme-preview-badge">{fullCoursePreview}</span>
-            </div>
-          </div>
-        {/if}
-          <div class="eme-form-group">
-            <label for="editDatumDate">{$t("exam.metadataEditor.datum")}</label>
-            <input id="editDatumDate" type="text" bind:value={editDatumDate} on:input={handleDatumDateOrDauerChange} placeholder="14.08.2026" />
-          </div>
-          <div class="eme-form-group">
-            <label for="editDauer">{$t("exam.metadataEditor.dauer")}</label>
-            <SuggestInput id="editDauer" storageKey="exam.dauer" bind:value={editDauer} on:input={handleDatumDateOrDauerChange} placeholder="30 Min" />
-          </div>
-          <div class="eme-form-group">
-            <label for="editNr">{$t("exam.metadataEditor.nr")}</label>
-            <input id="editNr" type="text" bind:value={editNr} />
-          </div>
-          <div class="eme-form-group">
-            <label for="editFach">{$t("exam.metadataEditor.fach")}</label>
-            <SuggestInput id="editFach" storageKey="exam.fach" bind:value={editFach} />
-          </div>
-          <div class="eme-form-group">
-            <label for="editLehrernachname">{$t("exam.metadataEditor.lehrernachname")}</label>
-            <SuggestInput id="editLehrernachname" storageKey="exam.lehrernachname" bind:value={editLehrernachname} />
-          </div>
-          <div class="eme-form-group">
-            <label for="editRetention">{$t("exam.metadataEditor.retentionUntil")}</label>
-            <input id="editRetention" type="date" bind:value={editRetentionUntil} />
-          </div>
-        </div>
-
-        <div class="eme-form-group eme-full-width">
-          <label>{$t("exam.metadataEditor.infoText")}</label>
-          <div class="eme-latex-editor-wrap">
-            <LatexEditor bind:value={editInfoText} rows={4} />
-          </div>
-        </div>
-
-        <div class="grading-key-block">
-          <GradingKeyEditor bind:gradingKey={editGradingKey} />
+<Modal open={isOpen} size="lg" title={$t("exam.metadataEditor.heading")} onClose={onCancel}>
+  <div class="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div class="flex flex-col gap-1">
+      <label for="editTitle" class="text-[0.8125rem] text-muted">{$t("exam.metadataEditor.examTitle")}</label>
+      <input id="editTitle" type="text" bind:value={editTitle} class={controlClass} />
+    </div>
+    <div class="flex flex-col gap-1">
+      <label for="editTestart" class="text-[0.8125rem] text-muted">{$t("exam.metadataEditor.testart")}</label>
+      <SuggestInput id="editTestart" storageKey="exam.testart" bind:value={editTestart} class={controlClass} />
+    </div>
+    <div class="flex flex-col gap-1">
+      <label for="editGrade" class="text-[0.8125rem] text-muted">{$t("exam.metadataEditor.grade")}</label>
+      <SuggestInput id="editGrade" storageKey="exam.grade" bind:value={editGrade} placeholder="10" class={controlClass} />
+    </div>
+    <div class="flex flex-col gap-1">
+      <label for="editKlasse" class="text-[0.8125rem] text-muted">{$t("exam.metadataEditor.klasse")}</label>
+      <SuggestInput id="editKlasse" storageKey="exam.klasse" bind:value={editKlasse} placeholder="a" class={controlClass} />
+    </div>
+    {#if fullCoursePreview}
+      <div class="flex flex-col gap-1 md:col-span-2">
+        <div class="mt-1 flex flex-wrap items-center justify-between gap-2 rounded-md border border-line bg-surface-raised px-3 py-2 text-[0.85rem] text-muted">
+          <span>{$t("exam.metadataEditor.coursePreview")} <code class="rounded bg-sky-400/10 px-[0.35rem] py-[0.1rem] font-mono text-accent">\Klasse&#123;{fullCoursePreview}&#125;</code>:</span>
+          <span class="rounded-full border border-sky-400/30 bg-sky-400/15 px-2 py-[0.15rem] font-semibold text-accent">{fullCoursePreview}</span>
         </div>
       </div>
-
-      <div class="eme-modal-footer">
-        <button class="eme-btn-cancel" on:click={onCancel}>{$t("common.cancel")}</button>
-        <button class="eme-btn-save" on:click={handleSave}>{$t("common.save")}</button>
-      </div>
+    {/if}
+    <div class="flex flex-col gap-1">
+      <label for="editDatumDate" class="text-[0.8125rem] text-muted">{$t("exam.metadataEditor.datum")}</label>
+      <input id="editDatumDate" type="text" bind:value={editDatumDate} on:input={handleDatumDateOrDauerChange} placeholder="14.08.2026" class={controlClass} />
+    </div>
+    <div class="flex flex-col gap-1">
+      <label for="editDauer" class="text-[0.8125rem] text-muted">{$t("exam.metadataEditor.dauer")}</label>
+      <SuggestInput id="editDauer" storageKey="exam.dauer" bind:value={editDauer} on:input={handleDatumDateOrDauerChange} placeholder="30 Min" class={controlClass} />
+    </div>
+    <div class="flex flex-col gap-1">
+      <label for="editNr" class="text-[0.8125rem] text-muted">{$t("exam.metadataEditor.nr")}</label>
+      <input id="editNr" type="text" bind:value={editNr} class={controlClass} />
+    </div>
+    <div class="flex flex-col gap-1">
+      <label for="editFach" class="text-[0.8125rem] text-muted">{$t("exam.metadataEditor.fach")}</label>
+      <SuggestInput id="editFach" storageKey="exam.fach" bind:value={editFach} class={controlClass} />
+    </div>
+    <div class="flex flex-col gap-1">
+      <label for="editLehrernachname" class="text-[0.8125rem] text-muted">{$t("exam.metadataEditor.lehrernachname")}</label>
+      <SuggestInput id="editLehrernachname" storageKey="exam.lehrernachname" bind:value={editLehrernachname} class={controlClass} />
+    </div>
+    <div class="flex flex-col gap-1">
+      <label for="editRetention" class="text-[0.8125rem] text-muted">{$t("exam.metadataEditor.retentionUntil")}</label>
+      <input id="editRetention" type="date" bind:value={editRetentionUntil} class={controlClass} />
     </div>
   </div>
-{/if}
 
+  <div class="mb-4 flex flex-col gap-1">
+    <label class="text-[0.8125rem] text-muted">{$t("exam.metadataEditor.infoText")}</label>
+    <LatexEditor bind:value={editInfoText} rows={4} />
+  </div>
+
+  <div class="mt-2">
+    <GradingKeyEditor bind:gradingKey={editGradingKey} />
+  </div>
+
+  <svelte:fragment slot="footer">
+    <Button variant="secondary" onClick={onCancel}>{$t("common.cancel")}</Button>
+    <Button variant="primary" onClick={handleSave}>{$t("common.save")}</Button>
+  </svelte:fragment>
+</Modal>

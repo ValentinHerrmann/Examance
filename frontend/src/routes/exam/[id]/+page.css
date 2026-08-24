@@ -2,19 +2,6 @@
   width: 100%;
 }
 
-.exam-two-col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  align-items: start;
-}
-
-@media (max-width: 1199px) {
-  .exam-two-col {
-    grid-template-columns: 1fr;
-  }
-}
-
 .pdf-compile-section {
   background: #1e293b;
   border: 1px solid #334155;

@@ -37,7 +37,7 @@
   import StoragePolicyModal from "$lib/components/StoragePolicyModal.svelte";
   import SessionTimeoutWarning from "$lib/components/SessionTimeoutWarning.svelte";
   import HttpCatModal from "$lib/components/HttpCatModal.svelte";
-  import { locale, t, translate } from "$lib/i18n";
+  import { locale, translate } from "$lib/i18n";
 
   let fileInput: HTMLInputElement;
   let isSettingsModalOpen = false;
@@ -209,13 +209,6 @@
     <slot />
   </main>
 
-  <!-- § 5 DDG requires the Impressum to be reachable from every page. -->
-  <nav class="legal-links" aria-label={$t("workspace.legalNavLabel")}>
-    <a href="/legal/impressum">{$t("nav.imprint")}</a>
-    <span aria-hidden="true">·</span>
-    <a href="/legal/datenschutz">{$t("nav.privacy")}</a>
-  </nav>
-
   <StatusBar
     onStorageClick={handleFooterClick}
     policyIcon={$storagePolicyBadgeStore.icon}
@@ -234,23 +227,3 @@
   />
 </div>
 
-<style>
-  .legal-links {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    font-size: 0.75rem;
-    color: #64748b;
-  }
-
-  .legal-links a {
-    color: #94a3b8;
-    text-decoration: none;
-  }
-
-  .legal-links a:hover {
-    color: #e2e8f0;
-    text-decoration: underline;
-  }
-</style>

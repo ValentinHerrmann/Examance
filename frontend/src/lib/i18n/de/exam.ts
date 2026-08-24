@@ -94,7 +94,6 @@ export const exam = {
         delete: '✕ Löschen',
     },
     metadata: {
-        type: 'Art',
         submissions: 'Abgaben',
         graded: 'Korrigiert',
         localBanner: '💾 Lokal gespeichert — Synchronisieren mit Server für Export & Statistik',
@@ -152,6 +151,7 @@ export const exam = {
         empty: 'Noch keine Aufgaben hinzugefügt.',
     },
     nav: {
+        tabsLabel: 'Prüfungsschritte',
         examFallback: 'Prüfung',
         backToDashboard: '← Zurück zum Dashboard',
         tabs: {

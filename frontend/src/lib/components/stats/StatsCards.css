@@ -1,16 +1,3 @@
-.stats-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-@media (max-width: 768px) {
-  .stats-cards-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 .stats-cards-card {
   background: #1e293b;
   padding: 1.25rem;

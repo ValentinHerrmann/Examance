@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./+page.css";
   import { onMount } from "svelte";
   import { db } from "$lib/db/db";
   import { sessionStore, isAuthenticated } from "$lib/stores/session";
@@ -16,6 +15,7 @@
   import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import ExerciseFilterSidebar from "$lib/components/exercise-library/ExerciseFilterSidebar.svelte";
+  import { Button, Modal, PageHeader, PageShell } from "$lib/components/ui";
   import ExerciseGroupList from "$lib/components/exercise-library/ExerciseGroupList.svelte";
   import GroupEditModal from "$lib/components/exercise-library/GroupEditModal.svelte";
   import RegroupModal from "$lib/components/exercise-library/RegroupModal.svelte";
@@ -28,7 +28,15 @@
   let selectedGrade: string = "ALL";
   let selectedSubject: string = "ALL";
   let searchQuery: string = "";
-  let filterCollapsed = true;
+  let isFilterDrawerOpen = false;
+
+  // Badge on the mobile filter button, so an active filter is visible without
+  // opening the drawer.
+  $: activeFilterCount =
+    (selectedTopic !== "ALL" ? 1 : 0) +
+    (selectedGrade !== "ALL" ? 1 : 0) +
+    (selectedSubject !== "ALL" ? 1 : 0) +
+    (searchQuery.trim() !== "" ? 1 : 0);
   let isLoading = false;
   let errorMsg = "";
   let isLocalFallback = false;
@@ -747,42 +755,45 @@
   }
 </script>
 
-<div class="exercises-library-page">
-
-
-  <div class="exercises-page-header">
-    <div>
-      <h2>{$t("exercises.page.title")}</h2>
-      <p class="exercises-subtitle">
-        {$t("exercises.page.subtitle")}
-      </p>
-    </div>
-    <button class="exercises-create-btn" on:click={openCreateModal}
-      >{$t("exercises.page.createButton")}</button
-    >
-  </div>
+<PageShell width="full">
+  <PageHeader title={$t("exercises.page.title")} subtitle={$t("exercises.page.subtitle")}>
+    <svelte:fragment slot="actions">
+      <Button size="lg" onClick={openCreateModal}>{$t("exercises.page.createButton")}</Button>
+    </svelte:fragment>
+  </PageHeader>
 
   {#if errorMsg}
-    <div class="exercises-error-banner">{errorMsg}</div>
+    <div class="mb-6 rounded-md bg-red-500/20 p-3 text-red-300">{errorMsg}</div>
   {/if}
 
-  <button class="exercises-filter-toggle-btn" on:click={() => (filterCollapsed = !filterCollapsed)}>
-    {filterCollapsed ? $t("exercises.page.showFilters") : $t("exercises.page.hideFilters")}
-  </button>
+  <!-- Below `lg` the filter panel would otherwise stack on top of the list and
+       bury it, so it moves into a drawer opened from here. One breakpoint owns
+       both the layout and the toggle. -->
+  <div class="mb-3 lg:hidden">
+    <Button variant="secondary" block onClick={() => (isFilterDrawerOpen = true)}>
+      {$t("exercises.page.showFilters")}
+      {#if activeFilterCount > 0}
+        <span class="rounded-full bg-accent-strong px-2 py-0.5 text-xs font-bold text-white">
+          {activeFilterCount}
+        </span>
+      {/if}
+    </Button>
+  </div>
 
-  <div class="exercises-library-layout">
-    <ExerciseFilterSidebar
-      bind:searchQuery
-      bind:selectedGrade
-      bind:selectedSubject
-      selectedTopic={selectedTopic}
-      {filterCollapsed}
-      {availableTopics}
-      {availableGrades}
-      {availableSubjects}
-      {allGroups}
-      onTopicChange={(topic) => (selectedTopic = topic)}
-    />
+  <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
+    <div class="sticky top-2 hidden lg:block">
+      <ExerciseFilterSidebar
+        bind:searchQuery
+        bind:selectedGrade
+        bind:selectedSubject
+        {selectedTopic}
+        {availableTopics}
+        {availableGrades}
+        {availableSubjects}
+        {allGroups}
+        onTopicChange={(topic) => (selectedTopic = topic)}
+      />
+    </div>
 
     <ExerciseGroupList
       {isLoading}
@@ -799,7 +810,29 @@
       onCreateFirst={openCreateModal}
     />
   </div>
-</div>
+</PageShell>
+
+<Modal
+  open={isFilterDrawerOpen}
+  size="sm"
+  title={$t("exercises.page.filtersTitle")}
+  onClose={() => (isFilterDrawerOpen = false)}
+>
+  <ExerciseFilterSidebar
+    bind:searchQuery
+    bind:selectedGrade
+    bind:selectedSubject
+    {selectedTopic}
+    {availableTopics}
+    {availableGrades}
+    {availableSubjects}
+    {allGroups}
+    onTopicChange={(topic) => {
+      selectedTopic = topic;
+      isFilterDrawerOpen = false;
+    }}
+  />
+</Modal>
 
 <VariantModal
   isOpen={isVariantModalOpen}

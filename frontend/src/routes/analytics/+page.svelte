@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./+page.css";
   import { t } from '$lib/i18n';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
@@ -15,6 +14,7 @@
   import KpiSummaryBar from '$lib/components/analytics/KpiSummaryBar.svelte';
   import VariantFairnessTable from '$lib/components/analytics/VariantFairnessTable.svelte';
   import ExerciseQualityTable from '$lib/components/analytics/ExerciseQualityTable.svelte';
+  import { PageShell, PageHeader } from '$lib/components/ui';
 
   let isInitializing = true;
   let activeLoadPromise: Promise<void> | null = null;
@@ -346,13 +346,8 @@
 }
 </script>
 
-<div class="analytics-container">
-  <div class="analytics-header">
-    <div>
-      <h1>{$t('stats.analyticsPage.heading')}</h1>
-      <p class="analytics-subtitle">{$t('stats.analyticsPage.subtitle')}</p>
-    </div>
-  </div>
+<PageShell width="full">
+  <PageHeader level="h1" title={$t('stats.analyticsPage.heading')} subtitle={$t('stats.analyticsPage.subtitle')} />
 
   {#if isInitializing}
     <AnalyticsStateBanner variant="loading" />
@@ -368,21 +363,25 @@
       flaggedCount={exerciseStats.filter((e) => e.flaggedProblematic).length}
     />
 
-    <div class="analytics-sections-grid">
+    <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-2">
       <!-- Section 1: Variant Fairness & Difficulty Comparison -->
-      <VariantFairnessTable
-        {variantGroups}
-        {displayedVariantGroups}
-        bind:showAll={showAllExercises}
-      />
+      <div class="min-w-0">
+        <VariantFairnessTable
+          {variantGroups}
+          {displayedVariantGroups}
+          bind:showAll={showAllExercises}
+        />
+      </div>
 
       <!-- Section 2: Cross-Exam Exercise Quality Metrics -->
-      <ExerciseQualityTable
-        {exerciseStats}
-        {displayedExerciseStats}
-        examsCount={exams.length}
-        bind:showAll={showAllExercises}
-      />
+      <div class="min-w-0">
+        <ExerciseQualityTable
+          {exerciseStats}
+          {displayedExerciseStats}
+          examsCount={exams.length}
+          bind:showAll={showAllExercises}
+        />
+      </div>
     </div>
   {/if}
-</div>
+</PageShell>

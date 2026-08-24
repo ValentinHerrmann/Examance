@@ -19,22 +19,12 @@
   margin-bottom: 1rem;
 }
 
-.exam-metadata-form-grid-3 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 1rem;
-}
-
-.exam-metadata-form-grid-4 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  gap: 1rem;
-}
-
 .course-preview-badge {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
   background: #0f172a;
   border: 1px solid #334155;
   border-radius: 6px;

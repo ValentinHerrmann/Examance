@@ -8,7 +8,7 @@
   export let submissionsWithAnyGrade: number;
 </script>
 
-<div class="stats-cards-grid">
+<div class="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-2 lg:grid-cols-4">
   <div class="stats-cards-card">
     <span class="label">{$t('stats.cards.submissionsGraded')}</span>
     <span class="value">{$fmt.number(submissionsWithAnyGrade)}</span>

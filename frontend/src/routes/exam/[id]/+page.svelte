@@ -67,6 +67,7 @@
   import ExamMetadataEditor from "$lib/components/exam/ExamMetadataEditor.svelte";
   import ExamLibraryModal from "$lib/components/exam/ExamLibraryModal.svelte";
   import { t, translate } from "$lib/i18n";
+  import { Button } from "$lib/components/ui";
 
   $: examId = $page.params.id || "";
 
@@ -1519,7 +1520,7 @@ ${exerciseInputs}
 
 <div class="exam-detail-page">
   {#if isLocalFallback}
-    <div class="local-fallback-banner">
+    <div class="local-fallback-banner flex-wrap">
       <span>{$t("exam.page.localFallback.banner")}</span>
       <button
         class="sync-now-btn"
@@ -1589,18 +1590,17 @@ ${exerciseInputs}
       </div>
     {/if}
 
-    <div class="exam-two-col">
-      <div class="pdf-compile-section">
+    <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-2">
+      <div class="pdf-compile-section min-w-0">
       <h3>{$t("exam.page.compileSection.heading")}</h3>
       <p class="desc">
         {$t("exam.page.compileSection.description")}
       </p>
 
       <div class="exam-controls-row">
-        <button
-          class="compile-btn"
-          class:is-loading={isPreviewLoading || isPreparingOmr}
-          on:click={handlePreviewExam}
+        <Button
+          onClick={handlePreviewExam}
+          loading={isPreviewLoading || isPreparingOmr}
           disabled={isPreviewLoading || isPreparingOmr || exercises.length === 0}
           title={$t("exam.page.compileSection.liveTooltip")}
         >
@@ -1609,7 +1609,7 @@ ${exerciseInputs}
             : isPreparingOmr
               ? $t("exam.page.omr.preparing")
               : $t("exam.page.preview.liveButton")}
-        </button>
+        </Button>
       </div>
 
       {#if omrTemplateStatus === "stale"}
@@ -1650,24 +1650,26 @@ ${exerciseInputs}
         <div class="exam-notice">{compileNotice}</div>
       {/if}
       {#if errorMsg}
-        <div class="exam-error-banner">{errorMsg}</div>
+        <div class="exam-error-banner overflow-x-auto">{errorMsg}</div>
       {/if}
     </div>
 
  
 
-    <ExerciseList
-      {exercises}
-      {mcGroups}
-      {libraryExercises}
-      {examItems}
-      onRemove={removeExerciseLink}
-      onMoveUp={(idx) => moveExerciseOrder(idx, "up")}
-      onMoveDown={(idx) => moveExerciseOrder(idx, "down")}
-      onMoveExamItem={moveExamItem}
-      onRemoveMcGroup={removeMcGroup}
-      onEditMcGroup={editMcGroup}
-    />
+    <div class="min-w-0">
+      <ExerciseList
+        {exercises}
+        {mcGroups}
+        {libraryExercises}
+        {examItems}
+        onRemove={removeExerciseLink}
+        onMoveUp={(idx) => moveExerciseOrder(idx, "up")}
+        onMoveDown={(idx) => moveExerciseOrder(idx, "down")}
+        onMoveExamItem={moveExamItem}
+        onRemoveMcGroup={removeMcGroup}
+        onEditMcGroup={editMcGroup}
+      />
+    </div>
     </div>
   {/if}
 </div>

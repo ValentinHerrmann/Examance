@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./+layout.css";
   import { page } from "$app/stores";
   export let params;
   import { onMount } from "svelte";
@@ -48,7 +47,11 @@
   $: isStatsActive = pathname.startsWith(`/exam/${examId}/stats`);
 </script>
 
-<div class="exam-layout" class:is-grading={isGradeActive}>
+<div
+  class="box-border flex min-h-0 w-full max-w-full flex-1 flex-col {isGradeActive
+    ? 'h-full p-0'
+    : 'p-3 lg:p-5'}"
+>
   {#if exam && !isGradeActive}
     <ExamNav
       {exam}
@@ -63,7 +66,7 @@
     />
   {/if}
 
-  <div class="exam-content">
+  <div class="flex min-h-0 w-full flex-1 flex-col">
     <slot />
   </div>
 </div>

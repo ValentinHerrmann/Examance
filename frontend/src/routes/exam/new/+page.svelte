@@ -22,6 +22,7 @@
   import ExamLivePreviewPanel from "$lib/components/exam-creation/ExamLivePreviewPanel.svelte";
   import { formatExamCourse } from "$lib/utils/examLabel";
   import { t, translate } from "$lib/i18n";
+  import { PageShell, PageHeader } from "$lib/components/ui";
 
   // This is exam CONTENT written into the `datum` field and printed verbatim in the
   // German exam PDF (see \Datum in the LaTeX preamble below) — not UI copy, so it is
@@ -730,11 +731,11 @@ ${exerciseInputs}
   }
 </script>
 
-<div class="new-exam-page">
-  <h2>{$t("examCreation.page.heading")}</h2>
+<PageShell>
+  <PageHeader title={$t("examCreation.page.heading")} />
 
   {#if errorMsg}
-    <div class="exam-new-error-banner">{errorMsg}</div>
+    <div class="exam-new-error-banner overflow-x-auto">{errorMsg}</div>
   {/if}
 
   <form on:submit|preventDefault={handleCreateExam}>
@@ -819,4 +820,4 @@ ${exerciseInputs}
     on:close={() => (isQuickEditorOpen = false)}
     on:save={handleQuickEditSaved}
   />
-</div>
+</PageShell>
