@@ -55,7 +55,7 @@ jobs:
             echo "ERROR: VERSION file is empty" >&2
             exit 1
           fi
-          BUILT_AT=$(date -u +'%d.%m.%Y | %H:%M')
+          BUILT_AT=$(TZ='Europe/Berlin' date +'%d.%m.%Y | %H:%M')
           if [ "$EVENT_NAME" = "push" ]; then
             VERSION="${BASE}-${HEAD_SHA:0:7} [${BUILT_AT}]"
           else
