@@ -1,10 +1,14 @@
 name: Deploy Preview
 
 # Every non-draft pull request — and every push to one — redeploys the shared
-# preview instance. Draft PRs deploy nothing.
+# preview instance. Draft PRs deploy nothing. A direct push to main (e.g. a
+# merge) redeploys it too, versioned with the short commit hash instead of a
+# PR number.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
   workflow_dispatch:
 
 # There is one preview instance, so a newer push supersedes an in-flight deploy.
@@ -19,9 +23,11 @@ jobs:
   version:
     name: Resolve preview version
     # Fork PRs are excluded: the deploy jobs need repository secrets, and a
-    # fork's head is untrusted code.
+    # fork's head is untrusted code. `push` only ever fires for pushes to
+    # this repository, never a fork's, so it needs no such guard.
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
       (github.event.pull_request.draft == false &&
        github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
@@ -34,11 +40,14 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
-      - name: Compose <latest-release>-PR#<number> [<built-at>]
+      # Push-to-main builds have no PR number, so they're tagged with the
+      # short commit hash instead (<latest-release>-<sha7> [<built-at>]).
+      - name: Compose <latest-release>-PR#<number>|<sha7> [<built-at>]
         id: resolve
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number || 'manual' }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
           BASE=$(tr -d ' \t\r\n' < VERSION)
@@ -47,7 +56,11 @@ jobs:
             exit 1
           fi
           BUILT_AT=$(date -u +'%d.%m.%Y | %H:%M')
-          VERSION="${BASE}-PR#${PR_NUMBER} [${BUILT_AT}]"
+          if [ "$EVENT_NAME" = "push" ]; then
+            VERSION="${BASE}-${HEAD_SHA:0:7} [${BUILT_AT}]"
+          else
+            VERSION="${BASE}-PR#${PR_NUMBER} [${BUILT_AT}]"
+          fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
           echo "Preview version ${VERSION}"
