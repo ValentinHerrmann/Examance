@@ -116,6 +116,37 @@ must compute the expected code, so this is not zero-knowledge, but a database du
 alone yields no working seeds. **Rotating `SECRET_KEY` therefore invalidates every
 enrollment.**
 
+### Passkeys
+
+A passkey is the third factor. The ceremonies use `py_webauthn` rather than a
+hand-rolled parser — attestation objects are CBOR/COSE, and hand-rolled parsers
+for those are how relying parties get CVEs.
+
+Registration requires at least an enrollment-scoped session; authentication
+requires none, which is the point of a first-position factor. The ceremony takes
+no account identifier: the credential is discoverable, so the authenticator names
+the account, and asking the server which passkeys an email has would rebuild the
+oracle the rest of the design avoids. A passkey contributes exactly one factor
+whether it is presented first or second.
+
+Where the authenticator implements the **PRF extension**, the passkey is also
+key-capable: the browser derives a secret inside the authenticator that never
+leaves the device, and that secret wraps a copy of the data key. `prf_salt` — 32
+public bytes fixed at registration — is the PRF *input*, not its output, which is
+why storing it server-side gives nothing away. Where PRF is unavailable the
+passkey signs in and nothing more; `supports_prf` records that and the settings
+panel says so, because a teacher who assumes otherwise ends up with an account
+they can reach and exams they cannot read.
+
+`sign_count` is stored and checked: a counter that goes backwards is the spec's
+clone signal. A constant `0` means the authenticator does not count at all, which
+most platform ones do not, so only a *decrease from a non-zero value* is rejected.
+
+**Relying-party ID is per stack.** `WEBAUTHN_RP_ID` defaults to the `FRONTEND_URL`
+host. Production and preview are different registrable domains, so a passkey
+registered against one will not work against the other and each stack needs its
+own enrollments. That is WebAuthn, not something configuration can paper over.
+
 ### Password reset
 
 A reset re-establishes the password, so the password is unavailable by definition

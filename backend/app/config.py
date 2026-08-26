@@ -137,6 +137,15 @@ class Settings(BaseSettings):
     # Frontend base URL for email link generation
     FRONTEND_URL: str = "http://localhost:5173"
 
+    # WebAuthn relying party. Defaults to the FRONTEND_URL host.
+    #
+    # A passkey is bound to its relying-party ID and will not work under a
+    # different registrable domain. Production and the preview stack are
+    # different domains, so each needs its own value *and* its own enrollments —
+    # that is a property of WebAuthn, not something configuration can paper over.
+    WEBAUTHN_RP_ID: str = ""
+    WEBAUTHN_RP_NAME: str = "Examance"
+
     # Password reset configuration
     PASSWORD_RESET_TOKEN_TTL_HOURS: int = 24
 
@@ -243,6 +252,13 @@ class Settings(BaseSettings):
         """Default the rate-limit backend to Redis; in-memory only in dev."""
         if not self.RATE_LIMIT_STORAGE_URI:
             self.RATE_LIMIT_STORAGE_URI = "memory://" if self.is_dev else self.REDIS_URL
+        return self
+
+    @model_validator(mode="after")
+    def derive_webauthn_rp_id(self) -> Settings:
+        """Default the relying-party ID to the frontend's own host."""
+        if not self.WEBAUTHN_RP_ID:
+            self.WEBAUTHN_RP_ID = urlparse(self.FRONTEND_URL).hostname or "localhost"
         return self
 
     @model_validator(mode="after")

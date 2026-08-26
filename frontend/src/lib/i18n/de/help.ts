@@ -238,6 +238,11 @@ export const help = {
                 p1: 'Jede Anmeldung verlangt zwei von drei Faktoren: Passwort, Authenticator-App und Passkey. Damit nützt ein erratenes Passwort allein nichts.',
                 p2: 'Richten Sie nach Möglichkeit alle drei ein — dann ist der Verlust eines einzelnen Faktors nur lästig. Mit genau zwei bedeutet der Verlust eines Faktors, dass nur die Administration wieder Zugang verschaffen kann, und zwar nur zum Konto, nicht zu den verschlüsselten Daten. Backup-Codes ersetzen die Authenticator-App und funktionieren je einmal.',
             },
+            s7: {
+                h: 'Passkeys',
+                p1: 'Ein Passkey meldet Sie mit Fingerabdruck, Gesicht oder Geräte-PIN an — ohne Passwort. Er zählt als einer der zwei nötigen Faktoren, nicht als Ersatz für beide.',
+                p2: 'Ob ein Passkey auch Ihre verschlüsselten Daten öffnen kann, hängt vom Gerät ab. Die Einstellungen zeigen das je Passkey an. Wo es nicht möglich ist, bleiben Passwort und Wiederherstellungscode dafür zuständig.',
+            },
             s3: {
                 h: 'Passwort zurücksetzen',
                 p1: 'Ein Serverkonto lässt sich über „Passwort vergessen“ zurücksetzen. Sie bestätigen dabei mit einem zweiten Faktor und geben einmalig Ihren Wiederherstellungscode ein — damit werden Ihre bestehenden verschlüsselten Daten wieder lesbar, ohne dass etwas neu verschlüsselt wird.',

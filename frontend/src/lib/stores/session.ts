@@ -31,6 +31,14 @@ export interface SessionState {
   lockedAt: number | null;                // Unix ms
   isDirty: boolean;                       // Unsaved IDB changes
   email: string | null;                   // From server login response
+  /**
+   * The account id, from the sign-in response.
+   *
+   * Needed because the key envelope binds each wrap to the account rather
+   * than to the email address, and that binding has to survive a reload.
+   * Not a secret: the holder has just authenticated as this account.
+   */
+  teacherId: string | null;
   role: 'teacher' | 'admin' | null;
 }
 
@@ -47,6 +55,7 @@ const INITIAL_STATE: SessionState = {
   lockedAt: null,
   isDirty: false,
   email: null,
+  teacherId: null,
   role: null,
 };
 
@@ -59,6 +68,7 @@ const SESSION_STORAGE_KEYS = {
   LEGACY_SESSION_KEY: 'bg_session_legacy_key',
   SESSION_NONCE: 'bg_session_nonce',
   EMAIL: 'bg_session_email',
+  TEACHER_ID: 'bg_session_teacher_id',
   ROLE: 'bg_session_role',
   MODE: 'bg_session_mode',
   // Written by lib/services/keyEnvelopeService.ts (rememberKeyId), listed here
@@ -154,6 +164,7 @@ async function saveToSessionStorage(params: {
   legacyMasterKeyRaw?: Uint8Array | null;
   sessionNonce: Uint8Array;
   email?: string | null;
+  teacherId?: string | null;
   role?: 'teacher' | 'admin' | null;
   mode: 'local' | 'hybrid' | 'authenticated';
 }) {
@@ -204,6 +215,9 @@ async function saveToSessionStorage(params: {
     );
     safeSessionStorage.setItem(SESSION_STORAGE_KEYS.MODE, params.mode);
     if (params.email) safeSessionStorage.setItem(SESSION_STORAGE_KEYS.EMAIL, params.email);
+    if (params.teacherId) {
+      safeSessionStorage.setItem(SESSION_STORAGE_KEYS.TEACHER_ID, params.teacherId);
+    }
     if (params.role) safeSessionStorage.setItem(SESSION_STORAGE_KEYS.ROLE, params.role);
   } catch (err) {
     console.warn('[SessionStore] Could not save keys to sessionStorage:', err);
@@ -277,6 +291,7 @@ function createSessionStore() {
       legacyMasterKeyRaw?: Uint8Array | null;
       sessionNonce: Uint8Array;
       email?: string;
+      teacherId?: string;
       role?: 'teacher' | 'admin';
       mode?: 'local' | 'hybrid' | 'authenticated';
     }) {
@@ -296,6 +311,7 @@ function createSessionStore() {
         legacyMasterKeyRaw: params.legacyMasterKeyRaw,
         sessionNonce: params.sessionNonce,
         email: params.email,
+        teacherId: params.teacherId,
         role: params.role,
         mode,
       });
@@ -313,6 +329,7 @@ function createSessionStore() {
         sessionNonce: params.sessionNonce,
         lockedAt: null,
         email: params.email ?? s.email,
+        teacherId: params.teacherId ?? s.teacherId,
         role: params.role ?? s.role,
       }));
     },
@@ -364,6 +381,7 @@ function createSessionStore() {
         }
 
         const email = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.EMAIL);
+        const teacherId = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.TEACHER_ID);
         const role = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.ROLE) as SessionState['role'];
 
         update((s) => ({
@@ -379,6 +397,7 @@ function createSessionStore() {
           sessionNonce,
           lockedAt: null,
           email: email ?? s.email,
+          teacherId: teacherId ?? s.teacherId,
           role: role ?? s.role,
         }));
 
@@ -535,6 +554,7 @@ function createSessionStore() {
         sessionNonce,
         lockedAt: null,
         email: null,
+        teacherId: null,
         role: null,
       }));
     },
@@ -610,6 +630,7 @@ function createSessionStore() {
         sessionNonce: newNonce,
         lockedAt: null,
         email: null,
+        teacherId: null,
         role: null,
       }));
     },

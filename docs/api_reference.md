@@ -269,6 +269,10 @@ session cookies set.
 | `POST` | `/mfa/totp/confirm` | First correct code confirms the factor; returns the backup codes once. |
 | `POST` | `/mfa/backup-codes/regenerate` | Replaces the set; the previous codes stop working. |
 | `DELETE` | `/mfa/totp` | Refused when it would drop the account below two factors, or below its last key-capable one. |
+| `POST` | `/webauthn/register/options` · `/register/verify` | Add a passkey. Reachable from enrollment as well as a session. |
+| `POST` | `/webauthn/login/options` · `/login/verify` | Passkey sign-in. Unauthenticated; takes no account identifier. |
+| `GET` | `/webauthn/credentials` | Registered passkeys, including whether each can open the encrypted data. |
+| `DELETE` | `/webauthn/credentials/{id}` | Same last-factor guard as `DELETE /mfa/totp`. |
 
 `available` is only ever populated after a factor has been proven — answering it
 earlier would tell an unauthenticated caller which addresses have accounts here,

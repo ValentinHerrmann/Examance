@@ -24,6 +24,7 @@ import {
   ENVELOPE_VERSION,
   KEK_KDF_PARAMS,
   buildBundle,
+  derivePrfKek,
   deriveSecretKek,
   envelopeFingerprint,
   generateKeyId,
@@ -38,10 +39,26 @@ import {
   type UnwrappedBundle,
 } from '$lib/crypto/keyEnvelope';
 import { fetchEnvelopes, saveEnvelopes } from '$lib/api/keyEnvelopes';
+import { get } from 'svelte/store';
+import { sessionStore } from '$lib/stores/session';
 import { safeLocalStorage, safeSessionStorage } from '$lib/utils/storage';
 import { base64ToUint8Array, uint8ArrayToBase64 } from '$lib/crypto/aesGcm';
 
 const FINGERPRINT_PREFIX = 'bg_envelope_fp:';
+
+/**
+ * Compare credential ids without tripping over base64url padding.
+ *
+ * The server encodes with padding; `navigator.credentials` hands back an
+ * unpadded id. Same bytes, different string — and a mismatch here would look
+ * exactly like "this passkey has no wrap".
+ */
+function sameCredential(a: string | null, b: string | null): boolean {
+  if (a === null || b === null) {
+    return false;
+  }
+  return a.replace(/=+$/, '') === b.replace(/=+$/, '');
+}
 const KEY_ID_STORAGE = 'bg_key_id';
 
 /**
@@ -404,4 +421,94 @@ export async function buildResetEnvelopeSet(
  */
 export async function pinEnvelopeSet(teacherId: string, set: EnvelopeSet): Promise<void> {
   await pinFingerprint(teacherId, set);
+}
+
+/**
+ * Reconstruct the opened vault from the live session.
+ *
+ * The session already holds the data key and the rest of the decrypt chain — it
+ * has to, to read anything — so adding a wrap later does not need the password
+ * again.
+ */
+export function vaultFromSession(): OpenedVault | null {
+  const state = get(sessionStore);
+  if (!state.masterKeyRaw) {
+    return null;
+  }
+  return {
+    dek: state.masterKeyRaw,
+    fallback: state.fallbackMasterKeyRaw,
+    legacy: state.legacyMasterKeyRaw,
+    keyId: currentKeyId(),
+    migrated: false,
+  };
+}
+
+/**
+ * Add a passkey's PRF wrap to the existing set.
+ *
+ * The password and recovery wraps are carried through untouched — they are
+ * opaque ciphertext from here, and re-deriving them would need secrets this
+ * code does not have. Only the new wrap is built.
+ *
+ * Called after registering a PRF-capable passkey, from an open session.
+ */
+export async function addPasskeyWrap(
+  teacherId: string,
+  vault: OpenedVault,
+  credentialIdB64: string,
+  prfOutput: Uint8Array,
+): Promise<void> {
+  const existing = await fetchEnvelopes();
+  if (existing === null) {
+    throw new EnvelopeFactorMissingError('recovery');
+  }
+
+  const salt = randomBytes(16);
+  const kek = await derivePrfKek(prfOutput, salt);
+  const bundle = buildBundle(vault.dek, vault.fallback, vault.legacy);
+  const wrapped = await wrapBundle(kek, bundle, teacherId, 'passkey', existing.keyId);
+
+  const envelope: KeyEnvelope = {
+    kind: 'passkey',
+    credentialIdB64,
+    kdf: 'hkdf',
+    kdfSalt: salt,
+    kdfParams: {},
+    ...wrapped,
+  };
+  if (!(await verifyWrap(kek, envelope, teacherId, existing.keyId, vault.dek))) {
+    throw new Error('The passkey wrap failed its own round-trip check.');
+  }
+
+  const kept = existing.envelopes.filter(
+    (e) => !(e.kind === 'passkey' && sameCredential(e.credentialIdB64, credentialIdB64)),
+  );
+  const set: EnvelopeSet = { keyId: existing.keyId, envelopes: [...kept, envelope] };
+  await saveEnvelopes(set);
+  await pinFingerprint(teacherId, set);
+}
+
+/** Open the vault with a passkey's PRF secret. */
+export async function openWithPasskey(
+  teacherId: string,
+  credentialIdB64: string,
+  prfOutput: Uint8Array,
+): Promise<OpenedVault> {
+  const existing = await fetchEnvelopes();
+  if (existing === null) {
+    throw new EnvelopeFactorMissingError('passkey');
+  }
+  const envelope = existing.envelopes.find(
+    (e) =>
+      e.kind === 'passkey' &&
+      sameCredential(e.credentialIdB64, credentialIdB64) &&
+      !e.invalidatedAt,
+  );
+  if (!envelope) {
+    throw new EnvelopeFactorMissingError('passkey');
+  }
+  const kek = await derivePrfKek(prfOutput, envelope.kdfSalt);
+  const bundle = await unwrapBundle(kek, envelope, teacherId, existing.keyId);
+  return { ...bundle, keyId: existing.keyId, migrated: false };
 }

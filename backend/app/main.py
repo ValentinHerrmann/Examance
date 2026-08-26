@@ -28,6 +28,7 @@ from app.routers import (
     students,
     submissions,
     user,
+    webauthn,
 )
 
 logging.basicConfig(
@@ -124,6 +125,13 @@ def create_app() -> FastAPI:
             ),
         },
         {
+            "name": "webauthn",
+            "description": (
+                "Passkey registration and sign-in. A passkey is one of the three factors, "
+                "and where the authenticator supports PRF it can also unwrap the data key."
+            ),
+        },
+        {
             "name": "keys",
             "description": (
                 "Wrapped copies of the client's data-encryption key. Opaque to the server: "
@@ -212,6 +220,7 @@ def create_app() -> FastAPI:
     app.include_router(user.router, prefix=API_PREFIX)
     app.include_router(keys.router, prefix=API_PREFIX)
     app.include_router(mfa.router, prefix=API_PREFIX)
+    app.include_router(webauthn.router, prefix=API_PREFIX)
 
     @app.get("/api/health", tags=["meta"])
     async def health() -> dict[str, str]:

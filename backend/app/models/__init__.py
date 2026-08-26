@@ -13,6 +13,7 @@ from app.models.refresh_token import RefreshToken
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
+from app.models.webauthn_credential import WebAuthnCredential
 
 __all__ = [
     "Teacher",
@@ -30,4 +31,5 @@ __all__ = [
     "StudentIdentity",
     "ScanSubmission",
     "AuditLog",
+    "WebAuthnCredential",
 ]
