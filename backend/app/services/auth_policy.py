@@ -129,7 +129,7 @@ def satisfies(amr: list[str]) -> bool:
 
 async def remaining_factors(
     db: AsyncSession, teacher: Teacher, amr: list[str]
-) -> list[FactorKind]:
+) -> list[str]:
     """
     Which factors this account can still present.
 

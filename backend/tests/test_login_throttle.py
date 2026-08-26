@@ -6,6 +6,7 @@ previous setting afterwards.
 """
 from __future__ import annotations
 
+import time
 from collections.abc import AsyncGenerator
 
 import pytest
@@ -16,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.teacher import Teacher
-from app.services import login_throttle
+from app.services import ephemeral_store, login_throttle
 from app.services.crypto import hash_password
 
 _PASSWORD = "s3cr3t!!-min12"  # noqa: S105 - test fixture credential
@@ -113,3 +114,67 @@ async def test_unknown_account_is_throttled_the_same_way(
 
     resp = await _fail_login(client, email)
     assert resp == 429
+
+
+@pytest.mark.asyncio
+async def test_an_unreachable_redis_does_not_stall_the_login(
+    client: AsyncClient, db: AsyncSession, throttling: None
+) -> None:
+    """
+    The throttle must fail fast, not hang.
+
+    `Redis.from_url()` leaves `socket_connect_timeout` unset, so redis-py falls
+    back to the OS TCP connect timeout — roughly two minutes on Linux. With the
+    throttle on the login path that turned a misconfigured Redis into a sign-in
+    that blocked until the browser gave up and reported the server unreachable,
+    which is a far worse outcome than the guessing this prevents.
+
+    Port 1 on the loopback address refuses fast on most hosts and black-holes on
+    the rest; either way the deadline below is what has to hold.
+    """
+    email = "redis-down@example.com"
+    await _create_teacher(db, email)
+
+    previous_uri = settings.RATE_LIMIT_STORAGE_URI
+    settings.RATE_LIMIT_STORAGE_URI = "redis://192.0.2.1:6379/0"  # TEST-NET-1, unroutable
+    ephemeral_store.reset()
+    try:
+        started = time.monotonic()
+        resp = await client.post(
+            "/api/v1/auth/login", json={"email": email, "password": _PASSWORD}
+        )
+        elapsed = time.monotonic() - started
+
+        # The request still succeeds — the in-process store carries it.
+        assert resp.status_code == 200
+        # Comfortably inside the frontend's 25s abort, and nowhere near the
+        # ~130s an unbounded connect would take.
+        assert elapsed < 10, f"login took {elapsed:.1f}s with Redis unreachable"
+    finally:
+        settings.RATE_LIMIT_STORAGE_URI = previous_uri
+        ephemeral_store.reset()
+
+
+@pytest.mark.asyncio
+async def test_the_circuit_breaker_stops_retrying_a_dead_redis(
+    client: AsyncClient, db: AsyncSession, throttling: None
+) -> None:
+    """One outage should cost one timeout, not one per request."""
+    email = "redis-down-twice@example.com"
+    await _create_teacher(db, email)
+
+    previous_uri = settings.RATE_LIMIT_STORAGE_URI
+    settings.RATE_LIMIT_STORAGE_URI = "redis://192.0.2.1:6379/0"
+    ephemeral_store.reset()
+    try:
+        await client.post("/api/v1/auth/login", json={"email": email, "password": _PASSWORD})
+
+        started = time.monotonic()
+        await client.post("/api/v1/auth/login", json={"email": email, "password": _PASSWORD})
+        elapsed = time.monotonic() - started
+
+        # Second attempt skips Redis entirely while the circuit is open.
+        assert elapsed < 2, f"second login took {elapsed:.1f}s; circuit did not open"
+    finally:
+        settings.RATE_LIMIT_STORAGE_URI = previous_uri
+        ephemeral_store.reset()

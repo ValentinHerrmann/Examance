@@ -55,6 +55,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 "SMTP_HOST is not set; running email service in development log-only mode."
             )
 
+    # The login throttle and the single-use pending tokens both live in this
+    # store. It degrades safely when Redis is unreachable, but silently — so say
+    # so once at startup rather than leaving it to be inferred from behaviour.
+    from app.services import ephemeral_store
+
+    if ephemeral_store.uses_redis():
+        if await ephemeral_store.check_reachable():
+            logging.getLogger("app.main").info(
+                "Ephemeral store: Redis reachable at %s", settings.RATE_LIMIT_STORAGE_URI
+            )
+        else:
+            logging.getLogger("app.main").warning(
+                "Ephemeral store: Redis at %s is NOT reachable. Login throttling and "
+                "single-use sign-in tokens fall back to per-process memory, which is not "
+                "shared between workers. Check REDIS_URL — it defaults to localhost, "
+                "which inside a container means the container itself.",
+                settings.RATE_LIMIT_STORAGE_URI,
+            )
+
     async with AsyncSessionLocal() as session:
         await create_initial_admin(session)
 

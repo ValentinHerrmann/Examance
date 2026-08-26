@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import base64
 import uuid
+from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
@@ -21,6 +22,7 @@ from app.dependencies import PendingSession, get_pending_teacher
 from app.models.key_envelope import KeyEnvelope
 from app.models.teacher import Teacher
 from app.schemas.key_envelope import (
+    EnvelopeKind,
     KeyEnvelopeListOut,
     KeyEnvelopeOut,
     KeyEnvelopeSetIn,
@@ -58,7 +60,8 @@ def _b64(value: bytes) -> str:
 def _to_out(row: KeyEnvelope) -> KeyEnvelopeOut:
     return KeyEnvelopeOut(
         id=row.id,
-        kind=row.kind,
+        # The column is a string; the schema pins it to the three valid kinds.
+        kind=cast(EnvelopeKind, row.kind),
         credential_id_b64=_b64(row.credential_id) if row.credential_id else None,
         kdf=row.kdf,
         kdf_salt_b64=_b64(row.kdf_salt),
