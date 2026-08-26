@@ -18,6 +18,9 @@ export const help: Translations['help'] = {
         moreInfo: 'Read more',
         showTip: 'Show explanation',
         onboardingLink: 'Open the manual',
+        onboardingCta: '❓ See how to get started',
+        onboardingHint: 'Help is on every page: the ❓ in the status bar, the question mark next to a heading, or F1.',
+        unlockLink: 'New here? How Examance works',
     },
     tips: {
         storageLocal:

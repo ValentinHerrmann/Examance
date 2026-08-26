@@ -21,6 +21,10 @@
   <img src="/favicon.png" alt="Examance logo" class="unlock-banner-logo" />
   <h1>{$t("auth.unlock.title")}</h1>
   <p class="unlock-subtitle">{$t("auth.unlock.subtitle")}</p>
+  <!-- The very first screen someone sees, and the one place where no workspace
+       exists yet to explain itself. /help is a public path, so this works while
+       locked. -->
+  <a class="unlock-help-link" href="/help">{$t("help.ui.unlockLink")} →</a>
 </div>
 
 {#if errorMsg}
@@ -146,6 +150,19 @@
 
 <style>
   /* New styles live in the component, not the sibling .css file. */
+  .unlock-help-link {
+    display: inline-block;
+    margin-top: 0.5rem;
+    color: #38bdf8;
+    font-size: 0.85rem;
+    text-decoration: none;
+  }
+
+  .unlock-help-link:hover,
+  .unlock-help-link:focus-visible {
+    text-decoration: underline;
+  }
+
   .local-form {
     display: flex;
     flex-direction: column;
