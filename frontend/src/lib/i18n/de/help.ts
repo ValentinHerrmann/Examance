@@ -18,8 +18,8 @@ export const help = {
         moreInfo: 'Mehr dazu',
         showTip: 'Erklärung anzeigen',
         onboardingLink: 'Handbuch öffnen',
-        onboardingCta: '❓ Erste Schritte ansehen',
-        onboardingHint: 'Hilfe gibt es auf jeder Seite: über ❓ in der Statusleiste, über das Fragezeichen neben einer Überschrift oder mit F1.',
+        onboardingCta: 'Neu hier? So funktioniert Examance',
+        onboardingHint: 'Ein kurzer Überblick über Speicherorte, Aufgaben, Scannen und Korrigieren.',
         unlockLink: 'Neu hier? So funktioniert Examance',
     },
     tips: {

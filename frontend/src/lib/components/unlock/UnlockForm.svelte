@@ -23,8 +23,13 @@
   <p class="unlock-subtitle">{$t("auth.unlock.subtitle")}</p>
   <!-- The very first screen someone sees, and the one place where no workspace
        exists yet to explain itself. /help is a public path, so this works while
-       locked. -->
-  <a class="unlock-help-link" href="/help">{$t("help.ui.unlockLink")} →</a>
+       locked. A filled pill rather than plain text — this is the one moment a
+       first-time visitor has nothing else on screen to orient by. -->
+  <a class="unlock-help-badge" href="/help">
+    <span aria-hidden="true">❓</span>
+    {$t("help.ui.unlockLink")}
+    <span aria-hidden="true">→</span>
+  </a>
 </div>
 
 {#if errorMsg}
@@ -150,17 +155,26 @@
 
 <style>
   /* New styles live in the component, not the sibling .css file. */
-  .unlock-help-link {
-    display: inline-block;
-    margin-top: 0.5rem;
-    color: #38bdf8;
-    font-size: 0.85rem;
+  .unlock-help-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.85rem;
+    padding: 0.5rem 1.1rem;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    border-radius: 999px;
+    background: rgba(56, 189, 248, 0.12);
+    color: #7dd3fc;
+    font-size: 0.9rem;
+    font-weight: 600;
     text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease;
   }
 
-  .unlock-help-link:hover,
-  .unlock-help-link:focus-visible {
-    text-decoration: underline;
+  .unlock-help-badge:hover,
+  .unlock-help-badge:focus-visible {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.2);
   }
 
   .local-form {
