@@ -12,24 +12,15 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
-from app.models.teacher import Teacher
-from app.services.crypto import hash_password
+
+from .factors import sign_in
 
 
-async def _create_teacher_and_login(client: AsyncClient, db: AsyncSession, email: str, role: str = "teacher") -> None:
-    teacher = Teacher(
-        email=email,
-        password_hash=hash_password("Password123!-ok"),
-        role=role,
-    )
-    db.add(teacher)
-    await db.commit()
-
-    login_resp = await client.post(
-        "/api/v1/auth/login",
-        json={"email": email, "password": "Password123!-ok"},
-    )
-    client.cookies.update(login_resp.cookies)
+async def _create_teacher_and_login(
+    client: AsyncClient, db: AsyncSession, email: str, role: str = "teacher"
+) -> None:
+    # Two factors, because one no longer produces a session. See tests/factors.py.
+    await sign_in(client, db, email, role=role)
 
 
 @pytest.mark.asyncio
@@ -741,8 +732,9 @@ async def test_create_exam_wrong_method(
 def test_export_openapi_cli(tmp_path: Path) -> None:
     """CLI export-openapi command dumps valid OpenAPI 3.0 specification JSON."""
     import json
-    from pathlib import Path
+
     from click.testing import CliRunner
+
     from app.cli import cli
 
     out_file = tmp_path / "openapi.json"

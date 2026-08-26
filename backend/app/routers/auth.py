@@ -11,15 +11,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.dependencies import get_current_teacher
+from app.dependencies import PendingSession, get_pending_teacher
 from app.middleware.rate_limit import limiter
 from app.models.refresh_token import RefreshToken
 from app.models.teacher import Teacher
-from app.schemas.auth import AuthResponse, ForgotPasswordRequest, LoginRequest, ResetPasswordRequest
+from app.schemas.auth import (
+    AuthResponse,
+    BackupCodeRequest,
+    ForgotPasswordRequest,
+    LoginRequest,
+    ResetPasswordRequest,
+    TotpFactorRequest,
+)
 from app.services import audit as audit_svc
-from app.services import login_throttle
+from app.services import auth_policy, login_throttle, pending_token
+from app.services import mfa as mfa_svc
 from app.services.crypto import hash_password, needs_rehash, verify_password
-from app.services.jwt import create_access_token, create_refresh_token, decode_token
+from app.services.jwt import (
+    access_token_ttl_seconds,
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+)
 from app.services.password_reset import complete_password_reset, create_and_send_reset_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -37,11 +50,37 @@ def _set_auth_cookies(
     refresh_token: str,
     refresh_max_age: int,
 ) -> None:
-    response.set_cookie(ACCESS_COOKIE, access_token, max_age=15 * 60, **_COOKIE_KWARGS)  # type: ignore[arg-type]
+    response.set_cookie(
+        ACCESS_COOKIE,
+        access_token,
+        max_age=access_token_ttl_seconds("full"),
+        **_COOKIE_KWARGS,  # type: ignore[arg-type]
+    )
     response.set_cookie(
         REFRESH_COOKIE,
         refresh_token,
         max_age=refresh_max_age,
+        path="/api/v1/auth/refresh",
+        **_COOKIE_KWARGS,  # type: ignore[arg-type]
+    )
+
+
+def _set_pending_cookie(response: Response, token: str, scope: str) -> None:
+    """
+    Set the short-lived cookie for a sign-in that is not finished.
+
+    No refresh cookie is issued: a half-authenticated session must not be
+    renewable, and any refresh cookie left from an earlier session is cleared so
+    it cannot be used to skip the remaining factor.
+    """
+    response.set_cookie(
+        ACCESS_COOKIE,
+        token,
+        max_age=access_token_ttl_seconds(scope),
+        **_COOKIE_KWARGS,  # type: ignore[arg-type]
+    )
+    response.delete_cookie(
+        REFRESH_COOKIE,
         path="/api/v1/auth/refresh",
         **_COOKIE_KWARGS,  # type: ignore[arg-type]
     )
@@ -127,6 +166,199 @@ async def reset_password(
     return {"message": "Password has been successfully set. You can now log in."}
 
 
+async def advance_sign_in(
+    db: AsyncSession,
+    request: Request,
+    response: Response,
+    teacher: Teacher,
+    factor: str,
+    already_presented: list[str],
+) -> AuthResponse:
+    """
+    Record that *factor* was proven and decide what the session becomes.
+
+    Every factor endpoint funnels through here so the two-of-three rule is
+    decided in one place. Three outcomes:
+
+    * Fewer than two factors enrolled — the account gets an ``enroll`` token and
+      can reach nothing but the enrollment endpoints.
+    * Two distinct factors presented — a real session, with the refresh cookie
+      and the LOGIN audit entry.
+    * Otherwise — an ``auth_pending`` token plus the list of factors that may
+      come next, which is safe to disclose now that one has been proven.
+    """
+    amr = sorted({*already_presented, factor})
+
+    if not await auth_policy.is_enrollment_complete(db, teacher):
+        token = create_access_token(
+            teacher.id, teacher.email, teacher.role, scope="enroll", amr=amr
+        )
+        await pending_token.register(decode_token(token).get("jti"))
+        _set_pending_cookie(response, token, "enroll")
+        return AuthResponse(
+            id=teacher.id,
+            email=teacher.email,
+            role=teacher.role,
+            status="enroll_required",
+            satisfied=amr,
+            available=[],
+        )
+
+    if not auth_policy.satisfies(amr):
+        token = create_access_token(
+            teacher.id, teacher.email, teacher.role, scope="auth_pending", amr=amr
+        )
+        await pending_token.register(decode_token(token).get("jti"))
+        _set_pending_cookie(response, token, "auth_pending")
+        return AuthResponse(
+            id=teacher.id,
+            email=teacher.email,
+            role=teacher.role,
+            status="factor_required",
+            satisfied=amr,
+            available=await auth_policy.remaining_factors(db, teacher, amr),
+        )
+
+    access_token = create_access_token(
+        teacher.id, teacher.email, teacher.role, scope="full", amr=amr
+    )
+    refresh_jwt, jti = create_refresh_token(teacher.id, teacher.email, teacher.role)
+    decoded = decode_token(refresh_jwt)
+    db.add(
+        RefreshToken(
+            jti=jti,
+            teacher_id=teacher.id,
+            expires_at=datetime.fromtimestamp(decoded["exp"], tz=UTC),
+        )
+    )
+
+    await audit_svc.write(
+        db,
+        teacher_id=teacher.id,
+        teacher_email=teacher.email,
+        action="LOGIN",
+        request_ip=request.client.host if request.client else None,
+    )
+
+    _set_auth_cookies(
+        response,
+        access_token,
+        refresh_jwt,
+        refresh_max_age=settings.REFRESH_TOKEN_TTL_DAYS * 86400,
+    )
+    return AuthResponse(
+        id=teacher.id,
+        email=teacher.email,
+        role=teacher.role,
+        status="ok",
+        satisfied=amr,
+        available=[],
+    )
+
+
+async def _require_pending(session: PendingSession, *, allow_scopes: set[str]) -> None:
+    """Reject a pending token that is the wrong kind, or already spent."""
+    if session.scope not in allow_scopes:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Start the sign-in again.",
+            headers={"code": "ERR_FACTOR_REQUIRED"},
+        )
+    if not await pending_token.consume(session.jti):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This sign-in step has expired. Start again.",
+            headers={"code": "ERR_FACTOR_REQUIRED"},
+        )
+
+
+@router.post("/factor/totp", response_model=AuthResponse)
+@limiter.limit("10/minute;50/hour")
+async def factor_totp(
+    body: TotpFactorRequest,
+    request: Request,
+    response: Response,
+    session: PendingSession = Depends(get_pending_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> AuthResponse:
+    """
+    Present an authenticator code as the second factor.
+
+    Second position only. A TOTP code does not identify an account, so accepting
+    one first would mean taking an email address alongside it — turning this into
+    a probe for which addresses have accounts. Password and passkey both identify
+    the account by themselves, so requiring one of them first costs nothing.
+    """
+    if "totp" in session.amr:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="That factor has already been used for this sign-in.",
+            headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
+        )
+    await _require_pending(session, allow_scopes={"auth_pending"})
+
+    teacher = session.teacher
+    await login_throttle.assert_not_locked(teacher.email, teacher)
+
+    if not await mfa_svc.verify_totp(db, teacher, body.code):
+        await login_throttle.register_failure(db, teacher.email, teacher)
+        await audit_svc.write(
+            db,
+            teacher_id=teacher.id,
+            teacher_email=teacher.email,
+            action="LOGIN_FAILED",
+            request_ip=request.client.host if request.client else None,
+        )
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication code.",
+            headers={"code": "ERR_MFA_INVALID_CODE"},
+        )
+
+    await login_throttle.register_success(db, teacher.email, teacher)
+    return await advance_sign_in(db, request, response, teacher, "totp", session.amr)
+
+
+@router.post("/factor/backup-code", response_model=AuthResponse)
+@limiter.limit("10/minute;50/hour")
+async def factor_backup_code(
+    body: BackupCodeRequest,
+    request: Request,
+    response: Response,
+    session: PendingSession = Depends(get_pending_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> AuthResponse:
+    """
+    Spend a backup code in place of the authenticator.
+
+    It counts as the ``totp`` factor, so it cannot be paired with a TOTP code to
+    make up two: it stands in for that factor rather than adding one.
+    """
+    if "totp" in session.amr:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="That factor has already been used for this sign-in.",
+            headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
+        )
+    await _require_pending(session, allow_scopes={"auth_pending"})
+
+    teacher = session.teacher
+    await login_throttle.assert_not_locked(teacher.email, teacher)
+
+    if not await mfa_svc.consume_backup_code(db, teacher, body.code):
+        await login_throttle.register_failure(db, teacher.email, teacher)
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication code.",
+            headers={"code": "ERR_MFA_INVALID_CODE"},
+        )
+
+    await login_throttle.register_success(db, teacher.email, teacher)
+    return await advance_sign_in(db, request, response, teacher, "totp", session.amr)
+
+
 @router.post("/login", response_model=AuthResponse)
 @limiter.limit("10/minute;50/hour")
 async def login(
@@ -193,33 +425,7 @@ async def login(
     if needs_rehash(stored_hash):
         teacher.password_hash = hash_password(body.password)
 
-    access_token = create_access_token(teacher.id, teacher.email, teacher.role)
-    refresh_jwt, jti = create_refresh_token(teacher.id, teacher.email, teacher.role)
-
-    decoded = decode_token(refresh_jwt)
-    rt = RefreshToken(
-        jti=jti,
-        teacher_id=teacher.id,
-        expires_at=datetime.fromtimestamp(decoded["exp"], tz=UTC),
-    )
-    db.add(rt)
-
-    await audit_svc.write(
-        db,
-        teacher_id=teacher.id,
-        teacher_email=teacher.email,
-        action="LOGIN",
-        request_ip=request.client.host if request.client else None,
-    )
-
-
-    _set_auth_cookies(
-        response,
-        access_token,
-        refresh_jwt,
-        refresh_max_age=settings.REFRESH_TOKEN_TTL_DAYS * 86400,
-    )
-    return AuthResponse(id=teacher.id, email=teacher.email, role=teacher.role)
+    return await advance_sign_in(db, request, response, teacher, "password", [])
 
 
 @router.post("/refresh", response_model=AuthResponse)
@@ -304,10 +510,18 @@ async def refresh(
 async def logout(
     response: Response,
     refresh_token: str | None = Cookie(default=None),
-    _teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Clear auth cookies and revoke refresh token."""
+    """
+    Clear auth cookies and revoke the refresh token.
+
+    Deliberately requires no session. It used to depend on a full one, which
+    meant a teacher who abandoned a half-finished sign-in — or whose access token
+    had simply expired — could not clear their own cookies: logout answered 403
+    and the pending cookie sat there until it timed out. Clearing cookies is
+    never an action that needs protecting; the refresh revocation below is
+    authenticated by the refresh token itself.
+    """
     if refresh_token:
         try:
             payload = decode_token(refresh_token)

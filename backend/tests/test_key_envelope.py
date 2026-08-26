@@ -11,17 +11,14 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.teacher import Teacher
-from app.services.crypto import hash_password
+from .factors import sign_in
 
 _PASSWORD = "s3cr3t!!-min12"  # noqa: S105 - test fixture credential
 
 
 async def _login(client: AsyncClient, db: AsyncSession, email: str) -> None:
-    db.add(Teacher(email=email, password_hash=hash_password(_PASSWORD), role="teacher"))
-    await db.commit()
-    resp = await client.post("/api/v1/auth/login", json={"email": email, "password": _PASSWORD})
-    client.cookies.update(resp.cookies)
+    # Two factors, because one no longer produces a session. See tests/factors.py.
+    await sign_in(client, db, email, password=_PASSWORD)
 
 
 def _b64(value: bytes) -> str:

@@ -24,6 +24,7 @@ from app.routers import (
     exams,
     exercises,
     keys,
+    mfa,
     students,
     submissions,
     user,
@@ -116,6 +117,13 @@ def create_app() -> FastAPI:
             ),
         },
         {
+            "name": "mfa",
+            "description": (
+                "Authenticator (TOTP) enrollment and backup codes. Every sign-in presents "
+                "two of the three factors: password, passkey, authenticator."
+            ),
+        },
+        {
             "name": "keys",
             "description": (
                 "Wrapped copies of the client's data-encryption key. Opaque to the server: "
@@ -203,6 +211,7 @@ def create_app() -> FastAPI:
     app.include_router(admin.router, prefix=API_PREFIX)
     app.include_router(user.router, prefix=API_PREFIX)
     app.include_router(keys.router, prefix=API_PREFIX)
+    app.include_router(mfa.router, prefix=API_PREFIX)
 
     @app.get("/api/health", tags=["meta"])
     async def health() -> dict[str, str]:

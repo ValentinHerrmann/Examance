@@ -23,7 +23,6 @@ is already in force.
 from __future__ import annotations
 
 import hashlib
-import logging
 import time
 from datetime import UTC, datetime, timedelta
 
@@ -32,15 +31,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.teacher import Teacher
-
-logger = logging.getLogger(__name__)
+from app.services import ephemeral_store
 
 _FAIL_PREFIX = "login:fail:"
 _LOCK_PREFIX = "login:lock:"
-
-# Fallback store for dev/tests, and for a Redis that cannot be reached. Values
-# are (count_or_deadline, expires_at_monotonic).
-_memory_store: dict[str, tuple[int, float]] = {}
 
 
 def _account_key(email: str) -> str:
@@ -50,67 +44,6 @@ def _account_key(email: str) -> str:
 
 def _enabled() -> bool:
     return bool(settings.LOGIN_THROTTLE_ENABLED)
-
-
-def _use_redis() -> bool:
-    uri = settings.RATE_LIMIT_STORAGE_URI
-    return uri.startswith("redis://") or uri.startswith("rediss://")
-
-
-async def _get(key: str) -> int | None:
-    """Return the stored integer for *key*, or None when absent/expired."""
-    if _use_redis():
-        try:
-            from redis.asyncio import Redis
-
-            client: Redis = Redis.from_url(settings.RATE_LIMIT_STORAGE_URI)
-            try:
-                raw = await client.get(key)
-            finally:
-                await client.aclose()
-            return int(raw) if raw is not None else None
-        except Exception:  # noqa: BLE001 - a throttle must never break login
-            logger.warning("Login throttle: Redis unavailable, using in-process store.")
-    entry = _memory_store.get(key)
-    if entry is None:
-        return None
-    value, expires_at = entry
-    if expires_at <= time.monotonic():
-        _memory_store.pop(key, None)
-        return None
-    return value
-
-
-async def _set(key: str, value: int, ttl_seconds: int) -> None:
-    if _use_redis():
-        try:
-            from redis.asyncio import Redis
-
-            client: Redis = Redis.from_url(settings.RATE_LIMIT_STORAGE_URI)
-            try:
-                await client.set(key, value, ex=max(ttl_seconds, 1))
-            finally:
-                await client.aclose()
-            return
-        except Exception:  # noqa: BLE001 - a throttle must never break login
-            logger.warning("Login throttle: Redis unavailable, using in-process store.")
-    _memory_store[key] = (value, time.monotonic() + max(ttl_seconds, 1))
-
-
-async def _delete(*keys: str) -> None:
-    if _use_redis():
-        try:
-            from redis.asyncio import Redis
-
-            client: Redis = Redis.from_url(settings.RATE_LIMIT_STORAGE_URI)
-            try:
-                await client.delete(*keys)
-            finally:
-                await client.aclose()
-        except Exception:  # noqa: BLE001 - a throttle must never break login
-            logger.warning("Login throttle: Redis unavailable, using in-process store.")
-    for key in keys:
-        _memory_store.pop(key, None)
 
 
 def _cooloff_seconds(failures: int) -> int:
@@ -155,7 +88,7 @@ async def assert_not_locked(email: str, teacher: Teacher | None = None) -> None:
         if locked_until > now:
             raise _locked_exc(int((locked_until - now).total_seconds()))
 
-    deadline = await _get(_LOCK_PREFIX + _account_key(email))
+    deadline = await ephemeral_store.get(_LOCK_PREFIX + _account_key(email))
     if deadline is not None:
         remaining = deadline - int(time.time())
         if remaining > 0:
@@ -175,14 +108,14 @@ async def register_failure(
         return None
 
     key = _account_key(email)
-    failures = (await _get(_FAIL_PREFIX + key) or 0) + 1
-    await _set(_FAIL_PREFIX + key, failures, settings.LOGIN_FAIL_WINDOW_SECONDS)
+    failures = (await ephemeral_store.get(_FAIL_PREFIX + key) or 0) + 1
+    await ephemeral_store.set(_FAIL_PREFIX + key, failures, settings.LOGIN_FAIL_WINDOW_SECONDS)
 
     if failures < settings.LOGIN_MAX_FAILED_ATTEMPTS:
         return None
 
     cooloff = _cooloff_seconds(failures)
-    await _set(_LOCK_PREFIX + key, int(time.time()) + cooloff, cooloff)
+    await ephemeral_store.set(_LOCK_PREFIX + key, int(time.time()) + cooloff, cooloff)
     if teacher is not None:
         teacher.locked_until = datetime.now(tz=UTC) + timedelta(seconds=cooloff)
         await db.flush()
@@ -197,7 +130,7 @@ async def register_success(
         return
 
     key = _account_key(email)
-    await _delete(_FAIL_PREFIX + key, _LOCK_PREFIX + key)
+    await ephemeral_store.delete(_FAIL_PREFIX + key, _LOCK_PREFIX + key)
     if teacher is not None and teacher.locked_until is not None:
         teacher.locked_until = None
         await db.flush()
@@ -205,4 +138,4 @@ async def register_success(
 
 def reset_memory_store() -> None:
     """Drop the in-process fallback store. Test helper."""
-    _memory_store.clear()
+    ephemeral_store.reset()

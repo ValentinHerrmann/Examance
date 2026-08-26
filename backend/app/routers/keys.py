@@ -17,7 +17,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_teacher
+from app.dependencies import PendingSession, get_pending_teacher
 from app.models.key_envelope import KeyEnvelope
 from app.models.teacher import Teacher
 from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
@@ -30,6 +30,27 @@ from app.schemas.key_envelope import (
 from app.services import audit as audit_svc
 
 router = APIRouter(prefix="/keys", tags=["keys"])
+
+# The envelope has to be reachable before a full session exists. An account that
+# predates the envelope has only a password, so it lands in the enrollment scope
+# — and the wizard that gets it out of there is the same one that stores its key
+# for the first time, while the password is still in hand. A password reset lands
+# in `reset_pending` for the same reason.
+#
+# This is not a hole in the two-of-three policy: everything here is ciphertext
+# the caller has to be able to unwrap anyway, and it is scoped to the account
+# named in the token.
+_ENVELOPE_SCOPES = {"full", "enroll", "auth_pending", "reset_pending"}
+
+
+def _require_envelope_scope(session: PendingSession) -> Teacher:
+    if session.scope not in _ENVELOPE_SCOPES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authenticated.",
+            headers={"code": "ERR_UNAUTHORIZED"},
+        )
+    return session.teacher
 
 # A wrapped bundle is three 32-byte keys plus JSON framing, then GCM overhead.
 # Generous, but bounded: this column is written by the client.
@@ -60,7 +81,7 @@ def _to_out(row: KeyEnvelope) -> KeyEnvelopeOut:
 
 @router.get("/envelopes", response_model=KeyEnvelopeListOut)
 async def list_envelopes(
-    teacher: Teacher = Depends(get_current_teacher),
+    session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> KeyEnvelopeListOut:
     """
@@ -70,6 +91,7 @@ async def list_envelopes(
     "this factor was orphaned by an admin password write" apart from "this
     factor was never enrolled" and offer the right recovery path.
     """
+    teacher = _require_envelope_scope(session)
     result = await db.execute(
         select(KeyEnvelope)
         .where(KeyEnvelope.teacher_id == teacher.id)
@@ -86,7 +108,7 @@ async def list_envelopes(
 async def replace_envelopes(
     body: KeyEnvelopeSetIn,
     request: Request,
-    teacher: Teacher = Depends(get_current_teacher),
+    session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> KeyEnvelopeListOut:
     """
@@ -97,6 +119,7 @@ async def replace_envelopes(
     which is indistinguishable from a working set until the day someone needs to
     recover with it.
     """
+    teacher = _require_envelope_scope(session)
     key_id = decode_b64(body.key_id_b64, "key_id_b64", expected_len=KEY_ID_BYTES)
 
     seen: set[tuple[str, str | None]] = set()
@@ -184,7 +207,7 @@ async def replace_envelopes(
 @router.delete("/envelopes/{envelope_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_envelope(
     envelope_id: uuid.UUID,
-    teacher: Teacher = Depends(get_current_teacher),
+    session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """
@@ -194,6 +217,7 @@ async def delete_envelope(
     works, and dropping it would leave the account one forgotten password away
     from unreadable data.
     """
+    teacher = _require_envelope_scope(session)
     result = await db.execute(
         select(KeyEnvelope).where(
             KeyEnvelope.id == envelope_id, KeyEnvelope.teacher_id == teacher.id

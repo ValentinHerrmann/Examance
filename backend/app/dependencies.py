@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 
 import jwt
 from fastapi import Cookie, Depends, HTTPException, status
@@ -58,7 +59,97 @@ async def get_current_teacher(
     teacher = result.scalar_one_or_none()
     if teacher is None:
         raise credentials_exc
+
+    # Everything outside the login and enrollment endpoints needs a session that
+    # two distinct factors earned. A token minted halfway through a sign-in, or
+    # for an account that has not finished enrolling, reaches nothing else.
+    scope = payload.get("scope", "full")
+    if scope != "full":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Finish setting up your sign-in factors."
+                if scope == "enroll"
+                else "Another sign-in factor is required."
+            ),
+            headers={
+                "code": (
+                    "ERR_MFA_ENROLLMENT_REQUIRED" if scope == "enroll" else "ERR_MFA_REQUIRED"
+                )
+            },
+        )
     return teacher
+
+
+@dataclass(frozen=True)
+class PendingSession:
+    """A sign-in in progress: who, how far along, and which token said so."""
+
+    teacher: Teacher
+    scope: str
+    amr: list[str]
+    jti: str | None
+
+
+async def get_pending_teacher(
+    access_token: str | None = Cookie(default=None),
+    db: AsyncSession = Depends(get_db),
+) -> PendingSession:
+    """
+    Accept a half-finished sign-in.
+
+    Guards only the factor, enrollment and key-recovery endpoints — the ones a
+    teacher has to reach *before* they hold a full session. Returns the account
+    together with the token's scope and the factors already presented, because
+    the next step needs both: the second factor is verified against the account
+    named in the token, never against an email the caller supplies, or the second
+    step could be answered for somebody else.
+    """
+    credentials_exc = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    if not access_token:
+        raise credentials_exc
+    try:
+        payload = decode_token(access_token)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired.",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from None
+    except jwt.InvalidTokenError:
+        raise credentials_exc from None
+
+    if payload.get("type") != "access":
+        raise credentials_exc
+
+    teacher_id_str: str | None = payload.get("sub")
+    if not teacher_id_str:
+        raise credentials_exc
+    try:
+        teacher_id = uuid.UUID(teacher_id_str)
+    except ValueError:
+        raise credentials_exc from None
+
+    result = await db.execute(select(Teacher).where(Teacher.id == teacher_id))
+    teacher = result.scalar_one_or_none()
+    if teacher is None:
+        raise credentials_exc
+
+    scope = str(payload.get("scope", "full"))
+    amr = payload.get("amr") or []
+    if not isinstance(amr, list):
+        amr = []
+    jti = payload.get("jti")
+    return PendingSession(
+        teacher=teacher,
+        scope=scope,
+        amr=[str(f) for f in amr],
+        jti=str(jti) if jti else None,
+    )
 
 
 async def get_admin_teacher(

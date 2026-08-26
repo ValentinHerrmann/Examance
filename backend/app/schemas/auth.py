@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -29,6 +30,14 @@ class LoginRequest(BaseModel):
     password: str = Field(max_length=PASSWORD_MAX_LENGTH)
 
 
+class TotpFactorRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=10)
+
+
+class BackupCodeRequest(BaseModel):
+    code: str = Field(min_length=4, max_length=64)
+
+
 class AuthResponse(BaseModel):
     # The account id is returned so the client can bind its key-envelope AAD to
     # the account rather than to the email address, which is the only other
@@ -37,6 +46,17 @@ class AuthResponse(BaseModel):
     id: uuid.UUID
     email: str
     role: str
+
+    # How far the sign-in got.
+    #   ok              — two distinct factors presented; a real session exists.
+    #   factor_required — one down, `available` says what may come next.
+    #   enroll_required — fewer than two factors enrolled; only the enrollment
+    #                     endpoints are reachable until that is fixed.
+    status: Literal["ok", "factor_required", "enroll_required"] = "ok"
+    satisfied: list[str] = Field(default_factory=list)
+    # Only ever populated after a factor has been proven. Answering it earlier
+    # would turn the endpoint into an account-profile oracle.
+    available: list[str] = Field(default_factory=list)
 
 
 class TokenClaims(BaseModel):
