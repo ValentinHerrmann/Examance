@@ -175,6 +175,21 @@ async function request<T>(
     }
   }
 
+  if (resp.status === 403 && resp.headers.get('code') === 'ERR_MFA_ENROLLMENT_REQUIRED') {
+    // The session is real but the account no longer satisfies the two-factor
+    // policy — an administrator reset its factors, say. There is nothing to
+    // refresh: the token is correct, the account is not. Lock and send the
+    // teacher back to sign in, where enrollment happens.
+    //
+    // Deliberately *before* the 401 branch below: entering the refresh path
+    // here would rotate a perfectly valid refresh token to no purpose.
+    sessionStore.lock();
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/unlock')) {
+      window.location.assign('/unlock');
+    }
+    await handleNonOkResponse(resp, true);
+  }
+
   if (resp.status === 401 && !path.startsWith('/auth/')) {
     // Deduplicate concurrent refresh attempts. A request that 401'd because it
     // raced a refresh that has just succeeded is retried straight away — asking

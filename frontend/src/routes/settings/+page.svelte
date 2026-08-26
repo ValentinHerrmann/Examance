@@ -15,6 +15,7 @@
   import { onMount } from "svelte";
   import SettingsForm from "$lib/components/settings/SettingsForm.svelte";
   import GdprErasureTable from "$lib/components/settings/GdprErasureTable.svelte";
+  import { MfaPanel } from "$lib/components/security";
   import { exportStudentData, toDownloadableJson } from "$lib/gdpr/subjectAccess";
   import {
     locale,
@@ -132,6 +133,13 @@
       onLatexChange={handleLatexChange}
       onLocaleChange={handleLocaleChange}
     />
+
+    {#if $isAuthenticated}
+      <!-- Server accounts only: a local vault has no sign-in factors. -->
+      <div class="mb-8">
+        <MfaPanel />
+      </div>
+    {/if}
 
     <GdprErasureTable
       {students}

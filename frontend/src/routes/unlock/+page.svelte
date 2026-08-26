@@ -18,7 +18,19 @@
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { get } from "svelte/store";
   import UnlockForm from "$lib/components/unlock/UnlockForm.svelte";
-  import { RecoveryCodeDialog, RecoveryUnlockDialog } from "$lib/components/security";
+  import {
+    BackupCodeList,
+    RecoveryCodeDialog,
+    RecoveryUnlockDialog,
+    TotpEnrollDialog,
+    TotpFactor,
+  } from "$lib/components/security";
+  import {
+    submitBackupCode,
+    submitPassword,
+    submitTotp,
+    type AuthStep,
+  } from "$lib/api/mfa";
   import {
     EnvelopeChangedError,
     EnvelopeFactorMissingError,
@@ -43,6 +55,18 @@
    */
   let pendingRecovery: { teacherId: string; email: string; role: "teacher" | "admin" } | null =
     null;
+  /**
+   * The sign-in in progress.
+   *
+   * A sign-in presents two of three factors, so the page is a small state
+   * machine rather than one form post. The password stays in `password` until
+   * the whole thing finishes — it is needed to unwrap the data key once the
+   * session is real, and it is never persisted or sent anywhere else.
+   */
+  let authStep: AuthStep | null = null;
+  let factorErrorMsg = "";
+  /** Backup codes from a just-completed enrollment, shown once. */
+  let pendingBackupCodes: string[] | null = null;
 
   // Local workspace passphrase. Never persisted — it is the only input to the
   // key derivation, so losing it means the local vault cannot be opened.
@@ -80,17 +104,11 @@
 
     isLoading = true;
     try {
-      // Authenticate with server to get httpOnly cookies
-      const user = await api.post<{
-        id: string;
-        email: string;
-        role: "teacher" | "admin";
-      }>("/auth/login", {
-        email: normalizedEmail,
-        password,
-      }, { silentError: true });
+      // First factor. A correct password no longer produces a session: the
+      // server answers with what is still outstanding.
+      const step = await submitPassword(normalizedEmail, password);
 
-      // Save backend URL to localStorage ONLY after successful login
+      // Save backend URL to localStorage ONLY after a factor was accepted
       backendStore.saveSuccessfulBackendUrl(trimmedBackendUrl);
       recordValue("backend.url", trimmedBackendUrl);
 
@@ -99,46 +117,7 @@
         storagePolicyStore.updateSetting("storageMode", "all-server");
       }
 
-      // Recover the data key from its wrapped copy on the server. On an account
-      // that predates the envelope this performs the one-time migration, which
-      // adopts the previously derived key as the data key — so nothing has to be
-      // re-encrypted and the session key below is byte-identical to the old one.
-      let vault;
-      try {
-        vault = await openWithPassword(user.id, normalizedEmail, password);
-      } catch (envelopeErr) {
-        if (envelopeErr instanceof EnvelopeFactorMissingError) {
-          // The password is correct — the server accepted it — but it no longer
-          // opens the stored key. That is what a reset leaves behind, and the
-          // recovery code is the way out of it.
-          pendingRecovery = {
-            teacherId: user.id,
-            email: user.email,
-            role: user.role,
-          };
-          return;
-        }
-        throw envelopeErr;
-      }
-
-      const keys = await materializeSession(vault, normalizedEmail);
-
-      sessionStore.unlock({
-        ...keys,
-        email: user.email,
-        role: user.role,
-        mode: "authenticated",
-      });
-
-      if (vault.newRecoveryCode) {
-        // Shown once, and the dashboard waits until it is acknowledged: this is
-        // the only copy of the factor that always works.
-        pendingRecoveryCode = vault.newRecoveryCode;
-        return;
-      }
-
-      // Redirect to Dashboard
-      await goto("/");
+      await handleAuthStep(step);
     } catch (err: any) {
       // Revert store to last saved URL if authentication failed
       backendStore.restoreSavedUrl();
@@ -157,6 +136,107 @@
             ? translate("auth.unlock.errors.couldNotReachServer")
             : raw || translate("auth.unlock.errors.unlockFailed");
       }
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  /**
+   * Act on whatever the server said about the sign-in.
+   *
+   * Three outcomes, mirroring the policy: the account needs to enrol before it
+   * can authenticate at all; another factor is outstanding; or two distinct
+   * factors are in and the vault can be opened.
+   */
+  async function handleAuthStep(step: AuthStep) {
+    authStep = step;
+    factorErrorMsg = "";
+
+    if (step.status !== "ok") {
+      // Enrollment and the second factor are both rendered from `authStep`.
+      return;
+    }
+
+    await openVault(step);
+  }
+
+  /**
+   * Recover the data key and start the session.
+   *
+   * On an account that predates the key envelope this performs the one-time
+   * migration, which adopts the previously derived key as the data key — so
+   * nothing has to be re-encrypted and the session key is byte-identical to the
+   * one the old scheme produced.
+   */
+  async function openVault(step: AuthStep) {
+    const normalizedEmail = step.email.trim().toLowerCase();
+    let vault;
+    try {
+      vault = await openWithPassword(step.id, normalizedEmail, password);
+    } catch (envelopeErr) {
+      if (envelopeErr instanceof EnvelopeFactorMissingError) {
+        // The password is correct — the server accepted it — but it no longer
+        // opens the stored key. That is what a reset leaves behind, and the
+        // recovery code is the way out of it.
+        pendingRecovery = { teacherId: step.id, email: step.email, role: step.role };
+        authStep = null;
+        return;
+      }
+      throw envelopeErr;
+    }
+
+    const keys = await materializeSession(vault, normalizedEmail);
+    sessionStore.unlock({
+      ...keys,
+      email: step.email,
+      role: step.role,
+      mode: "authenticated",
+    });
+
+    authStep = null;
+
+    if (vault.newRecoveryCode) {
+      // Shown once, and the dashboard waits until it is acknowledged: this is
+      // the only copy of the factor that always works.
+      pendingRecoveryCode = vault.newRecoveryCode;
+      return;
+    }
+
+    await goto("/");
+  }
+
+  /** Second factor: an authenticator code, or a backup code standing in for one. */
+  async function handleSecondFactor(code: string, useBackupCode: boolean) {
+    factorErrorMsg = "";
+    try {
+      const step = useBackupCode ? await submitBackupCode(code) : await submitTotp(code);
+      await handleAuthStep(step);
+    } catch (err: any) {
+      factorErrorMsg =
+        err instanceof ApiError && err.code === "ERR_ACCOUNT_LOCKED"
+          ? translate("errors.code.ERR_ACCOUNT_LOCKED")
+          : translate("security.factors.invalid");
+    }
+  }
+
+  /**
+   * Enrollment finished. The account now has two factors, so replay the
+   * password to turn the enrollment token into a real session — the password is
+   * still in hand, which is exactly what storing the key for the first time
+   * needs.
+   */
+  async function handleEnrolled(backupCodes: string[]) {
+    pendingBackupCodes = backupCodes;
+    authStep = null;
+  }
+
+  async function handleBackupCodesAcknowledged() {
+    pendingBackupCodes = null;
+    isLoading = true;
+    try {
+      await handleAuthStep(await submitPassword(email.trim().toLowerCase(), password));
+    } catch (err: any) {
+      errorMsg = err?.message || translate("auth.unlock.errors.unlockFailed");
     } finally {
       isLoading = false;
     }
@@ -230,20 +310,38 @@
 </script>
 
 <div class="unlock-container flex min-h-full flex-col items-center justify-center box-border px-4 py-8 sm:px-6 sm:py-12">
-  <UnlockForm
-    bind:backendUrl
-    bind:email
-    bind:password
-    bind:localPassphrase
-    bind:localPassphraseConfirm
-    {isNewLocalVault}
-    {needsLegacyMigration}
-    {errorMsg}
-    {isLoading}
-    onUnlock={handleUnlock}
-    onUnlockLocal={handleUnlockLocal}
-  />
+  {#if authStep && authStep.status === "factor_required"}
+    <!--
+      One factor is in. The password stays in memory until the vault is open,
+      so this step is rendered in place of the form rather than on a new route.
+    -->
+    <div class="w-full max-w-form rounded-xl border border-line bg-surface-raised p-5 sm:p-6">
+      <TotpFactor onSubmit={handleSecondFactor} errorMsg={factorErrorMsg} />
+    </div>
+  {:else}
+    <UnlockForm
+      bind:backendUrl
+      bind:email
+      bind:password
+      bind:localPassphrase
+      bind:localPassphraseConfirm
+      {isNewLocalVault}
+      {needsLegacyMigration}
+      {errorMsg}
+      {isLoading}
+      onUnlock={handleUnlock}
+      onUnlockLocal={handleUnlockLocal}
+    />
+  {/if}
 </div>
+
+{#if authStep && authStep.status === "enroll_required"}
+  <TotpEnrollDialog onEnrolled={handleEnrolled} />
+{/if}
+
+{#if pendingBackupCodes}
+  <BackupCodeList codes={pendingBackupCodes} onConfirm={handleBackupCodesAcknowledged} />
+{/if}
 
 {#if pendingRecovery}
   <RecoveryUnlockDialog onSubmit={handleRecovery} />
