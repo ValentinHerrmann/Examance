@@ -367,3 +367,41 @@ export async function materializeSession(
     sessionNonce,
   };
 }
+
+/**
+ * Build the envelope set for a password reset, without saving it.
+ *
+ * The reset endpoint writes the new password and this set in one transaction:
+ * two round trips could leave a teacher whose password changed but whose key
+ * copy did not, which looks like a working account right up until the next
+ * sign-in opens nothing.
+ *
+ * Returns the fresh recovery code alongside, to be shown exactly once — the old
+ * one was just spent getting here.
+ */
+export async function buildResetEnvelopeSet(
+  teacherId: string,
+  vault: OpenedVault,
+  newPassword: string,
+): Promise<{ set: EnvelopeSet; recoveryCode: string }> {
+  const recoveryCode = generateRecoveryCode();
+  const set = await buildSet(
+    teacherId,
+    vault.keyId,
+    { dek: vault.dek, fallback: vault.fallback, legacy: vault.legacy },
+    newPassword,
+    recoveryCode,
+  );
+  return { set, recoveryCode };
+}
+
+/**
+ * Pin an envelope set this browser did not write itself.
+ *
+ * Used right after a reset: the set was just uploaded inside the reset request,
+ * so it is known-good here even though `saveEnvelopes` was not the one to store
+ * it.
+ */
+export async function pinEnvelopeSet(teacherId: string, set: EnvelopeSet): Promise<void> {
+  await pinFingerprint(teacherId, set);
+}

@@ -250,6 +250,30 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 > zero bytes, and placeholder identity rows created by the submissions endpoint
 > still do; treat that value as "no generation recorded".
 
+#### Sign-in factors (`/api/v1/auth`, `/api/v1/mfa`)
+
+A sign-in presents two of three factors. Each step returns
+`{status, satisfied, available}`: `factor_required` with the kinds still open,
+`enroll_required` when the account has fewer than two factors, or `ok` with the
+session cookies set.
+
+| Method | Endpoint | Summary |
+|---|---|---|
+| `POST` | `/auth/login` | First factor: email + password. Does **not** return a session on its own. |
+| `POST` | `/auth/factor/totp` | Second factor: authenticator code. Second position only. |
+| `POST` | `/auth/factor/backup-code` | Spends a backup code in place of the authenticator. |
+| `POST` | `/auth/reset/start` | Opens a password reset with the emailed token. |
+| `POST` | `/auth/reset-password` | Sets the new password and, in the same transaction, the re-wrapped key. |
+| `GET` | `/mfa/status` | Enrolled factors, which of them are key-capable, backup codes left. |
+| `POST` | `/mfa/totp/enroll` | Returns the `otpauth://` URI. The secret is shown once and never retrievable. |
+| `POST` | `/mfa/totp/confirm` | First correct code confirms the factor; returns the backup codes once. |
+| `POST` | `/mfa/backup-codes/regenerate` | Replaces the set; the previous codes stop working. |
+| `DELETE` | `/mfa/totp` | Refused when it would drop the account below two factors, or below its last key-capable one. |
+
+`available` is only ever populated after a factor has been proven — answering it
+earlier would tell an unauthenticated caller which addresses have accounts here,
+and which factors they use.
+
 #### Key Envelopes (`/api/v1/keys`)
 
 | Method | Endpoint | Summary |

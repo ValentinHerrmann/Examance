@@ -82,6 +82,59 @@ data key, so it cannot unwrap what it holds.
 * **Recovery code**: ~198 bits from `crypto.getRandomValues`, rendered in a Crockford-style base32 alphabet with `I`, `L`, `O` and `U` omitted because they are misread off paper. Shown exactly once.
 * **Symmetric Encryption**: AES-256-GCM with fresh 12-byte IV generated per operation via `crypto.getRandomValues`.
 
+### Sign-in factors
+
+Every sign-in presents **two of three** factors: password, passkey, authenticator
+(TOTP). A teacher who enrols all three survives losing any one of them, which is
+the point — a hard second factor with no way back is a support incident waiting
+to happen. `app/services/auth_policy.py` is the single place the rule lives.
+
+Two rules, not one:
+
+1. At least two factors enrolled. An account below that is held in an
+   enrollment-scoped session and reaches nothing else.
+2. At least one **key-capable** factor. An authenticator can prove who you are
+   but cannot unwrap the data key — its secret is server-side and six digits
+   carry no entropy to derive from. Without this rule an account could sign in
+   and still not read its own exams.
+
+Nothing is disclosed before a factor is proven. There is deliberately no endpoint
+answering "which factors does this email have": that is an account-existence and
+account-profile oracle. The list of remaining factors comes back only after the
+first one succeeds. TOTP is second-position only, since a code identifies no
+account and taking an email alongside it would rebuild the same oracle.
+
+The token that carries a sign-in forward authenticates nothing but the next step:
+ten-minute expiry, no refresh cookie, single use, and the second factor is checked
+against the account named in the token rather than an email the caller supplies.
+
+TOTP is RFC 6238 on the standard library, verified against the RFC's own test
+vectors. Codes are accepted once — the highest accepted step is stored — so a code
+seen over a shoulder inside its 30-second window cannot open a second sign-in.
+Secrets are encrypted at rest under a key derived from `SECRET_KEY`; the server
+must compute the expected code, so this is not zero-knowledge, but a database dump
+alone yields no working seeds. **Rotating `SECRET_KEY` therefore invalidates every
+enrollment.**
+
+### Password reset
+
+A reset re-establishes the password, so the password is unavailable by definition
+and the emailed token stands in for it — as **one** of the two factors. Mailbox
+access alone completing a reset is precisely the bypass this closes.
+
+It also restores access to the teacher's *data*, not only their login. The data
+key is unwrapped in the browser with the recovery code and re-wrapped under the
+new password; nothing is re-encrypted. The new password and the matching key copy
+are written in one transaction, because two round trips could leave an account
+whose password changed and whose key copy did not — indistinguishable from a
+working account until the next sign-in opens nothing.
+
+A teacher without their recovery code can still reset: the account comes back, the
+old ciphertext stays sealed, and the UI says so in those words before proceeding.
+An account that never finished enrolling is the one case where the emailed token
+carries the reset alone — it has no second factor to offer, and requiring one
+would strand it.
+
 ### Login throttling
 
 `POST /auth/login` is bounded twice. slowapi's existing limit is keyed on the

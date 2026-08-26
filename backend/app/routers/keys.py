@@ -13,21 +13,20 @@ import base64
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import PendingSession, get_pending_teacher
 from app.models.key_envelope import KeyEnvelope
 from app.models.teacher import Teacher
-from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
 from app.schemas.key_envelope import (
-    KEY_ID_BYTES,
     KeyEnvelopeListOut,
     KeyEnvelopeOut,
     KeyEnvelopeSetIn,
 )
 from app.services import audit as audit_svc
+from app.services.key_envelope import replace_envelope_set
 
 router = APIRouter(prefix="/keys", tags=["keys"])
 
@@ -51,12 +50,6 @@ def _require_envelope_scope(session: PendingSession) -> Teacher:
             headers={"code": "ERR_UNAUTHORIZED"},
         )
     return session.teacher
-
-# A wrapped bundle is three 32-byte keys plus JSON framing, then GCM overhead.
-# Generous, but bounded: this column is written by the client.
-MAX_WRAPPED_BUNDLE_BYTES = 4096
-MAX_CREDENTIAL_ID_BYTES = 1023
-
 
 def _b64(value: bytes) -> str:
     return base64.b64encode(value).decode()
@@ -120,75 +113,7 @@ async def replace_envelopes(
     recover with it.
     """
     teacher = _require_envelope_scope(session)
-    key_id = decode_b64(body.key_id_b64, "key_id_b64", expected_len=KEY_ID_BYTES)
-
-    seen: set[tuple[str, str | None]] = set()
-    rows: list[KeyEnvelope] = []
-    for envelope in body.envelopes:
-        salt = decode_b64(
-            envelope.kdf_salt_b64, "kdf_salt_b64", expected_len=ARGON2_SALT_BYTES
-        )
-        iv = decode_b64(envelope.wrap_iv_b64, "wrap_iv_b64", expected_len=GCM_IV_BYTES)
-        bundle = decode_b64(envelope.wrapped_bundle_b64, "wrapped_bundle_b64")
-        if not bundle or len(bundle) > MAX_WRAPPED_BUNDLE_BYTES:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Field 'wrapped_bundle_b64' has an implausible length.",
-                headers={"code": "ERR_BAD_REQUEST"},
-            )
-
-        credential_id: bytes | None = None
-        if envelope.credential_id_b64 is not None:
-            credential_id = decode_b64(envelope.credential_id_b64, "credential_id_b64")
-            if not credential_id or len(credential_id) > MAX_CREDENTIAL_ID_BYTES:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Field 'credential_id_b64' has an implausible length.",
-                    headers={"code": "ERR_BAD_REQUEST"},
-                )
-        if envelope.kind == "passkey" and credential_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="A passkey wrap must name the credential it belongs to.",
-                headers={"code": "ERR_BAD_REQUEST"},
-            )
-
-        factor = (envelope.kind, envelope.credential_id_b64)
-        if factor in seen:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="The envelope set holds two wraps for the same factor.",
-                headers={"code": "ERR_BAD_REQUEST"},
-            )
-        seen.add(factor)
-
-        rows.append(
-            KeyEnvelope(
-                teacher_id=teacher.id,
-                kind=envelope.kind,
-                credential_id=credential_id,
-                kdf=envelope.kdf,
-                kdf_salt=salt,
-                kdf_params=envelope.kdf_params,
-                wrapped_bundle=bundle,
-                wrap_iv=iv,
-                key_id=key_id,
-                envelope_version=body.envelope_version,
-            )
-        )
-
-    if not any(row.kind == "recovery" for row in rows):
-        # Without it, a teacher who loses their password has no way back to
-        # their data at all. This is the one wrap that is never optional.
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The envelope set must include a recovery wrap.",
-            headers={"code": "ERR_BAD_REQUEST"},
-        )
-
-    await db.execute(delete(KeyEnvelope).where(KeyEnvelope.teacher_id == teacher.id))
-    db.add_all(rows)
-    await db.flush()
+    rows = await replace_envelope_set(db, teacher, body)
 
     await audit_svc.write(
         db,

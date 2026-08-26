@@ -233,9 +233,14 @@ export const help: Translations['help'] = {
                 h: 'Roles',
                 p1: 'Teachers see only their own exams. Administrators additionally manage the school’s accounts — which gives them no access to anyone else’s exam content, because that is encrypted client-side.',
             },
+            s6: {
+                h: 'Two sign-in factors',
+                p1: 'Every sign-in presents two of three factors: password, authenticator app, passkey. A guessed password on its own gets nowhere.',
+                p2: 'Enrol all three where you can — then losing one is merely inconvenient. With exactly two, losing one means only an administrator can get you back in, and only to the account, not to the encrypted data. Backup codes stand in for the authenticator app and work once each.',
+            },
             s3: {
                 h: 'Resetting a password',
-                p1: 'A server account can be reset via “forgot password”. Note that this restores access to the account, not the key to content that is already encrypted.',
+                p1: 'A server account can be reset via “forgot password”. You confirm with a second factor, then enter your recovery code once so your existing encrypted data becomes readable again — nothing is re-encrypted.',
             },
             s4: {
                 h: 'Recovery code',

@@ -92,3 +92,38 @@ async def sign_in(
     secret = await enrol_totp(db, teacher)
     await complete_login(client, email, secret, password=password)
     return teacher
+
+
+async def start_reset(client: AsyncClient, token: str) -> dict[str, object]:
+    """
+    Open a password reset with the emailed token.
+
+    The token stands in for the password factor but is not, on its own, enough:
+    mailbox access completing a reset is the bypass the second factor closes.
+    """
+    resp = await client.post("/api/v1/auth/reset/start", json={"token": token})
+    assert resp.status_code == 200, resp.text
+    client.cookies.update(resp.cookies)
+    return dict(resp.json())
+
+
+async def complete_reset(
+    client: AsyncClient,
+    token: str,
+    new_password: str,
+    secret: bytes | None = None,
+) -> None:
+    """Drive a whole reset: token, second factor where one exists, new password."""
+    step = await start_reset(client, token)
+    if step["status"] == "factor_required":
+        assert secret is not None, "account has a second factor; pass its secret"
+        second = await client.post(
+            "/api/v1/auth/factor/totp", json={"code": current_code(secret)}
+        )
+        assert second.status_code == 200, second.text
+        client.cookies.update(second.cookies)
+
+    done = await client.post(
+        "/api/v1/auth/reset-password", json={"token": token, "new_password": new_password}
+    )
+    assert done.status_code == 200, done.text

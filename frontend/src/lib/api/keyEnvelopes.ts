@@ -44,7 +44,7 @@ function fromDto(dto: KeyEnvelopeDto): KeyEnvelope {
   };
 }
 
-function toDto(envelope: KeyEnvelope): Record<string, unknown> {
+export function toDto(envelope: KeyEnvelope): Record<string, unknown> {
   return {
     kind: envelope.kind,
     credential_id_b64: envelope.credentialIdB64,
@@ -89,4 +89,19 @@ export async function saveEnvelopes(set: EnvelopeSet): Promise<void> {
 /** Remove one wrap — used when a passkey is deregistered. */
 export async function deleteEnvelope(id: string): Promise<void> {
   await api.delete(`/keys/envelopes/${id}`);
+}
+
+/**
+ * The wire shape of a whole envelope set.
+ *
+ * Exported because a password reset sends it inside the reset request rather
+ * than through `PUT /keys/envelopes`: the new password and the key copy that
+ * matches it are written in one transaction, so they cannot end up disagreeing.
+ */
+export function envelopeSetToDto(set: EnvelopeSet): Record<string, unknown> {
+  return {
+    key_id_b64: uint8ArrayToBase64(set.keyId),
+    envelope_version: 1,
+    envelopes: set.envelopes.map(toDto),
+  };
 }

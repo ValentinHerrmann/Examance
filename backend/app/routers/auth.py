@@ -21,6 +21,7 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
     ResetPasswordRequest,
+    ResetTokenRequest,
     TotpFactorRequest,
 )
 from app.services import audit as audit_svc
@@ -33,7 +34,12 @@ from app.services.jwt import (
     create_refresh_token,
     decode_token,
 )
-from app.services.password_reset import complete_password_reset, create_and_send_reset_token
+from app.services.key_envelope import replace_envelope_set
+from app.services.password_reset import (
+    complete_password_reset,
+    create_and_send_reset_token,
+    verify_reset_token,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -136,16 +142,101 @@ async def forgot_password(
     }
 
 
+@router.post("/reset/start", response_model=AuthResponse)
+@limiter.limit("10/hour")
+async def start_reset(
+    body: ResetTokenRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+) -> AuthResponse:
+    """
+    Open a password reset with the emailed link.
+
+    A reset re-establishes the password, so the password is unavailable by
+    definition and the emailed token stands in for it — but only as *one* of the
+    two factors the policy wants. Mailbox access alone completing a reset is
+    exactly the bypass the second factor exists to close.
+
+    An account that has not finished enrolling is the one exception: it has no
+    second factor to offer, so requiring one would strand it. It gets a
+    ``reset_pending`` token that can complete the reset on its own, and is held
+    in enrollment at the next sign-in like every other single-factor account.
+    """
+    token_record, teacher = await verify_reset_token(db, body.token)
+    if not token_record or not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token.",
+            headers={"code": "ERR_INVALID_TOKEN"},
+        )
+
+    amr = ["password"]
+    complete = await auth_policy.is_enrollment_complete(db, teacher)
+    scope_token = create_access_token(
+        teacher.id, teacher.email, teacher.role, scope="reset_pending", amr=amr
+    )
+    await pending_token.register(decode_token(scope_token).get("jti"))
+    _set_pending_cookie(response, scope_token, "reset_pending")
+
+    return AuthResponse(
+        id=teacher.id,
+        email=teacher.email,
+        role=teacher.role,
+        status="factor_required" if complete else "enroll_required",
+        satisfied=amr,
+        available=(
+            await auth_policy.remaining_factors(db, teacher, amr) if complete else []
+        ),
+    )
+
+
 @router.post("/reset-password", status_code=status.HTTP_200_OK)
 @limiter.limit("5/hour")
 async def reset_password(
     body: ResetPasswordRequest,
     request: Request,
+    response: Response,
+    session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
     """
-    Set a new password using a valid single-use reset token.
+    Set the new password, and store the re-wrapped data key with it.
+
+    The envelope is written in the same transaction as the password on purpose.
+    Two round trips could leave a teacher whose password changed but whose key
+    copy did not, which is indistinguishable from a working account until the
+    next sign-in fails to open anything.
+
+    Without an envelope in the body the password wrap is marked unusable
+    instead — the "I do not have my recovery code" path. The teacher keeps their
+    account and is told plainly, on the next sign-in, that their existing data
+    needs the recovery code.
     """
+    if session.scope != "reset_pending":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Start the password reset again.",
+            headers={"code": "ERR_FACTOR_REQUIRED"},
+        )
+
+    teacher = session.teacher
+    if not auth_policy.satisfies(session.amr) and await auth_policy.is_enrollment_complete(
+        db, teacher
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Another sign-in factor is required.",
+            headers={"code": "ERR_MFA_REQUIRED"},
+        )
+
+    if not await pending_token.consume(session.jti):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This password reset has expired. Start again.",
+            headers={"code": "ERR_FACTOR_REQUIRED"},
+        )
+
     try:
         teacher = await complete_password_reset(db, body.token, body.new_password)
     except ValueError as err:
@@ -155,6 +246,12 @@ async def reset_password(
             headers={"code": "ERR_INVALID_TOKEN"},
         ) from err
 
+    if body.envelope is not None:
+        # The teacher unwrapped their data key in the browser and re-wrapped it
+        # under the new password. `complete_password_reset` has just invalidated
+        # the old password wrap; this replaces the whole set with the new one.
+        await replace_envelope_set(db, teacher, body.envelope)
+
     await audit_svc.write(
         db,
         teacher_id=teacher.id,
@@ -162,6 +259,7 @@ async def reset_password(
         action="PASSWORD_RESET_COMPLETED",
         request_ip=request.client.host if request.client else None,
     )
+    _clear_auth_cookies(response)
 
     return {"message": "Password has been successfully set. You can now log in."}
 
@@ -173,6 +271,8 @@ async def advance_sign_in(
     teacher: Teacher,
     factor: str,
     already_presented: list[str],
+    *,
+    flow: str = "auth_pending",
 ) -> AuthResponse:
     """
     Record that *factor* was proven and decide what the session becomes.
@@ -188,6 +288,24 @@ async def advance_sign_in(
       come next, which is safe to disclose now that one has been proven.
     """
     amr = sorted({*already_presented, factor})
+
+    if flow == "reset_pending":
+        # A reset collects its factors and then sets a password. It must never
+        # hand out a session on the way: the account is mid-reset, and the
+        # teacher has not yet proven they can choose its new password.
+        token = create_access_token(
+            teacher.id, teacher.email, teacher.role, scope="reset_pending", amr=amr
+        )
+        await pending_token.register(decode_token(token).get("jti"))
+        _set_pending_cookie(response, token, "reset_pending")
+        return AuthResponse(
+            id=teacher.id,
+            email=teacher.email,
+            role=teacher.role,
+            status="ok" if auth_policy.satisfies(amr) else "factor_required",
+            satisfied=amr,
+            available=await auth_policy.remaining_factors(db, teacher, amr),
+        )
 
     if not await auth_policy.is_enrollment_complete(db, teacher):
         token = create_access_token(
@@ -295,7 +413,7 @@ async def factor_totp(
             detail="That factor has already been used for this sign-in.",
             headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
         )
-    await _require_pending(session, allow_scopes={"auth_pending"})
+    await _require_pending(session, allow_scopes={"auth_pending", "reset_pending"})
 
     teacher = session.teacher
     await login_throttle.assert_not_locked(teacher.email, teacher)
@@ -317,7 +435,9 @@ async def factor_totp(
         )
 
     await login_throttle.register_success(db, teacher.email, teacher)
-    return await advance_sign_in(db, request, response, teacher, "totp", session.amr)
+    return await advance_sign_in(
+        db, request, response, teacher, "totp", session.amr, flow=session.scope
+    )
 
 
 @router.post("/factor/backup-code", response_model=AuthResponse)
@@ -341,7 +461,7 @@ async def factor_backup_code(
             detail="That factor has already been used for this sign-in.",
             headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
         )
-    await _require_pending(session, allow_scopes={"auth_pending"})
+    await _require_pending(session, allow_scopes={"auth_pending", "reset_pending"})
 
     teacher = session.teacher
     await login_throttle.assert_not_locked(teacher.email, teacher)
@@ -356,7 +476,9 @@ async def factor_backup_code(
         )
 
     await login_throttle.register_success(db, teacher.email, teacher)
-    return await advance_sign_in(db, request, response, teacher, "totp", session.amr)
+    return await advance_sign_in(
+        db, request, response, teacher, "totp", session.amr, flow=session.scope
+    )
 
 
 @router.post("/login", response_model=AuthResponse)

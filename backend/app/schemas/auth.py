@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
+from app.schemas.key_envelope import KeyEnvelopeSetIn
+
 # Matches the policy already enforced by AdminCreateUserRequest and the
 # `create-user` / `set-password` CLI commands.
 PASSWORD_MIN_LENGTH = 12
@@ -16,9 +18,18 @@ class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
 
+class ResetTokenRequest(BaseModel):
+    token: str
+
+
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
+    # The data key, re-wrapped in the browser under the new password. Written in
+    # the same transaction as the password so the two cannot end up disagreeing.
+    # Absent when the teacher could not recover their key — the account is reset,
+    # the old data stays sealed, and they are told so plainly.
+    envelope: KeyEnvelopeSetIn | None = None
 
 
 class LoginRequest(BaseModel):

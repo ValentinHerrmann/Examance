@@ -79,3 +79,14 @@ export async function regenerateBackupCodes(): Promise<string[]> {
 export async function disableTotp(): Promise<void> {
   await api.delete('/mfa/totp', { silentError: true });
 }
+
+
+/**
+ * Open a password reset with the emailed token.
+ *
+ * The token stands in for the password factor — but as one of two. Mailbox
+ * access alone completing a reset is the bypass the second factor closes.
+ */
+export async function startReset(token: string): Promise<AuthStep> {
+  return api.post<AuthStep>('/auth/reset/start', { token }, { silentError: true });
+}

@@ -82,6 +82,16 @@ export const security = {
         removeBlocked: 'Dieser Faktor kann nicht entfernt werden, solange er der letzte verbliebene ist.',
         loadFailed: 'Der Sicherheitsstatus konnte nicht geladen werden.',
     },
+    reset: {
+        step2Title: 'Zweiter Faktor',
+        step2Intro: 'Ein per E-Mail zugesandter Link allein genügt nicht mehr, um ein Passwort zurückzusetzen. Bestätigen Sie zusätzlich mit Ihrer Authenticator-App.',
+        keyTitle: 'Verschlüsselte Daten wiederherstellen',
+        keyIntro: 'Mit dem neuen Passwort lässt sich Ihr bisheriger Datenschlüssel nicht öffnen. Geben Sie Ihren Wiederherstellungscode ein — der Schlüssel wird dann im Browser unter dem neuen Passwort neu hinterlegt. Es wird nichts neu verschlüsselt.',
+        keySkip: 'Ich habe keinen Wiederherstellungscode',
+        keySkipWarning: 'Ohne den Code bleiben Ihre bisherigen Klausuren, Schülerdaten und Korrekturen dauerhaft unlesbar. Das Konto und alle danach angelegten Daten sind davon nicht betroffen.',
+        keySkipConfirm: 'Trotzdem zurücksetzen',
+        working: 'Wird zurückgesetzt …',
+    },
     envelope: {
         changedTitle: 'Schlüssel-Hinterlegung hat sich geändert',
         changedBody:

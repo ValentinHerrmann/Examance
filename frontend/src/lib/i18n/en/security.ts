@@ -84,6 +84,16 @@ export const security: Translations['security'] = {
         removeBlocked: 'That factor cannot be removed while it is the last one left.',
         loadFailed: 'The security status could not be loaded.',
     },
+    reset: {
+        step2Title: 'Second factor',
+        step2Intro: 'An emailed link alone is no longer enough to reset a password. Confirm with your authenticator app as well.',
+        keyTitle: 'Restore your encrypted data',
+        keyIntro: 'Your new password cannot open your existing data key. Enter your recovery code and the key will be re-stored under the new password, here in the browser. Nothing is re-encrypted.',
+        keySkip: 'I do not have a recovery code',
+        keySkipWarning: 'Without the code your existing exams, student data and grading stay permanently unreadable. The account, and anything created afterwards, is unaffected.',
+        keySkipConfirm: 'Reset anyway',
+        working: 'Resetting…',
+    },
     envelope: {
         changedTitle: 'Stored key copy has changed',
         changedBody:

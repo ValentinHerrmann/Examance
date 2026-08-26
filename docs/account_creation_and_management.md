@@ -34,6 +34,23 @@ The backend creates the user account with an uninitialized password (`password_h
 
 ---
 
+## 2b. Sign-in factors
+
+Every sign-in presents **two of three** factors: password, authenticator app
+(TOTP), passkey. An account with fewer than two is held on the enrollment screen
+and can reach nothing else — including every existing account, on its first
+sign-in after this shipped.
+
+Enrol all three where you can. With three enrolled, losing any one of them is an
+inconvenience; with exactly two, losing one is a lockout that only an
+administrator can clear, and only by resetting the factors — not the data.
+
+Backup codes stand in for the authenticator, not for a third factor. Ten are
+issued at enrollment, each usable once; regenerate them from **Settings →
+Sign-in & security** when few are left.
+
+---
+
 ## 3. Self-Service Password Reset
 
 Users can request a password reset at any time:
@@ -41,10 +58,14 @@ Users can request a password reset at any time:
 2. Enter the registered email address.
 3. If an account exists, a single-use reset link (`/reset-password?token=...`) is delivered via email (expires in 24 hours).
 4. Enter a new password (min. 12 characters).
-5. Sign in with it. Because the new password cannot open the stored copy of the
-   data key, the app asks for the **recovery code** once, unwraps the key with it,
-   re-wraps that same key under the new password, and issues a replacement
-   recovery code. Nothing is re-encrypted and no data is lost.
+5. Confirm with a second factor — an authenticator code or a backup code. An
+   emailed link on its own no longer resets a password: anyone who could read the
+   mailbox could otherwise take the account. (An account that has not finished
+   enrolling has no second factor to offer, so the link carries the reset alone.)
+6. Enter the **recovery code**. The data key is unwrapped in the browser and
+   re-wrapped under the new password; nothing is re-encrypted and no data is
+   lost. A fresh recovery code is issued and shown once.
+7. Sign in with the new password and your second factor.
 
 > **Keep the recovery code.** It is shown exactly once, when the key is first
 > stored (on the first sign-in after this feature ships) and again after every

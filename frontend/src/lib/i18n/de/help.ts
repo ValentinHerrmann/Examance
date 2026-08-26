@@ -233,9 +233,14 @@ export const help = {
                 h: 'Rollen',
                 p1: 'Lehrkräfte sehen ausschließlich ihre eigenen Klausuren. Administratorinnen und Administratoren verwalten zusätzlich die Konten der Schule — sie erhalten dadurch keinen Zugriff auf fremde Klausurinhalte, denn diese sind clientseitig verschlüsselt.',
             },
+            s6: {
+                h: 'Zwei Anmeldefaktoren',
+                p1: 'Jede Anmeldung verlangt zwei von drei Faktoren: Passwort, Authenticator-App und Passkey. Damit nützt ein erratenes Passwort allein nichts.',
+                p2: 'Richten Sie nach Möglichkeit alle drei ein — dann ist der Verlust eines einzelnen Faktors nur lästig. Mit genau zwei bedeutet der Verlust eines Faktors, dass nur die Administration wieder Zugang verschaffen kann, und zwar nur zum Konto, nicht zu den verschlüsselten Daten. Backup-Codes ersetzen die Authenticator-App und funktionieren je einmal.',
+            },
             s3: {
                 h: 'Passwort zurücksetzen',
-                p1: 'Ein Serverkonto lässt sich über „Passwort vergessen“ zurücksetzen. Beim nächsten Anmelden fragt die App einmalig Ihren Wiederherstellungscode ab und macht damit Ihre bestehenden verschlüsselten Daten wieder lesbar — neu verschlüsselt wird dabei nichts.',
+                p1: 'Ein Serverkonto lässt sich über „Passwort vergessen“ zurücksetzen. Sie bestätigen dabei mit einem zweiten Faktor und geben einmalig Ihren Wiederherstellungscode ein — damit werden Ihre bestehenden verschlüsselten Daten wieder lesbar, ohne dass etwas neu verschlüsselt wird.',
             },
             s4: {
                 h: 'Wiederherstellungscode',
