@@ -3,6 +3,7 @@
   import LatexEditor from "$lib/components/LatexEditor.svelte";
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import { t } from "$lib/i18n";
+  import InfoTip from "$lib/components/help/InfoTip.svelte";
   import { Modal, Button, controlClass } from "$lib/components/ui";
 
   export let isOpen = false;
@@ -27,7 +28,10 @@
     </div>
 
     <div class="mb-4 flex flex-col gap-[0.375rem]">
-      <label for="variantKey" class="text-sm text-muted">{$t("exercises.variantModal.keyLabel")}</label>
+      <label for="variantKey" class="flex items-center gap-1.5 text-sm text-muted">
+        {$t("exercises.variantModal.keyLabel")}
+        <InfoTip text={$t("help.tips.variantKey")} topic="exercises" />
+      </label>
       <input
         id="variantKey"
         type="text"

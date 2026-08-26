@@ -118,7 +118,7 @@
 
 {#if $isUnlocked}
   <PageShell>
-    <PageHeader title={$t("settings.pageTitle")} />
+    <PageHeader title={$t("settings.pageTitle")} helpTopic="settings" />
 
     {#if statusMsg}
       <div class="settings-status-banner">{statusMsg}</div>

@@ -3,6 +3,7 @@
   import { getPresetCutoffs } from '$lib/analytics/gradingKey';
   import { t } from '$lib/i18n';
 
+  import InfoTip from "$lib/components/help/InfoTip.svelte";
   const presetBtnBase =
     "cursor-pointer rounded-md border-0 bg-transparent px-[0.65rem] py-[0.35rem] text-xs font-medium text-slate-300 transition-all duration-150 ease-[ease] hover:bg-slate-700 hover:text-white";
   const presetBtnActive =
@@ -41,6 +42,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
         {$t("exam.gradingKeyEditor.heading")}
+        <InfoTip text={$t("help.tips.gradingKey")} topic="examCreation" />
       </h4>
       <p class="m-0 text-[0.8rem] text-slate-400">
         {$t("exam.gradingKeyEditor.description")}

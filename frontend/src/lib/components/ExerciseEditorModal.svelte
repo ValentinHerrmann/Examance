@@ -18,6 +18,7 @@
   import SuggestInput from "$lib/components/common/SuggestInput.svelte";
   import { recordValue } from "$lib/utils/recentValues";
   import { t, translate } from "$lib/i18n";
+  import InfoTip from "$lib/components/help/InfoTip.svelte";
   import { Modal } from "$lib/components/ui";
 
   export let isOpen = false;
@@ -776,8 +777,9 @@
                   </div>
 
                   <div class="flex flex-col gap-1">
-                    <label class="font-semibold text-slate-300" for="mc-penalty">
+                    <label class="flex items-center gap-1.5 font-semibold text-slate-300" for="mc-penalty">
                       {$t("exercises.editor.mcPenaltyLabel")}
+                      <InfoTip text={$t("help.tips.mcPenalty")} topic="exercises" />
                     </label>
                     <input
                       id="mc-penalty"

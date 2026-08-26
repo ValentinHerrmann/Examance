@@ -347,7 +347,12 @@
 </script>
 
 <PageShell width="full">
-  <PageHeader level="h1" title={$t('stats.analyticsPage.heading')} subtitle={$t('stats.analyticsPage.subtitle')} />
+  <PageHeader
+    level="h1"
+    title={$t('stats.analyticsPage.heading')}
+    subtitle={$t('stats.analyticsPage.subtitle')}
+    helpTopic="analytics"
+  />
 
   {#if isInitializing}
     <AnalyticsStateBanner variant="loading" />

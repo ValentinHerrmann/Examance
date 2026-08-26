@@ -1191,7 +1191,7 @@
 </script>
 
 <PageShell width="full">
-  <PageHeader title={$t("scanning.pageTitle")} />
+  <PageHeader title={$t("scanning.pageTitle")} helpTopic="scanning" />
 
   <HardwareProfileCard {hwProfile} inConstrainedMode={monitor?.inConstrainedMode} />
 

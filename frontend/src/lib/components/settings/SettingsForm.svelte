@@ -2,6 +2,8 @@
   import "./SettingsForm.css";
   import type { StorageMode } from "$lib/stores/storagePolicy";
   import { t, LOCALES, LOCALE_LABELS, type Locale } from "$lib/i18n";
+  import HelpButton from "$lib/components/help/HelpButton.svelte";
+  import InfoTip from "$lib/components/help/InfoTip.svelte";
 
   export let storageMode: StorageMode;
   export let latexCompilation: "server" | "local";
@@ -12,7 +14,10 @@
 </script>
 
 <div class="settings-form-card" id="storage-policy">
-  <h3>{$t("settings.storage.heading")}</h3>
+  <h3>
+    {$t("settings.storage.heading")}
+    <HelpButton topic="storageModes" size="sm" />
+  </h3>
   <p class="settings-form-description">{$t("settings.storage.description")}</p>
   <div class="settings-form-policy-options">
     <label class="settings-form-option-card" class:active={storageMode === "all-local"}>
@@ -24,7 +29,7 @@
         on:change={() => onStorageModeChange("all-local")}
       />
       <div>
-        <strong>{$t("settings.storage.allLocalTitle")}</strong>
+        <strong class="settings-form-option-title">{$t("settings.storage.allLocalTitle")}<InfoTip text={$t("help.tips.storageLocal")} topic="storageModes" /></strong>
         <p>{$t("settings.storage.allLocalText")}</p>
       </div>
     </label>
@@ -38,7 +43,7 @@
         on:change={() => onStorageModeChange("all-server")}
       />
       <div>
-        <strong>{$t("settings.storage.allServerTitle")}</strong>
+        <strong class="settings-form-option-title">{$t("settings.storage.allServerTitle")}<InfoTip text={$t("help.tips.storageServer")} topic="storageModes" /></strong>
         <p>{$t("settings.storage.allServerText")}</p>
       </div>
     </label>
@@ -52,13 +57,16 @@
         on:change={() => onStorageModeChange("hybrid")}
       />
       <div>
-        <strong>{$t("settings.storage.hybridTitle")}</strong>
+        <strong class="settings-form-option-title">{$t("settings.storage.hybridTitle")}<InfoTip text={$t("help.tips.storageHybrid")} topic="storageModes" /></strong>
         <p>{$t("settings.storage.hybridText")}</p>
       </div>
     </label>
   </div>
 
-  <h3 style="margin-top: 1.5rem;">{$t("settings.latex.heading")}</h3>
+  <h3 style="margin-top: 1.5rem;">
+    {$t("settings.latex.heading")}
+    <HelpButton topic="settings" size="sm" />
+  </h3>
   <p class="settings-form-description">{$t("settings.latex.description")}</p>
   <div class="settings-form-policy-options">
     <label class="settings-form-option-card" class:active={latexCompilation === "local"}>
@@ -70,7 +78,7 @@
         on:change={() => onLatexChange("local")}
       />
       <div>
-        <strong>{$t("settings.latex.localTitle")}</strong>
+        <strong class="settings-form-option-title">{$t("settings.latex.localTitle")}<InfoTip text={$t("help.tips.latexLocal")} topic="settings" /></strong>
         <p>{$t("settings.latex.localText")}</p>
       </div>
     </label>
@@ -83,7 +91,7 @@
         on:change={() => onLatexChange("server")}
       />
       <div>
-        <strong>{$t("settings.latex.serverTitle")}</strong>
+        <strong class="settings-form-option-title">{$t("settings.latex.serverTitle")}<InfoTip text={$t("help.tips.latexServer")} topic="settings" /></strong>
         <p>{$t("settings.latex.serverText")}</p>
       </div>
     </label>
