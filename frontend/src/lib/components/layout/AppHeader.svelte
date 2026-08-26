@@ -24,6 +24,7 @@
     { href: "/analytics", label: $t("nav.analytics") },
     ...(userRole === "admin" ? [{ href: "/admin/users", label: $t("nav.userManagement") }] : []),
     { href: "/settings", label: $t("nav.settings") },
+    { href: "/help", label: $t("help.ui.navLabel") },
   ];
 
   $: currentPath = $page.url.pathname;

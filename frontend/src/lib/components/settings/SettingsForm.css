@@ -43,8 +43,23 @@
   margin-bottom: 0.25rem;
 }
 
+/* Option title plus its ⓘ affordance on one baseline. Overrides the
+   `display: block` above, which would drop the tip onto its own line. */
+.settings-form-option-card strong.settings-form-option-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .settings-form-option-card p {
   margin: 0;
   font-size: 0.85rem;
   color: #94a3b8;
+}
+
+/* Section heading with a trailing "?" button. */
+.settings-form-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }

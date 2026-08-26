@@ -2,6 +2,9 @@
   import type { VersionStatus } from "$lib/stores/versionStore";
   import { locale, t, toggleLocale, LOCALE_LABELS } from "$lib/i18n";
   export let onStorageClick: () => void;
+  export let onHelpClick: () => void = () => {};
+  /** Quiet highlight until the help panel has been opened once. */
+  export let helpUnseen: boolean = false;
   export let policyIcon: string = "";
   export let policyLabel: string = "";
   export let backendLabel: string = "";
@@ -77,6 +80,16 @@
   <!-- § 5 DDG requires the Impressum to be reachable from every page; folded
        in here rather than a dedicated footer bar so it doesn't cost every
        page a second reserved strip of height. -->
+  <button
+    type="button"
+    on:click={onHelpClick}
+    class="statusbar-item {helpUnseen ? 'statusbar-help-unseen' : ''}"
+    title={$t("help.ui.statusBarHint")}
+  >
+    <span class="statusbar-icon">❓</span>
+    <span class="statusbar-label hidden sm:inline">{$t("help.ui.title")}</span>
+  </button>
+
   <a href="/legal/impressum" class="statusbar-item" title={$t("nav.imprint")}>
     <span class="statusbar-icon">📄</span>
     <span class="statusbar-label hidden sm:inline">{$t("nav.imprint")}</span>
@@ -141,6 +154,12 @@
 
   .statusbar-item:hover {
     background: rgba(255, 255, 255, 0.2);
+  }
+
+  /* Never opened the help panel: a light outline, no badge and no animation —
+     the status bar is not the place for an attention grab. */
+  .statusbar-help-unseen {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
   }
 
   /* Pushes the backend + version cluster to the trailing edge. */

@@ -18,6 +18,7 @@ import { admin } from './admin';
 import { legal } from './legal';
 import { editor } from './editor';
 import { misc } from './misc';
+import { help } from './help';
 
 export const en: Translations = {
     common,
@@ -39,4 +40,5 @@ export const en: Translations = {
     legal,
     editor,
     misc,
+    help,
 };

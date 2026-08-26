@@ -2,6 +2,7 @@
   import type { ExamRecord, SubmissionRecord } from "$lib/db/schema";
   import { formatExamCourse } from "$lib/utils/examLabel";
   import { t } from "$lib/i18n";
+  import InfoTip from "$lib/components/help/InfoTip.svelte";
 
   export let examId: string;
   export let exam: ExamRecord | null;
@@ -31,6 +32,7 @@
   <div class="flex min-w-0 items-center justify-center">
     <div class="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800 px-[0.65rem] py-[0.2rem] text-[0.8rem]">
       <span class="font-semibold text-slate-100">{$t("grading.header.anonymousStudent", { index: currentIndex + 1, total: submissionsLength })}</span>
+      <InfoTip text={$t("help.tips.blindGrading")} topic="grading" />
       <span class="rounded bg-slate-900 px-[0.4rem] py-[0.1rem] font-mono text-[0.725rem] text-slate-400" title={currentSub?.pseudonymHash}>
         {$t("grading.header.idPrefix")}{currentSub?.pseudonymHash ? currentSub.pseudonymHash.substring(0, 10) : ''}...
       </span>

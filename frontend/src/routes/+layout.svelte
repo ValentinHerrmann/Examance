@@ -37,6 +37,8 @@
   import StoragePolicyModal from "$lib/components/StoragePolicyModal.svelte";
   import SessionTimeoutWarning from "$lib/components/SessionTimeoutWarning.svelte";
   import HttpCatModal from "$lib/components/HttpCatModal.svelte";
+  import HelpModal from "$lib/components/help/HelpModal.svelte";
+  import { helpSeen, openHelp, toggleHelp } from "$lib/stores/helpStore";
   import { locale, translate } from "$lib/i18n";
 
   let fileInput: HTMLInputElement;
@@ -69,6 +71,29 @@
       isSettingsModalOpen = true;
     } else {
       window.location.href = "/unlock";
+    }
+  }
+
+  /**
+   * F1 and "?" open the help panel. Both are ignored while the caret is in a
+   * text field — "?" is a perfectly ordinary character in a LaTeX body.
+   */
+  function handleGlobalKeydown(event: KeyboardEvent) {
+    if (event.ctrlKey || event.metaKey || event.altKey) {
+      return;
+    }
+    const target = event.target as HTMLElement | null;
+    if (
+      target &&
+      (target.isContentEditable ||
+        ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) ||
+        target.closest(".cm-editor") !== null)
+    ) {
+      return;
+    }
+    if (event.key === "F1" || event.key === "?") {
+      event.preventDefault();
+      toggleHelp();
     }
   }
 
@@ -185,6 +210,8 @@
   on:change={handleFileSelected}
 />
 
+<svelte:window on:keydown={handleGlobalKeydown} />
+
 <SessionTimeoutWarning />
 <HttpCatModal />
 
@@ -211,6 +238,8 @@
 
   <StatusBar
     onStorageClick={handleFooterClick}
+    onHelpClick={() => openHelp()}
+    helpUnseen={!$helpSeen}
     policyIcon={$storagePolicyBadgeStore.icon}
     policyLabel={$storagePolicyLabelStore}
     backendLabel={$effectiveBackendStore || ""}
@@ -220,6 +249,8 @@
     backendVersion={$backendVersionStore}
     versionStatus={$versionStatus}
   />
+
+  <HelpModal />
 
   <StoragePolicyModal
     isOpen={isSettingsModalOpen}

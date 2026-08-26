@@ -19,6 +19,7 @@ import { admin } from './admin';
 import { legal } from './legal';
 import { editor } from './editor';
 import { misc } from './misc';
+import { help } from './help';
 
 export const de = {
     common,
@@ -40,4 +41,5 @@ export const de = {
     legal,
     editor,
     misc,
+    help,
 } as const;

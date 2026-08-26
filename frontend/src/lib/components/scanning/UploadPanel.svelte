@@ -1,6 +1,7 @@
 <script lang="ts">
   import "./UploadPanel.css";
   import { t } from "$lib/i18n";
+  import InfoTip from "$lib/components/help/InfoTip.svelte";
   export let isProcessing: boolean = false;
   export let progress: number = 0;
   export let statusText: string = "";
@@ -17,6 +18,7 @@
     disabled={isProcessing}
   />
   <label for="scanFiles">{$t("scanning.uploadPanel.selectFiles")}</label>
+  <InfoTip class="ml-2 align-middle" text={$t("help.tips.pseudonymQr")} topic="scanning" />
 </div>
 
 {#if isProcessing}

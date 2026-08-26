@@ -732,7 +732,7 @@ ${exerciseInputs}
 </script>
 
 <PageShell>
-  <PageHeader title={$t("examCreation.page.heading")} />
+  <PageHeader title={$t("examCreation.page.heading")} helpTopic="examCreation" />
 
   {#if errorMsg}
     <div class="exam-new-error-banner overflow-x-auto">{errorMsg}</div>

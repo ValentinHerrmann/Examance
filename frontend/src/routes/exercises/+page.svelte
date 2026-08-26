@@ -756,7 +756,11 @@
 </script>
 
 <PageShell width="full">
-  <PageHeader title={$t("exercises.page.title")} subtitle={$t("exercises.page.subtitle")}>
+  <PageHeader
+    title={$t("exercises.page.title")}
+    subtitle={$t("exercises.page.subtitle")}
+    helpTopic="exercises"
+  >
     <svelte:fragment slot="actions">
       <Button size="lg" onClick={openCreateModal}>{$t("exercises.page.createButton")}</Button>
     </svelte:fragment>

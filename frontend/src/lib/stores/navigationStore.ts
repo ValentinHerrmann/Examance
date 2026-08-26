@@ -62,13 +62,15 @@ export function isUnlockPath(pathname: string): boolean {
  * The Impressum and the Datenschutzerklärung have to be reachable by anyone,
  * without logging in (§ 5 DDG, Art. 12 DSGVO) — redirecting them to /unlock
  * would defeat their purpose. Password reset pages also need to be accessible
- * without an unlocked session.
+ * without an unlocked session, and so does the manual — it contains no data,
+ * only explanations, and is most useful to someone who has not got in yet.
  */
 export function isPublicPath(pathname: string): boolean {
   return (
     isUnlockPath(pathname) ||
     pathname.startsWith("/legal") ||
     pathname.startsWith("/reset-password") ||
-    pathname.startsWith("/forgot-password")
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/help")
   );
 }

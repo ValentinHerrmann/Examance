@@ -37,4 +37,6 @@
     <a href="/exam/new" class="rounded-md bg-sky-600 px-5 py-2.5 font-semibold text-white no-underline hover:bg-sky-700">{$t("dashboard.onboarding.createFirst")}</a>
     <label for="importFile" class="cursor-pointer rounded-md bg-slate-700 px-5 py-2.5 font-semibold text-white hover:bg-slate-600">{$t("dashboard.onboarding.importArchive")}</label>
   </div>
+
+  <a href="/help" class="mt-4 block text-center text-xs text-slate-400 no-underline hover:text-sky-400">{$t("help.ui.onboardingLink")} →</a>
 </div>
