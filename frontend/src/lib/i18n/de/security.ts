@@ -91,6 +91,8 @@ export const security = {
         keySkipWarning: 'Ohne den Code bleiben Ihre bisherigen Klausuren, Schülerdaten und Korrekturen dauerhaft unlesbar. Das Konto und alle danach angelegten Daten sind davon nicht betroffen.',
         keySkipConfirm: 'Trotzdem zurücksetzen',
         working: 'Wird zurückgesetzt …',
+        passkeyFactor: 'Stattdessen mit Passkey bestätigen',
+        passkeyRecovered: 'Ihr Passkey hat den Datenschlüssel geöffnet — ein Wiederherstellungscode ist nicht nötig.',
     },
     passkey: {
         title: 'Passkeys',

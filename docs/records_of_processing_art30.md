@@ -27,7 +27,9 @@ Fields in *[brackets]* must be completed. Technical fields are pre-filled from t
 
 ### TOM summary (Art. 30(1)(g) → Art. 32)
 
-- **Encryption:** pupil identity data, submission scans and grading annotations are encrypted in the browser (AES-256-GCM) with a key derived from a teacher passphrase via Argon2id; the key is never transmitted. Server-side plaintext is limited to per-submission scores and exam metadata.
+- **Encryption:** pupil identity data, submission scans and grading annotations are encrypted in the browser (AES-256-GCM). The key is random rather than derived, and a wrapped copy is stored per recovery factor — password, printable recovery code, and PRF-capable passkey — each wrapped under an Argon2id- or HKDF-derived key computed in the browser. The key itself is never transmitted, so a password reset re-wraps it instead of orphaning the data. Server-side plaintext is limited to per-submission scores and exam metadata.
+- **Authentication:** every sign-in presents two of three factors (password, passkey, authenticator app). Failed attempts are counted per account with a capped, self-expiring cooloff. A password reset requires a second factor as well: an emailed link alone does not take over an account.
+- **Erasure:** deleting a teacher cascades their key wraps away, which leaves any server-side ciphertext of theirs permanently unreadable. That is a supporting technical measure for Art. 17, not a side effect.
 - **Pseudonymisation:** submissions are keyed by HMAC-SHA-256 of a pupil identifier; the raw identifier does not reach the server.
 - **Access control:** cookie-based sessions (HttpOnly, Secure), short-lived access tokens with rotating refresh tokens and reuse detection, role separation (teacher/admin), and ownership checks on every object-level endpoint.
 - **Resilience and abuse resistance:** rate limiting on authentication endpoints, request body size limits, strict CORS allowlist, Origin checks on state-changing requests, sandboxed LaTeX compilation.

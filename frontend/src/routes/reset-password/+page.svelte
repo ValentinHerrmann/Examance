@@ -15,9 +15,12 @@
   import { api, ApiError } from "$lib/api/client";
   import { t, translate } from "$lib/i18n";
   import { startReset, submitBackupCode, submitTotp, type AuthStep } from "$lib/api/mfa";
+  import { loginOptions, verifyLogin } from "$lib/api/webauthn";
+  import { authenticate, isSupported as passkeysSupported } from "$lib/webauthn/client";
   import { envelopeSetToDto } from "$lib/api/keyEnvelopes";
   import {
     buildResetEnvelopeSet,
+    openWithPasskey,
     openWithRecoveryCode,
     pinEnvelopeSet,
   } from "$lib/services/keyEnvelopeService";
@@ -41,6 +44,15 @@
   let skipConfirmed = false;
   /** A freshly minted recovery code, shown once after a successful reset. */
   let issuedRecoveryCode: string | null = null;
+  const canUsePasskeys = passkeysSupported();
+  /**
+   * A passkey that carried the second factor and yielded its PRF secret.
+   *
+   * When that happens the passkey has already recovered the data key, so the
+   * recovery-code step is skipped entirely — which is the whole appeal of using
+   * a passkey to reset a password.
+   */
+  let passkeyUnwrap: { credentialIdB64: string; prfOutput: Uint8Array } | null = null;
 
   onMount(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -104,6 +116,33 @@
     }
   }
 
+  /** Second factor by passkey, which may also recover the key outright. */
+  async function handlePasskeyFactor() {
+    factorErrorMsg = "";
+    try {
+      const options = await loginOptions();
+      const assertion = await authenticate(options);
+      step = await verifyLogin({
+        handle: options.handle,
+        challenge_b64: options.challenge_b64,
+        credential_json: assertion.credentialJson,
+      });
+      if (assertion.prfOutput) {
+        const parsed = JSON.parse(assertion.credentialJson) as { rawId: string };
+        passkeyUnwrap = { credentialIdB64: parsed.rawId, prfOutput: assertion.prfOutput };
+      }
+      if (step.status === "ok") {
+        stage = "key";
+        if (passkeyUnwrap) {
+          // The passkey already holds a copy of the data key. Nothing else to ask for.
+          await finishReset(true);
+        }
+      }
+    } catch {
+      factorErrorMsg = translate("security.passkey.failed");
+    }
+  }
+
   /**
    * Step three: recover the data key and finish.
    *
@@ -123,7 +162,9 @@
       let builtSet: Awaited<ReturnType<typeof buildResetEnvelopeSet>> | null = null;
 
       if (withRecovery) {
-        const vault = await openWithRecoveryCode(step.id, recoveryCode);
+        const vault = passkeyUnwrap
+          ? await openWithPasskey(step.id, passkeyUnwrap.credentialIdB64, passkeyUnwrap.prfOutput)
+          : await openWithRecoveryCode(step.id, recoveryCode);
         builtSet = await buildResetEnvelopeSet(step.id, vault, newPassword);
         envelopeDto = envelopeSetToDto(builtSet.set);
         mintedCode = builtSet.recoveryCode;
@@ -172,23 +213,40 @@
       <h2 class="m-0 text-lg font-semibold text-accent">{$t("security.reset.step2Title")}</h2>
       <p class="mt-1 mb-4 text-sm text-muted">{$t("security.reset.step2Intro")}</p>
       <TotpFactor onSubmit={handleSecondFactor} errorMsg={factorErrorMsg} />
+      {#if canUsePasskeys}
+        <button
+          type="button"
+          class="mt-4 cursor-pointer border-none bg-transparent p-0 text-sm text-accent underline"
+          on:click={handlePasskeyFactor}
+        >
+          {$t("security.reset.passkeyFactor")}
+        </button>
+      {/if}
     {:else if stage === "key"}
       <h2 class="m-0 text-lg font-semibold text-accent">{$t("security.reset.keyTitle")}</h2>
-      <p class="mt-1 mb-4 text-sm text-muted">{$t("security.reset.keyIntro")}</p>
+      {#if passkeyUnwrap}
+        <p class="mt-1 mb-4 text-sm text-muted">{$t("security.reset.passkeyRecovered")}</p>
+      {:else}
+        <p class="mt-1 mb-4 text-sm text-muted">{$t("security.reset.keyIntro")}</p>
+      {/if}
 
       <form class="flex flex-col gap-4" on:submit|preventDefault={() => finishReset(true)}>
-        <Field label={$t("security.unlock.label")} error={recoveryErrorMsg}>
-          <TextInput
-            bind:value={recoveryCode}
-            placeholder={$t("security.unlock.placeholder")}
-            class="font-mono tracking-wider"
-          />
-        </Field>
+        {#if !passkeyUnwrap}
+          <Field label={$t("security.unlock.label")} error={recoveryErrorMsg}>
+            <TextInput
+              bind:value={recoveryCode}
+              placeholder={$t("security.unlock.placeholder")}
+              class="font-mono tracking-wider"
+            />
+          </Field>
+        {:else if recoveryErrorMsg}
+          <p class="m-0 text-sm text-red-400" role="alert">{recoveryErrorMsg}</p>
+        {/if}
 
         <Button
           type="submit"
           block
-          disabled={isSubmitting || !recoveryCode.trim()}
+          disabled={isSubmitting || (!passkeyUnwrap && !recoveryCode.trim())}
           loading={isSubmitting}
         >
           {isSubmitting ? $t("security.reset.working") : $t("security.unlock.submit")}

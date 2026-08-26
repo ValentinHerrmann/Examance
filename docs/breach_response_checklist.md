@@ -39,12 +39,15 @@ authority. Do this first, before Phase 2 below.
 
 ## Phase 2: Impact Assessment (Hours 4 – 24)
 
+- [ ] **4b. Force re-authentication.** Revoking refresh tokens ends every live session; `POST /admin/users/{id}/reset-factors` additionally clears an account's authenticator and passkeys where those may have been compromised. Neither touches the teacher's data key — the server cannot read it, which is also why neither can restore access to the data.
 - [ ] **5. Determine Exposure Scope:**
   - Verify whether encrypted PII blobs (`pii_ciphertext`) were accessed.
   - Verify separately whether **plaintext** data was accessed: per-submission `total_score`, exam metadata (title, class, subject, date), teacher email addresses, and audit entries are **not** encrypted server-side.
 - [ ] **6. Assess whether the Art. 34(3)(a) encryption exemption actually applies.** It exempts you from notifying data subjects only where the data is unintelligible to the attacker. Do not assert it without checking all of the following; if any is false, the exemption does not hold:
   - The compromise was limited to server-side storage, and no client device or browser profile was involved. Session keys live in `sessionStorage` on the teacher's device while unlocked, and in `all-local` mode the vault lives only there.
-  - No passphrase was compromised. Keys are derived from a teacher passphrase; a weak or reused passphrase is offline-guessable against an exfiltrated dump.
+  - No passphrase or recovery code was compromised. The `key_envelopes` table holds the data key wrapped under an Argon2id key derived from each — a weak or reused password is offline-guessable against an exfiltrated dump, and so is a recovery code someone stored badly. The table itself gives an attacker nothing else: the wraps are ciphertext, the salts and KDF parameters are public by design, and no factor's secret is stored beside them.
+  - The `mfa_credentials` secrets are the one exception to "the server holds nothing usable". They are encrypted under a key derived from `SECRET_KEY`, so a database dump alone does not yield working authenticator seeds — but a dump **plus** the environment does. If `SECRET_KEY` may have leaked, treat every TOTP enrollment as compromised and force re-enrollment.
+  - Passkey rows (`webauthn_credentials`) contain no secrets: public keys are public by construction, and `prf_salt` is the PRF *input*. A stolen copy does not let anyone authenticate or decrypt.
   - The affected vaults were not written before the PBKDF2 iteration increase (1,000 → 600,000). Data still readable via the legacy decrypt path has materially weaker protection.
   - Only encrypted fields were exposed — see item 5.
 - [ ] **7. Determine Data Subject Impact:** Identify affected exams and number of enrolled students. Where minors are affected, weigh the heightened risk (Recital 38) in the Art. 34 assessment.

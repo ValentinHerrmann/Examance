@@ -93,6 +93,8 @@ export const security: Translations['security'] = {
         keySkipWarning: 'Without the code your existing exams, student data and grading stay permanently unreadable. The account, and anything created afterwards, is unaffected.',
         keySkipConfirm: 'Reset anyway',
         working: 'Resetting…',
+        passkeyFactor: 'Confirm with a passkey instead',
+        passkeyRecovered: 'Your passkey opened the data key — no recovery code needed.',
     },
     passkey: {
         title: 'Passkeys',

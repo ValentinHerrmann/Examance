@@ -86,6 +86,12 @@ Admins can trigger a password reset for any existing user via the Admin UI or CL
 
 **Behavior:** The user's existing password remains operational until they complete setting a new password via the emailed reset link. Once reset, all active sessions and refresh tokens are revoked, forcing re-authentication across all devices.
 
+**A teacher locked out of a factor** — phone lost, backup codes gone — is cleared
+with `POST /admin/users/{id}/reset-factors`. That removes their authenticator and
+passkeys, revokes their sessions, and drops the key wraps those passkeys held;
+they enrol again at the next sign-in. It restores the *account*, not the data:
+the recovery code remains the way back to the exams themselves.
+
 **An admin cannot restore a user's data.** Setting a password server-side — through
 the Admin UI, `send-password-reset`, or `set-password` — marks the password copy of
 that user's data key unusable, because the server has no way to re-wrap a key it
@@ -130,7 +136,7 @@ The user management subsystem is designed to support self-registration in future
 | :--- | :--- |
 | **Create User (CLI)** | `python -m app.cli create-user --email user@school.com --role teacher` |
 | **Create Admin (CLI)** | `python -m app.cli create-user --email admin@school.com --role admin --allow-admin` |
-| **Direct Password Reset** | `python -m app.cli set-password --email user@school.com` |
+| **Direct Password Reset** | `python -m app.cli set-password --email user@school.com` (does **not** restore the user's encrypted data) |
 | **Send Reset Email** | `python -m app.cli send-password-reset --email user@school.com` |
 
 

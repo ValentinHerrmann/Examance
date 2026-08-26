@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Examance API",
-    "description": "Privacy-first anonymous exam grading backend.\n\n## Key Security & Architecture Features\n- **Zero-Knowledge Encryption**: Student PII, submission scans, and annotations are encrypted client-side (Argon2id + AES-256-GCM) before reaching the server.\n- **Session Hygiene**: State stored in HttpOnly cookies (`access_token` 15 min, `refresh_token` 7 days with rotation & reuse detection).\n- **Privacy Safeguards**: LaTeX requests redacted in logs (`LaTeXRequest`), IP addresses stored as SHA-256 hashes, k-anonymity (k >= 5) enforced on class stats.\n- **LaTeX Engine**: Compilation rendered using sandboxed Tectonic (`tectonic --untrusted`).",
+    "description": "Privacy-first anonymous exam grading backend.\n\n## Key Security & Architecture Features\n- **Zero-Knowledge Encryption**: Student PII, submission scans, and annotations are encrypted client-side (Argon2id + AES-256-GCM) before reaching the server.\n- **Two-of-three sign-in**: every session presents two distinct factors out of password, passkey and authenticator (TOTP). Fewer than two enrolled means an enrollment-scoped token that reaches nothing else.\n- **Recoverable data key**: the client's key is random and wrapped per factor (`key_envelopes`), so a password reset re-wraps it rather than orphaning every vault. The server holds ciphertext only.\n- **Session Hygiene**: State stored in HttpOnly cookies (`access_token` 15 min, `refresh_token` 7 days with rotation & reuse detection).\n- **Privacy Safeguards**: LaTeX requests redacted in logs (`LaTeXRequest`), IP addresses stored as SHA-256 hashes, k-anonymity (k >= 5) enforced on class stats.\n- **LaTeX Engine**: Compilation rendered using sandboxed Tectonic (`tectonic --untrusted`).",
     "version": "0.0.0-dev"
   },
   "paths": {
@@ -52,19 +52,19 @@
         }
       }
     },
-    "/api/v1/auth/reset-password": {
+    "/api/v1/auth/reset/start": {
       "post": {
         "tags": [
           "auth"
         ],
-        "summary": "Reset Password",
-        "description": "Set a new password using a valid single-use reset token.",
-        "operationId": "reset_password_api_v1_auth_reset_password_post",
+        "summary": "Start Reset",
+        "description": "Open a password reset with the emailed link.\n\nA reset re-establishes the password, so the password is unavailable by\ndefinition and the emailed token stands in for it \u2014 but only as *one* of the\ntwo factors the policy wants. Mailbox access alone completing a reset is\nexactly the bypass the second factor exists to close.\n\nAn account that has not finished enrolling is the one exception: it has no\nsecond factor to offer, so requiring one would strand it. It gets a\n``reset_pending`` token that can complete the reset on its own, and is held\nin enrollment at the next sign-in like every other single-factor account.",
+        "operationId": "start_reset_api_v1_auth_reset_start_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ResetPasswordRequest"
+                "$ref": "#/components/schemas/ResetTokenRequest"
               }
             }
           },
@@ -76,11 +76,191 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/reset-password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Reset Password",
+        "description": "Set the new password, and store the re-wrapped data key with it.\n\nThe envelope is written in the same transaction as the password on purpose.\nTwo round trips could leave a teacher whose password changed but whose key\ncopy did not, which is indistinguishable from a working account until the\nnext sign-in fails to open anything.\n\nWithout an envelope in the body the password wrap is marked unusable\ninstead \u2014 the \"I do not have my recovery code\" path. The teacher keeps their\naccount and is told plainly, on the next sign-in, that their existing data\nneeds the recovery code.",
+        "operationId": "reset_password_api_v1_auth_reset_password_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
                   "additionalProperties": {
                     "type": "string"
                   },
-                  "type": "object",
                   "title": "Response Reset Password Api V1 Auth Reset Password Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/factor/totp": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Factor Totp",
+        "description": "Present an authenticator code as the second factor.\n\nSecond position only. A TOTP code does not identify an account, so accepting\none first would mean taking an email address alongside it \u2014 turning this into\na probe for which addresses have accounts. Password and passkey both identify\nthe account by themselves, so requiring one of them first costs nothing.",
+        "operationId": "factor_totp_api_v1_auth_factor_totp_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TotpFactorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/factor/backup-code": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Factor Backup Code",
+        "description": "Spend a backup code in place of the authenticator.\n\nIt counts as the ``totp`` factor, so it cannot be paired with a TOTP code to\nmake up two: it stands in for that factor rather than adding one.",
+        "operationId": "factor_backup_code_api_v1_auth_factor_backup_code_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupCodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
                 }
               }
             }
@@ -196,7 +376,7 @@
           "auth"
         ],
         "summary": "Logout",
-        "description": "Clear auth cookies and revoke refresh token.",
+        "description": "Clear auth cookies and revoke the refresh token.\n\nDeliberately requires no session. It used to depend on a full one, which\nmeant a teacher who abandoned a half-finished sign-in \u2014 or whose access token\nhad simply expired \u2014 could not clear their own cookies: logout answered 403\nand the pending cookie sat there until it timed out. Clearing cookies is\nnever an action that needs protecting; the refresh revocation below is\nauthenticated by the refresh token itself.",
         "operationId": "logout_api_v1_auth_logout_post",
         "parameters": [
           {
@@ -213,22 +393,6 @@
                 }
               ],
               "title": "Refresh Token"
-            }
-          },
-          {
-            "name": "access_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
             }
           }
         ],
@@ -2489,6 +2653,70 @@
         }
       }
     },
+    "/api/v1/admin/users/{user_id}/reset-factors": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Reset User Factors",
+        "description": "Clear a user's authenticator and passkeys (Admin only).\n\nThe escape hatch for a teacher who has lost a factor and cannot get back in.\nEvery sign-in needs two of three factors, and a teacher with exactly two who\nloses one has no path back on their own \u2014 backup codes only cover the\nauthenticator.\n\nWhat this does **not** do is restore access to their data. Their key copies\nare untouched, because the server cannot read them: the wraps for the\nfactors removed here are gone with those factors, and the recovery code\nremains the way back to the exams themselves. An administrator who could\nundo that could also read the data.",
+        "operationId": "reset_user_factors_api_v1_admin_users__user_id__reset_factors_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Reset User Factors Api V1 Admin Users  User Id  Reset Factors Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/stats/{exam_id}": {
       "get": {
         "tags": [
@@ -2833,6 +3061,712 @@
         }
       }
     },
+    "/api/v1/keys/envelopes": {
+      "get": {
+        "tags": [
+          "keys"
+        ],
+        "summary": "List Envelopes",
+        "description": "Return every wrap for the calling teacher.\n\nInvalidated rows are returned too, marked as such, so the client can tell\n\"this factor was orphaned by an admin password write\" apart from \"this\nfactor was never enrolled\" and offer the right recovery path.",
+        "operationId": "list_envelopes_api_v1_keys_envelopes_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyEnvelopeListOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "keys"
+        ],
+        "summary": "Replace Envelopes",
+        "description": "Replace the teacher's whole envelope set in one transaction.\n\nWholesale replacement is deliberate. Merging risks leaving a set where the\npassword wrap is new and the recovery wrap still holds the previous DEK,\nwhich is indistinguishable from a working set until the day someone needs to\nrecover with it.",
+        "operationId": "replace_envelopes_api_v1_keys_envelopes_put",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeyEnvelopeSetIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyEnvelopeListOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/keys/envelopes/{envelope_id}": {
+      "delete": {
+        "tags": [
+          "keys"
+        ],
+        "summary": "Delete Envelope",
+        "description": "Remove a single wrap \u2014 used when a passkey is deregistered.\n\nThe recovery wrap cannot be deleted this way: it is the factor that always\nworks, and dropping it would leave the account one forgotten password away\nfrom unreadable data.",
+        "operationId": "delete_envelope_api_v1_keys_envelopes__envelope_id__delete",
+        "parameters": [
+          {
+            "name": "envelope_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Envelope Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mfa/status": {
+      "get": {
+        "tags": [
+          "mfa"
+        ],
+        "summary": "Mfa Status",
+        "description": "What this account has enrolled, and whether that is enough to sign in.",
+        "operationId": "mfa_status_api_v1_mfa_status_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mfa/totp/enroll": {
+      "post": {
+        "tags": [
+          "mfa"
+        ],
+        "summary": "Enroll Totp",
+        "description": "Start an authenticator enrollment.\n\nThe secret is returned exactly once, inside the `otpauth://` URI. It is not\nretrievable afterwards: a teacher who loses the enrollment mid-setup starts\nover, which costs a minute, whereas an endpoint that hands back an existing\nsecret would let anyone holding a session clone the second factor.",
+        "operationId": "enroll_totp_api_v1_mfa_totp_enroll_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrollResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mfa/totp/confirm": {
+      "post": {
+        "tags": [
+          "mfa"
+        ],
+        "summary": "Confirm Totp",
+        "description": "Prove the authenticator works, which is what makes it count as a factor.\n\nReturns the backup codes once. They are the way back when the phone is lost,\nand they stand in for this factor rather than adding a third.",
+        "operationId": "confirm_totp_api_v1_mfa_totp_confirm_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TotpConfirmRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaBackupCodesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mfa/backup-codes/regenerate": {
+      "post": {
+        "tags": [
+          "mfa"
+        ],
+        "summary": "Regenerate Backup Codes",
+        "description": "Replace the backup codes. The previous set stops working immediately.",
+        "operationId": "regenerate_backup_codes_api_v1_mfa_backup_codes_regenerate_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaBackupCodesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mfa/totp": {
+      "delete": {
+        "tags": [
+          "mfa"
+        ],
+        "summary": "Disable Totp",
+        "description": "Remove the authenticator.\n\nRefused when it would drop the account below two sign-in factors, or below\nits last means of decrypting its own data. That guard is what makes \"any two\nof three\" safe to offer: without it a teacher could delete their way out of\ntheir own account.",
+        "operationId": "disable_totp_api_v1_mfa_totp_delete",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webauthn/register/options": {
+      "post": {
+        "tags": [
+          "webauthn"
+        ],
+        "summary": "Register Options",
+        "description": "Options for adding a passkey. Reachable from enrollment as well as a session.",
+        "operationId": "register_options_api_v1_webauthn_register_options_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CeremonyOptionsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webauthn/register/verify": {
+      "post": {
+        "tags": [
+          "webauthn"
+        ],
+        "summary": "Register Verify",
+        "operationId": "register_verify_api_v1_webauthn_register_verify_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrationVerifyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webauthn/login/options": {
+      "post": {
+        "tags": [
+          "webauthn"
+        ],
+        "summary": "Login Options",
+        "description": "Options for a passkey sign-in.\n\nUnauthenticated and rate-limited: it allocates a challenge per call, and it\ntakes no account identifier, so there is nothing here to probe with.",
+        "operationId": "login_options_api_v1_webauthn_login_options_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CeremonyOptionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webauthn/login/verify": {
+      "post": {
+        "tags": [
+          "webauthn"
+        ],
+        "summary": "Login Verify",
+        "description": "Present a passkey as a sign-in factor.\n\nContributes exactly one factor \u2014 the `passkey` kind \u2014 whether it comes first\nor second, and never short-circuits the policy on its own.\n\nThe cookie is read directly rather than through a dependency because this\nendpoint has to work both ways: with no session at all (passkey first) and\nwith a sign-in already part-way through (passkey second).",
+        "operationId": "login_verify_api_v1_webauthn_login_verify_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationVerifyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webauthn/credentials": {
+      "get": {
+        "tags": [
+          "webauthn"
+        ],
+        "summary": "List Credentials",
+        "operationId": "list_credentials_api_v1_webauthn_credentials_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webauthn/credentials/{credential_id_b64}": {
+      "delete": {
+        "tags": [
+          "webauthn"
+        ],
+        "summary": "Delete Credential",
+        "description": "Remove a passkey.\n\nRefused when it would drop the account below two sign-in factors, or below\nits last means of decrypting its own data.",
+        "operationId": "delete_credential_api_v1_webauthn_credentials__credential_id_b64__delete",
+        "parameters": [
+          {
+            "name": "credential_id_b64",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Credential Id B64"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "tags": [
@@ -3016,6 +3950,11 @@
       },
       "AuthResponse": {
         "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
           "email": {
             "type": "string",
             "title": "Email"
@@ -3023,14 +3962,100 @@
           "role": {
             "type": "string",
             "title": "Role"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "factor_required",
+              "enroll_required"
+            ],
+            "title": "Status",
+            "default": "ok"
+          },
+          "satisfied": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Satisfied"
+          },
+          "available": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Available"
           }
         },
         "type": "object",
         "required": [
+          "id",
           "email",
           "role"
         ],
         "title": "AuthResponse"
+      },
+      "AuthenticationVerifyRequest": {
+        "properties": {
+          "handle": {
+            "type": "string",
+            "title": "Handle"
+          },
+          "challenge_b64": {
+            "type": "string",
+            "title": "Challenge B64"
+          },
+          "credential_json": {
+            "type": "string",
+            "title": "Credential Json"
+          }
+        },
+        "type": "object",
+        "required": [
+          "handle",
+          "challenge_b64",
+          "credential_json"
+        ],
+        "title": "AuthenticationVerifyRequest"
+      },
+      "BackupCodeRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 4,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "BackupCodeRequest"
+      },
+      "CeremonyOptionsResponse": {
+        "properties": {
+          "handle": {
+            "type": "string",
+            "title": "Handle"
+          },
+          "challenge_b64": {
+            "type": "string",
+            "title": "Challenge B64"
+          },
+          "options_json": {
+            "type": "string",
+            "title": "Options Json"
+          }
+        },
+        "type": "object",
+        "required": [
+          "handle",
+          "challenge_b64",
+          "options_json"
+        ],
+        "title": "CeremonyOptionsResponse"
       },
       "ClassStatsResponse": {
         "properties": {
@@ -3090,6 +4115,76 @@
           "k_anonymity_satisfied"
         ],
         "title": "ClassStatsResponse"
+      },
+      "CredentialListResponse": {
+        "properties": {
+          "credentials": {
+            "items": {
+              "$ref": "#/components/schemas/CredentialSummary"
+            },
+            "type": "array",
+            "title": "Credentials"
+          }
+        },
+        "type": "object",
+        "required": [
+          "credentials"
+        ],
+        "title": "CredentialListResponse"
+      },
+      "CredentialSummary": {
+        "properties": {
+          "credential_id_b64": {
+            "type": "string",
+            "title": "Credential Id B64"
+          },
+          "nickname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nickname"
+          },
+          "supports_prf": {
+            "type": "boolean",
+            "title": "Supports Prf"
+          },
+          "prf_salt_b64": {
+            "type": "string",
+            "title": "Prf Salt B64"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "credential_id_b64",
+          "nickname",
+          "supports_prf",
+          "prf_salt_b64",
+          "created_at",
+          "last_used_at"
+        ],
+        "title": "CredentialSummary"
       },
       "ExamCreate": {
         "properties": {
@@ -4435,6 +5530,216 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "KeyEnvelopeIn": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "password",
+              "recovery",
+              "passkey"
+            ],
+            "title": "Kind"
+          },
+          "credential_id_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credential Id B64"
+          },
+          "kdf": {
+            "type": "string",
+            "enum": [
+              "argon2id",
+              "hkdf"
+            ],
+            "title": "Kdf"
+          },
+          "kdf_salt_b64": {
+            "type": "string",
+            "title": "Kdf Salt B64"
+          },
+          "kdf_params": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Kdf Params"
+          },
+          "wrapped_bundle_b64": {
+            "type": "string",
+            "title": "Wrapped Bundle B64"
+          },
+          "wrap_iv_b64": {
+            "type": "string",
+            "title": "Wrap Iv B64"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "kdf",
+          "kdf_salt_b64",
+          "wrapped_bundle_b64",
+          "wrap_iv_b64"
+        ],
+        "title": "KeyEnvelopeIn",
+        "description": "One wrap, as produced in the browser."
+      },
+      "KeyEnvelopeListOut": {
+        "properties": {
+          "key_id_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Id B64"
+          },
+          "envelopes": {
+            "items": {
+              "$ref": "#/components/schemas/KeyEnvelopeOut"
+            },
+            "type": "array",
+            "title": "Envelopes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key_id_b64",
+          "envelopes"
+        ],
+        "title": "KeyEnvelopeListOut"
+      },
+      "KeyEnvelopeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "password",
+              "recovery",
+              "passkey"
+            ],
+            "title": "Kind"
+          },
+          "credential_id_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credential Id B64"
+          },
+          "kdf": {
+            "type": "string",
+            "title": "Kdf"
+          },
+          "kdf_salt_b64": {
+            "type": "string",
+            "title": "Kdf Salt B64"
+          },
+          "kdf_params": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Kdf Params"
+          },
+          "wrapped_bundle_b64": {
+            "type": "string",
+            "title": "Wrapped Bundle B64"
+          },
+          "wrap_iv_b64": {
+            "type": "string",
+            "title": "Wrap Iv B64"
+          },
+          "key_id_b64": {
+            "type": "string",
+            "title": "Key Id B64"
+          },
+          "envelope_version": {
+            "type": "integer",
+            "title": "Envelope Version"
+          },
+          "invalidated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invalidated At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "credential_id_b64",
+          "kdf",
+          "kdf_salt_b64",
+          "kdf_params",
+          "wrapped_bundle_b64",
+          "wrap_iv_b64",
+          "key_id_b64",
+          "envelope_version",
+          "invalidated_at",
+          "created_at"
+        ],
+        "title": "KeyEnvelopeOut"
+      },
+      "KeyEnvelopeSetIn": {
+        "properties": {
+          "key_id_b64": {
+            "type": "string",
+            "title": "Key Id B64"
+          },
+          "envelope_version": {
+            "type": "integer",
+            "title": "Envelope Version",
+            "default": 1
+          },
+          "envelopes": {
+            "items": {
+              "$ref": "#/components/schemas/KeyEnvelopeIn"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Envelopes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key_id_b64",
+          "envelopes"
+        ],
+        "title": "KeyEnvelopeSetIn",
+        "description": "The complete envelope set for a teacher.\n\nReplacement is wholesale and atomic: a partially written set is a locked-out\nteacher, so the endpoint never merges."
+      },
       "LaTeXRequest": {
         "properties": {
           "latex": {
@@ -4503,6 +5808,114 @@
         ],
         "title": "LoginRequest"
       },
+      "MfaBackupCodesResponse": {
+        "properties": {
+          "backup_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Backup Codes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "backup_codes"
+        ],
+        "title": "MfaBackupCodesResponse"
+      },
+      "MfaEnrollResponse": {
+        "properties": {
+          "otpauth_uri": {
+            "type": "string",
+            "title": "Otpauth Uri"
+          }
+        },
+        "type": "object",
+        "required": [
+          "otpauth_uri"
+        ],
+        "title": "MfaEnrollResponse"
+      },
+      "MfaStatusResponse": {
+        "properties": {
+          "enrolled": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Enrolled"
+          },
+          "key_capable": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Key Capable"
+          },
+          "required_factor_count": {
+            "type": "integer",
+            "title": "Required Factor Count"
+          },
+          "complete": {
+            "type": "boolean",
+            "title": "Complete"
+          },
+          "remaining_backup_codes": {
+            "type": "integer",
+            "title": "Remaining Backup Codes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enrolled",
+          "key_capable",
+          "required_factor_count",
+          "complete",
+          "remaining_backup_codes"
+        ],
+        "title": "MfaStatusResponse"
+      },
+      "RegistrationVerifyRequest": {
+        "properties": {
+          "handle": {
+            "type": "string",
+            "title": "Handle"
+          },
+          "challenge_b64": {
+            "type": "string",
+            "title": "Challenge B64"
+          },
+          "credential_json": {
+            "type": "string",
+            "title": "Credential Json"
+          },
+          "supports_prf": {
+            "type": "boolean",
+            "title": "Supports Prf",
+            "default": false
+          },
+          "nickname": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nickname"
+          }
+        },
+        "type": "object",
+        "required": [
+          "handle",
+          "challenge_b64",
+          "credential_json"
+        ],
+        "title": "RegistrationVerifyRequest"
+      },
       "ResetPasswordRequest": {
         "properties": {
           "token": {
@@ -4514,6 +5927,16 @@
             "maxLength": 256,
             "minLength": 12,
             "title": "New Password"
+          },
+          "envelope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KeyEnvelopeSetIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -4522,6 +5945,19 @@
           "new_password"
         ],
         "title": "ResetPasswordRequest"
+      },
+      "ResetTokenRequest": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "ResetTokenRequest"
       },
       "StudentIdentityCreate": {
         "properties": {
@@ -4775,6 +6211,36 @@
         "title": "SubmissionScoreUpdate",
         "description": "Schema for updating submission score."
       },
+      "TotpConfirmRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 10,
+            "minLength": 6,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "TotpConfirmRequest"
+      },
+      "TotpFactorRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 10,
+            "minLength": 6,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "TotpFactorRequest"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -4849,6 +6315,18 @@
     {
       "name": "user",
       "description": "Teacher data lifecycle management (soft-delete and 7-day retention purge/restore)."
+    },
+    {
+      "name": "mfa",
+      "description": "Authenticator (TOTP) enrollment and backup codes. Every sign-in presents two of the three factors: password, passkey, authenticator."
+    },
+    {
+      "name": "webauthn",
+      "description": "Passkey registration and sign-in. A passkey is one of the three factors, and where the authenticator supports PRF it can also unwrap the data key."
+    },
+    {
+      "name": "keys",
+      "description": "Wrapped copies of the client's data-encryption key. Opaque to the server: ciphertext, a public salt and public KDF parameters only."
     },
     {
       "name": "meta",

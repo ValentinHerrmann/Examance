@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services import totp as totp_svc
 
-from .factors import DEFAULT_PASSWORD, create_teacher, current_code, sign_in
+from .factors import DEFAULT_PASSWORD, create_teacher, current_code, enrol_totp, sign_in
 
 
 def _secret_from_uri(uri: str) -> bytes:
@@ -149,8 +149,6 @@ async def test_a_totp_step_needs_a_pending_sign_in(client: AsyncClient) -> None:
 async def test_totp_drift_window_is_one_step(client: AsyncClient, db: AsyncSession) -> None:
     email = "drift@example.com"
     teacher = await create_teacher(db, email)
-    from .factors import enrol_totp
-
     secret = await enrol_totp(db, teacher)
 
     first = await client.post(
@@ -162,3 +160,35 @@ async def test_totp_drift_window_is_one_step(client: AsyncClient, db: AsyncSessi
     far = totp_svc.generate_code(secret, totp_svc.current_step(0) + 10_000)
     resp = await client.post("/api/v1/auth/factor/totp", json={"code": far})
     assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_an_admin_can_clear_a_locked_out_teachers_factors(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """
+    The escape hatch for a teacher who lost a factor.
+
+    It restores the *account*, not the data: an administrator who could undo the
+    encryption could also read it.
+    """
+    teacher = await create_teacher(db, "stuck@example.com")
+    await enrol_totp(db, teacher)
+
+    await sign_in(client, db, "factor-admin@example.com", role="admin")
+    resp = await client.post(f"/api/v1/admin/users/{teacher.id}/reset-factors")
+    assert resp.status_code == 200
+
+    client.cookies.clear()
+    login = await client.post(
+        "/api/v1/auth/login", json={"email": "stuck@example.com", "password": DEFAULT_PASSWORD}
+    )
+    assert login.json()["status"] == "enroll_required"
+
+
+@pytest.mark.asyncio
+async def test_only_admins_can_clear_factors(client: AsyncClient, db: AsyncSession) -> None:
+    teacher = await create_teacher(db, "victim@example.com")
+    await sign_in(client, db, "not-an-admin@example.com")
+    resp = await client.post(f"/api/v1/admin/users/{teacher.id}/reset-factors")
+    assert resp.status_code == 403
