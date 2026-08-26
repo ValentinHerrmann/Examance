@@ -37,8 +37,15 @@ async def test_login_success_and_cookie(client: AsyncClient, db: AsyncSession) -
 
 
 @pytest.mark.asyncio
-async def test_login_uninitialized_password(client: AsyncClient, db: AsyncSession) -> None:
-    # Account created without password
+async def test_login_uninitialized_password_is_indistinguishable(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """
+    An account with no password answers exactly like a wrong password.
+
+    The old ERR_PASSWORD_NOT_SET response told an unauthenticated caller which
+    addresses have accounts here. The hint now lives in the reset mail instead.
+    """
     teacher = Teacher(email="uninit@example.com", password_hash=None, role="teacher")
     db.add(teacher)
     await db.commit()
@@ -47,8 +54,14 @@ async def test_login_uninitialized_password(client: AsyncClient, db: AsyncSessio
         "/api/v1/auth/login",
         json={"email": "uninit@example.com", "password": "s3cr3t!!-min12"},
     )
+    unknown = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "no-such-account@example.com", "password": "s3cr3t!!-min12"},
+    )
+
     assert resp.status_code == 401
-    assert resp.headers.get("code") == "ERR_PASSWORD_NOT_SET"
+    assert resp.headers.get("code") == "ERR_INVALID_CREDENTIALS"
+    assert (resp.status_code, resp.json()) == (unknown.status_code, unknown.json())
 
 
 @pytest.mark.asyncio

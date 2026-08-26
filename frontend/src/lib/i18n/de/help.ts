@@ -235,7 +235,16 @@ export const help = {
             },
             s3: {
                 h: 'Passwort zurücksetzen',
-                p1: 'Ein Serverkonto lässt sich über „Passwort vergessen“ zurücksetzen. Beachten Sie: Damit wird der Zugang zum Konto wiederhergestellt, nicht der Schlüssel zu bereits verschlüsselten Inhalten.',
+                p1: 'Ein Serverkonto lässt sich über „Passwort vergessen“ zurücksetzen. Beim nächsten Anmelden fragt die App einmalig Ihren Wiederherstellungscode ab und macht damit Ihre bestehenden verschlüsselten Daten wieder lesbar — neu verschlüsselt wird dabei nichts.',
+            },
+            s4: {
+                h: 'Wiederherstellungscode',
+                p1: 'Der Code wird genau einmal angezeigt: wenn Ihr Schlüssel erstmals hinterlegt wird, und erneut nach jedem Zurücksetzen. Bewahren Sie ihn außerhalb des Browsers auf — auf Papier oder in einem Passwortmanager.',
+                p2: 'Ohne diesen Code und ohne Ihr altes Passwort bleiben bereits verschlüsselte Klausuren, Schülerdaten und Korrekturen dauerhaft unlesbar. Auch die Schuladministration kann sie nicht wiederherstellen, weil der Server den Schlüssel nie kennt. Daten, die Sie danach anlegen, sind davon nicht betroffen.',
+            },
+            s5: {
+                h: 'Zu viele Fehlversuche',
+                p1: 'Nach mehreren falschen Passwörtern wird das Konto kurzzeitig gesperrt; die Wartezeit verlängert sich mit jedem weiteren Fehlversuch und endet von selbst. Wenn Sie das sehen, ohne es selbst ausgelöst zu haben, versucht jemand anderes, sich bei Ihrem Konto anzumelden.',
             },
         },
         privacy: {

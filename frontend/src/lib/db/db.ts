@@ -129,6 +129,46 @@ export class BlindGradeDB extends Dexie {
       omrTemplates: 'id, examId',
       exerciseResources: 'id, exerciseId, [exerciseId+filename]',
     });
+
+    // v9: drops the plaintext `fallbackCode` index from `students` and strips
+    // the plaintext identity columns from every stored row.
+    //
+    // `encryptStudent()` used to return fallbackCode, studentName and
+    // studentNumber alongside the ciphertext it had just made of the same
+    // fields, and `studentRepository.save()` persisted that record as-is — so a
+    // pupil's name sat unencrypted in IndexedDB in all three storage modes,
+    // including `all-server`, where nothing is supposed to persist locally at
+    // all. Tracked as L17 in docs/legal_audit_dsgvo.md.
+    //
+    // The index is dropped because nothing queries it (no `.where('fallbackCode')`
+    // anywhere), and an index is itself a plaintext copy of the value.
+    //
+    // The strip runs unconditionally and never re-encrypts: `payloadCt` already
+    // holds these fields, so no key is needed and the upgrade works while the
+    // session is locked.
+    this.version(9)
+      .stores({
+        exams: 'id, teacherId, retentionUntil',
+        exercises: 'id, examId, topicTag, grade, subject, name, exerciseGroupId, variantKey, isCurrent',
+        examExercises: '[examId+exerciseId], examId, exerciseId, orderIndex, mcGroupId',
+        examMcGroups: 'id, examId, orderIndex',
+        students: 'pseudonymId, examId',
+        submissions: 'id, examId, pseudonymHash',
+        exerciseScores: 'id, submissionId, exerciseId',
+        auditLog: 'id, action, timestamp',
+        omrTemplates: 'id, examId',
+        exerciseResources: 'id, exerciseId, [exerciseId+filename]',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('students')
+          .toCollection()
+          .modify((student: Record<string, unknown>) => {
+            delete student.fallbackCode;
+            delete student.studentName;
+            delete student.studentNumber;
+          }),
+      );
   }
 }
 

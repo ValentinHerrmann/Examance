@@ -31,6 +31,19 @@ class AuditLog(Base):
             "CREATE_USER",
             "PASSWORD_RESET_REQUESTED",
             "PASSWORD_RESET_COMPLETED",
+            # Written by admin.py when an outbound mail fails. These were being
+            # written before they were enum members, which Postgres rejects.
+            "CREATE_USER_EMAIL_FAILED",
+            "PASSWORD_RESET_EMAIL_FAILED",
+            # Authentication hardening.
+            "LOGIN_FAILED",
+            "ACCOUNT_LOCKED",
+            "MFA_ENROLLED",
+            "MFA_DISABLED",
+            "PASSKEY_REGISTERED",
+            "PASSKEY_REMOVED",
+            "KEY_ENVELOPE_RESET",
+            "ORPHANED_DATA_DELETED",
             name="audit_action",
         ),
         nullable=False,

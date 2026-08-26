@@ -19,6 +19,7 @@ import { legal } from './legal';
 import { editor } from './editor';
 import { misc } from './misc';
 import { help } from './help';
+import { security } from './security';
 
 export const en: Translations = {
     common,
@@ -41,4 +42,5 @@ export const en: Translations = {
     editor,
     misc,
     help,
+    security,
 };

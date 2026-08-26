@@ -237,6 +237,15 @@ export const help: Translations['help'] = {
                 h: 'Resetting a password',
                 p1: 'A server account can be reset via “forgot password”. Note that this restores access to the account, not the key to content that is already encrypted.',
             },
+            s4: {
+                h: 'Recovery code',
+                p1: 'The code is shown exactly once: when your key is first stored, and again after every reset. Keep it outside the browser — on paper, or in a password manager.',
+                p2: 'Without this code and without your old password, exams, student data and grading that are already encrypted stay permanently unreadable. Your school administrator cannot restore them either, because the server never knows the key. Anything you create afterwards is unaffected.',
+            },
+            s5: {
+                h: 'Too many failed attempts',
+                p1: 'After several wrong passwords the account is locked briefly; the wait grows with each further failure and ends by itself. If you see this without having caused it, somebody else is trying to sign in to your account.',
+            },
         },
         privacy: {
             title: 'Privacy & security',

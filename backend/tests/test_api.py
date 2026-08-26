@@ -214,13 +214,15 @@ async def test_admin_can_create_teacher_user(client: AsyncClient, db: AsyncSessi
     assert body["role"] == "teacher"
     assert body["password_reset_sent"] is True
 
-    # Verify created account has no password set and returns 401 ERR_PASSWORD_NOT_SET
+    # The created account has no password yet. Login answers with the generic
+    # credential error — an account-specific "no password set" response would
+    # tell an unauthenticated caller which addresses exist here.
     login_resp = await client.post(
         "/api/v1/auth/login",
         json={"email": "newteacher-api@example.com", "password": "AnyPassword123!"},
     )
     assert login_resp.status_code == 401
-    assert login_resp.headers.get("code") == "ERR_PASSWORD_NOT_SET"
+    assert login_resp.headers.get("code") == "ERR_INVALID_CREDENTIALS"
 
 
 @pytest.mark.asyncio

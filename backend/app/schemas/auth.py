@@ -1,6 +1,8 @@
 """Pydantic schemas for auth endpoints."""
 from __future__ import annotations
 
+import uuid
+
 from pydantic import BaseModel, EmailStr, Field
 
 # Matches the policy already enforced by AdminCreateUserRequest and the
@@ -28,6 +30,11 @@ class LoginRequest(BaseModel):
 
 
 class AuthResponse(BaseModel):
+    # The account id is returned so the client can bind its key-envelope AAD to
+    # the account rather than to the email address, which is the only other
+    # identifier it holds. Not a secret: the caller has just authenticated as
+    # this account.
+    id: uuid.UUID
     email: str
     role: str
 

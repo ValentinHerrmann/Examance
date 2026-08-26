@@ -238,9 +238,37 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
   "pseudonym_hmac": "a1b2c3...64-hex-chars",
   "pii_ciphertext_b64": "base64...",
   "iv_b64": "base64...",
-  "encryption_salt_b64": "base64..."
+  "encryption_salt_b64": "base64...16 bytes"
 }
 ```
+
+> **`encryption_salt_b64` is a key-generation id, not a salt.** The name is
+> historical, from when each record's key was derived per record. It is not: the
+> ciphertext is sealed under `HKDF(dataKey, sessionNonce)`. The 16 bytes carry the
+> `key_id` of the data-key generation that sealed the record, so a later key
+> rotation is diagnosable rather than silently unreadable. Older clients sent 16
+> zero bytes, and placeholder identity rows created by the submissions endpoint
+> still do; treat that value as "no generation recorded".
+
+#### Key Envelopes (`/api/v1/keys`)
+
+| Method | Endpoint | Summary |
+|---|---|---|
+| `GET` | `/keys/envelopes` | The calling teacher's wrapped data-key copies. |
+| `PUT` | `/keys/envelopes` | Replace the whole set atomically. |
+| `DELETE` | `/keys/envelopes/{id}` | Remove one wrap (used when a passkey is deregistered). |
+
+Everything crossing this boundary is opaque to the server: ciphertext, a public
+per-factor salt and public KDF parameters. Wrapping and unwrapping happen in the
+browser.
+
+Two rules the endpoint enforces rather than trusts the client with:
+
+* **Replacement is wholesale.** A merge could leave the password wrap holding a
+  new data key while the recovery wrap still held the previous one — a set that
+  looks healthy right up until someone needs to recover with it.
+* **A recovery wrap is mandatory and cannot be deleted.** It is the factor that
+  always works; without it a forgotten password means unreadable data.
 
 ---
 

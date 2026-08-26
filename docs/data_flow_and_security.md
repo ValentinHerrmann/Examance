@@ -11,7 +11,7 @@ Examance uses a zero-knowledge, client-side encryption-at-rest model designed to
 ### Core Invariants
 1. **No Unauthenticated DevTools Access**: When a user is locked or logged out, browser DevTools inspection reveals **zero unencrypted text** (no LaTeX preamble/body, exam metadata, answer keys, fallback codes, or raw scores). Storage is either completely purged (`all-server` mode) or stored as opaque AES-256-GCM binary ciphertexts (`all-local` / `hybrid` mode).
 
-   ***Known exception (2026-08-17, open):*** `students.put()` currently writes `fallbackCode`, `studentName` and `studentNumber` **in plaintext** alongside the encrypted `payloadCt`/`payloadIv` (`lib/db/dbEncryption.ts` `encryptStudent`, called from `lib/repositories/studentRepository.ts`), and `fallbackCode` is a plaintext Dexie index (`db.ts`, `students: 'pseudonymId, examId, fallbackCode'`). This breaks Invariant 1 for student names/IDs while a session is locked. Confirmed as a real bug, not yet fixed — see `legal_audit_dsgvo.md` §4 for the tracked finding.
+   *Previously broken here (2026-08-17, now fixed):* `encryptStudent()` used to re-emit `fallbackCode`, `studentName` and `studentNumber` as plain properties next to the ciphertext it had just made of those same fields, `studentRepository.save()` persisted that record unchanged — and did so *before* the storage-mode check, so pupil names landed in local IndexedDB even in `all-server` mode — and `fallbackCode` was a plaintext Dexie index. Identity fields now exist only inside `payloadCt`; `encryptStudent()` refuses to write them at all without a key; the local write happens only outside `all-server` mode; and Dexie v9 drops the index and strips the columns from existing rows. Tracked as L17 in `legal_audit_dsgvo.md` §4.
 2. **Key material is passphrase-derived and tab-scoped.** The master key is derived from a passphrase the user enters; **the passphrase itself is never persisted anywhere**. To survive an F5 reload, the derived `sessionKey` and master key bytes are written to **`sessionStorage`**, which is per-tab and cleared when the tab closes; they are also wiped on manual lock, on inactivity timeout, and on a lock broadcast from another tab. `localStorage` holds only the Argon2id salt, the session nonce, and non-secret UI state — never a key or a passphrase. **Nothing derived from the passphrase is written to IndexedDB.**
 
    *This is a deliberate trade of key exposure for usability: while a tab is unlocked, script running on the origin can read the session key out of `sessionStorage`. The alternative — re-prompting on every reload — was judged worse for the grading workflow. It also means the vault is only as private as the browser profile is: anyone who can run script on this origin, or who reaches an already-unlocked tab, can read the data.*
@@ -23,25 +23,82 @@ Examance uses a zero-knowledge, client-side encryption-at-rest model designed to
 
 ## 2. Key Derivation & Encryption Architecture
 
+The data key is **random and wrapped**, not derived from the password. This is the
+change that makes a password reset survivable: the key that opens the vault stays
+the same across one, and only the wraps around it are rewritten.
+
 ```mermaid
 flowchart TD
-    Password[User Password] --> Argon2id[Argon2id WASM Key Derivation]
-    Salt[Random 16-byte Salt] --> Argon2id
-    Argon2id --> MasterKey[Master CryptoKey - Non-Extractable HKDF]
-    MasterKey --> HKDF[HKDF-SHA-256 Key Derivation]
-    Nonce[Random 12-byte Session Nonce] --> HKDF
-    HKDF --> SessionKey[Session CryptoKey - Non-Extractable AES-256-GCM]
+    DEK[Random 32-byte Data Key] --> HKDF[HKDF-SHA-256]
+    Nonce[Session Nonce] --> HKDF
+    HKDF --> SessionKey[Session CryptoKey - AES-256-GCM]
 
     SessionKey --> AESGCM[AES-256-GCM Encrypt / Decrypt]
     FreshIV[Fresh 12-byte Random IV] --> AESGCM
     RecordPayload[Record Payload / Text / LaTeX / PII] --> AESGCM
-    AESGCM --> CiphertextPayload[Encrypted Uint8Array Blob in IndexedDB]
+    AESGCM --> CiphertextPayload[Encrypted Uint8Array Blob]
+
+    Password[User Password] --> PwKEK[Argon2id + HKDF -> Password KEK]
+    RecoveryCode[Printable Recovery Code] --> RcKEK[Argon2id + HKDF -> Recovery KEK]
+    PwKEK --> WrapPw[Wrapped Key Bundle - password]
+    RcKEK --> WrapRc[Wrapped Key Bundle - recovery]
+    DEK --> WrapPw
+    DEK --> WrapRc
+    WrapPw --> Server[(key_envelopes table - ciphertext only)]
+    WrapRc --> Server
 ```
 
+### Key envelope
+
+Each factor that may recover the data key derives a **key-encryption key** in the
+browser and wraps its own copy. The server stores only ciphertext, a public
+per-factor salt and public KDF parameters (`key_envelopes`,
+`backend/app/routers/keys.py`); it never sees a password, a recovery code, or the
+data key, so it cannot unwrap what it holds.
+
+* **Wrapped payload** is a *bundle*, not a single key: `{dek, fallback, legacy}`.
+  `decrypt()` walks primary → PBKDF2-600k → PBKDF2-1k, so a real vault can hold
+  records that only open under a superseded key. All three are captured at
+  migration, the one moment they exist together.
+* **AAD** binds each wrap to `teacher_id | kind | key_id | envelope_version`, so a
+  wrap cannot be replayed as a different factor or against a different key
+  generation.
+* **Fingerprint pinning.** AAD cannot stop a *server* that substitutes the whole
+  envelope set — it would pick both sides. The client therefore pins a SHA-256 of
+  the set in `localStorage` after the first successful unwrap and refuses a set it
+  has not seen before.
+* **Migration adopts, it does not re-key.** On an account created before the
+  envelope, the first sign-in takes the key the old scheme derived and makes *that*
+  the data key. Every existing ciphertext stays valid, the resulting session key is
+  byte-identical to the previous one, and no re-encryption pass runs.
+* **A server-side password write cannot re-wrap.** An admin reset or
+  `cli.py set-password` marks the password wrap `invalidated_at`; the teacher then
+  recovers with their recovery code on the next sign-in. An administrator cannot
+  restore a teacher's data — by design.
+
 ### Cryptographic Algorithms
-* **Key Derivation (Master Key)**: Argon2id (`time=3, memory=64MB, parallelism=4, hashLen=32`). Where the Argon2 WASM module is unavailable, PBKDF2-HMAC-SHA-256 at 600,000 iterations is used instead (OWASP 2024 minimum). A decrypt-only path at the superseded 1,000-iteration parameter exists solely to open and re-encrypt vaults written before that increase.
-* **Session Key Derivation**: HKDF-SHA-256 combining `masterKey` and a fresh 12-byte `sessionNonce`.
+* **Key-encryption keys**: Argon2id (`time=3, memory=64MB, parallelism=4, hashLen=32`) over a **random 16-byte per-factor salt**, then HKDF-SHA-256 with a per-factor `info` string. Where the Argon2 WASM module is unavailable, PBKDF2-HMAC-SHA-256 at 600,000 iterations is used instead (OWASP 2024 minimum). A decrypt-only path at the superseded 1,000-iteration parameter exists solely to open vaults written before that increase.
+* **Session Key Derivation**: HKDF-SHA-256 combining the data key and `sessionNonce`. For an authenticated account the nonce is derived from the email address — it is HKDF salt rather than a secret, and every record ever written was sealed under it.
+* **Recovery code**: ~198 bits from `crypto.getRandomValues`, rendered in a Crockford-style base32 alphabet with `I`, `L`, `O` and `U` omitted because they are misread off paper. Shown exactly once.
 * **Symmetric Encryption**: AES-256-GCM with fresh 12-byte IV generated per operation via `crypto.getRandomValues`.
+
+### Login throttling
+
+`POST /auth/login` is bounded twice. slowapi's existing limit is keyed on the
+client IP, which stops a spray from one host but not a guesser rotating
+addresses; `app/services/login_throttle.py` adds a failure counter keyed on the
+*account*, stored in Redis under a SHA-256 of the email (so the store is not an
+account listing) and mirrored onto `teachers.locked_until`.
+
+The cooloff is exponential and **capped** (`LOGIN_LOCKOUT_MAX_SECONDS`, one hour
+by default). That cap is a deliberate trade, not an oversight: any per-account
+lockout hands someone who knows an address a denial-of-service against its owner,
+so the lock always expires on its own and is never escalated by further attempts
+once set.
+
+An account that has no password set answers exactly like a wrong password. The
+older, distinct response told an unauthenticated caller which addresses have
+accounts here.
 
 ---
 
@@ -53,7 +110,7 @@ flowchart TD
 | `exercises` | `id, examId, topicTag, grade, subject, name, exerciseGroupId, variantKey, isCurrent` | Title, exercise name, LaTeX body, answer choices, correct answers | Opaque Binary Ciphertext / Purged |
 | `examExercises` | `[examId+exerciseId], examId, exerciseId, orderIndex, mcGroupId` | N/A (UUID links only) | Standard IDB table |
 | `examMcGroups` | `id, examId, orderIndex` | N/A — title, scoring text and order are layout metadata for MC-group LaTeX rendering only, not exercise content; see CLAUDE.md "Multiple Choice (MC) Data Model" | Standard IDB table |
-| `students` | `pseudonymId, examId, fallbackCode` | Student PII (`piiCt`) | Opaque Binary Ciphertext / Purged. **Known exception:** `fallbackCode`, `studentName`, `studentNumber` are currently also written in plaintext — see the callout in §1. |
+| `students` | `pseudonymId, examId` | Student PII — `fallbackCode`, `studentName`, `studentNumber` (`payloadCt`) | Opaque Binary Ciphertext / Purged |
 | `submissions` | `id, examId, pseudonymHash` | Total score (`totalScore`), scan image blob (`scanCt`), annotations vector layer (`annotationCt`) | Opaque Binary Ciphertext / Purged |
 | `exerciseScores` | `id, submissionId, exerciseId` | Score value (`score`), selected options | Opaque Binary Ciphertext / Purged |
 | `omrTemplates` | `id, examId` | Detected bubble/fiducial page rects (`OmrTemplatePayload.pages`), used for MC auto-grading | Opaque Binary Ciphertext / Purged |

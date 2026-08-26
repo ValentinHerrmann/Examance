@@ -110,14 +110,15 @@ async def test_admin_create_user_and_password_reset_flow(
     assert new_teacher is not None
     assert new_teacher.password_hash is None
 
-    # 4. Attempt login before setting password (should fail with ERR_PASSWORD_NOT_SET)
+    # 4. Attempt login before setting password. The response is deliberately the
+    #    generic credential error, not an account-specific one.
     client.cookies.clear()
     uninit_login = await client.post(
         "/api/v1/auth/login",
         json={"email": "newteacher-reset-flow@example.com", "password": "AttemptedPassword123!"},
     )
     assert uninit_login.status_code == 401
-    assert uninit_login.headers.get("code") == "ERR_PASSWORD_NOT_SET"
+    assert uninit_login.headers.get("code") == "ERR_INVALID_CREDENTIALS"
 
     # 5. Extract raw reset token from DB token_hash
     token_res = await db.execute(

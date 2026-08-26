@@ -61,6 +61,10 @@ const SESSION_STORAGE_KEYS = {
   EMAIL: 'bg_session_email',
   ROLE: 'bg_session_role',
   MODE: 'bg_session_mode',
+  // Written by lib/services/keyEnvelopeService.ts (rememberKeyId), listed here
+  // so locking wipes it with everything else. Not secret — a random label for
+  // the data-key generation — but it is meaningless once the keys are gone.
+  KEY_ID: 'bg_key_id',
 } as const;
 
 /**

@@ -18,6 +18,15 @@
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { get } from "svelte/store";
   import UnlockForm from "$lib/components/unlock/UnlockForm.svelte";
+  import { RecoveryCodeDialog, RecoveryUnlockDialog } from "$lib/components/security";
+  import {
+    EnvelopeChangedError,
+    EnvelopeFactorMissingError,
+    materializeSession,
+    openWithPassword,
+    openWithRecoveryCode,
+    rewrapForNewPassword,
+  } from "$lib/services/keyEnvelopeService";
 
   const LOCAL_PASSPHRASE_MIN_LENGTH = 12;
 
@@ -26,6 +35,14 @@
   let backendUrl = get(backendStore);
   let errorMsg = "";
   let isLoading = false;
+  /** Set when a login minted a new recovery code that must be shown once. */
+  let pendingRecoveryCode: string | null = null;
+  /**
+   * Set when the account's password wrap is unusable — the state a password
+   * reset leaves behind. Holds what the recovery dialog needs to finish the job.
+   */
+  let pendingRecovery: { teacherId: string; email: string; role: "teacher" | "admin" } | null =
+    null;
 
   // Local workspace passphrase. Never persisted — it is the only input to the
   // key derivation, so losing it means the local vault cannot be opened.
@@ -65,6 +82,7 @@
     try {
       // Authenticate with server to get httpOnly cookies
       const user = await api.post<{
+        id: string;
         email: string;
         role: "teacher" | "admin";
       }>("/auth/login", {
@@ -81,32 +99,55 @@
         storagePolicyStore.updateSetting("storageMode", "all-server");
       }
 
-      // Derive local session keys deterministically from user email & password
-      const salt = await getUserSalt(normalizedEmail);
-      const { masterKey, fallbackMasterKey } = await deriveKeyWithFallback(password, salt);
-      const sessionNonce = await getUserSessionNonce(normalizedEmail);
-      const sessionKey = await deriveSessionKey(masterKey, sessionNonce);
-      const fallbackSessionKey = fallbackMasterKey
-        ? await deriveSessionKey(fallbackMasterKey, sessionNonce)
-        : null;
+      // Recover the data key from its wrapped copy on the server. On an account
+      // that predates the envelope this performs the one-time migration, which
+      // adopts the previously derived key as the data key — so nothing has to be
+      // re-encrypted and the session key below is byte-identical to the old one.
+      let vault;
+      try {
+        vault = await openWithPassword(user.id, normalizedEmail, password);
+      } catch (envelopeErr) {
+        if (envelopeErr instanceof EnvelopeFactorMissingError) {
+          // The password is correct — the server accepted it — but it no longer
+          // opens the stored key. That is what a reset leaves behind, and the
+          // recovery code is the way out of it.
+          pendingRecovery = {
+            teacherId: user.id,
+            email: user.email,
+            role: user.role,
+          };
+          return;
+        }
+        throw envelopeErr;
+      }
+
+      const keys = await materializeSession(vault, normalizedEmail);
 
       sessionStore.unlock({
-        masterKey,
-        sessionKey,
-        fallbackSessionKey,
-        sessionNonce,
+        ...keys,
         email: user.email,
         role: user.role,
         mode: "authenticated",
       });
+
+      if (vault.newRecoveryCode) {
+        // Shown once, and the dashboard waits until it is acknowledged: this is
+        // the only copy of the factor that always works.
+        pendingRecoveryCode = vault.newRecoveryCode;
+        return;
+      }
 
       // Redirect to Dashboard
       await goto("/");
     } catch (err: any) {
       // Revert store to last saved URL if authentication failed
       backendStore.restoreSavedUrl();
-      if (err instanceof ApiError && err.code === 'ERR_PASSWORD_NOT_SET') {
-        errorMsg = translate("auth.unlock.errors.passwordNotSet");
+      if (err instanceof ApiError && err.code === 'ERR_ACCOUNT_LOCKED') {
+        errorMsg = translate("errors.code.ERR_ACCOUNT_LOCKED");
+      } else if (err instanceof EnvelopeChangedError) {
+        errorMsg = translate("security.envelope.changedBody");
+      } else if (err instanceof EnvelopeFactorMissingError) {
+        errorMsg = translate("security.envelope.missingPassword");
       } else {
         // "Failed to fetch" is the browser's opaque network error for CORS
         // preflight rejections. Give users a concrete hint.
@@ -158,6 +199,34 @@
       isLoading = false;
     }
   }
+
+  /**
+   * Finish a recovery: unwrap the data key with the code, then re-wrap it under
+   * the password the teacher just signed in with. The key itself never changes,
+   * so every existing exam, scan and score stays readable.
+   */
+  async function handleRecovery(recoveryCode: string) {
+    if (!pendingRecovery) {
+      return;
+    }
+    const { teacherId, email: userEmail, role } = pendingRecovery;
+    const normalizedEmail = userEmail.trim().toLowerCase();
+
+    const vault = await openWithRecoveryCode(teacherId, recoveryCode);
+    const newCode = await rewrapForNewPassword(teacherId, vault, password);
+    const keys = await materializeSession(vault, normalizedEmail);
+
+    sessionStore.unlock({
+      ...keys,
+      email: userEmail,
+      role,
+      mode: "authenticated",
+    });
+
+    pendingRecovery = null;
+    // The code just used is spent; the replacement is shown once.
+    pendingRecoveryCode = newCode;
+  }
 </script>
 
 <div class="unlock-container flex min-h-full flex-col items-center justify-center box-border px-4 py-8 sm:px-6 sm:py-12">
@@ -175,3 +244,17 @@
     onUnlockLocal={handleUnlockLocal}
   />
 </div>
+
+{#if pendingRecovery}
+  <RecoveryUnlockDialog onSubmit={handleRecovery} />
+{/if}
+
+{#if pendingRecoveryCode}
+  <RecoveryCodeDialog
+    code={pendingRecoveryCode}
+    onConfirm={() => {
+      pendingRecoveryCode = null;
+      goto("/");
+    }}
+  />
+{/if}

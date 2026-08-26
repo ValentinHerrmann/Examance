@@ -159,15 +159,25 @@ export interface ExerciseScoreRecord {
   payloadIv?: Uint8Array;
 }
 
+/**
+ * A pupil's identity within one exam.
+ *
+ * `fallbackCode`, `studentName` and `studentNumber` exist only on records that
+ * have been through `decryptStudent()`. What is stored — in IndexedDB and, in
+ * server modes, on the server — carries them solely inside `payloadCt`.
+ * `encryptStudent()` strips them from what it returns for exactly that reason;
+ * writing them back as plain columns is the L17 leak
+ * (docs/legal_audit_dsgvo.md) that broke Core Invariant 1 in every mode.
+ */
 export interface StudentRecord {
   /** Raw pseudonym UUID — only in local IDB, never sent to server. */
   pseudonymId: string;
   examId: string;
-  /** Human-readable fallback code (e.g. "A-X7K2M9") for unreadable QR codes. */
+  /** Human-readable fallback code (e.g. "A-X7K2M9") for unreadable QR codes. Decrypted only. */
   fallbackCode?: string;
-  /** Decrypted student full name if available (e.g. "Erika Mustermann"). */
+  /** Student full name (e.g. "Erika Mustermann"). Decrypted only. */
   studentName?: string;
-  /** Decrypted student ID number if available (e.g. "123456"). */
+  /** Student ID number (e.g. "123456"). Decrypted only. */
   studentNumber?: string;
   /** AES-256-GCM ciphertext of PII (name, student number, etc.). */
   piiCt: Uint8Array;

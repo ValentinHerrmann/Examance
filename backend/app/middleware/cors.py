@@ -46,5 +46,11 @@ def add_cors_middleware(app: FastAPI) -> None:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # Routers attach the machine-readable error code as a response header
+        # (e.g. HTTPException(headers={"code": "ERR_INVALID_CREDENTIALS"})).
+        # Response headers are not readable cross-origin unless they are named
+        # here, so without this the frontend's errors.code.* localization and
+        # the Retry-After on a login cooloff are invisible to the browser.
+        expose_headers=["code", "Retry-After"],
     )
 

@@ -17,7 +17,17 @@ from app.middleware.cors import add_cors_middleware, is_allowed_origin
 from app.middleware.csp import CSPMiddleware
 from app.middleware.origin_guard import OriginGuardMiddleware
 from app.middleware.rate_limit import limiter
-from app.routers import admin, auth, compile, exams, exercises, students, submissions, user
+from app.routers import (
+    admin,
+    auth,
+    compile,
+    exams,
+    exercises,
+    keys,
+    students,
+    submissions,
+    user,
+)
 
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
@@ -106,6 +116,13 @@ def create_app() -> FastAPI:
             ),
         },
         {
+            "name": "keys",
+            "description": (
+                "Wrapped copies of the client's data-encryption key. Opaque to the server: "
+                "ciphertext, a public salt and public KDF parameters only."
+            ),
+        },
+        {
             "name": "meta",
             "description": "System health and operational monitoring.",
         },
@@ -185,6 +202,7 @@ def create_app() -> FastAPI:
     app.include_router(submissions.router, prefix=API_PREFIX)
     app.include_router(admin.router, prefix=API_PREFIX)
     app.include_router(user.router, prefix=API_PREFIX)
+    app.include_router(keys.router, prefix=API_PREFIX)
 
     @app.get("/api/health", tags=["meta"])
     async def health() -> dict[str, str]:

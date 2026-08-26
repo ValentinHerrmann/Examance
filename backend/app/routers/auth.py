@@ -17,6 +17,7 @@ from app.models.refresh_token import RefreshToken
 from app.models.teacher import Teacher
 from app.schemas.auth import AuthResponse, ForgotPasswordRequest, LoginRequest, ResetPasswordRequest
 from app.services import audit as audit_svc
+from app.services import login_throttle
 from app.services.crypto import hash_password, needs_rehash, verify_password
 from app.services.jwt import create_access_token, create_refresh_token, decode_token
 from app.services.password_reset import complete_password_reset, create_and_send_reset_token
@@ -143,28 +144,50 @@ async def login(
     result = await db.execute(select(Teacher).where(func.lower(Teacher.email) == normalized_email))
     teacher = result.scalar_one_or_none()
 
-    stored_hash = teacher.password_hash if teacher else None
+    # Rejects a locked account before any password work is done. Runs for
+    # unknown emails too, so a locked and an unknown account cost the same.
+    await login_throttle.assert_not_locked(normalized_email, teacher)
 
-    if teacher and stored_hash is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=(
-                "Password has not been set for this account. "
-                "Please set a password using the link sent to your email."
-            ),
-            headers={"code": "ERR_PASSWORD_NOT_SET"},
-        )
+    stored_hash = teacher.password_hash if teacher else None
 
     # Constant-time: always call verify_password even if teacher not found
     dummy_hash = "$argon2id$v=19$m=65536,t=3,p=4$fakesaltfakesalt$fakehashfakehashfakehashfakehash"
     password_ok = verify_password(body.password, stored_hash if stored_hash else dummy_hash)
 
     if not teacher or stored_hash is None or not password_ok:
+        # An account without a password answers exactly like a wrong password.
+        # The distinct ERR_PASSWORD_NOT_SET response that used to live here told
+        # an unauthenticated caller which addresses have accounts; the "you have
+        # not set a password yet" hint belongs in the reset mail instead.
+        cooloff = await login_throttle.register_failure(db, normalized_email, teacher)
+        if teacher is not None:
+            # Only for accounts that exist: audit_log.teacher_email is NOT NULL,
+            # and a row per attacker-supplied address makes the log unbounded.
+            await audit_svc.write(
+                db,
+                teacher_id=teacher.id,
+                teacher_email=teacher.email,
+                action="LOGIN_FAILED",
+                request_ip=request.client.host if request.client else None,
+            )
+            if cooloff is not None:
+                await audit_svc.write(
+                    db,
+                    teacher_id=teacher.id,
+                    teacher_email=teacher.email,
+                    action="ACCOUNT_LOCKED",
+                    request_ip=request.client.host if request.client else None,
+                )
+        # get_db rolls back on an exception, so the lock mirror and the audit
+        # row have to be committed before the 401 is raised or neither survives.
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials.",
             headers={"code": "ERR_INVALID_CREDENTIALS"},
         )
+
+    await login_throttle.register_success(db, normalized_email, teacher)
 
     # Rehash if parameters changed
     if needs_rehash(stored_hash):
@@ -196,7 +219,7 @@ async def login(
         refresh_jwt,
         refresh_max_age=settings.REFRESH_TOKEN_TTL_DAYS * 86400,
     )
-    return AuthResponse(email=teacher.email, role=teacher.role)
+    return AuthResponse(id=teacher.id, email=teacher.email, role=teacher.role)
 
 
 @router.post("/refresh", response_model=AuthResponse)
@@ -274,7 +297,7 @@ async def refresh(
         new_refresh_jwt,
         refresh_max_age=settings.REFRESH_TOKEN_TTL_DAYS * 86400,
     )
-    return AuthResponse(email=teacher.email, role=teacher.role)
+    return AuthResponse(id=teacher.id, email=teacher.email, role=teacher.role)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

@@ -41,9 +41,19 @@ Users can request a password reset at any time:
 2. Enter the registered email address.
 3. If an account exists, a single-use reset link (`/reset-password?token=...`) is delivered via email (expires in 24 hours).
 4. Enter a new password (min. 12 characters).
+5. Sign in with it. Because the new password cannot open the stored copy of the
+   data key, the app asks for the **recovery code** once, unwraps the key with it,
+   re-wraps that same key under the new password, and issues a replacement
+   recovery code. Nothing is re-encrypted and no data is lost.
 
-> **Important Note on End-to-End Encryption:**
-> Local session keys are derived from the user's password. Resetting your password alters the derived encryption key. Existing encrypted local vaults must be unlocked using the old password before re-encrypting under the new password.
+> **Keep the recovery code.** It is shown exactly once, when the key is first
+> stored (on the first sign-in after this feature ships) and again after every
+> reset. It is the only factor that always works. Without it *and* without the
+> old password, the account's existing exams, student data and grading stay
+> permanently unreadable — nobody, including an administrator, can recover them,
+> because the server never holds the data key.
+>
+> Data created after a reset is unaffected either way.
 
 ---
 
@@ -54,6 +64,13 @@ Admins can trigger a password reset for any existing user via the Admin UI or CL
 - **CLI**: `python -m app.cli send-password-reset --email user@school.com`
 
 **Behavior:** The user's existing password remains operational until they complete setting a new password via the emailed reset link. Once reset, all active sessions and refresh tokens are revoked, forcing re-authentication across all devices.
+
+**An admin cannot restore a user's data.** Setting a password server-side — through
+the Admin UI, `send-password-reset`, or `set-password` — marks the password copy of
+that user's data key unusable, because the server has no way to re-wrap a key it
+has never seen. The user regains access by entering their recovery code on the next
+sign-in. This is a property of the encryption model, not a missing feature: an admin
+who could recover the data could also read it.
 
 ---
 

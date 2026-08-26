@@ -140,6 +140,21 @@ class Settings(BaseSettings):
     # Password reset configuration
     PASSWORD_RESET_TOKEN_TTL_HOURS: int = 24
 
+    # Per-account login throttling.
+    #
+    # slowapi's limits are keyed on the client IP, which stops a spray from one
+    # host but does nothing against a distributed guess at a single account.
+    # These knobs drive `app.services.login_throttle`, which counts failures per
+    # account and applies an exponential, capped cooloff.
+    #
+    # The cap is deliberate: any per-account lockout lets someone who knows an
+    # email lock its owner out, so the lock always expires on its own.
+    LOGIN_THROTTLE_ENABLED: bool | None = None  # defaults to RATE_LIMIT_ENABLED
+    LOGIN_MAX_FAILED_ATTEMPTS: int = 5
+    LOGIN_LOCKOUT_BASE_SECONDS: int = 60
+    LOGIN_LOCKOUT_MAX_SECONDS: int = 3600
+    LOGIN_FAIL_WINDOW_SECONDS: int = 900
+
     @field_validator("ALLOWED_HOSTS", "CORS_ALLOWED_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: object) -> list[str]:
@@ -228,6 +243,19 @@ class Settings(BaseSettings):
         """Default the rate-limit backend to Redis; in-memory only in dev."""
         if not self.RATE_LIMIT_STORAGE_URI:
             self.RATE_LIMIT_STORAGE_URI = "memory://" if self.is_dev else self.REDIS_URL
+        return self
+
+    @model_validator(mode="after")
+    def derive_login_throttle(self) -> Settings:
+        """Default per-account throttling to whatever rate limiting is doing."""
+        if self.LOGIN_THROTTLE_ENABLED is None:
+            self.LOGIN_THROTTLE_ENABLED = self.RATE_LIMIT_ENABLED
+        if self.LOGIN_MAX_FAILED_ATTEMPTS < 1:
+            raise ValueError("LOGIN_MAX_FAILED_ATTEMPTS must be at least 1.")
+        if self.LOGIN_LOCKOUT_MAX_SECONDS < self.LOGIN_LOCKOUT_BASE_SECONDS:
+            raise ValueError(
+                "LOGIN_LOCKOUT_MAX_SECONDS must not be below LOGIN_LOCKOUT_BASE_SECONDS."
+            )
         return self
 
     @model_validator(mode="after")

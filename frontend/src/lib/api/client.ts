@@ -61,13 +61,22 @@ async function parseError(response: Response): Promise<ApiError> {
     } else if (body.message) {
       detailStr = String(body.message);
     }
-    const code = body.code ?? 'ERR_UNKNOWN';
+    // The backend attaches the code as a response *header*, not in the body
+    // (see the HTTPException(headers={'code': ...}) calls across the routers).
+    // The body is checked first so a future JSON-carried code still wins.
+    const code = body.code ?? response.headers.get('code') ?? 'ERR_UNKNOWN';
     // The backend ships an English `detail` next to a machine-readable `code`.
     // Prefer a localized message for known codes and keep the server text as
     // the fallback so unmapped errors stay diagnosable.
     return new ApiError(response.status, code, translateOptional(`errors.code.${code}`) ?? detailStr);
   } catch {
-    return new ApiError(response.status, 'ERR_UNKNOWN', response.statusText);
+    // No JSON body (or unparseable) — the header may still carry the code.
+    const headerCode = response.headers.get('code') ?? 'ERR_UNKNOWN';
+    return new ApiError(
+      response.status,
+      headerCode,
+      translateOptional(`errors.code.${headerCode}`) ?? response.statusText,
+    );
   }
 }
 
@@ -225,6 +234,7 @@ export const api = {
   get: <T>(path: string, options?: { silentError?: boolean }) => request<T>('GET', path, undefined, options),
   post: <T>(path: string, body?: unknown, options?: { silentError?: boolean }) => request<T>('POST', path, body, options),
   patch: <T>(path: string, body: unknown, options?: { silentError?: boolean }) => request<T>('PATCH', path, body, options),
+  put: <T>(path: string, body: unknown, options?: { silentError?: boolean }) => request<T>('PUT', path, body, options),
   delete: <T>(path: string, options?: { silentError?: boolean }) => request<T>('DELETE', path, undefined, options),
   postBinary: (path: string, data: Uint8Array) =>
     request<ArrayBuffer>('POST', path, data, { binary: true }),

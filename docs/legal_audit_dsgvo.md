@@ -182,13 +182,17 @@ Two controls now hold the line, which is the point of the finding: the CSP is `d
 
 **Note for a reader assessing the past:** these loads were live in every deployed version before this branch. If a retrospective assessment is needed, the exposure is request metadata only, continuous, to Cloudflare Inc. (pdf.js) and the `http.cat` operator.
 
-### L17 — Student name and fallback code stored in plaintext in IndexedDB · Art. 5(1)(f), 32 · [C+P] · **Open**
+### L17 — Student name and fallback code stored in plaintext in IndexedDB · Art. 5(1)(f), 32 · [C+P] · **Fixed**
 
 `encryptStudent()` (`lib/db/dbEncryption.ts`) writes `fallbackCode`, `studentName` and `studentNumber` into the returned `StudentRecord` **in addition to** the encrypted `payloadCt`/`payloadIv` it produces from the same fields, and `studentRepository.ts` persists that record as-is via `db.students.put()`. `fallbackCode` is also a plaintext Dexie index (`db.ts`: `students: 'pseudonymId, examId, fallbackCode'`).
 
 This contradicts `data_flow_and_security.md` Core Invariant 1 ("zero unencrypted text" when locked) for exactly the fields — a pupil's name and ID number — that invariant exists to protect, in both `all-local` and `hybrid` mode.
 
-**Found during a documentation review** (2026-08-17) while verifying the storage table in §3 against the live schema; not yet fixed. Flagging here per standing instruction to call out anything touching crypto/storage rather than resolve it silently.
+**Found during a documentation review** (2026-08-17) while verifying the storage table in §3 against the live schema.
+
+**Fixed.** `encryptStudent()` no longer re-emits the three fields: what it returns carries the pupil's identity only inside `payloadCt`, and callers read it back through `decryptStudent()`. Called without a key it now refuses to write identity data at all, rather than falling through to plaintext columns. `studentRepository.save()` performs the local `db.students.put()` only outside `all-server` mode — the write used to happen before the mode check, so pupil names persisted locally even in the mode whose whole point is that nothing does. Dexie **v9** drops the `fallbackCode` index (nothing queried it, and an index is itself a plaintext copy) and strips the three columns from every stored row; the strip needs no key, so it also runs on a locked vault.
+
+Two things a reader should not over-read. The upgrade rewrites rows on this device when the browser next opens the database — a device that never opens it again keeps its old rows. And server-side `student_identities` rows were never affected: they only ever held ciphertext.
 
 ---
 
@@ -218,7 +222,6 @@ Ordered by what blocks a school deployment.
 6. **Decide the private-device question** (L12) if teachers use personal machines.
 7. **Set a real `SECRET_KEY`** and confirm the app refuses to start without one — it now does.
 8. **Consider enforcing SRI** (§5) by vendoring and hashing the WASM binaries.
-9. **Fix the plaintext student-data leak in IndexedDB** (L17). Blocking: it breaks the encryption-at-rest guarantee this document otherwise relies on.
 
 ---
 
