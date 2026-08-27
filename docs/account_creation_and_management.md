@@ -47,7 +47,16 @@ administrator can clear, and only by resetting the factors — not the data.
 
 Backup codes stand in for the authenticator, not for a third factor. Ten are
 issued at enrollment, each usable once; regenerate them from **Settings →
-Sign-in & security** when few are left.
+Sign-in & security** when few are left. They are stored as a digest keyed from
+`SECRET_KEY` rather than as a password hash — a machine-generated code has no
+dictionary behind it, so the key, not a work factor, is what a database dump
+runs into.
+
+They are shown together with the recovery code on one screen at the end of the
+first sign-in, because the two are easily mistaken for each other. They are not
+the same thing: a backup code gets you *into the account* without your phone,
+and the recovery code gets you back into your *encrypted data* without your
+password. Keep both.
 
 ---
 

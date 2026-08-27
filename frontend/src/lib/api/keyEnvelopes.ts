@@ -79,16 +79,23 @@ export async function fetchEnvelopes(): Promise<EnvelopeSet | null> {
  * right up until the day someone needs to recover with it.
  */
 export async function saveEnvelopes(set: EnvelopeSet): Promise<void> {
-  await api.put('/keys/envelopes', {
-    key_id_b64: uint8ArrayToBase64(set.keyId),
-    envelope_version: 1,
-    envelopes: set.envelopes.map(toDto),
-  });
+  // Silent, like the fetch: callers report an envelope write failure in the
+  // dialog the teacher is looking at. The global HTTP modal on top of that is
+  // one error reported twice.
+  await api.put(
+    '/keys/envelopes',
+    {
+      key_id_b64: uint8ArrayToBase64(set.keyId),
+      envelope_version: 1,
+      envelopes: set.envelopes.map(toDto),
+    },
+    { silentError: true },
+  );
 }
 
 /** Remove one wrap — used when a passkey is deregistered. */
 export async function deleteEnvelope(id: string): Promise<void> {
-  await api.delete(`/keys/envelopes/${id}`);
+  await api.delete(`/keys/envelopes/${id}`, { silentError: true });
 }
 
 /**

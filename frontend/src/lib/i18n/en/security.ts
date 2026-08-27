@@ -42,6 +42,7 @@ export const security: Translations['security'] = {
         submit: 'Confirm',
         checking: 'Checking…',
         invalid: 'That code is not valid.',
+        expired: 'This sign-in has expired. Please start again.',
         chooserTitle: 'Second factor',
         chooserIntro: 'Choose how to finish signing in.',
     },
@@ -56,6 +57,23 @@ export const security: Translations['security'] = {
         working: 'Setting up…',
         invalid: 'That code does not match. Check that your device clock is correct.',
         failed: 'Setup could not be started.',
+    },
+    setupCodes: {
+        title: 'Save these codes',
+        intro:
+            'Both codes are shown only now. They do different jobs — keep both somewhere outside this browser.',
+        backupHeading: 'Backup codes — sign in without your phone',
+        backupPurpose:
+            'These stand in for the authenticator app when your phone is not available. Each code works exactly once.',
+        recoveryHeading: 'Recovery code — get back into your data',
+        recoveryPurpose:
+            'This decrypts your data if you forget your password. Nobody can do that for you, administrators included.',
+        warning:
+            'Without these codes, losing your phone or your password permanently costs you your account or your data.',
+        download: 'Save everything as a file',
+        fileName: 'examance-security-codes.txt',
+        confirmLabel: 'I have written the codes shown here down somewhere safe.',
+        done: 'Done',
     },
     backupCodes: {
         title: 'Backup codes',

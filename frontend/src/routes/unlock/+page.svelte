@@ -19,9 +19,8 @@
   import { get } from "svelte/store";
   import UnlockForm from "$lib/components/unlock/UnlockForm.svelte";
   import {
-    BackupCodeList,
-    RecoveryCodeDialog,
     RecoveryUnlockDialog,
+    SetupCodesDialog,
     TotpEnrollDialog,
     TotpFactor,
   } from "$lib/components/security";
@@ -70,6 +69,14 @@
   let factorErrorMsg = "";
   /** Backup codes from a just-completed enrollment, shown once. */
   let pendingBackupCodes: string[] | null = null;
+  /**
+   * Whether to show the codes.
+   *
+   * Separate from the codes themselves: the backup codes are minted several
+   * steps before the screen that shows them, and must not appear while the
+   * sign-in is still finishing.
+   */
+  let showSetupCodes = false;
   const canUsePasskeys = passkeysSupported();
   /**
    * The PRF secret from a passkey assertion, held until the vault is opened.
@@ -115,6 +122,13 @@
 
     isLoading = true;
     try {
+      // Starting a sign-in invalidates the session the browser had: the server
+      // demotes the access cookie to a pending scope and clears the refresh
+      // cookie. Client state has to follow, or an already-unlocked tab keeps
+      // rendering the app and every authenticated request it makes comes back
+      // 403 — which is exactly what a back-navigation to /unlock produced.
+      sessionStore.lock();
+
       // First factor. A correct password no longer produces a session: the
       // server answers with what is still outstanding.
       const step = await submitPassword(normalizedEmail, password);
@@ -232,9 +246,13 @@
     authStep = null;
 
     if (vault.newRecoveryCode) {
-      // Shown once, and the dashboard waits until it is acknowledged: this is
-      // the only copy of the factor that always works.
       pendingRecoveryCode = vault.newRecoveryCode;
+    }
+
+    if (pendingRecoveryCode || pendingBackupCodes) {
+      // Shown once, and the dashboard waits until they are acknowledged: these
+      // are the only copies of the two factors that always work.
+      showSetupCodes = true;
       return;
     }
 
@@ -254,6 +272,10 @@
     factorErrorMsg = "";
     isLoading = true;
     try {
+      // Same reason as in handleUnlock: the sign-in about to start demotes the
+      // cookie, so the previous session's client state cannot stay live.
+      sessionStore.lock();
+
       const trimmedBackendUrl = backendUrl.trim();
       if (trimmedBackendUrl) {
         backendStore.setTransient(trimmedBackendUrl);
@@ -292,10 +314,16 @@
       const step = useBackupCode ? await submitBackupCode(code) : await submitTotp(code);
       await handleAuthStep(step);
     } catch (err: any) {
+      const code = err instanceof ApiError ? err.code : "";
       factorErrorMsg =
-        err instanceof ApiError && err.code === "ERR_ACCOUNT_LOCKED"
+        code === "ERR_ACCOUNT_LOCKED"
           ? translate("errors.code.ERR_ACCOUNT_LOCKED")
-          : translate("security.factors.invalid");
+          : code === "ERR_STEP_EXPIRED"
+            // A wrong code is retryable and an expired step is not, so saying
+            // "that code is not valid" to both leaves the teacher retyping a
+            // correct code into a sign-in that has already ended.
+            ? translate("security.factors.expired")
+            : translate("security.factors.invalid");
     }
   }
 
@@ -306,12 +334,11 @@
    * needs.
    */
   async function handleEnrolled(backupCodes: string[]) {
+    // Held, not shown. The recovery code does not exist yet — it is minted when
+    // the key envelope is created a few steps from here — and showing the two
+    // sets in sequence is what made the second look like a repeat of the first.
     pendingBackupCodes = backupCodes;
     authStep = null;
-  }
-
-  async function handleBackupCodesAcknowledged() {
-    pendingBackupCodes = null;
     isLoading = true;
     try {
       await handleAuthStep(await submitPassword(email.trim().toLowerCase(), password));
@@ -320,6 +347,13 @@
     } finally {
       isLoading = false;
     }
+  }
+
+  async function handleSetupCodesAcknowledged() {
+    pendingBackupCodes = null;
+    pendingRecoveryCode = null;
+    showSetupCodes = false;
+    goto("/");
   }
 
   async function handleUnlockLocal() {
@@ -387,6 +421,7 @@
     pendingRecovery = null;
     // The code just used is spent; the replacement is shown once.
     pendingRecoveryCode = newCode;
+    showSetupCodes = true;
   }
 </script>
 
@@ -436,20 +471,14 @@
   <TotpEnrollDialog onEnrolled={handleEnrolled} />
 {/if}
 
-{#if pendingBackupCodes}
-  <BackupCodeList codes={pendingBackupCodes} onConfirm={handleBackupCodesAcknowledged} />
-{/if}
-
 {#if pendingRecovery}
   <RecoveryUnlockDialog onSubmit={handleRecovery} />
 {/if}
 
-{#if pendingRecoveryCode}
-  <RecoveryCodeDialog
-    code={pendingRecoveryCode}
-    onConfirm={() => {
-      pendingRecoveryCode = null;
-      goto("/");
-    }}
+{#if showSetupCodes}
+  <SetupCodesDialog
+    backupCodes={pendingBackupCodes}
+    recoveryCode={pendingRecoveryCode}
+    onConfirm={handleSetupCodesAcknowledged}
   />
 {/if}

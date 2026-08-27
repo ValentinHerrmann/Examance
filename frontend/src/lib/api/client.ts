@@ -183,9 +183,17 @@ async function request<T>(
     //
     // Deliberately *before* the 401 branch below: entering the refresh path
     // here would rotate a perfectly valid refresh token to no purpose.
-    sessionStore.lock();
-    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/unlock')) {
-      window.location.assign('/unlock');
+    // Not while the teacher is already on /unlock: enrollment runs there, and
+    // the enrollment scope is *expected* to be rejected by everything else.
+    // Locking mid-flow wipes sessionStorage and broadcasts SESSION_LOCKED to
+    // every other tab over a 403 that is doing its job.
+    const onUnlockPage =
+      typeof window !== 'undefined' && window.location.pathname.startsWith('/unlock');
+    if (!onUnlockPage) {
+      sessionStore.lock();
+      if (typeof window !== 'undefined') {
+        window.location.assign('/unlock');
+      }
     }
     await handleNonOkResponse(resp, true);
   }

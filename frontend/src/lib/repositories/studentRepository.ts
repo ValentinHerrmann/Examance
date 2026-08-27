@@ -18,13 +18,29 @@ export const studentRepository = {
     } else {
       try {
         const rawList = await api.get<any[]>('/students');
-        return rawList.map((st: any) => ({
-          pseudonymId: st.pseudonym_hmac || st.pseudonymId,
-          examId: st.exam_id || st.examId || '',
-          fallbackCode: st.fallback_code || st.fallbackCode,
-          piiCt: st.pii_ciphertext_b64 ? base64ToUint8Array(st.pii_ciphertext_b64) : new Uint8Array(0),
-          piiIv: st.iv_b64 ? base64ToUint8Array(st.iv_b64) : new Uint8Array(12),
-        }));
+        // Decrypted, like getByExamId does. Server rows carry only ciphertext,
+        // so skipping this returned students with no name, number or fallback
+        // code at all.
+        return Promise.all(
+          rawList.map((st: any) => {
+            const payloadCt = st.pii_ciphertext_b64
+              ? base64ToUint8Array(st.pii_ciphertext_b64)
+              : undefined;
+            const payloadIv = st.iv_b64 ? base64ToUint8Array(st.iv_b64) : undefined;
+            return decryptStudent(
+              {
+                pseudonymId: st.pseudonym_hmac || st.pseudonymId,
+                examId: st.exam_id || st.examId || '',
+                fallbackCode: st.fallback_code || st.fallbackCode,
+                piiCt: payloadCt || new Uint8Array(0),
+                piiIv: payloadIv || new Uint8Array(12),
+                payloadCt,
+                payloadIv,
+              },
+              key,
+            );
+          }),
+        );
       } catch {
         return [];
       }

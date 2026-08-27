@@ -40,6 +40,7 @@ export const security = {
         submit: 'Bestätigen',
         checking: 'Wird geprüft …',
         invalid: 'Dieser Code ist nicht gültig.',
+        expired: 'Diese Anmeldung ist abgelaufen. Bitte melden Sie sich erneut an.',
         chooserTitle: 'Zweiter Faktor',
         chooserIntro: 'Wählen Sie, womit Sie die Anmeldung abschließen möchten.',
     },
@@ -54,6 +55,23 @@ export const security = {
         working: 'Wird eingerichtet …',
         invalid: 'Dieser Code passt nicht. Prüfen Sie, ob die Uhrzeit Ihres Geräts korrekt ist.',
         failed: 'Die Einrichtung konnte nicht gestartet werden.',
+    },
+    setupCodes: {
+        title: 'Sichern Sie diese Codes',
+        intro:
+            'Beide Codes werden nur jetzt angezeigt. Sie haben unterschiedliche Aufgaben — bewahren Sie beide außerhalb des Browsers auf.',
+        backupHeading: 'Backup-Codes — Anmelden ohne Ihr Telefon',
+        backupPurpose:
+            'Ersetzen die Authenticator-App, wenn Sie keinen Zugriff auf Ihr Telefon haben. Jeder Code funktioniert genau einmal.',
+        recoveryHeading: 'Wiederherstellungscode — Zugriff auf Ihre Daten',
+        recoveryPurpose:
+            'Entschlüsselt Ihre Daten, wenn Sie Ihr Passwort vergessen. Das kann niemand für Sie übernehmen, auch die Administration nicht.',
+        warning:
+            'Ohne diese Codes verlieren Sie den Zugang zu Ihrem Konto oder Ihre Daten dauerhaft, wenn Ihnen Telefon oder Passwort abhandenkommen.',
+        download: 'Alles als Datei speichern',
+        fileName: 'examance-sicherheitscodes.txt',
+        confirmLabel: 'Ich habe die angezeigten Codes sicher notiert.',
+        done: 'Fertig',
     },
     backupCodes: {
         title: 'Backup-Codes',

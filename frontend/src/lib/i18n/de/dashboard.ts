@@ -1,4 +1,6 @@
 export const dashboard = {
+    loadFailed:
+        'Ihre Prüfungen konnten nicht vom Server geladen werden. Es wird angezeigt, was lokal vorliegt — das ist möglicherweise nicht alles. Melden Sie sich erneut an oder versuchen Sie es später noch einmal.',
     header: {
         title: 'Prüfungsübersicht',
         subtitle: 'Verwalten, bewerten und analysieren Sie Ihre Schulaufgaben',

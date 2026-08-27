@@ -1,6 +1,8 @@
 import type { Translations } from '../types';
 
 export const dashboard: Translations['dashboard'] = {
+    loadFailed:
+        'Your exams could not be loaded from the server. What is shown is what this device has locally, which may not be all of it. Sign in again, or try once more in a moment.',
     header: {
         title: 'Exams Dashboard',
         subtitle: 'Manage, grade, and analyze your Schulaufgabe exams',

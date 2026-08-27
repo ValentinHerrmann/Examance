@@ -17,7 +17,7 @@
   import { submissionRepository } from '$lib/repositories/submissionRepository';
   import { offlineQueue } from '$lib/services/offlineQueue';
   import { goto } from '$app/navigation';
-  import { translate } from '$lib/i18n';
+  import { t, translate } from '$lib/i18n';
 
   import DashboardSessionState from '$lib/components/dashboard/DashboardSessionState.svelte';
   import DashboardHeader from '$lib/components/dashboard/DashboardHeader.svelte';
@@ -30,6 +30,8 @@
 
 
   let exams: ExamRecord[] = [];
+  /** Set when the server refused the exam list, so the view can say so. */
+  let examsLoadFailed = false;
   let examStatsMap = new Map<string, { avgScore: number | null; count: number }>();
   let isImporting = false;
   let importStatus = '';
@@ -78,12 +80,16 @@
   });
 
   async function refreshExams() {
+    examsLoadFailed = false;
     const key = get(sessionStore).sessionKey;
     const localExams = await loadExamsEncrypted(key);
 
     if ($isAuthenticated && $storagePolicyStore.storageMode !== 'all-local') {
       try {
-        const remoteExamsRaw = (await api.get('/exams')) as any[];
+        // Silent: the catch below falls back to what is in IndexedDB and the
+        // banner reports the failure in place. The global modal on top of that
+        // is the same error told twice.
+        const remoteExamsRaw = (await api.get('/exams', { silentError: true })) as any[];
         const remoteExams: ExamRecord[] = remoteExamsRaw.map(mapApiToExamRecord);
 
         // Check offline queue for pending exam creations
@@ -202,7 +208,12 @@
         }
       } catch (apiErr) {
         console.warn('Failed to fetch remote exams, falling back to IDB:', apiErr);
+        // What is in IndexedDB, and an honest note that it is not everything.
+        // In all-server mode nothing is cached there, so without the banner a
+        // rejected request is indistinguishable from an empty account — which
+        // is how a session problem read as "all my data is gone".
         exams = localExams;
+        examsLoadFailed = true;
       }
     } else {
       exams = localExams;
@@ -351,7 +362,16 @@
           <RetentionModal {expiredExam} onExtend={handleExtendRetention} onDelete={handleDeleteExpiredExam} />
         {/if}
 
-        {#if exams.length === 0}
+        {#if examsLoadFailed}
+          <p
+            class="rounded-lg border border-line-strong bg-surface-sunken p-4 text-sm text-content"
+            role="alert"
+          >
+            {$t("dashboard.loadFailed")}
+          </p>
+        {/if}
+
+        {#if exams.length === 0 && !examsLoadFailed}
           <OnboardingEmptyState />
         {:else}
           <DashboardFilterBar
