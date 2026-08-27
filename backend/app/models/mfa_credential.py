@@ -49,8 +49,12 @@ class MfaBackupCode(Base):
     """
     A single-use stand-in for the authenticator app.
 
-    Stored as an Argon2id hash through the same helpers as passwords: these are
-    login credentials, and a database dump should not yield usable ones.
+    `code_hash` holds a keyed digest (`mfa_secret.backup_code_digest`), not a
+    password hash: a backup code is machine-generated with no dictionary behind
+    it, so Argon2id bought nothing and cost ten 64 MB hashes per issued set.
+    Sets issued before that change are Argon2id hashes and are still accepted —
+    they cannot be converted, since the plaintext is gone — and are replaced by
+    digests when the teacher regenerates.
     """
 
     __tablename__ = "mfa_backup_codes"

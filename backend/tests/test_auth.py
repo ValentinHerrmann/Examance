@@ -195,3 +195,71 @@ async def test_logout_clears_cookies(client: AsyncClient, db: AsyncSession) -> N
     client.cookies.update(resp.cookies)
     logout_resp = await client.post("/api/v1/auth/logout")
     assert logout_resp.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_a_refresh_cookie_cannot_skip_the_second_factor(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """
+    A refresh token minted for a half-finished sign-in must not become a session.
+
+    Refresh used to hand out a `full` access token unconditionally, so any
+    surviving refresh cookie — one left over from before the policy, or one a
+    browser did not drop when the sign-in demoted it — was a complete way around
+    the two-of-three rule.
+    """
+    from datetime import UTC, datetime
+
+    from app.models.refresh_token import RefreshToken
+    from app.services.jwt import create_refresh_token, decode_token
+
+    teacher = await _create_test_teacher(db, "stale-refresh@example.com")
+    await enrol_totp(db, teacher)
+
+    token, jti = create_refresh_token(
+        teacher.id, teacher.email, teacher.role, amr=["password"]
+    )
+    db.add(
+        RefreshToken(
+            jti=jti,
+            teacher_id=teacher.id,
+            expires_at=datetime.fromtimestamp(decode_token(token)["exp"], tz=UTC),
+        )
+    )
+    await db.commit()
+
+    client.cookies.set("refresh_token", token)
+    resp = await client.post("/api/v1/auth/refresh")
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "factor_required"
+    assert "refresh_token" not in resp.cookies
+
+
+@pytest.mark.asyncio
+async def test_a_refresh_token_without_amr_fails_closed(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """A token minted before `amr` existed carries no proven factors at all."""
+    from datetime import UTC, datetime
+
+    from app.models.refresh_token import RefreshToken
+    from app.services.jwt import create_refresh_token, decode_token
+
+    teacher = await _create_test_teacher(db, "amr-less@example.com")
+    await enrol_totp(db, teacher)
+
+    token, jti = create_refresh_token(teacher.id, teacher.email, teacher.role)
+    db.add(
+        RefreshToken(
+            jti=jti,
+            teacher_id=teacher.id,
+            expires_at=datetime.fromtimestamp(decode_token(token)["exp"], tz=UTC),
+        )
+    )
+    await db.commit()
+
+    client.cookies.set("refresh_token", token)
+    resp = await client.post("/api/v1/auth/refresh")
+    assert resp.json()["status"] == "factor_required"

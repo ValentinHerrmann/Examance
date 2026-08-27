@@ -40,7 +40,11 @@ Privacy-first, zero-knowledge-encrypted anonymous exam grading. LaTeX exams, QR-
 | `npm run test:e2e` | Playwright (not wired into `make`) |
 | `npm run sri:verify` | subresource-integrity check (also in CI) |
 
-Prefer `make` over hand-rolled `cd backend && ...`. `dev`/`build` run `predev`/`prebuild`, which fetch LaTeX/WASM assets — don't strip those.
+Prefer `make` over hand-rolled `cd backend && ...`. Run mypy through an env that has the
+**dev** extras (`uvx -p 3.12 --with-editable ".[dev]" mypy app`, from `backend/`): a bare
+`mypy` reports ~187 spurious untyped-decorator errors, and one without `[dev]` disagrees with
+CI about `redis` (the `types-redis` stubs make `Redis` generic, redis 8's own types do not).
+The real baseline is zero errors. `dev`/`build` run `predev`/`prebuild`, which fetch LaTeX/WASM assets — don't strip those.
 
 ## Token discipline
 

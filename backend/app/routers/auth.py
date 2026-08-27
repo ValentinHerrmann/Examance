@@ -340,7 +340,7 @@ async def advance_sign_in(
     access_token = create_access_token(
         teacher.id, teacher.email, teacher.role, scope="full", amr=amr
     )
-    refresh_jwt, jti = create_refresh_token(teacher.id, teacher.email, teacher.role)
+    refresh_jwt, jti = create_refresh_token(teacher.id, teacher.email, teacher.role, amr=amr)
     decoded = decode_token(refresh_jwt)
     db.add(
         RefreshToken(
@@ -375,7 +375,14 @@ async def advance_sign_in(
 
 
 async def _require_pending(session: PendingSession, *, allow_scopes: set[str]) -> None:
-    """Reject a pending token that is the wrong kind, or already spent."""
+    """
+    Reject a pending token that is the wrong kind, or already spent.
+
+    Consuming the token is what makes it single-use, so it happens here — but
+    only *after* the scope check, and the caller is responsible for handing the
+    teacher a fresh one when the factor itself turns out to be wrong. See
+    `_reissue_pending`: a mistyped code must cost an attempt, not the sign-in.
+    """
     if session.scope not in allow_scopes:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -386,8 +393,46 @@ async def _require_pending(session: PendingSession, *, allow_scopes: set[str]) -
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="This sign-in step has expired. Start again.",
-            headers={"code": "ERR_FACTOR_REQUIRED"},
+            headers={"code": "ERR_STEP_EXPIRED"},
         )
+
+
+async def _reissue_pending_headers(session: PendingSession) -> dict[str, str]:
+    """
+    Headers that hand back an equivalent pending token after a factor was rejected.
+
+    The single-use property exists so a captured token cannot be replayed to
+    collect a second factor twice. It was never meant to punish a typo — but
+    consuming it before verifying the code did exactly that: one wrong digit, or
+    a phone whose clock had drifted, burned the token and every retry then failed
+    as an expired step, with no way forward but reloading the page.
+
+    Returned as headers rather than set on the injected `Response` because these
+    paths all end in a raised `HTTPException`, and FastAPI merges that response
+    only on the success path — a cookie set there is silently dropped. Verified
+    by test, not assumed.
+
+    Only the access cookie is reissued: the refresh cookie was already cleared
+    when the sign-in started, and must stay cleared. Retries remain bounded by
+    the per-account throttle, which counts this failure.
+    """
+    token = create_access_token(
+        session.teacher.id,
+        session.teacher.email,
+        session.teacher.role,
+        scope=session.scope,
+        amr=session.amr,
+    )
+    await pending_token.register(decode_token(token).get("jti"))
+
+    carrier = Response()
+    carrier.set_cookie(
+        ACCESS_COOKIE,
+        token,
+        max_age=access_token_ttl_seconds(session.scope),
+        **_COOKIE_KWARGS,  # type: ignore[arg-type]
+    )
+    return {"set-cookie": carrier.headers["set-cookie"]}
 
 
 @router.post("/factor/totp", response_model=AuthResponse)
@@ -427,11 +472,12 @@ async def factor_totp(
             action="LOGIN_FAILED",
             request_ip=request.client.host if request.client else None,
         )
+        retry_headers = await _reissue_pending_headers(session)
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication code.",
-            headers={"code": "ERR_MFA_INVALID_CODE"},
+            headers={"code": "ERR_MFA_INVALID_CODE", **retry_headers},
         )
 
     await login_throttle.register_success(db, teacher.email, teacher)
@@ -468,11 +514,12 @@ async def factor_backup_code(
 
     if not await mfa_svc.consume_backup_code(db, teacher, body.code):
         await login_throttle.register_failure(db, teacher.email, teacher)
+        retry_headers = await _reissue_pending_headers(session)
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication code.",
-            headers={"code": "ERR_MFA_INVALID_CODE"},
+            headers={"code": "ERR_MFA_INVALID_CODE", **retry_headers},
         )
 
     await login_throttle.register_success(db, teacher.email, teacher)
@@ -607,9 +654,52 @@ async def refresh(
     if teacher is None:
         raise credentials_exc
 
+    # Re-check the policy rather than trusting the token.
+    #
+    # This used to mint a `full` access token unconditionally, which made the
+    # refresh cookie a way around the two-of-three rule entirely: anything
+    # holding one — a cookie left over from before the policy, or one a browser
+    # failed to drop when `_set_pending_cookie` deleted it — could upgrade a
+    # half-finished sign-in straight to a full session. The `amr` now travels on
+    # the refresh token, and an account whose factors have since been reset fails
+    # closed into enrollment instead of being handed a session.
+    amr = payload.get("amr") or []
+    if not isinstance(amr, list):
+        amr = []
+    amr = [str(factor) for factor in amr]
+
+    if not await auth_policy.is_enrollment_complete(db, teacher):
+        scope = "enroll"
+    elif auth_policy.satisfies(amr):
+        scope = "full"
+    else:
+        scope = "auth_pending"
+
+    if scope != "full":
+        token = create_access_token(
+            teacher.id, teacher.email, teacher.role, scope=scope, amr=amr
+        )
+        await pending_token.register(decode_token(token).get("jti"))
+        _set_pending_cookie(response, token, scope)
+        return AuthResponse(
+            id=teacher.id,
+            email=teacher.email,
+            role=teacher.role,
+            status="enroll_required" if scope == "enroll" else "factor_required",
+            satisfied=amr,
+            available=(
+                [] if scope == "enroll"
+                else await auth_policy.remaining_factors(db, teacher, amr)
+            ),
+        )
+
     # Issue new tokens
-    new_access = create_access_token(teacher.id, teacher.email, teacher.role)
-    new_refresh_jwt, new_jti = create_refresh_token(teacher.id, teacher.email, teacher.role)
+    new_access = create_access_token(
+        teacher.id, teacher.email, teacher.role, scope="full", amr=amr
+    )
+    new_refresh_jwt, new_jti = create_refresh_token(
+        teacher.id, teacher.email, teacher.role, amr=amr
+    )
     decoded = decode_token(new_refresh_jwt)
     new_rt = RefreshToken(
         jti=new_jti,
@@ -625,7 +715,14 @@ async def refresh(
         new_refresh_jwt,
         refresh_max_age=settings.REFRESH_TOKEN_TTL_DAYS * 86400,
     )
-    return AuthResponse(id=teacher.id, email=teacher.email, role=teacher.role)
+    return AuthResponse(
+        id=teacher.id,
+        email=teacher.email,
+        role=teacher.role,
+        status="ok",
+        satisfied=amr,
+        available=[],
+    )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

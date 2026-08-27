@@ -6,6 +6,7 @@ Everything that touches the stored secret lives here so the encryption boundary
 """
 from __future__ import annotations
 
+import hmac
 import secrets
 import time
 import uuid
@@ -18,8 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.mfa_credential import MfaBackupCode, MfaCredential
 from app.models.teacher import Teacher
 from app.services import totp as totp_svc
-from app.services.crypto import hash_password, verify_password
-from app.services.mfa_secret import decrypt_secret, encrypt_secret
+from app.services.crypto import verify_password
+from app.services.mfa_secret import backup_code_digest, decrypt_secret, encrypt_secret
 
 BACKUP_CODE_COUNT = 10
 
@@ -130,8 +131,8 @@ async def issue_backup_codes(db: AsyncSession, teacher: Teacher) -> list[str]:
     """
     Replace the teacher's backup codes and return the plaintext once.
 
-    Stored as Argon2id hashes: these are login credentials, and a database dump
-    should not hand over usable ones.
+    Stored as keyed digests — see `mfa_secret.backup_code_digest` for why that
+    is the right primitive here and Argon2id was not.
     """
     existing = await db.execute(
         select(MfaBackupCode).where(MfaBackupCode.teacher_id == teacher.id)
@@ -144,7 +145,7 @@ async def issue_backup_codes(db: AsyncSession, teacher: Teacher) -> list[str]:
         db.add(
             MfaBackupCode(
                 teacher_id=teacher.id,
-                code_hash=hash_password(normalize_backup_code(code)),
+                code_hash=backup_code_digest(normalize_backup_code(code)),
             )
         )
     await db.flush()
@@ -155,8 +156,14 @@ async def consume_backup_code(db: AsyncSession, teacher: Teacher, code: str) -> 
     """
     Spend one backup code.
 
-    Every unused code is checked even after a match, so the work done does not
-    reveal how many codes remain or which one was hit.
+    Looked up by keyed digest, so the work is one hash and one indexed read
+    however many codes are stored, and no comparison depends on the submitted
+    value.
+
+    Sets issued before the digest existed are Argon2id hashes and cannot be
+    converted — the plaintext is gone. Those are still verified row by row, so
+    the accounts holding them keep working; a set regenerated from the security
+    panel replaces them with digests and stops paying for it.
     """
     normalized = normalize_backup_code(code)
     if not normalized:
@@ -168,10 +175,20 @@ async def consume_backup_code(db: AsyncSession, teacher: Teacher, code: str) -> 
             MfaBackupCode.used_at.is_(None),
         )
     )
+    rows = list(result.scalars().all())
+    digest = backup_code_digest(normalized)
+
     matched: MfaBackupCode | None = None
-    for row in result.scalars().all():
-        if verify_password(normalized, row.code_hash) and matched is None:
+    for row in rows:
+        if hmac.compare_digest(row.code_hash, digest):
             matched = row
+            break
+
+    if matched is None:
+        legacy = [row for row in rows if row.code_hash.startswith("$argon2")]
+        for row in legacy:
+            if verify_password(normalized, row.code_hash) and matched is None:
+                matched = row
 
     if matched is None:
         return False

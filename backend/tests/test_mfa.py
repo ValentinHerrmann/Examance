@@ -192,3 +192,100 @@ async def test_only_admins_can_clear_factors(client: AsyncClient, db: AsyncSessi
     await sign_in(client, db, "not-an-admin@example.com")
     resp = await client.post(f"/api/v1/admin/users/{teacher.id}/reset-factors")
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_a_mistyped_code_can_be_retried(client: AsyncClient, db: AsyncSession) -> None:
+    """
+    One wrong digit costs an attempt, not the sign-in.
+
+    The pending token is single-use, and it used to be spent before the code was
+    checked — so a typo, or a phone whose clock had drifted, left every retry
+    reporting an expired step as "invalid code" with no way forward but a reload.
+    It is now consumed only by a factor that actually succeeds, and a failure
+    hands back an equivalent token to try again with.
+    """
+    email = "retry-totp@example.com"
+    teacher = await create_teacher(db, email)
+    secret = await enrol_totp(db, teacher)
+
+    first = await client.post(
+        "/api/v1/auth/login", json={"email": email, "password": DEFAULT_PASSWORD}
+    )
+    client.cookies.update(first.cookies)
+
+    wrong = await client.post("/api/v1/auth/factor/totp", json={"code": "000000"})
+    assert wrong.status_code == 401
+    assert wrong.headers.get("code") == "ERR_MFA_INVALID_CODE"
+    client.cookies.update(wrong.cookies)
+
+    right = await client.post(
+        "/api/v1/auth/factor/totp", json={"code": current_code(secret)}
+    )
+    assert right.status_code == 200, right.text
+    assert right.json()["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_a_spent_pending_token_says_the_step_expired(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """
+    Reusing the token a *successful* factor consumed is a different failure.
+
+    The frontend needs to tell the two apart: "try that code again" and "start
+    the sign-in over" are opposite instructions.
+    """
+    email = "spent-pending@example.com"
+    teacher = await create_teacher(db, email)
+    secret = await enrol_totp(db, teacher)
+
+    first = await client.post(
+        "/api/v1/auth/login", json={"email": email, "password": DEFAULT_PASSWORD}
+    )
+    pending = first.cookies["access_token"]
+
+    client.cookies.set("access_token", pending)
+    ok = await client.post(
+        "/api/v1/auth/factor/totp", json={"code": current_code(secret)}
+    )
+    assert ok.status_code == 200
+
+    client.cookies.set("access_token", pending)
+    replay = await client.post(
+        "/api/v1/auth/factor/totp", json={"code": current_code(secret)}
+    )
+    assert replay.status_code == 401
+    assert replay.headers.get("code") == "ERR_STEP_EXPIRED"
+
+
+@pytest.mark.asyncio
+async def test_a_backup_code_issued_under_the_old_hash_still_works(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """
+    Sets minted before the keyed digest cannot be converted — the plaintext is
+    gone — so they are still verified the old way. Dropping that would have
+    locked out every account holding codes issued before this change.
+    """
+    from app.models.mfa_credential import MfaBackupCode
+    from app.services.crypto import hash_password
+
+    email = "legacy-backup@example.com"
+    teacher = await create_teacher(db, email)
+    await enrol_totp(db, teacher)
+    db.add(
+        MfaBackupCode(teacher_id=teacher.id, code_hash=hash_password("ABCDEFGH23"))
+    )
+    await db.commit()
+
+    first = await client.post(
+        "/api/v1/auth/login", json={"email": email, "password": DEFAULT_PASSWORD}
+    )
+    client.cookies.update(first.cookies)
+
+    used = await client.post(
+        "/api/v1/auth/factor/backup-code", json={"code": "abcde-fgh23"}
+    )
+    assert used.status_code == 200, used.text
+    assert used.json()["status"] == "ok"

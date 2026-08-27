@@ -79,11 +79,18 @@ def access_token_ttl_seconds(scope: str) -> int:
     return minutes * 60
 
 
-def create_refresh_token(teacher_id: uuid.UUID, email: str, role: str) -> tuple[str, str]:
+def create_refresh_token(
+    teacher_id: uuid.UUID, email: str, role: str, *, amr: list[str] | None = None
+) -> tuple[str, str]:
     """
     Return (signed_jwt, jti) for a refresh token valid for REFRESH_TOKEN_TTL_DAYS.
 
     *jti* is the token's unique ID — stored in DB for revocation.
+
+    *amr* records which factors earned the session this token belongs to, and is
+    carried here rather than inferred at refresh time. A refresh that could not
+    see the original `amr` would have to assume one, and assuming "full" is how a
+    half-finished sign-in turns into a complete session.
     """
     from datetime import timedelta
 
@@ -97,6 +104,7 @@ def create_refresh_token(teacher_id: uuid.UUID, email: str, role: str) -> tuple[
         "iat": int(_now_utc().timestamp()),
         "jti": jti,
         "type": "refresh",
+        "amr": sorted(amr or []),
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM), jti
 
