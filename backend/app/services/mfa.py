@@ -123,6 +123,7 @@ async def verify_totp(db: AsyncSession, teacher: Teacher, code: str) -> bool:
         return False
 
     credential.last_used_step = step
+    credential.last_used_at = datetime.now(tz=UTC)
     await db.flush()
     return True
 
@@ -193,7 +194,16 @@ async def consume_backup_code(db: AsyncSession, teacher: Teacher, code: str) -> 
     if matched is None:
         return False
 
-    matched.used_at = datetime.now(tz=UTC)
+    now = datetime.now(tz=UTC)
+    matched.used_at = now
+
+    # A backup code stands in for the authenticator, so it counts as the
+    # authenticator having been used. `last_used_step` is left alone: that one
+    # guards code replay and a backup code is not a code.
+    credential = await get_credential(db, teacher.id)
+    if credential is not None:
+        credential.last_used_at = now
+
     await db.flush()
     return True
 

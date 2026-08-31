@@ -264,7 +264,8 @@ session cookies set.
 | `POST` | `/auth/factor/backup-code` | Spends a backup code in place of the authenticator. |
 | `POST` | `/auth/reset/start` | Opens a password reset with the emailed token. |
 | `POST` | `/auth/reset-password` | Sets the new password and, in the same transaction, the re-wrapped key. |
-| `GET` | `/mfa/status` | Enrolled factors, which of them are key-capable, backup codes left. |
+| `POST` | `/auth/change-password` | In-session password change. Full scope only, verifies the current password through the login throttle, and writes the re-wrapped key in the same transaction. Revokes every refresh token and re-issues this session's. |
+| `GET` | `/mfa/status` | Enrolled factors, which of them are key-capable, backup codes left, whether a recovery code is on file, and when each factor was added and last used. |
 | `POST` | `/mfa/totp/enroll` | Returns the `otpauth://` URI. The secret is shown once and never retrievable. |
 | `POST` | `/mfa/totp/confirm` | First correct code confirms the factor; returns the backup codes once. |
 | `POST` | `/mfa/backup-codes/regenerate` | Replaces the set; the previous codes stop working. |

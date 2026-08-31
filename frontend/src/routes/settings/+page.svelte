@@ -15,7 +15,6 @@
   import { onMount } from "svelte";
   import SettingsForm from "$lib/components/settings/SettingsForm.svelte";
   import GdprErasureTable from "$lib/components/settings/GdprErasureTable.svelte";
-  import { MfaPanel, PasskeyManager } from "$lib/components/security";
   import { exportStudentData, toDownloadableJson } from "$lib/gdpr/subjectAccess";
   import {
     locale,
@@ -136,12 +135,13 @@
 
     {#if $isAuthenticated}
       <!-- Server accounts only: a local vault has no sign-in factors. -->
-      <div class="mb-8 flex flex-col gap-8">
-        <MfaPanel />
-        {#if $sessionStore.teacherId}
-          <PasskeyManager teacherId={$sessionStore.teacherId} />
-        {/if}
-      </div>
+      <Card class="mb-8">
+        <h3 class="m-0 mb-2 text-accent">{$t("security.page.title")}</h3>
+        <p class="mt-0 mb-4 text-muted">{$t("security.page.subtitle")}</p>
+        <Button variant="secondary" onClick={() => goto("/settings/security")}>
+          {$t("security.page.open")}
+        </Button>
+      </Card>
     {/if}
 
     <GdprErasureTable

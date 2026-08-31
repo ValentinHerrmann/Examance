@@ -32,6 +32,21 @@ class ResetPasswordRequest(BaseModel):
     envelope: KeyEnvelopeSetIn | None = None
 
 
+class ChangePasswordRequest(BaseModel):
+    # Verified even though the session is already full-scope. The client needs it
+    # regardless — it is what unwraps the data key in order to re-wrap it — and
+    # requiring it is what stops a borrowed unlocked browser from changing the
+    # password out from under its owner.
+    current_password: str = Field(max_length=PASSWORD_MAX_LENGTH)
+    new_password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
+    # The whole envelope set, re-wrapped in the browser under the new password
+    # and written in the same transaction. Absent only when the client could not
+    # rebuild it, in which case the password wrap is marked stale instead — the
+    # account keeps working and the recovery code becomes the way back to the
+    # data.
+    envelope: KeyEnvelopeSetIn | None = None
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     # Bounded above only. A minimum here would let an attacker distinguish

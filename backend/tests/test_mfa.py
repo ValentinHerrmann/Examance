@@ -289,3 +289,52 @@ async def test_a_backup_code_issued_under_the_old_hash_still_works(
     )
     assert used.status_code == 200, used.text
     assert used.json()["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_status_reports_recovery_and_factor_activity(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """
+    What the security page renders per factor.
+
+    The dates are nullable on purpose: they were added after the factors were,
+    so an account that has been signing in for months can legitimately have
+    none, and the page says "not recorded" rather than inventing one.
+    """
+    email = "status-detail@example.com"
+    await sign_in(client, db, email)
+
+    before = (await client.get("/api/v1/mfa/status")).json()
+    assert before["has_recovery_code"] is False
+    assert before["recovery_created_at"] is None
+    # The sign-in that just happened wrote both.
+    assert before["password_last_used_at"] is not None
+    assert before["totp_last_used_at"] is not None
+    assert before["totp_created_at"] is not None
+    # Never changed, so never recorded.
+    assert before["password_changed_at"] is None
+
+    import base64
+
+    def _b64(value: bytes) -> str:
+        return base64.b64encode(value).decode()
+
+    envelope = {
+        "kind": "recovery",
+        "credential_id_b64": None,
+        "kdf": "argon2id",
+        "kdf_salt_b64": _b64(bytes(range(16))),
+        "kdf_params": {"t": 3, "m": 65536, "p": 4},
+        "wrapped_bundle_b64": _b64(b"\x03" * 120),
+        "wrap_iv_b64": _b64(bytes(range(12))),
+    }
+    put = await client.put(
+        "/api/v1/keys/envelopes",
+        json={"key_id_b64": _b64(b"\x04" * 16), "envelope_version": 1, "envelopes": [envelope]},
+    )
+    assert put.status_code == 200
+
+    after = (await client.get("/api/v1/mfa/status")).json()
+    assert after["has_recovery_code"] is True
+    assert after["recovery_created_at"] is not None

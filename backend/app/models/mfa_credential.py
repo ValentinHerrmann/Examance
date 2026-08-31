@@ -40,6 +40,13 @@ class MfaCredential(Base):
     # window.
     last_used_step: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # Wall-clock counterpart to `last_used_step`, for the security page. The step
+    # could be multiplied out, but only for codes — a backup code standing in for
+    # the authenticator moves this and not that.
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

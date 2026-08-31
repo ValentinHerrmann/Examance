@@ -1,4 +1,54 @@
 export const security = {
+    page: {
+        title: 'Anmeldung & Sicherheit',
+        subtitle:
+            'Womit Sie sich anmelden, was davon Ihre verschlüsselten Daten öffnen kann, und wie Sie beides ändern.',
+        open: 'Sicherheitseinstellungen öffnen',
+        backToSettings: 'Zurück zu den Einstellungen',
+        loading: 'Sicherheitsstatus wird geladen …',
+        localOnly:
+            'Dieser Arbeitsbereich ist rein lokal und hat kein Konto. Anmeldefaktoren gibt es erst mit einem Serverkonto.',
+        statusEnrolled: 'Eingerichtet',
+        statusMissing: 'Nicht eingerichtet',
+        added: 'Eingerichtet am {date}',
+        addedUnknown: 'Zeitpunkt der Einrichtung nicht erfasst',
+        lastUsed: 'Zuletzt verwendet am {date}',
+        lastUsedUnknown: 'Letzte Verwendung nicht erfasst',
+        neverUsed: 'Noch nie verwendet',
+        opensData: 'Öffnet auch Ihre verschlüsselten Daten.',
+        opensDataNot:
+            'Öffnet Ihre verschlüsselten Daten nicht — dafür sind Passwort, Passkey und Wiederherstellungscode zuständig.',
+        atMinimumWarning:
+            'Sie haben genau die erforderliche Zahl an Faktoren. Geht einer verloren, kann nur die Administration das Konto wieder freigeben — und zwar nur das Konto, nicht die Daten. Richten Sie nach Möglichkeit einen dritten Faktor ein.',
+        oneKeyCapableWarning:
+            'Nur ein eingerichteter Faktor kann Ihre verschlüsselten Daten öffnen. Bewahren Sie Ihren Wiederherstellungscode sorgfältig auf.',
+        backupCodesLow: 'Erzeugen Sie neue Backup-Codes, solange Sie noch angemeldet sind.',
+        totpMissing:
+            'Eine Authenticator-App erzeugt alle 30 Sekunden einen sechsstelligen Code. Sie zählt als einer der erforderlichen Faktoren.',
+        recoveryMissing:
+            'Für dieses Konto ist kein Wiederherstellungscode hinterlegt. Ohne ihn sind Ihre Daten verloren, wenn Sie Ihr Passwort vergessen und kein Passkey sie öffnen kann.',
+    },
+    password: {
+        change: 'Passwort ändern',
+        current: 'Aktuelles Passwort',
+        new: 'Neues Passwort',
+        confirm: 'Neues Passwort bestätigen',
+        hint: 'Mindestens {count} Zeichen.',
+        submit: 'Passwort ändern',
+        cancel: 'Abbrechen',
+        changed: 'Ihr Passwort wurde geändert.',
+        mismatch: 'Die beiden neuen Passwörter stimmen nicht überein.',
+        tooShort: 'Das neue Passwort muss mindestens {count} Zeichen lang sein.',
+        wrongCurrent: 'Das aktuelle Passwort ist nicht korrekt.',
+        failed: 'Das Passwort konnte nicht geändert werden.',
+        needsUnlock:
+            'Ihre Sitzung ist gesperrt. Melden Sie sich erneut an — ohne geöffneten Datenschlüssel lässt sich das Passwort nicht wechseln, ohne den Zugriff auf Ihre Daten zu verlieren.',
+        notSet: 'Für dieses Konto ist kein Passwort hinterlegt.',
+        wrapStale:
+            'Ihr Passwort öffnet Ihre verschlüsselten Daten derzeit nicht. Das passiert nach einem serverseitigen Zurücksetzen; Ihr Wiederherstellungscode stellt den Zugriff wieder her.',
+        otherSessions:
+            'Andere Geräte werden abgemeldet. Dieses Gerät bleibt angemeldet, und es wird nichts neu verschlüsselt.',
+    },
     recovery: {
         title: 'Wiederherstellungscode',
         intro:
@@ -13,6 +63,7 @@ export const security = {
         regenerate: 'Neuen Wiederherstellungscode erstellen',
         regenerateHint:
             'Der bisherige Code wird dabei ungültig. Nutzen Sie das, wenn Sie den alten Code verlegt haben.',
+        regenerateFailed: 'Es konnte kein neuer Wiederherstellungscode erstellt werden.',
         fileName: 'examance-wiederherstellungscode.txt',
     },
     unlock: {
@@ -85,8 +136,6 @@ export const security = {
         regenerate: 'Neue Backup-Codes erzeugen',
     },
     panel: {
-        title: 'Anmeldung & Sicherheit',
-        subtitle: 'Anmeldefaktoren, Backup-Codes und Wiederherstellung.',
         enrolled: 'Eingerichtete Faktoren',
         factorPassword: 'Passwort',
         factorTotp: 'Authenticator-App',
@@ -97,7 +146,6 @@ export const security = {
         policyIncomplete: 'Dieses Konto benötigt mindestens {count} Anmeldefaktoren.',
         addTotp: 'Authenticator-App einrichten',
         removeTotp: 'Authenticator-App entfernen',
-        removeBlocked: 'Dieser Faktor kann nicht entfernt werden, solange er der letzte verbliebene ist.',
         loadFailed: 'Der Sicherheitsstatus konnte nicht geladen werden.',
     },
     reset: {

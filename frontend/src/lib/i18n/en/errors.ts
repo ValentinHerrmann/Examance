@@ -18,6 +18,10 @@ export const errors: Translations['errors'] = {
         ERR_ORIGIN_REJECTED: 'Origin not allowed.',
         ERR_UNAUTHORIZED: 'Unauthorized.',
         ERR_NETWORK: 'Server unreachable.',
+        ERR_LAST_FACTOR_PROTECTED:
+            'That factor cannot be removed without losing access to the account or to your data.',
+        ERR_MFA_REQUIRED: 'This action needs a fully signed-in session.',
+        ERR_STEP_EXPIRED: 'This sign-in step has expired. Please start again.',
     },
 
     http: {

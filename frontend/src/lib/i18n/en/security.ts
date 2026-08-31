@@ -1,6 +1,56 @@
 import type { Translations } from '../types';
 
 export const security: Translations['security'] = {
+    page: {
+        title: 'Sign-in & security',
+        subtitle:
+            'What you sign in with, which of those can open your encrypted data, and how to change either.',
+        open: 'Open security settings',
+        backToSettings: 'Back to settings',
+        loading: 'Loading security status…',
+        localOnly:
+            'This workspace is local-only and has no account. Sign-in factors start with a server account.',
+        statusEnrolled: 'Set up',
+        statusMissing: 'Not set up',
+        added: 'Added on {date}',
+        addedUnknown: 'Date added not recorded',
+        lastUsed: 'Last used on {date}',
+        lastUsedUnknown: 'Last use not recorded',
+        neverUsed: 'Never used',
+        opensData: 'Also opens your encrypted data.',
+        opensDataNot:
+            'Does not open your encrypted data — your password, a passkey and the recovery code do that.',
+        atMinimumWarning:
+            'You have exactly the required number of factors. Lose one and only an administrator can restore the account — the account, not the data. Add a third factor if you can.',
+        oneKeyCapableWarning:
+            'Only one of your factors can open your encrypted data. Keep your recovery code somewhere safe.',
+        backupCodesLow: 'Generate new backup codes while you are still signed in.',
+        totpMissing:
+            'An authenticator app produces a six-digit code every 30 seconds. It counts as one of the required factors.',
+        recoveryMissing:
+            'This account has no recovery code on file. Without one, your data is lost if you forget your password and no passkey can open it.',
+    },
+    password: {
+        change: 'Change password',
+        current: 'Current password',
+        new: 'New password',
+        confirm: 'Confirm new password',
+        hint: 'At least {count} characters.',
+        submit: 'Change password',
+        cancel: 'Cancel',
+        changed: 'Your password has been changed.',
+        mismatch: 'The two new passwords do not match.',
+        tooShort: 'The new password must be at least {count} characters long.',
+        wrongCurrent: 'That is not your current password.',
+        failed: 'The password could not be changed.',
+        needsUnlock:
+            'Your session is locked. Sign in again — without an open data key, changing the password would cost you access to your data.',
+        notSet: 'This account has no password set.',
+        wrapStale:
+            'Your password does not currently open your encrypted data. That happens after a server-side reset; your recovery code restores access.',
+        otherSessions:
+            'Other devices are signed out. This one stays signed in, and nothing is re-encrypted.',
+    },
     recovery: {
         title: 'Recovery code',
         intro:
@@ -15,6 +65,7 @@ export const security: Translations['security'] = {
         regenerate: 'Generate a new recovery code',
         regenerateHint:
             'The previous code stops working. Use this if you have mislaid the old one.',
+        regenerateFailed: 'A new recovery code could not be created.',
         fileName: 'examance-recovery-code.txt',
     },
     unlock: {
@@ -87,8 +138,6 @@ export const security: Translations['security'] = {
         regenerate: 'Generate new backup codes',
     },
     panel: {
-        title: 'Sign-in & security',
-        subtitle: 'Sign-in factors, backup codes and recovery.',
         enrolled: 'Enrolled factors',
         factorPassword: 'Password',
         factorTotp: 'Authenticator app',
@@ -99,7 +148,6 @@ export const security: Translations['security'] = {
         policyIncomplete: 'This account needs at least {count} sign-in factors.',
         addTotp: 'Set up an authenticator app',
         removeTotp: 'Remove the authenticator app',
-        removeBlocked: 'That factor cannot be removed while it is the last one left.',
         loadFailed: 'The security status could not be loaded.',
     },
     reset: {

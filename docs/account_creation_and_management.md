@@ -60,7 +60,37 @@ password. Keep both.
 
 ---
 
-## 3. Self-Service Password Reset
+## 3. Sign-in & security (`/settings/security`)
+
+Everything about an account's factors lives on one page, reached from
+**Settings → Sign-in & security**. For each factor it shows whether it is set
+up, when it was added, when it last answered a sign-in, and — the part that is
+otherwise invisible — whether it can also *decrypt* the account's data. An
+authenticator cannot: its secret lives server-side and six digits carry no
+entropy to derive a key from. The page warns when an account sits at exactly the
+minimum number of factors, or has only one that can open its data.
+
+From there a teacher can:
+
+- **Change their password** without signing out. The data key is unwrapped in
+  the browser, re-wrapped under the new password, and written in the same
+  request as the password itself, so the two cannot end up disagreeing. Nothing
+  is re-encrypted, passkeys and the recovery code keep working, and the browser
+  making the change stays signed in — every other device is signed out.
+- **Set up or remove the authenticator**, and regenerate backup codes.
+- **Register or remove passkeys**, each labelled with whether its authenticator
+  supports PRF and can therefore open the data.
+- **Replace the recovery code.** The old one stops working. The code itself can
+  never be read back — the server holds a wrap it cannot open — so replacing it
+  is the only remedy for one that has been mislaid.
+
+Removing a factor is refused when it would leave the account below two factors,
+or below its last means of decrypting its own data. The refusal names which of
+the two rules it hit.
+
+---
+
+## 4. Self-Service Password Reset
 
 Users can request a password reset at any time:
 1. Navigate to `/forgot-password` on the frontend (or click **Forgot Password?** on the login page).
@@ -87,7 +117,7 @@ Users can request a password reset at any time:
 
 ---
 
-## 4. Admin-Forced Password Reset
+## 5. Admin-Forced Password Reset
 
 Admins can trigger a password reset for any existing user via the Admin UI or CLI:
 - **Admin UI**: Click **Reset Password** next to the user in **User Management**.
@@ -110,7 +140,7 @@ who could recover the data could also read it.
 
 ---
 
-## 5. Troubleshooting: Initial Admin Bootstrap
+## 6. Troubleshooting: Initial Admin Bootstrap
 
 If `POST /api/v1/auth/login` returns `401 Unauthorized` for the initial admin account configured in `.env`:
 
@@ -131,7 +161,7 @@ If `POST /api/v1/auth/login` returns `401 Unauthorized` for the initial admin ac
 
 ---
 
-## 6. Architectural Roadmap: Self-Registration with Admin Approval
+## 7. Architectural Roadmap: Self-Registration with Admin Approval
 
 The user management subsystem is designed to support self-registration in future releases:
 - Unapproved self-registered accounts will remain in a pending state with `password_hash = None`.

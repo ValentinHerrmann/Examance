@@ -7,13 +7,12 @@
    * unlock your encrypted data. Letting a teacher believe otherwise is how they
    * end up with an account they can reach and exams they cannot read.
    */
-  import { onMount } from "svelte";
   import { Button, Card, Field, TextInput } from "$lib/components/ui";
   import { t } from "$lib/i18n";
   import { fmt } from "$lib/utils/format";
+  import { ApiError } from "$lib/api/client";
   import {
     deletePasskey,
-    listPasskeys,
     loginOptions,
     registrationOptions,
     verifyRegistration,
@@ -25,22 +24,20 @@
   import { fromBase64url } from "$lib/crypto/aesGcm";
 
   export let teacherId: string;
+  /**
+   * Owned by the page, not fetched here.
+   *
+   * Registering or removing a passkey changes which factors the account has, so
+   * the factor summary has to move with it. A list this component loaded for
+   * itself is how the old settings page ended up showing a stale one.
+   */
+  export let passkeys: PasskeySummary[];
+  export let onChanged: () => void;
 
-  let passkeys: PasskeySummary[] = [];
   let nickname = "";
   let errorMsg = "";
   let isWorking = false;
   const supported = isSupported();
-
-  async function load() {
-    try {
-      passkeys = await listPasskeys();
-    } catch {
-      errorMsg = $t("security.passkey.failed");
-    }
-  }
-
-  onMount(load);
 
   async function add() {
     if (isWorking) {
@@ -80,7 +77,7 @@
       }
 
       nickname = "";
-      await load();
+      onChanged();
     } catch {
       errorMsg = $t("security.passkey.failed");
     } finally {
@@ -92,11 +89,16 @@
     errorMsg = "";
     try {
       await deletePasskey(credentialIdB64);
-      await load();
-    } catch {
+      onChanged();
+    } catch (err: unknown) {
       // The server refuses when this is the last factor keeping the account
-      // usable.
-      errorMsg = $t("security.passkey.removeBlocked");
+      // usable, and names the rule it hit — whether the account would fall below
+      // two factors, or below its last means of decrypting its own data. Those
+      // are different problems with different fixes, so pass the reason through.
+      errorMsg =
+        err instanceof ApiError && err.code === "ERR_LAST_FACTOR_PROTECTED"
+          ? err.message
+          : $t("security.passkey.removeBlocked");
     }
   }
 </script>

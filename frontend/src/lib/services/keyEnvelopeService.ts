@@ -7,7 +7,8 @@
  *    envelope it performs the one-time migration instead.
  *  - `openWithRecoveryCode` when the password is gone, which is what makes a
  *    password reset survivable.
- *  - `rewrapForNewPassword` after a password change or reset.
+ *  - `rewrapForNewPassword` / `rewrapForChangedPassword` after a reset or an
+ *    in-session password change.
  *
  * None of these re-encrypt anything. The data key stays the same across a
  * password change; only its wraps are rewritten.
@@ -282,6 +283,10 @@ export async function openWithRecoveryCode(
  * A fresh recovery code is issued at the same time: the old one either was just
  * spent recovering, or belongs to a password the teacher no longer uses.
  * Returns the code so the caller can show it exactly once.
+ *
+ * Passkey wraps are carried through, for the reason spelled out on
+ * `setWithReplacedWrap`: rebuilding the set from two secrets deletes the wraps
+ * for every factor those secrets do not cover.
  */
 export async function rewrapForNewPassword(
   teacherId: string,
@@ -289,16 +294,59 @@ export async function rewrapForNewPassword(
   newPassword: string,
 ): Promise<string> {
   const recoveryCode = generateRecoveryCode();
+  const existing = await fetchEnvelopes();
   const set = await buildSet(
     teacherId,
-    vault.keyId,
+    existing?.keyId ?? vault.keyId,
     { dek: vault.dek, fallback: vault.fallback, legacy: vault.legacy },
     newPassword,
     recoveryCode,
+    (existing?.envelopes ?? []).filter((e) => e.kind === 'passkey'),
   );
   await saveEnvelopes(set);
   await pinFingerprint(teacherId, set);
   return recoveryCode;
+}
+
+/**
+ * Rebuild exactly one Argon2id wrap, carrying every other one through untouched.
+ *
+ * The distinction this exists to enforce: `saveEnvelopes` replaces the whole set,
+ * and `buildSet` can only emit the wraps it is handed a secret for. So building a
+ * set to change *one* factor silently deletes the wraps for the others — a
+ * teacher's passkeys stop opening their vault, and nothing says so until the day
+ * they try. Only the named wrap is rebuilt here; the rest stay as the opaque
+ * ciphertext they are, holding the same data key.
+ */
+async function setWithReplacedWrap(
+  teacherId: string,
+  vault: OpenedVault,
+  kind: 'password' | 'recovery',
+  secret: string,
+): Promise<EnvelopeSet> {
+  const existing = await fetchEnvelopes();
+  const keyId = existing?.keyId ?? vault.keyId;
+  const kept = (existing?.envelopes ?? []).filter((e) => e.kind !== kind);
+
+  const salt = randomBytes(16);
+  const kek = await deriveSecretKek(secret, salt, kind);
+  const bundle = buildBundle(vault.dek, vault.fallback, vault.legacy);
+  const wrapped = await wrapBundle(kek, bundle, teacherId, kind, keyId);
+
+  const envelope: KeyEnvelope = {
+    kind,
+    credentialIdB64: null,
+    kdf: 'argon2id',
+    kdfSalt: salt,
+    kdfParams: { ...KEK_KDF_PARAMS },
+    ...wrapped,
+  };
+  // Prove the wrap opens before it becomes the only copy of anything.
+  if (!(await verifyWrap(kek, envelope, teacherId, keyId, vault.dek))) {
+    throw new Error(`The ${kind} wrap failed its own round-trip check.`);
+  }
+
+  return { keyId, envelopes: [...kept, envelope] };
 }
 
 /**
@@ -310,19 +358,35 @@ export async function rewrapForNewPassword(
 export async function regenerateRecoveryCode(
   teacherId: string,
   vault: OpenedVault,
-  password: string | null,
 ): Promise<string> {
   const recoveryCode = generateRecoveryCode();
-  const set = await buildSet(
+  const set = await setWithReplacedWrap(
     teacherId,
-    vault.keyId,
-    { dek: vault.dek, fallback: vault.fallback, legacy: vault.legacy },
-    password,
-    recoveryCode,
+    vault,
+    'recovery',
+    normalizeRecoveryCode(recoveryCode),
   );
   await saveEnvelopes(set);
   await pinFingerprint(teacherId, set);
   return recoveryCode;
+}
+
+/**
+ * Re-wrap the data key for an in-session password change.
+ *
+ * Returns the set rather than saving it: the server writes the password and its
+ * key copy in one transaction, so this travels inside the change-password
+ * request. The recovery wrap is carried through untouched — it cannot be rebuilt
+ * without the code's plaintext, which is gone, and it holds the same data key
+ * regardless. Pin the returned set with `pinEnvelopeSet` once the request
+ * succeeds.
+ */
+export async function rewrapForChangedPassword(
+  teacherId: string,
+  vault: OpenedVault,
+  newPassword: string,
+): Promise<EnvelopeSet> {
+  return setWithReplacedWrap(teacherId, vault, 'password', newPassword);
 }
 
 export { ENVELOPE_VERSION };
@@ -395,6 +459,11 @@ export async function materializeSession(
  *
  * Returns the fresh recovery code alongside, to be shown exactly once — the old
  * one was just spent getting here.
+ *
+ * Passkey wraps are carried through. Rebuilding the set from the password and
+ * the new code alone would drop them, and a teacher would come out of a reset
+ * with passkeys that still sign in and no longer open anything — a loss with no
+ * symptom until they next tried.
  */
 export async function buildResetEnvelopeSet(
   teacherId: string,
@@ -402,12 +471,14 @@ export async function buildResetEnvelopeSet(
   newPassword: string,
 ): Promise<{ set: EnvelopeSet; recoveryCode: string }> {
   const recoveryCode = generateRecoveryCode();
+  const existing = await fetchEnvelopes();
   const set = await buildSet(
     teacherId,
-    vault.keyId,
+    existing?.keyId ?? vault.keyId,
     { dek: vault.dek, fallback: vault.fallback, legacy: vault.legacy },
     newPassword,
     recoveryCode,
+    (existing?.envelopes ?? []).filter((e) => e.kind === 'passkey'),
   );
   return { set, recoveryCode };
 }

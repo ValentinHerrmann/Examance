@@ -222,6 +222,28 @@ export const help: Translations['help'] = {
                 p2: 'Data deletion removes individual student records (GDPR access and erasure requests) or the entire workspace. Deletion is final and cannot be undone.',
             },
         },
+        security: {
+            title: 'Sign-in & security',
+            summary: 'Check and change your factors, change your password, replace your codes.',
+            s1: {
+                h: 'What this page shows',
+                p1: 'For every factor it says whether it is set up, when it was last used, and whether it can also open your encrypted data. An authenticator app cannot: its secret lives on the server, and six digits carry no entropy to derive a key from.',
+            },
+            s2: {
+                h: 'Changing your password',
+                p1: 'You can change your password here directly, without going through "forgot password". Your data key is re-wrapped in the browser and stored together with the new password — nothing is re-encrypted, and you stay signed in.',
+                p2: 'Other devices are signed out. Your passkeys and your recovery code stay valid.',
+            },
+            s3: {
+                h: 'Backup codes and the recovery code',
+                p1: 'Backup codes stand in for the authenticator app when your phone is not to hand. Each works exactly once; generate new ones while you are still signed in.',
+                p2: 'The recovery code is a different thing: it opens your encrypted data if you forget your password. You can replace it here — the previous one stops working.',
+            },
+            s4: {
+                h: 'Removing a factor',
+                p1: 'A factor can only be removed while two would remain afterwards and at least one of those can open your data. When a removal is refused, the message says which of the two rules it hit.',
+            },
+        },
         accounts: {
             title: 'Accounts & roles',
             summary: 'When an account is needed, which roles exist, how passwords are reset.',

@@ -27,6 +27,17 @@ export interface MfaStatus {
   required_factor_count: number;
   complete: boolean;
   remaining_backup_codes: number;
+  /** Whether a usable recovery wrap exists. The code itself is unrecoverable. */
+  has_recovery_code: boolean;
+  recovery_created_at: string | null;
+  /**
+   * Per-factor activity. Null means the event predates these fields, not that it
+   * never happened — the page says so rather than showing a date it lacks.
+   */
+  password_changed_at: string | null;
+  password_last_used_at: string | null;
+  totp_created_at: string | null;
+  totp_last_used_at: string | null;
 }
 
 /** First factor: email + password. */
@@ -78,6 +89,24 @@ export async function regenerateBackupCodes(): Promise<string[]> {
 
 export async function disableTotp(): Promise<void> {
   await api.delete('/mfa/totp', { silentError: true });
+}
+
+/**
+ * Change the password of a signed-in account.
+ *
+ * The re-wrapped envelope set travels with it: the server writes the password
+ * and the key copy in one transaction, so the two cannot end up disagreeing.
+ */
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  envelope: Record<string, unknown> | null,
+): Promise<void> {
+  await api.post(
+    '/auth/change-password',
+    { current_password: currentPassword, new_password: newPassword, envelope },
+    { silentError: true },
+  );
 }
 
 

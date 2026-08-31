@@ -222,6 +222,28 @@ export const help = {
                 p2: 'Über die Datenlöschung lassen sich einzelne Schülerdaten (Auskunfts- und Löschansprüche nach DSGVO) oder der gesamte Arbeitsbereich entfernen. Das Löschen ist endgültig und kann nicht rückgängig gemacht werden.',
             },
         },
+        security: {
+            title: 'Anmeldung & Sicherheit',
+            summary: 'Faktoren prüfen und ändern, Passwort wechseln, Codes ersetzen.',
+            s1: {
+                h: 'Was diese Seite zeigt',
+                p1: 'Für jeden Faktor steht dort, ob er eingerichtet ist, wann er zuletzt verwendet wurde und ob er auch Ihre verschlüsselten Daten öffnen kann. Die Authenticator-App kann das nicht: Ihr Geheimnis liegt auf dem Server, und sechs Ziffern reichen nicht, um daraus einen Schlüssel abzuleiten.',
+            },
+            s2: {
+                h: 'Passwort ändern',
+                p1: 'Das Passwort lässt sich hier direkt wechseln, ohne den Weg über „Passwort vergessen“. Ihr Datenschlüssel wird dabei im Browser neu verpackt und zusammen mit dem neuen Passwort gespeichert — es wird nichts neu verschlüsselt, und Sie bleiben angemeldet.',
+                p2: 'Andere Geräte werden dabei abgemeldet. Ihre Passkeys und Ihr Wiederherstellungscode bleiben gültig.',
+            },
+            s3: {
+                h: 'Backup-Codes und Wiederherstellungscode',
+                p1: 'Backup-Codes ersetzen die Authenticator-App, wenn Sie Ihr Telefon nicht zur Hand haben. Jeder funktioniert genau einmal; erzeugen Sie neue, solange Sie angemeldet sind.',
+                p2: 'Der Wiederherstellungscode ist etwas anderes: Er öffnet Ihre verschlüsselten Daten, wenn Sie Ihr Passwort vergessen. Sie können ihn hier ersetzen — der bisherige wird dabei ungültig.',
+            },
+            s4: {
+                h: 'Faktor entfernen',
+                p1: 'Ein Faktor lässt sich nur entfernen, solange danach noch zwei übrig bleiben und mindestens einer davon Ihre Daten öffnen kann. Wird das Entfernen abgelehnt, steht in der Meldung, welche der beiden Regeln greift.',
+            },
+        },
         accounts: {
             title: 'Konten & Rollen',
             summary: 'Wann ein Konto nötig ist, welche Rollen es gibt, wie Passwörter zurückgesetzt werden.',

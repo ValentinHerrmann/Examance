@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import jwt
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -18,6 +18,7 @@ from app.models.teacher import Teacher
 from app.schemas.auth import (
     AuthResponse,
     BackupCodeRequest,
+    ChangePasswordRequest,
     ForgotPasswordRequest,
     LoginRequest,
     ResetPasswordRequest,
@@ -34,7 +35,7 @@ from app.services.jwt import (
     create_refresh_token,
     decode_token,
 )
-from app.services.key_envelope import replace_envelope_set
+from app.services.key_envelope import invalidate_password_wrap, replace_envelope_set
 from app.services.password_reset import (
     complete_password_reset,
     create_and_send_reset_token,
@@ -264,6 +265,119 @@ async def reset_password(
     return {"message": "Password has been successfully set. You can now log in."}
 
 
+@router.post("/change-password", status_code=status.HTTP_200_OK)
+@limiter.limit("5/hour")
+async def change_password(
+    body: ChangePasswordRequest,
+    request: Request,
+    response: Response,
+    session: PendingSession = Depends(get_pending_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """
+    Change the password of a signed-in account, keeping the session.
+
+    The alternative was signing out and going through the emailed reset, which
+    invalidates the password wrap and then asks for the recovery code to undo
+    the damage — an absurd amount of ceremony for a routine change. From an open
+    session the browser already holds the data key, so it can re-wrap it under
+    the new password and send both together.
+
+    Written in one transaction for the same reason the reset is: a password that
+    changed without its key copy looks like a working account right up until the
+    next sign-in opens a vault of blank fields.
+
+    The current password is verified through the same throttle as `/auth/login`.
+    Without that this endpoint would be a password oracle that skips the cooloff
+    — slower per guess, but unbounded.
+    """
+    if session.scope != "full":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="A full session is required.",
+            headers={"code": "ERR_MFA_REQUIRED"},
+        )
+
+    teacher = session.teacher
+    normalized_email = teacher.email.strip().lower()
+    await login_throttle.assert_not_locked(normalized_email, teacher)
+
+    stored_hash = teacher.password_hash
+    dummy_hash = "$argon2id$v=19$m=65536,t=3,p=4$fakesaltfakesalt$fakehashfakehashfakehashfakehash"
+    if not verify_password(body.current_password, stored_hash or dummy_hash) or stored_hash is None:
+        await login_throttle.register_failure(db, normalized_email, teacher)
+        await audit_svc.write(
+            db,
+            teacher_id=teacher.id,
+            teacher_email=teacher.email,
+            action="LOGIN_FAILED",
+            request_ip=request.client.host if request.client else None,
+        )
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="That is not your current password.",
+            headers={"code": "ERR_INVALID_CREDENTIALS"},
+        )
+
+    await login_throttle.register_success(db, normalized_email, teacher)
+
+    teacher.password_hash = hash_password(body.new_password)
+    teacher.password_changed_at = datetime.now(tz=UTC)
+
+    if body.envelope is not None:
+        await replace_envelope_set(db, teacher, body.envelope)
+    else:
+        # No re-wrap arrived, so the stored one no longer opens under this
+        # password and the server cannot fix that — it has never seen the key.
+        # Marking it stale is what sends the teacher to their recovery code
+        # rather than to a vault that silently reads as empty.
+        await invalidate_password_wrap(db, teacher.id)
+
+    # Every session goes, and this one is immediately re-issued. A teacher who
+    # changes their password from their own browser has not asked to be logged
+    # out of it — but the refresh cookie is path-scoped to `/auth/refresh` and so
+    # never reaches this endpoint, leaving no way to tell which stored token
+    # belongs to the caller. Revoking the lot and minting a replacement lands in
+    # the same place and is the stricter of the two: no token that predates the
+    # password change survives anywhere.
+    await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.teacher_id == teacher.id, RefreshToken.revoked.is_(False))
+        .values(revoked=True)
+    )
+
+    new_access = create_access_token(
+        teacher.id, teacher.email, teacher.role, scope="full", amr=session.amr
+    )
+    new_refresh, new_jti = create_refresh_token(
+        teacher.id, teacher.email, teacher.role, amr=session.amr
+    )
+    db.add(
+        RefreshToken(
+            jti=new_jti,
+            teacher_id=teacher.id,
+            expires_at=datetime.fromtimestamp(decode_token(new_refresh)["exp"], tz=UTC),
+        )
+    )
+    _set_auth_cookies(
+        response,
+        new_access,
+        new_refresh,
+        refresh_max_age=settings.REFRESH_TOKEN_TTL_DAYS * 86400,
+    )
+
+    await audit_svc.write(
+        db,
+        teacher_id=teacher.id,
+        teacher_email=teacher.email,
+        action="PASSWORD_CHANGED",
+        request_ip=request.client.host if request.client else None,
+    )
+
+    return {"message": "Password changed."}
+
+
 async def advance_sign_in(
     db: AsyncSession,
     request: Request,
@@ -288,6 +402,13 @@ async def advance_sign_in(
       come next, which is safe to disclose now that one has been proven.
     """
     amr = sorted({*already_presented, factor})
+
+    # Factor activity, for the security page. Recorded here because this is the
+    # one place every proven factor passes through; a passkey's own timestamp is
+    # written by the WebAuthn service, which is the only one that knows *which*
+    # credential answered.
+    if factor == "password":
+        teacher.password_last_used_at = datetime.now(tz=UTC)
 
     if flow == "reset_pending":
         # A reset collects its factors and then sets a password. It must never

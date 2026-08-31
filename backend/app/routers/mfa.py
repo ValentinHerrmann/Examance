@@ -9,11 +9,13 @@ stuck.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import PendingSession, get_pending_teacher
 from app.middleware.rate_limit import limiter
+from app.models.key_envelope import KeyEnvelope
 from app.schemas.mfa import (
     MfaBackupCodesResponse,
     MfaEnrollResponse,
@@ -43,17 +45,42 @@ async def mfa_status(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> MfaStatusResponse:
-    """What this account has enrolled, and whether that is enough to sign in."""
+    """
+    What this account has enrolled, and whether that is enough to sign in.
+
+    Also everything the security page needs to describe each factor: when it was
+    added, when it last answered, and whether a recovery code is on file. All of
+    it is about the *authenticated* account — nothing here is reachable before a
+    factor has been proven, which is what keeps it from being a profile oracle
+    for an arbitrary email address.
+    """
     _require_enrollment_scope(session)
     teacher = session.teacher
     enrolled = await auth_policy.enrolled_factors(db, teacher)
     capable = await auth_policy.key_capable_factors(db, teacher)
+
+    credential = await mfa_svc.get_credential(db, teacher.id)
+    recovery = await db.execute(
+        select(KeyEnvelope.created_at).where(
+            KeyEnvelope.teacher_id == teacher.id,
+            KeyEnvelope.kind == "recovery",
+            KeyEnvelope.invalidated_at.is_(None),
+        )
+    )
+    recovery_created_at = recovery.scalars().first()
+
     return MfaStatusResponse(
         enrolled=sorted(enrolled),
         key_capable=sorted(capable),
         required_factor_count=auth_policy.REQUIRED_FACTOR_COUNT,
         complete=len(enrolled) >= auth_policy.REQUIRED_FACTOR_COUNT,
         remaining_backup_codes=await mfa_svc.remaining_backup_codes(db, teacher.id),
+        has_recovery_code=recovery_created_at is not None,
+        recovery_created_at=recovery_created_at,
+        password_changed_at=teacher.password_changed_at,
+        password_last_used_at=teacher.password_last_used_at,
+        totp_created_at=credential.confirmed_at if credential is not None else None,
+        totp_last_used_at=credential.last_used_at if credential is not None else None,
     )
 
 

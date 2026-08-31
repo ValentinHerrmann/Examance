@@ -118,6 +118,7 @@ async def complete_password_reset(
 
     token_record.used_at = datetime.now(UTC)
     teacher.password_hash = hash_password(new_password)
+    teacher.password_changed_at = datetime.now(UTC)
 
     # The new password cannot open the old wrap, and the server has no way to
     # re-wrap: it never sees the data key. Marking the wrap stale is what makes
