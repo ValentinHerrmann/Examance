@@ -100,6 +100,11 @@ export const security: Translations['security'] = {
         chooserTitle: 'Second factor',
         chooserIntro: 'Choose how to finish signing in.',
     },
+    signingIn: {
+        title: 'Finishing sign-in …',
+        body: 'Your data is being decrypted in the browser. This takes a moment, and only happens at sign-in.',
+        as: 'Signed in as {email}',
+    },
     chooser: {
         passwordHint: "Enter this account's password.",
         totpHint: 'Enter a six-digit code from your authenticator app — or a backup code.',

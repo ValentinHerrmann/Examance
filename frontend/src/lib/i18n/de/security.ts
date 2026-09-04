@@ -98,6 +98,11 @@ export const security = {
         chooserTitle: 'Zweiter Faktor',
         chooserIntro: 'Wählen Sie, womit Sie die Anmeldung abschließen möchten.',
     },
+    signingIn: {
+        title: 'Anmeldung wird abgeschlossen …',
+        body: 'Ihre Daten werden im Browser entschlüsselt. Das dauert einen Moment und passiert nur bei der Anmeldung.',
+        as: 'Angemeldet als {email}',
+    },
     chooser: {
         passwordHint: 'Das Passwort dieses Kontos eingeben.',
         totpHint: 'Einen sechsstelligen Code aus Ihrer Authenticator-App eingeben — oder einen Backup-Code.',

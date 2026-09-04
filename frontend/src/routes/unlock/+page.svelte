@@ -22,6 +22,7 @@
     FactorChooser,
     RecoveryUnlockDialog,
     SetupCodesDialog,
+    SigningInStep,
     TotpEnrollDialog,
     VaultUnlockStep,
   } from "$lib/components/security";
@@ -86,6 +87,17 @@
    * passkey-plus-authenticator sign-in gets through the door and no further.
    */
   let vaultLocked: AuthStep | null = null;
+  /**
+   * Both factors are in and the vault is being opened.
+   *
+   * Rendered ahead of everything else, because "signed in, working" used to
+   * match no branch at all and fall through to the login form — for exactly as
+   * long as Argon2id took, which read as a sign-in that had failed and then
+   * inexplicably succeeded.
+   */
+  let isFinishing = false;
+  /** The account being signed in, for the panel that says so. */
+  let finishingEmail = "";
   const canUsePasskeys = passkeysSupported();
   /**
    * The PRF secret from a passkey assertion, held until the vault is opened.
@@ -183,15 +195,25 @@
    * factors are in and the vault can be opened.
    */
   async function handleAuthStep(step: AuthStep) {
-    authStep = step;
     factorErrorMsg = "";
 
     if (step.status !== "ok") {
       // Enrollment and the second factor are both rendered from `authStep`.
+      authStep = step;
       return;
     }
 
-    await openVault(step);
+    // Deliberately not stored: there is nothing to render from an "ok" step, and
+    // keeping the previous `factor_required` one is what lets the chooser come
+    // back — with its error visible — if opening the vault fails.
+    isFinishing = true;
+    finishingEmail = step.email;
+    try {
+      await openVault(step);
+    } catch (err) {
+      isFinishing = false;
+      throw err;
+    }
   }
 
   /**
@@ -227,6 +249,7 @@
       // not valid" about a code that was correct.
       vaultLocked = step;
       authStep = null;
+      isFinishing = false;
       return;
     }
 
@@ -239,6 +262,7 @@
         // recovery code is the way out of it.
         pendingRecovery = { teacherId: step.id, email: step.email, role: step.role };
         authStep = null;
+        isFinishing = false;
         return;
       }
       throw envelopeErr;
@@ -272,6 +296,7 @@
       // Shown once, and the dashboard waits until they are acknowledged: these
       // are the only copies of the two factors that always work.
       showSetupCodes = true;
+      isFinishing = false;
       return;
     }
 
@@ -370,6 +395,10 @@
     const normalizedEmail = step.email.trim().toLowerCase();
     const vault = await openWithPassword(step.id, normalizedEmail, entered);
     password = entered;
+    // Busy panel before the step is cleared, or the last stretch falls through
+    // to the login form again.
+    isFinishing = true;
+    finishingEmail = step.email;
     vaultLocked = null;
     await finishUnlock(step, normalizedEmail, vault);
   }
@@ -389,6 +418,8 @@
     const step = vaultLocked;
     const normalizedEmail = step.email.trim().toLowerCase();
     const vault = await openWithRecoveryCode(step.id, recoveryCode);
+    isFinishing = true;
+    finishingEmail = step.email;
     vaultLocked = null;
     await finishUnlock(step, normalizedEmail, vault);
   }
@@ -425,10 +456,15 @@
     // sets in sequence is what made the second look like a repeat of the first.
     pendingBackupCodes = backupCodes;
     authStep = null;
+    // Past the credentials already: the replay must not fall through to the
+    // login form either.
+    isFinishing = true;
+    finishingEmail = email.trim().toLowerCase();
     isLoading = true;
     try {
       await handleAuthStep(await submitPassword(email.trim().toLowerCase(), password));
     } catch (err: any) {
+      isFinishing = false;
       errorMsg = err?.message || translate("auth.unlock.errors.unlockFailed");
     } finally {
       isLoading = false;
@@ -512,7 +548,11 @@
 </script>
 
 <div class="unlock-container flex min-h-full flex-col items-center justify-center box-border px-4 py-8 sm:px-6 sm:py-12">
-  {#if authStep && authStep.status === "factor_required"}
+  {#if isFinishing}
+    <div class="w-full max-w-form rounded-xl border border-line bg-surface-raised p-5 sm:p-6">
+      <SigningInStep email={finishingEmail} />
+    </div>
+  {:else if authStep && authStep.status === "factor_required"}
     <!--
       One factor is in. The password stays in memory until the vault is open,
       so this step is rendered in place of the form rather than on a new route.
