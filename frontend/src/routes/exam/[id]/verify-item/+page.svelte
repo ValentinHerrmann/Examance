@@ -35,13 +35,18 @@
 
   let activeQueueItems: McDetectionItem[] = [];
   let currentIndex = -1;
+  let lastLoadToken = 0;
+  let lastLoadedKey = "";
 
-  $: if (browser && examId && submissionId && exerciseId && $sessionStore.sessionKey) {
+  $: currentItemKey = `${examId}:${submissionId}:${exerciseId}:${queueFilter}:${$sessionStore.sessionKey ? "unlocked" : "locked"}`;
+  $: if (browser && examId && submissionId && exerciseId && $sessionStore.sessionKey && currentItemKey !== lastLoadedKey) {
+    lastLoadedKey = currentItemKey;
     loadItemData();
   }
 
   afterNavigate(() => {
-    if (examId && submissionId && exerciseId && $sessionStore.sessionKey) {
+    if (examId && submissionId && exerciseId && $sessionStore.sessionKey && currentItemKey !== lastLoadedKey) {
+      lastLoadedKey = currentItemKey;
       loadItemData();
     }
   });
@@ -51,13 +56,11 @@
       await goto("/unlock");
       return;
     }
-    if (examId && submissionId && exerciseId && $sessionStore.sessionKey) {
-      await loadItemData();
-    }
   });
 
   async function loadItemData() {
     if (!examId || !submissionId || !exerciseId) return;
+    const thisToken = ++lastLoadToken;
     loading = true;
     errorMsg = "";
 
@@ -68,6 +71,36 @@
         loadExamMcExercises(examId, key),
         submissionRepository.getById(examId, submissionId, key),
       ]);
+
+      if (thisToken !== lastLoadToken) return;
+
+      const exercise = exercises.find((e) => e.id === exerciseId) || null;
+      if (!exercise) {
+        errorMsg = translate("scanning.verifyItem.exerciseNotFound");
+        loading = false;
+        return;
+      }
+
+      if (!submission) {
+        errorMsg = translate("scanning.verifyItem.submissionNotFound");
+        loading = false;
+        return;
+      }
+
+      let nextScanPdfBytes: Uint8Array | null = null;
+      if (submission.scanCt && submission.scanIv) {
+        try {
+          nextScanPdfBytes = await decrypt(key, submission.scanCt, submission.scanIv);
+        } catch (err) {
+          console.warn("Failed to decrypt scan PDF:", err);
+          nextScanPdfBytes = null;
+        }
+      }
+
+      if (thisToken !== lastLoadToken) return;
+
+      const scores = await loadScoresEncrypted(submissionId, key);
+      if (thisToken !== lastLoadToken) return;
 
       stats = verificationStats;
 
@@ -85,18 +118,7 @@
         (i) => i.submissionId === submissionId && i.exerciseId === exerciseId
       );
 
-      currentExercise = exercises.find((e) => e.id === exerciseId) || null;
-      if (!currentExercise) {
-        errorMsg = translate("scanning.verifyItem.exerciseNotFound");
-        loading = false;
-        return;
-      }
-
-      if (!submission) {
-        errorMsg = translate("scanning.verifyItem.submissionNotFound");
-        loading = false;
-        return;
-      }
+      currentExercise = exercise;
 
       const matchingItem = stats.items.find(
         (i) => i.submissionId === submissionId && i.exerciseId === exerciseId
@@ -105,24 +127,16 @@
         matchingItem?.studentLabel ||
         translate("scanning.verifyItem.submissionLabelFallback", { shortId: submissionId.slice(0, 8) });
 
-      if (submission.scanCt && submission.scanIv) {
-        try {
-          scanPdfBytes = await decrypt(key, submission.scanCt, submission.scanIv);
-        } catch (err) {
-          console.warn("Failed to decrypt scan PDF:", err);
-          scanPdfBytes = null;
-        }
-      } else {
-        scanPdfBytes = null;
-      }
-
-      const scores = await loadScoresEncrypted(submissionId, key);
+      scanPdfBytes = nextScanPdfBytes;
       currentScoreRecord = scores.find((s) => s.exerciseId === exerciseId) || null;
     } catch (err: any) {
+      if (thisToken !== lastLoadToken) return;
       console.error("Failed to load MC verification item:", err);
       errorMsg = err.message || translate("scanning.verifyItem.loadError");
     } finally {
-      loading = false;
+      if (thisToken === lastLoadToken) {
+        loading = false;
+      }
     }
   }
 
@@ -190,6 +204,7 @@
     <McItemVerificationCard
       exercise={currentExercise}
       {studentLabel}
+      {submissionId}
       scoreRecord={currentScoreRecord}
       {scanPdfBytes}
       currentIndex={currentIndex >= 0 ? currentIndex : 0}

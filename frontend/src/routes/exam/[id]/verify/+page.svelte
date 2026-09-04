@@ -38,13 +38,18 @@
   let isRerunningMc = false;
   let rerunMcMessage = "";
   let rerunMcError = "";
+  let lastRefreshId = 0;
+  let lastRefreshedKey = "";
 
-  $: if (browser && examId && $sessionStore.sessionKey) {
+  $: currentRefreshKey = `${examId}:${$sessionStore.sessionKey ? "unlocked" : "locked"}`;
+  $: if (browser && examId && $sessionStore.sessionKey && currentRefreshKey !== lastRefreshedKey) {
+    lastRefreshedKey = currentRefreshKey;
     refresh();
   }
 
   afterNavigate(() => {
-    if (examId && $sessionStore.sessionKey) {
+    if (examId && $sessionStore.sessionKey && currentRefreshKey !== lastRefreshedKey) {
+      lastRefreshedKey = currentRefreshKey;
       refresh();
     }
   });
@@ -54,22 +59,25 @@
       await goto("/unlock");
       return;
     }
-    if (examId && $sessionStore.sessionKey) {
-      await refresh();
-    }
   });
 
   async function refresh() {
     if (!examId) return;
+    const thisRefreshId = ++lastRefreshId;
     loading = true;
     errorMsg = "";
     try {
-      stats = await computeMcVerificationStats(examId, get(sessionStore).sessionKey);
+      const computedStats = await computeMcVerificationStats(examId, get(sessionStore).sessionKey);
+      if (thisRefreshId !== lastRefreshId) return;
+      stats = computedStats;
     } catch (err: any) {
+      if (thisRefreshId !== lastRefreshId) return;
       console.error("Failed to load MC verification data:", err);
       errorMsg = translate("scanning.verify.loadError", { message: err.message || err });
     } finally {
-      loading = false;
+      if (thisRefreshId === lastRefreshId) {
+        loading = false;
+      }
     }
   }
 
@@ -200,6 +208,12 @@
                     confidence: r.confidence,
                     source: "omr",
                     flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
+                    original: {
+                      confidence: r.confidence,
+                      selectedOptions: failed ? [] : [...r.selectedOptions],
+                      score: failed ? undefined : r.score,
+                      flaggedOptions: r.flaggedOptions.length > 0 ? [...r.flaggedOptions] : undefined,
+                    },
                     detections:
                       !failed && nonBlankBubbles.length > 0
                         ? {

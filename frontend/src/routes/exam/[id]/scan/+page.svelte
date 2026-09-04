@@ -988,6 +988,12 @@
               confidence: r.confidence,
               source: "omr",
               flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
+              original: {
+                confidence: r.confidence,
+                selectedOptions: failed ? [] : [...r.selectedOptions],
+                score: failed ? undefined : r.score,
+                flaggedOptions: r.flaggedOptions.length > 0 ? [...r.flaggedOptions] : undefined,
+              },
               detections:
                 !failed && r.bubbles.length > 0
                   ? {

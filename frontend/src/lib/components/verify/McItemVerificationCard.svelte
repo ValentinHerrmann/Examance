@@ -1,12 +1,18 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "$lib/db/schema";
-  import { applyMcCorrection, type McQuestionType } from "$lib/grading/mcScore";
+  import {
+    applyMcCorrection,
+    restoreOriginalDetection,
+    confirmDetection,
+    type McQuestionType,
+  } from "$lib/grading/mcScore";
   import { renderMcCrop } from "$lib/grading/mcCropRender";
   import { t, translate } from "$lib/i18n";
 
   export let exercise: ExerciseRecord;
   export let studentLabel: string;
+  export let submissionId: string = "";
   export let scoreRecord: ExerciseScoreRecord | null = null;
   export let scanPdfBytes: Uint8Array | null = null;
   export let currentIndex: number = 0;
@@ -28,6 +34,7 @@
   let loadingCrop = false;
   let cropError = "";
   let isSaving = false;
+  let cropRequestId = 0;
 
   $: {
     selectedOptions = scoreRecord?.selectedOptions ?? [];
@@ -44,23 +51,30 @@
 
   $: currentScore = scoreRecord?.score ?? 0;
 
-  // Redraws whenever the bubble positions OR their marked/blank state change —
-  // the overlay (checkmarks/boxes, drawn from `omrMeta`) needs to reflect a
-  // toggle immediately, same as the grading canvas. `renderMcCrop` hands
-  // pdf.js a disposable copy of `scanPdfBytes` internally, so re-rendering
-  // repeatedly with the same source bytes is safe.
-  $: cropKey = omrMeta?.detections
-    ? `${omrMeta.detections.pageIndex}:${omrMeta.detections.bubbles.map((b) => `${b.optionIndex}:${b.state}:${b.rect.join(",")}`).join("|")}`
-    : "";
+  // Redraws whenever the bubble positions OR their marked/blank state change,
+  // or when the active submission or exercise changes. Incorporating submissionId
+  // and exercise.id ensures template-key collisions across submissions are eliminated.
+  $: cropKey =
+    scanPdfBytes && omrMeta?.detections && submissionId && exercise?.id
+      ? `${submissionId}:${exercise.id}:${omrMeta.detections.pageIndex}:${omrMeta.detections.bubbles
+          .map((b) => `${b.optionIndex}:${b.state}:${b.rect.join(",")}`)
+          .join("|")}`
+      : "";
 
   let lastLoadedCropKey = "";
   $: {
-    if (scanPdfBytes && omrMeta?.detections && cropKey && cropKey !== lastLoadedCropKey) {
+    if (cropKey !== lastLoadedCropKey) {
       lastLoadedCropKey = cropKey;
-      loadCrop(scanPdfBytes, omrMeta.detections.pageIndex, omrMeta.detections.bubbles, omrMeta);
-    } else if (!cropKey) {
       cropDataUrl = null;
-      lastLoadedCropKey = "";
+      cropError = "";
+      if (scanPdfBytes && omrMeta?.detections && cropKey) {
+        loadCrop(
+          scanPdfBytes,
+          omrMeta.detections.pageIndex,
+          omrMeta.detections.bubbles,
+          omrMeta
+        );
+      }
     }
   }
 
@@ -70,21 +84,27 @@
     bubbles: Array<{ optionIndex: number; rect: [number, number, number, number] }>,
     currentOmrMeta: OmrScoreMeta
   ) {
+    const thisRequestId = ++cropRequestId;
     loadingCrop = true;
     cropError = "";
     try {
-      cropDataUrl = await renderMcCrop({
+      const url = await renderMcCrop({
         pdfBytes,
         pageIndex,
         bubbles,
         scale: 3.0,
         overlay: { exercise, omrMeta: currentOmrMeta },
       });
+      if (thisRequestId !== cropRequestId) return;
+      cropDataUrl = url;
     } catch (err: any) {
+      if (thisRequestId !== cropRequestId) return;
       console.error("Failed to render crop:", err);
       cropError = translate("scanning.itemCard.cropRenderError");
     } finally {
-      loadingCrop = false;
+      if (thisRequestId === cropRequestId) {
+        loadingCrop = false;
+      }
     }
   }
 
@@ -110,6 +130,61 @@
     } finally {
       isSaving = false;
     }
+  }
+
+  async function handleRestoreOriginal() {
+    if (!omrMeta?.original || isSaving) return;
+    const res = restoreOriginalDetection(
+      questionType,
+      correctAnswers,
+      exercise.penalty ?? 0,
+      exercise.maxPoints,
+      omrMeta
+    );
+    if (!res) return;
+
+    selectedOptions = res.nextSelectedOptions;
+    omrMeta = res.nextOmrMeta;
+
+    isSaving = true;
+    try {
+      await onSave(exercise.id, res.nextSelectedOptions, res.nextScore, res.nextOmrMeta);
+    } catch (err) {
+      console.error("Failed to restore original detection:", err);
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  async function handleConfirmAsCorrect() {
+    if (isSaving) return;
+    const res = confirmDetection(selectedOptions, currentScore, omrMeta);
+
+    selectedOptions = res.nextSelectedOptions;
+    omrMeta = res.nextOmrMeta;
+
+    isSaving = true;
+    try {
+      await onSave(exercise.id, res.nextSelectedOptions, res.nextScore, res.nextOmrMeta);
+    } catch (err) {
+      console.error("Failed to confirm detection:", err);
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  $: originalOptions = omrMeta?.original?.selectedOptions ?? null;
+  $: hasOriginal = originalOptions !== null;
+  $: isMatchesOriginal =
+    hasOriginal &&
+    originalOptions!.length === selectedOptions.length &&
+    originalOptions!.every((o) => selectedOptions.includes(o));
+
+  function formatOptionLabels(indices: number[]): string {
+    if (indices.length === 0) return translate("scanning.itemCard.originalNone");
+    return indices
+      .map((i) => (options[i] ? `${String.fromCharCode(65 + i)}` : `#${i + 1}`))
+      .join(", ");
   }
 </script>
 
@@ -174,9 +249,14 @@
     <div class="flex flex-col justify-between space-y-4">
       <div>
         <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-            {$t("scanning.itemCard.confirmAnswers")}
-          </span>
+          <div>
+            <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
+              {$t("scanning.itemCard.confirmAnswers")}
+            </span>
+            <span class="text-[0.7rem] text-slate-400">
+              {$t("scanning.itemCard.markedBoxesHelp")}
+            </span>
+          </div>
           <span class="text-xs font-bold font-mono text-emerald-400">
             {$t("scanning.itemCard.scoreLabel", { score: currentScore, maxPoints: exercise.maxPoints })}
           </span>
@@ -192,34 +272,90 @@
           </div>
         {/if}
 
+        {#if hasOriginal && !isMatchesOriginal}
+          <div class="mb-3 p-2 rounded bg-slate-900/80 border border-slate-700 flex items-center justify-between text-xs text-slate-400">
+            <span>{$t("scanning.itemCard.originalDetected", { options: formatOptionLabels(originalOptions ?? []) })}</span>
+            <button
+              type="button"
+              on:click={handleRestoreOriginal}
+              disabled={isSaving}
+              title={$t("scanning.itemCard.restoreOriginalTooltip")}
+              class="px-2 py-1 text-[0.7rem] font-medium rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {$t("scanning.itemCard.restoreOriginal")}
+            </button>
+          </div>
+        {/if}
+
         <div class="space-y-2">
           {#each options as opt, idx}
             {@const isSelected = selectedOptions.includes(idx)}
             {@const isCorrect = correctAnswers.includes(idx)}
             {@const isFlagged = flaggedOptions.has(idx)}
-            <button
-              type="button"
+            {@const letter = String.fromCharCode(65 + idx)}
+            <div
+              role="button"
+              tabindex="0"
               on:click={() => handleToggleOption(idx)}
-              disabled={isSaving}
-              class="w-full flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-all duration-150 cursor-pointer
+              on:keydown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleToggleOption(idx);
+                }
+              }}
+              class="w-full flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-all duration-150 cursor-pointer select-none
                 {isSelected ? 'border-sky-400 bg-sky-400/15 font-semibold' : 'border-slate-700 bg-slate-900 hover:border-slate-500'}
                 {isFlagged ? 'border-dashed border-amber-500' : ''}"
             >
-              <span class="flex-1 text-slate-200">{opt}</span>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-3 flex-1 min-w-0">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  disabled={isSaving}
+                  aria-label={$t("scanning.itemCard.checkboxLabel", { label: letter })}
+                  on:click|stopPropagation={() => handleToggleOption(idx)}
+                  class="h-4 w-4 rounded border-slate-600 bg-slate-800 text-sky-500 focus:ring-sky-400 cursor-pointer pointer-events-auto"
+                />
+                <span class="font-mono text-xs text-slate-400 font-bold">{letter}.</span>
+                <span class="text-slate-200 truncate">{opt}</span>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
                 {#if isSelected}
-                  <span class={isCorrect ? "text-emerald-400 font-bold" : "text-red-400 font-bold"}>
+                  <span class={isCorrect ? "text-emerald-400 font-bold text-xs" : "text-red-400 font-bold text-xs"}>
                     {isCorrect ? $t("scanning.itemCard.correct") : $t("scanning.itemCard.incorrect")}
                   </span>
                 {:else if isCorrect}
                   <span class="text-slate-500 text-[0.7rem]">{$t("scanning.itemCard.keyCorrect")}</span>
                 {/if}
                 {#if isFlagged}
-                  <span class="text-amber-400 font-bold" title={$t("scanning.itemCard.flaggedTitle")}>?</span>
+                  <span class="text-amber-400 font-bold text-xs" title={$t("scanning.itemCard.flaggedTitle")}>?</span>
                 {/if}
               </div>
-            </button>
+            </div>
           {/each}
+        </div>
+
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            on:click={handleConfirmAsCorrect}
+            disabled={isSaving}
+            title={$t("scanning.itemCard.confirmDetectionTooltip")}
+            class="px-3 py-1.5 text-xs font-medium rounded border border-emerald-600/50 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
+          >
+            <span>{$t("scanning.itemCard.confirmDetection")}</span>
+          </button>
+          {#if hasOriginal && !isMatchesOriginal}
+            <button
+              type="button"
+              on:click={handleRestoreOriginal}
+              disabled={isSaving}
+              title={$t("scanning.itemCard.restoreOriginalTooltip")}
+              class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-slate-900 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {$t("scanning.itemCard.restoreOriginal")}
+            </button>
+          {/if}
         </div>
       </div>
 

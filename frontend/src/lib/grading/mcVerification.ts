@@ -21,6 +21,34 @@ export interface McDetectionItem {
    * human to look at it, even though no bubbles could be read).
    */
   markedCount: number;
+  original?: {
+    confidence: "high" | "ambiguous" | "failed";
+    selectedOptions: number[];
+    score?: number;
+    flaggedOptions?: number[];
+  };
+  reviewedAt?: string;
+  isReviewed?: boolean;
+  isCorrected?: boolean;
+}
+
+export interface DetectionConfidenceQuality {
+  total: number;
+  reviewed: number;
+  confirmedUnchanged: number;
+  corrected: number;
+  accuracyRate: number; // percentage (0-100)
+}
+
+export interface DetectionQualityStats {
+  totalWithHistory: number;
+  totalReviewed: number;
+  overallInitialAccuracy: number; // percentage (0-100)
+  highConfidence: DetectionConfidenceQuality;
+  ambiguousConfidence: DetectionConfidenceQuality;
+  failedConfidence: DetectionConfidenceQuality;
+  falseConfidenceCount: number;
+  falseConfidenceRate: number; // percentage (0-100)
 }
 
 export interface McExerciseBreakdown {
@@ -57,6 +85,7 @@ export interface McVerificationStats {
   totalMarkedBoxes: number;
   perExercise: McExerciseBreakdown[];
   items: McDetectionItem[];
+  qualityStats: DetectionQualityStats;
 }
 
 /**
@@ -128,6 +157,17 @@ export async function computeMcVerificationStats(
       if (!ex || !sc.omrMeta) continue;
       const flaggedOptions = sc.omrMeta.flaggedOptions ?? [];
       const selectedOptions = sc.selectedOptions ?? [];
+
+      const orig = sc.omrMeta.original ?? (sc.omrMeta.source === "omr" ? {
+        confidence: sc.omrMeta.confidence,
+        selectedOptions: [...selectedOptions],
+        score: sc.score,
+        flaggedOptions: flaggedOptions.length > 0 ? [...flaggedOptions] : undefined,
+      } : undefined);
+
+      const isReviewed = sc.omrMeta.source === "manual" || !!sc.omrMeta.reviewedAt;
+      const isCorrected = orig && isReviewed ? !optionsEqual(orig.selectedOptions, selectedOptions) : false;
+
       items.push({
         submissionId: sub.id,
         exerciseId: sc.exerciseId,
@@ -138,6 +178,10 @@ export async function computeMcVerificationStats(
         flaggedOptions,
         selectedOptions,
         markedCount: detectionMarkedCount(sc.omrMeta.confidence, selectedOptions, flaggedOptions),
+        original: orig,
+        reviewedAt: sc.omrMeta.reviewedAt,
+        isReviewed,
+        isCorrected,
       });
     }
   }
@@ -148,6 +192,15 @@ export async function computeMcVerificationStats(
   let ambiguousQuestions = 0;
   let failedQuestions = 0;
   let totalMarkedBoxes = 0;
+
+  let totalReviewed = 0;
+  let overallConfirmedUnchanged = 0;
+  let totalWithHistory = 0;
+
+  const highQuality = { total: 0, reviewed: 0, confirmedUnchanged: 0, corrected: 0, accuracyRate: 100 };
+  const ambiguousQuality = { total: 0, reviewed: 0, confirmedUnchanged: 0, corrected: 0, accuracyRate: 100 };
+  const failedQuality = { total: 0, reviewed: 0, confirmedUnchanged: 0, corrected: 0, accuracyRate: 100 };
+
   for (const it of items) {
     let b = perExerciseMap.get(it.exerciseId);
     if (!b) {
@@ -163,7 +216,60 @@ export async function computeMcVerificationStats(
     if (it.confidence === "high") highQuestions += 1;
     else if (it.confidence === "ambiguous") ambiguousQuestions += 1;
     else failedQuestions += 1;
+
+    // Quality stats based on initial detection before verification
+    const origConf = it.original?.confidence ?? it.confidence;
+    if (it.original) {
+      totalWithHistory += 1;
+    }
+
+    const bucket =
+      origConf === "high"
+        ? highQuality
+        : origConf === "ambiguous"
+        ? ambiguousQuality
+        : failedQuality;
+
+    bucket.total += 1;
+
+    if (it.isReviewed) {
+      totalReviewed += 1;
+      bucket.reviewed += 1;
+      if (it.isCorrected) {
+        bucket.corrected += 1;
+      } else {
+        bucket.confirmedUnchanged += 1;
+        overallConfirmedUnchanged += 1;
+      }
+    }
   }
+
+  function calcRate(confirmed: number, reviewed: number): number {
+    if (reviewed === 0) return 100;
+    return Math.round((confirmed / reviewed) * 1000) / 10;
+  }
+
+  highQuality.accuracyRate = calcRate(highQuality.confirmedUnchanged, highQuality.reviewed);
+  ambiguousQuality.accuracyRate = calcRate(ambiguousQuality.confirmedUnchanged, ambiguousQuality.reviewed);
+  failedQuality.accuracyRate = calcRate(failedQuality.confirmedUnchanged, failedQuality.reviewed);
+
+  const overallInitialAccuracy = calcRate(overallConfirmedUnchanged, totalReviewed);
+  const falseConfidenceCount = highQuality.corrected;
+  const falseConfidenceRate =
+    highQuality.reviewed > 0
+      ? Math.round((falseConfidenceCount / highQuality.reviewed) * 1000) / 10
+      : 0;
+
+  const qualityStats: DetectionQualityStats = {
+    totalWithHistory,
+    totalReviewed,
+    overallInitialAccuracy,
+    highConfidence: highQuality,
+    ambiguousConfidence: ambiguousQuality,
+    failedConfidence: failedQuality,
+    falseConfidenceCount,
+    falseConfidenceRate,
+  };
 
   return {
     totalQuestions,
@@ -173,7 +279,15 @@ export async function computeMcVerificationStats(
     totalMarkedBoxes,
     perExercise: Array.from(perExerciseMap.values()),
     items,
+    qualityStats,
   };
+}
+
+function optionsEqual(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort((x, y) => x - y);
+  const sortedB = [...b].sort((x, y) => x - y);
+  return sortedA.every((val, idx) => val === sortedB[idx]);
 }
 
 /**
