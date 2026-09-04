@@ -37,7 +37,7 @@ export const auth = {
             connectToServer: 'Mit Cloud-Server verbinden',
             description: 'Prüfungen geräteübergreifend synchronisieren und mit dem Backend-Server Ihrer Einrichtung verbinden.',
             backendUrl: 'Backend-Server-URL',
-            backendUrlPlaceholder: 'z. B. http://localhost:8000',
+            backendUrlPlaceholder: 'localhost:8000',
             email: 'E-Mail',
             emailPlaceholder: 'lehrer@schule.example',
             password: 'Passwort',

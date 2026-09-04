@@ -138,7 +138,7 @@
   color: #cbd5e1;
 }
 
-.unlock-options-grid .form-group input {
+.unlock-options-grid .form-group input:not(.backend-url-field) {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -151,7 +151,7 @@
   color: #f8fafc;
 }
 
-.unlock-options-grid .form-group input:focus {
+.unlock-options-grid .form-group input:not(.backend-url-field):focus {
   outline: none;
   border-color: #38bdf8;
 }

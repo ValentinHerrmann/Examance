@@ -71,7 +71,20 @@ function computeCommitSha(): string {
 // defaults to the production API and a preview frontend to the preview API. It
 // is only a default — the value is revalidated by normalizeBackendUrl() and the
 // user can still point the app anywhere from the settings dialog.
-const DEFAULT_BACKEND_URL = process.env.PUBLIC_DEFAULT_BACKEND_URL ?? '';
+const PROD_BACKEND_URL =
+  process.env.PUBLIC_PROD_BACKEND_URL ?? 'https://api-examance.valentin-herrmann.com';
+const PREVIEW_BACKEND_URL =
+  process.env.PUBLIC_PREVIEW_BACKEND_URL ?? 'https://prev-api-examance.valentin-herrmann.com';
+
+function computeDefaultBackendUrl(): string {
+  if (process.env.PUBLIC_DEFAULT_BACKEND_URL) {
+    return process.env.PUBLIC_DEFAULT_BACKEND_URL;
+  }
+  const branch = process.env.CF_PAGES_BRANCH;
+  if (branch === 'release') return PROD_BACKEND_URL;
+  if (branch) return PREVIEW_BACKEND_URL;
+  return '';
+}
 
 export default defineConfig({
   plugins: [tailwindcss(), wasm(), topLevelAwait(), sveltekit()],
@@ -79,7 +92,9 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(computeAppVersion()),
     __APP_COMMIT_SHA__: JSON.stringify(computeCommitSha()),
     __REPO_URL__: JSON.stringify(REPO_URL),
-    __DEFAULT_BACKEND_URL__: JSON.stringify(DEFAULT_BACKEND_URL),
+    __DEFAULT_BACKEND_URL__: JSON.stringify(computeDefaultBackendUrl()),
+    __PROD_BACKEND_URL__: JSON.stringify(PROD_BACKEND_URL),
+    __PREVIEW_BACKEND_URL__: JSON.stringify(PREVIEW_BACKEND_URL),
   },
   test: {
     alias: {

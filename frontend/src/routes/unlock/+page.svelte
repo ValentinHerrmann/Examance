@@ -15,7 +15,6 @@
   import { api, ApiError } from "$lib/api/client";
   import { Argon2UnavailableError } from "$lib/crypto/keyDerivation";
   import { backendStore } from "$lib/stores/backendStore";
-  import { recordValue } from "$lib/utils/recentValues";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { get } from "svelte/store";
   import UnlockForm from "$lib/components/unlock/UnlockForm.svelte";
@@ -159,7 +158,6 @@
 
       // Save backend URL to localStorage ONLY after a factor was accepted
       backendStore.saveSuccessfulBackendUrl(trimmedBackendUrl);
-      recordValue("backend.url", trimmedBackendUrl);
 
       // Persist server mode configuration in browser if previously set to all-local
       if (get(storagePolicyStore).storageMode === "all-local") {
@@ -332,7 +330,17 @@
 
       const trimmedBackendUrl = backendUrl.trim();
       if (trimmedBackendUrl) {
-        backendStore.setTransient(trimmedBackendUrl);
+        try {
+          backendStore.setTransient(trimmedBackendUrl);
+        } catch (err: any) {
+          const errText = err?.message ?? translate("auth.unlock.errors.invalidBackendUrl");
+          if (inProgress) {
+            factorErrorMsg = errText;
+          } else {
+            errorMsg = errText;
+          }
+          return;
+        }
       }
 
       const options = await loginOptions();
