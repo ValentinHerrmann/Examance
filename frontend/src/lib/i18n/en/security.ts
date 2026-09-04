@@ -80,6 +80,9 @@ export const security: Translations['security'] = {
         skip: 'Continue without restoring',
         passkeyIntro: 'A PRF-capable passkey opens your data too — the reset only invalidated the password copy of the key.',
         usePasskey: 'Open with a passkey',
+        passkeyHasNoCopy: 'No copy of your key is stored for this passkey. It signs you in but cannot open your data — Sign-in & security says which of your passkeys can.',
+        passkeyFailed: 'That passkey could not be used. The prompt may have been cancelled.',
+        startFreshFailed: 'Starting fresh with a new data key failed.',
         startFreshWarning: 'This creates a new data key. Your existing exams, student data and grading stay permanently unreadable, even if you find the old code later. Passkeys you have registered will no longer open your data either, and have to be added again under Sign-in & security.',
         startFreshConfirm: 'Start fresh and give up the old data',
         skipWarning:

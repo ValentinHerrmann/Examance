@@ -21,8 +21,12 @@ export interface PasskeySummary {
   /** False means this passkey signs in but cannot open the encrypted data. */
   supports_prf: boolean;
   /**
-   * The PRF *input*, not its output. Public and fixed per credential, so the
-   * same authenticator always derives the same key-encryption key.
+   * A per-credential PRF input the server still generates and nothing reads.
+   *
+   * It cannot be the input the client uses: the salt has to be chosen before the
+   * ceremony, and at sign-in nobody yet knows which passkey will answer. Every
+   * ceremony uses `APP_PRF_SALT` instead. Kept because a per-credential value is
+   * the obvious basis for rotating PRF inputs later.
    */
   prf_salt_b64: string;
   created_at: string;

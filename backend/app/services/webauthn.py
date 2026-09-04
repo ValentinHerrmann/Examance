@@ -44,6 +44,11 @@ from app.services import ephemeral_store
 _CHALLENGE_PREFIX = "webauthn:challenge:"
 _CHALLENGE_TTL_SECONDS = 300
 
+# Generated per credential and currently unread: the client cannot use a
+# per-credential input, because the PRF salt has to be chosen before the ceremony
+# and a sign-in does not yet know which passkey will answer. It uses one
+# application-wide constant instead (see `webauthn/client.ts`). Kept because a
+# per-credential value is the obvious basis for rotating PRF inputs later.
 PRF_SALT_BYTES = 32
 
 

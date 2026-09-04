@@ -10,6 +10,7 @@
    */
   import { Button, Field, Modal, TextInput } from "$lib/components/ui";
   import { t } from "$lib/i18n";
+  import { EnvelopeFactorMissingError } from "$lib/services/keyEnvelopeService";
 
   export let onSubmit: (recoveryCode: string) => Promise<void>;
   /**
@@ -27,10 +28,36 @@
   export let onPasskey: (() => Promise<void>) | undefined = undefined;
 
   let showFreshConfirm = false;
-
   let recoveryCode = "";
   let isWorking = false;
   let errorMsg = "";
+
+  /**
+   * Run one of the alternative routes, reporting what went wrong.
+   *
+   * The button used to call the handler straight from `on:click`, so a rejection
+   * became an unhandled promise and the dialog showed nothing at all — the only
+   * evidence was in the console.
+   */
+  async function run(action: (() => Promise<void>) | undefined, fallbackMsg: string) {
+    if (!action) {
+      return;
+    }
+    errorMsg = "";
+    isWorking = true;
+    try {
+      await action();
+    } catch (err: unknown) {
+      // "No passkey copy of the key is stored" is a different answer from "the
+      // ceremony failed", and the teacher can act on the first one.
+      errorMsg =
+        err instanceof EnvelopeFactorMissingError
+          ? $t("security.unlock.passkeyHasNoCopy")
+          : fallbackMsg;
+    } finally {
+      isWorking = false;
+    }
+  }
 
   async function submit() {
     if (!recoveryCode.trim() || isWorking) {
@@ -74,7 +101,11 @@
     {#if onPasskey}
       <div class="border-t border-line pt-4">
         <p class="m-0 mb-2 text-sm text-muted">{$t("security.unlock.passkeyIntro")}</p>
-        <Button variant="secondary" disabled={isWorking} onClick={onPasskey}>
+        <Button
+          variant="secondary"
+          disabled={isWorking}
+          onClick={() => run(onPasskey, $t("security.unlock.passkeyFailed"))}
+        >
           {$t("security.unlock.usePasskey")}
         </Button>
       </div>
@@ -86,7 +117,11 @@
           <p class="m-0 mb-2 text-sm text-content" role="alert">
             {$t("security.unlock.startFreshWarning")}
           </p>
-          <Button variant="danger" disabled={isWorking} onClick={onStartFresh}>
+          <Button
+            variant="danger"
+            disabled={isWorking}
+            onClick={() => run(onStartFresh, $t("security.unlock.startFreshFailed"))}
+          >
             {$t("security.unlock.startFreshConfirm")}
           </Button>
         {:else}

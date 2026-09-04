@@ -78,6 +78,9 @@ export const security = {
         skip: 'Ohne Wiederherstellung fortfahren',
         passkeyIntro: 'Ein Passkey mit PRF-Unterstützung öffnet Ihre Daten ebenfalls — beim Zurücksetzen wurde nur die Passwort-Kopie des Schlüssels ungültig.',
         usePasskey: 'Mit Passkey öffnen',
+        passkeyHasNoCopy: 'Für diesen Passkey ist keine Schlüsselkopie hinterlegt. Er meldet Sie an, kann Ihre Daten aber nicht öffnen — sichtbar unter „Anmeldung & Sicherheit“.',
+        passkeyFailed: 'Der Passkey konnte nicht verwendet werden. Möglicherweise wurde die Abfrage abgebrochen.',
+        startFreshFailed: 'Der Neustart mit einem neuen Datenschlüssel ist fehlgeschlagen.',
         startFreshWarning: 'Damit wird ein neuer Datenschlüssel erzeugt. Ihre bisherigen Klausuren, Schülerdaten und Korrekturen bleiben dauerhaft unlesbar — auch wenn Sie den alten Code später wiederfinden. Bereits eingerichtete Passkeys öffnen Ihre Daten danach ebenfalls nicht mehr und müssen unter „Anmeldung & Sicherheit“ neu hinterlegt werden.',
         startFreshConfirm: 'Neu beginnen und alte Daten aufgeben',
         skipWarning:

@@ -20,8 +20,6 @@
   } from "$lib/api/webauthn";
   import { authenticate, isSupported, register } from "$lib/webauthn/client";
   import { addPasskeyWrap, vaultFromSession } from "$lib/services/keyEnvelopeService";
-  import { randomBytes } from "$lib/crypto/keyEnvelope";
-  import { fromBase64url } from "$lib/crypto/aesGcm";
 
   export let teacherId: string;
   /**
@@ -47,11 +45,12 @@
     errorMsg = "";
     try {
       const options = await registrationOptions();
-      // Registration only tells us *whether* PRF works here; the salt the server
-      // stores is what the actual secret is derived from, and we do not know it
-      // until the credential exists. So the probe uses a throwaway value and the
-      // wrap below runs a real assertion against the stored salt.
-      const result = await register(options, randomBytes(32));
+      // Registration reports whether PRF works here; it does not hand back the
+      // secret, so the wrap below still needs one assertion. Both ceremonies use
+      // the same application-wide PRF input, which is what makes the secret
+      // reproducible at sign-in — the salt used to be per credential, and no
+      // sign-in could know it before the ceremony.
+      const result = await register(options);
 
       const summary = await verifyRegistration({
         handle: options.handle,
@@ -67,10 +66,7 @@
         // this passkey can also open the vault. The secret is derived inside the
         // authenticator and never leaves this browser.
         const assertOptions = await loginOptions();
-        const assertion = await authenticate(
-          assertOptions,
-          fromBase64url(summary.prf_salt_b64),
-        );
+        const assertion = await authenticate(assertOptions);
         if (assertion.prfOutput) {
           await addPasskeyWrap(teacherId, vault, summary.credential_id_b64, assertion.prfOutput);
         }

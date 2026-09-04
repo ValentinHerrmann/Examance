@@ -52,7 +52,12 @@ inconvenience; with exactly two, losing one is a lockout that only an
 administrator can clear, and only by resetting the factors — not the data.
 
 **A passkey signs you in; it does not always open your data.** That needs the
-WebAuthn PRF extension, which not every authenticator implements. Sign in with a
+WebAuthn PRF extension, which not every authenticator implements. Every ceremony
+asks for the PRF secret using one application-wide input — a public
+domain-separation value, not a secret; the derived secret is still unique per
+credential because the authenticator's PRF key is. A per-credential input cannot
+work: it would have to be chosen before the ceremony, and a sign-in does not yet
+know which passkey will answer. Sign in with a
 non-PRF passkey plus an authenticator code and both factors are genuinely
 proven, but nothing in that pair can unwrap the encryption key — so the app asks
 once for your password, or your recovery code, to decrypt. **Settings →

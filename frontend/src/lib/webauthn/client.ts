@@ -12,8 +12,24 @@
 
 import { fromBase64url, toArrayBuffer, toBase64url } from '$lib/crypto/aesGcm';
 
-/** The PRF input. Fixed per credential, public, and stored server-side. */
-export type PrfSalt = Uint8Array;
+/**
+ * The PRF input, fixed for the whole application.
+ *
+ * It has to be supplied *before* the ceremony, and at sign-in nobody yet knows
+ * which passkey will answer — `/webauthn/login/options` takes no account
+ * identifier on purpose, so it cannot hand back a per-credential value. That is
+ * why the sign-in paths used to pass nothing at all, which meant the extension
+ * was never requested and no passkey could ever open the vault.
+ *
+ * A constant is the right answer rather than a compromise: a PRF salt is a
+ * public domain-separation input, not a secret. The derived secret is still
+ * unique per credential, because the authenticator's PRF key is per credential
+ * and scoped to the relying party. Per-wrap randomness is unaffected —
+ * `addPasskeyWrap` generates its own random HKDF salt for the envelope.
+ */
+export const APP_PRF_SALT: Uint8Array = new TextEncoder().encode(
+  'examance-passkey-prf-v1--------',
+);
 
 export function isSupported(): boolean {
   return typeof window !== 'undefined' && 'PublicKeyCredential' in window;
@@ -46,7 +62,7 @@ interface ServerOptions {
  * py_webauthn hands us JSON with base64url fields; `navigator.credentials`
  * wants ArrayBuffers. This walks the known binary fields rather than guessing.
  */
-function decodeCreationOptions(json: string, prfSalt?: PrfSalt): CredentialCreationOptions {
+export function decodeCreationOptions(json: string): CredentialCreationOptions {
   const parsed = JSON.parse(json);
   const publicKey: PublicKeyCredentialCreationOptions = {
     ...parsed,
@@ -59,16 +75,16 @@ function decodeCreationOptions(json: string, prfSalt?: PrfSalt): CredentialCreat
       }),
     ),
   };
-  if (prfSalt) {
-    // Asking at registration is how we learn whether PRF is available at all.
-    (publicKey as PublicKeyCredentialCreationOptions & { extensions?: unknown }).extensions = {
-      prf: { eval: { first: toArrayBuffer(prfSalt) } },
-    };
-  }
+  // Unconditional. Asking at registration is how we learn whether PRF works
+  // here at all, and there is deliberately no call shape left that asks for
+  // nothing — that shape is what made every sign-in silently keyless.
+  (publicKey as PublicKeyCredentialCreationOptions & { extensions?: unknown }).extensions = {
+    prf: { eval: { first: toArrayBuffer(APP_PRF_SALT) } },
+  };
   return { publicKey };
 }
 
-function decodeRequestOptions(json: string, prfSalt?: PrfSalt): CredentialRequestOptions {
+export function decodeRequestOptions(json: string): CredentialRequestOptions {
   const parsed = JSON.parse(json);
   const publicKey: PublicKeyCredentialRequestOptions = {
     ...parsed,
@@ -80,11 +96,9 @@ function decodeRequestOptions(json: string, prfSalt?: PrfSalt): CredentialReques
       }),
     ),
   };
-  if (prfSalt) {
-    (publicKey as PublicKeyCredentialRequestOptions & { extensions?: unknown }).extensions = {
-      prf: { eval: { first: toArrayBuffer(prfSalt) } },
-    };
-  }
+  (publicKey as PublicKeyCredentialRequestOptions & { extensions?: unknown }).extensions = {
+    prf: { eval: { first: toArrayBuffer(APP_PRF_SALT) } },
+  };
   return { publicKey };
 }
 
@@ -148,12 +162,9 @@ export interface RegistrationResult {
 }
 
 /** Run a registration ceremony. Throws if the user cancels or it is unsupported. */
-export async function register(
-  options: ServerOptions,
-  prfSalt: PrfSalt,
-): Promise<RegistrationResult> {
+export async function register(options: ServerOptions): Promise<RegistrationResult> {
   const credential = (await navigator.credentials.create(
-    decodeCreationOptions(options.options_json, prfSalt),
+    decodeCreationOptions(options.options_json),
   )) as PublicKeyCredential | null;
   if (!credential) {
     throw new Error('The passkey registration was cancelled.');
@@ -170,13 +181,10 @@ export interface AssertionResult {
   prfOutput: Uint8Array | null;
 }
 
-/** Run an authentication ceremony, optionally asking for the PRF secret. */
-export async function authenticate(
-  options: ServerOptions,
-  prfSalt?: PrfSalt,
-): Promise<AssertionResult> {
+/** Run an authentication ceremony, always asking for the PRF secret. */
+export async function authenticate(options: ServerOptions): Promise<AssertionResult> {
   const credential = (await navigator.credentials.get(
-    decodeRequestOptions(options.options_json, prfSalt),
+    decodeRequestOptions(options.options_json),
   )) as PublicKeyCredential | null;
   if (!credential) {
     throw new Error('The passkey sign-in was cancelled.');

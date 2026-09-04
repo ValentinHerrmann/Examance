@@ -589,7 +589,10 @@
     const options = await loginOptions();
     const assertion = await authenticate(options);
     if (!assertion.prfOutput) {
-      throw new Error("This passkey cannot derive a key on this device.");
+      // The authenticator answered without a PRF result, so it does not
+      // implement the extension. Reported as the missing wrap it amounts to, so
+      // the dialog can say which passkeys *can* open the data.
+      throw new EnvelopeFactorMissingError("passkey");
     }
     const parsed = JSON.parse(assertion.credentialJson) as { rawId: string };
     const vault = await openWithPasskey(teacherId, parsed.rawId, assertion.prfOutput);
