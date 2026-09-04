@@ -100,6 +100,10 @@ export const security: Translations['security'] = {
         chooserTitle: 'Second factor',
         chooserIntro: 'Choose how to finish signing in.',
     },
+    lockout: {
+        title: 'Too many failed attempts',
+        retryIn: 'You can try again in {time}.',
+    },
     signingIn: {
         title: 'Finishing sign-in …',
         body: 'Your data is being decrypted in the browser. This takes a moment, and only happens at sign-in.',

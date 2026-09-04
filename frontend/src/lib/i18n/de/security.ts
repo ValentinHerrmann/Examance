@@ -98,6 +98,10 @@ export const security = {
         chooserTitle: 'Zweiter Faktor',
         chooserIntro: 'Wählen Sie, womit Sie die Anmeldung abschließen möchten.',
     },
+    lockout: {
+        title: 'Zu viele fehlgeschlagene Versuche',
+        retryIn: 'Sie können es in {time} erneut versuchen.',
+    },
     signingIn: {
         title: 'Anmeldung wird abgeschlossen …',
         body: 'Ihre Daten werden im Browser entschlüsselt. Das dauert einen Moment und passiert nur bei der Anmeldung.',

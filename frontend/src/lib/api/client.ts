@@ -13,6 +13,7 @@ import { sessionStore } from '$lib/stores/session';
 import { translate, translateOptional } from '$lib/i18n';
 import { backendStore } from '$lib/stores/backendStore';
 import { httpErrorStore } from '$lib/stores/httpErrorStore';
+import { loginLockout } from '$lib/stores/loginLockout';
 
 // Every fetch() below is bounded. Without this, a stalled connection (a
 // mobile network hiccup, a backend that accepts the connection but never
@@ -43,11 +44,29 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     public code: string,
-    message: string
+    message: string,
+    /**
+     * Seconds until the request would be accepted again, from `Retry-After`.
+     *
+     * Only ever set on a 429. The login cooloff runs from one minute to an
+     * hour depending on how many attempts preceded it, so "try again later"
+     * without this number is not an answer.
+     */
+    public retryAfterSeconds: number | null = null
   ) {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+/** `Retry-After` in seconds, or null when absent or not a plain count. */
+function parseRetryAfter(response: Response): number | null {
+  const raw = response.headers.get('Retry-After');
+  if (!raw) {
+    return null;
+  }
+  const seconds = Number(raw);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
 }
 
 async function parseError(response: Response): Promise<ApiError> {
@@ -68,7 +87,12 @@ async function parseError(response: Response): Promise<ApiError> {
     // The backend ships an English `detail` next to a machine-readable `code`.
     // Prefer a localized message for known codes and keep the server text as
     // the fallback so unmapped errors stay diagnosable.
-    return new ApiError(response.status, code, translateOptional(`errors.code.${code}`) ?? detailStr);
+    return new ApiError(
+      response.status,
+      code,
+      translateOptional(`errors.code.${code}`) ?? detailStr,
+      parseRetryAfter(response),
+    );
   } catch {
     // No JSON body (or unparseable) — the header may still carry the code.
     const headerCode = response.headers.get('code') ?? 'ERR_UNKNOWN';
@@ -76,6 +100,7 @@ async function parseError(response: Response): Promise<ApiError> {
       response.status,
       headerCode,
       translateOptional(`errors.code.${headerCode}`) ?? response.statusText,
+      parseRetryAfter(response),
     );
   }
 }
@@ -116,10 +141,31 @@ async function refreshToken(): Promise<void> {
 
 async function handleNonOkResponse(resp: Response, silentError?: boolean): Promise<never> {
   const err = await parseError(resp);
+  if (err.status === 429 && err.retryAfterSeconds !== null) {
+    // Keyed on the status rather than on ERR_ACCOUNT_LOCKED so the IP-based
+    // limiter is covered too: its 429 carries a Retry-After but no `code`
+    // header, and surfaces as a bare ERR_UNKNOWN.
+    //
+    // Set even when the caller asked for silence — this is state the page
+    // renders for itself, not a dialog to suppress.
+    loginLockout.start(err.retryAfterSeconds);
+  }
   if (!silentError) {
     httpErrorStore.showError(err.status, err.message, err.code);
   }
   throw err;
+}
+
+/**
+ * A factor was accepted, so the server has cleared the cooloff — drop ours too.
+ *
+ * Scoped to the auth paths on purpose: an unrelated request succeeding (a health
+ * poll, say) says nothing about whether this account is still locked.
+ */
+function noteAuthSuccess(path: string): void {
+  if (path.startsWith('/auth/')) {
+    loginLockout.clear();
+  }
 }
 
 async function request<T>(
@@ -239,6 +285,7 @@ async function request<T>(
     if (!retryResp.ok) {
       await handleNonOkResponse(retryResp, options.silentError);
     }
+    noteAuthSuccess(path);
     if (retryResp.status === 204) return undefined as T;
     if (options.binary) return retryResp.arrayBuffer() as unknown as T;
     return retryResp.json() as Promise<T>;
@@ -248,6 +295,7 @@ async function request<T>(
     await handleNonOkResponse(resp, options.silentError);
   }
 
+  noteAuthSuccess(path);
   if (resp.status === 204) return undefined as T;
   if (options.binary) return resp.arrayBuffer() as unknown as T;
   return resp.json() as Promise<T>;

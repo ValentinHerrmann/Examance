@@ -1,6 +1,7 @@
 export { default as BackupCodeList } from "./BackupCodeList.svelte";
 export { default as FactorChooser } from "./FactorChooser.svelte";
 export { default as FactorMeta } from "./FactorMeta.svelte";
+export { default as LockoutNotice } from "./LockoutNotice.svelte";
 export { default as FactorSummary } from "./FactorSummary.svelte";
 export { default as PasskeyManager } from "./PasskeyManager.svelte";
 export { default as PasswordFactor } from "./PasswordFactor.svelte";

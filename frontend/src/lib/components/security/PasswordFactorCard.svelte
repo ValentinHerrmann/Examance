@@ -15,6 +15,7 @@
   import { envelopeSetToDto } from "$lib/api/keyEnvelopes";
   import { pinEnvelopeSet, rewrapForChangedPassword, vaultFromSession } from "$lib/services/keyEnvelopeService";
   import FactorMeta from "./FactorMeta.svelte";
+  import LockoutNotice from "./LockoutNotice.svelte";
 
   export let status: MfaStatus;
   export let teacherId: string;
@@ -115,6 +116,9 @@
     {#if successMsg}
       <p class="m-0 text-sm text-content" role="status">{successMsg}</p>
     {/if}
+
+    <!-- Changing a password runs the same per-account throttle as signing in. -->
+    <LockoutNotice />
 
     {#if isOpen}
       <form

@@ -20,6 +20,7 @@
   import UnlockForm from "$lib/components/unlock/UnlockForm.svelte";
   import {
     FactorChooser,
+    LockoutNotice,
     RecoveryUnlockDialog,
     SetupCodesDialog,
     SigningInStep,
@@ -548,6 +549,13 @@
 </script>
 
 <div class="unlock-container flex min-h-full flex-col items-center justify-center box-border px-4 py-8 sm:px-6 sm:py-12">
+  <!--
+    Above the step rather than inside one: the cooloff can be hit from the form,
+    from the second factor and from the vault prompt alike, and it is the same
+    wait in every case.
+  -->
+  <LockoutNotice />
+
   {#if isFinishing}
     <div class="w-full max-w-form rounded-xl border border-line bg-surface-raised p-5 sm:p-6">
       <SigningInStep email={finishingEmail} />
