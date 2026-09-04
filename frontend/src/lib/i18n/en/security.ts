@@ -78,6 +78,10 @@ export const security: Translations['security'] = {
         working: 'Checking…',
         wrong: 'That recovery code does not match this account.',
         skip: 'Continue without restoring',
+        passkeyIntro: 'A PRF-capable passkey opens your data too — the reset only invalidated the password copy of the key.',
+        usePasskey: 'Open with a passkey',
+        startFreshWarning: 'This creates a new data key. Your existing exams, student data and grading stay permanently unreadable, even if you find the old code later. Passkeys you have registered will no longer open your data either, and have to be added again under Sign-in & security.',
+        startFreshConfirm: 'Start fresh and give up the old data',
         skipWarning:
             'Without the code your existing encrypted data stays unreadable. Data created from now on is unaffected.',
     },
@@ -93,6 +97,7 @@ export const security: Translations['security'] = {
         submit: 'Confirm',
         checking: 'Checking…',
         invalid: 'That code is not valid.',
+        alreadyUsed: 'That code was just used. Wait until your app shows the next one — at most 30 seconds.',
         expired: 'This sign-in has expired. Please start again.',
         wrongPassword: 'That password is not correct.',
         passwordTitle: 'Confirm with your password',

@@ -28,6 +28,7 @@ import {
   derivePrfKek,
   deriveSecretKek,
   envelopeFingerprint,
+  generateDek,
   generateKeyId,
   generateRecoveryCode,
   normalizeRecoveryCode,
@@ -348,6 +349,36 @@ export async function rewrapForNewPassword(
   await saveEnvelopes(set);
   await pinFingerprint(teacherId, set);
   return recoveryCode;
+}
+
+/**
+ * Abandon the old data key and start again under the current password.
+ *
+ * The way out for a teacher whose password was reset and whose recovery code is
+ * gone. Until this existed the dialog asking for that code had no exit at all:
+ * the reset invalidates the password wrap, so the session holds no key, and the
+ * only offered answer was a code they did not have.
+ *
+ * Irreversible, and it discards more than the password wrap — `keep` is empty,
+ * so the passkey wraps go too. They hold the *old* key and would be meaningless
+ * against the new one; the passkeys still sign in, and have to be re-added from
+ * the security page before they open anything. Everything sealed under the old
+ * key stays sealed forever, which is the whole cost and has to be spelled out
+ * before this is called.
+ */
+export async function startFreshVault(
+  teacherId: string,
+  password: string,
+): Promise<OpenedVault> {
+  const keyId = generateKeyId();
+  const dek = generateDek();
+  const recoveryCode = generateRecoveryCode();
+  const source: UnwrappedBundle = { dek, fallback: null, legacy: null };
+
+  const set = await buildSet(teacherId, keyId, source, password, recoveryCode);
+  await saveEnvelopes(set);
+  await pinFingerprint(teacherId, set);
+  return { ...source, keyId, newRecoveryCode: recoveryCode, migrated: false };
 }
 
 /**

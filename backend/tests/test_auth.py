@@ -135,7 +135,10 @@ async def test_a_totp_code_cannot_be_replayed(client: AsyncClient, db: AsyncSess
     client.cookies.update(second.cookies)
     replayed = await client.post("/api/v1/auth/factor/totp", json={"code": code})
     assert replayed.status_code == 401
-    assert replayed.headers.get("code") == "ERR_MFA_INVALID_CODE"
+    # Refused, and named for what it is. A spent code is not a wrong one, and
+    # saying so is what keeps a sign-in right after a password reset from
+    # looking like a broken authenticator.
+    assert replayed.headers.get("code") == "ERR_MFA_CODE_ALREADY_USED"
 
 
 @pytest.mark.asyncio

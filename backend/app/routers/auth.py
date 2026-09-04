@@ -658,7 +658,22 @@ async def factor_totp(
     teacher = session.teacher
     await login_throttle.assert_not_locked(teacher.email, teacher)
 
-    if not await mfa_svc.verify_totp(db, teacher, body.code):
+    outcome = await mfa_svc.verify_totp(db, teacher, body.code)
+
+    if outcome == "replayed":
+        # The code is genuine; its window has already been spent. That is what a
+        # sign-in straight after a password reset produces, because the reset
+        # took a code of its own moments earlier and the app is still showing it.
+        # Not a guess, so it costs no attempt and no audit row — only a wait.
+        retry_headers = await _reissue_pending_headers(session)
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="That code has already been used. Wait for the next one.",
+            headers={"code": "ERR_MFA_CODE_ALREADY_USED", **retry_headers},
+        )
+
+    if outcome != "ok":
         await login_throttle.register_failure(db, teacher.email, teacher)
         await audit_svc.write(
             db,

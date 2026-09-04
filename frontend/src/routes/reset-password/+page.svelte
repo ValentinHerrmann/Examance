@@ -119,8 +119,11 @@
       if (step.status === "ok") {
         stage = "key";
       }
-    } catch {
-      factorErrorMsg = translate("security.factors.invalid");
+    } catch (err: unknown) {
+      factorErrorMsg =
+        err instanceof ApiError && err.code === "ERR_MFA_CODE_ALREADY_USED"
+          ? translate("security.factors.alreadyUsed")
+          : translate("security.factors.invalid");
     }
   }
 

@@ -12,7 +12,21 @@
   import { t } from "$lib/i18n";
 
   export let onSubmit: (recoveryCode: string) => Promise<void>;
-  export let onSkip: (() => void) | undefined = undefined;
+  /**
+   * Start over with a new data key. Irreversible, so it is confirmed in two
+   * steps rather than offered as a button next to the code field.
+   */
+  export let onStartFresh: (() => Promise<void>) | undefined = undefined;
+  /**
+   * Open the vault with a PRF passkey instead.
+   *
+   * A reset invalidates only the *password* wrap — a passkey's still holds the
+   * same key, so for anyone who has one this recovers everything and the
+   * destructive route below is never needed.
+   */
+  export let onPasskey: (() => Promise<void>) | undefined = undefined;
+
+  let showFreshConfirm = false;
 
   let recoveryCode = "";
   let isWorking = false;
@@ -57,17 +71,38 @@
       />
     </Field>
 
-    {#if onSkip}
-      <p class="text-sm text-muted">{$t("security.unlock.skipWarning")}</p>
+    {#if onPasskey}
+      <div class="border-t border-line pt-4">
+        <p class="m-0 mb-2 text-sm text-muted">{$t("security.unlock.passkeyIntro")}</p>
+        <Button variant="secondary" disabled={isWorking} onClick={onPasskey}>
+          {$t("security.unlock.usePasskey")}
+        </Button>
+      </div>
+    {/if}
+
+    {#if onStartFresh}
+      <div class="border-t border-line pt-4">
+        {#if showFreshConfirm}
+          <p class="m-0 mb-2 text-sm text-content" role="alert">
+            {$t("security.unlock.startFreshWarning")}
+          </p>
+          <Button variant="danger" disabled={isWorking} onClick={onStartFresh}>
+            {$t("security.unlock.startFreshConfirm")}
+          </Button>
+        {:else}
+          <button
+            type="button"
+            class="cursor-pointer border-none bg-transparent p-0 text-sm text-accent underline"
+            on:click={() => (showFreshConfirm = true)}
+          >
+            {$t("security.unlock.skip")}
+          </button>
+        {/if}
+      </div>
     {/if}
   </form>
 
   <svelte:fragment slot="footer">
-    {#if onSkip}
-      <Button variant="ghost" disabled={isWorking} onClick={onSkip}>
-        {$t("security.unlock.skip")}
-      </Button>
-    {/if}
     <Button disabled={isWorking || !recoveryCode.trim()} loading={isWorking} onClick={submit}>
       {isWorking ? $t("security.unlock.working") : $t("security.unlock.submit")}
     </Button>

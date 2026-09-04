@@ -117,7 +117,17 @@ Users can request a password reset at any time:
 6. Enter the **recovery code**. The data key is unwrapped in the browser and
    re-wrapped under the new password; nothing is re-encrypted and no data is
    lost. A fresh recovery code is issued and shown once.
-7. Sign in with the new password and your second factor.
+7. Sign in with the new password and your second factor. An authenticator code
+   is single-use, so the one that authorised the reset moments ago will be
+   refused — the screen says to wait for the next one rather than calling it
+   invalid, and the refusal does not count towards the lockout.
+
+**Without the recovery code**, the next sign-in offers two ways on. A
+PRF-capable passkey opens the data outright, because a reset invalidates only
+the *password* copy of the key. Failing that, starting fresh mints a new data
+key: the account works again immediately, and every existing exam, student
+record and grade stays sealed for good — as do the registered passkeys, which
+have to be added again from **Settings → Sign-in & security**.
 
 > **Keep the recovery code.** It is shown exactly once, when the key is first
 > stored (on the first sign-in after this feature ships) and again after every

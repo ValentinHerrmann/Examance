@@ -76,6 +76,10 @@ export const security = {
         working: 'Wird geprüft …',
         wrong: 'Dieser Wiederherstellungscode passt nicht zu diesem Konto.',
         skip: 'Ohne Wiederherstellung fortfahren',
+        passkeyIntro: 'Ein Passkey mit PRF-Unterstützung öffnet Ihre Daten ebenfalls — beim Zurücksetzen wurde nur die Passwort-Kopie des Schlüssels ungültig.',
+        usePasskey: 'Mit Passkey öffnen',
+        startFreshWarning: 'Damit wird ein neuer Datenschlüssel erzeugt. Ihre bisherigen Klausuren, Schülerdaten und Korrekturen bleiben dauerhaft unlesbar — auch wenn Sie den alten Code später wiederfinden. Bereits eingerichtete Passkeys öffnen Ihre Daten danach ebenfalls nicht mehr und müssen unter „Anmeldung & Sicherheit“ neu hinterlegt werden.',
+        startFreshConfirm: 'Neu beginnen und alte Daten aufgeben',
         skipWarning:
             'Ohne den Code bleiben Ihre bisherigen verschlüsselten Daten unlesbar. Neue Daten sind davon nicht betroffen.',
     },
@@ -91,6 +95,7 @@ export const security = {
         submit: 'Bestätigen',
         checking: 'Wird geprüft …',
         invalid: 'Dieser Code ist nicht gültig.',
+        alreadyUsed: 'Dieser Code wurde gerade schon verwendet. Warten Sie, bis Ihre App den nächsten anzeigt — das dauert höchstens 30 Sekunden.',
         expired: 'Diese Anmeldung ist abgelaufen. Bitte melden Sie sich erneut an.',
         wrongPassword: 'Dieses Passwort ist nicht korrekt.',
         passwordTitle: 'Bestätigung mit Ihrem Passwort',

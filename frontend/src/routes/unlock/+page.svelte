@@ -45,6 +45,7 @@
     openWithPassword,
     openWithRecoveryCode,
     rewrapForNewPassword,
+    startFreshVault,
   } from "$lib/services/keyEnvelopeService";
 
   const LOCAL_PASSPHRASE_MIN_LENGTH = 12;
@@ -457,12 +458,17 @@
         vaultFailureMessage(err) ??
         (code === "ERR_ACCOUNT_LOCKED"
           ? translate("errors.code.ERR_ACCOUNT_LOCKED")
-          : code === "ERR_STEP_EXPIRED"
-            // A wrong code is retryable and an expired step is not, so saying
-            // "that code is not valid" to both leaves the teacher retyping a
-            // correct code into a sign-in that has already ended.
-            ? translate("security.factors.expired")
-            : translate("security.factors.invalid"));
+          : code === "ERR_MFA_CODE_ALREADY_USED"
+            // The code is right, its window is spent. Every sign-in straight
+            // after a password reset lands here, because the reset took a code
+            // of its own moments earlier.
+            ? translate("security.factors.alreadyUsed")
+            : code === "ERR_STEP_EXPIRED"
+              // A wrong code is retryable and an expired step is not, so saying
+              // "that code is not valid" to both leaves the teacher retyping a
+              // correct code into a sign-in that has already ended.
+              ? translate("security.factors.expired")
+              : translate("security.factors.invalid"));
     }
   }
 
@@ -567,6 +573,69 @@
     pendingRecoveryCode = newCode;
     showSetupCodes = true;
   }
+
+  /**
+   * Open the vault with a passkey instead of the recovery code.
+   *
+   * A reset invalidates only the password wrap, so a PRF passkey still holds the
+   * same data key. For anyone who has one this recovers everything, which is why
+   * it is offered before the route that gives the old data up.
+   */
+  async function handleRecoveryPasskey() {
+    if (!pendingRecovery) {
+      return;
+    }
+    const { teacherId, email: userEmail, role } = pendingRecovery;
+    const options = await loginOptions();
+    const assertion = await authenticate(options);
+    if (!assertion.prfOutput) {
+      throw new Error("This passkey cannot derive a key on this device.");
+    }
+    const parsed = JSON.parse(assertion.credentialJson) as { rawId: string };
+    const vault = await openWithPasskey(teacherId, parsed.rawId, assertion.prfOutput);
+
+    const normalizedEmail = userEmail.trim().toLowerCase();
+    const keys = await materializeSession(vault, normalizedEmail);
+    sessionStore.unlock({
+      ...keys,
+      email: userEmail,
+      teacherId,
+      role,
+      mode: "authenticated",
+    });
+    pendingRecovery = null;
+    await goto("/");
+  }
+
+  /**
+   * Give up the old data key and start again under the current password.
+   *
+   * The last resort for a teacher whose password was reset and whose recovery
+   * code is gone — until this existed the dialog had no exit and the account was
+   * simply unusable. Irreversible, and the dialog says so in those terms before
+   * calling this.
+   */
+  async function handleStartFresh() {
+    if (!pendingRecovery) {
+      return;
+    }
+    const { teacherId, email: userEmail, role } = pendingRecovery;
+    const normalizedEmail = userEmail.trim().toLowerCase();
+
+    const vault = await startFreshVault(teacherId, password);
+    const keys = await materializeSession(vault, normalizedEmail);
+    sessionStore.unlock({
+      ...keys,
+      email: userEmail,
+      teacherId,
+      role,
+      mode: "authenticated",
+    });
+
+    pendingRecovery = null;
+    pendingRecoveryCode = vault.newRecoveryCode ?? null;
+    showSetupCodes = true;
+  }
 </script>
 
 <div class="unlock-container flex min-h-full flex-col items-center justify-center box-border px-4 py-8 sm:px-6 sm:py-12">
@@ -640,7 +709,11 @@
 {/if}
 
 {#if pendingRecovery}
-  <RecoveryUnlockDialog onSubmit={handleRecovery} />
+  <RecoveryUnlockDialog
+    onSubmit={handleRecovery}
+    onPasskey={canUsePasskeys ? handleRecoveryPasskey : undefined}
+    onStartFresh={handleStartFresh}
+  />
 {/if}
 
 {#if showSetupCodes}

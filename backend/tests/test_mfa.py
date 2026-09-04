@@ -9,7 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services import totp as totp_svc
 
-from .factors import DEFAULT_PASSWORD, create_teacher, current_code, enrol_totp, sign_in
+from .factors import (
+    DEFAULT_PASSWORD,
+    complete_login,
+    create_teacher,
+    current_code,
+    enrol_totp,
+    sign_in,
+)
 
 
 def _secret_from_uri(uri: str) -> bytes:
@@ -338,3 +345,83 @@ async def test_status_reports_recovery_and_factor_activity(
     after = (await client.get("/api/v1/mfa/status")).json()
     assert after["has_recovery_code"] is True
     assert after["recovery_created_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_a_spent_code_says_so_instead_of_calling_itself_invalid(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """
+    The code the authenticator is *still showing* is not a wrong code.
+
+    Every sign-in straight after a password reset hits this: the reset took a
+    code of its own moments earlier, and the app has not rolled over yet. Saying
+    "invalid" sends the teacher hunting for a problem that fixes itself in
+    thirty seconds.
+    """
+    email = "spent-code@example.com"
+    teacher = await create_teacher(db, email)
+    secret = await enrol_totp(db, teacher)
+    await complete_login(client, email, secret)
+
+    client.cookies.clear()
+    first = await client.post(
+        "/api/v1/auth/login", json={"email": email, "password": DEFAULT_PASSWORD}
+    )
+    client.cookies.update(first.cookies)
+
+    # The same window's code, already spent by the sign-in above.
+    replay = await client.post(
+        "/api/v1/auth/factor/totp", json={"code": current_code(secret)}
+    )
+    assert replay.status_code == 401
+    assert replay.headers.get("code") == "ERR_MFA_CODE_ALREADY_USED"
+
+
+@pytest.mark.asyncio
+async def test_a_spent_code_costs_no_attempt(client: AsyncClient, db: AsyncSession) -> None:
+    """
+    It proves possession of the secret, so it is not a guess.
+
+    Charging it to the failure counter is how retyping the displayed code a few
+    times after a reset turned a thirty-second wait into a per-account lockout.
+    """
+    from app.services import login_throttle
+
+    email = "spent-code-throttle@example.com"
+    teacher = await create_teacher(db, email)
+    secret = await enrol_totp(db, teacher)
+    await complete_login(client, email, secret)
+
+    for _ in range(6):
+        client.cookies.clear()
+        first = await client.post(
+            "/api/v1/auth/login", json={"email": email, "password": DEFAULT_PASSWORD}
+        )
+        client.cookies.update(first.cookies)
+        resp = await client.post(
+            "/api/v1/auth/factor/totp", json={"code": current_code(secret)}
+        )
+        assert resp.headers.get("code") == "ERR_MFA_CODE_ALREADY_USED", resp.text
+
+    # Past LOGIN_MAX_FAILED_ATTEMPTS, and still not locked.
+    await login_throttle.assert_not_locked(email, teacher)
+
+
+@pytest.mark.asyncio
+async def test_a_genuinely_wrong_code_still_counts(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """The distinction must not weaken the throttle for actual guessing."""
+    email = "wrong-code-counts@example.com"
+    teacher = await create_teacher(db, email)
+    await enrol_totp(db, teacher)
+
+    first = await client.post(
+        "/api/v1/auth/login", json={"email": email, "password": DEFAULT_PASSWORD}
+    )
+    client.cookies.update(first.cookies)
+
+    resp = await client.post("/api/v1/auth/factor/totp", json={"code": "000000"})
+    assert resp.status_code == 401
+    assert resp.headers.get("code") == "ERR_MFA_INVALID_CODE"

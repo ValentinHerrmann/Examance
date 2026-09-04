@@ -11,6 +11,7 @@ import secrets
 import time
 import uuid
 from datetime import UTC, datetime
+from typing import Literal
 
 from cryptography.exceptions import InvalidTag
 from sqlalchemy import select
@@ -94,38 +95,49 @@ async def confirm_enrollment(db: AsyncSession, teacher: Teacher, code: str) -> b
     if secret is None:
         return False
 
-    step = totp_svc.verify_code(
+    check = totp_svc.verify_code(
         secret, code, int(time.time()), last_used_step=credential.last_used_step
     )
-    if step is None:
+    if check.step is None:
         return False
 
     credential.confirmed_at = datetime.now(tz=UTC)
-    credential.last_used_step = step
+    credential.last_used_step = check.step
     await db.flush()
     return True
 
 
-async def verify_totp(db: AsyncSession, teacher: Teacher, code: str) -> bool:
-    """Check a code against a confirmed enrollment, refusing replays."""
+TotpResult = Literal["ok", "invalid", "replayed"]
+
+
+async def verify_totp(db: AsyncSession, teacher: Teacher, code: str) -> TotpResult:
+    """
+    Check a code against a confirmed enrollment, refusing replays.
+
+    Three outcomes rather than two. "replayed" is a correct code whose window has
+    already been spent — the one the authenticator is still showing a moment
+    after it was used, which every sign-in straight after a password reset hits.
+    The caller must not treat it as a wrong guess: it proves possession, and
+    charging it to the failure counter turns a thirty-second wait into a lockout.
+    """
     credential = await get_credential(db, teacher.id)
     if credential is None or credential.confirmed_at is None:
-        return False
+        return "invalid"
 
     secret = await _load_secret(credential)
     if secret is None:
-        return False
+        return "invalid"
 
-    step = totp_svc.verify_code(
+    check = totp_svc.verify_code(
         secret, code, int(time.time()), last_used_step=credential.last_used_step
     )
-    if step is None:
-        return False
+    if check.step is None:
+        return "replayed" if check.replayed else "invalid"
 
-    credential.last_used_step = step
+    credential.last_used_step = check.step
     credential.last_used_at = datetime.now(tz=UTC)
     await db.flush()
-    return True
+    return "ok"
 
 
 async def issue_backup_codes(db: AsyncSession, teacher: Teacher) -> list[str]:

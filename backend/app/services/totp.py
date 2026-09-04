@@ -16,6 +16,7 @@ import hashlib
 import hmac
 import secrets
 import struct
+from typing import NamedTuple
 from urllib.parse import quote
 
 # 30-second steps and 6 digits are what every authenticator app assumes.
@@ -56,31 +57,52 @@ def generate_code(secret: bytes, step: int) -> str:
     return str(truncated % (10**TOTP_DIGITS)).zfill(TOTP_DIGITS)
 
 
+class CodeCheck(NamedTuple):
+    """The outcome of checking one submitted code."""
+
+    #: The step it matched, when the code is usable. None otherwise.
+    step: int | None
+    #: True when the code is genuine but its step has already been spent.
+    replayed: bool
+
+
 def verify_code(
     secret: bytes, code: str, timestamp: int, *, last_used_step: int | None
-) -> int | None:
+) -> CodeCheck:
     """
-    Check *code* and return the step it matched, or None.
+    Check *code*, saying both whether it is usable and whether it is a replay.
 
-    Returning the step is what lets the caller store it and refuse the same code
-    a second time: within a 30-second window a code that has been observed once
-    — over someone's shoulder, in a proxied request — would otherwise still work.
+    Recording the matched step is what lets the caller refuse the same code a
+    second time: within a 30-second window a code that has been observed once —
+    over someone's shoulder, in a proxied request — would otherwise still work.
+
+    The two failures are reported separately because they are not the same
+    event. A spent code proves possession of the secret; it is the code the
+    teacher's own app is showing, one window too late, which is what every
+    sign-in immediately after a password reset produces. Calling that "invalid"
+    sends them looking for a problem that fixes itself in thirty seconds, and
+    counting it as a failed attempt walks them into a lockout.
 
     Comparison is constant-time, and every candidate step is evaluated before
     answering, so timing does not reveal which one matched.
     """
     candidate = code.strip().replace(" ", "")
     if len(candidate) != TOTP_DIGITS or not candidate.isdigit():
-        return None
+        return CodeCheck(None, False)
 
     now = current_step(timestamp)
     matched: int | None = None
+    replayed = False
     for step in range(now - TOTP_DRIFT_STEPS, now + TOTP_DRIFT_STEPS + 1):
-        if last_used_step is not None and step <= last_used_step:
-            continue
-        if hmac.compare_digest(generate_code(secret, step), candidate):
+        # No early exit and no skipped step: the whole window is evaluated
+        # whatever is found, so timing says nothing about which step matched.
+        hit = hmac.compare_digest(generate_code(secret, step), candidate)
+        spent = last_used_step is not None and step <= last_used_step
+        if hit and spent:
+            replayed = True
+        elif hit:
             matched = step
-    return matched
+    return CodeCheck(matched, replayed and matched is None)
 
 
 def provisioning_uri(secret: bytes, account_email: str, issuer: str = "Examance") -> str:
