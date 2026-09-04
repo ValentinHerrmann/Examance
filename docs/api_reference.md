@@ -260,6 +260,7 @@ session cookies set.
 | Method | Endpoint | Summary |
 |---|---|---|
 | `POST` | `/auth/login` | First factor: email + password. Does **not** return a session on its own. |
+| `POST` | `/auth/factor/password` | The password as the *second* factor. Takes no email — the account is the one the pending token names. Not reachable in the reset flow. |
 | `POST` | `/auth/factor/totp` | Second factor: authenticator code. Second position only. |
 | `POST` | `/auth/factor/backup-code` | Spends a backup code in place of the authenticator. |
 | `POST` | `/auth/reset/start` | Opens a password reset with the emailed token. |
@@ -271,7 +272,7 @@ session cookies set.
 | `POST` | `/mfa/backup-codes/regenerate` | Replaces the set; the previous codes stop working. |
 | `DELETE` | `/mfa/totp` | Refused when it would drop the account below two factors, or below its last key-capable one. |
 | `POST` | `/webauthn/register/options` · `/register/verify` | Add a passkey. Reachable from enrollment as well as a session. |
-| `POST` | `/webauthn/login/options` · `/login/verify` | Passkey sign-in. Unauthenticated; takes no account identifier. |
+| `POST` | `/webauthn/login/options` · `/login/verify` | Passkey sign-in, in either position. Unauthenticated; takes no account identifier. When a sign-in is already part-way through, the passkey must belong to the account that token names. |
 | `GET` | `/webauthn/credentials` | Registered passkeys, including whether each can open the encrypted data. |
 | `DELETE` | `/webauthn/credentials/{id}` | Same last-factor guard as `DELETE /mfa/totp`. |
 

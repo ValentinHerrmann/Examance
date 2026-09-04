@@ -56,6 +56,16 @@ class LoginRequest(BaseModel):
     password: str = Field(max_length=PASSWORD_MAX_LENGTH)
 
 
+class PasswordFactorRequest(BaseModel):
+    # No email. The account comes from the pending token, never from the body —
+    # taking an address here would turn the second step into a probe for which
+    # addresses have accounts, which is the thing the whole flow avoids.
+    #
+    # Bounded above only, for the reason LoginRequest gives: a minimum would
+    # leak the policy applied to an existing account.
+    password: str = Field(max_length=PASSWORD_MAX_LENGTH)
+
+
 class TotpFactorRequest(BaseModel):
     code: str = Field(min_length=6, max_length=10)
 

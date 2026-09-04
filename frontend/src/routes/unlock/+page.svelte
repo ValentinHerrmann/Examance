@@ -19,14 +19,16 @@
   import { get } from "svelte/store";
   import UnlockForm from "$lib/components/unlock/UnlockForm.svelte";
   import {
+    FactorChooser,
     RecoveryUnlockDialog,
     SetupCodesDialog,
     TotpEnrollDialog,
-    TotpFactor,
+    VaultUnlockStep,
   } from "$lib/components/security";
   import {
     submitBackupCode,
     submitPassword,
+    submitPasswordFactor,
     submitTotp,
     type AuthStep,
   } from "$lib/api/mfa";
@@ -77,6 +79,13 @@
    * sign-in is still finishing.
    */
   let showSetupCodes = false;
+  /**
+   * Signed in, but with nothing that opens the vault.
+   *
+   * A passkey without PRF authenticates and yields no key material, so a
+   * passkey-plus-authenticator sign-in gets through the door and no further.
+   */
+  let vaultLocked: AuthStep | null = null;
   const canUsePasskeys = passkeysSupported();
   /**
    * The PRF secret from a passkey assertion, held until the vault is opened.
@@ -211,6 +220,16 @@
       return;
     }
 
+    if (!password) {
+      // Nothing here can open the vault: the passkey carried no PRF secret and
+      // no password was typed. Asking is the only honest move — unwrapping with
+      // an empty string used to throw, and the failure surfaced as "that code is
+      // not valid" about a code that was correct.
+      vaultLocked = step;
+      authStep = null;
+      return;
+    }
+
     try {
       vault = await openWithPassword(step.id, normalizedEmail, password);
     } catch (envelopeErr) {
@@ -268,13 +287,20 @@
    * passkey-plus-authenticator sign-in never needs the password.
    */
   async function handlePasskey() {
+    // Which error slot to write to. Mid-sign-in the form is not on screen, so a
+    // failure reported there would be invisible.
+    const inProgress = authStep !== null;
     errorMsg = "";
     factorErrorMsg = "";
     isLoading = true;
     try {
-      // Same reason as in handleUnlock: the sign-in about to start demotes the
-      // cookie, so the previous session's client state cannot stay live.
-      sessionStore.lock();
+      if (!inProgress) {
+        // Same reason as in handleUnlock: the sign-in about to start demotes the
+        // cookie, so the previous session's client state cannot stay live. Not
+        // when a sign-in is already running — that would lock away the state the
+        // step in progress is building on.
+        sessionStore.lock();
+      }
 
       const trimmedBackendUrl = backendUrl.trim();
       if (trimmedBackendUrl) {
@@ -301,10 +327,70 @@
       await handleAuthStep(step);
     } catch (err: any) {
       const message = err instanceof ApiError ? err.message : "";
-      errorMsg = message || translate("security.passkey.failed");
+      const text = message || translate("security.passkey.failed");
+      if (inProgress) {
+        factorErrorMsg = text;
+      } else {
+        errorMsg = text;
+      }
     } finally {
       isLoading = false;
     }
+  }
+
+  /**
+   * The password as the second factor.
+   *
+   * Kept in `password` like the first-position one, because `openVault` needs
+   * it to unwrap the data key once the session is real.
+   */
+  async function handlePasswordFactor(entered: string) {
+    factorErrorMsg = "";
+    try {
+      const step = await submitPasswordFactor(entered);
+      password = entered;
+      await handleAuthStep(step);
+    } catch (err: any) {
+      const code = err instanceof ApiError ? err.code : "";
+      factorErrorMsg =
+        code === "ERR_ACCOUNT_LOCKED"
+          ? translate("errors.code.ERR_ACCOUNT_LOCKED")
+          : code === "ERR_STEP_EXPIRED"
+            ? translate("security.factors.expired")
+            : translate("security.factors.wrongPassword");
+    }
+  }
+
+  /** Unwrap the vault after a sign-in that produced no key material. */
+  async function handleVaultPassword(entered: string) {
+    if (!vaultLocked) {
+      return;
+    }
+    const step = vaultLocked;
+    const normalizedEmail = step.email.trim().toLowerCase();
+    const vault = await openWithPassword(step.id, normalizedEmail, entered);
+    password = entered;
+    vaultLocked = null;
+    await finishUnlock(step, normalizedEmail, vault);
+  }
+
+  /**
+   * Unwrap the vault with the recovery code instead.
+   *
+   * Deliberately no re-wrap, unlike `handleRecovery`: that path follows a reset
+   * where the password wrap is genuinely stale and a new password has just been
+   * chosen. Here the wraps are all fine and no password was typed, so rewrapping
+   * would seal the account under an empty string.
+   */
+  async function handleVaultRecovery(recoveryCode: string) {
+    if (!vaultLocked) {
+      return;
+    }
+    const step = vaultLocked;
+    const normalizedEmail = step.email.trim().toLowerCase();
+    const vault = await openWithRecoveryCode(step.id, recoveryCode);
+    vaultLocked = null;
+    await finishUnlock(step, normalizedEmail, vault);
   }
 
   /** Second factor: an authenticator code, or a backup code standing in for one. */
@@ -432,7 +518,20 @@
       so this step is rendered in place of the form rather than on a new route.
     -->
     <div class="w-full max-w-form rounded-xl border border-line bg-surface-raised p-5 sm:p-6">
-      <TotpFactor onSubmit={handleSecondFactor} errorMsg={factorErrorMsg} />
+      <FactorChooser
+        available={authStep.available}
+        onTotp={handleSecondFactor}
+        onPassword={handlePasswordFactor}
+        onPasskey={handlePasskey}
+        errorMsg={factorErrorMsg}
+      />
+    </div>
+  {:else if vaultLocked}
+    <div class="w-full max-w-form rounded-xl border border-line bg-surface-raised p-5 sm:p-6">
+      <VaultUnlockStep
+        onPassword={handleVaultPassword}
+        onRecoveryCode={handleVaultRecovery}
+      />
     </div>
   {:else}
     <UnlockForm

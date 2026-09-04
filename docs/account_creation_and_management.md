@@ -41,9 +41,22 @@ Every sign-in presents **two of three** factors: password, authenticator app
 and can reach nothing else — including every existing account, on its first
 sign-in after this shipped.
 
+The two are yours to pick, in either order. Whichever factor opens the sign-in,
+the screen then offers whatever the account can still present — password,
+authenticator or passkey — and the server, not the browser, decides that list.
+A passkey identifies the account on its own, so it can go first; an
+authenticator code cannot, so it is second-position only.
+
 Enrol all three where you can. With three enrolled, losing any one of them is an
 inconvenience; with exactly two, losing one is a lockout that only an
 administrator can clear, and only by resetting the factors — not the data.
+
+**A passkey signs you in; it does not always open your data.** That needs the
+WebAuthn PRF extension, which not every authenticator implements. Sign in with a
+non-PRF passkey plus an authenticator code and both factors are genuinely
+proven, but nothing in that pair can unwrap the encryption key — so the app asks
+once for your password, or your recovery code, to decrypt. **Settings →
+Sign-in & security** says which of your passkeys can do it.
 
 Backup codes stand in for the authenticator, not for a third factor. Ten are
 issued at enrollment, each usable once; regenerate them from **Settings →

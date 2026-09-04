@@ -154,6 +154,7 @@ async def login_verify(
     already: list[str] = []
     flow = "auth_pending"
     pending_jti: str | None = None
+    pending_subject: str | None = None
     if access_token:
         try:
             payload = decode_token(access_token)
@@ -163,6 +164,7 @@ async def login_verify(
                 already = [str(f) for f in amr] if isinstance(amr, list) else []
                 flow = scope
                 pending_jti = payload.get("jti")
+                pending_subject = str(payload.get("sub") or "")
         except jwt.InvalidTokenError:
             # A stale or malformed cookie simply means "no sign-in in progress".
             already = []
@@ -197,6 +199,22 @@ async def login_verify(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unknown account.",
+            headers={"code": "ERR_PASSKEY_FAILED"},
+        )
+
+    # The passkey has to belong to the account this sign-in is already for.
+    #
+    # Without this the two halves could come from different accounts: prove your
+    # own password to get a pending token carrying `amr: ["password"]`, then
+    # present someone else's passkey, and `advance_sign_in` would run with their
+    # teacher and your factor list — a full session as them, on the single factor
+    # their authenticator provides. Restarting is the right answer rather than
+    # quietly dropping `already`, since a mismatch is either an attack or a stale
+    # cookie and neither should silently become a sign-in.
+    if pending_subject and pending_subject != str(teacher.id):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="That passkey belongs to a different account. Start the sign-in again.",
             headers={"code": "ERR_PASSKEY_FAILED"},
         )
 

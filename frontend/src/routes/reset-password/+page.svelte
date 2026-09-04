@@ -24,7 +24,7 @@
     openWithRecoveryCode,
     pinEnvelopeSet,
   } from "$lib/services/keyEnvelopeService";
-  import { RecoveryCodeDialog, TotpFactor } from "$lib/components/security";
+  import { FactorChooser, RecoveryCodeDialog } from "$lib/components/security";
   import { Button, Field, TextInput } from "$lib/components/ui";
 
   type Stage = "password" | "factor" | "key";
@@ -45,6 +45,14 @@
   /** A freshly minted recovery code, shown once after a successful reset. */
   let issuedRecoveryCode: string | null = null;
   const canUsePasskeys = passkeysSupported();
+
+  /**
+   * What the server says this account can still present, minus the password and
+   * minus the passkey where the browser has no WebAuthn at all.
+   */
+  $: availableFactors = (step?.available ?? ["totp"]).filter(
+    (f) => f !== "password" && (f !== "passkey" || canUsePasskeys),
+  );
   /**
    * A passkey that carried the second factor and yielded its PRF secret.
    *
@@ -212,16 +220,18 @@
     {:else if stage === "factor"}
       <h2 class="m-0 text-lg font-semibold text-accent">{$t("security.reset.step2Title")}</h2>
       <p class="mt-1 mb-4 text-sm text-muted">{$t("security.reset.step2Intro")}</p>
-      <TotpFactor onSubmit={handleSecondFactor} errorMsg={factorErrorMsg} />
-      {#if canUsePasskeys}
-        <button
-          type="button"
-          class="mt-4 cursor-pointer border-none bg-transparent p-0 text-sm text-accent underline"
-          on:click={handlePasskeyFactor}
-        >
-          {$t("security.reset.passkeyFactor")}
-        </button>
-      {/if}
+      <!--
+        The same chooser the sign-in screen uses, minus the password: a reset
+        exists because the password is unavailable, and the emailed token
+        already stands in for it.
+      -->
+      <FactorChooser
+        available={availableFactors}
+        onTotp={handleSecondFactor}
+        onPassword={async () => {}}
+        onPasskey={handlePasskeyFactor}
+        errorMsg={factorErrorMsg}
+      />
     {:else if stage === "key"}
       <h2 class="m-0 text-lg font-semibold text-accent">{$t("security.reset.keyTitle")}</h2>
       {#if passkeyUnwrap}

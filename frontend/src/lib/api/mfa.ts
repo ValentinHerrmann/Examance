@@ -45,6 +45,18 @@ export async function submitPassword(email: string, password: string): Promise<A
   return api.post<AuthStep>('/auth/login', { email, password }, { silentError: true });
 }
 
+/**
+ * The password as the *second* factor.
+ *
+ * Distinct from `submitPassword`, which opens a sign-in and takes an email.
+ * This one sends only the password: the account is the one the pending token
+ * names, and taking an address here would make the second step a probe for
+ * which addresses have accounts.
+ */
+export async function submitPasswordFactor(password: string): Promise<AuthStep> {
+  return api.post<AuthStep>('/auth/factor/password', { password }, { silentError: true });
+}
+
 /** Second factor: a code from the authenticator app. */
 export async function submitTotp(code: string): Promise<AuthStep> {
   return api.post<AuthStep>('/auth/factor/totp', { code }, { silentError: true });

@@ -21,6 +21,7 @@ from app.schemas.auth import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
     LoginRequest,
+    PasswordFactorRequest,
     ResetPasswordRequest,
     ResetTokenRequest,
     TotpFactorRequest,
@@ -554,6 +555,79 @@ async def _reissue_pending_headers(session: PendingSession) -> dict[str, str]:
         **_COOKIE_KWARGS,  # type: ignore[arg-type]
     )
     return {"set-cookie": carrier.headers["set-cookie"]}
+
+
+@router.post("/factor/password", response_model=AuthResponse)
+@limiter.limit("10/minute;50/hour")
+async def factor_password(
+    body: PasswordFactorRequest,
+    request: Request,
+    response: Response,
+    session: PendingSession = Depends(get_pending_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> AuthResponse:
+    """
+    Present the password as the *second* factor.
+
+    `/auth/login` hard-codes an empty presented-factor list, so it can only ever
+    open a sign-in. That left passkey-then-password — one of the three pairs the
+    policy promises — impossible to express, and the sign-in screen with nothing
+    to offer but the authenticator after a passkey.
+
+    The account is the one named by the pending token. Nothing here takes an
+    email: doing so would turn the second step into a probe for which addresses
+    have accounts.
+
+    Not reachable in the reset flow. A reset exists because the password is
+    unavailable, and the emailed token already stands in for it.
+    """
+    # Scope before anything else, so the reset refusal is about the flow rather
+    # than about a reset token happening to carry `password` in its amr.
+    if session.scope != "auth_pending":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The password cannot be used as a factor here.",
+            headers={"code": "ERR_FACTOR_REQUIRED"},
+        )
+    # Checked before the token is consumed: presenting a factor twice is a
+    # mistake to correct, not a sign-in to end.
+    if "password" in session.amr:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="That factor has already been used for this sign-in.",
+            headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
+        )
+    await _require_pending(session, allow_scopes={"auth_pending"})
+
+    teacher = session.teacher
+    await login_throttle.assert_not_locked(teacher.email, teacher)
+
+    stored_hash = teacher.password_hash
+    dummy_hash = "$argon2id$v=19$m=65536,t=3,p=4$fakesaltfakesalt$fakehashfakehashfakehashfakehash"
+    if not verify_password(body.password, stored_hash or dummy_hash) or stored_hash is None:
+        await login_throttle.register_failure(db, teacher.email, teacher)
+        await audit_svc.write(
+            db,
+            teacher_id=teacher.id,
+            teacher_email=teacher.email,
+            action="LOGIN_FAILED",
+            request_ip=request.client.host if request.client else None,
+        )
+        retry_headers = await _reissue_pending_headers(session)
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials.",
+            headers={"code": "ERR_INVALID_CREDENTIALS", **retry_headers},
+        )
+
+    await login_throttle.register_success(db, teacher.email, teacher)
+    if needs_rehash(stored_hash):
+        teacher.password_hash = hash_password(body.password)
+
+    return await advance_sign_in(
+        db, request, response, teacher, "password", session.amr, flow=session.scope
+    )
 
 
 @router.post("/factor/totp", response_model=AuthResponse)

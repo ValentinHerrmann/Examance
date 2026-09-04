@@ -133,3 +133,68 @@ async def test_the_challenge_it_issued_is_the_challenge_it_accepts(
     replay = await client.post("/api/v1/webauthn/register/verify", json=body)
     assert replay.status_code == 400
     assert "expired" in replay.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_a_passkey_cannot_finish_another_accounts_sign_in(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    The two halves of a sign-in must belong to the same account.
+
+    `login_verify` reads the factors already presented off whatever pending
+    cookie is attached, and used to trust them whoever the passkey turned out to
+    belong to. So proving your own password, then presenting someone else's
+    passkey, produced a full session as them on the single factor their
+    authenticator provides — the two-of-three rule undone for the account that
+    consented to neither step.
+
+    The ceremony is stubbed because it is py_webauthn's and not what is under
+    test; a bogus assertion would be rejected before the account check is ever
+    reached, and the test would pass without the guard it exists to pin.
+    """
+    import secrets
+
+    from app.models.webauthn_credential import WebAuthnCredential
+    from app.routers import webauthn as webauthn_router
+    from app.services import pending_token
+    from app.services.jwt import create_access_token, decode_token
+
+    attacker = await create_teacher(db, "passkey-attacker@example.com")
+    victim = await create_teacher(db, "passkey-victim@example.com")
+
+    credential = WebAuthnCredential(
+        credential_id=secrets.token_bytes(16),
+        teacher_id=victim.id,
+        public_key=secrets.token_bytes(32),
+        sign_count=0,
+        prf_salt=secrets.token_bytes(32),
+        supports_prf=True,
+    )
+    db.add(credential)
+    await db.commit()
+
+    async def _stub(*_args: object, **_kwargs: object) -> WebAuthnCredential:
+        return credential
+
+    monkeypatch.setattr(webauthn_router.webauthn_svc, "verify_authentication", _stub)
+
+    # The attacker's own half-finished sign-in, carrying their proven password.
+    token = create_access_token(
+        attacker.id, attacker.email, attacker.role, scope="auth_pending", amr=["password"]
+    )
+    await pending_token.register(decode_token(token).get("jti"))
+    client.cookies.set("access_token", token)
+
+    options = await client.post("/api/v1/webauthn/login/options")
+    resp = await client.post(
+        "/api/v1/webauthn/login/verify",
+        json={
+            "handle": options.json()["handle"],
+            "challenge_b64": options.json()["challenge_b64"],
+            "credential_json": "{}",
+        },
+    )
+
+    assert resp.status_code == 401, resp.text
+    assert "refresh_token" not in resp.cookies

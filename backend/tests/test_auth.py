@@ -263,3 +263,126 @@ async def test_a_refresh_token_without_amr_fails_closed(
     client.cookies.set("refresh_token", token)
     resp = await client.post("/api/v1/auth/refresh")
     assert resp.json()["status"] == "factor_required"
+
+
+async def _enrol_passkey(db: AsyncSession, teacher: Teacher) -> None:
+    """Give *teacher* a real passkey row, so the account genuinely has two factors."""
+    import secrets
+
+    from app.models.webauthn_credential import WebAuthnCredential
+
+    db.add(
+        WebAuthnCredential(
+            credential_id=secrets.token_bytes(16),
+            teacher_id=teacher.id,
+            public_key=secrets.token_bytes(32),
+            sign_count=0,
+            prf_salt=secrets.token_bytes(32),
+            supports_prf=True,
+        )
+    )
+    await db.commit()
+
+
+async def _pending_cookie(
+    client: AsyncClient, teacher: Teacher, amr: list[str], *, scope: str = "auth_pending"
+) -> None:
+    """
+    Put the client mid-sign-in with *amr* already proven.
+
+    A passkey ceremony needs a real authenticator, so the token a passkey step
+    would have issued is minted directly. Everything downstream — the scope, the
+    single-use jti, the factor list — is the same object the endpoint produces.
+    """
+    from app.services import pending_token
+    from app.services.jwt import create_access_token, decode_token
+
+    token = create_access_token(
+        teacher.id, teacher.email, teacher.role, scope=scope, amr=amr
+    )
+    await pending_token.register(decode_token(token).get("jti"))
+    client.cookies.set("access_token", token)
+
+
+@pytest.mark.asyncio
+async def test_the_password_completes_a_passkey_sign_in(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """
+    Passkey then password — one of the three pairs the policy promises.
+
+    `/auth/login` hard-codes an empty presented-factor list, so it can only ever
+    open a sign-in. Without a factor endpoint of its own the password could
+    never come second, and a passkey-first sign-in had nothing to offer but the
+    authenticator: a policy that says "any two" and a screen that meant one.
+    """
+    teacher = await _create_test_teacher(db, "passkey-then-password@example.com")
+    await _enrol_passkey(db, teacher)
+    await _pending_cookie(client, teacher, ["passkey"])
+
+    resp = await client.post(
+        "/api/v1/auth/factor/password", json={"password": "s3cr3t!!-min12"}
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert sorted(body["satisfied"]) == ["passkey", "password"]
+    assert "refresh_token" in resp.cookies
+
+
+@pytest.mark.asyncio
+async def test_the_password_cannot_be_presented_twice(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """One factor presented twice is one factor, not two."""
+    teacher = await _create_test_teacher(db, "password-twice@example.com")
+    await _pending_cookie(client, teacher, ["password"])
+
+    resp = await client.post(
+        "/api/v1/auth/factor/password", json={"password": "s3cr3t!!-min12"}
+    )
+    assert resp.status_code == 400
+    assert resp.headers.get("code") == "ERR_FACTOR_ALREADY_PRESENTED"
+
+
+@pytest.mark.asyncio
+async def test_the_password_factor_is_not_reachable_in_a_reset(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """
+    A reset exists because the password is unavailable.
+
+    Accepting it there would also mean the emailed token plus the old password
+    were enough to set a new one.
+    """
+    teacher = await _create_test_teacher(db, "reset-password-factor@example.com")
+    await _pending_cookie(client, teacher, ["password"], scope="reset_pending")
+
+    resp = await client.post(
+        "/api/v1/auth/factor/password", json={"password": "s3cr3t!!-min12"}
+    )
+    assert resp.status_code == 403
+    assert resp.headers.get("code") == "ERR_FACTOR_REQUIRED"
+
+
+@pytest.mark.asyncio
+async def test_a_wrong_password_at_the_second_step_can_be_retried(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """A typo costs an attempt, not the sign-in — as for a mistyped code."""
+    teacher = await _create_test_teacher(db, "password-second-retry@example.com")
+    await _enrol_passkey(db, teacher)
+    await _pending_cookie(client, teacher, ["passkey"])
+
+    wrong = await client.post(
+        "/api/v1/auth/factor/password", json={"password": "not-the-password"}
+    )
+    assert wrong.status_code == 401
+    assert wrong.headers.get("code") == "ERR_INVALID_CREDENTIALS"
+    client.cookies.update(wrong.cookies)
+
+    right = await client.post(
+        "/api/v1/auth/factor/password", json={"password": "s3cr3t!!-min12"}
+    )
+    assert right.status_code == 200, right.text
+    assert right.json()["status"] == "ok"

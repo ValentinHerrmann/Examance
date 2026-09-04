@@ -92,8 +92,29 @@ export const security = {
         checking: 'Wird geprüft …',
         invalid: 'Dieser Code ist nicht gültig.',
         expired: 'Diese Anmeldung ist abgelaufen. Bitte melden Sie sich erneut an.',
+        wrongPassword: 'Dieses Passwort ist nicht korrekt.',
+        passwordTitle: 'Bestätigung mit Ihrem Passwort',
+        passwordIntro: 'Geben Sie das Passwort dieses Kontos ein, um die Anmeldung abzuschließen.',
         chooserTitle: 'Zweiter Faktor',
         chooserIntro: 'Wählen Sie, womit Sie die Anmeldung abschließen möchten.',
+    },
+    chooser: {
+        passwordHint: 'Das Passwort dieses Kontos eingeben.',
+        totpHint: 'Einen sechsstelligen Code aus Ihrer Authenticator-App eingeben — oder einen Backup-Code.',
+        passkeyHint: 'Mit Fingerabdruck, Gesicht oder Geräte-PIN bestätigen.',
+        back: 'Anderen Faktor wählen',
+    },
+    vaultUnlock: {
+        title: 'Verschlüsselte Daten öffnen',
+        passwordIntro:
+            'Sie sind angemeldet. Ihr Passkey kann auf diesem Gerät jedoch keinen Schlüssel ableiten, deshalb brauchen wir einmalig Ihr Passwort, um Ihre Daten zu entschlüsseln. Es wird nicht gespeichert und nichts neu verschlüsselt.',
+        recoveryIntro:
+            'Geben Sie stattdessen Ihren Wiederherstellungscode ein. Er öffnet Ihre Daten genauso; der Code bleibt danach gültig.',
+        submit: 'Daten öffnen',
+        useRecovery: 'Stattdessen den Wiederherstellungscode verwenden',
+        usePassword: 'Zurück zum Passwort',
+        wrongPassword: 'Mit diesem Passwort lassen sich Ihre Daten nicht öffnen.',
+        wrongRecovery: 'Dieser Wiederherstellungscode passt nicht zu diesem Konto.',
     },
     enroll: {
         title: 'Zweiten Anmeldefaktor einrichten',
@@ -157,7 +178,6 @@ export const security = {
         keySkipWarning: 'Ohne den Code bleiben Ihre bisherigen Klausuren, Schülerdaten und Korrekturen dauerhaft unlesbar. Das Konto und alle danach angelegten Daten sind davon nicht betroffen.',
         keySkipConfirm: 'Trotzdem zurücksetzen',
         working: 'Wird zurückgesetzt …',
-        passkeyFactor: 'Stattdessen mit Passkey bestätigen',
         passkeyRecovered: 'Ihr Passkey hat den Datenschlüssel geöffnet — ein Wiederherstellungscode ist nicht nötig.',
     },
     passkey: {

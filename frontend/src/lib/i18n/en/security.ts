@@ -94,8 +94,29 @@ export const security: Translations['security'] = {
         checking: 'Checking…',
         invalid: 'That code is not valid.',
         expired: 'This sign-in has expired. Please start again.',
+        wrongPassword: 'That password is not correct.',
+        passwordTitle: 'Confirm with your password',
+        passwordIntro: "Enter this account's password to finish signing in.",
         chooserTitle: 'Second factor',
         chooserIntro: 'Choose how to finish signing in.',
+    },
+    chooser: {
+        passwordHint: "Enter this account's password.",
+        totpHint: 'Enter a six-digit code from your authenticator app — or a backup code.',
+        passkeyHint: 'Confirm with your fingerprint, face or device PIN.',
+        back: 'Choose a different factor',
+    },
+    vaultUnlock: {
+        title: 'Open your encrypted data',
+        passwordIntro:
+            'You are signed in. Your passkey cannot derive a key on this device, so we need your password once to decrypt your data. It is not stored, and nothing is re-encrypted.',
+        recoveryIntro:
+            'Use your recovery code instead. It opens your data the same way, and stays valid afterwards.',
+        submit: 'Open my data',
+        useRecovery: 'Use the recovery code instead',
+        usePassword: 'Back to the password',
+        wrongPassword: 'That password does not open your data.',
+        wrongRecovery: 'That recovery code does not match this account.',
     },
     enroll: {
         title: 'Set up a second sign-in factor',
@@ -159,7 +180,6 @@ export const security: Translations['security'] = {
         keySkipWarning: 'Without the code your existing exams, student data and grading stay permanently unreadable. The account, and anything created afterwards, is unaffected.',
         keySkipConfirm: 'Reset anyway',
         working: 'Resetting…',
-        passkeyFactor: 'Confirm with a passkey instead',
         passkeyRecovered: 'Your passkey opened the data key — no recovery code needed.',
     },
     passkey: {
