@@ -239,6 +239,20 @@ Per-environment `SECRET_KEY` and `POSTGRES_PASSWORD` live **only** in the server
 - Root directory `frontend/`, build command `npm run build`, output `frontend/build/` — unchanged.
 - **Custom domains are mandatory for both environments** (Settings → Custom domains): `examance.valentin-herrmann.com` for `release`, `prev-examance.valentin-herrmann.com` for `preview`. `FRONTEND_URL` must point at these, never at the `*.pages.dev` URL: that domain sits on URL blocklists, so outbound mail relays reject password-reset mails linking to it with `550 5.7.1 Refused by local policy … (B-URL)`. Serving reset links from the same registrable domain as `SMTP_FROM_EMAIL` also avoids the From/link mismatch that phishing filters score. `validate_frontend_url_for_email` (`backend/app/config.py`) refuses to start on a blocklisted `FRONTEND_URL` whenever `SMTP_HOST` is set outside development.
 - Environment variable `PUBLIC_DEFAULT_BACKEND_URL`, set per Cloudflare environment to that environment's API origin. It seeds the backend address on a fresh browser profile so the production frontend defaults to the production API and the preview frontend to the preview API. It is only a default: a saved address always wins and the user can still point the app anywhere.
+- **Web Analytics must stay off** (Settings → Analytics). It injects an inline snippet and `https://static.cloudflareinsights.com/beacon.min.js` into the HTML *after* the build has run, which means after `scripts/generate-csp-headers.mjs` has hashed the inline scripts. The CSP therefore blocks both, and the browser console fills with
+
+  ```
+  Executing inline script violates the following Content Security Policy directive 'script-src 'self' …'
+  Loading the script 'https://static.cloudflareinsights.com/beacon.min.js/…' violates …
+  ```
+
+  Those two lines are the expected result of switching Web Analytics on, not a broken deploy — the app's own bootstrap hash still matches and the page works. **Do not "fix" them by adding the beacon host to `script-src`**: that would start sending visitor data to a third party, which contradicts the no-third-party-transfer claims in `data_flow_and_security.md` and the legal pages. Turn the feature off instead.
+
+### Passkeys are per stack, and per origin
+
+`WEBAUTHN_RP_ID` defaults to the hostname of `FRONTEND_URL` (`backend/app/config.py`), so each stack must set `FRONTEND_URL` to *its own* frontend origin — production to `examance.valentin-herrmann.com`, preview to `prev-examance.valentin-herrmann.com`. A passkey registered against one RP ID does not work against the other, by design.
+
+The origin check behind it is stricter than CORS: `_expected_origins()` (`backend/app/services/webauthn.py`) reads `CORS_ALLOWED_ORIGINS` and `FRONTEND_URL` only — **not** `CORS_ALLOWED_ORIGIN_REGEX`. A stack whose frontend origin is matched only by the regex will let the browser complete a ceremony and then reject it server-side. Name the frontend origin explicitly in one of those two settings.
 
 ---
 

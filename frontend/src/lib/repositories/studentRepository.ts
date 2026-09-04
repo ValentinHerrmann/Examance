@@ -5,6 +5,7 @@ import { storagePolicyStore } from '$lib/stores/storagePolicy';
 import { encryptStudent, decryptStudent } from '$lib/db/dbEncryption';
 import { enqueueRequest } from '$lib/services/offlineQueue';
 import { currentKeyId } from '$lib/services/keyEnvelopeService';
+import { examRepository } from './examRepository';
 import type { StudentRecord } from '$lib/db/schema';
 import { uint8ArrayToBase64, base64ToUint8Array } from '$lib/crypto/aesGcm';
 import { ensure64CharHex } from '$lib/crypto/hmac';
@@ -16,31 +17,18 @@ export const studentRepository = {
       const raw = await db.students.toArray();
       return Promise.all(raw.map((st) => decryptStudent(st, key)));
     } else {
+      // Per exam, because there is no endpoint for "every student". This used
+      // to call GET /students, which the backend has never served — the router
+      // is mounted at /exams/{id}/students — so it 404'd and returned nothing.
+      // Silently: the GDPR erasure table showed an empty list and .bgproj
+      // exports came out with no students in them.
       try {
-        const rawList = await api.get<any[]>('/students');
-        // Decrypted, like getByExamId does. Server rows carry only ciphertext,
-        // so skipping this returned students with no name, number or fallback
-        // code at all.
-        return Promise.all(
-          rawList.map((st: any) => {
-            const payloadCt = st.pii_ciphertext_b64
-              ? base64ToUint8Array(st.pii_ciphertext_b64)
-              : undefined;
-            const payloadIv = st.iv_b64 ? base64ToUint8Array(st.iv_b64) : undefined;
-            return decryptStudent(
-              {
-                pseudonymId: st.pseudonym_hmac || st.pseudonymId,
-                examId: st.exam_id || st.examId || '',
-                fallbackCode: st.fallback_code || st.fallbackCode,
-                piiCt: payloadCt || new Uint8Array(0),
-                piiIv: payloadIv || new Uint8Array(12),
-                payloadCt,
-                payloadIv,
-              },
-              key,
-            );
-          }),
-        );
+        const exams = await examRepository.getAll(key);
+        const all: StudentRecord[] = [];
+        for (const exam of exams) {
+          all.push(...(await this.getByExamId(exam.id, key)));
+        }
+        return all;
       } catch {
         return [];
       }

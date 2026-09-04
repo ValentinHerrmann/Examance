@@ -92,3 +92,44 @@ async def test_removing_an_unknown_passkey_is_a_404(
     await sign_in(client, db, "passkey-del@example.com")
     resp = await client.delete("/api/v1/webauthn/credentials/bm9wZQ")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_the_challenge_it_issued_is_the_challenge_it_accepts(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """
+    Round-trip the challenge the client actually echoes back.
+
+    The other tests here post a challenge that was never issued, which is
+    refused for the right reason by accident: the stored key was built with
+    padded base64url and the options JSON carries the unpadded form, so *every*
+    challenge looked unissued and no passkey could ever be registered. A
+    negative test cannot see that. This one submits the exact string the browser
+    sends and asserts the ceremony gets past the lookup — the verification then
+    fails on the deliberately bogus credential, which is a different error.
+    """
+    await sign_in(client, db, "passkey-roundtrip@example.com")
+
+    options = await client.post("/api/v1/webauthn/register/options")
+    assert options.status_code == 200
+    challenge = options.json()["challenge_b64"]
+    handle = options.json()["handle"]
+
+    body = {
+        "handle": handle,
+        "challenge_b64": challenge,
+        "credential_json": "{}",
+        "supports_prf": False,
+        "nickname": None,
+    }
+    first = await client.post("/api/v1/webauthn/register/verify", json=body)
+    assert first.status_code == 400
+    assert "expired" not in first.json()["detail"].lower(), (
+        "the challenge was not found, so the encodings still disagree"
+    )
+
+    # And it was spent getting that far: single-use, on the same code path.
+    replay = await client.post("/api/v1/webauthn/register/verify", json=body)
+    assert replay.status_code == 400
+    assert "expired" in replay.json()["detail"].lower()

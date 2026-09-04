@@ -47,6 +47,23 @@ _CHALLENGE_TTL_SECONDS = 300
 PRF_SALT_BYTES = 32
 
 
+def _challenge_b64(value: bytes) -> str:
+    """
+    Unpadded base64url — the form py_webauthn puts in the options JSON.
+
+    Which is the form the browser echoes back, and therefore the only one the
+    lookup key may use. Storing the padded spelling instead meant the key never
+    matched what came back, so every ceremony read as expired and no passkey
+    could be registered or used at all.
+    """
+    return base64.urlsafe_b64encode(value).decode().rstrip("=")
+
+
+def _challenge_bytes(value: str) -> bytes:
+    """Decode what the client echoed back, restoring the padding it dropped."""
+    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+
+
 def _expected_origins() -> list[str]:
     origins = list(settings.CORS_ALLOWED_ORIGINS)
     if settings.FRONTEND_URL and settings.FRONTEND_URL not in origins:
@@ -58,7 +75,7 @@ async def _store_challenge(handle: str, challenge: bytes) -> None:
     # The store holds integers, so the challenge is kept as its own key with a
     # presence marker; the handle is what the client echoes back.
     await ephemeral_store.set(
-        _CHALLENGE_PREFIX + handle + ":" + base64.urlsafe_b64encode(challenge).decode(),
+        _CHALLENGE_PREFIX + handle + ":" + _challenge_b64(challenge),
         1,
         _CHALLENGE_TTL_SECONDS,
     )
@@ -123,7 +140,7 @@ async def verify_registration(
 
     verified = verify_registration_response(
         credential=credential_json,
-        expected_challenge=base64.urlsafe_b64decode(challenge_b64),
+        expected_challenge=_challenge_bytes(challenge_b64),
         expected_rp_id=settings.WEBAUTHN_RP_ID,
         expected_origin=_expected_origins(),
     )
@@ -184,7 +201,7 @@ async def verify_authentication(
 
     verified = verify_authentication_response(
         credential=credential_json,
-        expected_challenge=base64.urlsafe_b64decode(challenge_b64),
+        expected_challenge=_challenge_bytes(challenge_b64),
         expected_rp_id=settings.WEBAUTHN_RP_ID,
         expected_origin=_expected_origins(),
         credential_public_key=stored.public_key,
