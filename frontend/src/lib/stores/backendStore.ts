@@ -1,4 +1,4 @@
-import { writable, derived, get } from 'svelte/store';
+import { writable, derived } from 'svelte/store';
 import { safeLocalStorage } from '$lib/utils/storage';
 import { recordValue } from '$lib/utils/recentValues';
 
@@ -31,7 +31,7 @@ export function stripBackendProtocol(raw: string): string {
  */
 export function extractHostname(raw: string): string {
     const stripped = stripBackendProtocol(raw);
-    const hostPort = stripped.split(/[\/\?\#]/)[0].trim();
+    const hostPort = stripped.split(/[/?#]/)[0].trim();
     if (hostPort.startsWith('[')) {
         const closing = hostPort.indexOf(']');
         return closing > -1 ? hostPort.slice(1, closing) : hostPort;
