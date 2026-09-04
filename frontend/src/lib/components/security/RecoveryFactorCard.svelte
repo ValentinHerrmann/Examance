@@ -8,6 +8,7 @@
    * offered is a replacement, minted from the open vault.
    */
   import { Button, Card } from "$lib/components/ui";
+  import { Argon2UnavailableError } from "$lib/crypto/keyDerivation";
   import { t } from "$lib/i18n";
   import { fmt } from "$lib/utils/format";
   import type { MfaStatus } from "$lib/api/mfa";
@@ -34,8 +35,11 @@
     try {
       freshCode = await regenerateRecoveryCode(teacherId, vault);
       onChanged();
-    } catch {
-      errorMsg = $t("security.recovery.regenerateFailed");
+    } catch (err: unknown) {
+      errorMsg =
+        err instanceof Argon2UnavailableError
+          ? $t("security.vaultUnlock.kdfUnavailable")
+          : $t("security.recovery.regenerateFailed");
     } finally {
       isWorking = false;
     }

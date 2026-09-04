@@ -142,9 +142,35 @@ export async function derivePbkdf2Key(
 /**
  * Derive master CryptoKey via Argon2id (if available) or PBKDF2.
  */
-export async function deriveKey(password: string, salt: Uint8Array): Promise<DerivedKeyResult> {
+/** Argon2 could not be loaded, and the caller cannot silently use something else. */
+export class Argon2UnavailableError extends Error {
+  constructor(cause?: unknown) {
+    super(`Argon2 is not available in this browser right now: ${String(cause)}`);
+    this.name = 'Argon2UnavailableError';
+  }
+}
+
+/**
+ * Argon2id, or an error. Never a different KDF.
+ *
+ * Key *wrapping* must use this rather than `deriveKey`. A wrap records which
+ * KDF made it, and a silent substitution writes an envelope labelled with one
+ * KDF that only the other can open — which is unrecoverable once the transient
+ * condition that caused the substitution has passed.
+ */
+export async function deriveArgon2Key(
+  password: string,
+  salt: Uint8Array
+): Promise<DerivedKeyResult> {
+  let argon2: any;
   try {
-    const argon2 = await getArgon2();
+    argon2 = await getArgon2();
+  } catch (err) {
+    throw new Argon2UnavailableError(err);
+  }
+
+  let rawKey: Uint8Array;
+  try {
     const result = await argon2.hash({
       pass: password,
       salt,
@@ -154,15 +180,42 @@ export async function deriveKey(password: string, salt: Uint8Array): Promise<Der
       parallelism: 4,
       hashLen: 32,
     });
-    const rawKey = new Uint8Array(result.hash);
-    const masterKey = await crypto.subtle.importKey(
-      'raw',
-      toArrayBuffer(rawKey),
-      'HKDF',
-      false, // HKDF keys must have extractable=false per WebCrypto spec
-      ['deriveKey', 'deriveBits']
-    );
-    return { masterKey, rawKey };
+    rawKey = new Uint8Array(result.hash);
+  } catch (err) {
+    throw new Argon2UnavailableError(err);
+  }
+
+  const masterKey = await crypto.subtle.importKey(
+    'raw',
+    toArrayBuffer(rawKey),
+    'HKDF',
+    false, // HKDF keys must have extractable=false per WebCrypto spec
+    ['deriveKey', 'deriveBits']
+  );
+  return { masterKey, rawKey };
+}
+
+/** Whether a wrap can be written right now without substituting a KDF. */
+export async function argon2Available(): Promise<boolean> {
+  try {
+    await deriveArgon2Key('probe', new Uint8Array(16));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Argon2id where possible, PBKDF2 where not.
+ *
+ * The fallback is safe *here* and nowhere else: this feeds the legacy derived-key
+ * path, where `deriveKeyWithFallback` captures the PBKDF2 key into the bundle
+ * alongside the Argon2 one, so a record sealed under either stays readable. Key
+ * wraps have no such second copy — they use `deriveArgon2Key`.
+ */
+export async function deriveKey(password: string, salt: Uint8Array): Promise<DerivedKeyResult> {
+  try {
+    return await deriveArgon2Key(password, salt);
   } catch (err: any) {
     console.warn('[Crypto Warning] Argon2 WASM unavailable, falling back to WebCrypto PBKDF2:', err?.message || err);
     return derivePbkdf2Key(password, salt);

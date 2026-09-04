@@ -13,6 +13,7 @@
     sessionStore,
   } from "$lib/stores/session";
   import { api, ApiError } from "$lib/api/client";
+  import { Argon2UnavailableError } from "$lib/crypto/keyDerivation";
   import { backendStore } from "$lib/stores/backendStore";
   import { recordValue } from "$lib/utils/recentValues";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
@@ -365,6 +366,24 @@
   }
 
   /**
+   * Message for a failure that happened *after* the server accepted the factor.
+   *
+   * Returns null when the failure was the factor itself. Everything used to
+   * collapse into "that code is not valid", which is how a key problem wore the
+   * costume of a credential problem — a correct password reported as wrong
+   * because the browser could not load Argon2 to open the wrap with.
+   */
+  function vaultFailureMessage(err: unknown): string | null {
+    if (err instanceof Argon2UnavailableError) {
+      return translate("security.vaultUnlock.kdfUnavailable");
+    }
+    if (err instanceof EnvelopeChangedError) {
+      return translate("security.envelope.changedBody");
+    }
+    return null;
+  }
+
+  /**
    * The password as the second factor.
    *
    * Kept in `password` like the first-position one, because `openVault` needs
@@ -379,11 +398,12 @@
     } catch (err: any) {
       const code = err instanceof ApiError ? err.code : "";
       factorErrorMsg =
-        code === "ERR_ACCOUNT_LOCKED"
+        vaultFailureMessage(err) ??
+        (code === "ERR_ACCOUNT_LOCKED"
           ? translate("errors.code.ERR_ACCOUNT_LOCKED")
           : code === "ERR_STEP_EXPIRED"
             ? translate("security.factors.expired")
-            : translate("security.factors.wrongPassword");
+            : translate("security.factors.wrongPassword"));
     }
   }
 
@@ -434,14 +454,15 @@
     } catch (err: any) {
       const code = err instanceof ApiError ? err.code : "";
       factorErrorMsg =
-        code === "ERR_ACCOUNT_LOCKED"
+        vaultFailureMessage(err) ??
+        (code === "ERR_ACCOUNT_LOCKED"
           ? translate("errors.code.ERR_ACCOUNT_LOCKED")
           : code === "ERR_STEP_EXPIRED"
             // A wrong code is retryable and an expired step is not, so saying
             // "that code is not valid" to both leaves the teacher retyping a
             // correct code into a sign-in that has already ended.
             ? translate("security.factors.expired")
-            : translate("security.factors.invalid");
+            : translate("security.factors.invalid"));
     }
   }
 

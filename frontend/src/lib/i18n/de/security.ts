@@ -114,6 +114,8 @@ export const security = {
         back: 'Anderen Faktor wählen',
     },
     vaultUnlock: {
+        kdfUnavailable:
+            'Dieser Browser konnte die Schlüsselableitung (Argon2) nicht laden. Ihre Anmeldedaten sind in Ordnung — laden Sie die Seite neu und versuchen Sie es erneut.',
         title: 'Verschlüsselte Daten öffnen',
         passwordIntro:
             'Sie sind angemeldet. Ihr Passkey kann auf diesem Gerät jedoch keinen Schlüssel ableiten, deshalb brauchen wir einmalig Ihr Passwort, um Ihre Daten zu entschlüsseln. Es wird nicht gespeichert und nichts neu verschlüsselt.',

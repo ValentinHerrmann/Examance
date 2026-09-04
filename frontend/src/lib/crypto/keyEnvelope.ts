@@ -18,7 +18,7 @@
  */
 
 import { decrypt, fromBase64url, toArrayBuffer, toBase64url } from './aesGcm';
-import { deriveKey } from './keyDerivation';
+import { deriveArgon2Key, derivePbkdf2Key } from './keyDerivation';
 
 /** Bundle format version. Bumped only on a breaking change to the payload shape. */
 export const ENVELOPE_VERSION = 1;
@@ -155,8 +155,57 @@ export async function deriveSecretKek(
   salt: Uint8Array,
   kind: 'password' | 'recovery',
 ): Promise<CryptoKey> {
-  const { rawKey } = await deriveKey(secret, salt);
+  const { rawKey } = await deriveArgon2Key(secret, salt);
   return hkdfKek(rawKey, salt, kind);
+}
+
+/**
+ * The same key-encryption key, but derived with PBKDF2.
+ *
+ * Only for *opening* wraps written while Argon2 was unavailable. `deriveKey`
+ * used to substitute PBKDF2 on any Argon2 failure without recording that it had
+ * — so a wrap can claim `argon2id` and be openable only by this. Nothing writes
+ * such a wrap any more; this exists to get the accounts that already have one
+ * back to their data.
+ */
+export async function deriveFallbackSecretKek(
+  secret: string,
+  salt: Uint8Array,
+  kind: 'password' | 'recovery',
+): Promise<CryptoKey> {
+  const { rawKey } = await derivePbkdf2Key(secret, salt);
+  return hkdfKek(rawKey, salt, kind);
+}
+
+/**
+ * Open a wrap with whichever KDF actually made it.
+ *
+ * `envelope.kdf` cannot be trusted: the substitution that produced these wraps
+ * left the label saying `argon2id` either way. So the recorded KDF is tried
+ * first and the other one second, and the caller is told which won — a wrap that
+ * only opened under the fallback is repaired rather than left to fail the next
+ * time Argon2 loads (or does not).
+ */
+export async function unwrapWithSecret(
+  secret: string,
+  envelope: KeyEnvelope,
+  teacherId: string,
+  keyId: Uint8Array,
+  kind: 'password' | 'recovery',
+): Promise<{ bundle: UnwrappedBundle; usedFallbackKdf: boolean }> {
+  try {
+    const kek = await deriveSecretKek(secret, envelope.kdfSalt, kind);
+    return { bundle: await unwrapBundle(kek, envelope, teacherId, keyId), usedFallbackKdf: false };
+  } catch (primaryErr) {
+    const kek = await deriveFallbackSecretKek(secret, envelope.kdfSalt, kind);
+    try {
+      return { bundle: await unwrapBundle(kek, envelope, teacherId, keyId), usedFallbackKdf: true };
+    } catch {
+      // Report the first failure: an Argon2-labelled wrap that neither KDF opens
+      // is a wrong secret, and that is the answer the caller needs.
+      throw primaryErr;
+    }
+  }
 }
 
 /** Derive the key-encryption key from a passkey's PRF output. */

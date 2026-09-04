@@ -11,6 +11,7 @@
   import { Button, Card, Field, TextInput } from "$lib/components/ui";
   import { t } from "$lib/i18n";
   import { ApiError } from "$lib/api/client";
+  import { Argon2UnavailableError } from "$lib/crypto/keyDerivation";
   import { changePassword, type MfaStatus } from "$lib/api/mfa";
   import { envelopeSetToDto } from "$lib/api/keyEnvelopes";
   import { pinEnvelopeSet, rewrapForChangedPassword, vaultFromSession } from "$lib/services/keyEnvelopeService";
@@ -78,11 +79,15 @@
     } catch (err: unknown) {
       const code = err instanceof ApiError ? err.code : "";
       errorMsg =
-        code === "ERR_INVALID_CREDENTIALS"
-          ? $t("security.password.wrongCurrent")
-          : code === "ERR_ACCOUNT_LOCKED"
-            ? $t("errors.code.ERR_ACCOUNT_LOCKED")
-            : $t("security.password.failed");
+        // Refusing beats writing a wrap that only the fallback KDF can open —
+        // which is unrecoverable once the browser can load Argon2 again.
+        err instanceof Argon2UnavailableError
+          ? $t("security.vaultUnlock.kdfUnavailable")
+          : code === "ERR_INVALID_CREDENTIALS"
+            ? $t("security.password.wrongCurrent")
+            : code === "ERR_ACCOUNT_LOCKED"
+              ? $t("errors.code.ERR_ACCOUNT_LOCKED")
+              : $t("security.password.failed");
     } finally {
       isWorking = false;
     }

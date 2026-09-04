@@ -116,6 +116,8 @@ export const security: Translations['security'] = {
         back: 'Choose a different factor',
     },
     vaultUnlock: {
+        kdfUnavailable:
+            'This browser could not load the key derivation (Argon2). Your credentials are fine — reload the page and try again.',
         title: 'Open your encrypted data',
         passwordIntro:
             'You are signed in. Your passkey cannot derive a key on this device, so we need your password once to decrypt your data. It is not stored, and nothing is re-encrypted.',

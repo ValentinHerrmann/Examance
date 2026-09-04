@@ -33,6 +33,7 @@ import {
   normalizeRecoveryCode,
   randomBytes,
   unwrapBundle,
+  unwrapWithSecret,
   verifyWrap,
   wrapBundle,
   type EnvelopeSet,
@@ -250,9 +251,46 @@ export async function openWithPassword(
     throw new EnvelopeFactorMissingError('password');
   }
 
-  const kek = await deriveSecretKek(password, envelope.kdfSalt, 'password');
-  const bundle = await unwrapBundle(kek, envelope, teacherId, existing.keyId);
-  return { ...bundle, keyId: existing.keyId, migrated: false };
+  const { bundle, usedFallbackKdf } = await unwrapWithSecret(
+    password,
+    envelope,
+    teacherId,
+    existing.keyId,
+    'password',
+  );
+  const vault: OpenedVault = { ...bundle, keyId: existing.keyId, migrated: false };
+  await healFallbackWrap(teacherId, vault, 'password', password, usedFallbackKdf);
+  return vault;
+}
+
+/**
+ * Rewrite a wrap that only opened under the superseded KDF.
+ *
+ * These exist because `deriveKey` used to substitute PBKDF2 whenever the Argon2
+ * WASM failed to load, without recording that it had — so the wrap is labelled
+ * `argon2id`, is not, and stops opening the moment the WASM does load. Repairing
+ * it on the sign-in that noticed is what keeps that from being permanent.
+ *
+ * Best effort by design: the teacher is already through the door with the right
+ * key, and a failure to write the repair must not take that away from them.
+ */
+async function healFallbackWrap(
+  teacherId: string,
+  vault: OpenedVault,
+  kind: 'password' | 'recovery',
+  secret: string,
+  usedFallbackKdf: boolean,
+): Promise<void> {
+  if (!usedFallbackKdf) {
+    return;
+  }
+  try {
+    const set = await setWithReplacedWrap(teacherId, vault, kind, secret);
+    await saveEnvelopes(set);
+    await pinFingerprint(teacherId, set);
+  } catch (err) {
+    console.warn('[Crypto Warning] Could not rewrite the fallback-derived wrap:', err);
+  }
 }
 
 /** Open the vault with the printable recovery code. */
@@ -268,13 +306,17 @@ export async function openWithRecoveryCode(
   if (envelope === null) {
     throw new EnvelopeFactorMissingError('recovery');
   }
-  const kek = await deriveSecretKek(
-    normalizeRecoveryCode(recoveryCode),
-    envelope.kdfSalt,
+  const normalized = normalizeRecoveryCode(recoveryCode);
+  const { bundle, usedFallbackKdf } = await unwrapWithSecret(
+    normalized,
+    envelope,
+    teacherId,
+    existing.keyId,
     'recovery',
   );
-  const bundle = await unwrapBundle(kek, envelope, teacherId, existing.keyId);
-  return { ...bundle, keyId: existing.keyId, migrated: false };
+  const vault: OpenedVault = { ...bundle, keyId: existing.keyId, migrated: false };
+  await healFallbackWrap(teacherId, vault, 'recovery', normalized, usedFallbackKdf);
+  return vault;
 }
 
 /**

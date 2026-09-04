@@ -13,6 +13,7 @@
    */
   import { Button, Field, TextInput } from "$lib/components/ui";
   import { t } from "$lib/i18n";
+  import { Argon2UnavailableError } from "$lib/crypto/keyDerivation";
 
   export let onPassword: (password: string) => Promise<void>;
   export let onRecoveryCode: (code: string) => Promise<void>;
@@ -30,10 +31,16 @@
     errorMsg = "";
     try {
       await (useRecovery ? onRecoveryCode(value.trim()) : onPassword(value));
-    } catch {
-      errorMsg = useRecovery
-        ? $t("security.vaultUnlock.wrongRecovery")
-        : $t("security.vaultUnlock.wrongPassword");
+    } catch (err: unknown) {
+      // A browser that cannot load Argon2 cannot open the wrap with any secret.
+      // Saying the password is wrong would send the teacher hunting for a
+      // problem that is not theirs.
+      errorMsg =
+        err instanceof Argon2UnavailableError
+          ? $t("security.vaultUnlock.kdfUnavailable")
+          : useRecovery
+            ? $t("security.vaultUnlock.wrongRecovery")
+            : $t("security.vaultUnlock.wrongPassword");
     } finally {
       isWorking = false;
     }

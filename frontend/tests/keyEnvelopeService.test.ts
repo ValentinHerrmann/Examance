@@ -1,4 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { setArgon2Available } from './mocks/argon2Mock';
+
+// These exercise wrapping, which now refuses to run without Argon2 rather than
+// silently substituting PBKDF2 and writing a wrap labelled with a KDF that did
+// not make it.
+setArgon2Available(true);
 import {
   buildBundle,
   derivePrfKek,
