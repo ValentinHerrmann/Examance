@@ -23,7 +23,7 @@ export const misc = {
         latexServerText: 'Schnelle serverseitige Kompilierung. Erfordert ein authentifiziertes Konto.',
         backendHeading: '3. Serveradresse',
         backendDescription: 'Eigene API-Serveradresse konfigurieren (z. B. lokaler Backend-Server):',
-        backendPlaceholder: 'z. B. http://localhost:8000',
+        backendPlaceholder: 'localhost:8000',
         backendEmpty: 'Bitte geben Sie eine Serveradresse ein.',
         backendInvalid: 'Diese Serveradresse ist nicht gültig.',
         backendUpdated: 'Serveradresse aktualisiert auf: {url}',

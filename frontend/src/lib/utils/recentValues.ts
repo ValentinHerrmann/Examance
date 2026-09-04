@@ -2,6 +2,14 @@ import { safeLocalStorage } from './storage';
 
 const PREFIX = 'bg_recent:';
 
+function cleanRecentValue(fieldKey: string, val: string): string {
+  const trimmed = val.trim();
+  if (fieldKey === 'backend.url') {
+    return trimmed.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+  }
+  return trimmed;
+}
+
 /**
  * Retrieves the stored list of recent values for a given field key.
  */
@@ -12,7 +20,12 @@ export function getRecentValues(fieldKey: string): string[] {
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      return parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+      const items = parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+      if (fieldKey === 'backend.url') {
+        const cleaned = items.map((i) => cleanRecentValue(fieldKey, i)).filter(Boolean);
+        return Array.from(new Set(cleaned));
+      }
+      return items;
     }
   } catch {
     // Ignore corrupt storage entries
@@ -26,15 +39,15 @@ export function getRecentValues(fieldKey: string): string[] {
  */
 export function recordValue(fieldKey: string, value: string, maxItems = 15): string[] {
   if (!fieldKey) return [];
-  const trimmed = value.trim();
-  if (!trimmed) {
+  const cleaned = cleanRecentValue(fieldKey, value);
+  if (!cleaned) {
     return getRecentValues(fieldKey);
   }
 
   const existing = getRecentValues(fieldKey);
-  // Filter out existing entries that match the new value (case-insensitive or exact)
-  const filtered = existing.filter((item) => item.trim() !== trimmed);
-  const updated = [trimmed, ...filtered].slice(0, maxItems);
+  // Filter out existing entries that match the new value (case-insensitive)
+  const filtered = existing.filter((item) => item.trim().toLowerCase() !== cleaned.toLowerCase());
+  const updated = [cleaned, ...filtered].slice(0, maxItems);
 
   safeLocalStorage.setItem(PREFIX + fieldKey, JSON.stringify(updated));
   return updated;
@@ -45,13 +58,13 @@ export function recordValue(fieldKey: string, value: string, maxItems = 15): str
  */
 export function removeValue(fieldKey: string, value: string): string[] {
   if (!fieldKey) return [];
-  const trimmed = value.trim();
-  if (!trimmed) {
+  const cleaned = cleanRecentValue(fieldKey, value);
+  if (!cleaned) {
     return getRecentValues(fieldKey);
   }
 
   const existing = getRecentValues(fieldKey);
-  const updated = existing.filter((item) => item.trim() !== trimmed);
+  const updated = existing.filter((item) => item.trim().toLowerCase() !== cleaned.toLowerCase());
 
   if (updated.length === 0) {
     safeLocalStorage.removeItem(PREFIX + fieldKey);

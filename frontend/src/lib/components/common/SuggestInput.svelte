@@ -77,6 +77,9 @@
     : allSuggestions;
 
   function openDropdown() {
+    if (storageKey) {
+      recentList = getRecentValues(storageKey);
+    }
     isOpen = true;
     highlightedIndex = -1;
   }
@@ -159,7 +162,7 @@
     bind:this={inputEl}
     {id}
     type="text"
-    autocomplete="off"
+    autocomplete={autocomplete ?? "off"}
     bind:value
     {placeholder}
     {required}

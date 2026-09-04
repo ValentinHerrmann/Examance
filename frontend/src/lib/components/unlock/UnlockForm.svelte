@@ -1,6 +1,6 @@
 <script lang="ts">
   import "./UnlockForm.css";
-  import SuggestInput from "$lib/components/common/SuggestInput.svelte";
+  import BackendUrlInput from "$lib/components/common/BackendUrlInput.svelte";
   import { t } from "$lib/i18n";
   export let backendUrl: string;
   export let email: string;
@@ -112,9 +112,8 @@
     <form on:submit|preventDefault={onUnlock} class="cloud-form">
       <div class="form-group">
         <label for="backendUrl">{$t("auth.unlock.cloud.backendUrl")}</label>
-        <SuggestInput
+        <BackendUrlInput
           id="backendUrl"
-          storageKey="backend.url"
           bind:value={backendUrl}
           placeholder={$t("auth.unlock.cloud.backendUrlPlaceholder")}
           required

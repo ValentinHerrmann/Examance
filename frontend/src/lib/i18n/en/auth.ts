@@ -39,7 +39,7 @@ export const auth: Translations['auth'] = {
             connectToServer: 'Connect to Cloud Server',
             description: "Sync exams across devices and connect with your institution's backend server.",
             backendUrl: 'Backend Server URL',
-            backendUrlPlaceholder: 'e.g. http://localhost:8000',
+            backendUrlPlaceholder: 'localhost:8000',
             email: 'Email',
             emailPlaceholder: 'teacher@school.example',
             password: 'Password',

@@ -20,7 +20,7 @@ export const misc: Translations['misc'] = {
         latexServerText: 'High performance server-side compilation. Requires authenticated account.',
         backendHeading: '3. Backend Server Address',
         backendDescription: 'Configure custom API server address (e.g. local backend server):',
-        backendPlaceholder: 'e.g. http://localhost:8000',
+        backendPlaceholder: 'localhost:8000',
         backendEmpty: 'Please enter a backend server address.',
         backendInvalid: 'That backend server address is not valid.',
         backendUpdated: 'Backend server address updated to: {url}',

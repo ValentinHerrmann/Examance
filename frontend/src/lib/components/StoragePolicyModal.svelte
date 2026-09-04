@@ -10,6 +10,7 @@
   import { isAuthenticated } from "$lib/stores/session";
   import { wipeDatabase } from "$lib/db/hygiene";
   import { Modal, Button, controlClass } from "$lib/components/ui";
+  import BackendUrlInput from "$lib/components/common/BackendUrlInput.svelte";
 
   export let isOpen = false;
 
@@ -181,11 +182,10 @@
       <h4 class="m-0 mb-1 text-base text-content">{$t("misc.storageModal.backendHeading")}</h4>
       <p class="m-0 mb-3 text-[0.85rem] text-muted">{$t("misc.storageModal.backendDescription")}</p>
       <div class="flex items-center gap-2">
-        <input
-          type="text"
+        <BackendUrlInput
           bind:value={customBackendUrl}
           placeholder={$t("misc.storageModal.backendPlaceholder")}
-          class="{controlClass} flex-1"
+          class="flex-1"
         />
         <Button variant="primary" onClick={handleSaveBackendUrl}>{$t("common.save")}</Button>
       </div>
