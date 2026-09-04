@@ -4,6 +4,8 @@ import { db } from '$lib/db/db';
 import { storagePolicyStore } from '$lib/stores/storagePolicy';
 import { encryptStudent, decryptStudent } from '$lib/db/dbEncryption';
 import { enqueueRequest } from '$lib/services/offlineQueue';
+import { currentKeyId } from '$lib/services/keyEnvelopeService';
+import { examRepository } from './examRepository';
 import type { StudentRecord } from '$lib/db/schema';
 import { uint8ArrayToBase64, base64ToUint8Array } from '$lib/crypto/aesGcm';
 import { ensure64CharHex } from '$lib/crypto/hmac';
@@ -15,15 +17,18 @@ export const studentRepository = {
       const raw = await db.students.toArray();
       return Promise.all(raw.map((st) => decryptStudent(st, key)));
     } else {
+      // Per exam, because there is no endpoint for "every student". This used
+      // to call GET /students, which the backend has never served — the router
+      // is mounted at /exams/{id}/students — so it 404'd and returned nothing.
+      // Silently: the GDPR erasure table showed an empty list and .bgproj
+      // exports came out with no students in them.
       try {
-        const rawList = await api.get<any[]>('/students');
-        return rawList.map((st: any) => ({
-          pseudonymId: st.pseudonym_hmac || st.pseudonymId,
-          examId: st.exam_id || st.examId || '',
-          fallbackCode: st.fallback_code || st.fallbackCode,
-          piiCt: st.pii_ciphertext_b64 ? base64ToUint8Array(st.pii_ciphertext_b64) : new Uint8Array(0),
-          piiIv: st.iv_b64 ? base64ToUint8Array(st.iv_b64) : new Uint8Array(12),
-        }));
+        const exams = await examRepository.getAll(key);
+        const all: StudentRecord[] = [];
+        for (const exam of exams) {
+          all.push(...(await this.getByExamId(exam.id, key)));
+        }
+        return all;
       } catch {
         return [];
       }
@@ -94,16 +99,31 @@ export const studentRepository = {
   },
 
   async save(student: StudentRecord, key: CryptoKey | null): Promise<void> {
+    // `encrypted` deliberately carries no plaintext identity fields — see
+    // encryptStudent(). Anything that needs the name reads it back through
+    // decryptStudent().
     const encrypted = await encryptStudent(student, key);
-    await db.students.put(encrypted);
     const policy = get(storagePolicyStore);
+
+    // In all-server mode nothing about a pupil is supposed to persist on this
+    // device. The local write used to happen before this check, so it did.
+    if (policy.storageMode !== 'all-server') {
+      await db.students.put(encrypted);
+    }
+
     if (policy.storageMode === 'all-server') {
       const pseudonymHmac = await ensure64CharHex(student.pseudonymId);
       const payload = {
         pseudonym_hmac: pseudonymHmac,
         pii_ciphertext_b64: encrypted.payloadCt ? uint8ArrayToBase64(encrypted.payloadCt) : uint8ArrayToBase64(student.piiCt),
         iv_b64: encrypted.payloadIv ? uint8ArrayToBase64(encrypted.payloadIv) : uint8ArrayToBase64(student.piiIv),
-        encryption_salt_b64: uint8ArrayToBase64(new Uint8Array(16)),
+        // Historically an Argon2id salt, back when the key was derived per
+        // record. It is not: the ciphertext is sealed under
+        // HKDF(dataKey, sessionNonce). What is worth recording in these 16
+        // bytes is *which data-key generation* sealed it, which is what makes a
+        // later key rotation diagnosable instead of silently unreadable. The
+        // field used to be 16 hardcoded zero bytes, i.e. decorative.
+        encryption_salt_b64: uint8ArrayToBase64(currentKeyId()),
       };
       try {
         await api.post(`/exams/${student.examId}/students`, payload);

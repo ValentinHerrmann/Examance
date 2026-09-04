@@ -222,6 +222,28 @@ export const help = {
                 p2: 'Über die Datenlöschung lassen sich einzelne Schülerdaten (Auskunfts- und Löschansprüche nach DSGVO) oder der gesamte Arbeitsbereich entfernen. Das Löschen ist endgültig und kann nicht rückgängig gemacht werden.',
             },
         },
+        security: {
+            title: 'Anmeldung & Sicherheit',
+            summary: 'Faktoren prüfen und ändern, Passwort wechseln, Codes ersetzen.',
+            s1: {
+                h: 'Was diese Seite zeigt',
+                p1: 'Für jeden Faktor steht dort, ob er eingerichtet ist, wann er zuletzt verwendet wurde und ob er auch Ihre verschlüsselten Daten öffnen kann. Die Authenticator-App kann das nicht: Ihr Geheimnis liegt auf dem Server, und sechs Ziffern reichen nicht, um daraus einen Schlüssel abzuleiten.',
+            },
+            s2: {
+                h: 'Passwort ändern',
+                p1: 'Das Passwort lässt sich hier direkt wechseln, ohne den Weg über „Passwort vergessen“. Ihr Datenschlüssel wird dabei im Browser neu verpackt und zusammen mit dem neuen Passwort gespeichert — es wird nichts neu verschlüsselt, und Sie bleiben angemeldet.',
+                p2: 'Andere Geräte werden dabei abgemeldet. Ihre Passkeys und Ihr Wiederherstellungscode bleiben gültig.',
+            },
+            s3: {
+                h: 'Backup-Codes und Wiederherstellungscode',
+                p1: 'Backup-Codes ersetzen die Authenticator-App, wenn Sie Ihr Telefon nicht zur Hand haben. Jeder funktioniert genau einmal; erzeugen Sie neue, solange Sie angemeldet sind.',
+                p2: 'Der Wiederherstellungscode ist etwas anderes: Er öffnet Ihre verschlüsselten Daten, wenn Sie Ihr Passwort vergessen. Sie können ihn hier ersetzen — der bisherige wird dabei ungültig.',
+            },
+            s4: {
+                h: 'Faktor entfernen',
+                p1: 'Ein Faktor lässt sich nur entfernen, solange danach noch zwei übrig bleiben und mindestens einer davon Ihre Daten öffnen kann. Wird das Entfernen abgelehnt, steht in der Meldung, welche der beiden Regeln greift.',
+            },
+        },
         accounts: {
             title: 'Konten & Rollen',
             summary: 'Wann ein Konto nötig ist, welche Rollen es gibt, wie Passwörter zurückgesetzt werden.',
@@ -233,9 +255,28 @@ export const help = {
                 h: 'Rollen',
                 p1: 'Lehrkräfte sehen ausschließlich ihre eigenen Klausuren. Administratorinnen und Administratoren verwalten zusätzlich die Konten der Schule — sie erhalten dadurch keinen Zugriff auf fremde Klausurinhalte, denn diese sind clientseitig verschlüsselt.',
             },
+            s6: {
+                h: 'Zwei Anmeldefaktoren',
+                p1: 'Jede Anmeldung verlangt zwei von drei Faktoren: Passwort, Authenticator-App und Passkey. Damit nützt ein erratenes Passwort allein nichts.',
+                p2: 'Richten Sie nach Möglichkeit alle drei ein — dann ist der Verlust eines einzelnen Faktors nur lästig. Mit genau zwei bedeutet der Verlust eines Faktors, dass nur die Administration wieder Zugang verschaffen kann, und zwar nur zum Konto, nicht zu den verschlüsselten Daten. Backup-Codes ersetzen die Authenticator-App und funktionieren je einmal.',
+            },
+            s7: {
+                h: 'Passkeys',
+                p1: 'Ein Passkey meldet Sie mit Fingerabdruck, Gesicht oder Geräte-PIN an — ohne Passwort. Er zählt als einer der zwei nötigen Faktoren, nicht als Ersatz für beide.',
+                p2: 'Ob ein Passkey auch Ihre verschlüsselten Daten öffnen kann, hängt vom Gerät ab. Die Einstellungen zeigen das je Passkey an. Wo es nicht möglich ist, bleiben Passwort und Wiederherstellungscode dafür zuständig.',
+            },
             s3: {
                 h: 'Passwort zurücksetzen',
-                p1: 'Ein Serverkonto lässt sich über „Passwort vergessen“ zurücksetzen. Beachten Sie: Damit wird der Zugang zum Konto wiederhergestellt, nicht der Schlüssel zu bereits verschlüsselten Inhalten.',
+                p1: 'Ein Serverkonto lässt sich über „Passwort vergessen“ zurücksetzen. Sie bestätigen dabei mit einem zweiten Faktor und geben einmalig Ihren Wiederherstellungscode ein — damit werden Ihre bestehenden verschlüsselten Daten wieder lesbar, ohne dass etwas neu verschlüsselt wird.',
+            },
+            s4: {
+                h: 'Wiederherstellungscode',
+                p1: 'Der Code wird genau einmal angezeigt: wenn Ihr Schlüssel erstmals hinterlegt wird, und erneut nach jedem Zurücksetzen. Bewahren Sie ihn außerhalb des Browsers auf — auf Papier oder in einem Passwortmanager.',
+                p2: 'Ohne diesen Code und ohne Ihr altes Passwort bleiben bereits verschlüsselte Klausuren, Schülerdaten und Korrekturen dauerhaft unlesbar. Auch die Schuladministration kann sie nicht wiederherstellen, weil der Server den Schlüssel nie kennt. Daten, die Sie danach anlegen, sind davon nicht betroffen.',
+            },
+            s5: {
+                h: 'Zu viele Fehlversuche',
+                p1: 'Nach mehreren falschen Passwörtern wird das Konto kurzzeitig gesperrt; die Wartezeit verlängert sich mit jedem weiteren Fehlversuch und endet von selbst. Wenn Sie das sehen, ohne es selbst ausgelöst zu haben, versucht jemand anderes, sich bei Ihrem Konto anzumelden.',
             },
         },
         privacy: {

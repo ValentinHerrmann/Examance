@@ -19,6 +19,8 @@ from app.services.password_reset import (
     hash_reset_token,
 )
 
+from .factors import complete_reset, create_teacher, enrol_totp, sign_in, start_reset
+
 
 @pytest.mark.asyncio
 async def test_initial_admin_bootstrap(db: AsyncSession) -> None:
@@ -75,20 +77,10 @@ async def test_admin_create_user_and_password_reset_flow(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     # 1. Setup admin user and authenticate client
-    admin = Teacher(
-        email="admin-tester@example.com",
-        password_hash=hash_password("AdminPass12345!"),
-        role="admin",
+    # Two factors, because one no longer produces a session.
+    await sign_in(
+        client, db, "admin-tester@example.com", role="admin", password="AdminPass12345!"
     )
-    db.add(admin)
-    await db.commit()
-
-    login_res = await client.post(
-        "/api/v1/auth/login",
-        json={"email": "admin-tester@example.com", "password": "AdminPass12345!"},
-    )
-    assert login_res.status_code == 200
-    client.cookies.update(login_res.cookies)
 
     # 2. Admin creates a new user (no password in body)
     with patch("app.services.email.send_email") as mock_send_email:
@@ -110,14 +102,15 @@ async def test_admin_create_user_and_password_reset_flow(
     assert new_teacher is not None
     assert new_teacher.password_hash is None
 
-    # 4. Attempt login before setting password (should fail with ERR_PASSWORD_NOT_SET)
+    # 4. Attempt login before setting password. The response is deliberately the
+    #    generic credential error, not an account-specific one.
     client.cookies.clear()
     uninit_login = await client.post(
         "/api/v1/auth/login",
         json={"email": "newteacher-reset-flow@example.com", "password": "AttemptedPassword123!"},
     )
     assert uninit_login.status_code == 401
-    assert uninit_login.headers.get("code") == "ERR_PASSWORD_NOT_SET"
+    assert uninit_login.headers.get("code") == "ERR_INVALID_CREDENTIALS"
 
     # 5. Extract raw reset token from DB token_hash
     token_res = await db.execute(
@@ -131,19 +124,21 @@ async def test_admin_create_user_and_password_reset_flow(
     raw_token, reset_sent = await create_and_send_reset_token(db, new_teacher)
     assert reset_sent is True
 
-    reset_res = await client.post(
-        "/api/v1/auth/reset-password",
-        json={"token": raw_token, "new_password": "NewSecurePassword123!"},
-    )
-    assert reset_res.status_code == 200
+    # The new account has one factor, so the emailed token carries the reset on
+    # its own; requiring a second factor it does not have would strand it.
+    client.cookies.clear()
+    await complete_reset(client, raw_token, "NewSecurePassword123!")
 
-    # 7. Verify login succeeds with new password
+    # 7. The new password now gets the sign-in to its next step. It does not
+    #    open a session: this account still has only one factor, so it is held
+    #    in enrollment.
+    client.cookies.clear()
     success_login = await client.post(
         "/api/v1/auth/login",
         json={"email": "newteacher-reset-flow@example.com", "password": "NewSecurePassword123!"},
     )
     assert success_login.status_code == 200
-    assert "access_token" in success_login.cookies
+    assert success_login.json()["status"] == "enroll_required"
 
 
 @pytest.mark.asyncio
@@ -188,10 +183,10 @@ async def test_invalid_or_expired_reset_token(client: AsyncClient, db: AsyncSess
     db.add(teacher)
     await db.commit()
 
-    # 1. Invalid token
+    # 1. Invalid token — rejected when the reset is opened, before anything else.
     resp_invalid = await client.post(
-        "/api/v1/auth/reset-password",
-        json={"token": "completely-invalid-token", "new_password": "NewPassword123!"},
+        "/api/v1/auth/reset/start",
+        json={"token": "completely-invalid-token"},
     )
     assert resp_invalid.status_code == 400
     assert resp_invalid.headers.get("code") == "ERR_INVALID_TOKEN"
@@ -207,8 +202,8 @@ async def test_invalid_or_expired_reset_token(client: AsyncClient, db: AsyncSess
     await db.commit()
 
     resp_expired = await client.post(
-        "/api/v1/auth/reset-password",
-        json={"token": raw_token, "new_password": "NewPassword123!"},
+        "/api/v1/auth/reset/start",
+        json={"token": raw_token},
     )
     assert resp_expired.status_code == 400
     assert resp_expired.headers.get("code") == "ERR_INVALID_TOKEN"
@@ -217,25 +212,18 @@ async def test_invalid_or_expired_reset_token(client: AsyncClient, db: AsyncSess
 @pytest.mark.asyncio
 async def test_admin_forced_password_reset(client: AsyncClient, db: AsyncSession) -> None:
     # 1. Setup admin and existing teacher
-    admin = Teacher(
-        email="admin-resetter@example.com",
-        password_hash=hash_password("AdminPass12345!"),
-        role="admin",
-    )
     teacher = Teacher(
         email="teacher-to-reset@example.com",
         password_hash=hash_password("OldWorkingPassword123!"),
         role="teacher",
     )
-    db.add_all([admin, teacher])
+    db.add(teacher)
     await db.commit()
 
-    # Admin logs in
-    admin_login = await client.post(
-        "/api/v1/auth/login",
-        json={"email": "admin-resetter@example.com", "password": "AdminPass12345!"},
+    # Two factors, because one no longer produces a session.
+    await sign_in(
+        client, db, "admin-resetter@example.com", role="admin", password="AdminPass12345!"
     )
-    client.cookies.update(admin_login.cookies)
 
     # 2. Admin triggers forced reset
     with patch("app.services.email.send_email") as mock_send_email:
@@ -272,20 +260,10 @@ async def test_email_sending_dev_vs_production_mode() -> None:
 async def test_admin_create_user_email_failure_reported(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    admin = Teacher(
-        email="admin-emailfail@example.com",
-        password_hash=hash_password("AdminPass12345!"),
-        role="admin",
+    # Two factors, because one no longer produces a session.
+    await sign_in(
+        client, db, "admin-emailfail@example.com", role="admin", password="AdminPass12345!"
     )
-    db.add(admin)
-    await db.commit()
-
-    login_res = await client.post(
-        "/api/v1/auth/login",
-        json={"email": "admin-emailfail@example.com", "password": "AdminPass12345!"},
-    )
-    assert login_res.status_code == 200
-    client.cookies.update(login_res.cookies)
 
     with patch("app.services.email.send_email", return_value=False):
         create_res = await client.post(
@@ -302,25 +280,18 @@ async def test_admin_create_user_email_failure_reported(
 async def test_admin_reset_password_email_failure_reported(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    admin = Teacher(
-        email="admin-rfail@example.com",
-        password_hash=hash_password("AdminPass12345!"),
-        role="admin",
-    )
     teacher = Teacher(
         email="teacher-rfail@example.com",
         password_hash=hash_password("TeacherPass123!"),
         role="teacher",
     )
-    db.add_all([admin, teacher])
+    db.add(teacher)
     await db.commit()
 
-    login_res = await client.post(
-        "/api/v1/auth/login",
-        json={"email": "admin-rfail@example.com", "password": "AdminPass12345!"},
+    # Two factors, because one no longer produces a session.
+    await sign_in(
+        client, db, "admin-rfail@example.com", role="admin", password="AdminPass12345!"
     )
-    assert login_res.status_code == 200
-    client.cookies.update(login_res.cookies)
 
     with patch("app.services.email.send_email", return_value=False):
         reset_res = await client.post(f"/api/v1/admin/users/{teacher.id}/reset-password")
@@ -331,8 +302,9 @@ async def test_admin_reset_password_email_failure_reported(
 
 
 def test_send_sync_includes_date_and_message_id_headers() -> None:
-    from app.services.email import _send_sync
     from unittest.mock import MagicMock
+
+    from app.services.email import _send_sync
 
     mock_smtp_inst = MagicMock()
     with patch.object(settings, "SMTP_HOST", "smtp.example.com"), \
@@ -359,3 +331,59 @@ def test_send_sync_includes_date_and_message_id_headers() -> None:
         assert "examance.com" in sent_msg["Message-ID"]
 
 
+
+
+@pytest.mark.asyncio
+async def test_reset_needs_a_second_factor(client: AsyncClient, db: AsyncSession) -> None:
+    """
+    Mailbox access alone must not complete a reset.
+
+    This is the bypass the whole change exists to close: before it, anyone who
+    could read the teacher's email could take the account.
+    """
+    teacher = await create_teacher(db, "reset-2fa@example.com")
+    await enrol_totp(db, teacher)
+    raw_token, _ = await create_and_send_reset_token(db, teacher)
+
+    step = await start_reset(client, raw_token)
+    assert step["status"] == "factor_required"
+    assert step["available"] == ["totp"]
+
+    too_early = await client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": raw_token, "new_password": "NewSecurePassword123!"},
+    )
+    assert too_early.status_code == 403
+    assert too_early.headers.get("code") == "ERR_MFA_REQUIRED"
+
+
+@pytest.mark.asyncio
+async def test_reset_completes_with_the_second_factor(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    teacher = await create_teacher(db, "reset-2fa-ok@example.com")
+    secret = await enrol_totp(db, teacher)
+    raw_token, _ = await create_and_send_reset_token(db, teacher)
+
+    await complete_reset(client, raw_token, "NewSecurePassword123!", secret)
+
+    client.cookies.clear()
+    login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "reset-2fa-ok@example.com", "password": "NewSecurePassword123!"},
+    )
+    assert login.json()["status"] == "factor_required"
+
+
+@pytest.mark.asyncio
+async def test_a_reset_token_is_single_use(client: AsyncClient, db: AsyncSession) -> None:
+    teacher = await create_teacher(db, "reset-once@example.com")
+    secret = await enrol_totp(db, teacher)
+    raw_token, _ = await create_and_send_reset_token(db, teacher)
+
+    await complete_reset(client, raw_token, "NewSecurePassword123!", secret)
+
+    client.cookies.clear()
+    again = await client.post("/api/v1/auth/reset/start", json={"token": raw_token})
+    assert again.status_code == 400
+    assert again.headers.get("code") == "ERR_INVALID_TOKEN"

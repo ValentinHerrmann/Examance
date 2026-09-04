@@ -238,9 +238,67 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
   "pseudonym_hmac": "a1b2c3...64-hex-chars",
   "pii_ciphertext_b64": "base64...",
   "iv_b64": "base64...",
-  "encryption_salt_b64": "base64..."
+  "encryption_salt_b64": "base64...16 bytes"
 }
 ```
+
+> **`encryption_salt_b64` is a key-generation id, not a salt.** The name is
+> historical, from when each record's key was derived per record. It is not: the
+> ciphertext is sealed under `HKDF(dataKey, sessionNonce)`. The 16 bytes carry the
+> `key_id` of the data-key generation that sealed the record, so a later key
+> rotation is diagnosable rather than silently unreadable. Older clients sent 16
+> zero bytes, and placeholder identity rows created by the submissions endpoint
+> still do; treat that value as "no generation recorded".
+
+#### Sign-in factors (`/api/v1/auth`, `/api/v1/mfa`)
+
+A sign-in presents two of three factors. Each step returns
+`{status, satisfied, available}`: `factor_required` with the kinds still open,
+`enroll_required` when the account has fewer than two factors, or `ok` with the
+session cookies set.
+
+| Method | Endpoint | Summary |
+|---|---|---|
+| `POST` | `/auth/login` | First factor: email + password. Does **not** return a session on its own. |
+| `POST` | `/auth/factor/password` | The password as the *second* factor. Takes no email — the account is the one the pending token names. Not reachable in the reset flow. |
+| `POST` | `/auth/factor/totp` | Second factor: authenticator code. Second position only. |
+| `POST` | `/auth/factor/backup-code` | Spends a backup code in place of the authenticator. |
+| `POST` | `/auth/reset/start` | Opens a password reset with the emailed token. |
+| `POST` | `/auth/reset-password` | Sets the new password and, in the same transaction, the re-wrapped key. |
+| `POST` | `/auth/change-password` | In-session password change. Full scope only, verifies the current password through the login throttle, and writes the re-wrapped key in the same transaction. Revokes every refresh token and re-issues this session's. |
+| `GET` | `/mfa/status` | Enrolled factors, which of them are key-capable, backup codes left, whether a recovery code is on file, and when each factor was added and last used. |
+| `POST` | `/mfa/totp/enroll` | Returns the `otpauth://` URI. The secret is shown once and never retrievable. |
+| `POST` | `/mfa/totp/confirm` | First correct code confirms the factor; returns the backup codes once. |
+| `POST` | `/mfa/backup-codes/regenerate` | Replaces the set; the previous codes stop working. |
+| `DELETE` | `/mfa/totp` | Refused when it would drop the account below two factors, or below its last key-capable one. |
+| `POST` | `/webauthn/register/options` · `/register/verify` | Add a passkey. Reachable from enrollment as well as a session. |
+| `POST` | `/webauthn/login/options` · `/login/verify` | Passkey sign-in, in either position. Unauthenticated; takes no account identifier. When a sign-in is already part-way through, the passkey must belong to the account that token names. |
+| `GET` | `/webauthn/credentials` | Registered passkeys, including whether each can open the encrypted data. |
+| `DELETE` | `/webauthn/credentials/{id}` | Same last-factor guard as `DELETE /mfa/totp`. |
+
+`available` is only ever populated after a factor has been proven — answering it
+earlier would tell an unauthenticated caller which addresses have accounts here,
+and which factors they use.
+
+#### Key Envelopes (`/api/v1/keys`)
+
+| Method | Endpoint | Summary |
+|---|---|---|
+| `GET` | `/keys/envelopes` | The calling teacher's wrapped data-key copies. |
+| `PUT` | `/keys/envelopes` | Replace the whole set atomically. |
+| `DELETE` | `/keys/envelopes/{id}` | Remove one wrap (used when a passkey is deregistered). |
+
+Everything crossing this boundary is opaque to the server: ciphertext, a public
+per-factor salt and public KDF parameters. Wrapping and unwrapping happen in the
+browser.
+
+Two rules the endpoint enforces rather than trusts the client with:
+
+* **Replacement is wholesale.** A merge could leave the password wrap holding a
+  new data key while the recovery wrap still held the previous one — a set that
+  looks healthy right up until someone needs to recover with it.
+* **A recovery wrap is mandatory and cannot be deleted.** It is the factor that
+  always works; without it a forgotten password means unreadable data.
 
 ---
 

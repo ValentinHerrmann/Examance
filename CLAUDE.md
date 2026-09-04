@@ -8,9 +8,9 @@ Privacy-first, zero-knowledge-encrypted anonymous exam grading. LaTeX exams, QR-
 
 ## Architecture
 
-**Backend** `backend/` — Python 3.12, FastAPI async, SQLAlchemy 2.0, Alembic, PostgreSQL (asyncpg; psycopg2 sync fallback), Redis (rate limiting), argon2-cffi, PyJWT, slowapi, Click CLI. Deps: `uv`.
+**Backend** `backend/` — Python 3.12, FastAPI async, SQLAlchemy 2.0, Alembic, PostgreSQL (asyncpg; psycopg2 sync fallback), Redis (rate limiting + login cooloff), argon2-cffi, PyJWT, slowapi, cryptography, py_webauthn, Click CLI. Deps: `uv`.
 
-- `app/main.py` → `create_app()`. Routers `auth, compile, exams, exercises, students, submissions, admin, user` under `/api/v1`; `/api/health`; docs `/api/docs`.
+- `app/main.py` → `create_app()`. Routers `auth, compile, exams, exercises, keys, mfa, webauthn, students, submissions, admin, user` under `/api/v1`; `/api/health`; docs `/api/docs`.
 - `app/{config,database,dependencies,cli}.py` + `middleware,models,routers,schemas,services`.
 - Tests `backend/tests/`: pytest + pytest-asyncio, aiosqlite in-memory, httpx AsyncClient.
 - Ruff `select = E,F,I,UP,S,B` (S=security, B=bugbear), mypy `strict=true`. Lint is a security control here — keep new code passing both.
@@ -40,7 +40,11 @@ Privacy-first, zero-knowledge-encrypted anonymous exam grading. LaTeX exams, QR-
 | `npm run test:e2e` | Playwright (not wired into `make`) |
 | `npm run sri:verify` | subresource-integrity check (also in CI) |
 
-Prefer `make` over hand-rolled `cd backend && ...`. `dev`/`build` run `predev`/`prebuild`, which fetch LaTeX/WASM assets — don't strip those.
+Prefer `make` over hand-rolled `cd backend && ...`. Run mypy through an env that has the
+**dev** extras (`uvx -p 3.12 --with-editable ".[dev]" mypy app`, from `backend/`): a bare
+`mypy` reports ~187 spurious untyped-decorator errors, and one without `[dev]` disagrees with
+CI about `redis` (the `types-redis` stubs make `Redis` generic, redis 8's own types do not).
+The real baseline is zero errors. `dev`/`build` run `predev`/`prebuild`, which fetch LaTeX/WASM assets — don't strip those.
 
 ## Token discipline
 
@@ -129,6 +133,44 @@ Teacher-uploaded files an exercise's LaTeX references (`\includegraphics{figure.
 - Two exercises with *different* files under the same name is a hard error before compiling (`mergeResources`); identical bytes are deduped.
 - Resource API calls pass `silentError` and report in the panel — a 404 for an exercise the server has never seen must not raise the global toast.
 - A missing graphic does not fail XeLaTeX. The worker reports `missingGraphics` and callers surface it — do not treat a successful compile as proof the figures rendered.
+
+## Authentication & the data key
+
+**Sign-in is two-of-three factors**: password, passkey, TOTP. `app/services/auth_policy.py`
+is the only place the rule lives. Consequences worth knowing before you touch anything here:
+
+- `POST /auth/login` does **not** return a session — it returns `{status, satisfied, available}`
+  and sets a short-lived, single-use, non-refreshable `auth_pending` cookie. A backend test that
+  logs in must go through `tests/factors.py` (`sign_in`, `complete_login`, `complete_reset`), not
+  `/auth/login` alone.
+- Scopes on the access token: `full` (two distinct factors), `auth_pending`, `enroll`
+  (fewer than two factors enrolled), `reset_pending`. `get_current_teacher` demands `full`;
+  `get_pending_teacher` returns a `PendingSession` for the rest. `/keys/envelopes` and `/mfa/*`
+  deliberately accept the non-full scopes — an account that predates the envelope has one factor,
+  so the wizard that gets it out of enrollment is also the one that first stores its key.
+- `available` is only ever returned *after* a factor is proven. Never add an endpoint that
+  answers "which factors does this email have" — that is an account-existence oracle. TOTP is
+  second-position only for the same reason.
+- Removing a factor goes through `may_remove_factor`: never below two factors, never below the
+  last *key-capable* one. TOTP is not key-capable (server-side secret, six digits).
+
+**The data key is random and wrapped, not derived.** `key_envelopes` holds one wrap per factor;
+the payload is a *bundle* (`{dek, fallback, legacy}`) because `decrypt()` walks the whole PBKDF2
+chain. Client side: `lib/crypto/keyEnvelope.ts` (wrap/unwrap) and
+`lib/services/keyEnvelopeService.ts` (lifecycle). Rules that will cost data if broken:
+
+- `sessionNonce` stays `getUserSessionNonce(email)`. Server-stored ciphertext was sealed under it.
+- The migration **adopts** the previously derived key as the DEK, so nothing is re-encrypted and
+  the session key is byte-identical. It is also the only moment the fallback/legacy keys exist —
+  capture them or those records are unreadable forever.
+- Any server-side password write (admin reset, `cli.py set-password`, completing a reset) must
+  call `invalidate_password_wrap`. The server cannot re-wrap a key it has never seen; marking the
+  wrap stale is what sends the teacher to the recovery code instead of a vault of blank fields.
+- `encryption_salt_b64` on student uploads carries the **`key_id`**, not a salt. The name is
+  historical.
+
+`WEBAUTHN_RP_ID` is per stack — a passkey registered against production will not work against
+preview, and vice versa. Rotating `SECRET_KEY` invalidates every TOTP enrollment.
 
 ## Gotchas worth knowing
 

@@ -12,24 +12,15 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
-from app.models.teacher import Teacher
-from app.services.crypto import hash_password
+
+from .factors import sign_in
 
 
-async def _create_teacher_and_login(client: AsyncClient, db: AsyncSession, email: str, role: str = "teacher") -> None:
-    teacher = Teacher(
-        email=email,
-        password_hash=hash_password("Password123!-ok"),
-        role=role,
-    )
-    db.add(teacher)
-    await db.commit()
-
-    login_resp = await client.post(
-        "/api/v1/auth/login",
-        json={"email": email, "password": "Password123!-ok"},
-    )
-    client.cookies.update(login_resp.cookies)
+async def _create_teacher_and_login(
+    client: AsyncClient, db: AsyncSession, email: str, role: str = "teacher"
+) -> None:
+    # Two factors, because one no longer produces a session. See tests/factors.py.
+    await sign_in(client, db, email, role=role)
 
 
 @pytest.mark.asyncio
@@ -214,13 +205,15 @@ async def test_admin_can_create_teacher_user(client: AsyncClient, db: AsyncSessi
     assert body["role"] == "teacher"
     assert body["password_reset_sent"] is True
 
-    # Verify created account has no password set and returns 401 ERR_PASSWORD_NOT_SET
+    # The created account has no password yet. Login answers with the generic
+    # credential error — an account-specific "no password set" response would
+    # tell an unauthenticated caller which addresses exist here.
     login_resp = await client.post(
         "/api/v1/auth/login",
         json={"email": "newteacher-api@example.com", "password": "AnyPassword123!"},
     )
     assert login_resp.status_code == 401
-    assert login_resp.headers.get("code") == "ERR_PASSWORD_NOT_SET"
+    assert login_resp.headers.get("code") == "ERR_INVALID_CREDENTIALS"
 
 
 @pytest.mark.asyncio
@@ -739,8 +732,9 @@ async def test_create_exam_wrong_method(
 def test_export_openapi_cli(tmp_path: Path) -> None:
     """CLI export-openapi command dumps valid OpenAPI 3.0 specification JSON."""
     import json
-    from pathlib import Path
+
     from click.testing import CliRunner
+
     from app.cli import cli
 
     out_file = tmp_path / "openapi.json"

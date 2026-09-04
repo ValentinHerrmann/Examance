@@ -11,12 +11,17 @@ export const errors: Translations['errors'] = {
         ERR_PASSWORD_NOT_SET:
             'No password has been set for this account yet. Please use the link sent to your email.',
         ERR_INVALID_CREDENTIALS: 'Invalid credentials.',
+        ERR_ACCOUNT_LOCKED: 'Too many failed attempts. Please wait a moment and try again.',
         ERR_COMPILE_TIMEOUT: 'Compilation timed out.',
         ERR_PAYLOAD_TOO_LARGE: 'Payload too large.',
         ERR_BAD_REQUEST: 'Bad request.',
         ERR_ORIGIN_REJECTED: 'Origin not allowed.',
         ERR_UNAUTHORIZED: 'Unauthorized.',
         ERR_NETWORK: 'Server unreachable.',
+        ERR_LAST_FACTOR_PROTECTED:
+            'That factor cannot be removed without losing access to the account or to your data.',
+        ERR_MFA_REQUIRED: 'This action needs a fully signed-in session.',
+        ERR_STEP_EXPIRED: 'This sign-in step has expired. Please start again.',
     },
 
     http: {

@@ -14,6 +14,7 @@ from app.models.refresh_token import RefreshToken
 from app.models.teacher import Teacher
 from app.services import email as email_svc
 from app.services.crypto import hash_password
+from app.services.key_envelope import invalidate_password_wrap
 
 
 def hash_reset_token(raw_token: str) -> str:
@@ -117,6 +118,13 @@ async def complete_password_reset(
 
     token_record.used_at = datetime.now(UTC)
     teacher.password_hash = hash_password(new_password)
+    teacher.password_changed_at = datetime.now(UTC)
+
+    # The new password cannot open the old wrap, and the server has no way to
+    # re-wrap: it never sees the data key. Marking the wrap stale is what makes
+    # the client offer the recovery code instead of silently showing a vault of
+    # blank fields. The recovery and passkey wraps still hold the same key.
+    await invalidate_password_wrap(db, teacher.id)
 
     # Force re-authentication across all active sessions by revoking refresh tokens
     await db.execute(

@@ -11,20 +11,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
 from app.middleware.cors import is_allowed_origin
-from app.models.teacher import Teacher
-from app.services.crypto import hash_password
+
+from .factors import sign_in
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"pretend-image-bytes"
 PNG_B64 = base64.b64encode(PNG).decode()
 
 
 async def _login(client: AsyncClient, db: AsyncSession, email: str) -> None:
-    db.add(Teacher(email=email, password_hash=hash_password("Password123!-ok"), role="teacher"))
-    await db.commit()
-    resp = await client.post(
-        "/api/v1/auth/login", json={"email": email, "password": "Password123!-ok"}
-    )
-    client.cookies.update(resp.cookies)
+    # Two factors, because one no longer produces a session. See tests/factors.py.
+    await sign_in(client, db, email)
 
 
 async def _create_exercise(client: AsyncClient, name: str = "With figure") -> str:

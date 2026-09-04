@@ -133,6 +133,17 @@
       onLocaleChange={handleLocaleChange}
     />
 
+    {#if $isAuthenticated}
+      <!-- Server accounts only: a local vault has no sign-in factors. -->
+      <Card class="mb-8">
+        <h3 class="m-0 mb-2 text-accent">{$t("security.page.title")}</h3>
+        <p class="mt-0 mb-4 text-muted">{$t("security.page.subtitle")}</p>
+        <Button variant="secondary" onClick={() => goto("/settings/security")}>
+          {$t("security.page.open")}
+        </Button>
+      </Card>
+    {/if}
+
     <GdprErasureTable
       {students}
       {isErasing}

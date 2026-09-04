@@ -1,5 +1,6 @@
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { api } from '$lib/api/client';
+import { isUnlocked } from '$lib/stores/session';
 
 export interface QueuedRequest {
   id: string;
@@ -44,6 +45,11 @@ let isFlushing = false;
 
 export async function flushOfflineQueue(): Promise<void> {
   if (isFlushing) return;
+  // Never replay against a session that is not fully signed in. The `online`
+  // event fires readily on a tablet, and a sign-in in progress has deliberately
+  // demoted the access cookie — replaying then means a burst of 403s for writes
+  // that were perfectly replayable a moment later.
+  if (!get(isUnlocked)) return;
   isFlushing = true;
   try {
     let currentQueue: QueuedRequest[] = [];

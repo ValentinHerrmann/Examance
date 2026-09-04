@@ -17,7 +17,19 @@ from app.middleware.cors import add_cors_middleware, is_allowed_origin
 from app.middleware.csp import CSPMiddleware
 from app.middleware.origin_guard import OriginGuardMiddleware
 from app.middleware.rate_limit import limiter
-from app.routers import admin, auth, compile, exams, exercises, students, submissions, user
+from app.routers import (
+    admin,
+    auth,
+    compile,
+    exams,
+    exercises,
+    keys,
+    mfa,
+    students,
+    submissions,
+    user,
+    webauthn,
+)
 
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
@@ -41,6 +53,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         else:
             logging.getLogger("app.main").info(
                 "SMTP_HOST is not set; running email service in development log-only mode."
+            )
+
+    # The login throttle and the single-use pending tokens both live in this
+    # store. It degrades safely when Redis is unreachable, but silently — so say
+    # so once at startup rather than leaving it to be inferred from behaviour.
+    from app.services import ephemeral_store
+
+    if ephemeral_store.uses_redis():
+        if await ephemeral_store.check_reachable():
+            logging.getLogger("app.main").info(
+                "Ephemeral store: Redis reachable at %s", settings.RATE_LIMIT_STORAGE_URI
+            )
+        else:
+            logging.getLogger("app.main").warning(
+                "Ephemeral store: Redis at %s is NOT reachable. Login throttling and "
+                "single-use sign-in tokens fall back to per-process memory, which is not "
+                "shared between workers. Check REDIS_URL — it defaults to localhost, "
+                "which inside a container means the container itself.",
+                settings.RATE_LIMIT_STORAGE_URI,
             )
 
     async with AsyncSessionLocal() as session:
@@ -106,6 +137,27 @@ def create_app() -> FastAPI:
             ),
         },
         {
+            "name": "mfa",
+            "description": (
+                "Authenticator (TOTP) enrollment and backup codes. Every sign-in presents "
+                "two of the three factors: password, passkey, authenticator."
+            ),
+        },
+        {
+            "name": "webauthn",
+            "description": (
+                "Passkey registration and sign-in. A passkey is one of the three factors, "
+                "and where the authenticator supports PRF it can also unwrap the data key."
+            ),
+        },
+        {
+            "name": "keys",
+            "description": (
+                "Wrapped copies of the client's data-encryption key. Opaque to the server: "
+                "ciphertext, a public salt and public KDF parameters only."
+            ),
+        },
+        {
             "name": "meta",
             "description": "System health and operational monitoring.",
         },
@@ -116,6 +168,12 @@ def create_app() -> FastAPI:
         "## Key Security & Architecture Features\n"
         "- **Zero-Knowledge Encryption**: Student PII, submission scans, and annotations "
         "are encrypted client-side (Argon2id + AES-256-GCM) before reaching the server.\n"
+        "- **Two-of-three sign-in**: every session presents two distinct factors out of "
+        "password, passkey and authenticator (TOTP). Fewer than two enrolled means an "
+        "enrollment-scoped token that reaches nothing else.\n"
+        "- **Recoverable data key**: the client's key is random and wrapped per factor "
+        "(`key_envelopes`), so a password reset re-wraps it rather than orphaning every "
+        "vault. The server holds ciphertext only.\n"
         "- **Session Hygiene**: State stored in HttpOnly cookies (`access_token` 15 min, "
         "`refresh_token` 7 days with rotation & reuse detection).\n"
         "- **Privacy Safeguards**: LaTeX requests redacted in logs (`LaTeXRequest`), "
@@ -185,6 +243,9 @@ def create_app() -> FastAPI:
     app.include_router(submissions.router, prefix=API_PREFIX)
     app.include_router(admin.router, prefix=API_PREFIX)
     app.include_router(user.router, prefix=API_PREFIX)
+    app.include_router(keys.router, prefix=API_PREFIX)
+    app.include_router(mfa.router, prefix=API_PREFIX)
+    app.include_router(webauthn.router, prefix=API_PREFIX)
 
     @app.get("/api/health", tags=["meta"])
     async def health() -> dict[str, str]:

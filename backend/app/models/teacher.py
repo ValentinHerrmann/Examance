@@ -22,6 +22,21 @@ class Teacher(Base):
         nullable=False,
         default="teacher",
     )
+    # Mirror of the Redis-held login cooloff (app/services/login_throttle.py), so
+    # flushing Redis cannot silently clear a lock and an operator can read the
+    # state out of the database. Always in the future or None; never permanent.
+    locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # Factor activity, shown on the security page. Null means "not recorded
+    # since this shipped" — deliberately not backfilled from created_at, which
+    # would state a change that may never have happened.
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    password_last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

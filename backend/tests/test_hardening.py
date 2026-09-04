@@ -5,7 +5,6 @@ logout cookie clearing, and the CSRF origin backstop.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import re
 
 import pytest
@@ -16,6 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import PLACEHOLDER_SECRET_KEYS, Settings
 from app.models.teacher import Teacher
 from app.services.crypto import hash_password
+from app.services.password_reset import create_and_send_reset_token
+
+from .factors import create_teacher, start_reset
 
 STRONG_KEY = "b9f2c1a0" * 8  # 64 chars, stands in for `openssl rand -hex 32`
 
@@ -150,10 +152,17 @@ def test_blocklist_matches_only_on_domain_boundary() -> None:
 
 
 @pytest.mark.asyncio
-async def test_reset_password_rejects_short_password(client: AsyncClient) -> None:
+async def test_reset_password_rejects_short_password(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """The password policy still applies at the end of a real reset."""
+    teacher = await create_teacher(db, "shortpw-reset@example.com")
+    raw_token, _ = await create_and_send_reset_token(db, teacher)
+    await start_reset(client, raw_token)
+
     resp = await client.post(
         "/api/v1/auth/reset-password",
-        json={"token": "some-token", "new_password": "sh0rt!"},
+        json={"token": raw_token, "new_password": "sh0rt!"},
     )
     assert resp.status_code == 422
 

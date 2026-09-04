@@ -239,6 +239,20 @@ Per-environment `SECRET_KEY` and `POSTGRES_PASSWORD` live **only** in the server
 - Root directory `frontend/`, build command `npm run build`, output `frontend/build/` — unchanged.
 - **Custom domains are mandatory for both environments** (Settings → Custom domains): `examance.valentin-herrmann.com` for `release`, `prev-examance.valentin-herrmann.com` for `preview`. `FRONTEND_URL` must point at these, never at the `*.pages.dev` URL: that domain sits on URL blocklists, so outbound mail relays reject password-reset mails linking to it with `550 5.7.1 Refused by local policy … (B-URL)`. Serving reset links from the same registrable domain as `SMTP_FROM_EMAIL` also avoids the From/link mismatch that phishing filters score. `validate_frontend_url_for_email` (`backend/app/config.py`) refuses to start on a blocklisted `FRONTEND_URL` whenever `SMTP_HOST` is set outside development.
 - Environment variable `PUBLIC_DEFAULT_BACKEND_URL`, set per Cloudflare environment to that environment's API origin. It seeds the backend address on a fresh browser profile so the production frontend defaults to the production API and the preview frontend to the preview API. It is only a default: a saved address always wins and the user can still point the app anywhere.
+- **Web Analytics must stay off** (Settings → Analytics). It injects an inline snippet and `https://static.cloudflareinsights.com/beacon.min.js` into the HTML *after* the build has run, which means after `scripts/generate-csp-headers.mjs` has hashed the inline scripts. The CSP therefore blocks both, and the browser console fills with
+
+  ```
+  Executing inline script violates the following Content Security Policy directive 'script-src 'self' …'
+  Loading the script 'https://static.cloudflareinsights.com/beacon.min.js/…' violates …
+  ```
+
+  Those two lines are the expected result of switching Web Analytics on, not a broken deploy — the app's own bootstrap hash still matches and the page works. **Do not "fix" them by adding the beacon host to `script-src`**: that would start sending visitor data to a third party, which contradicts the no-third-party-transfer claims in `data_flow_and_security.md` and the legal pages. Turn the feature off instead.
+
+### Passkeys are per stack, and per origin
+
+`WEBAUTHN_RP_ID` defaults to the hostname of `FRONTEND_URL` (`backend/app/config.py`), so each stack must set `FRONTEND_URL` to *its own* frontend origin — production to `examance.valentin-herrmann.com`, preview to `prev-examance.valentin-herrmann.com`. A passkey registered against one RP ID does not work against the other, by design.
+
+The origin check behind it is stricter than CORS: `_expected_origins()` (`backend/app/services/webauthn.py`) reads `CORS_ALLOWED_ORIGINS` and `FRONTEND_URL` only — **not** `CORS_ALLOWED_ORIGIN_REGEX`. A stack whose frontend origin is matched only by the regex will let the browser complete a ceremony and then reject it server-side. Name the frontend origin explicitly in one of those two settings.
 
 ---
 
@@ -266,6 +280,16 @@ docker network inspect examance-prod_default -f '{{(index .IPAM.Config 0).Gatewa
 ```
 
 Then an nginx server block per environment proxying to `127.0.0.1:8000` / `127.0.0.1:8001`, with `certbot --nginx` for TLS. nginx and certbot are managed on the host and are deliberately **not** touched by these workflows.
+
+Two settings the two stacks must **not** share:
+
+* `WEBAUTHN_RP_ID` — a passkey is bound to its relying-party ID and will not work
+  under a different registrable domain. Production and preview are different
+  domains, so each needs its own value and its own enrollments. This is a
+  WebAuthn property, not something configuration can work around.
+* The host clock has to be right. TOTP codes are time-derived, so a drifting
+  server clock rejects correct codes and looks, to the teacher, exactly like a
+  wrong one.
 
 Each server block's `location` proxying to the backend must set `proxy_read_timeout`/`proxy_send_timeout` to at least `COMPILE_TIMEOUT_SECONDS` (`backend/app/services/latex.py`, 120s as of writing) plus margin — e.g. `150s`. nginx's own default (60s) is below that, and compile (`/api/v1/compile/latex`, `/api/v1/exams/{id}/compile`) is the one endpoint that legitimately runs that long. If nginx's timeout fires first, it serves the browser its own bare 504 page and drops the connection *before* the backend's own timeout handling gets a chance to run — the backend finishes and logs a clean, CORS-header-carrying 504 moments later, but nobody ever receives it. The browser then reports this as a CORS error ("No 'Access-Control-Allow-Origin' header is present"), not a timeout, because nginx's error page carries no CORS headers at all — same root cause as the "500 has to carry CORS headers itself" gotcha below, one layer further out. Signature in the backend's own access log: a `"... HTTP/1.0" 504 Gateway Timeout` line for a request nobody saw succeed or fail in the browser (`HTTP/1.0` is nginx's default `proxy_http_version` towards the upstream, confirming the request came through nginx as expected).
 

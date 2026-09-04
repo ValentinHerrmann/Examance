@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 
 from app.schemas.latex import LaTeXRequest
-from app.services.latex import CompilationError, compile_latex, compile_exam_latex
+from app.services.latex import CompilationError, compile_exam_latex, compile_latex
 
 
 def test_latex_request_repr_redacted() -> None:
@@ -273,8 +273,8 @@ async def test_compile_latex_auto_wraps_snippet() -> None:
 async def test_compile_exam_latex_fallback_wrapping() -> None:
     import tempfile
     from pathlib import Path
-    from unittest.mock import AsyncMock, patch
     from types import SimpleNamespace
+    from unittest.mock import AsyncMock, patch
 
     captured_files: dict[str, str] = {}
 

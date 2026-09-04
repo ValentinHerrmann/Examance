@@ -222,6 +222,28 @@ export const help: Translations['help'] = {
                 p2: 'Data deletion removes individual student records (GDPR access and erasure requests) or the entire workspace. Deletion is final and cannot be undone.',
             },
         },
+        security: {
+            title: 'Sign-in & security',
+            summary: 'Check and change your factors, change your password, replace your codes.',
+            s1: {
+                h: 'What this page shows',
+                p1: 'For every factor it says whether it is set up, when it was last used, and whether it can also open your encrypted data. An authenticator app cannot: its secret lives on the server, and six digits carry no entropy to derive a key from.',
+            },
+            s2: {
+                h: 'Changing your password',
+                p1: 'You can change your password here directly, without going through "forgot password". Your data key is re-wrapped in the browser and stored together with the new password — nothing is re-encrypted, and you stay signed in.',
+                p2: 'Other devices are signed out. Your passkeys and your recovery code stay valid.',
+            },
+            s3: {
+                h: 'Backup codes and the recovery code',
+                p1: 'Backup codes stand in for the authenticator app when your phone is not to hand. Each works exactly once; generate new ones while you are still signed in.',
+                p2: 'The recovery code is a different thing: it opens your encrypted data if you forget your password. You can replace it here — the previous one stops working.',
+            },
+            s4: {
+                h: 'Removing a factor',
+                p1: 'A factor can only be removed while two would remain afterwards and at least one of those can open your data. When a removal is refused, the message says which of the two rules it hit.',
+            },
+        },
         accounts: {
             title: 'Accounts & roles',
             summary: 'When an account is needed, which roles exist, how passwords are reset.',
@@ -233,9 +255,28 @@ export const help: Translations['help'] = {
                 h: 'Roles',
                 p1: 'Teachers see only their own exams. Administrators additionally manage the school’s accounts — which gives them no access to anyone else’s exam content, because that is encrypted client-side.',
             },
+            s6: {
+                h: 'Two sign-in factors',
+                p1: 'Every sign-in presents two of three factors: password, authenticator app, passkey. A guessed password on its own gets nowhere.',
+                p2: 'Enrol all three where you can — then losing one is merely inconvenient. With exactly two, losing one means only an administrator can get you back in, and only to the account, not to the encrypted data. Backup codes stand in for the authenticator app and work once each.',
+            },
+            s7: {
+                h: 'Passkeys',
+                p1: 'A passkey signs you in with a fingerprint, your face or a device PIN — no password. It counts as one of the two required factors, not as a replacement for both.',
+                p2: 'Whether a passkey can also open your encrypted data depends on the device. Settings shows this per passkey. Where it cannot, your password and recovery code stay responsible for that.',
+            },
             s3: {
                 h: 'Resetting a password',
-                p1: 'A server account can be reset via “forgot password”. Note that this restores access to the account, not the key to content that is already encrypted.',
+                p1: 'A server account can be reset via “forgot password”. You confirm with a second factor, then enter your recovery code once so your existing encrypted data becomes readable again — nothing is re-encrypted.',
+            },
+            s4: {
+                h: 'Recovery code',
+                p1: 'The code is shown exactly once: when your key is first stored, and again after every reset. Keep it outside the browser — on paper, or in a password manager.',
+                p2: 'Without this code and without your old password, exams, student data and grading that are already encrypted stay permanently unreadable. Your school administrator cannot restore them either, because the server never knows the key. Anything you create afterwards is unaffected.',
+            },
+            s5: {
+                h: 'Too many failed attempts',
+                p1: 'After several wrong passwords the account is locked briefly; the wait grows with each further failure and ends by itself. If you see this without having caused it, somebody else is trying to sign in to your account.',
             },
         },
         privacy: {

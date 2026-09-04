@@ -418,14 +418,22 @@ export async function encryptStudent(student: StudentRecord, key: CryptoKey | nu
     const { ct, iv } = await encryptBytes(key, encoder.encode(jsonStr));
     payloadCt = ct;
     payloadIv = iv;
+  } else if (student.fallbackCode || student.studentName || student.studentNumber) {
+    // Without a key there is nowhere for the pupil's name to go except the
+    // plaintext columns, which is exactly the leak this function used to have.
+    // Refusing is the only safe answer: a locked session must not be able to
+    // write identity data at all.
+    throw new Error('Cannot write student identity data while the session is locked.');
   }
 
+  // Deliberately does NOT re-emit fallbackCode, studentName or studentNumber.
+  // Returning them alongside the ciphertext is what put pupil names into
+  // IndexedDB in plaintext (tracked as L17 in docs/legal_audit_dsgvo.md) and
+  // broke Core Invariant 1 in every storage mode. They live in payloadCt now,
+  // and callers get them back from decryptStudent().
   return {
     pseudonymId: student.pseudonymId,
     examId: student.examId,
-    fallbackCode: student.fallbackCode,
-    studentName: student.studentName,
-    studentNumber: student.studentNumber,
     piiCt: student.piiCt,
     piiIv: student.piiIv,
     payloadCt,

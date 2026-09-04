@@ -21,6 +21,7 @@ export type HelpTopicId =
   | "stats"
   | "analytics"
   | "settings"
+  | "security"
   | "accounts"
   | "privacy";
 
@@ -226,6 +227,24 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
   },
   {
+    id: "security",
+    icon: "🔐",
+    titleKey: "help.topics.security.title",
+    summaryKey: "help.topics.security.summary",
+    sections: [
+      { headingKey: "help.topics.security.s1.h", bodyKeys: ["help.topics.security.s1.p1"] },
+      {
+        headingKey: "help.topics.security.s2.h",
+        bodyKeys: ["help.topics.security.s2.p1", "help.topics.security.s2.p2"],
+      },
+      {
+        headingKey: "help.topics.security.s3.h",
+        bodyKeys: ["help.topics.security.s3.p1", "help.topics.security.s3.p2"],
+      },
+      { headingKey: "help.topics.security.s4.h", bodyKeys: ["help.topics.security.s4.p1"] },
+    ],
+  },
+  {
     id: "accounts",
     icon: "👥",
     titleKey: "help.topics.accounts.title",
@@ -233,7 +252,20 @@ export const HELP_TOPICS: HelpTopic[] = [
     sections: [
       { headingKey: "help.topics.accounts.s1.h", bodyKeys: ["help.topics.accounts.s1.p1"] },
       { headingKey: "help.topics.accounts.s2.h", bodyKeys: ["help.topics.accounts.s2.p1"] },
+      {
+        headingKey: "help.topics.accounts.s6.h",
+        bodyKeys: ["help.topics.accounts.s6.p1", "help.topics.accounts.s6.p2"],
+      },
+      {
+        headingKey: "help.topics.accounts.s7.h",
+        bodyKeys: ["help.topics.accounts.s7.p1", "help.topics.accounts.s7.p2"],
+      },
       { headingKey: "help.topics.accounts.s3.h", bodyKeys: ["help.topics.accounts.s3.p1"] },
+      {
+        headingKey: "help.topics.accounts.s4.h",
+        bodyKeys: ["help.topics.accounts.s4.p1", "help.topics.accounts.s4.p2"],
+      },
+      { headingKey: "help.topics.accounts.s5.h", bodyKeys: ["help.topics.accounts.s5.p1"] },
     ],
   },
   {
@@ -271,6 +303,7 @@ export function topicForPath(pathname: string): HelpTopicId {
     return "examCreation";
   }
   if (pathname.startsWith("/analytics")) return "analytics";
+  if (pathname.startsWith("/settings/security")) return "security";
   if (pathname.startsWith("/settings")) return "settings";
   if (pathname.startsWith("/admin")) return "accounts";
   if (pathname.startsWith("/legal")) return "privacy";

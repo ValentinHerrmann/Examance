@@ -6,12 +6,14 @@ import uuid
 from typing import Annotated, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_admin_teacher
 from app.models.audit_log import AuditLog
+from app.models.key_envelope import KeyEnvelope
+from app.models.refresh_token import RefreshToken
 from app.models.scan_submission import ScanSubmission
 from app.models.teacher import Teacher
 from app.schemas.admin import (
@@ -22,6 +24,8 @@ from app.schemas.admin import (
     ClassStatsResponse,
 )
 from app.services import audit as audit_svc
+from app.services import mfa as mfa_svc
+from app.services import webauthn as webauthn_svc
 from app.services.password_reset import create_and_send_reset_token
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -120,6 +124,64 @@ async def reset_user_password(
         user_id=user.id,
         password_reset_sent=reset_sent,
     )
+
+
+@router.post("/users/{user_id}/reset-factors", status_code=status.HTTP_200_OK)
+async def reset_user_factors(
+    user_id: uuid.UUID,
+    admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, str]:
+    """
+    Clear a user's authenticator and passkeys (Admin only).
+
+    The escape hatch for a teacher who has lost a factor and cannot get back in.
+    Every sign-in needs two of three factors, and a teacher with exactly two who
+    loses one has no path back on their own — backup codes only cover the
+    authenticator.
+
+    What this does **not** do is restore access to their data. Their key copies
+    are untouched, because the server cannot read them: the wraps for the
+    factors removed here are gone with those factors, and the recovery code
+    remains the way back to the exams themselves. An administrator who could
+    undo that could also read the data.
+    """
+    result = await db.execute(select(Teacher).where(Teacher.id == user_id))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+
+    await mfa_svc.disable(db, user.id)
+    for credential in await webauthn_svc.list_credentials(db, user.id):
+        await db.delete(credential)
+
+    # The passkey wraps those credentials held are now unusable, so they are
+    # dropped rather than left looking like available recovery paths.
+    await db.execute(
+        delete(KeyEnvelope).where(
+            KeyEnvelope.teacher_id == user.id, KeyEnvelope.kind == "passkey"
+        )
+    )
+
+    # Every live session was earned by a factor that no longer exists.
+    await db.execute(
+        update(RefreshToken).where(RefreshToken.teacher_id == user.id).values(revoked=True)
+    )
+
+    await audit_svc.write(
+        db,
+        teacher_id=admin.id,
+        teacher_email=admin.email,
+        action="MFA_DISABLED",
+        target_id=str(user.id),
+    )
+
+    return {
+        "message": (
+            f"Sign-in factors cleared for {user.email}. They must enrol a second factor "
+            "on their next sign-in. Their encrypted data still needs their recovery code."
+        )
+    }
 
 
 @router.get("/stats/{exam_id}", response_model=ClassStatsResponse)

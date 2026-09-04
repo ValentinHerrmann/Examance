@@ -14,12 +14,23 @@ export const errors = {
         ERR_PASSWORD_NOT_SET:
             'Für dieses Konto wurde noch kein Passwort gesetzt. Bitte nutzen Sie den per E-Mail zugesandten Link.',
         ERR_INVALID_CREDENTIALS: 'Ungültige Anmeldedaten.',
+        ERR_ACCOUNT_LOCKED:
+            'Zu viele fehlgeschlagene Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.',
         ERR_COMPILE_TIMEOUT: 'Zeitüberschreitung bei der Kompilierung.',
         ERR_PAYLOAD_TOO_LARGE: 'Die Anfrage ist zu groß.',
         ERR_BAD_REQUEST: 'Ungültige Anfrage.',
         ERR_ORIGIN_REJECTED: 'Herkunft nicht erlaubt.',
         ERR_UNAUTHORIZED: 'Nicht autorisiert.',
         ERR_NETWORK: 'Server nicht erreichbar.',
+        // Fallbacks. Beim Entfernen eines Faktors nennt der Server in `detail`,
+        // welche Regel greift — ob das Konto unter zwei Faktoren fiele oder
+        // unter den letzten, der die Daten öffnen kann. Diese Unterscheidung ist
+        // hilfreicher als ein pauschaler Satz, daher zeigt die Oberfläche dort
+        // den Servertext.
+        ERR_LAST_FACTOR_PROTECTED:
+            'Dieser Faktor kann nicht entfernt werden, ohne den Zugang zum Konto oder zu den Daten zu verlieren.',
+        ERR_MFA_REQUIRED: 'Für diese Aktion ist eine vollständige Anmeldung erforderlich.',
+        ERR_STEP_EXPIRED: 'Dieser Anmeldeschritt ist abgelaufen. Bitte melden Sie sich erneut an.',
     },
 
     /** HTTP status titles for the generic error modal. */

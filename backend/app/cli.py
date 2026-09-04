@@ -149,6 +149,7 @@ def set_password(email: str, password: str) -> None:
     """Reset password for an existing user account."""
     from app.models.teacher import Teacher
     from app.services.crypto import hash_password
+    from app.services.key_envelope import invalidate_password_wrap
 
     if len(password) < 12:
         raise click.ClickException("Password must be at least 12 characters long.")
@@ -168,12 +169,21 @@ def set_password(email: str, password: str) -> None:
                     raise click.ClickException("No user found with this email.")
 
                 teacher.password_hash = hash_password(password)
+                # The server cannot re-wrap the teacher's data key — it never
+                # sees that key. Marking the password wrap stale is what sends
+                # them to the recovery-code path on the next sign-in instead of
+                # into a vault of blank fields.
+                await invalidate_password_wrap(db, teacher.id)
                 await db.commit()
             except (OperationalError, ProgrammingError) as exc:
                 _raise_schema_hint(exc)
 
     asyncio.run(_update())
     click.echo(f"Password updated for user: {normalized_email}")
+    click.echo(
+        "Note: this does not restore access to the account's encrypted data. "
+        "The user must sign in and recover their key with their recovery code."
+    )
 
 
 @cli.command("run-retention")

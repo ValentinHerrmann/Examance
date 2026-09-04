@@ -35,7 +35,12 @@ export const submissionRepository = {
         const exams = await examRepository.getAll(key);
         const allSubmissions: SubmissionRecord[] = [];
         for (const exam of exams) {
-          const rawList = await api.get<any[]>(`/exams/${exam.id}/submissions`);
+          // Silent: this loop runs once per exam, and the caller falls back to
+          // showing no statistics. Without it a single rejected session put one
+          // global error modal on screen for every exam the teacher has.
+          const rawList = await api.get<any[]>(`/exams/${exam.id}/submissions`, {
+            silentError: true,
+          });
           allSubmissions.push(...rawList.map((s: any) => mapApiToSubmissionRecord(s, exam.id)));
         }
         return allSubmissions;
