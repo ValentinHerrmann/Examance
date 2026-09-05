@@ -22,6 +22,7 @@
   } from "$lib/db/dbEncryption";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
   import { loadExamMcExercises } from "$lib/grading/mcExerciseHash";
+  import { restoreOriginalDetection, type McQuestionType } from "$lib/grading/mcScore";
   import { decrypt } from "$lib/crypto/aesGcm";
   import type {
     OmrWorkerRequest,
@@ -38,6 +39,9 @@
   let isRerunningMc = false;
   let rerunMcMessage = "";
   let rerunMcError = "";
+  let isResettingReviews = false;
+  let resetReviewsMessage = "";
+  let resetReviewsError = "";
   let lastRefreshId = 0;
   let lastRefreshedKey = "";
 
@@ -82,7 +86,8 @@
   }
 
   async function handleRerunMcDetection() {
-    if (!examId || isRerunningMc) return;
+    if (!examId || isRerunningMc || isResettingReviews) return;
+    const overwriteReviewed = confirm(translate("scanning.verify.confirmRerunResetReviews"));
     isRerunningMc = true;
     rerunMcMessage = translate("scanning.verify.loadingTemplate");
     rerunMcError = "";
@@ -193,7 +198,7 @@
 
             for (const r of response.results) {
               const existing = existingByExercise.get(r.exerciseId);
-              if (existing?.omrMeta?.source === "manual") continue;
+              if (!overwriteReviewed && existing?.omrMeta?.source === "manual") continue;
 
               const failed = r.confidence === "failed";
               const nonBlankBubbles = r.bubbles.filter((b) => b.state !== "blank" && b.state !== "undone");
@@ -251,6 +256,60 @@
     }
   }
 
+  async function handleResetAllReviews() {
+    if (!examId || isRerunningMc || isResettingReviews) return;
+    if (!confirm(translate("scanning.verify.confirmResetAllReviews"))) return;
+
+    isResettingReviews = true;
+    resetReviewsMessage = "";
+    resetReviewsError = "";
+
+    try {
+      const key = get(sessionStore).sessionKey;
+      const [mcExercises, submissions] = await Promise.all([
+        loadExamMcExercises(examId, key),
+        submissionRepository.getByExamId(examId, key),
+      ]);
+      const exerciseById = new Map(mcExercises.map((e) => [e.id, e]));
+
+      let resetCount = 0;
+      for (const sub of submissions) {
+        const scores = await loadScoresEncrypted(sub.id, key);
+        for (const sc of scores) {
+          const ex = exerciseById.get(sc.exerciseId);
+          if (!ex || !sc.omrMeta?.original) continue;
+
+          const res = restoreOriginalDetection(
+            (ex.questionType as McQuestionType) || "mc",
+            ex.correctAnswers ?? [],
+            ex.penalty ?? 0,
+            ex.maxPoints,
+            sc.omrMeta
+          );
+          if (!res) continue;
+
+          await saveScoreEncrypted(
+            {
+              ...sc,
+              selectedOptions: res.nextSelectedOptions,
+              score: res.nextScore,
+              omrMeta: res.nextOmrMeta,
+            },
+            key
+          );
+          resetCount++;
+        }
+      }
+
+      resetReviewsMessage = translate("scanning.verify.resetReviewsComplete", { count: resetCount });
+      await refresh();
+    } catch (err: any) {
+      resetReviewsError = err.message || translate("scanning.verify.resetReviewsError");
+    } finally {
+      isResettingReviews = false;
+    }
+  }
+
   function openInGrading(item: McDetectionItem) {
     goto(`/exam/${examId}/grade?submissionId=${item.submissionId}&exerciseId=${item.exerciseId}`);
   }
@@ -266,6 +325,21 @@
   $: otherItems = stats?.items.filter(
     (i) => i.confidence === "high" && i.flaggedOptions.length === 0
   ) ?? [];
+
+  // Items for the same student can land in different queue sections above (their
+  // confidence/flag status differs per question) — this rollup lets each row show
+  // "this student has N more MC questions total, M reviewed" regardless of which
+  // section it's rendered in.
+  $: studentProgress = (() => {
+    const map = new Map<string, { total: number; reviewed: number }>();
+    for (const it of stats?.items ?? []) {
+      const entry = map.get(it.submissionId) ?? { total: 0, reviewed: 0 };
+      entry.total += 1;
+      if (it.isReviewed) entry.reviewed += 1;
+      map.set(it.submissionId, entry);
+    }
+    return map;
+  })();
 </script>
 
 <PageShell width="wide">
@@ -279,8 +353,16 @@
     <div class="flex items-center gap-2">
       <button
         type="button"
+        on:click={handleResetAllReviews}
+        disabled={isRerunningMc || isResettingReviews || loading}
+        class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer disabled:opacity-50"
+      >
+        {isResettingReviews ? $t("scanning.verify.resettingReviews") : $t("scanning.verify.resetReviews")}
+      </button>
+      <button
+        type="button"
         on:click={handleRerunMcDetection}
-        disabled={isRerunningMc || loading}
+        disabled={isRerunningMc || isResettingReviews || loading}
         class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-sky-700/80 hover:bg-sky-600 text-sky-100 transition-colors cursor-pointer disabled:opacity-50"
       >
         {isRerunningMc ? $t("scanning.verify.rerunning") : $t("scanning.verify.rerun")}
@@ -288,7 +370,7 @@
       <button
         type="button"
         on:click={refresh}
-        disabled={loading || isRerunningMc}
+        disabled={loading || isRerunningMc || isResettingReviews}
         class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer disabled:opacity-50"
       >
         {loading ? $t("scanning.verify.refreshing") : $t("scanning.verify.refresh")}
@@ -304,6 +386,16 @@
   {#if rerunMcError}
     <div class="p-3 rounded border border-red-500/40 bg-red-500/10 text-red-400 text-xs mb-6">
       {rerunMcError}
+    </div>
+  {/if}
+  {#if resetReviewsMessage}
+    <div class="p-3 rounded border border-sky-500/40 bg-sky-500/10 text-sky-300 text-xs mb-6">
+      {resetReviewsMessage}
+    </div>
+  {/if}
+  {#if resetReviewsError}
+    <div class="p-3 rounded border border-red-500/40 bg-red-500/10 text-red-400 text-xs mb-6">
+      {resetReviewsError}
     </div>
   {/if}
 
@@ -341,6 +433,7 @@
       <McVerificationQueue
         title={$t("scanning.verify.queueFailed")}
         items={failedItems}
+        {studentProgress}
         emptyMessage={$t("scanning.verify.emptyFailed")}
         onVerifyItem={(item) => openVerifyItem(item, "failed")}
         onOpenGrading={openInGrading}
@@ -349,6 +442,7 @@
       <McVerificationQueue
         title={$t("scanning.verify.queueUnsure")}
         items={unsureItems}
+        {studentProgress}
         emptyMessage={$t("scanning.verify.emptyUnsure")}
         onVerifyItem={(item) => openVerifyItem(item, "unsure")}
         onOpenGrading={openInGrading}
@@ -357,6 +451,7 @@
       <McVerificationQueue
         title={$t("scanning.verify.queueOther")}
         items={otherItems}
+        {studentProgress}
         emptyMessage={$t("scanning.verify.emptyOther")}
         onVerifyItem={(item) => openVerifyItem(item, "all")}
         onOpenGrading={openInGrading}

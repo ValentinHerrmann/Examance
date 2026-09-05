@@ -17,7 +17,7 @@
   import { decrypt } from "$lib/crypto/aesGcm";
   import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "$lib/db/schema";
   import McItemVerificationCard from "$lib/components/verify/McItemVerificationCard.svelte";
-  import { PageShell } from "$lib/components/ui";
+  import { PageShell, Modal, Button } from "$lib/components/ui";
 
   $: examId = $page.params.id || "";
   $: submissionId = $page.url.searchParams.get("submissionId") || "";
@@ -37,6 +37,9 @@
   let currentIndex = -1;
   let lastLoadToken = 0;
   let lastLoadedKey = "";
+  let studentTotal = 1;
+  let studentReviewed = 0;
+  let showEndOfQueueModal = false;
 
   $: currentItemKey = `${examId}:${submissionId}:${exerciseId}:${queueFilter}:${$sessionStore.sessionKey ? "unlocked" : "locked"}`;
   $: if (browser && examId && submissionId && exerciseId && $sessionStore.sessionKey && currentItemKey !== lastLoadedKey) {
@@ -127,6 +130,10 @@
         matchingItem?.studentLabel ||
         translate("scanning.verifyItem.submissionLabelFallback", { shortId: submissionId.slice(0, 8) });
 
+      const studentItems = stats.items.filter((i) => i.submissionId === submissionId);
+      studentTotal = studentItems.length;
+      studentReviewed = studentItems.filter((i) => i.isReviewed).length;
+
       scanPdfBytes = nextScanPdfBytes;
       currentScoreRecord = scores.find((s) => s.exerciseId === exerciseId) || null;
     } catch (err: any) {
@@ -161,13 +168,23 @@
     currentScoreRecord = scoreToSave;
   }
 
+  function goBackToDashboard() {
+    goto(`/exam/${examId}/verify?queue=${queueFilter}`);
+  }
+
   function handleNext() {
     if (currentIndex >= 0 && currentIndex < activeQueueItems.length - 1) {
       const nextItem = activeQueueItems[currentIndex + 1];
       goto(
         `/exam/${examId}/verify-item?submissionId=${nextItem.submissionId}&exerciseId=${nextItem.exerciseId}&queue=${queueFilter}`
       );
+    } else {
+      goBackToDashboard();
     }
+  }
+
+  function handleEndOfQueue() {
+    showEndOfQueueModal = true;
   }
 
   function handlePrev() {
@@ -205,6 +222,8 @@
       exercise={currentExercise}
       {studentLabel}
       {submissionId}
+      {studentTotal}
+      {studentReviewed}
       scoreRecord={currentScoreRecord}
       {scanPdfBytes}
       currentIndex={currentIndex >= 0 ? currentIndex : 0}
@@ -212,7 +231,20 @@
       onSave={handleSave}
       onNext={handleNext}
       onPrev={handlePrev}
+      onEndOfQueue={handleEndOfQueue}
       onOpenGrading={handleOpenGrading}
     />
   {/if}
+
+  <Modal
+    open={showEndOfQueueModal}
+    size="sm"
+    title={$t("scanning.itemCard.endOfQueueTitle")}
+    onClose={() => (showEndOfQueueModal = false)}
+  >
+    <p class="text-sm text-content">{$t("scanning.itemCard.endOfQueueMessage")}</p>
+    <svelte:fragment slot="footer">
+      <Button onClick={goBackToDashboard}>{$t("scanning.itemCard.backToDashboard")}</Button>
+    </svelte:fragment>
+  </Modal>
 </PageShell>

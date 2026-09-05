@@ -13,6 +13,8 @@
   export let exercise: ExerciseRecord;
   export let studentLabel: string;
   export let submissionId: string = "";
+  export let studentTotal: number = 1;
+  export let studentReviewed: number = 0;
   export let scoreRecord: ExerciseScoreRecord | null = null;
   export let scanPdfBytes: Uint8Array | null = null;
   export let currentIndex: number = 0;
@@ -26,7 +28,10 @@
   ) => Promise<void>;
   export let onNext: () => void;
   export let onPrev: () => void;
+  export let onEndOfQueue: () => void = () => {};
   export let onOpenGrading: () => void;
+
+  $: isLastItem = currentIndex >= totalItems - 1;
 
   let selectedOptions: number[] = [];
   let omrMeta: OmrScoreMeta | undefined = undefined;
@@ -35,6 +40,7 @@
   let cropError = "";
   let isSaving = false;
   let cropRequestId = 0;
+  let justRestored = false;
 
   $: {
     selectedOptions = scoreRecord?.selectedOptions ?? [];
@@ -145,6 +151,10 @@
 
     selectedOptions = res.nextSelectedOptions;
     omrMeta = res.nextOmrMeta;
+    justRestored = true;
+    setTimeout(() => {
+      justRestored = false;
+    }, 700);
 
     isSaving = true;
     try {
@@ -180,13 +190,70 @@
     originalOptions!.length === selectedOptions.length &&
     originalOptions!.every((o) => selectedOptions.includes(o));
 
+  // Mirrors computeMcVerificationStats' own isReviewed/isCorrected semantics
+  // exactly, so this badge can never drift from the calibration stats.
+  type ReviewStatus = "unreviewed" | "confirmedUnchanged" | "manuallyCorrected";
+  $: reviewStatus = ((): ReviewStatus => {
+    const reviewed = !!omrMeta?.reviewedAt || source === "manual";
+    if (!reviewed) return "unreviewed";
+    return hasOriginal && !isMatchesOriginal ? "manuallyCorrected" : "confirmedUnchanged";
+  })();
+
   function formatOptionLabels(indices: number[]): string {
     if (indices.length === 0) return translate("scanning.itemCard.originalNone");
     return indices
       .map((i) => (options[i] ? `${String.fromCharCode(65 + i)}` : `#${i + 1}`))
       .join(", ");
   }
+
+  function handleKeydown(e: KeyboardEvent) {
+    const target = e.target as HTMLElement | null;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+    if (isSaving) return;
+
+    if (e.key >= "1" && e.key <= "9") {
+      const idx = Number(e.key) - 1;
+      if (idx < options.length) {
+        e.preventDefault();
+        handleToggleOption(idx);
+      }
+      return;
+    }
+
+    if (e.key === "c" || e.key === "C") {
+      e.preventDefault();
+      handleConfirmAsCorrect();
+      return;
+    }
+
+    if (e.key === "r" || e.key === "R") {
+      if (hasOriginal && !isMatchesOriginal) {
+        e.preventDefault();
+        handleRestoreOriginal();
+      }
+      return;
+    }
+
+    if (e.key === "ArrowLeft") {
+      if (currentIndex > 0) {
+        e.preventDefault();
+        onPrev();
+      }
+      return;
+    }
+
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      if (currentIndex < totalItems - 1) {
+        onNext();
+      } else {
+        onEndOfQueue();
+      }
+    }
+  }
 </script>
+
+<svelte:window on:keydown={handleKeydown} />
 
 <div class="rounded-xl border border-slate-700 bg-slate-800 p-6 space-y-6 shadow-xl max-w-[1600px] mx-auto">
   <!-- Top Bar: Header & Counter -->
@@ -194,10 +261,32 @@
     <div>
       <div class="text-xs font-semibold uppercase tracking-wider text-sky-400">
         {$t("scanning.itemCard.verificationLabel")} <span class="text-slate-100 font-bold">{studentLabel}</span>
+        {#if studentTotal > 1}
+          <span class="ml-1 px-1.5 py-0.5 text-[0.65rem] font-mono font-semibold rounded bg-slate-700/60 text-slate-300 border border-slate-600/50 normal-case tracking-normal">
+            {studentReviewed}/{studentTotal}
+          </span>
+        {/if}
       </div>
-      <h3 class="text-lg font-bold text-slate-100 mt-0.5">
-        {exercise.name || exercise.title || $t("scanning.itemCard.defaultExerciseName")}
-      </h3>
+      <div class="flex items-center gap-2 mt-0.5">
+        <h3 class="text-lg font-bold text-slate-100">
+          {exercise.name || exercise.title || $t("scanning.itemCard.defaultExerciseName")}
+        </h3>
+        <span
+          class="px-2 py-0.5 text-[0.7rem] font-semibold rounded border transition-shadow duration-300
+            {reviewStatus === 'confirmedUnchanged' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : ''}
+            {reviewStatus === 'manuallyCorrected' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : ''}
+            {reviewStatus === 'unreviewed' ? 'bg-slate-700/40 text-slate-300 border-slate-600/50' : ''}"
+          class:restore-pulse={justRestored}
+        >
+          {#if reviewStatus === "confirmedUnchanged"}
+            {$t("scanning.itemCard.statusConfirmedUnchanged")}
+          {:else if reviewStatus === "manuallyCorrected"}
+            {$t("scanning.itemCard.statusManuallyCorrected")}
+          {:else}
+            {$t("scanning.itemCard.statusUnreviewed")}
+          {/if}
+        </span>
+      </div>
     </div>
     <div class="flex items-center gap-3">
       {#if totalItems > 0}
@@ -273,17 +362,8 @@
         {/if}
 
         {#if hasOriginal && !isMatchesOriginal}
-          <div class="mb-3 p-2 rounded bg-slate-900/80 border border-slate-700 flex items-center justify-between text-xs text-slate-400">
-            <span>{$t("scanning.itemCard.originalDetected", { options: formatOptionLabels(originalOptions ?? []) })}</span>
-            <button
-              type="button"
-              on:click={handleRestoreOriginal}
-              disabled={isSaving}
-              title={$t("scanning.itemCard.restoreOriginalTooltip")}
-              class="px-2 py-1 text-[0.7rem] font-medium rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {$t("scanning.itemCard.restoreOriginal")}
-            </button>
+          <div class="mb-3 p-2 rounded bg-slate-900/80 border border-slate-700 text-xs text-slate-400">
+            {$t("scanning.itemCard.originalDetected", { options: formatOptionLabels(originalOptions ?? []) })}
           </div>
         {/if}
 
@@ -335,6 +415,10 @@
           {/each}
         </div>
 
+        <p class="mt-2 text-[0.7rem] text-slate-500">
+          {$t("scanning.itemCard.optionShortcutHint", { count: options.length })}
+        </p>
+
         <div class="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -373,12 +457,25 @@
         <button
           type="button"
           on:click={onNext}
-          disabled={currentIndex >= totalItems - 1}
-          class="px-5 py-2 text-xs font-semibold rounded bg-sky-600 hover:bg-sky-500 text-white transition-colors cursor-pointer disabled:opacity-40"
+          class="px-5 py-2 text-xs font-semibold rounded bg-sky-600 hover:bg-sky-500 text-white transition-colors cursor-pointer"
         >
-          {$t("scanning.itemCard.nextItem")}
+          {isLastItem ? $t("scanning.itemCard.backToDashboard") : $t("scanning.itemCard.nextItem")}
         </button>
       </div>
     </div>
   </div>
 </div>
+
+<style>
+  @keyframes restore-pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.5);
+    }
+    100% {
+      box-shadow: 0 0 0 8px rgba(56, 189, 248, 0);
+    }
+  }
+  .restore-pulse {
+    animation: restore-pulse 0.6s ease-out;
+  }
+</style>

@@ -4,6 +4,7 @@
 
   export let title: string;
   export let items: McDetectionItem[] = [];
+  export let studentProgress: Map<string, { total: number; reviewed: number }> = new Map();
   export let emptyMessage: string;
   export let onVerifyItem: (item: McDetectionItem) => void;
   export let onOpenGrading: (item: McDetectionItem) => void;
@@ -32,24 +33,22 @@
       {:else}
         <div class="divide-y divide-slate-700/50">
           {#each items as item}
+            {@const progress = studentProgress.get(item.submissionId)}
             <div class="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div class="flex flex-wrap items-center gap-3">
-                {#if item.confidence === "failed"}
-                  <span class="px-2 py-0.5 text-[0.7rem] font-semibold rounded bg-red-500/20 text-red-400 border border-red-500/30">
-                    {$t("scanning.queue.failed")}
-                  </span>
-                {:else if item.confidence === "ambiguous"}
-                  <span class="px-2 py-0.5 text-[0.7rem] font-semibold rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                    {$t("scanning.queue.unsure")}
-                  </span>
+                {#if item.isReviewed}
+                  <span class="text-sky-400 font-bold text-sm leading-none" title={$t("scanning.queue.reviewedIndicator")} aria-label={$t("scanning.queue.reviewedIndicator")}>✓</span>
                 {:else}
-                  <span class="px-2 py-0.5 text-[0.7rem] font-semibold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    {$t("scanning.queue.high")}
-                  </span>
+                  <span class="text-slate-600 text-sm leading-none" title={$t("scanning.queue.unreviewedIndicator")} aria-label={$t("scanning.queue.unreviewedIndicator")}>○</span>
                 {/if}
 
                 <div>
                   <span class="text-xs font-medium text-slate-200">{item.studentLabel}</span>
+                  {#if progress && progress.total > 1}
+                    <span class="ml-1 px-1.5 py-0.5 text-[0.65rem] font-mono font-semibold rounded bg-slate-700/60 text-slate-300 border border-slate-600/50" title={$t("scanning.queue.studentProgressTooltip")}>
+                      {progress.reviewed}/{progress.total}
+                    </span>
+                  {/if}
                   <span class="text-xs text-slate-400 mx-1.5">•</span>
                   <span class="text-xs text-slate-300">{item.exerciseLabel}</span>
                 </div>
