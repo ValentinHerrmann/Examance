@@ -3,10 +3,34 @@ import { fileURLToPath } from 'node:url';
 import { sveltekit } from '@sveltejs/kit/vite';
 // defineConfig from vitest/config, not vite — it is the overload that knows
 // about the `test` block below.
-import { defineConfig } from 'vitest/config';
+import { defineConfig, type Plugin } from 'vitest/config';
 import wasm from 'vite-plugin-wasm';
 import topLevelAwait from 'vite-plugin-top-level-await';
 import tailwindcss from '@tailwindcss/vite';
+
+/**
+ * In Vite dev mode, optimizeDeps excludes argon2-browser so it is served directly
+ * to the browser as a native ES module. The argon2-bundled.min.js file is a Webpack
+ * UMD bundle that executes `!function(A,I){...}(this, ...)`.
+ * In native ESM, `this` is undefined at top level, so `A.argon2 = I()` crashes with
+ * `TypeError: can't access property "argon2", A is undefined` (which triggers debugger
+ * exception traps in attached browser sessions).
+ *
+ * This plugin transforms `argon2-bundled.min.js` so that `this` is replaced with `globalThis`,
+ * and an explicit default export of `globalThis.argon2` is provided.
+ */
+function argon2BundlePlugin(): Plugin {
+  return {
+    name: 'argon2-bundle-umd-fix',
+    transform(code: string, id: string) {
+      if (id.includes('argon2-bundled.min.js')) {
+        let transformed = code.replace('}(this,', '}(globalThis,');
+        transformed += '\nexport default (typeof globalThis !== "undefined" ? globalThis.argon2 : undefined);\n';
+        return { code: transformed, map: null };
+      }
+    },
+  };
+}
 
 /**
  * Repository-root VERSION file — the single source of truth for the release
@@ -87,7 +111,7 @@ function computeDefaultBackendUrl(): string {
 }
 
 export default defineConfig({
-  plugins: [tailwindcss(), wasm(), topLevelAwait(), sveltekit()],
+  plugins: [tailwindcss(), wasm(), topLevelAwait(), argon2BundlePlugin(), sveltekit()],
   define: {
     __APP_VERSION__: JSON.stringify(computeAppVersion()),
     __APP_COMMIT_SHA__: JSON.stringify(computeCommitSha()),
@@ -98,6 +122,9 @@ export default defineConfig({
   },
   test: {
     alias: {
+      'argon2-browser/dist/argon2-bundled.min.js': fileURLToPath(
+        new URL('./tests/mocks/argon2Mock.ts', import.meta.url)
+      ),
       'argon2-browser': fileURLToPath(new URL('./tests/mocks/argon2Mock.ts', import.meta.url)),
     },
   },
