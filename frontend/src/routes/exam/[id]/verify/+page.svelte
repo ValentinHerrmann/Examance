@@ -21,7 +21,8 @@
     saveScoreEncrypted,
   } from "$lib/db/dbEncryption";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { loadExamMcExercises } from "$lib/grading/mcExerciseHash";
+  import { loadExamMcExercises, resolveMcExercises, computeMcExercisesHash } from "$lib/grading/mcExerciseHash";
+  import { prepareOmrTemplate, loadExamCompileContext } from "$lib/grading/omrTemplatePrep";
   import { restoreOriginalDetection, type McQuestionType } from "$lib/grading/mcScore";
   import { decrypt } from "$lib/crypto/aesGcm";
   import type {
@@ -94,13 +95,58 @@
 
     try {
       const key = get(sessionStore).sessionKey;
-      const templateResult = await loadOmrTemplateEncrypted(examId, key);
-      if (!templateResult || !templateResult.payload) {
-        rerunMcMessage = "";
-        rerunMcError = translate("scanning.verify.noTemplate");
-        return;
+      let templateResult = await loadOmrTemplateEncrypted(examId, key);
+      let templatePages = templateResult?.payload?.pages;
+      
+      let needsCompile = !templateResult || !templatePages;
+      let compileCtx = null;
+
+      if (!needsCompile) {
+        compileCtx = await loadExamCompileContext(examId, key);
+        if (compileCtx) {
+          const mcExercises = resolveMcExercises(compileCtx.exercises, compileCtx.libraryExercises, compileCtx.mcGroups);
+          const currentHash = await computeMcExercisesHash(mcExercises);
+          if (templateResult!.record.exercisesHash !== currentHash) {
+            needsCompile = true;
+          }
+        }
       }
-      const templatePages = templateResult.payload.pages;
+
+      if (needsCompile) {
+        if (!compileCtx) compileCtx = await loadExamCompileContext(examId, key);
+        if (!compileCtx) {
+          rerunMcMessage = "";
+          rerunMcError = translate("scanning.verify.autoPrepareFailed", { message: translate("scanning.examContextNotFound") });
+          return;
+        }
+        try {
+          const compileRes = await prepareOmrTemplate({
+            examId,
+            exam: compileCtx.exam,
+            exercises: compileCtx.exercises,
+            libraryExercises: compileCtx.libraryExercises,
+            mcGroups: compileCtx.mcGroups,
+            key,
+            onProgress: (msg) => { rerunMcMessage = `${translate("scanning.verify.autoPreparingTemplate")} - ${msg}`; }
+          });
+          if (compileRes.status === 'stale') {
+             rerunMcMessage = "";
+             rerunMcError = translate("scanning.verify.autoPrepareFailed", { message: compileRes.message });
+             return;
+          }
+          templatePages = compileRes.pages;
+        } catch (err: any) {
+          rerunMcMessage = "";
+          rerunMcError = translate("scanning.verify.autoPrepareFailed", { message: err.message });
+          return;
+        }
+      }
+      
+      if (!templatePages) {
+          rerunMcMessage = "";
+          rerunMcError = translate("scanning.verify.noTemplate");
+          return;
+      }
 
       const [mcExercises, submissions] = await Promise.all([
         loadExamMcExercises(examId, key),
@@ -147,6 +193,7 @@
       let processed = 0;
       let updated = 0;
       let alignmentFailures = 0;
+      let pagesSkippedNoTemplate = 0;
 
       try {
         for (const sub of submissions) {
@@ -169,9 +216,12 @@
           const existingByExercise = new Map(existingScores.map((s) => [s.exerciseId, s]));
 
           const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+          console.log(`[RerunMC] Submission ${sub.id}: scanned PDF has ${pdfDoc.numPages} page(s), OMR template has ${templatePages.length} page(s).`);
           for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
             const pageTemplate = templatePages[pageNum - 1];
             if (!pageTemplate || (pageTemplate.bubbles.length === 0 && pageTemplate.fiducials.length === 0)) {
+              pagesSkippedNoTemplate++;
+              console.log(`[RerunMC] Submission ${sub.id}, page ${pageNum}: skipped (no template page or empty bubbles/fiducials — pageTemplate=${pageTemplate ? `bubbles=${pageTemplate.bubbles.length},fiducials=${pageTemplate.fiducials.length}` : "undefined"}).`);
               continue;
             }
 
@@ -192,7 +242,14 @@
               scanScale,
               answerKeys,
             });
-            if (response.type !== "OMR_RESULT") continue;
+            if (response.type !== "OMR_RESULT") {
+              console.warn(
+                `[RerunMC] Submission ${sub.id}, page ${pageNum}: worker returned ${response.type}${
+                  response.type === "ERROR" ? ` — ${response.message}` : ""
+                }`
+              );
+              continue;
+            }
 
             if (response.alignmentFailed) alignmentFailures++;
 
@@ -201,7 +258,6 @@
               if (!overwriteReviewed && existing?.omrMeta?.source === "manual") continue;
 
               const failed = r.confidence === "failed";
-              const nonBlankBubbles = r.bubbles.filter((b) => b.state !== "blank" && b.state !== "undone");
               await saveScoreEncrypted(
                 {
                   id: existing?.id ?? crypto.randomUUID(),
@@ -220,10 +276,10 @@
                       flaggedOptions: r.flaggedOptions.length > 0 ? [...r.flaggedOptions] : undefined,
                     },
                     detections:
-                      !failed && nonBlankBubbles.length > 0
+                      !failed && r.bubbles.length > 0
                         ? {
                             pageIndex: r.pageIndex,
-                            bubbles: nonBlankBubbles.map((b) => ({
+                            bubbles: r.bubbles.map((b) => ({
                               optionIndex: b.optionIndex,
                               state: b.state,
                               rect: b.rect,
@@ -246,6 +302,9 @@
         translate("scanning.verify.rerunComplete", { updated, processed }) +
         (alignmentFailures > 0
           ? translate("scanning.verify.rerunAlignmentFailures", { count: alignmentFailures })
+          : "") +
+        (pagesSkippedNoTemplate > 0
+          ? translate("scanning.verify.rerunPagesSkippedNoTemplate", { count: pagesSkippedNoTemplate })
           : "");
       await refresh();
     } catch (err: any) {

@@ -1,7 +1,6 @@
 <script lang="ts">
   import "./+page.css";
   import { page } from "$app/stores";
-  import { loadPdfjs } from "$lib/pdf/pdfjs";
   export let params;
   import { onMount, onDestroy } from "svelte";
   import { browser } from "$app/environment";
@@ -11,10 +10,6 @@
     ExerciseRecord,
     SubmissionRecord,
     ExamMcGroupRecord,
-    OmrTemplatePayload,
-    OmrPageTemplate,
-    OmrBubbleRect,
-    OmrFiducialRect,
   } from "$lib/db/schema";
   import { formatExamCourse } from "$lib/utils/examLabel";
   import {
@@ -29,13 +24,13 @@
     decryptStudent,
     encryptExercise,
     loadOmrTemplateEncrypted,
-    saveOmrTemplateEncrypted,
     loadScoresEncrypted,
     saveScoreEncrypted,
     loadLocalMcGroups,
     type McGroup,
   } from "$lib/db/dbEncryption";
   import { computeMcExercisesHash, resolveMcExercises, normalizeMcExercise } from "$lib/grading/mcExerciseHash";
+  import { prepareOmrTemplate } from "$lib/grading/omrTemplatePrep";
   import { isMcQuestion } from "$lib/grading/mcScore";
   import { packProject } from "$lib/archive/packer";
   import { compileWithCache, getLatestForSlot, invalidateOwner } from "$lib/latex/compileCache";
@@ -613,182 +608,25 @@
   async function handlePrepareOmr() {
     if (!exam) return;
     isPreparingOmr = true;
-    omrPrepareMessage = translate("exam.page.omr.checkingExercises");
     errorMsg = "";
 
     try {
-      const mcExercises = collectMcExercises();
-      console.log("[PrepareOMR] MC exercises count:", mcExercises.length, mcExercises.map((e) => ({ id: e.id, name: e.name })));
-      if (mcExercises.length === 0) {
-        errorMsg = translate("exam.page.omr.noExercisesError");
-        isPreparingOmr = false;
-        return;
-      }
-
-      const invalidExs = mcExercises.filter(
-        (ex) => !ex.latexBody || (!ex.latexBody.includes("\\multi") && !ex.latexBody.includes("\\Lmulti"))
-      );
-      if (invalidExs.length > 0) {
-        const names = invalidExs.map((ex) => `'${ex.name || ex.id}'`).join(", ");
-        errorMsg = translate("exam.page.omr.invalidExercisesError", { names });
-        isPreparingOmr = false;
-        return;
-      }
-
-      omrPrepareMessage = translate("exam.page.omr.compilingBlank");
-      const exerciseInputs = buildExerciseInputs();
-      const opts = ["sans", "punkte"];
-
-      const fullTex = `\\documentclass[a4paper]{article}
-\\usepackage[${opts.join(",")}]{sty/Schulaufgabe}
-\\Info{${exam.infoText || ""}}
-\\Fach{${exam.fach || "Informatik"}}
-\\Lehrernachname{${exam.lehrernachname || ""}}
-\\usepackage{fontspec}
-\\usetikzlibrary{shapes.geometric, arrows}
-\\usepackage{sty/tikz-uml}
-\\neverindent
-\\WarningsOff
-\\begin{document}
-\\Testart{${exam.testart || "Kurzarbeit"}}
-\\Klasse{${formatExamCourse(exam.grade, exam.klasse)}}
-\\Datum{${exam.datum || ""}}
-\\Nr{${exam.nr || "1"}}
-
-${exerciseInputs}
-
-\\end{document}`;
-
-      const useLocal = $storagePolicyStore.latexCompilation === "local";
-      const omrExCount = (fullTex.match(/\\OmrExercise/g) || []).length;
-      const multiCount = (fullTex.match(/\\multi/g) || []).length;
-      const lmultiCount = (fullTex.match(/\\Lmulti/g) || []).length;
-      console.log(
-        `[PrepareOMR] LaTeX macro counts in fullTex: \\OmrExercise=${omrExCount}, \\multi=${multiCount}, \\Lmulti=${lmultiCount}, fullTex length=${fullTex.length}`
-      );
-      if (!useLocal && !$isAuthenticated) {
-        errorMsg = translate("exam.page.omr.loginRequired");
-        isPreparingOmr = false;
-        return;
-      }
-
-      const result = await compileWithCache(
-        { kind: "omr-blank", id: exam.id, variant: "blank" },
-        fullTex,
-        useLocal,
-        (status) => {
-          if (status === "downloading") {
-            omrPrepareMessage = translate("exam.page.omr.loadingCompiler");
-          } else if (status === "compiling") {
-            omrPrepareMessage = translate("exam.page.omr.compilingBlank");
-          }
-        },
-        true,
-        await compileResourceOptions()
-      );
-
-      console.log(
-        `[PrepareOMR] LaTeX compile finished: pdfBytes=${result.pdfBytes?.length ?? 0}, engineUsed=${result.engineUsed ?? (useLocal ? "local" : "server")}, usedFallback=${result.usedFallback ?? false}`
-      );
-
-      omrPrepareMessage = translate("exam.page.omr.extractingBubbles");
-
-      const pdfjsLib = await loadPdfjs();
-      const pdfDoc = await pdfjsLib.getDocument({ data: result.pdfBytes }).promise;
-      console.log(`[PrepareOMR] pdfDoc loaded: numPages=${pdfDoc.numPages}`);
-
-      const pages: OmrPageTemplate[] = [];
-      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-        const pdfPage = await pdfDoc.getPage(pageNum);
-        const viewport = pdfPage.getViewport({ scale: 1 });
-        const annotations = await pdfPage.getAnnotations();
-
-        const bubbles: OmrBubbleRect[] = [];
-        const fiducials: OmrFiducialRect[] = [];
-        let linkAnnCount = 0;
-        let matchedOmrCount = 0;
-        const rejectedUris: string[] = [];
-
-        const redoRects = new Map<string, [number, number, number, number]>();
-
-        for (const ann of annotations) {
-          if (ann.subtype !== "Link") continue;
-          linkAnnCount++;
-          const uri: string = ann.unsafeUrl ?? ann.url ?? "";
-          const match = /^omr:\/\/([^/]+)\/(\d+)(\/redo)?$/.exec(uri);
-          if (!match) {
-            if (uri && rejectedUris.length < 5) rejectedUris.push(uri);
-            continue;
-          }
-          matchedOmrCount++;
-          const [, token, idxStr, isRedo] = match;
-          const rect = ann.rect as [number, number, number, number];
-          if (token === "__fid__") {
-            const corner = Number(idxStr);
-            if (corner === 0 || corner === 1 || corner === 2 || corner === 3) {
-              fiducials.push({ corner, rect });
-            }
-          } else if (isRedo) {
-            redoRects.set(`${token}|${idxStr}`, rect);
-          } else {
-            bubbles.push({ exerciseId: token, optionIndex: Number(idxStr), rect });
-          }
-        }
-
-        for (const b of bubbles) {
-          const redoRect = redoRects.get(`${b.exerciseId}|${b.optionIndex}`);
-          if (redoRect) b.redoRect = redoRect;
-        }
-
-        console.log(
-          `[PrepareOMR] Page ${pageNum}: totalAnnotations=${annotations.length}, linkAnnotations=${linkAnnCount}, matchedOmrLinks=${matchedOmrCount} (fiducials=${fiducials.length}, bubbles=${bubbles.length})` +
-            (rejectedUris.length > 0 ? `, non-OMR Link URIs sample: ${JSON.stringify(rejectedUris)}` : "")
-        );
-
-        pages.push({
-          pageIndex: pageNum - 1,
-          pageWidthPt: viewport.width,
-          pageHeightPt: viewport.height,
-          fiducials,
-          bubbles,
-        });
-      }
-
-      console.log(
-        "[PrepareOMR] Pages extraction summary:",
-        pages.map((p) => ({ page: p.pageIndex + 1, fiducials: p.fiducials.length, bubbles: p.bubbles.length }))
-      );
-
-      const payload: OmrTemplatePayload = { pages };
-      const exercisesHash = await computeExercisesHash();
-      const key = get(sessionStore).sessionKey;
-      await saveOmrTemplateEncrypted(exam.id, exercisesHash, payload, key);
-      omrTemplateStatus = "ready";
-      const totalBubbles = pages.reduce((sum, p) => sum + p.bubbles.length, 0);
-      const mcExerciseCount = collectMcExercises().length;
-
-      // A page with <4 fiducials or a template with zero bubbles despite having MC exercises
-      // means the compile did not actually emit `omr://` link annotations (most likely the
-      // LaTeX fiducial/bubble macros silently dropped content) — the template is useless for
-      // alignment even though the compile itself "succeeded". Fail loudly here instead of
-      // reporting success and letting every scan later fail alignment silently.
-      const shortPages = pages.filter((p) => p.fiducials.length < 4).map((p) => p.pageIndex + 1);
-      if (mcExerciseCount > 0 && totalBubbles === 0) {
-        console.warn(
-          `[PrepareOMR] FAILED: totalBubbles is 0 despite ${mcExerciseCount} MC exercise(s). Macro counts in fullTex were: \\OmrExercise=${omrExCount}, \\multi=${multiCount}, \\Lmulti=${lmultiCount}`
-        );
-        omrTemplateStatus = "stale";
+      const result = await prepareOmrTemplate({
+        examId: exam.id,
+        exam,
+        exercises,
+        libraryExercises,
+        mcGroups,
+        examItems,
+        key: get(sessionStore).sessionKey,
+        onProgress: (msg) => { omrPrepareMessage = msg; }
+      });
+      omrTemplateStatus = result.status;
+      if (result.status === 'stale') {
         omrPrepareMessage = "";
-        errorMsg = translate("exam.page.omr.noBubblesError");
-      } else if (shortPages.length > 0) {
-        omrTemplateStatus = "stale";
-        omrPrepareMessage = "";
-        errorMsg = translate("exam.page.omr.shortFiducialsError", { pages: shortPages.join(", ") });
+        errorMsg = result.message;
       } else {
-        omrPrepareMessage = translate("exam.page.omr.templateSaved", {
-          pageCount: pages.length,
-          bubbleCount: totalBubbles,
-        });
+        omrPrepareMessage = result.message;
       }
     } catch (err: any) {
       errorMsg = err.message || translate("exam.page.omr.failedGeneric");
