@@ -21,6 +21,83 @@ export interface McDetectionItem {
    * human to look at it, even though no bubbles could be read).
    */
   markedCount: number;
+  original?: {
+    confidence: "high" | "ambiguous" | "failed";
+    selectedOptions: number[];
+    score?: number;
+    flaggedOptions?: number[];
+  };
+  reviewedAt?: string;
+  isReviewed?: boolean;
+  isCorrected?: boolean;
+}
+
+export type McQueueCategory = "failed" | "unsure" | "confident";
+
+/**
+ * Single source of truth for which verification queue an item belongs to.
+ * Both the dashboard (routes/exam/[id]/verify) and the per-item verify view
+ * (routes/exam/[id]/verify-item) must use this — filtering separately let the
+ * two drift apart (e.g. the "confident" queue's Next/Prev walking into
+ * unsure/failed items because its own filter didn't match the dashboard's).
+ */
+export function categorizeMcItem(item: McDetectionItem): McQueueCategory {
+  if (item.confidence === "failed") return "failed";
+  if (item.confidence === "ambiguous" || item.flaggedOptions.length > 0) return "unsure";
+  return "confident";
+}
+
+export interface DetectionConfidenceQuality {
+  total: number;
+  reviewed: number;
+  confirmedUnchanged: number;
+  corrected: number;
+  accuracyRate: number; // percentage (0-100)
+}
+
+export interface DetectionQualityStats {
+  totalWithHistory: number;
+  totalReviewed: number;
+  overallInitialAccuracy: number; // percentage (0-100)
+  overallConfirmedUnchanged: number;
+  highConfidence: DetectionConfidenceQuality;
+  ambiguousConfidence: DetectionConfidenceQuality;
+  failedConfidence: DetectionConfidenceQuality;
+  falseConfidenceCount: number;
+  falseConfidenceRate: number; // percentage (0-100)
+}
+
+export interface ConfusionBucket {
+  count: number;
+  /** Percentage of `totalOptionsEvaluated` — one shared denominator across all 8 buckets. */
+  percent: number;
+}
+
+/**
+ * Per-OPTION (bubble) classification of OMR reliability — distinct from
+ * `DetectionQualityStats`, which operates per-QUESTION. "Positive" = the
+ * option OMR originally called selected (`original.selectedOptions`);
+ * "negative" = OMR originally called it blank. Ground truth is the human's
+ * final selection (current `selectedOptions`) once an item is reviewed; for
+ * unreviewed items there is no ground truth yet, so those options are
+ * bucketed by OMR's original call crossed with whether OMR itself flagged
+ * that specific option as visually uncertain (`original.flaggedOptions`,
+ * genuine per-option data, not borrowed from question-level confidence).
+ *
+ * Excludes: items with `confidence === 'failed'` (no bubbles were actually
+ * read) and items with no `original` snapshot (pure-manual entries that
+ * never went through OMR — nothing to grade).
+ */
+export interface DetectionConfusionMatrix {
+  totalOptionsEvaluated: number;
+  correctPositive: ConfusionBucket;
+  falsePositive: ConfusionBucket;
+  correctNegative: ConfusionBucket;
+  falseNegative: ConfusionBucket;
+  unreviewedPositiveHigh: ConfusionBucket;
+  unreviewedPositiveLow: ConfusionBucket;
+  unreviewedNegativeHigh: ConfusionBucket;
+  unreviewedNegativeLow: ConfusionBucket;
 }
 
 export interface McExerciseBreakdown {
@@ -57,6 +134,8 @@ export interface McVerificationStats {
   totalMarkedBoxes: number;
   perExercise: McExerciseBreakdown[];
   items: McDetectionItem[];
+  qualityStats: DetectionQualityStats;
+  confusionMatrix: DetectionConfusionMatrix;
 }
 
 /**
@@ -128,6 +207,17 @@ export async function computeMcVerificationStats(
       if (!ex || !sc.omrMeta) continue;
       const flaggedOptions = sc.omrMeta.flaggedOptions ?? [];
       const selectedOptions = sc.selectedOptions ?? [];
+
+      const orig = sc.omrMeta.original ?? (sc.omrMeta.source === "omr" ? {
+        confidence: sc.omrMeta.confidence,
+        selectedOptions: [...selectedOptions],
+        score: sc.score,
+        flaggedOptions: flaggedOptions.length > 0 ? [...flaggedOptions] : undefined,
+      } : undefined);
+
+      const isReviewed = sc.omrMeta.source === "manual" || !!sc.omrMeta.reviewedAt;
+      const isCorrected = orig && isReviewed ? !optionsEqual(orig.selectedOptions, selectedOptions) : false;
+
       items.push({
         submissionId: sub.id,
         exerciseId: sc.exerciseId,
@@ -138,6 +228,10 @@ export async function computeMcVerificationStats(
         flaggedOptions,
         selectedOptions,
         markedCount: detectionMarkedCount(sc.omrMeta.confidence, selectedOptions, flaggedOptions),
+        original: orig,
+        reviewedAt: sc.omrMeta.reviewedAt,
+        isReviewed,
+        isCorrected,
       });
     }
   }
@@ -148,6 +242,15 @@ export async function computeMcVerificationStats(
   let ambiguousQuestions = 0;
   let failedQuestions = 0;
   let totalMarkedBoxes = 0;
+
+  let totalReviewed = 0;
+  let overallConfirmedUnchanged = 0;
+  let totalWithHistory = 0;
+
+  const highQuality = { total: 0, reviewed: 0, confirmedUnchanged: 0, corrected: 0, accuracyRate: 100 };
+  const ambiguousQuality = { total: 0, reviewed: 0, confirmedUnchanged: 0, corrected: 0, accuracyRate: 100 };
+  const failedQuality = { total: 0, reviewed: 0, confirmedUnchanged: 0, corrected: 0, accuracyRate: 100 };
+
   for (const it of items) {
     let b = perExerciseMap.get(it.exerciseId);
     if (!b) {
@@ -163,7 +266,63 @@ export async function computeMcVerificationStats(
     if (it.confidence === "high") highQuestions += 1;
     else if (it.confidence === "ambiguous") ambiguousQuestions += 1;
     else failedQuestions += 1;
+
+    // Quality stats based on initial detection before verification
+    const origConf = it.original?.confidence ?? it.confidence;
+    if (it.original) {
+      totalWithHistory += 1;
+    }
+
+    const bucket =
+      origConf === "high"
+        ? highQuality
+        : origConf === "ambiguous"
+        ? ambiguousQuality
+        : failedQuality;
+
+    bucket.total += 1;
+
+    if (it.isReviewed) {
+      totalReviewed += 1;
+      bucket.reviewed += 1;
+      if (it.isCorrected) {
+        bucket.corrected += 1;
+      } else {
+        bucket.confirmedUnchanged += 1;
+        overallConfirmedUnchanged += 1;
+      }
+    }
   }
+
+  function calcRate(confirmed: number, reviewed: number): number {
+    if (reviewed === 0) return 100;
+    return Math.round((confirmed / reviewed) * 1000) / 10;
+  }
+
+  highQuality.accuracyRate = calcRate(highQuality.confirmedUnchanged, highQuality.reviewed);
+  ambiguousQuality.accuracyRate = calcRate(ambiguousQuality.confirmedUnchanged, ambiguousQuality.reviewed);
+  failedQuality.accuracyRate = calcRate(failedQuality.confirmedUnchanged, failedQuality.reviewed);
+
+  const overallInitialAccuracy = calcRate(overallConfirmedUnchanged, totalReviewed);
+  const falseConfidenceCount = highQuality.corrected;
+  const falseConfidenceRate =
+    highQuality.reviewed > 0
+      ? Math.round((falseConfidenceCount / highQuality.reviewed) * 1000) / 10
+      : 0;
+
+  const qualityStats: DetectionQualityStats = {
+    totalWithHistory,
+    totalReviewed,
+    overallInitialAccuracy,
+    overallConfirmedUnchanged,
+    highConfidence: highQuality,
+    ambiguousConfidence: ambiguousQuality,
+    failedConfidence: failedQuality,
+    falseConfidenceCount,
+    falseConfidenceRate,
+  };
+
+  const confusionMatrix = buildConfusionMatrix(items, exerciseById);
 
   return {
     totalQuestions,
@@ -173,7 +332,86 @@ export async function computeMcVerificationStats(
     totalMarkedBoxes,
     perExercise: Array.from(perExerciseMap.values()),
     items,
+    qualityStats,
+    confusionMatrix,
   };
+}
+
+/**
+ * Classifies every OMR-evaluated OPTION (not question) into the confusion
+ * matrix described on `DetectionConfusionMatrix`. Kept as its own pass over
+ * `items`, since it groups by option index within each item rather than by
+ * item itself.
+ */
+function buildConfusionMatrix(
+  items: McDetectionItem[],
+  exerciseById: Map<string, ExerciseRecord>
+): DetectionConfusionMatrix {
+  let correctPositive = 0;
+  let falsePositive = 0;
+  let correctNegative = 0;
+  let falseNegative = 0;
+  let unreviewedPositiveHigh = 0;
+  let unreviewedPositiveLow = 0;
+  let unreviewedNegativeHigh = 0;
+  let unreviewedNegativeLow = 0;
+
+  for (const it of items) {
+    if (it.confidence === "failed" || !it.original) continue;
+    const optionCount = exerciseById.get(it.exerciseId)?.options?.length ?? 0;
+    const origSelected = new Set(it.original.selectedOptions);
+    const origFlagged = new Set(it.original.flaggedOptions ?? []);
+    const finalSelected = new Set(it.selectedOptions);
+
+    for (let idx = 0; idx < optionCount; idx++) {
+      const omrPositive = origSelected.has(idx);
+      if (it.isReviewed) {
+        const finalPositive = finalSelected.has(idx);
+        if (omrPositive && finalPositive) correctPositive += 1;
+        else if (omrPositive && !finalPositive) falsePositive += 1;
+        else if (!omrPositive && !finalPositive) correctNegative += 1;
+        else falseNegative += 1;
+      } else {
+        const lowConfidence = origFlagged.has(idx);
+        if (omrPositive && !lowConfidence) unreviewedPositiveHigh += 1;
+        else if (omrPositive && lowConfidence) unreviewedPositiveLow += 1;
+        else if (!omrPositive && !lowConfidence) unreviewedNegativeHigh += 1;
+        else unreviewedNegativeLow += 1;
+      }
+    }
+  }
+
+  const totalOptionsEvaluated =
+    correctPositive +
+    falsePositive +
+    correctNegative +
+    falseNegative +
+    unreviewedPositiveHigh +
+    unreviewedPositiveLow +
+    unreviewedNegativeHigh +
+    unreviewedNegativeLow;
+
+  const pct = (count: number): number =>
+    totalOptionsEvaluated === 0 ? 0 : Math.round((count / totalOptionsEvaluated) * 1000) / 10;
+
+  return {
+    totalOptionsEvaluated,
+    correctPositive: { count: correctPositive, percent: pct(correctPositive) },
+    falsePositive: { count: falsePositive, percent: pct(falsePositive) },
+    correctNegative: { count: correctNegative, percent: pct(correctNegative) },
+    falseNegative: { count: falseNegative, percent: pct(falseNegative) },
+    unreviewedPositiveHigh: { count: unreviewedPositiveHigh, percent: pct(unreviewedPositiveHigh) },
+    unreviewedPositiveLow: { count: unreviewedPositiveLow, percent: pct(unreviewedPositiveLow) },
+    unreviewedNegativeHigh: { count: unreviewedNegativeHigh, percent: pct(unreviewedNegativeHigh) },
+    unreviewedNegativeLow: { count: unreviewedNegativeLow, percent: pct(unreviewedNegativeLow) },
+  };
+}
+
+function optionsEqual(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort((x, y) => x - y);
+  const sortedB = [...b].sort((x, y) => x - y);
+  return sortedA.every((val, idx) => val === sortedB[idx]);
 }
 
 /**

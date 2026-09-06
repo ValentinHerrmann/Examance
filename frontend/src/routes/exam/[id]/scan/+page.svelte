@@ -26,6 +26,7 @@
     loadLocalMcGroups,
   } from "$lib/db/dbEncryption";
   import { computeMcExercisesHash, loadExamMcExercises } from "$lib/grading/mcExerciseHash";
+  import { prepareOmrTemplate, loadExamCompileContext } from "$lib/grading/omrTemplatePrep";
   import { isMcQuestion } from "$lib/grading/mcScore";
   import { drawOmrOverlayForPage, type McOverlayState } from "$lib/grading/omrOverlay";
   import { api } from "$lib/api/client";
@@ -125,18 +126,54 @@
         return;
       }
       const existing = await loadOmrTemplateEncrypted(examId, key);
-      if (!existing || !existing.payload) {
-        omrAvailable = false;
-        omrBanner = translate("scanning.omrBanner.notPrepared");
-        return;
+      let needsCompile = !existing || !existing.payload;
+
+      if (!needsCompile) {
+        const currentHash = await computeMcExercisesHash(mcExercises);
+        if (existing!.record.exercisesHash !== currentHash) {
+          needsCompile = true;
+        }
       }
-      const currentHash = await computeMcExercisesHash(mcExercises);
-      if (existing.record.exercisesHash !== currentHash) {
-        omrAvailable = false;
-        omrBanner = translate("scanning.omrBanner.stale");
-        return;
+
+      let pages: OmrPageTemplate[];
+      if (needsCompile) {
+        const compileCtx = await loadExamCompileContext(examId, key);
+        if (!compileCtx) {
+          omrAvailable = false;
+          omrBanner = translate("scanning.omrBanner.autoPrepareFailed", { message: translate("scanning.examContextNotFound") });
+          return;
+        }
+
+        try {
+          omrBanner = translate("scanning.omrBanner.autoPreparing");
+          const compileRes = await prepareOmrTemplate({
+            examId,
+            exam: compileCtx.exam,
+            exercises: compileCtx.exercises,
+            libraryExercises: compileCtx.libraryExercises,
+            mcGroups: compileCtx.mcGroups,
+            key,
+            onProgress: (msg) => { omrBanner = `${translate("scanning.omrBanner.autoPreparing")} - ${msg}`; }
+          });
+
+          if (compileRes.status === 'stale') {
+             omrAvailable = false;
+             omrBanner = translate("scanning.omrBanner.autoPrepareFailed", { message: compileRes.message });
+             return;
+          }
+
+          pages = compileRes.pages;
+          omrBanner = translate("scanning.omrBanner.autoPrepared");
+        } catch (err: any) {
+          omrAvailable = false;
+          omrBanner = translate("scanning.omrBanner.autoPrepareFailed", { message: err.message });
+          return;
+        }
+      } else {
+        pages = existing!.payload!.pages;
       }
-      omrTemplatePages = existing.payload.pages;
+
+      omrTemplatePages = pages;
       omrAnswerKeys = mcExercises.map((e) => ({
         exerciseId: e.id,
         questionType: e.questionType as "mc" | "sc" | "tf",
@@ -145,7 +182,7 @@
         maxPoints: e.maxPoints,
       }));
       omrAvailable = true;
-      omrBanner = "";
+      if (!needsCompile) omrBanner = "";
     } catch (err) {
       console.error("Failed to load OMR context:", err);
       omrAvailable = false;
@@ -988,6 +1025,12 @@
               confidence: r.confidence,
               source: "omr",
               flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
+              original: {
+                confidence: r.confidence,
+                selectedOptions: failed ? [] : [...r.selectedOptions],
+                score: failed ? undefined : r.score,
+                flaggedOptions: r.flaggedOptions.length > 0 ? [...r.flaggedOptions] : undefined,
+              },
               detections:
                 !failed && r.bubbles.length > 0
                   ? {
