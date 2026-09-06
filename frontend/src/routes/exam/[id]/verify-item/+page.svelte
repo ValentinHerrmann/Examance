@@ -8,8 +8,10 @@
   import { t, translate } from "$lib/i18n";
   import {
     computeMcVerificationStats,
+    categorizeMcItem,
     type McVerificationStats,
     type McDetectionItem,
+    type McQueueCategory,
   } from "$lib/grading/mcVerification";
   import { loadExamMcExercises } from "$lib/grading/mcExerciseHash";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
@@ -33,12 +35,20 @@
   let studentLabel = "";
   let scanPdfBytes: Uint8Array | null = null;
 
+  interface StudentQueueItem {
+    exerciseId: string;
+    exerciseLabel: string;
+    category: McQueueCategory;
+    isReviewed: boolean;
+  }
+
   let activeQueueItems: McDetectionItem[] = [];
   let currentIndex = -1;
   let lastLoadToken = 0;
   let lastLoadedKey = "";
   let studentTotal = 1;
   let studentReviewed = 0;
+  let studentItems: StudentQueueItem[] = [];
   let showEndOfQueueModal = false;
 
   $: currentItemKey = `${examId}:${submissionId}:${exerciseId}:${queueFilter}:${$sessionStore.sessionKey ? "unlocked" : "locked"}`;
@@ -107,13 +117,10 @@
 
       stats = verificationStats;
 
-      if (queueFilter === "failed") {
-        activeQueueItems = stats.items.filter((i) => i.confidence === "failed");
-      } else if (queueFilter === "unsure") {
-        activeQueueItems = stats.items.filter(
-          (i) => i.confidence === "ambiguous" || (i.confidence !== "failed" && i.flaggedOptions.length > 0)
-        );
+      if (queueFilter === "failed" || queueFilter === "unsure" || queueFilter === "confident") {
+        activeQueueItems = stats.items.filter((i) => categorizeMcItem(i) === queueFilter);
       } else {
+        // Legacy/malformed URL fallback only — app code always sends an explicit category now.
         activeQueueItems = stats.items;
       }
 
@@ -130,9 +137,22 @@
         matchingItem?.studentLabel ||
         translate("scanning.verifyItem.submissionLabelFallback", { shortId: submissionId.slice(0, 8) });
 
-      const studentItems = stats.items.filter((i) => i.submissionId === submissionId);
-      studentTotal = studentItems.length;
-      studentReviewed = studentItems.filter((i) => i.isReviewed).length;
+      // Scoped to the current category, so the header badge matches the
+      // per-category count shown on the dashboard row this item was opened from.
+      const studentItemsInCategory = activeQueueItems.filter((i) => i.submissionId === submissionId);
+      studentTotal = studentItemsInCategory.length;
+      studentReviewed = studentItemsInCategory.filter((i) => i.isReviewed).length;
+
+      // Deliberately unfiltered by category — this powers the "jump to this
+      // student's other MC items" list, which must reach across categories.
+      studentItems = stats.items
+        .filter((i) => i.submissionId === submissionId)
+        .map((i) => ({
+          exerciseId: i.exerciseId,
+          exerciseLabel: i.exerciseLabel,
+          category: categorizeMcItem(i),
+          isReviewed: !!i.isReviewed,
+        }));
 
       scanPdfBytes = nextScanPdfBytes;
       currentScoreRecord = scores.find((s) => s.exerciseId === exerciseId) || null;
@@ -199,6 +219,12 @@
   function handleOpenGrading() {
     goto(`/exam/${examId}/grade?submissionId=${submissionId}&exerciseId=${exerciseId}`);
   }
+
+  function navigateToItem(targetExerciseId: string, category: McQueueCategory) {
+    goto(
+      `/exam/${examId}/verify-item?submissionId=${submissionId}&exerciseId=${targetExerciseId}&queue=${category}`
+    );
+  }
 </script>
 
 <PageShell width="full">
@@ -224,6 +250,8 @@
       {submissionId}
       {studentTotal}
       {studentReviewed}
+      {studentItems}
+      currentExerciseId={exerciseId}
       scoreRecord={currentScoreRecord}
       {scanPdfBytes}
       currentIndex={currentIndex >= 0 ? currentIndex : 0}
@@ -233,6 +261,7 @@
       onPrev={handlePrev}
       onEndOfQueue={handleEndOfQueue}
       onOpenGrading={handleOpenGrading}
+      onNavigateToItem={navigateToItem}
     />
   {/if}
 

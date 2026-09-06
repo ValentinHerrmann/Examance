@@ -32,6 +32,21 @@ export interface McDetectionItem {
   isCorrected?: boolean;
 }
 
+export type McQueueCategory = "failed" | "unsure" | "confident";
+
+/**
+ * Single source of truth for which verification queue an item belongs to.
+ * Both the dashboard (routes/exam/[id]/verify) and the per-item verify view
+ * (routes/exam/[id]/verify-item) must use this — filtering separately let the
+ * two drift apart (e.g. the "confident" queue's Next/Prev walking into
+ * unsure/failed items because its own filter didn't match the dashboard's).
+ */
+export function categorizeMcItem(item: McDetectionItem): McQueueCategory {
+  if (item.confidence === "failed") return "failed";
+  if (item.confidence === "ambiguous" || item.flaggedOptions.length > 0) return "unsure";
+  return "confident";
+}
+
 export interface DetectionConfidenceQuality {
   total: number;
   reviewed: number;

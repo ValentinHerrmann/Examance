@@ -217,5 +217,10 @@ export const scanning: Translations['scanning'] = {
         statusUnreviewed: 'Unreviewed',
         statusConfirmedUnchanged: 'Confirmed (unchanged)',
         statusManuallyCorrected: 'Manually corrected',
+        otherItemsHeading: "This student's other items:",
+        confirmAdvanceTitle: 'Proceed without reviewing?',
+        confirmAdvanceMessage: 'You have not reviewed this detection yet. To confirm the auto-detection, press C or click "Confirm as correct". Do you still want to proceed without reviewing it?',
+        confirmAdvanceProceed: 'Proceed without reviewing',
+        confirmAdvanceCancel: 'Cancel',
     },
 };

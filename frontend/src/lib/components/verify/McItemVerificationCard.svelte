@@ -9,12 +9,23 @@
   } from "$lib/grading/mcScore";
   import { renderMcCrop } from "$lib/grading/mcCropRender";
   import { t, translate } from "$lib/i18n";
+  import type { McQueueCategory } from "$lib/grading/mcVerification";
+  import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
+
+  interface StudentQueueItem {
+    exerciseId: string;
+    exerciseLabel: string;
+    category: McQueueCategory;
+    isReviewed: boolean;
+  }
 
   export let exercise: ExerciseRecord;
   export let studentLabel: string;
   export let submissionId: string = "";
   export let studentTotal: number = 1;
   export let studentReviewed: number = 0;
+  export let studentItems: StudentQueueItem[] = [];
+  export let currentExerciseId: string = "";
   export let scoreRecord: ExerciseScoreRecord | null = null;
   export let scanPdfBytes: Uint8Array | null = null;
   export let currentIndex: number = 0;
@@ -30,6 +41,7 @@
   export let onPrev: () => void;
   export let onEndOfQueue: () => void = () => {};
   export let onOpenGrading: () => void;
+  export let onNavigateToItem: (exerciseId: string, category: McQueueCategory) => void = () => {};
 
   $: isLastItem = currentIndex >= totalItems - 1;
 
@@ -199,6 +211,29 @@
     return hasOriginal && !isMatchesOriginal ? "manuallyCorrected" : "confirmedUnchanged";
   })();
 
+  // Guards the two advance paths (Next button, → key) so an accidental
+  // keypress can't silently accept an untouched detection — the teacher must
+  // either review the item or explicitly confirm they want to skip it.
+  let pendingAdvance: (() => void) | null = null;
+
+  function requestAdvance(action: () => void) {
+    if (reviewStatus === "unreviewed") {
+      pendingAdvance = action;
+    } else {
+      action();
+    }
+  }
+
+  function handleConfirmAdvance() {
+    const action = pendingAdvance;
+    pendingAdvance = null;
+    action?.();
+  }
+
+  function handleCancelAdvance() {
+    pendingAdvance = null;
+  }
+
   function formatOptionLabels(indices: number[]): string {
     if (indices.length === 0) return translate("scanning.itemCard.originalNone");
     return indices
@@ -244,11 +279,7 @@
 
     if (e.key === "ArrowRight") {
       e.preventDefault();
-      if (currentIndex < totalItems - 1) {
-        onNext();
-      } else {
-        onEndOfQueue();
-      }
+      requestAdvance(currentIndex < totalItems - 1 ? onNext : onEndOfQueue);
     }
   }
 </script>
@@ -304,6 +335,36 @@
       </button>
     </div>
   </div>
+
+  {#if studentItems.length > 1}
+    <div class="flex flex-wrap items-center gap-2 -mt-2">
+      <span class="text-[0.65rem] uppercase tracking-wider text-slate-500">
+        {$t("scanning.itemCard.otherItemsHeading")}
+      </span>
+      {#each studentItems as si}
+        {@const isCurrent = si.exerciseId === currentExerciseId}
+        {@const categoryLabelKey =
+          si.category === "failed"
+            ? "scanning.verify.queueFailed"
+            : si.category === "unsure"
+              ? "scanning.verify.queueUnsure"
+              : "scanning.verify.queueOther"}
+        <button
+          type="button"
+          disabled={isCurrent}
+          on:click={() => onNavigateToItem(si.exerciseId, si.category)}
+          title={$t(categoryLabelKey)}
+          class="px-2 py-1 text-[0.7rem] rounded border flex items-center gap-1.5 transition-colors
+            {isCurrent
+              ? 'border-sky-500 bg-sky-500/15 text-sky-200 cursor-default'
+              : 'border-slate-700 bg-slate-900 hover:border-slate-500 text-slate-300 cursor-pointer'}"
+        >
+          <span>{si.isReviewed ? "✓" : "○"}</span>
+          <span class="truncate max-w-[10rem]">{si.exerciseLabel}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
 
   <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
     <!-- Left Column: Scan Bubble Crop -->
@@ -456,7 +517,7 @@
 
         <button
           type="button"
-          on:click={onNext}
+          on:click={() => requestAdvance(onNext)}
           class="px-5 py-2 text-xs font-semibold rounded bg-sky-600 hover:bg-sky-500 text-white transition-colors cursor-pointer"
         >
           {isLastItem ? $t("scanning.itemCard.backToDashboard") : $t("scanning.itemCard.nextItem")}
@@ -465,6 +526,16 @@
     </div>
   </div>
 </div>
+
+<ConfirmDialog
+  isOpen={pendingAdvance !== null}
+  title={$t("scanning.itemCard.confirmAdvanceTitle")}
+  message={$t("scanning.itemCard.confirmAdvanceMessage")}
+  confirmText={$t("scanning.itemCard.confirmAdvanceProceed")}
+  cancelText={$t("scanning.itemCard.confirmAdvanceCancel")}
+  on:confirm={handleConfirmAdvance}
+  on:cancel={handleCancelAdvance}
+/>
 
 <style>
   @keyframes restore-pulse {

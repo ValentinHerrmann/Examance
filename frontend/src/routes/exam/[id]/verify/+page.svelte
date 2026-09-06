@@ -9,6 +9,7 @@
   import { PageShell } from "$lib/components/ui";
   import {
     computeMcVerificationStats,
+    categorizeMcItem,
     type McVerificationStats,
     type McDetectionItem,
   } from "$lib/grading/mcVerification";
@@ -377,28 +378,27 @@
     goto(`/exam/${examId}/verify-item?submissionId=${item.submissionId}&exerciseId=${item.exerciseId}&queue=${queueTag}`);
   }
 
-  $: failedItems = stats?.items.filter((i) => i.confidence === "failed") ?? [];
-  $: unsureItems = stats?.items.filter(
-    (i) => i.confidence === "ambiguous" || (i.confidence !== "failed" && i.flaggedOptions.length > 0)
-  ) ?? [];
-  $: otherItems = stats?.items.filter(
-    (i) => i.confidence === "high" && i.flaggedOptions.length === 0
-  ) ?? [];
+  $: failedItems = stats?.items.filter((i) => categorizeMcItem(i) === "failed") ?? [];
+  $: unsureItems = stats?.items.filter((i) => categorizeMcItem(i) === "unsure") ?? [];
+  $: otherItems = stats?.items.filter((i) => categorizeMcItem(i) === "confident") ?? [];
 
-  // Items for the same student can land in different queue sections above (their
-  // confidence/flag status differs per question) — this rollup lets each row show
-  // "this student has N more MC questions total, M reviewed" regardless of which
-  // section it's rendered in.
-  $: studentProgress = (() => {
+  // Each queue's badge is scoped to that queue's own items — a student with MC
+  // items in several categories gets an independent "reviewed/total" count per
+  // category (e.g. "1/1" in confident, "0/1" in unsure), not one combined count
+  // repeated identically in every section they appear in.
+  function buildStudentProgress(items: McDetectionItem[]) {
     const map = new Map<string, { total: number; reviewed: number }>();
-    for (const it of stats?.items ?? []) {
+    for (const it of items) {
       const entry = map.get(it.submissionId) ?? { total: 0, reviewed: 0 };
       entry.total += 1;
       if (it.isReviewed) entry.reviewed += 1;
       map.set(it.submissionId, entry);
     }
     return map;
-  })();
+  }
+  $: failedProgress = buildStudentProgress(failedItems);
+  $: unsureProgress = buildStudentProgress(unsureItems);
+  $: confidentProgress = buildStudentProgress(otherItems);
 </script>
 
 <PageShell width="wide">
@@ -492,7 +492,7 @@
       <McVerificationQueue
         title={$t("scanning.verify.queueFailed")}
         items={failedItems}
-        {studentProgress}
+        studentProgress={failedProgress}
         emptyMessage={$t("scanning.verify.emptyFailed")}
         onVerifyItem={(item) => openVerifyItem(item, "failed")}
         onOpenGrading={openInGrading}
@@ -501,7 +501,7 @@
       <McVerificationQueue
         title={$t("scanning.verify.queueUnsure")}
         items={unsureItems}
-        {studentProgress}
+        studentProgress={unsureProgress}
         emptyMessage={$t("scanning.verify.emptyUnsure")}
         onVerifyItem={(item) => openVerifyItem(item, "unsure")}
         onOpenGrading={openInGrading}
@@ -510,9 +510,9 @@
       <McVerificationQueue
         title={$t("scanning.verify.queueOther")}
         items={otherItems}
-        {studentProgress}
+        studentProgress={confidentProgress}
         emptyMessage={$t("scanning.verify.emptyOther")}
-        onVerifyItem={(item) => openVerifyItem(item, "all")}
+        onVerifyItem={(item) => openVerifyItem(item, "confident")}
         onOpenGrading={openInGrading}
       />
     {/if}
