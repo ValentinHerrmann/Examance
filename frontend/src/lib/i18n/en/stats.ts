@@ -3,7 +3,7 @@ import type { Translations } from '../types';
 export const stats: Translations['stats'] = {
     page: {
         title: 'Grade Analytics & Export',
-        statusBanner: 'Status: <strong>{graded} of {total}</strong> submissions with at least one graded exercise.',
+        statusBanner: 'Status: {graded} of {total} submissions with at least one graded exercise.',
         partialIndicator: '({partial} partially graded, {full} fully graded)',
         pendingIndicator: '({pending} not yet started)',
         emptyStats: 'No exercises graded yet. Statistics will appear here once you start grading.',
@@ -11,15 +11,20 @@ export const stats: Translations['stats'] = {
     },
     cards: {
         submissionsGraded: 'Submissions (graded)',
+        gradeAverage: 'Class average grade',
+        passRate: 'Pass rate',
+        avgPoints: 'Avg. points',
         avgPercent: 'Avg. Percent',
         stdDev: 'Std. Dev.',
         median: 'Median',
+        basis: 'Based on {count} submission(s) with at least one graded exercise. Partially graded submissions are included with their provisional percentage.',
     },
     exportModal: {
         title: 'Confirm Data Export',
         body: 'You are exporting unencrypted student grade data to CSV. An immutable audit log entry will be created capturing this action.',
         confirmButton: 'I confirm I am authorized to export this data',
         ungraded: 'Ungraded',
+        provisional: 'Partially graded',
     },
     gradeDistribution: {
         title: '🎯 Grade Distribution',
@@ -31,9 +36,13 @@ export const stats: Translations['stats'] = {
             custom: 'Custom',
             standard: 'Standard (50%)',
         },
+        fromPercent: 'from {percent}%',
+        provisionalLegend: 'Lighter bar segment: submissions that are not fully graded yet.',
     },
     submissionHistogram: {
         title: '📊 Percentage Distribution',
+        axisLabel: 'Percent achieved',
+        empty: 'No submission graded yet.',
     },
     analyticsPage: {
         heading: 'Global Multi-Exam Analytics',

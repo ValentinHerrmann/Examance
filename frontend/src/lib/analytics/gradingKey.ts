@@ -27,6 +27,40 @@ export const DEFAULT_CUTOFFS_EVEN_SPLIT: GradeCutoff[] = [
   { grade: '6', label: 'Ungenügend', minPercentage: 0 },
 ];
 
+/**
+ * The key to use when an exam has none configured.
+ *
+ * Exams created before the grading-key editor existed, and any exam the teacher
+ * never opened it for, carry no key. `calculateGradeDistribution` used to return
+ * an empty array for those, which is why their stats page drew an empty chart.
+ * Falling back here means every exam has a grade scale, and the stats page says
+ * which one it is.
+ */
+export const FALLBACK_GRADING_KEY: GradingKeyConfig = {
+  preset: 'linear_50',
+  cutoffs: DEFAULT_CUTOFFS_LINEAR_50,
+};
+
+/** The exam's key, or the documented default when it has none. */
+export function effectiveGradingKey(keyConfig?: GradingKeyConfig): GradingKeyConfig {
+  if (!keyConfig?.cutoffs || keyConfig.cutoffs.length === 0) {
+    return { preset: 'linear_50', cutoffs: structuredClone(DEFAULT_CUTOFFS_LINEAR_50) };
+  }
+  return keyConfig;
+}
+
+/**
+ * Cutoffs are compared against a percentage rounded to two decimals.
+ *
+ * 35/40 is 87.5 % exactly in decimal and 87.49999999999999 in binary floating
+ * point, so a bare `>=` against an 87.5 cutoff quietly demoted that pupil from
+ * a 1 to a 2. Rounding to two places before comparing is what a teacher doing
+ * this by hand would do, and it is stable for every realistic points/max pair.
+ */
+function roundedPercentage(percentage: number): number {
+  return Math.round(percentage * 100) / 100;
+}
+
 export function getPresetCutoffs(preset: GradingKeyConfig['preset']): GradeCutoff[] {
   switch (preset) {
     case 'linear_50':
@@ -48,15 +82,14 @@ export function calculateGradeFromPercentage(
   percentage: number,
   keyConfig?: GradingKeyConfig
 ): { grade: string; label: string } | null {
-  if (!keyConfig?.cutoffs || keyConfig.cutoffs.length === 0) {
-    return null;
-  }
+  const key = effectiveGradingKey(keyConfig);
 
   // Sort cutoffs descending by minPercentage
-  const sorted = [...keyConfig.cutoffs].sort((a, b) => b.minPercentage - a.minPercentage);
+  const sorted = [...key.cutoffs].sort((a, b) => b.minPercentage - a.minPercentage);
+  const value = roundedPercentage(percentage);
 
   for (const item of sorted) {
-    if (percentage >= item.minPercentage) {
+    if (value >= item.minPercentage) {
       return { grade: item.grade, label: item.label };
     }
   }
@@ -104,7 +137,7 @@ export function calculateGradeDetail(
     return null;
   }
 
-  const percentage = (score / maxPoints) * 100;
+  const percentage = roundedPercentage((score / maxPoints) * 100);
   const sorted = [...keyConfig.cutoffs].sort((a, b) => b.minPercentage - a.minPercentage);
 
   let currIdx = sorted.findIndex((item) => percentage >= item.minPercentage);
@@ -155,38 +188,98 @@ export interface GradeDistributionBucket {
   grade: string;
   label: string;
   count: number;
+  /** Subset of `count` whose submission is not fully graded yet. */
+  provisionalCount: number;
   minPercentage: number;
 }
 
+/**
+ * Counts how many results fall into each grade bracket.
+ *
+ * Always returns one bucket per cutoff — six, for every preset — including the
+ * grades nobody reached. A grade with nobody in it is information, and dropping
+ * it is what stopped the chart from ever showing a 1–6 scale.
+ *
+ * `provisionalCount` is the subset whose submission is not fully graded yet, so
+ * the chart can draw those apart instead of presenting a half-corrected class
+ * as settled.
+ */
 export function calculateGradeDistribution(
   percentages: number[],
-  keyConfig?: GradingKeyConfig
+  keyConfig?: GradingKeyConfig,
+  provisionalFlags: boolean[] = []
 ): GradeDistributionBucket[] {
-  if (!keyConfig?.cutoffs || keyConfig.cutoffs.length === 0) {
-    return [];
-  }
+  const key = effectiveGradingKey(keyConfig);
 
-  // Sort cutoffs ascending by minPercentage (worst grade first) so we can display 1..6
-  const sorted = [...keyConfig.cutoffs].sort((a, b) => b.minPercentage - a.minPercentage);
+  // Descending by minPercentage, so the buckets come out best grade first.
+  const sorted = [...key.cutoffs].sort((a, b) => b.minPercentage - a.minPercentage);
 
-  // Initialize buckets
   const buckets = sorted.map((cutoff) => ({
     grade: cutoff.grade,
     label: cutoff.label,
     count: 0,
+    provisionalCount: 0,
     minPercentage: cutoff.minPercentage,
   }));
 
-  // Assign each percentage to a grade bucket
-  percentages.forEach((p) => {
-    const gradeInfo = calculateGradeFromPercentage(p, keyConfig);
-    if (gradeInfo) {
-      const bucket = buckets.find((b) => b.grade === gradeInfo.grade);
-      if (bucket) {
-        bucket.count++;
-      }
-    }
+  // Matched by index, not by grade string: a custom key with two rows labelled
+  // "3" is two brackets, and `find` by grade silently merged their counts.
+  percentages.forEach((p, i) => {
+    const value = roundedPercentage(p);
+    let idx = sorted.findIndex((cutoff) => value >= cutoff.minPercentage);
+    if (idx === -1) idx = sorted.length - 1;
+    buckets[idx].count++;
+    if (provisionalFlags[i]) buckets[idx].provisionalCount++;
   });
 
   return buckets;
+}
+
+/**
+ * The class average grade (Notendurchschnitt) — the number a teacher is
+ * actually asked for, and one the stats page never showed.
+ *
+ * Averages the numeric grades, not the percentages: a class of three 1s and
+ * three 5s averages to 3.0, which is what a Notenspiegel reports, whereas
+ * averaging percentages and then grading the result gives a different answer.
+ * Non-numeric grade labels (a custom key using "A"/"B") are skipped.
+ */
+export function calculateClassGradeAverage(
+  percentages: number[],
+  keyConfig?: GradingKeyConfig
+): number | null {
+  const numeric: number[] = [];
+  for (const p of percentages) {
+    const grade = calculateGradeFromPercentage(p, keyConfig);
+    const value = grade ? Number.parseFloat(grade.grade) : NaN;
+    if (!Number.isNaN(value)) numeric.push(value);
+  }
+  if (numeric.length === 0) return null;
+  return Math.round((numeric.reduce((a, b) => a + b, 0) / numeric.length) * 100) / 100;
+}
+
+/**
+ * Share of results at or above the pass mark, as a fraction of 0–1.
+ *
+ * "Pass" is the lowest cutoff whose grade parses to <= 4 — grade 4
+ * ("ausreichend") in every bundled preset. A custom key without numeric grades
+ * has no pass mark, and this returns null rather than inventing one.
+ */
+export function calculatePassRate(
+  percentages: number[],
+  keyConfig?: GradingKeyConfig
+): number | null {
+  if (percentages.length === 0) return null;
+  const key = effectiveGradingKey(keyConfig);
+  const passing = key.cutoffs
+    .filter((c) => {
+      const value = Number.parseFloat(c.grade);
+      return !Number.isNaN(value) && value <= 4;
+    })
+    .map((c) => c.minPercentage);
+  if (passing.length === 0) return null;
+
+  const passMark = Math.min(...passing);
+  const passed = percentages.filter((p) => roundedPercentage(p) >= passMark).length;
+  return passed / percentages.length;
 }

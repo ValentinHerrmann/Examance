@@ -7,7 +7,19 @@ import { logExportAction } from '$lib/gdpr/exportAudit';
 export interface CsvExportRow {
   studentPseudonymId: string;
   fallbackCode: string;
+  studentName: string;
   totalScore: number | string;
+  maxPoints: number | string;
+  percentage: number | string;
+  grade: string;
+  /** Empty unless the submission is only partly corrected. */
+  status: string;
+}
+
+/** RFC 4180 quoting: wrap in quotes, double any quote inside. */
+function csvCell(value: number | string): string {
+  const text = typeof value === 'number' ? String(value) : value;
+  return `"${text.replace(/"/g, '""')}"`;
 }
 
 /**
@@ -22,14 +34,27 @@ export async function exportGradesToCsv(
   // 1. Audit log export action
   await logExportAction(examId, 'CSV', key);
 
-  // 2. Build RFC 4180 CSV string
-  let csvContent = 'Pseudonym ID,Fallback Code,Total Score\r\n';
+  // 2. Build RFC 4180 CSV string.
+  //
+  // The old export carried pseudonym, fallback code and total score only — no
+  // max points, no percentage and no grade, i.e. none of what the file is for.
+  // Header stays English: it is a machine-readable interchange format, and
+  // German spreadsheets import it either way.
+  let csvContent =
+    'Pseudonym ID,Fallback Code,Student Name,Total Score,Max Points,Percentage,Grade,Status\r\n';
 
   rows.forEach((row) => {
-    const escapedId = `"${row.studentPseudonymId.replace(/"/g, '""')}"`;
-    const escapedCode = `"${row.fallbackCode.replace(/"/g, '""')}"`;
-    const score = row.totalScore;
-    csvContent += `${escapedId},${escapedCode},${score}\r\n`;
+    csvContent +=
+      [
+        csvCell(row.studentPseudonymId),
+        csvCell(row.fallbackCode),
+        csvCell(row.studentName),
+        csvCell(row.totalScore),
+        csvCell(row.maxPoints),
+        csvCell(row.percentage),
+        csvCell(row.grade),
+        csvCell(row.status),
+      ].join(',') + '\r\n';
   });
 
   // UTF-8 BOM (\uFEFF) ensures Excel opens non-ASCII characters cleanly
