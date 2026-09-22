@@ -15,7 +15,6 @@
   import { api, ApiError } from "$lib/api/client";
   import { Argon2UnavailableError } from "$lib/crypto/keyDerivation";
   import { backendStore } from "$lib/stores/backendStore";
-  import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { get } from "svelte/store";
   import UnlockForm from "$lib/components/unlock/UnlockForm.svelte";
   import {
@@ -159,10 +158,12 @@
       // Save backend URL to localStorage ONLY after a factor was accepted
       backendStore.saveSuccessfulBackendUrl(trimmedBackendUrl);
 
-      // Persist server mode configuration in browser if previously set to all-local
-      if (get(storagePolicyStore).storageMode === "all-local") {
-        storagePolicyStore.updateSetting("storageMode", "all-server");
-      }
+      // Signing in used to flip all-local -> all-server right here, silently and
+      // with no migration. The next idle lock then ran wipeDatabase(), which in
+      // all-server mode deletes the whole local database — so working locally,
+      // signing in once and walking away destroyed the workspace. The mode is
+      // the teacher's choice now and only changes through the gated switch in
+      // settings, which exports an archive first.
 
       await handleAuthStep(step);
     } catch (err: any) {
@@ -534,8 +535,9 @@
 
     isLoading = true;
     try {
-      storagePolicyStore.updateSetting("storageMode", "all-local");
-
+      // Unlocking a local vault deliberately does not change the configured
+      // storage mode either: it is the counterpart of the flip removed above,
+      // and a mode change without an export is what loses data.
       if (needsLegacyMigration) {
         // Re-encrypts the existing vault away from the password that used to
         // sit in localStorage. Nothing is deleted unless this succeeds.

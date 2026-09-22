@@ -78,7 +78,7 @@ describe('exercise resource staging', () => {
 
   beforeEach(async () => {
     await db.exerciseResources.clear();
-    storagePolicyStore.updateSetting('storageMode', 'all-local');
+    storagePolicyStore.setPolicy({ storageMode: 'all-local', latexCompilation: 'local' });
     key = await crypto.subtle.importKey(
       'raw',
       new Uint8Array(32).fill(11),

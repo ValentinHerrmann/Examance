@@ -3,10 +3,9 @@
   import { db } from '$lib/db/db';
   import type { ExamRecord } from '$lib/db/schema';
   import { loadExamsEncrypted, saveExamEncrypted, encryptExam, encryptExercise } from '$lib/db/dbEncryption';
-  import { unpackProject } from '$lib/archive/unpacker';
-  import { formatImportSummary } from '$lib/services/archiveService';
-  import { clearAllTables } from '$lib/db/db';
-  import { projectStore } from '$lib/stores/project';
+  import { formatImportSummary, openBgprojArchive } from '$lib/services/archiveService';
+  import ImportConflictModal from '$lib/components/storage/ImportConflictModal.svelte';
+  import type { ArchiveConflict, DecisionMap } from '$lib/archive/conflicts';
   import { checkRetention, type RetentionCheckResult } from '$lib/gdpr/retention';
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
@@ -34,6 +33,11 @@
   let examsLoadFailed = false;
   let examStatsMap = new Map<string, { avgScore: number | null; count: number }>();
   let isImporting = false;
+  let conflictsOpen = false;
+  let pendingConflicts: ArchiveConflict[] = [];
+  let pendingIdenticalCount = 0;
+  let resolveConflicts: ((decisions: DecisionMap) => void) | null = null;
+  let rejectConflicts: ((reason: Error) => void) | null = null;
   let importStatus = '';
   let isInitializing = true;
   let expiredExam: { exam: ExamRecord; check: RetentionCheckResult } | null = null;
@@ -262,6 +266,33 @@
     }
   }
 
+  function askAboutConflicts(
+    conflicts: ArchiveConflict[],
+    identicalCount: number
+  ): Promise<DecisionMap> {
+    pendingConflicts = conflicts;
+    pendingIdenticalCount = identicalCount;
+    conflictsOpen = true;
+    return new Promise<DecisionMap>((resolve, reject) => {
+      resolveConflicts = resolve;
+      rejectConflicts = reject;
+    });
+  }
+
+  function handleConflictsConfirmed(decisions: DecisionMap) {
+    conflictsOpen = false;
+    resolveConflicts?.(decisions);
+    resolveConflicts = null;
+    rejectConflicts = null;
+  }
+
+  function handleConflictsCancelled() {
+    conflictsOpen = false;
+    rejectConflicts?.(new Error(translate('workspace.archive.importCancelled')));
+    resolveConflicts = null;
+    rejectConflicts = null;
+  }
+
   async function handleImportArchive(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
@@ -274,14 +305,13 @@
     importStatus = translate('dashboard.importDecrypting');
 
     try {
-      const buffer = new Uint8Array(await file.arrayBuffer());
-      await clearAllTables();
-      projectStore.clear();
-      const res = await unpackProject(buffer, password, (p) => {
-        importStatus = translate('dashboard.importStatus', { stage: p.stage, current: p.current });
+      // Through the service, which decrypts first and asks about collisions
+      // before it writes. This used to call clearAllTables() up front, so a
+      // wrong password destroyed the workspace and imported nothing.
+      const res = await openBgprojArchive(file, password, {
+        mode: 'merge',
+        resolve: askAboutConflicts,
       });
-
-
 
       alert(formatImportSummary(res));
       await refreshExams();
@@ -391,4 +421,10 @@
   {/if}
 </PageShell>
 
-
+<ImportConflictModal
+  open={conflictsOpen}
+  conflicts={pendingConflicts}
+  identicalCount={pendingIdenticalCount}
+  onConfirm={handleConflictsConfirmed}
+  onCancel={handleConflictsCancelled}
+/>

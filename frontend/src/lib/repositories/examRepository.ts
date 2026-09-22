@@ -4,7 +4,7 @@ import { db } from '$lib/db/db';
 import { storagePolicyStore } from '$lib/stores/storagePolicy';
 import { encryptExam, decryptExam } from '$lib/db/dbEncryption';
 import { enqueueRequest } from '$lib/services/offlineQueue';
-import type { ExamRecord } from '$lib/db/schema';
+import type { ExamRecord, ExamExerciseRecord, ExamMcGroupRecord } from '$lib/db/schema';
 import { invalidateOwner } from '$lib/latex/compileCache';
 
 export function mapApiToExamRecord(raw: any): ExamRecord {
@@ -49,7 +49,59 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
   };
 }
 
+export interface ExamStructure {
+  links: ExamExerciseRecord[];
+  mcGroups: ExamMcGroupRecord[];
+}
+
 export const examRepository = {
+  /**
+   * An exam's exercise links and MC groups, from whichever store owns them.
+   *
+   * `mapApiToExamRecord` drops `exercises` and `mc_groups`, so callers that
+   * need the structure — the archive packer above all — used to read
+   * `db.examExercises` and `db.examMcGroups` directly. In `all-server` mode
+   * those tables hold whatever the local cache happened to have, which is
+   * nothing at all right after a lock wiped it: an export taken there produced
+   * an archive of exams with no exercises and no MC groups.
+   */
+  async getStructure(examId: string): Promise<ExamStructure> {
+    const policy = get(storagePolicyStore);
+    if (policy.storageMode === 'all-local') {
+      return {
+        links: await db.examExercises.where('examId').equals(examId).toArray(),
+        mcGroups: await db.examMcGroups.where('examId').equals(examId).toArray(),
+      };
+    }
+
+    try {
+      const remote = (await api.get<any>(`/exams/${examId}`, { silentError: true })) as any;
+      const links: ExamExerciseRecord[] = (remote.exercises ?? []).map((e: any, idx: number) => ({
+        examId,
+        exerciseId: e.id,
+        orderIndex: e.order_index ?? e.orderIndex ?? idx + 1,
+        mcGroupId: e.mc_group_id ?? e.mcGroupId ?? undefined,
+        subIndex: e.sub_index ?? e.subIndex ?? undefined,
+      }));
+      const mcGroups: ExamMcGroupRecord[] = (remote.mc_groups ?? []).map(
+        (g: any, idx: number) => ({
+          id: g.id,
+          examId,
+          title: g.title,
+          scoringText: g.scoring_text ?? g.scoringText,
+          orderIndex: g.order_index ?? g.orderIndex ?? idx + 1,
+        })
+      );
+      return { links, mcGroups };
+    } catch {
+      // Hybrid keeps a usable local mirror; all-server has nothing better.
+      return {
+        links: await db.examExercises.where('examId').equals(examId).toArray(),
+        mcGroups: await db.examMcGroups.where('examId').equals(examId).toArray(),
+      };
+    }
+  },
+
   async getAll(key: CryptoKey | null): Promise<ExamRecord[]> {
     const policy = get(storagePolicyStore);
     if (!db.exams) return [];

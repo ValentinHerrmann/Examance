@@ -33,7 +33,7 @@ describe('scoreRepository', () => {
     await db.exerciseScores.clear();
     await db.submissions.clear();
     offlineQueue.set([]);
-    storagePolicyStore.updateSetting('storageMode', 'all-local');
+    storagePolicyStore.setPolicy({ storageMode: 'all-local', latexCompilation: 'local' });
     key = await aesKey();
   });
 
@@ -111,7 +111,7 @@ describe('scoreRepository', () => {
   });
 
   it('hybrid keeps scores local, like submissions and students', async () => {
-    storagePolicyStore.updateSetting('storageMode', 'hybrid');
+    storagePolicyStore.setPolicy({ storageMode: 'hybrid', latexCompilation: 'local' });
     await scoreRepository.saveMany(
       'exam-1',
       'sub-1',
@@ -124,7 +124,7 @@ describe('scoreRepository', () => {
   });
 
   it('PUTs in server mode and never touches the local store', async () => {
-    storagePolicyStore.updateSetting('storageMode', 'all-server');
+    storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'local' });
     vi.mocked(api.put).mockResolvedValue(undefined as never);
 
     await scoreRepository.saveMany(
@@ -143,7 +143,7 @@ describe('scoreRepository', () => {
   });
 
   it('queues a failed server write as a replayable PUT', async () => {
-    storagePolicyStore.updateSetting('storageMode', 'all-server');
+    storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'local' });
     vi.mocked(api.put).mockRejectedValue(new Error('offline'));
 
     await scoreRepository.saveMany(

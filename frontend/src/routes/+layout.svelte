@@ -36,11 +36,18 @@
     openBgprojArchive,
     exportBgprojArchive,
     clearWorkspace,
-    confirmWorkspaceReplace,
     confirmWorkspaceClear,
     promptArchivePassword,
     formatImportSummary,
   } from "$lib/services/archiveService";
+  import ImportConflictModal from "$lib/components/storage/ImportConflictModal.svelte";
+  import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
+  import type { ArchiveConflict, DecisionMap } from "$lib/archive/conflicts";
+  import {
+    isSwitchInProgress,
+    pendingSwitchStore,
+    resumeModeSwitch,
+  } from "$lib/services/storageModeSwitch";
   import AppHeader from "$lib/components/layout/AppHeader.svelte";
   import StatusBar from "$lib/components/layout/StatusBar.svelte";
   import StoragePolicyModal from "$lib/components/StoragePolicyModal.svelte";
@@ -55,6 +62,22 @@
   let isWorkspaceMenuOpen = false;
   let isInitializing = true;
   let showFocusNav = false;
+
+  let conflictsOpen = false;
+  let pendingConflicts: ArchiveConflict[] = [];
+  let pendingIdenticalCount = 0;
+  let resolveConflicts: ((decisions: DecisionMap) => void) | null = null;
+  let rejectConflicts: ((reason: Error) => void) | null = null;
+
+  /**
+   * A mode switch that a reload interrupted. The wipe is irreversible, so the
+   * workspace being empty afterwards needs a stated reason on screen rather
+   * than looking like the data loss this whole change is about.
+   */
+  let switchWizardOpen = false;
+  let resumeBannerDismissed = false;
+  $: interruptedSwitch =
+    $pendingSwitchStore && $pendingSwitchStore.phase === "reimport" ? $pendingSwitchStore : null;
 
   $: isGradeActive = isGradeActivePath($page.url.pathname);
 
@@ -151,6 +174,12 @@
     // whether or not the session came back unlocked — routes check `isUnlocked`
     // themselves; what they cannot do is read the vault before this point.
     markSessionReady();
+
+    // A switch left mid-flight re-arms itself so the wizard can finish it; the
+    // token is module state and does not survive the reload.
+    if (isSwitchInProgress()) {
+      resumeModeSwitch();
+    }
   });
 
   async function handleLock() {
@@ -163,15 +192,44 @@
     fileInput?.click();
   }
 
+  /**
+   * Hands the collisions to the modal and waits for a decision.
+   *
+   * The import genuinely blocks on this promise, so nothing is written until
+   * the teacher has chosen — which is the whole point of resolving conflicts
+   * before the first write rather than after a 409.
+   */
+  function askAboutConflicts(
+    conflicts: ArchiveConflict[],
+    identicalCount: number,
+  ): Promise<DecisionMap> {
+    pendingConflicts = conflicts;
+    pendingIdenticalCount = identicalCount;
+    conflictsOpen = true;
+    return new Promise<DecisionMap>((resolve, reject) => {
+      resolveConflicts = resolve;
+      rejectConflicts = reject;
+    });
+  }
+
+  function handleConflictsConfirmed(decisions: DecisionMap) {
+    conflictsOpen = false;
+    resolveConflicts?.(decisions);
+    resolveConflicts = null;
+    rejectConflicts = null;
+  }
+
+  function handleConflictsCancelled() {
+    conflictsOpen = false;
+    rejectConflicts?.(new Error(translate("workspace.archive.importCancelled")));
+    resolveConflicts = null;
+    rejectConflicts = null;
+  }
+
   async function handleFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
-
-    if (!confirmWorkspaceReplace()) {
-      input.value = "";
-      return;
-    }
 
     const password = promptArchivePassword(translate("workspace.archive.promptImportPassword"));
     if (!password) {
@@ -180,7 +238,13 @@
     }
 
     try {
-      const res = await openBgprojArchive(file, password);
+      // Merge, not replace: the old flow confirmed a wipe up front and then
+      // performed it before the password had even been checked. Existing
+      // records are kept unless the teacher says otherwise, one at a time.
+      const res = await openBgprojArchive(file, password, {
+        mode: "merge",
+        resolve: askAboutConflicts,
+      });
       alert(formatImportSummary(res));
       window.location.href = "/";
     } catch (err: any) {
@@ -246,6 +310,31 @@
     {/if}
   {/if}
 
+  {#if interruptedSwitch && !resumeBannerDismissed}
+    <div
+      role="status"
+      class="mx-3 mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-content sm:mx-5"
+    >
+      <p class="font-semibold">{$t("storagePolicy.switch.resumeBanner")}</p>
+      <p class="mt-1 text-muted">
+        {$t("storagePolicy.switch.resumeBody", {
+          to: $storagePolicyBadgeStore.text,
+        })}
+      </p>
+      <div class="mt-2 flex flex-wrap items-center gap-3">
+        <button class="underline underline-offset-2" on:click={() => (switchWizardOpen = true)}>
+          {$t("storagePolicy.switch.resumeContinue")}
+        </button>
+        <button
+          class="text-subtle underline underline-offset-2"
+          on:click={() => (resumeBannerDismissed = true)}
+        >
+          {$t("storagePolicy.switch.resumeDismiss")}
+        </button>
+      </div>
+    </div>
+  {/if}
+
   {#if $hasVaultIntegrityFailure}
     <!--
       Not a toast and not the HTTP error modal: the condition is neither
@@ -301,3 +390,16 @@
   />
 </div>
 
+<StorageModeSwitchWizard
+  open={switchWizardOpen}
+  target={null}
+  onClose={() => (switchWizardOpen = false)}
+/>
+
+<ImportConflictModal
+  open={conflictsOpen}
+  conflicts={pendingConflicts}
+  identicalCount={pendingIdenticalCount}
+  onConfirm={handleConflictsConfirmed}
+  onCancel={handleConflictsCancelled}
+/>

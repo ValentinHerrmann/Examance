@@ -26,5 +26,16 @@ export const workspace = {
         summarySuccess: 'Import erfolgreich! {loaded}',
         summaryProblems: 'Import mit {errorCount} Problem(en) abgeschlossen. {loaded}',
         summaryProblemsHeading: 'Folgendes konnte nicht auf dem Server gespeichert werden:',
+        lockedCannotImport: 'Bitte entsperren Sie zuerst die Sitzung — ein Import schreibt in Ihren verschlüsselten Arbeitsbereich.',
+        importMode: 'Wie soll importiert werden?',
+        importModeMerge: 'Zusammenführen (vorhandene Daten bleiben erhalten)',
+        importModeReplace: 'Ersetzen (Arbeitsbereich vorher leeren)',
+        replaceWarning:
+            'Beim Ersetzen wird der gesamte lokale Arbeitsbereich gelöscht, sobald das Archiv erfolgreich entschlüsselt wurde.',
+        mergeExplainer:
+            'Beim Zusammenführen werden Sie bei jedem bereits vorhandenen Datensatz gefragt, welche Fassung gelten soll.',
+        summarySkippedIdentical: '{count} identische Datensätze wurden übersprungen.',
+        importCancelled: 'Import abgebrochen — es wurde nichts geändert.',
+        passwordLabel: 'Archiv-Passwort',
     },
 } as const;

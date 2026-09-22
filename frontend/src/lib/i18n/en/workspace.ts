@@ -28,5 +28,16 @@ export const workspace: Translations['workspace'] = {
         summarySuccess: 'Import successful! {loaded}',
         summaryProblems: 'Import finished with {errorCount} problem(s). {loaded}',
         summaryProblemsHeading: 'The following could not be saved to the server:',
+        lockedCannotImport: 'Unlock the session first — an import writes into your encrypted workspace.',
+        importMode: 'How should the archive be imported?',
+        importModeMerge: 'Merge (keep existing data)',
+        importModeReplace: 'Replace (clear the workspace first)',
+        replaceWarning:
+            'Replacing deletes the entire local workspace, once the archive has been decrypted successfully.',
+        mergeExplainer:
+            'When merging you are asked, for every record that already exists, which version should apply.',
+        summarySkippedIdentical: '{count} identical record(s) were skipped.',
+        importCancelled: 'Import cancelled — nothing was changed.',
+        passwordLabel: 'Archive password',
     },
 };

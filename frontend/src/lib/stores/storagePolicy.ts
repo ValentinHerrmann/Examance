@@ -11,6 +11,31 @@ export interface StoragePolicy {
 
 const STORAGE_KEY = 'bg_storage_policy';
 
+/**
+ * Changing the storage mode changes which store every repository talks to, and
+ * the data does not follow. Switching is therefore gated: it goes through
+ * `services/storageModeSwitch.ts`, which forces an archive export first, and
+ * that service is the only holder of a valid token.
+ *
+ * The token exists because the mode used to be settable from anywhere, and two
+ * of the callers were bugs — signing in silently flipped `all-local` to
+ * `all-server`, and the next idle lock then wiped the whole local database.
+ * Narrowing `updateSetting` to `latexCompilation` turns every such call into a
+ * compile error rather than something to find by reading.
+ */
+let activeSwitchToken: string | null = null;
+
+/** Called by the switch service when it begins a gated mode change. */
+export function armStorageModeSwitch(): string {
+  activeSwitchToken = crypto.randomUUID();
+  return activeSwitchToken;
+}
+
+/** Called by the switch service once the change is committed or abandoned. */
+export function disarmStorageModeSwitch(): void {
+  activeSwitchToken = null;
+}
+
 export const DEFAULT_POLICY: StoragePolicy = {
     storageMode: 'all-local',
     latexCompilation: 'local',
@@ -83,13 +108,39 @@ function createStoragePolicyStore() {
 
     return {
         subscribe,
+        /** Replaces the whole policy. Tests and first-run seeding only. */
         setPolicy(policy: StoragePolicy) {
             safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify(policy));
             set(policy);
         },
-        updateSetting<K extends keyof StoragePolicy>(key: K, value: StoragePolicy[K]) {
+
+        /**
+         * Everything except the storage mode. `storageMode` is deliberately not
+         * assignable here — see `armStorageModeSwitch` above.
+         */
+        updateSetting<K extends 'latexCompilation'>(key: K, value: StoragePolicy[K]) {
             update((current) => {
                 const next = { ...current, [key]: value };
+                safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+                return next;
+            });
+        },
+
+        /**
+         * Sets the storage mode. Only reachable from an armed switch, so a mode
+         * change always has an export behind it.
+         *
+         * @throws if `token` is not the one the switch service is holding.
+         */
+        commitStorageMode(mode: StorageMode, token: string) {
+            if (!activeSwitchToken || token !== activeSwitchToken) {
+                throw new Error(
+                    'Refusing to change the storage mode outside a gated switch. ' +
+                        'Use services/storageModeSwitch.ts, which exports the workspace first.'
+                );
+            }
+            update((current) => {
+                const next = { ...current, storageMode: mode };
                 safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify(next));
                 return next;
             });

@@ -9,6 +9,7 @@
 import { get } from 'svelte/store';
 import { db } from '$lib/db/db';
 import { scoreRepository } from '$lib/repositories/scoreRepository';
+import { examRepository } from '$lib/repositories/examRepository';
 import { sessionStore } from '$lib/stores/session';
 import {
   BGPROJ_MAGIC,
@@ -22,8 +23,7 @@ import {
   type ProgressEventData,
 } from './format';
 import { deriveKey, generateSalt } from '$lib/crypto/keyDerivation';
-import { deriveArchiveSecret, deriveSessionKey } from '$lib/crypto/sessionKey';
-import { hmacSha256Hex, importHmacKey } from '$lib/crypto/hmac';
+import { deriveSessionKey } from '$lib/crypto/sessionKey';
 import { encryptJson, uint8ArrayToBase64 } from '$lib/crypto/aesGcm';
 import {
   loadExamsEncrypted,
@@ -49,10 +49,9 @@ export async function packProject(
   const nonce = new Uint8Array(12);
   crypto.getRandomValues(nonce);
 
-  // 2. Derive fresh master key & archive secret
+  // 2. Derive the fresh master key. The per-archive HMAC secret this used to
+  // derive alongside it is gone with the re-hashing it fed — see step 4.
   const { masterKey } = await deriveKey(password, salt);
-  const archiveSecretBuffer = await deriveArchiveSecret(masterKey);
-  const archiveHmacKey = await importHmacKey(new Uint8Array(archiveSecretBuffer));
 
   // 3. Collect records from IDB
   const key = get(sessionStore).sessionKey;
@@ -66,9 +65,12 @@ export async function packProject(
   const exerciseScores = await scoreRepository.getAll(exams.map((e) => e.id), key);
   const rawAuditLogs = await db.auditLog.toArray();
 
-  // Load junction table linking exercises to exams and MC groups
-  const exerciseExams = await db.examExercises.toArray();
-  const examMcGroups = await db.examMcGroups.toArray();
+  // Exercise links and MC groups, per exam, through the repository. Reading the
+  // Dexie tables directly meant a server-mode export packed exams with no
+  // exercises and no MC groups — the local cache is empty there after a lock.
+  const structures = await Promise.all(exams.map((e) => examRepository.getStructure(e.id)));
+  const exerciseExams = structures.flatMap((s) => s.links);
+  const examMcGroups = structures.flatMap((s) => s.mcGroups);
 
   // Resource files are unwrapped like every other record — decrypted with the
   // current session key and base64'd, because JSON cannot carry raw bytes. The
@@ -93,26 +95,24 @@ export async function packProject(
     message: 'Encrypting database records...',
   });
 
-  // 4. Compute pseudonym hashes for archive payload using archive secret
-  const archivedStudents = await Promise.all(
-    students.map(async s => ({
-      ...s,
-      pseudonymHash: await hmacSha256Hex(s.pseudonymId, archiveHmacKey),
-    }))
-  );
-
-  const archivedSubmissions = await Promise.all(
-    submissions.map(async sub => ({
-      ...sub,
-      pseudonymHash: await hmacSha256Hex(sub.pseudonymHash, archiveHmacKey),
-    }))
-  );
-
+  // 4. Students and submissions are archived exactly as they are.
+  //
+  // This used to re-HMAC both sides under a per-archive secret — but
+  // asymmetrically: the student got `HMAC(pseudonymId)` written into a field
+  // `StudentRecord` is not keyed on, while the submission's `pseudonymHash` was
+  // *replaced* by `HMAC(the hash it already held)`. After a round-trip the two
+  // no longer matched, so every imported submission came back unattributed and
+  // fell through to showing the first eight characters of its own hash.
+  //
+  // Re-hashing bought nothing either: the whole payload is already sealed under
+  // the archive key, and the raw `pseudonymId` travels inside it on the student
+  // record regardless. Leaving the link field alone preserves the relationship
+  // exactly as it exists locally, which is what makes a round-trip lossless.
   const archivePayload = {
     exams,
     exercises,
-    students: archivedStudents,
-    submissions: archivedSubmissions,
+    students,
+    submissions,
     exerciseScores,
     exerciseExams,
     examMcGroups,

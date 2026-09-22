@@ -25,6 +25,7 @@
     type Locale,
   } from "$lib/i18n";
   import { PageShell, PageHeader, Card, Button } from "$lib/components/ui";
+  import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
 
   /** GDPR Art. 15 — hand the data subject a readable copy of their own data. */
   async function handleExportStudent(pseudonymId: string) {
@@ -46,6 +47,8 @@
   let students: StudentRecord[] = [];
   let isErasing = false;
   let statusMsg = "";
+  let isSwitchWizardOpen = false;
+  let switchTarget: StorageMode | null = null;
 
   onMount(async () => {
     // Svelte 4 mounts routes before the root layout restores the session, so
@@ -72,22 +75,19 @@
     statusMsg = translate("settings.status.latexSet", { mode: val });
   }
 
-  async function handleStorageModeChange(val: StorageMode) {
+  /**
+   * Same gated wizard as the quick-config modal — this was a second copy of the
+   * wipe-without-export handler, and the two could drift apart.
+   */
+  function handleStorageModeChange(val: StorageMode) {
     if (val === $storagePolicyStore.storageMode) return;
+    switchTarget = val;
+    isSwitchWizardOpen = true;
+  }
 
-    if ((val === "all-server" || val === "hybrid") && !get(isAuthenticated)) {
-      alert(translate("settings.alerts.serverStorageNeedsAuth"));
-      window.location.href = "/unlock";
-      return;
-    }
-
-    const confirmed = confirm(translate("settings.alerts.storageModeConfirm"));
-    if (!confirmed) return;
-
-    await wipeDatabase();
-    storagePolicyStore.updateSetting("storageMode", val);
-    statusMsg = translate("settings.status.storageModeSet", { mode: val });
-    window.location.reload();
+  function handleSwitchWizardClosed() {
+    isSwitchWizardOpen = false;
+    switchTarget = null;
   }
 
   function handleLocaleChange(val: Locale) {
@@ -162,3 +162,9 @@
     </Card>
   </PageShell>
 {/if}
+
+<StorageModeSwitchWizard
+  open={isSwitchWizardOpen}
+  target={switchTarget}
+  onClose={handleSwitchWizardClosed}
+/>
