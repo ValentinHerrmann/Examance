@@ -111,4 +111,136 @@ describe("computeMcVerificationStats", () => {
     expect(stats.items.length).toBe(1);
     expect(stats.totalQuestions).toBe(1);
   });
+
+  it("calculates detection quality stats and calibration rates correctly", async () => {
+    const mockExercises = [
+      { id: "ex-1", questionType: "mc", title: "Q1", maxPoints: 2, penalty: 0 },
+      { id: "ex-2", questionType: "sc", title: "Q2", maxPoints: 1, penalty: 0 },
+      { id: "ex-3", questionType: "tf", title: "Q3", maxPoints: 1, penalty: 0 },
+    ] as any[];
+
+    const mockSubmissions = [
+      { id: "sub-1", examId: "exam-100", pseudonymHash: "hash-1" },
+      { id: "sub-2", examId: "exam-100", pseudonymHash: "hash-2" },
+    ] as any[];
+
+    vi.mocked(mcExerciseHash.loadExamMcExercises).mockResolvedValue(mockExercises);
+    vi.mocked(submissionRepository.getByExamId).mockResolvedValue(mockSubmissions);
+    vi.mocked(studentRepository.getByExamId).mockResolvedValue([] as any[]);
+
+    vi.mocked(dbEncryption.loadScoresEncrypted).mockImplementation(async (subId: string) => {
+      if (subId === "sub-1") {
+        return [
+          // Item 1: High confidence, reviewed, confirmed unchanged
+          {
+            id: "s1",
+            submissionId: "sub-1",
+            exerciseId: "ex-1",
+            selectedOptions: [0],
+            omrMeta: {
+              confidence: "high",
+              source: "manual",
+              reviewedAt: "2026-09-04T10:00:00Z",
+              original: { confidence: "high", selectedOptions: [0], score: 1 },
+            },
+          },
+          // Item 2: High confidence, reviewed, corrected (was [0], changed to [1])
+          // -> counts as false confidence!
+          {
+            id: "s2",
+            submissionId: "sub-1",
+            exerciseId: "ex-2",
+            selectedOptions: [1],
+            omrMeta: {
+              confidence: "high",
+              source: "manual",
+              reviewedAt: "2026-09-04T10:05:00Z",
+              original: { confidence: "high", selectedOptions: [0], score: 0 },
+            },
+          },
+          // Item 3: Ambiguous confidence, reviewed, confirmed unchanged ([0])
+          {
+            id: "s3",
+            submissionId: "sub-1",
+            exerciseId: "ex-3",
+            selectedOptions: [0],
+            omrMeta: {
+              confidence: "high",
+              source: "manual",
+              reviewedAt: "2026-09-04T10:10:00Z",
+              original: { confidence: "ambiguous", selectedOptions: [0], score: 1 },
+            },
+          },
+        ] as any[];
+      }
+      if (subId === "sub-2") {
+        return [
+          // Item 4: Ambiguous confidence, reviewed, corrected ([0] -> [0, 1])
+          {
+            id: "s4",
+            submissionId: "sub-2",
+            exerciseId: "ex-1",
+            selectedOptions: [0, 1],
+            omrMeta: {
+              confidence: "high",
+              source: "manual",
+              reviewedAt: "2026-09-04T10:15:00Z",
+              original: { confidence: "ambiguous", selectedOptions: [0], score: 1 },
+            },
+          },
+          // Item 5: High confidence, unreviewed
+          {
+            id: "s5",
+            submissionId: "sub-2",
+            exerciseId: "ex-2",
+            selectedOptions: [1],
+            omrMeta: {
+              confidence: "high",
+              source: "omr",
+            },
+          },
+          // Item 6: Failed, unreviewed
+          {
+            id: "s6",
+            submissionId: "sub-2",
+            exerciseId: "ex-3",
+            selectedOptions: [],
+            omrMeta: {
+              confidence: "failed",
+              source: "omr",
+            },
+          },
+        ] as any[];
+      }
+      return [];
+    });
+
+    const stats = await computeMcVerificationStats("exam-100", null);
+
+    expect(stats.totalQuestions).toBe(6);
+    expect(stats.qualityStats.totalReviewed).toBe(4);
+
+    // Initial detection accuracy: 2 confirmed unchanged out of 4 reviewed = 50%
+    expect(stats.qualityStats.overallInitialAccuracy).toBe(50);
+
+    // High confidence: 2 reviewed (Item 1 & Item 2), 1 confirmed unchanged, 1 corrected
+    expect(stats.qualityStats.highConfidence.reviewed).toBe(2);
+    expect(stats.qualityStats.highConfidence.confirmedUnchanged).toBe(1);
+    expect(stats.qualityStats.highConfidence.corrected).toBe(1);
+    expect(stats.qualityStats.highConfidence.accuracyRate).toBe(50);
+
+    // False confidence: 1 out of 2 high-confidence reviewed = 50%
+    expect(stats.qualityStats.falseConfidenceCount).toBe(1);
+    expect(stats.qualityStats.falseConfidenceRate).toBe(50);
+
+    // Ambiguous confidence: 2 reviewed (Item 3 & Item 4), 1 confirmed unchanged, 1 corrected
+    expect(stats.qualityStats.ambiguousConfidence.reviewed).toBe(2);
+    expect(stats.qualityStats.ambiguousConfidence.confirmedUnchanged).toBe(1);
+    expect(stats.qualityStats.ambiguousConfidence.corrected).toBe(1);
+    expect(stats.qualityStats.ambiguousConfidence.accuracyRate).toBe(50);
+
+    // Failed confidence: 0 reviewed
+    expect(stats.qualityStats.failedConfidence.reviewed).toBe(0);
+    expect(stats.qualityStats.failedConfidence.accuracyRate).toBe(100);
+  });
 });

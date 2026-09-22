@@ -71,8 +71,85 @@ export interface McCorrectionResult {
 }
 
 /**
+ * Returns the preserved or newly-initialized original detection snapshot.
+ */
+function resolveOriginalSnapshot(
+  omrMeta?: OmrScoreMeta,
+  currentSelectedOptions: number[] = [],
+  currentScore?: number
+): OmrScoreMeta['original'] | undefined {
+  if (omrMeta?.original) {
+    return {
+      confidence: omrMeta.original.confidence,
+      selectedOptions: [...omrMeta.original.selectedOptions],
+      score: omrMeta.original.score,
+      flaggedOptions: omrMeta.original.flaggedOptions ? [...omrMeta.original.flaggedOptions] : undefined,
+    };
+  }
+  if (omrMeta) {
+    return {
+      confidence: omrMeta.confidence,
+      selectedOptions: [...currentSelectedOptions],
+      score: currentScore,
+      flaggedOptions: omrMeta.flaggedOptions ? [...omrMeta.flaggedOptions] : undefined,
+    };
+  }
+  return undefined;
+}
+
+/**
+ * Sets explicit selected options for an MC/SC/TF exercise (e.g. from checkboxes),
+ * recomputes score, preserves original detection snapshot, and marks as manually reviewed.
+ */
+export function setMcSelectedOptions(
+  questionType: McQuestionType,
+  selectedOptions: number[],
+  correctAnswers: number[],
+  penalty: number,
+  maxPoints: number,
+  omrMeta?: OmrScoreMeta,
+  currentScore?: number
+): McCorrectionResult {
+  const normalizedOptions = [...selectedOptions].sort((a, b) => a - b);
+  const nextScore = computeMcScore(
+    questionType,
+    normalizedOptions,
+    correctAnswers,
+    penalty,
+    maxPoints
+  );
+
+  const original = resolveOriginalSnapshot(omrMeta, selectedOptions, currentScore);
+
+  const correctedDetections = omrMeta?.detections
+    ? {
+        ...omrMeta.detections,
+        bubbles: omrMeta.detections.bubbles.map((b) => ({
+          ...b,
+          state: (normalizedOptions.includes(b.optionIndex) ? 'marked' : 'blank') as 'marked' | 'blank',
+        })),
+      }
+    : undefined;
+
+  const nextOmrMeta: OmrScoreMeta = {
+    confidence: 'high',
+    source: 'manual',
+    flaggedOptions: omrMeta?.flaggedOptions,
+    original,
+    reviewedAt: new Date().toISOString(),
+    detections: correctedDetections,
+  };
+
+  return {
+    nextSelectedOptions: normalizedOptions,
+    nextScore,
+    nextOmrMeta,
+  };
+}
+
+/**
  * Toggles an option index for an MC/SC/TF exercise and returns the updated selectedOptions,
- * score, and omrMeta (marking source as manual and confidence as high).
+ * score, and omrMeta (marking source as manual, recording reviewedAt, and preserving original detection).
  */
 export function applyMcCorrection(
   questionType: McQuestionType,
@@ -93,6 +170,9 @@ export function applyMcCorrection(
       ? selectedOptions.filter((o) => o !== toggledOptionIdx)
       : [...selectedOptions, toggledOptionIdx].sort((a, b) => a - b);
 
+  const currentScore = computeMcScore(questionType, selectedOptions, correctAnswers, penalty, maxPoints);
+  const original = resolveOriginalSnapshot(omrMeta, selectedOptions, currentScore);
+
   const correctedDetections = omrMeta?.detections
     ? {
         ...omrMeta.detections,
@@ -106,6 +186,9 @@ export function applyMcCorrection(
   const nextOmrMeta: OmrScoreMeta = {
     confidence: 'high',
     source: 'manual',
+    flaggedOptions: omrMeta?.flaggedOptions,
+    original,
+    reviewedAt: new Date().toISOString(),
     detections: correctedDetections,
   };
 
@@ -120,6 +203,82 @@ export function applyMcCorrection(
   return {
     nextSelectedOptions,
     nextScore,
+    nextOmrMeta,
+  };
+}
+
+/**
+ * Restores the originally detected options, confidence, and score.
+ */
+export function restoreOriginalDetection(
+  questionType: McQuestionType,
+  correctAnswers: number[],
+  penalty: number,
+  maxPoints: number,
+  omrMeta?: OmrScoreMeta
+): McCorrectionResult | null {
+  if (!omrMeta?.original) {
+    return null;
+  }
+
+  const restoredOptions = [...omrMeta.original.selectedOptions].sort((a, b) => a - b);
+  const restoredScore =
+    omrMeta.original.score !== undefined
+      ? omrMeta.original.score
+      : computeMcScore(questionType, restoredOptions, correctAnswers, penalty, maxPoints);
+
+  const restoredDetections = omrMeta.detections
+    ? {
+        ...omrMeta.detections,
+        bubbles: omrMeta.detections.bubbles.map((b) => ({
+          ...b,
+          state: (restoredOptions.includes(b.optionIndex) ? 'marked' : 'blank') as 'marked' | 'blank',
+        })),
+      }
+    : undefined;
+
+  const nextOmrMeta: OmrScoreMeta = {
+    confidence: omrMeta.original.confidence,
+    source: 'omr',
+    flaggedOptions: omrMeta.original.flaggedOptions ? [...omrMeta.original.flaggedOptions] : undefined,
+    original: {
+      confidence: omrMeta.original.confidence,
+      selectedOptions: [...omrMeta.original.selectedOptions],
+      score: omrMeta.original.score,
+      flaggedOptions: omrMeta.original.flaggedOptions ? [...omrMeta.original.flaggedOptions] : undefined,
+    },
+    detections: restoredDetections,
+  };
+
+  return {
+    nextSelectedOptions: restoredOptions,
+    nextScore: restoredScore,
+    nextOmrMeta,
+  };
+}
+
+/**
+ * Confirms the current detection as verified by the user without changing option selections.
+ */
+export function confirmDetection(
+  selectedOptions: number[],
+  score: number,
+  omrMeta?: OmrScoreMeta
+): McCorrectionResult {
+  const original = resolveOriginalSnapshot(omrMeta, selectedOptions, score);
+
+  const nextOmrMeta: OmrScoreMeta = {
+    confidence: omrMeta?.confidence ?? 'high',
+    source: 'manual',
+    flaggedOptions: omrMeta?.flaggedOptions,
+    original,
+    reviewedAt: new Date().toISOString(),
+    detections: omrMeta?.detections,
+  };
+
+  return {
+    nextSelectedOptions: [...selectedOptions],
+    nextScore: score,
     nextOmrMeta,
   };
 }

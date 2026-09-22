@@ -130,6 +130,15 @@ export interface OmrScoreMeta {
   source: 'omr' | 'manual';
   /** Option indices the worker flagged as uncertain (light mark, partial erase, multi-mark on sc/tf). */
   flaggedOptions?: number[];
+  /** Snapshot of initial detection before user verification or correction. */
+  original?: {
+    confidence: 'high' | 'ambiguous' | 'failed';
+    selectedOptions: number[];
+    score?: number;
+    flaggedOptions?: number[];
+  };
+  /** ISO timestamp when the detection was verified or corrected. */
+  reviewedAt?: string;
   /** Detected bubble boxes for the grading viewer to draw over the scan, for every option
    *  (including blank ones — needed to place the "missing" annotation on correct options the
    *  student didn't mark). Carried forward across manual `McAnswerReview` toggles — it
@@ -195,6 +204,7 @@ export interface SubmissionRecord {
   /** HMAC(pseudonymId, archiveSecret) — links to StudentRecord without exposing raw ID. */
   pseudonymHash: string;
   totalScore?: number;
+  isPreliminary?: boolean;
   /** AES-256-GCM ciphertext of scan PDF bytes (native PDF with preserved page structure). */
   scanCt?: Uint8Array;
   /** AES-256-GCM IV for scanCt. */

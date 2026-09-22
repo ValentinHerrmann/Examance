@@ -40,6 +40,9 @@ async def list_submissions(
             exam_id=s.exam_id,
             pseudonym_hmac=s.pseudonym_hmac,
             total_score=s.total_score,
+            scan_ciphertext_b64=(
+                base64.b64encode(s.scan_ciphertext).decode() if s.scan_ciphertext else None
+            ),
             scan_iv_b64=base64.b64encode(s.scan_iv).decode() if s.scan_iv else None,
             annotation_ciphertext_b64=(
                 base64.b64encode(s.annotation_ciphertext).decode()
