@@ -152,6 +152,18 @@
     const policy = get(storagePolicyStore);
 
     if (restored && get(isUnlocked)) {
+      // The keys are back, which is all `awaitSessionReady()` gates on — so
+      // release the routes here rather than behind the token refresh below.
+      // The refresh is about the access cookie, not the vault, and making
+      // every route wait on a network round-trip delayed the first render of
+      // real data by a full request even in all-local mode, where no API call
+      // was going to happen at all.
+      //
+      // An API call that races an unrefreshed token is already handled:
+      // `client.ts` deduplicates concurrent refreshes and retries a 401 rather
+      // than refreshing twice.
+      markSessionReady();
+
       const mode = get(sessionStore).mode;
       if (mode === "hybrid" || mode === "authenticated") {
         try {
@@ -159,7 +171,6 @@
         } catch {
           await lockSession();
           isInitializing = false;
-          markSessionReady();
           return;
         }
       }

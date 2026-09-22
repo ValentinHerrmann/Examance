@@ -142,7 +142,27 @@ async function initRunner(onStatus: (status: string) => void) {
   }
 }
 
-async function loadAdditionalFiles(): Promise<{ path: string; content: Uint8Array }[]> {
+/**
+ * The bundled LaTeX assets, fetched once per worker.
+ *
+ * This used to run inside `runCompile`, so every compile re-fetched
+ * `/latex-assets/index.json` and all 13 files behind it — and a preview
+ * compiles Angabe and Lösung separately, so one preview click was ~28 requests
+ * and ~830 KB of assets that had not changed since the page loaded.
+ */
+let additionalFilesPromise: Promise<{ path: string; content: Uint8Array }[]> | null = null;
+
+function loadAdditionalFiles(): Promise<{ path: string; content: Uint8Array }[]> {
+  additionalFilesPromise ??= fetchAdditionalFiles().catch((err) => {
+    // Don't cache a failure: the next compile should retry rather than inherit
+    // a rejected promise for the lifetime of the worker.
+    additionalFilesPromise = null;
+    throw err;
+  });
+  return additionalFilesPromise;
+}
+
+async function fetchAdditionalFiles(): Promise<{ path: string; content: Uint8Array }[]> {
   const indexRes = await fetch('/latex-assets/index.json');
   if (!indexRes.ok) {
     console.warn("Failed to load latex-assets index.json. Assets may be missing.");
@@ -214,6 +234,12 @@ async function recoverFromPossiblyCorruptedCache(): Promise<void> {
   }
 }
 
+/**
+ * Whether the missing-package cache wipe has already been spent in this worker.
+ * See the guard in the message handler below.
+ */
+let cacheRecoveryAttempted = false;
+
 let compileQueue: Promise<void> = Promise.resolve();
 
 self.onmessage = (e: MessageEvent) => {
@@ -256,7 +282,17 @@ self.onmessage = (e: MessageEvent) => {
     try {
       let result = await runCompile();
 
-      if (!result.success && looksLikeMissingBundledPackage(result.log)) {
+      // At most one cache-wipe recovery per worker. The pattern cannot tell
+      // "the cached package data is corrupt" from "this document \\usepackage's
+      // something we do not ship", so without the guard a teacher whose
+      // document referenced an unavailable package paid a full multi-hundred-MB
+      // TeX Live re-download on every compile attempt, forever.
+      if (
+        !result.success &&
+        !cacheRecoveryAttempted &&
+        looksLikeMissingBundledPackage(result.log)
+      ) {
+        cacheRecoveryAttempted = true;
         console.warn(
           "[CompilerWorker] Compile failed with a missing-file error for what should be a bundled package; " +
             "clearing package cache and retrying once in case the local copy is stale/corrupted."
@@ -265,7 +301,6 @@ self.onmessage = (e: MessageEvent) => {
         result = await runCompile();
       }
 
-      console.log("Compilation finished. PDF Bytes:", result.pdf?.length);
       if (!result.success) {
         console.error("Compilation LOG error:", result.log);
       } else if (result.log) {
@@ -292,10 +327,17 @@ self.onmessage = (e: MessageEvent) => {
           missingGraphics: extractMissingGraphics(result.log)
         });
       } else {
-        resetRunner();
+        // The engine is NOT reset here. `result.success === false` is the
+        // ordinary outcome of a typo in the teacher's LaTeX, and tearing the
+        // runner down meant the next attempt re-ran ensureAssetCacheIsFresh(),
+        // three isPackageCached() calls, a fresh BusyTexRunner and a full
+        // re-mount of all three TeX Live bundles. Iterating on a document with
+        // an error cost the whole engine boot every single time.
         self.postMessage({ id, success: false, error: result.log || "Compilation failed" });
       }
     } catch (error: any) {
+      // A thrown error is different: the engine itself is in an unknown state,
+      // so this one really does warrant a reset.
       resetRunner();
       self.postMessage({ id, success: false, error: error.message || "Unknown error in compilation worker" });
     }

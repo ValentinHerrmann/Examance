@@ -103,7 +103,7 @@
     const allExercises = Array.from(exerciseMap.values());
 
     const allExamExercises = await db.examExercises.toArray();
-    const allSubmissions = await submissionRepository.getAll(key);
+    const allSubmissions = await submissionRepository.getAll(key, exams);
     // Through the repository, so server mode sees its own rows rather than an
     // empty local cache that lockSession() wiped.
     const allScores = await scoreRepository.getAll(

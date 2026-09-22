@@ -203,6 +203,75 @@ async def _fetch_exam_mc_groups(exam_id: uuid.UUID, db: AsyncSession) -> list[Ex
     return list(result.scalars().all())
 
 
+async def _fetch_exercises_for_exams(
+    exam_ids: list[uuid.UUID], db: AsyncSession
+) -> dict[uuid.UUID, list[tuple[Exercise, int, uuid.UUID | None, int | None]]]:
+    """
+    Every listed exam's exercises in one query, keyed by exam id.
+
+    ``list_exams`` used to call ``_fetch_exam_exercises`` and
+    ``_fetch_exam_mc_groups`` inside a loop — 1 + 2N sequential round-trips, and
+    up to 1 + 3N because the exercise helper issues a third query for any exam
+    with no ``exam_exercises`` rows. With the dashboard fetching this endpoint
+    twice on boot, a teacher with twenty exams paid over a hundred queries
+    before anything rendered.
+    """
+    if not exam_ids:
+        return {}
+
+    by_exam: dict[uuid.UUID, list[tuple[Exercise, int, uuid.UUID | None, int | None]]] = {
+        exam_id: [] for exam_id in exam_ids
+    }
+
+    result = await db.execute(
+        select(
+            ExamExercise.exam_id,
+            Exercise,
+            ExamExercise.order_index,
+            ExamExercise.mc_group_id,
+            ExamExercise.sub_index,
+        )
+        .join(ExamExercise, Exercise.id == ExamExercise.exercise_id)
+        .where(ExamExercise.exam_id.in_(exam_ids))
+        .order_by(ExamExercise.order_index.asc(), ExamExercise.sub_index.asc())
+    )
+    for exam_id, exercise, order, group_id, sub_index in result.all():
+        by_exam[exam_id].append((exercise, order, group_id, sub_index))
+
+    # Older exams link exercises by exercise.exam_id rather than the junction
+    # table; one extra query covers all of them instead of one per exam.
+    legacy_ids = [exam_id for exam_id, rows in by_exam.items() if not rows]
+    if legacy_ids:
+        legacy = await db.execute(
+            select(Exercise)
+            .where(Exercise.exam_id.in_(legacy_ids))
+            .order_by(Exercise.order_index.asc())
+        )
+        for exercise in legacy.scalars().all():
+            if exercise.exam_id is not None:
+                by_exam[exercise.exam_id].append((exercise, exercise.order_index, None, None))
+
+    return by_exam
+
+
+async def _fetch_mc_groups_for_exams(
+    exam_ids: list[uuid.UUID], db: AsyncSession
+) -> dict[uuid.UUID, list[ExamMcGroup]]:
+    """Every listed exam's MC groups in one query, keyed by exam id."""
+    if not exam_ids:
+        return {}
+
+    by_exam: dict[uuid.UUID, list[ExamMcGroup]] = {exam_id: [] for exam_id in exam_ids}
+    result = await db.execute(
+        select(ExamMcGroup)
+        .where(ExamMcGroup.exam_id.in_(exam_ids))
+        .order_by(ExamMcGroup.order_index.asc())
+    )
+    for group in result.scalars().all():
+        by_exam[group.exam_id].append(group)
+    return by_exam
+
+
 @router.get("", response_model=list[ExamResponse])
 async def list_exams(
     grade: str | None = None,
@@ -236,13 +305,17 @@ async def list_exams(
 
     query = query.order_by(Exam.created_at.desc())
     result = await db.execute(query)
-    exams = result.scalars().all()
-    out = []
-    for e in exams:
-        exs = await _fetch_exam_exercises(e.id, db)
-        groups = await _fetch_exam_mc_groups(e.id, db)
-        out.append(_to_exam_response(e, exs, groups))
-    return out
+    exams = list(result.scalars().all())
+
+    # Three queries in total, whatever the number of exams.
+    exam_ids = [e.id for e in exams]
+    exercises_by_exam = await _fetch_exercises_for_exams(exam_ids, db)
+    groups_by_exam = await _fetch_mc_groups_for_exams(exam_ids, db)
+
+    return [
+        _to_exam_response(e, exercises_by_exam.get(e.id, []), groups_by_exam.get(e.id, []))
+        for e in exams
+    ]
 
 
 async def _persist_mc_groups(

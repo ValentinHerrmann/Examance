@@ -20,14 +20,26 @@ import { clearAllTables } from './db';
 import { sessionStore } from '$lib/stores/session';
 import { storagePolicyStore } from '$lib/stores/storagePolicy';
 import { get, writable } from 'svelte/store';
-import { clearCompileCache } from '$lib/latex/compileCache';
 
 import { api } from '$lib/api/client';
+
+/**
+ * Drops the in-memory compiled-PDF cache.
+ *
+ * Imported dynamically on purpose. `+layout.svelte` imports this module, and a
+ * static import here pulled `compileCache` -> `compiler` -> the compiler worker
+ * asset into the root-layout chunk on every route, purely so that locking a
+ * session could empty a Map.
+ */
+async function clearCompileCache(): Promise<void> {
+  const { clearCompileCache: clear } = await import('$lib/latex/compileCache');
+  clear();
+}
 
 /** Clear all IDB data and compilation cache. Returns true if successful, false on error. */
 export async function wipeDatabase(): Promise<boolean> {
   try {
-    clearCompileCache();
+    await clearCompileCache();
     await clearAllTables();
     return true;
   } catch {
@@ -39,7 +51,7 @@ export async function wipeDatabase(): Promise<boolean> {
 /** Lock the session: wipe keys from store, set lockedAt, clear compilation cache, and wipe DB if server-synced. */
 export async function lockSession(): Promise<void> {
   timeUntilLock.set(null);
-  clearCompileCache();
+  await clearCompileCache();
   sessionStore.lock();
   try {
     await api.post('/auth/logout');

@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config import settings
@@ -225,6 +226,14 @@ def create_app() -> FastAPI:
         )
 
     # Middleware — registration order matters (last added = outermost)
+    #
+    # GZip sits innermost so it compresses router output but never touches the
+    # already-compressed binaries that flow through the compile and submission
+    # endpoints (PDFs, AES-GCM ciphertext), which minimum_size leaves alone
+    # anyway for small bodies. The exam list is verbose JSON — LaTeX preambles
+    # and templates inline — and is the single biggest response on the boot
+    # path, so this is where it pays.
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.add_middleware(BodyLimitMiddleware)
     if settings.ALLOWED_HOSTS:
         # Opt-in: rejects requests with an unexpected Host header. Left off when

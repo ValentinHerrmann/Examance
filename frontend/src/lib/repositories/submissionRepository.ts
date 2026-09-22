@@ -25,7 +25,16 @@ export function mapApiToSubmissionRecord(s: any, fallbackExamId: string): Submis
 }
 
 export const submissionRepository = {
-  async getAll(key: CryptoKey | null): Promise<SubmissionRecord[]> {
+  /**
+   * @param knownExams exams the caller has already loaded. The dashboard has
+   *   them in hand, and without this parameter this method fetched `/exams` a
+   *   second time — through an endpoint that was itself 1+3N queries — purely
+   *   to learn which ids to ask about.
+   */
+  async getAll(
+    key: CryptoKey | null,
+    knownExams?: { id: string }[]
+  ): Promise<SubmissionRecord[]> {
     const policy = get(storagePolicyStore);
     if (policy.storageMode === 'all-local' || policy.storageMode === 'hybrid') {
       const raw = await db.submissions.toArray();
@@ -33,18 +42,20 @@ export const submissionRepository = {
     } else {
       // Remote mode: backend has no /submissions endpoint, so fetch per-exam
       try {
-        const exams = await examRepository.getAll(key);
-        const allSubmissions: SubmissionRecord[] = [];
-        for (const exam of exams) {
-          // Silent: this loop runs once per exam, and the caller falls back to
-          // showing no statistics. Without it a single rejected session put one
-          // global error modal on screen for every exam the teacher has.
-          const rawList = await api.get<any[]>(`/exams/${exam.id}/submissions`, {
-            silentError: true,
-          });
-          allSubmissions.push(...rawList.map((s: any) => mapApiToSubmissionRecord(s, exam.id)));
-        }
-        return allSubmissions;
+        const exams = knownExams ?? (await examRepository.getAll(key));
+        // In parallel: the sequential loop this replaces made the dashboard
+        // wait for one round-trip per exam before it could render anything.
+        // silentError throughout, because the caller falls back to showing no
+        // statistics and one global modal per exam is a wall of dialogs.
+        const perExam = await Promise.all(
+          exams.map(async (exam) => {
+            const rawList = await api.get<any[]>(`/exams/${exam.id}/submissions`, {
+              silentError: true,
+            });
+            return rawList.map((s: any) => mapApiToSubmissionRecord(s, exam.id));
+          })
+        );
+        return perExam.flat();
       } catch {
         return [];
       }

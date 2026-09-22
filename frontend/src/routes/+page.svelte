@@ -231,7 +231,9 @@
     }
 
     try {
-      const allSubmissions = await submissionRepository.getAll(key);
+      // `exams` is already loaded above; passing it stops this from fetching
+      // /exams a second time on every dashboard render.
+      const allSubmissions = await submissionRepository.getAll(key, exams);
       const tempMap = new Map<string, { sum: number; count: number }>();
       for (const s of allSubmissions) {
         if (typeof s.totalScore === 'number' && !isNaN(s.totalScore)) {
