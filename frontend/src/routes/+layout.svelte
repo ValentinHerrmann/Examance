@@ -23,6 +23,7 @@
     storagePolicyBadgeStore,
   } from "$lib/stores/storagePolicy";
   import { safeLocalStorage } from "$lib/utils/storage";
+  import { registerCspDiagnostics } from "$lib/utils/cspDiagnostics";
   import { effectiveBackendStore } from "$lib/stores/backendStore";
   import {
     frontendVersion,
@@ -132,6 +133,8 @@
   registerNavigationGuard();
 
   onMount(async () => {
+    // Before hygiene, so a violation during boot is still explained.
+    registerCspDiagnostics();
     registerHygieneListeners();
 
     let restored = false;
