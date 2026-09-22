@@ -631,6 +631,7 @@ import { examRepository } from '$lib/repositories/examRepository';
 import { exerciseRepository } from '$lib/repositories/exerciseRepository';
 import { studentRepository } from '$lib/repositories/studentRepository';
 import { submissionRepository } from '$lib/repositories/submissionRepository';
+import { scoreRepository } from '$lib/repositories/scoreRepository';
 
 export async function loadExamsEncrypted(key: CryptoKey | null): Promise<ExamRecord[]> {
   return examRepository.getAll(key);
@@ -676,29 +677,34 @@ export async function saveSubmissionEncrypted(submission: SubmissionRecord, key:
   return submission.id;
 }
 
-export async function loadScoresEncrypted(submissionId: string, key: CryptoKey | null): Promise<ExerciseScoreRecord[]> {
-  const raw = await db.exerciseScores.where('submissionId').equals(submissionId).toArray();
-  return Promise.all(raw.map((sc) => decryptScore(sc, key)));
+// Scores take a leading examId, like every other repository call: they now have
+// a server home, and the route to it is scoped by exam. These three used to
+// write Dexie directly with no storage-mode branch at all, which is how
+// `all-server` grading ended up in a store that `lockSession()` wipes.
+
+export async function loadScoresEncrypted(
+  examId: string,
+  submissionId: string,
+  key: CryptoKey | null
+): Promise<ExerciseScoreRecord[]> {
+  return scoreRepository.getBySubmissionId(examId, submissionId, key);
 }
 
-/**
- * Delete a single exercise score record from IndexedDB.
- * Used when resetting an exercise back to ungraded status.
- */
-export async function deleteScoreEncrypted(submissionId: string, exerciseId: string): Promise<void> {
-  const existing = await db.exerciseScores
-    .where('submissionId')
-    .equals(submissionId)
-    .and((item) => item.exerciseId === exerciseId)
-    .first();
-  if (existing) {
-    await db.exerciseScores.delete(existing.id);
-  }
+/** Reset one exercise back to ungraded. */
+export async function deleteScoreEncrypted(
+  examId: string,
+  submissionId: string,
+  exerciseId: string
+): Promise<void> {
+  await scoreRepository.deleteOne(examId, submissionId, exerciseId);
 }
 
-export async function saveScoreEncrypted(scoreRec: ExerciseScoreRecord, key: CryptoKey | null): Promise<string> {
-  const encrypted = await encryptScore(scoreRec, key);
-  await db.exerciseScores.put(encrypted);
+export async function saveScoreEncrypted(
+  examId: string,
+  scoreRec: ExerciseScoreRecord,
+  key: CryptoKey | null
+): Promise<string> {
+  await scoreRepository.saveOne(examId, scoreRec, key);
   return scoreRec.id;
 }
 

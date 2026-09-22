@@ -5,7 +5,13 @@ import { isUnlocked } from '$lib/stores/session';
 export interface QueuedRequest {
   id: string;
   url: string;
-  method: 'POST' | 'PATCH' | 'DELETE';
+  /**
+   * PUT is here for the per-exercise score endpoint, whose rows are keyed by
+   * (submission, exercise) rather than by the client's id. That makes the write
+   * idempotent, which is the precondition for replaying it at all — a queued
+   * create-only POST can never succeed on a second attempt.
+   */
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: any;
   timestamp: number;
 }
@@ -30,7 +36,11 @@ offlineQueue.subscribe((val) => {
   }
 });
 
-export function enqueueRequest(url: string, method: 'POST' | 'PATCH' | 'DELETE', body?: any): void {
+export function enqueueRequest(
+  url: string,
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+  body?: any
+): void {
   const req: QueuedRequest = {
     id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
     url,
@@ -67,6 +77,8 @@ export async function flushOfflineQueue(): Promise<void> {
       try {
         if (req.method === 'POST') {
           await api.post(req.url, req.body, { silentError: true });
+        } else if (req.method === 'PUT') {
+          await api.put(req.url, req.body, { silentError: true });
         } else if (req.method === 'PATCH') {
           await api.patch(req.url, req.body, { silentError: true });
         } else if (req.method === 'DELETE') {

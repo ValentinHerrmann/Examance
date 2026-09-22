@@ -8,6 +8,7 @@
 
 import { get } from 'svelte/store';
 import { db } from '$lib/db/db';
+import { scoreRepository } from '$lib/repositories/scoreRepository';
 import { sessionStore } from '$lib/stores/session';
 import {
   BGPROJ_MAGIC,
@@ -29,7 +30,6 @@ import {
   loadExercisesEncrypted,
   loadStudentsEncrypted,
   loadSubmissionsEncrypted,
-  decryptScore,
   decryptResourceBytes,
 } from '$lib/db/dbEncryption';
 
@@ -60,8 +60,10 @@ export async function packProject(
   const exercises = await loadExercisesEncrypted(key);
   const students = await loadStudentsEncrypted(key);
   const submissions = await loadSubmissionsEncrypted(key);
-  const rawScores = await db.exerciseScores.toArray();
-  const exerciseScores = await Promise.all(rawScores.map(s => decryptScore(s, key)));
+  // Through the repository: reading Dexie directly meant an export taken in
+  // all-server mode packed whatever the local cache happened to hold, which is
+  // nothing at all right after a lock wiped it.
+  const exerciseScores = await scoreRepository.getAll(exams.map((e) => e.id), key);
   const rawAuditLogs = await db.auditLog.toArray();
 
   // Load junction table linking exercises to exams and MC groups

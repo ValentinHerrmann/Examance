@@ -17,8 +17,6 @@
   import { loadPdfjs } from "$lib/pdf/pdfjs";
   import {
     loadOmrTemplateEncrypted,
-    loadScoresEncrypted,
-    saveScoreEncrypted,
   } from "$lib/db/dbEncryption";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
   import { loadExamMcExercises } from "$lib/grading/mcExerciseHash";
@@ -28,6 +26,8 @@
     OmrWorkerResponse,
     OmrExerciseAnswerKey,
   } from "$lib/workers/omrWorker";
+  import type { ExerciseScoreRecord } from "$lib/db/schema";
+  import { scoreRepository } from "$lib/repositories/scoreRepository";
 
   $: examId = $page.params.id || "";
 
@@ -156,8 +156,12 @@
             continue;
           }
 
-          const existingScores = await loadScoresEncrypted(sub.id, key);
+          const existingScores = await scoreRepository.getBySubmissionId(examId, sub.id, key);
           const existingByExercise = new Map(existingScores.map((s) => [s.exerciseId, s]));
+
+          // Collected across every page of this booklet and written once —
+          // a per-result write here was one request per MC question per pupil.
+          const rescored: ExerciseScoreRecord[] = [];
 
           const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
           for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
@@ -193,35 +197,34 @@
 
               const failed = r.confidence === "failed";
               const nonBlankBubbles = r.bubbles.filter((b) => b.state !== "blank" && b.state !== "undone");
-              await saveScoreEncrypted(
-                {
-                  id: existing?.id ?? crypto.randomUUID(),
-                  submissionId: sub.id,
-                  exerciseId: r.exerciseId,
-                  score: failed ? undefined : r.score,
-                  selectedOptions: failed ? [] : r.selectedOptions,
-                  omrMeta: {
-                    confidence: r.confidence,
-                    source: "omr",
-                    flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
-                    detections:
-                      !failed && nonBlankBubbles.length > 0
-                        ? {
-                            pageIndex: r.pageIndex,
-                            bubbles: nonBlankBubbles.map((b) => ({
-                              optionIndex: b.optionIndex,
-                              state: b.state,
-                              rect: b.rect,
-                            })),
-                          }
-                        : undefined,
-                  },
+              rescored.push({
+                id: existing?.id ?? crypto.randomUUID(),
+                submissionId: sub.id,
+                exerciseId: r.exerciseId,
+                score: failed ? undefined : r.score,
+                selectedOptions: failed ? [] : r.selectedOptions,
+                omrMeta: {
+                  confidence: r.confidence,
+                  source: "omr" as const,
+                  flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
+                  detections:
+                    !failed && nonBlankBubbles.length > 0
+                      ? {
+                          pageIndex: r.pageIndex,
+                          bubbles: nonBlankBubbles.map((b) => ({
+                            optionIndex: b.optionIndex,
+                            state: b.state,
+                            rect: b.rect,
+                          })),
+                        }
+                      : undefined,
                 },
-                key,
-              );
+              });
               updated++;
             }
           }
+
+          await scoreRepository.saveMany(examId, sub.id, rescored, key);
         }
       } finally {
         worker.terminate();

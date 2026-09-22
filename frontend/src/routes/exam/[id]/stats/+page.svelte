@@ -6,14 +6,14 @@
   import { get } from 'svelte/store';
   import StatsPage from '$lib/components/stats/StatsPage.svelte';
   import type { ExamRecord, ExerciseRecord, SubmissionRecord, StudentRecord, ExerciseScoreRecord } from '$lib/db/schema';
-  import { loadExamEncrypted, loadExamExercisesEncrypted, decryptScore } from '$lib/db/dbEncryption';
+  import { loadExamEncrypted, loadExamExercisesEncrypted } from '$lib/db/dbEncryption';
   import { submissionRepository } from '$lib/repositories/submissionRepository';
   import { studentRepository } from '$lib/repositories/studentRepository';
   import { sessionStore, awaitSessionReady} from '$lib/stores/session';
   import { calculateSubmissionPercentage, calculatePercentageHistogram, type PercentageHistogramBin } from '$lib/analytics/stats';
   import { calculateGradeDistribution, getPresetCutoffs, type GradeDistributionBucket } from '$lib/analytics/gradingKey';
   import { exportGradesToCsv } from '$lib/analytics/csvExport';
-  import { db } from '$lib/db/db';
+  import { scoreRepository } from '$lib/repositories/scoreRepository';
 
   $: examId = $page.params.id || '';
 
@@ -59,8 +59,10 @@
     students = await studentRepository.getByExamId(id, key);
 
     const exerciseMaxPoints = exercises.map((ex) => ex.maxPoints || 0);
-    const rawAllScores = await db.exerciseScores.toArray();
-    const decryptedScores = await Promise.all(rawAllScores.map((sc) => decryptScore(sc, key)));
+    // Scoped to this exam. This used to be `db.exerciseScores.toArray()` —
+    // every score row in the database, across every exam and every year,
+    // decrypted on each render.
+    const decryptedScores = await scoreRepository.getByExamId(id, key);
     const scoresBySubmission = new Map<string, ExerciseScoreRecord[]>();
     for (const sc of decryptedScores) {
       if (!scoresBySubmission.has(sc.submissionId)) {

@@ -15,6 +15,9 @@ class SubmissionCreate(BaseModel):
     annotation_ciphertext_b64: str | None = None
     annotation_iv_b64: str | None = None
     total_score: float | None = None
+    #: Explicitly drop any stored annotation layer. Omitting the ciphertext
+    #: field leaves the stored one alone; only this flag deletes it.
+    clear_annotations: bool = False
 
 
 class SubmissionScoreUpdate(BaseModel):

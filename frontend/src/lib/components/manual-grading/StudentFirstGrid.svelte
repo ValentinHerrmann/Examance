@@ -5,12 +5,14 @@
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { api } from "$lib/api/client";
   import { db } from "$lib/db/db";
-  import { saveScoreEncrypted, deleteScoreEncrypted, saveSubmissionEncrypted } from "$lib/db/dbEncryption";
+  import { saveSubmissionEncrypted } from "$lib/db/dbEncryption";
+  import { scoreRepository } from "$lib/repositories/scoreRepository";
   import { calculateGradeDetail } from "$lib/analytics/gradingKey";
   import { buildSubmissionMap } from "$lib/utils/studentLookup";
   import type {
     ExamRecord,
     ExerciseRecord,
+    ExerciseScoreRecord,
     StudentRecord,
     SubmissionRecord,
   } from "$lib/db/schema";
@@ -98,30 +100,35 @@
       scoresMap.set(currentSub.id, subScores);
     }
 
+    // Collected and written in one call rather than per exercise: the
+    // repository reconciles on (submissionId, exerciseId), so the
+    // existing-row lookup that used to sit in this loop is gone.
+    const toSave: ExerciseScoreRecord[] = [];
+    const toClear: string[] = [];
+
     for (let i = 0; i < exercises.length; i++) {
       const ex = exercises[i];
       const val = parsedScores[i];
 
       if (val !== null && val !== undefined && !isNaN(val)) {
         if (val >= 0 && val <= ex.maxPoints) {
-          const existing = await db.exerciseScores
-            .where("submissionId")
-            .equals(currentSub.id)
-            .and((item) => item.exerciseId === ex.id)
-            .first();
-
-          await saveScoreEncrypted({
-            id: existing ? existing.id : crypto.randomUUID(),
+          toSave.push({
+            id: crypto.randomUUID(),
             submissionId: currentSub.id,
             exerciseId: ex.id,
             score: val,
-          }, key);
+          });
           subScores[ex.id] = val;
         }
       } else {
-        await deleteScoreEncrypted(currentSub.id, ex.id);
+        toClear.push(ex.id);
         subScores[ex.id] = null;
       }
+    }
+
+    await scoreRepository.saveMany(examId, currentSub.id, toSave, key);
+    for (const exerciseId of toClear) {
+      await scoreRepository.deleteOne(examId, currentSub.id, exerciseId);
     }
 
     currentSub.totalScore = liveTotalScore;

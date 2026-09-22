@@ -29,6 +29,8 @@ async function aesKey(fill: number): Promise<CryptoKey> {
 const baseExam = (): ExamRecord => ({
   id: 'exam-1',
   teacherId: 'teacher-1',
+  retentionUntil: '2027-12-31',
+  compilationStatus: 'pending',
   title: 'Schulaufgabe 1',
   latexPreamble: '\\usepackage{amsmath}',
   createdAt: new Date().toISOString(),

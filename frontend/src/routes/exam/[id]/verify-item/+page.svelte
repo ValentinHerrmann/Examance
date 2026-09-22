@@ -13,7 +13,7 @@
   } from "$lib/grading/mcVerification";
   import { loadExamMcExercises } from "$lib/grading/mcExerciseHash";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { loadScoresEncrypted, saveScoreEncrypted } from "$lib/db/dbEncryption";
+  import { scoreRepository } from "$lib/repositories/scoreRepository";
   import { decrypt } from "$lib/crypto/aesGcm";
   import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "$lib/db/schema";
   import McItemVerificationCard from "$lib/components/verify/McItemVerificationCard.svelte";
@@ -120,7 +120,7 @@
         scanPdfBytes = null;
       }
 
-      const scores = await loadScoresEncrypted(submissionId, key);
+      const scores = await scoreRepository.getBySubmissionId(examId, submissionId, key);
       currentScoreRecord = scores.find((s) => s.exerciseId === exerciseId) || null;
     } catch (err: any) {
       console.error("Failed to load MC verification item:", err);
@@ -147,7 +147,7 @@
       omrMeta: nextOmrMeta,
     };
 
-    await saveScoreEncrypted(scoreToSave, key);
+    await scoreRepository.saveOne(examId, scoreToSave, key);
     currentScoreRecord = scoreToSave;
   }
 

@@ -8,6 +8,7 @@ import type { SubmissionRecord } from '$lib/db/schema';
 import { uint8ArrayToBase64, base64ToUint8Array } from '$lib/crypto/aesGcm';
 import { ensure64CharHex } from '$lib/crypto/hmac';
 import { examRepository } from '$lib/repositories/examRepository';
+import { scoreRepository } from '$lib/repositories/scoreRepository';
 
 export function mapApiToSubmissionRecord(s: any, fallbackExamId: string): SubmissionRecord {
   return {
@@ -80,7 +81,18 @@ export const submissionRepository = {
     }
   },
 
-  async save(submission: SubmissionRecord, key: CryptoKey | null): Promise<void> {
+  /**
+   * @param opts.clearAnnotations Delete any stored annotation layer.
+   *   Omitting the annotation ciphertext means "not touching annotations"; it
+   *   used to mean "delete them", so every caller that saved a submission
+   *   without carrying the stroke layer — the manual grid, the paste importer —
+   *   erased the teacher's corrections server-side.
+   */
+  async save(
+    submission: SubmissionRecord,
+    key: CryptoKey | null,
+    opts: { clearAnnotations?: boolean } = {}
+  ): Promise<void> {
     const policy = get(storagePolicyStore);
     if (policy.storageMode === 'all-local' || policy.storageMode === 'hybrid') {
       const encrypted = await encryptSubmission(submission, key);
@@ -95,6 +107,7 @@ export const submissionRepository = {
         scan_iv_b64: submission.scanIv ? uint8ArrayToBase64(submission.scanIv) : undefined,
         annotation_ciphertext_b64: submission.annotationCt ? uint8ArrayToBase64(submission.annotationCt) : undefined,
         annotation_iv_b64: submission.annotationIv ? uint8ArrayToBase64(submission.annotationIv) : undefined,
+        clear_annotations: opts.clearAnnotations ?? false,
       };
       try {
         await api.post(`/exams/${submission.examId}/submissions`, payload);
@@ -108,11 +121,9 @@ export const submissionRepository = {
     const policy = get(storagePolicyStore);
 
     // Always clean up associated exercise scores to prevent orphaned data
-    // from polluting analytics
-    const scores = await db.exerciseScores.where('submissionId').equals(id).toArray();
-    for (const score of scores) {
-      await db.exerciseScores.delete(score.id);
-    }
+    // from polluting analytics. Through the repository, so server-held rows go
+    // too — the direct Dexie delete only ever reached the local cache.
+    await scoreRepository.deleteBySubmissionId(examId, id);
 
     if (policy.storageMode === 'all-local' || policy.storageMode === 'hybrid') {
       await db.submissions.delete(id);
@@ -128,14 +139,11 @@ export const submissionRepository = {
   async clearGrading(examId: string, id: string, key: CryptoKey | null): Promise<void> {
     const policy = get(storagePolicyStore);
 
-    // Delete all exercise scores for this submission to prevent orphaned scores
-    // from polluting analytics
-    const scores = await db.exerciseScores.where('submissionId').equals(id).toArray();
-    for (const score of scores) {
-      await db.exerciseScores.delete(score.id);
-    }
-
     if (policy.storageMode === 'all-local' || policy.storageMode === 'hybrid') {
+      // Local only: in server mode DELETE /grading clears the score rows in the
+      // same transaction as the total and the annotations.
+      await scoreRepository.deleteBySubmissionId(examId, id);
+
       // Must decrypt → modify → re-encrypt → save, because submissions are stored
       // encrypted in IndexedDB. Directly updating the encrypted record won't work
       // since fields like totalScore don't exist at the encrypted storage level.
@@ -149,7 +157,9 @@ export const submissionRepository = {
       await db.submissions.put(encrypted);
     } else {
       // all-server mode: use dedicated DELETE /grading endpoint which atomically clears
-      // both total_score and annotations on the backend in a single request.
+      // total_score, annotations and the per-exercise scores in a single request.
+      // The local mirror goes too, so a fallback read cannot resurrect them.
+      await db.exerciseScores.where('submissionId').equals(id).delete();
       try {
         await api.delete(`/exams/${examId}/submissions/${id}/grading`);
       } catch {

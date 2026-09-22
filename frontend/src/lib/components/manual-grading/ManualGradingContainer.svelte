@@ -6,8 +6,8 @@
   import {
     loadExamEncrypted,
     loadExamExercisesEncrypted,
-    loadScoresEncrypted,
   } from "$lib/db/dbEncryption";
+  import { scoreRepository } from "$lib/repositories/scoreRepository";
   import { studentRepository } from "$lib/repositories/studentRepository";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
   import type {
@@ -48,14 +48,23 @@
       students = await studentRepository.getByExamId(examId, key);
       submissions = await submissionRepository.getByExamId(examId, key);
 
+      // One request for the whole exam instead of one per submission — in
+      // server mode the old per-submission loop was an N+1 over the network.
+      const allScores = await scoreRepository.getByExamId(examId, key);
+      const scoresBySubmission = new Map<string, typeof allScores>();
+      for (const s of allScores) {
+        const bucket = scoresBySubmission.get(s.submissionId);
+        if (bucket) bucket.push(s);
+        else scoresBySubmission.set(s.submissionId, [s]);
+      }
+
       const newScoresMap = new Map<string, Record<string, number | null>>();
       for (const sub of submissions) {
-        const scores = await loadScoresEncrypted(sub.id, key);
         const mapForSub: Record<string, number | null> = {};
         for (const ex of exercises) {
           mapForSub[ex.id] = null;
         }
-        for (const s of scores) {
+        for (const s of scoresBySubmission.get(sub.id) ?? []) {
           if (s.exerciseId && typeof s.score === "number" && !isNaN(s.score)) {
             mapForSub[s.exerciseId] = s.score;
           }

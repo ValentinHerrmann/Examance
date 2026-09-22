@@ -13,6 +13,7 @@
 import { get } from 'svelte/store';
 
 import { db } from '$lib/db/db';
+import { scoreRepository } from '$lib/repositories/scoreRepository';
 import {
   decryptScore,
   decryptStudent,
@@ -72,15 +73,11 @@ export async function exportStudentData(pseudonymId: string): Promise<SubjectAcc
   const submissions: SubjectAccessSubmission[] = [];
   for (const raw of rawSubmissions) {
     const sub = await decryptSubmission(raw, key);
-    const rawScores = await db.exerciseScores
-      .where('submissionId')
-      .equals(raw.id)
-      .toArray();
-    const exerciseScores = [];
-    for (const rawScore of rawScores) {
-      const score = await decryptScore(rawScore, key);
-      exerciseScores.push({ exerciseId: score.exerciseId, score: score.score ?? null });
-    }
+    const scores = await scoreRepository.getBySubmissionId(sub.examId, raw.id, key);
+    const exerciseScores = scores.map((score) => ({
+      exerciseId: score.exerciseId,
+      score: score.score ?? null,
+    }));
 
     const exam = await db.exams.get(sub.examId);
     submissions.push({

@@ -8,6 +8,7 @@
   import { db } from '$lib/db/db';
   import type { ExamRecord, ExerciseRecord } from '$lib/db/schema';
   import { loadExamsEncrypted, loadExercisesEncrypted, decryptExercise, decryptScore } from '$lib/db/dbEncryption';
+  import { scoreRepository } from '$lib/repositories/scoreRepository';
   import { submissionRepository } from '$lib/repositories/submissionRepository';
   import type { ExercisePerformance, VariantDetail, VariantGroupComparison } from '$lib/analytics/analyticsTypes';
   import AnalyticsStateBanner from '$lib/components/analytics/AnalyticsStateBanner.svelte';
@@ -103,8 +104,12 @@
 
     const allExamExercises = await db.examExercises.toArray();
     const allSubmissions = await submissionRepository.getAll(key);
-    const rawScores = await db.exerciseScores.toArray();
-    const allScores = await Promise.all(rawScores.map((sc) => decryptScore(sc, key)));
+    // Through the repository, so server mode sees its own rows rather than an
+    // empty local cache that lockSession() wiped.
+    const allScores = await scoreRepository.getAll(
+      exams.map((e) => e.id),
+      key,
+    );
 
     totalSubmissionsCount = allSubmissions.length;
 

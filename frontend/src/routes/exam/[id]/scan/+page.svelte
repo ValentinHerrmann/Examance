@@ -21,8 +21,6 @@
     decryptStudent,
     loadExamExercisesEncrypted,
     loadOmrTemplateEncrypted,
-    saveScoreEncrypted,
-    loadScoresEncrypted,
     loadLocalMcGroups,
   } from "$lib/db/dbEncryption";
   import { computeMcExercisesHash, loadExamMcExercises } from "$lib/grading/mcExerciseHash";
@@ -31,7 +29,12 @@
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
   import { studentRepository } from "$lib/repositories/studentRepository";
-  import type { StudentRecord, OmrPageTemplate } from "$lib/db/schema";
+  import type {
+    StudentRecord,
+    OmrPageTemplate,
+    ExerciseScoreRecord,
+  } from "$lib/db/schema";
+  import { scoreRepository } from "$lib/repositories/scoreRepository";
   import { onMount, onDestroy } from "svelte";
   import { get } from "svelte/store";
   import { WorkerPool } from "$lib/workers/pool";
@@ -461,7 +464,7 @@
       // Load MC/SC/TF auto-grading overlay data (mirrors ScanCanvasViewer's gradingStore
       // state) so the exported PDF shows the same OMR annotations as the grading UI.
       const exercises = await loadExamExercisesEncrypted(examId, key || fallbackKey);
-      const scores = await loadScoresEncrypted(sub.id, key || fallbackKey);
+      const scores = await scoreRepository.getBySubmissionId(examId, sub.id, key || fallbackKey);
       const mcState: Record<string, McOverlayState> = {};
       const scoreInputs: Record<string, number | null | undefined> = {};
       for (const sc of scores) {
@@ -985,37 +988,38 @@
       );
 
       const omrResults = omrResultsByPseudonym.get(booklet.pseudonymId) ?? [];
-      for (const r of omrResults) {
+      // Accumulated and written once per booklet: ingesting a scanned class was
+      // one write per MC question per pupil, which in server mode is hundreds
+      // of sequential requests.
+      const omrScores: ExerciseScoreRecord[] = omrResults.map((r) => {
         const failed = r.confidence === "failed";
-        await saveScoreEncrypted(
-          {
-            id: crypto.randomUUID(),
-            submissionId: subId,
-            exerciseId: r.exerciseId,
-            // A failed alignment has no trustworthy score — leave it unset so it hydrates as
-            // "ungraded" (grade/+page.svelte) instead of silently contributing a 0.
-            score: failed ? undefined : r.score,
-            selectedOptions: failed ? [] : r.selectedOptions,
-            omrMeta: {
-              confidence: r.confidence,
-              source: "omr",
-              flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
-              detections:
-                !failed && r.bubbles.length > 0
-                  ? {
-                      pageIndex: r.pageIndex,
-                      bubbles: r.bubbles.map((b) => ({
-                        optionIndex: b.optionIndex,
-                        state: b.state,
-                        rect: b.rect,
-                      })),
-                    }
-                  : undefined,
-            },
+        return {
+          id: crypto.randomUUID(),
+          submissionId: subId,
+          exerciseId: r.exerciseId,
+          // A failed alignment has no trustworthy score — leave it unset so it hydrates as
+          // "ungraded" (grade/+page.svelte) instead of silently contributing a 0.
+          score: failed ? undefined : r.score,
+          selectedOptions: failed ? [] : r.selectedOptions,
+          omrMeta: {
+            confidence: r.confidence,
+            source: "omr" as const,
+            flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
+            detections:
+              !failed && r.bubbles.length > 0
+                ? {
+                    pageIndex: r.pageIndex,
+                    bubbles: r.bubbles.map((b) => ({
+                      optionIndex: b.optionIndex,
+                      state: b.state,
+                      rect: b.rect,
+                    })),
+                  }
+                : undefined,
           },
-          key,
-        );
-      }
+        };
+      });
+      await scoreRepository.saveMany(examId, subId, omrScores, key);
 
       newlyIngestedCount++;
       scannedCount++;

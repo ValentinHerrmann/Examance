@@ -8,6 +8,7 @@
 import { db } from '$lib/db/db';
 import { sessionStore } from '$lib/stores/session';
 import { encryptAuditEntry } from '$lib/db/dbEncryption';
+import { scoreRepository } from '$lib/repositories/scoreRepository';
 import { submissionRepository } from '$lib/repositories/submissionRepository';
 import { storagePolicyStore } from '$lib/stores/storagePolicy';
 import { api } from '$lib/api/client';
@@ -44,34 +45,33 @@ export async function eraseStudent(pseudonymId: string, examId: string): Promise
     note: 'GDPR Art. 17 student erasure',
   }, key);
 
-  await db.transaction('rw', [db.students, db.submissions, db.exerciseScores, db.auditLog], async () => {
-    // 1. Find all submissions linked to this student
-    const student = await db.students.get(pseudonymId);
-    if (!student) {
-      throw new Error(`Student record not found for ID: ${pseudonymId}`);
-    }
+  const student = await db.students.get(pseudonymId);
+  if (!student) {
+    throw new Error(`Student record not found for ID: ${pseudonymId}`);
+  }
 
-    const allSubs = await submissionRepository.getByExamId(examId, key);
-    // Match THIS student's submissions only. Locally `pseudonymHash` holds the
-    // raw pseudonymId (see scan/+page.svelte), so compare against it directly.
-    // A truthiness check here would match every submission in the exam and
-    // erase every other student's work along with this one's.
-    const matchingSubs = allSubs.filter((s) => s.pseudonymHash === pseudonymId);
-    submissionsCount = matchingSubs.length;
+  const allSubs = await submissionRepository.getByExamId(examId, key);
+  // Match THIS student's submissions only. Locally `pseudonymHash` holds the
+  // raw pseudonymId (see scan/+page.svelte), so compare against it directly.
+  // A truthiness check here would match every submission in the exam and
+  // erase every other student's work along with this one's.
+  const matchingSubs = allSubs.filter((s) => s.pseudonymHash === pseudonymId);
+  submissionsCount = matchingSubs.length;
 
-    // Delete student identity record
+  // Scores go first and OUTSIDE the transaction: in server mode this is a
+  // network call, and a Dexie transaction cannot span one — it would commit or
+  // abort while the request was still in flight. Erasure is the one place where
+  // doing this before the local delete is also the right order: if the server
+  // call fails, the local records are still there to retry against.
+  for (const sub of matchingSubs) {
+    await scoreRepository.deleteBySubmissionId(examId, sub.id);
+  }
+
+  await db.transaction('rw', [db.students, db.submissions, db.auditLog], async () => {
     await db.students.delete(pseudonymId);
-
-    // Delete exercise scores and submission records
     for (const sub of matchingSubs) {
-      // Clean up exercise scores to prevent orphaned data from polluting analytics
-      const scores = await db.exerciseScores.where('submissionId').equals(sub.id).toArray();
-      for (const score of scores) {
-        await db.exerciseScores.delete(score.id);
-      }
       await db.submissions.delete(sub.id);
     }
-
     // Append immutable audit log entry
     await db.auditLog.add(encryptedAudit);
   });

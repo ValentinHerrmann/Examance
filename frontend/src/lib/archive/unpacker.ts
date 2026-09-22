@@ -24,11 +24,12 @@ import {
   saveExerciseEncrypted,
   saveStudentEncrypted,
   saveSubmissionEncrypted,
-  saveScoreEncrypted,
   encryptExam,
   encryptExercise,
   encryptResource,
 } from '$lib/db/dbEncryption';
+import { scoreRepository } from '$lib/repositories/scoreRepository';
+import type { ExerciseScoreRecord } from '$lib/db/schema';
 import { importPayloadToServer } from './serverImport';
 
 export async function unpackProject(
@@ -216,8 +217,32 @@ export async function unpackProject(
   }
 
   if (Array.isArray(payload.exerciseScores)) {
+    // Scores are addressed per exam now that they have a server home, and the
+    // archive only records which submission they belong to — so the exam comes
+    // from that submission, under whatever id it was actually created with.
+    const examIdBySubmission = new Map<string, string>();
+    for (const sub of Array.isArray(payload.submissions) ? payload.submissions : []) {
+      examIdBySubmission.set(sub.id, remap(sub.examId) ?? sub.examId);
+    }
+
+    const bySubmission = new Map<string, ExerciseScoreRecord[]>();
     for (const score of payload.exerciseScores) {
-      await saveScoreEncrypted({ ...score, exerciseId: remap(score.exerciseId) }, activeKey);
+      const record = { ...score, exerciseId: remap(score.exerciseId) };
+      const bucket = bySubmission.get(record.submissionId);
+      if (bucket) bucket.push(record);
+      else bySubmission.set(record.submissionId, [record]);
+    }
+
+    for (const [submissionId, scores] of bySubmission) {
+      const examId = examIdBySubmission.get(submissionId);
+      if (!examId) {
+        errors.push(
+          `${scores.length} score(s) reference submission ${submissionId}, which the ` +
+            `archive does not contain. They were skipped.`
+        );
+        continue;
+      }
+      await scoreRepository.saveMany(examId, submissionId, scores, activeKey);
     }
   }
 

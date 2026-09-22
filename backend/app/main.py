@@ -22,6 +22,7 @@ from app.routers import (
     auth,
     compile,
     exams,
+    exercise_scores,
     exercises,
     keys,
     mfa,
@@ -241,6 +242,11 @@ def create_app() -> FastAPI:
     app.include_router(exercises.router, prefix=API_PREFIX)
     app.include_router(students.router, prefix=API_PREFIX)
     app.include_router(submissions.router, prefix=API_PREFIX)
+    # Per-exercise scores hang off a submission; the exam-wide reader is a
+    # separate prefix so the stats page can fetch a whole exam in one request
+    # instead of one per submission.
+    app.include_router(exercise_scores.router, prefix=API_PREFIX)
+    app.include_router(exercise_scores.exam_router, prefix=API_PREFIX)
     app.include_router(admin.router, prefix=API_PREFIX)
     app.include_router(user.router, prefix=API_PREFIX)
     app.include_router(keys.router, prefix=API_PREFIX)
