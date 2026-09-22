@@ -1,3 +1,5 @@
+import type { MaybeUndecryptable } from './decryptGuard';
+
 /**
  * IndexedDB schema type definitions for Dexie.
  *
@@ -19,7 +21,7 @@ export interface GradingKeyConfig {
   cutoffs: GradeCutoff[];
 }
 
-export interface ExamRecord {
+export interface ExamRecord extends MaybeUndecryptable {
   id: string;            // UUID
   teacherId: string;
   title?: string;
@@ -45,7 +47,7 @@ export interface ExamRecord {
   payloadIv?: Uint8Array;
 }
 
-export interface ExerciseRecord {
+export interface ExerciseRecord extends MaybeUndecryptable {
   id: string;            // UUID
   teacherId?: string;
   examId?: string;
@@ -146,7 +148,7 @@ export interface OmrScoreMeta {
   };
 }
 
-export interface ExerciseScoreRecord {
+export interface ExerciseScoreRecord extends MaybeUndecryptable {
   id: string;               // UUID
   submissionId: string;
   exerciseId: string;
@@ -169,7 +171,7 @@ export interface ExerciseScoreRecord {
  * writing them back as plain columns is the L17 leak
  * (docs/legal_audit_dsgvo.md) that broke Core Invariant 1 in every mode.
  */
-export interface StudentRecord {
+export interface StudentRecord extends MaybeUndecryptable {
   /** Raw pseudonym UUID — only in local IDB, never sent to server. */
   pseudonymId: string;
   examId: string;
@@ -189,7 +191,7 @@ export interface StudentRecord {
   payloadIv?: Uint8Array;
 }
 
-export interface SubmissionRecord {
+export interface SubmissionRecord extends MaybeUndecryptable {
   id: string;            // UUID
   examId: string;
   /** HMAC(pseudonymId, archiveSecret) — links to StudentRecord without exposing raw ID. */
@@ -254,7 +256,7 @@ export interface OmrTemplateRecord {
   payloadIv?: Uint8Array;
 }
 
-export interface AuditEntry {
+export interface AuditEntry extends MaybeUndecryptable {
   id: string;            // UUID
   action: 'LOGIN' | 'EXPORT' | 'DELETE' | 'VIEW' | 'EXTEND_RETENTION';
   targetId?: string;

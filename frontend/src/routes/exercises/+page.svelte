@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { db } from "$lib/db/db";
-  import { sessionStore, isAuthenticated } from "$lib/stores/session";
+  import { sessionStore, isAuthenticated, awaitSessionReady} from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import type { ExerciseRecord } from "$lib/db/schema";
   import { loadExercisesEncrypted, saveExerciseEncrypted, encryptExercise } from "$lib/db/dbEncryption";
@@ -242,6 +242,10 @@
   });
 
   async function loadExercises() {
+    // Svelte 4 mounts routes before the root layout restores the session, so
+    // without this the vault is read with a null key on every reload and the
+    // whole workspace comes back blank.
+    await awaitSessionReady();
     isLoading = true;
     errorMsg = "";
     const key = get(sessionStore).sessionKey;

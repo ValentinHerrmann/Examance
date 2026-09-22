@@ -11,6 +11,7 @@
     ExerciseRecord,
     SubmissionRecord,
     ExamMcGroupRecord,
+    ExamExerciseRecord,
     OmrTemplatePayload,
     OmrPageTemplate,
     OmrBubbleRect,
@@ -44,7 +45,7 @@
   import { submissionRepository } from "$lib/repositories/submissionRepository";
   import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
   import { studentRepository } from "$lib/repositories/studentRepository";
-  import { mapApiToExamRecord } from "$lib/repositories/examRepository";
+  import { examRepository, mapApiToExamRecord } from "$lib/repositories/examRepository";
   import { mapExerciseRecordToApi } from "$lib/repositories/exerciseRepository";
   import { uint8ArrayToBase64, decrypt } from "$lib/crypto/aesGcm";
   import { ensure64CharHex } from "$lib/crypto/hmac";
@@ -53,7 +54,7 @@
     OmrWorkerResponse,
     OmrExerciseAnswerKey,
   } from "$lib/workers/omrWorker";
-  import { sessionStore, isAuthenticated } from "$lib/stores/session";
+  import { sessionStore, isAuthenticated, awaitSessionReady} from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { get } from "svelte/store";
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
@@ -202,6 +203,10 @@
   }
 
   async function loadExam(id: string) {
+    // Svelte 4 mounts routes before the root layout restores the session, so
+    // without this the vault is read with a null key on every reload and the
+    // whole workspace comes back blank.
+    await awaitSessionReady();
     const seq = ++loadSeq;
     const isStale = () => seq !== loadSeq;
     const key = get(sessionStore).sessionKey;
@@ -226,7 +231,15 @@
             mcGroupId: e.mc_group_id || undefined,
             subIndex: e.sub_index || undefined,
           }));
-          if (remoteExam.mc_groups && Array.isArray(remoteExam.mc_groups)) {
+          // Only a response that actually carries `mc_groups` may rewrite the
+          // local grouping. Without this distinction the branch below replaced
+          // every junction's mcGroupId with `undefined` taken from a response
+          // that never mentioned groups — dissolving them on disk while the
+          // in-memory copy still looked right, so the groups came back empty on
+          // the next open and their members reappeared standalone.
+          const groupsAreAuthoritative = Array.isArray(remoteExam.mc_groups);
+
+          if (groupsAreAuthoritative) {
             mcGroups = mapRemoteMcGroups(remoteExam.mc_groups);
             const mcGroupRecords = mcGroups.map((g, idx) => ({
               id: g.id,
@@ -236,29 +249,45 @@
               orderIndex: g.orderIndex ?? idx + 1,
             }));
             if (isStale()) return;
-            await db.examMcGroups.where("examId").equals(id).delete();
-            if (mcGroupRecords.length > 0) {
-              await db.examMcGroups.bulkPut(mcGroupRecords);
-            }
+            await db.transaction("rw", db.examMcGroups, async () => {
+              await db.examMcGroups.where("examId").equals(id).delete();
+              if (mcGroupRecords.length > 0) {
+                await db.examMcGroups.bulkPut(mcGroupRecords);
+              }
+            });
           } else {
             mcGroups = await loadLocalMcGroups(id);
             if (isStale()) return;
           }
           if (exercises.length > 0) {
             const encExs = await Promise.all(exercises.map((ex: any) => encryptExercise(ex, key)));
-            const junctions = exercises.map((ex: any, idx: number) => ({
-              examId: id,
-              exerciseId: ex.id,
-              orderIndex: ex.orderIndex || (idx + 1),
-              mcGroupId: ex.mcGroupId || undefined,
-              subIndex: ex.subIndex || undefined,
-            }));
+            // When the response said nothing about groups, membership comes from
+            // the rows we already hold rather than from the response's silence.
+            const storedLinks = groupsAreAuthoritative
+              ? new Map<string, ExamExerciseRecord>()
+              : new Map(
+                  (await db.examExercises.where("examId").equals(id).toArray()).map(
+                    (link) => [link.exerciseId, link],
+                  ),
+                );
+            const junctions = exercises.map((ex: any, idx: number) => {
+              const stored = storedLinks.get(ex.id);
+              return {
+                examId: id,
+                exerciseId: ex.id,
+                orderIndex: ex.orderIndex || (idx + 1),
+                mcGroupId: ex.mcGroupId ?? stored?.mcGroupId,
+                subIndex: ex.subIndex ?? stored?.subIndex,
+              };
+            });
             if (isStale()) return;
-            await db.exercises.bulkPut(encExs);
-            // Replace, don't merge: a link the server dropped must not survive
-            // locally and reappear as a phantom exercise on the next open.
-            await db.examExercises.where("examId").equals(id).delete();
-            await db.examExercises.bulkPut(junctions);
+            await db.transaction("rw", [db.exercises, db.examExercises], async () => {
+              await db.exercises.bulkPut(encExs);
+              // Replace, don't merge: a link the server dropped must not survive
+              // locally and reappear as a phantom exercise on the next open.
+              await db.examExercises.where("examId").equals(id).delete();
+              await db.examExercises.bulkPut(junctions);
+            });
           } else {
             const localExs = await loadExamExercisesEncrypted(id, key);
             if (isStale()) return;
@@ -479,34 +508,10 @@
       return;
 
     try {
-      // Collect submission IDs first to clean up exercise scores
-      const submissionIds = (await db.submissions.where("examId").equals(exam.id).toArray()).map((s) => s.id);
-
-      // Delete exercise scores for all submissions in this exam to prevent orphaned data
-      for (const subId of submissionIds) {
-        await db.exerciseScores.where("submissionId").equals(subId).delete();
-      }
-
-      // Resource files hang off the exercises that are about to disappear.
-      const examExerciseIds = (await db.exercises.where("examId").equals(exam.id).toArray()).map((e) => e.id);
-      for (const exerciseId of examExerciseIds) {
-        await db.exerciseResources.where("exerciseId").equals(exerciseId).delete();
-      }
-
-      await db.exams.delete(exam.id);
-      invalidateOwner("exam", exam.id);
-      await db.exercises.where("examId").equals(exam.id).delete();
-      await db.examExercises.where("examId").equals(exam.id).delete();
-      await db.submissions.where("examId").equals(exam.id).delete();
-      await db.students.where("examId").equals(exam.id).delete();
-
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
-        try {
-          await api.delete(`/exams/${exam.id}`);
-        } catch (e) {
-          console.warn("Failed to delete on server:", e);
-        }
-      }
+      // One cascade, shared with the dashboard and the repository. The copy
+      // that used to live here missed examMcGroups and omrTemplates, leaving
+      // orphan group rows behind for the next exam that reused an id.
+      await examRepository.delete(exam.id);
 
       window.location.href = "/";
     } catch (err: any) {
@@ -1257,7 +1262,7 @@ ${exerciseInputs}
     mcStagingIds = copy;
   }
 
-  function finalizeMcGroup(title: string, scoringText: string) {
+  async function finalizeMcGroup(title: string, scoringText: string) {
     if (mcStagingIds.length < 1 || mcStagingIds.length > 4) return;
     if (editingMcGroupId) {
       mcGroups = mcGroups.map((g) =>
@@ -1278,7 +1283,7 @@ ${exerciseInputs}
       ];
     }
     mcStagingIds = [];
-    saveExerciseLinks();
+    await saveExerciseLinks();
   }
 
   function editMcGroup(groupId: string) {
@@ -1289,23 +1294,23 @@ ${exerciseInputs}
     openLibraryModal();
   }
 
-  function moveExamItem(index: number, direction: "up" | "down") {
+  async function moveExamItem(index: number, direction: "up" | "down") {
     const targetIdx = direction === "up" ? index - 1 : index + 1;
     if (targetIdx < 0 || targetIdx >= examItems.length) return;
     const copy = [...examItems];
     [copy[index], copy[targetIdx]] = [copy[targetIdx], copy[index]];
     examItems = copy;
-    saveExerciseLinks();
+    await saveExerciseLinks();
   }
 
-  function moveExerciseOrder(index: number, direction: "up" | "down") {
-    moveExamItem(index, direction);
+  async function moveExerciseOrder(index: number, direction: "up" | "down") {
+    await moveExamItem(index, direction);
   }
 
-  function removeExerciseLink(id: string) {
+  async function removeExerciseLink(id: string) {
     exercises = exercises.filter((ex) => ex.id !== id);
     examItems = examItems.filter((item) => !(item.type === "exercise" && item.id === id));
-    saveExerciseLinks();
+    await saveExerciseLinks();
   }
 
   function computeExamItems(
@@ -1420,16 +1425,20 @@ ${exerciseInputs}
     examItems = items;
 
     try {
-      await db.examExercises.where("examId").equals(currentExamId).delete();
-      await db.examExercises.bulkPut(examExerciseRecords);
+      // One transaction, because this is a delete-then-reinsert of the exam's
+      // entire link set. Unwrapped, a reload or a navigation landing between
+      // the delete and the bulkPut left the exam with zero exercises and zero
+      // MC groups — the "my exercises vanished" report.
+      await db.transaction("rw", [db.examExercises, db.examMcGroups], async () => {
+        await db.examExercises.where("examId").equals(currentExamId).delete();
+        await db.examExercises.bulkPut(examExerciseRecords);
 
-      // Groups after the links: exam_exercises rows reference them, and this
-      // ordering keeps the local tables consistent even if the write is
-      // interrupted between the two statements.
-      await db.examMcGroups.where("examId").equals(currentExamId).delete();
-      if (mcGroupRecords.length > 0) {
-        await db.examMcGroups.bulkPut(mcGroupRecords);
-      }
+        // Groups after the links: exam_exercises rows reference them.
+        await db.examMcGroups.where("examId").equals(currentExamId).delete();
+        if (mcGroupRecords.length > 0) {
+          await db.examMcGroups.bulkPut(mcGroupRecords);
+        }
+      });
     } catch (err) {
       console.error("Failed to update local exercise links:", err);
       errorMsg = translate("exam.page.exerciseLinks.saveFailed");
@@ -1461,14 +1470,14 @@ ${exerciseInputs}
     }
   }
 
-  function applyLibrarySelection() {
+  async function applyLibrarySelection() {
     const newSelected = selectedLibraryIds
       .map((id) => libraryExercises.find((ex) => ex.id === id))
       .filter((ex): ex is ExerciseRecord => Boolean(ex))
       .map((ex, idx) => ({ ...ex, orderIndex: idx + 1 }));
 
     exercises = newSelected;
-    saveExerciseLinks();
+    await saveExerciseLinks();
     isLibraryModalOpen = false;
   }
 

@@ -71,11 +71,21 @@ describe('insertSnippetFor', () => {
 });
 
 describe('exercise resource staging', () => {
-  const key = null; // No session key: bytes are stored as-is, which is enough here.
+  // A real key, not null. Staging with `key = null` used to write the raw file
+  // bytes into IndexedDB in plaintext; `encryptResource` now refuses, so the
+  // test has to exercise the path production actually takes.
+  let key: CryptoKey;
 
   beforeEach(async () => {
     await db.exerciseResources.clear();
     storagePolicyStore.updateSetting('storageMode', 'all-local');
+    key = await crypto.subtle.importKey(
+      'raw',
+      new Uint8Array(32).fill(11),
+      { name: 'AES-GCM', length: 256 },
+      true,
+      ['encrypt', 'decrypt']
+    );
   });
 
   it('keeps uploads out of the exercise until they are committed', async () => {

@@ -6,7 +6,16 @@
   import { goto } from "$app/navigation";
   import { get } from "svelte/store";
   import { registerHygieneListeners, lockSession } from "$lib/db/hygiene";
-  import { sessionStore, isUnlocked, isAuthenticated } from "$lib/stores/session";
+  import {
+    sessionStore,
+    isUnlocked,
+    isAuthenticated,
+    markSessionReady,
+  } from "$lib/stores/session";
+  import {
+    vaultIntegrityStore,
+    hasVaultIntegrityFailure,
+  } from "$lib/stores/vaultIntegrity";
   import { api } from "$lib/api/client";
   import {
     storagePolicyStore,
@@ -39,7 +48,7 @@
   import HttpCatModal from "$lib/components/HttpCatModal.svelte";
   import HelpModal from "$lib/components/help/HelpModal.svelte";
   import { helpSeen, openHelp, toggleHelp } from "$lib/stores/helpStore";
-  import { locale, translate } from "$lib/i18n";
+  import { locale, t, translate } from "$lib/i18n";
 
   let fileInput: HTMLInputElement;
   let isSettingsModalOpen = false;
@@ -127,6 +136,7 @@
         } catch {
           await lockSession();
           isInitializing = false;
+          markSessionReady();
           return;
         }
       }
@@ -137,6 +147,10 @@
       await goto("/unlock");
     }
     isInitializing = false;
+    // Releases every route blocked on `awaitSessionReady()`. It must fire
+    // whether or not the session came back unlocked — routes check `isUnlocked`
+    // themselves; what they cannot do is read the vault before this point.
+    markSessionReady();
   });
 
   async function handleLock() {
@@ -230,6 +244,35 @@
         userEmail={$sessionStore.email}
       />
     {/if}
+  {/if}
+
+  {#if $hasVaultIntegrityFailure}
+    <!--
+      Not a toast and not the HTTP error modal: the condition is neither
+      transient nor an HTTP fault. Until the session is unlocked with the right
+      key, every affected record renders blank, so the warning has to stay on
+      screen next to those blanks.
+    -->
+    <div
+      role="alert"
+      class="mx-3 mt-3 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-content sm:mx-5"
+    >
+      <p class="font-semibold">{$t("misc.vaultIntegrity.heading")}</p>
+      <p class="mt-1 text-muted">
+        {$t("misc.vaultIntegrity.body", {
+          count: $vaultIntegrityStore.count,
+          kinds: $vaultIntegrityStore.kinds.join(", "),
+        })}
+      </p>
+      <div class="mt-2 flex flex-wrap items-center gap-3">
+        <button class="underline underline-offset-2" on:click={handleLock}>
+          {$t("misc.vaultIntegrity.action")}
+        </button>
+        <button class="text-subtle underline underline-offset-2" on:click={() => vaultIntegrityStore.reset()}>
+          {$t("misc.vaultIntegrity.dismiss")}
+        </button>
+      </div>
+    </div>
   {/if}
 
   <main class="app-main">

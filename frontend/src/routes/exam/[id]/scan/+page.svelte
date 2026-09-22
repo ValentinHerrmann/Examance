@@ -12,7 +12,7 @@
   import { db } from "$lib/db/db";
   import { encrypt, decrypt, uint8ArrayToBase64 } from "$lib/crypto/aesGcm";
   import { ensure64CharHex } from "$lib/crypto/hmac";
-  import { sessionStore } from "$lib/stores/session";
+  import { sessionStore, awaitSessionReady} from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import {
     loadStudentsEncrypted,
@@ -116,6 +116,10 @@
 
   /** Loads the exam's OMR template + MC answer key, gating auto-grading on a fresh (non-stale) template. */
   async function loadOmrContext() {
+    // Svelte 4 mounts routes before the root layout restores the session, so
+    // without this the vault is read with a null key on every reload and the
+    // whole workspace comes back blank.
+    await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
     try {
       const mcExercises = await loadExamMcExercises(examId, key);
@@ -189,6 +193,10 @@
   });
 
   async function loadScannedSubmissions() {
+    // Svelte 4 mounts routes before the root layout restores the session, so
+    // without this the vault is read with a null key on every reload and the
+    // whole workspace comes back blank.
+    await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
     const submissions = await submissionRepository.getByExamId(examId, key);
     const students = await studentRepository.getByExamId(examId, key);
@@ -634,6 +642,10 @@
   }
 
   async function refreshUnmatched() {
+    // Svelte 4 mounts routes before the root layout restores the session, so
+    // without this the vault is read with a null key on every reload and the
+    // whole workspace comes back blank.
+    await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
     const students = await studentRepository.getByExamId(examId, key);
     const submissions = await submissionRepository.getByExamId(examId, key);

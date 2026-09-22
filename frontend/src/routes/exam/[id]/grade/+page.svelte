@@ -17,7 +17,7 @@
   import { calculateGradeDetail } from "$lib/analytics/gradingKey";
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { sessionStore, isUnlocked } from "$lib/stores/session";
+  import { sessionStore, isUnlocked, awaitSessionReady} from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { decrypt, encrypt } from "$lib/crypto/aesGcm";
   import { get } from "svelte/store";
@@ -54,6 +54,10 @@
     : null;
 
   onMount(async () => {
+    // Svelte 4 mounts routes before the root layout restores the session, so
+    // without this the vault is read with a null key on every reload and the
+    // whole workspace comes back blank.
+    await awaitSessionReady();
     if (!examId) return;
     if (!get(isUnlocked)) {
       await goto("/unlock");

@@ -10,6 +10,11 @@
  */
 
 import { encrypt, decrypt } from '$lib/crypto/aesGcm';
+import {
+  assertEncryptable,
+  markDecryptFailed,
+  MissingSessionKeyError,
+} from './decryptGuard';
 import { db } from '$lib/db/db';
 import { sessionStore } from '$lib/stores/session';
 import { get } from 'svelte/store';
@@ -51,7 +56,10 @@ export async function encryptResource(
   key: CryptoKey | null
 ): Promise<ExerciseResourceRecord> {
   if (!key) {
-    return { ...resource, data: bytes, dataCt: undefined, dataIv: undefined };
+    // Writing the raw bytes to `data` is the same plaintext-at-rest hole the
+    // payload encryptors used to have: the file would sit unencrypted in
+    // IndexedDB and, in server modes, be uploaded from there.
+    throw new MissingSessionKeyError('exerciseResource');
   }
   const { ct, iv } = await encryptBytes(key, bytes);
   return { ...resource, data: undefined, dataCt: ct, dataIv: iv };
@@ -90,6 +98,8 @@ interface ExamPayload {
 }
 
 export async function encryptExam(exam: ExamRecord, key: CryptoKey | null): Promise<ExamRecord> {
+  assertEncryptable(exam, key, 'exam');
+
   const payload: ExamPayload = {
     title: exam.title,
     testart: exam.testart,
@@ -106,26 +116,7 @@ export async function encryptExam(exam: ExamRecord, key: CryptoKey | null): Prom
     gradingKey: exam.gradingKey,
   };
 
-  let payloadCt = exam.payloadCt;
-  let payloadIv = exam.payloadIv;
-
-  if (key) {
-    const jsonStr = JSON.stringify(payload);
-    const { ct, iv } = await encryptBytes(key, encoder.encode(jsonStr));
-    payloadCt = ct;
-    payloadIv = iv;
-
-    return {
-      id: exam.id,
-      teacherId: exam.teacherId,
-      retentionUntil: exam.retentionUntil,
-      compilationStatus: exam.compilationStatus,
-      createdAt: exam.createdAt,
-      isDirty: exam.isDirty,
-      payloadCt,
-      payloadIv,
-    };
-  }
+  const { ct, iv } = await encryptBytes(key, encoder.encode(JSON.stringify(payload)));
 
   return {
     id: exam.id,
@@ -134,21 +125,8 @@ export async function encryptExam(exam: ExamRecord, key: CryptoKey | null): Prom
     compilationStatus: exam.compilationStatus,
     createdAt: exam.createdAt,
     isDirty: exam.isDirty,
-    title: exam.title,
-    testart: exam.testart,
-    grade: exam.grade,
-    klasse: exam.klasse,
-    datum: exam.datum,
-    nr: exam.nr,
-    fach: exam.fach,
-    lehrernachname: exam.lehrernachname,
-    infoText: exam.infoText,
-    latexPreamble: exam.latexPreamble,
-    latexTemplate: exam.latexTemplate,
-    numVersions: exam.numVersions,
-    gradingKey: exam.gradingKey,
-    payloadCt,
-    payloadIv,
+    payloadCt: ct,
+    payloadIv: iv,
   };
 }
 
@@ -177,8 +155,15 @@ export async function decryptExam(exam: ExamRecord, key: CryptoKey | null): Prom
     payloadIv: exam.payloadIv,
   };
 
-  if (!key || !exam.payloadCt || !exam.payloadIv || exam.payloadCt.byteLength < 16) {
+  if (!exam.payloadCt || !exam.payloadIv || exam.payloadCt.byteLength < 16) {
+    // Nothing sealed: either a legacy plaintext row or a record that
+    // genuinely has no payload. Safe to hand back and safe to write.
     return baseRecord;
+  }
+  if (!key) {
+    // There IS a payload, we just cannot open it. Handing back blanks is
+    // fine for rendering a locked view; writing them back is not.
+    return markDecryptFailed(baseRecord, 'exam', 'locked');
   }
 
   try {
@@ -190,7 +175,7 @@ export async function decryptExam(exam: ExamRecord, key: CryptoKey | null): Prom
     };
   } catch (err) {
     console.error('Failed to decrypt exam record:', err);
-    return baseRecord;
+    return markDecryptFailed(baseRecord, 'exam');
   }
 }
 
@@ -207,6 +192,8 @@ interface ExercisePayload {
 }
 
 export async function encryptExercise(exercise: ExerciseRecord, key: CryptoKey | null): Promise<ExerciseRecord> {
+  assertEncryptable(exercise, key, 'exercise');
+
   const payload: ExercisePayload = {
     title: exercise.title,
     name: exercise.name,
@@ -215,36 +202,7 @@ export async function encryptExercise(exercise: ExerciseRecord, key: CryptoKey |
     correctAnswers: exercise.correctAnswers,
   };
 
-  let payloadCt = exercise.payloadCt;
-  let payloadIv = exercise.payloadIv;
-
-  if (key) {
-    const jsonStr = JSON.stringify(payload);
-    const { ct, iv } = await encryptBytes(key, encoder.encode(jsonStr));
-    payloadCt = ct;
-    payloadIv = iv;
-
-    return {
-      id: exercise.id,
-      teacherId: exercise.teacherId,
-      examId: exercise.examId,
-      orderIndex: exercise.orderIndex,
-      maxPoints: exercise.maxPoints,
-      topicTag: exercise.topicTag,
-      grade: exercise.grade,
-      subject: exercise.subject,
-      version: exercise.version,
-      exerciseGroupId: exercise.exerciseGroupId,
-      variantKey: exercise.variantKey,
-      isCurrent: exercise.isCurrent,
-      createdAt: exercise.createdAt,
-      updatedAt: exercise.updatedAt,
-      questionType: exercise.questionType,
-      penalty: exercise.penalty,
-      payloadCt,
-      payloadIv,
-    };
-  }
+  const { ct, iv } = await encryptBytes(key, encoder.encode(JSON.stringify(payload)));
 
   return {
     id: exercise.id,
@@ -263,13 +221,8 @@ export async function encryptExercise(exercise: ExerciseRecord, key: CryptoKey |
     updatedAt: exercise.updatedAt,
     questionType: exercise.questionType,
     penalty: exercise.penalty,
-    title: exercise.title,
-    name: exercise.name,
-    latexBody: exercise.latexBody,
-    options: exercise.options,
-    correctAnswers: exercise.correctAnswers,
-    payloadCt,
-    payloadIv,
+    payloadCt: ct,
+    payloadIv: iv,
   };
 }
 
@@ -300,8 +253,15 @@ export async function decryptExercise(exercise: ExerciseRecord, key: CryptoKey |
     payloadIv: exercise.payloadIv,
   };
 
-  if (!key || !exercise.payloadCt || !exercise.payloadIv || exercise.payloadCt.byteLength < 16) {
+  if (!exercise.payloadCt || !exercise.payloadIv || exercise.payloadCt.byteLength < 16) {
+    // Nothing sealed: either a legacy plaintext row or a record that
+    // genuinely has no payload. Safe to hand back and safe to write.
     return baseRecord;
+  }
+  if (!key) {
+    // There IS a payload, we just cannot open it. Handing back blanks is
+    // fine for rendering a locked view; writing them back is not.
+    return markDecryptFailed(baseRecord, 'exercise', 'locked');
   }
 
   try {
@@ -313,7 +273,7 @@ export async function decryptExercise(exercise: ExerciseRecord, key: CryptoKey |
     };
   } catch (err) {
     console.error('Failed to decrypt exercise record:', err);
-    return baseRecord;
+    return markDecryptFailed(baseRecord, 'exercise');
   }
 }
 
@@ -328,39 +288,22 @@ interface ScorePayload {
 }
 
 export async function encryptScore(scoreRec: ExerciseScoreRecord, key: CryptoKey | null): Promise<ExerciseScoreRecord> {
+  assertEncryptable(scoreRec, key, 'score');
+
   const payload: ScorePayload = {
     score: scoreRec.score,
     selectedOptions: scoreRec.selectedOptions,
     omrMeta: scoreRec.omrMeta,
   };
 
-  let payloadCt = scoreRec.payloadCt;
-  let payloadIv = scoreRec.payloadIv;
-
-  if (key) {
-    const jsonStr = JSON.stringify(payload);
-    const { ct, iv } = await encryptBytes(key, encoder.encode(jsonStr));
-    payloadCt = ct;
-    payloadIv = iv;
-
-    return {
-      id: scoreRec.id,
-      submissionId: scoreRec.submissionId,
-      exerciseId: scoreRec.exerciseId,
-      payloadCt,
-      payloadIv,
-    };
-  }
+  const { ct, iv } = await encryptBytes(key, encoder.encode(JSON.stringify(payload)));
 
   return {
     id: scoreRec.id,
     submissionId: scoreRec.submissionId,
     exerciseId: scoreRec.exerciseId,
-    score: scoreRec.score,
-    selectedOptions: scoreRec.selectedOptions,
-    omrMeta: scoreRec.omrMeta,
-    payloadCt,
-    payloadIv,
+    payloadCt: ct,
+    payloadIv: iv,
   };
 }
 
@@ -376,8 +319,15 @@ export async function decryptScore(scoreRec: ExerciseScoreRecord, key: CryptoKey
     payloadIv: scoreRec.payloadIv,
   };
 
-  if (!key || !scoreRec.payloadCt || !scoreRec.payloadIv || scoreRec.payloadCt.byteLength < 16) {
+  if (!scoreRec.payloadCt || !scoreRec.payloadIv || scoreRec.payloadCt.byteLength < 16) {
+    // Nothing sealed: either a legacy plaintext row or a record that
+    // genuinely has no payload. Safe to hand back and safe to write.
     return baseRecord;
+  }
+  if (!key) {
+    // There IS a payload, we just cannot open it. Handing back blanks is
+    // fine for rendering a locked view; writing them back is not.
+    return markDecryptFailed(baseRecord, 'score', 'locked');
   }
 
   try {
@@ -389,7 +339,7 @@ export async function decryptScore(scoreRec: ExerciseScoreRecord, key: CryptoKey
     };
   } catch (err) {
     console.error('Failed to decrypt score record:', err);
-    return baseRecord;
+    return markDecryptFailed(baseRecord, 'score');
   }
 }
 
@@ -404,27 +354,18 @@ interface StudentPayload {
 }
 
 export async function encryptStudent(student: StudentRecord, key: CryptoKey | null): Promise<StudentRecord> {
+  assertEncryptable(student, key, 'student');
+
   const payload: StudentPayload = {
     fallbackCode: student.fallbackCode,
     studentName: student.studentName,
     studentNumber: student.studentNumber,
   };
 
-  let payloadCt = student.payloadCt;
-  let payloadIv = student.payloadIv;
-
-  if (key) {
-    const jsonStr = JSON.stringify(payload);
-    const { ct, iv } = await encryptBytes(key, encoder.encode(jsonStr));
-    payloadCt = ct;
-    payloadIv = iv;
-  } else if (student.fallbackCode || student.studentName || student.studentNumber) {
-    // Without a key there is nowhere for the pupil's name to go except the
-    // plaintext columns, which is exactly the leak this function used to have.
-    // Refusing is the only safe answer: a locked session must not be able to
-    // write identity data at all.
-    throw new Error('Cannot write student identity data while the session is locked.');
-  }
+  // The keyless branch this function used to carry is gone: `assertEncryptable`
+  // above already refuses a locked session, which is the only safe answer when
+  // there is nowhere for the pupil's name to go except the plaintext columns.
+  const { ct, iv } = await encryptBytes(key, encoder.encode(JSON.stringify(payload)));
 
   // Deliberately does NOT re-emit fallbackCode, studentName or studentNumber.
   // Returning them alongside the ciphertext is what put pupil names into
@@ -436,8 +377,8 @@ export async function encryptStudent(student: StudentRecord, key: CryptoKey | nu
     examId: student.examId,
     piiCt: student.piiCt,
     piiIv: student.piiIv,
-    payloadCt,
-    payloadIv,
+    payloadCt: ct,
+    payloadIv: iv,
   };
 }
 
@@ -454,8 +395,15 @@ export async function decryptStudent(student: StudentRecord, key: CryptoKey | nu
     payloadIv: student.payloadIv,
   };
 
-  if (!key || !student.payloadCt || !student.payloadIv || student.payloadCt.byteLength < 16) {
+  if (!student.payloadCt || !student.payloadIv || student.payloadCt.byteLength < 16) {
+    // Nothing sealed: either a legacy plaintext row or a record that
+    // genuinely has no payload. Safe to hand back and safe to write.
     return baseRecord;
+  }
+  if (!key) {
+    // There IS a payload, we just cannot open it. Handing back blanks is
+    // fine for rendering a locked view; writing them back is not.
+    return markDecryptFailed(baseRecord, 'student', 'locked');
   }
 
   try {
@@ -465,8 +413,9 @@ export async function decryptStudent(student: StudentRecord, key: CryptoKey | nu
       ...baseRecord,
       ...payload,
     };
-  } catch {
-    return baseRecord;
+  } catch (err) {
+    console.error('Failed to decrypt student record:', err);
+    return markDecryptFailed(baseRecord, 'student');
   }
 }
 
@@ -479,45 +428,25 @@ interface SubmissionPayload {
 }
 
 export async function encryptSubmission(submission: SubmissionRecord, key: CryptoKey | null): Promise<SubmissionRecord> {
+  assertEncryptable(submission, key, 'submission');
+
   const payload: SubmissionPayload = {
     totalScore: submission.totalScore,
   };
 
-  let payloadCt = submission.payloadCt;
-  let payloadIv = submission.payloadIv;
-
-  if (key) {
-    const jsonStr = JSON.stringify(payload);
-    const { ct, iv } = await encryptBytes(key, encoder.encode(jsonStr));
-    payloadCt = ct;
-    payloadIv = iv;
-
-    return {
-      id: submission.id,
-      examId: submission.examId,
-      pseudonymHash: submission.pseudonymHash,
-      scanCt: submission.scanCt,
-      scanIv: submission.scanIv,
-      annotationCt: submission.annotationCt,
-      annotationIv: submission.annotationIv,
-      createdAt: submission.createdAt,
-      payloadCt,
-      payloadIv,
-    };
-  }
+  const { ct, iv } = await encryptBytes(key, encoder.encode(JSON.stringify(payload)));
 
   return {
     id: submission.id,
     examId: submission.examId,
     pseudonymHash: submission.pseudonymHash,
-    totalScore: submission.totalScore,
     scanCt: submission.scanCt,
     scanIv: submission.scanIv,
     annotationCt: submission.annotationCt,
     annotationIv: submission.annotationIv,
     createdAt: submission.createdAt,
-    payloadCt,
-    payloadIv,
+    payloadCt: ct,
+    payloadIv: iv,
   };
 }
 
@@ -536,8 +465,15 @@ export async function decryptSubmission(submission: SubmissionRecord, key: Crypt
     payloadIv: submission.payloadIv,
   };
 
-  if (!key || !submission.payloadCt || !submission.payloadIv || submission.payloadCt.byteLength < 16) {
+  if (!submission.payloadCt || !submission.payloadIv || submission.payloadCt.byteLength < 16) {
+    // Nothing sealed: either a legacy plaintext row or a record that
+    // genuinely has no payload. Safe to hand back and safe to write.
     return baseRecord;
+  }
+  if (!key) {
+    // There IS a payload, we just cannot open it. Handing back blanks is
+    // fine for rendering a locked view; writing them back is not.
+    return markDecryptFailed(baseRecord, 'submission', 'locked');
   }
 
   try {
@@ -549,7 +485,7 @@ export async function decryptSubmission(submission: SubmissionRecord, key: Crypt
     };
   } catch (err) {
     console.error('Failed to decrypt submission payload:', err);
-    return baseRecord;
+    return markDecryptFailed(baseRecord, 'submission');
   }
 }
 
@@ -562,27 +498,21 @@ interface AuditPayload {
 }
 
 export async function encryptAuditEntry(entry: AuditEntry, key: CryptoKey | null): Promise<AuditEntry> {
+  assertEncryptable(entry, key, 'auditEntry');
+
   const payload: AuditPayload = {
     note: entry.note,
   };
 
-  let payloadCt = entry.payloadCt;
-  let payloadIv = entry.payloadIv;
-
-  if (key) {
-    const jsonStr = JSON.stringify(payload);
-    const { ct, iv } = await encryptBytes(key, encoder.encode(jsonStr));
-    payloadCt = ct;
-    payloadIv = iv;
-  }
+  const { ct, iv } = await encryptBytes(key, encoder.encode(JSON.stringify(payload)));
 
   return {
     id: entry.id,
     action: entry.action,
     targetId: entry.targetId,
     timestamp: entry.timestamp,
-    payloadCt,
-    payloadIv,
+    payloadCt: ct,
+    payloadIv: iv,
   };
 }
 
@@ -596,8 +526,15 @@ export async function decryptAuditEntry(entry: AuditEntry, key: CryptoKey | null
     payloadIv: entry.payloadIv,
   };
 
-  if (!key || !entry.payloadCt || !entry.payloadIv || entry.payloadCt.byteLength < 16) {
+  if (!entry.payloadCt || !entry.payloadIv || entry.payloadCt.byteLength < 16) {
+    // Nothing sealed: either a legacy plaintext row or a record that
+    // genuinely has no payload. Safe to hand back and safe to write.
     return baseRecord;
+  }
+  if (!key) {
+    // There IS a payload, we just cannot open it. Handing back blanks is
+    // fine for rendering a locked view; writing them back is not.
+    return markDecryptFailed(baseRecord, 'auditEntry', 'locked');
   }
 
   try {
@@ -609,7 +546,7 @@ export async function decryptAuditEntry(entry: AuditEntry, key: CryptoKey | null
     };
   } catch (err) {
     console.error('Failed to decrypt audit entry payload:', err);
-    return baseRecord;
+    return markDecryptFailed(baseRecord, 'auditEntry');
   }
 }
 
@@ -626,23 +563,18 @@ export async function encryptOmrTemplate(
   key: CryptoKey | null,
   payload: OmrTemplatePayload
 ): Promise<OmrTemplateRecord> {
-  let payloadCt = tpl.payloadCt;
-  let payloadIv = tpl.payloadIv;
-
-  if (key) {
-    const jsonStr = JSON.stringify(payload);
-    const { ct, iv } = await encryptBytes(key, encoder.encode(jsonStr));
-    payloadCt = ct;
-    payloadIv = iv;
+  if (!key) {
+    throw new MissingSessionKeyError('omrTemplate');
   }
+  const { ct, iv } = await encryptBytes(key, encoder.encode(JSON.stringify(payload)));
 
   return {
     id: tpl.id,
     examId: tpl.examId,
     exercisesHash: tpl.exercisesHash,
     createdAt: tpl.createdAt,
-    payloadCt,
-    payloadIv,
+    payloadCt: ct,
+    payloadIv: iv,
   };
 }
 

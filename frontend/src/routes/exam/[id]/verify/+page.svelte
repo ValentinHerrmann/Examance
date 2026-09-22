@@ -4,7 +4,7 @@
   import { onMount } from "svelte";
   import { browser } from "$app/environment";
   import { get } from "svelte/store";
-  import { sessionStore, isUnlocked } from "$lib/stores/session";
+  import { sessionStore, isUnlocked, awaitSessionReady} from "$lib/stores/session";
   import { t, translate } from "$lib/i18n";
   import { PageShell } from "$lib/components/ui";
   import {
@@ -50,6 +50,10 @@
   });
 
   onMount(async () => {
+    // Svelte 4 mounts routes before the root layout restores the session, so
+    // without this the vault is read with a null key on every reload and the
+    // whole workspace comes back blank.
+    await awaitSessionReady();
     if (!get(isUnlocked)) {
       await goto("/unlock");
       return;

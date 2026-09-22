@@ -9,7 +9,7 @@
   import { loadExamEncrypted, loadExamExercisesEncrypted, decryptScore } from '$lib/db/dbEncryption';
   import { submissionRepository } from '$lib/repositories/submissionRepository';
   import { studentRepository } from '$lib/repositories/studentRepository';
-  import { sessionStore } from '$lib/stores/session';
+  import { sessionStore, awaitSessionReady} from '$lib/stores/session';
   import { calculateSubmissionPercentage, calculatePercentageHistogram, type PercentageHistogramBin } from '$lib/analytics/stats';
   import { calculateGradeDistribution, getPresetCutoffs, type GradeDistributionBucket } from '$lib/analytics/gradingKey';
   import { exportGradesToCsv } from '$lib/analytics/csvExport';
@@ -47,6 +47,10 @@
   });
 
   async function loadStats(id: string) {
+    // Svelte 4 mounts routes before the root layout restores the session, so
+    // without this the vault is read with a null key on every reload and the
+    // whole workspace comes back blank.
+    await awaitSessionReady();
     if (!id) return;
     const key = get(sessionStore).sessionKey;
     exam = (await loadExamEncrypted(id, key)) || null;

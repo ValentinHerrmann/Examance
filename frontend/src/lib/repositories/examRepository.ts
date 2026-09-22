@@ -123,32 +123,60 @@ export const examRepository = {
     }
   },
 
+  /**
+   * Removes every local table an exam owns.
+   *
+   * This used to exist three times — here, in `routes/exam/[id]/+page.svelte`
+   * and in `routes/+page.svelte` — and the three copies deleted different
+   * subsets. Neither route touched `examMcGroups` or `omrTemplates`, so orphan
+   * group rows outlived their exam and resurfaced through `loadLocalMcGroups`.
+   * One implementation, called from all three.
+   */
+  async deleteLocalCascade(id: string): Promise<void> {
+    if (!db.exams) return;
+
+    const submissionIds = (await db.submissions.where('examId').equals(id).toArray()).map(
+      (s) => s.id
+    );
+    const exerciseIds = (await db.exercises.where('examId').equals(id).toArray()).map((e) => e.id);
+
+    await db.transaction(
+      'rw',
+      [
+        db.exams,
+        db.exercises,
+        db.examExercises,
+        db.examMcGroups,
+        db.submissions,
+        db.students,
+        db.exerciseScores,
+        db.exerciseResources,
+        db.omrTemplates,
+      ],
+      async () => {
+        for (const subId of submissionIds) {
+          await db.exerciseScores.where('submissionId').equals(subId).delete();
+        }
+        // Resource files hang off the exercises that are about to disappear.
+        for (const exerciseId of exerciseIds) {
+          await db.exerciseResources.where('exerciseId').equals(exerciseId).delete();
+        }
+        await db.exams.delete(id);
+        await db.exercises.where('examId').equals(id).delete();
+        await db.examExercises.where('examId').equals(id).delete();
+        await db.examMcGroups.where('examId').equals(id).delete();
+        await db.submissions.where('examId').equals(id).delete();
+        await db.students.where('examId').equals(id).delete();
+        await db.omrTemplates.delete(id); // id === examId (one template per exam)
+      }
+    );
+  },
+
   async delete(id: string): Promise<void> {
     invalidateOwner('exam', id);
     invalidateOwner('omr-blank', id);
-    if (!db.exams) return;
 
-    // Collect submission IDs first to clean up exercise scores
-    const submissionIds = (await db.submissions.where('examId').equals(id).toArray()).map((s) => s.id);
-
-    // Delete exercise scores for all submissions in this exam to prevent orphaned data
-    for (const subId of submissionIds) {
-      await db.exerciseScores.where('submissionId').equals(subId).delete();
-    }
-
-    // Resource files hang off the exercises that are about to disappear.
-    const examExerciseIds = (await db.exercises.where('examId').equals(id).toArray()).map((e) => e.id);
-    for (const exerciseId of examExerciseIds) {
-      await db.exerciseResources.where('exerciseId').equals(exerciseId).delete();
-    }
-
-    await db.exams.delete(id);
-    await db.exercises.where('examId').equals(id).delete();
-    await db.examExercises.where('examId').equals(id).delete();
-    await db.examMcGroups.where('examId').equals(id).delete();
-    await db.submissions.where('examId').equals(id).delete();
-    await db.students.where('examId').equals(id).delete();
-    await db.omrTemplates.delete(id); // id === examId (one template per exam)
+    await this.deleteLocalCascade(id);
 
     const policy = get(storagePolicyStore);
     if (policy.storageMode !== 'all-local') {

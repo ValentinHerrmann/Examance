@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { isUnlocked, isAuthenticated, sessionStore } from '$lib/stores/session';
+  import { isUnlocked, isAuthenticated, sessionStore, awaitSessionReady} from '$lib/stores/session';
   import { db } from '$lib/db/db';
   import type { ExamRecord } from '$lib/db/schema';
   import { loadExamsEncrypted, saveExamEncrypted, encryptExam, encryptExercise } from '$lib/db/dbEncryption';
@@ -69,6 +69,9 @@
 
   onMount(async () => {
     try {
+      // Before this, the check below ran against a session the layout had not
+      // restored yet, so a reload bounced to /unlock with valid keys in hand.
+      await awaitSessionReady();
       if (!$isUnlocked) {
         goto("/unlock");
         return;
@@ -80,6 +83,10 @@
   });
 
   async function refreshExams() {
+    // Svelte 4 mounts routes before the root layout restores the session, so
+    // without this the vault is read with a null key on every reload and the
+    // whole workspace comes back blank.
+    await awaitSessionReady();
     examsLoadFailed = false;
     const key = get(sessionStore).sessionKey;
     const localExams = await loadExamsEncrypted(key);
@@ -301,19 +308,9 @@
     if (!expiredExam) return;
     const examId = expiredExam.exam.id;
 
-    // Collect submission IDs first to clean up exercise scores
-    const submissionIds = (await db.submissions.where('examId').equals(examId).toArray()).map((s) => s.id);
-
-    // Delete exercise scores for all submissions in this exam to prevent orphaned data
-    for (const subId of submissionIds) {
-      await db.exerciseScores.where('submissionId').equals(subId).delete();
-    }
-
-    await db.exams.delete(examId);
-    await db.exercises.where('examId').equals(examId).delete();
-    await db.examExercises.where('examId').equals(examId).delete();
-    await db.submissions.where('examId').equals(examId).delete();
-    await db.students.where('examId').equals(examId).delete();
+    // Shared cascade: the copy that used to live here also skipped
+    // exerciseResources, examMcGroups and omrTemplates.
+    await examRepository.deleteLocalCascade(examId);
     expiredExam = null;
     await refreshExams();
   }

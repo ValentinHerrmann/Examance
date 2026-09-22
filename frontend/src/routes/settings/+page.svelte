@@ -4,7 +4,7 @@
   import { db } from "$lib/db/db";
   import { eraseStudent } from "$lib/gdpr/erasure";
   import { wipeDatabase } from "$lib/db/hygiene";
-  import { sessionStore, isUnlocked, isAuthenticated } from "$lib/stores/session";
+  import { sessionStore, isUnlocked, isAuthenticated, awaitSessionReady} from "$lib/stores/session";
   import { studentRepository } from "$lib/repositories/studentRepository";
   import { get } from "svelte/store";
   import {
@@ -48,6 +48,10 @@
   let statusMsg = "";
 
   onMount(async () => {
+    // Svelte 4 mounts routes before the root layout restores the session, so
+    // without this the vault is read with a null key on every reload and the
+    // whole workspace comes back blank.
+    await awaitSessionReady();
     if (!$isUnlocked) {
       // Keys are passphrase-derived and never persisted — send the user to
       // /unlock rather than silently reconstructing a session.

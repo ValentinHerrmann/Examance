@@ -31,4 +31,14 @@ export const misc: Translations['misc'] = {
         localFailedTryServer:
             'Local LaTeX compilation failed. Do you want to try compiling on the server?',
     },
+
+    vaultIntegrity: {
+        heading: 'Warning: some data could not be decrypted',
+        body:
+            '{count} record(s) ({kinds}) could not be read with the current key. ' +
+            'They are shown empty here — that is not your data. Saving is blocked for those ' +
+            'records so the originals are not overwritten.',
+        action: 'Lock the session and unlock again with the correct key.',
+        dismiss: 'Dismiss',
+    },
 };
