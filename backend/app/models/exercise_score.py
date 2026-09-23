@@ -14,23 +14,10 @@ class ExerciseScore(Base):
     """
     Per-exercise grading result for one submission.
 
-    Until this table existed, per-question scores lived **only** in the client's
-    Dexie ``exerciseScores`` store — in every storage mode, including
-    ``all-server``, where ``lockSession()`` wipes IndexedDB on the idle timeout.
-    Grading an exam on the server and walking away therefore destroyed every
-    per-question score, MC selection and OMR result; only the submission's
-    ``total_score`` survived.
-
-    Unlike ``ScanSubmission.total_score`` there is **no plaintext score column**
-    here. The client's ``encryptScore()`` already seals score, ``selectedOptions``
-    and ``omrMeta`` together into one payload, and a per-question plaintext
-    record of how a named pupil answered each item is a sharper disclosure than
-    an exam total — it reconstructs the answer sheet. Server-side statistics
-    work from ``scan_submissions.total_score``, which stays plaintext.
-
-    Identity is ``(submission_id, exercise_id)``, not ``id``: that is the pair
-    the client reconciles on, and making it unique is what lets the bulk write be
-    an idempotent upsert instead of a 409 on every re-save.
+    No plaintext score column, unlike ``ScanSubmission.total_score``: score,
+    selected options and OMR metadata travel as one client-sealed payload, and a
+    per-question plaintext record would reconstruct the pupil's answer sheet.
+    (submission_id, exercise_id) is the identity, which makes writes idempotent.
     """
 
     __tablename__ = "exercise_scores"

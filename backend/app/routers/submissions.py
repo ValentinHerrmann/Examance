@@ -131,13 +131,7 @@ async def upload_submission(
             elif body.clear_annotations:
                 existing_sub.annotation_ciphertext = None
                 existing_sub.annotation_iv = None
-            # An absent annotation field is "I am not touching annotations",
-            # not "delete them". It used to mean the latter, so every caller
-            # that saved a submission without carrying the annotation layer —
-            # the manual grid, the paste importer, any save made while the
-            # session key was missing — erased the teacher's corrections
-            # server-side. Deleting them is now explicit: clear_annotations,
-            # or DELETE /grading.
+            # An absent annotation field means "leave them"; deleting is explicit.
             await db.flush()
             return SubmissionResponse(
                 id=existing_sub.id,
@@ -286,9 +280,7 @@ async def clear_grading(
     sub.total_score = None
     sub.annotation_ciphertext = None
     sub.annotation_iv = None
-    # Per-exercise scores are grading data too. Leaving them behind made
-    # "clear grading" a half-measure: the total went, the per-question results
-    # stayed, and the next load recomputed a total from them.
+    # Per-exercise scores are grading data too.
     await db.execute(delete(ExerciseScore).where(ExerciseScore.submission_id == sub.id))
     await db.flush()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

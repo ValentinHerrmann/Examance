@@ -226,13 +226,6 @@ def create_app() -> FastAPI:
         )
 
     # Middleware — registration order matters (last added = outermost)
-    #
-    # GZip sits innermost so it compresses router output but never touches the
-    # already-compressed binaries that flow through the compile and submission
-    # endpoints (PDFs, AES-GCM ciphertext), which minimum_size leaves alone
-    # anyway for small bodies. The exam list is verbose JSON — LaTeX preambles
-    # and templates inline — and is the single biggest response on the boot
-    # path, so this is where it pays.
     app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.add_middleware(BodyLimitMiddleware)
     if settings.ALLOWED_HOSTS:
@@ -251,9 +244,6 @@ def create_app() -> FastAPI:
     app.include_router(exercises.router, prefix=API_PREFIX)
     app.include_router(students.router, prefix=API_PREFIX)
     app.include_router(submissions.router, prefix=API_PREFIX)
-    # Per-exercise scores hang off a submission; the exam-wide reader is a
-    # separate prefix so the stats page can fetch a whole exam in one request
-    # instead of one per submission.
     app.include_router(exercise_scores.router, prefix=API_PREFIX)
     app.include_router(exercise_scores.exam_router, prefix=API_PREFIX)
     app.include_router(admin.router, prefix=API_PREFIX)

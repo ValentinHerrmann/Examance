@@ -240,14 +240,7 @@ async def get_submission_for_teacher(
     exam: Exam = Depends(get_exam_for_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ScanSubmission:
-    """
-    Return the submission only if it belongs to an exam *teacher* owns.
-
-    Ownership comes entirely from `get_exam_for_teacher`, which already answers
-    401 for somebody else's exam — this adds no second auth predicate, only the
-    "is this submission in that exam" lookup. 404 here means the exam is the
-    teacher's but holds no such live submission.
-    """
+    """The live submission inside an exam the teacher owns (ownership via the exam)."""
     result = await db.execute(
         select(ScanSubmission).where(
             ScanSubmission.id == submission_id,
