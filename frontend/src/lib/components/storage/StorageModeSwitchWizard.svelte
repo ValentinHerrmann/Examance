@@ -1,79 +1,57 @@
 <script lang="ts">
   /**
-   * The gated storage-mode switch.
-   *
-   * The handler this replaces was `confirm()` → `wipeDatabase()` →
-   * `updateSetting` → reload. It destroyed every local exam, exercise,
-   * submission, scan, score and MC group without uploading any of it, and
-   * nothing checked whether the destination already held equivalent data.
-   *
-   * The archive is the only bridge between storage locations, so the export is
-   * a step of the switch rather than something to remember beforehand.
+   * The gated storage-mode switch: explain → export → wipe & switch → import.
+   * Export and import reuse the app's own interactive archive flows; conflicts
+   * are answered by the dialog mounted in the root layout.
    */
   import { get } from 'svelte/store';
   import { t, translate } from '$lib/i18n';
-  import { Modal, Button, Field, TextInput } from '$lib/components/ui';
-  import { isAuthenticated, sessionStore } from '$lib/stores/session';
-  import type { StorageMode } from '$lib/stores/storagePolicy';
-  import { getStoragePolicyBadge } from '$lib/stores/storagePolicy';
+  import { Modal, Button } from '$lib/components/ui';
+  import { isAuthenticated } from '$lib/stores/session';
+  import { getStoragePolicyBadge, type StorageMode } from '$lib/stores/storagePolicy';
   import {
     abortModeSwitch,
     beginModeSwitch,
     commitModeSwitch,
     finishModeSwitch,
     localWorkspaceIsEmpty,
-    markExportSkipped,
     markExported,
     pendingSwitchStore,
     requireExport,
   } from '$lib/services/storageModeSwitch';
-  import { exportBgprojArchive, openBgprojArchive } from '$lib/services/archiveService';
-  import ImportConflictModal from './ImportConflictModal.svelte';
-  import type { ArchiveConflict, DecisionMap } from '$lib/archive/conflicts';
+  import {
+    exportArchiveInteractively,
+    importArchiveInteractively,
+  } from '$lib/services/archiveService';
 
   export let open = false;
+  /** The mode to switch to; null when resuming an interrupted switch. */
   export let target: StorageMode | null = null;
   export let onClose: () => void;
 
-  /**
-   * The step rail. Keys are listed literally rather than composed, so a typo is
-   * a `svelte-check` error — `$t` only accepts a `TranslationKey`.
-   */
   const STEPS = [
-    { phase: 'confirm', labelKey: 'storagePolicy.switch.stepExplain' },
-    { phase: 'export', labelKey: 'storagePolicy.switch.stepExport' },
-    { phase: 'switching', labelKey: 'storagePolicy.switch.stepSwitch' },
-    { phase: 'reimport', labelKey: 'storagePolicy.switch.stepImport' },
+    { phase: 'confirm', label: 'storagePolicy.switch.stepExplain' },
+    { phase: 'export', label: 'storagePolicy.switch.stepExport' },
+    { phase: 'exported', label: 'storagePolicy.switch.stepSwitch' },
+    { phase: 'reimport', label: 'storagePolicy.switch.stepImport' },
   ] as const;
 
-  let exportPassword = '';
-  let importPassword = '';
-  let importFile: File | null = null;
   let understood = false;
   let busy = false;
-  let statusMsg = '';
   let errorMsg = '';
   let workspaceEmpty = false;
 
-  let conflictsOpen = false;
-  let pendingConflicts: ArchiveConflict[] = [];
-  let pendingIdenticalCount = 0;
-  let resolveConflicts: ((decisions: DecisionMap) => void) | null = null;
-  let rejectConflicts: ((reason: Error) => void) | null = null;
-
   $: pending = $pendingSwitchStore;
-  $: phase = pending?.phase ?? 'idle';
+  $: phase = pending?.phase === 'switching' ? 'exported' : pending?.phase;
+  $: toLabel = pending ? modeLabel(pending.to) : '';
+  $: if (open && target && !pending) void start(target);
 
-  const modeLabel = (mode: StorageMode | null | undefined) =>
-    mode ? getStoragePolicyBadge({ storageMode: mode, latexCompilation: 'local' }).text : '';
-
-  $: if (open && target && !pending) {
-    void startSwitch(target);
+  function modeLabel(mode: StorageMode): string {
+    return getStoragePolicyBadge({ storageMode: mode, latexCompilation: 'local' }).text;
   }
 
-  async function startSwitch(to: StorageMode) {
-    errorMsg = '';
-    if ((to === 'all-server' || to === 'hybrid') && !get(isAuthenticated)) {
+  async function start(to: StorageMode) {
+    if (to !== 'all-local' && !get(isAuthenticated)) {
       errorMsg = translate('storagePolicy.switch.needsAuth');
       return;
     }
@@ -81,125 +59,47 @@
     workspaceEmpty = await localWorkspaceIsEmpty();
   }
 
-  function handleCancel() {
-    if (!abortModeSwitch()) {
-      errorMsg = translate('storagePolicy.switch.cannotAbortAfterWipe');
-      return;
+  async function run(action: () => Promise<unknown>) {
+    busy = true;
+    errorMsg = '';
+    try {
+      await action();
+    } catch (err: any) {
+      errorMsg = err.message;
+    } finally {
+      busy = false;
     }
-    reset();
+  }
+
+  function close() {
+    understood = false;
+    errorMsg = '';
     onClose();
   }
 
-  function reset() {
-    exportPassword = '';
-    importPassword = '';
-    importFile = null;
-    understood = false;
-    statusMsg = '';
-    errorMsg = '';
+  function handleCancel() {
+    if (abortModeSwitch()) close();
+    else errorMsg = translate('storagePolicy.switch.cannotAbortAfterWipe');
   }
 
   async function handleExport() {
-    if (!exportPassword) return;
-    busy = true;
-    errorMsg = '';
-    statusMsg = translate('storagePolicy.switch.exportRunning');
-    try {
-      const filename = `examance-${new Date().toISOString().slice(0, 10)}.bgproj`;
-      await exportBgprojArchive(exportPassword, filename);
-      markExported(filename);
-      statusMsg = translate('storagePolicy.switch.exportDone', { filename });
-      exportPassword = '';
-    } catch (err: any) {
-      errorMsg = translate('storagePolicy.switch.exportFailed', { message: err.message });
-      statusMsg = '';
-    } finally {
-      busy = false;
-    }
+    const filename = `examance-${new Date().toISOString().slice(0, 10)}.bgproj`;
+    if (await exportArchiveInteractively(filename)) markExported(filename);
   }
 
-  async function handleCommit() {
-    busy = true;
-    errorMsg = '';
-    statusMsg = translate('storagePolicy.switch.switching');
-    try {
-      await commitModeSwitch();
-      statusMsg = '';
-    } catch (err: any) {
-      errorMsg = err.message;
-    } finally {
-      busy = false;
-    }
-  }
-
-  /**
-   * Handed to the import as its conflict resolver. Returns a promise the modal
-   * settles, so the import genuinely waits for the teacher rather than
-   * proceeding on a default.
-   */
-  function askAboutConflicts(
-    conflicts: ArchiveConflict[],
-    identicalCount: number
-  ): Promise<DecisionMap> {
-    pendingConflicts = conflicts;
-    pendingIdenticalCount = identicalCount;
-    conflictsOpen = true;
-    return new Promise<DecisionMap>((resolve, reject) => {
-      resolveConflicts = resolve;
-      rejectConflicts = reject;
-    });
-  }
-
-  function handleConflictsConfirmed(decisions: DecisionMap) {
-    conflictsOpen = false;
-    resolveConflicts?.(decisions);
-    resolveConflicts = null;
-    rejectConflicts = null;
-  }
-
-  function handleConflictsCancelled() {
-    conflictsOpen = false;
-    rejectConflicts?.(new Error(translate('workspace.archive.importCancelled')));
-    resolveConflicts = null;
-    rejectConflicts = null;
-  }
-
-  async function handleImport() {
-    if (!importFile || !importPassword) return;
-    busy = true;
-    errorMsg = '';
-    statusMsg = translate('storagePolicy.switch.importRunning');
-    try {
-      const result = await openBgprojArchive(importFile, importPassword, {
-        mode: 'merge',
-        resolve: askAboutConflicts,
-      });
-      statusMsg = translate('workspace.archive.summaryLoaded', {
-        examCount: result.examCount,
-        studentCount: result.studentCount,
-      });
-      if (result.errors.length > 0) {
-        errorMsg = result.errors.join('\n');
-      }
-      finishModeSwitch();
-    } catch (err: any) {
-      errorMsg = err.message;
-      statusMsg = '';
-    } finally {
-      busy = false;
-      importPassword = '';
-    }
-  }
-
-  function handleSkipImport() {
-    finishModeSwitch();
-    reset();
-    onClose();
-  }
-
-  function handleFileSelected(event: Event) {
+  async function handleImport(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
-    importFile = input.files?.[0] ?? null;
+    const file = input.files?.[0];
+    input.value = '';
+    if (file && (await importArchiveInteractively(file))) {
+      finishModeSwitch();
+      close();
+    }
+  }
+
+  function handleImportLater() {
+    finishModeSwitch();
+    close();
   }
 </script>
 
@@ -208,138 +108,86 @@
   size="lg"
   title={$t('storagePolicy.switch.title')}
   closeOnBackdrop={false}
-  closeOnEscape={!busy && phase !== 'switching'}
+  closeOnEscape={!busy}
   onClose={handleCancel}
 >
   {#if pending}
     <ol class="mb-4 flex flex-wrap gap-2 text-xs text-subtle">
       {#each STEPS as step, i (step.phase)}
-        <li
-          class="rounded-full px-2 py-1
-                 {phase === step.phase ? 'bg-accent-strong text-content' : 'bg-surface-sunken'}"
-        >
-          {i + 1}. {$t(step.labelKey)}
+        <li class="rounded-full px-2 py-1 {phase === step.phase ? 'bg-accent-strong text-content' : 'bg-surface-sunken'}">
+          {i + 1}. {$t(step.label)}
         </li>
       {/each}
     </ol>
 
-    {#if phase === 'confirm'}
-      <h4 class="text-sm font-semibold text-content">
-        {$t('storagePolicy.switch.introHeading', {
-          from: modeLabel(pending.from),
-          to: modeLabel(pending.to),
-        })}
-      </h4>
-      <p class="mt-2 text-sm text-muted">{$t('storagePolicy.switch.introBody')}</p>
-      <p class="mt-2 text-sm text-muted">{$t('storagePolicy.switch.bridgeNote')}</p>
-      <p class="mt-2 text-sm text-subtle">{$t('storagePolicy.switch.serverKeptNote')}</p>
-
-      <label class="mt-4 flex items-start gap-2 text-sm text-content">
-        <input type="checkbox" bind:checked={understood} class="mt-1" />
-        <span>{$t('storagePolicy.switch.understandCheckbox')}</span>
-      </label>
-    {:else if phase === 'export'}
-      <h4 class="text-sm font-semibold text-content">
-        {$t('storagePolicy.switch.exportHeading')}
-      </h4>
-      <p class="mt-2 text-sm text-muted">{$t('storagePolicy.switch.exportBody')}</p>
-
-      <Field label={$t('storagePolicy.switch.exportPasswordLabel')}>
-        <TextInput type="password" bind:value={exportPassword} autocomplete="new-password" />
-      </Field>
-
-      <div class="mt-3 flex flex-wrap gap-2">
-        <Button variant="primary" disabled={busy || !exportPassword} onClick={handleExport}>
-          {$t('storagePolicy.switch.exportButton')}
-        </Button>
-        {#if workspaceEmpty}
-          <Button variant="ghost" disabled={busy} onClick={markExportSkipped}>
-            {$t('storagePolicy.switch.skipExportEmpty')}
-          </Button>
-        {:else}
-          <Button variant="ghost" disabled={busy} onClick={markExportSkipped}>
-            {$t('storagePolicy.switch.skipExportHaveArchive')}
-          </Button>
+    <div class="space-y-2 text-sm text-muted">
+      {#if phase === 'confirm'}
+        <h4 class="font-semibold text-content">
+          {$t('storagePolicy.switch.introHeading', { from: modeLabel(pending.from), to: toLabel })}
+        </h4>
+        <p>{$t('storagePolicy.switch.introBody')}</p>
+        <p>{$t('storagePolicy.switch.bridgeNote')}</p>
+        <p class="text-subtle">{$t('storagePolicy.switch.serverKeptNote')}</p>
+        <label class="flex items-start gap-2 pt-2 text-content">
+          <input type="checkbox" bind:checked={understood} class="mt-1" />
+          <span>{$t('storagePolicy.switch.understandCheckbox')}</span>
+        </label>
+      {:else if phase === 'export'}
+        <h4 class="font-semibold text-content">{$t('storagePolicy.switch.exportHeading')}</h4>
+        <p>{$t('storagePolicy.switch.exportBody')}</p>
+        <p class="text-subtle">{$t('storagePolicy.switch.exportRequired')}</p>
+      {:else if phase === 'exported'}
+        <h4 class="font-semibold text-content">{$t('storagePolicy.switch.wipeHeading')}</h4>
+        <p class="text-amber-300">{$t('storagePolicy.switch.wipeWarning', { to: toLabel })}</p>
+        {#if pending.archiveFilename}
+          <p class="text-xs text-subtle">
+            {$t('storagePolicy.switch.exportDone', { filename: pending.archiveFilename })}
+          </p>
         {/if}
-      </div>
-    {:else if phase === 'exported' || phase === 'switching'}
-      <h4 class="text-sm font-semibold text-content">{$t('storagePolicy.switch.wipeHeading')}</h4>
-      <p class="mt-2 text-sm text-amber-300">
-        {$t('storagePolicy.switch.wipeWarning', { to: modeLabel(pending.to) })}
-      </p>
-      {#if pending.archiveFilename}
-        <p class="mt-2 text-xs text-subtle">
-          {$t('storagePolicy.switch.exportDone', { filename: pending.archiveFilename })}
-        </p>
-      {/if}
-    {:else if phase === 'reimport'}
-      <h4 class="text-sm font-semibold text-content">{$t('storagePolicy.switch.importHeading')}</h4>
-      <p class="mt-2 text-sm text-muted">{$t('storagePolicy.switch.importBody')}</p>
-
-      <Field label={$t('storagePolicy.switch.importChooseFile')}>
+      {:else if phase === 'reimport'}
+        <h4 class="font-semibold text-content">{$t('storagePolicy.switch.importHeading')}</h4>
+        <p>{$t('storagePolicy.switch.importBody')}</p>
         <input
           type="file"
           accept=".bgproj"
-          on:change={handleFileSelected}
-          class="w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0
-                 file:bg-surface-inset file:px-3 file:py-1.5 file:text-sm file:text-content"
+          disabled={busy}
+          on:change={(e) => run(() => handleImport(e))}
+          class="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-surface-inset
+                 file:px-3 file:py-1.5 file:text-content"
         />
-      </Field>
-      <Field label={$t('storagePolicy.switch.importPasswordLabel')}>
-        <TextInput type="password" bind:value={importPassword} autocomplete="off" />
-      </Field>
-    {/if}
+      {/if}
+    </div>
+  {/if}
 
-    {#if statusMsg}
-      <p class="mt-3 text-sm text-accent">{statusMsg}</p>
-    {/if}
-    {#if errorMsg}
-      <p class="mt-3 whitespace-pre-wrap text-sm text-red-400">{errorMsg}</p>
-    {/if}
-  {:else if errorMsg}
-    <p class="text-sm text-red-400">{errorMsg}</p>
+  {#if errorMsg}
+    <p class="mt-3 whitespace-pre-wrap text-sm text-red-400">{errorMsg}</p>
   {/if}
 
   <svelte:fragment slot="footer">
-    {#if phase === 'confirm'}
-      <Button variant="secondary" onClick={handleCancel}>
-        {$t('storagePolicy.switch.cancel')}
-      </Button>
-      <Button variant="primary" disabled={!understood} onClick={requireExport}>
-        {$t('storagePolicy.switch.stepExport')}
-      </Button>
-    {:else if phase === 'export'}
-      <Button variant="secondary" disabled={busy} onClick={handleCancel}>
-        {$t('storagePolicy.switch.cancel')}
-      </Button>
-      <span class="text-xs text-subtle">{$t('storagePolicy.switch.exportRequired')}</span>
-    {:else if phase === 'exported' || phase === 'switching'}
-      <Button variant="secondary" disabled={busy} onClick={handleCancel}>
-        {$t('storagePolicy.switch.cancel')}
-      </Button>
-      <Button variant="danger" loading={busy} onClick={handleCommit}>
-        {$t('storagePolicy.switch.wipeButton')}
-      </Button>
-    {:else if phase === 'reimport'}
-      <Button variant="secondary" disabled={busy} onClick={handleSkipImport}>
+    {#if phase === 'reimport'}
+      <Button variant="secondary" disabled={busy} onClick={handleImportLater}>
         {$t('storagePolicy.switch.importSkip')}
       </Button>
-      <Button
-        variant="primary"
-        loading={busy}
-        disabled={!importFile || !importPassword}
-        onClick={handleImport}
-      >
-        {$t('storagePolicy.switch.importButton')}
+    {:else if pending}
+      <Button variant="secondary" disabled={busy} onClick={handleCancel}>
+        {$t('storagePolicy.switch.cancel')}
       </Button>
+      {#if phase === 'confirm'}
+        <Button variant="primary" disabled={!understood} onClick={requireExport}>
+          {$t('storagePolicy.switch.stepExport')}
+        </Button>
+      {:else if phase === 'export'}
+        <Button variant="ghost" disabled={busy} onClick={() => markExported()}>
+          {$t(workspaceEmpty ? 'storagePolicy.switch.skipExportEmpty' : 'storagePolicy.switch.skipExportHaveArchive')}
+        </Button>
+        <Button variant="primary" loading={busy} onClick={() => run(handleExport)}>
+          {$t('storagePolicy.switch.exportButton')}
+        </Button>
+      {:else if phase === 'exported'}
+        <Button variant="danger" loading={busy} onClick={() => run(commitModeSwitch)}>
+          {$t('storagePolicy.switch.wipeButton')}
+        </Button>
+      {/if}
     {/if}
   </svelte:fragment>
 </Modal>
-
-<ImportConflictModal
-  open={conflictsOpen}
-  conflicts={pendingConflicts}
-  identicalCount={pendingIdenticalCount}
-  onConfirm={handleConflictsConfirmed}
-  onCancel={handleConflictsCancelled}
-/>

@@ -51,9 +51,6 @@
   let switchTarget: StorageMode | null = null;
 
   onMount(async () => {
-    // Svelte 4 mounts routes before the root layout restores the session, so
-    // without this the vault is read with a null key on every reload and the
-    // whole workspace comes back blank.
     await awaitSessionReady();
     if (!$isUnlocked) {
       // Keys are passphrase-derived and never persisted — send the user to
@@ -75,10 +72,7 @@
     statusMsg = translate("settings.status.latexSet", { mode: val });
   }
 
-  /**
-   * Same gated wizard as the quick-config modal — this was a second copy of the
-   * wipe-without-export handler, and the two could drift apart.
-   */
+  /** Same gated storage-mode-switch wizard as the quick-config modal. */
   function handleStorageModeChange(val: StorageMode) {
     if (val === $storagePolicyStore.storageMode) return;
     switchTarget = val;

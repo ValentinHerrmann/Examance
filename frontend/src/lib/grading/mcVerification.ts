@@ -104,8 +104,8 @@ export async function computeMcVerificationStats(
     return studentMap.get(hex) || `Unmatched (${sub.id.slice(0, 8)})`;
   }
 
-  // One read for the exam, then grouped in memory: the per-submission loop
-  // this replaces was an N+1 over the network once scores moved server-side.
+  // One read for the exam, then grouped in memory, to avoid an N+1 network
+  // read per submission now that scores are server-side.
   const allScores = await scoreRepository.getByExamId(examId, key);
   const scoresBySubmission = new Map<string, typeof allScores>();
   for (const sc of allScores) {

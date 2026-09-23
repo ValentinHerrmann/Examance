@@ -14,6 +14,7 @@ import {
   assertEncryptable,
   markDecryptFailed,
   MissingSessionKeyError,
+  type MaybeUndecryptable,
 } from './decryptGuard';
 import { db } from '$lib/db/db';
 import { sessionStore } from '$lib/stores/session';
@@ -26,7 +27,6 @@ import type {
   StudentRecord,
   SubmissionRecord,
   AuditEntry,
-  GradingKeyConfig,
   OmrTemplateRecord,
   OmrTemplatePayload,
 } from './schema';
@@ -56,9 +56,7 @@ export async function encryptResource(
   key: CryptoKey | null
 ): Promise<ExerciseResourceRecord> {
   if (!key) {
-    // Writing the raw bytes to `data` is the same plaintext-at-rest hole the
-    // payload encryptors used to have: the file would sit unencrypted in
-    // IndexedDB and, in server modes, be uploaded from there.
+    // Never fall back to raw bytes in `data`: that is plaintext at rest.
     throw new MissingSessionKeyError('exerciseResource');
   }
   const { ct, iv } = await encryptBytes(key, bytes);
@@ -78,477 +76,133 @@ export async function decryptResourceBytes(
 }
 
 // ---------------------------------------------------------------------------
-// ExamRecord
+// Record codecs
+//
+// Every record type is split the same way: plain index/link columns stay
+// readable (Dexie queries them), everything in `sealed` goes into one
+// AES-256-GCM `payloadCt`. Both lists are explicit whitelists — a field that is
+// in neither is dropped on write, so a caller spreading extra data onto a
+// record can never leak it into IndexedDB in plaintext.
 // ---------------------------------------------------------------------------
 
-interface ExamPayload {
-  title?: string;
-  testart?: string;
-  grade?: string;
-  klasse?: string;
-  datum?: string;
-  nr?: string;
-  fach?: string;
-  lehrernachname?: string;
-  infoText?: string;
-  latexPreamble?: string;
-  latexTemplate?: string;
-  numVersions?: number;
-  gradingKey?: GradingKeyConfig;
+interface RecordCodec<T> {
+  kind: string;
+  plain: readonly (keyof T)[];
+  sealed: readonly (keyof T)[];
 }
 
-export async function encryptExam(exam: ExamRecord, key: CryptoKey | null): Promise<ExamRecord> {
-  assertEncryptable(exam, key, 'exam');
-
-  const payload: ExamPayload = {
-    title: exam.title,
-    testart: exam.testart,
-    grade: exam.grade,
-    klasse: exam.klasse,
-    datum: exam.datum,
-    nr: exam.nr,
-    fach: exam.fach,
-    lehrernachname: exam.lehrernachname,
-    infoText: exam.infoText,
-    latexPreamble: exam.latexPreamble,
-    latexTemplate: exam.latexTemplate,
-    numVersions: exam.numVersions,
-    gradingKey: exam.gradingKey,
-  };
-
-  const { ct, iv } = await encryptBytes(key, encoder.encode(JSON.stringify(payload)));
-
-  return {
-    id: exam.id,
-    teacherId: exam.teacherId,
-    retentionUntil: exam.retentionUntil,
-    compilationStatus: exam.compilationStatus,
-    createdAt: exam.createdAt,
-    isDirty: exam.isDirty,
-    payloadCt: ct,
-    payloadIv: iv,
-  };
+function pick<T>(record: T, fields: readonly (keyof T)[]): Partial<T> {
+  const out: Partial<T> = {};
+  for (const f of fields) out[f] = record[f];
+  return out;
 }
 
-export async function decryptExam(exam: ExamRecord, key: CryptoKey | null): Promise<ExamRecord> {
-  const baseRecord: ExamRecord = {
-    id: exam.id,
-    teacherId: exam.teacherId,
-    retentionUntil: exam.retentionUntil,
-    compilationStatus: exam.compilationStatus,
-    createdAt: exam.createdAt,
-    isDirty: exam.isDirty,
-    title: exam.title,
-    testart: exam.testart,
-    grade: exam.grade,
-    klasse: exam.klasse,
-    datum: exam.datum,
-    nr: exam.nr,
-    fach: exam.fach,
-    lehrernachname: exam.lehrernachname,
-    infoText: exam.infoText,
-    latexPreamble: exam.latexPreamble,
-    latexTemplate: exam.latexTemplate,
-    numVersions: exam.numVersions,
-    gradingKey: exam.gradingKey,
-    payloadCt: exam.payloadCt,
-    payloadIv: exam.payloadIv,
-  };
+async function sealRecord<T extends MaybeUndecryptable & SealedPayload>(
+  record: T,
+  key: CryptoKey | null,
+  codec: RecordCodec<T>
+): Promise<T> {
+  assertEncryptable(record, key, codec.kind);
+  const payload = JSON.stringify(pick(record, codec.sealed));
+  const { ct, iv } = await encryptBytes(key, encoder.encode(payload));
+  // The whitelist drops every sealed field, which the record types mark
+  // optional — so the partial is a complete record for everything required.
+  return { ...pick(record, codec.plain), payloadCt: ct, payloadIv: iv } as unknown as T;
+}
 
-  if (!exam.payloadCt || !exam.payloadIv || exam.payloadCt.byteLength < 16) {
-    // Nothing sealed: either a legacy plaintext row or a record that
-    // genuinely has no payload. Safe to hand back and safe to write.
-    return baseRecord;
-  }
-  if (!key) {
-    // There IS a payload, we just cannot open it. Handing back blanks is
-    // fine for rendering a locked view; writing them back is not.
-    return markDecryptFailed(baseRecord, 'exam', 'locked');
-  }
+async function openRecord<T extends MaybeUndecryptable & SealedPayload>(
+  record: T,
+  key: CryptoKey | null,
+  codec: RecordCodec<T>
+): Promise<T> {
+  const base = {
+    ...pick(record, codec.plain),
+    ...pick(record, codec.sealed),
+    payloadCt: record.payloadCt,
+    payloadIv: record.payloadIv,
+  } as T;
+
+  const { payloadCt, payloadIv } = record;
+  // Nothing sealed (legacy plaintext row): safe to return and to write back.
+  if (!payloadCt || !payloadIv || payloadCt.byteLength < 16) return base;
+  // Sealed but no key: fine to render, never to write back.
+  if (!key) return markDecryptFailed(base, codec.kind, 'locked');
 
   try {
-    const bytes = await decryptBytes(key, exam.payloadCt, exam.payloadIv);
-    const payload: ExamPayload = JSON.parse(decoder.decode(bytes));
-    return {
-      ...baseRecord,
-      ...payload,
-    };
+    const bytes = await decryptBytes(key, payloadCt, payloadIv);
+    return { ...base, ...JSON.parse(decoder.decode(bytes)) };
   } catch (err) {
-    console.error('Failed to decrypt exam record:', err);
-    return markDecryptFailed(baseRecord, 'exam');
+    console.error(`Failed to decrypt ${codec.kind} record:`, err);
+    return markDecryptFailed(base, codec.kind);
   }
 }
 
-// ---------------------------------------------------------------------------
-// ExerciseRecord
-// ---------------------------------------------------------------------------
-
-interface ExercisePayload {
-  title?: string;
-  name?: string;
-  latexBody?: string;
-  options?: string[];
-  correctAnswers?: number[];
+interface SealedPayload {
+  payloadCt?: Uint8Array;
+  payloadIv?: Uint8Array;
 }
 
-export async function encryptExercise(exercise: ExerciseRecord, key: CryptoKey | null): Promise<ExerciseRecord> {
-  assertEncryptable(exercise, key, 'exercise');
+const EXAM: RecordCodec<ExamRecord> = {
+  kind: 'exam',
+  plain: ['id', 'teacherId', 'retentionUntil', 'compilationStatus', 'createdAt', 'isDirty'],
+  sealed: [
+    'title', 'testart', 'grade', 'klasse', 'datum', 'nr', 'fach', 'lehrernachname',
+    'infoText', 'latexPreamble', 'latexTemplate', 'numVersions', 'gradingKey',
+  ],
+};
 
-  const payload: ExercisePayload = {
-    title: exercise.title,
-    name: exercise.name,
-    latexBody: exercise.latexBody,
-    options: exercise.options,
-    correctAnswers: exercise.correctAnswers,
-  };
+const EXERCISE: RecordCodec<ExerciseRecord> = {
+  kind: 'exercise',
+  plain: [
+    'id', 'teacherId', 'examId', 'orderIndex', 'maxPoints', 'topicTag', 'grade', 'subject',
+    'version', 'exerciseGroupId', 'variantKey', 'isCurrent', 'createdAt', 'updatedAt',
+    'questionType', 'penalty',
+  ],
+  sealed: ['title', 'name', 'latexBody', 'options', 'correctAnswers'],
+};
 
-  const { ct, iv } = await encryptBytes(key, encoder.encode(JSON.stringify(payload)));
+const SCORE: RecordCodec<ExerciseScoreRecord> = {
+  kind: 'score',
+  plain: ['id', 'submissionId', 'exerciseId'],
+  sealed: ['score', 'selectedOptions', 'omrMeta'],
+};
 
-  return {
-    id: exercise.id,
-    teacherId: exercise.teacherId,
-    examId: exercise.examId,
-    orderIndex: exercise.orderIndex,
-    maxPoints: exercise.maxPoints,
-    topicTag: exercise.topicTag,
-    grade: exercise.grade,
-    subject: exercise.subject,
-    version: exercise.version,
-    exerciseGroupId: exercise.exerciseGroupId,
-    variantKey: exercise.variantKey,
-    isCurrent: exercise.isCurrent,
-    createdAt: exercise.createdAt,
-    updatedAt: exercise.updatedAt,
-    questionType: exercise.questionType,
-    penalty: exercise.penalty,
-    payloadCt: ct,
-    payloadIv: iv,
-  };
-}
+// Identity fields live only inside the payload — re-emitting them as plain
+// columns was the L17 leak (docs/legal_audit_dsgvo.md).
+const STUDENT: RecordCodec<StudentRecord> = {
+  kind: 'student',
+  plain: ['pseudonymId', 'examId', 'piiCt', 'piiIv'],
+  sealed: ['fallbackCode', 'studentName', 'studentNumber'],
+};
 
-export async function decryptExercise(exercise: ExerciseRecord, key: CryptoKey | null): Promise<ExerciseRecord> {
-  const baseRecord: ExerciseRecord = {
-    id: exercise.id,
-    teacherId: exercise.teacherId,
-    examId: exercise.examId,
-    orderIndex: exercise.orderIndex,
-    maxPoints: exercise.maxPoints,
-    topicTag: exercise.topicTag,
-    grade: exercise.grade,
-    subject: exercise.subject,
-    version: exercise.version,
-    exerciseGroupId: exercise.exerciseGroupId,
-    variantKey: exercise.variantKey,
-    isCurrent: exercise.isCurrent,
-    createdAt: exercise.createdAt,
-    updatedAt: exercise.updatedAt,
-    questionType: exercise.questionType,
-    penalty: exercise.penalty,
-    title: exercise.title,
-    name: exercise.name,
-    latexBody: exercise.latexBody,
-    options: exercise.options,
-    correctAnswers: exercise.correctAnswers,
-    payloadCt: exercise.payloadCt,
-    payloadIv: exercise.payloadIv,
-  };
+const SUBMISSION: RecordCodec<SubmissionRecord> = {
+  kind: 'submission',
+  plain: [
+    'id', 'examId', 'pseudonymHash', 'scanCt', 'scanIv', 'annotationCt', 'annotationIv',
+    'createdAt',
+  ],
+  sealed: ['totalScore'],
+};
 
-  if (!exercise.payloadCt || !exercise.payloadIv || exercise.payloadCt.byteLength < 16) {
-    // Nothing sealed: either a legacy plaintext row or a record that
-    // genuinely has no payload. Safe to hand back and safe to write.
-    return baseRecord;
-  }
-  if (!key) {
-    // There IS a payload, we just cannot open it. Handing back blanks is
-    // fine for rendering a locked view; writing them back is not.
-    return markDecryptFailed(baseRecord, 'exercise', 'locked');
-  }
+const AUDIT: RecordCodec<AuditEntry> = {
+  kind: 'auditEntry',
+  plain: ['id', 'action', 'targetId', 'timestamp'],
+  sealed: ['note'],
+};
 
-  try {
-    const bytes = await decryptBytes(key, exercise.payloadCt, exercise.payloadIv);
-    const payload: ExercisePayload = JSON.parse(decoder.decode(bytes));
-    return {
-      ...baseRecord,
-      ...payload,
-    };
-  } catch (err) {
-    console.error('Failed to decrypt exercise record:', err);
-    return markDecryptFailed(baseRecord, 'exercise');
-  }
-}
-
-// ---------------------------------------------------------------------------
-// ExerciseScoreRecord
-// ---------------------------------------------------------------------------
-
-interface ScorePayload {
-  score?: number;
-  selectedOptions?: number[];
-  omrMeta?: ExerciseScoreRecord['omrMeta'];
-}
-
-export async function encryptScore(scoreRec: ExerciseScoreRecord, key: CryptoKey | null): Promise<ExerciseScoreRecord> {
-  assertEncryptable(scoreRec, key, 'score');
-
-  const payload: ScorePayload = {
-    score: scoreRec.score,
-    selectedOptions: scoreRec.selectedOptions,
-    omrMeta: scoreRec.omrMeta,
-  };
-
-  const { ct, iv } = await encryptBytes(key, encoder.encode(JSON.stringify(payload)));
-
-  return {
-    id: scoreRec.id,
-    submissionId: scoreRec.submissionId,
-    exerciseId: scoreRec.exerciseId,
-    payloadCt: ct,
-    payloadIv: iv,
-  };
-}
-
-export async function decryptScore(scoreRec: ExerciseScoreRecord, key: CryptoKey | null): Promise<ExerciseScoreRecord> {
-  const baseRecord: ExerciseScoreRecord = {
-    id: scoreRec.id,
-    submissionId: scoreRec.submissionId,
-    exerciseId: scoreRec.exerciseId,
-    score: scoreRec.score,
-    selectedOptions: scoreRec.selectedOptions,
-    omrMeta: scoreRec.omrMeta,
-    payloadCt: scoreRec.payloadCt,
-    payloadIv: scoreRec.payloadIv,
-  };
-
-  if (!scoreRec.payloadCt || !scoreRec.payloadIv || scoreRec.payloadCt.byteLength < 16) {
-    // Nothing sealed: either a legacy plaintext row or a record that
-    // genuinely has no payload. Safe to hand back and safe to write.
-    return baseRecord;
-  }
-  if (!key) {
-    // There IS a payload, we just cannot open it. Handing back blanks is
-    // fine for rendering a locked view; writing them back is not.
-    return markDecryptFailed(baseRecord, 'score', 'locked');
-  }
-
-  try {
-    const bytes = await decryptBytes(key, scoreRec.payloadCt, scoreRec.payloadIv);
-    const payload: ScorePayload = JSON.parse(decoder.decode(bytes));
-    return {
-      ...baseRecord,
-      ...payload,
-    };
-  } catch (err) {
-    console.error('Failed to decrypt score record:', err);
-    return markDecryptFailed(baseRecord, 'score');
-  }
-}
-
-// ---------------------------------------------------------------------------
-// StudentRecord
-// ---------------------------------------------------------------------------
-
-interface StudentPayload {
-  fallbackCode?: string;
-  studentName?: string;
-  studentNumber?: string;
-}
-
-export async function encryptStudent(student: StudentRecord, key: CryptoKey | null): Promise<StudentRecord> {
-  assertEncryptable(student, key, 'student');
-
-  const payload: StudentPayload = {
-    fallbackCode: student.fallbackCode,
-    studentName: student.studentName,
-    studentNumber: student.studentNumber,
-  };
-
-  // The keyless branch this function used to carry is gone: `assertEncryptable`
-  // above already refuses a locked session, which is the only safe answer when
-  // there is nowhere for the pupil's name to go except the plaintext columns.
-  const { ct, iv } = await encryptBytes(key, encoder.encode(JSON.stringify(payload)));
-
-  // Deliberately does NOT re-emit fallbackCode, studentName or studentNumber.
-  // Returning them alongside the ciphertext is what put pupil names into
-  // IndexedDB in plaintext (tracked as L17 in docs/legal_audit_dsgvo.md) and
-  // broke Core Invariant 1 in every storage mode. They live in payloadCt now,
-  // and callers get them back from decryptStudent().
-  return {
-    pseudonymId: student.pseudonymId,
-    examId: student.examId,
-    piiCt: student.piiCt,
-    piiIv: student.piiIv,
-    payloadCt: ct,
-    payloadIv: iv,
-  };
-}
-
-export async function decryptStudent(student: StudentRecord, key: CryptoKey | null): Promise<StudentRecord> {
-  const baseRecord: StudentRecord = {
-    pseudonymId: student.pseudonymId,
-    examId: student.examId,
-    fallbackCode: student.fallbackCode,
-    studentName: student.studentName,
-    studentNumber: student.studentNumber,
-    piiCt: student.piiCt,
-    piiIv: student.piiIv,
-    payloadCt: student.payloadCt,
-    payloadIv: student.payloadIv,
-  };
-
-  if (!student.payloadCt || !student.payloadIv || student.payloadCt.byteLength < 16) {
-    // Nothing sealed: either a legacy plaintext row or a record that
-    // genuinely has no payload. Safe to hand back and safe to write.
-    return baseRecord;
-  }
-  if (!key) {
-    // There IS a payload, we just cannot open it. Handing back blanks is
-    // fine for rendering a locked view; writing them back is not.
-    return markDecryptFailed(baseRecord, 'student', 'locked');
-  }
-
-  try {
-    const bytes = await decryptBytes(key, student.payloadCt, student.payloadIv);
-    const payload: StudentPayload = JSON.parse(decoder.decode(bytes));
-    return {
-      ...baseRecord,
-      ...payload,
-    };
-  } catch (err) {
-    console.error('Failed to decrypt student record:', err);
-    return markDecryptFailed(baseRecord, 'student');
-  }
-}
-
-// ---------------------------------------------------------------------------
-// SubmissionRecord
-// ---------------------------------------------------------------------------
-
-interface SubmissionPayload {
-  totalScore?: number;
-}
-
-export async function encryptSubmission(submission: SubmissionRecord, key: CryptoKey | null): Promise<SubmissionRecord> {
-  assertEncryptable(submission, key, 'submission');
-
-  const payload: SubmissionPayload = {
-    totalScore: submission.totalScore,
-  };
-
-  const { ct, iv } = await encryptBytes(key, encoder.encode(JSON.stringify(payload)));
-
-  return {
-    id: submission.id,
-    examId: submission.examId,
-    pseudonymHash: submission.pseudonymHash,
-    scanCt: submission.scanCt,
-    scanIv: submission.scanIv,
-    annotationCt: submission.annotationCt,
-    annotationIv: submission.annotationIv,
-    createdAt: submission.createdAt,
-    payloadCt: ct,
-    payloadIv: iv,
-  };
-}
-
-export async function decryptSubmission(submission: SubmissionRecord, key: CryptoKey | null): Promise<SubmissionRecord> {
-  const baseRecord: SubmissionRecord = {
-    id: submission.id,
-    examId: submission.examId,
-    pseudonymHash: submission.pseudonymHash,
-    totalScore: submission.totalScore,
-    scanCt: submission.scanCt,
-    scanIv: submission.scanIv,
-    annotationCt: submission.annotationCt,
-    annotationIv: submission.annotationIv,
-    createdAt: submission.createdAt,
-    payloadCt: submission.payloadCt,
-    payloadIv: submission.payloadIv,
-  };
-
-  if (!submission.payloadCt || !submission.payloadIv || submission.payloadCt.byteLength < 16) {
-    // Nothing sealed: either a legacy plaintext row or a record that
-    // genuinely has no payload. Safe to hand back and safe to write.
-    return baseRecord;
-  }
-  if (!key) {
-    // There IS a payload, we just cannot open it. Handing back blanks is
-    // fine for rendering a locked view; writing them back is not.
-    return markDecryptFailed(baseRecord, 'submission', 'locked');
-  }
-
-  try {
-    const bytes = await decryptBytes(key, submission.payloadCt, submission.payloadIv);
-    const payload: SubmissionPayload = JSON.parse(decoder.decode(bytes));
-    return {
-      ...baseRecord,
-      ...payload,
-    };
-  } catch (err) {
-    console.error('Failed to decrypt submission payload:', err);
-    return markDecryptFailed(baseRecord, 'submission');
-  }
-}
-
-// ---------------------------------------------------------------------------
-// AuditEntry
-// ---------------------------------------------------------------------------
-
-interface AuditPayload {
-  note?: string;
-}
-
-export async function encryptAuditEntry(entry: AuditEntry, key: CryptoKey | null): Promise<AuditEntry> {
-  assertEncryptable(entry, key, 'auditEntry');
-
-  const payload: AuditPayload = {
-    note: entry.note,
-  };
-
-  const { ct, iv } = await encryptBytes(key, encoder.encode(JSON.stringify(payload)));
-
-  return {
-    id: entry.id,
-    action: entry.action,
-    targetId: entry.targetId,
-    timestamp: entry.timestamp,
-    payloadCt: ct,
-    payloadIv: iv,
-  };
-}
-
-export async function decryptAuditEntry(entry: AuditEntry, key: CryptoKey | null): Promise<AuditEntry> {
-  const baseRecord: AuditEntry = {
-    id: entry.id,
-    action: entry.action,
-    targetId: entry.targetId,
-    timestamp: entry.timestamp,
-    payloadCt: entry.payloadCt,
-    payloadIv: entry.payloadIv,
-  };
-
-  if (!entry.payloadCt || !entry.payloadIv || entry.payloadCt.byteLength < 16) {
-    // Nothing sealed: either a legacy plaintext row or a record that
-    // genuinely has no payload. Safe to hand back and safe to write.
-    return baseRecord;
-  }
-  if (!key) {
-    // There IS a payload, we just cannot open it. Handing back blanks is
-    // fine for rendering a locked view; writing them back is not.
-    return markDecryptFailed(baseRecord, 'auditEntry', 'locked');
-  }
-
-  try {
-    const bytes = await decryptBytes(key, entry.payloadCt, entry.payloadIv);
-    const payload: AuditPayload = JSON.parse(decoder.decode(bytes));
-    return {
-      ...baseRecord,
-      ...payload,
-    };
-  } catch (err) {
-    console.error('Failed to decrypt audit entry payload:', err);
-    return markDecryptFailed(baseRecord, 'auditEntry');
-  }
-}
+type Key = CryptoKey | null;
+export const encryptExam = (r: ExamRecord, k: Key) => sealRecord(r, k, EXAM);
+export const decryptExam = (r: ExamRecord, k: Key) => openRecord(r, k, EXAM);
+export const encryptExercise = (r: ExerciseRecord, k: Key) => sealRecord(r, k, EXERCISE);
+export const decryptExercise = (r: ExerciseRecord, k: Key) => openRecord(r, k, EXERCISE);
+export const encryptScore = (r: ExerciseScoreRecord, k: Key) => sealRecord(r, k, SCORE);
+export const decryptScore = (r: ExerciseScoreRecord, k: Key) => openRecord(r, k, SCORE);
+export const encryptStudent = (r: StudentRecord, k: Key) => sealRecord(r, k, STUDENT);
+export const decryptStudent = (r: StudentRecord, k: Key) => openRecord(r, k, STUDENT);
+export const encryptSubmission = (r: SubmissionRecord, k: Key) => sealRecord(r, k, SUBMISSION);
+export const decryptSubmission = (r: SubmissionRecord, k: Key) => openRecord(r, k, SUBMISSION);
+export const encryptAuditEntry = (r: AuditEntry, k: Key) => sealRecord(r, k, AUDIT);
+export const decryptAuditEntry = (r: AuditEntry, k: Key) => openRecord(r, k, AUDIT);
 
 // ---------------------------------------------------------------------------
 // OmrTemplateRecord
@@ -631,7 +285,6 @@ import { examRepository } from '$lib/repositories/examRepository';
 import { exerciseRepository } from '$lib/repositories/exerciseRepository';
 import { studentRepository } from '$lib/repositories/studentRepository';
 import { submissionRepository } from '$lib/repositories/submissionRepository';
-import { scoreRepository } from '$lib/repositories/scoreRepository';
 
 export async function loadExamsEncrypted(key: CryptoKey | null): Promise<ExamRecord[]> {
   return examRepository.getAll(key);
@@ -675,37 +328,6 @@ export async function loadSubmissionsEncrypted(key: CryptoKey | null): Promise<S
 export async function saveSubmissionEncrypted(submission: SubmissionRecord, key: CryptoKey | null): Promise<string> {
   await submissionRepository.save(submission, key);
   return submission.id;
-}
-
-// Scores take a leading examId, like every other repository call: they now have
-// a server home, and the route to it is scoped by exam. These three used to
-// write Dexie directly with no storage-mode branch at all, which is how
-// `all-server` grading ended up in a store that `lockSession()` wipes.
-
-export async function loadScoresEncrypted(
-  examId: string,
-  submissionId: string,
-  key: CryptoKey | null
-): Promise<ExerciseScoreRecord[]> {
-  return scoreRepository.getBySubmissionId(examId, submissionId, key);
-}
-
-/** Reset one exercise back to ungraded. */
-export async function deleteScoreEncrypted(
-  examId: string,
-  submissionId: string,
-  exerciseId: string
-): Promise<void> {
-  await scoreRepository.deleteOne(examId, submissionId, exerciseId);
-}
-
-export async function saveScoreEncrypted(
-  examId: string,
-  scoreRec: ExerciseScoreRecord,
-  key: CryptoKey | null
-): Promise<string> {
-  await scoreRepository.saveOne(examId, scoreRec, key);
-  return scoreRec.id;
 }
 
 export interface McGroup {

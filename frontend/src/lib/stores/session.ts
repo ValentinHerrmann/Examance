@@ -114,10 +114,9 @@ function readOrCreateLocalVaultParams(): { salt: Uint8Array; sessionNonce: Uint8
 
   const salt = generateSalt();
   const sessionNonce = generateSessionNonce();
-  // setItemOrThrow, not setItem: these two values ARE the vault. If the write is
-  // swallowed — private mode, blocked site data, quota — the next unlock mints a
-  // fresh salt and nonce, derives a different key over the same IndexedDB, and
-  // every record reads as blank. Failing the unlock is the only honest outcome.
+  // setItemOrThrow, not setItem: a swallowed write here (private mode, blocked
+  // site data, quota) would let the next unlock derive a different key over
+  // the same IndexedDB, silently blanking every record.
   safeLocalStorage.setItemOrThrow(LOCAL_VAULT_KEYS.SALT, uint8ArrayToBase64(salt));
   safeLocalStorage.setItemOrThrow(LOCAL_VAULT_KEYS.NONCE, uint8ArrayToBase64(sessionNonce));
   return { salt, sessionNonce };
@@ -597,11 +596,9 @@ function createSessionStore() {
       const newDerived = await deriveKeyWithFallback(newPassphrase, newSalt);
       const newSessionKey = await deriveSessionKey(newDerived.masterKey, newNonce);
 
-      // The new parameters go in BEFORE the rekey, and through setItemOrThrow.
-      // The old order re-encrypted the whole vault first and only then tried to
-      // persist the salt and nonce it had been re-encrypted under — with a
-      // setter that swallows failure. A blocked write there left every record
-      // sealed under a key nothing could ever derive again.
+      // New parameters go in BEFORE the rekey, via setItemOrThrow: if that
+      // write fails, we bail before the vault is re-encrypted under
+      // parameters nothing could later derive.
       const previousSaltB64 = safeLocalStorage.getItem(LOCAL_VAULT_KEYS.SALT);
       const previousNonceB64 = safeLocalStorage.getItem(LOCAL_VAULT_KEYS.NONCE);
       safeLocalStorage.setItemOrThrow(LOCAL_VAULT_KEYS.SALT, uint8ArrayToBase64(newSalt));
@@ -730,14 +727,9 @@ export const isAuthenticated = derived(
  * Resolves once the root layout has finished restoring the session.
  *
  * Svelte 4 mounts children before their parent, so a route's `onMount` runs
- * *before* `+layout.svelte` has restored keys from sessionStorage, asked the
- * other tabs, or refreshed the access token. Routes that read
- * `get(sessionStore).sessionKey` at mount therefore used to see `null` on every
- * F5 and load a workspace full of blank records — which then got written back.
- *
- * Every route that touches the vault awaits this first. It resolves whether or
- * not the session turned out to be unlocked; the caller still has to check
- * `isUnlocked` and redirect to `/unlock` if it is not.
+ * before `+layout.svelte` restores keys, asks other tabs, or refreshes the
+ * token. Every route that touches the vault must await this first; the
+ * caller still checks `isUnlocked` and redirects to `/unlock` if not.
  */
 let resolveSessionReady: (() => void) | null = null;
 let sessionReadyPromise: Promise<void> = new Promise<void>((resolve) => {

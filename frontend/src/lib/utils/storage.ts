@@ -13,11 +13,9 @@
  * Rule: import from here instead of accessing localStorage / sessionStorage
  * directly.  All functions are synchronous, and the `safe*` ones never throw.
  *
- * `setItemOrThrow` is the deliberate exception. Swallowing a failed write is
- * right for a remembered filter or a collapsed panel, and catastrophic for the
- * local vault's salt and nonce: if those do not persist, the next unlock derives
- * a *different* key over the same IndexedDB and every record reads as blank.
- * Anything whose loss costs data uses `setItemOrThrow` and handles the failure.
+ * `setItemOrThrow` is the deliberate exception: for the vault's salt/nonce, a
+ * swallowed write would let the next unlock derive a different key over the
+ * same IndexedDB, silently blanking every record.
  */
 
 /** Thrown by `setItemOrThrow` when the value could not be persisted. */

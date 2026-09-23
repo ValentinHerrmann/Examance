@@ -24,12 +24,9 @@ import { get, writable } from 'svelte/store';
 import { api } from '$lib/api/client';
 
 /**
- * Drops the in-memory compiled-PDF cache.
- *
- * Imported dynamically on purpose. `+layout.svelte` imports this module, and a
- * static import here pulled `compileCache` -> `compiler` -> the compiler worker
- * asset into the root-layout chunk on every route, purely so that locking a
- * session could empty a Map.
+ * Drops the in-memory compiled-PDF cache. Imported dynamically on purpose —
+ * a static import would pull the compiler worker asset into the root-layout
+ * chunk on every route just to empty a Map.
  */
 async function clearCompileCache(): Promise<void> {
   const { clearCompileCache: clear } = await import('$lib/latex/compileCache');

@@ -222,8 +222,8 @@
         scoresMap.set(activeSub.id, subScores);
       }
 
-      // One write per pasted row instead of one per cell — an import of a
-      // class of 30 over 10 exercises was 300 round-trips in server mode.
+      // One write per pasted row instead of one per cell, to avoid hundreds
+      // of round-trips in server mode (e.g. 30 students x 10 exercises).
       const rowScores: ExerciseScoreRecord[] = [];
       for (let exIdx = 0; exIdx < exercises.length; exIdx++) {
         const ex = exercises[exIdx];

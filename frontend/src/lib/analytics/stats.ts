@@ -1,6 +1,13 @@
 /**
  * Statistics calculations (mean, std dev, median, histogram).
  */
+import type { GradingKeyConfig } from "$lib/db/schema";
+import {
+  calculateClassGradeAverage,
+  calculateGradeDistribution,
+  calculatePassRate,
+  type GradeDistributionBucket,
+} from "./gradingKey";
 
 export interface SummaryStats {
   count: number;
@@ -17,26 +24,14 @@ export interface PercentageEntry {
   percentage: number;
   gradedCount: number;
   totalCount: number;
-  /**
-   * True when every exercise has a score. A false value means `percentage` is
-   * provisional — computed over the exercises corrected so far — and callers
-   * must present it as such rather than mixing it in with finished results.
-   */
+  /** False while some exercise is ungraded: `percentage` is then provisional. */
   isComplete: boolean;
   /** Points achieved so far, and the maximum those graded exercises were worth. */
   gradedPoints: number;
   gradedMaxPoints: number;
 }
 
-/**
- * Percentages are clamped to 0–100.
- *
- * Both ends are reachable. A bonus exercise with `maxPoints: 0` adds its score
- * to the numerator and nothing to the denominator, and MC penalties
- * (`lib/grading/mcScore.ts`) produce negative scores. Unclamped, a 130 % pupil
- * was drawn inside the bar labelled "90-100%", graded a 1, and pulled the class
- * average above what anyone could score.
- */
+/** Bonus exercises (`maxPoints: 0`) and MC penalties push percentages past both ends. */
 function clampPercentage(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.min(100, Math.max(0, value));
@@ -53,7 +48,7 @@ function clampPercentage(value: number): number {
  */
 export function calculateSubmissionPercentage(
   exerciseMaxPoints: number[],
-  exerciseScores: (number | null | undefined)[]
+  exerciseScores: (number | null | undefined)[],
 ): PercentageEntry | null {
   let gradedSum = 0;
   let gradedMaxSum = 0;
@@ -92,11 +87,13 @@ export function calculateSummaryStats(scores: number[]): SummaryStats | null {
   const sum = scores.reduce((acc, x) => acc + x, 0);
   const mean = sum / count;
 
-  const variance = scores.reduce((acc, x) => acc + Math.pow(x - mean, 2), 0) / count;
+  const variance =
+    scores.reduce((acc, x) => acc + Math.pow(x - mean, 2), 0) / count;
   const stdDev = Math.sqrt(variance);
 
   const mid = Math.floor(count / 2);
-  const median = count % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  const median =
+    count % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 
   // Build 5 histogram bins
   const binCount = 5;
@@ -137,18 +134,18 @@ export interface PercentageHistogramBin {
 
 export function calculatePercentageHistogram(
   percentages: number[],
-  provisionalFlags: boolean[] = []
+  provisionalFlags: boolean[] = [],
 ): PercentageHistogramBin[] {
-  const bins: PercentageHistogramBin[] = Array.from({ length: 10 }).map((_, i) => ({
-    binStart: i * 10,
-    binEnd: (i + 1) * 10,
-    count: 0,
-    provisionalCount: 0,
-  }));
+  const bins: PercentageHistogramBin[] = Array.from({ length: 10 }).map(
+    (_, i) => ({
+      binStart: i * 10,
+      binEnd: (i + 1) * 10,
+      count: 0,
+      provisionalCount: 0,
+    }),
+  );
 
   percentages.forEach((p, i) => {
-    // Clamping the value, not just the index: an out-of-range percentage used
-    // to land in the 90-100 bin while still reading as 130 % everywhere else.
     const value = clampPercentage(p);
     let binIdx = Math.floor(value / 10);
     if (binIdx >= 10) binIdx = 9;
@@ -157,4 +154,59 @@ export function calculatePercentageHistogram(
   });
 
   return bins;
+}
+
+/** Integer count axis with one unit of headroom — counts are whole students. */
+export function countAxis(
+  counts: number[],
+  maxTicks: number,
+): { max: number; ticks: number[] } {
+  const max = Math.max(1, ...counts) + 1;
+  const step = Math.max(1, Math.ceil(max / maxTicks));
+  return {
+    max,
+    ticks: Array.from(
+      { length: Math.floor(max / step) + 1 },
+      (_, i) => i * step,
+    ),
+  };
+}
+
+export interface ExamResult extends PercentageEntry {
+  submissionId: string;
+}
+
+/** Everything the exam stats page shows, derived from one list of per-submission results. */
+export interface ExamStats {
+  results: ExamResult[];
+  /** Over percentages; null until something is graded. */
+  summary: SummaryStats | null;
+  meanPoints: number | null;
+  gradeAverage: number | null;
+  passRate: number | null;
+  bins: PercentageHistogramBin[];
+  gradeBuckets: GradeDistributionBucket[];
+}
+
+/** Provisional (partially graded) results are counted, and flagged so charts can mark them. */
+export function summarizeExam(
+  results: ExamResult[],
+  gradingKey?: GradingKeyConfig,
+): ExamStats {
+  const percentages = results.map((r) => r.percentage);
+  const provisional = results.map((r) => !r.isComplete);
+  return {
+    results,
+    summary: calculateSummaryStats(percentages),
+    meanPoints:
+      calculateSummaryStats(results.map((r) => r.gradedPoints))?.mean ?? null,
+    gradeAverage: calculateClassGradeAverage(percentages, gradingKey),
+    passRate: calculatePassRate(percentages, gradingKey),
+    bins: calculatePercentageHistogram(percentages, provisional),
+    gradeBuckets: calculateGradeDistribution(
+      percentages,
+      gradingKey,
+      provisional,
+    ),
+  };
 }

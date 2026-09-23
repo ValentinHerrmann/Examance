@@ -59,10 +59,8 @@ export async function eraseStudent(pseudonymId: string, examId: string): Promise
   submissionsCount = matchingSubs.length;
 
   // Scores go first and OUTSIDE the transaction: in server mode this is a
-  // network call, and a Dexie transaction cannot span one — it would commit or
-  // abort while the request was still in flight. Erasure is the one place where
-  // doing this before the local delete is also the right order: if the server
-  // call fails, the local records are still there to retry against.
+  // network call, which a Dexie transaction can't span. Doing it before the
+  // local delete also means the local records survive to retry if it fails.
   for (const sub of matchingSubs) {
     await scoreRepository.deleteBySubmissionId(examId, sub.id);
   }

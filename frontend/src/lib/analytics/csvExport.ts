@@ -34,12 +34,9 @@ export async function exportGradesToCsv(
   // 1. Audit log export action
   await logExportAction(examId, 'CSV', key);
 
-  // 2. Build RFC 4180 CSV string.
-  //
-  // The old export carried pseudonym, fallback code and total score only — no
-  // max points, no percentage and no grade, i.e. none of what the file is for.
-  // Header stays English: it is a machine-readable interchange format, and
-  // German spreadsheets import it either way.
+  // 2. Build RFC 4180 CSV string. Header stays English: it's a
+  // machine-readable interchange format, and German spreadsheets import it
+  // either way.
   let csvContent =
     'Pseudonym ID,Fallback Code,Student Name,Total Score,Max Points,Percentage,Grade,Status\r\n';
 

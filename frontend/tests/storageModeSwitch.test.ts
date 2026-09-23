@@ -14,7 +14,6 @@ import {
   beginModeSwitch,
   commitModeSwitch,
   finishModeSwitch,
-  isSwitchInProgress,
   localWorkspaceIsEmpty,
   markExported,
   pendingSwitchStore,
@@ -67,7 +66,7 @@ describe('gated switch flow', () => {
     await expect(commitModeSwitch()).rejects.toThrow(/exported/i);
     // Nothing moved: the mode is unchanged and the switch is still open.
     expect(get(storagePolicyStore).storageMode).toBe('all-local');
-    expect(isSwitchInProgress()).toBe(true);
+    expect(get(pendingSwitchStore)?.phase).toBe('export');
   });
 
   it('wipes the local store and switches once the export is recorded', async () => {

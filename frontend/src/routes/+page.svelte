@@ -3,9 +3,7 @@
   import { db } from '$lib/db/db';
   import type { ExamRecord } from '$lib/db/schema';
   import { loadExamsEncrypted, saveExamEncrypted, encryptExam, encryptExercise } from '$lib/db/dbEncryption';
-  import { formatImportSummary, openBgprojArchive } from '$lib/services/archiveService';
-  import ImportConflictModal from '$lib/components/storage/ImportConflictModal.svelte';
-  import type { ArchiveConflict, DecisionMap } from '$lib/archive/conflicts';
+  import { importArchiveInteractively } from '$lib/services/archiveService';
   import { checkRetention, type RetentionCheckResult } from '$lib/gdpr/retention';
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
@@ -33,11 +31,6 @@
   let examsLoadFailed = false;
   let examStatsMap = new Map<string, { avgScore: number | null; count: number }>();
   let isImporting = false;
-  let conflictsOpen = false;
-  let pendingConflicts: ArchiveConflict[] = [];
-  let pendingIdenticalCount = 0;
-  let resolveConflicts: ((decisions: DecisionMap) => void) | null = null;
-  let rejectConflicts: ((reason: Error) => void) | null = null;
   let importStatus = '';
   let isInitializing = true;
   let expiredExam: { exam: ExamRecord; check: RetentionCheckResult } | null = null;
@@ -73,8 +66,8 @@
 
   onMount(async () => {
     try {
-      // Before this, the check below ran against a session the layout had not
-      // restored yet, so a reload bounced to /unlock with valid keys in hand.
+      // Must run before the check below, or it can run against a session the
+      // layout hasn't restored yet, bouncing a reload to /unlock.
       await awaitSessionReady();
       if (!$isUnlocked) {
         goto("/unlock");
@@ -87,9 +80,6 @@
   });
 
   async function refreshExams() {
-    // Svelte 4 mounts routes before the root layout restores the session, so
-    // without this the vault is read with a null key on every reload and the
-    // whole workspace comes back blank.
     await awaitSessionReady();
     examsLoadFailed = false;
     const key = get(sessionStore).sessionKey;
@@ -268,61 +258,20 @@
     }
   }
 
-  function askAboutConflicts(
-    conflicts: ArchiveConflict[],
-    identicalCount: number
-  ): Promise<DecisionMap> {
-    pendingConflicts = conflicts;
-    pendingIdenticalCount = identicalCount;
-    conflictsOpen = true;
-    return new Promise<DecisionMap>((resolve, reject) => {
-      resolveConflicts = resolve;
-      rejectConflicts = reject;
-    });
-  }
-
-  function handleConflictsConfirmed(decisions: DecisionMap) {
-    conflictsOpen = false;
-    resolveConflicts?.(decisions);
-    resolveConflicts = null;
-    rejectConflicts = null;
-  }
-
-  function handleConflictsCancelled() {
-    conflictsOpen = false;
-    rejectConflicts?.(new Error(translate('workspace.archive.importCancelled')));
-    resolveConflicts = null;
-    rejectConflicts = null;
-  }
-
   async function handleImportArchive(event: Event) {
     const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
-    const file = input.files[0];
-
-    const password = prompt(translate('dashboard.importPasswordPrompt'));
-    if (!password) return;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
 
     isImporting = true;
     importStatus = translate('dashboard.importDecrypting');
-
     try {
-      // Through the service, which decrypts first and asks about collisions
-      // before it writes. This used to call clearAllTables() up front, so a
-      // wrong password destroyed the workspace and imported nothing.
-      const res = await openBgprojArchive(file, password, {
-        mode: 'merge',
-        resolve: askAboutConflicts,
-      });
-
-      alert(formatImportSummary(res));
-      await refreshExams();
-    } catch (err: any) {
-      alert(translate('dashboard.importFailed', { message: err.message }));
+      // The conflict dialog is the one mounted in the root layout.
+      if (await importArchiveInteractively(file)) await refreshExams();
     } finally {
       isImporting = false;
       importStatus = '';
-      input.value = '';
     }
   }
 
@@ -340,8 +289,7 @@
     if (!expiredExam) return;
     const examId = expiredExam.exam.id;
 
-    // Shared cascade: the copy that used to live here also skipped
-    // exerciseResources, examMcGroups and omrTemplates.
+    // Shared cascade so no owned table is missed.
     await examRepository.deleteLocalCascade(examId);
     expiredExam = null;
     await refreshExams();
@@ -422,11 +370,3 @@
     </div>
   {/if}
 </PageShell>
-
-<ImportConflictModal
-  open={conflictsOpen}
-  conflicts={pendingConflicts}
-  identicalCount={pendingIdenticalCount}
-  onConfirm={handleConflictsConfirmed}
-  onCancel={handleConflictsCancelled}
-/>

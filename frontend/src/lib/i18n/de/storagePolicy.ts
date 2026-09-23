@@ -9,11 +9,6 @@ export const storagePolicy = {
     allServerTitle: 'Alles wird auf dem Backend-Server gespeichert und synchronisiert',
     hybridTitle: 'Aufgaben & Prüfungen auf dem Server, Schülerdaten & Abgaben lokal',
 
-    /**
-     * The gated mode-switch wizard. Switching storage modes moves nothing on
-     * its own — the archive is the only bridge — so the wording has to make the
-     * export feel like part of the switch rather than a chore before it.
-     */
     switch: {
         title: 'Speicherort wechseln',
         stepExplain: 'Überblick',
@@ -31,11 +26,8 @@ export const storagePolicy = {
         exportHeading: 'Arbeitsbereich sichern',
         exportBody:
             'Vergeben Sie ein Passwort für das Archiv. Ohne dieses Passwort lässt sich die Datei nicht wiederherstellen — bewahren Sie es sicher auf.',
-        exportPasswordLabel: 'Archiv-Passwort',
         exportButton: 'Archiv herunterladen',
-        exportRunning: 'Archiv wird erstellt…',
         exportDone: 'Archiv gespeichert: {filename}',
-        exportFailed: 'Export fehlgeschlagen: {message}',
         exportRequired: 'Der Wechsel ist erst nach dem Export möglich.',
         skipExportEmpty: 'Der Arbeitsbereich ist leer — ohne Export fortfahren',
         skipExportHaveArchive: 'Ich habe bereits ein aktuelles Archiv',
@@ -43,17 +35,10 @@ export const storagePolicy = {
         wipeWarning:
             'Dieser Schritt löscht den lokalen Arbeitsbereich unwiderruflich und stellt den Speicherort auf "{to}" um.',
         wipeButton: 'Jetzt wechseln',
-        switching: 'Wird gewechselt…',
         importHeading: 'Archiv im neuen Speicherort einlesen',
         importBody:
             'Lesen Sie das eben erstellte Archiv jetzt ein, damit Ihre Prüfungen im neuen Speicherort zur Verfügung stehen.',
-        importChooseFile: 'Archivdatei wählen',
-        importPasswordLabel: 'Archiv-Passwort',
-        importButton: 'Archiv einlesen',
-        importRunning: 'Archiv wird eingelesen…',
         importSkip: 'Später einlesen',
-        doneHeading: 'Wechsel abgeschlossen',
-        doneBody: 'Der Speicherort ist jetzt "{to}".',
         resumeBanner: 'Ein Speicherort-Wechsel ist noch nicht abgeschlossen.',
         resumeBody:
             'Der Arbeitsbereich wurde geleert und auf "{to}" umgestellt. Lesen Sie Ihr Archiv ein, um weiterzuarbeiten.',
@@ -65,11 +50,6 @@ export const storagePolicy = {
             'Der lokale Speicher wurde bereits geleert — der Wechsel lässt sich nicht mehr zurücknehmen.',
     },
 
-    /**
-     * Import conflict resolution. Shown one record at a time with both versions
-     * side by side, because the teacher is the only one who can tell which copy
-     * is the one they want to keep.
-     */
     conflict: {
         title: 'Unterschiede beim Import',
         subtitle:
@@ -83,14 +63,11 @@ export const storagePolicy = {
         copyNotAllowed:
             'Für Schülerdaten und Abgaben ist keine Kopie möglich — doppelte Pseudonyme sind datenschutzrechtlich nicht zulässig.',
         applyToAll: 'Für alle übernehmen',
-        applyToAllInGroup: 'Für alle in dieser Kategorie übernehmen',
         apply: 'Import starten',
         cancel: 'Import abbrechen',
         cancelConfirm: 'Import abbrechen? Es wurde noch nichts geschrieben.',
         identicalSkipped: '{count} identische Datensätze werden übersprungen.',
         noValue: '—',
-        yes: 'ja',
-        no: 'nein',
         textDiffHeading: 'Inhalt',
         kind: {
             exam: 'Prüfung',

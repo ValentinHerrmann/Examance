@@ -1,22 +1,11 @@
 /**
  * Import a .bgproj archive.
  *
- * Split in two on purpose. `decryptArchive()` opens the envelope and touches
- * nothing else — no tables, no session, no stores — so a wrong password or a
- * truncated file costs nothing. `applyArchive()` writes, and only ever runs
- * once decryption succeeded and every conflict has a decision.
- *
- * Two things this deliberately no longer does:
- *
- * - It does not wipe the workspace. `archiveService.openBgprojArchive()` used
- *   to call `clearAllTables()` *before* checking the password, so a typo cost
- *   the teacher everything they had.
- * - It does not replace the live session key with the archive's. It used to
- *   call `sessionStore.unlock()` with a key derived from the archive's own
- *   random salt, which the vault cannot re-derive: everything written during
- *   and after the import was sealed under a key that died with the tab. The
- *   archive key opens the envelope; the records are re-encrypted under the
- *   *live* session key.
+ * Split in two: `decryptArchive()` only opens the envelope — no tables, no
+ * session, no stores touched — so a wrong password costs nothing.
+ * `applyArchive()` writes, and only once decryption succeeded and every
+ * conflict has a decision. Never call `sessionStore.unlock()` with the
+ * archive key; records are re-encrypted under the live session key.
  */
 
 import { get } from 'svelte/store';
@@ -52,10 +41,8 @@ export interface ImportResult {
 }
 
 /**
- * Opens the archive envelope and returns its payload.
- *
- * Read-only with respect to everything in the app: no table is touched, no
- * store is written, and the archive key never leaves this function.
+ * Opens the archive envelope and returns its payload. Read-only: no table or
+ * store is touched, and the archive key never leaves this function.
  */
 export async function decryptArchive(
   archiveData: Blob | ArrayBuffer | Uint8Array,
@@ -143,9 +130,8 @@ export async function applyArchive(
   payload: Record<string, any>,
   onProgress?: (event: ProgressEvent) => void
 ): Promise<ImportResult> {
-  // The LIVE session key, never the archive's. Records arrive here already
-  // decrypted — `packer.ts` unseals every record before serialising — so there
-  // is nothing to open, only to re-seal under the key this vault can derive.
+  // Always the live session key, never the archive's — records arrive already
+  // decrypted and only need re-sealing under this vault's key.
   const activeKey = get(sessionStore).sessionKey;
   if (!activeKey) {
     throw new Error('Unlock the session before importing an archive.');
@@ -161,9 +147,8 @@ export async function applyArchive(
   const isServerBacked = get(storagePolicyStore).storageMode !== 'all-local';
   const errors: string[] = [];
   let idMap = new Map<string, string>();
-  // Filled by the server import, so the local mirror uses the very ids the
-  // server created. The two halves used to mint group ids independently, which
-  // left the local groups pointing at ids the server had never heard of.
+  // Filled by the server import so the local mirror uses the same group ids
+  // the server created.
   let mcGroupIdMap = new Map<string, string>();
 
   const exams: any[] = Array.isArray(payload.exams) ? payload.exams : [];
@@ -219,9 +204,8 @@ export async function applyArchive(
   }
 
   if (Array.isArray(payload.exerciseScores)) {
-    // Scores are addressed per exam now that they have a server home, and the
-    // archive only records which submission they belong to — so the exam comes
-    // from that submission, under whatever id it was actually created with.
+    // Scores are addressed per exam; the archive only records which submission
+    // they belong to, so the exam id comes from that submission.
     const examIdBySubmission = new Map<string, string>();
     for (const sub of Array.isArray(payload.submissions) ? payload.submissions : []) {
       examIdBySubmission.set(sub.id, remap(sub.examId) ?? sub.examId);
@@ -308,14 +292,11 @@ export async function applyArchive(
   return { examCount, studentCount, errors };
 }
 
-
 /**
- * Decrypt and write in one call, with no conflict resolution.
- *
- * Kept for callers that have no way to present conflicts — the archive tests,
- * and any path importing into a workspace known to be empty. Anything
- * user-facing should go through `archiveService.openBgprojArchive()`, which
- * asks before overwriting.
+ * Decrypt and write in one call, with no conflict resolution. Kept for
+ * callers with no way to present conflicts (tests, imports into an empty
+ * workspace); user-facing imports should go through
+ * `archiveService.openBgprojArchive()`.
  */
 export async function unpackProject(
   archiveData: Blob | ArrayBuffer | Uint8Array,

@@ -6,10 +6,9 @@ export interface QueuedRequest {
   id: string;
   url: string;
   /**
-   * PUT is here for the per-exercise score endpoint, whose rows are keyed by
-   * (submission, exercise) rather than by the client's id. That makes the write
-   * idempotent, which is the precondition for replaying it at all — a queued
-   * create-only POST can never succeed on a second attempt.
+   * PUT is here for the per-exercise score endpoint, keyed by
+   * (submission, exercise) rather than the client's id — idempotent, which is
+   * required to safely replay it from the queue.
    */
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: any;

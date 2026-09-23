@@ -119,9 +119,6 @@
 
   /** Loads the exam's OMR template + MC answer key, gating auto-grading on a fresh (non-stale) template. */
   async function loadOmrContext() {
-    // Svelte 4 mounts routes before the root layout restores the session, so
-    // without this the vault is read with a null key on every reload and the
-    // whole workspace comes back blank.
     await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
     try {
@@ -196,9 +193,6 @@
   });
 
   async function loadScannedSubmissions() {
-    // Svelte 4 mounts routes before the root layout restores the session, so
-    // without this the vault is read with a null key on every reload and the
-    // whole workspace comes back blank.
     await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
     const submissions = await submissionRepository.getByExamId(examId, key);
@@ -645,9 +639,6 @@
   }
 
   async function refreshUnmatched() {
-    // Svelte 4 mounts routes before the root layout restores the session, so
-    // without this the vault is read with a null key on every reload and the
-    // whole workspace comes back blank.
     await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
     const students = await studentRepository.getByExamId(examId, key);
@@ -988,9 +979,8 @@
       );
 
       const omrResults = omrResultsByPseudonym.get(booklet.pseudonymId) ?? [];
-      // Accumulated and written once per booklet: ingesting a scanned class was
-      // one write per MC question per pupil, which in server mode is hundreds
-      // of sequential requests.
+      // Accumulated and written once per booklet, to avoid one write per MC
+      // question per pupil — hundreds of sequential requests in server mode.
       const omrScores: ExerciseScoreRecord[] = omrResults.map((r) => {
         const failed = r.confidence === "failed";
         return {

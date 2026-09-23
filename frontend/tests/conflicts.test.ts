@@ -16,7 +16,6 @@ const conflict = (
   title: id,
   fields: [],
   allowCopy,
-  identical: false,
 });
 
 const payload = () => ({

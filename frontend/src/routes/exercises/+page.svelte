@@ -242,9 +242,6 @@
   });
 
   async function loadExercises() {
-    // Svelte 4 mounts routes before the root layout restores the session, so
-    // without this the vault is read with a null key on every reload and the
-    // whole workspace comes back blank.
     await awaitSessionReady();
     isLoading = true;
     errorMsg = "";

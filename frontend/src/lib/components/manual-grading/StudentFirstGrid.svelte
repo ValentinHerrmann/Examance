@@ -100,9 +100,9 @@
       scoresMap.set(currentSub.id, subScores);
     }
 
-    // Collected and written in one call rather than per exercise: the
-    // repository reconciles on (submissionId, exerciseId), so the
-    // existing-row lookup that used to sit in this loop is gone.
+    // Collected and written in one call rather than per exercise — the
+    // repository reconciles on (submissionId, exerciseId), so no per-row
+    // lookup is needed here.
     const toSave: ExerciseScoreRecord[] = [];
     const toClear: string[] = [];
 

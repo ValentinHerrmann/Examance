@@ -143,12 +143,8 @@ async function initRunner(onStatus: (status: string) => void) {
 }
 
 /**
- * The bundled LaTeX assets, fetched once per worker.
- *
- * This used to run inside `runCompile`, so every compile re-fetched
- * `/latex-assets/index.json` and all 13 files behind it — and a preview
- * compiles Angabe and Lösung separately, so one preview click was ~28 requests
- * and ~830 KB of assets that had not changed since the page loaded.
+ * The bundled LaTeX assets, fetched once per worker and cached — a compile
+ * should not re-fetch `/latex-assets/index.json` and its files every time.
  */
 let additionalFilesPromise: Promise<{ path: string; content: Uint8Array }[]> | null = null;
 
@@ -282,11 +278,9 @@ self.onmessage = (e: MessageEvent) => {
     try {
       let result = await runCompile();
 
-      // At most one cache-wipe recovery per worker. The pattern cannot tell
-      // "the cached package data is corrupt" from "this document \\usepackage's
-      // something we do not ship", so without the guard a teacher whose
-      // document referenced an unavailable package paid a full multi-hundred-MB
-      // TeX Live re-download on every compile attempt, forever.
+      // At most one cache-wipe recovery per worker: the pattern can't tell a
+      // corrupted cache from a document referencing a package we don't ship,
+      // so without this guard that case re-downloads TeX Live on every retry.
       if (
         !result.success &&
         !cacheRecoveryAttempted &&
@@ -327,12 +321,8 @@ self.onmessage = (e: MessageEvent) => {
           missingGraphics: extractMissingGraphics(result.log)
         });
       } else {
-        // The engine is NOT reset here. `result.success === false` is the
-        // ordinary outcome of a typo in the teacher's LaTeX, and tearing the
-        // runner down meant the next attempt re-ran ensureAssetCacheIsFresh(),
-        // three isPackageCached() calls, a fresh BusyTexRunner and a full
-        // re-mount of all three TeX Live bundles. Iterating on a document with
-        // an error cost the whole engine boot every single time.
+        // Not reset here — an ordinary compile error (e.g. a LaTeX typo)
+        // shouldn't force a full engine reboot on the next attempt.
         self.postMessage({ id, success: false, error: result.log || "Compilation failed" });
       }
     } catch (error: any) {

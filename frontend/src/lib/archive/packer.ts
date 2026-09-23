@@ -18,9 +18,7 @@ import {
   SALT_OFFSET,
   NONCE_OFFSET,
   PAYLOAD_OFFSET,
-  type BgprojHeader,
   type ProgressCallback,
-  type ProgressEventData,
 } from './format';
 import { deriveKey, generateSalt } from '$lib/crypto/keyDerivation';
 import { deriveSessionKey } from '$lib/crypto/sessionKey';
@@ -49,8 +47,7 @@ export async function packProject(
   const nonce = new Uint8Array(12);
   crypto.getRandomValues(nonce);
 
-  // 2. Derive the fresh master key. The per-archive HMAC secret this used to
-  // derive alongside it is gone with the re-hashing it fed — see step 4.
+  // 2. Derive the fresh master key.
   const { masterKey } = await deriveKey(password, salt);
 
   // 3. Collect records from IDB
@@ -59,15 +56,13 @@ export async function packProject(
   const exercises = await loadExercisesEncrypted(key);
   const students = await loadStudentsEncrypted(key);
   const submissions = await loadSubmissionsEncrypted(key);
-  // Through the repository: reading Dexie directly meant an export taken in
-  // all-server mode packed whatever the local cache happened to hold, which is
-  // nothing at all right after a lock wiped it.
+  // Through the repository, not Dexie directly — in all-server mode the local
+  // cache can be empty (e.g. right after a lock).
   const exerciseScores = await scoreRepository.getAll(exams.map((e) => e.id), key);
   const rawAuditLogs = await db.auditLog.toArray();
 
-  // Exercise links and MC groups, per exam, through the repository. Reading the
-  // Dexie tables directly meant a server-mode export packed exams with no
-  // exercises and no MC groups — the local cache is empty there after a lock.
+  // Exercise links and MC groups, per exam, through the repository for the
+  // same reason: the local Dexie tables can be empty in server-backed modes.
   const structures = await Promise.all(exams.map((e) => examRepository.getStructure(e.id)));
   const exerciseExams = structures.flatMap((s) => s.links);
   const examMcGroups = structures.flatMap((s) => s.mcGroups);
@@ -95,19 +90,10 @@ export async function packProject(
     message: 'Encrypting database records...',
   });
 
-  // 4. Students and submissions are archived exactly as they are.
-  //
-  // This used to re-HMAC both sides under a per-archive secret — but
-  // asymmetrically: the student got `HMAC(pseudonymId)` written into a field
-  // `StudentRecord` is not keyed on, while the submission's `pseudonymHash` was
-  // *replaced* by `HMAC(the hash it already held)`. After a round-trip the two
-  // no longer matched, so every imported submission came back unattributed and
-  // fell through to showing the first eight characters of its own hash.
-  //
-  // Re-hashing bought nothing either: the whole payload is already sealed under
-  // the archive key, and the raw `pseudonymId` travels inside it on the student
-  // record regardless. Leaving the link field alone preserves the relationship
-  // exactly as it exists locally, which is what makes a round-trip lossless.
+  // 4. Students and submissions are archived exactly as they are, with no
+  // re-hashing: the payload is already sealed under the archive key, and
+  // leaving the student/submission link field alone is what keeps a
+  // round-trip lossless.
   const archivePayload = {
     exams,
     exercises,

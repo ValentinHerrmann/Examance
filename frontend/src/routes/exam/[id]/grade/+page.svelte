@@ -58,9 +58,6 @@
     : null;
 
   onMount(async () => {
-    // Svelte 4 mounts routes before the root layout restores the session, so
-    // without this the vault is read with a null key on every reload and the
-    // whole workspace comes back blank.
     await awaitSessionReady();
     if (!examId) return;
     if (!get(isUnlocked)) {
@@ -183,10 +180,9 @@
 
       // Encrypt annotations vector layer.
       //
-      // "No strokes" and "no key to encrypt them with" are different answers.
-      // The old code collapsed them: a save made while the session key was
-      // missing cleared the teacher's corrections instead of refusing, and
-      // `saveSubmissionEncrypted` then pushed that emptiness to the server.
+      // "No strokes" and "no key to encrypt them with" are different answers:
+      // saving without a session key must refuse, not silently clear the
+      // teacher's corrections.
       const currentStrokes = get(gradingStore).currentStrokes;
       let clearAnnotations = false;
       if (!$sessionStore.sessionKey) {

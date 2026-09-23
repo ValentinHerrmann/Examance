@@ -158,12 +158,8 @@
       // Save backend URL to localStorage ONLY after a factor was accepted
       backendStore.saveSuccessfulBackendUrl(trimmedBackendUrl);
 
-      // Signing in used to flip all-local -> all-server right here, silently and
-      // with no migration. The next idle lock then ran wipeDatabase(), which in
-      // all-server mode deletes the whole local database — so working locally,
-      // signing in once and walking away destroyed the workspace. The mode is
-      // the teacher's choice now and only changes through the gated switch in
-      // settings, which exports an archive first.
+      // Storage mode is not changed here on sign-in — it only changes through
+      // the gated switch in settings, which exports an archive first.
 
       await handleAuthStep(step);
     } catch (err: any) {
@@ -535,9 +531,8 @@
 
     isLoading = true;
     try {
-      // Unlocking a local vault deliberately does not change the configured
-      // storage mode either: it is the counterpart of the flip removed above,
-      // and a mode change without an export is what loses data.
+      // Unlocking deliberately does not change the configured storage mode —
+      // that only happens through the gated switch, which exports first.
       if (needsLegacyMigration) {
         // Re-encrypts the existing vault away from the password that used to
         // sit in localStorage. Nothing is deleted unless this succeeds.

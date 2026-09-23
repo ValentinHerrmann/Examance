@@ -15,7 +15,6 @@ import { get } from 'svelte/store';
 import { db } from '$lib/db/db';
 import { scoreRepository } from '$lib/repositories/scoreRepository';
 import {
-  decryptScore,
   decryptStudent,
   decryptSubmission,
   encryptAuditEntry,

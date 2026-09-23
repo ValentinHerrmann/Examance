@@ -39,15 +39,9 @@
 #
 # If the build step is skipped the placeholder survives, browsers ignore the
 # unknown source expression, and inline script stays blocked — fail-closed.
-# Cache-Control. This file set none at all, so Cloudflare Pages served
-# everything with its default `public, max-age=0, must-revalidate` — every
-# busytex chunk, every /latex-assets file and every content-hashed
-# _app/immutable chunk revalidated on every single page load. The busytex
-# bundles are hundreds of megabytes across their gzipped parts; revalidating
-# them per load is most of why a local LaTeX compile "takes ages".
-#
-# The rules below are ordered least- to most-specific because Pages applies
-# every matching rule and the later one wins.
+# Cache-Control: busytex/LaTeX assets are large and rarely change; explicit
+# rules avoid revalidating them on every load. Ordered least- to
+# most-specific — Pages applies every matching rule and the later one wins.
 
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' __INLINE_SCRIPT_HASHES__; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' blob: https: http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
@@ -63,12 +57,9 @@
 /_app/immutable/*
   Cache-Control: public, max-age=31536000, immutable
 
-# TeX Live bundles and the flattened LaTeX assets. Not content-hashed, but they
-# only change when the app is redeployed, and the compiler worker already
-# detects a redeploy itself: it fingerprints chunk-manifest.json in IndexedDB
-# and clears its package cache when that changes (compiler.worker.ts). The
-# manifest itself is therefore deliberately NOT immutable — it is the signal
-# that the rest went stale, so it has to be revalidated.
+# TeX Live bundles and LaTeX assets: not content-hashed, but only change on
+# redeploy, which compiler.worker.ts detects via chunk-manifest.json — so the
+# manifest below is deliberately NOT immutable.
 /core/busytex/*
   Cache-Control: public, max-age=31536000, immutable
 

@@ -32,11 +32,7 @@
     dispatch("close");
   }
 
-  /**
-   * Hands off to the gated wizard. This used to be
-   * confirm() -> wipeDatabase() -> set mode -> reload, which destroyed the
-   * local workspace with no export and no check on what the destination held.
-   */
+  /** Hands off to the gated storage-mode-switch wizard, which exports first. */
   function handleStorageModeChange(val: StorageMode) {
     if (val === $storagePolicyStore.storageMode) return;
     switchTarget = val;

@@ -1,45 +1,32 @@
 /**
- * Per-exercise grading results.
- *
- * Until this existed, scores were written straight to Dexie by
- * `saveScoreEncrypted()` with no storage-mode branch and no server counterpart —
- * in every mode, including `all-server`, where `lockSession()` wipes IndexedDB
- * on the 60-minute idle timeout. Grading an exam on the server and walking away
- * destroyed every per-question score, MC selection and OMR result; only the
- * submission's `totalScore` survived.
- *
- * Mode branching matches `submissionRepository`: scores are grading results, so
- * `hybrid` keeps them local by design, and only `all-server` goes to the API.
- * The payload stays opaque to the server — `encryptScore()` seals score,
- * `selectedOptions` and `omrMeta` together before it leaves the browser.
+ * Per-exercise grading results. Local in `all-local`/`hybrid` (IndexedDB),
+ * server-side in `all-server` (`/exams/{id}/submissions/{id}/scores`). The
+ * payload — score, selected options, OMR metadata — is sealed client-side
+ * either way; the server only ever stores the ciphertext.
  */
 
-import { get } from 'svelte/store';
 import { api } from '$lib/api/client';
 import { db } from '$lib/db/db';
-import { storagePolicyStore } from '$lib/stores/storagePolicy';
+import { resultsAreLocal } from '$lib/stores/storagePolicy';
 import { encryptScore, decryptScore } from '$lib/db/dbEncryption';
 import { enqueueRequest } from '$lib/services/offlineQueue';
 import { uint8ArrayToBase64, base64ToUint8Array } from '$lib/crypto/aesGcm';
 import type { ExerciseScoreRecord } from '$lib/db/schema';
 
-/** True when scores live in IndexedDB rather than on the server. */
-function isLocalScoreStore(): boolean {
-  const mode = get(storagePolicyStore).storageMode;
-  return mode === 'all-local' || mode === 'hybrid';
-}
+const submissionPath = (examId: string, submissionId: string) =>
+  `/exams/${examId}/submissions/${submissionId}/scores`;
 
-export function mapApiToScoreRecord(s: any): ExerciseScoreRecord {
+function fromApi(s: any): ExerciseScoreRecord {
   return {
     id: s.id,
-    submissionId: s.submission_id ?? s.submissionId,
-    exerciseId: s.exercise_id ?? s.exerciseId,
+    submissionId: s.submission_id,
+    exerciseId: s.exercise_id,
     payloadCt: s.payload_ciphertext_b64 ? base64ToUint8Array(s.payload_ciphertext_b64) : undefined,
     payloadIv: s.payload_iv_b64 ? base64ToUint8Array(s.payload_iv_b64) : undefined,
   };
 }
 
-function mapScoreRecordToApi(s: ExerciseScoreRecord): Record<string, unknown> {
+function toApi(s: ExerciseScoreRecord) {
   return {
     id: s.id,
     exercise_id: s.exerciseId,
@@ -48,70 +35,50 @@ function mapScoreRecordToApi(s: ExerciseScoreRecord): Record<string, unknown> {
   };
 }
 
+async function openAll(rows: ExerciseScoreRecord[], key: CryptoKey | null) {
+  return Promise.all(rows.map((row) => decryptScore(row, key)));
+}
+
+/** GET that degrades to "no scores" — callers render an empty grid, not a modal. */
+async function fetchScores(path: string, key: CryptoKey | null) {
+  try {
+    return openAll((await api.get<any[]>(path, { silentError: true })).map(fromApi), key);
+  } catch {
+    return [];
+  }
+}
+
+/** Server write with offline-queue fallback. Safe to replay: the endpoints are idempotent. */
+async function send(method: 'PUT' | 'DELETE', path: string, body?: unknown) {
+  try {
+    if (method === 'PUT') await api.put(path, body, { silentError: true });
+    else await api.delete(path, { silentError: true });
+  } catch {
+    enqueueRequest(path, method, body);
+  }
+}
+
 export const scoreRepository = {
-  async getBySubmissionId(
-    examId: string,
-    submissionId: string,
-    key: CryptoKey | null
-  ): Promise<ExerciseScoreRecord[]> {
-    if (isLocalScoreStore()) {
-      const raw = await db.exerciseScores.where('submissionId').equals(submissionId).toArray();
-      return Promise.all(raw.map((sc) => decryptScore(sc, key)));
-    }
-    try {
-      const rows = await api.get<any[]>(
-        `/exams/${examId}/submissions/${submissionId}/scores`,
-        { silentError: true }
-      );
-      return Promise.all(rows.map((r) => decryptScore(mapApiToScoreRecord(r), key)));
-    } catch {
-      return [];
-    }
+  async getBySubmissionId(examId: string, submissionId: string, key: CryptoKey | null) {
+    if (!resultsAreLocal()) return fetchScores(submissionPath(examId, submissionId), key);
+    return openAll(await db.exerciseScores.where('submissionId').equals(submissionId).toArray(), key);
+  },
+
+  /** Every score in one exam, in one read. */
+  async getByExamId(examId: string, key: CryptoKey | null) {
+    if (!resultsAreLocal()) return fetchScores(`/exams/${examId}/scores`, key);
+    const submissionIds = await db.submissions.where('examId').equals(examId).primaryKeys();
+    return openAll(await db.exerciseScores.where('submissionId').anyOf(submissionIds).toArray(), key);
+  },
+
+  async getAll(examIds: string[], key: CryptoKey | null) {
+    if (resultsAreLocal()) return openAll(await db.exerciseScores.toArray(), key);
+    return (await Promise.all(examIds.map((id) => this.getByExamId(id, key)))).flat();
   },
 
   /**
-   * Every score in one exam, in a single request.
-   *
-   * The stats and analytics pages used `db.exerciseScores.toArray()` — every
-   * score row in the database, for every exam and every year, decrypted on each
-   * render. This is the scoped replacement.
-   */
-  async getByExamId(examId: string, key: CryptoKey | null): Promise<ExerciseScoreRecord[]> {
-    if (isLocalScoreStore()) {
-      const submissionIds = (await db.submissions.where('examId').equals(examId).toArray()).map(
-        (s) => s.id
-      );
-      const idSet = new Set(submissionIds);
-      const raw = (await db.exerciseScores.toArray()).filter((sc) => idSet.has(sc.submissionId));
-      return Promise.all(raw.map((sc) => decryptScore(sc, key)));
-    }
-    try {
-      const rows = await api.get<any[]>(`/exams/${examId}/scores`, { silentError: true });
-      return Promise.all(rows.map((r) => decryptScore(mapApiToScoreRecord(r), key)));
-    } catch {
-      return [];
-    }
-  },
-
-  /** Every score the workspace holds. Used by cross-exam analytics and export. */
-  async getAll(
-    examIds: string[],
-    key: CryptoKey | null
-  ): Promise<ExerciseScoreRecord[]> {
-    if (isLocalScoreStore()) {
-      const raw = await db.exerciseScores.toArray();
-      return Promise.all(raw.map((sc) => decryptScore(sc, key)));
-    }
-    const perExam = await Promise.all(examIds.map((id) => this.getByExamId(id, key)));
-    return perExam.flat();
-  },
-
-  /**
-   * Write a set of scores for one submission.
-   *
-   * The server call is a PUT and the row's identity is
-   * `(submissionId, exerciseId)`, so a replay from the offline queue updates in
-   * place instead of colliding — which is what makes queueing it safe.
+   * Writes a submission's scores. Rows are identified by
+   * (submissionId, exerciseId) in both stores, so a re-save never duplicates.
    */
   async saveMany(
     examId: string,
@@ -120,68 +87,32 @@ export const scoreRepository = {
     key: CryptoKey | null
   ): Promise<void> {
     if (scores.length === 0) return;
-    const sealed = await Promise.all(
-      scores.map((s) => encryptScore({ ...s, submissionId }, key))
-    );
+    const sealed = await Promise.all(scores.map((s) => encryptScore({ ...s, submissionId }, key)));
 
-    if (isLocalScoreStore()) {
-      // Reconcile on (submissionId, exerciseId): the pair is the real identity,
-      // and a fresh client-side uuid for an exercise already scored would
-      // otherwise leave two rows and a double-counted total.
-      const existing = await db.exerciseScores.where('submissionId').equals(submissionId).toArray();
-      const byExercise = new Map(existing.map((row) => [row.exerciseId, row.id]));
-      const rows = sealed.map((row) => ({ ...row, id: byExercise.get(row.exerciseId) ?? row.id }));
-      await db.exerciseScores.bulkPut(rows);
-      return;
+    if (!resultsAreLocal()) {
+      return send('PUT', submissionPath(examId, submissionId), { scores: sealed.map(toApi) });
     }
-
-    const payload = { scores: sealed.map(mapScoreRecordToApi) };
-    const path = `/exams/${examId}/submissions/${submissionId}/scores`;
-    try {
-      await api.put(path, payload, { silentError: true });
-    } catch {
-      enqueueRequest(path, 'PUT', payload);
-    }
+    const existing = await db.exerciseScores.where('submissionId').equals(submissionId).toArray();
+    const idOf = new Map(existing.map((row) => [row.exerciseId, row.id]));
+    await db.exerciseScores.bulkPut(sealed.map((row) => ({ ...row, id: idOf.get(row.exerciseId) ?? row.id })));
   },
 
-  async saveOne(
-    examId: string,
-    score: ExerciseScoreRecord,
-    key: CryptoKey | null
-  ): Promise<void> {
-    await this.saveMany(examId, score.submissionId, [score], key);
+  saveOne(examId: string, score: ExerciseScoreRecord, key: CryptoKey | null) {
+    return this.saveMany(examId, score.submissionId, [score], key);
   },
 
-  /** Reset one exercise back to ungraded. */
   async deleteOne(examId: string, submissionId: string, exerciseId: string): Promise<void> {
-    if (isLocalScoreStore()) {
-      await db.exerciseScores
-        .where('submissionId')
-        .equals(submissionId)
-        .and((row) => row.exerciseId === exerciseId)
-        .delete();
-      return;
-    }
-    const path = `/exams/${examId}/submissions/${submissionId}/scores/${exerciseId}`;
-    try {
-      await api.delete(path, { silentError: true });
-    } catch {
-      enqueueRequest(path, 'DELETE');
-    }
+    if (!resultsAreLocal()) return send('DELETE', `${submissionPath(examId, submissionId)}/${exerciseId}`);
+    await db.exerciseScores
+      .where('submissionId')
+      .equals(submissionId)
+      .and((row) => row.exerciseId === exerciseId)
+      .delete();
   },
 
+  /** Local rows go in every mode, so a later fallback read cannot resurrect them. */
   async deleteBySubmissionId(examId: string, submissionId: string): Promise<void> {
-    // The local rows are dropped in every mode: in server mode they are a cache
-    // of what the server holds, and leaving them behind would resurrect deleted
-    // scores the next time a read fell back to Dexie.
     await db.exerciseScores.where('submissionId').equals(submissionId).delete();
-    if (isLocalScoreStore()) return;
-
-    const path = `/exams/${examId}/submissions/${submissionId}/scores`;
-    try {
-      await api.delete(path, { silentError: true });
-    } catch {
-      enqueueRequest(path, 'DELETE');
-    }
+    if (!resultsAreLocal()) await send('DELETE', submissionPath(examId, submissionId));
   },
 };

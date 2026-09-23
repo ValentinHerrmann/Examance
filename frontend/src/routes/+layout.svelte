@@ -12,10 +12,7 @@
     isAuthenticated,
     markSessionReady,
   } from "$lib/stores/session";
-  import {
-    vaultIntegrityStore,
-    hasVaultIntegrityFailure,
-  } from "$lib/stores/vaultIntegrity";
+  import { vaultIntegrityStore } from "$lib/stores/vaultIntegrity";
   import { api } from "$lib/api/client";
   import {
     storagePolicyStore,
@@ -34,21 +31,14 @@
   } from "$lib/stores/versionStore";
   import { registerNavigationGuard, isGradeActivePath, isPublicPath } from "$lib/stores/navigationStore";
   import {
-    openBgprojArchive,
-    exportBgprojArchive,
+    importArchiveInteractively,
+    exportArchiveInteractively,
     clearWorkspace,
     confirmWorkspaceClear,
-    promptArchivePassword,
-    formatImportSummary,
   } from "$lib/services/archiveService";
   import ImportConflictModal from "$lib/components/storage/ImportConflictModal.svelte";
   import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
-  import type { ArchiveConflict, DecisionMap } from "$lib/archive/conflicts";
-  import {
-    isSwitchInProgress,
-    pendingSwitchStore,
-    resumeModeSwitch,
-  } from "$lib/services/storageModeSwitch";
+  import { pendingSwitchStore, resumeModeSwitch } from "$lib/services/storageModeSwitch";
   import AppHeader from "$lib/components/layout/AppHeader.svelte";
   import StatusBar from "$lib/components/layout/StatusBar.svelte";
   import StoragePolicyModal from "$lib/components/StoragePolicyModal.svelte";
@@ -64,17 +54,7 @@
   let isInitializing = true;
   let showFocusNav = false;
 
-  let conflictsOpen = false;
-  let pendingConflicts: ArchiveConflict[] = [];
-  let pendingIdenticalCount = 0;
-  let resolveConflicts: ((decisions: DecisionMap) => void) | null = null;
-  let rejectConflicts: ((reason: Error) => void) | null = null;
-
-  /**
-   * A mode switch that a reload interrupted. The wipe is irreversible, so the
-   * workspace being empty afterwards needs a stated reason on screen rather
-   * than looking like the data loss this whole change is about.
-   */
+  // A mode switch interrupted after its wipe: say why the workspace is empty.
   let switchWizardOpen = false;
   let resumeBannerDismissed = false;
   $: interruptedSwitch =
@@ -155,16 +135,10 @@
     const policy = get(storagePolicyStore);
 
     if (restored && get(isUnlocked)) {
-      // The keys are back, which is all `awaitSessionReady()` gates on — so
-      // release the routes here rather than behind the token refresh below.
-      // The refresh is about the access cookie, not the vault, and making
-      // every route wait on a network round-trip delayed the first render of
-      // real data by a full request even in all-local mode, where no API call
-      // was going to happen at all.
-      //
-      // An API call that races an unrefreshed token is already handled:
-      // `client.ts` deduplicates concurrent refreshes and retries a 401 rather
-      // than refreshing twice.
+      // Keys are back — all `awaitSessionReady()` gates on — so release
+      // routes here, before the token refresh below (that refresh is about
+      // the access cookie, not the vault; `client.ts` already handles a race
+      // with an unrefreshed token).
       markSessionReady();
 
       const mode = get(sessionStore).mode;
@@ -184,16 +158,11 @@
       await goto("/unlock");
     }
     isInitializing = false;
-    // Releases every route blocked on `awaitSessionReady()`. It must fire
-    // whether or not the session came back unlocked — routes check `isUnlocked`
-    // themselves; what they cannot do is read the vault before this point.
+    // Releases every route blocked on `awaitSessionReady()`, whether or not
+    // the session came back unlocked — routes check `isUnlocked` themselves.
     markSessionReady();
 
-    // A switch left mid-flight re-arms itself so the wizard can finish it; the
-    // token is module state and does not survive the reload.
-    if (isSwitchInProgress()) {
-      resumeModeSwitch();
-    }
+    resumeModeSwitch(); // re-arms a switch a reload interrupted
   });
 
   async function handleLock() {
@@ -206,78 +175,13 @@
     fileInput?.click();
   }
 
-  /**
-   * Hands the collisions to the modal and waits for a decision.
-   *
-   * The import genuinely blocks on this promise, so nothing is written until
-   * the teacher has chosen — which is the whole point of resolving conflicts
-   * before the first write rather than after a 409.
-   */
-  function askAboutConflicts(
-    conflicts: ArchiveConflict[],
-    identicalCount: number,
-  ): Promise<DecisionMap> {
-    pendingConflicts = conflicts;
-    pendingIdenticalCount = identicalCount;
-    conflictsOpen = true;
-    return new Promise<DecisionMap>((resolve, reject) => {
-      resolveConflicts = resolve;
-      rejectConflicts = reject;
-    });
-  }
-
-  function handleConflictsConfirmed(decisions: DecisionMap) {
-    conflictsOpen = false;
-    resolveConflicts?.(decisions);
-    resolveConflicts = null;
-    rejectConflicts = null;
-  }
-
-  function handleConflictsCancelled() {
-    conflictsOpen = false;
-    rejectConflicts?.(new Error(translate("workspace.archive.importCancelled")));
-    resolveConflicts = null;
-    rejectConflicts = null;
-  }
-
   async function handleFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
-    const file = input.files[0];
-
-    const password = promptArchivePassword(translate("workspace.archive.promptImportPassword"));
-    if (!password) {
-      input.value = "";
-      return;
-    }
-
-    try {
-      // Merge, not replace: the old flow confirmed a wipe up front and then
-      // performed it before the password had even been checked. Existing
-      // records are kept unless the teacher says otherwise, one at a time.
-      const res = await openBgprojArchive(file, password, {
-        mode: "merge",
-        resolve: askAboutConflicts,
-      });
-      alert(formatImportSummary(res));
-      window.location.href = "/";
-    } catch (err: any) {
-      alert(translate("workspace.archive.importFailed", { message: err.message }));
-    } finally {
-      input.value = "";
-    }
+    const file = input.files?.[0];
+    input.value = "";
+    if (file && (await importArchiveInteractively(file))) window.location.href = "/";
   }
 
-  async function handleExportBgproj() {
-    const password = promptArchivePassword(translate("workspace.archive.promptExportPassword"));
-    if (!password) return;
-
-    try {
-      await exportBgprojArchive(password);
-    } catch (err: any) {
-      alert(translate("workspace.archive.exportFailed", { message: err.message }));
-    }
-  }
 
   async function handleCloseWorkspace() {
     if (!confirmWorkspaceClear()) {
@@ -314,7 +218,7 @@
         bind:isWorkspaceMenuOpen
         onToggleWorkspaceMenu={() => (isWorkspaceMenuOpen = !isWorkspaceMenuOpen)}
         onOpenArchive={triggerOpenBgproj}
-        onExportArchive={handleExportBgproj}
+        onExportArchive={() => exportArchiveInteractively()}
         onClearWorkspace={handleCloseWorkspace}
         onLock={handleLock}
         authenticated={$isAuthenticated}
@@ -349,12 +253,10 @@
     </div>
   {/if}
 
-  {#if $hasVaultIntegrityFailure}
+  {#if $vaultIntegrityStore.count > 0}
     <!--
-      Not a toast and not the HTTP error modal: the condition is neither
-      transient nor an HTTP fault. Until the session is unlocked with the right
-      key, every affected record renders blank, so the warning has to stay on
-      screen next to those blanks.
+      Not a toast or the HTTP error modal: until unlocked with the right key,
+      affected records render blank, so this stays on screen next to them.
     -->
     <div
       role="alert"
@@ -410,10 +312,4 @@
   onClose={() => (switchWizardOpen = false)}
 />
 
-<ImportConflictModal
-  open={conflictsOpen}
-  conflicts={pendingConflicts}
-  identicalCount={pendingIdenticalCount}
-  onConfirm={handleConflictsConfirmed}
-  onCancel={handleConflictsCancelled}
-/>
+<ImportConflictModal />

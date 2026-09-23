@@ -17,8 +17,6 @@ export const exam = {
             failed: 'Löschen fehlgeschlagen: {message}',
         },
         export: {
-            passwordPrompt: 'Passwort zur Verschlüsselung des .bgproj-Archivs eingeben:',
-            failed: 'Export fehlgeschlagen: {message}',
             successBanner: '.bgproj-Archiv erfolgreich gepackt und heruntergeladen.',
         },
         omr: {

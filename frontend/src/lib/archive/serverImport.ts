@@ -136,13 +136,9 @@ export async function importPayloadToServer(payload: any): Promise<ServerImportR
   // 2. Exams, carrying their exercise links and MC groups inline — POST /exams
   // persists all three in one request.
   //
-  // MC group ids are minted fresh for every import. `_persist_mc_groups` answers
-  // 409 on a group id it already knows, and `createWithIdFallback` only ever
-  // retried the *exam* id — so re-importing an archive onto the backend it came
-  // from collided on the group, retried with the same colliding group id, and
-  // dropped the whole exam. Group ids are client-chosen and carry no meaning
-  // beyond linking members, so a fresh one costs nothing; the members follow
-  // through this map.
+  // MC group ids are minted fresh for every import: they're client-chosen and
+  // carry no meaning beyond linking members, so re-using an archived one risks
+  // a 409 collision on re-import. Members follow through this map.
   const mcGroupIdMap = new Map<string, string>();
   for (const group of mcGroups) {
     mcGroupIdMap.set(group.id, crypto.randomUUID());

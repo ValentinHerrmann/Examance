@@ -48,8 +48,8 @@
       students = await studentRepository.getByExamId(examId, key);
       submissions = await submissionRepository.getByExamId(examId, key);
 
-      // One request for the whole exam instead of one per submission — in
-      // server mode the old per-submission loop was an N+1 over the network.
+      // One request for the whole exam instead of one per submission, to
+      // avoid an N+1 over the network in server mode.
       const allScores = await scoreRepository.getByExamId(examId, key);
       const scoresBySubmission = new Map<string, typeof allScores>();
       for (const s of allScores) {

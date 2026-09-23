@@ -57,48 +57,38 @@ export interface ExamStructure {
 export const examRepository = {
   /**
    * An exam's exercise links and MC groups, from whichever store owns them.
-   *
-   * `mapApiToExamRecord` drops `exercises` and `mc_groups`, so callers that
-   * need the structure — the archive packer above all — used to read
-   * `db.examExercises` and `db.examMcGroups` directly. In `all-server` mode
-   * those tables hold whatever the local cache happened to have, which is
-   * nothing at all right after a lock wiped it: an export taken there produced
-   * an archive of exams with no exercises and no MC groups.
+   * `mapApiToExamRecord` drops `exercises`/`mc_groups`, and in `all-server`
+   * mode the local `examExercises`/`examMcGroups` tables can be empty (e.g.
+   * after a lock), so this fetches from the server there instead.
    */
   async getStructure(examId: string): Promise<ExamStructure> {
-    const policy = get(storagePolicyStore);
-    if (policy.storageMode === 'all-local') {
-      return {
-        links: await db.examExercises.where('examId').equals(examId).toArray(),
-        mcGroups: await db.examMcGroups.where('examId').equals(examId).toArray(),
-      };
-    }
+    const local = async () => ({
+      links: await db.examExercises.where('examId').equals(examId).toArray(),
+      mcGroups: await db.examMcGroups.where('examId').equals(examId).toArray(),
+    });
+    if (get(storagePolicyStore).storageMode === 'all-local') return local();
 
     try {
       const remote = (await api.get<any>(`/exams/${examId}`, { silentError: true })) as any;
-      const links: ExamExerciseRecord[] = (remote.exercises ?? []).map((e: any, idx: number) => ({
-        examId,
-        exerciseId: e.id,
-        orderIndex: e.order_index ?? e.orderIndex ?? idx + 1,
-        mcGroupId: e.mc_group_id ?? e.mcGroupId ?? undefined,
-        subIndex: e.sub_index ?? e.subIndex ?? undefined,
-      }));
-      const mcGroups: ExamMcGroupRecord[] = (remote.mc_groups ?? []).map(
-        (g: any, idx: number) => ({
+      return {
+        links: (remote.exercises ?? []).map((e: any, idx: number) => ({
+          examId,
+          exerciseId: e.id,
+          orderIndex: e.order_index ?? idx + 1,
+          mcGroupId: e.mc_group_id ?? undefined,
+          subIndex: e.sub_index ?? undefined,
+        })),
+        mcGroups: (remote.mc_groups ?? []).map((g: any, idx: number) => ({
           id: g.id,
           examId,
           title: g.title,
-          scoringText: g.scoring_text ?? g.scoringText,
-          orderIndex: g.order_index ?? g.orderIndex ?? idx + 1,
-        })
-      );
-      return { links, mcGroups };
+          scoringText: g.scoring_text,
+          orderIndex: g.order_index ?? idx + 1,
+        })),
+      };
     } catch {
       // Hybrid keeps a usable local mirror; all-server has nothing better.
-      return {
-        links: await db.examExercises.where('examId').equals(examId).toArray(),
-        mcGroups: await db.examMcGroups.where('examId').equals(examId).toArray(),
-      };
+      return local();
     }
   },
 
@@ -176,13 +166,8 @@ export const examRepository = {
   },
 
   /**
-   * Removes every local table an exam owns.
-   *
-   * This used to exist three times — here, in `routes/exam/[id]/+page.svelte`
-   * and in `routes/+page.svelte` — and the three copies deleted different
-   * subsets. Neither route touched `examMcGroups` or `omrTemplates`, so orphan
-   * group rows outlived their exam and resurfaced through `loadLocalMcGroups`.
-   * One implementation, called from all three.
+   * Removes every local table an exam owns. Single implementation, used by
+   * every caller that deletes an exam, so no owned table is missed.
    */
   async deleteLocalCascade(id: string): Promise<void> {
     if (!db.exams) return;

@@ -31,14 +31,12 @@
     encryptExercise,
     loadOmrTemplateEncrypted,
     saveOmrTemplateEncrypted,
-    loadScoresEncrypted,
-    saveScoreEncrypted,
     loadLocalMcGroups,
     type McGroup,
   } from "$lib/db/dbEncryption";
   import { computeMcExercisesHash, resolveMcExercises, normalizeMcExercise } from "$lib/grading/mcExerciseHash";
   import { isMcQuestion } from "$lib/grading/mcScore";
-  import { packProject } from "$lib/archive/packer";
+  import { exportArchiveInteractively } from "$lib/services/archiveService";
   import { compileWithCache, getLatestForSlot, invalidateOwner } from "$lib/latex/compileCache";
   import { formatExerciseLatex, formatMcGroupLatex, parseExerciseScore } from "$lib/latex/scoreParser";
   import { api } from "$lib/api/client";
@@ -203,9 +201,6 @@
   }
 
   async function loadExam(id: string) {
-    // Svelte 4 mounts routes before the root layout restores the session, so
-    // without this the vault is read with a null key on every reload and the
-    // whole workspace comes back blank.
     await awaitSessionReady();
     const seq = ++loadSeq;
     const isStale = () => seq !== loadSeq;
@@ -231,12 +226,9 @@
             mcGroupId: e.mc_group_id || undefined,
             subIndex: e.sub_index || undefined,
           }));
-          // Only a response that actually carries `mc_groups` may rewrite the
-          // local grouping. Without this distinction the branch below replaced
-          // every junction's mcGroupId with `undefined` taken from a response
-          // that never mentioned groups — dissolving them on disk while the
-          // in-memory copy still looked right, so the groups came back empty on
-          // the next open and their members reappeared standalone.
+          // Only a response that actually carries `mc_groups` may rewrite
+          // local grouping — otherwise this would replace every junction's
+          // mcGroupId with undefined and dissolve the groups.
           const groupsAreAuthoritative = Array.isArray(remoteExam.mc_groups);
 
           if (groupsAreAuthoritative) {
@@ -508,9 +500,8 @@
       return;
 
     try {
-      // One cascade, shared with the dashboard and the repository. The copy
-      // that used to live here missed examMcGroups and omrTemplates, leaving
-      // orphan group rows behind for the next exam that reused an id.
+      // One cascade, shared with the dashboard and the repository, so no
+      // owned table is missed.
       await examRepository.delete(exam.id);
 
       window.location.href = "/";
@@ -520,21 +511,9 @@
   }
 
   async function handleExportArchive() {
-    const password = prompt(translate("exam.page.export.passwordPrompt"));
-    if (!password) return;
-
     isExporting = true;
     try {
-      const blob = await packProject(password);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${exam?.title || "exam"}.bgproj`;
-      a.click();
-      URL.revokeObjectURL(url);
-      exportSuccess = true;
-    } catch (err: any) {
-      alert(translate("exam.page.export.failed", { message: err.message }));
+      exportSuccess = await exportArchiveInteractively(`${exam?.title || "exam"}.bgproj`);
     } finally {
       isExporting = false;
     }
@@ -1425,10 +1404,9 @@ ${exerciseInputs}
     examItems = items;
 
     try {
-      // One transaction, because this is a delete-then-reinsert of the exam's
-      // entire link set. Unwrapped, a reload or a navigation landing between
-      // the delete and the bulkPut left the exam with zero exercises and zero
-      // MC groups — the "my exercises vanished" report.
+      // One transaction: this is a delete-then-reinsert of the exam's entire
+      // link set, and an interruption between the two would leave the exam
+      // with zero exercises and zero MC groups.
       await db.transaction("rw", [db.examExercises, db.examMcGroups], async () => {
         await db.examExercises.where("examId").equals(currentExamId).delete();
         await db.examExercises.bulkPut(examExerciseRecords);

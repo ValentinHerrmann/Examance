@@ -25,14 +25,9 @@ export interface CompileResult {
 /**
  * One compiler worker, created on first use and kept for the session.
  *
- * There used to be a two-slot "pool" here, but it was dead code: every compile
- * is chained onto `compileQueue` below, so a slot is never busy when the next
- * task asks for one and a second worker was never created. Worse, if one ever
- * had been, each worker carries its own multi-hundred-megabyte TeX Live mount —
- * two engines is two boots and twice the memory for no concurrency at all.
- *
- * Serialising is also the right behaviour: busytex is a single WASM VM and the
- * compiles here are user-initiated one at a time.
+ * Compiles are serialised through `compileQueue` below and busytex is a
+ * single WASM VM, so there is no concurrency to gain — a second worker would
+ * only double the multi-hundred-megabyte TeX Live mount in memory.
  */
 let worker: Worker | null = null;
 let msgIdCounter = 0;
@@ -70,10 +65,9 @@ async function compileLocalWasm(
     return new Promise<CompileResult>((resolve, reject) => {
       let settled = false;
 
-      // The old version removed the message listener only on a terminal
-      // message. A worker that emitted a status update and then died leaked the
-      // listener and left the promise pending forever, which wedged the queue
-      // and every compile behind it.
+      // Cleanup must run on error/timeout too, not just a terminal message —
+      // otherwise a dead worker leaves this promise pending forever and
+      // wedges the queue behind it.
       const cleanup = () => {
         clearTimeout(timer);
         w.removeEventListener('message', onMessage);

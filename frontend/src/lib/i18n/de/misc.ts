@@ -35,11 +35,6 @@ export const misc = {
             'Die lokale LaTeX-Kompilierung ist fehlgeschlagen. Möchten Sie stattdessen auf dem Server kompilieren?',
     },
 
-    /**
-     * Shown when at least one record could not be decrypted. Deliberately blunt:
-     * the teacher is looking at blanks that are not their data, and any save
-     * from this state is refused rather than allowed to overwrite the original.
-     */
     vaultIntegrity: {
         heading: 'Achtung: Daten konnten nicht entschlüsselt werden',
         body:

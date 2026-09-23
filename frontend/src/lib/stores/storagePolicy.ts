@@ -1,4 +1,4 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { safeLocalStorage } from '$lib/utils/storage';
 import { t, translate } from '$lib/i18n';
 
@@ -12,16 +12,11 @@ export interface StoragePolicy {
 const STORAGE_KEY = 'bg_storage_policy';
 
 /**
- * Changing the storage mode changes which store every repository talks to, and
- * the data does not follow. Switching is therefore gated: it goes through
- * `services/storageModeSwitch.ts`, which forces an archive export first, and
- * that service is the only holder of a valid token.
- *
- * The token exists because the mode used to be settable from anywhere, and two
- * of the callers were bugs — signing in silently flipped `all-local` to
- * `all-server`, and the next idle lock then wiped the whole local database.
- * Narrowing `updateSetting` to `latexCompilation` turns every such call into a
- * compile error rather than something to find by reading.
+ * Changing the storage mode changes which store every repository talks to,
+ * and the data does not follow. Switching is gated: it goes through
+ * `services/storageModeSwitch.ts`, which forces an archive export first and
+ * is the only holder of a valid token. `updateSetting` is narrowed to
+ * `latexCompilation` so any other caller is a compile error.
  */
 let activeSwitchToken: string | null = null;
 
@@ -149,6 +144,14 @@ function createStoragePolicyStore() {
 }
 
 export const storagePolicyStore = createStoragePolicyStore();
+
+/**
+ * True when grading results — students, submissions, scores — live in
+ * IndexedDB. `hybrid` keeps them local by design; only `all-server` does not.
+ */
+export function resultsAreLocal(): boolean {
+    return get(storagePolicyStore).storageMode !== 'all-server';
+}
 
 // `t` is a dependency so switching language re-renders these labels; the
 // translated text itself is read imperatively inside the getters.

@@ -1,12 +1,7 @@
 import 'fake-indexeddb/auto'; // In-memory IndexedDB — must precede the Dexie module
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import {
-  DecryptFailedError,
-  MissingSessionKeyError,
-  clearDecryptFailed,
-  isDecryptFailed,
-} from '../src/lib/db/decryptGuard';
+import { DecryptFailedError, MissingSessionKeyError } from '../src/lib/db/decryptGuard';
 import {
   decryptExam,
   encryptExam,
@@ -58,7 +53,7 @@ describe('decrypt guard', () => {
     const sealed = await encryptExam(baseExam(), await aesKey(1));
     const opened = await decryptExam(sealed, await aesKey(2));
 
-    expect(isDecryptFailed(opened)).toBe(true);
+    expect(opened.decryptFailed).toBe('error');
     expect(opened.title).toBeUndefined();
 
     let reported = { kinds: [] as string[], count: 0 };
@@ -92,7 +87,7 @@ describe('decrypt guard', () => {
     const key = await aesKey(1);
     const opened = await decryptExam(await encryptExam(baseExam(), key), key);
 
-    expect(isDecryptFailed(opened)).toBe(false);
+    expect(opened.decryptFailed).toBeUndefined();
     expect(opened.title).toBe('Schulaufgabe 1');
     expect(opened.latexPreamble).toBe('\\usepackage{amsmath}');
     await expect(encryptExam(opened, key)).resolves.toBeTruthy();
@@ -101,15 +96,7 @@ describe('decrypt guard', () => {
   it('leaves a record with no sealed payload alone', async () => {
     // A legacy plaintext row: nothing to open, so nothing to fail.
     const opened = await decryptExam(baseExam(), null);
-    expect(isDecryptFailed(opened)).toBe(false);
+    expect(opened.decryptFailed).toBeUndefined();
     expect(opened.title).toBe('Schulaufgabe 1');
-  });
-
-  it('clearDecryptFailed lets a rebuilt record be written again', async () => {
-    const sealed = await encryptExam(baseExam(), await aesKey(1));
-    const opened = await decryptExam(sealed, await aesKey(2));
-    const rebuilt = clearDecryptFailed({ ...opened, title: 'Recovered by hand' });
-
-    await expect(encryptExam(rebuilt, await aesKey(2))).resolves.toBeTruthy();
   });
 });

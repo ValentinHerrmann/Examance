@@ -28,11 +28,8 @@ export const storagePolicy: Translations['storagePolicy'] = {
         exportHeading: 'Back up the workspace',
         exportBody:
             'Choose a password for the archive. The file cannot be recovered without it, so keep it somewhere safe.',
-        exportPasswordLabel: 'Archive password',
         exportButton: 'Download archive',
-        exportRunning: 'Creating archive…',
         exportDone: 'Archive saved: {filename}',
-        exportFailed: 'Export failed: {message}',
         exportRequired: 'The switch is only possible after the export.',
         skipExportEmpty: 'The workspace is empty — continue without exporting',
         skipExportHaveArchive: 'I already have a current archive',
@@ -40,17 +37,10 @@ export const storagePolicy: Translations['storagePolicy'] = {
         wipeWarning:
             'This step irreversibly deletes the local workspace and sets the storage location to "{to}".',
         wipeButton: 'Switch now',
-        switching: 'Switching…',
         importHeading: 'Import the archive into the new storage location',
         importBody:
             'Import the archive you just created so your exams are available in the new storage location.',
-        importChooseFile: 'Choose archive file',
-        importPasswordLabel: 'Archive password',
-        importButton: 'Import archive',
-        importRunning: 'Importing archive…',
         importSkip: 'Import later',
-        doneHeading: 'Switch complete',
-        doneBody: 'The storage location is now "{to}".',
         resumeBanner: 'A storage location change is not finished yet.',
         resumeBody:
             'The workspace was cleared and switched to "{to}". Import your archive to continue working.',
@@ -75,14 +65,11 @@ export const storagePolicy: Translations['storagePolicy'] = {
         copyNotAllowed:
             'Student data and submissions cannot be copied — duplicate pseudonyms are not permissible under data protection rules.',
         applyToAll: 'Apply to all',
-        applyToAllInGroup: 'Apply to all in this category',
         apply: 'Start import',
         cancel: 'Cancel import',
         cancelConfirm: 'Cancel the import? Nothing has been written yet.',
         identicalSkipped: '{count} identical record(s) will be skipped.',
         noValue: '—',
-        yes: 'yes',
-        no: 'no',
         textDiffHeading: 'Content',
         kind: {
             exam: 'Exam',
