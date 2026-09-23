@@ -4,7 +4,7 @@
   import { browser } from '$app/environment';
   import { afterNavigate, goto } from '$app/navigation';
   import { get } from 'svelte/store';
-  import { sessionStore, isUnlocked, awaitSessionReady} from '$lib/stores/session';
+  import { sessionStore, isUnlocked, awaitSessionReady } from '$lib/stores/session';
   import { db } from '$lib/db/db';
   import type { ExamRecord, ExerciseRecord } from '$lib/db/schema';
   import { loadExamsEncrypted, loadExercisesEncrypted, decryptExercise, decryptScore } from '$lib/db/dbEncryption';

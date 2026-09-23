@@ -4,7 +4,7 @@
   import { db } from "$lib/db/db";
   import { eraseStudent } from "$lib/gdpr/erasure";
   import { wipeDatabase } from "$lib/db/hygiene";
-  import { sessionStore, isUnlocked, isAuthenticated, awaitSessionReady} from "$lib/stores/session";
+  import { sessionStore, isUnlocked, isAuthenticated, awaitSessionReady } from "$lib/stores/session";
   import { studentRepository } from "$lib/repositories/studentRepository";
   import { get } from "svelte/store";
   import {

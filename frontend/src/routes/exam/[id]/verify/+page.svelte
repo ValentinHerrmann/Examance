@@ -4,11 +4,12 @@
   import { onMount } from "svelte";
   import { browser } from "$app/environment";
   import { get } from "svelte/store";
-  import { sessionStore, isUnlocked, awaitSessionReady} from "$lib/stores/session";
+  import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
   import { t, translate } from "$lib/i18n";
   import { PageShell } from "$lib/components/ui";
   import {
     computeMcVerificationStats,
+    categorizeMcItem,
     type McVerificationStats,
     type McDetectionItem,
   } from "$lib/grading/mcVerification";
@@ -19,7 +20,9 @@
     loadOmrTemplateEncrypted,
   } from "$lib/db/dbEncryption";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { loadExamMcExercises } from "$lib/grading/mcExerciseHash";
+  import { loadExamMcExercises, resolveMcExercises, computeMcExercisesHash } from "$lib/grading/mcExerciseHash";
+  import { prepareOmrTemplate, loadExamCompileContext } from "$lib/grading/omrTemplatePrep";
+  import { restoreOriginalDetection, type McQuestionType } from "$lib/grading/mcScore";
   import { decrypt } from "$lib/crypto/aesGcm";
   import type {
     OmrWorkerRequest,
@@ -38,13 +41,21 @@
   let isRerunningMc = false;
   let rerunMcMessage = "";
   let rerunMcError = "";
+  let isResettingReviews = false;
+  let resetReviewsMessage = "";
+  let resetReviewsError = "";
+  let lastRefreshId = 0;
+  let lastRefreshedKey = "";
 
-  $: if (browser && examId && $sessionStore.sessionKey) {
+  $: currentRefreshKey = `${examId}:${$sessionStore.sessionKey ? "unlocked" : "locked"}`;
+  $: if (browser && examId && $sessionStore.sessionKey && currentRefreshKey !== lastRefreshedKey) {
+    lastRefreshedKey = currentRefreshKey;
     refresh();
   }
 
   afterNavigate(() => {
-    if (examId && $sessionStore.sessionKey) {
+    if (examId && $sessionStore.sessionKey && currentRefreshKey !== lastRefreshedKey) {
+      lastRefreshedKey = currentRefreshKey;
       refresh();
     }
   });
@@ -55,40 +66,89 @@
       await goto("/unlock");
       return;
     }
-    if (examId && $sessionStore.sessionKey) {
-      await refresh();
-    }
   });
 
   async function refresh() {
     if (!examId) return;
+    const thisRefreshId = ++lastRefreshId;
     loading = true;
     errorMsg = "";
     try {
-      stats = await computeMcVerificationStats(examId, get(sessionStore).sessionKey);
+      const computedStats = await computeMcVerificationStats(examId, get(sessionStore).sessionKey);
+      if (thisRefreshId !== lastRefreshId) return;
+      stats = computedStats;
     } catch (err: any) {
+      if (thisRefreshId !== lastRefreshId) return;
       console.error("Failed to load MC verification data:", err);
       errorMsg = translate("scanning.verify.loadError", { message: err.message || err });
     } finally {
-      loading = false;
+      if (thisRefreshId === lastRefreshId) {
+        loading = false;
+      }
     }
   }
 
   async function handleRerunMcDetection() {
-    if (!examId || isRerunningMc) return;
+    if (!examId || isRerunningMc || isResettingReviews) return;
+    const overwriteReviewed = confirm(translate("scanning.verify.confirmRerunResetReviews"));
     isRerunningMc = true;
     rerunMcMessage = translate("scanning.verify.loadingTemplate");
     rerunMcError = "";
 
     try {
       const key = get(sessionStore).sessionKey;
-      const templateResult = await loadOmrTemplateEncrypted(examId, key);
-      if (!templateResult || !templateResult.payload) {
-        rerunMcMessage = "";
-        rerunMcError = translate("scanning.verify.noTemplate");
-        return;
+      let templateResult = await loadOmrTemplateEncrypted(examId, key);
+      let templatePages = templateResult?.payload?.pages;
+      
+      let needsCompile = !templateResult || !templatePages;
+      let compileCtx = null;
+
+      if (!needsCompile) {
+        compileCtx = await loadExamCompileContext(examId, key);
+        if (compileCtx) {
+          const mcExercises = resolveMcExercises(compileCtx.exercises, compileCtx.libraryExercises, compileCtx.mcGroups);
+          const currentHash = await computeMcExercisesHash(mcExercises);
+          if (templateResult!.record.exercisesHash !== currentHash) {
+            needsCompile = true;
+          }
+        }
       }
-      const templatePages = templateResult.payload.pages;
+
+      if (needsCompile) {
+        if (!compileCtx) compileCtx = await loadExamCompileContext(examId, key);
+        if (!compileCtx) {
+          rerunMcMessage = "";
+          rerunMcError = translate("scanning.verify.autoPrepareFailed", { message: translate("scanning.examContextNotFound") });
+          return;
+        }
+        try {
+          const compileRes = await prepareOmrTemplate({
+            examId,
+            exam: compileCtx.exam,
+            exercises: compileCtx.exercises,
+            libraryExercises: compileCtx.libraryExercises,
+            mcGroups: compileCtx.mcGroups,
+            key,
+            onProgress: (msg) => { rerunMcMessage = `${translate("scanning.verify.autoPreparingTemplate")} - ${msg}`; }
+          });
+          if (compileRes.status === 'stale') {
+             rerunMcMessage = "";
+             rerunMcError = translate("scanning.verify.autoPrepareFailed", { message: compileRes.message });
+             return;
+          }
+          templatePages = compileRes.pages;
+        } catch (err: any) {
+          rerunMcMessage = "";
+          rerunMcError = translate("scanning.verify.autoPrepareFailed", { message: err.message });
+          return;
+        }
+      }
+      
+      if (!templatePages) {
+          rerunMcMessage = "";
+          rerunMcError = translate("scanning.verify.noTemplate");
+          return;
+      }
 
       const [mcExercises, submissions] = await Promise.all([
         loadExamMcExercises(examId, key),
@@ -135,6 +195,7 @@
       let processed = 0;
       let updated = 0;
       let alignmentFailures = 0;
+      let pagesSkippedNoTemplate = 0;
 
       try {
         for (const sub of submissions) {
@@ -161,9 +222,12 @@
           const rescored: ExerciseScoreRecord[] = [];
 
           const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+          console.log(`[RerunMC] Submission ${sub.id}: scanned PDF has ${pdfDoc.numPages} page(s), OMR template has ${templatePages.length} page(s).`);
           for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
             const pageTemplate = templatePages[pageNum - 1];
             if (!pageTemplate || (pageTemplate.bubbles.length === 0 && pageTemplate.fiducials.length === 0)) {
+              pagesSkippedNoTemplate++;
+              console.log(`[RerunMC] Submission ${sub.id}, page ${pageNum}: skipped (no template page or empty bubbles/fiducials — pageTemplate=${pageTemplate ? `bubbles=${pageTemplate.bubbles.length},fiducials=${pageTemplate.fiducials.length}` : "undefined"}).`);
               continue;
             }
 
@@ -184,16 +248,22 @@
               scanScale,
               answerKeys,
             });
-            if (response.type !== "OMR_RESULT") continue;
+            if (response.type !== "OMR_RESULT") {
+              console.warn(
+                `[RerunMC] Submission ${sub.id}, page ${pageNum}: worker returned ${response.type}${
+                  response.type === "ERROR" ? ` — ${response.message}` : ""
+                }`
+              );
+              continue;
+            }
 
             if (response.alignmentFailed) alignmentFailures++;
 
             for (const r of response.results) {
               const existing = existingByExercise.get(r.exerciseId);
-              if (existing?.omrMeta?.source === "manual") continue;
+              if (!overwriteReviewed && existing?.omrMeta?.source === "manual") continue;
 
               const failed = r.confidence === "failed";
-              const nonBlankBubbles = r.bubbles.filter((b) => b.state !== "blank" && b.state !== "undone");
               rescored.push({
                 id: existing?.id ?? crypto.randomUUID(),
                 submissionId: sub.id,
@@ -204,11 +274,17 @@
                   confidence: r.confidence,
                   source: "omr" as const,
                   flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
+                  original: {
+                    confidence: r.confidence,
+                    selectedOptions: failed ? [] : [...r.selectedOptions],
+                    score: failed ? undefined : r.score,
+                    flaggedOptions: r.flaggedOptions.length > 0 ? [...r.flaggedOptions] : undefined,
+                  },
                   detections:
-                    !failed && nonBlankBubbles.length > 0
+                    !failed && r.bubbles.length > 0
                       ? {
                           pageIndex: r.pageIndex,
-                          bubbles: nonBlankBubbles.map((b) => ({
+                          bubbles: r.bubbles.map((b) => ({
                             optionIndex: b.optionIndex,
                             state: b.state,
                             rect: b.rect,
@@ -231,6 +307,9 @@
         translate("scanning.verify.rerunComplete", { updated, processed }) +
         (alignmentFailures > 0
           ? translate("scanning.verify.rerunAlignmentFailures", { count: alignmentFailures })
+          : "") +
+        (pagesSkippedNoTemplate > 0
+          ? translate("scanning.verify.rerunPagesSkippedNoTemplate", { count: pagesSkippedNoTemplate })
           : "");
       await refresh();
     } catch (err: any) {
@@ -238,6 +317,53 @@
       rerunMcMessage = "";
     } finally {
       isRerunningMc = false;
+    }
+  }
+
+  async function handleResetAllReviews() {
+    if (!examId || isRerunningMc || isResettingReviews) return;
+    if (!confirm(translate("scanning.verify.confirmResetAllReviews"))) return;
+
+    isResettingReviews = true;
+    resetReviewsMessage = "";
+    resetReviewsError = "";
+
+    try {
+      const key = get(sessionStore).sessionKey;
+      const mcExercises = await loadExamMcExercises(examId, key);
+      const exerciseById = new Map(mcExercises.map((e) => [e.id, e]));
+
+      // One read for the whole exam, one write per touched submission.
+      const restored = new Map<string, ExerciseScoreRecord[]>();
+      for (const sc of await scoreRepository.getByExamId(examId, key)) {
+        const ex = exerciseById.get(sc.exerciseId);
+        if (!ex || !sc.omrMeta?.original) continue;
+
+        const res = restoreOriginalDetection(
+          (ex.questionType as McQuestionType) || "mc",
+          ex.correctAnswers ?? [],
+          ex.penalty ?? 0,
+          ex.maxPoints,
+          sc.omrMeta
+        );
+        if (!res) continue;
+
+        const next = { ...sc, selectedOptions: res.nextSelectedOptions, score: res.nextScore, omrMeta: res.nextOmrMeta };
+        restored.set(sc.submissionId, [...(restored.get(sc.submissionId) ?? []), next]);
+      }
+
+      let resetCount = 0;
+      for (const [submissionId, scores] of restored) {
+        await scoreRepository.saveMany(examId, submissionId, scores, key);
+        resetCount += scores.length;
+      }
+
+      resetReviewsMessage = translate("scanning.verify.resetReviewsComplete", { count: resetCount });
+      await refresh();
+    } catch (err: any) {
+      resetReviewsError = err.message || translate("scanning.verify.resetReviewsError");
+    } finally {
+      isResettingReviews = false;
     }
   }
 
@@ -249,13 +375,27 @@
     goto(`/exam/${examId}/verify-item?submissionId=${item.submissionId}&exerciseId=${item.exerciseId}&queue=${queueTag}`);
   }
 
-  $: failedItems = stats?.items.filter((i) => i.confidence === "failed") ?? [];
-  $: unsureItems = stats?.items.filter(
-    (i) => i.confidence === "ambiguous" || (i.confidence !== "failed" && i.flaggedOptions.length > 0)
-  ) ?? [];
-  $: otherItems = stats?.items.filter(
-    (i) => i.confidence === "high" && i.flaggedOptions.length === 0
-  ) ?? [];
+  $: failedItems = stats?.items.filter((i) => categorizeMcItem(i) === "failed") ?? [];
+  $: unsureItems = stats?.items.filter((i) => categorizeMcItem(i) === "unsure") ?? [];
+  $: otherItems = stats?.items.filter((i) => categorizeMcItem(i) === "confident") ?? [];
+
+  // Each queue's badge is scoped to that queue's own items — a student with MC
+  // items in several categories gets an independent "reviewed/total" count per
+  // category (e.g. "1/1" in confident, "0/1" in unsure), not one combined count
+  // repeated identically in every section they appear in.
+  function buildStudentProgress(items: McDetectionItem[]) {
+    const map = new Map<string, { total: number; reviewed: number }>();
+    for (const it of items) {
+      const entry = map.get(it.submissionId) ?? { total: 0, reviewed: 0 };
+      entry.total += 1;
+      if (it.isReviewed) entry.reviewed += 1;
+      map.set(it.submissionId, entry);
+    }
+    return map;
+  }
+  $: failedProgress = buildStudentProgress(failedItems);
+  $: unsureProgress = buildStudentProgress(unsureItems);
+  $: confidentProgress = buildStudentProgress(otherItems);
 </script>
 
 <PageShell width="wide">
@@ -269,8 +409,16 @@
     <div class="flex items-center gap-2">
       <button
         type="button"
+        on:click={handleResetAllReviews}
+        disabled={isRerunningMc || isResettingReviews || loading}
+        class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer disabled:opacity-50"
+      >
+        {isResettingReviews ? $t("scanning.verify.resettingReviews") : $t("scanning.verify.resetReviews")}
+      </button>
+      <button
+        type="button"
         on:click={handleRerunMcDetection}
-        disabled={isRerunningMc || loading}
+        disabled={isRerunningMc || isResettingReviews || loading}
         class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-sky-700/80 hover:bg-sky-600 text-sky-100 transition-colors cursor-pointer disabled:opacity-50"
       >
         {isRerunningMc ? $t("scanning.verify.rerunning") : $t("scanning.verify.rerun")}
@@ -278,7 +426,7 @@
       <button
         type="button"
         on:click={refresh}
-        disabled={loading || isRerunningMc}
+        disabled={loading || isRerunningMc || isResettingReviews}
         class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer disabled:opacity-50"
       >
         {loading ? $t("scanning.verify.refreshing") : $t("scanning.verify.refresh")}
@@ -294,6 +442,16 @@
   {#if rerunMcError}
     <div class="p-3 rounded border border-red-500/40 bg-red-500/10 text-red-400 text-xs mb-6">
       {rerunMcError}
+    </div>
+  {/if}
+  {#if resetReviewsMessage}
+    <div class="p-3 rounded border border-sky-500/40 bg-sky-500/10 text-sky-300 text-xs mb-6">
+      {resetReviewsMessage}
+    </div>
+  {/if}
+  {#if resetReviewsError}
+    <div class="p-3 rounded border border-red-500/40 bg-red-500/10 text-red-400 text-xs mb-6">
+      {resetReviewsError}
     </div>
   {/if}
 
@@ -331,6 +489,7 @@
       <McVerificationQueue
         title={$t("scanning.verify.queueFailed")}
         items={failedItems}
+        studentProgress={failedProgress}
         emptyMessage={$t("scanning.verify.emptyFailed")}
         onVerifyItem={(item) => openVerifyItem(item, "failed")}
         onOpenGrading={openInGrading}
@@ -339,6 +498,7 @@
       <McVerificationQueue
         title={$t("scanning.verify.queueUnsure")}
         items={unsureItems}
+        studentProgress={unsureProgress}
         emptyMessage={$t("scanning.verify.emptyUnsure")}
         onVerifyItem={(item) => openVerifyItem(item, "unsure")}
         onOpenGrading={openInGrading}
@@ -347,8 +507,9 @@
       <McVerificationQueue
         title={$t("scanning.verify.queueOther")}
         items={otherItems}
+        studentProgress={confidentProgress}
         emptyMessage={$t("scanning.verify.emptyOther")}
-        onVerifyItem={(item) => openVerifyItem(item, "all")}
+        onVerifyItem={(item) => openVerifyItem(item, "confident")}
         onOpenGrading={openInGrading}
       />
     {/if}

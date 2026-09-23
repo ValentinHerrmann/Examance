@@ -4,12 +4,14 @@
   import { onMount } from "svelte";
   import { browser } from "$app/environment";
   import { get } from "svelte/store";
-  import { sessionStore, isUnlocked, awaitSessionReady} from "$lib/stores/session";
+  import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
   import { t, translate } from "$lib/i18n";
   import {
     computeMcVerificationStats,
+    categorizeMcItem,
     type McVerificationStats,
     type McDetectionItem,
+    type McQueueCategory,
   } from "$lib/grading/mcVerification";
   import { loadExamMcExercises } from "$lib/grading/mcExerciseHash";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
@@ -17,7 +19,7 @@
   import { decrypt } from "$lib/crypto/aesGcm";
   import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "$lib/db/schema";
   import McItemVerificationCard from "$lib/components/verify/McItemVerificationCard.svelte";
-  import { PageShell } from "$lib/components/ui";
+  import { PageShell, Modal, Button } from "$lib/components/ui";
 
   $: examId = $page.params.id || "";
   $: submissionId = $page.url.searchParams.get("submissionId") || "";
@@ -33,15 +35,31 @@
   let studentLabel = "";
   let scanPdfBytes: Uint8Array | null = null;
 
+  interface StudentQueueItem {
+    exerciseId: string;
+    exerciseLabel: string;
+    category: McQueueCategory;
+    isReviewed: boolean;
+  }
+
   let activeQueueItems: McDetectionItem[] = [];
   let currentIndex = -1;
+  let lastLoadToken = 0;
+  let lastLoadedKey = "";
+  let studentTotal = 1;
+  let studentReviewed = 0;
+  let studentItems: StudentQueueItem[] = [];
+  let showEndOfQueueModal = false;
 
-  $: if (browser && examId && submissionId && exerciseId && $sessionStore.sessionKey) {
+  $: currentItemKey = `${examId}:${submissionId}:${exerciseId}:${queueFilter}:${$sessionStore.sessionKey ? "unlocked" : "locked"}`;
+  $: if (browser && examId && submissionId && exerciseId && $sessionStore.sessionKey && currentItemKey !== lastLoadedKey) {
+    lastLoadedKey = currentItemKey;
     loadItemData();
   }
 
   afterNavigate(() => {
-    if (examId && submissionId && exerciseId && $sessionStore.sessionKey) {
+    if (examId && submissionId && exerciseId && $sessionStore.sessionKey && currentItemKey !== lastLoadedKey) {
+      lastLoadedKey = currentItemKey;
       loadItemData();
     }
   });
@@ -52,13 +70,11 @@
       await goto("/unlock");
       return;
     }
-    if (examId && submissionId && exerciseId && $sessionStore.sessionKey) {
-      await loadItemData();
-    }
   });
 
   async function loadItemData() {
     if (!examId || !submissionId || !exerciseId) return;
+    const thisToken = ++lastLoadToken;
     loading = true;
     errorMsg = "";
 
@@ -70,24 +86,10 @@
         submissionRepository.getById(examId, submissionId, key),
       ]);
 
-      stats = verificationStats;
+      if (thisToken !== lastLoadToken) return;
 
-      if (queueFilter === "failed") {
-        activeQueueItems = stats.items.filter((i) => i.confidence === "failed");
-      } else if (queueFilter === "unsure") {
-        activeQueueItems = stats.items.filter(
-          (i) => i.confidence === "ambiguous" || (i.confidence !== "failed" && i.flaggedOptions.length > 0)
-        );
-      } else {
-        activeQueueItems = stats.items;
-      }
-
-      currentIndex = activeQueueItems.findIndex(
-        (i) => i.submissionId === submissionId && i.exerciseId === exerciseId
-      );
-
-      currentExercise = exercises.find((e) => e.id === exerciseId) || null;
-      if (!currentExercise) {
+      const exercise = exercises.find((e) => e.id === exerciseId) || null;
+      if (!exercise) {
         errorMsg = translate("scanning.verifyItem.exerciseNotFound");
         loading = false;
         return;
@@ -99,6 +101,36 @@
         return;
       }
 
+      let nextScanPdfBytes: Uint8Array | null = null;
+      if (submission.scanCt && submission.scanIv) {
+        try {
+          nextScanPdfBytes = await decrypt(key, submission.scanCt, submission.scanIv);
+        } catch (err) {
+          console.warn("Failed to decrypt scan PDF:", err);
+          nextScanPdfBytes = null;
+        }
+      }
+
+      if (thisToken !== lastLoadToken) return;
+
+      const scores = await scoreRepository.getBySubmissionId(examId, submissionId, key);
+      if (thisToken !== lastLoadToken) return;
+
+      stats = verificationStats;
+
+      if (queueFilter === "failed" || queueFilter === "unsure" || queueFilter === "confident") {
+        activeQueueItems = stats.items.filter((i) => categorizeMcItem(i) === queueFilter);
+      } else {
+        // Legacy/malformed URL fallback only — app code always sends an explicit category now.
+        activeQueueItems = stats.items;
+      }
+
+      currentIndex = activeQueueItems.findIndex(
+        (i) => i.submissionId === submissionId && i.exerciseId === exerciseId
+      );
+
+      currentExercise = exercise;
+
       const matchingItem = stats.items.find(
         (i) => i.submissionId === submissionId && i.exerciseId === exerciseId
       );
@@ -106,24 +138,33 @@
         matchingItem?.studentLabel ||
         translate("scanning.verifyItem.submissionLabelFallback", { shortId: submissionId.slice(0, 8) });
 
-      if (submission.scanCt && submission.scanIv) {
-        try {
-          scanPdfBytes = await decrypt(key, submission.scanCt, submission.scanIv);
-        } catch (err) {
-          console.warn("Failed to decrypt scan PDF:", err);
-          scanPdfBytes = null;
-        }
-      } else {
-        scanPdfBytes = null;
-      }
+      // Scoped to the current category, so the header badge matches the
+      // per-category count shown on the dashboard row this item was opened from.
+      const studentItemsInCategory = activeQueueItems.filter((i) => i.submissionId === submissionId);
+      studentTotal = studentItemsInCategory.length;
+      studentReviewed = studentItemsInCategory.filter((i) => i.isReviewed).length;
 
-      const scores = await scoreRepository.getBySubmissionId(examId, submissionId, key);
+      // Deliberately unfiltered by category — this powers the "jump to this
+      // student's other MC items" list, which must reach across categories.
+      studentItems = stats.items
+        .filter((i) => i.submissionId === submissionId)
+        .map((i) => ({
+          exerciseId: i.exerciseId,
+          exerciseLabel: i.exerciseLabel,
+          category: categorizeMcItem(i),
+          isReviewed: !!i.isReviewed,
+        }));
+
+      scanPdfBytes = nextScanPdfBytes;
       currentScoreRecord = scores.find((s) => s.exerciseId === exerciseId) || null;
     } catch (err: any) {
+      if (thisToken !== lastLoadToken) return;
       console.error("Failed to load MC verification item:", err);
       errorMsg = err.message || translate("scanning.verifyItem.loadError");
     } finally {
-      loading = false;
+      if (thisToken === lastLoadToken) {
+        loading = false;
+      }
     }
   }
 
@@ -148,13 +189,23 @@
     currentScoreRecord = scoreToSave;
   }
 
+  function goBackToDashboard() {
+    goto(`/exam/${examId}/verify?queue=${queueFilter}`);
+  }
+
   function handleNext() {
     if (currentIndex >= 0 && currentIndex < activeQueueItems.length - 1) {
       const nextItem = activeQueueItems[currentIndex + 1];
       goto(
         `/exam/${examId}/verify-item?submissionId=${nextItem.submissionId}&exerciseId=${nextItem.exerciseId}&queue=${queueFilter}`
       );
+    } else {
+      goBackToDashboard();
     }
+  }
+
+  function handleEndOfQueue() {
+    showEndOfQueueModal = true;
   }
 
   function handlePrev() {
@@ -168,6 +219,12 @@
 
   function handleOpenGrading() {
     goto(`/exam/${examId}/grade?submissionId=${submissionId}&exerciseId=${exerciseId}`);
+  }
+
+  function navigateToItem(targetExerciseId: string, category: McQueueCategory) {
+    goto(
+      `/exam/${examId}/verify-item?submissionId=${submissionId}&exerciseId=${targetExerciseId}&queue=${category}`
+    );
   }
 </script>
 
@@ -191,6 +248,11 @@
     <McItemVerificationCard
       exercise={currentExercise}
       {studentLabel}
+      {submissionId}
+      {studentTotal}
+      {studentReviewed}
+      {studentItems}
+      currentExerciseId={exerciseId}
       scoreRecord={currentScoreRecord}
       {scanPdfBytes}
       currentIndex={currentIndex >= 0 ? currentIndex : 0}
@@ -198,7 +260,21 @@
       onSave={handleSave}
       onNext={handleNext}
       onPrev={handlePrev}
+      onEndOfQueue={handleEndOfQueue}
       onOpenGrading={handleOpenGrading}
+      onNavigateToItem={navigateToItem}
     />
   {/if}
+
+  <Modal
+    open={showEndOfQueueModal}
+    size="sm"
+    title={$t("scanning.itemCard.endOfQueueTitle")}
+    onClose={() => (showEndOfQueueModal = false)}
+  >
+    <p class="text-sm text-content">{$t("scanning.itemCard.endOfQueueMessage")}</p>
+    <svelte:fragment slot="footer">
+      <Button onClick={goBackToDashboard}>{$t("scanning.itemCard.backToDashboard")}</Button>
+    </svelte:fragment>
+  </Modal>
 </PageShell>

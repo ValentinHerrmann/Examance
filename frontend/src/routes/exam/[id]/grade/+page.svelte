@@ -21,7 +21,7 @@
   import { calculateGradeDetail } from "$lib/analytics/gradingKey";
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { sessionStore, isUnlocked, awaitSessionReady} from "$lib/stores/session";
+  import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { decrypt, encrypt } from "$lib/crypto/aesGcm";
   import { get } from "svelte/store";

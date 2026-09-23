@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { isUnlocked, isAuthenticated, sessionStore, awaitSessionReady} from '$lib/stores/session';
+  import { isUnlocked, isAuthenticated, sessionStore, awaitSessionReady } from '$lib/stores/session';
   import { db } from '$lib/db/db';
   import type { ExamRecord } from '$lib/db/schema';
   import { loadExamsEncrypted, saveExamEncrypted, encryptExam, encryptExercise } from '$lib/db/dbEncryption';

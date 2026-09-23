@@ -228,3 +228,4 @@ tmp/
 .claude/
 .bash_profile
 .bashrc
+CONTEXT/
