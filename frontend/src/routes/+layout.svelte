@@ -38,7 +38,7 @@
   } from "$lib/services/archiveService";
   import ImportConflictModal from "$lib/components/storage/ImportConflictModal.svelte";
   import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
-  import { pendingSwitchStore, resumeModeSwitch } from "$lib/services/storageModeSwitch";
+  import { adoptServerStorageIfLocalEmpty, pendingSwitchStore, resumeModeSwitch } from "$lib/services/storageModeSwitch";
   import AppHeader from "$lib/components/layout/AppHeader.svelte";
   import StatusBar from "$lib/components/layout/StatusBar.svelte";
   import StoragePolicyModal from "$lib/components/StoragePolicyModal.svelte";
@@ -135,13 +135,17 @@
     const policy = get(storagePolicyStore);
 
     if (restored && get(isUnlocked)) {
+      const mode = get(sessionStore).mode;
+      // Same rule as sign-in, before routes read: an empty local workspace shows
+      // the account's server data rather than an empty local vault.
+      if (mode === "authenticated") await adoptServerStorageIfLocalEmpty();
+
       // Keys are back — all `awaitSessionReady()` gates on — so release
       // routes here, before the token refresh below (that refresh is about
       // the access cookie, not the vault; `client.ts` already handles a race
       // with an unrefreshed token).
       markSessionReady();
 
-      const mode = get(sessionStore).mode;
       if (mode === "hybrid" || mode === "authenticated") {
         try {
           await api.post("/auth/refresh", undefined, { silentError: true });

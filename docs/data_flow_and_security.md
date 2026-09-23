@@ -318,6 +318,13 @@ The mode is therefore not settable from application code at all:
 has been recorded. The switch state is persisted, so a reload mid-flight resumes
 instead of presenting an emptied workspace with no stated reason.
 
+One case skips the gate: a server sign-in (or a restored authenticated session)
+on a browser whose local workspace holds no exams, exercises, students,
+submissions or scores adopts `all-server` directly
+(`adoptServerStorageIfLocalEmpty`). There is nothing local to lose, and staying
+on `all-local` would show the account an empty vault. A browser with any local
+data keeps its mode.
+
 **Import resolves collisions before it writes.** `decryptArchive()` opens the
 envelope and touches nothing — a wrong password costs nothing, where the old
 flow called `clearAllTables()` *before* checking it. `detectConflicts()` then

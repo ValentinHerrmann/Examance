@@ -45,6 +45,7 @@
     rewrapForNewPassword,
     startFreshVault,
   } from "$lib/services/keyEnvelopeService";
+  import { adoptServerStorageIfLocalEmpty } from "$lib/services/storageModeSwitch";
 
   const LOCAL_PASSPHRASE_MIN_LENGTH = 12;
 
@@ -158,9 +159,6 @@
       // Save backend URL to localStorage ONLY after a factor was accepted
       backendStore.saveSuccessfulBackendUrl(trimmedBackendUrl);
 
-      // Storage mode is not changed here on sign-in — it only changes through
-      // the gated switch in settings, which exports an archive first.
-
       await handleAuthStep(step);
     } catch (err: any) {
       // Revert store to last saved URL if authentication failed
@@ -269,6 +267,16 @@
     await finishUnlock(step, normalizedEmail, vault);
   }
 
+  /**
+   * Leave the sign-in screen for an authenticated session. An empty local
+   * workspace switches to server storage first, so the account's exams show up
+   * instead of an empty local vault; local data is never switched away silently.
+   */
+  async function enterApp() {
+    await adoptServerStorageIfLocalEmpty();
+    await goto("/");
+  }
+
   /** Start the session from an opened vault and leave the sign-in screen. */
   async function finishUnlock(
     step: AuthStep,
@@ -298,7 +306,7 @@
       return;
     }
 
-    await goto("/");
+    await enterApp();
   }
 
   /**
@@ -508,7 +516,7 @@
     pendingBackupCodes = null;
     pendingRecoveryCode = null;
     showSetupCodes = false;
-    goto("/");
+    await enterApp();
   }
 
   async function handleUnlockLocal() {
@@ -612,7 +620,7 @@
       mode: "authenticated",
     });
     pendingRecovery = null;
-    await goto("/");
+    await enterApp();
   }
 
   /**

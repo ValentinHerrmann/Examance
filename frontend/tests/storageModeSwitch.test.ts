@@ -11,6 +11,7 @@ import {
 } from '../src/lib/stores/storagePolicy';
 import {
   abortModeSwitch,
+  adoptServerStorageIfLocalEmpty,
   beginModeSwitch,
   commitModeSwitch,
   finishModeSwitch,
@@ -118,5 +119,25 @@ describe('gated switch flow', () => {
       createdAt: new Date().toISOString(),
     });
     expect(await localWorkspaceIsEmpty()).toBe(false);
+  });
+
+  it('adopts server storage on sign-in when the local workspace is empty', async () => {
+    expect(await adoptServerStorageIfLocalEmpty()).toBe(true);
+    expect(get(storagePolicyStore).storageMode).toBe('all-server');
+    // The token is spent: nothing else can change the mode afterwards.
+    expect(() => storagePolicyStore.commitStorageMode('all-local', 'made-up')).toThrow();
+  });
+
+  it('never switches a workspace that holds local data', async () => {
+    await db.exams.put({
+      id: 'exam-3',
+      teacherId: 't1',
+      retentionUntil: '2030-01-01',
+      compilationStatus: 'pending',
+      createdAt: new Date().toISOString(),
+    });
+    expect(await adoptServerStorageIfLocalEmpty()).toBe(false);
+    expect(get(storagePolicyStore).storageMode).toBe('all-local');
+    expect(await db.exams.count()).toBe(1);
   });
 });

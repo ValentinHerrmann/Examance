@@ -85,6 +85,7 @@ export const help = {
                 p1: 'Der Speicherort lässt sich in den Einstellungen ändern, aber Daten werden dabei nicht automatisch übertragen. Der Wechsel führt Sie deshalb durch vier Schritte: Arbeitsbereich als verschlüsselte Archivdatei (.bgproj) sichern, lokalen Speicher leeren, Speicherort umstellen, Archiv im neuen Modus wieder einlesen.',
                 p2: 'Die Archivdatei ist die einzige Brücke zwischen den Speicherorten. Ohne Export ist der Wechsel nicht möglich — das Leeren des lokalen Speichers lässt sich nicht rückgängig machen. Auf dem Server gespeicherte Klausuren bleiben dabei erhalten; geleert wird nur der lokale Speicher dieses Browsers.',
                 p3: 'Beim Einlesen prüft Examance, ob es Datensätze bereits gibt. Für jeden Konflikt sehen Sie beide Fassungen nebeneinander und entscheiden, welche gelten soll. Bei Schülerdaten und Abgaben ist dabei keine Kopie möglich, weil doppelte Pseudonyme datenschutzrechtlich nicht zulässig sind.',
+                p4: 'Ausnahme: Melden Sie sich in einem Browser an, dessen lokaler Speicher leer ist, wird direkt auf den Server-Speicher umgestellt — lokal geht nichts verloren, und Ihre Klausuren vom Server erscheinen sofort. Ein Browser mit lokalen Daten behält seinen Speicherort.',
             },
         },
         exercises: {

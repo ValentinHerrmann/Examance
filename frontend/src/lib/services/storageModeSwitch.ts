@@ -57,6 +57,24 @@ export async function localWorkspaceIsEmpty(): Promise<boolean> {
   return counts.every((n) => n === 0);
 }
 
+/**
+ * Called on server sign-in. A browser with an empty local workspace has nothing
+ * the gate could protect, so it adopts server storage directly instead of
+ * showing the account an empty local vault. Any local data keeps the mode as is.
+ *
+ * @returns true when the mode changed.
+ */
+export async function adoptServerStorageIfLocalEmpty(): Promise<boolean> {
+  if (get(storagePolicyStore).storageMode !== 'all-local' || get(pendingSwitchStore)) return false;
+  if (!(await localWorkspaceIsEmpty())) return false;
+  try {
+    storagePolicyStore.commitStorageMode('all-server', armStorageModeSwitch());
+  } finally {
+    disarmStorageModeSwitch();
+  }
+  return true;
+}
+
 export function beginModeSwitch(to: StorageMode): void {
   pendingSwitchStore.set({
     from: get(storagePolicyStore).storageMode,
