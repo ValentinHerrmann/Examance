@@ -154,3 +154,10 @@ services:
 volumes:
   pg_data:
   tectonic_cache:
+
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
