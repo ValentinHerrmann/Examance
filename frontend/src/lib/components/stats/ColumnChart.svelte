@@ -53,6 +53,7 @@
   const BAND_PAD = 4; // room around the bars in front: above the count, and left/right of the outermost bars
   const SHADOW = 2; // px depth of the shadow foreground bars cast onto the band
   const SHADOW_OPACITY = 0.1; // per stacked shadow layer
+  const MARK_SHADE = 0.28; // darkening of a bar's borderline (+/−) zones
 
   let width = 0;
   $: vw = Math.max(width, MIN_WIDTH);
@@ -243,6 +244,23 @@
                      a confirmed bar (or an empty one) of the same grade. -->
                 <path d={bar(x, base - h(c.count), w, h(c.provisional), true)} {fill} />
                 <path d={bar(x, base - h(c.count), w, h(c.provisional), true)} fill="#ffffff" opacity="0.4" />
+              {/if}
+              {#if c.marks && c.count > 0}
+                <!-- Borderline zones: '+' (just short of the better grade) darkened at the top of the
+                     bar, '−' (just above the worse grade) at its foot, each set off by a white rule. -->
+                {@const plusH = h(Math.min(c.marks.plus, c.count))}
+                {@const minusH = Math.min(h(c.marks.minus), h(c.count) - plusH)}
+                {#each [{ y: base - h(c.count), hgt: plusH, text: `+${c.marks.plus}`, rule: base - h(c.count) + plusH, round: true }, { y: base - minusH, hgt: minusH, text: `−${c.marks.minus}`, rule: base - minusH, round: false }] as zone}
+                  {#if zone.hgt > 0}
+                    <path d={bar(x, zone.y, w, zone.hgt, zone.round)} fill="#000000" opacity={MARK_SHADE} />
+                    {#if zone.rule > base - h(c.count) + 0.5 && zone.rule < base - 0.5}
+                      <line x1={x} x2={x + w} y1={zone.rule} y2={zone.rule} stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.85" />
+                    {/if}
+                    {#if zone.hgt >= 12}
+                      <text x={cx} y={zone.y + zone.hgt / 2 + 4} text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">{zone.text}</text>
+                    {/if}
+                  {/if}
+                {/each}
               {/if}
             </g>
           {/if}

@@ -6,7 +6,7 @@
  * already best-first, and the percentage builders (`binColumns`,
  * `gradeBands`) mirror the 0–100 % axis so 100 % lands on the left too.
  */
-import { gradeColorVar, type GradeDistributionBucket } from '$lib/analytics/gradingKey';
+import { gradeColorVar, type BorderlineCase, type GradeDistributionBucket } from '$lib/analytics/gradingKey';
 import type { PercentageHistogramBin } from '$lib/analytics/stats';
 
 /**
@@ -38,6 +38,8 @@ export interface ChartColumn {
   title: string;
   /** Keeps its axis label when crowded labels are thinned. */
   anchor?: boolean;
+  /** Borderline counts, marked as zones inside the bar: `plus` at its top, `minus` at its foot. */
+  marks?: { plus: number; minus: number };
 }
 
 export interface ChartLayer {
@@ -89,13 +91,17 @@ function rangeLabel([lo, hi]: [number, number], num: NumberFormat): string {
 export function gradeColumns(
   buckets: GradeDistributionBucket[],
   num: NumberFormat,
-  percent: Percent
+  percent: Percent,
+  borderline: BorderlineCase[] = []
 ): ChartColumn[] {
   const total = buckets.reduce((sum, b) => sum + b.count, 0);
   const ranges = gradeRanges(buckets);
   return buckets.map((b, i) => {
     const range = rangeLabel(ranges[i], num);
+    const plus = borderline.filter((c) => c.gradeIndex === i && c.side === '+').length;
+    const minus = borderline.filter((c) => c.gradeIndex === i && c.side === '-').length;
     return {
+      marks: { plus, minus },
       from: i,
       to: i + 1,
       count: b.count,
@@ -103,7 +109,7 @@ export function gradeColumns(
       color: gradeColorVar(i, buckets.length),
       lines: [b.grade, b.label, range],
       value: b.count > 0 ? countWithShare(b.count, total, percent) : `${b.count}`,
-      title: `${b.grade} ${b.label} (${range}): ${b.count}`,
+      title: `${b.grade} ${b.label} (${range}): ${b.count}` + (plus || minus ? ` (+${plus} / −${minus})` : ''),
     };
   });
 }

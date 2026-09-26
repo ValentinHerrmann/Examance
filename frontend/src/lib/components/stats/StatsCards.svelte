@@ -11,6 +11,8 @@
   $: num = (value: number | null, min: number, max = min) =>
     value === null ? DASH : $fmt.number(value, { minimumFractionDigits: min, maximumFractionDigits: max });
 
+  $: plus = stats.borderline.filter((c) => c.side === '+').length;
+  $: minus = stats.borderline.length - plus;
   $: cards = [
     ['stats.cards.gradeAverage', num(stats.gradeAverage, 2), ''],
     ['stats.cards.passRate', stats.passRate === null ? DASH : $fmt.percent(stats.passRate, 0), ''],
@@ -18,10 +20,11 @@
     ['stats.cards.avgPercent', pct(stats.summary?.mean), ''],
     ['stats.cards.median', pct(stats.summary?.median), ''],
     ['stats.cards.stdDev', pct(stats.summary?.stdDev), ''],
+    ['stats.cards.borderline', `+${plus} / −${minus}`, ''],
   ] satisfies [TranslationKey, string, string][];
 </script>
 
-<div class="mb-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+<div class="mb-2 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
   {#each cards as [label, value, suffix]}
     <div class="flex min-w-0 flex-col gap-1 rounded-xl border border-line bg-surface-raised px-4 py-3">
       <span class="text-xs uppercase tracking-wide text-subtle">{$t(label)}</span>

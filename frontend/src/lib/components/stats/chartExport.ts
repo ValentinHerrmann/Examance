@@ -15,14 +15,15 @@
 /** Token name (without `--color-`) → literal colour. */
 export type ChartPalette = Record<string, string>;
 
-// Grades 2–5 darkened from the app's on-screen shades so every mark keeps at
-// least 3:1 contrast on white.
+// Neutral greys, not the app's blue-tinted slate: over a dark viewer background (a
+// transparent PNG in an image viewer) slate text reads as blue. Grades 2–5 darkened from
+// the app's on-screen shades so every mark keeps at least 3:1 contrast on white.
 export const CHART_PALETTE: ChartPalette = {
-  line: '#cbd5e1',
-  'line-strong': '#94a3b8',
-  content: '#0f172a',
-  muted: '#475569',
-  subtle: '#64748b',
+  line: '#d4d4d4',
+  'line-strong': '#a3a3a3',
+  content: '#171717',
+  muted: '#525252',
+  subtle: '#737373',
   'grade-1': '#15803d',
   'grade-2': '#16a34a',
   'grade-3': '#ca8a04',
@@ -31,8 +32,8 @@ export const CHART_PALETTE: ChartPalette = {
   'grade-6': '#b91c1c',
 };
 
-/** PNG target: the largest size that fits a Full HD screen. */
-export const PNG_FIT = { width: 1920, height: 1080 };
+/** PNG target: the largest size that fits a Full HD screen, at four times its resolution per side. */
+export const PNG_FIT = { width: 7680, height: 4320 };
 
 const FONT_STACK = "Helvetica, Arial, 'Segoe UI', system-ui, sans-serif";
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -95,6 +96,15 @@ export async function svgToPng(markup: string): Promise<Blob> {
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+/**
+ * The standard PDF fonts are WinAnsi and pdf-lib throws on anything else. Map the characters
+ * the charts use outside that set: the narrow no-break space `Intl` puts before "%", and the
+ * minus sign of the borderline marks.
+ */
+function toWinAnsi(text: string): string {
+  return text.replace(/\u202f/g, '\u00a0').replace(/\u2212/g, '-');
 }
 
 function hexToRgb01(hex: string): [number, number, number] {
@@ -184,8 +194,7 @@ export async function svgToPdf(markup: string, title: string): Promise<Blob> {
         // values); draw them one after another along the baseline.
         const tspans = Array.from(el.children).filter((c) => c.tagName === 'tspan');
         const runs = (tspans.length ? tspans : [el]).map((r) => ({
-          // Standard fonts are WinAnsi: map the narrow no-break space Intl uses to a plain one.
-          text: (r.textContent ?? '').replace(/\u202f/g, '\u00a0'),
+          text: toWinAnsi(r.textContent ?? ''),
           fill: r.getAttribute('fill') ?? el.getAttribute('fill'),
         }));
         if (!runs.some((r) => r.text.trim())) return;

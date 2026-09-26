@@ -106,6 +106,7 @@
   {stats}
   {totalMaxPoints}
   submissionCount={submissions.length}
+  submissionIds={submissions.map((s) => s.id)}
   {showConfirmModal}
   onOpenExport={() => (showConfirmModal = true)}
   onConfirmExport={confirmAndExport}

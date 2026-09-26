@@ -271,3 +271,88 @@ export function calculatePassRate(
   if (grades.length === 0 || grades.every(Number.isNaN)) return null;
   return grades.filter((g) => g <= 4).length / grades.length;
 }
+
+/** Points a result may be off a grade boundary and still count as a borderline case. */
+export const BORDERLINE_MARGIN_POINTS = 1;
+
+export interface BorderlineCase {
+  submissionId: string;
+  grade: string;
+  label: string;
+  /** Index of the grade in the key, best first (for its colour). */
+  gradeIndex: number;
+  gradeCount: number;
+  /**
+   * `'+'`: less than the margin short of the next better grade (upper end of its grade);
+   * `'-'`: less than the margin above the next worse grade (lower end). A grade narrower
+   * than twice the margin can put one result on both lists.
+   */
+  side: "+" | "-";
+  /** Points achieved (so far, while provisional). */
+  points: number;
+  /** The boundary in points, and the grade that starts there: the next better grade for `'+'`, the result's own for `'-'`. */
+  boundaryPoints: number;
+  boundaryGrade: string;
+  /** Distance to that boundary in points, always positive for `'+'` and ≥ 0 for `'-'`. */
+  distance: number;
+  percentage: number;
+  /** Points the result is measured against: the exam total, or the graded exercises so far. */
+  maxPoints: number;
+  isComplete: boolean;
+}
+
+interface BorderlineInput {
+  submissionId: string;
+  percentage: number;
+  gradedPoints: number;
+  gradedMaxPoints: number;
+  isComplete: boolean;
+}
+
+/**
+ * Results within `margin` points of a grade boundary, closest first. Points are measured
+ * on the result's own basis (`gradedMaxPoints`): the whole exam once it is fully graded,
+ * the graded exercises so far while it is provisional. The best grade has no `'+'` and the
+ * worst no `'-'`.
+ */
+export function borderlineCases(
+  results: BorderlineInput[],
+  keyConfig?: GradingKeyConfig,
+  margin = BORDERLINE_MARGIN_POINTS,
+): BorderlineCase[] {
+  const sorted = sortedCutoffs(effectiveGradingKey(keyConfig).cutoffs);
+  const boundary = (idx: number, max: number) =>
+    (cutoffThreshold(sorted[idx].minPercentage) / 100) * max;
+  const round = (v: number) => Math.round(v * 100) / 100;
+  const cases: BorderlineCase[] = [];
+  for (const r of results) {
+    if (!(r.gradedMaxPoints > 0)) continue;
+    const idx = cutoffIndex(sorted, r.percentage);
+    const base = {
+      submissionId: r.submissionId,
+      grade: sorted[idx].grade,
+      label: sorted[idx].label,
+      gradeIndex: idx,
+      gradeCount: sorted.length,
+      percentage: r.percentage,
+      points: round(r.gradedPoints),
+      maxPoints: r.gradedMaxPoints,
+      isComplete: r.isComplete,
+    };
+    if (idx > 0) {
+      const at = round(boundary(idx - 1, r.gradedMaxPoints));
+      const missing = round(at - r.gradedPoints);
+      if (missing > 0 && missing < margin) {
+        cases.push({ ...base, side: "+", distance: missing, boundaryPoints: at, boundaryGrade: sorted[idx - 1].grade });
+      }
+    }
+    if (idx < sorted.length - 1) {
+      const at = round(boundary(idx, r.gradedMaxPoints));
+      const spare = round(r.gradedPoints - at);
+      if (spare >= 0 && spare < margin) {
+        cases.push({ ...base, side: "-", distance: spare, boundaryPoints: at, boundaryGrade: sorted[idx].grade });
+      }
+    }
+  }
+  return cases.sort((a, b) => a.distance - b.distance);
+}

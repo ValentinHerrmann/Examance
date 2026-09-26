@@ -3,12 +3,14 @@
  */
 import type { GradingKeyConfig } from "$lib/db/schema";
 import {
+  borderlineCases,
   calculateClassGradeAverage,
   calculateGradeDistribution,
   calculatePassRate,
   cutoffThreshold,
   effectiveGradingKey,
   gradeColorForPercentage,
+  type BorderlineCase,
   type GradeDistributionBucket,
 } from "./gradingKey";
 
@@ -288,6 +290,8 @@ export interface ExamStats {
   /** Width of every bin in %, or null when the key forced uneven bins. */
   binWidth: number | null;
   gradeBuckets: GradeDistributionBucket[];
+  /** Results less than a point off a grade boundary, closest first. */
+  borderline: BorderlineCase[];
 }
 
 /** Provisional (partially graded) results are counted, and flagged so charts can mark them. */
@@ -312,5 +316,6 @@ export function summarizeExam(
       gradingKey,
       provisional,
     ),
+    borderline: borderlineCases(results, gradingKey),
   };
 }
