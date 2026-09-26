@@ -5,7 +5,6 @@ import { sveltekit } from '@sveltejs/kit/vite';
 // about the `test` block below.
 import { defineConfig, type Plugin } from 'vitest/config';
 import wasm from 'vite-plugin-wasm';
-import topLevelAwait from 'vite-plugin-top-level-await';
 import tailwindcss from '@tailwindcss/vite';
 
 /**
@@ -111,7 +110,7 @@ function computeDefaultBackendUrl(): string {
 }
 
 export default defineConfig({
-  plugins: [tailwindcss(), wasm(), topLevelAwait(), argon2BundlePlugin(), sveltekit()],
+  plugins: [tailwindcss(), wasm(), argon2BundlePlugin(), sveltekit()],
   define: {
     __APP_VERSION__: JSON.stringify(computeAppVersion()),
     __APP_COMMIT_SHA__: JSON.stringify(computeCommitSha()),
@@ -139,6 +138,9 @@ export default defineConfig({
     external: ['argon2-browser'],
   },
   build: {
+    // ES2022 includes native top-level await, so no TLA transform plugin is
+    // needed — vite-plugin-top-level-await re-parsed every chunk with SWC and
+    // cost ~10 s per Cloudflare Pages build.
     target: 'es2022',
     // Gzip-sizing every chunk only feeds the build log and cost ~9 s per
     // Cloudflare Pages build.

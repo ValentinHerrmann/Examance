@@ -37,8 +37,10 @@ async function processLargeFile({ fullPath, stats }) {
   console.log(`Processing large file (${(stats.size / 1024 / 1024).toFixed(2)} MB): ${fullPath}`);
   
   const fileContent = fs.readFileSync(fullPath);
-  console.log(`  Compressing with gzip -9...`);
-  const gzipped = await gzipPipeline(fileContent, { level: 9 });
+  // Level 6, not 9: the TeX Live bundles are mostly pre-compressed fonts, so
+  // -9 took twice as long for 0.5% smaller output.
+  console.log(`  Compressing with gzip -6...`);
+  const gzipped = await gzipPipeline(fileContent, { level: 6 });
   
   const relPath = '/' + path.relative(targetDir, fullPath).replace(/\\/g, '/');
   const chunks = [];
