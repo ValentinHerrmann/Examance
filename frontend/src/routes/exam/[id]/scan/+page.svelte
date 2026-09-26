@@ -103,6 +103,9 @@
 
   let unmatchedList: UnmatchedSubmission[] = [];
   let scannedSubmissions: ScannedSubmissionItem[] = [];
+  // Starts true: the overview must not flash "no submissions yet" while the
+  // first fetch is still in flight (see loadScannedSubmissions()).
+  let isLoadingSubmissions = true;
   let previewModalOpen = false;
   let previewItem: ScannedSubmissionItem | null = null;
   let previewObjectUrl: string | null = null;
@@ -230,71 +233,76 @@
   });
 
   async function loadScannedSubmissions() {
-    await awaitSessionReady();
-    const key = get(sessionStore).sessionKey;
-    const submissions = await submissionRepository.getByExamId(examId, key);
-    const students = await studentRepository.getByExamId(examId, key);
+    isLoadingSubmissions = true;
+    try {
+      await awaitSessionReady();
+      const key = get(sessionStore).sessionKey;
+      const submissions = await submissionRepository.getByExamId(examId, key);
+      const students = await studentRepository.getByExamId(examId, key);
 
-    const studentMap = new Map<string, StudentRecord>();
-    for (const st of students) {
-      if (st.pseudonymId) {
-        studentMap.set(st.pseudonymId, st);
-        const hex = await ensure64CharHex(st.pseudonymId);
-        studentMap.set(hex, st);
-      }
-      if (st.fallbackCode) {
-        studentMap.set(st.fallbackCode, st);
-      }
-    }
-
-    const items: ScannedSubmissionItem[] = [];
-    for (const sub of submissions) {
-      let st = studentMap.get(sub.pseudonymHash);
-      if (!st) {
-        const hex = await ensure64CharHex(sub.pseudonymHash);
-        st = studentMap.get(hex);
-      }
-
-      let sName = st?.studentName;
-      let sNumber = st?.studentNumber;
-      let fCode = st?.fallbackCode;
-
-      const qrCandidate =
-        (st?.pseudonymId && st.pseudonymId.includes('_') ? st.pseudonymId : null) ||
-        (sub.pseudonymHash && sub.pseudonymHash.includes('_') ? sub.pseudonymHash : null) ||
-        (fCode && fCode.includes('_') ? fCode : null);
-
-      if (qrCandidate) {
-        const parsed = parseStudentQr(qrCandidate);
-        if (parsed) {
-          sName = sName || parsed.displayName;
-          sNumber = sNumber || parsed.studentNumber;
-          if (!fCode || fCode === "UNKNOWN" || fCode.length === 64) {
-            fCode = parsed.displayName;
-          }
+      const studentMap = new Map<string, StudentRecord>();
+      for (const st of students) {
+        if (st.pseudonymId) {
+          studentMap.set(st.pseudonymId, st);
+          const hex = await ensure64CharHex(st.pseudonymId);
+          studentMap.set(hex, st);
+        }
+        if (st.fallbackCode) {
+          studentMap.set(st.fallbackCode, st);
         }
       }
 
-      if (!fCode || fCode === "UNKNOWN") {
-        fCode = sName || (sub.pseudonymHash.length > 16 ? sub.pseudonymHash.substring(0, 8) : sub.pseudonymHash);
+      const items: ScannedSubmissionItem[] = [];
+      for (const sub of submissions) {
+        let st = studentMap.get(sub.pseudonymHash);
+        if (!st) {
+          const hex = await ensure64CharHex(sub.pseudonymHash);
+          st = studentMap.get(hex);
+        }
+
+        let sName = st?.studentName;
+        let sNumber = st?.studentNumber;
+        let fCode = st?.fallbackCode;
+
+        const qrCandidate =
+          (st?.pseudonymId && st.pseudonymId.includes('_') ? st.pseudonymId : null) ||
+          (sub.pseudonymHash && sub.pseudonymHash.includes('_') ? sub.pseudonymHash : null) ||
+          (fCode && fCode.includes('_') ? fCode : null);
+
+        if (qrCandidate) {
+          const parsed = parseStudentQr(qrCandidate);
+          if (parsed) {
+            sName = sName || parsed.displayName;
+            sNumber = sNumber || parsed.studentNumber;
+            if (!fCode || fCode === "UNKNOWN" || fCode.length === 64) {
+              fCode = parsed.displayName;
+            }
+          }
+        }
+
+        if (!fCode || fCode === "UNKNOWN") {
+          fCode = sName || (sub.pseudonymHash.length > 16 ? sub.pseudonymHash.substring(0, 8) : sub.pseudonymHash);
+        }
+
+        items.push({
+          id: sub.id,
+          pseudonymHash: sub.pseudonymHash,
+          fallbackCode: fCode,
+          studentName: sName,
+          studentNumber: sNumber,
+          createdAt: sub.createdAt || new Date().toISOString(),
+          scanCt: sub.scanCt,
+          scanIv: sub.scanIv,
+          totalScore: sub.totalScore,
+          annotationCt: sub.annotationCt,
+          annotationIv: sub.annotationIv,
+        });
       }
 
-      items.push({
-        id: sub.id,
-        pseudonymHash: sub.pseudonymHash,
-        fallbackCode: fCode,
-        studentName: sName,
-        studentNumber: sNumber,
-        createdAt: sub.createdAt || new Date().toISOString(),
-        scanCt: sub.scanCt,
-        scanIv: sub.scanIv,
-        totalScore: sub.totalScore,
-        annotationCt: sub.annotationCt,
-        annotationIv: sub.annotationIv,
-      });
+      scannedSubmissions = items;
+    } finally {
+      isLoadingSubmissions = false;
     }
-
-    scannedSubmissions = items;
   }
 
   async function openPreview(item: ScannedSubmissionItem) {
@@ -1256,6 +1264,7 @@
 
   <ScannedSubmissionsTable
     {scannedSubmissions}
+    loading={isLoadingSubmissions}
     {exportingId}
     {isGraded}
     onPreview={openPreview}

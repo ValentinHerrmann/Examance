@@ -321,8 +321,11 @@ export async function saveStudentEncrypted(student: StudentRecord, key: CryptoKe
   return student.pseudonymId;
 }
 
-export async function loadSubmissionsEncrypted(key: CryptoKey | null): Promise<SubmissionRecord[]> {
-  return submissionRepository.getAll(key);
+export async function loadSubmissionsEncrypted(
+  key: CryptoKey | null,
+  opts: { includeScans?: boolean } = {}
+): Promise<SubmissionRecord[]> {
+  return submissionRepository.getAll(key, undefined, opts);
 }
 
 export async function saveSubmissionEncrypted(submission: SubmissionRecord, key: CryptoKey | null): Promise<string> {

@@ -55,7 +55,10 @@ export async function packProject(
   const exams = await loadExamsEncrypted(key);
   const exercises = await loadExercisesEncrypted(key);
   const students = await loadStudentsEncrypted(key);
-  const submissions = await loadSubmissionsEncrypted(key);
+  // The archive is the export/import bridge — it must carry every scan, not
+  // just presence flags, so this is the one caller that opts into the heavy
+  // list response.
+  const submissions = await loadSubmissionsEncrypted(key, { includeScans: true });
   // Through the repository, not Dexie directly — in all-server mode the local
   // cache can be empty (e.g. right after a lock).
   const exerciseScores = await scoreRepository.getAll(exams.map((e) => e.id), key);

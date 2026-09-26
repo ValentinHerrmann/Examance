@@ -152,7 +152,9 @@
 
       const [mcExercises, submissions] = await Promise.all([
         loadExamMcExercises(examId, key),
-        submissionRepository.getByExamId(examId, key),
+        // Rerunning OMR detection decrypts every submission's scan below, so
+        // (unlike the page's own overview load) this one needs the bytes.
+        submissionRepository.getByExamId(examId, key, { includeScans: true }),
       ]);
 
       if (submissions.length === 0) {

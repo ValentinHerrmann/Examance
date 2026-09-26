@@ -116,8 +116,12 @@ const SPECS: KindSpec[] = [
     title: (r) => String(r.pseudonymHash ?? r.id).slice(0, 8),
     fields: {
       ...props('totalScore', 'createdAt'),
-      hasScan: (r) => Boolean(r.scanCt),
-      hasAnnotations: (r) => Boolean(r.annotationCt),
+      // `r.scanCt`/`annotationCt` are only present on a full fetch; `hasScan`/
+      // `hasAnnotations` are the list endpoint's cheap presence flags and stay
+      // accurate even when the byte fields were omitted (see
+      // submissionRepository's `includeScans`).
+      hasScan: (r) => Boolean(r.scanCt) || Boolean(r.hasScan),
+      hasAnnotations: (r) => Boolean(r.annotationCt) || Boolean(r.hasAnnotations),
     },
     allowCopy: false,
     existing: (rows, key) => perExam(rows, (id) => submissionRepository.getByExamId(id, key)),

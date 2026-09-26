@@ -215,6 +215,15 @@ export interface SubmissionRecord extends MaybeUndecryptable {
   annotationCt?: Uint8Array;
   annotationIv?: Uint8Array;
   createdAt: string;
+  /**
+   * Presence flags from the server's list endpoint (see
+   * `submissionRepository.getByExamId`'s `includeScans` option): true even
+   * when `scanCt`/`annotationCt` themselves were omitted from a light list
+   * response. Undefined for locally-sourced records, where the real bytes
+   * (or their absence) are already known directly.
+   */
+  hasScan?: boolean;
+  hasAnnotations?: boolean;
   /** AES-256-GCM encrypted payload containing totalScore. */
   payloadCt?: Uint8Array;
   /** 12-byte GCM IV for payloadCt. */

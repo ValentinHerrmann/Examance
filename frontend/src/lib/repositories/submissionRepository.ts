@@ -20,17 +20,35 @@ export function mapApiToSubmissionRecord(s: any, fallbackExamId: string): Submis
     scanIv: s.scan_iv_b64 ? base64ToUint8Array(s.scan_iv_b64) : undefined,
     annotationCt: s.annotation_ciphertext_b64 ? base64ToUint8Array(s.annotation_ciphertext_b64) : undefined,
     annotationIv: s.annotation_iv_b64 ? base64ToUint8Array(s.annotation_iv_b64) : undefined,
+    // Cheap presence flags the list endpoint always sends, even when the
+    // actual scan/annotation bytes are omitted (see `includeScans` below) —
+    // lets a "has a scan?" indicator stay correct without paying for the PDF.
+    hasScan: s.has_scan ?? Boolean(s.scan_ciphertext_b64),
+    hasAnnotations: s.has_annotations ?? Boolean(s.annotation_ciphertext_b64),
   };
 }
+
+/** Query-string suffix for the list endpoint's scan-bytes opt-in. */
+const includeScansQS = (includeScans: boolean | undefined) =>
+  includeScans ? '?include_scans=true' : '';
 
 export const submissionRepository = {
   /**
    * @param knownExams exams the caller already has, to avoid a second
    *   `/exams` fetch just to learn which ids to ask about.
    */
+  /**
+   * @param opts.includeScans Ask the server to ship every submission's scan
+   *   PDF too. Off by default — a list is metadata (`hasScan` still tells you
+   *   whether one exists); only export/archive and bulk scan-processing flows
+   *   that genuinely need every submission's bytes at once should set this.
+   *   Everything else loads a scan lazily via `getById` when it is opened.
+   *   Local mode ignores this — Dexie already has everything decrypted.
+   */
   async getAll(
     key: CryptoKey | null,
-    knownExams?: { id: string }[]
+    knownExams?: { id: string }[],
+    opts: { includeScans?: boolean } = {}
   ): Promise<SubmissionRecord[]> {
     if (resultsAreLocal()) {
       const raw = await db.submissions.toArray();
@@ -44,9 +62,10 @@ export const submissionRepository = {
         // statistics, and one modal per exam would be a wall of dialogs.
         const perExam = await Promise.all(
           exams.map(async (exam) => {
-            const rawList = await api.get<any[]>(`/exams/${exam.id}/submissions`, {
-              silentError: true,
-            });
+            const rawList = await api.get<any[]>(
+              `/exams/${exam.id}/submissions${includeScansQS(opts.includeScans)}`,
+              { silentError: true }
+            );
             return rawList.map((s: any) => mapApiToSubmissionRecord(s, exam.id));
           })
         );
@@ -57,13 +76,19 @@ export const submissionRepository = {
     }
   },
 
-  async getByExamId(examId: string, key: CryptoKey | null): Promise<SubmissionRecord[]> {
+  async getByExamId(
+    examId: string,
+    key: CryptoKey | null,
+    opts: { includeScans?: boolean } = {}
+  ): Promise<SubmissionRecord[]> {
     if (resultsAreLocal()) {
       const raw = await db.submissions.where('examId').equals(examId).toArray();
       return Promise.all(raw.map((sub) => decryptSubmission(sub, key)));
     } else {
       try {
-        const rawList = await api.get<any[]>(`/exams/${examId}/submissions`);
+        const rawList = await api.get<any[]>(
+          `/exams/${examId}/submissions${includeScansQS(opts.includeScans)}`
+        );
         return rawList.map((s: any) => mapApiToSubmissionRecord(s, examId));
       } catch {
         return [];
