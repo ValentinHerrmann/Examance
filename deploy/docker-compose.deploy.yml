@@ -95,6 +95,13 @@ services:
     # this port. Publishing on 0.0.0.0 would expose the API without TLS.
     ports:
       - "127.0.0.1:${APP_PORT:-8000}:8000"
+    # Tectonic downloads TeX Live bundle files on first use. Without a volume
+    # every deploy starts from an empty cache, and the first compile afterwards
+    # runs past the proxy timeout — nginx/Cloudflare answer with a bare 504/524
+    # that the browser reports as a CORS error. Holds only public TeX files,
+    # never exam content (compiles run in per-request temp dirs).
+    volumes:
+      - tectonic_cache:/var/cache/tectonic
     depends_on:
       db:
         condition: service_healthy
@@ -146,3 +153,4 @@ services:
 
 volumes:
   pg_data:
+  tectonic_cache:

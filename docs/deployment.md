@@ -16,7 +16,7 @@ There are two fully independent instances, **production** and **preview**.
 | Image tag | `ghcr.io/…/examance-backend:1.4.0` + `:latest` | `…:sha-<full-sha>` + `:preview` |
 | Compose project | `examance-prod` | `examance-preview` |
 | Loopback port | `8000` | `8001` |
-| Volumes | `examance-prod_pg_data` | `examance-preview_pg_data` |
+| Volumes | `examance-prod_pg_data`, `examance-prod_tectonic_cache` | `examance-preview_pg_data`, `examance-preview_tectonic_cache` |
 | Server env file | `$DEPLOY_APP_DIR/prod/.env` | `$DEPLOY_APP_DIR/preview/.env` |
 
 Publishing a GitHub Release is the **only** action needed to ship production. Nothing else is manual.
@@ -378,5 +378,5 @@ docker compose -p examance-preview -f docker-compose.deploy.yml --env-file .env 
 **Verify the two stacks are really isolated**
 
 ```bash
-docker volume ls | grep examance   # expect examance-prod_pg_data and examance-preview_pg_data
+docker volume ls | grep examance   # expect <project>_pg_data and <project>_tectonic_cache for prod and preview
 ```
