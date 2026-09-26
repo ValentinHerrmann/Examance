@@ -55,6 +55,34 @@ function cutoffIndex(sorted: GradeCutoff[], percentage: number): number {
   return idx === -1 ? sorted.length - 1 : idx;
 }
 
+const GRADE_COLOR_RAMP = 6;
+
+/**
+ * CSS colour token for the `index`-th of `total` sorted best-first buckets, scaled onto the
+ * 6-step `--color-grade-1..6` ramp (dark green -> dark red). A standard 6-row key maps 1:1;
+ * a custom key with a different row count is scaled by position so it still spans the ramp.
+ */
+export function gradeColorVar(index: number, total: number): string {
+  const step =
+    total <= 1
+      ? 0
+      : Math.round((index / (total - 1)) * (GRADE_COLOR_RAMP - 1));
+  return `var(--color-grade-${step + 1})`;
+}
+
+/**
+ * Colour token for a percentage under a grading key. A range's grade is decided by the grade
+ * of its *lower* bound: a bin/bucket straddling a cutoff (e.g. 85-90% with a cutoff at 87.5%)
+ * takes the lower grade, matching how a submission scoring exactly the lower bound would grade.
+ */
+export function gradeColorForPercentage(
+  percentage: number,
+  keyConfig?: GradingKeyConfig,
+): string {
+  const sorted = sortedCutoffs(effectiveGradingKey(keyConfig).cutoffs);
+  return gradeColorVar(cutoffIndex(sorted, percentage), sorted.length);
+}
+
 export function getPresetCutoffs(
   preset: GradingKeyConfig["preset"],
 ): GradeCutoff[] {

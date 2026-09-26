@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** Percentage distribution — always all ten decile bins; gaps are the shape, not noise. */
+  /** Percentage distribution — always all twenty 5%-wide bins; gaps are the shape, not noise. */
   import { t } from '$lib/i18n';
   import { Card } from '$lib/components/ui';
   import { countAxis, type PercentageHistogramBin } from '$lib/analytics/stats';
@@ -36,7 +36,7 @@
             width={bar}
             height={confirmed}
             rx="3"
-            fill={bin.count === 0 ? 'var(--color-line)' : 'var(--color-accent-strong)'}
+            fill={bin.count === 0 ? 'var(--color-line)' : bin.colorVar}
           />
           {#if bin.provisionalCount > 0}
             <rect
@@ -45,7 +45,7 @@
               width={bar}
               height={h(bin.provisionalCount)}
               rx="3"
-              fill="var(--color-accent)"
+              fill={bin.colorVar}
               opacity="0.45"
             />
           {/if}
@@ -54,8 +54,12 @@
               {bin.count}
             </text>
           {/if}
-          <text x={x + bar / 2} y={PLOT + 16} text-anchor="middle" font-size="10" fill="var(--color-subtle)">{bin.binStart}</text>
+          <!-- Too many bins to label each one on a phone: label every 25%, plus 100 at the right edge. -->
+          {#if bin.binStart % 25 === 0}
+            <text x={x + bar / 2} y={PLOT + 16} text-anchor="middle" font-size="10" fill="var(--color-subtle)">{bin.binStart}</text>
+          {/if}
         {/each}
+        <text x={GUTTER + bins.length * slot} y={PLOT + 16} text-anchor="middle" font-size="10" fill="var(--color-subtle)">100</text>
 
         <line x1={GUTTER} x2={width} y1={PLOT} y2={PLOT} stroke="var(--color-line-strong)" />
         <text x={width} y={PLOT + 30} text-anchor="end" font-size="10" fill="var(--color-subtle)">

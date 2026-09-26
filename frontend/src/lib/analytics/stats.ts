@@ -6,6 +6,7 @@ import {
   calculateClassGradeAverage,
   calculateGradeDistribution,
   calculatePassRate,
+  gradeColorForPercentage,
   type GradeDistributionBucket,
 } from "./gradingKey";
 
@@ -122,7 +123,9 @@ export function calculateSummaryStats(scores: number[]): SummaryStats | null {
 }
 
 /**
- * Build a percentage-based histogram (0-100%, fixed 10 bins of 10% each).
+ * Build a percentage-based histogram (0-100%, default 20 bins of 5% each; 100% lands in the
+ * last bin rather than an extra one). `keyConfig`, when given, colours each bin by the grade
+ * of its lower bound (see `gradeColorForPercentage`).
  */
 export interface PercentageHistogramBin {
   binStart: number;
@@ -130,25 +133,31 @@ export interface PercentageHistogramBin {
   count: number;
   /** Subset of `count` whose submission is not fully graded yet. */
   provisionalCount: number;
+  /** CSS colour token, e.g. `var(--color-grade-1)`. */
+  colorVar: string;
 }
 
 export function calculatePercentageHistogram(
   percentages: number[],
   provisionalFlags: boolean[] = [],
+  binWidth = 5,
+  keyConfig?: GradingKeyConfig,
 ): PercentageHistogramBin[] {
-  const bins: PercentageHistogramBin[] = Array.from({ length: 10 }).map(
+  const binCount = Math.round(100 / binWidth);
+  const bins: PercentageHistogramBin[] = Array.from({ length: binCount }).map(
     (_, i) => ({
-      binStart: i * 10,
-      binEnd: (i + 1) * 10,
+      binStart: i * binWidth,
+      binEnd: (i + 1) * binWidth,
       count: 0,
       provisionalCount: 0,
+      colorVar: gradeColorForPercentage(i * binWidth, keyConfig),
     }),
   );
 
   percentages.forEach((p, i) => {
     const value = clampPercentage(p);
-    let binIdx = Math.floor(value / 10);
-    if (binIdx >= 10) binIdx = 9;
+    let binIdx = Math.floor(value / binWidth);
+    if (binIdx >= binCount) binIdx = binCount - 1;
     bins[binIdx].count++;
     if (provisionalFlags[i]) bins[binIdx].provisionalCount++;
   });
@@ -202,7 +211,7 @@ export function summarizeExam(
       calculateSummaryStats(results.map((r) => r.gradedPoints))?.mean ?? null,
     gradeAverage: calculateClassGradeAverage(percentages, gradingKey),
     passRate: calculatePassRate(percentages, gradingKey),
-    bins: calculatePercentageHistogram(percentages, provisional),
+    bins: calculatePercentageHistogram(percentages, provisional, 5, gradingKey),
     gradeBuckets: calculateGradeDistribution(
       percentages,
       gradingKey,

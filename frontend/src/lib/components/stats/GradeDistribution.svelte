@@ -5,7 +5,7 @@
   import { Card } from '$lib/components/ui';
   import { countAxis } from '$lib/analytics/stats';
   import type { ExamRecord } from '$lib/db/schema';
-  import type { GradeDistributionBucket } from '$lib/analytics/gradingKey';
+  import { gradeColorVar, type GradeDistributionBucket } from '$lib/analytics/gradingKey';
 
   export let exam: ExamRecord | null;
   export let buckets: GradeDistributionBucket[];
@@ -46,7 +46,8 @@
         {#each buckets as bucket, i (bucket.grade + i)}
           {@const y = i * ROW}
           {@const confirmed = bucket.count - bucket.provisionalCount}
-          <text x="0" y={y + 20} font-size="15" font-weight="700" fill="var(--color-accent)">{bucket.grade}</text>
+          {@const color = gradeColorVar(i, buckets.length)}
+          <text x="0" y={y + 20} font-size="15" font-weight="700" fill={color}>{bucket.grade}</text>
           <text x="22" y={y + 20} font-size="12" fill="var(--color-muted)">{bucket.label}</text>
           <text x="22" y={y + 35} font-size="10" fill="var(--color-subtle)">
             {$t('stats.gradeDistribution.fromPercent', { percent: bucket.minPercentage })}
@@ -58,7 +59,7 @@
             width={Math.max(x(confirmed) - LABEL, bucket.count === 0 ? 2 : 0)}
             height={ROW - 22}
             rx="3"
-            fill={bucket.count === 0 ? 'var(--color-line)' : 'var(--color-accent-strong)'}
+            fill={bucket.count === 0 ? 'var(--color-line)' : color}
           />
           {#if bucket.provisionalCount > 0}
             <rect
@@ -67,7 +68,7 @@
               width={x(bucket.provisionalCount) - LABEL}
               height={ROW - 22}
               rx="3"
-              fill="var(--color-accent)"
+              fill={color}
               opacity="0.45"
             />
           {/if}

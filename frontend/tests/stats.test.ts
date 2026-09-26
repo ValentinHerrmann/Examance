@@ -54,21 +54,38 @@ describe('calculateSubmissionPercentage', () => {
 });
 
 describe('calculatePercentageHistogram', () => {
-  it('always returns all ten bins, including the empty ones', () => {
-    const bins = calculatePercentageHistogram([5, 95]);
-    expect(bins).toHaveLength(10);
-    expect(bins.map((b) => b.count)).toEqual([1, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+  it('always returns all twenty 5%-wide bins, including the empty ones', () => {
+    const bins = calculatePercentageHistogram([2, 95]);
+    expect(bins).toHaveLength(20);
+    expect(bins[0].count).toBe(1);
+    expect(bins[19].count).toBe(1);
+    expect(bins.filter((b) => b.count > 0)).toHaveLength(2);
   });
 
-  it('puts 100% in the top bin rather than an eleventh', () => {
+  it('puts 100% in the top bin rather than a twenty-first', () => {
     const bins = calculatePercentageHistogram([100]);
-    expect(bins[9].count).toBe(1);
+    expect(bins[19].count).toBe(1);
   });
 
   it('tracks provisional results separately from the total', () => {
     const bins = calculatePercentageHistogram([95, 95], [true, false]);
-    expect(bins[9].count).toBe(2);
-    expect(bins[9].provisionalCount).toBe(1);
+    expect(bins[19].count).toBe(2);
+    expect(bins[19].provisionalCount).toBe(1);
+  });
+
+  it('colours a bin by the grade of its lower bound', () => {
+    // linear_50: grade 1 starts at 87.5%. The 85-90 bin's lower bound (85) is still grade 2.
+    const bins = calculatePercentageHistogram([0], [], 5, linear50);
+    expect(bins[17]).toMatchObject({ binStart: 85, binEnd: 90 });
+    expect(bins[17].colorVar).toBe('var(--color-grade-2)');
+    expect(bins[18]).toMatchObject({ binStart: 90, binEnd: 95 });
+    expect(bins[18].colorVar).toBe('var(--color-grade-1)');
+  });
+
+  it('supports a custom bin width', () => {
+    const bins = calculatePercentageHistogram([25], [], 10);
+    expect(bins).toHaveLength(10);
+    expect(bins[2].count).toBe(1);
   });
 });
 
