@@ -12,8 +12,16 @@ on:
   workflow_dispatch:
 
 # There is one preview instance, so a newer push supersedes an in-flight deploy.
+# Runs that deploy nothing (draft or fork PRs, see the `version` job's `if`)
+# get a group of their own: otherwise re-running an old draft-era run, or
+# pushing to a draft, cancels the real deploy in progress and then skips
+# every job itself, leaving the frontend published without its backend.
 concurrency:
-  group: deploy-preview
+  group: >-
+    ${{ github.event_name == 'pull_request' &&
+        (github.event.pull_request.draft ||
+         github.event.pull_request.head.repo.full_name != github.repository) &&
+        format('deploy-preview-skip-{0}', github.run_id) || 'deploy-preview' }}
   cancel-in-progress: true
 
 env:
@@ -169,19 +177,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Copy compose file to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_PORT || '22' }}
-          source: deploy/docker-compose.deploy.yml
-          target: ${{ vars.DEPLOY_APP_DIR }}/preview
-          strip_components: 1
+      # The compose file travels inside the SSH step (base64 in an env var)
+      # instead of a separate scp-action step: one connection instead of two,
+      # and no Docker-based action to build before the job can start.
+      - name: Encode compose file
+        id: compose
+        run: echo "b64=$(base64 -w0 deploy/docker-compose.deploy.yml)" >> "$GITHUB_OUTPUT"
 
       - name: Pull image, migrate and restart
-        uses: appleboy/ssh-action@v0.1.7
+        # v1 is a composite action (prebuilt binary); v0.1.x was Docker-based
+        # and spent its first ~20s building a container image.
+        uses: appleboy/ssh-action@v1.2.5
         env:
           BACKEND_IMAGE: ${{ needs.backend-image.outputs.image }}
           APP_VERSION: ${{ needs.version.outputs.version }}
@@ -190,12 +196,13 @@ jobs:
           # This job's own GITHUB_TOKEN, not a stored secret — minted at job
           # start, valid only for this run, revoked automatically afterwards.
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMPOSE_B64: ${{ steps.compose.outputs.b64 }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || '22' }}
-          envs: BACKEND_IMAGE,APP_VERSION,DEPLOY_APP_DIR,REGISTRY_USER,REGISTRY_TOKEN
+          envs: BACKEND_IMAGE,APP_VERSION,DEPLOY_APP_DIR,REGISTRY_USER,REGISTRY_TOKEN,COMPOSE_B64
           script: |
             set -euo pipefail
 
@@ -208,7 +215,11 @@ jobs:
             fi
 
             TARGET="${DEPLOY_APP_DIR}/preview"
+            mkdir -p "$TARGET"
             cd "$TARGET"
+
+            printf '%s' "$COMPOSE_B64" | base64 -d > docker-compose.deploy.yml.tmp
+            mv docker-compose.deploy.yml.tmp docker-compose.deploy.yml
 
             # The env file holds this environment's SECRET_KEY and database
             # password, so it is created once by hand and never by CI.
