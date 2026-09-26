@@ -36,11 +36,15 @@ export const stats = {
         },
         fromPercent: 'ab {percent}%',
         provisionalLegend: 'Heller Balkenteil: Abgaben, die noch nicht vollständig korrigiert sind.',
+        axisLabel: 'Note',
+    },
+    combined: {
+        title: '🧩 Noten- und Prozentverteilung',
+        subtitle: 'Breite Balken: Noten nach Bewertungsmaßstab. Schmale Balken davor: Prozentbereiche in 5-%-Schritten.',
     },
     submissionHistogram: {
         title: '📊 Prozentverteilung',
         axisLabel: 'Prozent erreicht',
-        empty: 'Noch keine Abgabe bewertet.',
     },
     analyticsPage: {
         heading: 'Globale prüfungsübergreifende Analyse',

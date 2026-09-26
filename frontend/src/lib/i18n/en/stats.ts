@@ -38,11 +38,15 @@ export const stats: Translations['stats'] = {
         },
         fromPercent: 'from {percent}%',
         provisionalLegend: 'Lighter bar segment: submissions that are not fully graded yet.',
+        axisLabel: 'Grade',
+    },
+    combined: {
+        title: '🧩 Grades and percentages',
+        subtitle: 'Wide bars: grades under the grading scale. Narrow bars in front: percentage ranges in 5 % steps.',
     },
     submissionHistogram: {
         title: '📊 Percentage Distribution',
         axisLabel: 'Percent achieved',
-        empty: 'No submission graded yet.',
     },
     analyticsPage: {
         heading: 'Global Multi-Exam Analytics',

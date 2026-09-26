@@ -176,7 +176,7 @@ export const help = {
             summary: 'Notenverteilung, Aufgabenanalyse und Export für eine einzelne Klausur.',
             s1: {
                 h: 'Notenverteilung',
-                p1: 'Die Notenverteilung zeigt immer die volle Skala von 1 bis 6, auch wenn eine Note gar nicht vorkommt — eine Note, die niemand erreicht hat, ist ebenfalls eine Aussage. Die Prozentverteilung zeigt entsprechend alle zehn Zehnerschritte.',
+                p1: 'Die Notenverteilung zeigt immer die volle Skala von 1 bis 6, auch wenn eine Note gar nicht vorkommt — eine Note, die niemand erreicht hat, ist ebenfalls eine Aussage. Die Prozentverteilung zeigt entsprechend alle zwanzig 5-%-Schritte. Beide Diagramme färben die Balken nach Note (1 dunkelgrün bis 6 dunkelrot) gemäß Bewertungsmaßstab; das dritte Diagramm legt die Prozentbalken vor die Notenbalken.',
                 p2: 'Die Kennzahlen darüber nennen Notendurchschnitt, Bestehensquote, durchschnittliche Punktzahl sowie Mittelwert, Median und Standardabweichung der Prozentwerte.',
             },
             s2: {

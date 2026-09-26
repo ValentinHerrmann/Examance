@@ -176,7 +176,7 @@ export const help: Translations['help'] = {
             summary: 'Grade distribution, per-exercise analysis and export for one exam.',
             s1: {
                 h: 'Grade distribution',
-                p1: 'The grade distribution always shows the full 1 to 6 scale, even where a grade does not occur at all — a grade nobody reached is information too. The percentage distribution likewise shows all ten decile bins.',
+                p1: 'The grade distribution always shows the full 1 to 6 scale, even where a grade does not occur at all — a grade nobody reached is information too. The percentage distribution likewise shows all twenty 5 % steps. Both charts colour their bars by grade (1 dark green to 6 dark red) under the grading scale; the third chart puts the percentage bars in front of the grade bars.',
                 p2: 'The figures above them give the class average grade, the pass rate, the average score, and the mean, median and standard deviation of the percentages.',
             },
             s2: {
