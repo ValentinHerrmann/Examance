@@ -4,7 +4,7 @@ import { db } from '$lib/db/db';
 import { storagePolicyStore } from '$lib/stores/storagePolicy';
 import { encryptExam, decryptExam } from '$lib/db/dbEncryption';
 import { enqueueRequest } from '$lib/services/offlineQueue';
-import type { ExamRecord } from '$lib/db/schema';
+import type { ExamRecord, ExamExerciseRecord, ExamMcGroupRecord } from '$lib/db/schema';
 import { invalidateOwner } from '$lib/latex/compileCache';
 
 export function mapApiToExamRecord(raw: any): ExamRecord {
@@ -49,7 +49,49 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
   };
 }
 
+export interface ExamStructure {
+  links: ExamExerciseRecord[];
+  mcGroups: ExamMcGroupRecord[];
+}
+
 export const examRepository = {
+  /**
+   * An exam's exercise links and MC groups, from whichever store owns them.
+   * `mapApiToExamRecord` drops `exercises`/`mc_groups`, and in `all-server`
+   * mode the local `examExercises`/`examMcGroups` tables can be empty (e.g.
+   * after a lock), so this fetches from the server there instead.
+   */
+  async getStructure(examId: string): Promise<ExamStructure> {
+    const local = async () => ({
+      links: await db.examExercises.where('examId').equals(examId).toArray(),
+      mcGroups: await db.examMcGroups.where('examId').equals(examId).toArray(),
+    });
+    if (get(storagePolicyStore).storageMode === 'all-local') return local();
+
+    try {
+      const remote = (await api.get<any>(`/exams/${examId}`, { silentError: true })) as any;
+      return {
+        links: (remote.exercises ?? []).map((e: any, idx: number) => ({
+          examId,
+          exerciseId: e.id,
+          orderIndex: e.order_index ?? idx + 1,
+          mcGroupId: e.mc_group_id ?? undefined,
+          subIndex: e.sub_index ?? undefined,
+        })),
+        mcGroups: (remote.mc_groups ?? []).map((g: any, idx: number) => ({
+          id: g.id,
+          examId,
+          title: g.title,
+          scoringText: g.scoring_text,
+          orderIndex: g.order_index ?? idx + 1,
+        })),
+      };
+    } catch {
+      // Hybrid keeps a usable local mirror; all-server has nothing better.
+      return local();
+    }
+  },
+
   async getAll(key: CryptoKey | null): Promise<ExamRecord[]> {
     const policy = get(storagePolicyStore);
     if (!db.exams) return [];
@@ -123,32 +165,55 @@ export const examRepository = {
     }
   },
 
+  /**
+   * Removes every local table an exam owns. Single implementation, used by
+   * every caller that deletes an exam, so no owned table is missed.
+   */
+  async deleteLocalCascade(id: string): Promise<void> {
+    if (!db.exams) return;
+
+    const submissionIds = (await db.submissions.where('examId').equals(id).toArray()).map(
+      (s) => s.id
+    );
+    const exerciseIds = (await db.exercises.where('examId').equals(id).toArray()).map((e) => e.id);
+
+    await db.transaction(
+      'rw',
+      [
+        db.exams,
+        db.exercises,
+        db.examExercises,
+        db.examMcGroups,
+        db.submissions,
+        db.students,
+        db.exerciseScores,
+        db.exerciseResources,
+        db.omrTemplates,
+      ],
+      async () => {
+        for (const subId of submissionIds) {
+          await db.exerciseScores.where('submissionId').equals(subId).delete();
+        }
+        // Resource files hang off the exercises that are about to disappear.
+        for (const exerciseId of exerciseIds) {
+          await db.exerciseResources.where('exerciseId').equals(exerciseId).delete();
+        }
+        await db.exams.delete(id);
+        await db.exercises.where('examId').equals(id).delete();
+        await db.examExercises.where('examId').equals(id).delete();
+        await db.examMcGroups.where('examId').equals(id).delete();
+        await db.submissions.where('examId').equals(id).delete();
+        await db.students.where('examId').equals(id).delete();
+        await db.omrTemplates.delete(id); // id === examId (one template per exam)
+      }
+    );
+  },
+
   async delete(id: string): Promise<void> {
     invalidateOwner('exam', id);
     invalidateOwner('omr-blank', id);
-    if (!db.exams) return;
 
-    // Collect submission IDs first to clean up exercise scores
-    const submissionIds = (await db.submissions.where('examId').equals(id).toArray()).map((s) => s.id);
-
-    // Delete exercise scores for all submissions in this exam to prevent orphaned data
-    for (const subId of submissionIds) {
-      await db.exerciseScores.where('submissionId').equals(subId).delete();
-    }
-
-    // Resource files hang off the exercises that are about to disappear.
-    const examExerciseIds = (await db.exercises.where('examId').equals(id).toArray()).map((e) => e.id);
-    for (const exerciseId of examExerciseIds) {
-      await db.exerciseResources.where('exerciseId').equals(exerciseId).delete();
-    }
-
-    await db.exams.delete(id);
-    await db.exercises.where('examId').equals(id).delete();
-    await db.examExercises.where('examId').equals(id).delete();
-    await db.examMcGroups.where('examId').equals(id).delete();
-    await db.submissions.where('examId').equals(id).delete();
-    await db.students.where('examId').equals(id).delete();
-    await db.omrTemplates.delete(id); // id === examId (one template per exam)
+    await this.deleteLocalCascade(id);
 
     const policy = get(storagePolicyStore);
     if (policy.storageMode !== 'all-local') {

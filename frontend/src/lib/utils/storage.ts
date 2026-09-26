@@ -11,8 +11,24 @@
  * every actual read/write must be wrapped in a try-catch.
  *
  * Rule: import from here instead of accessing localStorage / sessionStorage
- * directly.  All functions are synchronous and never throw.
+ * directly.  All functions are synchronous, and the `safe*` ones never throw.
+ *
+ * `setItemOrThrow` is the deliberate exception: for the vault's salt/nonce, a
+ * swallowed write would let the next unlock derive a different key over the
+ * same IndexedDB, silently blanking every record.
  */
+
+/** Thrown by `setItemOrThrow` when the value could not be persisted. */
+export class StorageWriteError extends Error {
+  constructor(key: string, cause?: unknown) {
+    super(
+      `Could not write "${key}" to browser storage. This browser is in private ` +
+        `mode, has site data blocked, or is out of quota.`
+    );
+    this.name = 'StorageWriteError';
+    this.cause = cause;
+  }
+}
 
 function safeGet(store: Storage, key: string): string | null {
   try {
@@ -79,6 +95,23 @@ export const safeLocalStorage = {
   getItem: (key: string): string | null => ls() ? safeGet(ls()!, key) : null,
   setItem: (key: string, value: string): void => { if (ls()) safeSet(ls()!, key, value); },
   removeItem: (key: string): void => { if (ls()) safeRemove(ls()!, key); },
+  /**
+   * Write, or throw `StorageWriteError`. Use for values whose loss costs data —
+   * the local vault's salt and nonce above all — and never for UI preferences.
+   * Reads the value back, because a quota failure is not always an exception.
+   */
+  setItemOrThrow: (key: string, value: string): void => {
+    const store = ls();
+    if (!store) throw new StorageWriteError(key);
+    try {
+      store.setItem(key, value);
+    } catch (err) {
+      throw new StorageWriteError(key, err);
+    }
+    if (safeGet(store, key) !== value) {
+      throw new StorageWriteError(key);
+    }
+  },
   /** True when localStorage is accessible in this browser context. */
   isAvailable: (): boolean => ls() !== null,
 };

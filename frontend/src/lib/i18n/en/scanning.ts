@@ -24,6 +24,7 @@ export const scanning: Translations['scanning'] = {
     submissionsTable: {
         title: 'Ingested Scans ({count})',
         deleteAll: 'Delete All Scans',
+        loading: 'Loading submissions…',
         empty: 'No scans ingested for this exam yet.',
         colStudentName: 'Student Name',
         colStudentId: 'Student ID',

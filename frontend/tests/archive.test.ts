@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'; // In-memory IndexedDB mock for Vitest — must be
 import { describe, it, expect, beforeEach } from 'vitest';
 import { get } from 'svelte/store';
 import { packProject } from '../src/lib/archive/packer';
-import { unpackProject } from '../src/lib/archive/unpacker';
+import { decryptArchive, unpackProject } from '../src/lib/archive/unpacker';
 import { db } from '../src/lib/db/db';
 import {
   saveExamEncrypted,
@@ -182,8 +182,10 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     await expect(unpackProject(packedBytes, testPassword)).rejects.toThrow();
   });
 
-  it('wipes pre-existing database records when unpacking a new project', async () => {
-    // 1. Create Project A (Old data)
+  it('merges into the existing workspace instead of wiping it', async () => {
+    // Importing used to clear every table first — and, in archiveService, to do
+    // so *before* the password had even been checked. An import now adds to
+    // what is there; replacing is opt-in and happens after decryption.
     await saveExamEncrypted({
       id: 'old-exam-id',
       teacherId: 'teacher-1',
@@ -193,7 +195,6 @@ describe('.bgproj Archive Packer and Unpacker', () => {
       createdAt: new Date().toISOString(),
     }, testKey);
 
-    // 2. Pack Project B (New data)
     await db.exams.clear();
     await saveExamEncrypted({
       id: 'new-exam-id',
@@ -205,7 +206,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     }, testKey);
     const newProjectPacked = await packProject(testPassword);
 
-    // 3. Put Old Exam back into DB to simulate pre-existing workspace state
+    await db.exams.clear();
     await saveExamEncrypted({
       id: 'old-exam-id',
       teacherId: 'teacher-1',
@@ -215,16 +216,52 @@ describe('.bgproj Archive Packer and Unpacker', () => {
       createdAt: new Date().toISOString(),
     }, testKey);
 
-    // 4. Unpack Project B with clearWorkspace = true (default)
     const result = await unpackProject(newProjectPacked, testPassword);
     expect(result.examCount).toBe(1);
 
-    // 5. Verify only Project B exists in DB, Project A was completely wiped
     const currentKey = get(sessionStore).sessionKey!;
     const currentExams = await loadExamsEncrypted(currentKey);
-    expect(currentExams).toHaveLength(1);
-    expect(currentExams[0].id).toBe('new-exam-id');
-    expect(currentExams[0].title).toBe('New Biology Exam');
+    expect(currentExams.map((e) => e.id).sort()).toEqual(['new-exam-id', 'old-exam-id']);
+  });
+
+  it('leaves the workspace untouched when the password is wrong', async () => {
+    await db.exams.clear();
+    await saveExamEncrypted({
+      id: 'precious-exam',
+      teacherId: 'teacher-1',
+      title: 'Do not lose me',
+      retentionUntil: '2028-01-01',
+      compilationStatus: 'compiled',
+      createdAt: new Date().toISOString(),
+    }, testKey);
+    const packed = await packProject(testPassword);
+
+    await expect(decryptArchive(packed, 'the-wrong-password')).rejects.toThrow();
+
+    // The decrypt step touches nothing, so a typo costs nothing.
+    const currentKey = get(sessionStore).sessionKey!;
+    expect(await loadExamsEncrypted(currentKey)).toHaveLength(1);
+  });
+
+  it('does not replace the live session key with the archive key', async () => {
+    // The importer used to call sessionStore.unlock() with a key derived from
+    // the archive's own random salt, which the vault cannot re-derive: every
+    // record written afterwards was sealed under a key that died with the tab.
+    await db.exams.clear();
+    await saveExamEncrypted({
+      id: 'keyed-exam',
+      teacherId: 'teacher-1',
+      title: 'Key check',
+      retentionUntil: '2028-01-01',
+      compilationStatus: 'compiled',
+      createdAt: new Date().toISOString(),
+    }, testKey);
+    const packed = await packProject(testPassword);
+    const keyBefore = get(sessionStore).sessionKey;
+
+    await unpackProject(packed, testPassword);
+
+    expect(get(sessionStore).sessionKey).toBe(keyBefore);
   });
 });
 

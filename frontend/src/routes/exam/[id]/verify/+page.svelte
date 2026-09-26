@@ -4,7 +4,7 @@
   import { onMount } from "svelte";
   import { browser } from "$app/environment";
   import { get } from "svelte/store";
-  import { sessionStore, isUnlocked } from "$lib/stores/session";
+  import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
   import { t, translate } from "$lib/i18n";
   import { PageShell } from "$lib/components/ui";
   import {
@@ -18,8 +18,6 @@
   import { loadPdfjs } from "$lib/pdf/pdfjs";
   import {
     loadOmrTemplateEncrypted,
-    loadScoresEncrypted,
-    saveScoreEncrypted,
   } from "$lib/db/dbEncryption";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
   import { loadExamMcExercises, resolveMcExercises, computeMcExercisesHash } from "$lib/grading/mcExerciseHash";
@@ -31,6 +29,8 @@
     OmrWorkerResponse,
     OmrExerciseAnswerKey,
   } from "$lib/workers/omrWorker";
+  import type { ExerciseScoreRecord } from "$lib/db/schema";
+  import { scoreRepository } from "$lib/repositories/scoreRepository";
 
   $: examId = $page.params.id || "";
 
@@ -61,6 +61,7 @@
   });
 
   onMount(async () => {
+    await awaitSessionReady();
     if (!get(isUnlocked)) {
       await goto("/unlock");
       return;
@@ -151,7 +152,9 @@
 
       const [mcExercises, submissions] = await Promise.all([
         loadExamMcExercises(examId, key),
-        submissionRepository.getByExamId(examId, key),
+        // Rerunning OMR detection decrypts every submission's scan below, so
+        // (unlike the page's own overview load) this one needs the bytes.
+        submissionRepository.getByExamId(examId, key, { includeScans: true }),
       ]);
 
       if (submissions.length === 0) {
@@ -213,8 +216,12 @@
             continue;
           }
 
-          const existingScores = await loadScoresEncrypted(sub.id, key);
+          const existingScores = await scoreRepository.getBySubmissionId(examId, sub.id, key);
           const existingByExercise = new Map(existingScores.map((s) => [s.exerciseId, s]));
+
+          // Collected across every page of this booklet and written once —
+          // a per-result write here was one request per MC question per pupil.
+          const rescored: ExerciseScoreRecord[] = [];
 
           const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
           console.log(`[RerunMC] Submission ${sub.id}: scanned PDF has ${pdfDoc.numPages} page(s), OMR template has ${templatePages.length} page(s).`);
@@ -259,41 +266,40 @@
               if (!overwriteReviewed && existing?.omrMeta?.source === "manual") continue;
 
               const failed = r.confidence === "failed";
-              await saveScoreEncrypted(
-                {
-                  id: existing?.id ?? crypto.randomUUID(),
-                  submissionId: sub.id,
-                  exerciseId: r.exerciseId,
-                  score: failed ? undefined : r.score,
-                  selectedOptions: failed ? [] : r.selectedOptions,
-                  omrMeta: {
+              rescored.push({
+                id: existing?.id ?? crypto.randomUUID(),
+                submissionId: sub.id,
+                exerciseId: r.exerciseId,
+                score: failed ? undefined : r.score,
+                selectedOptions: failed ? [] : r.selectedOptions,
+                omrMeta: {
+                  confidence: r.confidence,
+                  source: "omr" as const,
+                  flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
+                  original: {
                     confidence: r.confidence,
-                    source: "omr",
-                    flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
-                    original: {
-                      confidence: r.confidence,
-                      selectedOptions: failed ? [] : [...r.selectedOptions],
-                      score: failed ? undefined : r.score,
-                      flaggedOptions: r.flaggedOptions.length > 0 ? [...r.flaggedOptions] : undefined,
-                    },
-                    detections:
-                      !failed && r.bubbles.length > 0
-                        ? {
-                            pageIndex: r.pageIndex,
-                            bubbles: r.bubbles.map((b) => ({
-                              optionIndex: b.optionIndex,
-                              state: b.state,
-                              rect: b.rect,
-                            })),
-                          }
-                        : undefined,
+                    selectedOptions: failed ? [] : [...r.selectedOptions],
+                    score: failed ? undefined : r.score,
+                    flaggedOptions: r.flaggedOptions.length > 0 ? [...r.flaggedOptions] : undefined,
                   },
+                  detections:
+                    !failed && r.bubbles.length > 0
+                      ? {
+                          pageIndex: r.pageIndex,
+                          bubbles: r.bubbles.map((b) => ({
+                            optionIndex: b.optionIndex,
+                            state: b.state,
+                            rect: b.rect,
+                          })),
+                        }
+                      : undefined,
                 },
-                key,
-              );
+              });
               updated++;
             }
           }
+
+          await scoreRepository.saveMany(examId, sub.id, rescored, key);
         }
       } finally {
         worker.terminate();
@@ -326,39 +332,32 @@
 
     try {
       const key = get(sessionStore).sessionKey;
-      const [mcExercises, submissions] = await Promise.all([
-        loadExamMcExercises(examId, key),
-        submissionRepository.getByExamId(examId, key),
-      ]);
+      const mcExercises = await loadExamMcExercises(examId, key);
       const exerciseById = new Map(mcExercises.map((e) => [e.id, e]));
 
+      // One read for the whole exam, one write per touched submission.
+      const restored = new Map<string, ExerciseScoreRecord[]>();
+      for (const sc of await scoreRepository.getByExamId(examId, key)) {
+        const ex = exerciseById.get(sc.exerciseId);
+        if (!ex || !sc.omrMeta?.original) continue;
+
+        const res = restoreOriginalDetection(
+          (ex.questionType as McQuestionType) || "mc",
+          ex.correctAnswers ?? [],
+          ex.penalty ?? 0,
+          ex.maxPoints,
+          sc.omrMeta
+        );
+        if (!res) continue;
+
+        const next = { ...sc, selectedOptions: res.nextSelectedOptions, score: res.nextScore, omrMeta: res.nextOmrMeta };
+        restored.set(sc.submissionId, [...(restored.get(sc.submissionId) ?? []), next]);
+      }
+
       let resetCount = 0;
-      for (const sub of submissions) {
-        const scores = await loadScoresEncrypted(sub.id, key);
-        for (const sc of scores) {
-          const ex = exerciseById.get(sc.exerciseId);
-          if (!ex || !sc.omrMeta?.original) continue;
-
-          const res = restoreOriginalDetection(
-            (ex.questionType as McQuestionType) || "mc",
-            ex.correctAnswers ?? [],
-            ex.penalty ?? 0,
-            ex.maxPoints,
-            sc.omrMeta
-          );
-          if (!res) continue;
-
-          await saveScoreEncrypted(
-            {
-              ...sc,
-              selectedOptions: res.nextSelectedOptions,
-              score: res.nextScore,
-              omrMeta: res.nextOmrMeta,
-            },
-            key
-          );
-          resetCount++;
-        }
+      for (const [submissionId, scores] of restored) {
+        await scoreRepository.saveMany(examId, submissionId, scores, key);
+        resetCount += scores.length;
       }
 
       resetReviewsMessage = translate("scanning.verify.resetReviewsComplete", { count: resetCount });

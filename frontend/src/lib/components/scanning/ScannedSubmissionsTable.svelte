@@ -17,6 +17,8 @@
   }
 
   export let scannedSubmissions: ScannedSubmissionItem[] = [];
+  /** True while the submissions list is still loading — suppresses the empty state so a slow fetch cannot look like "nothing here yet". */
+  export let loading = false;
   export let exportingId: string | null = null;
   export let isGraded: (item: ScannedSubmissionItem) => boolean;
   export let onPreview: (item: ScannedSubmissionItem) => void;
@@ -37,7 +39,15 @@
       </button>
     {/if}
   </div>
-  {#if scannedSubmissions.length === 0}
+  {#if loading}
+    <div class="flex flex-col items-center gap-3 py-8 text-center" role="status">
+      <div
+        class="h-6 w-6 animate-spin rounded-full border-2 border-line-strong border-t-accent"
+        aria-hidden="true"
+      ></div>
+      <p class="m-0 text-sm text-muted">{$t("scanning.submissionsTable.loading")}</p>
+    </div>
+  {:else if scannedSubmissions.length === 0}
     <p class="empty-msg">{$t("scanning.submissionsTable.empty")}</p>
   {:else}
     <div class="scans-table">

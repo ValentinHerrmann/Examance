@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { calculateGrade, calculateGradeDetail, DEFAULT_CUTOFFS_LINEAR_50 } from '../src/lib/analytics/gradingKey';
+import {
+  calculateGrade,
+  calculateGradeDetail,
+  gradeColorVar,
+  gradeColorForPercentage,
+  cutoffThreshold,
+  DEFAULT_CUTOFFS_LINEAR_50,
+} from '../src/lib/analytics/gradingKey';
 import type { GradingKeyConfig } from '../src/lib/db/schema';
 
 describe('gradingKey analytics', () => {
@@ -39,5 +46,40 @@ describe('gradingKey analytics', () => {
     const detail = calculateGradeDetail(5, 30, config);
     expect(detail).not.toBeNull();
     expect(detail?.grade).toBe('6');
+  });
+});
+
+describe('grade colour ramp', () => {
+  const config: GradingKeyConfig = {
+    preset: 'linear_50',
+    cutoffs: DEFAULT_CUTOFFS_LINEAR_50,
+  };
+
+  it('maps a standard 6-row key 1:1 onto the 6-colour ramp', () => {
+    expect(gradeColorVar(0, 6)).toBe('var(--color-grade-1)');
+    expect(gradeColorVar(5, 6)).toBe('var(--color-grade-6)');
+  });
+
+  it('scales a custom key with a different row count onto the same ramp', () => {
+    // 4-row key: best -> grade-1, worst -> grade-6, evenly spread in between.
+    expect(gradeColorVar(0, 4)).toBe('var(--color-grade-1)');
+    expect(gradeColorVar(3, 4)).toBe('var(--color-grade-6)');
+  });
+
+  it('picks the colour for a percentage from the grading key', () => {
+    expect(gradeColorForPercentage(95, config)).toBe('var(--color-grade-1)');
+    expect(gradeColorForPercentage(0, config)).toBe('var(--color-grade-6)');
+  });
+});
+
+describe('cutoffThreshold', () => {
+  it('leaves an already two-decimal threshold unchanged', () => {
+    expect(cutoffThreshold(87.5)).toBe(87.5);
+    expect(cutoffThreshold(16.66)).toBe(16.66);
+    expect(cutoffThreshold(50)).toBe(50);
+  });
+
+  it('rounds a finer threshold up to the nearest two-decimal value', () => {
+    expect(cutoffThreshold(33.333)).toBe(33.34);
   });
 });

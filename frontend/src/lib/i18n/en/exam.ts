@@ -19,8 +19,6 @@ export const exam: Translations['exam'] = {
             failed: 'Delete failed: {message}',
         },
         export: {
-            passwordPrompt: 'Enter password to encrypt .bgproj archive:',
-            failed: 'Export failed: {message}',
             successBanner: '.bgproj archive successfully packed and downloaded.',
         },
         omr: {

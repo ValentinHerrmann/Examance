@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import { api } from '$lib/api/client';
 import { db } from '$lib/db/db';
-import { storagePolicyStore } from '$lib/stores/storagePolicy';
+import { resultsAreLocal, storagePolicyStore } from '$lib/stores/storagePolicy';
 import { encryptStudent, decryptStudent } from '$lib/db/dbEncryption';
 import { enqueueRequest } from '$lib/services/offlineQueue';
 import { currentKeyId } from '$lib/services/keyEnvelopeService';
@@ -12,8 +12,7 @@ import { ensure64CharHex } from '$lib/crypto/hmac';
 
 export const studentRepository = {
   async getAll(key: CryptoKey | null): Promise<StudentRecord[]> {
-    const policy = get(storagePolicyStore);
-    if (policy.storageMode === 'all-local' || policy.storageMode === 'hybrid') {
+    if (resultsAreLocal()) {
       const raw = await db.students.toArray();
       return Promise.all(raw.map((st) => decryptStudent(st, key)));
     } else {
@@ -36,8 +35,7 @@ export const studentRepository = {
   },
 
   async getByExamId(examId: string, key: CryptoKey | null): Promise<StudentRecord[]> {
-    const policy = get(storagePolicyStore);
-    if (policy.storageMode === 'all-local' || policy.storageMode === 'hybrid') {
+    if (resultsAreLocal()) {
       const raw = await db.students.where('examId').equals(examId).toArray();
       return Promise.all(raw.map((st) => decryptStudent(st, key)));
     } else {

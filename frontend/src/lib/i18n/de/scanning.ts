@@ -22,6 +22,7 @@ export const scanning = {
     submissionsTable: {
         title: 'Eingelesene Scans ({count})',
         deleteAll: 'Alle Scans löschen',
+        loading: 'Abgaben werden geladen…',
         empty: 'Für diese Prüfung wurden noch keine Scans eingelesen.',
         colStudentName: 'Schülername',
         colStudentId: 'Schüler-ID',

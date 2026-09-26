@@ -81,8 +81,11 @@ export const help = {
                 p2: 'Ohne das Passwort sind die gespeicherten Daten nicht wiederherstellbar — auch nicht durch die Serverbetreiber. Ein vergessenes Passwort bedeutet den Verlust des lokalen Arbeitsbereichs.',
             },
             s3: {
-                h: 'Strategie wechseln',
-                p1: 'Die Speicherstrategie lässt sich jederzeit in den Einstellungen ändern. Bereits vorhandene Daten werden dabei in den neuen Modus übernommen.',
+                h: 'Speicherort wechseln',
+                p1: 'Der Speicherort lässt sich in den Einstellungen ändern, aber Daten werden dabei nicht automatisch übertragen. Der Wechsel führt Sie deshalb durch vier Schritte: Arbeitsbereich als verschlüsselte Archivdatei (.bgproj) sichern, lokalen Speicher leeren, Speicherort umstellen, Archiv im neuen Modus wieder einlesen.',
+                p2: 'Die Archivdatei ist die einzige Brücke zwischen den Speicherorten. Ohne Export ist der Wechsel nicht möglich — das Leeren des lokalen Speichers lässt sich nicht rückgängig machen. Auf dem Server gespeicherte Klausuren bleiben dabei erhalten; geleert wird nur der lokale Speicher dieses Browsers.',
+                p3: 'Beim Einlesen prüft Examance, ob es Datensätze bereits gibt. Für jeden Konflikt sehen Sie beide Fassungen nebeneinander und entscheiden, welche gelten soll. Bei Schülerdaten und Abgaben ist dabei keine Kopie möglich, weil doppelte Pseudonyme datenschutzrechtlich nicht zulässig sind.',
+                p4: 'Ausnahme: Melden Sie sich in einem Browser an, dessen lokaler Speicher leer ist, wird direkt auf den Server-Speicher umgestellt — lokal geht nichts verloren, und Ihre Klausuren vom Server erscheinen sofort. Ein Browser mit lokalen Daten behält seinen Speicherort.',
             },
         },
         exercises: {
@@ -172,16 +175,17 @@ export const help = {
             title: 'Klausur-Auswertung',
             summary: 'Notenverteilung, Aufgabenanalyse und Export für eine einzelne Klausur.',
             s1: {
-                h: 'Verteilung',
-                p1: 'Die Auswertung zeigt Notenverteilung, Durchschnitt und Streuung der Klausur sowie die Punkteverteilung über alle Abgaben.',
+                h: 'Notenverteilung',
+                p1: 'Die Notenverteilung zeigt immer die volle Skala von 1 bis 6, auch wenn eine Note gar nicht vorkommt — eine Note, die niemand erreicht hat, ist ebenfalls eine Aussage. Die Prozentverteilung zeigt entsprechend alle Prozentbereiche, in gleich breiten Schritten von höchstens 5 %. Die Schrittweite richtet sich nach dem Bewertungsmaßstab: Sie ist so gewählt, dass jede Notengrenze auf einer Balkengrenze liegt und kein Balken zwei Noten mischt — beim linearen 50-%-Schlüssel mit Grenzen wie 62,5 % also 2,5 %. Alle Diagramme lesen sich von der besten Leistung links zur schlechtesten rechts und färben die Balken nach Note (1 dunkelgrün bis 6 dunkelrot); das dritte Diagramm legt die Prozentbalken vor die Notenbalken und beschriftet jeden Notenbalken oben mit Note, Bezeichnung, Anzahl und Anteil; ein Streifen darüber markiert Durchschnitt (●) und Median (◇) und zeigt als beschriftete Klammer den Bereich Durchschnitt ± Standardabweichung; eine feine Kurve hinter den Balken zeigt zum Vergleich die Normalverteilung mit diesen Werten. Feste Beschriftungen (Noten, Bezeichnungen, Prozentbereiche) stehen in Grau, Werte, die sich beim Weiterkorrigieren ändern (Anzahlen, Anteile), in Weiß. Prozentbereiche nennen immer zuerst die obere Grenze (z. B. 100–85 %), passend zur Achse, die links bei 100 % beginnt. Stehen die Balken zu eng für jede Beschriftung, bleibt an jeder Notengrenze eine stehen; die übrigen zeigt der Tooltip. Über die Schaltflächen SVG, PDF und PNG lässt sich jedes Diagramm mit transparentem Hintergrund und dunkler Schrift für helle Seiten herunterladen: SVG und PDF als Vektorgrafik, PNG in 8K-Auflösung (7680 × 4320). In der Notenverteilung sind Grenzfälle dunkler abgesetzt: oben im Balken „+“ (knapp unter der besseren Note), unten „−“ (knapp über der schlechteren); die Höhe des Abschnitts zeigt die Anzahl.',
+                p2: 'Die Kennzahlen darüber nennen Notendurchschnitt, Bestehensquote, durchschnittliche Punktzahl sowie Mittelwert, Median und Standardabweichung der Prozentwerte; das ⓘ an jeder Kachel erklärt die Kennzahl kurz. Notendurchschnitt, Ø Punkte, Ø Prozent und Median sind in der Farbe der Note eingefärbt, der sie entsprechen — wie die Balken in den Diagrammen. Die Kachel „Grenzfälle“ zählt die knappen Fälle (+ / −), und unter dem kombinierten Diagramm listet eine Tabelle alle Abgaben knapp an einer Notengrenze: Plus heißt höchstens 0,75 Punkte unter der nächstbesseren Note, Minus höchstens 0,5 Punkte über der Untergrenze der eigenen Note (genau auf der Grenze zählt als Minus). Jede Zeile nennt erreichte Punkte, die Notengrenze in Punkten und den Abstand dazu; ein Klick öffnet die Abgabe in der Korrektur, als anonymer Schüler mit derselben Nummer wie dort. Bei teilweise korrigierten Abgaben zählen die Punkte der bereits korrigierten Aufgaben.',
             },
             s2: {
-                h: 'Aufgabenanalyse',
-                p1: 'Pro Aufgabe sehen Sie die durchschnittlich erreichte Punktzahl. Auffällig schwache Werte zeigen entweder eine Wissenslücke oder eine missverständlich gestellte Aufgabe.',
+                h: 'Teilweise korrigierte Abgaben',
+                p1: 'Abgaben, bei denen noch nicht alle Aufgaben korrigiert sind, fließen mit ihrem vorläufigen Prozentwert ein — berechnet nur über die bereits korrigierten Aufgaben. Diese Anteile sind in den Diagrammen heller dargestellt, damit eine halb korrigierte Klasse nicht wie ein fertiges Ergebnis aussieht.',
             },
             s3: {
                 h: 'Export',
-                p1: 'Ergebnisse lassen sich als CSV oder XLSX exportieren, etwa zur Übernahme in die Notenverwaltung der Schule. Der Export enthält Klarnamen — behandeln Sie die Datei entsprechend.',
+                p1: 'Ergebnisse lassen sich als CSV exportieren, etwa zur Übernahme in die Notenverwaltung der Schule. Die Datei enthält Pseudonym, Ersatzcode, Name, Punkte, Maximalpunktzahl, Prozentwert und Note. Der Export enthält Klarnamen — behandeln Sie die Datei entsprechend.',
             },
         },
         analytics: {

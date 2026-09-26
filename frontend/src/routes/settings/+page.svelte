@@ -4,7 +4,7 @@
   import { db } from "$lib/db/db";
   import { eraseStudent } from "$lib/gdpr/erasure";
   import { wipeDatabase } from "$lib/db/hygiene";
-  import { sessionStore, isUnlocked, isAuthenticated } from "$lib/stores/session";
+  import { sessionStore, isUnlocked, isAuthenticated, awaitSessionReady } from "$lib/stores/session";
   import { studentRepository } from "$lib/repositories/studentRepository";
   import { get } from "svelte/store";
   import {
@@ -25,6 +25,7 @@
     type Locale,
   } from "$lib/i18n";
   import { PageShell, PageHeader, Card, Button } from "$lib/components/ui";
+  import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
 
   /** GDPR Art. 15 — hand the data subject a readable copy of their own data. */
   async function handleExportStudent(pseudonymId: string) {
@@ -46,8 +47,11 @@
   let students: StudentRecord[] = [];
   let isErasing = false;
   let statusMsg = "";
+  let isSwitchWizardOpen = false;
+  let switchTarget: StorageMode | null = null;
 
   onMount(async () => {
+    await awaitSessionReady();
     if (!$isUnlocked) {
       // Keys are passphrase-derived and never persisted — send the user to
       // /unlock rather than silently reconstructing a session.
@@ -68,22 +72,16 @@
     statusMsg = translate("settings.status.latexSet", { mode: val });
   }
 
-  async function handleStorageModeChange(val: StorageMode) {
+  /** Same gated storage-mode-switch wizard as the quick-config modal. */
+  function handleStorageModeChange(val: StorageMode) {
     if (val === $storagePolicyStore.storageMode) return;
+    switchTarget = val;
+    isSwitchWizardOpen = true;
+  }
 
-    if ((val === "all-server" || val === "hybrid") && !get(isAuthenticated)) {
-      alert(translate("settings.alerts.serverStorageNeedsAuth"));
-      window.location.href = "/unlock";
-      return;
-    }
-
-    const confirmed = confirm(translate("settings.alerts.storageModeConfirm"));
-    if (!confirmed) return;
-
-    await wipeDatabase();
-    storagePolicyStore.updateSetting("storageMode", val);
-    statusMsg = translate("settings.status.storageModeSet", { mode: val });
-    window.location.reload();
+  function handleSwitchWizardClosed() {
+    isSwitchWizardOpen = false;
+    switchTarget = null;
   }
 
   function handleLocaleChange(val: Locale) {
@@ -158,3 +156,9 @@
     </Card>
   </PageShell>
 {/if}
+
+<StorageModeSwitchWizard
+  open={isSwitchWizardOpen}
+  target={switchTarget}
+  onClose={handleSwitchWizardClosed}
+/>

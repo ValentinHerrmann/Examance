@@ -8,9 +8,9 @@
   } from "$lib/stores/storagePolicy";
   import { backendStore, effectiveBackendStore } from "$lib/stores/backendStore";
   import { isAuthenticated } from "$lib/stores/session";
-  import { wipeDatabase } from "$lib/db/hygiene";
   import { Modal, Button, controlClass } from "$lib/components/ui";
   import BackendUrlInput from "$lib/components/common/BackendUrlInput.svelte";
+  import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
 
   export let isOpen = false;
 
@@ -20,6 +20,8 @@
 
   let statusMsg = "";
   let customBackendUrl = "";
+  let isSwitchWizardOpen = false;
+  let switchTarget: StorageMode | null = null;
 
   $: if (isOpen) {
     customBackendUrl = get(backendStore);
@@ -30,22 +32,16 @@
     dispatch("close");
   }
 
-  async function handleStorageModeChange(val: StorageMode) {
+  /** Hands off to the gated storage-mode-switch wizard, which exports first. */
+  function handleStorageModeChange(val: StorageMode) {
     if (val === $storagePolicyStore.storageMode) return;
+    switchTarget = val;
+    isSwitchWizardOpen = true;
+  }
 
-    if ((val === "all-server" || val === "hybrid") && !get(isAuthenticated)) {
-      alert(translate("settings.alerts.serverStorageNeedsAuth"));
-      window.location.href = "/unlock";
-      return;
-    }
-
-    const confirmed = confirm(translate("settings.alerts.storageModeConfirm"));
-    if (!confirmed) return;
-
-    await wipeDatabase();
-    storagePolicyStore.updateSetting("storageMode", val);
-    statusMsg = translate("settings.status.storageModeSet", { mode: val });
-    window.location.reload();
+  function handleSwitchWizardClosed() {
+    isSwitchWizardOpen = false;
+    switchTarget = null;
   }
 
   async function handleLatexChange(val: "server" | "local") {
@@ -199,3 +195,9 @@
     <Button variant="secondary" onClick={handleClose}>{$t("common.close")}</Button>
   </svelte:fragment>
 </Modal>
+
+<StorageModeSwitchWizard
+  open={isSwitchWizardOpen}
+  target={switchTarget}
+  onClose={handleSwitchWizardClosed}
+/>

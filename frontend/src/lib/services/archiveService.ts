@@ -1,33 +1,63 @@
+import { get } from "svelte/store";
 import { clearAllTables } from "$lib/db/db";
 import { projectStore } from "$lib/stores/project";
+import { sessionStore } from "$lib/stores/session";
+import { askAboutConflicts } from "$lib/stores/conflictPrompt";
 import { packProject } from "$lib/archive/packer";
-import { unpackProject } from "$lib/archive/unpacker";
+import { applyArchive, decryptArchive, type ImportResult } from "$lib/archive/unpacker";
+import {
+  applyResolutions,
+  detectConflicts,
+  type ArchiveConflict,
+  type DecisionMap,
+} from "$lib/archive/conflicts";
 import { translate } from "$lib/i18n";
 
+type ConflictResolver = (conflicts: ArchiveConflict[], identicalCount: number) => Promise<DecisionMap>;
+
 /**
- * Opens a .bgproj archive file by unpacking it into the local workspace.
- * Clears existing data before importing.
+ * Imports a .bgproj archive into the current workspace, merging with what is
+ * already there. Order is the point: decrypt (touches nothing), then ask about
+ * every collision, and only then write — under the live session key.
  *
- * @param file - The .bgproj file to import
- * @param password - Password to decrypt the archive
- * @returns Import counts plus any per-record failures the caller should surface
- * @throws Error if import fails or password is rejected
+ * @throws if the password is rejected, the session is locked, or the teacher
+ *   cancels the conflict dialog. Nothing is written in any of those cases.
  */
 export async function openBgprojArchive(
   file: File,
-  password: string
-): Promise<{ examCount: number; studentCount: number; errors: string[] }> {
-  const buffer = new Uint8Array(await file.arrayBuffer());
-  await clearAllTables();
-  projectStore.clear();
-  return unpackProject(buffer, password);
+  password: string,
+  resolve: ConflictResolver = askAboutConflicts
+): Promise<ImportResult> {
+  const payload = await decryptArchive(new Uint8Array(await file.arrayBuffer()), password);
+
+  const key = get(sessionStore).sessionKey;
+  if (!key) throw new Error(translate("workspace.archive.lockedCannotImport"));
+
+  const { conflicts, identicalCount } = await detectConflicts(payload, key);
+  const decisions = conflicts.length > 0 ? await resolve(conflicts, identicalCount) : new Map();
+
+  return applyArchive(applyResolutions(payload, decisions).payload);
 }
 
 /**
- * Builds the user-facing summary for a finished import. Records that the server
- * rejected are listed explicitly — they are silently dropped otherwise, which is
- * what made a failed import look successful.
+ * The whole interactive import: password prompt, import, summary or error
+ * alert. Shared by the workspace menu and the dashboard.
+ *
+ * @returns true when something was imported.
  */
+export async function importArchiveInteractively(file: File): Promise<boolean> {
+  const password = promptArchivePassword(translate("workspace.archive.promptImportPassword"));
+  if (!password) return false;
+  try {
+    alert(formatImportSummary(await openBgprojArchive(file, password)));
+    return true;
+  } catch (err: any) {
+    alert(translate("workspace.archive.importFailed", { message: err.message }));
+    return false;
+  }
+}
+
+/** User-facing import summary; lists every record the server rejected. */
 export function formatImportSummary(result: {
   examCount: number;
   studentCount: number;
@@ -65,7 +95,26 @@ export async function exportBgprojArchive(password: string, filename = "workspac
   a.href = url;
   a.download = filename;
   a.click();
-  URL.revokeObjectURL(url);
+  // Revoking synchronously after click() can cancel the download.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/**
+ * The whole interactive export: password prompt, download, error alert.
+ * Shared by the workspace menu, the exam page and the mode-switch wizard.
+ *
+ * @returns true when the archive was written.
+ */
+export async function exportArchiveInteractively(filename = "workspace.bgproj"): Promise<boolean> {
+  const password = promptArchivePassword(translate("workspace.archive.promptExportPassword"));
+  if (!password) return false;
+  try {
+    await exportBgprojArchive(password, filename);
+    return true;
+  } catch (err: any) {
+    alert(translate("workspace.archive.exportFailed", { message: err.message }));
+    return false;
+  }
 }
 
 /**
@@ -75,14 +124,6 @@ export async function exportBgprojArchive(password: string, filename = "workspac
 export async function clearWorkspace(): Promise<void> {
   await clearAllTables();
   projectStore.clear();
-}
-
-/**
- * Shows a confirmation dialog for destructive archive operations.
- * @returns true if user confirmed
- */
-export function confirmWorkspaceReplace(): boolean {
-  return confirm(translate("workspace.archive.confirmReplace"));
 }
 
 /**

@@ -90,7 +90,12 @@ export const HELP_TOPICS: HelpTopic[] = [
       },
       {
         headingKey: "help.topics.storageModes.s3.h",
-        bodyKeys: ["help.topics.storageModes.s3.p1"],
+        bodyKeys: [
+          "help.topics.storageModes.s3.p1",
+          "help.topics.storageModes.s3.p2",
+          "help.topics.storageModes.s3.p3",
+          "help.topics.storageModes.s3.p4",
+        ],
       },
     ],
   },
@@ -192,7 +197,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     titleKey: "help.topics.stats.title",
     summaryKey: "help.topics.stats.summary",
     sections: [
-      { headingKey: "help.topics.stats.s1.h", bodyKeys: ["help.topics.stats.s1.p1"] },
+      {
+        headingKey: "help.topics.stats.s1.h",
+        bodyKeys: ["help.topics.stats.s1.p1", "help.topics.stats.s1.p2"],
+      },
       { headingKey: "help.topics.stats.s2.h", bodyKeys: ["help.topics.stats.s2.p1"] },
       { headingKey: "help.topics.stats.s3.h", bodyKeys: ["help.topics.stats.s3.p1"] },
     ],

@@ -39,6 +39,10 @@
 #
 # If the build step is skipped the placeholder survives, browsers ignore the
 # unknown source expression, and inline script stays blocked — fail-closed.
+# Cache-Control: busytex/LaTeX assets are large and rarely change; explicit
+# rules avoid revalidating them on every load. Ordered least- to
+# most-specific — Pages applies every matching rule and the later one wins.
+
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' __INLINE_SCRIPT_HASHES__; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' blob: https: http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
   Strict-Transport-Security: max-age=31536000; includeSubDomains
@@ -47,6 +51,23 @@
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(self), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
+
+# Content-hashed by the bundler: the filename changes whenever the bytes do, so
+# these can never go stale.
+/_app/immutable/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# TeX Live bundles and LaTeX assets: not content-hashed, but only change on
+# redeploy, which compiler.worker.ts detects via chunk-manifest.json — so the
+# manifest below is deliberately NOT immutable.
+/core/busytex/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/core/busytex/chunk-manifest.json
+  Cache-Control: public, max-age=0, must-revalidate
+
+/latex-assets/*
+  Cache-Control: public, max-age=604800
 
 # pdf.js ships its worker as .mjs; make the JS MIME type explicit so the
 # module worker is accepted regardless of the host's extension mapping.

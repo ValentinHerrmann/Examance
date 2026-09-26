@@ -20,13 +20,13 @@ export const workspace: Translations['workspace'] = {
         exportFailed: 'Export failed: {message}',
         clearFailed: 'Failed to clear workspace: {message}',
         cleared: 'Workspace cleared successfully.',
-        confirmReplace:
-            'Opening a new .bgproj file will replace your current workspace and clear existing local data. Unsaved changes will be lost. Continue?',
         confirmClear:
             'Are you sure you want to close this project and clear all local workspace data? Unsaved changes will be lost.',
         summaryLoaded: 'Loaded {examCount} exam(s) and {studentCount} student(s).',
         summarySuccess: 'Import successful! {loaded}',
         summaryProblems: 'Import finished with {errorCount} problem(s). {loaded}',
         summaryProblemsHeading: 'The following could not be saved to the server:',
+        lockedCannotImport: 'Unlock the session first — an import writes into your encrypted workspace.',
+        importCancelled: 'Import cancelled — nothing was changed.',
     },
 };
