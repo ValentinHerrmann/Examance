@@ -5,7 +5,13 @@
 // disk, then extracts it, and its process lingers for ~15 s afterwards on an
 // idle keep-alive socket. Here the download is streamed straight into the
 // system `tar`, so extraction overlaps the transfer, and the process exits as
-// soon as the work is done. Any failure falls back to the upstream script.
+// soon as the work is done.
+//
+// Sources, in order: the R2 mirror named by BUSYTEX_MIRROR_URL (a Cloudflare
+// Pages environment variable; filled by .github/workflows/mirror-busytex.yml),
+// because GitHub's release CDN ranged from 10 s to 52 s for the same archive on
+// Pages builds; then the upstream GitHub release; then the upstream script.
+// A missing or stale mirror therefore only costs speed, never the build.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,7 +20,11 @@ import { Readable } from 'node:stream';
 
 const require = createRequire(import.meta.url);
 const { version } = require('texlyre-busytex/package.json');
-const URL = `https://github.com/TeXlyre/texlyre-busytex/releases/download/assets-v${version}/busytex-assets.tar.gz`;
+const ARCHIVE = `busytex-assets-v${version}.tar.gz`;
+const UPSTREAM_URL = `https://github.com/TeXlyre/texlyre-busytex/releases/download/assets-v${version}/busytex-assets.tar.gz`;
+const MIRROR_URL = process.env.BUSYTEX_MIRROR_URL
+  ? `${process.env.BUSYTEX_MIRROR_URL.replace(/\/+$/, '')}/${ARCHIVE}`
+  : null;
 
 const dest = path.resolve(process.argv[2] || 'static/core');
 const busytexDir = path.join(dest, 'busytex');
@@ -32,14 +42,14 @@ function run(cmd, args, stdin) {
   });
 }
 
-async function streamExtract() {
+async function streamExtract(url) {
   // Extract into a scratch directory and move into place only on success, so
   // an interrupted build never leaves a partial tree that the next run skips.
   const tmp = path.join(dest, '.busytex-download');
   fs.rmSync(tmp, { recursive: true, force: true });
   fs.mkdirSync(tmp, { recursive: true });
   try {
-    const res = await fetch(URL);
+    const res = await fetch(url);
     if (!res.ok || !res.body) throw new Error(`Download failed: HTTP ${res.status}`);
     await run('tar', ['-xzf', '-', '-C', tmp], Readable.fromWeb(res.body));
     for (const entry of fs.readdirSync(tmp)) {
@@ -58,15 +68,19 @@ async function main() {
     return;
   }
   fs.mkdirSync(dest, { recursive: true });
-  console.log(`Streaming BusyTeX assets v${version} from ${URL}`);
-  const started = Date.now();
-  try {
-    await streamExtract();
-    console.log(`✓ BusyTeX assets ready (${((Date.now() - started) / 1000).toFixed(1)} s)`);
-  } catch (err) {
-    console.warn(`Streaming download failed (${err.message}); falling back to texlyre-busytex download-assets`);
-    await run('npx', ['texlyre-busytex', 'download-assets', dest]);
+  for (const url of [MIRROR_URL, UPSTREAM_URL].filter(Boolean)) {
+    console.log(`Streaming BusyTeX assets v${version} from ${url}`);
+    const started = Date.now();
+    try {
+      await streamExtract(url);
+      console.log(`✓ BusyTeX assets ready (${((Date.now() - started) / 1000).toFixed(1)} s)`);
+      return;
+    } catch (err) {
+      console.warn(`Streaming download failed (${err.message})`);
+    }
   }
+  console.warn('Falling back to texlyre-busytex download-assets');
+  await run('npx', ['texlyre-busytex', 'download-assets', dest]);
 }
 
 main().then(

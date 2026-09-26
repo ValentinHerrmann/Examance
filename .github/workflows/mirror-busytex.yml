@@ -1,0 +1,85 @@
+name: Mirror BusyTeX assets
+
+# Copies the BusyTeX release archive (~500 MB) that every Cloudflare Pages
+# build downloads into our own R2 bucket, so builds fetch it from inside
+# Cloudflare's network instead of GitHub's release CDN (10–52 s for the same
+# file). frontend/scripts/fetch-busytex.mjs reads it from BUSYTEX_MIRROR_URL
+# and falls back to GitHub when the object is missing, so this workflow only
+# ever affects build speed, never correctness.
+#
+# Runs whenever the lockfile (and with it the pinned texlyre-busytex version)
+# changes; a version that is already mirrored is skipped. Until the R2 secrets
+# exist the job is a no-op.
+on:
+  push:
+    branches: [main]
+    paths: [frontend/package-lock.json]
+  # Mirrors a version bump before its PR's preview build, not only after merge.
+  pull_request:
+    paths: [frontend/package-lock.json]
+  workflow_dispatch:
+
+concurrency:
+  group: mirror-busytex
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    name: Mirror BusyTeX archive to R2
+    # Fork PRs get no secrets.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      # R2 rejects the CRC checksums newer AWS CLI versions send by default.
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+    steps:
+      - name: Checkout lockfile
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: frontend/package-lock.json
+          sparse-checkout-cone-mode: false
+
+      - name: Mirror archive if missing
+        run: |
+          set -euo pipefail
+          if [ -z "${R2_ACCOUNT_ID}" ] || [ -z "${R2_BUCKET}" ] || [ -z "${AWS_ACCESS_KEY_ID}" ]; then
+            echo "::notice::R2 secrets/variables not configured — skipping (see docs/deployment.md §5)."
+            exit 0
+          fi
+
+          VERSION=$(jq -r '.packages["node_modules/texlyre-busytex"].version // empty' frontend/package-lock.json)
+          if [ -z "$VERSION" ]; then
+            echo "::error::texlyre-busytex not found in frontend/package-lock.json" >&2
+            exit 1
+          fi
+          # Keep in sync with ARCHIVE / UPSTREAM_URL in frontend/scripts/fetch-busytex.mjs.
+          KEY="busytex-assets-v${VERSION}.tar.gz"
+          UPSTREAM="https://github.com/TeXlyre/texlyre-busytex/releases/download/assets-v${VERSION}/busytex-assets.tar.gz"
+          ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+
+          if aws s3api head-object --endpoint-url "$ENDPOINT" --bucket "$R2_BUCKET" --key "$KEY" >/dev/null 2>&1; then
+            echo "${KEY} is already mirrored."
+            exit 0
+          fi
+
+          echo "Downloading ${UPSTREAM}"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/$KEY" "$UPSTREAM"
+          # Must be a readable gzip tarball before it replaces a build input.
+          tar -tzf "$RUNNER_TEMP/$KEY" > /dev/null
+          ls -l "$RUNNER_TEMP/$KEY"
+
+          aws s3 cp --endpoint-url "$ENDPOINT" --only-show-errors \
+            --content-type application/gzip \
+            "$RUNNER_TEMP/$KEY" "s3://${R2_BUCKET}/${KEY}"
+          echo "Mirrored ${KEY} to ${R2_BUCKET}."

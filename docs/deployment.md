@@ -250,6 +250,21 @@ Per-environment `SECRET_KEY` and `POSTGRES_PASSWORD` live **only** in the server
 
 - Production branch: `release`.
 - Preview branches: **only** `preview` (Settings → Builds → "Include only certain branches"). This keeps every feature branch from consuming build minutes and gives preview a stable URL, `prev-examance.valentin-herrmann.com`, already covered by `CORS_ALLOWED_ORIGIN_REGEX`.
+- Environment variable `BUSYTEX_MIRROR_URL` (Settings → Variables and Secrets, for **both** Production and Preview): the public base URL of the R2 bucket below, e.g. `https://pub-<id>.r2.dev`. Optional — without it, builds download BusyTeX from GitHub.
+
+### BusyTeX mirror (Cloudflare R2)
+
+Every Pages build downloads the ~500 MB BusyTeX archive. From GitHub's release CDN that took anywhere from 10 s to 52 s for the same file, so `frontend/scripts/fetch-busytex.mjs` tries an R2 copy first (`$BUSYTEX_MIRROR_URL/busytex-assets-v<version>.tar.gz`), then GitHub, then the upstream `texlyre-busytex download-assets`. A missing or unreachable mirror costs speed, never the build. Only the build reads the bucket — browsers never do, so the CSP and the no-third-party-transfer statements are unaffected.
+
+`.github/workflows/mirror-busytex.yml` keeps it filled: on every change to `frontend/package-lock.json` (PRs from this repository, `main`, or manually) it reads the pinned `texlyre-busytex` version and, if that archive is not in the bucket yet, copies it from GitHub. Nothing needs doing on a BusyTeX update. Old versions (~500 MB each) stay in the bucket; delete them whenever convenient, or set an R2 lifecycle rule.
+
+One-time setup:
+
+1. Cloudflare dashboard → R2 → create a bucket (e.g. `examance-build-assets`) → Settings → Public access → enable the `r2.dev` subdomain. Note the URL.
+2. R2 → Manage API tokens → create a token with **Object Read & Write**, restricted to that bucket. Note the access key ID, secret access key, and your account ID.
+3. GitHub → Settings → Secrets and variables → Actions: secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; repository variable `R2_BUCKET`.
+4. Pages → Settings → Variables and Secrets: `BUSYTEX_MIRROR_URL` for Production and Preview (see above).
+5. Actions → *Mirror BusyTeX assets* → Run workflow. The next Pages build logs `Streaming BusyTeX assets … from https://pub-….r2.dev/…`.
 - Root directory `frontend/`, build command `npm run build`, output `frontend/build/` — unchanged.
 - **Custom domains are mandatory for both environments** (Settings → Custom domains): `examance.valentin-herrmann.com` for `release`, `prev-examance.valentin-herrmann.com` for `preview`. `FRONTEND_URL` must point at these, never at the `*.pages.dev` URL: that domain sits on URL blocklists, so outbound mail relays reject password-reset mails linking to it with `550 5.7.1 Refused by local policy … (B-URL)`. Serving reset links from the same registrable domain as `SMTP_FROM_EMAIL` also avoids the From/link mismatch that phishing filters score. `validate_frontend_url_for_email` (`backend/app/config.py`) refuses to start on a blocklisted `FRONTEND_URL` whenever `SMTP_HOST` is set outside development.
 - Environment variable `PUBLIC_DEFAULT_BACKEND_URL`, set per Cloudflare environment to that environment's API origin. It seeds the backend address on a fresh browser profile so the production frontend defaults to the production API and the preview frontend to the preview API. It is only a default: a saved address always wins and the user can still point the app anywhere.
