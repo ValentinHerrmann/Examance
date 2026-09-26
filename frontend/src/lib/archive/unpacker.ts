@@ -1,15 +1,17 @@
 /**
- * Import .bgproj archive file into local IndexedDB storage.
+ * Import a .bgproj archive.
  *
- * Enforces atomic full-archive decryption before any database modification occurs.
- * Prevents partial/corrupted data imports if password is wrong or ciphertext is tampered.
+ * Split in two: `decryptArchive()` only opens the envelope — no tables, no
+ * session, no stores touched — so a wrong password costs nothing.
+ * `applyArchive()` writes, and only once decryption succeeded and every
+ * conflict has a decision. Never call `sessionStore.unlock()` with the
+ * archive key; records are re-encrypted under the live session key.
  */
 
 import { get } from 'svelte/store';
-import { db, clearAllTables } from '$lib/db/db';
+import { db } from '$lib/db/db';
 import { sessionStore } from '$lib/stores/session';
 import { storagePolicyStore } from '$lib/stores/storagePolicy';
-import { offlineQueue } from '$lib/services/offlineQueue';
 import {
   BGPROJ_MAGIC,
   BGPROJ_VERSION,
@@ -18,24 +20,35 @@ import {
 } from './format';
 import { deriveKey } from '$lib/crypto/keyDerivation';
 import { deriveSessionKey } from '$lib/crypto/sessionKey';
-import { base64ToUint8Array, decryptJson, toArrayBuffer } from '$lib/crypto/aesGcm';
+import { base64ToUint8Array, toArrayBuffer } from '$lib/crypto/aesGcm';
 import {
   saveExamEncrypted,
   saveExerciseEncrypted,
   saveStudentEncrypted,
   saveSubmissionEncrypted,
-  saveScoreEncrypted,
   encryptExam,
   encryptExercise,
   encryptResource,
 } from '$lib/db/dbEncryption';
+import { scoreRepository } from '$lib/repositories/scoreRepository';
+import type { ExerciseScoreRecord } from '$lib/db/schema';
 import { importPayloadToServer } from './serverImport';
 
-export async function unpackProject(
+export interface ImportResult {
+  examCount: number;
+  studentCount: number;
+  errors: string[];
+}
+
+/**
+ * Opens the archive envelope and returns its payload. Read-only: no table or
+ * store is touched, and the archive key never leaves this function.
+ */
+export async function decryptArchive(
   archiveData: Blob | ArrayBuffer | Uint8Array,
   password: string,
   onProgress?: (event: ProgressEvent) => void
-): Promise<{ examCount: number; studentCount: number; errors: string[] }> {
+): Promise<Record<string, any>> {
   onProgress?.({ stage: 'salt', current: 0, total: 100 });
 
   const buffer =
@@ -100,42 +113,31 @@ export async function unpackProject(
   onProgress?.({ stage: 'db_writes', current: 60, total: 100 });
 
   // 6. Parse payload JSON
-  let payload: any;
   try {
     const jsonStr = new TextDecoder().decode(decompressedInner);
-    payload = JSON.parse(jsonStr);
+    return JSON.parse(jsonStr);
   } catch {
     throw new Error('Corrupted archive: Payload is not valid JSON.');
   }
+}
 
-  // 7. WIPE IDB ONLY AFTER ATOMIC DECRYPTION SUCCEEDS
-  await clearAllTables();
-
-  // 8. Re-initialize active session store with imported key.
-  // Preserve the existing session mode (e.g. 'authenticated'/'hybrid') instead of
-  // forcing 'local' — otherwise an authenticated user's session gets silently
-  // downgraded, which disables proactive token refresh and causes a burst of 401s
-  // on the next server request.
-  const priorMode = get(sessionStore).mode;
-  await sessionStore.unlock({
-    masterKey,
-    sessionKey: await deriveSessionKey(masterKey, nonce),
-    sessionNonce: nonce,
-    mode: priorMode ?? 'local',
-  });
-
-  // Get current active key from store
-  let activeKey: CryptoKey | null = null;
-  const unsubscribe = sessionStore.subscribe((s) => {
-    activeKey = s.sessionKey;
-  });
-  unsubscribe();
-
+/**
+ * Writes an already-decrypted, already-resolved payload into the current store.
+ *
+ * @param payload the output of `applyResolutions`, not the raw archive.
+ */
+export async function applyArchive(
+  payload: Record<string, any>,
+  onProgress?: (event: ProgressEvent) => void
+): Promise<ImportResult> {
+  // Always the live session key, never the archive's — records arrive already
+  // decrypted and only need re-sealing under this vault's key.
+  const activeKey = get(sessionStore).sessionKey;
   if (!activeKey) {
-    throw new Error('Failed to initialize session key after unpacking archive.');
+    throw new Error('Unlock the session before importing an archive.');
   }
 
-  // 9. Persist the archive contents.
+  // Persist the archive contents.
   //
   // In server-backed modes the exam/exercise records must be *created* under the
   // importing account: saveExamEncrypted/saveExerciseEncrypted route through
@@ -145,6 +147,9 @@ export async function unpackProject(
   const isServerBacked = get(storagePolicyStore).storageMode !== 'all-local';
   const errors: string[] = [];
   let idMap = new Map<string, string>();
+  // Filled by the server import so the local mirror uses the same group ids
+  // the server created.
+  let mcGroupIdMap = new Map<string, string>();
 
   const exams: any[] = Array.isArray(payload.exams) ? payload.exams : [];
   const exercises: any[] = Array.isArray(payload.exercises) ? payload.exercises : [];
@@ -157,6 +162,7 @@ export async function unpackProject(
   if (isServerBacked) {
     const result = await importPayloadToServer(payload);
     idMap = result.idMap;
+    mcGroupIdMap = result.mcGroupIdMap;
     errors.push(...result.errors);
 
     // Mirror into IndexedDB so the local cache is warm before the first refresh.
@@ -185,15 +191,6 @@ export async function unpackProject(
   // Students, submissions and scores go through their repositories in every mode
   // — those already keep identity data local in hybrid mode — but must point at
   // the exam ids that actually got created.
-  //
-  // Those repositories swallow server rejections into the offline queue, which
-  // silently discards anything that is not a network error. A student identity
-  // is globally unique by pseudonym_hmac and bound to a single exam, so an
-  // archive re-imported onto the backend it came from is rejected with a 409;
-  // the queue delta is the only signal available here, so report it rather than
-  // let the records disappear unannounced.
-  const queuedBefore = get(offlineQueue).length;
-
   if (Array.isArray(payload.students)) {
     for (const item of payload.students) {
       await saveStudentEncrypted({ ...item, examId: remap(item.examId) }, activeKey);
@@ -206,18 +203,32 @@ export async function unpackProject(
     }
   }
 
-  const queuedAfter = get(offlineQueue).length;
-  if (isServerBacked && queuedAfter > queuedBefore) {
-    errors.push(
-      `${queuedAfter - queuedBefore} student/submission record(s) were rejected by the server. ` +
-        `This happens when the archive is re-imported onto the same server it was exported ` +
-        `from: those student identities already belong to the original exam.`
-    );
-  }
-
   if (Array.isArray(payload.exerciseScores)) {
+    // Scores are addressed per exam; the archive only records which submission
+    // they belong to, so the exam id comes from that submission.
+    const examIdBySubmission = new Map<string, string>();
+    for (const sub of Array.isArray(payload.submissions) ? payload.submissions : []) {
+      examIdBySubmission.set(sub.id, remap(sub.examId) ?? sub.examId);
+    }
+
+    const bySubmission = new Map<string, ExerciseScoreRecord[]>();
     for (const score of payload.exerciseScores) {
-      await saveScoreEncrypted({ ...score, exerciseId: remap(score.exerciseId) }, activeKey);
+      const record = { ...score, exerciseId: remap(score.exerciseId) };
+      const bucket = bySubmission.get(record.submissionId);
+      if (bucket) bucket.push(record);
+      else bySubmission.set(record.submissionId, [record]);
+    }
+
+    for (const [submissionId, scores] of bySubmission) {
+      const examId = examIdBySubmission.get(submissionId);
+      if (!examId) {
+        errors.push(
+          `${scores.length} score(s) reference submission ${submissionId}, which the ` +
+            `archive does not contain. They were skipped.`
+        );
+        continue;
+      }
+      await scoreRepository.saveMany(examId, submissionId, scores, activeKey);
     }
   }
 
@@ -226,11 +237,13 @@ export async function unpackProject(
   // otherwise re-importing an archive into the DB it came from would rewrite
   // the original exam's groups. Both sides use the same map, so membership
   // survives the remapping.
-  const mcGroupIdMap = new Map<string, string>();
   if (Array.isArray(payload.examMcGroups) && payload.examMcGroups.length > 0) {
     const groupRecords = payload.examMcGroups.map((g: any) => {
       const remappedExamId = remap(g.examId);
-      const groupId = remappedExamId === g.examId ? g.id : crypto.randomUUID();
+      // In server-backed modes the id is whatever the server minted; locally,
+      // a fresh one only when the exam itself was remapped.
+      const groupId =
+        mcGroupIdMap.get(g.id) ?? (remappedExamId === g.examId ? g.id : crypto.randomUUID());
       if (groupId !== g.id) mcGroupIdMap.set(g.id, groupId);
       return { ...g, id: groupId, examId: remappedExamId };
     });
@@ -277,4 +290,19 @@ export async function unpackProject(
   onProgress?.({ stage: 'complete', current: 100, total: 100 });
 
   return { examCount, studentCount, errors };
+}
+
+/**
+ * Decrypt and write in one call, with no conflict resolution. Kept for
+ * callers with no way to present conflicts (tests, imports into an empty
+ * workspace); user-facing imports should go through
+ * `archiveService.openBgprojArchive()`.
+ */
+export async function unpackProject(
+  archiveData: Blob | ArrayBuffer | Uint8Array,
+  password: string,
+  onProgress?: (event: ProgressEvent) => void
+): Promise<ImportResult> {
+  const payload = await decryptArchive(archiveData, password, onProgress);
+  return applyArchive(payload, onProgress);
 }

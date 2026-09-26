@@ -8,6 +8,8 @@
 
 import { get } from 'svelte/store';
 import { db } from '$lib/db/db';
+import { scoreRepository } from '$lib/repositories/scoreRepository';
+import { examRepository } from '$lib/repositories/examRepository';
 import { sessionStore } from '$lib/stores/session';
 import {
   BGPROJ_MAGIC,
@@ -16,20 +18,16 @@ import {
   SALT_OFFSET,
   NONCE_OFFSET,
   PAYLOAD_OFFSET,
-  type BgprojHeader,
   type ProgressCallback,
-  type ProgressEventData,
 } from './format';
 import { deriveKey, generateSalt } from '$lib/crypto/keyDerivation';
-import { deriveArchiveSecret, deriveSessionKey } from '$lib/crypto/sessionKey';
-import { hmacSha256Hex, importHmacKey } from '$lib/crypto/hmac';
+import { deriveSessionKey } from '$lib/crypto/sessionKey';
 import { encryptJson, uint8ArrayToBase64 } from '$lib/crypto/aesGcm';
 import {
   loadExamsEncrypted,
   loadExercisesEncrypted,
   loadStudentsEncrypted,
   loadSubmissionsEncrypted,
-  decryptScore,
   decryptResourceBytes,
 } from '$lib/db/dbEncryption';
 
@@ -49,24 +47,28 @@ export async function packProject(
   const nonce = new Uint8Array(12);
   crypto.getRandomValues(nonce);
 
-  // 2. Derive fresh master key & archive secret
+  // 2. Derive the fresh master key.
   const { masterKey } = await deriveKey(password, salt);
-  const archiveSecretBuffer = await deriveArchiveSecret(masterKey);
-  const archiveHmacKey = await importHmacKey(new Uint8Array(archiveSecretBuffer));
 
   // 3. Collect records from IDB
   const key = get(sessionStore).sessionKey;
   const exams = await loadExamsEncrypted(key);
   const exercises = await loadExercisesEncrypted(key);
   const students = await loadStudentsEncrypted(key);
-  const submissions = await loadSubmissionsEncrypted(key);
-  const rawScores = await db.exerciseScores.toArray();
-  const exerciseScores = await Promise.all(rawScores.map(s => decryptScore(s, key)));
+  // The archive is the export/import bridge — it must carry every scan, not
+  // just presence flags, so this is the one caller that opts into the heavy
+  // list response.
+  const submissions = await loadSubmissionsEncrypted(key, { includeScans: true });
+  // Through the repository, not Dexie directly — in all-server mode the local
+  // cache can be empty (e.g. right after a lock).
+  const exerciseScores = await scoreRepository.getAll(exams.map((e) => e.id), key);
   const rawAuditLogs = await db.auditLog.toArray();
 
-  // Load junction table linking exercises to exams and MC groups
-  const exerciseExams = await db.examExercises.toArray();
-  const examMcGroups = await db.examMcGroups.toArray();
+  // Exercise links and MC groups, per exam, through the repository for the
+  // same reason: the local Dexie tables can be empty in server-backed modes.
+  const structures = await Promise.all(exams.map((e) => examRepository.getStructure(e.id)));
+  const exerciseExams = structures.flatMap((s) => s.links);
+  const examMcGroups = structures.flatMap((s) => s.mcGroups);
 
   // Resource files are unwrapped like every other record — decrypted with the
   // current session key and base64'd, because JSON cannot carry raw bytes. The
@@ -91,26 +93,15 @@ export async function packProject(
     message: 'Encrypting database records...',
   });
 
-  // 4. Compute pseudonym hashes for archive payload using archive secret
-  const archivedStudents = await Promise.all(
-    students.map(async s => ({
-      ...s,
-      pseudonymHash: await hmacSha256Hex(s.pseudonymId, archiveHmacKey),
-    }))
-  );
-
-  const archivedSubmissions = await Promise.all(
-    submissions.map(async sub => ({
-      ...sub,
-      pseudonymHash: await hmacSha256Hex(sub.pseudonymHash, archiveHmacKey),
-    }))
-  );
-
+  // 4. Students and submissions are archived exactly as they are, with no
+  // re-hashing: the payload is already sealed under the archive key, and
+  // leaving the student/submission link field alone is what keeps a
+  // round-trip lossless.
   const archivePayload = {
     exams,
     exercises,
-    students: archivedStudents,
-    submissions: archivedSubmissions,
+    students,
+    submissions,
     exerciseScores,
     exerciseExams,
     examMcGroups,

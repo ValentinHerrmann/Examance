@@ -142,11 +142,9 @@ export default defineConfig({
     target: 'es2022',
     rollupOptions: {
       external: [/.*\.wasm$/],
-      output: {
-        entryFileNames: 'assets/[name]-[hash].js',
-        chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash][extname]',
-      },
+      // No `output.*FileNames` overrides here — SvelteKit owns the output
+      // layout and ignores them, always emitting under `_app/immutable/`,
+      // which is what `static/_headers` targets.
     },
   },
   server: {

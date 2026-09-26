@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.exam import Exam
 from app.models.exercise import Exercise
+from app.models.scan_submission import ScanSubmission
 from app.models.teacher import Teacher
 from app.services.jwt import decode_token
 
@@ -232,3 +233,22 @@ async def get_readable_exercise(
     if exercise is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")
     return exercise
+
+
+async def get_submission_for_teacher(
+    submission_id: uuid.UUID,
+    exam: Exam = Depends(get_exam_for_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> ScanSubmission:
+    """The live submission inside an exam the teacher owns (ownership via the exam)."""
+    result = await db.execute(
+        select(ScanSubmission).where(
+            ScanSubmission.id == submission_id,
+            ScanSubmission.exam_id == exam.id,
+            ScanSubmission.deleted_at.is_(None),
+        )
+    )
+    submission = result.scalar_one_or_none()
+    if submission is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found.")
+    return submission

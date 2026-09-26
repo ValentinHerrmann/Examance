@@ -172,6 +172,63 @@ async def test_student_and_submission_upsert(client: AsyncClient, db: AsyncSessi
 
 
 @pytest.mark.asyncio
+async def test_list_submissions_omits_scan_by_default(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """The list endpoint must not ship every submission's scan PDF by default —
+    only has_scan (a cheap presence flag), and the real bytes when a caller
+    opts in with include_scans=true or fetches the single submission."""
+    await _create_teacher_and_login(client, db, "listscans@example.com")
+
+    e_resp = await client.post(
+        "/api/v1/exams",
+        json={"title": "List Scans Exam", "retention_until": "2027-12-31"},
+    )
+    exam_id = e_resp.json()["id"]
+
+    pseudonym_hmac = "d" * 64
+    await client.post(
+        f"/api/v1/exams/{exam_id}/students",
+        json={
+            "pseudonym_hmac": pseudonym_hmac,
+            "pii_ciphertext_b64": base64.b64encode(b"PII").decode(),
+            "iv_b64": base64.b64encode(b"123456789012").decode(),
+            "encryption_salt_b64": base64.b64encode(b"1234567890123456").decode(),
+        },
+    )
+    sub_resp = await client.post(
+        f"/api/v1/exams/{exam_id}/submissions",
+        json={
+            "pseudonym_hmac": pseudonym_hmac,
+            "scan_ciphertext_b64": base64.b64encode(b"EncryptedScanBytes").decode(),
+            "scan_iv_b64": base64.b64encode(b"123456789012").decode(),
+            "total_score": 10.0,
+        },
+    )
+    assert sub_resp.status_code == 201
+
+    # Default: no scan bytes, but the presence flag is still accurate.
+    list_resp = await client.get(f"/api/v1/exams/{exam_id}/submissions")
+    assert list_resp.status_code == 200
+    subs = list_resp.json()
+    assert len(subs) == 1
+    assert subs[0]["scan_ciphertext_b64"] is None
+    assert subs[0]["scan_iv_b64"] is None
+    assert subs[0]["has_scan"] is True
+
+    # Opt-in: the real bytes come back.
+    list_resp_full = await client.get(
+        f"/api/v1/exams/{exam_id}/submissions?include_scans=true"
+    )
+    assert list_resp_full.status_code == 200
+    subs_full = list_resp_full.json()
+    assert subs_full[0]["scan_ciphertext_b64"] == base64.b64encode(
+        b"EncryptedScanBytes"
+    ).decode()
+    assert subs_full[0]["has_scan"] is True
+
+
+@pytest.mark.asyncio
 async def test_admin_stats_k_anonymity(client: AsyncClient, db: AsyncSession) -> None:
     await _create_teacher_and_login(client, db, "admin@example.com", role="admin")
 

@@ -1,6 +1,14 @@
 /**
  * Statistics calculations (mean, std dev, median, histogram).
  */
+import type { GradingKeyConfig } from "$lib/db/schema";
+import {
+  calculateClassGradeAverage,
+  calculateGradeDistribution,
+  calculatePassRate,
+  gradeColorForPercentage,
+  type GradeDistributionBucket,
+} from "./gradingKey";
 
 export interface SummaryStats {
   count: number;
@@ -13,9 +21,21 @@ export interface SummaryStats {
 }
 
 export interface PercentageEntry {
+  /** 0–100, clamped. */
   percentage: number;
   gradedCount: number;
   totalCount: number;
+  /** False while some exercise is ungraded: `percentage` is then provisional. */
+  isComplete: boolean;
+  /** Points achieved so far, and the maximum those graded exercises were worth. */
+  gradedPoints: number;
+  gradedMaxPoints: number;
+}
+
+/** Bonus exercises (`maxPoints: 0`) and MC penalties push percentages past both ends. */
+function clampPercentage(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(100, Math.max(0, value));
 }
 
 /**
@@ -29,7 +49,7 @@ export interface PercentageEntry {
  */
 export function calculateSubmissionPercentage(
   exerciseMaxPoints: number[],
-  exerciseScores: (number | null | undefined)[]
+  exerciseScores: (number | null | undefined)[],
 ): PercentageEntry | null {
   let gradedSum = 0;
   let gradedMaxSum = 0;
@@ -38,7 +58,7 @@ export function calculateSubmissionPercentage(
 
   for (let i = 0; i < exerciseMaxPoints.length; i++) {
     const score = exerciseScores[i];
-    if (score !== null && score !== undefined) {
+    if (score !== null && score !== undefined && Number.isFinite(score)) {
       gradedSum += score;
       gradedMaxSum += exerciseMaxPoints[i];
       gradedCount++;
@@ -47,8 +67,14 @@ export function calculateSubmissionPercentage(
 
   if (gradedCount === 0 || gradedMaxSum === 0) return null;
 
-  const percentage = (gradedSum / gradedMaxSum) * 100;
-  return { percentage, gradedCount, totalCount };
+  return {
+    percentage: clampPercentage((gradedSum / gradedMaxSum) * 100),
+    gradedCount,
+    totalCount,
+    isComplete: gradedCount === totalCount,
+    gradedPoints: gradedSum,
+    gradedMaxPoints: gradedMaxSum,
+  };
 }
 
 export function calculateSummaryStats(scores: number[]): SummaryStats | null {
@@ -62,11 +88,13 @@ export function calculateSummaryStats(scores: number[]): SummaryStats | null {
   const sum = scores.reduce((acc, x) => acc + x, 0);
   const mean = sum / count;
 
-  const variance = scores.reduce((acc, x) => acc + Math.pow(x - mean, 2), 0) / count;
+  const variance =
+    scores.reduce((acc, x) => acc + Math.pow(x - mean, 2), 0) / count;
   const stdDev = Math.sqrt(variance);
 
   const mid = Math.floor(count / 2);
-  const median = count % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  const median =
+    count % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 
   // Build 5 histogram bins
   const binCount = 5;
@@ -95,27 +123,99 @@ export function calculateSummaryStats(scores: number[]): SummaryStats | null {
 }
 
 /**
- * Build a percentage-based histogram (0-100%, fixed 10 bins of 10% each).
+ * Build a percentage-based histogram (0-100%, default 20 bins of 5% each; 100% lands in the
+ * last bin rather than an extra one). `keyConfig`, when given, colours each bin by the grade
+ * of its lower bound (see `gradeColorForPercentage`).
  */
 export interface PercentageHistogramBin {
   binStart: number;
   binEnd: number;
   count: number;
+  /** Subset of `count` whose submission is not fully graded yet. */
+  provisionalCount: number;
+  /** CSS colour token, e.g. `var(--color-grade-1)`. */
+  colorVar: string;
 }
 
-export function calculatePercentageHistogram(percentages: number[]): PercentageHistogramBin[] {
-  const bins: PercentageHistogramBin[] = Array.from({ length: 10 }).map((_, i) => ({
-    binStart: i * 10,
-    binEnd: (i + 1) * 10,
-    count: 0,
-  }));
+export function calculatePercentageHistogram(
+  percentages: number[],
+  provisionalFlags: boolean[] = [],
+  binWidth = 5,
+  keyConfig?: GradingKeyConfig,
+): PercentageHistogramBin[] {
+  const binCount = Math.round(100 / binWidth);
+  const bins: PercentageHistogramBin[] = Array.from({ length: binCount }).map(
+    (_, i) => ({
+      binStart: i * binWidth,
+      binEnd: (i + 1) * binWidth,
+      count: 0,
+      provisionalCount: 0,
+      colorVar: gradeColorForPercentage(i * binWidth, keyConfig),
+    }),
+  );
 
-  percentages.forEach((p) => {
-    let binIdx = Math.floor(p / 10);
-    if (binIdx < 0) binIdx = 0;
-    if (binIdx >= 10) binIdx = 9;
+  percentages.forEach((p, i) => {
+    const value = clampPercentage(p);
+    let binIdx = Math.floor(value / binWidth);
+    if (binIdx >= binCount) binIdx = binCount - 1;
     bins[binIdx].count++;
+    if (provisionalFlags[i]) bins[binIdx].provisionalCount++;
   });
 
   return bins;
+}
+
+/** Integer count axis with one unit of headroom — counts are whole students. */
+export function countAxis(
+  counts: number[],
+  maxTicks: number,
+): { max: number; ticks: number[] } {
+  const max = Math.max(1, ...counts) + 1;
+  const step = Math.max(1, Math.ceil(max / maxTicks));
+  return {
+    max,
+    ticks: Array.from(
+      { length: Math.floor(max / step) + 1 },
+      (_, i) => i * step,
+    ),
+  };
+}
+
+export interface ExamResult extends PercentageEntry {
+  submissionId: string;
+}
+
+/** Everything the exam stats page shows, derived from one list of per-submission results. */
+export interface ExamStats {
+  results: ExamResult[];
+  /** Over percentages; null until something is graded. */
+  summary: SummaryStats | null;
+  meanPoints: number | null;
+  gradeAverage: number | null;
+  passRate: number | null;
+  bins: PercentageHistogramBin[];
+  gradeBuckets: GradeDistributionBucket[];
+}
+
+/** Provisional (partially graded) results are counted, and flagged so charts can mark them. */
+export function summarizeExam(
+  results: ExamResult[],
+  gradingKey?: GradingKeyConfig,
+): ExamStats {
+  const percentages = results.map((r) => r.percentage);
+  const provisional = results.map((r) => !r.isComplete);
+  return {
+    results,
+    summary: calculateSummaryStats(percentages),
+    meanPoints:
+      calculateSummaryStats(results.map((r) => r.gradedPoints))?.mean ?? null,
+    gradeAverage: calculateClassGradeAverage(percentages, gradingKey),
+    passRate: calculatePassRate(percentages, gradingKey),
+    bins: calculatePercentageHistogram(percentages, provisional, 5, gradingKey),
+    gradeBuckets: calculateGradeDistribution(
+      percentages,
+      gradingKey,
+      provisional,
+    ),
+  };
 }

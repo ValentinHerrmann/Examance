@@ -12,7 +12,7 @@
   import { db } from "$lib/db/db";
   import { encrypt, decrypt, uint8ArrayToBase64 } from "$lib/crypto/aesGcm";
   import { ensure64CharHex } from "$lib/crypto/hmac";
-  import { sessionStore } from "$lib/stores/session";
+  import { sessionStore, awaitSessionReady } from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import {
     loadStudentsEncrypted,
@@ -21,8 +21,6 @@
     decryptStudent,
     loadExamExercisesEncrypted,
     loadOmrTemplateEncrypted,
-    saveScoreEncrypted,
-    loadScoresEncrypted,
     loadLocalMcGroups,
   } from "$lib/db/dbEncryption";
   import { computeMcExercisesHash, loadExamMcExercises } from "$lib/grading/mcExerciseHash";
@@ -32,7 +30,12 @@
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
   import { studentRepository } from "$lib/repositories/studentRepository";
-  import type { StudentRecord, OmrPageTemplate } from "$lib/db/schema";
+  import type {
+    StudentRecord,
+    OmrPageTemplate,
+    ExerciseScoreRecord,
+  } from "$lib/db/schema";
+  import { scoreRepository } from "$lib/repositories/scoreRepository";
   import { onMount, onDestroy } from "svelte";
   import { get } from "svelte/store";
   import { WorkerPool } from "$lib/workers/pool";
@@ -100,6 +103,9 @@
 
   let unmatchedList: UnmatchedSubmission[] = [];
   let scannedSubmissions: ScannedSubmissionItem[] = [];
+  // Starts true: the overview must not flash "no submissions yet" while the
+  // first fetch is still in flight (see loadScannedSubmissions()).
+  let isLoadingSubmissions = true;
   let previewModalOpen = false;
   let previewItem: ScannedSubmissionItem | null = null;
   let previewObjectUrl: string | null = null;
@@ -117,6 +123,7 @@
 
   /** Loads the exam's OMR template + MC answer key, gating auto-grading on a fresh (non-stale) template. */
   async function loadOmrContext() {
+    await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
     try {
       const mcExercises = await loadExamMcExercises(examId, key);
@@ -226,70 +233,76 @@
   });
 
   async function loadScannedSubmissions() {
-    const key = get(sessionStore).sessionKey;
-    const submissions = await submissionRepository.getByExamId(examId, key);
-    const students = await studentRepository.getByExamId(examId, key);
+    isLoadingSubmissions = true;
+    try {
+      await awaitSessionReady();
+      const key = get(sessionStore).sessionKey;
+      const submissions = await submissionRepository.getByExamId(examId, key);
+      const students = await studentRepository.getByExamId(examId, key);
 
-    const studentMap = new Map<string, StudentRecord>();
-    for (const st of students) {
-      if (st.pseudonymId) {
-        studentMap.set(st.pseudonymId, st);
-        const hex = await ensure64CharHex(st.pseudonymId);
-        studentMap.set(hex, st);
-      }
-      if (st.fallbackCode) {
-        studentMap.set(st.fallbackCode, st);
-      }
-    }
-
-    const items: ScannedSubmissionItem[] = [];
-    for (const sub of submissions) {
-      let st = studentMap.get(sub.pseudonymHash);
-      if (!st) {
-        const hex = await ensure64CharHex(sub.pseudonymHash);
-        st = studentMap.get(hex);
-      }
-
-      let sName = st?.studentName;
-      let sNumber = st?.studentNumber;
-      let fCode = st?.fallbackCode;
-
-      const qrCandidate =
-        (st?.pseudonymId && st.pseudonymId.includes('_') ? st.pseudonymId : null) ||
-        (sub.pseudonymHash && sub.pseudonymHash.includes('_') ? sub.pseudonymHash : null) ||
-        (fCode && fCode.includes('_') ? fCode : null);
-
-      if (qrCandidate) {
-        const parsed = parseStudentQr(qrCandidate);
-        if (parsed) {
-          sName = sName || parsed.displayName;
-          sNumber = sNumber || parsed.studentNumber;
-          if (!fCode || fCode === "UNKNOWN" || fCode.length === 64) {
-            fCode = parsed.displayName;
-          }
+      const studentMap = new Map<string, StudentRecord>();
+      for (const st of students) {
+        if (st.pseudonymId) {
+          studentMap.set(st.pseudonymId, st);
+          const hex = await ensure64CharHex(st.pseudonymId);
+          studentMap.set(hex, st);
+        }
+        if (st.fallbackCode) {
+          studentMap.set(st.fallbackCode, st);
         }
       }
 
-      if (!fCode || fCode === "UNKNOWN") {
-        fCode = sName || (sub.pseudonymHash.length > 16 ? sub.pseudonymHash.substring(0, 8) : sub.pseudonymHash);
+      const items: ScannedSubmissionItem[] = [];
+      for (const sub of submissions) {
+        let st = studentMap.get(sub.pseudonymHash);
+        if (!st) {
+          const hex = await ensure64CharHex(sub.pseudonymHash);
+          st = studentMap.get(hex);
+        }
+
+        let sName = st?.studentName;
+        let sNumber = st?.studentNumber;
+        let fCode = st?.fallbackCode;
+
+        const qrCandidate =
+          (st?.pseudonymId && st.pseudonymId.includes('_') ? st.pseudonymId : null) ||
+          (sub.pseudonymHash && sub.pseudonymHash.includes('_') ? sub.pseudonymHash : null) ||
+          (fCode && fCode.includes('_') ? fCode : null);
+
+        if (qrCandidate) {
+          const parsed = parseStudentQr(qrCandidate);
+          if (parsed) {
+            sName = sName || parsed.displayName;
+            sNumber = sNumber || parsed.studentNumber;
+            if (!fCode || fCode === "UNKNOWN" || fCode.length === 64) {
+              fCode = parsed.displayName;
+            }
+          }
+        }
+
+        if (!fCode || fCode === "UNKNOWN") {
+          fCode = sName || (sub.pseudonymHash.length > 16 ? sub.pseudonymHash.substring(0, 8) : sub.pseudonymHash);
+        }
+
+        items.push({
+          id: sub.id,
+          pseudonymHash: sub.pseudonymHash,
+          fallbackCode: fCode,
+          studentName: sName,
+          studentNumber: sNumber,
+          createdAt: sub.createdAt || new Date().toISOString(),
+          scanCt: sub.scanCt,
+          scanIv: sub.scanIv,
+          totalScore: sub.totalScore,
+          annotationCt: sub.annotationCt,
+          annotationIv: sub.annotationIv,
+        });
       }
 
-      items.push({
-        id: sub.id,
-        pseudonymHash: sub.pseudonymHash,
-        fallbackCode: fCode,
-        studentName: sName,
-        studentNumber: sNumber,
-        createdAt: sub.createdAt || new Date().toISOString(),
-        scanCt: sub.scanCt,
-        scanIv: sub.scanIv,
-        totalScore: sub.totalScore,
-        annotationCt: sub.annotationCt,
-        annotationIv: sub.annotationIv,
-      });
+      scannedSubmissions = items;
+    } finally {
+      isLoadingSubmissions = false;
     }
-
-    scannedSubmissions = items;
   }
 
   async function openPreview(item: ScannedSubmissionItem) {
@@ -490,7 +503,7 @@
       // Load MC/SC/TF auto-grading overlay data (mirrors ScanCanvasViewer's gradingStore
       // state) so the exported PDF shows the same OMR annotations as the grading UI.
       const exercises = await loadExamExercisesEncrypted(examId, key || fallbackKey);
-      const scores = await loadScoresEncrypted(sub.id, key || fallbackKey);
+      const scores = await scoreRepository.getBySubmissionId(examId, sub.id, key || fallbackKey);
       const mcState: Record<string, McOverlayState> = {};
       const scoreInputs: Record<string, number | null | undefined> = {};
       for (const sc of scores) {
@@ -671,6 +684,7 @@
   }
 
   async function refreshUnmatched() {
+    await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
     const students = await studentRepository.getByExamId(examId, key);
     const submissions = await submissionRepository.getByExamId(examId, key);
@@ -1010,43 +1024,43 @@
       );
 
       const omrResults = omrResultsByPseudonym.get(booklet.pseudonymId) ?? [];
-      for (const r of omrResults) {
+      // Accumulated and written once per booklet, to avoid one write per MC
+      // question per pupil — hundreds of sequential requests in server mode.
+      const omrScores: ExerciseScoreRecord[] = omrResults.map((r) => {
         const failed = r.confidence === "failed";
-        await saveScoreEncrypted(
-          {
-            id: crypto.randomUUID(),
-            submissionId: subId,
-            exerciseId: r.exerciseId,
-            // A failed alignment has no trustworthy score — leave it unset so it hydrates as
-            // "ungraded" (grade/+page.svelte) instead of silently contributing a 0.
-            score: failed ? undefined : r.score,
-            selectedOptions: failed ? [] : r.selectedOptions,
-            omrMeta: {
+        return {
+          id: crypto.randomUUID(),
+          submissionId: subId,
+          exerciseId: r.exerciseId,
+          // A failed alignment has no trustworthy score — leave it unset so it hydrates as
+          // "ungraded" (grade/+page.svelte) instead of silently contributing a 0.
+          score: failed ? undefined : r.score,
+          selectedOptions: failed ? [] : r.selectedOptions,
+          omrMeta: {
+            confidence: r.confidence,
+            source: "omr" as const,
+            flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
+            original: {
               confidence: r.confidence,
-              source: "omr",
-              flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
-              original: {
-                confidence: r.confidence,
-                selectedOptions: failed ? [] : [...r.selectedOptions],
-                score: failed ? undefined : r.score,
-                flaggedOptions: r.flaggedOptions.length > 0 ? [...r.flaggedOptions] : undefined,
-              },
-              detections:
-                !failed && r.bubbles.length > 0
-                  ? {
-                      pageIndex: r.pageIndex,
-                      bubbles: r.bubbles.map((b) => ({
-                        optionIndex: b.optionIndex,
-                        state: b.state,
-                        rect: b.rect,
-                      })),
-                    }
-                  : undefined,
+              selectedOptions: failed ? [] : [...r.selectedOptions],
+              score: failed ? undefined : r.score,
+              flaggedOptions: r.flaggedOptions.length > 0 ? [...r.flaggedOptions] : undefined,
             },
+            detections:
+              !failed && r.bubbles.length > 0
+                ? {
+                    pageIndex: r.pageIndex,
+                    bubbles: r.bubbles.map((b) => ({
+                      optionIndex: b.optionIndex,
+                      state: b.state,
+                      rect: b.rect,
+                    })),
+                  }
+                : undefined,
           },
-          key,
-        );
-      }
+        };
+      });
+      await scoreRepository.saveMany(examId, subId, omrScores, key);
 
       newlyIngestedCount++;
       scannedCount++;
@@ -1250,6 +1264,7 @@
 
   <ScannedSubmissionsTable
     {scannedSubmissions}
+    loading={isLoadingSubmissions}
     {exportingId}
     {isGraded}
     onPreview={openPreview}

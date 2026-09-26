@@ -248,6 +248,47 @@ Per-environment `SECRET_KEY` and `POSTGRES_PASSWORD` live **only** in the server
 
   Those two lines are the expected result of switching Web Analytics on, not a broken deploy — the app's own bootstrap hash still matches and the page works. **Do not "fix" them by adding the beacon host to `script-src`**: that would start sending visitor data to a third party, which contradicts the no-third-party-transfer claims in `data_flow_and_security.md` and the legal pages. Turn the feature off instead.
 
+### Troubleshooting: "Executing inline script violates … Content Security Policy"
+
+If this appears in the browser console on a deployed stack:
+
+```
+Executing inline script violates the following Content Security Policy directive
+'script-src 'self' 'wasm-unsafe-eval' 'sha256-…''
+```
+
+**It is not a CORS error and not a build failure**, though it reads like both and
+has been reported as both. Work through it in this order:
+
+1. **Is Web Analytics on?** That is the cause in every occurrence so far — see
+   the bullet above. Turn it off in Settings → Analytics. The same applies to
+   Rocket Loader and Email Obfuscation: all three rewrite the served HTML after
+   the build, so the hash of what the browser executes is not the hash the build
+   computed. The app's own bootstrap hash still matches, so the page works; the
+   console noise is the symptom, not the failure.
+2. **Does `build/_headers` still contain the placeholder?** If `script-src`
+   carries a literal `__INLINE_SCRIPT_HASHES__`, the `csp:headers` build step
+   did not run and *every* inline script is blocked, so the page is blank rather
+   than merely noisy. `npm run build` runs `csp:verify` immediately afterwards
+   and fails the build on exactly this, so a deploy should never get this far.
+3. **Is the deployment mixed?** The inline bootstrap embeds the content-hashed
+   entry chunk filenames, so an `_headers` from one build served alongside
+   `_app` chunks from another gives one valid-looking hash that matches nothing.
+   Redeploy rather than editing the policy.
+
+The app explains this itself: `lib/utils/cspDiagnostics.ts` listens for
+`securitypolicyviolation`, names the likely Cloudflare feature, and points here.
+
+**Never resolve this by widening `script-src`.** Allowing the beacon host starts
+sending visitor data to a third party, which contradicts the
+no-third-party-transfer claims in `data_flow_and_security.md` and on the legal
+pages.
+
+`npm run csp:verify` is wired into `npm run build` rather than into `ci.yml`,
+because CI does not build the frontend — `prebuild` downloads the busytex
+assets. The gate therefore fires in the Cloudflare Pages build, which is the
+build that would otherwise ship.
+
 ### Passkeys are per stack, and per origin
 
 `WEBAUTHN_RP_ID` defaults to the hostname of `FRONTEND_URL` (`backend/app/config.py`), so each stack must set `FRONTEND_URL` to *its own* frontend origin — production to `examance.valentin-herrmann.com`, preview to `prev-examance.valentin-herrmann.com`. A passkey registered against one RP ID does not work against the other, by design.

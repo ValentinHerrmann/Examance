@@ -1,7 +1,7 @@
 export const stats = {
     page: {
         title: 'Notenübersicht & Export',
-        statusBanner: 'Status: <strong>{graded} von {total}</strong> Abgaben mit mindestens einer korrigierten Aufgabe.',
+        statusBanner: 'Status: {graded} von {total} Abgaben mit mindestens einer korrigierten Aufgabe.',
         partialIndicator: '({partial} teilweise korrigiert, {full} vollständig)',
         pendingIndicator: '({pending} noch nicht begonnen)',
         emptyStats: 'Noch keine Aufgaben korrigiert. Die Statistiken erscheinen hier, sobald du mit der Korrektur beginnst.',
@@ -9,15 +9,20 @@ export const stats = {
     },
     cards: {
         submissionsGraded: 'Abgaben (mit Noten)',
+        gradeAverage: 'Notendurchschnitt',
+        passRate: 'Bestanden',
+        avgPoints: 'Ø Punkte',
         avgPercent: 'Ø Prozent',
         stdDev: 'StdAbw',
         median: 'Median',
+        basis: 'Grundlage: {count} Abgabe(n) mit mindestens einer korrigierten Aufgabe. Teilweise korrigierte Abgaben fließen mit ihrem vorläufigen Prozentwert ein.',
     },
     exportModal: {
         title: 'Datenexport bestätigen',
         body: 'Sie exportieren unverschlüsselte Notendaten von Schülern als CSV. Ein unveränderlicher Prüfprotokolleintrag wird erstellt, der diese Aktion erfasst.',
         confirmButton: 'Ich bestätige, dass ich zum Export dieser Daten berechtigt bin',
         ungraded: 'Nicht bewertet',
+        provisional: 'Teilweise korrigiert',
     },
     gradeDistribution: {
         title: '🎯 Notenverteilung',
@@ -29,9 +34,17 @@ export const stats = {
             custom: 'Benutzerdefiniert',
             standard: 'Standard (50%)',
         },
+        fromPercent: 'ab {percent}%',
+        provisionalLegend: 'Heller Balkenteil: Abgaben, die noch nicht vollständig korrigiert sind.',
+        axisLabel: 'Note',
+    },
+    combined: {
+        title: '🧩 Noten- und Prozentverteilung',
+        subtitle: 'Breite Balken: Noten nach Bewertungsmaßstab. Schmale Balken davor: Prozentbereiche in 5-%-Schritten.',
     },
     submissionHistogram: {
         title: '📊 Prozentverteilung',
+        axisLabel: 'Prozent erreicht',
     },
     analyticsPage: {
         heading: 'Globale prüfungsübergreifende Analyse',

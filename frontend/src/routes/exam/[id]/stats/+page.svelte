@@ -2,18 +2,24 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
-  import { afterNavigate } from '$app/navigation';
   import { get } from 'svelte/store';
   import StatsPage from '$lib/components/stats/StatsPage.svelte';
-  import type { ExamRecord, ExerciseRecord, SubmissionRecord, StudentRecord, ExerciseScoreRecord } from '$lib/db/schema';
-  import { loadExamEncrypted, loadExamExercisesEncrypted, decryptScore } from '$lib/db/dbEncryption';
+  import type { ExamRecord, ExerciseRecord, SubmissionRecord, StudentRecord } from '$lib/db/schema';
+  import { loadExamEncrypted, loadExamExercisesEncrypted } from '$lib/db/dbEncryption';
+  import { scoreRepository } from '$lib/repositories/scoreRepository';
   import { submissionRepository } from '$lib/repositories/submissionRepository';
   import { studentRepository } from '$lib/repositories/studentRepository';
-  import { sessionStore } from '$lib/stores/session';
-  import { calculateSubmissionPercentage, calculatePercentageHistogram, type PercentageHistogramBin } from '$lib/analytics/stats';
-  import { calculateGradeDistribution, getPresetCutoffs, type GradeDistributionBucket } from '$lib/analytics/gradingKey';
+  import { sessionStore, awaitSessionReady } from '$lib/stores/session';
+  import {
+    calculateSubmissionPercentage,
+    summarizeExam,
+    type ExamResult,
+    type ExamStats,
+  } from '$lib/analytics/stats';
+  import { calculateGradeFromPercentage } from '$lib/analytics/gradingKey';
   import { exportGradesToCsv } from '$lib/analytics/csvExport';
-  import { db } from '$lib/db/db';
+  import { buildSubmissionMap } from '$lib/utils/studentLookup';
+  import { translate } from '$lib/i18n';
 
   $: examId = $page.params.id || '';
 
@@ -22,124 +28,84 @@
   let submissions: SubmissionRecord[] = [];
   let students: StudentRecord[] = [];
   let showConfirmModal = false;
-  let percentageBins: PercentageHistogramBin[] = [];
-  let gradeBuckets: GradeDistributionBucket[] = [];
-  let meanPercentage = 0;
-  let medianPercentage = 0;
-  let stdDevPercentage = 0;
-  let allPercentages: number[] = [];
-  let dataLoaded = false;
+  let totalMaxPoints: number | null = null;
+  let stats: ExamStats | null = null;
 
-  $: if (browser && examId && $sessionStore.sessionKey) {
-    loadStats(examId);
+  // Once per exam id: the reactive block and onMount can both fire on one visit.
+  let loadedExamId = '';
+
+  $: if (browser && examId && $sessionStore.sessionKey) startLoad();
+  onMount(startLoad);
+
+  function startLoad() {
+    if (!examId || examId === loadedExamId) return;
+    loadedExamId = examId;
+    void loadStats(examId);
   }
 
-  afterNavigate(() => {
-    if (examId && $sessionStore.sessionKey) {
-      loadStats(examId);
-    }
-  });
-
-  onMount(async () => {
-    if (examId && $sessionStore.sessionKey) {
-      await loadStats(examId);
-    }
-  });
-
   async function loadStats(id: string) {
-    if (!id) return;
+    await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
+    if (!key) return;
+
     exam = (await loadExamEncrypted(id, key)) || null;
     exercises = await loadExamExercisesEncrypted(id, key);
     submissions = await submissionRepository.getByExamId(id, key);
     students = await studentRepository.getByExamId(id, key);
 
     const exerciseMaxPoints = exercises.map((ex) => ex.maxPoints || 0);
-    const rawAllScores = await db.exerciseScores.toArray();
-    const decryptedScores = await Promise.all(rawAllScores.map((sc) => decryptScore(sc, key)));
-    const scoresBySubmission = new Map<string, ExerciseScoreRecord[]>();
-    for (const sc of decryptedScores) {
-      if (!scoresBySubmission.has(sc.submissionId)) {
-        scoresBySubmission.set(sc.submissionId, []);
+    totalMaxPoints = exerciseMaxPoints.reduce((sum, p) => sum + p, 0) || null;
+
+    const scores = new Map<string, number>();
+    for (const sc of await scoreRepository.getByExamId(id, key)) {
+      if (typeof sc.score === 'number' && !isNaN(sc.score)) {
+        scores.set(`${sc.submissionId}:${sc.exerciseId}`, sc.score);
       }
-      scoresBySubmission.get(sc.submissionId)!.push(sc);
     }
 
-    const percentages: number[] = [];
+    const results: ExamResult[] = [];
     for (const sub of submissions) {
-      const rawScores = scoresBySubmission.get(sub.id) || [];
-      const scoreMap = new Map<string, number>();
-      for (const rs of rawScores) {
-        if (typeof rs.score === 'number' && !isNaN(rs.score)) {
-          scoreMap.set(rs.exerciseId, rs.score);
-        }
-      }
-      const orderedScores = exercises.map((ex) => scoreMap.get(ex.id) ?? null);
-      const entry = calculateSubmissionPercentage(exerciseMaxPoints, orderedScores);
-      if (entry) {
-        percentages.push(entry.percentage);
-      }
+      const ordered = exercises.map((ex) => scores.get(`${sub.id}:${ex.id}`) ?? null);
+      const entry = calculateSubmissionPercentage(exerciseMaxPoints, ordered);
+      if (entry) results.push({ ...entry, submissionId: sub.id });
     }
-
-    allPercentages = percentages;
-    percentageBins = calculatePercentageHistogram(percentages);
-    dataLoaded = true;
-    gradeBuckets = calculateGradeDistribution(percentages, exam?.gradingKey);
-
-    if (percentages.length > 0) {
-      const sorted = [...percentages].sort((a, b) => a - b);
-      const sum = percentages.reduce((a, b) => a + b, 0);
-      meanPercentage = Math.round((sum / percentages.length) * 10) / 10;
-      const variance = percentages.reduce((acc, x) => acc + Math.pow(x - meanPercentage, 2), 0) / percentages.length;
-      stdDevPercentage = Math.round(Math.sqrt(variance) * 10) / 10;
-      const mid = Math.floor(percentages.length / 2);
-      medianPercentage = percentages.length % 2 !== 0
-        ? Math.round(sorted[mid] * 10) / 10
-        : Math.round(((sorted[mid - 1] + sorted[mid]) / 2) * 10) / 10;
-    } else {
-      meanPercentage = 0;
-      medianPercentage = 0;
-      stdDevPercentage = 0;
-    }
-  }
-
-  $: fullyGradedCount = submissions.filter(
-    (s) => typeof s.totalScore === 'number' && !isNaN(s.totalScore)
-  ).length;
-
-  $: submissionsWithAnyGrade = percentageBins.reduce((sum, b) => sum + b.count, 0);
-
-  $: {
-    const effectiveKey = exam?.gradingKey || { preset: 'linear_50' as const, cutoffs: getPresetCutoffs('linear_50') };
-    gradeBuckets = calculateGradeDistribution(allPercentages, effectiveKey);
+    stats = summarizeExam(results, exam?.gradingKey);
   }
 
   async function confirmAndExport() {
     showConfirmModal = false;
     const key = get(sessionStore).sessionKey;
+
+    const submissionByStudent = await buildSubmissionMap(submissions, students);
+    const resultBySubmission = new Map((stats?.results ?? []).map((r) => [r.submissionId, r]));
+    const ungraded = translate('stats.exportModal.ungraded');
+
     const rows = students.map((st) => {
-      const sub = submissions.find((s) => s.pseudonymHash === st.pseudonymId);
+      const sub = submissionByStudent.get(st.pseudonymId);
+      const result = sub ? resultBySubmission.get(sub.id) : undefined;
+      const grade = result ? calculateGradeFromPercentage(result.percentage, exam?.gradingKey) : null;
+
       return {
         studentPseudonymId: st.pseudonymId,
         fallbackCode: st.fallbackCode || '',
-        totalScore: typeof sub?.totalScore === 'number' ? sub.totalScore : 'Ungraded',
+        studentName: st.studentName || '',
+        totalScore: result ? Math.round(result.gradedPoints * 100) / 100 : ungraded,
+        maxPoints: totalMaxPoints ?? '',
+        percentage: result ? Math.round(result.percentage * 10) / 10 : ungraded,
+        grade: grade ? grade.grade : ungraded,
+        status: result && !result.isComplete ? translate('stats.exportModal.provisional') : '',
       };
     });
+
     await exportGradesToCsv(examId, exam?.title || 'Exam', rows, key);
   }
 </script>
 
 <StatsPage
-  {submissionsWithAnyGrade}
-  submissionsLength={submissions.length}
-  {fullyGradedCount}
-  {meanPercentage}
-  {stdDevPercentage}
-  {medianPercentage}
-  {dataLoaded}
   {exam}
-  bins={percentageBins}
-  {gradeBuckets}
+  {stats}
+  {totalMaxPoints}
+  submissionCount={submissions.length}
   {showConfirmModal}
   onOpenExport={() => (showConfirmModal = true)}
   onConfirmExport={confirmAndExport}

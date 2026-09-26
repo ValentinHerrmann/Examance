@@ -1,12 +1,9 @@
 <script lang="ts">
-  import { isUnlocked, isAuthenticated, sessionStore } from '$lib/stores/session';
+  import { isUnlocked, isAuthenticated, sessionStore, awaitSessionReady } from '$lib/stores/session';
   import { db } from '$lib/db/db';
   import type { ExamRecord } from '$lib/db/schema';
   import { loadExamsEncrypted, saveExamEncrypted, encryptExam, encryptExercise } from '$lib/db/dbEncryption';
-  import { unpackProject } from '$lib/archive/unpacker';
-  import { formatImportSummary } from '$lib/services/archiveService';
-  import { clearAllTables } from '$lib/db/db';
-  import { projectStore } from '$lib/stores/project';
+  import { importArchiveInteractively } from '$lib/services/archiveService';
   import { checkRetention, type RetentionCheckResult } from '$lib/gdpr/retention';
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
@@ -69,6 +66,9 @@
 
   onMount(async () => {
     try {
+      // Must run before the check below, or it can run against a session the
+      // layout hasn't restored yet, bouncing a reload to /unlock.
+      await awaitSessionReady();
       if (!$isUnlocked) {
         goto("/unlock");
         return;
@@ -80,6 +80,7 @@
   });
 
   async function refreshExams() {
+    await awaitSessionReady();
     examsLoadFailed = false;
     const key = get(sessionStore).sessionKey;
     const localExams = await loadExamsEncrypted(key);
@@ -220,7 +221,9 @@
     }
 
     try {
-      const allSubmissions = await submissionRepository.getAll(key);
+      // `exams` is already loaded above; passing it stops this from fetching
+      // /exams a second time on every dashboard render.
+      const allSubmissions = await submissionRepository.getAll(key, exams);
       const tempMap = new Map<string, { sum: number; count: number }>();
       for (const s of allSubmissions) {
         if (typeof s.totalScore === 'number' && !isNaN(s.totalScore)) {
@@ -257,33 +260,18 @@
 
   async function handleImportArchive(event: Event) {
     const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
-    const file = input.files[0];
-
-    const password = prompt(translate('dashboard.importPasswordPrompt'));
-    if (!password) return;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
 
     isImporting = true;
     importStatus = translate('dashboard.importDecrypting');
-
     try {
-      const buffer = new Uint8Array(await file.arrayBuffer());
-      await clearAllTables();
-      projectStore.clear();
-      const res = await unpackProject(buffer, password, (p) => {
-        importStatus = translate('dashboard.importStatus', { stage: p.stage, current: p.current });
-      });
-
-
-
-      alert(formatImportSummary(res));
-      await refreshExams();
-    } catch (err: any) {
-      alert(translate('dashboard.importFailed', { message: err.message }));
+      // The conflict dialog is the one mounted in the root layout.
+      if (await importArchiveInteractively(file)) await refreshExams();
     } finally {
       isImporting = false;
       importStatus = '';
-      input.value = '';
     }
   }
 
@@ -301,19 +289,8 @@
     if (!expiredExam) return;
     const examId = expiredExam.exam.id;
 
-    // Collect submission IDs first to clean up exercise scores
-    const submissionIds = (await db.submissions.where('examId').equals(examId).toArray()).map((s) => s.id);
-
-    // Delete exercise scores for all submissions in this exam to prevent orphaned data
-    for (const subId of submissionIds) {
-      await db.exerciseScores.where('submissionId').equals(subId).delete();
-    }
-
-    await db.exams.delete(examId);
-    await db.exercises.where('examId').equals(examId).delete();
-    await db.examExercises.where('examId').equals(examId).delete();
-    await db.submissions.where('examId').equals(examId).delete();
-    await db.students.where('examId').equals(examId).delete();
+    // Shared cascade so no owned table is missed.
+    await examRepository.deleteLocalCascade(examId);
     expiredExam = null;
     await refreshExams();
   }
@@ -393,5 +370,3 @@
     </div>
   {/if}
 </PageShell>
-
-

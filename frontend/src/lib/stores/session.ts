@@ -114,8 +114,11 @@ function readOrCreateLocalVaultParams(): { salt: Uint8Array; sessionNonce: Uint8
 
   const salt = generateSalt();
   const sessionNonce = generateSessionNonce();
-  safeLocalStorage.setItem(LOCAL_VAULT_KEYS.SALT, uint8ArrayToBase64(salt));
-  safeLocalStorage.setItem(LOCAL_VAULT_KEYS.NONCE, uint8ArrayToBase64(sessionNonce));
+  // setItemOrThrow, not setItem: a swallowed write here (private mode, blocked
+  // site data, quota) would let the next unlock derive a different key over
+  // the same IndexedDB, silently blanking every record.
+  safeLocalStorage.setItemOrThrow(LOCAL_VAULT_KEYS.SALT, uint8ArrayToBase64(salt));
+  safeLocalStorage.setItemOrThrow(LOCAL_VAULT_KEYS.NONCE, uint8ArrayToBase64(sessionNonce));
   return { salt, sessionNonce };
 }
 
@@ -593,12 +596,30 @@ function createSessionStore() {
       const newDerived = await deriveKeyWithFallback(newPassphrase, newSalt);
       const newSessionKey = await deriveSessionKey(newDerived.masterKey, newNonce);
 
-      const { rekeyDatabase } = await import('$lib/db/rekey');
-      await rekeyDatabase(oldSessionKey, newSessionKey);
+      // New parameters go in BEFORE the rekey, via setItemOrThrow: if that
+      // write fails, we bail before the vault is re-encrypted under
+      // parameters nothing could later derive.
+      const previousSaltB64 = safeLocalStorage.getItem(LOCAL_VAULT_KEYS.SALT);
+      const previousNonceB64 = safeLocalStorage.getItem(LOCAL_VAULT_KEYS.NONCE);
+      safeLocalStorage.setItemOrThrow(LOCAL_VAULT_KEYS.SALT, uint8ArrayToBase64(newSalt));
+      safeLocalStorage.setItemOrThrow(LOCAL_VAULT_KEYS.NONCE, uint8ArrayToBase64(newNonce));
 
-      // Only now is the cleartext password removed and the parameters swapped.
-      safeLocalStorage.setItem(LOCAL_VAULT_KEYS.SALT, uint8ArrayToBase64(newSalt));
-      safeLocalStorage.setItem(LOCAL_VAULT_KEYS.NONCE, uint8ArrayToBase64(newNonce));
+      try {
+        const { rekeyDatabase } = await import('$lib/db/rekey');
+        await rekeyDatabase(oldSessionKey, newSessionKey);
+      } catch (err) {
+        // The vault is still sealed under the old key — put the parameters that
+        // open it back, so the next unlock finds the data where it left it.
+        if (previousSaltB64 !== null) {
+          safeLocalStorage.setItem(LOCAL_VAULT_KEYS.SALT, previousSaltB64);
+        }
+        if (previousNonceB64 !== null) {
+          safeLocalStorage.setItem(LOCAL_VAULT_KEYS.NONCE, previousNonceB64);
+        }
+        throw err;
+      }
+
+      // Only now is the cleartext password removed.
       safeLocalStorage.removeItem(LOCAL_VAULT_KEYS.LEGACY_PASSWORD);
 
       const fallbackSessionKey = newDerived.fallbackMasterKey
@@ -697,3 +718,42 @@ export const isAuthenticated = derived(
   sessionStore,
   ($s) => $s.email !== null
 );
+
+// ---------------------------------------------------------------------------
+// Session readiness gate
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolves once the root layout has finished restoring the session.
+ *
+ * Svelte 4 mounts children before their parent, so a route's `onMount` runs
+ * before `+layout.svelte` restores keys, asks other tabs, or refreshes the
+ * token. Every route that touches the vault must await this first; the
+ * caller still checks `isUnlocked` and redirects to `/unlock` if not.
+ */
+let resolveSessionReady: (() => void) | null = null;
+let sessionReadyPromise: Promise<void> = new Promise<void>((resolve) => {
+  resolveSessionReady = resolve;
+});
+
+/** Called once by the root layout when restore has settled, successfully or not. */
+export function markSessionReady(): void {
+  resolveSessionReady?.();
+  resolveSessionReady = null;
+}
+
+/** Await the root layout's session restore. Safe to call any number of times. */
+export function awaitSessionReady(): Promise<void> {
+  // On the server there is no layout lifecycle to wait for, and no vault either.
+  if (typeof window === 'undefined') return Promise.resolve();
+  return sessionReadyPromise;
+}
+
+/**
+ * Re-arms the gate. Only for tests — production has exactly one layout mount.
+ */
+export function resetSessionReadyForTests(): void {
+  sessionReadyPromise = new Promise<void>((resolve) => {
+    resolveSessionReady = resolve;
+  });
+}

@@ -36,6 +36,19 @@
   --container-page: 1700px;
 }
 
+/* Grade colour ramp (best -> worst) for the stats charts, see gradeColorVar in
+   lib/analytics/gradingKey.ts. `static`: the charts build `var(--color-grade-N)`
+   at runtime, and Tailwind v4 drops theme variables it never sees spelled out
+   in the source, which silently removed grades 3-5. */
+@theme static {
+  --color-grade-1: #15803d;
+  --color-grade-2: #4ade80;
+  --color-grade-3: #facc15;
+  --color-grade-4: #fb923c;
+  --color-grade-5: #f87171;
+  --color-grade-6: #b91c1c;
+}
+
 /* Single z-index ladder. Anything layered picks one of these. */
 :root {
   --z-dropdown: 1000;

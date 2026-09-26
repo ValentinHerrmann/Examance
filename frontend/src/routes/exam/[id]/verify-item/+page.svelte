@@ -4,7 +4,7 @@
   import { onMount } from "svelte";
   import { browser } from "$app/environment";
   import { get } from "svelte/store";
-  import { sessionStore, isUnlocked } from "$lib/stores/session";
+  import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
   import { t, translate } from "$lib/i18n";
   import {
     computeMcVerificationStats,
@@ -15,7 +15,7 @@
   } from "$lib/grading/mcVerification";
   import { loadExamMcExercises } from "$lib/grading/mcExerciseHash";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { loadScoresEncrypted, saveScoreEncrypted } from "$lib/db/dbEncryption";
+  import { scoreRepository } from "$lib/repositories/scoreRepository";
   import { decrypt } from "$lib/crypto/aesGcm";
   import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "$lib/db/schema";
   import McItemVerificationCard from "$lib/components/verify/McItemVerificationCard.svelte";
@@ -65,6 +65,7 @@
   });
 
   onMount(async () => {
+    await awaitSessionReady();
     if (!get(isUnlocked)) {
       await goto("/unlock");
       return;
@@ -112,7 +113,7 @@
 
       if (thisToken !== lastLoadToken) return;
 
-      const scores = await loadScoresEncrypted(submissionId, key);
+      const scores = await scoreRepository.getBySubmissionId(examId, submissionId, key);
       if (thisToken !== lastLoadToken) return;
 
       stats = verificationStats;
@@ -184,7 +185,7 @@
       omrMeta: nextOmrMeta,
     };
 
-    await saveScoreEncrypted(scoreToSave, key);
+    await scoreRepository.saveOne(examId, scoreToSave, key);
     currentScoreRecord = scoreToSave;
   }
 

@@ -1,4 +1,4 @@
-import { loadScoresEncrypted } from "$lib/db/dbEncryption";
+import { scoreRepository } from "$lib/repositories/scoreRepository";
 import { loadExamMcExercises } from "$lib/grading/mcExerciseHash";
 import { submissionRepository } from "$lib/repositories/submissionRepository";
 import { studentRepository } from "$lib/repositories/studentRepository";
@@ -183,9 +183,19 @@ export async function computeMcVerificationStats(
     return studentMap.get(hex) || `Unmatched (${sub.id.slice(0, 8)})`;
   }
 
+  // One read for the exam, then grouped in memory, to avoid an N+1 network
+  // read per submission now that scores are server-side.
+  const allScores = await scoreRepository.getByExamId(examId, key);
+  const scoresBySubmission = new Map<string, typeof allScores>();
+  for (const sc of allScores) {
+    const bucket = scoresBySubmission.get(sc.submissionId);
+    if (bucket) bucket.push(sc);
+    else scoresBySubmission.set(sc.submissionId, [sc]);
+  }
+
   const items: McDetectionItem[] = [];
   for (const sub of submissions) {
-    const rawScores = await loadScoresEncrypted(sub.id, key);
+    const rawScores = scoresBySubmission.get(sub.id) ?? [];
     const label = await labelFor(sub);
 
     // Defensive: there should be at most one score row per (submission, exercise),

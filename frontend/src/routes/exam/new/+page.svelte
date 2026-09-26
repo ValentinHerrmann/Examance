@@ -2,7 +2,7 @@
   import "./+page.css";
   import { onMount, onDestroy } from "svelte";
   import { db } from "$lib/db/db";
-  import { sessionStore, isAuthenticated } from "$lib/stores/session";
+  import { sessionStore, isAuthenticated, awaitSessionReady } from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import type { ExerciseRecord } from "$lib/db/schema";
   import { loadExercisesEncrypted, saveExerciseEncrypted, saveExamEncrypted, encryptExercise } from "$lib/db/dbEncryption";
@@ -325,6 +325,7 @@ Frage hier eingeben... \\BE
   }
 
   async function loadLibrary() {
+    await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
     try {
       if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {

@@ -5,14 +5,15 @@ import base64
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_exam_for_teacher
 from app.models.exam import Exam
+from app.models.exercise_score import ExerciseScore
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.schemas.binary import GCM_IV_BYTES, decode_b64
@@ -25,6 +26,17 @@ router = APIRouter(prefix="/exams/{exam_id}/submissions", tags=["submissions"])
 async def list_submissions(
     exam: Exam = Depends(get_exam_for_teacher),
     db: AsyncSession = Depends(get_db),
+    include_scans: bool = Query(
+        False,
+        description=(
+            "Include scan_ciphertext_b64/scan_iv_b64 for every submission. Off by "
+            "default: the scan PDF is the bulk of a submission's payload, so an "
+            "overview listing all of an exam's submissions must not ship every "
+            "scan just to show a table. Use has_scan for a presence indicator, "
+            "and GET /exams/{id}/submissions/{sub_id} to fetch one scan's bytes "
+            "on demand."
+        ),
+    ),
 ) -> list[SubmissionResponse]:
     """List all non-deleted submissions for an exam."""
     result = await db.execute(
@@ -41,9 +53,15 @@ async def list_submissions(
             pseudonym_hmac=s.pseudonym_hmac,
             total_score=s.total_score,
             scan_ciphertext_b64=(
-                base64.b64encode(s.scan_ciphertext).decode() if s.scan_ciphertext else None
+                base64.b64encode(s.scan_ciphertext).decode()
+                if include_scans and s.scan_ciphertext
+                else None
             ),
-            scan_iv_b64=base64.b64encode(s.scan_iv).decode() if s.scan_iv else None,
+            scan_iv_b64=(
+                base64.b64encode(s.scan_iv).decode()
+                if include_scans and s.scan_iv
+                else None
+            ),
             annotation_ciphertext_b64=(
                 base64.b64encode(s.annotation_ciphertext).decode()
                 if s.annotation_ciphertext
@@ -53,6 +71,8 @@ async def list_submissions(
                 base64.b64encode(s.annotation_iv).decode() if s.annotation_iv else None
             ),
             created_at=s.created_at,
+            has_scan=bool(s.scan_ciphertext),
+            has_annotations=bool(s.annotation_ciphertext),
         )
         for s in subs
     ]
@@ -130,9 +150,10 @@ async def upload_submission(
             if ann_bytes is not None:
                 existing_sub.annotation_ciphertext = ann_bytes
                 existing_sub.annotation_iv = ann_iv
-            elif body.annotation_ciphertext_b64 is None:
+            elif body.clear_annotations:
                 existing_sub.annotation_ciphertext = None
                 existing_sub.annotation_iv = None
+            # An absent annotation field means "leave them"; deleting is explicit.
             await db.flush()
             return SubmissionResponse(
                 id=existing_sub.id,
@@ -144,6 +165,8 @@ async def upload_submission(
                 annotation_ciphertext_b64=body.annotation_ciphertext_b64,
                 annotation_iv_b64=body.annotation_iv_b64,
                 created_at=existing_sub.created_at,
+                has_scan=bool(existing_sub.scan_ciphertext),
+                has_annotations=bool(existing_sub.annotation_ciphertext),
             )
 
     kwargs = {
@@ -178,6 +201,8 @@ async def upload_submission(
         annotation_ciphertext_b64=body.annotation_ciphertext_b64,
         annotation_iv_b64=body.annotation_iv_b64,
         created_at=sub.created_at,
+        has_scan=bool(sub.scan_ciphertext),
+        has_annotations=bool(sub.annotation_ciphertext),
     )
 
 
@@ -217,6 +242,8 @@ async def get_submission(
             base64.b64encode(sub.annotation_iv).decode() if sub.annotation_iv else None
         ),
         created_at=sub.created_at,
+        has_scan=bool(sub.scan_ciphertext),
+        has_annotations=bool(sub.annotation_ciphertext),
     )
 
 
@@ -257,6 +284,8 @@ async def update_score(
             base64.b64encode(sub.annotation_iv).decode() if sub.annotation_iv else None
         ),
         created_at=sub.created_at,
+        has_scan=bool(sub.scan_ciphertext),
+        has_annotations=bool(sub.annotation_ciphertext),
     )
 
 
@@ -281,6 +310,8 @@ async def clear_grading(
     sub.total_score = None
     sub.annotation_ciphertext = None
     sub.annotation_iv = None
+    # Per-exercise scores are grading data too.
+    await db.execute(delete(ExerciseScore).where(ExerciseScore.submission_id == sub.id))
     await db.flush()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

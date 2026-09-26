@@ -34,4 +34,14 @@ export const misc = {
         localFailedTryServer:
             'Die lokale LaTeX-Kompilierung ist fehlgeschlagen. Möchten Sie stattdessen auf dem Server kompilieren?',
     },
+
+    vaultIntegrity: {
+        heading: 'Achtung: Daten konnten nicht entschlüsselt werden',
+        body:
+            '{count} Datensatz/Datensätze ({kinds}) konnten mit dem aktuellen Schlüssel nicht gelesen werden. ' +
+            'Sie werden hier leer angezeigt — das sind nicht Ihre Daten. Speichern ist für diese Datensätze gesperrt, ' +
+            'damit die Originale nicht überschrieben werden.',
+        action: 'Sitzung sperren und mit dem richtigen Schlüssel neu entsperren.',
+        dismiss: 'Hinweis ausblenden',
+    },
 } as const;

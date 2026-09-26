@@ -22,6 +22,8 @@ import type { ExamRecord, ExerciseRecord } from '$lib/db/schema';
 export interface ServerImportResult {
   /** Archived id → id actually created on the server. Only differing ids are listed. */
   idMap: Map<string, string>;
+  /** Archived MC group id → the fresh id it was created under. */
+  mcGroupIdMap: Map<string, string>;
   /** Human-readable failures; import continues past each one. */
   errors: string[];
   /** Archived exam ids that were created successfully. */
@@ -133,6 +135,15 @@ export async function importPayloadToServer(payload: any): Promise<ServerImportR
 
   // 2. Exams, carrying their exercise links and MC groups inline — POST /exams
   // persists all three in one request.
+  //
+  // MC group ids are minted fresh for every import: they're client-chosen and
+  // carry no meaning beyond linking members, so re-using an archived one risks
+  // a 409 collision on re-import. Members follow through this map.
+  const mcGroupIdMap = new Map<string, string>();
+  for (const group of mcGroups) {
+    mcGroupIdMap.set(group.id, crypto.randomUUID());
+  }
+
   for (const exam of exams) {
     const label = exam.title || exam.id;
 
@@ -141,14 +152,14 @@ export async function importPayloadToServer(payload: any): Promise<ServerImportR
       .map((j) => ({
         exercise_id: idMap.get(j.exerciseId) ?? j.exerciseId,
         order_index: j.orderIndex ?? 1,
-        mc_group_id: j.mcGroupId,
+        mc_group_id: j.mcGroupId ? (mcGroupIdMap.get(j.mcGroupId) ?? j.mcGroupId) : undefined,
         sub_index: j.subIndex,
       }));
 
     const mc_groups = mcGroups
       .filter((g) => g.examId === exam.id)
       .map((g) => ({
-        id: g.id,
+        id: mcGroupIdMap.get(g.id) ?? g.id,
         title: g.title,
         scoring_text: g.scoringText,
         order_index: g.orderIndex ?? 1,
@@ -166,5 +177,5 @@ export async function importPayloadToServer(payload: any): Promise<ServerImportR
     }
   }
 
-  return { idMap, errors, createdExamIds, createdExerciseIds };
+  return { idMap, mcGroupIdMap, errors, createdExamIds, createdExerciseIds };
 }

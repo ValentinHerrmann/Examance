@@ -6,7 +6,13 @@
   import { goto } from "$app/navigation";
   import { get } from "svelte/store";
   import { registerHygieneListeners, lockSession } from "$lib/db/hygiene";
-  import { sessionStore, isUnlocked, isAuthenticated } from "$lib/stores/session";
+  import {
+    sessionStore,
+    isUnlocked,
+    isAuthenticated,
+    markSessionReady,
+  } from "$lib/stores/session";
+  import { vaultIntegrityStore } from "$lib/stores/vaultIntegrity";
   import { api } from "$lib/api/client";
   import {
     storagePolicyStore,
@@ -14,6 +20,7 @@
     storagePolicyBadgeStore,
   } from "$lib/stores/storagePolicy";
   import { safeLocalStorage } from "$lib/utils/storage";
+  import { registerCspDiagnostics } from "$lib/utils/cspDiagnostics";
   import { effectiveBackendStore } from "$lib/stores/backendStore";
   import {
     frontendVersion,
@@ -24,14 +31,14 @@
   } from "$lib/stores/versionStore";
   import { registerNavigationGuard, isGradeActivePath, isPublicPath } from "$lib/stores/navigationStore";
   import {
-    openBgprojArchive,
-    exportBgprojArchive,
+    importArchiveInteractively,
+    exportArchiveInteractively,
     clearWorkspace,
-    confirmWorkspaceReplace,
     confirmWorkspaceClear,
-    promptArchivePassword,
-    formatImportSummary,
   } from "$lib/services/archiveService";
+  import ImportConflictModal from "$lib/components/storage/ImportConflictModal.svelte";
+  import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
+  import { adoptServerStorageIfLocalEmpty, pendingSwitchStore, resumeModeSwitch } from "$lib/services/storageModeSwitch";
   import AppHeader from "$lib/components/layout/AppHeader.svelte";
   import StatusBar from "$lib/components/layout/StatusBar.svelte";
   import StoragePolicyModal from "$lib/components/StoragePolicyModal.svelte";
@@ -39,13 +46,19 @@
   import HttpCatModal from "$lib/components/HttpCatModal.svelte";
   import HelpModal from "$lib/components/help/HelpModal.svelte";
   import { helpSeen, openHelp, toggleHelp } from "$lib/stores/helpStore";
-  import { locale, translate } from "$lib/i18n";
+  import { locale, t, translate } from "$lib/i18n";
 
   let fileInput: HTMLInputElement;
   let isSettingsModalOpen = false;
   let isWorkspaceMenuOpen = false;
   let isInitializing = true;
   let showFocusNav = false;
+
+  // A mode switch interrupted after its wipe: say why the workspace is empty.
+  let switchWizardOpen = false;
+  let resumeBannerDismissed = false;
+  $: interruptedSwitch =
+    $pendingSwitchStore && $pendingSwitchStore.phase === "reimport" ? $pendingSwitchStore : null;
 
   $: isGradeActive = isGradeActivePath($page.url.pathname);
 
@@ -100,6 +113,8 @@
   registerNavigationGuard();
 
   onMount(async () => {
+    // Before hygiene, so a violation during boot is still explained.
+    registerCspDiagnostics();
     registerHygieneListeners();
 
     let restored = false;
@@ -121,6 +136,16 @@
 
     if (restored && get(isUnlocked)) {
       const mode = get(sessionStore).mode;
+      // Same rule as sign-in, before routes read: an empty local workspace shows
+      // the account's server data rather than an empty local vault.
+      if (mode === "authenticated") await adoptServerStorageIfLocalEmpty();
+
+      // Keys are back — all `awaitSessionReady()` gates on — so release
+      // routes here, before the token refresh below (that refresh is about
+      // the access cookie, not the vault; `client.ts` already handles a race
+      // with an unrefreshed token).
+      markSessionReady();
+
       if (mode === "hybrid" || mode === "authenticated") {
         try {
           await api.post("/auth/refresh", undefined, { silentError: true });
@@ -137,6 +162,11 @@
       await goto("/unlock");
     }
     isInitializing = false;
+    // Releases every route blocked on `awaitSessionReady()`, whether or not
+    // the session came back unlocked — routes check `isUnlocked` themselves.
+    markSessionReady();
+
+    resumeModeSwitch(); // re-arms a switch a reload interrupted
   });
 
   async function handleLock() {
@@ -151,41 +181,11 @@
 
   async function handleFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
-    const file = input.files[0];
-
-    if (!confirmWorkspaceReplace()) {
-      input.value = "";
-      return;
-    }
-
-    const password = promptArchivePassword(translate("workspace.archive.promptImportPassword"));
-    if (!password) {
-      input.value = "";
-      return;
-    }
-
-    try {
-      const res = await openBgprojArchive(file, password);
-      alert(formatImportSummary(res));
-      window.location.href = "/";
-    } catch (err: any) {
-      alert(translate("workspace.archive.importFailed", { message: err.message }));
-    } finally {
-      input.value = "";
-    }
+    const file = input.files?.[0];
+    input.value = "";
+    if (file && (await importArchiveInteractively(file))) window.location.href = "/";
   }
 
-  async function handleExportBgproj() {
-    const password = promptArchivePassword(translate("workspace.archive.promptExportPassword"));
-    if (!password) return;
-
-    try {
-      await exportBgprojArchive(password);
-    } catch (err: any) {
-      alert(translate("workspace.archive.exportFailed", { message: err.message }));
-    }
-  }
 
   async function handleCloseWorkspace() {
     if (!confirmWorkspaceClear()) {
@@ -222,7 +222,7 @@
         bind:isWorkspaceMenuOpen
         onToggleWorkspaceMenu={() => (isWorkspaceMenuOpen = !isWorkspaceMenuOpen)}
         onOpenArchive={triggerOpenBgproj}
-        onExportArchive={handleExportBgproj}
+        onExportArchive={() => exportArchiveInteractively()}
         onClearWorkspace={handleCloseWorkspace}
         onLock={handleLock}
         authenticated={$isAuthenticated}
@@ -230,6 +230,58 @@
         userEmail={$sessionStore.email}
       />
     {/if}
+  {/if}
+
+  {#if interruptedSwitch && !resumeBannerDismissed}
+    <div
+      role="status"
+      class="mx-3 mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-content sm:mx-5"
+    >
+      <p class="font-semibold">{$t("storagePolicy.switch.resumeBanner")}</p>
+      <p class="mt-1 text-muted">
+        {$t("storagePolicy.switch.resumeBody", {
+          to: $storagePolicyBadgeStore.text,
+        })}
+      </p>
+      <div class="mt-2 flex flex-wrap items-center gap-3">
+        <button class="underline underline-offset-2" on:click={() => (switchWizardOpen = true)}>
+          {$t("storagePolicy.switch.resumeContinue")}
+        </button>
+        <button
+          class="text-subtle underline underline-offset-2"
+          on:click={() => (resumeBannerDismissed = true)}
+        >
+          {$t("storagePolicy.switch.resumeDismiss")}
+        </button>
+      </div>
+    </div>
+  {/if}
+
+  {#if $vaultIntegrityStore.count > 0}
+    <!--
+      Not a toast or the HTTP error modal: until unlocked with the right key,
+      affected records render blank, so this stays on screen next to them.
+    -->
+    <div
+      role="alert"
+      class="mx-3 mt-3 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-content sm:mx-5"
+    >
+      <p class="font-semibold">{$t("misc.vaultIntegrity.heading")}</p>
+      <p class="mt-1 text-muted">
+        {$t("misc.vaultIntegrity.body", {
+          count: $vaultIntegrityStore.count,
+          kinds: $vaultIntegrityStore.kinds.join(", "),
+        })}
+      </p>
+      <div class="mt-2 flex flex-wrap items-center gap-3">
+        <button class="underline underline-offset-2" on:click={handleLock}>
+          {$t("misc.vaultIntegrity.action")}
+        </button>
+        <button class="text-subtle underline underline-offset-2" on:click={() => vaultIntegrityStore.reset()}>
+          {$t("misc.vaultIntegrity.dismiss")}
+        </button>
+      </div>
+    </div>
   {/if}
 
   <main class="app-main">
@@ -258,3 +310,10 @@
   />
 </div>
 
+<StorageModeSwitchWizard
+  open={switchWizardOpen}
+  target={null}
+  onClose={() => (switchWizardOpen = false)}
+/>
+
+<ImportConflictModal />

@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config import settings
@@ -22,6 +23,7 @@ from app.routers import (
     auth,
     compile,
     exams,
+    exercise_scores,
     exercises,
     keys,
     mfa,
@@ -224,6 +226,7 @@ def create_app() -> FastAPI:
         )
 
     # Middleware — registration order matters (last added = outermost)
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.add_middleware(BodyLimitMiddleware)
     if settings.ALLOWED_HOSTS:
         # Opt-in: rejects requests with an unexpected Host header. Left off when
@@ -241,6 +244,8 @@ def create_app() -> FastAPI:
     app.include_router(exercises.router, prefix=API_PREFIX)
     app.include_router(students.router, prefix=API_PREFIX)
     app.include_router(submissions.router, prefix=API_PREFIX)
+    app.include_router(exercise_scores.router, prefix=API_PREFIX)
+    app.include_router(exercise_scores.exam_router, prefix=API_PREFIX)
     app.include_router(admin.router, prefix=API_PREFIX)
     app.include_router(user.router, prefix=API_PREFIX)
     app.include_router(keys.router, prefix=API_PREFIX)

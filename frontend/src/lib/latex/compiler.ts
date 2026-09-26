@@ -22,30 +22,35 @@ export interface CompileResult {
   missingGraphics?: string[];
 }
 
-interface WorkerSlot {
-  worker: Worker;
-  busy: boolean;
-}
-
-const POOL_SIZE = 2;
-const pool: WorkerSlot[] = [];
+/**
+ * One compiler worker, created on first use and kept for the session.
+ *
+ * Compiles are serialised through `compileQueue` below and busytex is a
+ * single WASM VM, so there is no concurrency to gain — a second worker would
+ * only double the multi-hundred-megabyte TeX Live mount in memory.
+ */
+let worker: Worker | null = null;
 let msgIdCounter = 0;
 let compileQueue: Promise<any> = Promise.resolve();
 
-function acquireWorker(): WorkerSlot {
-  let slot = pool.find(s => !s.busy);
-  if (!slot) {
-    if (pool.length < POOL_SIZE) {
-      const w = new Worker(new URL('./compiler.worker.ts', import.meta.url), {
-        type: 'module'
-      });
-      slot = { worker: w, busy: false };
-      pool.push(slot);
-    } else {
-      slot = pool[0];
-    }
+/** How long a single compile may run before we stop waiting for the worker. */
+const COMPILE_TIMEOUT_MS = 5 * 60 * 1000;
+
+function acquireWorker(): Worker {
+  worker ??= new Worker(new URL('./compiler.worker.ts', import.meta.url), {
+    type: 'module'
+  });
+  return worker;
+}
+
+/** Drops the worker so the next compile starts a fresh one. */
+function discardWorker(): void {
+  try {
+    worker?.terminate();
+  } catch {
+    // Already gone; nothing to do.
   }
-  return slot;
+  worker = null;
 }
 
 async function compileLocalWasm(
@@ -54,40 +59,64 @@ async function compileLocalWasm(
   resources: LatexResourceFile[] = []
 ): Promise<CompileResult> {
   const runTask = async (): Promise<CompileResult> => {
-    const slot = acquireWorker();
-    const w = slot.worker;
-    slot.busy = true;
+    const w = acquireWorker();
     const id = ++msgIdCounter;
-    
-    try {
-      return await new Promise<CompileResult>((resolve, reject) => {
-        const listener = (e: MessageEvent) => {
-          if (e.data.id === id) {
-            if (e.data.status) {
-              if (onStatus) {
-                onStatus(e.data.status);
-              }
-            } else {
-              w.removeEventListener('message', listener);
-              if (e.data.success) {
-                resolve({
-                  pdfBytes: e.data.pdfBytes,
-                  usedFallback: false,
-                  engineUsed: 'local',
-                  missingGraphics: e.data.missingGraphics ?? []
-                });
-              } else {
-                reject(new Error(e.data.error || "Local compilation failed"));
-              }
-            }
-          }
-        };
-        w.addEventListener('message', listener);
-        w.postMessage({ id, latexSource, resources });
-      });
-    } finally {
-      slot.busy = false;
-    }
+
+    return new Promise<CompileResult>((resolve, reject) => {
+      let settled = false;
+
+      // Cleanup must run on error/timeout too, not just a terminal message —
+      // otherwise a dead worker leaves this promise pending forever and
+      // wedges the queue behind it.
+      const cleanup = () => {
+        clearTimeout(timer);
+        w.removeEventListener('message', onMessage);
+        w.removeEventListener('error', onError);
+      };
+      const settle = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        fn();
+      };
+
+      const onMessage = (e: MessageEvent) => {
+        if (e.data.id !== id) return;
+        if (e.data.status) {
+          onStatus?.(e.data.status);
+          return;
+        }
+        if (e.data.success) {
+          settle(() =>
+            resolve({
+              pdfBytes: e.data.pdfBytes,
+              usedFallback: false,
+              engineUsed: 'local',
+              missingGraphics: e.data.missingGraphics ?? []
+            })
+          );
+        } else {
+          settle(() => reject(new Error(e.data.error || 'Local compilation failed')));
+        }
+      };
+
+      const onError = (event: ErrorEvent) => {
+        // The worker itself failed, so it is not reusable.
+        discardWorker();
+        settle(() => reject(new Error(event.message || 'Local compilation worker crashed')));
+      };
+
+      const timer = setTimeout(() => {
+        discardWorker();
+        settle(() =>
+          reject(new Error('Local compilation timed out. The document may be too large.'))
+        );
+      }, COMPILE_TIMEOUT_MS);
+
+      w.addEventListener('message', onMessage);
+      w.addEventListener('error', onError);
+      w.postMessage({ id, latexSource, resources });
+    });
   };
 
   const nextQueue = compileQueue.then(runTask, runTask);

@@ -81,8 +81,11 @@ export const help: Translations['help'] = {
                 p2: 'Without the password the stored data cannot be recovered — not even by whoever runs the server. A forgotten password means the local workspace is lost.',
             },
             s3: {
-                h: 'Switching strategy',
-                p1: 'You can change the storage strategy at any time in Settings. Existing data is carried over into the new mode.',
+                h: 'Changing storage location',
+                p1: 'You can change the storage location in Settings, but data is not transferred automatically. The switch therefore walks you through four steps: back the workspace up as an encrypted archive file (.bgproj), clear local storage, change the storage location, import the archive again in the new mode.',
+                p2: 'The archive file is the only bridge between storage locations. The switch is not possible without an export, because clearing local storage cannot be undone. Exams stored on the server are kept; only this browser\'s local storage is cleared.',
+                p3: 'On import, Examance checks whether records already exist. For every conflict you see both versions side by side and decide which one applies. Student data and submissions cannot be imported as a copy, because duplicate pseudonyms are not permissible under data protection rules.',
+                p4: 'One exception: signing in on a browser whose local storage is empty switches straight to server storage — there is nothing local to lose, and your exams from the server appear right away. A browser that holds local data keeps its storage location.',
             },
         },
         exercises: {
@@ -172,16 +175,17 @@ export const help: Translations['help'] = {
             title: 'Exam analysis',
             summary: 'Grade distribution, per-exercise analysis and export for one exam.',
             s1: {
-                h: 'Distribution',
-                p1: 'The analysis shows the grade distribution, the average and the spread of the exam, as well as how scores are distributed across all submissions.',
+                h: 'Grade distribution',
+                p1: 'The grade distribution always shows the full 1 to 6 scale, even where a grade does not occur at all — a grade nobody reached is information too. The percentage distribution likewise shows all twenty 5 % steps. Both charts colour their bars by grade (1 dark green to 6 dark red) under the grading scale; the third chart puts the percentage bars in front of the grade bars.',
+                p2: 'The figures above them give the class average grade, the pass rate, the average score, and the mean, median and standard deviation of the percentages.',
             },
             s2: {
-                h: 'Per-exercise analysis',
-                p1: 'For every exercise you see the average score achieved. A conspicuously weak value points either to a knowledge gap or to an ambiguously worded exercise.',
+                h: 'Partially graded submissions',
+                p1: 'Submissions where not every exercise has been graded yet are included with their provisional percentage — computed over the exercises graded so far. Those portions are drawn in a lighter tone, so a half-corrected class does not read as a finished result.',
             },
             s3: {
                 h: 'Export',
-                p1: 'Results can be exported as CSV or XLSX, e.g. for the school’s grade management system. The export contains real names — handle the file accordingly.',
+                p1: 'Results can be exported as CSV, e.g. for the school’s grade management system. The file contains pseudonym, fallback code, name, score, max points, percentage and grade. The export contains real names — handle the file accordingly.',
             },
         },
         analytics: {
