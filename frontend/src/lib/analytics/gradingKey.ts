@@ -272,8 +272,11 @@ export function calculatePassRate(
   return grades.filter((g) => g <= 4).length / grades.length;
 }
 
-/** Points a result may be off a grade boundary and still count as a borderline case. */
-export const BORDERLINE_MARGIN_POINTS = 1;
+/**
+ * Borderline windows in points. `'+'`: at most `plus` points short of the next better grade;
+ * `'-'`: at most `minus` points above the lower boundary of its own grade (both ends inclusive).
+ */
+export const BORDERLINE_MARGINS = { plus: 0.75, minus: 0.5 };
 
 export interface BorderlineCase {
   submissionId: string;
@@ -283,9 +286,9 @@ export interface BorderlineCase {
   gradeIndex: number;
   gradeCount: number;
   /**
-   * `'+'`: less than the margin short of the next better grade (upper end of its grade);
-   * `'-'`: less than the margin above the next worse grade (lower end). A grade narrower
-   * than twice the margin can put one result on both lists.
+   * `'+'`: up to `BORDERLINE_MARGINS.plus` short of the next better grade (upper end of its
+   * grade); `'-'`: up to `BORDERLINE_MARGINS.minus` above its own lower boundary. A grade
+   * narrower than both windows together can put one result on both lists.
    */
   side: "+" | "-";
   /** Points achieved (so far, while provisional). */
@@ -310,7 +313,7 @@ interface BorderlineInput {
 }
 
 /**
- * Results within `margin` points of a grade boundary, closest first. Points are measured
+ * Results within the borderline windows (`BORDERLINE_MARGINS`) of a grade boundary, closest first. Points are measured
  * on the result's own basis (`gradedMaxPoints`): the whole exam once it is fully graded,
  * the graded exercises so far while it is provisional. The best grade has no `'+'` and the
  * worst no `'-'`.
@@ -318,7 +321,7 @@ interface BorderlineInput {
 export function borderlineCases(
   results: BorderlineInput[],
   keyConfig?: GradingKeyConfig,
-  margin = BORDERLINE_MARGIN_POINTS,
+  margins = BORDERLINE_MARGINS,
 ): BorderlineCase[] {
   const sorted = sortedCutoffs(effectiveGradingKey(keyConfig).cutoffs);
   const boundary = (idx: number, max: number) =>
@@ -342,14 +345,14 @@ export function borderlineCases(
     if (idx > 0) {
       const at = round(boundary(idx - 1, r.gradedMaxPoints));
       const missing = round(at - r.gradedPoints);
-      if (missing > 0 && missing < margin) {
+      if (missing > 0 && missing <= margins.plus) {
         cases.push({ ...base, side: "+", distance: missing, boundaryPoints: at, boundaryGrade: sorted[idx - 1].grade });
       }
     }
     if (idx < sorted.length - 1) {
       const at = round(boundary(idx, r.gradedMaxPoints));
       const spare = round(r.gradedPoints - at);
-      if (spare >= 0 && spare < margin) {
+      if (spare >= 0 && spare <= margins.minus) {
         cases.push({ ...base, side: "-", distance: spare, boundaryPoints: at, boundaryGrade: sorted[idx].grade });
       }
     }

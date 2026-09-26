@@ -12,7 +12,9 @@
   export { className as class };
 
   // One column template for the header and every row, so the numbers line up.
-  const ROW = 'grid grid-cols-[2.75rem_minmax(0,1fr)_4.5rem_5.5rem_4rem] items-center gap-x-3';
+  // Phone widths get narrower columns and smaller text, so a row fits a 320px screen.
+  const ROW =
+    'grid grid-cols-[2.25rem_minmax(0,1fr)_3.25rem_4rem_3rem] items-center gap-x-1.5 sm:grid-cols-[2.75rem_minmax(0,1fr)_4.5rem_5.5rem_4rem] sm:gap-x-3';
 
   $: indexOf = new Map(submissionIds.map((id, i) => [id, i + 1]));
   $: groups = [
@@ -36,12 +38,12 @@
         {#if group.items.length === 0}
           <p class="text-xs text-subtle">{$t('stats.borderline.none')}</p>
         {:else}
-          <div class="{ROW} px-3 pb-1 text-xs text-subtle">
-            <span>{$t('stats.borderline.col.grade')}</span>
-            <span>{$t('stats.borderline.col.student')}</span>
-            <span class="text-right">{$t('stats.borderline.col.points')}</span>
-            <span class="text-right">{$t('stats.borderline.col.boundary')}</span>
-            <span class="text-right">{$t('stats.borderline.col.distance')}</span>
+          <div class="{ROW} px-2 pb-1 text-xs text-subtle sm:px-3">
+            <span class="truncate">{$t('stats.borderline.col.grade')}</span>
+            <span class="truncate">{$t('stats.borderline.col.student')}</span>
+            <span class="truncate text-right">{$t('stats.borderline.col.points')}</span>
+            <span class="truncate text-right">{$t('stats.borderline.col.boundary')}</span>
+            <span class="truncate text-right">{$t('stats.borderline.col.distance')}</span>
           </div>
           <ul class="flex flex-col gap-1">
             {#each group.items as c (c.submissionId + c.side)}
@@ -49,12 +51,12 @@
               <li>
                 <a
                   href={`/exam/${examId}/grade?submissionId=${encodeURIComponent(c.submissionId)}`}
-                  class="{ROW} rounded-lg border border-line px-3 py-1.5 text-sm tabular-nums hover:border-line-strong hover:bg-surface-sunken"
+                  class="{ROW} rounded-lg border border-line px-2 py-1.5 text-xs tabular-nums sm:px-3 sm:text-sm hover:border-line-strong hover:bg-surface-sunken"
                   title={$fmt.percent(c.percentage / 100, 1)}
                   aria-label={$t('stats.borderline.openAria', { index })}
                 >
                   <span
-                    class="inline-flex justify-center rounded px-1.5 font-bold text-white"
+                    class="inline-flex justify-center rounded px-1 font-bold text-white"
                     style="background-color: {gradeColorVar(c.gradeIndex, c.gradeCount)}">{c.grade}{group.mark}</span
                   >
                   <span class="truncate text-muted">#{index}</span>

@@ -5,7 +5,7 @@
  * a light palette (dark text and marks for white pages). No background is
  * drawn: SVG, PDF and PNG all keep a transparent background.
  *
- * The PDF is real vector output: the chart only ever uses `line`, `rect`,
+ * The PDF is real vector output: the chart only ever uses `line` (optionally dashed), `rect`,
  * `path` and `text` (optionally rotated about its own anchor), and
  * `svgToPdf` redraws exactly that subset with pdf-lib, which the app already
  * bundles. A new element type in `ColumnChart` must be added there too —
@@ -24,6 +24,7 @@ export const CHART_PALETTE: ChartPalette = {
   content: '#171717',
   muted: '#525252',
   subtle: '#737373',
+  'surface-raised': '#ffffff', // fill of hollow marks (median diamond); exports target light pages
   'grade-1': '#15803d',
   'grade-2': '#16a34a',
   'grade-3': '#ca8a04',
@@ -158,6 +159,7 @@ export async function svgToPdf(markup: string, title: string): Promise<Blob> {
           color: stroke,
           opacity: opacity * num(el, 'stroke-opacity', 1),
           lineCap: el.getAttribute('stroke-linecap') === 'round' ? LineCapStyle.Round : LineCapStyle.Butt,
+          dashArray: el.getAttribute('stroke-dasharray')?.split(/[\s,]+/).map(Number).filter((n) => n > 0),
         });
         return;
       }

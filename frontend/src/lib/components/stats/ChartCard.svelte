@@ -8,7 +8,7 @@
   import { t } from '$lib/i18n';
   import { Button, Card } from '$lib/components/ui';
   import ColumnChart from './ColumnChart.svelte';
-  import type { ChartLayer } from './chartColumns';
+  import type { ChartCurve, ChartLayer, ChartMarker, ChartSpan } from './chartColumns';
   import { downloadBlob, serializeChartSvg, svgToPdf, svgToPng } from './chartExport';
 
   export let title: string;
@@ -17,6 +17,9 @@
   export let domain: number;
   export let axisLabel = '';
   export let plotHeight = 200;
+  export let markers: ChartMarker[] = [];
+  export let spans: ChartSpan[] = [];
+  export let curve: ChartCurve | null = null;
   /** Exam title, for the file name and the document title. */
   export let examTitle = '';
   /** File name part after the exam title, e.g. `notenverteilung`. */
@@ -77,11 +80,11 @@
       {/each}
     </div>
   </div>
-  <ColumnChart {domain} {plotHeight} {layers} {axisLabel} ariaLabel={title} />
+  <ColumnChart {domain} {plotHeight} {layers} {markers} {spans} {curve} {axisLabel} ariaLabel={title} />
   <slot />
   {#if exporting}
     <div class="pointer-events-none fixed top-0 -left-[10000px]" style="width: {EXPORT_WIDTH}px" aria-hidden="true">
-      <ColumnChart bind:svgEl={exportSvg} plotHeight={EXPORT_PLOT} {domain} {layers} {axisLabel} ariaLabel={title} />
+      <ColumnChart bind:svgEl={exportSvg} plotHeight={EXPORT_PLOT} {domain} {layers} {markers} {spans} {curve} {axisLabel} ariaLabel={title} />
     </div>
   {/if}
 </Card>

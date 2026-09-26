@@ -59,6 +59,45 @@ export interface ChartLayer {
   band?: boolean;
 }
 
+/** A mark on the summary strip above the plot (mean, median), labelled below it. */
+export interface ChartMarker {
+  /** Position on the chart's domain. */
+  at: number;
+  caption: Caption;
+  /** `'dot'` (filled, default) or `'diamond'` (outlined). */
+  shape?: 'dot' | 'diamond';
+  title: string;
+}
+
+/** A stretch of the domain (mean ± standard deviation), drawn as a labelled bracket on the summary strip. */
+export interface ChartSpan {
+  from: number;
+  to: number;
+  /** Label above the bracket, longest first; the first that fits the span's width is shown. */
+  captionOptions: Caption[];
+  title: string;
+}
+
+/** A reference curve behind the bars, as points on the domain (x) and count axis (y). */
+export interface ChartCurve {
+  points: [number, number][];
+  title: string;
+}
+
+/**
+ * The normal distribution with the class's mean and standard deviation, scaled to the
+ * histogram: expected students per bin = count × bin width × density. On the merged chart's
+ * mirrored axis (x = 100 − percentage). Empty when there is no spread.
+ */
+export function normalCurve(mean: number, sd: number, count: number, binWidth: number): [number, number][] {
+  if (!(sd > 0) || count === 0) return [];
+  const scale = (count * binWidth) / (sd * Math.sqrt(2 * Math.PI));
+  return Array.from({ length: 201 }, (_, i) => {
+    const p = i / 2;
+    return [100 - p, scale * Math.exp(-0.5 * ((p - mean) / sd) ** 2)];
+  });
+}
+
 // Separator before a dynamic run; the trailing no-break space survives SVG whitespace collapsing.
 const SEP = ' ·\u00a0';
 

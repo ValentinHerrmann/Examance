@@ -290,7 +290,7 @@ export interface ExamStats {
   /** Width of every bin in %, or null when the key forced uneven bins. */
   binWidth: number | null;
   gradeBuckets: GradeDistributionBucket[];
-  /** Results less than a point off a grade boundary, closest first. */
+  /** Results within the borderline windows of a grade boundary (`BORDERLINE_MARGINS`), closest first. */
   borderline: BorderlineCase[];
 }
 
