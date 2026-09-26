@@ -44,8 +44,7 @@
         {#each bins as bin, i (bin.binStart)}
           {@const x = GUTTER + i * slot + (slot - bar) / 2}
           {@const confirmed = Math.max(h(bin.count - bin.provisionalCount), bin.count === 0 ? 3 : 0)}
-          <!-- A faint column in the bin's grade colour shows the grade bands even where nobody scored. -->
-          <rect {x} y={TOP} width={bar} height={PLOT} rx="3" fill={bin.colorVar} opacity="0.12" />
+          <!-- A zero count still draws a short foot in the bin's grade colour. -->
           <rect {x} y={base - confirmed} width={bar} height={confirmed} rx="3" fill={bin.colorVar} />
           {#if bin.provisionalCount > 0}
             <rect

@@ -55,8 +55,7 @@
           <text x="22" y={y + 35} font-size="10" fill="var(--color-subtle)">
             {$t('stats.gradeDistribution.fromPercent', { percent: bucket.minPercentage })}
           </text>
-          <!-- A faint track in the grade's colour keeps every grade visible, empty or not. -->
-          <rect x={LABEL} y={y + 10} width={plot} height={ROW - 22} rx="3" fill={color} opacity="0.12" />
+          <!-- A zero count still draws a short stub in the grade's colour. -->
           <rect
             x={LABEL}
             y={y + 10}
@@ -78,7 +77,7 @@
           {/if}
           <text x={x(bucket.count) + 8} y={y + 24} font-size="12" fill="var(--color-content)">
             {bucket.count}
-            {#if total > 0}<tspan fill="var(--color-subtle)">({$fmt.percent(bucket.count / total, 0)})</tspan>{/if}
+            {#if total > 0}<tspan fill="var(--color-subtle)"> ({$fmt.percent(bucket.count / total, 0)})</tspan>{/if}
           </text>
         {/each}
       </svg>
