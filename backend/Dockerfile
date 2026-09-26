@@ -22,12 +22,6 @@ RUN curl -fsSL -o /tmp/tectonic.tar.gz \
  && rm /tmp/tectonic.tar.gz \
  && tectonic --version
 
-# Build version, reported by GET /api/health. Passed by the deploy workflows
-# from the repository-root VERSION file; the default keeps local builds honest
-# about being untagged rather than claiming a release number.
-ARG APP_VERSION=0.0.0-dev
-ENV APP_VERSION=${APP_VERSION}
-
 # Install uv (fast Python package manager)
 RUN pip install uv --no-cache-dir
 
@@ -53,6 +47,16 @@ RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin appu
  && mkdir -p "${TECTONIC_CACHE_DIR}" \
  && chown -R appuser:appuser /app "${TECTONIC_CACHE_DIR}"
 USER appuser
+
+# Build version, reported by GET /api/health. Passed by the deploy workflows
+# from the repository-root VERSION file; the default keeps local builds honest
+# about being untagged rather than claiming a release number.
+# Declared last on purpose: the preview version carries a build timestamp, so
+# it changes on every build and invalidates every layer after it. Anywhere
+# earlier, it would re-install all dependencies on each deploy and make the
+# server pull them again.
+ARG APP_VERSION=0.0.0-dev
+ENV APP_VERSION=${APP_VERSION}
 
 EXPOSE 8000
 

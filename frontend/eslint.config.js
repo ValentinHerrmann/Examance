@@ -22,6 +22,7 @@ export default [
       '.svelte-kit/',
       'node_modules/',
       'static/',
+      '.busytex/',
       'coverage/',
       'playwright-report/',
       'test-results/',

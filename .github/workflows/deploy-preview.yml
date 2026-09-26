@@ -12,8 +12,16 @@ on:
   workflow_dispatch:
 
 # There is one preview instance, so a newer push supersedes an in-flight deploy.
+# Runs that deploy nothing (draft or fork PRs, see the `version` job's `if`)
+# get a group of their own: otherwise re-running an old draft-era run, or
+# pushing to a draft, cancels the real deploy in progress and then skips
+# every job itself, leaving the frontend published without its backend.
 concurrency:
-  group: deploy-preview
+  group: >-
+    ${{ github.event_name == 'pull_request' &&
+        (github.event.pull_request.draft ||
+         github.event.pull_request.head.repo.full_name != github.repository) &&
+        format('deploy-preview-skip-{0}', github.run_id) || 'deploy-preview' }}
   cancel-in-progress: true
 
 env:
@@ -31,9 +39,15 @@ jobs:
       (github.event.pull_request.draft == false &&
        github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Read Cloudflare Pages' check run on the currently deployed commit.
+      checks: read
     outputs:
       version: ${{ steps.resolve.outputs.version }}
       sha: ${{ steps.resolve.outputs.sha }}
+      frontend: ${{ steps.scope.outputs.frontend }}
+      backend: ${{ steps.scope.outputs.backend }}
     steps:
       - name: Checkout PR head
         uses: actions/checkout@v4
@@ -65,15 +79,72 @@ jobs:
           echo "sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
           echo "Preview version ${VERSION}"
 
+      # Pull requests redeploy only the side whose files changed. The baseline
+      # is what the shared preview stack runs *now* — the `preview` branch
+      # Cloudflare built, and the `preview-backend` marker moved after a
+      # healthy backend deploy — never the PR's previous push, or PR B could
+      # ship its frontend on top of PR A's backend. A side is kept only if it
+      # was deployed from this same <release>-PR#<n>, so both halves always
+      # come from one PR (the status bar compares versions without the build
+      # time). Pushes to main and manual runs always deploy both.
+      - name: Decide which sides to deploy
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+          BACKEND_URL: ${{ vars.BACKEND_PUBLIC_URL || 'https://prev-api-examance.valentin-herrmann.com/' }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          FRONTEND=true
+          BACKEND=true
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            PREFIX="${VERSION% \[*}"
+            SHARED=(.github/workflows/deploy-preview.yml .github/scripts)
+
+            # Frontend: same PR, unchanged files, and Cloudflare's build of it
+            # succeeded (a failed or cancelled Pages build must be retried).
+            if git fetch -q --no-tags --depth=1 origin preview 2>/dev/null; then
+              DEPLOYED_SHA=$(git rev-parse FETCH_HEAD)
+              DEPLOYED=$(git show FETCH_HEAD:PREVIEW_VERSION 2>/dev/null || true)
+              PAGES=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${DEPLOYED_SHA}/check-runs" \
+                --jq '[.check_runs[] | select(.app.slug == "cloudflare-workers-and-pages")]
+                      | sort_by(.started_at) | last | .conclusion // empty' 2>/dev/null || true)
+              if [ "${DEPLOYED% \[*}" = "$PREFIX" ] && [ "$PAGES" = "success" ] \
+                 && git diff --quiet FETCH_HEAD HEAD -- frontend backend/latex-assets VERSION "${SHARED[@]}"; then
+                FRONTEND=false
+              fi
+            fi
+
+            # Backend: the running server reports this PR, and nothing it is
+            # built from changed since the last healthy deploy.
+            DEPLOYED=$(curl -sf --max-time 10 "${BACKEND_URL%/}/api/health" | jq -r '.version // empty' || true)
+            if [ "${DEPLOYED% \[*}" = "$PREFIX" ] \
+               && git fetch -q --no-tags --depth=1 origin preview-backend 2>/dev/null \
+               && git diff --quiet FETCH_HEAD HEAD -- backend deploy "${SHARED[@]}"; then
+              BACKEND=false
+            fi
+          fi
+          echo "frontend=${FRONTEND}" >> "$GITHUB_OUTPUT"
+          echo "backend=${BACKEND}" >> "$GITHUB_OUTPUT"
+          echo "Deploy frontend: ${FRONTEND}, backend: ${BACKEND}"
+
   frontend:
     name: Publish frontend to preview branch
     needs: version
+    if: needs.version.outputs.frontend == 'true'
     runs-on: ubuntu-latest
+    # Covers the Cloudflare Pages build this job waits for, not just the push.
+    timeout-minutes: 20
     permissions:
       contents: write
+      # Read Cloudflare Pages' check run on the pushed commit.
+      checks: read
     environment:
       name: preview
-      url: https://prev-examance.valentin-herrmann.com/
+      # The Cloudflare Pages deployment that went live (dashboard link);
+      # the site itself if the wait step never got that far.
+      url: ${{ steps.pages.outputs.url || 'https://prev-examance.valentin-herrmann.com/' }}
     steps:
       - name: Checkout PR head
         uses: actions/checkout@v4
@@ -101,9 +172,18 @@ jobs:
           set -euo pipefail
           git push origin HEAD:refs/heads/preview --force
 
+      # Cloudflare Pages builds `preview` on its own; without this the run
+      # would report success while the frontend is still building (or failed).
+      - name: Wait for Cloudflare Pages deployment
+        id: pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: .github/scripts/wait-for-cloudflare-pages.sh "$(git rev-parse HEAD)"
+
   backend-image:
     name: Build backend image
     needs: version
+    if: needs.version.outputs.backend == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -157,7 +237,8 @@ jobs:
     needs: [version, backend-image]
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      # Moves the preview-backend marker after a healthy deploy.
+      contents: write
       # Lets this job's own GITHUB_TOKEN pull from GHCR — each job mints its
       # own token, valid for that job's duration, so no long-lived PAT is
       # needed just to let the server authenticate during this run.
@@ -166,22 +247,22 @@ jobs:
       name: preview
       url: ${{ vars.BACKEND_PUBLIC_URL || 'https://prev-api-examance.valentin-herrmann.com/' }}
     steps:
-      - name: Checkout
+      - name: Checkout PR head
         uses: actions/checkout@v4
-
-      - name: Copy compose file to server
-        uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_PORT || '22' }}
-          source: deploy/docker-compose.deploy.yml
-          target: ${{ vars.DEPLOY_APP_DIR }}/preview
-          strip_components: 1
+          ref: ${{ needs.version.outputs.sha }}
+
+      # The compose file travels inside the SSH step (base64 in an env var)
+      # instead of a separate scp-action step: one connection instead of two,
+      # and no Docker-based action to build before the job can start.
+      - name: Encode compose file
+        id: compose
+        run: echo "b64=$(base64 -w0 deploy/docker-compose.deploy.yml)" >> "$GITHUB_OUTPUT"
 
       - name: Pull image, migrate and restart
-        uses: appleboy/ssh-action@v0.1.7
+        # v1 is a composite action (prebuilt binary); v0.1.x was Docker-based
+        # and spent its first ~20s building a container image.
+        uses: appleboy/ssh-action@v1.2.5
         env:
           BACKEND_IMAGE: ${{ needs.backend-image.outputs.image }}
           APP_VERSION: ${{ needs.version.outputs.version }}
@@ -190,12 +271,13 @@ jobs:
           # This job's own GITHUB_TOKEN, not a stored secret — minted at job
           # start, valid only for this run, revoked automatically afterwards.
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMPOSE_B64: ${{ steps.compose.outputs.b64 }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || '22' }}
-          envs: BACKEND_IMAGE,APP_VERSION,DEPLOY_APP_DIR,REGISTRY_USER,REGISTRY_TOKEN
+          envs: BACKEND_IMAGE,APP_VERSION,DEPLOY_APP_DIR,REGISTRY_USER,REGISTRY_TOKEN,COMPOSE_B64
           script: |
             set -euo pipefail
 
@@ -208,7 +290,11 @@ jobs:
             fi
 
             TARGET="${DEPLOY_APP_DIR}/preview"
+            mkdir -p "$TARGET"
             cd "$TARGET"
+
+            printf '%s' "$COMPOSE_B64" | base64 -d > docker-compose.deploy.yml.tmp
+            mv docker-compose.deploy.yml.tmp docker-compose.deploy.yml
 
             # The env file holds this environment's SECRET_KEY and database
             # password, so it is created once by hand and never by CI.
@@ -245,3 +331,9 @@ jobs:
             echo "ERROR: backend did not report version ${APP_VERSION} within 60s (last: '${REPORTED:-none}')" >&2
             $COMPOSE logs --tail 200 backend >&2
             exit 1
+
+      # Records which commit the preview backend now runs — the baseline the
+      # next run's "Decide which sides to deploy" diffs against. Only reached
+      # once the health check above saw the new version.
+      - name: Mark deployed backend commit
+        run: git push --force origin "HEAD:refs/heads/preview-backend"

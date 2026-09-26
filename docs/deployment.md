@@ -16,7 +16,7 @@ There are two fully independent instances, **production** and **preview**.
 | Image tag | `ghcr.io/…/examance-backend:1.4.0` + `:latest` | `…:sha-<full-sha>` + `:preview` |
 | Compose project | `examance-prod` | `examance-preview` |
 | Loopback port | `8000` | `8001` |
-| Volumes | `examance-prod_pg_data` | `examance-preview_pg_data` |
+| Volumes | `examance-prod_pg_data`, `examance-prod_tectonic_cache` | `examance-preview_pg_data`, `examance-preview_tectonic_cache` |
 | Server env file | `$DEPLOY_APP_DIR/prod/.env` | `$DEPLOY_APP_DIR/preview/.env` |
 
 Publishing a GitHub Release is the **only** action needed to ship production. Nothing else is manual.
@@ -128,6 +128,8 @@ sequenceDiagram
 
 The `[skip ci]`-then-amend step matters: the commit landing on `main` carries `[skip ci]` so it does not re-trigger CI, but the copy force-pushed to `release` must **not** carry it, or Cloudflare Pages skips the production build.
 
+After pushing, both deploy workflows' `frontend` job waits for Cloudflare Pages to finish (`.github/scripts/wait-for-cloudflare-pages.sh`, polling the `Cloudflare Pages: <project>` check run Cloudflare posts on the pushed commit; 15 min timeout). A run is therefore green only once the frontend is live, and a failed Pages build fails the run. It uses the job's own `GITHUB_TOKEN` (`checks: read`) — no Cloudflare API token.
+
 Both halves consume the same resolved version, which is what guarantees frontend and backend always ship the same number together.
 
 ## 3. Preview flow
@@ -145,18 +147,30 @@ sequenceDiagram
     D->>GA: Open non-draft PR / push to it
     Note over GA: Draft PRs and fork PRs deploy nothing
     GA->>GA: version = cat VERSION + "-PR#<number> [<built-at>]"
-    par Frontend
+    GA->>GA: decide which sides changed vs. what the stack runs
+    par Frontend (if changed)
         GA->>P: commit PREVIEW_VERSION, force-push PR head
         P->>CF: build (CF_PAGES_BRANCH=preview)
         CF->>CF: __APP_VERSION__ = "1.4.0-PR#123 [18.08.2026 | 14:32]"
-    and Backend
+        GA->>CF: wait for the "Cloudflare Pages" check run
+    and Backend (if changed)
         GA->>GR: push :sha-<full> and :preview
         GA->>S: ssh — pull, migrate, up -d (project examance-preview)
         GA->>S: poll /api/health until version matches
+        GA->>GA: force-push PR head to marker branch preview-backend
     end
 ```
 
 There is exactly **one** preview instance, shared by all open PRs — the newest non-draft push wins. `concurrency: cancel-in-progress: true` collapses rapid pushes; production uses `cancel-in-progress: false` so a release deploy is never interrupted.
+
+**Selective deploys (pull requests only).** The `version` job's *Decide which sides to deploy* step skips a side when the stack already runs it from the same `<VERSION>-PR#<n>` and none of its inputs changed:
+
+| Side | Baseline (what is deployed) | Inputs compared | Also required |
+|---|---|---|---|
+| Frontend | branch `preview` (what Cloudflare built) | `frontend/`, `backend/latex-assets/`, `VERSION` | its Cloudflare Pages check run succeeded |
+| Backend | branch `preview-backend`, moved only after a healthy deploy | `backend/`, `deploy/` | `/api/health` reports the same PR |
+
+Changes to `deploy-preview.yml` or `.github/scripts/` count for both. The baseline is the running stack, never the PR's previous push, so PR B never ships half of itself on top of PR A. Pushes to `main` and manual runs always deploy both sides; so does the release workflow. Because the two sides then carry different build times, the status bar compares versions without the `[<built-at>]` stamp. Cloudflare Pages builds only `preview`, so the `preview-backend` marker branch triggers nothing.
 
 ---
 
@@ -192,7 +206,7 @@ stateDiagram-v2
     [*] --> NoServer
     NoServer: no-server — grey<br/>no backend configured
     Unknown: unknown — grey<br/>server unreachable or reports no version
-    Match: match — normal<br/>identical version strings
+    Match: match — normal<br/>identical version strings (a preview's [built-at] stamp is ignored)
     Mismatch: mismatch — amber<br/>same major, out of sync
     Incompatible: incompatible — red, bold<br/>different major
 
@@ -236,6 +250,28 @@ Per-environment `SECRET_KEY` and `POSTGRES_PASSWORD` live **only** in the server
 
 - Production branch: `release`.
 - Preview branches: **only** `preview` (Settings → Builds → "Include only certain branches"). This keeps every feature branch from consuming build minutes and gives preview a stable URL, `prev-examance.valentin-herrmann.com`, already covered by `CORS_ALLOWED_ORIGIN_REGEX`.
+- Environment variable `BUSYTEX_MIRROR_URL` (Settings → Variables and Secrets, for **both** Production and Preview): the public base URL of the R2 bucket below, e.g. `https://pub-<id>.r2.dev`. Optional — without it, builds download BusyTeX from GitHub.
+
+### BusyTeX mirror (Cloudflare R2)
+
+Every Pages build needs the ~500 MB of BusyTeX assets. From GitHub's release CDN the archive took anywhere from 10 s to 52 s, and gzipping it into ≤ 24 MiB chunks cost another 10–17 s of CPU that competed with `vite build`. The bucket therefore holds two objects per version (names in `frontend/scripts/busytex-mirror.mjs`):
+
+| Object | Content | Used by |
+|---|---|---|
+| `busytex-processed-v<version>-<hash>.tar` | output of `process-large-files.mjs` (chunks, manifest, fetch interceptor); `<hash>` covers that script and `fetch-interceptor.js` | `build.mjs`, first choice — only unpacked, no gzip |
+| `busytex-assets-v<version>.tar.gz` | upstream archive, byte for byte | `fetch-busytex.mjs` (fallback, and `npm run dev`) |
+
+A build falls through processed mirror → raw mirror → GitHub → upstream `texlyre-busytex download-assets`, so a missing or unreachable mirror costs speed, never the build. Only the build reads the bucket — browsers never do, so the CSP and the no-third-party-transfer statements are unaffected.
+
+`.github/workflows/mirror-busytex.yml` keeps it filled: whenever `frontend/package-lock.json`, `busytex-mirror.mjs`, `process-large-files.mjs` or `fetch-interceptor.js` change (PRs from this repository, `main`, or manually) it uploads whichever of the two objects is missing, producing the processed one on Node 22.16.0 — the Pages image's version, so its chunks are byte-identical to a fallback build's and Pages keeps deduplicating the upload. Nothing needs doing on a BusyTeX update or a change to the processing scripts. Old objects (~500 MB each) stay in the bucket; delete them whenever convenient, or set an R2 lifecycle rule.
+
+One-time setup:
+
+1. Cloudflare dashboard → R2 → create a bucket (e.g. `examance-build-assets`) → Settings → Public access → enable the `r2.dev` subdomain. Note the URL.
+2. R2 → Manage API tokens → create a token with **Object Read & Write**, restricted to that bucket. Note the access key ID, secret access key, and your account ID.
+3. GitHub → Settings → Secrets and variables → Actions: secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; repository variable `R2_BUCKET`.
+4. Pages → Settings → Variables and Secrets: `BUSYTEX_MIRROR_URL` for Production and Preview (see above).
+5. Actions → *Mirror BusyTeX assets* → Run workflow. The next Pages build logs `Streaming processed BusyTeX assets from https://pub-….r2.dev/…` followed by `✓ BusyTeX assets staged`.
 - Root directory `frontend/`, build command `npm run build`, output `frontend/build/` — unchanged.
 - **Custom domains are mandatory for both environments** (Settings → Custom domains): `examance.valentin-herrmann.com` for `release`, `prev-examance.valentin-herrmann.com` for `preview`. `FRONTEND_URL` must point at these, never at the `*.pages.dev` URL: that domain sits on URL blocklists, so outbound mail relays reject password-reset mails linking to it with `550 5.7.1 Refused by local policy … (B-URL)`. Serving reset links from the same registrable domain as `SMTP_FROM_EMAIL` also avoids the From/link mismatch that phishing filters score. `validate_frontend_url_for_email` (`backend/app/config.py`) refuses to start on a blocklisted `FRONTEND_URL` whenever `SMTP_HOST` is set outside development.
 - Environment variable `PUBLIC_DEFAULT_BACKEND_URL`, set per Cloudflare environment to that environment's API origin. It seeds the backend address on a fresh browser profile so the production frontend defaults to the production API and the preview frontend to the preview API. It is only a default: a saved address always wins and the user can still point the app anywhere.
@@ -378,5 +414,5 @@ docker compose -p examance-preview -f docker-compose.deploy.yml --env-file .env 
 **Verify the two stacks are really isolated**
 
 ```bash
-docker volume ls | grep examance   # expect examance-prod_pg_data and examance-preview_pg_data
+docker volume ls | grep examance   # expect <project>_pg_data and <project>_tectonic_cache for prod and preview
 ```

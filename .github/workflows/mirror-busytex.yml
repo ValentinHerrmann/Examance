@@ -1,0 +1,118 @@
+name: Mirror BusyTeX assets
+
+# Keeps two objects per BusyTeX version in our R2 bucket, so Cloudflare Pages
+# builds fetch them from inside Cloudflare's network instead of GitHub's
+# release CDN (10–52 s for the same file):
+#
+#   busytex-assets-v<version>.tar.gz          upstream archive, byte for byte
+#   busytex-processed-v<version>-<hash>.tar   process-large-files.mjs output
+#
+# Names come from frontend/scripts/busytex-mirror.mjs. build.mjs tries the
+# processed copy first (no gzip on the Pages build), then the raw one, then
+# GitHub — so this workflow only ever affects build speed, never correctness.
+#
+# Runs whenever the pinned texlyre-busytex version or the processing scripts
+# change; objects that already exist are skipped. Until the R2 secrets exist
+# the job is a no-op.
+on:
+  push:
+    branches: [main]
+    paths:
+      - frontend/package-lock.json
+      - frontend/scripts/busytex-mirror.mjs
+      - frontend/scripts/process-large-files.mjs
+      - frontend/scripts/fetch-interceptor.js
+  # Mirrors a version bump before its PR's preview build, not only after merge.
+  pull_request:
+    paths:
+      - frontend/package-lock.json
+      - frontend/scripts/busytex-mirror.mjs
+      - frontend/scripts/process-large-files.mjs
+      - frontend/scripts/fetch-interceptor.js
+  workflow_dispatch:
+
+concurrency:
+  group: mirror-busytex
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    name: Mirror BusyTeX archive to R2
+    # Fork PRs get no secrets.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      # R2 rejects the CRC checksums newer AWS CLI versions send by default.
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+    steps:
+      - name: Checkout lockfile and build scripts
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            frontend/package-lock.json
+            frontend/scripts
+          sparse-checkout-cone-mode: false
+
+      # Same Node as the Pages build image, so the gzip output — and with it
+      # the chunk hashes Pages dedupes uploads by — matches a local fallback.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.16.0"
+
+      - name: Mirror missing objects
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          if [ -z "${R2_ACCOUNT_ID}" ] || [ -z "${R2_BUCKET}" ] || [ -z "${AWS_ACCESS_KEY_ID}" ]; then
+            echo "::notice::R2 secrets/variables not configured — skipping (see docs/deployment.md §5)."
+            exit 0
+          fi
+          ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          exists() { aws s3api head-object --endpoint-url "$ENDPOINT" --bucket "$R2_BUCKET" --key "$1" >/dev/null 2>&1; }
+          upload() {
+            aws s3 cp --endpoint-url "$ENDPOINT" --only-show-errors --content-type "$2" \
+              "$RUNNER_TEMP/$1" "s3://${R2_BUCKET}/$1"
+            echo "Mirrored $1"
+          }
+
+          KEYS=$(node scripts/busytex-mirror.mjs keys)
+          RAW=$(jq -r .raw <<< "$KEYS")
+          PROCESSED=$(jq -r .processed <<< "$KEYS")
+          UPSTREAM=$(jq -r .upstream <<< "$KEYS")
+
+          HAVE_RAW=false
+          HAVE_PROCESSED=false
+          exists "$RAW" && HAVE_RAW=true
+          exists "$PROCESSED" && HAVE_PROCESSED=true
+          echo "${RAW}: ${HAVE_RAW}, ${PROCESSED}: ${HAVE_PROCESSED}"
+          if $HAVE_RAW && $HAVE_PROCESSED; then exit 0; fi
+
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/$RAW" "$UPSTREAM"
+          # Must be a readable gzip tarball before it becomes a build input.
+          tar -tzf "$RUNNER_TEMP/$RAW" > /dev/null
+          $HAVE_RAW || upload "$RAW" application/gzip
+
+          if ! $HAVE_PROCESSED; then
+            mkdir -p .busytex/core
+            tar -xzf "$RUNNER_TEMP/$RAW" -C .busytex/core
+            node scripts/process-large-files.mjs .busytex
+            test -f .busytex/core/busytex/chunk-manifest.json
+            # Cloudflare Pages refuses files over 25 MiB.
+            if find .busytex -type f -size +24M | grep -q .; then
+              echo "::error::processed output contains files over 24 MiB" >&2
+              exit 1
+            fi
+            tar -cf "$RUNNER_TEMP/$PROCESSED" -C .busytex core
+            upload "$PROCESSED" application/x-tar
+          fi

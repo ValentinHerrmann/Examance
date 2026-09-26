@@ -223,9 +223,46 @@ frontend/.svelte-kit
 latex-sample-project
 backend/blindgrade.db
 frontend/static/core/busytex/
+frontend/.busytex/
 PLAN.md
 tmp/
+CONTEXT/
+
+# --- AI agent / Claude Code local state ---
 .claude/
+CLAUDE.local.md
+.mcp.json
+.serena/cache/
+.serena/project.local.yml
+
+# --- Sandbox dotfile masks (/dev/null bind mounts created by the Claude Code
+#     sandbox in writable dirs; never real project files). No trailing slash:
+#     they are char devices, not directories. ---
 .bash_profile
 .bashrc
-CONTEXT/
+.profile
+.zprofile
+.zshrc
+.gitconfig
+.gitmodules
+.ripgreprc
+.idea
+
+# --- Editor / OS junk ---
+*.swp
+*.swo
+*~
+*.orig
+*.rej
+.DS_Store
+Thumbs.db
+
+# --- Local env variants (keep templates) ---
+.env.*
+!.env.example
+
+# --- Frontend test output ---
+coverage/
+test-results/
+playwright-report/
+playwright/.cache/
