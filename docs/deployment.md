@@ -128,6 +128,8 @@ sequenceDiagram
 
 The `[skip ci]`-then-amend step matters: the commit landing on `main` carries `[skip ci]` so it does not re-trigger CI, but the copy force-pushed to `release` must **not** carry it, or Cloudflare Pages skips the production build.
 
+After pushing, both deploy workflows' `frontend` job waits for Cloudflare Pages to finish (`.github/scripts/wait-for-cloudflare-pages.sh`, polling the `Cloudflare Pages: <project>` check run Cloudflare posts on the pushed commit; 15 min timeout). A run is therefore green only once the frontend is live, and a failed Pages build fails the run. It uses the job's own `GITHUB_TOKEN` (`checks: read`) — no Cloudflare API token.
+
 Both halves consume the same resolved version, which is what guarantees frontend and backend always ship the same number together.
 
 ## 3. Preview flow
@@ -145,18 +147,30 @@ sequenceDiagram
     D->>GA: Open non-draft PR / push to it
     Note over GA: Draft PRs and fork PRs deploy nothing
     GA->>GA: version = cat VERSION + "-PR#<number> [<built-at>]"
-    par Frontend
+    GA->>GA: decide which sides changed vs. what the stack runs
+    par Frontend (if changed)
         GA->>P: commit PREVIEW_VERSION, force-push PR head
         P->>CF: build (CF_PAGES_BRANCH=preview)
         CF->>CF: __APP_VERSION__ = "1.4.0-PR#123 [18.08.2026 | 14:32]"
-    and Backend
+        GA->>CF: wait for the "Cloudflare Pages" check run
+    and Backend (if changed)
         GA->>GR: push :sha-<full> and :preview
         GA->>S: ssh — pull, migrate, up -d (project examance-preview)
         GA->>S: poll /api/health until version matches
+        GA->>GA: force-push PR head to marker branch preview-backend
     end
 ```
 
 There is exactly **one** preview instance, shared by all open PRs — the newest non-draft push wins. `concurrency: cancel-in-progress: true` collapses rapid pushes; production uses `cancel-in-progress: false` so a release deploy is never interrupted.
+
+**Selective deploys (pull requests only).** The `version` job's *Decide which sides to deploy* step skips a side when the stack already runs it from the same `<VERSION>-PR#<n>` and none of its inputs changed:
+
+| Side | Baseline (what is deployed) | Inputs compared | Also required |
+|---|---|---|---|
+| Frontend | branch `preview` (what Cloudflare built) | `frontend/`, `backend/latex-assets/`, `VERSION` | its Cloudflare Pages check run succeeded |
+| Backend | branch `preview-backend`, moved only after a healthy deploy | `backend/`, `deploy/` | `/api/health` reports the same PR |
+
+Changes to `deploy-preview.yml` or `.github/scripts/` count for both. The baseline is the running stack, never the PR's previous push, so PR B never ships half of itself on top of PR A. Pushes to `main` and manual runs always deploy both sides; so does the release workflow. Because the two sides then carry different build times, the status bar compares versions without the `[<built-at>]` stamp. Cloudflare Pages builds only `preview`, so the `preview-backend` marker branch triggers nothing.
 
 ---
 
@@ -192,7 +206,7 @@ stateDiagram-v2
     [*] --> NoServer
     NoServer: no-server — grey<br/>no backend configured
     Unknown: unknown — grey<br/>server unreachable or reports no version
-    Match: match — normal<br/>identical version strings
+    Match: match — normal<br/>identical version strings (a preview's [built-at] stamp is ignored)
     Mismatch: mismatch — amber<br/>same major, out of sync
     Incompatible: incompatible — red, bold<br/>different major
 

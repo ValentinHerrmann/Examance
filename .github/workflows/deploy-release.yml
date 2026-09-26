@@ -55,8 +55,12 @@ jobs:
     name: Publish frontend to release branch
     needs: version
     runs-on: ubuntu-latest
+    # Covers the Cloudflare Pages build this job waits for, not just the push.
+    timeout-minutes: 20
     permissions:
       contents: write
+      # Read Cloudflare Pages' check run on the pushed commit.
+      checks: read
     environment:
       name: production
       url: https://examance.valentin-herrmann.com/
@@ -88,6 +92,13 @@ jobs:
           # skips the production build.
           git commit --amend -m "chore: release $VERSION"
           git push origin HEAD:refs/heads/release --force
+
+      # Cloudflare Pages builds `release` on its own; without this the run
+      # would report success while the frontend is still building (or failed).
+      - name: Wait for Cloudflare Pages deployment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: .github/scripts/wait-for-cloudflare-pages.sh "$(git rev-parse HEAD)"
 
   backend-image:
     name: Build backend image

@@ -26,7 +26,7 @@ Privacy-first, zero-knowledge-encrypted anonymous exam grading. LaTeX exams, QR-
   - The app shell (`routes/+layout.css`) is `100dvh` and clips **only** horizontally; `.app-main` scrolls both axes. Don't reintroduce `overflow: hidden` there — it made anything wider than the viewport unreachable app-wide. Don't nest a second `100vh` inside it either.
   - `src/lib/stores/viewport.ts` (`isPhone`/`isTablet`/`isDesktop`/`isTouch`/`viewportWidth`) is for the few places where a narrow screen changes *behaviour*, not styling. Anything purely visual belongs in a breakpoint variant.
   - **Migration status**: remaining sibling `.css` files (`exam-creation/`, `manual-grading/`, `scanning/`, `stats/`, `analytics/`, plus `LatexEditor`/`LatexViewer` and route `+page.css` files) are desktop-first and functional, not broken — convert one only when you are already editing its component, and delete it in the same change. `routes/+layout.css` is the deliberate exception: it holds the app-shell geometry and stays.
-- `--ignore-scripts` is the safe way to reinstall frontend deps: it skips the `postinstall` that re-downloads busytex. `svelte-check --threshold error` should be clean; treat any error as new.
+- There is no `postinstall`: busytex is fetched by `predev` (into `static/core`) and by `npm run build` (`scripts/build.mjs`). `svelte-check --threshold error` should be clean; treat any error as new.
 
 ## Commands
 
@@ -44,7 +44,7 @@ Prefer `make` over hand-rolled `cd backend && ...`. Run mypy through an env that
 **dev** extras (`uvx -p 3.12 --with-editable ".[dev]" mypy app`, from `backend/`): a bare
 `mypy` reports ~187 spurious untyped-decorator errors, and one without `[dev]` disagrees with
 CI about `redis` (the `types-redis` stubs make `Redis` generic, redis 8's own types do not).
-The real baseline is zero errors. `dev`/`build` run `predev`/`prebuild`, which fetch LaTeX/WASM assets — don't strip those.
+The real baseline is zero errors. `predev` fetches the LaTeX/WASM assets into `static/core` — don't strip it. `npm run build` goes through `scripts/build.mjs`: without `static/core/busytex` (every Cloudflare build) it fetches and gzips busytex into `frontend/.busytex/` *in parallel with* `vite build` and moves it into `build/` afterwards; with it, Vite copies it as usual.
 
 ## Token discipline
 
@@ -57,7 +57,6 @@ Tracked source is tiny (172 files in `frontend/src`, 44 in `backend/app`, ~1 MB)
 - `frontend/static/latex-assets/` = build-time `cp -r` of `backend/latex-assets/`; both committed. Edit the backend copy — reading both is duplicate context.
 - Slice big files (grep to the symbol, then Read with `offset`/`limit`): `routes/exam/[id]/+page.svelte` 1266, `routes/exercises/+page.svelte` 1265, `routes/exam/[id]/scan/+page.svelte` 1036, `lib/db/dbEncryption.ts` 649, `routes/exam/new/+page.svelte` 618, `lib/components/grading/ScanCanvasViewer.svelte` 604.
 - Narrow commands while iterating: `pytest tests/test_auth.py -q`, `npx vitest run <file>`, `npx svelte-check --threshold error` (plain `npm run check` buries the 2 real errors under ~106 CSS warnings). Full `make` targets once at the end — see "Validate before done".
-- `npm install` fires `postinstall`, re-downloading busytex. Don't reinstall casually.
 - Delegate wide searches to subagents; report conclusions, not file dumps.
 - No verification-by-reread — Edit/Write error out on failure.
 
@@ -75,7 +74,7 @@ Full picture with diagrams: `docs/deployment.md`. Summary:
 Two independent instances, production and preview, always on the same version. Root `/VERSION` (bare semver, no `v`) is the single source of truth — `frontend/package.json` and `backend/pyproject.toml` versions are **not** part of the chain, don't "sync" them. Prod version = `VERSION` verbatim; preview = `VERSION` + `-PR#<number> [<dd.MM.yyyy | HH:mm>]`, composed once in `deploy-preview.yml`'s `version` job and both used as the backend `APP_VERSION` build-arg and stamped into a `PREVIEW_VERSION` file committed onto the `preview` branch for `frontend/vite.config.ts` to read (Cloudflare Pages builds have no PR-number env var of their own). Status bar displays the backend version (source of truth for compatibility); PR links route to the PR. A differing major version means frontend and backend are incompatible.
 
 - Release published (`deploy-release.yml`) → writes `VERSION` to the default branch, force-pushes to branch `release`, builds `ghcr.io/<owner>/examance-backend:<version>`, deploys over SSH. Trigger is `published`, **not** `created` — `created` also fires on draft-save.
-- Non-draft PR (`deploy-preview.yml`) → force-pushes PR head to branch `preview`, builds `:sha-<sha>`, deploys to the preview stack. Draft PRs and fork PRs deploy nothing.
+- Non-draft PR (`deploy-preview.yml`) → force-pushes PR head to branch `preview`, builds `:sha-<sha>`, deploys to the preview stack. Draft PRs and fork PRs deploy nothing. PR pushes redeploy only the side that changed relative to what the stack runs (`preview` branch / `preview-backend` marker, same `PR#<n>` required); pushes to main and manual runs deploy both. Production always deploys both. Both workflows wait for Cloudflare Pages' check run before going green.
 
 Frontend → **Cloudflare Pages** via git integration (build `npm run build` in `frontend/`, output `frontend/build/`), building **only** `release` (production) and `preview` (preview). Dashboard-managed, no `wrangler.toml` in-repo. Version reaches the bundle through Vite `define` (`__APP_VERSION__`, computed in `vite.config.ts` from `CF_PAGES_BRANCH`/`CF_PAGES_COMMIT_SHA`) and is shown in `StatusBar.svelte`, coloured by `compareVersions()` in `lib/stores/versionStore.ts`.
 
@@ -189,7 +188,7 @@ preview, and vice versa. Rotating `SECRET_KEY` invalidates every TOTP enrollment
 
 - **The same failure mode exists one layer out, at nginx, and the app can't fix it.** `/compile/latex` and `/exams/{id}/compile` are the only endpoints that legitimately run tens of seconds (Tectonic, up to `COMPILE_TIMEOUT_SECONDS`). If nginx's `proxy_read_timeout` (60s default) is shorter, nginx serves its own bare 504 and drops the connection before the backend's own — CORS-header-carrying — timeout response is ready; the backend finishes moments later and logs a clean 504 nobody receives. Browser symptom is indistinguishable from a CORS misconfig, flaky (races transient host load), and stops reproducing on its own without anything being fixed. nginx is host-managed, not in this repo (`docs/deployment.md` §6) — its `proxy_read_timeout`/`proxy_send_timeout` must be set ≥ `COMPILE_TIMEOUT_SECONDS` + margin on the host; there is no code-side fix. A cold Tectonic cache (first compile after a fresh container downloads TeX bundles) triggers exactly this; `deploy/docker-compose.deploy.yml` keeps `/var/cache/tectonic` in the `tectonic_cache` volume so it survives redeploys.
 - **Svelte 4 only re-runs a template expression when a name it mentions changes.** A plain `function` helper that reads reactive state hides that dependency: `{@const { x } = box(c)}` never re-ran when `box` read a `$:`-derived `px`, so on a window resize the stats charts' gridlines moved and their bars did not. Declare such helpers as `$: box = (c) => …` (see `stats/ColumnChart.svelte`); pure helpers that use only their arguments can stay plain functions.
-- **One shared preview stack.** `deploy-preview.yml` force-pushes the PR head to `preview`; the newest non-draft PR push wins for *both* frontend and backend. Testing PR A while PR B was pushed later means testing B. The status bar version carries the PR number — check it before debugging.
+- **One shared preview stack.** `deploy-preview.yml` force-pushes the PR head to `preview`; the newest non-draft PR push wins for *both* frontend and backend (a side is only skipped if already deployed from the same PR). Testing PR A while PR B was pushed later means testing B. The status bar version carries the PR number — check it before debugging.
 
 ## Environment
 

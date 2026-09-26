@@ -54,6 +54,15 @@ export type VersionStatus =
 /** Version reported by the configured server, or null while unknown. */
 export const backendVersionStore = writable<string | null>(null);
 
+/**
+ * Drops the trailing " [dd.MM.yyyy | HH:mm]" build stamp of a preview version.
+ * deploy-preview.yml redeploys only the side that changed, so frontend and
+ * backend of the same PR legitimately carry different build times.
+ */
+function withoutBuildTime(version: string): string {
+    return version.replace(/\s*\[[^\]]*\]$/, '');
+}
+
 function majorOf(version: string): number | null {
     // The "-<sha>" preview suffix is not part of the semver core.
     const match = /^(\d+)\./.exec(version.split('-')[0]);
@@ -71,7 +80,7 @@ export function compareVersions(
 ): VersionStatus {
     if (!hasServer) return 'no-server';
     if (!backend) return 'unknown';
-    if (frontend === backend) return 'match';
+    if (withoutBuildTime(frontend) === withoutBuildTime(backend)) return 'match';
 
     const frontendMajor = majorOf(frontend);
     const backendMajor = majorOf(backend);

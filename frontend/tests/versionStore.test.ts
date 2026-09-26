@@ -30,6 +30,15 @@ describe('compareVersions', () => {
     expect(compareVersions('1.4.0-a1b2c3d', '1.4.0-a1b2c3d', true)).toBe('match');
   });
 
+  it('ignores the preview build time, which differs after a one-sided deploy', () => {
+    expect(
+      compareVersions('1.4.0-PR#28 [26.09.2026 | 21:00]', '1.4.0-PR#28 [26.09.2026 | 20:30]', true)
+    ).toBe('match');
+    expect(
+      compareVersions('1.4.0-PR#28 [26.09.2026 | 21:00]', '1.4.0-PR#27 [26.09.2026 | 21:00]', true)
+    ).toBe('mismatch');
+  });
+
   it('treats a preview build against its own release as merely out of sync', () => {
     expect(compareVersions('1.4.0-a1b2c3d', '1.4.0', true)).toBe('mismatch');
   });
