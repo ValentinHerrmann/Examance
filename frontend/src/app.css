@@ -27,17 +27,6 @@
   --color-muted: #94a3b8;
   --color-subtle: #64748b;
 
-  /* Grade colour ramp (best -> worst), shared by the grade-distribution and
-     percentage-histogram charts (see gradeColorVar/gradeColorForPercentage in
-     src/lib/analytics/gradingKey.ts). App is dark-theme-only, so one set of
-     values suffices — chosen to read on --color-surface-base. */
-  --color-grade-1: #15803d;
-  --color-grade-2: #4ade80;
-  --color-grade-3: #facc15;
-  --color-grade-4: #fb923c;
-  --color-grade-5: #f87171;
-  --color-grade-6: #b91c1c;
-
   /* Content width scale, replacing the ad-hoc per-page pixel caps. */
   /* Names here must not collide with Tailwind's built-in width keywords —
      a token called `full` would redefine `w-full` / `max-w-full` app-wide. */
@@ -45,6 +34,19 @@
   --container-narrow: 720px;
   --container-wide: 1280px;
   --container-page: 1700px;
+}
+
+/* Grade colour ramp (best -> worst) for the stats charts, see gradeColorVar in
+   lib/analytics/gradingKey.ts. `static`: the charts build `var(--color-grade-N)`
+   at runtime, and Tailwind v4 drops theme variables it never sees spelled out
+   in the source, which silently removed grades 3-5. */
+@theme static {
+  --color-grade-1: #15803d;
+  --color-grade-2: #4ade80;
+  --color-grade-3: #facc15;
+  --color-grade-4: #fb923c;
+  --color-grade-5: #f87171;
+  --color-grade-6: #b91c1c;
 }
 
 /* Single z-index ladder. Anything layered picks one of these. */

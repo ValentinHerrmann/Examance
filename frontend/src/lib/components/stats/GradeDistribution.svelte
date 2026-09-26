@@ -12,7 +12,9 @@
 
   const ROW = 44;
   const LABEL = 132;
+  const VALUE = 92; // room right of the longest bar for "12 (40 %)"
   const AXIS = 24;
+  const MIN_WIDTH = LABEL + 120 + VALUE; // narrower containers scale the drawing down instead of clipping it
   const PRESETS: Record<string, TranslationKey> = {
     linear_50: 'stats.gradeDistribution.presets.linear50',
     linear_40: 'stats.gradeDistribution.presets.linear40',
@@ -26,7 +28,8 @@
     : 'stats.gradeDistribution.presets.standard';
   $: total = buckets.reduce((sum, b) => sum + b.count, 0);
   $: axis = countAxis(buckets.map((b) => b.count), 6);
-  $: plot = Math.max(80, width - LABEL - 92);
+  $: vw = Math.max(width, MIN_WIDTH);
+  $: plot = vw - LABEL - VALUE;
   $: height = buckets.length * ROW + AXIS;
   $: x = (count: number) => LABEL + (count / axis.max) * plot;
 </script>
@@ -37,7 +40,7 @@
 
   <div class="mt-4 w-full min-w-0" bind:clientWidth={width}>
     {#if width > 0}
-      <svg {width} {height} viewBox="0 0 {width} {height}" role="img" aria-label={$t('stats.gradeDistribution.title')}>
+      <svg {width} height={(height * width) / vw} viewBox="0 0 {vw} {height}" role="img" aria-label={$t('stats.gradeDistribution.title')}>
         {#each axis.ticks as tick}
           <line x1={x(tick)} x2={x(tick)} y1="0" y2={height - AXIS} stroke="var(--color-line)" />
           <text x={x(tick)} y={height - 8} text-anchor="middle" font-size="11" fill="var(--color-subtle)">{tick}</text>
@@ -52,14 +55,15 @@
           <text x="22" y={y + 35} font-size="10" fill="var(--color-subtle)">
             {$t('stats.gradeDistribution.fromPercent', { percent: bucket.minPercentage })}
           </text>
-          <!-- A zero-count grade still draws a hairline so the scale reads as complete. -->
+          <!-- A faint track in the grade's colour keeps every grade visible, empty or not. -->
+          <rect x={LABEL} y={y + 10} width={plot} height={ROW - 22} rx="3" fill={color} opacity="0.12" />
           <rect
             x={LABEL}
             y={y + 10}
-            width={Math.max(x(confirmed) - LABEL, bucket.count === 0 ? 2 : 0)}
+            width={Math.max(x(confirmed) - LABEL, bucket.count === 0 ? 3 : 0)}
             height={ROW - 22}
             rx="3"
-            fill={bucket.count === 0 ? 'var(--color-line)' : color}
+            fill={color}
           />
           {#if bucket.provisionalCount > 0}
             <rect
@@ -83,7 +87,7 @@
 
   {#if buckets.some((b) => b.provisionalCount > 0)}
     <p class="mt-2 flex items-center gap-2 text-xs text-subtle">
-      <span class="inline-block h-2 w-4 rounded-sm bg-accent opacity-45"></span>
+      <span class="inline-block h-2 w-4 rounded-sm bg-muted opacity-45"></span>
       {$t('stats.gradeDistribution.provisionalLegend')}
     </p>
   {/if}
