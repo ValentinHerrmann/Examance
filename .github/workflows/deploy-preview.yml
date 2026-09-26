@@ -12,8 +12,16 @@ on:
   workflow_dispatch:
 
 # There is one preview instance, so a newer push supersedes an in-flight deploy.
+# Runs that deploy nothing (draft or fork PRs, see the `version` job's `if`)
+# get a group of their own: otherwise re-running an old draft-era run, or
+# pushing to a draft, cancels the real deploy in progress and then skips
+# every job itself, leaving the frontend published without its backend.
 concurrency:
-  group: deploy-preview
+  group: >-
+    ${{ github.event_name == 'pull_request' &&
+        (github.event.pull_request.draft ||
+         github.event.pull_request.head.repo.full_name != github.repository) &&
+        format('deploy-preview-skip-{0}', github.run_id) || 'deploy-preview' }}
   cancel-in-progress: true
 
 env:
