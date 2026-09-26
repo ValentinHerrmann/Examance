@@ -33,6 +33,8 @@ while :; do
     if [ "$STATUS" = "completed" ]; then
       if [ "$CONCLUSION" = "success" ]; then
         echo "Cloudflare Pages deployment succeeded: ${URL}"
+        # Lets the calling job use it as its environment URL.
+        [ -n "${GITHUB_OUTPUT:-}" ] && echo "url=${URL}" >> "$GITHUB_OUTPUT"
         exit 0
       fi
       echo "::error::Cloudflare Pages deployment finished with '${CONCLUSION}': ${URL}"

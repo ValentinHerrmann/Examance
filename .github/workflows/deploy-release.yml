@@ -63,7 +63,9 @@ jobs:
       checks: read
     environment:
       name: production
-      url: https://examance.valentin-herrmann.com/
+      # The Cloudflare Pages deployment that went live (dashboard link);
+      # the site itself if the wait step never got that far.
+      url: ${{ steps.pages.outputs.url || 'https://examance.valentin-herrmann.com/' }}
     steps:
       - name: Checkout default branch
         uses: actions/checkout@v4
@@ -96,6 +98,7 @@ jobs:
       # Cloudflare Pages builds `release` on its own; without this the run
       # would report success while the frontend is still building (or failed).
       - name: Wait for Cloudflare Pages deployment
+        id: pages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: .github/scripts/wait-for-cloudflare-pages.sh "$(git rev-parse HEAD)"
