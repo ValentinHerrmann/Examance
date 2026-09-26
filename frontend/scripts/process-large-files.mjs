@@ -10,6 +10,11 @@ const MAX_FILE_SIZE = 24 * 1024 * 1024; // 24MB limit for Cloudflare Pages
 const CHUNK_SIZE = 20 * 1024 * 1024;    // 20MB chunk size for splitting
 
 const manifest = {};
+// Large files are collected during the walk and compressed concurrently
+// afterwards: zlib's async gzip runs on the libuv threadpool, so the four
+// TeX Live bundles no longer compress one after another (this runs on every
+// Cloudflare Pages build).
+const largeFiles = [];
 
 async function processDirectory(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -22,52 +27,56 @@ async function processDirectory(dir) {
     } else if (entry.isFile()) {
       const stats = fs.statSync(fullPath);
       if (stats.size > MAX_FILE_SIZE) {
-        console.log(`Processing large file (${(stats.size / 1024 / 1024).toFixed(2)} MB): ${fullPath}`);
-        
-        const fileContent = fs.readFileSync(fullPath);
-        console.log(`  Compressing with gzip -9...`);
-        const gzipped = await gzipPipeline(fileContent, { level: 9 });
-        
-        const relPath = '/' + path.relative(targetDir, fullPath).replace(/\\/g, '/');
-        const chunks = [];
-
-        if (gzipped.length <= MAX_FILE_SIZE) {
-          const gzPath = fullPath + '.bin';
-          fs.writeFileSync(gzPath, gzipped);
-          chunks.push(relPath + '.bin');
-          console.log(`  Created single gzip archive (${(gzipped.length / 1024 / 1024).toFixed(2)} MB): ${gzPath}`);
-        } else {
-          console.log(`  Gzipped size (${(gzipped.length / 1024 / 1024).toFixed(2)} MB) exceeds 24MB. Chunking into 20MB parts...`);
-          let offset = 0;
-          let partIndex = 0;
-          while (offset < gzipped.length) {
-            const end = Math.min(offset + CHUNK_SIZE, gzipped.length);
-            const chunkBuffer = gzipped.subarray(offset, end);
-            const partPath = `${fullPath}.bin.part${partIndex}`;
-            const partRelPath = `${relPath}.bin.part${partIndex}`;
-            
-            fs.writeFileSync(partPath, chunkBuffer);
-            chunks.push(partRelPath);
-            console.log(`    Part ${partIndex}: ${(chunkBuffer.length / 1024 / 1024).toFixed(2)} MB -> ${partPath}`);
-
-            offset = end;
-            partIndex++;
-          }
-        }
-
-        // Delete original uncompressed file
-        fs.unlinkSync(fullPath);
-        console.log(`  Deleted original file: ${fullPath}`);
-
-        manifest[relPath] = {
-          chunks,
-          gzipped: true,
-          originalSize: stats.size,
-          gzippedSize: gzipped.length
-        };
+        largeFiles.push({ fullPath, stats });
       }
     }
   }
+}
+
+async function processLargeFile({ fullPath, stats }) {
+  console.log(`Processing large file (${(stats.size / 1024 / 1024).toFixed(2)} MB): ${fullPath}`);
+  
+  const fileContent = fs.readFileSync(fullPath);
+  console.log(`  Compressing with gzip -9...`);
+  const gzipped = await gzipPipeline(fileContent, { level: 9 });
+  
+  const relPath = '/' + path.relative(targetDir, fullPath).replace(/\\/g, '/');
+  const chunks = [];
+
+  if (gzipped.length <= MAX_FILE_SIZE) {
+    const gzPath = fullPath + '.bin';
+    fs.writeFileSync(gzPath, gzipped);
+    chunks.push(relPath + '.bin');
+    console.log(`  Created single gzip archive (${(gzipped.length / 1024 / 1024).toFixed(2)} MB): ${gzPath}`);
+  } else {
+    console.log(`  Gzipped size (${(gzipped.length / 1024 / 1024).toFixed(2)} MB) exceeds 24MB. Chunking into 20MB parts...`);
+    let offset = 0;
+    let partIndex = 0;
+    while (offset < gzipped.length) {
+      const end = Math.min(offset + CHUNK_SIZE, gzipped.length);
+      const chunkBuffer = gzipped.subarray(offset, end);
+      const partPath = `${fullPath}.bin.part${partIndex}`;
+      const partRelPath = `${relPath}.bin.part${partIndex}`;
+      
+      fs.writeFileSync(partPath, chunkBuffer);
+      chunks.push(partRelPath);
+      console.log(`    Part ${partIndex}: ${(chunkBuffer.length / 1024 / 1024).toFixed(2)} MB -> ${partPath}`);
+
+      offset = end;
+      partIndex++;
+    }
+  }
+
+  // Delete original uncompressed file
+  fs.unlinkSync(fullPath);
+  console.log(`  Deleted original file: ${fullPath}`);
+
+  manifest[relPath] = {
+    chunks,
+    gzipped: true,
+    originalSize: stats.size,
+    gzippedSize: gzipped.length
+  };
 }
 
 async function main() {
@@ -79,6 +88,7 @@ async function main() {
 
   console.log(`Scanning for files > 24MB in: ${absoluteTarget}`);
   await processDirectory(absoluteTarget);
+  await Promise.all(largeFiles.map(processLargeFile));
 
   const interceptorSource = path.resolve('scripts', 'fetch-interceptor.js');
   const interceptorTarget = path.join(absoluteTarget, 'core', 'busytex', 'fetch-interceptor.js');
@@ -132,7 +142,10 @@ async function main() {
     fs.mkdirSync(manifestDir, { recursive: true });
   }
 
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  // Sorted so the output is byte-identical regardless of which file finished
+  // compressing first (keeps the content hash stable between deploys).
+  const sortedManifest = Object.fromEntries(Object.keys(manifest).sort().map((k) => [k, manifest[k]]));
+  fs.writeFileSync(manifestPath, JSON.stringify(sortedManifest, null, 2));
   console.log(`Manifest successfully written to: ${manifestPath}`);
   console.log(`Processed ${Object.keys(manifest).length} large files.`);
 }
