@@ -9,26 +9,21 @@
 // adapter-static would otherwise copy twice (static/ -> .svelte-kit/output ->
 // build/).
 //
+// With BUSYTEX_MIRROR_URL set, the staging step first tries the already
+// processed copy in the R2 mirror (busytex-mirror.mjs), which needs no gzip
+// pass at all — that pass competed with Vite for the CPU. Without it, or when
+// that object is missing, it downloads the raw archive and processes it here.
+//
 // When static/core/busytex already exists (a dev checkout after `npm run dev`),
 // Vite copies it into build/ as before and nothing is staged.
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { PROCESSED_ARCHIVE, mirrorUrl, run, streamExtract } from './busytex-mirror.mjs';
 
 const STATIC_BUSYTEX = path.resolve('static/core/busytex');
 const STAGE_ROOT = path.resolve('.busytex');
 const STAGED_BUSYTEX = path.join(STAGE_ROOT, 'core', 'busytex');
 const BUILT_BUSYTEX = path.resolve('build/core/busytex');
-
-function run(cmd, args) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: 'inherit' });
-    child.on('error', reject);
-    child.on('close', (code) =>
-      code === 0 ? resolve() : reject(new Error(`${cmd} ${args.join(' ')} exited with ${code}`)),
-    );
-  });
-}
 
 const hasFiles = (dir) => fs.existsSync(dir) && fs.readdirSync(dir).length > 0;
 const viteBuild = () => run('npx', ['--no-install', 'vite', 'build']);
@@ -42,6 +37,21 @@ async function main() {
 
   const started = Date.now();
   const busytex = (async () => {
+    const processedUrl = hasFiles(STAGED_BUSYTEX) ? null : mirrorUrl(PROCESSED_ARCHIVE);
+    if (processedUrl) {
+      console.log(`Streaming processed BusyTeX assets from ${processedUrl}`);
+      try {
+        fs.mkdirSync(STAGE_ROOT, { recursive: true });
+        await streamExtract(processedUrl, STAGE_ROOT, {
+          gzip: false,
+          expect: 'core/busytex/chunk-manifest.json',
+        });
+        console.log(`✓ BusyTeX assets staged (${((Date.now() - started) / 1000).toFixed(1)} s)`);
+        return;
+      } catch (err) {
+        console.warn(`Processed mirror unavailable (${err.message}); processing the raw archive`);
+      }
+    }
     // fetch-busytex skips the download when the staging copy survived a
     // previous local build.
     await run('node', ['scripts/fetch-busytex.mjs', path.join(STAGE_ROOT, 'core')]);
