@@ -142,7 +142,23 @@ async function initRunner(onStatus: (status: string) => void) {
   }
 }
 
-async function loadAdditionalFiles(): Promise<{ path: string; content: Uint8Array }[]> {
+/**
+ * The bundled LaTeX assets, fetched once per worker and cached — a compile
+ * should not re-fetch `/latex-assets/index.json` and its files every time.
+ */
+let additionalFilesPromise: Promise<{ path: string; content: Uint8Array }[]> | null = null;
+
+function loadAdditionalFiles(): Promise<{ path: string; content: Uint8Array }[]> {
+  additionalFilesPromise ??= fetchAdditionalFiles().catch((err) => {
+    // Don't cache a failure: the next compile should retry rather than inherit
+    // a rejected promise for the lifetime of the worker.
+    additionalFilesPromise = null;
+    throw err;
+  });
+  return additionalFilesPromise;
+}
+
+async function fetchAdditionalFiles(): Promise<{ path: string; content: Uint8Array }[]> {
   const indexRes = await fetch('/latex-assets/index.json');
   if (!indexRes.ok) {
     console.warn("Failed to load latex-assets index.json. Assets may be missing.");
@@ -214,6 +230,12 @@ async function recoverFromPossiblyCorruptedCache(): Promise<void> {
   }
 }
 
+/**
+ * Whether the missing-package cache wipe has already been spent in this worker.
+ * See the guard in the message handler below.
+ */
+let cacheRecoveryAttempted = false;
+
 let compileQueue: Promise<void> = Promise.resolve();
 
 self.onmessage = (e: MessageEvent) => {
@@ -256,7 +278,15 @@ self.onmessage = (e: MessageEvent) => {
     try {
       let result = await runCompile();
 
-      if (!result.success && looksLikeMissingBundledPackage(result.log)) {
+      // At most one cache-wipe recovery per worker: the pattern can't tell a
+      // corrupted cache from a document referencing a package we don't ship,
+      // so without this guard that case re-downloads TeX Live on every retry.
+      if (
+        !result.success &&
+        !cacheRecoveryAttempted &&
+        looksLikeMissingBundledPackage(result.log)
+      ) {
+        cacheRecoveryAttempted = true;
         console.warn(
           "[CompilerWorker] Compile failed with a missing-file error for what should be a bundled package; " +
             "clearing package cache and retrying once in case the local copy is stale/corrupted."
@@ -265,7 +295,6 @@ self.onmessage = (e: MessageEvent) => {
         result = await runCompile();
       }
 
-      console.log("Compilation finished. PDF Bytes:", result.pdf?.length);
       if (!result.success) {
         console.error("Compilation LOG error:", result.log);
       } else if (result.log) {
@@ -292,10 +321,13 @@ self.onmessage = (e: MessageEvent) => {
           missingGraphics: extractMissingGraphics(result.log)
         });
       } else {
-        resetRunner();
+        // Not reset here — an ordinary compile error (e.g. a LaTeX typo)
+        // shouldn't force a full engine reboot on the next attempt.
         self.postMessage({ id, success: false, error: result.log || "Compilation failed" });
       }
     } catch (error: any) {
+      // A thrown error is different: the engine itself is in an unknown state,
+      // so this one really does warrant a reset.
       resetRunner();
       self.postMessage({ id, success: false, error: error.message || "Unknown error in compilation worker" });
     }

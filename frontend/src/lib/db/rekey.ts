@@ -61,6 +61,11 @@ async function rekeyTable<T>(
  *
  * @throws if any record fails to decrypt — that means `oldKey` is wrong, and
  *         continuing would silently destroy data.
+ *
+ * Enforced by construction: a failed `decryptX` marks the record, `encryptX`
+ * refuses to seal a marked record, and every table is re-sealed in full
+ * before the first `bulkPut` — so a wrong key throws with the transaction
+ * untouched, instead of writing blanks over the vault.
  */
 export async function rekeyDatabase(
   oldKey: CryptoKey,

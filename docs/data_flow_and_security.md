@@ -196,10 +196,31 @@ accounts here.
 | `examMcGroups` | `id, examId, orderIndex` | N/A — title, scoring text and order are layout metadata for MC-group LaTeX rendering only, not exercise content; see CLAUDE.md "Multiple Choice (MC) Data Model" | Standard IDB table |
 | `students` | `pseudonymId, examId` | Student PII — `fallbackCode`, `studentName`, `studentNumber` (`payloadCt`) | Opaque Binary Ciphertext / Purged |
 | `submissions` | `id, examId, pseudonymHash` | Total score (`totalScore`), scan image blob (`scanCt`), annotations vector layer (`annotationCt`) | Opaque Binary Ciphertext / Purged |
-| `exerciseScores` | `id, submissionId, exerciseId` | Score value (`score`), selected options | Opaque Binary Ciphertext / Purged |
+| `exerciseScores` | `id, submissionId, exerciseId` | Score value (`score`), selected options, OMR metadata | Opaque Binary Ciphertext / Purged |
 | `omrTemplates` | `id, examId` | Detected bubble/fiducial page rects (`OmrTemplatePayload.pages`), used for MC auto-grading | Opaque Binary Ciphertext / Purged |
 | `exerciseResources` | `id, exerciseId, [exerciseId+filename]` | Raw file bytes (`dataCt`) of a teacher-uploaded LaTeX resource (image, PDF, data file). `filename`, `mimeType` and `byteSize` stay plaintext — they are index/display fields, not content | Opaque Binary Ciphertext / Purged |
 | `auditLog` | `id, action, timestamp` | Action note details | Opaque Binary Ciphertext / Purged |
+
+### Per-exercise scores on the server
+
+In `all-server` mode, per-exercise results live in the server's
+`exercise_scores` table (migration `0021`). Until that table existed they had no
+server home at all: `saveScoreEncrypted()` wrote straight to IndexedDB in every
+mode, and `lockSession()` wipes IndexedDB in `all-server` mode — so grading an
+exam on the server and leaving it for the 60-minute idle timeout destroyed every
+per-question score, MC selection and OMR result. Only the submission's
+`total_score` survived, because that one has a column.
+
+Unlike `scan_submissions.total_score`, there is **no plaintext score column**.
+Score, `selectedOptions` and `omrMeta` are sealed client-side into one
+AES-256-GCM payload (`encryptScore`, `lib/db/dbEncryption.ts`) and the server
+stores only that blob plus the two foreign keys. A per-question plaintext record
+of how a named pupil answered each item reconstructs the answer sheet, which is
+a sharper disclosure than an exam total; statistics that need a number use
+`total_score`.
+
+`hybrid` keeps scores local, like submissions and student identities — they are
+grading results, and that is the axis hybrid mode splits on.
 
 ### Exercise resource files on the server
 
@@ -264,22 +285,55 @@ sequenceDiagram
     participant Server as Backend API
 
     rect rgb(30, 41, 59)
-    note right of User: Local-to-Server Sync
-    User->>Store: Switch to 'all-server'
-    Store->>IDB: Read & Decrypt local records
-    Store->>Server: POST /exams & /exercises
-    Store->>Server: POST /exams/{id}/students (Client-encrypted PII)
-    Store->>Server: POST /exams/{id}/submissions (Encrypted scans)
+    note right of User: Switching storage mode is gated — no implicit sync
+    User->>Store: Request switch to 'all-server'
+    Store->>User: Force export of an encrypted .bgproj archive
+    User->>Store: Confirm
+    Store->>IDB: wipeDatabase() — local store only, server rows untouched
+    Store->>Store: commitStorageMode(mode, token)
+    User->>Store: Import the archive in the new mode
+    Store->>Server: Create records, asking about every collision first
     end
 
     rect rgb(30, 41, 59)
-    note right of User: Server-to-Local Purge
-    User->>Store: Switch to 'all-local'
-    Store->>User: Download encrypted .bgproj backup archive
+    note right of User: Leaving a server mode — the same gate, plus a purge
+    User->>Store: Request switch to 'all-local'
+    Store->>User: Force export of an encrypted .bgproj archive
     Store->>Server: POST /user/purge-server-student-data
     Server-->>Store: Soft-delete student data (7-day temporary retention)
     end
 ```
+
+**Why the switch is gated.** Changing the storage mode changes which store every
+repository talks to, and the data does not follow. The handler this replaced was
+`confirm()` → `wipeDatabase()` → set mode → reload: it destroyed the local
+workspace without uploading any of it, and never checked whether the destination
+already held equivalent data. Signing in also used to flip `all-local` →
+`all-server` silently, after which the next idle lock ran that same wipe.
+
+The mode is therefore not settable from application code at all:
+`storagePolicyStore.updateSetting` is narrowed to `latexCompilation`, and
+`commitStorageMode(mode, token)` accepts only a token held by
+`lib/services/storageModeSwitch.ts`, which refuses to proceed until an export
+has been recorded. The switch state is persisted, so a reload mid-flight resumes
+instead of presenting an emptied workspace with no stated reason.
+
+One case skips the gate: a server sign-in (or a restored authenticated session)
+on a browser whose local workspace holds no exams, exercises, students,
+submissions or scores adopts `all-server` directly
+(`adoptServerStorageIfLocalEmpty`). There is nothing local to lose, and staying
+on `all-local` would show the account an empty vault. A browser with any local
+data keeps its mode.
+
+**Import resolves collisions before it writes.** `decryptArchive()` opens the
+envelope and touches nothing — a wrong password costs nothing, where the old
+flow called `clearAllTables()` *before* checking it. `detectConflicts()` then
+compares the archive against whatever the target store already holds and the
+teacher decides per record: keep existing, take the archive's version, or import
+as a copy. Copies are refused for students and submissions, because a duplicate
+pseudonym is a data-protection problem rather than a convenience. Only then does
+`applyArchive()` write, under the **live** session key — never the archive's,
+which the vault cannot re-derive.
 
 ---
 

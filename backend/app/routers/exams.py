@@ -62,9 +62,12 @@ def _to_exercise_response(
     )
 
 
+ExerciseRow = tuple[Exercise, int, uuid.UUID | None, int | None]
+
+
 def _to_exam_response(
     e: Exam,
-    exercises: list[tuple[Exercise, int, uuid.UUID | None, int | None]],
+    exercises: list[ExerciseRow],
     mc_groups: list[ExamMcGroup],
 ) -> ExamResponse:
     group_members: dict[uuid.UUID, list[tuple[int, uuid.UUID]]] = {}
@@ -106,25 +109,8 @@ def _to_exam_response(
     )
 
 
-async def _fetch_exam_exercises(
-    exam_id: uuid.UUID, db: AsyncSession
-) -> list[tuple[Exercise, int, uuid.UUID | None, int | None]]:
-    result = await db.execute(
-        select(Exercise, ExamExercise.order_index, ExamExercise.mc_group_id, ExamExercise.sub_index)
-        .join(ExamExercise, Exercise.id == ExamExercise.exercise_id)
-        .where(ExamExercise.exam_id == exam_id)
-        .order_by(ExamExercise.order_index.asc(), ExamExercise.sub_index.asc())
-    )
-    rows = result.all()
-    if rows:
-        return [(ex, order, gid, sidx) for ex, order, gid, sidx in rows]
-
-    # Fallback to direct exam_id link for older exams
-    fallback_res = await db.execute(
-        select(Exercise).where(Exercise.exam_id == exam_id).order_by(Exercise.order_index.asc())
-    )
-    old_exs = fallback_res.scalars().all()
-    return [(ex, ex.order_index, None, None) for ex in old_exs]
+async def _fetch_exam_exercises(exam_id: uuid.UUID, db: AsyncSession) -> list[ExerciseRow]:
+    return (await _fetch_exercises_for_exams([exam_id], db))[exam_id]
 
 
 async def _resolve_linkable_exercise(
@@ -195,12 +181,62 @@ def _dedupe_exercise_links(links: list[Any]) -> list[Any]:
 
 
 async def _fetch_exam_mc_groups(exam_id: uuid.UUID, db: AsyncSession) -> list[ExamMcGroup]:
+    return (await _fetch_mc_groups_for_exams([exam_id], db))[exam_id]
+
+
+async def _fetch_exercises_for_exams(
+    exam_ids: list[uuid.UUID], db: AsyncSession
+) -> dict[uuid.UUID, list[ExerciseRow]]:
+    """Every listed exam's exercises in one query (plus one for legacy links)."""
+    by_exam: dict[uuid.UUID, list[ExerciseRow]] = {exam_id: [] for exam_id in exam_ids}
+    if not exam_ids:
+        return by_exam
+
+    result = await db.execute(
+        select(
+            ExamExercise.exam_id,
+            Exercise,
+            ExamExercise.order_index,
+            ExamExercise.mc_group_id,
+            ExamExercise.sub_index,
+        )
+        .join(ExamExercise, Exercise.id == ExamExercise.exercise_id)
+        .where(ExamExercise.exam_id.in_(exam_ids))
+        .order_by(ExamExercise.order_index.asc(), ExamExercise.sub_index.asc())
+    )
+    for exam_id, exercise, order, group_id, sub_index in result.all():
+        by_exam[exam_id].append((exercise, order, group_id, sub_index))
+
+    # Legacy exams link via exercise.exam_id instead of the junction table.
+    legacy_ids = [exam_id for exam_id, rows in by_exam.items() if not rows]
+    if legacy_ids:
+        legacy = await db.execute(
+            select(Exercise)
+            .where(Exercise.exam_id.in_(legacy_ids))
+            .order_by(Exercise.order_index.asc())
+        )
+        for exercise in legacy.scalars().all():
+            if exercise.exam_id is not None:
+                by_exam[exercise.exam_id].append((exercise, exercise.order_index, None, None))
+
+    return by_exam
+
+
+async def _fetch_mc_groups_for_exams(
+    exam_ids: list[uuid.UUID], db: AsyncSession
+) -> dict[uuid.UUID, list[ExamMcGroup]]:
+    """Every listed exam's MC groups in one query, keyed by exam id."""
+    by_exam: dict[uuid.UUID, list[ExamMcGroup]] = {exam_id: [] for exam_id in exam_ids}
+    if not exam_ids:
+        return by_exam
     result = await db.execute(
         select(ExamMcGroup)
-        .where(ExamMcGroup.exam_id == exam_id)
+        .where(ExamMcGroup.exam_id.in_(exam_ids))
         .order_by(ExamMcGroup.order_index.asc())
     )
-    return list(result.scalars().all())
+    for group in result.scalars().all():
+        by_exam[group.exam_id].append(group)
+    return by_exam
 
 
 @router.get("", response_model=list[ExamResponse])
@@ -236,13 +272,13 @@ async def list_exams(
 
     query = query.order_by(Exam.created_at.desc())
     result = await db.execute(query)
-    exams = result.scalars().all()
-    out = []
-    for e in exams:
-        exs = await _fetch_exam_exercises(e.id, db)
-        groups = await _fetch_exam_mc_groups(e.id, db)
-        out.append(_to_exam_response(e, exs, groups))
-    return out
+    exams = list(result.scalars().all())
+
+    exam_ids = [e.id for e in exams]
+    exercises_by_exam = await _fetch_exercises_for_exams(exam_ids, db)
+    groups_by_exam = await _fetch_mc_groups_for_exams(exam_ids, db)
+
+    return [_to_exam_response(e, exercises_by_exam[e.id], groups_by_exam[e.id]) for e in exams]
 
 
 async def _persist_mc_groups(
@@ -328,7 +364,7 @@ async def create_exam(
     if body.mc_groups:
         mc_group_id_map = await _persist_mc_groups(exam.id, body.mc_groups, db)
 
-    linked_exercises: list[tuple[Exercise, int, uuid.UUID | None, int | None]] = []
+    linked_exercises: list[ExerciseRow] = []
     order = 1
 
     # 1. Link existing library exercises via exercise_links (mc-aware)

@@ -28,7 +28,7 @@ describe('storagePolicyStore', () => {
   });
 
   it('persists storageMode changes to localStorage', () => {
-    storagePolicyStore.updateSetting('storageMode', 'all-server');
+    storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'local' });
     expect(get(storagePolicyStore).storageMode).toBe('all-server');
     expect(JSON.parse(localStorage.getItem('bg_storage_policy') || '{}').storageMode).toBe('all-server');
   });

@@ -5,19 +5,23 @@
   export let params;
   import { onMount, onDestroy } from "svelte";
   import { db } from "$lib/db/db";
-  import type { SubmissionRecord, ExerciseRecord, ExamRecord, OmrScoreMeta } from "$lib/db/schema";
+  import type {
+    SubmissionRecord,
+    ExerciseRecord,
+    ExerciseScoreRecord,
+    ExamRecord,
+    OmrScoreMeta,
+  } from "$lib/db/schema";
+  import { scoreRepository } from "$lib/repositories/scoreRepository";
   import {
     loadExamEncrypted,
     loadExamExercisesEncrypted,
-    loadScoresEncrypted,
-    saveScoreEncrypted,
-    deleteScoreEncrypted,
     saveSubmissionEncrypted,
   } from "$lib/db/dbEncryption";
   import { calculateGradeDetail } from "$lib/analytics/gradingKey";
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { sessionStore, isUnlocked } from "$lib/stores/session";
+  import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { decrypt, encrypt } from "$lib/crypto/aesGcm";
   import { get } from "svelte/store";
@@ -54,6 +58,7 @@
     : null;
 
   onMount(async () => {
+    await awaitSessionReady();
     if (!examId) return;
     if (!get(isUnlocked)) {
       await goto("/unlock");
@@ -92,7 +97,7 @@
       gradingStore.setActiveExerciseId(exercises[0].id);
     }
     const key = get(sessionStore).sessionKey;
-    const existingScores = await loadScoresEncrypted(sub.id, key);
+    const existingScores = await scoreRepository.getBySubmissionId(examId, sub.id, key);
     const existingMap = new Map(existingScores.map((es) => [es.exerciseId, es]));
 
     // Check strokes/annotations for exercises with active stamps
@@ -148,32 +153,44 @@
 
       // Save individual exercise scores if graded, delete if reset to ungraded
       const mcState = get(gradingStore).mcState;
+      const toSave: ExerciseScoreRecord[] = [];
+      const toClear: string[] = [];
       for (const ex of exercises) {
         const val = scoreInputs[ex.id];
         if (val !== null && val !== undefined && !isNaN(val)) {
-          const existing = await db.exerciseScores
-            .where("submissionId")
-            .equals(currentSub.id)
-            .and((item) => item.exerciseId === ex.id)
-            .first();
-
           const mc = isMcQuestion(ex) ? mcState[ex.id] : undefined;
-          await saveScoreEncrypted({
-            id: existing ? existing.id : crypto.randomUUID(),
+          toSave.push({
+            id: crypto.randomUUID(),
             submissionId: currentSub.id,
             exerciseId: ex.id,
             score: val,
             selectedOptions: mc?.selectedOptions,
             omrMeta: mc?.omrMeta,
-          }, key);
+          });
         } else {
-          await deleteScoreEncrypted(currentSub.id, ex.id);
+          toClear.push(ex.id);
         }
       }
+      // One write for the whole sheet; the repository reconciles on
+      // (submissionId, exerciseId), so no existing-row lookup is needed.
+      await scoreRepository.saveMany(examId, currentSub.id, toSave, key);
+      for (const exerciseId of toClear) {
+        await scoreRepository.deleteOne(examId, currentSub.id, exerciseId);
+      }
 
-      // Encrypt annotations vector layer
+      // Encrypt annotations vector layer.
+      //
+      // "No strokes" and "no key to encrypt them with" are different answers:
+      // saving without a session key must refuse, not silently clear the
+      // teacher's corrections.
       const currentStrokes = get(gradingStore).currentStrokes;
-      if ($sessionStore.sessionKey && currentStrokes.length > 0) {
+      let clearAnnotations = false;
+      if (!$sessionStore.sessionKey) {
+        throw new Error(
+          "Cannot save grading without a session key — unlock the session and try again.",
+        );
+      }
+      if (currentStrokes.length > 0) {
         const annJson = JSON.stringify(currentStrokes);
         const encAnn = await encrypt(
           $sessionStore.sessionKey,
@@ -184,9 +201,10 @@
       } else {
         currentSub.annotationCt = undefined;
         currentSub.annotationIv = undefined;
+        clearAnnotations = true;
       }
 
-      await saveSubmissionEncrypted(currentSub, key);
+      await submissionRepository.save(currentSub, key, { clearAnnotations });
       submissions[currentIndex] = { ...currentSub };
       submissions = submissions;
 

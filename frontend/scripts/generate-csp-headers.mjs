@@ -89,7 +89,7 @@ export function inlineScriptHashes(html) {
  * @param {string} dir
  * @returns {string[]}
  */
-function htmlFiles(dir) {
+export function htmlFiles(dir) {
   /** @type {string[]} */
   const found = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {

@@ -6,13 +6,13 @@
   import { api } from "$lib/api/client";
   import { db } from "$lib/db/db";
   import {
-    saveScoreEncrypted,
-    deleteScoreEncrypted,
     saveSubmissionEncrypted,
   } from "$lib/db/dbEncryption";
   import { buildSubmissionMap } from "$lib/utils/studentLookup";
+  import { scoreRepository } from "$lib/repositories/scoreRepository";
   import type {
     ExerciseRecord,
+    ExerciseScoreRecord,
     StudentRecord,
     SubmissionRecord,
   } from "$lib/db/schema";
@@ -222,28 +222,26 @@
         scoresMap.set(activeSub.id, subScores);
       }
 
+      // One write per pasted row instead of one per cell, to avoid hundreds
+      // of round-trips in server mode (e.g. 30 students x 10 exercises).
+      const rowScores: ExerciseScoreRecord[] = [];
       for (let exIdx = 0; exIdx < exercises.length; exIdx++) {
         const ex = exercises[exIdx];
         const scoreVal = row.scores[exIdx];
 
         if (scoreVal !== null && scoreVal !== undefined && !isNaN(scoreVal)) {
           if (scoreVal >= 0 && scoreVal <= ex.maxPoints) {
-            const existing = await db.exerciseScores
-              .where("submissionId")
-              .equals(activeSub.id)
-              .and((item) => item.exerciseId === ex.id)
-              .first();
-
-            await saveScoreEncrypted({
-              id: existing ? existing.id : crypto.randomUUID(),
+            rowScores.push({
+              id: crypto.randomUUID(),
               submissionId: activeSub.id,
               exerciseId: ex.id,
               score: scoreVal,
-            }, key);
+            });
             subScores[ex.id] = scoreVal;
           }
         }
       }
+      await scoreRepository.saveMany(examId, activeSub.id, rowScores, key);
 
       // Recompute total
       let isFully = true;

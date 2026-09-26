@@ -213,7 +213,7 @@
         <tbody>
           {#each students as st, i (st.pseudonymId)}
             {@const sub = submissionMap.get(st.pseudonymId)}
-            {@const isScanned = !!(sub?.scanCt || sub?.scanIv)}
+            {@const isScanned = !!(sub?.scanCt || sub?.scanIv || sub?.hasScan)}
             <tr>
               <td>{i + 1}</td>
               <td>

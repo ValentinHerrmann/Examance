@@ -5,7 +5,8 @@
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { api } from "$lib/api/client";
   import { db } from "$lib/db/db";
-  import { saveScoreEncrypted, deleteScoreEncrypted, saveSubmissionEncrypted } from "$lib/db/dbEncryption";
+  import { saveSubmissionEncrypted } from "$lib/db/dbEncryption";
+  import { scoreRepository } from "$lib/repositories/scoreRepository";
   import { buildSubmissionMap } from "$lib/utils/studentLookup";
   import type { ExerciseRecord, StudentRecord, SubmissionRecord } from "$lib/db/schema";
   import { t } from "$lib/i18n";
@@ -95,20 +96,20 @@
 
     // Save or delete individual exercise score
     if (numericVal !== null) {
-      const existing = await db.exerciseScores
-        .where("submissionId")
-        .equals(sub.id)
-        .and((item) => item.exerciseId === activeExercise!.id)
-        .first();
-
-      await saveScoreEncrypted({
-        id: existing ? existing.id : crypto.randomUUID(),
-        submissionId: sub.id,
-        exerciseId: activeExercise.id,
-        score: numericVal,
-      }, key);
+      // No existing-row lookup: the repository reconciles on
+      // (submissionId, exerciseId), which is also the server's unique key.
+      await scoreRepository.saveOne(
+        examId,
+        {
+          id: crypto.randomUUID(),
+          submissionId: sub.id,
+          exerciseId: activeExercise.id,
+          score: numericVal,
+        },
+        key,
+      );
     } else {
-      await deleteScoreEncrypted(sub.id, activeExercise.id);
+      await scoreRepository.deleteOne(examId, sub.id, activeExercise.id);
     }
 
     // Update in-memory scoresMap

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { computeMcVerificationStats } from "../src/lib/grading/mcVerification";
 import { submissionRepository } from "../src/lib/repositories/submissionRepository";
 import { studentRepository } from "../src/lib/repositories/studentRepository";
-import * as dbEncryption from "../src/lib/db/dbEncryption";
+import { scoreRepository } from "../src/lib/repositories/scoreRepository";
 import * as mcExerciseHash from "../src/lib/grading/mcExerciseHash";
 
 vi.mock("../src/lib/repositories/submissionRepository", () => ({
@@ -17,8 +17,10 @@ vi.mock("../src/lib/repositories/studentRepository", () => ({
   },
 }));
 
-vi.mock("../src/lib/db/dbEncryption", () => ({
-  loadScoresEncrypted: vi.fn(),
+vi.mock("../src/lib/repositories/scoreRepository", () => ({
+  scoreRepository: {
+    getByExamId: vi.fn(),
+  },
 }));
 
 vi.mock("../src/lib/grading/mcExerciseHash", () => ({
@@ -48,26 +50,17 @@ describe("computeMcVerificationStats", () => {
     vi.mocked(submissionRepository.getByExamId).mockResolvedValue(mockSubmissions);
     vi.mocked(studentRepository.getByExamId).mockResolvedValue(mockStudents);
 
-    vi.mocked(dbEncryption.loadScoresEncrypted).mockImplementation(async (subId: string) => {
-      if (subId === "sub-1") {
-        return [
-          // mc: two boxes ticked
-          { id: "s1", submissionId: "sub-1", exerciseId: "ex-1", selectedOptions: [0, 2], omrMeta: { confidence: "high", source: "omr" } },
-          // sc: one box ticked, also flagged as uncertain
-          { id: "s2", submissionId: "sub-1", exerciseId: "ex-2", selectedOptions: [0], omrMeta: { confidence: "ambiguous", source: "omr", flaggedOptions: [0] } },
-          // tf: alignment failed — no readable boxes, still 1 detection
-          { id: "s3", submissionId: "sub-1", exerciseId: "ex-3", selectedOptions: [], omrMeta: { confidence: "failed", source: "omr" } },
-        ] as any[];
-      }
-      if (subId === "sub-2") {
-        return [
-          { id: "s4", submissionId: "sub-2", exerciseId: "ex-1", selectedOptions: [1], omrMeta: { confidence: "high", source: "omr" } },
-          { id: "s5", submissionId: "sub-2", exerciseId: "ex-2", selectedOptions: [0], omrMeta: { confidence: "high", source: "omr" } },
-          { id: "s6", submissionId: "sub-2", exerciseId: "ex-3", selectedOptions: [1], omrMeta: { confidence: "ambiguous", source: "omr", flaggedOptions: [1] } },
-        ] as any[];
-      }
-      return [];
-    });
+    vi.mocked(scoreRepository.getByExamId).mockResolvedValue([
+      // sub-1 — mc: two boxes ticked
+      { id: "s1", submissionId: "sub-1", exerciseId: "ex-1", selectedOptions: [0, 2], omrMeta: { confidence: "high", source: "omr" } },
+      // sub-1 — sc: one box ticked, also flagged as uncertain
+      { id: "s2", submissionId: "sub-1", exerciseId: "ex-2", selectedOptions: [0], omrMeta: { confidence: "ambiguous", source: "omr", flaggedOptions: [0] } },
+      // sub-1 — tf: alignment failed — no readable boxes, still 1 detection
+      { id: "s3", submissionId: "sub-1", exerciseId: "ex-3", selectedOptions: [], omrMeta: { confidence: "failed", source: "omr" } },
+      { id: "s4", submissionId: "sub-2", exerciseId: "ex-1", selectedOptions: [1], omrMeta: { confidence: "high", source: "omr" } },
+      { id: "s5", submissionId: "sub-2", exerciseId: "ex-2", selectedOptions: [0], omrMeta: { confidence: "high", source: "omr" } },
+      { id: "s6", submissionId: "sub-2", exerciseId: "ex-3", selectedOptions: [1], omrMeta: { confidence: "ambiguous", source: "omr", flaggedOptions: [1] } },
+    ] as any[]);
 
     const stats = await computeMcVerificationStats("exam-100", null);
 
@@ -101,7 +94,7 @@ describe("computeMcVerificationStats", () => {
     vi.mocked(submissionRepository.getByExamId).mockResolvedValue(mockSubmissions);
     vi.mocked(studentRepository.getByExamId).mockResolvedValue([] as any[]);
 
-    vi.mocked(dbEncryption.loadScoresEncrypted).mockResolvedValue([
+    vi.mocked(scoreRepository.getByExamId).mockResolvedValue([
       { id: "stale", submissionId: "sub-1", exerciseId: "ex-1", selectedOptions: [0], omrMeta: { confidence: "high", source: "omr" } },
       { id: "fresh", submissionId: "sub-1", exerciseId: "ex-1", selectedOptions: [1], omrMeta: { confidence: "ambiguous", source: "omr", flaggedOptions: [1] } },
     ] as any[]);
@@ -128,7 +121,7 @@ describe("computeMcVerificationStats", () => {
     vi.mocked(submissionRepository.getByExamId).mockResolvedValue(mockSubmissions);
     vi.mocked(studentRepository.getByExamId).mockResolvedValue([] as any[]);
 
-    vi.mocked(dbEncryption.loadScoresEncrypted).mockImplementation(async (subId: string) => {
+    const scoresFor = (subId: string): any[] => {
       if (subId === "sub-1") {
         return [
           // Item 1: High confidence, reviewed, confirmed unchanged
@@ -213,7 +206,8 @@ describe("computeMcVerificationStats", () => {
         ] as any[];
       }
       return [];
-    });
+    };
+    vi.mocked(scoreRepository.getByExamId).mockResolvedValue([...scoresFor("sub-1"), ...scoresFor("sub-2")]);
 
     const stats = await computeMcVerificationStats("exam-100", null);
 
