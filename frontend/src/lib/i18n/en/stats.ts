@@ -36,13 +36,12 @@ export const stats: Translations['stats'] = {
             custom: 'Custom',
             standard: 'Standard (50%)',
         },
-        fromPercent: 'from {percent}%',
         provisionalLegend: 'Lighter bar segment: submissions that are not fully graded yet.',
         axisLabel: 'Grade',
     },
     combined: {
         title: '🧩 Grades and percentages',
-        subtitle: 'Background bands: the grades under the grading scale, their height is the count per grade. Bars in front: the percentage distribution.',
+        subtitle: 'Wide, light bars: the grades under the grading scale, labelled with count and share. Narrow bars in front: the percentage distribution.',
         download: {
             group: 'Download chart',
             svg: 'Download as SVG vector graphic (transparent background)',

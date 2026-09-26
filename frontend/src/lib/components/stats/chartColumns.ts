@@ -8,7 +8,17 @@
  */
 import { gradeColorVar, type GradeDistributionBucket } from '$lib/analytics/gradingKey';
 import type { PercentageHistogramBin } from '$lib/analytics/stats';
-import type { TranslationKey, TranslationVars } from '$lib/i18n';
+
+/**
+ * One run of caption text. `dynamic` marks values that change while grading
+ * continues (counts, shares); the chart colours them apart from static
+ * labels (grades, grade names, percentage ranges).
+ */
+export interface CaptionPart {
+  text: string;
+  dynamic?: boolean;
+}
+export type Caption = CaptionPart[];
 
 export interface ChartColumn {
   /** Extent on the chart's domain (grade slots, or 0–100 %). */
@@ -20,8 +30,10 @@ export interface ChartColumn {
   color: string;
   /** Category label, one entry per line; rotated labels use the first two. */
   lines: string[];
-  /** Text above the bar; falls back to the bare count where it does not fit. */
+  /** Text above the bar (a dynamic value); falls back to the bare count where it does not fit. */
   value: string;
+  /** Caption candidates, longest first; the chart shows the first that fits (overrides `value`). */
+  valueOptions?: Caption[];
   /** Hover tooltip. */
   title: string;
   /** Keeps its axis label when crowded labels are thinned. */
@@ -33,24 +45,21 @@ export interface ChartLayer {
   /** Share of each column's slot the bar fills. */
   fill: number;
   opacity?: number;
-  /**
-   * Where the category labels go: `'axis'` puts one label per column
-   * directly under the baseline; `'group'` puts a second row under the axis
-   * row, centred under each column's whole slot — for a backdrop layer whose
-   * columns span several foreground columns.
-   */
-  labels: 'axis' | 'group';
+  /** `'axis'`: one label per column directly under the baseline; `'none'`: no category labels. */
+  labels: 'axis' | 'none';
   /** Draw `value` above each non-empty bar. */
   values: boolean;
   /**
-   * Draw columns as a light backdrop band (faint tint, a cap line at the
-   * count, thin side borders) instead of solid bars — the merged chart's
-   * grade layer, so the percentage bars in front stay the focus.
+   * Draw columns as wide translucent bars, meant to sit behind a narrower
+   * layer — the merged chart's grades. Their caption (`valueOptions`) goes
+   * above each bar, even for a count of zero.
    */
   band?: boolean;
 }
 
-type Translate = (key: TranslationKey, vars?: TranslationVars) => string;
+// Separator before a dynamic run; the trailing no-break space survives SVG whitespace collapsing.
+const SEP = ' ·\u00a0';
+
 type Percent = (fraction: number, digits?: number) => string;
 export type NumberFormat = (value: number) => string;
 
@@ -59,36 +68,53 @@ function countWithShare(count: number, total: number, percent: Percent): string 
   return total > 0 ? `${count} (${percent(count / total, 0)})` : `${count}`;
 }
 
+/**
+ * The percentage range each grade covers, as `[lo, hi]`. `buckets` is
+ * best-first; a grade's high end is the low end of the grade before it
+ * (100 % for the best grade), and the worst grade always reaches down to 0 %
+ * (everything below the lowest cutoff grades as the worst row).
+ */
+function gradeRanges(buckets: GradeDistributionBucket[]): [number, number][] {
+  const clamp = (v: number) => Math.min(100, Math.max(0, v));
+  const los = buckets.map((b, i) => (i === buckets.length - 1 ? 0 : clamp(b.minPercentage)));
+  return los.map((lo, i) => [lo, clamp(i === 0 ? 100 : los[i - 1])]);
+}
+
+/** "100–85 %": upper bound first, matching the axes that run from 100 % down. */
+function rangeLabel([lo, hi]: [number, number], num: NumberFormat): string {
+  return `${num(hi)}–${num(lo)} %`;
+}
+
 /** One slot per grade, best grade on the left (the Notenspiegel convention). */
 export function gradeColumns(
   buckets: GradeDistributionBucket[],
-  t: Translate,
+  num: NumberFormat,
   percent: Percent
 ): ChartColumn[] {
   const total = buckets.reduce((sum, b) => sum + b.count, 0);
+  const ranges = gradeRanges(buckets);
   return buckets.map((b, i) => {
-    const from = t('stats.gradeDistribution.fromPercent', { percent: b.minPercentage });
+    const range = rangeLabel(ranges[i], num);
     return {
       from: i,
       to: i + 1,
       count: b.count,
       provisional: b.provisionalCount,
       color: gradeColorVar(i, buckets.length),
-      lines: [b.grade, b.label, from],
+      lines: [b.grade, b.label, range],
       value: b.count > 0 ? countWithShare(b.count, total, percent) : `${b.count}`,
-      title: `${b.grade} ${b.label} (${from}): ${b.count}`,
+      title: `${b.grade} ${b.label} (${range}): ${b.count}`,
     };
   });
 }
 
 /**
  * Each grade as a band over the percentage range it covers — the merged
- * chart's backdrop. `buckets` is best-first; a band's high end is the low
- * end of the band before it (100 % for the best grade), except the worst
- * band always reaches down to 0 % (everything below the lowest cutoff grades
- * as the worst row). Mirrored onto the same 100→0 axis as `binColumns`.
- * Labels match the grade chart: grade, grade label, and "N (P %)" — also
- * for empty grades, so a zero reads as zero rather than as missing data.
+ * chart's backdrop, mirrored onto the same 100→0 axis as `binColumns`.
+ * The caption above each bar matches the grade chart — "2 Gut · 4 (67 %)",
+ * with the grade static and the count dynamic, shortened step by step where
+ * the bar is narrow — and is shown for empty grades too, so a zero reads as
+ * zero rather than as missing data.
  */
 export function gradeBands(
   buckets: GradeDistributionBucket[],
@@ -96,21 +122,26 @@ export function gradeBands(
   percent: Percent
 ): ChartColumn[] {
   const total = buckets.reduce((sum, b) => sum + b.count, 0);
-  const clamp = (v: number) => Math.min(100, Math.max(0, v));
-  const los = buckets.map((b, i) => (i === buckets.length - 1 ? 0 : clamp(b.minPercentage)));
+  const ranges = gradeRanges(buckets);
   return buckets
     .map((b, i) => {
-      const lo = los[i];
-      const hi = clamp(i === 0 ? 100 : los[i - 1]);
+      const [lo, hi] = ranges[i];
+      const share = countWithShare(b.count, total, percent);
       return {
         from: 100 - hi,
         to: 100 - lo,
         count: b.count,
         provisional: b.provisionalCount,
         color: gradeColorVar(i, buckets.length),
-        lines: [b.grade, b.label, countWithShare(b.count, total, percent)],
+        lines: [b.grade, b.label],
         value: `${b.count}`,
-        title: `${b.grade} ${b.label} (${num(lo)}–${num(hi)} %): ${b.count}`,
+        valueOptions: [
+          [{ text: `${b.grade} ${b.label}${SEP}` }, { text: share, dynamic: true }],
+          [{ text: `${b.grade}${SEP}` }, { text: share, dynamic: true }],
+          [{ text: `${b.grade}${SEP}` }, { text: `${b.count}`, dynamic: true }],
+          [{ text: b.grade }],
+        ],
+        title: `${b.grade} ${b.label} (${rangeLabel([lo, hi], num)}): ${b.count}`,
       };
     })
     .filter((c) => c.to > c.from);
@@ -129,9 +160,10 @@ export function binColumns(bins: PercentageHistogramBin[], num: NumberFormat): C
       count: b.count,
       provisional: b.provisionalCount,
       color: b.colorVar,
-      lines: [`${num(b.binStart)}–${num(b.binEnd)}`],
+      // Upper bound first: the axis runs from 100 % down, so "100–95" reads in axis order.
+      lines: [`${num(b.binEnd)}–${num(b.binStart)}`],
       value: `${b.count}`,
-      title: `${num(b.binStart)}–${num(b.binEnd)} %: ${b.count}`,
+      title: `${num(b.binEnd)}–${num(b.binStart)} %: ${b.count}`,
       anchor: b.startsGrade || b.binEnd === 100,
     }))
     .reverse();

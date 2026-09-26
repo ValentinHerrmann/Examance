@@ -34,13 +34,12 @@ export const stats = {
             custom: 'Benutzerdefiniert',
             standard: 'Standard (50%)',
         },
-        fromPercent: 'ab {percent}%',
         provisionalLegend: 'Heller Balkenteil: Abgaben, die noch nicht vollständig korrigiert sind.',
         axisLabel: 'Note',
     },
     combined: {
         title: '🧩 Noten- und Prozentverteilung',
-        subtitle: 'Hinterlegte Bänder: die Noten nach Bewertungsmaßstab, ihre Höhe ist die Anzahl je Note. Balken davor: die Prozentverteilung.',
+        subtitle: 'Breite, helle Balken: die Noten nach Bewertungsmaßstab, beschriftet mit Anzahl und Anteil. Schmale Balken davor: die Prozentverteilung.',
         download: {
             group: 'Diagramm herunterladen',
             svg: 'Als SVG-Vektorgrafik herunterladen (transparenter Hintergrund)',

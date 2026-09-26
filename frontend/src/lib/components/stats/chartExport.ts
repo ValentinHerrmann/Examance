@@ -165,36 +165,52 @@ export async function svgToPdf(markup: string, title: string): Promise<Blob> {
       }
       case 'path': {
         // drawSvgPath flips the y axis itself around the given origin.
+        const stroke = color(el.getAttribute('stroke'));
         page.drawSvgPath(el.getAttribute('d') ?? '', {
           x: 0,
           y: H,
           color: color(el.getAttribute('fill')),
           opacity: opacity * num(el, 'fill-opacity', 1),
+          ...(stroke && {
+            borderColor: stroke,
+            borderWidth: num(el, 'stroke-width', 1),
+            borderOpacity: opacity * num(el, 'stroke-opacity', 1),
+          }),
         });
         return;
       }
       case 'text': {
-        // Standard fonts are WinAnsi: map the narrow no-break space Intl uses to a plain one.
-        const text = (el.textContent ?? '').trim().replace(/\u202f/g, '\u00a0');
-        if (!text) return;
+        // A caption may be split into <tspan> runs of different colours (static vs. dynamic
+        // values); draw them one after another along the baseline.
+        const tspans = Array.from(el.children).filter((c) => c.tagName === 'tspan');
+        const runs = (tspans.length ? tspans : [el]).map((r) => ({
+          // Standard fonts are WinAnsi: map the narrow no-break space Intl uses to a plain one.
+          text: (r.textContent ?? '').replace(/\u202f/g, '\u00a0'),
+          fill: r.getAttribute('fill') ?? el.getAttribute('fill'),
+        }));
+        if (!runs.some((r) => r.text.trim())) return;
         const size = num(el, 'font-size', 10);
         const font = num(el, 'font-weight', 400) >= 600 ? bold : regular;
-        const textWidth = font.widthOfTextAtSize(text, size);
+        const widths = runs.map((r) => font.widthOfTextAtSize(r.text, size));
+        const total = widths.reduce((a, b) => a + b, 0);
         const shift = { start: 0, middle: 0.5, end: 1 }[el.getAttribute('text-anchor') ?? 'start'] ?? 0;
         // The chart only rotates labels about their own anchor point.
         const rot = /rotate\(\s*(-?[\d.]+)/.exec(el.getAttribute('transform') ?? '');
         const angle = rot ? -Number(rot[1]) : 0; // SVG is y-down, PDF y-up
-        const rad = (angle * Math.PI) / 180;
-        const ax = num(el, 'x');
-        const ay = H - num(el, 'y');
-        page.drawText(text, {
-          x: ax - shift * textWidth * Math.cos(rad),
-          y: ay - shift * textWidth * Math.sin(rad),
-          size,
-          font,
-          color: color(el.getAttribute('fill')) ?? rgb(0, 0, 0),
-          opacity,
-          rotate: degrees(angle),
+        const cos = Math.cos((angle * Math.PI) / 180);
+        const sin = Math.sin((angle * Math.PI) / 180);
+        let offset = -shift * total;
+        runs.forEach((r, k) => {
+          page.drawText(r.text, {
+            x: num(el, 'x') + offset * cos,
+            y: H - num(el, 'y') + offset * sin,
+            size,
+            font,
+            color: color(r.fill) ?? rgb(0, 0, 0),
+            opacity,
+            rotate: degrees(angle),
+          });
+          offset += widths[k];
         });
         return;
       }

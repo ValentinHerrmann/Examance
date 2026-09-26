@@ -31,13 +31,13 @@
     : 'stats.gradeDistribution.presets.standard';
 
   $: num = (v: number) => $fmt.number(v, { maximumFractionDigits: 2 });
-  $: grades = gradeColumns(stats?.gradeBuckets ?? [], $t, $fmt.percent);
+  $: grades = gradeColumns(stats?.gradeBuckets ?? [], num, $fmt.percent);
   $: bins = binColumns(stats?.bins ?? [], num);
   $: bands = gradeBands(stats?.gradeBuckets ?? [], num, $fmt.percent);
   let combinedLayers: ChartLayer[];
   $: combinedLayers = [
-    { columns: bands, fill: 1, labels: 'group', values: false, band: true },
-    { columns: bins, fill: 0.5, labels: 'axis', values: true },
+    { columns: bands, fill: 1, labels: 'none', values: true, band: true },
+    { columns: bins, fill: 0.7, labels: 'axis', values: true },
   ];
   $: provisional = (stats?.results ?? []).some((r) => !r.isComplete);
   $: histogramSubtitle = stats
@@ -55,6 +55,7 @@
   const EXPORT_PLOT = 420;
   type ExportFormat = 'svg' | 'pdf' | 'png';
   const EXPORT_FORMATS: ExportFormat[] = ['svg', 'pdf', 'png'];
+
   let exportSvg: SVGSVGElement | null = null;
   let exporting: ExportFormat | null = null;
 
@@ -81,7 +82,7 @@
   }
 </script>
 
-<PageShell width="wide">
+<PageShell width="full">
   <PageHeader title={$t('stats.page.title')} />
 
   {#if submissionCount > 0}
@@ -102,28 +103,8 @@
 
   {#if stats?.summary}
     <StatsCards {stats} {totalMaxPoints} />
-    <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-      <Card>
-        <h3 class="text-base font-semibold text-content">{$t('stats.gradeDistribution.title')}</h3>
-        <p class="mb-4 mt-1 text-xs text-muted">{$t('stats.gradeDistribution.gradingKeyPrefix')} {$t(preset)}</p>
-        <ColumnChart
-          domain={grades.length}
-          layers={[{ columns: grades, fill: 0.72, labels: 'axis', values: true }]}
-          axisLabel={$t('stats.gradeDistribution.axisLabel')}
-          ariaLabel={$t('stats.gradeDistribution.title')}
-        />
-      </Card>
-      <Card>
-        <h3 class="text-base font-semibold text-content">{$t('stats.submissionHistogram.title')}</h3>
-        <p class="mb-4 mt-1 text-xs text-muted">{histogramSubtitle}</p>
-        <ColumnChart
-          domain={100}
-          layers={[{ columns: bins, fill: 0.72, labels: 'axis', values: true }]}
-          axisLabel={$t('stats.submissionHistogram.axisLabel')}
-          ariaLabel={$t('stats.submissionHistogram.title')}
-        />
-      </Card>
-      <Card class="xl:col-span-2">
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <Card class="lg:col-span-2">
         <div class="mb-4 flex flex-wrap items-start justify-between gap-2">
           <div class="min-w-0 flex-1 basis-64">
             <h3 class="text-base font-semibold text-content">{$t('stats.combined.title')}</h3>
@@ -146,6 +127,7 @@
         </div>
         <ColumnChart
           domain={100}
+          plotHeight={260}
           layers={combinedLayers}
           axisLabel={$t('stats.submissionHistogram.axisLabel')}
           ariaLabel={$t('stats.combined.title')}
@@ -163,10 +145,30 @@
           </div>
         {/if}
       </Card>
+      <Card>
+        <h3 class="text-base font-semibold text-content">{$t('stats.gradeDistribution.title')}</h3>
+        <p class="mb-4 mt-1 text-xs text-muted">{$t('stats.gradeDistribution.gradingKeyPrefix')} {$t(preset)}</p>
+        <ColumnChart
+          domain={grades.length}
+          layers={[{ columns: grades, fill: 0.72, labels: 'axis', values: true }]}
+          axisLabel={$t('stats.gradeDistribution.axisLabel')}
+          ariaLabel={$t('stats.gradeDistribution.title')}
+        />
+      </Card>
+      <Card>
+        <h3 class="text-base font-semibold text-content">{$t('stats.submissionHistogram.title')}</h3>
+        <p class="mb-4 mt-1 text-xs text-muted">{histogramSubtitle}</p>
+        <ColumnChart
+          domain={100}
+          layers={[{ columns: bins, fill: 0.72, labels: 'axis', values: true }]}
+          axisLabel={$t('stats.submissionHistogram.axisLabel')}
+          ariaLabel={$t('stats.submissionHistogram.title')}
+        />
+      </Card>
     </div>
     {#if provisional}
       <p class="mt-2 flex items-center gap-2 text-xs text-subtle">
-        <span class="inline-block h-2 w-4 rounded-sm bg-muted opacity-45"></span>
+        <span class="inline-block h-2 w-4 rounded-sm bg-content opacity-70"></span>
         {$t('stats.gradeDistribution.provisionalLegend')}
       </p>
     {/if}

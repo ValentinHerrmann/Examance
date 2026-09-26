@@ -7,21 +7,24 @@
    * callers are responsible for that ordering, this component just draws.
    *
    * All category labels sit below the plot, never above it (that space is
-   * for the count values over the bars): an `'axis'` layer gets one label
-   * row directly under the baseline, a `'group'` layer gets a second row
-   * below that, bracketing each of its (wider) column slots. When axis
+   * for the count values over the bars): the `'axis'` layer gets one label
+   * row directly under the baseline. When axis
    * labels are rotated and would collide, they are thinned — columns marked
    * `anchor` always keep their label, others are dropped greedily so
    * neighbouring labels stay at least `LABEL_GAP` px apart; every column
    * keeps its bar and tooltip regardless.
    *
-   * A layer flagged `band` is drawn as a faint backdrop (tint, cap line at
-   * its count, side borders) rather than solid bars. Every colour is a
+   * A layer flagged `band` is drawn as wide, translucent, unframed bars
+   * behind the other layers (the merged chart's grades), each a few px taller
+   * than its count so a percent bar holding the whole grade still ends below
+   * it. The bars in front cast a soft shadow onto them. The band's caption
+   * goes above each bar, and a foreground value that would collide with it
+   * is dropped (the tooltip still has it). Every colour is a
    * `var(--color-*)` string, so `chartExport.ts` can re-theme the serialised
    * `svgEl` with literal values.
    */
   import { countAxis } from '$lib/analytics/stats';
-  import type { ChartColumn, ChartLayer } from './chartColumns';
+  import type { Caption, ChartColumn, ChartLayer } from './chartColumns';
 
   export let layers: ChartLayer[];
   /** Domain end: the number of grade slots, or 100 for percentages. */
@@ -39,7 +42,17 @@
   const CHAR = 5.8; // approximate advance of a 10px label character
   const MIN_WIDTH = 300; // narrower containers scale the drawing down instead of clipping it
   const LABEL_GAP = 12; // min px between centres of rotated 10px labels
-  const top = 12; // count values above bars fit under this: countAxis adds +1 headroom
+  // Band layer look (settled by side-by-side review on the stats page).
+  const BAND_FILL = 0.62;
+  // Dark grades get a lighter band, or their percent bars in front barely stand out.
+  const BAND_FILL_BY_COLOR: Record<string, number> = {
+    'var(--color-grade-1)': 0.45,
+    'var(--color-grade-6)': 0.32,
+  };
+  const BAND_EDGE_GAP = 2; // min px between neighbouring grade bars
+  const BAND_PAD = 4; // room around the bars in front: above the count, and left/right of the outermost bars
+  const SHADOW = 2; // px depth of the shadow foreground bars cast onto the band
+  const SHADOW_OPACITY = 0.1; // per stacked shadow layer
 
   let width = 0;
   $: vw = Math.max(width, MIN_WIDTH);
@@ -47,10 +60,12 @@
   $: px = (d: number) => GUTTER + (d / domain) * plotW;
   $: axis = countAxis(layers.flatMap((l) => l.columns.map((c) => c.count)), 5);
   $: h = (count: number) => (count / axis.max) * plotHeight;
+  // Count values above bars fit under `top` (countAxis adds +1 headroom); grade-bar padding needs its own room.
+  $: top = 12 + (layers.some((l) => l.band) ? BAND_PAD : 0);
   $: base = top + plotHeight;
 
   $: axisLayer = layers.find((l) => l.labels === 'axis');
-  $: groupLayer = layers.find((l) => l.labels === 'group');
+  $: bandLayer = layers.find((l) => l.band);
   $: axisCols = axisLayer?.columns ?? [];
   $: axisCx = axisCols.map((c) => px(c.from) + (px(c.to) - px(c.from)) / 2);
   $: narrowest = Math.min(...axisCols.map((c) => px(c.to) - px(c.from)));
@@ -90,14 +105,65 @@
   $: thinning = rotate && narrowest < LABEL_GAP;
   $: labelSet = thinning ? thin(axisCols, axisCx) : null;
 
-  $: groupMaxLines = Math.max(0, ...(groupLayer?.columns ?? []).map((c) => c.lines.length));
   $: axisRowHeight = rotate ? 14 + longest * (angle === -90 ? 1 : 0.72) : 6 + maxLines * LINE;
-  $: groupRowHeight = 8 + Math.min(3, groupMaxLines) * LINE + 2;
-  // The axis title sits right under the axis row it names, above any group row.
-  $: titleRowHeight = axisLabel ? LINE + 4 : 0;
-  $: groupTop = base + axisRowHeight + titleRowHeight + 4;
-  $: bottom = axisRowHeight + titleRowHeight + (groupLayer ? groupRowHeight : 0);
+  $: bottom = axisRowHeight + (axisLabel ? LINE + 4 : 0);
   $: height = base + bottom;
+
+  /** The longest caption option that fits `w`; `null` when not even the shortest does. */
+  function fitValue(c: ChartColumn, w: number): Caption | null {
+    const options: Caption[] = c.valueOptions ?? [
+      [{ text: c.value, dynamic: true }],
+      [{ text: String(c.count), dynamic: true }],
+    ];
+    const length = (o: Caption) => o.reduce((n, p) => n + p.text.length, 0);
+    return options.find((o) => length(o) * CHAR * 1.1 <= w + 2) ?? null;
+  }
+
+  // Values that move while grading continues (counts, shares) in the full text colour; static
+  // labels (grades, names, ranges) in the muted grey of the axis labels.
+  const partFill = (dynamic?: boolean) => (dynamic ? 'var(--color-content)' : 'var(--color-muted)');
+
+  /** Drawn height of a grade bar: its count plus `bandPad` headroom, or a 3px stub when empty. */
+  $: frontLayer = bandLayer ? layers.find((l) => !l.band) : undefined;
+
+  /**
+   * Horizontal box of a column. A bar in front of a band is narrowed where its
+   * slot is tight, so `BAND_PAD` still fits beside it inside its grade bar.
+   */
+  function box(c: ChartColumn, layer: ChartLayer): { x: number; w: number } {
+    const slot = px(c.to) - px(c.from);
+    const fill =
+      layer === frontLayer
+        ? Math.max(0.4, Math.min(layer.fill, 1 - (2 * BAND_PAD + BAND_EDGE_GAP) / slot))
+        : layer.fill;
+    const w = Math.max(2, slot * fill);
+    return { x: px(c.from) + (slot - w) / 2, w };
+  }
+
+  /**
+   * A grade bar hugs the bars in front of it: `BAND_PAD` beyond the outermost
+   * ones on each side (as above the count), but never closer than
+   * `BAND_EDGE_GAP` to its neighbours.
+   */
+  function bandBox(b: ChartColumn): { x: number; w: number } {
+    const lo = px(b.from) + BAND_EDGE_GAP / 2;
+    const hi = px(b.to) - BAND_EDGE_GAP / 2;
+    const inside = (frontLayer?.columns ?? []).filter((c) => c.from >= b.from - 1e-9 && c.to <= b.to + 1e-9);
+    if (!frontLayer || inside.length === 0) return { x: lo, w: Math.max(2, hi - lo) };
+    const first = box(inside.reduce((a, c) => (c.from < a.from ? c : a)), frontLayer);
+    const last = box(inside.reduce((a, c) => (c.to > a.to ? c : a)), frontLayer);
+    const left = Math.max(lo, first.x - BAND_PAD);
+    const right = Math.min(hi, last.x + last.w + BAND_PAD);
+    return { x: left, w: Math.max(2, right - left) };
+  }
+
+  $: bandHeight = (count: number) => (count > 0 ? h(count) + BAND_PAD : 3);
+
+  /** Whether a foreground value at `cx` would overlap the band caption above it. */
+  function clashesWithBand(cx: number, count: number): boolean {
+    const band = bandLayer?.columns.find((b) => px(b.from) <= cx && cx <= px(b.to));
+    return !!band && Math.abs(bandHeight(band.count) - h(count)) < 15;
+  }
 
   /** A bar path with rounded top corners, anchored flat on the baseline. */
   function bar(x: number, y: number, w: number, hgt: number, round: boolean): string {
@@ -124,32 +190,73 @@
       {#each layers as layer}
         {#each layer.columns as c, i}
           {@const slot = px(c.to) - px(c.from)}
-          {@const w = Math.max(2, slot * layer.fill)}
-          {@const x = px(c.from) + (slot - w) / 2}
+          {@const front = !!bandLayer && !layer.band}
+          {@const { x, w } = box(c, layer)}
           {@const cx = x + w / 2}
           {@const confirmed = Math.max(h(c.count - c.provisional), c.count === 0 ? 3 : 0)}
           {#if layer.band}
-            {@const bh = Math.max(2, h(c.count))}
+            {@const { x: bx, w: bw } = bandBox(c)}
+            {@const bh = bandHeight(c.count)}
+            {@const caption = fitValue(c, bw)}
             <g>
               <title>{c.title}</title>
-              <rect {x} y={base - bh} width={w} height={bh} fill={c.color} opacity="0.1" />
-              <line x1={x} x2={x} y1={base - bh} y2={base} stroke={c.color} stroke-opacity="0.35" />
-              <line x1={x + w} x2={x + w} y1={base - bh} y2={base} stroke={c.color} stroke-opacity="0.35" />
-              <line x1={x} x2={x + w} y1={base - bh} y2={base - bh} stroke={c.color} stroke-width="1.5" />
+              {#if c.count > 0}
+                <path
+                  d={bar(bx, base - bh, bw, bh, true)}
+                  fill={c.color}
+                  fill-opacity={BAND_FILL_BY_COLOR[c.color] ?? BAND_FILL}
+                />
+              {:else}
+                <path d={bar(bx, base - bh, bw, bh, false)} fill={c.color} />
+              {/if}
             </g>
+            {#if layer.values && caption}
+              <text
+                x={bx + bw / 2}
+                y={base - bh - 6}
+                text-anchor="middle"
+                font-size="11"
+                font-weight="700"
+                >{#each caption as part}<tspan fill={partFill(part.dynamic)}>{part.text}</tspan>{/each}</text
+              >
+            {/if}
           {:else}
+            {@const fill = c.color}
+            {#if front && c.count > 0}
+              <!-- Soft cast shadow: offset copies, each a step further right and down. -->
+              <g pointer-events="none">
+                {#each Array.from({ length: SHADOW }, (_, k) => k + 1) as k}
+                  <path
+                    d={bar(x + k, base - h(c.count) + k, w, Math.max(0, h(c.count) - k), true)}
+                    fill="#000000"
+                    opacity={SHADOW_OPACITY}
+                  />
+                {/each}
+              </g>
+            {/if}
             <g opacity={layer.opacity ?? 1}>
               <title>{c.title}</title>
-              <path d={bar(x, base - confirmed, w, confirmed, c.provisional === 0)} fill={c.color} />
+              <path d={bar(x, base - confirmed, w, confirmed, c.provisional === 0)} {fill} />
               {#if c.provisional > 0}
-                <path d={bar(x, base - h(c.count), w, h(c.provisional), true)} fill={c.color} opacity="0.45" />
+                <!-- Provisional share: the grade colour lightened with a white wash rather than made
+                     translucent, so it keeps its hue over the grade bars and never reads darker than
+                     a confirmed bar (or an empty one) of the same grade. -->
+                <path d={bar(x, base - h(c.count), w, h(c.provisional), true)} {fill} />
+                <path d={bar(x, base - h(c.count), w, h(c.provisional), true)} fill="#ffffff" opacity="0.4" />
               {/if}
             </g>
           {/if}
-          {#if layer.values && c.count > 0 && String(c.count).length * CHAR * 1.1 <= slot + 2}
-            <text x={cx} y={base - h(c.count) - 5} text-anchor="middle" font-size="11" fill="var(--color-content)">
-              {c.value.length * CHAR * 1.1 > slot ? c.count : c.value}
-            </text>
+          {#if !layer.band && layer.values && c.count > 0 && !clashesWithBand(cx, c.count)}
+            {@const value = fitValue(c, slot)}
+            {#if value}
+              <text
+                x={cx}
+                y={base - h(c.count) - 5}
+                text-anchor="middle"
+                font-size="11"
+                >{#each value as part}<tspan fill={partFill(part.dynamic)}>{part.text}</tspan>{/each}</text
+              >
+            {/if}
           {/if}
           {#if layer.labels === 'axis'}
             {#if rotate}
@@ -179,43 +286,10 @@
         {/each}
       {/each}
 
-      {#if groupLayer}
-        {#each groupLayer.columns as c}
-          {@const slot = px(c.to) - px(c.from)}
-          {@const cx = px(c.from) + slot / 2}
-          {@const y0 = groupTop}
-          <line
-            x1={px(c.from) + 2}
-            x2={px(c.to) - 2}
-            y1={y0}
-            y2={y0}
-            stroke={c.color}
-            stroke-width="2"
-            stroke-linecap="round"
-          />
-          {#if c.lines[0] && c.lines[0].length * CHAR * 1.2 <= slot - 2}
-            <text x={cx} y={y0 + 14} text-anchor="middle" font-size="12" font-weight="700" fill="var(--color-content)"
-              >{c.lines[0]}</text
-            >
-          {/if}
-          {#each c.lines.slice(1, 3) as line, li}
-            {#if line.length * CHAR <= slot - 2}
-              <text
-                x={cx}
-                y={y0 + 14 + (li + 1) * LINE}
-                text-anchor="middle"
-                font-size="10"
-                fill={li === 0 ? 'var(--color-muted)' : 'var(--color-subtle)'}>{line}</text
-              >
-            {/if}
-          {/each}
-        {/each}
-      {/if}
-
       <line x1={GUTTER} x2={vw - RIGHT} y1={base} y2={base} stroke="var(--color-line-strong)" />
-      {#if groupLayer}
+      {#if bandLayer}
         <!-- Grade boundaries: a short tick under the axis at every band edge. -->
-        {#each groupLayer.columns as c}
+        {#each bandLayer.columns as c}
           {#each [px(c.from), px(c.to)] as tx}
             <line x1={tx} x2={tx} y1={base} y2={base + 4} stroke="var(--color-line-strong)" />
           {/each}

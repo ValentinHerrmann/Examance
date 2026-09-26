@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyPalette, CHART_PALETTE } from '../src/lib/components/stats/chartExport';
-import { gradeBands } from '../src/lib/components/stats/chartColumns';
+import { gradeBands, gradeColumns } from '../src/lib/components/stats/chartColumns';
 import type { GradeDistributionBucket } from '../src/lib/analytics/gradingKey';
 
 describe('applyPalette', () => {
@@ -26,9 +26,20 @@ describe('gradeBands labels', () => {
   const percent = (f: number) => `${Math.round(f * 100)} %`;
   const num = (v: number) => String(v);
 
-  it('names grade, label and "N (P %)", also for empty grades', () => {
+  it('captions each band like the grade chart, static grade apart from the dynamic count', () => {
     const bands = gradeBands([bucket('1', 'Sehr gut', 50, 3), bucket('2', 'Gut', 0, 0)], num, percent);
-    expect(bands[0].lines).toEqual(['1', 'Sehr gut', '3 (100 %)']);
-    expect(bands[1].lines).toEqual(['2', 'Gut', '0 (0 %)']);
+    const flat = (o: { text: string; dynamic?: boolean }[]) => o.map((p) => (p.dynamic ? `[${p.text}]` : p.text)).join('');
+    expect(bands[0].valueOptions?.map(flat)).toEqual([
+      '1 Sehr gut ·\u00a0[3 (100 %)]',
+      '1 ·\u00a0[3 (100 %)]',
+      '1 ·\u00a0[3]',
+      '1',
+    ]);
+    expect(flat(bands[1].valueOptions?.[0] ?? [])).toBe('2 Gut ·\u00a0[0 (0 %)]');
+  });
+
+  it('labels grade ranges upper bound first, the worst grade down to 0 %', () => {
+    const cols = gradeColumns([bucket('1', 'Sehr gut', 50, 3), bucket('2', 'Gut', 20, 0)], num, percent);
+    expect(cols.map((c) => c.lines[2])).toEqual(['100–50 %', '50–0 %']);
   });
 });
