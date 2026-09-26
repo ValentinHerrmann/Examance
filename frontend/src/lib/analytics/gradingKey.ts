@@ -55,6 +55,15 @@ function cutoffIndex(sorted: GradeCutoff[], percentage: number): number {
   return idx === -1 ? sorted.length - 1 : idx;
 }
 
+/**
+ * The lowest two-decimal percentage that reaches a cutoff under `cutoffIndex`'s rounding:
+ * 87.5 stays 87.5, a hand-typed 33.333 becomes 33.34. The epsilon absorbs float noise
+ * (16.66 * 100 is 1666.0000000000002).
+ */
+export function cutoffThreshold(minPercentage: number): number {
+  return Math.ceil(minPercentage * 100 - 1e-6) / 100;
+}
+
 const GRADE_COLOR_RAMP = 6;
 
 /**

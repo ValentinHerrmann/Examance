@@ -6,6 +6,8 @@ import {
   calculateClassGradeAverage,
   calculateGradeDistribution,
   calculatePassRate,
+  cutoffThreshold,
+  effectiveGradingKey,
   gradeColorForPercentage,
   type GradeDistributionBucket,
 } from "./gradingKey";
@@ -122,10 +124,97 @@ export function calculateSummaryStats(scores: number[]): SummaryStats | null {
   };
 }
 
+/** Histogram bins are never wider than this — the long-standing default. */
+const MAX_BIN_WIDTH = 5;
+/** Below this, a key gets uneven bins instead of ever finer ones (see `histogramBoundaries`). */
+const MIN_BIN_WIDTH = 0.5;
 /**
- * Build a percentage-based histogram (0-100%, default 20 bins of 5% each; 100% lands in the
- * last bin rather than an extra one). `keyConfig`, when given, colours each bin by the grade
- * of its lower bound (see `gradeColorForPercentage`).
+ * How far a threshold may sit off a grid line and still count as on it: 83.33 is the two-decimal
+ * 250/3. The extra epsilon keeps a threshold exactly one hundredth off (85.01 - 85 is
+ * 0.010000000000005 in floats) on the grid.
+ */
+const GRID_TOLERANCE = 0.01 + 1e-9;
+
+/** The key's grade thresholds strictly inside 0–100, ascending — 0 and 100 are the axis ends anyway. */
+function interiorThresholds(keyConfig?: GradingKeyConfig): number[] {
+  const thresholds = effectiveGradingKey(keyConfig)
+    .cutoffs.map((c) => cutoffThreshold(c.minPercentage))
+    .filter((t) => Number.isFinite(t) && t > 0 && t < 100);
+  return [...new Set(thresholds)].sort((a, b) => a - b);
+}
+
+/** Interior grid line of `binCount` equal bins for each threshold, or null if one is off the grid or two share a line. */
+function gridLines(thresholds: number[], binCount: number): number[] | null {
+  const lines = thresholds.map((t) => Math.round((t * binCount) / 100));
+  const fits = thresholds.every(
+    (t, i) =>
+      lines[i] > 0 &&
+      lines[i] < binCount &&
+      Math.abs(t - (lines[i] * 100) / binCount) <= GRID_TOLERANCE,
+  );
+  return fits && new Set(lines).size === lines.length ? lines : null;
+}
+
+function binCountFor(thresholds: number[]): number | null {
+  const counts: number[] = [];
+  for (let n = Math.ceil(100 / MAX_BIN_WIDTH); n <= Math.floor(100 / MIN_BIN_WIDTH); n++) {
+    counts.push(n);
+  }
+  // 10000 % n === 0 is exactly "100/n has at most two decimals".
+  return (
+    counts.find((n) => 10000 % n === 0 && gridLines(thresholds, n)) ??
+    counts.find((n) => gridLines(thresholds, n)) ??
+    null
+  );
+}
+
+/**
+ * Number of equal histogram bins for a grading key: the fewest — so the widest, at most 5 % —
+ * that put a bin boundary on every grade cutoff, so no bin straddles two grades. Steps with at
+ * most two decimals (5, 4, 2.5, 2, 1.25, 1, 0.8, 0.5 %) win: linear_50's 62.5 % gives 2.5 %,
+ * not the equally valid but unreadable 100/24 %. A key built on thirds (83.33, 66.66 …) has no
+ * such step and takes the widest 100/n that fits. Null when nothing down to 0.5 % fits.
+ */
+export function histogramBinCount(keyConfig?: GradingKeyConfig): number | null {
+  return binCountFor(interiorThresholds(keyConfig));
+}
+
+/**
+ * Ascending bin boundaries from 0 to 100. Equal steps where the key allows it (see
+ * `histogramBinCount`), with the boundary at each cutoff set to its exact threshold so every
+ * submission lands in a bin of its own grade. A key too fine for that (a cutoff at 33.37 %)
+ * falls back to 5 % steps split at each cutoff: uneven, but still one grade per bin.
+ */
+export function histogramBoundaries(keyConfig?: GradingKeyConfig): number[] {
+  const thresholds = interiorThresholds(keyConfig);
+  const binCount = binCountFor(thresholds);
+  if (binCount === null) {
+    const grid = Array.from(
+      { length: 100 / MAX_BIN_WIDTH + 1 },
+      (_, k) => k * MAX_BIN_WIDTH,
+    ).filter(
+      (g) =>
+        g === 0 ||
+        g === 100 ||
+        thresholds.every((t) => Math.abs(t - g) > GRID_TOLERANCE),
+    );
+    return [...new Set([...grid, ...thresholds])].sort((a, b) => a - b);
+  }
+  // k * 100 / n, not k * (100 / n): 21 * (100 / 24) is 87.50000000000001.
+  const boundaries = Array.from(
+    { length: binCount + 1 },
+    (_, k) => (k * 100) / binCount,
+  );
+  gridLines(thresholds, binCount)?.forEach((line, i) => {
+    boundaries[line] = thresholds[i];
+  });
+  return boundaries;
+}
+
+/**
+ * A bin of the percentage histogram (0–100 %, bins from `histogramBoundaries`; 100 % lands in
+ * the last bin rather than an extra one). No bin straddles a cutoff, so the grade of its lower
+ * bound is the grade of everything in it.
  */
 export interface PercentageHistogramBin {
   binStart: number;
@@ -135,29 +224,31 @@ export interface PercentageHistogramBin {
   provisionalCount: number;
   /** CSS colour token, e.g. `var(--color-grade-1)`. */
   colorVar: string;
+  /** `binStart` is where a grade begins (a cutoff, or 0): the lowest bin of its grade. */
+  startsGrade: boolean;
 }
 
 export function calculatePercentageHistogram(
   percentages: number[],
   provisionalFlags: boolean[] = [],
-  binWidth = 5,
   keyConfig?: GradingKeyConfig,
 ): PercentageHistogramBin[] {
-  const binCount = Math.round(100 / binWidth);
-  const bins: PercentageHistogramBin[] = Array.from({ length: binCount }).map(
-    (_, i) => ({
-      binStart: i * binWidth,
-      binEnd: (i + 1) * binWidth,
-      count: 0,
-      provisionalCount: 0,
-      colorVar: gradeColorForPercentage(i * binWidth, keyConfig),
-    }),
-  );
+  const boundaries = histogramBoundaries(keyConfig);
+  const thresholds = new Set(interiorThresholds(keyConfig));
+  const bins: PercentageHistogramBin[] = boundaries.slice(0, -1).map((start, i) => ({
+    binStart: start,
+    binEnd: boundaries[i + 1],
+    count: 0,
+    provisionalCount: 0,
+    colorVar: gradeColorForPercentage(start, keyConfig),
+    startsGrade: i === 0 || thresholds.has(start),
+  }));
 
   percentages.forEach((p, i) => {
-    const value = clampPercentage(p);
-    let binIdx = Math.floor(value / binWidth);
-    if (binIdx >= binCount) binIdx = binCount - 1;
+    // Rounded like `cutoffIndex`, so 35/40 = 87.4999… lands in the 87.5 bin it is graded by.
+    const value = Math.round(clampPercentage(p) * 100) / 100;
+    let binIdx = bins.length - 1;
+    while (binIdx > 0 && value < bins[binIdx].binStart) binIdx--;
     bins[binIdx].count++;
     if (provisionalFlags[i]) bins[binIdx].provisionalCount++;
   });
@@ -194,6 +285,8 @@ export interface ExamStats {
   gradeAverage: number | null;
   passRate: number | null;
   bins: PercentageHistogramBin[];
+  /** Width of every bin in %, or null when the key forced uneven bins. */
+  binWidth: number | null;
   gradeBuckets: GradeDistributionBucket[];
 }
 
@@ -204,6 +297,7 @@ export function summarizeExam(
 ): ExamStats {
   const percentages = results.map((r) => r.percentage);
   const provisional = results.map((r) => !r.isComplete);
+  const binCount = histogramBinCount(gradingKey);
   return {
     results,
     summary: calculateSummaryStats(percentages),
@@ -211,7 +305,8 @@ export function summarizeExam(
       calculateSummaryStats(results.map((r) => r.gradedPoints))?.mean ?? null,
     gradeAverage: calculateClassGradeAverage(percentages, gradingKey),
     passRate: calculatePassRate(percentages, gradingKey),
-    bins: calculatePercentageHistogram(percentages, provisional, 5, gradingKey),
+    bins: calculatePercentageHistogram(percentages, provisional, gradingKey),
+    binWidth: binCount === null ? null : 100 / binCount,
     gradeBuckets: calculateGradeDistribution(
       percentages,
       gradingKey,

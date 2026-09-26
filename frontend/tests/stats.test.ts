@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateSubmissionPercentage,
   calculatePercentageHistogram,
+  histogramBinCount,
+  histogramBoundaries,
+  type PercentageHistogramBin,
 } from '../src/lib/analytics/stats';
 import {
   calculateGradeDistribution,
@@ -9,7 +12,11 @@ import {
   calculateClassGradeAverage,
   calculatePassRate,
   effectiveGradingKey,
+  gradeColorVar,
+  gradeColorForPercentage,
   DEFAULT_CUTOFFS_LINEAR_50,
+  DEFAULT_CUTOFFS_LINEAR_40,
+  DEFAULT_CUTOFFS_EVEN_SPLIT,
 } from '../src/lib/analytics/gradingKey';
 import type { GradingKeyConfig } from '../src/lib/db/schema';
 
@@ -17,6 +24,57 @@ const linear50: GradingKeyConfig = {
   preset: 'linear_50',
   cutoffs: DEFAULT_CUTOFFS_LINEAR_50,
 };
+
+/** Build a custom key from bare minPercentages: grade "1" is the first (best) entry, etc. */
+function customKey(minPercentages: number[]): GradingKeyConfig {
+  return {
+    preset: 'custom',
+    cutoffs: minPercentages.map((minPercentage, i) => ({
+      grade: String(i + 1),
+      label: `Grade ${i + 1}`,
+      minPercentage,
+    })),
+  };
+}
+
+// Keys shared by the bin-width tests and the grade-colour invariant tests below.
+const linear40: GradingKeyConfig = {
+  preset: 'linear_40',
+  cutoffs: DEFAULT_CUTOFFS_LINEAR_40,
+};
+const evenSplit: GradingKeyConfig = {
+  preset: 'even_split',
+  cutoffs: DEFAULT_CUTOFFS_EVEN_SPLIT,
+};
+const oberstufe = customKey([95, 90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 33, 27, 20, 0]);
+const custom875_33_0 = customKey([87.5, 33, 0]);
+const outOfRangeCutoffs = customKey([110, 50, -5]);
+const threeDecimalCutoffs = customKey([66.667, 33.333, 0]);
+const tooFineCutoffs = customKey([33.37, 0]);
+const threeAndThreeNoZero: GradingKeyConfig = {
+  preset: 'custom',
+  cutoffs: [
+    { grade: '3', label: 'Upper 3', minPercentage: 60 },
+    { grade: '3', label: 'Lower 3', minPercentage: 50 },
+  ],
+};
+
+const KEYS_FOR_WIDTH: (GradingKeyConfig | undefined)[] = [
+  linear40,
+  linear50,
+  undefined,
+  evenSplit,
+  oberstufe,
+  custom875_33_0,
+  outOfRangeCutoffs,
+  threeDecimalCutoffs,
+  tooFineCutoffs,
+];
+
+const KEYS_FOR_INVARIANT: (GradingKeyConfig | undefined)[] = [
+  ...KEYS_FOR_WIDTH,
+  threeAndThreeNoZero,
+];
 
 describe('calculateSubmissionPercentage', () => {
   it('reports a partially graded submission as provisional', () => {
@@ -54,38 +112,155 @@ describe('calculateSubmissionPercentage', () => {
 });
 
 describe('calculatePercentageHistogram', () => {
-  it('always returns all twenty 5%-wide bins, including the empty ones', () => {
+  it('defaults to 40 bins of 2.5% each, off the default grading key', () => {
     const bins = calculatePercentageHistogram([2, 95]);
-    expect(bins).toHaveLength(20);
-    expect(bins[0].count).toBe(1);
-    expect(bins[19].count).toBe(1);
+    expect(bins).toHaveLength(40);
+    expect(bins[0]).toMatchObject({ binStart: 0, binEnd: 2.5, count: 1 });
+    const bin95 = bins.find((b) => b.binStart === 95);
+    expect(bin95?.count).toBe(1);
     expect(bins.filter((b) => b.count > 0)).toHaveLength(2);
   });
 
-  it('puts 100% in the top bin rather than a twenty-first', () => {
+  it('puts 100% in the top bin rather than a forty-first', () => {
     const bins = calculatePercentageHistogram([100]);
-    expect(bins[19].count).toBe(1);
+    expect(bins).toHaveLength(40);
+    expect(bins[39]).toMatchObject({ binEnd: 100, count: 1 });
   });
 
   it('tracks provisional results separately from the total', () => {
     const bins = calculatePercentageHistogram([95, 95], [true, false]);
-    expect(bins[19].count).toBe(2);
-    expect(bins[19].provisionalCount).toBe(1);
+    const bin95 = bins.find((b) => b.binStart === 95);
+    expect(bin95?.count).toBe(2);
+    expect(bin95?.provisionalCount).toBe(1);
   });
 
   it('colours a bin by the grade of its lower bound', () => {
-    // linear_50: grade 1 starts at 87.5%. The 85-90 bin's lower bound (85) is still grade 2.
-    const bins = calculatePercentageHistogram([0], [], 5, linear50);
-    expect(bins[17]).toMatchObject({ binStart: 85, binEnd: 90 });
-    expect(bins[17].colorVar).toBe('var(--color-grade-2)');
-    expect(bins[18]).toMatchObject({ binStart: 90, binEnd: 95 });
-    expect(bins[18].colorVar).toBe('var(--color-grade-1)');
+    // linear_50: grade 1 starts at 87.5%. The 85-87.5 bin's lower bound (85) is still grade 2.
+    const bins = calculatePercentageHistogram([0], [], linear50);
+    expect(bins[34]).toMatchObject({
+      binStart: 85,
+      binEnd: 87.5,
+      colorVar: 'var(--color-grade-2)',
+      startsGrade: false,
+    });
+    expect(bins[35]).toMatchObject({
+      binStart: 87.5,
+      binEnd: 90,
+      colorVar: 'var(--color-grade-1)',
+      startsGrade: true,
+    });
+    expect(bins[36]).toMatchObject({ binStart: 90, startsGrade: false });
+    expect(bins[0].startsGrade).toBe(true);
   });
 
-  it('supports a custom bin width', () => {
-    const bins = calculatePercentageHistogram([25], [], 10);
-    expect(bins).toHaveLength(10);
-    expect(bins[2].count).toBe(1);
+  it('rounds a float just under a cutoff into the cutoff bin, like grading does', () => {
+    // 35/40 is 87.5 exactly in decimal and 87.49999999999999 in binary float.
+    const bins = calculatePercentageHistogram([(35 / 40) * 100], [], linear50);
+    const bin875 = bins.find((b) => b.binStart === 87.5);
+    expect(bin875?.count).toBe(1);
+  });
+});
+
+describe('histogram bin width', () => {
+  it('picks the fewest equal bins that put a boundary on every cutoff', () => {
+    expect(histogramBinCount(linear40)).toBe(20);
+    expect(histogramBinCount(linear50)).toBe(40);
+    expect(histogramBinCount(undefined)).toBe(40);
+    expect(histogramBinCount(evenSplit)).toBe(24);
+    expect(histogramBinCount(oberstufe)).toBe(100);
+    expect(histogramBinCount(custom875_33_0)).toBe(200);
+    expect(histogramBinCount(outOfRangeCutoffs)).toBe(20);
+    expect(histogramBinCount(threeDecimalCutoffs)).toBe(21);
+  });
+
+  it('sets even_split boundaries to the exact thresholds, not a rounded division', () => {
+    const boundaries = histogramBoundaries(evenSplit);
+    expect(boundaries).toHaveLength(25);
+    for (const t of [16.66, 33.33, 50, 66.66, 83.33]) {
+      expect(boundaries).toContain(t);
+    }
+  });
+
+  it('sets three-decimal boundaries to the rounded cutoffThreshold values', () => {
+    const boundaries = histogramBoundaries(threeDecimalCutoffs);
+    expect(boundaries).toContain(33.34);
+    expect(boundaries).toContain(66.67);
+  });
+
+  it('falls back to uneven, 5%-capped bins when no equal grid fits', () => {
+    expect(histogramBinCount(tooFineCutoffs)).toBeNull();
+    const boundaries = histogramBoundaries(tooFineCutoffs);
+    expect(boundaries[0]).toBe(0);
+    expect(boundaries[boundaries.length - 1]).toBe(100);
+    expect(boundaries).toContain(33.37);
+    for (let i = 1; i < boundaries.length; i++) {
+      expect(boundaries[i]).toBeGreaterThan(boundaries[i - 1]);
+    }
+  });
+
+  it('never opens a bin wider than 5%, for any of the keys above', () => {
+    for (const key of KEYS_FOR_WIDTH) {
+      const boundaries = histogramBoundaries(key);
+      for (let i = 1; i < boundaries.length; i++) {
+        expect(boundaries[i] - boundaries[i - 1]).toBeLessThanOrEqual(5 + 1e-9);
+      }
+    }
+  });
+});
+
+describe('grade colour never straddles a bin', () => {
+  // Mirrors calculatePercentageHistogram's own bin search — built once per key from bins
+  // that are already computed, never re-derived per value.
+  function binFor(bins: PercentageHistogramBin[], v: number): PercentageHistogramBin {
+    let idx = bins.length - 1;
+    while (idx > 0 && v < bins[idx].binStart) idx--;
+    return bins[idx];
+  }
+
+  it('every hundredth-percent value gets the colour of the bin it falls in', () => {
+    for (const key of KEYS_FOR_INVARIANT) {
+      const bins = calculatePercentageHistogram([], [], key);
+      const mismatches: { v: number; expected: string; actual: string }[] = [];
+      for (let i = 0; i <= 10000; i++) {
+        const v = i / 100;
+        const bin = binFor(bins, v);
+        const actual = gradeColorForPercentage(v, key);
+        if (actual !== bin.colorVar) {
+          mismatches.push({ v, expected: bin.colorVar, actual });
+        }
+      }
+      expect(mismatches).toEqual([]);
+    }
+  });
+
+  it('the histogram and the grade distribution agree on counts per colour', () => {
+    const percentages = Array.from({ length: 10001 }, (_, i) => i / 100);
+    for (const key of KEYS_FOR_INVARIANT) {
+      const bins = calculatePercentageHistogram(percentages, [], key);
+      const histByColor = new Map<string, number>();
+      bins.forEach((b) =>
+        histByColor.set(b.colorVar, (histByColor.get(b.colorVar) ?? 0) + b.count),
+      );
+
+      const buckets = calculateGradeDistribution(percentages, key);
+      const bucketByColor = new Map<string, number>();
+      buckets.forEach((b, i) => {
+        const color = gradeColorVar(i, buckets.length);
+        bucketByColor.set(color, (bucketByColor.get(color) ?? 0) + b.count);
+      });
+
+      // Union of colours: an out-of-range cutoff (e.g. minPercentage 110) makes an empty
+      // bucket that no bin's colorVar ever matches, so one side can legitimately lack a key
+      // the other has at 0 — normalize both onto the same key set before comparing.
+      const colors = new Set([...histByColor.keys(), ...bucketByColor.keys()]);
+      const histCounts: Record<string, number> = {};
+      const bucketCounts: Record<string, number> = {};
+      for (const color of colors) {
+        histCounts[color] = histByColor.get(color) ?? 0;
+        bucketCounts[color] = bucketByColor.get(color) ?? 0;
+      }
+      expect(histCounts).toEqual(bucketCounts);
+    }
   });
 });
 

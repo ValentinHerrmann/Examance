@@ -4,6 +4,7 @@ import {
   calculateGradeDetail,
   gradeColorVar,
   gradeColorForPercentage,
+  cutoffThreshold,
   DEFAULT_CUTOFFS_LINEAR_50,
 } from '../src/lib/analytics/gradingKey';
 import type { GradingKeyConfig } from '../src/lib/db/schema';
@@ -68,5 +69,17 @@ describe('grade colour ramp', () => {
   it('picks the colour for a percentage from the grading key', () => {
     expect(gradeColorForPercentage(95, config)).toBe('var(--color-grade-1)');
     expect(gradeColorForPercentage(0, config)).toBe('var(--color-grade-6)');
+  });
+});
+
+describe('cutoffThreshold', () => {
+  it('leaves an already two-decimal threshold unchanged', () => {
+    expect(cutoffThreshold(87.5)).toBe(87.5);
+    expect(cutoffThreshold(16.66)).toBe(16.66);
+    expect(cutoffThreshold(50)).toBe(50);
+  });
+
+  it('rounds a finer threshold up to the nearest two-decimal value', () => {
+    expect(cutoffThreshold(33.333)).toBe(33.34);
   });
 });

@@ -40,10 +40,18 @@ export const stats = {
     },
     combined: {
         title: '🧩 Noten- und Prozentverteilung',
-        subtitle: 'Breite Balken: Noten nach Bewertungsmaßstab. Schmale Balken davor: Prozentbereiche in 5-%-Schritten.',
+        subtitle: 'Hinterlegte Bänder: die Noten nach Bewertungsmaßstab, ihre Höhe ist die Anzahl je Note. Balken davor: die Prozentverteilung.',
+        download: {
+            group: 'Diagramm herunterladen',
+            svg: 'Als SVG-Vektorgrafik herunterladen (transparenter Hintergrund)',
+            pdf: 'Als PDF-Vektorgrafik herunterladen (transparenter Hintergrund)',
+            png: 'Als PNG-Bild für Full-HD-Bildschirme herunterladen (transparenter Hintergrund)',
+        },
     },
     submissionHistogram: {
         title: '📊 Prozentverteilung',
+        subtitle: 'In {step}-%-Schritten, so gewählt, dass jeder Balken ganz in einer Note liegt.',
+        subtitleUneven: 'In Schritten bis 5 %, an jeder Notengrenze geteilt, damit jeder Balken ganz in einer Note liegt.',
         axisLabel: 'Prozent erreicht',
     },
     analyticsPage: {

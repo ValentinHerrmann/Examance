@@ -42,10 +42,18 @@ export const stats: Translations['stats'] = {
     },
     combined: {
         title: '🧩 Grades and percentages',
-        subtitle: 'Wide bars: grades under the grading scale. Narrow bars in front: percentage ranges in 5 % steps.',
+        subtitle: 'Background bands: the grades under the grading scale, their height is the count per grade. Bars in front: the percentage distribution.',
+        download: {
+            group: 'Download chart',
+            svg: 'Download as SVG vector graphic (transparent background)',
+            pdf: 'Download as PDF vector graphic (transparent background)',
+            png: 'Download as PNG image for Full HD screens (transparent background)',
+        },
     },
     submissionHistogram: {
         title: '📊 Percentage Distribution',
+        subtitle: 'In {step} % steps, chosen so that every bar lies entirely within one grade.',
+        subtitleUneven: 'In steps of up to 5 %, split at every grade boundary so that every bar lies entirely within one grade.',
         axisLabel: 'Percent achieved',
     },
     analyticsPage: {
