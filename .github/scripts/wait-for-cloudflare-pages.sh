@@ -13,7 +13,7 @@ set -euo pipefail
 
 SHA="${1:?commit sha required}"
 TIMEOUT="${2:-900}"
-INTERVAL=2
+INTERVAL=5
 DEADLINE=$(( $(date +%s) + TIMEOUT ))
 
 echo "Waiting for Cloudflare Pages to deploy ${SHA} (timeout ${TIMEOUT}s)"
