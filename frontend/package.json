@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "npx texlyre-busytex download-assets static/core && node scripts/process-large-files.mjs static && cp -r ../backend/latex-assets static/ && node scripts/generate-latex-assets-index.js",
+    "predev": "node scripts/fetch-busytex.mjs static/core && node scripts/process-large-files.mjs static && cp -r ../backend/latex-assets static/ && node scripts/generate-latex-assets-index.js",
     "dev": "vite dev",
-    "prebuild": "npx texlyre-busytex download-assets static/core && node scripts/process-large-files.mjs static && cp -r ../backend/latex-assets static/ && node scripts/generate-latex-assets-index.js",
+    "prebuild": "node scripts/fetch-busytex.mjs static/core && node scripts/process-large-files.mjs static && cp -r ../backend/latex-assets static/ && node scripts/generate-latex-assets-index.js",
     "build": "vite build && npm run process-large-files && npm run csp:headers",
     "process-large-files": "node scripts/process-large-files.mjs build",
     "csp:headers": "node scripts/generate-csp-headers.mjs build",
@@ -17,7 +17,7 @@
     "test:unit": "vitest",
     "test:e2e": "playwright test",
     "sri:verify": "node scripts/verify-sri.mjs",
-    "postinstall": "npx texlyre-busytex download-assets static/core && node scripts/process-large-files.mjs static"
+    "postinstall": "node scripts/fetch-busytex.mjs static/core && node scripts/process-large-files.mjs static"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.1",

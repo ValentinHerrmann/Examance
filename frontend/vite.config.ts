@@ -140,6 +140,9 @@ export default defineConfig({
   },
   build: {
     target: 'es2022',
+    // Gzip-sizing every chunk only feeds the build log and cost ~9 s per
+    // Cloudflare Pages build.
+    reportCompressedSize: false,
     rollupOptions: {
       external: [/.*\.wasm$/],
       output: {
