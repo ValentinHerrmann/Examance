@@ -344,7 +344,7 @@
    * an answer-key edit — never used to silently regenerate one.
    */
   async function computeExercisesHash(): Promise<string> {
-    return computeMcExercisesHash(collectMcExercises());
+    return computeMcExercisesHash(collectMcExercises(), mcGroups);
   }
 
   async function checkOmrTemplateStatus(id: string) {

@@ -32,6 +32,8 @@
   let stats: McVerificationStats | null = null;
   let currentExercise: ExerciseRecord | null = null;
   let currentScoreRecord: ExerciseScoreRecord | null = null;
+  let currentExerciseLabel = "";
+  let currentNeighbourRects: Array<[number, number, number, number]> = [];
   let studentLabel = "";
   let scanPdfBytes: Uint8Array | null = null;
 
@@ -157,6 +159,13 @@
 
       scanPdfBytes = nextScanPdfBytes;
       currentScoreRecord = scores.find((s) => s.exerciseId === exerciseId) || null;
+      currentExerciseLabel = matchingItem?.exerciseLabel || "";
+      // Other exercises' boxes on the same page bound the crop, so it can't show a
+      // neighbouring sub-question as if it were this one.
+      const ownPage = currentScoreRecord?.omrMeta?.detections?.pageIndex;
+      currentNeighbourRects = scores
+        .filter((s) => s.exerciseId !== exerciseId && s.omrMeta?.detections?.pageIndex === ownPage)
+        .flatMap((s) => s.omrMeta!.detections!.bubbles.map((b) => b.rect));
     } catch (err: any) {
       if (thisToken !== lastLoadToken) return;
       console.error("Failed to load MC verification item:", err);
@@ -254,6 +263,8 @@
       {studentItems}
       currentExerciseId={exerciseId}
       scoreRecord={currentScoreRecord}
+      exerciseLabel={currentExerciseLabel}
+      neighbourRects={currentNeighbourRects}
       {scanPdfBytes}
       currentIndex={currentIndex >= 0 ? currentIndex : 0}
       totalItems={activeQueueItems.length}

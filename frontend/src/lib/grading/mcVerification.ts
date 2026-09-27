@@ -3,6 +3,7 @@ import { loadExamMcExercises } from "$lib/grading/mcExerciseHash";
 import { submissionRepository } from "$lib/repositories/submissionRepository";
 import { studentRepository } from "$lib/repositories/studentRepository";
 import { ensure64CharHex } from "$lib/crypto/hmac";
+import { loadLocalMcGroups } from "$lib/db/dbEncryption";
 import type { ExerciseRecord } from "$lib/db/schema";
 
 export interface McDetectionItem {
@@ -157,13 +158,22 @@ export async function computeMcVerificationStats(
   examId: string,
   key: CryptoKey | null
 ): Promise<McVerificationStats> {
-  const [exercises, submissions, students] = await Promise.all([
+  const [exercises, submissions, students, mcGroups] = await Promise.all([
     loadExamMcExercises(examId, key),
     submissionRepository.getByExamId(examId, key),
     studentRepository.getByExamId(examId, key),
+    loadLocalMcGroups(examId).catch(() => []),
   ]);
 
   const exerciseById = new Map<string, ExerciseRecord>(exercises.map((e) => [e.id, e]));
+
+  // Members of one MC group share a title; the sub-letter tells them apart.
+  const subLetterById = new Map<string, string>();
+  for (const group of mcGroups) {
+    group.memberIds.forEach((memberId, idx) => {
+      subLetterById.set(memberId, String.fromCharCode(97 + idx));
+    });
+  }
 
   const studentMap = new Map<string, string>();
   for (const st of students) {
@@ -232,7 +242,9 @@ export async function computeMcVerificationStats(
         submissionId: sub.id,
         exerciseId: sc.exerciseId,
         studentLabel: label,
-        exerciseLabel: ex.title || ex.name || "MC Question",
+        exerciseLabel: subLetterById.has(sc.exerciseId)
+          ? `${ex.title || ex.name || "MC Question"} ${subLetterById.get(sc.exerciseId)})`
+          : ex.title || ex.name || "MC Question",
         confidence: sc.omrMeta.confidence,
         source: sc.omrMeta.source,
         flaggedOptions,

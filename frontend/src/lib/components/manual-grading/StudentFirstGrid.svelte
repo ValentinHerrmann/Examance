@@ -105,10 +105,17 @@
     // lookup is needed here.
     const toSave: ExerciseScoreRecord[] = [];
     const toClear: string[] = [];
+    // OMR-read MC rows carry selectedOptions/omrMeta this grid doesn't show: carry them
+    // forward on save and never delete such a row from here (it would vanish from the
+    // MC verification queue).
+    const existingById = new Map(
+      (await scoreRepository.getBySubmissionId(examId, currentSub.id, key)).map((r) => [r.exerciseId, r]),
+    );
 
     for (let i = 0; i < exercises.length; i++) {
       const ex = exercises[i];
       const val = parsedScores[i];
+      const existing = existingById.get(ex.id);
 
       if (val !== null && val !== undefined && !isNaN(val)) {
         if (val >= 0 && val <= ex.maxPoints) {
@@ -117,9 +124,13 @@
             submissionId: currentSub.id,
             exerciseId: ex.id,
             score: val,
+            selectedOptions: existing?.selectedOptions,
+            omrMeta: existing?.omrMeta,
           });
           subScores[ex.id] = val;
         }
+      } else if (existing?.omrMeta) {
+        subScores[ex.id] = existing.score ?? null;
       } else {
         toClear.push(ex.id);
         subScores[ex.id] = null;

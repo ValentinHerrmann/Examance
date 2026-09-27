@@ -78,6 +78,13 @@ export interface GradingState {
   isAutoCropEnabled: boolean;
   currentStrokes: VectorStroke[];
 
+  /**
+   * True once the teacher changed something on the current submission (stroke, score,
+   * MC toggle) since it was loaded or last saved. Loading saved annotations or
+   * re-deriving auto scores never sets it — only the explicit mutators below do.
+   */
+  isDirty: boolean;
+
   // PDF paging
   currentPage: number;
   totalPages: number;
@@ -98,6 +105,7 @@ const INITIAL_STATE: GradingState = {
   zoomScale: 1.0,
   isAutoCropEnabled: true,
   currentStrokes: [],
+  isDirty: false,
   currentPage: 1,
   totalPages: 1,
   isScanPdf: false,
@@ -123,7 +131,7 @@ function createGradingStore() {
     },
 
     setScoreInput(exerciseId: string, value: number | null) {
-      update((s) => ({ ...s, scoreInputs: { ...s.scoreInputs, [exerciseId]: value } }));
+      update((s) => ({ ...s, scoreInputs: { ...s.scoreInputs, [exerciseId]: value }, isDirty: true }));
     },
 
     setManualOverride(manualOverride: Record<string, boolean>) {
@@ -131,7 +139,7 @@ function createGradingStore() {
     },
 
     setManualOverrideFlag(exerciseId: string, flag: boolean) {
-      update((s) => ({ ...s, manualOverride: { ...s.manualOverride, [exerciseId]: flag } }));
+      update((s) => ({ ...s, manualOverride: { ...s.manualOverride, [exerciseId]: flag }, isDirty: true }));
     },
 
     setActiveExerciseId(exerciseId: string) {
@@ -143,7 +151,7 @@ function createGradingStore() {
     },
 
     setMcStateForExercise(exerciseId: string, state: McAnswerState) {
-      update((s) => ({ ...s, mcState: { ...s.mcState, [exerciseId]: state } }));
+      update((s) => ({ ...s, mcState: { ...s.mcState, [exerciseId]: state }, isDirty: true }));
     },
 
     setSaving(isSaving: boolean) {
@@ -172,6 +180,16 @@ function createGradingStore() {
 
     setCurrentStrokes(strokes: VectorStroke[]) {
       update((s) => ({ ...s, currentStrokes: strokes }));
+    },
+
+    /** A user edit on the canvas (draw, stamp, erase, clear). */
+    markDirty() {
+      update((s) => ({ ...s, isDirty: true }));
+    },
+
+    /** Called after loading a submission and after a successful save. */
+    markClean() {
+      update((s) => ({ ...s, isDirty: false }));
     },
 
     setPdfPaging(page: number, totalPages: number, isScanPdf: boolean) {

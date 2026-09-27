@@ -136,7 +136,8 @@
       let needsCompile = !existing || !existing.payload;
 
       if (!needsCompile) {
-        const currentHash = await computeMcExercisesHash(mcExercises);
+        const mcGroups = await loadLocalMcGroups(examId).catch(() => []);
+        const currentHash = await computeMcExercisesHash(mcExercises, mcGroups);
         if (existing!.record.exercisesHash !== currentHash) {
           needsCompile = true;
         }
@@ -1039,6 +1040,7 @@
           omrMeta: {
             confidence: r.confidence,
             source: "omr" as const,
+            alignmentUncertain: r.alignmentUncertain ? true : undefined,
             flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
             original: {
               confidence: r.confidence,

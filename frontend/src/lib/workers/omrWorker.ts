@@ -55,6 +55,7 @@ export interface OmrExerciseResult {
   confidence: 'high' | 'ambiguous' | 'failed';
   flaggedOptions: number[];
   bubbles: OmrBubbleReading[];
+  alignmentUncertain?: boolean;
 }
 
 export type OmrWorkerResponse =
@@ -62,6 +63,7 @@ export type OmrWorkerResponse =
       type: 'OMR_RESULT';
       results: OmrExerciseResult[];
       alignmentFailed: boolean;
+      alignmentUncertain: boolean;
       fiducialsFound: number;
       /** Corner indices (0=BL,1=BR,2=TR,3=TL) actually detected this pass — lets a
        *  caller report exactly which corner is missing instead of just a count. */
@@ -473,6 +475,70 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
 
     const alignmentFailed = H === null;
 
+    let alignmentUncertain = false;
+    if (!alignmentFailed && H) {
+      if (fiducialsFound === 3) {
+        alignmentUncertain = true;
+      } else if (fiducialsFound >= 4) {
+        const affine = buildAffine3(srcPts.slice(0, 3), dstPts.slice(0, 3));
+        if (!affine) {
+          alignmentUncertain = true;
+        } else {
+          const [mX, mY] = transformPoint(affine, srcPts[3][0], srcPts[3][1]);
+          const residual = Math.hypot(mX - dstPts[3][0], mY - dstPts[3][1]);
+          if (residual > 0.015 * width) {
+            alignmentUncertain = true;
+          }
+        }
+
+        // Map template page's corners through H
+        const expW = pageTemplate.pageWidthPt * scanScale;
+        const expH = pageTemplate.pageHeightPt * scanScale;
+        const cTL = transformPoint(H, 0, 0);
+        const cTR = transformPoint(H, expW, 0);
+        const cBR = transformPoint(H, expW, expH);
+        const cBL = transformPoint(H, 0, expH);
+
+        const vTop: [number, number] = [cTR[0] - cTL[0], cTR[1] - cTL[1]];
+        const vBottom: [number, number] = [cBR[0] - cBL[0], cBR[1] - cBL[1]];
+        const vLeft: [number, number] = [cBL[0] - cTL[0], cBL[1] - cTL[1]];
+        const vRight: [number, number] = [cBR[0] - cTR[0], cBR[1] - cTR[1]];
+
+        const topLen = Math.hypot(vTop[0], vTop[1]);
+        const bottomLen = Math.hypot(vBottom[0], vBottom[1]);
+        const leftLen = Math.hypot(vLeft[0], vLeft[1]);
+        const rightLen = Math.hypot(vRight[0], vRight[1]);
+
+        const mappedW = (topLen + bottomLen) / 2;
+        const mappedH = (leftLen + rightLen) / 2;
+
+        if (mappedW <= 0 || mappedH <= 0 || width <= 0 || height <= 0) {
+          alignmentUncertain = true;
+        } else {
+          // A correct registration maps the page onto the scan without distorting its
+          // aspect ratio. Compare against the page itself, not the scan image — a
+          // scanner bed larger than the sheet changes the image's ratio, not the page's.
+          const mappedRatio = mappedW / mappedH;
+          const pageRatio = expW / expH;
+          const ratioDiff = Math.abs(mappedRatio - pageRatio) / pageRatio;
+          if (ratioDiff > 0.05) {
+            alignmentUncertain = true;
+          }
+
+          if (topLen > 0 && leftLen > 0) {
+            const dot = vTop[0] * vLeft[0] + vTop[1] * vLeft[1];
+            const cosAngle = Math.max(-1, Math.min(1, dot / (topLen * leftLen)));
+            const angleDeg = (Math.acos(cosAngle) * 180) / Math.PI;
+            if (angleDeg < 85 || angleDeg > 95) {
+              alignmentUncertain = true;
+            }
+          } else {
+            alignmentUncertain = true;
+          }
+        }
+      }
+    }
+
     const byExercise = new Map<string, OmrPageTemplate['bubbles']>();
     for (const bubble of pageTemplate.bubbles) {
       const list = byExercise.get(bubble.exerciseId) ?? [];
@@ -543,8 +609,10 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
       const isSingleAnswerMultiMark =
         (questionType === 'sc' || questionType === 'tf') && selectedOptions.length > 1;
 
-      const confidence: 'high' | 'ambiguous' | 'failed' =
+      const rawConfidence: 'high' | 'ambiguous' | 'failed' =
         flaggedOptions.length > 0 || isSingleAnswerMultiMark ? 'ambiguous' : 'high';
+      const confidence: 'high' | 'ambiguous' | 'failed' =
+        alignmentUncertain && rawConfidence === 'high' ? 'ambiguous' : rawConfidence;
 
       const score = answerKey
         ? computeMcScore(
@@ -564,10 +632,18 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
         confidence,
         flaggedOptions,
         bubbles: bubbleReadings,
+        ...(alignmentUncertain ? { alignmentUncertain: true } : {}),
       });
     }
 
-    self.postMessage({ type: 'OMR_RESULT', results, alignmentFailed, fiducialsFound, fiducialCorners });
+    self.postMessage({
+      type: 'OMR_RESULT',
+      results,
+      alignmentFailed,
+      alignmentUncertain,
+      fiducialsFound,
+      fiducialCorners,
+    });
   } catch (err: any) {
     self.postMessage({ type: 'ERROR', message: err.message || 'OMR processing failed' });
   }

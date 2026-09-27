@@ -13,6 +13,9 @@ export interface McCropOptions {
   scale?: number;
   paddingX?: number;
   paddingY?: number;
+  paddingTop?: number;
+  paddingBottom?: number;
+  neighbourRects?: Array<[number, number, number, number]>;
   /**
    * Draws the same red/amber bubble-box + checkmark/missing-symbol overlay used on the
    * grading canvas (`omrOverlay.ts`) onto the page before cropping, so what the crop shows
@@ -24,18 +27,29 @@ export interface McCropOptions {
   };
 }
 
+export interface McCropLayers {
+  /** The scan crop without any markings. */
+  plain: string;
+  /** The same crop with the OMR overlay; equals `plain` when no overlay was requested. */
+  marked: string;
+}
+
 /**
- * Renders a cropped high-DPI image of an MC exercise bubble region from a submission scan PDF.
- * Returns a PNG data URL of the cropped region.
+ * Renders a cropped high-DPI image of an MC exercise bubble region from a submission scan PDF,
+ * once without and once with the overlay (same page render, identical geometry), so a viewer
+ * can toggle the markings without re-rendering. Returns PNG data URLs.
  */
-export async function renderMcCrop(options: McCropOptions): Promise<string> {
+export async function renderMcCrop(options: McCropOptions): Promise<McCropLayers> {
   const {
     pdfBytes,
     pageIndex,
     bubbles,
     scale = 3.0,
     paddingX = 0.15,
-    paddingY = 0.08,
+    paddingY,
+    paddingTop = paddingY ?? 0.035,
+    paddingBottom = paddingY ?? 0.015,
+    neighbourRects,
     overlay,
   } = options;
 
@@ -58,6 +72,12 @@ export async function renderMcCrop(options: McCropOptions): Promise<string> {
   if (!ctx) throw new Error('Failed to get 2d context for PDF rendering');
 
   await pdfPage.render({ canvasContext: ctx, viewport } as any).promise;
+
+  // Plain page, before the overlay is drawn onto the same canvas.
+  const plainPage = document.createElement('canvas');
+  plainPage.width = canvas.width;
+  plainPage.height = canvas.height;
+  plainPage.getContext('2d')?.drawImage(canvas, 0, 0);
 
   if (overlay) {
     drawOmrOverlayForPage(
@@ -97,8 +117,36 @@ export async function renderMcCrop(options: McCropOptions): Promise<string> {
 
   const cropMinX = Math.max(0, minX - paddingX);
   const cropMaxX = Math.min(1, maxX + paddingX);
-  const cropMinY = Math.max(0, minY - paddingY);
-  const cropMaxY = Math.min(1, maxY + paddingY);
+  let cropMinY = Math.max(0, minY - paddingTop);
+  let cropMaxY = Math.min(1, maxY + paddingBottom);
+
+  if (neighbourRects && neighbourRects.length > 0) {
+    let maxNeighbourY1 = -Infinity;
+    let minNeighbourY0 = Infinity;
+
+    for (const r of neighbourRects) {
+      if (!r || r.length < 4) continue;
+      const [, y0, , y1] = r;
+      if (y1 <= minY && y1 > maxNeighbourY1) {
+        maxNeighbourY1 = y1;
+      }
+      if (y0 >= maxY && y0 < minNeighbourY0) {
+        minNeighbourY0 = y0;
+      }
+    }
+
+    if (maxNeighbourY1 !== -Infinity) {
+      cropMinY = Math.max(cropMinY, maxNeighbourY1 + 0.005);
+    }
+    if (minNeighbourY0 !== Infinity) {
+      cropMaxY = Math.min(cropMaxY, minNeighbourY0 - 0.005);
+    }
+  }
+
+  if (cropMinY > cropMaxY) {
+    cropMinY = Math.max(0, minY - paddingTop);
+    cropMaxY = Math.min(1, maxY + paddingBottom);
+  }
 
   const pxMinX = Math.floor(cropMinX * viewport.width);
   const pxMinY = Math.floor(cropMinY * viewport.height);
@@ -108,23 +156,35 @@ export async function renderMcCrop(options: McCropOptions): Promise<string> {
   const cropWidth = Math.max(1, pxMaxX - pxMinX);
   const cropHeight = Math.max(1, pxMaxY - pxMinY);
 
-  const cropCanvas = document.createElement('canvas');
-  cropCanvas.width = cropWidth;
-  cropCanvas.height = cropHeight;
-  const cropCtx = cropCanvas.getContext('2d');
-  if (!cropCtx) throw new Error('Failed to get crop canvas context');
+  const ownBandTop = minY - 0.03;
+  const ownBandBottom = maxY + 0.01;
 
-  cropCtx.drawImage(
-    canvas,
-    pxMinX,
-    pxMinY,
-    cropWidth,
-    cropHeight,
-    0,
-    0,
-    cropWidth,
-    cropHeight
-  );
+  const cropToDataUrl = (source: HTMLCanvasElement): string => {
+    const cropCanvas = document.createElement('canvas');
+    cropCanvas.width = cropWidth;
+    cropCanvas.height = cropHeight;
+    const cropCtx = cropCanvas.getContext('2d');
+    if (!cropCtx) throw new Error('Failed to get crop canvas context');
 
-  return cropCanvas.toDataURL('image/png');
+    cropCtx.drawImage(source, pxMinX, pxMinY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+    // Dim what lies outside the exercise's own band, so leftover neighbour content
+    // reads as "not this one".
+    cropCtx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+    const pxBandTop = Math.round(ownBandTop * viewport.height);
+    const topOverlayHeight = Math.max(0, Math.min(cropHeight, pxBandTop - pxMinY));
+    if (topOverlayHeight > 0) {
+      cropCtx.fillRect(0, 0, cropWidth, topOverlayHeight);
+    }
+    const pxBandBottom = Math.round(ownBandBottom * viewport.height);
+    const bottomOverlayY = Math.max(0, pxBandBottom - pxMinY);
+    if (bottomOverlayY < cropHeight) {
+      cropCtx.fillRect(0, bottomOverlayY, cropWidth, cropHeight - bottomOverlayY);
+    }
+
+    return cropCanvas.toDataURL('image/png');
+  };
+
+  const plain = cropToDataUrl(plainPage);
+  return { plain, marked: overlay ? cropToDataUrl(canvas) : plain };
 }

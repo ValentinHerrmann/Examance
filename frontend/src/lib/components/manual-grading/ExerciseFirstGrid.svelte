@@ -94,10 +94,17 @@
 
     const key = get(sessionStore).sessionKey;
 
+    // OMR-read MC rows carry selectedOptions/omrMeta this grid doesn't show: carry them
+    // forward and never delete such a row from here (it would vanish from the MC
+    // verification queue).
+    const existing = (await scoreRepository.getBySubmissionId(examId, sub.id, key)).find(
+      (r) => r.exerciseId === activeExercise.id,
+    );
+
     // Save or delete individual exercise score
     if (numericVal !== null) {
-      // No existing-row lookup: the repository reconciles on
-      // (submissionId, exerciseId), which is also the server's unique key.
+      // The repository reconciles on (submissionId, exerciseId), which is also the
+      // server's unique key.
       await scoreRepository.saveOne(
         examId,
         {
@@ -105,9 +112,13 @@
           submissionId: sub.id,
           exerciseId: activeExercise.id,
           score: numericVal,
+          selectedOptions: existing?.selectedOptions,
+          omrMeta: existing?.omrMeta,
         },
         key,
       );
+    } else if (existing?.omrMeta) {
+      // keep the OMR row untouched
     } else {
       await scoreRepository.deleteOne(examId, sub.id, activeExercise.id);
     }
