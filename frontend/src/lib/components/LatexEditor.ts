@@ -111,6 +111,43 @@ export const latexTheme = EditorView.theme(
     },
     ".cm-scroller": {
       overflow: "auto"
+    },
+    ".cm-diff-line-added": {
+      backgroundColor: "rgba(16, 185, 129, 0.15) !important"
+    },
+    ".cm-diff-line-removed": {
+      backgroundColor: "rgba(239, 68, 68, 0.15) !important"
+    },
+    ".cm-diff-line-modified": {
+      backgroundColor: "rgba(245, 158, 11, 0.15) !important"
+    },
+    ".cm-diff-word-added": {
+      backgroundColor: "rgba(16, 185, 129, 0.35)",
+      color: "#6ee7b7",
+      borderRadius: "2px",
+      textDecoration: "underline"
+    },
+    ".cm-diff-word-removed": {
+      backgroundColor: "rgba(239, 68, 68, 0.35)",
+      color: "#fca5a5",
+      borderRadius: "2px",
+      textDecoration: "line-through"
+    },
+    ".cm-diff-line-padding": {
+      display: "block",
+      boxSizing: "border-box",
+      background: "transparent"
+    },
+    // border-box keeps the dashed borders inside the explicit height, so a
+    // gap spacer is exactly as tall as the lines it stands in for.
+    ".cm-diff-gap-spacer": {
+      backgroundColor: "rgba(15, 23, 42, 0.6)",
+      backgroundImage:
+        "repeating-linear-gradient(45deg, #1e293b 0, #1e293b 8px, #0f172a 8px, #0f172a 16px)",
+      borderTop: "1px dashed #334155",
+      borderBottom: "1px dashed #334155",
+      display: "block",
+      boxSizing: "border-box"
     }
   },
   { dark: true }

@@ -38,9 +38,8 @@
 </script>
 
 <script lang="ts">
-  import "./LatexEditor.css";
   import { onMount, onDestroy, createEventDispatcher } from "svelte";
-  import { EditorView, keymap, drawSelection, lineNumbers } from "@codemirror/view";
+  import { EditorView, BlockType, keymap, drawSelection, lineNumbers } from "@codemirror/view";
   import { EditorState, EditorSelection, Compartment } from "@codemirror/state";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
   import { StreamLanguage, syntaxHighlighting } from "@codemirror/language";
@@ -59,6 +58,8 @@
   export let readonly: boolean = false;
   export let diffDecorations: DiffDecorationConfig | null = null;
   export let showQuickInsert: boolean = false;
+  /** Called when CodeMirror re-measures line heights (re-wrap, resize, edit). */
+  export let onGeometryChange: (() => void) | null = null;
 
   // Applied to both wrapper divs below, not just CodeMirror's internal nodes.
   // Ancestors that mix `flex-1`/`h-full`/`min-h-0` (the exercise editor's
@@ -200,6 +201,12 @@
     }
   }
 
+  /**
+   * Rendered height of each line's text (including soft-wrapped rows).
+   * Block widgets attached to a line — the diff padding and gap spacers —
+   * are excluded: they are sized from these numbers, so counting them would
+   * feed the padding back into the next measurement.
+   */
   export function getLineHeights(): Map<number, number> {
     const heights = new Map<number, number>();
     if (!view) return heights;
@@ -208,7 +215,12 @@
       try {
         const lineObj = doc.line(l);
         const block = view.lineBlockAt(lineObj.from);
-        heights.set(l, block.height);
+        const height = Array.isArray(block.type)
+          ? block.type
+              .filter((sub) => sub.type === BlockType.Text)
+              .reduce((sum, sub) => sum + sub.height, 0)
+          : block.height;
+        heights.set(l, height);
       } catch {
         // Fallback
       }
@@ -254,6 +266,9 @@
             value = update.state.doc.toString();
             dispatch("change", value);
             isInternalUpdate = false;
+          }
+          if (update.geometryChanged || update.heightChanged) {
+            onGeometryChange?.();
           }
         })
       ]

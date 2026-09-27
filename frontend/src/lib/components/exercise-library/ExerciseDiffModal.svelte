@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import type { ExerciseRecord } from "$lib/db/schema";
   import LatexEditor from "$lib/components/LatexEditor.svelte";
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
@@ -32,13 +33,44 @@
 
   $: sideBySideDiff = computeSideBySideDiff(diffLeftLatex, diffRightLatex);
 
-  $: leftLineHeights = diffLeftEditor
-    ? diffLeftEditor.getLineHeights()
-    : new Map<number, number>();
+  // Wrapped line heights of both editors, fed to the alignment. They must be
+  // re-read whenever CodeMirror re-measures (text edit, version switch,
+  // resize, re-wrap) — a one-off read at mount only sees estimated heights.
+  let leftLineHeights = new Map<number, number>();
+  let rightLineHeights = new Map<number, number>();
+  let remeasureFrame: number | null = null;
 
-  $: rightLineHeights = diffRightEditor
-    ? diffRightEditor.getLineHeights()
-    : new Map<number, number>();
+  function sameHeights(a: Map<number, number>, b: Map<number, number>): boolean {
+    if (a.size !== b.size) return false;
+    for (const [line, h] of a) {
+      const other = b.get(line);
+      if (other === undefined || Math.abs(other - h) >= 0.5) return false;
+    }
+    return true;
+  }
+
+  function remeasure() {
+    remeasureFrame = null;
+    const left = diffLeftEditor?.getLineHeights() ?? new Map<number, number>();
+    const right = diffRightEditor?.getLineHeights() ?? new Map<number, number>();
+    // Only reassign on a real change, so applying the resulting paddings
+    // (which triggers another geometry update) settles instead of looping.
+    if (!sameHeights(left, leftLineHeights)) leftLineHeights = left;
+    if (!sameHeights(right, rightLineHeights)) rightLineHeights = right;
+  }
+
+  function scheduleRemeasure() {
+    if (remeasureFrame !== null) return;
+    remeasureFrame = requestAnimationFrame(remeasure);
+  }
+
+  $: if (isOpen || diffLeftEditor || diffRightEditor || diffLeftLatex || diffRightLatex) {
+    scheduleRemeasure();
+  }
+
+  onDestroy(() => {
+    if (remeasureFrame !== null) cancelAnimationFrame(remeasureFrame);
+  });
 
   $: alignedDiffDecorations = buildAlignedDiffDecorations(
     sideBySideDiff,
@@ -97,9 +129,9 @@
 
   <div class="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
     <div>
-      <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h4 class="m-0 text-[0.9rem] text-accent">{$t("exercises.diffModal.leftHeading", { name: diffLeftEx?.name || $t("exercises.diffModal.leftOriginalFallback"), version: diffLeftEx?.version || 1 })}</h4>
-        <div class="flex items-center gap-2">
+      <div class="mb-2 flex min-h-8 items-center justify-between gap-2">
+        <h4 class="m-0 min-w-0 truncate text-[0.9rem] text-accent">{$t("exercises.diffModal.leftHeading", { name: diffLeftEx?.name || $t("exercises.diffModal.leftOriginalFallback"), version: diffLeftEx?.version || 1 })}</h4>
+        <div class="flex shrink-0 items-center gap-2">
           {#if isDiffLeftDirty}
             <Button variant="primary" size="sm" onClick={onSaveLeft} disabled={isSavingDiffLeft}>
               {isSavingDiffLeft ? $t("exercises.diffModal.saving") : $t("exercises.diffModal.saveLeft")}
@@ -114,15 +146,16 @@
           bind:value={diffLeftLatex}
           rows={16}
           diffDecorations={leftDiffDecorations}
+          onGeometryChange={scheduleRemeasure}
           on:scroll={handleDiffLeftScroll}
         />
       </div>
     </div>
 
     <div>
-      <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h4 class="m-0 text-[0.9rem] text-accent">{$t("exercises.diffModal.rightHeading", { name: diffRightEx?.name || $t("exercises.diffModal.rightComparedFallback"), version: diffRightEx?.version || 1 })}</h4>
-        <div class="flex items-center gap-2">
+      <div class="mb-2 flex min-h-8 items-center justify-between gap-2">
+        <h4 class="m-0 min-w-0 truncate text-[0.9rem] text-accent">{$t("exercises.diffModal.rightHeading", { name: diffRightEx?.name || $t("exercises.diffModal.rightComparedFallback"), version: diffRightEx?.version || 1 })}</h4>
+        <div class="flex shrink-0 items-center gap-2">
           {#if isDiffRightDirty}
             <Button variant="primary" size="sm" onClick={onSaveRight} disabled={isSavingDiffRight}>
               {isSavingDiffRight ? $t("exercises.diffModal.saving") : $t("exercises.diffModal.saveRight")}
@@ -137,6 +170,7 @@
           bind:value={diffRightLatex}
           rows={16}
           diffDecorations={rightDiffDecorations}
+          onGeometryChange={scheduleRemeasure}
           on:scroll={handleDiffRightScroll}
         />
       </div>
