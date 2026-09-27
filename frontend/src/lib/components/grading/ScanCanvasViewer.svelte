@@ -109,6 +109,7 @@
     recalcScores();
     redrawOverlay();
     sessionStore.setDirty(true);
+    gradingStore.markDirty();
   }
 
   async function loadSubmissionCanvas(sub: SubmissionRecord) {
@@ -325,6 +326,7 @@
       persistStrokes(remainingStrokes);
       recalcScores();
       sessionStore.setDirty(true);
+      gradingStore.markDirty();
       redrawOverlay();
     }
   }
@@ -374,6 +376,7 @@
         },
       ]);
       sessionStore.setDirty(true);
+      gradingStore.markDirty();
       return;
     }
 
@@ -394,6 +397,7 @@
 
       recalcScores();
       sessionStore.setDirty(true);
+      gradingStore.markDirty();
       redrawOverlay();
       return;
     }
@@ -410,6 +414,7 @@
       },
     ]);
     sessionStore.setDirty(true);
+    gradingStore.markDirty();
   }
 
   function handlePointerMove(e: PointerEvent) {

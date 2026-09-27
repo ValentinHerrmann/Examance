@@ -107,7 +107,7 @@
         compileCtx = await loadExamCompileContext(examId, key);
         if (compileCtx) {
           const mcExercises = resolveMcExercises(compileCtx.exercises, compileCtx.libraryExercises, compileCtx.mcGroups);
-          const currentHash = await computeMcExercisesHash(mcExercises);
+          const currentHash = await computeMcExercisesHash(mcExercises, compileCtx.mcGroups);
           if (templateResult!.record.exercisesHash !== currentHash) {
             needsCompile = true;
           }
@@ -275,6 +275,7 @@
                 omrMeta: {
                   confidence: r.confidence,
                   source: "omr" as const,
+                  alignmentUncertain: r.alignmentUncertain ? true : undefined,
                   flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
                   original: {
                     confidence: r.confidence,

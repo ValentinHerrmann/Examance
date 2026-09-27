@@ -130,6 +130,8 @@ export interface ExamMcGroupRecord {
 export interface OmrScoreMeta {
   confidence: 'high' | 'ambiguous' | 'failed';
   source: 'omr' | 'manual';
+  /** True when fiducial registration was uncertain (e.g. affine fallback or high residual / non-orthogonal). */
+  alignmentUncertain?: boolean;
   /** Option indices the worker flagged as uncertain (light mark, partial erase, multi-mark on sc/tf). */
   flaggedOptions?: number[];
   /** Snapshot of initial detection before user verification or correction. */

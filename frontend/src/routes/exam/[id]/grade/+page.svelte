@@ -25,7 +25,7 @@
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { decrypt, encrypt } from "$lib/crypto/aesGcm";
   import { get } from "svelte/store";
-  import { gradingStore } from "$lib/grading/gradingStore";
+  import { gradingStore, type VectorStroke } from "$lib/grading/gradingStore";
   import { isMcQuestion } from "$lib/grading/mcScore";
   import GradingWorkspace from "$lib/components/grading/GradingWorkspace.svelte";
   import { t, translate } from "$lib/i18n";
@@ -93,21 +93,23 @@
     gradingStore.setManualOverride({});
     gradingStore.setScoreInputs({});
     gradingStore.setMcState({});
+    gradingStore.markClean();
     if (exercises.length > 0 && !get(gradingStore).activeExerciseId) {
       gradingStore.setActiveExerciseId(exercises[0].id);
     }
     const key = get(sessionStore).sessionKey;
     const existingScores = await scoreRepository.getBySubmissionId(examId, sub.id, key);
     const existingMap = new Map(existingScores.map((es) => [es.exerciseId, es]));
+    loadedScores = existingMap;
 
-    // Check strokes/annotations for exercises with active stamps
-    const currentStrokes = get(gradingStore).currentStrokes;
+    // Check strokes/annotations for exercises with active stamps. Read them from `sub`
+    // itself: the canvas loads the new submission's strokes asynchronously, so the
+    // store still holds the previous student's strokes at this point.
+    const subStrokes = await loadStrokesFor(sub);
     const exerciseIdsWithStrokes = new Set<string>();
-    if (currentStrokes && currentStrokes.length > 0) {
-      for (const stroke of currentStrokes) {
-        if (stroke.exerciseId) {
-          exerciseIdsWithStrokes.add(stroke.exerciseId);
-        }
+    for (const stroke of subStrokes) {
+      if (stroke.exerciseId) {
+        exerciseIdsWithStrokes.add(stroke.exerciseId);
       }
     }
 
@@ -118,8 +120,11 @@
       const existing = existingMap.get(ex.id);
       if (existing && typeof existing.score === "number" && !isNaN(existing.score)) {
         // Legacy detection: if score is 0 and no annotations exist for this exercise,
-        // treat as ungraded (null) instead of graded 0 points
-        if (existing.score === 0 && !exerciseIdsWithStrokes.has(ex.id) && !manualOverride[ex.id]) {
+        // treat as ungraded (null) instead of graded 0 points. Not for an OMR-read MC
+        // question: its 0 is a real result, and nulling it made the next save delete
+        // the row (and its omrMeta) — dropping it from the verification queue.
+        const isOmrMc = isMcQuestion(ex) && !!existing.omrMeta;
+        if (existing.score === 0 && !isOmrMc && !exerciseIdsWithStrokes.has(ex.id) && !manualOverride[ex.id]) {
           newScoreInputs[ex.id] = null;
         } else {
           newScoreInputs[ex.id] = existing.score;
@@ -136,6 +141,21 @@
     }
     gradingStore.setScoreInputs(newScoreInputs);
     gradingStore.setMcState(newMcState);
+  }
+
+  /** Score rows as loaded for the current submission — lets a save keep an MC row it
+   *  would otherwise have deleted (see handleSaveScore). */
+  let loadedScores = new Map<string, ExerciseScoreRecord>();
+
+  async function loadStrokesFor(sub: SubmissionRecord): Promise<VectorStroke[]> {
+    const { sessionKey, fallbackSessionKey } = get(sessionStore);
+    if (!sub.annotationCt || !sub.annotationIv || !sessionKey) return [];
+    try {
+      const bytes = await decrypt(sessionKey, sub.annotationCt, sub.annotationIv, fallbackSessionKey);
+      return JSON.parse(new TextDecoder().decode(bytes));
+    } catch {
+      return [];
+    }
   }
 
   function handleSubmissionHydrated(fullSub: SubmissionRecord) {
@@ -157,6 +177,12 @@
       const toClear: string[] = [];
       for (const ex of exercises) {
         const val = scoreInputs[ex.id];
+        const loaded = loadedScores.get(ex.id);
+        if (isMcQuestion(ex) && loaded?.omrMeta && (val === null || val === undefined || isNaN(val))) {
+          // Grading MC here is optional: an unreviewed OMR row stays exactly as it is
+          // (score, selectedOptions, omrMeta incl. review status) instead of being cleared.
+          continue;
+        }
         if (val !== null && val !== undefined && !isNaN(val)) {
           const mc = isMcQuestion(ex) ? mcState[ex.id] : undefined;
           toSave.push({
@@ -214,6 +240,7 @@
         });
       }
       sessionStore.setDirty(false);
+      gradingStore.markClean();
       alert(translate("grading.page.saveSuccess"));
     } catch (err: any) {
       alert(translate("grading.page.saveFailed", { message: err.message }));
@@ -227,7 +254,7 @@
       gradingStore.setShowLastSubModal(true);
       return;
     }
-    if (get(gradingStore).currentStrokes.length > 0) {
+    if (get(gradingStore).isDirty) {
       if (!confirm(translate("grading.page.unsavedNext"))) {
         return;
       }
@@ -237,7 +264,7 @@
   }
 
   function prevStudent() {
-    if (get(gradingStore).currentStrokes.length > 0) {
+    if (get(gradingStore).isDirty) {
       if (!confirm(translate("grading.page.unsavedPrev"))) {
         return;
       }

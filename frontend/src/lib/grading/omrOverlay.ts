@@ -11,29 +11,61 @@ export interface McOverlayState {
 }
 
 /** Shared by the manual `check_full`/`check` stroke tool and the OMR pass below. */
-export function drawCheckmark(ctx: CanvasRenderingContext2D, x: number, y: number) {
+export function drawCheckmark(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size = 30,
+  lineWidth?: number
+) {
+  if (lineWidth !== undefined) {
+    ctx.lineWidth = lineWidth;
+  } else if (size !== 30) {
+    ctx.lineWidth = Math.max(1.5, size * 0.08);
+  }
+  const s = size / 30;
   ctx.beginPath();
-  ctx.moveTo(x - 14, y - 2);
-  ctx.lineTo(x - 4, y + 10);
-  ctx.lineTo(x + 16, y - 18);
+  ctx.moveTo(x - 14 * s, y - 2 * s);
+  ctx.lineTo(x - 4 * s, y + 10 * s);
+  ctx.lineTo(x + 16 * s, y - 18 * s);
   ctx.stroke();
 }
 
 /** Shared by the manual `missing` stroke tool and the OMR pass below. */
-export function drawMissingSymbol(ctx: CanvasRenderingContext2D, x: number, y: number) {
+export function drawMissingSymbol(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size = 30,
+  lineWidth?: number
+) {
+  if (lineWidth !== undefined) {
+    ctx.lineWidth = lineWidth;
+  } else if (size !== 30) {
+    ctx.lineWidth = Math.max(1.5, size * 0.08);
+  }
+  const s = size / 30;
   ctx.beginPath();
-  ctx.moveTo(x - 12, y - 18);
-  ctx.lineTo(x, y + 4);
-  ctx.lineTo(x + 12, y - 18);
+  ctx.moveTo(x - 12 * s, y - 18 * s);
+  ctx.lineTo(x, y + 4 * s);
+  ctx.lineTo(x + 12 * s, y - 18 * s);
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(x - 15, y - 8);
-  ctx.lineTo(x + 15, y - 8);
+  ctx.moveTo(x - 15 * s, y - 8 * s);
+  ctx.lineTo(x + 15 * s, y - 8 * s);
   ctx.stroke();
 }
 
-export function drawScoreText(ctx: CanvasRenderingContext2D, x: number, y: number, text: string) {
-  ctx.font = 'bold 26px sans-serif';
+export function drawScoreText(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  text: string,
+  fontSize?: number
+) {
+  const size = fontSize !== undefined ? Math.round(fontSize) : 26;
+  ctx.font = `bold ${size}px sans-serif`;
+  ctx.textBaseline = 'middle';
   ctx.fillText(text, x, y);
 }
 
@@ -87,9 +119,14 @@ export function drawOmrOverlayForPage(
 
     for (const bubble of detections.bubbles) {
       const [x0, y0, x1, y1] = bubble.rect;
-      const cx = ((x0 + x1) / 2) * w;
       const cy = ((y0 + y1) / 2) * h;
       const isCorrectOption = correctAnswers.has(bubble.optionIndex);
+      const boxPx = (x1 - x0) * w;
+      const strokeWidth = Math.max(1.5, boxPx * 0.08);
+      const pad = boxPx * 0.25;
+      // Right-hand stamps sit raised by half a box, so they clear the option text
+      // that follows the box on the same line (still beside the box, never over it).
+      const stampY = cy - boxPx * 0.5;
 
       bboxMinX = Math.min(bboxMinX, x0 * w);
       bboxMinY = Math.min(bboxMinY, y0 * h);
@@ -98,18 +135,19 @@ export function drawOmrOverlayForPage(
       if (bubble.state === 'blank' || bubble.state === 'undone') {
         if (bubble.state === 'undone') {
           ctx.save();
+          ctx.globalAlpha = 0.7;
           ctx.strokeStyle = '#64748b'; // slate-500 — visually distinct from amber "ambiguous"
-          ctx.lineWidth = 2;
+          ctx.lineWidth = strokeWidth;
           ctx.setLineDash([2, 3]);
-          ctx.strokeRect(x0 * w, y0 * h, (x1 - x0) * w, (y1 - y0) * h);
+          ctx.strokeRect(x0 * w - pad, y0 * h - pad, (x1 - x0) * w + 2 * pad, (y1 - y0) * h + 2 * pad);
           ctx.restore();
         }
         if (isCorrectOption) {
           ctx.save();
           ctx.strokeStyle = '#ef4444';
           ctx.fillStyle = '#ef4444';
-          ctx.lineWidth = 3;
-          drawMissingSymbol(ctx, cx, cy);
+          ctx.lineWidth = strokeWidth;
+          drawMissingSymbol(ctx, x1 * w + boxPx * 0.9, stampY, boxPx, strokeWidth);
           ctx.restore();
         }
         continue;
@@ -117,16 +155,18 @@ export function drawOmrOverlayForPage(
 
       const marked = bubble.state === 'marked' || bubble.state === 'redone';
       ctx.save();
+      ctx.globalAlpha = 0.7;
       ctx.strokeStyle = marked ? '#ef4444' : '#f59e0b';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = strokeWidth;
       ctx.setLineDash(marked ? [] : [6, 4]);
-      ctx.strokeRect(x0 * w, y0 * h, (x1 - x0) * w, (y1 - y0) * h);
+      ctx.strokeRect(x0 * w - pad, y0 * h - pad, (x1 - x0) * w + 2 * pad, (y1 - y0) * h + 2 * pad);
       ctx.restore();
 
       if (bubble.state === 'redone') {
         ctx.save();
+        ctx.globalAlpha = 0.7;
         ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = strokeWidth;
         ctx.strokeRect((x0 - (x1 - x0) * 0.9) * w, y0 * h, (x1 - x0) * 0.8 * w, (y1 - y0) * h);
         ctx.restore();
       }
@@ -135,10 +175,12 @@ export function drawOmrOverlayForPage(
       ctx.strokeStyle = '#ef4444';
       ctx.fillStyle = '#ef4444';
       if (isCorrectOption) {
-        ctx.lineWidth = 3;
-        drawCheckmark(ctx, x1 * w + 16, y0 * h - 8);
+        ctx.lineWidth = strokeWidth;
+        drawCheckmark(ctx, x1 * w + boxPx * 0.9, stampY, boxPx, strokeWidth);
       } else {
-        drawScoreText(ctx, x1 * w + 4, y0 * h, formatSignedScore(-Math.abs(penalty)));
+        const textX = x1 * w + boxPx * 0.3;
+        const fontSize = Math.max(10, boxPx * 0.7);
+        drawScoreText(ctx, textX, stampY, formatSignedScore(-Math.abs(penalty)), fontSize);
       }
       ctx.restore();
     }

@@ -163,10 +163,24 @@ interface McAnswerKeyTuple {
   optionsLength: number;
   correctAnswers: number[];
   penalty: number;
+  /**
+   * `<groupId>:<position>` for members of an MC group. The printed position of a
+   * sub-item decides where its boxes sit on the page, so reordering a group's
+   * members must invalidate the captured OMR template just like an answer-key edit.
+   * Absent for standalone exercises, which keeps their hash unchanged.
+   */
+  groupSlot?: string;
 }
 
 /** Filters to MC-relevant exercises and reduces each to its answer-key-affecting fields. */
-export function toMcAnswerKeyTuples(exercises: ExerciseRecord[]): McAnswerKeyTuple[] {
+export function toMcAnswerKeyTuples(
+  exercises: ExerciseRecord[],
+  mcGroups: McGroupLike[] = []
+): McAnswerKeyTuple[] {
+  const slotById = new Map<string, string>();
+  for (const group of mcGroups) {
+    group.memberIds.forEach((memberId, idx) => slotById.set(memberId, `${group.id}:${idx}`));
+  }
   const exs = exercises
     .filter(isMcQuestion)
     .map(normalizeMcExercise)
@@ -176,14 +190,18 @@ export function toMcAnswerKeyTuples(exercises: ExerciseRecord[]): McAnswerKeyTup
       optionsLength: e.options?.length ?? 0,
       correctAnswers: e.correctAnswers ?? [],
       penalty: e.penalty ?? 0,
+      ...(slotById.has(e.id) ? { groupSlot: slotById.get(e.id) } : {}),
     }))
     .sort((a, b) => a.id.localeCompare(b.id));
   return exs;
 }
 
-/** SHA-256 hex digest of the exam's ordered-by-id MC answer-key tuples. */
-export async function computeMcExercisesHash(exercises: ExerciseRecord[]): Promise<string> {
-  const tuples = toMcAnswerKeyTuples(exercises);
+/** SHA-256 hex digest of the exam's ordered-by-id MC answer-key tuples (incl. group slots). */
+export async function computeMcExercisesHash(
+  exercises: ExerciseRecord[],
+  mcGroups: McGroupLike[] = []
+): Promise<string> {
+  const tuples = toMcAnswerKeyTuples(exercises, mcGroups);
   const data = new TextEncoder().encode(JSON.stringify(tuples));
   const digest = await crypto.subtle.digest('SHA-256', data);
   return Array.from(new Uint8Array(digest))

@@ -11,6 +11,7 @@
   import { t, translate } from "$lib/i18n";
   import type { McQueueCategory } from "$lib/grading/mcVerification";
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
+  import { safeLocalStorage } from "$lib/utils/storage";
 
   interface StudentQueueItem {
     exerciseId: string;
@@ -30,6 +31,9 @@
   export let scanPdfBytes: Uint8Array | null = null;
   export let currentIndex: number = 0;
   export let totalItems: number = 0;
+  export let neighbourRects: Array<[number, number, number, number]> = [];
+  /** Queue label (title + sub-letter for MC-group members); falls back to the exercise name. */
+  export let exerciseLabel: string = "";
 
   export let onSave: (
     exerciseId: string,
@@ -48,11 +52,39 @@
   let selectedOptions: number[] = [];
   let omrMeta: OmrScoreMeta | undefined = undefined;
   let cropDataUrl: string | null = null;
+  let cropMarkedUrl: string | null = null;
   let loadingCrop = false;
   let cropError = "";
   let isSaving = false;
   let cropRequestId = 0;
   let justRestored = false;
+
+  const OVERLAY_STORAGE_KEY = "bg_mc_verify_overlay";
+
+  function loadOverlayPreference(): boolean {
+    try {
+      const stored = safeLocalStorage.getItem(OVERLAY_STORAGE_KEY);
+      if (stored === null) return true;
+      return stored !== "false";
+    } catch {
+      return true;
+    }
+  }
+
+  function saveOverlayPreference(val: boolean): void {
+    try {
+      safeLocalStorage.setItem(OVERLAY_STORAGE_KEY, String(val));
+    } catch {
+      // safeLocalStorage catches errors, but outer try-catch guarantees safety
+    }
+  }
+
+  let showOverlay: boolean = loadOverlayPreference();
+
+  function toggleOverlay() {
+    showOverlay = !showOverlay;
+    saveOverlayPreference(showOverlay);
+  }
 
   $: {
     selectedOptions = scoreRecord?.selectedOptions ?? [];
@@ -74,7 +106,7 @@
   // and exercise.id ensures template-key collisions across submissions are eliminated.
   $: cropKey =
     scanPdfBytes && omrMeta?.detections && submissionId && exercise?.id
-      ? `${submissionId}:${exercise.id}:${omrMeta.detections.pageIndex}:${omrMeta.detections.bubbles
+      ? `${submissionId}:${exercise.id}:${omrMeta.detections.pageIndex}:${neighbourRects.map((r) => r.join(",")).join(";")}:${omrMeta.detections.bubbles
           .map((b) => `${b.optionIndex}:${b.state}:${b.rect.join(",")}`)
           .join("|")}`
       : "";
@@ -84,6 +116,7 @@
     if (cropKey !== lastLoadedCropKey) {
       lastLoadedCropKey = cropKey;
       cropDataUrl = null;
+      cropMarkedUrl = null;
       cropError = "";
       if (scanPdfBytes && omrMeta?.detections && cropKey) {
         loadCrop(
@@ -111,10 +144,12 @@
         pageIndex,
         bubbles,
         scale: 3.0,
+        neighbourRects,
         overlay: { exercise, omrMeta: currentOmrMeta },
       });
       if (thisRequestId !== cropRequestId) return;
-      cropDataUrl = url;
+      cropDataUrl = url.plain;
+      cropMarkedUrl = url.marked;
     } catch (err: any) {
       if (thisRequestId !== cropRequestId) return;
       console.error("Failed to render crop:", err);
@@ -188,6 +223,7 @@
     isSaving = true;
     try {
       await onSave(exercise.id, res.nextSelectedOptions, res.nextScore, res.nextOmrMeta);
+      (currentIndex < totalItems - 1 ? onNext : onEndOfQueue)();
     } catch (err) {
       console.error("Failed to confirm detection:", err);
     } finally {
@@ -261,6 +297,12 @@
       return;
     }
 
+    if (e.key === "o" || e.key === "O") {
+      e.preventDefault();
+      toggleOverlay();
+      return;
+    }
+
     if (e.key === "r" || e.key === "R") {
       if (hasOriginal && !isMatchesOriginal) {
         e.preventDefault();
@@ -300,7 +342,7 @@
       </div>
       <div class="flex items-center gap-2 mt-0.5">
         <h3 class="text-lg font-bold text-slate-100">
-          {exercise.name || exercise.title || $t("scanning.itemCard.defaultExerciseName")}
+          {exerciseLabel || exercise.name || exercise.title || $t("scanning.itemCard.defaultExerciseName")}
         </h3>
         <span
           class="px-2 py-0.5 text-[0.7rem] font-semibold rounded border transition-shadow duration-300
@@ -369,12 +411,40 @@
   <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
     <!-- Left Column: Scan Bubble Crop -->
     <div class="rounded-lg border border-slate-700 bg-slate-900 p-4 flex flex-col items-center justify-center min-h-[320px]">
-      <div class="text-xs font-medium text-slate-400 mb-2 w-full flex justify-between">
-        <span>{$t("scanning.itemCard.scanCrop")}</span>
+      <div class="text-xs font-medium text-slate-400 mb-2 w-full flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span>{$t("scanning.itemCard.scanCrop")}</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showOverlay}
+            on:click={toggleOverlay}
+            title={showOverlay ? $t("scanning.itemCard.hideOverlayTooltip") : $t("scanning.itemCard.showOverlayTooltip")}
+            class="inline-flex items-center gap-2 rounded-full py-0.5 pl-0.5 pr-2 text-slate-300 hover:text-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <span
+              class="relative inline-block h-4 w-7 shrink-0 rounded-full transition-colors duration-200 {showOverlay
+                ? 'bg-accent'
+                : 'bg-slate-600'}"
+            >
+              <span
+                class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform duration-200 {showOverlay
+                  ? 'translate-x-3'
+                  : 'translate-x-0'}"
+              ></span>
+            </span>
+            {$t("scanning.itemCard.overlayToggleLabel")}
+          </button>
+        </div>
         <span class="font-mono text-[0.7rem] text-slate-500">
           {$t("scanning.itemCard.sourceConfidence", { source, confidence })}
         </span>
       </div>
+      {#if omrMeta?.alignmentUncertain}
+        <div class="mb-2 w-full rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-300">
+          {$t("scanning.itemCard.alignmentUncertainWarning")}
+        </div>
+      {/if}
 
       {#if loadingCrop}
         <div class="text-xs text-slate-400 animate-pulse py-12">{$t("scanning.itemCard.renderingCrop")}</div>
@@ -387,6 +457,17 @@
             alt={$t("scanning.itemCard.scanCropAlt", { name: exercise.name || "" })}
             class="max-h-[70vh] w-full object-contain"
           />
+          {#if cropMarkedUrl}
+            <!-- Same geometry as the plain crop, stacked on top; toggling only fades it. -->
+            <img
+              src={cropMarkedUrl}
+              alt=""
+              aria-hidden="true"
+              class="pointer-events-none absolute inset-0 h-full w-full object-contain transition-opacity duration-150 {showOverlay
+                ? 'opacity-100'
+                : 'opacity-0'}"
+            />
+          {/if}
         </div>
       {:else}
         <div class="text-xs text-slate-500 italic py-12 text-center">

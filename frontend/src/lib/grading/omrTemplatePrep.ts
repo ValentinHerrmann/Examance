@@ -338,7 +338,7 @@ ${exerciseInputs}
   console.log("[PrepareOMR] Pages extraction summary:", pages.map((p) => ({ page: p.pageIndex + 1, fiducials: p.fiducials.length, bubbles: p.bubbles.length })));
 
   const payload: OmrTemplatePayload = { pages };
-  const exercisesHash = await computeMcExercisesHash(mcExercises);
+  const exercisesHash = await computeMcExercisesHash(mcExercises, mcGroups);
   await saveOmrTemplateEncrypted(examId, exercisesHash, payload, key);
   
   const totalBubbles = pages.reduce((sum, p) => sum + p.bubbles.length, 0);
