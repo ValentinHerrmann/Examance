@@ -22,6 +22,11 @@
   $: reasonsByOption = new Map(
     (omrMeta?.detections?.bubbles ?? []).map((b) => [b.optionIndex, b.reasons ?? []])
   );
+  $: provisionalByOption = new Map(
+    (omrMeta?.detections?.bubbles ?? [])
+      .filter((b) => b.detectedState === "ambiguous" && b.provisional !== undefined && !omrMeta?.reviewedAt)
+      .map((b) => [b.optionIndex, b.provisional as boolean])
+  );
   $: multiMarkWarning = isSingleAnswer && selectedOptions.length > 1;
 
   function toggleOption(idx: number) {
@@ -81,6 +86,9 @@
               title={[
                 $t("grading.mcReview.uncertainMark"),
                 ...(reasonsByOption.get(idx) ?? []).map((r) => $t(`scanning.itemCard.reason.${r}`)),
+                ...(provisionalByOption.has(idx)
+                  ? [provisionalByOption.get(idx) ? $t("scanning.itemCard.provisionalTicked") : $t("scanning.itemCard.provisionalNotTicked")]
+                  : []),
               ].join(" · ")}>?</span>
           {/if}
         </button>

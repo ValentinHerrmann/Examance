@@ -56,12 +56,26 @@ export const settings: Translations['settings'] = {
             areaOrder: 'The minimum fiducial area must be smaller than the maximum.',
         },
         params: {
+            algorithm: {
+                label: 'Detection method',
+                hint: 'v4 = default (stroke shape, local contrast). v2 = older method (fill level), kept as a fallback. The other method always runs alongside; the MC verification view compares both on your verified boxes.',
+                v2: 'v2 — older method (fill level)',
+                v4: 'v4 — default (stroke shape)',
+            },
+            inkMinFill: {
+                label: 'v4: ink from (fill level)',
+                hint: 'Below this — and without a recognisable stroke — a box counts as blank.',
+            },
+            tickSpanMin: {
+                label: 'v4: cross from stroke length',
+                hint: 'A clean stroke spanning at least this share of the box counts as a confident cross, regardless of fill level.',
+            },
             ambiguousLow: {
-                label: 'Blank below (fill level)',
+                label: 'v2: Blank below (fill level)',
                 hint: 'Boxes with a smaller share of dark pixels count as blank. Higher = dust/specks are ignored more, but faint ticks are missed more easily.',
             },
             markedHigh: {
-                label: 'Confidently ticked from (fill level)',
+                label: 'v2: Confidently ticked from (fill level)',
                 hint: 'From this share a box counts as confidently ticked. In between, it is flagged as uncertain for review.',
             },
             filledHigh: {
@@ -136,11 +150,36 @@ export const settings: Translations['settings'] = {
                 label: 'Faint mark: minimum contrast',
                 hint: '0 = barely darker than the background, 1 = as dark as the print. Fainter marks are sent to review.',
             },
+            localContrastFrac: {
+                label: 'Ink: local contrast threshold',
+                hint: 'A pixel counts as ink when it is darker than the surrounding paper by this share of the range between paper and print black. Lower = more sensitive.',
+            },
+            snapMaxFraction: {
+                label: 'Box: maximum snapping',
+                hint: 'How far (share of the box size) the measuring window may be moved onto the actually printed border.',
+            },
+            strokeSpanMin: {
+                label: 'Thin stroke: minimum length',
+                hint: 'An otherwise empty box with a stroke spanning at least this share of the box is sent to review.',
+            },
             scanScale: {
                 label: 'Raster resolution (scale)',
                 hint: 'Resolution scans are rendered at for detection. Not adjustable, but recorded with every run.',
             },
         },
+    },
+    donation: {
+        heading: '5. Help improve MC detection (optional)',
+        description:
+            'Help improve automatic checkbox detection for all teachers by donating anonymised crops of boxes you have already verified.',
+        whatIsSent:
+            "Sent per verified box: a small grayscale crop (only the box and the correction field next to it, no question text), your verified decision (ticked / not ticked) and the detector's measurements.",
+        whatIsNotSent:
+            'Not sent: names, pseudonyms, exam, submission or question identifiers, your account, or timestamps. The request is made without the sign-in cookie.',
+        whenSent: 'Only questions you confirmed or corrected in the MC verification view, and only while this option is enabled.',
+        optIn: 'I want to send anonymised crops of verified checkboxes to the operator of this Examance server.',
+        privacyNote: 'Details in the privacy policy:',
+        privacyLink: 'Privacy',
     },
     hygiene: {
         heading: 'Session Data Hygiene',

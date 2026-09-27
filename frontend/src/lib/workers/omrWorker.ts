@@ -21,10 +21,15 @@ import {
 import {
   blackReference,
   cellFills,
-  classifyBubble,
+  classifyV2,
+  classifyV4,
+  effectiveRedoRect,
   inkContrast,
+  measureBox,
   median,
   ringFill,
+  sampleFillRatio,
+  type OmrBubbleClassification,
   type OmrBubbleState,
   type OmrShapeFeatures,
   type OmrShapeReason,
@@ -56,10 +61,14 @@ export interface OmrBubbleReading {
   state: OmrBubbleState;
   /** Redo-zone fill ratio, measured whenever the bubble's template has a redoRect. */
   redoRatio?: number;
-  /** Shape/context measurements (algorithm v2, `omrShape.ts`). */
+  /** v4 measurements (`measureBox`), always computed — also when v2 decides. */
   shape?: OmrShapeFeatures;
   /** Why the shape analysis changed or flagged this reading; non-empty → flagged for review. */
   reasons?: OmrShapeReason[];
+  /** For `ambiguous` boxes: the closer outcome (true = ticked), counted until verified. */
+  provisional?: boolean;
+  /** Verdict of the algorithm that did *not* decide (shadow run), for comparison on verified data. */
+  alt?: { algorithm: number; state: OmrBubbleState; reasons?: OmrShapeReason[]; provisional?: boolean };
   /** Bubble's bbox in scan-pixel space, normalized to [0,1] of (width, height) as
    *  [minX, minY, maxX, maxY] — resolution-independent so the grading viewer (which
    *  re-rasterizes at its own scale) can draw a detection box without knowing this
@@ -342,31 +351,6 @@ function bubbleBBoxInImage(
   return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
 }
 
-function sampleFillRatio(
-  dark: Uint8Array,
-  width: number,
-  height: number,
-  bbox: { minX: number; minY: number; maxX: number; maxY: number },
-  insetFraction: number
-): number {
-  const insetX = (bbox.maxX - bbox.minX) * insetFraction;
-  const insetY = (bbox.maxY - bbox.minY) * insetFraction;
-  const x0 = Math.max(0, Math.round(bbox.minX + insetX));
-  const x1 = Math.min(width, Math.round(bbox.maxX - insetX));
-  const y0 = Math.max(0, Math.round(bbox.minY + insetY));
-  const y1 = Math.min(height, Math.round(bbox.maxY - insetY));
-
-  let darkCount = 0;
-  let total = 0;
-  for (let y = y0; y < y1; y++) {
-    for (let x = x0; x < x1; x++) {
-      total++;
-      if (dark[y * width + x]) darkCount++;
-    }
-  }
-  return total > 0 ? darkCount / total : 0;
-}
-
 self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
   const { imageData, pageTemplate, scanScale, answerKeys } = event.data;
   const p = normalizeOmrParams(event.data.params);
@@ -573,47 +557,70 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
         continue;
       }
 
-      // Pass 1: raw measurements per box. The spill check needs every sibling's ring fill before
-      // any box of this exercise can be classified.
+      // Pass 1: measure every box both ways — v4 (local threshold, border snapping, strokes) and
+      // v2 (global Otsu, template rect). Spill needs every sibling's ring before classifying.
       const measured = bubbleRects.map((b) => {
         const bbox = bubbleBBoxInImage(H, b.rect, scanScale, pageTemplate.pageHeightPt);
-        const ratio = sampleFillRatio(dark, width, height, bbox, p.sampleInsetFraction);
-
-        // Measured for every box that has a redo zone (not just solid-filled ones), so the
-        // persisted value is a real observation. Classification only consults it for a
-        // solid-filled box.
-        let redoRatio: number | undefined;
-        let redoBbox: ReturnType<typeof bubbleBBoxInImage> | undefined;
-        if (b.redoRect) {
-          redoBbox = bubbleBBoxInImage(H, b.redoRect, scanScale, pageTemplate.pageHeightPt);
-          redoRatio = sampleFillRatio(dark, width, height, redoBbox, p.sampleInsetFraction);
-        }
-
+        const redoBbox = b.redoRect
+          ? bubbleBBoxInImage(H, effectiveRedoRect(b.rect, b.redoRect), scanScale, pageTemplate.pageHeightPt)
+          : undefined;
         const cells = cellFills(dark, width, height, bbox, p.sampleInsetFraction);
+        const maxCell = Math.max(...cells);
         return {
           b,
           bbox,
-          ratio,
-          redoRatio,
-          minCellFill: Math.min(...cells),
-          cellEvenness: Math.max(...cells) > 0 ? Math.min(...cells) / Math.max(...cells) : 0,
-          ring: ringFill(dark, width, height, bbox, p.ringFraction, redoBbox),
-          contrast: inkContrast(gray, dark, width, height, bbox, p.sampleInsetFraction, threshold, blackRef),
+          m: measureBox(gray, width, height, bbox, redoBbox, blackRef, p),
+          v2: {
+            fill: sampleFillRatio(dark, width, height, bbox, p.sampleInsetFraction),
+            redoRatio: redoBbox ? sampleFillRatio(dark, width, height, redoBbox, p.sampleInsetFraction) : undefined,
+            minCellFill: Math.min(...cells),
+            cellEvenness: maxCell > 0 ? Math.min(...cells) / maxCell : 0,
+            ringFill: ringFill(dark, width, height, bbox, p.ringFraction, redoBbox),
+            inkContrast: inkContrast(gray, dark, width, height, bbox, p.sampleInsetFraction, threshold, blackRef),
+          },
         };
       });
 
-      const bubbleReadings: OmrBubbleReading[] = measured.map((m, i) => {
-        const { b, bbox, ratio, redoRatio } = m;
-        const siblingRings = measured.filter((_, j) => j !== i).map((o) => o.ring);
+      const bubbleReadings: OmrBubbleReading[] = measured.map(({ b, bbox: rawBbox, m, v2 }, i) => {
+        const others = measured.filter((_, j) => j !== i);
+        const spill = (own: number, rings: number[]) => (rings.length > 0 ? { spillExcess: own - median(rings) } : {});
         const shape: OmrShapeFeatures = {
-          minCellFill: m.minCellFill,
-          cellEvenness: m.cellEvenness,
-          ringFill: m.ring,
-          ...(siblingRings.length > 0 ? { spillExcess: m.ring - median(siblingRings) } : {}),
-          inkContrast: m.contrast,
+          ...m.features,
+          ...spill(m.features.ringFill, others.map((o) => o.m.features.ringFill)),
         };
-        const { state, reasons } = classifyBubble({ fill: ratio, redoRatio, features: shape }, p);
+        const dec4 = classifyV4({ fill: m.fill, redoRatio: m.redoRatio, features: shape }, p);
+        const dec2 = classifyV2(
+          {
+            fill: v2.fill,
+            redoRatio: v2.redoRatio,
+            features: {
+              minCellFill: v2.minCellFill,
+              cellEvenness: v2.cellEvenness,
+              ringFill: v2.ringFill,
+              ...spill(v2.ringFill, others.map((o) => o.v2.ringFill)),
+              inkContrast: v2.inkContrast,
+            },
+          },
+          p
+        );
+        const [chosen, other, otherAlgorithm]: [OmrBubbleClassification, OmrBubbleClassification, number] =
+          p.algorithm === 4 ? [dec4, dec2, 2] : [dec2, dec4, 4];
+        const { state, reasons, provisional } = chosen;
+        // Raw readings are the v4 measurements (features for calibration/training), whichever
+        // algorithm decided.
+        const ratio = m.fill;
+        const redoRatio = m.redoRatio;
 
+        // Report the box where the printed border actually is (snapped), not the raw template
+        // position — the viewer's overlay and any crop then sit on the real box.
+        const w = rawBbox.maxX - rawBbox.minX;
+        const h = rawBbox.maxY - rawBbox.minY;
+        const bbox = {
+          minX: rawBbox.minX + shape.snapDx * w,
+          maxX: rawBbox.maxX + shape.snapDx * w,
+          minY: rawBbox.minY + shape.snapDy * h,
+          maxY: rawBbox.maxY + shape.snapDy * h,
+        };
         const rect: [number, number, number, number] = [
           Math.min(1, Math.max(0, bbox.minX / width)),
           Math.min(1, Math.max(0, bbox.minY / height)),
@@ -627,12 +634,20 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
           state,
           shape,
           ...(reasons.length > 0 ? { reasons } : {}),
+          ...(provisional !== undefined ? { provisional } : {}),
+          alt: {
+            algorithm: otherAlgorithm,
+            state: other.state,
+            ...(other.reasons.length > 0 ? { reasons: other.reasons } : {}),
+            ...(other.provisional !== undefined ? { provisional: other.provisional } : {}),
+          },
           rect,
         };
       });
 
+      // An ambiguous box counts by its provisional (closer) reading until a teacher verifies it.
       const selectedOptions = bubbleReadings
-        .filter((r) => r.state !== 'blank' && r.state !== 'undone')
+        .filter((r) => r.state === 'marked' || r.state === 'redone' || (r.state === 'ambiguous' && r.provisional !== false))
         .map((r) => r.optionIndex);
       // A shape reason flags the box even when it was resolved (e.g. solid → undone): the
       // detector changed or doubted the fill-ratio reading, so a human confirms it.

@@ -16,10 +16,20 @@
  */
 
 /** Bump whenever feature extraction or classification semantics change (not for param changes).
- *  1 = fill ratio only. 2 = + shape analysis (`omrShape.ts`: solid / spill / faint). */
-export const OMR_ALGORITHM_VERSION = 2;
+ *  1 = fill ratio only. 2 = + shape analysis (`omrShape.ts`: solid / spill / faint).
+ *  3 = local threshold, border snapping, thin strokes, provisional readings, raster scale 3 —
+ *      withdrawn: its area thresholds misread thin-pen crosses.
+ *  4 = v3 measurement + stroke-based decision (`classifyV4`); redo-zone geometry fixed.
+ *  Selectable per run via `params.algorithm` (2 or 4); the other is always computed alongside. */
+export const OMR_ALGORITHM_VERSION = 4;
+
+/** Algorithms a run can be decided by (`params.algorithm`). */
+export const OMR_ALGORITHMS = [2, 4] as const;
+export type OmrAlgorithm = (typeof OMR_ALGORITHMS)[number];
 
 export interface OmrDetectionParams {
+  /** Which algorithm decides (the other runs in the shadow for comparison). */
+  algorithm: OmrAlgorithm;
   /** Fill ratio below this reads as blank. */
   ambiguousLow: number;
   /** Fill ratio at/above this reads as a confident mark (between the two: ambiguous). */
@@ -62,13 +72,28 @@ export interface OmrDetectionParams {
   spillExcessMax: number;
   /** Ink contrast (0 = at threshold, 1 = page black) below which a mark is flagged ("faint"). */
   faintContrastMin: number;
+  /** Local ink threshold: a pixel is ink when darker than paper − this × (paper − print black). */
+  localContrastFrac: number;
+  /** How far (fraction of the box size) the window may be snapped onto the printed border. */
+  snapMaxFraction: number;
+  /** A blank box whose largest stroke spans at least this share of the box is flagged ("thin"). */
+  strokeSpanMin: number;
+  /** v4: below this interior ink fraction (and without a stroke) a box is blank. */
+  inkMinFill: number;
+  /** v4: a clean stroke spanning at least this share of the box is a confident tick. */
+  tickSpanMin: number;
 }
 
 export type OmrParamKey = keyof OmrDetectionParams;
-export type OmrNumericParamKey = { [K in OmrParamKey]: OmrDetectionParams[K] extends number ? K : never }[OmrParamKey];
+export type OmrNumericParamKey = {
+  [K in OmrParamKey]: OmrDetectionParams[K] extends number ? (number extends OmrDetectionParams[K] ? K : never) : never;
+}[OmrParamKey];
 
 /** Today's (pre-settings) constants, 1:1 — defaults must never change detection behaviour. */
 export const DEFAULT_OMR_PARAMS: Readonly<OmrDetectionParams> = Object.freeze({
+  // v4 is the default since it read 36/36 verified boxes correctly (v2: 20/36) on the first
+  // compared exam. v2 stays selectable, and the non-deciding algorithm keeps running alongside.
+  algorithm: 4,
   ambiguousLow: 0.15,
   markedHigh: 0.45,
   filledHigh: 0.75,
@@ -82,7 +107,7 @@ export const DEFAULT_OMR_PARAMS: Readonly<OmrDetectionParams> = Object.freeze({
   alignResidualFraction: 0.015,
   alignRatioTolerance: 0.05,
   alignAngleToleranceDeg: 5,
-  scanScale: 2.0,
+  scanScale: 3.0,
   shapeAnalysis: true,
   solidFillMin: 0.5,
   solidCellMin: 0.3,
@@ -90,16 +115,23 @@ export const DEFAULT_OMR_PARAMS: Readonly<OmrDetectionParams> = Object.freeze({
   ringFraction: 0.35,
   spillExcessMax: 0.12,
   faintContrastMin: 0.3,
+  localContrastFrac: 0.35,
+  snapMaxFraction: 0.3,
+  strokeSpanMin: 0.25,
+  inkMinFill: 0.03,
+  tickSpanMin: 0.45,
 });
 
 export type OmrParamGroup = 'basic' | 'advanced' | 'fixed';
 
 export type OmrParamSpec =
   | { kind: 'number'; key: OmrNumericParamKey; group: OmrParamGroup; min: number; max: number; step: number }
-  | { kind: 'toggle'; key: 'shapeAnalysis'; group: OmrParamGroup };
+  | { kind: 'toggle'; key: 'shapeAnalysis'; group: OmrParamGroup }
+  | { kind: 'choice'; key: 'algorithm'; group: OmrParamGroup; options: readonly OmrAlgorithm[] };
 
 /** Display order + bounds. Drives both the settings UI and validation. */
 export const OMR_PARAM_SPECS: readonly OmrParamSpec[] = [
+  { kind: 'choice', key: 'algorithm', group: 'basic', options: OMR_ALGORITHMS },
   { kind: 'number', key: 'ambiguousLow', group: 'basic', min: 0.01, max: 0.9, step: 0.01 },
   { kind: 'number', key: 'markedHigh', group: 'basic', min: 0.02, max: 0.95, step: 0.01 },
   { kind: 'number', key: 'filledHigh', group: 'basic', min: 0.05, max: 1, step: 0.01 },
@@ -120,6 +152,11 @@ export const OMR_PARAM_SPECS: readonly OmrParamSpec[] = [
   { kind: 'number', key: 'ringFraction', group: 'advanced', min: 0.15, max: 1, step: 0.05 },
   { kind: 'number', key: 'spillExcessMax', group: 'advanced', min: 0.01, max: 1, step: 0.01 },
   { kind: 'number', key: 'faintContrastMin', group: 'advanced', min: 0, max: 1, step: 0.05 },
+  { kind: 'number', key: 'localContrastFrac', group: 'advanced', min: 0.1, max: 0.9, step: 0.05 },
+  { kind: 'number', key: 'snapMaxFraction', group: 'advanced', min: 0, max: 0.5, step: 0.05 },
+  { kind: 'number', key: 'strokeSpanMin', group: 'advanced', min: 0.1, max: 1, step: 0.05 },
+  { kind: 'number', key: 'inkMinFill', group: 'advanced', min: 0, max: 0.3, step: 0.01 },
+  { kind: 'number', key: 'tickSpanMin', group: 'advanced', min: 0.2, max: 1, step: 0.05 },
   { kind: 'number', key: 'scanScale', group: 'fixed', min: 1, max: 4, step: 0.5 },
 ];
 
@@ -130,6 +167,7 @@ export type OmrParamsError =
 
 function isValidValue(spec: OmrParamSpec, value: unknown): boolean {
   if (spec.kind === 'toggle') return typeof value === 'boolean';
+  if (spec.kind === 'choice') return (spec.options as readonly unknown[]).includes(value);
   return typeof value === 'number' && Number.isFinite(value) && value >= spec.min && value <= spec.max;
 }
 
@@ -219,13 +257,15 @@ export function createOmrRun(
   profile: OmrSettingsProfile,
   templateHash?: string
 ): OmrRunInfo {
+  const params = normalizeOmrParams(profile.params);
   return {
     runId: crypto.randomUUID(),
     detectedAt: new Date().toISOString(),
     trigger,
-    algorithmVersion: OMR_ALGORITHM_VERSION,
+    // The deciding algorithm; the other one's verdict is kept per bubble as `alt`.
+    algorithmVersion: params.algorithm,
     settings: { source: profile.source, revision: profile.revision },
-    params: normalizeOmrParams(profile.params),
+    params,
     ...(templateHash ? { templateHash } : {}),
   };
 }

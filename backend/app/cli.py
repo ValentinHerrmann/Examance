@@ -4,6 +4,7 @@ Management CLI commands.
 Usage (from /app directory inside container):
     python -m app.cli create-invite [--expires-days 7]
     python -m app.cli run-retention [--dry-run]
+    python -m app.cli training-export --out samples.jsonl [--since 2026-01-01]
 
 Invoked by external cron (systemd timer / Kubernetes CronJob).
 NOT by an in-process scheduler — avoids multi-worker duplication.
@@ -11,6 +12,7 @@ NOT by an in-process scheduler — avoids multi-worker duplication.
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from typing import NoReturn
 
 import click
@@ -216,6 +218,69 @@ def run_retention(dry_run: bool) -> None:
         )
     else:
         click.echo(f"Retention run complete: {count} record(s) affected.")
+
+
+@cli.command("training-export")
+@click.option(
+    "--out",
+    "out_path",
+    required=True,
+    type=click.Path(dir_okay=False, writable=True),
+    help="Output JSON Lines file (one donated sample per line).",
+)
+@click.option(
+    "--since",
+    type=click.DateTime(formats=["%Y-%m-%d"]),
+    default=None,
+    help="Only samples donated on or after this date (YYYY-MM-DD).",
+)
+def training_export(out_path: str, since: datetime | None) -> None:
+    """
+    Export donated OMR training samples for offline model training.
+
+    Each line: label, versions, detector metadata/features and the grayscale
+    crop (base64, row-major, crop_width x crop_height). The rows carry no
+    identifiers by design — keep the export that way (no joins, no enrichment).
+    """
+    import base64
+    import json
+
+    from app.database import AsyncSessionLocal
+    from app.models.omr_training_sample import OmrTrainingSample
+
+    async def _export() -> int:
+        count = 0
+        async with AsyncSessionLocal() as db:
+            query = select(OmrTrainingSample).order_by(OmrTrainingSample.created_on)
+            if since is not None:
+                query = query.where(OmrTrainingSample.created_on >= since.date())
+            result = await db.stream_scalars(query)
+            with open(out_path, "w", encoding="utf-8") as fh:
+                async for row in result:
+                    fh.write(
+                        json.dumps(
+                            {
+                                "id": str(row.id),
+                                "created_on": row.created_on.isoformat(),
+                                "schema_version": row.schema_version,
+                                "algorithm_version": row.algorithm_version,
+                                "label_selected": row.label_selected,
+                                "crop_width": row.crop_width,
+                                "crop_height": row.crop_height,
+                                "crop_b64": base64.b64encode(row.crop).decode("ascii"),
+                                "meta": row.meta,
+                            }
+                        )
+                        + "\n"
+                    )
+                    count += 1
+        return count
+
+    try:
+        count = asyncio.run(_export())
+    except (OperationalError, ProgrammingError) as exc:
+        _raise_schema_hint(exc)
+    click.echo(f"Exported {count} training sample(s) to {out_path}.")
 
 
 @cli.command("export-openapi")

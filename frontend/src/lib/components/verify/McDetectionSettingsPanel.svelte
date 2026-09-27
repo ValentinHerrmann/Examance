@@ -4,12 +4,14 @@
   import { Card } from "$lib/components/ui";
   import OmrParamsDiff from "./OmrParamsDiff.svelte";
   import { diffOmrParams, type OmrSettingsProfile } from "$lib/grading/omrSettings";
-  import type { McDetectionRunSummary } from "$lib/grading/mcVerification";
+  import type { McAlgorithmScore, McDetectionRunSummary } from "$lib/grading/mcVerification";
 
   /** Newest first, legacy (`run: null`) bucket last — `McVerificationStats.detectionRuns`. */
   export let runs: McDetectionRunSummary[];
   /** The settings a re-run would use right now. */
   export let current: OmrSettingsProfile;
+  /** v2 vs v4 on the verified boxes (`McVerificationStats.algorithmComparison`). */
+  export let comparison: McAlgorithmScore[] = [];
 
   $: latest = runs[0] ?? null;
   $: latestParams = latest?.run?.params ?? null;
@@ -63,6 +65,28 @@
       {/if}
       <a href="/settings#omr" class="text-accent hover:underline">{$t("scanning.verify.settingsPanel.editSettings")}</a>
     </div>
+
+    {#if comparison.length > 0}
+      <div class="mt-4 border-t border-line pt-3 text-xs text-content">
+        <p class="mt-0 mb-1 font-semibold">
+          {$t("scanning.verify.settingsPanel.comparisonHeading", { boxes: comparison[0].boxes })}
+        </p>
+        <ul class="m-0 list-none p-0">
+          {#each comparison as c (c.algorithm)}
+            <li class={c.algorithm === current.params.algorithm ? "font-semibold" : "text-muted"}>
+              {$t("scanning.verify.settingsPanel.comparisonRow", {
+                algorithm: c.algorithm,
+                percent: $fmt.percent(c.boxes > 0 ? c.correct / c.boxes : 0, 0),
+                correct: c.correct,
+                boxes: c.boxes,
+                unsure: c.unsure,
+              })}
+            </li>
+          {/each}
+        </ul>
+        <p class="mt-1 mb-0 text-muted">{$t("scanning.verify.settingsPanel.comparisonHint")}</p>
+      </div>
+    {/if}
 
     {#if runs.length > 1}
       <div class="mt-4 border-t border-line pt-3 text-xs text-muted">

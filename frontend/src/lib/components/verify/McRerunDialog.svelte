@@ -3,7 +3,6 @@
   import { Button, Modal } from "$lib/components/ui";
   import OmrParamsDiff from "./OmrParamsDiff.svelte";
   import {
-    OMR_ALGORITHM_VERSION,
     diffOmrParams,
     type OmrSettingsProfile,
   } from "$lib/grading/omrSettings";
@@ -22,7 +21,8 @@
   $: latestRun = runs[0]?.run ?? null;
   $: hasDetections = runs.length > 0;
   $: changed = latestRun ? diffOmrParams(latestRun.params, current.params) : [];
-  $: algorithmDiffers = !!latestRun && latestRun.algorithmVersion !== OMR_ALGORITHM_VERSION;
+  // Runs record the algorithm that decided them; compare with the one a re-run would use.
+  $: algorithmDiffers = !!latestRun && latestRun.algorithmVersion !== current.params.algorithm;
 </script>
 
 <Modal {open} size="md" title={$t("scanning.verify.rerunDialog.title")} onClose={onCancel}>

@@ -39,7 +39,7 @@ No account required · Encrypted at rest · GDPR by design
 |---|---|---|
 | Manual correction, transcribing points into spreadsheets, and computing statistics eat into teachers' limited time. | A name on the cover sheet unconsciously influences grading before a single answer is read. | Mainstream cloud edtech tools are frequently a poor — sometimes illegal — fit for sensitive pupil data under GDPR/BDSG. |
 
-**Examance addresses all three at once**: automates the mechanical parts of grading, structurally removes the student's identity from the corrector's view, and — by default — never sends sensitive data to a server at all.
+**Examance addresses all three at once**: automates the mechanical parts of grading, structurally removes the student's identity from the corrector's view, and — by default — never sends sensitive data to a server at all (except an optional, anonymised checkbox-crop donation the teacher must switch on).
 
 ---
 

@@ -16,6 +16,9 @@
   import GdprErasureTable from "$lib/components/settings/GdprErasureTable.svelte";
   import OmrDetectionSettingsCard from "$lib/components/settings/OmrDetectionSettingsCard.svelte";
   import { omrSettingsStore } from "$lib/stores/omrSettings";
+  import OmrDonationCard from "$lib/components/settings/OmrDonationCard.svelte";
+  import { trainingDonationStore } from "$lib/stores/trainingDonation";
+  import { fetchDonationAvailable } from "$lib/services/trainingDonation";
   import { exportStudentData, toDownloadableJson } from "$lib/gdpr/subjectAccess";
   import {
     locale,
@@ -50,8 +53,10 @@
   let statusMsg = "";
   let isSwitchWizardOpen = false;
   let switchTarget: StorageMode | null = null;
+  let donationAvailable = false;
 
   onMount(async () => {
+    void fetchDonationAvailable().then((ok) => (donationAvailable = ok));
     await awaitSessionReady();
     if (!$isUnlocked) {
       // Keys are passphrase-derived and never persisted — send the user to
@@ -136,6 +141,12 @@
       profile={$omrSettingsStore}
       onSave={(params) => omrSettingsStore.save(params)}
       onReset={() => omrSettingsStore.reset()}
+    />
+
+    <OmrDonationCard
+      enabled={$trainingDonationStore.enabled}
+      available={donationAvailable}
+      onChange={(enabled) => trainingDonationStore.setEnabled(enabled)}
     />
 
     {#if $isAuthenticated}

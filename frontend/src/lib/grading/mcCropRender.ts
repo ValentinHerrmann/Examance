@@ -35,6 +35,38 @@ export interface McCropLayers {
 }
 
 /**
+ * Renders one page of a decrypted scan PDF onto a fresh canvas at `scale` and frees pdf.js'
+ * copy of the document afterwards. Shared by the verification crop and the training-sample crop.
+ */
+export async function renderScanPage(
+  pdfBytes: Uint8Array,
+  pageIndex: number,
+  scale: number
+): Promise<HTMLCanvasElement> {
+  const pdfjsLib = await loadPdfjs();
+  // pdf.js transfers the underlying ArrayBuffer to its worker via postMessage,
+  // detaching it on the caller's side. Callers share (and reuse) `pdfBytes`
+  // across re-renders, so hand pdf.js a throwaway copy — otherwise the second
+  // call with the same buffer throws "ArrayBuffer is detached" (DataCloneError).
+  const loadingTask = pdfjsLib.getDocument({ data: pdfBytes.slice() });
+  const pdfDoc = await loadingTask.promise;
+  try {
+    const targetPageIndex = Math.max(0, Math.min(pdfDoc.numPages - 1, pageIndex));
+    const pdfPage = await pdfDoc.getPage(targetPageIndex + 1);
+    const viewport = pdfPage.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Failed to get 2d context for PDF rendering');
+    await pdfPage.render({ canvasContext: ctx, viewport } as any).promise;
+    return canvas;
+  } finally {
+    await loadingTask.destroy();
+  }
+}
+
+/**
  * Renders a cropped high-DPI image of an MC exercise bubble region from a submission scan PDF,
  * once without and once with the overlay (same page render, identical geometry), so a viewer
  * can toggle the markings without re-rendering. Returns PNG data URLs.
@@ -53,25 +85,9 @@ export async function renderMcCrop(options: McCropOptions): Promise<McCropLayers
     overlay,
   } = options;
 
-  const pdfjsLib = await loadPdfjs();
-  // pdf.js transfers the underlying ArrayBuffer to its worker via postMessage,
-  // detaching it on the caller's side. `pdfBytes` here is shared with (and
-  // reused by) the parent component across re-renders, so we hand pdf.js a
-  // throwaway copy instead of the original — otherwise the second call ever
-  // made with the same buffer throws "ArrayBuffer is detached" (DataCloneError).
-  const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes.slice() }).promise;
-  const targetPageIndex = Math.max(0, Math.min(pdfDoc.numPages - 1, pageIndex));
-  const pdfPage = await pdfDoc.getPage(targetPageIndex + 1);
-
-  const viewport = pdfPage.getViewport({ scale });
-
-  const canvas = document.createElement('canvas');
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
+  const canvas = await renderScanPage(pdfBytes, pageIndex, scale);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Failed to get 2d context for PDF rendering');
-
-  await pdfPage.render({ canvasContext: ctx, viewport } as any).promise;
 
   // Plain page, before the overlay is drawn onto the same canvas.
   const plainPage = document.createElement('canvas');
@@ -84,7 +100,7 @@ export async function renderMcCrop(options: McCropOptions): Promise<McCropLayers
       ctx,
       canvas.width,
       canvas.height,
-      targetPageIndex + 1,
+      pageIndex + 1,
       { [overlay.exercise.id]: { omrMeta: overlay.omrMeta } },
       [overlay.exercise],
       new Map(), // no sub-exercise letter/running-total stamp in the single-item crop view
@@ -148,10 +164,10 @@ export async function renderMcCrop(options: McCropOptions): Promise<McCropLayers
     cropMaxY = Math.min(1, maxY + paddingBottom);
   }
 
-  const pxMinX = Math.floor(cropMinX * viewport.width);
-  const pxMinY = Math.floor(cropMinY * viewport.height);
-  const pxMaxX = Math.ceil(cropMaxX * viewport.width);
-  const pxMaxY = Math.ceil(cropMaxY * viewport.height);
+  const pxMinX = Math.floor(cropMinX * canvas.width);
+  const pxMinY = Math.floor(cropMinY * canvas.height);
+  const pxMaxX = Math.ceil(cropMaxX * canvas.width);
+  const pxMaxY = Math.ceil(cropMaxY * canvas.height);
 
   const cropWidth = Math.max(1, pxMaxX - pxMinX);
   const cropHeight = Math.max(1, pxMaxY - pxMinY);
@@ -171,12 +187,12 @@ export async function renderMcCrop(options: McCropOptions): Promise<McCropLayers
     // Dim what lies outside the exercise's own band, so leftover neighbour content
     // reads as "not this one".
     cropCtx.fillStyle = 'rgba(255, 255, 255, 0.55)';
-    const pxBandTop = Math.round(ownBandTop * viewport.height);
+    const pxBandTop = Math.round(ownBandTop * canvas.height);
     const topOverlayHeight = Math.max(0, Math.min(cropHeight, pxBandTop - pxMinY));
     if (topOverlayHeight > 0) {
       cropCtx.fillRect(0, 0, cropWidth, topOverlayHeight);
     }
-    const pxBandBottom = Math.round(ownBandBottom * viewport.height);
+    const pxBandBottom = Math.round(ownBandBottom * canvas.height);
     const bottomOverlayY = Math.max(0, pxBandBottom - pxMinY);
     if (bottomOverlayY < cropHeight) {
       cropCtx.fillRect(0, bottomOverlayY, cropWidth, cropHeight - bottomOverlayY);

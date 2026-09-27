@@ -232,6 +232,38 @@ assumption, `dpia_art35.md`).
 `hybrid` keeps scores local, like submissions and student identities — they are
 grading results, and that is the axis hybrid mode splits on.
 
+### Training-data donation (opt-in)
+
+Off by default; toggled per browser in Settings ("5. MC-Erkennung verbessern
+(freiwillig)", `localStorage` key `bg_omr_donation`, versioned). When on, after
+a teacher verifies or corrects an MC question in the verification view, the
+browser sends, per box, one small 80×48 grayscale crop (the box and the
+correction field next to it — no question text), the verified label (ticked /
+not ticked), the detector's own reading, its numeric features, and the
+algorithm/schema version to `POST /api/v1/training/omr-samples` on the
+operator's own configured backend. The request is public (no auth), sent with
+`credentials: 'omit'` (no session cookie), and rate-limited to 30/hour per IP.
+
+**Not sent**: names, pseudonyms, exam/submission/question ids, the teacher
+account, or timestamps finer than day granularity. Server-side, the
+`omr_training_samples` table (migration `0022`) has no foreign keys and no IP
+column; each row's `created_on` is day-granular. Retention is
+`TRAINING_SAMPLE_RETENTION_DAYS` (default 730 days), enforced by the retention
+job; a kill switch `TRAINING_DONATION_ENABLED` can disable the endpoint
+server-wide. An operator can export the dataset via
+`python -m app.cli training-export --out samples.jsonl`.
+
+Purpose: train a shared checkbox classifier so a fresh installation gets good
+MC detection immediately, instead of starting from the built-in heuristics
+alone. Risks and mitigations: re-identification of a donated crop (mitigated by
+the tight crop, the absence of any id/cookie/IP, and shuffled batching) and
+dataset poisoning by anonymous, unauthenticated uploads (mitigated by the rate
+limit, strict request validation (`extra="forbid"`), consistency filtering
+applied at training time, and the kill switch). This is the only path by which
+`all-local` mode sends anything to a server; see the qualifier on exercise
+resource files below and `tips.storageLocal` / `scanning.s4.p4` in the in-app
+help.
+
 ### Exercise resource files on the server
 
 In `all-server` and `hybrid` mode an exercise's resource files are stored in the
@@ -240,7 +272,8 @@ is plaintext there: an exercise kept on the server is server-readable by design,
 and the Tectonic compiler cannot read ciphertext. The zero-knowledge path is the
 default `all-local` mode, where the bytes never leave the browser except inline in
 a server *compile* request, which writes them to a temp directory that is deleted
-with the process.
+with the process — and except the opt-in, anonymised MC training-data donation
+described above, which is off by default and independent of storage mode.
 
 While the exercise editor is open the files live under a throwaway staging id in the same
 table and are committed onto the exercise (and uploaded, in server/hybrid mode) only when the

@@ -239,6 +239,8 @@ describe("mcScore", () => {
       expectKept(res!.nextOmrMeta);
       expect(res!.nextOmrMeta.reviewedAt).toBeUndefined();
       expect(res!.nextOmrMeta.source).toBe("omr");
+      // The scanner's own reading comes back, so the unsure frame is shown again.
+      expect(res!.nextOmrMeta.detections?.bubbles.map((b) => b.state)).toEqual(["marked", "ambiguous"]);
     });
   });
 });

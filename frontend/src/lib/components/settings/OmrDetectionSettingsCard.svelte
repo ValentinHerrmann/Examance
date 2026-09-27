@@ -5,6 +5,8 @@
   import {
     DEFAULT_OMR_PARAMS,
     OMR_PARAM_SPECS,
+    OMR_ALGORITHMS,
+    type OmrAlgorithm,
     type OmrDetectionParams,
     type OmrNumericParamKey,
     type OmrParamKey,
@@ -24,6 +26,7 @@
   // Number inputs bind as number, or null while a field is empty.
   let draft: Record<OmrNumericParamKey, number | null> = toDraft(profile.params);
   let draftShapeAnalysis = profile.params.shapeAnalysis;
+  let draftAlgorithm: OmrAlgorithm = profile.params.algorithm;
   let errors: OmrParamsError[] = [];
   let statusMsg = "";
   let lastRevision = profile.revision;
@@ -33,6 +36,7 @@
     lastRevision = profile.revision;
     draft = toDraft(profile.params);
     draftShapeAnalysis = profile.params.shapeAnalysis;
+    draftAlgorithm = profile.params.algorithm;
     errors = [];
   }
 
@@ -64,6 +68,7 @@
       ...profile.params,
       ...Object.fromEntries(Object.entries(draft).map(([k, v]) => [k, v ?? Number.NaN])),
       shapeAnalysis: draftShapeAnalysis,
+      algorithm: draftAlgorithm,
     } as OmrDetectionParams;
     errors = onSave(params);
     if (errors.length === 0) statusMsg = translate("settings.omr.saved");
@@ -92,6 +97,19 @@
         revision: profile.revision,
       })}
     </p>
+
+    <Field
+      class="mb-4"
+      label={$t("settings.omr.params.algorithm.label")}
+      forId="omr-algorithm"
+      hint={$t("settings.omr.params.algorithm.hint")}
+    >
+      <select id="omr-algorithm" class={controlClass} bind:value={draftAlgorithm}>
+        {#each OMR_ALGORITHMS as a}
+          <option value={a}>{$t(`settings.omr.params.algorithm.v${a}`)}</option>
+        {/each}
+      </select>
+    </Field>
 
     <h4 class="m-0 mb-3 text-sm font-semibold text-content">{$t("settings.omr.basicGroup")}</h4>
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">

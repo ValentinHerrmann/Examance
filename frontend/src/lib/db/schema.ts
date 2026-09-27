@@ -152,6 +152,9 @@ export interface OmrScoreMeta {
   run?: OmrRunInfo;
   /** Registration diagnostics of the page this exercise sits on. */
   pageStats?: OmrPageStats;
+  /** Set once this verified question was donated as anonymous training data (opt-in):
+   *  when, and the verified selection it was donated with — re-donated only if that changes. */
+  donation?: { at: string; label: string };
   /** Detected bubble boxes for the grading viewer to draw over the scan, for every option
    *  (including blank ones — needed to place the "missing" annotation on correct options the
    *  student didn't mark). Carried forward across manual `McAnswerReview` toggles. `rect`,
@@ -175,6 +178,12 @@ export interface OmrScoreMeta {
       shape?: OmrShapeFeatures;
       /** Why shape analysis changed or flagged the reading (immutable, like `detectedState`). */
       reasons?: OmrShapeReason[];
+      /** Detector's provisional (closer) reading of an ambiguous box — true = counted as ticked
+       *  until verified. Immutable; the teacher's decision lives in `selectedOptions`. */
+      provisional?: boolean;
+      /** Verdict of the algorithm that did not decide (shadow run, `params.algorithm`), kept to
+       *  compare algorithms on verified data. Immutable. */
+      alt?: { algorithm: number; state: 'ambiguous' | 'marked' | 'blank' | 'undone' | 'redone'; reasons?: OmrShapeReason[]; provisional?: boolean };
     }[];
   };
 }

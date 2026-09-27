@@ -55,12 +55,26 @@ export const settings = {
             areaOrder: 'Die minimale Passermarken-Fläche muss kleiner als die maximale sein.',
         },
         params: {
+            algorithm: {
+                label: 'Erkennungsverfahren',
+                hint: 'v4 = Standard (Strichform, lokaler Kontrast). v2 = älteres Verfahren (Füllgrad), als Rückfalloption. Das jeweils andere Verfahren läuft immer mit; die MC-Prüfansicht vergleicht beide an Ihren geprüften Kästchen.',
+                v2: 'v2 — älteres Verfahren (Füllgrad)',
+                v4: 'v4 — Standard (Strichform)',
+            },
+            inkMinFill: {
+                label: 'v4: Tinte ab (Füllgrad)',
+                hint: 'Darunter — und ohne erkennbaren Strich — gilt ein Kästchen als leer.',
+            },
+            tickSpanMin: {
+                label: 'v4: Kreuz ab Strichlänge',
+                hint: 'Ein sauberer Strich, der mindestens diesen Anteil des Kästchens überspannt, gilt sicher als Kreuz — unabhängig vom Füllgrad.',
+            },
             ambiguousLow: {
-                label: 'Leer unter (Füllgrad)',
+                label: 'v2: Leer unter (Füllgrad)',
                 hint: 'Kästchen mit weniger Anteil dunkler Pixel gelten als leer. Höher = Schmutz/Staub wird eher ignoriert, zarte Kreuze aber eher übersehen.',
             },
             markedHigh: {
-                label: 'Sicher angekreuzt ab (Füllgrad)',
+                label: 'v2: Sicher angekreuzt ab (Füllgrad)',
                 hint: 'Ab diesem Anteil gilt ein Kästchen sicher als angekreuzt. Dazwischen wird es als unsicher zur Prüfung markiert.',
             },
             filledHigh: {
@@ -135,11 +149,36 @@ export const settings = {
                 label: 'Blasse Markierung: minimaler Kontrast',
                 hint: '0 = kaum dunkler als der Hintergrund, 1 = so dunkel wie der Druck. Blassere Markierungen werden zur Prüfung vorgelegt.',
             },
+            localContrastFrac: {
+                label: 'Tinte: lokale Kontrastschwelle',
+                hint: 'Ein Pixel zählt als Tinte, wenn es um diesen Anteil der Spanne zwischen Papier und Druckschwarz dunkler als das umgebende Papier ist. Kleiner = empfindlicher.',
+            },
+            snapMaxFraction: {
+                label: 'Kästchen: maximale Nachführung',
+                hint: 'Wie weit (Anteil der Kästchengröße) das Messfenster auf den tatsächlich gedruckten Rahmen verschoben werden darf.',
+            },
+            strokeSpanMin: {
+                label: 'Dünner Strich: minimale Länge',
+                hint: 'Ein sonst leeres Kästchen mit einem Strich, der mindestens diesen Anteil der Kästchengröße überspannt, wird zur Prüfung vorgelegt.',
+            },
             scanScale: {
                 label: 'Rasterauflösung (Skalierung)',
                 hint: 'Auflösung, mit der Scans für die Erkennung gerendert werden. Nicht einstellbar, wird aber zu jedem Lauf gespeichert.',
             },
         },
+    },
+    donation: {
+        heading: '5. MC-Erkennung verbessern (freiwillig)',
+        description:
+            'Helfen Sie, die automatische Erkennung von Ankreuzfeldern für alle Lehrkräfte zu verbessern, indem Sie anonymisierte Ausschnitte bereits geprüfter Kästchen spenden.',
+        whatIsSent:
+            'Gesendet wird je geprüftem Kästchen: ein kleiner Graustufen-Ausschnitt (nur das Kästchen und das Korrekturfeld daneben, kein Aufgabentext), Ihre geprüfte Entscheidung (angekreuzt / nicht angekreuzt) und die Messwerte der Erkennung.',
+        whatIsNotSent:
+            'Nicht gesendet werden: Namen, Pseudonyme, Prüfungs-, Abgabe- oder Aufgabenkennungen, Ihr Konto oder Zeitstempel. Die Anfrage wird ohne Anmelde-Cookie gestellt.',
+        whenSent: 'Nur Fragen, die Sie in der MC-Prüfansicht bestätigt oder korrigiert haben, und nur solange diese Option aktiviert ist.',
+        optIn: 'Ich möchte anonymisierte Ausschnitte geprüfter Ankreuzfelder an den Betreiber dieses Examance-Servers senden.',
+        privacyNote: 'Details in der Datenschutzerklärung:',
+        privacyLink: 'Datenschutz',
     },
     hygiene: {
         heading: 'Sitzungsdaten bereinigen',

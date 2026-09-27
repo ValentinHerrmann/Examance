@@ -63,6 +63,8 @@ Rate each risk to the **rights and freedoms of the data subject**, not to the sc
 | R6 | Grade tampering | Compromised teacher account | *[…]* | High | Rate-limited auth, refresh-token reuse detection, append-only audit trail | *[…]* |
 | R7 | Re-identification from pseudonymous data | Small class sizes | *[…]* | Medium | k ≥ 5 threshold on statistics | Small cohorts remain re-identifiable to insiders |
 | R8 | Compromised third-party WASM module | Supply chain | *[…]* | High | — | **SRI is not enforced**; the Argon2 module that derives every key is loaded unverified |
+| R9 | Re-identification of a donated MC training-data crop | Opt-in checkbox-crop donation (`omr_training_samples`) | Low | Medium | Tight 80×48 grayscale crop with no question text; no exam/submission/pupil/teacher id, no IP, no cookie stored; shuffled batching | Residual risk is a handwriting or margin-content correlation across a teacher's own donated crops if that teacher can be otherwise identified |
+| R10 | Poisoning of the shared training set | Public, unauthenticated donation endpoint | Low | Medium | 30/hour per-IP rate limit; strict request validation (`extra="forbid"`); consistency filtering at training time; `TRAINING_DONATION_ENABLED` kill switch | Feature is opt-in and off by default; a compromised or malicious client can still donate plausible-looking bad labels within the rate limit |
 
 *[Add deployment-specific risks. Complete the empty cells with the DPO.]*
 
@@ -75,6 +77,8 @@ Rate each risk to the **rights and freedoms of the data subject**, not to the sc
 - R5: schedule and monitor `python -m app.cli run-retention`; an unscheduled job means no erasure happens at all.
 - R8: vendor and hash the WASM binaries, then set `"enforced": true` in `static/sri-manifest.json`.
 - R3: decide and document the private-device policy for teaching staff.
+- R9: keep crops tight and id-free as implemented; re-review if the crop is ever widened to include more page context.
+- R10: monitor training-time consistency filtering results; consider per-installation opt-out reporting if abuse is observed.
 
 ### 2.5 Outcome
 

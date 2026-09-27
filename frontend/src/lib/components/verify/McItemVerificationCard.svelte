@@ -100,6 +100,12 @@
   $: reasonsByOption = new Map(
     (omrMeta?.detections?.bubbles ?? []).map((b) => [b.optionIndex, b.reasons ?? []])
   );
+  // The detector's provisional reading of an uncertain box — what counts until verified.
+  $: provisionalByOption = new Map(
+    (omrMeta?.detections?.bubbles ?? [])
+      .filter((b) => b.detectedState === "ambiguous" && b.provisional !== undefined)
+      .map((b) => [b.optionIndex, b.provisional as boolean])
+  );
   $: confidence = omrMeta?.confidence ?? "ambiguous";
   $: source = omrMeta?.source ?? "omr";
 
@@ -112,7 +118,7 @@
     scanPdfBytes && omrMeta?.detections && submissionId && exercise?.id
       ? `${submissionId}:${exercise.id}:${omrMeta.detections.pageIndex}:${neighbourRects.map((r) => r.join(",")).join(";")}:${omrMeta.detections.bubbles
           .map((b) => `${b.optionIndex}:${b.state}:${b.rect.join(",")}`)
-          .join("|")}`
+          .join("|")}:${isMcReviewed(omrMeta) ? "r" : "u"}`
       : "";
 
   let lastLoadedCropKey = "";
@@ -548,6 +554,13 @@
                   {#each reasonsByOption.get(idx) ?? [] as reason}
                     <span class="text-[0.7rem] font-normal text-amber-300">{$t(`scanning.itemCard.reason.${reason}`)}</span>
                   {/each}
+                  {#if reviewStatus === "unreviewed" && provisionalByOption.has(idx)}
+                    <span class="text-[0.7rem] font-normal text-amber-300">
+                      {provisionalByOption.get(idx)
+                        ? $t("scanning.itemCard.provisionalTicked")
+                        : $t("scanning.itemCard.provisionalNotTicked")}
+                    </span>
+                  {/if}
                 </span>
               </div>
               <div class="flex items-center gap-2 shrink-0">

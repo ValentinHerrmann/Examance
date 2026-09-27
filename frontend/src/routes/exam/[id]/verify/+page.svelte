@@ -18,7 +18,7 @@
   import McVerificationQueue from "$lib/components/verify/McVerificationQueue.svelte";
   import McDetectionSettingsPanel from "$lib/components/verify/McDetectionSettingsPanel.svelte";
   import McRerunDialog from "$lib/components/verify/McRerunDialog.svelte";
-  import { buildOmrScoreRecord } from "$lib/grading/omrResult";
+  import { buildOmrScoreRecord, mergeRedetectionIntoVerified } from "$lib/grading/omrResult";
   import { createOmrRun } from "$lib/grading/omrSettings";
   import { omrSettingsStore } from "$lib/stores/omrSettings";
   import { loadPdfjs } from "$lib/pdf/pdfjs";
@@ -101,9 +101,11 @@
   }
 
   /**
-   * Re-detects every *unverified* MC question with the current settings (issue #32).
-   * Verified rows (`isMcReviewed`) and hand-typed scores without a detection are never
-   * touched — there is deliberately no override; "Reset reviews" is the explicit way back.
+   * Re-detects every MC question with the current settings. Unverified questions take the new
+   * reading. Verified ones (`isMcReviewed`) keep the teacher's answer, score and review — only
+   * their recorded detection is refreshed (`mergeRedetectionIntoVerified`), which makes re-runs
+   * useful for comparing settings on already-verified sheets (issue #32: settings never change a
+   * verified result). Hand-typed scores without a detection are not touched.
    */
   async function handleRerunMcDetection() {
     showRerunDialog = false;
@@ -217,7 +219,7 @@
       const scanScale = omrRun.params.scanScale;
       let processed = 0;
       let updated = 0;
-      let keptReviewed = 0;
+      let redetectedVerified = 0;
       let alignmentFailures = 0;
       let pagesSkippedNoTemplate = 0;
 
@@ -245,63 +247,73 @@
           // a per-result write here was one request per MC question per pupil.
           const rescored: ExerciseScoreRecord[] = [];
 
-          const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+          const loadingTask = pdfjsLib.getDocument({ data: pdfBytes });
+          const pdfDoc = await loadingTask.promise;
           console.log(`[RerunMC] Submission ${sub.id}: scanned PDF has ${pdfDoc.numPages} page(s), OMR template has ${templatePages.length} page(s).`);
-          for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-            const pageTemplate = templatePages[pageNum - 1];
-            if (!pageTemplate || (pageTemplate.bubbles.length === 0 && pageTemplate.fiducials.length === 0)) {
-              pagesSkippedNoTemplate++;
-              console.log(`[RerunMC] Submission ${sub.id}, page ${pageNum}: skipped (no template page or empty bubbles/fiducials — pageTemplate=${pageTemplate ? `bubbles=${pageTemplate.bubbles.length},fiducials=${pageTemplate.fiducials.length}` : "undefined"}).`);
-              continue;
-            }
-
-            const pdfPage = await pdfDoc.getPage(pageNum);
-            const viewport = pdfPage.getViewport({ scale: scanScale });
-            const canvas = document.createElement("canvas");
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) continue;
-            await pdfPage.render({ canvas, canvasContext: ctx, viewport }).promise;
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-            const response = await runOmr({
-              type: "OMR_PROCESS",
-              imageData,
-              pageTemplate,
-              scanScale,
-              answerKeys,
-              params: omrRun.params,
-            });
-            if (response.type !== "OMR_RESULT") {
-              console.warn(
-                `[RerunMC] Submission ${sub.id}, page ${pageNum}: worker returned ${response.type}${
-                  response.type === "ERROR" ? ` — ${response.message}` : ""
-                }`
-              );
-              continue;
-            }
-
-            if (response.alignmentFailed) alignmentFailures++;
-
-            for (const r of response.results) {
-              const existing = existingByExercise.get(r.exerciseId);
-              // Verified detections and hand-typed scores are never overwritten.
-              if (existing && (isMcReviewed(existing.omrMeta) || (!existing.omrMeta && existing.score !== undefined))) {
-                keptReviewed++;
+          // Pages render at scale 3 now; free pdf.js memory per page and per booklet.
+          try {
+            for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+              const pageTemplate = templatePages[pageNum - 1];
+              if (!pageTemplate || (pageTemplate.bubbles.length === 0 && pageTemplate.fiducials.length === 0)) {
+                pagesSkippedNoTemplate++;
+                console.log(`[RerunMC] Submission ${sub.id}, page ${pageNum}: skipped (no template page or empty bubbles/fiducials — pageTemplate=${pageTemplate ? `bubbles=${pageTemplate.bubbles.length},fiducials=${pageTemplate.fiducials.length}` : "undefined"}).`);
                 continue;
               }
 
-              rescored.push(
-                buildOmrScoreRecord(r, {
+              const pdfPage = await pdfDoc.getPage(pageNum);
+              const viewport = pdfPage.getViewport({ scale: scanScale });
+              const canvas = document.createElement("canvas");
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+              const ctx = canvas.getContext("2d");
+              if (!ctx) continue;
+              await pdfPage.render({ canvas, canvasContext: ctx, viewport }).promise;
+              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              pdfPage.cleanup();
+
+              const response = await runOmr({
+                type: "OMR_PROCESS",
+                imageData,
+                pageTemplate,
+                scanScale,
+                answerKeys,
+                params: omrRun.params,
+              });
+              if (response.type !== "OMR_RESULT") {
+                console.warn(
+                  `[RerunMC] Submission ${sub.id}, page ${pageNum}: worker returned ${response.type}${
+                    response.type === "ERROR" ? ` — ${response.message}` : ""
+                  }`
+                );
+                continue;
+              }
+
+              if (response.alignmentFailed) alignmentFailures++;
+
+              for (const r of response.results) {
+                const existing = existingByExercise.get(r.exerciseId);
+                // Hand-typed scores (no detection at all) are never touched.
+                if (existing && !existing.omrMeta && existing.score !== undefined) continue;
+
+                const fresh = buildOmrScoreRecord(r, {
                   id: existing?.id ?? crypto.randomUUID(),
                   submissionId: sub.id,
                   run: omrRun,
                   pageStats: response.pageStats,
-                })
-              );
-              updated++;
+                });
+                if (existing && isMcReviewed(existing.omrMeta)) {
+                  // Verified: the teacher's answer and score stay; only the detection is refreshed,
+                  // so the stats show how these settings would have read the sheet.
+                  rescored.push(mergeRedetectionIntoVerified(existing, fresh));
+                  redetectedVerified++;
+                } else {
+                  rescored.push(fresh);
+                  updated++;
+                }
+              }
             }
+          } finally {
+            await loadingTask.destroy();
           }
 
           await scoreRepository.saveMany(examId, sub.id, rescored, key);
@@ -312,7 +324,9 @@
 
       rerunMcMessage =
         translate("scanning.verify.rerunComplete", { updated, processed }) +
-        (keptReviewed > 0 ? translate("scanning.verify.rerunKeptReviewed", { count: keptReviewed }) : "") +
+        (redetectedVerified > 0
+          ? translate("scanning.verify.rerunKeptReviewed", { count: redetectedVerified })
+          : "") +
         (alignmentFailures > 0
           ? translate("scanning.verify.rerunAlignmentFailures", { count: alignmentFailures })
           : "") +
@@ -377,6 +391,14 @@
 
   function openInGrading(item: McDetectionItem) {
     goto(`/exam/${examId}/grade?submissionId=${item.submissionId}&exerciseId=${item.exerciseId}`);
+  }
+
+  /** Against selection bias in the (future) training data: teachers mostly review flagged
+   *  items, so confident readings rarely get checked. Opens a random unverified confident one. */
+  function openRandomConfidentItem() {
+    const candidates = otherItems.filter((i) => !i.isReviewed);
+    if (candidates.length === 0) return;
+    openVerifyItem(candidates[Math.floor(Math.random() * candidates.length)], "confident");
   }
 
   function openVerifyItem(item: McDetectionItem, queueTag: string = "all") {
@@ -490,7 +512,11 @@
         </div>
       </div>
     {:else}
-      <McDetectionSettingsPanel runs={stats.detectionRuns} current={$omrSettingsStore} />
+      <McDetectionSettingsPanel
+        runs={stats.detectionRuns}
+        current={$omrSettingsStore}
+        comparison={stats.algorithmComparison}
+      />
 
       <McVerificationOverview {stats} />
 
@@ -511,6 +537,15 @@
         onVerifyItem={(item) => openVerifyItem(item, "unsure")}
         onOpenGrading={openInGrading}
       />
+
+      {#if otherItems.some((i) => !i.isReviewed)}
+        <div class="mb-4 flex flex-wrap items-center gap-3 text-xs text-muted">
+          <Button variant="secondary" size="sm" onClick={openRandomConfidentItem}>
+            {$t("scanning.verify.randomSample")}
+          </Button>
+          <span>{$t("scanning.verify.randomSampleHint")}</span>
+        </div>
+      {/if}
 
       <McVerificationQueue
         title={$t("scanning.verify.queueOther")}

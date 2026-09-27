@@ -24,7 +24,7 @@ export const help: Translations['help'] = {
     },
     tips: {
         storageLocal:
-            'Everything stays encrypted in this device’s browser. Not a single byte reaches a server — but there is no sync and no backup other than the .bgproj archive.',
+            'Everything stays encrypted in this device’s browser. Not a single byte reaches a server — but there is no sync and no backup other than the .bgproj archive. Exception: the optional, anonymised donation of tick-box crops, if enabled in Settings.',
         storageServer:
             'All data is synced, but only ever as ciphertext. The key stays in the browser, so the server cannot read the contents.',
         storageHybrid:
@@ -139,7 +139,7 @@ export const help: Translations['help'] = {
             s1: {
                 h: 'Importing the stack',
                 p1: 'Scan the whole stack into a single PDF on the school copier and upload it here. Examance splits it into individual submissions along the QR codes.',
-                p2: 'Every page is encrypted in the browser immediately. In local mode the scan never leaves the device.',
+                p2: 'Every page is encrypted in the browser immediately. In local mode the scan never leaves the device — apart from the optionally donated, anonymised crops of individual tick boxes.',
             },
             s2: {
                 h: 'Pseudonyms, not names',
@@ -152,8 +152,9 @@ export const help: Translations['help'] = {
             s4: {
                 h: 'Verifying and re-running MC detection',
                 p1: 'Ticked boxes are detected automatically when scans are imported. In the MC verification view you confirm or correct uncertain detections; every confirmed or corrected question counts as verified.',
-                p2: '"Re-run MC detection" re-evaluates only questions that are not yet verified, using the current settings. Verified questions and manually entered scores always stay unchanged. A dialog first shows what will change and whether the settings differ from the last run; the "Detection settings" panel compares the latest run\'s values with the ones currently in effect.',
-                p3: 'Besides the fill level, detection also checks the shape of a mark: an evenly filled box counts as withdrawn, and a mark reaching far beyond the box or a very faint mark is flagged as uncertain. The reason is shown next to the answer option in the verification view. Shape analysis can be switched off in Settings.',
+                p2: '"Re-run MC detection" re-evaluates all scans with the current settings. Unverified questions take the new result; for verified questions your answer and score always stay unchanged and only their detection is recomputed for comparison. Manually entered scores are not touched. A dialog first shows what will change and whether the settings differ from the last run; the "Detection settings" panel compares the latest run\'s values with the ones currently in effect.',
+                p3: 'Besides the fill level, detection also checks the shape of a mark: an evenly filled box counts as withdrawn, and a mark reaching far beyond the box or a very faint mark is flagged as uncertain. The reason is shown next to the answer option in the verification view. Shape analysis can be switched off in Settings. Under Settings → MC detection you choose the detection method: v4 (default, stroke shape) or v2 (older method, fill level). The other one always runs alongside; the "Detection settings" panel of the verification view shows how many of your verified boxes each method would have read correctly. Unsure boxes keep their yellow frame until the question is verified.',
+                p4: 'Until verified, an uncertain box counts provisionally as whichever outcome its measurements are closer to — ticked or not ticked; the verification view shows "Provisionally counted as ticked / not ticked" for it. The "🎲 Check a sample" button opens a random, not-yet-verified but confident detection, so you can spot-check unremarkable questions too.',
             },
         },
         grading: {
@@ -235,6 +236,11 @@ export const help: Translations['help'] = {
                 h: 'Fine-tuning MC detection',
                 p1: 'The thresholds for detecting ticked boxes can be adjusted, e.g. when a scanner produces very light or dark scans. Settings apply only to future detection runs; results that were already detected or verified do not change. Every run records the values it used.',
                 p2: 'The settings are stored in this browser only and are not synced to other devices. "Reset to defaults" restores the built-in values.',
+            },
+            s6: {
+                h: 'Improve MC detection (optional)',
+                p1: 'When this option is on, after each verified or corrected tick-box question the browser sends a small crop per box (80×48 pixels, grayscale, no question text) to this installation\'s server, along with the confirmed label, the original detection and a few numeric features. Names, pseudonyms, exam/submission/question ids, the teacher account and timestamps are never sent.',
+                p2: 'The goal is a shared, better classifier so new installations get good detection from the start. The setting is off by default, applies only to this browser, and can be switched off again at any time.',
             },
         },
         security: {

@@ -45,6 +45,7 @@
   <h2>{$t("legal.datenschutz.section5.heading")}</h2>
   <p>
     {$t("legal.datenschutz.section5.para1Before")}<em>{$t("legal.datenschutz.section5.para1Emphasis")}</em>{$t("legal.datenschutz.section5.para1After")}
+    {$t("legal.datenschutz.section5.para3")}
   </p>
   <p>
     {$t("legal.datenschutz.section5.para2")}
@@ -75,4 +76,14 @@
     {$t("legal.datenschutz.section9.textBefore")}
     <span class="placeholder">{$t("legal.datenschutz.section9.placeholder")}</span>.
   </p>
+
+  <h2>{$t("legal.datenschutz.section10.heading")}</h2>
+  <p>{$t("legal.datenschutz.section10.para1")}</p>
+  <p>{$t("legal.datenschutz.section10.para2")}</p>
+  <p>
+    {$t("legal.datenschutz.section10.para3Before")}
+    <span class="placeholder">{$t("legal.datenschutz.section10.retentionPlaceholder")}</span>
+    {$t("legal.datenschutz.section10.para3After")}
+  </p>
+  <p><span class="placeholder">{$t("legal.datenschutz.section10.legalBasisPlaceholder")}</span></p>
 </LegalPage>

@@ -233,12 +233,15 @@ export function restoreOriginalDetection(
       ? omrMeta.original.score
       : computeMcScore(questionType, restoredOptions, correctAnswers, penalty, maxPoints);
 
+  // Back to what the scanner saw — including 'ambiguous', so the unsure frames return.
   const restoredDetections = omrMeta.detections
     ? {
         ...omrMeta.detections,
         bubbles: omrMeta.detections.bubbles.map((b) => ({
           ...b,
-          state: (restoredOptions.includes(b.optionIndex) ? 'marked' : 'blank') as 'marked' | 'blank',
+          state:
+            b.detectedState ??
+            ((restoredOptions.includes(b.optionIndex) ? 'marked' : 'blank') as 'marked' | 'blank'),
         })),
       }
     : undefined;
@@ -276,6 +279,17 @@ export function confirmDetection(
 ): McCorrectionResult {
   const original = resolveOriginalSnapshot(omrMeta, selectedOptions, score);
 
+  // Display states follow the confirmed selection, like after a correction.
+  const confirmedDetections = omrMeta?.detections
+    ? {
+        ...omrMeta.detections,
+        bubbles: omrMeta.detections.bubbles.map((b) => ({
+          ...b,
+          state: (selectedOptions.includes(b.optionIndex) ? 'marked' : 'blank') as 'marked' | 'blank',
+        })),
+      }
+    : undefined;
+
   const nextOmrMeta: OmrScoreMeta = {
     ...omrMeta,
     confidence: omrMeta?.confidence ?? 'high',
@@ -283,7 +297,7 @@ export function confirmDetection(
     flaggedOptions: omrMeta?.flaggedOptions,
     original,
     reviewedAt: new Date().toISOString(),
-    detections: omrMeta?.detections,
+    detections: confirmedDetections,
   };
 
   return {
