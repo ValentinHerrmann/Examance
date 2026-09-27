@@ -19,6 +19,9 @@
   $: isSingleAnswer = questionType === "sc" || questionType === "tf";
   $: alignmentFailed = omrMeta?.confidence === "failed";
   $: flaggedOptions = new Set(omrMeta?.flaggedOptions ?? []);
+  $: reasonsByOption = new Map(
+    (omrMeta?.detections?.bubbles ?? []).map((b) => [b.optionIndex, b.reasons ?? []])
+  );
   $: multiMarkWarning = isSingleAnswer && selectedOptions.length > 1;
 
   function toggleOption(idx: number) {
@@ -73,7 +76,12 @@
             <span class={isCorrect ? "text-emerald-400" : "text-red-400"}>{isCorrect ? "✓" : "✗"}</span>
           {/if}
           {#if isFlagged}
-            <span class="text-amber-500" title={$t("grading.mcReview.uncertainMark")}>?</span>
+            <span
+              class="text-amber-500"
+              title={[
+                $t("grading.mcReview.uncertainMark"),
+                ...(reasonsByOption.get(idx) ?? []).map((r) => $t(`scanning.itemCard.reason.${r}`)),
+              ].join(" · ")}>?</span>
           {/if}
         </button>
       {/each}

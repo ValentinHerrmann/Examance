@@ -6,10 +6,14 @@
     DEFAULT_OMR_PARAMS,
     OMR_PARAM_SPECS,
     type OmrDetectionParams,
+    type OmrNumericParamKey,
     type OmrParamKey,
+    type OmrParamSpec,
     type OmrParamsError,
     type OmrSettingsProfile,
   } from "$lib/grading/omrSettings";
+
+  type NumberSpec = Extract<OmrParamSpec, { kind: "number" }>;
 
   /** The settings the next detection run will use. */
   export let profile: OmrSettingsProfile;
@@ -18,7 +22,8 @@
   export let onReset: () => void;
 
   // Number inputs bind as number, or null while a field is empty.
-  let draft: Record<OmrParamKey, number | null> = toDraft(profile.params);
+  let draft: Record<OmrNumericParamKey, number | null> = toDraft(profile.params);
+  let draftShapeAnalysis = profile.params.shapeAnalysis;
   let errors: OmrParamsError[] = [];
   let statusMsg = "";
   let lastRevision = profile.revision;
@@ -27,33 +32,39 @@
   $: if (profile.revision !== lastRevision) {
     lastRevision = profile.revision;
     draft = toDraft(profile.params);
+    draftShapeAnalysis = profile.params.shapeAnalysis;
     errors = [];
   }
 
-  function toDraft(p: OmrDetectionParams): Record<OmrParamKey, number | null> {
-    return { ...p };
+  function numberSpecs(group: OmrParamSpec["group"]): NumberSpec[] {
+    return OMR_PARAM_SPECS.filter((s): s is NumberSpec => s.kind === "number" && s.group === group);
   }
 
-  const basicSpecs = OMR_PARAM_SPECS.filter((s) => s.group === "basic");
-  const advancedSpecs = OMR_PARAM_SPECS.filter((s) => s.group === "advanced");
-  const fixedSpecs = OMR_PARAM_SPECS.filter((s) => s.group === "fixed");
+  function toDraft(p: OmrDetectionParams): Record<OmrNumericParamKey, number | null> {
+    return Object.fromEntries(numberSpecs("basic").concat(numberSpecs("advanced"), numberSpecs("fixed")).map((s) => [s.key, p[s.key]])) as Record<OmrNumericParamKey, number | null>;
+  }
+
+  const basicSpecs = numberSpecs("basic");
+  const advancedSpecs = numberSpecs("advanced");
+  const fixedSpecs = numberSpecs("fixed");
 
   function label(key: OmrParamKey): string {
     return translate(`settings.omr.params.${key}.label`);
   }
 
-  function fieldError(key: OmrParamKey, errs: OmrParamsError[]): string | undefined {
-    const spec = OMR_PARAM_SPECS.find((s) => s.key === key)!;
-    return errs.some((e) => e.code === "range" && e.key === key)
-      ? translate("settings.omr.errors.range", { label: label(key), min: spec.min, max: spec.max })
+  function fieldError(spec: NumberSpec, errs: OmrParamsError[]): string | undefined {
+    return errs.some((e) => e.code === "range" && e.key === spec.key)
+      ? translate("settings.omr.errors.range", { label: label(spec.key), min: spec.min, max: spec.max })
       : undefined;
   }
 
   function handleSave() {
     statusMsg = "";
-    const params = Object.fromEntries(
-      OMR_PARAM_SPECS.map((s) => [s.key, draft[s.key] ?? Number.NaN])
-    ) as unknown as OmrDetectionParams;
+    const params = {
+      ...profile.params,
+      ...Object.fromEntries(Object.entries(draft).map(([k, v]) => [k, v ?? Number.NaN])),
+      shapeAnalysis: draftShapeAnalysis,
+    } as OmrDetectionParams;
     errors = onSave(params);
     if (errors.length === 0) statusMsg = translate("settings.omr.saved");
   }
@@ -89,7 +100,7 @@
           label={$t(`settings.omr.params.${spec.key}.label`)}
           forId={`omr-${spec.key}`}
           hint={`${$t(`settings.omr.params.${spec.key}.hint`)} ${$t("settings.omr.defaultValue", { value: $fmt.number(DEFAULT_OMR_PARAMS[spec.key]) })}`}
-          error={fieldError(spec.key, errors)}
+          error={fieldError(spec, errors)}
         >
           <input
             id={`omr-${spec.key}`}
@@ -105,6 +116,14 @@
       {/each}
     </div>
 
+    <label class="mt-4 flex cursor-pointer items-start gap-3">
+      <input type="checkbox" class="mt-1 h-4 w-4 shrink-0 cursor-pointer" bind:checked={draftShapeAnalysis} />
+      <span class="min-w-0">
+        <span class="block text-sm font-medium text-content">{$t("settings.omr.params.shapeAnalysis.label")}</span>
+        <span class="block text-xs text-subtle">{$t("settings.omr.params.shapeAnalysis.hint")}</span>
+      </span>
+    </label>
+
     <details class="mt-6">
       <summary class="cursor-pointer text-sm font-semibold text-content">{$t("settings.omr.advancedGroup")}</summary>
       <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -113,7 +132,7 @@
             label={$t(`settings.omr.params.${spec.key}.label`)}
             forId={`omr-${spec.key}`}
             hint={`${$t(`settings.omr.params.${spec.key}.hint`)} ${$t("settings.omr.defaultValue", { value: $fmt.number(DEFAULT_OMR_PARAMS[spec.key]) })}`}
-            error={fieldError(spec.key, errors)}
+            error={fieldError(spec, errors)}
           >
             <input
               id={`omr-${spec.key}`}

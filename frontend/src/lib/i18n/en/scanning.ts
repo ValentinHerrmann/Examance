@@ -238,6 +238,11 @@ export const scanning: Translations['scanning'] = {
         incorrect: '✗ Incorrect',
         keyCorrect: '(Key: ✓)',
         flaggedTitle: 'Flagged as uncertain',
+        reason: {
+            solid: 'Box appears completely filled → counted as withdrawn',
+            spill: 'Mark extends well beyond the box',
+            faint: 'Very faint mark (e.g. pencil or eraser residue)',
+        },
         previous: '← Previous',
         nextItem: 'Next Item →',
         backToDashboard: 'Back to dashboard',

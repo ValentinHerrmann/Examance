@@ -15,8 +15,9 @@
  * Pure module: no DOM, no stores — the worker imports it.
  */
 
-/** Bump whenever feature extraction or classification semantics change (not for param changes). */
-export const OMR_ALGORITHM_VERSION = 1;
+/** Bump whenever feature extraction or classification semantics change (not for param changes).
+ *  1 = fill ratio only. 2 = + shape analysis (`omrShape.ts`: solid / spill / faint). */
+export const OMR_ALGORITHM_VERSION = 2;
 
 export interface OmrDetectionParams {
   /** Fill ratio below this reads as blank. */
@@ -47,9 +48,24 @@ export interface OmrDetectionParams {
   alignAngleToleranceDeg: number;
   /** Raster scale the scan is rendered at before detection. Not user-editable; snapshotted only. */
   scanScale: number;
+  /** v2 shape analysis on/off (`omrShape.ts`). Off = exactly the v1 fill-ratio classification. */
+  shapeAnalysis: boolean;
+  /** Solid-fill check: minimum overall fill ratio… */
+  solidFillMin: number;
+  /** …and minimum fill of every 3×3 cell of the box (a cross/tick leaves cells empty)… */
+  solidCellMin: number;
+  /** …and minimum lowest÷highest cell fill (a bold cross is uneven, hatching is even). */
+  solidEvennessMin: number;
+  /** Outer edge of the ring measured around a box, as a fraction of the box size. */
+  ringFraction: number;
+  /** Ring ink above the sibling boxes' median at/above which a mark is flagged ("spill"). */
+  spillExcessMax: number;
+  /** Ink contrast (0 = at threshold, 1 = page black) below which a mark is flagged ("faint"). */
+  faintContrastMin: number;
 }
 
 export type OmrParamKey = keyof OmrDetectionParams;
+export type OmrNumericParamKey = { [K in OmrParamKey]: OmrDetectionParams[K] extends number ? K : never }[OmrParamKey];
 
 /** Today's (pre-settings) constants, 1:1 — defaults must never change detection behaviour. */
 export const DEFAULT_OMR_PARAMS: Readonly<OmrDetectionParams> = Object.freeze({
@@ -67,59 +83,61 @@ export const DEFAULT_OMR_PARAMS: Readonly<OmrDetectionParams> = Object.freeze({
   alignRatioTolerance: 0.05,
   alignAngleToleranceDeg: 5,
   scanScale: 2.0,
+  shapeAnalysis: true,
+  solidFillMin: 0.5,
+  solidCellMin: 0.3,
+  solidEvennessMin: 0.5,
+  ringFraction: 0.35,
+  spillExcessMax: 0.12,
+  faintContrastMin: 0.3,
 });
 
 export type OmrParamGroup = 'basic' | 'advanced' | 'fixed';
 
-export interface OmrParamSpec {
-  key: OmrParamKey;
-  group: OmrParamGroup;
-  min: number;
-  max: number;
-  step: number;
-}
+export type OmrParamSpec =
+  | { kind: 'number'; key: OmrNumericParamKey; group: OmrParamGroup; min: number; max: number; step: number }
+  | { kind: 'toggle'; key: 'shapeAnalysis'; group: OmrParamGroup };
 
 /** Display order + bounds. Drives both the settings UI and validation. */
 export const OMR_PARAM_SPECS: readonly OmrParamSpec[] = [
-  { key: 'ambiguousLow', group: 'basic', min: 0.01, max: 0.9, step: 0.01 },
-  { key: 'markedHigh', group: 'basic', min: 0.02, max: 0.95, step: 0.01 },
-  { key: 'filledHigh', group: 'basic', min: 0.05, max: 1, step: 0.01 },
-  { key: 'redoMarkedHigh', group: 'basic', min: 0.05, max: 1, step: 0.01 },
-  { key: 'sampleInsetFraction', group: 'advanced', min: 0, max: 0.4, step: 0.01 },
-  { key: 'quadrantFraction', group: 'advanced', min: 0.1, max: 0.5, step: 0.01 },
-  { key: 'fiducialAreaMinRatio', group: 'advanced', min: 0.05, max: 1, step: 0.05 },
-  { key: 'fiducialAreaMaxRatio', group: 'advanced', min: 1, max: 10, step: 0.1 },
-  { key: 'fiducialMaxAspectRatio', group: 'advanced', min: 1, max: 4, step: 0.1 },
-  { key: 'fiducialMaxDistFraction', group: 'advanced', min: 0.02, max: 0.5, step: 0.01 },
-  { key: 'alignResidualFraction', group: 'advanced', min: 0.001, max: 0.1, step: 0.001 },
-  { key: 'alignRatioTolerance', group: 'advanced', min: 0.005, max: 0.5, step: 0.005 },
-  { key: 'alignAngleToleranceDeg', group: 'advanced', min: 0.5, max: 30, step: 0.5 },
-  { key: 'scanScale', group: 'fixed', min: 1, max: 4, step: 0.5 },
+  { kind: 'number', key: 'ambiguousLow', group: 'basic', min: 0.01, max: 0.9, step: 0.01 },
+  { kind: 'number', key: 'markedHigh', group: 'basic', min: 0.02, max: 0.95, step: 0.01 },
+  { kind: 'number', key: 'filledHigh', group: 'basic', min: 0.05, max: 1, step: 0.01 },
+  { kind: 'number', key: 'redoMarkedHigh', group: 'basic', min: 0.05, max: 1, step: 0.01 },
+  { kind: 'toggle', key: 'shapeAnalysis', group: 'basic' },
+  { kind: 'number', key: 'sampleInsetFraction', group: 'advanced', min: 0, max: 0.4, step: 0.01 },
+  { kind: 'number', key: 'quadrantFraction', group: 'advanced', min: 0.1, max: 0.5, step: 0.01 },
+  { kind: 'number', key: 'fiducialAreaMinRatio', group: 'advanced', min: 0.05, max: 1, step: 0.05 },
+  { kind: 'number', key: 'fiducialAreaMaxRatio', group: 'advanced', min: 1, max: 10, step: 0.1 },
+  { kind: 'number', key: 'fiducialMaxAspectRatio', group: 'advanced', min: 1, max: 4, step: 0.1 },
+  { kind: 'number', key: 'fiducialMaxDistFraction', group: 'advanced', min: 0.02, max: 0.5, step: 0.01 },
+  { kind: 'number', key: 'alignResidualFraction', group: 'advanced', min: 0.001, max: 0.1, step: 0.001 },
+  { kind: 'number', key: 'alignRatioTolerance', group: 'advanced', min: 0.005, max: 0.5, step: 0.005 },
+  { kind: 'number', key: 'alignAngleToleranceDeg', group: 'advanced', min: 0.5, max: 30, step: 0.5 },
+  { kind: 'number', key: 'solidFillMin', group: 'advanced', min: 0.2, max: 1, step: 0.01 },
+  { kind: 'number', key: 'solidCellMin', group: 'advanced', min: 0.05, max: 1, step: 0.01 },
+  { kind: 'number', key: 'solidEvennessMin', group: 'advanced', min: 0.1, max: 1, step: 0.05 },
+  { kind: 'number', key: 'ringFraction', group: 'advanced', min: 0.15, max: 1, step: 0.05 },
+  { kind: 'number', key: 'spillExcessMax', group: 'advanced', min: 0.01, max: 1, step: 0.01 },
+  { kind: 'number', key: 'faintContrastMin', group: 'advanced', min: 0, max: 1, step: 0.05 },
+  { kind: 'number', key: 'scanScale', group: 'fixed', min: 1, max: 4, step: 0.5 },
 ];
-
-const SPEC_BY_KEY = new Map(OMR_PARAM_SPECS.map((s) => [s.key, s]));
 
 export type OmrParamsError =
   | { code: 'range'; key: OmrParamKey }
   | { code: 'fillOrder' }
   | { code: 'areaOrder' };
 
-function inRange(key: OmrParamKey, value: unknown): value is number {
-  const spec = SPEC_BY_KEY.get(key);
-  return (
-    typeof value === 'number' &&
-    Number.isFinite(value) &&
-    !!spec &&
-    value >= spec.min &&
-    value <= spec.max
-  );
+function isValidValue(spec: OmrParamSpec, value: unknown): boolean {
+  if (spec.kind === 'toggle') return typeof value === 'boolean';
+  return typeof value === 'number' && Number.isFinite(value) && value >= spec.min && value <= spec.max;
 }
 
 /** Empty array = valid. */
 export function validateOmrParams(p: OmrDetectionParams): OmrParamsError[] {
   const errors: OmrParamsError[] = [];
   for (const spec of OMR_PARAM_SPECS) {
-    if (!inRange(spec.key, p[spec.key])) errors.push({ code: 'range', key: spec.key });
+    if (!isValidValue(spec, p[spec.key])) errors.push({ code: 'range', key: spec.key });
   }
   if (!(p.ambiguousLow < p.markedHigh && p.markedHigh < p.filledHigh)) errors.push({ code: 'fillOrder' });
   if (!(p.fiducialAreaMinRatio < p.fiducialAreaMaxRatio)) errors.push({ code: 'areaOrder' });
@@ -133,10 +151,10 @@ export function validateOmrParams(p: OmrDetectionParams): OmrParamsError[] {
  */
 export function normalizeOmrParams(input: unknown): OmrDetectionParams {
   const src = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
-  const out = { ...DEFAULT_OMR_PARAMS } as OmrDetectionParams;
+  const out: OmrDetectionParams = { ...DEFAULT_OMR_PARAMS };
   for (const spec of OMR_PARAM_SPECS) {
     const v = src[spec.key];
-    if (inRange(spec.key, v)) out[spec.key] = v;
+    if (isValidValue(spec, v)) (out as unknown as Record<string, unknown>)[spec.key] = v;
   }
   if (!(out.ambiguousLow < out.markedHigh && out.markedHigh < out.filledHigh)) {
     out.ambiguousLow = DEFAULT_OMR_PARAMS.ambiguousLow;
@@ -150,8 +168,9 @@ export function normalizeOmrParams(input: unknown): OmrDetectionParams {
   return out;
 }
 
-/** Keys whose values differ (in `OMR_PARAM_SPECS` order). */
-export function diffOmrParams(a: OmrDetectionParams, b: OmrDetectionParams): OmrParamKey[] {
+/** Keys whose values differ (in `OMR_PARAM_SPECS` order). `a` may be an older run snapshot that
+ *  lacks keys added since — a missing key counts as different, never as "the default". */
+export function diffOmrParams(a: Partial<OmrDetectionParams>, b: OmrDetectionParams): OmrParamKey[] {
   return OMR_PARAM_SPECS.map((s) => s.key).filter((k) => a[k] !== b[k]);
 }
 
@@ -189,6 +208,7 @@ export interface OmrRunInfo {
   trigger: 'scan' | 'rerun';
   algorithmVersion: number;
   settings: { source: OmrSettingsSource; revision: number };
+  /** Full params at the time. Snapshots from older algorithm versions lack later keys. */
   params: OmrDetectionParams;
   /** `exercisesHash` of the OMR template the batch ran against. */
   templateHash?: string;

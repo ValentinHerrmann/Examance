@@ -153,6 +153,7 @@ export const help: Translations['help'] = {
                 h: 'Verifying and re-running MC detection',
                 p1: 'Ticked boxes are detected automatically when scans are imported. In the MC verification view you confirm or correct uncertain detections; every confirmed or corrected question counts as verified.',
                 p2: '"Re-run MC detection" re-evaluates only questions that are not yet verified, using the current settings. Verified questions and manually entered scores always stay unchanged. A dialog first shows what will change and whether the settings differ from the last run; the "Detection settings" panel compares the latest run\'s values with the ones currently in effect.',
+                p3: 'Besides the fill level, detection also checks the shape of a mark: an evenly filled box counts as withdrawn, and a mark reaching far beyond the box or a very faint mark is flagged as uncertain. The reason is shown next to the answer option in the verification view. Shape analysis can be switched off in Settings.',
             },
         },
         grading: {

@@ -96,6 +96,10 @@
   $: questionType = (exercise.questionType as McQuestionType) || "mc";
   $: isSingleAnswer = questionType === "sc" || questionType === "tf";
   $: flaggedOptions = new Set(omrMeta?.flaggedOptions ?? []);
+  // Why shape analysis changed/flagged a box — recorded at detection, survives corrections.
+  $: reasonsByOption = new Map(
+    (omrMeta?.detections?.bubbles ?? []).map((b) => [b.optionIndex, b.reasons ?? []])
+  );
   $: confidence = omrMeta?.confidence ?? "ambiguous";
   $: source = omrMeta?.source ?? "omr";
 
@@ -539,7 +543,12 @@
                   class="h-4 w-4 rounded border-slate-600 bg-slate-800 text-sky-500 focus:ring-sky-400 cursor-pointer pointer-events-auto"
                 />
                 <span class="font-mono text-xs text-slate-400 font-bold">{letter}.</span>
-                <span class="text-slate-200 truncate">{opt}</span>
+                <span class="flex min-w-0 flex-col">
+                  <span class="text-slate-200 truncate">{opt}</span>
+                  {#each reasonsByOption.get(idx) ?? [] as reason}
+                    <span class="text-[0.7rem] font-normal text-amber-300">{$t(`scanning.itemCard.reason.${reason}`)}</span>
+                  {/each}
+                </span>
               </div>
               <div class="flex items-center gap-2 shrink-0">
                 {#if isSelected}

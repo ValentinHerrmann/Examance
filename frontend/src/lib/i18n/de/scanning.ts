@@ -236,6 +236,11 @@ export const scanning = {
         incorrect: '✗ Falsch',
         keyCorrect: '(Schlüssel: ✓)',
         flaggedTitle: 'Als unsicher markiert',
+        reason: {
+            solid: 'Kästchen wirkt vollständig ausgefüllt → als zurückgenommen gewertet',
+            spill: 'Markierung reicht deutlich über das Kästchen hinaus',
+            faint: 'Sehr blasse Markierung (z. B. Bleistift oder Radierspur)',
+        },
         previous: '← Zurück',
         nextItem: 'Nächstes Element →',
         backToDashboard: 'Zurück zur Übersicht',

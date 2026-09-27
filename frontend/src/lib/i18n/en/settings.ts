@@ -38,6 +38,8 @@ export const settings: Translations['settings'] = {
         advancedGroup: 'Advanced: fiducials & alignment',
         fixedGroup: 'Fixed',
         defaultValue: 'Default: {value}',
+        on: 'on',
+        off: 'off',
         save: 'Save',
         reset: 'Reset to defaults',
         saved: 'MC detection settings saved. They apply from the next detection run.',
@@ -105,6 +107,34 @@ export const settings: Translations['settings'] = {
             alignAngleToleranceDeg: {
                 label: 'Alignment: corner-angle tolerance (°)',
                 hint: 'Allowed deviation of the page corners from 90° before alignment counts as uncertain.',
+            },
+            shapeAnalysis: {
+                label: 'Mark shape analysis',
+                hint: 'Also checks how the ink is spread inside the box: evenly filled boxes count as withdrawn, marks reaching far beyond the box or very faint marks are sent to review.',
+            },
+            solidFillMin: {
+                label: 'Filled: minimum fill level',
+                hint: 'From this fill level on, the box is checked for being evenly filled (rather than ticked).',
+            },
+            solidCellMin: {
+                label: 'Filled: minimum coverage per cell',
+                hint: 'The box is split into 3 × 3 cells. It only counts as filled if every cell is covered at least this much — a cross or tick always leaves cells empty.',
+            },
+            solidEvennessMin: {
+                label: 'Filled: minimum evenness',
+                hint: 'Weakest ÷ strongest cell. A bold cross covers corners and centre much more than the edge middles and therefore does not count as filled.',
+            },
+            ringFraction: {
+                label: 'Surroundings: ring width',
+                hint: 'How far around the box (share of the box size) ink is looked for.',
+            },
+            spillExcessMax: {
+                label: 'Surroundings: maximum extra ink',
+                hint: 'If there is this much more ink around a box than around the other boxes of the question, the mark is sent to review.',
+            },
+            faintContrastMin: {
+                label: 'Faint mark: minimum contrast',
+                hint: '0 = barely darker than the background, 1 = as dark as the print. Fainter marks are sent to review.',
             },
             scanScale: {
                 label: 'Raster resolution (scale)',

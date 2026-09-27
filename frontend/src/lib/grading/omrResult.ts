@@ -9,8 +9,9 @@ const round3 = (n: number) => Math.round(n * 1000) / 1000;
  * for both the initial scan (scan page) and a re-run (verify page).
  *
  * Besides the detection itself it keeps the raw per-bubble readings (`fillRatio`, `redoRatio`,
- * immutable `detectedState`), the page's registration stats and the run snapshot. Together with
- * the teacher's later verification that makes every reviewed row a labelled calibration sample.
+ * immutable `detectedState`, shape measurements and `reasons`), the page's registration stats and
+ * the run snapshot. Together with the teacher's later verification that makes every reviewed row a
+ * labelled calibration sample.
  * All of it lives inside the sealed `omrMeta` — pupil-derived data, never a plaintext column,
  * index or log line.
  */
@@ -52,6 +53,18 @@ export function buildOmrScoreRecord(
                 detectedState: b.state,
                 fillRatio: round3(b.fillRatio),
                 ...(b.redoRatio !== undefined ? { redoRatio: round3(b.redoRatio) } : {}),
+                ...(b.shape
+                  ? {
+                      shape: {
+                        minCellFill: round3(b.shape.minCellFill),
+                        cellEvenness: round3(b.shape.cellEvenness),
+                        ringFill: round3(b.shape.ringFill),
+                        ...(b.shape.spillExcess !== undefined ? { spillExcess: round3(b.shape.spillExcess) } : {}),
+                        inkContrast: round3(b.shape.inkContrast),
+                      },
+                    }
+                  : {}),
+                ...(b.reasons?.length ? { reasons: [...b.reasons] } : {}),
               })),
             }
           : undefined,

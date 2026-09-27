@@ -1,5 +1,6 @@
 import type { MaybeUndecryptable } from './decryptGuard';
 import type { OmrPageStats, OmrRunInfo } from '$lib/grading/omrSettings';
+import type { OmrShapeFeatures, OmrShapeReason } from '$lib/grading/omrShape';
 
 /**
  * IndexedDB schema type definitions for Dexie.
@@ -170,6 +171,10 @@ export interface OmrScoreMeta {
       fillRatio?: number;
       /** Redo-zone fill ratio, only for boxes that have a redo zone. */
       redoRatio?: number;
+      /** Shape/context measurements (algorithm v2, rounded) — calibration features. */
+      shape?: OmrShapeFeatures;
+      /** Why shape analysis changed or flagged the reading (immutable, like `detectedState`). */
+      reasons?: OmrShapeReason[];
     }[];
   };
 }

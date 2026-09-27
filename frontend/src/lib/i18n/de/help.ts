@@ -153,6 +153,7 @@ export const help = {
                 h: 'MC-Erkennung prüfen und erneut ausführen',
                 p1: 'Angekreuzte Kästchen werden beim Einlesen automatisch erkannt. In der MC-Prüfansicht bestätigen oder korrigieren Sie unsichere Erkennungen; jede bestätigte oder korrigierte Frage gilt als geprüft.',
                 p2: '„MC-Erkennung erneut ausführen“ wertet nur noch nicht geprüfte Fragen mit den aktuellen Einstellungen neu aus. Geprüfte Fragen und von Hand eingetragene Punktzahlen bleiben immer unverändert. Vorher zeigt ein Dialog, was sich ändert und ob die Einstellungen vom letzten Lauf abweichen; der Bereich „Erkennungseinstellungen“ vergleicht die Werte des letzten Laufs mit den aktuell gültigen.',
+                p3: 'Neben dem Füllgrad prüft die Erkennung auch die Form der Markierung: Ein gleichmäßig ausgefülltes Kästchen gilt als zurückgenommen, eine Markierung weit über das Kästchen hinaus oder eine sehr blasse Markierung wird als unsicher vorgelegt. Der Grund steht in der Prüfansicht direkt bei der Antwortoption. Die Formanalyse lässt sich in den Einstellungen abschalten.',
             },
         },
         grading: {

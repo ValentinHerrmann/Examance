@@ -37,6 +37,8 @@ export const settings = {
         advancedGroup: 'Erweitert: Passermarken & Ausrichtung',
         fixedGroup: 'Fest',
         defaultValue: 'Standard: {value}',
+        on: 'an',
+        off: 'aus',
         save: 'Speichern',
         reset: 'Auf Standardwerte zurücksetzen',
         saved: 'MC-Erkennungseinstellungen gespeichert. Sie gelten ab dem nächsten Erkennungslauf.',
@@ -104,6 +106,34 @@ export const settings = {
             alignAngleToleranceDeg: {
                 label: 'Ausrichtung: Toleranz Eckwinkel (°)',
                 hint: 'Erlaubte Abweichung der Seitenecken von 90°, bevor die Ausrichtung als unsicher gilt.',
+            },
+            shapeAnalysis: {
+                label: 'Formanalyse der Markierung',
+                hint: 'Prüft zusätzlich, wie die Tinte im Kästchen verteilt ist: Gleichmäßig ausgefüllte Kästchen gelten als zurückgenommen, Markierungen weit über das Kästchen hinaus oder sehr blasse Markierungen werden zur Prüfung vorgelegt.',
+            },
+            solidFillMin: {
+                label: 'Ausgefüllt: minimaler Füllgrad',
+                hint: 'Ab diesem Füllgrad wird geprüft, ob das Kästchen gleichmäßig ausgefüllt (statt angekreuzt) ist.',
+            },
+            solidCellMin: {
+                label: 'Ausgefüllt: minimale Abdeckung je Feld',
+                hint: 'Das Kästchen wird in 3 × 3 Felder geteilt. Nur wenn jedes Feld mindestens so stark bedeckt ist, gilt es als ausgefüllt — ein Kreuz oder Haken lässt immer Felder frei.',
+            },
+            solidEvennessMin: {
+                label: 'Ausgefüllt: minimale Gleichmäßigkeit',
+                hint: 'Schwächstes ÷ stärkstes Feld. Ein kräftiges Kreuz bedeckt Ecken und Mitte deutlich stärker als die Randmitten und gilt daher nicht als ausgefüllt.',
+            },
+            ringFraction: {
+                label: 'Umgebung: Breite des Messrings',
+                hint: 'Wie weit um das Kästchen herum (Anteil der Kästchengröße) nach Tinte gesucht wird.',
+            },
+            spillExcessMax: {
+                label: 'Umgebung: maximale Mehr-Tinte',
+                hint: 'Liegt um ein Kästchen um so viel mehr Tinte als um die übrigen Kästchen der Aufgabe, wird die Markierung zur Prüfung vorgelegt.',
+            },
+            faintContrastMin: {
+                label: 'Blasse Markierung: minimaler Kontrast',
+                hint: '0 = kaum dunkler als der Hintergrund, 1 = so dunkel wie der Druck. Blassere Markierungen werden zur Prüfung vorgelegt.',
             },
             scanScale: {
                 label: 'Rasterauflösung (Skalierung)',

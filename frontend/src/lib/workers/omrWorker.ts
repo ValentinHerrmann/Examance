@@ -18,6 +18,17 @@ import {
   type OmrDetectionParams,
   type OmrPageStats,
 } from '$lib/grading/omrSettings';
+import {
+  blackReference,
+  cellFills,
+  classifyBubble,
+  inkContrast,
+  median,
+  ringFill,
+  type OmrBubbleState,
+  type OmrShapeFeatures,
+  type OmrShapeReason,
+} from '$lib/grading/omrShape';
 
 export interface OmrExerciseAnswerKey {
   exerciseId: string;
@@ -42,9 +53,13 @@ export interface OmrWorkerRequest {
 export interface OmrBubbleReading {
   optionIndex: number;
   fillRatio: number;
-  state: 'blank' | 'ambiguous' | 'marked' | 'undone' | 'redone';
+  state: OmrBubbleState;
   /** Redo-zone fill ratio, measured whenever the bubble's template has a redoRect. */
   redoRatio?: number;
+  /** Shape/context measurements (algorithm v2, `omrShape.ts`). */
+  shape?: OmrShapeFeatures;
+  /** Why the shape analysis changed or flagged this reading; non-empty → flagged for review. */
+  reasons?: OmrShapeReason[];
   /** Bubble's bbox in scan-pixel space, normalized to [0,1] of (width, height) as
    *  [minX, minY, maxX, maxY] — resolution-independent so the grading viewer (which
    *  re-rasterizes at its own scale) can draw a detection box without knowing this
@@ -86,12 +101,14 @@ export type OmrWorkerResponse =
 
 type Homography = [number, number, number, number, number, number, number, number, number];
 
-/** Grayscale (luminance) Otsu threshold — histogram + between-class variance maximization. */
-function computeOtsuThreshold(gray: Uint8ClampedArray): number {
+function grayHistogram(gray: Uint8ClampedArray): number[] {
   const hist = new Array<number>(256).fill(0);
   for (let i = 0; i < gray.length; i++) hist[gray[i]]++;
+  return hist;
+}
 
-  const total = gray.length;
+/** Grayscale (luminance) Otsu threshold — histogram + between-class variance maximization. */
+function computeOtsuThreshold(hist: number[], total: number): number {
   let sum = 0;
   for (let t = 0; t < 256; t++) sum += t * hist[t];
 
@@ -350,19 +367,6 @@ function sampleFillRatio(
   return total > 0 ? darkCount / total : 0;
 }
 
-function bubbleState(
-  ratio: number,
-  redoRatio: number | undefined,
-  p: OmrDetectionParams
-): 'blank' | 'ambiguous' | 'marked' | 'undone' | 'redone' {
-  if (ratio < p.ambiguousLow) return 'blank';
-  if (ratio < p.markedHigh) return 'ambiguous';
-  // Solid fill ("undo") is only meaningful for boxes with a redo zone (redoRatio defined).
-  if (redoRatio === undefined || ratio < p.filledHigh) return 'marked';
-  // Solid fill + template has a redo zone: undone unless the redo zone itself is marked.
-  return redoRatio >= p.redoMarkedHigh ? 'redone' : 'undone';
-}
-
 self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
   const { imageData, pageTemplate, scanScale, answerKeys } = event.data;
   const p = normalizeOmrParams(event.data.params);
@@ -374,7 +378,9 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
       gray[p] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
     }
 
-    const threshold = computeOtsuThreshold(gray);
+    const hist = grayHistogram(gray);
+    const threshold = computeOtsuThreshold(hist, gray.length);
+    const blackRef = blackReference(hist, gray.length);
     const dark = new Uint8Array(width * height);
     for (let p = 0; p < gray.length; p++) dark[p] = gray[p] < threshold ? 1 : 0;
 
@@ -567,18 +573,46 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
         continue;
       }
 
-      const bubbleReadings: OmrBubbleReading[] = bubbleRects.map((b) => {
+      // Pass 1: raw measurements per box. The spill check needs every sibling's ring fill before
+      // any box of this exercise can be classified.
+      const measured = bubbleRects.map((b) => {
         const bbox = bubbleBBoxInImage(H, b.rect, scanScale, pageTemplate.pageHeightPt);
         const ratio = sampleFillRatio(dark, width, height, bbox, p.sampleInsetFraction);
 
         // Measured for every box that has a redo zone (not just solid-filled ones), so the
-        // persisted value is a real observation. bubbleState only consults it at/above
-        // filledHigh, so classification is unaffected.
+        // persisted value is a real observation. Classification only consults it for a
+        // solid-filled box.
         let redoRatio: number | undefined;
+        let redoBbox: ReturnType<typeof bubbleBBoxInImage> | undefined;
         if (b.redoRect) {
-          const redoBbox = bubbleBBoxInImage(H, b.redoRect, scanScale, pageTemplate.pageHeightPt);
+          redoBbox = bubbleBBoxInImage(H, b.redoRect, scanScale, pageTemplate.pageHeightPt);
           redoRatio = sampleFillRatio(dark, width, height, redoBbox, p.sampleInsetFraction);
         }
+
+        const cells = cellFills(dark, width, height, bbox, p.sampleInsetFraction);
+        return {
+          b,
+          bbox,
+          ratio,
+          redoRatio,
+          minCellFill: Math.min(...cells),
+          cellEvenness: Math.max(...cells) > 0 ? Math.min(...cells) / Math.max(...cells) : 0,
+          ring: ringFill(dark, width, height, bbox, p.ringFraction, redoBbox),
+          contrast: inkContrast(gray, dark, width, height, bbox, p.sampleInsetFraction, threshold, blackRef),
+        };
+      });
+
+      const bubbleReadings: OmrBubbleReading[] = measured.map((m, i) => {
+        const { b, bbox, ratio, redoRatio } = m;
+        const siblingRings = measured.filter((_, j) => j !== i).map((o) => o.ring);
+        const shape: OmrShapeFeatures = {
+          minCellFill: m.minCellFill,
+          cellEvenness: m.cellEvenness,
+          ringFill: m.ring,
+          ...(siblingRings.length > 0 ? { spillExcess: m.ring - median(siblingRings) } : {}),
+          inkContrast: m.contrast,
+        };
+        const { state, reasons } = classifyBubble({ fill: ratio, redoRatio, features: shape }, p);
 
         const rect: [number, number, number, number] = [
           Math.min(1, Math.max(0, bbox.minX / width)),
@@ -590,7 +624,9 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
           optionIndex: b.optionIndex,
           fillRatio: ratio,
           redoRatio,
-          state: bubbleState(ratio, redoRatio, p),
+          state,
+          shape,
+          ...(reasons.length > 0 ? { reasons } : {}),
           rect,
         };
       });
@@ -598,8 +634,10 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
       const selectedOptions = bubbleReadings
         .filter((r) => r.state !== 'blank' && r.state !== 'undone')
         .map((r) => r.optionIndex);
+      // A shape reason flags the box even when it was resolved (e.g. solid → undone): the
+      // detector changed or doubted the fill-ratio reading, so a human confirms it.
       const flaggedOptions = bubbleReadings
-        .filter((r) => r.state === 'ambiguous')
+        .filter((r) => r.state === 'ambiguous' || (r.reasons?.length ?? 0) > 0)
         .map((r) => r.optionIndex);
 
       const questionType = answerKey?.questionType ?? 'mc';
