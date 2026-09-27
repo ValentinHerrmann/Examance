@@ -131,7 +131,10 @@ export function setMcSelectedOptions(
       }
     : undefined;
 
+  // Spread first: run snapshot, raw readings, alignmentUncertain and any future field must
+  // survive a review — never enumerate the fields to keep.
   const nextOmrMeta: OmrScoreMeta = {
+    ...omrMeta,
     confidence: 'high',
     source: 'manual',
     flaggedOptions: omrMeta?.flaggedOptions,
@@ -183,7 +186,10 @@ export function applyMcCorrection(
       }
     : undefined;
 
+  // Spread first: run snapshot, raw readings, alignmentUncertain and any future field must
+  // survive a review — never enumerate the fields to keep.
   const nextOmrMeta: OmrScoreMeta = {
+    ...omrMeta,
     confidence: 'high',
     source: 'manual',
     flaggedOptions: omrMeta?.flaggedOptions,
@@ -238,6 +244,9 @@ export function restoreOriginalDetection(
     : undefined;
 
   const nextOmrMeta: OmrScoreMeta = {
+    ...omrMeta,
+    // Back to an unreviewed detection.
+    reviewedAt: undefined,
     confidence: omrMeta.original.confidence,
     source: 'omr',
     flaggedOptions: omrMeta.original.flaggedOptions ? [...omrMeta.original.flaggedOptions] : undefined,
@@ -268,6 +277,7 @@ export function confirmDetection(
   const original = resolveOriginalSnapshot(omrMeta, selectedOptions, score);
 
   const nextOmrMeta: OmrScoreMeta = {
+    ...omrMeta,
     confidence: omrMeta?.confidence ?? 'high',
     source: 'manual',
     flaggedOptions: omrMeta?.flaggedOptions,

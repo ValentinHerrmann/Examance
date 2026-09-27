@@ -165,6 +165,10 @@ export const HELP_TOPICS: HelpTopic[] = [
         headingKey: "help.topics.scanning.s3.h",
         bodyKeys: ["help.topics.scanning.s3.p1"],
       },
+      {
+        headingKey: "help.topics.scanning.s4.h",
+        bodyKeys: ["help.topics.scanning.s4.p1", "help.topics.scanning.s4.p2"],
+      },
     ],
   },
   {
@@ -231,6 +235,10 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         headingKey: "help.topics.settings.s4.h",
         bodyKeys: ["help.topics.settings.s4.p1", "help.topics.settings.s4.p2"],
+      },
+      {
+        headingKey: "help.topics.settings.s5.h",
+        bodyKeys: ["help.topics.settings.s5.p1", "help.topics.settings.s5.p2"],
       },
     ],
   },

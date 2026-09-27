@@ -1,6 +1,5 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import "./+page.css";
   import { db } from "$lib/db/db";
   import { eraseStudent } from "$lib/gdpr/erasure";
   import { wipeDatabase } from "$lib/db/hygiene";
@@ -15,6 +14,8 @@
   import { onMount } from "svelte";
   import SettingsForm from "$lib/components/settings/SettingsForm.svelte";
   import GdprErasureTable from "$lib/components/settings/GdprErasureTable.svelte";
+  import OmrDetectionSettingsCard from "$lib/components/settings/OmrDetectionSettingsCard.svelte";
+  import { omrSettingsStore } from "$lib/stores/omrSettings";
   import { exportStudentData, toDownloadableJson } from "$lib/gdpr/subjectAccess";
   import {
     locale,
@@ -119,7 +120,7 @@
     <PageHeader title={$t("settings.pageTitle")} helpTopic="settings" />
 
     {#if statusMsg}
-      <div class="settings-status-banner">{statusMsg}</div>
+      <div class="mb-6 rounded-md bg-green-500/20 p-3 text-green-300">{statusMsg}</div>
     {/if}
 
     <SettingsForm
@@ -129,6 +130,12 @@
       onStorageModeChange={handleStorageModeChange}
       onLatexChange={handleLatexChange}
       onLocaleChange={handleLocaleChange}
+    />
+
+    <OmrDetectionSettingsCard
+      profile={$omrSettingsStore}
+      onSave={(params) => omrSettingsStore.save(params)}
+      onReset={() => omrSettingsStore.reset()}
     />
 
     {#if $isAuthenticated}

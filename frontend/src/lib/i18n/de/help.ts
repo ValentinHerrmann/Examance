@@ -149,6 +149,11 @@ export const help = {
                 h: 'Wenn die Zuordnung nicht klappt',
                 p1: 'Unlesbare oder fehlende QR-Codes landen in der Prüfansicht. Dort lassen sich Seiten von Hand der richtigen Abgabe zuweisen oder über den Ersatzcode auf dem Bogen nachtragen.',
             },
+            s4: {
+                h: 'MC-Erkennung prüfen und erneut ausführen',
+                p1: 'Angekreuzte Kästchen werden beim Einlesen automatisch erkannt. In der MC-Prüfansicht bestätigen oder korrigieren Sie unsichere Erkennungen; jede bestätigte oder korrigierte Frage gilt als geprüft.',
+                p2: '„MC-Erkennung erneut ausführen“ wertet nur noch nicht geprüfte Fragen mit den aktuellen Einstellungen neu aus. Geprüfte Fragen und von Hand eingetragene Punktzahlen bleiben immer unverändert. Vorher zeigt ein Dialog, was sich ändert und ob die Einstellungen vom letzten Lauf abweichen; der Bereich „Erkennungseinstellungen“ vergleicht die Werte des letzten Laufs mit den aktuell gültigen.',
+            },
         },
         grading: {
             title: 'Korrigieren',
@@ -206,7 +211,7 @@ export const help = {
         },
         settings: {
             title: 'Einstellungen',
-            summary: 'Speicherstrategie, LaTeX-Kompilierung, Sprache und Datenlöschung.',
+            summary: 'Speicherstrategie, LaTeX-Kompilierung, Sprache, MC-Erkennung und Datenlöschung.',
             s1: {
                 h: 'Speicherstrategie',
                 p1: 'Legt fest, wo Aufgaben, Klausuren und Schülerdaten liegen. Die Voreinstellung ist der rein lokale Modus.',
@@ -224,6 +229,11 @@ export const help = {
                 h: 'Sitzung und Löschung',
                 p1: 'Die Sitzung sperrt sich nach Inaktivität von selbst; danach sind alle Inhalte wieder nur mit dem Passwort erreichbar.',
                 p2: 'Über die Datenlöschung lassen sich einzelne Schülerdaten (Auskunfts- und Löschansprüche nach DSGVO) oder der gesamte Arbeitsbereich entfernen. Das Löschen ist endgültig und kann nicht rückgängig gemacht werden.',
+            },
+            s5: {
+                h: 'MC-Erkennung feinjustieren',
+                p1: 'Die Schwellenwerte für die Erkennung angekreuzter Kästchen lassen sich anpassen, etwa wenn ein Scanner sehr hell oder dunkel scannt. Die Einstellungen gelten nur für künftige Erkennungsläufe; bereits erkannte und geprüfte Ergebnisse ändern sich nicht. Jeder Lauf speichert die verwendeten Werte mit.',
+                p2: 'Die Einstellungen liegen nur in diesem Browser und werden nicht mit anderen Geräten synchronisiert. „Auf Standardwerte zurücksetzen“ stellt die mitgelieferten Werte wieder her.',
             },
         },
         security: {

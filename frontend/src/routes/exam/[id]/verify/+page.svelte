@@ -6,15 +6,21 @@
   import { get } from "svelte/store";
   import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
   import { t, translate } from "$lib/i18n";
-  import { PageShell } from "$lib/components/ui";
+  import { Button, PageHeader, PageShell } from "$lib/components/ui";
   import {
     computeMcVerificationStats,
     categorizeMcItem,
+    isMcReviewed,
     type McVerificationStats,
     type McDetectionItem,
   } from "$lib/grading/mcVerification";
   import McVerificationOverview from "$lib/components/verify/McVerificationOverview.svelte";
   import McVerificationQueue from "$lib/components/verify/McVerificationQueue.svelte";
+  import McDetectionSettingsPanel from "$lib/components/verify/McDetectionSettingsPanel.svelte";
+  import McRerunDialog from "$lib/components/verify/McRerunDialog.svelte";
+  import { buildOmrScoreRecord } from "$lib/grading/omrResult";
+  import { createOmrRun } from "$lib/grading/omrSettings";
+  import { omrSettingsStore } from "$lib/stores/omrSettings";
   import { loadPdfjs } from "$lib/pdf/pdfjs";
   import {
     loadOmrTemplateEncrypted,
@@ -39,6 +45,7 @@
   let errorMsg = "";
 
   let isRerunningMc = false;
+  let showRerunDialog = false;
   let rerunMcMessage = "";
   let rerunMcError = "";
   let isResettingReviews = false;
@@ -88,9 +95,19 @@
     }
   }
 
-  async function handleRerunMcDetection() {
+  function requestRerunMcDetection() {
     if (!examId || isRerunningMc || isResettingReviews) return;
-    const overwriteReviewed = confirm(translate("scanning.verify.confirmRerunResetReviews"));
+    showRerunDialog = true;
+  }
+
+  /**
+   * Re-detects every *unverified* MC question with the current settings (issue #32).
+   * Verified rows (`isMcReviewed`) and hand-typed scores without a detection are never
+   * touched — there is deliberately no override; "Reset reviews" is the explicit way back.
+   */
+  async function handleRerunMcDetection() {
+    showRerunDialog = false;
+    if (!examId || isRerunningMc || isResettingReviews) return;
     isRerunningMc = true;
     rerunMcMessage = translate("scanning.verify.loadingTemplate");
     rerunMcError = "";
@@ -99,6 +116,7 @@
       const key = get(sessionStore).sessionKey;
       let templateResult = await loadOmrTemplateEncrypted(examId, key);
       let templatePages = templateResult?.payload?.pages;
+      let templateHash = templateResult?.record.exercisesHash;
       
       let needsCompile = !templateResult || !templatePages;
       let compileCtx = null;
@@ -137,6 +155,7 @@
              return;
           }
           templatePages = compileRes.pages;
+          templateHash = compileRes.exercisesHash;
         } catch (err: any) {
           rerunMcMessage = "";
           rerunMcError = translate("scanning.verify.autoPrepareFailed", { message: err.message });
@@ -193,9 +212,12 @@
           worker.postMessage(req);
         });
 
-      const scanScale = 2.0;
+      // One settings snapshot for the whole re-run, stamped into every row it writes.
+      const omrRun = createOmrRun("rerun", get(omrSettingsStore), templateHash);
+      const scanScale = omrRun.params.scanScale;
       let processed = 0;
       let updated = 0;
+      let keptReviewed = 0;
       let alignmentFailures = 0;
       let pagesSkippedNoTemplate = 0;
 
@@ -249,6 +271,7 @@
               pageTemplate,
               scanScale,
               answerKeys,
+              params: omrRun.params,
             });
             if (response.type !== "OMR_RESULT") {
               console.warn(
@@ -263,39 +286,20 @@
 
             for (const r of response.results) {
               const existing = existingByExercise.get(r.exerciseId);
-              if (!overwriteReviewed && existing?.omrMeta?.source === "manual") continue;
+              // Verified detections and hand-typed scores are never overwritten.
+              if (existing && (isMcReviewed(existing.omrMeta) || (!existing.omrMeta && existing.score !== undefined))) {
+                keptReviewed++;
+                continue;
+              }
 
-              const failed = r.confidence === "failed";
-              rescored.push({
-                id: existing?.id ?? crypto.randomUUID(),
-                submissionId: sub.id,
-                exerciseId: r.exerciseId,
-                score: failed ? undefined : r.score,
-                selectedOptions: failed ? [] : r.selectedOptions,
-                omrMeta: {
-                  confidence: r.confidence,
-                  source: "omr" as const,
-                  alignmentUncertain: r.alignmentUncertain ? true : undefined,
-                  flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
-                  original: {
-                    confidence: r.confidence,
-                    selectedOptions: failed ? [] : [...r.selectedOptions],
-                    score: failed ? undefined : r.score,
-                    flaggedOptions: r.flaggedOptions.length > 0 ? [...r.flaggedOptions] : undefined,
-                  },
-                  detections:
-                    !failed && r.bubbles.length > 0
-                      ? {
-                          pageIndex: r.pageIndex,
-                          bubbles: r.bubbles.map((b) => ({
-                            optionIndex: b.optionIndex,
-                            state: b.state,
-                            rect: b.rect,
-                          })),
-                        }
-                      : undefined,
-                },
-              });
+              rescored.push(
+                buildOmrScoreRecord(r, {
+                  id: existing?.id ?? crypto.randomUUID(),
+                  submissionId: sub.id,
+                  run: omrRun,
+                  pageStats: response.pageStats,
+                })
+              );
               updated++;
             }
           }
@@ -308,6 +312,7 @@
 
       rerunMcMessage =
         translate("scanning.verify.rerunComplete", { updated, processed }) +
+        (keptReviewed > 0 ? translate("scanning.verify.rerunKeptReviewed", { count: keptReviewed }) : "") +
         (alignmentFailures > 0
           ? translate("scanning.verify.rerunAlignmentFailures", { count: alignmentFailures })
           : "") +
@@ -402,40 +407,38 @@
 </script>
 
 <PageShell width="wide">
-  <div class="flex items-center justify-between mb-6">
-    <div>
-      <h2 class="text-xl font-bold text-slate-100">{$t("scanning.verify.heading")}</h2>
-      <p class="text-xs text-slate-400 mt-1">
-        {$t("scanning.verify.description")}
-      </p>
-    </div>
-    <div class="flex items-center gap-2">
-      <button
-        type="button"
-        on:click={handleResetAllReviews}
+  <PageHeader
+    title={$t("scanning.verify.heading")}
+    subtitle={$t("scanning.verify.description")}
+    helpTopic="scanning"
+  >
+    <svelte:fragment slot="actions">
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={handleResetAllReviews}
         disabled={isRerunningMc || isResettingReviews || loading}
-        class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer disabled:opacity-50"
       >
         {isResettingReviews ? $t("scanning.verify.resettingReviews") : $t("scanning.verify.resetReviews")}
-      </button>
-      <button
-        type="button"
-        on:click={handleRerunMcDetection}
-        disabled={isRerunningMc || isResettingReviews || loading}
-        class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-sky-700/80 hover:bg-sky-600 text-sky-100 transition-colors cursor-pointer disabled:opacity-50"
+      </Button>
+      <Button
+        size="sm"
+        onClick={requestRerunMcDetection}
+        disabled={isRerunningMc || isResettingReviews || loading || !stats}
+        loading={isRerunningMc}
       >
         {isRerunningMc ? $t("scanning.verify.rerunning") : $t("scanning.verify.rerun")}
-      </button>
-      <button
-        type="button"
-        on:click={refresh}
+      </Button>
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={refresh}
         disabled={loading || isRerunningMc || isResettingReviews}
-        class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer disabled:opacity-50"
       >
         {loading ? $t("scanning.verify.refreshing") : $t("scanning.verify.refresh")}
-      </button>
-    </div>
-  </div>
+      </Button>
+    </svelte:fragment>
+  </PageHeader>
 
   {#if rerunMcMessage}
     <div class="p-3 rounded border border-sky-500/40 bg-sky-500/10 text-sky-300 text-xs mb-6">
@@ -487,6 +490,8 @@
         </div>
       </div>
     {:else}
+      <McDetectionSettingsPanel runs={stats.detectionRuns} current={$omrSettingsStore} />
+
       <McVerificationOverview {stats} />
 
       <McVerificationQueue
@@ -516,5 +521,18 @@
         onOpenGrading={openInGrading}
       />
     {/if}
+  {/if}
+
+  {#if stats}
+    <McRerunDialog
+      open={showRerunDialog}
+      runs={stats.detectionRuns}
+      current={$omrSettingsStore}
+      unreviewedCount={stats.items.filter((i) => !i.isReviewed).length}
+      reviewedCount={stats.items.filter((i) => i.isReviewed).length}
+      undetectedScoreCount={stats.undetectedScoreCount}
+      onConfirm={handleRerunMcDetection}
+      onCancel={() => (showRerunDialog = false)}
+    />
   {/if}
 </PageShell>

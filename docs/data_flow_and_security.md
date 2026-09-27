@@ -12,7 +12,7 @@ Examance uses a zero-knowledge, client-side encryption-at-rest model designed to
 1. **No Unauthenticated DevTools Access**: When a user is locked or logged out, browser DevTools inspection reveals **zero unencrypted text** (no LaTeX preamble/body, exam metadata, answer keys, fallback codes, or raw scores). Storage is either completely purged (`all-server` mode) or stored as opaque AES-256-GCM binary ciphertexts (`all-local` / `hybrid` mode).
 
    *Previously broken here (2026-08-17, now fixed):* `encryptStudent()` used to re-emit `fallbackCode`, `studentName` and `studentNumber` as plain properties next to the ciphertext it had just made of those same fields, `studentRepository.save()` persisted that record unchanged — and did so *before* the storage-mode check, so pupil names landed in local IndexedDB even in `all-server` mode — and `fallbackCode` was a plaintext Dexie index. Identity fields now exist only inside `payloadCt`; `encryptStudent()` refuses to write them at all without a key; the local write happens only outside `all-server` mode; and Dexie v9 drops the index and strips the columns from existing rows. Tracked as L17 in `legal_audit_dsgvo.md` §4.
-2. **Key material is passphrase-derived and tab-scoped.** The master key is derived from a passphrase the user enters; **the passphrase itself is never persisted anywhere**. To survive an F5 reload, the derived `sessionKey` and master key bytes are written to **`sessionStorage`**, which is per-tab and cleared when the tab closes; they are also wiped on manual lock, on inactivity timeout, and on a lock broadcast from another tab. `localStorage` holds only the Argon2id salt, the session nonce, and non-secret UI state — never a key or a passphrase. **Nothing derived from the passphrase is written to IndexedDB.**
+2. **Key material is passphrase-derived and tab-scoped.** The master key is derived from a passphrase the user enters; **the passphrase itself is never persisted anywhere**. To survive an F5 reload, the derived `sessionKey` and master key bytes are written to **`sessionStorage`**, which is per-tab and cleared when the tab closes; they are also wiped on manual lock, on inactivity timeout, and on a lock broadcast from another tab. `localStorage` holds only the Argon2id salt, the session nonce, and non-secret UI state (e.g. language, storage policy, the MC-detection thresholds in `bg_omr_settings`) — never a key or a passphrase. **Nothing derived from the passphrase is written to IndexedDB.**
 
    *This is a deliberate trade of key exposure for usability: while a tab is unlocked, script running on the origin can read the session key out of `sessionStorage`. The alternative — re-prompting on every reload — was judged worse for the grading workflow. It also means the vault is only as private as the browser profile is: anyone who can run script on this origin, or who reaches an already-unlocked tab, can read the data.*
 
@@ -196,7 +196,7 @@ accounts here.
 | `examMcGroups` | `id, examId, orderIndex` | N/A — title, scoring text and order are layout metadata for MC-group LaTeX rendering only, not exercise content; see CLAUDE.md "Multiple Choice (MC) Data Model" | Standard IDB table |
 | `students` | `pseudonymId, examId` | Student PII — `fallbackCode`, `studentName`, `studentNumber` (`payloadCt`) | Opaque Binary Ciphertext / Purged |
 | `submissions` | `id, examId, pseudonymHash` | Total score (`totalScore`), scan image blob (`scanCt`), annotations vector layer (`annotationCt`) | Opaque Binary Ciphertext / Purged |
-| `exerciseScores` | `id, submissionId, exerciseId` | Score value (`score`), selected options, OMR metadata | Opaque Binary Ciphertext / Purged |
+| `exerciseScores` | `id, submissionId, exerciseId` | Score value (`score`), selected options, OMR metadata (`omrMeta`: detection result, per-bubble raw fill ratios and immutable detector state, page alignment stats, and the `run` snapshot — detection time, settings and algorithm version used) | Opaque Binary Ciphertext / Purged |
 | `omrTemplates` | `id, examId` | Detected bubble/fiducial page rects (`OmrTemplatePayload.pages`), used for MC auto-grading | Opaque Binary Ciphertext / Purged |
 | `exerciseResources` | `id, exerciseId, [exerciseId+filename]` | Raw file bytes (`dataCt`) of a teacher-uploaded LaTeX resource (image, PDF, data file). `filename`, `mimeType` and `byteSize` stay plaintext — they are index/display fields, not content | Opaque Binary Ciphertext / Purged |
 | `auditLog` | `id, action, timestamp` | Action note details | Opaque Binary Ciphertext / Purged |
@@ -218,6 +218,16 @@ stores only that blob plus the two foreign keys. A per-question plaintext record
 of how a named pupil answered each item reconstructs the answer sheet, which is
 a sharper disclosure than an exam total; statistics that need a number use
 `total_score`.
+
+Since issue #32, `omrMeta` also carries the raw per-bubble readings (fill ratio,
+redo-zone ratio, the detector's own state) and a snapshot of the detection
+settings each row was produced with. That is pupil-derived answer-sheet data
+and stays inside the same sealed payload: no plaintext column, no index, no log
+line. It is erased with the pupil and by retention like the rest of the row. It
+exists so a future calibration can learn from teacher verification; any such
+learning must run client-side and keep only aggregate thresholds, never
+per-pupil samples, and must not remove the human review step (DPIA Art. 22
+assumption, `dpia_art35.md`).
 
 `hybrid` keeps scores local, like submissions and student identities — they are
 grading results, and that is the axis hybrid mode splits on.

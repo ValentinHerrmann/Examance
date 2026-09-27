@@ -4,7 +4,26 @@ import { submissionRepository } from "$lib/repositories/submissionRepository";
 import { studentRepository } from "$lib/repositories/studentRepository";
 import { ensure64CharHex } from "$lib/crypto/hmac";
 import { loadLocalMcGroups } from "$lib/db/dbEncryption";
-import type { ExerciseRecord } from "$lib/db/schema";
+import type { ExerciseRecord, OmrScoreMeta } from "$lib/db/schema";
+import type { OmrRunInfo } from "$lib/grading/omrSettings";
+
+/**
+ * The one definition of "a teacher has verified this detection". A re-run must never touch
+ * a row for which this is true (issue #32), and the dashboard/queues count by it.
+ */
+export function isMcReviewed(omrMeta: Pick<OmrScoreMeta, "source" | "reviewedAt"> | undefined): boolean {
+  return !!omrMeta && (omrMeta.source === "manual" || !!omrMeta.reviewedAt);
+}
+
+/**
+ * Score rows grouped by the detection batch that produced them. `run === null` collects rows
+ * detected before run snapshots existed — their settings are unknown, not "the defaults".
+ */
+export interface McDetectionRunSummary {
+  run: OmrRunInfo | null;
+  itemCount: number;
+  reviewedCount: number;
+}
 
 export interface McDetectionItem {
   submissionId: string;
@@ -31,6 +50,8 @@ export interface McDetectionItem {
   reviewedAt?: string;
   isReviewed?: boolean;
   isCorrected?: boolean;
+  /** Detection batch that produced this item; undefined for legacy rows. */
+  run?: OmrRunInfo;
 }
 
 export type McQueueCategory = "failed" | "unsure" | "confident";
@@ -137,6 +158,10 @@ export interface McVerificationStats {
   items: McDetectionItem[];
   qualityStats: DetectionQualityStats;
   confusionMatrix: DetectionConfusionMatrix;
+  /** Newest run first; the legacy (`run: null`) bucket, if any, last. */
+  detectionRuns: McDetectionRunSummary[];
+  /** MC score rows without any detection (typed in by hand) — a re-run leaves them alone. */
+  undetectedScoreCount: number;
 }
 
 /**
@@ -204,6 +229,7 @@ export async function computeMcVerificationStats(
   }
 
   const items: McDetectionItem[] = [];
+  let undetectedScoreCount = 0;
   for (const sub of submissions) {
     const rawScores = scoresBySubmission.get(sub.id) ?? [];
     const label = await labelFor(sub);
@@ -224,7 +250,11 @@ export async function computeMcVerificationStats(
 
     for (const sc of scoreByExercise.values()) {
       const ex = exerciseById.get(sc.exerciseId);
-      if (!ex || !sc.omrMeta) continue;
+      if (!ex) continue;
+      if (!sc.omrMeta) {
+        if (sc.score !== undefined) undetectedScoreCount++;
+        continue;
+      }
       const flaggedOptions = sc.omrMeta.flaggedOptions ?? [];
       const selectedOptions = sc.selectedOptions ?? [];
 
@@ -235,7 +265,7 @@ export async function computeMcVerificationStats(
         flaggedOptions: flaggedOptions.length > 0 ? [...flaggedOptions] : undefined,
       } : undefined);
 
-      const isReviewed = sc.omrMeta.source === "manual" || !!sc.omrMeta.reviewedAt;
+      const isReviewed = isMcReviewed(sc.omrMeta);
       const isCorrected = orig && isReviewed ? !optionsEqual(orig.selectedOptions, selectedOptions) : false;
 
       items.push({
@@ -254,6 +284,7 @@ export async function computeMcVerificationStats(
         reviewedAt: sc.omrMeta.reviewedAt,
         isReviewed,
         isCorrected,
+        run: sc.omrMeta.run,
       });
     }
   }
@@ -356,7 +387,31 @@ export async function computeMcVerificationStats(
     items,
     qualityStats,
     confusionMatrix,
+    detectionRuns: summarizeDetectionRuns(items),
+    undetectedScoreCount,
   };
+}
+
+export function summarizeDetectionRuns(items: McDetectionItem[]): McDetectionRunSummary[] {
+  const byId = new Map<string, McDetectionRunSummary>();
+  let legacy: McDetectionRunSummary | null = null;
+  for (const item of items) {
+    let bucket: McDetectionRunSummary;
+    if (item.run) {
+      const existing = byId.get(item.run.runId);
+      bucket = existing ?? { run: item.run, itemCount: 0, reviewedCount: 0 };
+      if (!existing) byId.set(item.run.runId, bucket);
+    } else {
+      legacy ??= { run: null, itemCount: 0, reviewedCount: 0 };
+      bucket = legacy;
+    }
+    bucket.itemCount++;
+    if (item.isReviewed) bucket.reviewedCount++;
+  }
+  const runs = Array.from(byId.values()).sort((a, b) =>
+    (b.run?.detectedAt ?? "").localeCompare(a.run?.detectedAt ?? "")
+  );
+  return legacy ? [...runs, legacy] : runs;
 }
 
 /**

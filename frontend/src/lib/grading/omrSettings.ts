@@ -1,0 +1,224 @@
+/**
+ * Tunable parameters of the OMR (MC answer detection) pipeline — the single source of truth.
+ *
+ * `omrWorker.ts` reads every threshold from an `OmrDetectionParams` object passed in with each
+ * request; nothing in the worker hardcodes them any more. Every detection stamps the exact
+ * params it ran with into the sealed `omrMeta.run` of each score row (see `omrResult.ts`), so:
+ *
+ *  - changing settings only ever affects *future* runs — an existing detection keeps the
+ *    snapshot it was produced with, and the verify page can compare that snapshot with what
+ *    a re-run would use;
+ *  - a future learner can pair each verified row's raw readings (`fillRatio`, `detectedState`)
+ *    with the params and `OMR_ALGORITHM_VERSION` that produced them. A learned profile is just
+ *    another `OmrSettingsProfile` with `source: 'learned'` — no shape change needed.
+ *
+ * Pure module: no DOM, no stores — the worker imports it.
+ */
+
+/** Bump whenever feature extraction or classification semantics change (not for param changes). */
+export const OMR_ALGORITHM_VERSION = 1;
+
+export interface OmrDetectionParams {
+  /** Fill ratio below this reads as blank. */
+  ambiguousLow: number;
+  /** Fill ratio at/above this reads as a confident mark (between the two: ambiguous). */
+  markedHigh: number;
+  /** At/above this a box counts as solid-filled ("undo") — only for boxes with a redo zone. */
+  filledHigh: number;
+  /** Redo-zone fill ratio at/above which a solid-filled box counts as re-marked. */
+  redoMarkedHigh: number;
+  /** Fraction of each side of a bubble's box trimmed off before counting fill (ignores the printed border). */
+  sampleInsetFraction: number;
+  /** Fraction of each page side searched for a corner fiducial. */
+  quadrantFraction: number;
+  /** Candidate fiducial blob area, as a multiple of the expected area: lower bound. */
+  fiducialAreaMinRatio: number;
+  /** Candidate fiducial blob area, as a multiple of the expected area: upper bound. */
+  fiducialAreaMaxRatio: number;
+  /** Maximum bbox aspect ratio for a fiducial candidate (it is a square marker). */
+  fiducialMaxAspectRatio: number;
+  /** Maximum distance of a fiducial from its expected position, as a fraction of the page's shorter side. */
+  fiducialMaxDistFraction: number;
+  /** 4-point registration: 4th-corner residual (fraction of scan width) above which alignment is "uncertain". */
+  alignResidualFraction: number;
+  /** Relative page aspect-ratio distortion above which alignment is "uncertain". */
+  alignRatioTolerance: number;
+  /** Allowed deviation of the mapped page corner angle from 90°, in degrees. */
+  alignAngleToleranceDeg: number;
+  /** Raster scale the scan is rendered at before detection. Not user-editable; snapshotted only. */
+  scanScale: number;
+}
+
+export type OmrParamKey = keyof OmrDetectionParams;
+
+/** Today's (pre-settings) constants, 1:1 — defaults must never change detection behaviour. */
+export const DEFAULT_OMR_PARAMS: Readonly<OmrDetectionParams> = Object.freeze({
+  ambiguousLow: 0.15,
+  markedHigh: 0.45,
+  filledHigh: 0.75,
+  redoMarkedHigh: 0.45,
+  sampleInsetFraction: 0.12,
+  quadrantFraction: 0.4,
+  fiducialAreaMinRatio: 0.3,
+  fiducialAreaMaxRatio: 3.0,
+  fiducialMaxAspectRatio: 1.8,
+  fiducialMaxDistFraction: 0.15,
+  alignResidualFraction: 0.015,
+  alignRatioTolerance: 0.05,
+  alignAngleToleranceDeg: 5,
+  scanScale: 2.0,
+});
+
+export type OmrParamGroup = 'basic' | 'advanced' | 'fixed';
+
+export interface OmrParamSpec {
+  key: OmrParamKey;
+  group: OmrParamGroup;
+  min: number;
+  max: number;
+  step: number;
+}
+
+/** Display order + bounds. Drives both the settings UI and validation. */
+export const OMR_PARAM_SPECS: readonly OmrParamSpec[] = [
+  { key: 'ambiguousLow', group: 'basic', min: 0.01, max: 0.9, step: 0.01 },
+  { key: 'markedHigh', group: 'basic', min: 0.02, max: 0.95, step: 0.01 },
+  { key: 'filledHigh', group: 'basic', min: 0.05, max: 1, step: 0.01 },
+  { key: 'redoMarkedHigh', group: 'basic', min: 0.05, max: 1, step: 0.01 },
+  { key: 'sampleInsetFraction', group: 'advanced', min: 0, max: 0.4, step: 0.01 },
+  { key: 'quadrantFraction', group: 'advanced', min: 0.1, max: 0.5, step: 0.01 },
+  { key: 'fiducialAreaMinRatio', group: 'advanced', min: 0.05, max: 1, step: 0.05 },
+  { key: 'fiducialAreaMaxRatio', group: 'advanced', min: 1, max: 10, step: 0.1 },
+  { key: 'fiducialMaxAspectRatio', group: 'advanced', min: 1, max: 4, step: 0.1 },
+  { key: 'fiducialMaxDistFraction', group: 'advanced', min: 0.02, max: 0.5, step: 0.01 },
+  { key: 'alignResidualFraction', group: 'advanced', min: 0.001, max: 0.1, step: 0.001 },
+  { key: 'alignRatioTolerance', group: 'advanced', min: 0.005, max: 0.5, step: 0.005 },
+  { key: 'alignAngleToleranceDeg', group: 'advanced', min: 0.5, max: 30, step: 0.5 },
+  { key: 'scanScale', group: 'fixed', min: 1, max: 4, step: 0.5 },
+];
+
+const SPEC_BY_KEY = new Map(OMR_PARAM_SPECS.map((s) => [s.key, s]));
+
+export type OmrParamsError =
+  | { code: 'range'; key: OmrParamKey }
+  | { code: 'fillOrder' }
+  | { code: 'areaOrder' };
+
+function inRange(key: OmrParamKey, value: unknown): value is number {
+  const spec = SPEC_BY_KEY.get(key);
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    !!spec &&
+    value >= spec.min &&
+    value <= spec.max
+  );
+}
+
+/** Empty array = valid. */
+export function validateOmrParams(p: OmrDetectionParams): OmrParamsError[] {
+  const errors: OmrParamsError[] = [];
+  for (const spec of OMR_PARAM_SPECS) {
+    if (!inRange(spec.key, p[spec.key])) errors.push({ code: 'range', key: spec.key });
+  }
+  if (!(p.ambiguousLow < p.markedHigh && p.markedHigh < p.filledHigh)) errors.push({ code: 'fillOrder' });
+  if (!(p.fiducialAreaMinRatio < p.fiducialAreaMaxRatio)) errors.push({ code: 'areaOrder' });
+  return errors;
+}
+
+/**
+ * Coerces anything (a stored/hand-edited value, a message payload, `undefined`) into a valid
+ * params object. Never throws: out-of-range fields fall back to their default, and an order
+ * violation resets the fields involved.
+ */
+export function normalizeOmrParams(input: unknown): OmrDetectionParams {
+  const src = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+  const out = { ...DEFAULT_OMR_PARAMS } as OmrDetectionParams;
+  for (const spec of OMR_PARAM_SPECS) {
+    const v = src[spec.key];
+    if (inRange(spec.key, v)) out[spec.key] = v;
+  }
+  if (!(out.ambiguousLow < out.markedHigh && out.markedHigh < out.filledHigh)) {
+    out.ambiguousLow = DEFAULT_OMR_PARAMS.ambiguousLow;
+    out.markedHigh = DEFAULT_OMR_PARAMS.markedHigh;
+    out.filledHigh = DEFAULT_OMR_PARAMS.filledHigh;
+  }
+  if (!(out.fiducialAreaMinRatio < out.fiducialAreaMaxRatio)) {
+    out.fiducialAreaMinRatio = DEFAULT_OMR_PARAMS.fiducialAreaMinRatio;
+    out.fiducialAreaMaxRatio = DEFAULT_OMR_PARAMS.fiducialAreaMaxRatio;
+  }
+  return out;
+}
+
+/** Keys whose values differ (in `OMR_PARAM_SPECS` order). */
+export function diffOmrParams(a: OmrDetectionParams, b: OmrDetectionParams): OmrParamKey[] {
+  return OMR_PARAM_SPECS.map((s) => s.key).filter((k) => a[k] !== b[k]);
+}
+
+/**
+ * Where a params set came from. `'learned'` is reserved for a future profile fitted from
+ * teacher verification — it must stay client-side and aggregate-only (no per-pupil rows).
+ */
+export type OmrSettingsSource = 'default' | 'user' | 'learned';
+
+export interface OmrSettingsProfile {
+  schemaVersion: 1;
+  source: OmrSettingsSource;
+  /** Monotonic, bumped on every save — lets a run snapshot name the exact profile state. */
+  revision: number;
+  algorithmVersion: number;
+  params: OmrDetectionParams;
+  updatedAt?: string;
+}
+
+export function defaultOmrProfile(): OmrSettingsProfile {
+  return {
+    schemaVersion: 1,
+    source: 'default',
+    revision: 0,
+    algorithmVersion: OMR_ALGORITHM_VERSION,
+    params: { ...DEFAULT_OMR_PARAMS },
+  };
+}
+
+/** Provenance of one detection batch (an upload on the scan page, or a re-run). */
+export interface OmrRunInfo {
+  /** One UUID per batch — the verify page groups score rows by it. */
+  runId: string;
+  detectedAt: string;
+  trigger: 'scan' | 'rerun';
+  algorithmVersion: number;
+  settings: { source: OmrSettingsSource; revision: number };
+  params: OmrDetectionParams;
+  /** `exercisesHash` of the OMR template the batch ran against. */
+  templateHash?: string;
+}
+
+export function createOmrRun(
+  trigger: OmrRunInfo['trigger'],
+  profile: OmrSettingsProfile,
+  templateHash?: string
+): OmrRunInfo {
+  return {
+    runId: crypto.randomUUID(),
+    detectedAt: new Date().toISOString(),
+    trigger,
+    algorithmVersion: OMR_ALGORITHM_VERSION,
+    settings: { source: profile.source, revision: profile.revision },
+    params: normalizeOmrParams(profile.params),
+    ...(templateHash ? { templateHash } : {}),
+  };
+}
+
+/** Per-page registration diagnostics returned by the worker and kept with each score row. */
+export interface OmrPageStats {
+  otsuThreshold: number;
+  fiducialsFound: number;
+  fiducialCorners: number[];
+  /** 4th-corner residual as a fraction of scan width (4-fiducial pages only). */
+  residualFraction?: number;
+  /** Relative page aspect-ratio distortion (4-fiducial pages only). */
+  ratioDiff?: number;
+  /** Mapped top-left corner angle in degrees (4-fiducial pages only). */
+  angleDeg?: number;
+}

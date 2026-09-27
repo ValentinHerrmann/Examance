@@ -8,6 +8,7 @@ import {
   isMcQuestion,
 } from "../src/lib/grading/mcScore";
 import type { OmrScoreMeta } from "../src/lib/db/schema";
+import { DEFAULT_OMR_PARAMS, OMR_ALGORITHM_VERSION } from "../src/lib/grading/omrSettings";
 
 describe("mcScore", () => {
   describe("isMcQuestion", () => {
@@ -182,6 +183,62 @@ describe("mcScore", () => {
       expect(res.nextOmrMeta.reviewedAt).toBeDefined();
       expect(res.nextOmrMeta.original?.confidence).toBe("ambiguous");
       expect(res.nextOmrMeta.original?.selectedOptions).toEqual([0, 1]);
+    });
+  });
+
+  describe("provenance survives review actions (issue #32)", () => {
+    const run = {
+      runId: "run-1",
+      detectedAt: "2026-09-27T10:00:00.000Z",
+      trigger: "scan" as const,
+      algorithmVersion: OMR_ALGORITHM_VERSION,
+      settings: { source: "user" as const, revision: 3 },
+      params: { ...DEFAULT_OMR_PARAMS, markedHigh: 0.5 },
+    };
+    const meta: OmrScoreMeta = {
+      confidence: "ambiguous",
+      source: "omr",
+      alignmentUncertain: true,
+      flaggedOptions: [1],
+      run,
+      pageStats: { otsuThreshold: 128, fiducialsFound: 4, fiducialCorners: [0, 1, 2, 3] },
+      detections: {
+        pageIndex: 0,
+        bubbles: [
+          { optionIndex: 0, state: "marked", rect: [0, 0, 0.1, 0.1], detectedState: "marked", fillRatio: 0.6 },
+          { optionIndex: 1, state: "ambiguous", rect: [0.2, 0, 0.3, 0.1], detectedState: "ambiguous", fillRatio: 0.3 },
+        ],
+      },
+    };
+
+    function expectKept(next: OmrScoreMeta) {
+      expect(next.run).toEqual(run);
+      expect(next.alignmentUncertain).toBe(true);
+      expect(next.pageStats?.otsuThreshold).toBe(128);
+      expect(next.detections?.bubbles.map((b) => b.detectedState)).toEqual(["marked", "ambiguous"]);
+      expect(next.detections?.bubbles.map((b) => b.fillRatio)).toEqual([0.6, 0.3]);
+    }
+
+    it("confirmDetection keeps run, alignment flag and raw readings", () => {
+      expectKept(confirmDetection([0, 1], 1, meta).nextOmrMeta);
+    });
+
+    it("applyMcCorrection keeps them while rewriting only the display state", () => {
+      const res = applyMcCorrection("mc", [0, 1], 1, [0], 0, 2, meta);
+      expectKept(res.nextOmrMeta);
+      expect(res.nextOmrMeta.detections?.bubbles.map((b) => b.state)).toEqual(["marked", "blank"]);
+    });
+
+    it("setMcSelectedOptions keeps them", () => {
+      expectKept(setMcSelectedOptions("mc", [0], [0], 0, 2, meta).nextOmrMeta);
+    });
+
+    it("restoreOriginalDetection keeps them and clears the review", () => {
+      const corrected = applyMcCorrection("mc", [0, 1], 1, [0], 0, 2, meta).nextOmrMeta;
+      const res = restoreOriginalDetection("mc", [0], 0, 2, corrected);
+      expectKept(res!.nextOmrMeta);
+      expect(res!.nextOmrMeta.reviewedAt).toBeUndefined();
+      expect(res!.nextOmrMeta.source).toBe("omr");
     });
   });
 });

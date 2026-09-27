@@ -9,7 +9,7 @@
   } from "$lib/grading/mcScore";
   import { renderMcCrop } from "$lib/grading/mcCropRender";
   import { t, translate } from "$lib/i18n";
-  import type { McQueueCategory } from "$lib/grading/mcVerification";
+  import { isMcReviewed, type McQueueCategory } from "$lib/grading/mcVerification";
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import { safeLocalStorage } from "$lib/utils/storage";
 
@@ -242,7 +242,7 @@
   // exactly, so this badge can never drift from the calibration stats.
   type ReviewStatus = "unreviewed" | "confirmedUnchanged" | "manuallyCorrected";
   $: reviewStatus = ((): ReviewStatus => {
-    const reviewed = !!omrMeta?.reviewedAt || source === "manual";
+    const reviewed = isMcReviewed(omrMeta);
     if (!reviewed) return "unreviewed";
     return hasOriginal && !isMatchesOriginal ? "manuallyCorrected" : "confirmedUnchanged";
   })();

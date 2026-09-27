@@ -149,6 +149,11 @@ export const help: Translations['help'] = {
                 h: 'When assignment fails',
                 p1: 'Unreadable or missing QR codes end up in the verification view. There you can assign pages to the right submission by hand, or enter the fallback code printed on the sheet.',
             },
+            s4: {
+                h: 'Verifying and re-running MC detection',
+                p1: 'Ticked boxes are detected automatically when scans are imported. In the MC verification view you confirm or correct uncertain detections; every confirmed or corrected question counts as verified.',
+                p2: '"Re-run MC detection" re-evaluates only questions that are not yet verified, using the current settings. Verified questions and manually entered scores always stay unchanged. A dialog first shows what will change and whether the settings differ from the last run; the "Detection settings" panel compares the latest run\'s values with the ones currently in effect.',
+            },
         },
         grading: {
             title: 'Grading',
@@ -206,7 +211,7 @@ export const help: Translations['help'] = {
         },
         settings: {
             title: 'Settings',
-            summary: 'Storage strategy, LaTeX compilation, language and data deletion.',
+            summary: 'Storage strategy, LaTeX compilation, language, MC detection and data deletion.',
             s1: {
                 h: 'Storage strategy',
                 p1: 'Decides where exercises, exams and student data are stored. The default is the strictly local mode.',
@@ -224,6 +229,11 @@ export const help: Translations['help'] = {
                 h: 'Session and deletion',
                 p1: 'The session locks itself after a period of inactivity; afterwards the content is reachable only with the password again.',
                 p2: 'Data deletion removes individual student records (GDPR access and erasure requests) or the entire workspace. Deletion is final and cannot be undone.',
+            },
+            s5: {
+                h: 'Fine-tuning MC detection',
+                p1: 'The thresholds for detecting ticked boxes can be adjusted, e.g. when a scanner produces very light or dark scans. Settings apply only to future detection runs; results that were already detected or verified do not change. Every run records the values it used.',
+                p2: 'The settings are stored in this browser only and are not synced to other devices. "Reset to defaults" restores the built-in values.',
             },
         },
         security: {

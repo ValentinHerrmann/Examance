@@ -1,4 +1,5 @@
 import type { MaybeUndecryptable } from './decryptGuard';
+import type { OmrPageStats, OmrRunInfo } from '$lib/grading/omrSettings';
 
 /**
  * IndexedDB schema type definitions for Dexie.
@@ -143,10 +144,18 @@ export interface OmrScoreMeta {
   };
   /** ISO timestamp when the detection was verified or corrected. */
   reviewedAt?: string;
+  /** Detection batch that produced this row: when, with which params and algorithm version.
+   *  Absent on rows detected before settings existed ("not recorded" — do not assume the
+   *  current defaults). Carried through every review action (mcScore.ts builders spread
+   *  `omrMeta`), so a verified row keeps the provenance of the detection it verifies. */
+  run?: OmrRunInfo;
+  /** Registration diagnostics of the page this exercise sits on. */
+  pageStats?: OmrPageStats;
   /** Detected bubble boxes for the grading viewer to draw over the scan, for every option
    *  (including blank ones — needed to place the "missing" annotation on correct options the
-   *  student didn't mark). Carried forward across manual `McAnswerReview` toggles — it
-   *  documents what the scanner saw, which stays true after a correction. */
+   *  student didn't mark). Carried forward across manual `McAnswerReview` toggles. `rect`,
+   *  `detectedState` and the ratios document what the scanner saw and are never rewritten;
+   *  `state` is the *current display state* and follows the teacher's corrections. */
   detections?: {
     /** 0-based, matches OmrPageTemplate.pageIndex. */
     pageIndex: number;
@@ -155,6 +164,12 @@ export interface OmrScoreMeta {
       state: 'ambiguous' | 'marked' | 'blank' | 'undone' | 'redone';
       /** Normalized [minX, minY, maxX, maxY] in [0,1] of the scan page's (width, height). */
       rect: [number, number, number, number];
+      /** The worker's own reading — immutable, unlike `state`. */
+      detectedState?: 'ambiguous' | 'marked' | 'blank' | 'undone' | 'redone';
+      /** Dark-pixel fraction inside the box (rounded to 3 decimals). */
+      fillRatio?: number;
+      /** Redo-zone fill ratio, only for boxes that have a redo zone. */
+      redoRatio?: number;
     }[];
   };
 }
