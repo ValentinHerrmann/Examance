@@ -89,7 +89,7 @@ export type OmrNumericParamKey = {
   [K in OmrParamKey]: OmrDetectionParams[K] extends number ? (number extends OmrDetectionParams[K] ? K : never) : never;
 }[OmrParamKey];
 
-/** Today's (pre-settings) constants, 1:1 — defaults must never change detection behaviour. */
+/** Built-in defaults. Changing one changes future runs only (each run snapshots its params). */
 export const DEFAULT_OMR_PARAMS: Readonly<OmrDetectionParams> = Object.freeze({
   // v4 is the default since it read 36/36 verified boxes correctly (v2: 20/36) on the first
   // compared exam. v2 stays selectable, and the non-deciding algorithm keeps running alongside.
@@ -159,6 +159,22 @@ export const OMR_PARAM_SPECS: readonly OmrParamSpec[] = [
   { kind: 'number', key: 'tickSpanMin', group: 'advanced', min: 0.2, max: 1, step: 0.05 },
   { kind: 'number', key: 'scanScale', group: 'fixed', min: 1, max: 4, step: 0.5 },
 ];
+
+/**
+ * Params that only one algorithm's *decision* reads (`classifyV2` / `classifyV4` + `measureBox`).
+ * Everything not listed here feeds both. The settings UI disables the others' controls.
+ */
+export const OMR_PARAM_ALGORITHM: Partial<Record<OmrParamKey, OmrAlgorithm>> = {
+  ambiguousLow: 2,
+  markedHigh: 2,
+  shapeAnalysis: 2,
+  solidFillMin: 2,
+  inkMinFill: 4,
+  tickSpanMin: 4,
+  strokeSpanMin: 4,
+  localContrastFrac: 4,
+  snapMaxFraction: 4,
+};
 
 export type OmrParamsError =
   | { code: 'range'; key: OmrParamKey }
@@ -244,7 +260,11 @@ export interface OmrRunInfo {
   runId: string;
   detectedAt: string;
   trigger: 'scan' | 'rerun';
+  /** The algorithm that decided this run (`params.algorithm`: 2 or 4; 3 on withdrawn v3 runs). */
   algorithmVersion: number;
+  /** `OMR_ALGORITHM_VERSION` at detection time — what the recorded features and verdicts mean.
+   *  Absent on runs made before it was recorded (those were pipeline 3 or 4). */
+  pipelineVersion?: number;
   settings: { source: OmrSettingsSource; revision: number };
   /** Full params at the time. Snapshots from older algorithm versions lack later keys. */
   params: OmrDetectionParams;
@@ -264,6 +284,7 @@ export function createOmrRun(
     trigger,
     // The deciding algorithm; the other one's verdict is kept per bubble as `alt`.
     algorithmVersion: params.algorithm,
+    pipelineVersion: OMR_ALGORITHM_VERSION,
     settings: { source: profile.source, revision: profile.revision },
     params,
     ...(templateHash ? { templateHash } : {}),

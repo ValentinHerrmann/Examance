@@ -35,9 +35,10 @@ export const settings: Translations['settings'] = {
             'Changes apply only to future detection runs (new scans or "Re-run MC detection"). Existing and especially already verified results are not changed.',
         localOnly: 'Stored in this browser only and not synced to other devices.',
         basicGroup: 'Box fill level',
-        advancedGroup: 'Advanced: fiducials & alignment',
+        advancedGroup: 'Advanced',
         fixedGroup: 'Fixed',
         defaultValue: 'Default: {value}',
+        onlyFor: 'Only used by method v{algorithm}.',
         on: 'on',
         off: 'off',
         save: 'Save',
@@ -123,11 +124,11 @@ export const settings: Translations['settings'] = {
                 hint: 'Allowed deviation of the page corners from 90° before alignment counts as uncertain.',
             },
             shapeAnalysis: {
-                label: 'Mark shape analysis',
+                label: 'v2: Mark shape analysis',
                 hint: 'Also checks how the ink is spread inside the box: evenly filled boxes count as withdrawn, marks reaching far beyond the box or very faint marks are sent to review.',
             },
             solidFillMin: {
-                label: 'Filled: minimum fill level',
+                label: 'v2: Filled: minimum fill level',
                 hint: 'From this fill level on, the box is checked for being evenly filled (rather than ticked).',
             },
             solidCellMin: {
@@ -175,8 +176,11 @@ export const settings: Translations['settings'] = {
         whatIsSent:
             "Sent per verified box: a small grayscale crop (only the box and the correction field next to it, no question text), your verified decision (ticked / not ticked) and the detector's measurements.",
         whatIsNotSent:
-            'Not sent: names, pseudonyms, exam, submission or question identifiers, your account, or timestamps. The request is made without the sign-in cookie.',
-        whenSent: 'Only questions you confirmed or corrected in the MC verification view, and only while this option is enabled.',
+            'Not sent: names, pseudonyms, exam, submission or question identifiers, or timestamps. Each box only carries a random id, so a later correction replaces the earlier label. Donations are sent signed in, so only accounts of this installation can donate; your account is not stored with the crops.',
+        whenSent: 'Only questions you confirmed or corrected in the MC verification view, only while you are signed in and this option is enabled. Switching it off stops everything, including crops already prepared.',
+        recipient: 'Recipient: {host}',
+        unavailable: 'This server does not accept donations at the moment — nothing is sent.',
+        signInRequired: 'Donating requires being signed in to a server account.',
         optIn: 'I want to send anonymised crops of verified checkboxes to the operator of this Examance server.',
         privacyNote: 'Details in the privacy policy:',
         privacyLink: 'Privacy',

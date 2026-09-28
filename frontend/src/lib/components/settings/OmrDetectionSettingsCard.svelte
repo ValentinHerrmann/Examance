@@ -4,6 +4,7 @@
   import { Button, Card, Field, controlClass } from "$lib/components/ui";
   import {
     DEFAULT_OMR_PARAMS,
+    OMR_PARAM_ALGORITHM,
     OMR_PARAM_SPECS,
     OMR_ALGORITHMS,
     type OmrAlgorithm,
@@ -55,6 +56,20 @@
   function label(key: OmrParamKey): string {
     return translate(`settings.omr.params.${key}.label`);
   }
+
+  /** A param only the other algorithm reads: shown, but not editable while it is not selected. */
+  function inactive(key: OmrParamKey, algorithm: OmrAlgorithm): boolean {
+    const only = OMR_PARAM_ALGORITHM[key];
+    return only !== undefined && only !== algorithm;
+  }
+
+  // Reactive helper (reads $t/$fmt), so hints follow a language switch.
+  $: hintFor = (spec: NumberSpec, algorithm: OmrAlgorithm): string => {
+    const base = `${$t(`settings.omr.params.${spec.key}.hint`)} ${$t("settings.omr.defaultValue", { value: $fmt.number(DEFAULT_OMR_PARAMS[spec.key]) })}`;
+    return inactive(spec.key, algorithm)
+      ? `${base} ${$t("settings.omr.onlyFor", { algorithm: OMR_PARAM_ALGORITHM[spec.key] ?? "" })}`
+      : base;
+  };
 
   function fieldError(spec: NumberSpec, errs: OmrParamsError[]): string | undefined {
     return errs.some((e) => e.code === "range" && e.key === spec.key)
@@ -117,7 +132,7 @@
         <Field
           label={$t(`settings.omr.params.${spec.key}.label`)}
           forId={`omr-${spec.key}`}
-          hint={`${$t(`settings.omr.params.${spec.key}.hint`)} ${$t("settings.omr.defaultValue", { value: $fmt.number(DEFAULT_OMR_PARAMS[spec.key]) })}`}
+          hint={hintFor(spec, draftAlgorithm)}
           error={fieldError(spec, errors)}
         >
           <input
@@ -128,6 +143,7 @@
             max={spec.max}
             step={spec.step}
             class={controlClass}
+            disabled={inactive(spec.key, draftAlgorithm)}
             bind:value={draft[spec.key]}
           />
         </Field>
@@ -135,10 +151,20 @@
     </div>
 
     <label class="mt-4 flex cursor-pointer items-start gap-3">
-      <input type="checkbox" class="mt-1 h-4 w-4 shrink-0 cursor-pointer" bind:checked={draftShapeAnalysis} />
+      <input
+        type="checkbox"
+        class="mt-1 h-4 w-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
+        disabled={inactive("shapeAnalysis", draftAlgorithm)}
+        bind:checked={draftShapeAnalysis}
+      />
       <span class="min-w-0">
         <span class="block text-sm font-medium text-content">{$t("settings.omr.params.shapeAnalysis.label")}</span>
-        <span class="block text-xs text-subtle">{$t("settings.omr.params.shapeAnalysis.hint")}</span>
+        <span class="block text-xs text-subtle">
+          {$t("settings.omr.params.shapeAnalysis.hint")}
+          {#if inactive("shapeAnalysis", draftAlgorithm)}
+            {$t("settings.omr.onlyFor", { algorithm: 2 })}
+          {/if}
+        </span>
       </span>
     </label>
 
@@ -149,7 +175,7 @@
           <Field
             label={$t(`settings.omr.params.${spec.key}.label`)}
             forId={`omr-${spec.key}`}
-            hint={`${$t(`settings.omr.params.${spec.key}.hint`)} ${$t("settings.omr.defaultValue", { value: $fmt.number(DEFAULT_OMR_PARAMS[spec.key]) })}`}
+            hint={hintFor(spec, draftAlgorithm)}
             error={fieldError(spec, errors)}
           >
             <input
@@ -160,6 +186,7 @@
               max={spec.max}
               step={spec.step}
               class={controlClass}
+              disabled={inactive(spec.key, draftAlgorithm)}
               bind:value={draft[spec.key]}
             />
           </Field>

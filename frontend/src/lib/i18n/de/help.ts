@@ -24,7 +24,7 @@ export const help = {
     },
     tips: {
         storageLocal:
-            'Alles bleibt verschlüsselt im Browser dieses Geräts. Kein Byte erreicht einen Server — dafür gibt es auch keine Synchronisierung und kein Backup außer dem .bgproj-Archiv. Ausnahme: die freiwillige, anonymisierte Spende von Ankreuz-Bildausschnitten, sofern in den Einstellungen aktiviert.',
+            'Alles bleibt verschlüsselt im Browser dieses Geräts. Kein Byte erreicht einen Server — dafür gibt es auch keine Synchronisierung und kein Backup außer dem .bgproj-Archiv. Ausnahme: die freiwillige, anonymisierte Spende von Ankreuz-Bildausschnitten, sofern in den Einstellungen aktiviert und mit einem Server-Konto angemeldet.',
         storageServer:
             'Alle Daten werden synchronisiert, aber ausschließlich als Chiffrat. Der Schlüssel bleibt im Browser, der Server kann die Inhalte nicht lesen.',
         storageHybrid:
@@ -153,7 +153,7 @@ export const help = {
                 h: 'MC-Erkennung prüfen und erneut ausführen',
                 p1: 'Angekreuzte Kästchen werden beim Einlesen automatisch erkannt. In der MC-Prüfansicht bestätigen oder korrigieren Sie unsichere Erkennungen; jede bestätigte oder korrigierte Frage gilt als geprüft.',
                 p2: '„MC-Erkennung erneut ausführen“ wertet alle Scans mit den aktuellen Einstellungen neu aus. Noch nicht geprüfte Fragen übernehmen das neue Ergebnis; bei geprüften Fragen bleiben Ihre Antwort und Punktzahl immer unverändert, nur ihre Erkennung wird zum Vergleich neu berechnet. Von Hand eingetragene Punktzahlen bleiben unberührt. Vorher zeigt ein Dialog, was sich ändert und ob die Einstellungen vom letzten Lauf abweichen; der Bereich „Erkennungseinstellungen“ vergleicht die Werte des letzten Laufs mit den aktuell gültigen.',
-                p3: 'Neben dem Füllgrad prüft die Erkennung auch die Form der Markierung: Ein gleichmäßig ausgefülltes Kästchen gilt als zurückgenommen, eine Markierung weit über das Kästchen hinaus oder eine sehr blasse Markierung wird als unsicher vorgelegt. Der Grund steht in der Prüfansicht direkt bei der Antwortoption. Die Formanalyse lässt sich in den Einstellungen abschalten. Unter Einstellungen → MC-Erkennung wählen Sie das Erkennungsverfahren: v4 (Standard, Strichform) oder v2 (älteres Verfahren, Füllgrad). Das jeweils andere läuft immer mit; der Bereich „Erkennungseinstellungen“ der Prüfansicht zeigt, wie viele Ihrer geprüften Kästchen jedes Verfahren richtig erkannt hätte. Unsichere Kästchen bleiben gelb umrahmt, bis die Frage geprüft ist.',
+                p3: 'Neben dem Füllgrad prüft die Erkennung auch die Form der Markierung: Ein gleichmäßig ausgefülltes Kästchen gilt als zurückgenommen, eine Markierung weit über das Kästchen hinaus oder eine sehr blasse Markierung wird als unsicher vorgelegt. Der Grund steht in der Prüfansicht direkt bei der Antwortoption. Beim Verfahren v2 lässt sich die Formanalyse in den Einstellungen abschalten. Unter Einstellungen → MC-Erkennung wählen Sie das Erkennungsverfahren: v4 (Standard, Strichform) oder v2 (älteres Verfahren, Füllgrad). Das jeweils andere läuft immer mit; der Bereich „Erkennungseinstellungen“ der Prüfansicht zeigt, wie viele Ihrer geprüften Kästchen jedes Verfahren richtig erkannt hätte. Unsichere Kästchen bleiben gelb umrahmt, bis die Frage geprüft ist.',
                 p4: 'Bis zur Prüfung zählt ein unsicheres Kästchen vorläufig als das Ergebnis, dem die Messwerte näher liegen — angekreuzt oder nicht angekreuzt; die Prüfansicht zeigt dazu „Vorläufig als angekreuzt / nicht angekreuzt gewertet“. Der Button „🎲 Stichprobe prüfen“ öffnet eine zufällige, noch nicht geprüfte, aber sichere Erkennung — so lassen sich auch unauffällige Fragen stichprobenhaft kontrollieren.',
             },
         },
@@ -239,7 +239,7 @@ export const help = {
             },
             s6: {
                 h: 'MC-Erkennung verbessern (freiwillig)',
-                p1: 'Ist diese Option aktiviert, sendet der Browser nach jeder geprüften oder korrigierten Ankreuzfrage einen kleinen Bildausschnitt je Kästchen (80×48 Pixel, Graustufen, ohne Aufgabentext) zusammen mit der bestätigten Wertung, der ursprünglichen Erkennung und ein paar Messwerten an den Server dieser Installation. Namen, Pseudonyme, Klausur-, Abgabe- oder Fragen-IDs, das Lehrkraft-Konto und Zeitstempel werden nicht mitgeschickt.',
+                p1: 'Ist diese Option aktiviert und sind Sie mit einem Server-Konto angemeldet, sammelt der Browser für jede geprüfte oder korrigierte Ankreuzfrage einen kleinen Bildausschnitt je Kästchen (80×48 Pixel, Graustufen, ohne Aufgabentext) mit der bestätigten Wertung, der ursprünglichen Erkennung und ein paar Messwerten und sendet sie gebündelt an den Server dieser Installation. Namen, Pseudonyme, Klausur-, Abgabe- oder Fragen-IDs und Zeitstempel werden nicht mitgeschickt; je Kästchen nur eine zufällige Kennung, damit eine spätere Korrektur die frühere Wertung ersetzt. Die Anmeldung dient nur dem Missbrauchsschutz — das Konto wird nicht mit den Ausschnitten gespeichert.',
                 p2: 'Ziel ist ein gemeinsamer, besserer Klassifikator, von dem auch neue Installationen von Anfang an profitieren. Die Einstellung ist standardmäßig aus, gilt nur für diesen Browser und lässt sich jederzeit wieder abschalten.',
             },
         },

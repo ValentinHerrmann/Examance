@@ -1,6 +1,14 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import LegalPage from "$lib/components/legal/LegalPage.svelte";
   import { t } from "$lib/i18n";
+  import { fetchDonationStatus } from "$lib/services/trainingDonation";
+
+  /** Retention of donated training samples, as the configured backend reports it. */
+  let donationRetentionDays: number | null = null;
+  onMount(() => {
+    void fetchDonationStatus().then((s) => (donationRetentionDays = s.retentionDays));
+  });
 </script>
 
 <svelte:head>
@@ -82,7 +90,11 @@
   <p>{$t("legal.datenschutz.section10.para2")}</p>
   <p>
     {$t("legal.datenschutz.section10.para3Before")}
-    <span class="placeholder">{$t("legal.datenschutz.section10.retentionPlaceholder")}</span>
+    {#if donationRetentionDays !== null}
+      {donationRetentionDays}
+    {:else}
+      <span class="placeholder">{$t("legal.datenschutz.section10.retentionPlaceholder")}</span>
+    {/if}
     {$t("legal.datenschutz.section10.para3After")}
   </p>
   <p><span class="placeholder">{$t("legal.datenschutz.section10.legalBasisPlaceholder")}</span></p>

@@ -59,4 +59,18 @@ describe("mergeRedetectionIntoVerified", () => {
     // display follows the verified selection
     expect(merged.omrMeta?.detections?.bubbles.map((b) => b.state)).toEqual(["marked", "blank"]);
   });
+
+  it("leaves a verified row untouched when the re-run could not read the question", () => {
+    const failed: ExerciseScoreRecord = {
+      ...fresh,
+      score: undefined,
+      selectedOptions: [],
+      omrMeta: {
+        confidence: "failed",
+        source: "omr",
+        original: { confidence: "failed", selectedOptions: [] },
+      },
+    };
+    expect(mergeRedetectionIntoVerified(verified, failed)).toBe(verified);
+  });
 });

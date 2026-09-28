@@ -1,9 +1,10 @@
 """Schemas for the opt-in OMR training-data donation (anonymous checkbox crops)."""
 from __future__ import annotations
 
+import uuid
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # Must match frontend/src/lib/grading/omrTrainingSample.ts.
 OMR_CROP_WIDTH = 80
@@ -53,6 +54,9 @@ class OmrSampleIn(BaseModel):
     # base64 of exactly OMR_CROP_BYTES grayscale bytes (checked on decode).
     crop_b64: str = Field(min_length=1, max_length=6000)
     features: OmrSampleFeatures
+    # Random per-box id from the browser: a re-donation with the same token replaces
+    # the earlier row (the teacher corrected the label). Not derived from any id.
+    sample_token: uuid.UUID | None = None
 
 
 class OmrSampleBatch(BaseModel):
@@ -60,6 +64,15 @@ class OmrSampleBatch(BaseModel):
 
     samples: list[OmrSampleIn] = Field(min_length=1, max_length=100)
 
+    @model_validator(mode="after")
+    def _tokens_unique(self) -> OmrSampleBatch:
+        tokens = [s.sample_token for s in self.samples if s.sample_token is not None]
+        if len(tokens) != len(set(tokens)):
+            raise ValueError("sample_token must be unique within a batch")
+        return self
+
 
 class TrainingStatus(BaseModel):
     enabled: bool
+    # Shown in the privacy notice instead of a placeholder.
+    retention_days: int

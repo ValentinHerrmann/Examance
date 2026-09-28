@@ -6,6 +6,7 @@
   import type { ExerciseRecord } from "$lib/db/schema";
   import { gradingStore } from "$lib/grading/gradingStore";
   import { applyMcCorrection, type McQuestionType } from "$lib/grading/mcScore";
+  import { isMcReviewed } from "$lib/grading/mcVerification";
   import { t } from "$lib/i18n";
 
   export let exercise: ExerciseRecord;
@@ -24,7 +25,7 @@
   );
   $: provisionalByOption = new Map(
     (omrMeta?.detections?.bubbles ?? [])
-      .filter((b) => b.detectedState === "ambiguous" && b.provisional !== undefined && !omrMeta?.reviewedAt)
+      .filter((b) => b.detectedState === "ambiguous" && b.provisional !== undefined && !isMcReviewed(omrMeta))
       .map((b) => [b.optionIndex, b.provisional as boolean])
   );
   $: multiMarkWarning = isSingleAnswer && selectedOptions.length > 1;

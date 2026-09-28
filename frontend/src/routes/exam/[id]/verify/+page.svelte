@@ -304,8 +304,12 @@
                 if (existing && isMcReviewed(existing.omrMeta)) {
                   // Verified: the teacher's answer and score stay; only the detection is refreshed,
                   // so the stats show how these settings would have read the sheet.
-                  rescored.push(mergeRedetectionIntoVerified(existing, fresh));
-                  redetectedVerified++;
+                  // (Unchanged when this run could not read the question.)
+                  const merged = mergeRedetectionIntoVerified(existing, fresh);
+                  if (merged !== existing) {
+                    rescored.push(merged);
+                    redetectedVerified++;
+                  }
                 } else {
                   rescored.push(fresh);
                   updated++;

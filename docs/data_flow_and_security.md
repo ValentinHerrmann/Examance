@@ -235,31 +235,46 @@ grading results, and that is the axis hybrid mode splits on.
 ### Training-data donation (opt-in)
 
 Off by default; toggled per browser in Settings ("5. MC-Erkennung verbessern
-(freiwillig)", `localStorage` key `bg_omr_donation`, versioned). When on, after
+(freiwillig)", `localStorage` key `bg_omr_donation`, versioned — consent v2), and
+only active while the teacher is signed in to a server account. When on, after
 a teacher verifies or corrects an MC question in the verification view, the
 browser sends, per box, one small 80×48 grayscale crop (the box and the
 correction field next to it — no question text), the verified label (ticked /
-not ticked), the detector's own reading, its numeric features, and the
-algorithm/schema version to `POST /api/v1/training/omr-samples` on the
-operator's own configured backend. The request is public (no auth), sent with
-`credentials: 'omit'` (no session cookie), and rate-limited to 30/hour per IP.
+not ticked), the detector's own reading, its numeric features, the
+algorithm/schema version and a random per-box `sample_token` to
+`POST /api/v1/training/omr-samples` on the operator's own configured backend.
+Switching the option off, or signing out, drops everything not yet sent.
 
-**Not sent**: names, pseudonyms, exam/submission/question ids, the teacher
-account, or timestamps finer than day granularity. Server-side, the
-`omr_training_samples` table (migration `0022`) has no foreign keys and no IP
-column; each row's `created_on` is day-granular. Retention is
-`TRAINING_SAMPLE_RETENTION_DAYS` (default 730 days), enforced by the retention
-job; a kill switch `TRAINING_DONATION_ENABLED` can disable the endpoint
-server-wide. An operator can export the dataset via
+**Authenticated, stored unlinked.** The endpoint requires a full session, so only
+accounts of the installation (invite-only) can write into the production
+database. The account is used for a per-account daily quota
+(`TRAINING_SAMPLES_PER_TEACHER_PER_DAY`, counter keyed by a SHA-256 of the
+account id in the ephemeral store, expiring with the day) and nothing else: no
+teacher column, no audit entry, no log line. A global daily cap
+(`TRAINING_SAMPLES_PER_DAY_MAX`, counted in the database) is the backstop. Quota
+answers are 429 without `Retry-After`. The server therefore *knows* which account
+donates while the request runs; what it keeps is unlinked.
+
+**Not sent**: names, pseudonyms, exam/submission/question ids, or timestamps
+finer than day granularity. The `sample_token` is random, generated in the
+browser and kept only in the sealed score row; it lets a re-donation after a
+corrected label replace the earlier row instead of leaving a contradicting one.
+Server-side, the `omr_training_samples` table (migrations `0022`, `0023`) has no
+foreign keys, no teacher and no IP column; each row's `created_on` is
+day-granular. Retention is `TRAINING_SAMPLE_RETENTION_DAYS` (default 730 days),
+enforced by the retention job and reported by the public `GET /training/status`
+for the privacy notice; a kill switch `TRAINING_DONATION_ENABLED` can disable the
+endpoint server-wide. An operator can export the dataset via
 `python -m app.cli training-export --out samples.jsonl`.
 
 Purpose: train a shared checkbox classifier so a fresh installation gets good
 MC detection immediately, instead of starting from the built-in heuristics
 alone. Risks and mitigations: re-identification of a donated crop (mitigated by
-the tight crop, the absence of any id/cookie/IP, and shuffled batching) and
-dataset poisoning by anonymous, unauthenticated uploads (mitigated by the rate
-limit, strict request validation (`extra="forbid"`), consistency filtering
-applied at training time, and the kill switch). This is the only path by which
+the tight crop and the absence of any stored id/account/IP) and dataset
+poisoning or storage exhaustion (mitigated by requiring an account, the
+per-account and global daily quotas, strict request validation
+(`extra="forbid"`), consistency filtering applied at training time, and the
+kill switch). This is the only path by which
 `all-local` mode sends anything to a server; see the qualifier on exercise
 resource files below and `tips.storageLocal` / `scanning.s4.p4` in the in-app
 help.

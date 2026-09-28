@@ -108,7 +108,6 @@ export const scanning: Translations['scanning'] = {
             keptReviewed: '{count} already verified question(s) keep your verified answer and score; only their detection is recomputed for comparison (statistics and the method comparison then refer to this run).',
             keptManual: '{count} manually entered score(s) without detection stay unchanged.',
             settingsDiffer: 'Warning: the current settings differ from the last run ({count} value(s)). Re-detected questions may therefore come out differently from those already verified.',
-            algorithmDiffers: 'Warning: the last run used a different detection method (v{version}).',
             settingsUnknown: 'The settings of the last run were not recorded (detected before settings existed). Results may differ.',
             sameSettings: 'The settings match those of the last run.',
             resetHint: 'For the new detection to also decide the result of verified questions, reset the manual verification first.',

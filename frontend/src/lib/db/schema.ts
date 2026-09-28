@@ -152,9 +152,12 @@ export interface OmrScoreMeta {
   run?: OmrRunInfo;
   /** Registration diagnostics of the page this exercise sits on. */
   pageStats?: OmrPageStats;
-  /** Set once this verified question was donated as anonymous training data (opt-in):
-   *  when, and the verified selection it was donated with — re-donated only if that changes. */
-  donation?: { at: string; label: string };
+  /** Opt-in training-data donation of this verified question: when, and the verified selection
+   *  it was donated with (re-donated only if that changes), plus one random token per box
+   *  (optionIndex → UUID) that every donation of that box reuses, so the server replaces the
+   *  earlier sample when the label changed. `at`/`label` are absent until a donation of the
+   *  current selection has succeeded. */
+  donation?: { at?: string; label?: string; tokens?: Record<number, string> };
   /** Detected bubble boxes for the grading viewer to draw over the scan, for every option
    *  (including blank ones — needed to place the "missing" annotation on correct options the
    *  student didn't mark). Carried forward across manual `McAnswerReview` toggles. `rect`,

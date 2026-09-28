@@ -106,7 +106,6 @@ export const scanning = {
             keptReviewed: '{count} bereits geprüfte Frage(n) behalten Ihre geprüfte Antwort und Punktzahl; nur ihre Erkennung wird zum Vergleich neu berechnet (Statistik und Verfahrensvergleich beziehen sich danach auf diesen Lauf).',
             keptManual: '{count} von Hand eingetragene Punktzahl(en) ohne Erkennung bleiben unverändert.',
             settingsDiffer: 'Achtung: Die aktuellen Einstellungen weichen von denen des letzten Laufs ab ({count} Wert(e)). Die neu erkannten Fragen können dadurch anders ausfallen als die bereits geprüften.',
-            algorithmDiffers: 'Achtung: Der letzte Lauf verwendete ein anderes Erkennungsverfahren (v{version}).',
             settingsUnknown: 'Die Einstellungen des letzten Laufs wurden nicht erfasst (Erkennung vor Einführung der Einstellungen). Ergebnisse können abweichen.',
             sameSettings: 'Die Einstellungen entsprechen denen des letzten Laufs.',
             resetHint: 'Soll die neue Erkennung auch das Ergebnis bereits geprüfter Fragen bestimmen, setzen Sie zuerst die manuelle Verifikation zurück.',

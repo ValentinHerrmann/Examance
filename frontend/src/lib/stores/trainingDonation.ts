@@ -6,7 +6,7 @@ import { safeLocalStorage } from '$lib/utils/storage';
  * a shared detector). Off by default; per browser, like the other UI preferences. Bump
  * `CONSENT_VERSION` whenever what is donated changes — earlier consent then no longer counts.
  */
-export const DONATION_CONSENT_VERSION = 1;
+export const DONATION_CONSENT_VERSION = 2;
 const STORAGE_KEY = 'bg_omr_donation';
 
 export interface TrainingDonationConsent {

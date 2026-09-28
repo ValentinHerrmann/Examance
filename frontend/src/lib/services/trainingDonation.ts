@@ -1,27 +1,32 @@
 /**
- * Opt-in donation of anonymous, teacher-verified checkbox crops to the configured backend
- * (training data for a shared MC-box classifier — see docs/data_flow_and_security.md).
+ * Opt-in donation of teacher-verified checkbox crops to the configured backend (training data for
+ * a shared MC-box classifier — see docs/data_flow_and_security.md).
  *
  * Privacy rules this file enforces — keep them:
- *  - nothing is sent unless `trainingDonationStore.enabled` (off by default);
+ *  - nothing is sent unless the teacher opted in (`trainingDonationStore.enabled`, off by default)
+ *    *and* is signed in to the server — the endpoint takes donations from accounts only, so a
+ *    public URL cannot be used to fill the production database;
+ *  - withdrawing consent (or signing out) drops everything not yet sent, in every tab;
  *  - only questions a teacher has verified (`isMcReviewed`) are donated;
- *  - requests go out with `credentials: 'omit'` and outside `api/client.ts`, so no session
- *    cookie links a donation to an account (and a 429 here never trips the login lockout);
- *  - samples carry no identifiers (`omrTrainingSample.ts`), and the batch is shuffled across
- *    questions so request order does not group a pupil's boxes;
- *  - failures are dropped, never queued for retry.
+ *  - samples carry no identifiers except a random per-box token (`omrTrainingSample.ts`); the
+ *    server uses the account for its daily quota only and never stores it with a sample;
+ *  - failures are dropped, never queued for retry. Uploads pass `silentError`: a donation must
+ *    never raise the global error dialog, and the server's quota 429 carries no `Retry-After`,
+ *    so it cannot start the login lockout either.
  */
 import { get } from 'svelte/store';
+import { api } from '$lib/api/client';
 import type { ExerciseScoreRecord } from '$lib/db/schema';
 import { isMcReviewed } from '$lib/grading/mcVerification';
 import {
   buildTrainingSamples,
   donationLabel,
+  donationTokens,
   type OmrTrainingSampleIn,
 } from '$lib/grading/omrTrainingSample';
 import { scoreRepository } from '$lib/repositories/scoreRepository';
 import { backendStore } from '$lib/stores/backendStore';
-import { sessionStore } from '$lib/stores/session';
+import { isAuthenticated, sessionStore } from '$lib/stores/session';
 import { trainingDonationStore } from '$lib/stores/trainingDonation';
 
 /** Upload once this many samples are waiting (a question has 2–5 boxes). */
@@ -41,32 +46,67 @@ interface Pending {
   submissionId: string;
   exerciseId: string;
   label: string;
+  tokens: Record<number, string>;
+}
+
+export interface DonationStatus {
+  /** The configured backend accepts donations. */
+  enabled: boolean;
+  /** Its retention period for donated samples, for the privacy notice. */
+  retentionDays: number | null;
 }
 
 const staged = new Map<string, Staged>();
 let outbox: Pending[] = [];
 let uploading: Promise<void> | null = null;
-let availability: Promise<boolean> | null = null;
+let status: { url: string; promise: Promise<DonationStatus> } | null = null;
+/** Tokens handed out this page session, by question — survives a row saved from a stale copy. */
+const knownTokens = new Map<string, Record<number, string>>();
 
 const keyOf = (submissionId: string, exerciseId: string) => `${submissionId}:${exerciseId}`;
 
-function apiBase(): string | null {
-  const url = get(backendStore);
-  return url ? `${url.replace(/\/$/, '')}/api/v1` : null;
+/** Opted in and signed in: the only state in which anything may be built or sent. */
+function active(): boolean {
+  return get(trainingDonationStore).enabled && get(isAuthenticated);
 }
 
-/** Whether the configured backend accepts donations. Cached per page load. */
-export function fetchDonationAvailable(): Promise<boolean> {
-  if (!availability) {
-    const base = apiBase();
-    availability = !base
-      ? Promise.resolve(false)
-      : fetch(`${base}/training/status`, { credentials: 'omit' })
-          .then((r) => (r.ok ? r.json() : { enabled: false }))
-          .then((body: { enabled?: boolean }) => body.enabled === true)
-          .catch(() => false);
+function dropPending(): void {
+  staged.clear();
+  outbox = [];
+}
+
+// Consent withdrawn (here or in another tab — the store follows `storage` events) or signed
+// out: nothing that was waiting may still go out.
+trainingDonationStore.subscribe((consent) => {
+  if (!consent.enabled) dropPending();
+});
+isAuthenticated.subscribe((signedIn) => {
+  if (!signedIn) dropPending();
+});
+
+/** Whether the configured backend accepts donations. Public; cached per backend URL. */
+export function fetchDonationStatus(): Promise<DonationStatus> {
+  const url = get(backendStore);
+  if (!status || status.url !== url) {
+    const off: DonationStatus = { enabled: false, retentionDays: null };
+    status = {
+      url,
+      promise: !url
+        ? Promise.resolve(off)
+        : fetch(`${url.replace(/\/$/, '')}/api/v1/training/status`, { credentials: 'omit' })
+            .then((r) => (r.ok ? r.json() : {}))
+            .then((body: { enabled?: boolean; retention_days?: number }) => ({
+              enabled: body.enabled === true,
+              retentionDays: typeof body.retention_days === 'number' ? body.retention_days : null,
+            }))
+            .catch(() => off),
+    };
   }
-  return availability;
+  return status.promise;
+}
+
+export async function fetchDonationAvailable(): Promise<boolean> {
+  return (await fetchDonationStatus()).enabled;
 }
 
 /**
@@ -78,7 +118,7 @@ export function stageVerifiedQuestion(
   record: ExerciseScoreRecord,
   scanPdfBytes: Uint8Array | null
 ): void {
-  if (!get(trainingDonationStore).enabled || !scanPdfBytes) return;
+  if (!active() || !scanPdfBytes) return;
   const key = keyOf(record.submissionId, record.exerciseId);
   if (!isMcReviewed(record.omrMeta)) {
     staged.delete(key); // e.g. "restore original" undid the verification
@@ -92,18 +132,25 @@ export async function flushQuestion(submissionId: string, exerciseId: string): P
   const key = keyOf(submissionId, exerciseId);
   const entry = staged.get(key);
   staged.delete(key);
-  if (!entry || !get(trainingDonationStore).enabled) return;
+  if (!entry || !active()) return;
   const { record } = entry;
   const omrMeta = record.omrMeta;
   if (!omrMeta || !isMcReviewed(omrMeta)) return;
 
-  const label = donationLabel(record.selectedOptions ?? []);
+  const selected = record.selectedOptions ?? [];
+  const label = donationLabel(selected);
   if (omrMeta.donation?.label === label) return; // already donated with this verified answer
 
+  // A not-yet-sent donation of the same question is superseded by this one.
+  const prior = outbox.find((p) => p.submissionId === submissionId && p.exerciseId === exerciseId);
+  outbox = outbox.filter((p) => p !== prior);
+  const tokens = donationTokens(omrMeta, { ...knownTokens.get(key), ...prior?.tokens });
+  knownTokens.set(key, tokens);
+
   try {
-    const samples = await buildTrainingSamples(entry.scanPdfBytes, omrMeta, record.selectedOptions ?? []);
-    if (samples.length === 0) return;
-    outbox.push({ samples, examId: entry.examId, submissionId, exerciseId, label });
+    const samples = await buildTrainingSamples(entry.scanPdfBytes, omrMeta, selected, tokens);
+    if (samples.length === 0 || !active()) return;
+    outbox.push({ samples, examId: entry.examId, submissionId, exerciseId, label, tokens });
   } catch (err) {
     console.warn('[donation] could not build training samples:', (err as Error)?.message);
     return;
@@ -129,46 +176,69 @@ function shuffle<T>(items: T[]): T[] {
   return a;
 }
 
+/** Sends the outbox in requests of whole questions (≤ MAX_PER_REQUEST samples each). An upload
+ *  already running picks up what is added meanwhile. */
 async function upload(): Promise<void> {
   if (uploading) return uploading;
   uploading = (async () => {
-    const batch = outbox;
-    outbox = [];
-    if (batch.length === 0) return;
-    const base = apiBase();
-    if (!base || !(await fetchDonationAvailable())) return;
-
-    const samples = shuffle(batch.flatMap((p) => p.samples));
-    for (let i = 0; i < samples.length; i += MAX_PER_REQUEST) {
-      try {
-        const res = await fetch(`${base}/training/omr-samples`, {
-          method: 'POST',
-          credentials: 'omit',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ samples: samples.slice(i, i + MAX_PER_REQUEST) }),
-        });
-        if (!res.ok) return; // dropped by design; the questions stay undonated
-      } catch {
+    while (outbox.length > 0) {
+      if (!active() || !(await fetchDonationAvailable())) {
+        outbox = [];
         return;
       }
+      const chunk: Pending[] = [outbox.shift() as Pending];
+      let n = chunk[0].samples.length;
+      while (outbox.length > 0 && n + outbox[0].samples.length <= MAX_PER_REQUEST) {
+        const next = outbox.shift() as Pending;
+        chunk.push(next);
+        n += next.samples.length;
+      }
+      if (!active()) {
+        outbox = [];
+        return;
+      }
+      try {
+        await api.post(
+          '/training/omr-samples',
+          { samples: shuffle(chunk.flatMap((p) => p.samples)) },
+          { silentError: true }
+        );
+      } catch {
+        continue; // dropped by design; these questions stay undonated
+      }
+      for (const p of chunk) await markDonated(p);
     }
-    for (const p of batch) await markDonated(p);
   })().finally(() => {
     uploading = null;
   });
   return uploading;
 }
 
-/** Record the donation on the (sealed) score row so it is never sent twice. */
+/**
+ * Record the donation on the (sealed) score row: the tokens always — a later donation of the
+ * same boxes must reuse them — and the label only if the teacher has not changed it since.
+ */
 async function markDonated(p: Pending): Promise<void> {
   const key = get(sessionStore).sessionKey;
   try {
     const rows = await scoreRepository.getBySubmissionId(p.examId, p.submissionId, key);
     const row = rows.find((r) => r.exerciseId === p.exerciseId);
-    if (!row?.omrMeta || donationLabel(row.selectedOptions ?? []) !== p.label) return;
+    if (!row?.omrMeta) return;
+    const previous = row.omrMeta.donation ?? {};
+    const sameLabel = donationLabel(row.selectedOptions ?? []) === p.label;
     await scoreRepository.saveOne(
       p.examId,
-      { ...row, omrMeta: { ...row.omrMeta, donation: { at: new Date().toISOString(), label: p.label } } },
+      {
+        ...row,
+        omrMeta: {
+          ...row.omrMeta,
+          donation: {
+            ...previous,
+            tokens: { ...previous.tokens, ...p.tokens },
+            ...(sameLabel ? { at: new Date().toISOString(), label: p.label } : {}),
+          },
+        },
+      },
       key
     );
   } catch (err) {

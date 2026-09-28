@@ -16,10 +16,6 @@ export function isMcReviewed(omrMeta: Pick<OmrScoreMeta, "source" | "reviewedAt"
 }
 
 /**
- * Score rows grouped by the detection batch that produced them. `run === null` collects rows
- * detected before run snapshots existed — their settings are unknown, not "the defaults".
- */
-/**
  * How each detection algorithm would have read the verified boxes: the deciding one (its stored
  * `detectedState`/`provisional`) and the shadow one (`alt`). Lets a teacher see on their own sheets
  * whether switching `params.algorithm` would help before switching.
@@ -39,6 +35,10 @@ const verdictSelected = (v: BoxVerdict) =>
   v.state === "marked" || v.state === "redone" || (v.state === "ambiguous" && v.provisional !== false);
 const verdictUnsure = (v: BoxVerdict) => v.state === "ambiguous" || (v.reasons?.length ?? 0) > 0;
 
+/**
+ * Score rows grouped by the detection batch that produced them. `run === null` collects rows
+ * detected before run snapshots existed — their settings are unknown, not "the defaults".
+ */
 export interface McDetectionRunSummary {
   run: OmrRunInfo | null;
   itemCount: number;

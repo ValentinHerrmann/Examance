@@ -4,9 +4,9 @@
  * Two algorithms run side by side on every box (the worker persists the other one's verdict as
  * `alt`, so they can be compared on verified data before switching — `params.algorithm` decides):
  *
- *  - **v2** (default for now): global-Otsu dark map, template rect with a fixed inset, fill-ratio
+ *  - **v2** (fallback): global-Otsu dark map, template rect with a fixed inset, fill-ratio
  *    thresholds plus the solid/spill/faint shape checks.
- *  - **v4**: `measureBox` — per-box local threshold, window snapped onto the printed border (the
+ *  - **v4** (default): `measureBox` — per-box local threshold, window snapped onto the printed border (the
  *    template rect sits ~0.5ex below the drawn box: `\OmrBox` puts the `omr://` link on the
  *    baseline, TikZ draws at `baseline=-0.5ex`), stroke structure. A cross is recognised by its
  *    stroke spanning the box, not by an area threshold: a clean interior makes a thin-pen cross

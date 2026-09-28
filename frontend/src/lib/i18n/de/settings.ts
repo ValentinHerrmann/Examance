@@ -34,9 +34,10 @@ export const settings = {
             'Änderungen gelten nur für künftige Erkennungsläufe (neue Scans oder „MC-Erkennung erneut ausführen“). Bereits erkannte und insbesondere bereits geprüfte Ergebnisse bleiben unverändert.',
         localOnly: 'Wird nur in diesem Browser gespeichert und nicht mit anderen Geräten synchronisiert.',
         basicGroup: 'Füllgrad der Kästchen',
-        advancedGroup: 'Erweitert: Passermarken & Ausrichtung',
+        advancedGroup: 'Erweitert',
         fixedGroup: 'Fest',
         defaultValue: 'Standard: {value}',
+        onlyFor: 'Wird nur von Verfahren v{algorithm} verwendet.',
         on: 'an',
         off: 'aus',
         save: 'Speichern',
@@ -122,11 +123,11 @@ export const settings = {
                 hint: 'Erlaubte Abweichung der Seitenecken von 90°, bevor die Ausrichtung als unsicher gilt.',
             },
             shapeAnalysis: {
-                label: 'Formanalyse der Markierung',
+                label: 'v2: Formanalyse der Markierung',
                 hint: 'Prüft zusätzlich, wie die Tinte im Kästchen verteilt ist: Gleichmäßig ausgefüllte Kästchen gelten als zurückgenommen, Markierungen weit über das Kästchen hinaus oder sehr blasse Markierungen werden zur Prüfung vorgelegt.',
             },
             solidFillMin: {
-                label: 'Ausgefüllt: minimaler Füllgrad',
+                label: 'v2: Ausgefüllt: minimaler Füllgrad',
                 hint: 'Ab diesem Füllgrad wird geprüft, ob das Kästchen gleichmäßig ausgefüllt (statt angekreuzt) ist.',
             },
             solidCellMin: {
@@ -174,8 +175,11 @@ export const settings = {
         whatIsSent:
             'Gesendet wird je geprüftem Kästchen: ein kleiner Graustufen-Ausschnitt (nur das Kästchen und das Korrekturfeld daneben, kein Aufgabentext), Ihre geprüfte Entscheidung (angekreuzt / nicht angekreuzt) und die Messwerte der Erkennung.',
         whatIsNotSent:
-            'Nicht gesendet werden: Namen, Pseudonyme, Prüfungs-, Abgabe- oder Aufgabenkennungen, Ihr Konto oder Zeitstempel. Die Anfrage wird ohne Anmelde-Cookie gestellt.',
-        whenSent: 'Nur Fragen, die Sie in der MC-Prüfansicht bestätigt oder korrigiert haben, und nur solange diese Option aktiviert ist.',
+            'Nicht gesendet werden: Namen, Pseudonyme, Prüfungs-, Abgabe- oder Aufgabenkennungen oder Zeitstempel. Je Kästchen wird nur eine zufällige Kennung mitgeschickt, damit eine spätere Korrektur die frühere Wertung ersetzt. Gesendet wird angemeldet, damit nur Konten dieser Installation spenden können; Ihr Konto wird dabei nicht mit den Ausschnitten gespeichert.',
+        whenSent: 'Nur Fragen, die Sie in der MC-Prüfansicht bestätigt oder korrigiert haben, nur solange Sie angemeldet sind und diese Option aktiviert ist. Beim Abschalten wird nichts mehr gesendet, auch nichts bereits Vorbereitetes.',
+        recipient: 'Empfänger: {host}',
+        unavailable: 'Dieser Server nimmt derzeit keine Spenden an — es wird nichts gesendet.',
+        signInRequired: 'Spenden ist nur mit angemeldetem Server-Konto möglich.',
         optIn: 'Ich möchte anonymisierte Ausschnitte geprüfter Ankreuzfelder an den Betreiber dieses Examance-Servers senden.',
         privacyNote: 'Details in der Datenschutzerklärung:',
         privacyLink: 'Datenschutz',

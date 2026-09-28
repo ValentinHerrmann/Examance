@@ -16,6 +16,7 @@ export const errors = {
         ERR_INVALID_CREDENTIALS: 'Ungültige Anmeldedaten.',
         ERR_ACCOUNT_LOCKED:
             'Zu viele fehlgeschlagene Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.',
+        ERR_TRAINING_QUOTA: 'Tageskontingent für gespendete Trainingsdaten erreicht.',
         ERR_COMPILE_TIMEOUT: 'Zeitüberschreitung bei der Kompilierung.',
         ERR_PAYLOAD_TOO_LARGE: 'Die Anfrage ist zu groß.',
         ERR_BAD_REQUEST: 'Ungültige Anfrage.',

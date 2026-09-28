@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 
 from app.config import settings
 from app.database import AsyncSessionLocal
@@ -74,18 +74,22 @@ async def run(*, dry_run: bool = False) -> int:
         )
         expired_audit = list(expired_audit_res.scalars().all())
 
-        # 4. Anonymous training samples past their retention period.
-        expired_samples_res = await db.execute(
-            select(OmrTrainingSample.id).where(OmrTrainingSample.created_on < sample_cutoff)
-        )
-        expired_sample_ids = list(expired_samples_res.scalars().all())
+        # 4. Anonymous training samples past their retention period. Counted, then
+        # deleted by date below — never by an id list, which a backlog would push
+        # past the driver's bind-parameter limit.
+        expired_sample_filter = OmrTrainingSample.created_on < sample_cutoff
+        expired_sample_count = (
+            await db.scalar(
+                select(func.count()).select_from(OmrTrainingSample).where(expired_sample_filter)
+            )
+        ) or 0
 
         total_affected = (
             len(expired_exams)
             + len(expired_students)
             + len(expired_submissions)
             + len(expired_audit)
-            + len(expired_sample_ids)
+            + expired_sample_count
         )
 
         if dry_run:
@@ -123,10 +127,8 @@ async def run(*, dry_run: bool = False) -> int:
         for entry in expired_audit:
             await db.delete(entry)
 
-        if expired_sample_ids:
-            await db.execute(
-                delete(OmrTrainingSample).where(OmrTrainingSample.id.in_(expired_sample_ids))
-            )
+        if expired_sample_count:
+            await db.execute(delete(OmrTrainingSample).where(expired_sample_filter))
 
         # Audit the exam expiries. Deliberately no entry per erased student
         # record: that would recreate, in the audit trail, the very identifiers

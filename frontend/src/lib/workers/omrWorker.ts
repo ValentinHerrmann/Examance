@@ -353,7 +353,7 @@ function bubbleBBoxInImage(
 
 self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
   const { imageData, pageTemplate, scanScale, answerKeys } = event.data;
-  const p = normalizeOmrParams(event.data.params);
+  const params = normalizeOmrParams(event.data.params);
   try {
     const { width, height, data } = imageData;
 
@@ -396,9 +396,9 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
 
       const sizePt = (rx1 - rx0 + (ry1 - ry0)) / 2;
       const expectedAreaPx = Math.pow(sizePt * scanScale, 2);
-      const maxDistPx = p.fiducialMaxDistFraction * Math.min(width, height);
+      const maxDistPx = params.fiducialMaxDistFraction * Math.min(width, height);
 
-      const [qx0, qy0, qx1, qy1] = quadrantForCorner(corner, width, height, p.quadrantFraction);
+      const [qx0, qy0, qx1, qy1] = quadrantForCorner(corner, width, height, params.quadrantFraction);
       let detected = findBestFiducialBlob(
         dark,
         visited,
@@ -411,7 +411,7 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
         expectedX,
         expectedY,
         maxDistPx,
-        p
+        params
       );
 
       // Tight-window retry if quadrant search failed (e.g. fiducial merged with nearby content)
@@ -434,7 +434,7 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
           expectedX,
           expectedY,
           maxDistPx,
-          p
+          params
         );
       }
 
@@ -470,7 +470,7 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
           const [mX, mY] = transformPoint(affine, srcPts[3][0], srcPts[3][1]);
           const residual = Math.hypot(mX - dstPts[3][0], mY - dstPts[3][1]);
           residualFraction = width > 0 ? residual / width : undefined;
-          if (residual > p.alignResidualFraction * width) {
+          if (residual > params.alignResidualFraction * width) {
             alignmentUncertain = true;
           }
         }
@@ -506,7 +506,7 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
           const pageRatio = expW / expH;
           const ratioDiff = Math.abs(mappedRatio - pageRatio) / pageRatio;
           ratioDiffStat = ratioDiff;
-          if (ratioDiff > p.alignRatioTolerance) {
+          if (ratioDiff > params.alignRatioTolerance) {
             alignmentUncertain = true;
           }
 
@@ -515,7 +515,7 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
             const cosAngle = Math.max(-1, Math.min(1, dot / (topLen * leftLen)));
             const angleDeg = (Math.acos(cosAngle) * 180) / Math.PI;
             angleDegStat = angleDeg;
-            if (Math.abs(angleDeg - 90) > p.alignAngleToleranceDeg) {
+            if (Math.abs(angleDeg - 90) > params.alignAngleToleranceDeg) {
               alignmentUncertain = true;
             }
           } else {
@@ -564,19 +564,19 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
         const redoBbox = b.redoRect
           ? bubbleBBoxInImage(H, effectiveRedoRect(b.rect, b.redoRect), scanScale, pageTemplate.pageHeightPt)
           : undefined;
-        const cells = cellFills(dark, width, height, bbox, p.sampleInsetFraction);
+        const cells = cellFills(dark, width, height, bbox, params.sampleInsetFraction);
         const maxCell = Math.max(...cells);
         return {
           b,
           bbox,
-          m: measureBox(gray, width, height, bbox, redoBbox, blackRef, p),
+          m: measureBox(gray, width, height, bbox, redoBbox, blackRef, params),
           v2: {
-            fill: sampleFillRatio(dark, width, height, bbox, p.sampleInsetFraction),
-            redoRatio: redoBbox ? sampleFillRatio(dark, width, height, redoBbox, p.sampleInsetFraction) : undefined,
+            fill: sampleFillRatio(dark, width, height, bbox, params.sampleInsetFraction),
+            redoRatio: redoBbox ? sampleFillRatio(dark, width, height, redoBbox, params.sampleInsetFraction) : undefined,
             minCellFill: Math.min(...cells),
             cellEvenness: maxCell > 0 ? Math.min(...cells) / maxCell : 0,
-            ringFill: ringFill(dark, width, height, bbox, p.ringFraction, redoBbox),
-            inkContrast: inkContrast(gray, dark, width, height, bbox, p.sampleInsetFraction, threshold, blackRef),
+            ringFill: ringFill(dark, width, height, bbox, params.ringFraction, redoBbox),
+            inkContrast: inkContrast(gray, dark, width, height, bbox, params.sampleInsetFraction, threshold, blackRef),
           },
         };
       });
@@ -588,7 +588,7 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
           ...m.features,
           ...spill(m.features.ringFill, others.map((o) => o.m.features.ringFill)),
         };
-        const dec4 = classifyV4({ fill: m.fill, redoRatio: m.redoRatio, features: shape }, p);
+        const dec4 = classifyV4({ fill: m.fill, redoRatio: m.redoRatio, features: shape }, params);
         const dec2 = classifyV2(
           {
             fill: v2.fill,
@@ -601,10 +601,10 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
               inkContrast: v2.inkContrast,
             },
           },
-          p
+          params
         );
         const [chosen, other, otherAlgorithm]: [OmrBubbleClassification, OmrBubbleClassification, number] =
-          p.algorithm === 4 ? [dec4, dec2, 2] : [dec2, dec4, 4];
+          params.algorithm === 4 ? [dec4, dec2, 2] : [dec2, dec4, 4];
         const { state, reasons, provisional } = chosen;
         // Raw readings are the v4 measurements (features for calibration/training), whichever
         // algorithm decided.

@@ -20,9 +20,8 @@
 
   $: latestRun = runs[0]?.run ?? null;
   $: hasDetections = runs.length > 0;
+  // Includes `algorithm` — a different detection method shows up as a changed row.
   $: changed = latestRun ? diffOmrParams(latestRun.params, current.params) : [];
-  // Runs record the algorithm that decided them; compare with the one a re-run would use.
-  $: algorithmDiffers = !!latestRun && latestRun.algorithmVersion !== current.params.algorithm;
 </script>
 
 <Modal {open} size="md" title={$t("scanning.verify.rerunDialog.title")} onClose={onCancel}>
@@ -48,11 +47,6 @@
         </p>
       {:else}
         <p class="m-0 text-xs text-muted">{$t("scanning.verify.rerunDialog.sameSettings")}</p>
-      {/if}
-      {#if algorithmDiffers && latestRun}
-        <p class="m-0 rounded border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-200">
-          {$t("scanning.verify.rerunDialog.algorithmDiffers", { version: latestRun.algorithmVersion })}
-        </p>
       {/if}
       {#if !latestRun || changed.length > 0}
         <OmrParamsDiff before={latestRun?.params ?? null} after={current.params} onlyChanged />

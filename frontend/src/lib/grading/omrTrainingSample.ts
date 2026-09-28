@@ -4,12 +4,14 @@
  * A sample is a small grayscale crop of one answer box plus its redo zone, the teacher's final
  * decision as label, and the detector's own reading/features. It deliberately carries no exam,
  * submission, exercise, pupil or teacher identifier and no timestamp, and the crop is kept tight
- * (the printed option text starts ~2 mm right of the box and is left out).
+ * (the printed option text starts ~2 mm right of the box and is left out). The only id is
+ * `sample_token`: random per box, kept in the sealed score row, so a re-donation after a
+ * corrected label replaces the earlier sample on the server instead of contradicting it.
  * Must match backend/app/schemas/training.py.
  */
 import type { OmrScoreMeta } from '$lib/db/schema';
 import { renderScanPage } from './mcCropRender';
-import { OMR_ALGORITHM_VERSION } from './omrSettings';
+import type { OmrRunInfo } from './omrSettings';
 import type { OmrShapeReason } from './omrShape';
 
 export const OMR_CROP_WIDTH = 80;
@@ -33,6 +35,8 @@ export interface OmrTrainingSampleIn {
   reasons: OmrShapeReason[];
   has_redo_zone: boolean;
   crop_b64: string;
+  /** Random per-box id (`donationTokens`); the same box always donates under the same one. */
+  sample_token: string;
   features: {
     fill: number;
     redo_ratio: number | null;
@@ -56,7 +60,29 @@ export function donationLabel(selectedOptions: number[]): string {
   return [...selectedOptions].sort((a, b) => a - b).join(',');
 }
 
+/**
+ * One random token per box of the question, reusing any the row (or this page session) already
+ * has — so every donation of a box, before and after a correction, carries the same token.
+ */
+export function donationTokens(
+  omrMeta: OmrScoreMeta,
+  known: Record<number, string> = {}
+): Record<number, string> {
+  const tokens: Record<number, string> = { ...(omrMeta.donation?.tokens ?? {}), ...known };
+  for (const b of omrMeta.detections?.bubbles ?? []) tokens[b.optionIndex] ??= crypto.randomUUID();
+  return tokens;
+}
+
+/** Version of the *features* a run recorded. Runs before `pipelineVersion` existed were v3 or v4. */
+function featureVersion(run: OmrRunInfo | undefined): number {
+  if (run?.pipelineVersion !== undefined) return run.pipelineVersion;
+  return run?.algorithmVersion === 3 ? 3 : 4;
+}
+
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+/** Clamp that also rejects NaN/Infinity — one bad number would get the whole batch refused. */
+const unit = (v: number | undefined, lo = 0, hi = 1): number | null =>
+  v === undefined || !Number.isFinite(v) ? null : clamp(v, lo, hi);
 
 function toBase64(bytes: Uint8Array): string {
   let bin = '';
@@ -71,13 +97,14 @@ function toBase64(bytes: Uint8Array): string {
 export async function buildTrainingSamples(
   scanPdfBytes: Uint8Array,
   omrMeta: OmrScoreMeta,
-  selectedOptions: number[]
+  selectedOptions: number[],
+  tokens: Record<number, string>
 ): Promise<OmrTrainingSampleIn[]> {
   const detections = omrMeta.detections;
   if (!detections) return [];
   // `algorithm_version` names the *feature* version: v3 runs and every run since (v2 or v4
   // deciding) store the v3/v4 `measureBox` features; older runs have none and are skipped below.
-  const featureVersion = omrMeta.run?.algorithmVersion === 3 ? 3 : OMR_ALGORITHM_VERSION;
+  const version = featureVersion(omrMeta.run);
   const usable = detections.bubbles.filter((b) => b.shape?.strokeSpan !== undefined && b.fillRatio !== undefined);
   if (usable.length === 0) return [];
 
@@ -94,6 +121,11 @@ export async function buildTrainingSamples(
   const samples: OmrTrainingSampleIn[] = [];
   for (const b of usable) {
     const shape = b.shape!;
+    const token = tokens[b.optionIndex];
+    const fill = unit(b.fillRatio);
+    const required = [shape.minCellFill, shape.cellEvenness, shape.ringFill, shape.inkContrast,
+      shape.strokeSpan, shape.strokeFrac, shape.snapDx, shape.snapDy, shape.bg];
+    if (!token || fill === null || !required.every(Number.isFinite)) continue;
     const [x0, y0, x1, y1] = b.rect;
     const bw = (x1 - x0) * page.width;
     const bh = (y1 - y0) * page.height;
@@ -114,7 +146,7 @@ export async function buildTrainingSamples(
 
     samples.push({
       schema_version: OMR_SAMPLE_SCHEMA_VERSION,
-      algorithm_version: featureVersion,
+      algorithm_version: version,
       label_selected: selected.has(b.optionIndex),
       detected_state: b.detectedState ?? b.state,
       provisional: b.provisional ?? null,
@@ -122,17 +154,18 @@ export async function buildTrainingSamples(
       reasons: b.reasons ?? [],
       has_redo_zone: b.redoRatio !== undefined,
       crop_b64: toBase64(grayBytes),
+      sample_token: token,
       features: {
-        fill: clamp(b.fillRatio ?? 0, 0, 1),
-        redo_ratio: b.redoRatio ?? null,
+        fill,
+        redo_ratio: unit(b.redoRatio),
         min_cell_fill: clamp(shape.minCellFill, 0, 1),
         cell_evenness: clamp(shape.cellEvenness, 0, 1),
         ring_fill: clamp(shape.ringFill, 0, 1),
-        spill_excess: shape.spillExcess !== undefined ? clamp(shape.spillExcess, -1, 1) : null,
+        spill_excess: unit(shape.spillExcess, -1, 1),
         ink_contrast: clamp(shape.inkContrast, 0, 1),
         stroke_span: clamp(shape.strokeSpan, 0, 1),
         stroke_frac: clamp(shape.strokeFrac, 0, 1),
-        redo_near_frac: shape.redoNearFrac ?? null,
+        redo_near_frac: unit(shape.redoNearFrac),
         snap_dx: clamp(shape.snapDx, -1, 1),
         snap_dy: clamp(shape.snapDy, -1, 1),
         border_found: shape.borderFound,

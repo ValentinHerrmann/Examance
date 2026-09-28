@@ -17,7 +17,9 @@ function roundShape(shape: OmrShapeFeatures): OmrShapeFeatures {
  * `source`/`reviewedAt`, donation marker) stays exactly as it is — only the recorded detection is
  * replaced (scanner reading, flags, `original`, run snapshot, raw features, `alt`), so statistics
  * and the v2/v4 comparison show how the new settings would have read this sheet. Display `state`
- * keeps following the verified selection. Keeps the old detections if the new run could not align.
+ * keeps following the verified selection. A re-run that could not read the question (alignment
+ * failed, no boxes) leaves the row exactly as it was: copying its `failed` confidence and empty
+ * `original` would move a verified item into the "failed" queue and count it as corrected.
  */
 export function mergeRedetectionIntoVerified(
   existing: ExerciseScoreRecord,
@@ -25,7 +27,7 @@ export function mergeRedetectionIntoVerified(
 ): ExerciseScoreRecord {
   const meta = existing.omrMeta;
   const next = fresh.omrMeta;
-  if (!meta || !next) return existing;
+  if (!meta || !next || next.confidence === 'failed' || !next.detections) return existing;
   const selected = existing.selectedOptions ?? [];
   return {
     ...existing,
@@ -37,15 +39,13 @@ export function mergeRedetectionIntoVerified(
       original: next.original,
       run: next.run,
       pageStats: next.pageStats,
-      detections: next.detections
-        ? {
-            ...next.detections,
-            bubbles: next.detections.bubbles.map((b) => ({
-              ...b,
-              state: (selected.includes(b.optionIndex) ? 'marked' : 'blank') as 'marked' | 'blank',
-            })),
-          }
-        : meta.detections,
+      detections: {
+        ...next.detections,
+        bubbles: next.detections.bubbles.map((b) => ({
+          ...b,
+          state: (selected.includes(b.optionIndex) ? 'marked' : 'blank') as 'marked' | 'blank',
+        })),
+      },
     },
   };
 }

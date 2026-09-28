@@ -19,6 +19,7 @@
   import OmrDonationCard from "$lib/components/settings/OmrDonationCard.svelte";
   import { trainingDonationStore } from "$lib/stores/trainingDonation";
   import { fetchDonationAvailable } from "$lib/services/trainingDonation";
+  import { backendStore, extractHostname } from "$lib/stores/backendStore";
   import { exportStudentData, toDownloadableJson } from "$lib/gdpr/subjectAccess";
   import {
     locale,
@@ -146,6 +147,8 @@
     <OmrDonationCard
       enabled={$trainingDonationStore.enabled}
       available={donationAvailable}
+      signedIn={$isAuthenticated}
+      host={extractHostname($backendStore)}
       onChange={(enabled) => trainingDonationStore.setEnabled(enabled)}
     />
 

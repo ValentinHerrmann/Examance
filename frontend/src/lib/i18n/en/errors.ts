@@ -12,6 +12,7 @@ export const errors: Translations['errors'] = {
             'No password has been set for this account yet. Please use the link sent to your email.',
         ERR_INVALID_CREDENTIALS: 'Invalid credentials.',
         ERR_ACCOUNT_LOCKED: 'Too many failed attempts. Please wait a moment and try again.',
+        ERR_TRAINING_QUOTA: 'Daily quota for donated training data reached.',
         ERR_COMPILE_TIMEOUT: 'Compilation timed out.',
         ERR_PAYLOAD_TOO_LARGE: 'Payload too large.',
         ERR_BAD_REQUEST: 'Bad request.',
