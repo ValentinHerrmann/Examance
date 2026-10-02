@@ -47,6 +47,8 @@ export const auth: Translations['auth'] = {
             forgotPassword: 'Forgot password?',
             authenticating: 'Authenticating...',
             connectAndSignIn: 'Connect & Sign In',
+            passkeyHint: 'Fingerprint, face or device PIN — no email, no second factor.',
+            or: 'or',
         },
     },
     forgotPassword: {

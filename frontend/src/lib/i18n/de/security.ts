@@ -120,13 +120,16 @@ export const security = {
         totpHint: 'Einen sechsstelligen Code aus Ihrer Authenticator-App eingeben — oder einen Backup-Code.',
         passkeyHint: 'Mit Fingerabdruck, Gesicht oder Geräte-PIN bestätigen.',
         back: 'Anderen Faktor wählen',
+        passkeyWaiting: 'Warte auf Ihren Passkey … Brechen Sie die Abfrage ab, um einen anderen Faktor zu wählen.',
     },
     vaultUnlock: {
         kdfUnavailable:
             'Dieser Browser konnte die Schlüsselableitung (Argon2) nicht laden. Ihre Anmeldedaten sind in Ordnung — laden Sie die Seite neu und versuchen Sie es erneut.',
         title: 'Verschlüsselte Daten öffnen',
         passwordIntro:
-            'Sie sind angemeldet. Ihr Passkey kann auf diesem Gerät jedoch keinen Schlüssel ableiten, deshalb brauchen wir einmalig Ihr Passwort, um Ihre Daten zu entschlüsseln. Es wird nicht gespeichert und nichts neu verschlüsselt.',
+            'Sie sind angemeldet. Ihr Passkey kann auf diesem Gerät jedoch keinen Schlüssel ableiten, deshalb brauchen wir einmalig Ihr Passwort, um Ihre Daten zu entschlüsseln. Es wird nicht gespeichert und nichts neu verschlüsselt. Welche Passkeys Ihre Daten öffnen, zeigt „Anmeldung & Sicherheit“.',
+        passwordIntroHeal:
+            'Sie sind angemeldet. Für diesen Passkey ist noch keine Schlüsselkopie hinterlegt. Geben Sie einmalig Ihr Passwort ein — dabei wird die Kopie angelegt, und künftig öffnet der Passkey Ihre Daten allein.',
         recoveryIntro:
             'Geben Sie stattdessen Ihren Wiederherstellungscode ein. Er öffnet Ihre Daten genauso; der Code bleibt danach gültig.',
         submit: 'Daten öffnen',
@@ -134,6 +137,8 @@ export const security = {
         usePassword: 'Zurück zum Passwort',
         wrongPassword: 'Mit diesem Passwort lassen sich Ihre Daten nicht öffnen.',
         wrongRecovery: 'Dieser Wiederherstellungscode passt nicht zu diesem Konto.',
+        needsPasswordSignIn:
+            'Für dieses Konto ist noch kein Datenschlüssel hinterlegt. Melden Sie sich einmal mit Passwort und zweitem Faktor an, um die Verschlüsselung einzurichten — danach genügt der Passkey.',
     },
     enroll: {
         title: 'Zweiten Anmeldefaktor einrichten',
@@ -201,7 +206,7 @@ export const security = {
     },
     passkey: {
         title: 'Passkeys',
-        intro: 'Ein Passkey ist einer der drei Anmeldefaktoren — Fingerabdruck, Gesicht oder Geräte-PIN statt eines Passworts.',
+        intro: 'Ein Passkey ist einer der drei Anmeldefaktoren — Fingerabdruck, Gesicht oder Geräte-PIN statt eines Passworts. Er genügt allein zur Anmeldung und wird als zweiter Faktor bevorzugt angeboten.',
         signIn: 'Mit Passkey anmelden',
         add: 'Passkey hinzufügen',
         nicknameLabel: 'Bezeichnung (optional)',
@@ -212,8 +217,14 @@ export const security = {
         unsupported: 'Dieser Browser unterstützt keine Passkeys.',
         failed: 'Der Passkey konnte nicht verwendet werden.',
         noPrfTitle: 'Dieser Passkey öffnet Ihre Daten nicht',
-        noPrf: 'Dieser Authenticator unterstützt die nötige Erweiterung nicht. Der Passkey meldet Sie an, kann Ihre verschlüsselten Daten aber nicht entsperren — dafür bleibt Ihr Passwort oder Ihr Wiederherstellungscode zuständig.',
-        prfOk: 'Kann auch Ihre verschlüsselten Daten öffnen.',
+        opensData: 'Öffnet auch Ihre verschlüsselten Daten.',
+        notOpensData: 'Meldet Sie an, öffnet Ihre verschlüsselten Daten aber noch nicht.',
+        enableUnlock: 'Datenzugriff aktivieren',
+        enableUnlockDone: 'Dieser Passkey öffnet Ihre Daten jetzt auch ohne Passwort.',
+        noPrfWarning:
+            'Dieser Passkey meldet Sie an, kann Ihre verschlüsselten Daten aber nicht öffnen: Sein Passkey-Anbieter unterstützt die PRF-Erweiterung nicht (z. B. in Bitwarden gespeicherte Passkeys). Für eine Anmeldung allein per Passkey einen Anbieter mit PRF verwenden — etwa Google Passwortmanager, Windows Hello, iCloud-Schlüsselbund, Android, 1Password oder einen FIDO2-Sicherheitsschlüssel.',
+        addedUnlockPending:
+            'Passkey hinzugefügt. Der Datenzugriff ist noch nicht aktiv — über „Datenzugriff aktivieren“ nachholen.',
         created: 'Hinzugefügt am {date}',
         lastUsed: 'Zuletzt verwendet am {date}',
         neverUsed: 'Noch nicht verwendet',

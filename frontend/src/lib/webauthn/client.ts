@@ -181,11 +181,25 @@ export interface AssertionResult {
   prfOutput: Uint8Array | null;
 }
 
-/** Run an authentication ceremony, always asking for the PRF secret. */
-export async function authenticate(options: ServerOptions): Promise<AssertionResult> {
-  const credential = (await navigator.credentials.get(
-    decodeRequestOptions(options.options_json),
-  )) as PublicKeyCredential | null;
+/**
+ * Run an authentication ceremony, always asking for the PRF secret.
+ *
+ * `credentialIdB64` pins the ceremony to one passkey. Wrapping the data key
+ * needs the PRF secret of *that* credential; an account-wide prompt lets the
+ * browser offer any of the teacher's passkeys, and a secret from the wrong one
+ * seals a wrap that never opens.
+ */
+export async function authenticate(
+  options: ServerOptions,
+  opts: { credentialIdB64?: string } = {},
+): Promise<AssertionResult> {
+  const request = decodeRequestOptions(options.options_json);
+  if (opts.credentialIdB64 && request.publicKey) {
+    request.publicKey.allowCredentials = [
+      { type: 'public-key', id: toArrayBuffer(fromBase64url(opts.credentialIdB64.replace(/=+$/, ''))) },
+    ];
+  }
+  const credential = (await navigator.credentials.get(request)) as PublicKeyCredential | null;
   if (!credential) {
     throw new Error('The passkey sign-in was cancelled.');
   }

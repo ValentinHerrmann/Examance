@@ -11,6 +11,10 @@
    * The list is the server's, never inferred here: asking the client to work
    * out what an account has would mean telling it, which is the account-profile
    * disclosure the whole flow is built to avoid.
+   *
+   * A passkey is the preferred second factor: the page sorts it first and
+   * starts its prompt by itself. While that prompt is open the buttons wait;
+   * cancelling it lands here, with every factor still on offer.
    */
   import { Button } from "$lib/components/ui";
   import { t, type TranslationKey } from "$lib/i18n";
@@ -24,6 +28,8 @@
   export let onPassword: (password: string) => Promise<void>;
   export let onPasskey: () => Promise<void>;
   export let errorMsg = "";
+  /** The page's automatic passkey prompt is open. */
+  export let passkeyPending = false;
 
   const LABEL = {
     password: "security.panel.factorPassword",
@@ -81,6 +87,10 @@
       <p class="mt-1 text-sm text-muted">{$t("security.factors.chooserIntro")}</p>
     </div>
 
+    {#if passkeyPending}
+      <p class="m-0 text-sm text-muted" role="status">{$t("security.chooser.passkeyWaiting")}</p>
+    {/if}
+
     {#if errorMsg}
       <p class="m-0 text-sm text-red-400" role="alert">{errorMsg}</p>
     {/if}
@@ -93,7 +103,7 @@
             class="w-full cursor-pointer rounded-lg border border-line bg-surface-sunken p-3
                    text-left transition-colors hover:enabled:border-line-strong
                    disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isWorking}
+            disabled={isWorking || passkeyPending}
             on:click={() => choose(factor)}
           >
             <span class="block text-sm font-medium text-content">{$t(LABEL[factor])}</span>

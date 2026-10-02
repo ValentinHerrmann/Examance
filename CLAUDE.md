@@ -138,8 +138,12 @@ Teacher-uploaded files an exercise's LaTeX references (`\includegraphics{figure.
 
 ## Authentication & the data key
 
-**Sign-in is two-of-three factors**: password, passkey, TOTP. `app/services/auth_policy.py`
-is the only place the rule lives. Consequences worth knowing before you touch anything here:
+**Sign-in is a passkey alone, or two-of-three factors** (password, passkey, TOTP). A passkey
+stands alone (`SELF_SUFFICIENT_FACTORS`) only because every ceremony requires user
+verification — never loosen that, never add password/TOTP there. Enrollment still demands two
+factors. `app/services/auth_policy.py` is the only place the rule lives. After a password the
+unlock page auto-starts the passkey prompt once per step; cancelling it is silent and leaves
+the chooser. Consequences worth knowing before you touch anything here:
 
 - `POST /auth/login` does **not** return a session — it returns `{status, satisfied, available}`
   and sets a short-lived, single-use, non-refreshable `auth_pending` cookie. A backend test that
@@ -162,6 +166,19 @@ chain. Client side: `lib/crypto/keyEnvelope.ts` (wrap/unwrap) and
 `lib/services/keyEnvelopeService.ts` (lifecycle). Rules that will cost data if broken:
 
 - `sessionNonce` stays `getUserSessionNonce(email)`. Server-stored ciphertext was sealed under it.
+- `openWithPassword(..., { allowMigration })`: only a password the server has **just accepted**
+  may run the one-time migration (no envelope yet). The unlock page tracks `passwordVerified`;
+  the vault prompt after a passkey-only sign-in passes `allowMigration: false`. Migrating with an
+  unchecked password seals a wrong key as the DEK and orphans every existing record.
+- A PRF passkey that signs in but cannot open the vault (no wrap, or a wrap sealed under another
+  passkey's secret) is **healed**: once the vault opens by password/recovery, `finishUnlock`
+  writes a fresh wrap for it (`passkeyToHeal`). `EnvelopeChangedError` is never healed — it is
+  the envelope-substitution alarm. Registration only wraps when the follow-up assertion's
+  `rawId` matches the new credential.
+- "Passkey opens data" = a non-invalidated passkey envelope exists (`passkeyWrapIds`), **never**
+  `supports_prf` (a registration-time guess). Settings' "enable data access"
+  (`enablePasskeyUnlock`) wraps from the open session, ceremony pinned via `allowCredentials`.
+  Passkeys stored in Bitwarden get no PRF (as of 2026) — they sign in but can't open data.
 - The migration **adopts** the previously derived key as the DEK, so nothing is re-encrypted and
   the session key is byte-identical. It is also the only moment the fallback/legacy keys exist —
   capture them or those records are unreadable forever.
