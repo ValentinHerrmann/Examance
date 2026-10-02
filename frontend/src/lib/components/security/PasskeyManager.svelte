@@ -53,11 +53,18 @@
   /** A non-error message after registering (no PRF, or the wrap step pending). */
   let noticeMsg = "";
 
+  /** Only the newest load may write: an older one finishing last would show stale state. */
+  let wrapLoadSeq = 0;
   async function loadWrapIds() {
+    const seq = ++wrapLoadSeq;
+    let ids: string[] | null;
     try {
-      wrapIds = await passkeyWrapIds();
+      ids = await passkeyWrapIds();
     } catch {
-      wrapIds = null;
+      ids = null;
+    }
+    if (seq === wrapLoadSeq) {
+      wrapIds = ids;
     }
   }
 
