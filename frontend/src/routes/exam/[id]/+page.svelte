@@ -28,7 +28,7 @@
     loadLocalMcGroups,
     type McGroup,
   } from "$lib/db/dbEncryption";
-  import { computeMcExercisesHash, resolveMcExercises, normalizeMcExercise } from "$lib/grading/mcExerciseHash";
+  import { computeMcExercisesHash, resolveMcExercises } from "$lib/grading/mcExerciseHash";
   import { prepareOmrTemplate } from "$lib/grading/omrTemplatePrep";
   import { isMcQuestion } from "$lib/grading/mcScore";
   import { exportArchiveInteractively } from "$lib/services/archiveService";
@@ -60,6 +60,14 @@
   import ExerciseList from "$lib/components/exam/ExerciseList.svelte";
   import ExamMetadataEditor from "$lib/components/exam/ExamMetadataEditor.svelte";
   import ExamLibraryModal from "$lib/components/exam/ExamLibraryModal.svelte";
+  import { mapApiToExerciseRecord } from "$lib/repositories/exerciseRepository";
+  import {
+    applyGroup,
+    buildMcGroupMembership,
+    canFinalizeGroup,
+    moveStaged,
+    toggleStaged,
+  } from "$lib/exam/mcGroupStaging";
   import { t, translate } from "$lib/i18n";
   import { Button } from "$lib/components/ui";
 
@@ -206,21 +214,7 @@
           const remoteExam = (await api.get(`/exams/${id}`)) as any;
           if (isStale()) return;
           exam = mapApiToExamRecord(remoteExam);
-          exercises = remoteExam.exercises.map((e: any) => normalizeMcExercise({
-            id: e.id,
-            name: e.name,
-            topicTag: e.topic_tag,
-            latexBody: e.latex_body,
-            maxPoints: e.max_points,
-            version: e.version || 1,
-            orderIndex: e.order_index,
-            questionType: e.question_type || "free_text",
-            options: e.options,
-            correctAnswers: e.correct_answers || e.correctAnswers,
-            penalty: e.penalty || 0,
-            mcGroupId: e.mc_group_id || undefined,
-            subIndex: e.sub_index || undefined,
-          }));
+          exercises = remoteExam.exercises.map(mapApiToExerciseRecord);
           // Only a response that actually carries `mc_groups` may rewrite
           // local grouping — otherwise this would replace every junction's
           // mcGroupId with undefined and dissolve the groups.
@@ -1000,27 +994,14 @@ ${exerciseInputs}
     try {
       if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
         const remoteExs = (await api.get("/exercises")) as any[];
-        libraryExercises = remoteExs.map((e: any) => ({
-          id: e.id,
-          teacherId: e.teacher_id,
-          name: e.name,
-          topicTag: e.topic_tag,
-          grade: e.grade || undefined,
-          subject: e.subject || undefined,
-          latexBody: e.latex_body,
-          maxPoints: e.max_points,
-          version: e.version || 1,
-          variantKey: e.variant_key,
-          isCurrent: e.is_current,
-          exerciseGroupId: e.exercise_group_id || undefined,
-          isPublic: e.is_public,
-          questionType: e.question_type || "free_text",
-          penalty: e.penalty || 0,
-        }));
+        libraryExercises = remoteExs.map(mapApiToExerciseRecord);
       } else {
         libraryExercises = await loadExercisesEncrypted(key);
       }
-      selectedLibraryIds = exercises.map((e) => e.id);
+      // The library selection holds standalone exercises only; group members are
+      // managed through their group (MC tab), never ticked as standalone too.
+      const groupedIds = new Set(mcGroups.flatMap((g) => g.memberIds));
+      selectedLibraryIds = exercises.filter((e) => !groupedIds.has(e.id)).map((e) => e.id);
       initialSelectedLibraryIds = [...selectedLibraryIds];
       activeVariantPerGroup = {};
       for (const ex of exercises) {
@@ -1062,52 +1043,51 @@ ${exerciseInputs}
   $: availableTopics = [...new Set(libraryExercises.map((e) => e.topicTag).filter((t): t is string => Boolean(t)))].sort();
   $: totalVariantsCount = libraryExercises.length;
 
+  $: editingMcGroup = mcGroups.find((g) => g.id === editingMcGroupId) ?? null;
+  $: mcGroupMembership = buildMcGroupMembership(mcGroups, editingMcGroupId);
+
   function toggleMcStaging(id: string) {
-    if (mcStagingIds.includes(id)) {
-      mcStagingIds = mcStagingIds.filter((i) => i !== id);
-    } else {
-      if (mcStagingIds.length >= 4) return;
-      mcStagingIds = [...mcStagingIds, id];
-    }
+    mcStagingIds = toggleStaged(mcStagingIds, id, mcGroupMembership);
   }
 
   function reorderMcStaging(index: number, direction: "up" | "down") {
-    const targetIdx = direction === "up" ? index - 1 : index + 1;
-    if (targetIdx < 0 || targetIdx >= mcStagingIds.length) return;
-    const copy = [...mcStagingIds];
-    [copy[index], copy[targetIdx]] = [copy[targetIdx], copy[index]];
-    mcStagingIds = copy;
+    mcStagingIds = moveStaged(mcStagingIds, index, direction);
   }
 
   async function finalizeMcGroup(title: string, scoringText: string) {
-    if (mcStagingIds.length < 1 || mcStagingIds.length > 4) return;
-    if (editingMcGroupId) {
-      mcGroups = mcGroups.map((g) =>
-        g.id === editingMcGroupId
-          ? { ...g, title, scoringText, memberIds: [...mcStagingIds] }
-          : g
-      );
-      editingMcGroupId = null;
-    } else {
-      mcGroups = [
-        ...mcGroups,
-        {
-          id: crypto.randomUUID(),
-          title,
-          scoringText,
-          memberIds: [...mcStagingIds],
-        },
-      ];
-    }
+    if (!canFinalizeGroup(mcStagingIds)) return;
+    const memberIds = [...mcStagingIds];
+    const previousMemberIds = new Set(editingMcGroup?.memberIds ?? []);
+    mcGroups = applyGroup(mcGroups, { editingId: editingMcGroupId, title, scoringText, memberIds });
+    adoptGroupMembers(memberIds, previousMemberIds);
+    editingMcGroupId = null;
     mcStagingIds = [];
     await saveExerciseLinks();
   }
 
+  /**
+   * Keeps `exercises` (the exam's linked questions) in step with a group change:
+   * new members are linked as group members — never also standalone, since an
+   * exercise is linked to an exam once — and members dropped from an edited
+   * group leave the exam with it.
+   */
+  function adoptGroupMembers(memberIds: string[], previousMemberIds: Set<string>) {
+    const members = new Set(memberIds);
+    const removed = new Set([...previousMemberIds].filter((id) => !members.has(id)));
+    const linkedIds = new Set(exercises.map((e) => e.id));
+    const added = memberIds
+      .filter((id) => !linkedIds.has(id))
+      .map((id) => libraryExercises.find((e) => e.id === id))
+      .filter((e): e is ExerciseRecord => Boolean(e));
+    exercises = [...exercises.filter((e) => !removed.has(e.id)), ...added];
+    selectedLibraryIds = selectedLibraryIds.filter((id) => !members.has(id));
+    examItems = examItems.filter((item) => !(item.type === "exercise" && members.has(item.id)));
+  }
+
   function editMcGroup(groupId: string) {
-    const group = mcGroups.find((g) => g.id === groupId);
-    if (!group) return;
-    editingMcGroupId = group.id;
-    mcStagingIds = [...group.memberIds];
+    if (!mcGroups.some((g) => g.id === groupId)) return;
+    editingMcGroupId = groupId;
+    mcStagingIds = [...(mcGroups.find((g) => g.id === groupId)?.memberIds ?? [])];
     openLibraryModal();
   }
 
@@ -1287,12 +1267,15 @@ ${exerciseInputs}
   }
 
   async function applyLibrarySelection() {
-    const newSelected = selectedLibraryIds
+    const groupedIds = new Set(mcGroups.flatMap((g) => g.memberIds));
+    const standalone = selectedLibraryIds
+      .filter((id) => !groupedIds.has(id))
       .map((id) => libraryExercises.find((ex) => ex.id === id))
       .filter((ex): ex is ExerciseRecord => Boolean(ex))
       .map((ex, idx) => ({ ...ex, orderIndex: idx + 1 }));
+    const groupMembers = exercises.filter((ex) => groupedIds.has(ex.id));
 
-    exercises = newSelected;
+    exercises = [...standalone, ...groupMembers];
     await saveExerciseLinks();
     isLibraryModalOpen = false;
   }
@@ -1514,7 +1497,8 @@ ${exerciseInputs}
   {activeVariantPerGroup}
   {libraryExercises}
   {mcStagingIds}
-  {editingMcGroupId}
+  {editingMcGroup}
+  {mcGroupMembership}
   onToggleMcStaging={toggleMcStaging}
   onReorderMcStaging={reorderMcStaging}
   onFinalizeMcGroup={finalizeMcGroup}

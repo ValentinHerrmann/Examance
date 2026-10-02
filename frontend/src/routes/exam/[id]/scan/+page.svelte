@@ -24,6 +24,7 @@
     loadLocalMcGroups,
   } from "$lib/db/dbEncryption";
   import { computeMcExercisesHash, loadExamMcExercises } from "$lib/grading/mcExerciseHash";
+  import { buildSubLabelMap } from "$lib/grading/mcGroupLabels";
   import { prepareOmrTemplate, loadExamCompileContext } from "$lib/grading/omrTemplatePrep";
   import { isMcQuestion } from "$lib/grading/mcScore";
   import { buildOmrScoreRecord } from "$lib/grading/omrResult";
@@ -518,13 +519,7 @@
         if (sc.omrMeta) mcState[sc.exerciseId] = { omrMeta: sc.omrMeta };
         scoreInputs[sc.exerciseId] = sc.score;
       }
-      const mcGroups = await loadLocalMcGroups(examId).catch(() => []);
-      const subExerciseLetters = new Map<string, string>();
-      for (const group of mcGroups) {
-        group.memberIds.forEach((exerciseId, idx) => {
-          subExerciseLetters.set(exerciseId, String.fromCharCode(97 + idx));
-        });
-      }
+      const subExerciseLetters = buildSubLabelMap(await loadLocalMcGroups(examId).catch(() => []));
 
       const { PDFDocument } = await import("pdf-lib");
       const outputPdf = await PDFDocument.create();

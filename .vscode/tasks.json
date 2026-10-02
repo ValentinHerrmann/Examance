@@ -20,6 +20,58 @@
       "type": "shell",
       "command": "sleep 1",
       "problemMatcher": []
+    },
+    {
+      "label": "Frontend Dev Server",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": {
+          "regexp": "^__never_matches__$"
+        },
+        "background": {
+          "activeBegin": true,
+          "beginsPattern": ".",
+          "endsPattern": "Local:\\s+http://localhost:5173"
+        }
+      }
+    },
+    {
+      "label": "Open App in Browser",
+      "type": "shell",
+      "command": "xdg-open http://localhost:5173",
+      "presentation": {
+        "reveal": "never"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Full Stack",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Alembic Migrate", "Frontend Dev Server", "Open App in Browser"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Stop Frontend Dev Server",
+      "command": "${input:terminateFrontendDevServer}",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "terminateFrontendDevServer",
+      "type": "command",
+      "command": "workbench.action.tasks.terminate",
+      "args": "Frontend Dev Server"
     }
   ]
 }

@@ -8,7 +8,13 @@ import type { ExerciseRecord } from '$lib/db/schema';
 import { normalizeMcExercise, serializeMcAnswers } from '$lib/grading/mcExerciseHash';
 import { invalidateOwner } from '$lib/latex/compileCache';
 
-function mapApiToExerciseRecord(raw: any): ExerciseRecord {
+/**
+ * The one API → ExerciseRecord mapper. Use it for every exercise payload (library
+ * list, exam detail, …): hand-rolled copies dropped variantKey/exerciseGroupId/
+ * isCurrent, so variants of one exercise became indistinguishable and the
+ * stripped record overwrote the full one in IndexedDB.
+ */
+export function mapApiToExerciseRecord(raw: any): ExerciseRecord {
   const baseRecord: ExerciseRecord = {
     id: raw.id,
     teacherId: raw.teacher_id || raw.teacherId,

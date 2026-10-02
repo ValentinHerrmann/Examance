@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
   import { parseExerciseScore } from "$lib/latex/scoreParser";
+  import { isMcQuestion } from "$lib/grading/mcScore";
   import { t } from "$lib/i18n";
 
   interface VariantMember {
@@ -35,15 +36,22 @@
   export let activeVariantPerGroup: Record<string, string>;
   export let selectedLibraryIds: string[];
   export let mcStagingIds: string[] = [];
+  /** exerciseId → title of the MC group it already belongs to; such questions cannot be staged again. */
+  export let mcGroupMembership: Record<string, string> = {};
   export let onToggleSelection: (id: string) => void;
   export let onToggleMcStaging: (id: string) => void = () => {};
   export let onSetGroupVariant: (groupId: string, vKey: string) => void;
   export let onQuickEdit: (ex: ExerciseRecord) => void;
   export let onOpenPreview: (ex: ExerciseRecord) => void;
 
-  function isMcType(ex: ExerciseRecord): boolean {
-    return ex.questionType === "mc" || ex.questionType === "sc";
-  }
+  // Declared reactively so the template re-runs it when the locale changes.
+  $: checkboxTitle = (isMc: boolean, isSelected: boolean, ownerGroup: string | undefined): string => {
+    if (!isMc) {
+      return isSelected ? $t("exercises.libraryPicker.checkboxRemoveFromExam") : $t("exercises.libraryPicker.checkboxAddToExam");
+    }
+    if (ownerGroup !== undefined) return $t("exercises.libraryPicker.checkboxInOtherMcGroup", { title: ownerGroup });
+    return isSelected ? $t("exercises.libraryPicker.checkboxRemoveMcStaging") : $t("exercises.libraryPicker.checkboxAddMcStaging");
+  };
 
   const pillBase =
     "cursor-pointer rounded-xl border border-line bg-surface-base px-2.5 py-1 text-sm text-muted";
@@ -76,7 +84,7 @@
     const vMembers = g.variants.get(activeVKey) || [];
     const activeEx = vMembers[0]?.ex;
     if (!activeEx) return false;
-    const isMc = isMcType(activeEx);
+    const isMc = isMcQuestion(activeEx);
     return typeFilter === "mc" ? isMc : !isMc;
   });
 </script>
@@ -152,7 +160,8 @@
       {@const vMembers = group.variants.get(activeVKey) || []}
       {@const activeMember = vMembers[0]}
       {@const activeEx = activeMember?.ex}
-      {@const isMc = activeEx ? isMcType(activeEx) : false}
+      {@const isMc = activeEx ? isMcQuestion(activeEx) : false}
+      {@const ownerGroup = isMc && activeEx ? mcGroupMembership[activeEx.id] : undefined}
       {@const isSelected = activeEx ? (isMc ? mcStagingIds.includes(activeEx.id) : selectedLibraryIds.includes(activeEx.id)) : false}
       {@const groupSelectedCount = group.allMembers.filter(m => selectedLibraryIds.includes(m.ex.id) || mcStagingIds.includes(m.ex.id)).length}
       {@const score = activeEx ? (parseExerciseScore(activeEx.latexBody || "") || activeEx.maxPoints || 0) : 0}
@@ -164,9 +173,9 @@
             <input
               type="checkbox"
               checked={isSelected}
-              disabled={isMc && !isSelected && mcStagingIds.length >= 4}
+              disabled={ownerGroup !== undefined}
               on:change={() => (isMc ? onToggleMcStaging(activeEx.id) : onToggleSelection(activeEx.id))}
-              title={isMc ? (isSelected ? $t("exercises.libraryPicker.checkboxRemoveMcStaging") : mcStagingIds.length >= 4 ? $t("exercises.libraryPicker.checkboxMaxMcReached") : $t("exercises.libraryPicker.checkboxAddMcStaging")) : (isSelected ? $t("exercises.libraryPicker.checkboxRemoveFromExam") : $t("exercises.libraryPicker.checkboxAddToExam"))}
+              title={checkboxTitle(isMc, isSelected, ownerGroup)}
               class="h-4 w-4 cursor-pointer accent-accent-strong disabled:opacity-40 disabled:cursor-not-allowed"
             />
           {/if}
@@ -187,6 +196,12 @@
               </span>
             {/if}
 
+            {#if ownerGroup !== undefined}
+              <span class="rounded border border-amber-500/60 bg-amber-500/10 px-1.5 py-0.5 text-xs font-semibold text-amber-300">
+                {$t("exercises.libraryPicker.inMcGroupBadge", { title: ownerGroup })}
+              </span>
+            {/if}
+
             {#if groupSelectedCount > 0}
               <span class="rounded border border-emerald-500 bg-emerald-500/15 px-1.5 py-0.5 text-xs font-semibold text-emerald-400">
                 ✓ {isMc ? $t("exercises.libraryPicker.stagedCount", { count: groupSelectedCount }) : $t("exercises.libraryPicker.inExamCount", { count: groupSelectedCount })}
@@ -199,7 +214,7 @@
             <div class="flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
               {#each group.variants.keys() as vKey}
                 {@const members = group.variants.get(vKey) || []}
-                {@const hasSelected = members.some(m => selectedLibraryIds.includes(m.ex.id))}
+                {@const hasSelected = members.some(m => selectedLibraryIds.includes(m.ex.id) || mcStagingIds.includes(m.ex.id) || m.ex.id in mcGroupMembership)}
                 <button
                   type="button"
                   class={variantPillClass(vKey === activeVKey, hasSelected)}

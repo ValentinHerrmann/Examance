@@ -9,6 +9,8 @@
   import "./ExerciseList.css";
   import type { ExerciseRecord } from '$lib/db/schema';
   import { parseExerciseScore } from '$lib/latex/scoreParser';
+  import { mcSubLabel } from '$lib/grading/mcGroupLabels';
+  import ExerciseLabel from '$lib/components/exam/ExerciseLabel.svelte';
   import { t } from '$lib/i18n';
 
   interface McGroup {
@@ -59,17 +61,13 @@
           <div class="exercise-item">
             <div class="exercise-info">
               <span class="exercise-number">{idx + 1}.</span>
-              <span class="exercise-title">{exercise.name || exercise.title || $t("exam.exerciseList.untitled")}</span>
+              <span class="exercise-title"><ExerciseLabel {exercise} /></span>
               {#if exercise.topicTag}
                 <span class="exercise-tag topic">{exercise.topicTag}</span>
               {/if}
               {#if exercise.questionType && exercise.questionType !== 'free_text'}
                 <span class="exercise-tag topic" style="background-color: #0284c7; color: white;">{exercise.questionType.toUpperCase()}</span>
               {/if}
-              {#if exercise.variantKey}
-                <span class="exercise-tag variant">{$t("exam.exerciseList.variant", { key: exercise.variantKey })}</span>
-              {/if}
-              <span class="exercise-tag version">v{exercise.version || 1}</span>
               <span class="exercise-points">{exercise.maxPoints} {$t("exam.exerciseList.points")}</span>
             </div>
             <div class="exercise-actions">
@@ -129,7 +127,7 @@
             </div>
             <ul style="margin: 0; padding-left: 1.4rem; font-size: 0.85rem; color: #94a3b8;">
               {#each memberExercises(group) as ex, i}
-                <li>{String.fromCharCode(97 + i)}) {ex.name}</li>
+                <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} /></li>
               {/each}
             </ul>
           </div>
@@ -141,17 +139,13 @@
       <div class="exercise-item">
         <div class="exercise-info">
           <span class="exercise-number">{i + 1}.</span>
-          <span class="exercise-title">{exercise.name || exercise.title || $t("exam.exerciseList.untitled")}</span>
+          <span class="exercise-title"><ExerciseLabel {exercise} /></span>
           {#if exercise.topicTag}
             <span class="exercise-tag topic">{exercise.topicTag}</span>
           {/if}
           {#if exercise.questionType && exercise.questionType !== 'free_text'}
             <span class="exercise-tag topic" style="background-color: #0284c7; color: white;">{exercise.questionType.toUpperCase()}</span>
           {/if}
-          {#if exercise.variantKey}
-            <span class="exercise-tag variant">{$t("exam.exerciseList.variant", { key: exercise.variantKey })}</span>
-          {/if}
-          <span class="exercise-tag version">v{exercise.version || 1}</span>
           <span class="exercise-points">{exercise.maxPoints} {$t("exam.exerciseList.points")}</span>
         </div>
         <div class="exercise-actions">
@@ -187,7 +181,7 @@
         </div>
         <ul style="margin: 0; padding-left: 1.4rem; font-size: 0.85rem; color: #94a3b8;">
           {#each memberExercises(group) as ex, i}
-            <li>{String.fromCharCode(97 + i)}) {ex.name}</li>
+            <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} /></li>
           {/each}
         </ul>
       </div>

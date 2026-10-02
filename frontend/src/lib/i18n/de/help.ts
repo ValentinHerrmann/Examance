@@ -103,8 +103,8 @@ export const help = {
             },
             s3: {
                 h: 'Multiple Choice',
-                p1: 'Aufgaben können Freitext, Single Choice oder Multiple Choice sein. Für Ankreuzaufgaben werden Optionen, richtige Antworten und ein optionaler Punktabzug hinterlegt.',
-                p2: 'Mehrere Ankreuzaufgaben lassen sich zu einer MC-Gruppe zusammenfassen. Das ist reine Layout-Information für den Druck — bewertet und ausgewertet wird weiterhin jede Frage einzeln.',
+                p1: 'Aufgaben können Freitext, Single Choice oder Multiple Choice sein. Für Ankreuzaufgaben werden bis zu 26 Optionen, richtige Antworten und ein optionaler Punktabzug hinterlegt. Unter „Spalten der Antwortoptionen“ legen Sie fest, in wie vielen Spalten (1–10) die Optionen gedruckt werden.',
+                p2: 'Mehrere Ankreuzaufgaben lassen sich zu einer MC-Gruppe zusammenfassen — schon beim Erstellen der Prüfung im Tab „MC-Gruppen“ oder später auf der Prüfungsseite. Eine Prüfung kann beliebig viele Gruppen beliebiger Größe enthalten; jede Frage gehört zu höchstens einer Gruppe. Das ist reine Layout-Information für den Druck — bewertet und ausgewertet wird weiterhin jede Frage einzeln.',
             },
             s4: {
                 h: 'Bilder und Dateien',

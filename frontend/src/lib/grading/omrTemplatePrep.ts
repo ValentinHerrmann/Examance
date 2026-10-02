@@ -18,9 +18,10 @@ import {
   loadExercisesEncrypted, 
   saveOmrTemplateEncrypted 
 } from "$lib/db/dbEncryption";
-import { computeMcExercisesHash, resolveMcExercises, normalizeMcExercise } from "$lib/grading/mcExerciseHash";
+import { computeMcExercisesHash, resolveMcExercises } from "$lib/grading/mcExerciseHash";
 import { compileWithCache } from "$lib/latex/compileCache";
 import { formatExerciseLatex, formatMcGroupLatex } from "$lib/latex/scoreParser";
+import { mapApiToExerciseRecord } from "$lib/repositories/exerciseRepository";
 import { api } from "$lib/api/client";
 import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
 import { mapApiToExamRecord } from "$lib/repositories/examRepository";
@@ -87,21 +88,7 @@ export async function loadExamCompileContext(examId: string, key: CryptoKey | nu
     try {
       const remoteExam = (await api.get(`/exams/${examId}`)) as any;
       exam = mapApiToExamRecord(remoteExam);
-      exercises = remoteExam.exercises.map((e: any) => normalizeMcExercise({
-        id: e.id,
-        name: e.name,
-        topicTag: e.topic_tag,
-        latexBody: e.latex_body,
-        maxPoints: e.max_points,
-        version: e.version || 1,
-        orderIndex: e.order_index,
-        questionType: e.question_type || "free_text",
-        options: e.options,
-        correctAnswers: e.correct_answers || e.correctAnswers,
-        penalty: e.penalty || 0,
-        mcGroupId: e.mc_group_id || undefined,
-        subIndex: e.sub_index || undefined,
-      }));
+      exercises = remoteExam.exercises.map(mapApiToExerciseRecord);
       if (remoteExam.mc_groups && Array.isArray(remoteExam.mc_groups)) {
         mcGroups = mapRemoteMcGroups(remoteExam.mc_groups);
       } else {

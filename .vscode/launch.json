@@ -2,6 +2,28 @@
   "version": "0.2.0",
   "configurations": [
     {
+      // Full dev stack: migrates, starts the Vite dev server as a plain (non-debugged)
+      // background task, opens the app in the default browser, then debugs the backend.
+      // Stopping this session also stops the dev server (postDebugTask).
+      "name": "Debug",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "module": "uvicorn",
+      "args": ["app.main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
+      "cwd": "${workspaceFolder}/backend",
+      "preLaunchTask": "Start Full Stack",
+      "postDebugTask": "Stop Frontend Dev Server",
+      "env": {
+        "DATABASE_URL": "postgresql+asyncpg://blindgrade:blindgrade@localhost:5432/blindgrade",
+        "DATABASE_URL_SYNC": "postgresql+psycopg2://blindgrade:blindgrade@localhost:5432/blindgrade",
+        "REDIS_URL": "redis://localhost:6379/0",
+        "SECRET_KEY": "dev-secret-key-change-me-in-production-32-chars-long!",
+        "ENVIRONMENT": "development"
+      },
+      "justMyCode": true
+    },
+    {
       "name": "Backend",
       "type": "debugpy",
       "request": "launch",
@@ -20,21 +42,15 @@
       "justMyCode": true
     },
     {
-      "name": "Frontend Server",
-      "type": "node",
+      // Attach a debuggable browser to an already running dev server.
+      "name": "Frontend Browser (Chrome)",
+      "type": "chrome",
       "request": "launch",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "cwd": "${workspaceFolder}/frontend",
-      "console": "integratedTerminal",
-      "serverReadyAction": {
-        "pattern": "Local:\\s+http://localhost:5173",
-        "action": "startDebugging",
-        "name": "Frontend Browser"
-      }
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/frontend"
     },
     {
-      "name": "Frontend Browser",
+      "name": "Frontend Browser (Firefox)",
       "type": "firefox",
       "request": "launch",
       "url": "http://localhost:5173",
@@ -45,13 +61,6 @@
           "path": "${workspaceFolder}/frontend"
         }
       ]
-    }
-  ],
-  "compounds": [
-    {
-      "name": "Debug",
-      "configurations": ["Backend", "Frontend Server"],
-      "stopAll": true
     }
   ]
 }

@@ -21,6 +21,7 @@
   import { gradingStore, type VectorStroke } from "$lib/grading/gradingStore";
   import { recalculateAutoScores } from "$lib/grading/autoScore";
   import { loadLocalMcGroups } from "$lib/db/dbEncryption";
+  import { buildSubLabelMap } from "$lib/grading/mcGroupLabels";
   import { drawMissingSymbol, drawCheckmark, drawOmrOverlayForPage } from "$lib/grading/omrOverlay";
   import { getAutoCropBounds } from "./ScanCanvasViewer";
   import { translate } from "$lib/i18n";
@@ -41,14 +42,7 @@
   }
 
   async function loadMcGroupLetters(id: string) {
-    const groups = await loadLocalMcGroups(id).catch(() => []);
-    const next = new Map<string, string>();
-    for (const group of groups) {
-      group.memberIds.forEach((exerciseId, idx) => {
-        next.set(exerciseId, String.fromCharCode(97 + idx));
-      });
-    }
-    subExerciseLetters = next;
+    subExerciseLetters = buildSubLabelMap(await loadLocalMcGroups(id).catch(() => []));
   }
 
   let scanCanvas: HTMLCanvasElement;

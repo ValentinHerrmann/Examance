@@ -103,8 +103,8 @@ export const help: Translations['help'] = {
             },
             s3: {
                 h: 'Multiple choice',
-                p1: 'An exercise can be free text, single choice or multiple choice. Tick-box exercises store their options, the correct answers and an optional penalty.',
-                p2: 'Several tick-box exercises can be combined into an MC group. That is layout information for the printout only — grading and statistics stay strictly per question.',
+                p1: 'An exercise can be free text, single choice or multiple choice. Tick-box exercises store their options, the correct answers and an optional penalty. Up to 26 options per question; “Answer option columns” sets how many columns (1–10) they are printed in.',
+                p2: 'Several tick-box exercises can be combined into an MC group — already while creating the exam (“MC Groups” tab) or later on the exam page. An exam can hold any number of groups of any size; each question belongs to at most one group. That is layout information for the printout only — grading and statistics stay strictly per question.',
             },
             s4: {
                 h: 'Images and files',
