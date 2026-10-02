@@ -177,9 +177,13 @@ describe("omrShape v4 (measureBox + classifyV4)", () => {
 
   it("blackReference finds the 1st-percentile gray", () => {
     const hist = new Array<number>(256).fill(0);
+    hist[20] = 15;
+    hist[250] = 985;
+    expect(blackReference(hist, 1000)).toBe(20);
+    // below the 1 % cutoff the dark pixels are noise, not the print black
     hist[20] = 5;
     hist[250] = 995;
-    expect(blackReference(hist, 1000)).toBe(20);
+    expect(blackReference(hist, 1000)).toBe(250);
   });
 });
 
