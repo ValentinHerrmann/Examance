@@ -69,7 +69,10 @@
   }
 
   // Runs on mount too. The list moves after add/remove; the wraps move with it.
-  $: passkeys, loadWrapIds();
+  // `passkeys` is named in the condition so Svelte re-runs this when it changes.
+  $: if (passkeys) {
+    void loadWrapIds();
+  }
 
   function opensData(credentialIdB64: string, ids: string[] | null): boolean {
     return (ids ?? []).some((id) => sameCredential(id, credentialIdB64));
