@@ -120,6 +120,9 @@ export default defineConfig({
     __PREVIEW_BACKEND_URL__: JSON.stringify(PREVIEW_BACKEND_URL),
   },
   test: {
+    // Vitest must only pick up unit tests: the Playwright specs under e2e/
+    // are named *.spec.ts, which Vitest's default include pattern also matches.
+    include: ['tests/**/*.test.ts'],
     alias: {
       'argon2-browser/dist/argon2-bundled.min.js': fileURLToPath(
         new URL('./tests/mocks/argon2Mock.ts', import.meta.url)
