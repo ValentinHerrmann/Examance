@@ -9,6 +9,8 @@
   import "./SelectedExercisesList.css";
   import type { ExerciseRecord } from "$lib/db/schema";
   import { parseExerciseScore } from "$lib/latex/scoreParser";
+  import { mcSubLabel } from "$lib/grading/mcGroupLabels";
+  import ExerciseLabel from "$lib/components/exam/ExerciseLabel.svelte";
   import { t } from "$lib/i18n";
 
   interface McGroup {
@@ -30,6 +32,7 @@
   export let libraryExercises: ExerciseRecord[] = [];
   export let examItems: ExamItemRef[] = [];
   export let onRemoveMcGroup: (id: string) => void = () => {};
+  export let onEditMcGroup: ((id: string) => void) | undefined = undefined;
 
   function memberExercises(group: McGroup): ExerciseRecord[] {
     return group.memberIds
@@ -78,7 +81,7 @@
               <div class="selected-exercises-list-item">
                 <div class="selected-exercises-list-item-info">
                   <span class="selected-exercises-list-order-num">({idx + 1})</span>
-                  <strong>{ex.name}</strong>
+                  <strong><ExerciseLabel exercise={ex} /></strong>
                   {#if ex.topicTag}
                     <span class="selected-exercises-list-topic-tag">{ex.topicTag}</span>
                   {/if}
@@ -131,6 +134,16 @@
                     <span class="selected-exercises-list-score-badge">{groupPoints(group)} {$t("examCreation.selectedList.pointsAbbrev")}</span>
                   </div>
                   <div class="selected-exercises-list-order-controls">
+                    {#if onEditMcGroup}
+                      <button
+                        type="button"
+                        class="selected-exercises-list-edit-item-btn"
+                        title={$t("examCreation.selectedList.editMcGroupTitle")}
+                        on:click={() => onEditMcGroup && onEditMcGroup(group.id)}
+                      >
+                        ✏️
+                      </button>
+                    {/if}
                     <button
                       type="button"
                       class="selected-exercises-list-order-btn"
@@ -158,7 +171,7 @@
                 </div>
                 <ul style="margin: 0; padding-left: 1.4rem; font-size: 0.85rem; color: #94a3b8;">
                   {#each memberExercises(group) as ex, i}
-                    <li>{String.fromCharCode(97 + i)}) {ex.name}</li>
+                    <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} /></li>
                   {/each}
                 </ul>
               </div>
@@ -171,7 +184,7 @@
           <div class="selected-exercises-list-item">
             <div class="selected-exercises-list-item-info">
               <span class="selected-exercises-list-order-num">({idx + 1})</span>
-              <strong>{ex.name}</strong>
+              <strong><ExerciseLabel exercise={ex} /></strong>
               {#if ex.topicTag}
                 <span class="selected-exercises-list-topic-tag">{ex.topicTag}</span>
               {/if}
@@ -229,7 +242,7 @@
             </div>
             <ul style="margin: 0; padding-left: 1.4rem; font-size: 0.85rem; color: #94a3b8;">
               {#each memberExercises(group) as ex, i}
-                <li>{String.fromCharCode(97 + i)}) {ex.name}</li>
+                <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} /></li>
               {/each}
             </ul>
           </div>

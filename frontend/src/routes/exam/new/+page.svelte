@@ -18,7 +18,16 @@
   import type { GradingKeyConfig } from "$lib/db/schema";
   import ExamMetadataForm from "$lib/components/exam-creation/ExamMetadataForm.svelte";
   import ExerciseSelector from "$lib/components/exam-creation/ExerciseSelector.svelte";
+  import { mapApiToExerciseRecord } from "$lib/repositories/exerciseRepository";
   import SelectedExercisesList from "$lib/components/exam-creation/SelectedExercisesList.svelte";
+  import {
+    applyGroup,
+    buildMcGroupMembership,
+    canFinalizeGroup,
+    moveStaged,
+    toggleStaged,
+    type McGroupDraft,
+  } from "$lib/exam/mcGroupStaging";
   import ExamLivePreviewPanel from "$lib/components/exam-creation/ExamLivePreviewPanel.svelte";
   import { formatExamCourse } from "$lib/utils/examLabel";
   import { t, translate } from "$lib/i18n";
@@ -54,12 +63,7 @@
   let selectedLibraryIds: string[] = [];
 
   // MC group staging & finalized groups
-  interface McGroup {
-    id: string;
-    title: string;
-    scoringText: string;
-    memberIds: string[];
-  }
+  type McGroup = McGroupDraft;
 
   interface ExamItemRef {
     type: "exercise" | "mc_group";
@@ -68,12 +72,15 @@
 
   let mcStagingIds: string[] = [];
   let mcGroups: McGroup[] = [];
+  let editingMcGroupId: string | null = null;
+  $: editingMcGroup = mcGroups.find((g) => g.id === editingMcGroupId) ?? null;
+  $: mcGroupMembership = buildMcGroupMembership(mcGroups, editingMcGroupId);
   let examItems: ExamItemRef[] = [];
   let selectedTopicFilter: string = "ALL";
   let selectedGradeFilter: string = "ALL";
   let selectedSubjectFilter: string = "ALL";
   let searchQuery: string = "";
-  let activeTab: "library" | "custom" = "library";
+  let activeTab: "library" | "mc" | "custom" = "library";
 
   $: {
     const currentIds = new Set(selectedLibraryIds);
@@ -331,22 +338,7 @@ Frage hier eingeben... \\BE
       if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
         try {
           const remoteExs = (await api.get("/exercises")) as any[];
-          libraryExercises = remoteExs.map((e: any) => ({
-            id: e.id,
-            teacherId: e.teacher_id,
-            name: e.name,
-            topicTag: e.topic_tag,
-            grade: e.grade || undefined,
-            subject: e.subject || undefined,
-            latexBody: e.latex_body,
-            maxPoints: e.max_points,
-            version: e.version || 1,
-            questionType: e.question_type || "free_text",
-            penalty: e.penalty || 0,
-            exerciseGroupId: e.exercise_group_id || undefined,
-            variantKey: e.variant_key || undefined,
-            isCurrent: e.is_current,
-          }));
+          libraryExercises = remoteExs.map(mapApiToExerciseRecord);
           const encryptedExs = await Promise.all(libraryExercises.map(ex => encryptExercise(ex, key)));
           await db.exercises.bulkPut(encryptedExs);
         } catch (apiErr) {
@@ -374,38 +366,41 @@ Frage hier eingeben... \\BE
   }
 
   function toggleMcStaging(id: string) {
-    if (mcStagingIds.includes(id)) {
-      mcStagingIds = mcStagingIds.filter((i) => i !== id);
-    } else {
-      if (mcStagingIds.length >= 4) return;
-      mcStagingIds = [...mcStagingIds, id];
-    }
+    mcStagingIds = toggleStaged(mcStagingIds, id, mcGroupMembership);
   }
 
   function reorderMcStaging(index: number, direction: "up" | "down") {
-    const targetIdx = direction === "up" ? index - 1 : index + 1;
-    if (targetIdx < 0 || targetIdx >= mcStagingIds.length) return;
-    const copy = [...mcStagingIds];
-    [copy[index], copy[targetIdx]] = [copy[targetIdx], copy[index]];
-    mcStagingIds = copy;
+    mcStagingIds = moveStaged(mcStagingIds, index, direction);
   }
 
   function finalizeMcGroup(groupTitle: string, scoringText: string) {
-    if (mcStagingIds.length < 1 || mcStagingIds.length > 4) return;
-    mcGroups = [
-      ...mcGroups,
-      {
-        id: crypto.randomUUID(),
-        title: groupTitle,
-        scoringText,
-        memberIds: [...mcStagingIds],
-      },
-    ];
+    if (!canFinalizeGroup(mcStagingIds)) return;
+    const memberIds = new Set(mcStagingIds);
+    mcGroups = applyGroup(mcGroups, {
+      editingId: editingMcGroupId,
+      title: groupTitle,
+      scoringText,
+      memberIds: mcStagingIds,
+    });
+    // An exercise is linked to an exam once: as a group member it is no longer standalone.
+    selectedLibraryIds = selectedLibraryIds.filter((id) => !memberIds.has(id));
+    editingMcGroupId = null;
     mcStagingIds = [];
+  }
+
+  function editMcGroup(id: string) {
+    const group = mcGroups.find((g) => g.id === id);
+    if (!group) return;
+    editingMcGroupId = id;
+    mcStagingIds = [...group.memberIds];
   }
 
   function removeMcGroup(id: string) {
     mcGroups = mcGroups.filter((g) => g.id !== id);
+    if (editingMcGroupId === id) {
+      editingMcGroupId = null;
+      mcStagingIds = [];
+    }
   }
 
   function moveExercise(index: number, direction: "up" | "down") {
@@ -761,6 +756,8 @@ ${exerciseInputs}
       bind:activeTab
       {selectedLibraryIds}
       {mcStagingIds}
+      {mcGroupMembership}
+      {editingMcGroup}
       {libraryExercises}
       {filteredGroups}
       {totalVariantsCount}
@@ -788,14 +785,17 @@ ${exerciseInputs}
     <SelectedExercisesList
       {selectedExercises}
       {mcGroups}
+      {examItems}
       {libraryExercises}
       {totalPoints}
       {isPreviewLoading}
       onLivePreview={handleLivePreview}
       onQuickEdit={openQuickEdit}
       onMoveExercise={moveExercise}
+      onMoveExamItem={moveExamItem}
       onRemove={toggleLibrarySelection}
       onRemoveMcGroup={removeMcGroup}
+      onEditMcGroup={editMcGroup}
     />
 
     <ExamLivePreviewPanel

@@ -8,7 +8,14 @@
   import { saveExerciseEncrypted, loadExercisesEncrypted } from "$lib/db/dbEncryption";
   import { api } from "$lib/api/client";
   import { parseExerciseScore, formatExerciseLatex } from "$lib/latex/scoreParser";
-  import { parseMcOptions, buildMcOptionsLatex, type McOption } from "$lib/latex/mcOptions";
+  import {
+    parseMcOptions,
+    buildMcOptionsLatex,
+    MC_MAX_COLUMNS,
+    MC_MAX_OPTIONS,
+    MC_MIN_OPTIONS,
+    type McOption,
+  } from "$lib/latex/mcOptions";
   import { compileWithCache, getLatestForSlot } from "$lib/latex/compileCache";
   import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
   import ExerciseResourcePanel from "$lib/components/exercise/ExerciseResourcePanel.svelte";
@@ -19,7 +26,7 @@
   import { recordValue } from "$lib/utils/recentValues";
   import { t, translate } from "$lib/i18n";
   import InfoTip from "$lib/components/help/InfoTip.svelte";
-  import { Modal } from "$lib/components/ui";
+  import { Modal, Select } from "$lib/components/ui";
 
   export let isOpen = false;
   export let editingExercise: ExerciseRecord | null = null;
@@ -41,6 +48,9 @@
   let editorQuestionType: "free_text" | "mc" = "free_text";
   let mcQuestionText = "";
   let mcOptions: McOption[] = [];
+  /** Column layout of the options: "auto" (one per option) or an explicit count, as a <select> value. */
+  let mcColumns = "auto";
+  const MC_COLUMN_CHOICES = Array.from({ length: MC_MAX_COLUMNS }, (_, i) => String(i + 1));
   let mcOptionsError = "";
   /** Points deducted per wrongly-crossed MC option (right-minus-wrong scoring). Matches the printed scoring text convention. */
   let editorPenalty = 0.5;
@@ -199,10 +209,15 @@
     const parsed = parseMcOptions(editorLatexBody);
     mcQuestionText = parsed.questionText;
     mcOptions = parsed.options;
+    mcColumns = parsed.columns === null ? "auto" : String(parsed.columns);
   }
 
   function regenerateMcLatex() {
-    editorLatexBody = buildMcOptionsLatex(mcQuestionText, mcOptions);
+    editorLatexBody = buildMcOptionsLatex(
+      mcQuestionText,
+      mcOptions,
+      mcColumns === "auto" ? null : Number(mcColumns),
+    );
   }
 
   function handleQuestionTypeChange() {
@@ -232,13 +247,13 @@
   }
 
   function addMcOption() {
-    if (mcOptions.length >= 8) return;
+    if (mcOptions.length >= MC_MAX_OPTIONS) return;
     mcOptions = [...mcOptions, { text: "", correct: false }];
     regenerateMcLatex();
   }
 
   function removeMcOption(index: number) {
-    if (mcOptions.length <= 2) return;
+    if (mcOptions.length <= MC_MIN_OPTIONS) return;
     mcOptions = mcOptions.filter((_, i) => i !== index);
     regenerateMcLatex();
   }
@@ -391,7 +406,7 @@
     }
 
     if (editorQuestionType !== "free_text") {
-      if (mcOptions.length < 2) {
+      if (mcOptions.length < MC_MIN_OPTIONS) {
         errorMsg = translate("exercises.editor.mcMinOptions");
         return;
       }
@@ -791,6 +806,16 @@
                     />
                   </div>
 
+                  <div class="flex flex-col gap-1">
+                    <label class="font-semibold text-slate-300" for="mc-columns">{$t("exercises.editor.mcColumnsLabel")}</label>
+                    <Select id="mc-columns" class="w-full sm:w-72" bind:value={mcColumns} on:change={regenerateMcLatex}>
+                      <option value="auto">{$t("exercises.editor.mcColumnsAuto", { max: MC_MAX_COLUMNS })}</option>
+                      {#each MC_COLUMN_CHOICES as choice}
+                        <option value={choice}>{choice}</option>
+                      {/each}
+                    </Select>
+                  </div>
+
                   <div class="flex flex-col gap-2">
                     <div class="flex items-center justify-between text-slate-300 font-semibold">
                       <span>{$t("exercises.editor.mcOptionsLabel", { count: mcOptions.length })}</span>
@@ -798,7 +823,7 @@
                         type="button"
                         class="rounded bg-sky-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         on:click={addMcOption}
-                        disabled={mcOptions.length >= 8}
+                        disabled={mcOptions.length >= MC_MAX_OPTIONS}
                       >
                         {$t("exercises.editor.mcAddOptionButton")}
                       </button>
@@ -830,7 +855,7 @@
                           type="button"
                           class="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-red-400 disabled:opacity-30 disabled:hover:text-slate-400"
                           on:click={() => removeMcOption(index)}
-                          disabled={mcOptions.length <= 2}
+                          disabled={mcOptions.length <= MC_MIN_OPTIONS}
                           title={$t("exercises.editor.mcOptionRemoveTitle")}
                         >
                           ✕

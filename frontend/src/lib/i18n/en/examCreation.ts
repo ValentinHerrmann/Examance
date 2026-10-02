@@ -46,19 +46,8 @@ export const examCreation: Translations['examCreation'] = {
     exerciseSelector: {
         heading: '2. Select Exercises',
         tabLibrary: '📚 From Library ({count} Selected)',
+        tabMc: '☑️ MC Groups',
         tabCustom: '✏️ Create Custom Exercise',
-        mcStaging: {
-            heading: 'MC Group Staging Area ({count} sub-exercises)',
-            untitled: 'Untitled',
-            moveUp: 'Move up',
-            moveDown: 'Move down',
-            remove: 'Remove',
-            titleLabel: 'MC Group Title',
-            scoringLabel: 'Scoring Scheme',
-            addButton: 'Add MC Group to Exam ({count} sub-exercises)',
-            hintSelectRange: 'Select 1 to 4 sub-exercises to form a group.',
-            hintMaxExceeded: 'Maximum 4 sub-exercises allowed per MC group.',
-        },
     },
     customExerciseForm: {
         nameLabel: 'Exercise Name',
@@ -79,6 +68,7 @@ export const examCreation: Translations['examCreation'] = {
         pointsAbbrev: 'Pts',
         mcGroupLabel: 'MC Exercise: {title}',
         mcGroupSubItems: 'MC ({count} sub-items)',
+        editMcGroupTitle: 'Edit MC group (in the “MC Groups” tab)',
     },
     livePreviewPanel: {
         heading: 'Complete Exam PDF Live Preview',

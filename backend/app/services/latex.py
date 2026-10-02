@@ -292,13 +292,19 @@ def format_exercise_latex(latex_body: str | None, title: str, exercise_id: Any =
     return f"{prefix}{body}{suffix}"
 
 
+# \alph* only has 26 letters; larger MC groups are numbered instead. Mirrors
+# ALPHA_LABEL_LIMIT in frontend/src/lib/grading/mcGroupLabels.ts.
+MC_GROUP_ALPHA_LABEL_LIMIT = 26
+
+
 def format_mc_group_latex(
     members: list[Any],
     group_title: str,
     scoring_text: str,
 ) -> str:
     """
-    Build one \\begin{Aufgabe} block with enumerate[label=\\alph*)] for an MC group.
+    Build one \\begin{Aufgabe} block with enumerate[label=\\alph*)] for an MC group
+    (\\arabic*) beyond MC_GROUP_ALPHA_LABEL_LIMIT members).
 
     Each member gets `\\OmrExercise{<id>}` injected before its body -- grading
     and statistics still key strictly on exerciseId (CLAUDE.md invariant); the
@@ -312,6 +318,7 @@ def format_mc_group_latex(
         body = ex.get("latex_body") if isinstance(ex, dict) else getattr(ex, "latex_body", None)
         return body or ""
 
+    label = "alph" if len(members) <= MC_GROUP_ALPHA_LABEL_LIMIT else "arabic"
     items = "\n".join(
         f"\\item \\OmrExercise{{{_member_id(ex)}}}\n{_member_latex_body(ex)}" for ex in members
     )
@@ -321,7 +328,7 @@ def format_mc_group_latex(
         f" Mehrere können, mind. eine ist jeweils richtig."
         f" Für falsch gesetzte Kreuze werden Punkte abgezogen"
         f" (pro Teilaufgabe immer $\\geq 0$ Punkte)\n\n"
-        f"\\begin{{enumerate}}[label=\\alph*)]\n"
+        f"\\begin{{enumerate}}[label=\\{label}*)]\n"
         f"{items}\n"
         f"\\end{{enumerate}}\n\n"
         f"\\LoesungLeer{{{escape_tex(scoring_text)}}}{{0pt}}\n"

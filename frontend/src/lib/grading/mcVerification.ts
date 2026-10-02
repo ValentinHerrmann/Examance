@@ -1,5 +1,6 @@
 import { scoreRepository } from "$lib/repositories/scoreRepository";
 import { loadExamMcExercises } from "$lib/grading/mcExerciseHash";
+import { buildSubLabelMap } from "$lib/grading/mcGroupLabels";
 import { submissionRepository } from "$lib/repositories/submissionRepository";
 import { studentRepository } from "$lib/repositories/studentRepository";
 import { ensure64CharHex } from "$lib/crypto/hmac";
@@ -215,12 +216,7 @@ export async function computeMcVerificationStats(
   const exerciseById = new Map<string, ExerciseRecord>(exercises.map((e) => [e.id, e]));
 
   // Members of one MC group share a title; the sub-letter tells them apart.
-  const subLetterById = new Map<string, string>();
-  for (const group of mcGroups) {
-    group.memberIds.forEach((memberId, idx) => {
-      subLetterById.set(memberId, String.fromCharCode(97 + idx));
-    });
-  }
+  const subLetterById = buildSubLabelMap(mcGroups);
 
   const studentMap = new Map<string, string>();
   for (const st of students) {
