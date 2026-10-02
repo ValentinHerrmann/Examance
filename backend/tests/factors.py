@@ -1,8 +1,8 @@
 """
 Shared helper for signing a test client in.
 
-Login is a two-of-three factor flow — password, passkey, authenticator, any two —
-so a password alone no longer produces a session. These helpers enrol an
+Login needs a passkey on its own, or any two of password, passkey and
+authenticator — so a password alone does not produce a session. These helpers enrol an
 authenticator directly in the database and then drive the real endpoints, so the
 suite exercises the same path a browser takes rather than a shortcut around it.
 """

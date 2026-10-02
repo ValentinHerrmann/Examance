@@ -45,6 +45,8 @@ export const auth = {
             forgotPassword: 'Passwort vergessen?',
             authenticating: 'Authentifiziert…',
             connectAndSignIn: 'Verbinden & Anmelden',
+            passkeyHint: 'Fingerabdruck, Gesicht oder Geräte-PIN — ohne E-Mail, ohne zweiten Faktor.',
+            or: 'oder',
         },
     },
     forgotPassword: {

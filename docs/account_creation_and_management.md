@@ -36,8 +36,13 @@ The backend creates the user account with an uninitialized password (`password_h
 
 ## 2b. Sign-in factors
 
-Every sign-in presents **two of three** factors: password, authenticator app
-(TOTP), passkey. An account with fewer than two is held on the enrollment screen
+A sign-in needs **a passkey on its own, or two of three** factors: password,
+authenticator app (TOTP), passkey. A passkey suffices alone because every passkey
+ceremony requires user verification (fingerprint, face or device PIN); password
+and authenticator never do. After a password, an account with a passkey gets the
+passkey prompt automatically — cancelling it leaves the other factors on offer.
+A passkey without PRF signs in but cannot open the encrypted data, so the
+password or recovery code is asked for afterwards. An account with fewer than two is held on the enrollment screen
 and can reach nothing else — including every existing account, on its first
 sign-in after this shipped.
 

@@ -278,13 +278,13 @@ export const help: Translations['help'] = {
             },
             s6: {
                 h: 'Two sign-in factors',
-                p1: 'Every sign-in presents two of three factors: password, authenticator app, passkey. A guessed password on its own gets nowhere.',
+                p1: 'You sign in with a passkey on its own, or with two of three factors: password, authenticator app, passkey. Password and authenticator app never suffice alone — a guessed password gets nowhere.',
                 p2: 'Enrol all three where you can — then losing one is merely inconvenient. With exactly two, losing one means only an administrator can get you back in, and only to the account, not to the encrypted data. Backup codes stand in for the authenticator app and work once each.',
             },
             s7: {
                 h: 'Passkeys',
-                p1: 'A passkey signs you in with a fingerprint, your face or a device PIN — no password. It counts as one of the two required factors, not as a replacement for both.',
-                p2: 'Whether a passkey can also open your encrypted data depends on the device. Settings shows this per passkey. Where it cannot, your password and recovery code stay responsible for that.',
+                p1: 'A passkey signs you in with a fingerprint, your face or a device PIN — no password. Because the device checks your fingerprint, face or PIN, it is enough on its own. After signing in with a password, the passkey prompt opens automatically as the second factor; cancel it to use the authenticator app instead.',
+                p2: 'Whether a passkey can also open your encrypted data depends on the device. Settings shows this per passkey; “Enable data access” sets it up there without the password. Passkeys stored in Bitwarden currently cannot. Where it cannot, your password and recovery code stay responsible for that.',
             },
             s3: {
                 h: 'Resetting a password',

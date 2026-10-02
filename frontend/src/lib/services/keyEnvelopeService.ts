@@ -42,6 +42,8 @@ import {
   type UnwrappedBundle,
 } from '$lib/crypto/keyEnvelope';
 import { fetchEnvelopes, saveEnvelopes } from '$lib/api/keyEnvelopes';
+import { loginOptions } from '$lib/api/webauthn';
+import { authenticate } from '$lib/webauthn/client';
 import { get } from 'svelte/store';
 import { sessionStore } from '$lib/stores/session';
 import { safeLocalStorage, safeSessionStorage } from '$lib/utils/storage';
@@ -56,7 +58,7 @@ const FINGERPRINT_PREFIX = 'bg_envelope_fp:';
  * unpadded id. Same bytes, different string — and a mismatch here would look
  * exactly like "this passkey has no wrap".
  */
-function sameCredential(a: string | null, b: string | null): boolean {
+export function sameCredential(a: string | null, b: string | null): boolean {
   if (a === null || b === null) {
     return false;
   }
@@ -224,10 +226,18 @@ export async function openWithPassword(
   teacherId: string,
   email: string,
   password: string,
+  opts: { allowMigration: boolean },
 ): Promise<OpenedVault> {
   const existing = await fetchEnvelopes();
 
   if (existing === null) {
+    // The migration seals whatever key this password derives as the data key.
+    // Only a password the server has just accepted may do that: an unverified
+    // one (typed into the vault prompt after a passkey-only sign-in) would
+    // adopt a wrong key and orphan every record already written.
+    if (!opts.allowMigration) {
+      throw new EnvelopeFactorMissingError('password');
+    }
     const salt = await getUserSalt(email);
     const derived = await deriveKeyWithFallback(password, salt);
     const source: UnwrappedBundle = {
@@ -655,4 +665,55 @@ export async function openWithPasskey(
   const kek = await derivePrfKek(prfOutput, envelope.kdfSalt);
   const bundle = await unwrapBundle(kek, envelope, teacherId, existing.keyId);
   return { ...bundle, keyId: existing.keyId, migrated: false };
+}
+
+/** The authenticator signed the assertion but returned no PRF secret. */
+export class PrfUnavailableError extends Error {
+  constructor() {
+    super('This passkey does not provide the PRF extension.');
+    this.name = 'PrfUnavailableError';
+  }
+}
+
+/**
+ * Credential ids of the passkeys that can open the vault right now.
+ *
+ * The truth is the stored wrap, not the `supports_prf` flag recorded at
+ * registration: that flag is a guess some authenticators get wrong, and it is
+ * never updated when a wrap is added or healed later.
+ */
+export async function passkeyWrapIds(): Promise<string[]> {
+  const existing = await fetchEnvelopes();
+  if (existing === null) {
+    return [];
+  }
+  return existing.envelopes
+    .filter((e) => e.kind === 'passkey' && !e.invalidatedAt && e.credentialIdB64 !== null)
+    .map((e) => e.credentialIdB64 as string);
+}
+
+/**
+ * Let an already-registered passkey open the vault, from an open session.
+ *
+ * Needs only the passkey: the session holds the data key, so nothing has to be
+ * unwrapped first. The ceremony is pinned to the credential and is not sent to
+ * the server — its only job is to produce that credential's PRF secret.
+ */
+export async function enablePasskeyUnlock(
+  teacherId: string,
+  credentialIdB64: string,
+): Promise<void> {
+  const vault = vaultFromSession();
+  if (vault === null) {
+    throw new EnvelopeFactorMissingError('session');
+  }
+  const assertion = await authenticate(await loginOptions(), { credentialIdB64 });
+  const assertedId = (JSON.parse(assertion.credentialJson) as { rawId: string }).rawId;
+  if (!sameCredential(assertedId, credentialIdB64)) {
+    throw new Error('The browser answered with a different passkey.');
+  }
+  if (!assertion.prfOutput) {
+    throw new PrfUnavailableError();
+  }
+  await addPasskeyWrap(teacherId, vault, credentialIdB64, assertion.prfOutput);
 }

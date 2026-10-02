@@ -2,8 +2,8 @@
 Passkey endpoints.
 
 The ceremonies themselves need a real authenticator, so these cover the parts
-that are ours: that a passkey is one factor rather than a shortcut past the
-policy, that the challenge is single-use, and that the removal guard holds.
+that are ours: that a passkey alone completes a sign-in (and only for its own
+account), that the challenge is single-use, and that the removal guard holds.
 """
 from __future__ import annotations
 
@@ -198,3 +198,53 @@ async def test_a_passkey_cannot_finish_another_accounts_sign_in(
 
     assert resp.status_code == 401, resp.text
     assert "refresh_token" not in resp.cookies
+
+
+@pytest.mark.asyncio
+async def test_a_passkey_alone_signs_in(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    A passkey with no sign-in in progress yields a full session.
+
+    The ceremony requires user verification, so it already proves possession
+    plus a biometric or PIN. The ceremony itself is stubbed, as above.
+    """
+    import secrets
+
+    from app.models.webauthn_credential import WebAuthnCredential
+    from app.routers import webauthn as webauthn_router
+
+    teacher = await create_teacher(db, "passkey-alone@example.com")
+    credential = WebAuthnCredential(
+        credential_id=secrets.token_bytes(16),
+        teacher_id=teacher.id,
+        public_key=secrets.token_bytes(32),
+        sign_count=0,
+        prf_salt=secrets.token_bytes(32),
+        supports_prf=True,
+    )
+    db.add(credential)
+    await db.commit()
+
+    async def _stub(*_args: object, **_kwargs: object) -> WebAuthnCredential:
+        return credential
+
+    monkeypatch.setattr(webauthn_router.webauthn_svc, "verify_authentication", _stub)
+
+    client.cookies.clear()
+    options = await client.post("/api/v1/webauthn/login/options")
+    resp = await client.post(
+        "/api/v1/webauthn/login/verify",
+        json={
+            "handle": options.json()["handle"],
+            "challenge_b64": options.json()["challenge_b64"],
+            "credential_json": "{}",
+        },
+    )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert body["satisfied"] == ["passkey"]
+    assert "refresh_token" in resp.cookies

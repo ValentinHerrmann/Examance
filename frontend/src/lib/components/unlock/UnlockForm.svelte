@@ -2,6 +2,7 @@
   import "./UnlockForm.css";
   import BackendUrlInput from "$lib/components/common/BackendUrlInput.svelte";
   import { t } from "$lib/i18n";
+  import { Button } from "$lib/components/ui";
   export let backendUrl: string;
   export let email: string;
   export let password: string;
@@ -9,6 +10,11 @@
   export let isLoading: boolean;
   export let onUnlock: () => void;
   export let onUnlockLocal: () => void;
+  /**
+   * Passkey sign-in, or undefined where the browser has no WebAuthn. Offered
+   * first: it signs in on its own, with no email and no second factor.
+   */
+  export let onPasskey: (() => void) | undefined = undefined;
   export let localPassphrase: string;
   export let localPassphraseConfirm: string;
   /** First use on this device, or a legacy vault being migrated — confirm the passphrase. */
@@ -148,6 +154,18 @@
       <button type="submit" class="submit-btn" class:is-loading={isLoading} disabled={isLoading}>
         {isLoading ? $t("auth.unlock.cloud.authenticating") : $t("auth.unlock.cloud.connectAndSignIn")}
       </button>
+
+      {#if onPasskey}
+        <div class="flex w-full items-center gap-3 text-xs text-subtle" aria-hidden="true">
+          <span class="h-px min-w-0 flex-1 bg-line"></span>
+          {$t("auth.unlock.cloud.or")}
+          <span class="h-px min-w-0 flex-1 bg-line"></span>
+        </div>
+        <Button variant="secondary" block disabled={isLoading} onClick={onPasskey}>
+          🔑 {$t("security.passkey.signIn")}
+        </Button>
+        <p class="m-0 text-center text-xs text-muted">{$t("auth.unlock.cloud.passkeyHint")}</p>
+      {/if}
     </form>
   </div>
 </div>

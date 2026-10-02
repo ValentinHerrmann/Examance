@@ -1,10 +1,10 @@
 """
 Passkeys — /api/v1/webauthn/*
 
-A passkey is one of the three sign-in factors, and it never short-circuits the
-two-of-three rule on its own: the ceremony proves possession plus a local user
-check, which is strong, but the policy asks for two *distinct* kinds and this is
-one of them.
+A passkey is one of the three sign-in factors, and the only one that completes a
+sign-in by itself: every ceremony requires user verification, so it proves
+possession plus a local biometric or PIN (`auth_policy.SELF_SUFFICIENT_FACTORS`).
+In second position it finishes a sign-in begun with the password.
 
 Registration needs a session. Authentication does not — that is the point of a
 first-position factor.
@@ -144,8 +144,9 @@ async def login_verify(
     """
     Present a passkey as a sign-in factor.
 
-    Contributes exactly one factor — the `passkey` kind — whether it comes first
-    or second, and never short-circuits the policy on its own.
+    Contributes the `passkey` factor whether it comes first or second. On its
+    own it satisfies the policy, so a passkey-first sign-in ends in a full
+    session (or enrollment, for an account with fewer than two factors).
 
     The cookie is read directly rather than through a dependency because this
     endpoint has to work both ways: with no session at all (passkey first) and

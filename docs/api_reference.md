@@ -252,7 +252,8 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 
 #### Sign-in factors (`/api/v1/auth`, `/api/v1/mfa`)
 
-A sign-in presents two of three factors. Each step returns
+A sign-in needs a passkey alone (`/webauthn/login/verify`, user verification
+required) or two of three factors. Each step returns
 `{status, satisfied, available}`: `factor_required` with the kinds still open,
 `enroll_required` when the account has fewer than two factors, or `ok` with the
 session cookies set.

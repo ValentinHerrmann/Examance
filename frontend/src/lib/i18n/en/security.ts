@@ -122,13 +122,16 @@ export const security: Translations['security'] = {
         totpHint: 'Enter a six-digit code from your authenticator app — or a backup code.',
         passkeyHint: 'Confirm with your fingerprint, face or device PIN.',
         back: 'Choose a different factor',
+        passkeyWaiting: 'Waiting for your passkey… Cancel the prompt to choose another factor.',
     },
     vaultUnlock: {
         kdfUnavailable:
             'This browser could not load the key derivation (Argon2). Your credentials are fine — reload the page and try again.',
         title: 'Open your encrypted data',
         passwordIntro:
-            'You are signed in. Your passkey cannot derive a key on this device, so we need your password once to decrypt your data. It is not stored, and nothing is re-encrypted.',
+            'You are signed in. Your passkey cannot derive a key on this device, so we need your password once to decrypt your data. It is not stored, and nothing is re-encrypted. "Sign-in & security" shows which passkeys open your data.',
+        passwordIntroHeal:
+            'You are signed in. This passkey has no key copy stored yet. Enter your password once — the copy is created then, and from then on the passkey opens your data on its own.',
         recoveryIntro:
             'Use your recovery code instead. It opens your data the same way, and stays valid afterwards.',
         submit: 'Open my data',
@@ -136,6 +139,8 @@ export const security: Translations['security'] = {
         usePassword: 'Back to the password',
         wrongPassword: 'That password does not open your data.',
         wrongRecovery: 'That recovery code does not match this account.',
+        needsPasswordSignIn:
+            'This account has no stored data key yet. Sign in once with your password and a second factor to set up encryption — after that, the passkey is enough.',
     },
     enroll: {
         title: 'Set up a second sign-in factor',
@@ -203,7 +208,7 @@ export const security: Translations['security'] = {
     },
     passkey: {
         title: 'Passkeys',
-        intro: 'A passkey is one of the three sign-in factors — fingerprint, face or device PIN instead of a password.',
+        intro: 'A passkey is one of the three sign-in factors — fingerprint, face or device PIN instead of a password. It signs you in on its own, and is offered first as a second factor.',
         signIn: 'Sign in with a passkey',
         add: 'Add a passkey',
         nicknameLabel: 'Label (optional)',
@@ -214,8 +219,14 @@ export const security: Translations['security'] = {
         unsupported: 'This browser does not support passkeys.',
         failed: 'The passkey could not be used.',
         noPrfTitle: 'This passkey will not open your data',
-        noPrf: 'This authenticator does not support the required extension. The passkey signs you in but cannot unlock your encrypted data — your password or recovery code stays responsible for that.',
-        prfOk: 'Can also open your encrypted data.',
+        opensData: 'Also opens your encrypted data.',
+        notOpensData: 'Signs you in, but does not open your encrypted data yet.',
+        enableUnlock: 'Enable data access',
+        enableUnlockDone: 'This passkey now opens your data without the password.',
+        noPrfWarning:
+            'This passkey signs you in but cannot open your encrypted data: its passkey provider does not support the PRF extension (e.g. passkeys stored in Bitwarden). To sign in with a passkey alone, use a provider with PRF — such as Google Password Manager, Windows Hello, iCloud Keychain, Android, 1Password or a FIDO2 security key.',
+        addedUnlockPending:
+            'Passkey added. Data access is not active yet — use “Enable data access” to finish.',
         created: 'Added {date}',
         lastUsed: 'Last used {date}',
         neverUsed: 'Not used yet',

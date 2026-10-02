@@ -278,13 +278,13 @@ export const help = {
             },
             s6: {
                 h: 'Zwei Anmeldefaktoren',
-                p1: 'Jede Anmeldung verlangt zwei von drei Faktoren: Passwort, Authenticator-App und Passkey. Damit nützt ein erratenes Passwort allein nichts.',
+                p1: 'Eine Anmeldung gelingt mit einem Passkey allein oder mit zwei von drei Faktoren: Passwort, Authenticator-App und Passkey. Passwort und Authenticator-App reichen nie allein — ein erratenes Passwort nützt also nichts.',
                 p2: 'Richten Sie nach Möglichkeit alle drei ein — dann ist der Verlust eines einzelnen Faktors nur lästig. Mit genau zwei bedeutet der Verlust eines Faktors, dass nur die Administration wieder Zugang verschaffen kann, und zwar nur zum Konto, nicht zu den verschlüsselten Daten. Backup-Codes ersetzen die Authenticator-App und funktionieren je einmal.',
             },
             s7: {
                 h: 'Passkeys',
-                p1: 'Ein Passkey meldet Sie mit Fingerabdruck, Gesicht oder Geräte-PIN an — ohne Passwort. Er zählt als einer der zwei nötigen Faktoren, nicht als Ersatz für beide.',
-                p2: 'Ob ein Passkey auch Ihre verschlüsselten Daten öffnen kann, hängt vom Gerät ab. Die Einstellungen zeigen das je Passkey an. Wo es nicht möglich ist, bleiben Passwort und Wiederherstellungscode dafür zuständig.',
+                p1: 'Ein Passkey meldet Sie mit Fingerabdruck, Gesicht oder Geräte-PIN an — ohne Passwort. Weil das Gerät dabei Fingerabdruck, Gesicht oder PIN prüft, genügt er allein. Nach einer Anmeldung mit Passwort öffnet sich die Passkey-Abfrage automatisch als zweiter Faktor; brechen Sie sie ab, um stattdessen die Authenticator-App zu verwenden.',
+                p2: 'Ob ein Passkey auch Ihre verschlüsselten Daten öffnen kann, hängt vom Gerät ab. Die Einstellungen zeigen das je Passkey an; mit „Datenzugriff aktivieren“ richten Sie es dort ohne Passwort ein. In Bitwarden gespeicherte Passkeys können das derzeit nicht. Wo es nicht möglich ist, bleiben Passwort und Wiederherstellungscode dafür zuständig.',
             },
             s3: {
                 h: 'Passwort zurücksetzen',

@@ -84,8 +84,16 @@ data key, so it cannot unwrap what it holds.
 
 ### Sign-in factors
 
-Every sign-in presents **two of three** factors: password, passkey, authenticator
-(TOTP). A teacher who enrols all three survives losing any one of them, which is
+A sign-in needs **a passkey alone, or two of three** factors: password, passkey,
+authenticator (TOTP). The passkey stands alone because every ceremony requires
+user verification — possession plus a local biometric or PIN
+(`SELF_SUFFICIENT_FACTORS`); password and TOTP never complete a sign-in by
+themselves. Signing in with only a passkey changes nothing about the keys: the
+PRF wrap yields the same data key, and the session key is derived exactly as
+after a password sign-in. A password the server has not just accepted (e.g. the
+vault prompt after a non-PRF passkey sign-in) may unwrap an existing envelope
+but never runs the one-time migration, which would otherwise seal a key derived
+from an unchecked password as the data key. A teacher who enrols all three survives losing any one of them, which is
 the point — a hard second factor with no way back is a support incident waiting
 to happen. `app/services/auth_policy.py` is the single place the rule lives.
 

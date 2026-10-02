@@ -392,13 +392,13 @@ async def advance_sign_in(
     """
     Record that *factor* was proven and decide what the session becomes.
 
-    Every factor endpoint funnels through here so the two-of-three rule is
-    decided in one place. Three outcomes:
+    Every factor endpoint funnels through here so the sign-in rule (a passkey,
+    or any two factors) is decided in one place. Three outcomes:
 
     * Fewer than two factors enrolled — the account gets an ``enroll`` token and
       can reach nothing but the enrollment endpoints.
-    * Two distinct factors presented — a real session, with the refresh cookie
-      and the LOGIN audit entry.
+    * A passkey, or two distinct factors, presented — a real session, with the
+      refresh cookie and the LOGIN audit entry.
     * Otherwise — an ``auth_pending`` token plus the list of factors that may
       come next, which is safe to disclose now that one has been proven.
     """
