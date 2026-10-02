@@ -63,6 +63,8 @@ Rate each risk to the **rights and freedoms of the data subject**, not to the sc
 | R6 | Grade tampering | Compromised teacher account | *[…]* | High | Rate-limited auth, refresh-token reuse detection, append-only audit trail | *[…]* |
 | R7 | Re-identification from pseudonymous data | Small class sizes | *[…]* | Medium | k ≥ 5 threshold on statistics | Small cohorts remain re-identifiable to insiders |
 | R8 | Compromised third-party WASM module | Supply chain | *[…]* | High | — | **SRI is not enforced**; the Argon2 module that derives every key is loaded unverified |
+| R9 | Re-identification of a donated MC training-data crop | Opt-in checkbox-crop donation (`omr_training_samples`) | Low | Medium | Tight 80×48 grayscale crop with no question text; no exam/submission/pupil/teacher id and no IP stored; the only id is a random per-box token that exists solely to supersede a corrected label | The server knows the donating account while the request runs (needed for the quota) — the operator could link a request to an account in that moment; a handwriting or margin-content correlation across one teacher's crops remains |
+| R10 | Poisoning of the shared training set / storage exhaustion | Donation endpoint writing into the production database | Low | Medium | Full session required (accounts are invite-only); per-account and global daily quotas; strict request validation (`extra="forbid"`); consistency filtering at training time; `TRAINING_DONATION_ENABLED` kill switch | A compromised or malicious account can still donate plausible-looking bad labels within its quota |
 
 *[Add deployment-specific risks. Complete the empty cells with the DPO.]*
 
@@ -75,6 +77,8 @@ Rate each risk to the **rights and freedoms of the data subject**, not to the sc
 - R5: schedule and monitor `python -m app.cli run-retention`; an unscheduled job means no erasure happens at all.
 - R8: vendor and hash the WASM binaries, then set `"enforced": true` in `static/sri-manifest.json`.
 - R3: decide and document the private-device policy for teaching staff.
+- R9: keep crops tight and id-free as implemented; re-review if the crop is ever widened to include more page context.
+- R10: monitor training-time consistency filtering results and daily volume against `TRAINING_SAMPLES_PER_DAY_MAX`; lower the quotas or use the kill switch if abuse is observed.
 
 ### 2.5 Outcome
 

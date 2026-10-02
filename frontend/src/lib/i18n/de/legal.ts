@@ -75,6 +75,7 @@ export const legal = {
             para1Before: 'Identitätsdaten, Scans und Korrekturanmerkungen werden bereits im Browser verschlüsselt (AES-256-GCM), bevor sie gespeichert oder übertragen werden. Der Server erhält diese Inhalte ausschließlich als Chiffrat und besitzt den Schlüssel nicht. Im Standardmodus (',
             para1Emphasis: 'local-only',
             para1After: ') verlassen die Daten das Gerät der Lehrkraft überhaupt nicht.',
+            para3: 'Ausnahme: die freiwillige Spende anonymisierter Ankreuzfeld-Ausschnitte (Abschnitt 10), sofern die Lehrkraft sie aktiviert hat.',
             para2: 'Nicht verschlüsselt gespeichert werden serverseitig: die Gesamtpunktzahl je Pseudonym sowie Metadaten der Prüfung (Titel, Klasse, Fach, Datum). Pseudonymisierte Daten bleiben personenbezogene Daten im Sinne des Erwägungsgrundes 26 DSGVO.',
         },
         section6: {
@@ -100,6 +101,15 @@ export const legal = {
             heading: '9. Beschwerderecht',
             textBefore: 'Sie können sich bei einer Aufsichtsbehörde beschweren. Für bayerische öffentliche Schulen ist dies der Bayerische Landesbeauftragte für den Datenschutz (BayLfD), Wagmüllerstraße 18, 80538 München. In anderen Ländern ist die jeweils für öffentliche Stellen zuständige Aufsichtsbehörde einschlägig:',
             placeholder: '[zuständige Aufsichtsbehörde]',
+        },
+        section10: {
+            heading: '10. Freiwillige Spende anonymisierter Ankreuzfeld-Ausschnitte',
+            para1: 'Lehrkräfte können in den Einstellungen freiwillig (Opt-in, standardmäßig deaktiviert) einwilligen, zur Verbesserung der automatischen Erkennung von Ankreuzfeldern Ausschnitte bereits von ihnen geprüfter Multiple-Choice-Kästchen an den Betreiber dieses Examance-Servers zu senden.',
+            para2: 'Übermittelt werden je Kästchen ausschließlich: ein kleiner Graustufen-Ausschnitt des Kästchens und des danebenliegenden Korrekturfelds (ohne Aufgabentext), die von der Lehrkraft geprüfte Entscheidung „angekreuzt / nicht angekreuzt“ sowie technische Messwerte der Erkennung. Nicht übermittelt werden Namen, Pseudonyme, Kennungen von Prüfung, Abgabe oder Aufgabe oder Zeitstempel; je Kästchen wird lediglich eine zufällig erzeugte Kennung übertragen, damit eine spätere Korrektur der Lehrkraft die frühere Wertung ersetzt. Die Übermittlung erfolgt nur mit angemeldetem Konto, damit ausschließlich Konten dieser Installation spenden können; das Konto wird dabei nicht mit den Ausschnitten gespeichert, sondern nur für ein Tageskontingent verwendet, dessen Zähler (Hashwert der Kontokennung) nach 24 Stunden verfällt. IP-Adressen werden nicht zusammen mit den Ausschnitten gespeichert. Die Ausschnitte werden vor der Übertragung im Browser anonymisiert und auf dem Server ohne Bezug zu Personen gespeichert.',
+            para3Before: 'Die Ausschnitte werden ausschließlich zum Trainieren und Bewerten des Erkennungsverfahrens verwendet und nach',
+            retentionPlaceholder: '[TRAINING_SAMPLE_RETENTION_DAYS]',
+            para3After: 'Tagen gelöscht. Die Einwilligung kann jederzeit in den Einstellungen widerrufen werden; bereits übermittelte Ausschnitte können mangels Personenbezug nicht mehr einzelnen Personen zugeordnet und daher nicht gezielt gelöscht werden.',
+            legalBasisPlaceholder: '[Rechtsgrundlage der Anonymisierung und Übermittlung durch die Schule / Lehrkraft — rechtlich prüfen]',
         },
     },
 } as const;

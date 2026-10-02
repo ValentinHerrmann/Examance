@@ -9,7 +9,7 @@
   } from "$lib/grading/mcScore";
   import { renderMcCrop } from "$lib/grading/mcCropRender";
   import { t, translate } from "$lib/i18n";
-  import type { McQueueCategory } from "$lib/grading/mcVerification";
+  import { isMcReviewed, type McQueueCategory } from "$lib/grading/mcVerification";
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import { safeLocalStorage } from "$lib/utils/storage";
 
@@ -96,6 +96,16 @@
   $: questionType = (exercise.questionType as McQuestionType) || "mc";
   $: isSingleAnswer = questionType === "sc" || questionType === "tf";
   $: flaggedOptions = new Set(omrMeta?.flaggedOptions ?? []);
+  // Why shape analysis changed/flagged a box — recorded at detection, survives corrections.
+  $: reasonsByOption = new Map(
+    (omrMeta?.detections?.bubbles ?? []).map((b) => [b.optionIndex, b.reasons ?? []])
+  );
+  // The detector's provisional reading of an uncertain box — what counts until verified.
+  $: provisionalByOption = new Map(
+    (omrMeta?.detections?.bubbles ?? [])
+      .filter((b) => b.detectedState === "ambiguous" && b.provisional !== undefined)
+      .map((b) => [b.optionIndex, b.provisional as boolean])
+  );
   $: confidence = omrMeta?.confidence ?? "ambiguous";
   $: source = omrMeta?.source ?? "omr";
 
@@ -108,7 +118,7 @@
     scanPdfBytes && omrMeta?.detections && submissionId && exercise?.id
       ? `${submissionId}:${exercise.id}:${omrMeta.detections.pageIndex}:${neighbourRects.map((r) => r.join(",")).join(";")}:${omrMeta.detections.bubbles
           .map((b) => `${b.optionIndex}:${b.state}:${b.rect.join(",")}`)
-          .join("|")}`
+          .join("|")}:${isMcReviewed(omrMeta) ? "r" : "u"}`
       : "";
 
   let lastLoadedCropKey = "";
@@ -242,7 +252,7 @@
   // exactly, so this badge can never drift from the calibration stats.
   type ReviewStatus = "unreviewed" | "confirmedUnchanged" | "manuallyCorrected";
   $: reviewStatus = ((): ReviewStatus => {
-    const reviewed = !!omrMeta?.reviewedAt || source === "manual";
+    const reviewed = isMcReviewed(omrMeta);
     if (!reviewed) return "unreviewed";
     return hasOriginal && !isMatchesOriginal ? "manuallyCorrected" : "confirmedUnchanged";
   })();
@@ -539,7 +549,19 @@
                   class="h-4 w-4 rounded border-slate-600 bg-slate-800 text-sky-500 focus:ring-sky-400 cursor-pointer pointer-events-auto"
                 />
                 <span class="font-mono text-xs text-slate-400 font-bold">{letter}.</span>
-                <span class="text-slate-200 truncate">{opt}</span>
+                <span class="flex min-w-0 flex-col">
+                  <span class="text-slate-200 truncate">{opt}</span>
+                  {#each reasonsByOption.get(idx) ?? [] as reason}
+                    <span class="text-[0.7rem] font-normal text-amber-300">{$t(`scanning.itemCard.reason.${reason}`)}</span>
+                  {/each}
+                  {#if reviewStatus === "unreviewed" && provisionalByOption.has(idx)}
+                    <span class="text-[0.7rem] font-normal text-amber-300">
+                      {provisionalByOption.get(idx)
+                        ? $t("scanning.itemCard.provisionalTicked")
+                        : $t("scanning.itemCard.provisionalNotTicked")}
+                    </span>
+                  {/if}
+                </span>
               </div>
               <div class="flex items-center gap-2 shrink-0">
                 {#if isSelected}

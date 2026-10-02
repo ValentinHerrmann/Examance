@@ -4,12 +4,13 @@ from __future__ import annotations
 import hashlib
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, func, select, update
 
 from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.audit_log import AuditLog
 from app.models.exam import Exam
+from app.models.omr_training_sample import OmrTrainingSample
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 
@@ -23,6 +24,8 @@ async def run(*, dry_run: bool = False) -> int:
     2. Student identities and submissions whose grace deadline has passed are
        hard-deleted.
     3. Audit entries older than AUDIT_LOG_RETENTION_DAYS are removed.
+    4. Donated OMR training samples older than TRAINING_SAMPLE_RETENTION_DAYS
+       are removed.
 
     Step 1's cascade is the part that matters: soft-deleting the exam alone —
     which is all this service used to do — left the student personal data in the
@@ -35,6 +38,7 @@ async def run(*, dry_run: bool = False) -> int:
     now = datetime.now(tz=UTC)
     grace_deadline = today + timedelta(days=settings.RETENTION_GRACE_DAYS)
     audit_cutoff = now - timedelta(days=settings.AUDIT_LOG_RETENTION_DAYS)
+    sample_cutoff = today - timedelta(days=settings.TRAINING_SAMPLE_RETENTION_DAYS)
 
     async with AsyncSessionLocal() as db:
         # 1. Exams whose retention period has elapsed.
@@ -70,11 +74,22 @@ async def run(*, dry_run: bool = False) -> int:
         )
         expired_audit = list(expired_audit_res.scalars().all())
 
+        # 4. Anonymous training samples past their retention period. Counted, then
+        # deleted by date below — never by an id list, which a backlog would push
+        # past the driver's bind-parameter limit.
+        expired_sample_filter = OmrTrainingSample.created_on < sample_cutoff
+        expired_sample_count = (
+            await db.scalar(
+                select(func.count()).select_from(OmrTrainingSample).where(expired_sample_filter)
+            )
+        ) or 0
+
         total_affected = (
             len(expired_exams)
             + len(expired_students)
             + len(expired_submissions)
             + len(expired_audit)
+            + expired_sample_count
         )
 
         if dry_run:
@@ -111,6 +126,9 @@ async def run(*, dry_run: bool = False) -> int:
 
         for entry in expired_audit:
             await db.delete(entry)
+
+        if expired_sample_count:
+            await db.execute(delete(OmrTrainingSample).where(expired_sample_filter))
 
         # Audit the exam expiries. Deliberately no entry per erased student
         # record: that would recreate, in the audit trail, the very identifiers

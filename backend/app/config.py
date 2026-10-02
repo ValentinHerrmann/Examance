@@ -110,6 +110,17 @@ class Settings(BaseSettings):
     # Audit entries carry teacher_email and ip_hash. Art. 17(3) justifies
     # keeping them, but not indefinitely.
     AUDIT_LOG_RETENTION_DAYS: int = 365
+    # Opt-in, anonymous OMR training samples (routers/training.py). Unlinked to
+    # any person, but still not kept forever.
+    TRAINING_SAMPLE_RETENTION_DAYS: int = 730
+
+    # Accept opt-in training-data donations (anonymous checkbox crops). False
+    # disables POST /training/omr-samples and hides the option in the client.
+    TRAINING_DONATION_ENABLED: bool = True
+    # Donations need a signed-in account; these bound what one account, and all
+    # accounts together, can add per UTC day (the endpoint answers 429 above).
+    TRAINING_SAMPLES_PER_TEACHER_PER_DAY: int = 2000
+    TRAINING_SAMPLES_PER_DAY_MAX: int = 20000
 
     # Body size limits (bytes)
     # Compile requests carry the document plus, in local-storage mode, every
@@ -120,6 +131,8 @@ class Settings(BaseSettings):
     BODY_LIMIT_RESOURCE: int = 7 * 1024 * 1024      # 7 MB
     BODY_LIMIT_SUBMISSION: int = 50 * 1024 * 1024   # 50 MB
     BODY_LIMIT_STUDENTS: int = 1 * 1024 * 1024      # 1 MB
+    # Up to 100 donated checkbox crops (3840 B raw, ~5.1 KB base64) plus features.
+    BODY_LIMIT_TRAINING: int = 1 * 1024 * 1024      # 1 MB
     BODY_LIMIT_DEFAULT: int = 256 * 1024             # 256 KB
 
     # Initial admin bootstrap credentials

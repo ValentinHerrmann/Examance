@@ -1,4 +1,5 @@
 import { get } from "svelte/store";
+import { effectiveRedoRect } from "./omrShape";
 import { loadPdfjs } from "$lib/pdf/pdfjs";
 import type { 
   ExamRecord, 
@@ -321,7 +322,10 @@ ${exerciseInputs}
 
     for (const b of bubbles) {
       const redoRect = redoRects.get(`${b.exerciseId}|${b.optionIndex}`);
-      if (redoRect) b.redoRect = redoRect;
+      // The captured redo link overlaps the box itself (zero-width \makebox + \special in
+      // Loesung.sty); store the zone that is really left of it. The worker applies the same
+      // correction to templates captured before this fix.
+      if (redoRect) b.redoRect = effectiveRedoRect(b.rect, redoRect);
     }
 
     console.log(`[PrepareOMR] Page ${pageNum}: totalAnnotations=${annotations.length}, fiducials=${fiducials.length}, bubbles=${bubbles.length}`);

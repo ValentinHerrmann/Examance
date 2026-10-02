@@ -52,6 +52,7 @@ Derived from the backend models and `data_flow_and_security.md` §3. "Pseudonymo
 | Exam metadata (title, class, subject, date, teacher surname) | Personal (identifies a teacher and a class) | Server | **No** |
 | Teacher email, role, password hash | Personal | Server (`teachers`) | Hash only (Argon2id) |
 | Audit entries: teacher email, action, SHA-256 of target, SHA-256 of IP | Personal | Server (`audit_logs`) | **No** (IP is hashed) |
+| MC training-data donation: 80×48 grayscale checkbox crop, verified label, detector reading, features | Opt-in, off by default, signed-in accounts only; anonymised at rest (no name/pseudonym/exam/submission/question id, no account, no IP stored; only a random per-box token) | Server (`omr_training_samples`) | No — not personal data as stored, but see note below |
 
 Two consequences worth stating plainly: the "zero-knowledge" property is real for student identity, scans and annotations, and **not** claimed for scores or metadata; and pseudonymous is not anonymous, so the full Regulation applies to submissions.
 
@@ -181,6 +182,8 @@ Neither is a disclosure of exam content: only request metadata leaves the browse
 Two controls now hold the line, which is the point of the finding: the CSP is `default-src 'self'` with no CDN allowances, so a reintroduced load is *blocked* rather than silently working; and `frontend/tests/cspHeaders.test.ts` fails the build if any file under `frontend/src/` names an off-origin host outside a small allowlist (XML namespaces, `localhost`, and a form placeholder).
 
 **Note for a reader assessing the past:** these loads were live in every deployed version before this branch. If a retrospective assessment is needed, the exposure is request metadata only, continuous, to Cloudflare Inc. (pdf.js) and the `http.cat` operator.
+
+**Note on the MC training-data donation:** it does not reopen this finding. The donation, when a teacher switches it on in Settings and is signed in, goes only to the same operator-configured backend the app already talks to — no new host, and covered by the existing CSP. It is opt-in and off by default, unlike the loads above, which were unconditional. See `data_flow_and_security.md` "Training-data donation (opt-in)" for what is and is not sent.
 
 ### L17 — Student name and fallback code stored in plaintext in IndexedDB · Art. 5(1)(f), 32 · [C+P] · **Fixed**
 

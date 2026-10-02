@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from "$app/stores";
   import { goto, afterNavigate } from "$app/navigation";
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import { browser } from "$app/environment";
   import { get } from "svelte/store";
   import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
@@ -20,6 +20,7 @@
   import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "$lib/db/schema";
   import McItemVerificationCard from "$lib/components/verify/McItemVerificationCard.svelte";
   import { PageShell, Modal, Button } from "$lib/components/ui";
+  import { flushAll, flushQuestion, stageVerifiedQuestion } from "$lib/services/trainingDonation";
 
   $: examId = $page.params.id || "";
   $: submissionId = $page.url.searchParams.get("submissionId") || "";
@@ -196,13 +197,26 @@
 
     await scoreRepository.saveOne(examId, scoreToSave, key);
     currentScoreRecord = scoreToSave;
+    // Opt-in training-data donation: only staged here, built once the teacher moves on.
+    stageVerifiedQuestion(examId, scoreToSave, scanPdfBytes);
   }
 
+  /** The teacher leaves the current question — donate it if it was verified (opt-in). */
+  function leaveCurrentQuestion() {
+    if (submissionId && exerciseId) void flushQuestion(submissionId, exerciseId);
+  }
+
+  onDestroy(() => {
+    void flushAll();
+  });
+
   function goBackToDashboard() {
+    leaveCurrentQuestion();
     goto(`/exam/${examId}/verify?queue=${queueFilter}`);
   }
 
   function handleNext() {
+    leaveCurrentQuestion();
     if (currentIndex >= 0 && currentIndex < activeQueueItems.length - 1) {
       const nextItem = activeQueueItems[currentIndex + 1];
       goto(
@@ -218,6 +232,7 @@
   }
 
   function handlePrev() {
+    leaveCurrentQuestion();
     if (currentIndex > 0) {
       const prevItem = activeQueueItems[currentIndex - 1];
       goto(
@@ -227,10 +242,12 @@
   }
 
   function handleOpenGrading() {
+    leaveCurrentQuestion();
     goto(`/exam/${examId}/grade?submissionId=${submissionId}&exerciseId=${exerciseId}`);
   }
 
   function navigateToItem(targetExerciseId: string, category: McQueueCategory) {
+    leaveCurrentQuestion();
     goto(
       `/exam/${examId}/verify-item?submissionId=${submissionId}&exerciseId=${targetExerciseId}&queue=${category}`
     );

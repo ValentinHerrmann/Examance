@@ -24,7 +24,7 @@ export const help = {
     },
     tips: {
         storageLocal:
-            'Alles bleibt verschlüsselt im Browser dieses Geräts. Kein Byte erreicht einen Server — dafür gibt es auch keine Synchronisierung und kein Backup außer dem .bgproj-Archiv.',
+            'Alles bleibt verschlüsselt im Browser dieses Geräts. Kein Byte erreicht einen Server — dafür gibt es auch keine Synchronisierung und kein Backup außer dem .bgproj-Archiv. Ausnahme: die freiwillige, anonymisierte Spende von Ankreuz-Bildausschnitten, sofern in den Einstellungen aktiviert und mit einem Server-Konto angemeldet.',
         storageServer:
             'Alle Daten werden synchronisiert, aber ausschließlich als Chiffrat. Der Schlüssel bleibt im Browser, der Server kann die Inhalte nicht lesen.',
         storageHybrid:
@@ -139,7 +139,7 @@ export const help = {
             s1: {
                 h: 'Stapel einlesen',
                 p1: 'Scannen Sie den kompletten Stapel am Schulkopierer in ein einziges PDF und laden Sie es hier hoch. Examance trennt es anhand der QR-Codes in einzelne Abgaben.',
-                p2: 'Jede Seite wird sofort im Browser verschlüsselt. Im lokalen Modus verlässt der Scan das Gerät nicht.',
+                p2: 'Jede Seite wird sofort im Browser verschlüsselt. Im lokalen Modus verlässt der Scan das Gerät nicht — abgesehen von den optional gespendeten, anonymisierten Bildausschnitten einzelner Kästchen.',
             },
             s2: {
                 h: 'Pseudonyme statt Namen',
@@ -148,6 +148,13 @@ export const help = {
             s3: {
                 h: 'Wenn die Zuordnung nicht klappt',
                 p1: 'Unlesbare oder fehlende QR-Codes landen in der Prüfansicht. Dort lassen sich Seiten von Hand der richtigen Abgabe zuweisen oder über den Ersatzcode auf dem Bogen nachtragen.',
+            },
+            s4: {
+                h: 'MC-Erkennung prüfen und erneut ausführen',
+                p1: 'Angekreuzte Kästchen werden beim Einlesen automatisch erkannt. In der MC-Prüfansicht bestätigen oder korrigieren Sie unsichere Erkennungen; jede bestätigte oder korrigierte Frage gilt als geprüft.',
+                p2: '„MC-Erkennung erneut ausführen“ wertet alle Scans mit den aktuellen Einstellungen neu aus. Noch nicht geprüfte Fragen übernehmen das neue Ergebnis; bei geprüften Fragen bleiben Ihre Antwort und Punktzahl immer unverändert, nur ihre Erkennung wird zum Vergleich neu berechnet. Von Hand eingetragene Punktzahlen bleiben unberührt. Vorher zeigt ein Dialog, was sich ändert und ob die Einstellungen vom letzten Lauf abweichen; der Bereich „Erkennungseinstellungen“ vergleicht die Werte des letzten Laufs mit den aktuell gültigen.',
+                p3: 'Neben dem Füllgrad prüft die Erkennung auch die Form der Markierung: Ein gleichmäßig ausgefülltes Kästchen gilt als zurückgenommen, eine Markierung weit über das Kästchen hinaus oder eine sehr blasse Markierung wird als unsicher vorgelegt. Der Grund steht in der Prüfansicht direkt bei der Antwortoption. Beim Verfahren v2 lässt sich die Formanalyse in den Einstellungen abschalten. Unter Einstellungen → MC-Erkennung wählen Sie das Erkennungsverfahren: v4 (Standard, Strichform) oder v2 (älteres Verfahren, Füllgrad). Das jeweils andere läuft immer mit; der Bereich „Erkennungseinstellungen“ der Prüfansicht zeigt, wie viele Ihrer geprüften Kästchen jedes Verfahren richtig erkannt hätte. Unsichere Kästchen bleiben gelb umrahmt, bis die Frage geprüft ist.',
+                p4: 'Bis zur Prüfung zählt ein unsicheres Kästchen vorläufig als das Ergebnis, dem die Messwerte näher liegen — angekreuzt oder nicht angekreuzt; die Prüfansicht zeigt dazu „Vorläufig als angekreuzt / nicht angekreuzt gewertet“. Der Button „🎲 Stichprobe prüfen“ öffnet eine zufällige, noch nicht geprüfte, aber sichere Erkennung — so lassen sich auch unauffällige Fragen stichprobenhaft kontrollieren.',
             },
         },
         grading: {
@@ -206,7 +213,7 @@ export const help = {
         },
         settings: {
             title: 'Einstellungen',
-            summary: 'Speicherstrategie, LaTeX-Kompilierung, Sprache und Datenlöschung.',
+            summary: 'Speicherstrategie, LaTeX-Kompilierung, Sprache, MC-Erkennung und Datenlöschung.',
             s1: {
                 h: 'Speicherstrategie',
                 p1: 'Legt fest, wo Aufgaben, Klausuren und Schülerdaten liegen. Die Voreinstellung ist der rein lokale Modus.',
@@ -224,6 +231,16 @@ export const help = {
                 h: 'Sitzung und Löschung',
                 p1: 'Die Sitzung sperrt sich nach Inaktivität von selbst; danach sind alle Inhalte wieder nur mit dem Passwort erreichbar.',
                 p2: 'Über die Datenlöschung lassen sich einzelne Schülerdaten (Auskunfts- und Löschansprüche nach DSGVO) oder der gesamte Arbeitsbereich entfernen. Das Löschen ist endgültig und kann nicht rückgängig gemacht werden.',
+            },
+            s5: {
+                h: 'MC-Erkennung feinjustieren',
+                p1: 'Die Schwellenwerte für die Erkennung angekreuzter Kästchen lassen sich anpassen, etwa wenn ein Scanner sehr hell oder dunkel scannt. Die Einstellungen gelten nur für künftige Erkennungsläufe; bereits erkannte und geprüfte Ergebnisse ändern sich nicht. Jeder Lauf speichert die verwendeten Werte mit.',
+                p2: 'Die Einstellungen liegen nur in diesem Browser und werden nicht mit anderen Geräten synchronisiert. „Auf Standardwerte zurücksetzen“ stellt die mitgelieferten Werte wieder her.',
+            },
+            s6: {
+                h: 'MC-Erkennung verbessern (freiwillig)',
+                p1: 'Ist diese Option aktiviert und sind Sie mit einem Server-Konto angemeldet, sammelt der Browser für jede geprüfte oder korrigierte Ankreuzfrage einen kleinen Bildausschnitt je Kästchen (80×48 Pixel, Graustufen, ohne Aufgabentext) mit der bestätigten Wertung, der ursprünglichen Erkennung und ein paar Messwerten und sendet sie gebündelt an den Server dieser Installation. Namen, Pseudonyme, Klausur-, Abgabe- oder Fragen-IDs und Zeitstempel werden nicht mitgeschickt; je Kästchen nur eine zufällige Kennung, damit eine spätere Korrektur die frühere Wertung ersetzt. Die Anmeldung dient nur dem Missbrauchsschutz — das Konto wird nicht mit den Ausschnitten gespeichert.',
+                p2: 'Ziel ist ein gemeinsamer, besserer Klassifikator, von dem auch neue Installationen von Anfang an profitieren. Die Einstellung ist standardmäßig aus, gilt nur für diesen Browser und lässt sich jederzeit wieder abschalten.',
             },
         },
         security: {
