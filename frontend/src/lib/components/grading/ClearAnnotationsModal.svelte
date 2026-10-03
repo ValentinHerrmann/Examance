@@ -1,7 +1,8 @@
 <script lang="ts">
   import { gradingStore } from "$lib/grading/gradingStore";
   import { t } from "$lib/i18n";
-  import { Modal, Button } from "$lib/components/ui";
+  import { faTrashCan } from "@fortawesome/free-solid-svg-icons";
+  import { Modal, Button, Icon } from "$lib/components/ui";
 
   // Destructive action confirm/cancel are callback props out to the parent,
   // which gates the actual clearing behind the user's explicit confirmation.
@@ -9,20 +10,20 @@
   export let onCancel: () => void;
 </script>
 
-<Modal open={$gradingStore.showClearConfirmModal} size="sm" onClose={onCancel} bare>
+<Modal open={$gradingStore.showClearConfirmModal} size="small" onClose={onCancel} bare>
   <div class="flex flex-col items-center gap-4 p-8 text-center">
-    <div class="flex h-14 w-14 items-center justify-center rounded-full bg-red-500/20 text-2xl text-red-500">
-      🗑
+    <div class="flex size-14 items-center justify-center rounded-full bg-danger/20 text-2xl text-danger-fg">
+      <Icon icon={faTrashCan} />
     </div>
-    <h3 class="m-0 text-xl text-content">{$t("grading.clearModal.title")}</h3>
+    <h3 class="m-0 text-xl font-semibold text-content">{$t("grading.clearModal.title")}</h3>
     <p class="m-0 text-sm text-muted">
       {$t("grading.clearModal.body")}
     </p>
     <div class="mt-2 flex w-full flex-col gap-2">
-      <Button variant="danger" block onClick={onConfirm}>
+      <Button severity="danger" block onClick={onConfirm}>
         {$t("grading.clearModal.confirm")}
       </Button>
-      <Button variant="secondary" block onClick={onCancel}>
+      <Button variant="outlined" severity="secondary" block onClick={onCancel}>
         {$t("common.cancel")}
       </Button>
     </div>

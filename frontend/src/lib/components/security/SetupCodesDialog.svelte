@@ -13,7 +13,7 @@
    * and acknowledged once. Either half may be absent: a sign-in that only
    * created the envelope has no backup codes to show, and vice versa.
    */
-  import { Button, Modal } from "$lib/components/ui";
+  import { Alert, Button, Checkbox, Modal } from "$lib/components/ui";
   import { t } from "$lib/i18n";
 
   export let backupCodes: string[] | null = null;
@@ -56,7 +56,7 @@
 
 <Modal
   open={true}
-  size="md"
+  size="medium"
   title={$t("security.setupCodes.title")}
   closeOnBackdrop={false}
   closeOnEscape={false}
@@ -90,36 +90,28 @@
         </h3>
         <p class="m-0 text-sm text-muted">{$t("security.setupCodes.recoveryPurpose")}</p>
         <code
-          class="block overflow-x-auto rounded-lg bg-surface-inset p-4 text-center font-mono
+          class="block overflow-x-auto rounded-md bg-surface-inset p-4 text-center font-mono
                  text-base tracking-widest text-content select-all sm:text-lg"
         >
           {recoveryCode}
         </code>
         <div>
-          <Button variant="secondary" onClick={copyRecovery}>
+          <Button severity="secondary" onClick={copyRecovery}>
             {copied ? $t("security.recovery.copied") : $t("security.recovery.copy")}
           </Button>
         </div>
       </section>
     {/if}
 
-    <p
-      class="rounded-lg border border-line-strong bg-surface-sunken p-3 text-sm text-content"
-      role="alert"
-    >
-      {$t("security.setupCodes.warning")}
-    </p>
+    <Alert severity="warning">{$t("security.setupCodes.warning")}</Alert>
 
     <div>
-      <Button variant="secondary" onClick={download}>
+      <Button severity="secondary" onClick={download}>
         {$t("security.setupCodes.download")}
       </Button>
     </div>
 
-    <label class="flex items-start gap-2 text-sm text-content">
-      <input type="checkbox" bind:checked={acknowledged} class="mt-1" />
-      <span>{$t("security.setupCodes.confirmLabel")}</span>
-    </label>
+    <Checkbox class="items-start" bind:checked={acknowledged} label={$t("security.setupCodes.confirmLabel")} />
   </div>
 
   <svelte:fragment slot="footer">

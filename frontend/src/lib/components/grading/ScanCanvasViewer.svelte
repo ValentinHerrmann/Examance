@@ -11,6 +11,7 @@
    * page — it is the highest-risk area (submission switching, redraw timing,
    * pinch-zoom) so every function here is a close 1:1 port of the original.
    */
+  import { cssVar } from "$lib/utils/cssVar";
   import { tick, onMount } from "svelte";
   import { loadPdfjs } from "$lib/pdf/pdfjs";
   import { get } from "svelte/store";
@@ -21,6 +22,7 @@
   import { gradingStore, type VectorStroke } from "$lib/grading/gradingStore";
   import { recalculateAutoScores } from "$lib/grading/autoScore";
   import { loadLocalMcGroups } from "$lib/db/dbEncryption";
+  import { buildSubLabelMap } from "$lib/grading/mcGroupLabels";
   import { drawMissingSymbol, drawCheckmark, drawOmrOverlayForPage } from "$lib/grading/omrOverlay";
   import { getAutoCropBounds } from "./ScanCanvasViewer";
   import { translate } from "$lib/i18n";
@@ -41,14 +43,7 @@
   }
 
   async function loadMcGroupLetters(id: string) {
-    const groups = await loadLocalMcGroups(id).catch(() => []);
-    const next = new Map<string, string>();
-    for (const group of groups) {
-      group.memberIds.forEach((exerciseId, idx) => {
-        next.set(exerciseId, String.fromCharCode(97 + idx));
-      });
-    }
-    subExerciseLetters = next;
+    subExerciseLetters = buildSubLabelMap(await loadLocalMcGroups(id).catch(() => []));
   }
 
   let scanCanvas: HTMLCanvasElement;
@@ -142,9 +137,9 @@
       scanCanvas.height = 800;
       overlayCanvas.width = 600;
       overlayCanvas.height = 800;
-      ctx.fillStyle = "#1e293b";
+      ctx.fillStyle = cssVar("--color-surface-raised", "#ffffff");
       ctx.fillRect(0, 0, 600, 800);
-      ctx.fillStyle = "#94a3b8";
+      ctx.fillStyle = cssVar("--color-muted", "#64748b");
       ctx.font = "16px sans-serif";
       ctx.fillText(translate("grading.canvas.scanMissing"), 150, 400);
       return;
@@ -254,9 +249,9 @@
         scanCanvas.height = 800;
         overlayCanvas.width = 600;
         overlayCanvas.height = 800;
-        ctx.fillStyle = "#1e293b";
+        ctx.fillStyle = cssVar("--color-surface-raised", "#ffffff");
         ctx.fillRect(0, 0, 600, 800);
-        ctx.fillStyle = "#ef4444";
+        ctx.fillStyle = cssVar("--color-danger-fg", "#a61b29");
         ctx.font = "16px sans-serif";
         ctx.fillText(translate("grading.canvas.scanDecryptFailed"), 80, 400);
       }
@@ -648,14 +643,14 @@
 </script>
 
 <div
-  class="scroll-pane relative box-border h-full min-h-0 w-full flex-1 overflow-auto overscroll-contain bg-[#020617] p-2"
+  class="scroll-pane relative box-border h-full min-h-0 w-full flex-1 overflow-auto overscroll-contain bg-surface-viewer p-2"
   bind:this={canvasViewport}
   on:wheel={handleWheel}
 >
   <!-- No `max-w-full` here: it silently clamped every zoom above 100% instead
        of letting the viewport scroll, so zooming in did nothing. -->
   <div class="relative mx-auto block" style="width: {$gradingStore.zoomScale * 100}%;">
-    <canvas bind:this={scanCanvas} class="block w-full h-auto rounded shadow-[0_8px_30px_rgba(0,0,0,0.7)]"></canvas>
+    <canvas bind:this={scanCanvas} class="block w-full h-auto rounded-sm shadow-md"></canvas>
     <canvas
       bind:this={overlayCanvas}
       class="absolute top-0 left-0 h-full w-full cursor-crosshair touch-none"

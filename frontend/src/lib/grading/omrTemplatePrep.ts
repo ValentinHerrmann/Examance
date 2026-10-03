@@ -1,4 +1,5 @@
 import { get } from "svelte/store";
+import { effectiveRedoRect } from "./omrShape";
 import { loadPdfjs } from "$lib/pdf/pdfjs";
 import type { 
   ExamRecord, 
@@ -8,7 +9,6 @@ import type {
   OmrFiducialRect, 
   OmrTemplatePayload 
 } from "$lib/db/schema";
-import { formatExamCourse } from "$lib/utils/examLabel";
 import { 
   type McGroup, 
   loadExamEncrypted, 
@@ -17,11 +17,11 @@ import {
   loadExercisesEncrypted, 
   saveOmrTemplateEncrypted 
 } from "$lib/db/dbEncryption";
-import { computeMcExercisesHash, resolveMcExercises, normalizeMcExercise } from "$lib/grading/mcExerciseHash";
+import { computeMcExercisesHash, resolveMcExercises } from "$lib/grading/mcExerciseHash";
 import { compileWithCache } from "$lib/latex/compileCache";
-import { formatExerciseLatex, formatMcGroupLatex } from "$lib/latex/scoreParser";
+import { buildExamLatex, buildExerciseInputs, collectExamResources } from "$lib/exam/examPreview";
+import { mapApiToExerciseRecord } from "$lib/repositories/exerciseRepository";
 import { api } from "$lib/api/client";
-import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
 import { mapApiToExamRecord } from "$lib/repositories/examRepository";
 import { isAuthenticated } from "$lib/stores/session";
 import { storagePolicyStore } from "$lib/stores/storagePolicy";
@@ -86,21 +86,7 @@ export async function loadExamCompileContext(examId: string, key: CryptoKey | nu
     try {
       const remoteExam = (await api.get(`/exams/${examId}`)) as any;
       exam = mapApiToExamRecord(remoteExam);
-      exercises = remoteExam.exercises.map((e: any) => normalizeMcExercise({
-        id: e.id,
-        name: e.name,
-        topicTag: e.topic_tag,
-        latexBody: e.latex_body,
-        maxPoints: e.max_points,
-        version: e.version || 1,
-        orderIndex: e.order_index,
-        questionType: e.question_type || "free_text",
-        options: e.options,
-        correctAnswers: e.correct_answers || e.correctAnswers,
-        penalty: e.penalty || 0,
-        mcGroupId: e.mc_group_id || undefined,
-        subIndex: e.sub_index || undefined,
-      }));
+      exercises = remoteExam.exercises.map(mapApiToExerciseRecord);
       if (remoteExam.mc_groups && Array.isArray(remoteExam.mc_groups)) {
         mcGroups = mapRemoteMcGroups(remoteExam.mc_groups);
       } else {
@@ -126,68 +112,6 @@ export async function loadExamCompileContext(examId: string, key: CryptoKey | nu
   } catch {}
 
   return { exam, exercises, libraryExercises, mcGroups };
-}
-
-function buildExerciseInputs(
-  examItems: ExamItemRef[],
-  exercises: ExerciseRecord[],
-  libraryExercises: ExerciseRecord[],
-  mcGroups: McGroup[]
-): string {
-  let exerciseCount = 0;
-  return examItems
-    .map((item) => {
-      if (item.type === "exercise") {
-        const ex = exercises.find((e) => e.id === item.id);
-        if (!ex) return "";
-        exerciseCount++;
-        return formatExerciseLatex(
-          ex.latexBody,
-          ex.name || `Aufgabe ${exerciseCount}`,
-          ex.id,
-        );
-      } else {
-        const group = mcGroups.find((g) => g.id === item.id);
-        if (!group) return "";
-        const members = group.memberIds
-          .map((id) => libraryExercises.find((e) => e.id === id) || exercises.find((e) => e.id === id))
-          .filter((e): e is ExerciseRecord => Boolean(e));
-        return formatMcGroupLatex(
-          members.map((m) => ({ id: m.id, latexBody: m.latexBody || "" })),
-          group.title,
-          group.scoringText,
-        );
-      }
-    })
-    .filter(Boolean)
-    .join("\n\n");
-}
-
-async function collectExamResources(
-  examItems: ExamItemRef[],
-  exercises: ExerciseRecord[],
-  libraryExercises: ExerciseRecord[],
-  mcGroups: McGroup[],
-  sessionKey: CryptoKey | null
-) {
-  const owners: { id: string; label?: string }[] = [];
-  let exerciseCount = 0;
-  for (const item of examItems) {
-    if (item.type === "exercise") {
-      const ex = exercises.find((e) => e.id === item.id);
-      if (ex) owners.push({ id: ex.id, label: ex.name || `Aufgabe ${++exerciseCount}` });
-    } else {
-      const group = mcGroups.find((g) => g.id === item.id);
-      for (const memberId of group?.memberIds ?? []) {
-        const member =
-          libraryExercises.find((e) => e.id === memberId) ||
-          exercises.find((e) => e.id === memberId);
-        if (member) owners.push({ id: member.id, label: member.name || group?.title });
-      }
-    }
-  }
-  const needBytes = get(storagePolicyStore).latexCompilation === "local";
-  return exerciseResourceRepository.collectForCompile(owners, sessionKey, needBytes);
 }
 
 export interface PrepareOmrTemplateArgs {
@@ -232,27 +156,8 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
 
   const examItems = suppliedExamItems ?? buildExamItems(exercises, mcGroups);
   const exerciseInputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups);
-  const opts = ["sans", "punkte"];
 
-  const fullTex = `\\documentclass[a4paper]{article}
-\\usepackage[${opts.join(",")}]{sty/Schulaufgabe}
-\\Info{${exam.infoText || ""}}
-\\Fach{${exam.fach || "Informatik"}}
-\\Lehrernachname{${exam.lehrernachname || ""}}
-\\usepackage{fontspec}
-\\usetikzlibrary{shapes.geometric, arrows}
-\\usepackage{sty/tikz-uml}
-\\neverindent
-\\WarningsOff
-\\begin{document}
-\\Testart{${exam.testart || "Kurzarbeit"}}
-\\Klasse{${formatExamCourse(exam.grade, exam.klasse)}}
-\\Datum{${exam.datum || ""}}
-\\Nr{${exam.nr || "1"}}
-
-${exerciseInputs}
-
-\\end{document}`;
+  const fullTex = buildExamLatex(exam, exerciseInputs, "sans,punkte");
 
   const omrExCount = (fullTex.match(/\\OmrExercise/g) || []).length;
   const multiCount = (fullTex.match(/\\multi/g) || []).length;
@@ -321,7 +226,10 @@ ${exerciseInputs}
 
     for (const b of bubbles) {
       const redoRect = redoRects.get(`${b.exerciseId}|${b.optionIndex}`);
-      if (redoRect) b.redoRect = redoRect;
+      // The captured redo link overlaps the box itself (zero-width \makebox + \special in
+      // Loesung.sty); store the zone that is really left of it. The worker applies the same
+      // correction to templates captured before this fix.
+      if (redoRect) b.redoRect = effectiveRedoRect(b.rect, redoRect);
     }
 
     console.log(`[PrepareOMR] Page ${pageNum}: totalAnnotations=${annotations.length}, fiducials=${fiducials.length}, bubbles=${bubbles.length}`);

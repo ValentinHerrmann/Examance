@@ -1,27 +1,21 @@
 import type { Translations } from '../types';
 
 export const dashboard: Translations['dashboard'] = {
-    loadFailed:
-        'Your exams could not be loaded from the server. What is shown is what this device has locally, which may not be all of it. Sign in again, or try once more in a moment.',
+    loadFailed: 'Your exams could not be loaded from the server. What is shown is what this device has locally, which may not be all of it. Sign in again, or try once more in a moment.',
     header: {
         title: 'Exams Dashboard',
         subtitle: 'Manage, grade, and analyze your Schulaufgabe exams',
         importing: 'Importing…',
-        importButton: '📂 Import .bgproj',
-        createButton: '➕ Create New Exam',
+        importButton: 'Import .bgproj',
+        createButton: 'Create new exam',
+        showFilters: 'Show filters',
+        filtersTitle: 'Filters',
     },
     sessionState: {
         initializing: 'Initializing local session…',
         lockedTitle: 'Session Locked',
         lockedText: 'Please unlock your session to access projects.',
         unlockButton: 'Unlock Session',
-    },
-    kpi: {
-        totalExams: 'Total Exams',
-        subjectCount: 'Configured Subjects',
-        gradeCount: 'Grade Levels',
-        globalAnalytics: 'Global Analytics',
-        viewStats: 'View Multi-Exam Stats →',
     },
     onboarding: {
         welcome: 'Welcome to Examance!',
@@ -32,18 +26,15 @@ export const dashboard: Translations['dashboard'] = {
         step2Text: 'Add questions from your Exercise Library or create new ones.',
         step3Title: 'Scan & Grade',
         step3Text: 'Upload student PDFs, anonymously score, and review analytics.',
-        createFirst: '+ Create First Exam',
+        createFirst: 'Create first exam',
         importArchive: 'Or Import .bgproj Archive',
     },
     filterBar: {
         searchPlaceholder: 'Search exams by title, class, subject…',
-        gradeLabel: 'Grade:',
-        allGrades: 'All Grades',
-        gradeOption: 'Grade {grade}',
-        subjectLabel: 'Subject:',
-        allSubjects: 'All Subjects',
+        allTestarts: 'All exam types ({count})',
     },
-    examGrid: {
+    examList: {
+        loading: 'Loading exams…',
         noResults: 'No exams match your search or filter criteria.',
         untitledExam: 'Untitled Exam',
         classLabel: 'Grade {course}',
@@ -51,6 +42,12 @@ export const dashboard: Translations['dashboard'] = {
         dateLabel: 'Date: {date}',
         retentionUntil: 'Retention until: {date}',
         openExam: 'Open Exam',
+        gradedCount: '{count} graded',
+        versionsCount: '{count} versions',
+        exercisesTitle: 'Used exercises',
+        noExercises: 'No exercises assigned.',
+        loadingExercises: 'Loading exercises…',
+        untitledExercise: 'Untitled exercise',
     },
     retentionModal: {
         title: 'GDPR Retention Warning (Art. 5)',
@@ -66,11 +63,16 @@ export const dashboard: Translations['dashboard'] = {
     importStatus: 'Status: {stage} ({current}%)',
     importFailed: 'Import failed: {message}',
     deleteFailed: 'Delete failed: {message}',
-    deleteExamConfirm: 'Are you sure you want to delete exam "{title}"?',
-    deleteExamFallbackTitle: 'Untitled',
+    deleteModal: {
+        title: 'Delete exam: {title}',
+        warningTitle: 'Warning: exam contains submissions',
+        usageInfo: 'This exam has {count} submission(s).',
+        usageWarning: 'Deleting permanently removes the exam data and all of its submissions.',
+        confirmPlain: 'Do you really want to delete this exam?',
+    },
     error: {
         title: '{status} - Error',
         notFound: 'Page not found',
-        returnButton: 'Return to Dashboard',
+        returnButton: 'Back to exams',
     },
 };

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import "./StudentFirstGrid.css";
+  import { faArrowLeft, faArrowRight, faCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
+  import { Button, EmptyState, TableScroller, controlClass, controlSmClass } from "$lib/components/ui";
   import { get } from "svelte/store";
   import { sessionStore } from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
@@ -174,29 +175,22 @@
   }
 </script>
 
-<div class="student-first-grid">
+<div class="flex min-w-0 flex-col gap-4">
   {#if students.length === 0}
-    <div style="text-align: center; padding: 3rem 1rem; color: #94a3b8;">
-      <p>{$t("grading.manual.studentFirst.noStudents")}</p>
-      <button
-        style="margin-top: 1rem; padding: 0.5rem 1rem; background: #0284c7; color: white; border: none; border-radius: 6px; cursor: pointer;"
-        on:click={onOpenRoster}
-      >
-        {$t("grading.manual.studentFirst.openRoster")}
-      </button>
-    </div>
+    <EmptyState title={$t("grading.manual.studentFirst.noStudents")}>
+      <Button icon={faUsers} onClick={onOpenRoster}>{$t("grading.manual.studentFirst.openRoster")}</Button>
+    </EmptyState>
   {:else if exercises.length === 0}
-    <div style="text-align: center; padding: 3rem 1rem; color: #94a3b8;">
-      <p>{$t("grading.manual.studentFirst.noExercises")}</p>
-      <a href="/exam/{examId}" style="color: #38bdf8; text-decoration: underline;">{$t("grading.manual.studentFirst.goToSetup")}</a>
-    </div>
+    <EmptyState title={$t("grading.manual.studentFirst.noExercises")}>
+      <Button href="/exam/{examId}" variant="text">{$t("grading.manual.studentFirst.goToSetup")}</Button>
+    </EmptyState>
   {:else}
-    <div class="student-first-picker-bar">
-      <div class="student-picker-controls">
-        <label for="student-select" style="font-size: 0.85rem; color: #cbd5e1;">{$t("grading.manual.studentFirst.selectStudent")}</label>
+    <div class="flex flex-wrap items-center justify-between gap-4 rounded-md border border-line bg-surface-sunken p-3">
+      <div class="flex min-w-0 flex-wrap items-center gap-2">
+        <label for="student-select" class="text-sm text-content">{$t("grading.manual.studentFirst.selectStudent")}</label>
         <select
           id="student-select"
-          class="student-picker-select"
+          class="{controlClass} {controlSmClass} w-full sm:w-56"
           bind:value={currentStudentIndex}
           on:change={handleSaveCurrentStudent}
         >
@@ -208,54 +202,60 @@
         </select>
       </div>
 
-      <div class="student-picker-controls">
-        <button
-          class="student-nav-btn"
+      <div class="flex min-w-0 flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          variant="outlined"
+          severity="secondary"
+          icon={faArrowLeft}
           disabled={currentStudentIndex === 0}
-          on:click={prevStudent}
+          onClick={prevStudent}
         >
           {$t("grading.manual.studentFirst.prevStudent")}
-        </button>
-        <span style="font-size: 0.85rem; color: #94a3b8;">
+        </Button>
+        <span class="text-sm text-muted">
           {currentStudentIndex + 1} / {students.length}
         </span>
-        <button
-          class="student-nav-btn"
+        <Button
+          size="sm"
+          variant="outlined"
+          severity="secondary"
+          iconRight={faArrowRight}
           disabled={currentStudentIndex >= students.length - 1}
-          on:click={nextStudent}
+          onClick={nextStudent}
         >
           {$t("grading.manual.studentFirst.nextStudent")}
-        </button>
+        </Button>
       </div>
     </div>
 
     {#if currentStudent}
-      <div class="student-summary-card">
-        <div class="student-summary-info">
-          <h3>{currentStudent.studentName || $t("grading.manual.studentFirst.unnamedStudent")}</h3>
-          <p>{$t("grading.manual.studentFirst.studentInfo", { number: currentStudent.studentNumber || "-", code: currentStudent.fallbackCode || currentStudent.pseudonymId.slice(0, 8) })}</p>
+      <div class="flex flex-wrap items-center justify-between gap-4 rounded-md border border-line bg-surface-raised px-5 py-4">
+        <div class="min-w-0">
+          <h3 class="m-0 mb-1 text-lg font-semibold text-content">{currentStudent.studentName || $t("grading.manual.studentFirst.unnamedStudent")}</h3>
+          <p class="m-0 text-sm text-muted">{$t("grading.manual.studentFirst.studentInfo", { number: currentStudent.studentNumber || "-", code: currentStudent.fallbackCode || currentStudent.pseudonymId.slice(0, 8) })}</p>
         </div>
 
-        <div class="student-grade-badge">
+        <div class="flex flex-col items-end gap-0.5">
           {#if isFullyGraded && gradeDetail}
-            <div class="student-grade-value">{gradeDetail.grade}</div>
-            <div class="student-grade-label">{$t("grading.manual.studentFirst.gradeLabelPoints", { label: gradeDetail.label, score: sumGradedScores, max: totalMaxPoints })}</div>
+            <div class="text-2xl font-bold text-accent">{gradeDetail.grade}</div>
+            <div class="text-sm text-content">{$t("grading.manual.studentFirst.gradeLabelPoints", { label: gradeDetail.label, score: sumGradedScores, max: totalMaxPoints })}</div>
           {:else if parsedScores.some((s) => s !== null)}
-            <div class="student-grade-value" style="color: #f59e0b; font-size: 1.25rem;">
+            <div class="text-xl font-bold text-warning-fg">
               {$t("grading.manual.studentFirst.pointsFraction", { score: sumGradedScores, max: totalMaxPoints })}
             </div>
-            <div class="student-grade-label">{$t("grading.manual.studentFirst.incompleteGrading")}</div>
+            <div class="text-sm text-content">{$t("grading.manual.studentFirst.incompleteGrading")}</div>
           {:else}
-            <div class="student-grade-value" style="color: #64748b; font-size: 1.1rem;">
+            <div class="text-lg font-bold text-muted">
               {$t("grading.manual.studentFirst.ungraded")}
             </div>
-            <div class="student-grade-label">{$t("grading.manual.studentFirst.pointsFraction", { score: 0, max: totalMaxPoints })}</div>
+            <div class="text-sm text-content">{$t("grading.manual.studentFirst.pointsFraction", { score: 0, max: totalMaxPoints })}</div>
           {/if}
         </div>
       </div>
 
-      <div class="student-exercise-table-container">
-        <table class="student-exercise-table">
+      <TableScroller>
+        <table class="data-table data-table-compact data-table-sticky">
           <thead>
             <tr>
               <th>{$t("grading.manual.studentFirst.colNum")}</th>
@@ -273,19 +273,19 @@
                 <td>{idx + 1}</td>
                 <td><strong>{ex.name}</strong></td>
                 <td>{$t("grading.manual.studentFirst.pointsSuffix", { points: ex.maxPoints })}</td>
-                <td>
+                <td class="whitespace-nowrap">
                   <input
                     type="text"
                     bind:this={inputElements[idx]}
                     bind:value={rawInputs[idx]}
-                    class="student-score-input"
-                    class:invalid={isInvalid}
+                    class="{controlClass} {controlSmClass} w-24 text-right font-semibold"
+                    aria-invalid={isInvalid ? "true" : undefined}
                     placeholder="-"
                     on:keydown={(e) => handleKeyDown(e, idx)}
                     on:blur={handleSaveCurrentStudent}
                     on:change={handleSaveCurrentStudent}
                   />
-                  <span style="font-size: 0.8rem; color: #94a3b8; margin-left: 0.35rem;">
+                  <span class="ml-1.5 text-sm text-muted">
                     / {ex.maxPoints}
                   </span>
                 </td>
@@ -293,26 +293,30 @@
             {/each}
           </tbody>
         </table>
-      </div>
+      </TableScroller>
 
-      <div class="student-first-footer">
-        <button
-          class="student-nav-btn"
+      <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-surface-sunken p-3">
+        <Button
+          variant="outlined"
+          severity="secondary"
+          icon={faArrowLeft}
           disabled={currentStudentIndex === 0}
-          on:click={prevStudent}
+          onClick={prevStudent}
         >
           {$t("grading.manual.studentFirst.savePrev")}
-        </button>
-        <button class="student-save-btn" on:click={handleSaveCurrentStudent}>
+        </Button>
+        <Button severity="success" icon={faCheck} onClick={handleSaveCurrentStudent}>
           {$t("grading.manual.studentFirst.saveScores")}
-        </button>
-        <button
-          class="student-nav-btn"
+        </Button>
+        <Button
+          variant="outlined"
+          severity="secondary"
+          iconRight={faArrowRight}
           disabled={currentStudentIndex >= students.length - 1}
-          on:click={nextStudent}
+          onClick={nextStudent}
         >
           {$t("grading.manual.studentFirst.saveNext")}
-        </button>
+        </Button>
       </div>
     {/if}
   {/if}

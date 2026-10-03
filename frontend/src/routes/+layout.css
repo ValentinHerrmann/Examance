@@ -1,26 +1,42 @@
-/* App shell geometry. Base styles and tokens live in src/app.css. */
+/* App shell geometry. Base styles and tokens live in src/app.css.
+ *
+ *   .app-layout   100dvh column: navbar, banners, body
+ *   .app-body     row: exam sidebar (exam routes, lg+) + main
+ *   .app-main     the one scroller; the footer is its last child
+ *
+ * Only `.app-main` scrolls. The document never does (body is overflow:hidden),
+ * so a 1px overflow somewhere can no longer add a second, page-level bar.
+ */
 
 .app-layout {
   display: flex;
   flex-direction: column;
   height: 100vh;
   /* Dynamic viewport height keeps mobile browser chrome from eating the
-   * status bar at the bottom of the shell. */
+   * bottom of the shell. */
   height: 100dvh;
-  /* Clip sideways only. `overflow: hidden` here used to trap both axes, which
-   * meant anything wider than the viewport became unreachable app-wide. */
-  overflow-x: clip;
-  overflow-y: hidden;
+  overflow: clip;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
 }
 
 .app-main {
   flex: 1;
   min-height: 0;
   min-width: 0;
-  overflow-y: auto;
-  overflow-x: auto;
+  /* Both axes: content wider than the viewport must stay reachable. Wide
+   * tables scroll inside their own TableScroller instead of pushing this. */
+  overflow: auto;
   display: flex;
   flex-direction: column;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+  /* Thin bar: a full-width classic scrollbar ate 15px of every page. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
 }

@@ -2,13 +2,14 @@
   import { onDestroy } from "svelte";
   import type { ExerciseRecord } from "$lib/db/schema";
   import LatexEditor from "$lib/components/LatexEditor.svelte";
-  import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import { computeSideBySideDiff, buildAlignedDiffDecorations } from "$lib/latex/diff";
   import { getDiffSelectLabel } from "./ExerciseDiffModal";
   import { t } from "$lib/i18n";
-  import { Modal, Button, Select } from "$lib/components/ui";
+  import { Alert, ConfirmDialog, Modal, Button, Select } from "$lib/components/ui";
 
   export let isOpen = false;
+  /** Failure or validation message from the page, shown inline. */
+  export let error = "";
   export let activeDiffGroupExercises: ExerciseRecord[] = [];
   export let diffLeftId = "";
   export let diffRightId = "";
@@ -102,9 +103,12 @@
   }
 </script>
 
-<Modal open={isOpen} size="xl" title={$t("exercises.diffModal.title")} onClose={onRequestClose}>
-  <div class="mb-6 flex flex-col gap-4 rounded-lg bg-surface-inset p-4 sm:flex-row sm:gap-6">
-    <div class="flex flex-1 flex-col gap-1.5">
+<Modal open={isOpen} size="full" title={$t("exercises.diffModal.title")} onClose={onRequestClose}>
+  {#if error}
+    <div class="mb-3"><Alert severity="danger">{error}</Alert></div>
+  {/if}
+  <div class="mb-6 flex flex-col gap-4 rounded-md bg-surface-inset p-4 @xl:flex-row @xl:gap-6">
+    <div class="flex min-w-0 flex-1 flex-col gap-1.5">
       <label for="diffLeftSelect" class="text-sm text-muted">{$t("exercises.diffModal.baseLabel")}</label>
       <Select id="diffLeftSelect" bind:value={diffLeftId}>
         {#each activeDiffGroupExercises as ex}
@@ -115,7 +119,7 @@
       </Select>
     </div>
 
-    <div class="flex flex-1 flex-col gap-1.5">
+    <div class="flex min-w-0 flex-1 flex-col gap-1.5">
       <label for="diffRightSelect" class="text-sm text-muted">{$t("exercises.diffModal.comparedLabel")}</label>
       <Select id="diffRightSelect" bind:value={diffRightId}>
         {#each activeDiffGroupExercises as ex}
@@ -127,20 +131,20 @@
     </div>
   </div>
 
-  <div class="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-    <div>
+  <div class="mb-4 grid grid-cols-1 gap-4 @3xl:grid-cols-2">
+    <div class="min-w-0">
       <div class="mb-2 flex min-h-8 items-center justify-between gap-2">
-        <h4 class="m-0 min-w-0 truncate text-[0.9rem] text-accent">{$t("exercises.diffModal.leftHeading", { name: diffLeftEx?.name || $t("exercises.diffModal.leftOriginalFallback"), version: diffLeftEx?.version || 1 })}</h4>
+        <h3 class="m-0 min-w-0 truncate text-sm font-semibold text-content">{$t("exercises.diffModal.leftHeading", { name: diffLeftEx?.name || $t("exercises.diffModal.leftOriginalFallback"), version: diffLeftEx?.version || 1 })}</h3>
         <div class="flex shrink-0 items-center gap-2">
           {#if isDiffLeftDirty}
-            <Button variant="primary" size="sm" onClick={onSaveLeft} disabled={isSavingDiffLeft}>
+            <Button size="sm" onClick={onSaveLeft} disabled={isSavingDiffLeft}>
               {isSavingDiffLeft ? $t("exercises.diffModal.saving") : $t("exercises.diffModal.saveLeft")}
             </Button>
           {/if}
         </div>
       </div>
 
-      <div class="h-[450px] max-h-[450px] overflow-hidden rounded-lg">
+      <div class="h-112 overflow-hidden rounded-md">
         <LatexEditor
           bind:this={diffLeftEditor}
           bind:value={diffLeftLatex}
@@ -152,19 +156,19 @@
       </div>
     </div>
 
-    <div>
+    <div class="min-w-0">
       <div class="mb-2 flex min-h-8 items-center justify-between gap-2">
-        <h4 class="m-0 min-w-0 truncate text-[0.9rem] text-accent">{$t("exercises.diffModal.rightHeading", { name: diffRightEx?.name || $t("exercises.diffModal.rightComparedFallback"), version: diffRightEx?.version || 1 })}</h4>
+        <h3 class="m-0 min-w-0 truncate text-sm font-semibold text-content">{$t("exercises.diffModal.rightHeading", { name: diffRightEx?.name || $t("exercises.diffModal.rightComparedFallback"), version: diffRightEx?.version || 1 })}</h3>
         <div class="flex shrink-0 items-center gap-2">
           {#if isDiffRightDirty}
-            <Button variant="primary" size="sm" onClick={onSaveRight} disabled={isSavingDiffRight}>
+            <Button size="sm" onClick={onSaveRight} disabled={isSavingDiffRight}>
               {isSavingDiffRight ? $t("exercises.diffModal.saving") : $t("exercises.diffModal.saveRight")}
             </Button>
           {/if}
         </div>
       </div>
 
-      <div class="h-[450px] max-h-[450px] overflow-hidden rounded-lg">
+      <div class="h-112 overflow-hidden rounded-md">
         <LatexEditor
           bind:this={diffRightEditor}
           bind:value={diffRightLatex}
@@ -178,16 +182,18 @@
   </div>
 
   <svelte:fragment slot="footer">
-    <Button variant="secondary" onClick={onRequestClose}>{$t("common.close")}</Button>
+    <Button variant="outlined" severity="secondary" onClick={onRequestClose}>{$t("common.close")}</Button>
   </svelte:fragment>
 </Modal>
 
 <ConfirmDialog
-  isOpen={showConfirmClose}
+  open={showConfirmClose}
   title={$t("exercises.diffModal.discardTitle")}
   message={$t("exercises.diffModal.discardMessage")}
   confirmText={$t("exercises.confirmDiscard.confirmText")}
   cancelText={$t("exercises.confirmDiscard.cancelText")}
-  on:confirm={onForceCloseConfirm}
-  on:cancel={onCancelConfirmClose}
+  severity="danger"
+  role="dialog"
+  onConfirm={onForceCloseConfirm}
+  onCancel={onCancelConfirmClose}
 />

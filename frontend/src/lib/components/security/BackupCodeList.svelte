@@ -6,7 +6,7 @@
    * does not close on backdrop or Escape and the confirm button waits for an
    * explicit acknowledgement.
    */
-  import { Button, Modal } from "$lib/components/ui";
+  import { Alert, Button, Checkbox, Modal } from "$lib/components/ui";
   import { t } from "$lib/i18n";
 
   export let codes: string[];
@@ -27,19 +27,14 @@
 
 <Modal
   open={true}
-  size="md"
+  size="medium"
   title={$t("security.backupCodes.title")}
   closeOnBackdrop={false}
   closeOnEscape={false}
 >
   <div class="flex flex-col gap-4">
     <p class="text-sm text-muted">{$t("security.backupCodes.intro")}</p>
-    <p
-      class="rounded-lg border border-line-strong bg-surface-sunken p-3 text-sm text-content"
-      role="alert"
-    >
-      {$t("security.backupCodes.warning")}
-    </p>
+    <Alert severity="warning">{$t("security.backupCodes.warning")}</Alert>
 
     <ul class="m-0 grid list-none grid-cols-1 gap-2 p-0 sm:grid-cols-2">
       {#each codes as code (code)}
@@ -53,15 +48,12 @@
     </ul>
 
     <div>
-      <Button variant="secondary" onClick={download}>
+      <Button severity="secondary" onClick={download}>
         {$t("security.backupCodes.download")}
       </Button>
     </div>
 
-    <label class="flex items-start gap-2 text-sm text-content">
-      <input type="checkbox" bind:checked={acknowledged} class="mt-1" />
-      <span>{$t("security.backupCodes.confirmLabel")}</span>
-    </label>
+    <Checkbox class="items-start" bind:checked={acknowledged} label={$t("security.backupCodes.confirmLabel")} />
   </div>
 
   <svelte:fragment slot="footer">

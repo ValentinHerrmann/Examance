@@ -1,6 +1,5 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import "./+page.css";
   import { db } from "$lib/db/db";
   import { eraseStudent } from "$lib/gdpr/erasure";
   import { wipeDatabase } from "$lib/db/hygiene";
@@ -15,6 +14,12 @@
   import { onMount } from "svelte";
   import SettingsForm from "$lib/components/settings/SettingsForm.svelte";
   import GdprErasureTable from "$lib/components/settings/GdprErasureTable.svelte";
+  import OmrDetectionSettingsCard from "$lib/components/settings/OmrDetectionSettingsCard.svelte";
+  import { omrSettingsStore } from "$lib/stores/omrSettings";
+  import OmrDonationCard from "$lib/components/settings/OmrDonationCard.svelte";
+  import { trainingDonationStore } from "$lib/stores/trainingDonation";
+  import { fetchDonationAvailable } from "$lib/services/trainingDonation";
+  import { backendStore, extractHostname } from "$lib/stores/backendStore";
   import { exportStudentData, toDownloadableJson } from "$lib/gdpr/subjectAccess";
   import {
     locale,
@@ -24,7 +29,8 @@
     LOCALE_LABELS,
     type Locale,
   } from "$lib/i18n";
-  import { PageShell, PageHeader, Card, Button } from "$lib/components/ui";
+  import { PageShell, PageHeader, Card, Button, Alert } from "$lib/components/ui";
+  import SectionNav from "$lib/components/settings/SectionNav.svelte";
   import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
 
   /** GDPR Art. 15 — hand the data subject a readable copy of their own data. */
@@ -49,8 +55,10 @@
   let statusMsg = "";
   let isSwitchWizardOpen = false;
   let switchTarget: StorageMode | null = null;
+  let donationAvailable = false;
 
   onMount(async () => {
+    void fetchDonationAvailable().then((ok) => (donationAvailable = ok));
     await awaitSessionReady();
     if (!$isUnlocked) {
       // Keys are passphrase-derived and never persisted — send the user to
@@ -106,6 +114,20 @@
     }
   }
 
+  $: navItems = [
+    { id: "storage-policy", label: $t("settings.storage.heading") },
+    { id: "latex", label: $t("settings.latex.heading") },
+    { id: "language", label: $t("settings.language.heading") },
+    { id: "theme", label: $t("settings.theme.heading") },
+    { id: "omr", label: $t("settings.omr.heading") },
+    ...(donationAvailable || $trainingDonationStore.enabled
+      ? [{ id: "donation", label: $t("settings.donation.heading") }]
+      : []),
+    ...($isAuthenticated ? [{ id: "security", label: $t("security.page.title") }] : []),
+    { id: "gdpr", label: $t("admin.gdprErasureTable.title") },
+    { id: "hygiene", label: $t("settings.hygiene.heading") },
+  ];
+
   async function handleClearAllSessionData() {
     if (!confirm(translate("settings.hygiene.confirm"))) return;
     await wipeDatabase();
@@ -115,45 +137,69 @@
 </script>
 
 {#if $isUnlocked}
-  <PageShell>
+  <PageShell width="wide">
     <PageHeader title={$t("settings.pageTitle")} helpTopic="settings" />
 
-    {#if statusMsg}
-      <div class="settings-status-banner">{statusMsg}</div>
-    {/if}
+    <div class="lg:flex lg:items-start lg:gap-8">
+      <SectionNav items={navItems} ariaLabel={$t("settings.pageTitle")} />
 
-    <SettingsForm
-      storageMode={$storagePolicyStore.storageMode}
-      latexCompilation={$storagePolicyStore.latexCompilation}
-      uiLocale={$locale}
-      onStorageModeChange={handleStorageModeChange}
-      onLatexChange={handleLatexChange}
-      onLocaleChange={handleLocaleChange}
-    />
+      <div class="flex min-w-0 max-w-3xl flex-1 flex-col gap-4">
+        {#if statusMsg}
+          <Alert severity="success" onDismiss={() => (statusMsg = "")}>{statusMsg}</Alert>
+        {/if}
 
-    {#if $isAuthenticated}
-      <!-- Server accounts only: a local vault has no sign-in factors. -->
-      <Card class="mb-8">
-        <h3 class="m-0 mb-2 text-accent">{$t("security.page.title")}</h3>
-        <p class="mt-0 mb-4 text-muted">{$t("security.page.subtitle")}</p>
-        <Button variant="secondary" onClick={() => goto("/settings/security")}>
-          {$t("security.page.open")}
-        </Button>
-      </Card>
-    {/if}
+        <SettingsForm
+          storageMode={$storagePolicyStore.storageMode}
+          latexCompilation={$storagePolicyStore.latexCompilation}
+          uiLocale={$locale}
+          onStorageModeChange={handleStorageModeChange}
+          onLatexChange={handleLatexChange}
+          onLocaleChange={handleLocaleChange}
+        />
 
-    <GdprErasureTable
-      {students}
-      {isErasing}
-      onErase={handleEraseStudent}
-      onExport={handleExportStudent}
-    />
+        <OmrDetectionSettingsCard
+          profile={$omrSettingsStore}
+          onSave={(params) => omrSettingsStore.save(params)}
+          onReset={() => omrSettingsStore.reset()}
+        />
 
-    <Card tone="danger" class="mb-8">
-      <h3 class="m-0 mb-2 text-accent">{$t("settings.hygiene.heading")}</h3>
-      <p class="mt-0 mb-4 text-muted">{$t("settings.hygiene.description")}</p>
-      <Button variant="danger" onClick={handleClearAllSessionData}>{$t("settings.hygiene.button")}</Button>
-    </Card>
+        <OmrDonationCard
+          enabled={$trainingDonationStore.enabled}
+          available={donationAvailable}
+          signedIn={$isAuthenticated}
+          host={extractHostname($backendStore)}
+          onChange={(enabled) => trainingDonationStore.setEnabled(enabled)}
+        />
+
+        {#if $isAuthenticated}
+          <!-- Server accounts only: a local vault has no sign-in factors. -->
+          <div id="security" class="scroll-mt-16 lg:scroll-mt-4">
+            <Card title={$t("security.page.title")}>
+              <p class="mt-0 mb-4 text-sm text-muted">{$t("security.page.subtitle")}</p>
+              <Button variant="outlined" severity="secondary" onClick={() => goto("/settings/security")}>
+                {$t("security.page.open")}
+              </Button>
+            </Card>
+          </div>
+        {/if}
+
+        <div id="gdpr" class="scroll-mt-16 lg:scroll-mt-4">
+          <GdprErasureTable
+            {students}
+            {isErasing}
+            onErase={handleEraseStudent}
+            onExport={handleExportStudent}
+          />
+        </div>
+
+        <div id="hygiene" class="scroll-mt-16 lg:scroll-mt-4">
+          <Card tone="danger" title={$t("settings.hygiene.heading")}>
+            <p class="mt-0 mb-4 text-sm text-muted">{$t("settings.hygiene.description")}</p>
+            <Button severity="danger" onClick={handleClearAllSessionData}>{$t("settings.hygiene.button")}</Button>
+          </Card>
+        </div>
+      </div>
+    </div>
   </PageShell>
 {/if}
 

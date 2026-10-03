@@ -70,14 +70,14 @@
 <Card>
   <div class="flex flex-col gap-4">
     <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <h2 class="m-0 text-lg font-semibold text-accent">{$t("security.panel.factorTotp")}</h2>
+      <h2 class="m-0 text-xl font-medium text-content">{$t("security.panel.factorTotp")}</h2>
       <span class="text-sm text-muted">
         {enrolled ? $t("security.page.statusEnrolled") : $t("security.page.statusMissing")}
       </span>
     </div>
 
     {#if errorMsg}
-      <p class="m-0 text-sm text-red-400" role="alert">{errorMsg}</p>
+      <p class="m-0 text-sm text-danger-fg" role="alert">{errorMsg}</p>
     {/if}
 
     {#if enrolled}
@@ -90,15 +90,15 @@
           {$t("security.backupCodes.remaining", { count: status.remaining_backup_codes })}
         </p>
         {#if codesLow}
-          <p class="m-0 text-xs text-subtle">{$t("security.page.backupCodesLow")}</p>
+          <p class="m-0 text-xs text-muted">{$t("security.page.backupCodesLow")}</p>
         {/if}
       </div>
 
       <div class="flex flex-wrap gap-2">
-        <Button variant="secondary" disabled={isWorking} onClick={regenerate}>
+        <Button severity="secondary" disabled={isWorking} onClick={regenerate}>
           {$t("security.backupCodes.regenerate")}
         </Button>
-        <Button variant="danger" disabled={isWorking} onClick={remove}>
+        <Button severity="danger" disabled={isWorking} onClick={remove}>
           {$t("security.panel.removeTotp")}
         </Button>
       </div>

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import "./ExamActionBar.css";
   import { t } from "$lib/i18n";
+  import { Button } from "$lib/components/ui";
   export let examId: string;
   export let onEdit: () => void;
   export let onDelete: () => void;
@@ -13,36 +13,36 @@
   export let storagePolicy: string;
 </script>
 
-<div class="exam-actions">
-  <div class="actions-left">
-    <button class="eab-btn eab-primary" on:click={onAddExercises}>
+<div class="mb-6 flex flex-wrap items-center justify-between gap-2">
+  <div class="flex flex-wrap gap-2">
+    <Button size="sm" onClick={onAddExercises}>
       {$t("exam.actionBar.addExercises")}
-    </button>
+    </Button>
     {#if storagePolicy === 'all-local'}
-      <button class="eab-btn eab-secondary" on:click={onScan}>
+      <Button size="sm" variant="outlined" severity="secondary" onClick={onScan}>
         {$t("exam.actionBar.scan")}
-      </button>
+      </Button>
     {/if}
   </div>
 
-  <div class="actions-right">
-    <button class="eab-btn eab-secondary" on:click={onGrade}>
+  <div class="flex flex-wrap gap-2">
+    <Button size="sm" variant="outlined" severity="secondary" onClick={onGrade}>
       {$t("exam.actionBar.grade")}
-    </button>
-    <button class="eab-btn eab-secondary" on:click={onStats}>
+    </Button>
+    <Button size="sm" variant="outlined" severity="secondary" onClick={onStats}>
       {$t("exam.actionBar.stats")}
-    </button>
-    <button class="eab-btn eab-secondary" on:click={onEdit}>
+    </Button>
+    <Button size="sm" variant="outlined" severity="secondary" onClick={onEdit}>
       {$t("exam.actionBar.edit")}
-    </button>
-    <button class="eab-btn eab-danger" on:click={onDeleteAllSubmissions}>
-      {$t("exam.actionBar.deleteSubmissions")}
-    </button>
-    <button class="eab-btn eab-danger" on:click={onExport}>
+    </Button>
+    <Button size="sm" variant="outlined" severity="secondary" onClick={onExport}>
       {$t("exam.actionBar.export")}
-    </button>
-    <button class="eab-btn eab-danger" on:click={onDelete}>
+    </Button>
+    <Button size="sm" variant="outlined" severity="danger" onClick={onDeleteAllSubmissions}>
+      {$t("exam.actionBar.deleteSubmissions")}
+    </Button>
+    <Button size="sm" variant="outlined" severity="danger" onClick={onDelete}>
       {$t("exam.actionBar.delete")}
-    </button>
+    </Button>
   </div>
 </div>

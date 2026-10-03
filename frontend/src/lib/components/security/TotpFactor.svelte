@@ -37,7 +37,7 @@
 
 <form class="flex w-full flex-col gap-4" on:submit|preventDefault={submit}>
   <div>
-    <h2 class="m-0 text-lg font-semibold text-accent">
+    <h2 class="m-0 text-xl font-medium text-content">
       {useBackupCode ? $t("security.factors.backupTitle") : $t("security.factors.totpTitle")}
     </h2>
     <p class="mt-1 text-sm text-muted">
@@ -54,7 +54,7 @@
     <TextInput
       bind:value={code}
       placeholder={useBackupCode ? "XXXXX-XXXXX" : "000000"}
-      class="font-mono text-lg tracking-[0.3em]"
+      class="font-mono text-lg tracking-widest"
     />
   </Field>
 
@@ -62,11 +62,7 @@
     {isWorking ? $t("security.factors.checking") : $t("security.factors.submit")}
   </Button>
 
-  <button
-    type="button"
-    class="cursor-pointer border-none bg-transparent p-0 text-sm text-accent underline"
-    on:click={toggleMode}
-  >
+  <Button variant="text" size="sm" onClick={toggleMode}>
     {useBackupCode ? $t("security.factors.useTotp") : $t("security.factors.useBackupCode")}
-  </button>
+  </Button>
 </form>

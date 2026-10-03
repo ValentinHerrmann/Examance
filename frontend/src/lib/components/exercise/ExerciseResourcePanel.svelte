@@ -2,6 +2,7 @@
   import { onDestroy } from "svelte";
   import { get } from "svelte/store";
   import { sessionStore } from "$lib/stores/session";
+  import { Button, TextInput } from "$lib/components/ui";
   import type { ExerciseResourceRecord } from "$lib/db/schema";
   import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
   import {
@@ -160,18 +161,21 @@
   }
 </script>
 
-<div class="resource-panel">
-  <div class="header">
-    <span class="title">Resource files</span>
-    <span class="usage" title="Used of the per-exercise limit">
+<div class="flex min-w-0 flex-col gap-2 rounded-xl border border-line bg-surface-sunken p-3">
+  <div class="flex items-baseline justify-between gap-2">
+    <h3 class="m-0 text-sm font-semibold text-content">Resource files</h3>
+    <span class="text-xs text-muted" title="Used of the per-exercise limit">
       {formatBytes(usedBytes)} / {formatBytes(MAX_EXERCISE_RESOURCE_BYTES)}
     </span>
   </div>
-  <div class="usage-bar"><div class="usage-fill" style={`width:${usedPercent}%`}></div></div>
+  <div class="h-1 overflow-hidden rounded-full bg-surface-inset">
+    <div class="h-full bg-primary" style={`width:${usedPercent}%`}></div>
+  </div>
 
   <div
-    class="dropzone"
-    class:drag-over={dragOver}
+    class="cursor-pointer rounded-md border border-dashed p-3 text-center text-sm {dragOver
+      ? 'border-focus text-content'
+      : 'border-line-strong text-muted'}"
     role="button"
     tabindex="0"
     on:dragover|preventDefault={() => (dragOver = true)}
@@ -186,212 +190,47 @@
       Drop files here or click to choose — PNG, JPG, PDF and any other file the document needs.
     {/if}
   </div>
-  <input
-    class="hidden-input"
-    type="file"
-    multiple
-    bind:this={fileInput}
-    on:change={handlePicked}
-  />
+  <input class="hidden" type="file" multiple bind:this={fileInput} on:change={handlePicked} />
 
-  <p class="hint">
-    Reference a file by its name, e.g. <code>\includegraphics{"{figure.png}"}</code>. Files are
+  <p class="m-0 text-xs text-muted">
+    Reference a file by its name, e.g. <code class="text-content">\includegraphics{"{figure.png}"}</code>. Files are
     stored when you save the exercise. Do not upload files containing personal data of pupils.
   </p>
 
   {#if errorMsg}
-    <p class="error">{errorMsg}</p>
+    <p class="m-0 text-xs text-danger-fg" role="alert">{errorMsg}</p>
   {/if}
 
   {#if resources.length > 0}
-    <ul class="list">
+    <ul class="m-0 flex max-h-56 list-none flex-col gap-1.5 overflow-y-auto p-0">
       {#each resources as res (res.id)}
-        <li class="item">
-          <div class="thumb">
+        <li class="flex items-center gap-2 rounded-md bg-surface-inset p-1.5">
+          <div class="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-sunken">
             {#if thumbnails[res.id]}
-              <img src={thumbnails[res.id]} alt={res.filename} />
+              <img class="size-full object-cover" src={thumbnails[res.id]} alt={res.filename} />
             {:else}
-              <span class="ext">{(res.filename.split(".").pop() || "?").toUpperCase()}</span>
+              <span class="text-xs font-bold text-muted">{(res.filename.split(".").pop() || "?").toUpperCase()}</span>
             {/if}
           </div>
-          <div class="meta">
+          <div class="flex min-w-0 flex-1 flex-col">
             {#if renamingId === res.id}
-              <input
-                class="rename"
-                bind:value={renameValue}
-                on:keydown={(e) => e.key === "Enter" && commitRename(res)}
-              />
-              <div class="rename-actions">
-                <button type="button" on:click={() => commitRename(res)}>Save</button>
-                <button type="button" on:click={() => (renamingId = null)}>Cancel</button>
+              <TextInput size="sm" bind:value={renameValue} on:keydown={(e) => e.key === "Enter" && commitRename(res)} />
+              <div class="mt-1 flex gap-1">
+                <Button size="sm" onClick={() => commitRename(res)}>Save</Button>
+                <Button size="sm" variant="outlined" severity="secondary" onClick={() => (renamingId = null)}>Cancel</Button>
               </div>
             {:else}
-              <span class="name" title={res.filename}>{res.filename}</span>
-              <span class="size">{formatBytes(res.byteSize)}</span>
+              <span class="truncate text-sm text-content" title={res.filename}>{res.filename}</span>
+              <span class="text-xs text-muted">{formatBytes(res.byteSize)}</span>
             {/if}
           </div>
-          <div class="actions">
-            <button type="button" title="Insert into the LaTeX source" on:click={() => onInsert(insertSnippetFor(res.filename))}>
-              Insert
-            </button>
-            <button type="button" title="Rename" on:click={() => startRename(res)}>Rename</button>
-            <button type="button" class="danger" title="Delete" on:click={() => handleDelete(res)}>Delete</button>
+          <div class="flex shrink-0 flex-wrap justify-end gap-1">
+            <Button size="sm" variant="outlined" severity="secondary" title="Insert into the LaTeX source" onClick={() => onInsert(insertSnippetFor(res.filename))}>Insert</Button>
+            <Button size="sm" variant="outlined" severity="secondary" title="Rename" onClick={() => startRename(res)}>Rename</Button>
+            <Button size="sm" variant="outlined" severity="danger" title="Delete" onClick={() => handleDelete(res)}>Delete</Button>
           </div>
         </li>
       {/each}
     </ul>
   {/if}
 </div>
-
-<style>
-  .resource-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    border: 1px solid rgb(51 65 85);
-    border-radius: 0.5rem;
-    background: rgb(15 23 42);
-  }
-  .header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-  }
-  .title {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: rgb(226 232 240);
-  }
-  .usage {
-    font-size: 0.72rem;
-    color: rgb(148 163 184);
-  }
-  .usage-bar {
-    height: 3px;
-    border-radius: 999px;
-    background: rgb(30 41 59);
-    overflow: hidden;
-  }
-  .usage-fill {
-    height: 100%;
-    background: rgb(56 189 248);
-  }
-  .dropzone {
-    padding: 0.75rem;
-    border: 1px dashed rgb(71 85 105);
-    border-radius: 0.5rem;
-    text-align: center;
-    font-size: 0.78rem;
-    color: rgb(148 163 184);
-    cursor: pointer;
-  }
-  .dropzone.drag-over {
-    border-color: rgb(56 189 248);
-    color: rgb(226 232 240);
-  }
-  .hidden-input {
-    display: none;
-  }
-  .hint {
-    margin: 0;
-    font-size: 0.72rem;
-    color: rgb(100 116 139);
-  }
-  .hint code {
-    color: rgb(148 163 184);
-  }
-  .error {
-    margin: 0;
-    font-size: 0.75rem;
-    color: rgb(248 113 113);
-  }
-  .list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    max-height: 14rem;
-    overflow-y: auto;
-  }
-  .item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem;
-    border-radius: 0.375rem;
-    background: rgb(30 41 59);
-  }
-  .thumb {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.25rem;
-    height: 2.25rem;
-    flex: 0 0 2.25rem;
-    border-radius: 0.25rem;
-    background: rgb(15 23 42);
-    overflow: hidden;
-  }
-  .thumb img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  .ext {
-    font-size: 0.6rem;
-    font-weight: 700;
-    color: rgb(148 163 184);
-  }
-  .meta {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    flex: 1;
-  }
-  .name {
-    font-size: 0.78rem;
-    color: rgb(226 232 240);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .size {
-    font-size: 0.68rem;
-    color: rgb(100 116 139);
-  }
-  .rename {
-    width: 100%;
-    padding: 0.15rem 0.3rem;
-    font-size: 0.78rem;
-    color: rgb(226 232 240);
-    background: rgb(15 23 42);
-    border: 1px solid rgb(71 85 105);
-    border-radius: 0.25rem;
-  }
-  .rename-actions,
-  .actions {
-    display: flex;
-    gap: 0.25rem;
-  }
-  .actions button,
-  .rename-actions button {
-    padding: 0.15rem 0.4rem;
-    font-size: 0.7rem;
-    color: rgb(203 213 225);
-    background: rgb(51 65 85);
-    border: none;
-    border-radius: 0.25rem;
-    cursor: pointer;
-  }
-  .actions button:hover,
-  .rename-actions button:hover {
-    background: rgb(71 85 105);
-  }
-  .actions .danger:hover {
-    background: rgb(153 27 27);
-    color: rgb(254 226 226);
-  }
-</style>

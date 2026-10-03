@@ -1,0 +1,23 @@
+Examance — third-party notices
+==============================
+
+This file lists third-party material that is bundled into the Examance web app
+and whose licence asks for attribution in the distributed product. The full
+list of dependencies and their licences is in docs/THIRD_PARTY_LICENSES.md in
+the source repository.
+
+
+Font Awesome Free (icons)
+-------------------------
+Icons by Fonticons, Inc. — Font Awesome Free, https://fontawesome.com
+Icons: CC BY 4.0 License (https://creativecommons.org/licenses/by/4.0/)
+Code:  MIT License (https://opensource.org/licenses/MIT)
+The icons are embedded as SVG path data; no Font Awesome font or script is loaded.
+
+
+Artemis design language
+-----------------------
+The visual design (colour tokens, component proportions, layout patterns)
+follows the Artemis design language and the TUM AET UI guidelines,
+https://github.com/ls1intum/Artemis (MIT License). The design was
+re-implemented for this app; no Artemis source code is included.

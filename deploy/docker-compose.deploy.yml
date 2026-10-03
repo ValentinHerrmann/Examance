@@ -91,13 +91,13 @@ services:
     image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
     restart: unless-stopped
     environment: *backend-env
-    # Bound to loopback only: nginx on the host terminates TLS and proxies to
+    # Bound to loopback only: Caddy on the host terminates TLS and proxies to
     # this port. Publishing on 0.0.0.0 would expose the API without TLS.
     ports:
       - "127.0.0.1:${APP_PORT:-8000}:8000"
     # Tectonic downloads TeX Live bundle files on first use. Without a volume
     # every deploy starts from an empty cache, and the first compile afterwards
-    # runs past the proxy timeout — nginx/Cloudflare answer with a bare 504/524
+    # runs past the proxy timeout — Cloudflare answers with a bare 504/524
     # that the browser reports as a CORS error. Holds only public TeX files,
     # never exam content (compiles run in per-request temp dirs).
     volumes:
@@ -107,7 +107,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    # --forwarded-allow-ips names the reverse proxy. Behind the host's nginx,
+    # --forwarded-allow-ips names the reverse proxy. Behind the host's Caddy,
     # requests arrive from the docker bridge gateway, not 127.0.0.1, so the
     # image default would ignore X-Forwarded-For and attribute every request to
     # the proxy. Set PROXY_ALLOWED_IPS to the bridge gateway/CIDR — never "*",

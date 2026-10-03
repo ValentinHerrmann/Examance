@@ -5,7 +5,8 @@
    * conflict has a decision, so cancelling costs nothing.
    */
   import { t, tOptional } from '$lib/i18n';
-  import { Modal, Button } from '$lib/components/ui';
+  import { faCheck } from '@fortawesome/free-solid-svg-icons';
+  import { Modal, Button, Icon } from '$lib/components/ui';
   import { conflictPrompt } from '$lib/stores/conflictPrompt';
   import {
     applyToAll,
@@ -51,25 +52,25 @@
   }
 </script>
 
-<Modal open={!!prompt} size="xl" title={$t('storagePolicy.conflict.title')} onClose={handleCancel}>
+<Modal open={!!prompt} size="large" title={$t('storagePolicy.conflict.title')} onClose={handleCancel}>
   <p class="text-sm text-muted">{$t('storagePolicy.conflict.subtitle')}</p>
   {#if prompt?.identicalCount}
-    <p class="mt-1 text-xs text-subtle">
+    <p class="mt-1 text-xs text-muted">
       {$t('storagePolicy.conflict.identicalSkipped', { count: prompt.identicalCount })}
     </p>
   {/if}
 
   <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
-    <span class="text-subtle">{$t('storagePolicy.conflict.applyToAll')}:</span>
+    <span class="text-muted">{$t('storagePolicy.conflict.applyToAll')}:</span>
     {#each CHOICES.slice(0, 2) as { choice, label }}
-      <Button size="sm" variant="secondary" onClick={() => (decisions = applyToAll(conflicts, choice, decisions))}>
+      <Button size="sm" variant="outlined" severity="secondary" onClick={() => (decisions = applyToAll(conflicts, choice, decisions))}>
         {$t(label)}
       </Button>
     {/each}
   </div>
 
-  <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
-    <ul class="max-h-72 min-w-0 overflow-y-auto rounded-lg border border-line lg:max-h-[26rem]">
+  <div class="mt-4 grid grid-cols-1 gap-4 @3xl:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
+    <ul class="max-h-72 min-w-0 overflow-y-auto rounded-md border border-line @3xl:max-h-104">
       {#each conflicts as conflict, i (conflict.kind + conflict.id)}
         <li>
           <button
@@ -79,10 +80,10 @@
             on:click={() => (activeIndex = i)}
           >
             <span class="min-w-0 truncate">
-              <span class="text-xs uppercase text-subtle">{kindLabel(conflict.kind)}</span>
+              <span class="text-xs text-muted">{kindLabel(conflict.kind)}</span>
               {conflict.title}
             </span>
-            {#if decisions.has(conflict.id)}<span class="shrink-0 text-xs text-accent">✓</span>{/if}
+            {#if decisions.has(conflict.id)}<Icon icon={faCheck} class="shrink-0 text-xs text-accent" />{/if}
           </button>
         </li>
       {/each}
@@ -92,9 +93,9 @@
       <div class="min-w-0">
         <h4 class="text-sm font-semibold text-content">{kindLabel(active.kind)} — {active.title}</h4>
 
-        <div class="mt-2 overflow-x-auto rounded-lg border border-line">
+        <div class="mt-2 overflow-x-auto rounded-md border border-line">
           <table class="w-full table-fixed text-sm">
-            <thead class="border-b border-line text-left text-xs uppercase tracking-wide text-subtle">
+            <thead class="border-b border-line text-left text-xs text-muted">
               <tr>
                 <th class="w-1/4 px-3 py-2"></th>
                 <th class="px-3 py-2">{$t('storagePolicy.conflict.columnExisting')}</th>
@@ -103,12 +104,12 @@
             </thead>
             <tbody>
               {#each active.fields as field (field.key)}
-                <tr class="border-b border-line/50 {field.differs ? 'bg-amber-500/5' : ''}">
+                <tr class="border-b border-line/50 {field.differs ? 'bg-warning/5' : ''}">
                   <td class="px-3 py-2 align-top text-muted">{fieldLabel(field.key)}</td>
-                  <td class="break-words px-3 py-2 align-top {field.differs ? 'text-content' : 'text-subtle'}">
+                  <td class="break-words px-3 py-2 align-top {field.differs ? 'text-content' : 'text-muted'}">
                     {field.existing ?? $t('storagePolicy.conflict.noValue')}
                   </td>
-                  <td class="break-words px-3 py-2 align-top {field.differs ? 'font-medium text-accent' : 'text-subtle'}">
+                  <td class="break-words px-3 py-2 align-top {field.differs ? 'font-medium text-accent' : 'text-muted'}">
                     {field.imported ?? $t('storagePolicy.conflict.noValue')}
                   </td>
                 </tr>
@@ -118,13 +119,13 @@
         </div>
 
         {#if textDiffers && active.textDiff}
-          <h5 class="mt-4 text-xs font-semibold uppercase tracking-wide text-subtle">
+          <h5 class="mt-4 text-xs font-semibold text-muted">
             {$t('storagePolicy.conflict.textDiffHeading')}
           </h5>
           <div class="mt-1 grid grid-cols-2 gap-2">
             {#each [active.textDiff.existing, active.textDiff.imported] as text, i}
-              <pre class="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-line
-                          bg-surface-sunken p-2 text-[11px] leading-snug {i ? 'text-content' : 'text-muted'}">{text}</pre>
+              <pre class="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-md border border-line
+                          bg-surface-sunken p-2 text-xs leading-snug {i ? 'text-content' : 'text-muted'}">{text}</pre>
             {/each}
           </div>
         {/if}
@@ -133,7 +134,7 @@
           {#each CHOICES as { choice, label }}
             {#if choice !== 'import-as-copy' || active.allowCopy}
               <Button
-                variant={decisions.get(active.id)?.choice === choice ? 'primary' : 'secondary'}
+                severity={decisions.get(active.id)?.choice === choice ? 'primary' : 'secondary'}
                 onClick={() => active && choose(active, choice)}
               >
                 {$t(label)}
@@ -142,19 +143,18 @@
           {/each}
         </div>
         {#if !active.allowCopy}
-          <p class="mt-2 text-xs text-subtle">{$t('storagePolicy.conflict.copyNotAllowed')}</p>
+          <p class="mt-2 text-xs text-muted">{$t('storagePolicy.conflict.copyNotAllowed')}</p>
         {/if}
       </div>
     {/if}
   </div>
 
   <svelte:fragment slot="footer">
-    <span class="mr-auto text-xs text-subtle">
+    <span class="mr-auto text-xs text-muted">
       {$t('storagePolicy.conflict.counter', { decided: decidedCount, total: conflicts.length })}
     </span>
-    <Button variant="secondary" onClick={handleCancel}>{$t('storagePolicy.conflict.cancel')}</Button>
+    <Button variant="outlined" severity="secondary" onClick={handleCancel}>{$t('storagePolicy.conflict.cancel')}</Button>
     <Button
-      variant="primary"
       disabled={decidedCount < conflicts.length}
       onClick={() => close((p) => p.resolve(decisions))}
     >

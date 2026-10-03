@@ -8,6 +8,13 @@ export const common: Translations['common'] = {
     confirm: 'Confirm',
     edit: 'Edit',
     preview: 'Preview',
+    loadFailedShort: 'Could not be loaded.',
+    previewCompiling: 'Compiling PDF…',
+    previewNoneTitle: 'No preview available',
+    previewNoneText: 'There is no compiled PDF yet. Compile and show it now?',
+    previewCompile: 'Compile',
+    previewMissingGraphic: 'Preview rendered, but a graphic could not be loaded: {name}',
+    previewFailed: 'Preview failed: {message}',
     back: 'Back',
     next: 'Next',
     loading: 'Loading…',
@@ -49,5 +56,15 @@ export const common: Translations['common'] = {
     saving: 'Saving…',
     saved: 'Saved',
     unsavedChangesConfirm: 'You have unsaved changes. Are you sure you want to leave this page?',
-    deleting: 'Deleting…'
+    deleting: 'Deleting…',
+    deleteModal: {
+        deleteAnyway: 'Delete anyway',
+    },
+    filters: {
+        grade: 'Grade',
+        allGrades: 'All grades',
+        gradeOption: 'Grade {grade}',
+        subject: 'Subject',
+        allSubjects: 'All subjects',
+    },
 };

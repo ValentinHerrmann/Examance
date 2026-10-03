@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ExamRecord } from '$lib/db/schema';
   import { t } from '$lib/i18n';
+  import { Alert } from '$lib/components/ui';
 
   export let exam: ExamRecord | null;
   export let totalPoints: number;
@@ -21,10 +22,10 @@
 </script>
 
 {#if exam}
-  <!-- Title, testart, class, subject and date already appear once in ExamNav
-       (the persistent header above the tab strip) — repeating them here as a
+  <!-- Title, testart, class, subject and date already appear once in the exam page header
+       (the persistent page header) — repeating them here as a
        second title block was the "multi-level top bars" losing height across
-       every visit to this tab. Only the fields ExamNav doesn't show remain,
+       every visit to this tab. Only the fields the exam page header doesn't show remain,
        as one compact stat row instead of a title-block-plus-grid. -->
   <div class="mb-4 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
     {#if exam.lehrernachname}
@@ -40,8 +41,6 @@
   </div>
 
   {#if storagePolicy === 'all-local'}
-    <div class="mb-6 rounded-md border border-amber-500 bg-surface-raised px-4 py-3 text-sm text-amber-400">
-      {$t("exam.metadata.localBanner")}
-    </div>
+    <Alert severity="warning" class="mb-6">{$t("exam.metadata.localBanner")}</Alert>
   {/if}
 {/if}

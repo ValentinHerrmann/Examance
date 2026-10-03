@@ -13,4 +13,7 @@ export const statusBar = {
     linkPullRequest: 'Pull Request auf GitHub öffnen',
     linkCommit: 'Build-Commit auf GitHub öffnen',
     linkRelease: 'Release auf GitHub öffnen',
+    incompatibleTitle: 'Inkompatible Serverversion',
+    incompatibleBody: 'Diese App (v{app}) und der Server (v{server}) haben unterschiedliche Hauptversionen. Speichern kann fehlschlagen. Laden Sie die Seite neu oder wenden Sie sich an die Administration.',
+    mismatchShort: 'Versionen weichen ab',
 } as const;

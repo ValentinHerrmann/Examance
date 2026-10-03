@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { McDetectionItem } from "$lib/grading/mcVerification";
   import { t } from "$lib/i18n";
+  import { faChevronDown, faChevronRight, faCheck, faCircle } from "@fortawesome/free-solid-svg-icons";
+  import { Badge, Button, Icon } from "$lib/components/ui";
 
   export let title: string;
   export let items: McDetectionItem[] = [];
@@ -12,74 +14,63 @@
   let isOpen = true;
 </script>
 
-<div class="rounded-lg border border-slate-700 bg-slate-800 overflow-hidden mb-6">
+<div class="mb-6 min-w-0 overflow-hidden rounded-md border border-line bg-surface-raised">
   <button
     type="button"
     on:click={() => (isOpen = !isOpen)}
-    class="w-full flex items-center justify-between px-4 py-3 bg-slate-800 hover:bg-slate-750 text-left transition-colors cursor-pointer border-b border-slate-700"
+    class="w-full flex items-center justify-between px-4 py-3 bg-surface-raised hover:bg-surface-inset text-left transition-colors cursor-pointer border-b border-line"
   >
     <div class="flex items-center gap-2">
-      <span class="text-xs text-slate-400">{isOpen ? "▼" : "▶"}</span>
-      <h3 class="text-sm font-semibold text-slate-200">
-        {title} <span class="text-slate-400 font-normal">({items.length})</span>
-      </h3>
+      <Icon icon={isOpen ? faChevronDown : faChevronRight} class="text-xs text-muted" />
+      <h2 class="text-sm font-semibold text-content">
+        {title} <span class="text-muted font-normal">({items.length})</span>
+      </h2>
     </div>
   </button>
 
   {#if isOpen}
     <div class="p-4">
       {#if items.length === 0}
-        <p class="text-xs text-slate-400 italic py-2">{emptyMessage}</p>
+        <p class="text-xs text-muted italic py-2">{emptyMessage}</p>
       {:else}
-        <div class="divide-y divide-slate-700/50">
+        <div class="divide-y divide-line">
           {#each items as item}
             {@const progress = studentProgress.get(item.submissionId)}
             <div class="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div class="flex flex-wrap items-center gap-3">
                 {#if item.isReviewed}
-                  <span class="text-sky-400 font-bold text-sm leading-none" title={$t("scanning.queue.reviewedIndicator")} aria-label={$t("scanning.queue.reviewedIndicator")}>✓</span>
+                  <span class="text-sm leading-none text-success-fg" role="img" title={$t("scanning.queue.reviewedIndicator")} aria-label={$t("scanning.queue.reviewedIndicator")}><Icon icon={faCheck} /></span>
                 {:else}
-                  <span class="text-slate-600 text-sm leading-none" title={$t("scanning.queue.unreviewedIndicator")} aria-label={$t("scanning.queue.unreviewedIndicator")}>○</span>
+                  <span class="text-sm leading-none text-muted" role="img" title={$t("scanning.queue.unreviewedIndicator")} aria-label={$t("scanning.queue.unreviewedIndicator")}><Icon icon={faCircle} class="text-xs" /></span>
                 {/if}
 
                 <div>
-                  <span class="text-xs font-medium text-slate-200">{item.studentLabel}</span>
+                  <span class="text-xs font-medium text-content">{item.studentLabel}</span>
                   {#if progress && progress.total > 1}
-                    <span class="ml-1 px-1.5 py-0.5 text-[0.65rem] font-mono font-semibold rounded bg-slate-700/60 text-slate-300 border border-slate-600/50" title={$t("scanning.queue.studentProgressTooltip")}>
+                    <Badge size="xs" class="ml-1 font-mono" title={$t("scanning.queue.studentProgressTooltip")}>
                       {progress.reviewed}/{progress.total}
-                    </span>
+                    </Badge>
                   {/if}
-                  <span class="text-xs text-slate-400 mx-1.5">•</span>
-                  <span class="text-xs text-slate-300">{item.exerciseLabel}</span>
+                  <span class="text-xs text-muted mx-1.5">•</span>
+                  <span class="text-xs text-content">{item.exerciseLabel}</span>
                 </div>
 
                 {#if item.flaggedOptions.length > 0}
-                  <span class="text-[0.65rem] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                  <Badge severity="warning" size="xs">
                     {$t("scanning.queue.flaggedOptions", { options: item.flaggedOptions.map((o) => o + 1).join(", ") })}
-                  </span>
+                  </Badge>
                 {/if}
 
                 {#if item.source === "manual"}
-                  <span class="text-[0.65rem] text-slate-500 italic">{$t("scanning.queue.manual")}</span>
+                  <span class="text-xs text-muted italic">{$t("scanning.queue.manual")}</span>
                 {/if}
               </div>
 
               <div class="flex items-center gap-2 self-start sm:self-auto">
-                <button
-                  type="button"
-                  on:click={() => onVerifyItem(item)}
-                  class="px-2.5 py-1 text-xs font-medium rounded bg-sky-600 hover:bg-sky-500 text-white transition-colors cursor-pointer"
-                >
-                  {$t("scanning.queue.verifyItem")}
-                </button>
-                <button
-                  type="button"
-                  on:click={() => onOpenGrading(item)}
-                  class="px-2 py-1 text-xs font-medium rounded border border-slate-700 bg-slate-900 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
-                  title={$t("scanning.queue.openGrading")}
-                >
+                <Button size="sm" onClick={() => onVerifyItem(item)}>{$t("scanning.queue.verifyItem")}</Button>
+                <Button size="sm" variant="outlined" severity="secondary" title={$t("scanning.queue.openGrading")} onClick={() => onOpenGrading(item)}>
                   {$t("scanning.queue.canvas")}
-                </button>
+                </Button>
               </div>
             </div>
           {/each}

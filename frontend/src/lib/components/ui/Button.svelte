@@ -1,13 +1,32 @@
 <script lang="ts">
+  import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
+  import { faSpinner } from "@fortawesome/free-solid-svg-icons";
+  import Icon from "./Icon.svelte";
+
   /**
-   * The single button recipe. Variants cover every filled/outlined/danger
-   * spelling that used to be hand-typed per component.
+   * The single button recipe (Artemis button spec): a `variant` (solid /
+   * outlined / text) times a `severity`. With `href` it renders an <a>, so a
+   * navigation styled as a button is still a real link.
+   *
+   * Rules: one primary button per view; destructive actions confirm first and
+   * are labelled with the verb ("Delete exam"); links navigate, buttons act.
    */
-  export let variant: "primary" | "secondary" | "danger" | "ghost" | "toolbar" = "primary";
+  type Variant = "solid" | "outlined" | "text";
+  type Severity = "primary" | "secondary" | "success" | "info" | "warning" | "danger" | "contrast";
+
+  export let variant: Variant = "solid";
+  export let severity: Severity = "primary";
   export let size: "sm" | "md" | "lg" = "md";
   export let type: "button" | "submit" | "reset" = "button";
+  export let href: string | undefined = undefined;
+  export let icon: IconDefinition | undefined = undefined;
+  export let iconRight: IconDefinition | undefined = undefined;
+  /** Round icon-only button. Requires `ariaLabel`. */
+  export let iconOnly = false;
   export let disabled = false;
   export let loading = false;
+  /** Toggle buttons: sets aria-pressed and the selected colours. */
+  export let pressed: boolean | undefined = undefined;
   export let block = false;
   export let title: string | undefined = undefined;
   export let ariaLabel: string | undefined = undefined;
@@ -16,43 +35,98 @@
   let className = "";
   export { className as class };
 
+  /* Full literal class strings only — Tailwind v4 cannot see interpolated
+   * names like `bg-${severity}`. */
+  const solid: Record<Severity, string> = {
+    primary: "border-transparent bg-primary text-primary-contrast",
+    secondary: "border-transparent bg-surface-inset text-content",
+    success: "border-transparent bg-success text-success-contrast",
+    info: "border-transparent bg-info text-info-contrast",
+    warning: "border-transparent bg-warning text-warning-contrast",
+    danger: "border-transparent bg-danger text-danger-contrast",
+    contrast: "border-transparent bg-content text-surface-raised",
+  };
+  const outlined: Record<Severity, string> = {
+    primary: "border-primary bg-transparent text-accent",
+    secondary: "border-line-strong bg-transparent text-content",
+    success: "border-success bg-transparent text-success-fg",
+    info: "border-info bg-transparent text-info-fg",
+    warning: "border-warning bg-transparent text-warning-fg",
+    danger: "border-danger bg-transparent text-danger-fg",
+    contrast: "border-content bg-transparent text-content",
+  };
+  const text: Record<Severity, string> = {
+    primary: "border-transparent bg-transparent text-accent",
+    secondary: "border-transparent bg-transparent text-muted hover:text-content",
+    success: "border-transparent bg-transparent text-success-fg",
+    info: "border-transparent bg-transparent text-info-fg",
+    warning: "border-transparent bg-transparent text-warning-fg",
+    danger: "border-transparent bg-transparent text-danger-fg",
+    contrast: "border-transparent bg-transparent text-content",
+  };
+  const variants: Record<Variant, Record<Severity, string>> = { solid, outlined, text };
+
+  /* `sm` is for dense desktop toolbars; coarse pointers (iPad, phones) are
+   * lifted to 44px either way. */
+  const sizes = {
+    sm: "min-h-8 gap-1.5 px-2.5 py-1.5 text-sm pointer-coarse:min-h-11",
+    md: "min-h-10 gap-2 px-3 py-2 text-base pointer-coarse:min-h-11",
+    lg: "min-h-12 gap-2 px-4 py-2.5 text-lg",
+  };
+  const iconSizes = {
+    sm: "size-8 text-sm pointer-coarse:size-11",
+    md: "size-10 text-base pointer-coarse:size-11",
+    lg: "size-12 text-lg",
+  };
+
+  /* Hover and press tint the button with 5% / 10% of its own text colour
+   * (Artemis), so one rule works for every severity in both themes. */
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-md border font-semibold " +
-    "cursor-pointer transition-colors duration-150 select-none whitespace-nowrap " +
-    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent " +
-    "disabled:cursor-not-allowed disabled:opacity-60";
+    "relative inline-flex shrink-0 cursor-pointer items-center justify-center overflow-hidden border " +
+    "font-normal text-center no-underline select-none transition-colors " +
+    "after:pointer-events-none after:absolute after:inset-0 after:bg-current after:opacity-0 " +
+    "hover:after:opacity-5 active:after:opacity-10 " +
+    "disabled:cursor-not-allowed disabled:opacity-60 disabled:after:opacity-0 " +
+    "aria-disabled:cursor-not-allowed aria-disabled:opacity-60 aria-disabled:after:opacity-0 " +
+    "aria-pressed:border-primary aria-pressed:bg-highlight-strong aria-pressed:text-on-highlight";
 
-  const variants: Record<string, string> = {
-    primary:
-      "border-transparent bg-accent-strong text-white hover:enabled:bg-accent-hover",
-    secondary:
-      "border-line-strong bg-surface-inset text-content hover:enabled:bg-line-strong",
-    danger: "border-transparent bg-red-600 text-white hover:enabled:bg-red-700",
-    ghost:
-      "border-transparent bg-transparent text-muted hover:enabled:bg-surface-inset hover:enabled:text-content",
-    toolbar:
-      "flex-col border-transparent bg-transparent text-muted rounded-lg " +
-      "hover:enabled:bg-surface-raised hover:enabled:text-content aria-pressed:bg-accent-strong aria-pressed:text-white",
-  };
-
-  /* Hit areas stay finger-sized: `md` and `lg` clear 40px, and `sm` is only for
-   * dense desktop toolbars where the coarse-pointer rule in app.css lifts it. */
-  const sizes: Record<string, string> = {
-    sm: "min-h-8 px-2.5 py-1 text-xs",
-    md: "min-h-10 px-4 py-2 text-sm",
-    lg: "min-h-11 px-6 py-3 text-base",
-  };
+  $: isDisabled = disabled || loading;
+  $: shape = iconOnly ? `rounded-full p-0 ${iconSizes[size]}` : `rounded-md ${sizes[size]}`;
+  $: classes = `${base} ${variants[variant][severity]} ${shape} ${block ? "w-full" : ""} ${className}`;
+  $: leadingIcon = loading ? faSpinner : icon;
 </script>
 
-<button
-  {type}
-  {title}
-  aria-label={ariaLabel}
-  disabled={disabled || loading}
-  class="{base} {variants[variant]} {sizes[size]} {block ? 'w-full' : ''} {className}"
-  class:is-loading={loading}
-  on:click={onClick}
-  {...$$restProps}
->
-  <slot />
-</button>
+{#if href !== undefined}
+  <!-- A disabled link has no href: not focusable, not followable. -->
+  <a
+    href={isDisabled ? undefined : href}
+    role={isDisabled ? "link" : undefined}
+    aria-disabled={isDisabled ? "true" : undefined}
+    aria-label={ariaLabel}
+    aria-busy={loading ? "true" : undefined}
+    {title}
+    class={classes}
+    on:click={(event) => (isDisabled ? event.preventDefault() : onClick?.(event))}
+    {...$$restProps}
+  >
+    {#if leadingIcon}<Icon icon={leadingIcon} spin={loading} />{/if}
+    {#if !iconOnly}<slot />{/if}
+    {#if iconRight && !iconOnly}<Icon icon={iconRight} />{/if}
+  </a>
+{:else}
+  <button
+    {type}
+    {title}
+    aria-label={ariaLabel}
+    aria-busy={loading ? "true" : undefined}
+    aria-pressed={pressed === undefined ? undefined : pressed ? "true" : "false"}
+    disabled={isDisabled}
+    class={classes}
+    on:click={(event) => (isDisabled ? undefined : onClick?.(event))}
+    {...$$restProps}
+  >
+    {#if leadingIcon}<Icon icon={leadingIcon} spin={loading} />{/if}
+    {#if !iconOnly}<slot />{/if}
+    {#if iconRight && !iconOnly}<Icon icon={iconRight} />{/if}
+  </button>
+{/if}

@@ -389,3 +389,15 @@ async def test_a_wrong_password_at_the_second_step_can_be_retried(
     )
     assert right.status_code == 200, right.text
     assert right.json()["status"] == "ok"
+
+
+def test_only_a_passkey_completes_a_sign_in_on_its_own() -> None:
+    """A passkey (user verification required) suffices; password or TOTP never do."""
+    from app.services.auth_policy import satisfies
+
+    assert satisfies(["passkey"])
+    assert not satisfies(["password"])
+    assert not satisfies(["totp"])
+    assert satisfies(["password", "totp"])
+    assert satisfies(["passkey", "password"])
+    assert not satisfies([])

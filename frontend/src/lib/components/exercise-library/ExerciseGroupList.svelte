@@ -1,8 +1,20 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
-  import LatexViewer from "$lib/components/LatexViewer.svelte";
-  import { getGroupRepresentative, type ExerciseGroup } from "./ExerciseGroupList";
+  import type { LazyEntry } from "$lib/utils/lazyMap";
+  import { usageKey, type ExamUsageEntry } from "$lib/exercise-library/examUsage";
+  import { getGroupRepresentative, type ExerciseGroup } from "$lib/exercise-library/groupExercises";
   import { t } from "$lib/i18n";
+  import {
+    faPenToSquare,
+    faFileCirclePlus,
+    faCodeCompare,
+    faRightLeft,
+    faTrash,
+    faClone,
+    faEye,
+    faEllipsisVertical
+  } from "@fortawesome/free-solid-svg-icons";
+  import { Badge, Button, ExpandableCard, Menu, MenuItem } from "$lib/components/ui";
 
   export let isLoading = false;
   export let filteredGroups: ExerciseGroup[] = [];
@@ -14,237 +26,176 @@
   export let onDiff: (ex: ExerciseRecord) => void;
   export let onRegroup: (ex: ExerciseRecord) => void;
   export let onDelete: (ex: ExerciseRecord) => void;
+  export let onPreview: (ex: ExerciseRecord) => void;
+  /** Keyed `${groupId}|${variantKey}`; absent = not requested yet. */
+  export let usageMap: Map<string, LazyEntry<ExamUsageEntry[]>> = new Map();
   export let onOpenVariant: (ex: ExerciseRecord) => void;
   export let onCreateFirst: () => void;
 
-  const groupActionBtnBase =
-    "inline-flex items-center gap-[0.35rem] whitespace-nowrap rounded-md border-0 px-3 py-[0.45rem] text-[0.8rem] font-semibold cursor-pointer transition-colors duration-150 ease-[ease]";
-  const groupActionBtnVersion = `${groupActionBtnBase} bg-slate-700 text-sky-400`;
-  const groupActionBtnVariant = `${groupActionBtnBase} bg-violet-900 text-violet-200`;
-
-  const actionBtnBase =
-    "inline-flex items-center gap-[0.35rem] whitespace-nowrap rounded-md border-0 px-[0.55rem] py-[0.375rem] text-[0.775rem] font-semibold leading-none cursor-pointer transition-colors duration-150 ease-[ease]";
-  const actionBtnEdit = `${actionBtnBase} bg-slate-700 text-white`;
-  const actionBtnDelete = `${actionBtnBase} bg-red-500/20 text-red-300`;
-  const actionBtnVersion = `${actionBtnBase} bg-slate-700 text-sky-400`;
-  const actionBtnDiff = `${actionBtnBase} bg-blue-900 text-blue-300`;
-
   const variantPillBase =
-    "rounded-xl border border-slate-700 bg-slate-900 px-[0.6rem] py-[0.2rem] text-[0.78rem] text-slate-400";
+    "rounded-xl border border-line bg-surface-sunken px-2.5 py-1 text-xs text-muted";
   const variantPillHasVariant =
-    "rounded-xl border border-violet-500 bg-violet-500/15 px-[0.6rem] py-[0.2rem] text-[0.78rem] text-violet-300";
+    "rounded-xl border border-info bg-info/15 px-2.5 py-1 text-xs text-info-fg";
 
-  const variantLabelBase = "rounded-md bg-slate-700 px-[0.6rem] py-[0.2rem] text-[0.9rem] font-bold text-slate-300";
-  const variantLabelHasVariant = "rounded-md bg-violet-500/25 px-[0.6rem] py-[0.2rem] text-[0.9rem] font-bold text-violet-200";
+  const variantLabelBase = "rounded-md bg-surface-inset px-2.5 py-1 text-sm font-bold text-content";
+  const variantLabelHasVariant = "rounded-md bg-info/25 px-2.5 py-1 text-sm font-bold text-info-fg";
 </script>
 
 {#if isLoading}
-  <div class="p-12 text-center text-slate-400">{$t("exercises.groupList.loading")}</div>
+  <div class="p-12 text-center text-muted">{$t("exercises.groupList.loading")}</div>
 {:else if filteredGroups.length === 0}
-  <div class="p-12 text-center text-slate-400">
-    <p>{$t("exercises.groupList.empty")}</p>
-    <button class="cursor-pointer rounded-md border-0 bg-sky-600 px-5 py-[0.625rem] font-semibold text-white hover:bg-sky-700" on:click={onCreateFirst}>{$t("exercises.groupList.createFirst")}</button>
+  <div class="flex flex-col items-center gap-4 p-12 text-center text-muted">
+    <p class="m-0">{$t("exercises.groupList.empty")}</p>
+    <Button onClick={onCreateFirst}>{$t("exercises.groupList.createFirst")}</Button>
   </div>
 {:else}
   <div class="flex flex-col gap-4">
-    {#each filteredGroups as group}
+    {#each filteredGroups as group (group.groupId)}
       {@const rep = getGroupRepresentative(group)}
       {@const variantCount = group.variants.size}
       {@const isExpanded = !!expandedGroups[group.groupId]}
-      <div class="overflow-hidden rounded-[10px] border border-slate-700 bg-slate-800">
-        <!-- ── Group Header (always visible) ── -->
-        <div
-          class="flex select-none items-start gap-4 p-5 cursor-pointer transition-colors duration-150 ease-[ease] hover:bg-sky-400/[0.04]"
-          role="button"
-          tabindex="0"
-          aria-expanded={isExpanded}
-          on:click={() => onToggleGroup(group.groupId)}
-          on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleGroup(group.groupId); } }}
-        >
-          <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-            <h3 class="m-0 text-[1.1rem] text-sky-400">{group.name || $t("exercises.untitled")}</h3>
-            <div class="flex flex-wrap items-center gap-2">
-              {#if group.topicTag}
-                <span class="rounded bg-slate-700 px-2 py-[0.15rem] text-xs text-slate-300">{group.topicTag}</span>
-              {/if}
-              {#if rep?.grade}
-                <span class="rounded border border-indigo-700 bg-indigo-950 px-2 py-[0.15rem] text-xs text-indigo-200">{$t("exercises.groupList.gradeBadge", { grade: rep.grade })}</span>
-              {/if}
-              {#if rep?.subject}
-                <span class="rounded border border-emerald-700 bg-emerald-900 px-2 py-[0.15rem] text-xs text-emerald-200">{rep.subject}</span>
-              {/if}
-              <span class="rounded bg-sky-700 px-2 py-[0.15rem] text-xs font-semibold text-sky-100">
-                {group.variants.size > 1 && group.minPoints !== group.maxPoints
-                  ? $t("exercises.groupList.pointsRange", { min: group.minPoints, max: group.maxPoints })
-                  : $t("exercises.groupList.pointsSingle", { max: group.maxPoints })}
-              </span>
-              <span class="rounded bg-slate-900 px-2 py-[0.15rem] text-xs text-slate-400">{variantCount !== 1 ? $t("exercises.groupList.variantCountPlural", { count: variantCount }) : $t("exercises.groupList.variantCountSingular", { count: variantCount })}</span>
-              <button
-                class={groupActionBtnBase}
-                title={$t("exercises.groupList.editGroupTitle")}
-                aria-label={$t("exercises.groupList.editGroupAriaLabel")}
-                on:click|stopPropagation={() => onEditGroup(group)}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
+      <ExpandableCard
+        title={group.name || $t("exercises.untitled")}
+        expanded={isExpanded}
+        onToggle={() => onToggleGroup(group.groupId)}
+      >
+        <svelte:fragment slot="badges">
+          {#if group.topicTag}
+            <Badge>{group.topicTag}</Badge>
+          {/if}
+          {#if rep?.grade}
+            <Badge severity="info">{$t("exercises.groupList.gradeBadge", { grade: rep.grade })}</Badge>
+          {/if}
+          {#if rep?.subject}
+            <Badge severity="success">{rep.subject}</Badge>
+          {/if}
+          <Badge severity="primary">
+            {group.variants.size > 1 && group.minPoints !== group.maxPoints
+              ? $t("exercises.groupList.pointsRange", { min: group.minPoints, max: group.maxPoints })
+              : $t("exercises.groupList.pointsSingle", { max: group.maxPoints })}
+          </Badge>
+          <Badge>{variantCount !== 1 ? $t("exercises.groupList.variantCountPlural", { count: variantCount }) : $t("exercises.groupList.variantCountSingular", { count: variantCount })}</Badge>
+        </svelte:fragment>
 
-          <!-- Variant pills row (collapsed preview) -->
-          {#if !isExpanded}
-            <div class="mt-2 flex flex-wrap gap-2">
-              {#each group.variants.keys() as vKey}
-                {@const vMembers = group.variants.get(vKey) || []}
-                {@const latestVer = vMembers[0]?.version || 1}
-                <span class={vKey !== '_General' ? variantPillHasVariant : variantPillBase}>
-                  {vKey} <strong>v{latestVer}</strong>
+        <svelte:fragment slot="actions">
+          <Button
+            variant="text"
+            severity="secondary"
+            size="sm"
+            iconOnly
+            icon={faPenToSquare}
+            title={$t("exercises.groupList.editGroupTitle")}
+            ariaLabel={$t("exercises.groupList.editGroupAriaLabel")}
+            onClick={() => onEditGroup(group)}
+          />
+        </svelte:fragment>
+
+        <svelte:fragment slot="preview">
+          {#each group.variants.keys() as vKey}
+            {@const vMembers = group.variants.get(vKey) || []}
+            {@const latestVer = vMembers[0]?.version || 1}
+            <span class={vKey !== '_General' ? variantPillHasVariant : variantPillBase}>
+              {vKey} <strong>v{latestVer}</strong>
+            </span>
+          {/each}
+        </svelte:fragment>
+
+        <svelte:fragment slot="body">
+          {#each group.variants as [vKey, vMembers], vIdx}
+            {@const used = usageMap.get(usageKey(group.groupId, vKey))}
+            <div class="{vIdx === group.variants.size - 1 ? '' : 'mb-2 border-b border-line pb-2'}">
+              <div class="mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span class={vKey !== '_General' ? variantLabelHasVariant : variantLabelBase}>
+                  {vKey}
                 </span>
+                <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+                  <span class="font-semibold">{$t("exercises.groupList.usedInExams")}:</span>
+                  {#if used === undefined || used.status === "loading"}
+                    <span>{$t("exercises.groupList.loadingUsage")}</span>
+                  {:else if used.status === "error"}
+                    <span class="text-danger-fg">{$t("common.loadFailedShort")}</span>
+                  {:else if used.value.length === 0}
+                    <span>{$t("exercises.groupList.notUsed")}</span>
+                  {:else}
+                    {#each used.value as exam (exam.id)}
+                      <a
+                        href="/exam/{exam.id}"
+                        class="min-w-0 break-words rounded-md border border-line bg-surface-sunken px-1.5 py-0.5 text-accent hover:bg-highlight"
+                      >{exam.title}{exam.datum ? ` (${exam.datum})` : ""}</a>
+                    {/each}
+                  {/if}
+                </div>
+              </div>
+
+              {#each vMembers as member}
+                <div class="mb-1.5 ml-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+                  <div class="flex items-center gap-2">
+                    <Badge>v{member.version}</Badge>
+                    {#if member.isCurrent}
+                      <Badge severity="success">{$t("exercises.groupList.currentBadge")}</Badge>
+                    {/if}
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <Button
+                      variant="outlined"
+                      severity="secondary"
+                      size="sm"
+                      icon={faEye}
+                      onClick={() => onPreview(member.ex)}
+                    >{$t("common.preview")}</Button>
+                    <Button
+                      variant="outlined"
+                      severity="secondary"
+                      size="sm"
+                      icon={faPenToSquare}
+                      title={$t("exercises.groupList.editExerciseTitle")}
+                      onClick={() => onEditExercise(member.ex)}
+                    >{$t("common.edit")}</Button>
+                    <Menu
+                      label={$t("exercises.groupList.moreActions")}
+                      icon={faEllipsisVertical}
+                      showLabel={false}
+                      chevron={false}
+                    >
+                      <MenuItem icon={faFileCirclePlus} onSelect={() => onNewVersion(member.ex)}>{$t("exercises.groupList.newVersionTitle")}</MenuItem>
+                      <MenuItem icon={faCodeCompare} onSelect={() => onDiff(member.ex)}>{$t("exercises.groupList.diffTitle")}</MenuItem>
+                      <MenuItem icon={faRightLeft} onSelect={() => onRegroup(member.ex)}>{$t("exercises.groupList.regroupTitle")}</MenuItem>
+                      <MenuItem icon={faTrash} danger onSelect={() => onDelete(member.ex)}>{$t("exercises.groupList.deleteTitle")}</MenuItem>
+                    </Menu>
+                  </div>
+                </div>
               {/each}
             </div>
-          {/if}
+          {/each}
+        </svelte:fragment>
 
-          <button class="mt-1 shrink-0 cursor-pointer border-0 bg-transparent px-2 py-1 text-base transition-colors duration-150 ease-[ease] {isExpanded ? 'text-sky-400' : 'text-slate-500'}">
-            {isExpanded ? '▲' : '▼'}
-          </button>
-        </div>
-
-        <!-- ── Expanded Body ── -->
-        {#if isExpanded}
-          <div class="border-t border-slate-700 bg-slate-900/30 px-5 pb-5 pt-4">
-            {#each group.variants as [vKey, vMembers], vIdx}
-              <div class="{vIdx === group.variants.size - 1 ? '' : 'mb-4 border-b border-slate-700/50 pb-4'}">
-                <div class="mb-3 flex items-center gap-3">
-                  <span class={vKey !== '_General' ? variantLabelHasVariant : variantLabelBase}>
-                    {vKey}
-                  </span>
-                  <span class="text-[0.8rem] text-slate-500">v{vMembers[0]?.version || 1}{vMembers[0]?.isCurrent ? $t("exercises.groupList.currentSuffix") : ''}</span>
-                </div>
-
-                {#each vMembers as member}
-                  <div class="mb-3 ml-2">
-                    <div class="mb-2 flex items-center gap-2">
-                      <span class="rounded bg-slate-900 px-2 py-[0.15rem] text-xs text-slate-500">v{member.version}</span>
-                      {#if member.isCurrent}
-                        <span class="rounded bg-green-500/15 px-[0.4rem] py-[0.1rem] text-[0.7rem] font-semibold uppercase text-green-300">{$t("exercises.groupList.currentBadge")}</span>
-                      {/if}
-                    </div>
-
-                    <div class="mb-3 max-h-20 overflow-hidden rounded-md bg-slate-900 p-3 text-[0.8rem] text-slate-400">
-                      <LatexViewer code={(member.ex.latexBody || "").slice(0, 150) + "..."} snippet={true} />
-                    </div>
-
-                    <div class="flex flex-wrap justify-end gap-[0.375rem]">
-                      <button
-                        class={actionBtnEdit}
-                        title={$t("exercises.groupList.editExerciseTitle")}
-                        on:click={() => onEditExercise(member.ex)}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                        <span>{$t("common.edit")}</span>
-                      </button>
-                      <button
-                        class={actionBtnVersion}
-                        title={$t("exercises.groupList.newVersionTitle")}
-                        on:click={() => onNewVersion(member.ex)}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                          <line x1="12" y1="18" x2="12" y2="12"></line>
-                          <line x1="9" y1="15" x2="15" y2="15"></line>
-                        </svg>
-                        <span>{$t("exercises.groupList.newVersionAbbr")}</span>
-                      </button>
-                      <button
-                        class={actionBtnDiff}
-                        title={$t("exercises.groupList.diffTitle")}
-                        on:click={() => onDiff(member.ex)}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M16 3h5v5"></path>
-                          <path d="M8 21H3v-5"></path>
-                          <path d="M21 3L14 10"></path>
-                          <path d="M3 21l7-7"></path>
-                        </svg>
-                        <span>{$t("exercises.groupList.diffText")}</span>
-                      </button>
-                      <button
-                        class={actionBtnBase}
-                        title={$t("exercises.groupList.regroupTitle")}
-                        on:click={() => onRegroup(member.ex)}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M14 4h6v6"></path>
-                          <path d="M10 20H4v-6"></path>
-                          <path d="M20 4L14 10"></path>
-                          <path d="M4 20l6-6"></path>
-                        </svg>
-                        <span>{$t("exercises.groupList.regroupText")}</span>
-                      </button>
-                      <button
-                        class={actionBtnDelete}
-                        title={$t("exercises.groupList.deleteTitle")}
-                        on:click={() => onDelete(member.ex)}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <polyline points="3 6 5 6 21 6"></polyline>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                {/each}
-              </div>
-            {/each}
-
-            <!-- Group-level actions -->
-            <div class="mt-2 flex justify-end gap-2 border-t border-dashed border-slate-700/60 pt-4">
-              <button
-                class={groupActionBtnBase}
-                title={$t("exercises.groupList.editGroupTitle")}
-                on:click={() => onEditGroup(group)}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                </svg>
-                <span>{$t("exercises.groupList.editGroupButtonText")}</span>
-              </button>
-              <button
-                class={groupActionBtnVariant}
-                title={$t("exercises.groupList.createVariantTitle")}
-                on:click={() => onOpenVariant(rep)}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="3" width="7" height="7" rx="1"></rect>
-                  <rect x="14" y="3" width="7" height="7" rx="1"></rect>
-                  <rect x="14" y="14" width="7" height="7" rx="1"></rect>
-                  <path d="M6 10v7a2 2 0 0 0 2 2h6"></path>
-                </svg>
-                <span>{$t("exercises.groupList.createVariantText")}</span>
-              </button>
-              <button
-                class={groupActionBtnVersion}
-                title={$t("exercises.groupList.newVersionOfFirstTitle")}
-                on:click={() => onNewVersion(rep)}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <line x1="12" y1="18" x2="12" y2="12"></line>
-                  <line x1="9" y1="15" x2="15" y2="15"></line>
-                </svg>
-                <span>{$t("exercises.groupList.newVersionText")}</span>
-              </button>
-            </div>
-          </div>
-        {/if}
-      </div>
+        <svelte:fragment slot="footer">
+            <Button
+              variant="outlined"
+              severity="secondary"
+              size="sm"
+              icon={faPenToSquare}
+              title={$t("exercises.groupList.editGroupTitle")}
+              onClick={() => onEditGroup(group)}
+            >{$t("exercises.groupList.editGroupButtonText")}</Button>
+            <Button
+              variant="outlined"
+              severity="secondary"
+              size="sm"
+              icon={faClone}
+              title={$t("exercises.groupList.createVariantTitle")}
+              onClick={() => onOpenVariant(rep)}
+            >{$t("exercises.groupList.createVariantText")}</Button>
+            <Button
+              variant="outlined"
+              severity="secondary"
+              size="sm"
+              icon={faFileCirclePlus}
+              title={$t("exercises.groupList.newVersionOfFirstTitle")}
+              onClick={() => onNewVersion(rep)}
+            >{$t("exercises.groupList.newVersionText")}</Button>
+        </svelte:fragment>
+      </ExpandableCard>
     {/each}
   </div>
 {/if}
-

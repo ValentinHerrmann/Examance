@@ -1,5 +1,5 @@
 <script lang="ts">
-  import "./+page.css";
+  import { type ExerciseGroup, groupExercises } from "$lib/exercise-library/groupExercises";
   import { page } from "$app/stores";
   export let params;
   import { onMount, onDestroy } from "svelte";
@@ -12,7 +12,6 @@
     ExamMcGroupRecord,
     ExamExerciseRecord,
   } from "$lib/db/schema";
-  import { formatExamCourse } from "$lib/utils/examLabel";
   import {
     loadExamEncrypted,
     saveExamEncrypted,
@@ -28,15 +27,16 @@
     loadLocalMcGroups,
     type McGroup,
   } from "$lib/db/dbEncryption";
-  import { computeMcExercisesHash, resolveMcExercises, normalizeMcExercise } from "$lib/grading/mcExerciseHash";
+  import { computeMcExercisesHash, resolveMcExercises } from "$lib/grading/mcExerciseHash";
   import { prepareOmrTemplate } from "$lib/grading/omrTemplatePrep";
   import { isMcQuestion } from "$lib/grading/mcScore";
   import { exportArchiveInteractively } from "$lib/services/archiveService";
-  import { compileWithCache, getLatestForSlot, invalidateOwner } from "$lib/latex/compileCache";
-  import { formatExerciseLatex, formatMcGroupLatex, parseExerciseScore } from "$lib/latex/scoreParser";
+  import { getLatestForSlot, invalidateOwner } from "$lib/latex/compileCache";
+  import { parseExerciseScore } from "$lib/latex/scoreParser";
+  import { compileExamPreview } from "$lib/exam/examPreview";
+  import { pdfBytesToUrl } from "$lib/latex/pdfPreview";
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
   import { studentRepository } from "$lib/repositories/studentRepository";
   import { examRepository, mapApiToExamRecord } from "$lib/repositories/examRepository";
   import { mapExerciseRecordToApi } from "$lib/repositories/exerciseRepository";
@@ -50,7 +50,6 @@
   import { sessionStore, isAuthenticated, awaitSessionReady } from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { get } from "svelte/store";
-  import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import DualPdfPreview from "$lib/components/DualPdfPreview.svelte";
   import { getPresetCutoffs } from "$lib/analytics/gradingKey";
   import type { GradingKeyConfig } from "$lib/db/schema";
@@ -60,8 +59,16 @@
   import ExerciseList from "$lib/components/exam/ExerciseList.svelte";
   import ExamMetadataEditor from "$lib/components/exam/ExamMetadataEditor.svelte";
   import ExamLibraryModal from "$lib/components/exam/ExamLibraryModal.svelte";
+  import { mapApiToExerciseRecord } from "$lib/repositories/exerciseRepository";
+  import {
+    applyGroup,
+    buildMcGroupMembership,
+    canFinalizeGroup,
+    moveStaged,
+    toggleStaged,
+  } from "$lib/exam/mcGroupStaging";
   import { t, translate } from "$lib/i18n";
-  import { Button } from "$lib/components/ui";
+  import { ConfirmDialog, Alert, Button, Card, PageHeader, PageShell } from "$lib/components/ui";
 
   $: examId = $page.params.id || "";
 
@@ -206,21 +213,7 @@
           const remoteExam = (await api.get(`/exams/${id}`)) as any;
           if (isStale()) return;
           exam = mapApiToExamRecord(remoteExam);
-          exercises = remoteExam.exercises.map((e: any) => normalizeMcExercise({
-            id: e.id,
-            name: e.name,
-            topicTag: e.topic_tag,
-            latexBody: e.latex_body,
-            maxPoints: e.max_points,
-            version: e.version || 1,
-            orderIndex: e.order_index,
-            questionType: e.question_type || "free_text",
-            options: e.options,
-            correctAnswers: e.correct_answers || e.correctAnswers,
-            penalty: e.penalty || 0,
-            mcGroupId: e.mc_group_id || undefined,
-            subIndex: e.sub_index || undefined,
-          }));
+          exercises = remoteExam.exercises.map(mapApiToExerciseRecord);
           // Only a response that actually carries `mc_groups` may rewrite
           // local grouping — otherwise this would replace every junction's
           // mcGroupId with undefined and dissolve the groups.
@@ -519,76 +512,6 @@
     await saveExerciseLinks();
   }
 
-  function buildExerciseInputs(): string {
-    let exerciseCount = 0;
-    return examItems
-      .map((item) => {
-        if (item.type === "exercise") {
-          const ex = exercises.find((e) => e.id === item.id);
-          if (!ex) return "";
-          exerciseCount++;
-          return formatExerciseLatex(
-            ex.latexBody,
-            ex.name || `Aufgabe ${exerciseCount}`,
-            ex.id,
-          );
-        } else {
-          const group = mcGroups.find((g) => g.id === item.id);
-          if (!group) return "";
-          const members = group.memberIds
-            .map((id) => libraryExercises.find((e) => e.id === id) || exercises.find((e) => e.id === id))
-            .filter((e): e is ExerciseRecord => Boolean(e));
-          return formatMcGroupLatex(
-            members.map((m) => ({ id: m.id, latexBody: m.latexBody || "" })),
-            group.title,
-            group.scoringText,
-          );
-        }
-      })
-      .filter(Boolean)
-      .join("\n\n");
-  }
-
-  /**
-   * Resource files of every exercise in this exam, ready for the compiler.
-   *
-   * Files are written flat, so two exercises carrying different files under the
-   * same name is a conflict the teacher has to resolve; mergeResources() (in
-   * lib/latex/resources.ts) raises it before anything is compiled.
-   */
-  async function collectExamResources() {
-    const owners: { id: string; label?: string }[] = [];
-    let exerciseCount = 0;
-    for (const item of examItems) {
-      if (item.type === "exercise") {
-        const ex = exercises.find((e) => e.id === item.id);
-        if (ex) owners.push({ id: ex.id, label: ex.name || `Aufgabe ${++exerciseCount}` });
-      } else {
-        const group = mcGroups.find((g) => g.id === item.id);
-        for (const memberId of group?.memberIds ?? []) {
-          const member =
-            libraryExercises.find((e) => e.id === memberId) ||
-            exercises.find((e) => e.id === memberId);
-          if (member) owners.push({ id: member.id, label: member.name || group?.title });
-        }
-      }
-    }
-    // The local engine needs the bytes in the browser; the server can load its
-    // own rows from the database, so it only gets the exercise ids.
-    const needBytes = $storagePolicyStore.latexCompilation === "local";
-    return exerciseResourceRepository.collectForCompile(
-      owners,
-      get(sessionStore).sessionKey,
-      needBytes
-    );
-  }
-
-  /** The resource half of a compileLatex() options object for this exam. */
-  async function compileResourceOptions() {
-    const collected = await collectExamResources();
-    return { resources: collected.inline, resourceExerciseIds: collected.exerciseIds };
-  }
-
   async function handlePrepareOmr() {
     if (!exam) return;
     isPreparingOmr = true;
@@ -622,75 +545,35 @@
 
   async function handlePreviewExam() {
     if (!exam || (exercises.length === 0 && mcGroups.length === 0)) return;
-    const currentExam = exam;
     isPreviewLoading = true;
     compileNotice = "";
     errorMsg = "";
     let compileSucceeded = false;
 
     try {
-      const exerciseInputs = buildExerciseInputs();
-
-      const getPreamble = (options: string) => `\\documentclass[a4paper]{article}
-\\usepackage[${options}]{sty/Schulaufgabe}
-\\Info{${currentExam.infoText || ""}}
-\\Fach{${currentExam.fach || "Informatik"}}
-\\Lehrernachname{${currentExam.lehrernachname || ""}}
-\\usepackage{fontspec}
-\\usetikzlibrary{shapes.geometric, arrows}
-\\usepackage{sty/tikz-uml}
-\\neverindent
-\\WarningsOff
-\\begin{document}
-\\Testart{${currentExam.testart || "Kurzarbeit"}}
-\\Klasse{${formatExamCourse(currentExam.grade, currentExam.klasse)}}
-\\Datum{${currentExam.datum || ""}}
-\\Nr{${currentExam.nr || "1"}}
-
-${exerciseInputs}
-
-\\end{document}`;
-
-      const fullTexAngabe = getPreamble("sans,punkte");
-      const fullTexLoesung = getPreamble("sans,punkte,antworten");
-
-      const useLocal = $storagePolicyStore.latexCompilation === "local";
-      const compileOpts = await compileResourceOptions();
-
-      const resAngabe = await compileWithCache(
-        { kind: "exam", id: currentExam.id, variant: "angabe" },
-        fullTexAngabe,
-        useLocal,
-        (status) => {
+      const res = await compileExamPreview({
+        exam,
+        exercises,
+        libraryExercises,
+        mcGroups,
+        examItems,
+        key: get(sessionStore).sessionKey,
+        onStatus: (status) => {
           if (status === 'downloading') {
             compileNotice = translate("exam.page.preview.loadingCompiler");
           } else if (status === 'compiling') {
             compileNotice = translate("exam.page.preview.compiling");
           }
         },
-        false,
-        compileOpts
-      );
+      });
 
-      const blobAngabe = new Blob([resAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
-      previewPdfUrl = URL.createObjectURL(blobAngabe);
-
-      const resLoesung = await compileWithCache(
-        { kind: "exam", id: currentExam.id, variant: "loesung" },
-        fullTexLoesung,
-        useLocal,
-        undefined,
-        false,
-        compileOpts
-      );
-      const blobLoesung = new Blob([resLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+      previewPdfUrl = pdfBytesToUrl(res.angabe.pdfBytes);
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
-      previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
+      previewSolutionPdfUrl = pdfBytesToUrl(res.loesung.pdfBytes);
 
-      const missing = [...(resAngabe.missingGraphics ?? []), ...(resLoesung.missingGraphics ?? [])];
-      if (missing.length > 0) {
-        errorMsg = `Compiled, but a graphic could not be loaded: ${missing[0]}`;
+      if (res.missingGraphics.length > 0) {
+        errorMsg = translate("common.previewMissingGraphic", { name: res.missingGraphics[0] });
       }
 
       compileNotice = "";
@@ -772,24 +655,7 @@ ${exerciseInputs}
   let librarySearch = "";
   let activeVariantPerGroup: Record<string, string> = {};
 
-  interface VariantMember {
-    ex: ExerciseRecord;
-    variantLabel: string;
-    version: number;
-    isCurrent: boolean;
-  }
 
-  interface ExerciseGroup {
-    groupId: string;
-    name: string;
-    topicTag: string;
-    grade?: string;
-    subject?: string;
-    maxPoints: number;
-    minPoints: number;
-    variants: Map<string, VariantMember[]>;
-    allMembers: VariantMember[];
-  }
 
   $: isLibraryDirty =
     isLibraryModalOpen &&
@@ -813,75 +679,6 @@ ${exerciseInputs}
 
   $: filteredGroups = groupExercises(filteredLibrary);
 
-  function groupExercises(exs: ExerciseRecord[]): ExerciseGroup[] {
-    const buckets = new Map<string, ExerciseRecord[]>();
-
-    for (const ex of exs) {
-      const key = ex.exerciseGroupId || `name:${ex.name || "Untitled"}`;
-      if (!buckets.has(key)) buckets.set(key, []);
-      buckets.get(key)!.push(ex);
-    }
-
-    const groups: ExerciseGroup[] = [];
-
-    for (const [groupId, members] of buckets) {
-      const currentMembers = members.filter((m) => m.isCurrent !== false);
-      if (currentMembers.length === 0) continue;
-
-      const name = currentMembers[0]?.name || translate("exam.page.library.untitled");
-      const topicTag = currentMembers[0]?.topicTag || "_General";
-      const grade = currentMembers[0]?.grade;
-      const subject = currentMembers[0]?.subject;
-
-      const variants = new Map<string, VariantMember[]>();
-      for (const ex of currentMembers) {
-        const vKey = ex.variantKey || "_General";
-        if (!variants.has(vKey)) variants.set(vKey, []);
-        variants.get(vKey)!.push({
-          ex,
-          variantLabel: vKey,
-          version: ex.version || 1,
-          isCurrent: ex.isCurrent !== false,
-        });
-      }
-
-      const sortedVariants = new Map<string, VariantMember[]>();
-      const keys = [...variants.keys()].sort((a, b) => {
-        if (a === "_General") return -1;
-        if (b === "_General") return 1;
-        return a.localeCompare(b);
-      });
-      for (const k of keys) sortedVariants.set(k, variants.get(k)!);
-
-      for (const [, vMembers] of sortedVariants) {
-        vMembers.sort((a, b) => b.version - a.version);
-      }
-
-      const allMembers: VariantMember[] = [];
-      for (const [, vMembers] of sortedVariants) {
-        allMembers.push(...vMembers);
-      }
-
-      const scores = allMembers.map((m) => parseExerciseScore(m.ex.latexBody || "") || m.ex.maxPoints || 0);
-      const maxPoints = scores.length > 0 ? Math.max(...scores) : 0;
-      const minPoints = scores.length > 0 ? Math.min(...scores) : 0;
-
-      groups.push({
-        groupId,
-        name,
-        topicTag,
-        grade,
-        subject,
-        maxPoints,
-        minPoints,
-        variants: sortedVariants,
-        allMembers,
-      });
-    }
-
-    groups.sort((a, b) => a.name.localeCompare(b.name));
-    return groups;
-  }
 
   function setGroupVariant(groupId: string, vKey: string) {
     activeVariantPerGroup = { ...activeVariantPerGroup, [groupId]: vKey };
@@ -1000,27 +797,14 @@ ${exerciseInputs}
     try {
       if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
         const remoteExs = (await api.get("/exercises")) as any[];
-        libraryExercises = remoteExs.map((e: any) => ({
-          id: e.id,
-          teacherId: e.teacher_id,
-          name: e.name,
-          topicTag: e.topic_tag,
-          grade: e.grade || undefined,
-          subject: e.subject || undefined,
-          latexBody: e.latex_body,
-          maxPoints: e.max_points,
-          version: e.version || 1,
-          variantKey: e.variant_key,
-          isCurrent: e.is_current,
-          exerciseGroupId: e.exercise_group_id || undefined,
-          isPublic: e.is_public,
-          questionType: e.question_type || "free_text",
-          penalty: e.penalty || 0,
-        }));
+        libraryExercises = remoteExs.map(mapApiToExerciseRecord);
       } else {
         libraryExercises = await loadExercisesEncrypted(key);
       }
-      selectedLibraryIds = exercises.map((e) => e.id);
+      // The library selection holds standalone exercises only; group members are
+      // managed through their group (MC tab), never ticked as standalone too.
+      const groupedIds = new Set(mcGroups.flatMap((g) => g.memberIds));
+      selectedLibraryIds = exercises.filter((e) => !groupedIds.has(e.id)).map((e) => e.id);
       initialSelectedLibraryIds = [...selectedLibraryIds];
       activeVariantPerGroup = {};
       for (const ex of exercises) {
@@ -1062,52 +846,51 @@ ${exerciseInputs}
   $: availableTopics = [...new Set(libraryExercises.map((e) => e.topicTag).filter((t): t is string => Boolean(t)))].sort();
   $: totalVariantsCount = libraryExercises.length;
 
+  $: editingMcGroup = mcGroups.find((g) => g.id === editingMcGroupId) ?? null;
+  $: mcGroupMembership = buildMcGroupMembership(mcGroups, editingMcGroupId);
+
   function toggleMcStaging(id: string) {
-    if (mcStagingIds.includes(id)) {
-      mcStagingIds = mcStagingIds.filter((i) => i !== id);
-    } else {
-      if (mcStagingIds.length >= 4) return;
-      mcStagingIds = [...mcStagingIds, id];
-    }
+    mcStagingIds = toggleStaged(mcStagingIds, id, mcGroupMembership);
   }
 
   function reorderMcStaging(index: number, direction: "up" | "down") {
-    const targetIdx = direction === "up" ? index - 1 : index + 1;
-    if (targetIdx < 0 || targetIdx >= mcStagingIds.length) return;
-    const copy = [...mcStagingIds];
-    [copy[index], copy[targetIdx]] = [copy[targetIdx], copy[index]];
-    mcStagingIds = copy;
+    mcStagingIds = moveStaged(mcStagingIds, index, direction);
   }
 
   async function finalizeMcGroup(title: string, scoringText: string) {
-    if (mcStagingIds.length < 1 || mcStagingIds.length > 4) return;
-    if (editingMcGroupId) {
-      mcGroups = mcGroups.map((g) =>
-        g.id === editingMcGroupId
-          ? { ...g, title, scoringText, memberIds: [...mcStagingIds] }
-          : g
-      );
-      editingMcGroupId = null;
-    } else {
-      mcGroups = [
-        ...mcGroups,
-        {
-          id: crypto.randomUUID(),
-          title,
-          scoringText,
-          memberIds: [...mcStagingIds],
-        },
-      ];
-    }
+    if (!canFinalizeGroup(mcStagingIds)) return;
+    const memberIds = [...mcStagingIds];
+    const previousMemberIds = new Set(editingMcGroup?.memberIds ?? []);
+    mcGroups = applyGroup(mcGroups, { editingId: editingMcGroupId, title, scoringText, memberIds });
+    adoptGroupMembers(memberIds, previousMemberIds);
+    editingMcGroupId = null;
     mcStagingIds = [];
     await saveExerciseLinks();
   }
 
+  /**
+   * Keeps `exercises` (the exam's linked questions) in step with a group change:
+   * new members are linked as group members — never also standalone, since an
+   * exercise is linked to an exam once — and members dropped from an edited
+   * group leave the exam with it.
+   */
+  function adoptGroupMembers(memberIds: string[], previousMemberIds: Set<string>) {
+    const members = new Set(memberIds);
+    const removed = new Set([...previousMemberIds].filter((id) => !members.has(id)));
+    const linkedIds = new Set(exercises.map((e) => e.id));
+    const added = memberIds
+      .filter((id) => !linkedIds.has(id))
+      .map((id) => libraryExercises.find((e) => e.id === id))
+      .filter((e): e is ExerciseRecord => Boolean(e));
+    exercises = [...exercises.filter((e) => !removed.has(e.id)), ...added];
+    selectedLibraryIds = selectedLibraryIds.filter((id) => !members.has(id));
+    examItems = examItems.filter((item) => !(item.type === "exercise" && members.has(item.id)));
+  }
+
   function editMcGroup(groupId: string) {
-    const group = mcGroups.find((g) => g.id === groupId);
-    if (!group) return;
-    editingMcGroupId = group.id;
-    mcStagingIds = [...group.memberIds];
+    if (!mcGroups.some((g) => g.id === groupId)) return;
+    editingMcGroupId = groupId;
+    mcStagingIds = [...(mcGroups.find((g) => g.id === groupId)?.memberIds ?? [])];
     openLibraryModal();
   }
 
@@ -1287,12 +1070,15 @@ ${exerciseInputs}
   }
 
   async function applyLibrarySelection() {
-    const newSelected = selectedLibraryIds
+    const groupedIds = new Set(mcGroups.flatMap((g) => g.memberIds));
+    const standalone = selectedLibraryIds
+      .filter((id) => !groupedIds.has(id))
       .map((id) => libraryExercises.find((ex) => ex.id === id))
       .filter((ex): ex is ExerciseRecord => Boolean(ex))
       .map((ex, idx) => ({ ...ex, orderIndex: idx + 1 }));
+    const groupMembers = exercises.filter((ex) => groupedIds.has(ex.id));
 
-    exercises = newSelected;
+    exercises = [...standalone, ...groupMembers];
     await saveExerciseLinks();
     isLibraryModalOpen = false;
   }
@@ -1343,22 +1129,29 @@ ${exerciseInputs}
   }
 </script>
 
-<div class="exam-detail-page">
+<PageShell width="fluid">
+  <PageHeader title={$t("exam.sidebar.setup")} />
+
   {#if isLocalFallback}
-    <div class="local-fallback-banner flex-wrap">
-      <span>{$t("exam.page.localFallback.banner")}</span>
-      <button
-        class="sync-now-btn"
-        on:click={syncCurrentExamToServer}
-        disabled={isSyncingSingle}
-      >
-        {isSyncingSingle ? $t("exam.page.localFallback.syncing") : $t("exam.page.localFallback.syncNow")}
-      </button>
-    </div>
+    <Alert severity="warning" class="mb-6">
+      {$t("exam.page.localFallback.banner")}
+      <svelte:fragment slot="actions">
+        <Button
+          size="sm"
+          variant="outlined"
+          severity="warning"
+          onClick={syncCurrentExamToServer}
+          disabled={isSyncingSingle}
+          loading={isSyncingSingle}
+        >
+          {isSyncingSingle ? $t("exam.page.localFallback.syncing") : $t("exam.page.localFallback.syncNow")}
+        </Button>
+      </svelte:fragment>
+    </Alert>
   {/if}
 
   {#if !exam}
-    <div class="loading">{$t("exam.page.loading")}</div>
+    <div class="text-muted">{$t("exam.page.loading")}</div>
   {:else}
     <ExamMetadata
       {exam}
@@ -1400,86 +1193,86 @@ ${exerciseInputs}
     />
 
 <ConfirmDialog
-  isOpen={showMetadataConfirm}
+  open={showMetadataConfirm}
   title={$t("exam.page.metadata.discardTitle")}
   message={$t("exam.page.metadata.discardMessage")}
   confirmText={$t("exam.page.metadata.discardConfirm")}
   cancelText={$t("exam.page.metadata.discardKeepEditing")}
-  on:confirm={forceCancelMetadata}
-  on:cancel={() => (showMetadataConfirm = false)}
+  severity="danger"
+  role="dialog"
+  onConfirm={forceCancelMetadata}
+  onCancel={() => (showMetadataConfirm = false)}
 />
 
     {#if exportSuccess}
-      <div class="exam-success-banner">
-        {$t("exam.page.export.successBanner")}
-      </div>
+      <Alert severity="success" class="mb-6">{$t("exam.page.export.successBanner")}</Alert>
     {/if}
 
-    <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-2">
-      <div class="pdf-compile-section min-w-0">
-      <h3>{$t("exam.page.compileSection.heading")}</h3>
-      <p class="desc">
-        {$t("exam.page.compileSection.description")}
-      </p>
+    <div class="grid min-w-0 grid-cols-1 items-start gap-6 @6xl:grid-cols-2">
+      <Card title={$t("exam.page.compileSection.heading")}>
+        <p class="mb-4 text-sm text-muted">
+          {$t("exam.page.compileSection.description")}
+        </p>
 
-      <div class="exam-controls-row">
-        <Button
-          onClick={handlePreviewExam}
-          loading={isPreviewLoading || isPreparingOmr}
-          disabled={isPreviewLoading || isPreparingOmr || exercises.length === 0}
-          title={$t("exam.page.compileSection.liveTooltip")}
-        >
-          {isPreviewLoading
-            ? $t("exam.page.preview.compilingPreviews")
-            : isPreparingOmr
-              ? $t("exam.page.omr.preparing")
-              : $t("exam.page.preview.liveButton")}
-        </Button>
-      </div>
-
-      {#if omrTemplateStatus === "stale"}
-        <div class="exam-notice exam-notice--warning flex items-center justify-between">
-          <span>
-            {$t("exam.page.omr.staleWarning")}
-          </span>
-          <button
-            type="button"
-            class="ml-3 text-xs underline font-medium text-amber-300 hover:text-amber-100 disabled:opacity-50 cursor-pointer"
-            on:click={handlePrepareOmr}
-            disabled={isPreparingOmr}
+        <div class="flex flex-wrap items-center gap-4">
+          <Button
+            onClick={handlePreviewExam}
+            loading={isPreviewLoading || isPreparingOmr}
+            disabled={isPreviewLoading || isPreparingOmr || exercises.length === 0}
+            title={$t("exam.page.compileSection.liveTooltip")}
           >
-            {isPreparingOmr ? $t("exam.page.omr.refreshing") : $t("exam.page.omr.refreshNow")}
-          </button>
+            {isPreviewLoading
+              ? $t("exam.page.preview.compilingPreviews")
+              : isPreparingOmr
+                ? $t("exam.page.omr.preparing")
+                : $t("exam.page.preview.liveButton")}
+          </Button>
         </div>
-      {/if}
-      {#if omrPrepareMessage}
-        <div class="exam-notice">{omrPrepareMessage}</div>
-      {/if}
 
-      {#if previewPdfUrl || previewSolutionPdfUrl}
-        <div style="margin-top: 1rem;">
-          <DualPdfPreview
-            {previewPdfUrl}
-            {previewSolutionPdfUrl}
-            bind:showAngabePreview
-            bind:showLoesungPreview
-            titleAngabe={$t("exam.page.pdfPreview.titleAngabe")}
-            titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
-            height="550px"
-            placeholderText={$t("exam.page.pdfPreview.placeholder")}
-          />
-        </div>
-      {/if}
+        {#if omrTemplateStatus === "stale"}
+          <Alert severity="warning" class="mt-3">
+            {$t("exam.page.omr.staleWarning")}
+            <svelte:fragment slot="actions">
+              <Button
+                size="sm"
+                variant="outlined"
+                severity="warning"
+                onClick={handlePrepareOmr}
+                disabled={isPreparingOmr}
+              >
+                {isPreparingOmr ? $t("exam.page.omr.refreshing") : $t("exam.page.omr.refreshNow")}
+              </Button>
+            </svelte:fragment>
+          </Alert>
+        {/if}
+        {#if omrPrepareMessage}
+          <Alert severity="info" class="mt-3">{omrPrepareMessage}</Alert>
+        {/if}
 
-      {#if compileNotice}
-        <div class="exam-notice">{compileNotice}</div>
-      {/if}
-      {#if errorMsg}
-        <div class="exam-error-banner overflow-x-auto">{errorMsg}</div>
-      {/if}
-    </div>
+        {#if previewPdfUrl || previewSolutionPdfUrl}
+          <div class="mt-4">
+            <DualPdfPreview
+              {previewPdfUrl}
+              {previewSolutionPdfUrl}
+              bind:showAngabePreview
+              bind:showLoesungPreview
+              titleAngabe={$t("exam.page.pdfPreview.titleAngabe")}
+              titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
+              height="550px"
+              placeholderText={$t("exam.page.pdfPreview.placeholder")}
+            />
+          </div>
+        {/if}
 
- 
+        {#if compileNotice}
+          <Alert severity="info" class="mt-3">{compileNotice}</Alert>
+        {/if}
+        {#if errorMsg}
+          <Alert severity="danger" class="mt-4">
+            <div class="max-h-72 overflow-auto font-mono break-all whitespace-pre-wrap">{errorMsg}</div>
+          </Alert>
+        {/if}
+      </Card>
 
     <div class="min-w-0">
       <ExerciseList
@@ -1497,7 +1290,7 @@ ${exerciseInputs}
     </div>
     </div>
   {/if}
-</div>
+</PageShell>
 
 <ExamLibraryModal
   isOpen={isLibraryModalOpen}
@@ -1514,7 +1307,8 @@ ${exerciseInputs}
   {activeVariantPerGroup}
   {libraryExercises}
   {mcStagingIds}
-  {editingMcGroupId}
+  {editingMcGroup}
+  {mcGroupMembership}
   onToggleMcStaging={toggleMcStaging}
   onReorderMcStaging={reorderMcStaging}
   onFinalizeMcGroup={finalizeMcGroup}
@@ -1525,12 +1319,14 @@ ${exerciseInputs}
 />
 
 <ConfirmDialog
-  isOpen={showLibraryConfirm}
+  open={showLibraryConfirm}
   title={$t("exam.page.library.discardTitle")}
   message={$t("exam.page.library.discardMessage")}
   confirmText={$t("exam.page.metadata.discardConfirm")}
   cancelText={$t("exam.page.metadata.discardKeepEditing")}
-  on:confirm={forceCloseLibraryModal}
-  on:cancel={() => (showLibraryConfirm = false)}
+  severity="danger"
+  role="dialog"
+  onConfirm={forceCloseLibraryModal}
+  onCancel={() => (showLibraryConfirm = false)}
 />
 

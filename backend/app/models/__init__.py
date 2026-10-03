@@ -9,6 +9,7 @@ from app.models.exercise_resource import ExerciseResource
 from app.models.exercise_score import ExerciseScore
 from app.models.key_envelope import KeyEnvelope
 from app.models.mfa_credential import MfaBackupCode, MfaCredential
+from app.models.omr_training_sample import OmrTrainingSample
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.scan_submission import ScanSubmission
@@ -34,4 +35,5 @@ __all__ = [
     "ScanSubmission",
     "AuditLog",
     "WebAuthnCredential",
+    "OmrTrainingSample",
 ]

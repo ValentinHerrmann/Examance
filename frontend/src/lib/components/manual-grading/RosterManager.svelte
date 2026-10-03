@@ -1,5 +1,6 @@
 <script lang="ts">
-  import "./RosterManager.css";
+  import { faPlus } from "@fortawesome/free-solid-svg-icons";
+  import { Badge, Button, EmptyState, Field, Panel, TableScroller, Textarea, TextInput } from "$lib/components/ui";
   import { get } from "svelte/store";
   import { sessionStore } from "$lib/stores/session";
   import { studentRepository } from "$lib/repositories/studentRepository";
@@ -134,72 +135,58 @@
   }
 </script>
 
-<div class="roster-manager">
-  <div class="roster-add-card">
-    <h3>{$t("grading.manual.roster.addTitle")}</h3>
-    <form on:submit|preventDefault={handleAddSingle} class="roster-form-row">
-      <div class="roster-form-field">
-        <label for="student-name">{$t("grading.manual.roster.nameLabel")}</label>
-        <input
-          id="student-name"
-          type="text"
+<div class="flex min-w-0 flex-col gap-6">
+  <Panel title={$t("grading.manual.roster.addTitle")}>
+    <form on:submit|preventDefault={handleAddSingle} class="flex flex-wrap items-end gap-4">
+      <Field label={$t("grading.manual.roster.nameLabel")} class="min-w-[min(11rem,100%)] flex-1" let:id>
+        <TextInput
+          {id}
           bind:value={newName}
           placeholder={$t("grading.manual.roster.namePlaceholder")}
           required
         />
-      </div>
-      <div class="roster-form-field">
-        <label for="student-number">{$t("grading.manual.roster.numberLabel")}</label>
-        <input
-          id="student-number"
-          type="text"
-          bind:value={newStudentNumber}
-          placeholder="123456"
-        />
-      </div>
-      <div class="roster-form-field">
-        <label for="fallback-code">{$t("grading.manual.roster.fallbackLabel")}</label>
-        <input
-          id="fallback-code"
-          type="text"
-          bind:value={newFallbackCode}
-          placeholder="ABC1"
-        />
-      </div>
-      <button type="submit" class="roster-add-btn">{$t("grading.manual.roster.addButton")}</button>
+      </Field>
+      <Field label={$t("grading.manual.roster.numberLabel")} class="min-w-[min(11rem,100%)] flex-1" let:id>
+        <TextInput {id} bind:value={newStudentNumber} placeholder="123456" />
+      </Field>
+      <Field label={$t("grading.manual.roster.fallbackLabel")} class="min-w-[min(11rem,100%)] flex-1" let:id>
+        <TextInput {id} bind:value={newFallbackCode} placeholder="ABC1" />
+      </Field>
+      <Button type="submit" icon={faPlus}>{$t("grading.manual.roster.addButton")}</Button>
     </form>
 
-    <button
-      class="roster-bulk-toggle"
-      on:click={() => (showBulk = !showBulk)}
+    <Button
+      variant="text"
+      size="sm"
+      class="mt-3"
+      onClick={() => (showBulk = !showBulk)}
     >
       {showBulk ? $t("grading.manual.roster.hideBulk") : $t("grading.manual.roster.showBulk")}
-    </button>
+    </Button>
 
     {#if showBulk}
-      <div class="roster-bulk-box">
-        <p style="font-size: 0.8rem; color: #94a3b8; margin: 0;">
+      <div class="mt-3 flex flex-col gap-2">
+        <p class="m-0 text-sm text-muted">
           {$t("grading.manual.roster.bulkHintPrefix")} <code>Name [Tab or Comma] StudentNumber</code>{$t("grading.manual.roster.bulkHintSuffix")}
         </p>
-        <textarea
+        <Textarea
           bind:value={bulkText}
+          class="h-32 resize-y font-mono"
           placeholder={"Musterfrau, Karin\t12345\nMustermann, Peter\t67890\n ..."}
-        ></textarea>
-        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-          <button class="roster-action-btn" on:click={() => (showBulk = false)}>{$t("common.cancel")}</button>
-          <button class="roster-add-btn" on:click={handleAddBulk}>{$t("grading.manual.roster.bulkImport")}</button>
+        />
+        <div class="flex justify-end gap-2">
+          <Button variant="outlined" severity="secondary" onClick={() => (showBulk = false)}>{$t("common.cancel")}</Button>
+          <Button onClick={handleAddBulk}>{$t("grading.manual.roster.bulkImport")}</Button>
         </div>
       </div>
     {/if}
-  </div>
+  </Panel>
 
-  <div class="roster-table-container">
-    {#if students.length === 0}
-      <div class="roster-empty-state">
-        {$t("grading.manual.roster.emptyState")}
-      </div>
-    {:else}
-      <table class="roster-table">
+  {#if students.length === 0}
+    <EmptyState title={$t("grading.manual.roster.emptyState")} />
+  {:else}
+    <TableScroller>
+      <table class="data-table data-table-compact data-table-sticky data-table-hover">
         <thead>
           <tr>
             <th>{$t("grading.manual.roster.colNum")}</th>
@@ -218,51 +205,45 @@
               <td>{i + 1}</td>
               <td>
                 {#if editingPseudonymId === st.pseudonymId}
-                  <input
-                    type="text"
-                    bind:value={editName}
-                    style="padding: 0.2rem 0.4rem; background: #0f172a; border: 1px solid #0284c7; color: white; border-radius: 4px;"
-                  />
+                  <TextInput size="sm" bind:value={editName} />
                 {:else}
                   <strong>{st.studentName || $t("grading.manual.roster.unnamed")}</strong>
                 {/if}
               </td>
               <td>
                 {#if editingPseudonymId === st.pseudonymId}
-                  <input
-                    type="text"
-                    bind:value={editStudentNumber}
-                    style="padding: 0.2rem 0.4rem; background: #0f172a; border: 1px solid #0284c7; color: white; border-radius: 4px;"
-                  />
+                  <TextInput size="sm" bind:value={editStudentNumber} />
                 {:else}
                   {st.studentNumber || "-"}
                 {/if}
               </td>
               <td>
-                <span style="font-family: monospace; font-size: 0.8rem; color: #94a3b8;">
+                <span class="font-mono text-sm text-muted">
                   {st.fallbackCode || st.pseudonymId.slice(0, 8)}
                 </span>
               </td>
               <td>
                 {#if isScanned}
-                  <span class="roster-badge scanned">{$t("grading.manual.roster.scanned")}</span>
+                  <Badge severity="info" size="xs">{$t("grading.manual.roster.scanned")}</Badge>
                 {:else}
-                  <span class="roster-badge manual">{$t("grading.manual.roster.manual")}</span>
+                  <Badge severity="success" size="xs">{$t("grading.manual.roster.manual")}</Badge>
                 {/if}
               </td>
-              <td>
-                {#if editingPseudonymId === st.pseudonymId}
-                  <button class="roster-action-btn" on:click={() => saveEdit(st)}>{$t("common.save")}</button>
-                  <button class="roster-action-btn" on:click={cancelEdit}>{$t("common.cancel")}</button>
-                {:else}
-                  <button class="roster-action-btn" on:click={() => startEdit(st)}>{$t("common.edit")}</button>
-                  <button class="roster-action-btn delete" on:click={() => handleDelete(st)}>{$t("common.delete")}</button>
-                {/if}
+              <td class="whitespace-nowrap">
+                <div class="flex gap-1.5">
+                  {#if editingPseudonymId === st.pseudonymId}
+                    <Button size="sm" onClick={() => saveEdit(st)}>{$t("common.save")}</Button>
+                    <Button size="sm" variant="outlined" severity="secondary" onClick={cancelEdit}>{$t("common.cancel")}</Button>
+                  {:else}
+                    <Button size="sm" variant="outlined" severity="secondary" onClick={() => startEdit(st)}>{$t("common.edit")}</Button>
+                    <Button size="sm" variant="outlined" severity="danger" onClick={() => handleDelete(st)}>{$t("common.delete")}</Button>
+                  {/if}
+                </div>
               </td>
             </tr>
           {/each}
         </tbody>
       </table>
-    {/if}
-  </div>
+    </TableScroller>
+  {/if}
 </div>

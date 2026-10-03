@@ -6,7 +6,10 @@
   import type { ExerciseRecord } from "$lib/db/schema";
   import { gradingStore } from "$lib/grading/gradingStore";
   import { applyMcCorrection, type McQuestionType } from "$lib/grading/mcScore";
+  import { isMcReviewed } from "$lib/grading/mcVerification";
   import { t } from "$lib/i18n";
+  import { faCheck, faXmark } from "@fortawesome/free-solid-svg-icons";
+  import { Alert, Icon } from "$lib/components/ui";
 
   export let exercise: ExerciseRecord;
 
@@ -19,6 +22,14 @@
   $: isSingleAnswer = questionType === "sc" || questionType === "tf";
   $: alignmentFailed = omrMeta?.confidence === "failed";
   $: flaggedOptions = new Set(omrMeta?.flaggedOptions ?? []);
+  $: reasonsByOption = new Map(
+    (omrMeta?.detections?.bubbles ?? []).map((b) => [b.optionIndex, b.reasons ?? []])
+  );
+  $: provisionalByOption = new Map(
+    (omrMeta?.detections?.bubbles ?? [])
+      .filter((b) => b.detectedState === "ambiguous" && b.provisional !== undefined && !isMcReviewed(omrMeta))
+      .map((b) => [b.optionIndex, b.provisional as boolean])
+  );
   $: multiMarkWarning = isSingleAnswer && selectedOptions.length > 1;
 
   function toggleOption(idx: number) {
@@ -42,18 +53,14 @@
   }
 </script>
 
-<div class="shrink-0 border-t border-slate-700 bg-slate-800 px-3 py-2">
-  <h4 class="m-0 mb-1.5 text-xs font-bold text-sky-400">{$t("grading.mcReview.title")}</h4>
+<div class="shrink-0 border-t border-line bg-surface-raised px-3 py-2">
+  <h4 class="m-0 mb-1.5 text-sm font-semibold text-content">{$t("grading.mcReview.title")}</h4>
 
   {#if alignmentFailed}
-    <div class="rounded border border-red-500/40 bg-red-500/10 px-2 py-1 text-[0.7rem] text-red-400">
-      {$t("grading.mcReview.alignmentFailed")}
-    </div>
+    <Alert severity="danger">{$t("grading.mcReview.alignmentFailed")}</Alert>
   {:else}
     {#if multiMarkWarning}
-      <div class="mb-1.5 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[0.7rem] text-amber-400">
-        {$t("grading.mcReview.multiMarkWarning")}
-      </div>
+      <Alert severity="warning" class="mb-1.5">{$t("grading.mcReview.multiMarkWarning")}</Alert>
     {/if}
 
     <div class="flex flex-col gap-1">
@@ -64,23 +71,31 @@
         <button
           type="button"
           on:click={() => toggleOption(idx)}
-          class="flex items-center justify-between gap-2 rounded border px-2 py-1 text-left text-[0.75rem] transition-colors duration-150 ease-[ease]
-            {isSelected ? 'border-sky-400 bg-sky-400/15' : 'border-slate-700 bg-slate-900'}
-            {isFlagged ? 'border-dashed border-amber-500' : ''}"
+          class="flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-left text-sm transition-colors pointer-coarse:min-h-11
+            {isSelected ? 'border-primary bg-highlight' : 'border-line bg-surface-sunken'}
+            {isFlagged ? 'border-dashed border-warning' : ''}"
         >
-          <span class="flex-1 text-slate-200">{opt}</span>
+          <span class="flex-1 text-content">{opt}</span>
           {#if isSelected}
-            <span class={isCorrect ? "text-emerald-400" : "text-red-400"}>{isCorrect ? "✓" : "✗"}</span>
+            <Icon icon={isCorrect ? faCheck : faXmark} class={isCorrect ? "text-success-fg" : "text-danger-fg"} />
           {/if}
           {#if isFlagged}
-            <span class="text-amber-500" title={$t("grading.mcReview.uncertainMark")}>?</span>
+            <span
+              class="text-warning-fg"
+              title={[
+                $t("grading.mcReview.uncertainMark"),
+                ...(reasonsByOption.get(idx) ?? []).map((r) => $t(`scanning.itemCard.reason.${r}`)),
+                ...(provisionalByOption.has(idx)
+                  ? [provisionalByOption.get(idx) ? $t("scanning.itemCard.provisionalTicked") : $t("scanning.itemCard.provisionalNotTicked")]
+                  : []),
+              ].join(" · ")}>?</span>
           {/if}
         </button>
       {/each}
     </div>
 
     {#if omrMeta}
-      <div class="mt-1 text-[0.65rem] text-slate-500">
+      <div class="mt-1 text-sm text-muted">
         {$t("grading.mcReview.source", { source: omrMeta.source === "omr" ? $t("grading.mcReview.sourceAuto") : $t("grading.mcReview.sourceManual") })}
         {#if omrMeta.source === "omr"}
           {$t("grading.mcReview.confidence", { confidence: omrMeta.confidence })}

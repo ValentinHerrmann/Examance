@@ -1,6 +1,14 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import LegalPage from "$lib/components/legal/LegalPage.svelte";
   import { t } from "$lib/i18n";
+  import { fetchDonationStatus } from "$lib/services/trainingDonation";
+
+  /** Retention of donated training samples, as the configured backend reports it. */
+  let donationRetentionDays: number | null = null;
+  onMount(() => {
+    void fetchDonationStatus().then((s) => (donationRetentionDays = s.retentionDays));
+  });
 </script>
 
 <svelte:head>
@@ -45,6 +53,7 @@
   <h2>{$t("legal.datenschutz.section5.heading")}</h2>
   <p>
     {$t("legal.datenschutz.section5.para1Before")}<em>{$t("legal.datenschutz.section5.para1Emphasis")}</em>{$t("legal.datenschutz.section5.para1After")}
+    {$t("legal.datenschutz.section5.para3")}
   </p>
   <p>
     {$t("legal.datenschutz.section5.para2")}
@@ -75,4 +84,18 @@
     {$t("legal.datenschutz.section9.textBefore")}
     <span class="placeholder">{$t("legal.datenschutz.section9.placeholder")}</span>.
   </p>
+
+  <h2>{$t("legal.datenschutz.section10.heading")}</h2>
+  <p>{$t("legal.datenschutz.section10.para1")}</p>
+  <p>{$t("legal.datenschutz.section10.para2")}</p>
+  <p>
+    {$t("legal.datenschutz.section10.para3Before")}
+    {#if donationRetentionDays !== null}
+      {donationRetentionDays}
+    {:else}
+      <span class="placeholder">{$t("legal.datenschutz.section10.retentionPlaceholder")}</span>
+    {/if}
+    {$t("legal.datenschutz.section10.para3After")}
+  </p>
+  <p><span class="placeholder">{$t("legal.datenschutz.section10.legalBasisPlaceholder")}</span></p>
 </LegalPage>

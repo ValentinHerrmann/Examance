@@ -111,6 +111,11 @@ export function drawOmrOverlayForPage(
 
     const exercise = exercises.find((ex) => ex.id === exerciseId);
     const correctAnswers = new Set(exercise?.correctAnswers ?? []);
+    // "Unsure" is the detector's verdict and lasts until a teacher verifies the question. It must
+    // not follow `bubble.state`: the review builders rewrite that to marked/blank on the first click.
+    // (Same rule as isMcReviewed in mcVerification.ts — not imported: that module pulls in the DB.)
+    const reviewed = state.omrMeta?.source === 'manual' || !!state.omrMeta?.reviewedAt;
+    const flagged = new Set(state.omrMeta?.flaggedOptions ?? []);
     const penalty = exercise?.penalty ?? 0;
 
     let bboxMinX = Infinity;
@@ -131,6 +136,21 @@ export function drawOmrOverlayForPage(
       bboxMinX = Math.min(bboxMinX, x0 * w);
       bboxMinY = Math.min(bboxMinY, y0 * h);
       bboxMaxY = Math.max(bboxMaxY, y1 * h);
+
+      const unsure =
+        !reviewed &&
+        (bubble.detectedState === 'ambiguous' || bubble.state === 'ambiguous' || flagged.has(bubble.optionIndex));
+      if (unsure) {
+        // Wider than the red/grey frames, so it stays visible around them.
+        const outerPad = pad * 1.6;
+        ctx.save();
+        ctx.globalAlpha = 0.8;
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = strokeWidth;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(x0 * w - outerPad, y0 * h - outerPad, (x1 - x0) * w + 2 * outerPad, (y1 - y0) * h + 2 * outerPad);
+        ctx.restore();
+      }
 
       if (bubble.state === 'blank' || bubble.state === 'undone') {
         if (bubble.state === 'undone') {
@@ -154,13 +174,15 @@ export function drawOmrOverlayForPage(
       }
 
       const marked = bubble.state === 'marked' || bubble.state === 'redone';
-      ctx.save();
-      ctx.globalAlpha = 0.7;
-      ctx.strokeStyle = marked ? '#ef4444' : '#f59e0b';
-      ctx.lineWidth = strokeWidth;
-      ctx.setLineDash(marked ? [] : [6, 4]);
-      ctx.strokeRect(x0 * w - pad, y0 * h - pad, (x1 - x0) * w + 2 * pad, (y1 - y0) * h + 2 * pad);
-      ctx.restore();
+      if (marked || !unsure) {
+        ctx.save();
+        ctx.globalAlpha = 0.7;
+        ctx.strokeStyle = marked ? '#ef4444' : '#f59e0b';
+        ctx.lineWidth = strokeWidth;
+        ctx.setLineDash(marked ? [] : [6, 4]);
+        ctx.strokeRect(x0 * w - pad, y0 * h - pad, (x1 - x0) * w + 2 * pad, (y1 - y0) * h + 2 * pad);
+        ctx.restore();
+      }
 
       if (bubble.state === 'redone') {
         ctx.save();
@@ -169,6 +191,20 @@ export function drawOmrOverlayForPage(
         ctx.lineWidth = strokeWidth;
         ctx.strokeRect((x0 - (x1 - x0) * 0.9) * w, y0 * h, (x1 - x0) * 0.8 * w, (y1 - y0) * h);
         ctx.restore();
+      }
+
+      // An unverified ambiguous box whose provisional (closer) reading is "not ticked": keep the
+      // orange frame, but score it like a blank box.
+      if (bubble.state === 'ambiguous' && bubble.provisional === false) {
+        if (isCorrectOption) {
+          ctx.save();
+          ctx.strokeStyle = '#ef4444';
+          ctx.fillStyle = '#ef4444';
+          ctx.lineWidth = strokeWidth;
+          drawMissingSymbol(ctx, x1 * w + boxPx * 0.9, stampY, boxPx, strokeWidth);
+          ctx.restore();
+        }
+        continue;
       }
 
       ctx.save();

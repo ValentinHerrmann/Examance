@@ -15,4 +15,7 @@ export const statusBar: Translations['statusBar'] = {
     linkPullRequest: 'open pull request on GitHub',
     linkCommit: 'open build commit on GitHub',
     linkRelease: 'open release on GitHub',
+    incompatibleTitle: 'Incompatible server version',
+    incompatibleBody: 'This app (v{app}) and the server (v{server}) run different major versions. Saving may fail. Reload the page or contact your administrator.',
+    mismatchShort: 'Versions differ',
 };

@@ -2,13 +2,13 @@ import type { Translations } from '../types';
 
 export const workspace: Translations['workspace'] = {
     menu: {
-        open: '📂 Open .bgproj',
-        export: '💾 Export .bgproj',
-        clear: '❌ Clear Workspace',
+        open: 'Open .bgproj',
+        export: 'Export .bgproj',
+        clear: 'Clear Workspace',
     },
     session: {
-        cloudMode: '☁️ Cloud Mode',
-        localMode: '💻 Local Mode',
+        cloudMode: '️ Cloud Mode',
+        localMode: 'Local Mode',
         lockSession: 'Lock Session',
         lock: 'Lock',
         connectToCloud: 'Connect to Cloud',
@@ -20,8 +20,7 @@ export const workspace: Translations['workspace'] = {
         exportFailed: 'Export failed: {message}',
         clearFailed: 'Failed to clear workspace: {message}',
         cleared: 'Workspace cleared successfully.',
-        confirmClear:
-            'Are you sure you want to close this project and clear all local workspace data? Unsaved changes will be lost.',
+        confirmClear: 'Are you sure you want to close this project and clear all local workspace data? Unsaved changes will be lost.',
         summaryLoaded: 'Loaded {examCount} exam(s) and {studentCount} student(s).',
         summarySuccess: 'Import successful! {loaded}',
         summaryProblems: 'Import finished with {errorCount} problem(s). {loaded}',

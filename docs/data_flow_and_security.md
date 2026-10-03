@@ -12,7 +12,7 @@ Examance uses a zero-knowledge, client-side encryption-at-rest model designed to
 1. **No Unauthenticated DevTools Access**: When a user is locked or logged out, browser DevTools inspection reveals **zero unencrypted text** (no LaTeX preamble/body, exam metadata, answer keys, fallback codes, or raw scores). Storage is either completely purged (`all-server` mode) or stored as opaque AES-256-GCM binary ciphertexts (`all-local` / `hybrid` mode).
 
    *Previously broken here (2026-08-17, now fixed):* `encryptStudent()` used to re-emit `fallbackCode`, `studentName` and `studentNumber` as plain properties next to the ciphertext it had just made of those same fields, `studentRepository.save()` persisted that record unchanged — and did so *before* the storage-mode check, so pupil names landed in local IndexedDB even in `all-server` mode — and `fallbackCode` was a plaintext Dexie index. Identity fields now exist only inside `payloadCt`; `encryptStudent()` refuses to write them at all without a key; the local write happens only outside `all-server` mode; and Dexie v9 drops the index and strips the columns from existing rows. Tracked as L17 in `legal_audit_dsgvo.md` §4.
-2. **Key material is passphrase-derived and tab-scoped.** The master key is derived from a passphrase the user enters; **the passphrase itself is never persisted anywhere**. To survive an F5 reload, the derived `sessionKey` and master key bytes are written to **`sessionStorage`**, which is per-tab and cleared when the tab closes; they are also wiped on manual lock, on inactivity timeout, and on a lock broadcast from another tab. `localStorage` holds only the Argon2id salt, the session nonce, and non-secret UI state — never a key or a passphrase. **Nothing derived from the passphrase is written to IndexedDB.**
+2. **Key material is passphrase-derived and tab-scoped.** The master key is derived from a passphrase the user enters; **the passphrase itself is never persisted anywhere**. To survive an F5 reload, the derived `sessionKey` and master key bytes are written to **`sessionStorage`**, which is per-tab and cleared when the tab closes; they are also wiped on manual lock, on inactivity timeout, and on a lock broadcast from another tab. `localStorage` holds only the Argon2id salt, the session nonce, and non-secret UI state (e.g. language, storage policy, the MC-detection thresholds in `bg_omr_settings`) — never a key or a passphrase. **Nothing derived from the passphrase is written to IndexedDB.**
 
    *This is a deliberate trade of key exposure for usability: while a tab is unlocked, script running on the origin can read the session key out of `sessionStorage`. The alternative — re-prompting on every reload — was judged worse for the grading workflow. It also means the vault is only as private as the browser profile is: anyone who can run script on this origin, or who reaches an already-unlocked tab, can read the data.*
 
@@ -84,8 +84,16 @@ data key, so it cannot unwrap what it holds.
 
 ### Sign-in factors
 
-Every sign-in presents **two of three** factors: password, passkey, authenticator
-(TOTP). A teacher who enrols all three survives losing any one of them, which is
+A sign-in needs **a passkey alone, or two of three** factors: password, passkey,
+authenticator (TOTP). The passkey stands alone because every ceremony requires
+user verification — possession plus a local biometric or PIN
+(`SELF_SUFFICIENT_FACTORS`); password and TOTP never complete a sign-in by
+themselves. Signing in with only a passkey changes nothing about the keys: the
+PRF wrap yields the same data key, and the session key is derived exactly as
+after a password sign-in. A password the server has not just accepted (e.g. the
+vault prompt after a non-PRF passkey sign-in) may unwrap an existing envelope
+but never runs the one-time migration, which would otherwise seal a key derived
+from an unchecked password as the data key. A teacher who enrols all three survives losing any one of them, which is
 the point — a hard second factor with no way back is a support incident waiting
 to happen. `app/services/auth_policy.py` is the single place the rule lives.
 
@@ -196,7 +204,7 @@ accounts here.
 | `examMcGroups` | `id, examId, orderIndex` | N/A — title, scoring text and order are layout metadata for MC-group LaTeX rendering only, not exercise content; see CLAUDE.md "Multiple Choice (MC) Data Model" | Standard IDB table |
 | `students` | `pseudonymId, examId` | Student PII — `fallbackCode`, `studentName`, `studentNumber` (`payloadCt`) | Opaque Binary Ciphertext / Purged |
 | `submissions` | `id, examId, pseudonymHash` | Total score (`totalScore`), scan image blob (`scanCt`), annotations vector layer (`annotationCt`) | Opaque Binary Ciphertext / Purged |
-| `exerciseScores` | `id, submissionId, exerciseId` | Score value (`score`), selected options, OMR metadata | Opaque Binary Ciphertext / Purged |
+| `exerciseScores` | `id, submissionId, exerciseId` | Score value (`score`), selected options, OMR metadata (`omrMeta`: detection result, per-bubble raw fill ratios and immutable detector state, page alignment stats, and the `run` snapshot — detection time, settings and algorithm version used) | Opaque Binary Ciphertext / Purged |
 | `omrTemplates` | `id, examId` | Detected bubble/fiducial page rects (`OmrTemplatePayload.pages`), used for MC auto-grading | Opaque Binary Ciphertext / Purged |
 | `exerciseResources` | `id, exerciseId, [exerciseId+filename]` | Raw file bytes (`dataCt`) of a teacher-uploaded LaTeX resource (image, PDF, data file). `filename`, `mimeType` and `byteSize` stay plaintext — they are index/display fields, not content | Opaque Binary Ciphertext / Purged |
 | `auditLog` | `id, action, timestamp` | Action note details | Opaque Binary Ciphertext / Purged |
@@ -219,8 +227,65 @@ of how a named pupil answered each item reconstructs the answer sheet, which is
 a sharper disclosure than an exam total; statistics that need a number use
 `total_score`.
 
+Since issue #32, `omrMeta` also carries the raw per-bubble readings (fill ratio,
+redo-zone ratio, the detector's own state) and a snapshot of the detection
+settings each row was produced with. That is pupil-derived answer-sheet data
+and stays inside the same sealed payload: no plaintext column, no index, no log
+line. It is erased with the pupil and by retention like the rest of the row. It
+exists so a future calibration can learn from teacher verification; any such
+learning must run client-side and keep only aggregate thresholds, never
+per-pupil samples, and must not remove the human review step (DPIA Art. 22
+assumption, `dpia_art35.md`).
+
 `hybrid` keeps scores local, like submissions and student identities — they are
 grading results, and that is the axis hybrid mode splits on.
+
+### Training-data donation (opt-in)
+
+Off by default; toggled per browser in Settings ("5. MC-Erkennung verbessern
+(freiwillig)", `localStorage` key `bg_omr_donation`, versioned — consent v2), and
+only active while the teacher is signed in to a server account. When on, after
+a teacher verifies or corrects an MC question in the verification view, the
+browser sends, per box, one small 80×48 grayscale crop (the box and the
+correction field next to it — no question text), the verified label (ticked /
+not ticked), the detector's own reading, its numeric features, the
+algorithm/schema version and a random per-box `sample_token` to
+`POST /api/v1/training/omr-samples` on the operator's own configured backend.
+Switching the option off, or signing out, drops everything not yet sent.
+
+**Authenticated, stored unlinked.** The endpoint requires a full session, so only
+accounts of the installation (invite-only) can write into the production
+database. The account is used for a per-account daily quota
+(`TRAINING_SAMPLES_PER_TEACHER_PER_DAY`, counter keyed by a SHA-256 of the
+account id in the ephemeral store, expiring with the day) and nothing else: no
+teacher column, no audit entry, no log line. A global daily cap
+(`TRAINING_SAMPLES_PER_DAY_MAX`, counted in the database) is the backstop. Quota
+answers are 429 without `Retry-After`. The server therefore *knows* which account
+donates while the request runs; what it keeps is unlinked.
+
+**Not sent**: names, pseudonyms, exam/submission/question ids, or timestamps
+finer than day granularity. The `sample_token` is random, generated in the
+browser and kept only in the sealed score row; it lets a re-donation after a
+corrected label replace the earlier row instead of leaving a contradicting one.
+Server-side, the `omr_training_samples` table (migrations `0022`, `0023`) has no
+foreign keys, no teacher and no IP column; each row's `created_on` is
+day-granular. Retention is `TRAINING_SAMPLE_RETENTION_DAYS` (default 730 days),
+enforced by the retention job and reported by the public `GET /training/status`
+for the privacy notice; a kill switch `TRAINING_DONATION_ENABLED` can disable the
+endpoint server-wide. An operator can export the dataset via
+`python -m app.cli training-export --out samples.jsonl`.
+
+Purpose: train a shared checkbox classifier so a fresh installation gets good
+MC detection immediately, instead of starting from the built-in heuristics
+alone. Risks and mitigations: re-identification of a donated crop (mitigated by
+the tight crop and the absence of any stored id/account/IP) and dataset
+poisoning or storage exhaustion (mitigated by requiring an account, the
+per-account and global daily quotas, strict request validation
+(`extra="forbid"`), consistency filtering applied at training time, and the
+kill switch). This is the only path by which
+`all-local` mode sends anything to a server; see the qualifier on exercise
+resource files below and `tips.storageLocal` / `scanning.s4.p4` in the in-app
+help.
 
 ### Exercise resource files on the server
 
@@ -230,7 +295,8 @@ is plaintext there: an exercise kept on the server is server-readable by design,
 and the Tectonic compiler cannot read ciphertext. The zero-knowledge path is the
 default `all-local` mode, where the bytes never leave the browser except inline in
 a server *compile* request, which writes them to a temp directory that is deleted
-with the process.
+with the process — and except the opt-in, anonymised MC training-data donation
+described above, which is off by default and independent of storage mode.
 
 While the exercise editor is open the files live under a throwaway staging id in the same
 table and are committed onto the exercise (and uploaded, in server/hybrid mode) only when the

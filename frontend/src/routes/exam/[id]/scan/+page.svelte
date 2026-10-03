@@ -24,8 +24,12 @@
     loadLocalMcGroups,
   } from "$lib/db/dbEncryption";
   import { computeMcExercisesHash, loadExamMcExercises } from "$lib/grading/mcExerciseHash";
+  import { buildSubLabelMap } from "$lib/grading/mcGroupLabels";
   import { prepareOmrTemplate, loadExamCompileContext } from "$lib/grading/omrTemplatePrep";
   import { isMcQuestion } from "$lib/grading/mcScore";
+  import { buildOmrScoreRecord } from "$lib/grading/omrResult";
+  import { createOmrRun, type OmrPageStats } from "$lib/grading/omrSettings";
+  import { omrSettingsStore } from "$lib/stores/omrSettings";
   import { drawOmrOverlayForPage, type McOverlayState } from "$lib/grading/omrOverlay";
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
@@ -50,11 +54,10 @@
     OmrExerciseAnswerKey,
   } from "$lib/workers/omrWorker";
   import { parseStudentQr } from "$lib/utils/studentQr";
-  import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import type { PDFDocument, PDFPage } from "pdf-lib";
   import HardwareProfileCard from "$lib/components/scanning/HardwareProfileCard.svelte";
   import UploadPanel from "$lib/components/scanning/UploadPanel.svelte";
-  import { PageHeader, PageShell } from "$lib/components/ui";
+  import { Alert, PageHeader, PageShell } from "$lib/components/ui";
   import UnmatchedResolver from "$lib/components/scanning/UnmatchedResolver.svelte";
   import ScannedSubmissionsTable from "$lib/components/scanning/ScannedSubmissionsTable.svelte";
   import ScanPreviewModal from "$lib/components/scanning/ScanPreviewModal.svelte";
@@ -118,6 +121,8 @@
   /** Per-page bubble/fiducial rects captured by "Prepare OMR" on the exam page; empty if unavailable. */
   let omrTemplatePages: OmrPageTemplate[] = [];
   let omrAnswerKeys: OmrExerciseAnswerKey[] = [];
+  /** `exercisesHash` of the template in use — stamped into each detection's run snapshot. */
+  let omrTemplateHash: string | undefined;
   let omrAvailable = false;
   let omrBanner = "";
 
@@ -171,6 +176,7 @@
           }
 
           pages = compileRes.pages;
+          omrTemplateHash = compileRes.exercisesHash;
           omrBanner = translate("scanning.omrBanner.autoPrepared");
         } catch (err: any) {
           omrAvailable = false;
@@ -179,6 +185,7 @@
         }
       } else {
         pages = existing!.payload!.pages;
+        omrTemplateHash = existing!.record.exercisesHash;
       }
 
       omrTemplatePages = pages;
@@ -511,13 +518,7 @@
         if (sc.omrMeta) mcState[sc.exerciseId] = { omrMeta: sc.omrMeta };
         scoreInputs[sc.exerciseId] = sc.score;
       }
-      const mcGroups = await loadLocalMcGroups(examId).catch(() => []);
-      const subExerciseLetters = new Map<string, string>();
-      for (const group of mcGroups) {
-        group.memberIds.forEach((exerciseId, idx) => {
-          subExerciseLetters.set(exerciseId, String.fromCharCode(97 + idx));
-        });
-      }
+      const subExerciseLetters = buildSubLabelMap(await loadLocalMcGroups(examId).catch(() => []));
 
       const { PDFDocument } = await import("pdf-lib");
       const outputPdf = await PDFDocument.create();
@@ -782,7 +783,11 @@
     const omrMissingCorners = new Set<string>();
     const CORNER_NAMES = ["bottom-left", "bottom-right", "top-right", "top-left"];
     /** Accumulates OMR results per booklet across all its pages, merged into scores once subId exists. */
-    const omrResultsByPseudonym = new Map<string, OmrExerciseResult[]>();
+    const omrResultsByPseudonym = new Map<string, { result: OmrExerciseResult; pageStats: OmrPageStats }[]>();
+    // One settings snapshot for the whole upload: every page of this batch is detected with the
+    // same params, and each score row records them (issue #32 — later setting changes never
+    // affect this detection).
+    const omrRun = createOmrRun("scan", get(omrSettingsStore), omrTemplateHash);
 
     // --- PASS 1: Calculate total pages for progress bar ---
     const fileInfos: any[] = [];
@@ -902,12 +907,13 @@
                 type: "OMR_PROCESS",
                 imageData,
                 pageTemplate,
-                scanScale: 2.0,
+                scanScale: omrRun.params.scanScale,
                 answerKeys: omrAnswerKeys,
+                params: omrRun.params,
               });
               if (omrRes.type === "OMR_RESULT") {
                 const list = omrResultsByPseudonym.get(currentBooklet.pseudonymId) ?? [];
-                list.push(...omrRes.results);
+                list.push(...omrRes.results.map((result) => ({ result, pageStats: omrRes.pageStats })));
                 omrResultsByPseudonym.set(currentBooklet.pseudonymId, list);
                 if (omrRes.alignmentFailed) omrAlignmentFailures++;
                 omrMinFiducialsFound =
@@ -942,7 +948,8 @@
 
         for (let pIdx = 1; pIdx <= numPages; pIdx++) {
           const page = await pdfJsDoc.getPage(pIdx);
-          const viewport = page.getViewport({ scale: 2.0 }); // ~200 DPI
+          // ~200 DPI; must equal the scanScale the OMR worker is told, or bubble geometry breaks.
+          const viewport = page.getViewport({ scale: omrRun.params.scanScale });
           const canvas = document.createElement("canvas");
           canvas.width = viewport.width;
           canvas.height = viewport.height;
@@ -1027,41 +1034,9 @@
       const omrResults = omrResultsByPseudonym.get(booklet.pseudonymId) ?? [];
       // Accumulated and written once per booklet, to avoid one write per MC
       // question per pupil — hundreds of sequential requests in server mode.
-      const omrScores: ExerciseScoreRecord[] = omrResults.map((r) => {
-        const failed = r.confidence === "failed";
-        return {
-          id: crypto.randomUUID(),
-          submissionId: subId,
-          exerciseId: r.exerciseId,
-          // A failed alignment has no trustworthy score — leave it unset so it hydrates as
-          // "ungraded" (grade/+page.svelte) instead of silently contributing a 0.
-          score: failed ? undefined : r.score,
-          selectedOptions: failed ? [] : r.selectedOptions,
-          omrMeta: {
-            confidence: r.confidence,
-            source: "omr" as const,
-            alignmentUncertain: r.alignmentUncertain ? true : undefined,
-            flaggedOptions: r.flaggedOptions.length > 0 ? r.flaggedOptions : undefined,
-            original: {
-              confidence: r.confidence,
-              selectedOptions: failed ? [] : [...r.selectedOptions],
-              score: failed ? undefined : r.score,
-              flaggedOptions: r.flaggedOptions.length > 0 ? [...r.flaggedOptions] : undefined,
-            },
-            detections:
-              !failed && r.bubbles.length > 0
-                ? {
-                    pageIndex: r.pageIndex,
-                    bubbles: r.bubbles.map((b) => ({
-                      optionIndex: b.optionIndex,
-                      state: b.state,
-                      rect: b.rect,
-                    })),
-                  }
-                : undefined,
-          },
-        };
-      });
+      const omrScores: ExerciseScoreRecord[] = omrResults.map(({ result, pageStats }) =>
+        buildOmrScoreRecord(result, { id: crypto.randomUUID(), submissionId: subId, run: omrRun, pageStats })
+      );
       await scoreRepository.saveMany(examId, subId, omrScores, key);
 
       newlyIngestedCount++;
@@ -1249,15 +1224,13 @@
   }
 </script>
 
-<PageShell width="full">
+<PageShell width="fluid">
   <PageHeader title={$t("scanning.pageTitle")} helpTopic="scanning" />
 
   <HardwareProfileCard {hwProfile} inConstrainedMode={monitor?.inConstrainedMode} />
 
   {#if omrBanner}
-    <div class="my-4 rounded-md border border-amber-400 bg-amber-400/10 px-4 py-3 text-sm text-amber-400">
-      {omrBanner}
-    </div>
+    <Alert severity="warning" class="my-4">{omrBanner}</Alert>
   {/if}
 
   <UploadPanel {isProcessing} {progress} {statusText} onFileUpload={handleFileUpload} />

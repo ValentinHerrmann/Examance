@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./+page.css";
   import { goto } from "$app/navigation";
   import { t, translate } from "$lib/i18n";
   import { deriveKey, deriveKeyWithFallback, generateSalt, getUserSalt, getUserSessionNonce } from "$lib/crypto/keyDerivation";
@@ -16,6 +15,7 @@
   import { Argon2UnavailableError } from "$lib/crypto/keyDerivation";
   import { backendStore } from "$lib/stores/backendStore";
   import { get } from "svelte/store";
+  import { Card, PageShell } from "$lib/components/ui";
   import UnlockForm from "$lib/components/unlock/UnlockForm.svelte";
   import {
     FactorChooser,
@@ -35,7 +35,7 @@
   } from "$lib/api/mfa";
   import { loginOptions, verifyLogin } from "$lib/api/webauthn";
   import { authenticate, isSupported as passkeysSupported } from "$lib/webauthn/client";
-  import { openWithPasskey } from "$lib/services/keyEnvelopeService";
+  import { addPasskeyWrap, openWithPasskey } from "$lib/services/keyEnvelopeService";
   import {
     EnvelopeChangedError,
     EnvelopeFactorMissingError,
@@ -108,6 +108,28 @@
    * a passkey-plus-authenticator sign-in work without the password at all.
    */
   let passkeyUnwrap: { credentialIdB64: string; prfOutput: Uint8Array } | null = null;
+  /**
+   * True only once the server has accepted `password` in this sign-in.
+   *
+   * The form field can hold text that was never submitted — typed, then the
+   * passkey button used instead. Opening the vault with that would at best fail
+   * and, on an account that has no key envelope yet, run the migration with an
+   * unchecked password and seal a wrong data key over every existing record.
+   */
+  let passwordVerified = false;
+  /**
+   * The step whose passkey prompt was already started automatically. One
+   * attempt per step: a cancelled prompt must leave the chooser alone, not
+   * pop up again.
+   */
+  let passkeyAutoTriedFor: AuthStep | null = null;
+  let passkeyPending = false;
+  /**
+   * A PRF passkey that signed in but could not open the vault: no wrap was
+   * stored for it, or the stored one does not open. Once the vault is open by
+   * another route, a fresh wrap is written so the passkey works alone next time.
+   */
+  let passkeyToHeal: { credentialIdB64: string; prfOutput: Uint8Array } | null = null;
 
   // Local workspace passphrase. Never persisted — it is the only input to the
   // key derivation, so losing it means the local vault cannot be opened.
@@ -144,6 +166,9 @@
     }
 
     isLoading = true;
+    passwordVerified = false;
+    passkeyUnwrap = null;
+    passkeyToHeal = null;
     try {
       // Starting a sign-in invalidates the session the browser had: the server
       // demotes the access cookie to a pending scope and clears the refresh
@@ -155,6 +180,7 @@
       // First factor. A correct password no longer produces a session: the
       // server answers with what is still outstanding.
       const step = await submitPassword(normalizedEmail, password);
+      passwordVerified = true;
 
       // Save backend URL to localStorage ONLY after a factor was accepted
       backendStore.saveSuccessfulBackendUrl(trimmedBackendUrl);
@@ -228,17 +254,31 @@
       // Signed in without the password. The passkey's PRF secret opens the
       // vault instead, which is the whole reason that secret is asked for
       // during the ceremony.
-      vault = await openWithPasskey(
-        step.id,
-        passkeyUnwrap.credentialIdB64,
-        passkeyUnwrap.prfOutput,
-      );
+      const unwrap = passkeyUnwrap;
       passkeyUnwrap = null;
-      await finishUnlock(step, normalizedEmail, vault);
-      return;
+      try {
+        vault = await openWithPasskey(step.id, unwrap.credentialIdB64, unwrap.prfOutput);
+      } catch (passkeyErr) {
+        // A PRF passkey with no usable wrap: none was stored (the registration
+        // never got its follow-up assertion, or PRF only showed up at sign-in),
+        // or the stored one was sealed under another passkey's secret. Signed in
+        // all the same — fall back to the password if the server checked it,
+        // else ask, and re-wrap for this passkey once the vault is open.
+        // A changed envelope set is the substitution alarm and must surface.
+        if (passkeyErr instanceof EnvelopeChangedError) {
+          throw passkeyErr;
+        }
+        console.warn("[Crypto Warning] Passkey could not open the vault:", passkeyErr);
+        passkeyToHeal = unwrap;
+        vault = null;
+      }
+      if (vault) {
+        await finishUnlock(step, normalizedEmail, vault);
+        return;
+      }
     }
 
-    if (!password) {
+    if (!password || !passwordVerified) {
       // Nothing here can open the vault: the passkey carried no PRF secret and
       // no password was typed. Asking is the only honest move — unwrapping with
       // an empty string used to throw, and the failure surfaced as "that code is
@@ -250,7 +290,10 @@
     }
 
     try {
-      vault = await openWithPassword(step.id, normalizedEmail, password);
+      // Server-verified, so the one-time migration may run on it.
+      vault = await openWithPassword(step.id, normalizedEmail, password, {
+        allowMigration: true,
+      });
     } catch (envelopeErr) {
       if (envelopeErr instanceof EnvelopeFactorMissingError) {
         // The password is correct — the server accepted it — but it no longer
@@ -283,6 +326,18 @@
     normalizedEmail: string,
     vault: Awaited<ReturnType<typeof openWithPassword>>,
   ) {
+    if (passkeyToHeal) {
+      // The vault was opened by a route that proves the data key (an existing
+      // envelope unwrapped, or a server-checked password), so wrapping it for
+      // this passkey is safe. Best effort: the sign-in must not fail over it.
+      const heal = passkeyToHeal;
+      passkeyToHeal = null;
+      try {
+        await addPasskeyWrap(step.id, vault, heal.credentialIdB64, heal.prfOutput);
+      } catch (err) {
+        console.warn("[Crypto Warning] Could not store a wrap for this passkey:", err);
+      }
+    }
     const keys = await materializeSession(vault, normalizedEmail);
     sessionStore.unlock({
       ...keys,
@@ -317,15 +372,21 @@
    * assertion also yields the secret that opens the vault, so a
    * passkey-plus-authenticator sign-in never needs the password.
    */
-  async function handlePasskey() {
+  async function handlePasskey(opts: { auto?: boolean } = {}) {
     // Which error slot to write to. Mid-sign-in the form is not on screen, so a
     // failure reported there would be invisible.
     const inProgress = authStep !== null;
     errorMsg = "";
     factorErrorMsg = "";
     isLoading = true;
+    passkeyPending = inProgress;
     try {
       if (!inProgress) {
+        // A passkey-first sign-in never submitted the password field, so its
+        // contents are unverified and must not open (or migrate) the vault.
+        passwordVerified = false;
+        passkeyUnwrap = null;
+        passkeyToHeal = null;
         // Same reason as in handleUnlock: the sign-in about to start demotes the
         // cookie, so the previous session's client state cannot stay live. Not
         // when a sign-in is already running — that would lock away the state the
@@ -367,6 +428,11 @@
 
       await handleAuthStep(step);
     } catch (err: any) {
+      if (opts.auto && isCeremonyCancelled(err)) {
+        // The automatic prompt was declined: the chooser below is the answer,
+        // not an error.
+        return;
+      }
       const message = err instanceof ApiError ? err.message : "";
       const text = message || translate("security.passkey.failed");
       if (inProgress) {
@@ -376,8 +442,41 @@
       }
     } finally {
       isLoading = false;
+      passkeyPending = false;
     }
   }
+
+  /** The user dismissed the browser's passkey dialog (or it was refused without a gesture). */
+  function isCeremonyCancelled(err: unknown): boolean {
+    if (err instanceof DOMException) {
+      return err.name === "NotAllowedError" || err.name === "AbortError";
+    }
+    return err instanceof Error && /cancelled/i.test(err.message);
+  }
+
+  /**
+   * A passkey is the preferred second factor: when the account has one, its
+   * prompt opens by itself. Cancelling it leaves the chooser, where the
+   * authenticator (or the passkey again) can be picked.
+   */
+  $: if (
+    authStep &&
+    authStep.status === "factor_required" &&
+    authStep.available.includes("passkey") &&
+    canUsePasskeys &&
+    !isLoading &&
+    passkeyAutoTriedFor !== authStep
+  ) {
+    passkeyAutoTriedFor = authStep;
+    void handlePasskey({ auto: true });
+  }
+
+  /** Passkey first, and only what this browser can actually present. */
+  $: chooserFactors = authStep
+    ? [...authStep.available]
+        .filter((f) => f !== "passkey" || canUsePasskeys)
+        .sort((a, b) => Number(b === "passkey") - Number(a === "passkey"))
+    : [];
 
   /**
    * Message for a failure that happened *after* the server accepted the factor.
@@ -408,6 +507,7 @@
     try {
       const step = await submitPasswordFactor(entered);
       password = entered;
+      passwordVerified = true;
       await handleAuthStep(step);
     } catch (err: any) {
       const code = err instanceof ApiError ? err.code : "";
@@ -428,7 +528,11 @@
     }
     const step = vaultLocked;
     const normalizedEmail = step.email.trim().toLowerCase();
-    const vault = await openWithPassword(step.id, normalizedEmail, entered);
+    // Not checked by the server, so never allowed to run the migration: an
+    // account without an envelope must sign in with its password once first.
+    const vault = await openWithPassword(step.id, normalizedEmail, entered, {
+      allowMigration: false,
+    });
     password = entered;
     // Busy panel before the step is cleared, or the last stretch falls through
     // to the login form again.
@@ -503,7 +607,9 @@
     finishingEmail = email.trim().toLowerCase();
     isLoading = true;
     try {
-      await handleAuthStep(await submitPassword(email.trim().toLowerCase(), password));
+      const step = await submitPassword(email.trim().toLowerCase(), password);
+      passwordVerified = true;
+      await handleAuthStep(step);
     } catch (err: any) {
       isFinishing = false;
       errorMsg = err?.message || translate("auth.unlock.errors.unlockFailed");
@@ -654,7 +760,7 @@
   }
 </script>
 
-<div class="unlock-container flex min-h-full flex-col items-center justify-center box-border px-4 py-8 sm:px-6 sm:py-12">
+<PageShell width="medium" center flush class="gap-4 py-3">
   <!--
     Above the step rather than inside one: the cooloff can be hit from the form,
     from the second factor and from the vault prompt alike, and it is the same
@@ -663,30 +769,32 @@
   <LockoutNotice />
 
   {#if isFinishing}
-    <div class="w-full max-w-form rounded-xl border border-line bg-surface-raised p-5 sm:p-6">
+    <Card class="mx-auto w-full max-w-form sm:p-6">
       <SigningInStep email={finishingEmail} />
-    </div>
+    </Card>
   {:else if authStep && authStep.status === "factor_required"}
     <!--
       One factor is in. The password stays in memory until the vault is open,
       so this step is rendered in place of the form rather than on a new route.
     -->
-    <div class="w-full max-w-form rounded-xl border border-line bg-surface-raised p-5 sm:p-6">
+    <Card class="mx-auto w-full max-w-form sm:p-6">
       <FactorChooser
-        available={authStep.available}
+        available={chooserFactors}
+        {passkeyPending}
         onTotp={handleSecondFactor}
         onPassword={handlePasswordFactor}
-        onPasskey={handlePasskey}
+        onPasskey={() => handlePasskey()}
         errorMsg={factorErrorMsg}
       />
-    </div>
+    </Card>
   {:else if vaultLocked}
-    <div class="w-full max-w-form rounded-xl border border-line bg-surface-raised p-5 sm:p-6">
+    <Card class="mx-auto w-full max-w-form sm:p-6">
       <VaultUnlockStep
+        passkeyCanHeal={passkeyToHeal !== null}
         onPassword={handleVaultPassword}
         onRecoveryCode={handleVaultRecovery}
       />
-    </div>
+    </Card>
   {:else}
     <UnlockForm
       bind:backendUrl
@@ -700,25 +808,10 @@
       {isLoading}
       onUnlock={handleUnlock}
       onUnlockLocal={handleUnlockLocal}
+      onPasskey={canUsePasskeys ? () => handlePasskey() : undefined}
     />
-
-    {#if canUsePasskeys}
-      <!--
-        A passkey identifies the account by itself, so it works as the first
-        factor without an email being typed at all.
-      -->
-      <button
-        type="button"
-        class="mt-4 cursor-pointer border-none bg-transparent p-0 text-sm text-accent underline
-               disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isLoading}
-        on:click={handlePasskey}
-      >
-        {$t("security.passkey.signIn")}
-      </button>
-    {/if}
   {/if}
-</div>
+</PageShell>
 
 {#if authStep && authStep.status === "enroll_required"}
   <TotpEnrollDialog onEnrolled={handleEnrolled} />

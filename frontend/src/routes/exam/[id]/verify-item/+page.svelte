@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from "$app/stores";
   import { goto, afterNavigate } from "$app/navigation";
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import { browser } from "$app/environment";
   import { get } from "svelte/store";
   import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
@@ -19,7 +19,9 @@
   import { decrypt } from "$lib/crypto/aesGcm";
   import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "$lib/db/schema";
   import McItemVerificationCard from "$lib/components/verify/McItemVerificationCard.svelte";
-  import { PageShell, Modal, Button } from "$lib/components/ui";
+  import { Alert, PageShell, Modal, Button } from "$lib/components/ui";
+  import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
+  import { flushAll, flushQuestion, stageVerifiedQuestion } from "$lib/services/trainingDonation";
 
   $: examId = $page.params.id || "";
   $: submissionId = $page.url.searchParams.get("submissionId") || "";
@@ -196,13 +198,26 @@
 
     await scoreRepository.saveOne(examId, scoreToSave, key);
     currentScoreRecord = scoreToSave;
+    // Opt-in training-data donation: only staged here, built once the teacher moves on.
+    stageVerifiedQuestion(examId, scoreToSave, scanPdfBytes);
   }
 
+  /** The teacher leaves the current question — donate it if it was verified (opt-in). */
+  function leaveCurrentQuestion() {
+    if (submissionId && exerciseId) void flushQuestion(submissionId, exerciseId);
+  }
+
+  onDestroy(() => {
+    void flushAll();
+  });
+
   function goBackToDashboard() {
+    leaveCurrentQuestion();
     goto(`/exam/${examId}/verify?queue=${queueFilter}`);
   }
 
   function handleNext() {
+    leaveCurrentQuestion();
     if (currentIndex >= 0 && currentIndex < activeQueueItems.length - 1) {
       const nextItem = activeQueueItems[currentIndex + 1];
       goto(
@@ -218,6 +233,7 @@
   }
 
   function handlePrev() {
+    leaveCurrentQuestion();
     if (currentIndex > 0) {
       const prevItem = activeQueueItems[currentIndex - 1];
       goto(
@@ -227,32 +243,29 @@
   }
 
   function handleOpenGrading() {
+    leaveCurrentQuestion();
     goto(`/exam/${examId}/grade?submissionId=${submissionId}&exerciseId=${exerciseId}`);
   }
 
   function navigateToItem(targetExerciseId: string, category: McQueueCategory) {
+    leaveCurrentQuestion();
     goto(
       `/exam/${examId}/verify-item?submissionId=${submissionId}&exerciseId=${targetExerciseId}&queue=${category}`
     );
   }
 </script>
 
-<PageShell width="full">
-  <div class="mb-6 flex items-center justify-between">
-    <a
-      href={`/exam/${examId}/verify`}
-      class="text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1"
-    >
+<PageShell width="fluid">
+  <div class="mb-4 flex items-center justify-between">
+    <Button variant="text" severity="secondary" size="sm" icon={faArrowLeft} href={`/exam/${examId}/verify`}>
       {$t("scanning.verifyItem.backLink")}
-    </a>
+    </Button>
   </div>
 
   {#if loading}
-    <div class="p-12 text-center text-sm text-slate-400">{$t("scanning.verifyItem.loading")}</div>
+    <div class="p-12 text-center text-sm text-muted">{$t("scanning.verifyItem.loading")}</div>
   {:else if errorMsg}
-    <div class="p-4 rounded border border-red-500/40 bg-red-500/10 text-red-400 text-xs max-w-xl mx-auto">
-      {errorMsg}
-    </div>
+    <Alert severity="danger" class="mx-auto max-w-xl">{errorMsg}</Alert>
   {:else if currentExercise}
     <McItemVerificationCard
       exercise={currentExercise}
@@ -279,7 +292,7 @@
 
   <Modal
     open={showEndOfQueueModal}
-    size="sm"
+    size="small"
     title={$t("scanning.itemCard.endOfQueueTitle")}
     onClose={() => (showEndOfQueueModal = false)}
   >

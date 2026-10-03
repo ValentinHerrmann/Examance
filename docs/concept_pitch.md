@@ -14,7 +14,7 @@
 | **The bias (halo effect)** | A name on the cover sheet unconsciously influences grading before a single answer is read. Genuine objectivity is hard to achieve by willpower alone. |
 | **Data protection** | Mainstream cloud edtech tools are frequently a poor — sometimes outright illegal — fit for sensitive pupil data and grades under GDPR/BDSG and Bavarian school law (see `legal_audit_dsgvo.md`). |
 
-Examance addresses all three at once: it automates the mechanical parts of grading, structurally removes the student's identity from the corrector's view during scoring, and is built so that, in its default mode, sensitive data never leaves the teacher's browser at all.
+Examance addresses all three at once: it automates the mechanical parts of grading, structurally removes the student's identity from the corrector's view during scoring, and is built so that, in its default mode, sensitive data never leaves the teacher's browser at all (except an optional, anonymised checkbox-crop donation the teacher must switch on).
 
 ---
 
@@ -68,7 +68,7 @@ Once submissions are graded, Examance aggregates results into class- and cross-e
 
 ![Global multi-exam analytics — cross-exam metrics and fairness comparisons](screenshots/pitch/07-analytics.png)
 
-All of this runs on data that, in the default storage mode, was never uploaded anywhere — analytics are computed from the encrypted local vault the same way grading was.
+All of this runs on data that, in the default storage mode, was never uploaded anywhere (except an optional, anonymised checkbox-crop donation the teacher must switch on) — analytics are computed from the encrypted local vault the same way grading was.
 
 ---
 

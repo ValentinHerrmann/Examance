@@ -7,7 +7,7 @@
    * unrecoverable: the server holds a wrap it cannot open, so all that can be
    * offered is a replacement, minted from the open vault.
    */
-  import { Button, Card } from "$lib/components/ui";
+  import { Alert, Button, Card } from "$lib/components/ui";
   import { Argon2UnavailableError } from "$lib/crypto/keyDerivation";
   import { t } from "$lib/i18n";
   import { fmt } from "$lib/utils/format";
@@ -49,7 +49,7 @@
 <Card tone={status.has_recovery_code ? "default" : "warning"}>
   <div class="flex flex-col gap-4">
     <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <h2 class="m-0 text-lg font-semibold text-accent">{$t("security.recovery.title")}</h2>
+      <h2 class="m-0 text-xl font-medium text-content">{$t("security.recovery.title")}</h2>
       <span class="text-sm text-muted">
         {status.has_recovery_code
           ? $t("security.page.statusEnrolled")
@@ -60,28 +60,23 @@
     <p class="m-0 text-sm text-muted">{$t("security.recovery.intro")}</p>
 
     {#if status.has_recovery_code}
-      <p class="m-0 text-xs text-subtle">
+      <p class="m-0 text-xs text-muted">
         {status.recovery_created_at
           ? $t("security.page.added", { date: $fmt.date(new Date(status.recovery_created_at)) })
           : $t("security.page.addedUnknown")}
       </p>
     {:else}
-      <p
-        class="m-0 rounded-lg border border-line-strong bg-surface-sunken p-3 text-sm text-content"
-        role="alert"
-      >
-        {$t("security.page.recoveryMissing")}
-      </p>
+      <Alert severity="warning">{$t("security.page.recoveryMissing")}</Alert>
     {/if}
 
     {#if errorMsg}
-      <p class="m-0 text-sm text-red-400" role="alert">{errorMsg}</p>
+      <p class="m-0 text-sm text-danger-fg" role="alert">{errorMsg}</p>
     {/if}
 
-    <p class="m-0 text-xs text-subtle">{$t("security.recovery.regenerateHint")}</p>
+    <p class="m-0 text-xs text-muted">{$t("security.recovery.regenerateHint")}</p>
 
     <div>
-      <Button variant="secondary" disabled={isWorking} loading={isWorking} onClick={regenerate}>
+      <Button severity="secondary" disabled={isWorking} loading={isWorking} onClick={regenerate}>
         {$t("security.recovery.regenerate")}
       </Button>
     </div>

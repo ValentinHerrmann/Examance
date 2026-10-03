@@ -5,9 +5,14 @@ One place decides what a session needs, so the rule cannot drift between the
 login endpoints, the enrollment endpoints and the guard that decides a factor may
 be removed.
 
-The three factors are **password**, **passkey** and **TOTP**, and a session needs
-two *distinct* ones. A teacher with all three enrolled picks which two to use, so
-losing any single factor does not lock them out.
+The three factors are **password**, **passkey** and **TOTP**. A session needs
+either a passkey on its own or two *distinct* factors. A passkey qualifies alone
+because every ceremony demands user verification (`webauthn.py`): it is already
+possession plus a local biometric or PIN. Password and TOTP never stand alone.
+
+Enrollment still asks for two factors, so a teacher who signs in with a password
+always has a second one to present, and losing any single factor does not lock
+them out.
 
 Two rules, not one:
 
@@ -44,6 +49,11 @@ REQUIRED_FACTOR_COUNT = 2
 # which is why membership here is necessary but not sufficient — see
 # `key_capable_factors`.
 KEY_CAPABLE_FACTORS: frozenset[str] = frozenset({"password", "passkey"})
+
+# Factors that complete a sign-in by themselves. Only a passkey: the ceremony
+# requires user verification, so the authenticator has checked a biometric or
+# PIN on top of possession. Never add password or TOTP here.
+SELF_SUFFICIENT_FACTORS: frozenset[str] = frozenset({"passkey"})
 
 
 async def enrolled_factors(db: AsyncSession, teacher: Teacher) -> set[FactorKind]:
@@ -124,7 +134,10 @@ async def is_enrollment_complete(db: AsyncSession, teacher: Teacher) -> bool:
 
 def satisfies(amr: list[str]) -> bool:
     """True when the factors already presented add up to a full session."""
-    return len({f for f in amr if f in ALL_FACTORS}) >= REQUIRED_FACTOR_COUNT
+    presented = {f for f in amr if f in ALL_FACTORS}
+    if presented & SELF_SUFFICIENT_FACTORS:
+        return True
+    return len(presented) >= REQUIRED_FACTOR_COUNT
 
 
 async def remaining_factors(

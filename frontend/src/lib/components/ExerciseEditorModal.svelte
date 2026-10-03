@@ -7,19 +7,28 @@
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { saveExerciseEncrypted, loadExercisesEncrypted } from "$lib/db/dbEncryption";
   import { api } from "$lib/api/client";
-  import { parseExerciseScore, formatExerciseLatex } from "$lib/latex/scoreParser";
-  import { parseMcOptions, buildMcOptionsLatex, type McOption } from "$lib/latex/mcOptions";
-  import { compileWithCache, getLatestForSlot } from "$lib/latex/compileCache";
+  import { parseExerciseScore } from "$lib/latex/scoreParser";
+  import {
+    parseMcOptions,
+    buildMcOptionsLatex,
+    MC_MAX_COLUMNS,
+    MC_MAX_OPTIONS,
+    MC_MIN_OPTIONS,
+    type McOption,
+  } from "$lib/latex/mcOptions";
+  import { getLatestForSlot } from "$lib/latex/compileCache";
+  import { compileExercisePreview } from "$lib/latex/exercisePreview";
+  import { pdfBytesToUrl } from "$lib/latex/pdfPreview";
   import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
   import ExerciseResourcePanel from "$lib/components/exercise/ExerciseResourcePanel.svelte";
   import LatexEditor from "./LatexEditor.svelte";
-  import ConfirmDialog from "./ConfirmDialog.svelte";
   import DualPdfPreview from "./DualPdfPreview.svelte";
   import SuggestInput from "$lib/components/common/SuggestInput.svelte";
   import { recordValue } from "$lib/utils/recentValues";
   import { t, translate } from "$lib/i18n";
   import InfoTip from "$lib/components/help/InfoTip.svelte";
-  import { Modal } from "$lib/components/ui";
+  import { ConfirmDialog, Alert, Badge, Button, Checkbox, Icon, Modal, Select, TextInput, controlClass, controlSmClass } from "$lib/components/ui";
+  import { faBook, faChevronLeft, faChevronRight, faCode, faPlus, faTag, faXmark } from "@fortawesome/free-solid-svg-icons";
 
   export let isOpen = false;
   export let editingExercise: ExerciseRecord | null = null;
@@ -41,6 +50,9 @@
   let editorQuestionType: "free_text" | "mc" = "free_text";
   let mcQuestionText = "";
   let mcOptions: McOption[] = [];
+  /** Column layout of the options: "auto" (one per option) or an explicit count, as a <select> value. */
+  let mcColumns = "auto";
+  const MC_COLUMN_CHOICES = Array.from({ length: MC_MAX_COLUMNS }, (_, i) => String(i + 1));
   let mcOptionsError = "";
   /** Points deducted per wrongly-crossed MC option (right-minus-wrong scoring). Matches the printed scoring text convention. */
   let editorPenalty = 0.5;
@@ -199,10 +211,15 @@
     const parsed = parseMcOptions(editorLatexBody);
     mcQuestionText = parsed.questionText;
     mcOptions = parsed.options;
+    mcColumns = parsed.columns === null ? "auto" : String(parsed.columns);
   }
 
   function regenerateMcLatex() {
-    editorLatexBody = buildMcOptionsLatex(mcQuestionText, mcOptions);
+    editorLatexBody = buildMcOptionsLatex(
+      mcQuestionText,
+      mcOptions,
+      mcColumns === "auto" ? null : Number(mcColumns),
+    );
   }
 
   function handleQuestionTypeChange() {
@@ -232,13 +249,13 @@
   }
 
   function addMcOption() {
-    if (mcOptions.length >= 8) return;
+    if (mcOptions.length >= MC_MAX_OPTIONS) return;
     mcOptions = [...mcOptions, { text: "", correct: false }];
     regenerateMcLatex();
   }
 
   function removeMcOption(index: number) {
-    if (mcOptions.length <= 2) return;
+    if (mcOptions.length <= MC_MIN_OPTIONS) return;
     mcOptions = mcOptions.filter((_, i) => i !== index);
     regenerateMcLatex();
   }
@@ -289,82 +306,23 @@
     dispatch("close");
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (!isOpen || showConfirmClose) return;
-    if (e.key === "Escape") {
-      requestClose();
-    }
-  }
-
   async function handlePreviewExercise() {
     isPreviewLoading = true;
     errorMsg = "";
     try {
-      const getPreamble = (extraOpts: string) => `\\documentclass[a4paper]{article}
-\\usepackage[${extraOpts}]{sty/Schulaufgabe}
-\\usepackage{bbding}
-\\usepackage{pifont}
-\\usepackage{fontspec}
-\\usepackage{framed}
-\\usepackage{enumitem}
-\\usetikzlibrary{shapes.geometric, arrows}
-\\usepackage{sty/tikz-uml}
-\\neverindent
-\\WarningsOff
-\\renewcommand{\\Namenszeile}{}
-\\AtBeginDocument{
-  \\pagestyle{empty}
-  \\thispagestyle{empty}
-  \\lhead{}
-  \\chead{}
-  \\rhead{}
-  \\lfoot{}
-  \\cfoot{}
-  \\rfoot{}
-}`;
-
-      const formattedBody = formatExerciseLatex(editorLatexBody, editorName || "Aufgabe");
-
-      const fullTexAngabe = `${getPreamble('sans')}\n\\setboolean{Antworten}{false}\n\\begin{document}\n\\leavevmode\\par\n${formattedBody}\n\\end{document}`;
-      const fullTexLoesung = `${getPreamble('sans,antworten')}\n\\setboolean{Antworten}{true}\n\\begin{document}\n\\leavevmode\\par\n${formattedBody}\n\\end{document}`;
-
-      const useLocal = $storagePolicyStore.latexCompilation === "local";
-      // Staged files are inlined: they may not exist on the server yet, and in
-      // the unsaved case they never will until the dialog is saved.
-      const collected = await exerciseResourceRepository.collectForCompile(
-        [{ id: resourceStagingId, label: editorName || "Aufgabe", staged: true }],
-        get(sessionStore).sessionKey,
-        true
-      );
-      const compileOpts = {
-        resources: collected.inline,
-        resourceExerciseIds: collected.exerciseIds
-      };
-
-      const exerciseTargetId = editingExercise?.id || resourceStagingId;
-      const resAngabe = await compileWithCache(
-        { kind: "exercise", id: exerciseTargetId, variant: "angabe" },
-        fullTexAngabe,
-        useLocal,
-        undefined,
-        false,
-        compileOpts
-      );
-      const blobAngabe = new Blob([resAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+      const res = await compileExercisePreview({
+        cacheId: editingExercise?.id || resourceStagingId,
+        name: editorName,
+        latexBody: editorLatexBody,
+        resourceOwnerId: resourceStagingId,
+        staged: true,
+        useLocal: $storagePolicyStore.latexCompilation === "local",
+        key: get(sessionStore).sessionKey
+      });
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
-      previewPdfUrl = URL.createObjectURL(blobAngabe);
-
-      const resLoesung = await compileWithCache(
-        { kind: "exercise", id: exerciseTargetId, variant: "loesung" },
-        fullTexLoesung,
-        useLocal,
-        undefined,
-        false,
-        compileOpts
-      );
-      const blobLoesung = new Blob([resLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+      previewPdfUrl = pdfBytesToUrl(res.angabe.pdfBytes);
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
-      previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
+      previewSolutionPdfUrl = pdfBytesToUrl(res.loesung.pdfBytes);
 
       // Panes start collapsed (nothing to show); now that a PDF exists, open
       // the exam pane so the compile result is actually visible.
@@ -372,9 +330,8 @@
 
       // A missing figure does not fail the engine — say so instead of handing
       // back a PDF with a silent hole in it.
-      const missing = [...(resAngabe.missingGraphics ?? []), ...(resLoesung.missingGraphics ?? [])];
-      if (missing.length > 0) {
-        errorMsg = `Preview rendered, but a graphic could not be loaded: ${missing[0]}`;
+      if (res.missingGraphics.length > 0) {
+        errorMsg = `Preview rendered, but a graphic could not be loaded: ${res.missingGraphics[0]}`;
       }
     } catch (err: any) {
       console.error("Exercise preview failed:", err);
@@ -391,7 +348,7 @@
     }
 
     if (editorQuestionType !== "free_text") {
-      if (mcOptions.length < 2) {
+      if (mcOptions.length < MC_MIN_OPTIONS) {
         errorMsg = translate("exercises.editor.mcMinOptions");
         return;
       }
@@ -564,156 +521,140 @@
   }
 
   const editorColumnBase =
-    "flex flex-col h-full min-h-0 overflow-hidden rounded-lg border border-slate-700 bg-slate-900 transition-all duration-200 ease-[ease]";
-  // Below `lg` this column stacks above DualPdfPreview instead of sitting
-  // beside it. DualPdfPreview carries its own explicit `min-height: 18rem`
-  // (DualPdfPreview.svelte), which flexbox honours as a real floor; this
-  // column's `overflow-hidden` resets its own automatic minimum to 0, so
-  // without a matching floor here the flex distribution squeezes it toward
-  // nothing first — collapsing the LaTeX/MC inputs to invisible on phones.
+    "flex flex-col h-full min-h-0 overflow-hidden rounded-md border border-line bg-surface-sunken transition-all duration-200";
+  // Below the `@3xl` container width this column stacks above DualPdfPreview
+  // instead of sitting beside it. DualPdfPreview carries its own explicit
+  // `min-height: 18rem` (DualPdfPreview.svelte), which flexbox honours as a real
+  // floor; this column's `overflow-hidden` resets its own automatic minimum to
+  // 0, so without a matching floor here the flex distribution squeezes it
+  // toward nothing first — collapsing the LaTeX/MC inputs on phones.
   $: editorColumnClass = showLatexPanel
-    ? `${editorColumnBase} min-h-[20rem] flex-1 min-w-0 p-0 gap-0 lg:min-h-0`
-    : `${editorColumnBase} w-full h-10 flex-none min-w-0 p-0 lg:h-full lg:w-[38px] lg:flex-[0_0_38px] lg:min-w-[38px]`;
+    ? `${editorColumnBase} min-h-80 flex-1 min-w-0 p-0 gap-0 @3xl:min-h-0`
+    : `${editorColumnBase} w-full h-10 flex-none min-w-0 p-0 @3xl:h-full @3xl:w-10 @3xl:min-w-10`;
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
-
 {#if isOpen}
-  <Modal open={isOpen} size="full" bare onClose={requestClose} labelledBy="exercise-editor-title">
-    <div
-      class="flex h-full max-h-full w-full flex-col overflow-hidden"
-    >
-      <div class="flex shrink-0 flex-col gap-[0.65rem] border-b border-slate-700 bg-slate-800 px-5 py-4">
-        <div class="flex w-full items-center justify-between">
-          <div class="flex items-center gap-[0.65rem]">
-            <h3 id="exercise-editor-title" class="m-0 text-[1.15rem] text-slate-100">
-              {isCreatingVersion
-                ? $t("exercises.editor.titleNewVersion", { name: editorName })
-                : editingExercise
-                  ? $t("exercises.editor.titleEdit", { name: editorName })
-                  : $t("exercises.editor.titleCreate")}
-            </h3>
-            {#if isCreatingVersion}
-              <span class="rounded bg-sky-400/15 border border-sky-400/30 px-2 py-[0.15rem] text-xs font-semibold text-sky-400">v{(versionBaseEx?.version || 1) + 1}</span>
-            {/if}
-          </div>
-          <button type="button" class="cursor-pointer rounded border-0 bg-transparent p-1 text-[1.25rem] leading-none text-slate-400 hover:text-slate-100" on:click={requestClose}>✕</button>
-        </div>
+  <Modal open={isOpen} size="full" tall bare onClose={requestClose} labelledBy="exercise-editor-title">
+    <svelte:fragment slot="header">
+      <div class="flex min-w-0 items-center gap-2">
+        <h2 id="exercise-editor-title" class="m-0 truncate text-xl font-semibold text-content">
+          {isCreatingVersion
+            ? $t("exercises.editor.titleNewVersion", { name: editorName })
+            : editingExercise
+              ? $t("exercises.editor.titleEdit", { name: editorName })
+              : $t("exercises.editor.titleCreate")}
+        </h2>
+        {#if isCreatingVersion}
+          <Badge severity="primary">v{(versionBaseEx?.version || 1) + 1}</Badge>
+        {/if}
+      </div>
+    </svelte:fragment>
 
-        <div class="flex flex-wrap items-center gap-[0.85rem] rounded-md border border-slate-700 bg-slate-900 px-3 py-2">
+    <div class="flex h-full max-h-full w-full flex-col overflow-hidden">
+      <div class="shrink-0 border-b border-line px-4 pb-3">
+        <div class="flex flex-wrap items-center gap-3 rounded-md border border-line bg-surface-sunken px-3 py-2">
           {#if editingExercise || isCreatingVersion}
-            <div class="flex flex-wrap items-center gap-[0.45rem] text-[0.85rem]">
-              <span class="text-[0.8rem] text-slate-400">{$t("exercises.editor.groupLabel")}</span>
-              <strong class="font-semibold text-slate-100">{editorName}</strong>
-              <span class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.15rem] text-xs text-slate-300">🏷️ {editorTopicTag}</span>
+            <div class="flex flex-wrap items-center gap-2 text-sm">
+              <span class="text-xs text-muted">{$t("exercises.editor.groupLabel")}</span>
+              <strong class="font-semibold text-content">{editorName}</strong>
+              <Badge icon={faTag}>{editorTopicTag}</Badge>
               {#if editorGrade}
-                <span class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.15rem] text-xs text-slate-300">{$t("exercises.editor.gradeBadge", { grade: editorGrade })}</span>
+                <Badge>{$t("exercises.editor.gradeBadge", { grade: editorGrade })}</Badge>
               {/if}
               {#if editorSubject}
-                <span class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.15rem] text-xs text-slate-300">📚 {editorSubject}</span>
+                <Badge icon={faBook}>{editorSubject}</Badge>
               {/if}
             </div>
 
-            <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-              <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.variantKeyLabel")}</label>
-              <input
+            <div class="flex items-center gap-1.5 text-xs">
+              <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.variantKeyLabel")}</label>
+              <TextInput
                 id="editorVariantKey"
-                type="text"
+                size="sm"
                 bind:value={editorVariantKey}
                 placeholder={$t("exercises.editor.variantKeyPlaceholder")}
-                class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
               />
             </div>
           {:else}
-            <div class="flex w-full flex-wrap items-center gap-[0.65rem]">
-              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <label for="editorName" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.nameLabel")}</label>
-                <input
+            <div class="flex w-full flex-wrap items-center gap-3">
+              <div class="flex items-center gap-1.5 text-xs">
+                <label for="editorName" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.nameLabel")}</label>
+                <TextInput
                   id="editorName"
-                  type="text"
+                  size="sm"
                   bind:value={editorName}
                   required
                   placeholder={$t("exercises.editor.namePlaceholder")}
-                  class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
                 />
               </div>
 
-              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <label for="editorTopic" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.topicLabel")}</label>
+              <div class="flex items-center gap-1.5 text-xs">
+                <label for="editorTopic" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.topicLabel")}</label>
                 <SuggestInput
                   id="editorTopic"
                   storageKey="exercise.topic"
                   bind:value={editorTopicTag}
                   placeholder="_Vererbung"
                   required
-                  class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
+                  class="{controlClass} {controlSmClass}"
                 />
               </div>
 
-              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <label for="editorGrade" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.gradeLabel")}</label>
+              <div class="flex items-center gap-1.5 text-xs">
+                <label for="editorGrade" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.gradeLabel")}</label>
                 <SuggestInput
                   id="editorGrade"
                   storageKey="exercise.grade"
                   bind:value={editorGrade}
                   placeholder={$t("exercises.editor.gradePlaceholder")}
-                  class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
+                  class="{controlClass} {controlSmClass}"
                 />
               </div>
 
-              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <label for="editorSubject" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.subjectLabel")}</label>
+              <div class="flex items-center gap-1.5 text-xs">
+                <label for="editorSubject" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.subjectLabel")}</label>
                 <SuggestInput
                   id="editorSubject"
                   storageKey="exercise.subject"
                   bind:value={editorSubject}
                   placeholder={$t("exercises.editor.subjectPlaceholder")}
-                  class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
+                  class="{controlClass} {controlSmClass}"
                 />
               </div>
 
-              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.variantKeyLabelPlain")}</label>
-                <input
+              <div class="flex items-center gap-1.5 text-xs">
+                <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.variantKeyLabelPlain")}</label>
+                <TextInput
                   id="editorVariantKey"
-                  type="text"
+                  size="sm"
                   bind:value={editorVariantKey}
                   placeholder={$t("exercises.editor.variantKeyPlaceholderPlain")}
-                  class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
                 />
               </div>
 
-              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <span class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.exerciseTypeLabel")}</span>
-                <div class="inline-flex rounded-md border border-slate-700 bg-slate-900 p-0.5">
-                  <button
-                    type="button"
-                    class={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
-                      editorQuestionType === "free_text"
-                        ? "bg-sky-600 text-white shadow-sm"
-                        : "text-slate-400 hover:text-slate-200"
-                    }`}
-                    on:click={() => {
+              <div class="flex items-center gap-1.5 text-xs">
+                <span class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.exerciseTypeLabel")}</span>
+                <div class="inline-flex gap-1 rounded-md border border-line bg-surface-sunken p-0.5">
+                  <Button
+                    size="sm"
+                    variant={editorQuestionType === "free_text" ? "solid" : "text"}
+                    severity={editorQuestionType === "free_text" ? "primary" : "secondary"}
+                    pressed={editorQuestionType === "free_text"}
+                    onClick={() => {
                       editorQuestionType = "free_text";
                       handleQuestionTypeChange();
                     }}
-                  >
-                    {$t("exercises.editor.freeTextButton")}
-                  </button>
-                  <button
-                    type="button"
-                    class={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
-                      editorQuestionType === "mc"
-                        ? "bg-sky-600 text-white shadow-sm"
-                        : "text-slate-400 hover:text-slate-200"
-                    }`}
-                    on:click={() => {
+                  >{$t("exercises.editor.freeTextButton")}</Button>
+                  <Button
+                    size="sm"
+                    variant={editorQuestionType === "mc" ? "solid" : "text"}
+                    severity={editorQuestionType === "mc" ? "primary" : "secondary"}
+                    pressed={editorQuestionType === "mc"}
+                    onClick={() => {
                       editorQuestionType = "mc";
                       handleQuestionTypeChange();
                     }}
-                  >
-                    {$t("exercises.editor.mcButton")}
-                  </button>
+                  >{$t("exercises.editor.mcButton")}</Button>
                 </div>
               </div>
             </div>
@@ -722,52 +663,49 @@
       </div>
 
       {#if errorMsg}
-        <div class="shrink-0 overflow-y-auto max-h-[200px] whitespace-pre-wrap break-all border-l-4 border-red-500 bg-red-500/15 px-6 py-3 text-[0.875rem] text-red-300 font-mono">{errorMsg}</div>
+        <Alert severity="danger" class="mx-4 mt-3 shrink-0">
+          <div class="max-h-52 overflow-y-auto whitespace-pre-wrap break-all font-mono">{errorMsg}</div>
+        </Alert>
       {/if}
 
-      <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5 lg:flex-row lg:overflow-hidden">
+      <div class="flex min-h-0 flex-1 flex-col gap-4 p-4 @3xl:flex-row @3xl:overflow-hidden">
         <div class={editorColumnClass}>
           {#if showLatexPanel}
-            <button
-              type="button"
-              class="box-border flex w-full shrink-0 cursor-pointer items-center justify-between gap-2 border-0 border-b border-slate-700 bg-slate-800 px-3 py-2 text-left transition-colors duration-150 ease-[ease] hover:bg-slate-700 group"
-              on:click={handleToggleLatex}
-              title={$t("exercises.editor.collapseLatexTitle")}
-            >
-              <div class="flex min-w-0 items-center gap-2">
-                <span class="whitespace-nowrap text-[0.85rem] font-semibold text-slate-100">{$t("exercises.editor.latexSourceCodeLabel")}</span>
-                <span class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded border border-sky-400/20 bg-sky-400/10 px-2 py-[0.15rem] text-xs text-sky-400">
+            <div class="flex w-full shrink-0 items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-2">
+              <button
+                type="button"
+                class="group flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-left"
+                on:click={handleToggleLatex}
+                title={$t("exercises.editor.collapseLatexTitle")}
+              >
+                <span class="whitespace-nowrap text-sm font-semibold text-content">{$t("exercises.editor.latexSourceCodeLabel")}</span>
+                <Badge severity="primary" size="xs">
                   {$t("exercises.editor.autoScoreLabel", { score: parseExerciseScore(editorLatexBody) })}
-                </span>
-              </div>
-              <div class="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  class="shrink-0 cursor-pointer rounded border-0 bg-sky-600 px-3 py-[0.35rem] text-[0.8rem] font-semibold text-white transition-colors duration-150 ease-[ease] [&:hover:not(:disabled)]:bg-sky-700"
-                  on:click|stopPropagation={handlePreviewExercise}
-                  disabled={isPreviewLoading}
-                  title={$t("exercises.editor.previewButtonTitle")}
-                >
-                  {isPreviewLoading ? $t("exercises.editor.previewButtonLoading") : $t("exercises.editor.previewButton")}
-                </button>
-                <span class="shrink-0 text-base font-bold text-slate-400 transition-colors duration-150 ease-[ease] group-hover:text-sky-400">›</span>
-              </div>
-            </button>
+                </Badge>
+                <Icon icon={faChevronRight} class="shrink-0 text-muted group-hover:text-accent" />
+              </button>
+              <Button
+                size="sm"
+                onClick={handlePreviewExercise}
+                disabled={isPreviewLoading}
+                title={$t("exercises.editor.previewButtonTitle")}
+              >{isPreviewLoading ? $t("exercises.editor.previewButtonLoading") : $t("exercises.editor.previewButton")}</Button>
+            </div>
 
-            <div class="flex min-h-0 flex-1 flex-col gap-[0.4rem] overflow-hidden p-2">
+            <div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden p-2">
               {#if editorQuestionType !== "free_text"}
-                <div class="flex flex-col gap-3 rounded-lg border border-slate-700 bg-slate-800/90 p-3 text-xs">
-                  <div class="flex items-center justify-between">
-                    <span class="font-semibold text-sky-400">
+                <div class="flex flex-col gap-3 rounded-md border border-line bg-surface-raised p-3 text-xs">
+                  <div class="flex flex-wrap items-center justify-between gap-x-3">
+                    <h3 class="m-0 text-sm font-semibold text-content">
                       {$t("exercises.editor.mcEditorTitle")}
-                    </span>
-                    <span class="text-[0.75rem] text-slate-400">
+                    </h3>
+                    <span class="text-xs text-muted">
                       {$t("exercises.editor.mcEditorHint")}
                     </span>
                   </div>
 
                   <div class="flex flex-col gap-1">
-                    <label class="font-semibold text-slate-300">{$t("exercises.editor.mcQuestionTextLabel")}</label>
+                    <span class="font-semibold text-content">{$t("exercises.editor.mcQuestionTextLabel")}</span>
                     <LatexEditor
                       bind:value={mcQuestionText}
                       rows={4}
@@ -777,7 +715,7 @@
                   </div>
 
                   <div class="flex flex-col gap-1">
-                    <label class="flex items-center gap-1.5 font-semibold text-slate-300" for="mc-penalty">
+                    <label class="flex items-center gap-1.5 font-semibold text-content" for="mc-penalty">
                       {$t("exercises.editor.mcPenaltyLabel")}
                       <InfoTip text={$t("help.tips.mcPenalty")} topic="exercises" />
                     </label>
@@ -787,31 +725,38 @@
                       step="0.25"
                       min="0"
                       bind:value={editorPenalty}
-                      class="w-24 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-100 focus:border-sky-400 focus:outline-none"
+                      class="{controlClass} {controlSmClass} w-24"
                     />
                   </div>
 
+                  <div class="flex flex-col gap-1">
+                    <label class="font-semibold text-content" for="mc-columns">{$t("exercises.editor.mcColumnsLabel")}</label>
+                    <Select id="mc-columns" size="sm" class="w-full @xl:w-72" bind:value={mcColumns} on:change={regenerateMcLatex}>
+                      <option value="auto">{$t("exercises.editor.mcColumnsAuto", { max: MC_MAX_COLUMNS })}</option>
+                      {#each MC_COLUMN_CHOICES as choice}
+                        <option value={choice}>{choice}</option>
+                      {/each}
+                    </Select>
+                  </div>
+
                   <div class="flex flex-col gap-2">
-                    <div class="flex items-center justify-between text-slate-300 font-semibold">
+                    <div class="flex items-center justify-between font-semibold text-content">
                       <span>{$t("exercises.editor.mcOptionsLabel", { count: mcOptions.length })}</span>
-                      <button
-                        type="button"
-                        class="rounded bg-sky-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                        on:click={addMcOption}
-                        disabled={mcOptions.length >= 8}
-                      >
-                        {$t("exercises.editor.mcAddOptionButton")}
-                      </button>
+                      <Button
+                        size="sm"
+                        icon={faPlus}
+                        onClick={addMcOption}
+                        disabled={mcOptions.length >= MC_MAX_OPTIONS}
+                      >{$t("exercises.editor.mcAddOptionButton")}</Button>
                     </div>
 
                     {#each mcOptions as option, index}
-                      <div class="flex items-center gap-2 rounded border border-slate-700/80 bg-slate-900/80 p-2">
-                        <input
-                          type="checkbox"
+                      <div class="flex items-center gap-2 rounded-md border border-line bg-surface-sunken p-2">
+                        <Checkbox
                           checked={option.correct}
-                          on:change={() => toggleOptionCorrect(index)}
+                          onChange={() => toggleOptionCorrect(index)}
                           title={$t("exercises.editor.mcOptionCorrectTitle")}
-                          class="h-4 w-4 rounded border-slate-700 bg-slate-800 text-sky-500 focus:ring-sky-400"
+                          aria-label={$t("exercises.editor.mcOptionCorrectTitle")}
                         />
 
                         <input
@@ -819,29 +764,31 @@
                           value={option.text}
                           on:input={(e) => updateOptionText(index, e.currentTarget.value)}
                           placeholder={$t("exercises.editor.mcOptionPlaceholder", { number: index + 1 })}
-                          class="flex-1 rounded border border-slate-700 bg-slate-800 px-2 py-1 text-slate-100 placeholder-slate-500 focus:border-sky-400 focus:outline-none"
+                          class="{controlClass} {controlSmClass} flex-1"
                         />
 
-                        <span class={`text-[0.7rem] font-semibold px-1.5 py-0.5 rounded ${option.correct ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'text-slate-500'}`}>
+                        <Badge size="xs" severity={option.correct ? "success" : "secondary"}>
                           {option.correct ? $t("exercises.editor.mcOptionCorrect") : $t("exercises.editor.mcOptionIncorrect")}
-                        </span>
+                        </Badge>
 
-                        <button
-                          type="button"
-                          class="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-red-400 disabled:opacity-30 disabled:hover:text-slate-400"
-                          on:click={() => removeMcOption(index)}
-                          disabled={mcOptions.length <= 2}
+                        <Button
+                          variant="text"
+                          severity="secondary"
+                          size="sm"
+                          iconOnly
+                          icon={faXmark}
+                          onClick={() => removeMcOption(index)}
+                          disabled={mcOptions.length <= MC_MIN_OPTIONS}
                           title={$t("exercises.editor.mcOptionRemoveTitle")}
-                        >
-                          ✕
-                        </button>
+                          ariaLabel={$t("exercises.editor.mcOptionRemoveTitle")}
+                        />
                       </div>
                     {/each}
                   </div>
                 </div>
               {/if}
               <div class="flex items-center justify-between px-1 text-xs">
-                <span class="font-semibold text-slate-300">{$t("exercises.editor.latexPreviewLabel")}</span>
+                <span class="font-semibold text-content">{$t("exercises.editor.latexPreviewLabel")}</span>
               </div>
               <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert />
 
@@ -853,14 +800,14 @@
           {:else}
             <button
               type="button"
-              class="flex h-full w-full flex-row items-center gap-4 border-0 bg-slate-900 px-3 py-[0.2rem] text-slate-400 transition-all duration-150 ease-[ease] hover:bg-slate-800 hover:text-sky-400 group lg:flex-col lg:px-[0.2rem] lg:py-3"
+              class="group flex h-full w-full cursor-pointer flex-row items-center gap-3 border-0 bg-surface-sunken px-3 py-1 text-muted hover:bg-surface-raised hover:text-accent @3xl:flex-col @3xl:px-1 @3xl:py-3"
               on:click={handleToggleLatex}
               title={$t("exercises.editor.expandLatexTitle")}
             >
-              <span class="flex h-6 w-6 shrink-0 rotate-90 items-center justify-center rounded border border-slate-700 bg-slate-800 text-[0.9rem] font-bold group-hover:border-sky-400 group-hover:bg-sky-600 group-hover:text-white lg:rotate-0">›</span>
-              <span class="shrink-0 text-[0.95rem] leading-none">💻</span>
+              <Icon icon={faChevronLeft} class="shrink-0 -rotate-90 @3xl:rotate-180" />
+              <Icon icon={faCode} class="shrink-0 text-base" />
               <span
-                class="whitespace-nowrap text-[0.8rem] font-semibold tracking-[0.5px] lg:[writing-mode:vertical-rl] lg:[transform:rotate(180deg)]"
+                class="whitespace-nowrap text-xs font-semibold @3xl:[writing-mode:vertical-rl] @3xl:rotate-180"
               >{$t("exercises.editor.latexPanelCollapsedLabel", { score: parseExerciseScore(editorLatexBody) })}</span>
             </button>
           {/if}
@@ -876,32 +823,29 @@
           placeholderText={$t("exercises.editor.previewPlaceholder")}
         />
       </div>
-
-      <div class="flex justify-end gap-3 border-t border-slate-700 bg-slate-900 px-6 py-5">
-        <button type="button" class="cursor-pointer rounded-md border-0 bg-slate-700 px-5 py-[0.6rem] text-[0.875rem] font-semibold text-white hover:bg-slate-600" on:click={requestClose}>{$t("common.cancel")}</button>
-        <button
-          type="button"
-          class="cursor-pointer rounded-md border-0 bg-blue-600 px-5 py-[0.6rem] text-[0.875rem] font-semibold text-white [&:hover:not(:disabled)]:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-          on:click={handleSaveExercise}
-          disabled={isSaving}
-        >
-          {isSaving
-            ? $t("exercises.editor.saveButtonSaving")
-            : isCreatingVersion
-              ? $t("exercises.editor.saveButtonNewVersion")
-              : $t("exercises.editor.saveButton")}
-        </button>
-      </div>
     </div>
+
+    <svelte:fragment slot="footer">
+      <Button variant="outlined" severity="secondary" onClick={requestClose}>{$t("common.cancel")}</Button>
+      <Button onClick={handleSaveExercise} disabled={isSaving}>
+        {isSaving
+          ? $t("exercises.editor.saveButtonSaving")
+          : isCreatingVersion
+            ? $t("exercises.editor.saveButtonNewVersion")
+            : $t("exercises.editor.saveButton")}
+      </Button>
+    </svelte:fragment>
   </Modal>
 {/if}
 
 <ConfirmDialog
-  isOpen={showConfirmClose}
+  open={showConfirmClose}
   title={$t("exercises.editor.discardTitle")}
   message={$t("exercises.editor.discardMessage")}
   confirmText={$t("exercises.confirmDiscard.confirmText")}
   cancelText={$t("exercises.confirmDiscard.cancelText")}
-  on:confirm={forceClose}
-  on:cancel={() => (showConfirmClose = false)}
+  severity="danger"
+  role="dialog"
+  onConfirm={forceClose}
+  onCancel={() => (showConfirmClose = false)}
 />

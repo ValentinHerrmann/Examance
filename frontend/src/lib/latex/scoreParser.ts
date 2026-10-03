@@ -8,6 +8,9 @@
  * - Count \hBE -> +0.5
  * - Count \qBE -> +0.25
  */
+
+import { usesAlphaLabels } from "$lib/grading/mcGroupLabels";
+
 export function parseExerciseScore(latex: string): number {
   if (!latex) return 0;
 
@@ -100,7 +103,9 @@ export interface McGroupMember {
 }
 
 /**
- * Formats a list of MC sub-exercise bodies into one \begin{Aufgabe} block with enumerate[label=\alph*)].
+ * Formats a list of MC sub-exercise bodies into one \begin{Aufgabe} block with
+ * enumerate[label=\alph*)] -- or \arabic*) past 26 members, where \alph* runs
+ * out of letters (mirrors mcSubLabel in $lib/grading/mcGroupLabels).
  *
  * Each member gets `\OmrExercise{<id>}` injected before its body (see
  * formatExerciseLatex doc comment) -- grading/statistics still key strictly
@@ -118,7 +123,7 @@ export function formatMcGroupLatex(
     `\\begin{Aufgabe}{${escapeLatex(groupTitle)}}` +
     ` Kreuze jeweils die korrekten Lösungen an. Mehrere können, mind. eine ist jeweils richtig.` +
     ` Für falsch gesetzte Kreuze werden Punkte abgezogen (pro Teilaufgabe immer $\\geq 0$ Punkte)\n\n` +
-    `\\begin{enumerate}[label=\\alph*)]\n` +
+    `\\begin{enumerate}[label=\\${usesAlphaLabels(members.length) ? "alph" : "arabic"}*)]\n` +
     `${items}\n` +
     `\\end{enumerate}\n\n` +
     `\\LoesungLeer{${escapeLatex(scoringText)}}{0pt}\n` +

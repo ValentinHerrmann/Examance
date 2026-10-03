@@ -3,13 +3,11 @@ import type { Translations } from '../types';
 export const security: Translations['security'] = {
     page: {
         title: 'Sign-in & security',
-        subtitle:
-            'What you sign in with, which of those can open your encrypted data, and how to change either.',
+        subtitle: 'What you sign in with, which of those can open your encrypted data, and how to change either.',
         open: 'Open security settings',
         backToSettings: 'Back to settings',
         loading: 'Loading security status…',
-        localOnly:
-            'This workspace is local-only and has no account. Sign-in factors start with a server account.',
+        localOnly: 'This workspace is local-only and has no account. Sign-in factors start with a server account.',
         statusEnrolled: 'Set up',
         statusMissing: 'Not set up',
         added: 'Added on {date}',
@@ -18,17 +16,12 @@ export const security: Translations['security'] = {
         lastUsedUnknown: 'Last use not recorded',
         neverUsed: 'Never used',
         opensData: 'Also opens your encrypted data.',
-        opensDataNot:
-            'Does not open your encrypted data — your password, a passkey and the recovery code do that.',
-        atMinimumWarning:
-            'You have exactly the required number of factors. Lose one and only an administrator can restore the account — the account, not the data. Add a third factor if you can.',
-        oneKeyCapableWarning:
-            'Only one of your factors can open your encrypted data. Keep your recovery code somewhere safe.',
+        opensDataNot: 'Does not open your encrypted data — your password, a passkey and the recovery code do that.',
+        atMinimumWarning: 'You have exactly the required number of factors. Lose one and only an administrator can restore the account — the account, not the data. Add a third factor if you can.',
+        oneKeyCapableWarning: 'Only one of your factors can open your encrypted data. Keep your recovery code somewhere safe.',
         backupCodesLow: 'Generate new backup codes while you are still signed in.',
-        totpMissing:
-            'An authenticator app produces a six-digit code every 30 seconds. It counts as one of the required factors.',
-        recoveryMissing:
-            'This account has no recovery code on file. Without one, your data is lost if you forget your password and no passkey can open it.',
+        totpMissing: 'An authenticator app produces a six-digit code every 30 seconds. It counts as one of the required factors.',
+        recoveryMissing: 'This account has no recovery code on file. Without one, your data is lost if you forget your password and no passkey can open it.',
     },
     password: {
         change: 'Change password',
@@ -43,35 +36,28 @@ export const security: Translations['security'] = {
         tooShort: 'The new password must be at least {count} characters long.',
         wrongCurrent: 'That is not your current password.',
         failed: 'The password could not be changed.',
-        needsUnlock:
-            'Your session is locked. Sign in again — without an open data key, changing the password would cost you access to your data.',
+        needsUnlock: 'Your session is locked. Sign in again — without an open data key, changing the password would cost you access to your data.',
         notSet: 'This account has no password set.',
-        wrapStale:
-            'Your password does not currently open your encrypted data. That happens after a server-side reset; your recovery code restores access.',
-        otherSessions:
-            'Other devices are signed out. This one stays signed in, and nothing is re-encrypted.',
+        wrapStale: 'Your password does not currently open your encrypted data. That happens after a server-side reset; your recovery code restores access.',
+        otherSessions: 'Other devices are signed out. This one stays signed in, and nothing is re-encrypted.',
     },
     recovery: {
         title: 'Recovery code',
-        intro:
-            'This code is the only way back to your encrypted data if you forget your password. It is shown exactly once and cannot be retrieved afterwards.',
-        warning:
-            'Without this code and without your password, your exams, student data and grading become permanently unreadable. An administrator cannot restore them either.',
+        intro: 'This code is the only way back to your encrypted data if you forget your password. It is shown exactly once and cannot be retrieved afterwards.',
+        warning: 'Without this code and without your password, your exams, student data and grading become permanently unreadable. An administrator cannot restore them either.',
         copy: 'Copy code',
         copied: 'Copied',
         download: 'Save as file',
         confirmLabel: 'I have stored this code somewhere safe.',
         confirm: 'Continue',
         regenerate: 'Generate a new recovery code',
-        regenerateHint:
-            'The previous code stops working. Use this if you have mislaid the old one.',
+        regenerateHint: 'The previous code stops working. Use this if you have mislaid the old one.',
         regenerateFailed: 'A new recovery code could not be created.',
         fileName: 'examance-recovery-code.txt',
     },
     unlock: {
         title: 'Restore access to your encrypted data',
-        intro:
-            'Your password was reset. To make your existing exams and student data readable again, we need your recovery code once.',
+        intro: 'Your password was reset. To make your existing exams and student data readable again, we need your recovery code once.',
         label: 'Recovery code',
         placeholder: 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
         submit: 'Restore access',
@@ -85,8 +71,7 @@ export const security: Translations['security'] = {
         startFreshFailed: 'Starting fresh with a new data key failed.',
         startFreshWarning: 'This creates a new data key. Your existing exams, student data and grading stay permanently unreadable, even if you find the old code later. Passkeys you have registered will no longer open your data either, and have to be added again under Sign-in & security.',
         startFreshConfirm: 'Start fresh and give up the old data',
-        skipWarning:
-            'Without the code your existing encrypted data stays unreadable. Data created from now on is unaffected.',
+        skipWarning: 'Without the code your existing encrypted data stays unreadable. Data created from now on is unaffected.',
     },
     factors: {
         totpTitle: 'Confirm with your authenticator app',
@@ -122,20 +107,21 @@ export const security: Translations['security'] = {
         totpHint: 'Enter a six-digit code from your authenticator app — or a backup code.',
         passkeyHint: 'Confirm with your fingerprint, face or device PIN.',
         back: 'Choose a different factor',
+        passkeyWaiting: 'Waiting for your passkey… Cancel the prompt to choose another factor.',
     },
     vaultUnlock: {
-        kdfUnavailable:
-            'This browser could not load the key derivation (Argon2). Your credentials are fine — reload the page and try again.',
+        kdfUnavailable: 'This browser could not load the key derivation (Argon2). Your credentials are fine — reload the page and try again.',
         title: 'Open your encrypted data',
         passwordIntro:
-            'You are signed in. Your passkey cannot derive a key on this device, so we need your password once to decrypt your data. It is not stored, and nothing is re-encrypted.',
-        recoveryIntro:
-            'Use your recovery code instead. It opens your data the same way, and stays valid afterwards.',
+            'You are signed in. Your passkey cannot derive a key on this device, so we need your password once to decrypt your data. It is not stored, and nothing is re-encrypted. "Sign-in & security" shows which passkeys open your data.',
+        passwordIntroHeal: 'You are signed in. This passkey has no key copy stored yet. Enter your password once — the copy is created then, and from then on the passkey opens your data on its own.',
+        recoveryIntro: 'Use your recovery code instead. It opens your data the same way, and stays valid afterwards.',
         submit: 'Open my data',
         useRecovery: 'Use the recovery code instead',
         usePassword: 'Back to the password',
         wrongPassword: 'That password does not open your data.',
         wrongRecovery: 'That recovery code does not match this account.',
+        needsPasswordSignIn: 'This account has no stored data key yet. Sign in once with your password and a second factor to set up encryption — after that, the passkey is enough.',
     },
     enroll: {
         title: 'Set up a second sign-in factor',
@@ -151,16 +137,12 @@ export const security: Translations['security'] = {
     },
     setupCodes: {
         title: 'Save these codes',
-        intro:
-            'Both codes are shown only now. They do different jobs — keep both somewhere outside this browser.',
+        intro: 'Both codes are shown only now. They do different jobs — keep both somewhere outside this browser.',
         backupHeading: 'Backup codes — sign in without your phone',
-        backupPurpose:
-            'These stand in for the authenticator app when your phone is not available. Each code works exactly once.',
+        backupPurpose: 'These stand in for the authenticator app when your phone is not available. Each code works exactly once.',
         recoveryHeading: 'Recovery code — get back into your data',
-        recoveryPurpose:
-            'This decrypts your data if you forget your password. Nobody can do that for you, administrators included.',
-        warning:
-            'Without these codes, losing your phone or your password permanently costs you your account or your data.',
+        recoveryPurpose: 'This decrypts your data if you forget your password. Nobody can do that for you, administrators included.',
+        warning: 'Without these codes, losing your phone or your password permanently costs you your account or your data.',
         download: 'Save everything as a file',
         fileName: 'examance-security-codes.txt',
         confirmLabel: 'I have written the codes shown here down somewhere safe.',
@@ -203,7 +185,7 @@ export const security: Translations['security'] = {
     },
     passkey: {
         title: 'Passkeys',
-        intro: 'A passkey is one of the three sign-in factors — fingerprint, face or device PIN instead of a password.',
+        intro: 'A passkey is one of the three sign-in factors — fingerprint, face or device PIN instead of a password. It signs you in on its own, and is offered first as a second factor.',
         signIn: 'Sign in with a passkey',
         add: 'Add a passkey',
         nicknameLabel: 'Label (optional)',
@@ -214,19 +196,21 @@ export const security: Translations['security'] = {
         unsupported: 'This browser does not support passkeys.',
         failed: 'The passkey could not be used.',
         noPrfTitle: 'This passkey will not open your data',
-        noPrf: 'This authenticator does not support the required extension. The passkey signs you in but cannot unlock your encrypted data — your password or recovery code stays responsible for that.',
-        prfOk: 'Can also open your encrypted data.',
+        opensData: 'Also opens your encrypted data.',
+        notOpensData: 'Signs you in, but does not open your encrypted data yet.',
+        enableUnlock: 'Enable data access',
+        enableUnlockDone: 'This passkey now opens your data without the password.',
+        noPrfWarning: 'This passkey signs you in but cannot open your encrypted data: its passkey provider does not support the PRF extension (e.g. passkeys stored in Bitwarden). To sign in with a passkey alone, use a provider with PRF — such as Google Password Manager, Windows Hello, iCloud Keychain, Android, 1Password or a FIDO2 security key.',
+        addedUnlockPending: 'Passkey added. Data access is not active yet — use “Enable data access” to finish.',
         created: 'Added {date}',
         lastUsed: 'Last used {date}',
         neverUsed: 'Not used yet',
     },
     envelope: {
         changedTitle: 'Stored key copy has changed',
-        changedBody:
-            'The key copy held on the server differs from the one this browser knows. That normally happens after a password reset on another device. If you did not do this, do not sign in and contact your administrator.',
+        changedBody: 'The key copy held on the server differs from the one this browser knows. That normally happens after a password reset on another device. If you did not do this, do not sign in and contact your administrator.',
         changedAccept: 'I reset the password myself — continue',
-        missingPassword:
-            'No usable password copy of the key is stored for this account. Please restore access with your recovery code.',
+        missingPassword: 'No usable password copy of the key is stored for this account. Please restore access with your recovery code.',
         migrating: 'Storing your key copy once…',
     },
 };

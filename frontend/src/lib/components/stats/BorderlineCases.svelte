@@ -28,7 +28,7 @@
 <Card class={className}>
   <h3 class="text-base font-semibold text-content">{$t('stats.borderline.title')}</h3>
   <p class="mb-4 mt-1 text-xs text-muted">{$t('stats.borderline.subtitle')}</p>
-  <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+  <div class="grid grid-cols-1 gap-6 @3xl:grid-cols-2">
     {#each groups as group (group.side)}
       <section class="min-w-0">
         <h4 class="mb-2 flex items-baseline gap-2 text-sm font-semibold text-muted">
@@ -36,9 +36,9 @@
           <span>{group.title}</span>
         </h4>
         {#if group.items.length === 0}
-          <p class="text-xs text-subtle">{$t('stats.borderline.none')}</p>
+          <p class="text-xs text-muted">{$t('stats.borderline.none')}</p>
         {:else}
-          <div class="{ROW} px-2 pb-1 text-xs text-subtle sm:px-3">
+          <div class="{ROW} px-2 pb-1 text-xs text-muted sm:px-3">
             <span class="truncate">{$t('stats.borderline.col.grade')}</span>
             <span class="truncate">{$t('stats.borderline.col.student')}</span>
             <span class="truncate text-right">{$t('stats.borderline.col.points')}</span>
@@ -51,17 +51,17 @@
               <li>
                 <a
                   href={`/exam/${examId}/grade?submissionId=${encodeURIComponent(c.submissionId)}`}
-                  class="{ROW} rounded-lg border border-line px-2 py-1.5 text-xs tabular-nums sm:px-3 sm:text-sm hover:border-line-strong hover:bg-surface-sunken"
+                  class="{ROW} rounded-md border border-line px-2 py-1.5 text-xs tabular-nums sm:px-3 sm:text-sm hover:border-line-strong hover:bg-surface-sunken"
                   title={$fmt.percent(c.percentage / 100, 1)}
                   aria-label={$t('stats.borderline.openAria', { index })}
                 >
                   <span
-                    class="inline-flex justify-center rounded px-1 font-bold text-white"
+                    class="inline-flex justify-center rounded-md px-1 font-bold text-content"
                     style="background-color: {gradeColorVar(c.gradeIndex, c.gradeCount)}">{c.grade}{group.mark}</span
                   >
                   <span class="truncate text-muted">#{index}</span>
                   <span class="text-right text-content"
-                    >{pts(c.points)}{#if !c.isComplete}<span class="text-amber-300">*</span>{/if}</span
+                    >{pts(c.points)}{#if !c.isComplete}<span class="text-warning-fg">*</span>{/if}</span
                   >
                   <span class="text-right text-muted">{pts(c.boundaryPoints)} ({c.boundaryGrade})</span>
                   <span class="text-right font-semibold text-content"
@@ -76,6 +76,6 @@
     {/each}
   </div>
   {#if provisional}
-    <p class="mt-3 text-xs text-subtle"><span class="text-amber-300">*</span> {$t('stats.borderline.provisional')}</p>
+    <p class="mt-3 text-xs text-muted"><span class="text-warning-fg">*</span> {$t('stats.borderline.provisional')}</p>
   {/if}
 </Card>

@@ -13,6 +13,27 @@
 
 import type { OmrFiducialRect, OmrPageTemplate } from '$lib/db/schema';
 import { computeMcScore, type McQuestionType } from '$lib/grading/mcScore';
+import {
+  normalizeOmrParams,
+  type OmrDetectionParams,
+  type OmrPageStats,
+} from '$lib/grading/omrSettings';
+import {
+  blackReference,
+  cellFills,
+  classifyV2,
+  classifyV4,
+  effectiveRedoRect,
+  inkContrast,
+  measureBox,
+  median,
+  ringFill,
+  sampleFillRatio,
+  type OmrBubbleClassification,
+  type OmrBubbleState,
+  type OmrShapeFeatures,
+  type OmrShapeReason,
+} from '$lib/grading/omrShape';
 
 export interface OmrExerciseAnswerKey {
   exerciseId: string;
@@ -29,14 +50,25 @@ export interface OmrWorkerRequest {
   /** Scale factor the scan was rasterized at (e.g. 2.0), matching pdfjs viewport scale semantics. */
   scanScale: number;
   answerKeys: OmrExerciseAnswerKey[];
+  /** Detection thresholds for this run (`omrSettings.ts`). Absent → built-in defaults.
+   *  The caller snapshots these once per run and stamps the same object into `omrMeta.run`. */
+  params?: OmrDetectionParams;
 }
 
 export interface OmrBubbleReading {
   optionIndex: number;
   fillRatio: number;
-  state: 'blank' | 'ambiguous' | 'marked' | 'undone' | 'redone';
-  /** Redo-zone fill ratio, only computed when the bubble's template has a redoRect. */
+  state: OmrBubbleState;
+  /** Redo-zone fill ratio, measured whenever the bubble's template has a redoRect. */
   redoRatio?: number;
+  /** v4 measurements (`measureBox`), always computed — also when v2 decides. */
+  shape?: OmrShapeFeatures;
+  /** Why the shape analysis changed or flagged this reading; non-empty → flagged for review. */
+  reasons?: OmrShapeReason[];
+  /** For `ambiguous` boxes: the closer outcome (true = ticked), counted until verified. */
+  provisional?: boolean;
+  /** Verdict of the algorithm that did *not* decide (shadow run), for comparison on verified data. */
+  alt?: { algorithm: number; state: OmrBubbleState; reasons?: OmrShapeReason[]; provisional?: boolean };
   /** Bubble's bbox in scan-pixel space, normalized to [0,1] of (width, height) as
    *  [minX, minY, maxX, maxY] — resolution-independent so the grading viewer (which
    *  re-rasterizes at its own scale) can draw a detection box without knowing this
@@ -68,48 +100,24 @@ export type OmrWorkerResponse =
       /** Corner indices (0=BL,1=BR,2=TR,3=TL) actually detected this pass — lets a
        *  caller report exactly which corner is missing instead of just a count. */
       fiducialCorners: number[];
+      /** Registration diagnostics for this page — persisted with each score for future calibration. */
+      pageStats: OmrPageStats;
     }
   | { type: 'ERROR'; message: string };
 
-/** Fill-ratio confidence bands: below is blank, above is a confident mark. */
-const AMBIGUOUS_LOW = 0.15;
-const MARKED_HIGH = 0.45;
-
-/** At/above this, the box is essentially solid black — treated as "undo" rather than a cross,
- *  but only for bubbles whose template has a redoRect (see bubbleState below). */
-const FILLED_HIGH = 0.75;
-
-/** Fraction of each side of the page searched for a corner's fiducial. */
-const QUADRANT_FRACTION = 0.4;
-
-/** Fraction of a sampled bubble's bounding box trimmed off each edge before counting fill. */
-const SAMPLE_INSET_FRACTION = 0.12;
-
-/** A candidate blob's area must fall within this multiple range of the fiducial's
- *  expected area (from the template) to be considered — rejects small noise and
- *  large fills (e.g. a scanned page-edge shadow) without depending on being the
- *  single largest blob in the quadrant. */
-const FIDUCIAL_AREA_MIN_RATIO = 0.3;
-const FIDUCIAL_AREA_MAX_RATIO = 3.0;
-
-/** A fiducial is a square marker — reject blobs whose bbox is far from square
- *  (rules, table borders, text runs, a logo silhouette). */
-const FIDUCIAL_MAX_ASPECT_RATIO = 1.8;
-
-/** How far (as a fraction of the page's shorter side) a candidate blob's centroid
- *  may sit from the template-expected position and still count as that corner's
- *  fiducial — keeps a same-quadrant logo/QR code from being picked over a
- *  genuinely shifted/skewed marker. */
-const FIDUCIAL_MAX_DIST_FRACTION = 0.15;
+// Every threshold below comes from `OmrDetectionParams` (lib/grading/omrSettings.ts), whose
+// defaults are the constants this file used to hardcode.
 
 type Homography = [number, number, number, number, number, number, number, number, number];
 
-/** Grayscale (luminance) Otsu threshold — histogram + between-class variance maximization. */
-function computeOtsuThreshold(gray: Uint8ClampedArray): number {
+function grayHistogram(gray: Uint8ClampedArray): number[] {
   const hist = new Array<number>(256).fill(0);
   for (let i = 0; i < gray.length; i++) hist[gray[i]]++;
+  return hist;
+}
 
-  const total = gray.length;
+/** Grayscale (luminance) Otsu threshold — histogram + between-class variance maximization. */
+function computeOtsuThreshold(hist: number[], total: number): number {
   let sum = 0;
   for (let t = 0; t < 256; t++) sum += t * hist[t];
 
@@ -227,10 +235,11 @@ function findBestFiducialBlob(
   expectedAreaPx: number,
   expectedX: number,
   expectedY: number,
-  maxDistPx: number
+  maxDistPx: number,
+  p: OmrDetectionParams
 ): { x: number; y: number } | null {
-  const minArea = Math.max(9, expectedAreaPx * FIDUCIAL_AREA_MIN_RATIO);
-  const maxArea = expectedAreaPx * FIDUCIAL_AREA_MAX_RATIO;
+  const minArea = Math.max(9, expectedAreaPx * p.fiducialAreaMinRatio);
+  const maxArea = expectedAreaPx * p.fiducialAreaMaxRatio;
 
   let best: { x: number; y: number; dist: number } | null = null;
   const stack: number[] = [];
@@ -283,7 +292,7 @@ function findBestFiducialBlob(
       const bw = maxBx - minBx + 1;
       const bh = maxBy - minBy + 1;
       const aspect = Math.max(bw, bh) / Math.max(1, Math.min(bw, bh));
-      if (aspect > FIDUCIAL_MAX_ASPECT_RATIO) continue;
+      if (aspect > p.fiducialMaxAspectRatio) continue;
 
       const cx = sumX / area;
       const cy = sumY / area;
@@ -304,10 +313,11 @@ function findBestFiducialBlob(
 function quadrantForCorner(
   corner: 0 | 1 | 2 | 3,
   width: number,
-  height: number
+  height: number,
+  quadrantFraction: number
 ): [number, number, number, number] {
-  const qw = Math.floor(width * QUADRANT_FRACTION);
-  const qh = Math.floor(height * QUADRANT_FRACTION);
+  const qw = Math.floor(width * quadrantFraction);
+  const qh = Math.floor(height * quadrantFraction);
   switch (corner) {
     case 0: // bottom-left
       return [0, height - qh, qw, height];
@@ -341,43 +351,9 @@ function bubbleBBoxInImage(
   return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
 }
 
-function sampleFillRatio(
-  dark: Uint8Array,
-  width: number,
-  height: number,
-  bbox: { minX: number; minY: number; maxX: number; maxY: number }
-): number {
-  const insetX = (bbox.maxX - bbox.minX) * SAMPLE_INSET_FRACTION;
-  const insetY = (bbox.maxY - bbox.minY) * SAMPLE_INSET_FRACTION;
-  const x0 = Math.max(0, Math.round(bbox.minX + insetX));
-  const x1 = Math.min(width, Math.round(bbox.maxX - insetX));
-  const y0 = Math.max(0, Math.round(bbox.minY + insetY));
-  const y1 = Math.min(height, Math.round(bbox.maxY - insetY));
-
-  let darkCount = 0;
-  let total = 0;
-  for (let y = y0; y < y1; y++) {
-    for (let x = x0; x < x1; x++) {
-      total++;
-      if (dark[y * width + x]) darkCount++;
-    }
-  }
-  return total > 0 ? darkCount / total : 0;
-}
-
-function bubbleState(
-  ratio: number,
-  redoRatio: number | undefined
-): 'blank' | 'ambiguous' | 'marked' | 'undone' | 'redone' {
-  if (ratio < AMBIGUOUS_LOW) return 'blank';
-  if (ratio < MARKED_HIGH) return 'ambiguous';
-  if (redoRatio === undefined || ratio < FILLED_HIGH) return 'marked';
-  // Solid fill + template has a redo zone: undone unless the redo zone itself is marked.
-  return redoRatio >= MARKED_HIGH ? 'redone' : 'undone';
-}
-
 self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
   const { imageData, pageTemplate, scanScale, answerKeys } = event.data;
+  const params = normalizeOmrParams(event.data.params);
   try {
     const { width, height, data } = imageData;
 
@@ -386,7 +362,9 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
       gray[p] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
     }
 
-    const threshold = computeOtsuThreshold(gray);
+    const hist = grayHistogram(gray);
+    const threshold = computeOtsuThreshold(hist, gray.length);
+    const blackRef = blackReference(hist, gray.length);
     const dark = new Uint8Array(width * height);
     for (let p = 0; p < gray.length; p++) dark[p] = gray[p] < threshold ? 1 : 0;
 
@@ -418,9 +396,9 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
 
       const sizePt = (rx1 - rx0 + (ry1 - ry0)) / 2;
       const expectedAreaPx = Math.pow(sizePt * scanScale, 2);
-      const maxDistPx = FIDUCIAL_MAX_DIST_FRACTION * Math.min(width, height);
+      const maxDistPx = params.fiducialMaxDistFraction * Math.min(width, height);
 
-      const [qx0, qy0, qx1, qy1] = quadrantForCorner(corner, width, height);
+      const [qx0, qy0, qx1, qy1] = quadrantForCorner(corner, width, height, params.quadrantFraction);
       let detected = findBestFiducialBlob(
         dark,
         visited,
@@ -432,7 +410,8 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
         expectedAreaPx,
         expectedX,
         expectedY,
-        maxDistPx
+        maxDistPx,
+        params
       );
 
       // Tight-window retry if quadrant search failed (e.g. fiducial merged with nearby content)
@@ -454,7 +433,8 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
           expectedAreaPx,
           expectedX,
           expectedY,
-          maxDistPx
+          maxDistPx,
+          params
         );
       }
 
@@ -476,6 +456,9 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
     const alignmentFailed = H === null;
 
     let alignmentUncertain = false;
+    let residualFraction: number | undefined;
+    let ratioDiffStat: number | undefined;
+    let angleDegStat: number | undefined;
     if (!alignmentFailed && H) {
       if (fiducialsFound === 3) {
         alignmentUncertain = true;
@@ -486,7 +469,8 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
         } else {
           const [mX, mY] = transformPoint(affine, srcPts[3][0], srcPts[3][1]);
           const residual = Math.hypot(mX - dstPts[3][0], mY - dstPts[3][1]);
-          if (residual > 0.015 * width) {
+          residualFraction = width > 0 ? residual / width : undefined;
+          if (residual > params.alignResidualFraction * width) {
             alignmentUncertain = true;
           }
         }
@@ -521,7 +505,8 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
           const mappedRatio = mappedW / mappedH;
           const pageRatio = expW / expH;
           const ratioDiff = Math.abs(mappedRatio - pageRatio) / pageRatio;
-          if (ratioDiff > 0.05) {
+          ratioDiffStat = ratioDiff;
+          if (ratioDiff > params.alignRatioTolerance) {
             alignmentUncertain = true;
           }
 
@@ -529,7 +514,8 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
             const dot = vTop[0] * vLeft[0] + vTop[1] * vLeft[1];
             const cosAngle = Math.max(-1, Math.min(1, dot / (topLen * leftLen)));
             const angleDeg = (Math.acos(cosAngle) * 180) / Math.PI;
-            if (angleDeg < 85 || angleDeg > 95) {
+            angleDegStat = angleDeg;
+            if (Math.abs(angleDeg - 90) > params.alignAngleToleranceDeg) {
               alignmentUncertain = true;
             }
           } else {
@@ -571,18 +557,70 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
         continue;
       }
 
-      const bubbleReadings: OmrBubbleReading[] = bubbleRects.map((b) => {
+      // Pass 1: measure every box both ways — v4 (local threshold, border snapping, strokes) and
+      // v2 (global Otsu, template rect). Spill needs every sibling's ring before classifying.
+      const measured = bubbleRects.map((b) => {
         const bbox = bubbleBBoxInImage(H, b.rect, scanScale, pageTemplate.pageHeightPt);
-        const ratio = sampleFillRatio(dark, width, height, bbox);
+        const redoBbox = b.redoRect
+          ? bubbleBBoxInImage(H, effectiveRedoRect(b.rect, b.redoRect), scanScale, pageTemplate.pageHeightPt)
+          : undefined;
+        const cells = cellFills(dark, width, height, bbox, params.sampleInsetFraction);
+        const maxCell = Math.max(...cells);
+        return {
+          b,
+          bbox,
+          m: measureBox(gray, width, height, bbox, redoBbox, blackRef, params),
+          v2: {
+            fill: sampleFillRatio(dark, width, height, bbox, params.sampleInsetFraction),
+            redoRatio: redoBbox ? sampleFillRatio(dark, width, height, redoBbox, params.sampleInsetFraction) : undefined,
+            minCellFill: Math.min(...cells),
+            cellEvenness: maxCell > 0 ? Math.min(...cells) / maxCell : 0,
+            ringFill: ringFill(dark, width, height, bbox, params.ringFraction, redoBbox),
+            inkContrast: inkContrast(gray, dark, width, height, bbox, params.sampleInsetFraction, threshold, blackRef),
+          },
+        };
+      });
 
-        let redoRatio: number | undefined;
-        if (b.redoRect && ratio >= FILLED_HIGH) {
-          const redoBbox = bubbleBBoxInImage(H, b.redoRect, scanScale, pageTemplate.pageHeightPt);
-          redoRatio = sampleFillRatio(dark, width, height, redoBbox);
-        } else if (b.redoRect) {
-          redoRatio = 0;
-        }
+      const bubbleReadings: OmrBubbleReading[] = measured.map(({ b, bbox: rawBbox, m, v2 }, i) => {
+        const others = measured.filter((_, j) => j !== i);
+        const spill = (own: number, rings: number[]) => (rings.length > 0 ? { spillExcess: own - median(rings) } : {});
+        const shape: OmrShapeFeatures = {
+          ...m.features,
+          ...spill(m.features.ringFill, others.map((o) => o.m.features.ringFill)),
+        };
+        const dec4 = classifyV4({ fill: m.fill, redoRatio: m.redoRatio, features: shape }, params);
+        const dec2 = classifyV2(
+          {
+            fill: v2.fill,
+            redoRatio: v2.redoRatio,
+            features: {
+              minCellFill: v2.minCellFill,
+              cellEvenness: v2.cellEvenness,
+              ringFill: v2.ringFill,
+              ...spill(v2.ringFill, others.map((o) => o.v2.ringFill)),
+              inkContrast: v2.inkContrast,
+            },
+          },
+          params
+        );
+        const [chosen, other, otherAlgorithm]: [OmrBubbleClassification, OmrBubbleClassification, number] =
+          params.algorithm === 4 ? [dec4, dec2, 2] : [dec2, dec4, 4];
+        const { state, reasons, provisional } = chosen;
+        // Raw readings are the v4 measurements (features for calibration/training), whichever
+        // algorithm decided.
+        const ratio = m.fill;
+        const redoRatio = m.redoRatio;
 
+        // Report the box where the printed border actually is (snapped), not the raw template
+        // position — the viewer's overlay and any crop then sit on the real box.
+        const w = rawBbox.maxX - rawBbox.minX;
+        const h = rawBbox.maxY - rawBbox.minY;
+        const bbox = {
+          minX: rawBbox.minX + shape.snapDx * w,
+          maxX: rawBbox.maxX + shape.snapDx * w,
+          minY: rawBbox.minY + shape.snapDy * h,
+          maxY: rawBbox.maxY + shape.snapDy * h,
+        };
         const rect: [number, number, number, number] = [
           Math.min(1, Math.max(0, bbox.minX / width)),
           Math.min(1, Math.max(0, bbox.minY / height)),
@@ -593,16 +631,28 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
           optionIndex: b.optionIndex,
           fillRatio: ratio,
           redoRatio,
-          state: bubbleState(ratio, redoRatio),
+          state,
+          shape,
+          ...(reasons.length > 0 ? { reasons } : {}),
+          ...(provisional !== undefined ? { provisional } : {}),
+          alt: {
+            algorithm: otherAlgorithm,
+            state: other.state,
+            ...(other.reasons.length > 0 ? { reasons: other.reasons } : {}),
+            ...(other.provisional !== undefined ? { provisional: other.provisional } : {}),
+          },
           rect,
         };
       });
 
+      // An ambiguous box counts by its provisional (closer) reading until a teacher verifies it.
       const selectedOptions = bubbleReadings
-        .filter((r) => r.state !== 'blank' && r.state !== 'undone')
+        .filter((r) => r.state === 'marked' || r.state === 'redone' || (r.state === 'ambiguous' && r.provisional !== false))
         .map((r) => r.optionIndex);
+      // A shape reason flags the box even when it was resolved (e.g. solid → undone): the
+      // detector changed or doubted the fill-ratio reading, so a human confirms it.
       const flaggedOptions = bubbleReadings
-        .filter((r) => r.state === 'ambiguous')
+        .filter((r) => r.state === 'ambiguous' || (r.reasons?.length ?? 0) > 0)
         .map((r) => r.optionIndex);
 
       const questionType = answerKey?.questionType ?? 'mc';
@@ -643,6 +693,14 @@ self.onmessage = (event: MessageEvent<OmrWorkerRequest>) => {
       alignmentUncertain,
       fiducialsFound,
       fiducialCorners,
+      pageStats: {
+        otsuThreshold: threshold,
+        fiducialsFound,
+        fiducialCorners,
+        ...(residualFraction !== undefined ? { residualFraction } : {}),
+        ...(ratioDiffStat !== undefined ? { ratioDiff: ratioDiffStat } : {}),
+        ...(angleDegStat !== undefined ? { angleDeg: angleDegStat } : {}),
+      },
     });
   } catch (err: any) {
     self.postMessage({ type: 'ERROR', message: err.message || 'OMR processing failed' });

@@ -1,13 +1,11 @@
 export const security = {
     page: {
         title: 'Anmeldung & Sicherheit',
-        subtitle:
-            'Womit Sie sich anmelden, was davon Ihre verschlüsselten Daten öffnen kann, und wie Sie beides ändern.',
+        subtitle: 'Womit Sie sich anmelden, was davon Ihre verschlüsselten Daten öffnen kann, und wie Sie beides ändern.',
         open: 'Sicherheitseinstellungen öffnen',
         backToSettings: 'Zurück zu den Einstellungen',
         loading: 'Sicherheitsstatus wird geladen …',
-        localOnly:
-            'Dieser Arbeitsbereich ist rein lokal und hat kein Konto. Anmeldefaktoren gibt es erst mit einem Serverkonto.',
+        localOnly: 'Dieser Arbeitsbereich ist rein lokal und hat kein Konto. Anmeldefaktoren gibt es erst mit einem Serverkonto.',
         statusEnrolled: 'Eingerichtet',
         statusMissing: 'Nicht eingerichtet',
         added: 'Eingerichtet am {date}',
@@ -16,17 +14,12 @@ export const security = {
         lastUsedUnknown: 'Letzte Verwendung nicht erfasst',
         neverUsed: 'Noch nie verwendet',
         opensData: 'Öffnet auch Ihre verschlüsselten Daten.',
-        opensDataNot:
-            'Öffnet Ihre verschlüsselten Daten nicht — dafür sind Passwort, Passkey und Wiederherstellungscode zuständig.',
-        atMinimumWarning:
-            'Sie haben genau die erforderliche Zahl an Faktoren. Geht einer verloren, kann nur die Administration das Konto wieder freigeben — und zwar nur das Konto, nicht die Daten. Richten Sie nach Möglichkeit einen dritten Faktor ein.',
-        oneKeyCapableWarning:
-            'Nur ein eingerichteter Faktor kann Ihre verschlüsselten Daten öffnen. Bewahren Sie Ihren Wiederherstellungscode sorgfältig auf.',
+        opensDataNot: 'Öffnet Ihre verschlüsselten Daten nicht — dafür sind Passwort, Passkey und Wiederherstellungscode zuständig.',
+        atMinimumWarning: 'Sie haben genau die erforderliche Zahl an Faktoren. Geht einer verloren, kann nur die Administration das Konto wieder freigeben — und zwar nur das Konto, nicht die Daten. Richten Sie nach Möglichkeit einen dritten Faktor ein.',
+        oneKeyCapableWarning: 'Nur ein eingerichteter Faktor kann Ihre verschlüsselten Daten öffnen. Bewahren Sie Ihren Wiederherstellungscode sorgfältig auf.',
         backupCodesLow: 'Erzeugen Sie neue Backup-Codes, solange Sie noch angemeldet sind.',
-        totpMissing:
-            'Eine Authenticator-App erzeugt alle 30 Sekunden einen sechsstelligen Code. Sie zählt als einer der erforderlichen Faktoren.',
-        recoveryMissing:
-            'Für dieses Konto ist kein Wiederherstellungscode hinterlegt. Ohne ihn sind Ihre Daten verloren, wenn Sie Ihr Passwort vergessen und kein Passkey sie öffnen kann.',
+        totpMissing: 'Eine Authenticator-App erzeugt alle 30 Sekunden einen sechsstelligen Code. Sie zählt als einer der erforderlichen Faktoren.',
+        recoveryMissing: 'Für dieses Konto ist kein Wiederherstellungscode hinterlegt. Ohne ihn sind Ihre Daten verloren, wenn Sie Ihr Passwort vergessen und kein Passkey sie öffnen kann.',
     },
     password: {
         change: 'Passwort ändern',
@@ -41,35 +34,28 @@ export const security = {
         tooShort: 'Das neue Passwort muss mindestens {count} Zeichen lang sein.',
         wrongCurrent: 'Das aktuelle Passwort ist nicht korrekt.',
         failed: 'Das Passwort konnte nicht geändert werden.',
-        needsUnlock:
-            'Ihre Sitzung ist gesperrt. Melden Sie sich erneut an — ohne geöffneten Datenschlüssel lässt sich das Passwort nicht wechseln, ohne den Zugriff auf Ihre Daten zu verlieren.',
+        needsUnlock: 'Ihre Sitzung ist gesperrt. Melden Sie sich erneut an — ohne geöffneten Datenschlüssel lässt sich das Passwort nicht wechseln, ohne den Zugriff auf Ihre Daten zu verlieren.',
         notSet: 'Für dieses Konto ist kein Passwort hinterlegt.',
-        wrapStale:
-            'Ihr Passwort öffnet Ihre verschlüsselten Daten derzeit nicht. Das passiert nach einem serverseitigen Zurücksetzen; Ihr Wiederherstellungscode stellt den Zugriff wieder her.',
-        otherSessions:
-            'Andere Geräte werden abgemeldet. Dieses Gerät bleibt angemeldet, und es wird nichts neu verschlüsselt.',
+        wrapStale: 'Ihr Passwort öffnet Ihre verschlüsselten Daten derzeit nicht. Das passiert nach einem serverseitigen Zurücksetzen; Ihr Wiederherstellungscode stellt den Zugriff wieder her.',
+        otherSessions: 'Andere Geräte werden abgemeldet. Dieses Gerät bleibt angemeldet, und es wird nichts neu verschlüsselt.',
     },
     recovery: {
         title: 'Wiederherstellungscode',
-        intro:
-            'Dieser Code ist die einzige Möglichkeit, wieder an Ihre verschlüsselten Daten zu kommen, wenn Sie Ihr Passwort vergessen. Er wird genau einmal angezeigt und ist danach nicht mehr abrufbar.',
-        warning:
-            'Ohne diesen Code und ohne Ihr Passwort sind Ihre Klausuren, Schülerdaten und Korrekturen dauerhaft nicht mehr lesbar. Auch die Administration kann sie dann nicht wiederherstellen.',
+        intro: 'Dieser Code ist die einzige Möglichkeit, wieder an Ihre verschlüsselten Daten zu kommen, wenn Sie Ihr Passwort vergessen. Er wird genau einmal angezeigt und ist danach nicht mehr abrufbar.',
+        warning: 'Ohne diesen Code und ohne Ihr Passwort sind Ihre Klausuren, Schülerdaten und Korrekturen dauerhaft nicht mehr lesbar. Auch die Administration kann sie dann nicht wiederherstellen.',
         copy: 'Code kopieren',
         copied: 'Kopiert',
         download: 'Als Datei speichern',
         confirmLabel: 'Ich habe den Code sicher notiert.',
         confirm: 'Weiter',
         regenerate: 'Neuen Wiederherstellungscode erstellen',
-        regenerateHint:
-            'Der bisherige Code wird dabei ungültig. Nutzen Sie das, wenn Sie den alten Code verlegt haben.',
+        regenerateHint: 'Der bisherige Code wird dabei ungültig. Nutzen Sie das, wenn Sie den alten Code verlegt haben.',
         regenerateFailed: 'Es konnte kein neuer Wiederherstellungscode erstellt werden.',
         fileName: 'examance-wiederherstellungscode.txt',
     },
     unlock: {
         title: 'Zugriff auf verschlüsselte Daten wiederherstellen',
-        intro:
-            'Ihr Passwort wurde zurückgesetzt. Damit Ihre bestehenden Klausuren und Schülerdaten wieder lesbar werden, brauchen wir einmalig Ihren Wiederherstellungscode.',
+        intro: 'Ihr Passwort wurde zurückgesetzt. Damit Ihre bestehenden Klausuren und Schülerdaten wieder lesbar werden, brauchen wir einmalig Ihren Wiederherstellungscode.',
         label: 'Wiederherstellungscode',
         placeholder: 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
         submit: 'Zugriff wiederherstellen',
@@ -83,8 +69,7 @@ export const security = {
         startFreshFailed: 'Der Neustart mit einem neuen Datenschlüssel ist fehlgeschlagen.',
         startFreshWarning: 'Damit wird ein neuer Datenschlüssel erzeugt. Ihre bisherigen Klausuren, Schülerdaten und Korrekturen bleiben dauerhaft unlesbar — auch wenn Sie den alten Code später wiederfinden. Bereits eingerichtete Passkeys öffnen Ihre Daten danach ebenfalls nicht mehr und müssen unter „Anmeldung & Sicherheit“ neu hinterlegt werden.',
         startFreshConfirm: 'Neu beginnen und alte Daten aufgeben',
-        skipWarning:
-            'Ohne den Code bleiben Ihre bisherigen verschlüsselten Daten unlesbar. Neue Daten sind davon nicht betroffen.',
+        skipWarning: 'Ohne den Code bleiben Ihre bisherigen verschlüsselten Daten unlesbar. Neue Daten sind davon nicht betroffen.',
     },
     factors: {
         totpTitle: 'Bestätigung mit Authenticator-App',
@@ -120,20 +105,20 @@ export const security = {
         totpHint: 'Einen sechsstelligen Code aus Ihrer Authenticator-App eingeben — oder einen Backup-Code.',
         passkeyHint: 'Mit Fingerabdruck, Gesicht oder Geräte-PIN bestätigen.',
         back: 'Anderen Faktor wählen',
+        passkeyWaiting: 'Warte auf Ihren Passkey … Brechen Sie die Abfrage ab, um einen anderen Faktor zu wählen.',
     },
     vaultUnlock: {
-        kdfUnavailable:
-            'Dieser Browser konnte die Schlüsselableitung (Argon2) nicht laden. Ihre Anmeldedaten sind in Ordnung — laden Sie die Seite neu und versuchen Sie es erneut.',
+        kdfUnavailable: 'Dieser Browser konnte die Schlüsselableitung (Argon2) nicht laden. Ihre Anmeldedaten sind in Ordnung — laden Sie die Seite neu und versuchen Sie es erneut.',
         title: 'Verschlüsselte Daten öffnen',
-        passwordIntro:
-            'Sie sind angemeldet. Ihr Passkey kann auf diesem Gerät jedoch keinen Schlüssel ableiten, deshalb brauchen wir einmalig Ihr Passwort, um Ihre Daten zu entschlüsseln. Es wird nicht gespeichert und nichts neu verschlüsselt.',
-        recoveryIntro:
-            'Geben Sie stattdessen Ihren Wiederherstellungscode ein. Er öffnet Ihre Daten genauso; der Code bleibt danach gültig.',
+        passwordIntro: 'Sie sind angemeldet. Ihr Passkey kann auf diesem Gerät jedoch keinen Schlüssel ableiten, deshalb brauchen wir einmalig Ihr Passwort, um Ihre Daten zu entschlüsseln. Es wird nicht gespeichert und nichts neu verschlüsselt. Welche Passkeys Ihre Daten öffnen, zeigt „Anmeldung & Sicherheit“.',
+        passwordIntroHeal: 'Sie sind angemeldet. Für diesen Passkey ist noch keine Schlüsselkopie hinterlegt. Geben Sie einmalig Ihr Passwort ein — dabei wird die Kopie angelegt, und künftig öffnet der Passkey Ihre Daten allein.',
+        recoveryIntro: 'Geben Sie stattdessen Ihren Wiederherstellungscode ein. Er öffnet Ihre Daten genauso; der Code bleibt danach gültig.',
         submit: 'Daten öffnen',
         useRecovery: 'Stattdessen den Wiederherstellungscode verwenden',
         usePassword: 'Zurück zum Passwort',
         wrongPassword: 'Mit diesem Passwort lassen sich Ihre Daten nicht öffnen.',
         wrongRecovery: 'Dieser Wiederherstellungscode passt nicht zu diesem Konto.',
+        needsPasswordSignIn: 'Für dieses Konto ist noch kein Datenschlüssel hinterlegt. Melden Sie sich einmal mit Passwort und zweitem Faktor an, um die Verschlüsselung einzurichten — danach genügt der Passkey.',
     },
     enroll: {
         title: 'Zweiten Anmeldefaktor einrichten',
@@ -149,16 +134,12 @@ export const security = {
     },
     setupCodes: {
         title: 'Sichern Sie diese Codes',
-        intro:
-            'Beide Codes werden nur jetzt angezeigt. Sie haben unterschiedliche Aufgaben — bewahren Sie beide außerhalb des Browsers auf.',
+        intro: 'Beide Codes werden nur jetzt angezeigt. Sie haben unterschiedliche Aufgaben — bewahren Sie beide außerhalb des Browsers auf.',
         backupHeading: 'Backup-Codes — Anmelden ohne Ihr Telefon',
-        backupPurpose:
-            'Ersetzen die Authenticator-App, wenn Sie keinen Zugriff auf Ihr Telefon haben. Jeder Code funktioniert genau einmal.',
+        backupPurpose: 'Ersetzen die Authenticator-App, wenn Sie keinen Zugriff auf Ihr Telefon haben. Jeder Code funktioniert genau einmal.',
         recoveryHeading: 'Wiederherstellungscode — Zugriff auf Ihre Daten',
-        recoveryPurpose:
-            'Entschlüsselt Ihre Daten, wenn Sie Ihr Passwort vergessen. Das kann niemand für Sie übernehmen, auch die Administration nicht.',
-        warning:
-            'Ohne diese Codes verlieren Sie den Zugang zu Ihrem Konto oder Ihre Daten dauerhaft, wenn Ihnen Telefon oder Passwort abhandenkommen.',
+        recoveryPurpose: 'Entschlüsselt Ihre Daten, wenn Sie Ihr Passwort vergessen. Das kann niemand für Sie übernehmen, auch die Administration nicht.',
+        warning: 'Ohne diese Codes verlieren Sie den Zugang zu Ihrem Konto oder Ihre Daten dauerhaft, wenn Ihnen Telefon oder Passwort abhandenkommen.',
         download: 'Alles als Datei speichern',
         fileName: 'examance-sicherheitscodes.txt',
         confirmLabel: 'Ich habe die angezeigten Codes sicher notiert.',
@@ -201,7 +182,7 @@ export const security = {
     },
     passkey: {
         title: 'Passkeys',
-        intro: 'Ein Passkey ist einer der drei Anmeldefaktoren — Fingerabdruck, Gesicht oder Geräte-PIN statt eines Passworts.',
+        intro: 'Ein Passkey ist einer der drei Anmeldefaktoren — Fingerabdruck, Gesicht oder Geräte-PIN statt eines Passworts. Er genügt allein zur Anmeldung und wird als zweiter Faktor bevorzugt angeboten.',
         signIn: 'Mit Passkey anmelden',
         add: 'Passkey hinzufügen',
         nicknameLabel: 'Bezeichnung (optional)',
@@ -212,19 +193,21 @@ export const security = {
         unsupported: 'Dieser Browser unterstützt keine Passkeys.',
         failed: 'Der Passkey konnte nicht verwendet werden.',
         noPrfTitle: 'Dieser Passkey öffnet Ihre Daten nicht',
-        noPrf: 'Dieser Authenticator unterstützt die nötige Erweiterung nicht. Der Passkey meldet Sie an, kann Ihre verschlüsselten Daten aber nicht entsperren — dafür bleibt Ihr Passwort oder Ihr Wiederherstellungscode zuständig.',
-        prfOk: 'Kann auch Ihre verschlüsselten Daten öffnen.',
+        opensData: 'Öffnet auch Ihre verschlüsselten Daten.',
+        notOpensData: 'Meldet Sie an, öffnet Ihre verschlüsselten Daten aber noch nicht.',
+        enableUnlock: 'Datenzugriff aktivieren',
+        enableUnlockDone: 'Dieser Passkey öffnet Ihre Daten jetzt auch ohne Passwort.',
+        noPrfWarning: 'Dieser Passkey meldet Sie an, kann Ihre verschlüsselten Daten aber nicht öffnen: Sein Passkey-Anbieter unterstützt die PRF-Erweiterung nicht (z. B. in Bitwarden gespeicherte Passkeys). Für eine Anmeldung allein per Passkey einen Anbieter mit PRF verwenden — etwa Google Passwortmanager, Windows Hello, iCloud-Schlüsselbund, Android, 1Password oder einen FIDO2-Sicherheitsschlüssel.',
+        addedUnlockPending: 'Passkey hinzugefügt. Der Datenzugriff ist noch nicht aktiv — über „Datenzugriff aktivieren“ nachholen.',
         created: 'Hinzugefügt am {date}',
         lastUsed: 'Zuletzt verwendet am {date}',
         neverUsed: 'Noch nicht verwendet',
     },
     envelope: {
         changedTitle: 'Schlüssel-Hinterlegung hat sich geändert',
-        changedBody:
-            'Die auf dem Server hinterlegte Schlüsselkopie unterscheidet sich von der, die dieser Browser kennt. Das passiert normalerweise nach einem Passwort-Zurücksetzen auf einem anderen Gerät. Wenn Sie das nicht selbst veranlasst haben, melden Sie sich nicht an und wenden Sie sich an die Administration.',
+        changedBody: 'Die auf dem Server hinterlegte Schlüsselkopie unterscheidet sich von der, die dieser Browser kennt. Das passiert normalerweise nach einem Passwort-Zurücksetzen auf einem anderen Gerät. Wenn Sie das nicht selbst veranlasst haben, melden Sie sich nicht an und wenden Sie sich an die Administration.',
         changedAccept: 'Ich habe das Passwort selbst zurückgesetzt — fortfahren',
-        missingPassword:
-            'Für dieses Konto ist keine gültige Passwort-Kopie des Schlüssels hinterlegt. Bitte stellen Sie den Zugriff mit Ihrem Wiederherstellungscode wieder her.',
+        missingPassword: 'Für dieses Konto ist keine gültige Passwort-Kopie des Schlüssels hinterlegt. Bitte stellen Sie den Zugriff mit Ihrem Wiederherstellungscode wieder her.',
         migrating: 'Schlüssel wird einmalig hinterlegt …',
     },
 } as const;

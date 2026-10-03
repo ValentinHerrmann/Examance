@@ -23,26 +23,16 @@ export const help: Translations['help'] = {
         unlockLink: 'New here? How Examance works',
     },
     tips: {
-        storageLocal:
-            'Everything stays encrypted in this device’s browser. Not a single byte reaches a server — but there is no sync and no backup other than the .bgproj archive.',
-        storageServer:
-            'All data is synced, but only ever as ciphertext. The key stays in the browser, so the server cannot read the contents.',
-        storageHybrid:
-            'Exercises and exam templates live on the server (useful for a shared department catalogue), while student data and grading results stay strictly local.',
-        latexLocal:
-            'The exam is typeset in the browser (WebAssembly XeLaTeX). The LaTeX source never leaves the device, but the first run takes longer.',
-        latexServer:
-            'The server typesets the exam. Faster on low-spec hardware, but the LaTeX source is transmitted.',
-        variantKey:
-            'Variants are different phrasings of the same exercise (group A/B/C). They share grading and statistics while making copying harder.',
-        mcPenalty:
-            'Points deducted for a wrongly ticked option. 0 means no negative marking. An exercise total never drops below zero.',
-        blindGrading:
-            'During grading only the pseudonym is shown, never the name. Result and person are re-linked only after the grading pass.',
-        pseudonymQr:
-            'Every sheet carries a QR code for exam, variant and student slot. Scanning splits the stack along those codes and assigns the pages automatically.',
-        gradingKey:
-            'The grading key decides which score earns which grade — linear, upper-secondary weighted, or with your own cutoffs.',
+        storageLocal: 'Everything stays encrypted in this device’s browser. Not a single byte reaches a server — but there is no sync and no backup other than the .bgproj archive. Exception: the optional, anonymised donation of tick-box crops, if enabled in Settings while signed in to a server account.',
+        storageServer: 'All data is synced, but only ever as ciphertext. The key stays in the browser, so the server cannot read the contents.',
+        storageHybrid: 'Exercises and exam templates live on the server (useful for a shared department catalogue), while student data and grading results stay strictly local.',
+        latexLocal: 'The exam is typeset in the browser (WebAssembly XeLaTeX). The LaTeX source never leaves the device, but the first run takes longer.',
+        latexServer: 'The server typesets the exam. Faster on low-spec hardware, but the LaTeX source is transmitted.',
+        variantKey: 'Variants are different phrasings of the same exercise (group A/B/C). They share grading and statistics while making copying harder.',
+        mcPenalty: 'Points deducted for a wrongly ticked option. 0 means no negative marking. An exercise total never drops below zero.',
+        blindGrading: 'During grading only the pseudonym is shown, never the name. Result and person are re-linked only after the grading pass.',
+        pseudonymQr: 'Every sheet carries a QR code for exam, variant and student slot. Scanning splits the stack along those codes and assigns the pages automatically.',
+        gradingKey: 'The grading key decides which score earns which grade — linear, upper-secondary weighted, or with your own cutoffs.',
     },
     topics: {
         gettingStarted: {
@@ -95,6 +85,7 @@ export const help: Translations['help'] = {
                 h: 'Collect instead of copy',
                 p1: 'Exercises live in a shared library, tagged by grade, subject and topic. Each one is a LaTeX fragment with a live preview; its score is read from the source automatically.',
                 p2: 'Use the filters at the top to narrow the library by grade, subject and topic and reuse an exercise in a new exam.',
+                p3: 'Expand an entry to see, per variant, which exams use the exercise (click to open the exam). “Preview” shows the last compiled PDF; if there is none yet, Examance asks whether to compile it now.',
             },
             s2: {
                 h: 'Variants and versions',
@@ -103,8 +94,8 @@ export const help: Translations['help'] = {
             },
             s3: {
                 h: 'Multiple choice',
-                p1: 'An exercise can be free text, single choice or multiple choice. Tick-box exercises store their options, the correct answers and an optional penalty.',
-                p2: 'Several tick-box exercises can be combined into an MC group. That is layout information for the printout only — grading and statistics stay strictly per question.',
+                p1: 'An exercise can be free text, single choice or multiple choice. Tick-box exercises store their options, the correct answers and an optional penalty. Up to 26 options per question; “Answer option columns” sets how many columns (1–10) they are printed in.',
+                p2: 'Several tick-box exercises can be combined into an MC group — already while creating the exam (“MC Groups” tab) or later on the exam page. An exam can hold any number of groups of any size; each question belongs to at most one group. That is layout information for the printout only — grading and statistics stay strictly per question.',
             },
             s4: {
                 h: 'Images and files',
@@ -131,6 +122,7 @@ export const help: Translations['help'] = {
                 h: 'Typeset and print',
                 p1: 'The run produces a print-ready PDF with QR codes — one per exam, variant and student slot. In local mode it happens entirely in the browser.',
                 p2: 'Print the sheets exactly as typeset. The QR code has to stay readable, otherwise the scan cannot be assigned automatically later.',
+                p3: 'In the exam overview, “Preview” in an expanded entry opens the last compiled PDF. If there is none, you are asked and the exam is compiled and shown right in the window. The preview is kept only until the page is reloaded.',
             },
         },
         scanning: {
@@ -139,7 +131,7 @@ export const help: Translations['help'] = {
             s1: {
                 h: 'Importing the stack',
                 p1: 'Scan the whole stack into a single PDF on the school copier and upload it here. Examance splits it into individual submissions along the QR codes.',
-                p2: 'Every page is encrypted in the browser immediately. In local mode the scan never leaves the device.',
+                p2: 'Every page is encrypted in the browser immediately. In local mode the scan never leaves the device — apart from the optionally donated, anonymised crops of individual tick boxes.',
             },
             s2: {
                 h: 'Pseudonyms, not names',
@@ -148,6 +140,13 @@ export const help: Translations['help'] = {
             s3: {
                 h: 'When assignment fails',
                 p1: 'Unreadable or missing QR codes end up in the verification view. There you can assign pages to the right submission by hand, or enter the fallback code printed on the sheet.',
+            },
+            s4: {
+                h: 'Verifying and re-running MC detection',
+                p1: 'Ticked boxes are detected automatically when scans are imported. In the MC verification view you confirm or correct uncertain detections; every confirmed or corrected question counts as verified.',
+                p2: '"Re-run MC detection" re-evaluates all scans with the current settings. Unverified questions take the new result; for verified questions your answer and score always stay unchanged and only their detection is recomputed for comparison. Manually entered scores are not touched. A dialog first shows what will change and whether the settings differ from the last run; the "Detection settings" panel compares the latest run\'s values with the ones currently in effect.',
+                p3: 'Besides the fill level, detection also checks the shape of a mark: an evenly filled box counts as withdrawn, and a mark reaching far beyond the box or a very faint mark is flagged as uncertain. The reason is shown next to the answer option in the verification view. With method v2, shape analysis can be switched off in Settings. Under Settings → MC detection you choose the detection method: v4 (default, stroke shape) or v2 (older method, fill level). The other one always runs alongside; the "Detection settings" panel of the verification view shows how many of your verified boxes each method would have read correctly. Unsure boxes keep their yellow frame until the question is verified.',
+                p4: 'Until verified, an uncertain box counts provisionally as whichever outcome its measurements are closer to — ticked or not ticked; the verification view shows "Provisionally counted as ticked / not ticked" for it. The "🎲 Check a sample" button opens a random, not-yet-verified but confident detection, so you can spot-check unremarkable questions too.',
             },
         },
         grading: {
@@ -206,7 +205,7 @@ export const help: Translations['help'] = {
         },
         settings: {
             title: 'Settings',
-            summary: 'Storage strategy, LaTeX compilation, language and data deletion.',
+            summary: 'Storage strategy, LaTeX compilation, language, MC detection and data deletion.',
             s1: {
                 h: 'Storage strategy',
                 p1: 'Decides where exercises, exams and student data are stored. The default is the strictly local mode.',
@@ -218,12 +217,23 @@ export const help: Translations['help'] = {
             },
             s3: {
                 h: 'Language',
-                p1: 'The interface is available in German and English, switchable here or from the status bar. The printed exam is unaffected — it is always in German.',
+                p1: 'The interface is available in German and English, switchable here or from the navigation bar at the top. The printed exam is unaffected — it is always in German.',
+                p2: 'The colour scheme (light, dark or follow the system) can be chosen in the navigation bar and here in Settings. It only affects the interface, not the printed exam.',
             },
             s4: {
                 h: 'Session and deletion',
                 p1: 'The session locks itself after a period of inactivity; afterwards the content is reachable only with the password again.',
                 p2: 'Data deletion removes individual student records (GDPR access and erasure requests) or the entire workspace. Deletion is final and cannot be undone.',
+            },
+            s5: {
+                h: 'Fine-tuning MC detection',
+                p1: 'The thresholds for detecting ticked boxes can be adjusted, e.g. when a scanner produces very light or dark scans. Settings apply only to future detection runs; results that were already detected or verified do not change. Every run records the values it used.',
+                p2: 'The settings are stored in this browser only and are not synced to other devices. "Reset to defaults" restores the built-in values.',
+            },
+            s6: {
+                h: 'Improve MC detection (optional)',
+                p1: 'When this option is on and you are signed in to a server account, the browser collects a small crop per box (80×48 pixels, grayscale, no question text) for every verified or corrected tick-box question, along with the confirmed label, the original detection and a few numeric features, and sends them in batches to this installation\'s server. Names, pseudonyms, exam/submission/question ids and timestamps are never sent; each box only carries a random id, so a later correction replaces the earlier label. Signing in only guards against abuse — the account is not stored with the crops.',
+                p2: 'The goal is a shared, better classifier so new installations get good detection from the start. The setting is off by default, applies only to this browser, and can be switched off again at any time.',
             },
         },
         security: {
@@ -261,13 +271,13 @@ export const help: Translations['help'] = {
             },
             s6: {
                 h: 'Two sign-in factors',
-                p1: 'Every sign-in presents two of three factors: password, authenticator app, passkey. A guessed password on its own gets nowhere.',
+                p1: 'You sign in with a passkey on its own, or with two of three factors: password, authenticator app, passkey. Password and authenticator app never suffice alone — a guessed password gets nowhere.',
                 p2: 'Enrol all three where you can — then losing one is merely inconvenient. With exactly two, losing one means only an administrator can get you back in, and only to the account, not to the encrypted data. Backup codes stand in for the authenticator app and work once each.',
             },
             s7: {
                 h: 'Passkeys',
-                p1: 'A passkey signs you in with a fingerprint, your face or a device PIN — no password. It counts as one of the two required factors, not as a replacement for both.',
-                p2: 'Whether a passkey can also open your encrypted data depends on the device. Settings shows this per passkey. Where it cannot, your password and recovery code stay responsible for that.',
+                p1: 'A passkey signs you in with a fingerprint, your face or a device PIN — no password. Because the device checks your fingerprint, face or PIN, it is enough on its own. After signing in with a password, the passkey prompt opens automatically as the second factor; cancel it to use the authenticator app instead.',
+                p2: 'Whether a passkey can also open your encrypted data depends on the device. Settings shows this per passkey; “Enable data access” sets it up there without the password. Passkeys stored in Bitwarden currently cannot. Where it cannot, your password and recovery code stay responsible for that.',
             },
             s3: {
                 h: 'Resetting a password',

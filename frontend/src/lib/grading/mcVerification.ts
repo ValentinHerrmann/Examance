@@ -1,10 +1,50 @@
 import { scoreRepository } from "$lib/repositories/scoreRepository";
 import { loadExamMcExercises } from "$lib/grading/mcExerciseHash";
+import { buildSubLabelMap } from "$lib/grading/mcGroupLabels";
 import { submissionRepository } from "$lib/repositories/submissionRepository";
 import { studentRepository } from "$lib/repositories/studentRepository";
 import { ensure64CharHex } from "$lib/crypto/hmac";
 import { loadLocalMcGroups } from "$lib/db/dbEncryption";
-import type { ExerciseRecord } from "$lib/db/schema";
+import type { ExerciseRecord, OmrScoreMeta } from "$lib/db/schema";
+import type { OmrRunInfo } from "$lib/grading/omrSettings";
+
+/**
+ * The one definition of "a teacher has verified this detection". A re-run must never touch
+ * a row for which this is true (issue #32), and the dashboard/queues count by it.
+ */
+export function isMcReviewed(omrMeta: Pick<OmrScoreMeta, "source" | "reviewedAt"> | undefined): boolean {
+  return !!omrMeta && (omrMeta.source === "manual" || !!omrMeta.reviewedAt);
+}
+
+/**
+ * How each detection algorithm would have read the verified boxes: the deciding one (its stored
+ * `detectedState`/`provisional`) and the shadow one (`alt`). Lets a teacher see on their own sheets
+ * whether switching `params.algorithm` would help before switching.
+ */
+export interface McAlgorithmScore {
+  algorithm: number;
+  /** Verified boxes both algorithms were run on. */
+  boxes: number;
+  /** Provisional selection matched the teacher's verified selection. */
+  correct: number;
+  /** Boxes the algorithm flagged as unsure. */
+  unsure: number;
+}
+
+type BoxVerdict = { state: string; reasons?: string[]; provisional?: boolean };
+const verdictSelected = (v: BoxVerdict) =>
+  v.state === "marked" || v.state === "redone" || (v.state === "ambiguous" && v.provisional !== false);
+const verdictUnsure = (v: BoxVerdict) => v.state === "ambiguous" || (v.reasons?.length ?? 0) > 0;
+
+/**
+ * Score rows grouped by the detection batch that produced them. `run === null` collects rows
+ * detected before run snapshots existed — their settings are unknown, not "the defaults".
+ */
+export interface McDetectionRunSummary {
+  run: OmrRunInfo | null;
+  itemCount: number;
+  reviewedCount: number;
+}
 
 export interface McDetectionItem {
   submissionId: string;
@@ -31,6 +71,8 @@ export interface McDetectionItem {
   reviewedAt?: string;
   isReviewed?: boolean;
   isCorrected?: boolean;
+  /** Detection batch that produced this item; undefined for legacy rows. */
+  run?: OmrRunInfo;
 }
 
 export type McQueueCategory = "failed" | "unsure" | "confident";
@@ -137,6 +179,12 @@ export interface McVerificationStats {
   items: McDetectionItem[];
   qualityStats: DetectionQualityStats;
   confusionMatrix: DetectionConfusionMatrix;
+  /** Newest run first; the legacy (`run: null`) bucket, if any, last. */
+  detectionRuns: McDetectionRunSummary[];
+  /** MC score rows without any detection (typed in by hand) — a re-run leaves them alone. */
+  undetectedScoreCount: number;
+  /** Per-algorithm accuracy on verified boxes that carry both verdicts; empty before any. */
+  algorithmComparison: McAlgorithmScore[];
 }
 
 /**
@@ -168,12 +216,7 @@ export async function computeMcVerificationStats(
   const exerciseById = new Map<string, ExerciseRecord>(exercises.map((e) => [e.id, e]));
 
   // Members of one MC group share a title; the sub-letter tells them apart.
-  const subLetterById = new Map<string, string>();
-  for (const group of mcGroups) {
-    group.memberIds.forEach((memberId, idx) => {
-      subLetterById.set(memberId, String.fromCharCode(97 + idx));
-    });
-  }
+  const subLetterById = buildSubLabelMap(mcGroups);
 
   const studentMap = new Map<string, string>();
   for (const st of students) {
@@ -204,6 +247,15 @@ export async function computeMcVerificationStats(
   }
 
   const items: McDetectionItem[] = [];
+  let undetectedScoreCount = 0;
+  const algoScores = new Map<number, McAlgorithmScore>();
+  const tally = (algorithm: number, verdict: BoxVerdict, label: boolean) => {
+    const s = algoScores.get(algorithm) ?? { algorithm, boxes: 0, correct: 0, unsure: 0 };
+    s.boxes++;
+    if (verdictSelected(verdict) === label) s.correct++;
+    if (verdictUnsure(verdict)) s.unsure++;
+    algoScores.set(algorithm, s);
+  };
   for (const sub of submissions) {
     const rawScores = scoresBySubmission.get(sub.id) ?? [];
     const label = await labelFor(sub);
@@ -224,7 +276,11 @@ export async function computeMcVerificationStats(
 
     for (const sc of scoreByExercise.values()) {
       const ex = exerciseById.get(sc.exerciseId);
-      if (!ex || !sc.omrMeta) continue;
+      if (!ex) continue;
+      if (!sc.omrMeta) {
+        if (sc.score !== undefined) undetectedScoreCount++;
+        continue;
+      }
       const flaggedOptions = sc.omrMeta.flaggedOptions ?? [];
       const selectedOptions = sc.selectedOptions ?? [];
 
@@ -235,7 +291,16 @@ export async function computeMcVerificationStats(
         flaggedOptions: flaggedOptions.length > 0 ? [...flaggedOptions] : undefined,
       } : undefined);
 
-      const isReviewed = sc.omrMeta.source === "manual" || !!sc.omrMeta.reviewedAt;
+      const isReviewed = isMcReviewed(sc.omrMeta);
+      const decidedBy = sc.omrMeta.run?.algorithmVersion;
+      if (isReviewed && decidedBy !== undefined) {
+        for (const b of sc.omrMeta.detections?.bubbles ?? []) {
+          if (!b.alt || !b.detectedState) continue;
+          const label = selectedOptions.includes(b.optionIndex);
+          tally(decidedBy, { state: b.detectedState, reasons: b.reasons, provisional: b.provisional }, label);
+          tally(b.alt.algorithm, b.alt, label);
+        }
+      }
       const isCorrected = orig && isReviewed ? !optionsEqual(orig.selectedOptions, selectedOptions) : false;
 
       items.push({
@@ -254,6 +319,7 @@ export async function computeMcVerificationStats(
         reviewedAt: sc.omrMeta.reviewedAt,
         isReviewed,
         isCorrected,
+        run: sc.omrMeta.run,
       });
     }
   }
@@ -356,7 +422,32 @@ export async function computeMcVerificationStats(
     items,
     qualityStats,
     confusionMatrix,
+    detectionRuns: summarizeDetectionRuns(items),
+    undetectedScoreCount,
+    algorithmComparison: [...algoScores.values()].sort((a, b) => a.algorithm - b.algorithm),
   };
+}
+
+export function summarizeDetectionRuns(items: McDetectionItem[]): McDetectionRunSummary[] {
+  const byId = new Map<string, McDetectionRunSummary>();
+  let legacy: McDetectionRunSummary | null = null;
+  for (const item of items) {
+    let bucket: McDetectionRunSummary;
+    if (item.run) {
+      const existing = byId.get(item.run.runId);
+      bucket = existing ?? { run: item.run, itemCount: 0, reviewedCount: 0 };
+      if (!existing) byId.set(item.run.runId, bucket);
+    } else {
+      legacy ??= { run: null, itemCount: 0, reviewedCount: 0 };
+      bucket = legacy;
+    }
+    bucket.itemCount++;
+    if (item.isReviewed) bucket.reviewedCount++;
+  }
+  const runs = Array.from(byId.values()).sort((a, b) =>
+    (b.run?.detectedAt ?? "").localeCompare(a.run?.detectedAt ?? "")
+  );
+  return legacy ? [...runs, legacy] : runs;
 }
 
 /**

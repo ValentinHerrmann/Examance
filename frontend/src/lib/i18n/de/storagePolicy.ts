@@ -16,16 +16,12 @@ export const storagePolicy = {
         stepSwitch: 'Wechseln',
         stepImport: 'Einlesen',
         introHeading: 'Von "{from}" zu "{to}" wechseln',
-        introBody:
-            'Beim Wechsel des Speicherorts werden keine Daten automatisch übertragen. Der bisherige Arbeitsbereich wird lokal geleert, und der neue Speicherort startet leer.',
-        bridgeNote:
-            'Die verschlüsselte Archivdatei (.bgproj) ist die einzige Brücke zwischen den Speicherorten: zuerst exportieren, dann wechseln, dann im neuen Modus wieder einlesen.',
-        serverKeptNote:
-            'Auf dem Server gespeicherte Prüfungen werden dabei nicht gelöscht — geleert wird nur der lokale Speicher dieses Browsers.',
+        introBody: 'Beim Wechsel des Speicherorts werden keine Daten automatisch übertragen. Der bisherige Arbeitsbereich wird lokal geleert, und der neue Speicherort startet leer.',
+        bridgeNote: 'Die verschlüsselte Archivdatei (.bgproj) ist die einzige Brücke zwischen den Speicherorten: zuerst exportieren, dann wechseln, dann im neuen Modus wieder einlesen.',
+        serverKeptNote: 'Auf dem Server gespeicherte Prüfungen werden dabei nicht gelöscht — geleert wird nur der lokale Speicher dieses Browsers.',
         understandCheckbox: 'Ich habe verstanden, dass keine Daten automatisch übertragen werden.',
         exportHeading: 'Arbeitsbereich sichern',
-        exportBody:
-            'Vergeben Sie ein Passwort für das Archiv. Ohne dieses Passwort lässt sich die Datei nicht wiederherstellen — bewahren Sie es sicher auf.',
+        exportBody: 'Vergeben Sie ein Passwort für das Archiv. Ohne dieses Passwort lässt sich die Datei nicht wiederherstellen — bewahren Sie es sicher auf.',
         exportButton: 'Archiv herunterladen',
         exportDone: 'Archiv gespeichert: {filename}',
         exportRequired: 'Der Wechsel ist erst nach dem Export möglich.',
@@ -36,8 +32,7 @@ export const storagePolicy = {
             'Dieser Schritt löscht den lokalen Arbeitsbereich unwiderruflich und stellt den Speicherort auf "{to}" um.',
         wipeButton: 'Jetzt wechseln',
         importHeading: 'Archiv im neuen Speicherort einlesen',
-        importBody:
-            'Lesen Sie das eben erstellte Archiv jetzt ein, damit Ihre Prüfungen im neuen Speicherort zur Verfügung stehen.',
+        importBody: 'Lesen Sie das eben erstellte Archiv jetzt ein, damit Ihre Prüfungen im neuen Speicherort zur Verfügung stehen.',
         importSkip: 'Später einlesen',
         resumeBanner: 'Ein Speicherort-Wechsel ist noch nicht abgeschlossen.',
         resumeBody:
@@ -46,22 +41,19 @@ export const storagePolicy = {
         resumeDismiss: 'Später',
         needsAuth: 'Für server-gestützte Speicherorte ist eine Anmeldung erforderlich.',
         cancel: 'Abbrechen',
-        cannotAbortAfterWipe:
-            'Der lokale Speicher wurde bereits geleert — der Wechsel lässt sich nicht mehr zurücknehmen.',
+        cannotAbortAfterWipe: 'Der lokale Speicher wurde bereits geleert — der Wechsel lässt sich nicht mehr zurücknehmen.',
     },
 
     conflict: {
         title: 'Unterschiede beim Import',
-        subtitle:
-            'Diese Datensätze sind bereits vorhanden. Bitte entscheiden Sie für jeden, welche Fassung gelten soll.',
+        subtitle: 'Diese Datensätze sind bereits vorhanden. Bitte entscheiden Sie für jeden, welche Fassung gelten soll.',
         counter: '{decided} von {total} entschieden',
         columnExisting: 'Vorhanden',
         columnImported: 'Aus dem Archiv',
         choiceKeepExisting: 'Vorhandene behalten',
         choiceTakeImported: 'Archivfassung übernehmen',
         choiceImportAsCopy: 'Als Kopie importieren',
-        copyNotAllowed:
-            'Für Schülerdaten und Abgaben ist keine Kopie möglich — doppelte Pseudonyme sind datenschutzrechtlich nicht zulässig.',
+        copyNotAllowed: 'Für Schülerdaten und Abgaben ist keine Kopie möglich — doppelte Pseudonyme sind datenschutzrechtlich nicht zulässig.',
         applyToAll: 'Für alle übernehmen',
         apply: 'Import starten',
         cancel: 'Import abbrechen',

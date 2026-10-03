@@ -1,10 +1,10 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import "./+page.css";
   import { page } from "$app/stores";
   import { onMount } from "svelte";
   import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
   import { get } from "svelte/store";
+  import { PageShell } from "$lib/components/ui";
   import ManualGradingContainer from "$lib/components/manual-grading/ManualGradingContainer.svelte";
 
   export let params: Record<string, string> = {};
@@ -23,8 +23,8 @@
   });
 </script>
 
-<div class="manual-grading-page">
+<PageShell width="fluid">
   {#if initialized && examId}
     <ManualGradingContainer {examId} />
   {/if}
-</div>
+</PageShell>

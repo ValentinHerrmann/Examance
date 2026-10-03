@@ -6,10 +6,13 @@
 </script>
 
 <script lang="ts">
-  import "./SelectedExercisesList.css";
   import type { ExerciseRecord } from "$lib/db/schema";
   import { parseExerciseScore } from "$lib/latex/scoreParser";
+  import { mcSubLabel } from "$lib/grading/mcGroupLabels";
+  import ExerciseLabel from "$lib/components/exam/ExerciseLabel.svelte";
   import { t } from "$lib/i18n";
+  import { faPen, faArrowUp, faArrowDown, faXmark } from "@fortawesome/free-solid-svg-icons";
+  import { Badge, Button, Card } from "$lib/components/ui";
 
   interface McGroup {
     id: string;
@@ -30,6 +33,7 @@
   export let libraryExercises: ExerciseRecord[] = [];
   export let examItems: ExamItemRef[] = [];
   export let onRemoveMcGroup: (id: string) => void = () => {};
+  export let onEditMcGroup: ((id: string) => void) | undefined = undefined;
 
   function memberExercises(group: McGroup): ExerciseRecord[] {
     return group.memberIds
@@ -44,121 +48,80 @@
     );
   }
 
+  const rowClass =
+    "flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-md border border-line bg-surface-sunken px-4 py-3";
+  const infoClass = "flex min-w-0 flex-wrap items-center gap-3";
+
   $: totalItemCount = examItems.length > 0 ? examItems.length : selectedExercises.length + mcGroups.length;
 </script>
 
-<div class="selected-exercises-list-card">
-  <div class="selected-exercises-list-header">
-    <h3>
+<Card class="mb-6">
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+    <h2 class="m-0 min-w-0 text-xl font-medium text-content">
       {$t("examCreation.selectedList.heading", { count: totalItemCount, points: totalPoints })}
-    </h3>
-    <button
-      type="button"
-      class="selected-exercises-list-preview-btn"
-      class:is-loading={isPreviewLoading}
-      on:click={onLivePreview}
+    </h2>
+    <Button
+      variant="outlined"
+      loading={isPreviewLoading}
+      onClick={onLivePreview}
       disabled={isPreviewLoading || totalItemCount === 0}
     >
       {isPreviewLoading ? $t("examCreation.selectedList.previewButtonCompiling") : $t("examCreation.selectedList.previewButton")}
-    </button>
+    </Button>
   </div>
 
   {#if totalItemCount === 0}
-    <div class="selected-exercises-list-empty-hint">
+    <div class="p-6 text-center text-sm text-muted">
       {$t("examCreation.selectedList.emptyHint")}
     </div>
   {:else}
-    <div class="selected-exercises-list-container">
+    <div class="flex flex-col gap-2.5">
       {#if examItems.length > 0}
         {#each examItems as item, idx (item.id)}
           {#if item.type === "exercise"}
             {@const ex = selectedExercises.find((e) => e.id === item.id) || libraryExercises.find((e) => e.id === item.id)}
             {#if ex}
               {@const score = parseExerciseScore(ex.latexBody || "") || ex.maxPoints || 0}
-              <div class="selected-exercises-list-item">
-                <div class="selected-exercises-list-item-info">
-                  <span class="selected-exercises-list-order-num">({idx + 1})</span>
-                  <strong>{ex.name}</strong>
+              <div class={rowClass}>
+                <div class={infoClass}>
+                  <span class="font-semibold text-accent">(idx + 1)</span>
+                  <strong class="min-w-0 font-medium text-content"><ExerciseLabel exercise={ex} /></strong>
                   {#if ex.topicTag}
-                    <span class="selected-exercises-list-topic-tag">{ex.topicTag}</span>
+                    <Badge size="xs">{ex.topicTag}</Badge>
                   {/if}
-                  <span class="selected-exercises-list-score-badge">{score} {$t("examCreation.selectedList.pointsAbbrev")}</span>
+                  <Badge size="xs" severity="primary">{score} {$t("examCreation.selectedList.pointsAbbrev")}</Badge>
                 </div>
-                <div class="selected-exercises-list-order-controls">
-                  <button
-                    type="button"
-                    class="selected-exercises-list-edit-item-btn"
-                    title={$t("examCreation.selectedList.quickEditTitle")}
-                    on:click={() => onQuickEdit(ex)}
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    type="button"
-                    class="selected-exercises-list-order-btn"
-                    disabled={idx === 0}
-                    on:click={() => onMoveExamItem ? onMoveExamItem(idx, "up") : onMoveExercise(idx, "up")}
-                  >
-                    ▲
-                  </button>
-                  <button
-                    type="button"
-                    class="selected-exercises-list-order-btn"
-                    disabled={idx === examItems.length - 1}
-                    on:click={() => onMoveExamItem ? onMoveExamItem(idx, "down") : onMoveExercise(idx, "down")}
-                  >
-                    ▼
-                  </button>
-                  <button
-                    type="button"
-                    class="selected-exercises-list-remove-btn"
-                    on:click={() => onRemove(ex.id)}
-                  >
-                    ✕
-                  </button>
+                <div class="flex flex-wrap items-center gap-1">
+                  <Button size="sm" variant="text" severity="secondary" iconOnly icon={faPen} ariaLabel={$t("examCreation.selectedList.quickEditTitle")} title={$t("examCreation.selectedList.quickEditTitle")} onClick={() => onQuickEdit(ex)} />
+                  <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowUp} ariaLabel={$t("exam.mcStagingPanel.moveUp")} disabled={idx === 0} onClick={() => onMoveExamItem ? onMoveExamItem(idx, "up") : onMoveExercise(idx, "up")} />
+                  <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowDown} ariaLabel={$t("exam.mcStagingPanel.moveDown")} disabled={idx === examItems.length - 1} onClick={() => onMoveExamItem ? onMoveExamItem(idx, "down") : onMoveExercise(idx, "down")} />
+                  <Button size="sm" variant="text" severity="danger" iconOnly icon={faXmark} ariaLabel={$t("exam.mcStagingPanel.remove")} onClick={() => onRemove(ex.id)} />
                 </div>
               </div>
             {/if}
           {:else if item.type === "mc_group"}
             {@const group = mcGroups.find((g) => g.id === item.id)}
             {#if group}
-              <div class="selected-exercises-list-item" style="flex-direction: column; align-items: stretch; gap: 0.4rem;">
-                <div class="selected-exercises-list-item-info" style="justify-content: space-between;">
-                  <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                    <span class="selected-exercises-list-order-num">({idx + 1})</span>
-                    <strong>{$t("examCreation.selectedList.mcGroupLabel", { title: group.title })}</strong>
-                    <span class="selected-exercises-list-topic-tag">{$t("examCreation.selectedList.mcGroupSubItems", { count: memberExercises(group).length })}</span>
-                    <span class="selected-exercises-list-score-badge">{groupPoints(group)} {$t("examCreation.selectedList.pointsAbbrev")}</span>
+              <div class="{rowClass} flex-col items-stretch gap-1.5">
+                <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                  <div class={infoClass}>
+                    <span class="font-semibold text-accent">({idx + 1})</span>
+                    <strong class="min-w-0 font-medium text-content">{$t("examCreation.selectedList.mcGroupLabel", { title: group.title })}</strong>
+                    <Badge size="xs">{$t("examCreation.selectedList.mcGroupSubItems", { count: memberExercises(group).length })}</Badge>
+                    <Badge size="xs" severity="primary">{groupPoints(group)} {$t("examCreation.selectedList.pointsAbbrev")}</Badge>
                   </div>
-                  <div class="selected-exercises-list-order-controls">
-                    <button
-                      type="button"
-                      class="selected-exercises-list-order-btn"
-                      disabled={idx === 0}
-                      on:click={() => onMoveExamItem && onMoveExamItem(idx, "up")}
-                    >
-                      ▲
-                    </button>
-                    <button
-                      type="button"
-                      class="selected-exercises-list-order-btn"
-                      disabled={idx === examItems.length - 1}
-                      on:click={() => onMoveExamItem && onMoveExamItem(idx, "down")}
-                    >
-                      ▼
-                    </button>
-                    <button
-                      type="button"
-                      class="selected-exercises-list-remove-btn"
-                      on:click={() => onRemoveMcGroup(group.id)}
-                    >
-                      ✕
-                    </button>
+                  <div class="flex flex-wrap items-center gap-1">
+                    {#if onEditMcGroup}
+                    <Button size="sm" variant="text" severity="secondary" iconOnly icon={faPen} ariaLabel={$t("examCreation.selectedList.editMcGroupTitle")} title={$t("examCreation.selectedList.editMcGroupTitle")} onClick={() => onEditMcGroup && onEditMcGroup(group.id)} />
+                  {/if}
+                    <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowUp} ariaLabel={$t("exam.mcStagingPanel.moveUp")} disabled={idx === 0} onClick={() => onMoveExamItem && onMoveExamItem(idx, "up")} />
+                    <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowDown} ariaLabel={$t("exam.mcStagingPanel.moveDown")} disabled={idx === examItems.length - 1} onClick={() => onMoveExamItem && onMoveExamItem(idx, "down")} />
+                    <Button size="sm" variant="text" severity="danger" iconOnly icon={faXmark} ariaLabel={$t("exam.mcStagingPanel.remove")} onClick={() => onRemoveMcGroup(group.id)} />
                   </div>
                 </div>
-                <ul style="margin: 0; padding-left: 1.4rem; font-size: 0.85rem; color: #94a3b8;">
+                <ul class="m-0 pl-6 text-sm text-muted">
                   {#each memberExercises(group) as ex, i}
-                    <li>{String.fromCharCode(97 + i)}) {ex.name}</li>
+                    <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} /></li>
                   {/each}
                 </ul>
               </div>
@@ -168,68 +131,37 @@
       {:else}
         {#each selectedExercises as ex, idx}
           {@const score = parseExerciseScore(ex.latexBody || "") || ex.maxPoints || 0}
-          <div class="selected-exercises-list-item">
-            <div class="selected-exercises-list-item-info">
-              <span class="selected-exercises-list-order-num">({idx + 1})</span>
-              <strong>{ex.name}</strong>
+          <div class={rowClass}>
+            <div class={infoClass}>
+              <span class="font-semibold text-accent">(idx + 1)</span>
+              <strong class="min-w-0 font-medium text-content"><ExerciseLabel exercise={ex} /></strong>
               {#if ex.topicTag}
-                <span class="selected-exercises-list-topic-tag">{ex.topicTag}</span>
+                <Badge size="xs">{ex.topicTag}</Badge>
               {/if}
-              <span class="selected-exercises-list-score-badge">{score} {$t("examCreation.selectedList.pointsAbbrev")}</span>
+              <Badge size="xs" severity="primary">{score} {$t("examCreation.selectedList.pointsAbbrev")}</Badge>
             </div>
-            <div class="selected-exercises-list-order-controls">
-              <button
-                type="button"
-                class="selected-exercises-list-edit-item-btn"
-                title={$t("examCreation.selectedList.quickEditTitle")}
-                on:click={() => onQuickEdit(ex)}
-              >
-                ✏️
-              </button>
-              <button
-                type="button"
-                class="selected-exercises-list-order-btn"
-                disabled={idx === 0}
-                on:click={() => onMoveExercise(idx, "up")}
-              >
-                ▲
-              </button>
-              <button
-                type="button"
-                class="selected-exercises-list-order-btn"
-                disabled={idx === selectedExercises.length - 1}
-                on:click={() => onMoveExercise(idx, "down")}
-              >
-                ▼
-              </button>
-              <button
-                type="button"
-                class="selected-exercises-list-remove-btn"
-                on:click={() => onRemove(ex.id)}
-              >
-                ✕
-              </button>
+            <div class="flex flex-wrap items-center gap-1">
+              <Button size="sm" variant="text" severity="secondary" iconOnly icon={faPen} ariaLabel={$t("examCreation.selectedList.quickEditTitle")} title={$t("examCreation.selectedList.quickEditTitle")} onClick={() => onQuickEdit(ex)} />
+              <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowUp} ariaLabel={$t("exam.mcStagingPanel.moveUp")} disabled={idx === 0} onClick={() => onMoveExercise(idx, "up")} />
+              <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowDown} ariaLabel={$t("exam.mcStagingPanel.moveDown")} disabled={idx === selectedExercises.length - 1} onClick={() => onMoveExercise(idx, "down")} />
+              <Button size="sm" variant="text" severity="danger" iconOnly icon={faXmark} ariaLabel={$t("exam.mcStagingPanel.remove")} onClick={() => onRemove(ex.id)} />
             </div>
           </div>
         {/each}
 
         {#each mcGroups as group}
-          <div class="selected-exercises-list-item" style="flex-direction: column; align-items: stretch; gap: 0.4rem;">
-            <div class="selected-exercises-list-item-info">
-              <strong>{$t("examCreation.selectedList.mcGroupLabel", { title: group.title })}</strong>
-              <span class="selected-exercises-list-topic-tag">{$t("examCreation.selectedList.mcGroupSubItems", { count: memberExercises(group).length })}</span>
-              <span class="selected-exercises-list-score-badge">{groupPoints(group)} {$t("examCreation.selectedList.pointsAbbrev")}</span>
-              <button
-                type="button"
-                class="selected-exercises-list-remove-btn"
-                on:click={() => onRemoveMcGroup(group.id)}
-              >
-                ✕
-              </button>
+          <div class="{rowClass} flex-col items-stretch gap-1.5">
+            <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
+              <div class={infoClass}>
+                <strong class="min-w-0 font-medium text-content">{$t("examCreation.selectedList.mcGroupLabel", { title: group.title })}</strong>
+                <Badge size="xs">{$t("examCreation.selectedList.mcGroupSubItems", { count: memberExercises(group).length })}</Badge>
+                <Badge size="xs" severity="primary">{groupPoints(group)} {$t("examCreation.selectedList.pointsAbbrev")}</Badge>
+              </div>
+              <Button size="sm" variant="text" severity="danger" iconOnly icon={faXmark} ariaLabel={$t("exam.mcStagingPanel.remove")} onClick={() => onRemoveMcGroup(group.id)} />
             </div>
-            <ul style="margin: 0; padding-left: 1.4rem; font-size: 0.85rem; color: #94a3b8;">
+            <ul class="m-0 pl-6 text-sm text-muted">
               {#each memberExercises(group) as ex, i}
-                <li>{String.fromCharCode(97 + i)}) {ex.name}</li>
+                <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} /></li>
               {/each}
             </ul>
           </div>
@@ -237,4 +169,4 @@
       {/if}
     </div>
   {/if}
-</div>
+</Card>

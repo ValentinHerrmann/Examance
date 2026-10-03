@@ -1,45 +1,101 @@
 @import "tailwindcss";
 
+/* `dark:` follows the resolved theme attribute, not the OS query, so a manual
+ * override in settings wins. Rarely needed: the tokens below already switch. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* ---------------------------------------------------------------------------
- * Design tokens.
+ * Design tokens — the Artemis design language (TUM AET UI kit, re-implemented,
+ * no code copied).
  *
- * The palette below is the one the app already used; the hex values are the
- * Tailwind slate/sky shades that were hardcoded across components. Naming them
- * here makes `bg-surface-raised`, `text-muted`, `border-line` etc. available as
- * utilities so components stop spelling the raw colour out.
+ * Light values are the defaults. `:root[data-theme="dark"]` further down
+ * re-points the same variables, so every utility (`bg-surface-raised`), every
+ * chart reading `var(--color-*)` and the CodeMirror theme follow the active
+ * theme without a single `dark:` variant in component code.
+ *
+ * `static`: Tailwind v4 drops theme variables it never sees spelled out in
+ * source, and several of these are only read at runtime (charts, canvas).
  *
  * Breakpoints are Tailwind's defaults on purpose (sm 640 / md 768 / lg 1024 /
- * xl 1280 / 2xl 1536). Layout code is mobile-first: unprefixed classes describe
- * the phone and `md:`/`lg:`/`xl:` add back. Do not introduce `max-*:` variants
- * or raw media queries.
+ * xl 1280 / 2xl 1536). Layout code is mobile-first. Inside a Modal and inside
+ * the exam content area, use container variants (`@md:`, `@3xl:`) instead.
  * ------------------------------------------------------------------------ */
-@theme {
-  --color-surface-base: #0f172a;
-  --color-surface-raised: #1e293b;
-  --color-surface-sunken: #090d16;
-  --color-surface-inset: #334155;
-  --color-line: #334155;
-  --color-line-strong: #475569;
-  --color-accent: #38bdf8;
-  --color-accent-strong: #0284c7;
-  --color-accent-hover: #0369a1;
-  --color-content: #f8fafc;
-  --color-muted: #94a3b8;
-  --color-subtle: #64748b;
+@theme static {
+  /* Surfaces: the gray canvas with white tiles is the Artemis shell look. */
+  --color-surface-base: #e9ecef;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #f8fafc;
+  --color-surface-inset: #f1f5f9;
+  --color-surface-viewer: #cfd6df;
+  --color-control: #ffffff;
 
-  /* Content width scale, replacing the ad-hoc per-page pixel caps. */
-  /* Names here must not collide with Tailwind's built-in width keywords —
-     a token called `full` would redefine `w-full` / `max-w-full` app-wide. */
-  --container-form: 480px;
-  --container-narrow: 720px;
-  --container-wide: 1280px;
-  --container-page: 1700px;
+  --color-line: #e2e8f0;
+  --color-line-strong: #cbd5e1;
+  --color-line-hover: #94a3b8;
+
+  /* Text. `muted` reaches AA on surfaces, not on the canvas. `subtle` is an
+     alias kept for the chart code; new code uses `muted`. */
+  --color-content: #334155;
+  --color-muted: #556274;
+  --color-subtle: #556274;
+
+  /* `accent` is the link / active-tab colour; `primary` is the fill. Never use
+     a fill as text colour. */
+  --color-accent: #1f5c9a;
+  --color-primary: #3779b4;
+  --color-primary-contrast: #ffffff;
+  --color-focus: #3e8acc;
+
+  --color-highlight: #ecf3fa;
+  --color-highlight-strong: #d8e7f5;
+  --color-on-highlight: #1f5c9a;
+
+  --color-disabled: #e2e8f0;
+  --color-tooltip: #334155;
+  --color-backdrop: rgb(15 23 42 / 0.5);
+
+  /* The navbar is the same dark slate in both themes. */
+  --color-navbar: #353d47;
+  --color-navbar-muted: rgb(255 255 255 / 0.7);
+  --color-navbar-content: #ffffff;
+  --color-navbar-hover: rgb(255 255 255 / 0.1);
+
+  /* State families: `x` is the fill, `x-contrast` text on that fill, `x-fg`
+     the state colour used as text on a surface. */
+  --color-danger: #dc3545;
+  --color-danger-contrast: #ffffff;
+  --color-danger-fg: #a61b29;
+  --color-success: #28a745;
+  --color-success-contrast: #16191d;
+  --color-success-fg: #1a6930;
+  --color-warning: #ffc107;
+  --color-warning-contrast: #16191d;
+  --color-warning-fg: #7a5a00;
+  --color-info: #17a2b8;
+  --color-info-contrast: #16191d;
+  --color-info-fg: #0c5460;
+
+  /* LaTeX syntax colours (CodeMirror and the read-only viewer). */
+  --color-syntax-comment: #64748b;
+  --color-syntax-keyword: #be185d;
+  --color-syntax-macro: #1f5c9a;
+  --color-syntax-bracket: #b45309;
+  --color-syntax-string: #7e22ce;
+  --color-syntax-number: #047857;
+
+  /* Content width scale. Names must not collide with Tailwind's built-in width
+     keywords — a token called `full` would redefine `max-w-full` app-wide.
+     `page` is 1920px: nothing is capped on an unscaled 1920 screen. */
+  --container-form: 30rem;
+  --container-narrow: 45rem;
+  --container-medium: 56rem;
+  --container-wide: 80rem;
+  --container-page: 120rem;
 }
 
 /* Grade colour ramp (best -> worst) for the stats charts, see gradeColorVar in
-   lib/analytics/gradingKey.ts. `static`: the charts build `var(--color-grade-N)`
-   at runtime, and Tailwind v4 drops theme variables it never sees spelled out
-   in the source, which silently removed grades 3-5. */
+   lib/analytics/gradingKey.ts. Theme-invariant on purpose: the same grade has
+   the same colour in both themes and in exported charts. */
 @theme static {
   --color-grade-1: #15803d;
   --color-grade-2: #4ade80;
@@ -49,13 +105,66 @@
   --color-grade-6: #b91c1c;
 }
 
+/* Dark theme. Unlayered, so it beats Tailwind's `@layer theme` defaults. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-surface-base: #22272e;
+  --color-surface-raised: #16191d;
+  --color-surface-sunken: #101214;
+  --color-surface-inset: #262b31;
+  --color-surface-viewer: #0d0f12;
+  --color-control: #101214;
+
+  --color-line: #2c3238;
+  --color-line-strong: #434c56;
+  --color-line-hover: #5e6a78;
+
+  --color-content: #f1f3f5;
+  --color-muted: #8f9baa;
+  --color-subtle: #8f9baa;
+
+  --color-accent: #7fb1dc;
+  --color-primary: #65a1d6;
+  --color-primary-contrast: #16191d;
+  --color-focus: #7fb1dc;
+
+  --color-highlight: #232f3b;
+  --color-highlight-strong: #293a49;
+  --color-on-highlight: #dedede;
+
+  --color-disabled: #343a42;
+  --color-tooltip: #343a42;
+  --color-backdrop: rgb(0 0 0 / 0.6);
+
+  --color-danger: #ef8b80;
+  --color-danger-contrast: #370b07;
+  --color-danger-fg: #ef8b80;
+  --color-success: #00bc8c;
+  --color-success-contrast: #00231a;
+  --color-success-fg: #00bc8c;
+  --color-warning: #f39c12;
+  --color-warning-contrast: #362203;
+  --color-warning-fg: #f39c12;
+  --color-info: #36cee6;
+  --color-info-contrast: #062a30;
+  --color-info-fg: #36cee6;
+
+  --color-syntax-comment: #94a3b8;
+  --color-syntax-keyword: #ec4899;
+  --color-syntax-macro: #38bdf8;
+  --color-syntax-bracket: #f59e0b;
+  --color-syntax-string: #a855f7;
+  --color-syntax-number: #10b981;
+}
+
 /* Single z-index ladder. Anything layered picks one of these. */
 :root {
   --z-dropdown: 1000;
   --z-modal: 2000;
   --z-toast: 3000;
 
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html {
@@ -66,42 +175,50 @@ html {
 body {
   margin: 0;
   padding: 0;
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
   background-color: var(--color-surface-base);
   color: var(--color-content);
-  /* Nothing may push the document sideways; panes scroll internally instead. */
-  overflow-x: hidden;
+  /* The app shell scrolls `.app-main`, never the document. */
+  overflow: hidden;
 }
 
-/* Touch targets: coarse pointers get a comfortable minimum on controls that
- * would otherwise inherit a mouse-sized hit area. */
+/* One focus ring for everything keyboard-reachable (Artemis: 2px focus colour,
+ * 2px offset). Components do not spell their own. */
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Touch targets: coarse pointers (iPad, phones) get 44px on anything a finger
+ * has to hit. Components add `pointer-coarse:min-h-11` where this element-level
+ * rule does not reach (links styled as rows, custom controls). */
 @media (pointer: coarse) {
   button,
   [role="button"],
+  [role="menuitem"],
+  [role="tab"],
   a.touch-target,
   select {
-    min-height: 2.25rem;
+    min-height: 2.75rem;
   }
 }
 
-.is-loading {
-  animation: pulse 1.5s infinite ease-in-out !important;
-  pointer-events: none;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
+/* Inline text link. */
+@utility link {
+  color: var(--color-accent);
+  text-decoration: none;
+  cursor: pointer;
+  &:hover {
+    text-decoration: underline;
   }
 }
 
@@ -110,4 +227,54 @@ body {
 .scroll-pane {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line-strong) transparent;
+}
+
+/* Data tables (Artemis table spec). A shared class rather than utilities: the
+ * same cell rules apply to every row and column of ten different tables.
+ * Wrap wide tables in <TableScroller>. */
+@layer components {
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+    color: var(--color-content);
+  }
+  .data-table th {
+    padding: 0.75rem 1rem;
+    text-align: start;
+    font-weight: 600;
+    white-space: nowrap;
+    background-color: var(--color-surface-raised);
+    border-bottom: 1px solid var(--color-line-strong);
+    vertical-align: bottom;
+  }
+  .data-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--color-line);
+    vertical-align: middle;
+  }
+  .data-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .data-table-compact th,
+  .data-table-compact td {
+    padding: 0.375rem 0.5rem;
+  }
+  .data-table-striped tbody tr:nth-child(even) td {
+    background-color: var(--color-surface-sunken);
+  }
+  .data-table-hover tbody tr:hover td {
+    background-color: var(--color-surface-inset);
+  }
+  .data-table tr[aria-selected="true"] td {
+    background-color: var(--color-highlight);
+    color: var(--color-on-highlight);
+    font-weight: 500;
+  }
+  .data-table-sticky thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
 }

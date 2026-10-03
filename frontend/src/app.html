@@ -6,16 +6,40 @@
     <link rel="icon" type="image/png" href="%sveltekit.assets%/favicon.png" />
     <link rel="apple-touch-icon" href="%sveltekit.assets%/favicon.png" />
     <link rel="manifest" href="%sveltekit.assets%/manifest.json" />
-    <meta name="theme-color" content="#0f172a" />
+    <meta name="theme-color" content="#353d47" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Examance" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="description" content="Examance — privacy-first anonymous exam grading" />
+    <!-- Theme before first paint, so a dark system never flashes white. Same
+         key and resolution as lib/stores/theme.ts (bg_theme: light | dark,
+         absent = follow the OS). Hashed into the CSP by
+         scripts/generate-csp-headers.mjs like every inline script. -->
+    <script>
+      (function () {
+        var theme = "light";
+        try {
+          var saved = window.localStorage.getItem("bg_theme");
+          if (saved === "light" || saved === "dark") {
+            theme = saved;
+          } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            theme = "dark";
+          }
+        } catch (e) {
+          /* Storage blocked: fall back to light. */
+        }
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
+    <style>
+      html { background: #e9ecef; }
+      html[data-theme="dark"] { background: #22272e; }
+    </style>
     %sveltekit.head%
   </head>
-  <body class="bg-slate-900 text-slate-50" data-sveltekit-preload-data="hover">
+  <body data-sveltekit-preload-data="hover">
     <div style="display: contents">%sveltekit.body%</div>
   </body>
 </html>

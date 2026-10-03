@@ -13,12 +13,24 @@ export interface McOption {
   correct: boolean;
 }
 
+/** Most options a single MC question may have. */
+export const MC_MAX_OPTIONS = 26;
+/** Fewest options a single MC question may have. */
+export const MC_MIN_OPTIONS = 2;
+/** `multicols` refuses more than 10 columns; 1 lays the options out as a plain list. */
+export const MC_MAX_COLUMNS = 10;
+
 export interface McOptionsParseResult {
   questionText: string;
   options: McOption[];
+  /**
+   * Explicit column count, or `null` for "auto" (one column per option, capped
+   * at MC_MAX_COLUMNS). Stored only in the LaTeX body as \LoesungMulti[N].
+   */
+  columns: number | null;
 }
 
-const LOESUNG_MULTI_RE = /\\LoesungMulti\[\d+\]\{([\s\S]*)\}\s*$/;
+const LOESUNG_MULTI_RE = /\\LoesungMulti\[(\d+)\]\{([\s\S]*)\}\s*$/;
 const OPTION_RE = /\\(Lmulti|multi)\{([^}]*)\}/g;
 
 /**
@@ -30,11 +42,12 @@ export function parseMcOptions(latexBody: string | undefined | null): McOptionsP
   const body = latexBody || "";
   const match = body.match(LOESUNG_MULTI_RE);
   if (!match) {
-    return { questionText: body, options: [] };
+    return { questionText: body, options: [], columns: null };
   }
 
   const questionText = body.slice(0, match.index).trim();
-  const optionsBlock = match[1];
+  const storedColumns = Number(match[1]);
+  const optionsBlock = match[2];
   const options: McOption[] = [];
   let optionMatch: RegExpExecArray | null;
   OPTION_RE.lastIndex = 0;
@@ -42,7 +55,16 @@ export function parseMcOptions(latexBody: string | undefined | null): McOptionsP
     options.push({ text: optionMatch[2].trim(), correct: optionMatch[1] === "Lmulti" });
   }
 
-  return { questionText, options };
+  return { questionText, options, columns: storedColumns === autoColumns(options.length) ? null : storedColumns };
+}
+
+function clampColumns(columns: number): number {
+  return Math.min(MC_MAX_COLUMNS, Math.max(1, Math.round(columns)));
+}
+
+/** The column count "auto" resolves to: one per option, within multicols' limit. */
+function autoColumns(optionCount: number): number {
+  return clampColumns(optionCount);
 }
 
 /**
@@ -53,9 +75,14 @@ export function parseMcOptions(latexBody: string | undefined | null): McOptionsP
  * %/#/_/&/{/} doesn't silently break the \LoesungMulti block (and with it,
  * every \multi/\Lmulti omr:// annotation the OMR template capture relies on).
  */
-export function buildMcOptionsLatex(questionText: string, options: McOption[]): string {
+export function buildMcOptionsLatex(
+  questionText: string,
+  options: McOption[],
+  columns: number | null = null,
+): string {
+  const columnCount = columns === null ? autoColumns(options.length) : clampColumns(columns);
   const lines = options
     .map((o) => `  \\${o.correct ? "Lmulti" : "multi"}{${escapeLatex(o.text)}}`)
     .join("\n");
-  return `${escapeLatex(questionText.trim())}\n\n\\LoesungMulti[${options.length}]{\n${lines}\n}`;
+  return `${escapeLatex(questionText.trim())}\n\n\\LoesungMulti[${columnCount}]{\n${lines}\n}`;
 }
