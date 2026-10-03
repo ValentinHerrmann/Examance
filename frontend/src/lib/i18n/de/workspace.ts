@@ -1,12 +1,12 @@
 export const workspace = {
     menu: {
-        open: '📂 .bgproj öffnen',
-        export: '💾 .bgproj exportieren',
-        clear: '❌ Arbeitsbereich leeren',
+        open: '.bgproj öffnen',
+        export: '.bgproj exportieren',
+        clear: 'Arbeitsbereich leeren',
     },
     session: {
-        cloudMode: '☁️ Cloud-Modus',
-        localMode: '💻 Lokaler Modus',
+        cloudMode: '️ Cloud-Modus',
+        localMode: 'Lokaler Modus',
         lockSession: 'Sitzung sperren',
         lock: 'Sperren',
         connectToCloud: 'Mit Cloud verbinden',
@@ -18,8 +18,7 @@ export const workspace = {
         exportFailed: 'Export fehlgeschlagen: {message}',
         clearFailed: 'Arbeitsbereich konnte nicht geleert werden: {message}',
         cleared: 'Arbeitsbereich erfolgreich geleert.',
-        confirmClear:
-            'Möchten Sie dieses Projekt wirklich schließen und alle lokalen Arbeitsbereichsdaten löschen? Nicht gespeicherte Änderungen gehen verloren.',
+        confirmClear: 'Möchten Sie dieses Projekt wirklich schließen und alle lokalen Arbeitsbereichsdaten löschen? Nicht gespeicherte Änderungen gehen verloren.',
         summaryLoaded: '{examCount} Prüfung(en) und {studentCount} Schüler geladen.',
         summarySuccess: 'Import erfolgreich! {loaded}',
         summaryProblems: 'Import mit {errorCount} Problem(en) abgeschlossen. {loaded}',

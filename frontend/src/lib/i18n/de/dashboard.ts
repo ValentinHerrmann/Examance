@@ -1,25 +1,19 @@
 export const dashboard = {
-    loadFailed:
-        'Ihre Prüfungen konnten nicht vom Server geladen werden. Es wird angezeigt, was lokal vorliegt — das ist möglicherweise nicht alles. Melden Sie sich erneut an oder versuchen Sie es später noch einmal.',
+    loadFailed: 'Ihre Prüfungen konnten nicht vom Server geladen werden. Es wird angezeigt, was lokal vorliegt — das ist möglicherweise nicht alles. Melden Sie sich erneut an oder versuchen Sie es später noch einmal.',
     header: {
         title: 'Prüfungsübersicht',
         subtitle: 'Verwalten, bewerten und analysieren Sie Ihre Schulaufgaben',
         importing: 'Importiert…',
-        importButton: '📂 .bgproj importieren',
-        createButton: '➕ Neue Prüfung erstellen',
+        importButton: '.bgproj importieren',
+        createButton: 'Neue Prüfung erstellen',
+        showFilters: 'Filter anzeigen',
+        filtersTitle: 'Filter',
     },
     sessionState: {
         initializing: 'Lokale Sitzung wird initialisiert…',
         lockedTitle: 'Sitzung gesperrt',
         lockedText: 'Bitte entsperren Sie Ihre Sitzung, um auf Projekte zuzugreifen.',
         unlockButton: 'Sitzung entsperren',
-    },
-    kpi: {
-        totalExams: 'Prüfungen gesamt',
-        subjectCount: 'Konfigurierte Fächer',
-        gradeCount: 'Klassenstufen',
-        globalAnalytics: 'Gesamtanalyse',
-        viewStats: 'Statistiken über alle Prüfungen →',
     },
     onboarding: {
         welcome: 'Willkommen bei Examance!',
@@ -30,18 +24,15 @@ export const dashboard = {
         step2Text: 'Fügen Sie Aufgaben aus Ihrer Aufgabenbibliothek hinzu oder erstellen Sie neue.',
         step3Title: 'Scannen & Bewerten',
         step3Text: 'Laden Sie Schüler-PDFs hoch, bewerten Sie anonym und prüfen Sie die Analysen.',
-        createFirst: '+ Erste Prüfung erstellen',
+        createFirst: 'Erste Prüfung erstellen',
         importArchive: 'Oder .bgproj-Archiv importieren',
     },
     filterBar: {
         searchPlaceholder: 'Prüfungen nach Titel, Klasse, Fach suchen…',
-        gradeLabel: 'Klassenstufe:',
-        allGrades: 'Alle Klassenstufen',
-        gradeOption: 'Klassenstufe {grade}',
-        subjectLabel: 'Fach:',
-        allSubjects: 'Alle Fächer',
+        allTestarts: 'Alle Prüfungstypen ({count})',
     },
-    examGrid: {
+    examList: {
+        loading: 'Prüfungen werden geladen…',
         noResults: 'Keine Prüfungen entsprechen Ihrer Suche oder Filterung.',
         untitledExam: 'Unbenannte Prüfung',
         classLabel: 'Klasse {course}',
@@ -49,6 +40,12 @@ export const dashboard = {
         dateLabel: 'Datum: {date}',
         retentionUntil: 'Aufbewahrung bis: {date}',
         openExam: 'Prüfung öffnen',
+        gradedCount: '{count} bewertet',
+        versionsCount: '{count} Versionen',
+        exercisesTitle: 'Verwendete Aufgaben',
+        noExercises: 'Keine Aufgaben zugeordnet.',
+        loadingExercises: 'Aufgaben werden geladen…',
+        untitledExercise: 'Unbenannte Aufgabe',
     },
     retentionModal: {
         title: 'DSGVO-Aufbewahrungswarnung (Art. 5)',
@@ -64,11 +61,16 @@ export const dashboard = {
     importStatus: 'Status: {stage} ({current}%)',
     importFailed: 'Import fehlgeschlagen: {message}',
     deleteFailed: 'Löschen fehlgeschlagen: {message}',
-    deleteExamConfirm: 'Möchten Sie die Prüfung "{title}" wirklich löschen?',
-    deleteExamFallbackTitle: 'Unbenannt',
+    deleteModal: {
+        title: 'Prüfung löschen: {title}',
+        warningTitle: 'Warnung: Prüfung enthält Abgaben',
+        usageInfo: 'Zu dieser Prüfung gehören {count} Abgabe(n).',
+        usageWarning: 'Beim Löschen werden die Prüfungsdaten und alle zugehörigen Abgaben dauerhaft entfernt.',
+        confirmPlain: 'Möchten Sie diese Prüfung wirklich löschen?',
+    },
     error: {
         title: '{status} – Fehler',
         notFound: 'Seite nicht gefunden',
-        returnButton: 'Zurück zur Übersicht',
+        returnButton: 'Zurück zu den Prüfungen',
     },
 } as const;

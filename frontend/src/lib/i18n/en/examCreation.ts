@@ -45,9 +45,9 @@ export const examCreation: Translations['examCreation'] = {
     },
     exerciseSelector: {
         heading: '2. Select Exercises',
-        tabLibrary: '📚 From Library ({count} Selected)',
-        tabMc: '☑️ MC Groups',
-        tabCustom: '✏️ Create Custom Exercise',
+        tabLibrary: 'From Library ({count} Selected)',
+        tabMc: '️ MC Groups',
+        tabCustom: '️ Create Custom Exercise',
     },
     customExerciseForm: {
         nameLabel: 'Exercise Name',
@@ -61,7 +61,7 @@ export const examCreation: Translations['examCreation'] = {
     },
     selectedList: {
         heading: '3. Exam Structure ({count} Items | Total: {points} Pts)',
-        previewButton: '🔍 Live Preview PDF',
+        previewButton: 'Live Preview PDF',
         previewButtonCompiling: 'Compiling Preview...',
         emptyHint: 'No exercises selected yet. Pick exercises from the library above.',
         quickEditTitle: 'Quick Edit Exercise Globally',

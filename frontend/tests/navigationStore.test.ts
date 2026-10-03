@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { isPublicPath, isUnlockPath, isGradeActivePath } from '../src/lib/stores/navigationStore';
 

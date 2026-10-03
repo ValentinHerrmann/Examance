@@ -1,5 +1,6 @@
 <script lang="ts">
-  import "./ExerciseFirstGrid.css";
+  import { faUsers } from "@fortawesome/free-solid-svg-icons";
+  import { Badge, Button, EmptyState, TableScroller, controlClass, controlSmClass } from "$lib/components/ui";
   import { get } from "svelte/store";
   import { sessionStore } from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
@@ -174,41 +175,41 @@
     : 0;
 </script>
 
-<div class="exercise-first-grid">
+<div class="flex min-w-0 flex-col gap-4">
   {#if exercises.length === 0}
-    <div class="exercise-grid-empty">
-      <p>{$t("grading.manual.exerciseFirst.noExercises")}</p>
-      <a href="/exam/{examId}" style="color: #38bdf8; text-decoration: underline;">{$t("grading.manual.exerciseFirst.goToSetup")}</a>
-    </div>
+    <EmptyState title={$t("grading.manual.exerciseFirst.noExercises")}>
+      <Button href="/exam/{examId}" variant="text">{$t("grading.manual.exerciseFirst.goToSetup")}</Button>
+    </EmptyState>
   {:else if students.length === 0}
-    <div class="exercise-grid-empty">
-      <p>{$t("grading.manual.exerciseFirst.noStudents")}</p>
-      <button on:click={onOpenRoster}>{$t("grading.manual.exerciseFirst.openRoster")}</button>
-    </div>
+    <EmptyState title={$t("grading.manual.exerciseFirst.noStudents")}>
+      <Button icon={faUsers} onClick={onOpenRoster}>{$t("grading.manual.exerciseFirst.openRoster")}</Button>
+    </EmptyState>
   {:else}
-    <div class="exercise-first-header">
-      <div class="exercise-picker">
+    <div class="flex flex-wrap items-center justify-between gap-4 rounded-md border border-line bg-surface-sunken p-3">
+      <div class="flex min-w-0 flex-wrap gap-2">
         {#each exercises as ex, idx}
-          <button
-            class="exercise-chip"
-            class:active={ex.id === activeExerciseId}
-            on:click={() => (activeExerciseId = ex.id)}
+          <Button
+            size="sm"
+            variant="outlined"
+            severity="secondary"
+            pressed={ex.id === activeExerciseId}
+            onClick={() => (activeExerciseId = ex.id)}
           >
             {ex.name || $t("grading.manual.exerciseFirst.exerciseFallback", { index: idx + 1 })} {$t("grading.manual.exerciseFirst.pointsSuffix", { points: ex.maxPoints })}
-          </button>
+          </Button>
         {/each}
       </div>
 
       {#if activeExercise}
-        <div class="exercise-info">
-          <h3>{activeExercise.name}</h3>
-          <span class="exercise-max-tag">{$t("grading.manual.exerciseFirst.maxPointsLabel")} <strong>{activeExercise.maxPoints}</strong></span>
+        <div class="flex min-w-0 items-center gap-3">
+          <h3 class="m-0 min-w-0 text-lg font-semibold text-content">{activeExercise.name}</h3>
+          <Badge>{$t("grading.manual.exerciseFirst.maxPointsLabel")} <strong class="ml-1">{activeExercise.maxPoints}</strong></Badge>
         </div>
       {/if}
     </div>
 
-    <div class="exercise-grid-table-container">
-      <table class="exercise-grid-table">
+    <TableScroller>
+      <table class="data-table data-table-compact data-table-sticky data-table-hover">
         <thead>
           <tr>
             <th>{$t("grading.manual.exerciseFirst.colNum")}</th>
@@ -228,40 +229,40 @@
               <td>{i + 1}</td>
               <td><strong>{st.studentName || $t("grading.manual.exerciseFirst.unnamed")}</strong></td>
               <td>{st.studentNumber || "-"}</td>
-              <td>
+              <td class="whitespace-nowrap">
                 <input
                   type="text"
                   bind:this={inputElements[i]}
                   bind:value={rawInputs[i]}
-                  class="exercise-score-input"
-                  class:invalid={isInvalid}
+                  class="{controlClass} {controlSmClass} w-24 text-right font-semibold"
+                  aria-invalid={isInvalid ? "true" : undefined}
                   placeholder="-"
                   on:keydown={(e) => handleKeyDown(e, i)}
                   on:blur={() => handleScoreChange(st, i)}
                   on:change={() => handleScoreChange(st, i)}
                 />
-                <span style="font-size: 0.8rem; color: #94a3b8; margin-left: 0.35rem;">
+                <span class="ml-1.5 text-sm text-muted">
                   / {activeExercise?.maxPoints}
                 </span>
               </td>
               <td>
                 {#if sub?.totalScore !== undefined}
-                  <span style="color: #34d399; font-size: 0.825rem; font-weight: 500;">
+                  <span class="text-sm font-medium text-success-fg">
                     {$t("grading.manual.exerciseFirst.totalScore", { score: sub.totalScore })}
                   </span>
                 {:else if activeScores.length > 0}
-                  <span style="color: #cbd5e1; font-size: 0.825rem;">{$t("grading.manual.exerciseFirst.inProgress")}</span>
+                  <span class="text-sm text-content">{$t("grading.manual.exerciseFirst.inProgress")}</span>
                 {:else}
-                  <span style="color: #64748b; font-size: 0.825rem;">{$t("grading.manual.exerciseFirst.ungraded")}</span>
+                  <span class="text-sm text-muted">{$t("grading.manual.exerciseFirst.ungraded")}</span>
                 {/if}
               </td>
             </tr>
           {/each}
         </tbody>
       </table>
-    </div>
+    </TableScroller>
 
-    <div class="exercise-grid-footer">
+    <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-surface-sunken px-4 py-3 text-sm text-muted">
       <div>
         {$t("grading.manual.exerciseFirst.graded", { graded: gradedCount, total: students.length })}
       </div>

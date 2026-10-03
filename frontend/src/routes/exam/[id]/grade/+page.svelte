@@ -1,6 +1,5 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import "./+page.css";
   import { page } from "$app/stores";
   export let params;
   import { onMount, onDestroy } from "svelte";
@@ -29,6 +28,7 @@
   import { isMcQuestion } from "$lib/grading/mcScore";
   import GradingWorkspace from "$lib/components/grading/GradingWorkspace.svelte";
   import { t, translate } from "$lib/i18n";
+  import { EmptyState } from "$lib/components/ui";
 
   const examId = $page.params.id || "";
 
@@ -280,9 +280,9 @@
   }
 </script>
 
-<div class="grading-page">
+<div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-base text-content">
   {#if submissions.length === 0}
-    <div class="exam-grade-empty">{$t("grading.page.empty")}</div>
+    <EmptyState level="h1" title={$t("grading.page.empty")} class="py-16" />
   {:else}
     <GradingWorkspace
       {examId}

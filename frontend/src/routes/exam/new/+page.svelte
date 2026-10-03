@@ -1,5 +1,5 @@
 <script lang="ts">
-  import "./+page.css";
+  import { type ExerciseGroup, groupExercises } from "$lib/exercise-library/groupExercises";
   import { onMount, onDestroy } from "svelte";
   import { db } from "$lib/db/db";
   import { sessionStore, isAuthenticated, awaitSessionReady } from "$lib/stores/session";
@@ -31,7 +31,7 @@
   import ExamLivePreviewPanel from "$lib/components/exam-creation/ExamLivePreviewPanel.svelte";
   import { formatExamCourse } from "$lib/utils/examLabel";
   import { t, translate } from "$lib/i18n";
-  import { PageShell, PageHeader } from "$lib/components/ui";
+  import { PageShell, PageHeader, Alert, Button } from "$lib/components/ui";
 
   // This is exam CONTENT written into the `datum` field and printed verbatim in the
   // German exam PDF (see \Datum in the LaTeX preamble below) — not UI copy, so it is
@@ -127,24 +127,7 @@
   }
 
   // Exercise grouping & preview modal state
-  interface VariantMember {
-    ex: ExerciseRecord;
-    variantLabel: string;
-    version: number;
-    isCurrent: boolean;
-  }
 
-  interface ExerciseGroup {
-    groupId: string;
-    name: string;
-    topicTag: string;
-    grade?: string;
-    subject?: string;
-    maxPoints: number;
-    minPoints: number;
-    variants: Map<string, VariantMember[]>;
-    allMembers: VariantMember[];
-  }
 
   let activeVariantPerGroup: Record<string, string> = {};
 
@@ -261,75 +244,6 @@ Frage hier eingeben... \\BE
     restoreCachedPreviews();
   });
 
-  function groupExercises(exs: ExerciseRecord[]): ExerciseGroup[] {
-    const buckets = new Map<string, ExerciseRecord[]>();
-
-    for (const ex of exs) {
-      const key = ex.exerciseGroupId || `name:${ex.name || "Untitled"}`;
-      if (!buckets.has(key)) buckets.set(key, []);
-      buckets.get(key)!.push(ex);
-    }
-
-    const groups: ExerciseGroup[] = [];
-
-    for (const [groupId, members] of buckets) {
-      const currentMembers = members.filter((m) => m.isCurrent !== false);
-      if (currentMembers.length === 0) continue;
-
-      const name = currentMembers[0]?.name || "Untitled";
-      const topicTag = currentMembers[0]?.topicTag || "_General";
-      const grade = currentMembers[0]?.grade;
-      const subject = currentMembers[0]?.subject;
-
-      const variants = new Map<string, VariantMember[]>();
-      for (const ex of currentMembers) {
-        const vKey = ex.variantKey || "_General";
-        if (!variants.has(vKey)) variants.set(vKey, []);
-        variants.get(vKey)!.push({
-          ex,
-          variantLabel: vKey,
-          version: ex.version || 1,
-          isCurrent: ex.isCurrent !== false,
-        });
-      }
-
-      const sortedVariants = new Map<string, VariantMember[]>();
-      const keys = [...variants.keys()].sort((a, b) => {
-        if (a === "_General") return -1;
-        if (b === "_General") return 1;
-        return a.localeCompare(b);
-      });
-      for (const k of keys) sortedVariants.set(k, variants.get(k)!);
-
-      for (const [, vMembers] of sortedVariants) {
-        vMembers.sort((a, b) => b.version - a.version);
-      }
-
-      const allMembers: VariantMember[] = [];
-      for (const [, vMembers] of sortedVariants) {
-        allMembers.push(...vMembers);
-      }
-
-      const scores = allMembers.map((m) => parseExerciseScore(m.ex.latexBody || "") || m.ex.maxPoints || 0);
-      const maxPoints = scores.length > 0 ? Math.max(...scores) : 0;
-      const minPoints = scores.length > 0 ? Math.min(...scores) : 0;
-
-      groups.push({
-        groupId,
-        name,
-        topicTag,
-        grade,
-        subject,
-        maxPoints,
-        minPoints,
-        variants: sortedVariants,
-        allMembers,
-      });
-    }
-
-    groups.sort((a, b) => a.name.localeCompare(b.name));
-    return groups;
-  }
 
   async function loadLibrary() {
     await awaitSessionReady();
@@ -727,92 +641,101 @@ ${exerciseInputs}
   }
 </script>
 
-<PageShell>
+<PageShell width="fluid">
   <PageHeader title={$t("examCreation.page.heading")} helpTopic="examCreation" />
 
   {#if errorMsg}
-    <div class="exam-new-error-banner overflow-x-auto">{errorMsg}</div>
+    <Alert severity="danger" class="mb-6">
+      <div class="max-h-72 overflow-auto font-mono break-all whitespace-pre-wrap">{errorMsg}</div>
+    </Alert>
   {/if}
 
-  <form on:submit|preventDefault={handleCreateExam}>
-    <ExamMetadataForm
-      bind:title
-      bind:testart
-      bind:grade
-      bind:klasse
-      bind:nr
-      bind:datum
-      bind:fach
-      bind:lehrernachname
-      bind:infoText
-    />
+  <form on:submit|preventDefault={handleCreateExam} class="@container">
+    <div class="grid min-w-0 grid-cols-1 gap-x-6 @6xl:grid-cols-2 @6xl:items-start">
+      <div class="min-w-0">
+        <ExamMetadataForm
+          bind:title
+          bind:testart
+          bind:grade
+          bind:klasse
+          bind:nr
+          bind:datum
+          bind:fach
+          bind:lehrernachname
+          bind:infoText
+        />
 
-    <!-- Grading Key Section -->
-    <div class="mb-6">
-      <GradingKeyEditor bind:gradingKey />
+        <!-- Grading Key Section -->
+        <div class="mb-6">
+          <GradingKeyEditor bind:gradingKey />
+        </div>
+
+        <ExerciseSelector
+          bind:activeTab
+          {selectedLibraryIds}
+          {mcStagingIds}
+          {mcGroupMembership}
+          {editingMcGroup}
+          {libraryExercises}
+          {filteredGroups}
+          {totalVariantsCount}
+          {availableGrades}
+          {availableSubjects}
+          {availableTopics}
+          bind:searchQuery
+          bind:selectedGradeFilter
+          bind:selectedSubjectFilter
+          bind:selectedTopicFilter
+          {activeVariantPerGroup}
+          bind:customName
+          bind:customTopicTag
+          bind:customLatexBody
+          bind:saveCustomToLibrary
+          onToggleSelection={toggleLibrarySelection}
+          onToggleMcStaging={toggleMcStaging}
+          onReorderMcStaging={reorderMcStaging}
+          onFinalizeMcGroup={finalizeMcGroup}
+          onSetGroupVariant={setGroupVariant}
+          onQuickEdit={openQuickEdit}
+          onAddCustomExercise={handleAddCustomExercise}
+        />
+      </div>
+
+      <div class="min-w-0">
+        <SelectedExercisesList
+          {selectedExercises}
+          {mcGroups}
+          {examItems}
+          {libraryExercises}
+          {totalPoints}
+          {isPreviewLoading}
+          onLivePreview={handleLivePreview}
+          onQuickEdit={openQuickEdit}
+          onMoveExercise={moveExercise}
+          onMoveExamItem={moveExamItem}
+          onRemove={toggleLibrarySelection}
+          onRemoveMcGroup={removeMcGroup}
+          onEditMcGroup={editMcGroup}
+        />
+
+        <ExamLivePreviewPanel
+          {previewPdfUrl}
+          {previewSolutionPdfUrl}
+          bind:showAngabePreview
+          bind:showLoesungPreview
+        />
+
+        <Button
+          type="submit"
+          size="lg"
+          block
+          loading={isLoading}
+          disabled={isLoading || (selectedExercises.length === 0 && mcGroups.length === 0)}
+        >
+          {isLoading ? $t("examCreation.status.creatingExam") : $t("examCreation.submit.saveAndContinue")}
+        </Button>
+      </div>
     </div>
-
-    <ExerciseSelector
-      bind:activeTab
-      {selectedLibraryIds}
-      {mcStagingIds}
-      {mcGroupMembership}
-      {editingMcGroup}
-      {libraryExercises}
-      {filteredGroups}
-      {totalVariantsCount}
-      {availableGrades}
-      {availableSubjects}
-      {availableTopics}
-      bind:searchQuery
-      bind:selectedGradeFilter
-      bind:selectedSubjectFilter
-      bind:selectedTopicFilter
-      {activeVariantPerGroup}
-      bind:customName
-      bind:customTopicTag
-      bind:customLatexBody
-      bind:saveCustomToLibrary
-      onToggleSelection={toggleLibrarySelection}
-      onToggleMcStaging={toggleMcStaging}
-      onReorderMcStaging={reorderMcStaging}
-      onFinalizeMcGroup={finalizeMcGroup}
-      onSetGroupVariant={setGroupVariant}
-      onQuickEdit={openQuickEdit}
-      onAddCustomExercise={handleAddCustomExercise}
-    />
-
-    <SelectedExercisesList
-      {selectedExercises}
-      {mcGroups}
-      {examItems}
-      {libraryExercises}
-      {totalPoints}
-      {isPreviewLoading}
-      onLivePreview={handleLivePreview}
-      onQuickEdit={openQuickEdit}
-      onMoveExercise={moveExercise}
-      onMoveExamItem={moveExamItem}
-      onRemove={toggleLibrarySelection}
-      onRemoveMcGroup={removeMcGroup}
-      onEditMcGroup={editMcGroup}
-    />
-
-    <ExamLivePreviewPanel
-      {previewPdfUrl}
-      {previewSolutionPdfUrl}
-      bind:showAngabePreview
-      bind:showLoesungPreview
-    />
-
-    <button
-      type="submit"
-      class="exam-new-submit-btn"
-      class:is-loading={isLoading}
-      disabled={isLoading || (selectedExercises.length === 0 && mcGroups.length === 0)}
-    >
-      {isLoading ? $t("examCreation.status.creatingExam") : $t("examCreation.submit.saveAndContinue")}
-    </button>
   </form>
 
   <ExerciseEditorModal

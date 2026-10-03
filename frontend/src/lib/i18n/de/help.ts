@@ -23,26 +23,16 @@ export const help = {
         unlockLink: 'Neu hier? So funktioniert Examance',
     },
     tips: {
-        storageLocal:
-            'Alles bleibt verschlüsselt im Browser dieses Geräts. Kein Byte erreicht einen Server — dafür gibt es auch keine Synchronisierung und kein Backup außer dem .bgproj-Archiv. Ausnahme: die freiwillige, anonymisierte Spende von Ankreuz-Bildausschnitten, sofern in den Einstellungen aktiviert und mit einem Server-Konto angemeldet.',
-        storageServer:
-            'Alle Daten werden synchronisiert, aber ausschließlich als Chiffrat. Der Schlüssel bleibt im Browser, der Server kann die Inhalte nicht lesen.',
-        storageHybrid:
-            'Aufgaben und Klausurvorlagen liegen auf dem Server (gut für ein Fachschafts-Repertoire), Schülerdaten und Korrekturen bleiben ausschließlich lokal.',
-        latexLocal:
-            'Die Klausur wird direkt im Browser gesetzt (WebAssembly-XeLaTeX). Der LaTeX-Quelltext verlässt das Gerät nicht, der erste Lauf dauert dafür länger.',
-        latexServer:
-            'Der Server setzt die Klausur. Schneller auf schwacher Hardware, dafür wird der LaTeX-Quelltext übertragen.',
-        variantKey:
-            'Varianten sind unterschiedliche Fassungen derselben Aufgabe (Gruppe A/B/C). Sie teilen sich Auswertung und Statistik, verhindern aber das Abschreiben.',
-        mcPenalty:
-            'Punktabzug für falsch angekreuzte Optionen. 0 bedeutet: keine Minuspunkte. Die Gesamtpunktzahl einer Aufgabe wird nie negativ.',
-        blindGrading:
-            'Während der Korrektur wird nur das Pseudonym angezeigt, nie der Name. Erst nach dem Korrekturgang werden Ergebnis und Person wieder verknüpft.',
-        pseudonymQr:
-            'Jeder Bogen trägt einen QR-Code für Klausur, Variante und Schülerplatz. Beim Scannen wird der Stapel daran automatisch getrennt und zugeordnet.',
-        gradingKey:
-            'Der Notenschlüssel bestimmt, ab welcher Punktzahl welche Note gilt — linear, Oberstufen-gewichtet oder mit eigenen Grenzen.',
+        storageLocal: 'Alles bleibt verschlüsselt im Browser dieses Geräts. Kein Byte erreicht einen Server — dafür gibt es auch keine Synchronisierung und kein Backup außer dem .bgproj-Archiv. Ausnahme: die freiwillige, anonymisierte Spende von Ankreuz-Bildausschnitten, sofern in den Einstellungen aktiviert und mit einem Server-Konto angemeldet.',
+        storageServer: 'Alle Daten werden synchronisiert, aber ausschließlich als Chiffrat. Der Schlüssel bleibt im Browser, der Server kann die Inhalte nicht lesen.',
+        storageHybrid: 'Aufgaben und Klausurvorlagen liegen auf dem Server (gut für ein Fachschafts-Repertoire), Schülerdaten und Korrekturen bleiben ausschließlich lokal.',
+        latexLocal: 'Die Klausur wird direkt im Browser gesetzt (WebAssembly-XeLaTeX). Der LaTeX-Quelltext verlässt das Gerät nicht, der erste Lauf dauert dafür länger.',
+        latexServer: 'Der Server setzt die Klausur. Schneller auf schwacher Hardware, dafür wird der LaTeX-Quelltext übertragen.',
+        variantKey: 'Varianten sind unterschiedliche Fassungen derselben Aufgabe (Gruppe A/B/C). Sie teilen sich Auswertung und Statistik, verhindern aber das Abschreiben.',
+        mcPenalty: 'Punktabzug für falsch angekreuzte Optionen. 0 bedeutet: keine Minuspunkte. Die Gesamtpunktzahl einer Aufgabe wird nie negativ.',
+        blindGrading: 'Während der Korrektur wird nur das Pseudonym angezeigt, nie der Name. Erst nach dem Korrekturgang werden Ergebnis und Person wieder verknüpft.',
+        pseudonymQr: 'Jeder Bogen trägt einen QR-Code für Klausur, Variante und Schülerplatz. Beim Scannen wird der Stapel daran automatisch getrennt und zugeordnet.',
+        gradingKey: 'Der Notenschlüssel bestimmt, ab welcher Punktzahl welche Note gilt — linear, Oberstufen-gewichtet oder mit eigenen Grenzen.',
     },
     topics: {
         gettingStarted: {
@@ -95,6 +85,7 @@ export const help = {
                 h: 'Sammeln statt kopieren',
                 p1: 'Aufgaben liegen in einer gemeinsamen Bibliothek und werden nach Jahrgang, Fach und Thema verschlagwortet. Jede Aufgabe ist ein LaTeX-Fragment mit Live-Vorschau; die Punktzahl wird automatisch aus dem Quelltext gelesen.',
                 p2: 'Über die Filter oben lassen sich Aufgaben nach Jahrgang, Fach und Thema eingrenzen und für eine neue Klausur wiederverwenden.',
+                p3: 'Im aufgeklappten Eintrag sehen Sie je Variante, in welchen Klausuren die Aufgabe verwendet wird (Klick öffnet die Klausur). „Vorschau“ zeigt das zuletzt kompilierte PDF; gibt es noch keines, fragt Examance, ob es jetzt kompiliert werden soll.',
             },
             s2: {
                 h: 'Varianten und Versionen',
@@ -131,6 +122,7 @@ export const help = {
                 h: 'Setzen und drucken',
                 p1: 'Beim Setzen entsteht ein druckfertiges PDF mit QR-Code — je Klausur, Variante und Schülerplatz ein eigener Code. Im lokalen Modus läuft der Satz vollständig im Browser.',
                 p2: 'Drucken Sie die Bögen so aus, wie sie gesetzt wurden. Der QR-Code muss lesbar bleiben, sonst kann der Scan später nicht automatisch zugeordnet werden.',
+                p3: 'In der Prüfungsübersicht öffnet „Vorschau“ im aufgeklappten Eintrag das zuletzt kompilierte PDF. Gibt es noch keines, werden Sie gefragt und die Prüfung wird direkt im Fenster kompiliert und angezeigt. Die Vorschau bleibt nur bis zum Neuladen der Seite erhalten.',
             },
         },
         scanning: {
@@ -225,7 +217,8 @@ export const help = {
             },
             s3: {
                 h: 'Sprache',
-                p1: 'Die Oberfläche gibt es auf Deutsch und Englisch, umschaltbar hier oder über die Statusleiste. Die gedruckte Klausur bleibt davon unberührt — sie ist immer auf Deutsch.',
+                p1: 'Die Oberfläche gibt es auf Deutsch und Englisch, umschaltbar hier oder über die Navigationsleiste oben. Die gedruckte Klausur bleibt davon unberührt — sie ist immer auf Deutsch.',
+                p2: 'Das Farbschema (Hell, Dunkel oder passend zum System) lässt sich in der Navigationsleiste und hier in den Einstellungen wählen. Es betrifft nur die Oberfläche, nicht die gedruckte Klausur.',
             },
             s4: {
                 h: 'Sitzung und Löschung',

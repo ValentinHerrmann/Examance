@@ -1,7 +1,7 @@
 <script lang="ts">
-  import "./ExamLivePreviewPanel.css";
   import DualPdfPreview from "$lib/components/DualPdfPreview.svelte";
   import { t } from "$lib/i18n";
+  import { Card } from "$lib/components/ui";
 
   export let previewPdfUrl: string | null;
   export let previewSolutionPdfUrl: string | null;
@@ -10,8 +10,7 @@
 </script>
 
 {#if previewPdfUrl || previewSolutionPdfUrl}
-  <div class="exam-live-preview-container">
-    <h4>{$t("examCreation.livePreviewPanel.heading")}</h4>
+  <Card title={$t("examCreation.livePreviewPanel.heading")} class="mb-6">
     <DualPdfPreview
       {previewPdfUrl}
       {previewSolutionPdfUrl}
@@ -22,5 +21,5 @@
       height="600px"
       placeholderText={$t("examCreation.livePreviewPanel.placeholderText")}
     />
-  </div>
+  </Card>
 {/if}

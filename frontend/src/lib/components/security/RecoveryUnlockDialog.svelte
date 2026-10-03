@@ -79,7 +79,7 @@
 
 <Modal
   open={true}
-  size="md"
+  size="medium"
   title={$t("security.unlock.title")}
   closeOnBackdrop={false}
   closeOnEscape={false}
@@ -102,7 +102,7 @@
       <div class="border-t border-line pt-4">
         <p class="m-0 mb-2 text-sm text-muted">{$t("security.unlock.passkeyIntro")}</p>
         <Button
-          variant="secondary"
+          severity="secondary"
           disabled={isWorking}
           onClick={() => run(onPasskey, $t("security.unlock.passkeyFailed"))}
         >
@@ -118,20 +118,16 @@
             {$t("security.unlock.startFreshWarning")}
           </p>
           <Button
-            variant="danger"
+            severity="danger"
             disabled={isWorking}
             onClick={() => run(onStartFresh, $t("security.unlock.startFreshFailed"))}
           >
             {$t("security.unlock.startFreshConfirm")}
           </Button>
         {:else}
-          <button
-            type="button"
-            class="cursor-pointer border-none bg-transparent p-0 text-sm text-accent underline"
-            on:click={() => (showFreshConfirm = true)}
-          >
+          <Button variant="text" size="sm" onClick={() => (showFreshConfirm = true)}>
             {$t("security.unlock.skip")}
-          </button>
+          </Button>
         {/if}
       </div>
     {/if}

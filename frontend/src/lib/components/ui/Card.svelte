@@ -1,12 +1,13 @@
 <script lang="ts">
-  /** The standard raised panel. Replaces `background:#1e293b` in 36 files. */
+  /** The standard raised card: no border, soft shadow. Optional title row. */
   export let padded = true;
   export let tone: "default" | "danger" | "warning" = "default";
+  export let title: string | undefined = undefined;
 
   const tones: Record<string, string> = {
-    default: "border-line",
-    danger: "border-red-500",
-    warning: "border-amber-500",
+    default: "",
+    danger: "border border-danger/40",
+    warning: "border border-warning/40",
   };
 
   let className = "";
@@ -14,9 +15,15 @@
 </script>
 
 <section
-  class="min-w-0 rounded-xl border bg-surface-raised {tones[tone]} {padded
-    ? 'p-4 lg:p-6'
-    : ''} {className}"
+  class="min-w-0 rounded-xl bg-surface-raised shadow-sm {tones[tone]} {padded ? 'p-5' : ''} {className}"
 >
+  {#if title || $$slots.actions}
+    <header class="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      {#if title}<h2 class="m-0 min-w-0 text-xl font-medium text-content">{title}</h2>{/if}
+      {#if $$slots.actions}
+        <div class="flex flex-wrap items-center gap-2"><slot name="actions" /></div>
+      {/if}
+    </header>
+  {/if}
   <slot />
 </section>

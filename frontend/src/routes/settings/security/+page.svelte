@@ -12,7 +12,9 @@
   import { goto } from "$app/navigation";
   import { t } from "$lib/i18n";
   import { isAuthenticated, isUnlocked, sessionStore } from "$lib/stores/session";
-  import { Button, PageHeader, PageShell } from "$lib/components/ui";
+  import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
+  import { Alert, Button, PageHeader, PageShell } from "$lib/components/ui";
+  import SectionNav from "$lib/components/settings/SectionNav.svelte";
   import { fetchMfaStatus, type MfaStatus } from "$lib/api/mfa";
   import { listPasskeys, type PasskeySummary } from "$lib/api/webauthn";
   import {
@@ -47,14 +49,24 @@
     }
   }
 
+  $: navItems = [
+    { id: "summary", label: $t("security.panel.enrolled") },
+    { id: "password", label: $t("security.panel.factorPassword") },
+    { id: "totp", label: $t("security.panel.factorTotp") },
+    { id: "passkeys", label: $t("security.passkey.title") },
+    { id: "recovery", label: $t("security.recovery.title") },
+  ];
+
   onMount(load);
 </script>
 
 {#if $isUnlocked}
-  <PageShell>
-    <PageHeader title={$t("security.page.title")} helpTopic="security" />
-
-    <p class="mt-0 mb-6 text-sm text-muted">{$t("security.page.subtitle")}</p>
+  <PageShell width="wide">
+    <PageHeader
+      title={$t("security.page.title")}
+      subtitle={$t("security.page.subtitle")}
+      helpTopic="security"
+    />
 
     {#if !$isAuthenticated}
       <!-- A local vault has no sign-in factors: there is no account to protect. -->
@@ -62,19 +74,35 @@
     {:else if isLoading}
       <p class="text-sm text-muted">{$t("security.page.loading")}</p>
     {:else if errorMsg}
-      <p class="text-sm text-red-400" role="alert">{errorMsg}</p>
+      <Alert severity="danger">{errorMsg}</Alert>
     {:else if status && $sessionStore.teacherId}
-      <div class="mb-8 flex flex-col gap-6">
-        <FactorSummary {status} />
-        <PasswordFactorCard {status} teacherId={$sessionStore.teacherId} onChanged={load} />
-        <TotpFactorCard {status} onChanged={load} />
-        <PasskeyManager teacherId={$sessionStore.teacherId} {passkeys} onChanged={load} />
-        <RecoveryFactorCard {status} teacherId={$sessionStore.teacherId} onChanged={load} />
+      <div class="lg:flex lg:items-start lg:gap-8">
+        <SectionNav items={navItems} ariaLabel={$t("security.page.title")} />
+
+        <div class="flex min-w-0 max-w-3xl flex-1 flex-col gap-4">
+          <div id="summary" class="scroll-mt-16 lg:scroll-mt-4">
+            <FactorSummary {status} />
+          </div>
+          <div id="password" class="scroll-mt-16 lg:scroll-mt-4">
+            <PasswordFactorCard {status} teacherId={$sessionStore.teacherId} onChanged={load} />
+          </div>
+          <div id="totp" class="scroll-mt-16 lg:scroll-mt-4">
+            <TotpFactorCard {status} onChanged={load} />
+          </div>
+          <div id="passkeys" class="scroll-mt-16 lg:scroll-mt-4">
+            <PasskeyManager teacherId={$sessionStore.teacherId} {passkeys} onChanged={load} />
+          </div>
+          <div id="recovery" class="scroll-mt-16 lg:scroll-mt-4">
+            <RecoveryFactorCard {status} teacherId={$sessionStore.teacherId} onChanged={load} />
+          </div>
+        </div>
       </div>
     {/if}
 
-    <Button variant="secondary" onClick={() => goto("/settings")}>
-      {$t("security.page.backToSettings")}
-    </Button>
+    <div class="mt-6">
+      <Button variant="outlined" severity="secondary" icon={faArrowLeft} onClick={() => goto("/settings")}>
+        {$t("security.page.backToSettings")}
+      </Button>
+    </div>
   </PageShell>
 {/if}

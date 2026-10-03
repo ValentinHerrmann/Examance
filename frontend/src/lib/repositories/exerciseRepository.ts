@@ -182,7 +182,9 @@ export const exerciseRepository = {
       } catch (err: any) {
         enqueueRequest(`/exercises/${id}`, 'DELETE');
       }
-      // The server cascades its own rows; drop the local mirror either way.
+      // The server cascades its own rows; drop the local mirror either way, or
+      // an IndexedDB fallback would bring the exercise back.
+      await db.exercises.delete(id);
       await db.exerciseResources.where('exerciseId').equals(id).delete();
     }
   },

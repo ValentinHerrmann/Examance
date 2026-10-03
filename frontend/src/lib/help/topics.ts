@@ -1,3 +1,18 @@
+import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
+import {
+  faBook,
+  faCamera,
+  faChartColumn,
+  faChartLine,
+  faDatabase,
+  faFilePen,
+  faGear,
+  faKey,
+  faLock,
+  faPenToSquare,
+  faRocket,
+  faUsers,
+} from "@fortawesome/free-solid-svg-icons";
 import type { TranslationKey } from "$lib/i18n";
 
 /**
@@ -35,7 +50,7 @@ export interface HelpSection {
 
 export interface HelpTopic {
   id: HelpTopicId;
-  icon: string;
+  icon: IconDefinition;
   titleKey: TranslationKey;
   summaryKey: TranslationKey;
   sections: HelpSection[];
@@ -44,7 +59,7 @@ export interface HelpTopic {
 export const HELP_TOPICS: HelpTopic[] = [
   {
     id: "gettingStarted",
-    icon: "🚀",
+    icon: faRocket,
     titleKey: "help.topics.gettingStarted.title",
     summaryKey: "help.topics.gettingStarted.summary",
     sections: [
@@ -71,7 +86,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   },
   {
     id: "storageModes",
-    icon: "🗄️",
+    icon: faDatabase,
     titleKey: "help.topics.storageModes.title",
     summaryKey: "help.topics.storageModes.summary",
     sections: [
@@ -101,13 +116,13 @@ export const HELP_TOPICS: HelpTopic[] = [
   },
   {
     id: "exercises",
-    icon: "📚",
+    icon: faBook,
     titleKey: "help.topics.exercises.title",
     summaryKey: "help.topics.exercises.summary",
     sections: [
       {
         headingKey: "help.topics.exercises.s1.h",
-        bodyKeys: ["help.topics.exercises.s1.p1", "help.topics.exercises.s1.p2"],
+        bodyKeys: ["help.topics.exercises.s1.p1", "help.topics.exercises.s1.p2", "help.topics.exercises.s1.p3"],
       },
       {
         headingKey: "help.topics.exercises.s2.h",
@@ -125,7 +140,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   },
   {
     id: "examCreation",
-    icon: "📝",
+    icon: faFilePen,
     titleKey: "help.topics.examCreation.title",
     summaryKey: "help.topics.examCreation.summary",
     sections: [
@@ -143,13 +158,13 @@ export const HELP_TOPICS: HelpTopic[] = [
       },
       {
         headingKey: "help.topics.examCreation.s4.h",
-        bodyKeys: ["help.topics.examCreation.s4.p1", "help.topics.examCreation.s4.p2"],
+        bodyKeys: ["help.topics.examCreation.s4.p1", "help.topics.examCreation.s4.p2", "help.topics.examCreation.s4.p3"],
       },
     ],
   },
   {
     id: "scanning",
-    icon: "📷",
+    icon: faCamera,
     titleKey: "help.topics.scanning.title",
     summaryKey: "help.topics.scanning.summary",
     sections: [
@@ -178,7 +193,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   },
   {
     id: "grading",
-    icon: "✍️",
+    icon: faPenToSquare,
     titleKey: "help.topics.grading.title",
     summaryKey: "help.topics.grading.summary",
     sections: [
@@ -202,7 +217,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   },
   {
     id: "stats",
-    icon: "📊",
+    icon: faChartColumn,
     titleKey: "help.topics.stats.title",
     summaryKey: "help.topics.stats.summary",
     sections: [
@@ -216,7 +231,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   },
   {
     id: "analytics",
-    icon: "📈",
+    icon: faChartLine,
     titleKey: "help.topics.analytics.title",
     summaryKey: "help.topics.analytics.summary",
     sections: [
@@ -227,7 +242,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   },
   {
     id: "settings",
-    icon: "⚙️",
+    icon: faGear,
     titleKey: "help.topics.settings.title",
     summaryKey: "help.topics.settings.summary",
     sections: [
@@ -253,7 +268,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   },
   {
     id: "security",
-    icon: "🔐",
+    icon: faKey,
     titleKey: "help.topics.security.title",
     summaryKey: "help.topics.security.summary",
     sections: [
@@ -271,7 +286,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   },
   {
     id: "accounts",
-    icon: "👥",
+    icon: faUsers,
     titleKey: "help.topics.accounts.title",
     summaryKey: "help.topics.accounts.summary",
     sections: [
@@ -295,7 +310,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   },
   {
     id: "privacy",
-    icon: "🔒",
+    icon: faLock,
     titleKey: "help.topics.privacy.title",
     summaryKey: "help.topics.privacy.summary",
     sections: [

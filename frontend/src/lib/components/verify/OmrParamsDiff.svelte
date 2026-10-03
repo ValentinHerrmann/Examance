@@ -31,22 +31,22 @@
 </script>
 
 <TableScroller>
-  <table class="w-full min-w-0 border-collapse text-xs">
+  <table class="data-table data-table-compact text-xs">
     <thead>
-      <tr class="text-left text-muted">
-        <th class="py-1 pr-3 font-medium">{$t("scanning.verify.settingsPanel.parameterColumn")}</th>
-        <th class="py-1 pr-3 text-right font-medium">{$t("scanning.verify.settingsPanel.lastRunColumn")}</th>
-        <th class="py-1 text-right font-medium">{$t("scanning.verify.settingsPanel.currentColumn")}</th>
+      <tr class="text-muted">
+        <th>{$t("scanning.verify.settingsPanel.parameterColumn")}</th>
+        <th class="text-right">{$t("scanning.verify.settingsPanel.lastRunColumn")}</th>
+        <th class="text-right">{$t("scanning.verify.settingsPanel.currentColumn")}</th>
       </tr>
     </thead>
     <tbody>
       {#each rows as row (row.key)}
-        <tr class="border-t border-line {row.changed ? 'bg-amber-500/10 text-amber-200' : 'text-content'}">
-          <td class="py-1 pr-3">{$tOptional(`settings.omr.params.${row.key}.label`) ?? row.key}</td>
-          <td class="py-1 pr-3 text-right font-mono tabular-nums">
+        <tr class="{row.changed ? 'bg-warning/10 text-warning-fg' : 'text-content'}">
+          <td>{$tOptional(`settings.omr.params.${row.key}.label`) ?? row.key}</td>
+          <td class="text-right font-mono tabular-nums">
             {format(row.before)}
           </td>
-          <td class="py-1 text-right font-mono tabular-nums {row.changed ? 'font-bold' : ''}">
+          <td class="text-right font-mono tabular-nums {row.changed ? 'font-bold' : ''}">
             {format(row.after)}
           </td>
         </tr>

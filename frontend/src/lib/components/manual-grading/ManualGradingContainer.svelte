@@ -1,5 +1,6 @@
 <script lang="ts">
-  import "./ManualGradingContainer.css";
+  import { faClipboard, faPen, faUser, faUsers } from "@fortawesome/free-solid-svg-icons";
+  import { Button, Card, PageHeader, Tabs } from "$lib/components/ui";
   import { onMount } from "svelte";
   import { get } from "svelte/store";
   import { sessionStore } from "$lib/stores/session";
@@ -79,54 +80,40 @@
     }
   }
 
+  function onTabChange(id: string) {
+    activeTab = id as typeof activeTab;
+  }
+
   async function handleDataChanged() {
     await refreshAllData();
   }
 </script>
 
-<div class="manual-grading-container">
-  <div class="manual-grading-header">
-    <div>
-      <h1>{$t("grading.manual.container.title")}</h1>
-      <p>{$t("grading.manual.container.subtitle")}</p>
-    </div>
-    <div class="manual-grading-header-actions">
-      <button
-        class="manual-grading-import-btn"
-        on:click={() => (showImportModal = true)}
-      >
+<div class="flex min-w-0 flex-col gap-4">
+  <PageHeader
+    title={$t("grading.manual.container.title")}
+    subtitle={$t("grading.manual.container.subtitle")}
+  >
+    <svelte:fragment slot="actions">
+      <Button icon={faClipboard} onClick={() => (showImportModal = true)}>
         {$t("grading.manual.container.importButton")}
-      </button>
-    </div>
-  </div>
+      </Button>
+    </svelte:fragment>
+  </PageHeader>
 
-  <div class="manual-grading-tab-bar">
-    <button
-      class="manual-grading-tab-btn"
-      class:active={activeTab === "exercise-first"}
-      on:click={() => (activeTab = "exercise-first")}
-    >
-      {$t("grading.manual.container.tabExerciseFirst")}
-    </button>
-    <button
-      class="manual-grading-tab-btn"
-      class:active={activeTab === "student-first"}
-      on:click={() => (activeTab = "student-first")}
-    >
-      {$t("grading.manual.container.tabStudentFirst")}
-    </button>
-    <button
-      class="manual-grading-tab-btn"
-      class:active={activeTab === "roster"}
-      on:click={() => (activeTab = "roster")}
-    >
-      {$t("grading.manual.container.tabRoster", { count: students.length })}
-    </button>
-  </div>
+  <Tabs
+    items={[
+      { id: "exercise-first", label: $t("grading.manual.container.tabExerciseFirst"), icon: faPen },
+      { id: "student-first", label: $t("grading.manual.container.tabStudentFirst"), icon: faUser },
+      { id: "roster", label: $t("grading.manual.container.tabRoster", { count: students.length }), icon: faUsers },
+    ]}
+    value={activeTab}
+    onChange={onTabChange}
+  />
 
-  <div class="manual-grading-body">
+  <Card class="min-h-96">
     {#if loading}
-      <div class="manual-grading-loading">{$t("grading.manual.container.loading")}</div>
+      <div class="flex min-h-60 items-center justify-center text-muted">{$t("grading.manual.container.loading")}</div>
     {:else if activeTab === "roster"}
       <RosterManager
         {examId}
@@ -156,7 +143,7 @@
         onOpenRoster={() => (activeTab = "roster")}
       />
     {/if}
-  </div>
+  </Card>
 </div>
 
 {#if showImportModal}

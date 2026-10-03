@@ -58,8 +58,7 @@ export const editor: Translations['editor'] = {
 
     confirmDialog: {
         title: 'Unsaved Changes',
-        message:
-            'You have unsaved changes that will be lost. Are you sure you want to exit without saving?',
+        message: 'You have unsaved changes that will be lost. Are you sure you want to exit without saving?',
         confirmText: 'Discard Changes',
         cancelText: 'Keep Editing',
     },

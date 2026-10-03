@@ -56,6 +56,15 @@ describe('CSP header generation', () => {
   });
 });
 
+describe('src/app.html', () => {
+  it('has exactly one inline script: the theme bootstrap', () => {
+    const html = readFileSync(fileURLToPath(new URL('../src/app.html', import.meta.url)), 'utf-8');
+    const hashes = inlineScriptHashes(html);
+    expect(hashes).toHaveLength(1);
+    expect(html).toContain('bg_theme');
+  });
+});
+
 describe('the deployed origin is self-contained', () => {
   // The CSP is `default-src 'self'` with no CDN allowances, and docs/ tells
   // schools the browser contacts no external host. Two regressions already got

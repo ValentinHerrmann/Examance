@@ -1,7 +1,7 @@
 <script lang="ts">
-  import "./KpiSummaryBar.css";
   import { t } from '$lib/i18n';
   import { fmt } from '$lib/utils/format';
+  import { Alert, Card } from '$lib/components/ui';
   export let examsCount: number;
   export let totalSubmissionsCount: number;
   export let gradedSubmissionsCount: number;
@@ -9,35 +9,35 @@
   export let flaggedCount: number;
 </script>
 
-<div class="ksb-grid">
-  <div class="ksb-card">
-    <span class="ksb-title">{$t('stats.kpi.totalExams')}</span>
-    <span class="ksb-value">{$fmt.number(examsCount)}</span>
-  </div>
+<div class="mb-6 grid grid-cols-[repeat(auto-fit,minmax(13.75rem,1fr))] gap-4">
+  <Card class="flex flex-col gap-1">
+    <span class="text-sm text-muted">{$t('stats.kpi.totalExams')}</span>
+    <span class="text-3xl font-semibold text-content">{$fmt.number(examsCount)}</span>
+  </Card>
 
-  <div class="ksb-card">
-    <span class="ksb-title">{$t('stats.kpi.submissionsProcessed')}</span>
-    <span class="ksb-value">{$fmt.number(totalSubmissionsCount)}</span>
-    <span class="ksb-sub">{$t('stats.kpi.gradedSuffix', { count: $fmt.number(gradedSubmissionsCount) })}</span>
-  </div>
+  <Card class="flex flex-col gap-1">
+    <span class="text-sm text-muted">{$t('stats.kpi.submissionsProcessed')}</span>
+    <span class="text-3xl font-semibold text-content">{$fmt.number(totalSubmissionsCount)}</span>
+    <span class="text-xs text-muted">{$t('stats.kpi.gradedSuffix', { count: $fmt.number(gradedSubmissionsCount) })}</span>
+  </Card>
 
-  <div class="ksb-card">
-    <span class="ksb-title">{$t('stats.kpi.avgScore')}</span>
-    <span class="ksb-value">
+  <Card class="flex flex-col gap-1">
+    <span class="text-sm text-muted">{$t('stats.kpi.avgScore')}</span>
+    <span class="text-3xl font-semibold text-content">
       {overallAvgScore !== null ? $t('stats.kpi.avgScoreValue', { score: $fmt.number(overallAvgScore) }) : $t('stats.kpi.avgScoreNA')}
     </span>
-    <span class="ksb-sub">{overallAvgScore !== null ? $t('stats.kpi.avgScoreAcrossGraded') : $t('stats.kpi.avgScoreNoRecords')}</span>
-  </div>
+    <span class="text-xs text-muted">{overallAvgScore !== null ? $t('stats.kpi.avgScoreAcrossGraded') : $t('stats.kpi.avgScoreNoRecords')}</span>
+  </Card>
 
-  <div class="ksb-card ksb-danger-card">
-    <span class="ksb-title">{$t('stats.kpi.flaggedExercises')}</span>
-    <span class="ksb-value">{$fmt.number(flaggedCount)}</span>
-  </div>
+  <Card tone="danger" class="flex flex-col gap-1">
+    <span class="text-sm text-muted">{$t('stats.kpi.flaggedExercises')}</span>
+    <span class="text-3xl font-semibold text-content">{$fmt.number(flaggedCount)}</span>
+  </Card>
 </div>
 
 {#if gradedSubmissionsCount === 0}
-  <div class="ksb-notice-banner">
-    ℹ️ <strong>{$t('stats.kpi.noticeBannerLead')}</strong>
+  <Alert class="mb-6">
+    <strong>{$t('stats.kpi.noticeBannerLead')}</strong>
     {$t('stats.kpi.noticeBannerBody')}
-  </div>
+  </Alert>
 {/if}

@@ -35,7 +35,7 @@ export const stats = {
         provisional: 'Teilweise korrigiert',
     },
     gradeDistribution: {
-        title: '🎯 Notenverteilung',
+        title: 'Notenverteilung',
         gradingKeyPrefix: 'Bewertungsmaßstab:',
         presets: {
             linear50: 'Linear (50%)',
@@ -49,7 +49,7 @@ export const stats = {
         axisLabel: 'Note',
     },
     borderline: {
-        title: '⚖️ Grenzfälle',
+        title: '️ Grenzfälle',
         subtitle: 'Plus: höchstens 0,75 Punkte unter der nächstbesseren Note. Minus: höchstens 0,5 Punkte über der Untergrenze der eigenen Note. Ein Klick öffnet die Abgabe in der Korrektur.',
         plusTitle: 'Plus: knapp unter der besseren Note',
         minusTitle: 'Minus: knapp über der schlechteren Note',
@@ -65,7 +65,7 @@ export const stats = {
         openAria: 'Anonymen Schüler #{index} in der Korrektur öffnen',
     },
     combined: {
-        title: '🧩 Noten- und Prozentverteilung',
+        title: 'Noten- und Prozentverteilung',
         subtitle: 'Breite, helle Balken: die Noten nach Bewertungsmaßstab, beschriftet mit Anzahl und Anteil. Schmale Balken davor: die Prozentverteilung.',
         markers: {
             mean: 'Ø',
@@ -86,7 +86,7 @@ export const stats = {
         png: 'Als PNG-Bild in 8K-Auflösung herunterladen (7680 × 4320, transparenter Hintergrund)',
     },
     submissionHistogram: {
-        title: '📊 Prozentverteilung',
+        title: 'Prozentverteilung',
         subtitle: 'In {step}-%-Schritten, so gewählt, dass jeder Balken ganz in einer Note liegt.',
         subtitleUneven: 'In Schritten bis 5 %, an jeder Notengrenze geteilt, damit jeder Balken ganz in einer Note liegt.',
         axisLabel: 'Prozent erreicht',
@@ -122,7 +122,7 @@ export const stats = {
         noGradedData: 'Keine bewerteten Daten',
     },
     exerciseQuality: {
-        title: '📈 Aufgaben- & Fragenqualitätskennzahlen',
+        title: 'Aufgaben- & Fragenqualitätskennzahlen',
         description: 'Identifizieren Sie Fragen, die über mehrere Jahre oder Prüfungstermine hinweg durchgängig niedrige Durchschnittswerte erzielen.',
         emptyTitle: 'Keine bewerteten Leistungsdaten verfügbar',
         emptyWithData: '{count} Frage(n) sind über Ihre {examsCount} Prüfung(en) hinweg verknüpft, aber es liegen noch keine Schülernoten vor.',
@@ -135,11 +135,11 @@ export const stats = {
         colQualityStatus: 'Qualitätsstatus',
         generalTag: 'Allgemein',
         examsCountSuffix: '{count} Prüfung(en)',
-        highFailureRate: '⚠️ Hohe Durchfallquote',
-        balanced: '✓ Ausgeglichen',
+        highFailureRate: '️ Hohe Durchfallquote',
+        balanced: 'Ausgeglichen',
     },
     variantFairness: {
-        title: '🔀 Schwierigkeits- & Fairnessvergleich der Aufgabenvarianten',
+        title: 'Schwierigkeits- & Fairnessvergleich der Aufgabenvarianten',
         description: 'Vergleichen Sie die Leistung zwischen verschiedenen Aufgabenvarianten (z. B. Gruppe A vs. Gruppe B), um unbeabsichtigte Schwierigkeitsunterschiede zu erkennen.',
         emptyTitle: 'Keine Mehrfachvarianten-Aufgabengruppen konfiguriert',
         emptyWithData: '{count} Mehrfachvarianten-Fragengruppe(n) sind mit Ihren Prüfungen verknüpft, aber es liegen noch keine Schülernoten vor.',
@@ -150,8 +150,8 @@ export const stats = {
         colAvgScore: 'Ø Punktzahl %',
         colStatus: 'Status',
         maxPointsSuffix: '{points} Pkt.',
-        difficultyDisparity: '⚠️ {delta}% Schwierigkeitsunterschied',
-        varianceBalanced: '✓ {delta}% Abweichung (ausgeglichen)',
+        difficultyDisparity: '️ {delta}% Schwierigkeitsunterschied',
+        varianceBalanced: '{delta}% Abweichung (ausgeglichen)',
         partialData: 'Teildaten (1 Variante bewertet)',
         awaitingScores: 'Wartet auf Bewertung',
         harderVariant: 'Schwerere Variante',

@@ -13,7 +13,7 @@ export const frontendVersion: string = __APP_VERSION__;
 export const repoUrl: string = __REPO_URL__;
 
 /**
- * Where the version tag in the status bar should link to.
+ * Where the version tag in the footer and navbar badge should link to.
  *
  * A bare semver ("1.4.0") is a tagged release, so it links to the matching
  * GitHub Release. A preview build with PR format ("1.4.0-PR#123 [...]") links

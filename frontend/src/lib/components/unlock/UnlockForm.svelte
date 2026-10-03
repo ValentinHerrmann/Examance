@@ -1,8 +1,14 @@
 <script lang="ts">
-  import "./UnlockForm.css";
   import BackendUrlInput from "$lib/components/common/BackendUrlInput.svelte";
   import { t } from "$lib/i18n";
-  import { Button } from "$lib/components/ui";
+  import {
+    faArrowRight,
+    faCircleQuestion,
+    faCloud,
+    faKey,
+    faShieldHalved,
+  } from "@fortawesome/free-solid-svg-icons";
+  import { Alert, Badge, Button, Card, Field, Icon, TextInput } from "$lib/components/ui";
   export let backendUrl: string;
   export let email: string;
   export let password: string;
@@ -23,78 +29,87 @@
   export let needsLegacyMigration: boolean;
 </script>
 
-<div class="unlock-header">
-  <img src="/favicon.png" alt="Examance logo" class="unlock-banner-logo" />
-  <h1>{$t("auth.unlock.title")}</h1>
-  <p class="unlock-subtitle">{$t("auth.unlock.subtitle")}</p>
+<div class="mb-4 text-center sm:mb-5">
+  <img src="/favicon.png" alt="Examance logo" class="mx-auto mb-2 size-12 rounded-xl object-contain" />
+  <h1 class="m-0 text-2xl font-normal text-content">{$t("auth.unlock.title")}</h1>
+  <p class="mt-2 mb-0 text-base text-muted">{$t("auth.unlock.subtitle")}</p>
   <!-- The very first screen someone sees, and the one place where no workspace
        exists yet to explain itself. /help is a public path, so this works while
-       locked. A filled pill rather than plain text — this is the one moment a
-       first-time visitor has nothing else on screen to orient by. -->
-  <a class="unlock-help-badge" href="/help">
-    <span aria-hidden="true">❓</span>
+       locked. -->
+  <Button
+    href="/help"
+    variant="outlined"
+    severity="primary"
+    size="sm"
+    icon={faCircleQuestion}
+    iconRight={faArrowRight}
+    class="mt-3"
+  >
     {$t("help.ui.unlockLink")}
-    <span aria-hidden="true">→</span>
-  </a>
+  </Button>
 </div>
 
 {#if errorMsg}
-  <div class="unlock-error-banner">{errorMsg}</div>
+  <Alert severity="danger" class="mb-5">{errorMsg}</Alert>
 {/if}
 
-<div class="unlock-options-grid">
+<div class="grid min-w-0 grid-cols-1 gap-5 md:grid-cols-2 md:gap-8">
   <!-- Option A: Local Mode -->
-  <div class="option-card local-card">
-    <div class="card-badge">{$t("auth.unlock.local.noAccountRequired")}</div>
-    <div class="card-icon">🛡️</div>
-    <h2>{$t("auth.unlock.local.startWorkspace")}</h2>
-    <p class="description">
+  <Card padded={false} class="relative flex flex-col p-5 sm:p-6">
+    <Badge severity="primary" class="absolute top-3 right-3 sm:top-5 sm:right-5">
+      {$t("auth.unlock.local.noAccountRequired")}
+    </Badge>
+    <div class="mb-2 flex items-center gap-3 pr-24">
+      <Icon icon={faShieldHalved} class="shrink-0 text-3xl text-accent" />
+      <h2 class="m-0 text-xl font-medium text-content">{$t("auth.unlock.local.startWorkspace")}</h2>
+    </div>
+    <p class="m-0 mb-3 text-sm leading-snug text-muted">
       {$t("auth.unlock.local.description")}
     </p>
-    <ul class="features-list">
+    <ul class="m-0 mb-6 flex flex-1 list-none flex-col gap-2.5 p-0 text-sm [overflow-wrap:anywhere] text-content">
       <li>{$t("auth.unlock.local.featureNoRegistration")}</li>
       <li>{$t("auth.unlock.local.featureEncrypted")}</li>
       <li>{$t("auth.unlock.local.featureExportImport")}</li>
     </ul>
 
     {#if needsLegacyMigration}
-      <p class="local-notice">
+      <p class="m-0 mb-2 text-left text-sm leading-snug text-warning-fg">
         {$t("auth.unlock.local.legacyMigrationNotice")}
       </p>
     {/if}
 
-    <form on:submit|preventDefault={onUnlockLocal} class="local-form">
-      <div class="form-group">
-        <label for="localPassphrase">
-          {isNewLocalVault ? $t("auth.unlock.local.choosePassphrase") : $t("auth.unlock.local.workspacePassphrase")}
-        </label>
-        <input
-          id="localPassphrase"
+    <form on:submit|preventDefault={onUnlockLocal} class="mt-auto flex w-full flex-col gap-3">
+      <Field
+        forId="localPassphrase"
+        label={isNewLocalVault ? $t("auth.unlock.local.choosePassphrase") : $t("auth.unlock.local.workspacePassphrase")}
+        let:id
+      >
+        <TextInput
+          {id}
           type="password"
           autocomplete={isNewLocalVault ? "new-password" : "current-password"}
           bind:value={localPassphrase}
           placeholder={$t("auth.unlock.local.passphrasePlaceholder")}
           disabled={isLoading}
         />
-      </div>
+      </Field>
 
       {#if isNewLocalVault}
-        <div class="form-group">
-          <label for="localPassphraseConfirm">{$t("auth.unlock.local.repeatPassphrase")}</label>
-          <input
-            id="localPassphraseConfirm"
+        <Field forId="localPassphraseConfirm" label={$t("auth.unlock.local.repeatPassphrase")} let:id>
+          <TextInput
+            {id}
             type="password"
             autocomplete="new-password"
             bind:value={localPassphraseConfirm}
             disabled={isLoading}
           />
-        </div>
-        <p class="local-warning">
+        </Field>
+        <p class="m-0 mb-2 text-left text-sm leading-snug text-muted">
           {$t("auth.unlock.local.noRecoveryWarning")}
         </p>
       {/if}
 
-      <button type="submit" class="local-unlock-btn" disabled={isLoading}>
+      <Button type="submit" block disabled={isLoading}>
         {#if needsLegacyMigration}
           {$t("auth.unlock.local.setPassphraseAndMigrate")}
         {:else if isNewLocalVault}
@@ -102,119 +117,75 @@
         {:else}
           {$t("auth.unlock.local.unlockWorkspace")}
         {/if}
-      </button>
+      </Button>
     </form>
-  </div>
+  </Card>
 
   <!-- Option B: Cloud Account -->
-  <div class="option-card cloud-card">
-    <div class="card-badge cloud">{$t("auth.unlock.cloud.schoolAccount")}</div>
-    <div class="card-icon">☁️</div>
-    <h2>{$t("auth.unlock.cloud.connectToServer")}</h2>
-    <p class="description">
+  <Card padded={false} class="relative flex flex-col p-5 sm:p-6">
+    <Badge severity="info" class="absolute top-3 right-3 sm:top-5 sm:right-5">
+      {$t("auth.unlock.cloud.schoolAccount")}
+    </Badge>
+    <div class="mb-2 flex items-center gap-3 pr-24">
+      <Icon icon={faCloud} class="shrink-0 text-3xl text-info-fg" />
+      <h2 class="m-0 text-xl font-medium text-content">{$t("auth.unlock.cloud.connectToServer")}</h2>
+    </div>
+    <p class="m-0 mb-3 text-sm leading-snug text-muted">
       {$t("auth.unlock.cloud.description")}
     </p>
 
-    <form on:submit|preventDefault={onUnlock} class="cloud-form">
-      <div class="form-group">
-        <label for="backendUrl">{$t("auth.unlock.cloud.backendUrl")}</label>
+    <form on:submit|preventDefault={onUnlock} class="flex flex-col gap-3">
+      <Field forId="backendUrl" label={$t("auth.unlock.cloud.backendUrl")} let:id>
         <BackendUrlInput
-          id="backendUrl"
+          {id}
           bind:value={backendUrl}
           placeholder={$t("auth.unlock.cloud.backendUrlPlaceholder")}
           required
         />
-      </div>
+      </Field>
 
-      <div class="form-group">
-        <label for="email">{$t("auth.unlock.cloud.email")}</label>
-        <input
-          id="email"
+      <Field forId="email" label={$t("auth.unlock.cloud.email")} let:id>
+        <TextInput
+          {id}
           type="email"
           bind:value={email}
           placeholder={$t("auth.unlock.cloud.emailPlaceholder")}
           required
         />
-      </div>
+      </Field>
 
-      <div class="form-group">
-        <label for="password">{$t("auth.unlock.cloud.password")}</label>
-        <input
-          id="password"
-          type="password"
-          bind:value={password}
-          placeholder={$t("auth.unlock.cloud.passwordPlaceholder")}
-          required
-        />
-        <div class="forgot-password-link">
-          <a href="/forgot-password">{$t("auth.unlock.cloud.forgotPassword")}</a>
+      <div class="flex min-w-0 flex-col gap-1.5">
+        <Field forId="password" label={$t("auth.unlock.cloud.password")} let:id>
+          <TextInput
+            {id}
+            type="password"
+            bind:value={password}
+            placeholder={$t("auth.unlock.cloud.passwordPlaceholder")}
+            required
+          />
+        </Field>
+        <div class="text-right">
+          <a href="/forgot-password" class="text-sm text-accent no-underline hover:underline">
+            {$t("auth.unlock.cloud.forgotPassword")}
+          </a>
         </div>
       </div>
 
-      <button type="submit" class="submit-btn" class:is-loading={isLoading} disabled={isLoading}>
+      <Button type="submit" block loading={isLoading}>
         {isLoading ? $t("auth.unlock.cloud.authenticating") : $t("auth.unlock.cloud.connectAndSignIn")}
-      </button>
+      </Button>
 
       {#if onPasskey}
-        <div class="flex w-full items-center gap-3 text-xs text-subtle" aria-hidden="true">
+        <div class="flex w-full items-center gap-3 text-xs text-muted" aria-hidden="true">
           <span class="h-px min-w-0 flex-1 bg-line"></span>
           {$t("auth.unlock.cloud.or")}
           <span class="h-px min-w-0 flex-1 bg-line"></span>
         </div>
-        <Button variant="secondary" block disabled={isLoading} onClick={onPasskey}>
-          🔑 {$t("security.passkey.signIn")}
+        <Button variant="outlined" severity="secondary" block icon={faKey} disabled={isLoading} onClick={onPasskey}>
+          {$t("security.passkey.signIn")}
         </Button>
         <p class="m-0 text-center text-xs text-muted">{$t("auth.unlock.cloud.passkeyHint")}</p>
       {/if}
     </form>
-  </div>
+  </Card>
 </div>
-
-<style>
-  /* New styles live in the component, not the sibling .css file. */
-  .unlock-help-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin-top: 0.85rem;
-    padding: 0.5rem 1.1rem;
-    border: 1px solid rgba(56, 189, 248, 0.4);
-    border-radius: 999px;
-    background: rgba(56, 189, 248, 0.12);
-    color: #7dd3fc;
-    font-size: 0.9rem;
-    font-weight: 600;
-    text-decoration: none;
-    transition: background 0.15s ease, border-color 0.15s ease;
-  }
-
-  .unlock-help-badge:hover,
-  .unlock-help-badge:focus-visible {
-    border-color: #38bdf8;
-    background: rgba(56, 189, 248, 0.2);
-  }
-
-  .local-form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    width: 100%;
-    margin-top: auto;
-  }
-
-  .local-notice,
-  .local-warning {
-    margin: 0 0 0.5rem;
-    font-size: 0.8rem;
-    line-height: 1.4;
-    text-align: left;
-  }
-
-  .local-notice {
-    color: #fcd34d;
-  }
-
-  .local-warning {
-    color: #94a3b8;
-  }
-</style>

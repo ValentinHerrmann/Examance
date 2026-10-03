@@ -54,7 +54,7 @@
 
 <Modal
   open={true}
-  size="md"
+  size="medium"
   title={$t("security.enroll.title")}
   closeOnBackdrop={false}
   closeOnEscape={false}
@@ -68,7 +68,7 @@
       <img
         src={qrDataUrl}
         alt=""
-        class="mx-auto h-48 w-48 rounded-lg bg-white p-2"
+        class="mx-auto h-48 w-48 rounded-md bg-surface-raised p-2"
         width="192"
         height="192"
       />
@@ -76,7 +76,7 @@
 
     {#if manualKey}
       <div class="min-w-0">
-        <p class="m-0 text-xs text-subtle">{$t("security.enroll.manualHint")}</p>
+        <p class="m-0 text-xs text-muted">{$t("security.enroll.manualHint")}</p>
         <code
           class="mt-1 block overflow-x-auto rounded-md bg-surface-inset px-3 py-2
                  font-mono text-xs tracking-widest text-content select-all"
@@ -92,7 +92,7 @@
       <TextInput
         bind:value={code}
         placeholder="000000"
-        class="font-mono text-lg tracking-[0.3em]"
+        class="font-mono text-lg tracking-widest"
       />
     </Field>
   </form>

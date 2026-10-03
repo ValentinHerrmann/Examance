@@ -22,7 +22,7 @@ function readSeen(): boolean {
 
 /**
  * `false` until the help panel has been opened once. Drives nothing more than
- * a quiet highlight on the status-bar entry — never a blocking overlay.
+ * a quiet highlight on the navbar help button — never a blocking overlay.
  */
 export const helpSeen = writable<boolean>(readSeen());
 

@@ -65,7 +65,7 @@
 
 <form class="flex w-full flex-col gap-4" on:submit|preventDefault={submit}>
   <div>
-    <h2 class="m-0 text-lg font-semibold text-accent">{$t("security.vaultUnlock.title")}</h2>
+    <h2 class="m-0 text-xl font-medium text-content">{$t("security.vaultUnlock.title")}</h2>
     <p class="mt-1 text-sm text-muted">
       {useRecovery
         ? $t("security.vaultUnlock.recoveryIntro")
@@ -96,13 +96,9 @@
     {isWorking ? $t("security.factors.checking") : $t("security.vaultUnlock.submit")}
   </Button>
 
-  <button
-    type="button"
-    class="cursor-pointer border-none bg-transparent p-0 text-sm text-accent underline"
-    on:click={toggle}
-  >
+  <Button variant="text" size="sm" onClick={toggle}>
     {useRecovery
       ? $t("security.vaultUnlock.usePassword")
       : $t("security.vaultUnlock.useRecovery")}
-  </button>
+  </Button>
 </form>

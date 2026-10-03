@@ -30,7 +30,7 @@
 
 <form class="flex w-full flex-col gap-4" on:submit|preventDefault={submit}>
   <div>
-    <h2 class="m-0 text-lg font-semibold text-accent">
+    <h2 class="m-0 text-xl font-medium text-content">
       {$t("security.factors.passwordTitle")}
     </h2>
     <p class="mt-1 text-sm text-muted">{$t("security.factors.passwordIntro")}</p>

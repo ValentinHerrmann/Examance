@@ -79,7 +79,7 @@ function computeAppVersion(): string {
 
 /**
  * The GitHub repository this frontend is published from — used to build a
- * clickable link next to the version tag in the status bar (see
+ * clickable link next to the version tag in the footer and navbar badge (see
  * versionStore.ts): a release build links to its GitHub Release, a preview or
  * dev build links to the exact commit it was built from.
  */
@@ -111,6 +111,9 @@ function computeDefaultBackendUrl(): string {
 
 export default defineConfig({
   plugins: [tailwindcss(), wasm(), argon2BundlePlugin(), sveltekit()],
+  // Component tests mount Svelte in jsdom, which needs Svelte's browser build
+  // (its default resolution under Node is the SSR build, where mount fails).
+  resolve: { conditions: process.env.VITEST ? ['browser'] : [] },
   define: {
     __APP_VERSION__: JSON.stringify(computeAppVersion()),
     __APP_COMMIT_SHA__: JSON.stringify(computeCommitSha()),
@@ -120,6 +123,9 @@ export default defineConfig({
     __PREVIEW_BACKEND_URL__: JSON.stringify(PREVIEW_BACKEND_URL),
   },
   test: {
+    // Vitest must only pick up unit tests: the Playwright specs under e2e/
+    // are named *.spec.ts, which Vitest's default include pattern also matches.
+    include: ['tests/**/*.test.ts'],
     alias: {
       'argon2-browser/dist/argon2-bundled.min.js': fileURLToPath(
         new URL('./tests/mocks/argon2Mock.ts', import.meta.url)

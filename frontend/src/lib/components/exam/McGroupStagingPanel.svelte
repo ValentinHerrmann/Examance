@@ -5,7 +5,8 @@
   import { mcSubLabel } from "$lib/grading/mcGroupLabels";
   import LatexEditor from "$lib/components/LatexEditor.svelte";
   import ExerciseLabel from "$lib/components/exam/ExerciseLabel.svelte";
-  import { TextInput } from "$lib/components/ui";
+  import { faArrowUp, faArrowDown } from "@fortawesome/free-solid-svg-icons";
+  import { Alert, Button, Field, TextInput } from "$lib/components/ui";
   import { t } from "$lib/i18n";
 
   /** Staged questions, in group order. */
@@ -46,21 +47,17 @@
     title = DEFAULT_TITLE;
   }
 
-  const iconBtn =
-    "cursor-pointer border-none bg-transparent px-1 text-muted hover:text-content disabled:cursor-not-allowed disabled:opacity-40";
 </script>
 
-<div class="flex min-w-0 flex-col gap-3 rounded-[10px] border border-amber-500/60 bg-amber-500/5 p-4">
-  <h4 class="m-0 text-sm font-semibold text-amber-400">
+<div class="flex min-w-0 flex-col gap-3 rounded-md border border-warning/60 bg-warning/5 p-4">
+  <h3 class="m-0 text-base font-semibold text-content">
     {editingGroup
       ? $t("exam.mcStagingPanel.headingEdit", { count })
       : $t("exam.mcStagingPanel.headingNew", { count })}
-  </h4>
+  </h3>
 
   {#if notice}
-    <p class="m-0 rounded-md border border-emerald-500/50 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300" role="status">
-      {notice}
-    </p>
+    <Alert severity="success">{notice}</Alert>
   {/if}
 
   {#if count === 0}
@@ -68,38 +65,36 @@
   {:else}
     <ul class="m-0 flex list-none flex-col gap-1.5 p-0">
       {#each stagedExercises as ex, i (ex.id)}
-        <li class="flex items-center justify-between gap-2 rounded-md border border-line bg-surface-base/60 px-2.5 py-1.5 text-sm text-content/90">
+        <li class="flex items-center justify-between gap-2 rounded-md border border-line bg-surface-sunken px-2.5 py-1.5 text-sm text-content">
           <span class="flex min-w-0 items-center gap-1"><span class="shrink-0">{mcSubLabel(i, count)})</span> <ExerciseLabel exercise={ex} /></span>
           <div class="flex shrink-0 items-center gap-1.5">
-            <button type="button" class={iconBtn} disabled={i === 0} on:click={() => onReorder(i, "up")} title={$t("exam.mcStagingPanel.moveUp")}>↑</button>
-            <button type="button" class={iconBtn} disabled={i === count - 1} on:click={() => onReorder(i, "down")} title={$t("exam.mcStagingPanel.moveDown")}>↓</button>
-            <button type="button" class="cursor-pointer border-none bg-transparent text-xs text-red-400 hover:text-red-300" on:click={() => onRemove(ex.id)}>
-              {$t("exam.mcStagingPanel.remove")}
-            </button>
+            <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowUp} ariaLabel={$t("exam.mcStagingPanel.moveUp")} title={$t("exam.mcStagingPanel.moveUp")} disabled={i === 0} onClick={() => onReorder(i, "up")} />
+            <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowDown} ariaLabel={$t("exam.mcStagingPanel.moveDown")} title={$t("exam.mcStagingPanel.moveDown")} disabled={i === count - 1} onClick={() => onReorder(i, "down")} />
+            <Button size="sm" variant="text" severity="danger" onClick={() => onRemove(ex.id)}>{$t("exam.mcStagingPanel.remove")}</Button>
           </div>
         </li>
       {/each}
     </ul>
 
     <div class="flex flex-col gap-2.5">
-      <div>
-        <label class="mb-0.5 block text-xs font-medium text-muted" for="mc-group-title">{$t("exam.mcStagingPanel.titleLabel")}</label>
+      <Field label={$t("exam.mcStagingPanel.titleLabel")} forId="mc-group-title">
         <TextInput id="mc-group-title" bind:value={title} />
-      </div>
-      <div>
-        <span class="mb-0.5 block text-xs font-medium text-muted">{$t("exam.mcStagingPanel.scoringLabel")}</span>
+      </Field>
+      <div class="flex flex-col gap-1.5">
+        <span class="text-sm font-medium text-content">{$t("exam.mcStagingPanel.scoringLabel")}</span>
         <LatexEditor bind:value={scoringText} rows={3} />
       </div>
-      <button
-        type="button"
-        class="cursor-pointer self-start rounded-md border border-amber-500 bg-amber-500/15 px-3 py-1.5 text-sm font-semibold text-amber-300 transition-colors enabled:hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+      <Button
+        size="sm"
+        variant="outlined"
+        class="self-start"
         disabled={!canFinalizeGroup(stagedExercises.map((ex) => ex.id))}
-        on:click={finalize}
+        onClick={finalize}
       >
         {editingGroup
           ? $t("exam.mcStagingPanel.updateButton", { count })
           : $t("exam.mcStagingPanel.addButton", { count })}
-      </button>
+      </Button>
     </div>
   {/if}
 </div>

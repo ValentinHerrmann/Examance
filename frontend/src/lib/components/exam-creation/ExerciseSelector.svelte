@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { type ExerciseGroup } from "$lib/exercise-library/groupExercises";
   import type { ExerciseRecord } from "$lib/db/schema";
   import ExerciseLibraryPicker from "$lib/components/exercise-library/ExerciseLibraryPicker.svelte";
   import ExercisePreviewDrawer from "$lib/components/exercise-library/ExercisePreviewDrawer.svelte";
@@ -6,25 +7,9 @@
   import McGroupStagingPanel from "$lib/components/exam/McGroupStagingPanel.svelte";
   import type { McGroupDraft } from "$lib/exam/mcGroupStaging";
   import { t } from "$lib/i18n";
+  import { Button, Card } from "$lib/components/ui";
 
-  interface VariantMember {
-    ex: ExerciseRecord;
-    variantLabel: string;
-    version: number;
-    isCurrent: boolean;
-  }
 
-  interface ExerciseGroup {
-    groupId: string;
-    name: string;
-    topicTag: string;
-    grade?: string;
-    subject?: string;
-    maxPoints: number;
-    minPoints: number;
-    variants: Map<string, VariantMember[]>;
-    allMembers: VariantMember[];
-  }
 
   export let activeTab: "library" | "mc" | "custom";
   export let selectedLibraryIds: string[];
@@ -89,27 +74,21 @@
     closePreviewModal();
     onQuickEdit(ex);
   }
-
-  const tabBtn =
-    "flex-[1_1_180px] cursor-pointer rounded-md border px-4 py-2 font-semibold sm:flex-none";
-  const tabBtnIdle = `${tabBtn} border-line bg-surface-base text-muted hover:text-content`;
-  const tabBtnActive = `${tabBtn} border-accent bg-accent-strong text-white`;
-
 </script>
 
-<div class="mb-6 min-w-0 rounded-[10px] border border-line bg-surface-raised p-4 sm:p-6">
-  <div class="mb-4 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-    <h3 class="m-0 text-lg text-content">{$t("examCreation.exerciseSelector.heading")}</h3>
+<Card class="mb-6">
+  <div class="mb-4 flex flex-col gap-4 @3xl:flex-row @3xl:flex-wrap @3xl:items-center @3xl:justify-between">
+    <h2 class="m-0 min-w-0 text-xl font-medium text-content">{$t("examCreation.exerciseSelector.heading")}</h2>
     <div class="flex flex-wrap gap-2">
-      <button type="button" class={activeTab === "library" ? tabBtnActive : tabBtnIdle} on:click={() => (activeTab = "library")}>
+      <Button variant="outlined" severity="secondary" pressed={activeTab === "library"} onClick={() => (activeTab = "library")}>
         {$t("examCreation.exerciseSelector.tabLibrary", { count: selectedLibraryIds.length })}
-      </button>
-      <button type="button" class={activeTab === "mc" ? tabBtnActive : tabBtnIdle} on:click={() => (activeTab = "mc")}>
+      </Button>
+      <Button variant="outlined" severity="secondary" pressed={activeTab === "mc"} onClick={() => (activeTab = "mc")}>
         {$t("examCreation.exerciseSelector.tabMc")}
-      </button>
-      <button type="button" class={activeTab === "custom" ? tabBtnActive : tabBtnIdle} on:click={() => (activeTab = "custom")}>
+      </Button>
+      <Button variant="outlined" severity="secondary" pressed={activeTab === "custom"} onClick={() => (activeTab = "custom")}>
         {$t("examCreation.exerciseSelector.tabCustom")}
-      </button>
+      </Button>
     </div>
   </div>
 
@@ -122,7 +101,7 @@
       {onAddCustomExercise}
     />
   {:else}
-    <div class="flex min-w-0 flex-col gap-4 {activeTab === 'mc' ? 'lg:flex-row lg:items-start' : ''}">
+    <div class="flex min-w-0 flex-col gap-4 {activeTab === 'mc' ? '@3xl:flex-row @3xl:items-start' : ''}">
       <div class="min-w-0 flex-1">
         <ExerciseLibraryPicker
           {filteredGroups}
@@ -148,7 +127,7 @@
       </div>
 
       {#if activeTab === "mc"}
-        <div class="min-w-0 lg:flex-[0_0_clamp(320px,34%,440px)]">
+        <div class="min-w-0 @3xl:flex-[0_0_clamp(320px,34%,440px)]">
           <McGroupStagingPanel
             stagedExercises={mcStagingExercises}
             editingGroup={editingMcGroup}
@@ -160,7 +139,7 @@
       {/if}
     </div>
   {/if}
-</div>
+</Card>
 
 {#if isPreviewModalOpen && previewModalEx}
   <ExercisePreviewDrawer

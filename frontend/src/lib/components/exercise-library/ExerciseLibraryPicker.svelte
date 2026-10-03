@@ -1,27 +1,13 @@
 <script lang="ts">
+  import { type ExerciseGroup } from "$lib/exercise-library/groupExercises";
   import type { ExerciseRecord } from "$lib/db/schema";
   import { parseExerciseScore } from "$lib/latex/scoreParser";
   import { isMcQuestion } from "$lib/grading/mcScore";
   import { t } from "$lib/i18n";
+  import { faPenToSquare, faEye, faCheck } from "@fortawesome/free-solid-svg-icons";
+  import { Button, Badge, Checkbox, Icon, TextInput, Select } from "$lib/components/ui";
 
-  interface VariantMember {
-    ex: ExerciseRecord;
-    variantLabel: string;
-    version: number;
-    isCurrent: boolean;
-  }
 
-  interface ExerciseGroup {
-    groupId: string;
-    name: string;
-    topicTag: string;
-    grade?: string;
-    subject?: string;
-    maxPoints: number;
-    minPoints: number;
-    variants: Map<string, VariantMember[]>;
-    allMembers: VariantMember[];
-  }
 
   export let filteredGroups: ExerciseGroup[];
   export let totalVariantsCount: number;
@@ -54,18 +40,18 @@
   };
 
   const pillBase =
-    "cursor-pointer rounded-xl border border-line bg-surface-base px-2.5 py-1 text-sm text-muted";
+    "cursor-pointer rounded-xl border border-line bg-surface-base px-2.5 py-1 text-sm text-muted hover:border-line-strong";
   const pillActive =
-    "cursor-pointer rounded-xl border border-line bg-accent-strong px-2.5 py-1 text-sm text-white";
+    "cursor-pointer rounded-xl border border-accent bg-primary px-2.5 py-1 text-sm text-primary-contrast";
 
   const variantPillBase =
-    "inline-flex cursor-pointer items-center gap-1 rounded border border-line bg-surface-raised px-2 py-0.5 text-xs font-medium text-muted transition-all duration-150 ease-[ease] hover:border-accent hover:text-content";
+    "inline-flex cursor-pointer items-center gap-1 rounded-md border border-line bg-surface-raised px-2 py-0.5 text-xs font-medium text-muted hover:border-accent hover:text-content pointer-coarse:min-h-11";
   const variantPillHasSelected =
-    "inline-flex cursor-pointer items-center gap-1 rounded border border-emerald-500 bg-surface-raised px-2 py-0.5 text-xs font-medium text-muted transition-all duration-150 ease-[ease] hover:text-content";
+    "inline-flex cursor-pointer items-center gap-1 rounded-md border border-success bg-surface-raised px-2 py-0.5 text-xs font-medium text-muted hover:text-content pointer-coarse:min-h-11";
   const variantPillActive =
-    "inline-flex cursor-pointer items-center gap-1 rounded border border-accent bg-accent-strong px-2 py-0.5 text-xs font-semibold text-white transition-all duration-150 ease-[ease]";
+    "inline-flex cursor-pointer items-center gap-1 rounded-md border border-accent bg-primary px-2 py-0.5 text-xs font-semibold text-primary-contrast pointer-coarse:min-h-11";
   const variantPillActiveHasSelected =
-    "inline-flex cursor-pointer items-center gap-1 rounded border border-emerald-400 bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white transition-all duration-150 ease-[ease]";
+    "inline-flex cursor-pointer items-center gap-1 rounded-md border border-success bg-success px-2 py-0.5 text-xs font-semibold text-success-contrast pointer-coarse:min-h-11";
 
   function variantPillClass(active: boolean, hasSelected: boolean): string {
     if (active && hasSelected) return variantPillActiveHasSelected;
@@ -75,9 +61,9 @@
   }
 
   const rowBase =
-    "flex flex-wrap items-start gap-3 rounded-[10px] border border-line bg-surface-raised px-4 py-3 transition-colors duration-150 ease-[ease] hover:border-line-strong hover:bg-[#223044] lg:flex-nowrap";
+    "flex flex-wrap items-start gap-3 rounded-xl border border-line bg-surface-raised px-4 py-3 hover:border-line-strong hover:bg-highlight @3xl:flex-nowrap";
   const rowSelected =
-    "flex flex-wrap items-start gap-3 rounded-[10px] border border-accent-strong bg-accent-strong/10 px-4 py-3 transition-colors duration-150 ease-[ease] lg:flex-nowrap";
+    "flex flex-wrap items-start gap-3 rounded-xl border border-primary bg-primary/10 px-4 py-3 @3xl:flex-nowrap";
   $: displayedGroups = filteredGroups.filter((g) => {
     if (selectedTopicFilter !== "ALL" && g.topicTag !== selectedTopicFilter) return false;
     const activeVKey = activeVariantPerGroup[g.groupId] || Array.from(g.variants.keys())[0] || "_General";
@@ -89,41 +75,40 @@
   });
 </script>
 
-<div class="flex flex-col gap-3 mb-4">
-  <div class="flex flex-wrap items-stretch justify-between gap-4 lg:items-center">
-    <input
-      type="text"
+<div class="mb-4 flex flex-col gap-3">
+  <div class="flex flex-wrap items-stretch justify-between gap-4 @3xl:items-center">
+    <TextInput
       placeholder={$t("exercises.libraryPicker.searchPlaceholder")}
       bind:value={searchQuery}
-      class="w-full box-border flex-[1_1_280px] rounded-md border border-line bg-surface-base p-2.5 text-white"
+      class="flex-[1_1_18rem]"
     />
-    <span class="whitespace-normal text-sm font-medium text-muted lg:whitespace-nowrap">
+    <span class="text-sm font-medium text-muted @3xl:whitespace-nowrap">
       {$t("exercises.libraryPicker.groupsSummary", { groups: displayedGroups.length, variants: totalVariantsCount })}
     </span>
   </div>
 
-  <div class="flex flex-col flex-wrap items-stretch gap-x-4 gap-y-3 lg:flex-row lg:items-center">
+  <div class="flex flex-col flex-wrap items-stretch gap-x-4 gap-y-3 @3xl:flex-row @3xl:items-center">
     {#if availableGrades.length > 0}
-      <div class="flex min-w-0 w-full flex-auto items-center gap-2 text-sm text-muted lg:w-auto lg:flex-[0_1_240px]">
+      <div class="flex w-full min-w-0 flex-auto items-center gap-2 text-sm text-muted @3xl:w-auto @3xl:flex-[0_1_15rem]">
         <label for="picker-grade">{$t("exercises.libraryPicker.gradeLabel")}</label>
-        <select id="picker-grade" bind:value={selectedGradeFilter} class="w-full min-w-0 rounded-md border border-line bg-surface-raised px-3 py-1.5 text-sm text-white focus:border-accent focus:shadow-[0_0_0_1px_rgba(56,189,248,0.25)] focus:outline-none">
+        <Select id="picker-grade" size="sm" bind:value={selectedGradeFilter}>
           <option value="ALL">{$t("exercises.libraryPicker.allGrades")}</option>
           {#each availableGrades as g}
             <option value={g}>{$t("exercises.libraryPicker.gradeOption", { grade: g })}</option>
           {/each}
-        </select>
+        </Select>
       </div>
     {/if}
 
     {#if availableSubjects.length > 0}
-      <div class="flex min-w-0 w-full flex-auto items-center gap-2 text-sm text-muted lg:w-auto lg:flex-[0_1_240px]">
+      <div class="flex w-full min-w-0 flex-auto items-center gap-2 text-sm text-muted @3xl:w-auto @3xl:flex-[0_1_15rem]">
         <label for="picker-subject">{$t("exercises.libraryPicker.subjectLabel")}</label>
-        <select id="picker-subject" bind:value={selectedSubjectFilter} class="w-full min-w-0 rounded-md border border-line bg-surface-raised px-3 py-1.5 text-sm text-white focus:border-accent focus:shadow-[0_0_0_1px_rgba(56,189,248,0.25)] focus:outline-none">
+        <Select id="picker-subject" size="sm" bind:value={selectedSubjectFilter}>
           <option value="ALL">{$t("exercises.libraryPicker.allSubjects")}</option>
           {#each availableSubjects as s}
             <option value={s}>{s}</option>
           {/each}
-        </select>
+        </Select>
       </div>
     {/if}
   </div>
@@ -154,7 +139,7 @@
     {$t("exercises.libraryPicker.empty")}
   </div>
 {:else}
-  <div class="flex max-h-[min(64dvh,720px)] flex-col gap-3 overflow-y-auto pr-2 lg:max-h-[min(58dvh,620px)]">
+  <div class="flex flex-col gap-3">
     {#each displayedGroups as group}
       {@const activeVKey = activeVariantPerGroup[group.groupId] || Array.from(group.variants.keys())[0] || "_General"}
       {@const vMembers = group.variants.get(activeVKey) || []}
@@ -170,13 +155,12 @@
         <!-- Selection Checkbox -->
         <div class="flex items-center">
           {#if activeEx}
-            <input
-              type="checkbox"
+            <Checkbox
               checked={isSelected}
               disabled={ownerGroup !== undefined}
-              on:change={() => (isMc ? onToggleMcStaging(activeEx.id) : onToggleSelection(activeEx.id))}
+              onChange={() => (isMc ? onToggleMcStaging(activeEx.id) : onToggleSelection(activeEx.id))}
               title={checkboxTitle(isMc, isSelected, ownerGroup)}
-              class="h-4 w-4 cursor-pointer accent-accent-strong disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label={checkboxTitle(isMc, isSelected, ownerGroup)}
             />
           {/if}
         </div>
@@ -184,34 +168,32 @@
         <!-- Main Info: Title, Topic, Variants -->
         <div class="flex min-w-0 flex-1 flex-col gap-2">
           <div class="flex flex-wrap items-start gap-2.5">
-            <span class="min-w-0 overflow-hidden text-ellipsis whitespace-normal text-base font-semibold text-content sm:whitespace-nowrap">{group.name}</span>
+            <span class="min-w-0 overflow-hidden text-ellipsis whitespace-normal text-base font-semibold text-content @xl:whitespace-nowrap">{group.name}</span>
 
             {#if group.topicTag}
-              <span class="rounded px-2 py-0.5 text-xs font-medium bg-surface-inset text-muted">{group.topicTag}</span>
+              <Badge size="xs">{group.topicTag}</Badge>
             {/if}
 
             {#if isMc}
-              <span class="rounded border border-amber-500 bg-amber-500/15 px-1.5 py-0.5 text-xs font-semibold text-amber-400">
-                MC
-              </span>
+              <Badge size="xs" severity="warning">MC</Badge>
             {/if}
 
             {#if ownerGroup !== undefined}
-              <span class="rounded border border-amber-500/60 bg-amber-500/10 px-1.5 py-0.5 text-xs font-semibold text-amber-300">
+              <Badge size="xs" severity="warning">
                 {$t("exercises.libraryPicker.inMcGroupBadge", { title: ownerGroup })}
-              </span>
+              </Badge>
             {/if}
 
             {#if groupSelectedCount > 0}
-              <span class="rounded border border-emerald-500 bg-emerald-500/15 px-1.5 py-0.5 text-xs font-semibold text-emerald-400">
-                ✓ {isMc ? $t("exercises.libraryPicker.stagedCount", { count: groupSelectedCount }) : $t("exercises.libraryPicker.inExamCount", { count: groupSelectedCount })}
-              </span>
+              <Badge size="xs" severity="success" icon={faCheck}>
+                {isMc ? $t("exercises.libraryPicker.stagedCount", { count: groupSelectedCount }) : $t("exercises.libraryPicker.inExamCount", { count: groupSelectedCount })}
+              </Badge>
             {/if}
           </div>
 
           <!-- Inline Variant Selector Pills (if multiple variants exist) -->
           {#if group.variants.size > 1}
-            <div class="flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
+            <div class="flex w-full flex-wrap items-center gap-1.5 @xl:w-auto">
               {#each group.variants.keys() as vKey}
                 {@const members = group.variants.get(vKey) || []}
                 {@const hasSelected = members.some(m => selectedLibraryIds.includes(m.ex.id) || mcStagingIds.includes(m.ex.id) || m.ex.id in mcGroupMembership)}
@@ -222,7 +204,7 @@
                   title={$t("exercises.libraryPicker.switchVariantTitle", { key: vKey })}
                 >
                   {#if hasSelected}
-                    <span class="text-xs font-bold text-emerald-400">✓</span>
+                    <Icon icon={faCheck} class="text-success-fg" />
                   {/if}
                   <span>{vKey}</span>
                 </button>
@@ -232,38 +214,29 @@
         </div>
 
         <!-- Right Actions: Points, Quick Edit & Preview Button -->
-        <div class="flex w-full flex-wrap items-start justify-start gap-2 whitespace-nowrap ml-0 lg:ml-auto lg:w-auto lg:justify-end">
-          <span class="rounded bg-accent-strong px-2 py-0.5 text-xs font-semibold text-content">
+        <div class="flex w-full flex-wrap items-start justify-start gap-2 whitespace-nowrap ml-0 @3xl:ml-auto @3xl:w-auto @3xl:justify-end">
+          <Badge size="xs" severity="primary">
             {group.variants.size > 1 && group.minPoints !== group.maxPoints
               ? $t("exercises.libraryPicker.pointsRange", { min: group.minPoints, max: group.maxPoints })
               : $t("exercises.libraryPicker.pointsSingle", { score })}
-          </span>
+          </Badge>
 
           {#if activeEx}
-            <button
-              type="button"
-              class="inline-flex items-center gap-1 rounded border border-line-strong bg-surface-inset px-2 py-1 text-xs font-medium text-content transition-all duration-150 ease-[ease] hover:border-accent hover:bg-line-strong hover:text-accent"
+            <Button
+              variant="outlined"
+              severity="secondary"
+              size="sm"
+              icon={faPenToSquare}
               title={$t("exercises.libraryPicker.quickEditTitle")}
-              on:click={() => onQuickEdit(activeEx)}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-              </svg>
-              <span>{$t("exercises.libraryPicker.quickEditText")}</span>
-            </button>
-            <button
-              type="button"
-              class="inline-flex items-center gap-1 rounded border border-line bg-transparent px-2 py-1 text-xs font-medium text-accent transition-all duration-150 ease-[ease] hover:border-accent hover:bg-surface-raised"
+              onClick={() => onQuickEdit(activeEx)}
+            >{$t("exercises.libraryPicker.quickEditText")}</Button>
+            <Button
+              variant="outlined"
+              size="sm"
+              icon={faEye}
               title={$t("exercises.libraryPicker.quickPreviewTitle")}
-              on:click={() => onOpenPreview(activeEx)}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
-              <span>{$t("common.preview")}</span>
-            </button>
+              onClick={() => onOpenPreview(activeEx)}
+            >{$t("common.preview")}</Button>
           {/if}
         </div>
       </div>

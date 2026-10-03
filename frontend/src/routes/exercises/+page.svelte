@@ -1,25 +1,35 @@
 <script lang="ts">
+  import { type ExerciseGroup, groupExercises } from "$lib/exercise-library/groupExercises";
   import { onMount } from "svelte";
   import { db } from "$lib/db/db";
-  import { sessionStore, isAuthenticated, awaitSessionReady } from "$lib/stores/session";
+  import { sessionStore, awaitSessionReady } from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import type { ExerciseRecord } from "$lib/db/schema";
   import { loadExercisesEncrypted, saveExerciseEncrypted, encryptExercise } from "$lib/db/dbEncryption";
   import { api } from "$lib/api/client";
   import { parseExerciseScore } from "$lib/latex/scoreParser";
   import { get } from "svelte/store";
+  import { isServerBacked } from "$lib/utils/serverBacked";
+  import { countActiveFilters, matchesQuery, uniqueSorted } from "$lib/utils/listFilter";
   import { t, translate } from "$lib/i18n";
 
   import LatexEditor, { type DiffDecorationConfig, type DiffLineDecoration, type DiffLinePaddingDecoration, type DiffWordDecoration, type DiffGapDecoration } from "$lib/components/LatexEditor.svelte";
   import { highlightLatexToHtml } from "$lib/latex/highlighter";
   import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
-  import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
-  import ExerciseFilterSidebar from "$lib/components/exercise-library/ExerciseFilterSidebar.svelte";
-  import { Button, Modal, PageHeader, PageShell } from "$lib/components/ui";
+  import ListFilterPanel from "$lib/components/common/ListFilterPanel.svelte";
+  import { Alert, Button, FilterLayout, PageHeader, PageShell } from "$lib/components/ui";
+  import PreviewHost from "$lib/components/common/PreviewHost.svelte";
+  import { createPreviewFlow } from "$lib/stores/previewFlow";
+  import { loadExamUsage, usageKey, type ExamUsageEntry } from "$lib/exercise-library/examUsage";
+  import { createExpandSet } from "$lib/utils/expandSet";
+  import { createLazyMap } from "$lib/utils/lazyMap";
+  import { exerciseRepository, mapApiToExerciseRecord } from "$lib/repositories/exerciseRepository";
+  import { compileExercisePreview } from "$lib/latex/exercisePreview";
+  import { faPlus } from "@fortawesome/free-solid-svg-icons";
   import ExerciseGroupList from "$lib/components/exercise-library/ExerciseGroupList.svelte";
   import GroupEditModal from "$lib/components/exercise-library/GroupEditModal.svelte";
   import RegroupModal from "$lib/components/exercise-library/RegroupModal.svelte";
-  import DeleteExerciseModal from "$lib/components/exercise-library/DeleteExerciseModal.svelte";
+  import DeleteWithUsageModal from "$lib/components/common/DeleteWithUsageModal.svelte";
   import VariantModal from "$lib/components/exercise-library/VariantModal.svelte";
   import ExerciseDiffModal from "$lib/components/exercise-library/ExerciseDiffModal.svelte";
 
@@ -28,19 +38,16 @@
   let selectedGrade: string = "ALL";
   let selectedSubject: string = "ALL";
   let searchQuery: string = "";
-  let isFilterDrawerOpen = false;
 
   // Badge on the mobile filter button, so an active filter is visible without
   // opening the drawer.
-  $: activeFilterCount =
-    (selectedTopic !== "ALL" ? 1 : 0) +
-    (selectedGrade !== "ALL" ? 1 : 0) +
-    (selectedSubject !== "ALL" ? 1 : 0) +
-    (searchQuery.trim() !== "" ? 1 : 0);
+  $: activeFilterCount = countActiveFilters(searchQuery, selectedTopic, selectedGrade, selectedSubject);
   let isLoading = false;
+  /** Last failed/invalid action of an open modal, shown inline in it. */
+  let modalError = "";
+  let loadAgain = false;
   let errorMsg = "";
   let isLocalFallback = false;
-  let isSyncingExercises = false;
 
   // Shared Editor modal state
   let isEditorOpen = false;
@@ -51,8 +58,10 @@
   // Delete modal state
   let isDeleteModalOpen = false;
   let deletingExercise: ExerciseRecord | null = null;
-  let deleteUsageInfo: { examCount: number; exams: { id: string; title: string; datum: string | null }[] } | null = null;
+  let deleteExams: ExamUsageEntry[] = [];
   let isDeleteLoading = false;
+  let isDeleting = false;
+  let deleteError = "";
 
   // Regroup modal state
   let isRegroupModalOpen = false;
@@ -73,93 +82,35 @@
   let lastLoadedLeftId = "";
   let lastLoadedRightId = "";
 
-  // Expanded groups tracking — use object for Svelte reactivity
-  let expandedGroups: { [groupId: string]: boolean } = {};
+  const expandedGroups = createExpandSet();
 
-  /* ── Exercise Grouping ── */
+  /** Exams using each variant of a group; loaded lazily once its card is expanded. */
+  const usage = createLazyMap<ExamUsageEntry[]>((key) => {
+    const [groupId, variantKey] = key.split("\u001f");
+    const members = allGroups.find((g) => g.groupId === groupId)?.variants.get(variantKey) ?? [];
+    return loadExamUsage(members.map((m) => m.ex.id));
+  });
 
-  interface VariantMember {
-    ex: ExerciseRecord;
-    variantLabel: string;
-    version: number;
-    isCurrent: boolean;
+  $: for (const g of allGroups) {
+    if ($expandedGroups[g.groupId]) for (const vKey of g.variants.keys()) usage.ensure(usageKey(g.groupId, vKey));
   }
 
-  interface ExerciseGroup {
-    groupId: string;
-    name: string;
-    topicTag: string;
-    grade?: string;
-    subject?: string;
-    maxPoints: number;
-    minPoints: number;
-    variants: Map<string, VariantMember[]>;
-    allMembers: VariantMember[];
-  }
-
-  function groupExercises(exs: ExerciseRecord[]): ExerciseGroup[] {
-    const buckets = new Map<string, ExerciseRecord[]>();
-
-    for (const ex of exs) {
-      const key = ex.exerciseGroupId || (`name:${ex.name || translate("exercises.untitled")}`);
-      if (!buckets.has(key)) buckets.set(key, []);
-      buckets.get(key)!.push(ex);
-    }
-
-    const groups: ExerciseGroup[] = [];
-
-    for (const [groupId, members] of buckets) {
-      const currentMembers = members.filter((m) => m.isCurrent !== false);
-      if (currentMembers.length === 0) continue;
-
-      const name = currentMembers[0]?.name || translate("exercises.untitled");
-      const topicTag = currentMembers[0]?.topicTag || "_General";
-      const grade = currentMembers[0]?.grade;
-      const subject = currentMembers[0]?.subject;
-
-      const variants = new Map<string, VariantMember[]>();
-      for (const ex of currentMembers) {
-        const vKey = ex.variantKey || "_General";
-        if (!variants.has(vKey)) variants.set(vKey, []);
-        variants.get(vKey)!.push({
-          ex,
-          variantLabel: vKey,
-          version: ex.version || 1,
-          isCurrent: ex.isCurrent !== false,
-        });
-      }
-
-      const sortedVariants = new Map<string, VariantMember[]>();
-      const keys = [...variants.keys()].sort((a, b) => {
-        if (a === "_General") return -1;
-        if (b === "_General") return 1;
-        return a.localeCompare(b);
-      });
-      for (const k of keys) sortedVariants.set(k, variants.get(k)!);
-
-      for (const [, vMembers] of sortedVariants) {
-        vMembers.sort((a, b) => b.version - a.version);
-      }
-
-      const allMembers: VariantMember[] = [];
-      for (const [, vMembers] of sortedVariants) {
-        allMembers.push(...vMembers);
-      }
-
-      const scores = allMembers.map((m) => parseExerciseScore(m.ex.latexBody || "") || m.ex.maxPoints || 0);
-      const maxPoints = scores.length > 0 ? Math.max(...scores) : 0;
-      const minPoints = scores.length > 0 ? Math.min(...scores) : 0;
-
-      groups.push({ groupId, name, topicTag, grade, subject, maxPoints, minPoints, variants: sortedVariants, allMembers });
-    }
-
-    groups.sort((a, b) => a.name.localeCompare(b.name));
-    return groups;
-  }
-
-  function toggleGroup(groupId: string) {
-    expandedGroups = { ...expandedGroups, [groupId]: !expandedGroups[groupId] };
-  }
+  const exercisePreview = createPreviewFlow<ExerciseRecord>({
+    kind: "exercise",
+    idOf: (ex) => ex.id!,
+    titleOf: (ex) => ex.name || translate("exercises.untitled"),
+    compile: (ex, onStatus) =>
+      compileExercisePreview({
+        cacheId: ex.id!,
+        name: ex.name ?? "",
+        latexBody: ex.latexBody ?? "",
+        resourceOwnerId: ex.id!,
+        staged: false,
+        useLocal: $storagePolicyStore.latexCompilation === "local",
+        key: get(sessionStore).sessionKey,
+        onStatus,
+      }),
+  });
 
   $: activeDiffGroupExercises = diffGroupExercises.map(
     (e) => exercises.find((x) => x.id === e.id) || e
@@ -197,75 +148,57 @@
   $: isDiffLeftDirty = diffLeftEx ? diffLeftLatex !== (diffLeftEx.latexBody || "") : false;
   $: isDiffRightDirty = diffRightEx ? diffRightLatex !== (diffRightEx.latexBody || "") : false;
 
-  $: availableTopics = Array.from(
-    new Set(
-      exercises.map((e) => e.topicTag).filter((t): t is string => Boolean(t)),
-    ),
-  ).sort();
+  $: availableGrades = uniqueSorted(exercises, (e) => e.grade);
+  $: availableSubjects = uniqueSorted(exercises, (e) => e.subject);
 
-  $: availableGrades = Array.from(
-    new Set(
-      exercises.map((e) => e.grade).filter((g): g is string => Boolean(g)),
-    ),
-  ).sort();
-
-  $: availableSubjects = Array.from(
-    new Set(
-      exercises.map((e) => e.subject).filter((s): s is string => Boolean(s)),
-    ),
-  ).sort();
-
-  $: filteredExercises = exercises.filter((ex) => {
-    const matchesTopic =
-      selectedTopic === "ALL" || ex.topicTag === selectedTopic;
-    const matchesGrade =
-      selectedGrade === "ALL" || ex.grade === selectedGrade;
-    const matchesSubject =
-      selectedSubject === "ALL" || ex.subject === selectedSubject;
-    const q = searchQuery.toLowerCase().trim();
-    const matchesSearch =
-      !q ||
-      (ex.name && ex.name.toLowerCase().includes(q)) ||
-      (ex.topicTag && ex.topicTag.toLowerCase().includes(q)) ||
-      (ex.grade && ex.grade.toLowerCase().includes(q)) ||
-      (ex.subject && ex.subject.toLowerCase().includes(q)) ||
-      (ex.latexBody && ex.latexBody.toLowerCase().includes(q));
-    return matchesTopic && matchesGrade && matchesSubject && matchesSearch;
-  });
+  $: filteredExercises = exercises.filter(
+    (ex) =>
+      (selectedTopic === "ALL" || ex.topicTag === selectedTopic) &&
+      (selectedGrade === "ALL" || ex.grade === selectedGrade) &&
+      (selectedSubject === "ALL" || ex.subject === selectedSubject) &&
+      matchesQuery(searchQuery, ex.name, ex.topicTag, ex.grade, ex.subject, ex.latexBody)
+  );
 
   // Grouped view: filter then group
   $: allGroups = groupExercises(exercises);
+  // Topic pills count groups, not exercise rows.
+  $: topicPillOptions = uniqueSorted(exercises, (e) => e.topicTag).map((topic) => ({
+    value: topic,
+    label: topic,
+    count: allGroups.filter((g) => g.topicTag === topic).length,
+  }));
   $: filteredGroups = groupExercises(filteredExercises);
 
   onMount(() => {
     loadExercises();
   });
 
+  /** Overlapping calls coalesce into one more run, so a slow earlier fetch can't overwrite newer data. */
   async function loadExercises() {
-    await awaitSessionReady();
+    if (isLoading) {
+      loadAgain = true;
+      return;
+    }
     isLoading = true;
+    try {
+      do {
+        loadAgain = false;
+        await doLoadExercises();
+      } while (loadAgain);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  async function doLoadExercises() {
+    await awaitSessionReady();
     errorMsg = "";
     const key = get(sessionStore).sessionKey;
     try {
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
+      if (isServerBacked()) {
         try {
-          const remoteExs = (await api.get("/exercises")) as any[];
-          exercises = remoteExs.map((e: any) => ({
-            id: e.id,
-            teacherId: e.teacher_id,
-            name: e.name,
-            topicTag: e.topic_tag,
-            grade: e.grade || undefined,
-            subject: e.subject || undefined,
-            latexBody: e.latex_body,
-            maxPoints: e.max_points,
-            version: e.version || 1,
-            questionType: e.question_type || "free_text",
-            penalty: e.penalty || 0,
-            exerciseGroupId: e.exercise_group_id || undefined,
-            variantKey: e.variant_key || undefined,
-            isCurrent: e.is_current,
-          }));
+          const remoteExs = (await api.get("/exercises", { silentError: true })) as any[];
+          exercises = remoteExs.map(mapApiToExerciseRecord);
           const encryptedExs = await Promise.all(exercises.map(ex => encryptExercise(ex, key)));
           await db.exercises.bulkPut(encryptedExs);
           isLocalFallback = false;
@@ -283,12 +216,10 @@
       }
     } catch (err: any) {
       errorMsg = err.message || translate("exercises.page.loadFailed");
-    } finally {
-      isLoading = false;
     }
+    usage.reset();
+    expandedGroups.prune(groupExercises(exercises).map((g) => g.groupId));
   }
-
-
 
   function openCreateModal() {
     editingExercise = null;
@@ -325,6 +256,7 @@
   let isGroupSaving = false;
 
   function openGroupModal(group: ExerciseGroup) {
+    modalError = "";
     editingGroup = group;
     groupEditorName = group.name;
     groupEditorTopicTag = group.topicTag;
@@ -334,9 +266,10 @@
   }
 
   async function handleSaveGroupMetadata() {
+    modalError = "";
     if (!editingGroup) return;
     if (!groupEditorName.trim()) {
-      alert(translate("exercises.page.groupNameRequired"));
+      modalError = translate("exercises.page.groupNameRequired");
       return;
     }
 
@@ -370,7 +303,7 @@
         }
       }
 
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
+      if (isServerBacked()) {
         if (editingGroup.groupId && !editingGroup.groupId.startsWith("name:")) {
           try {
             await api.patch(`/exercises/groups/${editingGroup.groupId}`, {
@@ -406,7 +339,7 @@
       editingGroup = null;
       await loadExercises();
     } catch (err: any) {
-      alert(translate("exercises.page.groupSaveFailed", { message: err.message }));
+      modalError = translate("exercises.page.groupSaveFailed", { message: err.message });
     } finally {
       isGroupSaving = false;
     }
@@ -415,9 +348,9 @@
   // Variant modal state
   let isVariantModalOpen = false;
   let variantBaseEx: ExerciseRecord | null = null;
-  let variantKey = "Moebel";
+  let variantKey = "";
   let variantName = "";
-  let variantTopicTag = "_Vererbung";
+  let variantTopicTag = "";
   let variantLatexBody = "";
 
   let initialVariantName = "";
@@ -433,12 +366,14 @@
     variantLatexBody !== initialVariantLatexBody;
 
   function openRegroupModal(ex: ExerciseRecord) {
+    modalError = "";
     regroupingExercise = ex;
     regroupTargetGroupId = "NEW";
     isRegroupModalOpen = true;
   }
 
   async function handleSaveRegroup() {
+    modalError = "";
     if (!regroupingExercise) return;
     
     let targetGroupId = regroupTargetGroupId;
@@ -492,55 +427,47 @@
       regroupingExercise = null;
       await loadExercises();
     } catch (err: any) {
-      alert(translate("exercises.page.regroupFailed", { message: err.message }));
+      modalError = translate("exercises.page.regroupFailed", { message: err.message });
     }
   }
 
   async function openDeleteModal(ex: ExerciseRecord) {
     deletingExercise = ex;
-    deleteUsageInfo = null;
+    deleteExams = [];
+    deleteError = "";
     isDeleteLoading = true;
     isDeleteModalOpen = true;
-
-    if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
-      try {
-        const usage = (await api.get(`/exercises/${ex.id}/usage`)) as any;
-        deleteUsageInfo = {
-          examCount: usage.exam_count,
-          exams: usage.exams,
-        };
-      } catch (err) {
-        console.warn("Failed to check exercise usage:", err);
-        deleteUsageInfo = { examCount: 0, exams: [] };
-      }
-    } else {
-      deleteUsageInfo = { examCount: 0, exams: [] };
+    try {
+      deleteExams = await loadExamUsage([ex.id!]);
+    } catch (err) {
+      console.warn("Failed to check exercise usage:", err);
+    } finally {
+      isDeleteLoading = false;
     }
-    isDeleteLoading = false;
   }
 
   async function handleConfirmDelete() {
     if (!deletingExercise) return;
+    isDeleting = true;
+    deleteError = "";
     try {
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
-        await api.delete(`/exercises/${deletingExercise.id}`);
-      }
-      await db.exercises.delete(deletingExercise.id);
-      // Attached resource files have no owner once the exercise is gone.
-      await db.exerciseResources.where("exerciseId").equals(deletingExercise.id).delete();
-      await loadExercises();
+      await exerciseRepository.delete(deletingExercise.id!);
       isDeleteModalOpen = false;
       deletingExercise = null;
+      await loadExercises();
     } catch (err: any) {
-      alert(translate("exercises.page.deleteFailed", { message: err.message }));
+      deleteError = translate("exercises.page.deleteFailed", { message: err.message });
+    } finally {
+      isDeleting = false;
     }
   }
 
   async function openDiffModal(ex: ExerciseRecord) {
+    modalError = "";
     let groupExs: ExerciseRecord[] = [];
     const key = get(sessionStore).sessionKey;
 
-    if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
+    if (isServerBacked()) {
       try {
         if (ex.exerciseGroupId) {
           const remoteExs = (await api.get(`/exercises?group_id=${ex.exerciseGroupId}&current_only=false`)) as any[];
@@ -603,65 +530,37 @@
     isDiffModalOpen = true;
   }
 
-  async function handleSaveDiffLeft() {
-    if (!diffLeftEx) return;
-    isSavingDiffLeft = true;
+  async function saveDiffSide(side: "left" | "right") {
+    const ex = side === "left" ? diffLeftEx : diffRightEx;
+    const latex = side === "left" ? diffLeftLatex : diffRightLatex;
+    if (!ex) return;
+    if (side === "left") isSavingDiffLeft = true;
+    else isSavingDiffRight = true;
+    modalError = "";
     try {
-      const updatedMaxPoints = parseExerciseScore(diffLeftLatex);
+      const updatedMaxPoints = parseExerciseScore(latex);
       const key = get(sessionStore).sessionKey;
 
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
-        await api.patch(`/exercises/${diffLeftEx.id}`, {
-          latex_body: diffLeftLatex,
-          max_points: updatedMaxPoints,
-        });
+      if (isServerBacked()) {
+        await api.patch(`/exercises/${ex.id}`, { latex_body: latex, max_points: updatedMaxPoints });
       }
 
       const updatedRecord: ExerciseRecord = {
-        ...diffLeftEx,
-        latexBody: diffLeftLatex,
+        ...ex,
+        latexBody: latex,
         maxPoints: updatedMaxPoints,
         updatedAt: new Date().toISOString(),
       };
-
-      const encrypted = await encryptExercise(updatedRecord, key);
-      await db.exercises.put(encrypted);
+      await db.exercises.put(await encryptExercise(updatedRecord, key));
       await loadExercises();
     } catch (err: any) {
-      alert(translate("exercises.page.diffSaveLeftFailed", { message: err.message }));
+      modalError = translate(
+        side === "left" ? "exercises.page.diffSaveLeftFailed" : "exercises.page.diffSaveRightFailed",
+        { message: err.message }
+      );
     } finally {
-      isSavingDiffLeft = false;
-    }
-  }
-
-  async function handleSaveDiffRight() {
-    if (!diffRightEx) return;
-    isSavingDiffRight = true;
-    try {
-      const updatedMaxPoints = parseExerciseScore(diffRightLatex);
-      const key = get(sessionStore).sessionKey;
-
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
-        await api.patch(`/exercises/${diffRightEx.id}`, {
-          latex_body: diffRightLatex,
-          max_points: updatedMaxPoints,
-        });
-      }
-
-      const updatedRecord: ExerciseRecord = {
-        ...diffRightEx,
-        latexBody: diffRightLatex,
-        maxPoints: updatedMaxPoints,
-        updatedAt: new Date().toISOString(),
-      };
-
-      const encrypted = await encryptExercise(updatedRecord, key);
-      await db.exercises.put(encrypted);
-      await loadExercises();
-    } catch (err: any) {
-      alert(translate("exercises.page.diffSaveRightFailed", { message: err.message }));
-    } finally {
-      isSavingDiffRight = false;
+      if (side === "left") isSavingDiffLeft = false;
+      else isSavingDiffRight = false;
     }
   }
 
@@ -679,9 +578,10 @@
   }
 
   function openVariantModal(ex: ExerciseRecord) {
+    modalError = "";
     variantBaseEx = ex;
     variantName = ex.name || "Exercise";
-    variantKey = "Moebel";
+    variantKey = "";
     variantTopicTag = ex.topicTag || "_General";
     variantLatexBody = ex.latexBody || "";
 
@@ -707,9 +607,10 @@
   }
 
   async function handleSaveVariant() {
+    modalError = "";
     if (!variantBaseEx) return;
     if (!variantKey.trim()) {
-      alert(translate("exercises.page.variantKeyRequired"));
+      modalError = translate("exercises.page.variantKeyRequired");
       return;
     }
 
@@ -749,98 +650,79 @@
 
       forceCloseVariantModal();
       await loadExercises();
-      alert(translate("exercises.page.variantCreated", { key: variantKey }));
     } catch (err: any) {
-      alert(translate("exercises.page.variantCreateFailed", { message: err.message }));
+      modalError = translate("exercises.page.variantCreateFailed", { message: err.message });
     }
   }
 </script>
 
-<PageShell width="full">
+<PageShell width="fluid">
   <PageHeader
     title={$t("exercises.page.title")}
     subtitle={$t("exercises.page.subtitle")}
     helpTopic="exercises"
   >
     <svelte:fragment slot="actions">
-      <Button size="lg" onClick={openCreateModal}>{$t("exercises.page.createButton")}</Button>
+      <Button icon={faPlus} onClick={openCreateModal}>{$t("exercises.page.createButton")}</Button>
     </svelte:fragment>
   </PageHeader>
 
+  {#if isLocalFallback}
+    <Alert severity="danger" class="mb-6">{$t("exercises.page.localFallback")}</Alert>
+  {/if}
   {#if errorMsg}
-    <div class="mb-6 rounded-md bg-red-500/20 p-3 text-red-300">{errorMsg}</div>
+    <Alert severity="danger" class="mb-6">{errorMsg}</Alert>
   {/if}
 
-  <!-- Below `lg` the filter panel would otherwise stack on top of the list and
-       bury it, so it moves into a drawer opened from here. One breakpoint owns
-       both the layout and the toggle. -->
-  <div class="mb-3 lg:hidden">
-    <Button variant="secondary" block onClick={() => (isFilterDrawerOpen = true)}>
-      {$t("exercises.page.showFilters")}
-      {#if activeFilterCount > 0}
-        <span class="rounded-full bg-accent-strong px-2 py-0.5 text-xs font-bold text-white">
-          {activeFilterCount}
-        </span>
-      {/if}
-    </Button>
-  </div>
-
-  <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
-    <div class="sticky top-2 hidden lg:block">
-      <ExerciseFilterSidebar
+  <!-- Below `lg` the filter panel moves into a drawer; see FilterDrawer. -->
+  <FilterLayout
+    title={$t("exercises.page.filtersTitle")}
+    toggleLabel={$t("exercises.page.showFilters")}
+    activeCount={activeFilterCount}
+    busy={isLoading}
+  >
+    <svelte:fragment slot="filters" let:close>
+      <ListFilterPanel
         bind:searchQuery
         bind:selectedGrade
         bind:selectedSubject
-        {selectedTopic}
-        {availableTopics}
-        {availableGrades}
-        {availableSubjects}
-        {allGroups}
-        onTopicChange={(topic) => (selectedTopic = topic)}
+        searchPlaceholder={$t("exercises.filterSidebar.searchPlaceholder")}
+        gradeOptions={availableGrades}
+        subjectOptions={availableSubjects}
+        pillOptions={topicPillOptions}
+        pillSelected={selectedTopic}
+        pillAllLabel={$t("exercises.filterSidebar.allTopics", { count: allGroups.length })}
+        onPillSelect={(topic) => {
+          selectedTopic = topic;
+          close();
+        }}
       />
-    </div>
+    </svelte:fragment>
 
-    <ExerciseGroupList
-      {isLoading}
-      {filteredGroups}
-      {expandedGroups}
-      onToggleGroup={toggleGroup}
-      onEditGroup={openGroupModal}
-      onEditExercise={openEditModal}
-      onNewVersion={openNewVersionModal}
-      onDiff={openDiffModal}
-      onRegroup={openRegroupModal}
-      onDelete={openDeleteModal}
-      onOpenVariant={openVariantModal}
-      onCreateFirst={openCreateModal}
-    />
-  </div>
+  <ExerciseGroupList
+    isLoading={isLoading && exercises.length === 0}
+    {filteredGroups}
+    expandedGroups={$expandedGroups}
+    onToggleGroup={expandedGroups.toggle}
+    onEditGroup={openGroupModal}
+    onEditExercise={openEditModal}
+    onNewVersion={openNewVersionModal}
+    onDiff={openDiffModal}
+    onRegroup={openRegroupModal}
+    onDelete={openDeleteModal}
+    onPreview={exercisePreview.open}
+    usageMap={$usage}
+    onOpenVariant={openVariantModal}
+    onCreateFirst={openCreateModal}
+  />
+  </FilterLayout>
 </PageShell>
 
-<Modal
-  open={isFilterDrawerOpen}
-  size="sm"
-  title={$t("exercises.page.filtersTitle")}
-  onClose={() => (isFilterDrawerOpen = false)}
->
-  <ExerciseFilterSidebar
-    bind:searchQuery
-    bind:selectedGrade
-    bind:selectedSubject
-    {selectedTopic}
-    {availableTopics}
-    {availableGrades}
-    {availableSubjects}
-    {allGroups}
-    onTopicChange={(topic) => {
-      selectedTopic = topic;
-      isFilterDrawerOpen = false;
-    }}
-  />
-</Modal>
+<PreviewHost flow={exercisePreview} />
 
 <VariantModal
   isOpen={isVariantModalOpen}
+  error={modalError}
   {variantBaseEx}
   bind:variantKey
   bind:variantLatexBody
@@ -862,6 +744,7 @@
 
 <GroupEditModal
   isOpen={isGroupModalOpen}
+  error={modalError}
   {editingGroup}
   bind:groupEditorName
   bind:groupEditorTopicTag
@@ -874,6 +757,7 @@
 
 <RegroupModal
   isOpen={isRegroupModalOpen}
+  error={modalError}
   {regroupingExercise}
   bind:regroupTargetGroupId
   groups={allGroups}
@@ -881,17 +765,25 @@
   onClose={() => (isRegroupModalOpen = false)}
 />
 
-<DeleteExerciseModal
-  isOpen={isDeleteModalOpen}
-  {deletingExercise}
-  {isDeleteLoading}
-  {deleteUsageInfo}
+<DeleteWithUsageModal
+  open={isDeleteModalOpen && !!deletingExercise}
+  title={deletingExercise ? $t("exercises.deleteModal.title", { name: deletingExercise.name || $t("exercises.untitled") }) : ""}
+  usageLoading={isDeleteLoading}
+  loadingText={$t("exercises.deleteModal.checkingUsage")}
+  usageTitle={$t("exercises.deleteModal.warningTitle")}
+  usageText={deleteExams.length > 0 ? $t("exercises.deleteModal.usageInfo", { count: deleteExams.length }) : ""}
+  usageHint={$t("exercises.deleteModal.usageWarning")}
+  items={deleteExams.map((e) => ({ id: e.id, title: e.title, meta: e.datum }))}
+  plainText={$t("exercises.deleteModal.confirmPlain")}
+  busy={isDeleting}
+  error={deleteError}
   onConfirm={handleConfirmDelete}
   onClose={() => (isDeleteModalOpen = false)}
 />
 
 <ExerciseDiffModal
   isOpen={isDiffModalOpen}
+  error={modalError}
   {activeDiffGroupExercises}
   bind:diffLeftId
   bind:diffRightId
@@ -903,8 +795,8 @@
   {isDiffRightDirty}
   {isSavingDiffLeft}
   {isSavingDiffRight}
-  onSaveLeft={handleSaveDiffLeft}
-  onSaveRight={handleSaveDiffRight}
+  onSaveLeft={() => saveDiffSide("left")}
+  onSaveRight={() => saveDiffSide("right")}
   onRequestClose={requestCloseDiffModal}
   showConfirmClose={showDiffConfirmClose}
   onForceCloseConfirm={forceCloseDiffModal}

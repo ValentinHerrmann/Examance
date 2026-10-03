@@ -1,7 +1,7 @@
 import type { Translations } from '../types';
 
 export const nav: Translations['nav'] = {
-    dashboard: 'Dashboard',
+    dashboard: 'Exams',
     exerciseLibrary: 'Exercise Library',
     analytics: 'Analytics',
     userManagement: 'User Management',
@@ -11,4 +11,24 @@ export const nav: Translations['nav'] = {
     logoAlt: 'Examance logo',
     imprint: 'Imprint',
     privacy: 'Privacy Policy',
+    legal: 'Legal',
+    licenses: 'Licenses',
+    account: 'Account',
+    openMenu: 'Open navigation',
+    closeMenu: 'Close navigation',
+    storageMode: 'Data: {mode}',
+    latexMode: 'LaTeX: {mode}',
+    dataLabel: 'Data',
+    latexLabel: 'LaTeX',
+    dataCloud: 'Cloud',
+    dataHybrid: 'Hybrid',
+    dataLocal: 'Local',
+    latexServerShort: 'Server',
+    latexLocalShort: 'Local',
+    latexServerTitle: 'LaTeX is compiled on the server',
+    latexLocalTitle: 'LaTeX is compiled locally in the browser',
+    theme: 'Color scheme',
+    themeSystem: 'Match system',
+    themeLight: 'Light',
+    themeDark: 'Dark',
 };
