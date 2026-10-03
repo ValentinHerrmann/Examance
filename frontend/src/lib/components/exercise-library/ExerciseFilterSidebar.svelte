@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
   import { t } from "$lib/i18n";
-  import { TextInput, Select } from "$lib/components/ui";
+  import { FilterPills, TextInput, Select } from "$lib/components/ui";
 
   interface ExerciseGroup {
     groupId: string;
@@ -25,12 +25,11 @@
   export let allGroups: ExerciseGroup[] = [];
   export let onTopicChange: (topic: string) => void;
 
-  /* Topic pills wrap into rows when the panel is wide (drawer / stacked) and
-   * stack into a column in the desktop sidebar. */
-  const pillBase =
-    "box-border min-h-9 cursor-pointer rounded-xl border border-line bg-surface-raised px-3 py-1.5 text-left text-sm text-content hover:border-line-strong";
-  const pillActive =
-    "box-border min-h-9 cursor-pointer rounded-xl border border-accent bg-primary px-3 py-1.5 text-left text-sm font-semibold text-primary-contrast";
+  $: topicPillOptions = availableTopics.map((topic) => ({
+    value: topic,
+    label: topic,
+    count: allGroups.filter((g) => g.topicTag === topic).length,
+  }));
 </script>
 
 <div class="flex min-w-0 flex-col gap-4">
@@ -68,24 +67,11 @@
     {/if}
   </div>
 
-  <div class="flex w-full flex-row flex-wrap gap-1.5 lg:flex-col lg:flex-nowrap">
-    <button
-      type="button"
-      class={selectedTopic === "ALL" ? pillActive : pillBase}
-      on:click={() => onTopicChange("ALL")}
-    >
-      {$t("exercises.filterSidebar.allTopics", { count: allGroups.length })}
-    </button>
-    {#each availableTopics as topic}
-      {@const groupCount = allGroups.filter((g) => g.topicTag === topic).length}
-      <button
-        type="button"
-        class={selectedTopic === topic ? pillActive : pillBase}
-        on:click={() => onTopicChange(topic)}
-      >
-        {topic} ({groupCount})
-      </button>
-    {/each}
-  </div>
+  <FilterPills
+    selected={selectedTopic}
+    allLabel={$t("exercises.filterSidebar.allTopics", { count: allGroups.length })}
+    options={topicPillOptions}
+    onSelect={onTopicChange}
+  />
 </div>
 

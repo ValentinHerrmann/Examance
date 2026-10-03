@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
   import { t } from "$lib/i18n";
-  import { Modal, Button, Alert } from "$lib/components/ui";
+  import { Alert, ConfirmDeleteModal } from "$lib/components/ui";
 
   export let isOpen = false;
   export let deletingExercise: ExerciseRecord | null = null;
@@ -11,11 +11,14 @@
   export let onClose: () => void;
 </script>
 
-<Modal
+<ConfirmDeleteModal
   open={isOpen && !!deletingExercise}
-  size="small"
   title={deletingExercise ? $t("exercises.deleteModal.title", { name: deletingExercise.name || $t("exercises.untitled") }) : ""}
-  onClose={onClose}
+  {isDeleteLoading}
+  confirmLabel={$t("exercises.deleteModal.deleteAnyway")}
+  cancelLabel={$t("common.cancel")}
+  {onConfirm}
+  {onClose}
 >
   {#if isDeleteLoading}
     <p>{$t("exercises.deleteModal.checkingUsage")}</p>
@@ -39,11 +42,4 @@
   {:else}
     <p>{$t("exercises.deleteModal.confirmPlain")}</p>
   {/if}
-
-  <svelte:fragment slot="footer">
-    <Button variant="outlined" severity="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
-    <Button severity="danger" onClick={onConfirm} disabled={isDeleteLoading}>
-      {$t("exercises.deleteModal.deleteAnyway")}
-    </Button>
-  </svelte:fragment>
-</Modal>
+</ConfirmDeleteModal>

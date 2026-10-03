@@ -6,6 +6,8 @@ export const dashboard = {
         importing: 'Importiert…',
         importButton: '.bgproj importieren',
         createButton: 'Neue Prüfung erstellen',
+        showFilters: 'Filter anzeigen',
+        filtersTitle: 'Filter',
     },
     sessionState: {
         initializing: 'Lokale Sitzung wird initialisiert…',
@@ -39,8 +41,10 @@ export const dashboard = {
         gradeOption: 'Klassenstufe {grade}',
         subjectLabel: 'Fach:',
         allSubjects: 'Alle Fächer',
+        allTestarts: 'Alle Prüfungstypen ({count})',
     },
-    examGrid: {
+    examList: {
+        loading: 'Prüfungen werden geladen…',
         noResults: 'Keine Prüfungen entsprechen Ihrer Suche oder Filterung.',
         untitledExam: 'Unbenannte Prüfung',
         classLabel: 'Klasse {course}',
@@ -48,6 +52,8 @@ export const dashboard = {
         dateLabel: 'Datum: {date}',
         retentionUntil: 'Aufbewahrung bis: {date}',
         openExam: 'Prüfung öffnen',
+        submissionsCount: '{count} Abgaben',
+        deleteTitle: 'Prüfung löschen',
     },
     retentionModal: {
         title: 'DSGVO-Aufbewahrungswarnung (Art. 5)',
@@ -63,8 +69,14 @@ export const dashboard = {
     importStatus: 'Status: {stage} ({current}%)',
     importFailed: 'Import fehlgeschlagen: {message}',
     deleteFailed: 'Löschen fehlgeschlagen: {message}',
-    deleteExamConfirm: 'Möchten Sie die Prüfung "{title}" wirklich löschen?',
-    deleteExamFallbackTitle: 'Unbenannt',
+    deleteModal: {
+        title: 'Prüfung löschen: {title}',
+        warningTitle: '⚠️ Warnung: Prüfung enthält Abgaben',
+        usageInfo: 'Zu dieser Prüfung gehören {count} Abgabe(n).',
+        usageWarning: 'Beim Löschen werden die Prüfungsdaten und alle zugehörigen Abgaben dauerhaft entfernt.',
+        confirmPlain: 'Möchten Sie diese Prüfung wirklich löschen?',
+        deleteAnyway: 'Trotzdem löschen',
+    },
     error: {
         title: '{status} – Fehler',
         notFound: 'Seite nicht gefunden',

@@ -14,8 +14,8 @@
   import { highlightLatexToHtml } from "$lib/latex/highlighter";
   import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
   import ExerciseFilterSidebar from "$lib/components/exercise-library/ExerciseFilterSidebar.svelte";
-  import { Alert, Badge, Button, Modal, PageHeader, PageShell } from "$lib/components/ui";
-  import { faFilter, faPlus } from "@fortawesome/free-solid-svg-icons";
+  import { Alert, Button, FilterDrawer, PageHeader, PageShell } from "$lib/components/ui";
+  import { faPlus } from "@fortawesome/free-solid-svg-icons";
   import ExerciseGroupList from "$lib/components/exercise-library/ExerciseGroupList.svelte";
   import GroupEditModal from "$lib/components/exercise-library/GroupEditModal.svelte";
   import RegroupModal from "$lib/components/exercise-library/RegroupModal.svelte";
@@ -771,17 +771,28 @@
     <Alert severity="danger" class="mb-6">{errorMsg}</Alert>
   {/if}
 
-  <!-- Below `lg` the filter panel would otherwise stack on top of the list and
-       bury it, so it moves into a drawer opened from here. One breakpoint owns
-       both the layout and the toggle. -->
-  <div class="mb-3 lg:hidden">
-    <Button variant="outlined" severity="secondary" icon={faFilter} block onClick={() => (isFilterDrawerOpen = true)}>
-      {$t("exercises.page.showFilters")}
-      {#if activeFilterCount > 0}
-        <Badge severity="primary" size="xs">{activeFilterCount}</Badge>
-      {/if}
-    </Button>
-  </div>
+  <!-- Below `lg` the filter panel moves into a drawer; see FilterDrawer. -->
+  <FilterDrawer
+    bind:open={isFilterDrawerOpen}
+    title={$t("exercises.page.filtersTitle")}
+    toggleLabel={$t("exercises.page.showFilters")}
+    activeCount={activeFilterCount}
+  >
+    <ExerciseFilterSidebar
+      bind:searchQuery
+      bind:selectedGrade
+      bind:selectedSubject
+      {selectedTopic}
+      {availableTopics}
+      {availableGrades}
+      {availableSubjects}
+      {allGroups}
+      onTopicChange={(topic) => {
+        selectedTopic = topic;
+        isFilterDrawerOpen = false;
+      }}
+    />
+  </FilterDrawer>
 
   <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
     <div class="sticky top-2 hidden max-h-[calc(100dvh-1rem)] overflow-y-auto lg:block">
@@ -814,28 +825,6 @@
     />
   </div>
 </PageShell>
-
-<Modal
-  open={isFilterDrawerOpen}
-  size="small"
-  title={$t("exercises.page.filtersTitle")}
-  onClose={() => (isFilterDrawerOpen = false)}
->
-  <ExerciseFilterSidebar
-    bind:searchQuery
-    bind:selectedGrade
-    bind:selectedSubject
-    {selectedTopic}
-    {availableTopics}
-    {availableGrades}
-    {availableSubjects}
-    {allGroups}
-    onTopicChange={(topic) => {
-      selectedTopic = topic;
-      isFilterDrawerOpen = false;
-    }}
-  />
-</Modal>
 
 <VariantModal
   isOpen={isVariantModalOpen}

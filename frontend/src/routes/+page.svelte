@@ -15,15 +15,15 @@
   import { offlineQueue } from '$lib/services/offlineQueue';
   import { goto } from '$app/navigation';
   import { t, translate } from '$lib/i18n';
+  import { faUpload } from '@fortawesome/free-solid-svg-icons';
 
   import DashboardSessionState from '$lib/components/dashboard/DashboardSessionState.svelte';
-  import DashboardHeader from '$lib/components/dashboard/DashboardHeader.svelte';
   import KpiSidebar from '$lib/components/dashboard/KpiSidebar.svelte';
   import RetentionModal from '$lib/components/dashboard/RetentionModal.svelte';
   import OnboardingEmptyState from '$lib/components/dashboard/OnboardingEmptyState.svelte';
-  import DashboardFilterBar from '$lib/components/dashboard/DashboardFilterBar.svelte';
-  import ExamGrid from '$lib/components/dashboard/ExamGrid.svelte';
-  import { Alert, PageShell } from '$lib/components/ui';
+  import ExamFilterSidebar from '$lib/components/dashboard/ExamFilterSidebar.svelte';
+  import ExamList from '$lib/components/dashboard/ExamList.svelte';
+  import { Alert, Button, ConfirmDeleteModal, FilterDrawer, PageHeader, PageShell } from '$lib/components/ui';
 
 
   let exams: ExamRecord[] = [];
@@ -38,6 +38,30 @@
   let searchQuery = '';
   let selectedGradeFilter = 'ALL';
   let selectedSubjectFilter = 'ALL';
+  let selectedTestartFilter = 'ALL';
+  let isFilterDrawerOpen = false;
+
+  // Badge on the mobile filter button, so an active filter is visible without
+  // opening the drawer.
+  $: activeFilterCount =
+    (selectedGradeFilter !== 'ALL' ? 1 : 0) +
+    (selectedSubjectFilter !== 'ALL' ? 1 : 0) +
+    (selectedTestartFilter !== 'ALL' ? 1 : 0) +
+    (searchQuery.trim() !== '' ? 1 : 0);
+
+  let fileInput: HTMLInputElement;
+
+  // Which exam rows are expanded (the list is collapsibles, like the exercise
+  // library).
+  let expandedExams: { [examId: string]: boolean } = {};
+
+  /** Set while a re-fetch is running, so the list shows its loading row. */
+  let isRefreshing = false;
+
+  // Delete modal state
+  let isDeleteModalOpen = false;
+  let deletingExam: { id: string; title?: string; submissionCount: number } | null = null;
+  let isDeleteLoading = false;
 
   $: availableGrades = Array.from(
     new Set(exams.map((e) => e.grade).filter((g): g is string => Boolean(g)))
@@ -47,12 +71,23 @@
     new Set(exams.map((e) => e.fach).filter((f): f is string => Boolean(f)))
   ).sort();
 
+  $: testartOptions = Array.from(
+    new Set(exams.map((e) => e.testart).filter((t): t is string => Boolean(t)))
+  )
+    .sort()
+    .map((testart) => ({
+      value: testart,
+      label: testart,
+      count: exams.filter((e) => e.testart === testart).length,
+    }));
+
   $: filteredExams = exams.filter((e) => {
     const matchesGrade =
       selectedGradeFilter === 'ALL' ||
       e.grade === selectedGradeFilter ||
       (!e.grade && e.klasse === selectedGradeFilter);
     const matchesSubject = selectedSubjectFilter === 'ALL' || e.fach === selectedSubjectFilter;
+    const matchesTestart = selectedTestartFilter === 'ALL' || e.testart === selectedTestartFilter;
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !q ||
@@ -61,7 +96,7 @@
       (e.klasse && e.klasse.toLowerCase().includes(q)) ||
       (e.fach && e.fach.toLowerCase().includes(q)) ||
       (e.testart && e.testart.toLowerCase().includes(q));
-    return matchesGrade && matchesSubject && matchesSearch;
+    return matchesGrade && matchesSubject && matchesTestart && matchesSearch;
   });
 
   onMount(async () => {
@@ -80,6 +115,15 @@
   });
 
   async function refreshExams() {
+    isRefreshing = true;
+    try {
+      await doRefreshExams();
+    } finally {
+      isRefreshing = false;
+    }
+  }
+
+  async function doRefreshExams() {
     await awaitSessionReady();
     examsLoadFailed = false;
     const key = get(sessionStore).sessionKey;
@@ -295,73 +339,151 @@
     await refreshExams();
   }
 
-  async function handleDeleteDashboardExam(id: string, title?: string) {
-    if (
-      !confirm(
-        translate('dashboard.deleteExamConfirm', {
-          title: title || translate('dashboard.deleteExamFallbackTitle'),
-        })
-      )
-    )
-      return;
+  function toggleExam(examId: string) {
+    expandedExams = { ...expandedExams, [examId]: !expandedExams[examId] };
+  }
+
+  function handleDeleteDashboardExam(id: string, title?: string) {
+    deletingExam = { id, title, submissionCount: examStatsMap.get(id)?.count ?? 0 };
+    isDeleteModalOpen = true;
+  }
+
+  async function handleConfirmDeleteExam() {
+    if (!deletingExam) return;
+    isDeleteLoading = true;
     try {
-      await examRepository.delete(id);
+      await examRepository.delete(deletingExam.id);
+      isDeleteModalOpen = false;
+      deletingExam = null;
       await refreshExams();
     } catch (err: any) {
       alert(translate('dashboard.deleteFailed', { message: err.message }));
+    } finally {
+      isDeleteLoading = false;
     }
-  }
-
-  function handleNavigateToExam(id: string) {
-    goto(`/exam/${id}`);
   }
 </script>
 
-<PageShell width="full">
+<PageShell width="fluid">
   {#if isInitializing}
     <DashboardSessionState mode="loading" />
   {:else if !$isUnlocked}
     <DashboardSessionState mode="locked" />
   {:else}
-    <DashboardHeader {isImporting} {importStatus} onImportArchive={handleImportArchive} />
-
-    <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,17.5rem)_minmax(0,1fr)]">
-      <div class="order-last min-w-0 xl:order-none">
-        <KpiSidebar
-          totalExams={exams.length}
-          subjectCount={availableSubjects.length}
-          gradeCount={availableGrades.length}
+    <PageHeader
+      title={$t("dashboard.header.title")}
+      subtitle={$t("dashboard.header.subtitle")}
+      helpTopic="gettingStarted"
+    >
+      <svelte:fragment slot="actions">
+        <Button
+          variant="outlined"
+          severity="secondary"
+          disabled={isImporting}
+          icon={faUpload}
+          onClick={() => fileInput?.click()}
+        >
+          {isImporting ? $t("dashboard.header.importing") : $t("dashboard.header.importButton")}
+        </Button>
+        <input
+          bind:this={fileInput}
+          type="file"
+          id="importFile"
+          accept=".bgproj"
+          on:change={handleImportArchive}
+          disabled={isImporting}
+          hidden
         />
-      </div>
+        <Button href="/exam/new">{$t("dashboard.header.createButton")}</Button>
+      </svelte:fragment>
+    </PageHeader>
 
-      <div class="min-w-0">
-        {#if expiredExam}
-          <RetentionModal {expiredExam} onExtend={handleExtendRetention} onDelete={handleDeleteExpiredExam} />
-        {/if}
+    {#if importStatus}
+      <Alert class="mb-6">{importStatus}</Alert>
+    {/if}
 
-        {#if examsLoadFailed}
-          <Alert severity="danger" class="mb-6">{$t("dashboard.loadFailed")}</Alert>
-        {/if}
+    {#if expiredExam}
+      <RetentionModal {expiredExam} onExtend={handleExtendRetention} onDelete={handleDeleteExpiredExam} />
+    {/if}
 
-        {#if exams.length === 0 && !examsLoadFailed}
-          <OnboardingEmptyState />
-        {:else}
-          <DashboardFilterBar
-            bind:searchQuery
-            bind:selectedGradeFilter
-            bind:selectedSubjectFilter
-            {availableGrades}
-            {availableSubjects}
-          />
+    {#if examsLoadFailed}
+      <Alert severity="danger" class="mb-6">{$t("dashboard.loadFailed")}</Alert>
+    {/if}
 
-          <ExamGrid
+    {#if exams.length === 0 && !examsLoadFailed}
+      <OnboardingEmptyState />
+    {:else}
+      <!-- Below `lg` the filter panel moves into a drawer; see FilterDrawer. -->
+      <FilterDrawer
+        bind:open={isFilterDrawerOpen}
+        title={$t("dashboard.header.filtersTitle")}
+        toggleLabel={$t("dashboard.header.showFilters")}
+        activeCount={activeFilterCount}
+      >
+        <ExamFilterSidebar
+          bind:searchQuery
+          bind:selectedGradeFilter
+          bind:selectedSubjectFilter
+          bind:selectedTestartFilter
+          {availableGrades}
+          {availableSubjects}
+          {testartOptions}
+          totalExamCount={exams.length}
+        />
+      </FilterDrawer>
+
+      <div class="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,17.5rem)_minmax(0,1fr)]">
+        <div class="sticky top-2 hidden max-h-[calc(100dvh-1rem)] min-w-0 overflow-y-auto lg:block">
+          <div class="flex min-w-0 flex-col gap-6">
+            <KpiSidebar
+              totalExams={exams.length}
+              subjectCount={availableSubjects.length}
+              gradeCount={availableGrades.length}
+            />
+
+            <ExamFilterSidebar
+              bind:searchQuery
+              bind:selectedGradeFilter
+              bind:selectedSubjectFilter
+              bind:selectedTestartFilter
+              {availableGrades}
+              {availableSubjects}
+              {testartOptions}
+              totalExamCount={exams.length}
+            />
+          </div>
+        </div>
+
+        <div class="min-w-0">
+          <ExamList
             exams={filteredExams}
             {examStatsMap}
-            onNavigate={handleNavigateToExam}
+            isLoading={isRefreshing}
+            {expandedExams}
+            onToggleExam={toggleExam}
             onDelete={handleDeleteDashboardExam}
           />
-        {/if}
+        </div>
       </div>
-    </div>
+    {/if}
   {/if}
 </PageShell>
+
+<ConfirmDeleteModal
+  open={isDeleteModalOpen && !!deletingExam}
+  title={deletingExam ? $t("dashboard.deleteModal.title", { title: deletingExam.title || $t("dashboard.examList.untitledExam") }) : ""}
+  isDeleteLoading={isDeleteLoading}
+  confirmLabel={$t("dashboard.deleteModal.deleteAnyway")}
+  cancelLabel={$t("common.cancel")}
+  onConfirm={handleConfirmDeleteExam}
+  onClose={() => (isDeleteModalOpen = false)}
+>
+  {#if deletingExam && deletingExam.submissionCount > 0}
+    <Alert severity="danger" title={$t("dashboard.deleteModal.warningTitle")}>
+      <p class="m-0">{$t("dashboard.deleteModal.usageInfo", { count: deletingExam.submissionCount })}</p>
+      <p class="m-0 mt-1 text-sm text-muted">{$t("dashboard.deleteModal.usageWarning")}</p>
+    </Alert>
+  {:else}
+    <p>{$t("dashboard.deleteModal.confirmPlain")}</p>
+  {/if}
+</ConfirmDeleteModal>

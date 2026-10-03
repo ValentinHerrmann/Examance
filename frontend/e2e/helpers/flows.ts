@@ -338,7 +338,10 @@ export function currentExamId(page: Page): string {
 
 /** Open an exam from the dashboard by its title. */
 export async function openExamFromDashboard(page: Page, title: string): Promise<void> {
+  // The exam row is a collapsible: expand it first, then open the exam from
+  // its body (the "Open Exam" link).
   await page.getByRole('button', { name: literal(title) }).click();
+  await page.getByRole('link', { name: await l(page, 'dashboard.examList.openExam') }).click();
   await page.waitForURL((url) => /^\/exam\/[^/]+\/?$/.test(url.pathname));
   await expect(examTitleHeading(page, title)).toBeVisible();
 }

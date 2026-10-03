@@ -8,6 +8,8 @@ export const dashboard: Translations['dashboard'] = {
         importing: 'Importing…',
         importButton: 'Import .bgproj',
         createButton: 'Create New Exam',
+        showFilters: 'Show filters',
+        filtersTitle: 'Filters',
     },
     sessionState: {
         initializing: 'Initializing local session…',
@@ -41,8 +43,10 @@ export const dashboard: Translations['dashboard'] = {
         gradeOption: 'Grade {grade}',
         subjectLabel: 'Subject:',
         allSubjects: 'All Subjects',
+        allTestarts: 'All exam types ({count})',
     },
-    examGrid: {
+    examList: {
+        loading: 'Loading exams…',
         noResults: 'No exams match your search or filter criteria.',
         untitledExam: 'Untitled Exam',
         classLabel: 'Grade {course}',
@@ -50,6 +54,8 @@ export const dashboard: Translations['dashboard'] = {
         dateLabel: 'Date: {date}',
         retentionUntil: 'Retention until: {date}',
         openExam: 'Open Exam',
+        submissionsCount: '{count} submissions',
+        deleteTitle: 'Delete exam',
     },
     retentionModal: {
         title: 'GDPR Retention Warning (Art. 5)',
@@ -65,8 +71,14 @@ export const dashboard: Translations['dashboard'] = {
     importStatus: 'Status: {stage} ({current}%)',
     importFailed: 'Import failed: {message}',
     deleteFailed: 'Delete failed: {message}',
-    deleteExamConfirm: 'Are you sure you want to delete exam "{title}"?',
-    deleteExamFallbackTitle: 'Untitled',
+    deleteModal: {
+        title: 'Delete exam: {title}',
+        warningTitle: '⚠️ Warning: exam contains submissions',
+        usageInfo: 'This exam has {count} submission(s).',
+        usageWarning: 'Deleting permanently removes the exam data and all of its submissions.',
+        confirmPlain: 'Do you really want to delete this exam?',
+        deleteAnyway: 'Delete anyway',
+    },
     error: {
         title: '{status} - Error',
         notFound: 'Page not found',
