@@ -12,7 +12,6 @@
     ExamMcGroupRecord,
     ExamExerciseRecord,
   } from "$lib/db/schema";
-  import { formatExamCourse } from "$lib/utils/examLabel";
   import {
     loadExamEncrypted,
     saveExamEncrypted,
@@ -32,11 +31,12 @@
   import { prepareOmrTemplate } from "$lib/grading/omrTemplatePrep";
   import { isMcQuestion } from "$lib/grading/mcScore";
   import { exportArchiveInteractively } from "$lib/services/archiveService";
-  import { compileWithCache, getLatestForSlot, invalidateOwner } from "$lib/latex/compileCache";
-  import { formatExerciseLatex, formatMcGroupLatex, parseExerciseScore } from "$lib/latex/scoreParser";
+  import { getLatestForSlot, invalidateOwner } from "$lib/latex/compileCache";
+  import { parseExerciseScore } from "$lib/latex/scoreParser";
+  import { compileExamPreview } from "$lib/exam/examPreview";
+  import { pdfBytesToUrl } from "$lib/latex/pdfPreview";
   import { api } from "$lib/api/client";
   import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
   import { studentRepository } from "$lib/repositories/studentRepository";
   import { examRepository, mapApiToExamRecord } from "$lib/repositories/examRepository";
   import { mapExerciseRecordToApi } from "$lib/repositories/exerciseRepository";
@@ -53,7 +53,7 @@
   import DualPdfPreview from "$lib/components/DualPdfPreview.svelte";
   import { getPresetCutoffs } from "$lib/analytics/gradingKey";
   import type { GradingKeyConfig } from "$lib/db/schema";
-  import { goto, replaceState } from "$app/navigation";
+  import { goto } from "$app/navigation";
   import ExamMetadata from "$lib/components/exam/ExamMetadata.svelte";
   import ExamActionBar from "$lib/components/exam/ExamActionBar.svelte";
   import ExerciseList from "$lib/components/exam/ExerciseList.svelte";
@@ -139,17 +139,8 @@
     }
   });
 
-  // `?compile=1` comes from the dashboard's "Preview" button when nothing was
-  // compiled yet: compile once after the first load, then drop the param.
-  let autoCompilePending = browser && new URLSearchParams(location.search).get("compile") === "1";
-
   $: if (browser && examId) {
-    loadExam(examId).then(() => {
-      if (!autoCompilePending || !exam || exam.id !== examId) return;
-      autoCompilePending = false;
-      try { replaceState(location.pathname, {}); } catch { /* router not ready */ }
-      void handlePreviewExam();
-    });
+    loadExam(examId);
     restoreCachedPreviews(examId);
   }
 
@@ -521,76 +512,6 @@
     await saveExerciseLinks();
   }
 
-  function buildExerciseInputs(): string {
-    let exerciseCount = 0;
-    return examItems
-      .map((item) => {
-        if (item.type === "exercise") {
-          const ex = exercises.find((e) => e.id === item.id);
-          if (!ex) return "";
-          exerciseCount++;
-          return formatExerciseLatex(
-            ex.latexBody,
-            ex.name || `Aufgabe ${exerciseCount}`,
-            ex.id,
-          );
-        } else {
-          const group = mcGroups.find((g) => g.id === item.id);
-          if (!group) return "";
-          const members = group.memberIds
-            .map((id) => libraryExercises.find((e) => e.id === id) || exercises.find((e) => e.id === id))
-            .filter((e): e is ExerciseRecord => Boolean(e));
-          return formatMcGroupLatex(
-            members.map((m) => ({ id: m.id, latexBody: m.latexBody || "" })),
-            group.title,
-            group.scoringText,
-          );
-        }
-      })
-      .filter(Boolean)
-      .join("\n\n");
-  }
-
-  /**
-   * Resource files of every exercise in this exam, ready for the compiler.
-   *
-   * Files are written flat, so two exercises carrying different files under the
-   * same name is a conflict the teacher has to resolve; mergeResources() (in
-   * lib/latex/resources.ts) raises it before anything is compiled.
-   */
-  async function collectExamResources() {
-    const owners: { id: string; label?: string }[] = [];
-    let exerciseCount = 0;
-    for (const item of examItems) {
-      if (item.type === "exercise") {
-        const ex = exercises.find((e) => e.id === item.id);
-        if (ex) owners.push({ id: ex.id, label: ex.name || `Aufgabe ${++exerciseCount}` });
-      } else {
-        const group = mcGroups.find((g) => g.id === item.id);
-        for (const memberId of group?.memberIds ?? []) {
-          const member =
-            libraryExercises.find((e) => e.id === memberId) ||
-            exercises.find((e) => e.id === memberId);
-          if (member) owners.push({ id: member.id, label: member.name || group?.title });
-        }
-      }
-    }
-    // The local engine needs the bytes in the browser; the server can load its
-    // own rows from the database, so it only gets the exercise ids.
-    const needBytes = $storagePolicyStore.latexCompilation === "local";
-    return exerciseResourceRepository.collectForCompile(
-      owners,
-      get(sessionStore).sessionKey,
-      needBytes
-    );
-  }
-
-  /** The resource half of a compileLatex() options object for this exam. */
-  async function compileResourceOptions() {
-    const collected = await collectExamResources();
-    return { resources: collected.inline, resourceExerciseIds: collected.exerciseIds };
-  }
-
   async function handlePrepareOmr() {
     if (!exam) return;
     isPreparingOmr = true;
@@ -624,75 +545,35 @@
 
   async function handlePreviewExam() {
     if (!exam || (exercises.length === 0 && mcGroups.length === 0)) return;
-    const currentExam = exam;
     isPreviewLoading = true;
     compileNotice = "";
     errorMsg = "";
     let compileSucceeded = false;
 
     try {
-      const exerciseInputs = buildExerciseInputs();
-
-      const getPreamble = (options: string) => `\\documentclass[a4paper]{article}
-\\usepackage[${options}]{sty/Schulaufgabe}
-\\Info{${currentExam.infoText || ""}}
-\\Fach{${currentExam.fach || "Informatik"}}
-\\Lehrernachname{${currentExam.lehrernachname || ""}}
-\\usepackage{fontspec}
-\\usetikzlibrary{shapes.geometric, arrows}
-\\usepackage{sty/tikz-uml}
-\\neverindent
-\\WarningsOff
-\\begin{document}
-\\Testart{${currentExam.testart || "Kurzarbeit"}}
-\\Klasse{${formatExamCourse(currentExam.grade, currentExam.klasse)}}
-\\Datum{${currentExam.datum || ""}}
-\\Nr{${currentExam.nr || "1"}}
-
-${exerciseInputs}
-
-\\end{document}`;
-
-      const fullTexAngabe = getPreamble("sans,punkte");
-      const fullTexLoesung = getPreamble("sans,punkte,antworten");
-
-      const useLocal = $storagePolicyStore.latexCompilation === "local";
-      const compileOpts = await compileResourceOptions();
-
-      const resAngabe = await compileWithCache(
-        { kind: "exam", id: currentExam.id, variant: "angabe" },
-        fullTexAngabe,
-        useLocal,
-        (status) => {
+      const res = await compileExamPreview({
+        exam,
+        exercises,
+        libraryExercises,
+        mcGroups,
+        examItems,
+        key: get(sessionStore).sessionKey,
+        onStatus: (status) => {
           if (status === 'downloading') {
             compileNotice = translate("exam.page.preview.loadingCompiler");
           } else if (status === 'compiling') {
             compileNotice = translate("exam.page.preview.compiling");
           }
         },
-        false,
-        compileOpts
-      );
+      });
 
-      const blobAngabe = new Blob([resAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
-      previewPdfUrl = URL.createObjectURL(blobAngabe);
-
-      const resLoesung = await compileWithCache(
-        { kind: "exam", id: currentExam.id, variant: "loesung" },
-        fullTexLoesung,
-        useLocal,
-        undefined,
-        false,
-        compileOpts
-      );
-      const blobLoesung = new Blob([resLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+      previewPdfUrl = pdfBytesToUrl(res.angabe.pdfBytes);
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
-      previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
+      previewSolutionPdfUrl = pdfBytesToUrl(res.loesung.pdfBytes);
 
-      const missing = [...(resAngabe.missingGraphics ?? []), ...(resLoesung.missingGraphics ?? [])];
-      if (missing.length > 0) {
-        errorMsg = `Compiled, but a graphic could not be loaded: ${missing[0]}`;
+      if (res.missingGraphics.length > 0) {
+        errorMsg = translate("common.previewMissingGraphic", { name: res.missingGraphics[0] });
       }
 
       compileNotice = "";

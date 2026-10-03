@@ -2,11 +2,13 @@
   import { type ExerciseGroup } from "$lib/exercise-library/groupExercises";
   import type { ExerciseRecord } from "$lib/db/schema";
   import { t } from "$lib/i18n";
-  import { Modal, Button, Select } from "$lib/components/ui";
+  import { Alert, Modal, Button, Select } from "$lib/components/ui";
 
 
 
   export let isOpen = false;
+  /** Failure or validation message from the page, shown inline. */
+  export let error = "";
   export let regroupingExercise: ExerciseRecord | null = null;
   export let regroupTargetGroupId = "";
   export let groups: ExerciseGroup[] = [];
@@ -15,6 +17,9 @@
 </script>
 
 <Modal open={isOpen && !!regroupingExercise} size="small" title={$t("exercises.regroupModal.title")} onClose={onClose}>
+  {#if error}
+    <div class="mb-3"><Alert severity="danger">{error}</Alert></div>
+  {/if}
   {#if regroupingExercise}
     <p class="m-0 mb-5 text-content">
       {$t("exercises.regroupModal.moveMessage", { name: regroupingExercise.name })}

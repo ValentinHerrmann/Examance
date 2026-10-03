@@ -122,7 +122,7 @@ export const help: Translations['help'] = {
                 h: 'Typeset and print',
                 p1: 'The run produces a print-ready PDF with QR codes — one per exam, variant and student slot. In local mode it happens entirely in the browser.',
                 p2: 'Print the sheets exactly as typeset. The QR code has to stay readable, otherwise the scan cannot be assigned automatically later.',
-                p3: 'In the exam overview, “Preview” in an expanded entry opens the last compiled PDF. If there is none, you are asked and taken to the exam page, where it is compiled and shown. The preview is kept only until the page is reloaded.',
+                p3: 'In the exam overview, “Preview” in an expanded entry opens the last compiled PDF. If there is none, you are asked and the exam is compiled and shown right in the window. The preview is kept only until the page is reloaded.',
             },
         },
         scanning: {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ExamRecord, ExerciseRecord } from "$lib/db/schema";
+  import type { LazyEntry } from "$lib/utils/lazyMap";
   import { formatExamCourse } from "$lib/utils/examLabel";
   import { t } from "$lib/i18n";
   import { fmt } from "$lib/utils/format";
@@ -10,7 +11,7 @@
   export let exams: ExamRecord[];
   export let examStatsMap: Map<string, { avgScore: number | null; count: number }>;
   /** Lazily loaded per exam on first expand; absent = not requested yet. */
-  export let exerciseMap: Map<string, ExerciseRecord[] | "loading"> = new Map();
+  export let exerciseMap: Map<string, LazyEntry<ExerciseRecord[]>> = new Map();
   export let isLoading = false;
   export let expandedExams: { [examId: string]: boolean } = {};
   export let onToggleExam: (examId: string) => void;
@@ -79,13 +80,15 @@
           {@const used = exerciseMap.get(exam.id)}
           <div class="mt-3">
             <h4 class="m-0 mb-2 text-sm font-semibold text-content">{$t("dashboard.examList.exercisesTitle")}</h4>
-            {#if used === undefined || used === "loading"}
+            {#if used === undefined || used.status === "loading"}
               <p class="m-0 text-sm text-muted">{$t("dashboard.examList.loadingExercises")}</p>
-            {:else if used.length === 0}
+            {:else if used.status === "error"}
+              <p class="m-0 text-sm text-danger-fg">{$t("common.loadFailedShort")}</p>
+            {:else if used.value.length === 0}
               <p class="m-0 text-sm text-muted">{$t("dashboard.examList.noExercises")}</p>
             {:else}
               <ol class="m-0 flex list-none flex-col gap-1 p-0">
-                {#each used as ex, i (ex.id)}
+                {#each used.value as ex, i (ex.id)}
                   <li class="flex min-w-0 flex-wrap items-center gap-2 text-sm text-content">
                     <span class="w-6 shrink-0 text-right text-muted">{i + 1}.</span>
                     <span class="min-w-0 break-words">{ex.title || ex.name || $t("dashboard.examList.untitledExercise")}</span>

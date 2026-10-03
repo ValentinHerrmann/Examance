@@ -67,7 +67,6 @@ export const dashboard = {
         usageInfo: 'Zu dieser Prüfung gehören {count} Abgabe(n).',
         usageWarning: 'Beim Löschen werden die Prüfungsdaten und alle zugehörigen Abgaben dauerhaft entfernt.',
         confirmPlain: 'Möchten Sie diese Prüfung wirklich löschen?',
-        deleteAnyway: 'Trotzdem löschen',
     },
     error: {
         title: '{status} – Fehler',

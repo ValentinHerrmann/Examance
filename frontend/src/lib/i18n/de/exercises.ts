@@ -6,7 +6,6 @@ export const exercises = {
         createButton: 'Neue Aufgabe erstellen',
         filtersTitle: 'Filter',
         showFilters: 'Filter anzeigen',
-        hideFilters: 'Filter ausblenden',
         loadFailed: 'Aufgabenbibliothek konnte nicht geladen werden.',
         localFallback: 'Ihre Aufgaben konnten nicht vom Server geladen werden. Es wird angezeigt, was lokal vorliegt — das ist möglicherweise nicht alles. Melden Sie sich erneut an oder versuchen Sie es später noch einmal.',
         groupNameRequired: 'Gruppenname ist erforderlich.',
@@ -17,7 +16,6 @@ export const exercises = {
         diffSaveRightFailed: 'Rechte Aufgabe konnte nicht gespeichert werden: {message}',
         variantKeyRequired: 'Varianten-Schlüssel (z. B. Moebel, Fahrzeug, Wildtier) ist erforderlich.',
         variantCreateFailed: 'Variante konnte nicht erstellt werden: {message}',
-        variantCreated: 'Neue Variante "{key}" wurde erstellt.',
         diffSelectVariantSuffix: ', Variante: {key}',
     },
     editor: {
@@ -84,7 +82,6 @@ export const exercises = {
         usageInfo: 'Diese Aufgabe wird derzeit in {count} Prüfung(en) verwendet:',
         usageWarning: 'Beim Löschen wird sie dauerhaft aus der Bibliothek entfernt und aus diesen Prüfungen entfernt.',
         confirmPlain: 'Möchten Sie diese Aufgabe wirklich aus Ihrer Bibliothek löschen?',
-        deleteAnyway: 'Trotzdem löschen',
     },
     diffModal: {
         title: 'LaTeX-Code-Diff-Vergleich der Aufgabe',
@@ -115,8 +112,8 @@ export const exercises = {
         variantCountPlural: '{count} Varianten',
         editGroupTitle: 'Gruppenmetadaten bearbeiten (Name, Thema, Klasse, Fach)',
         editGroupAriaLabel: 'Gruppenmetadaten bearbeiten',
-        currentSuffix: 'aktuell',
         currentBadge: 'aktuell',
+        moreActions: 'Weitere Aktionen',
         usedInExams: 'Verwendet in Prüfungen',
         notUsed: 'In keiner Prüfung verwendet.',
         loadingUsage: 'Verwendung wird geladen…',

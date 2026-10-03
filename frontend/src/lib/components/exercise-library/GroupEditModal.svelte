@@ -4,11 +4,13 @@
   import SuggestInput from "$lib/components/common/SuggestInput.svelte";
   import { recordValue } from "$lib/utils/recentValues";
   import { t } from "$lib/i18n";
-  import { Modal, Button, controlClass } from "$lib/components/ui";
+  import { Alert, Modal, Button, controlClass } from "$lib/components/ui";
 
 
 
   export let isOpen = false;
+  /** Failure or validation message from the page, shown inline. */
+  export let error = "";
   export let editingGroup: ExerciseGroup | null = null;
   export let groupEditorName = "";
   export let groupEditorTopicTag = "";
@@ -27,6 +29,9 @@
 </script>
 
 <Modal open={isOpen && !!editingGroup} size="small" title={$t("exercises.groupEditModal.title")} onClose={onClose}>
+  {#if error}
+    <div class="mb-3"><Alert severity="danger">{error}</Alert></div>
+  {/if}
   {#if editingGroup}
     <div class="-mx-4 mb-4 bg-highlight px-4 py-2 text-sm text-accent">
       {$t("exercises.groupEditModal.appliesToAll", { count: editingGroup.allMembers.length })}

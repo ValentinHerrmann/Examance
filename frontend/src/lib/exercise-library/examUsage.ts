@@ -2,8 +2,13 @@ import { get } from "svelte/store";
 import { api } from "$lib/api/client";
 import { db } from "$lib/db/db";
 import { examRepository } from "$lib/repositories/examRepository";
-import { sessionStore, isAuthenticated } from "$lib/stores/session";
-import { storagePolicyStore } from "$lib/stores/storagePolicy";
+import { sessionStore } from "$lib/stores/session";
+import { isServerBacked } from "$lib/utils/serverBacked";
+
+/** Key of one variant inside the library list's usage map. */
+export function usageKey(groupId: string, variantKey: string): string {
+  return `${groupId}\u001f${variantKey}`;
+}
 
 export interface ExamUsageEntry {
   id: string;
@@ -15,7 +20,7 @@ export interface ExamUsageEntry {
 export async function loadExamUsage(exerciseIds: string[]): Promise<ExamUsageEntry[]> {
   const found = new Map<string, ExamUsageEntry>();
 
-  if (get(isAuthenticated) && get(storagePolicyStore).storageMode !== "all-local") {
+  if (isServerBacked()) {
     try {
       const usages = await Promise.all(
         exerciseIds.map((id) => api.get<any>(`/exercises/${id}/usage`, { silentError: true }))

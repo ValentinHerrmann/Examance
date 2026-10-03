@@ -5,9 +5,11 @@
   import { computeSideBySideDiff, buildAlignedDiffDecorations } from "$lib/latex/diff";
   import { getDiffSelectLabel } from "./ExerciseDiffModal";
   import { t } from "$lib/i18n";
-  import { ConfirmDialog, Modal, Button, Select } from "$lib/components/ui";
+  import { Alert, ConfirmDialog, Modal, Button, Select } from "$lib/components/ui";
 
   export let isOpen = false;
+  /** Failure or validation message from the page, shown inline. */
+  export let error = "";
   export let activeDiffGroupExercises: ExerciseRecord[] = [];
   export let diffLeftId = "";
   export let diffRightId = "";
@@ -102,6 +104,9 @@
 </script>
 
 <Modal open={isOpen} size="full" title={$t("exercises.diffModal.title")} onClose={onRequestClose}>
+  {#if error}
+    <div class="mb-3"><Alert severity="danger">{error}</Alert></div>
+  {/if}
   <div class="mb-6 flex flex-col gap-4 rounded-md bg-surface-inset p-4 @xl:flex-row @xl:gap-6">
     <div class="flex min-w-0 flex-1 flex-col gap-1.5">
       <label for="diffLeftSelect" class="text-sm text-muted">{$t("exercises.diffModal.baseLabel")}</label>

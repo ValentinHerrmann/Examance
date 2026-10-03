@@ -10,6 +10,8 @@
   export let title: string;
   export let toggleLabel: string;
   export let activeCount = 0;
+  /** A refresh is running: the list stays, dimmed and marked busy. */
+  export let busy = false;
 
   let open = false;
 </script>
@@ -22,7 +24,7 @@
   <div class="sticky top-2 hidden max-h-[calc(100dvh-1rem)] min-w-0 overflow-y-auto lg:block">
     <slot name="filters" close={() => {}} />
   </div>
-  <div class="min-w-0">
+  <div class="min-w-0 transition-opacity {busy ? 'opacity-60' : ''}" aria-busy={busy}>
     <slot />
   </div>
 </div>

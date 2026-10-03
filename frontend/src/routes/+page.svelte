@@ -1,32 +1,36 @@
 <script lang="ts">
-  import { isUnlocked, isAuthenticated, sessionStore, awaitSessionReady } from '$lib/stores/session';
+  import { isUnlocked, sessionStore, awaitSessionReady } from '$lib/stores/session';
   import { db } from '$lib/db/db';
   import type { ExamRecord, ExerciseRecord } from '$lib/db/schema';
-  import { loadExamsEncrypted, saveExamEncrypted, encryptExam, encryptExercise } from '$lib/db/dbEncryption';
+  import { saveExamEncrypted } from '$lib/db/dbEncryption';
   import { importArchiveInteractively } from '$lib/services/archiveService';
   import { checkRetention, type RetentionCheckResult } from '$lib/gdpr/retention';
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
 
-  import { storagePolicyStore } from '$lib/stores/storagePolicy';
-  import { api } from '$lib/api/client';
-  import { examRepository, mapApiToExamRecord } from '$lib/repositories/examRepository';
+  import { examRepository } from '$lib/repositories/examRepository';
   import { exerciseRepository } from '$lib/repositories/exerciseRepository';
   import { submissionRepository } from '$lib/repositories/submissionRepository';
-  import { offlineQueue } from '$lib/services/offlineQueue';
   import { goto } from '$app/navigation';
   import { t, translate } from '$lib/i18n';
+  import { loadSyncedExams } from '$lib/services/examSync';
+  import { computeExamStats } from '$lib/utils/examStats';
+  import { createExpandSet } from '$lib/utils/expandSet';
+  import { createLazyMap } from '$lib/utils/lazyMap';
   import { countActiveFilters, countOptions, matchesQuery, uniqueSorted } from '$lib/utils/listFilter';
   import { faPlus, faUpload } from '@fortawesome/free-solid-svg-icons';
 
   import DashboardSessionState from '$lib/components/dashboard/DashboardSessionState.svelte';
   import RetentionModal from '$lib/components/dashboard/RetentionModal.svelte';
   import OnboardingEmptyState from '$lib/components/dashboard/OnboardingEmptyState.svelte';
+  import DeleteWithUsageModal from '$lib/components/common/DeleteWithUsageModal.svelte';
   import ListFilterPanel from '$lib/components/common/ListFilterPanel.svelte';
   import ExamList from '$lib/components/dashboard/ExamList.svelte';
-  import { Alert, Button, ConfirmDeleteModal, ConfirmDialog, FilterLayout, PageHeader, PageShell } from '$lib/components/ui';
-  import PdfPreviewModal from '$lib/components/PdfPreviewModal.svelte';
-  import { getCachedPreview } from '$lib/latex/pdfPreview';
+  import { Alert, Button, FilterLayout, PageHeader, PageShell } from '$lib/components/ui';
+  import PreviewHost from '$lib/components/common/PreviewHost.svelte';
+  import { createPreviewFlow } from '$lib/stores/previewFlow';
+  import { compileExamPreview } from '$lib/exam/examPreview';
+  import { buildExamItems, loadExamCompileContext } from '$lib/grading/omrTemplatePrep';
 
 
   let exams: ExamRecord[] = [];
@@ -44,7 +48,9 @@
   let selectedTestartFilter = 'ALL';
 
   /** Exercises per expanded exam, fetched on first expand and dropped on refresh. */
-  let exerciseMap = new Map<string, ExerciseRecord[] | 'loading'>();
+  const exerciseMap = createLazyMap<ExerciseRecord[]>((examId) =>
+    exerciseRepository.getByExamId(examId, get(sessionStore).sessionKey)
+  );
 
   // Badge on the mobile filter button, so an active filter is visible without
   // opening the drawer.
@@ -54,15 +60,17 @@
 
   // Which exam rows are expanded (the list is collapsibles, like the exercise
   // library).
-  let expandedExams: { [examId: string]: boolean } = {};
+  const expandedExams = createExpandSet((examId) => exerciseMap.ensure(examId));
 
-  /** Set while a re-fetch is running, so the list shows its loading row. */
+  /** Set while a re-fetch is running; the list stays visible and is marked busy. */
   let isRefreshing = false;
+  let refreshAgain = false;
 
   // Delete modal state
   let isDeleteModalOpen = false;
   let deletingExam: { id: string; title?: string; submissionCount: number } | null = null;
-  let isDeleteLoading = false;
+  let isDeleting = false;
+  let deleteError = '';
 
   $: availableGrades = uniqueSorted(exams, (e) => e.grade);
   $: availableSubjects = uniqueSorted(exams, (e) => e.fach);
@@ -93,10 +101,18 @@
     }
   });
 
+  /** Overlapping calls coalesce into one more run, so a slow earlier fetch can't overwrite newer data. */
   async function refreshExams() {
+    if (isRefreshing) {
+      refreshAgain = true;
+      return;
+    }
     isRefreshing = true;
     try {
-      await doRefreshExams();
+      do {
+        refreshAgain = false;
+        await doRefreshExams();
+      } while (refreshAgain);
     } finally {
       isRefreshing = false;
     }
@@ -104,168 +120,16 @@
 
   async function doRefreshExams() {
     await awaitSessionReady();
-    examsLoadFailed = false;
     const key = get(sessionStore).sessionKey;
-    const localExams = await loadExamsEncrypted(key);
-
-    if ($isAuthenticated && $storagePolicyStore.storageMode !== 'all-local') {
-      try {
-        // Silent: the catch below falls back to what is in IndexedDB and the
-        // banner reports the failure in place. The global modal on top of that
-        // is the same error told twice.
-        const remoteExamsRaw = (await api.get('/exams', { silentError: true })) as any[];
-        const remoteExams: ExamRecord[] = remoteExamsRaw.map(mapApiToExamRecord);
-
-        // Check offline queue for pending exam creations
-        const pendingQueue = get(offlineQueue);
-        const pendingExamIds = new Set(
-          pendingQueue
-            .filter((req) => req.url === '/exams' && req.method === 'POST' && req.body?.id)
-            .map((req) => req.body.id)
-        );
-
-        // Merge remote and local exams (preserve only local IDB exams pending offline sync)
-        const remoteIds = new Set(remoteExams.map((e) => e.id));
-        const pendingLocalExams = localExams.filter((e) => !remoteIds.has(e.id) && pendingExamIds.has(e.id));
-        const deletedStaleExams = localExams.filter((e) => !remoteIds.has(e.id) && !pendingExamIds.has(e.id));
-
-        // Purge deleted/stale exams from local IDB
-        for (const stale of deletedStaleExams) {
-          await db.exams.delete(stale.id);
-          await db.exercises.where('examId').equals(stale.id).delete();
-          await db.examExercises.where('examId').equals(stale.id).delete();
-        }
-
-        exams = [...remoteExams, ...pendingLocalExams];
-
-        const encryptedExams = await Promise.all(exams.map((ex) => encryptExam(ex, key)));
-        await db.exams.bulkPut(encryptedExams);
-
-
-        // Also sync remote exercises, junction records and MC groups to IndexedDB
-        // for offline export — nothing else writes these tables in all-server
-        // mode, so without this a .bgproj export ships them empty.
-        const remoteExercises: any[] = [];
-        const junctionRecords: any[] = [];
-        const mcGroupRecords: any[] = [];
-        for (const e of remoteExamsRaw) {
-          if (Array.isArray(e.mc_groups)) {
-            for (const g of e.mc_groups) {
-              mcGroupRecords.push({
-                id: g.id,
-                examId: e.id,
-                title: g.title,
-                scoringText: g.scoring_text,
-                orderIndex: g.order_index,
-              });
-            }
-          }
-          if (Array.isArray(e.exercises)) {
-            for (let idx = 0; idx < e.exercises.length; idx++) {
-              const ex = e.exercises[idx];
-              const orderIndex = ex.order_index ?? (idx + 1);
-              remoteExercises.push({
-                id: ex.id,
-                teacherId: ex.teacher_id,
-                name: ex.name,
-                topicTag: ex.topic_tag,
-                grade: ex.grade,
-                subject: ex.subject,
-                latexBody: ex.latex_body,
-                maxPoints: ex.max_points,
-                version: ex.version || 1,
-                questionType: ex.question_type || 'free_text',
-                penalty: ex.penalty || 0,
-                exerciseGroupId: ex.exercise_group_id,
-                variantKey: ex.variant_key,
-                isCurrent: ex.is_current,
-              });
-              junctionRecords.push({
-                examId: e.id,
-                exerciseId: ex.id,
-                orderIndex,
-                // MC membership MUST be carried over. These records are written
-                // with bulkPut on the [examId+exerciseId] primary key, so a
-                // junction rebuilt without mcGroupId/subIndex overwrites the
-                // stored one and erases the exercise's MC group membership —
-                // after which the group renders empty and its members show up
-                // as standalone exercises.
-                mcGroupId: ex.mc_group_id ?? ex.mcGroupId ?? undefined,
-                subIndex: ex.sub_index ?? ex.subIndex ?? undefined,
-              });
-            }
-          }
-        }
-        if (remoteExercises.length > 0) {
-          const encExercises = await Promise.all(remoteExercises.map((ex) => encryptExercise(ex, key)));
-          await db.exercises.bulkPut(encExercises);
-        }
-        // Prune before writing: the server is authoritative for these tables in
-        // server-backed modes, so a link or group it no longer knows about must
-        // not survive locally and resurface as a phantom exercise/group.
-        const syncedExamIds = remoteExamsRaw.map((e: any) => e.id).filter(Boolean);
-        for (const syncedExamId of syncedExamIds) {
-          const keptExerciseIds = new Set(
-            junctionRecords.filter((j) => j.examId === syncedExamId).map((j) => j.exerciseId)
-          );
-          const staleLinks = await db.examExercises.where('examId').equals(syncedExamId).toArray();
-          for (const link of staleLinks) {
-            if (!keptExerciseIds.has(link.exerciseId)) {
-              await db.examExercises.delete([syncedExamId, link.exerciseId]);
-            }
-          }
-          const keptGroupIds = new Set(
-            mcGroupRecords.filter((g) => g.examId === syncedExamId).map((g) => g.id)
-          );
-          const staleGroups = await db.examMcGroups.where('examId').equals(syncedExamId).toArray();
-          for (const group of staleGroups) {
-            if (!keptGroupIds.has(group.id)) {
-              await db.examMcGroups.delete(group.id);
-            }
-          }
-        }
-        if (junctionRecords.length > 0) {
-          await db.examExercises.bulkPut(junctionRecords);
-        }
-        if (mcGroupRecords.length > 0) {
-          await db.examMcGroups.bulkPut(mcGroupRecords);
-        }
-      } catch (apiErr) {
-        console.warn('Failed to fetch remote exams, falling back to IDB:', apiErr);
-        // What is in IndexedDB, and an honest note that it is not everything.
-        // In all-server mode nothing is cached there, so without the banner a
-        // rejected request is indistinguishable from an empty account — which
-        // is how a session problem read as "all my data is gone".
-        exams = localExams;
-        examsLoadFailed = true;
-      }
-    } else {
-      exams = localExams;
-    }
+    const { exams: loaded, failed } = await loadSyncedExams(key);
+    exams = loaded;
+    examsLoadFailed = failed;
 
     try {
       // `exams` is already loaded above; passing it stops this from fetching
       // /exams a second time on every dashboard render.
       const allSubmissions = await submissionRepository.getAll(key, exams);
-      const tempMap = new Map<string, { sum: number; count: number }>();
-      for (const s of allSubmissions) {
-        if (typeof s.totalScore === 'number' && !isNaN(s.totalScore)) {
-          const curr = tempMap.get(s.examId) || { sum: 0, count: 0 };
-          curr.sum += s.totalScore;
-          curr.count += 1;
-          tempMap.set(s.examId, curr);
-        }
-      }
-      const newStats = new Map<string, { avgScore: number | null; count: number }>();
-      for (const [eId, data] of tempMap.entries()) {
-        if (data.count > 0) {
-          newStats.set(eId, {
-            avgScore: Math.round((data.sum / data.count) * 10) / 10,
-            count: data.count,
-          });
-        }
-      }
-      examStatsMap = newStats;
+      examStatsMap = computeExamStats(allSubmissions);
     } catch (e) {
       console.warn('Could not load submission stats for dashboard:', e);
     }
@@ -280,11 +144,9 @@
       }
     }
 
-    expandedExams = Object.fromEntries(
-      Object.entries(expandedExams).filter(([id]) => exams.some((e) => e.id === id))
-    );
-    exerciseMap = new Map();
-    for (const id of Object.keys(expandedExams)) if (expandedExams[id]) void loadExamExercises(id);
+    expandedExams.prune(exams.map((e) => e.id));
+    exerciseMap.reset();
+    for (const id of expandedExams.ids()) exerciseMap.ensure(id);
   }
 
   async function handleImportArchive(event: Event) {
@@ -324,65 +186,42 @@
     await refreshExams();
   }
 
-  async function loadExamExercises(examId: string) {
-    exerciseMap = new Map(exerciseMap).set(examId, 'loading');
-    let list: ExerciseRecord[] = [];
-    try {
-      list = await exerciseRepository.getByExamId(examId, get(sessionStore).sessionKey);
-    } catch (e) {
-      console.warn('Could not load exercises for exam preview:', e);
-    }
-    exerciseMap = new Map(exerciseMap).set(examId, list);
-  }
-
-  let compileAskExam: ExamRecord | null = null;
-  let isExamPreviewOpen = false;
-  let examPreviewTitle = '';
-  let examPreviewAngabe: string | null = null;
-  let examPreviewLoesung: string | null = null;
-
-  /** Last compile of this exam (in-memory cache); none cached -> offer to compile on the exam page. */
-  function openExamPreview(exam: ExamRecord) {
-    const cached = getCachedPreview('exam', exam.id);
-    if (!cached.angabe && !cached.loesung) {
-      compileAskExam = exam;
-      return;
-    }
-    examPreviewTitle = exam.title || translate('dashboard.examList.untitledExam');
-    examPreviewAngabe = cached.angabe;
-    examPreviewLoesung = cached.loesung;
-    isExamPreviewOpen = true;
-  }
-
-  function closeExamPreview() {
-    isExamPreviewOpen = false;
-    if (examPreviewAngabe) URL.revokeObjectURL(examPreviewAngabe);
-    if (examPreviewLoesung) URL.revokeObjectURL(examPreviewLoesung);
-    examPreviewAngabe = examPreviewLoesung = null;
-  }
-
-  function toggleExam(examId: string) {
-    expandedExams = { ...expandedExams, [examId]: !expandedExams[examId] };
-    if (expandedExams[examId] && !exerciseMap.has(examId)) void loadExamExercises(examId);
-  }
+  const examPreview = createPreviewFlow<ExamRecord>({
+    kind: 'exam',
+    idOf: (exam) => exam.id,
+    titleOf: (exam) => exam.title || translate('dashboard.examList.untitledExam'),
+    compile: async (exam, onStatus) => {
+      const key = get(sessionStore).sessionKey;
+      const ctx = await loadExamCompileContext(exam.id, key);
+      if (!ctx) throw new Error(translate('exam.page.examNotFoundOrDeleted'));
+      return compileExamPreview({
+        ...ctx,
+        examItems: buildExamItems(ctx.exercises, ctx.mcGroups),
+        key,
+        onStatus,
+      });
+    },
+  });
 
   function handleDeleteDashboardExam(id: string, title?: string) {
     deletingExam = { id, title, submissionCount: examStatsMap.get(id)?.count ?? 0 };
+    deleteError = '';
     isDeleteModalOpen = true;
   }
 
   async function handleConfirmDeleteExam() {
     if (!deletingExam) return;
-    isDeleteLoading = true;
+    isDeleting = true;
+    deleteError = '';
     try {
       await examRepository.delete(deletingExam.id);
       isDeleteModalOpen = false;
       deletingExam = null;
       await refreshExams();
     } catch (err: any) {
-      alert(translate('dashboard.deleteFailed', { message: err.message }));
+      deleteError = translate('dashboard.deleteFailed', { message: err.message });
     } finally {
-      isDeleteLoading = false;
+      isDeleting = false;
     }
   }
 </script>
@@ -440,6 +279,7 @@
         title={$t('dashboard.header.filtersTitle')}
         toggleLabel={$t('dashboard.header.showFilters')}
         activeCount={activeFilterCount}
+        busy={isRefreshing}
       >
         <svelte:fragment slot="filters">
           <ListFilterPanel
@@ -456,55 +296,32 @@
           />
         </svelte:fragment>
 
-          <ExamList
+        <ExamList
           exams={filteredExams}
           {examStatsMap}
-          {exerciseMap}
-          isLoading={isRefreshing}
-          {expandedExams}
-          onToggleExam={toggleExam}
+          exerciseMap={$exerciseMap}
+          isLoading={isRefreshing && exams.length === 0}
+          expandedExams={$expandedExams}
+          onToggleExam={expandedExams.toggle}
           onDelete={handleDeleteDashboardExam}
-          onPreview={openExamPreview}
+          onPreview={examPreview.open}
         />
       </FilterLayout>
     {/if}
   {/if}
 </PageShell>
 
-<ConfirmDialog
-  open={!!compileAskExam}
-  title={$t('common.previewNoneTitle')}
-  message={$t('common.previewNoneText')}
-  confirmText={$t('common.previewCompile')}
-  cancelText={$t('common.cancel')}
-  role="dialog"
-  onConfirm={() => { const id = compileAskExam?.id; compileAskExam = null; if (id) void goto(`/exam/${id}?compile=1`); }}
-  onCancel={() => (compileAskExam = null)}
-/>
+<PreviewHost flow={examPreview} />
 
-<PdfPreviewModal
-  open={isExamPreviewOpen}
-  title={examPreviewTitle}
-  angabeUrl={examPreviewAngabe}
-  loesungUrl={examPreviewLoesung}
-  onClose={closeExamPreview}
-/>
-
-<ConfirmDeleteModal
+<DeleteWithUsageModal
   open={isDeleteModalOpen && !!deletingExam}
-  title={deletingExam ? $t("dashboard.deleteModal.title", { title: deletingExam.title || $t("dashboard.examList.untitledExam") }) : ""}
-  isDeleteLoading={isDeleteLoading}
-  confirmLabel={$t("dashboard.deleteModal.deleteAnyway")}
-  cancelLabel={$t("common.cancel")}
+  title={deletingExam ? $t('dashboard.deleteModal.title', { title: deletingExam.title || $t('dashboard.examList.untitledExam') }) : ''}
+  usageTitle={$t('dashboard.deleteModal.warningTitle')}
+  usageText={deletingExam && deletingExam.submissionCount > 0 ? $t('dashboard.deleteModal.usageInfo', { count: deletingExam.submissionCount }) : ''}
+  usageHint={$t('dashboard.deleteModal.usageWarning')}
+  plainText={$t('dashboard.deleteModal.confirmPlain')}
+  busy={isDeleting}
+  error={deleteError}
   onConfirm={handleConfirmDeleteExam}
   onClose={() => (isDeleteModalOpen = false)}
->
-  {#if deletingExam && deletingExam.submissionCount > 0}
-    <Alert severity="danger" title={$t("dashboard.deleteModal.warningTitle")}>
-      <p class="m-0">{$t("dashboard.deleteModal.usageInfo", { count: deletingExam.submissionCount })}</p>
-      <p class="m-0 mt-1 text-sm text-muted">{$t("dashboard.deleteModal.usageWarning")}</p>
-    </Alert>
-  {:else}
-    <p>{$t("dashboard.deleteModal.confirmPlain")}</p>
-  {/if}
-</ConfirmDeleteModal>
+/>

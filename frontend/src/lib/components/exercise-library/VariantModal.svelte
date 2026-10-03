@@ -3,9 +3,11 @@
   import LatexEditor from "$lib/components/LatexEditor.svelte";
   import { t } from "$lib/i18n";
   import InfoTip from "$lib/components/help/InfoTip.svelte";
-  import { ConfirmDialog, Modal, Button, controlClass } from "$lib/components/ui";
+  import { Alert, ConfirmDialog, Modal, Button, controlClass } from "$lib/components/ui";
 
   export let isOpen = false;
+  /** Failure or validation message from the page, shown inline. */
+  export let error = "";
   export let variantBaseEx: ExerciseRecord | null = null;
   export let variantKey = "";
   export let variantLatexBody = "";
@@ -17,6 +19,9 @@
 </script>
 
 <Modal open={isOpen && !!variantBaseEx} size="large" title={$t("exercises.variantModal.title")} onClose={onRequestClose}>
+  {#if error}
+    <div class="mb-3"><Alert severity="danger">{error}</Alert></div>
+  {/if}
   {#if variantBaseEx}
     <p class="m-0 mb-4 text-sm text-muted">
       {$t("exercises.variantModal.hint")}

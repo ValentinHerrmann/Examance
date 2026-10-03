@@ -6,10 +6,12 @@ export const common = {
     confirm: 'Bestätigen',
     edit: 'Bearbeiten',
     preview: 'Vorschau',
+    loadFailedShort: 'Konnte nicht geladen werden.',
     previewCompiling: 'PDF wird kompiliert…',
     previewNoneTitle: 'Keine Vorschau vorhanden',
     previewNoneText: 'Es gibt noch kein kompiliertes PDF. Jetzt kompilieren und anzeigen?',
     previewCompile: 'Kompilieren',
+    previewMissingGraphic: 'Vorschau erstellt, aber eine Grafik konnte nicht geladen werden: {name}',
     previewFailed: 'Vorschau fehlgeschlagen: {message}',
     back: 'Zurück',
     next: 'Weiter',
@@ -53,6 +55,9 @@ export const common = {
     saved: 'Gespeichert',
     unsavedChangesConfirm: 'Es gibt ungespeicherte Änderungen. Möchten Sie diese Seite wirklich verlassen?',
     deleting: 'Löscht…',
+    deleteModal: {
+        deleteAnyway: 'Trotzdem löschen',
+    },
     filters: {
         grade: 'Klasse',
         allGrades: 'Alle Klassen',

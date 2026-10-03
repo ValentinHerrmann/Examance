@@ -2,13 +2,14 @@
   import { type ExerciseGroup, groupExercises } from "$lib/exercise-library/groupExercises";
   import { onMount } from "svelte";
   import { db } from "$lib/db/db";
-  import { sessionStore, isAuthenticated, awaitSessionReady } from "$lib/stores/session";
+  import { sessionStore, awaitSessionReady } from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import type { ExerciseRecord } from "$lib/db/schema";
   import { loadExercisesEncrypted, saveExerciseEncrypted, encryptExercise } from "$lib/db/dbEncryption";
   import { api } from "$lib/api/client";
   import { parseExerciseScore } from "$lib/latex/scoreParser";
   import { get } from "svelte/store";
+  import { isServerBacked } from "$lib/utils/serverBacked";
   import { countActiveFilters, matchesQuery, uniqueSorted } from "$lib/utils/listFilter";
   import { t, translate } from "$lib/i18n";
 
@@ -16,16 +17,19 @@
   import { highlightLatexToHtml } from "$lib/latex/highlighter";
   import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
   import ListFilterPanel from "$lib/components/common/ListFilterPanel.svelte";
-  import { Alert, Button, ConfirmDialog, FilterLayout, PageHeader, PageShell } from "$lib/components/ui";
-  import PdfPreviewModal from "$lib/components/PdfPreviewModal.svelte";
-  import { loadExamUsage, type ExamUsageEntry } from "$lib/exercise-library/examUsage";
+  import { Alert, Button, FilterLayout, PageHeader, PageShell } from "$lib/components/ui";
+  import PreviewHost from "$lib/components/common/PreviewHost.svelte";
+  import { createPreviewFlow } from "$lib/stores/previewFlow";
+  import { loadExamUsage, usageKey, type ExamUsageEntry } from "$lib/exercise-library/examUsage";
+  import { createExpandSet } from "$lib/utils/expandSet";
+  import { createLazyMap } from "$lib/utils/lazyMap";
+  import { exerciseRepository, mapApiToExerciseRecord } from "$lib/repositories/exerciseRepository";
   import { compileExercisePreview } from "$lib/latex/exercisePreview";
-  import { getCachedPreview, pdfBytesToUrl } from "$lib/latex/pdfPreview";
   import { faPlus } from "@fortawesome/free-solid-svg-icons";
   import ExerciseGroupList from "$lib/components/exercise-library/ExerciseGroupList.svelte";
   import GroupEditModal from "$lib/components/exercise-library/GroupEditModal.svelte";
   import RegroupModal from "$lib/components/exercise-library/RegroupModal.svelte";
-  import DeleteExerciseModal from "$lib/components/exercise-library/DeleteExerciseModal.svelte";
+  import DeleteWithUsageModal from "$lib/components/common/DeleteWithUsageModal.svelte";
   import VariantModal from "$lib/components/exercise-library/VariantModal.svelte";
   import ExerciseDiffModal from "$lib/components/exercise-library/ExerciseDiffModal.svelte";
 
@@ -39,6 +43,9 @@
   // opening the drawer.
   $: activeFilterCount = countActiveFilters(searchQuery, selectedTopic, selectedGrade, selectedSubject);
   let isLoading = false;
+  /** Last failed/invalid action of an open modal, shown inline in it. */
+  let modalError = "";
+  let loadAgain = false;
   let errorMsg = "";
   let isLocalFallback = false;
 
@@ -51,8 +58,10 @@
   // Delete modal state
   let isDeleteModalOpen = false;
   let deletingExercise: ExerciseRecord | null = null;
-  let deleteUsageInfo: { examCount: number; exams: { id: string; title: string; datum: string | null }[] } | null = null;
+  let deleteExams: ExamUsageEntry[] = [];
   let isDeleteLoading = false;
+  let isDeleting = false;
+  let deleteError = "";
 
   // Regroup modal state
   let isRegroupModalOpen = false;
@@ -73,79 +82,25 @@
   let lastLoadedLeftId = "";
   let lastLoadedRightId = "";
 
-  // Expanded groups tracking — use object for Svelte reactivity
-  let expandedGroups: { [groupId: string]: boolean } = {};
-
-  /* ── Exercise Grouping ── */
-
-
-
-
-  function toggleGroup(groupId: string) {
-    expandedGroups = { ...expandedGroups, [groupId]: !expandedGroups[groupId] };
-  }
+  const expandedGroups = createExpandSet();
 
   /** Exams using each variant of a group; loaded lazily once its card is expanded. */
-  let usageMap = new Map<string, ExamUsageEntry[] | "loading">();
+  const usage = createLazyMap<ExamUsageEntry[]>((key) => {
+    const [groupId, variantKey] = key.split("\u001f");
+    const members = allGroups.find((g) => g.groupId === groupId)?.variants.get(variantKey) ?? [];
+    return loadExamUsage(members.map((m) => m.ex.id));
+  });
 
-  function ensureUsage(group: ExerciseGroup) {
-    for (const [vKey, members] of group.variants) {
-      const mapKey = `${group.groupId}|${vKey}`;
-      if (usageMap.has(mapKey)) continue;
-      usageMap.set(mapKey, "loading");
-      usageMap = usageMap;
-      loadExamUsage(members.map((m) => m.ex.id))
-        .catch((err) => {
-          console.warn("Failed to load exam usage:", err);
-          return [] as ExamUsageEntry[];
-        })
-        .then((list) => {
-          usageMap.set(mapKey, list);
-          usageMap = usageMap;
-        });
-    }
+  $: for (const g of allGroups) {
+    if ($expandedGroups[g.groupId]) for (const vKey of g.variants.keys()) usage.ensure(usageKey(g.groupId, vKey));
   }
 
-  $: for (const g of allGroups) if (expandedGroups[g.groupId]) ensureUsage(g);
-
-  let previewEx: ExerciseRecord | null = null;
-  let isPreviewOpen = false;
-  let isPreviewCompileAsk = false;
-  let isPreviewBusy = false;
-  let previewNotice = "";
-  let previewError = "";
-  let previewAngabeUrl: string | null = null;
-  let previewLoesungUrl: string | null = null;
-
-  function resetPreviewUrls() {
-    if (previewAngabeUrl) URL.revokeObjectURL(previewAngabeUrl);
-    if (previewLoesungUrl) URL.revokeObjectURL(previewLoesungUrl);
-    previewAngabeUrl = previewLoesungUrl = null;
-  }
-
-  function openPreview(ex: ExerciseRecord) {
-    previewEx = ex;
-    previewError = "";
-    resetPreviewUrls();
-    const cached = getCachedPreview("exercise", ex.id);
-    if (cached.angabe || cached.loesung) {
-      previewAngabeUrl = cached.angabe;
-      previewLoesungUrl = cached.loesung;
-      isPreviewOpen = true;
-    } else {
-      isPreviewCompileAsk = true;
-    }
-  }
-
-  async function compilePreview() {
-    const ex = previewEx;
-    isPreviewCompileAsk = false;
-    if (!ex) return;
-    isPreviewOpen = true;
-    isPreviewBusy = true;
-    previewNotice = "";
-    try {
-      const res = await compileExercisePreview({
+  const exercisePreview = createPreviewFlow<ExerciseRecord>({
+    kind: "exercise",
+    idOf: (ex) => ex.id!,
+    titleOf: (ex) => ex.name || translate("exercises.untitled"),
+    compile: (ex, onStatus) =>
+      compileExercisePreview({
         cacheId: ex.id!,
         name: ex.name ?? "",
         latexBody: ex.latexBody ?? "",
@@ -153,29 +108,9 @@
         staged: false,
         useLocal: $storagePolicyStore.latexCompilation === "local",
         key: get(sessionStore).sessionKey,
-        onStatus: (status) => {
-          previewNotice =
-            status === "downloading"
-              ? translate("exam.page.preview.loadingCompiler")
-              : translate("common.previewCompiling");
-        },
-      });
-      previewAngabeUrl = pdfBytesToUrl(res.angabe.pdfBytes);
-      previewLoesungUrl = pdfBytesToUrl(res.loesung.pdfBytes);
-      if (res.missingGraphics.length > 0) {
-        previewError = `Preview rendered, but a graphic could not be loaded: ${res.missingGraphics[0]}`;
-      }
-    } catch (err: any) {
-      previewError = translate("common.previewFailed", { message: err.message || "" });
-    } finally {
-      isPreviewBusy = false;
-    }
-  }
-
-  function closePreview() {
-    isPreviewOpen = false;
-    resetPreviewUrls();
-  }
+        onStatus,
+      }),
+  });
 
   $: activeDiffGroupExercises = diffGroupExercises.map(
     (e) => exercises.find((x) => x.id === e.id) || e
@@ -238,32 +173,32 @@
     loadExercises();
   });
 
+  /** Overlapping calls coalesce into one more run, so a slow earlier fetch can't overwrite newer data. */
   async function loadExercises() {
-    usageMap = new Map();
-    await awaitSessionReady();
+    if (isLoading) {
+      loadAgain = true;
+      return;
+    }
     isLoading = true;
+    try {
+      do {
+        loadAgain = false;
+        await doLoadExercises();
+      } while (loadAgain);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  async function doLoadExercises() {
+    await awaitSessionReady();
     errorMsg = "";
     const key = get(sessionStore).sessionKey;
     try {
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
+      if (isServerBacked()) {
         try {
           const remoteExs = (await api.get("/exercises", { silentError: true })) as any[];
-          exercises = remoteExs.map((e: any) => ({
-            id: e.id,
-            teacherId: e.teacher_id,
-            name: e.name,
-            topicTag: e.topic_tag,
-            grade: e.grade || undefined,
-            subject: e.subject || undefined,
-            latexBody: e.latex_body,
-            maxPoints: e.max_points,
-            version: e.version || 1,
-            questionType: e.question_type || "free_text",
-            penalty: e.penalty || 0,
-            exerciseGroupId: e.exercise_group_id || undefined,
-            variantKey: e.variant_key || undefined,
-            isCurrent: e.is_current,
-          }));
+          exercises = remoteExs.map(mapApiToExerciseRecord);
           const encryptedExs = await Promise.all(exercises.map(ex => encryptExercise(ex, key)));
           await db.exercises.bulkPut(encryptedExs);
           isLocalFallback = false;
@@ -281,12 +216,10 @@
       }
     } catch (err: any) {
       errorMsg = err.message || translate("exercises.page.loadFailed");
-    } finally {
-      isLoading = false;
     }
+    usage.reset();
+    expandedGroups.prune(groupExercises(exercises).map((g) => g.groupId));
   }
-
-
 
   function openCreateModal() {
     editingExercise = null;
@@ -323,6 +256,7 @@
   let isGroupSaving = false;
 
   function openGroupModal(group: ExerciseGroup) {
+    modalError = "";
     editingGroup = group;
     groupEditorName = group.name;
     groupEditorTopicTag = group.topicTag;
@@ -332,9 +266,10 @@
   }
 
   async function handleSaveGroupMetadata() {
+    modalError = "";
     if (!editingGroup) return;
     if (!groupEditorName.trim()) {
-      alert(translate("exercises.page.groupNameRequired"));
+      modalError = translate("exercises.page.groupNameRequired");
       return;
     }
 
@@ -368,7 +303,7 @@
         }
       }
 
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
+      if (isServerBacked()) {
         if (editingGroup.groupId && !editingGroup.groupId.startsWith("name:")) {
           try {
             await api.patch(`/exercises/groups/${editingGroup.groupId}`, {
@@ -404,7 +339,7 @@
       editingGroup = null;
       await loadExercises();
     } catch (err: any) {
-      alert(translate("exercises.page.groupSaveFailed", { message: err.message }));
+      modalError = translate("exercises.page.groupSaveFailed", { message: err.message });
     } finally {
       isGroupSaving = false;
     }
@@ -413,9 +348,9 @@
   // Variant modal state
   let isVariantModalOpen = false;
   let variantBaseEx: ExerciseRecord | null = null;
-  let variantKey = "Moebel";
+  let variantKey = "";
   let variantName = "";
-  let variantTopicTag = "_Vererbung";
+  let variantTopicTag = "";
   let variantLatexBody = "";
 
   let initialVariantName = "";
@@ -431,12 +366,14 @@
     variantLatexBody !== initialVariantLatexBody;
 
   function openRegroupModal(ex: ExerciseRecord) {
+    modalError = "";
     regroupingExercise = ex;
     regroupTargetGroupId = "NEW";
     isRegroupModalOpen = true;
   }
 
   async function handleSaveRegroup() {
+    modalError = "";
     if (!regroupingExercise) return;
     
     let targetGroupId = regroupTargetGroupId;
@@ -490,55 +427,47 @@
       regroupingExercise = null;
       await loadExercises();
     } catch (err: any) {
-      alert(translate("exercises.page.regroupFailed", { message: err.message }));
+      modalError = translate("exercises.page.regroupFailed", { message: err.message });
     }
   }
 
   async function openDeleteModal(ex: ExerciseRecord) {
     deletingExercise = ex;
-    deleteUsageInfo = null;
+    deleteExams = [];
+    deleteError = "";
     isDeleteLoading = true;
     isDeleteModalOpen = true;
-
-    if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
-      try {
-        const usage = (await api.get(`/exercises/${ex.id}/usage`)) as any;
-        deleteUsageInfo = {
-          examCount: usage.exam_count,
-          exams: usage.exams,
-        };
-      } catch (err) {
-        console.warn("Failed to check exercise usage:", err);
-        deleteUsageInfo = { examCount: 0, exams: [] };
-      }
-    } else {
-      deleteUsageInfo = { examCount: 0, exams: [] };
+    try {
+      deleteExams = await loadExamUsage([ex.id!]);
+    } catch (err) {
+      console.warn("Failed to check exercise usage:", err);
+    } finally {
+      isDeleteLoading = false;
     }
-    isDeleteLoading = false;
   }
 
   async function handleConfirmDelete() {
     if (!deletingExercise) return;
+    isDeleting = true;
+    deleteError = "";
     try {
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
-        await api.delete(`/exercises/${deletingExercise.id}`);
-      }
-      await db.exercises.delete(deletingExercise.id);
-      // Attached resource files have no owner once the exercise is gone.
-      await db.exerciseResources.where("exerciseId").equals(deletingExercise.id).delete();
-      await loadExercises();
+      await exerciseRepository.delete(deletingExercise.id!);
       isDeleteModalOpen = false;
       deletingExercise = null;
+      await loadExercises();
     } catch (err: any) {
-      alert(translate("exercises.page.deleteFailed", { message: err.message }));
+      deleteError = translate("exercises.page.deleteFailed", { message: err.message });
+    } finally {
+      isDeleting = false;
     }
   }
 
   async function openDiffModal(ex: ExerciseRecord) {
+    modalError = "";
     let groupExs: ExerciseRecord[] = [];
     const key = get(sessionStore).sessionKey;
 
-    if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
+    if (isServerBacked()) {
       try {
         if (ex.exerciseGroupId) {
           const remoteExs = (await api.get(`/exercises?group_id=${ex.exerciseGroupId}&current_only=false`)) as any[];
@@ -601,65 +530,37 @@
     isDiffModalOpen = true;
   }
 
-  async function handleSaveDiffLeft() {
-    if (!diffLeftEx) return;
-    isSavingDiffLeft = true;
+  async function saveDiffSide(side: "left" | "right") {
+    const ex = side === "left" ? diffLeftEx : diffRightEx;
+    const latex = side === "left" ? diffLeftLatex : diffRightLatex;
+    if (!ex) return;
+    if (side === "left") isSavingDiffLeft = true;
+    else isSavingDiffRight = true;
+    modalError = "";
     try {
-      const updatedMaxPoints = parseExerciseScore(diffLeftLatex);
+      const updatedMaxPoints = parseExerciseScore(latex);
       const key = get(sessionStore).sessionKey;
 
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
-        await api.patch(`/exercises/${diffLeftEx.id}`, {
-          latex_body: diffLeftLatex,
-          max_points: updatedMaxPoints,
-        });
+      if (isServerBacked()) {
+        await api.patch(`/exercises/${ex.id}`, { latex_body: latex, max_points: updatedMaxPoints });
       }
 
       const updatedRecord: ExerciseRecord = {
-        ...diffLeftEx,
-        latexBody: diffLeftLatex,
+        ...ex,
+        latexBody: latex,
         maxPoints: updatedMaxPoints,
         updatedAt: new Date().toISOString(),
       };
-
-      const encrypted = await encryptExercise(updatedRecord, key);
-      await db.exercises.put(encrypted);
+      await db.exercises.put(await encryptExercise(updatedRecord, key));
       await loadExercises();
     } catch (err: any) {
-      alert(translate("exercises.page.diffSaveLeftFailed", { message: err.message }));
+      modalError = translate(
+        side === "left" ? "exercises.page.diffSaveLeftFailed" : "exercises.page.diffSaveRightFailed",
+        { message: err.message }
+      );
     } finally {
-      isSavingDiffLeft = false;
-    }
-  }
-
-  async function handleSaveDiffRight() {
-    if (!diffRightEx) return;
-    isSavingDiffRight = true;
-    try {
-      const updatedMaxPoints = parseExerciseScore(diffRightLatex);
-      const key = get(sessionStore).sessionKey;
-
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
-        await api.patch(`/exercises/${diffRightEx.id}`, {
-          latex_body: diffRightLatex,
-          max_points: updatedMaxPoints,
-        });
-      }
-
-      const updatedRecord: ExerciseRecord = {
-        ...diffRightEx,
-        latexBody: diffRightLatex,
-        maxPoints: updatedMaxPoints,
-        updatedAt: new Date().toISOString(),
-      };
-
-      const encrypted = await encryptExercise(updatedRecord, key);
-      await db.exercises.put(encrypted);
-      await loadExercises();
-    } catch (err: any) {
-      alert(translate("exercises.page.diffSaveRightFailed", { message: err.message }));
-    } finally {
-      isSavingDiffRight = false;
+      if (side === "left") isSavingDiffLeft = false;
+      else isSavingDiffRight = false;
     }
   }
 
@@ -677,9 +578,10 @@
   }
 
   function openVariantModal(ex: ExerciseRecord) {
+    modalError = "";
     variantBaseEx = ex;
     variantName = ex.name || "Exercise";
-    variantKey = "Moebel";
+    variantKey = "";
     variantTopicTag = ex.topicTag || "_General";
     variantLatexBody = ex.latexBody || "";
 
@@ -705,9 +607,10 @@
   }
 
   async function handleSaveVariant() {
+    modalError = "";
     if (!variantBaseEx) return;
     if (!variantKey.trim()) {
-      alert(translate("exercises.page.variantKeyRequired"));
+      modalError = translate("exercises.page.variantKeyRequired");
       return;
     }
 
@@ -747,9 +650,8 @@
 
       forceCloseVariantModal();
       await loadExercises();
-      alert(translate("exercises.page.variantCreated", { key: variantKey }));
     } catch (err: any) {
-      alert(translate("exercises.page.variantCreateFailed", { message: err.message }));
+      modalError = translate("exercises.page.variantCreateFailed", { message: err.message });
     }
   }
 </script>
@@ -777,6 +679,7 @@
     title={$t("exercises.page.filtersTitle")}
     toggleLabel={$t("exercises.page.showFilters")}
     activeCount={activeFilterCount}
+    busy={isLoading}
   >
     <svelte:fragment slot="filters" let:close>
       <ListFilterPanel
@@ -797,48 +700,29 @@
     </svelte:fragment>
 
   <ExerciseGroupList
-    {isLoading}
+    isLoading={isLoading && exercises.length === 0}
     {filteredGroups}
-    {expandedGroups}
-    onToggleGroup={toggleGroup}
+    expandedGroups={$expandedGroups}
+    onToggleGroup={expandedGroups.toggle}
     onEditGroup={openGroupModal}
     onEditExercise={openEditModal}
     onNewVersion={openNewVersionModal}
     onDiff={openDiffModal}
     onRegroup={openRegroupModal}
     onDelete={openDeleteModal}
-    onPreview={openPreview}
-    {usageMap}
+    onPreview={exercisePreview.open}
+    usageMap={$usage}
     onOpenVariant={openVariantModal}
     onCreateFirst={openCreateModal}
   />
   </FilterLayout>
 </PageShell>
 
-<ConfirmDialog
-  open={isPreviewCompileAsk}
-  title={$t("common.previewNoneTitle")}
-  message={$t("common.previewNoneText")}
-  confirmText={$t("common.previewCompile")}
-  cancelText={$t("common.cancel")}
-  role="dialog"
-  onConfirm={compilePreview}
-  onCancel={() => (isPreviewCompileAsk = false)}
-/>
-
-<PdfPreviewModal
-  open={isPreviewOpen}
-  title={previewEx?.name || $t("exercises.untitled")}
-  angabeUrl={previewAngabeUrl}
-  loesungUrl={previewLoesungUrl}
-  busy={isPreviewBusy}
-  notice={previewNotice}
-  error={previewError}
-  onClose={closePreview}
-/>
+<PreviewHost flow={exercisePreview} />
 
 <VariantModal
   isOpen={isVariantModalOpen}
+  error={modalError}
   {variantBaseEx}
   bind:variantKey
   bind:variantLatexBody
@@ -860,6 +744,7 @@
 
 <GroupEditModal
   isOpen={isGroupModalOpen}
+  error={modalError}
   {editingGroup}
   bind:groupEditorName
   bind:groupEditorTopicTag
@@ -872,6 +757,7 @@
 
 <RegroupModal
   isOpen={isRegroupModalOpen}
+  error={modalError}
   {regroupingExercise}
   bind:regroupTargetGroupId
   groups={allGroups}
@@ -879,17 +765,25 @@
   onClose={() => (isRegroupModalOpen = false)}
 />
 
-<DeleteExerciseModal
-  isOpen={isDeleteModalOpen}
-  {deletingExercise}
-  {isDeleteLoading}
-  {deleteUsageInfo}
+<DeleteWithUsageModal
+  open={isDeleteModalOpen && !!deletingExercise}
+  title={deletingExercise ? $t("exercises.deleteModal.title", { name: deletingExercise.name || $t("exercises.untitled") }) : ""}
+  usageLoading={isDeleteLoading}
+  loadingText={$t("exercises.deleteModal.checkingUsage")}
+  usageTitle={$t("exercises.deleteModal.warningTitle")}
+  usageText={deleteExams.length > 0 ? $t("exercises.deleteModal.usageInfo", { count: deleteExams.length }) : ""}
+  usageHint={$t("exercises.deleteModal.usageWarning")}
+  items={deleteExams.map((e) => ({ id: e.id, title: e.title, meta: e.datum }))}
+  plainText={$t("exercises.deleteModal.confirmPlain")}
+  busy={isDeleting}
+  error={deleteError}
   onConfirm={handleConfirmDelete}
   onClose={() => (isDeleteModalOpen = false)}
 />
 
 <ExerciseDiffModal
   isOpen={isDiffModalOpen}
+  error={modalError}
   {activeDiffGroupExercises}
   bind:diffLeftId
   bind:diffRightId
@@ -901,8 +795,8 @@
   {isDiffRightDirty}
   {isSavingDiffLeft}
   {isSavingDiffRight}
-  onSaveLeft={handleSaveDiffLeft}
-  onSaveRight={handleSaveDiffRight}
+  onSaveLeft={() => saveDiffSide("left")}
+  onSaveRight={() => saveDiffSide("right")}
   onRequestClose={requestCloseDiffModal}
   showConfirmClose={showDiffConfirmClose}
   onForceCloseConfirm={forceCloseDiffModal}

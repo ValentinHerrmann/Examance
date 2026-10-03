@@ -8,7 +8,6 @@ export const exercises: Translations['exercises'] = {
         createButton: 'Create new exercise',
         filtersTitle: 'Filters',
         showFilters: 'Show filters',
-        hideFilters: 'Hide filters',
         loadFailed: 'Failed to load exercise library.',
         localFallback: 'Your exercises could not be loaded from the server. Showing what is stored locally — this may not be everything. Sign in again or try later.',
         groupNameRequired: 'Group name is required.',
@@ -19,7 +18,6 @@ export const exercises: Translations['exercises'] = {
         diffSaveRightFailed: 'Failed to save right exercise: {message}',
         variantKeyRequired: 'Variant key (e.g. furniture, vehicle, animal) is required.',
         variantCreateFailed: 'Failed to create variant: {message}',
-        variantCreated: 'New variant "{key}" was created.',
         diffSelectVariantSuffix: ', variant: {key}',
     },
     editor: {
@@ -86,7 +84,6 @@ export const exercises: Translations['exercises'] = {
         usageInfo: 'This exercise is currently used in {count} exam(s):',
         usageWarning: 'Deleting it will remove it permanently from the library and from these exams.',
         confirmPlain: 'Are you sure you want to delete this exercise from your library?',
-        deleteAnyway: 'Delete anyway',
     },
     diffModal: {
         title: 'Exercise LaTeX code diff comparison',
@@ -117,8 +114,8 @@ export const exercises: Translations['exercises'] = {
         variantCountPlural: '{count} variants',
         editGroupTitle: 'Edit group metadata (name, topic, grade, subject)',
         editGroupAriaLabel: 'Edit group metadata',
-        currentSuffix: 'current',
         currentBadge: 'current',
+        moreActions: 'More actions',
         usedInExams: 'Used in exams',
         notUsed: 'Not used in any exam.',
         loadingUsage: 'Loading usage…',

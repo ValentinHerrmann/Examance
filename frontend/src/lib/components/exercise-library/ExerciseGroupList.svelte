@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
-  import type { ExamUsageEntry } from "$lib/exercise-library/examUsage";
+  import type { LazyEntry } from "$lib/utils/lazyMap";
+  import { usageKey, type ExamUsageEntry } from "$lib/exercise-library/examUsage";
   import { getGroupRepresentative, type ExerciseGroup } from "$lib/exercise-library/groupExercises";
   import { t } from "$lib/i18n";
   import {
@@ -10,9 +11,10 @@
     faRightLeft,
     faTrash,
     faClone,
-    faEye
+    faEye,
+    faEllipsisVertical
   } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, ExpandableCard } from "$lib/components/ui";
+  import { Badge, Button, ExpandableCard, Menu, MenuItem } from "$lib/components/ui";
 
   export let isLoading = false;
   export let filteredGroups: ExerciseGroup[] = [];
@@ -26,7 +28,7 @@
   export let onDelete: (ex: ExerciseRecord) => void;
   export let onPreview: (ex: ExerciseRecord) => void;
   /** Keyed `${groupId}|${variantKey}`; absent = not requested yet. */
-  export let usageMap: Map<string, ExamUsageEntry[] | "loading"> = new Map();
+  export let usageMap: Map<string, LazyEntry<ExamUsageEntry[]>> = new Map();
   export let onOpenVariant: (ex: ExerciseRecord) => void;
   export let onCreateFirst: () => void;
 
@@ -100,7 +102,7 @@
 
         <svelte:fragment slot="body">
           {#each group.variants as [vKey, vMembers], vIdx}
-            {@const used = usageMap.get(`${group.groupId}|${vKey}`)}
+            {@const used = usageMap.get(usageKey(group.groupId, vKey))}
             <div class="{vIdx === group.variants.size - 1 ? '' : 'mb-2 border-b border-line pb-2'}">
               <div class="mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span class={vKey !== '_General' ? variantLabelHasVariant : variantLabelBase}>
@@ -108,12 +110,14 @@
                 </span>
                 <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
                   <span class="font-semibold">{$t("exercises.groupList.usedInExams")}:</span>
-                  {#if used === undefined || used === "loading"}
+                  {#if used === undefined || used.status === "loading"}
                     <span>{$t("exercises.groupList.loadingUsage")}</span>
-                  {:else if used.length === 0}
+                  {:else if used.status === "error"}
+                    <span class="text-danger-fg">{$t("common.loadFailedShort")}</span>
+                  {:else if used.value.length === 0}
                     <span>{$t("exercises.groupList.notUsed")}</span>
                   {:else}
-                    {#each used as exam (exam.id)}
+                    {#each used.value as exam (exam.id)}
                       <a
                         href="/exam/{exam.id}"
                         class="min-w-0 break-words rounded-md border border-line bg-surface-sunken px-1.5 py-0.5 text-accent hover:bg-highlight"
@@ -131,7 +135,7 @@
                       <Badge severity="success">{$t("exercises.groupList.currentBadge")}</Badge>
                     {/if}
                   </div>
-                  <div class="flex flex-wrap justify-end gap-2">
+                  <div class="flex items-center gap-2">
                     <Button
                       variant="outlined"
                       severity="secondary"
@@ -147,40 +151,17 @@
                       title={$t("exercises.groupList.editExerciseTitle")}
                       onClick={() => onEditExercise(member.ex)}
                     >{$t("common.edit")}</Button>
-                    <Button
-                      variant="outlined"
-                      severity="secondary"
-                      size="sm"
-                      icon={faFileCirclePlus}
-                      title={$t("exercises.groupList.newVersionTitle")}
-                      onClick={() => onNewVersion(member.ex)}
-                    >{$t("exercises.groupList.newVersionAbbr")}</Button>
-                    <Button
-                      variant="outlined"
-                      severity="secondary"
-                      size="sm"
-                      icon={faCodeCompare}
-                      title={$t("exercises.groupList.diffTitle")}
-                      onClick={() => onDiff(member.ex)}
-                    >{$t("exercises.groupList.diffText")}</Button>
-                    <Button
-                      variant="outlined"
-                      severity="secondary"
-                      size="sm"
-                      icon={faRightLeft}
-                      title={$t("exercises.groupList.regroupTitle")}
-                      onClick={() => onRegroup(member.ex)}
-                    >{$t("exercises.groupList.regroupText")}</Button>
-                    <Button
-                      variant="outlined"
-                      severity="danger"
-                      size="sm"
-                      icon={faTrash}
-                      title={$t("exercises.groupList.deleteTitle")}
-                      ariaLabel={$t("exercises.groupList.deleteTitle")}
-                      iconOnly
-                      onClick={() => onDelete(member.ex)}
-                    />
+                    <Menu
+                      label={$t("exercises.groupList.moreActions")}
+                      icon={faEllipsisVertical}
+                      showLabel={false}
+                      chevron={false}
+                    >
+                      <MenuItem icon={faFileCirclePlus} onSelect={() => onNewVersion(member.ex)}>{$t("exercises.groupList.newVersionTitle")}</MenuItem>
+                      <MenuItem icon={faCodeCompare} onSelect={() => onDiff(member.ex)}>{$t("exercises.groupList.diffTitle")}</MenuItem>
+                      <MenuItem icon={faRightLeft} onSelect={() => onRegroup(member.ex)}>{$t("exercises.groupList.regroupTitle")}</MenuItem>
+                      <MenuItem icon={faTrash} danger onSelect={() => onDelete(member.ex)}>{$t("exercises.groupList.deleteTitle")}</MenuItem>
+                    </Menu>
                   </div>
                 </div>
               {/each}
