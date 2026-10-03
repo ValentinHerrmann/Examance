@@ -85,6 +85,7 @@ export const help: Translations['help'] = {
                 h: 'Collect instead of copy',
                 p1: 'Exercises live in a shared library, tagged by grade, subject and topic. Each one is a LaTeX fragment with a live preview; its score is read from the source automatically.',
                 p2: 'Use the filters at the top to narrow the library by grade, subject and topic and reuse an exercise in a new exam.',
+                p3: 'Expand an entry to see, per variant, which exams use the exercise (click to open the exam). “Preview” shows the last compiled PDF; if there is none yet, Examance asks whether to compile it now.',
             },
             s2: {
                 h: 'Variants and versions',
@@ -121,6 +122,7 @@ export const help: Translations['help'] = {
                 h: 'Typeset and print',
                 p1: 'The run produces a print-ready PDF with QR codes — one per exam, variant and student slot. In local mode it happens entirely in the browser.',
                 p2: 'Print the sheets exactly as typeset. The QR code has to stay readable, otherwise the scan cannot be assigned automatically later.',
+                p3: 'In the exam overview, “Preview” in an expanded entry opens the last compiled PDF. If there is none, you are asked and taken to the exam page, where it is compiled and shown. The preview is kept only until the page is reloaded.',
             },
         },
         scanning: {
