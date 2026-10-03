@@ -25,7 +25,6 @@
 </script>
 
 <div class="rounded-xl border border-line bg-surface-raised">
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
   <div
     class="flex cursor-pointer items-start gap-4 rounded-t-xl p-5 transition-colors hover:bg-highlight {expanded ? '' : 'rounded-b-xl'}"
     role="presentation"
