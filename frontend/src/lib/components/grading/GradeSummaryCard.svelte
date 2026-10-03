@@ -4,13 +4,25 @@
   import { faCaretDown, faCaretUp, faStar } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Icon } from "$lib/components/ui";
 
-  export let isFullyGraded: boolean;
-  export let totalScore: number | undefined;
-  export let sumGradedScores: number;
-  export let gradedCount: number;
-  export let exercisesLength: number;
-  export let totalMaxPoints: number;
-  export let calculatedGradeDetail: GradeDetail | null;
+  interface Props {
+    isFullyGraded: boolean;
+    totalScore: number | undefined;
+    sumGradedScores: number;
+    gradedCount: number;
+    exercisesLength: number;
+    totalMaxPoints: number;
+    calculatedGradeDetail: GradeDetail | null;
+  }
+
+  let {
+    isFullyGraded,
+    totalScore,
+    sumGradedScores,
+    gradedCount,
+    exercisesLength,
+    totalMaxPoints,
+    calculatedGradeDetail
+  }: Props = $props();
 </script>
 
 <div class="flex flex-col gap-2">

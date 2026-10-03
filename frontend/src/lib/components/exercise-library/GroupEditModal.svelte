@@ -6,19 +6,32 @@
   import { t } from "$lib/i18n";
   import { Alert, Modal, Button, controlClass } from "$lib/components/ui";
 
+  interface Props {
+    isOpen?: boolean;
+    /** Failure or validation message from the page, shown inline. */
+    error?: string;
+    editingGroup?: ExerciseGroup | null;
+    groupEditorName?: string;
+    groupEditorTopicTag?: string;
+    groupEditorGrade?: string;
+    groupEditorSubject?: string;
+    isGroupSaving?: boolean;
+    onSave: () => void;
+    onClose: () => void;
+  }
 
-
-  export let isOpen = false;
-  /** Failure or validation message from the page, shown inline. */
-  export let error = "";
-  export let editingGroup: ExerciseGroup | null = null;
-  export let groupEditorName = "";
-  export let groupEditorTopicTag = "";
-  export let groupEditorGrade = "";
-  export let groupEditorSubject = "";
-  export let isGroupSaving = false;
-  export let onSave: () => void;
-  export let onClose: () => void;
+  let {
+    isOpen = false,
+    error = "",
+    editingGroup = null,
+    groupEditorName = $bindable(""),
+    groupEditorTopicTag = $bindable(""),
+    groupEditorGrade = $bindable(""),
+    groupEditorSubject = $bindable(""),
+    isGroupSaving = false,
+    onSave,
+    onClose
+  }: Props = $props();
 
   function handleSave() {
     if (groupEditorTopicTag) recordValue("exercise.topic", groupEditorTopicTag);
@@ -77,10 +90,10 @@
     </div>
   {/if}
 
-  <svelte:fragment slot="footer">
+  {#snippet footer()}
     <Button variant="outlined" severity="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
     <Button onClick={handleSave} disabled={isGroupSaving}>
       {isGroupSaving ? $t("exercises.groupEditModal.saving") : $t("exercises.groupEditModal.saveButton")}
     </Button>
-  </svelte:fragment>
+  {/snippet}
 </Modal>

@@ -7,17 +7,24 @@
   import { faChartColumn } from '@fortawesome/free-solid-svg-icons';
   import { Badge, Button, Icon, controlClass, controlSmClass } from '$lib/components/ui';
 
-  export let gradingKey: GradingKeyConfig = {
+  interface Props {
+    gradingKey?: GradingKeyConfig;
+  }
+
+  let { gradingKey = $bindable({
     preset: 'linear_50',
     cutoffs: getPresetCutoffs('linear_50'),
-  };
+  }) }: Props = $props();
 
-  $: if (!gradingKey || !gradingKey.cutoffs || gradingKey.cutoffs.length === 0) {
-    gradingKey = {
-      preset: 'linear_50',
-      cutoffs: getPresetCutoffs('linear_50'),
-    };
-  }
+  $effect.pre(() => {
+    const key = gradingKey;
+    if (!key || !key.cutoffs || key.cutoffs.length === 0) {
+      gradingKey = {
+        preset: 'linear_50',
+        cutoffs: getPresetCutoffs('linear_50'),
+      };
+    }
+  });
 
   function applyPreset(preset: GradingKeyConfig['preset']) {
     gradingKey = {
@@ -80,7 +87,7 @@
             step="0.01"
             class="{controlClass} {controlSmClass} w-20 text-center font-semibold"
             bind:value={cutoff.minPercentage}
-            on:input={handleInputChange}
+            oninput={handleInputChange}
           />
           <span class="text-xs text-muted">%</span>
         </div>

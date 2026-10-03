@@ -1,13 +1,5 @@
 <script lang="ts">
-  /**
-   * The password, as a factor you can look at and change.
-   *
-   * Changing it from here re-wraps the data key in the browser and sends both to
-   * the server in one request. The alternative — signing out and going through
-   * the emailed reset — invalidates the password wrap and then asks for the
-   * recovery code to undo the damage, which is an absurd amount of ceremony for
-   * a routine change.
-   */
+  /** The password as a factor you can view and change. Changing re-wraps the data key in the browser and sends both in one request, avoiding the reset-then-recovery-code detour. */
   import { Button, Card, Field, TextInput } from "$lib/components/ui";
   import { t } from "$lib/i18n";
   import { ApiError } from "$lib/api/client";
@@ -18,22 +10,26 @@
   import FactorMeta from "./FactorMeta.svelte";
   import LockoutNotice from "./LockoutNotice.svelte";
 
-  export let status: MfaStatus;
-  export let teacherId: string;
-  export let onChanged: () => void;
+  interface Props {
+    status: MfaStatus;
+    teacherId: string;
+    onChanged: () => void;
+  }
+
+  let { status, teacherId, onChanged }: Props = $props();
 
   const MIN_LENGTH = 12;
 
-  let isOpen = false;
-  let currentPassword = "";
-  let newPassword = "";
-  let confirmPassword = "";
-  let errorMsg = "";
-  let successMsg = "";
-  let isWorking = false;
+  let isOpen = $state(false);
+  let currentPassword = $state("");
+  let newPassword = $state("");
+  let confirmPassword = $state("");
+  let errorMsg = $state("");
+  let successMsg = $state("");
+  let isWorking = $state(false);
 
-  $: enrolled = status.enrolled.includes("password");
-  $: opensData = status.key_capable.includes("password");
+  let enrolled = $derived(status.enrolled.includes("password"));
+  let opensData = $derived(status.key_capable.includes("password"));
 
   function reset() {
     currentPassword = "";
@@ -128,7 +124,7 @@
     {#if isOpen}
       <form
         class="flex flex-col gap-3"
-        on:submit|preventDefault={submit}
+        onsubmit={(e) => { e.preventDefault(); submit(); }}
       >
         <Field label={$t("security.password.current")}>
           <TextInput type="password" bind:value={currentPassword} required />

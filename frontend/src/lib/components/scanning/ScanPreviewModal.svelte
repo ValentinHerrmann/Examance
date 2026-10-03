@@ -19,36 +19,50 @@
     annotationIv?: Uint8Array;
   }
 
-  export let open: boolean = false;
-  export let item: ScannedSubmissionItem | null = null;
-  export let objectUrl: string | null = null;
-  export let isPdf: boolean = false;
-  export let loading: boolean = false;
-  export let error: string = "";
-  export let onClose: () => void;
+  interface Props {
+    open?: boolean;
+    item?: ScannedSubmissionItem | null;
+    objectUrl?: string | null;
+    isPdf?: boolean;
+    loading?: boolean;
+    error?: string;
+    onClose: () => void;
+  }
 
-  $: modalTitle = $t("scanning.previewModal.title", { label: item?.fallbackCode || item?.id || "" });
-  $: downloadName = `${item?.fallbackCode || item?.id || "scan"}.${isPdf ? "pdf" : "png"}`;
+  let {
+    open = false,
+    item = null,
+    objectUrl = null,
+    isPdf = false,
+    loading = false,
+    error = "",
+    onClose
+  }: Props = $props();
+
+  let modalTitle = $derived($t("scanning.previewModal.title", { label: item?.fallbackCode || item?.id || "" }));
+  let downloadName = $derived(`${item?.fallbackCode || item?.id || "scan"}.${isPdf ? "pdf" : "png"}`);
 </script>
 
 <Modal {open} size="full" bare onClose={onClose}>
-  <svelte:fragment slot="header">
-    <h2 class="m-0 min-w-0 truncate text-base font-semibold text-content sm:text-lg">{modalTitle}</h2>
-    {#if objectUrl}
-      <Button
-        variant="outlined"
-        severity="secondary"
-        size="sm"
-        icon={faDownload}
-        href={objectUrl}
-        title={$t("common.download")}
-        class="ml-2"
-        download={downloadName}
-      >
-        {$t("common.download")}
-      </Button>
-    {/if}
-  </svelte:fragment>
+  {#snippet header()}
+
+      <h2 class="m-0 min-w-0 truncate text-base font-semibold text-content sm:text-lg">{modalTitle}</h2>
+      {#if objectUrl}
+        <Button
+          variant="outlined"
+          severity="secondary"
+          size="sm"
+          icon={faDownload}
+          href={objectUrl}
+          title={$t("common.download")}
+          class="ml-2"
+          download={downloadName}
+        >
+          {$t("common.download")}
+        </Button>
+      {/if}
+
+  {/snippet}
 
   <div class="flex h-full min-h-72 items-center justify-center p-4 sm:p-6">
     {#if loading}

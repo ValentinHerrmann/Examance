@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from "$app/stores";
-  export let params;
-  import { onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
+  import type { Snippet } from "svelte";
   import { browser } from "$app/environment";
   import { afterNavigate } from "$app/navigation";
   import { get } from "svelte/store";
@@ -12,15 +12,26 @@
   import { examNavContext } from "$lib/stores/shell";
   import { t } from "$lib/i18n";
 
-  $: examId = $page.params.id || "";
-  $: pathname = $page.url.pathname;
-
-  let exam: ExamRecord | null = null;
-  let submissionCount = 0;
-
-  $: if (browser && examId && $sessionStore.sessionKey) {
-    loadExamHeaderData(examId);
+  interface Props {
+    params?: Record<string, string>;
+    children?: Snippet;
   }
+
+  let { children }: Props = $props();
+
+  let examId = $derived($page.params.id || "");
+  let pathname = $derived($page.url.pathname);
+
+  // Raw: the record is handed to examNavContext, which must not receive a proxy.
+  let exam: ExamRecord | null = $state.raw(null);
+  let submissionCount = $state(0);
+
+  $effect.pre(() => {
+    const id = examId;
+    if (browser && id && $sessionStore.sessionKey) {
+      untrack(() => loadExamHeaderData(id));
+    }
+  });
 
   afterNavigate(() => {
     if (examId && $sessionStore.sessionKey) {
@@ -39,21 +50,24 @@
     }
   }
 
-  // The sidebar and the phone drawer live in the app shell (so they do not
-  // scroll with the page); this layout only tells them which exam is open.
-  $: if (browser && examId) {
-    examNavContext.set({ examId, exam: exam && exam.id === examId ? exam : null, submissionCount });
-  }
-
   onDestroy(() => examNavContext.set(null));
 
-  $: isGradeActive = pathname.startsWith(`/exam/${examId}/grade`);
+  // The sidebar and the phone drawer live in the app shell (so they do not
+  // scroll with the page); this layout only tells them which exam is open.
+  $effect.pre(() => {
+    const id = examId;
+    const current = exam;
+    const count = submissionCount;
+    if (browser && id) {
+      untrack(() => examNavContext.set({ examId: id, exam: current && current.id === id ? current : null, submissionCount: count }));
+    }
+  });
+
+  let isGradeActive = $derived(pathname.startsWith(`/exam/${examId}/grade`));
 </script>
 
-<!-- A size container: exam content shares the width with the sidebar, so its
-     columns follow `@3xl:`-style container variants, not the viewport.
-     The grade page fills exactly the space above the footer (`flex-1 min-h-0`);
-     every other page grows with its content so the main area scrolls. -->
+<!-- Size container (columns follow `@3xl:` container variants, not the viewport).
+     The grade page fills the space above the footer; other pages grow so the main area scrolls. -->
 <div class="@container flex w-full min-w-0 flex-col {isGradeActive ? 'min-h-0 flex-1' : 'grow'}">
   {#if exam && exam.id === examId && !isGradeActive}
     <!-- The exam's name, as a heading at every width: the sidebar can be
@@ -63,5 +77,5 @@
       {exam.title || $t("exam.nav.examFallback")}
     </h2>
   {/if}
-  <slot />
+  {@render children?.()}
 </div>

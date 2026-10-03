@@ -1,30 +1,51 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import SuggestInput from "$lib/components/common/SuggestInput.svelte";
   import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from "$lib/utils/examLabel";
   import { t } from "$lib/i18n";
   import { Card, Field, TextInput, Textarea, controlClass } from "$lib/components/ui";
-  export let title: string;
-  export let testart: string;
-  export let grade: string = "";
-  export let klasse: string = "";
-  export let nr: string;
-  export let datum: string;
-  export let fach: string;
-  export let lehrernachname: string;
-  export let infoText: string;
 
-  $: fullCoursePreview = formatExamCourse(grade, klasse);
+  interface Props {
+    title: string;
+    testart: string;
+    grade?: string;
+    klasse?: string;
+    nr: string;
+    datum: string;
+    fach: string;
+    lehrernachname: string;
+    infoText: string;
+  }
 
-  let datumDate = "";
-  let dauer = "";
+  let {
+    title = $bindable(),
+    testart = $bindable(),
+    grade = $bindable(""),
+    klasse = $bindable(""),
+    nr = $bindable(),
+    datum = $bindable(),
+    fach = $bindable(),
+    lehrernachname = $bindable(),
+    infoText = $bindable()
+  }: Props = $props();
+
+  let fullCoursePreview = $derived(formatExamCourse(grade, klasse));
+
+  let datumDate = $state("");
+  let dauer = $state("");
   let lastSyncedDatum = "";
 
-  $: if (datum !== lastSyncedDatum) {
-    lastSyncedDatum = datum;
-    const parsed = parseDatumAndDauer(datum);
-    datumDate = parsed.datumDate;
-    dauer = parsed.dauer;
-  }
+  $effect.pre(() => {
+    const d = datum;
+    untrack(() => {
+      if (d !== lastSyncedDatum) {
+        lastSyncedDatum = d;
+        const parsed = parseDatumAndDauer(d);
+        datumDate = parsed.datumDate;
+        dauer = parsed.dauer;
+      }
+    });
+  });
 
   function handleDatumDateOrDauerChange() {
     const formatted = formatDatumAndDauer(datumDate, dauer);
@@ -97,7 +118,7 @@
         type="text"
         class={controlClass}
         bind:value={datumDate}
-        on:input={handleDatumDateOrDauerChange}
+        oninput={handleDatumDateOrDauerChange}
         placeholder={$t("examCreation.metadataForm.datumPlaceholder")}
         required
       />
@@ -109,7 +130,7 @@
         class={controlClass}
         storageKey="exam.dauer"
         bind:value={dauer}
-        on:input={handleDatumDateOrDauerChange}
+        oninput={handleDatumDateOrDauerChange}
         placeholder={$t("examCreation.metadataForm.dauerPlaceholder")}
       />
     </Field>

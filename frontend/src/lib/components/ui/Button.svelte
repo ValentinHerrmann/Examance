@@ -1,42 +1,61 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
+  import type { HTMLAnchorAttributes, HTMLButtonAttributes } from "svelte/elements";
   import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
   import { faSpinner } from "@fortawesome/free-solid-svg-icons";
   import Icon from "./Icon.svelte";
 
-  /**
-   * The single button recipe (Artemis button spec): a `variant` (solid /
-   * outlined / text) times a `severity`. With `href` it renders an <a>, so a
-   * navigation styled as a button is still a real link.
-   *
-   * Rules: one primary button per view; destructive actions confirm first and
-   * are labelled with the verb ("Delete exam"); links navigate, buttons act.
-   */
   type Variant = "solid" | "outlined" | "text";
   type Severity = "primary" | "secondary" | "success" | "info" | "warning" | "danger" | "contrast";
 
-  export let variant: Variant = "solid";
-  export let severity: Severity = "primary";
-  export let size: "sm" | "md" | "lg" = "md";
-  export let type: "button" | "submit" | "reset" = "button";
-  export let href: string | undefined = undefined;
-  export let icon: IconDefinition | undefined = undefined;
-  export let iconRight: IconDefinition | undefined = undefined;
-  /** Round icon-only button. Requires `ariaLabel`. */
-  export let iconOnly = false;
-  export let disabled = false;
-  export let loading = false;
-  /** Toggle buttons: sets aria-pressed and the selected colours. */
-  export let pressed: boolean | undefined = undefined;
-  export let block = false;
-  export let title: string | undefined = undefined;
-  export let ariaLabel: string | undefined = undefined;
-  export let onClick: ((event: MouseEvent) => void) | undefined = undefined;
+  /**
+   * The single button recipe (Artemis spec): `variant` x `severity`. With `href` it renders an <a>.
+   * One primary button per view; destructive actions confirm first; links navigate, buttons act.
+   */
+  interface Props extends Omit<HTMLButtonAttributes & HTMLAnchorAttributes, "class" | "type" | "title" | "disabled" | "onclick" | "children"> {
+    variant?: Variant;
+    severity?: Severity;
+    size?: "sm" | "md" | "lg";
+    type?: "button" | "submit" | "reset";
+    href?: string | undefined;
+    icon?: IconDefinition | undefined;
+    iconRight?: IconDefinition | undefined;
+    /** Round icon-only button. Requires `ariaLabel`. */
+    iconOnly?: boolean;
+    disabled?: boolean;
+    loading?: boolean;
+    /** Toggle buttons: sets aria-pressed and the selected colours. */
+    pressed?: boolean | undefined;
+    block?: boolean;
+    title?: string | undefined;
+    ariaLabel?: string | undefined;
+    onClick?: ((event: MouseEvent) => void) | undefined;
+    class?: string;
+    children?: Snippet;
+  }
 
-  let className = "";
-  export { className as class };
+  let {
+    variant = "solid",
+    severity = "primary",
+    size = "md",
+    type = "button",
+    href = undefined,
+    icon = undefined,
+    iconRight = undefined,
+    iconOnly = false,
+    disabled = false,
+    loading = false,
+    pressed = undefined,
+    block = false,
+    title = undefined,
+    ariaLabel = undefined,
+    onClick = undefined,
+    class: className = "",
+    children,
+    ...rest
+  }: Props = $props();
 
-  /* Full literal class strings only — Tailwind v4 cannot see interpolated
-   * names like `bg-${severity}`. */
+  // Full literal class strings only: Tailwind v4 cannot see interpolated names like `bg-${severity}`.
   const solid: Record<Severity, string> = {
     primary: "border-transparent bg-primary text-primary-contrast",
     secondary: "border-transparent bg-surface-inset text-content",
@@ -66,8 +85,7 @@
   };
   const variants: Record<Variant, Record<Severity, string>> = { solid, outlined, text };
 
-  /* `sm` is for dense desktop toolbars; coarse pointers (iPad, phones) are
-   * lifted to 44px either way. */
+  // `sm` is for dense desktop toolbars; coarse pointers (iPad, phones) are lifted to 44px either way.
   const sizes = {
     sm: "min-h-8 gap-1.5 px-2.5 py-1.5 text-sm pointer-coarse:min-h-11",
     md: "min-h-10 gap-2 px-3 py-2 text-base pointer-coarse:min-h-11",
@@ -79,8 +97,7 @@
     lg: "size-12 text-lg",
   };
 
-  /* Hover and press tint the button with 5% / 10% of its own text colour
-   * (Artemis), so one rule works for every severity in both themes. */
+  // Hover/press tint with 5% / 10% of the button's own text colour: one rule for every severity and theme.
   const base =
     "relative inline-flex shrink-0 cursor-pointer items-center justify-center overflow-hidden border " +
     "font-normal text-center no-underline select-none transition-colors " +
@@ -90,10 +107,13 @@
     "aria-disabled:cursor-not-allowed aria-disabled:opacity-60 aria-disabled:after:opacity-0 " +
     "aria-pressed:border-primary aria-pressed:bg-highlight-strong aria-pressed:text-on-highlight";
 
-  $: isDisabled = disabled || loading;
-  $: shape = iconOnly ? `rounded-full p-0 ${iconSizes[size]}` : `rounded-md ${sizes[size]}`;
-  $: classes = `${base} ${variants[variant][severity]} ${shape} ${block ? "w-full" : ""} ${className}`;
-  $: leadingIcon = loading ? faSpinner : icon;
+  // Rest carries button attributes, or anchor ones (`download`, `target`, ...) when `href` is set.
+  let buttonRest = $derived(rest as HTMLButtonAttributes);
+  let anchorRest = $derived(rest as HTMLAnchorAttributes);
+  let isDisabled = $derived(disabled || loading);
+  let shape = $derived(iconOnly ? `rounded-full p-0 ${iconSizes[size]}` : `rounded-md ${sizes[size]}`);
+  let classes = $derived(`${base} ${variants[variant][severity]} ${shape} ${block ? "w-full" : ""} ${className}`);
+  let leadingIcon = $derived(loading ? faSpinner : icon);
 </script>
 
 {#if href !== undefined}
@@ -106,11 +126,11 @@
     aria-busy={loading ? "true" : undefined}
     {title}
     class={classes}
-    on:click={(event) => (isDisabled ? event.preventDefault() : onClick?.(event))}
-    {...$$restProps}
+    {...anchorRest}
+    onclick={(event) => (isDisabled ? event.preventDefault() : onClick?.(event))}
   >
     {#if leadingIcon}<Icon icon={leadingIcon} spin={loading} />{/if}
-    {#if !iconOnly}<slot />{/if}
+    {#if !iconOnly}{@render children?.()}{/if}
     {#if iconRight && !iconOnly}<Icon icon={iconRight} />{/if}
   </a>
 {:else}
@@ -122,11 +142,11 @@
     aria-pressed={pressed === undefined ? undefined : pressed ? "true" : "false"}
     disabled={isDisabled}
     class={classes}
-    on:click={(event) => (isDisabled ? undefined : onClick?.(event))}
-    {...$$restProps}
+    {...buttonRest}
+    onclick={(event) => (isDisabled ? undefined : onClick?.(event))}
   >
     {#if leadingIcon}<Icon icon={leadingIcon} spin={loading} />{/if}
-    {#if !iconOnly}<slot />{/if}
+    {#if !iconOnly}{@render children?.()}{/if}
     {#if iconRight && !iconOnly}<Icon icon={iconRight} />{/if}
   </button>
 {/if}

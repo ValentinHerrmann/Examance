@@ -6,12 +6,23 @@
   import { Badge, Button } from "$lib/components/ui";
   import InfoTip from "$lib/components/help/InfoTip.svelte";
 
-  export let examId: string;
-  export let exam: ExamRecord | null;
-  export let currentIndex: number;
-  export let submissionsLength: number;
-  export let currentSub: SubmissionRecord | undefined;
-  export let calculatedGrade: { grade: string; label: string } | null;
+  interface Props {
+    examId: string;
+    exam: ExamRecord | null;
+    currentIndex: number;
+    submissionsLength: number;
+    currentSub: SubmissionRecord | undefined;
+    calculatedGrade: { grade: string; label: string } | null;
+  }
+
+  let {
+    examId,
+    exam,
+    currentIndex,
+    submissionsLength,
+    currentSub,
+    calculatedGrade
+  }: Props = $props();
 </script>
 
 <div

@@ -1,21 +1,29 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { faFilter } from "@fortawesome/free-solid-svg-icons";
   import Badge from "./Badge.svelte";
   import Button from "./Button.svelte";
   import Modal from "./Modal.svelte";
 
   /**
-   * Below `lg` the filter panel would otherwise stack on top of the list and
-   * bury it, so it moves into a drawer opened from a full-width button. One
-   * breakpoint owns both the layout and the toggle. The default slot holds
-   * the filter panel and is rendered into the drawer's modal; the desktop
-   * sidebar is rendered separately by the page. The badge count makes active
-   * filters visible without opening the drawer.
+   * Below `lg` the filter panel moves into a drawer opened from a full-width button (one breakpoint owns
+   * layout and toggle). Children are rendered in the drawer modal; the desktop sidebar is rendered by the page.
    */
-  export let open = false;
-  export let title: string;
-  export let toggleLabel: string;
-  export let activeCount = 0;
+  interface Props {
+    open?: boolean;
+    title: string;
+    toggleLabel: string;
+    activeCount?: number;
+    children?: Snippet;
+  }
+
+  let {
+    open = $bindable(false),
+    title,
+    toggleLabel,
+    activeCount = 0,
+    children,
+  }: Props = $props();
 </script>
 
 <div class="mb-3 lg:hidden">
@@ -28,5 +36,5 @@
 </div>
 
 <Modal {open} size="small" {title} onClose={() => (open = false)}>
-  <slot></slot>
+  {@render children?.()}
 </Modal>

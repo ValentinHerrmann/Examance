@@ -8,15 +8,28 @@
   import { faEye, faTrash } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, Card, EmptyState, ExpandableCard } from "$lib/components/ui";
 
-  export let exams: ExamRecord[];
-  export let examStatsMap: Map<string, { avgScore: number | null; count: number }>;
-  /** Lazily loaded per exam on first expand; absent = not requested yet. */
-  export let exerciseMap: Map<string, LazyEntry<ExerciseRecord[]>> = new Map();
-  export let isLoading = false;
-  export let expandedExams: { [examId: string]: boolean } = {};
-  export let onToggleExam: (examId: string) => void;
-  export let onDelete: (id: string, title?: string) => void;
-  export let onPreview: (exam: ExamRecord) => void;
+  interface Props {
+    exams: ExamRecord[];
+    examStatsMap: Map<string, { avgScore: number | null; count: number }>;
+    /** Lazily loaded per exam on first expand; absent = not requested yet. */
+    exerciseMap?: Map<string, LazyEntry<ExerciseRecord[]>>;
+    isLoading?: boolean;
+    expandedExams?: { [examId: string]: boolean };
+    onToggleExam: (examId: string) => void;
+    onDelete: (id: string, title?: string) => void;
+    onPreview: (exam: ExamRecord) => void;
+  }
+
+  let {
+    exams,
+    examStatsMap,
+    exerciseMap = new Map(),
+    isLoading = false,
+    expandedExams = {},
+    onToggleExam,
+    onDelete,
+    onPreview
+  }: Props = $props();
 
   const previewPill = "rounded-xl border border-line bg-surface-sunken px-2.5 py-1 text-xs text-muted";
 </script>
@@ -38,7 +51,7 @@
         expanded={isExpanded}
         onToggle={() => onToggleExam(exam.id)}
       >
-        <svelte:fragment slot="badges">
+        {#snippet badges()}
           {#if courseLabel}
             <Badge severity="info">{$t("dashboard.examList.classLabel", { course: courseLabel })}</Badge>
           {/if}
@@ -54,15 +67,15 @@
           {#if stats && stats.count > 0}
             <Badge severity="secondary">{$t("dashboard.examList.gradedCount", { count: stats.count })}</Badge>
           {/if}
-        </svelte:fragment>
+        {/snippet}
 
-        <svelte:fragment slot="preview">
+        {#snippet preview()}
           {#if exam.datum || exam.createdAt}
             <span class={previewPill}>{exam.datum || $fmt.date(exam.createdAt)}</span>
           {/if}
-        </svelte:fragment>
+        {/snippet}
 
-        <svelte:fragment slot="body">
+        {#snippet body()}
           <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm text-content">
             {#if exam.datum}
               <span>{$t("dashboard.examList.dateLabel", { date: exam.datum })}</span>
@@ -109,19 +122,19 @@
               </Button>
             {/each}
           </div>
-        </svelte:fragment>
+        {/snippet}
 
-        <svelte:fragment slot="footer">
-            <Button variant="outlined" severity="secondary" size="sm" icon={faEye} onClick={() => onPreview(exam)}>{$t("common.preview")}</Button>
-            <Button href="/exam/{exam.id}" size="sm">{$t("dashboard.examList.openExam")}</Button>
-            <Button
-              variant="outlined"
-              severity="danger"
-              size="sm"
-              icon={faTrash}
-              onClick={() => onDelete(exam.id, exam.title)}
-            >{$t("common.delete")}</Button>
-        </svelte:fragment>
+        {#snippet footer()}
+          <Button variant="outlined" severity="secondary" size="sm" icon={faEye} onClick={() => onPreview(exam)}>{$t("common.preview")}</Button>
+          <Button href="/exam/{exam.id}" size="sm">{$t("dashboard.examList.openExam")}</Button>
+          <Button
+            variant="outlined"
+            severity="danger"
+            size="sm"
+            icon={faTrash}
+            onClick={() => onDelete(exam.id, exam.title)}
+          >{$t("common.delete")}</Button>
+        {/snippet}
       </ExpandableCard>
     {/each}
   </div>

@@ -1,33 +1,44 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { setContext, tick } from "svelte";
   import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
   import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
   import Icon from "./Icon.svelte";
 
   /**
-   * Dropdown menu: a trigger button plus a `role="menu"` panel of <MenuItem>s.
-   * Outside click and Escape close it, Escape returns focus to the trigger,
-   * arrow keys / Home / End move between items.
-   *
-   * The trigger is styled by the caller through `triggerClass` (the navbar
-   * needs white-on-slate, a toolbar needs the regular look).
+   * Dropdown menu: trigger button plus a `role="menu"` panel of <MenuItem>s. Outside click and Escape
+   * close it (Escape refocuses the trigger); arrows/Home/End move between items. Trigger styled via `triggerClass`.
    */
-  export let label: string;
-  export let icon: IconDefinition | undefined = undefined;
-  /** Visible text next to the icon. The label is always the accessible name. */
-  export let showLabel = true;
-  /** Extra classes for the visible label, e.g. `hidden 2xl:inline`. */
-  export let labelClass = "";
-  export let chevron = true;
-  export let align: "start" | "end" = "end";
-  export let triggerClass =
-    "inline-flex min-h-10 items-center gap-2 rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm text-content hover:bg-surface-inset pointer-coarse:min-h-11";
-  export let panelClass = "";
+  interface Props {
+    label: string;
+    icon?: IconDefinition | undefined;
+    /** Visible text next to the icon. The label is always the accessible name. */
+    showLabel?: boolean;
+    /** Extra classes for the visible label, e.g. `hidden 2xl:inline`. */
+    labelClass?: string;
+    chevron?: boolean;
+    align?: "start" | "end";
+    triggerClass?: string;
+    panelClass?: string;
+    children?: Snippet<[{ close: () => void }]>;
+  }
 
-  let open = false;
-  let root: HTMLElement;
-  let trigger: HTMLButtonElement;
-  let panel: HTMLElement | undefined;
+  let {
+    label,
+    icon = undefined,
+    showLabel = true,
+    labelClass = "",
+    chevron = true,
+    align = "end",
+    triggerClass = "inline-flex min-h-10 items-center gap-2 rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm text-content hover:bg-surface-inset pointer-coarse:min-h-11",
+    panelClass = "",
+    children,
+  }: Props = $props();
+
+  let open = $state(false);
+  let root: HTMLElement | undefined = $state();
+  let trigger: HTMLButtonElement | undefined = $state();
+  let panel: HTMLElement | undefined = $state();
 
   function items(): HTMLElement[] {
     return panel
@@ -91,7 +102,7 @@
   }
 </script>
 
-<svelte:window on:pointerdown={onWindowPointerDown} />
+<svelte:window onpointerdown={onWindowPointerDown} />
 
 <div class="relative inline-flex" bind:this={root}>
   <button
@@ -102,8 +113,8 @@
     aria-expanded={open}
     aria-label={label}
     title={label}
-    on:click={() => (open ? close(false) : show())}
-    on:keydown={onTriggerKeydown}
+    onclick={() => (open ? close(false) : show())}
+    onkeydown={onTriggerKeydown}
   >
     {#if icon}<Icon {icon} />{/if}
     {#if showLabel}<span class="truncate {labelClass}">{label}</span>{/if}
@@ -121,9 +132,9 @@
         ? 'right-0'
         : 'left-0'} {panelClass}"
       style="z-index: var(--z-dropdown)"
-      on:keydown={onPanelKeydown}
+      onkeydown={onPanelKeydown}
     >
-      <slot close={() => close(true)} />
+      {@render children?.({ close: () => close(true) })}
     </div>
   {/if}
 </div>

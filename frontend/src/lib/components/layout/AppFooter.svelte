@@ -3,34 +3,41 @@
   import { t } from "$lib/i18n";
 
   /**
-   * Slim page footer (Artemis): legal links, server address and version. Sits
-   * at the end of `.app-main`'s scroll, pinned to the bottom on short pages by
-   * `mt-auto`. § 5 DDG wants the Impressum reachable from every page — that is
-   * why it also renders on the grade page.
-   *
-   * The version shown is the backend's when known: the server is the source of
-   * truth for compatibility. Mismatches are also flagged in the navbar.
+   * Slim page footer (Artemis): legal links, server address, version, pinned to the bottom by `mt-auto`.
+   * Renders on the grade page too (section 5 DDG: Impressum reachable from every page). The backend's version wins
+   * when known (the server is the source of truth for compatibility); mismatches are also flagged in the navbar.
    */
-  export let onBackendClick: () => void;
-  export let backendLabel = "";
-  export let unlocked = true;
-  export let frontendVersion = "";
-  export let backendVersion: string | null = null;
-  export let versionStatus: VersionStatus = "no-server";
-  export let versionUrl: string | null = null;
+  interface Props {
+    onBackendClick: () => void;
+    backendLabel?: string;
+    unlocked?: boolean;
+    frontendVersion?: string;
+    backendVersion?: string | null;
+    versionStatus?: VersionStatus;
+    versionUrl?: string | null;
+  }
 
-  $: displayVersion = backendVersion || frontendVersion;
-  $: versionTitle = {
+  let {
+    onBackendClick,
+    backendLabel = "",
+    unlocked = true,
+    frontendVersion = "",
+    backendVersion = null,
+    versionStatus = "no-server",
+    versionUrl = null,
+  }: Props = $props();
+
+  let displayVersion = $derived(backendVersion || frontendVersion);
+  let versionTitle = $derived({
     match: $t("statusBar.versionMatch", { version: displayVersion }),
     mismatch: $t("statusBar.versionMismatch", { version: displayVersion }),
     incompatible: $t("statusBar.versionIncompatible", { version: displayVersion }),
     unknown: $t("statusBar.versionUnknown", { version: displayVersion }),
     "no-server": $t("statusBar.versionNoServer", { version: displayVersion }),
-  }[versionStatus];
+  }[versionStatus]);
 
-  // Bare semver is a tagged release; PR builds link to the PR, others to the
-  // commit. Said in the tooltip so the target is clear before the click.
-  $: versionLinkTitle = versionUrl
+  // Bare semver is a tagged release; PR builds link to the PR, others to the commit. Said in the tooltip.
+  let versionLinkTitle = $derived(versionUrl
     ? `${versionTitle} — ${
         displayVersion.includes("PR#")
           ? $t("statusBar.linkPullRequest")
@@ -38,7 +45,7 @@
             ? $t("statusBar.linkCommit")
             : $t("statusBar.linkRelease")
       }`
-    : versionTitle;
+    : versionTitle);
 
   const versionTone: Record<VersionStatus, string> = {
     match: "text-muted",
@@ -51,6 +58,7 @@
   const item = "inline-flex min-h-6 items-center whitespace-nowrap text-muted no-underline hover:text-content hover:underline";
 </script>
 
+<!-- svelte-ignore a11y_no_redundant_roles -->
 <footer
   role="contentinfo"
   class="mt-auto flex min-h-8 shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-t border-line bg-surface-raised px-4 py-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] text-xs"
@@ -66,7 +74,7 @@
       type="button"
       class="{item} min-w-0 cursor-pointer border-0 bg-transparent p-0"
       title={unlocked ? $t("statusBar.backendConfigureHint") : $t("statusBar.backendCurrent")}
-      on:click={onBackendClick}
+      onclick={onBackendClick}
     >
       <span class="max-w-[24ch] truncate sm:max-w-[40ch]">{backendLabel || $t("statusBar.noServer")}</span>
     </button>

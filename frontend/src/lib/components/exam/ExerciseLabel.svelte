@@ -3,16 +3,16 @@
   import { t } from "$lib/i18n";
   import { Badge } from "$lib/components/ui";
 
-  /**
-   * An exercise's name plus the variant (and non-initial version) that tells
-   * same-named variants apart — several variants of one exercise can sit in
-   * the same exam or MC group, and the bare name is identical for all of them.
-   */
-  export let exercise: Pick<ExerciseRecord, "name" | "variantKey" | "version">;
+  interface Props {
+    /** Name plus variant/version, since several variants of one exercise can share a name in an exam or MC group. */
+    exercise: Pick<ExerciseRecord, "name" | "variantKey" | "version">;
+  }
+
+  let { exercise }: Props = $props();
 
   // "_General" is the picker's bucket for exercises without a variant key.
-  $: variant = exercise.variantKey && exercise.variantKey !== "_General" ? exercise.variantKey : null;
-  $: version = exercise.version && exercise.version > 1 ? exercise.version : null;
+  let variant = $derived(exercise.variantKey && exercise.variantKey !== "_General" ? exercise.variantKey : null);
+  let version = $derived(exercise.version && exercise.version > 1 ? exercise.version : null);
 </script>
 
 <span class="inline-flex min-w-0 flex-wrap items-center gap-1.5">

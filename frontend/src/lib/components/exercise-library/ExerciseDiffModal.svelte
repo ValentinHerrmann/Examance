@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import type { ExerciseRecord } from "$lib/db/schema";
   import LatexEditor from "$lib/components/LatexEditor.svelte";
   import { computeSideBySideDiff, buildAlignedDiffDecorations } from "$lib/latex/diff";
@@ -7,38 +7,61 @@
   import { t } from "$lib/i18n";
   import { Alert, ConfirmDialog, Modal, Button, Select } from "$lib/components/ui";
 
-  export let isOpen = false;
-  /** Failure or validation message from the page, shown inline. */
-  export let error = "";
-  export let activeDiffGroupExercises: ExerciseRecord[] = [];
-  export let diffLeftId = "";
-  export let diffRightId = "";
-  export let diffLeftEx: ExerciseRecord | null | undefined = null;
-  export let diffRightEx: ExerciseRecord | null | undefined = null;
-  export let diffLeftLatex = "";
-  export let diffRightLatex = "";
-  export let isDiffLeftDirty = false;
-  export let isDiffRightDirty = false;
-  export let isSavingDiffLeft = false;
-  export let isSavingDiffRight = false;
-  export let onSaveLeft: () => void;
-  export let onSaveRight: () => void;
-  export let onRequestClose: () => void;
-  export let showConfirmClose = false;
-  export let onForceCloseConfirm: () => void;
-  export let onCancelConfirmClose: () => void;
+  interface Props {
+    isOpen?: boolean;
+    /** Failure or validation message from the page, shown inline. */
+    error?: string;
+    activeDiffGroupExercises?: ExerciseRecord[];
+    diffLeftId?: string;
+    diffRightId?: string;
+    diffLeftEx?: ExerciseRecord | null | undefined;
+    diffRightEx?: ExerciseRecord | null | undefined;
+    diffLeftLatex?: string;
+    diffRightLatex?: string;
+    isDiffLeftDirty?: boolean;
+    isDiffRightDirty?: boolean;
+    isSavingDiffLeft?: boolean;
+    isSavingDiffRight?: boolean;
+    onSaveLeft: () => void;
+    onSaveRight: () => void;
+    onRequestClose: () => void;
+    showConfirmClose?: boolean;
+    onForceCloseConfirm: () => void;
+    onCancelConfirmClose: () => void;
+  }
 
-  let diffLeftEditor: LatexEditor | undefined;
-  let diffRightEditor: LatexEditor | undefined;
+  let {
+    isOpen = false,
+    error = "",
+    activeDiffGroupExercises = [],
+    diffLeftId = $bindable(""),
+    diffRightId = $bindable(""),
+    diffLeftEx = null,
+    diffRightEx = null,
+    diffLeftLatex = $bindable(""),
+    diffRightLatex = $bindable(""),
+    isDiffLeftDirty = false,
+    isDiffRightDirty = false,
+    isSavingDiffLeft = false,
+    isSavingDiffRight = false,
+    onSaveLeft,
+    onSaveRight,
+    onRequestClose,
+    showConfirmClose = false,
+    onForceCloseConfirm,
+    onCancelConfirmClose
+  }: Props = $props();
+
+  let diffLeftEditor: ReturnType<typeof LatexEditor> | undefined = $state();
+  let diffRightEditor: ReturnType<typeof LatexEditor> | undefined = $state();
   let isSyncingDiffScroll = false;
 
-  $: sideBySideDiff = computeSideBySideDiff(diffLeftLatex, diffRightLatex);
+  let sideBySideDiff = $derived(computeSideBySideDiff(diffLeftLatex, diffRightLatex));
 
-  // Wrapped line heights of both editors, fed to the alignment. They must be
-  // re-read whenever CodeMirror re-measures (text edit, version switch,
-  // resize, re-wrap) — a one-off read at mount only sees estimated heights.
-  let leftLineHeights = new Map<number, number>();
-  let rightLineHeights = new Map<number, number>();
+  // Wrapped line heights fed to the alignment; re-read on every CodeMirror re-measure,
+  // since a one-off read at mount only sees estimated heights.
+  let leftLineHeights = $state.raw(new Map<number, number>());
+  let rightLineHeights = $state.raw(new Map<number, number>());
   let remeasureFrame: number | null = null;
 
   function sameHeights(a: Map<number, number>, b: Map<number, number>): boolean {
@@ -65,22 +88,29 @@
     remeasureFrame = requestAnimationFrame(remeasure);
   }
 
-  $: if (isOpen || diffLeftEditor || diffRightEditor || diffLeftLatex || diffRightLatex) {
-    scheduleRemeasure();
-  }
+  $effect.pre(() => {
+    const open = isOpen;
+    const left = diffLeftEditor;
+    const right = diffRightEditor;
+    const leftLatex = diffLeftLatex;
+    const rightLatex = diffRightLatex;
+    if (open || left || right || leftLatex || rightLatex) {
+      untrack(() => scheduleRemeasure());
+    }
+  });
 
   onDestroy(() => {
     if (remeasureFrame !== null) cancelAnimationFrame(remeasureFrame);
   });
 
-  $: alignedDiffDecorations = buildAlignedDiffDecorations(
+  let alignedDiffDecorations = $derived(buildAlignedDiffDecorations(
     sideBySideDiff,
     leftLineHeights,
     rightLineHeights,
-  );
+  ));
 
-  $: leftDiffDecorations = alignedDiffDecorations?.leftConfig ?? null;
-  $: rightDiffDecorations = alignedDiffDecorations?.rightConfig ?? null;
+  let leftDiffDecorations = $derived(alignedDiffDecorations?.leftConfig ?? null);
+  let rightDiffDecorations = $derived(alignedDiffDecorations?.rightConfig ?? null);
 
   function handleDiffLeftScroll() {
     if (isSyncingDiffScroll || !diffLeftEditor || !diffRightEditor) return;
@@ -151,7 +181,7 @@
           rows={16}
           diffDecorations={leftDiffDecorations}
           onGeometryChange={scheduleRemeasure}
-          on:scroll={handleDiffLeftScroll}
+          onScroll={handleDiffLeftScroll}
         />
       </div>
     </div>
@@ -175,15 +205,15 @@
           rows={16}
           diffDecorations={rightDiffDecorations}
           onGeometryChange={scheduleRemeasure}
-          on:scroll={handleDiffRightScroll}
+          onScroll={handleDiffRightScroll}
         />
       </div>
     </div>
   </div>
 
-  <svelte:fragment slot="footer">
+  {#snippet footer()}
     <Button variant="outlined" severity="secondary" onClick={onRequestClose}>{$t("common.close")}</Button>
-  </svelte:fragment>
+  {/snippet}
 </Modal>
 
 <ConfirmDialog

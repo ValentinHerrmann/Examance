@@ -1,18 +1,16 @@
 <script lang="ts">
-  /**
-   * Shows a freshly issued set of backup codes, once.
-   *
-   * They are the way back into an account when the phone is gone, so the dialog
-   * does not close on backdrop or Escape and the confirm button waits for an
-   * explicit acknowledgement.
-   */
+  /** Shows freshly issued backup codes once. Not dismissable by backdrop/Escape; confirm waits for an explicit acknowledgement. */
   import { Alert, Button, Checkbox, Modal } from "$lib/components/ui";
   import { t } from "$lib/i18n";
 
-  export let codes: string[];
-  export let onConfirm: () => void;
+  interface Props {
+    codes: string[];
+    onConfirm: () => void;
+  }
 
-  let acknowledged = false;
+  let { codes, onConfirm }: Props = $props();
+
+  let acknowledged = $state(false);
 
   function download() {
     const blob = new Blob([`${codes.join("\n")}\n`], { type: "text/plain" });
@@ -56,9 +54,11 @@
     <Checkbox class="items-start" bind:checked={acknowledged} label={$t("security.backupCodes.confirmLabel")} />
   </div>
 
-  <svelte:fragment slot="footer">
-    <Button disabled={!acknowledged} onClick={onConfirm}>
-      {$t("security.backupCodes.done")}
-    </Button>
-  </svelte:fragment>
+  {#snippet footer()}
+
+      <Button disabled={!acknowledged} onClick={onConfirm}>
+        {$t("security.backupCodes.done")}
+      </Button>
+
+  {/snippet}
 </Modal>

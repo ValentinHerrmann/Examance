@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { goto } from "$app/navigation";
   import { t, translate } from "$lib/i18n";
   import { deriveKey, deriveKeyWithFallback, generateSalt, getUserSalt, getUserSessionNonce } from "$lib/crypto/keyDerivation";
@@ -49,92 +50,47 @@
 
   const LOCAL_PASSPHRASE_MIN_LENGTH = 12;
 
-  let password = "";
-  let email = "";
-  let backendUrl = get(backendStore);
-  let errorMsg = "";
-  let isLoading = false;
+  let password = $state("");
+  let email = $state("");
+  let backendUrl = $state(get(backendStore));
+  let errorMsg = $state("");
+  let isLoading = $state(false);
   /** Set when a login minted a new recovery code that must be shown once. */
-  let pendingRecoveryCode: string | null = null;
-  /**
-   * Set when the account's password wrap is unusable — the state a password
-   * reset leaves behind. Holds what the recovery dialog needs to finish the job.
-   */
+  let pendingRecoveryCode: string | null = $state(null);
+  /** Set when the password wrap is unusable (as after a password reset); holds what the recovery dialog needs. */
   let pendingRecovery: { teacherId: string; email: string; role: "teacher" | "admin" } | null =
-    null;
-  /**
-   * The sign-in in progress.
-   *
-   * A sign-in presents two of three factors, so the page is a small state
-   * machine rather than one form post. The password stays in `password` until
-   * the whole thing finishes — it is needed to unwrap the data key once the
-   * session is real, and it is never persisted or sent anywhere else.
-   */
-  let authStep: AuthStep | null = null;
-  let factorErrorMsg = "";
+    $state.raw(null);
+  // The sign-in in progress (two of three factors). `password` stays in memory until it finishes, since it
+  // unwraps the data key once the session is real; it is never persisted or sent anywhere else.
+  let authStep = $state.raw<AuthStep | null>(null);
+  let factorErrorMsg = $state("");
   /** Backup codes from a just-completed enrollment, shown once. */
-  let pendingBackupCodes: string[] | null = null;
-  /**
-   * Whether to show the codes.
-   *
-   * Separate from the codes themselves: the backup codes are minted several
-   * steps before the screen that shows them, and must not appear while the
-   * sign-in is still finishing.
-   */
-  let showSetupCodes = false;
-  /**
-   * Signed in, but with nothing that opens the vault.
-   *
-   * A passkey without PRF authenticates and yields no key material, so a
-   * passkey-plus-authenticator sign-in gets through the door and no further.
-   */
-  let vaultLocked: AuthStep | null = null;
-  /**
-   * Both factors are in and the vault is being opened.
-   *
-   * Rendered ahead of everything else, because "signed in, working" used to
-   * match no branch at all and fall through to the login form — for exactly as
-   * long as Argon2id took, which read as a sign-in that had failed and then
-   * inexplicably succeeded.
-   */
-  let isFinishing = false;
+  let pendingBackupCodes: string[] | null = $state.raw(null);
+  /** Whether to show the codes: minted steps earlier, they must not appear while the sign-in is finishing. */
+  let showSetupCodes = $state(false);
+  /** Signed in with nothing that opens the vault (e.g. passkey without PRF plus authenticator). */
+  let vaultLocked: AuthStep | null = $state.raw(null);
+  // Both factors are in and the vault is opening. Rendered ahead of everything else; otherwise the login
+  // form showed for as long as Argon2id took, which read as a failed sign-in.
+  let isFinishing = $state(false);
   /** The account being signed in, for the panel that says so. */
-  let finishingEmail = "";
+  let finishingEmail = $state("");
   const canUsePasskeys = passkeysSupported();
-  /**
-   * The PRF secret from a passkey assertion, held until the vault is opened.
-   *
-   * A passkey that supports PRF can unwrap the data key, which is what makes
-   * a passkey-plus-authenticator sign-in work without the password at all.
-   */
+  /** PRF secret from a passkey assertion, held until the vault opens (lets passkey + TOTP skip the password). */
   let passkeyUnwrap: { credentialIdB64: string; prfOutput: Uint8Array } | null = null;
-  /**
-   * True only once the server has accepted `password` in this sign-in.
-   *
-   * The form field can hold text that was never submitted — typed, then the
-   * passkey button used instead. Opening the vault with that would at best fail
-   * and, on an account that has no key envelope yet, run the migration with an
-   * unchecked password and seal a wrong data key over every existing record.
-   */
+  // True only once the server accepted `password` in this sign-in. Unsubmitted text would otherwise be used
+  // to open the vault and, on an account without an envelope, seal a wrong data key over every record.
   let passwordVerified = false;
-  /**
-   * The step whose passkey prompt was already started automatically. One
-   * attempt per step: a cancelled prompt must leave the chooser alone, not
-   * pop up again.
-   */
-  let passkeyAutoTriedFor: AuthStep | null = null;
-  let passkeyPending = false;
-  /**
-   * A PRF passkey that signed in but could not open the vault: no wrap was
-   * stored for it, or the stored one does not open. Once the vault is open by
-   * another route, a fresh wrap is written so the passkey works alone next time.
-   */
-  let passkeyToHeal: { credentialIdB64: string; prfOutput: Uint8Array } | null = null;
+  /** The step whose passkey prompt already auto-started: one attempt per step, a cancel must not re-prompt. */
+  let passkeyAutoTriedFor: AuthStep | null = $state.raw(null);
+  let passkeyPending = $state(false);
+  /** A PRF passkey that signed in but has no working wrap; re-wrapped once the vault opens another way. */
+  let passkeyToHeal: { credentialIdB64: string; prfOutput: Uint8Array } | null = $state.raw(null);
 
   // Local workspace passphrase. Never persisted — it is the only input to the
   // key derivation, so losing it means the local vault cannot be opened.
-  let localPassphrase = "";
-  let localPassphraseConfirm = "";
+  let localPassphrase = $state("");
+  let localPassphraseConfirm = $state("");
   const needsLegacyMigration = hasLegacyLocalVault();
   const isNewLocalVault = !hasLocalVault() || needsLegacyMigration;
 
@@ -170,11 +126,8 @@
     passkeyUnwrap = null;
     passkeyToHeal = null;
     try {
-      // Starting a sign-in invalidates the session the browser had: the server
-      // demotes the access cookie to a pending scope and clears the refresh
-      // cookie. Client state has to follow, or an already-unlocked tab keeps
-      // rendering the app and every authenticated request it makes comes back
-      // 403 — which is exactly what a back-navigation to /unlock produced.
+      // Starting a sign-in demotes the access cookie and clears the refresh cookie, so client state must
+      // follow, or an unlocked tab keeps rendering and every request 403s (seen on back-navigation).
       sessionStore.lock();
 
       // First factor. A correct password no longer produces a session: the
@@ -209,13 +162,7 @@
     }
   }
 
-  /**
-   * Act on whatever the server said about the sign-in.
-   *
-   * Three outcomes, mirroring the policy: the account needs to enrol before it
-   * can authenticate at all; another factor is outstanding; or two distinct
-   * factors are in and the vault can be opened.
-   */
+  /** Act on the server's answer: enrolment needed, another factor outstanding, or vault can be opened. */
   async function handleAuthStep(step: AuthStep) {
     factorErrorMsg = "";
 
@@ -238,14 +185,8 @@
     }
   }
 
-  /**
-   * Recover the data key and start the session.
-   *
-   * On an account that predates the key envelope this performs the one-time
-   * migration, which adopts the previously derived key as the data key — so
-   * nothing has to be re-encrypted and the session key is byte-identical to the
-   * one the old scheme produced.
-   */
+  // Recover the data key and start the session. On a pre-envelope account this runs the one-time migration,
+  // adopting the old derived key as the data key so nothing is re-encrypted.
   async function openVault(step: AuthStep) {
     const normalizedEmail = step.email.trim().toLowerCase();
     let vault;
@@ -259,12 +200,9 @@
       try {
         vault = await openWithPasskey(step.id, unwrap.credentialIdB64, unwrap.prfOutput);
       } catch (passkeyErr) {
-        // A PRF passkey with no usable wrap: none was stored (the registration
-        // never got its follow-up assertion, or PRF only showed up at sign-in),
-        // or the stored one was sealed under another passkey's secret. Signed in
-        // all the same — fall back to the password if the server checked it,
-        // else ask, and re-wrap for this passkey once the vault is open.
-        // A changed envelope set is the substitution alarm and must surface.
+        // A PRF passkey with no usable wrap (never wrapped, or sealed under another passkey's secret): fall
+        // back to a server-checked password, else ask, and re-wrap once open. A changed envelope set is the
+        // substitution alarm and must surface.
         if (passkeyErr instanceof EnvelopeChangedError) {
           throw passkeyErr;
         }
@@ -279,10 +217,8 @@
     }
 
     if (!password || !passwordVerified) {
-      // Nothing here can open the vault: the passkey carried no PRF secret and
-      // no password was typed. Asking is the only honest move — unwrapping with
-      // an empty string used to throw, and the failure surfaced as "that code is
-      // not valid" about a code that was correct.
+      // Nothing here can open the vault (no PRF secret, no password), so ask; unwrapping with an empty
+      // string used to surface as a bogus "code not valid".
       vaultLocked = step;
       authStep = null;
       isFinishing = false;
@@ -310,11 +246,8 @@
     await finishUnlock(step, normalizedEmail, vault);
   }
 
-  /**
-   * Leave the sign-in screen for an authenticated session. An empty local
-   * workspace switches to server storage first, so the account's exams show up
-   * instead of an empty local vault; local data is never switched away silently.
-   */
+  // Leave for an authenticated session. An empty local workspace switches to server storage first;
+  // local data is never switched away silently.
   async function enterApp() {
     await adoptServerStorageIfLocalEmpty();
     await goto("/");
@@ -364,14 +297,8 @@
     await enterApp();
   }
 
-  /**
-   * Sign in with a passkey.
-   *
-   * Works in either factor position: the server adds `passkey` to whatever the
-   * sign-in has already collected. Where the authenticator supports PRF the
-   * assertion also yields the secret that opens the vault, so a
-   * passkey-plus-authenticator sign-in never needs the password.
-   */
+  // Sign in with a passkey, in either factor position. With PRF the assertion also yields the secret that
+  // opens the vault, so passkey + authenticator never needs the password.
   async function handlePasskey(opts: { auto?: boolean } = {}) {
     // Which error slot to write to. Mid-sign-in the form is not on screen, so a
     // failure reported there would be invisible.
@@ -387,10 +314,8 @@
         passwordVerified = false;
         passkeyUnwrap = null;
         passkeyToHeal = null;
-        // Same reason as in handleUnlock: the sign-in about to start demotes the
-        // cookie, so the previous session's client state cannot stay live. Not
-        // when a sign-in is already running — that would lock away the state the
-        // step in progress is building on.
+        // As in handleUnlock, the new sign-in demotes the cookie, so lock client state, but not while a
+        // sign-in is already running (that would discard the step in progress).
         sessionStore.lock();
       }
 
@@ -454,38 +379,38 @@
     return err instanceof Error && /cancelled/i.test(err.message);
   }
 
-  /**
-   * A passkey is the preferred second factor: when the account has one, its
-   * prompt opens by itself. Cancelling it leaves the chooser, where the
-   * authenticator (or the passkey again) can be picked.
-   */
-  $: if (
-    authStep &&
-    authStep.status === "factor_required" &&
-    authStep.available.includes("passkey") &&
-    canUsePasskeys &&
-    !isLoading &&
-    passkeyAutoTriedFor !== authStep
-  ) {
-    passkeyAutoTriedFor = authStep;
-    void handlePasskey({ auto: true });
-  }
+  // A passkey is the preferred second factor: its prompt opens by itself, once per step. Cancelling
+  // leaves the chooser.
+  $effect.pre(() => {
+    const step = authStep;
+    const loading = isLoading;
+    const triedFor = passkeyAutoTriedFor;
+    if (
+      step &&
+      step.status === "factor_required" &&
+      step.available.includes("passkey") &&
+      canUsePasskeys &&
+      !loading &&
+      triedFor !== step
+    ) {
+      untrack(() => {
+        passkeyAutoTriedFor = step;
+        void handlePasskey({ auto: true });
+      });
+    }
+  });
 
   /** Passkey first, and only what this browser can actually present. */
-  $: chooserFactors = authStep
-    ? [...authStep.available]
-        .filter((f) => f !== "passkey" || canUsePasskeys)
-        .sort((a, b) => Number(b === "passkey") - Number(a === "passkey"))
-    : [];
+  let chooserFactors = $derived(
+    authStep
+      ? [...authStep.available]
+          .filter((f) => f !== "passkey" || canUsePasskeys)
+          .sort((a, b) => Number(b === "passkey") - Number(a === "passkey"))
+      : [],
+  );
 
-  /**
-   * Message for a failure that happened *after* the server accepted the factor.
-   *
-   * Returns null when the failure was the factor itself. Everything used to
-   * collapse into "that code is not valid", which is how a key problem wore the
-   * costume of a credential problem — a correct password reported as wrong
-   * because the browser could not load Argon2 to open the wrap with.
-   */
+  // Message for a failure *after* the server accepted the factor; null when the factor itself failed.
+  // Keeps key problems (e.g. Argon2 failing to load) from being reported as a wrong credential.
   function vaultFailureMessage(err: unknown): string | null {
     if (err instanceof Argon2UnavailableError) {
       return translate("security.vaultUnlock.kdfUnavailable");
@@ -496,12 +421,7 @@
     return null;
   }
 
-  /**
-   * The password as the second factor.
-   *
-   * Kept in `password` like the first-position one, because `openVault` needs
-   * it to unwrap the data key once the session is real.
-   */
+  /** The password as the second factor, kept in `password` because `openVault` needs it to unwrap. */
   async function handlePasswordFactor(entered: string) {
     factorErrorMsg = "";
     try {
@@ -542,14 +462,8 @@
     await finishUnlock(step, normalizedEmail, vault);
   }
 
-  /**
-   * Unwrap the vault with the recovery code instead.
-   *
-   * Deliberately no re-wrap, unlike `handleRecovery`: that path follows a reset
-   * where the password wrap is genuinely stale and a new password has just been
-   * chosen. Here the wraps are all fine and no password was typed, so rewrapping
-   * would seal the account under an empty string.
-   */
+  // Unwrap with the recovery code. Deliberately no re-wrap (unlike `handleRecovery`): the wraps are fine
+  // and no password was typed, so rewrapping would seal the account under an empty string.
   async function handleVaultRecovery(recoveryCode: string) {
     if (!vaultLocked) {
       return;
@@ -589,12 +503,8 @@
     }
   }
 
-  /**
-   * Enrollment finished. The account now has two factors, so replay the
-   * password to turn the enrollment token into a real session — the password is
-   * still in hand, which is exactly what storing the key for the first time
-   * needs.
-   */
+  // Enrollment finished: replay the still-held password to turn the enrollment token into a real session
+  // and store the key for the first time.
   async function handleEnrolled(backupCodes: string[]) {
     // Held, not shown. The recovery code does not exist yet — it is minted when
     // the key envelope is created a few steps from here — and showing the two
@@ -663,11 +573,8 @@
     }
   }
 
-  /**
-   * Finish a recovery: unwrap the data key with the code, then re-wrap it under
-   * the password the teacher just signed in with. The key itself never changes,
-   * so every existing exam, scan and score stays readable.
-   */
+  // Finish a recovery: unwrap the data key with the code, re-wrap it under the new password. The key
+  // never changes, so every existing exam, scan and score stays readable.
   async function handleRecovery(recoveryCode: string) {
     if (!pendingRecovery) {
       return;
@@ -693,13 +600,8 @@
     showSetupCodes = true;
   }
 
-  /**
-   * Open the vault with a passkey instead of the recovery code.
-   *
-   * A reset invalidates only the password wrap, so a PRF passkey still holds the
-   * same data key. For anyone who has one this recovers everything, which is why
-   * it is offered before the route that gives the old data up.
-   */
+  // Open the vault with a passkey instead of the recovery code: a reset invalidates only the password
+  // wrap, so a PRF passkey still recovers everything. Offered before the route that gives data up.
   async function handleRecoveryPasskey() {
     if (!pendingRecovery) {
       return;
@@ -729,14 +631,8 @@
     await enterApp();
   }
 
-  /**
-   * Give up the old data key and start again under the current password.
-   *
-   * The last resort for a teacher whose password was reset and whose recovery
-   * code is gone — until this existed the dialog had no exit and the account was
-   * simply unusable. Irreversible, and the dialog says so in those terms before
-   * calling this.
-   */
+  // Last resort: give up the old data key and start again under the current password (reset password,
+  // lost recovery code). Irreversible; the dialog says so before calling this.
   async function handleStartFresh() {
     if (!pendingRecovery) {
       return;
@@ -761,11 +657,7 @@
 </script>
 
 <PageShell width="medium" center flush class="gap-4 py-3">
-  <!--
-    Above the step rather than inside one: the cooloff can be hit from the form,
-    from the second factor and from the vault prompt alike, and it is the same
-    wait in every case.
-  -->
+  <!-- Above the step: the cooloff can be hit from the form, the second factor and the vault prompt alike. -->
   <LockoutNotice />
 
   {#if isFinishing}
@@ -773,10 +665,7 @@
       <SigningInStep email={finishingEmail} />
     </Card>
   {:else if authStep && authStep.status === "factor_required"}
-    <!--
-      One factor is in. The password stays in memory until the vault is open,
-      so this step is rendered in place of the form rather than on a new route.
-    -->
+    <!-- One factor is in; the password stays in memory, so this step replaces the form instead of routing. -->
     <Card class="mx-auto w-full max-w-form sm:p-6">
       <FactorChooser
         available={chooserFactors}

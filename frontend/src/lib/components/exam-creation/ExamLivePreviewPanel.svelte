@@ -3,10 +3,19 @@
   import { t } from "$lib/i18n";
   import { Card } from "$lib/components/ui";
 
-  export let previewPdfUrl: string | null;
-  export let previewSolutionPdfUrl: string | null;
-  export let showAngabePreview: boolean;
-  export let showLoesungPreview: boolean;
+  interface Props {
+    previewPdfUrl: string | null;
+    previewSolutionPdfUrl: string | null;
+    showAngabePreview: boolean;
+    showLoesungPreview: boolean;
+  }
+
+  let {
+    previewPdfUrl,
+    previewSolutionPdfUrl,
+    showAngabePreview = $bindable(),
+    showLoesungPreview = $bindable()
+  }: Props = $props();
 </script>
 
 {#if previewPdfUrl || previewSolutionPdfUrl}

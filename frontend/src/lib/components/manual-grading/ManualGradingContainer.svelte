@@ -23,17 +23,22 @@
   import PasteImportModal from "./PasteImportModal.svelte";
   import { t } from "$lib/i18n";
 
-  export let examId: string;
+  interface Props {
+    examId: string;
+  }
 
-  let activeTab: "roster" | "exercise-first" | "student-first" = "exercise-first";
-  let showImportModal = false;
-  let loading = true;
+  let { examId }: Props = $props();
 
-  let exam: ExamRecord | null = null;
-  let exercises: ExerciseRecord[] = [];
-  let students: StudentRecord[] = [];
-  let submissions: SubmissionRecord[] = [];
-  let scoresMap: Map<string, Record<string, number | null>> = new Map();
+  let activeTab: "roster" | "exercise-first" | "student-first" = $state("exercise-first");
+  let showImportModal = $state(false);
+  let loading = $state(true);
+
+  // Raw: these records go to repositories, and children mutate them in place before `onScoresChanged`.
+  let exam: ExamRecord | null = $state.raw(null);
+  let exercises: ExerciseRecord[] = $state.raw([]);
+  let students: StudentRecord[] = $state.raw([]);
+  let submissions: SubmissionRecord[] = $state.raw([]);
+  let scoresMap: Map<string, Record<string, number | null>> = $state.raw(new Map());
 
   onMount(async () => {
     await refreshAllData();
@@ -94,11 +99,11 @@
     title={$t("grading.manual.container.title")}
     subtitle={$t("grading.manual.container.subtitle")}
   >
-    <svelte:fragment slot="actions">
+    {#snippet actions()}
       <Button icon={faClipboard} onClick={() => (showImportModal = true)}>
         {$t("grading.manual.container.importButton")}
       </Button>
-    </svelte:fragment>
+    {/snippet}
   </PageHeader>
 
   <Tabs

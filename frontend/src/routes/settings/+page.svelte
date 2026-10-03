@@ -50,12 +50,12 @@
     }
   }
 
-  let students: StudentRecord[] = [];
-  let isErasing = false;
-  let statusMsg = "";
-  let isSwitchWizardOpen = false;
-  let switchTarget: StorageMode | null = null;
-  let donationAvailable = false;
+  let students: StudentRecord[] = $state.raw([]);
+  let isErasing = $state(false);
+  let statusMsg = $state("");
+  let isSwitchWizardOpen = $state(false);
+  let switchTarget: StorageMode | null = $state(null);
+  let donationAvailable = $state(false);
 
   onMount(async () => {
     void fetchDonationAvailable().then((ok) => (donationAvailable = ok));
@@ -114,7 +114,7 @@
     }
   }
 
-  $: navItems = [
+  let navItems = $derived([
     { id: "storage-policy", label: $t("settings.storage.heading") },
     { id: "latex", label: $t("settings.latex.heading") },
     { id: "language", label: $t("settings.language.heading") },
@@ -126,7 +126,7 @@
     ...($isAuthenticated ? [{ id: "security", label: $t("security.page.title") }] : []),
     { id: "gdpr", label: $t("admin.gdprErasureTable.title") },
     { id: "hygiene", label: $t("settings.hygiene.heading") },
-  ];
+  ]);
 
   async function handleClearAllSessionData() {
     if (!confirm(translate("settings.hygiene.confirm"))) return;

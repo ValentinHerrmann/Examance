@@ -2,11 +2,22 @@
   import { t } from '$lib/i18n';
   import { fmt } from '$lib/utils/format';
   import { Alert, Card } from '$lib/components/ui';
-  export let examsCount: number;
-  export let totalSubmissionsCount: number;
-  export let gradedSubmissionsCount: number;
-  export let overallAvgScore: number | null;
-  export let flaggedCount: number;
+
+  interface Props {
+    examsCount: number;
+    totalSubmissionsCount: number;
+    gradedSubmissionsCount: number;
+    overallAvgScore: number | null;
+    flaggedCount: number;
+  }
+
+  let {
+    examsCount,
+    totalSubmissionsCount,
+    gradedSubmissionsCount,
+    overallAvgScore,
+    flaggedCount
+  }: Props = $props();
 </script>
 
 <div class="mb-6 grid grid-cols-[repeat(auto-fit,minmax(13.75rem,1fr))] gap-4">

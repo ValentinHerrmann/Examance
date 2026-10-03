@@ -1,14 +1,35 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
+  import type { HTMLSelectAttributes } from "svelte/elements";
   import { controlClass, controlSmClass } from "./inputStyles";
 
-  export let value: string = "";
-  export let id: string | undefined = undefined;
-  export let disabled = false;
-  export let size: "sm" | "md" = "md";
-  export let invalid = false;
+  interface Props extends Omit<HTMLSelectAttributes, "value" | "size" | "class" | "children"> {
+    value?: string;
+    id?: string | undefined;
+    disabled?: boolean;
+    size?: "sm" | "md";
+    invalid?: boolean;
+    class?: string;
+    children?: Snippet;
+  }
 
-  let className = "";
-  export { className as class };
+  let {
+    value = $bindable(""),
+    id = undefined,
+    disabled = false,
+    size = "md",
+    invalid = false,
+    onchange = undefined,
+    class: className = "",
+    children,
+    ...rest
+  }: Props = $props();
+
+  // Sync the bound value before the caller's handler runs, so it never sees a stale `value`.
+  function handleChange(e: Parameters<NonNullable<typeof onchange>>[0]) {
+    value = e.currentTarget.value;
+    onchange?.(e);
+  }
 </script>
 
 <select
@@ -16,9 +37,9 @@
   {disabled}
   bind:value
   aria-invalid={invalid ? "true" : undefined}
-  on:change
+  onchange={handleChange}
   class="{controlClass} {size === 'sm' ? controlSmClass : ''} {className}"
-  {...$$restProps}
+  {...rest}
 >
-  <slot />
+  {@render children?.()}
 </select>

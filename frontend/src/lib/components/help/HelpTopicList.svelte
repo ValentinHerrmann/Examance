@@ -3,15 +3,22 @@
   import { Button, Icon } from "$lib/components/ui";
   import type { HelpTopic, HelpTopicId } from "$lib/help/topics";
 
-  /**
-   * The topic index. Used twice: as the panel's navigation (buttons) and as the
-   * manual page's table of contents (anchors).
-   */
-  export let topics: HelpTopic[];
-  export let variant: "buttons" | "anchors" = "buttons";
-  export let activeId: HelpTopicId | null = null;
-  export let compact = false;
-  export let onSelect: ((id: HelpTopicId) => void) | undefined = undefined;
+  /** The topic index: the panel's navigation (buttons) and the manual page's table of contents (anchors). */
+  interface Props {
+    topics: HelpTopic[];
+    variant?: "buttons" | "anchors";
+    activeId?: HelpTopicId | null;
+    compact?: boolean;
+    onSelect?: ((id: HelpTopicId) => void) | undefined;
+  }
+
+  let {
+    topics,
+    variant = "buttons",
+    activeId = null,
+    compact = false,
+    onSelect = undefined,
+  }: Props = $props();
 
   const rowBase =
     "flex w-full min-w-0 items-start gap-2.5 rounded-md border border-transparent px-2.5 py-2 text-left no-underline transition-colors hover:border-line hover:bg-surface-inset";

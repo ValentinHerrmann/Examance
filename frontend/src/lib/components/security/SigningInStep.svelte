@@ -1,20 +1,12 @@
 <script lang="ts">
-  /**
-   * Both factors are in; the browser is opening the vault.
-   *
-   * This exists because the page had nothing to render for it. The step chain
-   * matched `factor_required` and the vault prompt and fell through to the
-   * login form for everything else — including the one to three seconds
-   * Argon2id spends deriving the key-encryption key. So a successful sign-in
-   * looked like being bounced back to an empty login page, and then, without
-   * explanation, landing on the dashboard.
-   *
-   * Naming the account is the point: the reassurance needed here is that the
-   * credentials were accepted and the wait is decryption, not a stalled request.
-   */
+  /** Both factors are in and the browser is opening the vault (Argon2id takes 1-3 s). Shown so a successful sign-in is not mistaken for a bounce back to the login page; names the account to reassure that the wait is decryption. */
   import { t } from "$lib/i18n";
 
-  export let email: string;
+  interface Props {
+    email: string;
+  }
+
+  let { email }: Props = $props();
 </script>
 
 <div class="flex w-full flex-col items-center gap-4 py-4 text-center">

@@ -8,28 +8,28 @@
   import { examNavItems } from "./examNavItems";
 
   /**
-   * Exam navigation (Artemis course sidebar): exam context on top, the exam's
-   * steps as icon + label, a double-chevron toggle at the bottom. Collapses to
-   * a 64px rail. Shown from `lg`; below that the same items live in the
-   * navigation drawer.
-   *
-   * Without a saved preference it is a rail at `lg` (iPad portrait) and on the
-   * grade page, and open from `xl` up.
+   * Exam navigation (Artemis course sidebar): exam context, the exam's steps, a collapse toggle (64px rail).
+   * Shown from `lg`; below that the items live in the nav drawer. Without a saved preference: rail at `lg` and on
+   * the grade page, open from `xl`.
    */
-  export let context: ExamNavContext;
-  export let pathname: string;
-  export let isGradeActive = false;
+  interface Props {
+    context: ExamNavContext;
+    pathname: string;
+    isGradeActive?: boolean;
+  }
+
+  let { context, pathname, isGradeActive = false }: Props = $props();
 
   const isXl = minWidth("xl", true);
 
-  $: collapsed =
-    $sidebarPreference === "collapsed" ||
-    ($sidebarPreference === null && (!$isXl || isGradeActive));
+  let collapsed =
+    $derived($sidebarPreference === "collapsed" ||
+    ($sidebarPreference === null && (!$isXl || isGradeActive)));
 
-  $: items = examNavItems(context.examId, pathname);
-  $: exam = context.exam;
-  $: course = exam ? formatExamCourse(exam.grade, exam.klasse) : "";
-  $: metaLines = exam ? [exam.testart, [course, exam.fach].filter(Boolean).join(", "), exam.datum].filter(Boolean) : [];
+  let items = $derived(examNavItems(context.examId, pathname));
+  let exam = $derived(context.exam);
+  let course = $derived(exam ? formatExamCourse(exam.grade, exam.klasse) : "");
+  let metaLines = $derived(exam ? [exam.testart, [course, exam.fach].filter(Boolean).join(", "), exam.datum].filter(Boolean) : []);
 </script>
 
 <aside
@@ -94,7 +94,7 @@
       aria-expanded={!collapsed}
       aria-label={collapsed ? $t("exam.sidebar.expand") : $t("exam.sidebar.collapse")}
       title={collapsed ? $t("exam.sidebar.expand") : $t("exam.sidebar.collapse")}
-      on:click={() => setSidebarCollapsed(!collapsed)}
+      onclick={() => setSidebarCollapsed(!collapsed)}
     >
       <Icon icon={collapsed ? faAnglesRight : faAnglesLeft} />
       {#if !collapsed}<span class="truncate">{$t("exam.sidebar.collapse")}</span>{/if}

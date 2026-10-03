@@ -1,20 +1,17 @@
 <script lang="ts">
-  /**
-   * Shows a freshly minted recovery code exactly once.
-   *
-   * The code is the only factor that always works: a passkey may not support
-   * PRF, and a forgotten password is precisely the situation this exists for.
-   * So the dialog cannot be dismissed by backdrop or Escape, and the confirm
-   * button stays disabled until the teacher ticks that they have stored it.
-   */
+  /** Shows a fresh recovery code exactly once. It is the always-working factor (passkey may lack PRF), so no backdrop/Escape dismissal and confirm stays disabled until acknowledged. */
   import { Alert, Button, Checkbox, Modal } from "$lib/components/ui";
   import { t } from "$lib/i18n";
 
-  export let code: string;
-  export let onConfirm: () => void;
+  interface Props {
+    code: string;
+    onConfirm: () => void;
+  }
 
-  let acknowledged = false;
-  let copied = false;
+  let { code, onConfirm }: Props = $props();
+
+  let acknowledged = $state(false);
+  let copied = $state(false);
 
   async function copy() {
     try {
@@ -70,9 +67,11 @@
     <Checkbox class="items-start" bind:checked={acknowledged} label={$t("security.recovery.confirmLabel")} />
   </div>
 
-  <svelte:fragment slot="footer">
-    <Button disabled={!acknowledged} onClick={onConfirm}>
-      {$t("security.recovery.confirm")}
-    </Button>
-  </svelte:fragment>
+  {#snippet footer()}
+
+      <Button disabled={!acknowledged} onClick={onConfirm}>
+        {$t("security.recovery.confirm")}
+      </Button>
+
+  {/snippet}
 </Modal>

@@ -4,8 +4,12 @@
   import { faFlagCheckered } from "@fortawesome/free-solid-svg-icons";
   import { Modal, Button, Icon } from "$lib/components/ui";
 
-  export let examId: string;
-  export let onStay: () => void;
+  interface Props {
+    examId: string;
+    onStay: () => void;
+  }
+
+  let { examId, onStay }: Props = $props();
 </script>
 
 <Modal open={$gradingStore.showLastSubModal} size="small" onClose={onStay} bare>

@@ -1,17 +1,19 @@
 <script lang="ts">
   import { highlightLatexToHtml } from "$lib/latex/highlighter";
 
-  export let code: string = "";
-  export let snippet: boolean = false;
-  export let maxHeight: string = "none";
+  interface Props {
+    code?: string;
+    snippet?: boolean;
+    maxHeight?: string;
+  }
 
-  $: highlightedHtml = highlightLatexToHtml(code || "");
+  let { code = "", snippet = false, maxHeight = "none" }: Props = $props();
+
+  let highlightedHtml = $derived(highlightLatexToHtml(code || ""));
 </script>
 
 {#if snippet}
-  <!-- highlightedHtml is produced by highlightLatexToHtml(), which HTML-escapes every
-       token before wrapping it in a span. Audited in the security review; never pass
-       unescaped input here. -->
+  <!-- highlightedHtml comes from highlightLatexToHtml(), which HTML-escapes every token; never pass unescaped input. -->
   <!-- eslint-disable-next-line svelte/no-at-html-tags -->
   <code class="font-mono text-xs leading-snug whitespace-pre-wrap break-all text-content">{@html highlightedHtml}</code>
 {:else}

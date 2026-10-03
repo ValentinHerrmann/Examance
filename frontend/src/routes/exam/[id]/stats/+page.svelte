@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { browser } from '$app/environment';
   import { get } from 'svelte/store';
   import StatsPage from '$lib/components/stats/StatsPage.svelte';
@@ -21,20 +21,23 @@
   import { buildSubmissionMap } from '$lib/utils/studentLookup';
   import { translate } from '$lib/i18n';
 
-  $: examId = $page.params.id || '';
+  let examId = $derived($page.params.id || '');
 
-  let exam: ExamRecord | null = null;
+  // Raw: records go to lib/analytics and the CSV export unchanged.
+  let exam: ExamRecord | null = $state.raw(null);
   let exercises: ExerciseRecord[] = [];
-  let submissions: SubmissionRecord[] = [];
+  let submissions: SubmissionRecord[] = $state.raw([]);
   let students: StudentRecord[] = [];
-  let showConfirmModal = false;
-  let totalMaxPoints: number | null = null;
-  let stats: ExamStats | null = null;
+  let showConfirmModal = $state(false);
+  let totalMaxPoints: number | null = $state(null);
+  let stats: ExamStats | null = $state.raw(null);
 
   // Once per exam id: the reactive block and onMount can both fire on one visit.
   let loadedExamId = '';
 
-  $: if (browser && examId && $sessionStore.sessionKey) startLoad();
+  $effect.pre(() => {
+    if (browser && examId && $sessionStore.sessionKey) untrack(startLoad);
+  });
   onMount(startLoad);
 
   function startLoad() {

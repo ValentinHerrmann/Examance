@@ -8,8 +8,12 @@
     newCode: string;
   }
 
-  export let unmatchedList: UnmatchedSubmission[] = [];
-  export let onUpdateFallbackCode: (item: UnmatchedSubmission) => void;
+  interface Props {
+    unmatchedList?: UnmatchedSubmission[];
+    onUpdateFallbackCode: (item: UnmatchedSubmission) => void;
+  }
+
+  let { unmatchedList = [], onUpdateFallbackCode }: Props = $props();
 </script>
 
 {#if unmatchedList.length > 0}

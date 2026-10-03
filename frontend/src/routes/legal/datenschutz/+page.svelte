@@ -5,7 +5,7 @@
   import { fetchDonationStatus } from "$lib/services/trainingDonation";
 
   /** Retention of donated training samples, as the configured backend reports it. */
-  let donationRetentionDays: number | null = null;
+  let donationRetentionDays: number | null = $state(null);
   onMount(() => {
     void fetchDonationStatus().then((s) => (donationRetentionDays = s.retentionDays));
   });

@@ -3,10 +3,10 @@
   import { t, translate } from "$lib/i18n";
   import { Alert, Button, Card, Field, PageShell, TextInput } from "$lib/components/ui";
 
-  let email = "";
-  let isSubmitting = false;
-  let errorMsg = "";
-  let successMsg = "";
+  let email = $state("");
+  let isSubmitting = $state(false);
+  let errorMsg = $state("");
+  let successMsg = $state("");
 
   async function handleForgotPassword() {
     errorMsg = "";
@@ -54,16 +54,18 @@
       <Alert severity="danger" class="mb-5">{errorMsg}</Alert>
     {/if}
 
-    <form on:submit|preventDefault={handleForgotPassword} class="flex flex-col gap-5">
-      <Field forId="email" label={$t("auth.forgotPassword.emailLabel")} let:id>
-        <TextInput
-          {id}
-          type="email"
-          bind:value={email}
-          placeholder={$t("auth.forgotPassword.emailPlaceholder")}
-          required
-          disabled={isSubmitting}
-        />
+    <form onsubmit={(e) => { e.preventDefault(); handleForgotPassword(); }} class="flex flex-col gap-5">
+      <Field forId="email" label={$t("auth.forgotPassword.emailLabel")}>
+        {#snippet children({ id })}
+          <TextInput
+            {id}
+            type="email"
+            bind:value={email}
+            placeholder={$t("auth.forgotPassword.emailPlaceholder")}
+            required
+            disabled={isSubmitting}
+          />
+        {/snippet}
       </Field>
 
       <Button type="submit" block disabled={isSubmitting}>

@@ -2,8 +2,12 @@
   import { t } from '$lib/i18n';
   import { Modal, Button } from '$lib/components/ui';
 
-  export let onConfirm: () => void;
-  export let onCancel: () => void;
+  interface Props {
+    onConfirm: () => void;
+    onCancel: () => void;
+  }
+
+  let { onConfirm, onCancel }: Props = $props();
 </script>
 
 <Modal open={true} size="small" title={$t('stats.exportModal.title')} onClose={onCancel}>
@@ -11,10 +15,12 @@
     {$t('stats.exportModal.body')}
   </p>
 
-  <svelte:fragment slot="footer">
-    <Button variant="outlined" severity="secondary" onClick={onCancel}>{$t('common.cancel')}</Button>
-    <Button onClick={onConfirm}>
-      {$t('stats.exportModal.confirmButton')}
-    </Button>
-  </svelte:fragment>
+  {#snippet footer()}
+
+      <Button variant="outlined" severity="secondary" onClick={onCancel}>{$t('common.cancel')}</Button>
+      <Button onClick={onConfirm}>
+        {$t('stats.exportModal.confirmButton')}
+      </Button>
+
+  {/snippet}
 </Modal>

@@ -5,11 +5,11 @@
   import HelpTopicContent from "$lib/components/help/HelpTopicContent.svelte";
   import SectionNav from "$lib/components/settings/SectionNav.svelte";
 
-  $: navItems = HELP_TOPICS.map((topic) => ({
+  let navItems = $derived(HELP_TOPICS.map((topic) => ({
     id: topic.id,
     label: $t(topic.titleKey),
     icon: topic.icon,
-  }));
+  })));
 </script>
 
 <svelte:head>

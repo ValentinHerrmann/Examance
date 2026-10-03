@@ -4,9 +4,9 @@
   import { faHourglassHalf } from '@fortawesome/free-solid-svg-icons';
   import { Modal, Button, Icon } from '$lib/components/ui';
 
-  $: formattedTime = $timeUntilLock !== null
+  let formattedTime = $derived($timeUntilLock !== null
     ? $t('auth.sessionTimeout.minutesSeconds', { minutes: Math.floor($timeUntilLock / 60), seconds: $timeUntilLock % 60 })
-    : '';
+    : '');
 </script>
 
 <Modal

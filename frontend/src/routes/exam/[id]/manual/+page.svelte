@@ -7,11 +7,15 @@
   import { PageShell } from "$lib/components/ui";
   import ManualGradingContainer from "$lib/components/manual-grading/ManualGradingContainer.svelte";
 
-  export let params: Record<string, string> = {};
+  interface Props {
+    params?: Record<string, string>;
+  }
 
-  $: examId = $page.params.id || params.id || "";
+  let { params = {} }: Props = $props();
 
-  let initialized = false;
+  let examId = $derived($page.params.id || params.id || "");
+
+  let initialized = $state(false);
 
   onMount(async () => {
     await awaitSessionReady();

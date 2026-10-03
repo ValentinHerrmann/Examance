@@ -7,9 +7,13 @@
   import { Card } from '$lib/components/ui';
   import { gradeColorForPercentage, gradeColorVar } from '$lib/analytics/gradingKey';
 
-  export let stats: ExamStats;
-  export let totalMaxPoints: number | null;
-  export let gradingKey: GradingKeyConfig | undefined = undefined;
+  interface Props {
+    stats: ExamStats;
+    totalMaxPoints: number | null;
+    gradingKey?: GradingKeyConfig | undefined;
+  }
+
+  let { stats, totalMaxPoints, gradingKey = undefined }: Props = $props();
 
   // Values that stand for a grade are tinted like the charts' bars. The darkest grades are
   // lifted towards white, or dark green / dark red text is hard to read on the dark tiles.
@@ -18,21 +22,21 @@
     'var(--color-grade-6)': 'color-mix(in srgb, var(--color-grade-6) 60%, white)',
   };
   const textColor = (token: string | null) => (token ? (LIFT[token] ?? token) : '');
-  $: percentColor = (p: number | undefined) => textColor(p === undefined ? null : gradeColorForPercentage(p, gradingKey));
-  $: gradeAverageColor = (() => {
+  const percentColor = (p: number | undefined) => textColor(p === undefined ? null : gradeColorForPercentage(p, gradingKey));
+  let gradeAverageColor = $derived.by(() => {
     if (stats.gradeAverage === null) return '';
     const idx = stats.gradeBuckets.findIndex((b) => Number.parseFloat(b.grade) === Math.round(stats.gradeAverage ?? NaN));
     return idx < 0 ? '' : textColor(gradeColorVar(idx, stats.gradeBuckets.length));
-  })();
+  });
 
   const DASH = '–';
-  $: pct = (value: number | undefined) => (value === undefined ? DASH : $fmt.percent(value / 100, 1));
-  $: num = (value: number | null, min: number, max = min) =>
+  const pct = (value: number | undefined) => (value === undefined ? DASH : $fmt.percent(value / 100, 1));
+  const num = (value: number | null, min: number, max = min) =>
     value === null ? DASH : $fmt.number(value, { minimumFractionDigits: min, maximumFractionDigits: max });
 
-  $: plus = stats.borderline.filter((c) => c.side === '+').length;
-  $: minus = stats.borderline.length - plus;
-  $: cards = [
+  let plus = $derived(stats.borderline.filter((c) => c.side === '+').length);
+  let minus = $derived(stats.borderline.length - plus);
+  let cards = $derived([
     ['stats.cards.gradeAverage', num(stats.gradeAverage, 2), '', 'stats.cards.info.gradeAverage', gradeAverageColor],
     ['stats.cards.passRate', stats.passRate === null ? DASH : $fmt.percent(stats.passRate, 0), '', 'stats.cards.info.passRate', ''],
     ['stats.cards.avgPoints', num(stats.meanPoints, 0, 1), totalMaxPoints === null ? '' : `/${num(totalMaxPoints, 0, 1)}`, 'stats.cards.info.avgPoints', percentColor(stats.summary?.mean)],
@@ -40,7 +44,7 @@
     ['stats.cards.median', pct(stats.summary?.median), '', 'stats.cards.info.median', percentColor(stats.summary?.median)],
     ['stats.cards.stdDev', pct(stats.summary?.stdDev), '', 'stats.cards.info.stdDev', ''],
     ['stats.cards.borderline', `+${plus} / −${minus}`, '', 'stats.cards.info.borderline', ''],
-  ] satisfies [TranslationKey, string, string, TranslationKey, string][];
+  ] satisfies [TranslationKey, string, string, TranslationKey, string][]);
 </script>
 
 <div class="mb-2 grid grid-cols-2 gap-3 @xl:grid-cols-4 @5xl:grid-cols-7">

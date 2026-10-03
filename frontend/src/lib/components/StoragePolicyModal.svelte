@@ -1,6 +1,5 @@
 <script lang="ts">
   import { t, translate } from "$lib/i18n";
-  import { createEventDispatcher } from "svelte";
   import { get } from "svelte/store";
   import {
     storagePolicyStore,
@@ -13,24 +12,27 @@
   import BackendUrlInput from "$lib/components/common/BackendUrlInput.svelte";
   import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
 
-  export let isOpen = false;
-
-  const dispatch = createEventDispatcher<{
-    close: void;
-  }>();
-
-  let statusMsg = "";
-  let customBackendUrl = "";
-  let isSwitchWizardOpen = false;
-  let switchTarget: StorageMode | null = null;
-
-  $: if (isOpen) {
-    customBackendUrl = get(backendStore);
+  interface Props {
+    isOpen?: boolean;
+    onClose?: () => void;
   }
+
+  let { isOpen = false, onClose }: Props = $props();
+
+  let statusMsg = $state("");
+  let customBackendUrl = $state("");
+  let isSwitchWizardOpen = $state(false);
+  let switchTarget: StorageMode | null = $state(null);
+
+  $effect.pre(() => {
+    if (isOpen) {
+      customBackendUrl = get(backendStore);
+    }
+  });
 
   function handleClose() {
     statusMsg = "";
-    dispatch("close");
+    onClose?.();
   }
 
   /** Hands off to the gated storage-mode-switch wizard, which exports first. */
@@ -97,7 +99,7 @@
             name="storageMode"
             value="all-local"
             checked={$storagePolicyStore.storageMode === "all-local"}
-            on:change={() => handleStorageModeChange("all-local")}
+            onchange={() => handleStorageModeChange("all-local")}
             class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
@@ -112,7 +114,7 @@
             name="storageMode"
             value="all-server"
             checked={$storagePolicyStore.storageMode === "all-server"}
-            on:change={() => handleStorageModeChange("all-server")}
+            onchange={() => handleStorageModeChange("all-server")}
             class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
@@ -127,7 +129,7 @@
             name="storageMode"
             value="hybrid"
             checked={$storagePolicyStore.storageMode === "hybrid"}
-            on:change={() => handleStorageModeChange("hybrid")}
+            onchange={() => handleStorageModeChange("hybrid")}
             class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
@@ -149,7 +151,7 @@
             name="latexMode"
             value="local"
             checked={$storagePolicyStore.latexCompilation === "local"}
-            on:change={() => handleLatexChange("local")}
+            onchange={() => handleLatexChange("local")}
             class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
@@ -164,7 +166,7 @@
             name="latexMode"
             value="server"
             checked={$storagePolicyStore.latexCompilation === "server"}
-            on:change={() => handleLatexChange("server")}
+            onchange={() => handleLatexChange("server")}
             class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
@@ -189,12 +191,12 @@
     </div>
   </div>
 
-  <svelte:fragment slot="footer">
-    <a href="/settings" class="mr-auto text-sm text-accent no-underline hover:underline" on:click={handleClose}>
+  {#snippet footer()}
+    <a href="/settings" class="mr-auto text-sm text-accent no-underline hover:underline" onclick={handleClose}>
       {$t("misc.storageModal.fullSettingsLink")}
     </a>
     <Button variant="outlined" severity="secondary" onClick={handleClose}>{$t("common.close")}</Button>
-  </svelte:fragment>
+  {/snippet}
 </Modal>
 
 <StorageModeSwitchWizard

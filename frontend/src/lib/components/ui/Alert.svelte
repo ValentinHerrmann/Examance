@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
   import {
     faCircleCheck,
@@ -11,20 +12,28 @@
   import Icon from "./Icon.svelte";
   import Button from "./Button.svelte";
 
-  /**
-   * Inline message (Artemis message spec): a 10% tint with a 40% border and
-   * the state's text colour, always with a leading icon. `danger` is announced
-   * immediately (role="alert"), everything else politely (role="status").
-   */
   type Severity = "info" | "success" | "warning" | "danger" | "secondary";
 
-  export let severity: Severity = "info";
-  export let title: string | undefined = undefined;
-  export let icon: IconDefinition | undefined = undefined;
-  export let onDismiss: (() => void) | undefined = undefined;
+  /** Inline message (Artemis spec): tinted, always with an icon. `danger` is role="alert", the rest role="status". */
+  interface Props {
+    severity?: Severity;
+    title?: string | undefined;
+    icon?: IconDefinition | undefined;
+    onDismiss?: (() => void) | undefined;
+    class?: string;
+    children?: Snippet;
+    actions?: Snippet;
+  }
 
-  let className = "";
-  export { className as class };
+  let {
+    severity = "info",
+    title = undefined,
+    icon = undefined,
+    onDismiss = undefined,
+    class: className = "",
+    children,
+    actions,
+  }: Props = $props();
 
   const tones: Record<Severity, string> = {
     info: "border-info/40 bg-info/10 text-info-fg",
@@ -49,9 +58,9 @@
   <Icon icon={icon ?? icons[severity]} class="mt-1 text-base" />
   <div class="min-w-0 flex-1 text-sm">
     {#if title}<p class="m-0 font-semibold">{title}</p>{/if}
-    <div class="font-medium {title ? 'mt-0.5' : ''}"><slot /></div>
-    {#if $$slots.actions}
-      <div class="mt-2 flex flex-wrap items-center gap-2"><slot name="actions" /></div>
+    <div class="font-medium {title ? 'mt-0.5' : ''}">{@render children?.()}</div>
+    {#if actions}
+      <div class="mt-2 flex flex-wrap items-center gap-2">{@render actions?.()}</div>
     {/if}
   </div>
   {#if onDismiss}

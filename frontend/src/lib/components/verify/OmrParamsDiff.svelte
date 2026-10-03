@@ -7,27 +7,33 @@
     type OmrDetectionParams,
   } from "$lib/grading/omrSettings";
 
-  /** Params of the latest run; `null` when that run predates settings snapshots. A snapshot from
-   *  an older algorithm version may lack keys added since — shown as "—", never as a default. */
-  export let before: Partial<OmrDetectionParams> | null;
-  /** Params a new run would use. */
-  export let after: OmrDetectionParams;
-  /** Only list rows whose values differ (all rows when `before` is unknown). */
-  export let onlyChanged = false;
+  
 
-  $: rows = OMR_PARAM_SPECS.map((spec) => ({
+  interface Props {
+    /** Latest run's params; `null` if it predates snapshots. Missing keys (older algorithm) show "—", never a default. */
+    before: Partial<OmrDetectionParams> | null;
+    /** Params a new run would use. */
+    after: OmrDetectionParams;
+    /** Only list rows whose values differ (all rows when `before` is unknown). */
+    onlyChanged?: boolean;
+  }
+
+  let { before, after, onlyChanged = false }: Props = $props();
+
+  let rows = $derived(OMR_PARAM_SPECS.map((spec) => ({
     key: spec.key,
     before: before ? before[spec.key] : null,
     after: after[spec.key],
     changed: before !== null && before[spec.key] !== after[spec.key],
-  })).filter((r) => !onlyChanged || before === null || r.changed);
+  })).filter((r) => !onlyChanged || before === null || r.changed));
 
-  $: format = (value: number | boolean | null | undefined): string =>
-    value === null || value === undefined
+  function format(value: number | boolean | null | undefined): string {
+    return value === null || value === undefined
       ? $t("scanning.verify.settingsPanel.unknownValue")
       : typeof value === "boolean"
         ? $t(value ? "settings.omr.on" : "settings.omr.off")
         : $fmt.number(value);
+  }
 </script>
 
 <TableScroller>

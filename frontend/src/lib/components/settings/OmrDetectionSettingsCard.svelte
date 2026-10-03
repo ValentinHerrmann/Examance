@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { t, translate } from "$lib/i18n";
   import { fmt } from "$lib/utils/format";
   import { Alert, Button, Card, Checkbox, Field, controlClass } from "$lib/components/ui";
@@ -18,28 +19,24 @@
 
   type NumberSpec = Extract<OmrParamSpec, { kind: "number" }>;
 
-  /** The settings the next detection run will use. */
-  export let profile: OmrSettingsProfile;
-  /** Persists the params; returns validation errors (nothing saved unless empty). */
-  export let onSave: (params: OmrDetectionParams) => OmrParamsError[];
-  export let onReset: () => void;
+  interface Props {
+    /** The settings the next detection run will use. */
+    profile: OmrSettingsProfile;
+    /** Persists the params; returns validation errors (nothing saved unless empty). */
+    onSave: (params: OmrDetectionParams) => OmrParamsError[];
+    onReset: () => void;
+  }
+
+  let { profile, onSave, onReset }: Props = $props();
 
   // Number inputs bind as number, or null while a field is empty.
-  let draft: Record<OmrNumericParamKey, number | null> = toDraft(profile.params);
-  let draftShapeAnalysis = profile.params.shapeAnalysis;
-  let draftAlgorithm: OmrAlgorithm = profile.params.algorithm;
-  let errors: OmrParamsError[] = [];
-  let statusMsg = "";
-  let lastRevision = profile.revision;
-
-  // Saved elsewhere (another tab, reset): take the new values over.
-  $: if (profile.revision !== lastRevision) {
-    lastRevision = profile.revision;
-    draft = toDraft(profile.params);
-    draftShapeAnalysis = profile.params.shapeAnalysis;
-    draftAlgorithm = profile.params.algorithm;
-    errors = [];
-  }
+  const initial = untrack(() => profile);
+  let draft: Record<OmrNumericParamKey, number | null> = $state(toDraft(initial.params));
+  let draftShapeAnalysis = $state(initial.params.shapeAnalysis);
+  let draftAlgorithm: OmrAlgorithm = $state(initial.params.algorithm);
+  let errors: OmrParamsError[] = $state.raw([]);
+  let statusMsg = $state("");
+  let lastRevision = initial.revision;
 
   function numberSpecs(group: OmrParamSpec["group"]): NumberSpec[] {
     return OMR_PARAM_SPECS.filter((s): s is NumberSpec => s.kind === "number" && s.group === group);
@@ -62,14 +59,6 @@
     const only = OMR_PARAM_ALGORITHM[key];
     return only !== undefined && only !== algorithm;
   }
-
-  // Reactive helper (reads $t/$fmt), so hints follow a language switch.
-  $: hintFor = (spec: NumberSpec, algorithm: OmrAlgorithm): string => {
-    const base = `${$t(`settings.omr.params.${spec.key}.hint`)} ${$t("settings.omr.defaultValue", { value: $fmt.number(DEFAULT_OMR_PARAMS[spec.key]) })}`;
-    return inactive(spec.key, algorithm)
-      ? `${base} ${$t("settings.omr.onlyFor", { algorithm: OMR_PARAM_ALGORITHM[spec.key] ?? "" })}`
-      : base;
-  };
 
   function fieldError(spec: NumberSpec, errs: OmrParamsError[]): string | undefined {
     return errs.some((e) => e.code === "range" && e.key === spec.key)
@@ -95,7 +84,29 @@
     statusMsg = translate("settings.omr.resetDone");
   }
 
-  $: orderErrors = errors.filter((e) => e.code !== "range");
+  // Saved elsewhere (another tab, reset): take the new values over.
+  $effect.pre(() => {
+    const current = profile;
+    untrack(() => {
+      if (current.revision !== lastRevision) {
+        lastRevision = current.revision;
+        draft = toDraft(current.params);
+        draftShapeAnalysis = current.params.shapeAnalysis;
+        draftAlgorithm = current.params.algorithm;
+        errors = [];
+      }
+    });
+  });
+
+  // Reads $t/$fmt at call time, so hints follow a language switch.
+  function hintFor(spec: NumberSpec, algorithm: OmrAlgorithm): string {
+    const base = `${$t(`settings.omr.params.${spec.key}.hint`)} ${$t("settings.omr.defaultValue", { value: $fmt.number(DEFAULT_OMR_PARAMS[spec.key]) })}`;
+    return inactive(spec.key, algorithm)
+      ? `${base} ${$t("settings.omr.onlyFor", { algorithm: OMR_PARAM_ALGORITHM[spec.key] ?? "" })}`
+      : base;
+  }
+
+  let orderErrors = $derived(errors.filter((e) => e.code !== "range"));
 </script>
 
 <div id="omr" class="scroll-mt-16 lg:scroll-mt-4">

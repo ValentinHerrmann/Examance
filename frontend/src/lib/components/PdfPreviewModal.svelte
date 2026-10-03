@@ -3,17 +3,30 @@
   import DualPdfPreview from "$lib/components/DualPdfPreview.svelte";
   import { Alert, Button, Modal, Spinner } from "$lib/components/ui";
 
-  export let open = false;
-  export let title: string;
-  export let angabeUrl: string | null = null;
-  export let loesungUrl: string | null = null;
-  /** Shown while a compile is running. */
-  export let busy = false;
-  export let notice = "";
-  export let error = "";
-  export let onClose: () => void;
+  interface Props {
+    open?: boolean;
+    title: string;
+    angabeUrl?: string | null;
+    loesungUrl?: string | null;
+    /** Shown while a compile is running. */
+    busy?: boolean;
+    notice?: string;
+    error?: string;
+    onClose: () => void;
+  }
 
-  let showLoesung = false;
+  let {
+    open = false,
+    title,
+    angabeUrl = null,
+    loesungUrl = null,
+    busy = false,
+    notice = "",
+    error = "",
+    onClose
+  }: Props = $props();
+
+  let showLoesung = $state(false);
 </script>
 
 <Modal {open} size="large" {title} {onClose} closeOnBackdrop>
@@ -34,7 +47,7 @@
       height="65dvh"
     />
   {/if}
-  <svelte:fragment slot="footer">
+  {#snippet footer()}
     <Button variant="text" severity="secondary" onClick={onClose}>{$t("common.close")}</Button>
-  </svelte:fragment>
+  {/snippet}
 </Modal>

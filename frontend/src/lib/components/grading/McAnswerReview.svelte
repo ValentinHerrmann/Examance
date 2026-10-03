@@ -1,8 +1,6 @@
 <script lang="ts">
-  // Leaf grading component — subscribes to gradingStore directly, per the scoped
-  // exception documented in $lib/grading/gradingStore.ts. Renders for the active
-  // exercise whenever it's mc/sc/tf; ScoreEntry's numeric input keeps working
-  // alongside it (toggling an option here writes straight into scoreInputs).
+  // Leaf: subscribes to gradingStore directly (scoped exception, see $lib/grading/gradingStore.ts);
+  // toggling an option writes straight into scoreInputs, alongside ScoreEntry's numeric input.
   import type { ExerciseRecord } from "$lib/db/schema";
   import { gradingStore } from "$lib/grading/gradingStore";
   import { applyMcCorrection, type McQuestionType } from "$lib/grading/mcScore";
@@ -11,26 +9,30 @@
   import { faCheck, faXmark } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Icon } from "$lib/components/ui";
 
-  export let exercise: ExerciseRecord;
+  interface Props {
+    exercise: ExerciseRecord;
+  }
 
-  $: mcState = $gradingStore.mcState[exercise.id];
-  $: selectedOptions = mcState?.selectedOptions ?? [];
-  $: omrMeta = mcState?.omrMeta;
-  $: correctAnswers = exercise.correctAnswers ?? [];
-  $: options = exercise.options ?? [];
-  $: questionType = exercise.questionType as McQuestionType;
-  $: isSingleAnswer = questionType === "sc" || questionType === "tf";
-  $: alignmentFailed = omrMeta?.confidence === "failed";
-  $: flaggedOptions = new Set(omrMeta?.flaggedOptions ?? []);
-  $: reasonsByOption = new Map(
+  let { exercise }: Props = $props();
+
+  let mcState = $derived($gradingStore.mcState[exercise.id]);
+  let selectedOptions = $derived(mcState?.selectedOptions ?? []);
+  let omrMeta = $derived(mcState?.omrMeta);
+  let correctAnswers = $derived(exercise.correctAnswers ?? []);
+  let options = $derived(exercise.options ?? []);
+  let questionType = $derived(exercise.questionType as McQuestionType);
+  let isSingleAnswer = $derived(questionType === "sc" || questionType === "tf");
+  let alignmentFailed = $derived(omrMeta?.confidence === "failed");
+  let flaggedOptions = $derived(new Set(omrMeta?.flaggedOptions ?? []));
+  let reasonsByOption = $derived(new Map(
     (omrMeta?.detections?.bubbles ?? []).map((b) => [b.optionIndex, b.reasons ?? []])
-  );
-  $: provisionalByOption = new Map(
+  ));
+  let provisionalByOption = $derived(new Map(
     (omrMeta?.detections?.bubbles ?? [])
       .filter((b) => b.detectedState === "ambiguous" && b.provisional !== undefined && !isMcReviewed(omrMeta))
       .map((b) => [b.optionIndex, b.provisional as boolean])
-  );
-  $: multiMarkWarning = isSingleAnswer && selectedOptions.length > 1;
+  ));
+  let multiMarkWarning = $derived(isSingleAnswer && selectedOptions.length > 1);
 
   function toggleOption(idx: number) {
     const { nextSelectedOptions, nextScore, nextOmrMeta } = applyMcCorrection(
@@ -70,7 +72,7 @@
         {@const isFlagged = flaggedOptions.has(idx)}
         <button
           type="button"
-          on:click={() => toggleOption(idx)}
+          onclick={() => toggleOption(idx)}
           class="flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-left text-sm transition-colors pointer-coarse:min-h-11
             {isSelected ? 'border-primary bg-highlight' : 'border-line bg-surface-sunken'}
             {isFlagged ? 'border-dashed border-warning' : ''}"

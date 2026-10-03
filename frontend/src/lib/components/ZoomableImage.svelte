@@ -2,13 +2,18 @@
   import { t } from "$lib/i18n";
   import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
   import { Button } from "$lib/components/ui";
-  export let src: string;
-  export let alt: string = '';
 
-  let zoomLevel = 1.0;
-  let panX = 0;
-  let panY = 0;
-  let isDragging = false;
+  interface Props {
+    src: string;
+    alt?: string;
+  }
+
+  let { src, alt = '' }: Props = $props();
+
+  let zoomLevel = $state(1.0);
+  let panX = $state(0);
+  let panY = $state(0);
+  let isDragging = $state(false);
   let dragStartX = 0;
   let dragStartY = 0;
 
@@ -70,6 +75,12 @@
     }
   }
 
+  // Svelte 5 registers `onwheel` as passive, so preventDefault needs a non-passive listener.
+  function wheelAction(node: HTMLElement) {
+    node.addEventListener("wheel", handleWheel, { passive: false });
+    return { destroy: () => node.removeEventListener("wheel", handleWheel) };
+  }
+
   function handleMouseDown(e: MouseEvent) {
     if (zoomLevel <= 1) return;
     isDragging = true;
@@ -94,12 +105,12 @@
 
 <div
   class="relative flex max-h-[70dvh] min-h-[200px] w-full touch-none select-none items-center justify-center overflow-hidden rounded-md bg-surface-viewer {isDragging ? 'cursor-grabbing' : 'cursor-grab'}"
-  on:wheel|preventDefault={handleWheel}
-  on:mousedown={handleMouseDown}
-  on:mousemove={handleMouseMove}
-  on:mouseup={handleMouseUp}
-  on:mouseleave={handleMouseLeave}
-  on:dblclick={toggleZoom}
+  use:wheelAction
+  onmousedown={handleMouseDown}
+  onmousemove={handleMouseMove}
+  onmouseup={handleMouseUp}
+  onmouseleave={handleMouseLeave}
+  ondblclick={toggleZoom}
 >
   <img
     src={src}

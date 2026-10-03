@@ -3,27 +3,43 @@
   import { Alert, ConfirmDeleteModal } from "$lib/components/ui";
 
   /**
-   * Delete confirmation for a record other data may depend on (an exam with
-   * submissions, an exercise used in exams). Without usage it asks plainly;
-   * with usage it warns and optionally lists what is affected. Wording comes
-   * from the caller's namespace; chrome, busy state and inline error come from
-   * ConfirmDeleteModal.
+   * Delete confirmation for a record other data may depend on (exam with submissions, exercise used in exams):
+   * plain prompt without usage, a warning with an optional affected-items list with usage. Wording comes from the
+   * caller; chrome, busy state and inline error from ConfirmDeleteModal.
    */
-  export let open = false;
-  export let title: string;
-  /** Usage lookup still running. */
-  export let usageLoading = false;
-  export let loadingText = "";
-  /** Set when something depends on the record; `usageTitle` is the alert heading. */
-  export let usageTitle = "";
-  export let usageText = "";
-  export let usageHint = "";
-  export let items: { id: string; title: string; meta?: string | null }[] = [];
-  export let plainText: string;
-  export let busy = false;
-  export let error = "";
-  export let onConfirm: () => void;
-  export let onClose: () => void;
+  interface Props {
+    open?: boolean;
+    title: string;
+    /** Usage lookup still running. */
+    usageLoading?: boolean;
+    loadingText?: string;
+    /** Set when something depends on the record; `usageTitle` is the alert heading. */
+    usageTitle?: string;
+    usageText?: string;
+    usageHint?: string;
+    items?: { id: string; title: string; meta?: string | null }[];
+    plainText: string;
+    busy?: boolean;
+    error?: string;
+    onConfirm: () => void;
+    onClose: () => void;
+  }
+
+  let {
+    open = false,
+    title,
+    usageLoading = false,
+    loadingText = "",
+    usageTitle = "",
+    usageText = "",
+    usageHint = "",
+    items = [],
+    plainText,
+    busy = false,
+    error = "",
+    onConfirm,
+    onClose,
+  }: Props = $props();
 </script>
 
 <ConfirmDeleteModal

@@ -10,42 +10,54 @@
   import { binColumns, gradeBands, gradeColumns, normalCurve, type ChartCurve, type ChartLayer, type ChartMarker, type ChartSpan } from './chartColumns';
   import StatsExportModal from './StatsExportModal.svelte';
 
-  export let exam: ExamRecord | null;
-  export let stats: ExamStats | null;
-  export let totalMaxPoints: number | null;
-  export let submissionCount: number;
-  /** Submission ids in grading-view order, for the borderline list's links. */
-  export let submissionIds: string[];
-  export let showConfirmModal: boolean;
-  export let onOpenExport: () => void;
-  export let onConfirmExport: () => void;
-  export let onCancelExport: () => void;
+  interface Props {
+    exam: ExamRecord | null;
+    stats: ExamStats | null;
+    totalMaxPoints: number | null;
+    submissionCount: number;
+    /** Submission ids in grading-view order, for the borderline list's links. */
+    submissionIds: string[];
+    showConfirmModal: boolean;
+    onOpenExport: () => void;
+    onConfirmExport: () => void;
+    onCancelExport: () => void;
+  }
+
+  let {
+    exam,
+    stats,
+    totalMaxPoints,
+    submissionCount,
+    submissionIds,
+    showConfirmModal,
+    onOpenExport,
+    onConfirmExport,
+    onCancelExport
+  }: Props = $props();
 
   const PRESETS: Record<string, TranslationKey> = {
     linear_50: 'stats.gradeDistribution.presets.linear50',
     linear_40: 'stats.gradeDistribution.presets.linear40',
     even_split: 'stats.gradeDistribution.presets.evenSplit',
   };
-  let preset: TranslationKey;
-  $: preset = exam?.gradingKey
+  let preset: TranslationKey = $derived(exam?.gradingKey
     ? (PRESETS[exam.gradingKey.preset] ?? 'stats.gradeDistribution.presets.custom')
-    : 'stats.gradeDistribution.presets.standard';
+    : 'stats.gradeDistribution.presets.standard');
 
-  $: num = (v: number) => $fmt.number(v, { maximumFractionDigits: 2 });
-  $: grades = gradeColumns(stats?.gradeBuckets ?? [], num, $fmt.percent, stats?.borderline ?? []);
-  $: bins = binColumns(stats?.bins ?? [], num);
-  $: bands = gradeBands(stats?.gradeBuckets ?? [], num, $fmt.percent);
-  let combinedLayers: ChartLayer[];
-  $: combinedLayers = [
+  const num = (v: number) => $fmt.number(v, { maximumFractionDigits: 2 });
+  let grades = $derived(gradeColumns(stats?.gradeBuckets ?? [], num, $fmt.percent, stats?.borderline ?? []));
+  let bins = $derived(binColumns(stats?.bins ?? [], num));
+  let bands = $derived(gradeBands(stats?.gradeBuckets ?? [], num, $fmt.percent));
+  let combinedLayers: ChartLayer[] = $derived([
     { columns: bands, fill: 1, labels: 'none', values: true, band: true },
     { columns: bins, fill: 0.7, labels: 'axis', values: true },
-  ];
+  ]);
+
   // Mean and median as marks on the merged chart's summary strip, whose axis runs 100 % → 0 %
   // (domain = 100 - percentage). The ± standard deviation span is there for evaluation.
-  $: pctText = (p: number) => $fmt.percent(p / 100, 1);
-  $: one = (v: number) => $fmt.number(v, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  let combinedMarkers: ChartMarker[];
-  $: combinedMarkers = stats?.summary
+  const pctText = (p: number) => $fmt.percent(p / 100, 1);
+  const one = (v: number) => $fmt.number(v, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  let combinedMarkers: ChartMarker[] = $derived(stats?.summary
     ? [
         {
           at: 100 - stats.summary.mean,
@@ -59,14 +71,13 @@
           title: `${$t('stats.combined.markers.medianTitle')}: ${pctText(stats.summary.median)}`,
         },
       ]
-    : [];
+    : []);
+
   // Upper bound first, like every range on the page ("76–52 %").
-  $: sdRange = stats?.summary
+  let sdRange = $derived(stats?.summary
     ? `${one(Math.min(100, stats.summary.mean + stats.summary.stdDev))}–${one(Math.max(0, stats.summary.mean - stats.summary.stdDev))}\u00a0%`
-    : '';
-  let combinedSpans: ChartSpan[];
-  $: combinedSpans =
-    stats?.summary && stats.summary.stdDev > 0
+    : '');
+  let combinedSpans: ChartSpan[] = $derived(stats?.summary && stats.summary.stdDev > 0
       ? [
           {
             from: 100 - (stats.summary.mean + stats.summary.stdDev),
@@ -83,24 +94,25 @@
             }),
           },
         ]
-      : [];
+      : []);
+
   // Uneven bins (binWidth null) are at most 5 % wide, so scale the curve to 5 %.
-  let combinedCurve: ChartCurve | null;
-  $: combinedCurve = stats?.summary
+  let combinedCurve: ChartCurve | null = $derived(stats?.summary
     ? {
         points: normalCurve(stats.summary.mean, stats.summary.stdDev, stats.results.length, stats.binWidth ?? 5),
         title: $t('stats.combined.markers.curveTitle'),
       }
-    : null;
-  $: provisional = (stats?.results ?? []).some((r) => !r.isComplete);
-  $: histogramSubtitle = stats
+    : null);
+
+  let provisional = $derived((stats?.results ?? []).some((r) => !r.isComplete));
+  let histogramSubtitle = $derived(stats
     ? stats.binWidth === null
       ? $t('stats.submissionHistogram.subtitleUneven')
       : $t('stats.submissionHistogram.subtitle', { step: num(stats.binWidth) })
-    : '';
+    : '');
 
-  $: graded = stats?.results.length ?? 0;
-  $: full = stats?.results.filter((r) => r.isComplete).length ?? 0;
+  let graded = $derived(stats?.results.length ?? 0);
+  let full = $derived(stats?.results.filter((r) => r.isComplete).length ?? 0);
 </script>
 
 <PageShell width="full">

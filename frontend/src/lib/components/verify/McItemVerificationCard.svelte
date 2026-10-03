@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "$lib/db/schema";
   import {
     applyMcCorrection,
@@ -21,44 +21,68 @@
     isReviewed: boolean;
   }
 
-  export let exercise: ExerciseRecord;
-  export let studentLabel: string;
-  export let submissionId: string = "";
-  export let studentTotal: number = 1;
-  export let studentReviewed: number = 0;
-  export let studentItems: StudentQueueItem[] = [];
-  export let currentExerciseId: string = "";
-  export let scoreRecord: ExerciseScoreRecord | null = null;
-  export let scanPdfBytes: Uint8Array | null = null;
-  export let currentIndex: number = 0;
-  export let totalItems: number = 0;
-  export let neighbourRects: Array<[number, number, number, number]> = [];
-  /** Queue label (title + sub-letter for MC-group members); falls back to the exercise name. */
-  export let exerciseLabel: string = "";
+  interface Props {
+    exercise: ExerciseRecord;
+    studentLabel: string;
+    submissionId?: string;
+    studentTotal?: number;
+    studentReviewed?: number;
+    studentItems?: StudentQueueItem[];
+    currentExerciseId?: string;
+    scoreRecord?: ExerciseScoreRecord | null;
+    scanPdfBytes?: Uint8Array | null;
+    currentIndex?: number;
+    totalItems?: number;
+    neighbourRects?: Array<[number, number, number, number]>;
+    /** Queue label (title + sub-letter for MC-group members); falls back to the exercise name. */
+    exerciseLabel?: string;
+    onSave: (
+      exerciseId: string,
+      selectedOptions: number[],
+      score: number,
+      omrMeta: OmrScoreMeta
+    ) => Promise<void>;
+    onNext: () => void;
+    onPrev: () => void;
+    onEndOfQueue?: () => void;
+    onOpenGrading: () => void;
+    onNavigateToItem?: (exerciseId: string, category: McQueueCategory) => void;
+  }
 
-  export let onSave: (
-    exerciseId: string,
-    selectedOptions: number[],
-    score: number,
-    omrMeta: OmrScoreMeta
-  ) => Promise<void>;
-  export let onNext: () => void;
-  export let onPrev: () => void;
-  export let onEndOfQueue: () => void = () => {};
-  export let onOpenGrading: () => void;
-  export let onNavigateToItem: (exerciseId: string, category: McQueueCategory) => void = () => {};
+  let {
+    exercise,
+    studentLabel,
+    submissionId = "",
+    studentTotal = 1,
+    studentReviewed = 0,
+    studentItems = [],
+    currentExerciseId = "",
+    scoreRecord = null,
+    scanPdfBytes = null,
+    currentIndex = 0,
+    totalItems = 0,
+    neighbourRects = [],
+    exerciseLabel = "",
+    onSave,
+    onNext,
+    onPrev,
+    onEndOfQueue = () => {},
+    onOpenGrading,
+    onNavigateToItem = () => {}
+  }: Props = $props();
 
-  $: isLastItem = currentIndex >= totalItems - 1;
+  let isLastItem = $derived(currentIndex >= totalItems - 1);
 
-  let selectedOptions: number[] = [];
-  let omrMeta: OmrScoreMeta | undefined = undefined;
-  let cropDataUrl: string | null = null;
-  let cropMarkedUrl: string | null = null;
-  let loadingCrop = false;
-  let cropError = "";
-  let isSaving = false;
+  // Writable $derived: reset from scoreRecord whenever it changes, overridden locally by corrections.
+  let selectedOptions: number[] = $derived(scoreRecord?.selectedOptions ?? []);
+  let omrMeta: OmrScoreMeta | undefined = $derived(scoreRecord?.omrMeta);
+  let cropDataUrl: string | null = $state(null);
+  let cropMarkedUrl: string | null = $state(null);
+  let loadingCrop = $state(false);
+  let cropError = $state("");
+  let isSaving = $state(false);
   let cropRequestId = 0;
-  let justRestored = false;
+  let justRestored = $state(false);
 
   const OVERLAY_STORAGE_KEY = "bg_mc_verify_overlay";
 
@@ -80,65 +104,62 @@
     }
   }
 
-  let showOverlay: boolean = loadOverlayPreference();
+  let showOverlay: boolean = $state(loadOverlayPreference());
 
   function toggleOverlay() {
     showOverlay = !showOverlay;
     saveOverlayPreference(showOverlay);
   }
 
-  $: {
-    selectedOptions = scoreRecord?.selectedOptions ?? [];
-    omrMeta = scoreRecord?.omrMeta;
-  }
-
-  $: options = exercise.options ?? [];
-  $: correctAnswers = exercise.correctAnswers ?? [];
-  $: questionType = (exercise.questionType as McQuestionType) || "mc";
-  $: isSingleAnswer = questionType === "sc" || questionType === "tf";
-  $: flaggedOptions = new Set(omrMeta?.flaggedOptions ?? []);
+  let options = $derived(exercise.options ?? []);
+  let correctAnswers = $derived(exercise.correctAnswers ?? []);
+  let questionType = $derived((exercise.questionType as McQuestionType) || "mc");
+  let isSingleAnswer = $derived(questionType === "sc" || questionType === "tf");
+  let flaggedOptions = $derived(new Set(omrMeta?.flaggedOptions ?? []));
   // Why shape analysis changed/flagged a box — recorded at detection, survives corrections.
-  $: reasonsByOption = new Map(
-    (omrMeta?.detections?.bubbles ?? []).map((b) => [b.optionIndex, b.reasons ?? []])
+  let reasonsByOption = $derived(
+    new Map((omrMeta?.detections?.bubbles ?? []).map((b) => [b.optionIndex, b.reasons ?? []]))
   );
   // The detector's provisional reading of an uncertain box — what counts until verified.
-  $: provisionalByOption = new Map(
-    (omrMeta?.detections?.bubbles ?? [])
-      .filter((b) => b.detectedState === "ambiguous" && b.provisional !== undefined)
-      .map((b) => [b.optionIndex, b.provisional as boolean])
+  let provisionalByOption = $derived(
+    new Map(
+      (omrMeta?.detections?.bubbles ?? [])
+        .filter((b) => b.detectedState === "ambiguous" && b.provisional !== undefined)
+        .map((b) => [b.optionIndex, b.provisional as boolean])
+    )
   );
-  $: confidence = omrMeta?.confidence ?? "ambiguous";
-  $: source = omrMeta?.source ?? "omr";
+  let confidence = $derived(omrMeta?.confidence ?? "ambiguous");
+  let source = $derived(omrMeta?.source ?? "omr");
 
-  $: currentScore = scoreRecord?.score ?? 0;
+  let currentScore = $derived(scoreRecord?.score ?? 0);
 
-  // Redraws whenever the bubble positions OR their marked/blank state change,
-  // or when the active submission or exercise changes. Incorporating submissionId
-  // and exercise.id ensures template-key collisions across submissions are eliminated.
-  $: cropKey =
+  // Redraws when bubble positions/states, submission or exercise change; the ids avoid
+  // template-key collisions across submissions.
+  let cropKey = $derived(
     scanPdfBytes && omrMeta?.detections && submissionId && exercise?.id
       ? `${submissionId}:${exercise.id}:${omrMeta.detections.pageIndex}:${neighbourRects.map((r) => r.join(",")).join(";")}:${omrMeta.detections.bubbles
           .map((b) => `${b.optionIndex}:${b.state}:${b.rect.join(",")}`)
           .join("|")}:${isMcReviewed(omrMeta) ? "r" : "u"}`
-      : "";
+      : ""
+  );
 
   let lastLoadedCropKey = "";
-  $: {
-    if (cropKey !== lastLoadedCropKey) {
-      lastLoadedCropKey = cropKey;
-      cropDataUrl = null;
-      cropMarkedUrl = null;
-      cropError = "";
-      if (scanPdfBytes && omrMeta?.detections && cropKey) {
-        loadCrop(
-          scanPdfBytes,
-          omrMeta.detections.pageIndex,
-          omrMeta.detections.bubbles,
-          omrMeta
-        );
+  $effect.pre(() => {
+    const key = cropKey;
+    const pdfBytes = scanPdfBytes;
+    const meta = omrMeta;
+    untrack(() => {
+      if (key !== lastLoadedCropKey) {
+        lastLoadedCropKey = key;
+        cropDataUrl = null;
+        cropMarkedUrl = null;
+        cropError = "";
+        if (pdfBytes && meta?.detections && key) {
+          loadCrop(pdfBytes, meta.detections.pageIndex, meta.detections.bubbles, meta);
+        }
       }
-    }
-  }
+    });
+  });
 
   async function loadCrop(
     pdfBytes: Uint8Array,
@@ -242,26 +263,27 @@
     }
   }
 
-  $: originalOptions = omrMeta?.original?.selectedOptions ?? null;
-  $: hasOriginal = originalOptions !== null;
-  $: isMatchesOriginal =
+  let originalOptions = $derived(omrMeta?.original?.selectedOptions ?? null);
+  let hasOriginal = $derived(originalOptions !== null);
+  let isMatchesOriginal = $derived(
     hasOriginal &&
-    originalOptions!.length === selectedOptions.length &&
-    originalOptions!.every((o) => selectedOptions.includes(o));
+      originalOptions!.length === selectedOptions.length &&
+      originalOptions!.every((o) => selectedOptions.includes(o))
+  );
 
   // Mirrors computeMcVerificationStats' own isReviewed/isCorrected semantics
   // exactly, so this badge can never drift from the calibration stats.
   type ReviewStatus = "unreviewed" | "confirmedUnchanged" | "manuallyCorrected";
-  $: reviewStatus = ((): ReviewStatus => {
+  let reviewStatus = $derived.by((): ReviewStatus => {
     const reviewed = isMcReviewed(omrMeta);
     if (!reviewed) return "unreviewed";
     return hasOriginal && !isMatchesOriginal ? "manuallyCorrected" : "confirmedUnchanged";
-  })();
+  });
 
   // Guards the two advance paths (Next button, → key) so an accidental
   // keypress can't silently accept an untouched detection — the teacher must
   // either review the item or explicitly confirm they want to skip it.
-  let pendingAdvance: (() => void) | null = null;
+  let pendingAdvance: (() => void) | null = $state(null);
 
   function requestAdvance(action: () => void) {
     if (reviewStatus === "unreviewed") {
@@ -337,7 +359,7 @@
   }
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} />
 
 <div class="min-w-0 space-y-6 rounded-xl border border-line bg-surface-raised p-4 shadow-sm @3xl:p-6">
   <!-- Top Bar: Header & Counter -->
@@ -497,8 +519,8 @@
             <div
               role="button"
               tabindex="0"
-              on:click={() => handleToggleOption(idx)}
-              on:keydown={(e) => {
+              onclick={() => handleToggleOption(idx)}
+              onkeydown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   handleToggleOption(idx);
@@ -514,7 +536,10 @@
                   checked={isSelected}
                   disabled={isSaving}
                   aria-label={$t("scanning.itemCard.checkboxLabel", { label: letter })}
-                  on:click|stopPropagation={() => handleToggleOption(idx)}
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    handleToggleOption(idx);
+                  }}
                   class="size-5 shrink-0 cursor-pointer rounded-sm accent-primary pointer-events-auto"
                 />
                 <span class="font-mono text-xs text-muted font-bold">{letter}.</span>

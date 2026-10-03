@@ -5,7 +5,11 @@
   import { faBullseye, faXmark } from "@fortawesome/free-solid-svg-icons";
   import { Button, Icon, controlClass, controlSmClass } from "$lib/components/ui";
 
-  export let exercises: ExerciseRecord[];
+  interface Props {
+    exercises: ExerciseRecord[];
+  }
+
+  let { exercises }: Props = $props();
 
   function selectExercise(id: string) {
     gradingStore.setActiveExerciseId(id);
@@ -44,10 +48,10 @@
   {#each exercises as ex}
     <div
       class={ex.id === $gradingStore.activeExerciseId ? itemActive : itemBase}
-      on:click={() => selectExercise(ex.id)}
+      onclick={() => selectExercise(ex.id)}
       role="button"
       tabindex="0"
-      on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectExercise(ex.id); }}
+      onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectExercise(ex.id); }}
     >
       <div class="flex items-center gap-1">
         <span class="text-xs font-bold text-content">Q{ex.orderIndex}{#if ex.subIndex}&nbsp;{String.fromCharCode(96 + ex.subIndex)}){/if}</span>
@@ -65,7 +69,7 @@
           max={ex.maxPoints}
           placeholder="–"
           value={$gradingStore.scoreInputs[ex.id] ?? ''}
-          on:input={(e) => handleScoreInput(ex, e)}
+          oninput={(e) => handleScoreInput(ex, e)}
           class="{controlClass} {controlSmClass} w-16 text-right font-bold pointer-coarse:min-h-11 pointer-coarse:text-base"
         />
         <span class="text-xs text-muted">/ {ex.maxPoints}</span>

@@ -2,13 +2,13 @@
   import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
   import { Icon } from "$lib/components/ui";
 
-  /**
-   * Artemis settings pattern: anchor links to the sections of a long page.
-   * From `lg` a sticky column on the left; on phones and tablets a horizontally
-   * scrolling strip pinned to the top of the scroll area.
-   */
-  export let items: { id: string; label: string; icon?: IconDefinition }[];
-  export let ariaLabel: string;
+  interface Props {
+    /** Anchor links to the sections of a long page (Artemis settings pattern): sticky left column from `lg`, scrolling top strip below. */
+    items: { id: string; label: string; icon?: IconDefinition }[];
+    ariaLabel: string;
+  }
+
+  let { items, ariaLabel }: Props = $props();
 </script>
 
 <nav

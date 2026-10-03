@@ -5,10 +5,19 @@
   import { fmt } from '$lib/utils/format';
   import type { ExercisePerformance } from '$lib/analytics/analyticsTypes';
 
-  export let exerciseStats: ExercisePerformance[];
-  export let displayedExerciseStats: ExercisePerformance[];
-  export let examsCount: number;
-  export let showAll: boolean;
+  interface Props {
+    exerciseStats: ExercisePerformance[];
+    displayedExerciseStats: ExercisePerformance[];
+    examsCount: number;
+    showAll: boolean;
+  }
+
+  let {
+    exerciseStats,
+    displayedExerciseStats,
+    examsCount,
+    showAll = $bindable()
+  }: Props = $props();
 </script>
 
 <Card>
@@ -33,13 +42,13 @@
         ? $t('stats.exerciseQuality.emptyWithData', { count: $fmt.number(exerciseStats.length), examsCount: $fmt.number(examsCount) })
         : $t('stats.exerciseQuality.emptyNoData')}
     >
-      <svelte:fragment slot="actions">
+      {#snippet actions()}
         {#if exerciseStats.length > 0}
           <Button variant="outlined" severity="secondary" onClick={() => (showAll = !showAll)}>
             {showAll ? $t('stats.shared.hideUngraded') : $t('stats.exerciseQuality.showAllLinked', { count: $fmt.number(exerciseStats.length) })}
           </Button>
         {/if}
-      </svelte:fragment>
+      {/snippet}
     </EmptyState>
   {:else}
     <TableScroller>

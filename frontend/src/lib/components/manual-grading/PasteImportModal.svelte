@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { get } from "svelte/store";
   import { sessionStore } from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
@@ -20,21 +21,33 @@
   import { faArrowLeft, faArrowRight, faCheck } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, Checkbox, Modal, TableScroller, Textarea } from "$lib/components/ui";
 
-  export let examId: string;
-  export let exercises: ExerciseRecord[] = [];
-  export let students: StudentRecord[] = [];
-  export let submissions: SubmissionRecord[] = [];
-  export let scoresMap: Map<string, Record<string, number | null>> = new Map();
-  export let onClose: () => void = () => {};
-  export let onImportComplete: () => void = () => {};
+  interface Props {
+    examId: string;
+    exercises?: ExerciseRecord[];
+    students?: StudentRecord[];
+    submissions?: SubmissionRecord[];
+    scoresMap?: Map<string, Record<string, number | null>>;
+    onClose?: () => void;
+    onImportComplete?: () => void;
+  }
 
-  let step: 1 | 2 | 3 = 1;
-  let rawTsv = "";
+  let {
+    examId,
+    exercises = [],
+    students = [],
+    submissions = [],
+    scoresMap = new Map(),
+    onClose = () => {},
+    onImportComplete = () => {},
+  }: Props = $props();
+
+  let step: 1 | 2 | 3 = $state(1);
+  let rawTsv = $state("");
 
   // Mapping configurations
   let nameColIdx = 0;
   let numberColIdx = -1;
-  let autoCreateStudents = true;
+  let autoCreateStudents = $state(true);
 
   interface ParsedRow {
     rawName: string;
@@ -44,15 +57,23 @@
     scores: (number | null)[];
   }
 
-  let parsedRows: ParsedRow[] = [];
+  let parsedRows: ParsedRow[] = $state.raw([]);
   let headerCells: string[] = [];
 
+  // Plain (only read by executeImport, which mutates it and the parent's `submissions` in place).
   let submissionMap = new Map<string, SubmissionRecord>();
-  $: {
-    buildSubmissionMap(submissions, students).then((m) => {
-      submissionMap = m;
-    });
-  }
+  // Only the newest build may write, so a slower stale build cannot overwrite a newer map.
+  let submissionMapSeq = 0;
+  $effect.pre(() => {
+    const subs = submissions;
+    const sts = students;
+    const seq = ++submissionMapSeq;
+    untrack(() =>
+      buildSubmissionMap(subs, sts).then((m) => {
+        if (seq === submissionMapSeq) submissionMap = m;
+      }),
+    );
+  });
 
   function normalizeName(name: string): string {
     return name
@@ -273,7 +294,6 @@
     onImportComplete();
     onClose();
   }
-
 </script>
 
 <Modal open={true} size="large" title={$t("grading.manual.paste.title")} onClose={onClose}>
@@ -353,7 +373,7 @@
     </div>
   {/if}
 
-  <svelte:fragment slot="footer">
+  {#snippet footer()}
     <Button variant="outlined" severity="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
 
     <div class="ml-auto flex gap-2">
@@ -377,5 +397,5 @@
         </Button>
       {/if}
     </div>
-  </svelte:fragment>
+  {/snippet}
 </Modal>

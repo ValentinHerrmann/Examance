@@ -10,19 +10,27 @@
   } from "@fortawesome/free-solid-svg-icons";
   import { Button } from "$lib/components/ui";
 
-  export let onPagePrev: () => void;
-  export let onPageNext: () => void;
-  export let onToggleAutoCrop: () => void;
-  export let onZoomOut: () => void;
-  export let onZoomIn: () => void;
-  export let onResetZoom: () => void;
+  interface Props {
+    onPagePrev: () => void;
+    onPageNext: () => void;
+    onToggleAutoCrop: () => void;
+    onZoomOut: () => void;
+    onZoomIn: () => void;
+    onResetZoom: () => void;
+  }
+
+  let {
+    onPagePrev,
+    onPageNext,
+    onToggleAutoCrop,
+    onZoomOut,
+    onZoomIn,
+    onResetZoom
+  }: Props = $props();
 
 </script>
 
-<!--
-  Docked below the canvas on small screens, floating over it from `lg` up —
-  same reasoning as the annotation toolbar.
--->
+<!-- Docked below the canvas on small screens, floating over it from `lg` up (as the annotation toolbar). -->
 <div
   class="scroll-pane z-30 flex shrink-0 items-center justify-center gap-1.5 overflow-x-auto rounded-md border border-line bg-surface-raised px-2 py-1.5 text-xs
     lg:absolute lg:right-3 lg:bottom-3 lg:justify-end lg:overflow-visible lg:shadow-md"

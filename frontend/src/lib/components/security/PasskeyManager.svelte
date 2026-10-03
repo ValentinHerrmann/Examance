@@ -1,17 +1,7 @@
 <script lang="ts">
-  /**
-   * Register and remove passkeys.
-   *
-   * The panel is explicit about a distinction that is otherwise invisible: a
-   * passkey whose authenticator lacks the PRF extension signs you in but cannot
-   * unlock your encrypted data. Letting a teacher believe otherwise is how they
-   * end up with an account they can reach and exams they cannot read.
-   *
-   * "Opens data" is read from the stored wraps, never from `supports_prf`: that
-   * flag is a registration-time guess. A passkey without a wrap gets a button
-   * that adds one from the open session — a passkey prompt, no password — and
-   * that doubles as the test of whether its provider supports PRF at all.
-   */
+  // Register and remove passkeys. A passkey without PRF signs in but cannot unlock data; "opens data"
+  // is read from the stored wraps, never from the registration-time `supports_prf` guess.
+  import { untrack } from "svelte";
   import { Button, Card, Field, TextInput } from "$lib/components/ui";
   import { t } from "$lib/i18n";
   import { fmt } from "$lib/utils/format";
@@ -33,25 +23,23 @@
     vaultFromSession,
   } from "$lib/services/keyEnvelopeService";
 
-  export let teacherId: string;
-  /**
-   * Owned by the page, not fetched here.
-   *
-   * Registering or removing a passkey changes which factors the account has, so
-   * the factor summary has to move with it. A list this component loaded for
-   * itself is how the old settings page ended up showing a stale one.
-   */
-  export let passkeys: PasskeySummary[];
-  export let onChanged: () => void;
+  interface Props {
+    teacherId: string;
+    /** Owned by the page (not fetched here) so its factor summary moves with add/remove. */
+    passkeys: PasskeySummary[];
+    onChanged: () => void;
+  }
 
-  let nickname = "";
+  let { teacherId, passkeys, onChanged }: Props = $props();
+
+  let nickname = $state("");
   /** Credential ids with a usable wrap; null until loaded. */
-  let wrapIds: string[] | null = null;
+  let wrapIds: string[] | null = $state.raw(null);
   /** Per-credential outcome of the last "enable" attempt. */
-  let unlockNotes: Record<string, "done" | "noPrf"> = {};
-  let enabling: string | null = null;
+  let unlockNotes: Record<string, "done" | "noPrf"> = $state.raw({});
+  let enabling: string | null = $state(null);
   /** A non-error message after registering (no PRF, or the wrap step pending). */
-  let noticeMsg = "";
+  let noticeMsg = $state("");
 
   /** Only the newest load may write: an older one finishing last would show stale state. */
   let wrapLoadSeq = 0;
@@ -68,11 +56,12 @@
     }
   }
 
-  // Runs on mount too. The list moves after add/remove; the wraps move with it.
-  // `passkeys` is named in the condition so Svelte re-runs this when it changes.
-  $: if (passkeys) {
-    void loadWrapIds();
-  }
+  // Runs on mount too, and again whenever `passkeys` changes: the wraps move with the list.
+  $effect.pre(() => {
+    if (passkeys) {
+      untrack(() => void loadWrapIds());
+    }
+  });
 
   function opensData(credentialIdB64: string, ids: string[] | null): boolean {
     return (ids ?? []).some((id) => sameCredential(id, credentialIdB64));
@@ -98,8 +87,8 @@
       enabling = null;
     }
   }
-  let errorMsg = "";
-  let isWorking = false;
+  let errorMsg = $state("");
+  let isWorking = $state(false);
   const supported = isSupported();
 
   async function add() {
@@ -110,11 +99,8 @@
     errorMsg = "";
     try {
       const options = await registrationOptions();
-      // Registration reports whether PRF works here; it does not hand back the
-      // secret, so the wrap below still needs one assertion. Both ceremonies use
-      // the same application-wide PRF input, which is what makes the secret
-      // reproducible at sign-in — the salt used to be per credential, and no
-      // sign-in could know it before the ceremony.
+      // Registration does not hand back the PRF secret, so the wrap below needs one assertion. Both
+      // ceremonies use the app-wide PRF input, which keeps the secret reproducible at sign-in.
       const result = await register(options);
 
       const summary = await verifyRegistration({
@@ -130,11 +116,8 @@
 
       const vault = vaultFromSession();
       if (vault) {
-        // Wrap a copy of the data key under the authenticator's PRF secret, so
-        // this passkey can also open the vault. Attempted even when registration
-        // reported no PRF: some providers only evaluate it on an assertion. The
-        // ceremony is pinned to the new credential, so no other passkey's
-        // secret can end up sealing this wrap.
+        // Wrap the data key under the PRF secret, even if registration reported no PRF (some providers
+        // only evaluate it on assertion). Pinned to the new credential so no other passkey seals it.
         try {
           const assertion = await authenticate(await loginOptions(), {
             credentialIdB64: summary.credential_id_b64,
@@ -164,10 +147,8 @@
       await deletePasskey(credentialIdB64);
       onChanged();
     } catch (err: unknown) {
-      // The server refuses when this is the last factor keeping the account
-      // usable, and names the rule it hit — whether the account would fall below
-      // two factors, or below its last means of decrypting its own data. Those
-      // are different problems with different fixes, so pass the reason through.
+      // The server names the rule it hit (below two factors vs. last means of decrypting data);
+      // they need different fixes, so pass the reason through.
       errorMsg =
         err instanceof ApiError && err.code === "ERR_LAST_FACTOR_PROTECTED"
           ? err.message

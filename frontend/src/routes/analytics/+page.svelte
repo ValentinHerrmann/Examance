@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '$lib/i18n';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { browser } from '$app/environment';
   import { afterNavigate, goto } from '$app/navigation';
   import { get } from 'svelte/store';
@@ -17,28 +17,30 @@
   import ExerciseQualityTable from '$lib/components/analytics/ExerciseQualityTable.svelte';
   import { PageShell, PageHeader } from '$lib/components/ui';
 
-  let isInitializing = true;
+  let isInitializing = $state(true);
   let activeLoadPromise: Promise<void> | null = null;
   let pendingReload = false;
-  let exams: ExamRecord[] = [];
-  let exerciseStats: ExercisePerformance[] = [];
-  let variantGroups: VariantGroupComparison[] = [];
-  let overallAvgScore: number | null = null;
-  let totalSubmissionsCount = 0;
-  let gradedSubmissionsCount = 0;
-  let showAllExercises = false;
+  let exams: ExamRecord[] = $state.raw([]);
+  let exerciseStats: ExercisePerformance[] = $state.raw([]);
+  let variantGroups: VariantGroupComparison[] = $state.raw([]);
+  let overallAvgScore: number | null = $state(null);
+  let totalSubmissionsCount = $state(0);
+  let gradedSubmissionsCount = $state(0);
+  let showAllExercises = $state(false);
 
-  $: displayedExerciseStats = showAllExercises
+  let displayedExerciseStats = $derived(showAllExercises
     ? exerciseStats
-    : exerciseStats.filter((e) => e.avgScorePercent !== null);
+    : exerciseStats.filter((e) => e.avgScorePercent !== null));
 
-  $: displayedVariantGroups = showAllExercises
+  let displayedVariantGroups = $derived(showAllExercises
     ? variantGroups
-    : variantGroups.filter((g) => g.variants.some((v) => v.avgScorePercent !== null));
+    : variantGroups.filter((g) => g.variants.some((v) => v.avgScorePercent !== null)));
 
-  $: if (browser && $isUnlocked && $sessionStore.sessionKey) {
-    triggerAnalyticsLoad();
-  }
+  $effect.pre(() => {
+    if (browser && $isUnlocked && $sessionStore.sessionKey) {
+      untrack(() => triggerAnalyticsLoad());
+    }
+  });
 
   afterNavigate(() => {
     if ($isUnlocked && $sessionStore.sessionKey) {

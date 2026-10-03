@@ -1,36 +1,56 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import type { HTMLInputAttributes } from "svelte/elements";
   import { getRecentValues, recordValue, removeValue } from "$lib/utils/recentValues";
   import { t } from "$lib/i18n";
   import { faXmark } from "@fortawesome/free-solid-svg-icons";
   import { Icon } from "$lib/components/ui";
 
-  export let storageKey: string = "";
-  export let extraSuggestions: string[] = [];
-  export let value: string = "";
-  export let id: string | undefined = undefined;
-  export let placeholder: string = "";
-  export let required: boolean = false;
-  export let disabled: boolean = false;
-  export let autocomplete: HTMLInputAttributes["autocomplete"] = undefined;
-  let className: string = "";
-  export { className as class };
-  export let maxSuggestions: number = 15;
+  interface Props {
+    storageKey?: string;
+    extraSuggestions?: string[];
+    value?: string;
+    id?: string | undefined;
+    placeholder?: string;
+    required?: boolean;
+    disabled?: boolean;
+    autocomplete?: HTMLInputAttributes["autocomplete"];
+    class?: string;
+    maxSuggestions?: number;
+    oninput?: HTMLInputAttributes["oninput"];
+    onchange?: HTMLInputAttributes["onchange"];
+    onfocus?: HTMLInputAttributes["onfocus"];
+    onblur?: HTMLInputAttributes["onblur"];
+    onkeydown?: HTMLInputAttributes["onkeydown"];
+  }
 
-  let recentList: string[] = [];
-  let inputEl: HTMLInputElement;
-  let wrapperEl: HTMLDivElement;
-  let isOpen = false;
-  let highlightedIndex = -1;
+  let {
+    storageKey = "",
+    extraSuggestions = [],
+    value = $bindable(""),
+    id = undefined,
+    placeholder = "",
+    required = false,
+    disabled = false,
+    autocomplete = undefined,
+    class: className = "",
+    maxSuggestions = 15,
+    oninput = undefined,
+    onchange = undefined,
+    onfocus = undefined,
+    onblur = undefined,
+    onkeydown = undefined,
+  }: Props = $props();
 
-  /* The dropdown is positioned `fixed` against the input's own box rather than
-   * absolutely inside the wrapper: several callers (the exercise editor, the
-   * exam metadata editor) sit inside `overflow: hidden` / `overflow-y: auto`
-   * containers that clipped it away entirely. Fixed positioning escapes those,
-   * and the placement flips above the field when there is not enough room
-   * below — which is most of the time on a phone in landscape. */
-  let dropdownStyle = "";
+  let recentList: string[] = $state([]);
+  let inputEl: HTMLInputElement | undefined = $state();
+  let wrapperEl: HTMLDivElement | undefined = $state();
+  let isOpen = $state(false);
+  let highlightedIndex = $state(-1);
+
+  // `fixed` against the input's box: callers sit in overflow-hidden/auto containers that clipped an absolute list.
+  // Flips above the field when there is no room below (phone in landscape).
+  let dropdownStyle = $state("");
 
   function updateDropdownPosition() {
     if (!inputEl || typeof window === "undefined") {
@@ -54,12 +74,14 @@
       : `position: fixed; left: ${left}px; width: ${width}px; top: ${rect.bottom + gap}px; max-height: ${available}px; z-index: var(--z-dropdown);`;
   }
 
-  $: if (isOpen) {
-    updateDropdownPosition();
-  }
+  $effect.pre(() => {
+    if (isOpen) {
+      untrack(() => updateDropdownPosition());
+    }
+  });
 
   const instanceId = Math.random().toString(36).substring(2, 9);
-  $: dropdownId = id ? `${id}-listbox` : `suggest-listbox-${instanceId}`;
+  let dropdownId = $derived(id ? `${id}-listbox` : `suggest-listbox-${instanceId}`);
 
   onMount(() => {
     if (storageKey) {
@@ -67,17 +89,16 @@
     }
   });
 
-  $: allSuggestions = Array.from(
+  let allSuggestions = $derived(Array.from(
     new Set([...recentList, ...(extraSuggestions || [])])
-  ).filter((s) => typeof s === "string" && s.trim().length > 0);
+  ).filter((s) => typeof s === "string" && s.trim().length > 0));
 
-  // Filter suggestions by current input text (case-insensitive), but always
-  // show the full list when the field is empty.
-  $: filteredSuggestions = value.trim()
+  // Case-insensitive filter by current text; the full list when the field is empty.
+  let filteredSuggestions = $derived(value.trim()
     ? allSuggestions.filter((s) =>
         s.toLowerCase().includes(value.trim().toLowerCase())
       )
-    : allSuggestions;
+    : allSuggestions);
 
   function openDropdown() {
     if (storageKey) {
@@ -110,19 +131,32 @@
     }
   }
 
-  function handleFocus() {
-    openDropdown();
+  // Sync the bound value before the caller's handler runs, so it never sees a stale `value`.
+  function handleInput(e: Parameters<NonNullable<typeof oninput>>[0]) {
+    value = e.currentTarget.value;
+    oninput?.(e);
   }
 
-  function handleBlur() {
+  function handleFocus(e: Parameters<NonNullable<typeof onfocus>>[0]) {
+    openDropdown();
+    onfocus?.(e);
+  }
+
+  function handleBlur(e: Parameters<NonNullable<typeof onblur>>[0]) {
     // Delay so a click on a dropdown option registers before we close.
     setTimeout(() => {
       closeDropdown();
       commit();
     }, 120);
+    onblur?.(e);
   }
 
-  function handleKeydown(e: KeyboardEvent) {
+  function handleKeydown(e: Parameters<NonNullable<typeof onkeydown>>[0]) {
+    navigate(e);
+    onkeydown?.(e);
+  }
+
+  function navigate(e: KeyboardEvent) {
     if (!isOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
       openDropdown();
       return;
@@ -156,8 +190,8 @@
 </script>
 
 <svelte:window
-  on:resize={() => isOpen && updateDropdownPosition()}
-  on:scroll|capture={() => isOpen && updateDropdownPosition()}
+  onresize={() => isOpen && updateDropdownPosition()}
+  onscrollcapture={() => isOpen && updateDropdownPosition()}
 />
 
 <div class="relative w-full" bind:this={wrapperEl}>
@@ -171,13 +205,11 @@
     {required}
     {disabled}
     class="w-full {className}"
-    on:input
-    on:change
-    on:focus={handleFocus}
-    on:focus
-    on:blur={handleBlur}
-    on:keydown={handleKeydown}
-    on:keydown
+    oninput={handleInput}
+    {onchange}
+    onfocus={handleFocus}
+    onblur={handleBlur}
+    onkeydown={handleKeydown}
     role="combobox"
     aria-expanded={isOpen}
     aria-controls={isOpen ? dropdownId : undefined}
@@ -201,8 +233,11 @@
             role="option"
             aria-selected={i === highlightedIndex}
             class="group flex cursor-pointer items-center justify-between rounded-md px-3 py-1.5 text-sm text-content transition-colors {i === highlightedIndex ? 'bg-primary text-primary-contrast' : 'hover:bg-primary/80 hover:text-primary-contrast'}"
-            on:mousedown|preventDefault={() => selectSuggestion(suggestion)}
-            on:mouseenter={() => (highlightedIndex = i)}
+            onmousedown={(e) => {
+              e.preventDefault();
+              selectSuggestion(suggestion);
+            }}
+            onmouseenter={() => (highlightedIndex = i)}
           >
             <span class="truncate">{suggestion}</span>
             {#if storageKey && recentList.includes(suggestion)}
@@ -211,7 +246,7 @@
                 title={$t("exercises.suggestInput.removeEntry")}
                 aria-label={$t("exercises.suggestInput.removeEntry")}
                 class="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-xs text-muted opacity-60 transition-opacity hover:bg-danger/30 hover:text-danger-fg group-hover:opacity-100"
-                on:mousedown|preventDefault|stopPropagation={(e) => handleRemove(e, suggestion)}
+                onmousedown={(e) => handleRemove(e, suggestion)}
               >
                 <Icon icon={faXmark} />
               </button>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import { page } from "$app/stores";
   import { afterNavigate } from "$app/navigation";
   import { faXmark } from "@fortawesome/free-solid-svg-icons";
@@ -10,34 +10,42 @@
   import { examNavItems } from "./examNavItems";
 
   /**
-   * Navigation drawer below `xl` (phones, iPad portrait), opened by the navbar
-   * burger at the far left. Lists the current exam's steps first (on phones the
-   * exam sidebar is not shown), then the main links. Workspace and account
-   * actions stay in the navbar menus, which are reachable at every width.
+   * Navigation drawer below `xl`, opened by the navbar burger. Lists the current exam's steps first (phones have no
+   * exam sidebar), then the main links; workspace and account actions stay in the navbar menus.
    */
-  export let userRole: string | null = null;
+  interface Props {
+    userRole?: string | null;
+  }
 
-  $: links = [
+  let { userRole = null }: Props = $props();
+
+  let links = $derived([
     { href: "/", label: $t("nav.dashboard") },
     { href: "/exercises", label: $t("nav.exerciseLibrary") },
     { href: "/analytics", label: $t("nav.analytics") },
     ...(userRole === "admin" ? [{ href: "/admin/users", label: $t("nav.userManagement") }] : []),
     { href: "/settings", label: $t("nav.settings") },
     { href: "/help", label: $t("help.ui.navLabel") },
-  ];
+  ]);
 
-  $: currentPath = $page.url.pathname;
-  $: isActive = (href: string) => (href === "/" ? currentPath === "/" : currentPath.startsWith(href));
-  $: examItems = $examNavContext ? examNavItems($examNavContext.examId, currentPath) : [];
+  let currentPath = $derived($page.url.pathname);
+  function isActive(href: string) {
+    return href === "/" ? currentPath === "/" : currentPath.startsWith(href);
+  }
+  let examItems = $derived($examNavContext ? examNavItems($examNavContext.examId, currentPath) : []);
 
   let release: (() => void) | null = null;
-  $: if (typeof document !== "undefined") {
-    if ($mobileNavOpen && !release) release = lockScroll();
-    else if (!$mobileNavOpen && release) {
-      release();
-      release = null;
-    }
-  }
+  $effect.pre(() => {
+    const isOpen = $mobileNavOpen;
+    if (typeof document === "undefined") return;
+    untrack(() => {
+      if (isOpen && !release) release = lockScroll();
+      else if (!isOpen && release) {
+        release();
+        release = null;
+      }
+    });
+  });
   onDestroy(() => release?.());
 
   afterNavigate(() => mobileNavOpen.set(false));
@@ -50,16 +58,16 @@
     "flex min-h-11 items-center gap-3 rounded-md px-3 text-base font-medium no-underline";
 </script>
 
-<svelte:window on:keydown={(e) => $mobileNavOpen && e.key === "Escape" && close()} />
+<svelte:window onkeydown={(e) => $mobileNavOpen && e.key === "Escape" && close()} />
 
 {#if $mobileNavOpen}
-  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-  <div class="fixed inset-0 bg-backdrop xl:hidden" style="z-index: var(--z-dropdown)" on:click={close}>
-    <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="fixed inset-0 bg-backdrop xl:hidden" style="z-index: var(--z-dropdown)" onclick={close}>
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <nav
       class="scroll-pane flex h-full w-[min(20rem,85vw)] flex-col gap-1 overflow-y-auto bg-surface-raised p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-xl"
       aria-label={$t("nav.menuLabel")}
-      on:click|stopPropagation
+      onclick={(e) => e.stopPropagation()}
     >
       <div class="flex items-center justify-between px-1 pb-1">
         <span class="px-2 text-lg font-semibold text-content">Examance</span>

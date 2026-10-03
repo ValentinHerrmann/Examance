@@ -1,7 +1,6 @@
 <script lang="ts">
   import { page } from "$app/stores";
   import { loadPdfjs } from "$lib/pdf/pdfjs";
-  export let params;
   import { goto } from "$app/navigation";
   import { browser } from "$app/environment";
   import {
@@ -63,19 +62,26 @@
   import ScanPreviewModal from "$lib/components/scanning/ScanPreviewModal.svelte";
   import { t, translate } from "$lib/i18n";
 
+  interface Props {
+    params?: Record<string, string>;
+  }
+
+  let { params }: Props = $props();
+
   const examId = $page.params.id || "";
 
-  let hwProfile: HardwareProfile = {
+  // Raw: hwProfile/monitor feed PipelineMonitor and the worker pools.
+  let hwProfile: HardwareProfile = $state.raw({
     logicalCores: 4,
     estimatedRAMGB: 8,
     simdSupported: true,
     fileSystemAccessAPI: true,
     recommendedMode: "parallel",
-  };
-  let monitor: PipelineMonitor;
-  let isProcessing = false;
-  let progress = 0;
-  let statusText = translate("scanning.status.ready");
+  });
+  let monitor: PipelineMonitor | undefined = $state.raw();
+  let isProcessing = $state(false);
+  let progress = $state(0);
+  let statusText = $state(translate("scanning.status.ready"));
   let scannedCount = 0;
 
   interface UnmatchedSubmission {
@@ -104,17 +110,18 @@
     annotationIv?: Uint8Array;
   }
 
-  let unmatchedList: UnmatchedSubmission[] = [];
-  let scannedSubmissions: ScannedSubmissionItem[] = [];
+  // Raw: records go back to repositories; UnmatchedResolver binds item.newCode on the shared objects.
+  let unmatchedList: UnmatchedSubmission[] = $state.raw([]);
+  let scannedSubmissions: ScannedSubmissionItem[] = $state.raw([]);
   // Starts true: the overview must not flash "no submissions yet" while the
   // first fetch is still in flight (see loadScannedSubmissions()).
-  let isLoadingSubmissions = true;
-  let previewModalOpen = false;
-  let previewItem: ScannedSubmissionItem | null = null;
-  let previewObjectUrl: string | null = null;
-  let previewIsPdf = false;
-  let previewLoading = false;
-  let previewError = "";
+  let isLoadingSubmissions = $state(true);
+  let previewModalOpen = $state(false);
+  let previewItem: ScannedSubmissionItem | null = $state.raw(null);
+  let previewObjectUrl: string | null = $state(null);
+  let previewIsPdf = $state(false);
+  let previewLoading = $state(false);
+  let previewError = $state("");
   let qrPool: WorkerPool<QrWorkerRequest, QrWorkerResponse> | null = null;
   let omrPool: WorkerPool<OmrWorkerRequest, OmrWorkerResponse> | null = null;
 
@@ -124,7 +131,7 @@
   /** `exercisesHash` of the template in use — stamped into each detection's run snapshot. */
   let omrTemplateHash: string | undefined;
   let omrAvailable = false;
-  let omrBanner = "";
+  let omrBanner = $state("");
 
   /** Loads the exam's OMR template + MC answer key, gating auto-grading on a fresh (non-stale) template. */
   async function loadOmrContext() {
@@ -400,7 +407,7 @@
     }
   }
 
-  let exportingId: string | null = null;
+  let exportingId: string | null = $state(null);
 
   function drawStrokesOnCanvas(ctx: CanvasRenderingContext2D, strokes: any[]) {
     for (const stroke of strokes) {
@@ -797,12 +804,8 @@
       if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
         try {
           const pdfjsLib = await loadPdfjs();
-          // `{ data }` hands pdf.js the bytes directly. The earlier `{ url:
-          // URL.createObjectURL(file) }` made pdf.js issue its own internal
-          // fetch against the blob: URL, which is connect-src-governed (not
-          // img-src) and got blocked by CSP — img-src already allows blob:,
-          // but nothing here was an image load. Matches the PASS 2 pattern
-          // a few hundred lines below, which never had this problem.
+          // Pass bytes via `{ data }`: a blob: `{ url }` makes pdf.js fetch it, which CSP connect-src
+          // blocks (same pattern as PASS 2 below).
           const fileBytes = new Uint8Array(await file.arrayBuffer());
           const loadingTask = pdfjsLib.getDocument({ data: fileBytes });
           const pdf = await loadingTask.promise;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { type ExerciseGroup } from "$lib/exercise-library/groupExercises";
   import type { ExerciseRecord } from "$lib/db/schema";
   import ExerciseLibraryPicker from "$lib/components/exercise-library/ExerciseLibraryPicker.svelte";
@@ -9,56 +10,75 @@
   import { t } from "$lib/i18n";
   import { Button, Card } from "$lib/components/ui";
 
+  interface Props {
+    activeTab: "library" | "mc" | "custom";
+    selectedLibraryIds: string[];
+    // MC group staging
+    mcStagingIds?: string[];
+    libraryExercises?: ExerciseRecord[];
+    /** exerciseId → title of the group it already belongs to (excluding the one being edited). */
+    mcGroupMembership?: Record<string, string>;
+    /** The group being edited, or null when building a new one. */
+    editingMcGroup?: McGroupDraft | null;
+    onToggleMcStaging?: (id: string) => void;
+    onReorderMcStaging?: (index: number, direction: "up" | "down") => void;
+    onFinalizeMcGroup?: (title: string, scoringText: string) => void;
+    // Library picker data & filters
+    filteredGroups: ExerciseGroup[];
+    totalVariantsCount: number;
+    availableGrades: string[];
+    availableSubjects: string[];
+    availableTopics: string[];
+    searchQuery: string;
+    selectedGradeFilter: string;
+    selectedSubjectFilter: string;
+    selectedTopicFilter: string;
+    activeVariantPerGroup: Record<string, string>;
+    // Custom exercise form state
+    customName: string;
+    customTopicTag: string;
+    customLatexBody: string;
+    saveCustomToLibrary: boolean;
+    // Callbacks (route-owned functions)
+    onToggleSelection: (id: string) => void;
+    onSetGroupVariant: (groupId: string, vKey: string) => void;
+    onQuickEdit: (ex: ExerciseRecord) => void;
+    onAddCustomExercise: () => void;
+  }
 
-
-  export let activeTab: "library" | "mc" | "custom";
-  export let selectedLibraryIds: string[];
-
-  // MC group staging
-  export let mcStagingIds: string[] = [];
-  export let libraryExercises: ExerciseRecord[] = [];
-  /** exerciseId → title of the group it already belongs to (excluding the one being edited). */
-  export let mcGroupMembership: Record<string, string> = {};
-  /** The group being edited, or null when building a new one. */
-  export let editingMcGroup: McGroupDraft | null = null;
-  export let onToggleMcStaging: (id: string) => void = () => {};
-  export let onReorderMcStaging: (index: number, direction: "up" | "down") => void = () => {};
-  export let onFinalizeMcGroup: (title: string, scoringText: string) => void = () => {};
-
-  $: mcStagingExercises = mcStagingIds
-    .map((id) => libraryExercises.find((e) => e.id === id))
-    .filter((e): e is ExerciseRecord => Boolean(e));
-
-  // Editing a group happens in the MC tab.
-  $: if (editingMcGroup) activeTab = "mc";
-
-  // Library picker data & filters
-  export let filteredGroups: ExerciseGroup[];
-  export let totalVariantsCount: number;
-  export let availableGrades: string[];
-  export let availableSubjects: string[];
-  export let availableTopics: string[];
-  export let searchQuery: string;
-  export let selectedGradeFilter: string;
-  export let selectedSubjectFilter: string;
-  export let selectedTopicFilter: string;
-  export let activeVariantPerGroup: Record<string, string>;
-
-  // Custom exercise form state
-  export let customName: string;
-  export let customTopicTag: string;
-  export let customLatexBody: string;
-  export let saveCustomToLibrary: boolean;
-
-  // Callbacks (route-owned functions)
-  export let onToggleSelection: (id: string) => void;
-  export let onSetGroupVariant: (groupId: string, vKey: string) => void;
-  export let onQuickEdit: (ex: ExerciseRecord) => void;
-  export let onAddCustomExercise: () => void;
+  let {
+    activeTab = $bindable(),
+    selectedLibraryIds,
+    mcStagingIds = [],
+    libraryExercises = [],
+    mcGroupMembership = {},
+    editingMcGroup = null,
+    onToggleMcStaging = () => {},
+    onReorderMcStaging = () => {},
+    onFinalizeMcGroup = () => {},
+    filteredGroups,
+    totalVariantsCount,
+    availableGrades,
+    availableSubjects,
+    availableTopics,
+    searchQuery = $bindable(),
+    selectedGradeFilter = $bindable(),
+    selectedSubjectFilter = $bindable(),
+    selectedTopicFilter = $bindable(),
+    activeVariantPerGroup,
+    customName = $bindable(),
+    customTopicTag = $bindable(),
+    customLatexBody = $bindable(),
+    saveCustomToLibrary = $bindable(),
+    onToggleSelection,
+    onSetGroupVariant,
+    onQuickEdit,
+    onAddCustomExercise
+  }: Props = $props();
 
   // Preview drawer state (local to selector)
-  let isPreviewModalOpen = false;
-  let previewModalEx: ExerciseRecord | null = null;
+  let isPreviewModalOpen = $state(false);
+  let previewModalEx: ExerciseRecord | null = $state.raw(null);
 
   function openPreviewModal(ex: ExerciseRecord) {
     previewModalEx = ex;
@@ -74,6 +94,15 @@
     closePreviewModal();
     onQuickEdit(ex);
   }
+
+  let mcStagingExercises = $derived(mcStagingIds
+    .map((id) => libraryExercises.find((e) => e.id === id))
+    .filter((e): e is ExerciseRecord => Boolean(e)));
+  // Editing a group happens in the MC tab.
+  $effect.pre(() => {
+    const group = editingMcGroup;
+    if (group) untrack(() => (activeTab = "mc"));
+  });
 </script>
 
 <Card class="mb-6">

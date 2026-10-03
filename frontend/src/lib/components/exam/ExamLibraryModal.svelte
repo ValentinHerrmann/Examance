@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { type ExerciseGroup } from "$lib/exercise-library/groupExercises";
   import type { ExerciseRecord } from '$lib/db/schema';
   import ExerciseLibraryPicker from '$lib/components/exercise-library/ExerciseLibraryPicker.svelte';
@@ -8,51 +9,79 @@
   import { t } from '$lib/i18n';
   import { Modal, Button } from '$lib/components/ui';
 
-
-
-  export let isOpen: boolean = false;
-  export let filteredGroups: ExerciseGroup[];
-  export let totalVariantsCount: number = 0;
-  export let availableGrades: string[] = [];
-  export let availableSubjects: string[] = [];
-  export let availableTopics: string[] = [];
-  export let librarySearch: string = "";
-  export let selectedGradeFilter: string = "ALL";
-  export let selectedSubjectFilter: string = "ALL";
-  export let selectedTopicFilter: string = "ALL";
-  export let selectedLibraryIds: string[];
-  export let activeVariantPerGroup: Record<string, string>;
-  export let libraryExercises: ExerciseRecord[] = [];
-
-  // MC Group staging props
-  export let mcStagingIds: string[] = [];
-  /** The group being edited (prefills title/scoring), or null for a new group. */
-  export let editingMcGroup: McGroupDraft | null = null;
-  /** exerciseId → title of the group it already belongs to (excluding the one being edited). */
-  export let mcGroupMembership: Record<string, string> = {};
-  export let onToggleMcStaging: (id: string) => void = () => {};
-  export let onReorderMcStaging: (index: number, direction: "up" | "down") => void = () => {};
-  export let onFinalizeMcGroup: (title: string, scoringText: string) => void = () => {};
-
-  export let onToggleSelection: (id: string) => void;
-  export let onSetGroupVariant: (groupId: string, vKey: string) => void;
-  export let onQuickEdit: ((ex: ExerciseRecord) => void) | undefined = undefined;
-  export let onApply: () => void;
-  export let onRequestClose: () => void;
-
-  let activeTab: "normal" | "mc" = "normal";
-
-  $: if (editingMcGroup) {
-    activeTab = "mc";
+  interface Props {
+    isOpen?: boolean;
+    filteredGroups: ExerciseGroup[];
+    totalVariantsCount?: number;
+    availableGrades?: string[];
+    availableSubjects?: string[];
+    availableTopics?: string[];
+    librarySearch?: string;
+    selectedGradeFilter?: string;
+    selectedSubjectFilter?: string;
+    selectedTopicFilter?: string;
+    selectedLibraryIds: string[];
+    activeVariantPerGroup: Record<string, string>;
+    libraryExercises?: ExerciseRecord[];
+    // MC Group staging props
+    mcStagingIds?: string[];
+    /** The group being edited (prefills title/scoring), or null for a new group. */
+    editingMcGroup?: McGroupDraft | null;
+    /** exerciseId → title of the group it already belongs to (excluding the one being edited). */
+    mcGroupMembership?: Record<string, string>;
+    onToggleMcStaging?: (id: string) => void;
+    onReorderMcStaging?: (index: number, direction: "up" | "down") => void;
+    onFinalizeMcGroup?: (title: string, scoringText: string) => void;
+    onToggleSelection: (id: string) => void;
+    onSetGroupVariant: (groupId: string, vKey: string) => void;
+    onQuickEdit?: ((ex: ExerciseRecord) => void) | undefined;
+    onApply: () => void;
+    onRequestClose: () => void;
   }
 
-  $: mcStagingExercises = mcStagingIds
+  let {
+    isOpen = false,
+    filteredGroups,
+    totalVariantsCount = 0,
+    availableGrades = [],
+    availableSubjects = [],
+    availableTopics = [],
+    librarySearch = $bindable(""),
+    selectedGradeFilter = $bindable("ALL"),
+    selectedSubjectFilter = $bindable("ALL"),
+    selectedTopicFilter = $bindable("ALL"),
+    selectedLibraryIds,
+    activeVariantPerGroup,
+    libraryExercises = [],
+    mcStagingIds = [],
+    editingMcGroup = null,
+    mcGroupMembership = {},
+    onToggleMcStaging = () => {},
+    onReorderMcStaging = () => {},
+    onFinalizeMcGroup = () => {},
+    onToggleSelection,
+    onSetGroupVariant,
+    onQuickEdit = undefined,
+    onApply,
+    onRequestClose
+  }: Props = $props();
+
+  let activeTab: "normal" | "mc" = $state("normal");
+
+  $effect.pre(() => {
+    const group = editingMcGroup;
+    if (group) {
+      untrack(() => (activeTab = "mc"));
+    }
+  });
+
+  let mcStagingExercises = $derived(mcStagingIds
     .map((id) => libraryExercises.find((e) => e.id === id))
-    .filter((e): e is ExerciseRecord => Boolean(e));
+    .filter((e): e is ExerciseRecord => Boolean(e)));
 
   // Preview drawer
-  let isPreviewModalOpen = false;
-  let previewModalEx: ExerciseRecord | null = null;
+  let isPreviewModalOpen = $state(false);
+  let previewModalEx: ExerciseRecord | null = $state.raw(null);
 
   function openPreviewModal(ex: ExerciseRecord) {
     previewModalEx = ex;
@@ -63,7 +92,6 @@
     isPreviewModalOpen = false;
     previewModalEx = null;
   }
-
 </script>
 
 <Modal open={isOpen} size="large" title={$t("exam.libraryModal.header")} onClose={onRequestClose}>
@@ -132,10 +160,10 @@
     </div>
   </div>
 
-  <svelte:fragment slot="footer">
+  {#snippet footer()}
     <Button variant="outlined" severity="secondary" onClick={onRequestClose}>{$t("common.cancel")}</Button>
     <Button onClick={onApply}>{$t("exam.libraryModal.applyButton")}</Button>
-  </svelte:fragment>
+  {/snippet}
 </Modal>
 
 {#if isPreviewModalOpen && previewModalEx}

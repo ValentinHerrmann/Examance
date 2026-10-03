@@ -5,17 +5,32 @@
   import InfoTip from "$lib/components/help/InfoTip.svelte";
   import { Alert, ConfirmDialog, Modal, Button, controlClass } from "$lib/components/ui";
 
-  export let isOpen = false;
-  /** Failure or validation message from the page, shown inline. */
-  export let error = "";
-  export let variantBaseEx: ExerciseRecord | null = null;
-  export let variantKey = "";
-  export let variantLatexBody = "";
-  export let showConfirmClose = false;
-  export let onRequestClose: () => void;
-  export let onSave: () => void;
-  export let onForceCloseConfirm: () => void;
-  export let onCancelConfirmClose: () => void;
+  interface Props {
+    isOpen?: boolean;
+    /** Failure or validation message from the page, shown inline. */
+    error?: string;
+    variantBaseEx?: ExerciseRecord | null;
+    variantKey?: string;
+    variantLatexBody?: string;
+    showConfirmClose?: boolean;
+    onRequestClose: () => void;
+    onSave: () => void;
+    onForceCloseConfirm: () => void;
+    onCancelConfirmClose: () => void;
+  }
+
+  let {
+    isOpen = false,
+    error = "",
+    variantBaseEx = null,
+    variantKey = $bindable(""),
+    variantLatexBody = $bindable(""),
+    showConfirmClose = false,
+    onRequestClose,
+    onSave,
+    onForceCloseConfirm,
+    onCancelConfirmClose
+  }: Props = $props();
 </script>
 
 <Modal open={isOpen && !!variantBaseEx} size="large" title={$t("exercises.variantModal.title")} onClose={onRequestClose}>
@@ -54,10 +69,10 @@
     </div>
   {/if}
 
-  <svelte:fragment slot="footer">
+  {#snippet footer()}
     <Button variant="outlined" severity="secondary" onClick={onRequestClose}>{$t("common.cancel")}</Button>
     <Button onClick={onSave}>{$t("exercises.variantModal.saveButton")}</Button>
-  </svelte:fragment>
+  {/snippet}
 </Modal>
 
 <ConfirmDialog

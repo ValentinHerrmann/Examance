@@ -1,6 +1,6 @@
 <script lang="ts">
   import { type ExerciseGroup, groupExercises } from "$lib/exercise-library/groupExercises";
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { db } from "$lib/db/db";
   import { sessionStore, awaitSessionReady } from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
@@ -33,54 +33,54 @@
   import VariantModal from "$lib/components/exercise-library/VariantModal.svelte";
   import ExerciseDiffModal from "$lib/components/exercise-library/ExerciseDiffModal.svelte";
 
-  let exercises: ExerciseRecord[] = [];
-  let selectedTopic: string = "ALL";
-  let selectedGrade: string = "ALL";
-  let selectedSubject: string = "ALL";
-  let searchQuery: string = "";
+  let exercises: ExerciseRecord[] = $state.raw([]);
+  let selectedTopic: string = $state("ALL");
+  let selectedGrade: string = $state("ALL");
+  let selectedSubject: string = $state("ALL");
+  let searchQuery: string = $state("");
 
   // Badge on the mobile filter button, so an active filter is visible without
   // opening the drawer.
-  $: activeFilterCount = countActiveFilters(searchQuery, selectedTopic, selectedGrade, selectedSubject);
-  let isLoading = false;
+  let activeFilterCount = $derived(countActiveFilters(searchQuery, selectedTopic, selectedGrade, selectedSubject));
+  let isLoading = $state(false);
   /** Last failed/invalid action of an open modal, shown inline in it. */
-  let modalError = "";
+  let modalError = $state("");
   let loadAgain = false;
-  let errorMsg = "";
-  let isLocalFallback = false;
+  let errorMsg = $state("");
+  let isLocalFallback = $state(false);
 
   // Shared Editor modal state
-  let isEditorOpen = false;
-  let editingExercise: ExerciseRecord | null = null;
-  let isCreatingVersion = false;
-  let versionBaseEx: ExerciseRecord | null = null;
+  let isEditorOpen = $state(false);
+  let editingExercise: ExerciseRecord | null = $state.raw(null);
+  let isCreatingVersion = $state(false);
+  let versionBaseEx: ExerciseRecord | null = $state.raw(null);
 
   // Delete modal state
-  let isDeleteModalOpen = false;
-  let deletingExercise: ExerciseRecord | null = null;
-  let deleteExams: ExamUsageEntry[] = [];
-  let isDeleteLoading = false;
-  let isDeleting = false;
-  let deleteError = "";
+  let isDeleteModalOpen = $state(false);
+  let deletingExercise: ExerciseRecord | null = $state.raw(null);
+  let deleteExams: ExamUsageEntry[] = $state.raw([]);
+  let isDeleteLoading = $state(false);
+  let isDeleting = $state(false);
+  let deleteError = $state("");
 
   // Regroup modal state
-  let isRegroupModalOpen = false;
-  let regroupingExercise: ExerciseRecord | null = null;
-  let regroupTargetGroupId: string = "";
+  let isRegroupModalOpen = $state(false);
+  let regroupingExercise: ExerciseRecord | null = $state.raw(null);
+  let regroupTargetGroupId: string = $state("");
 
   // Diff modal state
-  let isDiffModalOpen = false;
-  let diffLeftId: string = "";
-  let diffRightId: string = "";
-  let diffGroupExercises: ExerciseRecord[] = [];
-  let diffLeftLatex: string = "";
-  let diffRightLatex: string = "";
-  let isSavingDiffLeft = false;
-  let isSavingDiffRight = false;
-  let showDiffConfirmClose = false;
+  let isDiffModalOpen = $state(false);
+  let diffLeftId: string = $state("");
+  let diffRightId: string = $state("");
+  let diffGroupExercises: ExerciseRecord[] = $state.raw([]);
+  let diffLeftLatex: string = $state("");
+  let diffRightLatex: string = $state("");
+  let isSavingDiffLeft = $state(false);
+  let isSavingDiffRight = $state(false);
+  let showDiffConfirmClose = $state(false);
 
-  let lastLoadedLeftId = "";
-  let lastLoadedRightId = "";
+  let lastLoadedLeftId = $state("");
+  let lastLoadedRightId = $state("");
 
   const expandedGroups = createExpandSet();
 
@@ -91,9 +91,15 @@
     return loadExamUsage(members.map((m) => m.ex.id));
   });
 
-  $: for (const g of allGroups) {
-    if ($expandedGroups[g.groupId]) for (const vKey of g.variants.keys()) usage.ensure(usageKey(g.groupId, vKey));
-  }
+  $effect.pre(() => {
+    const groups = allGroups;
+    const expanded = $expandedGroups;
+    untrack(() => {
+      for (const g of groups) {
+        if (expanded[g.groupId]) for (const vKey of g.variants.keys()) usage.ensure(usageKey(g.groupId, vKey));
+      }
+    });
+  });
 
   const exercisePreview = createPreviewFlow<ExerciseRecord>({
     kind: "exercise",
@@ -112,9 +118,9 @@
       }),
   });
 
-  $: activeDiffGroupExercises = diffGroupExercises.map(
+  let activeDiffGroupExercises = $derived(diffGroupExercises.map(
     (e) => exercises.find((x) => x.id === e.id) || e
-  );
+  ));
 
   function getDiffSelectLabel(ex: ExerciseRecord): string {
     const name = ex.name || translate("exercises.untitled");
@@ -124,50 +130,62 @@
   }
 
   // Lazy: only look up exercises when the diff modal is open
-  $: diffLeftEx = isDiffModalOpen
+  let diffLeftEx = $derived(isDiffModalOpen
     ? (exercises.find((e) => e.id === diffLeftId) || activeDiffGroupExercises.find((e) => e.id === diffLeftId))
-    : null;
-  $: diffRightEx = isDiffModalOpen
+    : null);
+  let diffRightEx = $derived(isDiffModalOpen
     ? (exercises.find((e) => e.id === diffRightId) || activeDiffGroupExercises.find((e) => e.id === diffRightId))
-    : null;
+    : null);
 
-  $: if (diffLeftEx && isDiffModalOpen) {
-    if (diffLeftId !== lastLoadedLeftId) {
-      diffLeftLatex = diffLeftEx.latexBody || "";
-      lastLoadedLeftId = diffLeftId;
+  $effect.pre(() => {
+    const ex = diffLeftEx;
+    const open = isDiffModalOpen;
+    const id = diffLeftId;
+    const loaded = lastLoadedLeftId;
+    if (ex && open && id !== loaded) {
+      untrack(() => {
+        diffLeftLatex = ex.latexBody || "";
+        lastLoadedLeftId = id;
+      });
     }
-  }
+  });
 
-  $: if (diffRightEx && isDiffModalOpen) {
-    if (diffRightId !== lastLoadedRightId) {
-      diffRightLatex = diffRightEx.latexBody || "";
-      lastLoadedRightId = diffRightId;
+  $effect.pre(() => {
+    const ex = diffRightEx;
+    const open = isDiffModalOpen;
+    const id = diffRightId;
+    const loaded = lastLoadedRightId;
+    if (ex && open && id !== loaded) {
+      untrack(() => {
+        diffRightLatex = ex.latexBody || "";
+        lastLoadedRightId = id;
+      });
     }
-  }
+  });
 
-  $: isDiffLeftDirty = diffLeftEx ? diffLeftLatex !== (diffLeftEx.latexBody || "") : false;
-  $: isDiffRightDirty = diffRightEx ? diffRightLatex !== (diffRightEx.latexBody || "") : false;
+  let isDiffLeftDirty = $derived(diffLeftEx ? diffLeftLatex !== (diffLeftEx.latexBody || "") : false);
+  let isDiffRightDirty = $derived(diffRightEx ? diffRightLatex !== (diffRightEx.latexBody || "") : false);
 
-  $: availableGrades = uniqueSorted(exercises, (e) => e.grade);
-  $: availableSubjects = uniqueSorted(exercises, (e) => e.subject);
+  let availableGrades = $derived(uniqueSorted(exercises, (e) => e.grade));
+  let availableSubjects = $derived(uniqueSorted(exercises, (e) => e.subject));
 
-  $: filteredExercises = exercises.filter(
+  let filteredExercises = $derived(exercises.filter(
     (ex) =>
       (selectedTopic === "ALL" || ex.topicTag === selectedTopic) &&
       (selectedGrade === "ALL" || ex.grade === selectedGrade) &&
       (selectedSubject === "ALL" || ex.subject === selectedSubject) &&
       matchesQuery(searchQuery, ex.name, ex.topicTag, ex.grade, ex.subject, ex.latexBody)
-  );
+  ));
 
   // Grouped view: filter then group
-  $: allGroups = groupExercises(exercises);
+  let allGroups = $derived(groupExercises(exercises));
   // Topic pills count groups, not exercise rows.
-  $: topicPillOptions = uniqueSorted(exercises, (e) => e.topicTag).map((topic) => ({
+  let topicPillOptions = $derived(uniqueSorted(exercises, (e) => e.topicTag).map((topic) => ({
     value: topic,
     label: topic,
     count: allGroups.filter((g) => g.topicTag === topic).length,
-  }));
-  $: filteredGroups = groupExercises(filteredExercises);
+  })));
+  let filteredGroups = $derived(groupExercises(filteredExercises));
 
   onMount(() => {
     loadExercises();
@@ -247,13 +265,13 @@
   }
 
   // Group metadata modal state
-  let isGroupModalOpen = false;
-  let editingGroup: ExerciseGroup | null = null;
-  let groupEditorName = "";
-  let groupEditorTopicTag = "_General";
-  let groupEditorGrade = "";
-  let groupEditorSubject = "";
-  let isGroupSaving = false;
+  let isGroupModalOpen = $state(false);
+  let editingGroup: ExerciseGroup | null = $state.raw(null);
+  let groupEditorName = $state("");
+  let groupEditorTopicTag = $state("_General");
+  let groupEditorGrade = $state("");
+  let groupEditorSubject = $state("");
+  let isGroupSaving = $state(false);
 
   function openGroupModal(group: ExerciseGroup) {
     modalError = "";
@@ -346,24 +364,25 @@
   }
 
   // Variant modal state
-  let isVariantModalOpen = false;
-  let variantBaseEx: ExerciseRecord | null = null;
-  let variantKey = "";
-  let variantName = "";
-  let variantTopicTag = "";
-  let variantLatexBody = "";
+  let isVariantModalOpen = $state(false);
+  let variantBaseEx: ExerciseRecord | null = $state.raw(null);
+  let variantKey = $state("");
+  let variantName = $state("");
+  let variantTopicTag = $state("");
+  let variantLatexBody = $state("");
 
-  let initialVariantName = "";
-  let initialVariantKey = "";
-  let initialVariantTopicTag = "";
-  let initialVariantLatexBody = "";
-  let showVariantConfirmClose = false;
+  let initialVariantName = $state("");
+  let initialVariantKey = $state("");
+  let initialVariantTopicTag = $state("");
+  let initialVariantLatexBody = $state("");
+  let showVariantConfirmClose = $state(false);
 
-  $: isVariantDirty =
+  let isVariantDirty = $derived(
     variantName !== initialVariantName ||
     variantKey !== initialVariantKey ||
     variantTopicTag !== initialVariantTopicTag ||
-    variantLatexBody !== initialVariantLatexBody;
+    variantLatexBody !== initialVariantLatexBody
+  );
 
   function openRegroupModal(ex: ExerciseRecord) {
     modalError = "";
@@ -662,9 +681,9 @@
     subtitle={$t("exercises.page.subtitle")}
     helpTopic="exercises"
   >
-    <svelte:fragment slot="actions">
+    {#snippet actions()}
       <Button icon={faPlus} onClick={openCreateModal}>{$t("exercises.page.createButton")}</Button>
-    </svelte:fragment>
+    {/snippet}
   </PageHeader>
 
   {#if isLocalFallback}
@@ -681,7 +700,7 @@
     activeCount={activeFilterCount}
     busy={isLoading}
   >
-    <svelte:fragment slot="filters" let:close>
+    {#snippet filters({ close })}
       <ListFilterPanel
         bind:searchQuery
         bind:selectedGrade
@@ -697,7 +716,7 @@
           close();
         }}
       />
-    </svelte:fragment>
+    {/snippet}
 
   <ExerciseGroupList
     isLoading={isLoading && exercises.length === 0}
@@ -738,8 +757,8 @@
   editingExercise={editingExercise}
   isCreatingVersion={isCreatingVersion}
   versionBaseEx={versionBaseEx}
-  on:close={() => (isEditorOpen = false)}
-  on:save={handleExerciseSaved}
+  onClose={() => (isEditorOpen = false)}
+  onSave={handleExerciseSaved}
 />
 
 <GroupEditModal

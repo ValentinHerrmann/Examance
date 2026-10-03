@@ -16,21 +16,40 @@
   } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, ExpandableCard, Menu, MenuItem } from "$lib/components/ui";
 
-  export let isLoading = false;
-  export let filteredGroups: ExerciseGroup[] = [];
-  export let expandedGroups: { [groupId: string]: boolean } = {};
-  export let onToggleGroup: (groupId: string) => void;
-  export let onEditGroup: (group: ExerciseGroup) => void;
-  export let onEditExercise: (ex: ExerciseRecord) => void;
-  export let onNewVersion: (ex: ExerciseRecord) => void;
-  export let onDiff: (ex: ExerciseRecord) => void;
-  export let onRegroup: (ex: ExerciseRecord) => void;
-  export let onDelete: (ex: ExerciseRecord) => void;
-  export let onPreview: (ex: ExerciseRecord) => void;
-  /** Keyed `${groupId}|${variantKey}`; absent = not requested yet. */
-  export let usageMap: Map<string, LazyEntry<ExamUsageEntry[]>> = new Map();
-  export let onOpenVariant: (ex: ExerciseRecord) => void;
-  export let onCreateFirst: () => void;
+  interface Props {
+    isLoading?: boolean;
+    filteredGroups?: ExerciseGroup[];
+    expandedGroups?: { [groupId: string]: boolean };
+    onToggleGroup: (groupId: string) => void;
+    onEditGroup: (group: ExerciseGroup) => void;
+    onEditExercise: (ex: ExerciseRecord) => void;
+    onNewVersion: (ex: ExerciseRecord) => void;
+    onDiff: (ex: ExerciseRecord) => void;
+    onRegroup: (ex: ExerciseRecord) => void;
+    onDelete: (ex: ExerciseRecord) => void;
+    onPreview: (ex: ExerciseRecord) => void;
+    /** Keyed `${groupId}|${variantKey}`; absent = not requested yet. */
+    usageMap?: Map<string, LazyEntry<ExamUsageEntry[]>>;
+    onOpenVariant: (ex: ExerciseRecord) => void;
+    onCreateFirst: () => void;
+  }
+
+  let {
+    isLoading = false,
+    filteredGroups = [],
+    expandedGroups = {},
+    onToggleGroup,
+    onEditGroup,
+    onEditExercise,
+    onNewVersion,
+    onDiff,
+    onRegroup,
+    onDelete,
+    onPreview,
+    usageMap = new Map(),
+    onOpenVariant,
+    onCreateFirst
+  }: Props = $props();
 
   const variantPillBase =
     "rounded-xl border border-line bg-surface-sunken px-2.5 py-1 text-xs text-muted";
@@ -59,7 +78,7 @@
         expanded={isExpanded}
         onToggle={() => onToggleGroup(group.groupId)}
       >
-        <svelte:fragment slot="badges">
+        {#snippet badges()}
           {#if group.topicTag}
             <Badge>{group.topicTag}</Badge>
           {/if}
@@ -75,9 +94,9 @@
               : $t("exercises.groupList.pointsSingle", { max: group.maxPoints })}
           </Badge>
           <Badge>{variantCount !== 1 ? $t("exercises.groupList.variantCountPlural", { count: variantCount }) : $t("exercises.groupList.variantCountSingular", { count: variantCount })}</Badge>
-        </svelte:fragment>
+        {/snippet}
 
-        <svelte:fragment slot="actions">
+        {#snippet actions()}
           <Button
             variant="text"
             severity="secondary"
@@ -88,9 +107,9 @@
             ariaLabel={$t("exercises.groupList.editGroupAriaLabel")}
             onClick={() => onEditGroup(group)}
           />
-        </svelte:fragment>
+        {/snippet}
 
-        <svelte:fragment slot="preview">
+        {#snippet preview()}
           {#each group.variants.keys() as vKey}
             {@const vMembers = group.variants.get(vKey) || []}
             {@const latestVer = vMembers[0]?.version || 1}
@@ -98,9 +117,9 @@
               {vKey} <strong>v{latestVer}</strong>
             </span>
           {/each}
-        </svelte:fragment>
+        {/snippet}
 
-        <svelte:fragment slot="body">
+        {#snippet body()}
           {#each group.variants as [vKey, vMembers], vIdx}
             {@const used = usageMap.get(usageKey(group.groupId, vKey))}
             <div class="{vIdx === group.variants.size - 1 ? '' : 'mb-2 border-b border-line pb-2'}">
@@ -167,34 +186,34 @@
               {/each}
             </div>
           {/each}
-        </svelte:fragment>
+        {/snippet}
 
-        <svelte:fragment slot="footer">
-            <Button
-              variant="outlined"
-              severity="secondary"
-              size="sm"
-              icon={faPenToSquare}
-              title={$t("exercises.groupList.editGroupTitle")}
-              onClick={() => onEditGroup(group)}
-            >{$t("exercises.groupList.editGroupButtonText")}</Button>
-            <Button
-              variant="outlined"
-              severity="secondary"
-              size="sm"
-              icon={faClone}
-              title={$t("exercises.groupList.createVariantTitle")}
-              onClick={() => onOpenVariant(rep)}
-            >{$t("exercises.groupList.createVariantText")}</Button>
-            <Button
-              variant="outlined"
-              severity="secondary"
-              size="sm"
-              icon={faFileCirclePlus}
-              title={$t("exercises.groupList.newVersionOfFirstTitle")}
-              onClick={() => onNewVersion(rep)}
-            >{$t("exercises.groupList.newVersionText")}</Button>
-        </svelte:fragment>
+        {#snippet footer()}
+          <Button
+            variant="outlined"
+            severity="secondary"
+            size="sm"
+            icon={faPenToSquare}
+            title={$t("exercises.groupList.editGroupTitle")}
+            onClick={() => onEditGroup(group)}
+          >{$t("exercises.groupList.editGroupButtonText")}</Button>
+          <Button
+            variant="outlined"
+            severity="secondary"
+            size="sm"
+            icon={faClone}
+            title={$t("exercises.groupList.createVariantTitle")}
+            onClick={() => onOpenVariant(rep)}
+          >{$t("exercises.groupList.createVariantText")}</Button>
+          <Button
+            variant="outlined"
+            severity="secondary"
+            size="sm"
+            icon={faFileCirclePlus}
+            title={$t("exercises.groupList.newVersionOfFirstTitle")}
+            onClick={() => onNewVersion(rep)}
+          >{$t("exercises.groupList.newVersionText")}</Button>
+        {/snippet}
       </ExpandableCard>
     {/each}
   </div>

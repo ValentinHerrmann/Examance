@@ -1,20 +1,18 @@
 <script lang="ts">
-  /**
-   * The second sign-in factor: a code from the authenticator app, or a backup
-   * code standing in for it.
-   *
-   * A backup code counts as the *same* factor rather than a third one — it
-   * replaces the authenticator, it does not add to it.
-   */
+  /** Second sign-in factor: an authenticator code, or a backup code standing in for it (the same factor, not a third). */
   import { Button, Field, TextInput } from "$lib/components/ui";
   import { t } from "$lib/i18n";
 
-  export let onSubmit: (code: string, useBackupCode: boolean) => Promise<void>;
-  export let errorMsg = "";
+  interface Props {
+    onSubmit: (code: string, useBackupCode: boolean) => Promise<void>;
+    errorMsg?: string;
+  }
 
-  let code = "";
-  let useBackupCode = false;
-  let isWorking = false;
+  let { onSubmit, errorMsg = "" }: Props = $props();
+
+  let code = $state("");
+  let useBackupCode = $state(false);
+  let isWorking = $state(false);
 
   async function submit() {
     if (!code.trim() || isWorking) {
@@ -35,7 +33,7 @@
   }
 </script>
 
-<form class="flex w-full flex-col gap-4" on:submit|preventDefault={submit}>
+<form class="flex w-full flex-col gap-4" onsubmit={(e) => { e.preventDefault(); submit(); }}>
   <div>
     <h2 class="m-0 text-xl font-medium text-content">
       {useBackupCode ? $t("security.factors.backupTitle") : $t("security.factors.totpTitle")}

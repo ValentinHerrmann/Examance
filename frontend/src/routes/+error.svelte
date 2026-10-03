@@ -1,17 +1,20 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { page } from "$app/stores";
   import { faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
   import { httpErrorStore } from "$lib/stores/httpErrorStore";
   import { t, translate } from "$lib/i18n";
   import { Button, Icon, PageShell } from "$lib/components/ui";
 
-  $: status = $page.status || 404;
-  $: message = $page.error?.message || translate("dashboard.error.notFound");
+  let status = $derived($page.status || 404);
+  let message = $derived($page.error?.message || translate("dashboard.error.notFound"));
 
-  $: if (typeof window !== "undefined" && status) {
-    httpErrorStore.showError(status, message);
-  }
+  $effect.pre(() => {
+    const s = status;
+    const m = message;
+    if (typeof window === "undefined" || !s) return;
+    untrack(() => httpErrorStore.showError(s, m));
+  });
 
   onMount(() => {
     httpErrorStore.showError(status, message);

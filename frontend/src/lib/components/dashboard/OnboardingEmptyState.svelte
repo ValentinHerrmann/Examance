@@ -45,12 +45,12 @@
       {/each}
     </ol>
 
-    <svelte:fragment slot="actions">
+    {#snippet actions()}
       <Button href="/exam/new">{$t("dashboard.onboarding.createFirst")}</Button>
       <Button variant="outlined" severity="secondary" onClick={() => document.getElementById("importFile")?.click()}>
         {$t("dashboard.onboarding.importArchive")}
       </Button>
-    </svelte:fragment>
+    {/snippet}
   </EmptyState>
 
   <p class="m-0 text-center text-sm">

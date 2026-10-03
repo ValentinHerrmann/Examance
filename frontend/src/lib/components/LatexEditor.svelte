@@ -1,4 +1,4 @@
-<script context="module" lang="ts">
+<script module lang="ts">
   export interface DiffWordDecoration {
     startCol: number;
     endCol: number;
@@ -38,7 +38,7 @@
 </script>
 
 <script lang="ts">
-  import { onMount, onDestroy, createEventDispatcher } from "svelte";
+  import { onMount, onDestroy, untrack } from "svelte";
   import { EditorView, BlockType, keymap, drawSelection, lineNumbers } from "@codemirror/view";
   import { EditorState, EditorSelection, Compartment } from "@codemirror/state";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
@@ -54,41 +54,53 @@
   import { t, type TranslationKey } from "$lib/i18n";
   import { theme } from "$lib/stores/theme";
 
-  export let value: string = "";
-  export let rows: number = 8;
-  export let readonly: boolean = false;
-  export let diffDecorations: DiffDecorationConfig | null = null;
-  export let showQuickInsert: boolean = false;
-  /** Called when CodeMirror re-measures line heights (re-wrap, resize, edit). */
-  export let onGeometryChange: (() => void) | null = null;
+  interface Props {
+    value?: string;
+    rows?: number;
+    readonly?: boolean;
+    diffDecorations?: DiffDecorationConfig | null;
+    showQuickInsert?: boolean;
+    /** Called when CodeMirror re-measures line heights (re-wrap, resize, edit). */
+    onGeometryChange?: (() => void) | null;
+    onChange?: (value: string) => void;
+    onScroll?: (detail: { scrollTop: number; scrollLeft: number }) => void;
+  }
 
-  // Applied to both wrapper divs below, not just CodeMirror's internal nodes.
-  // Ancestors that mix `flex-1`/`h-full`/`min-h-0` (the exercise editor's
-  // stacked-on-phone column, in particular) can resolve these wrappers to
-  // ~0px during flex layout since they had no explicit floor of their own —
-  // CodeMirror would then paint content that overflowed a collapsed box
-  // rather than a visibly-sized editor. An explicit min-height here beats
-  // that regardless of how the ancestors' flex math comes out.
-  $: wrapperMinHeight = `${Math.max(rows, 3) * 1.5}rem`;
+  let {
+    value = $bindable(""),
+    rows = 8,
+    readonly = false,
+    diffDecorations = null,
+    showQuickInsert = false,
+    onGeometryChange = null,
+    onChange,
+    onScroll
+  }: Props = $props();
 
-  $: macroCategories = (["solutions", "scoring", "formatting", "generic"] as const).map((category) => ({
+  // Applied to both wrapper divs: flex ancestors (the editor's stacked phone column)
+  // can otherwise collapse them to ~0px and CodeMirror paints into a collapsed box.
+  let wrapperMinHeight = $derived(`${Math.max(rows, 3) * 1.5}rem`);
+
+  let macroCategories = $derived((["solutions", "scoring", "formatting", "generic"] as const).map((category) => ({
     category,
     macros: QUICK_INSERT_MACROS.filter((m) => m.category === category)
-  }));
-  $: categoryLabels = {
+  })));
+  let categoryLabels = $derived({
     solutions: $t("editor.categories.solutions"),
     scoring: $t("editor.categories.scoring"),
     formatting: $t("editor.categories.formatting"),
     generic: $t("editor.categories.generic")
-  } satisfies Record<QuickInsertMacro["category"], string>;
+  } satisfies Record<QuickInsertMacro["category"], string>);
 
   // Palette text is keyed by macro id, so the key is only known at runtime and
   // has to be cast. A key missing from the catalogs renders as the key itself
   // rather than an empty button.
-  $: macroLabel = (macro: QuickInsertMacro) =>
-    $t(`editor.macros.${macro.id}.label` as TranslationKey);
-  $: macroDescription = (macro: QuickInsertMacro) =>
-    $t(`editor.macros.${macro.id}.description` as TranslationKey);
+  function macroLabel(macro: QuickInsertMacro) {
+    return $t(`editor.macros.${macro.id}.label` as TranslationKey);
+  }
+  function macroDescription(macro: QuickInsertMacro) {
+    return $t(`editor.macros.${macro.id}.description` as TranslationKey);
+  }
 
   function insertMacro(macro: QuickInsertMacro) {
     if (!view) return;
@@ -103,9 +115,9 @@
   }
 
   const TOOLTIP_OPEN_DELAY_MS = 120;
-  let hoveredMacro: QuickInsertMacro | null = null;
-  let tooltipX = 0;
-  let tooltipY = 0;
+  let hoveredMacro: QuickInsertMacro | null = $state.raw(null);
+  let tooltipX = $state(0);
+  let tooltipY = $state(0);
   let hoverTimer: ReturnType<typeof setTimeout> | null = null;
 
   function scheduleTooltip(macro: QuickInsertMacro, target: HTMLElement) {
@@ -135,14 +147,9 @@
     hoveredMacro = null;
   }
 
-  const dispatch = createEventDispatcher<{
-    change: string;
-    scroll: { scrollTop: number; scrollLeft: number };
-  }>();
-
-  let container: HTMLDivElement;
-  let view: EditorView | null = null;
-  let isInternalUpdate = false;
+  let container: HTMLDivElement | undefined = $state();
+  let view: EditorView | null = $state.raw(null);
+  let isInternalUpdate = $state(false);
   let isSyncingScroll = false;
   let handleScrollListener: (() => void) | null = null;
   const editableCompartment = new Compartment();
@@ -203,12 +210,8 @@
     }
   }
 
-  /**
-   * Rendered height of each line's text (including soft-wrapped rows).
-   * Block widgets attached to a line — the diff padding and gap spacers —
-   * are excluded: they are sized from these numbers, so counting them would
-   * feed the padding back into the next measurement.
-   */
+  // Rendered text height per line (incl. soft wraps). Diff padding/gap widgets are excluded:
+  // they are sized from these numbers, so counting them would feed back into the next measure.
   export function getLineHeights(): Map<number, number> {
     const heights = new Map<number, number>();
     if (!view) return heights;
@@ -266,7 +269,7 @@
           if (update.docChanged) {
             isInternalUpdate = true;
             value = update.state.doc.toString();
-            dispatch("change", value);
+            onChange?.(value);
             isInternalUpdate = false;
           }
           if (update.geometryChanged || update.heightChanged) {
@@ -284,7 +287,7 @@
     const scrollDOM = view.scrollDOM;
     handleScrollListener = () => {
       if (isSyncingScroll) return;
-      dispatch("scroll", {
+      onScroll?.({
         scrollTop: scrollDOM.scrollTop,
         scrollLeft: scrollDOM.scrollLeft
       });
@@ -292,30 +295,50 @@
     scrollDOM.addEventListener("scroll", handleScrollListener, { passive: true });
   });
 
-  $: if (view) {
-    applyDiffDecorations(view, diffDecorations);
-  }
+  $effect.pre(() => {
+    const v = view;
+    const decorations = diffDecorations;
+    if (!v) return;
+    untrack(() => applyDiffDecorations(v, decorations));
+  });
 
-  $: if (view && !isInternalUpdate) {
-    const currentDoc = view.state.doc.toString();
-    if (currentDoc !== value) {
-      view.dispatch({
-        changes: { from: 0, to: currentDoc.length, insert: value }
+  // External `value` changes sync into CodeMirror; typing sets isInternalUpdate so it doesn't loop.
+  $effect.pre(() => {
+    const v = view;
+    const internal = isInternalUpdate;
+    const next = value;
+    if (!v || internal) return;
+    untrack(() => {
+      const currentDoc = v.state.doc.toString();
+      if (currentDoc !== next) {
+        v.dispatch({
+          changes: { from: 0, to: currentDoc.length, insert: next }
+        });
+      }
+    });
+  });
+
+  $effect.pre(() => {
+    const v = view;
+    const ro = readonly;
+    if (!v) return;
+    untrack(() => {
+      v.dispatch({
+        effects: editableCompartment.reconfigure(EditorView.editable.of(!ro))
       });
-    }
-  }
-
-  $: if (view) {
-    view.dispatch({
-      effects: editableCompartment.reconfigure(EditorView.editable.of(!readonly))
     });
-  }
+  });
 
-  $: if (view) {
-    view.dispatch({
-      effects: themeCompartment.reconfigure(createLatexTheme($theme === "dark"))
+  $effect.pre(() => {
+    const v = view;
+    const dark = $theme === "dark";
+    if (!v) return;
+    untrack(() => {
+      v.dispatch({
+        effects: themeCompartment.reconfigure(createLatexTheme(dark))
+      });
     });
-  }
+  });
 
   onDestroy(() => {
     if (hoverTimer) clearTimeout(hoverTimer);
@@ -344,11 +367,11 @@
               <button
                 type="button"
                 class="rounded-md border border-line bg-surface-sunken px-2 py-0.5 text-xs text-accent hover:border-primary hover:bg-surface-raised"
-                on:click={() => insertMacro(macro)}
-                on:mouseenter={(e) => scheduleTooltip(macro, e.currentTarget)}
-                on:mouseleave={hideTooltip}
-                on:focus={(e) => scheduleTooltip(macro, e.currentTarget)}
-                on:blur={hideTooltip}
+                onclick={() => insertMacro(macro)}
+                onmouseenter={(e) => scheduleTooltip(macro, e.currentTarget)}
+                onmouseleave={hideTooltip}
+                onfocus={(e) => scheduleTooltip(macro, e.currentTarget)}
+                onblur={hideTooltip}
               >
                 {macroLabel(macro)}
               </button>

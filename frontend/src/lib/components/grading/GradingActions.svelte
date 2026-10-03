@@ -4,12 +4,20 @@
   import { faArrowLeft, faArrowRight, faFloppyDisk } from "@fortawesome/free-solid-svg-icons";
   import { Button } from "$lib/components/ui";
 
-  // Async persistence and navigation stay route-owned; this component only
-  // forwards user intent via callback props.
-  export let onSave: () => void;
-  export let onPrev: () => void;
-  export let onNext: () => void;
-  export let currentIndex: number;
+  interface Props {
+    /** Persistence and navigation stay route-owned; callbacks only forward user intent. */
+    onSave: () => void;
+    onPrev: () => void;
+    onNext: () => void;
+    currentIndex: number;
+  }
+
+  let {
+    onSave,
+    onPrev,
+    onNext,
+    currentIndex
+  }: Props = $props();
 </script>
 
 <Button block icon={faFloppyDisk} disabled={$gradingStore.isSaving} onClick={onSave}>

@@ -4,10 +4,19 @@
   import { t } from "$lib/i18n";
   import { Button, Card, TableScroller } from "$lib/components/ui";
 
-  export let students: StudentRecord[];
-  export let isErasing: boolean;
-  export let onErase: (pseudonymId: string, examId: string) => void;
-  export let onExport: (pseudonymId: string) => void;
+  interface Props {
+    students: StudentRecord[];
+    isErasing: boolean;
+    onErase: (pseudonymId: string, examId: string) => void;
+    onExport: (pseudonymId: string) => void;
+  }
+
+  let {
+    students,
+    isErasing,
+    onErase,
+    onExport
+  }: Props = $props();
 </script>
 
 <Card title={$t("admin.gdprErasureTable.title")}>

@@ -25,10 +25,10 @@
     TotpFactorCard,
   } from "$lib/components/security";
 
-  let status: MfaStatus | null = null;
-  let passkeys: PasskeySummary[] = [];
-  let errorMsg = "";
-  let isLoading = true;
+  let status: MfaStatus | null = $state.raw(null);
+  let passkeys: PasskeySummary[] = $state.raw([]);
+  let errorMsg = $state("");
+  let isLoading = $state(true);
 
   /**
    * One load for the whole page.
@@ -49,13 +49,13 @@
     }
   }
 
-  $: navItems = [
+  let navItems = $derived([
     { id: "summary", label: $t("security.panel.enrolled") },
     { id: "password", label: $t("security.panel.factorPassword") },
     { id: "totp", label: $t("security.panel.factorTotp") },
     { id: "passkeys", label: $t("security.passkey.title") },
     { id: "recovery", label: $t("security.recovery.title") },
-  ];
+  ]);
 
   onMount(load);
 </script>

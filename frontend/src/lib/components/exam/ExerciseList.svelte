@@ -1,4 +1,4 @@
-<script context="module" lang="ts">
+<script module lang="ts">
   export interface ExamItemRef {
     type: "exercise" | "mc_group";
     id: string;
@@ -21,16 +21,31 @@
     memberIds: string[];
   }
 
-  export let exercises: ExerciseRecord[];
-  export let mcGroups: McGroup[] = [];
-  export let libraryExercises: ExerciseRecord[] = [];
-  export let examItems: ExamItemRef[] = [];
-  export let onRemove: (exerciseId: string) => void;
-  export let onMoveUp: ((index: number) => void) | undefined = undefined;
-  export let onMoveDown: ((index: number) => void) | undefined = undefined;
-  export let onMoveExamItem: ((index: number, direction: "up" | "down") => void) | undefined = undefined;
-  export let onRemoveMcGroup: ((groupId: string) => void) | undefined = undefined;
-  export let onEditMcGroup: ((groupId: string) => void) | undefined = undefined;
+  interface Props {
+    exercises: ExerciseRecord[];
+    mcGroups?: McGroup[];
+    libraryExercises?: ExerciseRecord[];
+    examItems?: ExamItemRef[];
+    onRemove: (exerciseId: string) => void;
+    onMoveUp?: ((index: number) => void) | undefined;
+    onMoveDown?: ((index: number) => void) | undefined;
+    onMoveExamItem?: ((index: number, direction: "up" | "down") => void) | undefined;
+    onRemoveMcGroup?: ((groupId: string) => void) | undefined;
+    onEditMcGroup?: ((groupId: string) => void) | undefined;
+  }
+
+  let {
+    exercises,
+    mcGroups = [],
+    libraryExercises = [],
+    examItems = [],
+    onRemove,
+    onMoveUp = undefined,
+    onMoveDown = undefined,
+    onMoveExamItem = undefined,
+    onRemoveMcGroup = undefined,
+    onEditMcGroup = undefined
+  }: Props = $props();
 
   function memberExercises(group: McGroup): ExerciseRecord[] {
     return group.memberIds
@@ -52,7 +67,7 @@
   const infoClass = "flex min-w-0 flex-wrap items-center gap-3";
   const actionsClass = "flex shrink-0 gap-1";
 
-  $: totalItemCount = examItems.length > 0 ? examItems.length : exercises.length + mcGroups.length;
+  let totalItemCount = $derived(examItems.length > 0 ? examItems.length : exercises.length + mcGroups.length);
 </script>
 
 <div class="mb-6 min-w-0">

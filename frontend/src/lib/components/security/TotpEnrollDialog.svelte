@@ -1,30 +1,23 @@
 <script lang="ts">
-  /**
-   * Sets up the authenticator factor.
-   *
-   * Reached from the enrollment scope, which is where an account with only one
-   * factor is held — so this is the screen every existing account sees on its
-   * first sign-in after the policy landed, and it has to be able to complete
-   * without a full session.
-   *
-   * The QR code is rendered here from the bundled `qrcode` dependency. Not a
-   * design preference: the Content-Security-Policy is `script-src 'self'`, and
-   * the shared secret must not be handed to a third-party QR service anyway.
-   */
+  /** Sets up the authenticator factor, reached from the enrollment scope without a full session. The QR is rendered from the bundled `qrcode` dependency: CSP is `script-src 'self'` and the secret must not go to a third-party QR service. */
   import QRCode from "qrcode";
   import { onMount } from "svelte";
   import { Button, Field, Modal, TextInput } from "$lib/components/ui";
   import { t } from "$lib/i18n";
   import { confirmTotpEnrollment, startTotpEnrollment } from "$lib/api/mfa";
 
-  export let onEnrolled: (backupCodes: string[]) => void;
+  interface Props {
+    onEnrolled: (backupCodes: string[]) => void;
+  }
+
+  let { onEnrolled }: Props = $props();
 
   let otpauthUri = "";
-  let qrDataUrl = "";
-  let manualKey = "";
-  let code = "";
-  let errorMsg = "";
-  let isWorking = false;
+  let qrDataUrl = $state("");
+  let manualKey = $state("");
+  let code = $state("");
+  let errorMsg = $state("");
+  let isWorking = $state(false);
 
   onMount(async () => {
     try {
@@ -59,7 +52,7 @@
   closeOnBackdrop={false}
   closeOnEscape={false}
 >
-  <form class="flex flex-col gap-4" on:submit|preventDefault={confirm}>
+  <form class="flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); confirm(); }}>
     <p class="text-sm text-muted">{$t("security.enroll.intro")}</p>
 
     <p class="text-sm text-content">{$t("security.enroll.step1")}</p>
@@ -97,9 +90,11 @@
     </Field>
   </form>
 
-  <svelte:fragment slot="footer">
-    <Button disabled={isWorking || !code.trim()} loading={isWorking} onClick={confirm}>
-      {isWorking ? $t("security.enroll.working") : $t("security.enroll.confirm")}
-    </Button>
-  </svelte:fragment>
+  {#snippet footer()}
+
+      <Button disabled={isWorking || !code.trim()} loading={isWorking} onClick={confirm}>
+        {isWorking ? $t("security.enroll.working") : $t("security.enroll.confirm")}
+      </Button>
+
+  {/snippet}
 </Modal>

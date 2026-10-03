@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { faPlus } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, EmptyState, Field, Panel, TableScroller, Textarea, TextInput } from "$lib/components/ui";
   import { get } from "svelte/store";
@@ -10,27 +11,38 @@
   import type { StudentRecord, SubmissionRecord } from "$lib/db/schema";
   import { t, translate } from "$lib/i18n";
 
-  export let examId: string;
-  export let students: StudentRecord[] = [];
-  export let submissions: SubmissionRecord[] = [];
-  export let onRosterChanged: () => void = () => {};
-
-  let newName = "";
-  let newStudentNumber = "";
-  let newFallbackCode = "";
-  let showBulk = false;
-  let bulkText = "";
-
-  let editingPseudonymId: string | null = null;
-  let editName = "";
-  let editStudentNumber = "";
-
-  let submissionMap = new Map<string, SubmissionRecord>();
-  $: {
-    buildSubmissionMap(submissions, students).then((m) => {
-      submissionMap = m;
-    });
+  interface Props {
+    examId: string;
+    students?: StudentRecord[];
+    submissions?: SubmissionRecord[];
+    onRosterChanged?: () => void;
   }
+
+  let { examId, students = [], submissions = [], onRosterChanged = () => {} }: Props = $props();
+
+  let newName = $state("");
+  let newStudentNumber = $state("");
+  let newFallbackCode = $state("");
+  let showBulk = $state(false);
+  let bulkText = $state("");
+
+  let editingPseudonymId: string | null = $state(null);
+  let editName = $state("");
+  let editStudentNumber = $state("");
+
+  let submissionMap = $state.raw(new Map<string, SubmissionRecord>());
+  // Only the newest build may write, so a slower stale build cannot overwrite a newer map.
+  let submissionMapSeq = 0;
+  $effect.pre(() => {
+    const subs = submissions;
+    const sts = students;
+    const seq = ++submissionMapSeq;
+    untrack(() =>
+      buildSubmissionMap(subs, sts).then((m) => {
+        if (seq === submissionMapSeq) submissionMap = m;
+      }),
+    );
+  });
 
   async function handleAddSingle() {
     if (!newName.trim()) return;
@@ -133,24 +145,32 @@
     await studentRepository.delete(examId, st.pseudonymId);
     onRosterChanged();
   }
+
+  const bulkPlaceholder = "Musterfrau, Karin\t12345\nMustermann, Peter\t67890\n ...";
 </script>
 
 <div class="flex min-w-0 flex-col gap-6">
   <Panel title={$t("grading.manual.roster.addTitle")}>
-    <form on:submit|preventDefault={handleAddSingle} class="flex flex-wrap items-end gap-4">
-      <Field label={$t("grading.manual.roster.nameLabel")} class="min-w-[min(11rem,100%)] flex-1" let:id>
-        <TextInput
-          {id}
-          bind:value={newName}
-          placeholder={$t("grading.manual.roster.namePlaceholder")}
-          required
-        />
+    <form onsubmit={(e) => { e.preventDefault(); handleAddSingle(); }} class="flex flex-wrap items-end gap-4">
+      <Field label={$t("grading.manual.roster.nameLabel")} class="min-w-[min(11rem,100%)] flex-1">
+        {#snippet children({ id })}
+          <TextInput
+            {id}
+            bind:value={newName}
+            placeholder={$t("grading.manual.roster.namePlaceholder")}
+            required
+          />
+        {/snippet}
       </Field>
-      <Field label={$t("grading.manual.roster.numberLabel")} class="min-w-[min(11rem,100%)] flex-1" let:id>
-        <TextInput {id} bind:value={newStudentNumber} placeholder="123456" />
+      <Field label={$t("grading.manual.roster.numberLabel")} class="min-w-[min(11rem,100%)] flex-1">
+        {#snippet children({ id })}
+          <TextInput {id} bind:value={newStudentNumber} placeholder="123456" />
+        {/snippet}
       </Field>
-      <Field label={$t("grading.manual.roster.fallbackLabel")} class="min-w-[min(11rem,100%)] flex-1" let:id>
-        <TextInput {id} bind:value={newFallbackCode} placeholder="ABC1" />
+      <Field label={$t("grading.manual.roster.fallbackLabel")} class="min-w-[min(11rem,100%)] flex-1">
+        {#snippet children({ id })}
+          <TextInput {id} bind:value={newFallbackCode} placeholder="ABC1" />
+        {/snippet}
       </Field>
       <Button type="submit" icon={faPlus}>{$t("grading.manual.roster.addButton")}</Button>
     </form>
@@ -172,7 +192,7 @@
         <Textarea
           bind:value={bulkText}
           class="h-32 resize-y font-mono"
-          placeholder={"Musterfrau, Karin\t12345\nMustermann, Peter\t67890\n ..."}
+          placeholder={bulkPlaceholder}
         />
         <div class="flex justify-end gap-2">
           <Button variant="outlined" severity="secondary" onClick={() => (showBulk = false)}>{$t("common.cancel")}</Button>

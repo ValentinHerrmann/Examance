@@ -3,8 +3,12 @@
   import { t } from "$lib/i18n";
   import { Badge } from "$lib/components/ui";
 
-  export let hwProfile: HardwareProfile;
-  export let inConstrainedMode: boolean = false;
+  interface Props {
+    hwProfile: HardwareProfile;
+    inConstrainedMode?: boolean;
+  }
+
+  let { hwProfile, inConstrainedMode = false }: Props = $props();
 </script>
 
 <div class="mb-8 min-w-0 rounded-md border border-line bg-surface-raised p-5">

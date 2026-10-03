@@ -1,4 +1,4 @@
-<script context="module" lang="ts">
+<script module lang="ts">
   let nextId = 0;
 </script>
 
@@ -7,21 +7,34 @@
   import { FilterPills, Select, TextInput } from "$lib/components/ui";
 
   /**
-   * The filter panel shared by the exam and exercise overviews: search, grade
-   * and subject selects, and one row of category pills (exam type / topic).
-   * Mounted once in the desktop sidebar and once in the phone drawer, so the
-   * select ids are made unique per instance.
+   * Filter panel shared by the exam and exercise overviews (search, grade/subject selects, category pills).
+   * Mounted in both the desktop sidebar and the phone drawer, so select ids are unique per instance.
    */
-  export let searchQuery = "";
-  export let searchPlaceholder: string;
-  export let selectedGrade = "ALL";
-  export let selectedSubject = "ALL";
-  export let gradeOptions: string[] = [];
-  export let subjectOptions: string[] = [];
-  export let pillOptions: { value: string; label: string; count: number }[] = [];
-  export let pillSelected = "ALL";
-  export let pillAllLabel: string;
-  export let onPillSelect: (value: string) => void;
+  interface Props {
+    searchQuery?: string;
+    searchPlaceholder: string;
+    selectedGrade?: string;
+    selectedSubject?: string;
+    gradeOptions?: string[];
+    subjectOptions?: string[];
+    pillOptions?: { value: string; label: string; count: number }[];
+    pillSelected?: string;
+    pillAllLabel: string;
+    onPillSelect: (value: string) => void;
+  }
+
+  let {
+    searchQuery = $bindable(""),
+    searchPlaceholder,
+    selectedGrade = $bindable("ALL"),
+    selectedSubject = $bindable("ALL"),
+    gradeOptions = [],
+    subjectOptions = [],
+    pillOptions = [],
+    pillSelected = "ALL",
+    pillAllLabel,
+    onPillSelect,
+  }: Props = $props();
 
   const id = `list-filter-${nextId++}`;
 </script>
