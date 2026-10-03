@@ -760,7 +760,7 @@
   }
 </script>
 
-<PageShell width="medium" class="flex min-h-full flex-col justify-center gap-4">
+<PageShell width="medium" center class="gap-4">
   <!--
     Above the step rather than inside one: the cooloff can be hit from the form,
     from the second factor and from the vault prompt alike, and it is the same

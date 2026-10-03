@@ -17,10 +17,17 @@
     fluid: "max-w-none",
   };
 
+  /**
+   * Vertically centres the content (login-style pages). Takes the space left
+   * after the footer (`flex-1`) rather than `min-h-full`: the footer is a
+   * sibling inside `.app-main`, so a full-height page always overflows by it.
+   */
+  export let center = false;
+
   let className = "";
   export { className as class };
 </script>
 
-<div class="mx-auto w-full min-w-0 px-4 sm:px-6 {flush ? '' : 'py-4 sm:py-6'} {widths[width]} {className}">
+<div class="mx-auto w-full min-w-0 px-4 sm:px-6 {flush ? '' : 'py-4 sm:py-6'} {center ? 'flex flex-1 flex-col justify-center' : ''} {widths[width]} {className}">
   <slot />
 </div>

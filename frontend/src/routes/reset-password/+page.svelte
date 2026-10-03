@@ -207,7 +207,7 @@
   }
 </script>
 
-<PageShell width="form" class="flex min-h-full flex-col justify-center">
+<PageShell width="form" center>
   <Card class="sm:p-8">
     <div class="mb-6 text-center">
       <img src="/favicon.png" alt="Examance logo" class="mx-auto mb-3 size-14 rounded-xl object-contain" />
