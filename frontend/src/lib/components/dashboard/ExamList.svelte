@@ -4,7 +4,7 @@
   import { t } from "$lib/i18n";
   import { fmt } from "$lib/utils/format";
   import { examNavItems } from "$lib/components/layout/examNavItems";
-  import { faTrash } from "@fortawesome/free-solid-svg-icons";
+  import { faEye, faTrash } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, Card, EmptyState, ExpandableCard } from "$lib/components/ui";
 
   export let exams: ExamRecord[];
@@ -15,6 +15,7 @@
   export let expandedExams: { [examId: string]: boolean } = {};
   export let onToggleExam: (examId: string) => void;
   export let onDelete: (id: string, title?: string) => void;
+  export let onPreview: (exam: ExamRecord) => void;
 
   const previewPill = "rounded-xl border border-line bg-surface-sunken px-2.5 py-1 text-xs text-muted";
 </script>
@@ -125,6 +126,7 @@
           </div>
 
           <div class="mt-3 flex justify-end gap-2 border-t border-dashed border-line pt-4">
+            <Button variant="outlined" severity="secondary" size="sm" icon={faEye} onClick={() => onPreview(exam)}>{$t("common.preview")}</Button>
             <Button href="/exam/{exam.id}" size="sm">{$t("dashboard.examList.openExam")}</Button>
             <Button
               variant="outlined"

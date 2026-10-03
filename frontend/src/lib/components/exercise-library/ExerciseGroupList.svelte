@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
-  import LatexViewer from "$lib/components/LatexViewer.svelte";
+  import type { ExamUsageEntry } from "$lib/exercise-library/examUsage";
   import { getGroupRepresentative, type ExerciseGroup } from "./ExerciseGroupList";
   import { t } from "$lib/i18n";
   import {
@@ -9,7 +9,8 @@
     faCodeCompare,
     faRightLeft,
     faTrash,
-    faClone
+    faClone,
+    faEye
   } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, ExpandableCard } from "$lib/components/ui";
 
@@ -23,6 +24,9 @@
   export let onDiff: (ex: ExerciseRecord) => void;
   export let onRegroup: (ex: ExerciseRecord) => void;
   export let onDelete: (ex: ExerciseRecord) => void;
+  export let onPreview: (ex: ExerciseRecord) => void;
+  /** Keyed `${groupId}|${variantKey}`; absent = not requested yet. */
+  export let usageMap: Map<string, ExamUsageEntry[] | "loading"> = new Map();
   export let onOpenVariant: (ex: ExerciseRecord) => void;
   export let onCreateFirst: () => void;
 
@@ -101,12 +105,33 @@
 
         <svelte:fragment slot="body">
           {#each group.variants as [vKey, vMembers], vIdx}
+            {@const used = usageMap.get(`${group.groupId}|${vKey}`)}
             <div class="{vIdx === group.variants.size - 1 ? '' : 'mb-4 border-b border-line pb-4'}">
               <div class="mb-3 flex items-center gap-3">
                 <span class={vKey !== '_General' ? variantLabelHasVariant : variantLabelBase}>
                   {vKey}
                 </span>
                 <span class="text-xs text-muted">v{vMembers[0]?.version || 1}{vMembers[0]?.isCurrent ? $t("exercises.groupList.currentSuffix") : ''}</span>
+              </div>
+
+              <div class="mb-3 ml-2 text-sm">
+                <h4 class="m-0 mb-1 text-xs font-semibold text-muted">{$t("exercises.groupList.usedInExams")}</h4>
+                {#if used === undefined || used === "loading"}
+                  <p class="m-0 text-muted">{$t("exercises.groupList.loadingUsage")}</p>
+                {:else if used.length === 0}
+                  <p class="m-0 text-muted">{$t("exercises.groupList.notUsed")}</p>
+                {:else}
+                  <ul class="m-0 flex list-none flex-wrap gap-2 p-0">
+                    {#each used as exam (exam.id)}
+                      <li class="min-w-0">
+                        <a
+                          href="/exam/{exam.id}"
+                          class="inline-block break-words rounded-md border border-line bg-surface-sunken px-2 py-1 text-accent hover:bg-highlight"
+                        >{exam.title}{exam.datum ? ` (${exam.datum})` : ""}</a>
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
               </div>
 
               {#each vMembers as member}
@@ -118,11 +143,14 @@
                     {/if}
                   </div>
 
-                  <div class="mb-3 max-h-20 overflow-hidden rounded-md bg-surface-sunken p-3 text-xs text-muted">
-                    <LatexViewer code={(member.ex.latexBody || "").slice(0, 150) + "..."} snippet={true} />
-                  </div>
-
                   <div class="flex flex-wrap justify-end gap-1.5">
+                    <Button
+                      variant="outlined"
+                      severity="secondary"
+                      size="sm"
+                      icon={faEye}
+                      onClick={() => onPreview(member.ex)}
+                    >{$t("common.preview")}</Button>
                     <Button
                       variant="outlined"
                       severity="secondary"

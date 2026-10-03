@@ -7,7 +7,7 @@
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { saveExerciseEncrypted, loadExercisesEncrypted } from "$lib/db/dbEncryption";
   import { api } from "$lib/api/client";
-  import { parseExerciseScore, formatExerciseLatex } from "$lib/latex/scoreParser";
+  import { parseExerciseScore } from "$lib/latex/scoreParser";
   import {
     parseMcOptions,
     buildMcOptionsLatex,
@@ -16,7 +16,9 @@
     MC_MIN_OPTIONS,
     type McOption,
   } from "$lib/latex/mcOptions";
-  import { compileWithCache, getLatestForSlot } from "$lib/latex/compileCache";
+  import { getLatestForSlot } from "$lib/latex/compileCache";
+  import { compileExercisePreview } from "$lib/latex/exercisePreview";
+  import { pdfBytesToUrl } from "$lib/latex/pdfPreview";
   import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
   import ExerciseResourcePanel from "$lib/components/exercise/ExerciseResourcePanel.svelte";
   import LatexEditor from "./LatexEditor.svelte";
@@ -308,71 +310,19 @@
     isPreviewLoading = true;
     errorMsg = "";
     try {
-      const getPreamble = (extraOpts: string) => `\\documentclass[a4paper]{article}
-\\usepackage[${extraOpts}]{sty/Schulaufgabe}
-\\usepackage{bbding}
-\\usepackage{pifont}
-\\usepackage{fontspec}
-\\usepackage{framed}
-\\usepackage{enumitem}
-\\usetikzlibrary{shapes.geometric, arrows}
-\\usepackage{sty/tikz-uml}
-\\neverindent
-\\WarningsOff
-\\renewcommand{\\Namenszeile}{}
-\\AtBeginDocument{
-  \\pagestyle{empty}
-  \\thispagestyle{empty}
-  \\lhead{}
-  \\chead{}
-  \\rhead{}
-  \\lfoot{}
-  \\cfoot{}
-  \\rfoot{}
-}`;
-
-      const formattedBody = formatExerciseLatex(editorLatexBody, editorName || "Aufgabe");
-
-      const fullTexAngabe = `${getPreamble('sans')}\n\\setboolean{Antworten}{false}\n\\begin{document}\n\\leavevmode\\par\n${formattedBody}\n\\end{document}`;
-      const fullTexLoesung = `${getPreamble('sans,antworten')}\n\\setboolean{Antworten}{true}\n\\begin{document}\n\\leavevmode\\par\n${formattedBody}\n\\end{document}`;
-
-      const useLocal = $storagePolicyStore.latexCompilation === "local";
-      // Staged files are inlined: they may not exist on the server yet, and in
-      // the unsaved case they never will until the dialog is saved.
-      const collected = await exerciseResourceRepository.collectForCompile(
-        [{ id: resourceStagingId, label: editorName || "Aufgabe", staged: true }],
-        get(sessionStore).sessionKey,
-        true
-      );
-      const compileOpts = {
-        resources: collected.inline,
-        resourceExerciseIds: collected.exerciseIds
-      };
-
-      const exerciseTargetId = editingExercise?.id || resourceStagingId;
-      const resAngabe = await compileWithCache(
-        { kind: "exercise", id: exerciseTargetId, variant: "angabe" },
-        fullTexAngabe,
-        useLocal,
-        undefined,
-        false,
-        compileOpts
-      );
-      const blobAngabe = new Blob([resAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+      const res = await compileExercisePreview({
+        cacheId: editingExercise?.id || resourceStagingId,
+        name: editorName,
+        latexBody: editorLatexBody,
+        resourceOwnerId: resourceStagingId,
+        staged: true,
+        useLocal: $storagePolicyStore.latexCompilation === "local",
+        key: get(sessionStore).sessionKey
+      });
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
-      previewPdfUrl = URL.createObjectURL(blobAngabe);
-
-      const resLoesung = await compileWithCache(
-        { kind: "exercise", id: exerciseTargetId, variant: "loesung" },
-        fullTexLoesung,
-        useLocal,
-        undefined,
-        false,
-        compileOpts
-      );
-      const blobLoesung = new Blob([resLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+      previewPdfUrl = pdfBytesToUrl(res.angabe.pdfBytes);
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
-      previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
+      previewSolutionPdfUrl = pdfBytesToUrl(res.loesung.pdfBytes);
 
       // Panes start collapsed (nothing to show); now that a PDF exists, open
       // the exam pane so the compile result is actually visible.
@@ -380,9 +330,8 @@
 
       // A missing figure does not fail the engine — say so instead of handing
       // back a PDF with a silent hole in it.
-      const missing = [...(resAngabe.missingGraphics ?? []), ...(resLoesung.missingGraphics ?? [])];
-      if (missing.length > 0) {
-        errorMsg = `Preview rendered, but a graphic could not be loaded: ${missing[0]}`;
+      if (res.missingGraphics.length > 0) {
+        errorMsg = `Preview rendered, but a graphic could not be loaded: ${res.missingGraphics[0]}`;
       }
     } catch (err: any) {
       console.error("Exercise preview failed:", err);

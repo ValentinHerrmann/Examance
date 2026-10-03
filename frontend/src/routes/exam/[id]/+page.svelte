@@ -52,7 +52,7 @@
   import DualPdfPreview from "$lib/components/DualPdfPreview.svelte";
   import { getPresetCutoffs } from "$lib/analytics/gradingKey";
   import type { GradingKeyConfig } from "$lib/db/schema";
-  import { goto } from "$app/navigation";
+  import { goto, replaceState } from "$app/navigation";
   import ExamMetadata from "$lib/components/exam/ExamMetadata.svelte";
   import ExamActionBar from "$lib/components/exam/ExamActionBar.svelte";
   import ExerciseList from "$lib/components/exam/ExerciseList.svelte";
@@ -138,8 +138,17 @@
     }
   });
 
+  // `?compile=1` comes from the dashboard's "Preview" button when nothing was
+  // compiled yet: compile once after the first load, then drop the param.
+  let autoCompilePending = browser && new URLSearchParams(location.search).get("compile") === "1";
+
   $: if (browser && examId) {
-    loadExam(examId);
+    loadExam(examId).then(() => {
+      if (!autoCompilePending || !exam || exam.id !== examId) return;
+      autoCompilePending = false;
+      try { replaceState(location.pathname, {}); } catch { /* router not ready */ }
+      void handlePreviewExam();
+    });
     restoreCachedPreviews(examId);
   }
 

@@ -23,7 +23,9 @@
   import OnboardingEmptyState from '$lib/components/dashboard/OnboardingEmptyState.svelte';
   import ExamFilterSidebar from '$lib/components/dashboard/ExamFilterSidebar.svelte';
   import ExamList from '$lib/components/dashboard/ExamList.svelte';
-  import { Alert, Button, ConfirmDeleteModal, FilterDrawer, PageHeader, PageShell } from '$lib/components/ui';
+  import { Alert, Button, ConfirmDeleteModal, ConfirmDialog, FilterDrawer, PageHeader, PageShell } from '$lib/components/ui';
+  import PdfPreviewModal from '$lib/components/PdfPreviewModal.svelte';
+  import { getCachedPreview } from '$lib/latex/pdfPreview';
 
 
   let exams: ExamRecord[] = [];
@@ -359,6 +361,32 @@
     exerciseMap = new Map(exerciseMap).set(examId, list);
   }
 
+  let compileAskExam: ExamRecord | null = null;
+  let isExamPreviewOpen = false;
+  let examPreviewTitle = '';
+  let examPreviewAngabe: string | null = null;
+  let examPreviewLoesung: string | null = null;
+
+  /** Last compile of this exam (in-memory cache); none cached -> offer to compile on the exam page. */
+  function openExamPreview(exam: ExamRecord) {
+    const cached = getCachedPreview('exam', exam.id);
+    if (!cached.angabe && !cached.loesung) {
+      compileAskExam = exam;
+      return;
+    }
+    examPreviewTitle = exam.title || translate('dashboard.examList.untitledExam');
+    examPreviewAngabe = cached.angabe;
+    examPreviewLoesung = cached.loesung;
+    isExamPreviewOpen = true;
+  }
+
+  function closeExamPreview() {
+    isExamPreviewOpen = false;
+    if (examPreviewAngabe) URL.revokeObjectURL(examPreviewAngabe);
+    if (examPreviewLoesung) URL.revokeObjectURL(examPreviewLoesung);
+    examPreviewAngabe = examPreviewLoesung = null;
+  }
+
   function toggleExam(examId: string) {
     expandedExams = { ...expandedExams, [examId]: !expandedExams[examId] };
     if (expandedExams[examId] && !exerciseMap.has(examId)) void loadExamExercises(examId);
@@ -478,12 +506,32 @@
             {expandedExams}
             onToggleExam={toggleExam}
             onDelete={handleDeleteDashboardExam}
+            onPreview={openExamPreview}
           />
         </div>
       </div>
     {/if}
   {/if}
 </PageShell>
+
+<ConfirmDialog
+  open={!!compileAskExam}
+  title={$t('common.previewNoneTitle')}
+  message={$t('common.previewNoneText')}
+  confirmText={$t('common.previewCompile')}
+  cancelText={$t('common.cancel')}
+  role="dialog"
+  onConfirm={() => { const id = compileAskExam?.id; compileAskExam = null; if (id) void goto(`/exam/${id}?compile=1`); }}
+  onCancel={() => (compileAskExam = null)}
+/>
+
+<PdfPreviewModal
+  open={isExamPreviewOpen}
+  title={examPreviewTitle}
+  angabeUrl={examPreviewAngabe}
+  loesungUrl={examPreviewLoesung}
+  onClose={closeExamPreview}
+/>
 
 <ConfirmDeleteModal
   open={isDeleteModalOpen && !!deletingExam}

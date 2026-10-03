@@ -14,7 +14,11 @@
   import { highlightLatexToHtml } from "$lib/latex/highlighter";
   import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
   import ExerciseFilterSidebar from "$lib/components/exercise-library/ExerciseFilterSidebar.svelte";
-  import { Alert, Button, FilterDrawer, PageHeader, PageShell } from "$lib/components/ui";
+  import { Alert, Button, ConfirmDialog, FilterDrawer, PageHeader, PageShell } from "$lib/components/ui";
+  import PdfPreviewModal from "$lib/components/PdfPreviewModal.svelte";
+  import { loadExamUsage, type ExamUsageEntry } from "$lib/exercise-library/examUsage";
+  import { compileExercisePreview } from "$lib/latex/exercisePreview";
+  import { getCachedPreview, pdfBytesToUrl } from "$lib/latex/pdfPreview";
   import { faPlus } from "@fortawesome/free-solid-svg-icons";
   import ExerciseGroupList from "$lib/components/exercise-library/ExerciseGroupList.svelte";
   import GroupEditModal from "$lib/components/exercise-library/GroupEditModal.svelte";
@@ -161,6 +165,98 @@
     expandedGroups = { ...expandedGroups, [groupId]: !expandedGroups[groupId] };
   }
 
+  /** Exams using each variant of a group; loaded lazily once its card is expanded. */
+  let usageMap = new Map<string, ExamUsageEntry[] | "loading">();
+
+  function ensureUsage(group: ExerciseGroup) {
+    for (const [vKey, members] of group.variants) {
+      const mapKey = `${group.groupId}|${vKey}`;
+      if (usageMap.has(mapKey)) continue;
+      usageMap.set(mapKey, "loading");
+      usageMap = usageMap;
+      loadExamUsage(members.map((m) => m.ex.id))
+        .catch((err) => {
+          console.warn("Failed to load exam usage:", err);
+          return [] as ExamUsageEntry[];
+        })
+        .then((list) => {
+          usageMap.set(mapKey, list);
+          usageMap = usageMap;
+        });
+    }
+  }
+
+  $: for (const g of allGroups) if (expandedGroups[g.groupId]) ensureUsage(g);
+
+  let previewEx: ExerciseRecord | null = null;
+  let isPreviewOpen = false;
+  let isPreviewCompileAsk = false;
+  let isPreviewBusy = false;
+  let previewNotice = "";
+  let previewError = "";
+  let previewAngabeUrl: string | null = null;
+  let previewLoesungUrl: string | null = null;
+
+  function resetPreviewUrls() {
+    if (previewAngabeUrl) URL.revokeObjectURL(previewAngabeUrl);
+    if (previewLoesungUrl) URL.revokeObjectURL(previewLoesungUrl);
+    previewAngabeUrl = previewLoesungUrl = null;
+  }
+
+  function openPreview(ex: ExerciseRecord) {
+    previewEx = ex;
+    previewError = "";
+    resetPreviewUrls();
+    const cached = getCachedPreview("exercise", ex.id);
+    if (cached.angabe || cached.loesung) {
+      previewAngabeUrl = cached.angabe;
+      previewLoesungUrl = cached.loesung;
+      isPreviewOpen = true;
+    } else {
+      isPreviewCompileAsk = true;
+    }
+  }
+
+  async function compilePreview() {
+    const ex = previewEx;
+    isPreviewCompileAsk = false;
+    if (!ex) return;
+    isPreviewOpen = true;
+    isPreviewBusy = true;
+    previewNotice = "";
+    try {
+      const res = await compileExercisePreview({
+        cacheId: ex.id!,
+        name: ex.name ?? "",
+        latexBody: ex.latexBody ?? "",
+        resourceOwnerId: ex.id!,
+        staged: false,
+        useLocal: $storagePolicyStore.latexCompilation === "local",
+        key: get(sessionStore).sessionKey,
+        onStatus: (status) => {
+          previewNotice =
+            status === "downloading"
+              ? translate("exam.page.preview.loadingCompiler")
+              : translate("common.previewCompiling");
+        },
+      });
+      previewAngabeUrl = pdfBytesToUrl(res.angabe.pdfBytes);
+      previewLoesungUrl = pdfBytesToUrl(res.loesung.pdfBytes);
+      if (res.missingGraphics.length > 0) {
+        previewError = `Preview rendered, but a graphic could not be loaded: ${res.missingGraphics[0]}`;
+      }
+    } catch (err: any) {
+      previewError = translate("common.previewFailed", { message: err.message || "" });
+    } finally {
+      isPreviewBusy = false;
+    }
+  }
+
+  function closePreview() {
+    isPreviewOpen = false;
+    resetPreviewUrls();
+  }
+
   $: activeDiffGroupExercises = diffGroupExercises.map(
     (e) => exercises.find((x) => x.id === e.id) || e
   );
@@ -242,6 +338,7 @@
   });
 
   async function loadExercises() {
+    usageMap = new Map();
     await awaitSessionReady();
     isLoading = true;
     errorMsg = "";
@@ -820,11 +917,35 @@
       onDiff={openDiffModal}
       onRegroup={openRegroupModal}
       onDelete={openDeleteModal}
+      onPreview={openPreview}
+      {usageMap}
       onOpenVariant={openVariantModal}
       onCreateFirst={openCreateModal}
     />
   </div>
 </PageShell>
+
+<ConfirmDialog
+  open={isPreviewCompileAsk}
+  title={$t("common.previewNoneTitle")}
+  message={$t("common.previewNoneText")}
+  confirmText={$t("common.previewCompile")}
+  cancelText={$t("common.cancel")}
+  role="dialog"
+  onConfirm={compilePreview}
+  onCancel={() => (isPreviewCompileAsk = false)}
+/>
+
+<PdfPreviewModal
+  open={isPreviewOpen}
+  title={previewEx?.name || $t("exercises.untitled")}
+  angabeUrl={previewAngabeUrl}
+  loesungUrl={previewLoesungUrl}
+  busy={isPreviewBusy}
+  notice={previewNotice}
+  error={previewError}
+  onClose={closePreview}
+/>
 
 <VariantModal
   isOpen={isVariantModalOpen}
