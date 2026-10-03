@@ -187,7 +187,7 @@
       <p class="m-0 text-sm text-muted">{$t("security.passkey.unsupported")}</p>
     {:else}
       {#if errorMsg}
-        <p class="m-0 text-sm text-red-400" role="alert">{errorMsg}</p>
+        <p class="m-0 text-sm text-danger-fg" role="alert">{errorMsg}</p>
       {/if}
       {#if noticeMsg}
         <p class="m-0 text-sm text-muted" role="status">{noticeMsg}</p>
@@ -199,14 +199,14 @@
         <ul class="m-0 flex list-none flex-col gap-2 p-0">
           {#each passkeys as passkey (passkey.credential_id_b64)}
             <li
-              class="flex min-w-0 flex-col gap-2 rounded-lg border border-line bg-surface-sunken
+              class="flex min-w-0 flex-col gap-2 rounded-md border border-line bg-surface-sunken
                      p-3 sm:flex-row sm:items-center sm:justify-between"
             >
               <div class="min-w-0">
                 <p class="m-0 truncate text-sm font-medium text-content">
                   {passkey.nickname || passkey.credential_id_b64.slice(0, 12)}
                 </p>
-                <p class="m-0 text-xs text-subtle">
+                <p class="m-0 text-xs text-muted">
                   {$t("security.passkey.created", {
                     date: $fmt.date(new Date(passkey.created_at)),
                   })}
@@ -226,11 +226,11 @@
                       </p>
                     {/if}
                   {:else if unlockNotes[passkey.credential_id_b64] === "noPrf"}
-                    <p class="m-0 mt-1 text-xs text-amber-300" role="alert">
+                    <p class="m-0 mt-1 text-xs text-warning-fg" role="alert">
                       {$t("security.passkey.noPrfWarning")}
                     </p>
                   {:else}
-                    <p class="m-0 mt-1 text-xs text-amber-300">
+                    <p class="m-0 mt-1 text-xs text-warning-fg">
                       {$t("security.passkey.notOpensData")}
                     </p>
                   {/if}

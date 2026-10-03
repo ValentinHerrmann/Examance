@@ -126,7 +126,7 @@
     <PageHeader title={$t("settings.pageTitle")} helpTopic="settings" />
 
     {#if statusMsg}
-      <div class="mb-6 rounded-md bg-green-500/20 p-3 text-green-300">{statusMsg}</div>
+      <div class="mb-6 rounded-md bg-success/20 p-3 text-success-fg">{statusMsg}</div>
     {/if}
 
     <SettingsForm

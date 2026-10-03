@@ -44,7 +44,7 @@
 
 <Modal open={isOpen && !!editingGroup} size="sm" title={$t("exercises.groupEditModal.title")} onClose={onClose}>
   {#if editingGroup}
-    <div class="-mx-4 -mt-4 mb-4 bg-sky-600/20 px-6 py-2 text-[0.85rem] text-sky-300 sm:-mx-5 sm:-mt-5">
+    <div class="-mx-4 -mt-4 mb-4 bg-highlight px-6 py-2 text-sm text-accent sm:-mx-5 sm:-mt-5">
       {$t("exercises.groupEditModal.appliesToAll", { count: editingGroup.allMembers.length })}
     </div>
 

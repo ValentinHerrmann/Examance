@@ -110,12 +110,12 @@
     <div class="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
       <span>{$t('stats.page.statusBanner', { graded, total: submissionCount })}</span>
       {#if graded > full}
-        <span class="text-amber-300">
+        <span class="text-warning-fg">
           {$t('stats.page.partialIndicator', { partial: graded - full, full })}
         </span>
       {/if}
       {#if submissionCount > graded}
-        <span class="text-subtle">
+        <span class="text-muted">
           {$t('stats.page.pendingIndicator', { pending: submissionCount - graded })}
         </span>
       {/if}
@@ -140,7 +140,7 @@
         fileName="noten_prozentverteilung"
       >
         {#if combinedMarkers.length}
-          <p class="mt-2 text-xs text-subtle">{$t('stats.combined.markers.legend')}</p>
+          <p class="mt-2 text-xs text-muted">{$t('stats.combined.markers.legend')}</p>
         {/if}
       </ChartCard>
       <BorderlineCases class="lg:col-span-2" cases={stats.borderline} examId={exam?.id ?? ''} {submissionIds} />
@@ -154,7 +154,7 @@
         fileName="notenverteilung"
       >
         {#if stats.borderline.length > 0}
-          <p class="mt-2 text-xs text-subtle">{$t('stats.gradeDistribution.borderlineLegend')}</p>
+          <p class="mt-2 text-xs text-muted">{$t('stats.gradeDistribution.borderlineLegend')}</p>
         {/if}
       </ChartCard>
       <ChartCard
@@ -168,7 +168,7 @@
       />
     </div>
     {#if provisional}
-      <p class="mt-2 flex items-center gap-2 text-xs text-subtle">
+      <p class="mt-2 flex items-center gap-2 text-xs text-muted">
         <span class="inline-block h-2 w-4 rounded-sm bg-content opacity-70"></span>
         {$t('stats.gradeDistribution.provisionalLegend')}
       </p>

@@ -28,9 +28,9 @@
   /* Topic pills wrap into rows when the panel is wide (drawer / stacked) and
    * stack into a column in the desktop sidebar. */
   const pillBase =
-    "box-border min-h-9 cursor-pointer rounded-2xl border border-line bg-surface-raised px-3 py-1.5 text-left text-sm text-slate-300 hover:border-line-strong";
+    "box-border min-h-9 cursor-pointer rounded-xl border border-line bg-surface-raised px-3 py-1.5 text-left text-sm text-content hover:border-line-strong";
   const pillActive =
-    "box-border min-h-9 cursor-pointer rounded-2xl border border-accent bg-accent-strong px-3 py-1.5 text-left text-sm font-semibold text-white";
+    "box-border min-h-9 cursor-pointer rounded-xl border border-accent bg-primary px-3 py-1.5 text-left text-sm font-semibold text-primary-contrast";
 </script>
 
 <div class="flex min-w-0 flex-col gap-4">
@@ -45,7 +45,7 @@
 
   <div class="flex flex-wrap gap-3 sm:gap-6">
     {#if availableGrades.length > 0}
-      <div class="flex min-w-0 flex-1 items-center gap-2 text-sm text-slate-300">
+      <div class="flex min-w-0 flex-1 items-center gap-2 text-sm text-content">
         <label class="shrink-0" for="grade-select">{$t("exercises.filterSidebar.gradeLabel")}</label>
         <select
           id="grade-select"
@@ -61,7 +61,7 @@
     {/if}
 
     {#if availableSubjects.length > 0}
-      <div class="flex min-w-0 flex-1 items-center gap-2 text-sm text-slate-300">
+      <div class="flex min-w-0 flex-1 items-center gap-2 text-sm text-content">
         <label class="shrink-0" for="subject-select">{$t("exercises.filterSidebar.subjectLabel")}</label>
         <select
           id="subject-select"

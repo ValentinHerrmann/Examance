@@ -23,7 +23,7 @@
       {$t("exercises.variantModal.hint")}
     </p>
 
-    <div class="-mx-4 mb-4 bg-sky-600/20 px-6 py-2 text-[0.85rem] text-sky-300 sm:-mx-5">
+    <div class="-mx-4 mb-4 bg-highlight px-6 py-2 text-sm text-accent sm:-mx-5">
       {$t("exercises.variantModal.groupContext", { name: variantBaseEx.name, topic: variantBaseEx.topicTag || '_General', gradeSuffix: variantBaseEx.grade ? $t("exercises.variantModal.groupContextGradeSuffix", { grade: variantBaseEx.grade }) : '' })}
     </div>
 

@@ -28,14 +28,14 @@
   }
 
   const itemBase =
-    "flex cursor-pointer items-center justify-between gap-[0.4rem] rounded-md border border-slate-700 bg-slate-800 px-2 py-[0.35rem] transition-all duration-150 ease-[ease] hover:border-slate-600 hover:bg-[#273549]";
+    "flex cursor-pointer items-center justify-between gap-[0.4rem] rounded-md border border-line bg-surface-raised px-2 py-[0.35rem] transition-all duration-150 ease-[ease] hover:border-line-strong hover:bg-[#273549]";
   const itemActive =
-    "flex cursor-pointer items-center justify-between gap-[0.4rem] rounded-md border border-sky-400 bg-sky-400/12 px-2 py-[0.35rem] shadow-[0_0_8px_rgba(56,189,248,0.15)] transition-all duration-150 ease-[ease]";
+    "flex cursor-pointer items-center justify-between gap-[0.4rem] rounded-md border border-primary bg-highlight px-2 py-[0.35rem] shadow-[0_0_8px_rgba(56,189,248,0.15)] transition-all duration-150 ease-[ease]";
 </script>
 
-<div class="shrink-0 border-b border-slate-800 bg-slate-800 px-3 py-[0.6rem]">
-  <h3 class="m-0 text-sm font-bold text-sky-400">{$t("grading.scoreEntry.title", { count: exercises.length })}</h3>
-  <span class="text-[0.675rem] text-slate-500">{$t("grading.scoreEntry.hint")}</span>
+<div class="shrink-0 border-b border-line bg-surface-raised px-3 py-[0.6rem]">
+  <h3 class="m-0 text-sm font-bold text-accent">{$t("grading.scoreEntry.title", { count: exercises.length })}</h3>
+  <span class="text-xs text-muted">{$t("grading.scoreEntry.hint")}</span>
 </div>
 
 <div class="flex flex-1 min-h-0 flex-col gap-[0.35rem] overflow-y-auto p-2">
@@ -48,7 +48,7 @@
       on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectExercise(ex.id); }}
     >
       <div class="flex items-center gap-1">
-        <span class="text-[0.8rem] font-bold text-slate-100">Q{ex.orderIndex}{#if ex.subIndex}&nbsp;{String.fromCharCode(96 + ex.subIndex)}){/if}</span>
+        <span class="text-xs font-bold text-content">Q{ex.orderIndex}{#if ex.subIndex}&nbsp;{String.fromCharCode(96 + ex.subIndex)}){/if}</span>
         {#if ex.id === $gradingStore.activeExerciseId}
           <span class="text-xs" title={$t("grading.scoreEntry.stampTarget")}>🎯</span>
         {/if}
@@ -64,18 +64,18 @@
           placeholder="–"
           value={$gradingStore.scoreInputs[ex.id] ?? ''}
           on:input={(e) => handleScoreInput(ex, e)}
-          class="min-h-9 w-14 rounded border border-line bg-surface-base px-1.5 py-1 text-right text-sm font-bold text-accent"
+          class="min-h-9 w-14 rounded-sm border border-line bg-surface-base px-1.5 py-1 text-right text-sm font-bold text-accent"
         />
-        <span class="text-[0.725rem] text-slate-400">/ {ex.maxPoints}</span>
+        <span class="text-xs text-muted">/ {ex.maxPoints}</span>
         <button
           type="button"
-          class="cursor-pointer rounded-[3px] bg-transparent px-[0.3rem] py-0 text-[0.9rem] leading-none text-slate-500 transition-colors duration-150 ease-[ease] hover:bg-red-500/15 hover:text-red-500"
+          class="cursor-pointer rounded-sm bg-transparent px-[0.3rem] py-0 text-sm leading-none text-muted transition-colors duration-150 ease-[ease] hover:bg-danger/15 hover:text-danger-fg"
           title={$t("grading.scoreEntry.resetTitle")}
           on:click={(e) => resetScore(ex, e)}>×</button>
       </div>
 
       {#if $gradingStore.manualOverride[ex.id]}
-        <span class="text-base leading-none text-amber-500" title={$t("grading.scoreEntry.manualEdit")}>•</span>
+        <span class="text-base leading-none text-warning-fg" title={$t("grading.scoreEntry.manualEdit")}>•</span>
       {/if}
     </div>
   {/each}

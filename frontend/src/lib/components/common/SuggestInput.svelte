@@ -184,12 +184,12 @@
   {#if isOpen && !disabled}
     <ul
       id={dropdownId}
-      class="scroll-pane m-0 list-none overflow-y-auto overscroll-contain rounded-lg border border-line bg-surface-raised p-1 shadow-2xl"
+      class="scroll-pane m-0 list-none overflow-y-auto overscroll-contain rounded-md border border-line bg-surface-raised p-1 shadow-2xl"
       style={dropdownStyle}
       role="listbox"
     >
       {#if filteredSuggestions.length === 0}
-        <li class="px-3 py-2 text-center text-xs italic text-slate-400 select-none">
+        <li class="px-3 py-2 text-center text-xs italic text-muted select-none">
           {$t("exercises.suggestInput.noEntries")}
         </li>
       {:else}
@@ -197,7 +197,7 @@
           <li
             role="option"
             aria-selected={i === highlightedIndex}
-            class="group flex cursor-pointer items-center justify-between rounded-md px-3 py-1.5 text-sm text-slate-200 transition-colors {i === highlightedIndex ? 'bg-sky-600 text-white' : 'hover:bg-sky-600/80 hover:text-white'}"
+            class="group flex cursor-pointer items-center justify-between rounded-md px-3 py-1.5 text-sm text-content transition-colors {i === highlightedIndex ? 'bg-primary text-primary-contrast' : 'hover:bg-primary/80 hover:text-primary-contrast'}"
             on:mousedown|preventDefault={() => selectSuggestion(suggestion)}
             on:mouseenter={() => (highlightedIndex = i)}
           >
@@ -207,7 +207,7 @@
                 type="button"
                 title={$t("exercises.suggestInput.removeEntry")}
                 aria-label={$t("exercises.suggestInput.removeEntry")}
-                class="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded text-xs text-slate-400 opacity-60 transition-opacity hover:bg-red-500/30 hover:text-red-300 group-hover:opacity-100"
+                class="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-xs text-muted opacity-60 transition-opacity hover:bg-danger/30 hover:text-danger-fg group-hover:opacity-100"
                 on:mousedown|preventDefault|stopPropagation={(e) => handleRemove(e, suggestion)}
               >
                 ✕

@@ -71,7 +71,7 @@
   class="box-border grid h-full min-h-0 w-full flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] gap-2 overflow-hidden p-2
     lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-1"
 >
-  <div class="relative flex h-full min-h-0 w-full min-w-0 flex-col gap-1.5 overflow-hidden rounded-lg border border-slate-800 bg-slate-950 lg:gap-0">
+  <div class="relative flex h-full min-h-0 w-full min-w-0 flex-col gap-1.5 overflow-hidden rounded-md border border-line bg-surface-sunken lg:gap-0">
     <AnnotationToolbar onClearRequested={requestClearAnnotations} />
 
     <ScanCanvasViewer
@@ -93,7 +93,7 @@
   </div>
 
   <div
-    class="box-border flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-900
+    class="box-border flex min-h-0 flex-col overflow-hidden rounded-md border border-line bg-surface-sunken
       {isScorePanelExpanded ? 'h-[70dvh]' : ''} lg:h-full"
   >
     <button
@@ -118,7 +118,7 @@
       {/if}
     </div>
 
-    <div class="flex shrink-0 flex-col gap-2 border-t border-slate-700 bg-slate-800 px-3 py-[0.65rem]">
+    <div class="flex shrink-0 flex-col gap-2 border-t border-line bg-surface-raised px-3 py-[0.65rem]">
       <GradeSummaryCard
         {isFullyGraded}
         {totalScore}

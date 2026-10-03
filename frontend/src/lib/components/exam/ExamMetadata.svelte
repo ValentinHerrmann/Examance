@@ -40,7 +40,7 @@
   </div>
 
   {#if storagePolicy === 'all-local'}
-    <div class="mb-6 rounded-md border border-amber-500 bg-surface-raised px-4 py-3 text-sm text-amber-400">
+    <div class="mb-6 rounded-md border border-warning bg-surface-raised px-4 py-3 text-sm text-warning-fg">
       {$t("exam.metadata.localBanner")}
     </div>
   {/if}

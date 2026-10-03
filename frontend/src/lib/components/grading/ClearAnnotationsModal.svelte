@@ -11,7 +11,7 @@
 
 <Modal open={$gradingStore.showClearConfirmModal} size="sm" onClose={onCancel} bare>
   <div class="flex flex-col items-center gap-4 p-8 text-center">
-    <div class="flex h-14 w-14 items-center justify-center rounded-full bg-red-500/20 text-2xl text-red-500">
+    <div class="flex h-14 w-14 items-center justify-center rounded-full bg-danger/20 text-2xl text-danger-fg">
       🗑
     </div>
     <h3 class="m-0 text-xl text-content">{$t("grading.clearModal.title")}</h3>

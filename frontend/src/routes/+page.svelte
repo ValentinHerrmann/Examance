@@ -341,7 +341,7 @@
 
         {#if examsLoadFailed}
           <p
-            class="rounded-lg border border-line-strong bg-surface-sunken p-4 text-sm text-content"
+            class="rounded-md border border-line-strong bg-surface-sunken p-4 text-sm text-content"
             role="alert"
           >
             {$t("dashboard.loadFailed")}

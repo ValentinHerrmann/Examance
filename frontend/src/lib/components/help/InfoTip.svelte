@@ -60,7 +60,7 @@
   <button
     bind:this={button}
     type="button"
-    class="inline-flex h-5 w-5 shrink-0 cursor-help items-center justify-center rounded-full border-none bg-transparent p-0 text-xs leading-none text-subtle transition-colors hover:text-accent focus-visible:text-accent"
+    class="inline-flex h-5 w-5 shrink-0 cursor-help items-center justify-center rounded-full border-none bg-transparent p-0 text-xs leading-none text-muted transition-colors hover:text-accent focus-visible:text-accent"
     aria-label={$t("help.ui.showTip")}
     aria-expanded={open}
     aria-describedby={open ? id : undefined}
@@ -74,7 +74,7 @@
       {id}
       bind:this={popover}
       role="tooltip"
-      class="fixed w-64 max-w-[calc(100vw-1rem)] rounded-lg border border-line bg-surface-raised p-2.5 text-xs leading-relaxed font-normal normal-case tracking-normal text-muted shadow-lg sm:w-72"
+      class="fixed w-64 max-w-[calc(100vw-1rem)] rounded-md border border-line bg-surface-raised p-2.5 text-xs leading-relaxed font-normal normal-case tracking-normal text-muted shadow-lg sm:w-72"
       style="z-index: var(--z-dropdown); left: {pos.left}px; top: {pos.top}px"
     >
       {text}

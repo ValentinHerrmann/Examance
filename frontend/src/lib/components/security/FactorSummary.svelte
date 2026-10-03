@@ -54,7 +54,7 @@
 
     {#if atMinimum || status.key_capable.length <= 1}
       <p
-        class="m-0 rounded-lg border border-line-strong bg-surface-sunken p-3 text-sm text-content"
+        class="m-0 rounded-md border border-line-strong bg-surface-sunken p-3 text-sm text-content"
         role="alert"
       >
         {atMinimum

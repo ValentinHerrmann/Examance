@@ -45,17 +45,17 @@
 <div class="mb-2 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
   {#each cards as [label, value, suffix, info, color]}
     <div class="flex min-w-0 flex-col gap-1 rounded-xl border border-line bg-surface-raised px-4 py-3">
-      <span class="flex items-start justify-between gap-1 text-xs uppercase tracking-wide text-subtle">
+      <span class="flex items-start justify-between gap-1 text-xs uppercase tracking-wide text-muted">
         <span class="min-w-0">{$t(label)}</span>
         <InfoTip class="-mt-0.5 -mr-1" text={$t(info)} topic="stats" />
       </span>
       <span class="text-xl font-semibold tabular-nums text-content" style={color ? `color: ${color}` : undefined}>
-        {value}<span class="text-sm text-subtle">{suffix}</span>
+        {value}<span class="text-sm text-muted">{suffix}</span>
       </span>
     </div>
   {/each}
 </div>
 
-<p class="mb-6 text-xs text-subtle">
+<p class="mb-6 text-xs text-muted">
   {$t('stats.cards.basis', { count: stats.results.length })}
 </p>

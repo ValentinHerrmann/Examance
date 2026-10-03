@@ -13,16 +13,16 @@
     type="text"
     placeholder={$t("dashboard.filterBar.searchPlaceholder")}
     bind:value={searchQuery}
-    class="flex-1 min-w-[240px] rounded-md border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-white"
+    class="flex-1 min-w-[240px] rounded-md border border-line bg-surface-raised px-3.5 py-2.5 text-content"
   />
 
   {#if availableGrades.length > 0}
-    <div class="flex items-center gap-2 text-sm text-slate-300">
+    <div class="flex items-center gap-2 text-sm text-content">
       <label for="dashboard-grade">{$t("dashboard.filterBar.gradeLabel")}</label>
       <select
         id="dashboard-grade"
         bind:value={selectedGradeFilter}
-        class="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-[0.85rem] text-white"
+        class="rounded-md border border-line bg-surface-raised px-3 py-2 text-sm text-content"
       >
         <option value="ALL">{$t("dashboard.filterBar.allGrades")}</option>
         {#each availableGrades as g}
@@ -33,12 +33,12 @@
   {/if}
 
   {#if availableSubjects.length > 0}
-    <div class="flex items-center gap-2 text-sm text-slate-300">
+    <div class="flex items-center gap-2 text-sm text-content">
       <label for="dashboard-subject">{$t("dashboard.filterBar.subjectLabel")}</label>
       <select
         id="dashboard-subject"
         bind:value={selectedSubjectFilter}
-        class="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-[0.85rem] text-white"
+        class="rounded-md border border-line bg-surface-raised px-3 py-2 text-sm text-content"
       >
         <option value="ALL">{$t("dashboard.filterBar.allSubjects")}</option>
         {#each availableSubjects as s}

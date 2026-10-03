@@ -768,7 +768,7 @@
   </PageHeader>
 
   {#if errorMsg}
-    <div class="mb-6 rounded-md bg-red-500/20 p-3 text-red-300">{errorMsg}</div>
+    <div class="mb-6 rounded-md bg-danger/20 p-3 text-danger-fg">{errorMsg}</div>
   {/if}
 
   <!-- Below `lg` the filter panel would otherwise stack on top of the list and
@@ -778,7 +778,7 @@
     <Button variant="secondary" block onClick={() => (isFilterDrawerOpen = true)}>
       {$t("exercises.page.showFilters")}
       {#if activeFilterCount > 0}
-        <span class="rounded-full bg-accent-strong px-2 py-0.5 text-xs font-bold text-white">
+        <span class="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-primary-contrast">
           {activeFilterCount}
         </span>
       {/if}

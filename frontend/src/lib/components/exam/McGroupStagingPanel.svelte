@@ -50,15 +50,15 @@
     "cursor-pointer border-none bg-transparent px-1 text-muted hover:text-content disabled:cursor-not-allowed disabled:opacity-40";
 </script>
 
-<div class="flex min-w-0 flex-col gap-3 rounded-[10px] border border-amber-500/60 bg-amber-500/5 p-4">
-  <h4 class="m-0 text-sm font-semibold text-amber-400">
+<div class="flex min-w-0 flex-col gap-3 rounded-xl border border-warning/60 bg-warning/5 p-4">
+  <h4 class="m-0 text-sm font-semibold text-warning-fg">
     {editingGroup
       ? $t("exam.mcStagingPanel.headingEdit", { count })
       : $t("exam.mcStagingPanel.headingNew", { count })}
   </h4>
 
   {#if notice}
-    <p class="m-0 rounded-md border border-emerald-500/50 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300" role="status">
+    <p class="m-0 rounded-md border border-success/50 bg-success/10 px-3 py-2 text-xs text-success-fg" role="status">
       {notice}
     </p>
   {/if}
@@ -73,7 +73,7 @@
           <div class="flex shrink-0 items-center gap-1.5">
             <button type="button" class={iconBtn} disabled={i === 0} on:click={() => onReorder(i, "up")} title={$t("exam.mcStagingPanel.moveUp")}>↑</button>
             <button type="button" class={iconBtn} disabled={i === count - 1} on:click={() => onReorder(i, "down")} title={$t("exam.mcStagingPanel.moveDown")}>↓</button>
-            <button type="button" class="cursor-pointer border-none bg-transparent text-xs text-red-400 hover:text-red-300" on:click={() => onRemove(ex.id)}>
+            <button type="button" class="cursor-pointer border-none bg-transparent text-xs text-danger-fg hover:text-danger-fg" on:click={() => onRemove(ex.id)}>
               {$t("exam.mcStagingPanel.remove")}
             </button>
           </div>
@@ -92,7 +92,7 @@
       </div>
       <button
         type="button"
-        class="cursor-pointer self-start rounded-md border border-amber-500 bg-amber-500/15 px-3 py-1.5 text-sm font-semibold text-amber-300 transition-colors enabled:hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+        class="cursor-pointer self-start rounded-md border border-warning bg-warning/15 px-3 py-1.5 text-sm font-semibold text-warning-fg transition-colors enabled:hover:bg-warning/25 disabled:cursor-not-allowed disabled:opacity-50"
         disabled={!canFinalizeGroup(stagedExercises.map((ex) => ex.id))}
         on:click={finalize}
       >

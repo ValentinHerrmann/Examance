@@ -90,7 +90,7 @@
         </h3>
         <p class="m-0 text-sm text-muted">{$t("security.setupCodes.recoveryPurpose")}</p>
         <code
-          class="block overflow-x-auto rounded-lg bg-surface-inset p-4 text-center font-mono
+          class="block overflow-x-auto rounded-md bg-surface-inset p-4 text-center font-mono
                  text-base tracking-widest text-content select-all sm:text-lg"
         >
           {recoveryCode}
@@ -104,7 +104,7 @@
     {/if}
 
     <p
-      class="rounded-lg border border-line-strong bg-surface-sunken p-3 text-sm text-content"
+      class="rounded-md border border-line-strong bg-surface-sunken p-3 text-sm text-content"
       role="alert"
     >
       {$t("security.setupCodes.warning")}

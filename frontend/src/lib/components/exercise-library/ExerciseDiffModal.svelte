@@ -103,7 +103,7 @@
 </script>
 
 <Modal open={isOpen} size="xl" title={$t("exercises.diffModal.title")} onClose={onRequestClose}>
-  <div class="mb-6 flex flex-col gap-4 rounded-lg bg-surface-inset p-4 sm:flex-row sm:gap-6">
+  <div class="mb-6 flex flex-col gap-4 rounded-md bg-surface-inset p-4 sm:flex-row sm:gap-6">
     <div class="flex flex-1 flex-col gap-1.5">
       <label for="diffLeftSelect" class="text-sm text-muted">{$t("exercises.diffModal.baseLabel")}</label>
       <Select id="diffLeftSelect" bind:value={diffLeftId}>
@@ -130,7 +130,7 @@
   <div class="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
     <div>
       <div class="mb-2 flex min-h-8 items-center justify-between gap-2">
-        <h4 class="m-0 min-w-0 truncate text-[0.9rem] text-accent">{$t("exercises.diffModal.leftHeading", { name: diffLeftEx?.name || $t("exercises.diffModal.leftOriginalFallback"), version: diffLeftEx?.version || 1 })}</h4>
+        <h4 class="m-0 min-w-0 truncate text-sm text-accent">{$t("exercises.diffModal.leftHeading", { name: diffLeftEx?.name || $t("exercises.diffModal.leftOriginalFallback"), version: diffLeftEx?.version || 1 })}</h4>
         <div class="flex shrink-0 items-center gap-2">
           {#if isDiffLeftDirty}
             <Button variant="primary" size="sm" onClick={onSaveLeft} disabled={isSavingDiffLeft}>
@@ -140,7 +140,7 @@
         </div>
       </div>
 
-      <div class="h-[450px] max-h-[450px] overflow-hidden rounded-lg">
+      <div class="h-[450px] max-h-[450px] overflow-hidden rounded-md">
         <LatexEditor
           bind:this={diffLeftEditor}
           bind:value={diffLeftLatex}
@@ -154,7 +154,7 @@
 
     <div>
       <div class="mb-2 flex min-h-8 items-center justify-between gap-2">
-        <h4 class="m-0 min-w-0 truncate text-[0.9rem] text-accent">{$t("exercises.diffModal.rightHeading", { name: diffRightEx?.name || $t("exercises.diffModal.rightComparedFallback"), version: diffRightEx?.version || 1 })}</h4>
+        <h4 class="m-0 min-w-0 truncate text-sm text-accent">{$t("exercises.diffModal.rightHeading", { name: diffRightEx?.name || $t("exercises.diffModal.rightComparedFallback"), version: diffRightEx?.version || 1 })}</h4>
         <div class="flex shrink-0 items-center gap-2">
           {#if isDiffRightDirty}
             <Button variant="primary" size="sm" onClick={onSaveRight} disabled={isSavingDiffRight}>
@@ -164,7 +164,7 @@
         </div>
       </div>
 
-      <div class="h-[450px] max-h-[450px] overflow-hidden rounded-lg">
+      <div class="h-[450px] max-h-[450px] overflow-hidden rounded-md">
         <LatexEditor
           bind:this={diffRightEditor}
           bind:value={diffRightLatex}

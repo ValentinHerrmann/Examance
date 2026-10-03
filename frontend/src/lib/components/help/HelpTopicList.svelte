@@ -13,7 +13,7 @@
   export let onSelect: ((id: HelpTopicId) => void) | undefined = undefined;
 
   const rowBase =
-    "flex w-full min-w-0 items-start gap-2.5 rounded-lg border border-transparent px-2.5 py-2 text-left no-underline transition-colors hover:border-line hover:bg-surface-inset";
+    "flex w-full min-w-0 items-start gap-2.5 rounded-md border border-transparent px-2.5 py-2 text-left no-underline transition-colors hover:border-line hover:bg-surface-inset";
 </script>
 
 <ul class="m-0 flex list-none flex-col gap-1 p-0">
@@ -25,7 +25,7 @@
           <span class="min-w-0">
             <span class="block text-sm font-medium">{$t(topic.titleKey)}</span>
             {#if !compact}
-              <span class="block text-xs text-subtle">{$t(topic.summaryKey)}</span>
+              <span class="block text-xs text-muted">{$t(topic.summaryKey)}</span>
             {/if}
           </span>
         </a>
@@ -42,7 +42,7 @@
           <span class="min-w-0">
             <span class="block text-sm font-medium">{$t(topic.titleKey)}</span>
             {#if !compact}
-              <span class="block text-xs text-subtle">{$t(topic.summaryKey)}</span>
+              <span class="block text-xs text-muted">{$t(topic.summaryKey)}</span>
             {/if}
           </span>
         </button>

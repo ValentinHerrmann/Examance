@@ -579,7 +579,7 @@
   }
 
   const editorColumnBase =
-    "flex flex-col h-full min-h-0 overflow-hidden rounded-lg border border-slate-700 bg-slate-900 transition-all duration-200 ease-[ease]";
+    "flex flex-col h-full min-h-0 overflow-hidden rounded-md border border-line bg-surface-sunken transition-all duration-200 ease-[ease]";
   // Below `lg` this column stacks above DualPdfPreview instead of sitting
   // beside it. DualPdfPreview carries its own explicit `min-height: 18rem`
   // (DualPdfPreview.svelte), which flexbox honours as a real floor; this
@@ -598,10 +598,10 @@
     <div
       class="flex h-full max-h-full w-full flex-col overflow-hidden"
     >
-      <div class="flex shrink-0 flex-col gap-[0.65rem] border-b border-slate-700 bg-slate-800 px-5 py-4">
+      <div class="flex shrink-0 flex-col gap-[0.65rem] border-b border-line bg-surface-raised px-5 py-4">
         <div class="flex w-full items-center justify-between">
           <div class="flex items-center gap-[0.65rem]">
-            <h3 id="exercise-editor-title" class="m-0 text-[1.15rem] text-slate-100">
+            <h3 id="exercise-editor-title" class="m-0 text-lg text-content">
               {isCreatingVersion
                 ? $t("exercises.editor.titleNewVersion", { name: editorName })
                 : editingExercise
@@ -609,104 +609,104 @@
                   : $t("exercises.editor.titleCreate")}
             </h3>
             {#if isCreatingVersion}
-              <span class="rounded bg-sky-400/15 border border-sky-400/30 px-2 py-[0.15rem] text-xs font-semibold text-sky-400">v{(versionBaseEx?.version || 1) + 1}</span>
+              <span class="rounded-sm bg-highlight border border-primary/30 px-2 py-[0.15rem] text-xs font-semibold text-accent">v{(versionBaseEx?.version || 1) + 1}</span>
             {/if}
           </div>
-          <button type="button" class="cursor-pointer rounded border-0 bg-transparent p-1 text-[1.25rem] leading-none text-slate-400 hover:text-slate-100" on:click={requestClose}>✕</button>
+          <button type="button" class="cursor-pointer rounded-sm border-0 bg-transparent p-1 text-xl leading-none text-muted hover:text-content" on:click={requestClose}>✕</button>
         </div>
 
-        <div class="flex flex-wrap items-center gap-[0.85rem] rounded-md border border-slate-700 bg-slate-900 px-3 py-2">
+        <div class="flex flex-wrap items-center gap-[0.85rem] rounded-md border border-line bg-surface-sunken px-3 py-2">
           {#if editingExercise || isCreatingVersion}
-            <div class="flex flex-wrap items-center gap-[0.45rem] text-[0.85rem]">
-              <span class="text-[0.8rem] text-slate-400">{$t("exercises.editor.groupLabel")}</span>
-              <strong class="font-semibold text-slate-100">{editorName}</strong>
-              <span class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.15rem] text-xs text-slate-300">🏷️ {editorTopicTag}</span>
+            <div class="flex flex-wrap items-center gap-[0.45rem] text-sm">
+              <span class="text-xs text-muted">{$t("exercises.editor.groupLabel")}</span>
+              <strong class="font-semibold text-content">{editorName}</strong>
+              <span class="rounded-sm border border-line bg-surface-raised px-2 py-[0.15rem] text-xs text-content">🏷️ {editorTopicTag}</span>
               {#if editorGrade}
-                <span class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.15rem] text-xs text-slate-300">{$t("exercises.editor.gradeBadge", { grade: editorGrade })}</span>
+                <span class="rounded-sm border border-line bg-surface-raised px-2 py-[0.15rem] text-xs text-content">{$t("exercises.editor.gradeBadge", { grade: editorGrade })}</span>
               {/if}
               {#if editorSubject}
-                <span class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.15rem] text-xs text-slate-300">📚 {editorSubject}</span>
+                <span class="rounded-sm border border-line bg-surface-raised px-2 py-[0.15rem] text-xs text-content">📚 {editorSubject}</span>
               {/if}
             </div>
 
-            <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-              <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.variantKeyLabel")}</label>
+            <div class="flex items-center gap-[0.35rem] text-xs">
+              <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.variantKeyLabel")}</label>
               <input
                 id="editorVariantKey"
                 type="text"
                 bind:value={editorVariantKey}
                 placeholder={$t("exercises.editor.variantKeyPlaceholder")}
-                class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
+                class="rounded-sm border border-line bg-surface-raised px-2 py-[0.3rem] text-sm text-content focus:border-focus focus:outline-none"
               />
             </div>
           {:else}
             <div class="flex w-full flex-wrap items-center gap-[0.65rem]">
-              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <label for="editorName" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.nameLabel")}</label>
+              <div class="flex items-center gap-[0.35rem] text-xs">
+                <label for="editorName" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.nameLabel")}</label>
                 <input
                   id="editorName"
                   type="text"
                   bind:value={editorName}
                   required
                   placeholder={$t("exercises.editor.namePlaceholder")}
-                  class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
+                  class="rounded-sm border border-line bg-surface-raised px-2 py-[0.3rem] text-sm text-content focus:border-focus focus:outline-none"
                 />
               </div>
 
-              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <label for="editorTopic" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.topicLabel")}</label>
+              <div class="flex items-center gap-[0.35rem] text-xs">
+                <label for="editorTopic" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.topicLabel")}</label>
                 <SuggestInput
                   id="editorTopic"
                   storageKey="exercise.topic"
                   bind:value={editorTopicTag}
                   placeholder="_Vererbung"
                   required
-                  class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
+                  class="rounded-sm border border-line bg-surface-raised px-2 py-[0.3rem] text-sm text-content focus:border-focus focus:outline-none"
                 />
               </div>
 
-              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <label for="editorGrade" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.gradeLabel")}</label>
+              <div class="flex items-center gap-[0.35rem] text-xs">
+                <label for="editorGrade" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.gradeLabel")}</label>
                 <SuggestInput
                   id="editorGrade"
                   storageKey="exercise.grade"
                   bind:value={editorGrade}
                   placeholder={$t("exercises.editor.gradePlaceholder")}
-                  class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
+                  class="rounded-sm border border-line bg-surface-raised px-2 py-[0.3rem] text-sm text-content focus:border-focus focus:outline-none"
                 />
               </div>
 
-              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <label for="editorSubject" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.subjectLabel")}</label>
+              <div class="flex items-center gap-[0.35rem] text-xs">
+                <label for="editorSubject" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.subjectLabel")}</label>
                 <SuggestInput
                   id="editorSubject"
                   storageKey="exercise.subject"
                   bind:value={editorSubject}
                   placeholder={$t("exercises.editor.subjectPlaceholder")}
-                  class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
+                  class="rounded-sm border border-line bg-surface-raised px-2 py-[0.3rem] text-sm text-content focus:border-focus focus:outline-none"
                 />
               </div>
 
-              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.variantKeyLabelPlain")}</label>
+              <div class="flex items-center gap-[0.35rem] text-xs">
+                <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.variantKeyLabelPlain")}</label>
                 <input
                   id="editorVariantKey"
                   type="text"
                   bind:value={editorVariantKey}
                   placeholder={$t("exercises.editor.variantKeyPlaceholderPlain")}
-                  class="rounded border border-slate-700 bg-slate-800 px-2 py-[0.3rem] text-[0.825rem] text-slate-100 focus:border-sky-400 focus:outline-none"
+                  class="rounded-sm border border-line bg-surface-raised px-2 py-[0.3rem] text-sm text-content focus:border-focus focus:outline-none"
                 />
               </div>
 
-              <div class="flex items-center gap-[0.35rem] text-[0.8rem]">
-                <span class="whitespace-nowrap font-semibold text-slate-400">{$t("exercises.editor.exerciseTypeLabel")}</span>
-                <div class="inline-flex rounded-md border border-slate-700 bg-slate-900 p-0.5">
+              <div class="flex items-center gap-[0.35rem] text-xs">
+                <span class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.exerciseTypeLabel")}</span>
+                <div class="inline-flex rounded-md border border-line bg-surface-sunken p-0.5">
                   <button
                     type="button"
-                    class={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
+                    class={`rounded-sm px-2.5 py-1 text-xs font-semibold transition-colors ${
                       editorQuestionType === "free_text"
-                        ? "bg-sky-600 text-white shadow-sm"
-                        : "text-slate-400 hover:text-slate-200"
+                        ? "bg-primary text-primary-contrast shadow-sm"
+                        : "text-muted hover:text-content"
                     }`}
                     on:click={() => {
                       editorQuestionType = "free_text";
@@ -717,10 +717,10 @@
                   </button>
                   <button
                     type="button"
-                    class={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
+                    class={`rounded-sm px-2.5 py-1 text-xs font-semibold transition-colors ${
                       editorQuestionType === "mc"
-                        ? "bg-sky-600 text-white shadow-sm"
-                        : "text-slate-400 hover:text-slate-200"
+                        ? "bg-primary text-primary-contrast shadow-sm"
+                        : "text-muted hover:text-content"
                     }`}
                     on:click={() => {
                       editorQuestionType = "mc";
@@ -737,7 +737,7 @@
       </div>
 
       {#if errorMsg}
-        <div class="shrink-0 overflow-y-auto max-h-[200px] whitespace-pre-wrap break-all border-l-4 border-red-500 bg-red-500/15 px-6 py-3 text-[0.875rem] text-red-300 font-mono">{errorMsg}</div>
+        <div class="shrink-0 overflow-y-auto max-h-[200px] whitespace-pre-wrap break-all border-l-4 border-danger bg-danger/15 px-6 py-3 text-sm text-danger-fg font-mono">{errorMsg}</div>
       {/if}
 
       <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5 lg:flex-row lg:overflow-hidden">
@@ -745,44 +745,44 @@
           {#if showLatexPanel}
             <button
               type="button"
-              class="box-border flex w-full shrink-0 cursor-pointer items-center justify-between gap-2 border-0 border-b border-slate-700 bg-slate-800 px-3 py-2 text-left transition-colors duration-150 ease-[ease] hover:bg-slate-700 group"
+              class="box-border flex w-full shrink-0 cursor-pointer items-center justify-between gap-2 border-0 border-b border-line bg-surface-raised px-3 py-2 text-left transition-colors duration-150 ease-[ease] hover:bg-surface-inset group"
               on:click={handleToggleLatex}
               title={$t("exercises.editor.collapseLatexTitle")}
             >
               <div class="flex min-w-0 items-center gap-2">
-                <span class="whitespace-nowrap text-[0.85rem] font-semibold text-slate-100">{$t("exercises.editor.latexSourceCodeLabel")}</span>
-                <span class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded border border-sky-400/20 bg-sky-400/10 px-2 py-[0.15rem] text-xs text-sky-400">
+                <span class="whitespace-nowrap text-sm font-semibold text-content">{$t("exercises.editor.latexSourceCodeLabel")}</span>
+                <span class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-sm border border-primary/20 bg-highlight px-2 py-[0.15rem] text-xs text-accent">
                   {$t("exercises.editor.autoScoreLabel", { score: parseExerciseScore(editorLatexBody) })}
                 </span>
               </div>
               <div class="flex shrink-0 items-center gap-2">
                 <button
                   type="button"
-                  class="shrink-0 cursor-pointer rounded border-0 bg-sky-600 px-3 py-[0.35rem] text-[0.8rem] font-semibold text-white transition-colors duration-150 ease-[ease] [&:hover:not(:disabled)]:bg-sky-700"
+                  class="shrink-0 cursor-pointer rounded-sm border-0 bg-primary px-3 py-[0.35rem] text-xs font-semibold text-primary-contrast transition-colors duration-150 ease-[ease] [&:hover:not(:disabled)]:bg-primary"
                   on:click|stopPropagation={handlePreviewExercise}
                   disabled={isPreviewLoading}
                   title={$t("exercises.editor.previewButtonTitle")}
                 >
                   {isPreviewLoading ? $t("exercises.editor.previewButtonLoading") : $t("exercises.editor.previewButton")}
                 </button>
-                <span class="shrink-0 text-base font-bold text-slate-400 transition-colors duration-150 ease-[ease] group-hover:text-sky-400">›</span>
+                <span class="shrink-0 text-base font-bold text-muted transition-colors duration-150 ease-[ease] group-hover:text-accent">›</span>
               </div>
             </button>
 
             <div class="flex min-h-0 flex-1 flex-col gap-[0.4rem] overflow-hidden p-2">
               {#if editorQuestionType !== "free_text"}
-                <div class="flex flex-col gap-3 rounded-lg border border-slate-700 bg-slate-800/90 p-3 text-xs">
+                <div class="flex flex-col gap-3 rounded-md border border-line bg-surface-raised/90 p-3 text-xs">
                   <div class="flex items-center justify-between">
-                    <span class="font-semibold text-sky-400">
+                    <span class="font-semibold text-accent">
                       {$t("exercises.editor.mcEditorTitle")}
                     </span>
-                    <span class="text-[0.75rem] text-slate-400">
+                    <span class="text-xs text-muted">
                       {$t("exercises.editor.mcEditorHint")}
                     </span>
                   </div>
 
                   <div class="flex flex-col gap-1">
-                    <label class="font-semibold text-slate-300">{$t("exercises.editor.mcQuestionTextLabel")}</label>
+                    <label class="font-semibold text-content">{$t("exercises.editor.mcQuestionTextLabel")}</label>
                     <LatexEditor
                       bind:value={mcQuestionText}
                       rows={4}
@@ -792,7 +792,7 @@
                   </div>
 
                   <div class="flex flex-col gap-1">
-                    <label class="flex items-center gap-1.5 font-semibold text-slate-300" for="mc-penalty">
+                    <label class="flex items-center gap-1.5 font-semibold text-content" for="mc-penalty">
                       {$t("exercises.editor.mcPenaltyLabel")}
                       <InfoTip text={$t("help.tips.mcPenalty")} topic="exercises" />
                     </label>
@@ -802,12 +802,12 @@
                       step="0.25"
                       min="0"
                       bind:value={editorPenalty}
-                      class="w-24 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-100 focus:border-sky-400 focus:outline-none"
+                      class="w-24 rounded-sm border border-line bg-surface-sunken px-2 py-1 text-content focus:border-focus focus:outline-none"
                     />
                   </div>
 
                   <div class="flex flex-col gap-1">
-                    <label class="font-semibold text-slate-300" for="mc-columns">{$t("exercises.editor.mcColumnsLabel")}</label>
+                    <label class="font-semibold text-content" for="mc-columns">{$t("exercises.editor.mcColumnsLabel")}</label>
                     <Select id="mc-columns" class="w-full sm:w-72" bind:value={mcColumns} on:change={regenerateMcLatex}>
                       <option value="auto">{$t("exercises.editor.mcColumnsAuto", { max: MC_MAX_COLUMNS })}</option>
                       {#each MC_COLUMN_CHOICES as choice}
@@ -817,11 +817,11 @@
                   </div>
 
                   <div class="flex flex-col gap-2">
-                    <div class="flex items-center justify-between text-slate-300 font-semibold">
+                    <div class="flex items-center justify-between text-content font-semibold">
                       <span>{$t("exercises.editor.mcOptionsLabel", { count: mcOptions.length })}</span>
                       <button
                         type="button"
-                        class="rounded bg-sky-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="rounded-sm bg-primary px-2.5 py-1 text-xs font-semibold text-primary-contrast hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed"
                         on:click={addMcOption}
                         disabled={mcOptions.length >= MC_MAX_OPTIONS}
                       >
@@ -830,13 +830,13 @@
                     </div>
 
                     {#each mcOptions as option, index}
-                      <div class="flex items-center gap-2 rounded border border-slate-700/80 bg-slate-900/80 p-2">
+                      <div class="flex items-center gap-2 rounded-sm border border-line bg-backdrop p-2">
                         <input
                           type="checkbox"
                           checked={option.correct}
                           on:change={() => toggleOptionCorrect(index)}
                           title={$t("exercises.editor.mcOptionCorrectTitle")}
-                          class="h-4 w-4 rounded border-slate-700 bg-slate-800 text-sky-500 focus:ring-sky-400"
+                          class="h-4 w-4 rounded-sm border-line bg-surface-raised text-accent focus:ring-focus"
                         />
 
                         <input
@@ -844,16 +844,16 @@
                           value={option.text}
                           on:input={(e) => updateOptionText(index, e.currentTarget.value)}
                           placeholder={$t("exercises.editor.mcOptionPlaceholder", { number: index + 1 })}
-                          class="flex-1 rounded border border-slate-700 bg-slate-800 px-2 py-1 text-slate-100 placeholder-slate-500 focus:border-sky-400 focus:outline-none"
+                          class="flex-1 rounded-sm border border-line bg-surface-raised px-2 py-1 text-content placeholder-slate-500 focus:border-focus focus:outline-none"
                         />
 
-                        <span class={`text-[0.7rem] font-semibold px-1.5 py-0.5 rounded ${option.correct ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'text-slate-500'}`}>
+                        <span class={`text-xs font-semibold px-1.5 py-0.5 rounded-sm ${option.correct ? 'bg-success/20 text-success-fg border border-success/40' : 'text-muted'}`}>
                           {option.correct ? $t("exercises.editor.mcOptionCorrect") : $t("exercises.editor.mcOptionIncorrect")}
                         </span>
 
                         <button
                           type="button"
-                          class="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-red-400 disabled:opacity-30 disabled:hover:text-slate-400"
+                          class="rounded-sm p-1 text-muted hover:bg-surface-raised hover:text-danger-fg disabled:opacity-30 disabled:hover:text-muted"
                           on:click={() => removeMcOption(index)}
                           disabled={mcOptions.length <= MC_MIN_OPTIONS}
                           title={$t("exercises.editor.mcOptionRemoveTitle")}
@@ -866,7 +866,7 @@
                 </div>
               {/if}
               <div class="flex items-center justify-between px-1 text-xs">
-                <span class="font-semibold text-slate-300">{$t("exercises.editor.latexPreviewLabel")}</span>
+                <span class="font-semibold text-content">{$t("exercises.editor.latexPreviewLabel")}</span>
               </div>
               <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert />
 
@@ -878,14 +878,14 @@
           {:else}
             <button
               type="button"
-              class="flex h-full w-full flex-row items-center gap-4 border-0 bg-slate-900 px-3 py-[0.2rem] text-slate-400 transition-all duration-150 ease-[ease] hover:bg-slate-800 hover:text-sky-400 group lg:flex-col lg:px-[0.2rem] lg:py-3"
+              class="flex h-full w-full flex-row items-center gap-4 border-0 bg-surface-sunken px-3 py-[0.2rem] text-muted transition-all duration-150 ease-[ease] hover:bg-surface-raised hover:text-accent group lg:flex-col lg:px-[0.2rem] lg:py-3"
               on:click={handleToggleLatex}
               title={$t("exercises.editor.expandLatexTitle")}
             >
-              <span class="flex h-6 w-6 shrink-0 rotate-90 items-center justify-center rounded border border-slate-700 bg-slate-800 text-[0.9rem] font-bold group-hover:border-sky-400 group-hover:bg-sky-600 group-hover:text-white lg:rotate-0">›</span>
-              <span class="shrink-0 text-[0.95rem] leading-none">💻</span>
+              <span class="flex h-6 w-6 shrink-0 rotate-90 items-center justify-center rounded-sm border border-line bg-surface-raised text-sm font-bold group-hover:border-primary group-hover:bg-primary group-hover:text-primary-contrast lg:rotate-0">›</span>
+              <span class="shrink-0 text-base leading-none">💻</span>
               <span
-                class="whitespace-nowrap text-[0.8rem] font-semibold tracking-[0.5px] lg:[writing-mode:vertical-rl] lg:[transform:rotate(180deg)]"
+                class="whitespace-nowrap text-xs font-semibold tracking-[0.5px] lg:[writing-mode:vertical-rl] lg:[transform:rotate(180deg)]"
               >{$t("exercises.editor.latexPanelCollapsedLabel", { score: parseExerciseScore(editorLatexBody) })}</span>
             </button>
           {/if}
@@ -902,11 +902,11 @@
         />
       </div>
 
-      <div class="flex justify-end gap-3 border-t border-slate-700 bg-slate-900 px-6 py-5">
-        <button type="button" class="cursor-pointer rounded-md border-0 bg-slate-700 px-5 py-[0.6rem] text-[0.875rem] font-semibold text-white hover:bg-slate-600" on:click={requestClose}>{$t("common.cancel")}</button>
+      <div class="flex justify-end gap-3 border-t border-line bg-surface-sunken px-6 py-5">
+        <button type="button" class="cursor-pointer rounded-md border-0 bg-surface-inset px-5 py-[0.6rem] text-sm font-semibold text-content hover:bg-surface-inset" on:click={requestClose}>{$t("common.cancel")}</button>
         <button
           type="button"
-          class="cursor-pointer rounded-md border-0 bg-blue-600 px-5 py-[0.6rem] text-[0.875rem] font-semibold text-white [&:hover:not(:disabled)]:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+          class="cursor-pointer rounded-md border-0 bg-primary px-5 py-[0.6rem] text-sm font-semibold text-primary-contrast [&:hover:not(:disabled)]:bg-primary disabled:opacity-60 disabled:cursor-not-allowed"
           on:click={handleSaveExercise}
           disabled={isSaving}
         >

@@ -11,9 +11,9 @@
    * times in this file. `shrink-0` keeps them finger-sized in the docked strip
    * instead of squeezing to fit. */
   const toolBtn =
-    "flex h-10 w-11 shrink-0 cursor-pointer flex-col items-center justify-center rounded-lg " +
-    "border border-transparent bg-transparent p-[0.15rem] text-slate-400 " +
-    "transition-all duration-150 hover:bg-slate-800 hover:text-slate-50";
+    "flex h-10 w-11 shrink-0 cursor-pointer flex-col items-center justify-center rounded-md " +
+    "border border-transparent bg-transparent p-[0.15rem] text-muted " +
+    "transition-all duration-150 hover:bg-surface-raised hover:text-content";
 
   function selectTool(tool: ToolType) {
     gradingStore.setDrawTool(tool);
@@ -26,183 +26,183 @@
   overlay position, where there is room to spare.
 -->
 <div
-  class="scroll-pane z-30 flex shrink-0 flex-row gap-1 overflow-x-auto rounded-lg border border-slate-700/80 bg-slate-900/92 p-1.5 backdrop-blur-sm
+  class="scroll-pane z-30 flex shrink-0 flex-row gap-1 overflow-x-auto rounded-md border border-line bg-backdrop p-1.5
     lg:absolute lg:top-3 lg:left-3 lg:max-h-[calc(100%-3rem)] lg:flex-col lg:gap-[0.2rem] lg:overflow-x-visible lg:overflow-y-auto lg:rounded-xl lg:p-[0.35rem] lg:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.5)]"
 >
   <button
     class={toolBtn}
-    class:bg-sky-600={$gradingStore.drawTool === "pen"}
+    class:bg-primary={$gradingStore.drawTool === "pen"}
     class:!text-white={$gradingStore.drawTool === "pen"}
-    class:border-sky-400={$gradingStore.drawTool === "pen"}
+    class:border-primary={$gradingStore.drawTool === "pen"}
     class:shadow-[0_0_10px_rgba(56,189,248,0.3)]={$gradingStore.drawTool === "pen"}
     on:click={() => selectTool("pen")}
     title={$t("grading.toolbar.penTitle")}
   >
     <span class="text-base leading-none">🖊</span>
-    <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.pen")}</span>
+    <span class="text-xs font-semibold mt-[0.1rem]">{$t("grading.toolbar.pen")}</span>
   </button>
   <button
     class={toolBtn}
-    class:bg-sky-600={$gradingStore.drawTool === "line"}
+    class:bg-primary={$gradingStore.drawTool === "line"}
     class:!text-white={$gradingStore.drawTool === "line"}
-    class:border-sky-400={$gradingStore.drawTool === "line"}
+    class:border-primary={$gradingStore.drawTool === "line"}
     class:shadow-[0_0_10px_rgba(56,189,248,0.3)]={$gradingStore.drawTool === "line"}
     on:click={() => selectTool("line")}
     title={$t("grading.toolbar.lineTitle")}
   >
     <span class="text-base leading-none">📏</span>
-    <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.line")}</span>
+    <span class="text-xs font-semibold mt-[0.1rem]">{$t("grading.toolbar.line")}</span>
   </button>
   <button
     class={toolBtn}
-    class:bg-sky-600={$gradingStore.drawTool === "eraser"}
+    class:bg-primary={$gradingStore.drawTool === "eraser"}
     class:!text-white={$gradingStore.drawTool === "eraser"}
-    class:border-sky-400={$gradingStore.drawTool === "eraser"}
+    class:border-primary={$gradingStore.drawTool === "eraser"}
     class:shadow-[0_0_10px_rgba(56,189,248,0.3)]={$gradingStore.drawTool === "eraser"}
     on:click={() => selectTool("eraser")}
     title={$t("grading.toolbar.eraserTitle")}
   >
     <span class="text-base leading-none">🧹</span>
-    <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.eraser")}</span>
+    <span class="text-xs font-semibold mt-[0.1rem]">{$t("grading.toolbar.eraser")}</span>
   </button>
 
-  <div class="h-px bg-slate-700 mx-[0.2rem] my-[0.15rem]"></div>
+  <div class="h-px bg-surface-inset mx-[0.2rem] my-[0.15rem]"></div>
 
   <button
     class={toolBtn}
-    class:bg-sky-600={$gradingStore.drawTool === "check_full" || $gradingStore.drawTool === "check"}
+    class:bg-primary={$gradingStore.drawTool === "check_full" || $gradingStore.drawTool === "check"}
     class:!text-white={$gradingStore.drawTool === "check_full" || $gradingStore.drawTool === "check"}
-    class:border-sky-400={$gradingStore.drawTool === "check_full" || $gradingStore.drawTool === "check"}
+    class:border-primary={$gradingStore.drawTool === "check_full" || $gradingStore.drawTool === "check"}
     class:shadow-[0_0_10px_rgba(56,189,248,0.3)]={$gradingStore.drawTool === "check_full" || $gradingStore.drawTool === "check"}
     on:click={() => selectTool("check_full")}
     title={$t("grading.toolbar.checkFullTitle")}
   >
-    <span class="text-base leading-none text-emerald-400">✓</span>
-    <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.checkFull")}</span>
+    <span class="text-base leading-none text-success-fg">✓</span>
+    <span class="text-xs font-semibold mt-[0.1rem]">{$t("grading.toolbar.checkFull")}</span>
   </button>
   <button
     class={toolBtn}
-    class:bg-sky-600={$gradingStore.drawTool === "check_half"}
+    class:bg-primary={$gradingStore.drawTool === "check_half"}
     class:!text-white={$gradingStore.drawTool === "check_half"}
-    class:border-sky-400={$gradingStore.drawTool === "check_half"}
+    class:border-primary={$gradingStore.drawTool === "check_half"}
     class:shadow-[0_0_10px_rgba(56,189,248,0.3)]={$gradingStore.drawTool === "check_half"}
     on:click={() => selectTool("check_half")}
     title={$t("grading.toolbar.checkHalfTitle")}
   >
-    <span class="text-base leading-none text-amber-400">✓̷</span>
-    <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.checkHalf")}</span>
+    <span class="text-base leading-none text-warning-fg">✓̷</span>
+    <span class="text-xs font-semibold mt-[0.1rem]">{$t("grading.toolbar.checkHalf")}</span>
   </button>
   <button
     class={toolBtn}
-    class:bg-sky-600={$gradingStore.drawTool === "check_quarter"}
+    class:bg-primary={$gradingStore.drawTool === "check_quarter"}
     class:!text-white={$gradingStore.drawTool === "check_quarter"}
-    class:border-sky-400={$gradingStore.drawTool === "check_quarter"}
+    class:border-primary={$gradingStore.drawTool === "check_quarter"}
     class:shadow-[0_0_10px_rgba(56,189,248,0.3)]={$gradingStore.drawTool === "check_quarter"}
     on:click={() => selectTool("check_quarter")}
     title={$t("grading.toolbar.checkQuarterTitle")}
   >
-    <span class="text-base leading-none text-amber-300">✓̷̷</span>
-    <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.checkQuarter")}</span>
+    <span class="text-base leading-none text-warning-fg">✓̷̷</span>
+    <span class="text-xs font-semibold mt-[0.1rem]">{$t("grading.toolbar.checkQuarter")}</span>
   </button>
 
-  <div class="h-px bg-slate-700 mx-[0.2rem] my-[0.15rem]"></div>
+  <div class="h-px bg-surface-inset mx-[0.2rem] my-[0.15rem]"></div>
 
   <button
     class={toolBtn}
-    class:bg-sky-600={$gradingStore.drawTool === "minus_full"}
+    class:bg-primary={$gradingStore.drawTool === "minus_full"}
     class:!text-white={$gradingStore.drawTool === "minus_full"}
-    class:border-sky-400={$gradingStore.drawTool === "minus_full"}
+    class:border-primary={$gradingStore.drawTool === "minus_full"}
     class:shadow-[0_0_10px_rgba(56,189,248,0.3)]={$gradingStore.drawTool === "minus_full"}
     on:click={() => selectTool("minus_full")}
     title={$t("grading.toolbar.minusFullTitle")}
   >
-    <span class="text-base leading-none text-rose-400 font-bold">-1</span>
-    <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.minusFull")}</span>
+    <span class="text-base leading-none text-danger-fg font-bold">-1</span>
+    <span class="text-xs font-semibold mt-[0.1rem]">{$t("grading.toolbar.minusFull")}</span>
   </button>
   <button
     class={toolBtn}
-    class:bg-sky-600={$gradingStore.drawTool === "minus_half"}
+    class:bg-primary={$gradingStore.drawTool === "minus_half"}
     class:!text-white={$gradingStore.drawTool === "minus_half"}
-    class:border-sky-400={$gradingStore.drawTool === "minus_half"}
+    class:border-primary={$gradingStore.drawTool === "minus_half"}
     class:shadow-[0_0_10px_rgba(56,189,248,0.3)]={$gradingStore.drawTool === "minus_half"}
     on:click={() => selectTool("minus_half")}
     title={$t("grading.toolbar.minusHalfTitle")}
   >
-    <span class="text-base leading-none text-rose-400 font-bold">-½</span>
-    <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.minusHalf")}</span>
+    <span class="text-base leading-none text-danger-fg font-bold">-½</span>
+    <span class="text-xs font-semibold mt-[0.1rem]">{$t("grading.toolbar.minusHalf")}</span>
   </button>
   <button
     class={toolBtn}
-    class:bg-sky-600={$gradingStore.drawTool === "minus_quarter"}
+    class:bg-primary={$gradingStore.drawTool === "minus_quarter"}
     class:!text-white={$gradingStore.drawTool === "minus_quarter"}
-    class:border-sky-400={$gradingStore.drawTool === "minus_quarter"}
+    class:border-primary={$gradingStore.drawTool === "minus_quarter"}
     class:shadow-[0_0_10px_rgba(56,189,248,0.3)]={$gradingStore.drawTool === "minus_quarter"}
     on:click={() => selectTool("minus_quarter")}
     title={$t("grading.toolbar.minusQuarterTitle")}
   >
-    <span class="text-base leading-none text-rose-300 font-bold">-¼</span>
-    <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.minusQuarter")}</span>
+    <span class="text-base leading-none text-danger-fg font-bold">-¼</span>
+    <span class="text-xs font-semibold mt-[0.1rem]">{$t("grading.toolbar.minusQuarter")}</span>
   </button>
 
-  <div class="h-px bg-slate-700 mx-[0.2rem] my-[0.15rem]"></div>
+  <div class="h-px bg-surface-inset mx-[0.2rem] my-[0.15rem]"></div>
 
   <button
     class={toolBtn}
-    class:bg-sky-600={$gradingStore.drawTool === "wrong" || $gradingStore.drawTool === "cross"}
+    class:bg-primary={$gradingStore.drawTool === "wrong" || $gradingStore.drawTool === "cross"}
     class:!text-white={$gradingStore.drawTool === "wrong" || $gradingStore.drawTool === "cross"}
-    class:border-sky-400={$gradingStore.drawTool === "wrong" || $gradingStore.drawTool === "cross"}
+    class:border-primary={$gradingStore.drawTool === "wrong" || $gradingStore.drawTool === "cross"}
     class:shadow-[0_0_10px_rgba(56,189,248,0.3)]={$gradingStore.drawTool === "wrong" || $gradingStore.drawTool === "cross"}
     on:click={() => selectTool("wrong")}
     title={$t("grading.toolbar.wrongTitle")}
   >
-    <span class="text-base leading-none text-rose-500 font-serif italic font-bold">f</span>
-    <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.wrong")}</span>
+    <span class="text-base leading-none text-danger-fg font-serif italic font-bold">f</span>
+    <span class="text-xs font-semibold mt-[0.1rem]">{$t("grading.toolbar.wrong")}</span>
   </button>
   <button
     class={toolBtn}
-    class:bg-sky-600={$gradingStore.drawTool === "missing"}
+    class:bg-primary={$gradingStore.drawTool === "missing"}
     class:!text-white={$gradingStore.drawTool === "missing"}
-    class:border-sky-400={$gradingStore.drawTool === "missing"}
+    class:border-primary={$gradingStore.drawTool === "missing"}
     class:shadow-[0_0_10px_rgba(56,189,248,0.3)]={$gradingStore.drawTool === "missing"}
     on:click={() => selectTool("missing")}
     title={$t("grading.toolbar.missingTitle")}
   >
-    <span class="text-base leading-none text-amber-500 font-bold">∀</span>
-    <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.missing")}</span>
+    <span class="text-base leading-none text-warning-fg font-bold">∀</span>
+    <span class="text-xs font-semibold mt-[0.1rem]">{$t("grading.toolbar.missing")}</span>
   </button>
   <button
     class={toolBtn}
-    class:bg-sky-600={$gradingStore.drawTool === "wf"}
+    class:bg-primary={$gradingStore.drawTool === "wf"}
     class:!text-white={$gradingStore.drawTool === "wf"}
-    class:border-sky-400={$gradingStore.drawTool === "wf"}
+    class:border-primary={$gradingStore.drawTool === "wf"}
     class:shadow-[0_0_10px_rgba(56,189,248,0.3)]={$gradingStore.drawTool === "wf"}
     on:click={() => selectTool("wf")}
     title={$t("grading.toolbar.wfTitle")}
   >
-    <span class="text-base leading-none text-purple-400 font-bold">WF</span>
-    <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.wf")}</span>
+    <span class="text-base leading-none text-info-fg font-bold">WF</span>
+    <span class="text-xs font-semibold mt-[0.1rem]">{$t("grading.toolbar.wf")}</span>
   </button>
   <button
     class={toolBtn}
-    class:bg-sky-600={$gradingStore.drawTool === "ff"}
+    class:bg-primary={$gradingStore.drawTool === "ff"}
     class:!text-white={$gradingStore.drawTool === "ff"}
-    class:border-sky-400={$gradingStore.drawTool === "ff"}
+    class:border-primary={$gradingStore.drawTool === "ff"}
     class:shadow-[0_0_10px_rgba(56,189,248,0.3)]={$gradingStore.drawTool === "ff"}
     on:click={() => selectTool("ff")}
     title={$t("grading.toolbar.ffTitle")}
   >
-    <span class="text-base leading-none text-indigo-400 font-bold">FF</span>
-    <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.ff")}</span>
+    <span class="text-base leading-none text-info-fg font-bold">FF</span>
+    <span class="text-xs font-semibold mt-[0.1rem]">{$t("grading.toolbar.ff")}</span>
   </button>
 
-  <div class="h-px bg-slate-700 mx-[0.2rem] my-[0.15rem]"></div>
+  <div class="h-px bg-surface-inset mx-[0.2rem] my-[0.15rem]"></div>
 
   <button
-    class="flex flex-col items-center justify-center w-11 h-10 p-[0.15rem] bg-transparent border border-transparent rounded-lg text-slate-400 cursor-pointer transition-all duration-150 hover:bg-red-500/20 hover:text-red-400"
+    class="flex flex-col items-center justify-center w-11 h-10 p-[0.15rem] bg-transparent border border-transparent rounded-md text-muted cursor-pointer transition-all duration-150 hover:bg-danger/20 hover:text-danger-fg"
     on:click={onClearRequested}
     title={$t("grading.toolbar.clearTitle")}
   >
     <span class="text-base leading-none">🗑</span>
-    <span class="text-[0.625rem] font-semibold mt-[0.1rem]">{$t("grading.toolbar.clear")}</span>
+    <span class="text-xs font-semibold mt-[0.1rem]">{$t("grading.toolbar.clear")}</span>
   </button>
 </div>

@@ -66,7 +66,7 @@
       {/if}
     </div>
     <div class="flex shrink-0 items-center gap-1" role="group" aria-label={$t('stats.download.group')}>
-      <span class="mr-1 text-xs text-subtle" aria-hidden="true">⬇</span>
+      <span class="mr-1 text-xs text-muted" aria-hidden="true">⬇</span>
       {#each EXPORT_FORMATS as format}
         <Button
           variant="ghost"

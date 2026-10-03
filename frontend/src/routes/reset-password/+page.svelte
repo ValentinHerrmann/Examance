@@ -253,7 +253,7 @@
             />
           </Field>
         {:else if recoveryErrorMsg}
-          <p class="m-0 text-sm text-red-400" role="alert">{recoveryErrorMsg}</p>
+          <p class="m-0 text-sm text-danger-fg" role="alert">{recoveryErrorMsg}</p>
         {/if}
 
         <Button

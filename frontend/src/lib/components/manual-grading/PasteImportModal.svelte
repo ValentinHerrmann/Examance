@@ -273,8 +273,8 @@
     onClose();
   }
 
-  const stepDotBase = "rounded px-[0.6rem] py-[0.2rem] text-xs bg-surface-inset text-muted";
-  const stepDotActive = "rounded px-[0.6rem] py-[0.2rem] text-xs bg-accent-strong text-white font-semibold";
+  const stepDotBase = "rounded-sm px-[0.6rem] py-[0.2rem] text-xs bg-surface-inset text-muted";
+  const stepDotActive = "rounded-sm px-[0.6rem] py-[0.2rem] text-xs bg-primary text-primary-contrast font-semibold";
 </script>
 
 <Modal open={true} size="md" title={$t("grading.manual.paste.title")} onClose={onClose}>
@@ -290,7 +290,7 @@
         {$t("grading.manual.paste.pasteHint")}
       </p>
       <textarea
-        class="min-h-[180px] w-full resize-y rounded-md border border-line-strong bg-surface-base p-3 font-mono text-[0.85rem] text-content focus:border-accent-strong focus:outline-none"
+        class="min-h-[180px] w-full resize-y rounded-md border border-line-strong bg-surface-base p-3 font-mono text-sm text-content focus:border-focus focus:outline-none"
         bind:value={rawTsv}
         placeholder={$t("grading.manual.paste.textareaPlaceholder")}
       ></textarea>
@@ -298,7 +298,7 @@
   {:else if step === 2}
     <div>
       <div class="mb-3 flex items-center gap-4">
-        <label class="text-[0.85rem] text-content/90">
+        <label class="text-sm text-content/90">
           <input type="checkbox" bind:checked={autoCreateStudents} />
           {$t("grading.manual.paste.autoCreate")}
         </label>
@@ -306,7 +306,7 @@
 
       <div class="max-h-[40dvh] overflow-y-auto rounded-md border border-line">
         <TableScroller>
-          <table class="w-full border-collapse text-[0.85rem]">
+          <table class="w-full border-collapse text-sm">
             <thead>
               <tr>
                 <th class="sticky top-0 border-b border-line bg-surface-base px-3 py-2 text-left font-semibold text-muted">{$t("grading.manual.paste.colStatus")}</th>
@@ -322,11 +322,11 @@
                 <tr>
                   <td class="border-b border-line px-3 py-2">
                     {#if row.matchedStudent}
-                      <span class="inline-block rounded bg-emerald-500/15 px-[0.4rem] py-[0.15rem] text-xs font-medium text-emerald-400">{$t("grading.manual.paste.matched")}</span>
+                      <span class="inline-block rounded-sm bg-success/15 px-[0.4rem] py-[0.15rem] text-xs font-medium text-success-fg">{$t("grading.manual.paste.matched")}</span>
                     {:else if autoCreateStudents}
-                      <span class="inline-block rounded bg-amber-500/15 px-[0.4rem] py-[0.15rem] text-xs font-medium text-amber-400">{$t("grading.manual.paste.newStudent")}</span>
+                      <span class="inline-block rounded-sm bg-warning/15 px-[0.4rem] py-[0.15rem] text-xs font-medium text-warning-fg">{$t("grading.manual.paste.newStudent")}</span>
                     {:else}
-                      <span class="inline-block rounded bg-slate-500/20 px-[0.4rem] py-[0.15rem] text-xs font-medium text-muted">{$t("grading.manual.paste.skipped")}</span>
+                      <span class="inline-block rounded-sm bg-line-strong/20 px-[0.4rem] py-[0.15rem] text-xs font-medium text-muted">{$t("grading.manual.paste.skipped")}</span>
                     {/if}
                   </td>
                   <td class="border-b border-line px-3 py-2"><strong>{row.rawName}</strong></td>
@@ -334,7 +334,7 @@
                   {#each row.scores as score, idx}
                     {@const maxP = exercises[idx]?.maxPoints || 0}
                     {@const isInvalid = score !== null && (score < 0 || score > maxP)}
-                    <td class="border-b border-line px-3 py-2 {isInvalid ? 'font-bold text-red-500' : ''}">
+                    <td class="border-b border-line px-3 py-2 {isInvalid ? 'font-bold text-danger-fg' : ''}">
                       {score !== null ? score : "-"}
                     </td>
                   {/each}
@@ -352,7 +352,7 @@
         {$t("grading.manual.paste.importingRecords", { count: parsedRows.length })}
       </p>
       {#if parsedRows.some((r) => r.isNew && autoCreateStudents)}
-        <p class="text-[0.85rem] text-amber-400">
+        <p class="text-sm text-warning-fg">
           {$t("grading.manual.paste.newStudentsWarning", { count: parsedRows.filter((r) => r.isNew).length })}
         </p>
       {/if}

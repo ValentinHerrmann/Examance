@@ -649,7 +649,7 @@
   <!-- No `max-w-full` here: it silently clamped every zoom above 100% instead
        of letting the viewport scroll, so zooming in did nothing. -->
   <div class="relative mx-auto block" style="width: {$gradingStore.zoomScale * 100}%;">
-    <canvas bind:this={scanCanvas} class="block w-full h-auto rounded shadow-[0_8px_30px_rgba(0,0,0,0.7)]"></canvas>
+    <canvas bind:this={scanCanvas} class="block w-full h-auto rounded-sm shadow-[0_8px_30px_rgba(0,0,0,0.7)]"></canvas>
     <canvas
       bind:this={overlayCanvas}
       class="absolute top-0 left-0 h-full w-full cursor-crosshair touch-none"

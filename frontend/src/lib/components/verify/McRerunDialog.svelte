@@ -30,19 +30,19 @@
 
     <ul class="m-0 flex list-disc flex-col gap-1 pl-5">
       <li>{$t("scanning.verify.rerunDialog.willRedetect", { count: unreviewedCount })}</li>
-      <li class="text-emerald-300">{$t("scanning.verify.rerunDialog.keptReviewed", { count: reviewedCount })}</li>
+      <li class="text-success-fg">{$t("scanning.verify.rerunDialog.keptReviewed", { count: reviewedCount })}</li>
       {#if undetectedScoreCount > 0}
-        <li class="text-emerald-300">{$t("scanning.verify.rerunDialog.keptManual", { count: undetectedScoreCount })}</li>
+        <li class="text-success-fg">{$t("scanning.verify.rerunDialog.keptManual", { count: undetectedScoreCount })}</li>
       {/if}
     </ul>
 
     {#if hasDetections}
       {#if !latestRun}
-        <p class="m-0 rounded border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-200">
+        <p class="m-0 rounded-sm border border-warning/40 bg-warning/10 p-2 text-xs text-warning-fg">
           {$t("scanning.verify.rerunDialog.settingsUnknown")}
         </p>
       {:else if changed.length > 0}
-        <p class="m-0 rounded border border-amber-500/40 bg-amber-500/10 p-2 text-xs font-semibold text-amber-200">
+        <p class="m-0 rounded-sm border border-warning/40 bg-warning/10 p-2 text-xs font-semibold text-warning-fg">
           {$t("scanning.verify.rerunDialog.settingsDiffer", { count: changed.length })}
         </p>
       {:else}

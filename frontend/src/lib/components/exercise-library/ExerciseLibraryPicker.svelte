@@ -56,16 +56,16 @@
   const pillBase =
     "cursor-pointer rounded-xl border border-line bg-surface-base px-2.5 py-1 text-sm text-muted";
   const pillActive =
-    "cursor-pointer rounded-xl border border-line bg-accent-strong px-2.5 py-1 text-sm text-white";
+    "cursor-pointer rounded-xl border border-line bg-primary px-2.5 py-1 text-sm text-primary-contrast";
 
   const variantPillBase =
-    "inline-flex cursor-pointer items-center gap-1 rounded border border-line bg-surface-raised px-2 py-0.5 text-xs font-medium text-muted transition-all duration-150 ease-[ease] hover:border-accent hover:text-content";
+    "inline-flex cursor-pointer items-center gap-1 rounded-sm border border-line bg-surface-raised px-2 py-0.5 text-xs font-medium text-muted transition-all duration-150 ease-[ease] hover:border-accent hover:text-content";
   const variantPillHasSelected =
-    "inline-flex cursor-pointer items-center gap-1 rounded border border-emerald-500 bg-surface-raised px-2 py-0.5 text-xs font-medium text-muted transition-all duration-150 ease-[ease] hover:text-content";
+    "inline-flex cursor-pointer items-center gap-1 rounded-sm border border-success bg-surface-raised px-2 py-0.5 text-xs font-medium text-muted transition-all duration-150 ease-[ease] hover:text-content";
   const variantPillActive =
-    "inline-flex cursor-pointer items-center gap-1 rounded border border-accent bg-accent-strong px-2 py-0.5 text-xs font-semibold text-white transition-all duration-150 ease-[ease]";
+    "inline-flex cursor-pointer items-center gap-1 rounded-sm border border-accent bg-primary px-2 py-0.5 text-xs font-semibold text-primary-contrast transition-all duration-150 ease-[ease]";
   const variantPillActiveHasSelected =
-    "inline-flex cursor-pointer items-center gap-1 rounded border border-emerald-400 bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white transition-all duration-150 ease-[ease]";
+    "inline-flex cursor-pointer items-center gap-1 rounded-sm border border-success bg-success px-2 py-0.5 text-xs font-semibold text-success-contrast transition-all duration-150 ease-[ease]";
 
   function variantPillClass(active: boolean, hasSelected: boolean): string {
     if (active && hasSelected) return variantPillActiveHasSelected;
@@ -75,9 +75,9 @@
   }
 
   const rowBase =
-    "flex flex-wrap items-start gap-3 rounded-[10px] border border-line bg-surface-raised px-4 py-3 transition-colors duration-150 ease-[ease] hover:border-line-strong hover:bg-[#223044] lg:flex-nowrap";
+    "flex flex-wrap items-start gap-3 rounded-xl border border-line bg-surface-raised px-4 py-3 transition-colors duration-150 ease-[ease] hover:border-line-strong hover:bg-[#223044] lg:flex-nowrap";
   const rowSelected =
-    "flex flex-wrap items-start gap-3 rounded-[10px] border border-accent-strong bg-accent-strong/10 px-4 py-3 transition-colors duration-150 ease-[ease] lg:flex-nowrap";
+    "flex flex-wrap items-start gap-3 rounded-xl border border-primary bg-primary/10 px-4 py-3 transition-colors duration-150 ease-[ease] lg:flex-nowrap";
   $: displayedGroups = filteredGroups.filter((g) => {
     if (selectedTopicFilter !== "ALL" && g.topicTag !== selectedTopicFilter) return false;
     const activeVKey = activeVariantPerGroup[g.groupId] || Array.from(g.variants.keys())[0] || "_General";
@@ -95,7 +95,7 @@
       type="text"
       placeholder={$t("exercises.libraryPicker.searchPlaceholder")}
       bind:value={searchQuery}
-      class="w-full box-border flex-[1_1_280px] rounded-md border border-line bg-surface-base p-2.5 text-white"
+      class="w-full box-border flex-[1_1_280px] rounded-md border border-line bg-surface-base p-2.5 text-content"
     />
     <span class="whitespace-normal text-sm font-medium text-muted lg:whitespace-nowrap">
       {$t("exercises.libraryPicker.groupsSummary", { groups: displayedGroups.length, variants: totalVariantsCount })}
@@ -106,7 +106,7 @@
     {#if availableGrades.length > 0}
       <div class="flex min-w-0 w-full flex-auto items-center gap-2 text-sm text-muted lg:w-auto lg:flex-[0_1_240px]">
         <label for="picker-grade">{$t("exercises.libraryPicker.gradeLabel")}</label>
-        <select id="picker-grade" bind:value={selectedGradeFilter} class="w-full min-w-0 rounded-md border border-line bg-surface-raised px-3 py-1.5 text-sm text-white focus:border-accent focus:shadow-[0_0_0_1px_rgba(56,189,248,0.25)] focus:outline-none">
+        <select id="picker-grade" bind:value={selectedGradeFilter} class="w-full min-w-0 rounded-md border border-line bg-surface-raised px-3 py-1.5 text-sm text-content focus:border-focus focus:shadow-[0_0_0_1px_rgba(56,189,248,0.25)] focus:outline-none">
           <option value="ALL">{$t("exercises.libraryPicker.allGrades")}</option>
           {#each availableGrades as g}
             <option value={g}>{$t("exercises.libraryPicker.gradeOption", { grade: g })}</option>
@@ -118,7 +118,7 @@
     {#if availableSubjects.length > 0}
       <div class="flex min-w-0 w-full flex-auto items-center gap-2 text-sm text-muted lg:w-auto lg:flex-[0_1_240px]">
         <label for="picker-subject">{$t("exercises.libraryPicker.subjectLabel")}</label>
-        <select id="picker-subject" bind:value={selectedSubjectFilter} class="w-full min-w-0 rounded-md border border-line bg-surface-raised px-3 py-1.5 text-sm text-white focus:border-accent focus:shadow-[0_0_0_1px_rgba(56,189,248,0.25)] focus:outline-none">
+        <select id="picker-subject" bind:value={selectedSubjectFilter} class="w-full min-w-0 rounded-md border border-line bg-surface-raised px-3 py-1.5 text-sm text-content focus:border-focus focus:shadow-[0_0_0_1px_rgba(56,189,248,0.25)] focus:outline-none">
           <option value="ALL">{$t("exercises.libraryPicker.allSubjects")}</option>
           {#each availableSubjects as s}
             <option value={s}>{s}</option>
@@ -187,23 +187,23 @@
             <span class="min-w-0 overflow-hidden text-ellipsis whitespace-normal text-base font-semibold text-content sm:whitespace-nowrap">{group.name}</span>
 
             {#if group.topicTag}
-              <span class="rounded px-2 py-0.5 text-xs font-medium bg-surface-inset text-muted">{group.topicTag}</span>
+              <span class="rounded-sm px-2 py-0.5 text-xs font-medium bg-surface-inset text-muted">{group.topicTag}</span>
             {/if}
 
             {#if isMc}
-              <span class="rounded border border-amber-500 bg-amber-500/15 px-1.5 py-0.5 text-xs font-semibold text-amber-400">
+              <span class="rounded-sm border border-warning bg-warning/15 px-1.5 py-0.5 text-xs font-semibold text-warning-fg">
                 MC
               </span>
             {/if}
 
             {#if ownerGroup !== undefined}
-              <span class="rounded border border-amber-500/60 bg-amber-500/10 px-1.5 py-0.5 text-xs font-semibold text-amber-300">
+              <span class="rounded-sm border border-warning/60 bg-warning/10 px-1.5 py-0.5 text-xs font-semibold text-warning-fg">
                 {$t("exercises.libraryPicker.inMcGroupBadge", { title: ownerGroup })}
               </span>
             {/if}
 
             {#if groupSelectedCount > 0}
-              <span class="rounded border border-emerald-500 bg-emerald-500/15 px-1.5 py-0.5 text-xs font-semibold text-emerald-400">
+              <span class="rounded-sm border border-success bg-success/15 px-1.5 py-0.5 text-xs font-semibold text-success-fg">
                 ✓ {isMc ? $t("exercises.libraryPicker.stagedCount", { count: groupSelectedCount }) : $t("exercises.libraryPicker.inExamCount", { count: groupSelectedCount })}
               </span>
             {/if}
@@ -222,7 +222,7 @@
                   title={$t("exercises.libraryPicker.switchVariantTitle", { key: vKey })}
                 >
                   {#if hasSelected}
-                    <span class="text-xs font-bold text-emerald-400">✓</span>
+                    <span class="text-xs font-bold text-success-fg">✓</span>
                   {/if}
                   <span>{vKey}</span>
                 </button>
@@ -233,7 +233,7 @@
 
         <!-- Right Actions: Points, Quick Edit & Preview Button -->
         <div class="flex w-full flex-wrap items-start justify-start gap-2 whitespace-nowrap ml-0 lg:ml-auto lg:w-auto lg:justify-end">
-          <span class="rounded bg-accent-strong px-2 py-0.5 text-xs font-semibold text-content">
+          <span class="rounded-sm bg-primary px-2 py-0.5 text-xs font-semibold text-content">
             {group.variants.size > 1 && group.minPoints !== group.maxPoints
               ? $t("exercises.libraryPicker.pointsRange", { min: group.minPoints, max: group.maxPoints })
               : $t("exercises.libraryPicker.pointsSingle", { score })}
@@ -242,7 +242,7 @@
           {#if activeEx}
             <button
               type="button"
-              class="inline-flex items-center gap-1 rounded border border-line-strong bg-surface-inset px-2 py-1 text-xs font-medium text-content transition-all duration-150 ease-[ease] hover:border-accent hover:bg-line-strong hover:text-accent"
+              class="inline-flex items-center gap-1 rounded-sm border border-line-strong bg-surface-inset px-2 py-1 text-xs font-medium text-content transition-all duration-150 ease-[ease] hover:border-accent hover:bg-line-strong hover:text-accent"
               title={$t("exercises.libraryPicker.quickEditTitle")}
               on:click={() => onQuickEdit(activeEx)}
             >
@@ -254,7 +254,7 @@
             </button>
             <button
               type="button"
-              class="inline-flex items-center gap-1 rounded border border-line bg-transparent px-2 py-1 text-xs font-medium text-accent transition-all duration-150 ease-[ease] hover:border-accent hover:bg-surface-raised"
+              class="inline-flex items-center gap-1 rounded-sm border border-line bg-transparent px-2 py-1 text-xs font-medium text-accent transition-all duration-150 ease-[ease] hover:border-accent hover:bg-surface-raised"
               title={$t("exercises.libraryPicker.quickPreviewTitle")}
               on:click={() => onOpenPreview(activeEx)}
             >

@@ -93,11 +93,11 @@
   const tabBtn =
     "flex-[1_1_180px] cursor-pointer rounded-md border px-4 py-2 font-semibold sm:flex-none";
   const tabBtnIdle = `${tabBtn} border-line bg-surface-base text-muted hover:text-content`;
-  const tabBtnActive = `${tabBtn} border-accent bg-accent-strong text-white`;
+  const tabBtnActive = `${tabBtn} border-accent bg-primary text-primary-contrast`;
 
 </script>
 
-<div class="mb-6 min-w-0 rounded-[10px] border border-line bg-surface-raised p-4 sm:p-6">
+<div class="mb-6 min-w-0 rounded-xl border border-line bg-surface-raised p-4 sm:p-6">
   <div class="mb-4 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
     <h3 class="m-0 text-lg text-content">{$t("examCreation.exerciseSelector.heading")}</h3>
     <div class="flex flex-wrap gap-2">

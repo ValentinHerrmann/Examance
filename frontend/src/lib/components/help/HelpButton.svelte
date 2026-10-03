@@ -18,12 +18,12 @@
   $: label = $t("help.ui.openHelpFor", {
     topic: entry ? $t(entry.titleKey) : $t("help.ui.title"),
   });
-  $: box = size === "sm" ? "h-5 w-5 text-[0.7rem]" : "h-6 w-6 text-xs";
+  $: box = size === "sm" ? "h-5 w-5 text-xs" : "h-6 w-6 text-xs";
 </script>
 
 <button
   type="button"
-  class="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-transparent font-semibold text-subtle transition-colors hover:border-accent hover:text-accent focus-visible:border-accent focus-visible:text-accent {box} {className}"
+  class="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-transparent font-semibold text-muted transition-colors hover:border-accent hover:text-accent focus-visible:border-accent focus-visible:text-accent {box} {className}"
   aria-label={label}
   title={label}
   on:click|stopPropagation={() => openHelp(topic)}

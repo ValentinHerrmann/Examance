@@ -81,9 +81,9 @@
   }
 
   const tabBtnBase =
-    "cursor-pointer rounded-md border border-line bg-transparent px-[0.9rem] py-[0.4rem] text-[0.85rem] font-medium text-muted transition-all duration-150 ease-[ease] hover:enabled:bg-surface-inset hover:enabled:text-content disabled:cursor-not-allowed disabled:opacity-40";
+    "cursor-pointer rounded-md border border-line bg-transparent px-[0.9rem] py-[0.4rem] text-sm font-medium text-muted transition-all duration-150 ease-[ease] hover:enabled:bg-surface-inset hover:enabled:text-content disabled:cursor-not-allowed disabled:opacity-40";
   const tabBtnActive =
-    "cursor-pointer rounded-md border border-accent bg-accent-strong px-[0.9rem] py-[0.4rem] text-[0.85rem] font-semibold text-white";
+    "cursor-pointer rounded-md border border-accent bg-primary px-[0.9rem] py-[0.4rem] text-sm font-semibold text-primary-contrast";
 </script>
 
 <Modal open={isOpen} size="lg" title={$t("exam.libraryModal.header")} onClose={onRequestClose}>

@@ -41,7 +41,7 @@
     </thead>
     <tbody>
       {#each rows as row (row.key)}
-        <tr class="border-t border-line {row.changed ? 'bg-amber-500/10 text-amber-200' : 'text-content'}">
+        <tr class="border-t border-line {row.changed ? 'bg-warning/10 text-warning-fg' : 'text-content'}">
           <td class="py-1 pr-3">{$tOptional(`settings.omr.params.${row.key}.label`) ?? row.key}</td>
           <td class="py-1 pr-3 text-right font-mono tabular-nums">
             {format(row.before)}

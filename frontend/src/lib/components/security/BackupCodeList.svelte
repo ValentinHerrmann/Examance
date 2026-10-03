@@ -35,7 +35,7 @@
   <div class="flex flex-col gap-4">
     <p class="text-sm text-muted">{$t("security.backupCodes.intro")}</p>
     <p
-      class="rounded-lg border border-line-strong bg-surface-sunken p-3 text-sm text-content"
+      class="rounded-md border border-line-strong bg-surface-sunken p-3 text-sm text-content"
       role="alert"
     >
       {$t("security.backupCodes.warning")}

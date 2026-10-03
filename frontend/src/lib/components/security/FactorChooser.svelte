@@ -92,7 +92,7 @@
     {/if}
 
     {#if errorMsg}
-      <p class="m-0 text-sm text-red-400" role="alert">{errorMsg}</p>
+      <p class="m-0 text-sm text-danger-fg" role="alert">{errorMsg}</p>
     {/if}
 
     <ul class="m-0 flex list-none flex-col gap-2 p-0">
@@ -100,7 +100,7 @@
         <li>
           <button
             type="button"
-            class="w-full cursor-pointer rounded-lg border border-line bg-surface-sunken p-3
+            class="w-full cursor-pointer rounded-md border border-line bg-surface-sunken p-3
                    text-left transition-colors hover:enabled:border-line-strong
                    disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isWorking || passkeyPending}

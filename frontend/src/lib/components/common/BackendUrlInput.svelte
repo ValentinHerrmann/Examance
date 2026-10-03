@@ -254,10 +254,10 @@
 
 <div
   bind:this={wrapperEl}
-  class="backend-url-control relative flex items-stretch w-full min-w-0 rounded-md border border-line bg-surface-base transition-colors focus-within:border-accent focus-within:ring-1 focus-within:ring-accent {className}"
+  class="backend-url-control relative flex items-stretch w-full min-w-0 rounded-md border border-line bg-surface-base transition-colors focus-within:border-accent focus-within:ring-1 focus-within:ring-focus {className}"
 >
   <span
-    class="protocol-prefix inline-flex items-center px-2.5 sm:px-3 text-xs sm:text-sm font-mono font-medium text-slate-400 select-none border-r border-line bg-surface-raised shrink-0"
+    class="protocol-prefix inline-flex items-center px-2.5 sm:px-3 text-xs sm:text-sm font-mono font-medium text-muted select-none border-r border-line bg-surface-raised shrink-0"
     title="Protocol: {protocol}//"
     aria-label="Protocol: {protocol}//"
   >
@@ -284,7 +284,7 @@
   />
   <button
     type="button"
-    class="dropdown-toggle-btn flex items-center justify-center px-2.5 text-slate-400 hover:text-slate-200 focus:outline-none transition-colors shrink-0"
+    class="dropdown-toggle-btn flex items-center justify-center px-2.5 text-muted hover:text-content focus:outline-none transition-colors shrink-0"
     on:mousedown|preventDefault={toggleDropdown}
     tabindex="-1"
     aria-label="Toggle server suggestions"
@@ -309,12 +309,12 @@
 {#if isOpen && !disabled}
   <ul
     id={dropdownId}
-    class="scroll-pane m-0 list-none overflow-y-auto overscroll-contain rounded-lg border border-line bg-surface-raised p-1 shadow-2xl"
+    class="scroll-pane m-0 list-none overflow-y-auto overscroll-contain rounded-md border border-line bg-surface-raised p-1 shadow-2xl"
     style={dropdownStyle}
     role="listbox"
   >
     {#if filteredSuggestions.length === 0}
-      <li class="px-3 py-2 text-center text-xs italic text-slate-400 select-none">
+      <li class="px-3 py-2 text-center text-xs italic text-muted select-none">
         {$t("exercises.suggestInput.noEntries")}
       </li>
     {:else}
@@ -323,19 +323,19 @@
         <li
           role="option"
           aria-selected={i === highlightedIndex || isCurrent}
-          class="group flex cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-1.5 text-sm transition-colors {i === highlightedIndex ? 'bg-sky-600 text-white' : isCurrent ? 'bg-sky-950/60 text-sky-200' : 'text-slate-200 hover:bg-slate-700/60 hover:text-white'}"
+          class="group flex cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-1.5 text-sm transition-colors {i === highlightedIndex ? 'bg-primary text-primary-contrast' : isCurrent ? 'bg-highlight text-accent' : 'text-content hover:bg-surface-inset/60 hover:text-primary-contrast'}"
           on:mousedown|preventDefault={() => selectOption(suggestion)}
           on:mouseenter={() => (highlightedIndex = i)}
         >
           <div class="flex items-center gap-2 min-w-0 flex-1">
             <span class="truncate font-mono text-xs sm:text-sm">{suggestion.host}</span>
             {#if isCurrent}
-              <span class="text-xs text-sky-400 font-bold shrink-0" title="Selected">✓</span>
+              <span class="text-xs text-accent font-bold shrink-0" title="Selected">✓</span>
             {/if}
           </div>
           <div class="flex items-center gap-1.5 shrink-0">
             <span
-              class="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider {suggestion.label === 'Local' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : suggestion.label === 'Preview' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : suggestion.label === 'Production' ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30' : 'bg-slate-700/60 text-slate-300 border border-slate-600'}"
+              class="px-1.5 py-0.5 rounded-sm text-xs font-semibold uppercase tracking-wider {suggestion.label === 'Local' ? 'bg-success/20 text-success-fg border border-success/30' : suggestion.label === 'Preview' ? 'bg-warning/20 text-warning-fg border border-warning/30' : suggestion.label === 'Production' ? 'bg-highlight text-accent border border-primary/30' : 'bg-surface-inset/60 text-content border border-line-strong'}"
             >
               {suggestion.label}
             </span>
@@ -344,7 +344,7 @@
                 type="button"
                 title={$t("exercises.suggestInput.removeEntry")}
                 aria-label={$t("exercises.suggestInput.removeEntry")}
-                class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-xs text-slate-400 opacity-60 transition-opacity hover:bg-red-500/30 hover:text-red-300 group-hover:opacity-100"
+                class="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-xs text-muted opacity-60 transition-opacity hover:bg-danger/30 hover:text-danger-fg group-hover:opacity-100"
                 on:mousedown|preventDefault|stopPropagation={(e) => handleRemove(e, suggestion.host)}
               >
                 ✕

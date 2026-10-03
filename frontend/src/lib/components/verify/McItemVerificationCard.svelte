@@ -338,27 +338,27 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
-<div class="rounded-xl border border-slate-700 bg-slate-800 p-6 space-y-6 shadow-xl max-w-[1600px] mx-auto">
+<div class="rounded-xl border border-line bg-surface-raised p-6 space-y-6 shadow-xl max-w-[1600px] mx-auto">
   <!-- Top Bar: Header & Counter -->
-  <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-700 pb-4">
+  <div class="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-4">
     <div>
-      <div class="text-xs font-semibold uppercase tracking-wider text-sky-400">
-        {$t("scanning.itemCard.verificationLabel")} <span class="text-slate-100 font-bold">{studentLabel}</span>
+      <div class="text-xs font-semibold uppercase tracking-wider text-accent">
+        {$t("scanning.itemCard.verificationLabel")} <span class="text-content font-bold">{studentLabel}</span>
         {#if studentTotal > 1}
-          <span class="ml-1 px-1.5 py-0.5 text-[0.65rem] font-mono font-semibold rounded bg-slate-700/60 text-slate-300 border border-slate-600/50 normal-case tracking-normal">
+          <span class="ml-1 px-1.5 py-0.5 text-xs font-mono font-semibold rounded-sm bg-surface-inset/60 text-content border border-line-strong normal-case tracking-normal">
             {studentReviewed}/{studentTotal}
           </span>
         {/if}
       </div>
       <div class="flex items-center gap-2 mt-0.5">
-        <h3 class="text-lg font-bold text-slate-100">
+        <h3 class="text-lg font-bold text-content">
           {exerciseLabel || exercise.name || exercise.title || $t("scanning.itemCard.defaultExerciseName")}
         </h3>
         <span
-          class="px-2 py-0.5 text-[0.7rem] font-semibold rounded border transition-shadow duration-300
-            {reviewStatus === 'confirmedUnchanged' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : ''}
-            {reviewStatus === 'manuallyCorrected' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : ''}
-            {reviewStatus === 'unreviewed' ? 'bg-slate-700/40 text-slate-300 border-slate-600/50' : ''}"
+          class="px-2 py-0.5 text-xs font-semibold rounded-sm border transition-shadow duration-300
+            {reviewStatus === 'confirmedUnchanged' ? 'bg-success/20 text-success-fg border-success/30' : ''}
+            {reviewStatus === 'manuallyCorrected' ? 'bg-warning/20 text-warning-fg border-warning/30' : ''}
+            {reviewStatus === 'unreviewed' ? 'bg-surface-inset/40 text-content border-line-strong' : ''}"
           class:restore-pulse={justRestored}
         >
           {#if reviewStatus === "confirmedUnchanged"}
@@ -373,14 +373,14 @@
     </div>
     <div class="flex items-center gap-3">
       {#if totalItems > 0}
-        <span class="text-xs text-slate-400 font-mono">
+        <span class="text-xs text-muted font-mono">
           {$t("scanning.itemCard.itemCounter", { current: currentIndex + 1, total: totalItems })}
         </span>
       {/if}
       <button
         type="button"
         on:click={onOpenGrading}
-        class="px-3 py-1.5 text-xs font-medium rounded border border-slate-600 bg-slate-900 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer flex items-center gap-1.5"
+        class="px-3 py-1.5 text-xs font-medium rounded-sm border border-line-strong bg-surface-sunken hover:bg-surface-inset text-content transition-colors cursor-pointer flex items-center gap-1.5"
       >
         <span>{$t("scanning.itemCard.canvasWorkspace")}</span>
         <span>↗</span>
@@ -390,7 +390,7 @@
 
   {#if studentItems.length > 1}
     <div class="flex flex-wrap items-center gap-2 -mt-2">
-      <span class="text-[0.65rem] uppercase tracking-wider text-slate-500">
+      <span class="text-xs uppercase tracking-wider text-muted">
         {$t("scanning.itemCard.otherItemsHeading")}
       </span>
       {#each studentItems as si}
@@ -406,10 +406,10 @@
           disabled={isCurrent}
           on:click={() => onNavigateToItem(si.exerciseId, si.category)}
           title={$t(categoryLabelKey)}
-          class="px-2 py-1 text-[0.7rem] rounded border flex items-center gap-1.5 transition-colors
+          class="px-2 py-1 text-xs rounded-sm border flex items-center gap-1.5 transition-colors
             {isCurrent
-              ? 'border-sky-500 bg-sky-500/15 text-sky-200 cursor-default'
-              : 'border-slate-700 bg-slate-900 hover:border-slate-500 text-slate-300 cursor-pointer'}"
+              ? 'border-primary bg-highlight text-accent cursor-default'
+              : 'border-line bg-surface-sunken hover:border-line-strong text-content cursor-pointer'}"
         >
           <span>{si.isReviewed ? "✓" : "○"}</span>
           <span class="truncate max-w-[10rem]">{si.exerciseLabel}</span>
@@ -420,8 +420,8 @@
 
   <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
     <!-- Left Column: Scan Bubble Crop -->
-    <div class="rounded-lg border border-slate-700 bg-slate-900 p-4 flex flex-col items-center justify-center min-h-[320px]">
-      <div class="text-xs font-medium text-slate-400 mb-2 w-full flex items-center justify-between gap-2">
+    <div class="rounded-md border border-line bg-surface-sunken p-4 flex flex-col items-center justify-center min-h-[320px]">
+      <div class="text-xs font-medium text-muted mb-2 w-full flex items-center justify-between gap-2">
         <div class="flex items-center gap-2">
           <span>{$t("scanning.itemCard.scanCrop")}</span>
           <button
@@ -430,15 +430,15 @@
             aria-checked={showOverlay}
             on:click={toggleOverlay}
             title={showOverlay ? $t("scanning.itemCard.hideOverlayTooltip") : $t("scanning.itemCard.showOverlayTooltip")}
-            class="inline-flex items-center gap-2 rounded-full py-0.5 pl-0.5 pr-2 text-slate-300 hover:text-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            class="inline-flex items-center gap-2 rounded-full py-0.5 pl-0.5 pr-2 text-content hover:text-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
           >
             <span
               class="relative inline-block h-4 w-7 shrink-0 rounded-full transition-colors duration-200 {showOverlay
-                ? 'bg-accent'
-                : 'bg-slate-600'}"
+                ? 'bg-primary'
+                : 'bg-surface-inset'}"
             >
               <span
-                class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform duration-200 {showOverlay
+                class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-surface-raised shadow transition-transform duration-200 {showOverlay
                   ? 'translate-x-3'
                   : 'translate-x-0'}"
               ></span>
@@ -446,22 +446,22 @@
             {$t("scanning.itemCard.overlayToggleLabel")}
           </button>
         </div>
-        <span class="font-mono text-[0.7rem] text-slate-500">
+        <span class="font-mono text-xs text-muted">
           {$t("scanning.itemCard.sourceConfidence", { source, confidence })}
         </span>
       </div>
       {#if omrMeta?.alignmentUncertain}
-        <div class="mb-2 w-full rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-300">
+        <div class="mb-2 w-full rounded-sm border border-warning/40 bg-warning/10 px-2 py-1 text-xs text-warning-fg">
           {$t("scanning.itemCard.alignmentUncertainWarning")}
         </div>
       {/if}
 
       {#if loadingCrop}
-        <div class="text-xs text-slate-400 animate-pulse py-12">{$t("scanning.itemCard.renderingCrop")}</div>
+        <div class="text-xs text-muted animate-pulse py-12">{$t("scanning.itemCard.renderingCrop")}</div>
       {:else if cropError}
-        <div class="text-xs text-red-400 py-12">{cropError}</div>
+        <div class="text-xs text-danger-fg py-12">{cropError}</div>
       {:else if cropDataUrl}
-        <div class="relative w-full overflow-hidden rounded border border-slate-700 bg-white">
+        <div class="relative w-full overflow-hidden rounded-sm border border-line bg-surface-raised">
           <img
             src={cropDataUrl}
             alt={$t("scanning.itemCard.scanCropAlt", { name: exercise.name || "" })}
@@ -480,7 +480,7 @@
           {/if}
         </div>
       {:else}
-        <div class="text-xs text-slate-500 italic py-12 text-center">
+        <div class="text-xs text-muted italic py-12 text-center">
           {$t("scanning.itemCard.noCrop")}
         </div>
       {/if}
@@ -491,30 +491,30 @@
       <div>
         <div class="flex items-center justify-between mb-2">
           <div>
-            <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
+            <span class="text-xs font-semibold text-content uppercase tracking-wider block">
               {$t("scanning.itemCard.confirmAnswers")}
             </span>
-            <span class="text-[0.7rem] text-slate-400">
+            <span class="text-xs text-muted">
               {$t("scanning.itemCard.markedBoxesHelp")}
             </span>
           </div>
-          <span class="text-xs font-bold font-mono text-emerald-400">
+          <span class="text-xs font-bold font-mono text-success-fg">
             {$t("scanning.itemCard.scoreLabel", { score: currentScore, maxPoints: exercise.maxPoints })}
           </span>
         </div>
 
         {#if confidence === "failed"}
-          <div class="mb-3 rounded border border-red-500/40 bg-red-500/10 p-2 text-xs text-red-400">
+          <div class="mb-3 rounded-sm border border-danger/40 bg-danger/10 p-2 text-xs text-danger-fg">
             {$t("scanning.itemCard.detectionFailed")}
           </div>
         {:else if confidence === "ambiguous"}
-          <div class="mb-3 rounded border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-300">
+          <div class="mb-3 rounded-sm border border-warning/40 bg-warning/10 p-2 text-xs text-warning-fg">
             {$t("scanning.itemCard.ambiguousDetection")}
           </div>
         {/if}
 
         {#if hasOriginal && !isMatchesOriginal}
-          <div class="mb-3 p-2 rounded bg-slate-900/80 border border-slate-700 text-xs text-slate-400">
+          <div class="mb-3 p-2 rounded-sm bg-backdrop border border-line text-xs text-muted">
             {$t("scanning.itemCard.originalDetected", { options: formatOptionLabels(originalOptions ?? []) })}
           </div>
         {/if}
@@ -535,9 +535,9 @@
                   handleToggleOption(idx);
                 }
               }}
-              class="w-full flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-all duration-150 cursor-pointer select-none
-                {isSelected ? 'border-sky-400 bg-sky-400/15 font-semibold' : 'border-slate-700 bg-slate-900 hover:border-slate-500'}
-                {isFlagged ? 'border-dashed border-amber-500' : ''}"
+              class="w-full flex items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-left text-sm transition-all duration-150 cursor-pointer select-none
+                {isSelected ? 'border-primary bg-highlight font-semibold' : 'border-line bg-surface-sunken hover:border-line-strong'}
+                {isFlagged ? 'border-dashed border-warning' : ''}"
             >
               <div class="flex items-center gap-3 flex-1 min-w-0">
                 <input
@@ -546,16 +546,16 @@
                   disabled={isSaving}
                   aria-label={$t("scanning.itemCard.checkboxLabel", { label: letter })}
                   on:click|stopPropagation={() => handleToggleOption(idx)}
-                  class="h-4 w-4 rounded border-slate-600 bg-slate-800 text-sky-500 focus:ring-sky-400 cursor-pointer pointer-events-auto"
+                  class="h-4 w-4 rounded-sm border-line-strong bg-surface-raised text-accent focus:ring-focus cursor-pointer pointer-events-auto"
                 />
-                <span class="font-mono text-xs text-slate-400 font-bold">{letter}.</span>
+                <span class="font-mono text-xs text-muted font-bold">{letter}.</span>
                 <span class="flex min-w-0 flex-col">
-                  <span class="text-slate-200 truncate">{opt}</span>
+                  <span class="text-content truncate">{opt}</span>
                   {#each reasonsByOption.get(idx) ?? [] as reason}
-                    <span class="text-[0.7rem] font-normal text-amber-300">{$t(`scanning.itemCard.reason.${reason}`)}</span>
+                    <span class="text-xs font-normal text-warning-fg">{$t(`scanning.itemCard.reason.${reason}`)}</span>
                   {/each}
                   {#if reviewStatus === "unreviewed" && provisionalByOption.has(idx)}
-                    <span class="text-[0.7rem] font-normal text-amber-300">
+                    <span class="text-xs font-normal text-warning-fg">
                       {provisionalByOption.get(idx)
                         ? $t("scanning.itemCard.provisionalTicked")
                         : $t("scanning.itemCard.provisionalNotTicked")}
@@ -565,21 +565,21 @@
               </div>
               <div class="flex items-center gap-2 shrink-0">
                 {#if isSelected}
-                  <span class={isCorrect ? "text-emerald-400 font-bold text-xs" : "text-red-400 font-bold text-xs"}>
+                  <span class={isCorrect ? "text-success-fg font-bold text-xs" : "text-danger-fg font-bold text-xs"}>
                     {isCorrect ? $t("scanning.itemCard.correct") : $t("scanning.itemCard.incorrect")}
                   </span>
                 {:else if isCorrect}
-                  <span class="text-slate-500 text-[0.7rem]">{$t("scanning.itemCard.keyCorrect")}</span>
+                  <span class="text-muted text-xs">{$t("scanning.itemCard.keyCorrect")}</span>
                 {/if}
                 {#if isFlagged}
-                  <span class="text-amber-400 font-bold text-xs" title={$t("scanning.itemCard.flaggedTitle")}>?</span>
+                  <span class="text-warning-fg font-bold text-xs" title={$t("scanning.itemCard.flaggedTitle")}>?</span>
                 {/if}
               </div>
             </div>
           {/each}
         </div>
 
-        <p class="mt-2 text-[0.7rem] text-slate-500">
+        <p class="mt-2 text-xs text-muted">
           {$t("scanning.itemCard.optionShortcutHint", { count: options.length })}
         </p>
 
@@ -589,7 +589,7 @@
             on:click={handleConfirmAsCorrect}
             disabled={isSaving}
             title={$t("scanning.itemCard.confirmDetectionTooltip")}
-            class="px-3 py-1.5 text-xs font-medium rounded border border-emerald-600/50 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
+            class="px-3 py-1.5 text-xs font-medium rounded-sm border border-success/50 bg-success/40 hover:bg-success/60 text-success-fg transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
           >
             <span>{$t("scanning.itemCard.confirmDetection")}</span>
           </button>
@@ -599,7 +599,7 @@
               on:click={handleRestoreOriginal}
               disabled={isSaving}
               title={$t("scanning.itemCard.restoreOriginalTooltip")}
-              class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-slate-900 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer disabled:opacity-50"
+              class="px-3 py-1.5 text-xs font-medium rounded-sm border border-line bg-surface-sunken hover:bg-surface-inset text-content transition-colors cursor-pointer disabled:opacity-50"
             >
               {$t("scanning.itemCard.restoreOriginal")}
             </button>
@@ -608,12 +608,12 @@
       </div>
 
       <!-- Action Navigation Footer -->
-      <div class="flex items-center justify-between pt-4 border-t border-slate-700">
+      <div class="flex items-center justify-between pt-4 border-t border-line">
         <button
           type="button"
           on:click={onPrev}
           disabled={currentIndex <= 0}
-          class="px-4 py-2 text-xs font-medium rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer disabled:opacity-40"
+          class="px-4 py-2 text-xs font-medium rounded-sm border border-line bg-surface-raised hover:bg-surface-inset text-content transition-colors cursor-pointer disabled:opacity-40"
         >
           {$t("scanning.itemCard.previous")}
         </button>
@@ -621,7 +621,7 @@
         <button
           type="button"
           on:click={() => requestAdvance(onNext)}
-          class="px-5 py-2 text-xs font-semibold rounded bg-sky-600 hover:bg-sky-500 text-white transition-colors cursor-pointer"
+          class="px-5 py-2 text-xs font-semibold rounded-sm bg-primary hover:bg-primary text-primary-contrast transition-colors cursor-pointer"
         >
           {isLastItem ? $t("scanning.itemCard.backToDashboard") : $t("scanning.itemCard.nextItem")}
         </button>

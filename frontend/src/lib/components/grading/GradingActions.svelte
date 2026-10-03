@@ -11,7 +11,7 @@
 </script>
 
 <button
-  class="w-full py-2 bg-sky-600 text-white font-semibold text-[0.825rem] border-none rounded-md cursor-pointer transition-colors duration-150 hover:enabled:bg-sky-700 disabled:opacity-60 disabled:cursor-not-allowed"
+  class="w-full py-2 bg-primary text-primary-contrast font-semibold text-sm border-none rounded-md cursor-pointer transition-colors duration-150 hover:enabled:bg-primary disabled:opacity-60 disabled:cursor-not-allowed"
   on:click={onSave}
   disabled={$gradingStore.isSaving}
 >
@@ -20,12 +20,12 @@
 
 <div class="flex flex-wrap gap-2">
   <button
-    class="flex-1 py-[0.4rem] px-2 bg-slate-700 text-slate-300 border-none rounded-md text-[0.775rem] font-medium cursor-pointer transition-colors duration-150 hover:enabled:bg-slate-600 hover:enabled:text-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+    class="flex-1 py-[0.4rem] px-2 bg-surface-inset text-content border-none rounded-md text-xs font-medium cursor-pointer transition-colors duration-150 hover:enabled:bg-surface-inset hover:enabled:text-content disabled:opacity-40 disabled:cursor-not-allowed"
     on:click={onPrev}
     disabled={currentIndex === 0}
   >{$t("grading.actions.prev")}</button>
   <button
-    class="flex-1 py-[0.4rem] px-2 bg-slate-700 text-slate-300 border-none rounded-md text-[0.775rem] font-medium cursor-pointer transition-colors duration-150 hover:enabled:bg-slate-600 hover:enabled:text-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+    class="flex-1 py-[0.4rem] px-2 bg-surface-inset text-content border-none rounded-md text-xs font-medium cursor-pointer transition-colors duration-150 hover:enabled:bg-surface-inset hover:enabled:text-content disabled:opacity-40 disabled:cursor-not-allowed"
     on:click={onNext}
   >{$t("grading.actions.next")}</button>
 </div>

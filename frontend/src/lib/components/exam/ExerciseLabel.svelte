@@ -17,11 +17,11 @@
 <span class="inline-flex min-w-0 flex-wrap items-center gap-1.5">
   <span class="min-w-0 truncate">{exercise.name || $t("exam.exerciseLabel.untitled")}</span>
   {#if variant}
-    <span class="rounded border border-line bg-surface-inset px-1.5 py-px text-xs font-medium text-muted" title={$t("exam.exerciseLabel.variantTitle")}>
+    <span class="rounded-sm border border-line bg-surface-inset px-1.5 py-px text-xs font-medium text-muted" title={$t("exam.exerciseLabel.variantTitle")}>
       {variant}
     </span>
   {/if}
   {#if version}
-    <span class="rounded border border-line px-1.5 py-px text-xs text-subtle">v{version}</span>
+    <span class="rounded-sm border border-line px-1.5 py-px text-xs text-muted">v{version}</span>
   {/if}
 </span>

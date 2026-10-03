@@ -1427,7 +1427,7 @@ ${exerciseInputs}
           </span>
           <button
             type="button"
-            class="ml-3 text-xs underline font-medium text-amber-300 hover:text-amber-100 disabled:opacity-50 cursor-pointer"
+            class="ml-3 text-xs underline font-medium text-warning-fg hover:text-warning-fg disabled:opacity-50 cursor-pointer"
             on:click={handlePrepareOmr}
             disabled={isPreparingOmr}
           >

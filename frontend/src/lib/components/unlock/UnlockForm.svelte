@@ -156,7 +156,7 @@
       </button>
 
       {#if onPasskey}
-        <div class="flex w-full items-center gap-3 text-xs text-subtle" aria-hidden="true">
+        <div class="flex w-full items-center gap-3 text-xs text-muted" aria-hidden="true">
           <span class="h-px min-w-0 flex-1 bg-line"></span>
           {$t("auth.unlock.cloud.or")}
           <span class="h-px min-w-0 flex-1 bg-line"></span>

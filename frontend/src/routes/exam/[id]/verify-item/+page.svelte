@@ -258,16 +258,16 @@
   <div class="mb-6 flex items-center justify-between">
     <a
       href={`/exam/${examId}/verify`}
-      class="text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1"
+      class="text-xs font-medium text-muted hover:text-content transition-colors flex items-center gap-1"
     >
       {$t("scanning.verifyItem.backLink")}
     </a>
   </div>
 
   {#if loading}
-    <div class="p-12 text-center text-sm text-slate-400">{$t("scanning.verifyItem.loading")}</div>
+    <div class="p-12 text-center text-sm text-muted">{$t("scanning.verifyItem.loading")}</div>
   {:else if errorMsg}
-    <div class="p-4 rounded border border-red-500/40 bg-red-500/10 text-red-400 text-xs max-w-xl mx-auto">
+    <div class="p-4 rounded-sm border border-danger/40 bg-danger/10 text-danger-fg text-xs max-w-xl mx-auto">
       {errorMsg}
     </div>
   {:else if currentExercise}

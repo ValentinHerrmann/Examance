@@ -15,9 +15,9 @@
   closeOnEscape={false}
 >
   <div class="text-center">
-    <div class="mb-2 text-[2.5rem]">⏳</div>
-    <h3 class="m-0 mb-3 text-[1.35rem] text-yellow-200">{$t('auth.sessionTimeout.title')}</h3>
-    <p class="mb-6 text-[0.95rem] leading-normal text-muted">
+    <div class="mb-2 text-4xl">⏳</div>
+    <h3 class="m-0 mb-3 text-xl text-warning-fg">{$t('auth.sessionTimeout.title')}</h3>
+    <p class="mb-6 text-base leading-normal text-muted">
       {$t('auth.sessionTimeout.messageBefore')}
       <strong>{formattedTime}</strong>
       {$t('auth.sessionTimeout.messageAfter')}

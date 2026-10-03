@@ -1231,7 +1231,7 @@
   <HardwareProfileCard {hwProfile} inConstrainedMode={monitor?.inConstrainedMode} />
 
   {#if omrBanner}
-    <div class="my-4 rounded-md border border-amber-400 bg-amber-400/10 px-4 py-3 text-sm text-amber-400">
+    <div class="my-4 rounded-md border border-warning bg-warning/10 px-4 py-3 text-sm text-warning-fg">
       {omrBanner}
     </div>
   {/if}

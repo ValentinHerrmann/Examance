@@ -467,49 +467,49 @@
   </PageHeader>
 
   {#if rerunMcMessage}
-    <div class="p-3 rounded border border-sky-500/40 bg-sky-500/10 text-sky-300 text-xs mb-6">
+    <div class="p-3 rounded-sm border border-primary/40 bg-highlight text-accent text-xs mb-6">
       {rerunMcMessage}
     </div>
   {/if}
   {#if rerunMcError}
-    <div class="p-3 rounded border border-red-500/40 bg-red-500/10 text-red-400 text-xs mb-6">
+    <div class="p-3 rounded-sm border border-danger/40 bg-danger/10 text-danger-fg text-xs mb-6">
       {rerunMcError}
     </div>
   {/if}
   {#if resetReviewsMessage}
-    <div class="p-3 rounded border border-sky-500/40 bg-sky-500/10 text-sky-300 text-xs mb-6">
+    <div class="p-3 rounded-sm border border-primary/40 bg-highlight text-accent text-xs mb-6">
       {resetReviewsMessage}
     </div>
   {/if}
   {#if resetReviewsError}
-    <div class="p-3 rounded border border-red-500/40 bg-red-500/10 text-red-400 text-xs mb-6">
+    <div class="p-3 rounded-sm border border-danger/40 bg-danger/10 text-danger-fg text-xs mb-6">
       {resetReviewsError}
     </div>
   {/if}
 
   {#if loading && !stats}
-    <div class="p-8 text-center text-sm text-slate-400">{$t("scanning.verify.loading")}</div>
+    <div class="p-8 text-center text-sm text-muted">{$t("scanning.verify.loading")}</div>
   {:else if errorMsg}
-    <div class="p-4 rounded border border-red-500/40 bg-red-500/10 text-red-400 text-xs mb-6">
+    <div class="p-4 rounded-sm border border-danger/40 bg-danger/10 text-danger-fg text-xs mb-6">
       {errorMsg}
     </div>
   {:else if stats}
     {#if stats.totalQuestions === 0}
-      <div class="rounded-lg border border-slate-700 bg-slate-800 p-8 text-center">
-        <h3 class="text-base font-semibold text-slate-200 mb-2">{$t("scanning.verify.emptyTitle")}</h3>
-        <p class="text-xs text-slate-400 max-w-md mx-auto mb-4">
+      <div class="rounded-md border border-line bg-surface-raised p-8 text-center">
+        <h3 class="text-base font-semibold text-content mb-2">{$t("scanning.verify.emptyTitle")}</h3>
+        <p class="text-xs text-muted max-w-md mx-auto mb-4">
           {$t("scanning.verify.emptyDescription")}
         </p>
         <div class="flex justify-center gap-3">
           <a
             href={`/exam/${examId}`}
-            class="px-3 py-1.5 text-xs font-medium rounded border border-slate-700 bg-slate-900 hover:bg-surface-inset text-slate-200 transition-colors"
+            class="px-3 py-1.5 text-xs font-medium rounded-sm border border-line bg-surface-sunken hover:bg-surface-inset text-content transition-colors"
           >
             {$t("scanning.verify.examSetup")}
           </a>
           <a
             href={`/exam/${examId}/scan`}
-            class="px-3 py-1.5 text-xs font-medium rounded bg-sky-600 hover:bg-sky-500 text-white transition-colors"
+            class="px-3 py-1.5 text-xs font-medium rounded-sm bg-primary hover:bg-primary text-primary-contrast transition-colors"
           >
             {$t("scanning.verify.goToScan")}
           </a>

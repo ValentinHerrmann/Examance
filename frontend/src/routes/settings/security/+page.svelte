@@ -62,7 +62,7 @@
     {:else if isLoading}
       <p class="text-sm text-muted">{$t("security.page.loading")}</p>
     {:else if errorMsg}
-      <p class="text-sm text-red-400" role="alert">{errorMsg}</p>
+      <p class="text-sm text-danger-fg" role="alert">{errorMsg}</p>
     {:else if status && $sessionStore.teacherId}
       <div class="mb-8 flex flex-col gap-6">
         <FactorSummary {status} />

@@ -60,14 +60,14 @@
     <p class="m-0 text-sm text-muted">{$t("security.recovery.intro")}</p>
 
     {#if status.has_recovery_code}
-      <p class="m-0 text-xs text-subtle">
+      <p class="m-0 text-xs text-muted">
         {status.recovery_created_at
           ? $t("security.page.added", { date: $fmt.date(new Date(status.recovery_created_at)) })
           : $t("security.page.addedUnknown")}
       </p>
     {:else}
       <p
-        class="m-0 rounded-lg border border-line-strong bg-surface-sunken p-3 text-sm text-content"
+        class="m-0 rounded-md border border-line-strong bg-surface-sunken p-3 text-sm text-content"
         role="alert"
       >
         {$t("security.page.recoveryMissing")}
@@ -75,10 +75,10 @@
     {/if}
 
     {#if errorMsg}
-      <p class="m-0 text-sm text-red-400" role="alert">{errorMsg}</p>
+      <p class="m-0 text-sm text-danger-fg" role="alert">{errorMsg}</p>
     {/if}
 
-    <p class="m-0 text-xs text-subtle">{$t("security.recovery.regenerateHint")}</p>
+    <p class="m-0 text-xs text-muted">{$t("security.recovery.regenerateHint")}</p>
 
     <div>
       <Button variant="secondary" disabled={isWorking} loading={isWorking} onClick={regenerate}>

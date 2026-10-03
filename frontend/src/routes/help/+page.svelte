@@ -18,7 +18,7 @@
   />
 
   <Card class="mb-6">
-    <h2 class="mt-0 mb-2 text-sm font-semibold tracking-wide text-subtle uppercase">
+    <h2 class="mt-0 mb-2 text-sm font-semibold tracking-wide text-muted uppercase">
       {$t("help.ui.contents")}
     </h2>
     <HelpTopicList topics={HELP_TOPICS} variant="anchors" />

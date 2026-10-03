@@ -140,10 +140,10 @@
           <TextInput type="password" bind:value={confirmPassword} required />
         </Field>
 
-        <p class="m-0 text-xs text-subtle">{$t("security.password.otherSessions")}</p>
+        <p class="m-0 text-xs text-muted">{$t("security.password.otherSessions")}</p>
 
         {#if errorMsg}
-          <p class="m-0 text-sm text-red-400" role="alert">{errorMsg}</p>
+          <p class="m-0 text-sm text-danger-fg" role="alert">{errorMsg}</p>
         {/if}
 
         <div class="flex flex-wrap gap-2">

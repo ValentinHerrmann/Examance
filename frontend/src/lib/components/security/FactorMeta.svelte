@@ -16,7 +16,7 @@
   export let neverUsed = false;
 </script>
 
-<p class="m-0 text-xs text-subtle">
+<p class="m-0 text-xs text-muted">
   {#if createdAt}
     {$t("security.page.added", { date: $fmt.date(new Date(createdAt)) })}
   {:else}

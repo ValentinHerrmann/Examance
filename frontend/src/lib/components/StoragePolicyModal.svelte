@@ -74,20 +74,20 @@
   }
 
   const optionCardBase =
-    "flex cursor-pointer items-start gap-3 rounded-lg border border-line bg-surface-base p-[0.85rem] transition-colors duration-150 ease-[ease] hover:border-line-strong";
+    "flex cursor-pointer items-start gap-3 rounded-md border border-line bg-surface-base p-[0.85rem] transition-colors duration-150 ease-[ease] hover:border-line-strong";
   const optionCardActive =
-    "flex cursor-pointer items-start gap-3 rounded-lg border border-accent bg-sky-400/[0.08] p-[0.85rem] transition-colors duration-150 ease-[ease]";
+    "flex cursor-pointer items-start gap-3 rounded-md border border-accent bg-primary/[0.08] p-[0.85rem] transition-colors duration-150 ease-[ease]";
 </script>
 
 <Modal open={isOpen} size="md" title={$t("misc.storageModal.heading")} onClose={handleClose}>
   <div class="flex flex-col gap-6">
     {#if statusMsg}
-      <div class="rounded-md border border-green-500 bg-green-500/15 p-3 text-sm text-green-300">{statusMsg}</div>
+      <div class="rounded-md border border-success bg-success/15 p-3 text-sm text-success-fg">{statusMsg}</div>
     {/if}
 
     <div>
       <h4 class="m-0 mb-1 text-base text-content">{$t("misc.storageModal.storageHeading")}</h4>
-      <p class="m-0 mb-3 text-[0.85rem] text-muted">{$t("misc.storageModal.storageDescription")}</p>
+      <p class="m-0 mb-3 text-sm text-muted">{$t("misc.storageModal.storageDescription")}</p>
 
       <div class="flex flex-col gap-[0.6rem] sm:grid sm:grid-cols-3 sm:gap-3">
         <label class={$storagePolicyStore.storageMode === "all-local" ? optionCardActive : optionCardBase}>
@@ -100,8 +100,8 @@
             class="mt-[0.2rem]"
           />
           <div>
-            <strong class="mb-[0.2rem] block text-[0.9rem] text-content">{$t("misc.storageModal.allLocalTitle")}</strong>
-            <p class="m-0 text-[0.8rem] text-muted">{$t("misc.storageModal.allLocalText")}</p>
+            <strong class="mb-[0.2rem] block text-sm text-content">{$t("misc.storageModal.allLocalTitle")}</strong>
+            <p class="m-0 text-xs text-muted">{$t("misc.storageModal.allLocalText")}</p>
           </div>
         </label>
 
@@ -115,8 +115,8 @@
             class="mt-[0.2rem]"
           />
           <div>
-            <strong class="mb-[0.2rem] block text-[0.9rem] text-content">{$t("misc.storageModal.allServerTitle")}</strong>
-            <p class="m-0 text-[0.8rem] text-muted">{$t("misc.storageModal.allServerText")}</p>
+            <strong class="mb-[0.2rem] block text-sm text-content">{$t("misc.storageModal.allServerTitle")}</strong>
+            <p class="m-0 text-xs text-muted">{$t("misc.storageModal.allServerText")}</p>
           </div>
         </label>
 
@@ -130,8 +130,8 @@
             class="mt-[0.2rem]"
           />
           <div>
-            <strong class="mb-[0.2rem] block text-[0.9rem] text-content">{$t("misc.storageModal.hybridTitle")}</strong>
-            <p class="m-0 text-[0.8rem] text-muted">{$t("misc.storageModal.hybridText")}</p>
+            <strong class="mb-[0.2rem] block text-sm text-content">{$t("misc.storageModal.hybridTitle")}</strong>
+            <p class="m-0 text-xs text-muted">{$t("misc.storageModal.hybridText")}</p>
           </div>
         </label>
       </div>
@@ -139,7 +139,7 @@
 
     <div>
       <h4 class="m-0 mb-1 text-base text-content">{$t("misc.storageModal.latexHeading")}</h4>
-      <p class="m-0 mb-3 text-[0.85rem] text-muted">{$t("misc.storageModal.latexDescription")}</p>
+      <p class="m-0 mb-3 text-sm text-muted">{$t("misc.storageModal.latexDescription")}</p>
 
       <div class="flex flex-col gap-[0.6rem] sm:grid sm:grid-cols-3 sm:gap-3">
         <label class={$storagePolicyStore.latexCompilation === "local" ? optionCardActive : optionCardBase}>
@@ -152,8 +152,8 @@
             class="mt-[0.2rem]"
           />
           <div>
-            <strong class="mb-[0.2rem] block text-[0.9rem] text-content">{$t("misc.storageModal.latexLocalTitle")}</strong>
-            <p class="m-0 text-[0.8rem] text-muted">{$t("misc.storageModal.latexLocalText")}</p>
+            <strong class="mb-[0.2rem] block text-sm text-content">{$t("misc.storageModal.latexLocalTitle")}</strong>
+            <p class="m-0 text-xs text-muted">{$t("misc.storageModal.latexLocalText")}</p>
           </div>
         </label>
 
@@ -167,8 +167,8 @@
             class="mt-[0.2rem]"
           />
           <div>
-            <strong class="mb-[0.2rem] block text-[0.9rem] text-content">{$t("misc.storageModal.latexServerTitle")}</strong>
-            <p class="m-0 text-[0.8rem] text-muted">{$t("misc.storageModal.latexServerText")}</p>
+            <strong class="mb-[0.2rem] block text-sm text-content">{$t("misc.storageModal.latexServerTitle")}</strong>
+            <p class="m-0 text-xs text-muted">{$t("misc.storageModal.latexServerText")}</p>
           </div>
         </label>
       </div>
@@ -176,7 +176,7 @@
 
     <div>
       <h4 class="m-0 mb-1 text-base text-content">{$t("misc.storageModal.backendHeading")}</h4>
-      <p class="m-0 mb-3 text-[0.85rem] text-muted">{$t("misc.storageModal.backendDescription")}</p>
+      <p class="m-0 mb-3 text-sm text-muted">{$t("misc.storageModal.backendDescription")}</p>
       <div class="flex items-center gap-2">
         <BackendUrlInput
           bind:value={customBackendUrl}
@@ -189,7 +189,7 @@
   </div>
 
   <svelte:fragment slot="footer">
-    <a href="/settings" class="mr-auto text-[0.85rem] text-accent no-underline hover:underline" on:click={handleClose}>
+    <a href="/settings" class="mr-auto text-sm text-accent no-underline hover:underline" on:click={handleClose}>
       {$t("misc.storageModal.fullSettingsLink")}
     </a>
     <Button variant="secondary" onClick={handleClose}>{$t("common.close")}</Button>

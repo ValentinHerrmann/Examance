@@ -37,7 +37,7 @@
       <a
         href={objectUrl}
         download={downloadName}
-        class="ml-2 flex shrink-0 items-center gap-1 rounded border border-line bg-surface-inset px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-line-strong hover:text-white"
+        class="ml-2 flex shrink-0 items-center gap-1 rounded-sm border border-line bg-surface-inset px-2 py-1 text-xs text-content transition-colors hover:bg-line-strong hover:text-content"
         title={$t("common.download")}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -54,10 +54,10 @@
     {#if loading}
       <div class="font-medium text-accent">{$t("scanning.previewModal.decrypting")}</div>
     {:else if error}
-      <div class="font-medium text-red-400">{error}</div>
+      <div class="font-medium text-danger-fg">{error}</div>
     {:else if objectUrl}
       {#if isPdf}
-        <div class="h-[70dvh] max-h-full w-full rounded-lg" role="group" aria-label={$t("scanning.previewModal.pdfTitle")}>
+        <div class="h-[70dvh] max-h-full w-full rounded-md" role="group" aria-label={$t("scanning.previewModal.pdfTitle")}>
           <PdfEmbedViewer src={objectUrl} />
         </div>
       {:else}

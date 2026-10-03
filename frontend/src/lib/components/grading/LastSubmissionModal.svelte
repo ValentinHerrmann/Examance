@@ -9,7 +9,7 @@
 
 <Modal open={$gradingStore.showLastSubModal} size="sm" onClose={onStay} bare>
   <div class="flex flex-col items-center gap-4 p-8 text-center">
-    <div class="flex h-14 w-14 items-center justify-center rounded-full bg-indigo-500/20 text-[1.75rem]">
+    <div class="flex h-14 w-14 items-center justify-center rounded-full bg-info/20 text-3xl">
       🏁
     </div>
     <h3 class="m-0 text-xl text-content">{$t("grading.lastSubmission.title")}</h3>
@@ -19,7 +19,7 @@
     <div class="mt-2 flex w-full flex-col gap-2">
       <a
         href="/exam/{examId}"
-        class="box-border w-full rounded-lg bg-indigo-600 px-4 py-[0.65rem] text-center text-sm font-semibold text-white no-underline transition-colors duration-150 ease-[ease] hover:bg-indigo-700"
+        class="box-border w-full rounded-md bg-info px-4 py-[0.65rem] text-center text-sm font-semibold text-info-contrast no-underline transition-colors duration-150 ease-[ease] hover:bg-info"
       >
         {$t("grading.lastSubmission.backToOverview")}
       </a>

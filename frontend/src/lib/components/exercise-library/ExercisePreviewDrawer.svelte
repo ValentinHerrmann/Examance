@@ -18,21 +18,21 @@
   <svelte:fragment slot="header">
     <div class="min-w-0">
       <div class="mb-[0.4rem] flex items-center gap-2">
-        <h3 class="m-0 truncate text-[1.15rem] text-content">{previewModalEx.name}</h3>
+        <h3 class="m-0 truncate text-lg text-content">{previewModalEx.name}</h3>
         {#if previewModalEx.variantKey && previewModalEx.variantKey !== "_General"}
-          <span class="rounded bg-surface-inset px-[0.4rem] py-[0.1rem] text-xs text-muted">{previewModalEx.variantKey}</span>
+          <span class="rounded-sm bg-surface-inset px-[0.4rem] py-[0.1rem] text-xs text-muted">{previewModalEx.variantKey}</span>
         {/if}
       </div>
       <div class="flex flex-wrap items-center gap-[0.4rem]">
         {#if previewModalEx.topicTag}
-          <span class="rounded bg-surface-inset px-[0.4rem] py-[0.1rem] text-xs text-muted">{previewModalEx.topicTag}</span>
+          <span class="rounded-sm bg-surface-inset px-[0.4rem] py-[0.1rem] text-xs text-muted">{previewModalEx.topicTag}</span>
         {/if}
-        <span class="rounded bg-sky-700 px-2 py-[0.15rem] text-xs font-semibold text-sky-100">{$t("exercises.previewDrawer.pointsBadge", { score: modalScore })}</span>
-        <span class="rounded bg-surface-inset px-2 py-[0.15rem] text-xs text-muted"
+        <span class="rounded-sm bg-primary px-2 py-[0.15rem] text-xs font-semibold text-accent">{$t("exercises.previewDrawer.pointsBadge", { score: modalScore })}</span>
+        <span class="rounded-sm bg-surface-inset px-2 py-[0.15rem] text-xs text-muted"
           >{$t("exercises.previewDrawer.versionBadge", { version: previewModalEx.version })}</span
         >
         {#if previewModalEx.questionType}
-          <span class="rounded bg-line-strong px-2 py-[0.15rem] text-xs uppercase text-content"
+          <span class="rounded-sm bg-line-strong px-2 py-[0.15rem] text-xs uppercase text-content"
             >{previewModalEx.questionType}</span
           >
         {/if}
@@ -41,7 +41,7 @@
   </svelte:fragment>
 
   <div class="flex flex-col gap-[0.4rem]">
-    <div class="text-[0.78rem] font-semibold uppercase tracking-[0.05em] text-muted">{$t("exercises.previewDrawer.latexSourceCodeLabel")}</div>
+    <div class="text-xs font-semibold uppercase tracking-[0.05em] text-muted">{$t("exercises.previewDrawer.latexSourceCodeLabel")}</div>
     <LatexViewer code={previewModalEx.latexBody || "\\begin{Aufgabe}{}\n\\end{Aufgabe}"} maxHeight="350px" />
   </div>
 

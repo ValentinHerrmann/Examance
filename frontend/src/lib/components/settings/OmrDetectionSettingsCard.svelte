@@ -102,10 +102,10 @@
   <div id="omr" class="scroll-mt-4">
     <h3 class="m-0 mb-2 text-accent">{$t("settings.omr.heading")}</h3>
     <p class="mt-0 mb-2 text-muted">{$t("settings.omr.description")}</p>
-    <p class="mt-0 mb-2 rounded border border-sky-500/40 bg-sky-500/10 p-2 text-xs text-sky-200">
+    <p class="mt-0 mb-2 rounded-sm border border-primary/40 bg-highlight p-2 text-xs text-accent">
       {$t("settings.omr.futureOnly")}
     </p>
-    <p class="mt-0 mb-4 text-xs text-subtle">
+    <p class="mt-0 mb-4 text-xs text-muted">
       {$t("settings.omr.localOnly")}
       {$t("settings.omr.profile", {
         source: $t(`settings.omr.source.${profile.source}`),
@@ -159,7 +159,7 @@
       />
       <span class="min-w-0">
         <span class="block text-sm font-medium text-content">{$t("settings.omr.params.shapeAnalysis.label")}</span>
-        <span class="block text-xs text-subtle">
+        <span class="block text-xs text-muted">
           {$t("settings.omr.params.shapeAnalysis.hint")}
           {#if inactive("shapeAnalysis", draftAlgorithm)}
             {$t("settings.omr.onlyFor", { algorithm: 2 })}
@@ -204,12 +204,12 @@
     </details>
 
     {#each orderErrors as err}
-      <p class="mt-3 mb-0 text-xs text-red-400">
+      <p class="mt-3 mb-0 text-xs text-danger-fg">
         {err.code === "fillOrder" ? $t("settings.omr.errors.fillOrder") : $t("settings.omr.errors.areaOrder")}
       </p>
     {/each}
     {#if statusMsg}
-      <p class="mt-3 mb-0 text-xs text-emerald-300" role="status">{statusMsg}</p>
+      <p class="mt-3 mb-0 text-xs text-success-fg" role="status">{statusMsg}</p>
     {/if}
 
     <div class="mt-4 flex flex-wrap gap-2">

@@ -112,9 +112,9 @@
   onClose={handleCancel}
 >
   {#if pending}
-    <ol class="mb-4 flex flex-wrap gap-2 text-xs text-subtle">
+    <ol class="mb-4 flex flex-wrap gap-2 text-xs text-muted">
       {#each STEPS as step, i (step.phase)}
-        <li class="rounded-full px-2 py-1 {phase === step.phase ? 'bg-accent-strong text-content' : 'bg-surface-sunken'}">
+        <li class="rounded-full px-2 py-1 {phase === step.phase ? 'bg-primary text-content' : 'bg-surface-sunken'}">
           {i + 1}. {$t(step.label)}
         </li>
       {/each}
@@ -127,7 +127,7 @@
         </h4>
         <p>{$t('storagePolicy.switch.introBody')}</p>
         <p>{$t('storagePolicy.switch.bridgeNote')}</p>
-        <p class="text-subtle">{$t('storagePolicy.switch.serverKeptNote')}</p>
+        <p class="text-muted">{$t('storagePolicy.switch.serverKeptNote')}</p>
         <label class="flex items-start gap-2 pt-2 text-content">
           <input type="checkbox" bind:checked={understood} class="mt-1" />
           <span>{$t('storagePolicy.switch.understandCheckbox')}</span>
@@ -135,12 +135,12 @@
       {:else if phase === 'export'}
         <h4 class="font-semibold text-content">{$t('storagePolicy.switch.exportHeading')}</h4>
         <p>{$t('storagePolicy.switch.exportBody')}</p>
-        <p class="text-subtle">{$t('storagePolicy.switch.exportRequired')}</p>
+        <p class="text-muted">{$t('storagePolicy.switch.exportRequired')}</p>
       {:else if phase === 'exported'}
         <h4 class="font-semibold text-content">{$t('storagePolicy.switch.wipeHeading')}</h4>
-        <p class="text-amber-300">{$t('storagePolicy.switch.wipeWarning', { to: toLabel })}</p>
+        <p class="text-warning-fg">{$t('storagePolicy.switch.wipeWarning', { to: toLabel })}</p>
         {#if pending.archiveFilename}
-          <p class="text-xs text-subtle">
+          <p class="text-xs text-muted">
             {$t('storagePolicy.switch.exportDone', { filename: pending.archiveFilename })}
           </p>
         {/if}
@@ -160,7 +160,7 @@
   {/if}
 
   {#if errorMsg}
-    <p class="mt-3 whitespace-pre-wrap text-sm text-red-400">{errorMsg}</p>
+    <p class="mt-3 whitespace-pre-wrap text-sm text-danger-fg">{errorMsg}</p>
   {/if}
 
   <svelte:fragment slot="footer">

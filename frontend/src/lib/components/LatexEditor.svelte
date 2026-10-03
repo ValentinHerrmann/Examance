@@ -325,17 +325,17 @@
   style="min-height: {wrapperMinHeight}"
 >
   {#if showQuickInsert && !readonly}
-    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-slate-700 bg-slate-800 px-2 py-1.5">
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface-raised px-2 py-1.5">
       {#each macroCategories as { category, macros } (category)}
         {#if macros.length > 0}
           <div class="flex flex-wrap items-center gap-1">
-            <span class="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">
+            <span class="text-xs font-semibold uppercase tracking-wide text-muted">
               {categoryLabels[category]}
             </span>
             {#each macros as macro (macro.id)}
               <button
                 type="button"
-                class="rounded border border-slate-700 bg-slate-900 px-2 py-0.5 text-[0.7rem] text-sky-300 hover:border-sky-400 hover:bg-slate-800"
+                class="rounded-sm border border-line bg-surface-sunken px-2 py-0.5 text-xs text-accent hover:border-primary hover:bg-surface-raised"
                 on:click={() => insertMacro(macro)}
                 on:mouseenter={(e) => scheduleTooltip(macro, e.currentTarget)}
                 on:mouseleave={hideTooltip}
@@ -359,10 +359,10 @@
 
 {#if hoveredMacro}
   <div
-    class="pointer-events-none fixed flex max-w-xs flex-col gap-1 rounded border border-line bg-surface-base px-2 py-1.5 text-[0.7rem] shadow-lg"
+    class="pointer-events-none fixed flex max-w-xs flex-col gap-1 rounded-sm border border-line bg-surface-base px-2 py-1.5 text-xs shadow-lg"
     style="left: {tooltipX}px; top: {tooltipY}px; z-index: var(--z-toast);"
   >
-    <span class="text-slate-300">{macroDescription(hoveredMacro)}</span>
-    <code class="rounded bg-slate-950 px-1.5 py-1 font-mono text-sky-300">{hoveredMacro.preview}</code>
+    <span class="text-content">{macroDescription(hoveredMacro)}</span>
+    <code class="rounded-sm bg-surface-sunken px-1.5 py-1 font-mono text-accent">{hoveredMacro.preview}</code>
   </div>
 {/if}

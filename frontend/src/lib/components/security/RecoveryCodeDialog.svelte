@@ -50,14 +50,14 @@
     <p class="text-sm text-muted">{$t("security.recovery.intro")}</p>
 
     <p
-      class="rounded-lg border border-line-strong bg-surface-sunken p-3 text-sm text-content"
+      class="rounded-md border border-line-strong bg-surface-sunken p-3 text-sm text-content"
       role="alert"
     >
       {$t("security.recovery.warning")}
     </p>
 
     <code
-      class="block overflow-x-auto rounded-lg bg-surface-inset p-4 text-center font-mono
+      class="block overflow-x-auto rounded-md bg-surface-inset p-4 text-center font-mono
              text-base tracking-widest text-content select-all sm:text-lg"
     >
       {code}

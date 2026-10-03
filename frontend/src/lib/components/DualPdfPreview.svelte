@@ -68,9 +68,9 @@
   }
 
   const paneShell =
-    "flex flex-col overflow-hidden rounded-lg border border-line bg-surface-base transition-all duration-200";
+    "flex flex-col overflow-hidden rounded-md border border-line bg-surface-base transition-all duration-200";
   const paneHeader =
-    "flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-2 text-left text-slate-200 hover:bg-line-strong";
+    "flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-2 text-left text-content hover:bg-line-strong";
 </script>
 
 {#if $isDesktop}
@@ -84,10 +84,10 @@
       class:shrink-0={!showAngabePreview}
     >
       {#if showAngabePreview}
-        <div class="flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-1.5 text-slate-200">
+        <div class="flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-1.5 text-content">
           <button
             type="button"
-            class="flex flex-1 items-center gap-2 truncate text-left hover:text-white"
+            class="flex flex-1 items-center gap-2 truncate text-left hover:text-content"
             on:click={handleToggleAngabe}
             title={$t("editor.pdfPreview.collapse", { title: angabeTitle })}
           >
@@ -98,7 +98,7 @@
               <a
                 href={previewPdfUrl}
                 download={`${angabeTitle}.pdf`}
-                class="flex items-center gap-1 rounded border border-line bg-surface-inset px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-line-strong hover:text-white"
+                class="flex items-center gap-1 rounded-sm border border-line bg-surface-inset px-2 py-1 text-xs text-content transition-colors hover:bg-line-strong hover:text-content"
                 title={$t("common.download")}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -111,7 +111,7 @@
             {/if}
             <button
               type="button"
-              class="px-1 text-muted hover:text-white"
+              class="px-1 text-muted hover:text-content"
               on:click={handleToggleAngabe}
               title={$t("editor.pdfPreview.collapse", { title: angabeTitle })}
             >
@@ -123,7 +123,7 @@
           {#if previewPdfUrl}
             <PdfEmbedViewer src={previewPdfUrl} />
           {:else}
-            <div class="flex h-full items-center justify-center p-4 text-center text-sm text-subtle">
+            <div class="flex h-full items-center justify-center p-4 text-center text-sm text-muted">
               {placeholder}
             </div>
           {/if}
@@ -131,7 +131,7 @@
       {:else}
         <button
           type="button"
-          class="flex h-full w-full flex-col items-center justify-center gap-2 bg-surface-raised py-3 text-slate-300 hover:bg-line-strong"
+          class="flex h-full w-full flex-col items-center justify-center gap-2 bg-surface-raised py-3 text-content hover:bg-line-strong"
           on:click={handleToggleAngabe}
           title={$t("editor.pdfPreview.expand", { title: angabeTitle })}
         >
@@ -151,10 +151,10 @@
       class:shrink-0={!showLoesungPreview}
     >
       {#if showLoesungPreview}
-        <div class="flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-1.5 text-slate-200">
+        <div class="flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-1.5 text-content">
           <button
             type="button"
-            class="flex flex-1 items-center gap-2 truncate text-left hover:text-white"
+            class="flex flex-1 items-center gap-2 truncate text-left hover:text-content"
             on:click={handleToggleLoesung}
             title={$t("editor.pdfPreview.collapse", { title: loesungTitle })}
           >
@@ -165,7 +165,7 @@
               <a
                 href={previewSolutionPdfUrl}
                 download={`${loesungTitle}.pdf`}
-                class="flex items-center gap-1 rounded border border-line bg-surface-inset px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-line-strong hover:text-white"
+                class="flex items-center gap-1 rounded-sm border border-line bg-surface-inset px-2 py-1 text-xs text-content transition-colors hover:bg-line-strong hover:text-content"
                 title={$t("common.download")}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -178,7 +178,7 @@
             {/if}
             <button
               type="button"
-              class="px-1 text-muted hover:text-white"
+              class="px-1 text-muted hover:text-content"
               on:click={handleToggleLoesung}
               title={$t("editor.pdfPreview.collapse", { title: loesungTitle })}
             >
@@ -190,7 +190,7 @@
           {#if previewSolutionPdfUrl}
             <PdfEmbedViewer src={previewSolutionPdfUrl} />
           {:else}
-            <div class="flex h-full items-center justify-center p-4 text-center text-sm text-subtle">
+            <div class="flex h-full items-center justify-center p-4 text-center text-sm text-muted">
               {placeholder}
             </div>
           {/if}
@@ -198,7 +198,7 @@
       {:else}
         <button
           type="button"
-          class="flex h-full w-full flex-col items-center justify-center gap-2 bg-surface-raised py-3 text-slate-300 hover:bg-line-strong"
+          class="flex h-full w-full flex-col items-center justify-center gap-2 bg-surface-raised py-3 text-content hover:bg-line-strong"
           on:click={handleToggleLoesung}
           title={$t("editor.pdfPreview.expand", { title: loesungTitle })}
         >
@@ -211,7 +211,7 @@
   </div>
 {:else}
   <div
-    class="flex w-full min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-line bg-surface-base"
+    class="flex w-full min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-line bg-surface-base"
     style="height: min(70dvh, {height}); min-height: 18rem;"
   >
     <div class="flex shrink-0 gap-1 border-b border-line bg-surface-raised p-1" role="tablist">
@@ -222,8 +222,8 @@
           aria-selected={mobilePane === pane.id}
           class="min-h-9 flex-1 truncate rounded-md px-3 py-2 text-sm font-medium transition-colors
             {mobilePane === pane.id
-            ? 'bg-accent-strong text-white'
-            : 'text-slate-300 hover:bg-surface-inset'}"
+            ? 'bg-primary text-primary-contrast'
+            : 'text-content hover:bg-surface-inset'}"
           on:click={() => selectMobilePane(pane.id)}
         >
           {pane.emoji} {pane.title}
@@ -235,7 +235,7 @@
       {#if activePane.url}
         <PdfEmbedViewer src={activePane.url} />
       {:else}
-        <div class="flex h-full items-center justify-center p-4 text-center text-sm text-subtle">
+        <div class="flex h-full items-center justify-center p-4 text-center text-sm text-muted">
           {placeholder}
         </div>
       {/if}

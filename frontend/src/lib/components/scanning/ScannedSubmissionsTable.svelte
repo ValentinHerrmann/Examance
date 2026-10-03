@@ -61,29 +61,29 @@
       {#each scannedSubmissions as item}
         <div class="table-row flex flex-col gap-2 md:grid md:grid-cols-[1.5fr_1fr_1.2fr_1.2fr_1fr] md:items-center">
           <div class="flex items-center justify-between gap-2 md:contents">
-            <span class="md:hidden text-xs font-semibold uppercase text-subtle">{$t("scanning.submissionsTable.colStudentName")}</span>
+            <span class="md:hidden text-xs font-semibold uppercase text-muted">{$t("scanning.submissionsTable.colStudentName")}</span>
             <span class="student-name min-w-0" title={$t("scanning.submissionsTable.submissionIdTitle", { id: item.id })}>
               {item.studentName || $t("scanning.submissionsTable.unmatchedStudent")}
             </span>
           </div>
           <div class="flex items-center justify-between gap-2 md:contents">
-            <span class="md:hidden text-xs font-semibold uppercase text-subtle">{$t("scanning.submissionsTable.colStudentId")}</span>
+            <span class="md:hidden text-xs font-semibold uppercase text-muted">{$t("scanning.submissionsTable.colStudentId")}</span>
             <span class="student-number min-w-0" title={$t("scanning.submissionsTable.pseudonymTitle", { hash: item.pseudonymHash })}>
               {item.studentNumber || '—'}
             </span>
           </div>
           <div class="flex items-center justify-between gap-2 md:contents">
-            <span class="md:hidden text-xs font-semibold uppercase text-subtle">{$t("scanning.submissionsTable.colFallbackCode")}</span>
+            <span class="md:hidden text-xs font-semibold uppercase text-muted">{$t("scanning.submissionsTable.colFallbackCode")}</span>
             <span class="scanned-submissions-badge" class:unmatched={item.fallbackCode.startsWith('UNMATCHED-')}>
               {item.fallbackCode}
             </span>
           </div>
           <div class="flex items-center justify-between gap-2 md:contents">
-            <span class="md:hidden text-xs font-semibold uppercase text-subtle">{$t("scanning.submissionsTable.colDateIngested")}</span>
+            <span class="md:hidden text-xs font-semibold uppercase text-muted">{$t("scanning.submissionsTable.colDateIngested")}</span>
             <span class="scanned-submissions-time">{$fmt.dateTime(item.createdAt)}</span>
           </div>
           <div class="md:contents">
-            <span class="md:hidden text-xs font-semibold uppercase text-subtle">{$t("scanning.submissionsTable.colAction")}</span>
+            <span class="md:hidden text-xs font-semibold uppercase text-muted">{$t("scanning.submissionsTable.colAction")}</span>
             <div class="action-buttons flex-wrap">
               <button class="btn-preview" on:click={() => onPreview(item)}>{$t("scanning.submissionsTable.preview")}</button>
               <button class="btn-grade" on:click={() => onGoToGrading(item)}>{$t("scanning.submissionsTable.goToGrading")}</button>

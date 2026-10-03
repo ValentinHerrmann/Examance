@@ -20,8 +20,8 @@
   {#if isDeleteLoading}
     <p>{$t("exercises.deleteModal.checkingUsage")}</p>
   {:else if deleteUsageInfo && deleteUsageInfo.examCount > 0}
-    <div class="rounded-lg border border-red-500 bg-red-500/15 p-4 text-red-300">
-      <h4 class="m-0 mb-2 text-red-400">{$t("exercises.deleteModal.warningTitle")}</h4>
+    <div class="rounded-md border border-danger bg-danger/15 p-4 text-danger-fg">
+      <h4 class="m-0 mb-2 text-danger-fg">{$t("exercises.deleteModal.warningTitle")}</h4>
       <p>
         {$t("exercises.deleteModal.usageInfo", { count: deleteUsageInfo.examCount })}
       </p>
@@ -29,11 +29,11 @@
         {#each deleteUsageInfo.exams as exam}
           <li>
             <strong>{exam.title}</strong>
-            {#if exam.datum}<span class="ml-[0.35rem] text-[0.85rem] text-muted">({exam.datum})</span>{/if}
+            {#if exam.datum}<span class="ml-[0.35rem] text-sm text-muted">({exam.datum})</span>{/if}
           </li>
         {/each}
       </ul>
-      <p class="mt-3 text-[0.85rem] text-muted">
+      <p class="mt-3 text-sm text-muted">
         {$t("exercises.deleteModal.usageWarning")}
       </p>
     </div>

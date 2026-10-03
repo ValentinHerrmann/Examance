@@ -38,7 +38,7 @@
 
 {#if remaining > 0}
   <div
-    class="mb-4 w-full max-w-form rounded-lg border border-line-strong bg-surface-sunken p-3"
+    class="mb-4 w-full max-w-form rounded-md border border-line-strong bg-surface-sunken p-3"
     role="alert"
     aria-live="polite"
   >

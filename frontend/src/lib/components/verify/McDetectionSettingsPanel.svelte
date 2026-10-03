@@ -41,12 +41,12 @@
           })}
         </span>
       {:else}
-        <span class="text-amber-300">{$t("scanning.verify.settingsPanel.notRecorded")}</span>
+        <span class="text-warning-fg">{$t("scanning.verify.settingsPanel.notRecorded")}</span>
       {/if}
     </div>
 
     {#if latestParams}
-      <p class="mt-0 mb-2 text-xs {changed.length > 0 ? 'font-semibold text-amber-300' : 'text-muted'}">
+      <p class="mt-0 mb-2 text-xs {changed.length > 0 ? 'font-semibold text-warning-fg' : 'text-muted'}">
         {changed.length > 0
           ? $t("scanning.verify.settingsPanel.differs", { count: changed.length })
           : $t("scanning.verify.settingsPanel.noDifferences")}

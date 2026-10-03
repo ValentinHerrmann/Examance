@@ -18,7 +18,7 @@
   <Card class="mb-8">
     <h3 class="m-0 mb-2 text-accent">{$t("settings.donation.heading")}</h3>
     <p class="mt-0 mb-2 text-muted">{$t("settings.donation.description")}</p>
-    <ul class="mt-0 mb-3 list-disc pl-5 text-xs text-subtle">
+    <ul class="mt-0 mb-3 list-disc pl-5 text-xs text-muted">
       <li>{$t("settings.donation.whatIsSent")}</li>
       <li>{$t("settings.donation.whatIsNotSent")}</li>
       <li>{$t("settings.donation.whenSent")}</li>
@@ -35,11 +35,11 @@
       <span class="min-w-0 text-sm text-content">{$t("settings.donation.optIn")}</span>
     </label>
     {#if !available}
-      <p class="mt-2 mb-0 text-xs text-amber-300">{$t("settings.donation.unavailable")}</p>
+      <p class="mt-2 mb-0 text-xs text-warning-fg">{$t("settings.donation.unavailable")}</p>
     {:else if !signedIn}
-      <p class="mt-2 mb-0 text-xs text-amber-300">{$t("settings.donation.signInRequired")}</p>
+      <p class="mt-2 mb-0 text-xs text-warning-fg">{$t("settings.donation.signInRequired")}</p>
     {/if}
-    <p class="mt-3 mb-0 text-xs text-subtle">
+    <p class="mt-3 mb-0 text-xs text-muted">
       {$t("settings.donation.privacyNote")}
       <a href="/legal/datenschutz" class="text-accent hover:underline">{$t("settings.donation.privacyLink")}</a>
     </p>

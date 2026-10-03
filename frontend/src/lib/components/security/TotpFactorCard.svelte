@@ -77,7 +77,7 @@
     </div>
 
     {#if errorMsg}
-      <p class="m-0 text-sm text-red-400" role="alert">{errorMsg}</p>
+      <p class="m-0 text-sm text-danger-fg" role="alert">{errorMsg}</p>
     {/if}
 
     {#if enrolled}
@@ -90,7 +90,7 @@
           {$t("security.backupCodes.remaining", { count: status.remaining_backup_codes })}
         </p>
         {#if codesLow}
-          <p class="m-0 text-xs text-subtle">{$t("security.page.backupCodesLow")}</p>
+          <p class="m-0 text-xs text-muted">{$t("security.page.backupCodesLow")}</p>
         {/if}
       </div>
 

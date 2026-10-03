@@ -29,5 +29,5 @@
     <p class="mt-1 text-sm text-muted">{$t("security.signingIn.body")}</p>
   </div>
 
-  <p class="m-0 text-xs text-subtle">{$t("security.signingIn.as", { email })}</p>
+  <p class="m-0 text-xs text-muted">{$t("security.signingIn.as", { email })}</p>
 </div>
