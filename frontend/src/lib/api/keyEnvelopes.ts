@@ -3,8 +3,8 @@
  * a public salt and public KDF params; wrapping happens in `lib/crypto/keyEnvelope.ts`, in the browser.
  */
 
-import { base64ToUint8Array, uint8ArrayToBase64 } from '$lib/crypto/aesGcm';
-import type { EnvelopeKind, EnvelopeSet, KeyEnvelope } from '$lib/crypto/keyEnvelope';
+import { base64ToUint8Array, uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
+import type { EnvelopeKind, EnvelopeSet, KeyEnvelope } from '#lib/crypto/keyEnvelope';
 import { api } from './client';
 
 interface KeyEnvelopeDto {

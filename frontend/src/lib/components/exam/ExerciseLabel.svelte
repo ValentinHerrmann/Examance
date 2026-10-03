@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import { t } from "$lib/i18n";
-  import { Badge } from "$lib/components/ui";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import { t } from "#lib/i18n";
+  import { Badge } from "#lib/components/ui";
 
   interface Props {
     /** Name plus variant/version, since several variants of one exercise can share a name in an exam or MC group. */

@@ -5,7 +5,7 @@
  */
 
 import { writable } from 'svelte/store';
-import type { ArchiveConflict, DecisionMap } from '$lib/archive/conflicts';
+import type { ArchiveConflict, DecisionMap } from '#lib/archive/conflicts';
 
 export interface ConflictPrompt {
   conflicts: ArchiveConflict[];

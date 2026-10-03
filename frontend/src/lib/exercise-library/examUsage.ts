@@ -1,9 +1,9 @@
 import { get } from "svelte/store";
-import { api } from "$lib/api/client";
-import { db } from "$lib/db/db";
-import { examRepository } from "$lib/repositories/examRepository";
-import { sessionStore } from "$lib/stores/session";
-import { isServerBacked } from "$lib/utils/serverBacked";
+import { api } from "#lib/api/client";
+import { db } from "#lib/db/db";
+import { examRepository } from "#lib/repositories/examRepository";
+import { sessionStore } from "#lib/stores/session";
+import { isServerBacked } from "#lib/utils/serverBacked";
 
 /** Key of one variant inside the library list's usage map. */
 export function usageKey(groupId: string, variantKey: string): string {

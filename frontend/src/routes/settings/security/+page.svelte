@@ -10,20 +10,20 @@
    */
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import { t } from "$lib/i18n";
-  import { isAuthenticated, isUnlocked, sessionStore } from "$lib/stores/session";
+  import { t } from "#lib/i18n";
+  import { isAuthenticated, isUnlocked, sessionStore } from "#lib/stores/session";
   import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Button, PageHeader, PageShell } from "$lib/components/ui";
-  import SectionNav from "$lib/components/settings/SectionNav.svelte";
-  import { fetchMfaStatus, type MfaStatus } from "$lib/api/mfa";
-  import { listPasskeys, type PasskeySummary } from "$lib/api/webauthn";
+  import { Alert, Button, PageHeader, PageShell } from "#lib/components/ui";
+  import SectionNav from "#lib/components/settings/SectionNav.svelte";
+  import { fetchMfaStatus, type MfaStatus } from "#lib/api/mfa";
+  import { listPasskeys, type PasskeySummary } from "#lib/api/webauthn";
   import {
     FactorSummary,
     PasskeyManager,
     PasswordFactorCard,
     RecoveryFactorCard,
     TotpFactorCard,
-  } from "$lib/components/security";
+  } from "#lib/components/security";
 
   let status: MfaStatus | null = $state.raw(null);
   let passkeys: PasskeySummary[] = $state.raw([]);

@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { t, type TranslationKey } from '$lib/i18n';
-  import { fmt } from '$lib/utils/format';
-  import type { ExamStats } from '$lib/analytics/stats';
-  import InfoTip from '$lib/components/help/InfoTip.svelte';
-  import type { GradingKeyConfig } from '$lib/db/schema';
-  import { Card } from '$lib/components/ui';
-  import { gradeColorForPercentage, gradeColorVar } from '$lib/analytics/gradingKey';
+  import { t, type TranslationKey } from '#lib/i18n';
+  import { fmt } from '#lib/utils/format';
+  import type { ExamStats } from '#lib/analytics/stats';
+  import InfoTip from '#lib/components/help/InfoTip.svelte';
+  import type { GradingKeyConfig } from '#lib/db/schema';
+  import { Card } from '#lib/components/ui';
+  import { gradeColorForPercentage, gradeColorVar } from '#lib/analytics/gradingKey';
 
   interface Props {
     stats: ExamStats;

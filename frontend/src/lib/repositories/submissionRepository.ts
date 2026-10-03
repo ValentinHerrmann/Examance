@@ -1,13 +1,13 @@
-import { api } from '$lib/api/client';
-import { db } from '$lib/db/db';
-import { resultsAreLocal } from '$lib/stores/storagePolicy';
-import { encryptSubmission, decryptSubmission } from '$lib/db/dbEncryption';
-import { enqueueRequest } from '$lib/services/offlineQueue';
-import type { SubmissionRecord } from '$lib/db/schema';
-import { uint8ArrayToBase64, base64ToUint8Array } from '$lib/crypto/aesGcm';
-import { ensure64CharHex } from '$lib/crypto/hmac';
-import { examRepository } from '$lib/repositories/examRepository';
-import { scoreRepository } from '$lib/repositories/scoreRepository';
+import { api } from '#lib/api/client';
+import { db } from '#lib/db/db';
+import { resultsAreLocal } from '#lib/stores/storagePolicy';
+import { encryptSubmission, decryptSubmission } from '#lib/db/dbEncryption';
+import { enqueueRequest } from '#lib/services/offlineQueue';
+import type { SubmissionRecord } from '#lib/db/schema';
+import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
+import { ensure64CharHex } from '#lib/crypto/hmac';
+import { examRepository } from '#lib/repositories/examRepository';
+import { scoreRepository } from '#lib/repositories/scoreRepository';
 
 export function mapApiToSubmissionRecord(s: any, fallbackExamId: string): SubmissionRecord {
   return {

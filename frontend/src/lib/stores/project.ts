@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
-import type { ExamRecord, ExerciseRecord } from '$lib/db/schema';
-import { examRepository } from '$lib/repositories/examRepository';
-import { exerciseRepository } from '$lib/repositories/exerciseRepository';
+import type { ExamRecord, ExerciseRecord } from '#lib/db/schema';
+import { examRepository } from '#lib/repositories/examRepository';
+import { exerciseRepository } from '#lib/repositories/exerciseRepository';
 
 export interface ProjectState {
   exam: ExamRecord | null;

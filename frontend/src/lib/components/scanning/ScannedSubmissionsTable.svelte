@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import { fmt } from "$lib/utils/format";
-  import { Button, Badge, Spinner, TableScroller } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { fmt } from "#lib/utils/format";
+  import { Button, Badge, Spinner, TableScroller } from "#lib/components/ui";
   interface ScannedSubmissionItem {
     id: string;
     pseudonymHash: string;

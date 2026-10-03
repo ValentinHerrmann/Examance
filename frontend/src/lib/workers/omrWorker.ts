@@ -5,13 +5,13 @@
  * come from the PDF's `omr://` link annotations (captured by "Prepare OMR"); only fiducials are detected.
  */
 
-import type { OmrFiducialRect, OmrPageTemplate } from '$lib/db/schema';
-import { computeMcScore, type McQuestionType } from '$lib/grading/mcScore';
+import type { OmrFiducialRect, OmrPageTemplate } from '#lib/db/schema';
+import { computeMcScore, type McQuestionType } from '#lib/grading/mcScore';
 import {
   normalizeOmrParams,
   type OmrDetectionParams,
   type OmrPageStats,
-} from '$lib/grading/omrSettings';
+} from '#lib/grading/omrSettings';
 import {
   blackReference,
   cellFills,
@@ -27,7 +27,7 @@ import {
   type OmrBubbleState,
   type OmrShapeFeatures,
   type OmrShapeReason,
-} from '$lib/grading/omrShape';
+} from '#lib/grading/omrShape';
 
 export interface OmrExerciseAnswerKey {
   exerciseId: string;

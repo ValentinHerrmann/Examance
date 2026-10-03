@@ -1,8 +1,8 @@
 <script lang="ts">
-  import LatexEditor from "$lib/components/LatexEditor.svelte";
-  import SuggestInput from "$lib/components/common/SuggestInput.svelte";
-  import { t } from "$lib/i18n";
-  import { Button, Checkbox, Field, TextInput, controlClass } from "$lib/components/ui";
+  import LatexEditor from "#lib/components/LatexEditor.svelte";
+  import SuggestInput from "#lib/components/common/SuggestInput.svelte";
+  import { t } from "#lib/i18n";
+  import { Button, Checkbox, Field, TextInput, controlClass } from "#lib/components/ui";
   import { faPlus } from "@fortawesome/free-solid-svg-icons";
 
   interface Props {

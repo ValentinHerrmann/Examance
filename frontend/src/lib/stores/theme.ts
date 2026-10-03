@@ -1,6 +1,6 @@
 import { derived, writable, type Readable } from 'svelte/store';
-import { safeLocalStorage } from '$lib/utils/storage';
-import { mediaQuery } from '$lib/stores/viewport';
+import { safeLocalStorage } from '#lib/utils/storage';
+import { mediaQuery } from '#lib/stores/viewport';
 
 /**
  * Colour theme: the preference is the user's pick; `theme` is what renders once `system` is resolved.

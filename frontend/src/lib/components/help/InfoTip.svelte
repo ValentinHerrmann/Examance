@@ -1,9 +1,9 @@
 <script lang="ts">
   import { faArrowRight, faCircleInfo } from "@fortawesome/free-solid-svg-icons";
-  import { t } from "$lib/i18n";
-  import { openHelp } from "$lib/stores/helpStore";
-  import type { HelpTopicId } from "$lib/help/topics";
-  import { Button, Popover } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { openHelp } from "#lib/stores/helpStore";
+  import type { HelpTopicId } from "#lib/help/topics";
+  import { Button, Popover } from "#lib/components/ui";
 
   /** Micro-help for one control where `Field`'s `hint` cannot be used. Opens on click and hover (touch has no hover). */
   interface Props {

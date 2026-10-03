@@ -1,5 +1,5 @@
 import { derived, get, writable, type Readable } from 'svelte/store';
-import { effectiveBackendStore } from '$lib/stores/backendStore';
+import { effectiveBackendStore } from '#lib/stores/backendStore';
 
 /** Build version of this bundle, inlined by Vite (vite.config.ts): bare semver in production ("1.4.0"), "1.4.0-PR#123 [18.08.2026 | 14:32]" for previews, "0.0.0-dev" locally. */
 export const frontendVersion: string = __APP_VERSION__;
@@ -94,7 +94,7 @@ let inFlightOrigin = '';
 let latestProbe = 0;
 
 /**
- * Read the server's version from GET /api/health. Deliberately bypasses `$lib/api/client` (it appends
+ * Read the server's version from GET /api/health. Deliberately bypasses `#lib/api/client` (it appends
  * /api/v1; health sits outside). A passive probe: every failure collapses to 'unknown', none surface as user errors.
  */
 export function refreshBackendVersion(): Promise<void> {

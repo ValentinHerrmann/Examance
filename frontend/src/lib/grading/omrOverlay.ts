@@ -4,7 +4,7 @@
  * so both render the exact same annotations from the same data.
  */
 
-import type { ExerciseRecord, OmrScoreMeta } from '$lib/db/schema';
+import type { ExerciseRecord, OmrScoreMeta } from '#lib/db/schema';
 
 export interface McOverlayState {
   omrMeta?: OmrScoreMeta;

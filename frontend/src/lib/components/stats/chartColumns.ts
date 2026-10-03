@@ -3,8 +3,8 @@
  * Every chart reads best-left: grade columns are already best-first, and percentage builders
  * (`binColumns`, `gradeBands`) mirror the 0-100 % axis so 100 % is on the left.
  */
-import { gradeColorVar, type BorderlineCase, type GradeDistributionBucket } from '$lib/analytics/gradingKey';
-import type { PercentageHistogramBin } from '$lib/analytics/stats';
+import { gradeColorVar, type BorderlineCase, type GradeDistributionBucket } from '#lib/analytics/gradingKey';
+import type { PercentageHistogramBin } from '#lib/analytics/stats';
 
 /** One run of caption text; `dynamic` values (counts, shares) change while grading continues and are coloured apart from static labels. */
 export interface CaptionPart {

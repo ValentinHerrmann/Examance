@@ -4,7 +4,7 @@
  * Grading & Statistics Invariant in CLAUDE.md).
  */
 
-import type { OmrScoreMeta } from '$lib/db/schema';
+import type { OmrScoreMeta } from '#lib/db/schema';
 
 export type McQuestionType = 'mc' | 'sc' | 'tf';
 

@@ -6,10 +6,10 @@
  */
 
 import { writable, derived, get } from 'svelte/store';
-import { deriveKeyWithFallback, generateSalt } from '$lib/crypto/keyDerivation';
-import { deriveSessionKey, generateSessionNonce } from '$lib/crypto/sessionKey';
-import { uint8ArrayToBase64, base64ToUint8Array, toArrayBuffer } from '$lib/crypto/aesGcm';
-import { safeLocalStorage, safeSessionStorage } from '$lib/utils/storage';
+import { deriveKeyWithFallback, generateSalt } from '#lib/crypto/keyDerivation';
+import { deriveSessionKey, generateSessionNonce } from '#lib/crypto/sessionKey';
+import { uint8ArrayToBase64, base64ToUint8Array, toArrayBuffer } from '#lib/crypto/aesGcm';
+import { safeLocalStorage, safeSessionStorage } from '#lib/utils/storage';
 
 export interface SessionState {
   mode: 'local' | 'hybrid' | 'authenticated' | null;
@@ -580,7 +580,7 @@ function createSessionStore() {
       safeLocalStorage.setItemOrThrow(LOCAL_VAULT_KEYS.NONCE, uint8ArrayToBase64(newNonce));
 
       try {
-        const { rekeyDatabase } = await import('$lib/db/rekey');
+        const { rekeyDatabase } = await import('#lib/db/rekey');
         await rekeyDatabase(oldSessionKey, newSessionKey);
       } catch (err) {
         // The vault is still sealed under the old key — put the parameters that
@@ -699,7 +699,7 @@ export const isAuthenticated = derived(
 // ---------------------------------------------------------------------------
 
 /**
- * Resolves once the root layout finished restoring the session. Svelte 4 mounts children before
+ * Resolves once the root layout finished restoring the session. Svelte mounts children before
  * parents, so a route's `onMount` runs before `+layout.svelte` restores keys, asks other tabs or
  * refreshes the token. Every vault-touching route must await this, then still check `isUnlocked`
  * and redirect to `/unlock`.

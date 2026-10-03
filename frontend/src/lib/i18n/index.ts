@@ -1,5 +1,5 @@
 import { derived, get, writable } from 'svelte/store';
-import { safeLocalStorage } from '$lib/utils/storage';
+import { safeLocalStorage } from '#lib/utils/storage';
 import { de } from './de';
 import { en } from './en';
 import type { Locale, TranslationKey, TranslationVars, Translations } from './types';

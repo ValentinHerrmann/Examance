@@ -3,10 +3,10 @@
   // Conflicts during import are answered by the dialog mounted in the root layout.
   import { untrack } from 'svelte';
   import { get } from 'svelte/store';
-  import { t, translate } from '$lib/i18n';
-  import { Alert, Badge, Button, Checkbox, Modal } from '$lib/components/ui';
-  import { isAuthenticated } from '$lib/stores/session';
-  import { getStoragePolicyBadge, type StorageMode } from '$lib/stores/storagePolicy';
+  import { t, translate } from '#lib/i18n';
+  import { Alert, Badge, Button, Checkbox, Modal } from '#lib/components/ui';
+  import { isAuthenticated } from '#lib/stores/session';
+  import { getStoragePolicyBadge, type StorageMode } from '#lib/stores/storagePolicy';
   import {
     abortModeSwitch,
     beginModeSwitch,
@@ -16,11 +16,11 @@
     markExported,
     pendingSwitchStore,
     requireExport,
-  } from '$lib/services/storageModeSwitch';
+  } from '#lib/services/storageModeSwitch';
   import {
     exportArchiveInteractively,
     importArchiveInteractively,
-  } from '$lib/services/archiveService';
+  } from '#lib/services/archiveService';
 
   interface Props {
     open?: boolean;

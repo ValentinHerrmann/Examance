@@ -1,7 +1,7 @@
 <script lang="ts">
   /** The password as a second factor. No email field: the account is named by the pending token, so this step cannot probe which addresses have accounts. */
-  import { Button, Field, TextInput } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
+  import { Button, Field, TextInput } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
 
   interface Props {
     onSubmit: (password: string) => Promise<void>;

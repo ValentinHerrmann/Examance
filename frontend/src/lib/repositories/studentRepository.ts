@@ -1,14 +1,14 @@
 import { get } from 'svelte/store';
-import { api } from '$lib/api/client';
-import { db } from '$lib/db/db';
-import { resultsAreLocal, storagePolicyStore } from '$lib/stores/storagePolicy';
-import { encryptStudent, decryptStudent } from '$lib/db/dbEncryption';
-import { enqueueRequest } from '$lib/services/offlineQueue';
-import { currentKeyId } from '$lib/services/keyEnvelopeService';
+import { api } from '#lib/api/client';
+import { db } from '#lib/db/db';
+import { resultsAreLocal, storagePolicyStore } from '#lib/stores/storagePolicy';
+import { encryptStudent, decryptStudent } from '#lib/db/dbEncryption';
+import { enqueueRequest } from '#lib/services/offlineQueue';
+import { currentKeyId } from '#lib/services/keyEnvelopeService';
 import { examRepository } from './examRepository';
-import type { StudentRecord } from '$lib/db/schema';
-import { uint8ArrayToBase64, base64ToUint8Array } from '$lib/crypto/aesGcm';
-import { ensure64CharHex } from '$lib/crypto/hmac';
+import type { StudentRecord } from '#lib/db/schema';
+import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
+import { ensure64CharHex } from '#lib/crypto/hmac';
 
 export const studentRepository = {
   async getAll(key: CryptoKey | null): Promise<StudentRecord[]> {

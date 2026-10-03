@@ -1,33 +1,33 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { onMount, onDestroy } from "svelte";
-  import { db } from "$lib/db/db";
+  import { db } from "#lib/db/db";
   import type {
     SubmissionRecord,
     ExerciseRecord,
     ExerciseScoreRecord,
     ExamRecord,
     OmrScoreMeta,
-  } from "$lib/db/schema";
-  import { scoreRepository } from "$lib/repositories/scoreRepository";
+  } from "#lib/db/schema";
+  import { scoreRepository } from "#lib/repositories/scoreRepository";
   import {
     loadExamEncrypted,
     loadExamExercisesEncrypted,
     saveSubmissionEncrypted,
-  } from "$lib/db/dbEncryption";
-  import { calculateGradeDetail } from "$lib/analytics/gradingKey";
-  import { api } from "$lib/api/client";
-  import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
-  import { storagePolicyStore } from "$lib/stores/storagePolicy";
-  import { decrypt, encrypt } from "$lib/crypto/aesGcm";
+  } from "#lib/db/dbEncryption";
+  import { calculateGradeDetail } from "#lib/analytics/gradingKey";
+  import { api } from "#lib/api/client";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
+  import { sessionStore, isUnlocked, awaitSessionReady } from "#lib/stores/session";
+  import { storagePolicyStore } from "#lib/stores/storagePolicy";
+  import { decrypt, encrypt } from "#lib/crypto/aesGcm";
   import { get } from "svelte/store";
-  import { gradingStore, type VectorStroke } from "$lib/grading/gradingStore";
-  import { isMcQuestion } from "$lib/grading/mcScore";
-  import GradingWorkspace from "$lib/components/grading/GradingWorkspace.svelte";
-  import { t, translate } from "$lib/i18n";
-  import { EmptyState } from "$lib/components/ui";
+  import { gradingStore, type VectorStroke } from "#lib/grading/gradingStore";
+  import { isMcQuestion } from "#lib/grading/mcScore";
+  import GradingWorkspace from "#lib/components/grading/GradingWorkspace.svelte";
+  import { t, translate } from "#lib/i18n";
+  import { EmptyState } from "#lib/components/ui";
 
   interface Props {
     params?: Record<string, string>;
@@ -35,7 +35,7 @@
 
   let { params }: Props = $props();
 
-  const examId = $page.params.id || "";
+  const examId = page.params.id || "";
 
   // Raw: these records go straight back to repositories (currentSub is saved as-is).
   let exam = $state.raw<ExamRecord | null>(null);
@@ -81,12 +81,12 @@
       gradingStore.setActiveExerciseId(exercises[0].id);
     }
     submissions = await submissionRepository.getByExamId(examId, key);
-    const targetId = $page.url.searchParams.get('submissionId');
+    const targetId = page.url.searchParams.get('submissionId');
     if (targetId) {
       const idx = submissions.findIndex((s) => s.id === targetId);
       if (idx >= 0) gradingStore.setCurrentIndex(idx);
     }
-    const targetExerciseId = $page.url.searchParams.get('exerciseId');
+    const targetExerciseId = page.url.searchParams.get('exerciseId');
     if (targetExerciseId && exercises.some((e) => e.id === targetExerciseId)) {
       gradingStore.setActiveExerciseId(targetExerciseId);
     }

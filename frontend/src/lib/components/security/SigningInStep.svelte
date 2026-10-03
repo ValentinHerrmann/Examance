@@ -1,6 +1,6 @@
 <script lang="ts">
   /** Both factors are in and the browser is opening the vault (Argon2id takes 1-3 s). Shown so a successful sign-in is not mistaken for a bounce back to the login page; names the account to reassure that the wait is decryption. */
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 
   interface Props {
     email: string;

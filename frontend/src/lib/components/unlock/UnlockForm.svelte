@@ -1,6 +1,6 @@
 <script lang="ts">
-  import BackendUrlInput from "$lib/components/common/BackendUrlInput.svelte";
-  import { t } from "$lib/i18n";
+  import BackendUrlInput from "#lib/components/common/BackendUrlInput.svelte";
+  import { t } from "#lib/i18n";
   import {
     faArrowRight,
     faCircleQuestion,
@@ -8,7 +8,7 @@
     faKey,
     faShieldHalved,
   } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Badge, Button, Card, Field, Icon, TextInput } from "$lib/components/ui";
+  import { Alert, Badge, Button, Card, Field, Icon, TextInput } from "#lib/components/ui";
 
   interface Props {
     backendUrl: string;

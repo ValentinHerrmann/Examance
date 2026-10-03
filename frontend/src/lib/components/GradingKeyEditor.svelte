@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { GradingKeyConfig, GradeCutoff } from '$lib/db/schema';
-  import { getPresetCutoffs } from '$lib/analytics/gradingKey';
-  import { t } from '$lib/i18n';
+  import type { GradingKeyConfig, GradeCutoff } from '#lib/db/schema';
+  import { getPresetCutoffs } from '#lib/analytics/gradingKey';
+  import { t } from '#lib/i18n';
 
-  import InfoTip from "$lib/components/help/InfoTip.svelte";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
   import { faChartColumn } from '@fortawesome/free-solid-svg-icons';
-  import { Badge, Button, Icon, controlClass, controlSmClass } from '$lib/components/ui';
+  import { Badge, Button, Icon, controlClass, controlSmClass } from '#lib/components/ui';
 
   interface Props {
     gradingKey?: GradingKeyConfig;

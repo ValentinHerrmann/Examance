@@ -1,6 +1,6 @@
 import { get, writable } from 'svelte/store';
-import { api } from '$lib/api/client';
-import { isUnlocked } from '$lib/stores/session';
+import { api } from '#lib/api/client';
+import { isUnlocked } from '#lib/stores/session';
 
 export interface QueuedRequest {
   id: string;

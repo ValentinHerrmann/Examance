@@ -5,10 +5,10 @@
  */
 
 import { get } from 'svelte/store';
-import { db } from '$lib/db/db';
-import { scoreRepository } from '$lib/repositories/scoreRepository';
-import { examRepository } from '$lib/repositories/examRepository';
-import { sessionStore } from '$lib/stores/session';
+import { db } from '#lib/db/db';
+import { scoreRepository } from '#lib/repositories/scoreRepository';
+import { examRepository } from '#lib/repositories/examRepository';
+import { sessionStore } from '#lib/stores/session';
 import {
   BGPROJ_MAGIC,
   BGPROJ_VERSION,
@@ -18,16 +18,16 @@ import {
   PAYLOAD_OFFSET,
   type ProgressCallback,
 } from './format';
-import { deriveKey, generateSalt } from '$lib/crypto/keyDerivation';
-import { deriveSessionKey } from '$lib/crypto/sessionKey';
-import { encryptJson, uint8ArrayToBase64 } from '$lib/crypto/aesGcm';
+import { deriveKey, generateSalt } from '#lib/crypto/keyDerivation';
+import { deriveSessionKey } from '#lib/crypto/sessionKey';
+import { encryptJson, uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import {
   loadExamsEncrypted,
   loadExercisesEncrypted,
   loadStudentsEncrypted,
   loadSubmissionsEncrypted,
   decryptResourceBytes,
-} from '$lib/db/dbEncryption';
+} from '#lib/db/dbEncryption';
 
 export async function packProject(
   password: string,

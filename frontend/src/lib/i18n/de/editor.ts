@@ -9,7 +9,7 @@ export const editor = {
 
     /**
      * Button text and tooltip for each quick-insert macro, keyed by the macro's
-     * `id` in `$lib/latex/quickInsertMacros.ts`. The LaTeX itself lives there;
+     * `id` in `#lib/latex/quickInsertMacros.ts`. The LaTeX itself lives there;
      * only the human-readable text lives here.
      */
     macros: {

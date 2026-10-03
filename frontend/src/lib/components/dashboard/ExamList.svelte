@@ -1,12 +1,12 @@
 <script lang="ts">
-  import type { ExamRecord, ExerciseRecord } from "$lib/db/schema";
-  import type { LazyEntry } from "$lib/utils/lazyMap";
-  import { formatExamCourse } from "$lib/utils/examLabel";
-  import { t } from "$lib/i18n";
-  import { fmt } from "$lib/utils/format";
-  import { examNavItems } from "$lib/components/layout/examNavItems";
+  import type { ExamRecord, ExerciseRecord } from "#lib/db/schema";
+  import type { LazyEntry } from "#lib/utils/lazyMap";
+  import { formatExamCourse } from "#lib/utils/examLabel";
+  import { t } from "#lib/i18n";
+  import { fmt } from "#lib/utils/format";
+  import { examNavItems } from "#lib/components/layout/examNavItems";
   import { faEye, faTrash } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, Card, EmptyState, ExpandableCard } from "$lib/components/ui";
+  import { Badge, Button, Card, EmptyState, ExpandableCard } from "#lib/components/ui";
 
   interface Props {
     exams: ExamRecord[];

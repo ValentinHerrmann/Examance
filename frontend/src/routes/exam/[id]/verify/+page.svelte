@@ -1,44 +1,45 @@
 <script lang="ts">
   import { goto, afterNavigate } from "$app/navigation";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { onMount, untrack } from "svelte";
-  import { browser } from "$app/environment";
+  import { browser } from "$app/env";
   import { get } from "svelte/store";
-  import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
-  import { t, translate } from "$lib/i18n";
-  import { Alert, Button, EmptyState, PageHeader, PageShell, Spinner } from "$lib/components/ui";
+  import { sessionStore, isUnlocked, awaitSessionReady } from "#lib/stores/session";
+  import { t, translate } from "#lib/i18n";
+  import { Alert, Button, EmptyState, PageHeader, PageShell, Spinner } from "#lib/components/ui";
   import {
     computeMcVerificationStats,
     categorizeMcItem,
     isMcReviewed,
     type McVerificationStats,
     type McDetectionItem,
-  } from "$lib/grading/mcVerification";
-  import McVerificationOverview from "$lib/components/verify/McVerificationOverview.svelte";
-  import McVerificationQueue from "$lib/components/verify/McVerificationQueue.svelte";
-  import McDetectionSettingsPanel from "$lib/components/verify/McDetectionSettingsPanel.svelte";
-  import McRerunDialog from "$lib/components/verify/McRerunDialog.svelte";
-  import { buildOmrScoreRecord, mergeRedetectionIntoVerified } from "$lib/grading/omrResult";
-  import { createOmrRun } from "$lib/grading/omrSettings";
-  import { omrSettingsStore } from "$lib/stores/omrSettings";
-  import { loadPdfjs } from "$lib/pdf/pdfjs";
+  } from "#lib/grading/mcVerification";
+  import McVerificationOverview from "#lib/components/verify/McVerificationOverview.svelte";
+  import McVerificationQueue from "#lib/components/verify/McVerificationQueue.svelte";
+  import McDetectionSettingsPanel from "#lib/components/verify/McDetectionSettingsPanel.svelte";
+  import McRerunDialog from "#lib/components/verify/McRerunDialog.svelte";
+  import { buildOmrScoreRecord, mergeRedetectionIntoVerified } from "#lib/grading/omrResult";
+  import { createOmrRun } from "#lib/grading/omrSettings";
+  import { spawnOmrWorker } from "#lib/workers/spawn";
+  import { omrSettingsStore } from "#lib/stores/omrSettings";
+  import { loadPdfjs } from "#lib/pdf/pdfjs";
   import {
     loadOmrTemplateEncrypted,
-  } from "$lib/db/dbEncryption";
-  import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { loadExamMcExercises, resolveMcExercises, computeMcExercisesHash } from "$lib/grading/mcExerciseHash";
-  import { prepareOmrTemplate, loadExamCompileContext } from "$lib/grading/omrTemplatePrep";
-  import { restoreOriginalDetection, type McQuestionType } from "$lib/grading/mcScore";
-  import { decrypt } from "$lib/crypto/aesGcm";
+  } from "#lib/db/dbEncryption";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
+  import { loadExamMcExercises, resolveMcExercises, computeMcExercisesHash } from "#lib/grading/mcExerciseHash";
+  import { prepareOmrTemplate, loadExamCompileContext } from "#lib/grading/omrTemplatePrep";
+  import { restoreOriginalDetection, type McQuestionType } from "#lib/grading/mcScore";
+  import { decrypt } from "#lib/crypto/aesGcm";
   import type {
     OmrWorkerRequest,
     OmrWorkerResponse,
     OmrExerciseAnswerKey,
-  } from "$lib/workers/omrWorker";
-  import type { ExerciseScoreRecord } from "$lib/db/schema";
-  import { scoreRepository } from "$lib/repositories/scoreRepository";
+  } from "#lib/workers/omrWorker";
+  import type { ExerciseScoreRecord } from "#lib/db/schema";
+  import { scoreRepository } from "#lib/repositories/scoreRepository";
 
-  let examId = $derived($page.params.id || "");
+  let examId = $derived(page.params.id || "");
 
   // Raw: computed by lib/grading, replaced wholesale on every refresh.
   let stats = $state.raw<McVerificationStats | null>(null);
@@ -186,9 +187,7 @@
 
       const pdfjsLib = await loadPdfjs();
 
-      const worker = new Worker(new URL("$lib/workers/omrWorker.ts", import.meta.url), {
-        type: "module",
-      });
+      const worker = spawnOmrWorker();
       const runOmr = (req: OmrWorkerRequest): Promise<OmrWorkerResponse> =>
         new Promise((resolve, reject) => {
           const onMessage = (event: MessageEvent<OmrWorkerResponse>) => {

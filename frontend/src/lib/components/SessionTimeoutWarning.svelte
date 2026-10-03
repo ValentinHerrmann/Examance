@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { timeUntilLock, keepSessionAlive } from '$lib/db/hygiene';
-  import { t } from '$lib/i18n';
+  import { timeUntilLock, keepSessionAlive } from '#lib/db/hygiene';
+  import { t } from '#lib/i18n';
   import { faHourglassHalf } from '@fortawesome/free-solid-svg-icons';
-  import { Modal, Button, Icon } from '$lib/components/ui';
+  import { Modal, Button, Icon } from '#lib/components/ui';
 
   let formattedTime = $derived($timeUntilLock !== null
     ? $t('auth.sessionTimeout.minutesSeconds', { minutes: Math.floor($timeUntilLock / 60), seconds: $timeUntilLock % 60 })

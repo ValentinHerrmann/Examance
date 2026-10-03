@@ -1,27 +1,27 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { onMount, untrack } from 'svelte';
-  import { browser } from '$app/environment';
+  import { browser } from '$app/env';
   import { get } from 'svelte/store';
-  import StatsPage from '$lib/components/stats/StatsPage.svelte';
-  import type { ExamRecord, ExerciseRecord, SubmissionRecord, StudentRecord } from '$lib/db/schema';
-  import { loadExamEncrypted, loadExamExercisesEncrypted } from '$lib/db/dbEncryption';
-  import { scoreRepository } from '$lib/repositories/scoreRepository';
-  import { submissionRepository } from '$lib/repositories/submissionRepository';
-  import { studentRepository } from '$lib/repositories/studentRepository';
-  import { sessionStore, awaitSessionReady } from '$lib/stores/session';
+  import StatsPage from '#lib/components/stats/StatsPage.svelte';
+  import type { ExamRecord, ExerciseRecord, SubmissionRecord, StudentRecord } from '#lib/db/schema';
+  import { loadExamEncrypted, loadExamExercisesEncrypted } from '#lib/db/dbEncryption';
+  import { scoreRepository } from '#lib/repositories/scoreRepository';
+  import { submissionRepository } from '#lib/repositories/submissionRepository';
+  import { studentRepository } from '#lib/repositories/studentRepository';
+  import { sessionStore, awaitSessionReady } from '#lib/stores/session';
   import {
     calculateSubmissionPercentage,
     summarizeExam,
     type ExamResult,
     type ExamStats,
-  } from '$lib/analytics/stats';
-  import { calculateGradeFromPercentage } from '$lib/analytics/gradingKey';
-  import { exportGradesToCsv } from '$lib/analytics/csvExport';
-  import { buildSubmissionMap } from '$lib/utils/studentLookup';
-  import { translate } from '$lib/i18n';
+  } from '#lib/analytics/stats';
+  import { calculateGradeFromPercentage } from '#lib/analytics/gradingKey';
+  import { exportGradesToCsv } from '#lib/analytics/csvExport';
+  import { buildSubmissionMap } from '#lib/utils/studentLookup';
+  import { translate } from '#lib/i18n';
 
-  let examId = $derived($page.params.id || '');
+  let examId = $derived(page.params.id || '');
 
   // Raw: records go to lib/analytics and the CSV export unchanged.
   let exam: ExamRecord | null = $state.raw(null);

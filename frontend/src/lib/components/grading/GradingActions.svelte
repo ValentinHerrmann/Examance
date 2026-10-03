@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { gradingStore } from "$lib/grading/gradingStore";
-  import { t } from "$lib/i18n";
+  import { gradingStore } from "#lib/grading/gradingStore";
+  import { t } from "#lib/i18n";
   import { faArrowLeft, faArrowRight, faFloppyDisk } from "@fortawesome/free-solid-svg-icons";
-  import { Button } from "$lib/components/ui";
+  import { Button } from "#lib/components/ui";
 
   interface Props {
     /** Persistence and navigation stay route-owned; callbacks only forward user intent. */

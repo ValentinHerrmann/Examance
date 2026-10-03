@@ -1,16 +1,16 @@
 <script lang="ts">
-  import { type ExerciseGroup, groupExercises } from "$lib/exercise-library/groupExercises";
-  import { page } from "$app/stores";
+  import { type ExerciseGroup, groupExercises } from "#lib/exercise-library/groupExercises";
+  import { page } from "$app/state";
   import { onMount, onDestroy, untrack } from "svelte";
-  import { browser } from "$app/environment";
-  import { db } from "$lib/db/db";
+  import { browser } from "$app/env";
+  import { db } from "#lib/db/db";
   import type {
     ExamRecord,
     ExerciseRecord,
     SubmissionRecord,
     ExamMcGroupRecord,
     ExamExerciseRecord,
-  } from "$lib/db/schema";
+  } from "#lib/db/schema";
   import {
     loadExamEncrypted,
     saveExamEncrypted,
@@ -25,51 +25,51 @@
     loadOmrTemplateEncrypted,
     loadLocalMcGroups,
     type McGroup,
-  } from "$lib/db/dbEncryption";
-  import { computeMcExercisesHash, resolveMcExercises } from "$lib/grading/mcExerciseHash";
-  import { prepareOmrTemplate } from "$lib/grading/omrTemplatePrep";
-  import { isMcQuestion } from "$lib/grading/mcScore";
-  import { exportArchiveInteractively } from "$lib/services/archiveService";
-  import { getLatestForSlot, invalidateOwner } from "$lib/latex/compileCache";
-  import { parseExerciseScore } from "$lib/latex/scoreParser";
-  import { compileExamPreview } from "$lib/exam/examPreview";
-  import { pdfBytesToUrl } from "$lib/latex/pdfPreview";
-  import { api } from "$lib/api/client";
-  import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { studentRepository } from "$lib/repositories/studentRepository";
-  import { examRepository, mapApiToExamRecord } from "$lib/repositories/examRepository";
-  import { mapExerciseRecordToApi } from "$lib/repositories/exerciseRepository";
-  import { uint8ArrayToBase64, decrypt } from "$lib/crypto/aesGcm";
-  import { ensure64CharHex } from "$lib/crypto/hmac";
+  } from "#lib/db/dbEncryption";
+  import { computeMcExercisesHash, resolveMcExercises } from "#lib/grading/mcExerciseHash";
+  import { prepareOmrTemplate } from "#lib/grading/omrTemplatePrep";
+  import { isMcQuestion } from "#lib/grading/mcScore";
+  import { exportArchiveInteractively } from "#lib/services/archiveService";
+  import { getLatestForSlot, invalidateOwner } from "#lib/latex/compileCache";
+  import { parseExerciseScore } from "#lib/latex/scoreParser";
+  import { compileExamPreview } from "#lib/exam/examPreview";
+  import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
+  import { api } from "#lib/api/client";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
+  import { studentRepository } from "#lib/repositories/studentRepository";
+  import { examRepository, mapApiToExamRecord } from "#lib/repositories/examRepository";
+  import { mapExerciseRecordToApi } from "#lib/repositories/exerciseRepository";
+  import { uint8ArrayToBase64, decrypt } from "#lib/crypto/aesGcm";
+  import { ensure64CharHex } from "#lib/crypto/hmac";
   import type {
     OmrWorkerRequest,
     OmrWorkerResponse,
     OmrExerciseAnswerKey,
-  } from "$lib/workers/omrWorker";
-  import { sessionStore, isAuthenticated, awaitSessionReady } from "$lib/stores/session";
-  import { storagePolicyStore } from "$lib/stores/storagePolicy";
+  } from "#lib/workers/omrWorker";
+  import { sessionStore, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
+  import { storagePolicyStore } from "#lib/stores/storagePolicy";
   import { get } from "svelte/store";
-  import DualPdfPreview from "$lib/components/DualPdfPreview.svelte";
-  import { getPresetCutoffs } from "$lib/analytics/gradingKey";
-  import type { GradingKeyConfig } from "$lib/db/schema";
+  import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
+  import { getPresetCutoffs } from "#lib/analytics/gradingKey";
+  import type { GradingKeyConfig } from "#lib/db/schema";
   import { goto } from "$app/navigation";
-  import ExamMetadata from "$lib/components/exam/ExamMetadata.svelte";
-  import ExamActionBar from "$lib/components/exam/ExamActionBar.svelte";
-  import ExerciseList from "$lib/components/exam/ExerciseList.svelte";
-  import ExamMetadataEditor from "$lib/components/exam/ExamMetadataEditor.svelte";
-  import ExamLibraryModal from "$lib/components/exam/ExamLibraryModal.svelte";
-  import { mapApiToExerciseRecord } from "$lib/repositories/exerciseRepository";
+  import ExamMetadata from "#lib/components/exam/ExamMetadata.svelte";
+  import ExamActionBar from "#lib/components/exam/ExamActionBar.svelte";
+  import ExerciseList from "#lib/components/exam/ExerciseList.svelte";
+  import ExamMetadataEditor from "#lib/components/exam/ExamMetadataEditor.svelte";
+  import ExamLibraryModal from "#lib/components/exam/ExamLibraryModal.svelte";
+  import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
   import {
     applyGroup,
     buildMcGroupMembership,
     canFinalizeGroup,
     moveStaged,
     toggleStaged,
-  } from "$lib/exam/mcGroupStaging";
-  import { t, translate } from "$lib/i18n";
-  import { ConfirmDialog, Alert, Button, Card, PageHeader, PageShell } from "$lib/components/ui";
+  } from "#lib/exam/mcGroupStaging";
+  import { t, translate } from "#lib/i18n";
+  import { ConfirmDialog, Alert, Button, Card, PageHeader, PageShell } from "#lib/components/ui";
 
-  let examId = $derived($page.params.id || "");
+  let examId = $derived(page.params.id || "");
 
   interface ExamItemRef {
     type: "exercise" | "mc_group";

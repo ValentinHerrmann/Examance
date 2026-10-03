@@ -3,11 +3,11 @@
  * archive's, or import as a copy. No copies for students/submissions (duplicate pseudonym = data-protection problem).
  */
 
-import { db } from '$lib/db/db';
-import { examRepository } from '$lib/repositories/examRepository';
-import { exerciseRepository } from '$lib/repositories/exerciseRepository';
-import { studentRepository } from '$lib/repositories/studentRepository';
-import { submissionRepository } from '$lib/repositories/submissionRepository';
+import { db } from '#lib/db/db';
+import { examRepository } from '#lib/repositories/examRepository';
+import { exerciseRepository } from '#lib/repositories/exerciseRepository';
+import { studentRepository } from '#lib/repositories/studentRepository';
+import { submissionRepository } from '#lib/repositories/submissionRepository';
 
 export type ConflictKind = 'exam' | 'exercise' | 'mcGroup' | 'student' | 'submission' | 'resource';
 export type ConflictChoice = 'keep-existing' | 'take-imported' | 'import-as-copy';

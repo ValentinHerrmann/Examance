@@ -1,6 +1,6 @@
 import { writable, derived } from 'svelte/store';
-import { safeLocalStorage } from '$lib/utils/storage';
-import { recordValue } from '$lib/utils/recentValues';
+import { safeLocalStorage } from '#lib/utils/storage';
+import { recordValue } from '#lib/utils/recentValues';
 
 const BACKEND_URL_KEY = 'bg_backend_url';
 

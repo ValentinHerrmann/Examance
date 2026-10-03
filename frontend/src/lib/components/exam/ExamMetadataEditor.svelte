@@ -1,13 +1,13 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import type { GradingKeyConfig } from '$lib/db/schema';
-  import GradingKeyEditor from '$lib/components/GradingKeyEditor.svelte';
-  import LatexEditor from '$lib/components/LatexEditor.svelte';
-  import SuggestInput from '$lib/components/common/SuggestInput.svelte';
-  import { recordValue } from '$lib/utils/recentValues';
-  import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from '$lib/utils/examLabel';
-  import { t } from '$lib/i18n';
-  import { Modal, Button, controlClass } from '$lib/components/ui';
+  import type { GradingKeyConfig } from '#lib/db/schema';
+  import GradingKeyEditor from '#lib/components/GradingKeyEditor.svelte';
+  import LatexEditor from '#lib/components/LatexEditor.svelte';
+  import SuggestInput from '#lib/components/common/SuggestInput.svelte';
+  import { recordValue } from '#lib/utils/recentValues';
+  import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from '#lib/utils/examLabel';
+  import { t } from '#lib/i18n';
+  import { Modal, Button, controlClass } from '#lib/components/ui';
 
   interface Props {
     isOpen?: boolean;

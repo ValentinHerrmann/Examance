@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { t } from '$lib/i18n';
+  import { t } from '#lib/i18n';
   import { faLock } from '@fortawesome/free-solid-svg-icons';
-  import { Button, Card, EmptyState, Spinner } from '$lib/components/ui';
+  import { Button, Card, EmptyState, Spinner } from '#lib/components/ui';
 
   interface Props {
     variant: 'loading' | 'locked';

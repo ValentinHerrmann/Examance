@@ -1,9 +1,9 @@
 <script lang="ts">
   /** The authenticator app with its backup codes. Backup codes live here because they are the authenticator's stand-in, not a separate factor. */
-  import { Button, Card } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
-  import { ApiError } from "$lib/api/client";
-  import { disableTotp, regenerateBackupCodes, type MfaStatus } from "$lib/api/mfa";
+  import { Button, Card } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { ApiError } from "#lib/api/client";
+  import { disableTotp, regenerateBackupCodes, type MfaStatus } from "#lib/api/mfa";
   import BackupCodeList from "./BackupCodeList.svelte";
   import FactorMeta from "./FactorMeta.svelte";
   import TotpEnrollDialog from "./TotpEnrollDialog.svelte";

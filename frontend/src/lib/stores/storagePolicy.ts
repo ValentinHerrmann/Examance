@@ -1,6 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
-import { safeLocalStorage } from '$lib/utils/storage';
-import { t, translate } from '$lib/i18n';
+import { safeLocalStorage } from '#lib/utils/storage';
+import { t, translate } from '#lib/i18n';
 
 export type StorageMode = 'all-server' | 'all-local' | 'hybrid';
 

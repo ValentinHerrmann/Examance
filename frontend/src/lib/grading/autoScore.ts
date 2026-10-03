@@ -3,7 +3,7 @@
  * overridden, sums the check/minus stamp points on the current strokes, clamped to [0, maxPoints].
  */
 
-import type { ExerciseRecord } from '$lib/db/schema';
+import type { ExerciseRecord } from '#lib/db/schema';
 import type { VectorStroke } from './gradingStore';
 import { isMcQuestion } from './mcScore';
 

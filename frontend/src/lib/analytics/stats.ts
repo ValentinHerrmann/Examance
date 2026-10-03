@@ -1,7 +1,7 @@
 /**
  * Statistics calculations (mean, std dev, median, histogram).
  */
-import type { GradingKeyConfig } from "$lib/db/schema";
+import type { GradingKeyConfig } from "#lib/db/schema";
 import {
   borderlineCases,
   calculateClassGradeAverage,

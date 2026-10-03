@@ -1,9 +1,9 @@
 <script lang="ts">
   import { untrack } from "svelte";
   /** Which factor to finish sign-in with. `available` is the server's list, never inferred here (account-profile disclosure); a passkey is preferred and auto-prompted. */
-  import { Button } from "$lib/components/ui";
-  import { t, type TranslationKey } from "$lib/i18n";
-  import type { FactorKind } from "$lib/api/mfa";
+  import { Button } from "#lib/components/ui";
+  import { t, type TranslationKey } from "#lib/i18n";
+  import type { FactorKind } from "#lib/api/mfa";
   import PasswordFactor from "./PasswordFactor.svelte";
   import TotpFactor from "./TotpFactor.svelte";
 

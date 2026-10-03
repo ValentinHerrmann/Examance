@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { gradingStore, type ToolType } from "$lib/grading/gradingStore";
-  import { t } from "$lib/i18n";
+  import { gradingStore, type ToolType } from "#lib/grading/gradingStore";
+  import { t } from "#lib/i18n";
   import { faCheck, faEraser, faPen, faRulerHorizontal, faTrashCan } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Icon } from "$lib/components/ui";
+  import { Button, Icon } from "#lib/components/ui";
 
   interface Props {
     /** Clearing is gated by a parent-owned confirm dialog; this component only requests it, never mutates the store. */

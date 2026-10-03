@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
   import { get } from "svelte/store";
-  import { sessionStore } from "$lib/stores/session";
-  import { Button, TextInput } from "$lib/components/ui";
-  import type { ExerciseResourceRecord } from "$lib/db/schema";
-  import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
+  import { sessionStore } from "#lib/stores/session";
+  import { Button, TextInput } from "#lib/components/ui";
+  import type { ExerciseResourceRecord } from "#lib/db/schema";
+  import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import {
     MAX_EXERCISE_RESOURCE_BYTES,
     ResourceError,
@@ -13,7 +13,7 @@
     insertSnippetFor,
     sanitizeResourceName,
     validateResource,
-  } from "$lib/latex/resources";
+  } from "#lib/latex/resources";
 
   interface Props {
     /** Staging id (not the exercise id), so files can be attached before the exercise exists; committed on save. */

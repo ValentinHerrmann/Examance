@@ -1,10 +1,10 @@
 <script lang="ts">
   import { faAnglesLeft, faAnglesRight, faArrowLeft } from "@fortawesome/free-solid-svg-icons";
-  import { t } from "$lib/i18n";
-  import { formatExamCourse } from "$lib/utils/examLabel";
-  import { minWidth } from "$lib/stores/viewport";
-  import { sidebarPreference, setSidebarCollapsed, type ExamNavContext } from "$lib/stores/shell";
-  import { Badge, Icon, Tooltip } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { formatExamCourse } from "#lib/utils/examLabel";
+  import { minWidth } from "#lib/stores/viewport";
+  import { sidebarPreference, setSidebarCollapsed, type ExamNavContext } from "#lib/stores/shell";
+  import { Badge, Icon, Tooltip } from "#lib/components/ui";
   import { examNavItems } from "./examNavItems";
 
   /**

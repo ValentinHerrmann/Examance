@@ -6,18 +6,18 @@
  */
 
 import { get } from 'svelte/store';
-import { db } from '$lib/db/db';
-import { sessionStore } from '$lib/stores/session';
-import { storagePolicyStore } from '$lib/stores/storagePolicy';
+import { db } from '#lib/db/db';
+import { sessionStore } from '#lib/stores/session';
+import { storagePolicyStore } from '#lib/stores/storagePolicy';
 import {
   BGPROJ_MAGIC,
   BGPROJ_VERSION,
   HEADER_SIZE,
   type ProgressEvent,
 } from './format';
-import { deriveKey } from '$lib/crypto/keyDerivation';
-import { deriveSessionKey } from '$lib/crypto/sessionKey';
-import { base64ToUint8Array, toArrayBuffer } from '$lib/crypto/aesGcm';
+import { deriveKey } from '#lib/crypto/keyDerivation';
+import { deriveSessionKey } from '#lib/crypto/sessionKey';
+import { base64ToUint8Array, toArrayBuffer } from '#lib/crypto/aesGcm';
 import {
   saveExamEncrypted,
   saveExerciseEncrypted,
@@ -26,9 +26,9 @@ import {
   encryptExam,
   encryptExercise,
   encryptResource,
-} from '$lib/db/dbEncryption';
-import { scoreRepository } from '$lib/repositories/scoreRepository';
-import type { ExerciseScoreRecord } from '$lib/db/schema';
+} from '#lib/db/dbEncryption';
+import { scoreRepository } from '#lib/repositories/scoreRepository';
+import type { ExerciseScoreRecord } from '#lib/db/schema';
 import { importPayloadToServer } from './serverImport';
 
 export interface ImportResult {

@@ -5,9 +5,9 @@
  * Falls back to server POST /api/v1/compile/latex if WASM compiler is unavailable.
  */
 
-import { api } from '$lib/api/client';
-import { translate } from '$lib/i18n';
-import { uint8ArrayToBase64 } from '$lib/crypto/aesGcm';
+import { api } from '#lib/api/client';
+import { translate } from '#lib/i18n';
+import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import { mergeResources, type LatexResourceFile } from './resources';
 
 export interface CompileResult {

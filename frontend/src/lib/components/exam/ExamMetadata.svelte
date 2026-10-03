@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { ExamRecord } from '$lib/db/schema';
-  import { t } from '$lib/i18n';
-  import { Alert } from '$lib/components/ui';
+  import type { ExamRecord } from '#lib/db/schema';
+  import { t } from '#lib/i18n';
+  import { Alert } from '#lib/components/ui';
 
   interface Props {
     exam: ExamRecord | null;

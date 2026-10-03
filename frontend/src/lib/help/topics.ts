@@ -13,7 +13,7 @@ import {
   faRocket,
   faUsers,
 } from "@fortawesome/free-solid-svg-icons";
-import type { TranslationKey } from "$lib/i18n";
+import type { TranslationKey } from "#lib/i18n";
 
 /**
  * The in-app manual as data. Content lives in the `help` i18n namespace (German is the source);

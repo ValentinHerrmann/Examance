@@ -8,7 +8,7 @@
     faTriangleExclamation,
     faXmark,
   } from "@fortawesome/free-solid-svg-icons";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import Icon from "./Icon.svelte";
   import Button from "./Button.svelte";
 

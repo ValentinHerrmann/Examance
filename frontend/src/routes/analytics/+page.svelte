@@ -1,21 +1,21 @@
 <script lang="ts">
-  import { t } from '$lib/i18n';
+  import { t } from '#lib/i18n';
   import { onMount, untrack } from 'svelte';
-  import { browser } from '$app/environment';
+  import { browser } from '$app/env';
   import { afterNavigate, goto } from '$app/navigation';
   import { get } from 'svelte/store';
-  import { sessionStore, isUnlocked, awaitSessionReady } from '$lib/stores/session';
-  import { db } from '$lib/db/db';
-  import type { ExamRecord, ExerciseRecord } from '$lib/db/schema';
-  import { loadExamsEncrypted, loadExercisesEncrypted, decryptExercise, decryptScore } from '$lib/db/dbEncryption';
-  import { scoreRepository } from '$lib/repositories/scoreRepository';
-  import { submissionRepository } from '$lib/repositories/submissionRepository';
-  import type { ExercisePerformance, VariantDetail, VariantGroupComparison } from '$lib/analytics/analyticsTypes';
-  import AnalyticsStateBanner from '$lib/components/analytics/AnalyticsStateBanner.svelte';
-  import KpiSummaryBar from '$lib/components/analytics/KpiSummaryBar.svelte';
-  import VariantFairnessTable from '$lib/components/analytics/VariantFairnessTable.svelte';
-  import ExerciseQualityTable from '$lib/components/analytics/ExerciseQualityTable.svelte';
-  import { PageShell, PageHeader } from '$lib/components/ui';
+  import { sessionStore, isUnlocked, awaitSessionReady } from '#lib/stores/session';
+  import { db } from '#lib/db/db';
+  import type { ExamRecord, ExerciseRecord } from '#lib/db/schema';
+  import { loadExamsEncrypted, loadExercisesEncrypted, decryptExercise, decryptScore } from '#lib/db/dbEncryption';
+  import { scoreRepository } from '#lib/repositories/scoreRepository';
+  import { submissionRepository } from '#lib/repositories/submissionRepository';
+  import type { ExercisePerformance, VariantDetail, VariantGroupComparison } from '#lib/analytics/analyticsTypes';
+  import AnalyticsStateBanner from '#lib/components/analytics/AnalyticsStateBanner.svelte';
+  import KpiSummaryBar from '#lib/components/analytics/KpiSummaryBar.svelte';
+  import VariantFairnessTable from '#lib/components/analytics/VariantFairnessTable.svelte';
+  import ExerciseQualityTable from '#lib/components/analytics/ExerciseQualityTable.svelte';
+  import { PageShell, PageHeader } from '#lib/components/ui';
 
   let isInitializing = $state(true);
   let activeLoadPromise: Promise<void> | null = null;

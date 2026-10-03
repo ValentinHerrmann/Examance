@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { ExamRecord, ExerciseRecord, SubmissionRecord } from "$lib/db/schema";
-  import type { GradeDetail } from "$lib/analytics/gradingKey";
-  import { gradingStore } from "$lib/grading/gradingStore";
-  import { isMcQuestion } from "$lib/grading/mcScore";
+  import type { ExamRecord, ExerciseRecord, SubmissionRecord } from "#lib/db/schema";
+  import type { GradeDetail } from "#lib/analytics/gradingKey";
+  import { gradingStore } from "#lib/grading/gradingStore";
+  import { isMcQuestion } from "#lib/grading/mcScore";
   import GradingHeader from "./GradingHeader.svelte";
   import GradeSummaryCard from "./GradeSummaryCard.svelte";
   import ZoomPageControls from "./ZoomPageControls.svelte";
@@ -13,9 +13,9 @@
   import LastSubmissionModal from "./LastSubmissionModal.svelte";
   import GradingActions from "./GradingActions.svelte";
   import ScanCanvasViewer from "./ScanCanvasViewer.svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
-  import { Button } from "$lib/components/ui";
+  import { Button } from "#lib/components/ui";
 
   interface Props {
     examId: string;

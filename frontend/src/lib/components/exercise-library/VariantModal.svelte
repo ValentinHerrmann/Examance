@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import LatexEditor from "$lib/components/LatexEditor.svelte";
-  import { t } from "$lib/i18n";
-  import InfoTip from "$lib/components/help/InfoTip.svelte";
-  import { Alert, ConfirmDialog, Modal, Button, controlClass } from "$lib/components/ui";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import LatexEditor from "#lib/components/LatexEditor.svelte";
+  import { t } from "#lib/i18n";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
+  import { Alert, ConfirmDialog, Modal, Button, controlClass } from "#lib/components/ui";
 
   interface Props {
     isOpen?: boolean;

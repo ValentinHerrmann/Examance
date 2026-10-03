@@ -1,15 +1,15 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { faPlus } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, EmptyState, Field, Panel, TableScroller, Textarea, TextInput } from "$lib/components/ui";
+  import { Badge, Button, EmptyState, Field, Panel, TableScroller, Textarea, TextInput } from "#lib/components/ui";
   import { get } from "svelte/store";
-  import { sessionStore } from "$lib/stores/session";
-  import { studentRepository } from "$lib/repositories/studentRepository";
-  import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { saveSubmissionEncrypted } from "$lib/db/dbEncryption";
-  import { buildSubmissionMap } from "$lib/utils/studentLookup";
-  import type { StudentRecord, SubmissionRecord } from "$lib/db/schema";
-  import { t, translate } from "$lib/i18n";
+  import { sessionStore } from "#lib/stores/session";
+  import { studentRepository } from "#lib/repositories/studentRepository";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
+  import { saveSubmissionEncrypted } from "#lib/db/dbEncryption";
+  import { buildSubmissionMap } from "#lib/utils/studentLookup";
+  import type { StudentRecord, SubmissionRecord } from "#lib/db/schema";
+  import { t, translate } from "#lib/i18n";
 
   interface Props {
     examId: string;

@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
   import type { HTMLInputAttributes } from "svelte/elements";
-  import { getRecentValues, recordValue, removeValue } from "$lib/utils/recentValues";
-  import { t } from "$lib/i18n";
+  import { getRecentValues, recordValue, removeValue } from "#lib/utils/recentValues";
+  import { t } from "#lib/i18n";
   import { faXmark } from "@fortawesome/free-solid-svg-icons";
-  import { Icon } from "$lib/components/ui";
+  import { Icon } from "#lib/components/ui";
 
   interface Props {
     storageKey?: string;

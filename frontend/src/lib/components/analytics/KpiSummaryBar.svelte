@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { t } from '$lib/i18n';
-  import { fmt } from '$lib/utils/format';
-  import { Alert, Card } from '$lib/components/ui';
+  import { t } from '#lib/i18n';
+  import { fmt } from '#lib/utils/format';
+  import { Alert, Card } from '#lib/components/ui';
 
   interface Props {
     examsCount: number;

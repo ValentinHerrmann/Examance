@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import LatexEditor from "$lib/components/LatexEditor.svelte";
-  import { computeSideBySideDiff, buildAlignedDiffDecorations } from "$lib/latex/diff";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import LatexEditor from "#lib/components/LatexEditor.svelte";
+  import { computeSideBySideDiff, buildAlignedDiffDecorations } from "#lib/latex/diff";
   import { getDiffSelectLabel } from "./ExerciseDiffModal";
-  import { t } from "$lib/i18n";
-  import { Alert, ConfirmDialog, Modal, Button, Select } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { Alert, ConfirmDialog, Modal, Button, Select } from "#lib/components/ui";
 
   interface Props {
     isOpen?: boolean;

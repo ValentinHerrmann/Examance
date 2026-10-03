@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import LegalPage from "$lib/components/legal/LegalPage.svelte";
-  import { t } from "$lib/i18n";
-  import { fetchDonationStatus } from "$lib/services/trainingDonation";
+  import LegalPage from "#lib/components/legal/LegalPage.svelte";
+  import { t } from "#lib/i18n";
+  import { fetchDonationStatus } from "#lib/services/trainingDonation";
 
   /** Retention of donated training samples, as the configured backend reports it. */
   let donationRetentionDays: number | null = $state(null);

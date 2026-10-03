@@ -1,13 +1,13 @@
 import { get } from "svelte/store";
-import type { ExamRecord, ExerciseRecord } from "$lib/db/schema";
-import type { McGroup } from "$lib/db/dbEncryption";
-import { compileWithCache } from "$lib/latex/compileCache";
-import type { CompileResult } from "$lib/latex/compiler";
-import { formatExerciseLatex, formatMcGroupLatex } from "$lib/latex/scoreParser";
-import type { ExamItemRef } from "$lib/grading/omrTemplatePrep";
-import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
-import { storagePolicyStore } from "$lib/stores/storagePolicy";
-import { formatExamCourse } from "$lib/utils/examLabel";
+import type { ExamRecord, ExerciseRecord } from "#lib/db/schema";
+import type { McGroup } from "#lib/db/dbEncryption";
+import { compileWithCache } from "#lib/latex/compileCache";
+import type { CompileResult } from "#lib/latex/compiler";
+import { formatExerciseLatex, formatMcGroupLatex } from "#lib/latex/scoreParser";
+import type { ExamItemRef } from "#lib/grading/omrTemplatePrep";
+import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
+import { storagePolicyStore } from "#lib/stores/storagePolicy";
+import { formatExamCourse } from "#lib/utils/examLabel";
 
 /** The LaTeX `\Aufgabe` blocks of an exam in item order (standalone exercises and MC groups). */
 export function buildExerciseInputs(

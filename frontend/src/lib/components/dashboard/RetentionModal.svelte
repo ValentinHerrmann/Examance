@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { ExamRecord } from '$lib/db/schema';
-  import type { RetentionCheckResult } from '$lib/gdpr/retention';
-  import { t } from "$lib/i18n";
-  import { Modal, Button } from "$lib/components/ui";
+  import type { ExamRecord } from '#lib/db/schema';
+  import type { RetentionCheckResult } from '#lib/gdpr/retention';
+  import { t } from "#lib/i18n";
+  import { Modal, Button } from "#lib/components/ui";
 
   interface Props {
     expiredExam: { exam: ExamRecord; check: RetentionCheckResult };

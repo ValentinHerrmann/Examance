@@ -1,14 +1,14 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import type { McGroupDraft } from "$lib/exam/mcGroupStaging";
-  import { canFinalizeGroup } from "$lib/exam/mcGroupStaging";
-  import { mcSubLabel } from "$lib/grading/mcGroupLabels";
-  import LatexEditor from "$lib/components/LatexEditor.svelte";
-  import ExerciseLabel from "$lib/components/exam/ExerciseLabel.svelte";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import type { McGroupDraft } from "#lib/exam/mcGroupStaging";
+  import { canFinalizeGroup } from "#lib/exam/mcGroupStaging";
+  import { mcSubLabel } from "#lib/grading/mcGroupLabels";
+  import LatexEditor from "#lib/components/LatexEditor.svelte";
+  import ExerciseLabel from "#lib/components/exam/ExerciseLabel.svelte";
   import { faArrowUp, faArrowDown } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Button, Field, TextInput } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
+  import { Alert, Button, Field, TextInput } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
 
   interface Props {
     /** Staged questions, in group order. */

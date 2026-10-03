@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { gradingStore } from "$lib/grading/gradingStore";
-  import { t } from "$lib/i18n";
+  import { gradingStore } from "#lib/grading/gradingStore";
+  import { t } from "#lib/i18n";
   import { faFlagCheckered } from "@fortawesome/free-solid-svg-icons";
-  import { Modal, Button, Icon } from "$lib/components/ui";
+  import { Modal, Button, Icon } from "#lib/components/ui";
 
   interface Props {
     examId: string;

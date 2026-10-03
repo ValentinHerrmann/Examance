@@ -5,7 +5,7 @@
  * the UI must say so rather than let anyone assume otherwise.
  */
 
-import { fromBase64url, toArrayBuffer, toBase64url } from '$lib/crypto/aesGcm';
+import { fromBase64url, toArrayBuffer, toBase64url } from '#lib/crypto/aesGcm';
 
 /**
  * The PRF input, fixed for the whole app. It must be supplied *before* the ceremony, and at sign-in the

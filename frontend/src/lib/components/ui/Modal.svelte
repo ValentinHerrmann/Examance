@@ -7,8 +7,8 @@
   import type { Snippet } from "svelte";
   import { onDestroy, tick, untrack } from "svelte";
   import { faXmark } from "@fortawesome/free-solid-svg-icons";
-  import { t } from "$lib/i18n";
-  import { lockScroll } from "$lib/utils/scrollLock";
+  import { t } from "#lib/i18n";
+  import { lockScroll } from "#lib/utils/scrollLock";
   import Button from "./Button.svelte";
 
   /**

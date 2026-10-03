@@ -1,16 +1,16 @@
 <script lang="ts">
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { onDestroy, untrack } from "svelte";
   import type { Snippet } from "svelte";
-  import { browser } from "$app/environment";
+  import { browser } from "$app/env";
   import { afterNavigate } from "$app/navigation";
   import { get } from "svelte/store";
-  import { sessionStore } from "$lib/stores/session";
-  import { loadExamEncrypted } from "$lib/db/dbEncryption";
-  import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import type { ExamRecord } from "$lib/db/schema";
-  import { examNavContext } from "$lib/stores/shell";
-  import { t } from "$lib/i18n";
+  import { sessionStore } from "#lib/stores/session";
+  import { loadExamEncrypted } from "#lib/db/dbEncryption";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
+  import type { ExamRecord } from "#lib/db/schema";
+  import { examNavContext } from "#lib/stores/shell";
+  import { t } from "#lib/i18n";
 
   interface Props {
     params?: Record<string, string>;
@@ -19,8 +19,8 @@
 
   let { children }: Props = $props();
 
-  let examId = $derived($page.params.id || "");
-  let pathname = $derived($page.url.pathname);
+  let examId = $derived(page.params.id || "");
+  let pathname = $derived(page.url.pathname);
 
   // Raw: the record is handed to examNavContext, which must not receive a proxy.
   let exam: ExamRecord | null = $state.raw(null);

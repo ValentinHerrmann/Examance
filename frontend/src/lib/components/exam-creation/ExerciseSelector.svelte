@@ -1,14 +1,14 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { type ExerciseGroup } from "$lib/exercise-library/groupExercises";
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import ExerciseLibraryPicker from "$lib/components/exercise-library/ExerciseLibraryPicker.svelte";
-  import ExercisePreviewDrawer from "$lib/components/exercise-library/ExercisePreviewDrawer.svelte";
-  import CustomExerciseForm from "$lib/components/exam-creation/CustomExerciseForm.svelte";
-  import McGroupStagingPanel from "$lib/components/exam/McGroupStagingPanel.svelte";
-  import type { McGroupDraft } from "$lib/exam/mcGroupStaging";
-  import { t } from "$lib/i18n";
-  import { Button, Card } from "$lib/components/ui";
+  import { type ExerciseGroup } from "#lib/exercise-library/groupExercises";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import ExerciseLibraryPicker from "#lib/components/exercise-library/ExerciseLibraryPicker.svelte";
+  import ExercisePreviewDrawer from "#lib/components/exercise-library/ExercisePreviewDrawer.svelte";
+  import CustomExerciseForm from "#lib/components/exam-creation/CustomExerciseForm.svelte";
+  import McGroupStagingPanel from "#lib/components/exam/McGroupStagingPanel.svelte";
+  import type { McGroupDraft } from "#lib/exam/mcGroupStaging";
+  import { t } from "#lib/i18n";
+  import { Button, Card } from "#lib/components/ui";
 
   interface Props {
     activeTab: "library" | "mc" | "custom";

@@ -2,20 +2,20 @@
   // Password reset wizard. Needs a second factor (mailbox alone must not take over an account); the data key is
   // unwrapped in the browser with the recovery code and re-wrapped under the new password, sent in one request.
   import { onMount } from "svelte";
-  import { api, ApiError } from "$lib/api/client";
-  import { t, translate } from "$lib/i18n";
-  import { startReset, submitBackupCode, submitTotp, type AuthStep } from "$lib/api/mfa";
-  import { loginOptions, verifyLogin } from "$lib/api/webauthn";
-  import { authenticate, isSupported as passkeysSupported } from "$lib/webauthn/client";
-  import { envelopeSetToDto } from "$lib/api/keyEnvelopes";
+  import { api, ApiError } from "#lib/api/client";
+  import { t, translate } from "#lib/i18n";
+  import { startReset, submitBackupCode, submitTotp, type AuthStep } from "#lib/api/mfa";
+  import { loginOptions, verifyLogin } from "#lib/api/webauthn";
+  import { authenticate, isSupported as passkeysSupported } from "#lib/webauthn/client";
+  import { envelopeSetToDto } from "#lib/api/keyEnvelopes";
   import {
     buildResetEnvelopeSet,
     openWithPasskey,
     openWithRecoveryCode,
     pinEnvelopeSet,
-  } from "$lib/services/keyEnvelopeService";
-  import { FactorChooser, RecoveryCodeDialog } from "$lib/components/security";
-  import { Alert, Button, Card, Field, PageShell, TextInput } from "$lib/components/ui";
+  } from "#lib/services/keyEnvelopeService";
+  import { FactorChooser, RecoveryCodeDialog } from "#lib/components/security";
+  import { Alert, Button, Card, Field, PageShell, TextInput } from "#lib/components/ui";
 
   type Stage = "password" | "factor" | "key";
 

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { faChartColumn } from '@fortawesome/free-solid-svg-icons';
-  import { Badge, Button, Card, EmptyState, TableScroller } from "$lib/components/ui";
-  import { t } from '$lib/i18n';
-  import { fmt } from '$lib/utils/format';
-  import type { ExercisePerformance } from '$lib/analytics/analyticsTypes';
+  import { Badge, Button, Card, EmptyState, TableScroller } from "#lib/components/ui";
+  import { t } from '#lib/i18n';
+  import { fmt } from '#lib/utils/format';
+  import type { ExercisePerformance } from '#lib/analytics/analyticsTypes';
 
   interface Props {
     exerciseStats: ExercisePerformance[];

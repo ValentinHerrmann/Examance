@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { McDetectionItem } from "$lib/grading/mcVerification";
-  import { t } from "$lib/i18n";
+  import type { McDetectionItem } from "#lib/grading/mcVerification";
+  import { t } from "#lib/i18n";
   import { faChevronDown, faChevronRight, faCheck, faCircle } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, Icon } from "$lib/components/ui";
+  import { Badge, Button, Icon } from "#lib/components/ui";
 
   interface Props {
     title: string;

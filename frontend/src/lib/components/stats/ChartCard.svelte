@@ -1,9 +1,9 @@
 <script lang="ts">
   // Stats chart in a card with SVG/PDF/PNG download; exports render an offscreen copy at a fixed size, so files match on any screen width.
   import { tick, type Snippet } from 'svelte';
-  import { t } from '$lib/i18n';
+  import { t } from '#lib/i18n';
   import { faDownload } from '@fortawesome/free-solid-svg-icons';
-  import { Button, Card, Icon } from '$lib/components/ui';
+  import { Button, Card, Icon } from '#lib/components/ui';
   import ColumnChart from './ColumnChart.svelte';
   import type { ChartCurve, ChartLayer, ChartMarker, ChartSpan } from './chartColumns';
   import { downloadBlob, serializeChartSvg, svgToPdf, svgToPng } from './chartExport';

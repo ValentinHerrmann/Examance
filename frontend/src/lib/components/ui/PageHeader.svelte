@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
-  import HelpButton from "$lib/components/help/HelpButton.svelte";
-  import type { HelpTopicId } from "$lib/help/topics";
+  import HelpButton from "#lib/components/help/HelpButton.svelte";
+  import type { HelpTopicId } from "#lib/help/topics";
   import Icon from "./Icon.svelte";
 
   /** Page/section title bar. Wraps on narrow screens; never accent-coloured. */

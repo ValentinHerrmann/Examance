@@ -1,11 +1,11 @@
 <script lang="ts">
   /** The recovery code: not a sign-in factor, the last way back to the data. It is unrecoverable (server holds a wrap it cannot open), so only a replacement minted from the open vault is offered. */
-  import { Alert, Button, Card } from "$lib/components/ui";
-  import { Argon2UnavailableError } from "$lib/crypto/keyDerivation";
-  import { t } from "$lib/i18n";
-  import { fmt } from "$lib/utils/format";
-  import type { MfaStatus } from "$lib/api/mfa";
-  import { regenerateRecoveryCode, vaultFromSession } from "$lib/services/keyEnvelopeService";
+  import { Alert, Button, Card } from "#lib/components/ui";
+  import { Argon2UnavailableError } from "#lib/crypto/keyDerivation";
+  import { t } from "#lib/i18n";
+  import { fmt } from "#lib/utils/format";
+  import type { MfaStatus } from "#lib/api/mfa";
+  import { regenerateRecoveryCode, vaultFromSession } from "#lib/services/keyEnvelopeService";
   import RecoveryCodeDialog from "./RecoveryCodeDialog.svelte";
 
   interface Props {

@@ -1,6 +1,6 @@
 import type { MaybeUndecryptable } from './decryptGuard';
-import type { OmrPageStats, OmrRunInfo } from '$lib/grading/omrSettings';
-import type { OmrShapeFeatures, OmrShapeReason } from '$lib/grading/omrShape';
+import type { OmrPageStats, OmrRunInfo } from '#lib/grading/omrSettings';
+import type { OmrShapeFeatures, OmrShapeReason } from '#lib/grading/omrShape';
 
 /**
  * IndexedDB schema types for Dexie. SECURITY: all *_ct fields are Uint8Array ciphertext before IDB

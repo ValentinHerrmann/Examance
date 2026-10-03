@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import DualPdfPreview from "$lib/components/DualPdfPreview.svelte";
-  import { Alert, Button, Modal, Spinner } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
+  import { Alert, Button, Modal, Spinner } from "#lib/components/ui";
 
   interface Props {
     open?: boolean;

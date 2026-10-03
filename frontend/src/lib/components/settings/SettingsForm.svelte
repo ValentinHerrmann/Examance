@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { StorageMode } from "$lib/stores/storagePolicy";
-  import { t, LOCALES, LOCALE_LABELS, type Locale } from "$lib/i18n";
-  import { themePreference, setThemePreference, THEME_PREFERENCES } from "$lib/stores/theme";
-  import { Icon, Card } from "$lib/components/ui";
-  import { dataPlaceIcons, latexPlaceIcons } from "$lib/components/storage/placeIcons";
-  import HelpButton from "$lib/components/help/HelpButton.svelte";
-  import InfoTip from "$lib/components/help/InfoTip.svelte";
+  import type { StorageMode } from "#lib/stores/storagePolicy";
+  import { t, LOCALES, LOCALE_LABELS, type Locale } from "#lib/i18n";
+  import { themePreference, setThemePreference, THEME_PREFERENCES } from "#lib/stores/theme";
+  import { Icon, Card } from "#lib/components/ui";
+  import { dataPlaceIcons, latexPlaceIcons } from "#lib/components/storage/placeIcons";
+  import HelpButton from "#lib/components/help/HelpButton.svelte";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
 
   interface Props {
     storageMode: StorageMode;

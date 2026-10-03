@@ -6,7 +6,7 @@ import type {
   DiffLinePaddingDecoration,
   DiffWordDecoration,
   DiffGapDecoration,
-} from "$lib/components/LatexEditor.svelte";
+} from "#lib/components/LatexEditor.svelte";
 
 export interface DiffToken {
   text: string;

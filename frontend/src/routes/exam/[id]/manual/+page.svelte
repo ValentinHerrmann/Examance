@@ -1,11 +1,11 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { onMount } from "svelte";
-  import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
+  import { sessionStore, isUnlocked, awaitSessionReady } from "#lib/stores/session";
   import { get } from "svelte/store";
-  import { PageShell } from "$lib/components/ui";
-  import ManualGradingContainer from "$lib/components/manual-grading/ManualGradingContainer.svelte";
+  import { PageShell } from "#lib/components/ui";
+  import ManualGradingContainer from "#lib/components/manual-grading/ManualGradingContainer.svelte";
 
   interface Props {
     params?: Record<string, string>;
@@ -13,7 +13,7 @@
 
   let { params = {} }: Props = $props();
 
-  let examId = $derived($page.params.id || params.id || "");
+  let examId = $derived(page.params.id || params.id || "");
 
   let initialized = $state(false);
 

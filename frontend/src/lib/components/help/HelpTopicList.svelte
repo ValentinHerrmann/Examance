@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import { Button, Icon } from "$lib/components/ui";
-  import type { HelpTopic, HelpTopicId } from "$lib/help/topics";
+  import { t } from "#lib/i18n";
+  import { Button, Icon } from "#lib/components/ui";
+  import type { HelpTopic, HelpTopicId } from "#lib/help/topics";
 
   /** The topic index: the panel's navigation (buttons) and the manual page's table of contents (anchors). */
   interface Props {

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { faDownload, faTrash } from "@fortawesome/free-solid-svg-icons";
-  import type { StudentRecord } from "$lib/db/schema";
-  import { t } from "$lib/i18n";
-  import { Button, Card, TableScroller } from "$lib/components/ui";
+  import type { StudentRecord } from "#lib/db/schema";
+  import { t } from "#lib/i18n";
+  import { Button, Card, TableScroller } from "#lib/components/ui";
 
   interface Props {
     students: StudentRecord[];

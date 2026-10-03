@@ -1,23 +1,23 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { goto } from "$app/navigation";
-  import { t, translate } from "$lib/i18n";
-  import { deriveKey, deriveKeyWithFallback, generateSalt, getUserSalt, getUserSessionNonce } from "$lib/crypto/keyDerivation";
+  import { t, translate } from "#lib/i18n";
+  import { deriveKey, deriveKeyWithFallback, generateSalt, getUserSalt, getUserSessionNonce } from "#lib/crypto/keyDerivation";
   import {
     deriveSessionKey,
     generateSessionNonce,
-  } from "$lib/crypto/sessionKey";
+  } from "#lib/crypto/sessionKey";
   import {
     hasLegacyLocalVault,
     hasLocalVault,
     sessionStore,
-  } from "$lib/stores/session";
-  import { api, ApiError } from "$lib/api/client";
-  import { Argon2UnavailableError } from "$lib/crypto/keyDerivation";
-  import { backendStore } from "$lib/stores/backendStore";
+  } from "#lib/stores/session";
+  import { api, ApiError } from "#lib/api/client";
+  import { Argon2UnavailableError } from "#lib/crypto/keyDerivation";
+  import { backendStore } from "#lib/stores/backendStore";
   import { get } from "svelte/store";
-  import { Card, PageShell } from "$lib/components/ui";
-  import UnlockForm from "$lib/components/unlock/UnlockForm.svelte";
+  import { Card, PageShell } from "#lib/components/ui";
+  import UnlockForm from "#lib/components/unlock/UnlockForm.svelte";
   import {
     FactorChooser,
     LockoutNotice,
@@ -26,17 +26,17 @@
     SigningInStep,
     TotpEnrollDialog,
     VaultUnlockStep,
-  } from "$lib/components/security";
+  } from "#lib/components/security";
   import {
     submitBackupCode,
     submitPassword,
     submitPasswordFactor,
     submitTotp,
     type AuthStep,
-  } from "$lib/api/mfa";
-  import { loginOptions, verifyLogin } from "$lib/api/webauthn";
-  import { authenticate, isSupported as passkeysSupported } from "$lib/webauthn/client";
-  import { addPasskeyWrap, openWithPasskey } from "$lib/services/keyEnvelopeService";
+  } from "#lib/api/mfa";
+  import { loginOptions, verifyLogin } from "#lib/api/webauthn";
+  import { authenticate, isSupported as passkeysSupported } from "#lib/webauthn/client";
+  import { addPasskeyWrap, openWithPasskey } from "#lib/services/keyEnvelopeService";
   import {
     EnvelopeChangedError,
     EnvelopeFactorMissingError,
@@ -45,8 +45,8 @@
     openWithRecoveryCode,
     rewrapForNewPassword,
     startFreshVault,
-  } from "$lib/services/keyEnvelopeService";
-  import { adoptServerStorageIfLocalEmpty } from "$lib/services/storageModeSwitch";
+  } from "#lib/services/keyEnvelopeService";
+  import { adoptServerStorageIfLocalEmpty } from "#lib/services/storageModeSwitch";
 
   const LOCAL_PASSPHRASE_MIN_LENGTH = 12;
 

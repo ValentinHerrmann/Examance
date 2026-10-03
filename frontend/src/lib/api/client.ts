@@ -5,11 +5,11 @@
  */
 
 import { get } from 'svelte/store';
-import { sessionStore } from '$lib/stores/session';
-import { translate, translateOptional } from '$lib/i18n';
-import { backendStore } from '$lib/stores/backendStore';
-import { httpErrorStore } from '$lib/stores/httpErrorStore';
-import { loginLockout } from '$lib/stores/loginLockout';
+import { sessionStore } from '#lib/stores/session';
+import { translate, translateOptional } from '#lib/i18n';
+import { backendStore } from '#lib/stores/backendStore';
+import { httpErrorStore } from '#lib/stores/httpErrorStore';
+import { loginLockout } from '#lib/stores/loginLockout';
 
 // Every fetch() is bounded: a stalled connection would otherwise never resolve or reject,
 // leaving isLoading stuck with no error. Binary requests get a longer bound because

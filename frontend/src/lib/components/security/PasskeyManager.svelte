@@ -2,18 +2,18 @@
   // Register and remove passkeys. A passkey without PRF signs in but cannot unlock data; "opens data"
   // is read from the stored wraps, never from the registration-time `supports_prf` guess.
   import { untrack } from "svelte";
-  import { Button, Card, Field, TextInput } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
-  import { fmt } from "$lib/utils/format";
-  import { ApiError } from "$lib/api/client";
+  import { Button, Card, Field, TextInput } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { fmt } from "#lib/utils/format";
+  import { ApiError } from "#lib/api/client";
   import {
     deletePasskey,
     loginOptions,
     registrationOptions,
     verifyRegistration,
     type PasskeySummary,
-  } from "$lib/api/webauthn";
-  import { authenticate, isSupported, register } from "$lib/webauthn/client";
+  } from "#lib/api/webauthn";
+  import { authenticate, isSupported, register } from "#lib/webauthn/client";
   import {
     addPasskeyWrap,
     enablePasskeyUnlock,
@@ -21,7 +21,7 @@
     PrfUnavailableError,
     sameCredential,
     vaultFromSession,
-  } from "$lib/services/keyEnvelopeService";
+  } from "#lib/services/keyEnvelopeService";
 
   interface Props {
     teacherId: string;

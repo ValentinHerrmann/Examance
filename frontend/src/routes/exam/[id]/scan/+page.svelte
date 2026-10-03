@@ -1,18 +1,18 @@
 <script lang="ts">
-  import { page } from "$app/stores";
-  import { loadPdfjs } from "$lib/pdf/pdfjs";
+  import { page } from "$app/state";
+  import { loadPdfjs } from "#lib/pdf/pdfjs";
   import { goto } from "$app/navigation";
-  import { browser } from "$app/environment";
+  import { browser } from "$app/env";
   import {
     detectHardware,
     PipelineMonitor,
     type HardwareProfile,
-  } from "$lib/hardware/detect";
-  import { db } from "$lib/db/db";
-  import { encrypt, decrypt, uint8ArrayToBase64 } from "$lib/crypto/aesGcm";
-  import { ensure64CharHex } from "$lib/crypto/hmac";
-  import { sessionStore, awaitSessionReady } from "$lib/stores/session";
-  import { storagePolicyStore } from "$lib/stores/storagePolicy";
+  } from "#lib/hardware/detect";
+  import { db } from "#lib/db/db";
+  import { encrypt, decrypt, uint8ArrayToBase64 } from "#lib/crypto/aesGcm";
+  import { ensure64CharHex } from "#lib/crypto/hmac";
+  import { sessionStore, awaitSessionReady } from "#lib/stores/session";
+  import { storagePolicyStore } from "#lib/stores/storagePolicy";
   import {
     loadStudentsEncrypted,
     saveStudentEncrypted,
@@ -21,46 +21,47 @@
     loadExamExercisesEncrypted,
     loadOmrTemplateEncrypted,
     loadLocalMcGroups,
-  } from "$lib/db/dbEncryption";
-  import { computeMcExercisesHash, loadExamMcExercises } from "$lib/grading/mcExerciseHash";
-  import { buildSubLabelMap } from "$lib/grading/mcGroupLabels";
-  import { prepareOmrTemplate, loadExamCompileContext } from "$lib/grading/omrTemplatePrep";
-  import { isMcQuestion } from "$lib/grading/mcScore";
-  import { buildOmrScoreRecord } from "$lib/grading/omrResult";
-  import { createOmrRun, type OmrPageStats } from "$lib/grading/omrSettings";
-  import { omrSettingsStore } from "$lib/stores/omrSettings";
-  import { drawOmrOverlayForPage, type McOverlayState } from "$lib/grading/omrOverlay";
-  import { api } from "$lib/api/client";
-  import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { studentRepository } from "$lib/repositories/studentRepository";
+  } from "#lib/db/dbEncryption";
+  import { computeMcExercisesHash, loadExamMcExercises } from "#lib/grading/mcExerciseHash";
+  import { buildSubLabelMap } from "#lib/grading/mcGroupLabels";
+  import { prepareOmrTemplate, loadExamCompileContext } from "#lib/grading/omrTemplatePrep";
+  import { isMcQuestion } from "#lib/grading/mcScore";
+  import { buildOmrScoreRecord } from "#lib/grading/omrResult";
+  import { createOmrRun, type OmrPageStats } from "#lib/grading/omrSettings";
+  import { omrSettingsStore } from "#lib/stores/omrSettings";
+  import { drawOmrOverlayForPage, type McOverlayState } from "#lib/grading/omrOverlay";
+  import { api } from "#lib/api/client";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
+  import { studentRepository } from "#lib/repositories/studentRepository";
   import type {
     StudentRecord,
     OmrPageTemplate,
     ExerciseScoreRecord,
-  } from "$lib/db/schema";
-  import { scoreRepository } from "$lib/repositories/scoreRepository";
+  } from "#lib/db/schema";
+  import { scoreRepository } from "#lib/repositories/scoreRepository";
   import { onMount, onDestroy } from "svelte";
   import { get } from "svelte/store";
-  import { WorkerPool } from "$lib/workers/pool";
+  import { WorkerPool } from "#lib/workers/pool";
+  import { spawnOmrWorker, spawnQrWorker } from "#lib/workers/spawn";
   import type {
     QrWorkerRequest,
     QrWorkerResponse,
-  } from "$lib/workers/qrWorker";
+  } from "#lib/workers/qrWorker";
   import type {
     OmrWorkerRequest,
     OmrWorkerResponse,
     OmrExerciseResult,
     OmrExerciseAnswerKey,
-  } from "$lib/workers/omrWorker";
-  import { parseStudentQr } from "$lib/utils/studentQr";
+  } from "#lib/workers/omrWorker";
+  import { parseStudentQr } from "#lib/utils/studentQr";
   import type { PDFDocument, PDFPage } from "pdf-lib";
-  import HardwareProfileCard from "$lib/components/scanning/HardwareProfileCard.svelte";
-  import UploadPanel from "$lib/components/scanning/UploadPanel.svelte";
-  import { Alert, PageHeader, PageShell } from "$lib/components/ui";
-  import UnmatchedResolver from "$lib/components/scanning/UnmatchedResolver.svelte";
-  import ScannedSubmissionsTable from "$lib/components/scanning/ScannedSubmissionsTable.svelte";
-  import ScanPreviewModal from "$lib/components/scanning/ScanPreviewModal.svelte";
-  import { t, translate } from "$lib/i18n";
+  import HardwareProfileCard from "#lib/components/scanning/HardwareProfileCard.svelte";
+  import UploadPanel from "#lib/components/scanning/UploadPanel.svelte";
+  import { Alert, PageHeader, PageShell } from "#lib/components/ui";
+  import UnmatchedResolver from "#lib/components/scanning/UnmatchedResolver.svelte";
+  import ScannedSubmissionsTable from "#lib/components/scanning/ScannedSubmissionsTable.svelte";
+  import ScanPreviewModal from "#lib/components/scanning/ScanPreviewModal.svelte";
+  import { t, translate } from "#lib/i18n";
 
   interface Props {
     params?: Record<string, string>;
@@ -68,7 +69,7 @@
 
   let { params }: Props = $props();
 
-  const examId = $page.params.id || "";
+  const examId = page.params.id || "";
 
   // Raw: hwProfile/monitor feed PipelineMonitor and the worker pools.
   let hwProfile: HardwareProfile = $state.raw({
@@ -219,20 +220,8 @@
       monitor.on("downgrade", () => {
         statusText = translate("scanning.status.memoryDowngraded");
       });
-      qrPool = new WorkerPool(
-        () =>
-          new Worker(new URL("$lib/workers/qrWorker.ts", import.meta.url), {
-            type: "module",
-          }),
-        monitor,
-      );
-      omrPool = new WorkerPool(
-        () =>
-          new Worker(new URL("$lib/workers/omrWorker.ts", import.meta.url), {
-            type: "module",
-          }),
-        monitor,
-      );
+      qrPool = new WorkerPool(spawnQrWorker, monitor);
+      omrPool = new WorkerPool(spawnOmrWorker, monitor);
       refreshUnmatched();
       loadScannedSubmissions();
       loadOmrContext();

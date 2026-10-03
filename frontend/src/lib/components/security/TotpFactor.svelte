@@ -1,7 +1,7 @@
 <script lang="ts">
   /** Second sign-in factor: an authenticator code, or a backup code standing in for it (the same factor, not a third). */
-  import { Button, Field, TextInput } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
+  import { Button, Field, TextInput } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
 
   interface Props {
     onSubmit: (code: string, useBackupCode: boolean) => Promise<void>;

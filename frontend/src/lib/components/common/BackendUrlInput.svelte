@@ -5,11 +5,11 @@
     inferBackendProtocol,
     knownServerSuggestions,
     isLoopbackHost,
-  } from "$lib/stores/backendStore";
-  import { getRecentValues, recordValue, removeValue } from "$lib/utils/recentValues";
-  import { t } from "$lib/i18n";
+  } from "#lib/stores/backendStore";
+  import { getRecentValues, recordValue, removeValue } from "#lib/utils/recentValues";
+  import { t } from "#lib/i18n";
   import { faCheck, faChevronDown, faXmark } from "@fortawesome/free-solid-svg-icons";
-  import { Icon } from "$lib/components/ui";
+  import { Icon } from "#lib/components/ui";
 
   interface Props {
     value?: string;

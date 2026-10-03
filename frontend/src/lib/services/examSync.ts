@@ -1,12 +1,12 @@
 import { get } from 'svelte/store';
-import { api } from '$lib/api/client';
-import { db } from '$lib/db/db';
-import type { ExamRecord, ExerciseRecord } from '$lib/db/schema';
-import { encryptExam, encryptExercise, loadExamsEncrypted } from '$lib/db/dbEncryption';
-import { mapApiToExamRecord } from '$lib/repositories/examRepository';
-import { mapApiToExerciseRecord } from '$lib/repositories/exerciseRepository';
-import { offlineQueue } from '$lib/services/offlineQueue';
-import { isServerBacked } from '$lib/utils/serverBacked';
+import { api } from '#lib/api/client';
+import { db } from '#lib/db/db';
+import type { ExamRecord, ExerciseRecord } from '#lib/db/schema';
+import { encryptExam, encryptExercise, loadExamsEncrypted } from '#lib/db/dbEncryption';
+import { mapApiToExamRecord } from '#lib/repositories/examRepository';
+import { mapApiToExerciseRecord } from '#lib/repositories/exerciseRepository';
+import { offlineQueue } from '#lib/services/offlineQueue';
+import { isServerBacked } from '#lib/utils/serverBacked';
 
 /**
  * The exam list as the dashboard shows it. In server-backed modes the server is authoritative: fetched,

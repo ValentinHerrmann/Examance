@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
-import { safeLocalStorage } from '$lib/utils/storage';
-import type { ExamRecord } from '$lib/db/schema';
+import { safeLocalStorage } from '#lib/utils/storage';
+import type { ExamRecord } from '#lib/db/schema';
 
 /** App-shell state shared by navbar, navigation drawer and exam sidebar. Presentational only; nothing here touches the vault. */
 

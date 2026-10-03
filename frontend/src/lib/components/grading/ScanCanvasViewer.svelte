@@ -1,21 +1,21 @@
 <script lang="ts">
   // Scan + overlay canvases, drawing/erasing, pinch-zoom, PDF paging and auto-crop; exposes imperative
   // methods via `bind:this`. Highest-risk area (submission switching, redraw timing): keep it a 1:1 port.
-  import { cssVar } from "$lib/utils/cssVar";
+  import { cssVar } from "#lib/utils/cssVar";
   import { tick, onMount, untrack } from "svelte";
-  import { loadPdfjs } from "$lib/pdf/pdfjs";
+  import { loadPdfjs } from "#lib/pdf/pdfjs";
   import { get } from "svelte/store";
-  import type { SubmissionRecord, ExerciseRecord } from "$lib/db/schema";
-  import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { sessionStore } from "$lib/stores/session";
-  import { decrypt } from "$lib/crypto/aesGcm";
-  import { gradingStore, type VectorStroke } from "$lib/grading/gradingStore";
-  import { recalculateAutoScores } from "$lib/grading/autoScore";
-  import { loadLocalMcGroups } from "$lib/db/dbEncryption";
-  import { buildSubLabelMap } from "$lib/grading/mcGroupLabels";
-  import { drawMissingSymbol, drawCheckmark, drawOmrOverlayForPage } from "$lib/grading/omrOverlay";
+  import type { SubmissionRecord, ExerciseRecord } from "#lib/db/schema";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
+  import { sessionStore } from "#lib/stores/session";
+  import { decrypt } from "#lib/crypto/aesGcm";
+  import { gradingStore, type VectorStroke } from "#lib/grading/gradingStore";
+  import { recalculateAutoScores } from "#lib/grading/autoScore";
+  import { loadLocalMcGroups } from "#lib/db/dbEncryption";
+  import { buildSubLabelMap } from "#lib/grading/mcGroupLabels";
+  import { drawMissingSymbol, drawCheckmark, drawOmrOverlayForPage } from "#lib/grading/omrOverlay";
   import { getAutoCropBounds } from "./ScanCanvasViewer";
-  import { translate } from "$lib/i18n";
+  import { translate } from "#lib/i18n";
 
   interface Props {
     examId: string;

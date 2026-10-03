@@ -1,12 +1,12 @@
-import { scoreRepository } from "$lib/repositories/scoreRepository";
-import { loadExamMcExercises } from "$lib/grading/mcExerciseHash";
-import { buildSubLabelMap } from "$lib/grading/mcGroupLabels";
-import { submissionRepository } from "$lib/repositories/submissionRepository";
-import { studentRepository } from "$lib/repositories/studentRepository";
-import { ensure64CharHex } from "$lib/crypto/hmac";
-import { loadLocalMcGroups } from "$lib/db/dbEncryption";
-import type { ExerciseRecord, OmrScoreMeta } from "$lib/db/schema";
-import type { OmrRunInfo } from "$lib/grading/omrSettings";
+import { scoreRepository } from "#lib/repositories/scoreRepository";
+import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
+import { buildSubLabelMap } from "#lib/grading/mcGroupLabels";
+import { submissionRepository } from "#lib/repositories/submissionRepository";
+import { studentRepository } from "#lib/repositories/studentRepository";
+import { ensure64CharHex } from "#lib/crypto/hmac";
+import { loadLocalMcGroups } from "#lib/db/dbEncryption";
+import type { ExerciseRecord, OmrScoreMeta } from "#lib/db/schema";
+import type { OmrRunInfo } from "#lib/grading/omrSettings";
 
 /**
  * The one definition of "a teacher has verified this detection". A re-run must never touch

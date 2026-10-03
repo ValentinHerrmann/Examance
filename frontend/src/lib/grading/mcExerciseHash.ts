@@ -1,17 +1,17 @@
 /**
  * Hash of an exam's MC/SC/TF answer key, to detect a stale OMR template after an edit. Tuples are
- * sorted by exercise id. Deliberately not `ensure64CharHex` (`$lib/crypto/hmac.ts`): it returns
+ * sorted by exercise id. Deliberately not `ensure64CharHex` (`#lib/crypto/hmac.ts`): it returns
  * 64-hex input unhashed, unacceptable for a hash gating MC auto-scoring.
  */
 
-import type { ExerciseRecord } from '$lib/db/schema';
+import type { ExerciseRecord } from '#lib/db/schema';
 import { isMcQuestion } from './mcScore';
-import { parseMcOptions } from '$lib/latex/mcOptions';
+import { parseMcOptions } from '#lib/latex/mcOptions';
 import {
   loadExamExercisesEncrypted,
   loadExercisesEncrypted,
   loadLocalMcGroups,
-} from '$lib/db/dbEncryption';
+} from '#lib/db/dbEncryption';
 
 export interface McGroupLike {
   id: string;

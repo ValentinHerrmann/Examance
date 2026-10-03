@@ -6,7 +6,7 @@
  * create short-lived object URLs and revoke them on destroy.
  */
 
-import { frontendVersion } from '$lib/stores/versionStore';
+import { frontendVersion } from '#lib/stores/versionStore';
 import { compileLatex, type CompileResult } from './compiler';
 import { mergeResources, type LatexResourceFile } from './resources';
 

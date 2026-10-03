@@ -1,7 +1,7 @@
 import { beforeNavigate } from "$app/navigation";
 import { get } from "svelte/store";
 import { sessionStore } from "./session";
-import { translate } from "$lib/i18n";
+import { translate } from "#lib/i18n";
 
 /** Registers a navigation guard that warns about unsaved changes (sessionStore's isDirty flag). Call once at app init. */
 export function registerNavigationGuard(): void {

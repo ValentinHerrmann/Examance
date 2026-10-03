@@ -10,11 +10,11 @@ import {
   disarmStorageModeSwitch,
   storagePolicyStore,
   type StorageMode,
-} from '$lib/stores/storagePolicy';
-import { safeLocalStorage } from '$lib/utils/storage';
-import { wipeDatabase } from '$lib/db/hygiene';
-import { projectStore } from '$lib/stores/project';
-import { db } from '$lib/db/db';
+} from '#lib/stores/storagePolicy';
+import { safeLocalStorage } from '#lib/utils/storage';
+import { wipeDatabase } from '#lib/db/hygiene';
+import { projectStore } from '#lib/stores/project';
+import { db } from '#lib/db/db';
 
 const PENDING_KEY = 'bg_pending_mode_switch';
 

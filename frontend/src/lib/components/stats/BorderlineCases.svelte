@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { t } from '$lib/i18n';
-  import { fmt } from '$lib/utils/format';
-  import { gradeColorVar, type BorderlineCase } from '$lib/analytics/gradingKey';
-  import { Card } from '$lib/components/ui';
+  import { t } from '#lib/i18n';
+  import { fmt } from '#lib/utils/format';
+  import { gradeColorVar, type BorderlineCase } from '#lib/analytics/gradingKey';
+  import { Card } from '#lib/components/ui';
 
   interface Props {
     cases: BorderlineCase[];

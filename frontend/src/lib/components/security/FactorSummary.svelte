@@ -1,8 +1,8 @@
 <script lang="ts">
   /** Account state above the factors: how close to lockout, and whether any key-capable factor remains. An authenticator cannot decrypt data (secret is server-side), so losing the last key-capable factor loses the exams. */
-  import { Alert, Badge, Card } from "$lib/components/ui";
-  import { t, translate, type TranslationKey } from "$lib/i18n";
-  import type { FactorKind, MfaStatus } from "$lib/api/mfa";
+  import { Alert, Badge, Card } from "#lib/components/ui";
+  import { t, translate, type TranslationKey } from "#lib/i18n";
+  import type { FactorKind, MfaStatus } from "#lib/api/mfa";
 
   interface Props {
     status: MfaStatus;

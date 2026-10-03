@@ -1,9 +1,9 @@
 <script lang="ts">
-  import ZoomableImage from "$lib/components/ZoomableImage.svelte";
-  import PdfEmbedViewer from "$lib/components/PdfEmbedViewer.svelte";
-  import { t } from "$lib/i18n";
+  import ZoomableImage from "#lib/components/ZoomableImage.svelte";
+  import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
+  import { t } from "#lib/i18n";
   import { faDownload } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Modal } from "$lib/components/ui";
+  import { Button, Modal } from "#lib/components/ui";
 
   interface ScannedSubmissionItem {
     id: string;

@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
-  import { t } from "$lib/i18n";
-  import { PageShell, PageHeader, Icon } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { PageShell, PageHeader, Icon } from "#lib/components/ui";
 
   interface Props {
     /** Page heading, e.g. "Impressum". */

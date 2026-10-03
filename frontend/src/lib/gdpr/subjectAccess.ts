@@ -7,14 +7,14 @@
 
 import { get } from 'svelte/store';
 
-import { db } from '$lib/db/db';
-import { scoreRepository } from '$lib/repositories/scoreRepository';
+import { db } from '#lib/db/db';
+import { scoreRepository } from '#lib/repositories/scoreRepository';
 import {
   decryptStudent,
   decryptSubmission,
   encryptAuditEntry,
-} from '$lib/db/dbEncryption';
-import { sessionStore } from '$lib/stores/session';
+} from '#lib/db/dbEncryption';
+import { sessionStore } from '#lib/stores/session';
 
 export interface SubjectAccessSubmission {
   submissionId: string;

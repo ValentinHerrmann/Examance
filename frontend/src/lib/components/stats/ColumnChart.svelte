@@ -3,7 +3,7 @@
   // Rotated axis labels that collide are thinned (`anchor` columns always keep theirs). A `band` layer is drawn as wide translucent
   // bars behind the others (the merged grade chart). Colours are `var(--color-*)` so `chartExport.ts` can re-theme the serialised `svgEl`.
   import { onMount } from 'svelte';
-  import { countAxis } from '$lib/analytics/stats';
+  import { countAxis } from '#lib/analytics/stats';
   import type { Caption, ChartColumn, ChartCurve, ChartLayer, ChartMarker, ChartSpan } from './chartColumns';
 
   interface Props {

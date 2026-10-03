@@ -1,13 +1,13 @@
 <script lang="ts">
   /** Remaining login cooloff (doubles per failure, 1 min to 1 h). Reads the store directly rather than drilling through UnlockForm → FactorChooser → TotpFactor. */
   import { onDestroy, untrack } from "svelte";
-  import { t } from "$lib/i18n";
-  import { Alert } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { Alert } from "#lib/components/ui";
   import {
     formatRemaining,
     loginLockout,
     remainingSeconds,
-  } from "$lib/stores/loginLockout";
+  } from "#lib/stores/loginLockout";
 
   let remaining = $state(0);
 

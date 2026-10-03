@@ -2,55 +2,55 @@
   import "../app.css";
   import "./+layout.css";
   import { onMount, untrack, type Snippet } from "svelte";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { get } from "svelte/store";
-  import { registerHygieneListeners, lockSession } from "$lib/db/hygiene";
+  import { registerHygieneListeners, lockSession } from "#lib/db/hygiene";
   import {
     sessionStore,
     isUnlocked,
     isAuthenticated,
     markSessionReady,
-  } from "$lib/stores/session";
-  import { vaultIntegrityStore } from "$lib/stores/vaultIntegrity";
-  import { api } from "$lib/api/client";
+  } from "#lib/stores/session";
+  import { vaultIntegrityStore } from "#lib/stores/vaultIntegrity";
+  import { api } from "#lib/api/client";
   import {
     storagePolicyStore,
     storagePolicyBadgeStore,
-  } from "$lib/stores/storagePolicy";
-  import { safeLocalStorage } from "$lib/utils/storage";
-  import { registerCspDiagnostics } from "$lib/utils/cspDiagnostics";
-  import { effectiveBackendStore } from "$lib/stores/backendStore";
+  } from "#lib/stores/storagePolicy";
+  import { safeLocalStorage } from "#lib/utils/storage";
+  import { registerCspDiagnostics } from "#lib/utils/cspDiagnostics";
+  import { effectiveBackendStore } from "#lib/stores/backendStore";
   import {
     frontendVersion,
     displayVersionUrl,
     backendVersionStore,
     versionStatus,
     refreshBackendVersion,
-  } from "$lib/stores/versionStore";
-  import { registerNavigationGuard, isGradeActivePath, isPublicPath } from "$lib/stores/navigationStore";
+  } from "#lib/stores/versionStore";
+  import { registerNavigationGuard, isGradeActivePath, isPublicPath } from "#lib/stores/navigationStore";
   import {
     importArchiveInteractively,
     exportArchiveInteractively,
     clearWorkspace,
     confirmWorkspaceClear,
-  } from "$lib/services/archiveService";
-  import ImportConflictModal from "$lib/components/storage/ImportConflictModal.svelte";
-  import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
-  import { adoptServerStorageIfLocalEmpty, pendingSwitchStore, resumeModeSwitch } from "$lib/services/storageModeSwitch";
-  import AppNavbar from "$lib/components/layout/AppNavbar.svelte";
-  import AppFooter from "$lib/components/layout/AppFooter.svelte";
-  import NavDrawer from "$lib/components/layout/NavDrawer.svelte";
-  import ExamSidebar from "$lib/components/layout/ExamSidebar.svelte";
-  import { examNavContext } from "$lib/stores/shell";
-  import { theme, applyTheme } from "$lib/stores/theme";
-  import { Alert, Button } from "$lib/components/ui";
-  import StoragePolicyModal from "$lib/components/StoragePolicyModal.svelte";
-  import SessionTimeoutWarning from "$lib/components/SessionTimeoutWarning.svelte";
-  import HttpCatModal from "$lib/components/HttpCatModal.svelte";
-  import HelpModal from "$lib/components/help/HelpModal.svelte";
-  import { helpSeen, helpStore, openHelp, toggleHelp } from "$lib/stores/helpStore";
-  import { locale, t, translate } from "$lib/i18n";
+  } from "#lib/services/archiveService";
+  import ImportConflictModal from "#lib/components/storage/ImportConflictModal.svelte";
+  import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
+  import { adoptServerStorageIfLocalEmpty, pendingSwitchStore, resumeModeSwitch } from "#lib/services/storageModeSwitch";
+  import AppNavbar from "#lib/components/layout/AppNavbar.svelte";
+  import AppFooter from "#lib/components/layout/AppFooter.svelte";
+  import NavDrawer from "#lib/components/layout/NavDrawer.svelte";
+  import ExamSidebar from "#lib/components/layout/ExamSidebar.svelte";
+  import { examNavContext } from "#lib/stores/shell";
+  import { theme, applyTheme } from "#lib/stores/theme";
+  import { Alert, Button } from "#lib/components/ui";
+  import StoragePolicyModal from "#lib/components/StoragePolicyModal.svelte";
+  import SessionTimeoutWarning from "#lib/components/SessionTimeoutWarning.svelte";
+  import HttpCatModal from "#lib/components/HttpCatModal.svelte";
+  import HelpModal from "#lib/components/help/HelpModal.svelte";
+  import { helpSeen, helpStore, openHelp, toggleHelp } from "#lib/stores/helpStore";
+  import { locale, t, translate } from "#lib/i18n";
 
   interface Props {
     children?: Snippet;
@@ -70,11 +70,11 @@
     $pendingSwitchStore && $pendingSwitchStore.phase === "reimport" ? $pendingSwitchStore : null,
   );
 
-  let isGradeActive = $derived(isGradeActivePath($page.url.pathname));
+  let isGradeActive = $derived(isGradeActivePath(page.url.pathname));
 
-  let showFullNav = $derived($isUnlocked && $page.url.pathname !== "/unlock");
+  let showFullNav = $derived($isUnlocked && page.url.pathname !== "/unlock");
   let showExamSidebar = $derived(
-    showFullNav && !!$examNavContext && $page.url.pathname.startsWith(`/exam/${$examNavContext.examId}`),
+    showFullNav && !!$examNavContext && page.url.pathname.startsWith(`/exam/${$examNavContext.examId}`),
   );
 
   function handleFooterClick() {
@@ -152,7 +152,7 @@
           return;
         }
       }
-    } else if (!get(isUnlocked) && !isPublicPath($page.url.pathname)) {
+    } else if (!get(isUnlocked) && !isPublicPath(page.url.pathname)) {
       // Local mode no longer auto-unlocks: its keys come from a passphrase the
       // user supplies, and nothing derived from it is persisted. Every locked
       // session therefore goes through /unlock, whichever mode it is in.
@@ -229,7 +229,7 @@
   $effect.pre(() => {
     const initializing = isInitializing;
     const unlocked = $isUnlocked;
-    const pathname = $page.url.pathname;
+    const pathname = page.url.pathname;
     if (!initializing && !unlocked && typeof window !== "undefined" && !isPublicPath(pathname)) {
       untrack(() => goto("/unlock"));
     }
@@ -314,7 +314,7 @@
 
   <div class="app-body">
     {#if showExamSidebar && $examNavContext}
-      <ExamSidebar context={$examNavContext} pathname={$page.url.pathname} {isGradeActive} />
+      <ExamSidebar context={$examNavContext} pathname={page.url.pathname} {isGradeActive} />
     {/if}
 
     <main class="app-main">

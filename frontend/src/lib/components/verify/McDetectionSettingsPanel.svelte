@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import { fmt } from "$lib/utils/format";
-  import { Button, Card } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { fmt } from "#lib/utils/format";
+  import { Button, Card } from "#lib/components/ui";
   import OmrParamsDiff from "./OmrParamsDiff.svelte";
-  import { diffOmrParams, type OmrSettingsProfile } from "$lib/grading/omrSettings";
-  import type { McAlgorithmScore, McDetectionRunSummary } from "$lib/grading/mcVerification";
+  import { diffOmrParams, type OmrSettingsProfile } from "#lib/grading/omrSettings";
+  import type { McAlgorithmScore, McDetectionRunSummary } from "#lib/grading/mcVerification";
 
   
 

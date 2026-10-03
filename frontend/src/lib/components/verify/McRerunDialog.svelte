@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import { Alert, Button, Modal } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { Alert, Button, Modal } from "#lib/components/ui";
   import OmrParamsDiff from "./OmrParamsDiff.svelte";
   import {
     diffOmrParams,
     type OmrSettingsProfile,
-  } from "$lib/grading/omrSettings";
-  import type { McDetectionRunSummary } from "$lib/grading/mcVerification";
+  } from "#lib/grading/omrSettings";
+  import type { McDetectionRunSummary } from "#lib/grading/mcVerification";
 
   interface Props {
     open?: boolean;

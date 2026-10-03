@@ -1,17 +1,17 @@
 import { get } from "svelte/store";
-import { clearAllTables } from "$lib/db/db";
-import { projectStore } from "$lib/stores/project";
-import { sessionStore } from "$lib/stores/session";
-import { askAboutConflicts } from "$lib/stores/conflictPrompt";
-import { packProject } from "$lib/archive/packer";
-import { applyArchive, decryptArchive, type ImportResult } from "$lib/archive/unpacker";
+import { clearAllTables } from "#lib/db/db";
+import { projectStore } from "#lib/stores/project";
+import { sessionStore } from "#lib/stores/session";
+import { askAboutConflicts } from "#lib/stores/conflictPrompt";
+import { packProject } from "#lib/archive/packer";
+import { applyArchive, decryptArchive, type ImportResult } from "#lib/archive/unpacker";
 import {
   applyResolutions,
   detectConflicts,
   type ArchiveConflict,
   type DecisionMap,
-} from "$lib/archive/conflicts";
-import { translate } from "$lib/i18n";
+} from "#lib/archive/conflicts";
+import { translate } from "#lib/i18n";
 
 type ConflictResolver = (conflicts: ArchiveConflict[], identicalCount: number) => Promise<DecisionMap>;
 

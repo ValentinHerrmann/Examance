@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ExamRecord, SubmissionRecord } from "$lib/db/schema";
-  import { formatExamCourse } from "$lib/utils/examLabel";
-  import { t } from "$lib/i18n";
+  import type { ExamRecord, SubmissionRecord } from "#lib/db/schema";
+  import { formatExamCourse } from "#lib/utils/examLabel";
+  import { t } from "#lib/i18n";
   import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button } from "$lib/components/ui";
-  import InfoTip from "$lib/components/help/InfoTip.svelte";
+  import { Badge, Button } from "#lib/components/ui";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
 
   interface Props {
     examId: string;

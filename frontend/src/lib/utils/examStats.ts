@@ -1,4 +1,4 @@
-import type { SubmissionRecord } from "$lib/db/schema";
+import type { SubmissionRecord } from "#lib/db/schema";
 
 export type ExamStats = { avgScore: number | null; count: number };
 

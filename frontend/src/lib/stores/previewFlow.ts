@@ -1,8 +1,8 @@
 import { writable, type Readable } from "svelte/store";
-import type { CompileKind } from "$lib/latex/compileCache";
-import type { CompileResult } from "$lib/latex/compiler";
-import { getCachedPreview, pdfBytesToUrl } from "$lib/latex/pdfPreview";
-import { translate } from "$lib/i18n";
+import type { CompileKind } from "#lib/latex/compileCache";
+import type { CompileResult } from "#lib/latex/compiler";
+import { getCachedPreview, pdfBytesToUrl } from "#lib/latex/pdfPreview";
+import { translate } from "#lib/i18n";
 
 export interface PreviewState {
   /** `ask`: nothing cached, waiting for the compile confirmation; `open`: modal visible. */

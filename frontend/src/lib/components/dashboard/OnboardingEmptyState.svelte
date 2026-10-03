@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import { faArrowRight, faCircleQuestion } from "@fortawesome/free-solid-svg-icons";
-  import { openHelp } from "$lib/stores/helpStore";
-  import HelpButton from "$lib/components/help/HelpButton.svelte";
-  import { Button, Card, EmptyState, Icon } from "$lib/components/ui";
+  import { openHelp } from "#lib/stores/helpStore";
+  import HelpButton from "#lib/components/help/HelpButton.svelte";
+  import { Button, Card, EmptyState, Icon } from "#lib/components/ui";
 
   const steps = [
     { n: 1, title: "dashboard.onboarding.step1Title", text: "dashboard.onboarding.step1Text", topic: "examCreation" },

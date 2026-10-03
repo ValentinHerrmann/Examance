@@ -11,19 +11,19 @@
  *    quota 429 has no `Retry-After`, so it can't start the login lockout.
  */
 import { get } from 'svelte/store';
-import { api } from '$lib/api/client';
-import type { ExerciseScoreRecord } from '$lib/db/schema';
-import { isMcReviewed } from '$lib/grading/mcVerification';
+import { api } from '#lib/api/client';
+import type { ExerciseScoreRecord } from '#lib/db/schema';
+import { isMcReviewed } from '#lib/grading/mcVerification';
 import {
   buildTrainingSamples,
   donationLabel,
   donationTokens,
   type OmrTrainingSampleIn,
-} from '$lib/grading/omrTrainingSample';
-import { scoreRepository } from '$lib/repositories/scoreRepository';
-import { backendStore } from '$lib/stores/backendStore';
-import { isAuthenticated, sessionStore } from '$lib/stores/session';
-import { trainingDonationStore } from '$lib/stores/trainingDonation';
+} from '#lib/grading/omrTrainingSample';
+import { scoreRepository } from '#lib/repositories/scoreRepository';
+import { backendStore } from '#lib/stores/backendStore';
+import { isAuthenticated, sessionStore } from '#lib/stores/session';
+import { trainingDonationStore } from '#lib/stores/trainingDonation';
 
 /** Upload once this many samples are waiting (a question has 2–5 boxes). */
 const BATCH_SIZE = 20;

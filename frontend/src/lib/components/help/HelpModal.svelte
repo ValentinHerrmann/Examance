@@ -1,10 +1,10 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { faArrowLeft, faArrowRight } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Icon, Modal, TextInput } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
-  import { HELP_TOPICS, getHelpTopic, type HelpTopic } from "$lib/help/topics";
-  import { helpStore, closeHelp, selectHelpTopic } from "$lib/stores/helpStore";
+  import { Button, Icon, Modal, TextInput } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { HELP_TOPICS, getHelpTopic, type HelpTopic } from "#lib/help/topics";
+  import { helpStore, closeHelp, selectHelpTopic } from "#lib/stores/helpStore";
   import HelpTopicContent from "./HelpTopicContent.svelte";
   import HelpTopicList from "./HelpTopicList.svelte";
 

@@ -8,8 +8,8 @@
     type ZoomLevel,
     type ZoomCapability,
   } from "@embedpdf/snippet";
-  import { t } from "$lib/i18n";
-  import { theme as appTheme } from "$lib/stores/theme";
+  import { t } from "#lib/i18n";
+  import { theme as appTheme } from "#lib/stores/theme";
 
   interface Props {
     /** URL (including `blob:`) of the PDF to display. `null` renders nothing. */
@@ -150,7 +150,7 @@
   }
 
   async function mount(url: string) {
-    const { mountEmbedPdf } = await import("$lib/pdf/embedpdf");
+    const { mountEmbedPdf } = await import("#lib/pdf/embedpdf");
     // A src change (or unmount racing a fast page switch) may land here
     // after containerEl is gone or after a newer `mount()` already ran.
     if (!containerEl || src !== url) return;

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import { gradingStore } from "$lib/grading/gradingStore";
-  import { t } from "$lib/i18n";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import { gradingStore } from "#lib/grading/gradingStore";
+  import { t } from "#lib/i18n";
   import { faBullseye, faXmark } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Icon, controlClass, controlSmClass } from "$lib/components/ui";
+  import { Button, Icon, controlClass, controlSmClass } from "#lib/components/ui";
 
   interface Props {
     exercises: ExerciseRecord[];

@@ -1,5 +1,5 @@
 import { readable, derived, type Readable } from "svelte/store";
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 
 /**
  * Viewport breakpoint stores mirroring Tailwind's defaults, only for places where a narrow screen must

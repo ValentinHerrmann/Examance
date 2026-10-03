@@ -5,7 +5,7 @@
  * `sample_token`, is random per box so a re-donation replaces the earlier sample. Must match
  * backend/app/schemas/training.py.
  */
-import type { OmrScoreMeta } from '$lib/db/schema';
+import type { OmrScoreMeta } from '#lib/db/schema';
 import { renderScanPage } from './mcCropRender';
 import type { OmrRunInfo } from './omrSettings';
 import type { OmrShapeReason } from './omrShape';

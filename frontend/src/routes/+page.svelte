@@ -1,36 +1,36 @@
 <script lang="ts">
-  import { isUnlocked, sessionStore, awaitSessionReady } from '$lib/stores/session';
-  import { db } from '$lib/db/db';
-  import type { ExamRecord, ExerciseRecord } from '$lib/db/schema';
-  import { saveExamEncrypted } from '$lib/db/dbEncryption';
-  import { importArchiveInteractively } from '$lib/services/archiveService';
-  import { checkRetention, type RetentionCheckResult } from '$lib/gdpr/retention';
+  import { isUnlocked, sessionStore, awaitSessionReady } from '#lib/stores/session';
+  import { db } from '#lib/db/db';
+  import type { ExamRecord, ExerciseRecord } from '#lib/db/schema';
+  import { saveExamEncrypted } from '#lib/db/dbEncryption';
+  import { importArchiveInteractively } from '#lib/services/archiveService';
+  import { checkRetention, type RetentionCheckResult } from '#lib/gdpr/retention';
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
 
-  import { examRepository } from '$lib/repositories/examRepository';
-  import { exerciseRepository } from '$lib/repositories/exerciseRepository';
-  import { submissionRepository } from '$lib/repositories/submissionRepository';
+  import { examRepository } from '#lib/repositories/examRepository';
+  import { exerciseRepository } from '#lib/repositories/exerciseRepository';
+  import { submissionRepository } from '#lib/repositories/submissionRepository';
   import { goto } from '$app/navigation';
-  import { t, translate } from '$lib/i18n';
-  import { loadSyncedExams } from '$lib/services/examSync';
-  import { computeExamStats } from '$lib/utils/examStats';
-  import { createExpandSet } from '$lib/utils/expandSet';
-  import { createLazyMap } from '$lib/utils/lazyMap';
-  import { countActiveFilters, countOptions, matchesQuery, uniqueSorted } from '$lib/utils/listFilter';
+  import { t, translate } from '#lib/i18n';
+  import { loadSyncedExams } from '#lib/services/examSync';
+  import { computeExamStats } from '#lib/utils/examStats';
+  import { createExpandSet } from '#lib/utils/expandSet';
+  import { createLazyMap } from '#lib/utils/lazyMap';
+  import { countActiveFilters, countOptions, matchesQuery, uniqueSorted } from '#lib/utils/listFilter';
   import { faPlus, faUpload } from '@fortawesome/free-solid-svg-icons';
 
-  import DashboardSessionState from '$lib/components/dashboard/DashboardSessionState.svelte';
-  import RetentionModal from '$lib/components/dashboard/RetentionModal.svelte';
-  import OnboardingEmptyState from '$lib/components/dashboard/OnboardingEmptyState.svelte';
-  import DeleteWithUsageModal from '$lib/components/common/DeleteWithUsageModal.svelte';
-  import ListFilterPanel from '$lib/components/common/ListFilterPanel.svelte';
-  import ExamList from '$lib/components/dashboard/ExamList.svelte';
-  import { Alert, Button, FilterLayout, PageHeader, PageShell } from '$lib/components/ui';
-  import PreviewHost from '$lib/components/common/PreviewHost.svelte';
-  import { createPreviewFlow } from '$lib/stores/previewFlow';
-  import { compileExamPreview } from '$lib/exam/examPreview';
-  import { buildExamItems, loadExamCompileContext } from '$lib/grading/omrTemplatePrep';
+  import DashboardSessionState from '#lib/components/dashboard/DashboardSessionState.svelte';
+  import RetentionModal from '#lib/components/dashboard/RetentionModal.svelte';
+  import OnboardingEmptyState from '#lib/components/dashboard/OnboardingEmptyState.svelte';
+  import DeleteWithUsageModal from '#lib/components/common/DeleteWithUsageModal.svelte';
+  import ListFilterPanel from '#lib/components/common/ListFilterPanel.svelte';
+  import ExamList from '#lib/components/dashboard/ExamList.svelte';
+  import { Alert, Button, FilterLayout, PageHeader, PageShell } from '#lib/components/ui';
+  import PreviewHost from '#lib/components/common/PreviewHost.svelte';
+  import { createPreviewFlow } from '#lib/stores/previewFlow';
+  import { compileExamPreview } from '#lib/exam/examPreview';
+  import { buildExamItems, loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
 
   let exams: ExamRecord[] = $state.raw([]);
   /** Set when the server refused the exam list, so the view can say so. */

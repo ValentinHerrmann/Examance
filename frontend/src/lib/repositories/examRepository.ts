@@ -1,11 +1,11 @@
 import { get } from 'svelte/store';
-import { api } from '$lib/api/client';
-import { db } from '$lib/db/db';
-import { storagePolicyStore } from '$lib/stores/storagePolicy';
-import { encryptExam, decryptExam } from '$lib/db/dbEncryption';
-import { enqueueRequest } from '$lib/services/offlineQueue';
-import type { ExamRecord, ExamExerciseRecord, ExamMcGroupRecord } from '$lib/db/schema';
-import { invalidateOwner } from '$lib/latex/compileCache';
+import { api } from '#lib/api/client';
+import { db } from '#lib/db/db';
+import { storagePolicyStore } from '#lib/stores/storagePolicy';
+import { encryptExam, decryptExam } from '#lib/db/dbEncryption';
+import { enqueueRequest } from '#lib/services/offlineQueue';
+import type { ExamRecord, ExamExerciseRecord, ExamMcGroupRecord } from '#lib/db/schema';
+import { invalidateOwner } from '#lib/latex/compileCache';
 
 export function mapApiToExamRecord(raw: any): ExamRecord {
   return {

@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { type ExerciseGroup } from "$lib/exercise-library/groupExercises";
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import { parseExerciseScore } from "$lib/latex/scoreParser";
-  import { isMcQuestion } from "$lib/grading/mcScore";
-  import { t } from "$lib/i18n";
+  import { type ExerciseGroup } from "#lib/exercise-library/groupExercises";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import { parseExerciseScore } from "#lib/latex/scoreParser";
+  import { isMcQuestion } from "#lib/grading/mcScore";
+  import { t } from "#lib/i18n";
   import { faPenToSquare, faEye, faCheck } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Badge, Checkbox, Icon, TextInput, Select } from "$lib/components/ui";
+  import { Button, Badge, Checkbox, Icon, TextInput, Select } from "#lib/components/ui";
 
   interface Props {
     filteredGroups: ExerciseGroup[];

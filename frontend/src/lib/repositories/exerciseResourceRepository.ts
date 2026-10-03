@@ -7,13 +7,13 @@
  */
 
 import { get } from 'svelte/store';
-import { api } from '$lib/api/client';
-import { uint8ArrayToBase64 } from '$lib/crypto/aesGcm';
-import { db } from '$lib/db/db';
-import { decryptResourceBytes, encryptResource } from '$lib/db/dbEncryption';
-import type { ExerciseResourceRecord } from '$lib/db/schema';
-import { storagePolicyStore } from '$lib/stores/storagePolicy';
-import type { LatexResourceFile } from '$lib/latex/resources';
+import { api } from '#lib/api/client';
+import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
+import { db } from '#lib/db/db';
+import { decryptResourceBytes, encryptResource } from '#lib/db/dbEncryption';
+import type { ExerciseResourceRecord } from '#lib/db/schema';
+import { storagePolicyStore } from '#lib/stores/storagePolicy';
+import type { LatexResourceFile } from '#lib/latex/resources';
 
 /** Resource requests never raise the global error toast: the panel reports them in place. */
 const QUIET = { silentError: true };

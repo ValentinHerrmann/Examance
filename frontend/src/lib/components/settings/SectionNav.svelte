@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
-  import { Icon } from "$lib/components/ui";
+  import { Icon } from "#lib/components/ui";
 
   interface Props {
     /** Anchor links to the sections of a long page (Artemis settings pattern): sticky left column from `lg`, scrolling top strip below. */

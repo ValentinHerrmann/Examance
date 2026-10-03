@@ -4,13 +4,13 @@
  * sealed client-side either way; the server only stores ciphertext.
  */
 
-import { api } from '$lib/api/client';
-import { db } from '$lib/db/db';
-import { resultsAreLocal } from '$lib/stores/storagePolicy';
-import { encryptScore, decryptScore } from '$lib/db/dbEncryption';
-import { enqueueRequest } from '$lib/services/offlineQueue';
-import { uint8ArrayToBase64, base64ToUint8Array } from '$lib/crypto/aesGcm';
-import type { ExerciseScoreRecord } from '$lib/db/schema';
+import { api } from '#lib/api/client';
+import { db } from '#lib/db/db';
+import { resultsAreLocal } from '#lib/stores/storagePolicy';
+import { encryptScore, decryptScore } from '#lib/db/dbEncryption';
+import { enqueueRequest } from '#lib/services/offlineQueue';
+import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
+import type { ExerciseScoreRecord } from '#lib/db/schema';
 
 const submissionPath = (examId: string, submissionId: string) =>
   `/exams/${examId}/submissions/${submissionId}/scores`;

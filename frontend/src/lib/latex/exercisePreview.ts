@@ -1,7 +1,7 @@
-import { compileWithCache } from "$lib/latex/compileCache";
-import type { CompileResult } from "$lib/latex/compiler";
-import { formatExerciseLatex } from "$lib/latex/scoreParser";
-import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
+import { compileWithCache } from "#lib/latex/compileCache";
+import type { CompileResult } from "#lib/latex/compiler";
+import { formatExerciseLatex } from "#lib/latex/scoreParser";
+import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
 
 const getPreamble = (extraOpts: string) => `\\documentclass[a4paper]{article}
 \\usepackage[${extraOpts}]{sty/Schulaufgabe}

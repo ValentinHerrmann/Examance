@@ -1,7 +1,7 @@
 <script lang="ts">
-  import DualPdfPreview from "$lib/components/DualPdfPreview.svelte";
-  import { t } from "$lib/i18n";
-  import { Card } from "$lib/components/ui";
+  import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
+  import { t } from "#lib/i18n";
+  import { Card } from "#lib/components/ui";
 
   interface Props {
     previewPdfUrl: string | null;

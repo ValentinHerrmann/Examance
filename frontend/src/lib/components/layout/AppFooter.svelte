@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { VersionStatus } from "$lib/stores/versionStore";
-  import { t } from "$lib/i18n";
+  import type { VersionStatus } from "#lib/stores/versionStore";
+  import { t } from "#lib/i18n";
 
   /**
    * Slim page footer (Artemis): legal links, server address, version, pinned to the bottom by `mt-auto`.

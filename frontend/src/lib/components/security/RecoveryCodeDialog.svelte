@@ -1,7 +1,7 @@
 <script lang="ts">
   /** Shows a fresh recovery code exactly once. It is the always-working factor (passkey may lack PRF), so no backdrop/Escape dismissal and confirm stays disabled until acknowledged. */
-  import { Alert, Button, Checkbox, Modal } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
+  import { Alert, Button, Checkbox, Modal } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
 
   interface Props {
     code: string;

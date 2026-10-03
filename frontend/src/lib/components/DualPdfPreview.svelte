@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import { isDesktop } from "$lib/stores/viewport";
-  import PdfEmbedViewer from "$lib/components/PdfEmbedViewer.svelte";
+  import { t } from "#lib/i18n";
+  import { isDesktop } from "#lib/stores/viewport";
+  import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
   import { faChevronLeft, faChevronRight, faDownload, faFileLines, faFilePdf } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Icon, Tabs } from "$lib/components/ui";
+  import { Button, Icon, Tabs } from "#lib/components/ui";
 
   // Titles/placeholder stay undefined by default so the catalog text follows the language switch.
   interface Props {

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { faShuffle } from '@fortawesome/free-solid-svg-icons';
-  import { Badge, Button, Card, EmptyState, TableScroller } from "$lib/components/ui";
-  import { t } from '$lib/i18n';
-  import { fmt } from '$lib/utils/format';
-  import type { VariantGroupComparison } from '$lib/analytics/analyticsTypes';
+  import { Badge, Button, Card, EmptyState, TableScroller } from "#lib/components/ui";
+  import { t } from '#lib/i18n';
+  import { fmt } from '#lib/utils/format';
+  import type { VariantGroupComparison } from '#lib/analytics/analyticsTypes';
 
   interface Props {
     variantGroups: VariantGroupComparison[];

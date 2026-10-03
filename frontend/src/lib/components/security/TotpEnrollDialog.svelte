@@ -2,9 +2,9 @@
   /** Sets up the authenticator factor, reached from the enrollment scope without a full session. The QR is rendered from the bundled `qrcode` dependency: CSP is `script-src 'self'` and the secret must not go to a third-party QR service. */
   import QRCode from "qrcode";
   import { onMount } from "svelte";
-  import { Button, Field, Modal, TextInput } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
-  import { confirmTotpEnrollment, startTotpEnrollment } from "$lib/api/mfa";
+  import { Button, Field, Modal, TextInput } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { confirmTotpEnrollment, startTotpEnrollment } from "#lib/api/mfa";
 
   interface Props {
     onEnrolled: (backupCodes: string[]) => void;

@@ -1,13 +1,13 @@
 <script lang="ts">
-  // Leaf: subscribes to gradingStore directly (scoped exception, see $lib/grading/gradingStore.ts);
+  // Leaf: subscribes to gradingStore directly (scoped exception, see #lib/grading/gradingStore.ts);
   // toggling an option writes straight into scoreInputs, alongside ScoreEntry's numeric input.
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import { gradingStore } from "$lib/grading/gradingStore";
-  import { applyMcCorrection, type McQuestionType } from "$lib/grading/mcScore";
-  import { isMcReviewed } from "$lib/grading/mcVerification";
-  import { t } from "$lib/i18n";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import { gradingStore } from "#lib/grading/gradingStore";
+  import { applyMcCorrection, type McQuestionType } from "#lib/grading/mcScore";
+  import { isMcReviewed } from "#lib/grading/mcVerification";
+  import { t } from "#lib/i18n";
   import { faCheck, faXmark } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Icon } from "$lib/components/ui";
+  import { Alert, Icon } from "#lib/components/ui";
 
   interface Props {
     exercise: ExerciseRecord;

@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { GradeDetail } from "$lib/analytics/gradingKey";
-  import { t } from "$lib/i18n";
+  import type { GradeDetail } from "#lib/analytics/gradingKey";
+  import { t } from "#lib/i18n";
   import { faCaretDown, faCaretUp, faStar } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Icon } from "$lib/components/ui";
+  import { Badge, Icon } from "#lib/components/ui";
 
   interface Props {
     isFullyGraded: boolean;

@@ -21,7 +21,7 @@ Backend API at `http://localhost:8000/api/docs`, frontend at `http://localhost:5
 | Path | What |
 |---|---|
 | `backend/` | FastAPI + SQLAlchemy + PostgreSQL API, Python 3.12, `uv`-managed |
-| `frontend/` | SvelteKit 2.5 (Svelte 4) static app, client-side crypto, IndexedDB |
+| `frontend/` | SvelteKit 3 (Svelte 5) static app, client-side crypto, IndexedDB |
 | `deploy/` | Production/preview `docker-compose` and env templates |
 | `docs/` | Architecture, API, and legal/compliance documentation (this index) |
 | `.github/workflows/` | CI, release deploy, preview deploy |

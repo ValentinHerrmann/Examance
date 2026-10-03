@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { t, tOptional } from "$lib/i18n";
-  import { fmt } from "$lib/utils/format";
-  import { TableScroller } from "$lib/components/ui";
+  import { t, tOptional } from "#lib/i18n";
+  import { fmt } from "#lib/utils/format";
+  import { TableScroller } from "#lib/components/ui";
   import {
     OMR_PARAM_SPECS,
     type OmrDetectionParams,
-  } from "$lib/grading/omrSettings";
+  } from "#lib/grading/omrSettings";
 
   
 

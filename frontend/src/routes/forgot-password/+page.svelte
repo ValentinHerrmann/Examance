@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { api, ApiError } from "$lib/api/client";
-  import { t, translate } from "$lib/i18n";
-  import { Alert, Button, Card, Field, PageShell, TextInput } from "$lib/components/ui";
+  import { api, ApiError } from "#lib/api/client";
+  import { t, translate } from "#lib/i18n";
+  import { Alert, Button, Card, Field, PageShell, TextInput } from "#lib/components/ui";
 
   let email = $state("");
   let isSubmitting = $state(false);

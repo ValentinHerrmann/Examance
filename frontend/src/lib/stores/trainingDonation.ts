@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { safeLocalStorage } from '$lib/utils/storage';
+import { safeLocalStorage } from '#lib/utils/storage';
 
 /**
  * Opt-in consent to donate anonymous checkbox crops of verified MC questions (training data for a shared

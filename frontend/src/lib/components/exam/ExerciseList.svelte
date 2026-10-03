@@ -6,13 +6,13 @@
 </script>
 
 <script lang="ts">
-  import type { ExerciseRecord } from '$lib/db/schema';
-  import { parseExerciseScore } from '$lib/latex/scoreParser';
-  import { mcSubLabel } from '$lib/grading/mcGroupLabels';
-  import ExerciseLabel from '$lib/components/exam/ExerciseLabel.svelte';
-  import { t } from '$lib/i18n';
+  import type { ExerciseRecord } from '#lib/db/schema';
+  import { parseExerciseScore } from '#lib/latex/scoreParser';
+  import { mcSubLabel } from '#lib/grading/mcGroupLabels';
+  import ExerciseLabel from '#lib/components/exam/ExerciseLabel.svelte';
+  import { t } from '#lib/i18n';
   import { faArrowUp, faArrowDown, faXmark } from '@fortawesome/free-solid-svg-icons';
-  import { Badge, Button } from '$lib/components/ui';
+  import { Badge, Button } from '#lib/components/ui';
 
   interface McGroup {
     id: string;

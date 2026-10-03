@@ -10,10 +10,10 @@
  * UUID, and `idMap` records the substitution so links, submissions and scores follow.
  */
 
-import { api } from '$lib/api/client';
-import { mapExamRecordToApi } from '$lib/repositories/examRepository';
-import { mapExerciseRecordToApi } from '$lib/repositories/exerciseRepository';
-import type { ExamRecord, ExerciseRecord } from '$lib/db/schema';
+import { api } from '#lib/api/client';
+import { mapExamRecordToApi } from '#lib/repositories/examRepository';
+import { mapExerciseRecordToApi } from '#lib/repositories/exerciseRepository';
+import type { ExamRecord, ExerciseRecord } from '#lib/db/schema';
 
 export interface ServerImportResult {
   /** Archived id → id actually created on the server. Only differing ids are listed. */

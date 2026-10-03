@@ -1,17 +1,17 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, EmptyState, TableScroller, controlClass, controlSmClass } from "$lib/components/ui";
+  import { Badge, Button, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
   import { get } from "svelte/store";
-  import { sessionStore } from "$lib/stores/session";
-  import { storagePolicyStore } from "$lib/stores/storagePolicy";
-  import { api } from "$lib/api/client";
-  import { db } from "$lib/db/db";
-  import { saveSubmissionEncrypted } from "$lib/db/dbEncryption";
-  import { scoreRepository } from "$lib/repositories/scoreRepository";
-  import { buildSubmissionMap } from "$lib/utils/studentLookup";
-  import type { ExerciseRecord, StudentRecord, SubmissionRecord } from "$lib/db/schema";
-  import { t } from "$lib/i18n";
+  import { sessionStore } from "#lib/stores/session";
+  import { storagePolicyStore } from "#lib/stores/storagePolicy";
+  import { api } from "#lib/api/client";
+  import { db } from "#lib/db/db";
+  import { saveSubmissionEncrypted } from "#lib/db/dbEncryption";
+  import { scoreRepository } from "#lib/repositories/scoreRepository";
+  import { buildSubmissionMap } from "#lib/utils/studentLookup";
+  import type { ExerciseRecord, StudentRecord, SubmissionRecord } from "#lib/db/schema";
+  import { t } from "#lib/i18n";
 
   interface Props {
     examId: string;

@@ -1,12 +1,12 @@
 <script lang="ts">
   /** The password as a factor you can view and change. Changing re-wraps the data key in the browser and sends both in one request, avoiding the reset-then-recovery-code detour. */
-  import { Button, Card, Field, TextInput } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
-  import { ApiError } from "$lib/api/client";
-  import { Argon2UnavailableError } from "$lib/crypto/keyDerivation";
-  import { changePassword, type MfaStatus } from "$lib/api/mfa";
-  import { envelopeSetToDto } from "$lib/api/keyEnvelopes";
-  import { pinEnvelopeSet, rewrapForChangedPassword, vaultFromSession } from "$lib/services/keyEnvelopeService";
+  import { Button, Card, Field, TextInput } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { ApiError } from "#lib/api/client";
+  import { Argon2UnavailableError } from "#lib/crypto/keyDerivation";
+  import { changePassword, type MfaStatus } from "#lib/api/mfa";
+  import { envelopeSetToDto } from "#lib/api/keyEnvelopes";
+  import { pinEnvelopeSet, rewrapForChangedPassword, vaultFromSession } from "#lib/services/keyEnvelopeService";
   import FactorMeta from "./FactorMeta.svelte";
   import LockoutNotice from "./LockoutNotice.svelte";
 

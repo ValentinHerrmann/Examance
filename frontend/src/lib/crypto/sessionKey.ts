@@ -4,8 +4,8 @@
  */
 
 import { writable, derived, get } from 'svelte/store';
-import { deriveKey, generateSalt } from '$lib/crypto/keyDerivation';
-import { toArrayBuffer } from '$lib/crypto/aesGcm';
+import { deriveKey, generateSalt } from '#lib/crypto/keyDerivation';
+import { toArrayBuffer } from '#lib/crypto/aesGcm';
 
 /** 12-byte nonce for session key derivation. */
 export function generateSessionNonce(): Uint8Array {

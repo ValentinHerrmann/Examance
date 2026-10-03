@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import type { LazyEntry } from "$lib/utils/lazyMap";
-  import { usageKey, type ExamUsageEntry } from "$lib/exercise-library/examUsage";
-  import { getGroupRepresentative, type ExerciseGroup } from "$lib/exercise-library/groupExercises";
-  import { t } from "$lib/i18n";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import type { LazyEntry } from "#lib/utils/lazyMap";
+  import { usageKey, type ExamUsageEntry } from "#lib/exercise-library/examUsage";
+  import { getGroupRepresentative, type ExerciseGroup } from "#lib/exercise-library/groupExercises";
+  import { t } from "#lib/i18n";
   import {
     faPenToSquare,
     faFileCirclePlus,
@@ -14,7 +14,7 @@
     faEye,
     faEllipsisVertical
   } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, ExpandableCard, Menu, MenuItem } from "$lib/components/ui";
+  import { Badge, Button, ExpandableCard, Menu, MenuItem } from "#lib/components/ui";
 
   interface Props {
     isLoading?: boolean;

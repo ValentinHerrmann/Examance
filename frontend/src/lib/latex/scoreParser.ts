@@ -3,7 +3,7 @@
  * else \BE +1, \Lmulti +1, \hBE +0.5, \qBE +0.25.
  */
 
-import { usesAlphaLabels } from "$lib/grading/mcGroupLabels";
+import { usesAlphaLabels } from "#lib/grading/mcGroupLabels";
 
 export function parseExerciseScore(latex: string): number {
   if (!latex) return 0;
@@ -89,7 +89,7 @@ export interface McGroupMember {
 
 /**
  * Formats MC sub-exercise bodies into one \begin{Aufgabe} block with enumerate[label=\alph*)], or
- * \arabic*) past 26 members (mirrors mcSubLabel in $lib/grading/mcGroupLabels). Each member gets
+ * \arabic*) past 26 members (mirrors mcSubLabel in #lib/grading/mcGroupLabels). Each member gets
  * `\OmrExercise{<id>}` (see formatExerciseLatex); grading/statistics still key on exerciseId, the group is layout-only.
  */
 export function formatMcGroupLatex(

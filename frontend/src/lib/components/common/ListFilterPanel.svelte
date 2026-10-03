@@ -3,8 +3,8 @@
 </script>
 
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import { FilterPills, Select, TextInput } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { FilterPills, Select, TextInput } from "#lib/components/ui";
 
   /**
    * Filter panel shared by the exam and exercise overviews (search, grade/subject selects, category pills).

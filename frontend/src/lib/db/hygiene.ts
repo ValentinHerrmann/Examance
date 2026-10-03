@@ -7,15 +7,15 @@
  */
 
 import { clearAllTables } from './db';
-import { sessionStore } from '$lib/stores/session';
-import { storagePolicyStore } from '$lib/stores/storagePolicy';
+import { sessionStore } from '#lib/stores/session';
+import { storagePolicyStore } from '#lib/stores/storagePolicy';
 import { get, writable } from 'svelte/store';
 
-import { api } from '$lib/api/client';
+import { api } from '#lib/api/client';
 
 /** Drops the in-memory compiled-PDF cache. Imported dynamically so the root-layout chunk doesn't pull in the compiler worker asset. */
 async function clearCompileCache(): Promise<void> {
-  const { clearCompileCache: clear } = await import('$lib/latex/compileCache');
+  const { clearCompileCache: clear } = await import('#lib/latex/compileCache');
   clear();
 }
 

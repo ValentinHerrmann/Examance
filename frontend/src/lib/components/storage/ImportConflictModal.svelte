@@ -1,16 +1,16 @@
 <script lang="ts">
   // Asks which version of each colliding record wins. Mounted once in the root layout, driven by
   // `conflictPrompt`; nothing is written until every conflict has a decision, so cancelling is free.
-  import { t, tOptional } from '$lib/i18n';
+  import { t, tOptional } from '#lib/i18n';
   import { faCheck } from '@fortawesome/free-solid-svg-icons';
-  import { Modal, Button, Icon } from '$lib/components/ui';
-  import { conflictPrompt } from '$lib/stores/conflictPrompt';
+  import { Modal, Button, Icon } from '#lib/components/ui';
+  import { conflictPrompt } from '#lib/stores/conflictPrompt';
   import {
     applyToAll,
     type ArchiveConflict,
     type ConflictChoice,
     type DecisionMap,
-  } from '$lib/archive/conflicts';
+  } from '#lib/archive/conflicts';
 
   const CHOICES: { choice: ConflictChoice; label: 'storagePolicy.conflict.choiceKeepExisting' | 'storagePolicy.conflict.choiceTakeImported' | 'storagePolicy.conflict.choiceImportAsCopy' }[] = [
     { choice: 'keep-existing', label: 'storagePolicy.conflict.choiceKeepExisting' },

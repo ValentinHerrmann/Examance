@@ -1,7 +1,7 @@
 <script lang="ts">
   /** The single "write this down" screen after sign-in: backup codes and recovery code shown together, each labelled for its purpose, acknowledged once. Either half may be absent. */
-  import { Alert, Button, Checkbox, Modal } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
+  import { Alert, Button, Checkbox, Modal } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
 
   interface Props {
     backupCodes?: string[] | null;

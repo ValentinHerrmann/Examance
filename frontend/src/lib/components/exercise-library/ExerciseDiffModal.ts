@@ -1,4 +1,4 @@
-import type { ExerciseRecord } from "$lib/db/schema";
+import type { ExerciseRecord } from "#lib/db/schema";
 
 export function getDiffSelectLabel(ex: ExerciseRecord): string {
   const name = ex.name || "Untitled";

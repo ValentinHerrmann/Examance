@@ -1,8 +1,8 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { t, translate } from "$lib/i18n";
-  import { fmt } from "$lib/utils/format";
-  import { Alert, Button, Card, Checkbox, Field, controlClass } from "$lib/components/ui";
+  import { t, translate } from "#lib/i18n";
+  import { fmt } from "#lib/utils/format";
+  import { Alert, Button, Card, Checkbox, Field, controlClass } from "#lib/components/ui";
   import {
     DEFAULT_OMR_PARAMS,
     OMR_PARAM_ALGORITHM,
@@ -15,7 +15,7 @@
     type OmrParamSpec,
     type OmrParamsError,
     type OmrSettingsProfile,
-  } from "$lib/grading/omrSettings";
+  } from "#lib/grading/omrSettings";
 
   type NumberSpec = Extract<OmrParamSpec, { kind: "number" }>;
 

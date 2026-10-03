@@ -1,9 +1,9 @@
 <script lang="ts">
   /** Signed in, but nothing presented can open the data (e.g. a passkey without PRF proves identity, yields no key). Offers password or recovery code; neither re-wraps anything. */
-  import { Button, Field, TextInput } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
-  import { Argon2UnavailableError } from "$lib/crypto/keyDerivation";
-  import { EnvelopeFactorMissingError } from "$lib/services/keyEnvelopeService";
+  import { Button, Field, TextInput } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { Argon2UnavailableError } from "#lib/crypto/keyDerivation";
+  import { EnvelopeFactorMissingError } from "#lib/services/keyEnvelopeService";
 
   interface Props {
     onPassword: (password: string) => Promise<void>;

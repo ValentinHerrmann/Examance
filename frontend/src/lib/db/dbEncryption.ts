@@ -4,15 +4,15 @@
  * with the session locked DevTools shows only ciphertext blobs.
  */
 
-import { encrypt, decrypt } from '$lib/crypto/aesGcm';
+import { encrypt, decrypt } from '#lib/crypto/aesGcm';
 import {
   assertEncryptable,
   markDecryptFailed,
   MissingSessionKeyError,
   type MaybeUndecryptable,
 } from './decryptGuard';
-import { db } from '$lib/db/db';
-import { sessionStore } from '$lib/stores/session';
+import { db } from '#lib/db/db';
+import { sessionStore } from '#lib/stores/session';
 import { get } from 'svelte/store';
 import type {
   ExamRecord,
@@ -271,10 +271,10 @@ export async function saveOmrTemplateEncrypted(
 // High-Level Encrypted CRUD Operations (Delegated to Repositories)
 // ---------------------------------------------------------------------------
 
-import { examRepository } from '$lib/repositories/examRepository';
-import { exerciseRepository } from '$lib/repositories/exerciseRepository';
-import { studentRepository } from '$lib/repositories/studentRepository';
-import { submissionRepository } from '$lib/repositories/submissionRepository';
+import { examRepository } from '#lib/repositories/examRepository';
+import { exerciseRepository } from '#lib/repositories/exerciseRepository';
+import { studentRepository } from '#lib/repositories/studentRepository';
+import { submissionRepository } from '#lib/repositories/submissionRepository';
 
 export async function loadExamsEncrypted(key: CryptoKey | null): Promise<ExamRecord[]> {
   return examRepository.getAll(key);

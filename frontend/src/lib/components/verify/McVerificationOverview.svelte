@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { McVerificationStats } from "$lib/grading/mcVerification";
-  import { t } from "$lib/i18n";
-  import { TableScroller } from "$lib/components/ui";
+  import type { McVerificationStats } from "#lib/grading/mcVerification";
+  import { t } from "#lib/i18n";
+  import { TableScroller } from "#lib/components/ui";
 
   interface Props {
     stats: McVerificationStats;

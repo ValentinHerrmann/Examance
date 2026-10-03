@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { afterNavigate } from "$app/navigation";
   import { faXmark } from "@fortawesome/free-solid-svg-icons";
-  import { t } from "$lib/i18n";
-  import { mobileNavOpen, examNavContext } from "$lib/stores/shell";
-  import { lockScroll } from "$lib/utils/scrollLock";
-  import { Badge, Button, Icon } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { mobileNavOpen, examNavContext } from "#lib/stores/shell";
+  import { lockScroll } from "#lib/utils/scrollLock";
+  import { Badge, Button, Icon } from "#lib/components/ui";
   import { examNavItems } from "./examNavItems";
 
   /**
@@ -28,7 +28,7 @@
     { href: "/help", label: $t("help.ui.navLabel") },
   ]);
 
-  let currentPath = $derived($page.url.pathname);
+  let currentPath = $derived(page.url.pathname);
   function isActive(href: string) {
     return href === "/" ? currentPath === "/" : currentPath.startsWith(href);
   }

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import SuggestInput from "$lib/components/common/SuggestInput.svelte";
-  import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from "$lib/utils/examLabel";
-  import { t } from "$lib/i18n";
-  import { Card, Field, TextInput, Textarea, controlClass } from "$lib/components/ui";
+  import SuggestInput from "#lib/components/common/SuggestInput.svelte";
+  import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from "#lib/utils/examLabel";
+  import { t } from "#lib/i18n";
+  import { Card, Field, TextInput, Textarea, controlClass } from "#lib/components/ui";
 
   interface Props {
     title: string;

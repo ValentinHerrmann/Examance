@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import { parseExerciseScore } from "$lib/latex/scoreParser";
-  import LatexViewer from "$lib/components/LatexViewer.svelte";
-  import { t } from "$lib/i18n";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import { parseExerciseScore } from "#lib/latex/scoreParser";
+  import LatexViewer from "#lib/components/LatexViewer.svelte";
+  import { t } from "#lib/i18n";
   import { faCheck } from "@fortawesome/free-solid-svg-icons";
-  import { Modal, Button, Badge } from "$lib/components/ui";
+  import { Modal, Button, Badge } from "#lib/components/ui";
 
   interface Props {
     previewModalEx: ExerciseRecord;

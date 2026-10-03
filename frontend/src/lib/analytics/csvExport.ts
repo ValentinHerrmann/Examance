@@ -2,7 +2,7 @@
  * RFC 4180 CSV Serializer with UTF-8 BOM for Excel compatibility.
  */
 
-import { logExportAction } from '$lib/gdpr/exportAudit';
+import { logExportAction } from '#lib/gdpr/exportAudit';
 
 export interface CsvExportRow {
   studentPseudonymId: string;

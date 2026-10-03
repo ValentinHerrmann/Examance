@@ -1,4 +1,4 @@
-import type { GradeCutoff, GradingKeyConfig } from "$lib/db/schema";
+import type { GradeCutoff, GradingKeyConfig } from "#lib/db/schema";
 
 export const DEFAULT_CUTOFFS_LINEAR_50: GradeCutoff[] = [
   { grade: "1", label: "Sehr gut", minPercentage: 87.5 },

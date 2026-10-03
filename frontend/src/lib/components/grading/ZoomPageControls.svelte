@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { gradingStore } from "$lib/grading/gradingStore";
-  import { t } from "$lib/i18n";
+  import { gradingStore } from "#lib/grading/gradingStore";
+  import { t } from "#lib/i18n";
   import {
     faChevronLeft,
     faChevronRight,
@@ -8,7 +8,7 @@
     faMagnifyingGlassMinus,
     faMagnifyingGlassPlus,
   } from "@fortawesome/free-solid-svg-icons";
-  import { Button } from "$lib/components/ui";
+  import { Button } from "#lib/components/ui";
 
   interface Props {
     onPagePrev: () => void;

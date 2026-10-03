@@ -1,12 +1,12 @@
 /** GDPR Art. 17 Right to Erasure: hard-deletes a student record and all their submissions from Dexie IDB and appends an AUDITLOG entry. */
 
-import { db } from '$lib/db/db';
-import { sessionStore } from '$lib/stores/session';
-import { encryptAuditEntry } from '$lib/db/dbEncryption';
-import { scoreRepository } from '$lib/repositories/scoreRepository';
-import { submissionRepository } from '$lib/repositories/submissionRepository';
-import { storagePolicyStore } from '$lib/stores/storagePolicy';
-import { api } from '$lib/api/client';
+import { db } from '#lib/db/db';
+import { sessionStore } from '#lib/stores/session';
+import { encryptAuditEntry } from '#lib/db/dbEncryption';
+import { scoreRepository } from '#lib/repositories/scoreRepository';
+import { submissionRepository } from '#lib/repositories/submissionRepository';
+import { storagePolicyStore } from '#lib/stores/storagePolicy';
+import { api } from '#lib/api/client';
 import { get } from 'svelte/store';
 
 export interface ErasureResult {

@@ -1,27 +1,27 @@
 <script lang="ts">
   import { faClipboard, faPen, faUser, faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Card, PageHeader, Tabs } from "$lib/components/ui";
+  import { Button, Card, PageHeader, Tabs } from "#lib/components/ui";
   import { onMount } from "svelte";
   import { get } from "svelte/store";
-  import { sessionStore } from "$lib/stores/session";
+  import { sessionStore } from "#lib/stores/session";
   import {
     loadExamEncrypted,
     loadExamExercisesEncrypted,
-  } from "$lib/db/dbEncryption";
-  import { scoreRepository } from "$lib/repositories/scoreRepository";
-  import { studentRepository } from "$lib/repositories/studentRepository";
-  import { submissionRepository } from "$lib/repositories/submissionRepository";
+  } from "#lib/db/dbEncryption";
+  import { scoreRepository } from "#lib/repositories/scoreRepository";
+  import { studentRepository } from "#lib/repositories/studentRepository";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
   import type {
     ExamRecord,
     ExerciseRecord,
     StudentRecord,
     SubmissionRecord,
-  } from "$lib/db/schema";
+  } from "#lib/db/schema";
   import RosterManager from "./RosterManager.svelte";
   import ExerciseFirstGrid from "./ExerciseFirstGrid.svelte";
   import StudentFirstGrid from "./StudentFirstGrid.svelte";
   import PasteImportModal from "./PasteImportModal.svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 
   interface Props {
     examId: string;

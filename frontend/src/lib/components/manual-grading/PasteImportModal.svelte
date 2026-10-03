@@ -1,25 +1,25 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { get } from "svelte/store";
-  import { sessionStore } from "$lib/stores/session";
-  import { storagePolicyStore } from "$lib/stores/storagePolicy";
-  import { studentRepository } from "$lib/repositories/studentRepository";
-  import { api } from "$lib/api/client";
-  import { db } from "$lib/db/db";
+  import { sessionStore } from "#lib/stores/session";
+  import { storagePolicyStore } from "#lib/stores/storagePolicy";
+  import { studentRepository } from "#lib/repositories/studentRepository";
+  import { api } from "#lib/api/client";
+  import { db } from "#lib/db/db";
   import {
     saveSubmissionEncrypted,
-  } from "$lib/db/dbEncryption";
-  import { buildSubmissionMap } from "$lib/utils/studentLookup";
-  import { scoreRepository } from "$lib/repositories/scoreRepository";
+  } from "#lib/db/dbEncryption";
+  import { buildSubmissionMap } from "#lib/utils/studentLookup";
+  import { scoreRepository } from "#lib/repositories/scoreRepository";
   import type {
     ExerciseRecord,
     ExerciseScoreRecord,
     StudentRecord,
     SubmissionRecord,
-  } from "$lib/db/schema";
-  import { t } from "$lib/i18n";
+  } from "#lib/db/schema";
+  import { t } from "#lib/i18n";
   import { faArrowLeft, faArrowRight, faCheck } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, Checkbox, Modal, TableScroller, Textarea } from "$lib/components/ui";
+  import { Badge, Button, Checkbox, Modal, TableScroller, Textarea } from "#lib/components/ui";
 
   interface Props {
     examId: string;

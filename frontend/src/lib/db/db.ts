@@ -5,7 +5,7 @@
  *   ciphertexts only), auditLog (merged into .bgproj on export), exerciseResources (encrypted LaTeX resource files).
  */
 
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import Dexie, { type Table } from 'dexie';
 import type {
   AuditEntry,

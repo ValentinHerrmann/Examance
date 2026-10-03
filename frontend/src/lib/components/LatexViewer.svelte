@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { highlightLatexToHtml } from "$lib/latex/highlighter";
+  import { highlightLatexToHtml } from "#lib/latex/highlighter";
 
   interface Props {
     code?: string;

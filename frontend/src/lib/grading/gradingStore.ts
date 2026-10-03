@@ -7,7 +7,7 @@
  */
 
 import { writable, get } from 'svelte/store';
-import type { OmrScoreMeta } from '$lib/db/schema';
+import type { OmrScoreMeta } from '#lib/db/schema';
 
 export type ToolType =
   | 'pen'

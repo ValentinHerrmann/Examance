@@ -25,10 +25,10 @@ globalThis.sessionStorage = session.api as unknown as Storage;
 (globalThis as any).window = globalThis;
 (globalThis as any).BroadcastChannel = undefined;
 
-const { sessionStore, hasLocalVault, hasLegacyLocalVault } = await import('$lib/stores/session');
-const { encrypt, decrypt } = await import('$lib/crypto/aesGcm');
+const { sessionStore, hasLocalVault, hasLegacyLocalVault } = await import('#lib/stores/session');
+const { encrypt, decrypt } = await import('#lib/crypto/aesGcm');
 const { PBKDF2_ITERATIONS, PBKDF2_ITERATIONS_LEGACY, derivePbkdf2Key } = await import(
-  '$lib/crypto/keyDerivation'
+  '#lib/crypto/keyDerivation'
 );
 
 const PASSPHRASE = 'correct-horse-battery-staple';

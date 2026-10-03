@@ -1,8 +1,8 @@
 <script lang="ts">
   /** Recovers the data key with the printable recovery code, for when the password wrap is unusable (e.g. a server-side password reset, which cannot re-wrap a key it never saw). */
-  import { Button, Field, Modal, TextInput } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
-  import { EnvelopeFactorMissingError } from "$lib/services/keyEnvelopeService";
+  import { Button, Field, Modal, TextInput } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { EnvelopeFactorMissingError } from "#lib/services/keyEnvelopeService";
 
 
   interface Props {

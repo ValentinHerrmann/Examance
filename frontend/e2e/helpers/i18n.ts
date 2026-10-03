@@ -119,7 +119,7 @@ export function stem(key: string, locale: Locale = DEFAULT_LOCALE): RegExp {
 
 /**
  * Native language names. They live in `lib/i18n/index.ts` (`LOCALE_LABELS`),
- * which cannot be imported here because it uses the `$lib` alias, and they are
+ * which cannot be imported here because it uses the `#lib` alias, and they are
  * deliberately not translated, so repeating them is safe.
  */
 export const LOCALE_NATIVE_NAMES: Record<Locale, string> = { de: 'Deutsch', en: 'English' };

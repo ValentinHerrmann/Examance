@@ -49,10 +49,10 @@
     diffDecorationsField,
     applyDiffDecorations
   } from "./LatexEditor";
-  import { QUICK_INSERT_MACROS, type QuickInsertMacro } from "$lib/latex/quickInsertMacros";
-  import { computeQuickInsert } from "$lib/latex/quickInsertLogic";
-  import { t, type TranslationKey } from "$lib/i18n";
-  import { theme } from "$lib/stores/theme";
+  import { QUICK_INSERT_MACROS, type QuickInsertMacro } from "#lib/latex/quickInsertMacros";
+  import { computeQuickInsert } from "#lib/latex/quickInsertLogic";
+  import { t, type TranslationKey } from "#lib/i18n";
+  import { theme } from "#lib/stores/theme";
 
   interface Props {
     value?: string;

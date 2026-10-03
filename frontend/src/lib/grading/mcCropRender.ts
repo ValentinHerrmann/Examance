@@ -1,6 +1,6 @@
-import { loadPdfjs } from '$lib/pdf/pdfjs';
-import { drawOmrOverlayForPage } from '$lib/grading/omrOverlay';
-import type { ExerciseRecord, OmrScoreMeta } from '$lib/db/schema';
+import { loadPdfjs } from '#lib/pdf/pdfjs';
+import { drawOmrOverlayForPage } from '#lib/grading/omrOverlay';
+import type { ExerciseRecord, OmrScoreMeta } from '#lib/db/schema';
 
 export interface McCropOptions {
   pdfBytes: Uint8Array;

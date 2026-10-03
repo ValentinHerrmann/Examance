@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import { sessionStore } from '$lib/stores/session';
+import { sessionStore } from '#lib/stores/session';
 
 /**
  * AES-256-GCM helpers. SECURITY INVARIANTS: every encrypt() draws a fresh random 12-byte IV via

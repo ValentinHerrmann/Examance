@@ -1,13 +1,13 @@
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
   import { get } from "svelte/store";
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import { db } from "$lib/db/db";
-  import { sessionStore, isAuthenticated } from "$lib/stores/session";
-  import { storagePolicyStore } from "$lib/stores/storagePolicy";
-  import { saveExerciseEncrypted, loadExercisesEncrypted } from "$lib/db/dbEncryption";
-  import { api } from "$lib/api/client";
-  import { parseExerciseScore } from "$lib/latex/scoreParser";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import { db } from "#lib/db/db";
+  import { sessionStore, isAuthenticated } from "#lib/stores/session";
+  import { storagePolicyStore } from "#lib/stores/storagePolicy";
+  import { saveExerciseEncrypted, loadExercisesEncrypted } from "#lib/db/dbEncryption";
+  import { api } from "#lib/api/client";
+  import { parseExerciseScore } from "#lib/latex/scoreParser";
   import {
     parseMcOptions,
     buildMcOptionsLatex,
@@ -15,19 +15,19 @@
     MC_MAX_OPTIONS,
     MC_MIN_OPTIONS,
     type McOption,
-  } from "$lib/latex/mcOptions";
-  import { getLatestForSlot } from "$lib/latex/compileCache";
-  import { compileExercisePreview } from "$lib/latex/exercisePreview";
-  import { pdfBytesToUrl } from "$lib/latex/pdfPreview";
-  import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
-  import ExerciseResourcePanel from "$lib/components/exercise/ExerciseResourcePanel.svelte";
+  } from "#lib/latex/mcOptions";
+  import { getLatestForSlot } from "#lib/latex/compileCache";
+  import { compileExercisePreview } from "#lib/latex/exercisePreview";
+  import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
+  import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
+  import ExerciseResourcePanel from "#lib/components/exercise/ExerciseResourcePanel.svelte";
   import LatexEditor from "./LatexEditor.svelte";
   import DualPdfPreview from "./DualPdfPreview.svelte";
-  import SuggestInput from "$lib/components/common/SuggestInput.svelte";
-  import { recordValue } from "$lib/utils/recentValues";
-  import { t, translate } from "$lib/i18n";
-  import InfoTip from "$lib/components/help/InfoTip.svelte";
-  import { ConfirmDialog, Alert, Badge, Button, Checkbox, Icon, Modal, Select, TextInput, controlClass, controlSmClass } from "$lib/components/ui";
+  import SuggestInput from "#lib/components/common/SuggestInput.svelte";
+  import { recordValue } from "#lib/utils/recentValues";
+  import { t, translate } from "#lib/i18n";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
+  import { ConfirmDialog, Alert, Badge, Button, Checkbox, Icon, Modal, Select, TextInput, controlClass, controlSmClass } from "#lib/components/ui";
   import { faBook, faChevronLeft, faChevronRight, faCode, faPlus, faTag, faXmark } from "@fortawesome/free-solid-svg-icons";
 
   interface Props {

@@ -1,5 +1,5 @@
-import type { ExerciseScoreRecord } from '$lib/db/schema';
-import type { OmrExerciseResult } from '$lib/workers/omrWorker';
+import type { ExerciseScoreRecord } from '#lib/db/schema';
+import type { OmrExerciseResult } from '#lib/workers/omrWorker';
 import type { OmrPageStats, OmrRunInfo } from './omrSettings';
 import type { OmrShapeFeatures } from './omrShape';
 

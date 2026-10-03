@@ -1,16 +1,16 @@
 <script lang="ts">
-  import { t, translate } from "$lib/i18n";
+  import { t, translate } from "#lib/i18n";
   import { get } from "svelte/store";
   import {
     storagePolicyStore,
     type StorageMode,
-  } from "$lib/stores/storagePolicy";
-  import { backendStore, effectiveBackendStore } from "$lib/stores/backendStore";
-  import { isAuthenticated } from "$lib/stores/session";
-  import { Alert, Button, Icon, Modal } from "$lib/components/ui";
-  import { dataPlaceIcons, latexPlaceIcons } from "$lib/components/storage/placeIcons";
-  import BackendUrlInput from "$lib/components/common/BackendUrlInput.svelte";
-  import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
+  } from "#lib/stores/storagePolicy";
+  import { backendStore, effectiveBackendStore } from "#lib/stores/backendStore";
+  import { isAuthenticated } from "#lib/stores/session";
+  import { Alert, Button, Icon, Modal } from "#lib/components/ui";
+  import { dataPlaceIcons, latexPlaceIcons } from "#lib/components/storage/placeIcons";
+  import BackendUrlInput from "#lib/components/common/BackendUrlInput.svelte";
+  import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
 
   interface Props {
     isOpen?: boolean;

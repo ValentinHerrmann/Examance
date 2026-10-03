@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import { Button } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { Button } from "#lib/components/ui";
 
   interface Props {
     examId: string;

@@ -1,7 +1,7 @@
 <script lang="ts">
   /** Shows freshly issued backup codes once. Not dismissable by backdrop/Escape; confirm waits for an explicit acknowledgement. */
-  import { Alert, Button, Checkbox, Modal } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
+  import { Alert, Button, Checkbox, Modal } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
 
   interface Props {
     codes: string[];

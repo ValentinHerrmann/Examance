@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { safeLocalStorage } from '$lib/utils/storage';
+import { safeLocalStorage } from '#lib/utils/storage';
 import {
   DEFAULT_OMR_PARAMS,
   OMR_ALGORITHM_VERSION,
@@ -9,7 +9,7 @@ import {
   type OmrDetectionParams,
   type OmrParamsError,
   type OmrSettingsProfile,
-} from '$lib/grading/omrSettings';
+} from '#lib/grading/omrSettings';
 
 /**
  * MC-detection settings for the *next* run. Per browser, not per account, not synced (like

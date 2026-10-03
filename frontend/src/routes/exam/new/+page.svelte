@@ -1,25 +1,25 @@
 <script lang="ts">
-  import { type ExerciseGroup, groupExercises } from "$lib/exercise-library/groupExercises";
+  import { type ExerciseGroup, groupExercises } from "#lib/exercise-library/groupExercises";
   import { onMount, onDestroy, untrack } from "svelte";
-  import { db } from "$lib/db/db";
-  import { sessionStore, isAuthenticated, awaitSessionReady } from "$lib/stores/session";
-  import { storagePolicyStore } from "$lib/stores/storagePolicy";
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import { loadExercisesEncrypted, saveExerciseEncrypted, saveExamEncrypted, encryptExercise } from "$lib/db/dbEncryption";
-  import { api } from "$lib/api/client";
-  import { parseExerciseScore, formatExerciseLatex, formatMcGroupLatex } from "$lib/latex/scoreParser";
-  import { recordValue } from "$lib/utils/recentValues";
-  import { compileWithCache, getLatestForSlot, invalidateOwner } from "$lib/latex/compileCache";
-  import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
+  import { db } from "#lib/db/db";
+  import { sessionStore, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
+  import { storagePolicyStore } from "#lib/stores/storagePolicy";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import { loadExercisesEncrypted, saveExerciseEncrypted, saveExamEncrypted, encryptExercise } from "#lib/db/dbEncryption";
+  import { api } from "#lib/api/client";
+  import { parseExerciseScore, formatExerciseLatex, formatMcGroupLatex } from "#lib/latex/scoreParser";
+  import { recordValue } from "#lib/utils/recentValues";
+  import { compileWithCache, getLatestForSlot, invalidateOwner } from "#lib/latex/compileCache";
+  import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import { get } from "svelte/store";
-  import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
-  import GradingKeyEditor from "$lib/components/GradingKeyEditor.svelte";
-  import { getPresetCutoffs } from "$lib/analytics/gradingKey";
-  import type { GradingKeyConfig } from "$lib/db/schema";
-  import ExamMetadataForm from "$lib/components/exam-creation/ExamMetadataForm.svelte";
-  import ExerciseSelector from "$lib/components/exam-creation/ExerciseSelector.svelte";
-  import { mapApiToExerciseRecord } from "$lib/repositories/exerciseRepository";
-  import SelectedExercisesList from "$lib/components/exam-creation/SelectedExercisesList.svelte";
+  import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
+  import GradingKeyEditor from "#lib/components/GradingKeyEditor.svelte";
+  import { getPresetCutoffs } from "#lib/analytics/gradingKey";
+  import type { GradingKeyConfig } from "#lib/db/schema";
+  import ExamMetadataForm from "#lib/components/exam-creation/ExamMetadataForm.svelte";
+  import ExerciseSelector from "#lib/components/exam-creation/ExerciseSelector.svelte";
+  import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
+  import SelectedExercisesList from "#lib/components/exam-creation/SelectedExercisesList.svelte";
   import {
     applyGroup,
     buildMcGroupMembership,
@@ -27,11 +27,11 @@
     moveStaged,
     toggleStaged,
     type McGroupDraft,
-  } from "$lib/exam/mcGroupStaging";
-  import ExamLivePreviewPanel from "$lib/components/exam-creation/ExamLivePreviewPanel.svelte";
-  import { formatExamCourse } from "$lib/utils/examLabel";
-  import { t, translate } from "$lib/i18n";
-  import { PageShell, PageHeader, Alert, Button } from "$lib/components/ui";
+  } from "#lib/exam/mcGroupStaging";
+  import ExamLivePreviewPanel from "#lib/components/exam-creation/ExamLivePreviewPanel.svelte";
+  import { formatExamCourse } from "#lib/utils/examLabel";
+  import { t, translate } from "#lib/i18n";
+  import { PageShell, PageHeader, Alert, Button } from "#lib/components/ui";
 
   // This is exam CONTENT written into the `datum` field and printed verbatim in the
   // German exam PDF (see \Datum in the LaTeX preamble below) — not UI copy, so it is

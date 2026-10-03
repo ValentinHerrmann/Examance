@@ -1,18 +1,18 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
-  import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "$lib/db/schema";
+  import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "#lib/db/schema";
   import {
     applyMcCorrection,
     restoreOriginalDetection,
     confirmDetection,
     type McQuestionType,
-  } from "$lib/grading/mcScore";
-  import { renderMcCrop } from "$lib/grading/mcCropRender";
-  import { t, translate } from "$lib/i18n";
-  import { isMcReviewed, type McQueueCategory } from "$lib/grading/mcVerification";
+  } from "#lib/grading/mcScore";
+  import { renderMcCrop } from "#lib/grading/mcCropRender";
+  import { t, translate } from "#lib/i18n";
+  import { isMcReviewed, type McQueueCategory } from "#lib/grading/mcVerification";
   import { faArrowUpRightFromSquare, faCheck, faCircle } from "@fortawesome/free-solid-svg-icons";
-  import { ConfirmDialog, Alert, Badge, Button, Icon, Switch } from "$lib/components/ui";
-  import { safeLocalStorage } from "$lib/utils/storage";
+  import { ConfirmDialog, Alert, Badge, Button, Icon, Switch } from "#lib/components/ui";
+  import { safeLocalStorage } from "#lib/utils/storage";
 
   interface StudentQueueItem {
     exerciseId: string;

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { t, type TranslationKey } from '$lib/i18n';
-  import { fmt } from '$lib/utils/format';
-  import type { ExamRecord } from '$lib/db/schema';
-  import type { ExamStats } from '$lib/analytics/stats';
-  import { PageShell, PageHeader, Button, Card } from '$lib/components/ui';
+  import { t, type TranslationKey } from '#lib/i18n';
+  import { fmt } from '#lib/utils/format';
+  import type { ExamRecord } from '#lib/db/schema';
+  import type { ExamStats } from '#lib/analytics/stats';
+  import { PageShell, PageHeader, Button, Card } from '#lib/components/ui';
   import StatsCards from './StatsCards.svelte';
   import BorderlineCases from './BorderlineCases.svelte';
   import ChartCard from './ChartCard.svelte';

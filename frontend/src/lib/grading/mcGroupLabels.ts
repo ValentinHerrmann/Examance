@@ -1,6 +1,6 @@
 /**
  * Sub-item labels of an MC group ("a)", "b)", …). The exam PDF uses `\alph*` up to 26 members, then
- * `\arabic*` (see `formatMcGroupLatex` in `$lib/latex/scoreParser`, `format_mc_group_latex` in
+ * `\arabic*` (see `formatMcGroupLatex` in `#lib/latex/scoreParser`, `format_mc_group_latex` in
  * `backend/app/services/latex.py`); on-screen labels must follow the same rule.
  */
 export const ALPHA_LABEL_LIMIT = 26;

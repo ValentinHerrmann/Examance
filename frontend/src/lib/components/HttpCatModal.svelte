@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { httpErrorStore } from "$lib/stores/httpErrorStore";
-  import { t, tOptional } from "$lib/i18n";
-  import { Modal } from "$lib/components/ui";
+  import { httpErrorStore } from "#lib/stores/httpErrorStore";
+  import { t, tOptional } from "#lib/i18n";
+  import { Modal } from "#lib/components/ui";
 
   // Status is rendered as text: the old http.cat image leaked IP/User-Agent/status to a third party
   // and cannot be self-hosted (licence). See docs/legal_audit_dsgvo.md, finding L16.

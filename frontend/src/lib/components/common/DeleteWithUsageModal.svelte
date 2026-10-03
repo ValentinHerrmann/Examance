@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import { Alert, ConfirmDeleteModal } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { Alert, ConfirmDeleteModal } from "#lib/components/ui";
 
   /**
    * Delete confirmation for a record other data may depend on (exam with submissions, exercise used in exams):

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { faCircleQuestion } from "@fortawesome/free-solid-svg-icons";
-  import { t } from "$lib/i18n";
-  import { openHelp } from "$lib/stores/helpStore";
-  import { getHelpTopic, type HelpTopicId } from "$lib/help/topics";
-  import { Button, Tooltip } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { openHelp } from "#lib/stores/helpStore";
+  import { getHelpTopic, type HelpTopicId } from "#lib/help/topics";
+  import { Button, Tooltip } from "#lib/components/ui";
 
   /** The subtle contextual affordance: a quiet "?" that opens the help panel on one topic. */
   interface Props {

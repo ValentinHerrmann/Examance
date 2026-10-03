@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { HardwareProfile } from "$lib/hardware/detect";
-  import { t } from "$lib/i18n";
-  import { Badge } from "$lib/components/ui";
+  import type { HardwareProfile } from "#lib/hardware/detect";
+  import { t } from "#lib/i18n";
+  import { Badge } from "#lib/components/ui";
 
   interface Props {
     hwProfile: HardwareProfile;

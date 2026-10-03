@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import { faFileArrowUp } from "@fortawesome/free-solid-svg-icons";
-  import { Icon } from "$lib/components/ui";
-  import InfoTip from "$lib/components/help/InfoTip.svelte";
+  import { Icon } from "#lib/components/ui";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
   interface Props {
     isProcessing?: boolean;
     progress?: number;

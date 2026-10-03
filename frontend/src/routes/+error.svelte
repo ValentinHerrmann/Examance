@@ -1,13 +1,13 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
-  import { httpErrorStore } from "$lib/stores/httpErrorStore";
-  import { t, translate } from "$lib/i18n";
-  import { Button, Icon, PageShell } from "$lib/components/ui";
+  import { httpErrorStore } from "#lib/stores/httpErrorStore";
+  import { t, translate } from "#lib/i18n";
+  import { Button, Icon, PageShell } from "#lib/components/ui";
 
-  let status = $derived($page.status || 404);
-  let message = $derived($page.error?.message || translate("dashboard.error.notFound"));
+  let status = $derived(page.status || 404);
+  let message = $derived(page.error?.message || translate("dashboard.error.notFound"));
 
   onMount(() => {
     httpErrorStore.showError(status, message);

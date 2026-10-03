@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { api, ApiError } from '$lib/api/client';
-  import { isUnlocked, sessionStore } from '$lib/stores/session';
-  import { t, translate } from '$lib/i18n';
-  import { PageShell, PageHeader, Card, Button, Alert, Field, TextInput, Select } from '$lib/components/ui';
+  import { api, ApiError } from '#lib/api/client';
+  import { isUnlocked, sessionStore } from '#lib/stores/session';
+  import { t, translate } from '#lib/i18n';
+  import { PageShell, PageHeader, Card, Button, Alert, Field, TextInput, Select } from '#lib/components/ui';
 
   type UserRole = 'teacher' | 'admin';
 

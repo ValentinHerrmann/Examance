@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import {
     faArrowRightFromBracket,
     faBars,
@@ -19,14 +19,14 @@
     faTriangleExclamation,
   } from "@fortawesome/free-solid-svg-icons";
   import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
-  import { locale, t, toggleLocale, LOCALE_LABELS, type Locale } from "$lib/i18n";
-  import { dataPlaceIcons, latexPlaceIcons } from "$lib/components/storage/placeIcons";
-  import type { TranslationKey } from "$lib/i18n/types";
-  import type { StorageMode } from "$lib/stores/storagePolicy";
-  import type { VersionStatus } from "$lib/stores/versionStore";
-  import { themePreference, setThemePreference, theme, type ThemePreference } from "$lib/stores/theme";
-  import { mobileNavOpen } from "$lib/stores/shell";
-  import { Icon, Menu, MenuItem } from "$lib/components/ui";
+  import { locale, t, toggleLocale, LOCALE_LABELS, type Locale } from "#lib/i18n";
+  import { dataPlaceIcons, latexPlaceIcons } from "#lib/components/storage/placeIcons";
+  import type { TranslationKey } from "#lib/i18n/types";
+  import type { StorageMode } from "#lib/stores/storagePolicy";
+  import type { VersionStatus } from "#lib/stores/versionStore";
+  import { themePreference, setThemePreference, theme, type ThemePreference } from "#lib/stores/theme";
+  import { mobileNavOpen } from "#lib/stores/shell";
+  import { Icon, Menu, MenuItem } from "#lib/components/ui";
 
   /**
    * Artemis navbar, dark slate in both themes: brand and (from `xl`) main links left; storage mode, workspace, language,
@@ -74,7 +74,7 @@
     ...(userRole === "admin" ? [{ href: "/admin/users", label: $t("nav.userManagement") }] : []),
   ]);
 
-  let currentPath = $derived($page.url.pathname);
+  let currentPath = $derived(page.url.pathname);
   function isActive(href: string) {
     return href === "/" ? currentPath === "/" : currentPath.startsWith(href);
   }

@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { type ExerciseGroup } from "$lib/exercise-library/groupExercises";
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import { t } from "$lib/i18n";
-  import { Alert, Modal, Button, Select } from "$lib/components/ui";
+  import { type ExerciseGroup } from "#lib/exercise-library/groupExercises";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import { t } from "#lib/i18n";
+  import { Alert, Modal, Button, Select } from "#lib/components/ui";
 
   interface Props {
     isOpen?: boolean;

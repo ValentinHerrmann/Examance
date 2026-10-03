@@ -1,6 +1,6 @@
 import { get, writable } from "svelte/store";
-import { safeLocalStorage } from "$lib/utils/storage";
-import { topicForPath, type HelpTopicId } from "$lib/help/topics";
+import { safeLocalStorage } from "#lib/utils/storage";
+import { topicForPath, type HelpTopicId } from "#lib/help/topics";
 
 /** State of the global help panel. `topicId === null` shows the overview; opening without a topic resolves one from the pathname. */
 export interface HelpState {

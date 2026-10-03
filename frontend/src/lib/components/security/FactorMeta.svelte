@@ -1,7 +1,7 @@
 <script lang="ts">
   /** The "added / last used" line. Null is not "never" (timestamps were added after the factors), so render "not recorded", never a date derived from account creation. */
-  import { t } from "$lib/i18n";
-  import { fmt } from "$lib/utils/format";
+  import { t } from "#lib/i18n";
+  import { fmt } from "#lib/utils/format";
 
   interface Props {
     createdAt?: string | null;

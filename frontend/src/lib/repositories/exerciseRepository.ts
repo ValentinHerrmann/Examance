@@ -1,12 +1,12 @@
 import { get } from 'svelte/store';
-import { api } from '$lib/api/client';
-import { db } from '$lib/db/db';
-import { storagePolicyStore } from '$lib/stores/storagePolicy';
-import { encryptExercise, decryptExercise } from '$lib/db/dbEncryption';
-import { enqueueRequest } from '$lib/services/offlineQueue';
-import type { ExerciseRecord } from '$lib/db/schema';
-import { normalizeMcExercise, serializeMcAnswers } from '$lib/grading/mcExerciseHash';
-import { invalidateOwner } from '$lib/latex/compileCache';
+import { api } from '#lib/api/client';
+import { db } from '#lib/db/db';
+import { storagePolicyStore } from '#lib/stores/storagePolicy';
+import { encryptExercise, decryptExercise } from '#lib/db/dbEncryption';
+import { enqueueRequest } from '#lib/services/offlineQueue';
+import type { ExerciseRecord } from '#lib/db/schema';
+import { normalizeMcExercise, serializeMcAnswers } from '#lib/grading/mcExerciseHash';
+import { invalidateOwner } from '#lib/latex/compileCache';
 
 /**
  * The one API -> ExerciseRecord mapper; use it for every exercise payload. Hand-rolled copies dropped

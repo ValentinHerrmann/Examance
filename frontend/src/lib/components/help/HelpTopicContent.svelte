@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import type { HelpTopic } from "$lib/help/topics";
+  import { t } from "#lib/i18n";
+  import type { HelpTopic } from "#lib/help/topics";
 
   interface Props {
     /** One manual topic, rendered identically in the panel and on `/help`. */
