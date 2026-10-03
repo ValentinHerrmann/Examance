@@ -21,10 +21,10 @@
     />
   </div>
 
-  <div class="flex flex-wrap gap-3">
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
     {#if availableGrades.length > 0}
-      <div class="flex min-w-0 flex-1 items-center gap-2 text-sm text-content">
-        <label class="shrink-0" for="dashboard-grade">{$t("dashboard.filterBar.gradeLabel")}</label>
+      <div class="flex min-w-0 flex-col gap-1 text-sm text-content">
+        <label class="text-muted" for="dashboard-grade">{$t("dashboard.filterBar.gradeLabel")}</label>
         <Select id="dashboard-grade" bind:value={selectedGradeFilter}>
           <option value="ALL">{$t("dashboard.filterBar.allGrades")}</option>
           {#each availableGrades as g}
@@ -35,8 +35,8 @@
     {/if}
 
     {#if availableSubjects.length > 0}
-      <div class="flex min-w-0 flex-1 items-center gap-2 text-sm text-content">
-        <label class="shrink-0" for="dashboard-subject">{$t("dashboard.filterBar.subjectLabel")}</label>
+      <div class="flex min-w-0 flex-col gap-1 text-sm text-content">
+        <label class="text-muted" for="dashboard-subject">{$t("dashboard.filterBar.subjectLabel")}</label>
         <Select id="dashboard-subject" bind:value={selectedSubjectFilter}>
           <option value="ALL">{$t("dashboard.filterBar.allSubjects")}</option>
           {#each availableSubjects as s}

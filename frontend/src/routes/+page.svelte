@@ -1,7 +1,7 @@
 <script lang="ts">
   import { isUnlocked, isAuthenticated, sessionStore, awaitSessionReady } from '$lib/stores/session';
   import { db } from '$lib/db/db';
-  import type { ExamRecord } from '$lib/db/schema';
+  import type { ExamRecord, ExerciseRecord } from '$lib/db/schema';
   import { loadExamsEncrypted, saveExamEncrypted, encryptExam, encryptExercise } from '$lib/db/dbEncryption';
   import { importArchiveInteractively } from '$lib/services/archiveService';
   import { checkRetention, type RetentionCheckResult } from '$lib/gdpr/retention';
@@ -11,6 +11,7 @@
   import { storagePolicyStore } from '$lib/stores/storagePolicy';
   import { api } from '$lib/api/client';
   import { examRepository, mapApiToExamRecord } from '$lib/repositories/examRepository';
+  import { exerciseRepository } from '$lib/repositories/exerciseRepository';
   import { submissionRepository } from '$lib/repositories/submissionRepository';
   import { offlineQueue } from '$lib/services/offlineQueue';
   import { goto } from '$app/navigation';
@@ -18,7 +19,6 @@
   import { faUpload } from '@fortawesome/free-solid-svg-icons';
 
   import DashboardSessionState from '$lib/components/dashboard/DashboardSessionState.svelte';
-  import KpiSidebar from '$lib/components/dashboard/KpiSidebar.svelte';
   import RetentionModal from '$lib/components/dashboard/RetentionModal.svelte';
   import OnboardingEmptyState from '$lib/components/dashboard/OnboardingEmptyState.svelte';
   import ExamFilterSidebar from '$lib/components/dashboard/ExamFilterSidebar.svelte';
@@ -40,6 +40,9 @@
   let selectedSubjectFilter = 'ALL';
   let selectedTestartFilter = 'ALL';
   let isFilterDrawerOpen = false;
+
+  /** Exercises per expanded exam, fetched on first expand and dropped on refresh. */
+  let exerciseMap = new Map<string, ExerciseRecord[] | 'loading'>();
 
   // Badge on the mobile filter button, so an active filter is visible without
   // opening the drawer.
@@ -300,6 +303,12 @@
         }
       }
     }
+
+    expandedExams = Object.fromEntries(
+      Object.entries(expandedExams).filter(([id]) => exams.some((e) => e.id === id))
+    );
+    exerciseMap = new Map();
+    for (const id of Object.keys(expandedExams)) if (expandedExams[id]) void loadExamExercises(id);
   }
 
   async function handleImportArchive(event: Event) {
@@ -339,8 +348,20 @@
     await refreshExams();
   }
 
+  async function loadExamExercises(examId: string) {
+    exerciseMap = new Map(exerciseMap).set(examId, 'loading');
+    let list: ExerciseRecord[] = [];
+    try {
+      list = await exerciseRepository.getByExamId(examId, get(sessionStore).sessionKey);
+    } catch (e) {
+      console.warn('Could not load exercises for exam preview:', e);
+    }
+    exerciseMap = new Map(exerciseMap).set(examId, list);
+  }
+
   function toggleExam(examId: string) {
     expandedExams = { ...expandedExams, [examId]: !expandedExams[examId] };
+    if (expandedExams[examId] && !exerciseMap.has(examId)) void loadExamExercises(examId);
   }
 
   function handleDeleteDashboardExam(id: string, title?: string) {
@@ -410,8 +431,8 @@
       <Alert severity="danger" class="mb-6">{$t("dashboard.loadFailed")}</Alert>
     {/if}
 
-    {#if exams.length === 0 && !examsLoadFailed}
-      <OnboardingEmptyState />
+    {#if exams.length === 0}
+      {#if !examsLoadFailed}<OnboardingEmptyState />{/if}
     {:else}
       <!-- Below `lg` the filter panel moves into a drawer; see FilterDrawer. -->
       <FilterDrawer
@@ -435,12 +456,6 @@
       <div class="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,17.5rem)_minmax(0,1fr)]">
         <div class="sticky top-2 hidden max-h-[calc(100dvh-1rem)] min-w-0 overflow-y-auto lg:block">
           <div class="flex min-w-0 flex-col gap-6">
-            <KpiSidebar
-              totalExams={exams.length}
-              subjectCount={availableSubjects.length}
-              gradeCount={availableGrades.length}
-            />
-
             <ExamFilterSidebar
               bind:searchQuery
               bind:selectedGradeFilter
@@ -458,6 +473,7 @@
           <ExamList
             exams={filteredExams}
             {examStatsMap}
+            {exerciseMap}
             isLoading={isRefreshing}
             {expandedExams}
             onToggleExam={toggleExam}

@@ -17,13 +17,6 @@ export const dashboard: Translations['dashboard'] = {
         lockedText: 'Please unlock your session to access projects.',
         unlockButton: 'Unlock Session',
     },
-    kpi: {
-        totalExams: 'Total Exams',
-        subjectCount: 'Configured Subjects',
-        gradeCount: 'Grade Levels',
-        globalAnalytics: 'Global Analytics',
-        viewStats: 'View Multi-Exam Stats',
-    },
     onboarding: {
         welcome: 'Welcome to Examance!',
         intro: "You don't have any exams in your workspace yet. Follow these quick steps to get started:",
@@ -54,7 +47,12 @@ export const dashboard: Translations['dashboard'] = {
         dateLabel: 'Date: {date}',
         retentionUntil: 'Retention until: {date}',
         openExam: 'Open Exam',
-        submissionsCount: '{count} submissions',
+        gradedCount: '{count} graded',
+        versionsCount: '{count} versions',
+        exercisesTitle: 'Used exercises',
+        noExercises: 'No exercises assigned.',
+        loadingExercises: 'Loading exercises…',
+        untitledExercise: 'Untitled exercise',
         deleteTitle: 'Delete exam',
     },
     retentionModal: {

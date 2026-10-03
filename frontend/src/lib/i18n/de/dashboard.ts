@@ -15,13 +15,6 @@ export const dashboard = {
         lockedText: 'Bitte entsperren Sie Ihre Sitzung, um auf Projekte zuzugreifen.',
         unlockButton: 'Sitzung entsperren',
     },
-    kpi: {
-        totalExams: 'Prüfungen gesamt',
-        subjectCount: 'Konfigurierte Fächer',
-        gradeCount: 'Klassenstufen',
-        globalAnalytics: 'Gesamtanalyse',
-        viewStats: 'Statistiken über alle Prüfungen',
-    },
     onboarding: {
         welcome: 'Willkommen bei Examance!',
         intro: 'Sie haben noch keine Prüfungen in Ihrem Arbeitsbereich. Folgen Sie diesen Schritten, um zu starten:',
@@ -52,7 +45,12 @@ export const dashboard = {
         dateLabel: 'Datum: {date}',
         retentionUntil: 'Aufbewahrung bis: {date}',
         openExam: 'Prüfung öffnen',
-        submissionsCount: '{count} Abgaben',
+        gradedCount: '{count} bewertet',
+        versionsCount: '{count} Versionen',
+        exercisesTitle: 'Verwendete Aufgaben',
+        noExercises: 'Keine Aufgaben zugeordnet.',
+        loadingExercises: 'Aufgaben werden geladen…',
+        untitledExercise: 'Unbenannte Aufgabe',
         deleteTitle: 'Prüfung löschen',
     },
     retentionModal: {

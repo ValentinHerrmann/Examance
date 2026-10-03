@@ -25,6 +25,7 @@
     aria-expanded={expanded}
     on:click={onToggle}
     on:keydown={(e) => {
+      if (e.target !== e.currentTarget) return;
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         onToggle();

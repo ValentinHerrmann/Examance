@@ -41,10 +41,10 @@
     />
   </div>
 
-  <div class="flex flex-wrap gap-3">
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
     {#if availableGrades.length > 0}
-      <div class="flex min-w-0 flex-1 items-center gap-2 text-sm text-content">
-        <label class="shrink-0" for="grade-select">{$t("exercises.filterSidebar.gradeLabel")}</label>
+      <div class="flex min-w-0 flex-col gap-1 text-sm text-content">
+        <label class="text-muted" for="grade-select">{$t("exercises.filterSidebar.gradeLabel")}</label>
         <Select id="grade-select" bind:value={selectedGrade}>
           <option value="ALL">{$t("exercises.filterSidebar.allGrades")}</option>
           {#each availableGrades as g}
@@ -55,8 +55,8 @@
     {/if}
 
     {#if availableSubjects.length > 0}
-      <div class="flex min-w-0 flex-1 items-center gap-2 text-sm text-content">
-        <label class="shrink-0" for="subject-select">{$t("exercises.filterSidebar.subjectLabel")}</label>
+      <div class="flex min-w-0 flex-col gap-1 text-sm text-content">
+        <label class="text-muted" for="subject-select">{$t("exercises.filterSidebar.subjectLabel")}</label>
         <Select id="subject-select" bind:value={selectedSubject}>
           <option value="ALL">{$t("exercises.filterSidebar.allSubjects")}</option>
           {#each availableSubjects as s}
