@@ -1,30 +1,8 @@
 /**
- * App-shell navigation for the e2e suite.
- *
- * EVERYTHING a test does through the application shell lives in this file: the
- * top header and its menu button, the workspace menu, the session buttons, the
- * footer (version, legal links), the help button and the exam tab
- * strip. Specs and flows call these functions and never click shell controls
- * themselves.
- *
- * That is the point of the file: a redesign of the shell (new navbar, sidebar,
- * footer, icons instead of emoji) must only require changes HERE. Selectors
- * therefore prefer landmarks (banner, navigation, contentinfo), roles and
- * catalog-derived names, and every place that has to rely on something less
- * semantic says why.
- *
- * Today's shell (Artemis design), for orientation:
- *  - `AppNavbar` (banner): inline main links from `xl` up; below that a burger
- *    ("open navigation") opens a drawer with the same links (and, on exam
- *    pages, the exam steps). The right-hand cluster is present at every width:
- *    storage-mode button, Workspace menu (Open / Export / Clear `.bgproj`),
- *    language toggle, theme menu, help button, account menu (settings, lock).
- *    Locked/public pages get a minimal navbar (language, theme, help). No
- *    navbar on the grade route.
- *  - `AppFooter` (contentinfo): Imprint, Privacy, licences, backend, version —
- *    on every page including grade.
- *  - `ExamSidebar` (from `lg`): the exam's steps; below `lg` they are in the
- *    navigation drawer.
+ * App-shell navigation (header, menus, session buttons, footer, help, exam tab strip). A
+ * shell redesign must only require changes HERE: selectors prefer landmarks, roles and
+ * catalog-derived names. Shell today: `AppNavbar` (banner; burger drawer below `xl`, absent
+ * on grade), `AppFooter` (contentinfo), `ExamSidebar` (from `lg`).
  */
 import type { Download, Locator, Page } from '@playwright/test';
 import { expect } from './guards';

@@ -43,13 +43,11 @@ function clampPercentage(value: number): number {
 }
 
 /**
- * Calculate preliminary percentage for a submission based on graded exercises only.
- * For example, if exercises have maxPoints {5,3,10,15} and scores are {4,1,null,null},
- * the percentage is (4+1)/(5+3) = 62.5%
+ * Preliminary percentage from graded exercises only, e.g. max {5,3,10,15}, scores {4,1,null,null}
+ * gives (4+1)/(5+3) = 62.5%. Null when nothing is graded.
  *
- * @param exerciseMaxPoints - array of max points per exercise in order
- * @param exerciseScores - array of actual scores (null/undefined = not graded)
- * @returns percentage entry or null if no exercises are graded
+ * @param exerciseMaxPoints - max points per exercise in order
+ * @param exerciseScores - scores (null/undefined = not graded)
  */
 export function calculateSubmissionPercentage(
   exerciseMaxPoints: number[],
@@ -131,9 +129,8 @@ const MAX_BIN_WIDTH = 5;
 /** Below this, a key gets uneven bins instead of ever finer ones (see `histogramBoundaries`). */
 const MIN_BIN_WIDTH = 0.5;
 /**
- * How far a threshold may sit off a grid line and still count as on it: 83.33 is the two-decimal
- * 250/3. The extra epsilon keeps a threshold exactly one hundredth off (85.01 - 85 is
- * 0.010000000000005 in floats) on the grid.
+ * Tolerance for a threshold to count as on a grid line (83.33 is the two-decimal 250/3);
+ * the extra epsilon keeps 85.01 - 85 (0.010000000000005 in floats) on the grid.
  */
 const GRID_TOLERANCE = 0.01 + 1e-9;
 
@@ -171,21 +168,18 @@ function binCountFor(thresholds: number[]): number | null {
 }
 
 /**
- * Number of equal histogram bins for a grading key: the fewest — so the widest, at most 5 % —
- * that put a bin boundary on every grade cutoff, so no bin straddles two grades. Steps with at
- * most two decimals (5, 4, 2.5, 2, 1.25, 1, 0.8, 0.5 %) win: linear_50's 62.5 % gives 2.5 %,
- * not the equally valid but unreadable 100/24 %. A key built on thirds (83.33, 66.66 …) has no
- * such step and takes the widest 100/n that fits. Null when nothing down to 0.5 % fits.
+ * Fewest (widest, at most 5 %) equal histogram bins that put a boundary on every grade
+ * cutoff. Steps with at most two decimals win (linear_50's 62.5 % gives 2.5 %, not 100/24 %);
+ * keys built on thirds take the widest 100/n that fits. Null when nothing down to 0.5 % fits.
  */
 export function histogramBinCount(keyConfig?: GradingKeyConfig): number | null {
   return binCountFor(interiorThresholds(keyConfig));
 }
 
 /**
- * Ascending bin boundaries from 0 to 100. Equal steps where the key allows it (see
- * `histogramBinCount`), with the boundary at each cutoff set to its exact threshold so every
- * submission lands in a bin of its own grade. A key too fine for that (a cutoff at 33.37 %)
- * falls back to 5 % steps split at each cutoff: uneven, but still one grade per bin.
+ * Ascending bin boundaries 0..100: equal steps where the key allows (see `histogramBinCount`),
+ * with each cutoff boundary at its exact threshold. Keys too fine for that fall back to 5 %
+ * steps split at each cutoff, so every bin still holds one grade.
  */
 export function histogramBoundaries(keyConfig?: GradingKeyConfig): number[] {
   const thresholds = interiorThresholds(keyConfig);
@@ -214,9 +208,8 @@ export function histogramBoundaries(keyConfig?: GradingKeyConfig): number[] {
 }
 
 /**
- * A bin of the percentage histogram (0–100 %, bins from `histogramBoundaries`; 100 % lands in
- * the last bin rather than an extra one). No bin straddles a cutoff, so the grade of its lower
- * bound is the grade of everything in it.
+ * A percentage histogram bin (0-100 %; 100 % lands in the last bin). No bin straddles a
+ * cutoff, so its lower bound's grade is the grade of everything in it.
  */
 export interface PercentageHistogramBin {
   binStart: number;

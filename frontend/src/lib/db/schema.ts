@@ -3,13 +3,9 @@ import type { OmrPageStats, OmrRunInfo } from '$lib/grading/omrSettings';
 import type { OmrShapeFeatures, OmrShapeReason } from '$lib/grading/omrShape';
 
 /**
- * IndexedDB schema type definitions for Dexie.
- *
- * SECURITY: All *_ct (ciphertext) fields are Uint8Array encrypted before IDB write.
- * Decryption happens at point of use only — never stored decrypted.
- *
- * Encryption-at-rest is the PRIMARY protection against data leakage on shared machines.
- * The IDB wipe in hygiene.ts is best-effort UX — not relied upon for security.
+ * IndexedDB schema types for Dexie. SECURITY: all *_ct fields are Uint8Array ciphertext before IDB
+ * write; decrypted only at point of use, never stored decrypted. Encryption at rest is the PRIMARY
+ * protection on shared machines; the hygiene.ts wipe is best-effort UX.
  */
 
 export interface GradeCutoff {
@@ -80,13 +76,9 @@ export interface ExerciseRecord extends MaybeUndecryptable {
 }
 
 /**
- * A file attached to an exercise so its LaTeX can reference it by name
- * (`\includegraphics{figure.png}`, `\input{data.tex}`, ...).
- *
- * The bytes are AES-256-GCM encrypted (`dataCt`/`dataIv`) exactly like a scan;
- * `data` only holds plaintext bytes when no session key is available, mirroring
- * how the other encrypt helpers degrade. `filename`, `mimeType` and `byteSize`
- * stay in the clear because they are Dexie index/display fields.
+ * A file attached to an exercise so its LaTeX can reference it by name (`\includegraphics{figure.png}`).
+ * Bytes are AES-256-GCM encrypted (`dataCt`/`dataIv`) like a scan; `data` holds plaintext only when no
+ * session key exists. `filename`, `mimeType`, `byteSize` stay clear (Dexie index/display fields).
  */
 export interface ExerciseResourceRecord {
   id: string;            // UUID
@@ -145,24 +137,19 @@ export interface OmrScoreMeta {
   };
   /** ISO timestamp when the detection was verified or corrected. */
   reviewedAt?: string;
-  /** Detection batch that produced this row: when, with which params and algorithm version.
-   *  Absent on rows detected before settings existed ("not recorded" — do not assume the
-   *  current defaults). Carried through every review action (mcScore.ts builders spread
-   *  `omrMeta`), so a verified row keeps the provenance of the detection it verifies. */
+    /** Detection batch that produced this row (when, params, algorithm version). Absent on rows detected
+     *  before settings existed ("not recorded", don't assume current defaults). Carried through review
+     *  actions (mcScore.ts spreads `omrMeta`) so a verified row keeps its detection provenance. */
   run?: OmrRunInfo;
   /** Registration diagnostics of the page this exercise sits on. */
   pageStats?: OmrPageStats;
-  /** Opt-in training-data donation of this verified question: when, and the verified selection
-   *  it was donated with (re-donated only if that changes), plus one random token per box
-   *  (optionIndex → UUID) that every donation of that box reuses, so the server replaces the
-   *  earlier sample when the label changed. `at`/`label` are absent until a donation of the
-   *  current selection has succeeded. */
+    /** Opt-in training-data donation of this verified question: when, the verified selection donated
+     *  (re-donated only if it changes), and one random token per box (optionIndex -> UUID) reused by every
+     *  donation of that box so the server replaces the earlier sample. `at`/`label` absent until a donation succeeded. */
   donation?: { at?: string; label?: string; tokens?: Record<number, string> };
-  /** Detected bubble boxes for the grading viewer to draw over the scan, for every option
-   *  (including blank ones — needed to place the "missing" annotation on correct options the
-   *  student didn't mark). Carried forward across manual `McAnswerReview` toggles. `rect`,
-   *  `detectedState` and the ratios document what the scanner saw and are never rewritten;
-   *  `state` is the *current display state* and follows the teacher's corrections. */
+    /** Detected bubble boxes drawn over the scan, for every option (blank ones too, to place "missing"
+     *  annotations). `rect`, `detectedState` and ratios record what the scanner saw and are never
+     *  rewritten; `state` is the current display state and follows teacher corrections. */
   detections?: {
     /** 0-based, matches OmrPageTemplate.pageIndex. */
     pageIndex: number;
@@ -205,13 +192,9 @@ export interface ExerciseScoreRecord extends MaybeUndecryptable {
 }
 
 /**
- * A pupil's identity within one exam.
- *
- * `fallbackCode`, `studentName` and `studentNumber` exist only on records that
- * have been through `decryptStudent()`. What is stored — in IndexedDB and, in
- * server modes, on the server — carries them solely inside `payloadCt`.
- * `encryptStudent()` strips them from what it returns for exactly that reason;
- * writing them back as plain columns is the L17 leak
+ * A pupil's identity within one exam. `fallbackCode`, `studentName`, `studentNumber` exist only on
+ * records that went through `decryptStudent()`; stored (IndexedDB and server) they live solely inside
+ * `payloadCt`. `encryptStudent()` strips them; writing them back as plain columns is the L17 leak
  * (docs/legal_audit_dsgvo.md) that broke Core Invariant 1 in every mode.
  */
 export interface StudentRecord extends MaybeUndecryptable {
@@ -249,13 +232,8 @@ export interface SubmissionRecord extends MaybeUndecryptable {
   annotationCt?: Uint8Array;
   annotationIv?: Uint8Array;
   createdAt: string;
-  /**
-   * Presence flags from the server's list endpoint (see
-   * `submissionRepository.getByExamId`'s `includeScans` option): true even
-   * when `scanCt`/`annotationCt` themselves were omitted from a light list
-   * response. Undefined for locally-sourced records, where the real bytes
-   * (or their absence) are already known directly.
-   */
+    /** Presence flags from the server's list endpoint (see `submissionRepository.getByExamId` `includeScans`):
+     *  true even when `scanCt`/`annotationCt` were omitted. Undefined for local records, where the bytes are known directly. */
   hasScan?: boolean;
   hasAnnotations?: boolean;
   /** AES-256-GCM encrypted payload containing totalScore. */

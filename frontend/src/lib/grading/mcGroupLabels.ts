@@ -1,11 +1,7 @@
 /**
- * Sub-item labels of an MC group ("a)", "b)", …).
- *
- * The exam PDF numbers group members with `\alph*`, which only goes up to 26.
- * Larger groups switch to `\arabic*` (see `formatMcGroupLatex` in
- * `$lib/latex/scoreParser` and `format_mc_group_latex` in
- * `backend/app/services/latex.py`). Every on-screen label must follow the same
- * rule, or the UI would call a question "c)" that the sheet prints as "3)".
+ * Sub-item labels of an MC group ("a)", "b)", …). The exam PDF uses `\alph*` up to 26 members, then
+ * `\arabic*` (see `formatMcGroupLatex` in `$lib/latex/scoreParser`, `format_mc_group_latex` in
+ * `backend/app/services/latex.py`); on-screen labels must follow the same rule.
  */
 export const ALPHA_LABEL_LIMIT = 26;
 

@@ -48,18 +48,12 @@ if (!globalScope.__busytex_fetch_intercepted__) {
     return fallbackHeader || 'application/octet-stream';
   }
 
-  /**
-   * Builds a ReadableStream that concatenates the bodies of `responses` in
-   * order while counting the raw (pre-decompression) bytes seen. If the
-   * manifest declares an expected size and the actual byte count doesn't
-   * match once every response body is drained, the stream is errored
-   * instead of closed. This turns a silently truncated/corrupted chunk
-   * download (e.g. a flaky connection or a stale/short CDN cache entry)
-   * into a hard, visible failure instead of a partially-mounted virtual
-   * filesystem downstream (busytex compiling with spurious "File `X.sty'
-   * not found" errors for packages that are actually bundled, because the
-   * archive containing them got cut off mid-download).
-   */
+    /**
+     * Concatenates the bodies of `responses` while counting raw (pre-decompression) bytes. If the
+     * manifest's expected size doesn't match, the stream errors instead of closing, so a truncated
+     * chunk download fails visibly rather than leaving a partial busytex filesystem ("File `X.sty'
+     * not found" for bundled packages).
+     */
   function createVerifiedStream(
     responses: Response[],
     expectedSize: number | undefined,

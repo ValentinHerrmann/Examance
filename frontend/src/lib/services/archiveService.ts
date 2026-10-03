@@ -16,12 +16,9 @@ import { translate } from "$lib/i18n";
 type ConflictResolver = (conflicts: ArchiveConflict[], identicalCount: number) => Promise<DecisionMap>;
 
 /**
- * Imports a .bgproj archive into the current workspace, merging with what is
- * already there. Order is the point: decrypt (touches nothing), then ask about
- * every collision, and only then write — under the live session key.
- *
- * @throws if the password is rejected, the session is locked, or the teacher
- *   cancels the conflict dialog. Nothing is written in any of those cases.
+ * Imports a .bgproj archive, merging with the workspace. Order matters: decrypt (touches nothing),
+ * ask about every collision, then write under the live session key.
+ * @throws on rejected password, locked session, or cancelled conflict dialog; nothing is written then.
  */
 export async function openBgprojArchive(
   file: File,
@@ -39,12 +36,7 @@ export async function openBgprojArchive(
   return applyArchive(applyResolutions(payload, decisions).payload);
 }
 
-/**
- * The whole interactive import: password prompt, import, summary or error
- * alert. Shared by the workspace menu and the dashboard.
- *
- * @returns true when something was imported.
- */
+/** The whole interactive import (password prompt, import, summary/error alert), shared by workspace menu and dashboard. Returns true when something was imported. */
 export async function importArchiveInteractively(file: File): Promise<boolean> {
   const password = promptArchivePassword(translate("workspace.archive.promptImportPassword"));
   if (!password) return false;
@@ -80,14 +72,7 @@ export function formatImportSummary(result: {
   );
 }
 
-/**
- * Exports the current workspace as an encrypted .bgproj archive.
- * Triggers a browser file download.
- *
- * @param password - Password to encrypt the archive with
- * @param filename - Optional custom filename (default: "workspace.bgproj")
- * @throws Error if export fails
- */
+/** Exports the workspace as an encrypted .bgproj archive (browser download; default filename "workspace.bgproj"). @throws Error if export fails. */
 export async function exportBgprojArchive(password: string, filename = "workspace.bgproj"): Promise<void> {
   const blob = await packProject(password);
   const url = URL.createObjectURL(blob);
@@ -99,12 +84,7 @@ export async function exportBgprojArchive(password: string, filename = "workspac
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-/**
- * The whole interactive export: password prompt, download, error alert.
- * Shared by the workspace menu, the exam page and the mode-switch wizard.
- *
- * @returns true when the archive was written.
- */
+/** The whole interactive export (password prompt, download, error alert), shared by workspace menu, exam page and mode-switch wizard. Returns true when written. */
 export async function exportArchiveInteractively(filename = "workspace.bgproj"): Promise<boolean> {
   const password = promptArchivePassword(translate("workspace.archive.promptExportPassword"));
   if (!password) return false;
@@ -117,28 +97,18 @@ export async function exportArchiveInteractively(filename = "workspace.bgproj"):
   }
 }
 
-/**
- * Clears the entire local workspace (all tables + project state).
- * @throws Error if clearing fails
- */
+/** Clears the entire local workspace (all tables + project state). @throws Error if clearing fails. */
 export async function clearWorkspace(): Promise<void> {
   await clearAllTables();
   projectStore.clear();
 }
 
-/**
- * Shows a confirmation dialog for clearing the workspace.
- * @returns true if user confirmed
- */
+/** Shows a confirmation dialog for clearing the workspace; true if confirmed. */
 export function confirmWorkspaceClear(): boolean {
   return confirm(translate("workspace.archive.confirmClear"));
 }
 
-/**
- * Prompts the user for a password (for import or export).
- * @param message - The prompt message
- * @returns The password string or null if cancelled
- */
+/** Prompts for an archive password (import or export); null if cancelled. */
 export function promptArchivePassword(message: string): string | null {
   return prompt(message);
 }

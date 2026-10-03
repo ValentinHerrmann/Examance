@@ -2,13 +2,9 @@ import { readable, derived, type Readable } from "svelte/store";
 import { browser } from "$app/environment";
 
 /**
- * Viewport breakpoint stores.
- *
- * These mirror Tailwind's default breakpoints and exist only for the few places
- * where a narrow screen has to change *behaviour* rather than only styling —
- * the header's slide-over menu, the grading score sheet, the PDF preview's
- * single-pane mode. Anything that is purely visual belongs in a `md:`/`lg:`
- * utility class instead, not here.
+ * Viewport breakpoint stores mirroring Tailwind's defaults, only for places where a narrow screen must
+ * change *behaviour* (header slide-over, grading score sheet, PDF preview single-pane). Purely visual
+ * changes belong in `md:`/`lg:` classes.
  */
 export const breakpoints = {
   sm: 640,
@@ -20,10 +16,7 @@ export const breakpoints = {
 
 export type Breakpoint = keyof typeof breakpoints;
 
-/**
- * `true` while the viewport matches `query`. Falls back to `initial` during SSR
- * and prerendering, where `window` does not exist.
- */
+/** `true` while the viewport matches `query`; `initial` during SSR/prerender (no `window`). */
 export function mediaQuery(query: string, initial = false): Readable<boolean> {
   return readable(initial, (set) => {
     if (!browser) {
@@ -59,10 +52,7 @@ export const isDesktop = minWidth("lg", true);
 /** Coarse pointer (touch). Used to widen hit areas and enable pinch-zoom. */
 export const isTouch = mediaQuery("(pointer: coarse)", false);
 
-/**
- * Live viewport width, updated on resize. For the chart wrappers that used to
- * read `window.innerWidth` once on mount and never re-measure.
- */
+/** Live viewport width, updated on resize (for chart wrappers that otherwise measure `window.innerWidth` once on mount). */
 export const viewportWidth = readable(1280, (set) => {
   if (!browser) {
     return;

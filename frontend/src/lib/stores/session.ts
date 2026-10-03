@@ -1,15 +1,8 @@
 /**
- * Session store — manages in-memory key state and tab persistence via sessionStorage + BroadcastChannel.
- *
- * SECURITY: No accessToken field. Auth tokens live in httpOnly cookies managed
- * by the browser — JavaScript never reads or stores them.
- *
- * masterKey (HKDF CryptoKey) and sessionKey (AES-GCM CryptoKey) are stored in tab-isolated
- * volatile sessionStorage and synced across tabs via BroadcastChannel.
- * They are wiped from this store on:
- *   - Manual lock
- *   - 60-minute inactivity timeout (see hygiene.ts)
- *   - Tab close / browser quit
+ * Session store: in-memory key state with tab persistence via sessionStorage + BroadcastChannel.
+ * SECURITY: no accessToken field; auth tokens live in httpOnly cookies, never read or stored by JS.
+ * masterKey (HKDF) and sessionKey (AES-GCM) sit in tab-isolated volatile sessionStorage, synced across
+ * tabs via BroadcastChannel, and are wiped on manual lock, 60-minute inactivity (hygiene.ts), tab close/browser quit.
  */
 
 import { writable, derived, get } from 'svelte/store';
@@ -31,13 +24,7 @@ export interface SessionState {
   lockedAt: number | null;                // Unix ms
   isDirty: boolean;                       // Unsaved IDB changes
   email: string | null;                   // From server login response
-  /**
-   * The account id, from the sign-in response.
-   *
-   * Needed because the key envelope binds each wrap to the account rather
-   * than to the email address, and that binding has to survive a reload.
-   * Not a secret: the holder has just authenticated as this account.
-   */
+    /** Account id from the sign-in response. The key envelope binds each wrap to the account, not the email, and that binding must survive a reload. Not secret. */
   teacherId: string | null;
   role: 'teacher' | 'admin' | null;
 }
@@ -78,12 +65,9 @@ const SESSION_STORAGE_KEYS = {
 } as const;
 
 /**
- * localStorage keys for the local-only vault.
- *
- * SALT and NONCE are not secret — they are derivation parameters that must
- * survive across sessions. LEGACY_PASSWORD is the pre-passphrase design: a
- * random password kept in cleartext beside the data it protected. It is only
- * ever read, to migrate such a vault, and is deleted once that succeeds.
+ * localStorage keys for the local-only vault. SALT and NONCE are non-secret derivation parameters that
+ * must persist. LEGACY_PASSWORD is the pre-passphrase design (random password in cleartext beside its
+ * data); only read to migrate such a vault, and deleted once that succeeds.
  */
 const LOCAL_VAULT_KEYS = {
   SALT: 'bg_anon_salt',
@@ -494,19 +478,13 @@ function createSessionStore() {
       });
     },
 
-    /**
-     * Unlock the local-only workspace from a user-supplied passphrase.
-     *
-     * The passphrase is never persisted. Only the salt and the session nonce
-     * are kept in localStorage; neither is secret, and both are required to
-     * re-derive the same keys on the next unlock.
-     *
-     * Earlier builds generated a random password and stored it in localStorage
-     * next to the encrypted IndexedDB it protected, which meant encryption at
-     * rest offered no protection against anyone holding the browser profile.
-     * A vault created that way is detected by `hasLegacyLocalVault()` and
-     * migrated by `migrateLegacyLocalVault()`.
-     */
+        /**
+         * Unlock the local-only workspace from a user passphrase, never persisted. Only the salt and session
+         * nonce are kept in localStorage (neither secret, both needed to re-derive the keys). Earlier builds
+         * stored a random password beside the encrypted IndexedDB, so encryption at rest protected nothing
+         * against anyone with the browser profile; such vaults are found by `hasLegacyLocalVault()` and
+         * migrated by `migrateLegacyLocalVault()`.
+         */
     async unlockLocalSession(passphrase: string) {
       if (!passphrase) {
         throw new Error('A passphrase is required to unlock the local workspace.');
@@ -562,14 +540,11 @@ function createSessionStore() {
       }));
     },
 
-    /**
-     * Migrate a vault created by the old "password in localStorage" design.
-     *
-     * Re-encrypts every record from the generated password's key to a key
-     * derived from *newPassphrase*, then deletes the stored password. On any
-     * failure nothing is deleted and the old password still opens the vault,
-     * so the migration is safe to retry.
-     */
+        /**
+         * Migrate a vault from the old "password in localStorage" design: re-encrypt every record to a key
+         * from *newPassphrase*, then delete the stored password. On any failure nothing is deleted and the
+         * old password still opens the vault, so retrying is safe.
+         */
     async migrateLegacyLocalVault(newPassphrase: string) {
       if (!newPassphrase) {
         throw new Error('A passphrase is required to migrate the local workspace.');
@@ -724,12 +699,10 @@ export const isAuthenticated = derived(
 // ---------------------------------------------------------------------------
 
 /**
- * Resolves once the root layout has finished restoring the session.
- *
- * Svelte 4 mounts children before their parent, so a route's `onMount` runs
- * before `+layout.svelte` restores keys, asks other tabs, or refreshes the
- * token. Every route that touches the vault must await this first; the
- * caller still checks `isUnlocked` and redirects to `/unlock` if not.
+ * Resolves once the root layout finished restoring the session. Svelte 4 mounts children before
+ * parents, so a route's `onMount` runs before `+layout.svelte` restores keys, asks other tabs or
+ * refreshes the token. Every vault-touching route must await this, then still check `isUnlocked`
+ * and redirect to `/unlock`.
  */
 let resolveSessionReady: (() => void) | null = null;
 let sessionReadyPromise: Promise<void> = new Promise<void>((resolve) => {

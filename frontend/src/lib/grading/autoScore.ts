@@ -1,11 +1,6 @@
 /**
- * Pure auto-scoring calculation, extracted from the grading route so it can be
- * shared between the canvas viewer (recalculates after every stroke edit) and
- * the route/workspace (recalculates after a "clear annotations" confirm).
- *
- * Mirrors the original recalculateAutoScores() logic exactly: for every exercise
- * that hasn't been manually overridden, sum up the point value of check/minus
- * stamps targeting that exercise on the current strokes, clamp to [0, maxPoints].
+ * Pure auto-scoring shared by the canvas viewer and the route/workspace: per exercise not manually
+ * overridden, sums the check/minus stamp points on the current strokes, clamped to [0, maxPoints].
  */
 
 import type { ExerciseRecord } from '$lib/db/schema';

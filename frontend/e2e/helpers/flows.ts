@@ -1,12 +1,7 @@
 /**
- * Shared user flows for the e2e suite: create a vault, unlock it, create
- * exercises and exams. Specs compose these so they stay short and so a change
- * to a form has one place to be fixed.
- *
- * These flows drive page CONTENT (forms, lists, dialogs); anything that goes
- * through the application shell is delegated to `nav.ts`. Selectors are role /
- * label / catalog-text based. Where the app gives no better handle (the
- * CodeMirror editor) the workaround is isolated in a helper and commented.
+ * Shared user flows (create/unlock vault, create exercises and exams) so a form change has
+ * one place to fix. They drive page content; shell navigation lives in `nav.ts`. Selectors
+ * are role/label/catalog-text based; unavoidable workarounds (CodeMirror) stay isolated.
  */
 import type { Locator, Page } from '@playwright/test';
 import { expect } from './guards';
@@ -30,13 +25,8 @@ async function lx(page: Page, key: string, vars?: Record<string, string | number
 }
 
 /**
- * Replace the content of a CodeMirror 6 editor.
- *
- * CodeMirror renders a contenteditable `.cm-content` with no label, role or
- * test id, so this is the one place the suite relies on its class name (the
- * brief allows it for CodeMirror). Select-all + insertText is used instead of
- * per-key typing: it is faster and immune to the editor's key handling.
- *
+ * Replace the content of a CodeMirror 6 editor. `.cm-content` has no label, role or test id,
+ * so this relies on its class name; select-all + insertText ignores the editor's key handling.
  * @param scope  Container of exactly the editor to fill (e.g. a dialog).
  * @param index  Which editor inside the scope, when there are several.
  */
@@ -116,10 +106,9 @@ export interface ExerciseSpec {
 }
 
 /**
- * LaTeX body for a free-text exercise. The app scores an exercise by counting
- * `\BE` marks (`lib/latex/scoreParser.ts`), so `points` full-point marks give
- * the exercise exactly that many points. `marker` is plain text a test can
- * search for in the list preview.
+ * LaTeX body for a free-text exercise. The app scores by counting `\BE` marks
+ * (`lib/latex/scoreParser.ts`), so `points` marks give that many points; `marker` is
+ * searchable text for the list preview.
  */
 export function exerciseBody(marker: string, points = 3): string {
   return `\\begin{Aufgabe}{${marker}}\n${marker}\n${'\\BE '.repeat(points).trim()}\n\\end{Aufgabe}`;

@@ -2,13 +2,9 @@ import { get } from 'svelte/store';
 import { sessionStore } from '$lib/stores/session';
 
 /**
- * AES-256-GCM encrypt/decrypt helpers.
- *
- * SECURITY INVARIANTS:
- * - Every encrypt() call generates a fresh random 12-byte IV via crypto.getRandomValues.
- * - IVs are NEVER reused or taken from external inputs.
- * - Decrypt requires the IV that was returned by encrypt — stored alongside ciphertext.
- * - A tampered ciphertext will cause decrypt() to throw DOMException (GCM authentication failure).
+ * AES-256-GCM helpers. SECURITY INVARIANTS: every encrypt() draws a fresh random 12-byte IV via
+ * crypto.getRandomValues; IVs are never reused or taken from external input; decrypt needs the
+ * IV stored with the ciphertext; a tampered ciphertext makes decrypt() throw (GCM auth failure).
  */
 
 export interface EncryptResult {
@@ -18,11 +14,7 @@ export interface EncryptResult {
   iv: Uint8Array;
 }
 
-/**
- * Safely converts a Uint8Array (or ArrayBufferView) to an ArrayBuffer slice
- * that respects byteOffset and byteLength. Prevents passing entire underlying
- * WASM heap or shared buffers to WebCrypto APIs.
- */
+/** Converts a Uint8Array view to an ArrayBuffer slice honouring byteOffset/byteLength, so WebCrypto never gets a whole WASM heap or shared buffer. */
 export function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   if (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength) {
     return bytes.buffer as ArrayBuffer;
@@ -30,10 +22,7 @@ export function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
-/**
- * Encrypt plaintext with AES-256-GCM.
- * Generates a fresh random 12-byte IV on every call.
- */
+/** Encrypt with AES-256-GCM using a fresh random 12-byte IV per call. */
 export async function encrypt(key: CryptoKey, plaintext: Uint8Array, customIv?: Uint8Array): Promise<EncryptResult> {
   const iv = customIv ?? crypto.getRandomValues(new Uint8Array(12)); // Fresh random IV — never reuse
 
@@ -51,11 +40,7 @@ export async function encrypt(key: CryptoKey, plaintext: Uint8Array, customIv?: 
   };
 }
 
-/**
- * Decrypt AES-256-GCM ciphertext.
- *
- * @throws DOMException if the GCM authentication tag fails (tampered or wrong key/IV).
- */
+/** Decrypt AES-256-GCM. @throws DOMException if the GCM tag fails (tampered data or wrong key/IV). */
 export async function decrypt(
   key: CryptoKey | null | undefined,
   ciphertext: Uint8Array,
@@ -150,11 +135,7 @@ export function fromBase64url(b64: string): Uint8Array {
   return new Uint8Array(binary.length).map((_, i) => binary.charCodeAt(i));
 }
 
-/**
- * Decodes a Base64 or Base64URL string to a Uint8Array.
- * Supports chunked decoding, whitespace trimming, padding restoration,
- * and Base64URL character replacement (- and _ instead of + and /).
- */
+/** Decodes Base64/Base64URL (chunked, trims whitespace, restores padding, maps - and _) to a Uint8Array. */
 export function base64ToUint8Array(b64: string): Uint8Array {
   if (!b64 || !b64.trim()) return new Uint8Array(0);
 

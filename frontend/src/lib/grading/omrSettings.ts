@@ -1,26 +1,15 @@
 /**
- * Tunable parameters of the OMR (MC answer detection) pipeline — the single source of truth.
- *
- * `omrWorker.ts` reads every threshold from an `OmrDetectionParams` object passed in with each
- * request; nothing in the worker hardcodes them any more. Every detection stamps the exact
- * params it ran with into the sealed `omrMeta.run` of each score row (see `omrResult.ts`), so:
- *
- *  - changing settings only ever affects *future* runs — an existing detection keeps the
- *    snapshot it was produced with, and the verify page can compare that snapshot with what
- *    a re-run would use;
- *  - a future learner can pair each verified row's raw readings (`fillRatio`, `detectedState`)
- *    with the params and `OMR_ALGORITHM_VERSION` that produced them. A learned profile is just
- *    another `OmrSettingsProfile` with `source: 'learned'` — no shape change needed.
- *
- * Pure module: no DOM, no stores — the worker imports it.
+ * Tunable parameters of the OMR pipeline, the single source of truth; `omrWorker.ts` reads every
+ * threshold from the `OmrDetectionParams` of each request. Each detection stamps its params into
+ * the sealed `omrMeta.run` (see `omrResult.ts`), so settings changes only affect future runs and
+ * a learned profile is just another `OmrSettingsProfile` (`source: 'learned'`).
+ * Pure module: no DOM, no stores (the worker imports it).
  */
 
-/** Bump whenever feature extraction or classification semantics change (not for param changes).
- *  1 = fill ratio only. 2 = + shape analysis (`omrShape.ts`: solid / spill / faint).
- *  3 = local threshold, border snapping, thin strokes, provisional readings, raster scale 3 —
- *      withdrawn: its area thresholds misread thin-pen crosses.
- *  4 = v3 measurement + stroke-based decision (`classifyV4`); redo-zone geometry fixed.
- *  Selectable per run via `params.algorithm` (2 or 4); the other is always computed alongside. */
+/** Bump when feature extraction or classification semantics change (not for param changes).
+ *  1 = fill ratio only. 2 = + shape analysis (`omrShape.ts`). 3 = local threshold etc., withdrawn:
+ *  area thresholds misread thin-pen crosses. 4 = v3 measurement + stroke-based decision
+ *  (`classifyV4`), redo-zone geometry fixed. `params.algorithm` selects 2 or 4; the other runs alongside. */
 export const OMR_ALGORITHM_VERSION = 4;
 
 /** Algorithms a run can be decided by (`params.algorithm`). */

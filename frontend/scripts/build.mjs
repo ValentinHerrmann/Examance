@@ -1,21 +1,8 @@
-// `npm run build` entry point: the Vite build plus the BusyTeX assets.
-//
-// The BusyTeX assets (~500 MB of TeX Live bundles) need no bundling, only a
-// download, an extract and a gzip/split pass (process-large-files.mjs). On a
-// clean checkout — every Cloudflare Pages build — that work runs in a staging
-// directory *alongside* `vite build` instead of before it, and the result is
-// moved into build/ afterwards. That hides ~20 s of download and compression
-// behind the Vite build, and keeps 500 MB out of static/, which Vite and
-// adapter-static would otherwise copy twice (static/ -> .svelte-kit/output ->
-// build/).
-//
-// With BUSYTEX_MIRROR_URL set, the staging step first tries the already
-// processed copy in the R2 mirror (busytex-mirror.mjs), which needs no gzip
-// pass at all — that pass competed with Vite for the CPU. Without it, or when
-// that object is missing, it downloads the raw archive and processes it here.
-//
-// When static/core/busytex already exists (a dev checkout after `npm run dev`),
-// Vite copies it into build/ as before and nothing is staged.
+// `npm run build`: the Vite build plus the BusyTeX assets (~500 MB). On a clean checkout the
+// assets are downloaded/processed in a staging dir alongside `vite build` and moved into build/
+// afterwards (hides ~20 s, avoids Vite copying 500 MB twice). With BUSYTEX_MIRROR_URL set, the
+// processed R2 copy is tried first (busytex-mirror.mjs). If static/core/busytex exists, nothing
+// is staged.
 import fs from 'node:fs';
 import path from 'node:path';
 import { PROCESSED_ARCHIVE, mirrorUrl, run, streamExtract } from './busytex-mirror.mjs';

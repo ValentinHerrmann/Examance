@@ -1,12 +1,9 @@
 import type { de } from './de';
 
 /**
- * The shape of a complete translation catalog, derived from the German one.
- * German is the source of truth: adding a key there makes every other catalog
- * fail to type-check until it is translated too.
- *
- * `Widen` relaxes the `as const` string literals back to `string` — the German
- * catalog must pin the key *structure*, not the actual German wording.
+ * Shape of a complete catalog, derived from the German one: a key added there fails every other
+ * catalog's type-check until translated. `Widen` relaxes `as const` literals to `string` so
+ * German pins the key structure, not its wording.
  */
 export type Translations = Widen<typeof de>;
 
@@ -23,13 +20,9 @@ type Leaves<T> = {
 }[keyof T & string];
 
 /**
- * Values interpolated into `{placeholder}` slots.
- *
- * Nullish is allowed and renders as an empty string: interpolated values are
- * very often optional record fields (an exercise without a title, an exam
- * without a subject), and a blank slot is the right UI for that. Where a
- * visible placeholder reads better, pass an explicit fallback at the call site
- * — e.g. `{ title: exercise.title ?? $t('exercises.untitled') }`.
+ * Values interpolated into `{placeholder}` slots. Nullish renders as an empty string, right for
+ * optional record fields; pass an explicit fallback at the call site where a visible
+ * placeholder reads better.
  */
 export type TranslationVars = Record<string, string | number | null | undefined>;
 

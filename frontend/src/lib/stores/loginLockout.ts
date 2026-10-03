@@ -1,15 +1,9 @@
 import { writable } from 'svelte/store';
 
 /**
- * When the login cooloff lifts.
- *
- * The server has always said this — `Retry-After` on the 429, exposed to the
- * browser by `expose_headers` — and the client threw it away, leaving a teacher
- * with "try again later" and a wait that is anywhere from one minute to an hour
- * depending on how many attempts preceded it.
- *
- * A deadline rather than a countdown: a tab left open for a minute would drift
- * from a stored remaining-seconds value, and every reader needs the same answer.
+ * When the login cooloff lifts (`Retry-After` on the 429, one minute to an hour depending on prior
+ * attempts). A deadline rather than a countdown: a stored remaining-seconds value would drift in a
+ * tab left open, and every reader needs the same answer.
  */
 export interface LoginLockoutState {
   /** Epoch ms at which attempts start working again, or null when not locked. */

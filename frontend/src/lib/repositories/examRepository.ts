@@ -55,12 +55,11 @@ export interface ExamStructure {
 }
 
 export const examRepository = {
-  /**
-   * An exam's exercise links and MC groups, from whichever store owns them.
-   * `mapApiToExamRecord` drops `exercises`/`mc_groups`, and in `all-server`
-   * mode the local `examExercises`/`examMcGroups` tables can be empty (e.g.
-   * after a lock), so this fetches from the server there instead.
-   */
+    /**
+     * An exam's exercise links and MC groups from whichever store owns them. `mapApiToExamRecord` drops
+     * `exercises`/`mc_groups` and in `all-server` mode the local tables can be empty (e.g. after a lock),
+     * so this fetches from the server there.
+     */
   async getStructure(examId: string): Promise<ExamStructure> {
     const local = async () => ({
       links: await db.examExercises.where('examId').equals(examId).toArray(),
@@ -165,10 +164,7 @@ export const examRepository = {
     }
   },
 
-  /**
-   * Removes every local table an exam owns. Single implementation, used by
-   * every caller that deletes an exam, so no owned table is missed.
-   */
+    /** Removes every local table an exam owns. The single implementation for all exam deletions, so no owned table is missed. */
   async deleteLocalCascade(id: string): Promise<void> {
     if (!db.exams) return;
 

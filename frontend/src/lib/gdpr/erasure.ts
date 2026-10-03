@@ -1,9 +1,4 @@
-/**
- * GDPR Art. 17 Right to Erasure (Right to be Forgotten).
- *
- * Hard deletes a student record and all associated submissions from Dexie IDB,
- * and appends an AUDITLOG entry capturing the deletion.
- */
+/** GDPR Art. 17 Right to Erasure: hard-deletes a student record and all their submissions from Dexie IDB and appends an AUDITLOG entry. */
 
 import { db } from '$lib/db/db';
 import { sessionStore } from '$lib/stores/session';
@@ -20,12 +15,7 @@ export interface ErasureResult {
   auditEntryId: string;
 }
 
-/**
- * Permanently erase student identity and scan submissions from local IDB and optional server.
- *
- * @param pseudonymId Raw pseudonym ID of the student to erase.
- * @param examId Exam ID.
- */
+/** Permanently erase a student's identity and scan submissions (by raw pseudonym ID, within an exam) from local IDB and optionally the server. */
 export async function eraseStudent(pseudonymId: string, examId: string): Promise<ErasureResult> {
   const auditId = crypto.randomUUID();
   let submissionsCount = 0;
@@ -51,10 +41,8 @@ export async function eraseStudent(pseudonymId: string, examId: string): Promise
   }
 
   const allSubs = await submissionRepository.getByExamId(examId, key);
-  // Match THIS student's submissions only. Locally `pseudonymHash` holds the
-  // raw pseudonymId (see scan/+page.svelte), so compare against it directly.
-  // A truthiness check here would match every submission in the exam and
-  // erase every other student's work along with this one's.
+    // THIS student's submissions only. Locally `pseudonymHash` holds the raw pseudonymId (see
+    // scan/+page.svelte), so compare directly: a truthiness check would match every submission and erase all students' work.
   const matchingSubs = allSubs.filter((s) => s.pseudonymHash === pseudonymId);
   submissionsCount = matchingSubs.length;
 

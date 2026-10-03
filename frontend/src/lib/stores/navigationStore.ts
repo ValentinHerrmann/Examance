@@ -3,12 +3,7 @@ import { get } from "svelte/store";
 import { sessionStore } from "./session";
 import { translate } from "$lib/i18n";
 
-/**
- * Registers a navigation guard that warns the user about unsaved changes
- * before leaving the page. Uses the sessionStore's isDirty flag.
- *
- * Call this once during app initialization.
- */
+/** Registers a navigation guard that warns about unsaved changes (sessionStore's isDirty flag). Call once at app init. */
 export function registerNavigationGuard(): void {
   beforeNavigate(({ cancel }) => {
     const session = get(sessionStore);
@@ -38,32 +33,20 @@ export function redirectToHome(): void {
   }
 }
 
-/**
- * Checks if the current URL path indicates the grading view.
- * @param pathname - The current URL pathname
- * @returns true if on the /grade page within an exam
- */
+/** True if the pathname is the grading view (/grade within an exam). */
 export function isGradeActivePath(pathname: string): boolean {
   return pathname.includes("/exam/") && pathname.endsWith("/grade");
 }
 
-/**
- * Checks if the current URL is the unlock page.
- * @param pathname - The current URL pathname
- * @returns true if on /unlock
- */
+/** True if the pathname is /unlock. */
 export function isUnlockPath(pathname: string): boolean {
   return pathname === "/unlock";
 }
 
 /**
- * Paths that must render without an unlocked session.
- *
- * The Impressum and the Datenschutzerklärung have to be reachable by anyone,
- * without logging in (§ 5 DDG, Art. 12 DSGVO) — redirecting them to /unlock
- * would defeat their purpose. Password reset pages also need to be accessible
- * without an unlocked session, and so does the manual — it contains no data,
- * only explanations, and is most useful to someone who has not got in yet.
+ * Paths that must render without an unlocked session: Impressum and Datenschutzerklärung (§ 5 DDG,
+ * Art. 12 DSGVO; redirecting to /unlock would defeat them), password reset pages, and the manual
+ * (no data, most useful before signing in).
  */
 export function isPublicPath(pathname: string): boolean {
   return (

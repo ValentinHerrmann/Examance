@@ -2,16 +2,9 @@ import type { Translations } from '../types';
 
 // -----------------------------------------------------------------------------
 // PLACEHOLDER TRANSLATIONS — DO NOT MACHINE-TRANSLATE.
-//
-// This namespace covers the Impressum (§ 5 DDG) and Datenschutzerklärung
-// (Art. 12/13 DSGVO) pages. That text is legally mandated and legally binding
-// in German. Every value below (except `backToHome`, a purely navigational
-// label) is deliberately kept identical to the German source in
-// `../de/legal.ts` — it is NOT an English translation, it is a placeholder.
-// Do not run this file through machine translation and do not hand-translate
-// it casually. It must only be replaced by a reviewed, legally-checked
-// English translation of the Impressum/Datenschutzerklärung, produced
-// alongside (not instead of) the authoritative German version.
+// Impressum (§ 5 DDG) and Datenschutzerklärung (Art. 12/13 DSGVO) are legally binding in German.
+// Every value except `backToHome` is deliberately identical to `../de/legal.ts`, not an English
+// translation. Replace only with a reviewed, legally-checked English version, alongside the German one.
 // -----------------------------------------------------------------------------
 
 export const legal: Translations['legal'] = {

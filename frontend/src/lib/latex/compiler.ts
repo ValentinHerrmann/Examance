@@ -23,11 +23,8 @@ export interface CompileResult {
 }
 
 /**
- * One compiler worker, created on first use and kept for the session.
- *
- * Compiles are serialised through `compileQueue` below and busytex is a
- * single WASM VM, so there is no concurrency to gain — a second worker would
- * only double the multi-hundred-megabyte TeX Live mount in memory.
+ * One compiler worker, created on first use and kept for the session. Compiles are serialised via
+ * `compileQueue` and busytex is a single WASM VM, so a second worker would only double the TeX Live mount.
  */
 let worker: Worker | null = null;
 let msgIdCounter = 0;
@@ -125,16 +122,11 @@ async function compileLocalWasm(
 }
 
 /**
- * Compile LaTeX string to PDF Uint8Array.
+ * Compile a LaTeX string to PDF bytes.
  *
- * @param latexSource Full LaTeX document source string.
- * @param useLocal Whether to compile locally using WebAssembly.
- * @param opts.resources Files the document references by name (images, PDFs,
- *   data files). They are placed flat next to main.tex in both engines; on the
- *   server they travel inline and are discarded with the temp directory.
- * @param opts.resourceExerciseIds Saved exercises whose stored files the server
- *   should load from its own database — used instead of inlining bytes the
- *   server already has. Ignored by the local engine, which cannot read them.
+ * @param useLocal Compile locally with WebAssembly.
+ * @param opts.resources Files referenced by name, placed flat next to main.tex in both engines.
+ * @param opts.resourceExerciseIds Exercises whose stored files the server loads itself; ignored locally.
  */
 export async function compileLatex(
   latexSource: string,

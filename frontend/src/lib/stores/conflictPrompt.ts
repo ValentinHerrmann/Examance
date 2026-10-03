@@ -1,10 +1,7 @@
 /**
- * The channel between an import and the conflict modal.
- *
- * `askAboutConflicts` is the default resolver for `openBgprojArchive`: it
- * publishes the conflicts, and the one `ImportConflictModal` mounted in the
- * root layout answers by settling the promise. The import genuinely waits, so
- * nothing is written until the teacher has decided.
+ * Channel between an import and the conflict modal. `askAboutConflicts` (default resolver for
+ * `openBgprojArchive`) publishes the conflicts; the `ImportConflictModal` in the root layout settles the
+ * promise, so the import waits and nothing is written until the teacher decides.
  */
 
 import { writable } from 'svelte/store';

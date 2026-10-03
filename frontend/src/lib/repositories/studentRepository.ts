@@ -16,11 +16,8 @@ export const studentRepository = {
       const raw = await db.students.toArray();
       return Promise.all(raw.map((st) => decryptStudent(st, key)));
     } else {
-      // Per exam, because there is no endpoint for "every student". This used
-      // to call GET /students, which the backend has never served — the router
-      // is mounted at /exams/{id}/students — so it 404'd and returned nothing.
-      // Silently: the GDPR erasure table showed an empty list and .bgproj
-      // exports came out with no students in them.
+            // Per exam: no endpoint lists "every student" (GET /students was never served, the router is at
+            // /exams/{id}/students; it silently 404'd, leaving the erasure table empty and .bgproj exports without students).
       try {
         const exams = await examRepository.getAll(key);
         const all: StudentRecord[] = [];
@@ -115,12 +112,9 @@ export const studentRepository = {
         pseudonym_hmac: pseudonymHmac,
         pii_ciphertext_b64: encrypted.payloadCt ? uint8ArrayToBase64(encrypted.payloadCt) : uint8ArrayToBase64(student.piiCt),
         iv_b64: encrypted.payloadIv ? uint8ArrayToBase64(encrypted.payloadIv) : uint8ArrayToBase64(student.piiIv),
-        // Historically an Argon2id salt, back when the key was derived per
-        // record. It is not: the ciphertext is sealed under
-        // HKDF(dataKey, sessionNonce). What is worth recording in these 16
-        // bytes is *which data-key generation* sealed it, which is what makes a
-        // later key rotation diagnosable instead of silently unreadable. The
-        // field used to be 16 hardcoded zero bytes, i.e. decorative.
+                // Not an Argon2id salt: ciphertext is sealed under HKDF(dataKey, sessionNonce). These 16 bytes
+                // record *which data-key generation* sealed it, so a later key rotation is diagnosable rather
+                // than silently unreadable (formerly 16 hardcoded zero bytes).
         encryption_salt_b64: uint8ArrayToBase64(currentKeyId()),
       };
       try {

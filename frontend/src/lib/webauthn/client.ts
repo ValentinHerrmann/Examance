@@ -1,31 +1,19 @@
 /**
- * WebAuthn ceremonies in the browser.
- *
- * Two jobs, and it is worth keeping them apart:
- *
- *  1. Authentication — a passkey is one of the three sign-in factors.
- *  2. Key recovery — where the authenticator implements the PRF extension, it
- *     derives a secret that never leaves the device, and that secret wraps a
- *     copy of the data key. Where it does not, the passkey signs in and nothing
- *     more, and the UI has to say so rather than let anyone assume otherwise.
+ * WebAuthn ceremonies in the browser, two separate jobs: (1) authentication, a passkey being one of
+ * three sign-in factors; (2) key recovery, where an authenticator with the PRF extension derives a
+ * device-bound secret that wraps a copy of the data key. Without PRF the passkey only signs in, and
+ * the UI must say so rather than let anyone assume otherwise.
  */
 
 import { fromBase64url, toArrayBuffer, toBase64url } from '$lib/crypto/aesGcm';
 
 /**
- * The PRF input, fixed for the whole application.
- *
- * It has to be supplied *before* the ceremony, and at sign-in nobody yet knows
- * which passkey will answer — `/webauthn/login/options` takes no account
- * identifier on purpose, so it cannot hand back a per-credential value. That is
- * why the sign-in paths used to pass nothing at all, which meant the extension
- * was never requested and no passkey could ever open the vault.
- *
- * A constant is the right answer rather than a compromise: a PRF salt is a
- * public domain-separation input, not a secret. The derived secret is still
- * unique per credential, because the authenticator's PRF key is per credential
- * and scoped to the relying party. Per-wrap randomness is unaffected —
- * `addPasskeyWrap` generates its own random HKDF salt for the envelope.
+ * The PRF input, fixed for the whole app. It must be supplied *before* the ceremony, and at sign-in the
+ * answering passkey is unknown (`/webauthn/login/options` takes no account identifier on purpose), so no
+ * per-credential value is possible; sign-in once passed nothing, so PRF was never requested and no
+ * passkey could open the vault. A constant is fine: a PRF salt is a public domain-separation input, and
+ * the derived secret is still per credential (the authenticator's PRF key is per credential and
+ * RP-scoped). `addPasskeyWrap` still uses its own random HKDF salt per wrap.
  */
 export const APP_PRF_SALT: Uint8Array = new TextEncoder().encode(
   'examance-passkey-prf-v1--------',
@@ -35,12 +23,7 @@ export function isSupported(): boolean {
   return typeof window !== 'undefined' && 'PublicKeyCredential' in window;
 }
 
-/**
- * Whether this browser can offer a platform authenticator at all.
- *
- * Feature-detecting the API is not enough: a browser can expose
- * `PublicKeyCredential` and still have nothing to authenticate with.
- */
+/** Whether this browser can offer a platform authenticator; feature-detecting `PublicKeyCredential` alone isn't enough. */
 export async function hasPlatformAuthenticator(): Promise<boolean> {
   if (!isSupported()) {
     return false;
@@ -58,10 +41,7 @@ interface ServerOptions {
   options_json: string;
 }
 
-/**
- * py_webauthn hands us JSON with base64url fields; `navigator.credentials`
- * wants ArrayBuffers. This walks the known binary fields rather than guessing.
- */
+/** py_webauthn returns JSON with base64url fields but `navigator.credentials` wants ArrayBuffers; this walks the known binary fields. */
 export function decodeCreationOptions(json: string): CredentialCreationOptions {
   const parsed = JSON.parse(json);
   const publicKey: PublicKeyCredentialCreationOptions = {
@@ -182,12 +162,9 @@ export interface AssertionResult {
 }
 
 /**
- * Run an authentication ceremony, always asking for the PRF secret.
- *
- * `credentialIdB64` pins the ceremony to one passkey. Wrapping the data key
- * needs the PRF secret of *that* credential; an account-wide prompt lets the
- * browser offer any of the teacher's passkeys, and a secret from the wrong one
- * seals a wrap that never opens.
+ * Run an authentication ceremony, always asking for the PRF secret. `credentialIdB64` pins it to one
+ * passkey: wrapping needs *that* credential's PRF secret, and an account-wide prompt could yield a
+ * secret from the wrong passkey, sealing a wrap that never opens.
  */
 export async function authenticate(
   options: ServerOptions,

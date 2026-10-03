@@ -5,13 +5,7 @@
 import { db } from '$lib/db/db';
 import { encryptAuditEntry } from '$lib/db/dbEncryption';
 
-/**
- * Log a CSV or data export action to the audit log.
- *
- * @param examId Exam ID being exported.
- * @param exportFormat Format string (e.g. 'CSV', '.bgproj', 'PDF')
- * @param key Encryption key from active session.
- */
+/** Log a CSV or data export (`exportFormat` e.g. 'CSV', '.bgproj', 'PDF') of an exam to the audit log, encrypted with the session `key`. */
 export async function logExportAction(examId: string, exportFormat: string, key: CryptoKey | null): Promise<string> {
   const auditId = crypto.randomUUID();
 

@@ -1,11 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 
-// `compiler.worker.ts` is written to run as a dedicated Worker and assigns
-// `self.onmessage` as a top-level side effect on import. `self` doesn't
-// exist in Vitest's default Node test environment, so we polyfill it with
-// `globalThis` (as most engines do internally for Worker/Window scopes)
-// purely so the module can be imported to exercise its pure, exported
-// helper functions.
+// `compiler.worker.ts` assigns `self.onmessage` on import, and `self` doesn't exist in Vitest's
+// Node environment; polyfill it with `globalThis` so the pure exported helpers can be imported.
 beforeAll(() => {
   if (typeof (globalThis as any).self === 'undefined') {
     (globalThis as any).self = globalThis;

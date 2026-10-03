@@ -6,11 +6,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { test, expect } from './helpers/guards';
 import { THEMES, mainRoutes, pinTheme, seedWorkspace, visit } from './helpers/seed';
 
-/**
- * Third-party widgets whose internals are not ours to fix: the pdf.js canvas /
- * text layer and the CodeMirror editor DOM (an unlabeled contenteditable it
- * generates itself).
- */
+/** Third-party widgets we cannot fix: pdf.js canvas/text layer and CodeMirror's generated unlabeled contenteditable. */
 const THIRD_PARTY = ['.cm-editor', '.pdf-viewer canvas', '.textLayer'];
 
 for (const theme of THEMES) {

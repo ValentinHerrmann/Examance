@@ -3,12 +3,9 @@ import { safeLocalStorage } from '$lib/utils/storage';
 import { mediaQuery } from '$lib/stores/viewport';
 
 /**
- * Colour theme. The preference is what the user picked; `theme` is what is
- * actually rendered once `system` has been resolved against the OS.
- *
- * `app.html` runs a tiny inline script that applies the same resolution before
- * the first paint (no white flash on a dark system). It reads the same storage
- * key, so keep THEME_STORAGE_KEY and that script in sync.
+ * Colour theme: the preference is the user's pick; `theme` is what renders once `system` is resolved.
+ * `app.html` runs an inline script applying the same resolution before first paint (no white flash);
+ * keep THEME_STORAGE_KEY and that script in sync.
  */
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type Theme = 'light' | 'dark';

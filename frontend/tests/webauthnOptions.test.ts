@@ -6,13 +6,9 @@ import {
 } from '../src/lib/webauthn/client';
 
 /**
- * The bug this pins: the PRF extension was attached only when a salt was passed,
- * and every sign-in path passed none. So no assertion ever asked for the secret,
- * `prfOutput` was always null, and a passkey wrap created at registration could
- * never be opened by anything.
- *
- * The salt is a constant now precisely so there is no call shape left that
- * silently asks for nothing.
+ * Pins a bug: the PRF extension was attached only when a salt was passed and every sign-in
+ * path passed none, so `prfOutput` was always null and a passkey wrap could never be opened.
+ * The salt is now a constant so no call shape silently asks for nothing.
  */
 
 const CREATION = JSON.stringify({

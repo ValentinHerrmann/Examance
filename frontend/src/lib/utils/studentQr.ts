@@ -1,10 +1,6 @@
 /**
- * Parses student identity from QR code strings.
- *
- * Supported formats:
- *   - `Lastname, Firstname_NumericID`
- *   - `BG:Lastname, Firstname_NumericID:version:fallbackCode`
- *   - `Lastname_NumericID` (no first name)
+ * Parses student identity from QR strings: `Lastname, Firstname_NumericID`,
+ * `BG:Lastname, Firstname_NumericID:version:fallbackCode`, or `Lastname_NumericID` (no first name).
  */
 
 export interface ParsedStudentQr {

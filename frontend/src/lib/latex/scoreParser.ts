@@ -1,12 +1,6 @@
 /**
- * Pure helper to parse exercise max_points from LaTeX content.
- *
- * Scoring rules:
- * - \begin{Aufgabe}[N] manual override (e.g. \begin{Aufgabe}[10]) -> returns N
- * - Count \BE -> +1.0
- * - Count \Lmulti -> +1.0
- * - Count \hBE -> +0.5
- * - Count \qBE -> +0.25
+ * Pure helper to parse exercise max_points from LaTeX: `\begin{Aufgabe}[N]` override returns N;
+ * else \BE +1, \Lmulti +1, \hBE +0.5, \qBE +0.25.
  */
 
 import { usesAlphaLabels } from "$lib/grading/mcGroupLabels";
@@ -46,12 +40,9 @@ const TEX_ESCAPE_MAP: Record<string, string> = {
 };
 
 /**
- * Escapes LaTeX special characters in plain (non-LaTeX) user text before
- * it's interpolated into a command argument, e.g. \begin{Aufgabe}{<title>}.
- * Mirrors `escape_tex` in backend/app/services/latex.py.
- *
- * Do NOT use this on fields that are legitimately raw LaTeX by design
- * (latexBody) -- only on plain-text metadata like titles/scoring text.
+ * Escapes LaTeX special characters in plain user text (e.g. titles) before interpolating it into a
+ * command argument. Mirrors `escape_tex` in backend/app/services/latex.py. Do NOT use on fields
+ * that are raw LaTeX by design (latexBody).
  */
 export function escapeLatex(text: string | undefined | null): string {
   if (!text) return "";
@@ -59,17 +50,11 @@ export function escapeLatex(text: string | undefined | null): string {
 }
 
 /**
- * Ensures LaTeX content is wrapped in \begin{Aufgabe}{<title>} ... \end{Aufgabe}.
- * - If \begin{Aufgabe} is missing, prepends \begin{Aufgabe}{<title>}.
- * - If \end{Aufgabe} is missing, appends \end{Aufgabe}.
+ * Ensures LaTeX content is wrapped in \begin{Aufgabe}{<title>} ... \end{Aufgabe}, adding whichever is missing.
  *
- * If `exerciseId` is given, an `\OmrExercise{<id>}` call is injected right
- * before the body. It is inert unless the body uses `\multi`/`\Lmulti`
- * (MC options) -- see Loesung.sty -- so it's safe to inject unconditionally
- * for free-text exercises too. This is what lets the OMR template capture
- * (pdfjs getAnnotations() on the compiled PDF) map bubbles back to exerciseId
- * without changing the stored latexBody or the \LoesungMulti/\multi/\Lmulti
- * call sites (see mcOptions.ts).
+ * With `exerciseId`, an `\OmrExercise{<id>}` call is injected before the body (inert without
+ * `\multi`/`\Lmulti`, see Loesung.sty) so OMR template capture can map bubbles back to exerciseId
+ * without changing the stored latexBody (see mcOptions.ts).
  */
 export function formatExerciseLatex(
   latexBody: string | undefined | null,
@@ -103,13 +88,9 @@ export interface McGroupMember {
 }
 
 /**
- * Formats a list of MC sub-exercise bodies into one \begin{Aufgabe} block with
- * enumerate[label=\alph*)] -- or \arabic*) past 26 members, where \alph* runs
- * out of letters (mirrors mcSubLabel in $lib/grading/mcGroupLabels).
- *
- * Each member gets `\OmrExercise{<id>}` injected before its body (see
- * formatExerciseLatex doc comment) -- grading/statistics still key strictly
- * on exerciseId (CLAUDE.md invariant); the group is layout-only here too.
+ * Formats MC sub-exercise bodies into one \begin{Aufgabe} block with enumerate[label=\alph*)], or
+ * \arabic*) past 26 members (mirrors mcSubLabel in $lib/grading/mcGroupLabels). Each member gets
+ * `\OmrExercise{<id>}` (see formatExerciseLatex); grading/statistics still key on exerciseId, the group is layout-only.
  */
 export function formatMcGroupLatex(
   members: McGroupMember[],

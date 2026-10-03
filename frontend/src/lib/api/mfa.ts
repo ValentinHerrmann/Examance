@@ -1,10 +1,7 @@
 /**
- * Sign-in factors and authenticator enrollment.
- *
- * A sign-in presents two of three factors (password, passkey, authenticator).
- * The server answers each step with what is still outstanding, so the client
- * never has to guess what an account has enrolled — and could not find out
- * before proving a factor even if it wanted to.
+ * Sign-in factors and authenticator enrollment. A sign-in presents two of three factors
+ * (password, passkey, authenticator); the server reports what is outstanding, so the client
+ * never learns what an account has enrolled before proving a factor.
  */
 
 import { api } from './client';
@@ -30,10 +27,7 @@ export interface MfaStatus {
   /** Whether a usable recovery wrap exists. The code itself is unrecoverable. */
   has_recovery_code: boolean;
   recovery_created_at: string | null;
-  /**
-   * Per-factor activity. Null means the event predates these fields, not that it
-   * never happened — the page says so rather than showing a date it lacks.
-   */
+    /** Per-factor activity. Null means the event predates these fields, not that it never happened. */
   password_changed_at: string | null;
   password_last_used_at: string | null;
   totp_created_at: string | null;
@@ -46,12 +40,8 @@ export async function submitPassword(email: string, password: string): Promise<A
 }
 
 /**
- * The password as the *second* factor.
- *
- * Distinct from `submitPassword`, which opens a sign-in and takes an email.
- * This one sends only the password: the account is the one the pending token
- * names, and taking an address here would make the second step a probe for
- * which addresses have accounts.
+ * The password as the *second* factor. Unlike `submitPassword` it sends no email: the account is
+ * the one the pending token names, and an address here would turn step two into an account probe.
  */
 export async function submitPasswordFactor(password: string): Promise<AuthStep> {
   return api.post<AuthStep>('/auth/factor/password', { password }, { silentError: true });
@@ -71,10 +61,7 @@ export async function fetchMfaStatus(): Promise<MfaStatus> {
   return api.get<MfaStatus>('/mfa/status', { silentError: true });
 }
 
-/**
- * Begin enrollment. The returned URI carries the shared secret and is shown
- * once — there is no endpoint that hands it back later.
- */
+/** Begin enrollment. The returned URI carries the shared secret and is shown once; no endpoint returns it later. */
 export async function startTotpEnrollment(): Promise<string> {
   const res = await api.post<{ otpauth_uri: string }>('/mfa/totp/enroll', undefined, {
     silentError: true,
@@ -104,10 +91,8 @@ export async function disableTotp(): Promise<void> {
 }
 
 /**
- * Change the password of a signed-in account.
- *
- * The re-wrapped envelope set travels with it: the server writes the password
- * and the key copy in one transaction, so the two cannot end up disagreeing.
+ * Change the password of a signed-in account. The re-wrapped envelope set travels with it so the
+ * server writes password and key copy in one transaction and they cannot disagree.
  */
 export async function changePassword(
   currentPassword: string,
@@ -123,10 +108,8 @@ export async function changePassword(
 
 
 /**
- * Open a password reset with the emailed token.
- *
- * The token stands in for the password factor — but as one of two. Mailbox
- * access alone completing a reset is the bypass the second factor closes.
+ * Open a password reset with the emailed token. It counts as the password factor, but only one
+ * of two: mailbox access alone completing a reset is the bypass the second factor closes.
  */
 export async function startReset(token: string): Promise<AuthStep> {
   return api.post<AuthStep>('/auth/reset/start', { token }, { silentError: true });

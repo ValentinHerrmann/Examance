@@ -1,19 +1,9 @@
 /**
- * In-memory LaTeX compilation cache.
- *
- * Prevents re-compiling identical documents when switching between exam tabs
- * (Setup, Scan, Verify, Grade, Stats), navigating between exercises, or closing
- * and reopening preview panels in a single browser session.
- *
- * Cache entries are keyed by a structured (kind, id, variant) tuple AND verified
- * by a SHA-256 hash of the exact LaTeX source, bundled app version, compile engine,
- * and attached resource files. This guarantees that:
- * 1. Exercises, exams, and blank OMR layouts cannot collide.
- * 2. Angabe (problem sheet) and Lösung (answer key) cannot collide.
- * 3. Any change in LaTeX content or resource files invalidates the cache hit.
- *
- * Entries hold raw Uint8Array PDF bytes in memory. Callers create short-lived
- * Blob/object URLs for rendering and revoke them upon component destruction.
+ * In-memory LaTeX compilation cache: avoids re-compiling identical documents across tab switches
+ * and preview reopen. Entries are keyed by a (kind, id, variant) tuple and verified by a SHA-256 of
+ * the LaTeX source, app version, engine and resource files, so exercises, exams, OMR layouts and
+ * Angabe/Lösung cannot collide and any content change misses. Entries hold raw PDF bytes; callers
+ * create short-lived object URLs and revoke them on destroy.
  */
 
 import { frontendVersion } from '$lib/stores/versionStore';
@@ -210,13 +200,7 @@ export function getCompileCacheStats(): { entryCount: number; totalBytes: number
   };
 }
 
-/**
- * Compiles LaTeX source with cache support.
- *
- * Checks if a valid compilation result matching the structured key and content hash
- * exists in memory. If found, returns the cached result immediately. Otherwise, runs
- * `compileLatex`, caches the result, and returns it.
- */
+/** Compiles LaTeX with cache support: returns a hit for the key and content hash, else runs `compileLatex` and caches it. */
 export async function compileWithCache(
   key: CompileCacheKey,
   latexSource: string,

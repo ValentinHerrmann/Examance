@@ -1,8 +1,6 @@
 /**
- * @screens - full-page screenshots for the manual visual review. No
- * assertions. Skipped by default; run with
- *   npx playwright test --grep @screens
- * Output: test-results/screens/<project>/<theme>-<name>.png
+ * @screens - full-page screenshots for manual visual review, no assertions. Skipped by
+ * default; run `npx playwright test --grep @screens`. Output: test-results/screens/.
  */
 import { test } from './helpers/guards';
 import { label } from './helpers/i18n';

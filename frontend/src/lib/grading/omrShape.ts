@@ -1,22 +1,12 @@
 /**
- * Per-box measurement and classification for MC answer boxes.
- *
- * Two algorithms run side by side on every box (the worker persists the other one's verdict as
- * `alt`, so they can be compared on verified data before switching — `params.algorithm` decides):
- *
- *  - **v2** (fallback): global-Otsu dark map, template rect with a fixed inset, fill-ratio
- *    thresholds plus the solid/spill/faint shape checks.
- *  - **v4** (default): `measureBox` — per-box local threshold, window snapped onto the printed border (the
- *    template rect sits ~0.5ex below the drawn box: `\OmrBox` puts the `omr://` link on the
- *    baseline, TikZ draws at `baseline=-0.5ex`), stroke structure. A cross is recognised by its
- *    stroke spanning the box, not by an area threshold: a clean interior makes a thin-pen cross
- *    fill only ~10–30 %, which is why v3 (area thresholds on v4 measurements) failed.
- *
- * Both share the redo-zone fix (`effectiveRedoRect`) and the "closer" `provisional` reading of an
- * ambiguous box, which counts until a teacher verifies it. Only `solid` changes a reading
- * (withdrawn tick, always flagged); `thin`/`faint`/`spill` only ever make a box `ambiguous`.
- *
- * Pure functions over the worker's rasters, so they can be tested on synthetic bitmaps.
+ * Per-box measurement and classification for MC answer boxes. Two algorithms run on every box (the
+ * other's verdict is stored as `alt`; `params.algorithm` decides):
+ *  - **v2** (fallback): global-Otsu dark map, fixed-inset template rect, fill-ratio thresholds plus shape checks.
+ *  - **v4** (default): `measureBox` with per-box local threshold, window snapped onto the printed border
+ *    (template rect sits ~0.5ex below the drawn box: `\OmrBox` links at the baseline, TikZ draws at
+ *    `baseline=-0.5ex`) and stroke structure; a thin-pen cross fills only ~10-30 %, so area thresholds (v3) failed.
+ * Both share `effectiveRedoRect` and the `provisional` reading of ambiguous boxes. Only `solid` changes a
+ * reading; `thin`/`faint`/`spill` only make a box `ambiguous`. Pure functions, testable on synthetic bitmaps.
  */
 import type { OmrDetectionParams } from './omrSettings';
 
@@ -370,11 +360,9 @@ export function measureBox(
 }
 
 /**
- * Template redo rect → the zone actually left of the box. `\OmrBox` (Loesung.sty) wraps the redo
- * link in `\makebox[0pt][r]{…}` to push it left, but a `\special` has no width, so the annotation
- * starts at the box's own left edge and covers the box itself. Every captured template carries that
- * rect; correcting it at use time also fixes templates and sheets that already exist.
- * Rects are PDF user space `[x0, y0, x1, y1]`.
+ * Template redo rect to the zone actually left of the box: `\OmrBox` (Loesung.sty) pushes the redo
+ * link left with `\makebox[0pt][r]{…}`, but a `\special` has no width so the annotation covers the box
+ * itself. Corrected at use time so existing templates work too. Rects are PDF user space `[x0,y0,x1,y1]`.
  */
 export function effectiveRedoRect(
   box: [number, number, number, number],

@@ -1,12 +1,7 @@
 /**
- * Pure state transitions for building MC groups from library questions.
- *
- * Shared by the exam-creation route and the exam page so both enforce the same
- * rules; each route keeps only its own persistence. The rule that matters: an
- * exercise is linked to an exam at most once (`[examId+exerciseId]` is the
- * junction key), so a question can belong to at most one group. Staging a
- * question that already sits in another group used to be allowed, and the
- * payload builder then silently dropped it from the second group.
+ * Pure state transitions for building MC groups from library questions, shared by the
+ * exam-creation route and the exam page. An exercise links to an exam at most once
+ * (`[examId+exerciseId]` junction key), so a question belongs to at most one group.
  */
 
 export interface McGroupDraft {
@@ -19,10 +14,7 @@ export interface McGroupDraft {
 /** A group needs at least this many questions. There is no upper limit. */
 export const MC_GROUP_MIN_MEMBERS = 1;
 
-/**
- * Maps every exercise that already belongs to a group to that group's title.
- * `excludeGroupId` is the group being edited: its own members stay selectable.
- */
+/** Maps each exercise already in a group to that group's title; `excludeGroupId` (the group being edited) keeps its members selectable. */
 export function buildMcGroupMembership(
   groups: readonly McGroupDraft[],
   excludeGroupId: string | null = null,
@@ -59,10 +51,7 @@ export function canFinalizeGroup(staged: readonly string[]): boolean {
   return staged.length >= MC_GROUP_MIN_MEMBERS;
 }
 
-/**
- * Creates a new group from the staged questions, or updates `editingId` in place
- * (keeping its id and position). Returns the new groups array.
- */
+/** Creates a group from the staged questions, or updates `editingId` in place (keeping id and position). Returns the new groups array. */
 export function applyGroup<G extends McGroupDraft>(
   groups: readonly G[],
   draft: { editingId: string | null; title: string; scoringText: string; memberIds: readonly string[] },

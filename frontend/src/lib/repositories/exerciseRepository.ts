@@ -9,10 +9,8 @@ import { normalizeMcExercise, serializeMcAnswers } from '$lib/grading/mcExercise
 import { invalidateOwner } from '$lib/latex/compileCache';
 
 /**
- * The one API → ExerciseRecord mapper. Use it for every exercise payload (library
- * list, exam detail, …): hand-rolled copies dropped variantKey/exerciseGroupId/
- * isCurrent, so variants of one exercise became indistinguishable and the
- * stripped record overwrote the full one in IndexedDB.
+ * The one API -> ExerciseRecord mapper; use it for every exercise payload. Hand-rolled copies dropped
+ * variantKey/exerciseGroupId/isCurrent, making variants indistinguishable and overwriting the full IndexedDB record.
  */
 export function mapApiToExerciseRecord(raw: any): ExerciseRecord {
   const baseRecord: ExerciseRecord = {

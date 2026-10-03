@@ -55,12 +55,7 @@ export interface McDetectionItem {
   source: "omr" | "manual";
   flaggedOptions: number[];
   selectedOptions: number[];
-  /**
-   * Number of individual marked bubbles this item represents — a "detection"
-   * is a single mark on the bubble sheet, not a whole question. A failed
-   * alignment always counts as 1 (the unreadable region itself still needs a
-   * human to look at it, even though no bubbles could be read).
-   */
+    /** Marked bubbles this item represents (a detection is one mark, not a question); a failed alignment counts as 1 since the region still needs a human. */
   markedCount: number;
   original?: {
     confidence: "high" | "ambiguous" | "failed";
@@ -78,11 +73,8 @@ export interface McDetectionItem {
 export type McQueueCategory = "failed" | "unsure" | "confident";
 
 /**
- * Single source of truth for which verification queue an item belongs to.
- * Both the dashboard (routes/exam/[id]/verify) and the per-item verify view
- * (routes/exam/[id]/verify-item) must use this — filtering separately let the
- * two drift apart (e.g. the "confident" queue's Next/Prev walking into
- * unsure/failed items because its own filter didn't match the dashboard's).
+ * Single source of truth for which verification queue an item belongs to; the verify dashboard and
+ * verify-item view must both use it, or the queues' Next/Prev drift from the dashboard.
  */
 export function categorizeMcItem(item: McDetectionItem): McQueueCategory {
   if (item.confidence === "failed") return "failed";
@@ -117,19 +109,10 @@ export interface ConfusionBucket {
 }
 
 /**
- * Per-OPTION (bubble) classification of OMR reliability — distinct from
- * `DetectionQualityStats`, which operates per-QUESTION. "Positive" = the
- * option OMR originally called selected (`original.selectedOptions`);
- * "negative" = OMR originally called it blank. Ground truth is the human's
- * final selection (current `selectedOptions`) once an item is reviewed; for
- * unreviewed items there is no ground truth yet, so those options are
- * bucketed by OMR's original call crossed with whether OMR itself flagged
- * that specific option as visually uncertain (`original.flaggedOptions`,
- * genuine per-option data, not borrowed from question-level confidence).
- *
- * Excludes: items with `confidence === 'failed'` (no bubbles were actually
- * read) and items with no `original` snapshot (pure-manual entries that
- * never went through OMR — nothing to grade).
+ * Per-OPTION (bubble) classification of OMR reliability, unlike per-QUESTION `DetectionQualityStats`.
+ * Ground truth is the human's final selection once reviewed; unreviewed items are bucketed by OMR's
+ * original call crossed with its per-option `flaggedOptions` uncertainty. Excludes `failed` items
+ * and items without an `original` snapshot (pure-manual entries).
  */
 export interface DetectionConfusionMatrix {
   totalOptionsEvaluated: number;
@@ -156,24 +139,12 @@ export interface McExerciseBreakdown {
 }
 
 export interface McVerificationStats {
-  /**
-   * Question-level counts — one per (submission, exercise) pair, exactly what
-   * the "Failed" / "Unsure" / "High confidence" queues below list and what
-   * `Verify Item` steps through. This is the number that answers "how many
-   * things do I still need to look at", so it must not scale with how many
-   * bubbles happen to be marked on any one question — a high-confidence
-   * 4-answer MC tick is exactly as "1 thing to check" as a blank one.
-   */
+    /** Question-level counts, one per (submission, exercise): what the queues list and `Verify Item` steps through. Must not scale with marked bubbles per question. */
   totalQuestions: number;
   highQuestions: number;
   ambiguousQuestions: number;
   failedQuestions: number;
-  /**
-   * Physically marked bubbles across the whole exam — informational total,
-   * shown alongside the question counts but never as the headline "needs
-   * review" number, since a routine, unambiguous multi-select answer
-   * inflates it without needing any verification at all.
-   */
+    /** Physically marked bubbles across the exam: informational only, never the headline "needs review" number. */
   totalMarkedBoxes: number;
   perExercise: McExerciseBreakdown[];
   items: McDetectionItem[];
@@ -188,19 +159,10 @@ export interface McVerificationStats {
 }
 
 /**
- * `items` lists one entry per (submission, MC/SC/TF exercise) pair — that's the
- * granularity the verification *queues* work at, since a human reviews a whole
- * question (and its scan crop) at once. An exam with 30 students × 5 MC
- * questions produces up to 150 items here, not 30 (submissions) or 1 (exam).
- *
- * `totalQuestions`/`highQuestions`/`ambiguousQuestions`/`failedQuestions` count
- * at this same item granularity — one per question, regardless of how many
- * bubbles were marked on it. `totalMarkedBoxes` (and each exercise's
- * `markedBoxes`) is the other axis: a sum of `markedCount`, one per
- * physically-marked bubble. Do not conflate the two — swapping the headline
- * "needs review" numbers to box counts is what made them scale with
- * marks-per-question independent of confidence, which is the bug these two
- * separate sets of fields exist to prevent regressing into.
+ * `items` has one entry per (submission, MC/SC/TF exercise) pair, the granularity of the verification
+ * queues. `*Questions` counts use that granularity; `totalMarkedBoxes` (and `markedBoxes`) sum
+ * `markedCount` per marked bubble. Don't conflate them: box counts as headline numbers scaled with
+ * marks per question regardless of confidence.
  */
 export async function computeMcVerificationStats(
   examId: string,
@@ -260,12 +222,9 @@ export async function computeMcVerificationStats(
     const rawScores = scoresBySubmission.get(sub.id) ?? [];
     const label = await labelFor(sub);
 
-    // Defensive: there should be at most one score row per (submission, exercise),
-    // but nothing enforces that at the storage layer (ingestion `put()`s a fresh
-    // id every time). If a submission was ever re-ingested, stale duplicate rows
-    // would otherwise be counted as separate questions/boxes here, inflating
-    // every total. Keep the last one per exercise, preferring a manual
-    // correction over a raw OMR read if both exist.
+        // Defensive: storage doesn't enforce one score row per (submission, exercise) and a re-ingest
+        // can leave stale duplicates that would inflate totals. Keep the last per exercise,
+        // preferring a manual correction over a raw OMR read.
     const scoreByExercise = new Map<string, (typeof rawScores)[number]>();
     for (const sc of rawScores) {
       const existing = scoreByExercise.get(sc.exerciseId);
@@ -450,12 +409,7 @@ export function summarizeDetectionRuns(items: McDetectionItem[]): McDetectionRun
   return legacy ? [...runs, legacy] : runs;
 }
 
-/**
- * Classifies every OMR-evaluated OPTION (not question) into the confusion
- * matrix described on `DetectionConfusionMatrix`. Kept as its own pass over
- * `items`, since it groups by option index within each item rather than by
- * item itself.
- */
+/** Classifies every OMR-evaluated OPTION into the confusion matrix of `DetectionConfusionMatrix`, in its own pass grouped by option index. */
 function buildConfusionMatrix(
   items: McDetectionItem[],
   exerciseById: Map<string, ExerciseRecord>
@@ -528,12 +482,9 @@ function optionsEqual(a: number[], b: number[]): boolean {
 }
 
 /**
- * Number of physically marked bubbles a single (submission, exercise) score
- * represents. A failed alignment always counts as 1 — there are no readable
- * bubbles, but the region still needs a human to look at it — everything else
- * is the count of distinct options either selected or flagged as uncertain
- * (a bubble can be flagged without being counted as selected, e.g. a faint
- * mark the algorithm chose not to score but still wants a human to confirm).
+ * Physically marked bubbles of one (submission, exercise) score: 1 for a failed alignment (region
+ * still needs a human), else distinct options selected or flagged uncertain (a faint mark may be
+ * flagged without being counted as selected).
  */
 function detectionMarkedCount(
   confidence: "high" | "ambiguous" | "failed",

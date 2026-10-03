@@ -16,11 +16,7 @@ export interface McCropOptions {
   paddingTop?: number;
   paddingBottom?: number;
   neighbourRects?: Array<[number, number, number, number]>;
-  /**
-   * Draws the same red/amber bubble-box + checkmark/missing-symbol overlay used on the
-   * grading canvas (`omrOverlay.ts`) onto the page before cropping, so what the crop shows
-   * matches what a grader sees in the canvas workspace exactly.
-   */
+    /** Draws the grading-canvas bubble-box overlay (`omrOverlay.ts`) before cropping so the crop matches the grader's view. */
   overlay?: {
     exercise: ExerciseRecord;
     omrMeta: OmrScoreMeta;
@@ -34,20 +30,15 @@ export interface McCropLayers {
   marked: string;
 }
 
-/**
- * Renders one page of a decrypted scan PDF onto a fresh canvas at `scale` and frees pdf.js'
- * copy of the document afterwards. Shared by the verification crop and the training-sample crop.
- */
+/** Renders one page of a decrypted scan PDF onto a fresh canvas at `scale`, then frees pdf.js' document copy. Shared by the verification and training-sample crops. */
 export async function renderScanPage(
   pdfBytes: Uint8Array,
   pageIndex: number,
   scale: number
 ): Promise<HTMLCanvasElement> {
   const pdfjsLib = await loadPdfjs();
-  // pdf.js transfers the underlying ArrayBuffer to its worker via postMessage,
-  // detaching it on the caller's side. Callers share (and reuse) `pdfBytes`
-  // across re-renders, so hand pdf.js a throwaway copy — otherwise the second
-  // call with the same buffer throws "ArrayBuffer is detached" (DataCloneError).
+    // pdf.js transfers the ArrayBuffer to its worker (detaching it); callers reuse `pdfBytes`,
+    // so pass a copy or the second call throws "ArrayBuffer is detached".
   const loadingTask = pdfjsLib.getDocument({ data: pdfBytes.slice() });
   const pdfDoc = await loadingTask.promise;
   try {
@@ -67,9 +58,8 @@ export async function renderScanPage(
 }
 
 /**
- * Renders a cropped high-DPI image of an MC exercise bubble region from a submission scan PDF,
- * once without and once with the overlay (same page render, identical geometry), so a viewer
- * can toggle the markings without re-rendering. Returns PNG data URLs.
+ * Renders a cropped high-DPI image of an MC bubble region, with and without the overlay (same
+ * page render), so a viewer can toggle markings. Returns PNG data URLs.
  */
 export async function renderMcCrop(options: McCropOptions): Promise<McCropLayers> {
   const {

@@ -1,13 +1,9 @@
 /**
- * Builds anonymous training samples (opt-in donation) from one teacher-verified MC question.
- *
- * A sample is a small grayscale crop of one answer box plus its redo zone, the teacher's final
- * decision as label, and the detector's own reading/features. It deliberately carries no exam,
- * submission, exercise, pupil or teacher identifier and no timestamp, and the crop is kept tight
- * (the printed option text starts ~2 mm right of the box and is left out). The only id is
- * `sample_token`: random per box, kept in the sealed score row, so a re-donation after a
- * corrected label replaces the earlier sample on the server instead of contradicting it.
- * Must match backend/app/schemas/training.py.
+ * Builds anonymous training samples (opt-in donation) from one teacher-verified MC question: a small
+ * grayscale crop of one box plus its redo zone, the teacher's label and the detector's reading. It
+ * deliberately carries no exam, submission, exercise, pupil or teacher id and no timestamp. The only id,
+ * `sample_token`, is random per box so a re-donation replaces the earlier sample. Must match
+ * backend/app/schemas/training.py.
  */
 import type { OmrScoreMeta } from '$lib/db/schema';
 import { renderScanPage } from './mcCropRender';

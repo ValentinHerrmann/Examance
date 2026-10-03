@@ -1,25 +1,15 @@
 import { derived, get, writable, type Readable } from 'svelte/store';
 import { effectiveBackendStore } from '$lib/stores/backendStore';
 
-/**
- * Build version of this frontend bundle, inlined by Vite (see vite.config.ts).
- * Production builds carry a bare semver ("1.4.0"); preview builds append the
- * PR number and build timestamp ("1.4.0-PR#123 [18.08.2026 | 14:32]"); local
- * dev is "0.0.0-dev".
- */
+/** Build version of this bundle, inlined by Vite (vite.config.ts): bare semver in production ("1.4.0"), "1.4.0-PR#123 [18.08.2026 | 14:32]" for previews, "0.0.0-dev" locally. */
 export const frontendVersion: string = __APP_VERSION__;
 
 /** GitHub repository this frontend is published from (see vite.config.ts). */
 export const repoUrl: string = __REPO_URL__;
 
 /**
- * Where the version tag in the footer and navbar badge should link to.
- *
- * A bare semver ("1.4.0") is a tagged release, so it links to the matching
- * GitHub Release. A preview build with PR format ("1.4.0-PR#123 [...]") links
- * to the PR. Other builds ("1.4.0-a1b2c3d" or local dev "0.0.0-dev") are not
- * tagged, so they link to the exact commit when known. Local dev builds carry
- * no commit SHA, so they get no link at all.
+ * Where the footer/navbar version tag links: bare semver -> matching GitHub Release; preview PR format
+ * -> the PR; other untagged builds ("1.4.0-a1b2c3d") -> the commit when known; local dev (no SHA) -> no link.
  */
 export function versionUrlFor(version: string, commitSha: string): string | null {
     if (!version.includes('-')) return `${repoUrl}/releases/tag/v${version}`;
@@ -54,11 +44,7 @@ export type VersionStatus =
 /** Version reported by the configured server, or null while unknown. */
 export const backendVersionStore = writable<string | null>(null);
 
-/**
- * Drops the trailing " [dd.MM.yyyy | HH:mm]" build stamp of a preview version.
- * deploy-preview.yml redeploys only the side that changed, so frontend and
- * backend of the same PR legitimately carry different build times.
- */
+/** Drops the " [dd.MM.yyyy | HH:mm]" build stamp of a preview version (deploy-preview.yml redeploys only the changed side, so one PR's frontend and backend legitimately differ in build time). */
 function withoutBuildTime(version: string): string {
     return version.replace(/\s*\[[^\]]*\]$/, '');
 }
@@ -69,10 +55,7 @@ function majorOf(version: string): number | null {
     return match ? Number(match[1]) : null;
 }
 
-/**
- * A differing major version means frontend and backend are incompatible; any
- * other difference means they are merely out of step.
- */
+/** A differing major version means frontend and backend are incompatible; any other difference is merely out of step. */
 export function compareVersions(
     frontend: string,
     backend: string | null,
@@ -95,10 +78,7 @@ export const versionStatus: Readable<VersionStatus> = derived(
         compareVersions(frontendVersion, $backendVersion, Boolean($backendUrl))
 );
 
-/**
- * URL for the display version (backend when available, else frontend).
- * Prefers backend because it's the authoritative version for compatibility.
- */
+/** URL for the display version: backend when available (authoritative for compatibility), else frontend. */
 export const displayVersionUrl: Readable<string | null> = derived(
     [backendVersionStore],
     ([$backendVersion]) => {
@@ -114,12 +94,8 @@ let inFlightOrigin = '';
 let latestProbe = 0;
 
 /**
- * Read the server's version from GET /api/health.
- *
- * Deliberately not routed through `$lib/api/client`: that client appends the
- * /api/v1 prefix, and health sits outside it. This is a passive status probe —
- * every failure collapses into the 'unknown' state and none of them surface as
- * a user-facing error.
+ * Read the server's version from GET /api/health. Deliberately bypasses `$lib/api/client` (it appends
+ * /api/v1; health sits outside). A passive probe: every failure collapses to 'unknown', none surface as user errors.
  */
 export function refreshBackendVersion(): Promise<void> {
     const origin = get(effectiveBackendStore);

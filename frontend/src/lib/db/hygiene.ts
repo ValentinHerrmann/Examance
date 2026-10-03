@@ -1,19 +1,9 @@
 /**
- * IDB hygiene — clear-on-close (best-effort) + session timeout.
- *
- * IMPORTANT SECURITY NOTE:
- * This module provides a BEST-EFFORT UX courtesy — it is NOT a security guarantee.
- *
- * The beforeunload/visibilitychange wipe is NOT reliably fired on:
- *   - Browser crashes or process kills
- *   - Mobile tab discards
- *   - OS-level force-quits
- *
- * If the wipe fails, the encrypted-at-rest blobs in IDB remain safe because:
- *   - A new session CANNOT derive the key without the teacher's password.
- *   - All sensitive fields (piiCt, scanCt) are encrypted before every IDB write.
- *
- * Encryption-at-rest is the PRIMARY protection. This wipe is a secondary UX layer.
+ * IDB hygiene: clear-on-close (best-effort) + session timeout. SECURITY: a UX courtesy, NOT a guarantee;
+ * the beforeunload/visibilitychange wipe doesn't reliably fire on crashes, process kills, mobile tab
+ * discards or force-quits. If it fails the blobs stay safe: a new session can't derive the key without
+ * the password and sensitive fields (piiCt, scanCt) are encrypted before every write. Encryption at
+ * rest is the PRIMARY protection.
  */
 
 import { clearAllTables } from './db';
@@ -23,11 +13,7 @@ import { get, writable } from 'svelte/store';
 
 import { api } from '$lib/api/client';
 
-/**
- * Drops the in-memory compiled-PDF cache. Imported dynamically on purpose —
- * a static import would pull the compiler worker asset into the root-layout
- * chunk on every route just to empty a Map.
- */
+/** Drops the in-memory compiled-PDF cache. Imported dynamically so the root-layout chunk doesn't pull in the compiler worker asset. */
 async function clearCompileCache(): Promise<void> {
   const { clearCompileCache: clear } = await import('$lib/latex/compileCache');
   clear();

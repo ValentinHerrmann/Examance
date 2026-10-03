@@ -1,17 +1,13 @@
 /**
  * Create the contents of an imported .bgproj archive on the server.
  *
- * Import must work for anyone holding the archive password, regardless of which
- * account exported it. That rules out the normal `examRepository.save()` path:
- * it PATCHes when the record carries an id, and the backend answers 401 (not
- * 404) for an exam owned by somebody else, so its create-fallback never fires.
- * Everything here is therefore created explicitly with POST.
+ * Import must work for anyone with the archive password, whichever account exported it, so the
+ * `examRepository.save()` path is out: it PATCHes when a record has an id, and the backend answers
+ * 401 (not 404) for another account's exam, so its create-fallback never fires. Everything is POSTed.
  *
- * Archived UUIDs are reused so cross-references survive, but ids are globally
- * unique on the backend — an archive exported from another account on the *same*
- * server carries ids that are already taken. Those come back as 409, and the
- * record is retried once under a fresh UUID; `idMap` records the substitution so
- * links, submissions and scores can be rewritten to match.
+ * Archived UUIDs are reused so references survive, but ids are globally unique: an archive from
+ * another account on the same server may carry taken ids. Those 409, get one retry under a fresh
+ * UUID, and `idMap` records the substitution so links, submissions and scores follow.
  */
 
 import { api } from '$lib/api/client';
@@ -38,10 +34,7 @@ function describeError(err: any): string {
   return `${status} — ${detail}`;
 }
 
-/**
- * POST `body` to `path`, retrying once under a fresh UUID if the id is taken.
- * Returns the full created record, or null if it failed.
- */
+/** POST `body` to `path`, retrying once under a fresh UUID if the id is taken. Returns the created record or null. */
 async function createWithIdFallback(
   path: string,
   body: any
@@ -80,14 +73,10 @@ export async function importPayloadToServer(payload: any): Promise<ServerImportR
     ? payload.exerciseResources
     : [];
 
-  // 1. Exercises first — exams link to them by id.
-  //
-  // The archived exercise_group_id belongs to the exporting account, and
-  // create_exercise rejects a group the caller does not own with a 404. So the
-  // group is re-created here instead: the first member of each archived group is
-  // sent without one (the backend mints a fresh group), and the id it returns is
-  // reused for that group's remaining members. Variant/version grouping survives
-  // under ids the importing account owns.
+    // 1. Exercises first (exams link to them by id). The archived exercise_group_id belongs to the
+    // exporting account and create_exercise 404s on a group the caller doesn't own, so groups are
+    // re-created: the first member of each group is sent without one (backend mints it) and the
+    // returned id is reused for the rest. Variant/version grouping survives under owned ids.
   const groupIdMap = new Map<string, string>();
 
   for (const ex of exercises) {
@@ -133,12 +122,9 @@ export async function importPayloadToServer(payload: any): Promise<ServerImportR
     }
   }
 
-  // 2. Exams, carrying their exercise links and MC groups inline — POST /exams
-  // persists all three in one request.
-  //
-  // MC group ids are minted fresh for every import: they're client-chosen and
-  // carry no meaning beyond linking members, so re-using an archived one risks
-  // a 409 collision on re-import. Members follow through this map.
+    // 2. Exams with exercise links and MC groups inline (POST /exams persists all three).
+    // MC group ids are client-chosen and meaningless beyond linking, so they're re-minted per
+    // import to avoid 409s on re-import; members follow through this map.
   const mcGroupIdMap = new Map<string, string>();
   for (const group of mcGroups) {
     mcGroupIdMap.set(group.id, crypto.randomUUID());

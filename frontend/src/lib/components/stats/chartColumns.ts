@@ -1,19 +1,12 @@
 /**
- * Column data for the stats charts. `ColumnChart` draws layers of these on a
- * shared domain; the builders below turn grade buckets and percentage bins
- * into columns, so the three charts differ only in which layers they stack.
- * Every chart reads best on the left, worst on the right: grade columns are
- * already best-first, and the percentage builders (`binColumns`,
- * `gradeBands`) mirror the 0–100 % axis so 100 % lands on the left too.
+ * Column data for the stats charts: `ColumnChart` draws layers of these on a shared domain.
+ * Every chart reads best-left: grade columns are already best-first, and percentage builders
+ * (`binColumns`, `gradeBands`) mirror the 0-100 % axis so 100 % is on the left.
  */
 import { gradeColorVar, type BorderlineCase, type GradeDistributionBucket } from '$lib/analytics/gradingKey';
 import type { PercentageHistogramBin } from '$lib/analytics/stats';
 
-/**
- * One run of caption text. `dynamic` marks values that change while grading
- * continues (counts, shares); the chart colours them apart from static
- * labels (grades, grade names, percentage ranges).
- */
+/** One run of caption text; `dynamic` values (counts, shares) change while grading continues and are coloured apart from static labels. */
 export interface CaptionPart {
   text: string;
   dynamic?: boolean;
@@ -51,11 +44,7 @@ export interface ChartLayer {
   labels: 'axis' | 'none';
   /** Draw `value` above each non-empty bar. */
   values: boolean;
-  /**
-   * Draw columns as wide translucent bars, meant to sit behind a narrower
-   * layer — the merged chart's grades. Their caption (`valueOptions`) goes
-   * above each bar, even for a count of zero.
-   */
+  /** Draw as wide translucent bars behind a narrower layer (merged chart's grades); the caption goes above each bar, even at zero. */
   band?: boolean;
 }
 
@@ -85,9 +74,8 @@ export interface ChartCurve {
 }
 
 /**
- * The normal distribution with the class's mean and standard deviation, scaled to the
- * histogram: expected students per bin = count × bin width × density. On the merged chart's
- * mirrored axis (x = 100 − percentage). Empty when there is no spread.
+ * Normal distribution with the class mean/stddev scaled to the histogram (students per bin =
+ * count × bin width × density), on the mirrored axis (x = 100 − percentage). Empty without spread.
  */
 export function normalCurve(mean: number, sd: number, count: number, binWidth: number): [number, number][] {
   if (!(sd > 0) || count === 0) return [];
@@ -110,10 +98,8 @@ function countWithShare(count: number, total: number, percent: Percent): string 
 }
 
 /**
- * The percentage range each grade covers, as `[lo, hi]`. `buckets` is
- * best-first; a grade's high end is the low end of the grade before it
- * (100 % for the best grade), and the worst grade always reaches down to 0 %
- * (everything below the lowest cutoff grades as the worst row).
+ * Percentage range `[lo, hi]` each grade covers. `buckets` is best-first; a grade's high end is
+ * the previous grade's low end (100 % for the best) and the worst grade reaches down to 0 %.
  */
 function gradeRanges(buckets: GradeDistributionBucket[]): [number, number][] {
   const clamp = (v: number) => Math.min(100, Math.max(0, v));
@@ -154,12 +140,8 @@ export function gradeColumns(
 }
 
 /**
- * Each grade as a band over the percentage range it covers — the merged
- * chart's backdrop, mirrored onto the same 100→0 axis as `binColumns`.
- * The caption above each bar matches the grade chart — "2 Gut · 4 (67 %)",
- * with the grade static and the count dynamic, shortened step by step where
- * the bar is narrow — and is shown for empty grades too, so a zero reads as
- * zero rather than as missing data.
+ * Each grade as a band over its percentage range: the merged chart's backdrop, mirrored onto the
+ * 100→0 axis. Captions match the grade chart and show for empty grades too, so zero reads as zero.
  */
 export function gradeBands(
   buckets: GradeDistributionBucket[],
@@ -192,11 +174,7 @@ export function gradeBands(
     .filter((c) => c.to > c.from);
 }
 
-/**
- * Percentage histogram bins, mirrored so 100 % is on the left like every
- * other chart. `bins` arrives ascending (0 → 100); the returned array is the
- * reverse, left-to-right, and the input is never mutated.
- */
+/** Percentage histogram bins mirrored so 100 % is on the left; `bins` arrives ascending and is not mutated. */
 export function binColumns(bins: PercentageHistogramBin[], num: NumberFormat): ChartColumn[] {
   return bins
     .map((b) => ({

@@ -1,16 +1,8 @@
 /**
- * Functional regression suite for the Examance frontend.
- *
- * Written against the UI as it was before the design overhaul and meant to
- * stay green through it with changes to `helpers/nav.ts` only. The tests assert
- * behaviour and data (what is created, what survives a reload, what a dialog
- * does), never layout, classes or visuals. Texts come from the i18n catalogs
- * via `helpers/i18n.ts`; shell navigation goes through `helpers/nav.ts`.
- *
- * Titles are tagged by area so a later run can select one: `-g "\[exam\]"`.
- *
- * The app runs in all-local storage mode with no backend. LaTeX compilation is
- * never awaited and no PDF is ever asserted on.
+ * Functional regression suite: asserts behaviour and data, never layout, classes or visuals,
+ * so it survives UI redesigns with changes to `helpers/nav.ts` only. Texts come from the
+ * i18n catalogs via `helpers/i18n.ts`. Titles are tagged by area (`-g "\[exam\]"`).
+ * Runs in all-local mode with no backend; LaTeX compilation is never awaited or asserted.
  */
 import { test, expect } from './helpers/guards';
 import { label, labelExact, literal, rawTemplate, stem } from './helpers/i18n';

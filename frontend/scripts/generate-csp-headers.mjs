@@ -1,39 +1,10 @@
 #!/usr/bin/env node
 /**
- * generate-csp-headers.mjs
- *
- * Rewrites the `__INLINE_SCRIPT_HASHES__` placeholder in `build/_headers` with
- * the SHA-256 hashes of every inline <script> that actually ended up in the
- * built HTML.
- *
- * WHY THIS EXISTS
- * ---------------
- * SvelteKit injects a small inline bootstrap script into every prerendered
- * page. That script hard-codes the content-hashed filenames of the entry
- * chunks, e.g.
- *
- *     import("/_app/immutable/entry/start.icd6SvG-.js"),
- *     import("/_app/immutable/entry/app.D5rWE36V.js")
- *
- * Those filenames change whenever the bundled code changes — which includes
- * changes we do not control: a patch-level Vite/Rollup bump, a transitive
- * dependency update, a different Node version in the Cloudflare Pages build
- * image. So the SHA-256 of the inline script is NOT stable across builds, and
- * a hash checked into `static/_headers` by hand is guaranteed to go stale.
- * When it does, the CSP blocks the bootstrap script and the deployed app
- * renders a blank page while working perfectly in local dev (where Vite serves
- * modules without our production headers).
- *
- * Deriving the hash from the build output removes the manual step entirely.
- *
- * FAIL-CLOSED BY DESIGN
- * ---------------------
- * If this script never runs, the placeholder stays in `_headers`. Browsers
- * ignore the unrecognised source expression, the inline script stays blocked,
- * and the app breaks loudly instead of silently shipping a weaker policy.
- * That is deliberate: a broken deploy is preferable to one that quietly
- * allows arbitrary inline script.
- *
+ * Rewrites the `__INLINE_SCRIPT_HASHES__` placeholder in `build/_headers` with the SHA-256
+ * of every inline <script> in the built HTML. SvelteKit's bootstrap script embeds hashed chunk
+ * filenames, so its hash changes with any bundle change and a hand-written one goes stale
+ * (blank deployed app, fine in dev). Fail-closed: if this never runs, the placeholder stays,
+ * the script stays blocked and the app breaks loudly instead of shipping a weaker policy.
  * Usage: node scripts/generate-csp-headers.mjs [buildDir]
  */
 

@@ -1,12 +1,7 @@
 /**
- * IndexedDB Record Encryption & Decryption Helpers.
- *
- * Ensures that all records written to Dexie IndexedDB have their sensitive payload
- * (including LaTeX templates, exercise text, answer keys, scores, and fallback codes)
- * encrypted with AES-256-GCM using the active in-memory sessionKey.
- *
- * When the session is locked or logged out (sessionKey is null), DevTools inspection
- * of IndexedDB reveals ONLY encrypted binary blobs (Uint8Array ciphertexts).
+ * IndexedDB record encryption/decryption helpers. Every sensitive payload (LaTeX templates, exercise
+ * text, answer keys, scores, fallback codes) is AES-256-GCM encrypted with the in-memory sessionKey, so
+ * with the session locked DevTools shows only ciphertext blobs.
  */
 
 import { encrypt, decrypt } from '$lib/crypto/aesGcm';
@@ -77,12 +72,9 @@ export async function decryptResourceBytes(
 
 // ---------------------------------------------------------------------------
 // Record codecs
-//
-// Every record type is split the same way: plain index/link columns stay
-// readable (Dexie queries them), everything in `sealed` goes into one
-// AES-256-GCM `payloadCt`. Both lists are explicit whitelists — a field that is
-// in neither is dropped on write, so a caller spreading extra data onto a
-// record can never leak it into IndexedDB in plaintext.
+// Plain index/link columns stay readable (Dexie queries them); everything in `sealed` goes into one
+// AES-256-GCM `payloadCt`. Both lists are whitelists: a field in neither is dropped on write, so
+// spreading extra data onto a record can never leak it into IndexedDB in plaintext.
 // ---------------------------------------------------------------------------
 
 interface RecordCodec<T> {
@@ -206,11 +198,9 @@ export const decryptAuditEntry = (r: AuditEntry, k: Key) => openRecord(r, k, AUD
 
 // ---------------------------------------------------------------------------
 // OmrTemplateRecord
+// One per exam (id === examId), bubble/fiducial rects from a blank compile (pdfjs getAnnotations()).
+// Follows the ScoreRecord pattern above (direct db.* access, no repository).
 // ---------------------------------------------------------------------------
-// One per exam (id === examId). Holds bubble/fiducial rects extracted from a
-// blank compile via pdfjs getAnnotations() -- follows the ScoreRecord pattern
-// above (direct db.* access, no repository) since there's just one record per
-// exam and no cross-record queries beyond examId lookup.
 
 export async function encryptOmrTemplate(
   tpl: OmrTemplateRecord,

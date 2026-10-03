@@ -1,14 +1,7 @@
 /**
- * Rules for teacher-uploaded LaTeX resource files.
- *
- * A resource is any file an exercise references from its LaTeX source —
- * `\includegraphics{figure.png}`, `\input{data.tex}`, a CSV for pgfplots, a
- * font. Resources are placed *flat* next to `main.tex` in the compile working
- * directory, so the filename in the source is the filename on disk, in both
- * engines.
- *
- * These rules are mirrored by `backend/app/services/latex_resources.py`: a file
- * the browser accepts is a file the server accepts.
+ * Rules for teacher-uploaded LaTeX resource files (images, `\input` data, CSVs, fonts). They are
+ * placed flat next to `main.tex`, so the source's filename is the filename on disk in both engines.
+ * Mirrored by `backend/app/services/latex_resources.py`: what the browser accepts the server accepts.
  */
 
 /** Hard cap for a single file. */
@@ -43,10 +36,9 @@ export interface LatexResourceFile {
 export class ResourceError extends Error {}
 
 /**
- * Names a user file must not take: `main.tex` and friends, plus every bundled
- * LaTeX asset. The worker flattens `sty/x.sty` to `x.sty`, so basenames count
- * too. Loaded from the generated asset index; the fetch is cached and failure
- * degrades to the static base list rather than blocking an upload.
+ * Names a user file must not take: `main.tex` and friends plus every bundled LaTeX asset (basenames
+ * too, since the worker flattens `sty/x.sty`). Loaded from the generated asset index, cached;
+ * failure degrades to the static base list rather than blocking an upload.
  */
 const BASE_RESERVED_NAMES = ['main.tex', 'main.log', 'main.aux', 'main.pdf', 'index.json'];
 let reservedNamesCache: Set<string> | null = null;
@@ -124,11 +116,8 @@ export async function validateResource(file: File, usedBytes = 0): Promise<strin
 }
 
 /**
- * Flatten resources from several exercises into the map the compiler gets.
- *
- * Two exercises may both own `figure.png`. Identical bytes are written once;
- * different bytes are a real conflict the teacher has to resolve by renaming,
- * because the filename is what the LaTeX source says.
+ * Flattens resources from several exercises into the compiler's map. Identical bytes under one name
+ * are written once; different bytes are a conflict the teacher must resolve by renaming.
  */
 export function mergeResources(files: LatexResourceFile[]): LatexResourceFile[] {
   const merged = new Map<string, LatexResourceFile>();

@@ -1,18 +1,9 @@
 /**
- * Shared Playwright fixtures for the Examance e2e suite.
- *
- * Every spec imports `test` and `expect` from here instead of from
- * `@playwright/test`. On top of the stock fixtures this provides:
- *
- *  - a pinned UI locale (`bg_locale` in localStorage, English unless a test
- *    sets the `appLocale` option), applied through a context init script that
- *    never overwrites a language the app itself saved, so a locale choice
- *    survives `page.reload()`;
- *  - an automatic guard that FAILS the test on any uncaught page error or
- *    `console.error`, apart from a small, justified allowlist;
- *  - a `dialogs` recorder that answers the native `alert` / `confirm` /
- *    `prompt` dialogs the archive import / export / clear flows use
- *    (`lib/services/archiveService.ts`) and lets a test assert on them.
+ * Shared Playwright fixtures: import `test` and `expect` from here, not `@playwright/test`.
+ * Adds a pinned UI locale (`bg_locale`, English unless `appLocale` is set; never overwrites a
+ * language the app saved, so it survives reload), a guard failing on uncaught page errors or
+ * `console.error` outside a justified allowlist, and a `dialogs` recorder for the native
+ * dialogs of the archive flows (`lib/services/archiveService.ts`).
  */
 import { test as base, expect, type Dialog, type Page } from '@playwright/test';
 import { DEFAULT_LOCALE, type Locale } from './i18n';
@@ -21,9 +12,8 @@ import { DEFAULT_LOCALE, type Locale } from './i18n';
 const LOCALE_STORAGE_KEY = 'bg_locale';
 
 /**
- * Console errors that are expected noise in all-local mode without a backend.
- * Keep this list minimal: every entry must say why it is harmless. An error
- * that is not listed here is a real finding and fails the test.
+ * Console errors that are expected noise in all-local mode without a backend. Keep minimal:
+ * every entry must say why it is harmless; anything else is a real finding.
  */
 interface AllowedConsoleError {
   /** Matched against the console message text. */
@@ -34,28 +24,20 @@ interface AllowedConsoleError {
   why: string;
 }
 
-/**
- * The default backend in a dev build is http://localhost:8000
- * (`lib/stores/backendStore.ts`); nothing listens there in this suite.
- */
+/** Default dev backend (`lib/stores/backendStore.ts`); nothing listens there in this suite. */
 const ABSENT_BACKEND = /^https?:\/\/localhost:8000\/api\//;
 
 export const ALLOWED_CONSOLE_ERRORS: AllowedConsoleError[] = [
   {
-    // `refreshBackendVersion()` (lib/stores/versionStore.ts) probes
-    // GET /api/health on boot, after unlock and whenever the backend address
-    // changes. All-local mode is explicitly supported without a server, so the
-    // refused connection is the normal state, and the browser itself reports a
-    // failed fetch as a console error.
+    // `refreshBackendVersion()` probes GET /api/health on boot; all-local mode runs without
+    // a server, so the refused connection is normal (the browser logs it as a console error).
     message: /Failed to load resource: net::ERR_CONNECTION_REFUSED/,
     url: ABSENT_BACKEND,
     why: 'version probe / best-effort logout against the absent default backend',
   },
   {
-    // A developer backend may be running on the default port; in all-local mode
-    // the security settings page probes /mfa/status, /webauthn/credentials and
-    // /auth/refresh to detect the backend and gets 401 without a session
-    // (pre-existing behaviour, not a UI defect).
+    // A dev backend may run on the default port; the security settings page probes it and
+    // gets 401 without a session (expected, not a UI defect).
     message: /Failed to load resource: the server responded with a status of 401/,
     url: /^https?:\/\/localhost:8000\/api\/v1\/(mfa\/status|webauthn\/credentials|auth\/refresh)$/,
     why: 'security settings page probes absent default backend',
@@ -69,12 +51,8 @@ export interface RecordedDialog {
 }
 
 /**
- * Answers every native dialog and remembers it.
- *
- * Playwright auto-dismisses dialogs when nobody listens, which would cancel the
- * archive password prompt and silently abort the export/import. This recorder
- * accepts instead: `prompt` gets {@link promptAnswer}, `confirm` gets
- * {@link confirmAnswer}, `alert` is simply acknowledged.
+ * Answers every native dialog and remembers it. Playwright auto-dismisses unheard dialogs,
+ * which would silently abort the archive export/import password prompt.
  */
 export class DialogRecorder {
   readonly seen: RecordedDialog[] = [];

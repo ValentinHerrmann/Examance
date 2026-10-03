@@ -1,24 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Playwright configuration for the Examance frontend regression suite.
- *
- * The suite runs against the Vite dev server in all-local storage mode with no
- * backend. `npm run dev` is deliberately NOT used as the web server command:
- * its `predev` hook downloads the LaTeX/WASM assets, which are already present
- * in a working checkout and would make every test run depend on the network.
- *
- * Run one device project:   npx playwright test --project=desktop
- * Run one feature area:     npx playwright test -g "\[exercises\]"
+ * Playwright config for the regression suite: Vite dev server, all-local mode, no backend.
+ * `npm run dev` is NOT the web server command because its `predev` hook downloads the
+ * LaTeX/WASM assets, making runs depend on the network.
+ * Run one project: `--project=desktop`; one area: `-g "\[exercises\]"`.
  */
 const PORT = 4173;
 const BASE_URL = `http://localhost:${PORT}`;
 
-/**
- * `screens.spec.ts` only produces screenshots for a manual visual review. It is
- * tagged `@screens` and skipped unless the command line asks for it:
- *   npx playwright test --grep @screens
- */
+/** `screens.spec.ts` only makes screenshots for manual review; skipped unless `--grep @screens`. */
 const wantsScreens = process.argv.some((arg) => arg.includes('@screens'));
 
 /** Specs that run on every device project (the functional suite stays on the first three). */
@@ -47,10 +38,8 @@ export default defineConfig({
   timeout: 120_000,
   expect: { timeout: 20_000 },
 
-  // One worker, tests in file order. Each test already gets a fresh browser
-  // context (empty IndexedDB / localStorage), so parallelism would be safe from
-  // a data point of view; it is off because the dev server and the Argon2 work
-  // are CPU-bound and parallel runs made timing-sensitive steps flaky.
+  // One worker, in file order: the dev server and Argon2 are CPU-bound, and parallel runs
+  // made timing-sensitive steps flaky (contexts are already isolated).
   fullyParallel: false,
   workers: 1,
   // Flakiness is a bug to fix in the test or helper, never to hide with retries.

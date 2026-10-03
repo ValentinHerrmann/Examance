@@ -1,19 +1,8 @@
 /**
- * Catalog-driven text matching for the e2e suite.
- *
- * Specs never hard-code UI strings that exist in the i18n catalogs. They ask
- * for a catalog key and get back a text or a RegExp that is:
- *
- *  - taken from the real catalog (`src/lib/i18n/{en,de}`), so a reworded label
- *    changes tests and app together;
- *  - stripped of emoji and decorative glyphs (arrows, check marks, `+`, list
- *    numbering, the required-field `*`), because those are exactly the parts of
- *    a label that a visual redesign turns into icons;
- *  - matched as a case-insensitive SUBSTRING, never as an exact accessible name.
- *
- * `{placeholders}` in a template are substituted from `vars` when supplied and
- * otherwise become a wildcard, so `label('exam.nav.tabs.scan')` matches
- * "2. Scan Ingestion (0)" as well as "Scan Ingestion (12)".
+ * Catalog-driven text matching: specs ask for a catalog key (`src/lib/i18n/{en,de}`) and get
+ * a case-insensitive SUBSTRING RegExp, so rewording changes tests and app together. Emoji and
+ * decorative glyphs (arrows, `+`, numbering, required `*`) are stripped because redesigns turn
+ * them into icons. `{placeholders}` use `vars` or become wildcards.
  */
 import { de } from '../../src/lib/i18n/de';
 import { en } from '../../src/lib/i18n/en';
@@ -104,10 +93,9 @@ export function label(key: string, vars?: Vars, locale: Locale = DEFAULT_LOCALE)
 }
 
 /**
- * Like `label` but anchored: the whole accessible name must be the label, give
- * or take non-word characters at either end (icons, emoji, `*`, `:`), and
- * case-insensitive. Use it only where a bare substring is ambiguous, e.g.
- * "Delete" vs "Delete Submissions".
+ * Like `label` but anchored: the whole accessible name must match, ignoring non-word edge
+ * characters (icons, `*`, `:`). Use where a substring is ambiguous, e.g. "Delete" vs
+ * "Delete Submissions".
  */
 export function labelExact(key: string, vars?: Vars, locale: Locale = DEFAULT_LOCALE): RegExp {
   const cleaned = stripDecoration(substitute(rawTemplate(key, locale), vars));

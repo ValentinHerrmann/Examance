@@ -11,13 +11,9 @@ export interface QuickInsertResult {
 }
 
 /**
- * Computes the document change + resulting selection for inserting a macro
- * at [from,to) (the current CodeMirror selection). If selectedText is
- * non-empty it is wrapped into the macro's selectionArgIndex argument
- * (default 0); remaining arguments (and all arguments, if nothing was
- * selected) are filled with placeholder text. The returned selection spans
- * the next placeholder still left to fill, so the user can type-to-replace
- * it immediately.
+ * Document change and selection for inserting a macro at [from,to). Selected text wraps into the
+ * `selectionArgIndex` argument (default 0); other arguments get placeholders, and the returned
+ * selection spans the next placeholder to fill.
  */
 export function computeQuickInsert(
   macro: QuickInsertMacro,

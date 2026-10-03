@@ -1,20 +1,14 @@
 /**
- * Key envelope — the wrapped copies of the data-encryption key.
+ * Key envelope: the wrapped copies of the data-encryption key (DEK).
  *
- * The DEK used to be *derived* from the login password, which meant a password
- * reset produced a different key and silently orphaned every vault: the AES-GCM
- * opens failed, the decryptors in `lib/db/dbEncryption.ts` swallow that failure
- * and return the record without its plaintext, and the teacher saw blank titles
- * and blank student names rather than an error.
+ * The DEK is random and independent of any password. (When it was derived from the password, a reset
+ * changed the key and silently orphaned every vault: decryptors in `lib/db/dbEncryption.ts` swallow
+ * GCM failures, so teachers saw blank titles/names instead of an error.) Each recovering factor
+ * (password, printable recovery code, PRF-capable passkey) derives a KEK in this browser and wraps its
+ * own copy; a password change re-wraps the same DEK, nothing is re-encrypted.
  *
- * The DEK is now random and independent of any password. Each factor that may
- * recover it — the password, a printable recovery code, a PRF-capable passkey —
- * derives a key-encryption key (KEK) in this browser and wraps its own copy.
- * Changing a password re-wraps the same DEK; nothing is ever re-encrypted.
- *
- * What the server stores is ciphertext, a public salt and public KDF parameters.
- * It never sees a password, a recovery code or a PRF output, so it cannot unwrap
- * anything it holds.
+ * The server stores only ciphertext, a public salt and public KDF params; it never sees a password,
+ * recovery code or PRF output, so it cannot unwrap anything.
  */
 
 import { decrypt, fromBase64url, toArrayBuffer, toBase64url } from './aesGcm';
@@ -29,13 +23,9 @@ export const KEK_KDF_PARAMS = { t: 3, m: 65536, p: 4 } as const;
 export type EnvelopeKind = 'password' | 'recovery' | 'passkey';
 
 /**
- * What a wrap actually protects.
- *
- * Not just the DEK: `decrypt()` walks primary -> fallback -> legacy, so a real
- * vault can hold records that only open under the superseded PBKDF2 keys. The
- * moment an account is migrated is the only moment all three exist together, so
- * all three are captured here. Wrapping the DEK alone would strand those records
- * the first time the teacher signs in without their password.
+ * What a wrap protects: not just the DEK. `decrypt()` walks primary -> fallback -> legacy, so records
+ * may open only under superseded PBKDF2 keys. Migration is the only moment all three exist together,
+ * so all are captured; wrapping the DEK alone would strand those records at the first passwordless sign-in.
  */
 export interface KeyBundle {
   v: number;
@@ -87,18 +77,12 @@ export function generateKeyId(): Uint8Array {
   return randomBytes(16);
 }
 
-/**
- * Crockford base32 without I, L, O and U — the characters people misread when
- * copying a code off paper, which is the only way this one is ever transported.
- */
+/** Crockford base32 minus I, L, O, U (characters misread when copying a code off paper, its only transport). */
 const RECOVERY_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 const RECOVERY_GROUPS = 8;
 const RECOVERY_GROUP_LEN = 5;
 
-/**
- * Generate a recovery code carrying ~198 bits of entropy, grouped for reading
- * aloud. Shown once, never stored, and the only factor that always works.
- */
+/** Generate a recovery code with ~198 bits of entropy, grouped for reading aloud. Shown once, never stored; the only factor that always works. */
 export function generateRecoveryCode(): string {
   const groups: string[] = [];
   for (let g = 0; g < RECOVERY_GROUPS; g++) {
@@ -112,10 +96,7 @@ export function generateRecoveryCode(): string {
   return groups.join('-');
 }
 
-/**
- * Normalize a typed recovery code: strip separators, uppercase, and map the
- * characters the alphabet deliberately excludes onto what the writer meant.
- */
+/** Normalize a typed recovery code: strip separators, uppercase, map the alphabet's excluded characters to what was meant. */
 export function normalizeRecoveryCode(input: string): string {
   return input
     .toUpperCase()
@@ -144,11 +125,8 @@ async function hkdfKek(material: Uint8Array, salt: Uint8Array, kind: EnvelopeKin
 }
 
 /**
- * Derive the key-encryption key for a password or recovery-code factor.
- *
- * Argon2id over a *random* per-factor salt. The old scheme derived from
- * SHA-256("blindgrade-user-salt:" + email), which is public and identical for
- * every vault of a given address.
+ * Derive the KEK for a password or recovery-code factor: Argon2id over a *random* per-factor salt
+ * (the old scheme used SHA-256("blindgrade-user-salt:" + email), public and identical per address).
  */
 export async function deriveSecretKek(
   secret: string,
@@ -160,13 +138,9 @@ export async function deriveSecretKek(
 }
 
 /**
- * The same key-encryption key, but derived with PBKDF2.
- *
- * Only for *opening* wraps written while Argon2 was unavailable. `deriveKey`
- * used to substitute PBKDF2 on any Argon2 failure without recording that it had
- * — so a wrap can claim `argon2id` and be openable only by this. Nothing writes
- * such a wrap any more; this exists to get the accounts that already have one
- * back to their data.
+ * The same KEK derived with PBKDF2, only for *opening* wraps written while Argon2 was unavailable:
+ * `deriveKey` once substituted PBKDF2 on Argon2 failure without recording it, so a wrap can claim
+ * `argon2id` yet open only with this. Nothing writes such wraps now; this recovers existing accounts.
  */
 export async function deriveFallbackSecretKek(
   secret: string,
@@ -178,13 +152,9 @@ export async function deriveFallbackSecretKek(
 }
 
 /**
- * Open a wrap with whichever KDF actually made it.
- *
- * `envelope.kdf` cannot be trusted: the substitution that produced these wraps
- * left the label saying `argon2id` either way. So the recorded KDF is tried
- * first and the other one second, and the caller is told which won — a wrap that
- * only opened under the fallback is repaired rather than left to fail the next
- * time Argon2 loads (or does not).
+ * Open a wrap with whichever KDF actually made it. `envelope.kdf` can't be trusted (the substitution
+ * left the label `argon2id` either way), so the recorded KDF is tried first, then the other, and the
+ * caller learns which won: a wrap that opened only under the fallback gets repaired.
  */
 export async function unwrapWithSecret(
   secret: string,
@@ -214,12 +184,9 @@ export async function derivePrfKek(prfOutput: Uint8Array, salt: Uint8Array): Pro
 }
 
 /**
- * Additional authenticated data for a wrap.
- *
- * Binds the ciphertext to the account, the factor and the DEK generation, so a
- * wrap cannot be replayed under a different kind or against a different key
- * generation. It does not defend against a server that substitutes the whole
- * set — see `envelopeFingerprint`.
+ * AAD for a wrap: binds ciphertext to account, factor and DEK generation, so a wrap can't be
+ * replayed under another kind or key generation. Does not stop a server substituting the whole
+ * set; see `envelopeFingerprint`.
  */
 function wrapAad(teacherId: string, kind: EnvelopeKind, keyId: Uint8Array): Uint8Array {
   return encoder.encode(`${teacherId}|${kind}|${toBase64url(keyId)}|${ENVELOPE_VERSION}`);
@@ -279,11 +246,7 @@ export async function wrapBundle(
   return { wrappedBundle: ct, wrapIv: iv };
 }
 
-/**
- * Unwrap one envelope. Throws when *kek* is not the key that wrapped it — GCM
- * authentication is what tells a wrong password apart from a corrupted store,
- * which is the distinction the old derive-everything scheme could not make.
- */
+/** Unwrap one envelope. Throws when *kek* didn't wrap it: GCM auth distinguishes a wrong password from a corrupted store. */
 export async function unwrapBundle(
   kek: CryptoKey,
   envelope: KeyEnvelope,
@@ -305,13 +268,9 @@ export async function unwrapBundle(
 }
 
 /**
- * Fingerprint of an envelope set, pinned locally after the first successful
- * unwrap.
- *
- * A server that serves a substituted set — one whose DEK it knows — would have
- * everything written afterwards readable by it. AAD binding cannot catch that,
- * because the server picks both sides. A pinned fingerprint can: the set only
- * changes when this browser re-wraps it.
+ * Fingerprint of an envelope set, pinned locally after the first successful unwrap. A server serving
+ * a substituted set (one whose DEK it knows) could read everything written afterwards; AAD can't catch
+ * that (the server picks both sides), a pinned fingerprint can: the set changes only when this browser re-wraps.
  */
 export async function envelopeFingerprint(set: EnvelopeSet): Promise<string> {
   const parts = set.envelopes
@@ -322,12 +281,7 @@ export async function envelopeFingerprint(set: EnvelopeSet): Promise<string> {
   return toBase64url(new Uint8Array(digest));
 }
 
-/**
- * Prove the unwrapped DEK is the one this vault was sealed with.
- *
- * Cheap insurance against adopting a substituted envelope: if the store already
- * holds ciphertext, the recovered key has to open it.
- */
+/** Prove the unwrapped DEK is the vault's: if the store already holds ciphertext, the key must open it (guards against a substituted envelope). */
 export async function dekOpensSample(
   sessionKey: CryptoKey,
   sampleCt: Uint8Array,

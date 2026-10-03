@@ -1,15 +1,10 @@
 /**
- * Chart export as SVG, PDF and PNG. `ColumnChart` paints with
- * `var(--color-*)` tokens, which mean nothing outside the app's stylesheet,
- * so the serialised markup has every token swapped for a literal colour from
- * a light palette (dark text and marks for white pages). No background is
- * drawn: SVG, PDF and PNG all keep a transparent background.
+ * Chart export as SVG, PDF and PNG. `var(--color-*)` tokens mean nothing outside the app's
+ * stylesheet, so each is swapped for a literal light-palette colour; no background is drawn.
  *
- * The PDF is real vector output: the chart only ever uses `line` (optionally dashed), `rect`,
- * `path` and `text` (optionally rotated about its own anchor), and
- * `svgToPdf` redraws exactly that subset with pdf-lib, which the app already
- * bundles. A new element type in `ColumnChart` must be added there too —
- * unknown elements throw rather than silently vanishing from the PDF.
+ * The PDF is vector output: `svgToPdf` redraws only `line` (optionally dashed), `rect`, `path`
+ * and `text` with pdf-lib. A new element type in `ColumnChart` must be added there too;
+ * unknown elements throw rather than silently vanishing.
  */
 
 /** Token name (without `--color-`) → literal colour. */
@@ -39,11 +34,7 @@ export const PNG_FIT = { width: 7680, height: 4320 };
 const FONT_STACK = "Helvetica, Arial, 'Segoe UI', system-ui, sans-serif";
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/**
- * Replace every `var(--color-x)` with its palette value. Throws on a token the
- * palette does not know, so a new chart colour cannot leak an unresolvable
- * `var()` into an exported file.
- */
+/** Replace every `var(--color-x)` with its palette value; throws on an unknown token so no unresolvable `var()` leaks into an export. */
 export function applyPalette(markup: string, palette: ChartPalette = CHART_PALETTE): string {
   return markup.replace(/var\(--color-([\w-]+)\)/g, (_, token: string) => {
     const value = palette[token];
@@ -99,11 +90,7 @@ export async function svgToPng(markup: string): Promise<Blob> {
   }
 }
 
-/**
- * The standard PDF fonts are WinAnsi and pdf-lib throws on anything else. Map the characters
- * the charts use outside that set: the narrow no-break space `Intl` puts before "%", and the
- * minus sign of the borderline marks.
- */
+/** Standard PDF fonts are WinAnsi and pdf-lib throws otherwise: map the narrow no-break space before "%" and the borderline minus sign. */
 function toWinAnsi(text: string): string {
   return text.replace(/\u202f/g, '\u00a0').replace(/\u2212/g, '-');
 }

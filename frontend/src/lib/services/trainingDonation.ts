@@ -1,18 +1,14 @@
 /**
- * Opt-in donation of teacher-verified checkbox crops to the configured backend (training data for
- * a shared MC-box classifier — see docs/data_flow_and_security.md).
- *
- * Privacy rules this file enforces — keep them:
- *  - nothing is sent unless the teacher opted in (`trainingDonationStore.enabled`, off by default)
- *    *and* is signed in to the server — the endpoint takes donations from accounts only, so a
- *    public URL cannot be used to fill the production database;
- *  - withdrawing consent (or signing out) drops everything not yet sent, in every tab;
- *  - only questions a teacher has verified (`isMcReviewed`) are donated;
- *  - samples carry no identifiers except a random per-box token (`omrTrainingSample.ts`); the
- *    server uses the account for its daily quota only and never stores it with a sample;
- *  - failures are dropped, never queued for retry. Uploads pass `silentError`: a donation must
- *    never raise the global error dialog, and the server's quota 429 carries no `Retry-After`,
- *    so it cannot start the login lockout either.
+ * Opt-in donation of teacher-verified checkbox crops to the configured backend (training data for a
+ * shared MC-box classifier; see docs/data_flow_and_security.md). Privacy rules, keep them:
+ *  - nothing is sent unless the teacher opted in (`trainingDonationStore.enabled`, default off) AND is
+ *    signed in (accounts only, so a public URL can't fill the production DB);
+ *  - withdrawing consent or signing out drops everything unsent, in every tab;
+ *  - only teacher-verified questions (`isMcReviewed`) are donated;
+ *  - samples carry only a random per-box token (`omrTrainingSample.ts`); the server uses the account
+ *    for its daily quota only and never stores it with a sample;
+ *  - failures are dropped, never retried. Uploads pass `silentError`: no global error dialog, and the
+ *    quota 429 has no `Retry-After`, so it can't start the login lockout.
  */
 import { get } from 'svelte/store';
 import { api } from '$lib/api/client';
@@ -109,10 +105,7 @@ export async function fetchDonationAvailable(): Promise<boolean> {
   return (await fetchDonationStatus()).enabled;
 }
 
-/**
- * Remember the latest save of a question (every click saves; the last one wins). Nothing is
- * built or sent until the teacher leaves the question — see `flushQuestion`.
- */
+/** Remember the latest save of a question (every click saves; last wins). Nothing is built or sent until the teacher leaves it; see `flushQuestion`. */
 export function stageVerifiedQuestion(
   examId: string,
   record: ExerciseScoreRecord,
@@ -214,10 +207,7 @@ async function upload(): Promise<void> {
   return uploading;
 }
 
-/**
- * Record the donation on the (sealed) score row: the tokens always — a later donation of the
- * same boxes must reuse them — and the label only if the teacher has not changed it since.
- */
+/** Record the donation on the sealed score row: tokens always (later donations of the same boxes must reuse them), the label only if unchanged since. */
 async function markDonated(p: Pending): Promise<void> {
   const key = get(sessionStore).sessionKey;
   try {

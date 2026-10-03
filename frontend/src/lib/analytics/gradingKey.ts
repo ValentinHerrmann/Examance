@@ -45,10 +45,7 @@ function sortedCutoffs(cutoffs: GradeCutoff[]): GradeCutoff[] {
   return [...cutoffs].sort((a, b) => b.minPercentage - a.minPercentage);
 }
 
-/**
- * Index of the cutoff a percentage reaches. Rounded to two decimals first:
- * 35/40 is 87.49999999999999 in floating point and must still reach 87.5.
- */
+/** Cutoff index a percentage reaches; rounded to 2 decimals first (35/40 is 87.4999… in floats). */
 function cutoffIndex(sorted: GradeCutoff[], percentage: number): number {
   const value = Math.round(percentage * 100) / 100;
   const idx = sorted.findIndex((cutoff) => value >= cutoff.minPercentage);
@@ -56,9 +53,8 @@ function cutoffIndex(sorted: GradeCutoff[], percentage: number): number {
 }
 
 /**
- * The lowest two-decimal percentage that reaches a cutoff under `cutoffIndex`'s rounding:
- * 87.5 stays 87.5, a hand-typed 33.333 becomes 33.34. The epsilon absorbs float noise
- * (16.66 * 100 is 1666.0000000000002).
+ * Lowest two-decimal percentage reaching a cutoff under `cutoffIndex`'s rounding (hand-typed
+ * 33.333 becomes 33.34). The epsilon absorbs float noise (16.66 * 100 = 1666.0000000000002).
  */
 export function cutoffThreshold(minPercentage: number): number {
   return Math.ceil(minPercentage * 100 - 1e-6) / 100;
@@ -67,9 +63,8 @@ export function cutoffThreshold(minPercentage: number): number {
 const GRADE_COLOR_RAMP = 6;
 
 /**
- * CSS colour token for the `index`-th of `total` sorted best-first buckets, scaled onto the
- * 6-step `--color-grade-1..6` ramp (dark green -> dark red). A standard 6-row key maps 1:1;
- * a custom key with a different row count is scaled by position so it still spans the ramp.
+ * CSS colour token for the `index`-th of `total` best-first buckets on the 6-step
+ * `--color-grade-1..6` ramp; keys with a different row count are scaled by position.
  */
 export function gradeColorVar(index: number, total: number): string {
   const step =
@@ -80,9 +75,8 @@ export function gradeColorVar(index: number, total: number): string {
 }
 
 /**
- * Colour token for a percentage under a grading key. A range's grade is decided by the grade
- * of its *lower* bound: a bin/bucket straddling a cutoff (e.g. 85-90% with a cutoff at 87.5%)
- * takes the lower grade, matching how a submission scoring exactly the lower bound would grade.
+ * Colour token for a percentage under a grading key. A range takes the grade of its *lower*
+ * bound, so a bin straddling a cutoff gets the lower grade.
  */
 export function gradeColorForPercentage(
   percentage: number,
@@ -272,10 +266,7 @@ export function calculatePassRate(
   return grades.filter((g) => g <= 4).length / grades.length;
 }
 
-/**
- * Borderline windows in points. `'+'`: at most `plus` points short of the next better grade;
- * `'-'`: at most `minus` points above the lower boundary of its own grade (both ends inclusive).
- */
+/** Borderline windows in points: `'+'` at most `plus` short of the next grade, `'-'` at most `minus` above its own lower boundary (inclusive). */
 export const BORDERLINE_MARGINS = { plus: 0.75, minus: 0.5 };
 
 export interface BorderlineCase {
@@ -286,9 +277,8 @@ export interface BorderlineCase {
   gradeIndex: number;
   gradeCount: number;
   /**
-   * `'+'`: up to `BORDERLINE_MARGINS.plus` short of the next better grade (upper end of its
-   * grade); `'-'`: up to `BORDERLINE_MARGINS.minus` above its own lower boundary. A grade
-   * narrower than both windows together can put one result on both lists.
+   * `'+'`: within `BORDERLINE_MARGINS.plus` of the next better grade; `'-'`: within
+   * `.minus` above its own lower boundary. A very narrow grade can be on both lists.
    */
   side: "+" | "-";
   /** Points achieved (so far, while provisional). */
@@ -313,10 +303,8 @@ interface BorderlineInput {
 }
 
 /**
- * Results within the borderline windows (`BORDERLINE_MARGINS`) of a grade boundary, closest first. Points are measured
- * on the result's own basis (`gradedMaxPoints`): the whole exam once it is fully graded,
- * the graded exercises so far while it is provisional. The best grade has no `'+'` and the
- * worst no `'-'`.
+ * Results within the borderline windows (`BORDERLINE_MARGINS`) of a grade boundary, closest first.
+ * Points use the result's own basis (`gradedMaxPoints`). Best grade has no `'+'`, worst no `'-'`.
  */
 export function borderlineCases(
   results: BorderlineInput[],

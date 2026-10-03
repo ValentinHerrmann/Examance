@@ -46,10 +46,9 @@ const idle: PreviewState = {
 };
 
 /**
- * The one Preview flow of the overview pages: show the last compile from the
- * in-memory cache, else ask and compile in the modal. Owns the object URLs —
- * every replacement, close and destroy revokes them, and a compile that
- * finishes after the modal was closed is dropped.
+ * The Preview flow of the overview pages: show the last compile from the in-memory cache, else compile
+ * in the modal. Owns the object URLs (every replacement, close and destroy revokes them); a compile
+ * finishing after the modal closed is dropped.
  */
 export function createPreviewFlow<T>(options: PreviewFlowOptions<T>): PreviewFlow<T> {
   const store = writable<PreviewState>(idle);

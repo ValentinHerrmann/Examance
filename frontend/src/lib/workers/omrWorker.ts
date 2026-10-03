@@ -1,14 +1,8 @@
 /**
- * Web Worker for Optical Mark Recognition (OMR) & Fiducial Marker Alignment.
- *
- * Pipeline: binarize (Otsu) -> locate the 4 corner fiducials by largest dark
- * blob per quadrant -> homography (4-point DLT, 3-point affine fallback) ->
- * sample each template bubble's fill ratio through the transform -> score via
- * the shared mcScore.ts so this worker and the manual review UI never disagree.
- *
- * No OpenCV.js — bubble positions come from the compiled PDF's `omr://` link
- * annotations (captured once per exam by "Prepare OMR"), not computer vision.
- * Only the 4 fiducials are actually detected in pixel space.
+ * Web Worker for OMR and fiducial alignment. Pipeline: binarize (Otsu), locate the 4 corner
+ * fiducials (largest dark blob per quadrant), homography (4-point DLT, 3-point affine fallback),
+ * sample each bubble's fill ratio, score via the shared mcScore.ts. No OpenCV.js: bubble positions
+ * come from the PDF's `omr://` link annotations (captured by "Prepare OMR"); only fiducials are detected.
  */
 
 import type { OmrFiducialRect, OmrPageTemplate } from '$lib/db/schema';
@@ -69,11 +63,7 @@ export interface OmrBubbleReading {
   provisional?: boolean;
   /** Verdict of the algorithm that did *not* decide (shadow run), for comparison on verified data. */
   alt?: { algorithm: number; state: OmrBubbleState; reasons?: OmrShapeReason[]; provisional?: boolean };
-  /** Bubble's bbox in scan-pixel space, normalized to [0,1] of (width, height) as
-   *  [minX, minY, maxX, maxY] — resolution-independent so the grading viewer (which
-   *  re-rasterizes at its own scale) can draw a detection box without knowing this
-   *  worker's pixel dimensions. [0,0,0,0] when alignment failed (unused: `state` is
-   *  always 'blank' in that case, so nothing gets drawn). */
+    /** Bubble bbox normalized to [0,1] of (width, height) as [minX,minY,maxX,maxY], so the grading viewer can draw it at its own scale. [0,0,0,0] when alignment failed (state is 'blank', nothing drawn). */
   rect: [number, number, number, number];
 }
 
@@ -217,12 +207,9 @@ function pdfPointToExpectedPixel(
 }
 
 /**
- * Finds the connected dark blob within [qx0,qx1) x [qy0,qy1) that best matches a fiducial
- * marker, scored by proximity to the template-expected position rather than raw area — a
- * page logo or the student QR code sitting in the same quadrant is typically the *largest*
- * blob but rarely the *closest* one to where the marker is supposed to be, and gets filtered
- * out entirely by the area-tolerance and aspect-ratio checks before distance is even
- * considered.
+ * Finds the connected dark blob in [qx0,qx1) x [qy0,qy1) that best matches a fiducial, scored by
+ * proximity to the template-expected position rather than area: a logo or student QR in the same
+ * quadrant is often the largest blob but is filtered out by the area/aspect checks.
  */
 function findBestFiducialBlob(
   dark: Uint8Array,

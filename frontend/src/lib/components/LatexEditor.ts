@@ -69,10 +69,8 @@ export const latexHighlightStyle = HighlightStyle.define([
 ]);
 
 /**
- * Editor chrome, expressed entirely in design-token CSS variables so the
- * palette follows the active theme. `dark` only tells CodeMirror which base
- * styles (selection, search panel) to use; LatexEditor.svelte swaps it through
- * a Compartment when the theme changes.
+ * Editor chrome in design-token CSS variables so it follows the theme. `dark` only selects
+ * CodeMirror's base styles; LatexEditor.svelte swaps it via a Compartment.
  */
 export function createLatexTheme(dark: boolean): Extension {
   return EditorView.theme(

@@ -1,14 +1,7 @@
 /**
- * Layout regression suite, run on every device project (see playwright.config.ts).
- *
- * It asserts geometry, not behaviour: the document never scrolls (the app
- * shell does), nothing overflows horizontally, every page has one h1, touch
- * targets are at least 44px, the navbar/sidebar switch at the documented
- * breakpoints, and dialogs are as wide as their size token and never contain a
- * second scroller.
- *
- * Soft assertions are used inside the per-route loops so one run lists every
- * offending route instead of stopping at the first.
+ * Layout regression suite, run on every device project: asserts geometry, not behaviour
+ * (no document scroll, no horizontal overflow, one h1, 44px touch targets, breakpoints,
+ * dialog widths). Soft assertions in the per-route loops list every offending route.
  */
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './helpers/guards';

@@ -1,14 +1,8 @@
 /**
- * Dexie IndexedDB instance — all BlindGrade local stores.
- *
- * Tables:
- *   exams        — plaintext metadata (no PII)
- *   exercises    — plaintext exercise library
- *   examExercises — junction table linking exams to exercises
- *   students     — { pseudonymId, fallbackCode, piiCt, piiIv } — PII encrypted
- *   submissions  — scan + annotation ciphertexts only
- *   auditLog     — local audit trail, merged into .bgproj on export
- *   exerciseResources — encrypted LaTeX resource files, one row per attachment
+ * Dexie IndexedDB instance, all BlindGrade local stores. Tables:
+ *   exams (plaintext metadata, no PII), exercises (plaintext library), examExercises (junction),
+ *   students ({ pseudonymId, fallbackCode, piiCt, piiIv }, PII encrypted), submissions (scan + annotation
+ *   ciphertexts only), auditLog (merged into .bgproj on export), exerciseResources (encrypted LaTeX resource files).
  */
 
 import { browser } from '$app/environment';
@@ -130,22 +124,12 @@ export class BlindGradeDB extends Dexie {
       exerciseResources: 'id, exerciseId, [exerciseId+filename]',
     });
 
-    // v9: drops the plaintext `fallbackCode` index from `students` and strips
-    // the plaintext identity columns from every stored row.
-    //
-    // `encryptStudent()` used to return fallbackCode, studentName and
-    // studentNumber alongside the ciphertext it had just made of the same
-    // fields, and `studentRepository.save()` persisted that record as-is — so a
-    // pupil's name sat unencrypted in IndexedDB in all three storage modes,
-    // including `all-server`, where nothing is supposed to persist locally at
-    // all. Tracked as L17 in docs/legal_audit_dsgvo.md.
-    //
-    // The index is dropped because nothing queries it (no `.where('fallbackCode')`
-    // anywhere), and an index is itself a plaintext copy of the value.
-    //
-    // The strip runs unconditionally and never re-encrypts: `payloadCt` already
-    // holds these fields, so no key is needed and the upgrade works while the
-    // session is locked.
+        // v9: drops the plaintext `fallbackCode` index from `students` and strips plaintext identity columns
+        // from every row. `encryptStudent()` used to return fallbackCode/studentName/studentNumber next to
+        // their ciphertext and `studentRepository.save()` persisted them, so names sat unencrypted in IndexedDB
+        // in all storage modes (L17, docs/legal_audit_dsgvo.md). The index goes because nothing queries it and
+        // an index is itself a plaintext copy. The strip never re-encrypts (`payloadCt` already holds the
+        // fields), so it needs no key and works while locked.
     this.version(9)
       .stores({
         exams: 'id, teacherId, retentionUntil',

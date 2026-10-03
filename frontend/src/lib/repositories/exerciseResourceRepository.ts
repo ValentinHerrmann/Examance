@@ -1,14 +1,9 @@
 /**
- * Exercise resource files: local staging area plus server sync.
- *
- * The editor works against a *staging* owner id, never the live exercise, so a
- * file can be attached (and previewed) before the exercise exists anywhere —
- * on the server or in the local database. Pressing Save commits the staged set
- * onto the exercise; cancelling throws it away.
- *
- * Dexie is therefore always the working copy. In server/hybrid mode the staged
- * set is flushed to the API on save, and rows seeded from the server carry only
- * metadata until their bytes are actually needed.
+ * Exercise resource files: local staging area plus server sync. The editor works against a *staging*
+ * owner id, never the live exercise, so files can be attached and previewed before the exercise exists
+ * anywhere; Save commits the staged set, cancel discards it. Dexie is always the working copy; in
+ * server/hybrid mode the staged set is flushed to the API on save, and server-seeded rows carry only
+ * metadata until their bytes are needed.
  */
 
 import { get } from 'svelte/store';
@@ -58,13 +53,10 @@ export const exerciseResourceRepository = {
     return sortByName(rows);
   },
 
-  /**
-   * Fill a staging area with what *exerciseId* currently has.
-   *
-   * In local mode the bytes are copied along; against a server only the
-   * metadata is, so opening the editor does not download every figure.
-   * Returns silently when the exercise is not known to the server yet.
-   */
+    /**
+     * Fill a staging area with what *exerciseId* has. Local mode copies bytes; against a server only
+     * metadata, so opening the editor doesn't download every figure. Silent if the exercise isn't on the server yet.
+     */
   async seedStaging(exerciseId: string, stagingId: string, key: CryptoKey | null): Promise<void> {
     await db.exerciseResources.where('exerciseId').equals(stagingId).delete();
 
@@ -109,11 +101,7 @@ export const exerciseResourceRepository = {
     return new Uint8Array(buf);
   },
 
-  /**
-   * Add or replace a file in a staging area. Nothing is uploaded here — see
-   * `commit`. Re-using a filename replaces that file, which is what a teacher
-   * means when they drop in a corrected figure.
-   */
+    /** Add or replace a file in a staging area (nothing uploaded; see `commit`). Re-using a filename replaces it, as with a corrected figure. */
   async stage(
     ownerId: string,
     filename: string,
@@ -154,14 +142,11 @@ export const exerciseResourceRepository = {
     await db.exerciseResources.where('exerciseId').equals(ownerId).delete();
   },
 
-  /**
-   * Make the staged set the exercise's set.
-   *
-   * Local rows are re-keyed onto *exerciseId*; against a server the staged set
-   * is authoritative, so new files are uploaded and files the teacher removed
-   * while editing are deleted there too. Called only after the exercise itself
-   * has been saved, so the id always exists by now.
-   */
+    /**
+     * Make the staged set the exercise's set. Local rows are re-keyed onto *exerciseId*; against a server
+     * the staged set is authoritative: new files upload and files removed while editing are deleted there.
+     * Called only after the exercise itself was saved, so the id exists.
+     */
   async commit(
     stagingId: string,
     exerciseId: string,
@@ -227,15 +212,11 @@ export const exerciseResourceRepository = {
     return { errors };
   },
 
-  /**
-   * Resource files for a compilation.
-   *
-   * `inline` are bytes the server cannot look up itself — staged files, and
-   * everything in local mode. `exerciseIds` name saved exercises whose files
-   * the server loads from its own database, which keeps the request small.
-   * `needBytes` forces everything inline: the WASM engine runs in the browser
-   * and has no database to read from.
-   */
+    /**
+     * Resource files for a compilation. `inline` = bytes the server can't look up (staged files, all of
+     * local mode); `exerciseIds` = saved exercises whose files the server loads itself (smaller request).
+     * `needBytes` forces everything inline: the WASM engine runs in the browser with no database.
+     */
   async collectForCompile(
     owners: { id: string; label?: string; staged?: boolean }[],
     key: CryptoKey | null,
