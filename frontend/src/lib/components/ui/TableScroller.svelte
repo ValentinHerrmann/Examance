@@ -11,7 +11,7 @@
 </script>
 
 <div
-  class="scroll-pane w-full min-w-0 overflow-x-auto overscroll-x-contain {className}"
+  class="scroll-pane w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-x-contain {className}"
   role="region"
   aria-label={label}
   tabindex="0"

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { controlClass } from "./inputStyles";
+  import { controlClass, controlSmClass } from "./inputStyles";
 
   export let value = "";
   export let type: "text" | "email" | "password" | "number" | "search" | "date" = "text";
@@ -7,6 +7,8 @@
   export let placeholder: string | undefined = undefined;
   export let disabled = false;
   export let required = false;
+  export let size: "sm" | "md" = "md";
+  export let invalid = false;
 
   let className = "";
   export { className as class };
@@ -25,11 +27,12 @@
   {disabled}
   {required}
   {value}
+  aria-invalid={invalid ? "true" : undefined}
   on:input={onInput}
   on:change
   on:blur
   on:focus
   on:keydown
-  class="{controlClass} {className}"
+  class="{controlClass} {size === 'sm' ? controlSmClass : ''} {className}"
   {...$$restProps}
 />

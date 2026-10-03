@@ -43,9 +43,9 @@ export const examCreation = {
     },
     exerciseSelector: {
         heading: '2. Aufgaben auswählen',
-        tabLibrary: '📚 Aus Bibliothek ({count} ausgewählt)',
-        tabMc: '☑️ MC-Gruppen',
-        tabCustom: '✏️ Eigene Aufgabe erstellen',
+        tabLibrary: 'Aus Bibliothek ({count} ausgewählt)',
+        tabMc: '️ MC-Gruppen',
+        tabCustom: '️ Eigene Aufgabe erstellen',
     },
     customExerciseForm: {
         nameLabel: 'Aufgabenname',
@@ -59,7 +59,7 @@ export const examCreation = {
     },
     selectedList: {
         heading: '3. Prüfungsstruktur ({count} Elemente | Gesamt: {points} Pkt)',
-        previewButton: '🔍 PDF-Live-Vorschau',
+        previewButton: 'PDF-Live-Vorschau',
         previewButtonCompiling: 'Vorschau wird kompiliert…',
         emptyHint: 'Noch keine Aufgaben ausgewählt. Wählen Sie oben Aufgaben aus der Bibliothek.',
         quickEditTitle: 'Aufgabe global schnell bearbeiten',

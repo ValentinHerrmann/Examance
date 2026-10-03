@@ -37,7 +37,7 @@ export const stats: Translations['stats'] = {
         provisional: 'Partially graded',
     },
     gradeDistribution: {
-        title: '🎯 Grade Distribution',
+        title: 'Grade Distribution',
         gradingKeyPrefix: 'Grading scale:',
         presets: {
             linear50: 'Linear (50%)',
@@ -51,7 +51,7 @@ export const stats: Translations['stats'] = {
         axisLabel: 'Grade',
     },
     borderline: {
-        title: '⚖️ Borderline cases',
+        title: '️ Borderline cases',
         subtitle: 'Plus: at most 0.75 points short of the next better grade. Minus: at most 0.5 points above the lower boundary of its own grade. Click one to open it in grading.',
         plusTitle: 'Plus: just below the better grade',
         minusTitle: 'Minus: just above the worse grade',
@@ -67,7 +67,7 @@ export const stats: Translations['stats'] = {
         openAria: 'Open anonymous student #{index} in grading',
     },
     combined: {
-        title: '🧩 Grades and percentages',
+        title: 'Grades and percentages',
         subtitle: 'Wide, light bars: the grades under the grading scale, labelled with count and share. Narrow bars in front: the percentage distribution.',
         markers: {
             mean: 'Ø',
@@ -88,7 +88,7 @@ export const stats: Translations['stats'] = {
         png: 'Download as PNG image at 8K resolution (7680 × 4320, transparent background)',
     },
     submissionHistogram: {
-        title: '📊 Percentage Distribution',
+        title: 'Percentage Distribution',
         subtitle: 'In {step} % steps, chosen so that every bar lies entirely within one grade.',
         subtitleUneven: 'In steps of up to 5 %, split at every grade boundary so that every bar lies entirely within one grade.',
         axisLabel: 'Percent achieved',
@@ -124,7 +124,7 @@ export const stats: Translations['stats'] = {
         noGradedData: 'No Graded Data',
     },
     exerciseQuality: {
-        title: '📈 Exercise & Question Quality Metrics',
+        title: 'Exercise & Question Quality Metrics',
         description: 'Identify questions that consistently produce low average scores across multiple years or exam sessions.',
         emptyTitle: 'No Graded Exercise Performance Data Available',
         emptyWithData: '{count} question(s) are linked across your {examsCount} exam(s), but none have student grades recorded yet.',
@@ -137,11 +137,11 @@ export const stats: Translations['stats'] = {
         colQualityStatus: 'Quality Status',
         generalTag: 'General',
         examsCountSuffix: '{count} Exam(s)',
-        highFailureRate: '⚠️ High Failure Rate',
-        balanced: '✓ Balanced',
+        highFailureRate: '️ High Failure Rate',
+        balanced: 'Balanced',
     },
     variantFairness: {
-        title: '🔀 Exercise Variant Difficulty & Fairness Comparison',
+        title: 'Exercise Variant Difficulty & Fairness Comparison',
         description: 'Compare performance between different question variants (e.g. Group A vs Group B) to detect unintended difficulty imbalances.',
         emptyTitle: 'No Multi-Variant Exercise Groups Configured',
         emptyWithData: '{count} multi-variant question group(s) are linked to your exams, but none have student grades recorded yet.',
@@ -152,8 +152,8 @@ export const stats: Translations['stats'] = {
         colAvgScore: 'Avg Score %',
         colStatus: 'Status',
         maxPointsSuffix: '{points} pts',
-        difficultyDisparity: '⚠️ {delta}% Difficulty Disparity',
-        varianceBalanced: '✓ {delta}% Variance (Balanced)',
+        difficultyDisparity: '️ {delta}% Difficulty Disparity',
+        varianceBalanced: '{delta}% Variance (Balanced)',
         partialData: 'Partial Data (1 Variant Graded)',
         awaitingScores: 'Awaiting Grading Scores',
         harderVariant: 'Harder Variant',

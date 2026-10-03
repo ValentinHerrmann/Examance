@@ -13,30 +13,33 @@
  * catalog-derived names, and every place that has to rely on something less
  * semantic says why.
  *
- * Today's shell, for orientation:
- *  - `AppHeader`: inline links from the `lg` breakpoint up; below it a menu
- *    button opens a slide-over holding the same links, the workspace actions
- *    and the session buttons. The header is not rendered on the grade route.
- *  - Workspace dropdown (header, `lg` up) with Open / Export / Clear `.bgproj`.
- *  - `StatusBar` (footer): locale toggle, storage badge, help, Imprint, Privacy,
- *    backend, version. Below `sm` the entries show only an icon and carry their
- *    text in `title`, so they are located by title.
- *  - `ExamNav`: the tab strip on exam pages (hidden on the grade route).
+ * Today's shell (Artemis design), for orientation:
+ *  - `AppNavbar` (banner): inline main links from `xl` up; below that a burger
+ *    ("open navigation") opens a drawer with the same links (and, on exam
+ *    pages, the exam steps). The right-hand cluster is present at every width:
+ *    storage-mode button, Workspace menu (Open / Export / Clear `.bgproj`),
+ *    language toggle, theme menu, help button, account menu (settings, lock).
+ *    Locked/public pages get a minimal navbar (language, theme, help). No
+ *    navbar on the grade route.
+ *  - `AppFooter` (contentinfo): Imprint, Privacy, licences, backend, version —
+ *    on every page including grade.
+ *  - `ExamSidebar` (from `lg`): the exam's steps; below `lg` they are in the
+ *    navigation drawer.
  */
 import type { Download, Locator, Page } from '@playwright/test';
 import { expect } from './guards';
-import { DEFAULT_LOCALE, label, stem, type Locale } from './i18n';
+import { DEFAULT_LOCALE, label, type Locale } from './i18n';
 
 export type ExamTab = 'setup' | 'scan' | 'verify' | 'grade' | 'manual' | 'stats';
 export type LegalPage = 'impressum' | 'datenschutz';
 
 const EXAM_TAB_KEYS: Record<ExamTab, string> = {
-  setup: 'exam.nav.tabs.setup',
-  scan: 'exam.nav.tabs.scan',
-  verify: 'exam.nav.tabs.verify',
-  grade: 'exam.nav.tabs.grade',
-  manual: 'exam.nav.tabs.manual',
-  stats: 'exam.nav.tabs.stats',
+  setup: 'exam.sidebar.setup',
+  scan: 'exam.sidebar.scan',
+  verify: 'exam.sidebar.verify',
+  grade: 'exam.sidebar.grade',
+  manual: 'exam.sidebar.manual',
+  stats: 'exam.sidebar.stats',
 };
 
 const EXAM_TAB_PATH: Record<ExamTab, string> = {
@@ -98,9 +101,8 @@ export async function settleNavigation(page: Page, quietMs = 700): Promise<void>
 export async function switchLocale(page: Page, target: Locale): Promise<void> {
   const current = await currentLocale(page);
   if (current === target) return;
-  // The toggle's tooltip is the only text it carries once the label is an icon.
-  await statusBar(page)
-    .getByTitle(label('statusBar.languageHint', undefined, current))
+  await header(page)
+    .getByRole('button', { name: label('statusBar.languageHint', undefined, current) })
     .click();
   await expect.poll(() => currentLocale(page)).toBe(target);
 }
@@ -114,43 +116,26 @@ export function header(page: Page): Locator {
   return page.getByRole('banner');
 }
 
-/** The status bar (`<footer>` => contentinfo landmark). */
+/** The page footer (`<footer>` => contentinfo landmark). */
 export function statusBar(page: Page): Locator {
   return page.getByRole('contentinfo');
 }
 
 /**
- * The shell's main-menu landmark, opening the slide-over first when the inline
- * navigation is not shown (phone). Returns null when this page has no shell
- * navigation at all (the grade route hides the header by design).
+ * The shell's main-menu landmark, opening the navigation drawer first when the
+ * inline links are not shown (below `xl`). Returns null when this page has no
+ * shell navigation at all (the grade route hides the navbar by design).
  */
 async function mainMenu(page: Page): Promise<Locator | null> {
   const locale = await currentLocale(page);
-  const menuName = label('nav.menuLabel', undefined, locale);
-  const landmark = page.getByRole('navigation', { name: menuName });
+  const landmark = page.getByRole('navigation', { name: label('nav.menuLabel', undefined, locale) });
   if (await landmark.isVisible()) return landmark;
 
-  const toggle = page.getByRole('button', { name: menuName });
-  if (!(await toggle.isVisible())) return null;
-  await toggle.click();
+  const burger = header(page).getByRole('button', { name: label('nav.openMenu', undefined, locale) });
+  if (!(await burger.isVisible())) return null;
+  await burger.click();
   await expect(landmark).toBeVisible();
   return landmark;
-}
-
-/**
- * The container that holds the workspace and session controls. With the inline
- * header that is the header itself; on narrow viewports those controls live in
- * the slide-over, which is opened here.
- */
-async function shellControls(page: Page): Promise<Locator> {
-  const locale = await currentLocale(page);
-  const toggle = page.getByRole('button', { name: label('nav.menuLabel', undefined, locale) });
-  if (await toggle.isVisible()) {
-    const menu = await mainMenu(page);
-    if (!menu) throw new Error('shellControls: the main menu did not open');
-    return menu;
-  }
-  return header(page);
 }
 
 async function clickMainMenuLink(page: Page, key: string, fallbackPath: string): Promise<void> {
@@ -201,11 +186,17 @@ export async function gotoExamTab(page: Page, tab: ExamTab): Promise<void> {
   const targetPath = `/exam/${examId}${EXAM_TAB_PATH[tab]}`;
 
   const locale = await currentLocale(page);
-  const tabs = page.getByRole('navigation', { name: label('exam.nav.tabsLabel', undefined, locale) });
-  if (await tabs.isVisible()) {
-    await tabs.getByRole('link', { name: stem(EXAM_TAB_KEYS[tab], locale) }).click();
+  const linkName = label(EXAM_TAB_KEYS[tab], undefined, locale);
+  // From `lg` the exam sidebar lists the steps; below it the navigation
+  // drawer does. The grade route has no navbar, so on phones it is left by
+  // address.
+  const sidebar = page.getByRole('navigation', { name: label('exam.sidebar.label', undefined, locale) });
+  if (await sidebar.isVisible()) {
+    await sidebar.getByRole('link', { name: linkName }).click();
   } else {
-    await page.goto(targetPath);
+    const menu = await mainMenu(page);
+    if (menu) await menu.getByRole('link', { name: linkName }).click();
+    else await page.goto(targetPath);
   }
   await page.waitForURL((url) => url.pathname.replace(/\/$/, '') === targetPath);
 }
@@ -214,8 +205,7 @@ export async function gotoExamTab(page: Page, tab: ExamTab): Promise<void> {
 export async function gotoLegal(page: Page, which: LegalPage): Promise<void> {
   const locale = await currentLocale(page);
   const key = which === 'impressum' ? 'nav.imprint' : 'nav.privacy';
-  // Below `sm` the status bar shows only an icon; the text is the title.
-  await statusBar(page).getByTitle(label(key, undefined, locale)).click();
+  await statusBar(page).getByRole('link', { name: label(key, undefined, locale) }).click();
   await page.waitForURL((url) => url.pathname === `/legal/${which}`);
 }
 
@@ -231,36 +221,21 @@ const WORKSPACE_ITEM_KEYS: Record<WorkspaceAction, string> = {
   clear: 'workspace.menu.clear',
 };
 
-/**
- * Open the workspace menu and return the locator that contains its items.
- * Desktop: the header dropdown. Phone: the slide-over (items are listed there
- * directly).
- */
+/** Open the navbar's Workspace menu and return the menu that holds its items. */
 export async function openWorkspaceMenu(page: Page): Promise<Locator> {
   const locale = await currentLocale(page);
-  const controls = await shellControls(page);
-  const firstItem = page.getByRole('button', {
-    name: label(WORKSPACE_ITEM_KEYS.open, undefined, locale),
-  });
-
-  // Narrow viewports: the slide-over already lists the workspace actions.
-  if (controls !== header(page) && (await firstItem.isVisible())) return controls;
-
-  // The trigger shows "Workspace" only from `xl`; between `lg` and `xl` it is an
-  // icon button, so fall back to "the header button that expands something".
-  const named = controls.getByRole('button', { name: label('nav.workspace', undefined, locale) });
-  const trigger = (await named.count()) > 0 ? named : controls.locator('button[aria-expanded]:visible');
-  if (!(await firstItem.isVisible())) await trigger.first().click();
-  await expect(firstItem).toBeVisible();
-  return page.locator('body');
+  const menu = page.getByRole('menu', { name: label('nav.workspace', undefined, locale) });
+  if (!(await menu.isVisible())) {
+    await header(page).getByRole('button', { name: label('nav.workspace', undefined, locale) }).click();
+  }
+  await expect(menu).toBeVisible();
+  return menu;
 }
 
 async function clickWorkspaceItem(page: Page, action: WorkspaceAction): Promise<void> {
   const locale = await currentLocale(page);
-  const scope = await openWorkspaceMenu(page);
-  await scope
-    .getByRole('button', { name: label(WORKSPACE_ITEM_KEYS[action], undefined, locale) })
-    .click();
+  const menu = await openWorkspaceMenu(page);
+  await menu.getByRole('menuitem', { name: label(WORKSPACE_ITEM_KEYS[action], undefined, locale) }).click();
 }
 
 /**
@@ -301,11 +276,15 @@ export async function importWorkspace(page: Page, filePath: string): Promise<voi
 /* Session                                                                     */
 /* -------------------------------------------------------------------------- */
 
-/** Lock the session through the header's lock button; lands on `/unlock`. */
+/** Lock the session through the navbar's account menu; lands on `/unlock`. */
 export async function lockApp(page: Page): Promise<void> {
   const locale = await currentLocale(page);
-  const controls = await shellControls(page);
-  await controls.getByRole('button', { name: label('workspace.session.lock', undefined, locale) }).click();
+  // Local mode: the trigger is named "Account"; signed in it carries the email.
+  const trigger = header(page).locator('button[aria-haspopup="menu"]').last();
+  await trigger.click();
+  await page
+    .getByRole('menuitem', { name: label('workspace.session.lock', undefined, locale) })
+    .click();
   await page.waitForURL((url) => url.pathname === '/unlock');
   await settleNavigation(page);
 }
@@ -320,10 +299,10 @@ export async function helpDialog(page: Page): Promise<Locator> {
   return page.getByRole('dialog', { name: label('help.ui.title', undefined, locale) });
 }
 
-/** Open the help panel from the status bar button. */
+/** Open the help panel from the navbar button. */
 export async function openHelp(page: Page): Promise<Locator> {
   const locale = await currentLocale(page);
-  await statusBar(page).getByTitle(label('help.ui.statusBarHint', undefined, locale)).click();
+  await header(page).getByRole('button', { name: label('help.ui.openHelp', undefined, locale) }).click();
   const dialog = await helpDialog(page);
   await expect(dialog).toBeVisible();
   return dialog;
@@ -341,10 +320,10 @@ export async function openHelpWithKeyboard(page: Page): Promise<Locator> {
   return dialog;
 }
 
-/** Open the storage & privacy dialog from the status bar badge. */
+/** Open the storage & privacy dialog from the navbar's storage-mode button. */
 export async function openStoragePolicy(page: Page): Promise<Locator> {
   const locale = await currentLocale(page);
-  await statusBar(page).getByTitle(label('statusBar.storageSettingsHint', undefined, locale)).click();
+  await header(page).getByRole('button', { name: label('nav.storageMode', undefined, locale) }).click();
   const dialog = page.getByRole('dialog', { name: label('misc.storageModal.heading', undefined, locale) });
   await expect(dialog).toBeVisible();
   return dialog;

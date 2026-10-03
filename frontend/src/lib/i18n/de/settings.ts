@@ -5,18 +5,20 @@ export const settings = {
         description: 'Sprache der Benutzeroberfläche auswählen:',
         hint: 'Betrifft nur die Oberfläche — erzeugte Prüfungs-PDFs bleiben unverändert.',
     },
+    theme: {
+        heading: 'Farbschema',
+        description: 'Farbschema der Oberfläche auswählen:',
+        hint: '„Wie System“ folgt der Einstellung Ihres Betriebssystems und wechselt automatisch mit.',
+    },
     storage: {
         heading: '1. Globale Speicherstrategie',
-        description:
-            'Legen Sie fest, wo Prüfungen, Aufgaben, Schüleridentitäten und Ergebnisse gespeichert werden:',
+        description: 'Legen Sie fest, wo Prüfungen, Aufgaben, Schüleridentitäten und Ergebnisse gespeichert werden:',
         allLocalTitle: 'Alles lokal (Datenschutz zuerst)',
-        allLocalText:
-            'Prüfungen, Aufgabenbibliothek, Schüleridentitäten und Scans werden zu 100 % lokal in der IndexedDB Ihres Browsers gespeichert.',
+        allLocalText: 'Prüfungen, Aufgabenbibliothek, Schüleridentitäten und Scans werden zu 100 % lokal in der IndexedDB Ihres Browsers gespeichert.',
         allServerTitle: 'Alles auf dem Server',
         allServerText: 'Alle Daten werden mit dem sicheren BlindGrade-Server synchronisiert und dort gespeichert.',
         hybridTitle: 'Hybrid-Modus (Bibliothek auf dem Server, Ergebnisse lokal)',
-        hybridText:
-            'Aufgabenbibliothek und Prüfungsvorlagen liegen auf dem Server, Schüleridentitäten und Notenabgaben bleiben zu 100 % auf Ihrem Gerät.',
+        hybridText: 'Aufgabenbibliothek und Prüfungsvorlagen liegen auf dem Server, Schüleridentitäten und Notenabgaben bleiben zu 100 % auf Ihrem Gerät.',
     },
     latex: {
         heading: '2. LaTeX-Kompilierung',
@@ -28,10 +30,8 @@ export const settings = {
     },
     omr: {
         heading: '4. MC-Erkennung (OMR) feinjustieren',
-        description:
-            'Schwellenwerte, mit denen angekreuzte Kästchen auf eingescannten Bögen erkannt werden. Die Standardwerte passen für die meisten Scanner.',
-        futureOnly:
-            'Änderungen gelten nur für künftige Erkennungsläufe (neue Scans oder „MC-Erkennung erneut ausführen“). Bereits erkannte und insbesondere bereits geprüfte Ergebnisse bleiben unverändert.',
+        description: 'Schwellenwerte, mit denen angekreuzte Kästchen auf eingescannten Bögen erkannt werden. Die Standardwerte passen für die meisten Scanner.',
+        futureOnly: 'Änderungen gelten nur für künftige Erkennungsläufe (neue Scans oder „MC-Erkennung erneut ausführen“). Bereits erkannte und insbesondere bereits geprüfte Ergebnisse bleiben unverändert.',
         localOnly: 'Wird nur in diesem Browser gespeichert und nicht mit anderen Geräten synchronisiert.',
         basicGroup: 'Füllgrad der Kästchen',
         advancedGroup: 'Erweitert',
@@ -170,12 +170,9 @@ export const settings = {
     },
     donation: {
         heading: '5. MC-Erkennung verbessern (freiwillig)',
-        description:
-            'Helfen Sie, die automatische Erkennung von Ankreuzfeldern für alle Lehrkräfte zu verbessern, indem Sie anonymisierte Ausschnitte bereits geprüfter Kästchen spenden.',
-        whatIsSent:
-            'Gesendet wird je geprüftem Kästchen: ein kleiner Graustufen-Ausschnitt (nur das Kästchen und das Korrekturfeld daneben, kein Aufgabentext), Ihre geprüfte Entscheidung (angekreuzt / nicht angekreuzt) und die Messwerte der Erkennung.',
-        whatIsNotSent:
-            'Nicht gesendet werden: Namen, Pseudonyme, Prüfungs-, Abgabe- oder Aufgabenkennungen oder Zeitstempel. Je Kästchen wird nur eine zufällige Kennung mitgeschickt, damit eine spätere Korrektur die frühere Wertung ersetzt. Gesendet wird angemeldet, damit nur Konten dieser Installation spenden können; Ihr Konto wird dabei nicht mit den Ausschnitten gespeichert.',
+        description: 'Helfen Sie, die automatische Erkennung von Ankreuzfeldern für alle Lehrkräfte zu verbessern, indem Sie anonymisierte Ausschnitte bereits geprüfter Kästchen spenden.',
+        whatIsSent: 'Gesendet wird je geprüftem Kästchen: ein kleiner Graustufen-Ausschnitt (nur das Kästchen und das Korrekturfeld daneben, kein Aufgabentext), Ihre geprüfte Entscheidung (angekreuzt / nicht angekreuzt) und die Messwerte der Erkennung.',
+        whatIsNotSent: 'Nicht gesendet werden: Namen, Pseudonyme, Prüfungs-, Abgabe- oder Aufgabenkennungen oder Zeitstempel. Je Kästchen wird nur eine zufällige Kennung mitgeschickt, damit eine spätere Korrektur die frühere Wertung ersetzt. Gesendet wird angemeldet, damit nur Konten dieser Installation spenden können; Ihr Konto wird dabei nicht mit den Ausschnitten gespeichert.',
         whenSent: 'Nur Fragen, die Sie in der MC-Prüfansicht bestätigt oder korrigiert haben, nur solange Sie angemeldet sind und diese Option aktiviert ist. Beim Abschalten wird nichts mehr gesendet, auch nichts bereits Vorbereitetes.',
         recipient: 'Empfänger: {host}',
         unavailable: 'Dieser Server nimmt derzeit keine Spenden an — es wird nichts gesendet.',
@@ -186,8 +183,7 @@ export const settings = {
     },
     hygiene: {
         heading: 'Sitzungsdaten bereinigen',
-        description:
-            'Alle zwischengespeicherten Prüfungs-, Schüler- und Scandaten dauerhaft aus dem lokalen Browserspeicher löschen.',
+        description: 'Alle zwischengespeicherten Prüfungs-, Schüler- und Scandaten dauerhaft aus dem lokalen Browserspeicher löschen.',
         button: 'Alle Sitzungsdaten löschen',
         confirm: 'Alle lokalen Sitzungsdaten aus der IndexedDB löschen?',
     },
@@ -200,14 +196,10 @@ export const settings = {
         exportFailed: 'Export fehlgeschlagen.',
     },
     alerts: {
-        serverCompileNeedsAuth:
-            'Die Serverkompilierung erfordert eine authentifizierte Sitzung. Bitte melden Sie sich an.',
-        serverStorageNeedsAuth:
-            'Serverbasierte Speichermodi erfordern eine authentifizierte Sitzung. Bitte melden Sie sich an.',
-        storageModeConfirm:
-            'Ein Wechsel des Speichermodus setzt den aktuellen Sitzungszustand zurück. Stellen Sie sicher, dass Sie zuvor ein .bgproj-Backup exportiert haben!\n\nMöchten Sie fortfahren und den Speichermodus wechseln?',
-        eraseStudentConfirm:
-            'Möchten Sie diese Schüleridentität und alle zugehörigen Abgaben wirklich dauerhaft löschen?',
+        serverCompileNeedsAuth: 'Die Serverkompilierung erfordert eine authentifizierte Sitzung. Bitte melden Sie sich an.',
+        serverStorageNeedsAuth: 'Serverbasierte Speichermodi erfordern eine authentifizierte Sitzung. Bitte melden Sie sich an.',
+        storageModeConfirm: 'Ein Wechsel des Speichermodus setzt den aktuellen Sitzungszustand zurück. Stellen Sie sicher, dass Sie zuvor ein .bgproj-Backup exportiert haben!\n\nMöchten Sie fortfahren und den Speichermodus wechseln?',
+        eraseStudentConfirm: 'Möchten Sie diese Schüleridentität und alle zugehörigen Abgaben wirklich dauerhaft löschen?',
         eraseFailed: 'Löschen fehlgeschlagen: {message}',
     },
 } as const;

@@ -48,22 +48,19 @@ export function getStoragePolicyLabel(policy: StoragePolicy): string {
     return `${modeLabel} | ${latexLabel}`;
 }
 
-export function getStoragePolicyBadge(policy: StoragePolicy): { icon: string; text: string; title: string } {
+export function getStoragePolicyBadge(policy: StoragePolicy): { text: string; title: string } {
     if (policy.storageMode === 'all-local') {
         return {
-            icon: '🛡️',
             text: translate('storagePolicy.allLocal'),
             title: translate('storagePolicy.allLocalTitle'),
         };
     } else if (policy.storageMode === 'all-server') {
         return {
-            icon: '☁️',
             text: translate('storagePolicy.allServer'),
             title: translate('storagePolicy.allServerTitle'),
         };
     } else {
         return {
-            icon: '🔀',
             text: translate('storagePolicy.hybridShort'),
             title: translate('storagePolicy.hybridTitle'),
         };

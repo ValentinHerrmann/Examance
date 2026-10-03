@@ -111,6 +111,9 @@ function computeDefaultBackendUrl(): string {
 
 export default defineConfig({
   plugins: [tailwindcss(), wasm(), argon2BundlePlugin(), sveltekit()],
+  // Component tests mount Svelte in jsdom, which needs Svelte's browser build
+  // (its default resolution under Node is the SSR build, where mount fails).
+  resolve: { conditions: process.env.VITEST ? ['browser'] : [] },
   define: {
     __APP_VERSION__: JSON.stringify(computeAppVersion()),
     __APP_COMMIT_SHA__: JSON.stringify(computeCommitSha()),

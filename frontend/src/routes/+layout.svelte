@@ -16,7 +16,6 @@
   import { api } from "$lib/api/client";
   import {
     storagePolicyStore,
-    storagePolicyLabelStore,
     storagePolicyBadgeStore,
   } from "$lib/stores/storagePolicy";
   import { safeLocalStorage } from "$lib/utils/storage";
@@ -39,18 +38,22 @@
   import ImportConflictModal from "$lib/components/storage/ImportConflictModal.svelte";
   import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
   import { adoptServerStorageIfLocalEmpty, pendingSwitchStore, resumeModeSwitch } from "$lib/services/storageModeSwitch";
-  import AppHeader from "$lib/components/layout/AppHeader.svelte";
-  import StatusBar from "$lib/components/layout/StatusBar.svelte";
+  import AppNavbar from "$lib/components/layout/AppNavbar.svelte";
+  import AppFooter from "$lib/components/layout/AppFooter.svelte";
+  import NavDrawer from "$lib/components/layout/NavDrawer.svelte";
+  import ExamSidebar from "$lib/components/layout/ExamSidebar.svelte";
+  import { examNavContext } from "$lib/stores/shell";
+  import { theme, applyTheme } from "$lib/stores/theme";
+  import { Alert, Button } from "$lib/components/ui";
   import StoragePolicyModal from "$lib/components/StoragePolicyModal.svelte";
   import SessionTimeoutWarning from "$lib/components/SessionTimeoutWarning.svelte";
   import HttpCatModal from "$lib/components/HttpCatModal.svelte";
   import HelpModal from "$lib/components/help/HelpModal.svelte";
-  import { helpSeen, openHelp, toggleHelp } from "$lib/stores/helpStore";
+  import { helpSeen, helpStore, openHelp, toggleHelp } from "$lib/stores/helpStore";
   import { locale, t, translate } from "$lib/i18n";
 
   let fileInput: HTMLInputElement;
   let isSettingsModalOpen = false;
-  let isWorkspaceMenuOpen = false;
   let isInitializing = true;
   let showFocusNav = false;
 
@@ -61,6 +64,17 @@
     $pendingSwitchStore && $pendingSwitchStore.phase === "reimport" ? $pendingSwitchStore : null;
 
   $: isGradeActive = isGradeActivePath($page.url.pathname);
+
+  // The inline script in app.html applied the theme before the first paint;
+  // from here on the store keeps <html data-theme> in step with the user's
+  // choice and with OS changes while "system" is selected.
+  $: if (typeof document !== "undefined") {
+    applyTheme($theme);
+  }
+
+  $: showFullNav = $isUnlocked && $page.url.pathname !== "/unlock";
+  $: showExamSidebar =
+    showFullNav && !!$examNavContext && $page.url.pathname.startsWith(`/exam/${$examNavContext.examId}`);
 
   // app.html ships a static <html lang="en">; keep it truthful so screen
   // readers and browser translation follow the selected language.
@@ -96,7 +110,11 @@
       return;
     }
     const target = event.target as HTMLElement | null;
+    // F1 is not a printable character: while the help panel is open (its
+    // search field takes focus on open) it must still close it.
+    const closesHelp = event.key === "F1" && get(helpStore).open;
     if (
+      !closesHelp &&
       target &&
       (target.isContentEditable ||
         ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) ||
@@ -175,7 +193,6 @@
   }
 
   function triggerOpenBgproj() {
-    isWorkspaceMenuOpen = false;
     fileInput?.click();
   }
 
@@ -216,45 +233,49 @@
 <HttpCatModal />
 
 <div class="app-layout">
-  {#if $isUnlocked && $page.url.pathname !== "/unlock"}
-    {#if !isGradeActive || showFocusNav}
-      <AppHeader
-        bind:isWorkspaceMenuOpen
-        onToggleWorkspaceMenu={() => (isWorkspaceMenuOpen = !isWorkspaceMenuOpen)}
-        onOpenArchive={triggerOpenBgproj}
-        onExportArchive={() => exportArchiveInteractively()}
-        onClearWorkspace={handleCloseWorkspace}
-        onLock={handleLock}
-        authenticated={$isAuthenticated}
-        userRole={$sessionStore.role}
-        userEmail={$sessionStore.email}
-      />
-    {/if}
+  {#if !showFullNav}
+    <AppNavbar variant="minimal" helpUnseen={!$helpSeen} onHelpClick={() => openHelp()} />
+  {:else if !isGradeActive || showFocusNav}
+    <AppNavbar
+      authenticated={$isAuthenticated}
+      userRole={$sessionStore.role}
+      userEmail={$sessionStore.email}
+      storageMode={$storagePolicyStore.storageMode}
+      storageLabel={$storagePolicyBadgeStore.text}
+      storageTitle={$storagePolicyBadgeStore.title}
+      versionStatus={$versionStatus}
+      helpUnseen={!$helpSeen}
+      onStorageClick={handleFooterClick}
+      onHelpClick={() => openHelp()}
+      onOpenArchive={triggerOpenBgproj}
+      onExportArchive={() => exportArchiveInteractively()}
+      onClearWorkspace={handleCloseWorkspace}
+      onLock={handleLock}
+    />
+  {/if}
+
+  {#if $versionStatus === "incompatible"}
+    <!-- A differing major version means frontend and backend disagree on the
+         API; saving may fail. Not dismissible, and visible without scrolling. -->
+    <Alert severity="danger" title={$t("statusBar.incompatibleTitle")} class="mx-3 mt-2 sm:mx-4">
+      {$t("statusBar.incompatibleBody", { app: frontendVersion, server: $backendVersionStore ?? "?" })}
+    </Alert>
   {/if}
 
   {#if interruptedSwitch && !resumeBannerDismissed}
-    <div
-      role="status"
-      class="mx-3 mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-content sm:mx-5"
-    >
-      <p class="font-semibold">{$t("storagePolicy.switch.resumeBanner")}</p>
-      <p class="mt-1 text-muted">
-        {$t("storagePolicy.switch.resumeBody", {
-          to: $storagePolicyBadgeStore.text,
-        })}
-      </p>
-      <div class="mt-2 flex flex-wrap items-center gap-3">
-        <button class="underline underline-offset-2" on:click={() => (switchWizardOpen = true)}>
+    <Alert severity="warning" title={$t("storagePolicy.switch.resumeBanner")} class="mx-3 mt-2 sm:mx-4">
+      {$t("storagePolicy.switch.resumeBody", {
+        to: $storagePolicyBadgeStore.text,
+      })}
+      <svelte:fragment slot="actions">
+        <Button variant="outlined" severity="warning" size="sm" onClick={() => (switchWizardOpen = true)}>
           {$t("storagePolicy.switch.resumeContinue")}
-        </button>
-        <button
-          class="text-subtle underline underline-offset-2"
-          on:click={() => (resumeBannerDismissed = true)}
-        >
+        </Button>
+        <Button variant="text" severity="secondary" size="sm" onClick={() => (resumeBannerDismissed = true)}>
           {$t("storagePolicy.switch.resumeDismiss")}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </svelte:fragment>
+    </Alert>
   {/if}
 
   {#if $vaultIntegrityStore.count > 0}
@@ -262,45 +283,45 @@
       Not a toast or the HTTP error modal: until unlocked with the right key,
       affected records render blank, so this stays on screen next to them.
     -->
-    <div
-      role="alert"
-      class="mx-3 mt-3 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-content sm:mx-5"
-    >
-      <p class="font-semibold">{$t("misc.vaultIntegrity.heading")}</p>
-      <p class="mt-1 text-muted">
-        {$t("misc.vaultIntegrity.body", {
-          count: $vaultIntegrityStore.count,
-          kinds: $vaultIntegrityStore.kinds.join(", "),
-        })}
-      </p>
-      <div class="mt-2 flex flex-wrap items-center gap-3">
-        <button class="underline underline-offset-2" on:click={handleLock}>
+    <Alert severity="danger" title={$t("misc.vaultIntegrity.heading")} class="mx-3 mt-2 sm:mx-4">
+      {$t("misc.vaultIntegrity.body", {
+        count: $vaultIntegrityStore.count,
+        kinds: $vaultIntegrityStore.kinds.join(", "),
+      })}
+      <svelte:fragment slot="actions">
+        <Button variant="outlined" severity="danger" size="sm" onClick={handleLock}>
           {$t("misc.vaultIntegrity.action")}
-        </button>
-        <button class="text-subtle underline underline-offset-2" on:click={() => vaultIntegrityStore.reset()}>
+        </Button>
+        <Button variant="text" severity="secondary" size="sm" onClick={() => vaultIntegrityStore.reset()}>
           {$t("misc.vaultIntegrity.dismiss")}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </svelte:fragment>
+    </Alert>
   {/if}
 
-  <main class="app-main">
-    <slot />
-  </main>
+  <div class="app-body">
+    {#if showExamSidebar && $examNavContext}
+      <ExamSidebar context={$examNavContext} pathname={$page.url.pathname} {isGradeActive} />
+    {/if}
 
-  <StatusBar
-    onStorageClick={handleFooterClick}
-    onHelpClick={() => openHelp()}
-    helpUnseen={!$helpSeen}
-    policyIcon={$storagePolicyBadgeStore.icon}
-    policyLabel={$storagePolicyLabelStore}
-    backendLabel={$effectiveBackendStore || ""}
-    unlocked={$isUnlocked}
-    {frontendVersion}
-    versionUrl={$displayVersionUrl}
-    backendVersion={$backendVersionStore}
-    versionStatus={$versionStatus}
-  />
+    <main class="app-main">
+      <slot />
+
+      <AppFooter
+        onBackendClick={handleFooterClick}
+        backendLabel={$effectiveBackendStore || ""}
+        unlocked={$isUnlocked}
+        {frontendVersion}
+        versionUrl={$displayVersionUrl}
+        backendVersion={$backendVersionStore}
+        versionStatus={$versionStatus}
+      />
+    </main>
+  </div>
+
+  {#if showFullNav}
+    <NavDrawer userRole={$sessionStore.role} />
+  {/if}
 
   <HelpModal />
 

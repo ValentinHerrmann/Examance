@@ -7,17 +7,20 @@ export const settings: Translations['settings'] = {
         description: 'Select the language of the user interface:',
         hint: 'Affects the interface only — generated exam PDFs stay unchanged.',
     },
+    theme: {
+        heading: 'Color scheme',
+        description: 'Select the color scheme of the user interface:',
+        hint: '“Match system” follows your operating system setting and switches along with it.',
+    },
     storage: {
         heading: '1. Global Data Storage Strategy',
         description: 'Select where your exams, exercises, student identities, and results are stored:',
         allLocalTitle: 'All Local (Privacy First)',
-        allLocalText:
-            'Exams, exercise library, student identities, and scans stored 100% locally in your browser IndexedDB.',
+        allLocalText: 'Exams, exercise library, student identities, and scans stored 100% locally in your browser IndexedDB.',
         allServerTitle: 'All Server',
         allServerText: 'All data synchronized and stored on the secure BlindGrade server.',
         hybridTitle: 'Hybrid Mode (Library on Server, Results Local)',
-        hybridText:
-            'Exercise library and exam templates on server, but student identities and grade submissions stay 100% on your local device.',
+        hybridText: 'Exercise library and exam templates on server, but student identities and grade submissions stay 100% on your local device.',
     },
     latex: {
         heading: '2. LaTeX Compilation',
@@ -29,8 +32,7 @@ export const settings: Translations['settings'] = {
     },
     omr: {
         heading: '4. Fine-tune MC detection (OMR)',
-        description:
-            'Thresholds used to detect ticked boxes on scanned answer sheets. The defaults suit most scanners.',
+        description: 'Thresholds used to detect ticked boxes on scanned answer sheets. The defaults suit most scanners.',
         futureOnly:
             'Changes apply only to future detection runs (new scans or "Re-run MC detection"). Existing and especially already verified results are not changed.',
         localOnly: 'Stored in this browser only and not synced to other devices.',
@@ -171,12 +173,10 @@ export const settings: Translations['settings'] = {
     },
     donation: {
         heading: '5. Help improve MC detection (optional)',
-        description:
-            'Help improve automatic checkbox detection for all teachers by donating anonymised crops of boxes you have already verified.',
+        description: 'Help improve automatic checkbox detection for all teachers by donating anonymised crops of boxes you have already verified.',
         whatIsSent:
             "Sent per verified box: a small grayscale crop (only the box and the correction field next to it, no question text), your verified decision (ticked / not ticked) and the detector's measurements.",
-        whatIsNotSent:
-            'Not sent: names, pseudonyms, exam, submission or question identifiers, or timestamps. Each box only carries a random id, so a later correction replaces the earlier label. Donations are sent signed in, so only accounts of this installation can donate; your account is not stored with the crops.',
+        whatIsNotSent: 'Not sent: names, pseudonyms, exam, submission or question identifiers, or timestamps. Each box only carries a random id, so a later correction replaces the earlier label. Donations are sent signed in, so only accounts of this installation can donate; your account is not stored with the crops.',
         whenSent: 'Only questions you confirmed or corrected in the MC verification view, only while you are signed in and this option is enabled. Switching it off stops everything, including crops already prepared.',
         recipient: 'Recipient: {host}',
         unavailable: 'This server does not accept donations at the moment — nothing is sent.',
@@ -187,8 +187,7 @@ export const settings: Translations['settings'] = {
     },
     hygiene: {
         heading: 'Session Data Hygiene',
-        description:
-            'Permanently clear all cached exam, student, and scan data from local browser storage.',
+        description: 'Permanently clear all cached exam, student, and scan data from local browser storage.',
         button: 'Clear All Session Data',
         confirm: 'Wipe all local session data from IndexedDB?',
     },
@@ -203,10 +202,8 @@ export const settings: Translations['settings'] = {
     alerts: {
         serverCompileNeedsAuth: 'Server compilation requires an authenticated session. Please log in.',
         serverStorageNeedsAuth: 'Server storage modes require an authenticated session. Please log in.',
-        storageModeConfirm:
-            'Changing storage mode requires clearing the current active session state. Please make sure you have exported a .bgproj backup first!\n\nDo you want to proceed and switch storage mode?',
-        eraseStudentConfirm:
-            'Are you sure you want to permanently erase this student identity and all submissions?',
+        storageModeConfirm: 'Changing storage mode requires clearing the current active session state. Please make sure you have exported a .bgproj backup first!\n\nDo you want to proceed and switch storage mode?',
+        eraseStudentConfirm: 'Are you sure you want to permanently erase this student identity and all submissions?',
         eraseFailed: 'Erasure failed: {message}',
     },
 };

@@ -18,16 +18,12 @@ export const storagePolicy: Translations['storagePolicy'] = {
         stepSwitch: 'Switch',
         stepImport: 'Import',
         introHeading: 'Switch from "{from}" to "{to}"',
-        introBody:
-            'Changing the storage location does not move any data on its own. The current workspace is cleared locally, and the new location starts empty.',
-        bridgeNote:
-            'The encrypted archive file (.bgproj) is the only bridge between storage locations: export first, then switch, then import it again in the new mode.',
-        serverKeptNote:
-            'Exams stored on the server are not deleted — only this browser\'s local storage is cleared.',
+        introBody: 'Changing the storage location does not move any data on its own. The current workspace is cleared locally, and the new location starts empty.',
+        bridgeNote: 'The encrypted archive file (.bgproj) is the only bridge between storage locations: export first, then switch, then import it again in the new mode.',
+        serverKeptNote: 'Exams stored on the server are not deleted — only this browser\'s local storage is cleared.',
         understandCheckbox: 'I understand that no data is transferred automatically.',
         exportHeading: 'Back up the workspace',
-        exportBody:
-            'Choose a password for the archive. The file cannot be recovered without it, so keep it somewhere safe.',
+        exportBody: 'Choose a password for the archive. The file cannot be recovered without it, so keep it somewhere safe.',
         exportButton: 'Download archive',
         exportDone: 'Archive saved: {filename}',
         exportRequired: 'The switch is only possible after the export.',
@@ -38,8 +34,7 @@ export const storagePolicy: Translations['storagePolicy'] = {
             'This step irreversibly deletes the local workspace and sets the storage location to "{to}".',
         wipeButton: 'Switch now',
         importHeading: 'Import the archive into the new storage location',
-        importBody:
-            'Import the archive you just created so your exams are available in the new storage location.',
+        importBody: 'Import the archive you just created so your exams are available in the new storage location.',
         importSkip: 'Import later',
         resumeBanner: 'A storage location change is not finished yet.',
         resumeBody:
@@ -48,22 +43,19 @@ export const storagePolicy: Translations['storagePolicy'] = {
         resumeDismiss: 'Later',
         needsAuth: 'Server-backed storage locations require you to be signed in.',
         cancel: 'Cancel',
-        cannotAbortAfterWipe:
-            'Local storage has already been cleared — the switch can no longer be undone.',
+        cannotAbortAfterWipe: 'Local storage has already been cleared — the switch can no longer be undone.',
     },
 
     conflict: {
         title: 'Differences found during import',
-        subtitle:
-            'These records already exist. Please decide for each one which version should apply.',
+        subtitle: 'These records already exist. Please decide for each one which version should apply.',
         counter: '{decided} of {total} decided',
         columnExisting: 'Existing',
         columnImported: 'From the archive',
         choiceKeepExisting: 'Keep existing',
         choiceTakeImported: 'Take archive version',
         choiceImportAsCopy: 'Import as a copy',
-        copyNotAllowed:
-            'Student data and submissions cannot be copied — duplicate pseudonyms are not permissible under data protection rules.',
+        copyNotAllowed: 'Student data and submissions cannot be copied — duplicate pseudonyms are not permissible under data protection rules.',
         applyToAll: 'Apply to all',
         apply: 'Start import',
         cancel: 'Cancel import',

@@ -63,8 +63,7 @@ export const editor = {
     /** Generic unsaved-changes dialog (ConfirmDialog defaults). */
     confirmDialog: {
         title: 'Ungespeicherte Änderungen',
-        message:
-            'Es gibt ungespeicherte Änderungen, die verloren gehen. Möchten Sie wirklich beenden, ohne zu speichern?',
+        message: 'Es gibt ungespeicherte Änderungen, die verloren gehen. Möchten Sie wirklich beenden, ohne zu speichern?',
         confirmText: 'Änderungen verwerfen',
         cancelText: 'Weiter bearbeiten',
     },

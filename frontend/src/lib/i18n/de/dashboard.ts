@@ -1,12 +1,11 @@
 export const dashboard = {
-    loadFailed:
-        'Ihre Prüfungen konnten nicht vom Server geladen werden. Es wird angezeigt, was lokal vorliegt — das ist möglicherweise nicht alles. Melden Sie sich erneut an oder versuchen Sie es später noch einmal.',
+    loadFailed: 'Ihre Prüfungen konnten nicht vom Server geladen werden. Es wird angezeigt, was lokal vorliegt — das ist möglicherweise nicht alles. Melden Sie sich erneut an oder versuchen Sie es später noch einmal.',
     header: {
         title: 'Prüfungsübersicht',
         subtitle: 'Verwalten, bewerten und analysieren Sie Ihre Schulaufgaben',
         importing: 'Importiert…',
-        importButton: '📂 .bgproj importieren',
-        createButton: '➕ Neue Prüfung erstellen',
+        importButton: '.bgproj importieren',
+        createButton: 'Neue Prüfung erstellen',
     },
     sessionState: {
         initializing: 'Lokale Sitzung wird initialisiert…',
@@ -19,7 +18,7 @@ export const dashboard = {
         subjectCount: 'Konfigurierte Fächer',
         gradeCount: 'Klassenstufen',
         globalAnalytics: 'Gesamtanalyse',
-        viewStats: 'Statistiken über alle Prüfungen →',
+        viewStats: 'Statistiken über alle Prüfungen',
     },
     onboarding: {
         welcome: 'Willkommen bei Examance!',

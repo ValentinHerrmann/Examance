@@ -23,26 +23,16 @@ export const help: Translations['help'] = {
         unlockLink: 'New here? How Examance works',
     },
     tips: {
-        storageLocal:
-            'Everything stays encrypted in this device’s browser. Not a single byte reaches a server — but there is no sync and no backup other than the .bgproj archive. Exception: the optional, anonymised donation of tick-box crops, if enabled in Settings while signed in to a server account.',
-        storageServer:
-            'All data is synced, but only ever as ciphertext. The key stays in the browser, so the server cannot read the contents.',
-        storageHybrid:
-            'Exercises and exam templates live on the server (useful for a shared department catalogue), while student data and grading results stay strictly local.',
-        latexLocal:
-            'The exam is typeset in the browser (WebAssembly XeLaTeX). The LaTeX source never leaves the device, but the first run takes longer.',
-        latexServer:
-            'The server typesets the exam. Faster on low-spec hardware, but the LaTeX source is transmitted.',
-        variantKey:
-            'Variants are different phrasings of the same exercise (group A/B/C). They share grading and statistics while making copying harder.',
-        mcPenalty:
-            'Points deducted for a wrongly ticked option. 0 means no negative marking. An exercise total never drops below zero.',
-        blindGrading:
-            'During grading only the pseudonym is shown, never the name. Result and person are re-linked only after the grading pass.',
-        pseudonymQr:
-            'Every sheet carries a QR code for exam, variant and student slot. Scanning splits the stack along those codes and assigns the pages automatically.',
-        gradingKey:
-            'The grading key decides which score earns which grade — linear, upper-secondary weighted, or with your own cutoffs.',
+        storageLocal: 'Everything stays encrypted in this device’s browser. Not a single byte reaches a server — but there is no sync and no backup other than the .bgproj archive. Exception: the optional, anonymised donation of tick-box crops, if enabled in Settings while signed in to a server account.',
+        storageServer: 'All data is synced, but only ever as ciphertext. The key stays in the browser, so the server cannot read the contents.',
+        storageHybrid: 'Exercises and exam templates live on the server (useful for a shared department catalogue), while student data and grading results stay strictly local.',
+        latexLocal: 'The exam is typeset in the browser (WebAssembly XeLaTeX). The LaTeX source never leaves the device, but the first run takes longer.',
+        latexServer: 'The server typesets the exam. Faster on low-spec hardware, but the LaTeX source is transmitted.',
+        variantKey: 'Variants are different phrasings of the same exercise (group A/B/C). They share grading and statistics while making copying harder.',
+        mcPenalty: 'Points deducted for a wrongly ticked option. 0 means no negative marking. An exercise total never drops below zero.',
+        blindGrading: 'During grading only the pseudonym is shown, never the name. Result and person are re-linked only after the grading pass.',
+        pseudonymQr: 'Every sheet carries a QR code for exam, variant and student slot. Scanning splits the stack along those codes and assigns the pages automatically.',
+        gradingKey: 'The grading key decides which score earns which grade — linear, upper-secondary weighted, or with your own cutoffs.',
     },
     topics: {
         gettingStarted: {
