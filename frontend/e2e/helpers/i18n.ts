@@ -54,7 +54,7 @@ export function stripDecoration(text: string): string {
     text
       // Emoji (incl. keycaps' pictographs), variation selectors, joiners, tags.
       .replace(/\p{Extended_Pictographic}/gu, ' ')
-      .replace(/[‍︎️⃣]/g, '')
+      .replace(/\u200d|\ufe0e|\ufe0f|\u20e3/g, '')
       // Arrows, check/cross marks, dingbats, geometric shapes, "multiply".
       .replace(/[←-⇿✀-➿■-◿☀-⛿×›‹»«•·]/g, ' ')
       // Leading list numbering such as "1. " or "3) ", used by wizard-like labels.

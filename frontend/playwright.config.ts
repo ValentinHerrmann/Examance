@@ -14,8 +14,31 @@ import { defineConfig, devices } from '@playwright/test';
 const PORT = 4173;
 const BASE_URL = `http://localhost:${PORT}`;
 
+/**
+ * `screens.spec.ts` only produces screenshots for a manual visual review. It is
+ * tagged `@screens` and skipped unless the command line asks for it:
+ *   npx playwright test --grep @screens
+ */
+const wantsScreens = process.argv.some((arg) => arg.includes('@screens'));
+
+/** Specs that run on every device project (the functional suite stays on the first three). */
+const DEVICE_SPECS = /(layout|a11y|screens)\.spec\.ts$/;
+
+const touch = (width: number, height: number, mobile: boolean, dsf: number) => ({
+  ...devices['Desktop Chrome'],
+  viewport: { width, height },
+  hasTouch: true,
+  isMobile: mobile,
+  deviceScaleFactor: dsf,
+});
+const pointer = (width: number, height: number) => ({
+  ...devices['Desktop Chrome'],
+  viewport: { width, height },
+});
+
 export default defineConfig({
   testDir: 'e2e',
+  grepInvert: wantsScreens ? undefined : /@screens/,
   testMatch: /.*\.spec\.ts$/,
 
   // Generous timeouts: the vault passphrase is stretched with Argon2id running
@@ -78,6 +101,15 @@ export default defineConfig({
         deviceScaleFactor: 3,
       },
     },
+    // Device matrix for layout.spec / a11y.spec / screens.spec only.
+    { name: 'phone-small', testMatch: DEVICE_SPECS, use: touch(360, 780, true, 3) },
+    { name: 'phone-large', testMatch: DEVICE_SPECS, use: touch(430, 932, true, 3) },
+    { name: 'ipad-landscape', testMatch: DEVICE_SPECS, use: touch(1366, 1024, false, 2) },
+    // Laptops with OS scaling: 1920x1080 at 150% / 125% minus browser chrome.
+    { name: 'laptop-150', testMatch: DEVICE_SPECS, use: pointer(1280, 600) },
+    { name: 'laptop-125', testMatch: DEVICE_SPECS, use: pointer(1536, 730) },
+    { name: 'desktop-fullscreen', testMatch: DEVICE_SPECS, use: pointer(1920, 1080) },
+    { name: 'desktop-wide', testMatch: DEVICE_SPECS, use: pointer(2560, 1300) },
   ],
 
   webServer: {

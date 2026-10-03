@@ -56,7 +56,7 @@ export async function setCodeMirror(
 
 /** Read the text content of a CodeMirror editor. */
 export async function readCodeMirror(scope: Locator, index = 0): Promise<string> {
-  return (await scope.locator('.cm-content').nth(index).innerText()).replace(/ /g, ' ');
+  return (await scope.locator('.cm-content').nth(index).innerText()).replace(/\u00a0/g, ' ');
 }
 
 /* -------------------------------------------------------------------------- */

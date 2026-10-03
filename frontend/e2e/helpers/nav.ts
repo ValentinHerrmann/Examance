@@ -3,7 +3,7 @@
  *
  * EVERYTHING a test does through the application shell lives in this file: the
  * top header and its menu button, the workspace menu, the session buttons, the
- * status bar (locale toggle, storage badge, help, legal links) and the exam tab
+ * footer (version, legal links), the help button and the exam tab
  * strip. Specs and flows call these functions and never click shell controls
  * themselves.
  *
@@ -97,7 +97,7 @@ export async function settleNavigation(page: Page, quietMs = 700): Promise<void>
   await page.waitForLoadState('load');
 }
 
-/** Switch the UI language through the status bar toggle (a no-op when already set). */
+/** Switch the UI language through the navbar language toggle (a no-op when already set). */
 export async function switchLocale(page: Page, target: Locale): Promise<void> {
   const current = await currentLocale(page);
   if (current === target) return;
@@ -201,7 +201,7 @@ export async function gotoExamTab(page: Page, tab: ExamTab): Promise<void> {
   await page.waitForURL((url) => url.pathname.replace(/\/$/, '') === targetPath);
 }
 
-/** Open the Impressum or the privacy policy from the status bar. */
+/** Open the Impressum or the privacy policy from the footer. */
 export async function gotoLegal(page: Page, which: LegalPage): Promise<void> {
   const locale = await currentLocale(page);
   const key = which === 'impressum' ? 'nav.imprint' : 'nav.privacy';
@@ -290,7 +290,7 @@ export async function lockApp(page: Page): Promise<void> {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Status bar: help and storage policy                                         */
+/* Help and storage policy                                                     */
 /* -------------------------------------------------------------------------- */
 
 /** The help panel dialog. */
@@ -327,4 +327,16 @@ export async function openStoragePolicy(page: Page): Promise<Locator> {
   const dialog = page.getByRole('dialog', { name: label('misc.storageModal.heading', undefined, locale) });
   await expect(dialog).toBeVisible();
   return dialog;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Theme                                                                       */
+/* -------------------------------------------------------------------------- */
+
+/** Pick a colour scheme from the navbar's theme menu. */
+export async function chooseTheme(page: Page, pref: 'system' | 'light' | 'dark'): Promise<void> {
+  const locale = await currentLocale(page);
+  const key = { system: 'nav.themeSystem', light: 'nav.themeLight', dark: 'nav.themeDark' }[pref];
+  await header(page).getByRole('button', { name: label('nav.theme', undefined, locale) }).click();
+  await page.getByRole('menu').getByText(label(key, undefined, locale)).click();
 }
