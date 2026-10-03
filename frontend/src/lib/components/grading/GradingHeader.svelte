@@ -27,7 +27,7 @@
       title={$t("grading.header.backToExamTitle")}
     >{$t("grading.header.backToExam")}</Button>
     <div class="flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap">
-      <span class="overflow-hidden text-ellipsis text-base font-semibold text-content">{exam?.title || $t("grading.header.examFallback")}</span>
+      <h1 class="m-0 overflow-hidden text-ellipsis text-base font-semibold text-content">{exam?.title || $t("grading.header.examFallback")}</h1>
       <span class="text-xs text-muted">
         {exam?.testart || "Kurzarbeit"} • {$t("grading.header.classLabel")} {formatExamCourse(exam?.grade, exam?.klasse) || "-"} • {$t("grading.header.subjectLabel")} {exam?.fach || "-"}
       </span>

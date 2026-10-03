@@ -719,7 +719,7 @@
         </Alert>
       {/if}
 
-      <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 @3xl:flex-row @3xl:overflow-hidden">
+      <div class="flex min-h-0 flex-1 flex-col gap-4 p-4 @3xl:flex-row @3xl:overflow-hidden">
         <div class={editorColumnClass}>
           {#if showLatexPanel}
             <div class="flex w-full shrink-0 items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-2">

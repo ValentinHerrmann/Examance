@@ -5,6 +5,8 @@
   export let title: string;
   export let description: string | undefined = undefined;
   export let icon: IconDefinition | undefined = undefined;
+  /** h1 when the empty state is the whole page (one h1 per route). */
+  export let level: "h1" | "h2" = "h2";
 
   let className = "";
   export { className as class };
@@ -16,7 +18,11 @@
       <Icon {icon} />
     </div>
   {/if}
-  <h2 class="m-0 text-xl font-semibold text-content">{title}</h2>
+  {#if level === "h1"}
+    <h1 class="m-0 text-xl font-semibold text-content">{title}</h1>
+  {:else}
+    <h2 class="m-0 text-xl font-semibold text-content">{title}</h2>
+  {/if}
   {#if description}<p class="m-0 max-w-[40rem] text-muted">{description}</p>{/if}
   <slot />
   {#if $$slots.actions}

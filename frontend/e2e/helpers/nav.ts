@@ -168,12 +168,28 @@ export async function gotoAnalytics(page: Page): Promise<void> {
 }
 
 export async function gotoSettings(page: Page): Promise<void> {
-  await clickMainMenuLink(page, 'nav.settings', '/settings');
+  const locale = await currentLocale(page);
+  const trigger = header(page).locator('button[aria-haspopup="menu"]').last();
+  if (!(await trigger.isVisible())) {
+    // No navbar on this route (grade): leave by address.
+    await page.goto('/settings');
+  } else {
+    await trigger.click();
+    await page.getByRole('menuitem', { name: label('nav.settings', undefined, locale) }).click();
+  }
+  await page.waitForURL((url) => url.pathname === '/settings');
 }
 
 /** The in-app manual page (`/help`), not the help panel. */
 export async function gotoManual(page: Page): Promise<void> {
-  await clickMainMenuLink(page, 'help.ui.navLabel', '/help');
+  const locale = await currentLocale(page);
+  if (!(await header(page).isVisible())) {
+    await page.goto('/help');
+  } else {
+    const dialog = await openHelp(page);
+    await dialog.getByRole('link', { name: label('help.ui.openManual', undefined, locale) }).click();
+  }
+  await page.waitForURL((url) => url.pathname === '/help' || url.pathname === '/help/');
 }
 
 /**

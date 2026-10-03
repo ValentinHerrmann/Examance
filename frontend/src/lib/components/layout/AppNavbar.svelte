@@ -7,20 +7,21 @@
     faCircleQuestion,
     faCircleUser,
     faCloud,
+    faDatabase,
     faFileExport,
     faFileImport,
     faFolderOpen,
     faGear,
     faLock,
     faMoon,
-    faShieldHalved,
-    faShuffle,
     faSun,
     faTrashCan,
     faTriangleExclamation,
   } from "@fortawesome/free-solid-svg-icons";
   import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
   import { locale, t, toggleLocale, LOCALE_LABELS, type Locale } from "$lib/i18n";
+  import { dataPlaceIcons, latexPlaceIcons } from "$lib/components/storage/placeIcons";
+  import type { TranslationKey } from "$lib/i18n/types";
   import type { StorageMode } from "$lib/stores/storagePolicy";
   import type { VersionStatus } from "$lib/stores/versionStore";
   import { themePreference, setThemePreference, theme, type ThemePreference } from "$lib/stores/theme";
@@ -41,8 +42,7 @@
   export let userRole: string | null = null;
   export let userEmail: string | null = null;
   export let storageMode: StorageMode = "all-local";
-  export let storageLabel = "";
-  export let storageTitle = "";
+  export let latexCompilation: "local" | "server" = "local";
   export let versionStatus: VersionStatus = "no-server";
   export let helpUnseen = false;
   export let onStorageClick: () => void = () => {};
@@ -57,18 +57,26 @@
     { href: "/exercises", label: $t("nav.exerciseLibrary") },
     { href: "/analytics", label: $t("nav.analytics") },
     ...(userRole === "admin" ? [{ href: "/admin/users", label: $t("nav.userManagement") }] : []),
-    { href: "/settings", label: $t("nav.settings") },
-    { href: "/help", label: $t("help.ui.navLabel") },
   ];
 
   $: currentPath = $page.url.pathname;
   $: isActive = (href: string) => (href === "/" ? currentPath === "/" : currentPath.startsWith(href));
 
-  const storageIcons: Record<StorageMode, IconDefinition> = {
-    "all-local": faShieldHalved,
-    "all-server": faCloud,
-    hybrid: faShuffle,
+  const dataKeys: Record<StorageMode, { label: TranslationKey; title: TranslationKey }> = {
+    "all-local": { label: "nav.dataLocal", title: "storagePolicy.allLocalTitle" },
+    "all-server": { label: "nav.dataCloud", title: "storagePolicy.allServerTitle" },
+    hybrid: { label: "nav.dataHybrid", title: "storagePolicy.hybridTitle" },
   };
+
+  const latexKeys: Record<"local" | "server", { label: TranslationKey; title: TranslationKey }> = {
+    local: { label: "nav.latexLocalShort", title: "nav.latexLocalTitle" },
+    server: { label: "nav.latexServerShort", title: "nav.latexServerTitle" },
+  };
+
+  $: dataLabel = $t(dataKeys[storageMode].label);
+  $: dataTitle = $t(dataKeys[storageMode].title);
+  $: latexLabel = $t(latexKeys[latexCompilation].label);
+  $: latexTitle = $t(latexKeys[latexCompilation].title);
 
   const themeIcons: Record<ThemePreference, IconDefinition> = {
     system: faCircleHalfStroke,
@@ -82,14 +90,14 @@
 
   /* One look for every control on the slate bar. */
   const control =
-    "inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2.5 text-sm font-medium " +
+    "inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2.5 text-sm font-medium " +
     "text-navbar-muted no-underline hover:bg-navbar-hover hover:text-navbar-content " +
     "aria-expanded:bg-navbar-hover aria-expanded:text-navbar-content pointer-coarse:min-h-11";
   const iconControl = control + " w-10 justify-center px-0 pointer-coarse:w-11";
 </script>
 
 <header
-  class="flex min-h-14 shrink-0 items-center gap-1 bg-navbar px-2 pt-[env(safe-area-inset-top)] text-navbar-content sm:gap-2 sm:px-4"
+  class="flex min-h-12 shrink-0 items-center gap-1 bg-navbar px-2 pt-[env(safe-area-inset-top)] text-navbar-content sm:gap-2 sm:px-4"
 >
   {#if variant === "full"}
     <button
@@ -105,14 +113,14 @@
 
   <a
     href="/"
-    class="mr-2 inline-flex min-h-10 shrink-0 items-center gap-2.5 rounded-md px-1 text-lg font-semibold text-navbar-content no-underline"
+    class="mr-2 inline-flex min-h-10 shrink-0 items-center gap-2.5 pointer-coarse:min-h-11 rounded-md px-1 text-lg font-semibold text-navbar-content no-underline"
   >
     <img src="/favicon.png" alt={$t("nav.logoAlt")} class="size-7 rounded-sm object-contain" />
     <span class="hidden sm:inline">Examance</span>
   </a>
 
   {#if variant === "full"}
-    <nav class="hidden h-14 items-stretch xl:flex" aria-label={$t("nav.menuLabel")}>
+    <nav class="hidden h-12 items-stretch xl:flex" aria-label={$t("nav.menuLabel")}>
       {#each links as link (link.href)}
         <a
           href={link.href}
@@ -150,16 +158,31 @@
         </span>
       {/if}
 
-      <button
-        type="button"
-        class="{control} max-w-[16rem]"
-        title={storageTitle || $t("statusBar.storageSettingsHint")}
-        aria-label={$t("nav.storageMode", { mode: storageLabel })}
-        on:click={onStorageClick}
-      >
-        <Icon icon={storageIcons[storageMode]} />
-        <span class="hidden truncate 2xl:inline">{storageLabel}</span>
-      </button>
+      <!-- Data + LaTeX: one joined pill on phones, separate controls from sm. Mark (what) + state icon (where). -->
+      <div class="flex items-center sm:gap-1">
+        <button
+          type="button"
+          class="{control} gap-1 px-1.5 sm:gap-2 sm:px-2.5"
+          title="{$t('nav.dataLabel')}: {dataLabel} – {dataTitle}"
+          aria-label={$t("nav.storageMode", { mode: dataLabel })}
+          on:click={onStorageClick}
+        >
+          <Icon icon={faDatabase} class="text-xs opacity-70" />
+          <Icon icon={dataPlaceIcons[storageMode]} />
+          <span class="hidden truncate xl:inline">{$t("nav.dataLabel")}: {dataLabel}</span>
+        </button>
+        <button
+          type="button"
+          class="{control} gap-1 px-1.5 sm:gap-2 sm:px-2.5"
+          title="{$t('nav.latexLabel')}: {latexLabel} – {latexTitle}"
+          aria-label={$t("nav.latexMode", { mode: latexLabel })}
+          on:click={onStorageClick}
+        >
+          <span class="font-serif text-xs font-bold tracking-tight opacity-70" aria-hidden="true">TeX</span>
+          <Icon icon={latexPlaceIcons[latexCompilation]} />
+          <span class="hidden truncate xl:inline">{$t("nav.latexLabel")}: {latexLabel}</span>
+        </button>
+      </div>
 
       <Menu
         label={$t("nav.workspace")}

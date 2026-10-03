@@ -83,7 +83,7 @@
    * (Artemis), so one rule works for every severity in both themes. */
   const base =
     "relative inline-flex shrink-0 cursor-pointer items-center justify-center overflow-hidden border " +
-    "font-normal whitespace-nowrap no-underline select-none transition-colors " +
+    "font-normal text-center no-underline select-none transition-colors " +
     "after:pointer-events-none after:absolute after:inset-0 after:bg-current after:opacity-0 " +
     "hover:after:opacity-5 active:after:opacity-10 " +
     "disabled:cursor-not-allowed disabled:opacity-60 disabled:after:opacity-0 " +

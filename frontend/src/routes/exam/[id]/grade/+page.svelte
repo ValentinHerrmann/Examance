@@ -282,7 +282,7 @@
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-base text-content">
   {#if submissions.length === 0}
-    <EmptyState title={$t("grading.page.empty")} class="py-16" />
+    <EmptyState level="h1" title={$t("grading.page.empty")} class="py-16" />
   {:else}
     <GradingWorkspace
       {examId}

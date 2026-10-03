@@ -36,8 +36,8 @@
   /* Text. `muted` reaches AA on surfaces, not on the canvas. `subtle` is an
      alias kept for the chart code; new code uses `muted`. */
   --color-content: #334155;
-  --color-muted: #64748b;
-  --color-subtle: #64748b;
+  --color-muted: #556274;
+  --color-subtle: #556274;
 
   /* `accent` is the link / active-tab colour; `primary` is the fill. Never use
      a fill as text colour. */
@@ -67,7 +67,7 @@
   --color-danger-fg: #a61b29;
   --color-success: #28a745;
   --color-success-contrast: #16191d;
-  --color-success-fg: #1e7b34;
+  --color-success-fg: #1a6930;
   --color-warning: #ffc107;
   --color-warning-contrast: #16191d;
   --color-warning-fg: #7a5a00;

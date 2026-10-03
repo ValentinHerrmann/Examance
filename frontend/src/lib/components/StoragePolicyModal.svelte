@@ -8,7 +8,8 @@
   } from "$lib/stores/storagePolicy";
   import { backendStore, effectiveBackendStore } from "$lib/stores/backendStore";
   import { isAuthenticated } from "$lib/stores/session";
-  import { Alert, Button, Modal } from "$lib/components/ui";
+  import { Alert, Button, Icon, Modal } from "$lib/components/ui";
+  import { dataPlaceIcons, latexPlaceIcons } from "$lib/components/storage/placeIcons";
   import BackendUrlInput from "$lib/components/common/BackendUrlInput.svelte";
   import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
 
@@ -100,7 +101,7 @@
             class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
-            <strong class="mb-1 block text-sm text-content">{$t("misc.storageModal.allLocalTitle")}</strong>
+            <strong class="mb-1 flex items-center gap-1.5 text-sm text-content"><Icon icon={dataPlaceIcons["all-local"]} class="text-muted" />{$t("misc.storageModal.allLocalTitle")}</strong>
             <p class="m-0 text-xs text-muted">{$t("misc.storageModal.allLocalText")}</p>
           </div>
         </label>
@@ -115,7 +116,7 @@
             class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
-            <strong class="mb-1 block text-sm text-content">{$t("misc.storageModal.allServerTitle")}</strong>
+            <strong class="mb-1 flex items-center gap-1.5 text-sm text-content"><Icon icon={dataPlaceIcons["all-server"]} class="text-muted" />{$t("misc.storageModal.allServerTitle")}</strong>
             <p class="m-0 text-xs text-muted">{$t("misc.storageModal.allServerText")}</p>
           </div>
         </label>
@@ -130,7 +131,7 @@
             class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
-            <strong class="mb-1 block text-sm text-content">{$t("misc.storageModal.hybridTitle")}</strong>
+            <strong class="mb-1 flex items-center gap-1.5 text-sm text-content"><Icon icon={dataPlaceIcons.hybrid} class="text-muted" />{$t("misc.storageModal.hybridTitle")}</strong>
             <p class="m-0 text-xs text-muted">{$t("misc.storageModal.hybridText")}</p>
           </div>
         </label>
@@ -152,7 +153,7 @@
             class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
-            <strong class="mb-1 block text-sm text-content">{$t("misc.storageModal.latexLocalTitle")}</strong>
+            <strong class="mb-1 flex items-center gap-1.5 text-sm text-content"><Icon icon={latexPlaceIcons.local} class="text-muted" />{$t("misc.storageModal.latexLocalTitle")}</strong>
             <p class="m-0 text-xs text-muted">{$t("misc.storageModal.latexLocalText")}</p>
           </div>
         </label>
@@ -167,7 +168,7 @@
             class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
-            <strong class="mb-1 block text-sm text-content">{$t("misc.storageModal.latexServerTitle")}</strong>
+            <strong class="mb-1 flex items-center gap-1.5 text-sm text-content"><Icon icon={latexPlaceIcons.server} class="text-muted" />{$t("misc.storageModal.latexServerTitle")}</strong>
             <p class="m-0 text-xs text-muted">{$t("misc.storageModal.latexServerText")}</p>
           </div>
         </label>

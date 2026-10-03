@@ -56,7 +56,7 @@ for (const theme of THEMES) {
               return r.right > document.documentElement.clientWidth + 1;
             })
               .slice(0, 3)
-              .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 60)}`)
+              .map((el) => `${el.tagName.toLowerCase()} "${(el.getAttribute("aria-label") ?? el.textContent ?? "").trim().slice(0, 40)}"`)
           : [];
         return {
           docV: doc.scrollHeight - doc.clientHeight,
@@ -119,6 +119,10 @@ test('[layout] shell: navbar, sidebar, grade page, widths and touch targets', as
     await expect(burger, 'burger visible below 1280').toBeVisible();
     await expect(inlineNav).toBeHidden();
   }
+
+  // Data + LaTeX indicators stay in the bar at every width (icon-only until 2xl).
+  await expect(header(page).getByRole('button', { name: label('nav.storageMode', undefined, locale) })).toBeVisible();
+  await expect(header(page).getByRole('button', { name: label('nav.latexMode', undefined, locale) })).toBeVisible();
 
   // Touch targets in navbar and sidebar.
   if (isTouch()) {
@@ -211,7 +215,8 @@ const SIZE_PX = { small: 32 * REM, medium: 48 * REM, large: 72 * REM, full: -1 }
 async function expectDialogFits(page: Page, dialog: Locator, size: keyof typeof SIZE_PX, what: string) {
   const vw = viewportWidth(page);
   const box = (await dialog.boundingBox())!;
-  const expected = size === 'full' ? (vw >= 640 ? vw * 0.9 : vw) : Math.min(SIZE_PX[size], vw - (size === 'small' ? 32 : 0));
+  // From sm (640px) the overlay has 1rem padding on each side; phones get a full-width sheet except for small dialogs.
+  const expected = size === 'full' ? (vw >= 640 ? vw * 0.9 : vw) : Math.min(SIZE_PX[size], vw - (vw >= 640 || size === 'small' ? 32 : 0));
   expect.soft(box.width, `${what}: dialog narrower than its size token (${size})`).toBeGreaterThanOrEqual(expected - 2);
   expect.soft(box.x, `${what}: dialog starts off-screen`).toBeGreaterThanOrEqual(-1);
   expect.soft(box.x + box.width, `${what}: dialog ends off-screen`).toBeLessThanOrEqual(vw + 1);

@@ -241,8 +241,7 @@
       userRole={$sessionStore.role}
       userEmail={$sessionStore.email}
       storageMode={$storagePolicyStore.storageMode}
-      storageLabel={$storagePolicyBadgeStore.text}
-      storageTitle={$storagePolicyBadgeStore.title}
+      latexCompilation={$storagePolicyStore.latexCompilation}
       versionStatus={$versionStatus}
       helpUnseen={!$helpSeen}
       onStorageClick={handleFooterClick}

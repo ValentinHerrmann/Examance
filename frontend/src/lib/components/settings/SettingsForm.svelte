@@ -2,7 +2,8 @@
   import type { StorageMode } from "$lib/stores/storagePolicy";
   import { t, LOCALES, LOCALE_LABELS, type Locale } from "$lib/i18n";
   import { themePreference, setThemePreference, THEME_PREFERENCES } from "$lib/stores/theme";
-  import { Card } from "$lib/components/ui";
+  import { Icon, Card } from "$lib/components/ui";
+  import { dataPlaceIcons, latexPlaceIcons } from "$lib/components/storage/placeIcons";
   import HelpButton from "$lib/components/help/HelpButton.svelte";
   import InfoTip from "$lib/components/help/InfoTip.svelte";
 
@@ -47,7 +48,7 @@
           on:change={() => onStorageModeChange("all-local")}
         />
         <div class="min-w-0">
-          <p class={optionTitle}>{$t("settings.storage.allLocalTitle")}<InfoTip text={$t("help.tips.storageLocal")} topic="storageModes" /></p>
+          <p class={optionTitle}><Icon icon={dataPlaceIcons["all-local"]} class="text-muted" />{$t("settings.storage.allLocalTitle")}<InfoTip text={$t("help.tips.storageLocal")} topic="storageModes" /></p>
           <p class={optionText}>{$t("settings.storage.allLocalText")}</p>
         </div>
       </label>
@@ -62,7 +63,7 @@
           on:change={() => onStorageModeChange("all-server")}
         />
         <div class="min-w-0">
-          <p class={optionTitle}>{$t("settings.storage.allServerTitle")}<InfoTip text={$t("help.tips.storageServer")} topic="storageModes" /></p>
+          <p class={optionTitle}><Icon icon={dataPlaceIcons["all-server"]} class="text-muted" />{$t("settings.storage.allServerTitle")}<InfoTip text={$t("help.tips.storageServer")} topic="storageModes" /></p>
           <p class={optionText}>{$t("settings.storage.allServerText")}</p>
         </div>
       </label>
@@ -77,7 +78,7 @@
           on:change={() => onStorageModeChange("hybrid")}
         />
         <div class="min-w-0">
-          <p class={optionTitle}>{$t("settings.storage.hybridTitle")}<InfoTip text={$t("help.tips.storageHybrid")} topic="storageModes" /></p>
+          <p class={optionTitle}><Icon icon={dataPlaceIcons.hybrid} class="text-muted" />{$t("settings.storage.hybridTitle")}<InfoTip text={$t("help.tips.storageHybrid")} topic="storageModes" /></p>
           <p class={optionText}>{$t("settings.storage.hybridText")}</p>
         </div>
       </label>
@@ -103,7 +104,7 @@
           on:change={() => onLatexChange("local")}
         />
         <div class="min-w-0">
-          <p class={optionTitle}>{$t("settings.latex.localTitle")}<InfoTip text={$t("help.tips.latexLocal")} topic="settings" /></p>
+          <p class={optionTitle}><Icon icon={latexPlaceIcons.local} class="text-muted" />{$t("settings.latex.localTitle")}<InfoTip text={$t("help.tips.latexLocal")} topic="settings" /></p>
           <p class={optionText}>{$t("settings.latex.localText")}</p>
         </div>
       </label>
@@ -117,7 +118,7 @@
           on:change={() => onLatexChange("server")}
         />
         <div class="min-w-0">
-          <p class={optionTitle}>{$t("settings.latex.serverTitle")}<InfoTip text={$t("help.tips.latexServer")} topic="settings" /></p>
+          <p class={optionTitle}><Icon icon={latexPlaceIcons.server} class="text-muted" />{$t("settings.latex.serverTitle")}<InfoTip text={$t("help.tips.latexServer")} topic="settings" /></p>
           <p class={optionText}>{$t("settings.latex.serverText")}</p>
         </div>
       </label>

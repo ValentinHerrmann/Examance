@@ -51,6 +51,15 @@ export const ALLOWED_CONSOLE_ERRORS: AllowedConsoleError[] = [
     url: ABSENT_BACKEND,
     why: 'version probe / best-effort logout against the absent default backend',
   },
+  {
+    // A developer backend may be running on the default port; in all-local mode
+    // the security settings page probes /mfa/status, /webauthn/credentials and
+    // /auth/refresh to detect the backend and gets 401 without a session
+    // (pre-existing behaviour, not a UI defect).
+    message: /Failed to load resource: the server responded with a status of 401/,
+    url: /^https?:\/\/localhost:8000\/api\/v1\/(mfa\/status|webauthn\/credentials|auth\/refresh)$/,
+    why: 'security settings page probes absent default backend',
+  },
 ];
 
 /** A native browser dialog the app raised, as recorded by the `dialogs` fixture. */

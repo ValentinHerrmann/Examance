@@ -20,12 +20,9 @@
     {#each exams as exam}
       {@const stats = examStatsMap.get(exam.id)}
       {@const courseLabel = formatExamCourse(exam.grade, exam.klasse)}
+      <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
       <div
         class="min-w-0 cursor-pointer rounded-xl bg-surface-raised p-5 shadow-sm transition-colors duration-150 ease-in-out hover:bg-surface-inset"
-        role="button"
-        tabindex="0"
-        on:click={() => onNavigate(exam.id)}
-        on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate(exam.id); } }}
       >
         <h3 class="m-0 mb-2 text-lg font-medium break-words text-accent">{exam.title || $t("dashboard.examGrid.untitledExam")}</h3>
         <div class="mb-3 flex flex-wrap gap-1.5">
