@@ -17,7 +17,8 @@
     SubmissionRecord,
   } from "$lib/db/schema";
   import { t } from "$lib/i18n";
-  import { Modal, Button, TableScroller } from "$lib/components/ui";
+  import { faArrowLeft, faArrowRight, faCheck } from "@fortawesome/free-solid-svg-icons";
+  import { Badge, Button, Checkbox, Modal, TableScroller, Textarea } from "$lib/components/ui";
 
   export let examId: string;
   export let exercises: ExerciseRecord[] = [];
@@ -273,82 +274,75 @@
     onClose();
   }
 
-  const stepDotBase = "rounded-sm px-[0.6rem] py-[0.2rem] text-xs bg-surface-inset text-muted";
-  const stepDotActive = "rounded-sm px-[0.6rem] py-[0.2rem] text-xs bg-primary text-primary-contrast font-semibold";
 </script>
 
-<Modal open={true} size="md" title={$t("grading.manual.paste.title")} onClose={onClose}>
-  <div class="mb-2 flex gap-2">
-    <span class={step === 1 ? stepDotActive : stepDotBase}>{$t("grading.manual.paste.step1")}</span>
-    <span class={step === 2 ? stepDotActive : stepDotBase}>{$t("grading.manual.paste.step2")}</span>
-    <span class={step === 3 ? stepDotActive : stepDotBase}>{$t("grading.manual.paste.step3")}</span>
+<Modal open={true} size="large" title={$t("grading.manual.paste.title")} onClose={onClose}>
+  <div class="mb-3 flex flex-wrap gap-2">
+    <Badge severity={step === 1 ? "primary" : "secondary"}>{$t("grading.manual.paste.step1")}</Badge>
+    <Badge severity={step === 2 ? "primary" : "secondary"}>{$t("grading.manual.paste.step2")}</Badge>
+    <Badge severity={step === 3 ? "primary" : "secondary"}>{$t("grading.manual.paste.step3")}</Badge>
   </div>
 
   {#if step === 1}
     <div>
-      <p class="mt-0 text-content/90">
+      <p class="mt-0 text-content">
         {$t("grading.manual.paste.pasteHint")}
       </p>
-      <textarea
-        class="min-h-[180px] w-full resize-y rounded-md border border-line-strong bg-surface-base p-3 font-mono text-sm text-content focus:border-focus focus:outline-none"
+      <Textarea
+        class="min-h-44 font-mono text-sm"
         bind:value={rawTsv}
         placeholder={$t("grading.manual.paste.textareaPlaceholder")}
-      ></textarea>
+      />
     </div>
   {:else if step === 2}
     <div>
       <div class="mb-3 flex items-center gap-4">
-        <label class="text-sm text-content/90">
-          <input type="checkbox" bind:checked={autoCreateStudents} />
-          {$t("grading.manual.paste.autoCreate")}
-        </label>
+        <Checkbox bind:checked={autoCreateStudents} label={$t("grading.manual.paste.autoCreate")} />
       </div>
 
-      <div class="max-h-[40dvh] overflow-y-auto rounded-md border border-line">
-        <TableScroller>
-          <table class="w-full border-collapse text-sm">
-            <thead>
+      <TableScroller class="rounded-md border border-line">
+        <table class="data-table data-table-compact data-table-sticky">
+          <thead>
+            <tr>
+              <th>{$t("grading.manual.paste.colStatus")}</th>
+              <th>{$t("grading.manual.paste.colName")}</th>
+              <th>{$t("grading.manual.paste.colId")}</th>
+              {#each exercises as ex, idx}
+                <th>{ex.name} ({ex.maxPoints}p)</th>
+              {/each}
+            </tr>
+          </thead>
+          <tbody>
+            {#each parsedRows as row}
               <tr>
-                <th class="sticky top-0 border-b border-line bg-surface-base px-3 py-2 text-left font-semibold text-muted">{$t("grading.manual.paste.colStatus")}</th>
-                <th class="sticky top-0 border-b border-line bg-surface-base px-3 py-2 text-left font-semibold text-muted">{$t("grading.manual.paste.colName")}</th>
-                <th class="sticky top-0 border-b border-line bg-surface-base px-3 py-2 text-left font-semibold text-muted">{$t("grading.manual.paste.colId")}</th>
-                {#each exercises as ex, idx}
-                  <th class="sticky top-0 border-b border-line bg-surface-base px-3 py-2 text-left font-semibold text-muted">{ex.name} ({ex.maxPoints}p)</th>
+                <td>
+                  {#if row.matchedStudent}
+                    <Badge severity="success" size="xs">{$t("grading.manual.paste.matched")}</Badge>
+                  {:else if autoCreateStudents}
+                    <Badge severity="warning" size="xs">{$t("grading.manual.paste.newStudent")}</Badge>
+                  {:else}
+                    <Badge severity="secondary" size="xs">{$t("grading.manual.paste.skipped")}</Badge>
+                  {/if}
+                </td>
+                <td><strong>{row.rawName}</strong></td>
+                <td>{row.rawNumber || "-"}</td>
+                {#each row.scores as score, idx}
+                  {@const maxP = exercises[idx]?.maxPoints || 0}
+                  {@const isInvalid = score !== null && (score < 0 || score > maxP)}
+                  <td class={isInvalid ? "font-bold text-danger-fg" : ""}>
+                    {score !== null ? score : "-"}
+                  </td>
                 {/each}
               </tr>
-            </thead>
-            <tbody>
-              {#each parsedRows as row}
-                <tr>
-                  <td class="border-b border-line px-3 py-2">
-                    {#if row.matchedStudent}
-                      <span class="inline-block rounded-sm bg-success/15 px-[0.4rem] py-[0.15rem] text-xs font-medium text-success-fg">{$t("grading.manual.paste.matched")}</span>
-                    {:else if autoCreateStudents}
-                      <span class="inline-block rounded-sm bg-warning/15 px-[0.4rem] py-[0.15rem] text-xs font-medium text-warning-fg">{$t("grading.manual.paste.newStudent")}</span>
-                    {:else}
-                      <span class="inline-block rounded-sm bg-line-strong/20 px-[0.4rem] py-[0.15rem] text-xs font-medium text-muted">{$t("grading.manual.paste.skipped")}</span>
-                    {/if}
-                  </td>
-                  <td class="border-b border-line px-3 py-2"><strong>{row.rawName}</strong></td>
-                  <td class="border-b border-line px-3 py-2">{row.rawNumber || "-"}</td>
-                  {#each row.scores as score, idx}
-                    {@const maxP = exercises[idx]?.maxPoints || 0}
-                    {@const isInvalid = score !== null && (score < 0 || score > maxP)}
-                    <td class="border-b border-line px-3 py-2 {isInvalid ? 'font-bold text-danger-fg' : ''}">
-                      {score !== null ? score : "-"}
-                    </td>
-                  {/each}
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </TableScroller>
-      </div>
+            {/each}
+          </tbody>
+        </table>
+      </TableScroller>
     </div>
   {:else if step === 3}
     <div class="py-6 text-center">
-      <h3 class="mt-0 text-accent">{$t("grading.manual.paste.readyTitle")}</h3>
-      <p class="text-content/90">
+      <h3 class="mt-0 text-lg font-semibold text-content">{$t("grading.manual.paste.readyTitle")}</h3>
+      <p class="text-content">
         {$t("grading.manual.paste.importingRecords", { count: parsedRows.length })}
       </p>
       {#if parsedRows.some((r) => r.isNew && autoCreateStudents)}
@@ -360,25 +354,25 @@
   {/if}
 
   <svelte:fragment slot="footer">
-    <Button variant="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
+    <Button variant="outlined" severity="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
 
     <div class="ml-auto flex gap-2">
       {#if step === 1}
-        <Button variant="primary" disabled={!rawTsv.trim()} onClick={parseTsvData}>
+        <Button iconRight={faArrowRight} disabled={!rawTsv.trim()} onClick={parseTsvData}>
           {$t("grading.manual.paste.nextPreview")}
         </Button>
       {:else if step === 2}
-        <Button variant="secondary" onClick={() => (step = 1)}>
+        <Button variant="outlined" severity="secondary" icon={faArrowLeft} onClick={() => (step = 1)}>
           {$t("grading.manual.paste.back")}
         </Button>
-        <Button variant="primary" onClick={() => (step = 3)}>
+        <Button iconRight={faArrowRight} onClick={() => (step = 3)}>
           {$t("grading.manual.paste.nextConfirm")}
         </Button>
       {:else if step === 3}
-        <Button variant="secondary" onClick={() => (step = 2)}>
+        <Button variant="outlined" severity="secondary" icon={faArrowLeft} onClick={() => (step = 2)}>
           {$t("grading.manual.paste.back")}
         </Button>
-        <Button variant="primary" onClick={executeImport}>
+        <Button icon={faCheck} onClick={executeImport}>
           {$t("grading.manual.paste.executeImport")}
         </Button>
       {/if}

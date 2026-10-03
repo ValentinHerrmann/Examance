@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { GradeDetail } from "$lib/analytics/gradingKey";
   import { t } from "$lib/i18n";
+  import { faCaretDown, faCaretUp, faStar } from "@fortawesome/free-solid-svg-icons";
+  import { Badge, Icon } from "$lib/components/ui";
 
   export let isFullyGraded: boolean;
   export let totalScore: number | undefined;
@@ -11,44 +13,44 @@
   export let calculatedGradeDetail: GradeDetail | null;
 </script>
 
-<div class="grade-summary-card-total-score-card">
-  <div class="grade-summary-card-total-score-top-row">
-    <span class="grade-summary-card-total-score-label">{$t("grading.summary.totalPoints")}</span>
-    <div class="grade-summary-card-total-score-val-wrap">
+<div class="flex flex-col gap-2">
+  <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+    <span class="text-sm font-medium text-muted">{$t("grading.summary.totalPoints")}</span>
+    <div class="flex flex-wrap items-baseline gap-x-1.5">
       {#if isFullyGraded}
-        <span class="grade-summary-card-total-score-val">{totalScore}</span>
+        <span class="text-2xl font-bold text-content">{totalScore}</span>
       {:else}
-        <span class="grade-summary-card-total-score-val">{sumGradedScores}</span>
-        <span class="grade-summary-card-total-score-in-progress" title={$t("grading.summary.inProgressTitle")} style="font-size: 0.85rem; color: #fbbf24; margin-left: 4px;">{$t("grading.summary.inProgress", { graded: gradedCount, total: exercisesLength })}</span>
+        <span class="text-2xl font-bold text-content">{sumGradedScores}</span>
+        <span class="text-sm text-warning-fg" title={$t("grading.summary.inProgressTitle")}>{$t("grading.summary.inProgress", { graded: gradedCount, total: exercisesLength })}</span>
       {/if}
-      <span class="grade-summary-card-total-score-max">{$t("grading.summary.maxPoints", { max: totalMaxPoints })}</span>
+      <span class="text-sm text-muted">{$t("grading.summary.maxPoints", { max: totalMaxPoints })}</span>
     </div>
   </div>
 
   {#if calculatedGradeDetail}
-    <div class="grade-summary-card-grade-detail-box">
-      <div class="grade-summary-card-current-grade-row">
-        <span class="grade-summary-card-grade-badge">{$t("grading.summary.gradeBadge", { grade: calculatedGradeDetail.grade })}</span>
-        <span class="grade-summary-card-grade-desc">({calculatedGradeDetail.label})</span>
+    <div class="flex flex-col gap-1.5 rounded-md border border-line bg-surface-sunken p-2">
+      <div class="flex flex-wrap items-baseline gap-x-2">
+        <Badge severity="info">{$t("grading.summary.gradeBadge", { grade: calculatedGradeDetail.grade })}</Badge>
+        <span class="text-sm text-muted">({calculatedGradeDetail.label})</span>
       </div>
 
-      <div class="grade-summary-card-grade-margins-list">
+      <div class="flex flex-col gap-1 text-sm">
         {#if calculatedGradeDetail.nextHigher}
-          <div class="grade-summary-card-margin-item higher" title={$t("grading.summary.nextHigherTitle")}>
-            <span class="grade-summary-card-margin-icon">▲</span>
-            <span class="grade-summary-card-margin-text">{$t("grading.summary.nextHigher", { points: calculatedGradeDetail.nextHigher.pointsNeeded, grade: calculatedGradeDetail.nextHigher.grade })}</span>
+          <div class="flex items-start gap-2 text-success-fg" title={$t("grading.summary.nextHigherTitle")}>
+            <Icon icon={faCaretUp} class="mt-1" />
+            <span class="min-w-0">{$t("grading.summary.nextHigher", { points: calculatedGradeDetail.nextHigher.pointsNeeded, grade: calculatedGradeDetail.nextHigher.grade })}</span>
           </div>
         {:else}
-          <div class="grade-summary-card-margin-item max-achieved" title={$t("grading.summary.maxAchievedTitle")}>
-            <span class="grade-summary-card-margin-icon">★</span>
-            <span class="grade-summary-card-margin-text">{$t("grading.summary.maxAchieved")}</span>
+          <div class="flex items-start gap-2 text-warning-fg" title={$t("grading.summary.maxAchievedTitle")}>
+            <Icon icon={faStar} class="mt-1" />
+            <span class="min-w-0">{$t("grading.summary.maxAchieved")}</span>
           </div>
         {/if}
 
         {#if calculatedGradeDetail.nextLower}
-          <div class="grade-summary-card-margin-item lower" title={$t("grading.summary.nextLowerTitle")}>
-            <span class="grade-summary-card-margin-icon">▼</span>
-            <span class="grade-summary-card-margin-text">{$t("grading.summary.nextLower", { points: calculatedGradeDetail.nextLower.pointsBuffer, grade: calculatedGradeDetail.nextLower.grade })}</span>
+          <div class="flex items-start gap-2 text-muted" title={$t("grading.summary.nextLowerTitle")}>
+            <Icon icon={faCaretDown} class="mt-1" />
+            <span class="min-w-0">{$t("grading.summary.nextLower", { points: calculatedGradeDetail.nextLower.pointsBuffer, grade: calculatedGradeDetail.nextLower.grade })}</span>
           </div>
         {/if}
       </div>

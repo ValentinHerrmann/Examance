@@ -8,6 +8,8 @@
   import { applyMcCorrection, type McQuestionType } from "$lib/grading/mcScore";
   import { isMcReviewed } from "$lib/grading/mcVerification";
   import { t } from "$lib/i18n";
+  import { faCheck, faXmark } from "@fortawesome/free-solid-svg-icons";
+  import { Alert, Icon } from "$lib/components/ui";
 
   export let exercise: ExerciseRecord;
 
@@ -52,17 +54,13 @@
 </script>
 
 <div class="shrink-0 border-t border-line bg-surface-raised px-3 py-2">
-  <h4 class="m-0 mb-1.5 text-xs font-bold text-accent">{$t("grading.mcReview.title")}</h4>
+  <h4 class="m-0 mb-1.5 text-sm font-semibold text-content">{$t("grading.mcReview.title")}</h4>
 
   {#if alignmentFailed}
-    <div class="rounded-sm border border-danger/40 bg-danger/10 px-2 py-1 text-xs text-danger-fg">
-      {$t("grading.mcReview.alignmentFailed")}
-    </div>
+    <Alert severity="danger">{$t("grading.mcReview.alignmentFailed")}</Alert>
   {:else}
     {#if multiMarkWarning}
-      <div class="mb-1.5 rounded-sm border border-warning/40 bg-warning/10 px-2 py-1 text-xs text-warning-fg">
-        {$t("grading.mcReview.multiMarkWarning")}
-      </div>
+      <Alert severity="warning" class="mb-1.5">{$t("grading.mcReview.multiMarkWarning")}</Alert>
     {/if}
 
     <div class="flex flex-col gap-1">
@@ -73,13 +71,13 @@
         <button
           type="button"
           on:click={() => toggleOption(idx)}
-          class="flex items-center justify-between gap-2 rounded-sm border px-2 py-1 text-left text-xs transition-colors duration-150 ease-[ease]
+          class="flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-left text-sm transition-colors pointer-coarse:min-h-11
             {isSelected ? 'border-primary bg-highlight' : 'border-line bg-surface-sunken'}
             {isFlagged ? 'border-dashed border-warning' : ''}"
         >
           <span class="flex-1 text-content">{opt}</span>
           {#if isSelected}
-            <span class={isCorrect ? "text-success-fg" : "text-danger-fg"}>{isCorrect ? "✓" : "✗"}</span>
+            <Icon icon={isCorrect ? faCheck : faXmark} class={isCorrect ? "text-success-fg" : "text-danger-fg"} />
           {/if}
           {#if isFlagged}
             <span
@@ -97,7 +95,7 @@
     </div>
 
     {#if omrMeta}
-      <div class="mt-1 text-xs text-muted">
+      <div class="mt-1 text-sm text-muted">
         {$t("grading.mcReview.source", { source: omrMeta.source === "omr" ? $t("grading.mcReview.sourceAuto") : $t("grading.mcReview.sourceManual") })}
         {#if omrMeta.source === "omr"}
           {$t("grading.mcReview.confidence", { confidence: omrMeta.confidence })}

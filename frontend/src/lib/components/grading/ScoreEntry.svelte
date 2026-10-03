@@ -2,6 +2,8 @@
   import type { ExerciseRecord } from "$lib/db/schema";
   import { gradingStore } from "$lib/grading/gradingStore";
   import { t } from "$lib/i18n";
+  import { faBullseye, faXmark } from "@fortawesome/free-solid-svg-icons";
+  import { Button, Icon, controlClass, controlSmClass } from "$lib/components/ui";
 
   export let exercises: ExerciseRecord[];
 
@@ -28,17 +30,17 @@
   }
 
   const itemBase =
-    "flex cursor-pointer items-center justify-between gap-[0.4rem] rounded-md border border-line bg-surface-raised px-2 py-[0.35rem] transition-all duration-150 ease-[ease] hover:border-line-strong hover:bg-[#273549]";
+    "flex cursor-pointer items-center justify-between gap-2 rounded-md border border-line bg-surface-raised px-2 py-1.5 transition-colors hover:border-line-strong hover:bg-surface-inset pointer-coarse:min-h-11";
   const itemActive =
-    "flex cursor-pointer items-center justify-between gap-[0.4rem] rounded-md border border-primary bg-highlight px-2 py-[0.35rem] shadow-[0_0_8px_rgba(56,189,248,0.15)] transition-all duration-150 ease-[ease]";
+    "flex cursor-pointer items-center justify-between gap-2 rounded-md border border-primary bg-highlight px-2 py-1.5 shadow-sm transition-colors pointer-coarse:min-h-11";
 </script>
 
-<div class="shrink-0 border-b border-line bg-surface-raised px-3 py-[0.6rem]">
-  <h3 class="m-0 text-sm font-bold text-accent">{$t("grading.scoreEntry.title", { count: exercises.length })}</h3>
+<div class="shrink-0 border-b border-line bg-surface-raised px-3 py-2.5">
+  <h3 class="m-0 text-sm font-semibold text-content">{$t("grading.scoreEntry.title", { count: exercises.length })}</h3>
   <span class="text-xs text-muted">{$t("grading.scoreEntry.hint")}</span>
 </div>
 
-<div class="flex flex-1 min-h-0 flex-col gap-[0.35rem] overflow-y-auto p-2">
+<div class="flex flex-1 min-h-0 flex-col gap-1.5 overflow-y-auto p-2">
   {#each exercises as ex}
     <div
       class={ex.id === $gradingStore.activeExerciseId ? itemActive : itemBase}
@@ -50,7 +52,7 @@
       <div class="flex items-center gap-1">
         <span class="text-xs font-bold text-content">Q{ex.orderIndex}{#if ex.subIndex}&nbsp;{String.fromCharCode(96 + ex.subIndex)}){/if}</span>
         {#if ex.id === $gradingStore.activeExerciseId}
-          <span class="text-xs" title={$t("grading.scoreEntry.stampTarget")}>🎯</span>
+          <Icon icon={faBullseye} class="text-xs text-accent" label={$t("grading.scoreEntry.stampTarget")} />
         {/if}
       </div>
 
@@ -64,18 +66,23 @@
           placeholder="–"
           value={$gradingStore.scoreInputs[ex.id] ?? ''}
           on:input={(e) => handleScoreInput(ex, e)}
-          class="min-h-9 w-14 rounded-sm border border-line bg-surface-base px-1.5 py-1 text-right text-sm font-bold text-accent"
+          class="{controlClass} {controlSmClass} w-16 text-right font-bold pointer-coarse:min-h-11 pointer-coarse:text-base"
         />
         <span class="text-xs text-muted">/ {ex.maxPoints}</span>
-        <button
-          type="button"
-          class="cursor-pointer rounded-sm bg-transparent px-[0.3rem] py-0 text-sm leading-none text-muted transition-colors duration-150 ease-[ease] hover:bg-danger/15 hover:text-danger-fg"
+        <Button
+          size="sm"
+          variant="text"
+          severity="secondary"
+          iconOnly
+          icon={faXmark}
           title={$t("grading.scoreEntry.resetTitle")}
-          on:click={(e) => resetScore(ex, e)}>×</button>
+          ariaLabel={$t("grading.scoreEntry.resetTitle")}
+          onClick={(e) => resetScore(ex, e)}
+        />
       </div>
 
       {#if $gradingStore.manualOverride[ex.id]}
-        <span class="text-base leading-none text-warning-fg" title={$t("grading.scoreEntry.manualEdit")}>•</span>
+        <span class="size-2 shrink-0 rounded-full bg-warning" title={$t("grading.scoreEntry.manualEdit")}></span>
       {/if}
     </div>
   {/each}
