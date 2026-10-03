@@ -2,6 +2,8 @@
   import { onMount } from "svelte";
   import { getRecentValues, recordValue, removeValue } from "$lib/utils/recentValues";
   import { t } from "$lib/i18n";
+  import { faXmark } from "@fortawesome/free-solid-svg-icons";
+  import { Icon } from "$lib/components/ui";
 
   export let storageKey: string = "";
   export let extraSuggestions: string[] = [];
@@ -184,7 +186,7 @@
   {#if isOpen && !disabled}
     <ul
       id={dropdownId}
-      class="scroll-pane m-0 list-none overflow-y-auto overscroll-contain rounded-md border border-line bg-surface-raised p-1 shadow-2xl"
+      class="scroll-pane m-0 list-none overflow-y-auto overscroll-contain rounded-md border border-line bg-surface-raised p-1 shadow-md"
       style={dropdownStyle}
       role="listbox"
     >
@@ -207,10 +209,10 @@
                 type="button"
                 title={$t("exercises.suggestInput.removeEntry")}
                 aria-label={$t("exercises.suggestInput.removeEntry")}
-                class="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-xs text-muted opacity-60 transition-opacity hover:bg-danger/30 hover:text-danger-fg group-hover:opacity-100"
+                class="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-xs text-muted opacity-60 transition-opacity hover:bg-danger/30 hover:text-danger-fg group-hover:opacity-100"
                 on:mousedown|preventDefault|stopPropagation={(e) => handleRemove(e, suggestion)}
               >
-                ✕
+                <Icon icon={faXmark} />
               </button>
             {/if}
           </li>

@@ -42,18 +42,18 @@
   }
 </script>
 
-<Modal open={isOpen && !!editingGroup} size="sm" title={$t("exercises.groupEditModal.title")} onClose={onClose}>
+<Modal open={isOpen && !!editingGroup} size="small" title={$t("exercises.groupEditModal.title")} onClose={onClose}>
   {#if editingGroup}
-    <div class="-mx-4 -mt-4 mb-4 bg-highlight px-6 py-2 text-sm text-accent sm:-mx-5 sm:-mt-5">
+    <div class="-mx-4 mb-4 bg-highlight px-4 py-2 text-sm text-accent">
       {$t("exercises.groupEditModal.appliesToAll", { count: editingGroup.allMembers.length })}
     </div>
 
-    <div class="mb-4 flex flex-col gap-[0.375rem]">
+    <div class="mb-4 flex flex-col gap-1.5">
       <label for="groupEditorName" class="text-sm text-muted">{$t("exercises.groupEditModal.nameLabel")}</label>
       <input id="groupEditorName" type="text" bind:value={groupEditorName} required class={controlClass} />
     </div>
 
-    <div class="mb-4 flex flex-col gap-[0.375rem]">
+    <div class="mb-4 flex flex-col gap-1.5">
       <label for="groupEditorTopic" class="text-sm text-muted">{$t("exercises.groupEditModal.topicLabel")}</label>
       <SuggestInput
         id="groupEditorTopic"
@@ -65,7 +65,7 @@
       />
     </div>
 
-    <div class="mb-4 flex flex-col gap-[0.375rem]">
+    <div class="mb-4 flex flex-col gap-1.5">
       <label for="groupEditorGrade" class="text-sm text-muted">{$t("exercises.groupEditModal.gradeLabel")}</label>
       <SuggestInput
         id="groupEditorGrade"
@@ -76,7 +76,7 @@
       />
     </div>
 
-    <div class="mb-4 flex flex-col gap-[0.375rem]">
+    <div class="mb-4 flex flex-col gap-1.5">
       <label for="groupEditorSubject" class="text-sm text-muted">{$t("exercises.groupEditModal.subjectLabel")}</label>
       <SuggestInput
         id="groupEditorSubject"
@@ -89,8 +89,8 @@
   {/if}
 
   <svelte:fragment slot="footer">
-    <Button variant="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
-    <Button variant="primary" onClick={handleSave} disabled={isGroupSaving}>
+    <Button variant="outlined" severity="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
+    <Button onClick={handleSave} disabled={isGroupSaving}>
       {isGroupSaving ? $t("exercises.groupEditModal.saving") : $t("exercises.groupEditModal.saveButton")}
     </Button>
   </svelte:fragment>

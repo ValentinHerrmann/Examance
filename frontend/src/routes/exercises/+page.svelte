@@ -15,7 +15,8 @@
   import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
   import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import ExerciseFilterSidebar from "$lib/components/exercise-library/ExerciseFilterSidebar.svelte";
-  import { Button, Modal, PageHeader, PageShell } from "$lib/components/ui";
+  import { Alert, Badge, Button, Modal, PageHeader, PageShell } from "$lib/components/ui";
+  import { faFilter, faPlus } from "@fortawesome/free-solid-svg-icons";
   import ExerciseGroupList from "$lib/components/exercise-library/ExerciseGroupList.svelte";
   import GroupEditModal from "$lib/components/exercise-library/GroupEditModal.svelte";
   import RegroupModal from "$lib/components/exercise-library/RegroupModal.svelte";
@@ -756,37 +757,35 @@
   }
 </script>
 
-<PageShell width="full">
+<PageShell width="fluid">
   <PageHeader
     title={$t("exercises.page.title")}
     subtitle={$t("exercises.page.subtitle")}
     helpTopic="exercises"
   >
     <svelte:fragment slot="actions">
-      <Button size="lg" onClick={openCreateModal}>{$t("exercises.page.createButton")}</Button>
+      <Button icon={faPlus} onClick={openCreateModal}>{$t("exercises.page.createButton")}</Button>
     </svelte:fragment>
   </PageHeader>
 
   {#if errorMsg}
-    <div class="mb-6 rounded-md bg-danger/20 p-3 text-danger-fg">{errorMsg}</div>
+    <Alert severity="danger" class="mb-6">{errorMsg}</Alert>
   {/if}
 
   <!-- Below `lg` the filter panel would otherwise stack on top of the list and
        bury it, so it moves into a drawer opened from here. One breakpoint owns
        both the layout and the toggle. -->
   <div class="mb-3 lg:hidden">
-    <Button variant="secondary" block onClick={() => (isFilterDrawerOpen = true)}>
+    <Button variant="outlined" severity="secondary" icon={faFilter} block onClick={() => (isFilterDrawerOpen = true)}>
       {$t("exercises.page.showFilters")}
       {#if activeFilterCount > 0}
-        <span class="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-primary-contrast">
-          {activeFilterCount}
-        </span>
+        <Badge severity="primary" size="xs">{activeFilterCount}</Badge>
       {/if}
     </Button>
   </div>
 
   <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
-    <div class="sticky top-2 hidden lg:block">
+    <div class="sticky top-2 hidden max-h-[calc(100dvh-1rem)] overflow-y-auto lg:block">
       <ExerciseFilterSidebar
         bind:searchQuery
         bind:selectedGrade
@@ -819,7 +818,7 @@
 
 <Modal
   open={isFilterDrawerOpen}
-  size="sm"
+  size="small"
   title={$t("exercises.page.filtersTitle")}
   onClose={() => (isFilterDrawerOpen = false)}
 >

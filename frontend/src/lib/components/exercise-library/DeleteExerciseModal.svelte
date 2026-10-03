@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
   import { t } from "$lib/i18n";
-  import { Modal, Button } from "$lib/components/ui";
+  import { Modal, Button, Alert } from "$lib/components/ui";
 
   export let isOpen = false;
   export let deletingExercise: ExerciseRecord | null = null;
@@ -13,37 +13,36 @@
 
 <Modal
   open={isOpen && !!deletingExercise}
-  size="sm"
+  size="small"
   title={deletingExercise ? $t("exercises.deleteModal.title", { name: deletingExercise.name || $t("exercises.untitled") }) : ""}
   onClose={onClose}
 >
   {#if isDeleteLoading}
     <p>{$t("exercises.deleteModal.checkingUsage")}</p>
   {:else if deleteUsageInfo && deleteUsageInfo.examCount > 0}
-    <div class="rounded-md border border-danger bg-danger/15 p-4 text-danger-fg">
-      <h4 class="m-0 mb-2 text-danger-fg">{$t("exercises.deleteModal.warningTitle")}</h4>
-      <p>
+    <Alert severity="danger" title={$t("exercises.deleteModal.warningTitle")}>
+      <p class="m-0">
         {$t("exercises.deleteModal.usageInfo", { count: deleteUsageInfo.examCount })}
       </p>
-      <ul class="my-2 pl-6 text-content/90">
+      <ul class="my-2 pl-6">
         {#each deleteUsageInfo.exams as exam}
           <li>
             <strong>{exam.title}</strong>
-            {#if exam.datum}<span class="ml-[0.35rem] text-sm text-muted">({exam.datum})</span>{/if}
+            {#if exam.datum}<span class="ml-1.5 text-sm text-muted">({exam.datum})</span>{/if}
           </li>
         {/each}
       </ul>
-      <p class="mt-3 text-sm text-muted">
+      <p class="m-0 text-sm text-muted">
         {$t("exercises.deleteModal.usageWarning")}
       </p>
-    </div>
+    </Alert>
   {:else}
     <p>{$t("exercises.deleteModal.confirmPlain")}</p>
   {/if}
 
   <svelte:fragment slot="footer">
-    <Button variant="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
-    <Button variant="danger" onClick={onConfirm} disabled={isDeleteLoading}>
+    <Button variant="outlined" severity="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
+    <Button severity="danger" onClick={onConfirm} disabled={isDeleteLoading}>
       {$t("exercises.deleteModal.deleteAnyway")}
     </Button>
   </svelte:fragment>

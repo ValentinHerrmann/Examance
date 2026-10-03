@@ -26,7 +26,8 @@
   import { recordValue } from "$lib/utils/recentValues";
   import { t, translate } from "$lib/i18n";
   import InfoTip from "$lib/components/help/InfoTip.svelte";
-  import { Modal, Select } from "$lib/components/ui";
+  import { Alert, Badge, Button, Checkbox, Icon, Modal, Select, TextInput, controlClass, controlSmClass } from "$lib/components/ui";
+  import { faBook, faChevronLeft, faChevronRight, faCode, faPlus, faTag, faXmark } from "@fortawesome/free-solid-svg-icons";
 
   export let isOpen = false;
   export let editingExercise: ExerciseRecord | null = null;
@@ -304,13 +305,6 @@
     dispatch("close");
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (!isOpen || showConfirmClose) return;
-    if (e.key === "Escape") {
-      requestClose();
-    }
-  }
-
   async function handlePreviewExercise() {
     isPreviewLoading = true;
     errorMsg = "";
@@ -579,81 +573,74 @@
   }
 
   const editorColumnBase =
-    "flex flex-col h-full min-h-0 overflow-hidden rounded-md border border-line bg-surface-sunken transition-all duration-200 ease-[ease]";
-  // Below `lg` this column stacks above DualPdfPreview instead of sitting
-  // beside it. DualPdfPreview carries its own explicit `min-height: 18rem`
-  // (DualPdfPreview.svelte), which flexbox honours as a real floor; this
-  // column's `overflow-hidden` resets its own automatic minimum to 0, so
-  // without a matching floor here the flex distribution squeezes it toward
-  // nothing first — collapsing the LaTeX/MC inputs to invisible on phones.
+    "flex flex-col h-full min-h-0 overflow-hidden rounded-md border border-line bg-surface-sunken transition-all duration-200";
+  // Below the `@3xl` container width this column stacks above DualPdfPreview
+  // instead of sitting beside it. DualPdfPreview carries its own explicit
+  // `min-height: 18rem` (DualPdfPreview.svelte), which flexbox honours as a real
+  // floor; this column's `overflow-hidden` resets its own automatic minimum to
+  // 0, so without a matching floor here the flex distribution squeezes it
+  // toward nothing first — collapsing the LaTeX/MC inputs on phones.
   $: editorColumnClass = showLatexPanel
-    ? `${editorColumnBase} min-h-[20rem] flex-1 min-w-0 p-0 gap-0 lg:min-h-0`
-    : `${editorColumnBase} w-full h-10 flex-none min-w-0 p-0 lg:h-full lg:w-[38px] lg:flex-[0_0_38px] lg:min-w-[38px]`;
+    ? `${editorColumnBase} min-h-80 flex-1 min-w-0 p-0 gap-0 @3xl:min-h-0`
+    : `${editorColumnBase} w-full h-10 flex-none min-w-0 p-0 @3xl:h-full @3xl:w-10 @3xl:min-w-10`;
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
-
 {#if isOpen}
-  <Modal open={isOpen} size="full" bare onClose={requestClose} labelledBy="exercise-editor-title">
-    <div
-      class="flex h-full max-h-full w-full flex-col overflow-hidden"
-    >
-      <div class="flex shrink-0 flex-col gap-[0.65rem] border-b border-line bg-surface-raised px-5 py-4">
-        <div class="flex w-full items-center justify-between">
-          <div class="flex items-center gap-[0.65rem]">
-            <h3 id="exercise-editor-title" class="m-0 text-lg text-content">
-              {isCreatingVersion
-                ? $t("exercises.editor.titleNewVersion", { name: editorName })
-                : editingExercise
-                  ? $t("exercises.editor.titleEdit", { name: editorName })
-                  : $t("exercises.editor.titleCreate")}
-            </h3>
-            {#if isCreatingVersion}
-              <span class="rounded-sm bg-highlight border border-primary/30 px-2 py-[0.15rem] text-xs font-semibold text-accent">v{(versionBaseEx?.version || 1) + 1}</span>
-            {/if}
-          </div>
-          <button type="button" class="cursor-pointer rounded-sm border-0 bg-transparent p-1 text-xl leading-none text-muted hover:text-content" on:click={requestClose}>✕</button>
-        </div>
+  <Modal open={isOpen} size="full" tall bare onClose={requestClose} labelledBy="exercise-editor-title">
+    <svelte:fragment slot="header">
+      <div class="flex min-w-0 items-center gap-2">
+        <h2 id="exercise-editor-title" class="m-0 truncate text-xl font-semibold text-content">
+          {isCreatingVersion
+            ? $t("exercises.editor.titleNewVersion", { name: editorName })
+            : editingExercise
+              ? $t("exercises.editor.titleEdit", { name: editorName })
+              : $t("exercises.editor.titleCreate")}
+        </h2>
+        {#if isCreatingVersion}
+          <Badge severity="primary">v{(versionBaseEx?.version || 1) + 1}</Badge>
+        {/if}
+      </div>
+    </svelte:fragment>
 
-        <div class="flex flex-wrap items-center gap-[0.85rem] rounded-md border border-line bg-surface-sunken px-3 py-2">
+    <div class="flex h-full max-h-full w-full flex-col overflow-hidden">
+      <div class="shrink-0 border-b border-line px-4 pb-3">
+        <div class="flex flex-wrap items-center gap-3 rounded-md border border-line bg-surface-sunken px-3 py-2">
           {#if editingExercise || isCreatingVersion}
-            <div class="flex flex-wrap items-center gap-[0.45rem] text-sm">
+            <div class="flex flex-wrap items-center gap-2 text-sm">
               <span class="text-xs text-muted">{$t("exercises.editor.groupLabel")}</span>
               <strong class="font-semibold text-content">{editorName}</strong>
-              <span class="rounded-sm border border-line bg-surface-raised px-2 py-[0.15rem] text-xs text-content">🏷️ {editorTopicTag}</span>
+              <Badge icon={faTag}>{editorTopicTag}</Badge>
               {#if editorGrade}
-                <span class="rounded-sm border border-line bg-surface-raised px-2 py-[0.15rem] text-xs text-content">{$t("exercises.editor.gradeBadge", { grade: editorGrade })}</span>
+                <Badge>{$t("exercises.editor.gradeBadge", { grade: editorGrade })}</Badge>
               {/if}
               {#if editorSubject}
-                <span class="rounded-sm border border-line bg-surface-raised px-2 py-[0.15rem] text-xs text-content">📚 {editorSubject}</span>
+                <Badge icon={faBook}>{editorSubject}</Badge>
               {/if}
             </div>
 
-            <div class="flex items-center gap-[0.35rem] text-xs">
+            <div class="flex items-center gap-1.5 text-xs">
               <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.variantKeyLabel")}</label>
-              <input
+              <TextInput
                 id="editorVariantKey"
-                type="text"
+                size="sm"
                 bind:value={editorVariantKey}
                 placeholder={$t("exercises.editor.variantKeyPlaceholder")}
-                class="rounded-sm border border-line bg-surface-raised px-2 py-[0.3rem] text-sm text-content focus:border-focus focus:outline-none"
               />
             </div>
           {:else}
-            <div class="flex w-full flex-wrap items-center gap-[0.65rem]">
-              <div class="flex items-center gap-[0.35rem] text-xs">
+            <div class="flex w-full flex-wrap items-center gap-3">
+              <div class="flex items-center gap-1.5 text-xs">
                 <label for="editorName" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.nameLabel")}</label>
-                <input
+                <TextInput
                   id="editorName"
-                  type="text"
+                  size="sm"
                   bind:value={editorName}
                   required
                   placeholder={$t("exercises.editor.namePlaceholder")}
-                  class="rounded-sm border border-line bg-surface-raised px-2 py-[0.3rem] text-sm text-content focus:border-focus focus:outline-none"
                 />
               </div>
 
-              <div class="flex items-center gap-[0.35rem] text-xs">
+              <div class="flex items-center gap-1.5 text-xs">
                 <label for="editorTopic" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.topicLabel")}</label>
                 <SuggestInput
                   id="editorTopic"
@@ -661,74 +648,65 @@
                   bind:value={editorTopicTag}
                   placeholder="_Vererbung"
                   required
-                  class="rounded-sm border border-line bg-surface-raised px-2 py-[0.3rem] text-sm text-content focus:border-focus focus:outline-none"
+                  class="{controlClass} {controlSmClass}"
                 />
               </div>
 
-              <div class="flex items-center gap-[0.35rem] text-xs">
+              <div class="flex items-center gap-1.5 text-xs">
                 <label for="editorGrade" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.gradeLabel")}</label>
                 <SuggestInput
                   id="editorGrade"
                   storageKey="exercise.grade"
                   bind:value={editorGrade}
                   placeholder={$t("exercises.editor.gradePlaceholder")}
-                  class="rounded-sm border border-line bg-surface-raised px-2 py-[0.3rem] text-sm text-content focus:border-focus focus:outline-none"
+                  class="{controlClass} {controlSmClass}"
                 />
               </div>
 
-              <div class="flex items-center gap-[0.35rem] text-xs">
+              <div class="flex items-center gap-1.5 text-xs">
                 <label for="editorSubject" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.subjectLabel")}</label>
                 <SuggestInput
                   id="editorSubject"
                   storageKey="exercise.subject"
                   bind:value={editorSubject}
                   placeholder={$t("exercises.editor.subjectPlaceholder")}
-                  class="rounded-sm border border-line bg-surface-raised px-2 py-[0.3rem] text-sm text-content focus:border-focus focus:outline-none"
+                  class="{controlClass} {controlSmClass}"
                 />
               </div>
 
-              <div class="flex items-center gap-[0.35rem] text-xs">
+              <div class="flex items-center gap-1.5 text-xs">
                 <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.variantKeyLabelPlain")}</label>
-                <input
+                <TextInput
                   id="editorVariantKey"
-                  type="text"
+                  size="sm"
                   bind:value={editorVariantKey}
                   placeholder={$t("exercises.editor.variantKeyPlaceholderPlain")}
-                  class="rounded-sm border border-line bg-surface-raised px-2 py-[0.3rem] text-sm text-content focus:border-focus focus:outline-none"
                 />
               </div>
 
-              <div class="flex items-center gap-[0.35rem] text-xs">
+              <div class="flex items-center gap-1.5 text-xs">
                 <span class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.exerciseTypeLabel")}</span>
-                <div class="inline-flex rounded-md border border-line bg-surface-sunken p-0.5">
-                  <button
-                    type="button"
-                    class={`rounded-sm px-2.5 py-1 text-xs font-semibold transition-colors ${
-                      editorQuestionType === "free_text"
-                        ? "bg-primary text-primary-contrast shadow-sm"
-                        : "text-muted hover:text-content"
-                    }`}
-                    on:click={() => {
+                <div class="inline-flex gap-1 rounded-md border border-line bg-surface-sunken p-0.5">
+                  <Button
+                    size="sm"
+                    variant={editorQuestionType === "free_text" ? "solid" : "text"}
+                    severity={editorQuestionType === "free_text" ? "primary" : "secondary"}
+                    pressed={editorQuestionType === "free_text"}
+                    onClick={() => {
                       editorQuestionType = "free_text";
                       handleQuestionTypeChange();
                     }}
-                  >
-                    {$t("exercises.editor.freeTextButton")}
-                  </button>
-                  <button
-                    type="button"
-                    class={`rounded-sm px-2.5 py-1 text-xs font-semibold transition-colors ${
-                      editorQuestionType === "mc"
-                        ? "bg-primary text-primary-contrast shadow-sm"
-                        : "text-muted hover:text-content"
-                    }`}
-                    on:click={() => {
+                  >{$t("exercises.editor.freeTextButton")}</Button>
+                  <Button
+                    size="sm"
+                    variant={editorQuestionType === "mc" ? "solid" : "text"}
+                    severity={editorQuestionType === "mc" ? "primary" : "secondary"}
+                    pressed={editorQuestionType === "mc"}
+                    onClick={() => {
                       editorQuestionType = "mc";
                       handleQuestionTypeChange();
                     }}
-                  >
-                    {$t("exercises.editor.mcButton")}
-                  </button>
+                  >{$t("exercises.editor.mcButton")}</Button>
                 </div>
               </div>
             </div>
@@ -737,52 +715,49 @@
       </div>
 
       {#if errorMsg}
-        <div class="shrink-0 overflow-y-auto max-h-[200px] whitespace-pre-wrap break-all border-l-4 border-danger bg-danger/15 px-6 py-3 text-sm text-danger-fg font-mono">{errorMsg}</div>
+        <Alert severity="danger" class="mx-4 mt-3 shrink-0">
+          <div class="max-h-52 overflow-y-auto whitespace-pre-wrap break-all font-mono">{errorMsg}</div>
+        </Alert>
       {/if}
 
-      <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5 lg:flex-row lg:overflow-hidden">
+      <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 @3xl:flex-row @3xl:overflow-hidden">
         <div class={editorColumnClass}>
           {#if showLatexPanel}
-            <button
-              type="button"
-              class="box-border flex w-full shrink-0 cursor-pointer items-center justify-between gap-2 border-0 border-b border-line bg-surface-raised px-3 py-2 text-left transition-colors duration-150 ease-[ease] hover:bg-surface-inset group"
-              on:click={handleToggleLatex}
-              title={$t("exercises.editor.collapseLatexTitle")}
-            >
-              <div class="flex min-w-0 items-center gap-2">
+            <div class="flex w-full shrink-0 items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-2">
+              <button
+                type="button"
+                class="group flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-left"
+                on:click={handleToggleLatex}
+                title={$t("exercises.editor.collapseLatexTitle")}
+              >
                 <span class="whitespace-nowrap text-sm font-semibold text-content">{$t("exercises.editor.latexSourceCodeLabel")}</span>
-                <span class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-sm border border-primary/20 bg-highlight px-2 py-[0.15rem] text-xs text-accent">
+                <Badge severity="primary" size="xs">
                   {$t("exercises.editor.autoScoreLabel", { score: parseExerciseScore(editorLatexBody) })}
-                </span>
-              </div>
-              <div class="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  class="shrink-0 cursor-pointer rounded-sm border-0 bg-primary px-3 py-[0.35rem] text-xs font-semibold text-primary-contrast transition-colors duration-150 ease-[ease] [&:hover:not(:disabled)]:bg-primary"
-                  on:click|stopPropagation={handlePreviewExercise}
-                  disabled={isPreviewLoading}
-                  title={$t("exercises.editor.previewButtonTitle")}
-                >
-                  {isPreviewLoading ? $t("exercises.editor.previewButtonLoading") : $t("exercises.editor.previewButton")}
-                </button>
-                <span class="shrink-0 text-base font-bold text-muted transition-colors duration-150 ease-[ease] group-hover:text-accent">›</span>
-              </div>
-            </button>
+                </Badge>
+                <Icon icon={faChevronRight} class="shrink-0 text-muted group-hover:text-accent" />
+              </button>
+              <Button
+                size="sm"
+                onClick={handlePreviewExercise}
+                disabled={isPreviewLoading}
+                title={$t("exercises.editor.previewButtonTitle")}
+              >{isPreviewLoading ? $t("exercises.editor.previewButtonLoading") : $t("exercises.editor.previewButton")}</Button>
+            </div>
 
-            <div class="flex min-h-0 flex-1 flex-col gap-[0.4rem] overflow-hidden p-2">
+            <div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden p-2">
               {#if editorQuestionType !== "free_text"}
-                <div class="flex flex-col gap-3 rounded-md border border-line bg-surface-raised/90 p-3 text-xs">
-                  <div class="flex items-center justify-between">
-                    <span class="font-semibold text-accent">
+                <div class="flex flex-col gap-3 rounded-md border border-line bg-surface-raised p-3 text-xs">
+                  <div class="flex flex-wrap items-center justify-between gap-x-3">
+                    <h3 class="m-0 text-sm font-semibold text-content">
                       {$t("exercises.editor.mcEditorTitle")}
-                    </span>
+                    </h3>
                     <span class="text-xs text-muted">
                       {$t("exercises.editor.mcEditorHint")}
                     </span>
                   </div>
 
                   <div class="flex flex-col gap-1">
-                    <label class="font-semibold text-content">{$t("exercises.editor.mcQuestionTextLabel")}</label>
+                    <span class="font-semibold text-content">{$t("exercises.editor.mcQuestionTextLabel")}</span>
                     <LatexEditor
                       bind:value={mcQuestionText}
                       rows={4}
@@ -802,13 +777,13 @@
                       step="0.25"
                       min="0"
                       bind:value={editorPenalty}
-                      class="w-24 rounded-sm border border-line bg-surface-sunken px-2 py-1 text-content focus:border-focus focus:outline-none"
+                      class="{controlClass} {controlSmClass} w-24"
                     />
                   </div>
 
                   <div class="flex flex-col gap-1">
                     <label class="font-semibold text-content" for="mc-columns">{$t("exercises.editor.mcColumnsLabel")}</label>
-                    <Select id="mc-columns" class="w-full sm:w-72" bind:value={mcColumns} on:change={regenerateMcLatex}>
+                    <Select id="mc-columns" size="sm" class="w-full @xl:w-72" bind:value={mcColumns} on:change={regenerateMcLatex}>
                       <option value="auto">{$t("exercises.editor.mcColumnsAuto", { max: MC_MAX_COLUMNS })}</option>
                       {#each MC_COLUMN_CHOICES as choice}
                         <option value={choice}>{choice}</option>
@@ -817,26 +792,22 @@
                   </div>
 
                   <div class="flex flex-col gap-2">
-                    <div class="flex items-center justify-between text-content font-semibold">
+                    <div class="flex items-center justify-between font-semibold text-content">
                       <span>{$t("exercises.editor.mcOptionsLabel", { count: mcOptions.length })}</span>
-                      <button
-                        type="button"
-                        class="rounded-sm bg-primary px-2.5 py-1 text-xs font-semibold text-primary-contrast hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                        on:click={addMcOption}
+                      <Button
+                        size="sm"
+                        icon={faPlus}
+                        onClick={addMcOption}
                         disabled={mcOptions.length >= MC_MAX_OPTIONS}
-                      >
-                        {$t("exercises.editor.mcAddOptionButton")}
-                      </button>
+                      >{$t("exercises.editor.mcAddOptionButton")}</Button>
                     </div>
 
                     {#each mcOptions as option, index}
-                      <div class="flex items-center gap-2 rounded-sm border border-line bg-backdrop p-2">
-                        <input
-                          type="checkbox"
+                      <div class="flex items-center gap-2 rounded-md border border-line bg-surface-sunken p-2">
+                        <Checkbox
                           checked={option.correct}
-                          on:change={() => toggleOptionCorrect(index)}
+                          onChange={() => toggleOptionCorrect(index)}
                           title={$t("exercises.editor.mcOptionCorrectTitle")}
-                          class="h-4 w-4 rounded-sm border-line bg-surface-raised text-accent focus:ring-focus"
                         />
 
                         <input
@@ -844,22 +815,24 @@
                           value={option.text}
                           on:input={(e) => updateOptionText(index, e.currentTarget.value)}
                           placeholder={$t("exercises.editor.mcOptionPlaceholder", { number: index + 1 })}
-                          class="flex-1 rounded-sm border border-line bg-surface-raised px-2 py-1 text-content placeholder-slate-500 focus:border-focus focus:outline-none"
+                          class="{controlClass} {controlSmClass} flex-1"
                         />
 
-                        <span class={`text-xs font-semibold px-1.5 py-0.5 rounded-sm ${option.correct ? 'bg-success/20 text-success-fg border border-success/40' : 'text-muted'}`}>
+                        <Badge size="xs" severity={option.correct ? "success" : "secondary"}>
                           {option.correct ? $t("exercises.editor.mcOptionCorrect") : $t("exercises.editor.mcOptionIncorrect")}
-                        </span>
+                        </Badge>
 
-                        <button
-                          type="button"
-                          class="rounded-sm p-1 text-muted hover:bg-surface-raised hover:text-danger-fg disabled:opacity-30 disabled:hover:text-muted"
-                          on:click={() => removeMcOption(index)}
+                        <Button
+                          variant="text"
+                          severity="secondary"
+                          size="sm"
+                          iconOnly
+                          icon={faXmark}
+                          onClick={() => removeMcOption(index)}
                           disabled={mcOptions.length <= MC_MIN_OPTIONS}
                           title={$t("exercises.editor.mcOptionRemoveTitle")}
-                        >
-                          ✕
-                        </button>
+                          ariaLabel={$t("exercises.editor.mcOptionRemoveTitle")}
+                        />
                       </div>
                     {/each}
                   </div>
@@ -878,14 +851,14 @@
           {:else}
             <button
               type="button"
-              class="flex h-full w-full flex-row items-center gap-4 border-0 bg-surface-sunken px-3 py-[0.2rem] text-muted transition-all duration-150 ease-[ease] hover:bg-surface-raised hover:text-accent group lg:flex-col lg:px-[0.2rem] lg:py-3"
+              class="group flex h-full w-full cursor-pointer flex-row items-center gap-3 border-0 bg-surface-sunken px-3 py-1 text-muted hover:bg-surface-raised hover:text-accent @3xl:flex-col @3xl:px-1 @3xl:py-3"
               on:click={handleToggleLatex}
               title={$t("exercises.editor.expandLatexTitle")}
             >
-              <span class="flex h-6 w-6 shrink-0 rotate-90 items-center justify-center rounded-sm border border-line bg-surface-raised text-sm font-bold group-hover:border-primary group-hover:bg-primary group-hover:text-primary-contrast lg:rotate-0">›</span>
-              <span class="shrink-0 text-base leading-none">💻</span>
+              <Icon icon={faChevronLeft} class="shrink-0 -rotate-90 @3xl:rotate-180" />
+              <Icon icon={faCode} class="shrink-0 text-base" />
               <span
-                class="whitespace-nowrap text-xs font-semibold tracking-[0.5px] lg:[writing-mode:vertical-rl] lg:[transform:rotate(180deg)]"
+                class="whitespace-nowrap text-xs font-semibold @3xl:[writing-mode:vertical-rl] @3xl:rotate-180"
               >{$t("exercises.editor.latexPanelCollapsedLabel", { score: parseExerciseScore(editorLatexBody) })}</span>
             </button>
           {/if}
@@ -901,23 +874,18 @@
           placeholderText={$t("exercises.editor.previewPlaceholder")}
         />
       </div>
-
-      <div class="flex justify-end gap-3 border-t border-line bg-surface-sunken px-6 py-5">
-        <button type="button" class="cursor-pointer rounded-md border-0 bg-surface-inset px-5 py-[0.6rem] text-sm font-semibold text-content hover:bg-surface-inset" on:click={requestClose}>{$t("common.cancel")}</button>
-        <button
-          type="button"
-          class="cursor-pointer rounded-md border-0 bg-primary px-5 py-[0.6rem] text-sm font-semibold text-primary-contrast [&:hover:not(:disabled)]:bg-primary disabled:opacity-60 disabled:cursor-not-allowed"
-          on:click={handleSaveExercise}
-          disabled={isSaving}
-        >
-          {isSaving
-            ? $t("exercises.editor.saveButtonSaving")
-            : isCreatingVersion
-              ? $t("exercises.editor.saveButtonNewVersion")
-              : $t("exercises.editor.saveButton")}
-        </button>
-      </div>
     </div>
+
+    <svelte:fragment slot="footer">
+      <Button variant="outlined" severity="secondary" onClick={requestClose}>{$t("common.cancel")}</Button>
+      <Button onClick={handleSaveExercise} disabled={isSaving}>
+        {isSaving
+          ? $t("exercises.editor.saveButtonSaving")
+          : isCreatingVersion
+            ? $t("exercises.editor.saveButtonNewVersion")
+            : $t("exercises.editor.saveButton")}
+      </Button>
+    </svelte:fragment>
   </Modal>
 {/if}
 

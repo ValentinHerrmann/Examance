@@ -1,5 +1,5 @@
 import { EditorView, Decoration, WidgetType, type DecorationSet } from "@codemirror/view";
-import { StateEffect, StateField, RangeSetBuilder } from "@codemirror/state";
+import { StateEffect, StateField, RangeSetBuilder, type Extension } from "@codemirror/state";
 import { HighlightStyle } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import type {
@@ -60,98 +60,106 @@ export const diffDecorationsField = StateField.define<DecorationSet>({
 });
 
 export const latexHighlightStyle = HighlightStyle.define([
-  { tag: t.comment, color: "#94a3b8", fontStyle: "italic" },
-  { tag: t.keyword, color: "#ec4899", fontWeight: "bold" },
-  { tag: t.macroName, color: "#38bdf8", fontWeight: "600" },
-  { tag: t.bracket, color: "#f59e0b" },
-  { tag: t.string, color: "#a855f7" },
-  { tag: t.number, color: "#10b981" }
+  { tag: t.comment, color: "var(--color-syntax-comment)", fontStyle: "italic" },
+  { tag: t.keyword, color: "var(--color-syntax-keyword)", fontWeight: "bold" },
+  { tag: t.macroName, color: "var(--color-syntax-macro)", fontWeight: "600" },
+  { tag: t.bracket, color: "var(--color-syntax-bracket)" },
+  { tag: t.string, color: "var(--color-syntax-string)" },
+  { tag: t.number, color: "var(--color-syntax-number)" }
 ]);
 
-export const latexTheme = EditorView.theme(
-  {
-    "&": {
-      backgroundColor: "#0f172a",
-      color: "#e2e8f0",
-      borderRadius: "0.375rem",
-      border: "1px solid #334155",
-      fontSize: "0.875rem",
-      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+/**
+ * Editor chrome, expressed entirely in design-token CSS variables so the
+ * palette follows the active theme. `dark` only tells CodeMirror which base
+ * styles (selection, search panel) to use; LatexEditor.svelte swaps it through
+ * a Compartment when the theme changes.
+ */
+export function createLatexTheme(dark: boolean): Extension {
+  return EditorView.theme(
+    {
+      "&": {
+        backgroundColor: "var(--color-control)",
+        color: "var(--color-content)",
+        borderRadius: "0.375rem",
+        border: "1px solid var(--color-line-strong)",
+        fontSize: "0.875rem",
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+      },
+      "&.cm-focused": {
+        outline: "2px solid var(--color-focus)",
+        outlineOffset: "-1px"
+      },
+      ".cm-content": {
+        caretColor: "var(--color-focus)",
+        padding: "0 12px"
+      },
+      ".cm-line": {
+        padding: "0",
+        lineHeight: "1.5rem"
+      },
+      ".cm-gutters": {
+        backgroundColor: "var(--color-control)",
+        color: "var(--color-muted)",
+        borderRight: "1px solid var(--color-line-strong)",
+        borderRadius: "0.375rem 0 0 0.375rem"
+      },
+      ".cm-gutterElement": {
+        padding: "0 8px 0 12px"
+      },
+      ".cm-activeLineGutter": {
+        backgroundColor: "transparent",
+        color: "var(--color-content)"
+      },
+      ".cm-cursor, .cm-dropCursor": {
+        borderLeftColor: "var(--color-focus)"
+      },
+      "&.cm-editor": {
+        height: "100%"
+      },
+      ".cm-scroller": {
+        overflow: "auto"
+      },
+      ".cm-diff-line-added": {
+        backgroundColor: "color-mix(in srgb, var(--color-success-fg) 15%, transparent) !important"
+      },
+      ".cm-diff-line-removed": {
+        backgroundColor: "color-mix(in srgb, var(--color-danger-fg) 15%, transparent) !important"
+      },
+      ".cm-diff-line-modified": {
+        backgroundColor: "color-mix(in srgb, var(--color-syntax-bracket) 15%, transparent) !important"
+      },
+      ".cm-diff-word-added": {
+        backgroundColor: "color-mix(in srgb, var(--color-success-fg) 30%, transparent)",
+        color: "var(--color-success-fg)",
+        borderRadius: "2px",
+        textDecoration: "underline"
+      },
+      ".cm-diff-word-removed": {
+        backgroundColor: "color-mix(in srgb, var(--color-danger-fg) 30%, transparent)",
+        color: "var(--color-danger-fg)",
+        borderRadius: "2px",
+        textDecoration: "line-through"
+      },
+      ".cm-diff-line-padding": {
+        display: "block",
+        boxSizing: "border-box",
+        background: "transparent"
+      },
+      // border-box keeps the dashed borders inside the explicit height, so a
+      // gap spacer is exactly as tall as the lines it stands in for.
+      ".cm-diff-gap-spacer": {
+        backgroundColor: "var(--color-surface-sunken)",
+        backgroundImage:
+          "repeating-linear-gradient(45deg, var(--color-surface-inset) 0, var(--color-surface-inset) 8px, var(--color-surface-sunken) 8px, var(--color-surface-sunken) 16px)",
+        borderTop: "1px dashed var(--color-line-strong)",
+        borderBottom: "1px dashed var(--color-line-strong)",
+        display: "block",
+        boxSizing: "border-box"
+      }
     },
-    "&.cm-focused": {
-      outline: "2px solid #38bdf8",
-      outlineOffset: "-1px"
-    },
-    ".cm-content": {
-      caretColor: "#38bdf8",
-      padding: "0 12px"
-    },
-    ".cm-line": {
-      padding: "0",
-      lineHeight: "1.5rem"
-    },
-    ".cm-gutters": {
-      backgroundColor: "#0f172a",
-      color: "#64748b",
-      borderRight: "1px solid #334155",
-      borderRadius: "0.375rem 0 0 0.375rem"
-    },
-    ".cm-gutterElement": {
-      padding: "0 8px 0 12px"
-    },
-    ".cm-activeLineGutter": {
-      backgroundColor: "transparent",
-      color: "#f1f5f9"
-    },
-    ".cm-cursor, .cm-dropCursor": {
-      borderLeftColor: "#38bdf8"
-    },
-    "&.cm-editor": {
-      height: "100%"
-    },
-    ".cm-scroller": {
-      overflow: "auto"
-    },
-    ".cm-diff-line-added": {
-      backgroundColor: "rgba(16, 185, 129, 0.15) !important"
-    },
-    ".cm-diff-line-removed": {
-      backgroundColor: "rgba(239, 68, 68, 0.15) !important"
-    },
-    ".cm-diff-line-modified": {
-      backgroundColor: "rgba(245, 158, 11, 0.15) !important"
-    },
-    ".cm-diff-word-added": {
-      backgroundColor: "rgba(16, 185, 129, 0.35)",
-      color: "#6ee7b7",
-      borderRadius: "2px",
-      textDecoration: "underline"
-    },
-    ".cm-diff-word-removed": {
-      backgroundColor: "rgba(239, 68, 68, 0.35)",
-      color: "#fca5a5",
-      borderRadius: "2px",
-      textDecoration: "line-through"
-    },
-    ".cm-diff-line-padding": {
-      display: "block",
-      boxSizing: "border-box",
-      background: "transparent"
-    },
-    // border-box keeps the dashed borders inside the explicit height, so a
-    // gap spacer is exactly as tall as the lines it stands in for.
-    ".cm-diff-gap-spacer": {
-      backgroundColor: "rgba(15, 23, 42, 0.6)",
-      backgroundImage:
-        "repeating-linear-gradient(45deg, #1e293b 0, #1e293b 8px, #0f172a 8px, #0f172a 16px)",
-      borderTop: "1px dashed #334155",
-      borderBottom: "1px dashed #334155",
-      display: "block",
-      boxSizing: "border-box"
-    }
-  },
-  { dark: true }
-);
+    { dark }
+  );
+}
 
 export function applyDiffDecorations(
   editorView: EditorView,

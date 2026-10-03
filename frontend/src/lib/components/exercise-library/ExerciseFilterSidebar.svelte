@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
   import { t } from "$lib/i18n";
-  import { controlClass } from "$lib/components/ui";
+  import { TextInput, Select } from "$lib/components/ui";
 
   interface ExerciseGroup {
     groupId: string;
@@ -35,50 +35,42 @@
 
 <div class="flex min-w-0 flex-col gap-4">
   <div>
-    <input
-      type="text"
+    <TextInput
+      type="search"
       placeholder={$t("exercises.filterSidebar.searchPlaceholder")}
       bind:value={searchQuery}
-      class={controlClass}
     />
   </div>
 
-  <div class="flex flex-wrap gap-3 sm:gap-6">
+  <div class="flex flex-wrap gap-3">
     {#if availableGrades.length > 0}
       <div class="flex min-w-0 flex-1 items-center gap-2 text-sm text-content">
         <label class="shrink-0" for="grade-select">{$t("exercises.filterSidebar.gradeLabel")}</label>
-        <select
-          id="grade-select"
-          bind:value={selectedGrade}
-          class={controlClass}
-        >
+        <Select id="grade-select" bind:value={selectedGrade}>
           <option value="ALL">{$t("exercises.filterSidebar.allGrades")}</option>
           {#each availableGrades as g}
             <option value={g}>{$t("exercises.filterSidebar.gradeOption", { grade: g })}</option>
           {/each}
-        </select>
+        </Select>
       </div>
     {/if}
 
     {#if availableSubjects.length > 0}
       <div class="flex min-w-0 flex-1 items-center gap-2 text-sm text-content">
         <label class="shrink-0" for="subject-select">{$t("exercises.filterSidebar.subjectLabel")}</label>
-        <select
-          id="subject-select"
-          bind:value={selectedSubject}
-          class={controlClass}
-        >
+        <Select id="subject-select" bind:value={selectedSubject}>
           <option value="ALL">{$t("exercises.filterSidebar.allSubjects")}</option>
           {#each availableSubjects as s}
             <option value={s}>{s}</option>
           {/each}
-        </select>
+        </Select>
       </div>
     {/if}
   </div>
 
   <div class="flex w-full flex-row flex-wrap gap-1.5 lg:flex-col lg:flex-nowrap">
     <button
+      type="button"
       class={selectedTopic === "ALL" ? pillActive : pillBase}
       on:click={() => onTopicChange("ALL")}
     >
@@ -87,6 +79,7 @@
     {#each availableTopics as topic}
       {@const groupCount = allGroups.filter((g) => g.topicTag === topic).length}
       <button
+        type="button"
         class={selectedTopic === topic ? pillActive : pillBase}
         on:click={() => onTopicChange(topic)}
       >

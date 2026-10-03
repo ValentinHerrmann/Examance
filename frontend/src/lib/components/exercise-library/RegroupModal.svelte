@@ -30,13 +30,13 @@
   export let onClose: () => void;
 </script>
 
-<Modal open={isOpen && !!regroupingExercise} size="sm" title={$t("exercises.regroupModal.title")} onClose={onClose}>
+<Modal open={isOpen && !!regroupingExercise} size="small" title={$t("exercises.regroupModal.title")} onClose={onClose}>
   {#if regroupingExercise}
     <p class="m-0 mb-5 text-content">
       {$t("exercises.regroupModal.moveMessage", { name: regroupingExercise.name })}
     </p>
 
-    <div class="mb-4 flex flex-col gap-[0.375rem]">
+    <div class="mb-4 flex flex-col gap-1.5">
       <label for="targetGroup" class="text-sm text-muted">{$t("exercises.regroupModal.targetLabel")}</label>
       <Select id="targetGroup" bind:value={regroupTargetGroupId}>
         <option value="NEW">{$t("exercises.regroupModal.createNewGroup")}</option>
@@ -50,7 +50,7 @@
   {/if}
 
   <svelte:fragment slot="footer">
-    <Button variant="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
-    <Button variant="primary" onClick={onSave}>{$t("exercises.regroupModal.moveButton")}</Button>
+    <Button variant="outlined" severity="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
+    <Button onClick={onSave}>{$t("exercises.regroupModal.moveButton")}</Button>
   </svelte:fragment>
 </Modal>

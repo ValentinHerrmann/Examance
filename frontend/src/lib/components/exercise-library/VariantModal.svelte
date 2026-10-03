@@ -17,17 +17,17 @@
   export let onCancelConfirmClose: () => void;
 </script>
 
-<Modal open={isOpen && !!variantBaseEx} size="md" title={$t("exercises.variantModal.title")} onClose={onRequestClose}>
+<Modal open={isOpen && !!variantBaseEx} size="large" title={$t("exercises.variantModal.title")} onClose={onRequestClose}>
   {#if variantBaseEx}
     <p class="m-0 mb-4 text-sm text-muted">
       {$t("exercises.variantModal.hint")}
     </p>
 
-    <div class="-mx-4 mb-4 bg-highlight px-6 py-2 text-sm text-accent sm:-mx-5">
+    <div class="-mx-4 mb-4 bg-highlight px-4 py-2 text-sm text-accent">
       {$t("exercises.variantModal.groupContext", { name: variantBaseEx.name, topic: variantBaseEx.topicTag || '_General', gradeSuffix: variantBaseEx.grade ? $t("exercises.variantModal.groupContextGradeSuffix", { grade: variantBaseEx.grade }) : '' })}
     </div>
 
-    <div class="mb-4 flex flex-col gap-[0.375rem]">
+    <div class="mb-4 flex flex-col gap-1.5">
       <label for="variantKey" class="flex items-center gap-1.5 text-sm text-muted">
         {$t("exercises.variantModal.keyLabel")}
         <InfoTip text={$t("help.tips.variantKey")} topic="exercises" />
@@ -42,7 +42,7 @@
       />
     </div>
 
-    <div class="mb-4 flex flex-col gap-[0.375rem]">
+    <div class="mb-4 flex flex-col gap-1.5">
       <label for="variantBody" class="text-sm text-muted"
         >{$t("exercises.variantModal.latexBodyLabel")}</label
       >
@@ -51,8 +51,8 @@
   {/if}
 
   <svelte:fragment slot="footer">
-    <Button variant="secondary" onClick={onRequestClose}>{$t("common.cancel")}</Button>
-    <Button variant="primary" onClick={onSave}>{$t("exercises.variantModal.saveButton")}</Button>
+    <Button variant="outlined" severity="secondary" onClick={onRequestClose}>{$t("common.cancel")}</Button>
+    <Button onClick={onSave}>{$t("exercises.variantModal.saveButton")}</Button>
   </svelte:fragment>
 </Modal>
 

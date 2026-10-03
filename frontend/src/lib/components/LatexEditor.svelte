@@ -45,13 +45,14 @@
   import { StreamLanguage, syntaxHighlighting } from "@codemirror/language";
   import {
     latexHighlightStyle,
-    latexTheme,
+    createLatexTheme,
     diffDecorationsField,
     applyDiffDecorations
   } from "./LatexEditor";
   import { QUICK_INSERT_MACROS, type QuickInsertMacro } from "$lib/latex/quickInsertMacros";
   import { computeQuickInsert } from "$lib/latex/quickInsertLogic";
   import { t, type TranslationKey } from "$lib/i18n";
+  import { theme } from "$lib/stores/theme";
 
   export let value: string = "";
   export let rows: number = 8;
@@ -145,6 +146,7 @@
   let isSyncingScroll = false;
   let handleScrollListener: (() => void) | null = null;
   const editableCompartment = new Compartment();
+  const themeCompartment = new Compartment();
 
   export function setScroll(scrollTop: number, scrollLeft: number) {
     if (!view || !view.scrollDOM) return;
@@ -253,7 +255,7 @@
           }
         }),
         syntaxHighlighting(latexHighlightStyle),
-        latexTheme,
+        themeCompartment.of(createLatexTheme($theme === "dark")),
         diffDecorationsField,
         editableCompartment.of(EditorView.editable.of(!readonly)),
         EditorView.theme({
@@ -309,6 +311,12 @@
     });
   }
 
+  $: if (view) {
+    view.dispatch({
+      effects: themeCompartment.reconfigure(createLatexTheme($theme === "dark"))
+    });
+  }
+
   onDestroy(() => {
     if (hoverTimer) clearTimeout(hoverTimer);
     if (view) {
@@ -329,13 +337,13 @@
       {#each macroCategories as { category, macros } (category)}
         {#if macros.length > 0}
           <div class="flex flex-wrap items-center gap-1">
-            <span class="text-xs font-semibold uppercase tracking-wide text-muted">
+            <span class="text-xs font-semibold text-muted">
               {categoryLabels[category]}
             </span>
             {#each macros as macro (macro.id)}
               <button
                 type="button"
-                class="rounded-sm border border-line bg-surface-sunken px-2 py-0.5 text-xs text-accent hover:border-primary hover:bg-surface-raised"
+                class="rounded-md border border-line bg-surface-sunken px-2 py-0.5 text-xs text-accent hover:border-primary hover:bg-surface-raised"
                 on:click={() => insertMacro(macro)}
                 on:mouseenter={(e) => scheduleTooltip(macro, e.currentTarget)}
                 on:mouseleave={hideTooltip}
@@ -359,10 +367,10 @@
 
 {#if hoveredMacro}
   <div
-    class="pointer-events-none fixed flex max-w-xs flex-col gap-1 rounded-sm border border-line bg-surface-base px-2 py-1.5 text-xs shadow-lg"
+    class="pointer-events-none fixed flex max-w-xs flex-col gap-1 rounded-md border border-line bg-surface-base px-2 py-1.5 text-xs shadow-md"
     style="left: {tooltipX}px; top: {tooltipY}px; z-index: var(--z-toast);"
   >
     <span class="text-content">{macroDescription(hoveredMacro)}</span>
-    <code class="rounded-sm bg-surface-sunken px-1.5 py-1 font-mono text-accent">{hoveredMacro.preview}</code>
+    <code class="rounded-md bg-surface-sunken px-1.5 py-1 font-mono text-accent">{hoveredMacro.preview}</code>
   </div>
 {/if}
