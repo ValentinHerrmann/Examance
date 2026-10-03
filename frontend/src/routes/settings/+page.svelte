@@ -32,6 +32,7 @@
   import { PageShell, PageHeader, Card, Button, Alert } from "#lib/components/ui";
   import SectionNav from "#lib/components/settings/SectionNav.svelte";
   import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
+  import { currentManifest } from "#lib/db/workspace";
 
   /** GDPR Art. 15 — hand the data subject a readable copy of their own data. */
   async function handleExportStudent(pseudonymId: string) {
@@ -54,12 +55,27 @@
   let isErasing = $state(false);
   let statusMsg = $state("");
   let isSwitchWizardOpen = $state(false);
+  // Who this browser's workspace is bound to (lib/db/workspace.ts); shown under the storage settings.
+  let workspaceOwnerLabel = $state("");
+
+  async function loadWorkspaceOwner() {
+    const owner = (await currentManifest())?.owner;
+    workspaceOwnerLabel = !owner
+      ? translate("storagePolicy.workspace.ownerUnclaimed")
+      : owner.kind === "local-vault"
+        ? translate("storagePolicy.workspace.ownerLocalVault")
+        : translate("storagePolicy.workspace.ownerAccount", {
+            account: $sessionStore.email ?? owner.accountId ?? "?",
+            server: extractHostname(owner.backendOrigin ?? ""),
+          });
+  }
   let switchTarget: StorageMode | null = $state(null);
   let donationAvailable = $state(false);
 
   onMount(async () => {
     void fetchDonationAvailable().then((ok) => (donationAvailable = ok));
     await awaitSessionReady();
+    void loadWorkspaceOwner();
     if (!$isUnlocked) {
       // Keys are passphrase-derived and never persisted — send the user to
       // /unlock rather than silently reconstructing a session.
@@ -74,6 +90,15 @@
     if (val === "server" && !get(isAuthenticated)) {
       alert(translate("settings.alerts.serverCompileNeedsAuth"));
       window.location.href = "/unlock";
+      return;
+    }
+    // Compiling is a stateless service, not storage, so it is allowed with local data, but the exam's
+    // LaTeX (including solutions) and its files do leave the device for it: say so once, on opt-in.
+    if (
+      val === "server" &&
+      get(storagePolicyStore).storageMode === "all-local" &&
+      !confirm(translate("storagePolicy.serverCompileConsent"))
+    ) {
       return;
     }
     storagePolicyStore.updateSetting("latexCompilation", val);
@@ -156,6 +181,11 @@
           onLatexChange={handleLatexChange}
           onLocaleChange={handleLocaleChange}
         />
+        {#if workspaceOwnerLabel}
+          <p class="-mt-2 px-1 text-xs text-muted">
+            {$t("storagePolicy.workspace.ownerLabel")}: {workspaceOwnerLabel}
+          </p>
+        {/if}
 
         <OmrDetectionSettingsCard
           profile={$omrSettingsStore}

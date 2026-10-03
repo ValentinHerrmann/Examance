@@ -37,7 +37,11 @@
   } from "#lib/services/archiveService";
   import ImportConflictModal from "#lib/components/storage/ImportConflictModal.svelte";
   import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
-  import { adoptServerStorageIfLocalEmpty, pendingSwitchStore, resumeModeSwitch } from "#lib/services/storageModeSwitch";
+  import { pendingSwitchStore, resumeModeSwitch } from "#lib/services/storageModeSwitch";
+  import { loadWorkspace, openWorkspace } from "#lib/db/workspace";
+  import { workspaceStatusStore } from "#lib/stores/workspaceState";
+  import { registerWorkspaceSync, switchRunningElsewhere } from "#lib/stores/workspaceSync";
+  import WorkspaceBlocked from "#lib/components/storage/WorkspaceBlocked.svelte";
   import AppNavbar from "#lib/components/layout/AppNavbar.svelte";
   import AppFooter from "#lib/components/layout/AppFooter.svelte";
   import NavDrawer from "#lib/components/layout/NavDrawer.svelte";
@@ -115,6 +119,14 @@
     // Before hygiene, so a violation during boot is still explained.
     registerCspDiagnostics();
     registerHygieneListeners();
+    registerWorkspaceSync();
+    // The manifest in IndexedDB is the source of truth for the mode; this refreshes the
+    // localStorage cache the stores booted from before anything routes a request.
+    try {
+      await loadWorkspace();
+    } catch (err) {
+      console.error("[layout] could not load the workspace manifest", err);
+    }
 
     let restored = false;
     if (!get(isUnlocked)) {
@@ -135,9 +147,10 @@
 
     if (restored && get(isUnlocked)) {
       const mode = get(sessionStore).mode;
-      // Same rule as sign-in, before routes read: an empty local workspace shows
-      // the account's server data rather than an empty local vault.
-      if (mode === "authenticated") await adoptServerStorageIfLocalEmpty();
+      // Before routes read: the session must own this browser's workspace (owner binding, see
+      // lib/db/workspace.ts). A reload never changes the mode; only an explicit sign-in may adopt
+      // server storage, and only on a pristine workspace.
+      await openWorkspace();
 
       // Keys are back, so release `awaitSessionReady()` routes before the token refresh below
       // (that refresh is about the access cookie, not the vault; `client.ts` handles the race).
@@ -163,7 +176,7 @@
     // the session came back unlocked — routes check `isUnlocked` themselves.
     markSessionReady();
 
-    resumeModeSwitch(); // re-arms a switch a reload interrupted
+    await resumeModeSwitch(); // picks up a switch a reload interrupted
   });
 
   async function handleLock() {
@@ -318,7 +331,12 @@
     {/if}
 
     <main class="app-main">
-      {@render children?.()}
+      {#if $workspaceStatusStore.state === "blocked" && page.url.pathname !== "/unlock"}
+        <!-- Routes stay unmounted: they would read a vault this session does not own. -->
+        <WorkspaceBlocked reason={$workspaceStatusStore.reason} />
+      {:else}
+        {@render children?.()}
+      {/if}
 
       <AppFooter
         onBackendClick={handleFooterClick}
@@ -343,6 +361,22 @@
     onClose={() => (isSettingsModalOpen = false)}
   />
 </div>
+
+{#if $switchRunningElsewhere}
+  <!-- Another tab is replacing the workspace; anything done here would land in the wrong store. -->
+  <div
+    class="fixed inset-0 flex items-center justify-center bg-surface-base/90 p-4 backdrop-blur-sm"
+    style="z-index: var(--z-modal)"
+    role="alertdialog"
+    aria-live="assertive"
+    aria-label={$t("storagePolicy.workspace.switchElsewhereTitle")}
+  >
+    <div class="max-w-narrow space-y-2 rounded-xl border border-line bg-surface-raised p-6 text-center shadow-lg">
+      <h2 class="text-lg font-semibold text-content">{$t("storagePolicy.workspace.switchElsewhereTitle")}</h2>
+      <p class="text-sm text-muted">{$t("storagePolicy.workspace.switchElsewhereBody")}</p>
+    </div>
+  </div>
+{/if}
 
 <StorageModeSwitchWizard
   open={switchWizardOpen}

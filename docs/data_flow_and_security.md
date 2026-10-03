@@ -285,9 +285,16 @@ poisoning or storage exhaustion (mitigated by requiring an account, the
 per-account and global daily quotas, strict request validation
 (`extra="forbid"`), consistency filtering applied at training time, and the
 kill switch). This is the only path by which
-`all-local` mode sends anything to a server; see the qualifier on exercise
-resource files below and `tips.storageLocal` / `scanning.s4.p4` in the in-app
+`all-local` mode sends anything to a server for *storage*; see the qualifier on
+server compilation below and `tips.storageLocal` / `scanning.s4.p4` in the in-app
 help.
+
+**Server compilation is processing, not storage.** With "LaTeX Server" enabled, a
+compile sends the exam's full LaTeX source (including solution variants) and its
+resource files to `POST /compile/latex`; it is compiled in a temp directory that
+is deleted afterwards, and neither persisted nor logged. Student data is never part
+of a compile request. It requires a sign-in, and enabling it in `all-local` mode
+asks for consent once (`storagePolicy.serverCompileConsent`).
 
 ### Exercise resource files on the server
 
@@ -357,17 +364,19 @@ sequenceDiagram
     User->>Store: Request switch to 'all-server'
     Store->>User: Force export of an encrypted .bgproj archive
     User->>Store: Confirm
-    Store->>IDB: wipeDatabase() — local store only, server rows untouched
-    Store->>Store: commitStorageMode(mode, token)
+    Store->>IDB: replaceWorkspace(mode) — one transaction: clear data tables + new manifest
     User->>Store: Import the archive in the new mode
     Store->>Server: Create records, asking about every collision first
     end
 
     rect rgb(30, 41, 59)
-    note right of User: Leaving a server mode — the same gate, plus a purge
-    User->>Store: Request switch to 'all-local'
+    note right of User: Leaving all-server — the same gate, plus an offered purge
+    User->>Store: Request switch to 'all-local' or 'hybrid'
     Store->>User: Force export of an encrypted .bgproj archive
-    Store->>Server: POST /user/purge-server-student-data
+    Store->>IDB: replaceWorkspace(mode)
+    User->>Store: Import the archive in the new mode
+    Store->>User: Offer deleting student data on the server (pre-checked, optional)
+    Store->>Server: POST /user/purge-server-student-data (only if confirmed)
     Server-->>Store: Soft-delete student data (7-day temporary retention)
     end
 ```
@@ -380,18 +389,35 @@ already held equivalent data. Signing in also used to flip `all-local` →
 `all-server` silently, after which the next idle lock ran that same wipe.
 
 The mode is therefore not settable from application code at all:
-`storagePolicyStore.updateSetting` is narrowed to `latexCompilation`, and
-`commitStorageMode(mode, token)` accepts only a token held by
-`lib/services/storageModeSwitch.ts`, which refuses to proceed until an export
-has been recorded. The switch state is persisted, so a reload mid-flight resumes
-instead of presenting an emptied workspace with no stated reason.
+`storagePolicyStore.updateSetting` is narrowed to `latexCompilation` (stored under
+its own key, so a stale tab cannot write an old mode back), and
+`commitStorageMode(mode, token)` accepts only a token armed by the workspace layer
+(`lib/db/workspace.ts`). The authoritative mode is a manifest row inside the same
+IndexedDB as the data; `replaceWorkspace()` clears every data table and writes the
+new manifest in **one transaction**, so a failed wipe leaves the old mode with all
+its data instead of server rows in an all-local store. The switch service refuses
+to proceed until an export has been recorded, and refuses to start while writes for
+the current workspace are still queued for the server. The switch state is
+persisted, so a reload mid-flight resumes instead of presenting an emptied
+workspace with no stated reason; other tabs are blocked during the switch and
+reloaded after it.
 
-One case skips the gate: a server sign-in (or a restored authenticated session)
-on a browser whose local workspace holds no exams, exercises, students,
-submissions or scores adopts `all-server` directly
-(`adoptServerStorageIfLocalEmpty`). There is nothing local to lose, and staying
-on `all-local` would show the account an empty vault. A browser with any local
-data keeps its mode.
+**Owner binding.** The manifest records who the workspace belongs to (a local
+passphrase vault, or an account on a backend) and a canary sealed under that
+owner's data key. After every unlock, `openWorkspace()` checks the canary and, for
+server-backed modes, the account and backend. A session that does not own the
+workspace sees a blocking screen instead of the app: nothing is read or written.
+An empty workspace, or an `all-server` cache without queued writes, is simply taken
+over; hybrid results and foreign-key data are never touched without a confirmed
+reset. Offline-queue entries are bound to the workspace they were made in and are
+never replayed into another one. Details: `docs/dev/storage_modes.md`.
+
+One case skips the gate: an explicit server sign-in on a browser whose workspace
+holds nothing at all *and whose mode nobody ever chose* adopts `all-server`
+directly (`adoptServerStorageIfPristine`). There is nothing local to lose, and
+staying on `all-local` would show the account an empty vault. The adoption counts
+as a choice, a restored session (reload) never adopts, and a browser with any
+local data, or whose mode was set through the switch, keeps its mode.
 
 **Import resolves collisions before it writes.** `decryptArchive()` opens the
 envelope and touches nothing — a wrong password costs nothing, where the old

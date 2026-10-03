@@ -36,7 +36,14 @@ describe('storagePolicyStore', () => {
   it('persists latexCompilation changes to localStorage', () => {
     storagePolicyStore.updateSetting('latexCompilation', 'server');
     expect(get(storagePolicyStore).latexCompilation).toBe('server');
-    expect(JSON.parse(localStorage.getItem('bg_storage_policy') || '{}').latexCompilation).toBe('server');
+    expect(localStorage.getItem('bg_latex_compilation')).toBe('server');
+  });
+
+  it('never writes the storage mode when the LaTeX engine changes', () => {
+    // A tab still holding the old mode in memory used to write it back here.
+    localStorage.setItem('bg_storage_policy', JSON.stringify({ storageMode: 'hybrid' }));
+    storagePolicyStore.updateSetting('latexCompilation', 'local');
+    expect(JSON.parse(localStorage.getItem('bg_storage_policy') || '{}').storageMode).toBe('hybrid');
   });
 });
 

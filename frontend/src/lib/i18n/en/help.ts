@@ -73,9 +73,9 @@ export const help: Translations['help'] = {
             s3: {
                 h: 'Changing storage location',
                 p1: 'You can change the storage location in Settings, but data is not transferred automatically. The switch therefore walks you through four steps: back the workspace up as an encrypted archive file (.bgproj), clear local storage, change the storage location, import the archive again in the new mode.',
-                p2: 'The archive file is the only bridge between storage locations. The switch is not possible without an export, because clearing local storage cannot be undone. Exams stored on the server are kept; only this browser\'s local storage is cleared.',
+                p2: 'The archive file is the only bridge between storage locations. The switch is not possible without an export, because clearing local storage cannot be undone. Exams stored on the server are kept; only this browser\'s local storage is cleared. When you leave "All Server", you can have the student data on the server deleted after the import. Changes not yet sent must be sent before the switch, and other open tabs are blocked while it runs.',
                 p3: 'On import, Examance checks whether records already exist. For every conflict you see both versions side by side and decide which one applies. Student data and submissions cannot be imported as a copy, because duplicate pseudonyms are not permissible under data protection rules.',
-                p4: 'One exception: signing in on a browser whose local storage is empty switches straight to server storage — there is nothing local to lose, and your exams from the server appear right away. A browser that holds local data keeps its storage location.',
+                p4: 'The storage location never changes by itself. The one exception: signing in on a browser where no storage location was ever chosen and that holds no data switches straight to server storage — there is nothing local to lose, and your exams from the server appear right away. A browser\'s workspace also always belongs to exactly one key: data encrypted with a different account or local passphrase is not opened. Instead, a notice explains how to sign in with the matching credentials or reset the workspace.',
             },
         },
         exercises: {

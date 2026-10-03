@@ -46,7 +46,8 @@
     rewrapForNewPassword,
     startFreshVault,
   } from "#lib/services/keyEnvelopeService";
-  import { adoptServerStorageIfLocalEmpty } from "#lib/services/storageModeSwitch";
+  import { pendingSwitchStore } from "#lib/services/storageModeSwitch";
+  import { adoptServerStorageIfPristine, openWorkspace } from "#lib/db/workspace";
 
   const LOCAL_PASSPHRASE_MIN_LENGTH = 12;
 
@@ -246,10 +247,12 @@
     await finishUnlock(step, normalizedEmail, vault);
   }
 
-  // Leave for an authenticated session. An empty local workspace switches to server storage first;
-  // local data is never switched away silently.
+  // Leave for an authenticated session. Only here, at an explicit sign-in, may a pristine workspace
+  // (no mode ever chosen, no data) adopt server storage; then the session must own the workspace
+  // (lib/db/workspace.ts). Local data and chosen modes are never switched away silently.
   async function enterApp() {
-    await adoptServerStorageIfLocalEmpty();
+    if (!get(pendingSwitchStore)) await adoptServerStorageIfPristine();
+    await openWorkspace();
     await goto("/");
   }
 
@@ -544,6 +547,7 @@
         await sessionStore.unlockLocalSession(localPassphrase);
       }
 
+      await openWorkspace();
       await goto("/");
     } catch (err: any) {
       errorMsg = err?.message || translate("auth.unlock.errors.localSessionInitFailed");

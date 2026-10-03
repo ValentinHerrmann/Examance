@@ -298,3 +298,32 @@ export interface AuditEntry extends MaybeUndecryptable {
   /** 12-byte GCM IV for payloadCt. */
   payloadIv?: Uint8Array;
 }
+
+/** Who a workspace belongs to; see `lib/db/workspace.ts`. */
+export interface WorkspaceOwner {
+  kind: 'local-vault' | 'account';
+  /** Teacher id (or e-mail for sessions restored without one); null for a local passphrase vault. */
+  accountId: string | null;
+  /** Normalised backend origin the account lives on; null for a local passphrase vault. */
+  backendOrigin: string | null;
+}
+
+/**
+ * The single row of the `workspace` table: which storage mode the data in this database belongs to and
+ * whose key sealed it. Lives in the same database as the data, so mode and data cannot drift apart.
+ */
+export interface WorkspaceManifestRecord {
+  /** Always `'current'` (single-row table). */
+  id: 'current';
+  /** Random id, new for every switch or reset; offline-queue entries are bound to it. */
+  workspaceId: string;
+  mode: 'all-server' | 'all-local' | 'hybrid';
+  /** Null until the first unlock claims the workspace. */
+  owner: WorkspaceOwner | null;
+  /** A known constant sealed under the owner's data key: proves a session key belongs to this workspace. */
+  canaryCt: Uint8Array | null;
+  canaryIv: Uint8Array | null;
+  /** True once a person chose this mode (wizard, migration); only a non-explicit, empty workspace may be adopted. */
+  explicit: boolean;
+  createdAt: string;
+}

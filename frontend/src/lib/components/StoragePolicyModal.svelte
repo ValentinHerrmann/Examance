@@ -49,6 +49,15 @@
       window.location.href = "/unlock";
       return;
     }
+    // Compiling is a stateless service, not storage, so it is allowed with local data, but the exam's
+    // LaTeX (including solutions) and its files do leave the device for it: say so once, on opt-in.
+    if (
+      val === "server" &&
+      get(storagePolicyStore).storageMode === "all-local" &&
+      !confirm(translate("storagePolicy.serverCompileConsent"))
+    ) {
+      return;
+    }
     storagePolicyStore.updateSetting("latexCompilation", val);
     statusMsg = translate("settings.status.latexSet", { mode: val });
   }

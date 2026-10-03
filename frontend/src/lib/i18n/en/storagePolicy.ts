@@ -11,6 +11,8 @@ export const storagePolicy: Translations['storagePolicy'] = {
     allServerTitle: 'Everything stored and synced with backend server',
     hybridTitle: 'Exercises & Exams on server, Student identity & submissions local',
 
+    serverCompileConsent:
+        'Compiling on the server sends the LaTeX source of your exams and exercises (including solutions) and attached files to the server. They are processed only for the compilation and not stored. Student data is never sent. Continue?',
     switch: {
         title: 'Change storage location',
         stepExplain: 'Overview',
@@ -20,7 +22,7 @@ export const storagePolicy: Translations['storagePolicy'] = {
         introHeading: 'Switch from "{from}" to "{to}"',
         introBody: 'Changing the storage location does not move any data on its own. The current workspace is cleared locally, and the new location starts empty.',
         bridgeNote: 'The encrypted archive file (.bgproj) is the only bridge between storage locations: export first, then switch, then import it again in the new mode.',
-        serverKeptNote: 'Exams stored on the server are not deleted — only this browser\'s local storage is cleared.',
+        serverKeptNote: 'Data stored on the server is not deleted by the switch; only this browser\'s local storage is cleared. After the import you can have the student data on the server deleted.',
         understandCheckbox: 'I understand that no data is transferred automatically.',
         exportHeading: 'Back up the workspace',
         exportBody: 'Choose a password for the archive. The file cannot be recovered without it, so keep it somewhere safe.',
@@ -44,6 +46,56 @@ export const storagePolicy: Translations['storagePolicy'] = {
         needsAuth: 'Server-backed storage locations require you to be signed in.',
         cancel: 'Cancel',
         cannotAbortAfterWipe: 'Local storage has already been cleared — the switch can no longer be undone.',
+        otherTabsNote: 'Other open tabs of this app are blocked during the switch and reloaded afterwards.',
+        pendingWritesHeading: 'Changes not yet sent',
+        pendingWritesBody: '{count} change(s) are still waiting for the server. They belong to the current workspace and would be lost by the switch, so send them first.',
+        pendingWritesSync: 'Send now',
+        pendingWritesStill: 'Some changes could not be sent yet. Check the connection to the server and try again.',
+        purgeHeading: 'Delete the copy on the server?',
+        purgeBody: 'Your data now lives in the new storage location. A copy is still on the server. Student data should be stored in one place only.',
+        purgeStudents: 'Delete student data and submissions on the server',
+        purgeGrace: 'The deletion becomes final after a 7-day grace period. Exams and exercises on the server are kept.',
+        purgeButton: 'Delete on server',
+        purgeKeep: 'Keep server copy',
+        purgeDone: 'Deleted: {students} students, {submissions} submissions (final after 7 days).',
+        purgeClose: 'Done',
+    },
+
+    workspace: {
+        switchElsewhereTitle: 'Storage location is changing',
+        switchElsewhereBody: 'A storage-location switch is running in another tab. This tab reloads automatically once it is done.',
+        ownerLocalVault: 'Local vault (passphrase)',
+        ownerAccount: 'Account {account} on {server}',
+        ownerUnclaimed: 'Not yet bound to a key',
+        ownerLabel: 'Workspace belongs to',
+        blocked: {
+            resetConfirm: 'I understand that the data in this browser will be deleted irreversibly.',
+            resetButton: 'Reset the workspace in this browser',
+            foreignKey: {
+                title: 'This workspace belongs to a different key',
+                body: 'The data in this browser was encrypted with a different account or local passphrase. It cannot be opened with the current sign-in, so nothing is shown or changed.',
+                primary: 'Sign out and unlock with the matching credentials',
+                reset: 'If you no longer have the matching credentials, you can reset the workspace. The existing data is then lost unless you have an archive (.bgproj).',
+            },
+            foreignAccount: {
+                title: 'This workspace belongs to a different account',
+                body: 'In hybrid mode, student data and submissions are stored locally and belong to the exams of one account on one server. You are signed in with a different account or server.',
+                primary: 'Sign out and sign in with the right account',
+                reset: "Resetting deletes the other account's local student data and submissions in this browser.",
+            },
+            needsSignIn: {
+                title: 'Server sign-in required',
+                body: 'This workspace stores data on the server. It cannot be opened with a local passphrase. Sign in with your account.',
+                primary: 'Sign in with account',
+                reset: 'Alternatively, reset this browser to "All Local". Data on the server is kept; locally cached data (in hybrid mode, also student data) is deleted.',
+            },
+            pendingWrites: {
+                title: 'Unsent changes of another account',
+                body: 'Changes made by another account in this browser are still waiting for the server. Sign in with that account so they are sent.',
+                primary: 'Sign out and sign in with the other account',
+                reset: 'Resetting discards these changes for good.',
+            },
+        },
     },
 
     conflict: {

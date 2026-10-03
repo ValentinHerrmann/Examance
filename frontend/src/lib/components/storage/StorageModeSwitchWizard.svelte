@@ -15,8 +15,12 @@
     localWorkspaceIsEmpty,
     markExported,
     pendingSwitchStore,
+    PendingWritesError,
+    purgeServerStudentData,
     requireExport,
+    switchLeavesServerStudentData,
   } from '#lib/services/storageModeSwitch';
+  import { flushOfflineQueue, pendingWritesCount } from '#lib/services/offlineQueue';
   import {
     exportArchiveInteractively,
     importArchiveInteractively,
@@ -42,6 +46,12 @@
   let busy = $state(false);
   let errorMsg = $state('');
   let workspaceEmpty = $state(false);
+  // Set when a switch was refused over writes still waiting for the server.
+  let blockedByPendingWrites = $state(false);
+  // After a verified import that took student data off the server: offer deleting the server copy.
+  let purgeOffer: { from: StorageMode; to: StorageMode } | null = $state.raw(null);
+  let purgeStudents = $state(true);
+  let purgeResult = $state('');
 
   let pending = $derived($pendingSwitchStore);
   let phase = $derived(pending?.phase === 'switching' ? 'exported' : pending?.phase);
@@ -56,7 +66,16 @@
       errorMsg = translate('storagePolicy.switch.needsAuth');
       return;
     }
-    beginModeSwitch(to);
+    try {
+      beginModeSwitch(to);
+    } catch (err) {
+      if (err instanceof PendingWritesError) {
+        blockedByPendingWrites = true;
+        return;
+      }
+      throw err;
+    }
+    blockedByPendingWrites = false;
     workspaceEmpty = await localWorkspaceIsEmpty();
   }
 
@@ -75,10 +94,36 @@
   function close() {
     understood = false;
     errorMsg = '';
+    blockedByPendingWrites = false;
+    purgeOffer = null;
+    purgeResult = '';
     onClose();
   }
 
+  async function handleSyncNow() {
+    await flushOfflineQueue();
+    if (get(pendingWritesCount) > 0) {
+      errorMsg = translate('storagePolicy.switch.pendingWritesStill');
+      return;
+    }
+    // The effect below restarts the switch once the flag drops.
+    blockedByPendingWrites = false;
+  }
+
+  async function handlePurge() {
+    const res = await purgeServerStudentData();
+    purgeResult = translate('storagePolicy.switch.purgeDone', {
+      students: res.students,
+      submissions: res.submissions,
+    });
+    purgeOffer = null;
+  }
+
   function handleCancel() {
+    if (!pending) {
+      close();
+      return;
+    }
     if (abortModeSwitch()) close();
     else errorMsg = translate('storagePolicy.switch.cannotAbortAfterWipe');
   }
@@ -93,8 +138,14 @@
     const file = input.files?.[0];
     input.value = '';
     if (file && (await importArchiveInteractively(file))) {
+      const done = get(pendingSwitchStore);
       finishModeSwitch();
-      close();
+      // Only after a verified import: the archive's data now lives in the new mode.
+      if (done && switchLeavesServerStudentData(done.from, done.to) && get(isAuthenticated)) {
+        purgeOffer = { from: done.from, to: done.to };
+      } else {
+        close();
+      }
     }
   }
 
@@ -107,7 +158,7 @@
     const isOpen = open;
     const to = target;
     const p = pending;
-    if (isOpen && to && !p) untrack(() => void start(to));
+    if (isOpen && to && !p && !blockedByPendingWrites) untrack(() => void runAction(() => start(to)));
   });
 </script>
 
@@ -119,7 +170,23 @@
   closeOnEscape={!busy}
   onClose={handleCancel}
 >
-  {#if pending}
+  {#if blockedByPendingWrites}
+    <div class="space-y-2 text-sm text-muted">
+      <h4 class="font-semibold text-content">{$t('storagePolicy.switch.pendingWritesHeading')}</h4>
+      <p>{$t('storagePolicy.switch.pendingWritesBody', { count: $pendingWritesCount })}</p>
+    </div>
+  {:else if purgeOffer || purgeResult}
+    <div class="space-y-2 text-sm text-muted">
+      <h4 class="font-semibold text-content">{$t('storagePolicy.switch.purgeHeading')}</h4>
+      {#if purgeResult}
+        <p>{purgeResult}</p>
+      {:else}
+        <p>{$t('storagePolicy.switch.purgeBody')}</p>
+        <Checkbox bind:checked={purgeStudents} label={$t('storagePolicy.switch.purgeStudents')} class="pt-2" />
+        <p class="text-xs">{$t('storagePolicy.switch.purgeGrace')}</p>
+      {/if}
+    </div>
+  {:else if pending}
     <ol class="mb-4 flex flex-wrap gap-2 text-xs text-muted">
       {#each STEPS as step, i (step.phase)}
         <li>
@@ -136,6 +203,7 @@
         <p>{$t('storagePolicy.switch.introBody')}</p>
         <p>{$t('storagePolicy.switch.bridgeNote')}</p>
         <p class="text-muted">{$t('storagePolicy.switch.serverKeptNote')}</p>
+        <p class="text-muted">{$t('storagePolicy.switch.otherTabsNote')}</p>
         <Checkbox bind:checked={understood} label={$t('storagePolicy.switch.understandCheckbox')} class="pt-2" />
       {:else if phase === 'export'}
         <h4 class="font-semibold text-content">{$t('storagePolicy.switch.exportHeading')}</h4>
@@ -169,7 +237,23 @@
   {/if}
 
   {#snippet footer()}
-    {#if phase === 'reimport'}
+    {#if blockedByPendingWrites}
+      <Button variant="outlined" severity="secondary" disabled={busy} onClick={close}>
+        {$t('storagePolicy.switch.cancel')}
+      </Button>
+      <Button loading={busy} onClick={() => runAction(handleSyncNow)}>
+        {$t('storagePolicy.switch.pendingWritesSync')}
+      </Button>
+    {:else if purgeResult}
+      <Button onClick={close}>{$t('storagePolicy.switch.purgeClose')}</Button>
+    {:else if purgeOffer}
+      <Button variant="outlined" severity="secondary" disabled={busy} onClick={close}>
+        {$t('storagePolicy.switch.purgeKeep')}
+      </Button>
+      <Button severity="danger" loading={busy} disabled={!purgeStudents} onClick={() => runAction(handlePurge)}>
+        {$t('storagePolicy.switch.purgeButton')}
+      </Button>
+    {:else if phase === 'reimport'}
       <Button variant="outlined" severity="secondary" disabled={busy} onClick={handleImportLater}>
         {$t('storagePolicy.switch.importSkip')}
       </Button>

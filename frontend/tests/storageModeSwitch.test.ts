@@ -9,10 +9,12 @@ import {
   disarmStorageModeSwitch,
   storagePolicyStore,
 } from '../src/lib/stores/storagePolicy';
+import { adoptServerStorageIfPristine, currentManifest, loadWorkspace } from '../src/lib/db/workspace';
+import { offlineQueue } from '../src/lib/services/offlineQueue';
 import {
   abortModeSwitch,
-  adoptServerStorageIfLocalEmpty,
   beginModeSwitch,
+  PendingWritesError,
   commitModeSwitch,
   finishModeSwitch,
   localWorkspaceIsEmpty,
@@ -58,6 +60,8 @@ describe('gated switch flow', () => {
     await db.students.clear();
     await db.submissions.clear();
     await db.exerciseScores.clear();
+    await db.workspace.clear();
+    offlineQueue.set([]);
   });
 
   it('refuses to wipe and switch before an export has been recorded', async () => {
@@ -121,11 +125,13 @@ describe('gated switch flow', () => {
     expect(await localWorkspaceIsEmpty()).toBe(false);
   });
 
-  it('adopts server storage on sign-in when the local workspace is empty', async () => {
-    expect(await adoptServerStorageIfLocalEmpty()).toBe(true);
+  it('adopts server storage on sign-in only for a pristine workspace', async () => {
+    expect(await adoptServerStorageIfPristine()).toBe(true);
     expect(get(storagePolicyStore).storageMode).toBe('all-server');
     // The token is spent: nothing else can change the mode afterwards.
     expect(() => storagePolicyStore.commitStorageMode('all-local', 'made-up')).toThrow();
+    // Adoption counts as a choice: it never happens twice.
+    expect((await currentManifest())?.explicit).toBe(true);
   });
 
   it('never switches a workspace that holds local data', async () => {
@@ -136,8 +142,43 @@ describe('gated switch flow', () => {
       compilationStatus: 'pending',
       createdAt: new Date().toISOString(),
     });
-    expect(await adoptServerStorageIfLocalEmpty()).toBe(false);
+    expect(await adoptServerStorageIfPristine()).toBe(false);
     expect(get(storagePolicyStore).storageMode).toBe('all-local');
     expect(await db.exams.count()).toBe(1);
+  });
+
+  it('never adopts a mode someone chose, even when the workspace is empty', async () => {
+    // all-local -> "import later" -> reload used to flip back to all-server here.
+    await loadWorkspace();
+    beginModeSwitch('hybrid');
+    requireExport();
+    markExported();
+    await commitModeSwitch();
+    finishModeSwitch();
+    beginModeSwitch('all-local');
+    requireExport();
+    markExported();
+    await commitModeSwitch();
+    finishModeSwitch();
+
+    expect(await adoptServerStorageIfPristine()).toBe(false);
+    expect(get(storagePolicyStore).storageMode).toBe('all-local');
+  });
+
+  it('stamps the new mode into the manifest together with the wipe', async () => {
+    beginModeSwitch('hybrid');
+    requireExport();
+    markExported();
+    await commitModeSwitch();
+    const manifest = await currentManifest();
+    expect(manifest?.mode).toBe('hybrid');
+    expect(manifest?.explicit).toBe(true);
+  });
+
+  it('refuses to start a switch while writes still wait for the server', async () => {
+    const { workspaceId } = await loadWorkspace();
+    offlineQueue.set([{ id: 'q1', url: '/exams', method: 'POST', body: {}, timestamp: 0, workspaceId }]);
+    expect(() => beginModeSwitch('all-local')).toThrow(PendingWritesError);
+    expect(get(pendingSwitchStore)).toBeNull();
   });
 });

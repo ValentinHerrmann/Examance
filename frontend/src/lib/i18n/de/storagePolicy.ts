@@ -9,6 +9,8 @@ export const storagePolicy = {
     allServerTitle: 'Alles wird auf dem Backend-Server gespeichert und synchronisiert',
     hybridTitle: 'Aufgaben & Prüfungen auf dem Server, Schülerdaten & Abgaben lokal',
 
+    serverCompileConsent:
+        'Beim Kompilieren auf dem Server werden der LaTeX-Quelltext Ihrer Prüfungen und Aufgaben (einschließlich Lösungen) sowie angehängte Dateien an den Server gesendet. Sie werden dort nur für die Kompilierung verarbeitet und nicht gespeichert. Schülerdaten werden nie gesendet. Fortfahren?',
     switch: {
         title: 'Speicherort wechseln',
         stepExplain: 'Überblick',
@@ -18,7 +20,7 @@ export const storagePolicy = {
         introHeading: 'Von "{from}" zu "{to}" wechseln',
         introBody: 'Beim Wechsel des Speicherorts werden keine Daten automatisch übertragen. Der bisherige Arbeitsbereich wird lokal geleert, und der neue Speicherort startet leer.',
         bridgeNote: 'Die verschlüsselte Archivdatei (.bgproj) ist die einzige Brücke zwischen den Speicherorten: zuerst exportieren, dann wechseln, dann im neuen Modus wieder einlesen.',
-        serverKeptNote: 'Auf dem Server gespeicherte Prüfungen werden dabei nicht gelöscht — geleert wird nur der lokale Speicher dieses Browsers.',
+        serverKeptNote: 'Auf dem Server gespeicherte Daten werden beim Wechsel nicht gelöscht — geleert wird nur der lokale Speicher dieses Browsers. Nach dem Einlesen können Sie die Schülerdaten auf dem Server löschen lassen.',
         understandCheckbox: 'Ich habe verstanden, dass keine Daten automatisch übertragen werden.',
         exportHeading: 'Arbeitsbereich sichern',
         exportBody: 'Vergeben Sie ein Passwort für das Archiv. Ohne dieses Passwort lässt sich die Datei nicht wiederherstellen — bewahren Sie es sicher auf.',
@@ -42,6 +44,56 @@ export const storagePolicy = {
         needsAuth: 'Für server-gestützte Speicherorte ist eine Anmeldung erforderlich.',
         cancel: 'Abbrechen',
         cannotAbortAfterWipe: 'Der lokale Speicher wurde bereits geleert — der Wechsel lässt sich nicht mehr zurücknehmen.',
+        otherTabsNote: 'Andere geöffnete Tabs dieser App werden während des Wechsels gesperrt und danach neu geladen.',
+        pendingWritesHeading: 'Noch nicht übertragene Änderungen',
+        pendingWritesBody: '{count} Änderung(en) warten noch auf den Server. Sie gehören zum aktuellen Arbeitsbereich und gingen beim Wechsel verloren — übertragen Sie sie zuerst.',
+        pendingWritesSync: 'Jetzt übertragen',
+        pendingWritesStill: 'Einige Änderungen konnten noch nicht übertragen werden. Prüfen Sie die Verbindung zum Server und versuchen Sie es erneut.',
+        purgeHeading: 'Kopie auf dem Server löschen?',
+        purgeBody: 'Ihre Daten liegen jetzt im neuen Speicherort. Auf dem Server liegt weiterhin eine Kopie. Schülerdaten sollten nur an einem Ort gespeichert sein.',
+        purgeStudents: 'Schülerdaten und Abgaben auf dem Server löschen',
+        purgeGrace: 'Die Löschung wird nach einer Frist von 7 Tagen endgültig. Prüfungen und Aufgaben auf dem Server bleiben erhalten.',
+        purgeButton: 'Auf dem Server löschen',
+        purgeKeep: 'Server-Kopie behalten',
+        purgeDone: 'Gelöscht: {students} Schüler, {submissions} Abgaben (endgültig nach 7 Tagen).',
+        purgeClose: 'Fertig',
+    },
+
+    workspace: {
+        switchElsewhereTitle: 'Speicherort wird gewechselt',
+        switchElsewhereBody: 'In einem anderen Tab läuft gerade ein Wechsel des Speicherorts. Dieser Tab wird danach automatisch neu geladen.',
+        ownerLocalVault: 'Lokaler Tresor (Passphrase)',
+        ownerAccount: 'Konto {account} auf {server}',
+        ownerUnclaimed: 'Noch keinem Schlüssel zugeordnet',
+        ownerLabel: 'Arbeitsbereich gehört zu',
+        blocked: {
+            resetConfirm: 'Ich verstehe, dass die Daten in diesem Browser dabei unwiderruflich gelöscht werden.',
+            resetButton: 'Arbeitsbereich in diesem Browser zurücksetzen',
+            foreignKey: {
+                title: 'Dieser Arbeitsbereich gehört zu einem anderen Schlüssel',
+                body: 'Die Daten in diesem Browser wurden mit einem anderen Konto oder einer anderen lokalen Passphrase verschlüsselt. Mit der aktuellen Anmeldung lassen sie sich nicht öffnen, deshalb wird nichts angezeigt oder verändert.',
+                primary: 'Abmelden und mit dem passenden Zugang entsperren',
+                reset: 'Wenn Sie den passenden Zugang nicht mehr haben, können Sie den Arbeitsbereich zurücksetzen. Die bisherigen Daten sind dann verloren, sofern Sie kein Archiv (.bgproj) haben.',
+            },
+            foreignAccount: {
+                title: 'Dieser Arbeitsbereich gehört zu einem anderen Konto',
+                body: 'Im Hybrid-Modus liegen Schülerdaten und Abgaben lokal und gehören zu den Prüfungen eines bestimmten Kontos auf einem bestimmten Server. Sie sind mit einem anderen Konto oder Server angemeldet.',
+                primary: 'Abmelden und mit dem richtigen Konto anmelden',
+                reset: 'Zurücksetzen löscht die lokalen Schülerdaten und Abgaben des anderen Kontos in diesem Browser.',
+            },
+            needsSignIn: {
+                title: 'Anmeldung am Server erforderlich',
+                body: 'Dieser Arbeitsbereich speichert Daten auf dem Server. Mit einer lokalen Passphrase lässt er sich nicht öffnen — melden Sie sich mit Ihrem Konto an.',
+                primary: 'Mit Konto anmelden',
+                reset: 'Alternativ können Sie diesen Browser auf „Alles lokal“ zurücksetzen. Die Daten auf dem Server bleiben erhalten, lokal zwischengespeicherte Daten (im Hybrid-Modus auch Schülerdaten) werden gelöscht.',
+            },
+            pendingWrites: {
+                title: 'Unübertragene Änderungen eines anderen Kontos',
+                body: 'In diesem Browser warten noch Änderungen eines anderen Kontos auf den Server. Melden Sie sich mit diesem Konto an, damit sie übertragen werden.',
+                primary: 'Abmelden und mit dem anderen Konto anmelden',
+                reset: 'Zurücksetzen verwirft diese Änderungen endgültig.',
+            },
+        },
     },
 
     conflict: {
