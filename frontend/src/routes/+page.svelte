@@ -23,7 +23,7 @@
   import OnboardingEmptyState from '$lib/components/dashboard/OnboardingEmptyState.svelte';
   import DashboardFilterBar from '$lib/components/dashboard/DashboardFilterBar.svelte';
   import ExamGrid from '$lib/components/dashboard/ExamGrid.svelte';
-  import { PageShell } from '$lib/components/ui';
+  import { Alert, PageShell } from '$lib/components/ui';
 
 
   let exams: ExamRecord[] = [];
@@ -340,12 +340,7 @@
         {/if}
 
         {#if examsLoadFailed}
-          <p
-            class="rounded-md border border-line-strong bg-surface-sunken p-4 text-sm text-content"
-            role="alert"
-          >
-            {$t("dashboard.loadFailed")}
-          </p>
+          <Alert severity="danger" class="mb-6">{$t("dashboard.loadFailed")}</Alert>
         {/if}
 
         {#if exams.length === 0 && !examsLoadFailed}

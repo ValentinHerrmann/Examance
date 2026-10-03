@@ -124,9 +124,9 @@
 
   {#if stats?.summary}
     <StatsCards {stats} {totalMaxPoints} gradingKey={exam?.gradingKey} />
-    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div class="grid grid-cols-1 gap-4 @3xl:grid-cols-2">
       <ChartCard
-        class="lg:col-span-2"
+        class="@3xl:col-span-2"
         title={$t('stats.combined.title')}
         subtitle={$t('stats.combined.subtitle')}
         domain={100}
@@ -143,7 +143,7 @@
           <p class="mt-2 text-xs text-muted">{$t('stats.combined.markers.legend')}</p>
         {/if}
       </ChartCard>
-      <BorderlineCases class="lg:col-span-2" cases={stats.borderline} examId={exam?.id ?? ''} {submissionIds} />
+      <BorderlineCases class="@3xl:col-span-2" cases={stats.borderline} examId={exam?.id ?? ''} {submissionIds} />
       <ChartCard
         title={$t('stats.gradeDistribution.title')}
         subtitle="{$t('stats.gradeDistribution.gradingKeyPrefix')} {$t(preset)}"
@@ -178,7 +178,7 @@
   {/if}
 
   <div class="mt-6">
-    <Button variant="secondary" onClick={onOpenExport}>
+    <Button variant="outlined" severity="secondary" onClick={onOpenExport}>
       {$t('stats.page.exportButton')}
     </Button>
   </div>

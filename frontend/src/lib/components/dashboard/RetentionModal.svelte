@@ -11,7 +11,7 @@
 
 <Modal
   open={true}
-  size="sm"
+  size="small"
   title={$t("dashboard.retentionModal.title")}
   closeOnBackdrop={false}
   closeOnEscape={false}
@@ -25,7 +25,7 @@
   <p>{$t("dashboard.retentionModal.question")}</p>
 
   <svelte:fragment slot="footer">
-    <Button variant="danger" onClick={onDelete}>{$t("dashboard.retentionModal.deleteData")}</Button>
-    <Button variant="primary" onClick={onExtend}>{$t("dashboard.retentionModal.extendRetention")}</Button>
+    <Button severity="danger" onClick={onDelete}>{$t("dashboard.retentionModal.deleteData")}</Button>
+    <Button onClick={onExtend}>{$t("dashboard.retentionModal.extendRetention")}</Button>
   </svelte:fragment>
 </Modal>

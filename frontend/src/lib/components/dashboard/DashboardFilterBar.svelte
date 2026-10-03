@@ -1,5 +1,6 @@
 <script lang="ts">
   import { t } from "$lib/i18n";
+  import { Select, TextInput } from "$lib/components/ui";
 
   export let searchQuery: string;
   export let selectedGradeFilter: string;
@@ -8,43 +9,34 @@
   export let availableSubjects: string[];
 </script>
 
-<div class="flex flex-wrap items-center gap-4 mb-6">
-  <input
-    type="text"
-    placeholder={$t("dashboard.filterBar.searchPlaceholder")}
+<div class="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3">
+  <TextInput
     bind:value={searchQuery}
-    class="flex-1 min-w-[240px] rounded-md border border-line bg-surface-raised px-3.5 py-2.5 text-content"
+    placeholder={$t("dashboard.filterBar.searchPlaceholder")}
+    class="min-w-60 flex-1"
   />
 
   {#if availableGrades.length > 0}
     <div class="flex items-center gap-2 text-sm text-content">
       <label for="dashboard-grade">{$t("dashboard.filterBar.gradeLabel")}</label>
-      <select
-        id="dashboard-grade"
-        bind:value={selectedGradeFilter}
-        class="rounded-md border border-line bg-surface-raised px-3 py-2 text-sm text-content"
-      >
+      <Select id="dashboard-grade" bind:value={selectedGradeFilter}>
         <option value="ALL">{$t("dashboard.filterBar.allGrades")}</option>
         {#each availableGrades as g}
           <option value={g}>{$t("dashboard.filterBar.gradeOption", { grade: g })}</option>
         {/each}
-      </select>
+      </Select>
     </div>
   {/if}
 
   {#if availableSubjects.length > 0}
     <div class="flex items-center gap-2 text-sm text-content">
       <label for="dashboard-subject">{$t("dashboard.filterBar.subjectLabel")}</label>
-      <select
-        id="dashboard-subject"
-        bind:value={selectedSubjectFilter}
-        class="rounded-md border border-line bg-surface-raised px-3 py-2 text-sm text-content"
-      >
+      <Select id="dashboard-subject" bind:value={selectedSubjectFilter}>
         <option value="ALL">{$t("dashboard.filterBar.allSubjects")}</option>
         {#each availableSubjects as s}
           <option value={s}>{s}</option>
         {/each}
-      </select>
+      </Select>
     </div>
   {/if}
 </div>

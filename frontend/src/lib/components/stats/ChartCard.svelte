@@ -6,7 +6,8 @@
    */
   import { tick } from 'svelte';
   import { t } from '$lib/i18n';
-  import { Button, Card } from '$lib/components/ui';
+  import { faDownload } from '@fortawesome/free-solid-svg-icons';
+  import { Button, Card, Icon } from '$lib/components/ui';
   import ColumnChart from './ColumnChart.svelte';
   import type { ChartCurve, ChartLayer, ChartMarker, ChartSpan } from './chartColumns';
   import { downloadBlob, serializeChartSvg, svgToPdf, svgToPng } from './chartExport';
@@ -66,10 +67,11 @@
       {/if}
     </div>
     <div class="flex shrink-0 items-center gap-1" role="group" aria-label={$t('stats.download.group')}>
-      <span class="mr-1 text-xs text-muted" aria-hidden="true">⬇</span>
+      <Icon icon={faDownload} class="mr-1 text-sm text-muted" />
       {#each EXPORT_FORMATS as format}
         <Button
-          variant="ghost"
+          variant="text"
+          severity="secondary"
           size="sm"
           loading={exporting === format}
           disabled={exporting !== null}

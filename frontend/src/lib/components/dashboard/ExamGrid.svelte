@@ -3,6 +3,7 @@
   import { formatExamCourse } from '$lib/utils/examLabel';
   import { t } from "$lib/i18n";
   import { fmt } from "$lib/utils/format";
+  import { Badge, Button, Card, EmptyState } from "$lib/components/ui";
 
   export let exams: ExamRecord[];
   export let examStatsMap: Map<string, { avgScore: number | null; count: number }>;
@@ -11,40 +12,34 @@
 </script>
 
 {#if exams.length === 0}
-  <div class="rounded-xl border border-dashed border-line bg-surface-raised px-8 py-16 text-center">
-    <p class="text-lg text-muted">{$t("dashboard.examGrid.noResults")}</p>
-  </div>
+  <Card>
+    <EmptyState title={$t("dashboard.examGrid.noResults")} />
+  </Card>
 {:else}
-  <div class="grid gap-6" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+  <div class="grid grid-cols-[repeat(auto-fill,minmax(17.5rem,1fr))] gap-4">
     {#each exams as exam}
       {@const stats = examStatsMap.get(exam.id)}
       {@const courseLabel = formatExamCourse(exam.grade, exam.klasse)}
       <div
-        class="cursor-pointer rounded-md border border-line bg-surface-raised p-6 transition-colors duration-150 ease-in-out hover:border-primary hover:bg-surface-inset"
+        class="min-w-0 cursor-pointer rounded-xl bg-surface-raised p-5 shadow-sm transition-colors duration-150 ease-in-out hover:bg-surface-inset"
         role="button"
         tabindex="0"
         on:click={() => onNavigate(exam.id)}
         on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate(exam.id); } }}
       >
-        <h3 class="m-0 mb-2 text-accent">{exam.title || $t("dashboard.examGrid.untitledExam")}</h3>
+        <h3 class="m-0 mb-2 text-lg font-medium break-words text-accent">{exam.title || $t("dashboard.examGrid.untitledExam")}</h3>
         <div class="mb-3 flex flex-wrap gap-1.5">
           {#if courseLabel}
-            <span class="rounded-sm border border-info bg-info/10 px-2 py-0.5 text-xs text-info-fg"
-              >{$t("dashboard.examGrid.classLabel", { course: courseLabel })}</span
-            >
+            <Badge severity="info" size="xs">{$t("dashboard.examGrid.classLabel", { course: courseLabel })}</Badge>
           {/if}
           {#if exam.fach}
-            <span class="rounded-sm border border-success bg-success/10 px-2 py-0.5 text-xs text-success-fg"
-              >{exam.fach}</span
-            >
+            <Badge severity="success" size="xs">{exam.fach}</Badge>
           {/if}
           {#if exam.testart}
-            <span class="rounded-sm bg-surface-inset px-2 py-0.5 text-xs text-content">{exam.testart}</span>
+            <Badge size="xs">{exam.testart}</Badge>
           {/if}
           {#if stats?.avgScore !== undefined && stats.avgScore !== null}
-            <span class="rounded-sm bg-primary px-2 py-0.5 text-xs font-semibold text-accent"
-              >{$t("dashboard.examGrid.averageScore", { score: stats.avgScore })}</span
-            >
+            <Badge severity="primary" size="xs">{$t("dashboard.examGrid.averageScore", { score: stats.avgScore })}</Badge>
           {/if}
         </div>
         {#if exam.datum}
@@ -55,11 +50,13 @@
         {#if exam.retentionUntil}
           <p class="mb-4 text-xs text-muted">{$t("dashboard.examGrid.retentionUntil", { date: exam.retentionUntil })}</p>
         {/if}
-        <div class="flex items-center justify-between">
-          <a href="/exam/{exam.id}" class="font-medium text-accent no-underline" on:click|stopPropagation>{$t("dashboard.examGrid.openExam")}</a>
-          <button
-            class="rounded-sm border border-danger bg-transparent px-2.5 py-1 text-xs text-danger-fg hover:bg-danger hover:text-danger-contrast"
-            on:click|stopPropagation={() => onDelete(exam.id, exam.title)}>{$t("common.delete")}</button
+        <div class="mt-3 flex items-center justify-between gap-2">
+          <a href="/exam/{exam.id}" class="font-medium text-accent no-underline hover:underline pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center" on:click|stopPropagation>{$t("dashboard.examGrid.openExam")}</a>
+          <Button
+            variant="outlined"
+            severity="danger"
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); onDelete(exam.id, exam.title); }}>{$t("common.delete")}</Button
           >
         </div>
       </div>

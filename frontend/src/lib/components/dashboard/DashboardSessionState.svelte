@@ -1,21 +1,26 @@
 <script lang="ts">
   import { t } from "$lib/i18n";
+  import { faLock } from "@fortawesome/free-solid-svg-icons";
+  import { Button, Card, EmptyState, Spinner } from "$lib/components/ui";
 
   export let mode: 'loading' | 'locked';
 </script>
 
 {#if mode === 'loading'}
-  <div class="rounded-xl border border-dashed border-line bg-surface-raised px-8 py-16 text-center">
-    <p>{$t("dashboard.sessionState.initializing")}</p>
-  </div>
+  <Card class="flex items-center justify-center gap-3 py-16 text-muted">
+    <Spinner />
+    <p class="m-0">{$t("dashboard.sessionState.initializing")}</p>
+  </Card>
 {:else}
-  <div class="rounded-xl border border-dashed border-line bg-surface-raised px-8 py-16 text-center">
-    <h2 class="m-0 text-3xl text-content">{$t("dashboard.sessionState.lockedTitle")}</h2>
-    <p>{$t("dashboard.sessionState.lockedText")}</p>
-    <a
-      href="/unlock"
-      class="rounded-md bg-primary px-5 py-2.5 font-semibold text-primary-contrast no-underline hover:bg-primary"
-      >{$t("dashboard.sessionState.unlockButton")}</a
+  <Card>
+    <EmptyState
+      icon={faLock}
+      title={$t("dashboard.sessionState.lockedTitle")}
+      description={$t("dashboard.sessionState.lockedText")}
     >
-  </div>
+      <svelte:fragment slot="actions">
+        <Button href="/unlock">{$t("dashboard.sessionState.unlockButton")}</Button>
+      </svelte:fragment>
+    </EmptyState>
+  </Card>
 {/if}

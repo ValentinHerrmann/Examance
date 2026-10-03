@@ -28,7 +28,7 @@
 <Card class={className}>
   <h3 class="text-base font-semibold text-content">{$t('stats.borderline.title')}</h3>
   <p class="mb-4 mt-1 text-xs text-muted">{$t('stats.borderline.subtitle')}</p>
-  <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+  <div class="grid grid-cols-1 gap-6 @3xl:grid-cols-2">
     {#each groups as group (group.side)}
       <section class="min-w-0">
         <h4 class="mb-2 flex items-baseline gap-2 text-sm font-semibold text-muted">
@@ -56,7 +56,7 @@
                   aria-label={$t('stats.borderline.openAria', { index })}
                 >
                   <span
-                    class="inline-flex justify-center rounded-sm px-1 font-bold text-content"
+                    class="inline-flex justify-center rounded-md px-1 font-bold text-content"
                     style="background-color: {gradeColorVar(c.gradeIndex, c.gradeCount)}">{c.grade}{group.mark}</span
                   >
                   <span class="truncate text-muted">#{index}</span>
