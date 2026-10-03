@@ -68,6 +68,6 @@ export const dashboard = {
     error: {
         title: '{status} – Fehler',
         notFound: 'Seite nicht gefunden',
-        returnButton: 'Zurück zur Übersicht',
+        returnButton: 'Zurück zu den Prüfungen',
     },
 } as const;

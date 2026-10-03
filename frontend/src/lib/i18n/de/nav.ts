@@ -1,5 +1,5 @@
 export const nav = {
-    dashboard: 'Übersicht',
+    dashboard: 'Prüfungen',
     exerciseLibrary: 'Aufgabenbibliothek',
     analytics: 'Auswertung',
     userManagement: 'Benutzerverwaltung',

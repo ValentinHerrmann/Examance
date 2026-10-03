@@ -251,7 +251,7 @@ export const scanning = {
         },
         previous: 'Zurück',
         nextItem: 'Nächstes Element',
-        backToDashboard: 'Zurück zur Übersicht',
+        backToDashboard: 'Zurück zu den Prüfungen',
         endOfQueueTitle: 'Ende der Warteschlange erreicht',
         endOfQueueMessage: 'Es gibt keine weiteren Elemente in dieser Warteschlange mehr zu überprüfen.',
         confirmDetection: 'Als korrekt bestätigen',

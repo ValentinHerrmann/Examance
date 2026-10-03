@@ -253,7 +253,7 @@ export const scanning: Translations['scanning'] = {
         },
         previous: 'Previous',
         nextItem: 'Next Item',
-        backToDashboard: 'Back to dashboard',
+        backToDashboard: 'Back to exams',
         endOfQueueTitle: 'End of queue reached',
         endOfQueueMessage: 'There are no more items left to review in this queue.',
         confirmDetection: 'Confirm as correct',

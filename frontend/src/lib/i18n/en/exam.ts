@@ -153,7 +153,7 @@ export const exam: Translations['exam'] = {
     },
     sidebar: {
         label: 'Exam navigation',
-        back: 'Back to dashboard',
+        back: 'Back to exams',
         setup: 'Setup',
         scan: 'Scans',
         verify: 'Check MC',

@@ -151,7 +151,7 @@ export const exam = {
     },
     sidebar: {
         label: 'Prüfungsnavigation',
-        back: 'Zur Übersicht',
+        back: 'Zu den Prüfungen',
         setup: 'Einrichtung',
         scan: 'Scans',
         verify: 'MC prüfen',

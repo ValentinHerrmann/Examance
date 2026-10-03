@@ -70,6 +70,6 @@ export const dashboard: Translations['dashboard'] = {
     error: {
         title: '{status} - Error',
         notFound: 'Page not found',
-        returnButton: 'Return to Dashboard',
+        returnButton: 'Back to exams',
     },
 };

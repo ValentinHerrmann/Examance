@@ -1,7 +1,7 @@
 import type { Translations } from '../types';
 
 export const nav: Translations['nav'] = {
-    dashboard: 'Dashboard',
+    dashboard: 'Exams',
     exerciseLibrary: 'Exercise Library',
     analytics: 'Analytics',
     userManagement: 'User Management',
