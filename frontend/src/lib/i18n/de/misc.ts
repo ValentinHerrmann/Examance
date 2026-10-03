@@ -1,6 +1,6 @@
 export const misc = {
     /**
-     * The quick-configuration modal reachable from the status bar. It overlaps
+     * The quick-configuration modal reachable from the navbar storage button. It overlaps
      * with the settings page but keeps its own, shorter wording.
      */
     storageModal: {

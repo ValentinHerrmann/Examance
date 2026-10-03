@@ -23,10 +23,9 @@
    * wide the dialog is.
    */
   type Size = "small" | "medium" | "large" | "full";
-  type LegacySize = "sm" | "md" | "lg" | "xl";
 
   export let open = false;
-  export let size: Size | LegacySize = "medium";
+  export let size: Size = "medium";
   export let title: string | undefined = undefined;
   export let labelledBy: string | undefined = undefined;
   /** Off by default (Artemis): a stray click must not discard form input.
@@ -40,10 +39,7 @@
   export let tall = false;
   export let role: "dialog" | "alertdialog" = "dialog";
 
-  /* Transitional aliases for the pre-overhaul size names. */
-  const legacy: Record<LegacySize, Size> = { sm: "small", md: "medium", lg: "medium", xl: "large" };
-  $: resolved = (size in legacy ? legacy[size as LegacySize] : size) as Size;
-  $: isSheet = resolved !== "small";
+  $: isSheet = size !== "small";
 
   const widths: Record<Size, string> = {
     small: "max-w-lg",
@@ -162,7 +158,7 @@
     <div
       bind:this={panel}
       class="@container flex w-full flex-col overflow-hidden bg-surface-raised text-content outline-none {panelShape} {widths[
-        resolved
+        size
       ]} {tall ? 'sm:h-[90dvh]' : ''}"
       {role}
       aria-modal="true"

@@ -2,11 +2,10 @@
   import { onDestroy } from "svelte";
   import type { ExerciseRecord } from "$lib/db/schema";
   import LatexEditor from "$lib/components/LatexEditor.svelte";
-  import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import { computeSideBySideDiff, buildAlignedDiffDecorations } from "$lib/latex/diff";
   import { getDiffSelectLabel } from "./ExerciseDiffModal";
   import { t } from "$lib/i18n";
-  import { Modal, Button, Select } from "$lib/components/ui";
+  import { ConfirmDialog, Modal, Button, Select } from "$lib/components/ui";
 
   export let isOpen = false;
   export let activeDiffGroupExercises: ExerciseRecord[] = [];
@@ -183,11 +182,13 @@
 </Modal>
 
 <ConfirmDialog
-  isOpen={showConfirmClose}
+  open={showConfirmClose}
   title={$t("exercises.diffModal.discardTitle")}
   message={$t("exercises.diffModal.discardMessage")}
   confirmText={$t("exercises.confirmDiscard.confirmText")}
   cancelText={$t("exercises.confirmDiscard.cancelText")}
-  on:confirm={onForceCloseConfirm}
-  on:cancel={onCancelConfirmClose}
+  severity="danger"
+  role="dialog"
+  onConfirm={onForceCloseConfirm}
+  onCancel={onCancelConfirmClose}
 />

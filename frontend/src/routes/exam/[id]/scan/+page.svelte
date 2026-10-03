@@ -54,7 +54,6 @@
     OmrExerciseAnswerKey,
   } from "$lib/workers/omrWorker";
   import { parseStudentQr } from "$lib/utils/studentQr";
-  import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import type { PDFDocument, PDFPage } from "pdf-lib";
   import HardwareProfileCard from "$lib/components/scanning/HardwareProfileCard.svelte";
   import UploadPanel from "$lib/components/scanning/UploadPanel.svelte";

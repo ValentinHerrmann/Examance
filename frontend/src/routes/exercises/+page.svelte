@@ -13,7 +13,6 @@
   import LatexEditor, { type DiffDecorationConfig, type DiffLineDecoration, type DiffLinePaddingDecoration, type DiffWordDecoration, type DiffGapDecoration } from "$lib/components/LatexEditor.svelte";
   import { highlightLatexToHtml } from "$lib/latex/highlighter";
   import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
-  import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import ExerciseFilterSidebar from "$lib/components/exercise-library/ExerciseFilterSidebar.svelte";
   import { Alert, Badge, Button, Modal, PageHeader, PageShell } from "$lib/components/ui";
   import { faFilter, faPlus } from "@fortawesome/free-solid-svg-icons";

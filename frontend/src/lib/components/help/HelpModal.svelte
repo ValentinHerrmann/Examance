@@ -9,7 +9,7 @@
 
   /**
    * The global help panel. Mounted once in the root layout and opened from the
-   * status bar, the contextual "?" buttons or F1.
+   * navbar, the footer, the contextual "?" buttons or F1.
    *
    * Two panes from the dialog's `@md` container width up (index left, topic right); on a phone it is one
    * column that switches between index and topic, on top of the full-sheet

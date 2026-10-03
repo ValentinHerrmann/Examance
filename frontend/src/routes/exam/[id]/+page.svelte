@@ -49,7 +49,6 @@
   import { sessionStore, isAuthenticated, awaitSessionReady } from "$lib/stores/session";
   import { storagePolicyStore } from "$lib/stores/storagePolicy";
   import { get } from "svelte/store";
-  import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import DualPdfPreview from "$lib/components/DualPdfPreview.svelte";
   import { getPresetCutoffs } from "$lib/analytics/gradingKey";
   import type { GradingKeyConfig } from "$lib/db/schema";
@@ -68,7 +67,7 @@
     toggleStaged,
   } from "$lib/exam/mcGroupStaging";
   import { t, translate } from "$lib/i18n";
-  import { Alert, Button, Card, PageHeader, PageShell } from "$lib/components/ui";
+  import { ConfirmDialog, Alert, Button, Card, PageHeader, PageShell } from "$lib/components/ui";
 
   $: examId = $page.params.id || "";
 
@@ -1389,13 +1388,15 @@ ${exerciseInputs}
     />
 
 <ConfirmDialog
-  isOpen={showMetadataConfirm}
+  open={showMetadataConfirm}
   title={$t("exam.page.metadata.discardTitle")}
   message={$t("exam.page.metadata.discardMessage")}
   confirmText={$t("exam.page.metadata.discardConfirm")}
   cancelText={$t("exam.page.metadata.discardKeepEditing")}
-  on:confirm={forceCancelMetadata}
-  on:cancel={() => (showMetadataConfirm = false)}
+  severity="danger"
+  role="dialog"
+  onConfirm={forceCancelMetadata}
+  onCancel={() => (showMetadataConfirm = false)}
 />
 
     {#if exportSuccess}
@@ -1513,12 +1514,14 @@ ${exerciseInputs}
 />
 
 <ConfirmDialog
-  isOpen={showLibraryConfirm}
+  open={showLibraryConfirm}
   title={$t("exam.page.library.discardTitle")}
   message={$t("exam.page.library.discardMessage")}
   confirmText={$t("exam.page.metadata.discardConfirm")}
   cancelText={$t("exam.page.metadata.discardKeepEditing")}
-  on:confirm={forceCloseLibraryModal}
-  on:cancel={() => (showLibraryConfirm = false)}
+  severity="danger"
+  role="dialog"
+  onConfirm={forceCloseLibraryModal}
+  onCancel={() => (showLibraryConfirm = false)}
 />
 

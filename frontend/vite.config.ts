@@ -79,7 +79,7 @@ function computeAppVersion(): string {
 
 /**
  * The GitHub repository this frontend is published from — used to build a
- * clickable link next to the version tag in the status bar (see
+ * clickable link next to the version tag in the footer and navbar badge (see
  * versionStore.ts): a release build links to its GitHub Release, a preview or
  * dev build links to the exact commit it was built from.
  */

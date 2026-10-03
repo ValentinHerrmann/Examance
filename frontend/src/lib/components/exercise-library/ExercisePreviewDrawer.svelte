@@ -31,7 +31,7 @@
         <Badge severity="primary">{$t("exercises.previewDrawer.pointsBadge", { score: modalScore })}</Badge>
         <Badge>{$t("exercises.previewDrawer.versionBadge", { version: previewModalEx.version })}</Badge>
         {#if previewModalEx.questionType}
-          <Badge severity="contrast" class="uppercase">{previewModalEx.questionType}</Badge>
+          <Badge severity="contrast">{previewModalEx.questionType}</Badge>
         {/if}
       </div>
     </div>

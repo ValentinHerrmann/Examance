@@ -300,7 +300,7 @@
         <Checkbox bind:checked={autoCreateStudents} label={$t("grading.manual.paste.autoCreate")} />
       </div>
 
-      <TableScroller class="rounded-md border border-line">
+      <TableScroller maxHeight="max-h-96" class="rounded-md border border-line">
         <table class="data-table data-table-compact data-table-sticky">
           <thead>
             <tr>

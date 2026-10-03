@@ -20,13 +20,12 @@
   import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
   import ExerciseResourcePanel from "$lib/components/exercise/ExerciseResourcePanel.svelte";
   import LatexEditor from "./LatexEditor.svelte";
-  import ConfirmDialog from "./ConfirmDialog.svelte";
   import DualPdfPreview from "./DualPdfPreview.svelte";
   import SuggestInput from "$lib/components/common/SuggestInput.svelte";
   import { recordValue } from "$lib/utils/recentValues";
   import { t, translate } from "$lib/i18n";
   import InfoTip from "$lib/components/help/InfoTip.svelte";
-  import { Alert, Badge, Button, Checkbox, Icon, Modal, Select, TextInput, controlClass, controlSmClass } from "$lib/components/ui";
+  import { ConfirmDialog, Alert, Badge, Button, Checkbox, Icon, Modal, Select, TextInput, controlClass, controlSmClass } from "$lib/components/ui";
   import { faBook, faChevronLeft, faChevronRight, faCode, faPlus, faTag, faXmark } from "@fortawesome/free-solid-svg-icons";
 
   export let isOpen = false;
@@ -891,11 +890,13 @@
 {/if}
 
 <ConfirmDialog
-  isOpen={showConfirmClose}
+  open={showConfirmClose}
   title={$t("exercises.editor.discardTitle")}
   message={$t("exercises.editor.discardMessage")}
   confirmText={$t("exercises.confirmDiscard.confirmText")}
   cancelText={$t("exercises.confirmDiscard.cancelText")}
-  on:confirm={forceClose}
-  on:cancel={() => (showConfirmClose = false)}
+  severity="danger"
+  role="dialog"
+  onConfirm={forceClose}
+  onCancel={() => (showConfirmClose = false)}
 />

@@ -111,7 +111,6 @@
   </button>
 
   {#if open}
-    <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
     <div
       bind:this={panel}
       role="menu"

@@ -22,10 +22,10 @@
 </script>
 
 {#if exam}
-  <!-- Title, testart, class, subject and date already appear once in ExamNav
-       (the persistent header above the tab strip) — repeating them here as a
+  <!-- Title, testart, class, subject and date already appear once in the exam page header
+       (the persistent page header) — repeating them here as a
        second title block was the "multi-level top bars" losing height across
-       every visit to this tab. Only the fields ExamNav doesn't show remain,
+       every visit to this tab. Only the fields the exam page header doesn't show remain,
        as one compact stat row instead of a title-block-plus-grid. -->
   <div class="mb-4 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
     {#if exam.lehrernachname}

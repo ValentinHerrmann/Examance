@@ -1,10 +1,9 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
   import LatexEditor from "$lib/components/LatexEditor.svelte";
-  import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import { t } from "$lib/i18n";
   import InfoTip from "$lib/components/help/InfoTip.svelte";
-  import { Modal, Button, controlClass } from "$lib/components/ui";
+  import { ConfirmDialog, Modal, Button, controlClass } from "$lib/components/ui";
 
   export let isOpen = false;
   export let variantBaseEx: ExerciseRecord | null = null;
@@ -57,11 +56,13 @@
 </Modal>
 
 <ConfirmDialog
-  isOpen={showConfirmClose}
+  open={showConfirmClose}
   title={$t("exercises.variantModal.discardTitle")}
   message={$t("exercises.variantModal.discardMessage")}
   confirmText={$t("exercises.confirmDiscard.confirmText")}
   cancelText={$t("exercises.confirmDiscard.cancelText")}
-  on:confirm={onForceCloseConfirm}
-  on:cancel={onCancelConfirmClose}
+  severity="danger"
+  role="dialog"
+  onConfirm={onForceCloseConfirm}
+  onCancel={onCancelConfirmClose}
 />

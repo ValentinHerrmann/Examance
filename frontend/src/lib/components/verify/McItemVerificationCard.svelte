@@ -10,9 +10,8 @@
   import { renderMcCrop } from "$lib/grading/mcCropRender";
   import { t, translate } from "$lib/i18n";
   import { isMcReviewed, type McQueueCategory } from "$lib/grading/mcVerification";
-  import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import { faArrowUpRightFromSquare, faCheck, faCircle } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Badge, Button, Icon, Switch } from "$lib/components/ui";
+  import { ConfirmDialog, Alert, Badge, Button, Icon, Switch } from "$lib/components/ui";
   import { safeLocalStorage } from "$lib/utils/storage";
 
   interface StudentQueueItem {
@@ -580,13 +579,15 @@
 </div>
 
 <ConfirmDialog
-  isOpen={pendingAdvance !== null}
+  open={pendingAdvance !== null}
   title={$t("scanning.itemCard.confirmAdvanceTitle")}
   message={$t("scanning.itemCard.confirmAdvanceMessage")}
   confirmText={$t("scanning.itemCard.confirmAdvanceProceed")}
   cancelText={$t("scanning.itemCard.confirmAdvanceCancel")}
-  on:confirm={handleConfirmAdvance}
-  on:cancel={handleCancelAdvance}
+  severity="danger"
+  role="dialog"
+  onConfirm={handleConfirmAdvance}
+  onCancel={handleCancelAdvance}
 />
 
 <style>

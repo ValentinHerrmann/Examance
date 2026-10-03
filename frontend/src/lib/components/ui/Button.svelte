@@ -12,10 +12,9 @@
    * are labelled with the verb ("Delete exam"); links navigate, buttons act.
    */
   type Variant = "solid" | "outlined" | "text";
-  type LegacyVariant = "primary" | "secondary" | "danger" | "ghost" | "toolbar";
   type Severity = "primary" | "secondary" | "success" | "info" | "warning" | "danger" | "contrast";
 
-  export let variant: Variant | LegacyVariant = "solid";
+  export let variant: Variant = "solid";
   export let severity: Severity = "primary";
   export let size: "sm" | "md" | "lg" = "md";
   export let type: "button" | "submit" | "reset" = "button";
@@ -35,18 +34,6 @@
 
   let className = "";
   export { className as class };
-
-  /* Transitional: the pre-overhaul `variant` values. Removed once every call
-   * site uses variant + severity. */
-  const legacy: Record<LegacyVariant, [Variant, Severity]> = {
-    primary: ["solid", "primary"],
-    secondary: ["solid", "secondary"],
-    danger: ["solid", "danger"],
-    ghost: ["text", "secondary"],
-    toolbar: ["text", "secondary"],
-  };
-
-  $: [v, s] = variant in legacy ? legacy[variant as LegacyVariant] : [variant as Variant, severity];
 
   /* Full literal class strings only — Tailwind v4 cannot see interpolated
    * names like `bg-${severity}`. */
@@ -105,7 +92,7 @@
 
   $: isDisabled = disabled || loading;
   $: shape = iconOnly ? `rounded-full p-0 ${iconSizes[size]}` : `rounded-md ${sizes[size]}`;
-  $: classes = `${base} ${variants[v][s]} ${shape} ${block ? "w-full" : ""} ${className}`;
+  $: classes = `${base} ${variants[variant][severity]} ${shape} ${block ? "w-full" : ""} ${className}`;
   $: leadingIcon = loading ? faSpinner : icon;
 </script>
 
