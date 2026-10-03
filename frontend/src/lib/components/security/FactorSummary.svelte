@@ -9,7 +9,7 @@
    * from — so an account whose only key-capable factor disappears keeps its
    * login and loses its exams.
    */
-  import { Card } from "$lib/components/ui";
+  import { Alert, Badge, Card } from "$lib/components/ui";
   import { t, translate, type TranslationKey } from "$lib/i18n";
   import type { FactorKind, MfaStatus } from "$lib/api/mfa";
 
@@ -33,9 +33,7 @@
       <p class="m-0 text-sm font-medium text-muted">{$t("security.panel.enrolled")}</p>
       <ul class="m-0 mt-2 flex list-none flex-wrap gap-2 p-0">
         {#each status.enrolled as factor (factor)}
-          <li class="rounded-md bg-surface-inset px-2 py-1 text-sm text-content">
-            {$t(FACTOR_LABEL[factor])}
-          </li>
+          <li><Badge>{$t(FACTOR_LABEL[factor])}</Badge></li>
         {/each}
       </ul>
     </div>
@@ -53,14 +51,11 @@
     </p>
 
     {#if atMinimum || status.key_capable.length <= 1}
-      <p
-        class="m-0 rounded-md border border-line-strong bg-surface-sunken p-3 text-sm text-content"
-        role="alert"
-      >
+      <Alert severity="warning">
         {atMinimum
           ? $t("security.page.atMinimumWarning")
           : $t("security.page.oneKeyCapableWarning")}
-      </p>
+      </Alert>
     {/if}
   </div>
 </Card>

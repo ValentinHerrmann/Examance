@@ -1,5 +1,6 @@
 <script lang="ts">
   import { t } from "$lib/i18n";
+  import { Button, Icon } from "$lib/components/ui";
   import type { HelpTopic, HelpTopicId } from "$lib/help/topics";
 
   /**
@@ -21,7 +22,7 @@
     <li class="min-w-0">
       {#if variant === "anchors"}
         <a href="#{topic.id}" class="{rowBase} text-content">
-          <span aria-hidden="true" class="text-base leading-5">{topic.icon}</span>
+          <Icon icon={topic.icon} class="mt-0.5 text-base text-muted" />
           <span class="min-w-0">
             <span class="block text-sm font-medium">{$t(topic.titleKey)}</span>
             {#if !compact}
@@ -30,22 +31,24 @@
           </span>
         </a>
       {:else}
-        <button
-          type="button"
-          class="{rowBase} cursor-pointer bg-transparent {topic.id === activeId
-            ? 'border-line bg-surface-inset text-accent'
-            : 'text-content'}"
+        <Button
+          variant="text"
+          severity="secondary"
+          block
+          class="h-auto items-start! justify-start! px-2.5! py-2! text-left whitespace-normal! {topic.id === activeId
+            ? 'border-primary/40! bg-highlight text-on-highlight!'
+            : 'text-content!'}"
           aria-current={topic.id === activeId ? "true" : undefined}
-          on:click={() => onSelect?.(topic.id)}
+          onClick={() => onSelect?.(topic.id)}
         >
-          <span aria-hidden="true" class="text-base leading-5">{topic.icon}</span>
+          <Icon icon={topic.icon} class="mt-0.5 text-base text-muted" />
           <span class="min-w-0">
             <span class="block text-sm font-medium">{$t(topic.titleKey)}</span>
             {#if !compact}
               <span class="block text-xs text-muted">{$t(topic.summaryKey)}</span>
             {/if}
           </span>
-        </button>
+        </Button>
       {/if}
     </li>
   {/each}

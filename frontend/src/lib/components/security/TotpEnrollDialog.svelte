@@ -54,7 +54,7 @@
 
 <Modal
   open={true}
-  size="md"
+  size="medium"
   title={$t("security.enroll.title")}
   closeOnBackdrop={false}
   closeOnEscape={false}
@@ -92,7 +92,7 @@
       <TextInput
         bind:value={code}
         placeholder="000000"
-        class="font-mono text-lg tracking-[0.3em]"
+        class="font-mono text-lg tracking-widest"
       />
     </Field>
   </form>

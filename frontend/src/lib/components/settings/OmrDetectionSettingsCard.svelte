@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t, translate } from "$lib/i18n";
   import { fmt } from "$lib/utils/format";
-  import { Button, Card, Field, controlClass } from "$lib/components/ui";
+  import { Alert, Button, Card, Checkbox, Field, controlClass } from "$lib/components/ui";
   import {
     DEFAULT_OMR_PARAMS,
     OMR_PARAM_ALGORITHM,
@@ -98,13 +98,10 @@
   $: orderErrors = errors.filter((e) => e.code !== "range");
 </script>
 
-<Card class="mb-8">
-  <div id="omr" class="scroll-mt-4">
-    <h3 class="m-0 mb-2 text-accent">{$t("settings.omr.heading")}</h3>
-    <p class="mt-0 mb-2 text-muted">{$t("settings.omr.description")}</p>
-    <p class="mt-0 mb-2 rounded-sm border border-primary/40 bg-highlight p-2 text-xs text-accent">
-      {$t("settings.omr.futureOnly")}
-    </p>
+<div id="omr" class="scroll-mt-16 lg:scroll-mt-4">
+  <Card title={$t("settings.omr.heading")}>
+    <p class="mt-0 mb-3 text-sm text-muted">{$t("settings.omr.description")}</p>
+    <Alert class="mb-3">{$t("settings.omr.futureOnly")}</Alert>
     <p class="mt-0 mb-4 text-xs text-muted">
       {$t("settings.omr.localOnly")}
       {$t("settings.omr.profile", {
@@ -126,7 +123,7 @@
       </select>
     </Field>
 
-    <h4 class="m-0 mb-3 text-sm font-semibold text-content">{$t("settings.omr.basicGroup")}</h4>
+    <h3 class="m-0 mb-3 text-base font-semibold text-content">{$t("settings.omr.basicGroup")}</h3>
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {#each basicSpecs as spec (spec.key)}
         <Field
@@ -150,23 +147,15 @@
       {/each}
     </div>
 
-    <label class="mt-4 flex cursor-pointer items-start gap-3">
-      <input
-        type="checkbox"
-        class="mt-1 h-4 w-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
-        disabled={inactive("shapeAnalysis", draftAlgorithm)}
-        bind:checked={draftShapeAnalysis}
-      />
-      <span class="min-w-0">
-        <span class="block text-sm font-medium text-content">{$t("settings.omr.params.shapeAnalysis.label")}</span>
-        <span class="block text-xs text-muted">
-          {$t("settings.omr.params.shapeAnalysis.hint")}
-          {#if inactive("shapeAnalysis", draftAlgorithm)}
-            {$t("settings.omr.onlyFor", { algorithm: 2 })}
-          {/if}
-        </span>
+    <Checkbox class="mt-4 items-start" disabled={inactive("shapeAnalysis", draftAlgorithm)} bind:checked={draftShapeAnalysis}>
+      <span class="block text-sm font-medium text-content">{$t("settings.omr.params.shapeAnalysis.label")}</span>
+      <span class="block text-xs text-muted">
+        {$t("settings.omr.params.shapeAnalysis.hint")}
+        {#if inactive("shapeAnalysis", draftAlgorithm)}
+          {$t("settings.omr.onlyFor", { algorithm: 2 })}
+        {/if}
       </span>
-    </label>
+    </Checkbox>
 
     <details class="mt-6">
       <summary class="cursor-pointer text-sm font-semibold text-content">{$t("settings.omr.advancedGroup")}</summary>
@@ -214,7 +203,7 @@
 
     <div class="mt-4 flex flex-wrap gap-2">
       <Button onClick={handleSave}>{$t("settings.omr.save")}</Button>
-      <Button variant="secondary" onClick={handleReset}>{$t("settings.omr.reset")}</Button>
+      <Button variant="outlined" severity="secondary" onClick={handleReset}>{$t("settings.omr.reset")}</Button>
     </div>
-  </div>
-</Card>
+  </Card>
+</div>

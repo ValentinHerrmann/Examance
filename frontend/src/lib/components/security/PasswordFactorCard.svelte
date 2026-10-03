@@ -97,7 +97,7 @@
 <Card>
   <div class="flex flex-col gap-4">
     <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <h2 class="m-0 text-lg font-semibold text-accent">
+      <h2 class="m-0 text-xl font-medium text-content">
         {$t("security.panel.factorPassword")}
       </h2>
       <span class="text-sm text-muted">
@@ -151,7 +151,7 @@
             {$t("security.password.submit")}
           </Button>
           <Button
-            variant="secondary"
+            severity="secondary"
             disabled={isWorking}
             onClick={() => {
               isOpen = false;
@@ -164,7 +164,7 @@
       </form>
     {:else if enrolled}
       <div>
-        <Button variant="secondary" onClick={() => (isOpen = true)}>
+        <Button severity="secondary" onClick={() => (isOpen = true)}>
           {$t("security.password.change")}
         </Button>
       </div>

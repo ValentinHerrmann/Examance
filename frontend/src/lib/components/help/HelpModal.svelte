@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Modal, TextInput } from "$lib/components/ui";
+  import { faArrowLeft, faArrowRight } from "@fortawesome/free-solid-svg-icons";
+  import { Button, Icon, Modal, TextInput } from "$lib/components/ui";
   import { t } from "$lib/i18n";
   import { HELP_TOPICS, getHelpTopic, type HelpTopic } from "$lib/help/topics";
   import { helpStore, closeHelp, selectHelpTopic } from "$lib/stores/helpStore";
@@ -10,7 +11,7 @@
    * The global help panel. Mounted once in the root layout and opened from the
    * status bar, the contextual "?" buttons or F1.
    *
-   * Two panes from `md:` up (index left, topic right); on a phone it is one
+   * Two panes from the dialog's `@md` container width up (index left, topic right); on a phone it is one
    * column that switches between index and topic, on top of the full-sheet
    * shape `Modal` already provides.
    */
@@ -47,7 +48,7 @@
   }
 </script>
 
-<Modal {open} size="lg" title={$t("help.ui.title")} onClose={handleClose}>
+<Modal {open} size="large" title={$t("help.ui.title")} onClose={handleClose}>
   <div class="flex min-w-0 flex-col gap-3">
     <TextInput
       type="search"
@@ -59,11 +60,11 @@
     {#if visibleTopics.length === 0}
       <p class="m-0 text-sm text-muted">{$t("help.ui.noResults", { query })}</p>
     {:else}
-      <div class="flex min-w-0 flex-col gap-4 md:flex-row md:items-start">
+      <div class="flex min-w-0 flex-col gap-4 @md:flex-row @md:items-start">
         <!-- Phone: the index is only shown while no topic is selected. -->
         <nav
-          class="min-w-0 md:w-60 md:shrink-0 md:border-r md:border-line md:pr-3 {activeTopic
-            ? 'hidden md:block'
+          class="min-w-0 @md:w-60 @md:shrink-0 @md:border-r @md:border-line @md:pr-3 {activeTopic
+            ? 'hidden @md:block'
             : 'block'}"
           aria-label={$t("help.ui.contents")}
         >
@@ -77,15 +78,17 @@
 
         {#if activeTopic}
           <div class="min-w-0 flex-1">
-            <button
-              type="button"
-              class="mb-3 cursor-pointer border-none bg-transparent p-0 text-xs text-accent hover:underline md:hidden"
-              on:click={() => selectHelpTopic(null)}
+            <Button
+              variant="text"
+              size="sm"
+              icon={faArrowLeft}
+              class="mb-3 @md:hidden"
+              onClick={() => selectHelpTopic(null)}
             >
-              ← {$t("help.ui.backToOverview")}
-            </button>
-            <h3 class="mt-0 mb-2 flex items-center gap-2 text-base font-semibold text-accent">
-              <span aria-hidden="true">{activeTopic.icon}</span>
+              {$t("help.ui.backToOverview")}
+            </Button>
+            <h3 class="mt-0 mb-2 flex items-center gap-2 text-lg font-semibold text-content">
+              <Icon icon={activeTopic.icon} class="text-muted" />
               {$t(activeTopic.titleKey)}
             </h3>
             <HelpTopicContent topic={activeTopic} />
@@ -96,12 +99,8 @@
   </div>
 
   <svelte:fragment slot="footer">
-    <a
-      href="/help"
-      class="text-sm text-accent no-underline hover:underline"
-      on:click={handleClose}
-    >
-      {$t("help.ui.openManual")} →
-    </a>
+    <Button href="/help" variant="text" iconRight={faArrowRight} onClick={handleClose}>
+      {$t("help.ui.openManual")}
+    </Button>
   </svelte:fragment>
 </Modal>

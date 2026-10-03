@@ -1,8 +1,8 @@
 <script lang="ts">
-  import "./GdprErasureTable.css";
+  import { faDownload, faTrash } from "@fortawesome/free-solid-svg-icons";
   import type { StudentRecord } from "$lib/db/schema";
   import { t } from "$lib/i18n";
-  import { TableScroller } from "$lib/components/ui";
+  import { Button, Card, TableScroller } from "$lib/components/ui";
 
   export let students: StudentRecord[];
   export let isErasing: boolean;
@@ -10,15 +10,14 @@
   export let onExport: (pseudonymId: string) => void;
 </script>
 
-<div class="gdpr-erasure-table-card">
-  <h3>{$t("admin.gdprErasureTable.title")}</h3>
+<Card title={$t("admin.gdprErasureTable.title")}>
   {#if students.length === 0}
-    <p class="gdpr-erasure-table-empty">
+    <p class="m-0 text-sm text-muted">
       {$t("admin.gdprErasureTable.empty")}
     </p>
   {:else}
     <TableScroller label={$t("admin.gdprErasureTable.title")}>
-      <table class="gdpr-erasure-table-students-table">
+      <table class="data-table">
         <thead>
           <tr>
             <th>{$t("admin.gdprErasureTable.columnPseudonymId")}</th>
@@ -29,23 +28,29 @@
         <tbody>
           {#each students as st}
             <tr>
-              <td class="gdpr-erasure-table-mono">{st.pseudonymId}</td>
+              <td class="font-mono text-sm">{st.pseudonymId}</td>
               <td>{st.fallbackCode}</td>
-              <td class="gdpr-actions">
-                <button
-                  class="gdpr-export-btn"
-                  on:click={() => onExport(st.pseudonymId)}
-                  disabled={isErasing}
-                >
-                  {$t("admin.gdprErasureTable.exportButton")}
-                </button>
-                <button
-                  class="gdpr-erasure-table-erase-btn"
-                  on:click={() => onErase(st.pseudonymId, st.examId)}
-                  disabled={isErasing}
-                >
-                  {$t("admin.gdprErasureTable.eraseButton")}
-                </button>
+              <td>
+                <div class="flex flex-wrap gap-2">
+                  <Button
+                    variant="outlined"
+                    size="sm"
+                    icon={faDownload}
+                    onClick={() => onExport(st.pseudonymId)}
+                    disabled={isErasing}
+                  >
+                    {$t("admin.gdprErasureTable.exportButton")}
+                  </Button>
+                  <Button
+                    severity="danger"
+                    size="sm"
+                    icon={faTrash}
+                    onClick={() => onErase(st.pseudonymId, st.examId)}
+                    disabled={isErasing}
+                  >
+                    {$t("admin.gdprErasureTable.eraseButton")}
+                  </Button>
+                </div>
               </td>
             </tr>
           {/each}
@@ -53,27 +58,4 @@
       </table>
     </TableScroller>
   {/if}
-</div>
-
-<style>
-  .gdpr-actions {
-    display: flex;
-    gap: 0.4rem;
-    flex-wrap: wrap;
-  }
-
-  .gdpr-export-btn {
-    padding: 0.3rem 0.65rem;
-    border: 1px solid #0369a1;
-    border-radius: 6px;
-    background: rgba(3, 105, 161, 0.15);
-    color: #7dd3fc;
-    font-size: 0.8rem;
-    cursor: pointer;
-  }
-
-  .gdpr-export-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-</style>
+</Card>

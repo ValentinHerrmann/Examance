@@ -179,7 +179,7 @@
 <Card>
   <div class="flex flex-col gap-4">
     <div>
-      <h2 class="m-0 text-lg font-semibold text-accent">{$t("security.passkey.title")}</h2>
+      <h2 class="m-0 text-xl font-medium text-content">{$t("security.passkey.title")}</h2>
       <p class="mt-1 text-sm text-muted">{$t("security.passkey.intro")}</p>
     </div>
 
@@ -239,7 +239,7 @@
               <div class="flex shrink-0 flex-wrap gap-2">
                 {#if wrapIds !== null && !opensData(passkey.credential_id_b64, wrapIds) && unlockNotes[passkey.credential_id_b64] !== "noPrf"}
                   <Button
-                    variant="secondary"
+                    severity="secondary"
                     size="sm"
                     disabled={enabling !== null}
                     loading={enabling === passkey.credential_id_b64}
@@ -249,7 +249,7 @@
                   </Button>
                 {/if}
                 <Button
-                  variant="secondary"
+                  severity="secondary"
                   size="sm"
                   onClick={() => remove(passkey.credential_id_b64)}
                 >

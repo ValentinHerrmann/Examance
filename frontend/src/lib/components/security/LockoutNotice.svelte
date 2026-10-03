@@ -12,6 +12,7 @@
    */
   import { onDestroy } from "svelte";
   import { t } from "$lib/i18n";
+  import { Alert } from "$lib/components/ui";
   import {
     formatRemaining,
     loginLockout,
@@ -37,14 +38,10 @@
 </script>
 
 {#if remaining > 0}
-  <div
-    class="mb-4 w-full max-w-form rounded-md border border-line-strong bg-surface-sunken p-3"
-    role="alert"
-    aria-live="polite"
-  >
-    <p class="m-0 text-sm font-medium text-content">{$t("security.lockout.title")}</p>
-    <p class="m-0 mt-1 text-sm text-muted">
+  <Alert severity="warning" class="mb-4 w-full max-w-form">
+    <p class="m-0 font-semibold">{$t("security.lockout.title")}</p>
+    <p class="m-0 mt-1">
       {$t("security.lockout.retryIn", { time: formatRemaining(remaining) })}
     </p>
-  </div>
+  </Alert>
 {/if}

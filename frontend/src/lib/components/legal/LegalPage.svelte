@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
   import { t } from "$lib/i18n";
+  import { PageShell, PageHeader, Icon } from "$lib/components/ui";
 
   /** Page heading, e.g. "Impressum". */
   export let title: string;
@@ -7,88 +9,21 @@
   export let subtitle: string = "";
 </script>
 
-<article class="legal-page">
-  <header>
-    <h1>{title}</h1>
-    {#if subtitle}
-      <p class="legal-subtitle">{subtitle}</p>
-    {/if}
-  </header>
+<PageShell width="narrow">
+  <article class="pb-8 leading-relaxed text-content">
+    <PageHeader {title} subtitle={subtitle || undefined} />
 
-  <div class="legal-body">
-    <slot />
-  </div>
+    <!-- The page bodies are plain h2/p/ul markup written in the route files, so they are styled from here. -->
+    <div
+      class="[&_.placeholder]:inline-block [&_.placeholder]:rounded-sm [&_.placeholder]:bg-warning/20 [&_.placeholder]:px-1 [&_.placeholder]:font-mono [&_.placeholder]:text-sm [&_.placeholder]:text-warning-fg [&_.todo-banner]:mx-0 [&_.todo-banner]:mt-0 [&_.todo-banner]:mb-6 [&_.todo-banner]:rounded-md [&_.todo-banner]:border [&_.todo-banner]:border-warning/40 [&_.todo-banner]:bg-warning/10 [&_.todo-banner]:px-4 [&_.todo-banner]:py-3 [&_.todo-banner]:text-sm [&_.todo-banner]:text-warning-fg [&_h2]:mt-8 [&_h2]:mb-2 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-content [&_li]:text-sm [&_p]:text-sm [&_ul]:pl-5"
+    >
+      <slot />
+    </div>
 
-  <footer class="legal-footer">
-    <a href="/">&larr; {$t("legal.backToHome")}</a>
-  </footer>
-</article>
-
-<style>
-  .legal-page {
-    max-width: 46rem;
-    margin: 0 auto;
-    padding: 2.5rem 1.25rem 4rem;
-    color: #e2e8f0;
-    line-height: 1.6;
-  }
-
-  h1 {
-    margin: 0 0 0.35rem;
-    font-size: 1.75rem;
-  }
-
-  .legal-subtitle {
-    margin: 0 0 2rem;
-    color: #94a3b8;
-    font-size: 0.9rem;
-  }
-
-  .legal-body :global(h2) {
-    margin: 2rem 0 0.6rem;
-    font-size: 1.1rem;
-    color: #f1f5f9;
-  }
-
-  .legal-body :global(p),
-  .legal-body :global(li) {
-    color: #cbd5e1;
-    font-size: 0.925rem;
-  }
-
-  .legal-body :global(ul) {
-    padding-left: 1.25rem;
-  }
-
-  .legal-body :global(.placeholder) {
-    display: inline-block;
-    padding: 0 0.3rem;
-    border-radius: 3px;
-    background: #78350f;
-    color: #fde68a;
-    font-family: ui-monospace, monospace;
-    font-size: 0.85em;
-  }
-
-  .legal-body :global(.todo-banner) {
-    margin: 0 0 1.5rem;
-    padding: 0.75rem 1rem;
-    border: 1px solid #b45309;
-    border-radius: 8px;
-    background: rgba(180, 83, 9, 0.12);
-    color: #fcd34d;
-    font-size: 0.875rem;
-  }
-
-  .legal-footer {
-    margin-top: 3rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid #334155;
-  }
-
-  .legal-footer a {
-    color: #38bdf8;
-    text-decoration: none;
-    font-size: 0.9rem;
-  }
-</style>
+    <footer class="mt-12 border-t border-line pt-5">
+      <a href="/" class="link inline-flex items-center gap-2 text-sm">
+        <Icon icon={faArrowLeft} />{$t("legal.backToHome")}
+      </a>
+    </footer>
+  </article>
+</PageShell>

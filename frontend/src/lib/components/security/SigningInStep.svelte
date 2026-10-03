@@ -25,7 +25,7 @@
   ></div>
 
   <div>
-    <h2 class="m-0 text-lg font-semibold text-accent">{$t("security.signingIn.title")}</h2>
+    <h2 class="m-0 text-xl font-medium text-content">{$t("security.signingIn.title")}</h2>
     <p class="mt-1 text-sm text-muted">{$t("security.signingIn.body")}</p>
   </div>
 

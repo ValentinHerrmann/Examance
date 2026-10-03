@@ -7,7 +7,7 @@
    * So the dialog cannot be dismissed by backdrop or Escape, and the confirm
    * button stays disabled until the teacher ticks that they have stored it.
    */
-  import { Button, Modal } from "$lib/components/ui";
+  import { Alert, Button, Checkbox, Modal } from "$lib/components/ui";
   import { t } from "$lib/i18n";
 
   export let code: string;
@@ -41,7 +41,7 @@
 
 <Modal
   open={true}
-  size="md"
+  size="medium"
   title={$t("security.recovery.title")}
   closeOnBackdrop={false}
   closeOnEscape={false}
@@ -49,12 +49,7 @@
   <div class="flex flex-col gap-4">
     <p class="text-sm text-muted">{$t("security.recovery.intro")}</p>
 
-    <p
-      class="rounded-md border border-line-strong bg-surface-sunken p-3 text-sm text-content"
-      role="alert"
-    >
-      {$t("security.recovery.warning")}
-    </p>
+    <Alert severity="warning">{$t("security.recovery.warning")}</Alert>
 
     <code
       class="block overflow-x-auto rounded-md bg-surface-inset p-4 text-center font-mono
@@ -64,18 +59,15 @@
     </code>
 
     <div class="flex flex-wrap gap-2">
-      <Button variant="secondary" onClick={copy}>
+      <Button severity="secondary" onClick={copy}>
         {copied ? $t("security.recovery.copied") : $t("security.recovery.copy")}
       </Button>
-      <Button variant="secondary" onClick={download}>
+      <Button severity="secondary" onClick={download}>
         {$t("security.recovery.download")}
       </Button>
     </div>
 
-    <label class="flex items-start gap-2 text-sm text-content">
-      <input type="checkbox" bind:checked={acknowledged} class="mt-1" />
-      <span>{$t("security.recovery.confirmLabel")}</span>
-    </label>
+    <Checkbox class="items-start" bind:checked={acknowledged} label={$t("security.recovery.confirmLabel")} />
   </div>
 
   <svelte:fragment slot="footer">

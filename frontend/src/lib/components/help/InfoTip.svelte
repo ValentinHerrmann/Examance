@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { tick } from "svelte";
+  import { faArrowRight, faCircleInfo } from "@fortawesome/free-solid-svg-icons";
   import { t } from "$lib/i18n";
   import { openHelp } from "$lib/stores/helpStore";
   import type { HelpTopicId } from "$lib/help/topics";
+  import { Button, Popover } from "$lib/components/ui";
 
   /**
    * Micro-help for a single control, for the places where `Field`'s `hint`
@@ -17,79 +18,63 @@
   export { className as class };
 
   let open = false;
-  let button: HTMLButtonElement;
-  let popover: HTMLSpanElement | undefined;
-  // Fixed position, clamped into the viewport: an absolutely placed popover under a tip near
-  // the right (or left) screen edge ran off the page, and the app shell clips sideways.
-  let pos = { left: 0, top: 0 };
-  const EDGE = 8;
-
-  $: if (open) void place();
-
-  async function place() {
-    await tick();
-    if (!popover || !button) return;
-    const anchor = button.getBoundingClientRect();
-    const width = popover.offsetWidth;
-    const left = Math.min(Math.max(EDGE, anchor.left), window.innerWidth - width - EDGE);
-    pos = { left: Math.max(EDGE, left), top: anchor.bottom + 6 };
-  }
+  let wrapper: HTMLElement;
   const id = `infotip-${Math.random().toString(36).slice(2, 9)}`;
 
   function close() {
     open = false;
   }
 
-  function onWindowKeydown(event: KeyboardEvent) {
-    if (open && event.key === "Escape") {
-      event.stopPropagation();
-      close();
-    }
+  function onFocusOut(event: FocusEvent) {
+    if (!wrapper.contains(event.relatedTarget as Node | null)) close();
   }
 </script>
 
-<svelte:window on:keydown={onWindowKeydown} on:resize={close} on:scroll|capture={close} />
-
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <span
-  class="relative inline-flex {className}"
+  bind:this={wrapper}
+  class="inline-flex {className}"
   on:mouseenter={() => (open = true)}
   on:mouseleave={close}
-  on:focusout={close}
+  on:focusout={onFocusOut}
 >
-  <button
-    bind:this={button}
-    type="button"
-    class="inline-flex h-5 w-5 shrink-0 cursor-help items-center justify-center rounded-full border-none bg-transparent p-0 text-xs leading-none text-muted transition-colors hover:text-accent focus-visible:text-accent"
-    aria-label={$t("help.ui.showTip")}
-    aria-expanded={open}
-    aria-describedby={open ? id : undefined}
-    on:click|stopPropagation|preventDefault={() => (open = !open)}
-  >
-    ⓘ
-  </button>
-
-  {#if open}
-    <span
-      {id}
-      bind:this={popover}
-      role="tooltip"
-      class="fixed w-64 max-w-[calc(100vw-1rem)] rounded-md border border-line bg-surface-raised p-2.5 text-xs leading-relaxed font-normal normal-case tracking-normal text-muted shadow-lg sm:w-72"
-      style="z-index: var(--z-dropdown); left: {pos.left}px; top: {pos.top}px"
-    >
+  <Popover bind:open panelClass="w-64 max-w-[calc(100vw-1rem)] p-3 text-sm font-normal text-muted sm:w-72">
+    <svelte:fragment slot="trigger">
+      <Button
+        variant="text"
+        severity="secondary"
+        size="sm"
+        iconOnly
+        icon={faCircleInfo}
+        ariaLabel={$t("help.ui.showTip")}
+        class="size-6! text-sm pointer-coarse:size-11!"
+        aria-expanded={open}
+        aria-describedby={open ? id : undefined}
+        onClick={(event) => {
+          event.stopPropagation();
+          event.preventDefault();
+          open = !open;
+        }}
+      />
+    </svelte:fragment>
+    <span {id} role="tooltip" class="block">
       {text}
       {#if topic}
-        <button
-          type="button"
-          class="mt-1.5 block cursor-pointer border-none bg-transparent p-0 text-xs text-accent hover:underline"
-          on:click|stopPropagation|preventDefault={() => {
+        <Button
+          variant="text"
+          size="sm"
+          class="mt-1.5 min-h-0! p-0!"
+          iconRight={faArrowRight}
+          onClick={(event) => {
+            event.stopPropagation();
+            event.preventDefault();
             close();
-            openHelp(topic);
+            if (topic) openHelp(topic);
           }}
         >
-          {$t("help.ui.moreInfo")} →
-        </button>
+          {$t("help.ui.moreInfo")}
+        </Button>
       {/if}
     </span>
-  {/if}
+  </Popover>
 </span>

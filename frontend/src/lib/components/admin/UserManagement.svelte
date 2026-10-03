@@ -1,9 +1,9 @@
 <script lang="ts">
-  import "./UserManagement.css";
   import { onMount } from 'svelte';
   import { api, ApiError } from '$lib/api/client';
   import { isUnlocked, sessionStore } from '$lib/stores/session';
   import { t, translate } from '$lib/i18n';
+  import { PageShell, PageHeader, Card, Button, Alert, Field, TextInput, Select } from '$lib/components/ui';
 
   type UserRole = 'teacher' | 'admin';
 
@@ -84,38 +84,38 @@
   }
 </script>
 
-<div class="admin-users-page">
-  <div class="user-mgmt-header">
-    <h2>{$t("admin.users.pageTitle")}</h2>
-    <p>{$t("admin.users.pageSubtitle")}</p>
-  </div>
+<PageShell width="fluid">
+  <PageHeader title={$t("admin.users.pageTitle")} subtitle={$t("admin.users.pageSubtitle")} />
 
   {#if !$isUnlocked}
-    <div class="user-mgmt-state-card">
-      <p>{$t("admin.users.locked")}</p>
-      <a href="/unlock" class="user-mgmt-primary-link">{$t("admin.users.goToUnlock")}</a>
-    </div>
+    <Card class="max-w-narrow">
+      <p class="mt-0 mb-4">{$t("admin.users.locked")}</p>
+      <Button href="/unlock">{$t("admin.users.goToUnlock")}</Button>
+    </Card>
   {:else if $sessionStore.role !== 'admin'}
-    <div class="user-mgmt-state-card danger">
-      <p>{$t("admin.users.roleRequired")}</p>
-      <p class="user-mgmt-sub">{$t("admin.users.roleRequiredSub")}</p>
-    </div>
+    <Card tone="danger" class="max-w-narrow">
+      <p class="m-0">{$t("admin.users.roleRequired")}</p>
+      <p class="mt-1 mb-0 text-sm text-muted">{$t("admin.users.roleRequiredSub")}</p>
+    </Card>
   {:else}
-    <div class="user-mgmt-form-card">
-      {#if successMsg}
-        <div class="user-mgmt-banner success">{successMsg}</div>
-      {/if}
-      {#if warningMsg}
-        <div class="user-mgmt-banner warning">{warningMsg}</div>
-      {/if}
-      {#if errorMsg}
-        <div class="user-mgmt-banner error">{errorMsg}</div>
+    <Card class="max-w-narrow">
+      {#if successMsg || warningMsg || errorMsg}
+      <div class="flex flex-col gap-3">
+        {#if successMsg}
+          <Alert severity="success">{successMsg}</Alert>
+        {/if}
+        {#if warningMsg}
+          <Alert severity="warning">{warningMsg}</Alert>
+        {/if}
+        {#if errorMsg}
+          <Alert severity="danger">{errorMsg}</Alert>
+        {/if}
+      </div>
       {/if}
 
-      <form on:submit|preventDefault={handleCreateUser}>
-        <div class="user-mgmt-field">
-          <label for="email">{$t("admin.users.emailLabel")}</label>
-          <input
+      <form class="mt-4 flex flex-col gap-4" on:submit|preventDefault={handleCreateUser}>
+        <Field label={$t("admin.users.emailLabel")} forId="email">
+          <TextInput
             id="email"
             type="email"
             bind:value={email}
@@ -123,21 +123,21 @@
             autocomplete="off"
             required
           />
-        </div>
+        </Field>
 
-        <div class="user-mgmt-field">
-          <label for="role">{$t("admin.users.roleLabel")}</label>
-          <select id="role" bind:value={role}>
+        <Field label={$t("admin.users.roleLabel")} forId="role" hint={$t("admin.users.adminHint")}>
+          <Select id="role" bind:value={role}>
             <option value="teacher">{$t("admin.users.roleTeacher")}</option>
             <option value="admin">{$t("admin.users.roleAdmin")}</option>
-          </select>
-          <small>{$t("admin.users.adminHint")}</small>
-        </div>
+          </Select>
+        </Field>
 
-        <button class="user-mgmt-primary-btn" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? $t("admin.users.creating") : $t("admin.users.createButton")}
-        </button>
+        <div>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? $t("admin.users.creating") : $t("admin.users.createButton")}
+          </Button>
+        </div>
       </form>
-    </div>
+    </Card>
   {/if}
-</div>
+</PageShell>
