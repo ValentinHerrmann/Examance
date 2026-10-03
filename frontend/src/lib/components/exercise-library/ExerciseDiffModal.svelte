@@ -88,17 +88,6 @@
     remeasureFrame = requestAnimationFrame(remeasure);
   }
 
-  $effect.pre(() => {
-    const open = isOpen;
-    const left = diffLeftEditor;
-    const right = diffRightEditor;
-    const leftLatex = diffLeftLatex;
-    const rightLatex = diffRightLatex;
-    if (open || left || right || leftLatex || rightLatex) {
-      untrack(() => scheduleRemeasure());
-    }
-  });
-
   onDestroy(() => {
     if (remeasureFrame !== null) cancelAnimationFrame(remeasureFrame);
   });
@@ -131,6 +120,17 @@
       isSyncingDiffScroll = false;
     });
   }
+
+  $effect.pre(() => {
+    const open = isOpen;
+    const left = diffLeftEditor;
+    const right = diffRightEditor;
+    const leftLatex = diffLeftLatex;
+    const rightLatex = diffRightLatex;
+    if (open || left || right || leftLatex || rightLatex) {
+      untrack(() => scheduleRemeasure());
+    }
+  });
 </script>
 
 <Modal open={isOpen} size="full" title={$t("exercises.diffModal.title")} onClose={onRequestClose}>

@@ -31,6 +31,11 @@
     ? HELP_TOPICS.filter((topic) => haystack(topic, $t).includes(needle))
     : HELP_TOPICS);
 
+  function handleClose() {
+    query = "";
+    closeHelp();
+  }
+
   // A search that excludes the open topic should not leave a stale pane behind.
   $effect.pre(() => {
     const search = needle;
@@ -40,11 +45,6 @@
       untrack(() => selectHelpTopic(topics.length > 0 ? topics[0].id : null));
     }
   });
-
-  function handleClose() {
-    query = "";
-    closeHelp();
-  }
 </script>
 
 <Modal {open} size="large" title={$t("help.ui.title")} onClose={handleClose}>

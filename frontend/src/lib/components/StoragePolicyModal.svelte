@@ -24,12 +24,6 @@
   let isSwitchWizardOpen = $state(false);
   let switchTarget: StorageMode | null = $state(null);
 
-  $effect.pre(() => {
-    if (isOpen) {
-      customBackendUrl = get(backendStore);
-    }
-  });
-
   function handleClose() {
     statusMsg = "";
     onClose?.();
@@ -80,6 +74,12 @@
     "flex cursor-pointer items-start gap-3 rounded-md border border-line bg-surface-base p-3.5 transition-colors duration-150 hover:border-line-strong";
   const optionCardActive =
     "flex cursor-pointer items-start gap-3 rounded-md border border-accent bg-primary/10 p-3.5 transition-colors duration-150";
+
+  $effect.pre(() => {
+    if (isOpen) {
+      customBackendUrl = get(backendStore);
+    }
+  });
 </script>
 
 <Modal open={isOpen} size="medium" title={$t("misc.storageModal.heading")} onClose={handleClose}>

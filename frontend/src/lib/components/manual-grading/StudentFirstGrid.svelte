@@ -50,39 +50,12 @@
   let submissionMap = $state.raw(new Map<string, SubmissionRecord>());
   // Only the newest build may write, so a slower stale build cannot overwrite a newer map.
   let submissionMapSeq = 0;
-  $effect.pre(() => {
-    const subs = submissions;
-    const sts = students;
-    const seq = ++submissionMapSeq;
-    untrack(() =>
-      buildSubmissionMap(subs, sts).then((m) => {
-        if (seq === submissionMapSeq) submissionMap = m;
-      }),
-    );
-  });
   let currentSub = $derived(
     currentStudent && submissionMap ? submissionMap.get(currentStudent.pseudonymId) : null,
   );
 
   // Editable buffer for the current student (exerciseIndex -> input string), bound by the inputs.
   let rawInputs: Record<number, string> = $state({});
-
-  $effect.pre(() => {
-    const sub = currentSub;
-    const scores = scoresMap;
-    const exs = exercises;
-    untrack(() => {
-      const newRaw: Record<number, string> = {};
-      if (sub) {
-        const subScores = scores.get(sub.id);
-        exs.forEach((ex, idx) => {
-          const val = subScores?.[ex.id];
-          newRaw[idx] = val !== null && val !== undefined ? String(val) : "";
-        });
-      }
-      rawInputs = newRaw;
-    });
-  });
 
   let totalMaxPoints = $derived(exercises.reduce((sum, ex) => sum + (ex.maxPoints || 0), 0));
 
@@ -206,6 +179,34 @@
       currentStudentIndex += 1;
     }
   }
+
+  $effect.pre(() => {
+    const subs = submissions;
+    const sts = students;
+    const seq = ++submissionMapSeq;
+    untrack(() =>
+      buildSubmissionMap(subs, sts).then((m) => {
+        if (seq === submissionMapSeq) submissionMap = m;
+      }),
+    );
+  });
+
+  $effect.pre(() => {
+    const sub = currentSub;
+    const scores = scoresMap;
+    const exs = exercises;
+    untrack(() => {
+      const newRaw: Record<number, string> = {};
+      if (sub) {
+        const subScores = scores.get(sub.id);
+        exs.forEach((ex, idx) => {
+          const val = subScores?.[ex.id];
+          newRaw[idx] = val !== null && val !== undefined ? String(val) : "";
+        });
+      }
+      rawInputs = newRaw;
+    });
+  });
 </script>
 
 <div class="flex min-w-0 flex-col gap-4">

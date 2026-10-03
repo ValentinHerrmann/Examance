@@ -83,17 +83,6 @@
   let examItems: ExamItemRef[] = $state.raw([]);
   let submissions: SubmissionRecord[] = $state.raw([]);
 
-  // Keeps examItems in step with exercises/mcGroups (drops vanished refs, appends new ones).
-  // Shares computeExamItems() with getEffectiveExamItems(), so rendered and stored order agree.
-  // Tracks examItems too (as the Svelte 4 block did); it only writes when the result differs, so it settles.
-  $effect.pre(() => {
-    const items = examItems;
-    const nextItems = computeExamItems(items, exercises, mcGroups);
-    if (nextItems.length !== items.length || nextItems.some((item, i) => item.id !== items[i]?.id)) {
-      untrack(() => (examItems = nextItems));
-    }
-  });
-
   let isExporting = false;
   let exportSuccess = $state(false);
 
@@ -135,16 +124,6 @@
     if (previewSolutionPdfUrl) {
       URL.revokeObjectURL(previewSolutionPdfUrl);
       previewSolutionPdfUrl = null;
-    }
-  });
-
-  $effect.pre(() => {
-    const id = examId;
-    if (browser && id) {
-      untrack(() => {
-        loadExam(id);
-        restoreCachedPreviews(id);
-      });
     }
   });
 
@@ -1096,6 +1075,27 @@
       isDeletingAllSubmissions = false;
     }
   }
+
+  // Keeps examItems in step with exercises/mcGroups (drops vanished refs, appends new ones).
+  // Shares computeExamItems() with getEffectiveExamItems(), so rendered and stored order agree.
+  // Also tracks examItems; it only writes when the result differs, so it settles.
+  $effect.pre(() => {
+    const items = examItems;
+    const nextItems = computeExamItems(items, exercises, mcGroups);
+    if (nextItems.length !== items.length || nextItems.some((item, i) => item.id !== items[i]?.id)) {
+      untrack(() => (examItems = nextItems));
+    }
+  });
+
+  $effect.pre(() => {
+    const id = examId;
+    if (browser && id) {
+      untrack(() => {
+        loadExam(id);
+        restoreCachedPreviews(id);
+      });
+    }
+  });
 </script>
 
 <PageShell width="fluid">

@@ -379,27 +379,6 @@
     return err instanceof Error && /cancelled/i.test(err.message);
   }
 
-  // A passkey is the preferred second factor: its prompt opens by itself, once per step. Cancelling
-  // leaves the chooser.
-  $effect.pre(() => {
-    const step = authStep;
-    const loading = isLoading;
-    const triedFor = passkeyAutoTriedFor;
-    if (
-      step &&
-      step.status === "factor_required" &&
-      step.available.includes("passkey") &&
-      canUsePasskeys &&
-      !loading &&
-      triedFor !== step
-    ) {
-      untrack(() => {
-        passkeyAutoTriedFor = step;
-        void handlePasskey({ auto: true });
-      });
-    }
-  });
-
   /** Passkey first, and only what this browser can actually present. */
   let chooserFactors = $derived(
     authStep
@@ -654,6 +633,27 @@
     pendingRecoveryCode = vault.newRecoveryCode ?? null;
     showSetupCodes = true;
   }
+
+  // A passkey is the preferred second factor: its prompt opens by itself, once per step. Cancelling
+  // leaves the chooser.
+  $effect.pre(() => {
+    const step = authStep;
+    const loading = isLoading;
+    const triedFor = passkeyAutoTriedFor;
+    if (
+      step &&
+      step.status === "factor_required" &&
+      step.available.includes("passkey") &&
+      canUsePasskeys &&
+      !loading &&
+      triedFor !== step
+    ) {
+      untrack(() => {
+        passkeyAutoTriedFor = step;
+        void handlePasskey({ auto: true });
+      });
+    }
+  });
 </script>
 
 <PageShell width="medium" center flush class="gap-4 py-3">

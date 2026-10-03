@@ -68,13 +68,6 @@
 
   let activeTab: "normal" | "mc" = $state("normal");
 
-  $effect.pre(() => {
-    const group = editingMcGroup;
-    if (group) {
-      untrack(() => (activeTab = "mc"));
-    }
-  });
-
   let mcStagingExercises = $derived(mcStagingIds
     .map((id) => libraryExercises.find((e) => e.id === id))
     .filter((e): e is ExerciseRecord => Boolean(e)));
@@ -92,6 +85,13 @@
     isPreviewModalOpen = false;
     previewModalEx = null;
   }
+
+  $effect.pre(() => {
+    const group = editingMcGroup;
+    if (group) {
+      untrack(() => (activeTab = "mc"));
+    }
+  });
 </script>
 
 <Modal open={isOpen} size="large" title={$t("exam.libraryModal.header")} onClose={onRequestClose}>

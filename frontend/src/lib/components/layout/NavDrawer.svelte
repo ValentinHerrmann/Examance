@@ -35,6 +35,17 @@
   let examItems = $derived($examNavContext ? examNavItems($examNavContext.examId, currentPath) : []);
 
   let release: (() => void) | null = null;
+  onDestroy(() => release?.());
+
+  afterNavigate(() => mobileNavOpen.set(false));
+
+  function close() {
+    mobileNavOpen.set(false);
+  }
+
+  const row =
+    "flex min-h-11 items-center gap-3 rounded-md px-3 text-base font-medium no-underline";
+
   $effect.pre(() => {
     const isOpen = $mobileNavOpen;
     if (typeof document === "undefined") return;
@@ -46,16 +57,6 @@
       }
     });
   });
-  onDestroy(() => release?.());
-
-  afterNavigate(() => mobileNavOpen.set(false));
-
-  function close() {
-    mobileNavOpen.set(false);
-  }
-
-  const row =
-    "flex min-h-11 items-center gap-3 rounded-md px-3 text-base font-medium no-underline";
 </script>
 
 <svelte:window onkeydown={(e) => $mobileNavOpen && e.key === "Escape" && close()} />

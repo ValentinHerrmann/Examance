@@ -72,49 +72,10 @@
 
   let isGradeActive = $derived(isGradeActivePath($page.url.pathname));
 
-  // The inline script in app.html applied the theme before the first paint;
-  // from here on the store keeps <html data-theme> in step with the user's
-  // choice and with OS changes while "system" is selected.
-  $effect.pre(() => {
-    const currentTheme = $theme;
-    if (typeof document !== "undefined") {
-      untrack(() => applyTheme(currentTheme));
-    }
-  });
-
   let showFullNav = $derived($isUnlocked && $page.url.pathname !== "/unlock");
   let showExamSidebar = $derived(
     showFullNav && !!$examNavContext && $page.url.pathname.startsWith(`/exam/${$examNavContext.examId}`),
   );
-
-  // app.html ships a static <html lang="en">; keep it truthful so screen
-  // readers and browser translation follow the selected language.
-  $effect.pre(() => {
-    const lang = $locale;
-    if (typeof document !== "undefined") {
-      document.documentElement.lang = lang;
-    }
-  });
-
-  // Re-probe the server's version whenever the address changes or the session
-  // unlocks. `refreshBackendVersion` de-duplicates concurrent calls, so the
-  // overlap with the onMount call below is harmless.
-  $effect.pre(() => {
-    const backend = $effectiveBackendStore;
-    const unlocked = $isUnlocked;
-    if (typeof window !== "undefined" && (backend || unlocked)) {
-      untrack(() => void refreshBackendVersion());
-    }
-  });
-
-  $effect.pre(() => {
-    const initializing = isInitializing;
-    const unlocked = $isUnlocked;
-    const pathname = $page.url.pathname;
-    if (!initializing && !unlocked && typeof window !== "undefined" && !isPublicPath(pathname)) {
-      untrack(() => goto("/unlock"));
-    }
-  });
 
   function handleFooterClick() {
     if (get(isUnlocked)) {
@@ -234,6 +195,45 @@
       alert(translate("workspace.archive.clearFailed", { message: err.message }));
     }
   }
+
+  // The inline script in app.html applied the theme before the first paint;
+  // from here on the store keeps <html data-theme> in step with the user's
+  // choice and with OS changes while "system" is selected.
+  $effect.pre(() => {
+    const currentTheme = $theme;
+    if (typeof document !== "undefined") {
+      untrack(() => applyTheme(currentTheme));
+    }
+  });
+
+  // app.html ships a static <html lang="en">; keep it truthful so screen
+  // readers and browser translation follow the selected language.
+  $effect.pre(() => {
+    const lang = $locale;
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = lang;
+    }
+  });
+
+  // Re-probe the server's version whenever the address changes or the session
+  // unlocks. `refreshBackendVersion` de-duplicates concurrent calls, so the
+  // overlap with the onMount call below is harmless.
+  $effect.pre(() => {
+    const backend = $effectiveBackendStore;
+    const unlocked = $isUnlocked;
+    if (typeof window !== "undefined" && (backend || unlocked)) {
+      untrack(() => void refreshBackendVersion());
+    }
+  });
+
+  $effect.pre(() => {
+    const initializing = isInitializing;
+    const unlocked = $isUnlocked;
+    const pathname = $page.url.pathname;
+    if (!initializing && !unlocked && typeof window !== "undefined" && !isPublicPath(pathname)) {
+      untrack(() => goto("/unlock"));
+    }
+  });
 </script>
 
 <input

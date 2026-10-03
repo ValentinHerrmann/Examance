@@ -16,16 +16,6 @@
     cutoffs: getPresetCutoffs('linear_50'),
   }) }: Props = $props();
 
-  $effect.pre(() => {
-    const key = gradingKey;
-    if (!key || !key.cutoffs || key.cutoffs.length === 0) {
-      gradingKey = {
-        preset: 'linear_50',
-        cutoffs: getPresetCutoffs('linear_50'),
-      };
-    }
-  });
-
   function applyPreset(preset: GradingKeyConfig['preset']) {
     gradingKey = {
       preset,
@@ -37,6 +27,16 @@
     gradingKey.preset = 'custom';
     gradingKey = { ...gradingKey };
   }
+
+  $effect.pre(() => {
+    const key = gradingKey;
+    if (!key || !key.cutoffs || key.cutoffs.length === 0) {
+      gradingKey = {
+        preset: 'linear_50',
+        cutoffs: getPresetCutoffs('linear_50'),
+      };
+    }
+  });
 </script>
 
 <div class="my-4 flex flex-col gap-5 rounded-md border border-line bg-surface-sunken p-4">

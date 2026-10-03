@@ -64,16 +64,6 @@
   let submissionMap = new Map<string, SubmissionRecord>();
   // Only the newest build may write, so a slower stale build cannot overwrite a newer map.
   let submissionMapSeq = 0;
-  $effect.pre(() => {
-    const subs = submissions;
-    const sts = students;
-    const seq = ++submissionMapSeq;
-    untrack(() =>
-      buildSubmissionMap(subs, sts).then((m) => {
-        if (seq === submissionMapSeq) submissionMap = m;
-      }),
-    );
-  });
 
   function normalizeName(name: string): string {
     return name
@@ -294,6 +284,17 @@
     onImportComplete();
     onClose();
   }
+
+  $effect.pre(() => {
+    const subs = submissions;
+    const sts = students;
+    const seq = ++submissionMapSeq;
+    untrack(() =>
+      buildSubmissionMap(subs, sts).then((m) => {
+        if (seq === submissionMapSeq) submissionMap = m;
+      }),
+    );
+  });
 </script>
 
 <Modal open={true} size="large" title={$t("grading.manual.paste.title")} onClose={onClose}>

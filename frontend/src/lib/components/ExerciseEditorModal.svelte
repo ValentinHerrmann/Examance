@@ -125,19 +125,6 @@
 
   // Track initialization on isOpen or exercise props change
   let lastOpenState = $state(false);
-  $effect.pre(() => {
-    const open = isOpen;
-    const last = lastOpenState;
-    untrack(() => {
-      if (open && !last) {
-        initForm();
-        lastOpenState = true;
-      } else if (!open && last) {
-        lastOpenState = false;
-        cleanupPreview();
-      }
-    });
-  });
 
   function initForm() {
     if (isCreatingVersion && versionBaseEx) {
@@ -533,6 +520,20 @@
   let editorColumnClass = $derived(showLatexPanel
     ? `${editorColumnBase} min-h-80 flex-1 min-w-0 p-0 gap-0 @3xl:min-h-0`
     : `${editorColumnBase} w-full h-10 flex-none min-w-0 p-0 @3xl:h-full @3xl:w-10 @3xl:min-w-10`);
+
+  $effect.pre(() => {
+    const open = isOpen;
+    const last = lastOpenState;
+    untrack(() => {
+      if (open && !last) {
+        initForm();
+        lastOpenState = true;
+      } else if (!open && last) {
+        lastOpenState = false;
+        cleanupPreview();
+      }
+    });
+  });
 </script>
 
 {#if isOpen}

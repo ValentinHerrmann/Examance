@@ -39,13 +39,6 @@
   let usedPercent = $derived(Math.min(100, Math.round((usedBytes / MAX_EXERCISE_RESOURCE_BYTES) * 100)));
 
   let loadedFor = "";
-  $effect.pre(() => {
-    const id = exerciseId;
-    if (id && id !== loadedFor) {
-      loadedFor = id;
-      untrack(() => void load());
-    }
-  });
 
   async function load() {
     try {
@@ -159,6 +152,14 @@
       errorMsg = err?.message || "Rename failed.";
     }
   }
+
+  $effect.pre(() => {
+    const id = exerciseId;
+    if (id && id !== loadedFor) {
+      loadedFor = id;
+      untrack(() => void load());
+    }
+  });
 </script>
 
 <div class="flex min-w-0 flex-col gap-2 rounded-xl border border-line bg-surface-sunken p-3">

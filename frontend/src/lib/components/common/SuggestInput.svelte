@@ -74,12 +74,6 @@
       : `position: fixed; left: ${left}px; width: ${width}px; top: ${rect.bottom + gap}px; max-height: ${available}px; z-index: var(--z-dropdown);`;
   }
 
-  $effect.pre(() => {
-    if (isOpen) {
-      untrack(() => updateDropdownPosition());
-    }
-  });
-
   const instanceId = Math.random().toString(36).substring(2, 9);
   let dropdownId = $derived(id ? `${id}-listbox` : `suggest-listbox-${instanceId}`);
 
@@ -187,6 +181,12 @@
       recentList = recordValue(storageKey, value, maxSuggestions);
     }
   }
+
+  $effect.pre(() => {
+    if (isOpen) {
+      untrack(() => updateDropdownPosition());
+    }
+  });
 </script>
 
 <svelte:window

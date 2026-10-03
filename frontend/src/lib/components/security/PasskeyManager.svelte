@@ -56,13 +56,6 @@
     }
   }
 
-  // Runs on mount too, and again whenever `passkeys` changes: the wraps move with the list.
-  $effect.pre(() => {
-    if (passkeys) {
-      untrack(() => void loadWrapIds());
-    }
-  });
-
   function opensData(credentialIdB64: string, ids: string[] | null): boolean {
     return (ids ?? []).some((id) => sameCredential(id, credentialIdB64));
   }
@@ -155,6 +148,13 @@
           : $t("security.passkey.removeBlocked");
     }
   }
+
+  // Runs on mount too, and again whenever `passkeys` changes: the wraps move with the list.
+  $effect.pre(() => {
+    if (passkeys) {
+      untrack(() => void loadWrapIds());
+    }
+  });
 </script>
 
 <Card>

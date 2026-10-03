@@ -33,16 +33,6 @@
   let submissionMap = $state.raw(new Map<string, SubmissionRecord>());
   // Only the newest build may write, so a slower stale build cannot overwrite a newer map.
   let submissionMapSeq = 0;
-  $effect.pre(() => {
-    const subs = submissions;
-    const sts = students;
-    const seq = ++submissionMapSeq;
-    untrack(() =>
-      buildSubmissionMap(subs, sts).then((m) => {
-        if (seq === submissionMapSeq) submissionMap = m;
-      }),
-    );
-  });
 
   async function handleAddSingle() {
     if (!newName.trim()) return;
@@ -147,6 +137,17 @@
   }
 
   const bulkPlaceholder = "Musterfrau, Karin\t12345\nMustermann, Peter\t67890\n ...";
+
+  $effect.pre(() => {
+    const subs = submissions;
+    const sts = students;
+    const seq = ++submissionMapSeq;
+    untrack(() =>
+      buildSubmissionMap(subs, sts).then((m) => {
+        if (seq === submissionMapSeq) submissionMap = m;
+      }),
+    );
+  });
 </script>
 
 <div class="flex min-w-0 flex-col gap-6">

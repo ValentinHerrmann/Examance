@@ -57,13 +57,6 @@
   let showEndOfQueueModal = $state(false);
 
   let currentItemKey = $derived(`${examId}:${submissionId}:${exerciseId}:${queueFilter}:${$sessionStore.sessionKey ? "unlocked" : "locked"}`);
-  $effect.pre(() => {
-    const key = currentItemKey;
-    if (browser && examId && submissionId && exerciseId && $sessionStore.sessionKey && key !== lastLoadedKey) {
-      lastLoadedKey = key;
-      untrack(loadItemData);
-    }
-  });
 
   afterNavigate(() => {
     if (examId && submissionId && exerciseId && $sessionStore.sessionKey && currentItemKey !== lastLoadedKey) {
@@ -257,6 +250,14 @@
       `/exam/${examId}/verify-item?submissionId=${submissionId}&exerciseId=${targetExerciseId}&queue=${category}`
     );
   }
+
+  $effect.pre(() => {
+    const key = currentItemKey;
+    if (browser && examId && submissionId && exerciseId && $sessionStore.sessionKey && key !== lastLoadedKey) {
+      lastLoadedKey = key;
+      untrack(loadItemData);
+    }
+  });
 </script>
 
 <PageShell width="fluid">

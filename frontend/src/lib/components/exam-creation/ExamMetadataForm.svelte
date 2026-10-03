@@ -35,6 +35,12 @@
   let dauer = $state("");
   let lastSyncedDatum = "";
 
+  function handleDatumDateOrDauerChange() {
+    const formatted = formatDatumAndDauer(datumDate, dauer);
+    datum = formatted;
+    lastSyncedDatum = formatted;
+  }
+
   $effect.pre(() => {
     const d = datum;
     untrack(() => {
@@ -46,12 +52,6 @@
       }
     });
   });
-
-  function handleDatumDateOrDauerChange() {
-    const formatted = formatDatumAndDauer(datumDate, dauer);
-    datum = formatted;
-    lastSyncedDatum = formatted;
-  }
 </script>
 
 <Card title={$t("examCreation.metadataForm.heading")} class="mb-6">

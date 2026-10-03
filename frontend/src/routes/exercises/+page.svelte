@@ -91,16 +91,6 @@
     return loadExamUsage(members.map((m) => m.ex.id));
   });
 
-  $effect.pre(() => {
-    const groups = allGroups;
-    const expanded = $expandedGroups;
-    untrack(() => {
-      for (const g of groups) {
-        if (expanded[g.groupId]) for (const vKey of g.variants.keys()) usage.ensure(usageKey(g.groupId, vKey));
-      }
-    });
-  });
-
   const exercisePreview = createPreviewFlow<ExerciseRecord>({
     kind: "exercise",
     idOf: (ex) => ex.id!,
@@ -136,32 +126,6 @@
   let diffRightEx = $derived(isDiffModalOpen
     ? (exercises.find((e) => e.id === diffRightId) || activeDiffGroupExercises.find((e) => e.id === diffRightId))
     : null);
-
-  $effect.pre(() => {
-    const ex = diffLeftEx;
-    const open = isDiffModalOpen;
-    const id = diffLeftId;
-    const loaded = lastLoadedLeftId;
-    if (ex && open && id !== loaded) {
-      untrack(() => {
-        diffLeftLatex = ex.latexBody || "";
-        lastLoadedLeftId = id;
-      });
-    }
-  });
-
-  $effect.pre(() => {
-    const ex = diffRightEx;
-    const open = isDiffModalOpen;
-    const id = diffRightId;
-    const loaded = lastLoadedRightId;
-    if (ex && open && id !== loaded) {
-      untrack(() => {
-        diffRightLatex = ex.latexBody || "";
-        lastLoadedRightId = id;
-      });
-    }
-  });
 
   let isDiffLeftDirty = $derived(diffLeftEx ? diffLeftLatex !== (diffLeftEx.latexBody || "") : false);
   let isDiffRightDirty = $derived(diffRightEx ? diffRightLatex !== (diffRightEx.latexBody || "") : false);
@@ -673,6 +637,42 @@
       modalError = translate("exercises.page.variantCreateFailed", { message: err.message });
     }
   }
+
+  $effect.pre(() => {
+    const groups = allGroups;
+    const expanded = $expandedGroups;
+    untrack(() => {
+      for (const g of groups) {
+        if (expanded[g.groupId]) for (const vKey of g.variants.keys()) usage.ensure(usageKey(g.groupId, vKey));
+      }
+    });
+  });
+
+  $effect.pre(() => {
+    const ex = diffLeftEx;
+    const open = isDiffModalOpen;
+    const id = diffLeftId;
+    const loaded = lastLoadedLeftId;
+    if (ex && open && id !== loaded) {
+      untrack(() => {
+        diffLeftLatex = ex.latexBody || "";
+        lastLoadedLeftId = id;
+      });
+    }
+  });
+
+  $effect.pre(() => {
+    const ex = diffRightEx;
+    const open = isDiffModalOpen;
+    const id = diffRightId;
+    const loaded = lastLoadedRightId;
+    if (ex && open && id !== loaded) {
+      untrack(() => {
+        diffRightLatex = ex.latexBody || "";
+        lastLoadedRightId = id;
+      });
+    }
+  });
 </script>
 
 <PageShell width="fluid">

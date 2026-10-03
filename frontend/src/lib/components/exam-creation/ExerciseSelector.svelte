@@ -98,6 +98,7 @@
   let mcStagingExercises = $derived(mcStagingIds
     .map((id) => libraryExercises.find((e) => e.id === id))
     .filter((e): e is ExerciseRecord => Boolean(e)));
+
   // Editing a group happens in the MC tab.
   $effect.pre(() => {
     const group = editingMcGroup;

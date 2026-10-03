@@ -32,14 +32,6 @@
   let subExerciseLetters: Map<string, string> = $state.raw(new Map());
   let loadedGroupsExamId: string | null = null;
 
-  $effect.pre(() => {
-    const id = examId;
-    if (id && id !== loadedGroupsExamId) {
-      loadedGroupsExamId = id;
-      untrack(() => loadMcGroupLetters(id));
-    }
-  });
-
   async function loadMcGroupLetters(id: string) {
     subExerciseLetters = buildSubLabelMap(await loadLocalMcGroups(id).catch(() => []));
   }
@@ -56,18 +48,8 @@
   let initialZoomScale: number = 1.0;
 
   // Writable $derived (not proxied): strokes stay the store's own array, which handlePointerMove
-  // mutates in place before persistStrokes(), exactly as in Svelte 4.
+  // mutates in place before persistStrokes().
   let strokes: VectorStroke[] = $derived($gradingStore.currentStrokes);
-
-  // Redraw the separate, non-persisted OMR overlay when detections or group letters change.
-  $effect.pre(() => {
-    const canvas = overlayCanvas;
-    const mcState = $gradingStore.mcState;
-    const letters = subExerciseLetters;
-    if (canvas && (mcState || letters)) {
-      untrack(() => redrawOverlay());
-    }
-  });
 
   let loadedSubId: string | null = null;
 
@@ -76,14 +58,6 @@
   // which live in the store for ZoomPageControls to read).
   let pdfDoc: any = null;
   let pdfBytes: Uint8Array | null = null;
-
-  $effect.pre(() => {
-    const sub = submission;
-    if (sub && sub.id !== loadedSubId) {
-      loadedSubId = sub.id;
-      untrack(() => loadSubmissionCanvas(sub));
-    }
-  });
 
   function persistStrokes(next: VectorStroke[]) {
     strokes = next;
@@ -644,6 +618,32 @@
       state.scoreInputs
     );
   }
+
+  $effect.pre(() => {
+    const id = examId;
+    if (id && id !== loadedGroupsExamId) {
+      loadedGroupsExamId = id;
+      untrack(() => loadMcGroupLetters(id));
+    }
+  });
+
+  // Redraw the separate, non-persisted OMR overlay when detections or group letters change.
+  $effect.pre(() => {
+    const canvas = overlayCanvas;
+    const mcState = $gradingStore.mcState;
+    const letters = subExerciseLetters;
+    if (canvas && (mcState || letters)) {
+      untrack(() => redrawOverlay());
+    }
+  });
+
+  $effect.pre(() => {
+    const sub = submission;
+    if (sub && sub.id !== loadedSubId) {
+      loadedSubId = sub.id;
+      untrack(() => loadSubmissionCanvas(sub));
+    }
+  });
 </script>
 
 <div

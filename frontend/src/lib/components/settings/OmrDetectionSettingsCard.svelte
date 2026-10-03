@@ -84,6 +84,16 @@
     statusMsg = translate("settings.omr.resetDone");
   }
 
+  // Reads $t/$fmt at call time, so hints follow a language switch.
+  function hintFor(spec: NumberSpec, algorithm: OmrAlgorithm): string {
+    const base = `${$t(`settings.omr.params.${spec.key}.hint`)} ${$t("settings.omr.defaultValue", { value: $fmt.number(DEFAULT_OMR_PARAMS[spec.key]) })}`;
+    return inactive(spec.key, algorithm)
+      ? `${base} ${$t("settings.omr.onlyFor", { algorithm: OMR_PARAM_ALGORITHM[spec.key] ?? "" })}`
+      : base;
+  }
+
+  let orderErrors = $derived(errors.filter((e) => e.code !== "range"));
+
   // Saved elsewhere (another tab, reset): take the new values over.
   $effect.pre(() => {
     const current = profile;
@@ -97,16 +107,6 @@
       }
     });
   });
-
-  // Reads $t/$fmt at call time, so hints follow a language switch.
-  function hintFor(spec: NumberSpec, algorithm: OmrAlgorithm): string {
-    const base = `${$t(`settings.omr.params.${spec.key}.hint`)} ${$t("settings.omr.defaultValue", { value: $fmt.number(DEFAULT_OMR_PARAMS[spec.key]) })}`;
-    return inactive(spec.key, algorithm)
-      ? `${base} ${$t("settings.omr.onlyFor", { algorithm: OMR_PARAM_ALGORITHM[spec.key] ?? "" })}`
-      : base;
-  }
-
-  let orderErrors = $derived(errors.filter((e) => e.code !== "range"));
 </script>
 
 <div id="omr" class="scroll-mt-16 lg:scroll-mt-4">

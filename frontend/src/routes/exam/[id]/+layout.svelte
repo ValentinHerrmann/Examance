@@ -26,13 +26,6 @@
   let exam: ExamRecord | null = $state.raw(null);
   let submissionCount = $state(0);
 
-  $effect.pre(() => {
-    const id = examId;
-    if (browser && id && $sessionStore.sessionKey) {
-      untrack(() => loadExamHeaderData(id));
-    }
-  });
-
   afterNavigate(() => {
     if (examId && $sessionStore.sessionKey) {
       loadExamHeaderData(examId);
@@ -52,6 +45,15 @@
 
   onDestroy(() => examNavContext.set(null));
 
+  let isGradeActive = $derived(pathname.startsWith(`/exam/${examId}/grade`));
+
+  $effect.pre(() => {
+    const id = examId;
+    if (browser && id && $sessionStore.sessionKey) {
+      untrack(() => loadExamHeaderData(id));
+    }
+  });
+
   // The sidebar and the phone drawer live in the app shell (so they do not
   // scroll with the page); this layout only tells them which exam is open.
   $effect.pre(() => {
@@ -62,8 +64,6 @@
       untrack(() => examNavContext.set({ examId: id, exam: current && current.id === id ? current : null, submissionCount: count }));
     }
   });
-
-  let isGradeActive = $derived(pathname.startsWith(`/exam/${examId}/grade`));
 </script>
 
 <!-- Size container (columns follow `@3xl:` container variants, not the viewport).

@@ -35,9 +35,6 @@
   // Once per exam id: the reactive block and onMount can both fire on one visit.
   let loadedExamId = '';
 
-  $effect.pre(() => {
-    if (browser && examId && $sessionStore.sessionKey) untrack(startLoad);
-  });
   onMount(startLoad);
 
   function startLoad() {
@@ -102,6 +99,10 @@
 
     await exportGradesToCsv(examId, exam?.title || 'Exam', rows, key);
   }
+
+  $effect.pre(() => {
+    if (browser && examId && $sessionStore.sessionKey) untrack(startLoad);
+  });
 </script>
 
 <StatsPage

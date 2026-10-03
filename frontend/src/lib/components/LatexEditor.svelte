@@ -295,6 +295,16 @@
     scrollDOM.addEventListener("scroll", handleScrollListener, { passive: true });
   });
 
+  onDestroy(() => {
+    if (hoverTimer) clearTimeout(hoverTimer);
+    if (view) {
+      if (handleScrollListener && view.scrollDOM) {
+        view.scrollDOM.removeEventListener("scroll", handleScrollListener);
+      }
+      view.destroy();
+    }
+  });
+
   $effect.pre(() => {
     const v = view;
     const decorations = diffDecorations;
@@ -338,16 +348,6 @@
         effects: themeCompartment.reconfigure(createLatexTheme(dark))
       });
     });
-  });
-
-  onDestroy(() => {
-    if (hoverTimer) clearTimeout(hoverTimer);
-    if (view) {
-      if (handleScrollListener && view.scrollDOM) {
-        view.scrollDOM.removeEventListener("scroll", handleScrollListener);
-      }
-      view.destroy();
-    }
   });
 </script>
 

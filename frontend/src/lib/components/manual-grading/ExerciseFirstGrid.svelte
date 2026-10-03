@@ -36,56 +36,14 @@
   let activeExerciseId: string = $state(untrack(() => exercises[0]?.id || ""));
   let inputElements: (HTMLInputElement | null)[] = $state([]);
 
-  $effect.pre(() => {
-    const exs = exercises;
-    const currentId = activeExerciseId;
-    if (exs.length > 0 && (!currentId || !exs.some((e) => e.id === currentId))) {
-      untrack(() => {
-        activeExerciseId = exs[0].id;
-      });
-    }
-  });
-
   let activeExercise = $derived(exercises.find((e) => e.id === activeExerciseId));
   // Raw: holds the parent's submission objects, which handleScoreChange mutates and persists.
   let submissionMap = $state.raw(new Map<string, SubmissionRecord>());
   // Only the newest build may write, so a slower stale build cannot overwrite a newer map.
   let submissionMapSeq = 0;
-  $effect.pre(() => {
-    const subs = submissions;
-    const sts = students;
-    const seq = ++submissionMapSeq;
-    untrack(() =>
-      buildSubmissionMap(subs, sts).then((m) => {
-        if (seq === submissionMapSeq) submissionMap = m;
-      }),
-    );
-  });
 
   // Editable buffer (studentIndex -> input string), bound by the inputs; reset when its sources change.
   let rawInputs: Record<number, string> = $state({});
-
-  $effect.pre(() => {
-    const exId = activeExerciseId;
-    const sts = students;
-    const subMap = submissionMap;
-    const scores = scoresMap;
-    untrack(() => {
-      const newRaw: Record<number, string> = {};
-      if (exId) {
-        sts.forEach((st, idx) => {
-          const sub = subMap.get(st.pseudonymId);
-          if (sub) {
-            const val = scores.get(sub.id)?.[exId];
-            newRaw[idx] = val !== null && val !== undefined ? String(val) : "";
-          } else {
-            newRaw[idx] = "";
-          }
-        });
-      }
-      rawInputs = newRaw;
-    });
-  });
 
   function handleKeyDown(e: KeyboardEvent, index: number) {
     if (e.key === "Enter" || e.key === "ArrowDown") {
@@ -207,6 +165,49 @@
   let avgScore = $derived(
     gradedCount > 0 ? Math.round((activeScores.reduce((a, b) => a + b, 0) / gradedCount) * 100) / 100 : 0,
   );
+
+  $effect.pre(() => {
+    const exs = exercises;
+    const currentId = activeExerciseId;
+    if (exs.length > 0 && (!currentId || !exs.some((e) => e.id === currentId))) {
+      untrack(() => {
+        activeExerciseId = exs[0].id;
+      });
+    }
+  });
+
+  $effect.pre(() => {
+    const subs = submissions;
+    const sts = students;
+    const seq = ++submissionMapSeq;
+    untrack(() =>
+      buildSubmissionMap(subs, sts).then((m) => {
+        if (seq === submissionMapSeq) submissionMap = m;
+      }),
+    );
+  });
+
+  $effect.pre(() => {
+    const exId = activeExerciseId;
+    const sts = students;
+    const subMap = submissionMap;
+    const scores = scoresMap;
+    untrack(() => {
+      const newRaw: Record<number, string> = {};
+      if (exId) {
+        sts.forEach((st, idx) => {
+          const sub = subMap.get(st.pseudonymId);
+          if (sub) {
+            const val = scores.get(sub.id)?.[exId];
+            newRaw[idx] = val !== null && val !== undefined ? String(val) : "";
+          } else {
+            newRaw[idx] = "";
+          }
+        });
+      }
+      rawInputs = newRaw;
+    });
+  });
 </script>
 
 <div class="flex min-w-0 flex-col gap-4">

@@ -17,13 +17,6 @@
 
   let canAccess = $derived($isUnlocked && $sessionStore.role === 'admin');
 
-  $effect.pre(() => {
-    const value = email;
-    if (value.trim()) {
-      untrack(() => sessionStore.setDirty(true));
-    }
-  });
-
   onMount(() => {
     if (!$isUnlocked) {
       window.location.href = '/unlock';
@@ -83,6 +76,13 @@
       isSubmitting = false;
     }
   }
+
+  $effect.pre(() => {
+    const value = email;
+    if (value.trim()) {
+      untrack(() => sessionStore.setDirty(true));
+    }
+  });
 </script>
 
 <PageShell width="fluid">

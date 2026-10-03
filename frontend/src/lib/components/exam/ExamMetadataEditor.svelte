@@ -49,18 +49,6 @@
   let editDauer = $state("");
   let lastSyncedEditDatum = "";
 
-  $effect.pre(() => {
-    const d = editDatum;
-    untrack(() => {
-      if (d !== lastSyncedEditDatum) {
-        lastSyncedEditDatum = d;
-        const parsed = parseDatumAndDauer(d);
-        editDatumDate = parsed.datumDate;
-        editDauer = parsed.dauer;
-      }
-    });
-  });
-
   function handleDatumDateOrDauerChange() {
     const formatted = formatDatumAndDauer(editDatumDate, editDauer);
     editDatum = formatted;
@@ -77,6 +65,18 @@
     if (editDauer) recordValue("exam.dauer", editDauer);
     onSave();
   }
+
+  $effect.pre(() => {
+    const d = editDatum;
+    untrack(() => {
+      if (d !== lastSyncedEditDatum) {
+        lastSyncedEditDatum = d;
+        const parsed = parseDatumAndDauer(d);
+        editDatumDate = parsed.datumDate;
+        editDauer = parsed.dauer;
+      }
+    });
+  });
 </script>
 
 <Modal open={isOpen} size="large" title={$t("exam.metadataEditor.heading")} onClose={onCancel}>

@@ -41,6 +41,17 @@
 
   // Prefill from the group being edited; reset when switching back to "new".
   let loadedGroupId: string | null = null;
+
+  let count = $derived(stagedExercises.length);
+
+  function finalize() {
+    notice = editingGroup
+      ? $t("exam.mcStagingPanel.updatedNotice", { title })
+      : $t("exam.mcStagingPanel.addedNotice", { title });
+    onFinalize(title, scoringText);
+    title = DEFAULT_TITLE;
+  }
+
   $effect.pre(() => {
     const group = editingGroup;
     const groupId = group?.id ?? null;
@@ -56,16 +67,6 @@
   $effect.pre(() => {
     if (stagedExercises.length > 0) untrack(() => (notice = ""));
   });
-
-  let count = $derived(stagedExercises.length);
-
-  function finalize() {
-    notice = editingGroup
-      ? $t("exam.mcStagingPanel.updatedNotice", { title })
-      : $t("exam.mcStagingPanel.addedNotice", { title });
-    onFinalize(title, scoringText);
-    title = DEFAULT_TITLE;
-  }
 </script>
 
 <div class="flex min-w-0 flex-col gap-3 rounded-md border border-warning/60 bg-warning/5 p-4">

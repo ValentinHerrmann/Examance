@@ -9,15 +9,15 @@
   let status = $derived($page.status || 404);
   let message = $derived($page.error?.message || translate("dashboard.error.notFound"));
 
+  onMount(() => {
+    httpErrorStore.showError(status, message);
+  });
+
   $effect.pre(() => {
     const s = status;
     const m = message;
     if (typeof window === "undefined" || !s) return;
     untrack(() => httpErrorStore.showError(s, m));
-  });
-
-  onMount(() => {
-    httpErrorStore.showError(status, message);
   });
 </script>
 

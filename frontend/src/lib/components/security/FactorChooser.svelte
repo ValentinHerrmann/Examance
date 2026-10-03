@@ -42,17 +42,6 @@
   let chosen: FactorKind | null = $state(null);
   let isWorking = $state(false);
 
-  // With exactly two factors enrolled there is only ever one left to present,
-  // and a menu of one is worse than no menu.
-  $effect.pre(() => {
-    const factors = available;
-    const current = chosen;
-    if (factors.length === 1 && current === null) {
-      untrack(() => {
-        chosen = factors[0];
-      });
-    }
-  });
   let canGoBack = $derived(available.length > 1);
 
   async function choose(factor: FactorKind) {
@@ -74,6 +63,18 @@
     chosen = null;
     errorMsg = "";
   }
+
+  // With exactly two factors enrolled there is only ever one left to present,
+  // and a menu of one is worse than no menu.
+  $effect.pre(() => {
+    const factors = available;
+    const current = chosen;
+    if (factors.length === 1 && current === null) {
+      untrack(() => {
+        chosen = factors[0];
+      });
+    }
+  });
 </script>
 
 {#if chosen === "totp"}

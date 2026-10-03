@@ -144,22 +144,6 @@
   );
 
   let lastLoadedCropKey = "";
-  $effect.pre(() => {
-    const key = cropKey;
-    const pdfBytes = scanPdfBytes;
-    const meta = omrMeta;
-    untrack(() => {
-      if (key !== lastLoadedCropKey) {
-        lastLoadedCropKey = key;
-        cropDataUrl = null;
-        cropMarkedUrl = null;
-        cropError = "";
-        if (pdfBytes && meta?.detections && key) {
-          loadCrop(pdfBytes, meta.detections.pageIndex, meta.detections.bubbles, meta);
-        }
-      }
-    });
-  });
 
   async function loadCrop(
     pdfBytes: Uint8Array,
@@ -357,6 +341,23 @@
       requestAdvance(currentIndex < totalItems - 1 ? onNext : onEndOfQueue);
     }
   }
+
+  $effect.pre(() => {
+    const key = cropKey;
+    const pdfBytes = scanPdfBytes;
+    const meta = omrMeta;
+    untrack(() => {
+      if (key !== lastLoadedCropKey) {
+        lastLoadedCropKey = key;
+        cropDataUrl = null;
+        cropMarkedUrl = null;
+        cropError = "";
+        if (pdfBytes && meta?.detections && key) {
+          loadCrop(pdfBytes, meta.detections.pageIndex, meta.detections.bubbles, meta);
+        }
+      }
+    });
+  });
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

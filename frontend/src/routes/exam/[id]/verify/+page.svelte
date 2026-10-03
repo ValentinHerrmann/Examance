@@ -56,13 +56,6 @@
   let lastRefreshedKey = "";
 
   let currentRefreshKey = $derived(`${examId}:${$sessionStore.sessionKey ? "unlocked" : "locked"}`);
-  $effect.pre(() => {
-    const key = currentRefreshKey;
-    if (browser && examId && $sessionStore.sessionKey && key !== lastRefreshedKey) {
-      lastRefreshedKey = key;
-      untrack(refresh);
-    }
-  });
 
   afterNavigate(() => {
     if (examId && $sessionStore.sessionKey && currentRefreshKey !== lastRefreshedKey) {
@@ -427,6 +420,14 @@
   let failedProgress = $derived(buildStudentProgress(failedItems));
   let unsureProgress = $derived(buildStudentProgress(unsureItems));
   let confidentProgress = $derived(buildStudentProgress(otherItems));
+
+  $effect.pre(() => {
+    const key = currentRefreshKey;
+    if (browser && examId && $sessionStore.sessionKey && key !== lastRefreshedKey) {
+      lastRefreshedKey = key;
+      untrack(refresh);
+    }
+  });
 </script>
 
 <PageShell width="fluid">

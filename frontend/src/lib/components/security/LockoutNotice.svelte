@@ -11,15 +11,6 @@
 
   let remaining = $state(0);
 
-  // Recomputed on every tick *and* whenever the deadline changes, so a second
-  // rejection showing less time left replaces the first without waiting.
-  $effect.pre(() => {
-    const lockedUntil = $loginLockout.lockedUntil;
-    untrack(() => {
-      remaining = remainingSeconds(lockedUntil);
-    });
-  });
-
   const timer = setInterval(() => {
     remaining = remainingSeconds($loginLockout.lockedUntil);
     if ($loginLockout.lockedUntil !== null && remaining === 0) {
@@ -30,6 +21,15 @@
   }, 1000);
 
   onDestroy(() => clearInterval(timer));
+
+  // Recomputed on every tick *and* whenever the deadline changes, so a second
+  // rejection showing less time left replaces the first without waiting.
+  $effect.pre(() => {
+    const lockedUntil = $loginLockout.lockedUntil;
+    untrack(() => {
+      remaining = remainingSeconds(lockedUntil);
+    });
+  });
 </script>
 
 {#if remaining > 0}

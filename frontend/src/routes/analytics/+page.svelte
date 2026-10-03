@@ -36,12 +36,6 @@
     ? variantGroups
     : variantGroups.filter((g) => g.variants.some((v) => v.avgScorePercent !== null)));
 
-  $effect.pre(() => {
-    if (browser && $isUnlocked && $sessionStore.sessionKey) {
-      untrack(() => triggerAnalyticsLoad());
-    }
-  });
-
   afterNavigate(() => {
     if ($isUnlocked && $sessionStore.sessionKey) {
       triggerAnalyticsLoad();
@@ -352,6 +346,12 @@
     console.error('Failed to load analytics:', err);
   }
 }
+
+  $effect.pre(() => {
+    if (browser && $isUnlocked && $sessionStore.sessionKey) {
+      untrack(() => triggerAnalyticsLoad());
+    }
+  });
 </script>
 
 <PageShell width="full">

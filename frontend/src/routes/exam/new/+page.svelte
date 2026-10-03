@@ -82,36 +82,6 @@
   let searchQuery: string = $state("");
   let activeTab: "library" | "mc" | "custom" = $state("library");
 
-  // Self-recompute: tracks only the selection inputs; examItems is read untracked.
-  $effect.pre(() => {
-    const libraryIds = selectedLibraryIds;
-    const groups = mcGroups;
-    untrack(() => {
-      const currentIds = new Set(libraryIds);
-      const currentMcGroupIds = new Set(groups.map((g) => g.id));
-
-      let updated = examItems.filter((item) =>
-        item.type === "exercise" ? currentIds.has(item.id) : currentMcGroupIds.has(item.id)
-      );
-
-      const existingExIds = new Set(updated.filter((i) => i.type === "exercise").map((i) => i.id));
-      for (const id of libraryIds) {
-        if (!existingExIds.has(id)) {
-          updated.push({ type: "exercise", id });
-        }
-      }
-
-      const existingMcIds = new Set(updated.filter((i) => i.type === "mc_group").map((i) => i.id));
-      for (const group of groups) {
-        if (!existingMcIds.has(group.id)) {
-          updated.push({ type: "mc_group", id: group.id });
-        }
-      }
-
-      examItems = updated;
-    });
-  });
-
   // Quick exercise editor state
   let isQuickEditorOpen = $state(false);
   let editingExerciseForQuickEdit: ExerciseRecord | null = $state.raw(null);
@@ -124,14 +94,6 @@
   async function handleQuickEditSaved() {
     await loadLibrary();
   }
-
-  $effect.pre(() => {
-    const currentTitle = title;
-    const libraryIds = selectedLibraryIds;
-    if (currentTitle.trim() || libraryIds.length > 0) {
-      untrack(() => sessionStore.setDirty(true));
-    }
-  });
 
   let activeVariantPerGroup: Record<string, string> = $state.raw({});
 
@@ -643,6 +605,44 @@ ${exerciseInputs}
       isLoading = false;
     }
   }
+
+  // Self-recompute: tracks only the selection inputs; examItems is read untracked.
+  $effect.pre(() => {
+    const libraryIds = selectedLibraryIds;
+    const groups = mcGroups;
+    untrack(() => {
+      const currentIds = new Set(libraryIds);
+      const currentMcGroupIds = new Set(groups.map((g) => g.id));
+
+      let updated = examItems.filter((item) =>
+        item.type === "exercise" ? currentIds.has(item.id) : currentMcGroupIds.has(item.id)
+      );
+
+      const existingExIds = new Set(updated.filter((i) => i.type === "exercise").map((i) => i.id));
+      for (const id of libraryIds) {
+        if (!existingExIds.has(id)) {
+          updated.push({ type: "exercise", id });
+        }
+      }
+
+      const existingMcIds = new Set(updated.filter((i) => i.type === "mc_group").map((i) => i.id));
+      for (const group of groups) {
+        if (!existingMcIds.has(group.id)) {
+          updated.push({ type: "mc_group", id: group.id });
+        }
+      }
+
+      examItems = updated;
+    });
+  });
+
+  $effect.pre(() => {
+    const currentTitle = title;
+    const libraryIds = selectedLibraryIds;
+    if (currentTitle.trim() || libraryIds.length > 0) {
+      untrack(() => sessionStore.setDirty(true));
+    }
+  });
 </script>
 
 <PageShell width="fluid">

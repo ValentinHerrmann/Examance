@@ -47,13 +47,6 @@
   let phase = $derived(pending?.phase === 'switching' ? 'exported' : pending?.phase);
   let toLabel = $derived(pending ? modeLabel(pending.to) : '');
 
-  $effect.pre(() => {
-    const isOpen = open;
-    const to = target;
-    const p = pending;
-    if (isOpen && to && !p) untrack(() => void start(to));
-  });
-
   function modeLabel(mode: StorageMode): string {
     return getStoragePolicyBadge({ storageMode: mode, latexCompilation: 'local' }).text;
   }
@@ -109,6 +102,13 @@
     finishModeSwitch();
     close();
   }
+
+  $effect.pre(() => {
+    const isOpen = open;
+    const to = target;
+    const p = pending;
+    if (isOpen && to && !p) untrack(() => void start(to));
+  });
 </script>
 
 <Modal

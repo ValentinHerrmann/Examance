@@ -150,6 +150,7 @@
     ? "h-dvh sm:h-auto sm:max-h-[90dvh] sm:rounded-xl sm:border sm:border-line sm:shadow-xl"
     : "max-h-[90dvh] rounded-xl border border-line shadow-xl");
   let overlayShape = $derived(isSheet ? "items-stretch sm:items-center sm:p-4" : "items-center p-4");
+
   $effect.pre(() => {
     const isOpen = open;
     if (typeof document === "undefined") return;

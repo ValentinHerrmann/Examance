@@ -49,12 +49,6 @@
     pos = { top, left };
   }
 
-  $effect.pre(() => {
-    const isOpen = open;
-    if (typeof window === "undefined") return;
-    if (isOpen) void tick().then(reposition);
-  });
-
   function onPointerDown(event: PointerEvent) {
     if (open && !root?.contains(event.target as Node) && !panel?.contains(event.target as Node)) {
       open = false;
@@ -68,6 +62,12 @@
       close();
     }
   }
+
+  $effect.pre(() => {
+    const isOpen = open;
+    if (typeof window === "undefined") return;
+    if (isOpen) void tick().then(reposition);
+  });
 </script>
 
 <svelte:window
