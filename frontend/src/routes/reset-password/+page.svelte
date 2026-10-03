@@ -25,7 +25,7 @@
     pinEnvelopeSet,
   } from "$lib/services/keyEnvelopeService";
   import { FactorChooser, RecoveryCodeDialog } from "$lib/components/security";
-  import { Button, Field, TextInput } from "$lib/components/ui";
+  import { Alert, Button, Card, Field, PageShell, TextInput } from "$lib/components/ui";
 
   type Stage = "password" | "factor" | "key";
 
@@ -207,21 +207,21 @@
   }
 </script>
 
-<div class="reset-password-container flex min-h-full items-center justify-center box-border px-4 py-8 sm:px-6 sm:py-12">
-  <div class="reset-password-card w-full max-w-form">
-    <div class="card-header">
-      <img src="/favicon.png" alt="Examance logo" class="brand-logo" />
-      <h1>{$t("auth.resetPassword.title")}</h1>
-      <p class="subtitle">{$t("auth.resetPassword.subtitle")}</p>
+<PageShell width="form" class="flex min-h-full flex-col justify-center">
+  <Card class="sm:p-8">
+    <div class="mb-6 text-center">
+      <img src="/favicon.png" alt="Examance logo" class="mx-auto mb-3 size-14 rounded-xl object-contain" />
+      <h1 class="m-0 text-2xl font-normal text-content">{$t("auth.resetPassword.title")}</h1>
+      <p class="mt-2 mb-0 text-sm leading-snug text-muted">{$t("auth.resetPassword.subtitle")}</p>
     </div>
 
     {#if successMsg}
-      <div class="banner success">{successMsg}</div>
-      <div class="action-box">
-        <a href="/unlock" class="primary-btn-link">{$t("auth.resetPassword.proceedToSignIn")}</a>
+      <Alert severity="success" class="mb-5">{successMsg}</Alert>
+      <div class="mb-6 text-center">
+        <Button href="/unlock">{$t("auth.resetPassword.proceedToSignIn")}</Button>
       </div>
     {:else if stage === "factor"}
-      <h2 class="m-0 text-lg font-semibold text-accent">{$t("security.reset.step2Title")}</h2>
+      <h2 class="m-0 text-lg font-semibold text-content">{$t("security.reset.step2Title")}</h2>
       <p class="mt-1 mb-4 text-sm text-muted">{$t("security.reset.step2Intro")}</p>
       <!--
         The same chooser the sign-in screen uses, minus the password: a reset
@@ -236,7 +236,7 @@
         errorMsg={factorErrorMsg}
       />
     {:else if stage === "key"}
-      <h2 class="m-0 text-lg font-semibold text-accent">{$t("security.reset.keyTitle")}</h2>
+      <h2 class="m-0 text-lg font-semibold text-content">{$t("security.reset.keyTitle")}</h2>
       {#if passkeyUnwrap}
         <p class="mt-1 mb-4 text-sm text-muted">{$t("security.reset.passkeyRecovered")}</p>
       {:else}
@@ -271,29 +271,24 @@
           <p class="m-0 text-sm text-content" role="alert">
             {$t("security.reset.keySkipWarning")}
           </p>
-          <Button variant="danger" disabled={isSubmitting} onClick={() => finishReset(false)}>
+          <Button variant="solid" severity="danger" disabled={isSubmitting} onClick={() => finishReset(false)}>
             {$t("security.reset.keySkipConfirm")}
           </Button>
         {:else}
-          <button
-            type="button"
-            class="cursor-pointer border-none bg-transparent p-0 text-left text-sm text-accent underline"
-            on:click={() => (skipConfirmed = true)}
-          >
+          <Button variant="text" size="sm" class="self-start" onClick={() => (skipConfirmed = true)}>
             {$t("security.reset.keySkip")}
-          </button>
+          </Button>
         {/if}
       </div>
     {:else}
       {#if errorMsg}
-        <div class="banner error">{errorMsg}</div>
+        <Alert severity="danger" class="mb-5">{errorMsg}</Alert>
       {/if}
 
-      <form on:submit|preventDefault={handleResetPassword}>
-        <div class="form-group">
-          <label for="newPassword">{$t("auth.resetPassword.newPasswordLabel")}</label>
-          <input
-            id="newPassword"
+      <form on:submit|preventDefault={handleResetPassword} class="flex flex-col gap-5">
+        <Field forId="newPassword" label={$t("auth.resetPassword.newPasswordLabel")} let:id>
+          <TextInput
+            {id}
             type="password"
             bind:value={newPassword}
             placeholder={$t("auth.resetPassword.newPasswordPlaceholder")}
@@ -302,12 +297,11 @@
             required
             disabled={isSubmitting || !token}
           />
-        </div>
+        </Field>
 
-        <div class="form-group">
-          <label for="confirmPassword">{$t("auth.resetPassword.confirmPasswordLabel")}</label>
-          <input
-            id="confirmPassword"
+        <Field forId="confirmPassword" label={$t("auth.resetPassword.confirmPasswordLabel")} let:id>
+          <TextInput
+            {id}
             type="password"
             bind:value={confirmPassword}
             placeholder={$t("auth.resetPassword.confirmPasswordPlaceholder")}
@@ -316,19 +310,19 @@
             required
             disabled={isSubmitting || !token}
           />
-        </div>
+        </Field>
 
-        <button type="submit" class="submit-btn" disabled={isSubmitting || !token}>
+        <Button type="submit" block disabled={isSubmitting || !token}>
           {isSubmitting ? $t("auth.resetPassword.setting") : $t("auth.resetPassword.setPassword")}
-        </button>
+        </Button>
       </form>
     {/if}
 
-    <div class="card-footer">
-      <a href="/unlock" class="back-link">{$t("auth.resetPassword.backToUnlock")}</a>
+    <div class="mt-6 text-center">
+      <a href="/unlock" class="text-sm text-accent no-underline hover:underline">{$t("auth.resetPassword.backToUnlock")}</a>
     </div>
-  </div>
-</div>
+  </Card>
+</PageShell>
 
 {#if issuedRecoveryCode}
   <!-- The code that got us here is spent; this replacement is shown once. -->
@@ -337,157 +331,3 @@
     onConfirm={() => (issuedRecoveryCode = null)}
   />
 {/if}
-
-<style>
-  .reset-password-container {
-    background-color: #0f172a;
-    color: #f8fafc;
-  }
-
-  .reset-password-card {
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 12px;
-    padding: 2.5rem;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-  }
-
-  .card-header {
-    text-align: center;
-    margin-bottom: 1.75rem;
-  }
-
-  .brand-logo {
-    width: 56px;
-    height: 56px;
-    object-fit: contain;
-    margin-bottom: 0.75rem;
-    border-radius: 12px;
-  }
-
-  .card-header h1 {
-    margin: 0;
-    font-size: 1.75rem;
-    font-weight: 800;
-    color: #38bdf8;
-  }
-
-  .subtitle {
-    margin: 0.5rem 0 0 0;
-    font-size: 0.875rem;
-    color: #94a3b8;
-    line-height: 1.4;
-  }
-
-  .banner {
-    padding: 0.85rem 1rem;
-    border-radius: 8px;
-    margin-bottom: 1.5rem;
-    font-size: 0.875rem;
-    line-height: 1.4;
-  }
-
-  .banner.success {
-    background: rgba(34, 197, 94, 0.15);
-    border: 1px solid #22c55e;
-    color: #86efac;
-  }
-
-  .banner.error {
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid #ef4444;
-    color: #fca5a5;
-  }
-
-  .action-box {
-    margin-bottom: 1.5rem;
-    text-align: center;
-  }
-
-  .primary-btn-link {
-    display: inline-block;
-    width: 100%;
-    padding: 0.75rem;
-    background: #0284c7;
-    color: white;
-    text-align: center;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    text-decoration: none;
-    box-sizing: border-box;
-  }
-
-  .primary-btn-link:hover {
-    background: #0369a1;
-  }
-
-  form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  .form-group label {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: #cbd5e1;
-  }
-
-  .form-group input {
-    padding: 0.65rem 0.75rem;
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 6px;
-    color: #f8fafc;
-    font-size: 0.875rem;
-  }
-
-  .form-group input:focus {
-    outline: none;
-    border-color: #38bdf8;
-  }
-
-  .submit-btn {
-    width: 100%;
-    padding: 0.75rem;
-    background: #0284c7;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    cursor: pointer;
-    transition: background 0.15s ease;
-  }
-
-  .submit-btn:hover:not(:disabled) {
-    background: #0369a1;
-  }
-
-  .submit-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .card-footer {
-    margin-top: 1.5rem;
-    text-align: center;
-  }
-
-  .back-link {
-    font-size: 0.85rem;
-    color: #38bdf8;
-    text-decoration: none;
-  }
-
-  .back-link:hover {
-    text-decoration: underline;
-  }
-</style>

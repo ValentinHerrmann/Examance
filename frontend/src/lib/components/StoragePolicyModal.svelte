@@ -8,7 +8,7 @@
   } from "$lib/stores/storagePolicy";
   import { backendStore, effectiveBackendStore } from "$lib/stores/backendStore";
   import { isAuthenticated } from "$lib/stores/session";
-  import { Modal, Button, controlClass } from "$lib/components/ui";
+  import { Alert, Button, Modal } from "$lib/components/ui";
   import BackendUrlInput from "$lib/components/common/BackendUrlInput.svelte";
   import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
 
@@ -74,22 +74,22 @@
   }
 
   const optionCardBase =
-    "flex cursor-pointer items-start gap-3 rounded-md border border-line bg-surface-base p-[0.85rem] transition-colors duration-150 ease-[ease] hover:border-line-strong";
+    "flex cursor-pointer items-start gap-3 rounded-md border border-line bg-surface-base p-3.5 transition-colors duration-150 hover:border-line-strong";
   const optionCardActive =
-    "flex cursor-pointer items-start gap-3 rounded-md border border-accent bg-primary/[0.08] p-[0.85rem] transition-colors duration-150 ease-[ease]";
+    "flex cursor-pointer items-start gap-3 rounded-md border border-accent bg-primary/10 p-3.5 transition-colors duration-150";
 </script>
 
-<Modal open={isOpen} size="md" title={$t("misc.storageModal.heading")} onClose={handleClose}>
+<Modal open={isOpen} size="medium" title={$t("misc.storageModal.heading")} onClose={handleClose}>
   <div class="flex flex-col gap-6">
     {#if statusMsg}
-      <div class="rounded-md border border-success bg-success/15 p-3 text-sm text-success-fg">{statusMsg}</div>
+      <Alert severity="success">{statusMsg}</Alert>
     {/if}
 
     <div>
       <h4 class="m-0 mb-1 text-base text-content">{$t("misc.storageModal.storageHeading")}</h4>
       <p class="m-0 mb-3 text-sm text-muted">{$t("misc.storageModal.storageDescription")}</p>
 
-      <div class="flex flex-col gap-[0.6rem] sm:grid sm:grid-cols-3 sm:gap-3">
+      <div class="flex flex-col gap-2.5 @xl:grid @xl:grid-cols-3 @xl:gap-3">
         <label class={$storagePolicyStore.storageMode === "all-local" ? optionCardActive : optionCardBase}>
           <input
             type="radio"
@@ -97,10 +97,10 @@
             value="all-local"
             checked={$storagePolicyStore.storageMode === "all-local"}
             on:change={() => handleStorageModeChange("all-local")}
-            class="mt-[0.2rem]"
+            class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
-            <strong class="mb-[0.2rem] block text-sm text-content">{$t("misc.storageModal.allLocalTitle")}</strong>
+            <strong class="mb-1 block text-sm text-content">{$t("misc.storageModal.allLocalTitle")}</strong>
             <p class="m-0 text-xs text-muted">{$t("misc.storageModal.allLocalText")}</p>
           </div>
         </label>
@@ -112,10 +112,10 @@
             value="all-server"
             checked={$storagePolicyStore.storageMode === "all-server"}
             on:change={() => handleStorageModeChange("all-server")}
-            class="mt-[0.2rem]"
+            class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
-            <strong class="mb-[0.2rem] block text-sm text-content">{$t("misc.storageModal.allServerTitle")}</strong>
+            <strong class="mb-1 block text-sm text-content">{$t("misc.storageModal.allServerTitle")}</strong>
             <p class="m-0 text-xs text-muted">{$t("misc.storageModal.allServerText")}</p>
           </div>
         </label>
@@ -127,10 +127,10 @@
             value="hybrid"
             checked={$storagePolicyStore.storageMode === "hybrid"}
             on:change={() => handleStorageModeChange("hybrid")}
-            class="mt-[0.2rem]"
+            class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
-            <strong class="mb-[0.2rem] block text-sm text-content">{$t("misc.storageModal.hybridTitle")}</strong>
+            <strong class="mb-1 block text-sm text-content">{$t("misc.storageModal.hybridTitle")}</strong>
             <p class="m-0 text-xs text-muted">{$t("misc.storageModal.hybridText")}</p>
           </div>
         </label>
@@ -141,7 +141,7 @@
       <h4 class="m-0 mb-1 text-base text-content">{$t("misc.storageModal.latexHeading")}</h4>
       <p class="m-0 mb-3 text-sm text-muted">{$t("misc.storageModal.latexDescription")}</p>
 
-      <div class="flex flex-col gap-[0.6rem] sm:grid sm:grid-cols-3 sm:gap-3">
+      <div class="flex flex-col gap-2.5 @xl:grid @xl:grid-cols-3 @xl:gap-3">
         <label class={$storagePolicyStore.latexCompilation === "local" ? optionCardActive : optionCardBase}>
           <input
             type="radio"
@@ -149,10 +149,10 @@
             value="local"
             checked={$storagePolicyStore.latexCompilation === "local"}
             on:change={() => handleLatexChange("local")}
-            class="mt-[0.2rem]"
+            class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
-            <strong class="mb-[0.2rem] block text-sm text-content">{$t("misc.storageModal.latexLocalTitle")}</strong>
+            <strong class="mb-1 block text-sm text-content">{$t("misc.storageModal.latexLocalTitle")}</strong>
             <p class="m-0 text-xs text-muted">{$t("misc.storageModal.latexLocalText")}</p>
           </div>
         </label>
@@ -164,10 +164,10 @@
             value="server"
             checked={$storagePolicyStore.latexCompilation === "server"}
             on:change={() => handleLatexChange("server")}
-            class="mt-[0.2rem]"
+            class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
-            <strong class="mb-[0.2rem] block text-sm text-content">{$t("misc.storageModal.latexServerTitle")}</strong>
+            <strong class="mb-1 block text-sm text-content">{$t("misc.storageModal.latexServerTitle")}</strong>
             <p class="m-0 text-xs text-muted">{$t("misc.storageModal.latexServerText")}</p>
           </div>
         </label>
@@ -183,7 +183,7 @@
           placeholder={$t("misc.storageModal.backendPlaceholder")}
           class="flex-1"
         />
-        <Button variant="primary" onClick={handleSaveBackendUrl}>{$t("common.save")}</Button>
+        <Button onClick={handleSaveBackendUrl}>{$t("common.save")}</Button>
       </div>
     </div>
   </div>
@@ -192,7 +192,7 @@
     <a href="/settings" class="mr-auto text-sm text-accent no-underline hover:underline" on:click={handleClose}>
       {$t("misc.storageModal.fullSettingsLink")}
     </a>
-    <Button variant="secondary" onClick={handleClose}>{$t("common.close")}</Button>
+    <Button variant="outlined" severity="secondary" onClick={handleClose}>{$t("common.close")}</Button>
   </svelte:fragment>
 </Modal>
 

@@ -23,8 +23,8 @@
   }
 </script>
 
-<Modal open={$httpErrorStore.isOpen} size="md" title={statusText} onClose={handleClose}>
-  <div class="flex min-h-[200px] items-center justify-center rounded-md border border-line bg-surface-base p-8">
+<Modal open={$httpErrorStore.isOpen} size="small" title={statusText} onClose={handleClose}>
+  <div class="flex min-h-48 items-center justify-center rounded-md border border-line bg-surface-base p-8">
     <div class="flex flex-col items-center gap-2 text-center text-muted">
       <div class="text-4xl font-bold text-danger-fg">{status}</div>
     </div>

@@ -8,6 +8,8 @@
   } from "$lib/stores/backendStore";
   import { getRecentValues, recordValue, removeValue } from "$lib/utils/recentValues";
   import { t } from "$lib/i18n";
+  import { faCheck, faChevronDown, faXmark } from "@fortawesome/free-solid-svg-icons";
+  import { Icon } from "$lib/components/ui";
 
   export let value: string = "";
   export let id: string | undefined = undefined;
@@ -254,10 +256,10 @@
 
 <div
   bind:this={wrapperEl}
-  class="backend-url-control relative flex items-stretch w-full min-w-0 rounded-md border border-line bg-surface-base transition-colors focus-within:border-accent focus-within:ring-1 focus-within:ring-focus {className}"
+  class="relative flex w-full min-w-0 items-stretch overflow-hidden rounded-md border border-line-strong bg-control transition-colors focus-within:border-accent focus-within:ring-1 focus-within:ring-focus {className}"
 >
   <span
-    class="protocol-prefix inline-flex items-center px-2.5 sm:px-3 text-xs sm:text-sm font-mono font-medium text-muted select-none border-r border-line bg-surface-raised shrink-0"
+    class="inline-flex shrink-0 items-center border-r border-line bg-surface-inset px-2.5 font-mono text-xs font-medium text-muted select-none sm:px-3 sm:text-sm"
     title="Protocol: {protocol}//"
     aria-label="Protocol: {protocol}//"
   >
@@ -276,7 +278,7 @@
     {placeholder}
     {required}
     {disabled}
-    class="backend-url-field flex-1 min-w-0"
+    class="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent py-2 pr-2 pl-3 text-base text-content shadow-none outline-none placeholder:text-muted"
     role="combobox"
     aria-expanded={isOpen}
     aria-controls={isOpen ? dropdownId : undefined}
@@ -284,32 +286,20 @@
   />
   <button
     type="button"
-    class="dropdown-toggle-btn flex items-center justify-center px-2.5 text-muted hover:text-content focus:outline-none transition-colors shrink-0"
+    class="flex shrink-0 items-center justify-center px-2.5 text-muted transition-colors hover:text-content focus:outline-none pointer-coarse:min-w-11"
     on:mousedown|preventDefault={toggleDropdown}
     tabindex="-1"
     aria-label="Toggle server suggestions"
     {disabled}
   >
-    <svg
-      class="w-3.5 h-3.5 transition-transform duration-200"
-      class:rotate-180={isOpen}
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        fill-rule="evenodd"
-        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-        clip-rule="evenodd"
-      />
-    </svg>
+    <Icon icon={faChevronDown} class="text-xs transition-transform duration-200 {isOpen ? 'rotate-180' : ''}" />
   </button>
 </div>
 
 {#if isOpen && !disabled}
   <ul
     id={dropdownId}
-    class="scroll-pane m-0 list-none overflow-y-auto overscroll-contain rounded-md border border-line bg-surface-raised p-1 shadow-2xl"
+    class="scroll-pane m-0 list-none overflow-y-auto overscroll-contain rounded-md border border-line bg-surface-raised p-1 shadow-md"
     style={dropdownStyle}
     role="listbox"
   >
@@ -330,12 +320,12 @@
           <div class="flex items-center gap-2 min-w-0 flex-1">
             <span class="truncate font-mono text-xs sm:text-sm">{suggestion.host}</span>
             {#if isCurrent}
-              <span class="text-xs text-accent font-bold shrink-0" title="Selected">✓</span>
+              <Icon icon={faCheck} class="shrink-0 text-xs text-accent" label="Selected" />
             {/if}
           </div>
           <div class="flex items-center gap-1.5 shrink-0">
             <span
-              class="px-1.5 py-0.5 rounded-sm text-xs font-semibold uppercase tracking-wider {suggestion.label === 'Local' ? 'bg-success/20 text-success-fg border border-success/30' : suggestion.label === 'Preview' ? 'bg-warning/20 text-warning-fg border border-warning/30' : suggestion.label === 'Production' ? 'bg-highlight text-accent border border-primary/30' : 'bg-surface-inset/60 text-content border border-line-strong'}"
+              class="px-1.5 py-0.5 rounded-md text-xs font-semibold {suggestion.label === 'Local' ? 'bg-success/20 text-success-fg border border-success/30' : suggestion.label === 'Preview' ? 'bg-warning/20 text-warning-fg border border-warning/30' : suggestion.label === 'Production' ? 'bg-highlight text-accent border border-primary/30' : 'bg-surface-inset/60 text-content border border-line-strong'}"
             >
               {suggestion.label}
             </span>
@@ -344,10 +334,10 @@
                 type="button"
                 title={$t("exercises.suggestInput.removeEntry")}
                 aria-label={$t("exercises.suggestInput.removeEntry")}
-                class="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-xs text-muted opacity-60 transition-opacity hover:bg-danger/30 hover:text-danger-fg group-hover:opacity-100"
+                class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-xs text-muted opacity-60 transition-opacity hover:bg-danger/30 hover:text-danger-fg group-hover:opacity-100"
                 on:mousedown|preventDefault|stopPropagation={(e) => handleRemove(e, suggestion.host)}
               >
-                ✕
+                <Icon icon={faXmark} />
               </button>
             {/if}
           </div>
@@ -356,32 +346,3 @@
     {/if}
   </ul>
 {/if}
-
-<style>
-  .protocol-prefix {
-    border-top-left-radius: calc(0.375rem - 1px);
-    border-bottom-left-radius: calc(0.375rem - 1px);
-  }
-
-  .backend-url-control :global(input.backend-url-field) {
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-    background: transparent !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
-    height: 100% !important;
-    padding-top: 0.55rem !important;
-    padding-bottom: 0.55rem !important;
-    padding-left: 0.75rem !important;
-    padding-right: 0.5rem !important;
-    color: #f8fafc !important;
-    font-size: 1rem !important;
-  }
-
-  .backend-url-control :global(input.backend-url-field:focus) {
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-  }
-</style>

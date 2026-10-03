@@ -6,7 +6,7 @@
    */
   import { get } from 'svelte/store';
   import { t, translate } from '$lib/i18n';
-  import { Modal, Button } from '$lib/components/ui';
+  import { Alert, Badge, Button, Checkbox, Modal } from '$lib/components/ui';
   import { isAuthenticated } from '$lib/stores/session';
   import { getStoragePolicyBadge, type StorageMode } from '$lib/stores/storagePolicy';
   import {
@@ -105,7 +105,7 @@
 
 <Modal
   {open}
-  size="lg"
+  size="medium"
   title={$t('storagePolicy.switch.title')}
   closeOnBackdrop={false}
   closeOnEscape={!busy}
@@ -114,8 +114,8 @@
   {#if pending}
     <ol class="mb-4 flex flex-wrap gap-2 text-xs text-muted">
       {#each STEPS as step, i (step.phase)}
-        <li class="rounded-full px-2 py-1 {phase === step.phase ? 'bg-primary text-content' : 'bg-surface-sunken'}">
-          {i + 1}. {$t(step.label)}
+        <li>
+          <Badge severity={phase === step.phase ? 'primary' : 'secondary'}>{i + 1}. {$t(step.label)}</Badge>
         </li>
       {/each}
     </ol>
@@ -128,10 +128,7 @@
         <p>{$t('storagePolicy.switch.introBody')}</p>
         <p>{$t('storagePolicy.switch.bridgeNote')}</p>
         <p class="text-muted">{$t('storagePolicy.switch.serverKeptNote')}</p>
-        <label class="flex items-start gap-2 pt-2 text-content">
-          <input type="checkbox" bind:checked={understood} class="mt-1" />
-          <span>{$t('storagePolicy.switch.understandCheckbox')}</span>
-        </label>
+        <Checkbox bind:checked={understood} label={$t('storagePolicy.switch.understandCheckbox')} class="pt-2" />
       {:else if phase === 'export'}
         <h4 class="font-semibold text-content">{$t('storagePolicy.switch.exportHeading')}</h4>
         <p>{$t('storagePolicy.switch.exportBody')}</p>
@@ -160,31 +157,31 @@
   {/if}
 
   {#if errorMsg}
-    <p class="mt-3 whitespace-pre-wrap text-sm text-danger-fg">{errorMsg}</p>
+    <Alert severity="danger" class="mt-3 whitespace-pre-wrap">{errorMsg}</Alert>
   {/if}
 
   <svelte:fragment slot="footer">
     {#if phase === 'reimport'}
-      <Button variant="secondary" disabled={busy} onClick={handleImportLater}>
+      <Button variant="outlined" severity="secondary" disabled={busy} onClick={handleImportLater}>
         {$t('storagePolicy.switch.importSkip')}
       </Button>
     {:else if pending}
-      <Button variant="secondary" disabled={busy} onClick={handleCancel}>
+      <Button variant="outlined" severity="secondary" disabled={busy} onClick={handleCancel}>
         {$t('storagePolicy.switch.cancel')}
       </Button>
       {#if phase === 'confirm'}
-        <Button variant="primary" disabled={!understood} onClick={requireExport}>
+        <Button disabled={!understood} onClick={requireExport}>
           {$t('storagePolicy.switch.stepExport')}
         </Button>
       {:else if phase === 'export'}
-        <Button variant="ghost" disabled={busy} onClick={() => markExported()}>
+        <Button variant="text" severity="secondary" disabled={busy} onClick={() => markExported()}>
           {$t(workspaceEmpty ? 'storagePolicy.switch.skipExportEmpty' : 'storagePolicy.switch.skipExportHaveArchive')}
         </Button>
-        <Button variant="primary" loading={busy} onClick={() => run(handleExport)}>
+        <Button loading={busy} onClick={() => run(handleExport)}>
           {$t('storagePolicy.switch.exportButton')}
         </Button>
       {:else if phase === 'exported'}
-        <Button variant="danger" loading={busy} onClick={() => run(commitModeSwitch)}>
+        <Button severity="danger" loading={busy} onClick={() => run(commitModeSwitch)}>
           {$t('storagePolicy.switch.wipeButton')}
         </Button>
       {/if}

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./+page.css";
   import { goto } from "$app/navigation";
   import { t, translate } from "$lib/i18n";
   import { deriveKey, deriveKeyWithFallback, generateSalt, getUserSalt, getUserSessionNonce } from "$lib/crypto/keyDerivation";
@@ -16,6 +15,7 @@
   import { Argon2UnavailableError } from "$lib/crypto/keyDerivation";
   import { backendStore } from "$lib/stores/backendStore";
   import { get } from "svelte/store";
+  import { Card, PageShell } from "$lib/components/ui";
   import UnlockForm from "$lib/components/unlock/UnlockForm.svelte";
   import {
     FactorChooser,
@@ -760,7 +760,7 @@
   }
 </script>
 
-<div class="unlock-container flex min-h-full flex-col items-center justify-center box-border px-4 py-8 sm:px-6 sm:py-12">
+<PageShell width="medium" class="flex min-h-full flex-col justify-center gap-4">
   <!--
     Above the step rather than inside one: the cooloff can be hit from the form,
     from the second factor and from the vault prompt alike, and it is the same
@@ -769,15 +769,15 @@
   <LockoutNotice />
 
   {#if isFinishing}
-    <div class="w-full max-w-form rounded-xl border border-line bg-surface-raised p-5 sm:p-6">
+    <Card class="mx-auto w-full max-w-form sm:p-6">
       <SigningInStep email={finishingEmail} />
-    </div>
+    </Card>
   {:else if authStep && authStep.status === "factor_required"}
     <!--
       One factor is in. The password stays in memory until the vault is open,
       so this step is rendered in place of the form rather than on a new route.
     -->
-    <div class="w-full max-w-form rounded-xl border border-line bg-surface-raised p-5 sm:p-6">
+    <Card class="mx-auto w-full max-w-form sm:p-6">
       <FactorChooser
         available={chooserFactors}
         {passkeyPending}
@@ -786,15 +786,15 @@
         onPasskey={() => handlePasskey()}
         errorMsg={factorErrorMsg}
       />
-    </div>
+    </Card>
   {:else if vaultLocked}
-    <div class="w-full max-w-form rounded-xl border border-line bg-surface-raised p-5 sm:p-6">
+    <Card class="mx-auto w-full max-w-form sm:p-6">
       <VaultUnlockStep
         passkeyCanHeal={passkeyToHeal !== null}
         onPassword={handleVaultPassword}
         onRecoveryCode={handleVaultRecovery}
       />
-    </div>
+    </Card>
   {:else}
     <UnlockForm
       bind:backendUrl
@@ -811,7 +811,7 @@
       onPasskey={canUsePasskeys ? () => handlePasskey() : undefined}
     />
   {/if}
-</div>
+</PageShell>
 
 {#if authStep && authStep.status === "enroll_required"}
   <TotpEnrollDialog onEnrolled={handleEnrolled} />
