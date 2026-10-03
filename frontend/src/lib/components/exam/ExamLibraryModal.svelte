@@ -80,37 +80,37 @@
     previewModalEx = null;
   }
 
-  const tabBtnBase =
-    "cursor-pointer rounded-md border border-line bg-transparent px-[0.9rem] py-[0.4rem] text-sm font-medium text-muted transition-all duration-150 ease-[ease] hover:enabled:bg-surface-inset hover:enabled:text-content disabled:cursor-not-allowed disabled:opacity-40";
-  const tabBtnActive =
-    "cursor-pointer rounded-md border border-accent bg-primary px-[0.9rem] py-[0.4rem] text-sm font-semibold text-primary-contrast";
 </script>
 
-<Modal open={isOpen} size="lg" title={$t("exam.libraryModal.header")} onClose={onRequestClose}>
+<Modal open={isOpen} size="large" title={$t("exam.libraryModal.header")} onClose={onRequestClose}>
   <div class="flex flex-col gap-4">
     <div class="flex gap-2 border-b border-line pb-3">
-      <button
-        type="button"
-        class={activeTab === 'normal' ? tabBtnActive : tabBtnBase}
+      <Button
+        size="sm"
+        variant="outlined"
+        severity="secondary"
+        pressed={activeTab === 'normal'}
         disabled={Boolean(editingMcGroup)}
         title={editingMcGroup ? $t("exam.libraryModal.finishEditingFirst") : $t("exam.libraryModal.showNormalExercises")}
-        on:click={() => (activeTab = 'normal')}
+        onClick={() => (activeTab = 'normal')}
       >
         {$t("exam.libraryModal.normalTab")}
-      </button>
-      <button
-        type="button"
-        class={activeTab === 'mc' ? tabBtnActive : tabBtnBase}
-        on:click={() => (activeTab = 'mc')}
+      </Button>
+      <Button
+        size="sm"
+        variant="outlined"
+        severity="secondary"
+        pressed={activeTab === 'mc'}
+        onClick={() => (activeTab = 'mc')}
       >
         {$t("exam.libraryModal.mcTab")}
-      </button>
+      </Button>
     </div>
 
     <div
-      class="flex min-h-0 flex-1 flex-col gap-4 {activeTab === 'mc' ? 'lg:flex-row lg:items-stretch' : ''}"
+      class="flex min-h-0 flex-1 flex-col gap-4 {activeTab === 'mc' ? '@3xl:flex-row @3xl:items-stretch' : ''}"
     >
-      <div class="flex min-h-0 min-w-0 flex-1 flex-col {activeTab === 'mc' ? 'lg:flex-[1_1_62%]' : ''}">
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col {activeTab === 'mc' ? '@3xl:flex-[1_1_62%]' : ''}">
         <ExerciseLibraryPicker
           {filteredGroups}
           {totalVariantsCount}
@@ -135,7 +135,7 @@
       </div>
 
       {#if activeTab === 'mc'}
-        <div class="max-h-[45vh] min-w-0 flex-shrink-0 overflow-y-auto lg:max-h-none lg:flex-[0_0_clamp(340px,34%,460px)]">
+        <div class="max-h-[45dvh] min-w-0 flex-shrink-0 overflow-y-auto @3xl:max-h-none @3xl:flex-[0_0_clamp(340px,34%,460px)]">
           <McGroupStagingPanel
             stagedExercises={mcStagingExercises}
             editingGroup={editingMcGroup}
@@ -149,8 +149,8 @@
   </div>
 
   <svelte:fragment slot="footer">
-    <Button variant="secondary" onClick={onRequestClose}>{$t("common.cancel")}</Button>
-    <Button variant="primary" onClick={onApply}>{$t("exam.libraryModal.applyButton")}</Button>
+    <Button variant="outlined" severity="secondary" onClick={onRequestClose}>{$t("common.cancel")}</Button>
+    <Button onClick={onApply}>{$t("exam.libraryModal.applyButton")}</Button>
   </svelte:fragment>
 </Modal>
 

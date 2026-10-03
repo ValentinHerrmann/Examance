@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./+page.css";
   import { onMount, onDestroy } from "svelte";
   import { db } from "$lib/db/db";
   import { sessionStore, isAuthenticated, awaitSessionReady } from "$lib/stores/session";
@@ -31,7 +30,7 @@
   import ExamLivePreviewPanel from "$lib/components/exam-creation/ExamLivePreviewPanel.svelte";
   import { formatExamCourse } from "$lib/utils/examLabel";
   import { t, translate } from "$lib/i18n";
-  import { PageShell, PageHeader } from "$lib/components/ui";
+  import { PageShell, PageHeader, Alert, Button } from "$lib/components/ui";
 
   // This is exam CONTENT written into the `datum` field and printed verbatim in the
   // German exam PDF (see \Datum in the LaTeX preamble below) — not UI copy, so it is
@@ -727,92 +726,101 @@ ${exerciseInputs}
   }
 </script>
 
-<PageShell>
+<PageShell width="fluid">
   <PageHeader title={$t("examCreation.page.heading")} helpTopic="examCreation" />
 
   {#if errorMsg}
-    <div class="exam-new-error-banner overflow-x-auto">{errorMsg}</div>
+    <Alert severity="danger" class="mb-6">
+      <div class="max-h-72 overflow-auto font-mono break-all whitespace-pre-wrap">{errorMsg}</div>
+    </Alert>
   {/if}
 
-  <form on:submit|preventDefault={handleCreateExam}>
-    <ExamMetadataForm
-      bind:title
-      bind:testart
-      bind:grade
-      bind:klasse
-      bind:nr
-      bind:datum
-      bind:fach
-      bind:lehrernachname
-      bind:infoText
-    />
+  <form on:submit|preventDefault={handleCreateExam} class="@container">
+    <div class="grid min-w-0 grid-cols-1 gap-x-6 @6xl:grid-cols-2 @6xl:items-start">
+      <div class="min-w-0">
+        <ExamMetadataForm
+          bind:title
+          bind:testart
+          bind:grade
+          bind:klasse
+          bind:nr
+          bind:datum
+          bind:fach
+          bind:lehrernachname
+          bind:infoText
+        />
 
-    <!-- Grading Key Section -->
-    <div class="mb-6">
-      <GradingKeyEditor bind:gradingKey />
+        <!-- Grading Key Section -->
+        <div class="mb-6">
+          <GradingKeyEditor bind:gradingKey />
+        </div>
+
+        <ExerciseSelector
+          bind:activeTab
+          {selectedLibraryIds}
+          {mcStagingIds}
+          {mcGroupMembership}
+          {editingMcGroup}
+          {libraryExercises}
+          {filteredGroups}
+          {totalVariantsCount}
+          {availableGrades}
+          {availableSubjects}
+          {availableTopics}
+          bind:searchQuery
+          bind:selectedGradeFilter
+          bind:selectedSubjectFilter
+          bind:selectedTopicFilter
+          {activeVariantPerGroup}
+          bind:customName
+          bind:customTopicTag
+          bind:customLatexBody
+          bind:saveCustomToLibrary
+          onToggleSelection={toggleLibrarySelection}
+          onToggleMcStaging={toggleMcStaging}
+          onReorderMcStaging={reorderMcStaging}
+          onFinalizeMcGroup={finalizeMcGroup}
+          onSetGroupVariant={setGroupVariant}
+          onQuickEdit={openQuickEdit}
+          onAddCustomExercise={handleAddCustomExercise}
+        />
+      </div>
+
+      <div class="min-w-0">
+        <SelectedExercisesList
+          {selectedExercises}
+          {mcGroups}
+          {examItems}
+          {libraryExercises}
+          {totalPoints}
+          {isPreviewLoading}
+          onLivePreview={handleLivePreview}
+          onQuickEdit={openQuickEdit}
+          onMoveExercise={moveExercise}
+          onMoveExamItem={moveExamItem}
+          onRemove={toggleLibrarySelection}
+          onRemoveMcGroup={removeMcGroup}
+          onEditMcGroup={editMcGroup}
+        />
+
+        <ExamLivePreviewPanel
+          {previewPdfUrl}
+          {previewSolutionPdfUrl}
+          bind:showAngabePreview
+          bind:showLoesungPreview
+        />
+
+        <Button
+          type="submit"
+          size="lg"
+          block
+          loading={isLoading}
+          disabled={isLoading || (selectedExercises.length === 0 && mcGroups.length === 0)}
+        >
+          {isLoading ? $t("examCreation.status.creatingExam") : $t("examCreation.submit.saveAndContinue")}
+        </Button>
+      </div>
     </div>
-
-    <ExerciseSelector
-      bind:activeTab
-      {selectedLibraryIds}
-      {mcStagingIds}
-      {mcGroupMembership}
-      {editingMcGroup}
-      {libraryExercises}
-      {filteredGroups}
-      {totalVariantsCount}
-      {availableGrades}
-      {availableSubjects}
-      {availableTopics}
-      bind:searchQuery
-      bind:selectedGradeFilter
-      bind:selectedSubjectFilter
-      bind:selectedTopicFilter
-      {activeVariantPerGroup}
-      bind:customName
-      bind:customTopicTag
-      bind:customLatexBody
-      bind:saveCustomToLibrary
-      onToggleSelection={toggleLibrarySelection}
-      onToggleMcStaging={toggleMcStaging}
-      onReorderMcStaging={reorderMcStaging}
-      onFinalizeMcGroup={finalizeMcGroup}
-      onSetGroupVariant={setGroupVariant}
-      onQuickEdit={openQuickEdit}
-      onAddCustomExercise={handleAddCustomExercise}
-    />
-
-    <SelectedExercisesList
-      {selectedExercises}
-      {mcGroups}
-      {examItems}
-      {libraryExercises}
-      {totalPoints}
-      {isPreviewLoading}
-      onLivePreview={handleLivePreview}
-      onQuickEdit={openQuickEdit}
-      onMoveExercise={moveExercise}
-      onMoveExamItem={moveExamItem}
-      onRemove={toggleLibrarySelection}
-      onRemoveMcGroup={removeMcGroup}
-      onEditMcGroup={editMcGroup}
-    />
-
-    <ExamLivePreviewPanel
-      {previewPdfUrl}
-      {previewSolutionPdfUrl}
-      bind:showAngabePreview
-      bind:showLoesungPreview
-    />
-
-    <button
-      type="submit"
-      class="exam-new-submit-btn"
-      class:is-loading={isLoading}
-      disabled={isLoading || (selectedExercises.length === 0 && mcGroups.length === 0)}
-    >
-      {isLoading ? $t("examCreation.status.creatingExam") : $t("examCreation.submit.saveAndContinue")}
-    </button>
   </form>
 
   <ExerciseEditorModal

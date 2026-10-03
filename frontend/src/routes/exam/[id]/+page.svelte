@@ -1,5 +1,4 @@
 <script lang="ts">
-  import "./+page.css";
   import { page } from "$app/stores";
   export let params;
   import { onMount, onDestroy } from "svelte";
@@ -69,7 +68,7 @@
     toggleStaged,
   } from "$lib/exam/mcGroupStaging";
   import { t, translate } from "$lib/i18n";
-  import { Button } from "$lib/components/ui";
+  import { Alert, Button, Card, PageHeader, PageShell } from "$lib/components/ui";
 
   $: examId = $page.params.id || "";
 
@@ -1326,22 +1325,29 @@ ${exerciseInputs}
   }
 </script>
 
-<div class="exam-detail-page">
+<PageShell width="fluid">
+  <PageHeader title={$t("exam.sidebar.setup")} />
+
   {#if isLocalFallback}
-    <div class="local-fallback-banner flex-wrap">
-      <span>{$t("exam.page.localFallback.banner")}</span>
-      <button
-        class="sync-now-btn"
-        on:click={syncCurrentExamToServer}
-        disabled={isSyncingSingle}
-      >
-        {isSyncingSingle ? $t("exam.page.localFallback.syncing") : $t("exam.page.localFallback.syncNow")}
-      </button>
-    </div>
+    <Alert severity="warning" class="mb-6">
+      {$t("exam.page.localFallback.banner")}
+      <svelte:fragment slot="actions">
+        <Button
+          size="sm"
+          variant="outlined"
+          severity="warning"
+          onClick={syncCurrentExamToServer}
+          disabled={isSyncingSingle}
+          loading={isSyncingSingle}
+        >
+          {isSyncingSingle ? $t("exam.page.localFallback.syncing") : $t("exam.page.localFallback.syncNow")}
+        </Button>
+      </svelte:fragment>
+    </Alert>
   {/if}
 
   {#if !exam}
-    <div class="loading">{$t("exam.page.loading")}</div>
+    <div class="text-muted">{$t("exam.page.loading")}</div>
   {:else}
     <ExamMetadata
       {exam}
@@ -1393,76 +1399,74 @@ ${exerciseInputs}
 />
 
     {#if exportSuccess}
-      <div class="exam-success-banner">
-        {$t("exam.page.export.successBanner")}
-      </div>
+      <Alert severity="success" class="mb-6">{$t("exam.page.export.successBanner")}</Alert>
     {/if}
 
-    <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-2">
-      <div class="pdf-compile-section min-w-0">
-      <h3>{$t("exam.page.compileSection.heading")}</h3>
-      <p class="desc">
-        {$t("exam.page.compileSection.description")}
-      </p>
+    <div class="grid min-w-0 grid-cols-1 items-start gap-6 @6xl:grid-cols-2">
+      <Card title={$t("exam.page.compileSection.heading")}>
+        <p class="mb-4 text-sm text-muted">
+          {$t("exam.page.compileSection.description")}
+        </p>
 
-      <div class="exam-controls-row">
-        <Button
-          onClick={handlePreviewExam}
-          loading={isPreviewLoading || isPreparingOmr}
-          disabled={isPreviewLoading || isPreparingOmr || exercises.length === 0}
-          title={$t("exam.page.compileSection.liveTooltip")}
-        >
-          {isPreviewLoading
-            ? $t("exam.page.preview.compilingPreviews")
-            : isPreparingOmr
-              ? $t("exam.page.omr.preparing")
-              : $t("exam.page.preview.liveButton")}
-        </Button>
-      </div>
-
-      {#if omrTemplateStatus === "stale"}
-        <div class="exam-notice exam-notice--warning flex items-center justify-between">
-          <span>
-            {$t("exam.page.omr.staleWarning")}
-          </span>
-          <button
-            type="button"
-            class="ml-3 text-xs underline font-medium text-warning-fg hover:text-warning-fg disabled:opacity-50 cursor-pointer"
-            on:click={handlePrepareOmr}
-            disabled={isPreparingOmr}
+        <div class="flex flex-wrap items-center gap-4">
+          <Button
+            onClick={handlePreviewExam}
+            loading={isPreviewLoading || isPreparingOmr}
+            disabled={isPreviewLoading || isPreparingOmr || exercises.length === 0}
+            title={$t("exam.page.compileSection.liveTooltip")}
           >
-            {isPreparingOmr ? $t("exam.page.omr.refreshing") : $t("exam.page.omr.refreshNow")}
-          </button>
+            {isPreviewLoading
+              ? $t("exam.page.preview.compilingPreviews")
+              : isPreparingOmr
+                ? $t("exam.page.omr.preparing")
+                : $t("exam.page.preview.liveButton")}
+          </Button>
         </div>
-      {/if}
-      {#if omrPrepareMessage}
-        <div class="exam-notice">{omrPrepareMessage}</div>
-      {/if}
 
-      {#if previewPdfUrl || previewSolutionPdfUrl}
-        <div style="margin-top: 1rem;">
-          <DualPdfPreview
-            {previewPdfUrl}
-            {previewSolutionPdfUrl}
-            bind:showAngabePreview
-            bind:showLoesungPreview
-            titleAngabe={$t("exam.page.pdfPreview.titleAngabe")}
-            titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
-            height="550px"
-            placeholderText={$t("exam.page.pdfPreview.placeholder")}
-          />
-        </div>
-      {/if}
+        {#if omrTemplateStatus === "stale"}
+          <Alert severity="warning" class="mt-3">
+            {$t("exam.page.omr.staleWarning")}
+            <svelte:fragment slot="actions">
+              <Button
+                size="sm"
+                variant="outlined"
+                severity="warning"
+                onClick={handlePrepareOmr}
+                disabled={isPreparingOmr}
+              >
+                {isPreparingOmr ? $t("exam.page.omr.refreshing") : $t("exam.page.omr.refreshNow")}
+              </Button>
+            </svelte:fragment>
+          </Alert>
+        {/if}
+        {#if omrPrepareMessage}
+          <Alert severity="info" class="mt-3">{omrPrepareMessage}</Alert>
+        {/if}
 
-      {#if compileNotice}
-        <div class="exam-notice">{compileNotice}</div>
-      {/if}
-      {#if errorMsg}
-        <div class="exam-error-banner overflow-x-auto">{errorMsg}</div>
-      {/if}
-    </div>
+        {#if previewPdfUrl || previewSolutionPdfUrl}
+          <div class="mt-4">
+            <DualPdfPreview
+              {previewPdfUrl}
+              {previewSolutionPdfUrl}
+              bind:showAngabePreview
+              bind:showLoesungPreview
+              titleAngabe={$t("exam.page.pdfPreview.titleAngabe")}
+              titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
+              height="550px"
+              placeholderText={$t("exam.page.pdfPreview.placeholder")}
+            />
+          </div>
+        {/if}
 
- 
+        {#if compileNotice}
+          <Alert severity="info" class="mt-3">{compileNotice}</Alert>
+        {/if}
+        {#if errorMsg}
+          <Alert severity="danger" class="mt-4">
+            <div class="max-h-72 overflow-auto font-mono break-all whitespace-pre-wrap">{errorMsg}</div>
+          </Alert>
+        {/if}
+      </Card>
 
     <div class="min-w-0">
       <ExerciseList
@@ -1480,7 +1484,7 @@ ${exerciseInputs}
     </div>
     </div>
   {/if}
-</div>
+</PageShell>
 
 <ExamLibraryModal
   isOpen={isLibraryModalOpen}

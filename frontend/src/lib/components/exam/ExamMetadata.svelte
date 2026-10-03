@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ExamRecord } from '$lib/db/schema';
   import { t } from '$lib/i18n';
+  import { Alert } from '$lib/components/ui';
 
   export let exam: ExamRecord | null;
   export let totalPoints: number;
@@ -40,8 +41,6 @@
   </div>
 
   {#if storagePolicy === 'all-local'}
-    <div class="mb-6 rounded-md border border-warning bg-surface-raised px-4 py-3 text-sm text-warning-fg">
-      {$t("exam.metadata.localBanner")}
-    </div>
+    <Alert severity="warning" class="mb-6">{$t("exam.metadata.localBanner")}</Alert>
   {/if}
 {/if}

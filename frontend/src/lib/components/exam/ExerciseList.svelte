@@ -6,12 +6,13 @@
 </script>
 
 <script lang="ts">
-  import "./ExerciseList.css";
   import type { ExerciseRecord } from '$lib/db/schema';
   import { parseExerciseScore } from '$lib/latex/scoreParser';
   import { mcSubLabel } from '$lib/grading/mcGroupLabels';
   import ExerciseLabel from '$lib/components/exam/ExerciseLabel.svelte';
   import { t } from '$lib/i18n';
+  import { faArrowUp, faArrowDown, faXmark } from '@fortawesome/free-solid-svg-icons';
+  import { Badge, Button } from '$lib/components/ui';
 
   interface McGroup {
     id: string;
@@ -47,85 +48,97 @@
     );
   }
 
+  const rowClass = "mb-2 flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md border border-line bg-surface-raised px-4 py-3";
+  const infoClass = "flex min-w-0 flex-wrap items-center gap-3";
+  const actionsClass = "flex shrink-0 gap-1";
+
   $: totalItemCount = examItems.length > 0 ? examItems.length : exercises.length + mcGroups.length;
 </script>
 
-<div class="exercise-list">
-  <h3>{$t("exam.exerciseList.heading", { count: totalItemCount })}</h3>
+<div class="mb-6 min-w-0">
+  <h2 class="mb-3 text-xl font-semibold text-content">{$t("exam.exerciseList.heading", { count: totalItemCount })}</h2>
 
   {#if examItems.length > 0}
     {#each examItems as item, idx (item.id)}
       {#if item.type === "exercise"}
         {@const exercise = exercises.find((e) => e.id === item.id) || libraryExercises.find((e) => e.id === item.id)}
         {#if exercise}
-          <div class="exercise-item">
-            <div class="exercise-info">
-              <span class="exercise-number">{idx + 1}.</span>
-              <span class="exercise-title"><ExerciseLabel {exercise} /></span>
+          <div class={rowClass}>
+            <div class={infoClass}>
+              <span class="font-semibold text-muted">{idx + 1}.</span>
+              <span class="min-w-0 text-content"><ExerciseLabel {exercise} /></span>
               {#if exercise.topicTag}
-                <span class="exercise-tag topic">{exercise.topicTag}</span>
+                <Badge severity="secondary">{exercise.topicTag}</Badge>
               {/if}
               {#if exercise.questionType && exercise.questionType !== 'free_text'}
-                <span class="exercise-tag topic" style="background-color: #0284c7; color: white;">{exercise.questionType.toUpperCase()}</span>
+                <Badge severity="primary">{exercise.questionType.toUpperCase()}</Badge>
               {/if}
-              <span class="exercise-points">{exercise.maxPoints} {$t("exam.exerciseList.points")}</span>
+              <span class="text-sm text-muted">{exercise.maxPoints} {$t("exam.exerciseList.points")}</span>
             </div>
-            <div class="exercise-actions">
-              <button
-                class="exercise-move-btn"
-                on:click={() => onMoveExamItem ? onMoveExamItem(idx, "up") : (onMoveUp && onMoveUp(idx))}
+            <div class={actionsClass}>
+              <Button
+                size="sm" variant="text" severity="secondary" iconOnly icon={faArrowUp}
+                ariaLabel={$t("exam.mcStagingPanel.moveUp")}
+                onClick={() => onMoveExamItem ? onMoveExamItem(idx, "up") : (onMoveUp && onMoveUp(idx))}
                 disabled={idx === 0}
-              >↑</button>
-              <button
-                class="exercise-move-btn"
-                on:click={() => onMoveExamItem ? onMoveExamItem(idx, "down") : (onMoveDown && onMoveDown(idx))}
+              />
+              <Button
+                size="sm" variant="text" severity="secondary" iconOnly icon={faArrowDown}
+                ariaLabel={$t("exam.mcStagingPanel.moveDown")}
+                onClick={() => onMoveExamItem ? onMoveExamItem(idx, "down") : (onMoveDown && onMoveDown(idx))}
                 disabled={idx === examItems.length - 1}
-              >↓</button>
-              <button class="exercise-remove-btn" on:click={() => onRemove(exercise.id)}>✕</button>
+              />
+              <Button
+                size="sm" variant="text" severity="danger" iconOnly icon={faXmark}
+                ariaLabel={$t("exam.mcStagingPanel.remove")}
+                onClick={() => onRemove(exercise.id)}
+              />
             </div>
           </div>
         {/if}
       {:else if item.type === "mc_group"}
         {@const group = mcGroups.find((g) => g.id === item.id)}
         {#if group}
-          <div class="exercise-item" style="flex-direction: column; align-items: stretch; gap: 0.4rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-              <div class="exercise-info">
-                <span class="exercise-number">{idx + 1}.</span>
-                <strong class="exercise-title">{$t("exam.exerciseList.mcGroupLabel", { title: group.title })}</strong>
-                <span class="exercise-tag topic" style="background-color: #0369a1; color: white;">{$t("exam.exerciseList.subExercisesCount", { count: memberExercises(group).length })}</span>
-                <span class="exercise-points">{groupPoints(group)} {$t("exam.exerciseList.points")}</span>
+          <div class="{rowClass} flex-col items-stretch gap-1.5">
+            <div class="flex w-full min-w-0 items-center justify-between gap-2">
+              <div class={infoClass}>
+                <span class="font-semibold text-muted">{idx + 1}.</span>
+                <strong class="min-w-0 text-content">{$t("exam.exerciseList.mcGroupLabel", { title: group.title })}</strong>
+                <Badge severity="primary">{$t("exam.exerciseList.subExercisesCount", { count: memberExercises(group).length })}</Badge>
+                <span class="text-sm text-muted">{groupPoints(group)} {$t("exam.exerciseList.points")}</span>
               </div>
-              <div class="exercise-actions">
+              <div class={actionsClass}>
                 {#if onEditMcGroup}
-                  <button
-                    type="button"
-                    class="exercise-edit-btn"
-                    on:click={() => onEditMcGroup(group.id)}
-                    style="background: none; border: none; color: #38bdf8; cursor: pointer; font-size: 0.85rem; padding: 0 4px;"
+                  <Button
+                    size="sm" variant="text"
+                    onClick={() => onEditMcGroup(group.id)}
                     title={$t("exam.exerciseList.editGroup")}
-                  >{$t("exam.exerciseList.editGroupButton")}</button>
+                  >{$t("exam.exerciseList.editGroupButton")}</Button>
                 {/if}
                 {#if onMoveExamItem}
-                  <button
-                    type="button"
-                    class="exercise-move-btn"
-                    on:click={() => onMoveExamItem && onMoveExamItem(idx, "up")}
+                  <Button
+                    size="sm" variant="text" severity="secondary" iconOnly icon={faArrowUp}
+                    ariaLabel={$t("exam.mcStagingPanel.moveUp")}
+                    onClick={() => onMoveExamItem && onMoveExamItem(idx, "up")}
                     disabled={idx === 0}
-                  >↑</button>
-                  <button
-                    type="button"
-                    class="exercise-move-btn"
-                    on:click={() => onMoveExamItem && onMoveExamItem(idx, "down")}
+                  />
+                  <Button
+                    size="sm" variant="text" severity="secondary" iconOnly icon={faArrowDown}
+                    ariaLabel={$t("exam.mcStagingPanel.moveDown")}
+                    onClick={() => onMoveExamItem && onMoveExamItem(idx, "down")}
                     disabled={idx === examItems.length - 1}
-                  >↓</button>
+                  />
                 {/if}
                 {#if onRemoveMcGroup}
-                  <button class="exercise-remove-btn" on:click={() => onRemoveMcGroup(group.id)}>✕</button>
+                  <Button
+                    size="sm" variant="text" severity="danger" iconOnly icon={faXmark}
+                    ariaLabel={$t("exam.mcStagingPanel.remove")}
+                    onClick={() => onRemoveMcGroup(group.id)}
+                  />
                 {/if}
               </div>
             </div>
-            <ul style="margin: 0; padding-left: 1.4rem; font-size: 0.85rem; color: #94a3b8;">
+            <ul class="m-0 pl-6 text-sm text-muted">
               {#each memberExercises(group) as ex, i}
                 <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} /></li>
               {/each}
@@ -136,50 +149,48 @@
     {/each}
   {:else}
     {#each exercises as exercise, i (exercise.id)}
-      <div class="exercise-item">
-        <div class="exercise-info">
-          <span class="exercise-number">{i + 1}.</span>
-          <span class="exercise-title"><ExerciseLabel {exercise} /></span>
+      <div class={rowClass}>
+        <div class={infoClass}>
+          <span class="font-semibold text-muted">{i + 1}.</span>
+          <span class="min-w-0 text-content"><ExerciseLabel {exercise} /></span>
           {#if exercise.topicTag}
-            <span class="exercise-tag topic">{exercise.topicTag}</span>
+            <Badge severity="secondary">{exercise.topicTag}</Badge>
           {/if}
           {#if exercise.questionType && exercise.questionType !== 'free_text'}
-            <span class="exercise-tag topic" style="background-color: #0284c7; color: white;">{exercise.questionType.toUpperCase()}</span>
+            <Badge severity="primary">{exercise.questionType.toUpperCase()}</Badge>
           {/if}
-          <span class="exercise-points">{exercise.maxPoints} {$t("exam.exerciseList.points")}</span>
+          <span class="text-sm text-muted">{exercise.maxPoints} {$t("exam.exerciseList.points")}</span>
         </div>
-        <div class="exercise-actions">
-          <button class="exercise-move-btn" on:click={() => onMoveUp && onMoveUp(i)} disabled={i === 0}>↑</button>
-          <button class="exercise-move-btn" on:click={() => onMoveDown && onMoveDown(i)} disabled={i === exercises.length - 1}>↓</button>
-          <button class="exercise-remove-btn" on:click={() => onRemove(exercise.id)}>✕</button>
+        <div class={actionsClass}>
+          <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowUp} ariaLabel={$t("exam.mcStagingPanel.moveUp")} onClick={() => onMoveUp && onMoveUp(i)} disabled={i === 0} />
+          <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowDown} ariaLabel={$t("exam.mcStagingPanel.moveDown")} onClick={() => onMoveDown && onMoveDown(i)} disabled={i === exercises.length - 1} />
+          <Button size="sm" variant="text" severity="danger" iconOnly icon={faXmark} ariaLabel={$t("exam.mcStagingPanel.remove")} onClick={() => onRemove(exercise.id)} />
         </div>
       </div>
     {/each}
 
     {#each mcGroups as group (group.id)}
-      <div class="exercise-item" style="flex-direction: column; align-items: stretch; gap: 0.4rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-          <div class="exercise-info">
-            <strong class="exercise-title">{$t("exam.exerciseList.mcGroupLabel", { title: group.title })}</strong>
-            <span class="exercise-tag topic" style="background-color: #0369a1; color: white;">{$t("exam.exerciseList.subExercisesCount", { count: memberExercises(group).length })}</span>
-            <span class="exercise-points">{groupPoints(group)} {$t("exam.exerciseList.points")}</span>
+      <div class="{rowClass} flex-col items-stretch gap-1.5">
+        <div class="flex w-full min-w-0 items-center justify-between gap-2">
+          <div class={infoClass}>
+            <strong class="min-w-0 text-content">{$t("exam.exerciseList.mcGroupLabel", { title: group.title })}</strong>
+            <Badge severity="primary">{$t("exam.exerciseList.subExercisesCount", { count: memberExercises(group).length })}</Badge>
+            <span class="text-sm text-muted">{groupPoints(group)} {$t("exam.exerciseList.points")}</span>
           </div>
-          <div class="exercise-actions">
+          <div class={actionsClass}>
             {#if onEditMcGroup}
-              <button
-                type="button"
-                class="exercise-edit-btn"
-                on:click={() => onEditMcGroup(group.id)}
-                style="background: none; border: none; color: #38bdf8; cursor: pointer; font-size: 0.85rem; padding: 0 4px;"
+              <Button
+                size="sm" variant="text"
+                onClick={() => onEditMcGroup(group.id)}
                 title={$t("exam.exerciseList.editGroup")}
-              >{$t("exam.exerciseList.editGroupButton")}</button>
+              >{$t("exam.exerciseList.editGroupButton")}</Button>
             {/if}
             {#if onRemoveMcGroup}
-              <button class="exercise-remove-btn" on:click={() => onRemoveMcGroup(group.id)}>✕</button>
+              <Button size="sm" variant="text" severity="danger" iconOnly icon={faXmark} ariaLabel={$t("exam.mcStagingPanel.remove")} onClick={() => onRemoveMcGroup(group.id)} />
             {/if}
           </div>
         </div>
-        <ul style="margin: 0; padding-left: 1.4rem; font-size: 0.85rem; color: #94a3b8;">
+        <ul class="m-0 pl-6 text-sm text-muted">
           {#each memberExercises(group) as ex, i}
             <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} /></li>
           {/each}
@@ -189,8 +200,6 @@
   {/if}
 
   {#if totalItemCount === 0}
-    <div class="empty-exercises">
-      <p>{$t("exam.exerciseList.empty")}</p>
-    </div>
+    <p class="m-0 rounded-md border border-dashed border-line-strong bg-surface-raised p-8 text-center text-muted">{$t("exam.exerciseList.empty")}</p>
   {/if}
 </div>
