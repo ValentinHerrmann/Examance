@@ -58,7 +58,7 @@
   import type { PDFDocument, PDFPage } from "pdf-lib";
   import HardwareProfileCard from "$lib/components/scanning/HardwareProfileCard.svelte";
   import UploadPanel from "$lib/components/scanning/UploadPanel.svelte";
-  import { PageHeader, PageShell } from "$lib/components/ui";
+  import { Alert, PageHeader, PageShell } from "$lib/components/ui";
   import UnmatchedResolver from "$lib/components/scanning/UnmatchedResolver.svelte";
   import ScannedSubmissionsTable from "$lib/components/scanning/ScannedSubmissionsTable.svelte";
   import ScanPreviewModal from "$lib/components/scanning/ScanPreviewModal.svelte";
@@ -1225,15 +1225,13 @@
   }
 </script>
 
-<PageShell width="full">
+<PageShell width="fluid">
   <PageHeader title={$t("scanning.pageTitle")} helpTopic="scanning" />
 
   <HardwareProfileCard {hwProfile} inConstrainedMode={monitor?.inConstrainedMode} />
 
   {#if omrBanner}
-    <div class="my-4 rounded-md border border-warning bg-warning/10 px-4 py-3 text-sm text-warning-fg">
-      {omrBanner}
-    </div>
+    <Alert severity="warning" class="my-4">{omrBanner}</Alert>
   {/if}
 
   <UploadPanel {isProcessing} {progress} {statusText} onFileUpload={handleFileUpload} />

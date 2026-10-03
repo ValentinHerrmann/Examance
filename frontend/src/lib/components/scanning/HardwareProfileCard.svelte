@@ -1,15 +1,15 @@
 <script lang="ts">
-  import "./HardwareProfileCard.css";
   import type { HardwareProfile } from "$lib/hardware/detect";
   import { t } from "$lib/i18n";
+  import { Badge } from "$lib/components/ui";
 
   export let hwProfile: HardwareProfile;
   export let inConstrainedMode: boolean = false;
 </script>
 
-<div class="hw-profile-card">
-  <h3>{$t("scanning.hardwareCard.title")}</h3>
-  <div class="grid grid-cols-1 gap-3 text-sm mt-2 sm:grid-cols-2">
+<div class="mb-8 min-w-0 rounded-md border border-line bg-surface-raised p-5">
+  <h3 class="m-0 text-base font-semibold text-content">{$t("scanning.hardwareCard.title")}</h3>
+  <div class="mt-2 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
     <div>{$t("scanning.hardwareCard.cpuCores")} <strong>{hwProfile.logicalCores}</strong></div>
     <div>{$t("scanning.hardwareCard.ramEstimate")} <strong>{hwProfile.estimatedRAMGB} GB</strong></div>
     <div>
@@ -19,11 +19,11 @@
     </div>
     <div>
       {$t("scanning.hardwareCard.activeMode")}
-      <span class="mode-tag" class:constrained={inConstrainedMode}>
+      <Badge severity={inConstrainedMode ? "warning" : "primary"}>
         {inConstrainedMode
           ? $t("scanning.hardwareCard.modeConstrained")
           : $t("scanning.hardwareCard.modeParallel")}
-      </span>
+      </Badge>
     </div>
   </div>
 </div>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from "$lib/i18n";
-  import { Button, Modal } from "$lib/components/ui";
+  import { Alert, Button, Modal } from "$lib/components/ui";
   import OmrParamsDiff from "./OmrParamsDiff.svelte";
   import {
     diffOmrParams,
@@ -24,7 +24,7 @@
   $: changed = latestRun ? diffOmrParams(latestRun.params, current.params) : [];
 </script>
 
-<Modal {open} size="md" title={$t("scanning.verify.rerunDialog.title")} onClose={onCancel}>
+<Modal {open} size="medium" title={$t("scanning.verify.rerunDialog.title")} onClose={onCancel}>
   <div class="flex flex-col gap-3 text-sm text-content">
     <p class="m-0">{$t("scanning.verify.rerunDialog.intro")}</p>
 
@@ -38,13 +38,9 @@
 
     {#if hasDetections}
       {#if !latestRun}
-        <p class="m-0 rounded-sm border border-warning/40 bg-warning/10 p-2 text-xs text-warning-fg">
-          {$t("scanning.verify.rerunDialog.settingsUnknown")}
-        </p>
+        <Alert severity="warning">{$t("scanning.verify.rerunDialog.settingsUnknown")}</Alert>
       {:else if changed.length > 0}
-        <p class="m-0 rounded-sm border border-warning/40 bg-warning/10 p-2 text-xs font-semibold text-warning-fg">
-          {$t("scanning.verify.rerunDialog.settingsDiffer", { count: changed.length })}
-        </p>
+        <Alert severity="warning">{$t("scanning.verify.rerunDialog.settingsDiffer", { count: changed.length })}</Alert>
       {:else}
         <p class="m-0 text-xs text-muted">{$t("scanning.verify.rerunDialog.sameSettings")}</p>
       {/if}
@@ -59,7 +55,7 @@
   </div>
 
   <svelte:fragment slot="footer">
-    <Button variant="secondary" onClick={onCancel}>{$t("scanning.verify.rerunDialog.cancel")}</Button>
-    <Button variant="primary" onClick={onConfirm}>{$t("scanning.verify.rerunDialog.confirm")}</Button>
+    <Button variant="outlined" severity="secondary" onClick={onCancel}>{$t("scanning.verify.rerunDialog.cancel")}</Button>
+    <Button onClick={onConfirm}>{$t("scanning.verify.rerunDialog.confirm")}</Button>
   </svelte:fragment>
 </Modal>

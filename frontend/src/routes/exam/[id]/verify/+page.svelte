@@ -6,7 +6,7 @@
   import { get } from "svelte/store";
   import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
   import { t, translate } from "$lib/i18n";
-  import { Button, PageHeader, PageShell } from "$lib/components/ui";
+  import { Alert, Button, EmptyState, PageHeader, PageShell, Spinner } from "$lib/components/ui";
   import {
     computeMcVerificationStats,
     categorizeMcItem,
@@ -432,7 +432,7 @@
   $: confidentProgress = buildStudentProgress(otherItems);
 </script>
 
-<PageShell width="wide">
+<PageShell width="fluid">
   <PageHeader
     title={$t("scanning.verify.heading")}
     subtitle={$t("scanning.verify.description")}
@@ -440,7 +440,7 @@
   >
     <svelte:fragment slot="actions">
       <Button
-        variant="secondary"
+        variant="outlined" severity="secondary"
         size="sm"
         onClick={handleResetAllReviews}
         disabled={isRerunningMc || isResettingReviews || loading}
@@ -456,7 +456,7 @@
         {isRerunningMc ? $t("scanning.verify.rerunning") : $t("scanning.verify.rerun")}
       </Button>
       <Button
-        variant="secondary"
+        variant="outlined" severity="secondary"
         size="sm"
         onClick={refresh}
         disabled={loading || isRerunningMc || isResettingReviews}
@@ -467,54 +467,30 @@
   </PageHeader>
 
   {#if rerunMcMessage}
-    <div class="p-3 rounded-sm border border-primary/40 bg-highlight text-accent text-xs mb-6">
-      {rerunMcMessage}
-    </div>
+    <Alert severity="info" class="mb-6">{rerunMcMessage}</Alert>
   {/if}
   {#if rerunMcError}
-    <div class="p-3 rounded-sm border border-danger/40 bg-danger/10 text-danger-fg text-xs mb-6">
-      {rerunMcError}
-    </div>
+    <Alert severity="danger" class="mb-6">{rerunMcError}</Alert>
   {/if}
   {#if resetReviewsMessage}
-    <div class="p-3 rounded-sm border border-primary/40 bg-highlight text-accent text-xs mb-6">
-      {resetReviewsMessage}
-    </div>
+    <Alert severity="info" class="mb-6">{resetReviewsMessage}</Alert>
   {/if}
   {#if resetReviewsError}
-    <div class="p-3 rounded-sm border border-danger/40 bg-danger/10 text-danger-fg text-xs mb-6">
-      {resetReviewsError}
-    </div>
+    <Alert severity="danger" class="mb-6">{resetReviewsError}</Alert>
   {/if}
 
   {#if loading && !stats}
-    <div class="p-8 text-center text-sm text-muted">{$t("scanning.verify.loading")}</div>
+    <div class="p-8 text-center text-sm text-muted"><Spinner class="mr-2" />{$t("scanning.verify.loading")}</div>
   {:else if errorMsg}
-    <div class="p-4 rounded-sm border border-danger/40 bg-danger/10 text-danger-fg text-xs mb-6">
-      {errorMsg}
-    </div>
+    <Alert severity="danger" class="mb-6">{errorMsg}</Alert>
   {:else if stats}
     {#if stats.totalQuestions === 0}
-      <div class="rounded-md border border-line bg-surface-raised p-8 text-center">
-        <h3 class="text-base font-semibold text-content mb-2">{$t("scanning.verify.emptyTitle")}</h3>
-        <p class="text-xs text-muted max-w-md mx-auto mb-4">
-          {$t("scanning.verify.emptyDescription")}
-        </p>
-        <div class="flex justify-center gap-3">
-          <a
-            href={`/exam/${examId}`}
-            class="px-3 py-1.5 text-xs font-medium rounded-sm border border-line bg-surface-sunken hover:bg-surface-inset text-content transition-colors"
-          >
-            {$t("scanning.verify.examSetup")}
-          </a>
-          <a
-            href={`/exam/${examId}/scan`}
-            class="px-3 py-1.5 text-xs font-medium rounded-sm bg-primary hover:bg-primary text-primary-contrast transition-colors"
-          >
-            {$t("scanning.verify.goToScan")}
-          </a>
-        </div>
-      </div>
+      <EmptyState title={$t("scanning.verify.emptyTitle")} description={$t("scanning.verify.emptyDescription")}>
+        <svelte:fragment slot="actions">
+          <Button variant="outlined" severity="secondary" href={`/exam/${examId}`}>{$t("scanning.verify.examSetup")}</Button>
+          <Button href={`/exam/${examId}/scan`}>{$t("scanning.verify.goToScan")}</Button>
+        </svelte:fragment>
+      </EmptyState>
     {:else}
       <McDetectionSettingsPanel
         runs={stats.detectionRuns}
@@ -544,7 +520,7 @@
 
       {#if otherItems.some((i) => !i.isReviewed)}
         <div class="mb-4 flex flex-wrap items-center gap-3 text-xs text-muted">
-          <Button variant="secondary" size="sm" onClick={openRandomConfidentItem}>
+          <Button variant="outlined" severity="secondary" size="sm" onClick={openRandomConfidentItem}>
             {$t("scanning.verify.randomSample")}
           </Button>
           <span>{$t("scanning.verify.randomSampleHint")}</span>

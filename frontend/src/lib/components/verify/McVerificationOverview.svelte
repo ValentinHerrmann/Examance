@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { McVerificationStats } from "$lib/grading/mcVerification";
   import { t } from "$lib/i18n";
+  import { TableScroller } from "$lib/components/ui";
 
   export let stats: McVerificationStats;
 
@@ -46,7 +47,7 @@
 <div class="space-y-6 mb-8">
   <!-- Verification Progress -->
   <div class="rounded-md border border-line bg-surface-raised p-5 space-y-4">
-    <h3 class="text-sm font-semibold text-content">{$t("scanning.overview.progressHeading")}</h3>
+    <h2 class="text-sm font-semibold text-content">{$t("scanning.overview.progressHeading")}</h2>
 
     <div class="space-y-3">
       {#each progressRows as row}
@@ -58,17 +59,17 @@
             <span class="text-xs font-mono text-muted">
               {$t("scanning.overview.progressReviewedOf", { reviewed: row.reviewed, total: row.total })}
               {#if remaining > 0}
-                <span class="ml-1.5 px-1.5 py-0.5 rounded-sm bg-surface-inset/80 text-content font-semibold">
+                <span class="ml-1.5 px-1.5 py-0.5 rounded-md bg-surface-inset/80 text-content font-semibold">
                   {$t("scanning.overview.progressRemaining", { count: remaining })}
                 </span>
               {:else if row.total > 0}
-                <span class="ml-1.5 px-1.5 py-0.5 rounded-sm bg-success/20 text-success-fg font-semibold">
+                <span class="ml-1.5 px-1.5 py-0.5 rounded-md bg-success/20 text-success-fg font-semibold">
                   {$t("scanning.overview.progressDone")}
                 </span>
               {/if}
             </span>
           </div>
-          <div class="h-1.5 w-full rounded-full bg-backdrop overflow-hidden">
+          <div class="h-1.5 w-full rounded-full bg-surface-inset overflow-hidden">
             <div class="h-full rounded-full {row.barColor} transition-all" style="width: {pct}%"></div>
           </div>
         </div>
@@ -87,12 +88,12 @@
   <!-- Detection Calibration Section -->
   <div class="rounded-md border border-line bg-surface-raised p-5 space-y-4">
     <div>
-      <h3 class="text-sm font-semibold text-content">{$t("scanning.overview.qualityHeading")}</h3>
+      <h2 class="text-sm font-semibold text-content">{$t("scanning.overview.qualityHeading")}</h2>
       <p class="mt-0.5 text-xs text-muted">{$t("scanning.overview.qualityDescription")}</p>
     </div>
 
     {#if stats.qualityStats.totalReviewed === 0}
-      <div class="rounded-sm border border-dashed border-line bg-surface-sunken/40 p-4 text-center">
+      <div class="rounded-md border border-dashed border-line bg-surface-sunken p-4 text-center">
         <p class="text-xs text-muted">
           {$t("scanning.overview.unverifiedNotice")}
         </p>
@@ -100,7 +101,7 @@
     {:else}
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Card 1: Initial Detection Accuracy -->
-        <div class="rounded-md border border-line bg-backdrop p-4">
+        <div class="rounded-md border border-line bg-surface-sunken p-4">
           <div class="text-xs font-medium text-muted">
             {$t("scanning.overview.originalAccuracy")}
           </div>
@@ -118,7 +119,7 @@
         </div>
 
         <!-- Card 2: High-Confidence Calibration -->
-        <div class="rounded-md border border-line bg-backdrop p-4">
+        <div class="rounded-md border border-line bg-surface-sunken p-4">
           <div class="text-xs font-medium text-muted">
             {$t("scanning.overview.highConfidenceCalibration")}
           </div>
@@ -141,7 +142,7 @@
         </div>
 
         <!-- Card 3: Ambiguous Detections Calibration -->
-        <div class="rounded-md border border-line bg-backdrop p-4">
+        <div class="rounded-md border border-line bg-surface-sunken p-4">
           <div class="text-xs font-medium text-muted">
             {$t("scanning.overview.ambiguousCalibration")}
           </div>
@@ -166,7 +167,7 @@
         </div>
 
         <!-- Card 4: Failed Detections Calibration -->
-        <div class="rounded-md border border-line bg-backdrop p-4">
+        <div class="rounded-md border border-line bg-surface-sunken p-4">
           <div class="text-xs font-medium text-muted">
             {$t("scanning.overview.failedConfidenceCalibration")}
           </div>
@@ -196,37 +197,37 @@
   <!-- Detection Reliability Section -->
   <div class="rounded-md border border-line bg-surface-raised p-5 space-y-3">
     <div>
-      <h3 class="text-sm font-semibold text-content">{$t("scanning.overview.reliabilityHeading")}</h3>
+      <h2 class="text-sm font-semibold text-content">{$t("scanning.overview.reliabilityHeading")}</h2>
       <p class="mt-0.5 text-xs text-muted">{$t("scanning.overview.reliabilityDescription")}</p>
     </div>
 
     <div>
-      <div class="text-xs uppercase tracking-wider text-muted mb-1.5">
+      <div class="text-xs font-semibold text-muted mb-1.5">
         {$t("scanning.overview.reliabilityReviewedGroup")}
       </div>
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div class="rounded-sm border border-success/30 bg-success/10 p-2.5">
+        <div class="rounded-md border border-success/30 bg-success/10 p-2.5">
           <div class="text-xs font-medium text-success-fg">{$t("scanning.overview.correctPositive")}</div>
           <div class="mt-0.5 text-lg font-bold font-mono text-success-fg">
             {stats.confusionMatrix.correctPositive.count}
             <span class="text-xs font-normal text-success-fg">({stats.confusionMatrix.correctPositive.percent}%)</span>
           </div>
         </div>
-        <div class="rounded-sm border border-danger/30 bg-danger/10 p-2.5">
+        <div class="rounded-md border border-danger/30 bg-danger/10 p-2.5">
           <div class="text-xs font-medium text-danger-fg">{$t("scanning.overview.falsePositive")}</div>
           <div class="mt-0.5 text-lg font-bold font-mono text-danger-fg">
             {stats.confusionMatrix.falsePositive.count}
             <span class="text-xs font-normal text-danger-fg">({stats.confusionMatrix.falsePositive.percent}%)</span>
           </div>
         </div>
-        <div class="rounded-sm border border-line bg-backdrop p-2.5">
+        <div class="rounded-md border border-line bg-surface-sunken p-2.5">
           <div class="text-xs font-medium text-muted">{$t("scanning.overview.correctNegative")}</div>
           <div class="mt-0.5 text-lg font-bold font-mono text-content">
             {stats.confusionMatrix.correctNegative.count}
             <span class="text-xs font-normal text-muted">({stats.confusionMatrix.correctNegative.percent}%)</span>
           </div>
         </div>
-        <div class="rounded-sm border border-danger/30 bg-danger/10 p-2.5">
+        <div class="rounded-md border border-danger/30 bg-danger/10 p-2.5">
           <div class="text-xs font-medium text-danger-fg">{$t("scanning.overview.falseNegative")}</div>
           <div class="mt-0.5 text-lg font-bold font-mono text-danger-fg">
             {stats.confusionMatrix.falseNegative.count}
@@ -237,32 +238,32 @@
     </div>
 
     <div>
-      <div class="text-xs uppercase tracking-wider text-muted mb-1.5">
+      <div class="text-xs font-semibold text-muted mb-1.5">
         {$t("scanning.overview.reliabilityUnreviewedGroup")}
       </div>
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div class="rounded-sm border border-line bg-backdrop p-2.5">
+        <div class="rounded-md border border-line bg-surface-sunken p-2.5">
           <div class="text-xs font-medium text-muted">{$t("scanning.overview.unreviewedPositiveHigh")}</div>
           <div class="mt-0.5 text-lg font-bold font-mono text-content">
             {stats.confusionMatrix.unreviewedPositiveHigh.count}
             <span class="text-xs font-normal text-muted">({stats.confusionMatrix.unreviewedPositiveHigh.percent}%)</span>
           </div>
         </div>
-        <div class="rounded-sm border border-warning/30 bg-warning/10 p-2.5">
+        <div class="rounded-md border border-warning/30 bg-warning/10 p-2.5">
           <div class="text-xs font-medium text-warning-fg">{$t("scanning.overview.unreviewedPositiveLow")}</div>
           <div class="mt-0.5 text-lg font-bold font-mono text-warning-fg">
             {stats.confusionMatrix.unreviewedPositiveLow.count}
             <span class="text-xs font-normal text-warning-fg">({stats.confusionMatrix.unreviewedPositiveLow.percent}%)</span>
           </div>
         </div>
-        <div class="rounded-sm border border-line bg-backdrop p-2.5">
+        <div class="rounded-md border border-line bg-surface-sunken p-2.5">
           <div class="text-xs font-medium text-muted">{$t("scanning.overview.unreviewedNegativeHigh")}</div>
           <div class="mt-0.5 text-lg font-bold font-mono text-content">
             {stats.confusionMatrix.unreviewedNegativeHigh.count}
             <span class="text-xs font-normal text-muted">({stats.confusionMatrix.unreviewedNegativeHigh.percent}%)</span>
           </div>
         </div>
-        <div class="rounded-sm border border-warning/30 bg-warning/10 p-2.5">
+        <div class="rounded-md border border-warning/30 bg-warning/10 p-2.5">
           <div class="text-xs font-medium text-warning-fg">{$t("scanning.overview.unreviewedNegativeLow")}</div>
           <div class="mt-0.5 text-lg font-bold font-mono text-warning-fg">
             {stats.confusionMatrix.unreviewedNegativeLow.count}
@@ -275,36 +276,36 @@
 
   {#if sortedExerciseBreakdown.length > 0}
     <div class="rounded-md border border-line bg-surface-raised overflow-hidden">
-      <div class="border-b border-line px-4 py-3 bg-surface-raised/80">
-        <h3 class="text-sm font-semibold text-content">{$t("scanning.overview.breakdownTitle")}</h3>
+      <div class="border-b border-line px-4 py-3 bg-surface-raised">
+        <h2 class="text-sm font-semibold text-content">{$t("scanning.overview.breakdownTitle")}</h2>
         <p class="mt-0.5 text-xs text-muted">{$t("scanning.overview.breakdownDescription")}</p>
       </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-xs text-content">
-          <thead class="bg-backdrop uppercase text-muted font-medium">
+      <TableScroller label={$t("scanning.overview.breakdownTitle")}>
+        <table class="data-table data-table-compact data-table-hover text-xs">
+          <thead>
             <tr>
-              <th class="px-4 py-2.5">{$t("scanning.overview.colQuestion")}</th>
-              <th class="px-4 py-2.5 text-right text-success-fg">{$t("scanning.overview.colHigh")}</th>
-              <th class="px-4 py-2.5 text-right text-warning-fg">{$t("scanning.overview.colUnsure")}</th>
-              <th class="px-4 py-2.5 text-right text-danger-fg">{$t("scanning.overview.colFailed")}</th>
-              <th class="px-4 py-2.5 text-right">{$t("scanning.overview.colTotal")}</th>
-              <th class="px-4 py-2.5 text-right text-muted">{$t("scanning.overview.colMarks")}</th>
+              <th>{$t("scanning.overview.colQuestion")}</th>
+              <th class="text-right text-success-fg">{$t("scanning.overview.colHigh")}</th>
+              <th class="text-right text-warning-fg">{$t("scanning.overview.colUnsure")}</th>
+              <th class="text-right text-danger-fg">{$t("scanning.overview.colFailed")}</th>
+              <th class="text-right">{$t("scanning.overview.colTotal")}</th>
+              <th class="text-right text-muted">{$t("scanning.overview.colMarks")}</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-line">
+          <tbody>
             {#each sortedExerciseBreakdown as row}
-              <tr class="hover:bg-surface-inset/30 transition-colors">
-                <td class="px-4 py-2.5 font-medium text-content">{row.exerciseLabel}</td>
-                <td class="px-4 py-2.5 text-right font-mono text-success-fg">{row.high}</td>
-                <td class="px-4 py-2.5 text-right font-mono text-warning-fg">{row.ambiguous}</td>
-                <td class="px-4 py-2.5 text-right font-mono text-danger-fg">{row.failed}</td>
-                <td class="px-4 py-2.5 text-right font-mono text-muted">{row.total}</td>
-                <td class="px-4 py-2.5 text-right font-mono text-muted">{row.markedBoxes}</td>
+              <tr>
+                <td class="font-medium">{row.exerciseLabel}</td>
+                <td class="text-right font-mono text-success-fg">{row.high}</td>
+                <td class="text-right font-mono text-warning-fg">{row.ambiguous}</td>
+                <td class="text-right font-mono text-danger-fg">{row.failed}</td>
+                <td class="text-right font-mono text-muted">{row.total}</td>
+                <td class="text-right font-mono text-muted">{row.markedBoxes}</td>
               </tr>
             {/each}
           </tbody>
         </table>
-      </div>
+      </TableScroller>
     </div>
   {/if}
 </div>

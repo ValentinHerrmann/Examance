@@ -3,6 +3,8 @@
   import { t } from "$lib/i18n";
   import { isDesktop } from "$lib/stores/viewport";
   import PdfEmbedViewer from "$lib/components/PdfEmbedViewer.svelte";
+  import { faChevronLeft, faChevronRight, faDownload, faFileLines, faFilePdf } from "@fortawesome/free-solid-svg-icons";
+  import { Button, Icon, Tabs } from "$lib/components/ui";
 
   export let previewPdfUrl: string | null = null;
   export let previewSolutionPdfUrl: string | null = null;
@@ -12,8 +14,6 @@
   // switch; callers can still pass an explicit pane title.
   export let titleAngabe: string | undefined = undefined;
   export let titleLoesung: string | undefined = undefined;
-  export let emojiAngabe: string = "📄";
-  export let emojiLoesung: string = "📝";
   export let height: string = "100%";
   export let placeholderText: string | undefined = undefined;
 
@@ -44,12 +44,21 @@
   let mobilePane: PaneId = "angabe";
 
   $: panes = [
-    { id: "angabe" as PaneId, title: angabeTitle, emoji: emojiAngabe, url: previewPdfUrl },
+    {
+      id: "angabe" as PaneId,
+      title: angabeTitle,
+      icon: faFilePdf,
+      url: previewPdfUrl,
+      shown: showAngabePreview,
+      toggle: handleToggleAngabe,
+    },
     {
       id: "loesung" as PaneId,
       title: loesungTitle,
-      emoji: emojiLoesung,
+      icon: faFileLines,
       url: previewSolutionPdfUrl,
+      shown: showLoesungPreview,
+      toggle: handleToggleLoesung,
     },
   ];
 
@@ -68,168 +77,85 @@
   }
 
   const paneShell =
-    "flex flex-col overflow-hidden rounded-md border border-line bg-surface-base transition-all duration-200";
-  const paneHeader =
-    "flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-2 text-left text-content hover:bg-line-strong";
+    "flex flex-col overflow-hidden rounded-md border border-line bg-surface-viewer transition-all duration-200";
 </script>
 
 {#if $isDesktop}
   <div class="flex w-full min-w-0 flex-1 gap-2 overflow-hidden" style="height: {height};">
-    <!-- Pane 1: Angabe / Exercise / Exam -->
-    <div
-      class={paneShell}
-      class:flex-1={showAngabePreview}
-      class:min-w-0={showAngabePreview}
-      class:w-10={!showAngabePreview}
-      class:shrink-0={!showAngabePreview}
-    >
-      {#if showAngabePreview}
-        <div class="flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-1.5 text-content">
-          <button
-            type="button"
-            class="flex flex-1 items-center gap-2 truncate text-left hover:text-content"
-            on:click={handleToggleAngabe}
-            title={$t("editor.pdfPreview.collapse", { title: angabeTitle })}
-          >
-            <span class="truncate text-sm font-medium">{emojiAngabe} {angabeTitle}</span>
-          </button>
-          <div class="flex shrink-0 items-center gap-2">
-            {#if previewPdfUrl}
-              <a
-                href={previewPdfUrl}
-                download={`${angabeTitle}.pdf`}
-                class="flex items-center gap-1 rounded-sm border border-line bg-surface-inset px-2 py-1 text-xs text-content transition-colors hover:bg-line-strong hover:text-content"
-                title={$t("common.download")}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                <span>{$t("common.download")}</span>
-              </a>
-            {/if}
+    {#each panes as pane (pane.id)}
+      <div class="{paneShell} {pane.shown ? 'min-w-0 flex-1' : 'w-10 shrink-0'}">
+        {#if pane.shown}
+          <div class="flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-1.5 text-content">
             <button
               type="button"
-              class="px-1 text-muted hover:text-content"
-              on:click={handleToggleAngabe}
-              title={$t("editor.pdfPreview.collapse", { title: angabeTitle })}
+              class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 truncate border-0 bg-transparent p-0 text-left text-content"
+              on:click={pane.toggle}
+              title={$t("editor.pdfPreview.collapse", { title: pane.title })}
             >
-              ›
+              <Icon icon={pane.icon} class="text-muted" />
+              <span class="truncate text-sm font-medium">{pane.title}</span>
             </button>
-          </div>
-        </div>
-        <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: angabeTitle })}>
-          {#if previewPdfUrl}
-            <PdfEmbedViewer src={previewPdfUrl} />
-          {:else}
-            <div class="flex h-full items-center justify-center p-4 text-center text-sm text-muted">
-              {placeholder}
+            <div class="flex shrink-0 items-center gap-2">
+              {#if pane.url}
+                <Button
+                  variant="outlined"
+                  severity="secondary"
+                  size="sm"
+                  icon={faDownload}
+                  href={pane.url}
+                  download={`${pane.title}.pdf`}
+                  title={$t("common.download")}
+                >
+                  {$t("common.download")}
+                </Button>
+              {/if}
+              <Button
+                variant="text"
+                severity="secondary"
+                size="sm"
+                iconOnly
+                icon={faChevronRight}
+                ariaLabel={$t("editor.pdfPreview.collapse", { title: pane.title })}
+                title={$t("editor.pdfPreview.collapse", { title: pane.title })}
+                onClick={pane.toggle}
+              />
             </div>
-          {/if}
-        </div>
-      {:else}
-        <button
-          type="button"
-          class="flex h-full w-full flex-col items-center justify-center gap-2 bg-surface-raised py-3 text-content hover:bg-line-strong"
-          on:click={handleToggleAngabe}
-          title={$t("editor.pdfPreview.expand", { title: angabeTitle })}
-        >
-          <span class="text-muted">‹</span>
-          <span>{emojiAngabe}</span>
-          <span class="text-xs [writing-mode:vertical-rl]">{angabeTitle} PDF</span>
-        </button>
-      {/if}
-    </div>
-
-    <!-- Pane 2: Lösung / Solution / Answer Key -->
-    <div
-      class={paneShell}
-      class:flex-1={showLoesungPreview}
-      class:min-w-0={showLoesungPreview}
-      class:w-10={!showLoesungPreview}
-      class:shrink-0={!showLoesungPreview}
-    >
-      {#if showLoesungPreview}
-        <div class="flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-1.5 text-content">
+          </div>
+          <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: pane.title })}>
+            {#if pane.url}
+              <PdfEmbedViewer src={pane.url} />
+            {:else}
+              <div class="flex h-full items-center justify-center p-4 text-center text-sm text-muted">
+                {placeholder}
+              </div>
+            {/if}
+          </div>
+        {:else}
           <button
             type="button"
-            class="flex flex-1 items-center gap-2 truncate text-left hover:text-content"
-            on:click={handleToggleLoesung}
-            title={$t("editor.pdfPreview.collapse", { title: loesungTitle })}
+            class="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 border-0 bg-surface-raised py-3 text-content hover:bg-surface-inset"
+            on:click={pane.toggle}
+            title={$t("editor.pdfPreview.expand", { title: pane.title })}
           >
-            <span class="truncate text-sm font-medium">{emojiLoesung} {loesungTitle}</span>
+            <Icon icon={faChevronLeft} class="text-muted" />
+            <Icon icon={pane.icon} />
+            <span class="text-xs [writing-mode:vertical-rl]">{pane.title} PDF</span>
           </button>
-          <div class="flex shrink-0 items-center gap-2">
-            {#if previewSolutionPdfUrl}
-              <a
-                href={previewSolutionPdfUrl}
-                download={`${loesungTitle}.pdf`}
-                class="flex items-center gap-1 rounded-sm border border-line bg-surface-inset px-2 py-1 text-xs text-content transition-colors hover:bg-line-strong hover:text-content"
-                title={$t("common.download")}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                <span>{$t("common.download")}</span>
-              </a>
-            {/if}
-            <button
-              type="button"
-              class="px-1 text-muted hover:text-content"
-              on:click={handleToggleLoesung}
-              title={$t("editor.pdfPreview.collapse", { title: loesungTitle })}
-            >
-              ›
-            </button>
-          </div>
-        </div>
-        <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: loesungTitle })}>
-          {#if previewSolutionPdfUrl}
-            <PdfEmbedViewer src={previewSolutionPdfUrl} />
-          {:else}
-            <div class="flex h-full items-center justify-center p-4 text-center text-sm text-muted">
-              {placeholder}
-            </div>
-          {/if}
-        </div>
-      {:else}
-        <button
-          type="button"
-          class="flex h-full w-full flex-col items-center justify-center gap-2 bg-surface-raised py-3 text-content hover:bg-line-strong"
-          on:click={handleToggleLoesung}
-          title={$t("editor.pdfPreview.expand", { title: loesungTitle })}
-        >
-          <span class="text-muted">‹</span>
-          <span>{emojiLoesung}</span>
-          <span class="text-xs [writing-mode:vertical-rl]">{loesungTitle} PDF</span>
-        </button>
-      {/if}
-    </div>
+        {/if}
+      </div>
+    {/each}
   </div>
 {:else}
   <div
-    class="flex w-full min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-line bg-surface-base"
+    class="flex w-full min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-line bg-surface-viewer"
     style="height: min(70dvh, {height}); min-height: 18rem;"
   >
-    <div class="flex shrink-0 gap-1 border-b border-line bg-surface-raised p-1" role="tablist">
-      {#each panes as pane (pane.id)}
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mobilePane === pane.id}
-          class="min-h-9 flex-1 truncate rounded-md px-3 py-2 text-sm font-medium transition-colors
-            {mobilePane === pane.id
-            ? 'bg-primary text-primary-contrast'
-            : 'text-content hover:bg-surface-inset'}"
-          on:click={() => selectMobilePane(pane.id)}
-        >
-          {pane.emoji} {pane.title}
-        </button>
-      {/each}
-    </div>
+    <Tabs
+      class="shrink-0 bg-surface-raised"
+      items={panes.map((p) => ({ id: p.id, label: p.title, icon: p.icon }))}
+      value={mobilePane}
+      onChange={(id) => selectMobilePane(id === "loesung" ? "loesung" : "angabe")}
+    />
 
     <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: activePane.title })}>
       {#if activePane.url}

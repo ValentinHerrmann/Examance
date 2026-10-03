@@ -15,11 +15,15 @@
     type ZoomCapability,
   } from "@embedpdf/snippet";
   import { t } from "$lib/i18n";
+  import { theme as appTheme } from "$lib/stores/theme";
 
   /** URL (including `blob:`) of the PDF to display. `null` renders nothing. */
   export let src: string | null = null;
-  export let theme: "light" | "dark" | "system" = "dark";
+  /** Defaults to the app theme and follows it while mounted. */
+  export let theme: "light" | "dark" | "system" | undefined = undefined;
   export let zoomLevel: ZoomLevel | undefined = undefined;
+
+  $: effectiveTheme = theme ?? $appTheme;
 
   let containerEl: HTMLDivElement;
   let viewer: EmbedPdfContainer | null = null;
@@ -153,7 +157,7 @@
     if (!containerEl || src !== url) return;
     destroy();
     if (!containerEl) return;
-    viewer = mountEmbedPdf({ target: containerEl, src: url, theme, zoomLevel }) ?? null;
+    viewer = mountEmbedPdf({ target: containerEl, src: url, theme: effectiveTheme, zoomLevel }) ?? null;
     mountedSrc = url;
     containerEl.addEventListener("wheel", handleWheel, { capture: true, passive: false });
 
@@ -202,35 +206,37 @@
     destroy();
   }
 
+  // Keep an already mounted viewer in sync when the app theme flips.
+  $: viewer?.setTheme(effectiveTheme);
+
   onDestroy(() => {
     destroy();
   });
 </script>
 
-<div class="embed-pdf-wrapper">
-  <div bind:this={containerEl} class="embed-pdf-viewer"></div>
+<div class="relative h-full w-full">
+  <div bind:this={containerEl} class="embed-pdf-viewer flex h-full w-full"></div>
   {#if src && isOverlayVisible}
     <div
-      class="embed-pdf-zoom-overlay"
+      class="zoom-overlay absolute top-2.5 right-3 z-20 flex items-center gap-1.5 rounded-md border border-navbar-hover bg-navbar/90 px-2 py-1 text-xs font-medium text-navbar-muted shadow-md backdrop-blur-sm"
       on:mouseenter={handleOverlayMouseEnter}
       on:mouseleave={handleOverlayMouseLeave}
       role="toolbar"
       tabindex="-1"
       aria-label="Zoom controls"
     >
-      <span class="zoom-percent">{currentZoomPercent}%</span>
-      <span class="zoom-divider"></span>
+      <span class="min-w-9 px-1 text-center font-semibold text-navbar-content">{currentZoomPercent}%</span>
+      <span class="h-3 w-px bg-navbar-muted"></span>
       <button
         type="button"
-        class="zoom-btn"
+        class="cursor-pointer rounded-sm border-none bg-transparent px-1.5 py-0.5 text-xs font-medium text-navbar-muted transition-colors hover:bg-navbar-hover hover:text-navbar-content pointer-coarse:min-h-11 pointer-coarse:min-w-11"
         on:click={() => setZoom(1.0)}
       >
         100%
       </button>
       <button
         type="button"
-        class="zoom-btn inline-flex items-center justify-center leading-none text-xl"
-        style:font-size="1.5rem"
+        class="inline-flex cursor-pointer items-center justify-center rounded-sm border-none bg-transparent px-1.5 py-0.5 text-navbar-muted transition-colors hover:bg-navbar-hover hover:text-navbar-content pointer-coarse:min-h-11 pointer-coarse:min-w-11"
         on:click={() => setZoom(ZoomMode.FitWidth)}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -239,10 +245,9 @@
       </button>
       <button
         type="button"
-        class="zoom-btn inline-flex items-center justify-center leading-none text-xl"
-        style:font-size="1.5rem"
+        class="inline-flex cursor-pointer items-center justify-center rounded-sm border-none bg-transparent px-1.5 py-0.5 text-navbar-muted transition-colors hover:bg-navbar-hover hover:text-navbar-content pointer-coarse:min-h-11 pointer-coarse:min-w-11"
         on:click={() => setZoom(ZoomMode.FitPage)}
-      > 
+      >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="m8 18 4 4 4-4M8 6l4-4 4 4M12 2v20" />
         </svg>
@@ -252,17 +257,6 @@
 </div>
 
 <style>
-  .embed-pdf-wrapper {
-    position: relative;
-    width: 100%;
-    height: 100%;
-  }
-
-  .embed-pdf-viewer {
-    display: flex;
-    width: 100%;
-    height: 100%;
-  }
   /* The custom element EmbedPDF mounts (<embedpdf-container>) has no
      intrinsic size; make it fill this wrapper. */
   .embed-pdf-viewer :global(embedpdf-container) {
@@ -271,23 +265,7 @@
     height: 100%;
   }
 
-  .embed-pdf-zoom-overlay {
-    position: absolute;
-    top: 10px;
-    right: 12px;
-    z-index: 20;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 8px;
-    background-color: rgba(15, 23, 42, 0.88);
-    color: #cbd5e1;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    backdrop-filter: blur(6px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  .zoom-overlay {
     animation: zoom-overlay-fade-in 0.15s ease-out;
   }
 
@@ -300,36 +278,5 @@
       opacity: 1;
       transform: translateY(0);
     }
-  }
-
-  .zoom-percent {
-    font-weight: 600;
-    color: #38bdf8;
-    padding: 0 4px;
-    min-width: 36px;
-    text-align: center;
-  }
-
-  .zoom-divider {
-    width: 1px;
-    height: 12px;
-    background-color: #334155;
-  }
-
-  .zoom-btn {
-    background: transparent;
-    border: none;
-    color: #cbd5e1;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.12s ease;
-  }
-
-  .zoom-btn:hover {
-    background-color: rgba(255, 255, 255, 0.12);
-    color: #ffffff;
   }
 </style>

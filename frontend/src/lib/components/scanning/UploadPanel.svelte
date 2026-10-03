@@ -1,6 +1,7 @@
 <script lang="ts">
-  import "./UploadPanel.css";
   import { t } from "$lib/i18n";
+  import { faFileArrowUp } from "@fortawesome/free-solid-svg-icons";
+  import { Icon } from "$lib/components/ui";
   import InfoTip from "$lib/components/help/InfoTip.svelte";
   export let isProcessing: boolean = false;
   export let progress: number = 0;
@@ -8,7 +9,7 @@
   export let onFileUpload: (event: Event) => void;
 </script>
 
-<div class="upload-box">
+<div class="rounded-xl border-2 border-dashed border-line-strong bg-surface-raised p-6 text-center sm:p-12">
   <input
     type="file"
     id="scanFiles"
@@ -16,18 +17,31 @@
     accept="application/pdf"
     on:change={onFileUpload}
     disabled={isProcessing}
+    class="peer sr-only"
   />
-  <label for="scanFiles">{$t("scanning.uploadPanel.selectFiles")}</label>
+  <label
+    for="scanFiles"
+    class="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-transparent bg-primary px-4 py-2 font-normal text-primary-contrast peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus peer-disabled:cursor-not-allowed peer-disabled:opacity-60 pointer-coarse:min-h-11"
+  >
+    <Icon icon={faFileArrowUp} />
+    {$t("scanning.uploadPanel.selectFiles")}
+  </label>
   <InfoTip class="ml-2 align-middle" text={$t("help.tips.pseudonymQr")} topic="scanning" />
 </div>
 
 {#if isProcessing}
-  <div class="progress-section">
-    <div class="progress-bar">
-      <div class="upload-panel-fill" style="width: {progress}%"></div>
+  <div class="mt-8">
+    <div
+      class="h-3 overflow-hidden rounded-md bg-surface-inset"
+      role="progressbar"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow={Math.round(progress)}
+    >
+      <div class="h-full bg-primary transition-[width] duration-200" style="width: {progress}%"></div>
     </div>
-    <p class="status">{statusText}</p>
+    <p class="mt-2 text-sm text-muted">{statusText}</p>
   </div>
 {:else if statusText}
-  <p class="status-msg">{statusText}</p>
+  <p class="mt-4 text-sm text-muted">{statusText}</p>
 {/if}

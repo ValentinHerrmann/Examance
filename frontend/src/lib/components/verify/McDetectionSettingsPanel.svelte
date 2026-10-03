@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from "$lib/i18n";
   import { fmt } from "$lib/utils/format";
-  import { Card } from "$lib/components/ui";
+  import { Button, Card } from "$lib/components/ui";
   import OmrParamsDiff from "./OmrParamsDiff.svelte";
   import { diffOmrParams, type OmrSettingsProfile } from "$lib/grading/omrSettings";
   import type { McAlgorithmScore, McDetectionRunSummary } from "$lib/grading/mcVerification";
@@ -22,7 +22,7 @@
 
 {#if latest}
   <Card class="mb-6">
-    <h3 class="m-0 text-base font-semibold text-content">{$t("scanning.verify.settingsPanel.heading")}</h3>
+    <h2 class="m-0 text-base font-semibold text-content">{$t("scanning.verify.settingsPanel.heading")}</h2>
     <p class="mt-1 mb-3 text-xs text-muted">{$t("scanning.verify.settingsPanel.description")}</p>
 
     <div class="mb-3 flex flex-col gap-1 text-xs text-content">
@@ -59,11 +59,11 @@
 
     <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
       {#if latestParams && !showAll}
-        <button type="button" class="cursor-pointer text-accent hover:underline" on:click={() => (showAll = true)}>
+        <Button variant="text" size="sm" onClick={() => (showAll = true)}>
           {$t("scanning.verify.settingsPanel.showAll")}
-        </button>
+        </Button>
       {/if}
-      <a href="/settings#omr" class="text-accent hover:underline">{$t("scanning.verify.settingsPanel.editSettings")}</a>
+      <Button variant="text" size="sm" href="/settings#omr">{$t("scanning.verify.settingsPanel.editSettings")}</Button>
     </div>
 
     {#if comparison.length > 0}

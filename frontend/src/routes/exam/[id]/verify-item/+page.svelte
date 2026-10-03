@@ -19,7 +19,8 @@
   import { decrypt } from "$lib/crypto/aesGcm";
   import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "$lib/db/schema";
   import McItemVerificationCard from "$lib/components/verify/McItemVerificationCard.svelte";
-  import { PageShell, Modal, Button } from "$lib/components/ui";
+  import { Alert, PageShell, Modal, Button } from "$lib/components/ui";
+  import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
   import { flushAll, flushQuestion, stageVerifiedQuestion } from "$lib/services/trainingDonation";
 
   $: examId = $page.params.id || "";
@@ -254,22 +255,17 @@
   }
 </script>
 
-<PageShell width="full">
-  <div class="mb-6 flex items-center justify-between">
-    <a
-      href={`/exam/${examId}/verify`}
-      class="text-xs font-medium text-muted hover:text-content transition-colors flex items-center gap-1"
-    >
+<PageShell width="fluid">
+  <div class="mb-4 flex items-center justify-between">
+    <Button variant="text" severity="secondary" size="sm" icon={faArrowLeft} href={`/exam/${examId}/verify`}>
       {$t("scanning.verifyItem.backLink")}
-    </a>
+    </Button>
   </div>
 
   {#if loading}
     <div class="p-12 text-center text-sm text-muted">{$t("scanning.verifyItem.loading")}</div>
   {:else if errorMsg}
-    <div class="p-4 rounded-sm border border-danger/40 bg-danger/10 text-danger-fg text-xs max-w-xl mx-auto">
-      {errorMsg}
-    </div>
+    <Alert severity="danger" class="mx-auto max-w-xl">{errorMsg}</Alert>
   {:else if currentExercise}
     <McItemVerificationCard
       exercise={currentExercise}
@@ -296,7 +292,7 @@
 
   <Modal
     open={showEndOfQueueModal}
-    size="sm"
+    size="small"
     title={$t("scanning.itemCard.endOfQueueTitle")}
     onClose={() => (showEndOfQueueModal = false)}
   >

@@ -1,5 +1,7 @@
 <script lang="ts">
   import { t } from "$lib/i18n";
+  import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
+  import { Button } from "$lib/components/ui";
   export let src: string;
   export let alt: string = '';
 
@@ -91,7 +93,7 @@
 </script>
 
 <div
-  class="relative flex max-h-[70dvh] min-h-[200px] w-full touch-none select-none items-center justify-center overflow-hidden rounded-md bg-surface-raised {isDragging ? 'cursor-grabbing' : 'cursor-grab'}"
+  class="relative flex max-h-[70dvh] min-h-[200px] w-full touch-none select-none items-center justify-center overflow-hidden rounded-md bg-surface-viewer {isDragging ? 'cursor-grabbing' : 'cursor-grab'}"
   on:wheel|preventDefault={handleWheel}
   on:mousedown={handleMouseDown}
   on:mousemove={handleMouseMove}
@@ -102,15 +104,15 @@
   <img
     src={src}
     alt={alt}
-    class="pointer-events-none max-h-[70dvh] max-w-full origin-center object-contain transition-transform duration-[50ms] ease-out"
+    class="pointer-events-none max-h-[70dvh] max-w-full origin-center object-contain transition-transform duration-75 ease-out"
     style="transform: translate({panX}px, {panY}px) scale({zoomLevel});"
     draggable="false"
   />
 
-  <div class="absolute bottom-3 right-3 z-10 flex items-center gap-1 rounded-md bg-backdrop px-2 py-1">
-    <button class="flex h-8 w-8 items-center justify-center rounded-sm border-none bg-transparent text-lg text-content transition-colors duration-150 hover:bg-line-strong/20" on:click={zoomOut} title={$t("editor.zoom.zoomOut")}>−</button>
-    <span class="min-w-[42px] text-center font-mono text-xs font-medium text-muted">{Math.round(zoomLevel * 100)}%</span>
-    <button class="flex h-8 w-8 items-center justify-center rounded-sm border-none bg-transparent text-lg text-content transition-colors duration-150 hover:bg-line-strong/20" on:click={zoomIn} title={$t("editor.zoom.zoomIn")}>+</button>
-    <button class="flex h-8 w-auto items-center justify-center rounded-sm border-none bg-transparent px-2 text-xs font-semibold text-content transition-colors duration-150 hover:bg-line-strong/20" on:click={reset} title={$t("editor.zoom.resetToFit")}>{$t("editor.zoom.fit")}</button>
+  <div class="absolute right-3 bottom-3 z-10 flex items-center gap-1 rounded-md border border-line bg-surface-raised/90 px-2 py-1 shadow-sm">
+    <Button variant="text" severity="secondary" size="sm" iconOnly icon={faMinus} ariaLabel={$t("editor.zoom.zoomOut")} title={$t("editor.zoom.zoomOut")} onClick={zoomOut} />
+    <span class="min-w-11 text-center font-mono text-xs font-medium text-muted">{Math.round(zoomLevel * 100)}%</span>
+    <Button variant="text" severity="secondary" size="sm" iconOnly icon={faPlus} ariaLabel={$t("editor.zoom.zoomIn")} title={$t("editor.zoom.zoomIn")} onClick={zoomIn} />
+    <Button variant="text" severity="secondary" size="sm" title={$t("editor.zoom.resetToFit")} onClick={reset}>{$t("editor.zoom.fit")}</Button>
   </div>
 </div>

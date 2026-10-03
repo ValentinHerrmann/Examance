@@ -1,7 +1,7 @@
 <script lang="ts">
-  import "./ScannedSubmissionsTable.css";
   import { t } from "$lib/i18n";
   import { fmt } from "$lib/utils/format";
+  import { Button, Badge, Spinner, TableScroller } from "$lib/components/ui";
   interface ScannedSubmissionItem {
     id: string;
     pseudonymHash: string;
@@ -30,73 +30,65 @@
   export let onDeleteAll: () => void;
 </script>
 
-<div class="scans-overview-section">
-  <div class="scans-overview-header">
-    <h3>{$t("scanning.submissionsTable.title", { count: scannedSubmissions.length })}</h3>
+<div class="mt-10 min-w-0 rounded-xl border border-line bg-surface-raised p-4 sm:p-6">
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <h2 class="m-0 min-w-0 text-lg font-semibold text-content">{$t("scanning.submissionsTable.title", { count: scannedSubmissions.length })}</h2>
     {#if scannedSubmissions.length > 0}
-      <button class="btn-delete-all" on:click={onDeleteAll}>
+      <Button severity="danger" variant="outlined" onClick={onDeleteAll}>
         {$t("scanning.submissionsTable.deleteAll")}
-      </button>
+      </Button>
     {/if}
   </div>
   {#if loading}
     <div class="flex flex-col items-center gap-3 py-8 text-center" role="status">
-      <div
-        class="h-6 w-6 animate-spin rounded-full border-2 border-line-strong border-t-accent"
-        aria-hidden="true"
-      ></div>
+      <Spinner class="text-2xl text-accent" />
       <p class="m-0 text-sm text-muted">{$t("scanning.submissionsTable.loading")}</p>
     </div>
   {:else if scannedSubmissions.length === 0}
-    <p class="empty-msg">{$t("scanning.submissionsTable.empty")}</p>
+    <p class="text-sm text-muted">{$t("scanning.submissionsTable.empty")}</p>
   {:else}
-    <div class="scans-table">
-      <div class="table-header hidden md:grid md:grid-cols-[1.5fr_1fr_1.2fr_1.2fr_1fr]">
-        <span>{$t("scanning.submissionsTable.colStudentName")}</span>
-        <span>{$t("scanning.submissionsTable.colStudentId")}</span>
-        <span>{$t("scanning.submissionsTable.colFallbackCode")}</span>
-        <span>{$t("scanning.submissionsTable.colDateIngested")}</span>
-        <span>{$t("scanning.submissionsTable.colAction")}</span>
-      </div>
-      {#each scannedSubmissions as item}
-        <div class="table-row flex flex-col gap-2 md:grid md:grid-cols-[1.5fr_1fr_1.2fr_1.2fr_1fr] md:items-center">
-          <div class="flex items-center justify-between gap-2 md:contents">
-            <span class="md:hidden text-xs font-semibold uppercase text-muted">{$t("scanning.submissionsTable.colStudentName")}</span>
-            <span class="student-name min-w-0" title={$t("scanning.submissionsTable.submissionIdTitle", { id: item.id })}>
-              {item.studentName || $t("scanning.submissionsTable.unmatchedStudent")}
-            </span>
-          </div>
-          <div class="flex items-center justify-between gap-2 md:contents">
-            <span class="md:hidden text-xs font-semibold uppercase text-muted">{$t("scanning.submissionsTable.colStudentId")}</span>
-            <span class="student-number min-w-0" title={$t("scanning.submissionsTable.pseudonymTitle", { hash: item.pseudonymHash })}>
-              {item.studentNumber || '—'}
-            </span>
-          </div>
-          <div class="flex items-center justify-between gap-2 md:contents">
-            <span class="md:hidden text-xs font-semibold uppercase text-muted">{$t("scanning.submissionsTable.colFallbackCode")}</span>
-            <span class="scanned-submissions-badge" class:unmatched={item.fallbackCode.startsWith('UNMATCHED-')}>
-              {item.fallbackCode}
-            </span>
-          </div>
-          <div class="flex items-center justify-between gap-2 md:contents">
-            <span class="md:hidden text-xs font-semibold uppercase text-muted">{$t("scanning.submissionsTable.colDateIngested")}</span>
-            <span class="scanned-submissions-time">{$fmt.dateTime(item.createdAt)}</span>
-          </div>
-          <div class="md:contents">
-            <span class="md:hidden text-xs font-semibold uppercase text-muted">{$t("scanning.submissionsTable.colAction")}</span>
-            <div class="action-buttons flex-wrap">
-              <button class="btn-preview" on:click={() => onPreview(item)}>{$t("scanning.submissionsTable.preview")}</button>
-              <button class="btn-grade" on:click={() => onGoToGrading(item)}>{$t("scanning.submissionsTable.goToGrading")}</button>
-              <button class="btn-export" disabled={exportingId === item.id} on:click={() => onExportPdf(item)}>
-                {exportingId === item.id ? $t("scanning.submissionsTable.exporting") : $t("scanning.submissionsTable.exportPdf")}
-              </button>
-              <button class="btn-split" on:click={() => onSplit(item)}>{$t("scanning.submissionsTable.split")}</button>
-              <button class="btn-delete-grading" disabled={!isGraded(item)} on:click={() => onDeleteGrading(item)}>{$t("scanning.submissionsTable.deleteGrading")}</button>
-              <button class="btn-delete" on:click={() => onDelete(item)}>{$t("scanning.submissionsTable.delete")}</button>
-            </div>
-          </div>
-        </div>
-      {/each}
-    </div>
+    <TableScroller label={$t("scanning.submissionsTable.title", { count: scannedSubmissions.length })}>
+      <table class="data-table data-table-hover">
+        <thead>
+          <tr>
+            <th scope="col">{$t("scanning.submissionsTable.colStudentName")}</th>
+            <th scope="col">{$t("scanning.submissionsTable.colStudentId")}</th>
+            <th scope="col">{$t("scanning.submissionsTable.colFallbackCode")}</th>
+            <th scope="col">{$t("scanning.submissionsTable.colDateIngested")}</th>
+            <th scope="col">{$t("scanning.submissionsTable.colAction")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each scannedSubmissions as item}
+            <tr>
+              <td class="max-w-60 truncate font-semibold" title={$t("scanning.submissionsTable.submissionIdTitle", { id: item.id })}>
+                {item.studentName || $t("scanning.submissionsTable.unmatchedStudent")}
+              </td>
+              <td class="font-mono font-semibold text-accent" title={$t("scanning.submissionsTable.pseudonymTitle", { hash: item.pseudonymHash })}>
+                {item.studentNumber || "—"}
+              </td>
+              <td>
+                <Badge severity={item.fallbackCode.startsWith("UNMATCHED-") ? "warning" : "primary"}>
+                  {item.fallbackCode}
+                </Badge>
+              </td>
+              <td class="whitespace-nowrap text-muted">{$fmt.dateTime(item.createdAt)}</td>
+              <td>
+                <div class="flex min-w-72 flex-wrap items-center gap-2">
+                  <Button size="sm" variant="outlined" onClick={() => onPreview(item)}>{$t("scanning.submissionsTable.preview")}</Button>
+                  <Button size="sm" onClick={() => onGoToGrading(item)}>{$t("scanning.submissionsTable.goToGrading")}</Button>
+                  <Button size="sm" variant="outlined" severity="success" disabled={exportingId === item.id} onClick={() => onExportPdf(item)}>
+                    {exportingId === item.id ? $t("scanning.submissionsTable.exporting") : $t("scanning.submissionsTable.exportPdf")}
+                  </Button>
+                  <Button size="sm" variant="outlined" severity="warning" onClick={() => onSplit(item)}>{$t("scanning.submissionsTable.split")}</Button>
+                  <Button size="sm" variant="outlined" severity="warning" disabled={!isGraded(item)} onClick={() => onDeleteGrading(item)}>{$t("scanning.submissionsTable.deleteGrading")}</Button>
+                  <Button size="sm" variant="outlined" severity="danger" onClick={() => onDelete(item)}>{$t("scanning.submissionsTable.delete")}</Button>
+                </div>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </TableScroller>
   {/if}
 </div>
