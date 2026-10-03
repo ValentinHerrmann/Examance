@@ -10,7 +10,7 @@
 </script>
 
 <PageShell width="narrow">
-  <article class="pb-8 leading-relaxed text-content">
+  <article class="leading-relaxed text-content">
     <PageHeader {title} subtitle={subtitle || undefined} />
 
     <!-- The page bodies are plain h2/p/ul markup written in the route files, so they are styled from here. -->
@@ -20,7 +20,7 @@
       <slot />
     </div>
 
-    <footer class="mt-12 border-t border-line pt-5">
+    <footer class="mt-8 border-t border-line pt-4">
       <a href="/" class="link inline-flex items-center gap-2 text-sm">
         <Icon icon={faArrowLeft} />{$t("legal.backToHome")}
       </a>

@@ -29,8 +29,8 @@
   export let needsLegacyMigration: boolean;
 </script>
 
-<div class="mb-6 text-center sm:mb-8">
-  <img src="/favicon.png" alt="Examance logo" class="mx-auto mb-3 size-16 rounded-xl object-contain" />
+<div class="mb-4 text-center sm:mb-5">
+  <img src="/favicon.png" alt="Examance logo" class="mx-auto mb-2 size-12 rounded-xl object-contain" />
   <h1 class="m-0 text-2xl font-normal text-content">{$t("auth.unlock.title")}</h1>
   <p class="mt-2 mb-0 text-base text-muted">{$t("auth.unlock.subtitle")}</p>
   <!-- The very first screen someone sees, and the one place where no workspace
@@ -55,13 +55,15 @@
 
 <div class="grid min-w-0 grid-cols-1 gap-5 md:grid-cols-2 md:gap-8">
   <!-- Option A: Local Mode -->
-  <Card padded={false} class="relative flex flex-col p-5 sm:p-8">
+  <Card padded={false} class="relative flex flex-col p-5 sm:p-6">
     <Badge severity="primary" class="absolute top-3 right-3 sm:top-5 sm:right-5">
       {$t("auth.unlock.local.noAccountRequired")}
     </Badge>
-    <Icon icon={faShieldHalved} class="mb-3 text-4xl text-accent" />
-    <h2 class="m-0 mb-2 pr-24 text-xl font-medium text-content">{$t("auth.unlock.local.startWorkspace")}</h2>
-    <p class="m-0 mb-5 text-sm leading-snug text-muted">
+    <div class="mb-2 flex items-center gap-3 pr-24">
+      <Icon icon={faShieldHalved} class="shrink-0 text-3xl text-accent" />
+      <h2 class="m-0 text-xl font-medium text-content">{$t("auth.unlock.local.startWorkspace")}</h2>
+    </div>
+    <p class="m-0 mb-3 text-sm leading-snug text-muted">
       {$t("auth.unlock.local.description")}
     </p>
     <ul class="m-0 mb-6 flex flex-1 list-none flex-col gap-2.5 p-0 text-sm [overflow-wrap:anywhere] text-content">
@@ -120,17 +122,19 @@
   </Card>
 
   <!-- Option B: Cloud Account -->
-  <Card padded={false} class="relative flex flex-col p-5 sm:p-8">
+  <Card padded={false} class="relative flex flex-col p-5 sm:p-6">
     <Badge severity="info" class="absolute top-3 right-3 sm:top-5 sm:right-5">
       {$t("auth.unlock.cloud.schoolAccount")}
     </Badge>
-    <Icon icon={faCloud} class="mb-3 text-4xl text-info-fg" />
-    <h2 class="m-0 mb-2 pr-24 text-xl font-medium text-content">{$t("auth.unlock.cloud.connectToServer")}</h2>
-    <p class="m-0 mb-5 text-sm leading-snug text-muted">
+    <div class="mb-2 flex items-center gap-3 pr-24">
+      <Icon icon={faCloud} class="shrink-0 text-3xl text-info-fg" />
+      <h2 class="m-0 text-xl font-medium text-content">{$t("auth.unlock.cloud.connectToServer")}</h2>
+    </div>
+    <p class="m-0 mb-3 text-sm leading-snug text-muted">
       {$t("auth.unlock.cloud.description")}
     </p>
 
-    <form on:submit|preventDefault={onUnlock} class="flex flex-col gap-4">
+    <form on:submit|preventDefault={onUnlock} class="flex flex-col gap-3">
       <Field forId="backendUrl" label={$t("auth.unlock.cloud.backendUrl")} let:id>
         <BackendUrlInput
           {id}

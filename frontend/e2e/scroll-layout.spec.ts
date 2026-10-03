@@ -6,23 +6,18 @@ import { mainRoutes, seedWorkspace, visit } from './helpers/seed';
 test('probe vertical overflow', async ({ page }) => {
   const examId = await seedWorkspace(page);
   const out: string[] = [];
-  const probe = () =>
-    page.evaluate(() => {
-      const m = document.querySelector('.app-main') as HTMLElement | null;
-      if (!m) return null;
-      const over = m.scrollHeight - m.clientHeight;
-      const kids = [...m.children].map((c) => `${c.tagName.toLowerCase()}.${(c.className || '').toString().slice(0, 40)}:${Math.round(c.getBoundingClientRect().height)}`);
-      return { over, kids: kids.join(' | '), vh: innerHeight };
-    });
-  for (const r of mainRoutes(examId)) {
+  const probe = () => page.evaluate(() => {
+    const m = document.querySelector('.app-main') as HTMLElement | null;
+    return m ? { over: m.scrollHeight - m.clientHeight, vh: innerHeight } : null;
+  });
+  for (const r of [...mainRoutes(examId), { path: '/legal/datenschutz' }, { path: '/forgot-password' }]) {
     await visit(page, r.path);
     await page.waitForTimeout(400);
     const m = await probe();
-    if (m && m.over > 0) out.push(`${r.path} vh=${m.vh} over=${m.over} ${m.kids}`);
+    out.push(`${r.path.replace(examId, ':id')} over=${m?.over}`);
   }
   await lockApp(page);
   await page.waitForTimeout(600);
-  const u = await probe();
-  out.push(`UNLOCK vh=${u?.vh} over=${u?.over} ${u?.kids}`);
+  out.push(`UNLOCK over=${(await probe())?.over}`);
   appendFileSync(process.env.PROBE_OUT!, test.info().project.name + '\n' + out.join('\n') + '\n');
 });
