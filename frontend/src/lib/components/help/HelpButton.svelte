@@ -23,7 +23,7 @@
   $: box = size === "sm" ? "size-6! text-sm" : "size-7! text-base";
 </script>
 
-<Tooltip text={label}>
+<Tooltip text={label} wrapperClass="inline-flex shrink-0">
   <Button
     variant="text"
     severity="secondary"
