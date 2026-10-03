@@ -5,8 +5,8 @@ export const workspace = {
         clear: 'Arbeitsbereich leeren',
     },
     session: {
-        cloudMode: '️ Cloud-Modus',
-        localMode: 'Lokaler Modus',
+        cloudMode: 'Angemeldet mit Konto',
+        localMode: 'Lokale Sitzung (ohne Konto)',
         lockSession: 'Sitzung sperren',
         lock: 'Sperren',
         connectToCloud: 'Mit Cloud verbinden',

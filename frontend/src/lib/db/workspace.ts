@@ -123,7 +123,12 @@ export async function replaceWorkspace(
 function sessionIdentity(): WorkspaceOwner {
   const s = get(sessionStore);
   if (s.email === null) return { kind: 'local-vault', accountId: null, backendOrigin: null };
-  return { kind: 'account', accountId: s.teacherId ?? s.email, backendOrigin: get(backendStore) || null };
+  return {
+    kind: 'account',
+    accountId: s.teacherId ?? s.email,
+    backendOrigin: get(backendStore) || null,
+    accountEmail: s.email,
+  };
 }
 
 async function claim(manifest: WorkspaceManifestRecord): Promise<WorkspaceManifestRecord> {
@@ -252,4 +257,25 @@ export async function adoptServerStorageIfPristine(): Promise<boolean> {
   if (!(await workspaceIsEmpty()) || hasQueuedWrites(manifest.workspaceId)) return false;
   await replaceWorkspace('all-server', { explicit: true });
   return true;
+}
+
+/** What the UI may say about this browser's workspace, also while locked (the manifest holds no secrets). */
+export interface WorkspaceSummary {
+  mode: StorageMode;
+  /** Null: not yet bound to a key (fresh or legacy browser). */
+  ownerKind: WorkspaceOwner['kind'] | null;
+  accountEmail: string | null;
+  backendOrigin: string | null;
+  hasData: boolean;
+}
+
+export async function describeWorkspace(): Promise<WorkspaceSummary> {
+  const manifest = await loadWorkspace();
+  return {
+    mode: manifest.mode,
+    ownerKind: manifest.owner?.kind ?? null,
+    accountEmail: manifest.owner?.accountEmail ?? null,
+    backendOrigin: manifest.owner?.backendOrigin ?? null,
+    hasData: !(await workspaceIsEmpty()),
+  };
 }

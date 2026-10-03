@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { goto } from "$app/navigation";
   import { t, translate } from "#lib/i18n";
   import { deriveKey, deriveKeyWithFallback, generateSalt, getUserSalt, getUserSessionNonce } from "#lib/crypto/keyDerivation";
@@ -47,7 +47,14 @@
     startFreshVault,
   } from "#lib/services/keyEnvelopeService";
   import { pendingSwitchStore } from "#lib/services/storageModeSwitch";
-  import { adoptServerStorageIfPristine, openWorkspace } from "#lib/db/workspace";
+  import {
+    adoptServerStorageIfPristine,
+    describeWorkspace,
+    openWorkspace,
+    type WorkspaceSummary,
+  } from "#lib/db/workspace";
+  import { workspaceStatusStore } from "#lib/stores/workspaceState";
+  import WorkspaceBlocked from "#lib/components/storage/WorkspaceBlocked.svelte";
 
   const LOCAL_PASSPHRASE_MIN_LENGTH = 12;
 
@@ -94,6 +101,12 @@
   let localPassphraseConfirm = $state("");
   const needsLegacyMigration = hasLegacyLocalVault();
   const isNewLocalVault = !hasLocalVault() || needsLegacyMigration;
+
+  // What this browser holds, readable while locked: tells both doors which one opens it.
+  let workspace = $state.raw<WorkspaceSummary | null>(null);
+  onMount(async () => {
+    workspace = await describeWorkspace();
+  });
 
   async function handleUnlock() {
     errorMsg = "";
@@ -252,7 +265,12 @@
   // (lib/db/workspace.ts). Local data and chosen modes are never switched away silently.
   async function enterApp() {
     if (!get(pendingSwitchStore)) await adoptServerStorageIfPristine();
-    await openWorkspace();
+    // A workspace this account does not own stays on this page with an explanation (see template).
+    const status = await openWorkspace();
+    if (status.state === "blocked") {
+      isFinishing = false;
+      return;
+    }
     await goto("/");
   }
 
@@ -547,7 +565,17 @@
         await sessionStore.unlockLocalSession(localPassphrase);
       }
 
-      await openWorkspace();
+      const status = await openWorkspace();
+      if (status.state === "blocked") {
+        // A passphrase workspace whose key check fails was simply given the wrong passphrase: say so
+        // here and drop the keys, instead of offering a reset that would destroy the real data.
+        if (status.reason === "foreign-key" && !isNewLocalVault && workspace?.ownerKind !== "account") {
+          sessionStore.reset();
+          workspaceStatusStore.set({ state: "unchecked" });
+          errorMsg = translate("storagePolicy.workspace.wrongPassphrase");
+        }
+        return;
+      }
       await goto("/");
     } catch (err: any) {
       errorMsg = err?.message || translate("auth.unlock.errors.localSessionInitFailed");
@@ -664,7 +692,9 @@
   <!-- Above the step: the cooloff can be hit from the form, the second factor and the vault prompt alike. -->
   <LockoutNotice />
 
-  {#if isFinishing}
+  {#if $workspaceStatusStore.state === "blocked"}
+    <WorkspaceBlocked reason={$workspaceStatusStore.reason} />
+  {:else if isFinishing}
     <Card class="mx-auto w-full max-w-form sm:p-6">
       <SigningInStep email={finishingEmail} />
     </Card>
@@ -697,6 +727,7 @@
       bind:localPassphraseConfirm
       {isNewLocalVault}
       {needsLegacyMigration}
+      {workspace}
       {errorMsg}
       {isLoading}
       onUnlock={handleUnlock}

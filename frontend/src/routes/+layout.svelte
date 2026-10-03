@@ -48,7 +48,7 @@
   import ExamSidebar from "#lib/components/layout/ExamSidebar.svelte";
   import { examNavContext } from "#lib/stores/shell";
   import { theme, applyTheme } from "#lib/stores/theme";
-  import { Alert, Button } from "#lib/components/ui";
+  import { Alert, Button, PageShell } from "#lib/components/ui";
   import StoragePolicyModal from "#lib/components/StoragePolicyModal.svelte";
   import SessionTimeoutWarning from "#lib/components/SessionTimeoutWarning.svelte";
   import HttpCatModal from "#lib/components/HttpCatModal.svelte";
@@ -333,7 +333,9 @@
     <main class="app-main">
       {#if $workspaceStatusStore.state === "blocked" && page.url.pathname !== "/unlock"}
         <!-- Routes stay unmounted: they would read a vault this session does not own. -->
-        <WorkspaceBlocked reason={$workspaceStatusStore.reason} />
+        <PageShell width="medium" center>
+          <WorkspaceBlocked reason={$workspaceStatusStore.reason} />
+        </PageShell>
       {:else}
         {@render children?.()}
       {/if}

@@ -9,6 +9,9 @@
     faShieldHalved,
   } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Badge, Button, Card, Field, Icon, TextInput } from "#lib/components/ui";
+  import type { WorkspaceSummary } from "#lib/db/workspace";
+  import { getStoragePolicyBadge } from "#lib/stores/storagePolicy";
+  import { extractHostname } from "#lib/stores/backendStore";
 
   interface Props {
     backendUrl: string;
@@ -26,6 +29,8 @@
     isNewLocalVault: boolean;
     /** A vault created before the passphrase change; unlocking re-encrypts it. */
     needsLegacyMigration: boolean;
+    /** This browser's workspace (null while loading): which door opens it, and whose it is. */
+    workspace: WorkspaceSummary | null;
   }
 
   let {
@@ -41,7 +46,34 @@
     localPassphraseConfirm = $bindable(),
     isNewLocalVault,
     needsLegacyMigration,
+    workspace,
   }: Props = $props();
+
+  // A workspace never bound to a key belongs to the door its mode implies.
+  let opensWithPassphrase = $derived(
+    !!workspace &&
+      (workspace.ownerKind === "local-vault" || (workspace.ownerKind === null && workspace.mode === "all-local")),
+  );
+  let opensWithAccount = $derived(
+    !!workspace &&
+      (workspace.ownerKind === "account" || (workspace.ownerKind === null && workspace.mode !== "all-local")),
+  );
+  let isEmpty = $derived(!workspace || (!workspace.hasData && workspace.ownerKind === null));
+  let modeLabel = $derived(
+    workspace ? getStoragePolicyBadge({ storageMode: workspace.mode, latexCompilation: "local" }).text : "",
+  );
+  let ownerLabel = $derived(
+    workspace?.accountEmail
+      ? workspace.backendOrigin
+        ? `${workspace.accountEmail} (${extractHostname(workspace.backendOrigin)})`
+        : workspace.accountEmail
+      : workspace?.backendOrigin
+        ? extractHostname(workspace.backendOrigin)
+        : "?",
+  );
+  // Where a door cannot open what this browser holds, say so before anyone types a secret.
+  let localDoorHint = $derived(!isEmpty && opensWithAccount);
+  let accountDoorHint = $derived(!isEmpty && opensWithPassphrase && !!workspace?.hasData);
 </script>
 
 <div class="mb-4 text-center sm:mb-5">
@@ -64,15 +96,34 @@
   </Button>
 </div>
 
+{#if workspace}
+  <div class="mb-5 rounded-md border border-line bg-surface-sunken px-4 py-3 text-sm" role="status">
+    <span class="font-medium text-content">{$t("storagePolicy.workspace.summary.heading")}:</span>
+    <span class="text-muted">
+      {#if isEmpty}
+        {$t("storagePolicy.workspace.summary.none")}
+      {:else if workspace.ownerKind === "local-vault"}
+        {$t("storagePolicy.workspace.summary.localVault", { mode: modeLabel })}
+      {:else if workspace.ownerKind === "account"}
+        {$t("storagePolicy.workspace.summary.account", { mode: modeLabel, owner: ownerLabel })}
+      {:else}
+        {$t("storagePolicy.workspace.summary.unclaimed", { mode: modeLabel })}
+      {/if}
+    </span>
+  </div>
+{/if}
+
 {#if errorMsg}
   <Alert severity="danger" class="mb-5">{errorMsg}</Alert>
 {/if}
 
 <div class="grid min-w-0 grid-cols-1 gap-5 md:grid-cols-2 md:gap-8">
   <!-- Option A: Local Mode -->
-  <Card padded={false} class="relative flex flex-col p-5 sm:p-6">
+  <Card padded={false} class="relative flex flex-col p-5 sm:p-6 {opensWithPassphrase && !isEmpty ? 'ring-2 ring-primary' : ''}">
     <Badge severity="primary" class="absolute top-3 right-3 sm:top-5 sm:right-5">
-      {$t("auth.unlock.local.noAccountRequired")}
+      {opensWithPassphrase && !isEmpty
+        ? $t("storagePolicy.workspace.summary.yours")
+        : $t("auth.unlock.local.noAccountRequired")}
     </Badge>
     <div class="mb-2 flex items-center gap-3 pr-24">
       <Icon icon={faShieldHalved} class="shrink-0 text-3xl text-accent" />
@@ -86,6 +137,12 @@
       <li>{$t("auth.unlock.local.featureEncrypted")}</li>
       <li>{$t("auth.unlock.local.featureExportImport")}</li>
     </ul>
+
+    {#if localDoorHint}
+      <Alert severity="info" class="mb-3">
+        {$t("storagePolicy.workspace.summary.localCardAccountOwned", { owner: ownerLabel })}
+      </Alert>
+    {/if}
 
     {#if needsLegacyMigration}
       <p class="m-0 mb-2 text-left text-sm leading-snug text-warning-fg">
@@ -140,9 +197,11 @@
   </Card>
 
   <!-- Option B: Cloud Account -->
-  <Card padded={false} class="relative flex flex-col p-5 sm:p-6">
+  <Card padded={false} class="relative flex flex-col p-5 sm:p-6 {opensWithAccount && !isEmpty ? 'ring-2 ring-primary' : ''}">
     <Badge severity="info" class="absolute top-3 right-3 sm:top-5 sm:right-5">
-      {$t("auth.unlock.cloud.schoolAccount")}
+      {opensWithAccount && !isEmpty
+        ? $t("storagePolicy.workspace.summary.yours")
+        : $t("auth.unlock.cloud.schoolAccount")}
     </Badge>
     <div class="mb-2 flex items-center gap-3 pr-24">
       <Icon icon={faCloud} class="shrink-0 text-3xl text-info-fg" />
@@ -151,6 +210,9 @@
     <p class="m-0 mb-3 text-sm leading-snug text-muted">
       {$t("auth.unlock.cloud.description")}
     </p>
+    {#if accountDoorHint}
+      <Alert severity="info" class="mb-3">{$t("storagePolicy.workspace.summary.cloudCardPassphraseOwned")}</Alert>
+    {/if}
 
     <form onsubmit={(e) => { e.preventDefault(); onUnlock(); }} class="flex flex-col gap-3">
       <Field forId="backendUrl" label={$t("auth.unlock.cloud.backendUrl")}>

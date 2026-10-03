@@ -108,7 +108,7 @@
             name="storageMode"
             value="all-local"
             checked={$storagePolicyStore.storageMode === "all-local"}
-            onchange={() => handleStorageModeChange("all-local")}
+            onclick={(e) => { e.preventDefault(); handleStorageModeChange("all-local"); }}
             class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
@@ -117,13 +117,14 @@
           </div>
         </label>
 
-        <label class={$storagePolicyStore.storageMode === "all-server" ? optionCardActive : optionCardBase}>
+        <label class="{$storagePolicyStore.storageMode === "all-server" ? optionCardActive : optionCardBase} {$isAuthenticated ? '' : 'cursor-not-allowed opacity-60'}">
           <input
             type="radio"
             name="storageMode"
             value="all-server"
             checked={$storagePolicyStore.storageMode === "all-server"}
-            onchange={() => handleStorageModeChange("all-server")}
+            disabled={!$isAuthenticated}
+            onclick={(e) => { e.preventDefault(); handleStorageModeChange("all-server"); }}
             class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
@@ -132,13 +133,14 @@
           </div>
         </label>
 
-        <label class={$storagePolicyStore.storageMode === "hybrid" ? optionCardActive : optionCardBase}>
+        <label class="{$storagePolicyStore.storageMode === "hybrid" ? optionCardActive : optionCardBase} {$isAuthenticated ? '' : 'cursor-not-allowed opacity-60'}">
           <input
             type="radio"
             name="storageMode"
             value="hybrid"
             checked={$storagePolicyStore.storageMode === "hybrid"}
-            onchange={() => handleStorageModeChange("hybrid")}
+            disabled={!$isAuthenticated}
+            onclick={(e) => { e.preventDefault(); handleStorageModeChange("hybrid"); }}
             class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
@@ -147,6 +149,9 @@
           </div>
         </label>
       </div>
+      {#if !$isAuthenticated}
+        <p class="m-0 mt-2 text-xs text-muted">{$t("storagePolicy.workspace.needsAccount")}</p>
+      {/if}
     </div>
 
     <div>
@@ -160,7 +165,7 @@
             name="latexMode"
             value="local"
             checked={$storagePolicyStore.latexCompilation === "local"}
-            onchange={() => handleLatexChange("local")}
+            onclick={(e) => { e.preventDefault(); handleLatexChange("local"); }}
             class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
@@ -169,13 +174,14 @@
           </div>
         </label>
 
-        <label class={$storagePolicyStore.latexCompilation === "server" ? optionCardActive : optionCardBase}>
+        <label class="{$storagePolicyStore.latexCompilation === "server" ? optionCardActive : optionCardBase} {$isAuthenticated ? '' : 'cursor-not-allowed opacity-60'}">
           <input
             type="radio"
             name="latexMode"
             value="server"
             checked={$storagePolicyStore.latexCompilation === "server"}
-            onchange={() => handleLatexChange("server")}
+            disabled={!$isAuthenticated}
+            onclick={(e) => { e.preventDefault(); handleLatexChange("server"); }}
             class="mt-0.5 size-5 shrink-0 accent-primary"
           />
           <div>
@@ -184,6 +190,9 @@
           </div>
         </label>
       </div>
+      {#if !$isAuthenticated}
+        <p class="m-0 mt-2 text-xs text-muted">{$t("storagePolicy.workspace.needsAccount")}</p>
+      {/if}
     </div>
 
     <div>

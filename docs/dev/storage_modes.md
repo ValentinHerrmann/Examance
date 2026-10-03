@@ -66,3 +66,11 @@ Every blocked screen offers "sign out and use the matching credentials", plus a 
 The steps are confirm → export (or an explicit skip) → `commitModeSwitch()` → import → optional server purge.
 
 `commitModeSwitch()` runs `replaceWorkspace()`, which is atomic. A reload between steps resumes the switch. A reload during `switching` checks the manifest: if the mode already changed it continues at the import, otherwise it returns to the wipe step.
+
+## UX rules
+
+- **Local sessions without an account are first-class.** The passphrase door always works for an all-local workspace protected by a passphrase. Server-only options (server modes, server LaTeX) are shown disabled with "only available when signed in", not hidden and not failing later.
+- **The unlock page shows what this browser holds** ("In this browser: All Local · protected by your passphrase" or "… belongs to account x@y (host)"). It also marks the door that opens it. The other door explains up front why it won't open this data and what to do instead.
+- **A wrong passphrase is reported inline as a wrong passphrase.** The canary detects it before entering the app, and the keys are dropped. It never leads to a reset offer.
+- **Blocked states name the owner and lead with the way back in** (sign out and use the right door). A reset is the last resort, behind a confirmation, with an extra warning when hybrid student data would be lost. A passphrase user facing a server-backed workspace gets "Start a local workspace": the server copy stays untouched and only this browser's cache goes.
+- **Displayed state is always the committed state.** Mode and LaTeX radios never toggle themselves (`preventDefault` on click). The checked option moves only when the store does, so a cancelled wizard or a declined consent leaves the UI on the real setting. The account menu shows the *session* ("Signed in with account" / "Local session (no account)"); the storage badge shows the *mode*. The two are never conflated.

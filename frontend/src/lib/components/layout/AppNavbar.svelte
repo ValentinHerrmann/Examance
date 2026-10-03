@@ -6,7 +6,6 @@
     faCircleHalfStroke,
     faCircleQuestion,
     faCircleUser,
-    faCloud,
     faDatabase,
     faFileExport,
     faFileImport,
@@ -265,9 +264,6 @@
           {authenticated ? $t("workspace.session.cloudMode") : $t("workspace.session.localMode")}
         </p>
         <MenuItem icon={faGear} href="/settings">{$t("nav.settings")}</MenuItem>
-        {#if !authenticated}
-          <MenuItem icon={faCloud} href="/unlock">{$t("workspace.session.connectToCloud")}</MenuItem>
-        {/if}
         <MenuItem icon={authenticated ? faArrowRightFromBracket : faLock} onSelect={onLock}>
           {authenticated ? $t("workspace.session.lockSession") : $t("workspace.session.lock")}
         </MenuItem>

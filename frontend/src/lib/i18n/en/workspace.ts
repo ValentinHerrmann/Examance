@@ -7,8 +7,8 @@ export const workspace: Translations['workspace'] = {
         clear: 'Clear Workspace',
     },
     session: {
-        cloudMode: '️ Cloud Mode',
-        localMode: 'Local Mode',
+        cloudMode: 'Signed in with account',
+        localMode: 'Local session (no account)',
         lockSession: 'Lock Session',
         lock: 'Lock',
         connectToCloud: 'Connect to Cloud',

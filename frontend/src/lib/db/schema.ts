@@ -306,6 +306,8 @@ export interface WorkspaceOwner {
   accountId: string | null;
   /** Normalised backend origin the account lives on; null for a local passphrase vault. */
   backendOrigin: string | null;
+  /** The account's e-mail, only so the locked screen can say whose workspace this is. */
+  accountEmail?: string | null;
 }
 
 /**

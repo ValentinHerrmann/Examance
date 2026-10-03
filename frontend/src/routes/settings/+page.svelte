@@ -180,6 +180,7 @@
           onStorageModeChange={handleStorageModeChange}
           onLatexChange={handleLatexChange}
           onLocaleChange={handleLocaleChange}
+          signedIn={$isAuthenticated}
         />
         {#if workspaceOwnerLabel}
           <p class="-mt-2 px-1 text-xs text-muted">
