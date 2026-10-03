@@ -415,11 +415,16 @@ test.describe('help', () => {
 
     // The topic index and one topic's content.
     const topics = dialog.getByRole('navigation', { name: await t(page, 'help.ui.contents') });
+    // On narrow screens the index is replaced by the open topic (the panel
+    // preselects one); "back to overview" returns to it. Wide layouts show both.
+    const back = dialog.getByRole('button', { name: stem('help.ui.backToOverview') });
+    if (await back.isVisible()) await back.click();
     await expect(topics).toBeVisible();
     await topics.getByRole('button', { name: await t(page, 'help.topics.storageModes.title') }).click();
     await expect(
       dialog.getByRole('heading', { name: await t(page, 'help.topics.storageModes.s1.h') }),
     ).toBeVisible();
+    if (await back.isVisible()) await back.click();
     await topics.getByRole('button', { name: await t(page, 'help.topics.privacy.title') }).click();
     await expect(
       dialog.getByRole('heading', { name: await t(page, 'help.topics.privacy.s1.h') }),
@@ -430,6 +435,7 @@ test.describe('help', () => {
     await search.fill('zzzz-no-such-help-topic');
     await expect(dialog.getByText(await t(page, 'help.ui.noResults', { query: 'zzzz-no-such-help-topic' }))).toBeVisible();
     await search.fill('');
+    if (await back.isVisible()) await back.click();
     await expect(topics).toBeVisible();
 
     await page.keyboard.press('Escape');
