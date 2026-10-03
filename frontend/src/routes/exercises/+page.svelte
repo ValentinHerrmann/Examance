@@ -604,11 +604,14 @@
           variant_key: variantKey,
         });
       } else {
+        // Both writes go through encryptExercise(): a direct put of these
+        // decrypted records left plaintext at rest. encryptExercise() also
+        // refuses a base record that never decrypted (decryptGuard).
+        const key = get(sessionStore).sessionKey;
         const groupId = variantBaseEx.exerciseGroupId || crypto.randomUUID();
-        if (!variantBaseEx.exerciseGroupId) {
-          variantBaseEx.exerciseGroupId = groupId;
-          await db.exercises.put(variantBaseEx);
-        }
+        const sealedBase = variantBaseEx.exerciseGroupId
+          ? null
+          : await encryptExercise({ ...variantBaseEx, exerciseGroupId: groupId }, key);
         const variantRecord: ExerciseRecord = {
           id: crypto.randomUUID(),
           teacherId: $sessionStore.email || "local-teacher",
@@ -628,7 +631,10 @@
           penalty: variantBaseEx.penalty ?? 0,
           updatedAt: new Date().toISOString(),
         };
-        await db.exercises.put(variantRecord);
+        // Seal both before writing either, so a refusal leaves nothing half-done.
+        const sealedVariant = await encryptExercise(variantRecord, key);
+        if (sealedBase) await db.exercises.put(sealedBase);
+        await db.exercises.put(sealedVariant);
       }
 
       forceCloseVariantModal();
