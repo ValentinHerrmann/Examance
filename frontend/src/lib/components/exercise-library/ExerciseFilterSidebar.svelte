@@ -36,7 +36,7 @@
 <div class="flex min-w-0 flex-col gap-4">
   <div>
     <TextInput
-      type="search"
+      type="text"
       placeholder={$t("exercises.filterSidebar.searchPlaceholder")}
       bind:value={searchQuery}
     />

@@ -808,6 +808,7 @@
                           checked={option.correct}
                           onChange={() => toggleOptionCorrect(index)}
                           title={$t("exercises.editor.mcOptionCorrectTitle")}
+                          aria-label={$t("exercises.editor.mcOptionCorrectTitle")}
                         />
 
                         <input

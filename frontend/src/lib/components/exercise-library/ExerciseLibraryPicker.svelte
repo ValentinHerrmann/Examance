@@ -176,6 +176,7 @@
               disabled={ownerGroup !== undefined}
               onChange={() => (isMc ? onToggleMcStaging(activeEx.id) : onToggleSelection(activeEx.id))}
               title={checkboxTitle(isMc, isSelected, ownerGroup)}
+              aria-label={checkboxTitle(isMc, isSelected, ownerGroup)}
             />
           {/if}
         </div>
