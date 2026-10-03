@@ -33,7 +33,7 @@ export default [
 
   js.configs.recommended,
   ...ts.configs.recommended,
-  ...svelte.configs['flat/recommended'],
+  ...svelte.configs.recommended,
 
   {
     languageOptions: {

@@ -6,6 +6,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, type Plugin } from 'vitest/config';
 import wasm from 'vite-plugin-wasm';
 import tailwindcss from '@tailwindcss/vite';
+import { svelteTesting } from '@testing-library/svelte/vite';
 
 /**
  * In Vite dev mode, optimizeDeps excludes argon2-browser so it is served directly
@@ -110,10 +111,8 @@ function computeDefaultBackendUrl(): string {
 }
 
 export default defineConfig({
-  plugins: [tailwindcss(), wasm(), argon2BundlePlugin(), sveltekit()],
-  // Component tests mount Svelte in jsdom, which needs Svelte's browser build
-  // (its default resolution under Node is the SSR build, where mount fails).
-  resolve: { conditions: process.env.VITEST ? ['browser'] : [] },
+  // svelteTesting() is a no-op outside Vitest; inside it, it resolves Svelte's browser build for jsdom.
+  plugins: [tailwindcss(), wasm(), argon2BundlePlugin(), sveltekit(), svelteTesting()],
   define: {
     __APP_VERSION__: JSON.stringify(computeAppVersion()),
     __APP_COMMIT_SHA__: JSON.stringify(computeCommitSha()),
@@ -151,7 +150,7 @@ export default defineConfig({
     // Gzip-sizing every chunk only feeds the build log and cost ~9 s per
     // Cloudflare Pages build.
     reportCompressedSize: false,
-    rollupOptions: {
+    rolldownOptions: {
       external: [/.*\.wasm$/],
       // No `output.*FileNames` overrides here — SvelteKit owns the output
       // layout and ignores them, always emitting under `_app/immutable/`,

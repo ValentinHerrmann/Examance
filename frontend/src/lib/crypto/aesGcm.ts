@@ -35,10 +35,7 @@ export function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
  * Generates a fresh random 12-byte IV on every call.
  */
 export async function encrypt(key: CryptoKey, plaintext: Uint8Array, customIv?: Uint8Array): Promise<EncryptResult> {
-  const iv = customIv ?? new Uint8Array(12);
-  if (!customIv) {
-    crypto.getRandomValues(iv); // Fresh random IV — never reuse
-  }
+  const iv = customIv ?? crypto.getRandomValues(new Uint8Array(12)); // Fresh random IV — never reuse
 
   const plaintextBuffer = toArrayBuffer(plaintext);
 

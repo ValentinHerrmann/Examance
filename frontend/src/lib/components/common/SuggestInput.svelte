@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import type { HTMLInputAttributes } from "svelte/elements";
   import { getRecentValues, recordValue, removeValue } from "$lib/utils/recentValues";
   import { t } from "$lib/i18n";
   import { faXmark } from "@fortawesome/free-solid-svg-icons";
@@ -12,7 +13,7 @@
   export let placeholder: string = "";
   export let required: boolean = false;
   export let disabled: boolean = false;
-  export let autocomplete: string | undefined = undefined;
+  export let autocomplete: HTMLInputAttributes["autocomplete"] = undefined;
   let className: string = "";
   export { className as class };
   export let maxSuggestions: number = 15;
