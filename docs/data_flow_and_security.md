@@ -209,6 +209,8 @@ accounts here.
 | `exerciseResources` | `id, exerciseId, [exerciseId+filename]` | Raw file bytes (`dataCt`) of a teacher-uploaded LaTeX resource (image, PDF, data file). `filename`, `mimeType` and `byteSize` stay plaintext — they are index/display fields, not content | Opaque Binary Ciphertext / Purged |
 | `auditLog` | `id, action, timestamp` | Action note details | Opaque Binary Ciphertext / Purged |
 
+*Previously broken here (2026-10-03, now fixed):* in `all-local` mode, creating an exercise variant in the library (`handleSaveVariant()`, `routes/exercises/+page.svelte`) wrote the new variant, and the base exercise it had just tagged with a group id, to `exercises` without `encryptExercise()`. Name, LaTeX body and answer choices sat in IndexedDB in plaintext. Both writes are now sealed. Rows already affected are re-sealed the next time the library loads under a key (`sealPlaintextRows()` in `exerciseRepository.ts`). This was teacher-authored exercise content on the teacher's own device, not student data, and nothing left the device.
+
 ### Per-exercise scores on the server
 
 In `all-server` mode, per-exercise results live in the server's

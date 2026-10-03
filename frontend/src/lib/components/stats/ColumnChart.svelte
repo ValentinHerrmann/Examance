@@ -1,46 +1,39 @@
 <script lang="ts">
-  /**
-   * Vertical column chart for the stats page: categories on the horizontal
-   * axis, counts on the vertical one. Layers are drawn in order on a shared
-   * domain, so a wide backdrop layer and a narrow foreground layer make the
-   * merged grade/percentage chart. Charts read best-left, worst-right —
-   * callers are responsible for that ordering, this component just draws.
-   *
-   * All category labels sit below the plot, never above it (that space is
-   * for the count values over the bars): the `'axis'` layer gets one label
-   * row directly under the baseline. When axis
-   * labels are rotated and would collide, they are thinned — columns marked
-   * `anchor` always keep their label, others are dropped greedily so
-   * neighbouring labels stay at least `LABEL_GAP` px apart; every column
-   * keeps its bar and tooltip regardless.
-   *
-   * A layer flagged `band` is drawn as wide, translucent, unframed bars
-   * behind the other layers (the merged chart's grades), each a few px taller
-   * than its count so a percent bar holding the whole grade still ends below
-   * it. The bars in front cast a soft shadow onto them. The band's caption
-   * goes above each bar, and a foreground value that would collide with it
-   * is dropped (the tooltip still has it). Every colour is a
-   * `var(--color-*)` string, so `chartExport.ts` can re-theme the serialised
-   * `svgEl` with literal values.
-   */
+  // Vertical column chart: categories on x, counts on y. Layers draw in order on a shared domain (callers order best-left, worst-right).
+  // Rotated axis labels that collide are thinned (`anchor` columns always keep theirs). A `band` layer is drawn as wide translucent
+  // bars behind the others (the merged grade chart). Colours are `var(--color-*)` so `chartExport.ts` can re-theme the serialised `svgEl`.
   import { onMount } from 'svelte';
-  import { countAxis } from '$lib/analytics/stats';
+  import { countAxis } from '#lib/analytics/stats';
   import type { Caption, ChartColumn, ChartCurve, ChartLayer, ChartMarker, ChartSpan } from './chartColumns';
 
-  export let layers: ChartLayer[];
-  /** Domain end: the number of grade slots, or 100 for percentages. */
-  export let domain: number;
-  export let axisLabel = '';
-  export let ariaLabel: string;
-  /** The rendered `<svg>`, for export. */
-  export let svgEl: SVGSVGElement | null = null;
-  /** Plot height in drawing units; exports use a taller plot than the page. */
-  export let plotHeight = 200;
-  /** Reference lines (mean, median) and shaded spans (± standard deviation), on the domain. */
-  export let markers: ChartMarker[] = [];
-  export let spans: ChartSpan[] = [];
-  /** Reference curve drawn faintly behind the bars (the normal distribution). */
-  export let curve: ChartCurve | null = null;
+  interface Props {
+    layers: ChartLayer[];
+    /** Domain end: the number of grade slots, or 100 for percentages. */
+    domain: number;
+    axisLabel?: string;
+    ariaLabel: string;
+    /** The rendered `<svg>`, for export. */
+    svgEl?: SVGSVGElement | null;
+    /** Plot height in drawing units; exports use a taller plot than the page. */
+    plotHeight?: number;
+    /** Reference lines (mean, median) and shaded spans (± standard deviation), on the domain. */
+    markers?: ChartMarker[];
+    spans?: ChartSpan[];
+    /** Reference curve drawn faintly behind the bars (the normal distribution). */
+    curve?: ChartCurve | null;
+  }
+
+  let {
+    layers,
+    domain,
+    axisLabel = '',
+    ariaLabel,
+    svgEl = $bindable(null),
+    plotHeight = 200,
+    markers = [],
+    spans = [],
+    curve = null
+  }: Props = $props();
 
   const GUTTER = 30;
   const RIGHT = 14;
@@ -64,62 +57,18 @@
   const MARK_ICON = 3.5; // half the arm length of the +/− icon in those zones
   const MARK_RING = 7.5; // radius of the ring around that icon
 
-  let width = 0;
-  let container: HTMLDivElement;
-  // Container width via a ResizeObserver (lighter than Svelte 4's `bind:clientWidth`, which
-  // injects a hidden iframe per element). Measured synchronously on mount as well, so an
+  let width = $state(0);
+  let container: HTMLDivElement | undefined = $state();
+  // ResizeObserver rather than `bind:clientWidth` (hidden iframe per element). Also measured synchronously on mount so an
   // offscreen export copy has its drawing by the time the caller's `tick()` resolves.
   onMount(() => {
-    const observer = new ResizeObserver(() => (width = container.clientWidth));
-    observer.observe(container);
-    width = container.clientWidth;
+    const el = container;
+    if (!el) return;
+    const observer = new ResizeObserver(() => (width = el.clientWidth));
+    observer.observe(el);
+    width = el.clientWidth;
     return () => observer.disconnect();
   });
-  $: vw = Math.max(width, MIN_WIDTH);
-  $: plotW = vw - GUTTER - RIGHT;
-  $: px = (d: number) => GUTTER + (d / domain) * plotW;
-  // The curve's peak counts too, so it is never cut off at the top.
-  $: axis = countAxis(
-    [
-      ...layers.flatMap((l) => l.columns.map((c) => c.count)),
-      Math.ceil(Math.max(0, ...(curve?.points ?? []).map(([, y]) => y))),
-    ],
-    5
-  );
-  $: curvePath = curve?.points.length
-    ? 'M' + curve.points.map(([x, y]) => `${px(x).toFixed(1)},${(base - h(y)).toFixed(1)}`).join('L')
-    : '';
-  $: h = (count: number) => (count / axis.max) * plotHeight;
-  // Count values above bars fit under `top` (countAxis adds +1 headroom); grade-bar padding needs its own room.
-  // Marker labels and span brackets get their own row above the plot, clear of the bar captions.
-  // Summary strip: span label, then the track line the bracket and the marks sit on, then
-  // the mark labels. `markerRow` is its total height; the plot starts below it.
-  $: trackY = spans.length ? 22 : 8;
-  $: markerRow = markers.length || spans.length ? trackY + (markers.length ? MARKER_ROW : 8) : 0;
-  $: top = markerRow + 12 + (layers.some((l) => l.band) ? BAND_PAD : 0);
-  $: clampX = (d: number) => px(Math.min(domain, Math.max(0, d)));
-  // Two labels side by side: the left one ends at its line, the right one starts at its line.
-  $: markerLabels = [...markers]
-    .sort((a, b) => a.at - b.at)
-    .map((m, i, all) => ({
-      m,
-      // Never centred on the mark: its connector runs down through the label row.
-      x: clampX(m.at) + (all.length > 1 && i === 0 ? -6 : 6),
-      anchor: all.length > 1 && i === 0 ? 'end' : 'start',
-    }));
-  $: base = top + plotHeight;
-
-  $: axisLayer = layers.find((l) => l.labels === 'axis');
-  $: bandLayer = layers.find((l) => l.band);
-  $: axisCols = axisLayer?.columns ?? [];
-  $: axisCx = axisCols.map((c) => px(c.from) + (px(c.to) - px(c.from)) / 2);
-  $: narrowest = Math.min(...axisCols.map((c) => px(c.to) - px(c.from)));
-  $: rotate = axisCols.some((c) => c.lines.some((l) => l.length * CHAR > narrowest - 4));
-  // -45° needs ~15px between neighbours for 10px text; tighter slots stand the labels upright.
-  $: angle = narrowest < 16 ? -90 : -45;
-  $: rotatedLabel = (lines: string[]) => lines.slice(0, 2).join(' ');
-  $: longest = Math.max(0, ...axisCols.map((c) => rotatedLabel(c.lines).length * CHAR));
-  $: maxLines = Math.max(0, ...axisCols.map((c) => c.lines.length));
 
   /** Greedy left-to-right thinning: anchors always in, others only if far enough from their neighbours. */
   function thin(columns: ChartColumn[], centers: number[]): Set<number> {
@@ -147,13 +96,6 @@
     return labelled;
   }
 
-  $: thinning = rotate && narrowest < LABEL_GAP;
-  $: labelSet = thinning ? thin(axisCols, axisCx) : null;
-
-  $: axisRowHeight = rotate ? 14 + longest * (angle === -90 ? 1 : 0.72) : 6 + maxLines * LINE;
-  $: bottom = axisRowHeight + (axisLabel ? LINE + 4 : 0);
-  $: height = base + bottom;
-
   /** The first (longest) caption option that fits `w`; `null` when not even the shortest does. */
   function fitCaption(options: Caption[], w: number): Caption | null {
     const length = (o: Caption) => o.reduce((n, p) => n + p.text.length, 0);
@@ -171,18 +113,69 @@
   // labels (grades, names, ranges) in the muted grey of the axis labels.
   const partFill = (dynamic?: boolean) => (dynamic ? 'var(--color-content)' : 'var(--color-muted)');
 
-  // Geometry helpers that read reactive state (`px`, `h`, the layers) are reactive
-  // declarations, not plain functions. Svelte 4 re-evaluates a template expression only when
-  // a name it mentions changes, so `{@const { x, w } = box(c, layer)}` with a plain `box`
-  // never saw `px` change: on a resize the gridlines followed the new width but the bars and
-  // labels stayed where they were, and the chart was cut off or left half-empty.
-  $: frontLayer = bandLayer ? layers.find((l) => !l.band) : undefined;
-
-  /**
-   * Horizontal box of a column. A bar in front of a band is narrowed where its
-   * slot is tight, so `BAND_PAD` still fits beside it inside its grade bar.
-   */
-  $: box = (c: Pick<ChartColumn, 'from' | 'to'>, layer: ChartLayer): { x: number; w: number } => {
+  /** A bar path with rounded top corners, anchored flat on the baseline. */
+  function bar(x: number, y: number, w: number, hgt: number, round: boolean): string {
+    const r = round ? Math.min(3, w / 2, hgt) : 0;
+    return `M${x},${y + hgt}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + hgt}Z`;
+  }
+  let vw = $derived(Math.max(width, MIN_WIDTH));
+  let plotW = $derived(vw - GUTTER - RIGHT);
+  function px(d: number) {
+    return GUTTER + (d / domain) * plotW;
+  }
+  // The curve's peak counts too, so it is never cut off at the top.
+  let axis = $derived(countAxis(
+    [
+      ...layers.flatMap((l) => l.columns.map((c) => c.count)),
+      Math.ceil(Math.max(0, ...(curve?.points ?? []).map(([, y]) => y))),
+    ],
+    5
+  ));
+  // Summary strip above the plot (span label, track line, mark labels); `markerRow` is its height. Count values sit under `top` (countAxis adds headroom).
+  let trackY = $derived(spans.length ? 22 : 8);
+  let markerRow = $derived(markers.length || spans.length ? trackY + (markers.length ? MARKER_ROW : 8) : 0);
+  let top = $derived(markerRow + 12 + (layers.some((l) => l.band) ? BAND_PAD : 0));
+  let base = $derived(top + plotHeight);
+  function h(count: number) {
+    return (count / axis.max) * plotHeight;
+  }
+  let curvePath = $derived(curve?.points.length
+    ? 'M' + curve.points.map(([x, y]) => `${px(x).toFixed(1)},${(base - h(y)).toFixed(1)}`).join('L')
+    : '');
+  function clampX(d: number) {
+    return px(Math.min(domain, Math.max(0, d)));
+  }
+  // Two labels side by side: the left one ends at its line, the right one starts at its line.
+  let markerLabels = $derived([...markers]
+    .sort((a, b) => a.at - b.at)
+    .map((m, i, all) => ({
+      m,
+      // Never centred on the mark: its connector runs down through the label row.
+      x: clampX(m.at) + (all.length > 1 && i === 0 ? -6 : 6),
+      anchor: all.length > 1 && i === 0 ? 'end' : 'start',
+    })));
+  let axisLayer = $derived(layers.find((l) => l.labels === 'axis'));
+  let bandLayer = $derived(layers.find((l) => l.band));
+  let axisCols = $derived(axisLayer?.columns ?? []);
+  let axisCx = $derived(axisCols.map((c) => px(c.from) + (px(c.to) - px(c.from)) / 2));
+  let narrowest = $derived(Math.min(...axisCols.map((c) => px(c.to) - px(c.from))));
+  let rotate = $derived(axisCols.some((c) => c.lines.some((l) => l.length * CHAR > narrowest - 4)));
+  // -45° needs ~15px between neighbours for 10px text; tighter slots stand the labels upright.
+  let angle = $derived(narrowest < 16 ? -90 : -45);
+  function rotatedLabel(lines: string[]) {
+    return lines.slice(0, 2).join(' ');
+  }
+  let longest = $derived(Math.max(0, ...axisCols.map((c) => rotatedLabel(c.lines).length * CHAR)));
+  let maxLines = $derived(Math.max(0, ...axisCols.map((c) => c.lines.length)));
+  let thinning = $derived(rotate && narrowest < LABEL_GAP);
+  let labelSet = $derived(thinning ? thin(axisCols, axisCx) : null);
+  let axisRowHeight = $derived(rotate ? 14 + longest * (angle === -90 ? 1 : 0.72) : 6 + maxLines * LINE);
+  let bottom = $derived(axisRowHeight + (axisLabel ? LINE + 4 : 0));
+  let height = $derived(base + bottom);
+  // Geometry helpers (`px`, `h`, `box`, ...) are plain functions: template expressions track what they read, so a resize re-lays out bars and labels too.
+  let frontLayer = $derived(bandLayer ? layers.find((l) => !l.band) : undefined);
+  /** Horizontal box of a column; a bar in front of a band is narrowed where its slot is tight, so `BAND_PAD` still fits. */
+  function box(c: Pick<ChartColumn, 'from' | 'to'>, layer: ChartLayer): { x: number; w: number } {
     const slot = px(c.to) - px(c.from);
     const fill =
       layer === frontLayer
@@ -190,14 +183,9 @@
         : layer.fill;
     const w = Math.max(2, slot * fill);
     return { x: px(c.from) + (slot - w) / 2, w };
-  };
-
-  /**
-   * A grade bar hugs the bars in front of it: `BAND_PAD` beyond the outermost
-   * ones on each side (as above the count), but never closer than
-   * `BAND_EDGE_GAP` to its neighbours.
-   */
-  $: bandBox = (b: ChartColumn): { x: number; w: number } => {
+  }
+  /** A grade bar hugs the bars in front of it (`BAND_PAD` beyond the outermost), never closer than `BAND_EDGE_GAP` to its neighbours. */
+  function bandBox(b: ChartColumn): { x: number; w: number } {
     const lo = px(b.from) + BAND_EDGE_GAP / 2;
     const hi = px(b.to) - BAND_EDGE_GAP / 2;
     const inside = (frontLayer?.columns ?? []).filter((c) => c.from >= b.from - 1e-9 && c.to <= b.to + 1e-9);
@@ -207,23 +195,18 @@
     const left = Math.max(lo, first.x - BAND_PAD);
     const right = Math.min(hi, last.x + last.w + BAND_PAD);
     return { x: left, w: Math.max(2, right - left) };
-  };
-
+  }
   /** Drawn height of a grade bar: its count plus `BAND_PAD` headroom, or a 3px stub when empty. */
-  $: bandHeight = (count: number) => (count > 0 ? h(count) + BAND_PAD : 3);
-
+  function bandHeight(count: number) {
+    return count > 0 ? h(count) + BAND_PAD : 3;
+  }
   /** Whether a foreground value at `cx` would overlap the band caption above it. */
-  $: clashesWithBand = (cx: number, count: number): boolean => {
+  function clashesWithBand(cx: number, count: number): boolean {
     const band = bandLayer?.columns.find((b) => px(b.from) <= cx && cx <= px(b.to));
     return !!band && Math.abs(bandHeight(band.count) - h(count)) < 15;
-  };
-
-  /**
-   * Approximate boxes of the captions drawn over the plot (grade-bar captions and counts
-   * above bars), mirroring the template's conditions. The mean/median guide lines leave a
-   * gap wherever they would cross one.
-   */
-  $: textBoxes = layers.flatMap((layer) =>
+  }
+  // Approximate caption boxes over the plot (mirrors the template's conditions); guide lines leave a gap where they cross one.
+  let textBoxes = $derived(layers.flatMap((layer) =>
     !layer.values
       ? []
       : layer.columns.flatMap((c) => {
@@ -243,10 +226,9 @@
           const y = base - h(c.count) - 5;
           return [{ l: cx - tw / 2, r: cx + tw / 2, t: y - 10, b: y + 3 }];
         })
-  );
-
+  ));
   /** Vertical segments from `y0` to `y1` at `x`, with a gap around every caption box it crosses. */
-  $: guideSegments = (x: number, y0: number, y1: number): [number, number][] => {
+  function guideSegments(x: number, y0: number, y1: number): [number, number][] {
     const gaps = textBoxes
       .filter((b) => x >= b.l - 3 && x <= b.r + 3)
       .map((b) => [b.t - 3, b.b + 3] as [number, number])
@@ -260,12 +242,6 @@
     }
     if (from < y1) out.push([from, y1]);
     return out.filter(([a, b]) => b - a > 2);
-  };
-
-  /** A bar path with rounded top corners, anchored flat on the baseline. */
-  function bar(x: number, y: number, w: number, hgt: number, round: boolean): string {
-    const r = round ? Math.min(3, w / 2, hgt) : 0;
-    return `M${x},${y + hgt}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + hgt}Z`;
   }
 </script>
 

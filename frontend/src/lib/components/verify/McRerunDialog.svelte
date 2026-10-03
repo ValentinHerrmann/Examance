@@ -1,27 +1,40 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import { Alert, Button, Modal } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { Alert, Button, Modal } from "#lib/components/ui";
   import OmrParamsDiff from "./OmrParamsDiff.svelte";
   import {
     diffOmrParams,
     type OmrSettingsProfile,
-  } from "$lib/grading/omrSettings";
-  import type { McDetectionRunSummary } from "$lib/grading/mcVerification";
+  } from "#lib/grading/omrSettings";
+  import type { McDetectionRunSummary } from "#lib/grading/mcVerification";
 
-  export let open = false;
-  /** Newest first — `McVerificationStats.detectionRuns`. */
-  export let runs: McDetectionRunSummary[];
-  export let current: OmrSettingsProfile;
-  export let unreviewedCount: number;
-  export let reviewedCount: number;
-  export let undetectedScoreCount: number;
-  export let onConfirm: () => void;
-  export let onCancel: () => void;
+  interface Props {
+    open?: boolean;
+    /** Newest first — `McVerificationStats.detectionRuns`. */
+    runs: McDetectionRunSummary[];
+    current: OmrSettingsProfile;
+    unreviewedCount: number;
+    reviewedCount: number;
+    undetectedScoreCount: number;
+    onConfirm: () => void;
+    onCancel: () => void;
+  }
 
-  $: latestRun = runs[0]?.run ?? null;
-  $: hasDetections = runs.length > 0;
+  let {
+    open = false,
+    runs,
+    current,
+    unreviewedCount,
+    reviewedCount,
+    undetectedScoreCount,
+    onConfirm,
+    onCancel
+  }: Props = $props();
+
+  let latestRun = $derived(runs[0]?.run ?? null);
+  let hasDetections = $derived(runs.length > 0);
   // Includes `algorithm` — a different detection method shows up as a changed row.
-  $: changed = latestRun ? diffOmrParams(latestRun.params, current.params) : [];
+  let changed = $derived(latestRun ? diffOmrParams(latestRun.params, current.params) : []);
 </script>
 
 <Modal {open} size="medium" title={$t("scanning.verify.rerunDialog.title")} onClose={onCancel}>
@@ -54,8 +67,10 @@
     {/if}
   </div>
 
-  <svelte:fragment slot="footer">
-    <Button variant="outlined" severity="secondary" onClick={onCancel}>{$t("scanning.verify.rerunDialog.cancel")}</Button>
-    <Button onClick={onConfirm}>{$t("scanning.verify.rerunDialog.confirm")}</Button>
-  </svelte:fragment>
+  {#snippet footer()}
+
+      <Button variant="outlined" severity="secondary" onClick={onCancel}>{$t("scanning.verify.rerunDialog.cancel")}</Button>
+      <Button onClick={onConfirm}>{$t("scanning.verify.rerunDialog.confirm")}</Button>
+
+  {/snippet}
 </Modal>

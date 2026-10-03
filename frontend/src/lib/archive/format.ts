@@ -1,11 +1,9 @@
 /**
- * .bgproj Archive Format Definition.
- *
- * Header layout:
+ * .bgproj archive format. Header layout:
  *   [7 bytes]  Magic: 0x42 0x47 0x50 0x52 0x4F 0x4A 0x01 ("BGPROJ\x01")
  *   [1 byte]   Format version: 0x01
  *   [16 bytes] Argon2id salt (for key re-derivation)
- *   [12 bytes] AES-GCM nonce (for outer envelope)
+ *   [12 bytes] AES-GCM nonce (outer envelope)
  *   [4 bytes]  Ciphertext length (uint32 BE)
  *   [2 bytes]  Reserved / padding
  *   [N bytes]  AES-GCM ciphertext of inner bundle

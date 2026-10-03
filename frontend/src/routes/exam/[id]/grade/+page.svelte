@@ -1,61 +1,71 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { page } from "$app/stores";
-  export let params;
+  import { page } from "$app/state";
   import { onMount, onDestroy } from "svelte";
-  import { db } from "$lib/db/db";
+  import { db } from "#lib/db/db";
   import type {
     SubmissionRecord,
     ExerciseRecord,
     ExerciseScoreRecord,
     ExamRecord,
     OmrScoreMeta,
-  } from "$lib/db/schema";
-  import { scoreRepository } from "$lib/repositories/scoreRepository";
+  } from "#lib/db/schema";
+  import { scoreRepository } from "#lib/repositories/scoreRepository";
   import {
     loadExamEncrypted,
     loadExamExercisesEncrypted,
     saveSubmissionEncrypted,
-  } from "$lib/db/dbEncryption";
-  import { calculateGradeDetail } from "$lib/analytics/gradingKey";
-  import { api } from "$lib/api/client";
-  import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
-  import { storagePolicyStore } from "$lib/stores/storagePolicy";
-  import { decrypt, encrypt } from "$lib/crypto/aesGcm";
+  } from "#lib/db/dbEncryption";
+  import { calculateGradeDetail } from "#lib/analytics/gradingKey";
+  import { api } from "#lib/api/client";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
+  import { sessionStore, isUnlocked, awaitSessionReady } from "#lib/stores/session";
+  import { storagePolicyStore } from "#lib/stores/storagePolicy";
+  import { decrypt, encrypt } from "#lib/crypto/aesGcm";
   import { get } from "svelte/store";
-  import { gradingStore, type VectorStroke } from "$lib/grading/gradingStore";
-  import { isMcQuestion } from "$lib/grading/mcScore";
-  import GradingWorkspace from "$lib/components/grading/GradingWorkspace.svelte";
-  import { t, translate } from "$lib/i18n";
-  import { EmptyState } from "$lib/components/ui";
+  import { gradingStore, type VectorStroke } from "#lib/grading/gradingStore";
+  import { isMcQuestion } from "#lib/grading/mcScore";
+  import GradingWorkspace from "#lib/components/grading/GradingWorkspace.svelte";
+  import { t, translate } from "#lib/i18n";
+  import { EmptyState } from "#lib/components/ui";
 
-  const examId = $page.params.id || "";
+  interface Props {
+    params?: Record<string, string>;
+  }
 
-  let exam: ExamRecord | null = null;
-  let submissions: SubmissionRecord[] = [];
-  let exercises: ExerciseRecord[] = [];
+  let { params }: Props = $props();
 
-  $: currentIndex = $gradingStore.currentIndex;
-  $: currentSub = submissions[currentIndex];
-  $: scoreInputs = $gradingStore.scoreInputs;
+  const examId = page.params.id || "";
 
-  $: gradedCount = exercises.filter(
-    (ex) => scoreInputs[ex.id] !== null && scoreInputs[ex.id] !== undefined
-  ).length;
-  $: isFullyGraded = exercises.length > 0 && gradedCount === exercises.length;
-  $: sumGradedScores = Math.round(
-    exercises.reduce((sum, ex) => sum + (scoreInputs[ex.id] ?? 0), 0) * 100
-  ) / 100;
-  $: totalScore = isFullyGraded ? sumGradedScores : undefined;
+  // Raw: these records go straight back to repositories (currentSub is saved as-is).
+  let exam = $state.raw<ExamRecord | null>(null);
+  let submissions: SubmissionRecord[] = $state.raw([]);
+  let exercises: ExerciseRecord[] = $state.raw([]);
 
-  $: totalMaxPoints = exercises.reduce((sum, ex) => sum + (ex.maxPoints || 0), 0);
-  $: calculatedGradeDetail = isFullyGraded && totalScore !== undefined
-    ? calculateGradeDetail(totalScore, totalMaxPoints, exam?.gradingKey)
-    : null;
-  $: calculatedGrade = calculatedGradeDetail
-    ? { grade: calculatedGradeDetail.grade, label: calculatedGradeDetail.label }
-    : null;
+  let currentIndex = $derived($gradingStore.currentIndex);
+  let currentSub = $derived(submissions[currentIndex]);
+  let scoreInputs = $derived($gradingStore.scoreInputs);
+
+  let gradedCount = $derived(
+    exercises.filter((ex) => scoreInputs[ex.id] !== null && scoreInputs[ex.id] !== undefined).length
+  );
+  let isFullyGraded = $derived(exercises.length > 0 && gradedCount === exercises.length);
+  let sumGradedScores = $derived(
+    Math.round(exercises.reduce((sum, ex) => sum + (scoreInputs[ex.id] ?? 0), 0) * 100) / 100
+  );
+  let totalScore = $derived(isFullyGraded ? sumGradedScores : undefined);
+
+  let totalMaxPoints = $derived(exercises.reduce((sum, ex) => sum + (ex.maxPoints || 0), 0));
+  let calculatedGradeDetail = $derived(
+    isFullyGraded && totalScore !== undefined
+      ? calculateGradeDetail(totalScore, totalMaxPoints, exam?.gradingKey)
+      : null
+  );
+  let calculatedGrade = $derived(
+    calculatedGradeDetail
+      ? { grade: calculatedGradeDetail.grade, label: calculatedGradeDetail.label }
+      : null
+  );
 
   onMount(async () => {
     await awaitSessionReady();
@@ -71,12 +81,12 @@
       gradingStore.setActiveExerciseId(exercises[0].id);
     }
     submissions = await submissionRepository.getByExamId(examId, key);
-    const targetId = $page.url.searchParams.get('submissionId');
+    const targetId = page.url.searchParams.get('submissionId');
     if (targetId) {
       const idx = submissions.findIndex((s) => s.id === targetId);
       if (idx >= 0) gradingStore.setCurrentIndex(idx);
     }
-    const targetExerciseId = $page.url.searchParams.get('exerciseId');
+    const targetExerciseId = page.url.searchParams.get('exerciseId');
     if (targetExerciseId && exercises.some((e) => e.id === targetExerciseId)) {
       gradingStore.setActiveExerciseId(targetExerciseId);
     }
@@ -119,10 +129,8 @@
     for (const ex of exercises) {
       const existing = existingMap.get(ex.id);
       if (existing && typeof existing.score === "number" && !isNaN(existing.score)) {
-        // Legacy detection: if score is 0 and no annotations exist for this exercise,
-        // treat as ungraded (null) instead of graded 0 points. Not for an OMR-read MC
-        // question: its 0 is a real result, and nulling it made the next save delete
-        // the row (and its omrMeta) — dropping it from the verification queue.
+        // Legacy: score 0 without annotations means ungraded. Never for an OMR-read MC row: nulling
+        // it made the next save delete the row (and its omrMeta), dropping it from verification.
         const isOmrMc = isMcQuestion(ex) && !!existing.omrMeta;
         if (existing.score === 0 && !isOmrMc && !exerciseIdsWithStrokes.has(ex.id) && !manualOverride[ex.id]) {
           newScoreInputs[ex.id] = null;
@@ -159,8 +167,9 @@
   }
 
   function handleSubmissionHydrated(fullSub: SubmissionRecord) {
-    submissions[currentIndex] = fullSub;
-    submissions = submissions;
+    const next = [...submissions];
+    next[currentIndex] = fullSub;
+    submissions = next;
   }
 
   async function handleSaveScore() {
@@ -204,11 +213,8 @@
         await scoreRepository.deleteOne(examId, currentSub.id, exerciseId);
       }
 
-      // Encrypt annotations vector layer.
-      //
-      // "No strokes" and "no key to encrypt them with" are different answers:
-      // saving without a session key must refuse, not silently clear the
-      // teacher's corrections.
+      // Encrypt annotations. "No strokes" and "no key" differ: saving without a session key must
+      // refuse, not silently clear the teacher's corrections.
       const currentStrokes = get(gradingStore).currentStrokes;
       let clearAnnotations = false;
       if (!$sessionStore.sessionKey) {
@@ -231,8 +237,9 @@
       }
 
       await submissionRepository.save(currentSub, key, { clearAnnotations });
-      submissions[currentIndex] = { ...currentSub };
-      submissions = submissions;
+      const next = [...submissions];
+      next[currentIndex] = { ...currentSub };
+      submissions = next;
 
       if ($storagePolicyStore.storageMode === "all-server") {
         await api.patch(`/exams/${examId}/submissions/${currentSub.id}/score`, {

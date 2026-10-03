@@ -1,27 +1,21 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { api, ApiError } from '$lib/api/client';
-  import { isUnlocked, sessionStore } from '$lib/stores/session';
-  import { t, translate } from '$lib/i18n';
-  import { PageShell, PageHeader, Card, Button, Alert, Field, TextInput, Select } from '$lib/components/ui';
+  import { onMount, untrack } from 'svelte';
+  import { api, ApiError } from '#lib/api/client';
+  import { isUnlocked, sessionStore } from '#lib/stores/session';
+  import { t, translate } from '#lib/i18n';
+  import { PageShell, PageHeader, Card, Button, Alert, Field, TextInput, Select } from '#lib/components/ui';
 
   type UserRole = 'teacher' | 'admin';
 
-  let email = '';
-  let role: UserRole = 'teacher';
+  let email = $state('');
+  let role: UserRole = $state('teacher');
 
-  let isSubmitting = false;
-  let errorMsg = '';
-  let warningMsg = '';
-  let successMsg = '';
+  let isSubmitting = $state(false);
+  let errorMsg = $state('');
+  let warningMsg = $state('');
+  let successMsg = $state('');
 
-  $: canAccess = $isUnlocked && $sessionStore.role === 'admin';
-
-  $: {
-    if (email.trim()) {
-      sessionStore.setDirty(true);
-    }
-  }
+  let canAccess = $derived($isUnlocked && $sessionStore.role === 'admin');
 
   onMount(() => {
     if (!$isUnlocked) {
@@ -82,6 +76,13 @@
       isSubmitting = false;
     }
   }
+
+  $effect.pre(() => {
+    const value = email;
+    if (value.trim()) {
+      untrack(() => sessionStore.setDirty(true));
+    }
+  });
 </script>
 
 <PageShell width="fluid">
@@ -113,7 +114,7 @@
       </div>
       {/if}
 
-      <form class="mt-4 flex flex-col gap-4" on:submit|preventDefault={handleCreateUser}>
+      <form class="mt-4 flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); handleCreateUser(); }}>
         <Field label={$t("admin.users.emailLabel")} forId="email">
           <TextInput
             id="email"

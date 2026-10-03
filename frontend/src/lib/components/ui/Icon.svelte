@@ -2,24 +2,23 @@
   import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
   /**
-   * FontAwesome Free (solid) icon, rendered as inline SVG from the icon's path
-   * data. No FontAwesome runtime and no icon font: each call site imports only
-   * the icons it uses (`import { faXmark } from "@fortawesome/free-solid-svg-icons"`)
-   * and the bundler tree-shakes the rest.
-   *
-   * Sized by font-size (1em tall) and coloured by `currentColor`, so it follows
-   * the text it sits in.
+   * FontAwesome Free (solid) icon as inline SVG from the icon's path data (no runtime, no font;
+   * call sites import only the icons they use). Sized 1em tall, coloured by `currentColor`.
    */
-  export let icon: IconDefinition;
-  /** Accessible name. Without it the icon is decorative and hidden from AT. */
-  export let label: string | undefined = undefined;
-  export let spin = false;
+  interface Props {
+    icon: IconDefinition;
+    /** Accessible name. Without it the icon is decorative and hidden from AT. */
+    label?: string | undefined;
+    spin?: boolean;
+    class?: string;
+  }
 
-  let className = "";
-  export { className as class };
+  let { icon, label = undefined, spin = false, class: className = "" }: Props = $props();
 
-  $: [width, height, , , pathData] = icon.icon;
-  $: paths = Array.isArray(pathData) ? pathData : [pathData];
+  let width = $derived(icon.icon[0]);
+  let height = $derived(icon.icon[1]);
+  let pathData = $derived(icon.icon[4]);
+  let paths = $derived(Array.isArray(pathData) ? pathData : [pathData]);
 </script>
 
 <svg

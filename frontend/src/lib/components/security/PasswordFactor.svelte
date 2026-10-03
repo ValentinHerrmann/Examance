@@ -1,19 +1,17 @@
 <script lang="ts">
-  /**
-   * The password, presented as a factor rather than as the start of a sign-in.
-   *
-   * No email field: the account is the one the pending token names. Asking for
-   * an address here would make the second step a probe for which addresses have
-   * accounts, which is exactly what keeping the account in the token avoids.
-   */
-  import { Button, Field, TextInput } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
+  /** The password as a second factor. No email field: the account is named by the pending token, so this step cannot probe which addresses have accounts. */
+  import { Button, Field, TextInput } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
 
-  export let onSubmit: (password: string) => Promise<void>;
-  export let errorMsg = "";
+  interface Props {
+    onSubmit: (password: string) => Promise<void>;
+    errorMsg?: string;
+  }
 
-  let password = "";
-  let isWorking = false;
+  let { onSubmit, errorMsg = "" }: Props = $props();
+
+  let password = $state("");
+  let isWorking = $state(false);
 
   async function submit() {
     if (!password || isWorking) {
@@ -28,7 +26,7 @@
   }
 </script>
 
-<form class="flex w-full flex-col gap-4" on:submit|preventDefault={submit}>
+<form class="flex w-full flex-col gap-4" onsubmit={(e) => { e.preventDefault(); submit(); }}>
   <div>
     <h2 class="m-0 text-xl font-medium text-content">
       {$t("security.factors.passwordTitle")}

@@ -1,15 +1,28 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
   import Icon from "./Icon.svelte";
 
-  export let title: string;
-  export let description: string | undefined = undefined;
-  export let icon: IconDefinition | undefined = undefined;
-  /** h1 when the empty state is the whole page (one h1 per route). */
-  export let level: "h1" | "h2" = "h2";
+  interface Props {
+    title: string;
+    description?: string | undefined;
+    icon?: IconDefinition | undefined;
+    /** h1 when the empty state is the whole page (one h1 per route). */
+    level?: "h1" | "h2";
+    class?: string;
+    children?: Snippet;
+    actions?: Snippet;
+  }
 
-  let className = "";
-  export { className as class };
+  let {
+    title,
+    description = undefined,
+    icon = undefined,
+    level = "h2",
+    class: className = "",
+    children,
+    actions,
+  }: Props = $props();
 </script>
 
 <div class="flex min-w-0 flex-col items-center gap-3 px-4 py-10 text-center {className}">
@@ -24,8 +37,8 @@
     <h2 class="m-0 text-xl font-semibold text-content">{title}</h2>
   {/if}
   {#if description}<p class="m-0 max-w-[40rem] text-muted">{description}</p>{/if}
-  <slot />
-  {#if $$slots.actions}
-    <div class="mt-2 flex flex-wrap items-center justify-center gap-2"><slot name="actions" /></div>
+  {@render children?.()}
+  {#if actions}
+    <div class="mt-2 flex flex-wrap items-center justify-center gap-2">{@render actions?.()}</div>
   {/if}
 </div>

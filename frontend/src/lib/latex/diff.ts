@@ -1,10 +1,4 @@
-/**
- * Pure LaTeX side-by-side diff engine, extracted from the exercise library
- * route so it can be reused (and unit tested) independently of any component.
- *
- * No Svelte, DOM, or store dependencies here — only the decoration types
- * imported from LatexEditor (which owns the CodeMirror decoration shapes).
- */
+/** Pure LaTeX side-by-side diff engine; depends only on the decoration types from LatexEditor (no Svelte, DOM or stores). */
 import { diffWords } from "diff";
 import type {
   DiffDecorationConfig,
@@ -12,7 +6,7 @@ import type {
   DiffLinePaddingDecoration,
   DiffWordDecoration,
   DiffGapDecoration,
-} from "$lib/components/LatexEditor.svelte";
+} from "#lib/components/LatexEditor.svelte";
 
 export interface DiffToken {
   text: string;

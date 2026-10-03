@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { ExamRecord, ExerciseRecord, SubmissionRecord } from "$lib/db/schema";
-  import type { GradeDetail } from "$lib/analytics/gradingKey";
-  import { gradingStore } from "$lib/grading/gradingStore";
-  import { isMcQuestion } from "$lib/grading/mcScore";
+  import type { ExamRecord, ExerciseRecord, SubmissionRecord } from "#lib/db/schema";
+  import type { GradeDetail } from "#lib/analytics/gradingKey";
+  import { gradingStore } from "#lib/grading/gradingStore";
+  import { isMcQuestion } from "#lib/grading/mcScore";
   import GradingHeader from "./GradingHeader.svelte";
   import GradeSummaryCard from "./GradeSummaryCard.svelte";
   import ZoomPageControls from "./ZoomPageControls.svelte";
@@ -13,40 +13,59 @@
   import LastSubmissionModal from "./LastSubmissionModal.svelte";
   import GradingActions from "./GradingActions.svelte";
   import ScanCanvasViewer from "./ScanCanvasViewer.svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
-  import { Button } from "$lib/components/ui";
+  import { Button } from "#lib/components/ui";
 
-  export let examId: string;
-  export let exam: ExamRecord | null;
-  export let submissions: SubmissionRecord[];
-  export let exercises: ExerciseRecord[];
-  export let currentIndex: number;
-  export let currentSub: SubmissionRecord | undefined;
-  export let calculatedGrade: { grade: string; label: string } | null;
-  export let calculatedGradeDetail: GradeDetail | null;
-  export let isFullyGraded: boolean;
-  export let totalScore: number | undefined;
-  export let sumGradedScores: number;
-  export let gradedCount: number;
-  export let totalMaxPoints: number;
+  interface Props {
+    examId: string;
+    exam: ExamRecord | null;
+    submissions: SubmissionRecord[];
+    exercises: ExerciseRecord[];
+    currentIndex: number;
+    currentSub: SubmissionRecord | undefined;
+    calculatedGrade: { grade: string; label: string } | null;
+    calculatedGradeDetail: GradeDetail | null;
+    isFullyGraded: boolean;
+    totalScore: number | undefined;
+    sumGradedScores: number;
+    gradedCount: number;
+    totalMaxPoints: number;
+    onSubmissionHydrated: (fullSub: SubmissionRecord) => void;
+    onSave: () => void;
+    onPrev: () => void;
+    onNext: () => void;
+    onStayOnLastSub: () => void;
+  }
 
-  export let onSubmissionHydrated: (fullSub: SubmissionRecord) => void;
-  export let onSave: () => void;
-  export let onPrev: () => void;
-  export let onNext: () => void;
-  export let onStayOnLastSub: () => void;
+  let {
+    examId,
+    exam,
+    submissions,
+    exercises,
+    currentIndex,
+    currentSub,
+    calculatedGrade,
+    calculatedGradeDetail,
+    isFullyGraded,
+    totalScore,
+    sumGradedScores,
+    gradedCount,
+    totalMaxPoints,
+    onSubmissionHydrated,
+    onSave,
+    onPrev,
+    onNext,
+    onStayOnLastSub
+  }: Props = $props();
 
-  let viewerRef: ScanCanvasViewer;
+  let viewerRef: ReturnType<typeof ScanCanvasViewer> | undefined = $state();
 
-  /* Below `lg` the score panel is a bottom sheet rather than a fixed 280px
-   * column — at phone widths that column left the scan about 70px of space.
-   * Collapsed it shows only the summary + navigation; expanded it takes the
-   * screen for score entry. Irrelevant from `lg` up, where both fit side by
-   * side. */
-  let isScorePanelExpanded = false;
+  // Below `lg` the score panel is a bottom sheet (a fixed column left the scan ~70px on phones);
+  // collapsed it shows summary + navigation, expanded it takes the screen for score entry.
+  let isScorePanelExpanded = $state(false);
 
-  $: activeExercise = exercises.find((e) => e.id === $gradingStore.activeExerciseId);
+  let activeExercise = $derived(exercises.find((e) => e.id === $gradingStore.activeExerciseId));
 
   function requestClearAnnotations() {
     gradingStore.setShowClearConfirmModal(true);

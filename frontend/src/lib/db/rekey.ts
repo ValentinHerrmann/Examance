@@ -1,13 +1,7 @@
 /**
- * Re-encrypt the whole local vault under a new key.
- *
- * Every encrypted payload is sealed with a session key derived from the user's
- * passphrase, so changing the passphrase changes the key and every record has
- * to be rewritten. Used by the migration away from the old design that kept a
- * generated password in localStorage.
- *
- * The walk runs inside a single Dexie transaction: a half-rekeyed vault would
- * be unreadable under either key.
+ * Re-encrypt the whole local vault under a new key (the session key derives from the passphrase, so a
+ * change rewrites every record). Used by the migration away from the generated password in localStorage.
+ * One Dexie transaction: a half-rekeyed vault would be unreadable under either key.
  */
 
 import { db } from './db';
@@ -57,15 +51,10 @@ async function rekeyTable<T>(
 }
 
 /**
- * Decrypt every record with *oldKey* and re-encrypt it with *newKey*.
- *
- * @throws if any record fails to decrypt — that means `oldKey` is wrong, and
- *         continuing would silently destroy data.
- *
- * Enforced by construction: a failed `decryptX` marks the record, `encryptX`
- * refuses to seal a marked record, and every table is re-sealed in full
- * before the first `bulkPut` — so a wrong key throws with the transaction
- * untouched, instead of writing blanks over the vault.
+ * Decrypt every record with *oldKey* and re-encrypt with *newKey*. @throws if any record fails to
+ * decrypt (wrong `oldKey`; continuing would destroy data). Enforced by construction: a failed
+ * `decryptX` marks the record, `encryptX` refuses marked records, and every table is re-sealed in
+ * full before the first `bulkPut`, so a wrong key throws with the transaction untouched.
  */
 export async function rekeyDatabase(
   oldKey: CryptoKey,
@@ -113,10 +102,8 @@ export async function rekeyDatabase(
       const audit = await rekeyTable(
         await db.auditLog.toArray(), decryptAuditEntry, encryptAuditEntry, oldKey, newKey
       );
-      // OMR templates do not follow the encryptX(record, key) shape: the
-      // encryptor takes the payload separately, and the decryptor returns null
-      // instead of throwing. A null payload where ciphertext exists means the
-      // old key was wrong — abort rather than overwrite it with an empty one.
+            // OMR templates differ: the encryptor takes the payload separately and the decryptor returns null
+            // instead of throwing. Null payload where ciphertext exists = wrong old key; abort, don't overwrite.
       const rawTemplates = await db.omrTemplates.toArray();
       const templates = [];
       for (const tpl of rawTemplates) {

@@ -1,59 +1,49 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, EmptyState, TableScroller, controlClass, controlSmClass } from "$lib/components/ui";
+  import { Badge, Button, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
   import { get } from "svelte/store";
-  import { sessionStore } from "$lib/stores/session";
-  import { storagePolicyStore } from "$lib/stores/storagePolicy";
-  import { api } from "$lib/api/client";
-  import { db } from "$lib/db/db";
-  import { saveSubmissionEncrypted } from "$lib/db/dbEncryption";
-  import { scoreRepository } from "$lib/repositories/scoreRepository";
-  import { buildSubmissionMap } from "$lib/utils/studentLookup";
-  import type { ExerciseRecord, StudentRecord, SubmissionRecord } from "$lib/db/schema";
-  import { t } from "$lib/i18n";
+  import { sessionStore } from "#lib/stores/session";
+  import { storagePolicyStore } from "#lib/stores/storagePolicy";
+  import { api } from "#lib/api/client";
+  import { db } from "#lib/db/db";
+  import { saveSubmissionEncrypted } from "#lib/db/dbEncryption";
+  import { scoreRepository } from "#lib/repositories/scoreRepository";
+  import { buildSubmissionMap } from "#lib/utils/studentLookup";
+  import type { ExerciseRecord, StudentRecord, SubmissionRecord } from "#lib/db/schema";
+  import { t } from "#lib/i18n";
 
-  export let examId: string;
-  export let exercises: ExerciseRecord[] = [];
-  export let students: StudentRecord[] = [];
-  export let submissions: SubmissionRecord[] = [];
-  export let scoresMap: Map<string, Record<string, number | null>> = new Map();
-  export let onScoresChanged: () => void = () => {};
-  export let onOpenRoster: () => void = () => {};
-
-  let activeExerciseId: string = exercises[0]?.id || "";
-  let inputElements: (HTMLInputElement | null)[] = [];
-
-  $: if (exercises.length > 0 && (!activeExerciseId || !exercises.some((e) => e.id === activeExerciseId))) {
-    activeExerciseId = exercises[0].id;
+  interface Props {
+    examId: string;
+    exercises?: ExerciseRecord[];
+    students?: StudentRecord[];
+    submissions?: SubmissionRecord[];
+    scoresMap?: Map<string, Record<string, number | null>>;
+    onScoresChanged?: () => void;
+    onOpenRoster?: () => void;
   }
 
-  $: activeExercise = exercises.find((e) => e.id === activeExerciseId);
-  let submissionMap = new Map<string, SubmissionRecord>();
-  $: {
-    buildSubmissionMap(submissions, students).then((m) => {
-      submissionMap = m;
-    });
-  }
+  let {
+    examId,
+    exercises = [],
+    students = [],
+    submissions = [],
+    scoresMap = new Map(),
+    onScoresChanged = () => {},
+    onOpenRoster = () => {},
+  }: Props = $props();
 
-  // Local editable values map: studentIndex -> string value
-  let rawInputs: Record<number, string> = {};
+  let activeExerciseId: string = $state(untrack(() => exercises[0]?.id || ""));
+  let inputElements: (HTMLInputElement | null)[] = $state([]);
 
-  $: {
-    // Synchronize rawInputs whenever activeExerciseId, students, or scoresMap changes
-    const newRaw: Record<number, string> = {};
-    if (activeExerciseId) {
-      students.forEach((st, idx) => {
-        const sub = submissionMap.get(st.pseudonymId);
-        if (sub) {
-          const val = scoresMap.get(sub.id)?.[activeExerciseId];
-          newRaw[idx] = val !== null && val !== undefined ? String(val) : "";
-        } else {
-          newRaw[idx] = "";
-        }
-      });
-    }
-    rawInputs = newRaw;
-  }
+  let activeExercise = $derived(exercises.find((e) => e.id === activeExerciseId));
+  // Raw: holds the parent's submission objects, which handleScoreChange mutates and persists.
+  let submissionMap = $state.raw(new Map<string, SubmissionRecord>());
+  // Only the newest build may write, so a slower stale build cannot overwrite a newer map.
+  let submissionMapSeq = 0;
+
+  // Editable buffer (studentIndex -> input string), bound by the inputs; reset when its sources change.
+  let rawInputs: Record<number, string> = $state({});
 
   function handleKeyDown(e: KeyboardEvent, index: number) {
     if (e.key === "Enter" || e.key === "ArrowDown") {
@@ -162,17 +152,62 @@
   }
 
   // Calculate statistics for active exercise
-  $: activeScores = students
-    .map((st) => {
-      const sub = submissionMap.get(st.pseudonymId);
-      return sub ? scoresMap.get(sub.id)?.[activeExerciseId] : null;
-    })
-    .filter((v): v is number => v !== null && v !== undefined);
+  let activeScores = $derived(
+    students
+      .map((st) => {
+        const sub = submissionMap.get(st.pseudonymId);
+        return sub ? scoresMap.get(sub.id)?.[activeExerciseId] : null;
+      })
+      .filter((v): v is number => v !== null && v !== undefined),
+  );
 
-  $: gradedCount = activeScores.length;
-  $: avgScore = gradedCount > 0
-    ? Math.round((activeScores.reduce((a, b) => a + b, 0) / gradedCount) * 100) / 100
-    : 0;
+  let gradedCount = $derived(activeScores.length);
+  let avgScore = $derived(
+    gradedCount > 0 ? Math.round((activeScores.reduce((a, b) => a + b, 0) / gradedCount) * 100) / 100 : 0,
+  );
+
+  $effect.pre(() => {
+    const exs = exercises;
+    const currentId = activeExerciseId;
+    if (exs.length > 0 && (!currentId || !exs.some((e) => e.id === currentId))) {
+      untrack(() => {
+        activeExerciseId = exs[0].id;
+      });
+    }
+  });
+
+  $effect.pre(() => {
+    const subs = submissions;
+    const sts = students;
+    const seq = ++submissionMapSeq;
+    untrack(() =>
+      buildSubmissionMap(subs, sts).then((m) => {
+        if (seq === submissionMapSeq) submissionMap = m;
+      }),
+    );
+  });
+
+  $effect.pre(() => {
+    const exId = activeExerciseId;
+    const sts = students;
+    const subMap = submissionMap;
+    const scores = scoresMap;
+    untrack(() => {
+      const newRaw: Record<number, string> = {};
+      if (exId) {
+        sts.forEach((st, idx) => {
+          const sub = subMap.get(st.pseudonymId);
+          if (sub) {
+            const val = scores.get(sub.id)?.[exId];
+            newRaw[idx] = val !== null && val !== undefined ? String(val) : "";
+          } else {
+            newRaw[idx] = "";
+          }
+        });
+      }
+      rawInputs = newRaw;
+    });
+  });
 </script>
 
 <div class="flex min-w-0 flex-col gap-4">
@@ -237,9 +272,9 @@
                   class="{controlClass} {controlSmClass} w-24 text-right font-semibold"
                   aria-invalid={isInvalid ? "true" : undefined}
                   placeholder="-"
-                  on:keydown={(e) => handleKeyDown(e, i)}
-                  on:blur={() => handleScoreChange(st, i)}
-                  on:change={() => handleScoreChange(st, i)}
+                  onkeydown={(e) => handleKeyDown(e, i)}
+                  onblur={() => handleScoreChange(st, i)}
+                  onchange={() => handleScoreChange(st, i)}
                 />
                 <span class="ml-1.5 text-sm text-muted">
                   / {activeExercise?.maxPoints}

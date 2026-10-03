@@ -1,11 +1,15 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import type { HelpTopic } from "$lib/help/topics";
+  import { t } from "#lib/i18n";
+  import type { HelpTopic } from "#lib/help/topics";
 
-  /** One manual topic, rendered identically in the panel and on `/help`. */
-  export let topic: HelpTopic;
-  /** `h2` on the manual page, `h3` inside the panel. */
-  export let level: "h2" | "h3" = "h3";
+  interface Props {
+    /** One manual topic, rendered identically in the panel and on `/help`. */
+    topic: HelpTopic;
+    /** `h2` on the manual page, `h3` inside the panel. */
+    level?: "h2" | "h3";
+  }
+
+  let { topic, level = "h3" }: Props = $props();
 </script>
 
 <div class="min-w-0">

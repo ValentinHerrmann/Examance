@@ -1,40 +1,53 @@
 <script lang="ts">
-  import type { GradingKeyConfig } from '$lib/db/schema';
-  import GradingKeyEditor from '$lib/components/GradingKeyEditor.svelte';
-  import LatexEditor from '$lib/components/LatexEditor.svelte';
-  import SuggestInput from '$lib/components/common/SuggestInput.svelte';
-  import { recordValue } from '$lib/utils/recentValues';
-  import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from '$lib/utils/examLabel';
-  import { t } from '$lib/i18n';
-  import { Modal, Button, controlClass } from '$lib/components/ui';
+  import { untrack } from "svelte";
+  import type { GradingKeyConfig } from '#lib/db/schema';
+  import GradingKeyEditor from '#lib/components/GradingKeyEditor.svelte';
+  import LatexEditor from '#lib/components/LatexEditor.svelte';
+  import SuggestInput from '#lib/components/common/SuggestInput.svelte';
+  import { recordValue } from '#lib/utils/recentValues';
+  import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from '#lib/utils/examLabel';
+  import { t } from '#lib/i18n';
+  import { Modal, Button, controlClass } from '#lib/components/ui';
 
-  export let isOpen: boolean = false;
-  export let editTitle: string;
-  export let editTestart: string;
-  export let editGrade: string = "";
-  export let editKlasse: string = "";
-  export let editDatum: string;
-  export let editNr: string;
-  export let editFach: string;
-  export let editLehrernachname: string;
-  export let editInfoText: string;
-  export let editRetentionUntil: string;
-  export let editGradingKey: GradingKeyConfig;
-  export let onSave: () => void;
-  export let onCancel: () => void;
-
-  $: fullCoursePreview = formatExamCourse(editGrade, editKlasse);
-
-  let editDatumDate = "";
-  let editDauer = "";
-  let lastSyncedEditDatum = "";
-
-  $: if (editDatum !== lastSyncedEditDatum) {
-    lastSyncedEditDatum = editDatum;
-    const parsed = parseDatumAndDauer(editDatum);
-    editDatumDate = parsed.datumDate;
-    editDauer = parsed.dauer;
+  interface Props {
+    isOpen?: boolean;
+    editTitle: string;
+    editTestart: string;
+    editGrade?: string;
+    editKlasse?: string;
+    editDatum: string;
+    editNr: string;
+    editFach: string;
+    editLehrernachname: string;
+    editInfoText: string;
+    editRetentionUntil: string;
+    editGradingKey: GradingKeyConfig;
+    onSave: () => void;
+    onCancel: () => void;
   }
+
+  let {
+    isOpen = false,
+    editTitle = $bindable(),
+    editTestart = $bindable(),
+    editGrade = $bindable(""),
+    editKlasse = $bindable(""),
+    editDatum = $bindable(),
+    editNr = $bindable(),
+    editFach = $bindable(),
+    editLehrernachname = $bindable(),
+    editInfoText = $bindable(),
+    editRetentionUntil = $bindable(),
+    editGradingKey = $bindable(),
+    onSave,
+    onCancel
+  }: Props = $props();
+
+  let fullCoursePreview = $derived(formatExamCourse(editGrade, editKlasse));
+
+  let editDatumDate = $state("");
+  let editDauer = $state("");
+  let lastSyncedEditDatum = "";
 
   function handleDatumDateOrDauerChange() {
     const formatted = formatDatumAndDauer(editDatumDate, editDauer);
@@ -52,6 +65,18 @@
     if (editDauer) recordValue("exam.dauer", editDauer);
     onSave();
   }
+
+  $effect.pre(() => {
+    const d = editDatum;
+    untrack(() => {
+      if (d !== lastSyncedEditDatum) {
+        lastSyncedEditDatum = d;
+        const parsed = parseDatumAndDauer(d);
+        editDatumDate = parsed.datumDate;
+        editDauer = parsed.dauer;
+      }
+    });
+  });
 </script>
 
 <Modal open={isOpen} size="large" title={$t("exam.metadataEditor.heading")} onClose={onCancel}>
@@ -82,11 +107,11 @@
     {/if}
     <div class="flex flex-col gap-1">
       <label for="editDatumDate" class="text-sm font-medium text-content">{$t("exam.metadataEditor.datum")}</label>
-      <input id="editDatumDate" type="text" bind:value={editDatumDate} on:input={handleDatumDateOrDauerChange} placeholder="14.08.2026" class={controlClass} />
+      <input id="editDatumDate" type="text" bind:value={editDatumDate} oninput={handleDatumDateOrDauerChange} placeholder="14.08.2026" class={controlClass} />
     </div>
     <div class="flex flex-col gap-1">
       <label for="editDauer" class="text-sm font-medium text-content">{$t("exam.metadataEditor.dauer")}</label>
-      <SuggestInput id="editDauer" storageKey="exam.dauer" bind:value={editDauer} on:input={handleDatumDateOrDauerChange} placeholder="30 Min" class={controlClass} />
+      <SuggestInput id="editDauer" storageKey="exam.dauer" bind:value={editDauer} oninput={handleDatumDateOrDauerChange} placeholder="30 Min" class={controlClass} />
     </div>
     <div class="flex flex-col gap-1">
       <label for="editNr" class="text-sm font-medium text-content">{$t("exam.metadataEditor.nr")}</label>
@@ -115,8 +140,8 @@
     <GradingKeyEditor bind:gradingKey={editGradingKey} />
   </div>
 
-  <svelte:fragment slot="footer">
+  {#snippet footer()}
     <Button variant="outlined" severity="secondary" onClick={onCancel}>{$t("common.cancel")}</Button>
     <Button onClick={handleSave}>{$t("common.save")}</Button>
-  </svelte:fragment>
+  {/snippet}
 </Modal>

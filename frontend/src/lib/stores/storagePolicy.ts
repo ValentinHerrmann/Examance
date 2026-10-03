@@ -1,6 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
-import { safeLocalStorage } from '$lib/utils/storage';
-import { t, translate } from '$lib/i18n';
+import { safeLocalStorage } from '#lib/utils/storage';
+import { t, translate } from '#lib/i18n';
 
 export type StorageMode = 'all-server' | 'all-local' | 'hybrid';
 
@@ -12,11 +12,9 @@ export interface StoragePolicy {
 const STORAGE_KEY = 'bg_storage_policy';
 
 /**
- * Changing the storage mode changes which store every repository talks to,
- * and the data does not follow. Switching is gated: it goes through
- * `services/storageModeSwitch.ts`, which forces an archive export first and
- * is the only holder of a valid token. `updateSetting` is narrowed to
- * `latexCompilation` so any other caller is a compile error.
+ * Changing the storage mode changes which store every repository uses, and data doesn't follow. Switching
+ * is gated via `services/storageModeSwitch.ts` (forces an archive export first, sole holder of a valid
+ * token); `updateSetting` is narrowed to `latexCompilation` so any other caller is a compile error.
  */
 let activeSwitchToken: string | null = null;
 
@@ -106,10 +104,7 @@ function createStoragePolicyStore() {
             set(policy);
         },
 
-        /**
-         * Everything except the storage mode. `storageMode` is deliberately not
-         * assignable here — see `armStorageModeSwitch` above.
-         */
+                /** Everything except the storage mode, deliberately not assignable here (see `armStorageModeSwitch`). */
         updateSetting<K extends 'latexCompilation'>(key: K, value: StoragePolicy[K]) {
             update((current) => {
                 const next = { ...current, [key]: value };
@@ -118,12 +113,7 @@ function createStoragePolicyStore() {
             });
         },
 
-        /**
-         * Sets the storage mode. Only reachable from an armed switch, so a mode
-         * change always has an export behind it.
-         *
-         * @throws if `token` is not the one the switch service is holding.
-         */
+                /** Sets the storage mode; only reachable from an armed switch, so every mode change has an export behind it. @throws if `token` isn't the one the switch service holds. */
         commitStorageMode(mode: StorageMode, token: string) {
             if (!activeSwitchToken || token !== activeSwitchToken) {
                 throw new Error(
@@ -142,10 +132,7 @@ function createStoragePolicyStore() {
 
 export const storagePolicyStore = createStoragePolicyStore();
 
-/**
- * True when grading results — students, submissions, scores — live in
- * IndexedDB. `hybrid` keeps them local by design; only `all-server` does not.
- */
+/** True when grading results (students, submissions, scores) live in IndexedDB: `hybrid` keeps them local by design, only `all-server` doesn't. */
 export function resultsAreLocal(): boolean {
     return get(storagePolicyStore).storageMode !== 'all-server';
 }

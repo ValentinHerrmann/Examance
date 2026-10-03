@@ -1,15 +1,9 @@
 /**
- * Stand-in for `argon2-browser` in the node test environment.
- *
- * It used to throw unconditionally, which meant the whole suite ran on the
- * PBKDF2 fallback and wrap/unwrap could never disagree about which KDF made a
- * key. That is exactly the failure that reached production: an envelope wrapped
- * under one and opened under the other. The switch exists so a test can put the
- * two sides in different states on purpose.
- *
- * The "available" implementation is *not* Argon2 — it is a cheap, deterministic
- * stand-in. Tests here care only that it produces a different key from PBKDF2
- * for the same inputs, which is the whole point of the mismatch.
+ * Stand-in for `argon2-browser` in the node test environment. The switch lets a test put wrap
+ * and unwrap in different KDF states on purpose (an envelope wrapped under one KDF and opened
+ * under the other reached production when the mock always threw). The "available"
+ * implementation is a cheap deterministic stand-in, not Argon2; it only needs to differ from
+ * PBKDF2 for the same inputs.
  */
 let available = false;
 

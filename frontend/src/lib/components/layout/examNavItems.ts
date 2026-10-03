@@ -7,12 +7,9 @@ import {
     faSliders,
     faTableCells,
 } from '@fortawesome/free-solid-svg-icons';
-import type { TranslationKey } from '$lib/i18n';
+import type { TranslationKey } from '#lib/i18n';
 
-/**
- * The steps of an exam, shared by the desktop sidebar and the phone drawer so
- * both list the same items in the same order.
- */
+/** Exam steps shared by the desktop sidebar and the phone drawer. */
 export type ExamStep = 'setup' | 'scan' | 'verify' | 'grade' | 'manual' | 'stats';
 
 export interface ExamNavItem {

@@ -1,48 +1,54 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, untrack } from "svelte";
   import {
     stripBackendProtocol,
     inferBackendProtocol,
     knownServerSuggestions,
     isLoopbackHost,
-  } from "$lib/stores/backendStore";
-  import { getRecentValues, recordValue, removeValue } from "$lib/utils/recentValues";
-  import { t } from "$lib/i18n";
+  } from "#lib/stores/backendStore";
+  import { getRecentValues, recordValue, removeValue } from "#lib/utils/recentValues";
+  import { t } from "#lib/i18n";
   import { faCheck, faChevronDown, faXmark } from "@fortawesome/free-solid-svg-icons";
-  import { Icon } from "$lib/components/ui";
+  import { Icon } from "#lib/components/ui";
 
-  export let value: string = "";
-  export let id: string | undefined = undefined;
-  export let placeholder: string = "localhost:8000";
-  export let required: boolean = false;
-  export let disabled: boolean = false;
-  export let storageKey: string = "backend.url";
-  export let extraSuggestions: string[] = knownServerSuggestions();
-  let className: string = "";
-  export { className as class };
-
-  let hostInput: string = stripBackendProtocol(value || "");
-  let lastDispatchedValue: string = value;
-  let isOpen = false;
-  let forceShowAll = false;
-  let highlightedIndex = -1;
-  let recentList: string[] = [];
-
-  let inputEl: HTMLInputElement;
-  let wrapperEl: HTMLDivElement;
-  let dropdownStyle = "";
-
-  const instanceId = Math.random().toString(36).substring(2, 9);
-  $: dropdownId = id ? `${id}-backend-listbox` : `backend-listbox-${instanceId}`;
-
-  // Sync external value -> hostInput without creating a reactive cycle
-  $: if (value !== lastDispatchedValue) {
-    lastDispatchedValue = value;
-    hostInput = stripBackendProtocol(value || "");
+  interface Props {
+    value?: string;
+    id?: string | undefined;
+    placeholder?: string;
+    required?: boolean;
+    disabled?: boolean;
+    storageKey?: string;
+    extraSuggestions?: string[];
+    class?: string;
   }
 
+  let {
+    value = $bindable(""),
+    id = undefined,
+    placeholder = "localhost:8000",
+    required = false,
+    disabled = false,
+    storageKey = "backend.url",
+    extraSuggestions = knownServerSuggestions(),
+    class: className = "",
+  }: Props = $props();
+
+  let hostInput: string = $state(stripBackendProtocol(value || ""));
+  let lastDispatchedValue = value;
+  let isOpen = $state(false);
+  let forceShowAll = $state(false);
+  let highlightedIndex = $state(-1);
+  let recentList: string[] = $state([]);
+
+  let inputEl: HTMLInputElement | undefined = $state();
+  let wrapperEl: HTMLDivElement | undefined = $state();
+  let dropdownStyle = $state("");
+
+  const instanceId = Math.random().toString(36).substring(2, 9);
+  let dropdownId = $derived(id ? `${id}-backend-listbox` : `backend-listbox-${instanceId}`);
+
   // Reactive protocol inferred from hostInput
-  $: protocol = inferBackendProtocol(hostInput);
+  let protocol = $derived(inferBackendProtocol(hostInput));
 
   interface ServerSuggestion {
     host: string;
@@ -57,7 +63,7 @@
     return "Custom";
   }
 
-  $: allSuggestions = (() => {
+  let allSuggestions = $derived((() => {
     const known = extraSuggestions || knownServerSuggestions();
     const result: ServerSuggestion[] = [];
     const seen = new Set<string>();
@@ -85,13 +91,10 @@
     }
 
     return result;
-  })();
+  })());
 
-  // Filter suggestions:
-  // If forceShowAll is true, OR if hostInput is empty,
-  // OR if hostInput exactly matches one of the options (meaning it's the currently selected server):
-  // show ALL options so the user can easily switch to any other server!
-  $: filteredSuggestions = (() => {
+  // Show all options when forced, when empty, or when hostInput exactly matches one (the selected server), so switching is easy.
+  let filteredSuggestions = $derived((() => {
     const query = hostInput.trim().toLowerCase();
     if (forceShowAll || !query) {
       return allSuggestions;
@@ -101,7 +104,7 @@
       return allSuggestions;
     }
     return allSuggestions.filter((s) => s.host.toLowerCase().includes(query));
-  })();
+  })());
 
   function updateDropdownPosition() {
     if (!wrapperEl || typeof window === "undefined") {
@@ -122,10 +125,6 @@
     dropdownStyle = openUp
       ? `position: fixed; left: ${left}px; width: ${width}px; bottom: ${window.innerHeight - rect.top + gap}px; max-height: ${available}px; z-index: var(--z-dropdown, 9999);`
       : `position: fixed; left: ${left}px; width: ${width}px; top: ${rect.bottom + gap}px; max-height: ${available}px; z-index: var(--z-dropdown, 9999);`;
-  }
-
-  $: if (isOpen) {
-    updateDropdownPosition();
   }
 
   onMount(() => {
@@ -247,11 +246,28 @@
       recentList = recordValue(storageKey, hostInput.trim(), 10);
     }
   }
+
+  // Sync external value -> hostInput without creating a reactive cycle
+  $effect.pre(() => {
+    const external = value;
+    untrack(() => {
+      if (external !== lastDispatchedValue) {
+        lastDispatchedValue = external;
+        hostInput = stripBackendProtocol(external || "");
+      }
+    });
+  });
+
+  $effect.pre(() => {
+    if (isOpen) {
+      untrack(() => updateDropdownPosition());
+    }
+  });
 </script>
 
 <svelte:window
-  on:resize={() => isOpen && updateDropdownPosition()}
-  on:scroll|capture={() => isOpen && updateDropdownPosition()}
+  onresize={() => isOpen && updateDropdownPosition()}
+  onscrollcapture={() => isOpen && updateDropdownPosition()}
 />
 
 <div
@@ -271,10 +287,10 @@
     type="text"
     autocomplete="off"
     value={hostInput}
-    on:input={handleInput}
-    on:focus={handleFocus}
-    on:blur={handleBlur}
-    on:keydown={handleKeydown}
+    oninput={handleInput}
+    onfocus={handleFocus}
+    onblur={handleBlur}
+    onkeydown={handleKeydown}
     {placeholder}
     {required}
     {disabled}
@@ -287,7 +303,10 @@
   <button
     type="button"
     class="flex shrink-0 items-center justify-center px-2.5 text-muted transition-colors hover:text-content focus:outline-none pointer-coarse:min-w-11"
-    on:mousedown|preventDefault={toggleDropdown}
+    onmousedown={(e) => {
+      e.preventDefault();
+      toggleDropdown();
+    }}
     tabindex="-1"
     aria-label="Toggle server suggestions"
     {disabled}
@@ -314,8 +333,11 @@
           role="option"
           aria-selected={i === highlightedIndex || isCurrent}
           class="group flex cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-1.5 text-sm transition-colors {i === highlightedIndex ? 'bg-primary text-primary-contrast' : isCurrent ? 'bg-highlight text-accent' : 'text-content hover:bg-surface-inset/60 hover:text-primary-contrast'}"
-          on:mousedown|preventDefault={() => selectOption(suggestion)}
-          on:mouseenter={() => (highlightedIndex = i)}
+          onmousedown={(e) => {
+            e.preventDefault();
+            selectOption(suggestion);
+          }}
+          onmouseenter={() => (highlightedIndex = i)}
         >
           <div class="flex items-center gap-2 min-w-0 flex-1">
             <span class="truncate font-mono text-xs sm:text-sm">{suggestion.host}</span>
@@ -335,7 +357,7 @@
                 title={$t("exercises.suggestInput.removeEntry")}
                 aria-label={$t("exercises.suggestInput.removeEntry")}
                 class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-xs text-muted opacity-60 transition-opacity hover:bg-danger/30 hover:text-danger-fg group-hover:opacity-100"
-                on:mousedown|preventDefault|stopPropagation={(e) => handleRemove(e, suggestion.host)}
+                onmousedown={(e) => handleRemove(e, suggestion.host)}
               >
                 <Icon icon={faXmark} />
               </button>

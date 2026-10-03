@@ -1,27 +1,24 @@
 <script lang="ts">
-  /**
-   * The recovery code — not a sign-in factor, the last way back to the data.
-   *
-   * It is on this page because that is where teachers look for it, and because
-   * until now nothing in the app said whether one existed. The code itself is
-   * unrecoverable: the server holds a wrap it cannot open, so all that can be
-   * offered is a replacement, minted from the open vault.
-   */
-  import { Alert, Button, Card } from "$lib/components/ui";
-  import { Argon2UnavailableError } from "$lib/crypto/keyDerivation";
-  import { t } from "$lib/i18n";
-  import { fmt } from "$lib/utils/format";
-  import type { MfaStatus } from "$lib/api/mfa";
-  import { regenerateRecoveryCode, vaultFromSession } from "$lib/services/keyEnvelopeService";
+  /** The recovery code: not a sign-in factor, the last way back to the data. It is unrecoverable (server holds a wrap it cannot open), so only a replacement minted from the open vault is offered. */
+  import { Alert, Button, Card } from "#lib/components/ui";
+  import { Argon2UnavailableError } from "#lib/crypto/keyDerivation";
+  import { t } from "#lib/i18n";
+  import { fmt } from "#lib/utils/format";
+  import type { MfaStatus } from "#lib/api/mfa";
+  import { regenerateRecoveryCode, vaultFromSession } from "#lib/services/keyEnvelopeService";
   import RecoveryCodeDialog from "./RecoveryCodeDialog.svelte";
 
-  export let status: MfaStatus;
-  export let teacherId: string;
-  export let onChanged: () => void;
+  interface Props {
+    status: MfaStatus;
+    teacherId: string;
+    onChanged: () => void;
+  }
 
-  let errorMsg = "";
-  let isWorking = false;
-  let freshCode: string | null = null;
+  let { status, teacherId, onChanged }: Props = $props();
+
+  let errorMsg = $state("");
+  let isWorking = $state(false);
+  let freshCode: string | null = $state(null);
 
   async function regenerate() {
     errorMsg = "";

@@ -1,6 +1,6 @@
-import type { ExerciseRecord } from "$lib/db/schema";
-import { parseExerciseScore } from "$lib/latex/scoreParser";
-import { translate } from "$lib/i18n";
+import type { ExerciseRecord } from "#lib/db/schema";
+import { parseExerciseScore } from "#lib/latex/scoreParser";
+import { translate } from "#lib/i18n";
 
 export interface VariantMember {
   ex: ExerciseRecord;

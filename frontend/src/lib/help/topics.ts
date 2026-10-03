@@ -13,18 +13,12 @@ import {
   faRocket,
   faUsers,
 } from "@fortawesome/free-solid-svg-icons";
-import type { TranslationKey } from "$lib/i18n";
+import type { TranslationKey } from "#lib/i18n";
 
 /**
- * The in-app manual, as data.
- *
- * Content itself lives in the `help` i18n namespace (German is the source of
- * truth); this registry only fixes the *order* of headings and paragraphs,
- * because the catalogs hold no arrays. Every key is `TranslationKey`-typed, so
- * a typo here is a `svelte-check` error rather than a blank paragraph.
- *
- * One registry feeds all three surfaces: the help modal, the `/help` route and
- * the contextual `?` buttons.
+ * The in-app manual as data. Content lives in the `help` i18n namespace (German is the source);
+ * this registry only fixes the order of headings and paragraphs, with `TranslationKey`-typed keys so a
+ * typo is a `svelte-check` error. Feeds the help modal, the `/help` route and the contextual `?` buttons.
  */
 export type HelpTopicId =
   | "gettingStarted"

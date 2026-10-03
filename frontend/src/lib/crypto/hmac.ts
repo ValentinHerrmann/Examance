@@ -1,18 +1,11 @@
 import { toArrayBuffer } from './aesGcm';
 
 /**
- * Client-side HMAC-SHA-256 helpers.
- *
- * Used to compute pseudonym IDs:
- *   pseudonym_hmac = HMAC-SHA256(raw_pseudonym_uuid, per_exam_secret)
- *
- * The server only ever sees the HMAC — never the raw UUID.
+ * Client-side HMAC-SHA-256 helpers for pseudonym IDs:
+ * pseudonym_hmac = HMAC-SHA256(raw_pseudonym_uuid, per_exam_secret). The server only sees the HMAC, never the raw UUID.
  */
 
-/**
- * Import raw key bytes as an HMAC-SHA-256 CryptoKey.
- * @param keyBytes 32-byte raw key material (e.g., from HKDF derivation).
- */
+/** Import 32-byte raw key material (e.g. from HKDF) as an HMAC-SHA-256 CryptoKey. */
 export async function importHmacKey(keyBytes: Uint8Array): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     'raw',
@@ -23,13 +16,7 @@ export async function importHmacKey(keyBytes: Uint8Array): Promise<CryptoKey> {
   );
 }
 
-/**
- * Compute HMAC-SHA-256(message, key) → hex string.
- *
- * @param message UTF-8 string to sign (e.g., raw pseudonym UUID).
- * @param key     CryptoKey created by importHmacKey.
- * @returns Lowercase hex string (64 chars).
- */
+/** HMAC-SHA-256(message, key) as 64-char lowercase hex; `key` comes from importHmacKey. */
 export async function hmacSha256Hex(message: string, key: CryptoKey): Promise<string> {
   const signature = await crypto.subtle.sign(
     'HMAC',
@@ -41,12 +28,7 @@ export async function hmacSha256Hex(message: string, key: CryptoKey): Promise<st
     .join('');
 }
 
-/**
- * Convenience: HMAC pseudonym ID with a raw byte key.
- *
- * @param rawPseudonymId UUID string of the student.
- * @param examSecretBytes 32-byte per-exam secret (from HKDF).
- */
+/** HMAC pseudonym ID from a student UUID and a 32-byte per-exam secret (from HKDF). */
 export async function hmacPseudonymId(
   rawPseudonymId: string,
   examSecretBytes: Uint8Array
@@ -55,10 +37,7 @@ export async function hmacPseudonymId(
   return hmacSha256Hex(rawPseudonymId, key);
 }
 
-/**
- * Ensures string is a 64-character hex string suitable for pseudonym_hmac backend fields.
- * If input is already 64 characters, returns input. Otherwise computes SHA-256 digest hex.
- */
+/** Returns a 64-char hex string for pseudonym_hmac backend fields: input as-is if already 64 chars, else its SHA-256 hex. */
 export async function ensure64CharHex(idStr: string): Promise<string> {
   if (idStr && idStr.length === 64) {
     return idStr;

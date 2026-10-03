@@ -17,13 +17,9 @@ import {
 } from '../src/lib/crypto/keyEnvelope';
 
 /**
- * The failure these guard against destroys key material silently.
- *
- * `saveEnvelopes` replaces the whole set, and the set builder can only emit the
- * wraps it was handed a secret for. So rebuilding a set to change *one* factor
- * drops the wraps for every other one — a teacher's passkeys keep signing them
- * in and stop opening their vault, with no symptom until the day they need it.
- * Worth asserting directly rather than hoping an end-to-end test walks over it.
+ * Guards silent key-material loss: `saveEnvelopes` replaces the whole set and the builder only
+ * emits wraps it was given a secret for, so rebuilding to change *one* factor drops the others
+ * (e.g. passkeys still sign in but no longer open the vault).
  */
 
 const TEACHER_ID = '11111111-2222-3333-4444-555555555555';

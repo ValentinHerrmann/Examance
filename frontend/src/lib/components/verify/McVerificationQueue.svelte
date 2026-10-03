@@ -1,23 +1,34 @@
 <script lang="ts">
-  import type { McDetectionItem } from "$lib/grading/mcVerification";
-  import { t } from "$lib/i18n";
+  import type { McDetectionItem } from "#lib/grading/mcVerification";
+  import { t } from "#lib/i18n";
   import { faChevronDown, faChevronRight, faCheck, faCircle } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, Icon } from "$lib/components/ui";
+  import { Badge, Button, Icon } from "#lib/components/ui";
 
-  export let title: string;
-  export let items: McDetectionItem[] = [];
-  export let studentProgress: Map<string, { total: number; reviewed: number }> = new Map();
-  export let emptyMessage: string;
-  export let onVerifyItem: (item: McDetectionItem) => void;
-  export let onOpenGrading: (item: McDetectionItem) => void;
+  interface Props {
+    title: string;
+    items?: McDetectionItem[];
+    studentProgress?: Map<string, { total: number; reviewed: number }>;
+    emptyMessage: string;
+    onVerifyItem: (item: McDetectionItem) => void;
+    onOpenGrading: (item: McDetectionItem) => void;
+  }
 
-  let isOpen = true;
+  let {
+    title,
+    items = [],
+    studentProgress = new Map(),
+    emptyMessage,
+    onVerifyItem,
+    onOpenGrading
+  }: Props = $props();
+
+  let isOpen = $state(true);
 </script>
 
 <div class="mb-6 min-w-0 overflow-hidden rounded-md border border-line bg-surface-raised">
   <button
     type="button"
-    on:click={() => (isOpen = !isOpen)}
+    onclick={() => (isOpen = !isOpen)}
     class="w-full flex items-center justify-between px-4 py-3 bg-surface-raised hover:bg-surface-inset text-left transition-colors cursor-pointer border-b border-line"
   >
     <div class="flex items-center gap-2">

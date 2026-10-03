@@ -1,16 +1,32 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import { Button } from "$lib/components/ui";
-  export let examId: string;
-  export let onEdit: () => void;
-  export let onDelete: () => void;
-  export let onExport: () => void;
-  export let onScan: () => void;
-  export let onGrade: () => void;
-  export let onStats: () => void;
-  export let onAddExercises: () => void;
-  export let onDeleteAllSubmissions: () => void;
-  export let storagePolicy: string;
+  import { t } from "#lib/i18n";
+  import { Button } from "#lib/components/ui";
+
+  interface Props {
+    examId: string;
+    onEdit: () => void;
+    onDelete: () => void;
+    onExport: () => void;
+    onScan: () => void;
+    onGrade: () => void;
+    onStats: () => void;
+    onAddExercises: () => void;
+    onDeleteAllSubmissions: () => void;
+    storagePolicy: string;
+  }
+
+  let {
+    examId,
+    onEdit,
+    onDelete,
+    onExport,
+    onScan,
+    onGrade,
+    onStats,
+    onAddExercises,
+    onDeleteAllSubmissions,
+    storagePolicy
+  }: Props = $props();
 </script>
 
 <div class="mb-6 flex flex-wrap items-center justify-between gap-2">

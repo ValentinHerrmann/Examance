@@ -1,6 +1,6 @@
 import { writable, derived } from 'svelte/store';
-import { safeLocalStorage } from '$lib/utils/storage';
-import { recordValue } from '$lib/utils/recentValues';
+import { safeLocalStorage } from '#lib/utils/storage';
+import { recordValue } from '#lib/utils/recentValues';
 
 const BACKEND_URL_KEY = 'bg_backend_url';
 
@@ -39,10 +39,7 @@ export function extractHostname(raw: string): string {
     return hostPort.split(':')[0];
 }
 
-/**
- * Returns true if the frontend is currently being served from a loopback address
- * (e.g. npm run dev or VS Code debugging on http://localhost:5173).
- */
+/** True when the frontend is served from a loopback address (e.g. npm run dev on http://localhost:5173). */
 export function isLocalhostFrontend(): boolean {
     if (typeof window === 'undefined' || !window.location) {
         return false;
@@ -50,11 +47,7 @@ export function isLocalhostFrontend(): boolean {
     return isLoopbackHost(window.location.hostname);
 }
 
-/**
- * Automatically determines the protocol for a backend address:
- * - Loopback / localhost backends are forced to 'http:'
- * - Non-local backends are forced to 'https:'
- */
+/** Infers the protocol for a backend address: loopback/localhost -> 'http:', everything else -> 'https:'. */
 export function inferBackendProtocol(raw: string): 'http:' | 'https:' {
     const hostname = extractHostname(raw);
     if (!hostname) {
@@ -64,16 +57,9 @@ export function inferBackendProtocol(raw: string): 'http:' | 'https:' {
 }
 
 /**
- * Validate and normalise a backend origin.
- *
- * Rules:
- * - Non-local backends always use HTTPS
- * - Localhost / 127.0.0.1 / loopback backends always use HTTP
- * - Protocol is forced automatically regardless of whether the user provided one.
- * - Credentials, queries, fragments and non-http schemes are strictly rejected.
- * - Path is dropped; the API client appends /api/v1 itself.
- *
- * @throws Error with a user-presentable message when the input is unusable.
+ * Validate and normalise a backend origin. Protocol is forced regardless of user input (non-local ->
+ * HTTPS, loopback -> HTTP); credentials, queries, fragments and non-http schemes are rejected; the path
+ * is dropped (the API client appends /api/v1). @throws Error with a user-presentable message.
  */
 export function normalizeBackendUrl(raw: string): string {
     if (!raw || !raw.trim()) return '';
@@ -148,11 +134,7 @@ function getConstant(getter: () => string): string {
     }
 }
 
-/**
- * Returns the default backend URL for initial loads:
- * - When frontend runs at localhost, default to http://localhost:8000
- * - In preview and production, default to the build-time configured default API
- */
+/** Default backend URL for initial loads: http://localhost:8000 on localhost, else the build-time default API. */
 export function defaultBackendUrl(): string {
     if (isLocalhostFrontend()) {
         return 'http://localhost:8000';
@@ -165,11 +147,7 @@ export const DEFAULT_PROD_HOST = 'api-examance.valentin-herrmann.com';
 export const DEFAULT_PREVIEW_HOST = 'prev-api-examance.valentin-herrmann.com';
 export const DEFAULT_LOCAL_HOST = 'localhost:8000';
 
-/**
- * Returns a list of known server hosts (without protocol) to show in the suggestions dropdown.
- * - When running at localhost: localhost:8000, preview, and production servers
- * - Otherwise: default server, production, preview, and localhost
- */
+/** Known server hosts (no protocol) for the suggestions dropdown: on localhost, localhost:8000 first then preview and production; otherwise default, production, preview, localhost. */
 export function knownServerSuggestions(): string[] {
     const prodHost =
         stripBackendProtocol(getConstant(() => __PROD_BACKEND_URL__)) || DEFAULT_PROD_HOST;

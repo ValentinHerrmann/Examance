@@ -1,4 +1,4 @@
-import { getLatestForSlot, type CompileKind } from "$lib/latex/compileCache";
+import { getLatestForSlot, type CompileKind } from "#lib/latex/compileCache";
 
 export function pdfBytesToUrl(bytes: Uint8Array): string {
   return URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" }));

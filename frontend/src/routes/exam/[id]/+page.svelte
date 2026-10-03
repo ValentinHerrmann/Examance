@@ -1,17 +1,16 @@
 <script lang="ts">
-  import { type ExerciseGroup, groupExercises } from "$lib/exercise-library/groupExercises";
-  import { page } from "$app/stores";
-  export let params;
-  import { onMount, onDestroy } from "svelte";
-  import { browser } from "$app/environment";
-  import { db } from "$lib/db/db";
+  import { type ExerciseGroup, groupExercises } from "#lib/exercise-library/groupExercises";
+  import { page } from "$app/state";
+  import { onMount, onDestroy, untrack } from "svelte";
+  import { browser } from "$app/env";
+  import { db } from "#lib/db/db";
   import type {
     ExamRecord,
     ExerciseRecord,
     SubmissionRecord,
     ExamMcGroupRecord,
     ExamExerciseRecord,
-  } from "$lib/db/schema";
+  } from "#lib/db/schema";
   import {
     loadExamEncrypted,
     saveExamEncrypted,
@@ -26,90 +25,79 @@
     loadOmrTemplateEncrypted,
     loadLocalMcGroups,
     type McGroup,
-  } from "$lib/db/dbEncryption";
-  import { computeMcExercisesHash, resolveMcExercises } from "$lib/grading/mcExerciseHash";
-  import { prepareOmrTemplate } from "$lib/grading/omrTemplatePrep";
-  import { isMcQuestion } from "$lib/grading/mcScore";
-  import { exportArchiveInteractively } from "$lib/services/archiveService";
-  import { getLatestForSlot, invalidateOwner } from "$lib/latex/compileCache";
-  import { parseExerciseScore } from "$lib/latex/scoreParser";
-  import { compileExamPreview } from "$lib/exam/examPreview";
-  import { pdfBytesToUrl } from "$lib/latex/pdfPreview";
-  import { api } from "$lib/api/client";
-  import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { studentRepository } from "$lib/repositories/studentRepository";
-  import { examRepository, mapApiToExamRecord } from "$lib/repositories/examRepository";
-  import { mapExerciseRecordToApi } from "$lib/repositories/exerciseRepository";
-  import { uint8ArrayToBase64, decrypt } from "$lib/crypto/aesGcm";
-  import { ensure64CharHex } from "$lib/crypto/hmac";
+  } from "#lib/db/dbEncryption";
+  import { computeMcExercisesHash, resolveMcExercises } from "#lib/grading/mcExerciseHash";
+  import { prepareOmrTemplate } from "#lib/grading/omrTemplatePrep";
+  import { isMcQuestion } from "#lib/grading/mcScore";
+  import { exportArchiveInteractively } from "#lib/services/archiveService";
+  import { getLatestForSlot, invalidateOwner } from "#lib/latex/compileCache";
+  import { parseExerciseScore } from "#lib/latex/scoreParser";
+  import { compileExamPreview } from "#lib/exam/examPreview";
+  import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
+  import { api } from "#lib/api/client";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
+  import { studentRepository } from "#lib/repositories/studentRepository";
+  import { examRepository, mapApiToExamRecord } from "#lib/repositories/examRepository";
+  import { mapExerciseRecordToApi } from "#lib/repositories/exerciseRepository";
+  import { uint8ArrayToBase64, decrypt } from "#lib/crypto/aesGcm";
+  import { ensure64CharHex } from "#lib/crypto/hmac";
   import type {
     OmrWorkerRequest,
     OmrWorkerResponse,
     OmrExerciseAnswerKey,
-  } from "$lib/workers/omrWorker";
-  import { sessionStore, isAuthenticated, awaitSessionReady } from "$lib/stores/session";
-  import { storagePolicyStore } from "$lib/stores/storagePolicy";
+  } from "#lib/workers/omrWorker";
+  import { sessionStore, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
+  import { storagePolicyStore } from "#lib/stores/storagePolicy";
   import { get } from "svelte/store";
-  import DualPdfPreview from "$lib/components/DualPdfPreview.svelte";
-  import { getPresetCutoffs } from "$lib/analytics/gradingKey";
-  import type { GradingKeyConfig } from "$lib/db/schema";
+  import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
+  import { getPresetCutoffs } from "#lib/analytics/gradingKey";
+  import type { GradingKeyConfig } from "#lib/db/schema";
   import { goto } from "$app/navigation";
-  import ExamMetadata from "$lib/components/exam/ExamMetadata.svelte";
-  import ExamActionBar from "$lib/components/exam/ExamActionBar.svelte";
-  import ExerciseList from "$lib/components/exam/ExerciseList.svelte";
-  import ExamMetadataEditor from "$lib/components/exam/ExamMetadataEditor.svelte";
-  import ExamLibraryModal from "$lib/components/exam/ExamLibraryModal.svelte";
-  import { mapApiToExerciseRecord } from "$lib/repositories/exerciseRepository";
+  import ExamMetadata from "#lib/components/exam/ExamMetadata.svelte";
+  import ExamActionBar from "#lib/components/exam/ExamActionBar.svelte";
+  import ExerciseList from "#lib/components/exam/ExerciseList.svelte";
+  import ExamMetadataEditor from "#lib/components/exam/ExamMetadataEditor.svelte";
+  import ExamLibraryModal from "#lib/components/exam/ExamLibraryModal.svelte";
+  import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
   import {
     applyGroup,
     buildMcGroupMembership,
     canFinalizeGroup,
     moveStaged,
     toggleStaged,
-  } from "$lib/exam/mcGroupStaging";
-  import { t, translate } from "$lib/i18n";
-  import { ConfirmDialog, Alert, Button, Card, PageHeader, PageShell } from "$lib/components/ui";
+  } from "#lib/exam/mcGroupStaging";
+  import { t, translate } from "#lib/i18n";
+  import { ConfirmDialog, Alert, Button, Card, PageHeader, PageShell } from "#lib/components/ui";
 
-  $: examId = $page.params.id || "";
+  let examId = $derived(page.params.id || "");
 
   interface ExamItemRef {
     type: "exercise" | "mc_group";
     id: string;
   }
 
-  let exam: ExamRecord | null = null;
-  let exercises: ExerciseRecord[] = [];
-  let mcGroups: McGroup[] = [];
-  let examItems: ExamItemRef[] = [];
-  let submissions: SubmissionRecord[] = [];
+  // Raw: these records go to Dexie, encryption, the API and buildExamLinkPayload(); update immutably.
+  let exam: ExamRecord | null = $state.raw(null);
+  let exercises: ExerciseRecord[] = $state.raw([]);
+  let mcGroups: McGroup[] = $state.raw([]);
+  let examItems: ExamItemRef[] = $state.raw([]);
+  let submissions: SubmissionRecord[] = $state.raw([]);
 
-  // Keeps examItems in step with exercises/mcGroups: drops refs to items that
-  // disappeared and appends newly added ones. Shares getEffectiveExamItems() so
-  // the rendered order and the order written to storage can never disagree.
-  $: {
-    const nextItems = computeExamItems(examItems, exercises, mcGroups);
-    if (
-      nextItems.length !== examItems.length ||
-      nextItems.some((item, i) => item.id !== examItems[i]?.id)
-    ) {
-      examItems = nextItems;
-    }
-  }
   let isExporting = false;
-  let exportSuccess = false;
+  let exportSuccess = $state(false);
 
-  let isPreviewLoading = false;
-  let compileNotice = "";
-  let errorMsg = "";
+  let isPreviewLoading = $state(false);
+  let compileNotice = $state("");
+  let errorMsg = $state("");
 
-  let isPreparingOmr = false;
-  let omrPrepareMessage = "";
-  let omrTemplateStatus: "none" | "ready" | "stale" | "checking" = "checking";
+  let isPreparingOmr = $state(false);
+  let omrPrepareMessage = $state("");
+  let omrTemplateStatus: "none" | "ready" | "stale" | "checking" = $state("checking");
 
-  let previewPdfUrl: string | null = null;
-  let previewSolutionPdfUrl: string | null = null;
-  let showAngabePreview = true;
-  let showLoesungPreview = false;
+  let previewPdfUrl: string | null = $state(null);
+  let previewSolutionPdfUrl: string | null = $state(null);
+  let showAngabePreview = $state(true);
+  let showLoesungPreview = $state(false);
 
   function restoreCachedPreviews(id: string) {
     if (!previewPdfUrl) {
@@ -139,32 +127,15 @@
     }
   });
 
-  $: if (browser && examId) {
-    loadExam(examId);
-    restoreCachedPreviews(examId);
-  }
+  let isLocalFallback = $state(false);
+  let isSyncingSingle = $state(false);
 
-  let isLocalFallback = false;
-  let isSyncingSingle = false;
-
-  /**
-   * Guards against overlapping loadExam() runs. The `$: loadExam(examId)` block
-   * re-fires on any `$page` update, and two in-flight loads each delete and
-   * re-write this exam's examMcGroups/examExercises rows — interleaved, that
-   * leaves the local MC groups empty. Only the newest run may write.
-   */
+  // Only the newest loadExam() run may write: interleaved runs each delete and re-write this exam's
+  // examMcGroups/examExercises rows, which left the local MC groups empty.
   let loadSeq = 0;
 
-  /**
-   * Rebuilds the exam's item order from the persisted order indices.
-   *
-   * `examItems` is view state, not a stored record, so it has to be derived on
-   * every load. Deriving it as "standalone exercises, then groups" (what the
-   * reactive top-up below does for genuinely new items) moved every MC group to
-   * the bottom of the exam on each re-open. Group members share their group's
-   * order index, so the group sorts at that position and its members are not
-   * emitted separately.
-   */
+  /** Rebuilds the item order from persisted order indices ("exercises, then groups" moved every MC
+   *  group to the bottom on re-open). Members share their group's order index and are not emitted alone. */
   function buildExamItems(exs: ExerciseRecord[], groups: McGroup[]): ExamItemRef[] {
     const memberIds = new Set(groups.flatMap((g) => g.memberIds));
     const entries: { order: number; item: ExamItemRef }[] = [];
@@ -316,26 +287,14 @@
     }
   }
 
-  /**
-   * Collects the MC-relevant exercises in exam order, mirroring buildExerciseInputs()'s
-   * traversal. Resolves every id (standalone or group member) from a single merged
-   * lookup built once per call -- `exercises` wins over `libraryExercises` on id
-   * collision, since it's the authoritative per-exam copy. Previously this used two
-   * independently-ordered `.find()` fallbacks per member, which could resolve to a
-   * different set/instance depending on whether `libraryExercises` had finished
-   * loading yet -- producing a different MC answer-key hash across calls (e.g.
-   * handlePrepareOmr() vs. checkOmrTemplateStatus()) and a spurious "stale" banner
-   * even right after a successful capture.
-   */
+  /** MC exercises in exam order from one merged lookup (`exercises` wins over `libraryExercises`), so the
+   *  answer-key hash is stable across calls and no spurious "stale" banner appears. */
   function collectMcExercises(): ExerciseRecord[] {
     return resolveMcExercises(exercises, libraryExercises, mcGroups);
   }
 
-  /**
-   * Hash of the exam's MC exercises' answer-key fields (shared with the scan-ingest
-   * staleness check via mcExerciseHash.ts). Used to detect a stale OMR template after
-   * an answer-key edit — never used to silently regenerate one.
-   */
+  /** Answer-key hash shared with the scan-ingest check (mcExerciseHash.ts). Detects a stale OMR
+   *  template after an answer-key edit; never used to silently regenerate one. */
   async function computeExercisesHash(): Promise<string> {
     return computeMcExercisesHash(collectMcExercises(), mcGroups);
   }
@@ -366,11 +325,8 @@
     if (!exam) return;
     isSyncingSingle = true;
     try {
-      // 1. Push exercises first — the exam's links reference them, and the
-      //    server rejects a link to an exercise it does not know.
-      //    POST is create-only (409 on a known id), so an already-synced
-      //    exercise is updated with PATCH instead. silentError keeps these
-      //    expected conflicts out of the global HTTP error modal.
+      // 1. Exercises first: links reference them. POST is create-only (409 on a known id), so fall
+      //    back to PATCH; silentError keeps these expected conflicts out of the global error modal.
       for (const ex of exercises) {
         const exercisePayload = mapExerciseRecordToApi(ex);
         try {
@@ -586,33 +542,30 @@
       isPreviewLoading = false;
     }
 
-    // Auto-refresh the OMR template after every successful compile so it never silently
-    // drifts out of sync with the exam layout — mirrors clicking "Prepare OMR" by hand.
-    // Only runs when the exam actually has MC exercises; handlePrepareOmr() itself handles
-    // the "no MC exercises" case as a no-op-with-error, which we don't want to surface here
-    // as an unprompted error banner, so we gate on collectMcExercises() first.
+    // Refresh the OMR template after every successful compile so it never drifts from the layout.
+    // Gated on MC exercises: handlePrepareOmr() would otherwise surface an unprompted error.
     if (compileSucceeded && collectMcExercises().length > 0) {
       await handlePrepareOmr();
     }
   }
 
-  let isEditingMetadata = false;
-  let editTitle = "";
-  let editTestart = "";
-  let editGrade = "";
-  let editKlasse = "";
-  let editDatum = "";
-  let editNr = "";
-  let editFach = "";
-  let editLehrernachname = "";
-  let editInfoText = "";
-  let editRetentionUntil = "";
-  let editGradingKey: GradingKeyConfig = {
+  let isEditingMetadata = $state(false);
+  let editTitle = $state("");
+  let editTestart = $state("");
+  let editGrade = $state("");
+  let editKlasse = $state("");
+  let editDatum = $state("");
+  let editNr = $state("");
+  let editFach = $state("");
+  let editLehrernachname = $state("");
+  let editInfoText = $state("");
+  let editRetentionUntil = $state("");
+  let editGradingKey: GradingKeyConfig = $state({
     preset: "linear_50",
     cutoffs: getPresetCutoffs("linear_50"),
-  };
+  });
 
-  let initialMetadata = {
+  let initialMetadata = $state({
     title: "",
     testart: "",
     grade: "",
@@ -623,62 +576,63 @@
     lehrernachname: "",
     infoText: "",
     retentionUntil: "",
-  };
-  let showMetadataConfirm = false;
-
-  $: isMetadataDirty =
-    isEditingMetadata &&
-    (editTitle !== initialMetadata.title ||
-      editTestart !== initialMetadata.testart ||
-      editGrade !== initialMetadata.grade ||
-      editKlasse !== initialMetadata.klasse ||
-      editDatum !== initialMetadata.datum ||
-      editNr !== initialMetadata.nr ||
-      editFach !== initialMetadata.fach ||
-      editLehrernachname !== initialMetadata.lehrernachname ||
-      editInfoText !== initialMetadata.infoText ||
-      editRetentionUntil !== initialMetadata.retentionUntil);
-
-  $: totalPoints = exercises.reduce((sum, ex) => sum + (ex.maxPoints ?? 0), 0);
-  $: submissionsCount = submissions.length;
-  $: studentsCount = new Set(submissions.map((s) => s.pseudonymHash)).size;
-  $: gradedCount = submissions.filter(
-    (s) => typeof s.totalScore === "number" && !isNaN(s.totalScore),
-  ).length;
-  $: storagePolicyModeString = $storagePolicyStore.storageMode;
-
-  let isLibraryModalOpen = false;
-  let libraryExercises: ExerciseRecord[] = [];
-  let selectedLibraryIds: string[] = [];
-  let initialSelectedLibraryIds: string[] = [];
-  let showLibraryConfirm = false;
-  let librarySearch = "";
-  let activeVariantPerGroup: Record<string, string> = {};
-
-
-
-  $: isLibraryDirty =
-    isLibraryModalOpen &&
-    (selectedLibraryIds.length !== initialSelectedLibraryIds.length ||
-      selectedLibraryIds.some((id, i) => id !== initialSelectedLibraryIds[i]));
-
-  $: filteredLibrary = libraryExercises.filter((ex) => {
-    const matchesGrade = selectedGradeFilter === "ALL" || ex.grade === selectedGradeFilter;
-    const matchesSubject = selectedSubjectFilter === "ALL" || ex.subject === selectedSubjectFilter;
-    const q = librarySearch.toLowerCase().trim();
-    const matchesSearch =
-      !q ||
-      (ex.name && ex.name.toLowerCase().includes(q)) ||
-      (ex.topicTag && ex.topicTag.toLowerCase().includes(q)) ||
-      (ex.grade && ex.grade.toLowerCase().includes(q)) ||
-      (ex.subject && ex.subject.toLowerCase().includes(q)) ||
-      (ex.variantKey && ex.variantKey.toLowerCase().includes(q)) ||
-      (ex.latexBody && ex.latexBody.toLowerCase().includes(q));
-    return matchesGrade && matchesSubject && matchesSearch;
   });
+  let showMetadataConfirm = $state(false);
 
-  $: filteredGroups = groupExercises(filteredLibrary);
+  let isMetadataDirty = $derived(
+    isEditingMetadata &&
+      (editTitle !== initialMetadata.title ||
+        editTestart !== initialMetadata.testart ||
+        editGrade !== initialMetadata.grade ||
+        editKlasse !== initialMetadata.klasse ||
+        editDatum !== initialMetadata.datum ||
+        editNr !== initialMetadata.nr ||
+        editFach !== initialMetadata.fach ||
+        editLehrernachname !== initialMetadata.lehrernachname ||
+        editInfoText !== initialMetadata.infoText ||
+        editRetentionUntil !== initialMetadata.retentionUntil),
+  );
 
+  let totalPoints = $derived(exercises.reduce((sum, ex) => sum + (ex.maxPoints ?? 0), 0));
+  let submissionsCount = $derived(submissions.length);
+  let studentsCount = $derived(new Set(submissions.map((s) => s.pseudonymHash)).size);
+  let gradedCount = $derived(
+    submissions.filter((s) => typeof s.totalScore === "number" && !isNaN(s.totalScore)).length,
+  );
+  let storagePolicyModeString = $derived($storagePolicyStore.storageMode);
+
+  let isLibraryModalOpen = $state(false);
+  let libraryExercises: ExerciseRecord[] = $state.raw([]);
+  let selectedLibraryIds: string[] = $state.raw([]);
+  let initialSelectedLibraryIds: string[] = $state.raw([]);
+  let showLibraryConfirm = $state(false);
+  let librarySearch = $state("");
+  let activeVariantPerGroup: Record<string, string> = $state.raw({});
+
+  let isLibraryDirty = $derived(
+    isLibraryModalOpen &&
+      (selectedLibraryIds.length !== initialSelectedLibraryIds.length ||
+        selectedLibraryIds.some((id, i) => id !== initialSelectedLibraryIds[i])),
+  );
+
+  let filteredLibrary = $derived(
+    libraryExercises.filter((ex) => {
+      const matchesGrade = selectedGradeFilter === "ALL" || ex.grade === selectedGradeFilter;
+      const matchesSubject = selectedSubjectFilter === "ALL" || ex.subject === selectedSubjectFilter;
+      const q = librarySearch.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        (ex.name && ex.name.toLowerCase().includes(q)) ||
+        (ex.topicTag && ex.topicTag.toLowerCase().includes(q)) ||
+        (ex.grade && ex.grade.toLowerCase().includes(q)) ||
+        (ex.subject && ex.subject.toLowerCase().includes(q)) ||
+        (ex.variantKey && ex.variantKey.toLowerCase().includes(q)) ||
+        (ex.latexBody && ex.latexBody.toLowerCase().includes(q));
+      return matchesGrade && matchesSubject && matchesSearch;
+    }),
+  );
+
+  let filteredGroups = $derived(groupExercises(filteredLibrary));
 
   function setGroupVariant(groupId: string, vKey: string) {
     activeVariantPerGroup = { ...activeVariantPerGroup, [groupId]: vKey };
@@ -751,6 +705,8 @@
 
   async function handleSaveMetadata() {
     if (!exam) return;
+    // editGradingKey is a deep edit buffer (GradingKeyEditor mutates it); persist a plain copy.
+    const gradingKey = $state.snapshot(editGradingKey);
     try {
       if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
         await api.patch(`/exams/${exam.id}`, {
@@ -763,22 +719,25 @@
           fach: editFach,
           lehrernachname: editLehrernachname,
           info_text: editInfoText,
-          grading_key: editGradingKey,
+          grading_key: gradingKey,
           retention_until: editRetentionUntil,
         });
       }
 
-      exam.title = editTitle;
-      exam.testart = editTestart;
-      exam.grade = editGrade;
-      exam.klasse = editKlasse;
-      exam.datum = editDatum;
-      exam.nr = editNr;
-      exam.fach = editFach;
-      exam.lehrernachname = editLehrernachname;
-      exam.infoText = editInfoText;
-      exam.retentionUntil = editRetentionUntil;
-      exam.gradingKey = editGradingKey;
+      exam = {
+        ...exam,
+        title: editTitle,
+        testart: editTestart,
+        grade: editGrade,
+        klasse: editKlasse,
+        datum: editDatum,
+        nr: editNr,
+        fach: editFach,
+        lehrernachname: editLehrernachname,
+        infoText: editInfoText,
+        retentionUntil: editRetentionUntil,
+        gradingKey,
+      };
       const key = get(sessionStore).sessionKey;
       await saveExamEncrypted(exam, key);
 
@@ -835,19 +794,19 @@
     mcStagingIds = [];
   }
 
-  let mcStagingIds: string[] = [];
-  let editingMcGroupId: string | null = null;
-  let selectedGradeFilter = "ALL";
-  let selectedSubjectFilter = "ALL";
-  let selectedTopicFilter = "ALL";
+  let mcStagingIds: string[] = $state.raw([]);
+  let editingMcGroupId: string | null = $state(null);
+  let selectedGradeFilter = $state("ALL");
+  let selectedSubjectFilter = $state("ALL");
+  let selectedTopicFilter = $state("ALL");
 
-  $: availableGrades = [...new Set(libraryExercises.map((e) => e.grade).filter((g): g is string => Boolean(g)))].sort();
-  $: availableSubjects = [...new Set(libraryExercises.map((e) => e.subject).filter((s): s is string => Boolean(s)))].sort();
-  $: availableTopics = [...new Set(libraryExercises.map((e) => e.topicTag).filter((t): t is string => Boolean(t)))].sort();
-  $: totalVariantsCount = libraryExercises.length;
+  let availableGrades = $derived([...new Set(libraryExercises.map((e) => e.grade).filter((g): g is string => Boolean(g)))].sort());
+  let availableSubjects = $derived([...new Set(libraryExercises.map((e) => e.subject).filter((s): s is string => Boolean(s)))].sort());
+  let availableTopics = $derived([...new Set(libraryExercises.map((e) => e.topicTag).filter((t): t is string => Boolean(t)))].sort());
+  let totalVariantsCount = $derived(libraryExercises.length);
 
-  $: editingMcGroup = mcGroups.find((g) => g.id === editingMcGroupId) ?? null;
-  $: mcGroupMembership = buildMcGroupMembership(mcGroups, editingMcGroupId);
+  let editingMcGroup = $derived(mcGroups.find((g) => g.id === editingMcGroupId) ?? null);
+  let mcGroupMembership = $derived(buildMcGroupMembership(mcGroups, editingMcGroupId));
 
   function toggleMcStaging(id: string) {
     mcStagingIds = toggleStaged(mcStagingIds, id, mcGroupMembership);
@@ -868,12 +827,8 @@
     await saveExerciseLinks();
   }
 
-  /**
-   * Keeps `exercises` (the exam's linked questions) in step with a group change:
-   * new members are linked as group members — never also standalone, since an
-   * exercise is linked to an exam once — and members dropped from an edited
-   * group leave the exam with it.
-   */
+  /** Syncs `exercises` with a group change: new members are linked only as group members (an exercise is
+   *  linked once), and members dropped from an edited group leave the exam. */
   function adoptGroupMembers(memberIds: string[], previousMemberIds: Set<string>) {
     const members = new Set(memberIds);
     const removed = new Set([...previousMemberIds].filter((id) => !members.has(id)));
@@ -945,15 +900,8 @@
     items: ExamItemRef[];
   }
 
-  /**
-   * Single source of truth for "what this exam contains, in what order" — used
-   * for both the local Dexie records and the server payload, so the two can
-   * never describe a different exam.
-   *
-   * MC group members are emitted **only** under their group. Listing them
-   * standalone as well produced two links for the same (exam, exercise), which
-   * is the exam_exercises primary key.
-   */
+  /** Single builder for both the Dexie records and the server payload. MC group members are emitted only
+   *  under their group: listing them standalone too duplicated the (exam, exercise) primary key. */
   function buildExamLinkPayload(): ExamLinkPayload {
     const currentExamId = exam?.id ?? "";
     const items = getEffectiveExamItems();
@@ -1127,6 +1075,27 @@
       isDeletingAllSubmissions = false;
     }
   }
+
+  // Keeps examItems in step with exercises/mcGroups (drops vanished refs, appends new ones).
+  // Shares computeExamItems() with getEffectiveExamItems(), so rendered and stored order agree.
+  // Also tracks examItems; it only writes when the result differs, so it settles.
+  $effect.pre(() => {
+    const items = examItems;
+    const nextItems = computeExamItems(items, exercises, mcGroups);
+    if (nextItems.length !== items.length || nextItems.some((item, i) => item.id !== items[i]?.id)) {
+      untrack(() => (examItems = nextItems));
+    }
+  });
+
+  $effect.pre(() => {
+    const id = examId;
+    if (browser && id) {
+      untrack(() => {
+        loadExam(id);
+        restoreCachedPreviews(id);
+      });
+    }
+  });
 </script>
 
 <PageShell width="fluid">
@@ -1135,7 +1104,7 @@
   {#if isLocalFallback}
     <Alert severity="warning" class="mb-6">
       {$t("exam.page.localFallback.banner")}
-      <svelte:fragment slot="actions">
+      {#snippet actions()}
         <Button
           size="sm"
           variant="outlined"
@@ -1146,7 +1115,7 @@
         >
           {isSyncingSingle ? $t("exam.page.localFallback.syncing") : $t("exam.page.localFallback.syncNow")}
         </Button>
-      </svelte:fragment>
+      {/snippet}
     </Alert>
   {/if}
 
@@ -1232,7 +1201,7 @@
         {#if omrTemplateStatus === "stale"}
           <Alert severity="warning" class="mt-3">
             {$t("exam.page.omr.staleWarning")}
-            <svelte:fragment slot="actions">
+            {#snippet actions()}
               <Button
                 size="sm"
                 variant="outlined"
@@ -1242,7 +1211,7 @@
               >
                 {isPreparingOmr ? $t("exam.page.omr.refreshing") : $t("exam.page.omr.refreshNow")}
               </Button>
-            </svelte:fragment>
+            {/snippet}
           </Alert>
         {/if}
         {#if omrPrepareMessage}

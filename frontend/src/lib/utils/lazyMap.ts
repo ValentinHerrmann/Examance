@@ -12,10 +12,8 @@ export interface LazyMap<V> extends Readable<Map<string, LazyEntry<V>>> {
 }
 
 /**
- * Per-key lazy loading for expandable lists (e.g. the exercises of an exam,
- * the exams using an exercise). A failed load is recorded as `error` — never as
- * an empty value, which would read as "nothing found". `reset()` bumps a
- * generation so a request started before it cannot write into the new map.
+ * Per-key lazy loading for expandable lists. A failed load is recorded as `error`, never an empty
+ * value (which would read as "nothing found"); `reset()` bumps a generation so older requests cannot write.
  */
 export function createLazyMap<V>(loader: (key: string) => Promise<V>): LazyMap<V> {
   const store = writable(new Map<string, LazyEntry<V>>());

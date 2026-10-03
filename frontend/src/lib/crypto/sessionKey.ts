@@ -1,14 +1,11 @@
 /**
- * Session key derivation — HKDF from master key + nonce.
- *
- * Derives a per-session AES-256-GCM key from the Argon2id master key.
- * The session key is used for encrypting IDB entries; the master key
- * is only used to re-derive the session key on unlock.
+ * Session key derivation: HKDF from master key + nonce. The session key encrypts IDB entries;
+ * the master key is only used to re-derive it on unlock.
  */
 
 import { writable, derived, get } from 'svelte/store';
-import { deriveKey, generateSalt } from '$lib/crypto/keyDerivation';
-import { toArrayBuffer } from '$lib/crypto/aesGcm';
+import { deriveKey, generateSalt } from '#lib/crypto/keyDerivation';
+import { toArrayBuffer } from '#lib/crypto/aesGcm';
 
 /** 12-byte nonce for session key derivation. */
 export function generateSessionNonce(): Uint8Array {
@@ -17,11 +14,7 @@ export function generateSessionNonce(): Uint8Array {
   return nonce;
 }
 
-/**
- * Derive a session AES-256-GCM CryptoKey from masterKey + nonce via HKDF-SHA-256.
- *
- * The session key is non-extractable and scoped to encrypt+decrypt only.
- */
+/** Derive a non-extractable, encrypt+decrypt-only session AES-256-GCM key from masterKey + nonce via HKDF-SHA-256. */
 export async function deriveSessionKey(
   masterKey: CryptoKey,
   nonce: Uint8Array
@@ -40,10 +33,7 @@ export async function deriveSessionKey(
   );
 }
 
-/**
- * Derive a legacy session AES-256-GCM CryptoKey using old app context ('blindgrade-session-key-v1').
- * Provided for backwards compatibility with pre-rename encrypted session stores.
- */
+/** Legacy session key using the old app context ('blindgrade-session-key-v1'), for pre-rename encrypted session stores. */
 export async function deriveLegacySessionKey(
   masterKey: CryptoKey,
   nonce: Uint8Array
@@ -62,11 +52,7 @@ export async function deriveLegacySessionKey(
   );
 }
 
-/**
- * Derive an archive secret (raw bits) from masterKey via HKDF.
- * Used for pseudonym HMAC in .bgproj archives.
- * Purpose string matches ARCHIVE_SECRET_PURPOSE in format.ts.
- */
+/** Derive the archive secret (raw bits) from masterKey via HKDF, for pseudonym HMAC in .bgproj archives; purpose matches ARCHIVE_SECRET_PURPOSE in format.ts. */
 export async function deriveArchiveSecret(masterKey: CryptoKey): Promise<ArrayBuffer> {
   return crypto.subtle.deriveBits(
     {

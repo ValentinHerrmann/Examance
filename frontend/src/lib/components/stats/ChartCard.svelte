@@ -1,40 +1,55 @@
 <script lang="ts">
-  /**
-   * A stats chart in a card, with SVG/PDF/PNG download. Exports render an
-   * offscreen copy at a fixed size, so the file looks the same whatever width
-   * the card has on screen (a phone would thin labels).
-   */
-  import { tick } from 'svelte';
-  import { t } from '$lib/i18n';
+  // Stats chart in a card with SVG/PDF/PNG download; exports render an offscreen copy at a fixed size, so files match on any screen width.
+  import { tick, type Snippet } from 'svelte';
+  import { t } from '#lib/i18n';
   import { faDownload } from '@fortawesome/free-solid-svg-icons';
-  import { Button, Card, Icon } from '$lib/components/ui';
+  import { Button, Card, Icon } from '#lib/components/ui';
   import ColumnChart from './ColumnChart.svelte';
   import type { ChartCurve, ChartLayer, ChartMarker, ChartSpan } from './chartColumns';
   import { downloadBlob, serializeChartSvg, svgToPdf, svgToPng } from './chartExport';
 
-  export let title: string;
-  export let subtitle = '';
-  export let layers: ChartLayer[];
-  export let domain: number;
-  export let axisLabel = '';
-  export let plotHeight = 200;
-  export let markers: ChartMarker[] = [];
-  export let spans: ChartSpan[] = [];
-  export let curve: ChartCurve | null = null;
-  /** Exam title, for the file name and the document title. */
-  export let examTitle = '';
-  /** File name part after the exam title, e.g. `notenverteilung`. */
-  export let fileName: string;
-  let className = '';
-  export { className as class };
+  
+  interface Props {
+    title: string;
+    subtitle?: string;
+    layers: ChartLayer[];
+    domain: number;
+    axisLabel?: string;
+    plotHeight?: number;
+    markers?: ChartMarker[];
+    spans?: ChartSpan[];
+    curve?: ChartCurve | null;
+    /** Exam title, for the file name and the document title. */
+    examTitle?: string;
+    /** File name part after the exam title, e.g. `notenverteilung`. */
+    fileName: string;
+    class?: string;
+    children?: Snippet;
+  }
+
+  let {
+    title,
+    subtitle = '',
+    layers,
+    domain,
+    axisLabel = '',
+    plotHeight = 200,
+    markers = [],
+    spans = [],
+    curve = null,
+    examTitle = '',
+    fileName,
+    class: className = '',
+    children
+  }: Props = $props();
 
   const EXPORT_WIDTH = 1200;
   const EXPORT_PLOT = 420;
   type ExportFormat = 'svg' | 'pdf' | 'png';
   const EXPORT_FORMATS: ExportFormat[] = ['svg', 'pdf', 'png'];
 
-  let exportSvg: SVGSVGElement | null = null;
-  let exporting: ExportFormat | null = null;
+  let exportSvg: SVGSVGElement | null = $state(null);
+  let exporting: ExportFormat | null = $state(null);
 
   async function download(format: ExportFormat) {
     if (exporting) return;
@@ -83,7 +98,7 @@
     </div>
   </div>
   <ColumnChart {domain} {plotHeight} {layers} {markers} {spans} {curve} {axisLabel} ariaLabel={title} />
-  <slot />
+  {@render children?.()}
   {#if exporting}
     <div class="pointer-events-none fixed top-0 -left-[10000px]" style="width: {EXPORT_WIDTH}px" aria-hidden="true">
       <ColumnChart bind:svgEl={exportSvg} plotHeight={EXPORT_PLOT} {domain} {layers} {markers} {spans} {curve} {axisLabel} ariaLabel={title} />

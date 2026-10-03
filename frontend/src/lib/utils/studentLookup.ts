@@ -1,5 +1,5 @@
-import { ensure64CharHex } from '$lib/crypto/hmac';
-import type { StudentRecord, SubmissionRecord } from '$lib/db/schema';
+import { ensure64CharHex } from '#lib/crypto/hmac';
+import type { StudentRecord, SubmissionRecord } from '#lib/db/schema';
 
 /**
  * Builds a Map mapping all identifier variations of submissions and students

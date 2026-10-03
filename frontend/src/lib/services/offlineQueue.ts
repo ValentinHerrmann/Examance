@@ -1,15 +1,11 @@
 import { get, writable } from 'svelte/store';
-import { api } from '$lib/api/client';
-import { isUnlocked } from '$lib/stores/session';
+import { api } from '#lib/api/client';
+import { isUnlocked } from '#lib/stores/session';
 
 export interface QueuedRequest {
   id: string;
   url: string;
-  /**
-   * PUT is here for the per-exercise score endpoint, keyed by
-   * (submission, exercise) rather than the client's id — idempotent, which is
-   * required to safely replay it from the queue.
-   */
+    /** PUT serves the per-exercise score endpoint, keyed by (submission, exercise): idempotent, hence safe to replay from the queue. */
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: any;
   timestamp: number;
@@ -54,10 +50,8 @@ let isFlushing = false;
 
 export async function flushOfflineQueue(): Promise<void> {
   if (isFlushing) return;
-  // Never replay against a session that is not fully signed in. The `online`
-  // event fires readily on a tablet, and a sign-in in progress has deliberately
-  // demoted the access cookie — replaying then means a burst of 403s for writes
-  // that were perfectly replayable a moment later.
+    // Never replay against a session that isn't fully signed in: `online` fires readily on a tablet, and a
+    // sign-in in progress has demoted the access cookie, so replaying would burst 403s for replayable writes.
   if (!get(isUnlocked)) return;
   isFlushing = true;
   try {
@@ -67,10 +61,8 @@ export async function flushOfflineQueue(): Promise<void> {
     if (currentQueue.length === 0) return;
 
     const remaining: QueuedRequest[] = [];
-    // silentError throughout: a replay is a background retry of something the
-    // user already moved on from. A 409 for a record that meanwhile made it to
-    // the server is expected, and popping the global HTTP error modal once per
-    // queued request turns one hiccup into a wall of dialogs.
+        // silentError throughout: a replay is a background retry; a 409 for a record that already reached the
+        // server is expected, and a global error modal per queued request would be a wall of dialogs.
     for (let i = 0; i < currentQueue.length; i++) {
       const req = currentQueue[i];
       try {

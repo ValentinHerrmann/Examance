@@ -1,12 +1,21 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import { faFileArrowUp } from "@fortawesome/free-solid-svg-icons";
-  import { Icon } from "$lib/components/ui";
-  import InfoTip from "$lib/components/help/InfoTip.svelte";
-  export let isProcessing: boolean = false;
-  export let progress: number = 0;
-  export let statusText: string = "";
-  export let onFileUpload: (event: Event) => void;
+  import { Icon } from "#lib/components/ui";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
+  interface Props {
+    isProcessing?: boolean;
+    progress?: number;
+    statusText?: string;
+    onFileUpload: (event: Event) => void;
+  }
+
+  let {
+    isProcessing = false,
+    progress = 0,
+    statusText = "",
+    onFileUpload
+  }: Props = $props();
 </script>
 
 <div class="rounded-xl border-2 border-dashed border-line-strong bg-surface-raised p-6 text-center sm:p-12">
@@ -15,7 +24,7 @@
     id="scanFiles"
     multiple
     accept="application/pdf"
-    on:change={onFileUpload}
+    onchange={onFileUpload}
     disabled={isProcessing}
     class="peer sr-only"
   />

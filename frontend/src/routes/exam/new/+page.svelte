@@ -1,25 +1,25 @@
 <script lang="ts">
-  import { type ExerciseGroup, groupExercises } from "$lib/exercise-library/groupExercises";
-  import { onMount, onDestroy } from "svelte";
-  import { db } from "$lib/db/db";
-  import { sessionStore, isAuthenticated, awaitSessionReady } from "$lib/stores/session";
-  import { storagePolicyStore } from "$lib/stores/storagePolicy";
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import { loadExercisesEncrypted, saveExerciseEncrypted, saveExamEncrypted, encryptExercise } from "$lib/db/dbEncryption";
-  import { api } from "$lib/api/client";
-  import { parseExerciseScore, formatExerciseLatex, formatMcGroupLatex } from "$lib/latex/scoreParser";
-  import { recordValue } from "$lib/utils/recentValues";
-  import { compileWithCache, getLatestForSlot, invalidateOwner } from "$lib/latex/compileCache";
-  import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
+  import { type ExerciseGroup, groupExercises } from "#lib/exercise-library/groupExercises";
+  import { onMount, onDestroy, untrack } from "svelte";
+  import { db } from "#lib/db/db";
+  import { sessionStore, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
+  import { storagePolicyStore } from "#lib/stores/storagePolicy";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import { loadExercisesEncrypted, saveExerciseEncrypted, saveExamEncrypted, encryptExercise } from "#lib/db/dbEncryption";
+  import { api } from "#lib/api/client";
+  import { parseExerciseScore, formatExerciseLatex, formatMcGroupLatex } from "#lib/latex/scoreParser";
+  import { recordValue } from "#lib/utils/recentValues";
+  import { compileWithCache, getLatestForSlot, invalidateOwner } from "#lib/latex/compileCache";
+  import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import { get } from "svelte/store";
-  import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
-  import GradingKeyEditor from "$lib/components/GradingKeyEditor.svelte";
-  import { getPresetCutoffs } from "$lib/analytics/gradingKey";
-  import type { GradingKeyConfig } from "$lib/db/schema";
-  import ExamMetadataForm from "$lib/components/exam-creation/ExamMetadataForm.svelte";
-  import ExerciseSelector from "$lib/components/exam-creation/ExerciseSelector.svelte";
-  import { mapApiToExerciseRecord } from "$lib/repositories/exerciseRepository";
-  import SelectedExercisesList from "$lib/components/exam-creation/SelectedExercisesList.svelte";
+  import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
+  import GradingKeyEditor from "#lib/components/GradingKeyEditor.svelte";
+  import { getPresetCutoffs } from "#lib/analytics/gradingKey";
+  import type { GradingKeyConfig } from "#lib/db/schema";
+  import ExamMetadataForm from "#lib/components/exam-creation/ExamMetadataForm.svelte";
+  import ExerciseSelector from "#lib/components/exam-creation/ExerciseSelector.svelte";
+  import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
+  import SelectedExercisesList from "#lib/components/exam-creation/SelectedExercisesList.svelte";
   import {
     applyGroup,
     buildMcGroupMembership,
@@ -27,11 +27,11 @@
     moveStaged,
     toggleStaged,
     type McGroupDraft,
-  } from "$lib/exam/mcGroupStaging";
-  import ExamLivePreviewPanel from "$lib/components/exam-creation/ExamLivePreviewPanel.svelte";
-  import { formatExamCourse } from "$lib/utils/examLabel";
-  import { t, translate } from "$lib/i18n";
-  import { PageShell, PageHeader, Alert, Button } from "$lib/components/ui";
+  } from "#lib/exam/mcGroupStaging";
+  import ExamLivePreviewPanel from "#lib/components/exam-creation/ExamLivePreviewPanel.svelte";
+  import { formatExamCourse } from "#lib/utils/examLabel";
+  import { t, translate } from "#lib/i18n";
+  import { PageShell, PageHeader, Alert, Button } from "#lib/components/ui";
 
   // This is exam CONTENT written into the `datum` field and printed verbatim in the
   // German exam PDF (see \Datum in the LaTeX preamble below) — not UI copy, so it is
@@ -39,28 +39,28 @@
   const DATUM_DURATION_SUFFIX_DE = " (30 Minuten)";
 
   // Metadata
-  let title = "";
-  let testart = "Kurzarbeit";
-  let grade = "10";
-  let klasse = "a";
-  let datum = new Date().toLocaleDateString("de-DE") + DATUM_DURATION_SUFFIX_DE;
-  let nr = "1";
-  let fach = "Informatik";
-  let lehrernachname = "";
-  let infoText = `\\begin{itemize}
+  let title = $state("");
+  let testart = $state("Kurzarbeit");
+  let grade = $state("10");
+  let klasse = $state("a");
+  let datum = $state(new Date().toLocaleDateString("de-DE") + DATUM_DURATION_SUFFIX_DE);
+  let nr = $state("1");
+  let fach = $state("Informatik");
+  let lehrernachname = $state("");
+  let infoText = $state(`\\begin{itemize}
     \\item Die Arbeit wird anonymisiert korrigiert. Trage deine Initialen ins QR-Code-Feld ein.
     \\item Mit Bleistift oder rot/rosa Geschriebenes kann \\textbf{nicht} gewertet werden!
-\\end{itemize}`;
+\\end{itemize}`);
   let retentionDays = 365;
 
-  let gradingKey: GradingKeyConfig = {
+  let gradingKey: GradingKeyConfig = $state({
     preset: "linear_50",
     cutoffs: getPresetCutoffs("linear_50"),
-  };
+  });
 
   // Library & Selection state
-  let libraryExercises: ExerciseRecord[] = [];
-  let selectedLibraryIds: string[] = [];
+  let libraryExercises: ExerciseRecord[] = $state.raw([]);
+  let selectedLibraryIds: string[] = $state.raw([]);
 
   // MC group staging & finalized groups
   type McGroup = McGroupDraft;
@@ -70,46 +70,21 @@
     id: string;
   }
 
-  let mcStagingIds: string[] = [];
-  let mcGroups: McGroup[] = [];
-  let editingMcGroupId: string | null = null;
-  $: editingMcGroup = mcGroups.find((g) => g.id === editingMcGroupId) ?? null;
-  $: mcGroupMembership = buildMcGroupMembership(mcGroups, editingMcGroupId);
-  let examItems: ExamItemRef[] = [];
-  let selectedTopicFilter: string = "ALL";
-  let selectedGradeFilter: string = "ALL";
-  let selectedSubjectFilter: string = "ALL";
-  let searchQuery: string = "";
-  let activeTab: "library" | "mc" | "custom" = "library";
-
-  $: {
-    const currentIds = new Set(selectedLibraryIds);
-    const currentMcGroupIds = new Set(mcGroups.map((g) => g.id));
-
-    let updated = examItems.filter((item) =>
-      item.type === "exercise" ? currentIds.has(item.id) : currentMcGroupIds.has(item.id)
-    );
-
-    const existingExIds = new Set(updated.filter((i) => i.type === "exercise").map((i) => i.id));
-    for (const id of selectedLibraryIds) {
-      if (!existingExIds.has(id)) {
-        updated.push({ type: "exercise", id });
-      }
-    }
-
-    const existingMcIds = new Set(updated.filter((i) => i.type === "mc_group").map((i) => i.id));
-    for (const group of mcGroups) {
-      if (!existingMcIds.has(group.id)) {
-        updated.push({ type: "mc_group", id: group.id });
-      }
-    }
-
-    examItems = updated;
-  }
+  let mcStagingIds: string[] = $state.raw([]);
+  let mcGroups: McGroup[] = $state.raw([]);
+  let editingMcGroupId: string | null = $state(null);
+  let editingMcGroup = $derived(mcGroups.find((g) => g.id === editingMcGroupId) ?? null);
+  let mcGroupMembership = $derived(buildMcGroupMembership(mcGroups, editingMcGroupId));
+  let examItems: ExamItemRef[] = $state.raw([]);
+  let selectedTopicFilter: string = $state("ALL");
+  let selectedGradeFilter: string = $state("ALL");
+  let selectedSubjectFilter: string = $state("ALL");
+  let searchQuery: string = $state("");
+  let activeTab: "library" | "mc" | "custom" = $state("library");
 
   // Quick exercise editor state
-  let isQuickEditorOpen = false;
-  let editingExerciseForQuickEdit: ExerciseRecord | null = null;
+  let isQuickEditorOpen = $state(false);
+  let editingExerciseForQuickEdit: ExerciseRecord | null = $state.raw(null);
 
   function openQuickEdit(ex: ExerciseRecord) {
     editingExerciseForQuickEdit = ex;
@@ -120,34 +95,25 @@
     await loadLibrary();
   }
 
-  $: {
-    if (title.trim() || selectedLibraryIds.length > 0) {
-      sessionStore.setDirty(true);
-    }
-  }
-
-  // Exercise grouping & preview modal state
-
-
-  let activeVariantPerGroup: Record<string, string> = {};
+  let activeVariantPerGroup: Record<string, string> = $state.raw({});
 
   // Inline custom exercise form
-  let customName = "Custom_Exercise";
-  let customTopicTag = "_General";
-  let customLatexBody = `\\begin{Aufgabe}{Eigene Aufgabe}
+  let customName = $state("Custom_Exercise");
+  let customTopicTag = $state("_General");
+  let customLatexBody = $state(`\\begin{Aufgabe}{Eigene Aufgabe}
 Frage hier eingeben... \\BE
-\\end{Aufgabe}`;
-  let saveCustomToLibrary = true;
+\\end{Aufgabe}`);
+  let saveCustomToLibrary = $state(true);
 
   // State
   let draftExamId = "draft-new-exam";
-  let isLoading = false;
-  let errorMsg = "";
-  let previewPdfUrl: string | null = null;
-  let previewSolutionPdfUrl: string | null = null;
-  let showAngabePreview = true;
-  let showLoesungPreview = false;
-  let isPreviewLoading = false;
+  let isLoading = $state(false);
+  let errorMsg = $state("");
+  let previewPdfUrl: string | null = $state(null);
+  let previewSolutionPdfUrl: string | null = $state(null);
+  let showAngabePreview = $state(true);
+  let showLoesungPreview = $state(false);
+  let isPreviewLoading = $state(false);
 
   onDestroy(() => {
     if (previewPdfUrl) {
@@ -173,31 +139,31 @@ Frage hier eingeben... \\BE
     }
   }
 
-  $: availableTopics = Array.from(
+  let availableTopics = $derived(Array.from(
     new Set(
       libraryExercises
         .map((e) => e.topicTag)
         .filter((t): t is string => Boolean(t)),
     ),
-  ).sort();
+  ).sort());
 
-  $: availableGrades = Array.from(
+  let availableGrades = $derived(Array.from(
     new Set(
       libraryExercises
         .map((e) => e.grade)
         .filter((g): g is string => Boolean(g)),
     ),
-  ).sort();
+  ).sort());
 
-  $: availableSubjects = Array.from(
+  let availableSubjects = $derived(Array.from(
     new Set(
       libraryExercises
         .map((e) => e.subject)
         .filter((s): s is string => Boolean(s)),
     ),
-  ).sort();
+  ).sort());
 
-  $: filteredLibrary = libraryExercises.filter((ex) => {
+  let filteredLibrary = $derived(libraryExercises.filter((ex) => {
     const matchesGrade =
       selectedGradeFilter === "ALL" || ex.grade === selectedGradeFilter;
     const matchesSubject =
@@ -212,23 +178,23 @@ Frage hier eingeben... \\BE
       (ex.variantKey && ex.variantKey.toLowerCase().includes(q)) ||
       (ex.latexBody && ex.latexBody.toLowerCase().includes(q));
     return matchesGrade && matchesSubject && matchesSearch;
-  });
+  }));
 
-  $: filteredGroups = groupExercises(filteredLibrary);
-  $: totalVariantsCount = filteredGroups.reduce((acc, g) => acc + g.variants.size, 0);
+  let filteredGroups = $derived(groupExercises(filteredLibrary));
+  let totalVariantsCount = $derived(filteredGroups.reduce((acc, g) => acc + g.variants.size, 0));
 
-  $: selectedExercises = selectedLibraryIds
+  let selectedExercises = $derived(selectedLibraryIds
     .map((id) => libraryExercises.find((e) => e.id === id))
-    .filter((e): e is ExerciseRecord => Boolean(e));
+    .filter((e): e is ExerciseRecord => Boolean(e)));
 
-  $: mcGroupExercises = mcGroups.map((g) => ({
+  let mcGroupExercises = $derived(mcGroups.map((g) => ({
     group: g,
     members: g.memberIds
       .map((id) => libraryExercises.find((e) => e.id === id))
       .filter((e): e is ExerciseRecord => Boolean(e)),
-  }));
+  })));
 
-  $: totalPoints =
+  let totalPoints = $derived(
     selectedExercises.reduce(
       (sum, ex) => sum + (parseExerciseScore(ex.latexBody || "") || ex.maxPoints || 0),
       0,
@@ -237,13 +203,13 @@ Frage hier eingeben... \\BE
       (sum, { members }) =>
         sum + members.reduce((s, ex) => s + (parseExerciseScore(ex.latexBody || "") || ex.maxPoints || 0), 0),
       0,
-    );
+    )
+  );
 
   onMount(() => {
     loadLibrary();
     restoreCachedPreviews();
   });
-
 
   async function loadLibrary() {
     await awaitSessionReady();
@@ -541,7 +507,7 @@ ${exerciseInputs}
         fach,
         lehrernachname,
         infoText,
-        gradingKey,
+        gradingKey: $state.snapshot(gradingKey),
         retentionUntil,
         compilationStatus: "pending",
         createdAt: new Date().toISOString(),
@@ -620,7 +586,7 @@ ${exerciseInputs}
             fach,
             lehrernachname,
             info_text: infoText,
-            grading_key: gradingKey,
+            grading_key: $state.snapshot(gradingKey),
             retention_until: retentionUntil,
             mc_groups: mcGroupsPayload,
             exercise_links: exerciseLinksPayload,
@@ -639,6 +605,44 @@ ${exerciseInputs}
       isLoading = false;
     }
   }
+
+  // Self-recompute: tracks only the selection inputs; examItems is read untracked.
+  $effect.pre(() => {
+    const libraryIds = selectedLibraryIds;
+    const groups = mcGroups;
+    untrack(() => {
+      const currentIds = new Set(libraryIds);
+      const currentMcGroupIds = new Set(groups.map((g) => g.id));
+
+      let updated = examItems.filter((item) =>
+        item.type === "exercise" ? currentIds.has(item.id) : currentMcGroupIds.has(item.id)
+      );
+
+      const existingExIds = new Set(updated.filter((i) => i.type === "exercise").map((i) => i.id));
+      for (const id of libraryIds) {
+        if (!existingExIds.has(id)) {
+          updated.push({ type: "exercise", id });
+        }
+      }
+
+      const existingMcIds = new Set(updated.filter((i) => i.type === "mc_group").map((i) => i.id));
+      for (const group of groups) {
+        if (!existingMcIds.has(group.id)) {
+          updated.push({ type: "mc_group", id: group.id });
+        }
+      }
+
+      examItems = updated;
+    });
+  });
+
+  $effect.pre(() => {
+    const currentTitle = title;
+    const libraryIds = selectedLibraryIds;
+    if (currentTitle.trim() || libraryIds.length > 0) {
+      untrack(() => sessionStore.setDirty(true));
+    }
+  });
 </script>
 
 <PageShell width="fluid">
@@ -650,7 +654,13 @@ ${exerciseInputs}
     </Alert>
   {/if}
 
-  <form on:submit|preventDefault={handleCreateExam} class="@container">
+  <form
+    onsubmit={(e) => {
+      e.preventDefault();
+      handleCreateExam();
+    }}
+    class="@container"
+  >
     <div class="grid min-w-0 grid-cols-1 gap-x-6 @6xl:grid-cols-2 @6xl:items-start">
       <div class="min-w-0">
         <ExamMetadataForm
@@ -741,7 +751,7 @@ ${exerciseInputs}
   <ExerciseEditorModal
     isOpen={isQuickEditorOpen}
     editingExercise={editingExerciseForQuickEdit}
-    on:close={() => (isQuickEditorOpen = false)}
-    on:save={handleQuickEditSaved}
+    onClose={() => (isQuickEditorOpen = false)}
+    onSave={handleQuickEditSaved}
   />
 </PageShell>

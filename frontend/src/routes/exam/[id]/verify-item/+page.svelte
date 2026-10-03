@@ -1,43 +1,44 @@
 <script lang="ts">
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { goto, afterNavigate } from "$app/navigation";
-  import { onDestroy, onMount } from "svelte";
-  import { browser } from "$app/environment";
+  import { onDestroy, onMount, untrack } from "svelte";
+  import { browser } from "$app/env";
   import { get } from "svelte/store";
-  import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
-  import { t, translate } from "$lib/i18n";
+  import { sessionStore, isUnlocked, awaitSessionReady } from "#lib/stores/session";
+  import { t, translate } from "#lib/i18n";
   import {
     computeMcVerificationStats,
     categorizeMcItem,
     type McVerificationStats,
     type McDetectionItem,
     type McQueueCategory,
-  } from "$lib/grading/mcVerification";
-  import { loadExamMcExercises } from "$lib/grading/mcExerciseHash";
-  import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { scoreRepository } from "$lib/repositories/scoreRepository";
-  import { decrypt } from "$lib/crypto/aesGcm";
-  import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "$lib/db/schema";
-  import McItemVerificationCard from "$lib/components/verify/McItemVerificationCard.svelte";
-  import { Alert, PageShell, Modal, Button } from "$lib/components/ui";
+  } from "#lib/grading/mcVerification";
+  import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
+  import { scoreRepository } from "#lib/repositories/scoreRepository";
+  import { decrypt } from "#lib/crypto/aesGcm";
+  import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "#lib/db/schema";
+  import McItemVerificationCard from "#lib/components/verify/McItemVerificationCard.svelte";
+  import { Alert, PageShell, Modal, Button } from "#lib/components/ui";
   import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
-  import { flushAll, flushQuestion, stageVerifiedQuestion } from "$lib/services/trainingDonation";
+  import { flushAll, flushQuestion, stageVerifiedQuestion } from "#lib/services/trainingDonation";
 
-  $: examId = $page.params.id || "";
-  $: submissionId = $page.url.searchParams.get("submissionId") || "";
-  $: exerciseId = $page.url.searchParams.get("exerciseId") || "";
-  $: queueFilter = $page.url.searchParams.get("queue") || "all";
+  let examId = $derived(page.params.id || "");
+  let submissionId = $derived(page.url.searchParams.get("submissionId") || "");
+  let exerciseId = $derived(page.url.searchParams.get("exerciseId") || "");
+  let queueFilter = $derived(page.url.searchParams.get("queue") || "all");
 
-  let loading = true;
-  let errorMsg = "";
+  let loading = $state(true);
+  let errorMsg = $state("");
 
+  // Raw: score records, scan bytes and exercises flow back into scoreRepository and the training donation.
   let stats: McVerificationStats | null = null;
-  let currentExercise: ExerciseRecord | null = null;
-  let currentScoreRecord: ExerciseScoreRecord | null = null;
-  let currentExerciseLabel = "";
-  let currentNeighbourRects: Array<[number, number, number, number]> = [];
-  let studentLabel = "";
-  let scanPdfBytes: Uint8Array | null = null;
+  let currentExercise: ExerciseRecord | null = $state.raw(null);
+  let currentScoreRecord: ExerciseScoreRecord | null = $state.raw(null);
+  let currentExerciseLabel = $state("");
+  let currentNeighbourRects: Array<[number, number, number, number]> = $state.raw([]);
+  let studentLabel = $state("");
+  let scanPdfBytes: Uint8Array | null = $state.raw(null);
 
   interface StudentQueueItem {
     exerciseId: string;
@@ -46,20 +47,16 @@
     isReviewed: boolean;
   }
 
-  let activeQueueItems: McDetectionItem[] = [];
-  let currentIndex = -1;
+  let activeQueueItems: McDetectionItem[] = $state.raw([]);
+  let currentIndex = $state(-1);
   let lastLoadToken = 0;
   let lastLoadedKey = "";
-  let studentTotal = 1;
-  let studentReviewed = 0;
-  let studentItems: StudentQueueItem[] = [];
-  let showEndOfQueueModal = false;
+  let studentTotal = $state(1);
+  let studentReviewed = $state(0);
+  let studentItems: StudentQueueItem[] = $state.raw([]);
+  let showEndOfQueueModal = $state(false);
 
-  $: currentItemKey = `${examId}:${submissionId}:${exerciseId}:${queueFilter}:${$sessionStore.sessionKey ? "unlocked" : "locked"}`;
-  $: if (browser && examId && submissionId && exerciseId && $sessionStore.sessionKey && currentItemKey !== lastLoadedKey) {
-    lastLoadedKey = currentItemKey;
-    loadItemData();
-  }
+  let currentItemKey = $derived(`${examId}:${submissionId}:${exerciseId}:${queueFilter}:${$sessionStore.sessionKey ? "unlocked" : "locked"}`);
 
   afterNavigate(() => {
     if (examId && submissionId && exerciseId && $sessionStore.sessionKey && currentItemKey !== lastLoadedKey) {
@@ -253,6 +250,14 @@
       `/exam/${examId}/verify-item?submissionId=${submissionId}&exerciseId=${targetExerciseId}&queue=${category}`
     );
   }
+
+  $effect.pre(() => {
+    const key = currentItemKey;
+    if (browser && examId && submissionId && exerciseId && $sessionStore.sessionKey && key !== lastLoadedKey) {
+      lastLoadedKey = key;
+      untrack(loadItemData);
+    }
+  });
 </script>
 
 <PageShell width="fluid">
@@ -297,8 +302,8 @@
     onClose={() => (showEndOfQueueModal = false)}
   >
     <p class="text-sm text-content">{$t("scanning.itemCard.endOfQueueMessage")}</p>
-    <svelte:fragment slot="footer">
+    {#snippet footer()}
       <Button onClick={goBackToDashboard}>{$t("scanning.itemCard.backToDashboard")}</Button>
-    </svelte:fragment>
+    {/snippet}
   </Modal>
 </PageShell>

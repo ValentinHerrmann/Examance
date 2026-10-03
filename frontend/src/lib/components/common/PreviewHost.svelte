@@ -1,12 +1,16 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
-  import { t } from "$lib/i18n";
-  import type { PreviewFlow } from "$lib/stores/previewFlow";
-  import PdfPreviewModal from "$lib/components/PdfPreviewModal.svelte";
-  import { ConfirmDialog } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import type { PreviewFlow } from "#lib/stores/previewFlow";
+  import PdfPreviewModal from "#lib/components/PdfPreviewModal.svelte";
+  import { ConfirmDialog } from "#lib/components/ui";
 
-  /** Renders a createPreviewFlow(): the "compile now?" prompt and the PDF modal. */
-  export let flow: PreviewFlow<any>;
+  interface Props {
+    /** Renders a createPreviewFlow(): the "compile now?" prompt and the PDF modal. */
+    flow: PreviewFlow<any>;
+  }
+
+  let { flow }: Props = $props();
 
   onDestroy(() => flow.destroy());
 </script>

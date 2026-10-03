@@ -1,19 +1,18 @@
 <script lang="ts">
-  import { page } from "$app/stores";
-  import { loadPdfjs } from "$lib/pdf/pdfjs";
-  export let params;
+  import { page } from "$app/state";
+  import { loadPdfjs } from "#lib/pdf/pdfjs";
   import { goto } from "$app/navigation";
-  import { browser } from "$app/environment";
+  import { browser } from "$app/env";
   import {
     detectHardware,
     PipelineMonitor,
     type HardwareProfile,
-  } from "$lib/hardware/detect";
-  import { db } from "$lib/db/db";
-  import { encrypt, decrypt, uint8ArrayToBase64 } from "$lib/crypto/aesGcm";
-  import { ensure64CharHex } from "$lib/crypto/hmac";
-  import { sessionStore, awaitSessionReady } from "$lib/stores/session";
-  import { storagePolicyStore } from "$lib/stores/storagePolicy";
+  } from "#lib/hardware/detect";
+  import { db } from "#lib/db/db";
+  import { encrypt, decrypt, uint8ArrayToBase64 } from "#lib/crypto/aesGcm";
+  import { ensure64CharHex } from "#lib/crypto/hmac";
+  import { sessionStore, awaitSessionReady } from "#lib/stores/session";
+  import { storagePolicyStore } from "#lib/stores/storagePolicy";
   import {
     loadStudentsEncrypted,
     saveStudentEncrypted,
@@ -22,60 +21,68 @@
     loadExamExercisesEncrypted,
     loadOmrTemplateEncrypted,
     loadLocalMcGroups,
-  } from "$lib/db/dbEncryption";
-  import { computeMcExercisesHash, loadExamMcExercises } from "$lib/grading/mcExerciseHash";
-  import { buildSubLabelMap } from "$lib/grading/mcGroupLabels";
-  import { prepareOmrTemplate, loadExamCompileContext } from "$lib/grading/omrTemplatePrep";
-  import { isMcQuestion } from "$lib/grading/mcScore";
-  import { buildOmrScoreRecord } from "$lib/grading/omrResult";
-  import { createOmrRun, type OmrPageStats } from "$lib/grading/omrSettings";
-  import { omrSettingsStore } from "$lib/stores/omrSettings";
-  import { drawOmrOverlayForPage, type McOverlayState } from "$lib/grading/omrOverlay";
-  import { api } from "$lib/api/client";
-  import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { studentRepository } from "$lib/repositories/studentRepository";
+  } from "#lib/db/dbEncryption";
+  import { computeMcExercisesHash, loadExamMcExercises } from "#lib/grading/mcExerciseHash";
+  import { buildSubLabelMap } from "#lib/grading/mcGroupLabels";
+  import { prepareOmrTemplate, loadExamCompileContext } from "#lib/grading/omrTemplatePrep";
+  import { isMcQuestion } from "#lib/grading/mcScore";
+  import { buildOmrScoreRecord } from "#lib/grading/omrResult";
+  import { createOmrRun, type OmrPageStats } from "#lib/grading/omrSettings";
+  import { omrSettingsStore } from "#lib/stores/omrSettings";
+  import { drawOmrOverlayForPage, type McOverlayState } from "#lib/grading/omrOverlay";
+  import { api } from "#lib/api/client";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
+  import { studentRepository } from "#lib/repositories/studentRepository";
   import type {
     StudentRecord,
     OmrPageTemplate,
     ExerciseScoreRecord,
-  } from "$lib/db/schema";
-  import { scoreRepository } from "$lib/repositories/scoreRepository";
+  } from "#lib/db/schema";
+  import { scoreRepository } from "#lib/repositories/scoreRepository";
   import { onMount, onDestroy } from "svelte";
   import { get } from "svelte/store";
-  import { WorkerPool } from "$lib/workers/pool";
+  import { WorkerPool } from "#lib/workers/pool";
+  import { spawnOmrWorker, spawnQrWorker } from "#lib/workers/spawn";
   import type {
     QrWorkerRequest,
     QrWorkerResponse,
-  } from "$lib/workers/qrWorker";
+  } from "#lib/workers/qrWorker";
   import type {
     OmrWorkerRequest,
     OmrWorkerResponse,
     OmrExerciseResult,
     OmrExerciseAnswerKey,
-  } from "$lib/workers/omrWorker";
-  import { parseStudentQr } from "$lib/utils/studentQr";
+  } from "#lib/workers/omrWorker";
+  import { parseStudentQr } from "#lib/utils/studentQr";
   import type { PDFDocument, PDFPage } from "pdf-lib";
-  import HardwareProfileCard from "$lib/components/scanning/HardwareProfileCard.svelte";
-  import UploadPanel from "$lib/components/scanning/UploadPanel.svelte";
-  import { Alert, PageHeader, PageShell } from "$lib/components/ui";
-  import UnmatchedResolver from "$lib/components/scanning/UnmatchedResolver.svelte";
-  import ScannedSubmissionsTable from "$lib/components/scanning/ScannedSubmissionsTable.svelte";
-  import ScanPreviewModal from "$lib/components/scanning/ScanPreviewModal.svelte";
-  import { t, translate } from "$lib/i18n";
+  import HardwareProfileCard from "#lib/components/scanning/HardwareProfileCard.svelte";
+  import UploadPanel from "#lib/components/scanning/UploadPanel.svelte";
+  import { Alert, PageHeader, PageShell } from "#lib/components/ui";
+  import UnmatchedResolver from "#lib/components/scanning/UnmatchedResolver.svelte";
+  import ScannedSubmissionsTable from "#lib/components/scanning/ScannedSubmissionsTable.svelte";
+  import ScanPreviewModal from "#lib/components/scanning/ScanPreviewModal.svelte";
+  import { t, translate } from "#lib/i18n";
 
-  const examId = $page.params.id || "";
+  interface Props {
+    params?: Record<string, string>;
+  }
 
-  let hwProfile: HardwareProfile = {
+  let { params }: Props = $props();
+
+  const examId = page.params.id || "";
+
+  // Raw: hwProfile/monitor feed PipelineMonitor and the worker pools.
+  let hwProfile: HardwareProfile = $state.raw({
     logicalCores: 4,
     estimatedRAMGB: 8,
     simdSupported: true,
     fileSystemAccessAPI: true,
     recommendedMode: "parallel",
-  };
-  let monitor: PipelineMonitor;
-  let isProcessing = false;
-  let progress = 0;
-  let statusText = translate("scanning.status.ready");
+  });
+  let monitor: PipelineMonitor | undefined = $state.raw();
+  let isProcessing = $state(false);
+  let progress = $state(0);
+  let statusText = $state(translate("scanning.status.ready"));
   let scannedCount = 0;
 
   interface UnmatchedSubmission {
@@ -104,17 +111,18 @@
     annotationIv?: Uint8Array;
   }
 
-  let unmatchedList: UnmatchedSubmission[] = [];
-  let scannedSubmissions: ScannedSubmissionItem[] = [];
+  // Raw: records go back to repositories; UnmatchedResolver binds item.newCode on the shared objects.
+  let unmatchedList: UnmatchedSubmission[] = $state.raw([]);
+  let scannedSubmissions: ScannedSubmissionItem[] = $state.raw([]);
   // Starts true: the overview must not flash "no submissions yet" while the
   // first fetch is still in flight (see loadScannedSubmissions()).
-  let isLoadingSubmissions = true;
-  let previewModalOpen = false;
-  let previewItem: ScannedSubmissionItem | null = null;
-  let previewObjectUrl: string | null = null;
-  let previewIsPdf = false;
-  let previewLoading = false;
-  let previewError = "";
+  let isLoadingSubmissions = $state(true);
+  let previewModalOpen = $state(false);
+  let previewItem: ScannedSubmissionItem | null = $state.raw(null);
+  let previewObjectUrl: string | null = $state(null);
+  let previewIsPdf = $state(false);
+  let previewLoading = $state(false);
+  let previewError = $state("");
   let qrPool: WorkerPool<QrWorkerRequest, QrWorkerResponse> | null = null;
   let omrPool: WorkerPool<OmrWorkerRequest, OmrWorkerResponse> | null = null;
 
@@ -124,7 +132,7 @@
   /** `exercisesHash` of the template in use — stamped into each detection's run snapshot. */
   let omrTemplateHash: string | undefined;
   let omrAvailable = false;
-  let omrBanner = "";
+  let omrBanner = $state("");
 
   /** Loads the exam's OMR template + MC answer key, gating auto-grading on a fresh (non-stale) template. */
   async function loadOmrContext() {
@@ -212,20 +220,8 @@
       monitor.on("downgrade", () => {
         statusText = translate("scanning.status.memoryDowngraded");
       });
-      qrPool = new WorkerPool(
-        () =>
-          new Worker(new URL("$lib/workers/qrWorker.ts", import.meta.url), {
-            type: "module",
-          }),
-        monitor,
-      );
-      omrPool = new WorkerPool(
-        () =>
-          new Worker(new URL("$lib/workers/omrWorker.ts", import.meta.url), {
-            type: "module",
-          }),
-        monitor,
-      );
+      qrPool = new WorkerPool(spawnQrWorker, monitor);
+      omrPool = new WorkerPool(spawnOmrWorker, monitor);
       refreshUnmatched();
       loadScannedSubmissions();
       loadOmrContext();
@@ -400,7 +396,7 @@
     }
   }
 
-  let exportingId: string | null = null;
+  let exportingId: string | null = $state(null);
 
   function drawStrokesOnCanvas(ctx: CanvasRenderingContext2D, strokes: any[]) {
     for (const stroke of strokes) {
@@ -797,12 +793,8 @@
       if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
         try {
           const pdfjsLib = await loadPdfjs();
-          // `{ data }` hands pdf.js the bytes directly. The earlier `{ url:
-          // URL.createObjectURL(file) }` made pdf.js issue its own internal
-          // fetch against the blob: URL, which is connect-src-governed (not
-          // img-src) and got blocked by CSP — img-src already allows blob:,
-          // but nothing here was an image load. Matches the PASS 2 pattern
-          // a few hundred lines below, which never had this problem.
+          // Pass bytes via `{ data }`: a blob: `{ url }` makes pdf.js fetch it, which CSP connect-src
+          // blocks (same pattern as PASS 2 below).
           const fileBytes = new Uint8Array(await file.arrayBuffer());
           const loadingTask = pdfjsLib.getDocument({ data: fileBytes });
           const pdf = await loadingTask.promise;

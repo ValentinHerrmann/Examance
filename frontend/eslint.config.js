@@ -3,18 +3,7 @@ import svelte from 'eslint-plugin-svelte';
 import globals from 'globals';
 import ts from 'typescript-eslint';
 
-/**
- * ESLint flat config (ESLint 9).
- *
- * `npm run lint` has been part of CI since the workflow was written, but no
- * config ever existed, so `eslint .` failed at startup and the step never
- * linted anything. This is the first real configuration for the project.
- *
- * It deliberately enables the correctness-oriented recommended sets and leaves
- * stylistic rules off. A first lint config that lands green and can be tightened
- * later is worth more than an exhaustive one that gets disabled a week after
- * merge. Rules switched off below are annotated with why.
- */
+// Correctness-oriented recommended sets, stylistic rules off. Every rule switched off is annotated.
 export default [
   {
     ignores: [
@@ -33,7 +22,7 @@ export default [
 
   js.configs.recommended,
   ...ts.configs.recommended,
-  ...svelte.configs['flat/recommended'],
+  ...svelte.configs.recommended,
 
   {
     languageOptions: {
@@ -43,47 +32,39 @@ export default [
 
   {
     rules: {
-      // The codebase uses `any` deliberately in a few places where it bridges
-      // untyped third-party surfaces (argon2-browser, busytex, pdf.js). Type
-      // safety is enforced by `svelte-check`, which runs in the same CI job and
-      // is currently at zero errors; duplicating it here as an error would add
-      // noise without adding coverage.
+      // Deliberate at untyped third-party boundaries (argon2-browser, busytex, pdf.js); svelte-check covers types.
       '@typescript-eslint/no-explicit-any': 'off',
 
-      // Caught by svelte-check with full type information, which is more
-      // accurate than ESLint's view of Svelte component scope.
       '@typescript-eslint/no-unused-vars': [
         'warn',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none' },
       ],
 
-      // TypeScript resolves identifiers itself, and ESLint's scope analysis
-      // does not know DOM *types* — it reports `BlobPart` and friends as
-      // undefined globals. Disabling this for typed code is typescript-eslint's
-      // own documented recommendation.
+      // TypeScript resolves identifiers itself; ESLint's scope analysis misreports DOM types (typescript-eslint's advice).
       'no-undef': 'off',
 
-      // `catch {}` is used deliberately for best-effort cleanup (terminating an
-      // already-dead worker, optional loads). Empty blocks elsewhere still fail.
+      // `catch {}` is used for best-effort cleanup.
       'no-empty': ['error', { allowEmptyCatch: true }],
 
-      // Reports the Svelte compiler's own warnings. `svelte-check` already
-      // surfaces exactly these in the same CI job and is the better tool for
-      // them, so they are warnings here rather than a second failing gate.
+      // svelte-check already reports the compiler's warnings in the same CI job.
       'svelte/valid-compile': 'warn',
+
+      // Adding keys changes DOM reuse (and duplicate keys throw in Svelte 5); key lists deliberately, not by rule.
+      'svelte/require-each-key': 'off',
+      // The app is served from `/` with no `paths.base`, so `resolve()` around every route adds nothing.
+      'svelte/no-navigation-without-resolve': 'off',
+      // Collections in components are `$state.raw` and replaced on change, or plain locals; SvelteMap/Set would alter that.
+      'svelte/prefer-svelte-reactivity': 'off',
     },
   },
 
   {
-    files: ['**/*.svelte'],
+    files: ['**/*.svelte', '**/*.svelte.ts'],
     languageOptions: {
       parserOptions: { parser: ts.parser },
     },
     rules: {
-      // @typescript-eslint/no-unused-vars crashes on the AST that
-      // svelte-eslint-parser produces (TypeError in getDefinedMessageData).
-      // svelte-check already reports unused bindings in components, with full
-      // type information, so nothing is lost by turning it off here.
+      // Crashes on svelte-eslint-parser's AST; svelte-check reports unused bindings in components.
       '@typescript-eslint/no-unused-vars': 'off',
     },
   },
@@ -94,8 +75,7 @@ export default [
       globals: { ...globals.node },
     },
     rules: {
-      // Build/tooling scripts are plain JS and not part of the typed source
-      // tree; `@ts-nocheck` there is intentional.
+      // Tooling scripts are plain JS outside the typed tree; `@ts-nocheck` there is intentional.
       '@typescript-eslint/ban-ts-comment': 'off',
     },
   },

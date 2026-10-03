@@ -1,26 +1,17 @@
 /**
- * Envelope lifecycle — how a signed-in browser gets hold of the data key.
- *
- * Three entry points matter:
- *
- *  - `openWithPassword` on a normal sign-in. On an account that predates the
- *    envelope it performs the one-time migration instead.
- *  - `openWithRecoveryCode` when the password is gone, which is what makes a
- *    password reset survivable.
- *  - `rewrapForNewPassword` / `rewrapForChangedPassword` after a reset or an
- *    in-session password change.
- *
- * None of these re-encrypt anything. The data key stays the same across a
- * password change; only its wraps are rewritten.
+ * Envelope lifecycle: how a signed-in browser gets the data key. `openWithPassword` on normal sign-in
+ * (one-time migration for pre-envelope accounts); `openWithRecoveryCode` when the password is gone (makes
+ * reset survivable); `rewrapForNewPassword`/`rewrapForChangedPassword` after reset/in-session change.
+ * None re-encrypt anything: the data key is stable, only its wraps are rewritten.
  */
 
 import {
   deriveKeyWithFallback,
   getUserSalt,
   getUserSessionNonce,
-} from '$lib/crypto/keyDerivation';
-import { deriveSessionKey } from '$lib/crypto/sessionKey';
-import { toArrayBuffer } from '$lib/crypto/aesGcm';
+} from '#lib/crypto/keyDerivation';
+import { deriveSessionKey } from '#lib/crypto/sessionKey';
+import { toArrayBuffer } from '#lib/crypto/aesGcm';
 import {
   ENVELOPE_VERSION,
   KEK_KDF_PARAMS,
@@ -40,24 +31,18 @@ import {
   type EnvelopeSet,
   type KeyEnvelope,
   type UnwrappedBundle,
-} from '$lib/crypto/keyEnvelope';
-import { fetchEnvelopes, saveEnvelopes } from '$lib/api/keyEnvelopes';
-import { loginOptions } from '$lib/api/webauthn';
-import { authenticate } from '$lib/webauthn/client';
+} from '#lib/crypto/keyEnvelope';
+import { fetchEnvelopes, saveEnvelopes } from '#lib/api/keyEnvelopes';
+import { loginOptions } from '#lib/api/webauthn';
+import { authenticate } from '#lib/webauthn/client';
 import { get } from 'svelte/store';
-import { sessionStore } from '$lib/stores/session';
-import { safeLocalStorage, safeSessionStorage } from '$lib/utils/storage';
-import { base64ToUint8Array, uint8ArrayToBase64 } from '$lib/crypto/aesGcm';
+import { sessionStore } from '#lib/stores/session';
+import { safeLocalStorage, safeSessionStorage } from '#lib/utils/storage';
+import { base64ToUint8Array, uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 
 const FINGERPRINT_PREFIX = 'bg_envelope_fp:';
 
-/**
- * Compare credential ids without tripping over base64url padding.
- *
- * The server encodes with padding; `navigator.credentials` hands back an
- * unpadded id. Same bytes, different string — and a mismatch here would look
- * exactly like "this passkey has no wrap".
- */
+/** Compare credential ids ignoring base64url padding (server pads, `navigator.credentials` doesn't; a mismatch would look like "this passkey has no wrap"). */
 export function sameCredential(a: string | null, b: string | null): boolean {
   if (a === null || b === null) {
     return false;
@@ -66,24 +51,12 @@ export function sameCredential(a: string | null, b: string | null): boolean {
 }
 const KEY_ID_STORAGE = 'bg_key_id';
 
-/**
- * Remember which data-key generation this session opened.
- *
- * Not a secret — it is a random label, and the point of recording it is that a
- * stored record can say which key sealed it. Kept in sessionStorage so it dies
- * with the tab alongside the keys themselves.
- */
+/** Remember which data-key generation this session opened: a non-secret random label so records can say which key sealed them. In sessionStorage, so it dies with the keys. */
 export function rememberKeyId(keyId: Uint8Array): void {
   safeSessionStorage.setItem(KEY_ID_STORAGE, uint8ArrayToBase64(keyId));
 }
 
-/**
- * The current data-key generation, or 16 zero bytes when unknown.
- *
- * The zero value matches the placeholder identity rows the submissions endpoint
- * creates, and is what pre-envelope clients sent, so it stays a valid "no
- * generation recorded" marker rather than an error.
- */
+/** The current data-key generation, or 16 zero bytes when unknown (matches placeholder identity rows and pre-envelope clients, so it stays a valid "none recorded" marker, not an error). */
 export function currentKeyId(): Uint8Array {
   const stored = safeSessionStorage.getItem(KEY_ID_STORAGE);
   if (!stored) {
@@ -136,11 +109,8 @@ async function pinFingerprint(teacherId: string, set: EnvelopeSet): Promise<void
 }
 
 /**
- * Refuse to use an envelope set this browser has not seen before.
- *
- * A server that substitutes the set — serving one whose data key it knows —
- * would be able to read everything written afterwards. The AAD binding cannot
- * catch that, because the server would pick both sides of it. A pin can.
+ * Refuse an envelope set this browser hasn't seen. A server substituting a set whose data key it knows
+ * could read everything written afterwards; AAD can't catch that (server picks both sides), a pin can.
  */
 async function assertPinnedOrPin(teacherId: string, set: EnvelopeSet): Promise<void> {
   const stored = safeLocalStorage.getItem(FINGERPRINT_PREFIX + teacherId);
@@ -213,14 +183,10 @@ async function buildSet(
 }
 
 /**
- * Open the vault with the password, migrating the account if it has no envelope.
- *
- * The migration deliberately adopts the *existing* derived key as the data key
- * rather than minting a fresh one: every record already on disk and on the
- * server was sealed with it, so adopting it means nothing has to be re-encrypted
- * and there is no window in which a half-converted vault exists. This is also
- * the only moment at which the PBKDF2 fallback and legacy keys are available,
- * so they are captured into the bundle here or lost for good.
+ * Open the vault with the password, migrating the account if it has no envelope. The migration adopts
+ * the *existing* derived key as the data key (not a fresh one): all records on disk and server were
+ * sealed with it, so nothing is re-encrypted and no half-converted vault exists. It is also the only
+ * moment the PBKDF2 fallback and legacy keys exist, so they are captured into the bundle here or lost.
  */
 export async function openWithPassword(
   teacherId: string,
@@ -231,10 +197,9 @@ export async function openWithPassword(
   const existing = await fetchEnvelopes();
 
   if (existing === null) {
-    // The migration seals whatever key this password derives as the data key.
-    // Only a password the server has just accepted may do that: an unverified
-    // one (typed into the vault prompt after a passkey-only sign-in) would
-    // adopt a wrong key and orphan every record already written.
+        // Migration seals whatever key this password derives as the data key, so only a password the server
+        // just accepted may do it: an unverified one (vault prompt after passkey-only sign-in) would adopt a
+        // wrong key and orphan every record.
     if (!opts.allowMigration) {
       throw new EnvelopeFactorMissingError('password');
     }
@@ -275,15 +240,10 @@ export async function openWithPassword(
 }
 
 /**
- * Rewrite a wrap that only opened under the superseded KDF.
- *
- * These exist because `deriveKey` used to substitute PBKDF2 whenever the Argon2
- * WASM failed to load, without recording that it had — so the wrap is labelled
- * `argon2id`, is not, and stops opening the moment the WASM does load. Repairing
- * it on the sign-in that noticed is what keeps that from being permanent.
- *
- * Best effort by design: the teacher is already through the door with the right
- * key, and a failure to write the repair must not take that away from them.
+ * Rewrite a wrap that opened only under the superseded KDF (`deriveKey` once substituted PBKDF2 when
+ * Argon2 WASM failed to load without recording it, so the wrap says `argon2id` but stops opening once
+ * the WASM loads). Repaired on the sign-in that noticed. Best effort: the teacher already has the right
+ * key, and a failed repair write must not take that away.
  */
 async function healFallbackWrap(
   teacherId: string,
@@ -331,15 +291,10 @@ export async function openWithRecoveryCode(
 }
 
 /**
- * Re-wrap the same data key under a new password, after a change or a reset.
- *
- * A fresh recovery code is issued at the same time: the old one either was just
- * spent recovering, or belongs to a password the teacher no longer uses.
- * Returns the code so the caller can show it exactly once.
- *
- * Passkey wraps are carried through, for the reason spelled out on
- * `setWithReplacedWrap`: rebuilding the set from two secrets deletes the wraps
- * for every factor those secrets do not cover.
+ * Re-wrap the same data key under a new password (change or reset). Issues a fresh recovery code (the
+ * old one was just spent or belongs to a dead password) and returns it to be shown once. Passkey wraps
+ * are carried through (see `setWithReplacedWrap`): rebuilding from two secrets deletes wraps of every
+ * other factor.
  */
 export async function rewrapForNewPassword(
   teacherId: string,
@@ -362,19 +317,11 @@ export async function rewrapForNewPassword(
 }
 
 /**
- * Abandon the old data key and start again under the current password.
- *
- * The way out for a teacher whose password was reset and whose recovery code is
- * gone. Until this existed the dialog asking for that code had no exit at all:
- * the reset invalidates the password wrap, so the session holds no key, and the
- * only offered answer was a code they did not have.
- *
- * Irreversible, and it discards more than the password wrap — `keep` is empty,
- * so the passkey wraps go too. They hold the *old* key and would be meaningless
- * against the new one; the passkeys still sign in, and have to be re-added from
- * the security page before they open anything. Everything sealed under the old
- * key stays sealed forever, which is the whole cost and has to be spelled out
- * before this is called.
+ * Abandon the old data key and start over under the current password: the way out for a teacher whose
+ * password was reset and whose recovery code is gone (the reset invalidates the password wrap, so the
+ * session holds no key). IRREVERSIBLE: `keep` is empty so passkey wraps go too (they hold the *old* key;
+ * passkeys still sign in but must be re-added before they open anything), and everything sealed under
+ * the old key stays sealed forever. That cost must be spelled out before calling.
  */
 export async function startFreshVault(
   teacherId: string,
@@ -392,14 +339,10 @@ export async function startFreshVault(
 }
 
 /**
- * Rebuild exactly one Argon2id wrap, carrying every other one through untouched.
- *
- * The distinction this exists to enforce: `saveEnvelopes` replaces the whole set,
- * and `buildSet` can only emit the wraps it is handed a secret for. So building a
- * set to change *one* factor silently deletes the wraps for the others — a
- * teacher's passkeys stop opening their vault, and nothing says so until the day
- * they try. Only the named wrap is rebuilt here; the rest stay as the opaque
- * ciphertext they are, holding the same data key.
+ * Rebuild exactly one Argon2id wrap, carrying all others through untouched. `saveEnvelopes` replaces
+ * the whole set and `buildSet` only emits wraps it has a secret for, so building a set to change one
+ * factor silently deletes the others (passkeys stop opening the vault with no signal until tried).
+ * The rest stay opaque ciphertext holding the same data key.
  */
 async function setWithReplacedWrap(
   teacherId: string,
@@ -432,12 +375,7 @@ async function setWithReplacedWrap(
   return { keyId, envelopes: [...kept, envelope] };
 }
 
-/**
- * Issue a replacement recovery code from an already-open vault.
- *
- * Codes are single-use and shown once, so a teacher who mislays one needs a way
- * back that does not involve losing their data.
- */
+/** Issue a replacement recovery code from an open vault (codes are single-use and shown once, so a mislaid one must not mean data loss). */
 export async function regenerateRecoveryCode(
   teacherId: string,
   vault: OpenedVault,
@@ -455,14 +393,10 @@ export async function regenerateRecoveryCode(
 }
 
 /**
- * Re-wrap the data key for an in-session password change.
- *
- * Returns the set rather than saving it: the server writes the password and its
- * key copy in one transaction, so this travels inside the change-password
- * request. The recovery wrap is carried through untouched — it cannot be rebuilt
- * without the code's plaintext, which is gone, and it holds the same data key
- * regardless. Pin the returned set with `pinEnvelopeSet` once the request
- * succeeds.
+ * Re-wrap the data key for an in-session password change. Returns the set instead of saving it: the
+ * server writes password and key copy in one transaction, so it travels in the change-password request.
+ * The recovery wrap is carried through (it can't be rebuilt without the gone code plaintext, and holds
+ * the same key). Pin the returned set with `pinEnvelopeSet` once the request succeeds.
  */
 export async function rewrapForChangedPassword(
   teacherId: string,
@@ -495,14 +429,10 @@ async function importHkdf(raw: Uint8Array): Promise<CryptoKey> {
 }
 
 /**
- * Turn an opened vault into the keys the session store holds.
- *
- * The session nonce stays `getUserSessionNonce(email)`. It is HKDF salt rather
- * than a secret, and every record already written — locally and, in server
- * modes, on the server — was sealed under it. Because the migration adopts the
- * previously derived key as the DEK, the session key produced here is
- * byte-identical to the one the old scheme produced, which is what lets the
- * change land without re-encrypting anything.
+ * Turn an opened vault into the keys the session store holds. The session nonce stays
+ * `getUserSessionNonce(email)` (HKDF salt, not a secret) because every existing record, local and
+ * server, was sealed under it; since migration adopts the old derived key as DEK, the resulting
+ * session key is byte-identical to the old scheme's, so nothing is re-encrypted.
  */
 export async function materializeSession(
   vault: OpenedVault,
@@ -533,20 +463,11 @@ export async function materializeSession(
 }
 
 /**
- * Build the envelope set for a password reset, without saving it.
- *
- * The reset endpoint writes the new password and this set in one transaction:
- * two round trips could leave a teacher whose password changed but whose key
- * copy did not, which looks like a working account right up until the next
- * sign-in opens nothing.
- *
- * Returns the fresh recovery code alongside, to be shown exactly once — the old
- * one was just spent getting here.
- *
- * Passkey wraps are carried through. Rebuilding the set from the password and
- * the new code alone would drop them, and a teacher would come out of a reset
- * with passkeys that still sign in and no longer open anything — a loss with no
- * symptom until they next tried.
+ * Build the envelope set for a password reset, without saving it. The reset endpoint writes the new
+ * password and this set in one transaction: two round trips could leave a changed password with a stale
+ * key copy, which looks fine until the next sign-in opens nothing. Returns the fresh recovery code to
+ * show once (the old one was just spent). Passkey wraps are carried through: rebuilding from password and
+ * new code alone would drop them, leaving passkeys that sign in but open nothing, with no symptom.
  */
 export async function buildResetEnvelopeSet(
   teacherId: string,
@@ -566,24 +487,12 @@ export async function buildResetEnvelopeSet(
   return { set, recoveryCode };
 }
 
-/**
- * Pin an envelope set this browser did not write itself.
- *
- * Used right after a reset: the set was just uploaded inside the reset request,
- * so it is known-good here even though `saveEnvelopes` was not the one to store
- * it.
- */
+/** Pin an envelope set this browser didn't write itself, e.g. right after a reset (uploaded inside the reset request, so known-good). */
 export async function pinEnvelopeSet(teacherId: string, set: EnvelopeSet): Promise<void> {
   await pinFingerprint(teacherId, set);
 }
 
-/**
- * Reconstruct the opened vault from the live session.
- *
- * The session already holds the data key and the rest of the decrypt chain — it
- * has to, to read anything — so adding a wrap later does not need the password
- * again.
- */
+/** Reconstruct the opened vault from the live session, which already holds the data key and decrypt chain, so adding a wrap needs no password. */
 export function vaultFromSession(): OpenedVault | null {
   const state = get(sessionStore);
   if (!state.masterKeyRaw) {
@@ -599,13 +508,9 @@ export function vaultFromSession(): OpenedVault | null {
 }
 
 /**
- * Add a passkey's PRF wrap to the existing set.
- *
- * The password and recovery wraps are carried through untouched — they are
- * opaque ciphertext from here, and re-deriving them would need secrets this
- * code does not have. Only the new wrap is built.
- *
- * Called after registering a PRF-capable passkey, from an open session.
+ * Add a passkey's PRF wrap to the existing set, after registering a PRF-capable passkey in an open
+ * session. Password and recovery wraps are carried through as opaque ciphertext (re-deriving them needs
+ * secrets we lack); only the new wrap is built.
  */
 export async function addPasskeyWrap(
   teacherId: string,
@@ -675,13 +580,7 @@ export class PrfUnavailableError extends Error {
   }
 }
 
-/**
- * Credential ids of the passkeys that can open the vault right now.
- *
- * The truth is the stored wrap, not the `supports_prf` flag recorded at
- * registration: that flag is a guess some authenticators get wrong, and it is
- * never updated when a wrap is added or healed later.
- */
+/** Credential ids of passkeys that can open the vault now. The stored wrap is the truth, not the registration-time `supports_prf` flag (a guess some authenticators get wrong, never updated). */
 export async function passkeyWrapIds(): Promise<string[]> {
   const existing = await fetchEnvelopes();
   if (existing === null) {
@@ -692,13 +591,7 @@ export async function passkeyWrapIds(): Promise<string[]> {
     .map((e) => e.credentialIdB64 as string);
 }
 
-/**
- * Let an already-registered passkey open the vault, from an open session.
- *
- * Needs only the passkey: the session holds the data key, so nothing has to be
- * unwrapped first. The ceremony is pinned to the credential and is not sent to
- * the server — its only job is to produce that credential's PRF secret.
- */
+/** Let an already-registered passkey open the vault, from an open session. Needs only the passkey (the session holds the data key); the ceremony is pinned to the credential and not sent to the server, only producing its PRF secret. */
 export async function enablePasskeyUnlock(
   teacherId: string,
   credentialIdB64: string,

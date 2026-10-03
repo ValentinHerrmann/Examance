@@ -1,19 +1,29 @@
 <script lang="ts">
-  /**
-   * Label + control + optional hint/error wrapper. Without `forId` an id is
-   * generated and handed to the slot: `<Field label="x" let:id><TextInput {id} /></Field>`.
-   */
-  export let label: string | undefined = undefined;
-  export let forId: string | undefined = undefined;
-  export let hint: string | undefined = undefined;
-  export let error: string | undefined = undefined;
-  export let required = false;
+  import type { Snippet } from "svelte";
 
-  let className = "";
-  export { className as class };
+  /** Label + control + optional hint/error. Without `forId` an id is generated and passed to children. */
+  interface Props {
+    label?: string | undefined;
+    forId?: string | undefined;
+    hint?: string | undefined;
+    error?: string | undefined;
+    required?: boolean;
+    class?: string;
+    children?: Snippet<[{ id: string }]>;
+  }
+
+  let {
+    label = undefined,
+    forId = undefined,
+    hint = undefined,
+    error = undefined,
+    required = false,
+    class: className = "",
+    children,
+  }: Props = $props();
 
   const generated = `field-${Math.random().toString(36).slice(2, 10)}`;
-  $: id = forId ?? generated;
+  let id = $derived(forId ?? generated);
 </script>
 
 <div class="flex min-w-0 flex-col gap-1.5 {className}">
@@ -22,7 +32,7 @@
       >{label}{#if required}<span class="ml-0.5 text-danger-fg" aria-hidden="true">*</span>{/if}</label
     >
   {/if}
-  <slot {id} />
+  {@render children?.({ id })}
   {#if error}
     <p class="m-0 text-sm text-danger-fg" role="alert">{error}</p>
   {:else if hint}

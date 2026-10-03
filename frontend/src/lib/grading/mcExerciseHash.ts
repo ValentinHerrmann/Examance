@@ -1,25 +1,17 @@
 /**
- * Hash of an exam's MC/SC/TF answer key, used to detect a stale OMR template
- * (`frontend/src/lib/db/schema.ts`'s `OmrTemplateRecord.exercisesHash`) after
- * an answer-key edit. Shared by the "Prepare OMR" action (exam page) and the
- * scan-ingest staleness check so the two can never disagree on what counts as
- * "changed". Tuples are sorted by exercise id before hashing so the result is
- * independent of traversal order — callers don't need to agree on ordering,
- * only on the underlying exercise set.
- *
- * Deliberately not `ensure64CharHex` (`$lib/crypto/hmac.ts`) — that helper
- * returns its input unhashed if it happens to already be 64 hex chars, which
- * is unacceptable for a hash gating MC auto-scoring correctness.
+ * Hash of an exam's MC/SC/TF answer key, to detect a stale OMR template after an edit. Tuples are
+ * sorted by exercise id. Deliberately not `ensure64CharHex` (`#lib/crypto/hmac.ts`): it returns
+ * 64-hex input unhashed, unacceptable for a hash gating MC auto-scoring.
  */
 
-import type { ExerciseRecord } from '$lib/db/schema';
+import type { ExerciseRecord } from '#lib/db/schema';
 import { isMcQuestion } from './mcScore';
-import { parseMcOptions } from '$lib/latex/mcOptions';
+import { parseMcOptions } from '#lib/latex/mcOptions';
 import {
   loadExamExercisesEncrypted,
   loadExercisesEncrypted,
   loadLocalMcGroups,
-} from '$lib/db/dbEncryption';
+} from '#lib/db/dbEncryption';
 
 export interface McGroupLike {
   id: string;
@@ -27,12 +19,9 @@ export interface McGroupLike {
 }
 
 /**
- * Normalizes an ExerciseRecord so that `options` (string[]) and `correctAnswers` (number[])
- * are consistently populated for MC/SC/TF exercises.
- *
- * Handles:
- * 1. `correctAnswers` given as backend JSON object `{ options: string[], correct: number[] }`
- * 2. Missing `options` or `correctAnswers` by parsing `latexBody` via `parseMcOptions`
+ * Normalizes an ExerciseRecord so `options` and `correctAnswers` are populated for MC/SC/TF:
+ * accepts the backend `{ options, correct }` object and parses `latexBody` via `parseMcOptions`
+ * when either is missing.
  */
 export function normalizeMcExercise(ex: ExerciseRecord): ExerciseRecord {
   if (!isMcQuestion(ex)) return ex;
@@ -72,11 +61,8 @@ export function normalizeMcExercise(ex: ExerciseRecord): ExerciseRecord {
 }
 
 /**
- * Inverse of `normalizeMcExercise`: serializes an exercise's answer key into the
- * `{ options, correct }` JSON object the backend stores in `correct_answers`
- * (`ExerciseCreate.correct_answers` is `dict[str, Any] | None` — a bare array is
- * rejected with a 422). Free-text exercises have no answer key and serialize to
- * `null`.
+ * Inverse of `normalizeMcExercise`: the `{ options, correct }` object the backend stores in
+ * `correct_answers` (a bare array is rejected with 422). Free-text exercises give `null`.
  */
 export function serializeMcAnswers(
   ex: ExerciseRecord
@@ -163,12 +149,7 @@ interface McAnswerKeyTuple {
   optionsLength: number;
   correctAnswers: number[];
   penalty: number;
-  /**
-   * `<groupId>:<position>` for members of an MC group. The printed position of a
-   * sub-item decides where its boxes sit on the page, so reordering a group's
-   * members must invalidate the captured OMR template just like an answer-key edit.
-   * Absent for standalone exercises, which keeps their hash unchanged.
-   */
+    /** `<groupId>:<position>` for MC group members: position decides box placement, so reordering must invalidate the OMR template. Absent for standalone exercises (hash unchanged). */
   groupSlot?: string;
 }
 

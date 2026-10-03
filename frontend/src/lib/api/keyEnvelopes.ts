@@ -1,13 +1,10 @@
 /**
- * Key-envelope API — the wrapped copies of this teacher's data key.
- *
- * Everything crossing this boundary is opaque to the server: ciphertext, a
- * public salt and public KDF parameters. Wrapping and unwrapping happen in
- * `lib/crypto/keyEnvelope.ts`, in this browser.
+ * Key-envelope API: wrapped copies of the teacher's data key. The server only sees ciphertext,
+ * a public salt and public KDF params; wrapping happens in `lib/crypto/keyEnvelope.ts`, in the browser.
  */
 
-import { base64ToUint8Array, uint8ArrayToBase64 } from '$lib/crypto/aesGcm';
-import type { EnvelopeKind, EnvelopeSet, KeyEnvelope } from '$lib/crypto/keyEnvelope';
+import { base64ToUint8Array, uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
+import type { EnvelopeKind, EnvelopeSet, KeyEnvelope } from '#lib/crypto/keyEnvelope';
 import { api } from './client';
 
 interface KeyEnvelopeDto {
@@ -56,10 +53,7 @@ export function toDto(envelope: KeyEnvelope): Record<string, unknown> {
   };
 }
 
-/**
- * Fetch the teacher's envelope set. Returns null when none exists yet — that is
- * the signal to run the one-time migration, not an error.
- */
+/** Fetch the envelope set; null means none exists yet (trigger the one-time migration, not an error). */
 export async function fetchEnvelopes(): Promise<EnvelopeSet | null> {
   const dto = await api.get<KeyEnvelopeListDto>('/keys/envelopes', { silentError: true });
   if (!dto.key_id_b64 || dto.envelopes.length === 0) {
@@ -72,11 +66,8 @@ export async function fetchEnvelopes(): Promise<EnvelopeSet | null> {
 }
 
 /**
- * Replace the whole envelope set.
- *
- * Wholesale by design. A merge could leave the password wrap holding a new DEK
- * while the recovery wrap still holds the previous one, which looks healthy
- * right up until the day someone needs to recover with it.
+ * Replace the whole envelope set. Wholesale on purpose: a merge could leave the password wrap
+ * on a new DEK and the recovery wrap on the old one, unnoticed until recovery is needed.
  */
 export async function saveEnvelopes(set: EnvelopeSet): Promise<void> {
   // Silent, like the fetch: callers report an envelope write failure in the
@@ -99,11 +90,8 @@ export async function deleteEnvelope(id: string): Promise<void> {
 }
 
 /**
- * The wire shape of a whole envelope set.
- *
- * Exported because a password reset sends it inside the reset request rather
- * than through `PUT /keys/envelopes`: the new password and the key copy that
- * matches it are written in one transaction, so they cannot end up disagreeing.
+ * Wire shape of a whole envelope set. Exported because a password reset sends it inside the
+ * reset request: new password and matching key copy are written in one transaction.
  */
 export function envelopeSetToDto(set: EnvelopeSet): Record<string, unknown> {
   return {

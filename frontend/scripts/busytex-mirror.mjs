@@ -1,15 +1,10 @@
-// Shared naming and download helpers for the BusyTeX assets, used by
-// fetch-busytex.mjs, build.mjs and .github/workflows/mirror-busytex.yml
-// (`node scripts/busytex-mirror.mjs keys`), so all three agree on what the R2
-// mirror holds:
-//
-//   busytex-assets-v<version>.tar.gz
-//     The upstream release archive, byte for byte.
-//   busytex-processed-v<version>-<hash>.tar
-//     The result of process-large-files.mjs on that archive: gzipped 20 MB
-//     chunks, chunk-manifest.json and the fetch interceptor — exactly what
-//     ends up under build/core/busytex. <hash> covers the scripts that produce
-//     it, so changing either one yields a new object instead of stale output.
+// Shared naming and download helpers for the BusyTeX assets, used by fetch-busytex.mjs,
+// build.mjs and .github/workflows/mirror-busytex.yml (`node scripts/busytex-mirror.mjs keys`)
+// so all agree on what the R2 mirror holds:
+//   busytex-assets-v<version>.tar.gz          upstream release archive, byte for byte
+//   busytex-processed-v<version>-<hash>.tar   process-large-files.mjs output (gzipped chunks,
+//     manifest, fetch interceptor), i.e. what ends up in build/core/busytex; <hash> covers the
+//     scripts that produce it, so changing either yields a new object instead of stale output.
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
@@ -56,10 +51,9 @@ export function run(cmd, args, stdin) {
 }
 
 /**
- * Streams the tarball at `url` straight into the system `tar`, extracting into
- * `dest`. Extraction goes to a scratch directory first and is moved into place
- * only once `expect` (a path relative to `dest`) exists, so an interrupted or
- * wrong download never leaves a partial tree that a later run would skip.
+ * Streams the tarball at `url` into the system `tar`, extracting via a scratch directory and
+ * moving into `dest` only once `expect` (relative to `dest`) exists, so an interrupted
+ * download never leaves a partial tree that a later run would skip.
  */
 export async function streamExtract(url, dest, { gzip, expect }) {
   const tmp = path.join(dest, '.busytex-download');

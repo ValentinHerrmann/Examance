@@ -1,28 +1,38 @@
 <script lang="ts">
-  import { t } from '$lib/i18n';
-  import { fmt } from '$lib/utils/format';
-  import { gradeColorVar, type BorderlineCase } from '$lib/analytics/gradingKey';
-  import { Card } from '$lib/components/ui';
+  import { t } from '#lib/i18n';
+  import { fmt } from '#lib/utils/format';
+  import { gradeColorVar, type BorderlineCase } from '#lib/analytics/gradingKey';
+  import { Card } from '#lib/components/ui';
 
-  export let cases: BorderlineCase[];
-  export let examId: string;
-  /** Submission ids in grading-view order, so "#n" matches the grading header. */
-  export let submissionIds: string[];
-  let className = '';
-  export { className as class };
+  interface Props {
+    cases: BorderlineCase[];
+    examId: string;
+    /** Submission ids in grading-view order, so "#n" matches the grading header. */
+    submissionIds: string[];
+    class?: string;
+  }
+
+  let {
+    cases,
+    examId,
+    submissionIds,
+    class: className = ''
+  }: Props = $props();
 
   // One column template for the header and every row, so the numbers line up.
   // Phone widths get narrower columns and smaller text, so a row fits a 320px screen.
   const ROW =
     'grid grid-cols-[2.25rem_minmax(0,1fr)_3.25rem_4rem_3rem] items-center gap-x-1.5 sm:grid-cols-[2.75rem_minmax(0,1fr)_4.5rem_5.5rem_4rem] sm:gap-x-3';
 
-  $: indexOf = new Map(submissionIds.map((id, i) => [id, i + 1]));
-  $: groups = [
+  let indexOf = $derived(new Map(submissionIds.map((id, i) => [id, i + 1])));
+  let groups = $derived([
     { side: '+', mark: '+', title: $t('stats.borderline.plusTitle'), items: cases.filter((c) => c.side === '+') },
     { side: '-', mark: '−', title: $t('stats.borderline.minusTitle'), items: cases.filter((c) => c.side === '-') },
-  ];
-  $: pts = (v: number) => $fmt.number(v, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  $: provisional = cases.some((c) => !c.isComplete);
+  ]);
+  function pts(v: number) {
+    return $fmt.number(v, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+  let provisional = $derived(cases.some((c) => !c.isComplete));
 </script>
 
 <Card class={className}>

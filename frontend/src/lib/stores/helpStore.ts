@@ -1,14 +1,8 @@
 import { get, writable } from "svelte/store";
-import { safeLocalStorage } from "$lib/utils/storage";
-import { topicForPath, type HelpTopicId } from "$lib/help/topics";
+import { safeLocalStorage } from "#lib/utils/storage";
+import { topicForPath, type HelpTopicId } from "#lib/help/topics";
 
-/**
- * State of the global help panel.
- *
- * `topicId === null` means "show the topic overview". Opening without an
- * explicit topic resolves one from the current pathname, so the panel always
- * lands on something relevant to what the teacher is looking at.
- */
+/** State of the global help panel. `topicId === null` shows the overview; opening without a topic resolves one from the pathname. */
 export interface HelpState {
   open: boolean;
   topicId: HelpTopicId | null;
@@ -20,10 +14,7 @@ function readSeen(): boolean {
   return safeLocalStorage.getItem(SEEN_KEY) === "1";
 }
 
-/**
- * `false` until the help panel has been opened once. Drives nothing more than
- * a quiet highlight on the navbar help button — never a blocking overlay.
- */
+/** `false` until the help panel was opened once; only drives a quiet navbar highlight, never a blocking overlay. */
 export const helpSeen = writable<boolean>(readSeen());
 
 export const helpStore = writable<HelpState>({ open: false, topicId: null });

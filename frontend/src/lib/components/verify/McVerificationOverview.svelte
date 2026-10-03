@@ -1,15 +1,19 @@
 <script lang="ts">
-  import type { McVerificationStats } from "$lib/grading/mcVerification";
-  import { t } from "$lib/i18n";
-  import { TableScroller } from "$lib/components/ui";
+  import type { McVerificationStats } from "#lib/grading/mcVerification";
+  import { t } from "#lib/i18n";
+  import { TableScroller } from "#lib/components/ui";
 
-  export let stats: McVerificationStats;
+  interface Props {
+    stats: McVerificationStats;
+  }
 
-  $: sortedExerciseBreakdown = [...stats.perExercise].sort((a, b) => {
+  let { stats }: Props = $props();
+
+  let sortedExerciseBreakdown = $derived([...stats.perExercise].sort((a, b) => {
     if (b.failed !== a.failed) return b.failed - a.failed;
     if (b.ambiguous !== a.ambiguous) return b.ambiguous - a.ambiguous;
     return a.exerciseLabel.localeCompare(b.exerciseLabel);
-  });
+  }));
 
   interface ProgressRow {
     label: string;
@@ -19,7 +23,7 @@
     textColor: string;
   }
 
-  $: progressRows = [
+  let progressRows = $derived([
     {
       label: $t("scanning.overview.progressFailedLabel"),
       reviewed: stats.qualityStats.failedConfidence.reviewed,
@@ -41,7 +45,7 @@
       barColor: "bg-success",
       textColor: "text-success-fg",
     },
-  ] satisfies ProgressRow[];
+  ] satisfies ProgressRow[]);
 </script>
 
 <div class="space-y-6 mb-8">

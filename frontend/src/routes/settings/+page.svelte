@@ -1,26 +1,26 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { db } from "$lib/db/db";
-  import { eraseStudent } from "$lib/gdpr/erasure";
-  import { wipeDatabase } from "$lib/db/hygiene";
-  import { sessionStore, isUnlocked, isAuthenticated, awaitSessionReady } from "$lib/stores/session";
-  import { studentRepository } from "$lib/repositories/studentRepository";
+  import { db } from "#lib/db/db";
+  import { eraseStudent } from "#lib/gdpr/erasure";
+  import { wipeDatabase } from "#lib/db/hygiene";
+  import { sessionStore, isUnlocked, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
+  import { studentRepository } from "#lib/repositories/studentRepository";
   import { get } from "svelte/store";
   import {
     storagePolicyStore,
     type StorageMode,
-  } from "$lib/stores/storagePolicy";
-  import type { StudentRecord } from "$lib/db/schema";
+  } from "#lib/stores/storagePolicy";
+  import type { StudentRecord } from "#lib/db/schema";
   import { onMount } from "svelte";
-  import SettingsForm from "$lib/components/settings/SettingsForm.svelte";
-  import GdprErasureTable from "$lib/components/settings/GdprErasureTable.svelte";
-  import OmrDetectionSettingsCard from "$lib/components/settings/OmrDetectionSettingsCard.svelte";
-  import { omrSettingsStore } from "$lib/stores/omrSettings";
-  import OmrDonationCard from "$lib/components/settings/OmrDonationCard.svelte";
-  import { trainingDonationStore } from "$lib/stores/trainingDonation";
-  import { fetchDonationAvailable } from "$lib/services/trainingDonation";
-  import { backendStore, extractHostname } from "$lib/stores/backendStore";
-  import { exportStudentData, toDownloadableJson } from "$lib/gdpr/subjectAccess";
+  import SettingsForm from "#lib/components/settings/SettingsForm.svelte";
+  import GdprErasureTable from "#lib/components/settings/GdprErasureTable.svelte";
+  import OmrDetectionSettingsCard from "#lib/components/settings/OmrDetectionSettingsCard.svelte";
+  import { omrSettingsStore } from "#lib/stores/omrSettings";
+  import OmrDonationCard from "#lib/components/settings/OmrDonationCard.svelte";
+  import { trainingDonationStore } from "#lib/stores/trainingDonation";
+  import { fetchDonationAvailable } from "#lib/services/trainingDonation";
+  import { backendStore, extractHostname } from "#lib/stores/backendStore";
+  import { exportStudentData, toDownloadableJson } from "#lib/gdpr/subjectAccess";
   import {
     locale,
     setLocale,
@@ -28,10 +28,10 @@
     translate,
     LOCALE_LABELS,
     type Locale,
-  } from "$lib/i18n";
-  import { PageShell, PageHeader, Card, Button, Alert } from "$lib/components/ui";
-  import SectionNav from "$lib/components/settings/SectionNav.svelte";
-  import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
+  } from "#lib/i18n";
+  import { PageShell, PageHeader, Card, Button, Alert } from "#lib/components/ui";
+  import SectionNav from "#lib/components/settings/SectionNav.svelte";
+  import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
 
   /** GDPR Art. 15 — hand the data subject a readable copy of their own data. */
   async function handleExportStudent(pseudonymId: string) {
@@ -50,12 +50,12 @@
     }
   }
 
-  let students: StudentRecord[] = [];
-  let isErasing = false;
-  let statusMsg = "";
-  let isSwitchWizardOpen = false;
-  let switchTarget: StorageMode | null = null;
-  let donationAvailable = false;
+  let students: StudentRecord[] = $state.raw([]);
+  let isErasing = $state(false);
+  let statusMsg = $state("");
+  let isSwitchWizardOpen = $state(false);
+  let switchTarget: StorageMode | null = $state(null);
+  let donationAvailable = $state(false);
 
   onMount(async () => {
     void fetchDonationAvailable().then((ok) => (donationAvailable = ok));
@@ -114,7 +114,7 @@
     }
   }
 
-  $: navItems = [
+  let navItems = $derived([
     { id: "storage-policy", label: $t("settings.storage.heading") },
     { id: "latex", label: $t("settings.latex.heading") },
     { id: "language", label: $t("settings.language.heading") },
@@ -126,7 +126,7 @@
     ...($isAuthenticated ? [{ id: "security", label: $t("security.page.title") }] : []),
     { id: "gdpr", label: $t("admin.gdprErasureTable.title") },
     { id: "hygiene", label: $t("settings.hygiene.heading") },
-  ];
+  ]);
 
   async function handleClearAllSessionData() {
     if (!confirm(translate("settings.hygiene.confirm"))) return;

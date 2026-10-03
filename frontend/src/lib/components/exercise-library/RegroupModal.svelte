@@ -1,19 +1,29 @@
 <script lang="ts">
-  import { type ExerciseGroup } from "$lib/exercise-library/groupExercises";
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import { t } from "$lib/i18n";
-  import { Alert, Modal, Button, Select } from "$lib/components/ui";
+  import { type ExerciseGroup } from "#lib/exercise-library/groupExercises";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import { t } from "#lib/i18n";
+  import { Alert, Modal, Button, Select } from "#lib/components/ui";
 
+  interface Props {
+    isOpen?: boolean;
+    /** Failure or validation message from the page, shown inline. */
+    error?: string;
+    regroupingExercise?: ExerciseRecord | null;
+    regroupTargetGroupId?: string;
+    groups?: ExerciseGroup[];
+    onSave: () => void;
+    onClose: () => void;
+  }
 
-
-  export let isOpen = false;
-  /** Failure or validation message from the page, shown inline. */
-  export let error = "";
-  export let regroupingExercise: ExerciseRecord | null = null;
-  export let regroupTargetGroupId = "";
-  export let groups: ExerciseGroup[] = [];
-  export let onSave: () => void;
-  export let onClose: () => void;
+  let {
+    isOpen = false,
+    error = "",
+    regroupingExercise = null,
+    regroupTargetGroupId = $bindable(""),
+    groups = [],
+    onSave,
+    onClose
+  }: Props = $props();
 </script>
 
 <Modal open={isOpen && !!regroupingExercise} size="small" title={$t("exercises.regroupModal.title")} onClose={onClose}>
@@ -38,8 +48,8 @@
     </div>
   {/if}
 
-  <svelte:fragment slot="footer">
+  {#snippet footer()}
     <Button variant="outlined" severity="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
     <Button onClick={onSave}>{$t("exercises.regroupModal.moveButton")}</Button>
-  </svelte:fragment>
+  {/snippet}
 </Modal>

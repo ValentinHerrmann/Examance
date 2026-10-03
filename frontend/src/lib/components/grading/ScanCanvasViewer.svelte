@@ -1,54 +1,44 @@
 <script lang="ts">
-  /**
-   * Owns the scan canvas + overlay canvas, all pointer-event drawing/erasing
-   * logic, pinch-zoom gesture handling, PDF page rendering, and auto-crop.
-   * Reads/writes shared grading state (strokes, tool, zoom, PDF paging,
-   * scores) through gradingStore. Exposes imperative methods (via
-   * `bind:this`) for actions that require canvas/PDF context: page nav,
-   * zoom, auto-crop toggle, and clearing annotations.
-   *
-   * This is intentionally the last piece extracted from the original grade
-   * page — it is the highest-risk area (submission switching, redraw timing,
-   * pinch-zoom) so every function here is a close 1:1 port of the original.
-   */
-  import { cssVar } from "$lib/utils/cssVar";
-  import { tick, onMount } from "svelte";
-  import { loadPdfjs } from "$lib/pdf/pdfjs";
+  // Scan + overlay canvases, drawing/erasing, pinch-zoom, PDF paging and auto-crop; exposes imperative
+  // methods via `bind:this`. Highest-risk area (submission switching, redraw timing): keep it a 1:1 port.
+  import { cssVar } from "#lib/utils/cssVar";
+  import { tick, onMount, untrack } from "svelte";
+  import { loadPdfjs } from "#lib/pdf/pdfjs";
   import { get } from "svelte/store";
-  import type { SubmissionRecord, ExerciseRecord } from "$lib/db/schema";
-  import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { sessionStore } from "$lib/stores/session";
-  import { decrypt } from "$lib/crypto/aesGcm";
-  import { gradingStore, type VectorStroke } from "$lib/grading/gradingStore";
-  import { recalculateAutoScores } from "$lib/grading/autoScore";
-  import { loadLocalMcGroups } from "$lib/db/dbEncryption";
-  import { buildSubLabelMap } from "$lib/grading/mcGroupLabels";
-  import { drawMissingSymbol, drawCheckmark, drawOmrOverlayForPage } from "$lib/grading/omrOverlay";
+  import type { SubmissionRecord, ExerciseRecord } from "#lib/db/schema";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
+  import { sessionStore } from "#lib/stores/session";
+  import { decrypt } from "#lib/crypto/aesGcm";
+  import { gradingStore, type VectorStroke } from "#lib/grading/gradingStore";
+  import { recalculateAutoScores } from "#lib/grading/autoScore";
+  import { loadLocalMcGroups } from "#lib/db/dbEncryption";
+  import { buildSubLabelMap } from "#lib/grading/mcGroupLabels";
+  import { drawMissingSymbol, drawCheckmark, drawOmrOverlayForPage } from "#lib/grading/omrOverlay";
   import { getAutoCropBounds } from "./ScanCanvasViewer";
-  import { translate } from "$lib/i18n";
+  import { translate } from "#lib/i18n";
 
-  export let examId: string;
-  export let submission: SubmissionRecord | undefined;
-  export let exercises: ExerciseRecord[];
-  export let onSubmissionHydrated: (fullSub: SubmissionRecord) => void;
+  interface Props {
+    examId: string;
+    submission: SubmissionRecord | undefined;
+    exercises: ExerciseRecord[];
+    onSubmissionHydrated: (fullSub: SubmissionRecord) => void;
+  }
+
+  let { examId, submission, exercises, onSubmissionHydrated }: Props = $props();
 
   // ExerciseRecord.mcGroupId/subIndex are not populated for exam-linked exercises (the
   // exam-specific placement lives only in ExamExerciseRecord) — load the real group/letter
   // mapping once per exam for the "a) 1/2" sub-exercise sum stamp in drawOmrDetections().
-  let subExerciseLetters: Map<string, string> = new Map();
+  let subExerciseLetters: Map<string, string> = $state.raw(new Map());
   let loadedGroupsExamId: string | null = null;
-  $: if (examId && examId !== loadedGroupsExamId) {
-    loadedGroupsExamId = examId;
-    loadMcGroupLetters(examId);
-  }
 
   async function loadMcGroupLetters(id: string) {
     subExerciseLetters = buildSubLabelMap(await loadLocalMcGroups(id).catch(() => []));
   }
 
-  let scanCanvas: HTMLCanvasElement;
-  let overlayCanvas: HTMLCanvasElement;
-  let canvasViewport: HTMLDivElement;
+  let scanCanvas: HTMLCanvasElement | undefined = $state();
+  let overlayCanvas: HTMLCanvasElement | undefined = $state();
+  let canvasViewport: HTMLDivElement | undefined = $state();
 
   let isDrawing = false;
   let isErasing = false;
@@ -57,16 +47,9 @@
   let initialPinchDistance: number | null = null;
   let initialZoomScale: number = 1.0;
 
-  let strokes: VectorStroke[] = [];
-  $: strokes = $gradingStore.currentStrokes;
-
-  // Redraw when OMR detections change (submission switch, or a manual toggle in
-  // McAnswerReview carrying `detections` forward) — mirrors how `strokes` above tracks the
-  // store, but this pass is a fully separate (non-persisted, non-erasable) overlay so it
-  // can't just reuse the stroke-edit call sites.
-  $: if (overlayCanvas && ($gradingStore.mcState || subExerciseLetters)) {
-    redrawOverlay();
-  }
+  // Writable $derived (not proxied): strokes stay the store's own array, which handlePointerMove
+  // mutates in place before persistStrokes().
+  let strokes: VectorStroke[] = $derived($gradingStore.currentStrokes);
 
   let loadedSubId: string | null = null;
 
@@ -75,11 +58,6 @@
   // which live in the store for ZoomPageControls to read).
   let pdfDoc: any = null;
   let pdfBytes: Uint8Array | null = null;
-
-  $: if (submission && submission.id !== loadedSubId) {
-    loadedSubId = submission.id;
-    loadSubmissionCanvas(submission);
-  }
 
   function persistStrokes(next: VectorStroke[]) {
     strokes = next;
@@ -211,10 +189,10 @@
             crop = getAutoCropBounds(tempCtx, img.width, img.height);
           }
 
-          scanCanvas.width = crop.w;
-          scanCanvas.height = crop.h;
-          overlayCanvas.width = crop.w;
-          overlayCanvas.height = crop.h;
+          scanCanvas!.width = crop.w;
+          scanCanvas!.height = crop.h;
+          overlayCanvas!.width = crop.w;
+          overlayCanvas!.height = crop.h;
 
           ctx.drawImage(img, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h);
           URL.revokeObjectURL(url);
@@ -471,6 +449,12 @@
     isErasing = false;
   }
 
+  // Svelte 5 registers `onwheel` as passive; ctrl+wheel zoom needs preventDefault, so attach non-passively.
+  function wheelAction(node: HTMLElement) {
+    node.addEventListener("wheel", handleWheel, { passive: false });
+    return { destroy: () => node.removeEventListener("wheel", handleWheel) };
+  }
+
   function handleWheel(e: WheelEvent) {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
@@ -522,7 +506,7 @@
 
     let lastWidth = canvasViewport.clientWidth;
     const observer = new ResizeObserver(() => {
-      const width = canvasViewport.clientWidth;
+      const width = canvasViewport!.clientWidth;
       // Ignore sub-pixel jitter and height-only changes.
       if (Math.abs(width - lastWidth) < 24) {
         return;
@@ -619,20 +603,14 @@
     drawOmrDetections(ctx, currentPage);
   }
 
-  /**
-   * Draws OMR-derived annotations (per-option score stamps, missing-option symbols,
-   * per-sub-exercise "a) 1/2" totals) over every MC/SC/TF exercise on the currently-displayed
-   * page — a separate, non-persisted draw pass appended after the annotation strokes above:
-   * never pushed into `strokes`, so it isn't erasable and doesn't feed recalcScores(). Shared
-   * with the graded-PDF export (routes/exam/[id]/scan/+page.svelte) via omrOverlay.ts so both
-   * render identical annotations.
-   */
+  // Non-persisted OMR draw pass: never pushed into `strokes` (not erasable, no recalcScores()).
+  // Shared with the graded-PDF export (routes/exam/[id]/scan) via omrOverlay.ts.
   function drawOmrDetections(ctx: CanvasRenderingContext2D, currentPage: number) {
     const state = get(gradingStore);
     drawOmrOverlayForPage(
       ctx,
-      overlayCanvas.width,
-      overlayCanvas.height,
+      overlayCanvas!.width,
+      overlayCanvas!.height,
       currentPage,
       state.mcState,
       exercises,
@@ -640,12 +618,38 @@
       state.scoreInputs
     );
   }
+
+  $effect.pre(() => {
+    const id = examId;
+    if (id && id !== loadedGroupsExamId) {
+      loadedGroupsExamId = id;
+      untrack(() => loadMcGroupLetters(id));
+    }
+  });
+
+  // Redraw the separate, non-persisted OMR overlay when detections or group letters change.
+  $effect.pre(() => {
+    const canvas = overlayCanvas;
+    const mcState = $gradingStore.mcState;
+    const letters = subExerciseLetters;
+    if (canvas && (mcState || letters)) {
+      untrack(() => redrawOverlay());
+    }
+  });
+
+  $effect.pre(() => {
+    const sub = submission;
+    if (sub && sub.id !== loadedSubId) {
+      loadedSubId = sub.id;
+      untrack(() => loadSubmissionCanvas(sub));
+    }
+  });
 </script>
 
 <div
   class="scroll-pane relative box-border h-full min-h-0 w-full flex-1 overflow-auto overscroll-contain bg-surface-viewer p-2"
   bind:this={canvasViewport}
-  on:wheel={handleWheel}
+  use:wheelAction
 >
   <!-- No `max-w-full` here: it silently clamped every zoom above 100% instead
        of letting the viewport scroll, so zooming in did nothing. -->
@@ -654,10 +658,10 @@
     <canvas
       bind:this={overlayCanvas}
       class="absolute top-0 left-0 h-full w-full cursor-crosshair touch-none"
-      on:pointerdown={handlePointerDown}
-      on:pointermove={handlePointerMove}
-      on:pointerup={handlePointerUp}
-      on:pointercancel={handlePointerUp}
+      onpointerdown={handlePointerDown}
+      onpointermove={handlePointerMove}
+      onpointerup={handlePointerUp}
+      onpointercancel={handlePointerUp}
     ></canvas>
   </div>
 </div>

@@ -1,29 +1,15 @@
 <script lang="ts">
-  /**
-   * How long a login cooloff still has to run.
-   *
-   * The wait doubles with each failure past the threshold — one minute to an
-   * hour — so "try again later" left the only sensible move being to keep
-   * trying, which never works and never explains itself.
-   *
-   * Subscribes to the store directly rather than taking a prop: it is one
-   * ticking value, and threading it through UnlockForm → FactorChooser →
-   * TotpFactor would be worse than the prop-drilling rule is meant to prevent.
-   */
-  import { onDestroy } from "svelte";
-  import { t } from "$lib/i18n";
-  import { Alert } from "$lib/components/ui";
+  /** Remaining login cooloff (doubles per failure, 1 min to 1 h). Reads the store directly rather than drilling through UnlockForm → FactorChooser → TotpFactor. */
+  import { onDestroy, untrack } from "svelte";
+  import { t } from "#lib/i18n";
+  import { Alert } from "#lib/components/ui";
   import {
     formatRemaining,
     loginLockout,
     remainingSeconds,
-  } from "$lib/stores/loginLockout";
+  } from "#lib/stores/loginLockout";
 
-  let remaining = 0;
-
-  // Recomputed on every tick *and* whenever the deadline changes, so a second
-  // rejection showing less time left replaces the first without waiting.
-  $: remaining = remainingSeconds($loginLockout.lockedUntil);
+  let remaining = $state(0);
 
   const timer = setInterval(() => {
     remaining = remainingSeconds($loginLockout.lockedUntil);
@@ -35,6 +21,15 @@
   }, 1000);
 
   onDestroy(() => clearInterval(timer));
+
+  // Recomputed on every tick *and* whenever the deadline changes, so a second
+  // rejection showing less time left replaces the first without waiting.
+  $effect.pre(() => {
+    const lockedUntil = $loginLockout.lockedUntil;
+    untrack(() => {
+      remaining = remainingSeconds(lockedUntil);
+    });
+  });
 </script>
 
 {#if remaining > 0}

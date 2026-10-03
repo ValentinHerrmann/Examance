@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import {
     faArrowRightFromBracket,
     faBars,
@@ -19,48 +19,65 @@
     faTriangleExclamation,
   } from "@fortawesome/free-solid-svg-icons";
   import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
-  import { locale, t, toggleLocale, LOCALE_LABELS, type Locale } from "$lib/i18n";
-  import { dataPlaceIcons, latexPlaceIcons } from "$lib/components/storage/placeIcons";
-  import type { TranslationKey } from "$lib/i18n/types";
-  import type { StorageMode } from "$lib/stores/storagePolicy";
-  import type { VersionStatus } from "$lib/stores/versionStore";
-  import { themePreference, setThemePreference, theme, type ThemePreference } from "$lib/stores/theme";
-  import { mobileNavOpen } from "$lib/stores/shell";
-  import { Icon, Menu, MenuItem } from "$lib/components/ui";
+  import { locale, t, toggleLocale, LOCALE_LABELS, type Locale } from "#lib/i18n";
+  import { dataPlaceIcons, latexPlaceIcons } from "#lib/components/storage/placeIcons";
+  import type { TranslationKey } from "#lib/i18n/types";
+  import type { StorageMode } from "#lib/stores/storagePolicy";
+  import type { VersionStatus } from "#lib/stores/versionStore";
+  import { themePreference, setThemePreference, theme, type ThemePreference } from "#lib/stores/theme";
+  import { mobileNavOpen } from "#lib/stores/shell";
+  import { Icon, Menu, MenuItem } from "#lib/components/ui";
 
   /**
-   * Artemis navbar: dark slate in both themes. Brand and (from `xl`) the main
-   * links on the left; storage mode, workspace, language, theme, help and the
-   * account on the right. Below `xl` the links move into the drawer behind
-   * the burger at the far left — at 1024px (iPad portrait) they do not fit
-   * beside the right-hand cluster.
-   *
-   * `minimal` is for locked and public pages: brand, language, theme, help.
+   * Artemis navbar, dark slate in both themes: brand and (from `xl`) main links left; storage mode, workspace, language,
+   * theme, help, account right. Below `xl` the links move into the drawer (they do not fit at 1024px). `minimal` is for
+   * locked and public pages: brand, language, theme, help.
    */
-  export let variant: "full" | "minimal" = "full";
-  export let authenticated = false;
-  export let userRole: string | null = null;
-  export let userEmail: string | null = null;
-  export let storageMode: StorageMode = "all-local";
-  export let latexCompilation: "local" | "server" = "local";
-  export let versionStatus: VersionStatus = "no-server";
-  export let helpUnseen = false;
-  export let onStorageClick: () => void = () => {};
-  export let onHelpClick: () => void = () => {};
-  export let onOpenArchive: () => void = () => {};
-  export let onExportArchive: () => void = () => {};
-  export let onClearWorkspace: () => void = () => {};
-  export let onLock: () => void = () => {};
+  interface Props {
+    variant?: "full" | "minimal";
+    authenticated?: boolean;
+    userRole?: string | null;
+    userEmail?: string | null;
+    storageMode?: StorageMode;
+    latexCompilation?: "local" | "server";
+    versionStatus?: VersionStatus;
+    helpUnseen?: boolean;
+    onStorageClick?: () => void;
+    onHelpClick?: () => void;
+    onOpenArchive?: () => void;
+    onExportArchive?: () => void;
+    onClearWorkspace?: () => void;
+    onLock?: () => void;
+  }
 
-  $: links = [
+  let {
+    variant = "full",
+    authenticated = false,
+    userRole = null,
+    userEmail = null,
+    storageMode = "all-local",
+    latexCompilation = "local",
+    versionStatus = "no-server",
+    helpUnseen = false,
+    onStorageClick = () => {},
+    onHelpClick = () => {},
+    onOpenArchive = () => {},
+    onExportArchive = () => {},
+    onClearWorkspace = () => {},
+    onLock = () => {},
+  }: Props = $props();
+
+  let links = $derived([
     { href: "/", label: $t("nav.dashboard") },
     { href: "/exercises", label: $t("nav.exerciseLibrary") },
     { href: "/analytics", label: $t("nav.analytics") },
     ...(userRole === "admin" ? [{ href: "/admin/users", label: $t("nav.userManagement") }] : []),
-  ];
+  ]);
 
-  $: currentPath = $page.url.pathname;
-  $: isActive = (href: string) => (href === "/" ? currentPath === "/" : currentPath.startsWith(href));
+  let currentPath = $derived(page.url.pathname);
+  function isActive(href: string) {
+    return href === "/" ? currentPath === "/" : currentPath.startsWith(href);
+  }
 
   const dataKeys: Record<StorageMode, { label: TranslationKey; title: TranslationKey }> = {
     "all-local": { label: "nav.dataLocal", title: "storagePolicy.allLocalTitle" },
@@ -73,10 +90,10 @@
     server: { label: "nav.latexServerShort", title: "nav.latexServerTitle" },
   };
 
-  $: dataLabel = $t(dataKeys[storageMode].label);
-  $: dataTitle = $t(dataKeys[storageMode].title);
-  $: latexLabel = $t(latexKeys[latexCompilation].label);
-  $: latexTitle = $t(latexKeys[latexCompilation].title);
+  let dataLabel = $derived($t(dataKeys[storageMode].label));
+  let dataTitle = $derived($t(dataKeys[storageMode].title));
+  let latexLabel = $derived($t(latexKeys[latexCompilation].label));
+  let latexTitle = $derived($t(latexKeys[latexCompilation].title));
 
   const themeIcons: Record<ThemePreference, IconDefinition> = {
     system: faCircleHalfStroke,
@@ -86,9 +103,9 @@
 
   const themeOptions: ThemePreference[] = ["system", "light", "dark"];
 
-  $: nextLocale = ($locale === "de" ? "en" : "de") as Locale;
+  let nextLocale = $derived(($locale === "de" ? "en" : "de") as Locale);
 
-  /* One look for every control on the slate bar. */
+  // One look for every control on the slate bar.
   const control =
     "inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2.5 text-sm font-medium " +
     "text-navbar-muted no-underline hover:bg-navbar-hover hover:text-navbar-content " +
@@ -105,7 +122,7 @@
       class="{iconControl} xl:hidden"
       aria-label={$t("nav.openMenu")}
       aria-expanded={$mobileNavOpen}
-      on:click={() => mobileNavOpen.set(!$mobileNavOpen)}
+      onclick={() => mobileNavOpen.set(!$mobileNavOpen)}
     >
       <Icon icon={faBars} class="text-lg" />
     </button>
@@ -165,7 +182,7 @@
           class="{control} gap-1 px-1.5 sm:gap-2 sm:px-2.5"
           title="{$t('nav.dataLabel')}: {dataLabel} – {dataTitle}"
           aria-label={$t("nav.storageMode", { mode: dataLabel })}
-          on:click={onStorageClick}
+          onclick={onStorageClick}
         >
           <Icon icon={faDatabase} class="text-xs opacity-70" />
           <Icon icon={dataPlaceIcons[storageMode]} />
@@ -176,7 +193,7 @@
           class="{control} gap-1 px-1.5 sm:gap-2 sm:px-2.5"
           title="{$t('nav.latexLabel')}: {latexLabel} – {latexTitle}"
           aria-label={$t("nav.latexMode", { mode: latexLabel })}
-          on:click={onStorageClick}
+          onclick={onStorageClick}
         >
           <span class="font-serif text-xs font-bold tracking-tight opacity-70" aria-hidden="true">TeX</span>
           <Icon icon={latexPlaceIcons[latexCompilation]} />
@@ -201,7 +218,7 @@
       class={control}
       title={$t("statusBar.languageHint", { language: LOCALE_LABELS[nextLocale] })}
       aria-label={$t("statusBar.languageHint", { language: LOCALE_LABELS[nextLocale] })}
-      on:click={toggleLocale}
+      onclick={toggleLocale}
     >
       {$locale.toUpperCase()}
     </button>
@@ -229,7 +246,7 @@
       class="{iconControl} relative"
       title={$t("help.ui.statusBarHint")}
       aria-label={$t("help.ui.openHelp")}
-      on:click={onHelpClick}
+      onclick={onHelpClick}
     >
       <Icon icon={faCircleQuestion} class="text-lg" />
       {#if helpUnseen}

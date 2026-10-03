@@ -1,16 +1,29 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import { Card, Checkbox } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { Card, Checkbox } from "#lib/components/ui";
 
-  /** Whether this browser has opted in. */
-  export let enabled: boolean;
-  /** Whether the configured backend accepts donations at all. */
-  export let available: boolean;
-  /** Donations need a server account; signed out, only switching off is possible. */
-  export let signedIn: boolean;
-  /** Host the samples would go to (the configured backend). */
-  export let host: string;
-  export let onChange: (enabled: boolean) => void;
+  
+
+  
+  interface Props {
+    /** Whether this browser has opted in. */
+    enabled: boolean;
+    /** Whether the configured backend accepts donations at all. */
+    available: boolean;
+    /** Donations need a server account; signed out, only switching off is possible. */
+    signedIn: boolean;
+    /** Host the samples would go to (the configured backend). */
+    host: string;
+    onChange: (enabled: boolean) => void;
+  }
+
+  let {
+    enabled,
+    available,
+    signedIn,
+    host,
+    onChange
+  }: Props = $props();
 </script>
 
 <!-- Also shown when the server is unavailable but consent is on: withdrawing must always work. -->

@@ -1,19 +1,16 @@
 <script lang="ts">
-  /**
-   * The "added / last used" line under a factor.
-   *
-   * Null is not "never" — these timestamps were added after the factors were,
-   * so an account that has been signing in for months can legitimately have
-   * none. Saying "not recorded" is the honest rendering; showing a date derived
-   * from the account's creation would be an invention.
-   */
-  import { t } from "$lib/i18n";
-  import { fmt } from "$lib/utils/format";
+  /** The "added / last used" line. Null is not "never" (timestamps were added after the factors), so render "not recorded", never a date derived from account creation. */
+  import { t } from "#lib/i18n";
+  import { fmt } from "#lib/utils/format";
 
-  export let createdAt: string | null = null;
-  export let lastUsedAt: string | null = null;
-  /** Set when the factor is known never to have been used, rather than unrecorded. */
-  export let neverUsed = false;
+  interface Props {
+    createdAt?: string | null;
+    lastUsedAt?: string | null;
+    /** Set when the factor is known never to have been used, rather than unrecorded. */
+    neverUsed?: boolean;
+  }
+
+  let { createdAt = null, lastUsedAt = null, neverUsed = false }: Props = $props();
 </script>
 
 <p class="m-0 text-xs text-muted">

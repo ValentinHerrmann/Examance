@@ -1,15 +1,34 @@
 <script lang="ts">
-  export let checked = false;
-  export let label: string | undefined = undefined;
-  export let id: string | undefined = undefined;
-  export let disabled = false;
-  export let required = false;
-  export let invalid = false;
-  export let name: string | undefined = undefined;
-  export let onChange: ((checked: boolean) => void) | undefined = undefined;
+  import type { Snippet } from "svelte";
+  import type { HTMLInputAttributes } from "svelte/elements";
 
-  let className = "";
-  export { className as class };
+  interface Props extends Omit<HTMLInputAttributes, "checked" | "class" | "type" | "children"> {
+    checked?: boolean;
+    label?: string | undefined;
+    id?: string | undefined;
+    disabled?: boolean;
+    required?: boolean;
+    invalid?: boolean;
+    name?: string | undefined;
+    onChange?: ((checked: boolean) => void) | undefined;
+    class?: string;
+    children?: Snippet;
+  }
+
+  let {
+    checked = $bindable(false),
+    label = undefined,
+    id = undefined,
+    disabled = false,
+    required = false,
+    invalid = false,
+    name = undefined,
+    onChange = undefined,
+    onchange = undefined,
+    class: className = "",
+    children,
+    ...rest
+  }: Props = $props();
 </script>
 
 <label
@@ -25,9 +44,12 @@
     {required}
     bind:checked
     aria-invalid={invalid ? "true" : undefined}
-    on:change={() => onChange?.(checked)}
+    onchange={(e) => {
+      onChange?.(checked);
+      onchange?.(e);
+    }}
     class="size-5 shrink-0 cursor-[inherit] rounded-sm accent-primary"
-    {...$$restProps}
+    {...rest}
   />
-  {#if label || $$slots.default}<span class="min-w-0"><slot>{label}</slot></span>{/if}
+  {#if label || children}<span class="min-w-0">{#if children}{@render children()}{:else}{label}{/if}</span>{/if}
 </label>

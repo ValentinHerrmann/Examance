@@ -1,10 +1,4 @@
-/**
- * Runtime WASM integrity checker.
- *
- * Fetches a WASM binary, computes its SHA-256 hash using Web Crypto API,
- * and compares it against the expected hash in static/sri-manifest.json.
- * Aborts load (throws Error) if there is a mismatch.
- */
+/** Runtime WASM integrity checker: hashes a fetched WASM binary (SHA-256) against static/sri-manifest.json and throws on mismatch. */
 
 interface SriManifest {
   wasm: Record<string, string>;
@@ -23,14 +17,7 @@ async function loadManifest(): Promise<SriManifest> {
   return manifestCache;
 }
 
-/**
- * Fetch a WASM buffer and verify its SHA-256 against sri-manifest.json.
- *
- * @param url Full or relative URL to the WASM file.
- * @param packageKey Key in the "wasm" section of sri-manifest.json (e.g. "argon2-browser@1.18.0").
- * @returns Verified ArrayBuffer of the WASM file.
- * @throws Error if manifest fetch fails, hash mismatches, or file download fails.
- */
+/** Fetch a WASM buffer and verify its SHA-256 against the `packageKey` entry (e.g. "argon2-browser@1.18.0") of sri-manifest.json. @throws on manifest fetch failure, hash mismatch or download failure. */
 export async function fetchAndVerifyWasm(url: string, packageKey: string): Promise<ArrayBuffer> {
   const manifest = await loadManifest();
   const expectedHash = manifest.wasm[packageKey];

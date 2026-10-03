@@ -1,13 +1,13 @@
-import { api } from '$lib/api/client';
-import { db } from '$lib/db/db';
-import { resultsAreLocal } from '$lib/stores/storagePolicy';
-import { encryptSubmission, decryptSubmission } from '$lib/db/dbEncryption';
-import { enqueueRequest } from '$lib/services/offlineQueue';
-import type { SubmissionRecord } from '$lib/db/schema';
-import { uint8ArrayToBase64, base64ToUint8Array } from '$lib/crypto/aesGcm';
-import { ensure64CharHex } from '$lib/crypto/hmac';
-import { examRepository } from '$lib/repositories/examRepository';
-import { scoreRepository } from '$lib/repositories/scoreRepository';
+import { api } from '#lib/api/client';
+import { db } from '#lib/db/db';
+import { resultsAreLocal } from '#lib/stores/storagePolicy';
+import { encryptSubmission, decryptSubmission } from '#lib/db/dbEncryption';
+import { enqueueRequest } from '#lib/services/offlineQueue';
+import type { SubmissionRecord } from '#lib/db/schema';
+import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
+import { ensure64CharHex } from '#lib/crypto/hmac';
+import { examRepository } from '#lib/repositories/examRepository';
+import { scoreRepository } from '#lib/repositories/scoreRepository';
 
 export function mapApiToSubmissionRecord(s: any, fallbackExamId: string): SubmissionRecord {
   return {
@@ -33,18 +33,12 @@ const includeScansQS = (includeScans: boolean | undefined) =>
   includeScans ? '?include_scans=true' : '';
 
 export const submissionRepository = {
-  /**
-   * @param knownExams exams the caller already has, to avoid a second
-   *   `/exams` fetch just to learn which ids to ask about.
-   */
-  /**
-   * @param opts.includeScans Ask the server to ship every submission's scan
-   *   PDF too. Off by default — a list is metadata (`hasScan` still tells you
-   *   whether one exists); only export/archive and bulk scan-processing flows
-   *   that genuinely need every submission's bytes at once should set this.
-   *   Everything else loads a scan lazily via `getById` when it is opened.
-   *   Local mode ignores this — Dexie already has everything decrypted.
-   */
+    /** @param knownExams exams the caller already has, avoiding a second `/exams` fetch. */
+    /**
+     * @param opts.includeScans Ship every submission's scan PDF too. Off by default (a list is metadata;
+     *   `hasScan` says whether one exists): only export/archive and bulk scan flows needing all bytes
+     *   should set it; otherwise load lazily via `getById`. Ignored in local mode (Dexie has it all decrypted).
+     */
   async getAll(
     key: CryptoKey | null,
     knownExams?: { id: string }[],
@@ -110,11 +104,7 @@ export const submissionRepository = {
     }
   },
 
-  /**
-   * @param opts.clearAnnotations Delete any stored annotation layer. Omitting
-   *   the annotation ciphertext means "don't touch annotations" — deleting
-   *   requires this flag.
-   */
+    /** @param opts.clearAnnotations Delete any stored annotation layer; omitting the annotation ciphertext means "don't touch", so deleting needs this flag. */
   async save(
     submission: SubmissionRecord,
     key: CryptoKey | null,

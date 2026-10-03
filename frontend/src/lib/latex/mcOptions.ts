@@ -1,9 +1,6 @@
 /**
- * Parse/build helpers for a single MC question's structured options.
- *
- * Matches the \LoesungMulti[N]{ \multi{wrong} \Lmulti{correct} ... } macro set
- * defined in backend/latex-assets/sty/Loesung.sty — \multi marks a distractor,
- * \Lmulti marks a correct option.
+ * Parse/build helpers for one MC question's options, matching the \LoesungMulti[N]{ \multi{wrong}
+ * \Lmulti{correct} ... } macros in backend/latex-assets/sty/Loesung.sty.
  */
 
 import { escapeLatex } from "./scoreParser";
@@ -68,12 +65,9 @@ function autoColumns(optionCount: number): number {
 }
 
 /**
- * Builds a MC exercise's latex body from question text + structured options.
- *
- * Option/question text is plain user input, not raw LaTeX by design (see
- * escapeLatex's doc comment in scoreParser.ts) -- escaped here so a stray
- * %/#/_/&/{/} doesn't silently break the \LoesungMulti block (and with it,
- * every \multi/\Lmulti omr:// annotation the OMR template capture relies on).
+ * Builds an MC exercise's latex body from question text and options. Text is plain input (see
+ * escapeLatex in scoreParser.ts) and escaped here so a stray %/#/_/&/{/} cannot break the
+ * \LoesungMulti block and the omr:// annotations OMR template capture relies on.
  */
 export function buildMcOptionsLatex(
   questionText: string,

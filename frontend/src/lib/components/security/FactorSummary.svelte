@@ -1,19 +1,14 @@
 <script lang="ts">
-  /**
-   * The state of the account in one paragraph, above the individual factors.
-   *
-   * Two things a teacher cannot work out from the cards below on their own:
-   * whether they are one loss away from being locked out, and whether anything
-   * they hold can still *decrypt* their data. An authenticator cannot — its
-   * secret lives server-side and six digits carry no entropy to derive a key
-   * from — so an account whose only key-capable factor disappears keeps its
-   * login and loses its exams.
-   */
-  import { Alert, Badge, Card } from "$lib/components/ui";
-  import { t, translate, type TranslationKey } from "$lib/i18n";
-  import type { FactorKind, MfaStatus } from "$lib/api/mfa";
+  /** Account state above the factors: how close to lockout, and whether any key-capable factor remains. An authenticator cannot decrypt data (secret is server-side), so losing the last key-capable factor loses the exams. */
+  import { Alert, Badge, Card } from "#lib/components/ui";
+  import { t, translate, type TranslationKey } from "#lib/i18n";
+  import type { FactorKind, MfaStatus } from "#lib/api/mfa";
 
-  export let status: MfaStatus;
+  interface Props {
+    status: MfaStatus;
+  }
+
+  let { status }: Props = $props();
 
   const FACTOR_LABEL = {
     password: "security.panel.factorPassword",
@@ -21,10 +16,10 @@
     passkey: "security.panel.factorPasskey",
   } as const satisfies Record<FactorKind, TranslationKey>;
 
-  $: keyCapableLabels = status.key_capable.map((f) => translate(FACTOR_LABEL[f])).join(", ");
+  let keyCapableLabels = $derived(status.key_capable.map((f) => translate(FACTOR_LABEL[f])).join(", "));
   // Exactly the minimum means every factor is load-bearing: lose one and only an
   // administrator can restore the account, and not the data.
-  $: atMinimum = status.enrolled.length === status.required_factor_count;
+  let atMinimum = $derived(status.enrolled.length === status.required_factor_count);
 </script>
 
 <Card tone={status.complete ? "default" : "warning"}>

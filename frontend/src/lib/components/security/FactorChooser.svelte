@@ -1,35 +1,31 @@
 <script lang="ts">
-  /**
-   * Which factor to finish the sign-in with.
-   *
-   * The policy takes any two of password, passkey and authenticator, and the
-   * server has always said which ones an account can still present — every
-   * step response carries `available`. The screen ignored it and rendered an
-   * authenticator prompt regardless, so signing in with a passkey left no route
-   * but the phone, and signing in with a password never offered the passkey.
-   *
-   * The list is the server's, never inferred here: asking the client to work
-   * out what an account has would mean telling it, which is the account-profile
-   * disclosure the whole flow is built to avoid.
-   *
-   * A passkey is the preferred second factor: the page sorts it first and
-   * starts its prompt by itself. While that prompt is open the buttons wait;
-   * cancelling it lands here, with every factor still on offer.
-   */
-  import { Button } from "$lib/components/ui";
-  import { t, type TranslationKey } from "$lib/i18n";
-  import type { FactorKind } from "$lib/api/mfa";
+  import { untrack } from "svelte";
+  /** Which factor to finish sign-in with. `available` is the server's list, never inferred here (account-profile disclosure); a passkey is preferred and auto-prompted. */
+  import { Button } from "#lib/components/ui";
+  import { t, type TranslationKey } from "#lib/i18n";
+  import type { FactorKind } from "#lib/api/mfa";
   import PasswordFactor from "./PasswordFactor.svelte";
   import TotpFactor from "./TotpFactor.svelte";
 
-  /** Straight from the server's `available`, minus anything the caller cannot offer. */
-  export let available: FactorKind[];
-  export let onTotp: (code: string, useBackupCode: boolean) => Promise<void>;
-  export let onPassword: (password: string) => Promise<void>;
-  export let onPasskey: () => Promise<void>;
-  export let errorMsg = "";
-  /** The page's automatic passkey prompt is open. */
-  export let passkeyPending = false;
+  interface Props {
+    /** Straight from the server's `available`, minus anything the caller cannot offer. */
+    available: FactorKind[];
+    onTotp: (code: string, useBackupCode: boolean) => Promise<void>;
+    onPassword: (password: string) => Promise<void>;
+    onPasskey: () => Promise<void>;
+    errorMsg?: string;
+    /** The page's automatic passkey prompt is open. */
+    passkeyPending?: boolean;
+  }
+
+  let {
+    available,
+    onTotp,
+    onPassword,
+    onPasskey,
+    errorMsg = "",
+    passkeyPending = false
+  }: Props = $props();
 
   const LABEL = {
     password: "security.panel.factorPassword",
@@ -43,15 +39,10 @@
     passkey: "security.chooser.passkeyHint",
   } as const satisfies Record<FactorKind, TranslationKey>;
 
-  let chosen: FactorKind | null = null;
-  let isWorking = false;
+  let chosen: FactorKind | null = $state(null);
+  let isWorking = $state(false);
 
-  // With exactly two factors enrolled there is only ever one left to present,
-  // and a menu of one is worse than no menu.
-  $: if (available.length === 1 && chosen === null) {
-    chosen = available[0];
-  }
-  $: canGoBack = available.length > 1;
+  let canGoBack = $derived(available.length > 1);
 
   async function choose(factor: FactorKind) {
     errorMsg = "";
@@ -72,6 +63,18 @@
     chosen = null;
     errorMsg = "";
   }
+
+  // With exactly two factors enrolled there is only ever one left to present,
+  // and a menu of one is worse than no menu.
+  $effect.pre(() => {
+    const factors = available;
+    const current = chosen;
+    if (factors.length === 1 && current === null) {
+      untrack(() => {
+        chosen = factors[0];
+      });
+    }
+  });
 </script>
 
 {#if chosen === "totp"}

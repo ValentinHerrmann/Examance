@@ -1,26 +1,23 @@
 /**
- * Import a .bgproj archive.
- *
- * Split in two: `decryptArchive()` only opens the envelope — no tables, no
- * session, no stores touched — so a wrong password costs nothing.
- * `applyArchive()` writes, and only once decryption succeeded and every
- * conflict has a decision. Never call `sessionStore.unlock()` with the
- * archive key; records are re-encrypted under the live session key.
+ * Import a .bgproj archive. `decryptArchive()` only opens the envelope (no tables, session or
+ * stores touched), so a wrong password costs nothing. `applyArchive()` writes, only after
+ * decryption succeeded and every conflict has a decision. Never call `sessionStore.unlock()`
+ * with the archive key; records are re-encrypted under the live session key.
  */
 
 import { get } from 'svelte/store';
-import { db } from '$lib/db/db';
-import { sessionStore } from '$lib/stores/session';
-import { storagePolicyStore } from '$lib/stores/storagePolicy';
+import { db } from '#lib/db/db';
+import { sessionStore } from '#lib/stores/session';
+import { storagePolicyStore } from '#lib/stores/storagePolicy';
 import {
   BGPROJ_MAGIC,
   BGPROJ_VERSION,
   HEADER_SIZE,
   type ProgressEvent,
 } from './format';
-import { deriveKey } from '$lib/crypto/keyDerivation';
-import { deriveSessionKey } from '$lib/crypto/sessionKey';
-import { base64ToUint8Array, toArrayBuffer } from '$lib/crypto/aesGcm';
+import { deriveKey } from '#lib/crypto/keyDerivation';
+import { deriveSessionKey } from '#lib/crypto/sessionKey';
+import { base64ToUint8Array, toArrayBuffer } from '#lib/crypto/aesGcm';
 import {
   saveExamEncrypted,
   saveExerciseEncrypted,
@@ -29,9 +26,9 @@ import {
   encryptExam,
   encryptExercise,
   encryptResource,
-} from '$lib/db/dbEncryption';
-import { scoreRepository } from '$lib/repositories/scoreRepository';
-import type { ExerciseScoreRecord } from '$lib/db/schema';
+} from '#lib/db/dbEncryption';
+import { scoreRepository } from '#lib/repositories/scoreRepository';
+import type { ExerciseScoreRecord } from '#lib/db/schema';
 import { importPayloadToServer } from './serverImport';
 
 export interface ImportResult {
@@ -40,10 +37,7 @@ export interface ImportResult {
   errors: string[];
 }
 
-/**
- * Opens the archive envelope and returns its payload. Read-only: no table or
- * store is touched, and the archive key never leaves this function.
- */
+/** Opens the archive envelope and returns its payload. Read-only; the archive key never leaves this function. */
 export async function decryptArchive(
   archiveData: Blob | ArrayBuffer | Uint8Array,
   password: string,
@@ -121,11 +115,7 @@ export async function decryptArchive(
   }
 }
 
-/**
- * Writes an already-decrypted, already-resolved payload into the current store.
- *
- * @param payload the output of `applyResolutions`, not the raw archive.
- */
+/** Writes a decrypted, already-resolved payload (output of `applyResolutions`, not the raw archive) into the current store. */
 export async function applyArchive(
   payload: Record<string, any>,
   onProgress?: (event: ProgressEvent) => void
@@ -137,13 +127,10 @@ export async function applyArchive(
     throw new Error('Unlock the session before importing an archive.');
   }
 
-  // Persist the archive contents.
-  //
-  // In server-backed modes the exam/exercise records must be *created* under the
-  // importing account: saveExamEncrypted/saveExerciseEncrypted route through
-  // examRepository.save()/exerciseRepository.save(), which PATCH an id the
-  // account does not own and never write IndexedDB. importPayloadToServer()
-  // creates them instead and reports any id substitutions it had to make.
+    // Persist. In server-backed modes exams/exercises must be *created* under the importing account:
+    // saveExamEncrypted/saveExerciseEncrypted go through repository.save(), which PATCHes ids the
+    // account doesn't own and never writes IndexedDB. importPayloadToServer() creates them instead
+    // and reports id substitutions.
   const isServerBacked = get(storagePolicyStore).storageMode !== 'all-local';
   const errors: string[] = [];
   let idMap = new Map<string, string>();
@@ -232,11 +219,9 @@ export async function applyArchive(
     }
   }
 
-  // MC groups before the junctions: the junctions carry mcGroupId, and a group
-  // whose exam was remapped onto a fresh id needs a fresh id of its own —
-  // otherwise re-importing an archive into the DB it came from would rewrite
-  // the original exam's groups. Both sides use the same map, so membership
-  // survives the remapping.
+    // MC groups before the junctions (which carry mcGroupId). A group whose exam got a fresh id needs
+    // its own fresh id too, else re-importing into the source DB would rewrite the original exam's
+    // groups. Both sides share one map, so membership survives.
   if (Array.isArray(payload.examMcGroups) && payload.examMcGroups.length > 0) {
     const groupRecords = payload.examMcGroups.map((g: any) => {
       const remappedExamId = remap(g.examId);
@@ -293,10 +278,8 @@ export async function applyArchive(
 }
 
 /**
- * Decrypt and write in one call, with no conflict resolution. Kept for
- * callers with no way to present conflicts (tests, imports into an empty
- * workspace); user-facing imports should go through
- * `archiveService.openBgprojArchive()`.
+ * Decrypt and write in one call, without conflict resolution. For callers that can't present
+ * conflicts (tests, imports into an empty workspace); user-facing imports use `archiveService.openBgprojArchive()`.
  */
 export async function unpackProject(
   archiveData: Blob | ArrayBuffer | Uint8Array,

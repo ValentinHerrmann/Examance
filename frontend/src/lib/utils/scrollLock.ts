@@ -1,15 +1,8 @@
 /**
- * Background scroll lock for dialogs and drawers.
- *
- * The document never scrolls in this app — `.app-main` does (see
- * routes/+layout.css) — so locking `body` (what Modal used to do) let the page
- * scroll away behind every dialog. This locks the real scroller instead.
- *
- * Ref-counted: two stacked dialogs take two locks, and closing the top one
- * must not unlock the page under the bottom one.
- *
- * While locked, the scroller is padded by the width its scrollbar occupied, so
- * the content does not shift sideways when the scrollbar disappears.
+ * Background scroll lock for dialogs and drawers. `.app-main` scrolls, not the document (see
+ * routes/+layout.css), so it is locked rather than `body`. Ref-counted so closing a top dialog
+ * doesn't unlock the page under a lower one; the scroller is padded by its scrollbar width so
+ * content doesn't shift.
  */
 
 const SCROLLER_SELECTOR = '.app-main';

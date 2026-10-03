@@ -1,66 +1,47 @@
 <script lang="ts">
-  /**
-   * Password reset, as a short wizard.
-   *
-   * Two things changed under this page. A reset now needs a second factor —
-   * mailbox access alone taking over an account is the bypass that closes — and
-   * it re-establishes access to the teacher's *data*, not just their login.
-   *
-   * The data key is unwrapped here in the browser with the recovery code and
-   * re-wrapped under the new password. Nothing is re-encrypted, and the new
-   * password and the matching key copy are sent in one request so they cannot
-   * end up disagreeing.
-   */
+  // Password reset wizard. Needs a second factor (mailbox alone must not take over an account); the data key is
+  // unwrapped in the browser with the recovery code and re-wrapped under the new password, sent in one request.
   import { onMount } from "svelte";
-  import { api, ApiError } from "$lib/api/client";
-  import { t, translate } from "$lib/i18n";
-  import { startReset, submitBackupCode, submitTotp, type AuthStep } from "$lib/api/mfa";
-  import { loginOptions, verifyLogin } from "$lib/api/webauthn";
-  import { authenticate, isSupported as passkeysSupported } from "$lib/webauthn/client";
-  import { envelopeSetToDto } from "$lib/api/keyEnvelopes";
+  import { api, ApiError } from "#lib/api/client";
+  import { t, translate } from "#lib/i18n";
+  import { startReset, submitBackupCode, submitTotp, type AuthStep } from "#lib/api/mfa";
+  import { loginOptions, verifyLogin } from "#lib/api/webauthn";
+  import { authenticate, isSupported as passkeysSupported } from "#lib/webauthn/client";
+  import { envelopeSetToDto } from "#lib/api/keyEnvelopes";
   import {
     buildResetEnvelopeSet,
     openWithPasskey,
     openWithRecoveryCode,
     pinEnvelopeSet,
-  } from "$lib/services/keyEnvelopeService";
-  import { FactorChooser, RecoveryCodeDialog } from "$lib/components/security";
-  import { Alert, Button, Card, Field, PageShell, TextInput } from "$lib/components/ui";
+  } from "#lib/services/keyEnvelopeService";
+  import { FactorChooser, RecoveryCodeDialog } from "#lib/components/security";
+  import { Alert, Button, Card, Field, PageShell, TextInput } from "#lib/components/ui";
 
   type Stage = "password" | "factor" | "key";
 
-  let token = "";
-  let newPassword = "";
-  let confirmPassword = "";
-  let isSubmitting = false;
-  let errorMsg = "";
-  let successMsg = "";
+  let token = $state("");
+  let newPassword = $state("");
+  let confirmPassword = $state("");
+  let isSubmitting = $state(false);
+  let errorMsg = $state("");
+  let successMsg = $state("");
 
-  let stage: Stage = "password";
-  let step: AuthStep | null = null;
-  let factorErrorMsg = "";
-  let recoveryCode = "";
-  let recoveryErrorMsg = "";
-  let skipConfirmed = false;
+  let stage: Stage = $state("password");
+  let step = $state.raw<AuthStep | null>(null);
+  let factorErrorMsg = $state("");
+  let recoveryCode = $state("");
+  let recoveryErrorMsg = $state("");
+  let skipConfirmed = $state(false);
   /** A freshly minted recovery code, shown once after a successful reset. */
-  let issuedRecoveryCode: string | null = null;
+  let issuedRecoveryCode: string | null = $state(null);
   const canUsePasskeys = passkeysSupported();
 
-  /**
-   * What the server says this account can still present, minus the password and
-   * minus the passkey where the browser has no WebAuthn at all.
-   */
-  $: availableFactors = (step?.available ?? ["totp"]).filter(
-    (f) => f !== "password" && (f !== "passkey" || canUsePasskeys),
+  /** What the server offers as second factor, minus password and passkey where WebAuthn is unsupported. */
+  let availableFactors = $derived(
+    (step?.available ?? ["totp"]).filter((f) => f !== "password" && (f !== "passkey" || canUsePasskeys)),
   );
-  /**
-   * A passkey that carried the second factor and yielded its PRF secret.
-   *
-   * When that happens the passkey has already recovered the data key, so the
-   * recovery-code step is skipped entirely — which is the whole appeal of using
-   * a passkey to reset a password.
-   */
-  let passkeyUnwrap: { credentialIdB64: string; prfOutput: Uint8Array } | null = null;
+  /** A passkey that carried the second factor and yielded its PRF secret; it already recovered the data key, so the recovery-code step is skipped. */
+  let passkeyUnwrap = $state.raw<{ credentialIdB64: string; prfOutput: Uint8Array } | null>(null);
 
   onMount(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -154,13 +135,7 @@
     }
   }
 
-  /**
-   * Step three: recover the data key and finish.
-   *
-   * Sending the re-wrapped key with the new password keeps the two in one
-   * transaction. Skipping it resets the password and leaves the old data sealed
-   * — which the confirmation above says in those words.
-   */
+  /** Step three: recover the data key and finish. The re-wrapped key goes with the new password in one request; skipping it leaves old data sealed. */
   async function finishReset(withRecovery: boolean) {
     recoveryErrorMsg = "";
     if (!step) {
@@ -243,7 +218,7 @@
         <p class="mt-1 mb-4 text-sm text-muted">{$t("security.reset.keyIntro")}</p>
       {/if}
 
-      <form class="flex flex-col gap-4" on:submit|preventDefault={() => finishReset(true)}>
+      <form class="flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); finishReset(true); }}>
         {#if !passkeyUnwrap}
           <Field label={$t("security.unlock.label")} error={recoveryErrorMsg}>
             <TextInput
@@ -251,7 +226,7 @@
               placeholder={$t("security.unlock.placeholder")}
               class="font-mono tracking-wider"
             />
-          </Field>
+        </Field>
         {:else if recoveryErrorMsg}
           <p class="m-0 text-sm text-danger-fg" role="alert">{recoveryErrorMsg}</p>
         {/if}
@@ -285,31 +260,35 @@
         <Alert severity="danger" class="mb-5">{errorMsg}</Alert>
       {/if}
 
-      <form on:submit|preventDefault={handleResetPassword} class="flex flex-col gap-5">
-        <Field forId="newPassword" label={$t("auth.resetPassword.newPasswordLabel")} let:id>
-          <TextInput
-            {id}
-            type="password"
-            bind:value={newPassword}
-            placeholder={$t("auth.resetPassword.newPasswordPlaceholder")}
-            autocomplete="new-password"
-            minlength="12"
-            required
-            disabled={isSubmitting || !token}
-          />
+      <form onsubmit={(e) => { e.preventDefault(); handleResetPassword(); }} class="flex flex-col gap-5">
+        <Field forId="newPassword" label={$t("auth.resetPassword.newPasswordLabel")}>
+          {#snippet children({ id })}
+            <TextInput
+              {id}
+              type="password"
+              bind:value={newPassword}
+              placeholder={$t("auth.resetPassword.newPasswordPlaceholder")}
+              autocomplete="new-password"
+              minlength={12}
+              required
+              disabled={isSubmitting || !token}
+            />
+          {/snippet}
         </Field>
 
-        <Field forId="confirmPassword" label={$t("auth.resetPassword.confirmPasswordLabel")} let:id>
-          <TextInput
-            {id}
-            type="password"
-            bind:value={confirmPassword}
-            placeholder={$t("auth.resetPassword.confirmPasswordPlaceholder")}
-            autocomplete="new-password"
-            minlength="12"
-            required
-            disabled={isSubmitting || !token}
-          />
+        <Field forId="confirmPassword" label={$t("auth.resetPassword.confirmPasswordLabel")}>
+          {#snippet children({ id })}
+            <TextInput
+              {id}
+              type="password"
+              bind:value={confirmPassword}
+              placeholder={$t("auth.resetPassword.confirmPasswordPlaceholder")}
+              autocomplete="new-password"
+              minlength={12}
+              required
+              disabled={isSubmitting || !token}
+            />
+          {/snippet}
         </Field>
 
         <Button type="submit" block disabled={isSubmitting || !token}>

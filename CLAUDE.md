@@ -11,7 +11,7 @@ Storage modes (`lib/stores/storagePolicy.ts`): `all-local` (IndexedDB/Dexie, def
 ## Where things live
 
 - `backend/` — FastAPI + SQLAlchemy + Alembic. Conventions, auth/data-key rules, backend gotchas: `backend/CLAUDE.md`.
-- `frontend/` — SvelteKit on **Svelte 4 (not 5)**. Design system, responsive rules, i18n, MC data model, LaTeX resources, frontend gotchas: `frontend/CLAUDE.md`.
+- `frontend/` — SvelteKit 3 on **Svelte 5 (runes only)**. Design system, responsive rules, i18n, MC data model, LaTeX resources, frontend gotchas: `frontend/CLAUDE.md`.
 - `docs/` — product, legal and deployment docs. Developer deep-dives, read on demand: `docs/dev/omr.md` (MC detection), `docs/dev/training_donation.md`, `docs/dev/ci_and_audit.md`, `docs/dev/build_and_csp.md`.
 - `backend/latex-assets/` is copied to `frontend/static/latex-assets/` at build time; both are committed. Edit the backend copy.
 

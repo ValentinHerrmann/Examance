@@ -1,39 +1,44 @@
 <script lang="ts">
   import { faClipboard, faPen, faUser, faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Card, PageHeader, Tabs } from "$lib/components/ui";
+  import { Button, Card, PageHeader, Tabs } from "#lib/components/ui";
   import { onMount } from "svelte";
   import { get } from "svelte/store";
-  import { sessionStore } from "$lib/stores/session";
+  import { sessionStore } from "#lib/stores/session";
   import {
     loadExamEncrypted,
     loadExamExercisesEncrypted,
-  } from "$lib/db/dbEncryption";
-  import { scoreRepository } from "$lib/repositories/scoreRepository";
-  import { studentRepository } from "$lib/repositories/studentRepository";
-  import { submissionRepository } from "$lib/repositories/submissionRepository";
+  } from "#lib/db/dbEncryption";
+  import { scoreRepository } from "#lib/repositories/scoreRepository";
+  import { studentRepository } from "#lib/repositories/studentRepository";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
   import type {
     ExamRecord,
     ExerciseRecord,
     StudentRecord,
     SubmissionRecord,
-  } from "$lib/db/schema";
+  } from "#lib/db/schema";
   import RosterManager from "./RosterManager.svelte";
   import ExerciseFirstGrid from "./ExerciseFirstGrid.svelte";
   import StudentFirstGrid from "./StudentFirstGrid.svelte";
   import PasteImportModal from "./PasteImportModal.svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 
-  export let examId: string;
+  interface Props {
+    examId: string;
+  }
 
-  let activeTab: "roster" | "exercise-first" | "student-first" = "exercise-first";
-  let showImportModal = false;
-  let loading = true;
+  let { examId }: Props = $props();
 
-  let exam: ExamRecord | null = null;
-  let exercises: ExerciseRecord[] = [];
-  let students: StudentRecord[] = [];
-  let submissions: SubmissionRecord[] = [];
-  let scoresMap: Map<string, Record<string, number | null>> = new Map();
+  let activeTab: "roster" | "exercise-first" | "student-first" = $state("exercise-first");
+  let showImportModal = $state(false);
+  let loading = $state(true);
+
+  // Raw: these records go to repositories, and children mutate them in place before `onScoresChanged`.
+  let exam: ExamRecord | null = $state.raw(null);
+  let exercises: ExerciseRecord[] = $state.raw([]);
+  let students: StudentRecord[] = $state.raw([]);
+  let submissions: SubmissionRecord[] = $state.raw([]);
+  let scoresMap: Map<string, Record<string, number | null>> = $state.raw(new Map());
 
   onMount(async () => {
     await refreshAllData();
@@ -94,11 +99,11 @@
     title={$t("grading.manual.container.title")}
     subtitle={$t("grading.manual.container.subtitle")}
   >
-    <svelte:fragment slot="actions">
+    {#snippet actions()}
       <Button icon={faClipboard} onClick={() => (showImportModal = true)}>
         {$t("grading.manual.container.importButton")}
       </Button>
-    </svelte:fragment>
+    {/snippet}
   </PageHeader>
 
   <Tabs

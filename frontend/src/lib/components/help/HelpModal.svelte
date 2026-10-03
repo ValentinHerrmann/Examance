@@ -1,25 +1,19 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { faArrowLeft, faArrowRight } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Icon, Modal, TextInput } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
-  import { HELP_TOPICS, getHelpTopic, type HelpTopic } from "$lib/help/topics";
-  import { helpStore, closeHelp, selectHelpTopic } from "$lib/stores/helpStore";
+  import { Button, Icon, Modal, TextInput } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { HELP_TOPICS, getHelpTopic, type HelpTopic } from "#lib/help/topics";
+  import { helpStore, closeHelp, selectHelpTopic } from "#lib/stores/helpStore";
   import HelpTopicContent from "./HelpTopicContent.svelte";
   import HelpTopicList from "./HelpTopicList.svelte";
 
-  /**
-   * The global help panel. Mounted once in the root layout and opened from the
-   * navbar, the footer, the contextual "?" buttons or F1.
-   *
-   * Two panes from the dialog's `@md` container width up (index left, topic right); on a phone it is one
-   * column that switches between index and topic, on top of the full-sheet
-   * shape `Modal` already provides.
-   */
-  let query = "";
+  // Global help panel, mounted once in the root layout. Two panes from the dialog's `@md` width up; one switching column on phones.
+  let query = $state("");
 
-  $: open = $helpStore.open;
-  $: activeId = $helpStore.topicId;
-  $: activeTopic = activeId ? getHelpTopic(activeId) : undefined;
+  let open = $derived($helpStore.open);
+  let activeId = $derived($helpStore.topicId);
+  let activeTopic = $derived(activeId ? getHelpTopic(activeId) : undefined);
 
   /** Everything a topic says, flattened once so the filter can match on it. */
   function haystack(topic: HelpTopic, translate: typeof $t): string {
@@ -32,20 +26,25 @@
     return parts.join(" ").toLowerCase();
   }
 
-  $: needle = query.trim().toLowerCase();
-  $: visibleTopics = needle
+  let needle = $derived(query.trim().toLowerCase());
+  let visibleTopics = $derived(needle
     ? HELP_TOPICS.filter((topic) => haystack(topic, $t).includes(needle))
-    : HELP_TOPICS;
-
-  // A search that excludes the open topic should not leave a stale pane behind.
-  $: if (needle && activeId && !visibleTopics.some((topic) => topic.id === activeId)) {
-    selectHelpTopic(visibleTopics.length > 0 ? visibleTopics[0].id : null);
-  }
+    : HELP_TOPICS);
 
   function handleClose() {
     query = "";
     closeHelp();
   }
+
+  // A search that excludes the open topic should not leave a stale pane behind.
+  $effect.pre(() => {
+    const search = needle;
+    const id = activeId;
+    const topics = visibleTopics;
+    if (search && id && !topics.some((topic) => topic.id === id)) {
+      untrack(() => selectHelpTopic(topics.length > 0 ? topics[0].id : null));
+    }
+  });
 </script>
 
 <Modal {open} size="large" title={$t("help.ui.title")} onClose={handleClose}>
@@ -98,9 +97,9 @@
     {/if}
   </div>
 
-  <svelte:fragment slot="footer">
+  {#snippet footer()}
     <Button href="/help" variant="text" iconRight={faArrowRight} onClick={handleClose}>
       {$t("help.ui.openManual")}
     </Button>
-  </svelte:fragment>
+  {/snippet}
 </Modal>

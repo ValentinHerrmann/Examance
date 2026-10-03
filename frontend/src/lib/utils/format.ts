@@ -1,6 +1,6 @@
 import { derived, get } from 'svelte/store';
-import { locale } from '$lib/i18n';
-import type { Locale } from '$lib/i18n';
+import { locale } from '#lib/i18n';
+import type { Locale } from '#lib/i18n';
 
 /**
  * BCP 47 tags for `Intl`. Decimal comma vs. point and dd.MM.yyyy vs. dd/MM/yyyy

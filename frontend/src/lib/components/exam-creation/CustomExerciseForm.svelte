@@ -1,15 +1,25 @@
 <script lang="ts">
-  import LatexEditor from "$lib/components/LatexEditor.svelte";
-  import SuggestInput from "$lib/components/common/SuggestInput.svelte";
-  import { t } from "$lib/i18n";
-  import { Button, Checkbox, Field, TextInput, controlClass } from "$lib/components/ui";
+  import LatexEditor from "#lib/components/LatexEditor.svelte";
+  import SuggestInput from "#lib/components/common/SuggestInput.svelte";
+  import { t } from "#lib/i18n";
+  import { Button, Checkbox, Field, TextInput, controlClass } from "#lib/components/ui";
   import { faPlus } from "@fortawesome/free-solid-svg-icons";
 
-  export let customName: string;
-  export let customTopicTag: string;
-  export let customLatexBody: string;
-  export let saveCustomToLibrary: boolean;
-  export let onAddCustomExercise: () => void;
+  interface Props {
+    customName: string;
+    customTopicTag: string;
+    customLatexBody: string;
+    saveCustomToLibrary: boolean;
+    onAddCustomExercise: () => void;
+  }
+
+  let {
+    customName = $bindable(),
+    customTopicTag = $bindable(),
+    customLatexBody = $bindable(),
+    saveCustomToLibrary = $bindable(),
+    onAddCustomExercise
+  }: Props = $props();
 </script>
 
 <div class="@container flex flex-col gap-4">

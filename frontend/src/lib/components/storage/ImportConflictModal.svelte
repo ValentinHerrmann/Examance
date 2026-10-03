@@ -1,19 +1,16 @@
 <script lang="ts">
-  /**
-   * Asks which version of each colliding record should win. Mounted once in the
-   * root layout and driven by `conflictPrompt`; nothing is written until every
-   * conflict has a decision, so cancelling costs nothing.
-   */
-  import { t, tOptional } from '$lib/i18n';
+  // Asks which version of each colliding record wins. Mounted once in the root layout, driven by
+  // `conflictPrompt`; nothing is written until every conflict has a decision, so cancelling is free.
+  import { t, tOptional } from '#lib/i18n';
   import { faCheck } from '@fortawesome/free-solid-svg-icons';
-  import { Modal, Button, Icon } from '$lib/components/ui';
-  import { conflictPrompt } from '$lib/stores/conflictPrompt';
+  import { Modal, Button, Icon } from '#lib/components/ui';
+  import { conflictPrompt } from '#lib/stores/conflictPrompt';
   import {
     applyToAll,
     type ArchiveConflict,
     type ConflictChoice,
     type DecisionMap,
-  } from '$lib/archive/conflicts';
+  } from '#lib/archive/conflicts';
 
   const CHOICES: { choice: ConflictChoice; label: 'storagePolicy.conflict.choiceKeepExisting' | 'storagePolicy.conflict.choiceTakeImported' | 'storagePolicy.conflict.choiceImportAsCopy' }[] = [
     { choice: 'keep-existing', label: 'storagePolicy.conflict.choiceKeepExisting' },
@@ -21,14 +18,14 @@
     { choice: 'import-as-copy', label: 'storagePolicy.conflict.choiceImportAsCopy' },
   ];
 
-  let decisions: DecisionMap = new Map();
-  let activeIndex = 0;
+  let decisions: DecisionMap = $state.raw(new Map());
+  let activeIndex = $state(0);
 
-  $: prompt = $conflictPrompt;
-  $: conflicts = prompt?.conflicts ?? [];
-  $: active = conflicts[activeIndex] as ArchiveConflict | undefined;
-  $: decidedCount = conflicts.filter((c) => decisions.has(c.id)).length;
-  $: textDiffers = !!active?.textDiff && active.textDiff.existing !== active.textDiff.imported;
+  let prompt = $derived($conflictPrompt);
+  let conflicts = $derived(prompt?.conflicts ?? []);
+  let active = $derived(conflicts[activeIndex] as ArchiveConflict | undefined);
+  let decidedCount = $derived(conflicts.filter((c) => decisions.has(c.id)).length);
+  let textDiffers = $derived(!!active?.textDiff && active.textDiff.existing !== active.textDiff.imported);
 
   const kindLabel = (kind: string) => $tOptional(`storagePolicy.conflict.kind.${kind}`) ?? kind;
   const fieldLabel = (key: string) => $tOptional(`storagePolicy.conflict.field.${key}`) ?? key;
@@ -77,7 +74,7 @@
             type="button"
             class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm
                    {i === activeIndex ? 'bg-surface-inset text-content' : 'text-muted'}"
-            on:click={() => (activeIndex = i)}
+            onclick={() => (activeIndex = i)}
           >
             <span class="min-w-0 truncate">
               <span class="text-xs text-muted">{kindLabel(conflict.kind)}</span>
@@ -149,7 +146,7 @@
     {/if}
   </div>
 
-  <svelte:fragment slot="footer">
+  {#snippet footer()}
     <span class="mr-auto text-xs text-muted">
       {$t('storagePolicy.conflict.counter', { decided: decidedCount, total: conflicts.length })}
     </span>
@@ -160,5 +157,5 @@
     >
       {$t('storagePolicy.conflict.apply')}
     </Button>
-  </svelte:fragment>
+  {/snippet}
 </Modal>

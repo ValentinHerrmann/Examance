@@ -1,8 +1,4 @@
-/**
- * k-Anonymity gate (k >= 5).
- *
- * Suppresses class group statistics if the sample size is under 5 students.
- */
+/** k-Anonymity gate (k >= 5): suppresses class group statistics under 5 students. */
 
 export const K_ANONYMITY_MIN_K = 5;
 

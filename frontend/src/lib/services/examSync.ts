@@ -1,21 +1,19 @@
 import { get } from 'svelte/store';
-import { api } from '$lib/api/client';
-import { db } from '$lib/db/db';
-import type { ExamRecord, ExerciseRecord } from '$lib/db/schema';
-import { encryptExam, encryptExercise, loadExamsEncrypted } from '$lib/db/dbEncryption';
-import { mapApiToExamRecord } from '$lib/repositories/examRepository';
-import { mapApiToExerciseRecord } from '$lib/repositories/exerciseRepository';
-import { offlineQueue } from '$lib/services/offlineQueue';
-import { isServerBacked } from '$lib/utils/serverBacked';
+import { api } from '#lib/api/client';
+import { db } from '#lib/db/db';
+import type { ExamRecord, ExerciseRecord } from '#lib/db/schema';
+import { encryptExam, encryptExercise, loadExamsEncrypted } from '#lib/db/dbEncryption';
+import { mapApiToExamRecord } from '#lib/repositories/examRepository';
+import { mapApiToExerciseRecord } from '#lib/repositories/exerciseRepository';
+import { offlineQueue } from '#lib/services/offlineQueue';
+import { isServerBacked } from '#lib/utils/serverBacked';
 
 /**
- * The exam list as the dashboard shows it. In server-backed modes the server is
- * authoritative: it is fetched, mirrored into IndexedDB (exams, exercises, links,
- * MC groups — for offline export) and local leftovers the server no longer knows
- * are purged, except exams still waiting in the offline queue. On a failed fetch
- * the local copy is returned with `failed: true`, so the page can say it is not
- * necessarily everything (all-server caches nothing, so without the flag a
- * rejected request would read as "all my data is gone").
+ * The exam list as the dashboard shows it. In server-backed modes the server is authoritative: fetched,
+ * mirrored into IndexedDB (exams, exercises, links, MC groups, for offline export), and local leftovers
+ * the server no longer knows are purged, except exams still in the offline queue. On a failed fetch the
+ * local copy is returned with `failed: true` (all-server caches nothing, so without the flag a rejected
+ * request would read as "all my data is gone").
  */
 export async function loadSyncedExams(key: CryptoKey | null): Promise<{ exams: ExamRecord[]; failed: boolean }> {
   const localExams = await loadExamsEncrypted(key);
@@ -81,12 +79,9 @@ export async function loadSyncedExams(key: CryptoKey | null): Promise<{ exams: E
                 examId: e.id,
                 exerciseId: ex.id,
                 orderIndex,
-                // MC membership MUST be carried over. These records are written
-                // with bulkPut on the [examId+exerciseId] primary key, so a
-                // junction rebuilt without mcGroupId/subIndex overwrites the
-                // stored one and erases the exercise's MC group membership —
-                // after which the group renders empty and its members show up
-                // as standalone exercises.
+                                // MC membership MUST be carried over: junctions are written with bulkPut on the
+                                // [examId+exerciseId] key, so one rebuilt without mcGroupId/subIndex overwrites the stored
+                                // one, erasing MC group membership (empty group, members shown as standalone exercises).
                 mcGroupId: ex.mc_group_id ?? ex.mcGroupId ?? undefined,
                 subIndex: ex.sub_index ?? ex.subIndex ?? undefined,
               });
@@ -130,10 +125,8 @@ export async function loadSyncedExams(key: CryptoKey | null): Promise<{ exams: E
         return { exams, failed: false };
       } catch (apiErr) {
         console.warn('Failed to fetch remote exams, falling back to IDB:', apiErr);
-        // What is in IndexedDB, and an honest note that it is not everything.
-        // In all-server mode nothing is cached there, so without the banner a
-        // rejected request is indistinguishable from an empty account — which
-        // is how a session problem read as "all my data is gone".
+                // Local copy plus the `failed` flag: all-server caches nothing, so without the banner a rejected
+                // request is indistinguishable from an empty account (a session problem read as "all my data is gone").
         return { exams: localExams, failed: true };
       }
     }

@@ -1,13 +1,17 @@
 <script lang="ts">
   import { faShuffle } from '@fortawesome/free-solid-svg-icons';
-  import { Badge, Button, Card, EmptyState, TableScroller } from "$lib/components/ui";
-  import { t } from '$lib/i18n';
-  import { fmt } from '$lib/utils/format';
-  import type { VariantGroupComparison } from '$lib/analytics/analyticsTypes';
+  import { Badge, Button, Card, EmptyState, TableScroller } from "#lib/components/ui";
+  import { t } from '#lib/i18n';
+  import { fmt } from '#lib/utils/format';
+  import type { VariantGroupComparison } from '#lib/analytics/analyticsTypes';
 
-  export let variantGroups: VariantGroupComparison[];
-  export let displayedVariantGroups: VariantGroupComparison[];
-  export let showAll: boolean;
+  interface Props {
+    variantGroups: VariantGroupComparison[];
+    displayedVariantGroups: VariantGroupComparison[];
+    showAll: boolean;
+  }
+
+  let { variantGroups, displayedVariantGroups, showAll = $bindable() }: Props = $props();
 </script>
 
 <Card class="mb-6">
@@ -31,13 +35,13 @@
         ? $t('stats.variantFairness.emptyWithData', { count: $fmt.number(variantGroups.length) })
         : $t('stats.variantFairness.emptyNoData')}
     >
-      <svelte:fragment slot="actions">
+      {#snippet actions()}
         {#if variantGroups.length > 0}
           <Button variant="outlined" severity="secondary" onClick={() => (showAll = !showAll)}>
             {showAll ? $t('stats.shared.hideUngraded') : $t('stats.variantFairness.showAllGroups', { count: $fmt.number(variantGroups.length) })}
           </Button>
         {/if}
-      </svelte:fragment>
+      {/snippet}
     </EmptyState>
   {:else}
     <div class="flex flex-col gap-6">

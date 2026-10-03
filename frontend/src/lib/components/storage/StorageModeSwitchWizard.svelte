@@ -1,14 +1,12 @@
 <script lang="ts">
-  /**
-   * The gated storage-mode switch: explain → export → wipe & switch → import.
-   * Export and import reuse the app's own interactive archive flows; conflicts
-   * are answered by the dialog mounted in the root layout.
-   */
+  // The gated storage-mode switch: explain → export → wipe & switch → import.
+  // Conflicts during import are answered by the dialog mounted in the root layout.
+  import { untrack } from 'svelte';
   import { get } from 'svelte/store';
-  import { t, translate } from '$lib/i18n';
-  import { Alert, Badge, Button, Checkbox, Modal } from '$lib/components/ui';
-  import { isAuthenticated } from '$lib/stores/session';
-  import { getStoragePolicyBadge, type StorageMode } from '$lib/stores/storagePolicy';
+  import { t, translate } from '#lib/i18n';
+  import { Alert, Badge, Button, Checkbox, Modal } from '#lib/components/ui';
+  import { isAuthenticated } from '#lib/stores/session';
+  import { getStoragePolicyBadge, type StorageMode } from '#lib/stores/storagePolicy';
   import {
     abortModeSwitch,
     beginModeSwitch,
@@ -18,16 +16,20 @@
     markExported,
     pendingSwitchStore,
     requireExport,
-  } from '$lib/services/storageModeSwitch';
+  } from '#lib/services/storageModeSwitch';
   import {
     exportArchiveInteractively,
     importArchiveInteractively,
-  } from '$lib/services/archiveService';
+  } from '#lib/services/archiveService';
 
-  export let open = false;
-  /** The mode to switch to; null when resuming an interrupted switch. */
-  export let target: StorageMode | null = null;
-  export let onClose: () => void;
+  interface Props {
+    open?: boolean;
+    /** The mode to switch to; null when resuming an interrupted switch. */
+    target?: StorageMode | null;
+    onClose: () => void;
+  }
+
+  let { open = false, target = null, onClose }: Props = $props();
 
   const STEPS = [
     { phase: 'confirm', label: 'storagePolicy.switch.stepExplain' },
@@ -36,15 +38,14 @@
     { phase: 'reimport', label: 'storagePolicy.switch.stepImport' },
   ] as const;
 
-  let understood = false;
-  let busy = false;
-  let errorMsg = '';
-  let workspaceEmpty = false;
+  let understood = $state(false);
+  let busy = $state(false);
+  let errorMsg = $state('');
+  let workspaceEmpty = $state(false);
 
-  $: pending = $pendingSwitchStore;
-  $: phase = pending?.phase === 'switching' ? 'exported' : pending?.phase;
-  $: toLabel = pending ? modeLabel(pending.to) : '';
-  $: if (open && target && !pending) void start(target);
+  let pending = $derived($pendingSwitchStore);
+  let phase = $derived(pending?.phase === 'switching' ? 'exported' : pending?.phase);
+  let toLabel = $derived(pending ? modeLabel(pending.to) : '');
 
   function modeLabel(mode: StorageMode): string {
     return getStoragePolicyBadge({ storageMode: mode, latexCompilation: 'local' }).text;
@@ -59,7 +60,7 @@
     workspaceEmpty = await localWorkspaceIsEmpty();
   }
 
-  async function run(action: () => Promise<unknown>) {
+  async function runAction(action: () => Promise<unknown>) {
     busy = true;
     errorMsg = '';
     try {
@@ -101,6 +102,13 @@
     finishModeSwitch();
     close();
   }
+
+  $effect.pre(() => {
+    const isOpen = open;
+    const to = target;
+    const p = pending;
+    if (isOpen && to && !p) untrack(() => void start(to));
+  });
 </script>
 
 <Modal
@@ -148,7 +156,7 @@
           type="file"
           accept=".bgproj"
           disabled={busy}
-          on:change={(e) => run(() => handleImport(e))}
+          onchange={(e) => runAction(() => handleImport(e))}
           class="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-surface-inset
                  file:px-3 file:py-1.5 file:text-content"
         />
@@ -160,7 +168,7 @@
     <Alert severity="danger" class="mt-3 whitespace-pre-wrap">{errorMsg}</Alert>
   {/if}
 
-  <svelte:fragment slot="footer">
+  {#snippet footer()}
     {#if phase === 'reimport'}
       <Button variant="outlined" severity="secondary" disabled={busy} onClick={handleImportLater}>
         {$t('storagePolicy.switch.importSkip')}
@@ -177,14 +185,14 @@
         <Button variant="text" severity="secondary" disabled={busy} onClick={() => markExported()}>
           {$t(workspaceEmpty ? 'storagePolicy.switch.skipExportEmpty' : 'storagePolicy.switch.skipExportHaveArchive')}
         </Button>
-        <Button loading={busy} onClick={() => run(handleExport)}>
+        <Button loading={busy} onClick={() => runAction(handleExport)}>
           {$t('storagePolicy.switch.exportButton')}
         </Button>
       {:else if phase === 'exported'}
-        <Button severity="danger" loading={busy} onClick={() => run(commitModeSwitch)}>
+        <Button severity="danger" loading={busy} onClick={() => runAction(commitModeSwitch)}>
           {$t('storagePolicy.switch.wipeButton')}
         </Button>
       {/if}
     {/if}
-  </svelte:fragment>
+  {/snippet}
 </Modal>

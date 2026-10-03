@@ -4,7 +4,7 @@
  * so both render the exact same annotations from the same data.
  */
 
-import type { ExerciseRecord, OmrScoreMeta } from '$lib/db/schema';
+import type { ExerciseRecord, OmrScoreMeta } from '#lib/db/schema';
 
 export interface McOverlayState {
   omrMeta?: OmrScoreMeta;
@@ -84,16 +84,11 @@ export function formatSignedScore(value: number): string {
 }
 
 /**
- * Draws OMR-derived annotations over every MC/SC/TF exercise on one page — a separate,
- * non-persisted overlay pass, not part of the manual annotation strokes. Rects are
- * normalized [minX,minY,maxX,maxY] in [0,1] of the scan page (set by omrWorker.ts), so
- * `w`/`h` should be the raster's pixel dimensions.
- *
- * For marked/ambiguous bubbles: colored box (red solid = confidently marked, amber dashed =
- * ambiguous) plus a score stamp (+1 for a correct tick, -penalty for a wrong one). For
- * blank bubbles whose option is in `correctAnswers` (a correct option the student didn't
- * mark): the `missing` stamp symbol. For exercises that are part of an MC group: a
- * per-sub-exercise running total ("a) 1/2") above its bubble cluster.
+ * Draws OMR-derived annotations over every MC/SC/TF exercise on one page, as a non-persisted overlay
+ * separate from the manual strokes. Rects are normalized [minX,minY,maxX,maxY] in [0,1] (from
+ * omrWorker.ts), so `w`/`h` are the raster's pixel size. Marked/ambiguous bubbles get a box (red solid
+ * = marked, amber dashed = ambiguous) and score stamp; unmarked correct options the `missing` stamp;
+ * MC group members a running total ("a) 1/2") above the cluster.
  */
 export function drawOmrOverlayForPage(
   ctx: CanvasRenderingContext2D,

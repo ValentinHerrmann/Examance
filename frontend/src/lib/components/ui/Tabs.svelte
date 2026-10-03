@@ -4,19 +4,24 @@
 
   type Item = { id: string; label: string; href?: string; icon?: IconDefinition; count?: number };
 
-  /**
-   * Tab strip. With `bind:value` tabs are buttons; when an item has `href` it
-   * renders a link (route-driven tabs) and `value` marks the selected one.
-   */
-  export let items: Item[];
-  export let value: string | undefined = items[0]?.id;
-  export let label: string | undefined = undefined;
-  export let onChange: ((id: string) => void) | undefined = undefined;
+  /** Tab strip. Items are buttons; an item with `href` renders a link (route-driven tabs) and `value` marks the selected one. */
+  interface Props {
+    items: Item[];
+    value?: string | undefined;
+    label?: string | undefined;
+    onChange?: ((id: string) => void) | undefined;
+    class?: string;
+  }
 
-  let className = "";
-  export { className as class };
+  let {
+    items,
+    value = items[0]?.id,
+    label = undefined,
+    onChange = undefined,
+    class: className = "",
+  }: Props = $props();
 
-  let list: HTMLElement;
+  let list: HTMLElement | undefined = $state();
 
   function select(id: string) {
     value = id;
@@ -27,7 +32,7 @@
     const keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
     if (!keys.includes(event.key)) return;
     event.preventDefault();
-    const tabs = Array.from(list.querySelectorAll<HTMLElement>('[role="tab"]'));
+    const tabs = Array.from(list?.querySelectorAll<HTMLElement>('[role="tab"]') ?? []);
     const current = tabs.findIndex((el) => el === document.activeElement);
     let next = current;
     if (event.key === "ArrowRight") next = (current + 1) % tabs.length;
@@ -49,7 +54,7 @@
   aria-label={label}
   tabindex="-1"
   class="scroll-pane flex overflow-x-auto overflow-y-hidden border-b border-line {className}"
-  on:keydown={onKeydown}
+  onkeydown={onKeydown}
 >
   {#each items as item (item.id)}
     {@const selected = item.id === value}
@@ -63,7 +68,7 @@
         aria-selected={selected ? "true" : "false"}
         tabindex={selected ? 0 : -1}
         class="{base} {state}"
-        on:click={() => select(item.id)}
+        onclick={() => select(item.id)}
       >
         {#if item.icon}<Icon icon={item.icon} />{/if}{item.label}{#if item.count !== undefined}<span
             class="rounded-md bg-surface-inset px-1.5 text-sm font-normal text-muted">{item.count}</span
@@ -76,7 +81,7 @@
         aria-selected={selected ? "true" : "false"}
         tabindex={selected ? 0 : -1}
         class="{base} {state}"
-        on:click={() => select(item.id)}
+        onclick={() => select(item.id)}
       >
         {#if item.icon}<Icon icon={item.icon} />{/if}{item.label}{#if item.count !== undefined}<span
             class="rounded-md bg-surface-inset px-1.5 text-sm font-normal text-muted">{item.count}</span

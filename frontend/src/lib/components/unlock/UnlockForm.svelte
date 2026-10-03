@@ -1,6 +1,6 @@
 <script lang="ts">
-  import BackendUrlInput from "$lib/components/common/BackendUrlInput.svelte";
-  import { t } from "$lib/i18n";
+  import BackendUrlInput from "#lib/components/common/BackendUrlInput.svelte";
+  import { t } from "#lib/i18n";
   import {
     faArrowRight,
     faCircleQuestion,
@@ -8,25 +8,40 @@
     faKey,
     faShieldHalved,
   } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Badge, Button, Card, Field, Icon, TextInput } from "$lib/components/ui";
-  export let backendUrl: string;
-  export let email: string;
-  export let password: string;
-  export let errorMsg: string;
-  export let isLoading: boolean;
-  export let onUnlock: () => void;
-  export let onUnlockLocal: () => void;
-  /**
-   * Passkey sign-in, or undefined where the browser has no WebAuthn. Offered
-   * first: it signs in on its own, with no email and no second factor.
-   */
-  export let onPasskey: (() => void) | undefined = undefined;
-  export let localPassphrase: string;
-  export let localPassphraseConfirm: string;
-  /** First use on this device, or a legacy vault being migrated — confirm the passphrase. */
-  export let isNewLocalVault: boolean;
-  /** A vault created before the passphrase change; unlocking re-encrypts it. */
-  export let needsLegacyMigration: boolean;
+  import { Alert, Badge, Button, Card, Field, Icon, TextInput } from "#lib/components/ui";
+
+  interface Props {
+    backendUrl: string;
+    email: string;
+    password: string;
+    errorMsg: string;
+    isLoading: boolean;
+    onUnlock: () => void;
+    onUnlockLocal: () => void;
+    /** Passkey sign-in (no email, no second factor), or undefined without WebAuthn. */
+    onPasskey?: (() => void) | undefined;
+    localPassphrase: string;
+    localPassphraseConfirm: string;
+    /** First use on this device, or a legacy vault being migrated — confirm the passphrase. */
+    isNewLocalVault: boolean;
+    /** A vault created before the passphrase change; unlocking re-encrypts it. */
+    needsLegacyMigration: boolean;
+  }
+
+  let {
+    backendUrl = $bindable(),
+    email = $bindable(),
+    password = $bindable(),
+    errorMsg,
+    isLoading,
+    onUnlock,
+    onUnlockLocal,
+    onPasskey,
+    localPassphrase = $bindable(),
+    localPassphraseConfirm = $bindable(),
+    isNewLocalVault,
+    needsLegacyMigration,
+  }: Props = $props();
 </script>
 
 <div class="mb-4 text-center sm:mb-5">
@@ -78,31 +93,34 @@
       </p>
     {/if}
 
-    <form on:submit|preventDefault={onUnlockLocal} class="mt-auto flex w-full flex-col gap-3">
+    <form onsubmit={(e) => { e.preventDefault(); onUnlockLocal(); }} class="mt-auto flex w-full flex-col gap-3">
       <Field
         forId="localPassphrase"
         label={isNewLocalVault ? $t("auth.unlock.local.choosePassphrase") : $t("auth.unlock.local.workspacePassphrase")}
-        let:id
       >
-        <TextInput
-          {id}
-          type="password"
-          autocomplete={isNewLocalVault ? "new-password" : "current-password"}
-          bind:value={localPassphrase}
-          placeholder={$t("auth.unlock.local.passphrasePlaceholder")}
-          disabled={isLoading}
-        />
-      </Field>
-
-      {#if isNewLocalVault}
-        <Field forId="localPassphraseConfirm" label={$t("auth.unlock.local.repeatPassphrase")} let:id>
+        {#snippet children({ id })}
           <TextInput
             {id}
             type="password"
-            autocomplete="new-password"
-            bind:value={localPassphraseConfirm}
+            autocomplete={isNewLocalVault ? "new-password" : "current-password"}
+            bind:value={localPassphrase}
+            placeholder={$t("auth.unlock.local.passphrasePlaceholder")}
             disabled={isLoading}
           />
+        {/snippet}
+      </Field>
+
+      {#if isNewLocalVault}
+        <Field forId="localPassphraseConfirm" label={$t("auth.unlock.local.repeatPassphrase")}>
+          {#snippet children({ id })}
+            <TextInput
+              {id}
+              type="password"
+              autocomplete="new-password"
+              bind:value={localPassphraseConfirm}
+              disabled={isLoading}
+            />
+          {/snippet}
         </Field>
         <p class="m-0 mb-2 text-left text-sm leading-snug text-muted">
           {$t("auth.unlock.local.noRecoveryWarning")}
@@ -134,35 +152,41 @@
       {$t("auth.unlock.cloud.description")}
     </p>
 
-    <form on:submit|preventDefault={onUnlock} class="flex flex-col gap-3">
-      <Field forId="backendUrl" label={$t("auth.unlock.cloud.backendUrl")} let:id>
-        <BackendUrlInput
-          {id}
-          bind:value={backendUrl}
-          placeholder={$t("auth.unlock.cloud.backendUrlPlaceholder")}
-          required
-        />
+    <form onsubmit={(e) => { e.preventDefault(); onUnlock(); }} class="flex flex-col gap-3">
+      <Field forId="backendUrl" label={$t("auth.unlock.cloud.backendUrl")}>
+        {#snippet children({ id })}
+          <BackendUrlInput
+            {id}
+            bind:value={backendUrl}
+            placeholder={$t("auth.unlock.cloud.backendUrlPlaceholder")}
+            required
+          />
+        {/snippet}
       </Field>
 
-      <Field forId="email" label={$t("auth.unlock.cloud.email")} let:id>
-        <TextInput
-          {id}
-          type="email"
-          bind:value={email}
-          placeholder={$t("auth.unlock.cloud.emailPlaceholder")}
-          required
-        />
+      <Field forId="email" label={$t("auth.unlock.cloud.email")}>
+        {#snippet children({ id })}
+          <TextInput
+            {id}
+            type="email"
+            bind:value={email}
+            placeholder={$t("auth.unlock.cloud.emailPlaceholder")}
+            required
+          />
+        {/snippet}
       </Field>
 
       <div class="flex min-w-0 flex-col gap-1.5">
-        <Field forId="password" label={$t("auth.unlock.cloud.password")} let:id>
-          <TextInput
-            {id}
-            type="password"
-            bind:value={password}
-            placeholder={$t("auth.unlock.cloud.passwordPlaceholder")}
-            required
-          />
+        <Field forId="password" label={$t("auth.unlock.cloud.password")}>
+          {#snippet children({ id })}
+            <TextInput
+              {id}
+              type="password"
+              bind:value={password}
+              placeholder={$t("auth.unlock.cloud.passwordPlaceholder")}
+              required
+            />
+          {/snippet}
         </Field>
         <div class="text-right">
           <a href="/forgot-password" class="text-sm text-accent no-underline hover:underline">

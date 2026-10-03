@@ -1,4 +1,4 @@
-<script context="module" lang="ts">
+<script module lang="ts">
   export interface ExamItemRef {
     type: "exercise" | "mc_group";
     id: string;
@@ -6,13 +6,13 @@
 </script>
 
 <script lang="ts">
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import { parseExerciseScore } from "$lib/latex/scoreParser";
-  import { mcSubLabel } from "$lib/grading/mcGroupLabels";
-  import ExerciseLabel from "$lib/components/exam/ExerciseLabel.svelte";
-  import { t } from "$lib/i18n";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import { parseExerciseScore } from "#lib/latex/scoreParser";
+  import { mcSubLabel } from "#lib/grading/mcGroupLabels";
+  import ExerciseLabel from "#lib/components/exam/ExerciseLabel.svelte";
+  import { t } from "#lib/i18n";
   import { faPen, faArrowUp, faArrowDown, faXmark } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, Card } from "$lib/components/ui";
+  import { Badge, Button, Card } from "#lib/components/ui";
 
   interface McGroup {
     id: string;
@@ -21,19 +21,37 @@
     memberIds: string[];
   }
 
-  export let selectedExercises: ExerciseRecord[];
-  export let totalPoints: number;
-  export let isPreviewLoading: boolean;
-  export let onLivePreview: () => void;
-  export let onQuickEdit: (ex: ExerciseRecord) => void;
-  export let onMoveExercise: (index: number, direction: "up" | "down") => void;
-  export let onMoveExamItem: ((index: number, direction: "up" | "down") => void) | undefined = undefined;
-  export let onRemove: (id: string) => void;
-  export let mcGroups: McGroup[] = [];
-  export let libraryExercises: ExerciseRecord[] = [];
-  export let examItems: ExamItemRef[] = [];
-  export let onRemoveMcGroup: (id: string) => void = () => {};
-  export let onEditMcGroup: ((id: string) => void) | undefined = undefined;
+  interface Props {
+    selectedExercises: ExerciseRecord[];
+    totalPoints: number;
+    isPreviewLoading: boolean;
+    onLivePreview: () => void;
+    onQuickEdit: (ex: ExerciseRecord) => void;
+    onMoveExercise: (index: number, direction: "up" | "down") => void;
+    onMoveExamItem?: ((index: number, direction: "up" | "down") => void) | undefined;
+    onRemove: (id: string) => void;
+    mcGroups?: McGroup[];
+    libraryExercises?: ExerciseRecord[];
+    examItems?: ExamItemRef[];
+    onRemoveMcGroup?: (id: string) => void;
+    onEditMcGroup?: ((id: string) => void) | undefined;
+  }
+
+  let {
+    selectedExercises,
+    totalPoints,
+    isPreviewLoading,
+    onLivePreview,
+    onQuickEdit,
+    onMoveExercise,
+    onMoveExamItem = undefined,
+    onRemove,
+    mcGroups = [],
+    libraryExercises = [],
+    examItems = [],
+    onRemoveMcGroup = () => {},
+    onEditMcGroup = undefined
+  }: Props = $props();
 
   function memberExercises(group: McGroup): ExerciseRecord[] {
     return group.memberIds
@@ -52,7 +70,7 @@
     "flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-md border border-line bg-surface-sunken px-4 py-3";
   const infoClass = "flex min-w-0 flex-wrap items-center gap-3";
 
-  $: totalItemCount = examItems.length > 0 ? examItems.length : selectedExercises.length + mcGroups.length;
+  let totalItemCount = $derived(examItems.length > 0 ? examItems.length : selectedExercises.length + mcGroups.length);
 </script>
 
 <Card class="mb-6">

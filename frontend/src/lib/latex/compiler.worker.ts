@@ -11,25 +11,11 @@ const packages = [
   '/core/busytex/texlive-extra.js'
 ];
 
-// --- Asset-version cache busting ---------------------------------------
-//
-// texlyre-busytex ships its own cache-busting (`ensureCacheVersion`), but
-// it's keyed off the npm library's own version string and it is a no-op
-// here anyway: `ensureCacheVersion` guards on `typeof localStorage`, and
-// `localStorage` does not exist inside a dedicated Worker (this file runs
-// as one), so that check silently never fires for this app.
-//
-// Redeploying our *own* static TeX Live bundles under `static/core/busytex`
-// (e.g. to fix a missing/broken package) does not bump the texlyre-busytex
-// npm version, so a browser that already has a package cached from before
-// the fix would otherwise keep reusing the stale/broken data forever,
-// producing confusing "File `X.sty' not found" errors for packages that
-// are, in fact, bundled in the current deployment.
-//
-// We track our own fingerprint (the chunk manifest, which changes whenever
-// the bundled assets are rebuilt/re-chunked) in IndexedDB - which, unlike
-// localStorage, is available inside Workers - and force a full package
-// cache wipe whenever it changes.
+// --- Asset-version cache busting ---
+// texlyre-busytex's own `ensureCacheVersion` is a no-op here (it guards on `localStorage`, absent in
+// Workers) and keys on the npm version, which does not change when we redeploy our own TeX Live
+// bundles, so stale packages would cause bogus "File `X.sty' not found". We track our own
+// fingerprint (the chunk manifest) in IndexedDB (available in Workers) and wipe the cache when it changes.
 const ASSET_VERSION_DB = 'blindgrade-busytex-asset-version';
 const ASSET_VERSION_STORE = 'version';
 const ASSET_VERSION_KEY = 'fingerprint';
@@ -194,13 +180,9 @@ function resetRunner() {
   }
 }
 
-// Matches LaTeX's "File `foo.sty' not found" style errors for the kinds of
-// files that ship inside our bundled TeX Live packages. If a compile fails
-// this way, it's a strong signal that the locally cached package data is
-// missing, truncated, or otherwise corrupted (see fetchInterceptor.ts) -
-// not that the document's LaTeX is actually broken - so it's worth wiping
-// the cache and trying exactly once more with a guaranteed-clean download
-// before surfacing the error to the user.
+// Matches "File `foo.sty' not found" errors for files in our bundled TeX Live packages. That
+// strongly suggests corrupted/truncated cached package data (see fetchInterceptor.ts), not broken
+// LaTeX, so wipe the cache and retry exactly once before surfacing the error.
 export const MISSING_PACKAGE_FILE_PATTERN = /File `[^']+\.(sty|cls|clo|def|cfg|fd)' not found/i;
 
 export function looksLikeMissingBundledPackage(log: string | undefined | null): boolean {

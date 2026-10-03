@@ -1,23 +1,29 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import { fmt } from "$lib/utils/format";
-  import { Button, Card } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { fmt } from "#lib/utils/format";
+  import { Button, Card } from "#lib/components/ui";
   import OmrParamsDiff from "./OmrParamsDiff.svelte";
-  import { diffOmrParams, type OmrSettingsProfile } from "$lib/grading/omrSettings";
-  import type { McAlgorithmScore, McDetectionRunSummary } from "$lib/grading/mcVerification";
+  import { diffOmrParams, type OmrSettingsProfile } from "#lib/grading/omrSettings";
+  import type { McAlgorithmScore, McDetectionRunSummary } from "#lib/grading/mcVerification";
 
-  /** Newest first, legacy (`run: null`) bucket last — `McVerificationStats.detectionRuns`. */
-  export let runs: McDetectionRunSummary[];
-  /** The settings a re-run would use right now. */
-  export let current: OmrSettingsProfile;
-  /** v2 vs v4 on the verified boxes (`McVerificationStats.algorithmComparison`). */
-  export let comparison: McAlgorithmScore[] = [];
+  
 
-  $: latest = runs[0] ?? null;
-  $: latestParams = latest?.run?.params ?? null;
-  $: changed = latestParams ? diffOmrParams(latestParams, current.params) : [];
+  interface Props {
+    /** Newest first, legacy (`run: null`) bucket last — `McVerificationStats.detectionRuns`. */
+    runs: McDetectionRunSummary[];
+    /** The settings a re-run would use right now. */
+    current: OmrSettingsProfile;
+    /** v2 vs v4 on the verified boxes (`McVerificationStats.algorithmComparison`). */
+    comparison?: McAlgorithmScore[];
+  }
+
+  let { runs, current, comparison = [] }: Props = $props();
+
+  let latest = $derived(runs[0] ?? null);
+  let latestParams = $derived(latest?.run?.params ?? null);
+  let changed = $derived(latestParams ? diffOmrParams(latestParams, current.params) : []);
   // With nothing to compare against, show every value; otherwise lead with the differences.
-  let showAll = false;
+  let showAll = $state(false);
 </script>
 
 {#if latest}

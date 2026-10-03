@@ -1,21 +1,32 @@
 <script lang="ts">
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import type { McGroupDraft } from "$lib/exam/mcGroupStaging";
-  import { canFinalizeGroup } from "$lib/exam/mcGroupStaging";
-  import { mcSubLabel } from "$lib/grading/mcGroupLabels";
-  import LatexEditor from "$lib/components/LatexEditor.svelte";
-  import ExerciseLabel from "$lib/components/exam/ExerciseLabel.svelte";
+  import { untrack } from "svelte";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import type { McGroupDraft } from "#lib/exam/mcGroupStaging";
+  import { canFinalizeGroup } from "#lib/exam/mcGroupStaging";
+  import { mcSubLabel } from "#lib/grading/mcGroupLabels";
+  import LatexEditor from "#lib/components/LatexEditor.svelte";
+  import ExerciseLabel from "#lib/components/exam/ExerciseLabel.svelte";
   import { faArrowUp, faArrowDown } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Button, Field, TextInput } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
+  import { Alert, Button, Field, TextInput } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
 
-  /** Staged questions, in group order. */
-  export let stagedExercises: ExerciseRecord[];
-  /** The group being edited, or null when building a new one. */
-  export let editingGroup: McGroupDraft | null = null;
-  export let onRemove: (exerciseId: string) => void;
-  export let onReorder: (index: number, direction: "up" | "down") => void;
-  export let onFinalize: (title: string, scoringText: string) => void;
+  interface Props {
+    /** Staged questions, in group order. */
+    stagedExercises: ExerciseRecord[];
+    /** The group being edited, or null when building a new one. */
+    editingGroup?: McGroupDraft | null;
+    onRemove: (exerciseId: string) => void;
+    onReorder: (index: number, direction: "up" | "down") => void;
+    onFinalize: (title: string, scoringText: string) => void;
+  }
+
+  let {
+    stagedExercises,
+    editingGroup = null,
+    onRemove,
+    onReorder,
+    onFinalize
+  }: Props = $props();
 
   // Default group title and scoring sentence are exam CONTENT printed verbatim in
   // the German exam PDF (see i18n brief "Do NOT translate") — not UI strings.
@@ -23,21 +34,15 @@
   const DEFAULT_SCORING_TEXT =
     "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE";
 
-  let title = DEFAULT_TITLE;
-  let scoringText = DEFAULT_SCORING_TEXT;
+  let title = $state(DEFAULT_TITLE);
+  let scoringText = $state(DEFAULT_SCORING_TEXT);
   /** Confirmation after a group was added/updated, so it is clear another one can follow. */
-  let notice = "";
+  let notice = $state("");
 
   // Prefill from the group being edited; reset when switching back to "new".
   let loadedGroupId: string | null = null;
-  $: if ((editingGroup?.id ?? null) !== loadedGroupId) {
-    loadedGroupId = editingGroup?.id ?? null;
-    title = editingGroup?.title ?? DEFAULT_TITLE;
-    scoringText = editingGroup?.scoringText ?? DEFAULT_SCORING_TEXT;
-  }
 
-  $: if (stagedExercises.length > 0) notice = "";
-  $: count = stagedExercises.length;
+  let count = $derived(stagedExercises.length);
 
   function finalize() {
     notice = editingGroup
@@ -47,6 +52,21 @@
     title = DEFAULT_TITLE;
   }
 
+  $effect.pre(() => {
+    const group = editingGroup;
+    const groupId = group?.id ?? null;
+    untrack(() => {
+      if (groupId !== loadedGroupId) {
+        loadedGroupId = groupId;
+        title = group?.title ?? DEFAULT_TITLE;
+        scoringText = group?.scoringText ?? DEFAULT_SCORING_TEXT;
+      }
+    });
+  });
+
+  $effect.pre(() => {
+    if (stagedExercises.length > 0) untrack(() => (notice = ""));
+  });
 </script>
 
 <div class="flex min-w-0 flex-col gap-3 rounded-md border border-warning/60 bg-warning/5 p-4">

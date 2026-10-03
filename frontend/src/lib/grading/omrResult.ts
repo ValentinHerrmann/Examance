@@ -1,5 +1,5 @@
-import type { ExerciseScoreRecord } from '$lib/db/schema';
-import type { OmrExerciseResult } from '$lib/workers/omrWorker';
+import type { ExerciseScoreRecord } from '#lib/db/schema';
+import type { OmrExerciseResult } from '#lib/workers/omrWorker';
 import type { OmrPageStats, OmrRunInfo } from './omrSettings';
 import type { OmrShapeFeatures } from './omrShape';
 
@@ -13,13 +13,10 @@ function roundShape(shape: OmrShapeFeatures): OmrShapeFeatures {
 }
 
 /**
- * Re-detection of a question a teacher already verified: the teacher's decision (selection, score,
- * `source`/`reviewedAt`, donation marker) stays exactly as it is — only the recorded detection is
- * replaced (scanner reading, flags, `original`, run snapshot, raw features, `alt`), so statistics
- * and the v2/v4 comparison show how the new settings would have read this sheet. Display `state`
- * keeps following the verified selection. A re-run that could not read the question (alignment
- * failed, no boxes) leaves the row exactly as it was: copying its `failed` confidence and empty
- * `original` would move a verified item into the "failed" queue and count it as corrected.
+ * Re-detection of an already-verified question: the teacher's decision (selection, score,
+ * `source`/`reviewedAt`, donation marker) stays; only the recorded detection is replaced. A re-run that
+ * could not read the question leaves the row untouched, else its `failed` confidence and empty
+ * `original` would move a verified item into the "failed" queue.
  */
 export function mergeRedetectionIntoVerified(
   existing: ExerciseScoreRecord,
@@ -51,15 +48,10 @@ export function mergeRedetectionIntoVerified(
 }
 
 /**
- * Turns one worker result into the score row that gets persisted — the only place that does,
- * for both the initial scan (scan page) and a re-run (verify page).
- *
- * Besides the detection itself it keeps the raw per-bubble readings (`fillRatio`, `redoRatio`,
- * immutable `detectedState`, shape measurements and `reasons`), the page's registration stats and
- * the run snapshot. Together with the teacher's later verification that makes every reviewed row a
- * labelled calibration sample.
- * All of it lives inside the sealed `omrMeta` — pupil-derived data, never a plaintext column,
- * index or log line.
+ * Turns one worker result into the persisted score row (initial scan and re-run). Keeps raw
+ * per-bubble readings, registration stats and the run snapshot, so a reviewed row is a labelled
+ * calibration sample. All of it lives in the sealed `omrMeta`: pupil-derived, never a plaintext
+ * column, index or log line.
  */
 export function buildOmrScoreRecord(
   r: OmrExerciseResult,

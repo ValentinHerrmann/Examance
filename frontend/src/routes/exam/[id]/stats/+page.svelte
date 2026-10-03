@@ -1,40 +1,40 @@
 <script lang="ts">
-  import { page } from '$app/stores';
-  import { onMount } from 'svelte';
-  import { browser } from '$app/environment';
+  import { page } from '$app/state';
+  import { onMount, untrack } from 'svelte';
+  import { browser } from '$app/env';
   import { get } from 'svelte/store';
-  import StatsPage from '$lib/components/stats/StatsPage.svelte';
-  import type { ExamRecord, ExerciseRecord, SubmissionRecord, StudentRecord } from '$lib/db/schema';
-  import { loadExamEncrypted, loadExamExercisesEncrypted } from '$lib/db/dbEncryption';
-  import { scoreRepository } from '$lib/repositories/scoreRepository';
-  import { submissionRepository } from '$lib/repositories/submissionRepository';
-  import { studentRepository } from '$lib/repositories/studentRepository';
-  import { sessionStore, awaitSessionReady } from '$lib/stores/session';
+  import StatsPage from '#lib/components/stats/StatsPage.svelte';
+  import type { ExamRecord, ExerciseRecord, SubmissionRecord, StudentRecord } from '#lib/db/schema';
+  import { loadExamEncrypted, loadExamExercisesEncrypted } from '#lib/db/dbEncryption';
+  import { scoreRepository } from '#lib/repositories/scoreRepository';
+  import { submissionRepository } from '#lib/repositories/submissionRepository';
+  import { studentRepository } from '#lib/repositories/studentRepository';
+  import { sessionStore, awaitSessionReady } from '#lib/stores/session';
   import {
     calculateSubmissionPercentage,
     summarizeExam,
     type ExamResult,
     type ExamStats,
-  } from '$lib/analytics/stats';
-  import { calculateGradeFromPercentage } from '$lib/analytics/gradingKey';
-  import { exportGradesToCsv } from '$lib/analytics/csvExport';
-  import { buildSubmissionMap } from '$lib/utils/studentLookup';
-  import { translate } from '$lib/i18n';
+  } from '#lib/analytics/stats';
+  import { calculateGradeFromPercentage } from '#lib/analytics/gradingKey';
+  import { exportGradesToCsv } from '#lib/analytics/csvExport';
+  import { buildSubmissionMap } from '#lib/utils/studentLookup';
+  import { translate } from '#lib/i18n';
 
-  $: examId = $page.params.id || '';
+  let examId = $derived(page.params.id || '');
 
-  let exam: ExamRecord | null = null;
+  // Raw: records go to lib/analytics and the CSV export unchanged.
+  let exam: ExamRecord | null = $state.raw(null);
   let exercises: ExerciseRecord[] = [];
-  let submissions: SubmissionRecord[] = [];
+  let submissions: SubmissionRecord[] = $state.raw([]);
   let students: StudentRecord[] = [];
-  let showConfirmModal = false;
-  let totalMaxPoints: number | null = null;
-  let stats: ExamStats | null = null;
+  let showConfirmModal = $state(false);
+  let totalMaxPoints: number | null = $state(null);
+  let stats: ExamStats | null = $state.raw(null);
 
   // Once per exam id: the reactive block and onMount can both fire on one visit.
   let loadedExamId = '';
 
-  $: if (browser && examId && $sessionStore.sessionKey) startLoad();
   onMount(startLoad);
 
   function startLoad() {
@@ -99,6 +99,10 @@
 
     await exportGradesToCsv(examId, exam?.title || 'Exam', rows, key);
   }
+
+  $effect.pre(() => {
+    if (browser && examId && $sessionStore.sessionKey) untrack(startLoad);
+  });
 </script>
 
 <StatsPage

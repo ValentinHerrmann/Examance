@@ -1,13 +1,13 @@
 import { get } from "svelte/store";
-import type { ExamRecord, ExerciseRecord } from "$lib/db/schema";
-import type { McGroup } from "$lib/db/dbEncryption";
-import { compileWithCache } from "$lib/latex/compileCache";
-import type { CompileResult } from "$lib/latex/compiler";
-import { formatExerciseLatex, formatMcGroupLatex } from "$lib/latex/scoreParser";
-import type { ExamItemRef } from "$lib/grading/omrTemplatePrep";
-import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
-import { storagePolicyStore } from "$lib/stores/storagePolicy";
-import { formatExamCourse } from "$lib/utils/examLabel";
+import type { ExamRecord, ExerciseRecord } from "#lib/db/schema";
+import type { McGroup } from "#lib/db/dbEncryption";
+import { compileWithCache } from "#lib/latex/compileCache";
+import type { CompileResult } from "#lib/latex/compiler";
+import { formatExerciseLatex, formatMcGroupLatex } from "#lib/latex/scoreParser";
+import type { ExamItemRef } from "#lib/grading/omrTemplatePrep";
+import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
+import { storagePolicyStore } from "#lib/stores/storagePolicy";
+import { formatExamCourse } from "#lib/utils/examLabel";
 
 /** The LaTeX `\Aufgabe` blocks of an exam in item order (standalone exercises and MC groups). */
 export function buildExerciseInputs(
@@ -41,13 +41,9 @@ export function buildExerciseInputs(
 }
 
 /**
- * Resource files of every exercise in the exam, ready for the compiler.
- *
- * Files are written flat, so two exercises carrying different files under the
- * same name is a conflict the teacher has to resolve; mergeResources() (in
- * lib/latex/resources.ts) raises it before anything is compiled. The local
- * engine needs the bytes in the browser; the server loads its own rows, so it
- * only gets the exercise ids.
+ * Resource files of every exercise in the exam, for the compiler. Files are written flat, so
+ * same-name different files conflict; mergeResources() (lib/latex/resources.ts) raises it
+ * before compiling. The server engine loads its own rows and only gets exercise ids.
  */
 export async function collectExamResources(
   examItems: ExamItemRef[],

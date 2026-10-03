@@ -1,6 +1,6 @@
 import { get } from "svelte/store";
 import { effectiveRedoRect } from "./omrShape";
-import { loadPdfjs } from "$lib/pdf/pdfjs";
+import { loadPdfjs } from "#lib/pdf/pdfjs";
 import type { 
   ExamRecord, 
   ExerciseRecord, 
@@ -8,7 +8,7 @@ import type {
   OmrBubbleRect, 
   OmrFiducialRect, 
   OmrTemplatePayload 
-} from "$lib/db/schema";
+} from "#lib/db/schema";
 import { 
   type McGroup, 
   loadExamEncrypted, 
@@ -16,16 +16,16 @@ import {
   loadLocalMcGroups, 
   loadExercisesEncrypted, 
   saveOmrTemplateEncrypted 
-} from "$lib/db/dbEncryption";
-import { computeMcExercisesHash, resolveMcExercises } from "$lib/grading/mcExerciseHash";
-import { compileWithCache } from "$lib/latex/compileCache";
-import { buildExamLatex, buildExerciseInputs, collectExamResources } from "$lib/exam/examPreview";
-import { mapApiToExerciseRecord } from "$lib/repositories/exerciseRepository";
-import { api } from "$lib/api/client";
-import { mapApiToExamRecord } from "$lib/repositories/examRepository";
-import { isAuthenticated } from "$lib/stores/session";
-import { storagePolicyStore } from "$lib/stores/storagePolicy";
-import { translate } from "$lib/i18n";
+} from "#lib/db/dbEncryption";
+import { computeMcExercisesHash, resolveMcExercises } from "#lib/grading/mcExerciseHash";
+import { compileWithCache } from "#lib/latex/compileCache";
+import { buildExamLatex, buildExerciseInputs, collectExamResources } from "#lib/exam/examPreview";
+import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
+import { api } from "#lib/api/client";
+import { mapApiToExamRecord } from "#lib/repositories/examRepository";
+import { isAuthenticated } from "#lib/stores/session";
+import { storagePolicyStore } from "#lib/stores/storagePolicy";
+import { translate } from "#lib/i18n";
 
 export interface ExamItemRef {
   type: "exercise" | "mc_group";

@@ -1,16 +1,14 @@
 /**
- * Export .bgproj archive file.
- *
- * Encrypts current IndexedDB records using a fresh Argon2id key derived from the user-provided export password.
- * Nonce and Salt Freshness Invariant: A fresh salt (16 bytes) and fresh session nonce (12 bytes) MUST be generated
- * for every single pack operation to ensure ciphertext uniqueness and prevent replay/key-reuse vulnerabilities.
+ * Export a .bgproj archive, encrypting records with a fresh Argon2id key from the export password.
+ * Freshness invariant: a new 16-byte salt and 12-byte nonce MUST be generated on every pack
+ * (ciphertext uniqueness, no key/nonce reuse or replay).
  */
 
 import { get } from 'svelte/store';
-import { db } from '$lib/db/db';
-import { scoreRepository } from '$lib/repositories/scoreRepository';
-import { examRepository } from '$lib/repositories/examRepository';
-import { sessionStore } from '$lib/stores/session';
+import { db } from '#lib/db/db';
+import { scoreRepository } from '#lib/repositories/scoreRepository';
+import { examRepository } from '#lib/repositories/examRepository';
+import { sessionStore } from '#lib/stores/session';
 import {
   BGPROJ_MAGIC,
   BGPROJ_VERSION,
@@ -20,16 +18,16 @@ import {
   PAYLOAD_OFFSET,
   type ProgressCallback,
 } from './format';
-import { deriveKey, generateSalt } from '$lib/crypto/keyDerivation';
-import { deriveSessionKey } from '$lib/crypto/sessionKey';
-import { encryptJson, uint8ArrayToBase64 } from '$lib/crypto/aesGcm';
+import { deriveKey, generateSalt } from '#lib/crypto/keyDerivation';
+import { deriveSessionKey } from '#lib/crypto/sessionKey';
+import { encryptJson, uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import {
   loadExamsEncrypted,
   loadExercisesEncrypted,
   loadStudentsEncrypted,
   loadSubmissionsEncrypted,
   decryptResourceBytes,
-} from '$lib/db/dbEncryption';
+} from '#lib/db/dbEncryption';
 
 export async function packProject(
   password: string,
@@ -70,10 +68,8 @@ export async function packProject(
   const exerciseExams = structures.flatMap((s) => s.links);
   const examMcGroups = structures.flatMap((s) => s.mcGroups);
 
-  // Resource files are unwrapped like every other record — decrypted with the
-  // current session key and base64'd, because JSON cannot carry raw bytes. The
-  // archive envelope itself is what protects them; the importer re-encrypts
-  // under its own key.
+    // Resource files are decrypted with the session key and base64'd (JSON can't carry raw bytes);
+    // the archive envelope protects them, and the importer re-encrypts under its own key.
   const exerciseResources = await Promise.all(
     (await db.exerciseResources.toArray()).map(async r => ({
       id: r.id,
@@ -93,10 +89,8 @@ export async function packProject(
     message: 'Encrypting database records...',
   });
 
-  // 4. Students and submissions are archived exactly as they are, with no
-  // re-hashing: the payload is already sealed under the archive key, and
-  // leaving the student/submission link field alone is what keeps a
-  // round-trip lossless.
+    // 4. Students/submissions are archived as-is, no re-hashing: the payload is already sealed under
+    // the archive key, and leaving the student/submission link field alone keeps round-trips lossless.
   const archivePayload = {
     exams,
     exercises,

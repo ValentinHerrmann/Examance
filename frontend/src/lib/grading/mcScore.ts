@@ -1,35 +1,25 @@
 /**
- * Pure MC/SC/TF scoring logic.
- *
- * Shared by omrWorker.ts (auto-detected marks) and the grading review UI
- * (manual overrides), so the two can never disagree on a score. Takes only
- * one exercise's own fields — ExamMcGroup is layout-only and must never
- * enter scoring (see the Grading & Statistics Invariant in CLAUDE.md).
+ * Pure MC/SC/TF scoring shared by omrWorker.ts and the review UI so they never disagree. Takes only
+ * one exercise's own fields: ExamMcGroup is layout-only and must never enter scoring (see the
+ * Grading & Statistics Invariant in CLAUDE.md).
  */
 
-import type { OmrScoreMeta } from '$lib/db/schema';
+import type { OmrScoreMeta } from '#lib/db/schema';
 
 export type McQuestionType = 'mc' | 'sc' | 'tf';
 
 /**
- * True if `ex` is an MC/SC/TF exercise. Prefer this over `questionType !==
- * 'free_text'` — a legacy exercise record predating this field has
- * `questionType === undefined`, which passes that negative check and gets
- * mis-routed into the MC path (empty MC panel, stamp-based auto-scoring
- * silently disabled). Explicit allow-list avoids that trap.
+ * True if `ex` is an MC/SC/TF exercise. Prefer over `questionType !== 'free_text'`: legacy records
+ * have `questionType === undefined`, which passes that check and is mis-routed into the MC path.
  */
 export function isMcQuestion(ex: { questionType?: string }): boolean {
   return ex.questionType === 'mc' || ex.questionType === 'sc' || ex.questionType === 'tf';
 }
 
 /**
- * Computes the score for a single MC/SC/TF exercise.
- *
- * - `mc`: right-minus-wrong, floored at 0 —
- *   `clamp(#correctSelected - |penalty| * #wrongSelected, 0, maxPoints)`.
- * - `sc` / `tf`: exact match against `correctAnswers` scores `maxPoints`;
- *   otherwise `0`, or the signed `penalty` if it is negative (preserves the
- *   legacy negative-marking contract for a wrong single choice).
+ * Score for one MC/SC/TF exercise. `mc`: `clamp(#correctSelected - |penalty| * #wrongSelected, 0,
+ * maxPoints)`. `sc`/`tf`: exact match scores `maxPoints`, else `0` or the signed `penalty` if
+ * negative (legacy negative marking for a wrong single choice).
  */
 export function computeMcScore(
   questionType: McQuestionType,

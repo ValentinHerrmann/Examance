@@ -1,13 +1,30 @@
 <script lang="ts">
-  export let group: string | number | undefined = undefined;
-  export let value: string | number;
-  export let label: string | undefined = undefined;
-  export let id: string | undefined = undefined;
-  export let name: string | undefined = undefined;
-  export let disabled = false;
+  import type { Snippet } from "svelte";
+  import type { HTMLInputAttributes } from "svelte/elements";
 
-  let className = "";
-  export { className as class };
+  interface Props extends Omit<HTMLInputAttributes, "group" | "value" | "class" | "type" | "children"> {
+    group?: string | number | undefined;
+    value: string | number;
+    label?: string | undefined;
+    id?: string | undefined;
+    name?: string | undefined;
+    disabled?: boolean;
+    class?: string;
+    children?: Snippet;
+  }
+
+  let {
+    group = undefined,
+    value,
+    label = undefined,
+    id = undefined,
+    name = undefined,
+    disabled = false,
+    onchange = undefined,
+    class: className = "",
+    children,
+    ...rest
+  }: Props = $props();
 </script>
 
 <label
@@ -22,9 +39,9 @@
     {value}
     {disabled}
     bind:group
-    on:change
+    {onchange}
     class="size-5 shrink-0 cursor-[inherit] accent-primary"
-    {...$$restProps}
+    {...rest}
   />
-  {#if label || $$slots.default}<span class="min-w-0"><slot>{label}</slot></span>{/if}
+  {#if label || children}<span class="min-w-0">{#if children}{@render children()}{:else}{label}{/if}</span>{/if}
 </label>

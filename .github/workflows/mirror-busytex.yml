@@ -61,14 +61,15 @@ jobs:
         with:
           sparse-checkout: |
             frontend/package-lock.json
+            frontend/.node-version
             frontend/scripts
           sparse-checkout-cone-mode: false
 
-      # Same Node as the Pages build image, so the gzip output — and with it
+      # Same Node as the Pages build (frontend/.node-version), so the gzip output — and with it
       # the chunk hashes Pages dedupes uploads by — matches a local fallback.
       - uses: actions/setup-node@v4
         with:
-          node-version: "22.16.0"
+          node-version-file: frontend/.node-version
 
       - name: Mirror missing objects
         working-directory: frontend

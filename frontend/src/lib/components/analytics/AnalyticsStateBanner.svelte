@@ -1,8 +1,13 @@
 <script lang="ts">
-  import { t } from '$lib/i18n';
+  import { t } from '#lib/i18n';
   import { faLock } from '@fortawesome/free-solid-svg-icons';
-  import { Button, Card, EmptyState, Spinner } from '$lib/components/ui';
-  export let variant: 'loading' | 'locked';
+  import { Button, Card, EmptyState, Spinner } from '#lib/components/ui';
+
+  interface Props {
+    variant: 'loading' | 'locked';
+  }
+
+  let { variant }: Props = $props();
 </script>
 
 {#if variant === 'loading'}
@@ -13,9 +18,9 @@
 {:else}
   <Card>
     <EmptyState icon={faLock} title={$t('stats.analyticsBanner.lockedTitle')} description={$t('stats.analyticsBanner.lockedBody')}>
-      <svelte:fragment slot="actions">
+      {#snippet actions()}
         <Button href="/unlock">{$t('stats.analyticsBanner.unlockLink')}</Button>
-      </svelte:fragment>
+      {/snippet}
     </EmptyState>
   </Card>
 {/if}

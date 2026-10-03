@@ -1,22 +1,29 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
   import Icon from "./Icon.svelte";
 
-  /**
-   * Tag / status badge (Artemis tag spec): a 20% tint of the state colour with
-   * the state's text colour. Colour is never the only signal — pair it with a
-   * word or an icon.
-   */
   type Severity = "primary" | "secondary" | "success" | "info" | "warning" | "danger" | "contrast";
 
-  export let severity: Severity = "secondary";
-  /** `xs` for counts inside nav items and table cells. */
-  export let size: "xs" | "sm" = "sm";
-  export let icon: IconDefinition | undefined = undefined;
-  export let title: string | undefined = undefined;
+  /** Tag / status badge (Artemis spec). Colour is never the only signal; pair it with a word or an icon. */
+  interface Props {
+    severity?: Severity;
+    /** `xs` for counts inside nav items and table cells. */
+    size?: "xs" | "sm";
+    icon?: IconDefinition | undefined;
+    title?: string | undefined;
+    class?: string;
+    children?: Snippet;
+  }
 
-  let className = "";
-  export { className as class };
+  let {
+    severity = "secondary",
+    size = "sm",
+    icon = undefined,
+    title = undefined,
+    class: className = "",
+    children,
+  }: Props = $props();
 
   const tones: Record<Severity, string> = {
     primary: "bg-primary/20 text-accent",
@@ -40,5 +47,5 @@
   {title}
 >
   {#if icon}<Icon {icon} />{/if}
-  <span class="min-w-0 truncate"><slot /></span>
+  <span class="min-w-0 truncate">{@render children?.()}</span>
 </span>

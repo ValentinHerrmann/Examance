@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import { get } from "svelte/store";
-  import { sessionStore } from "$lib/stores/session";
-  import { Button, TextInput } from "$lib/components/ui";
-  import type { ExerciseResourceRecord } from "$lib/db/schema";
-  import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
+  import { sessionStore } from "#lib/stores/session";
+  import { Button, TextInput } from "#lib/components/ui";
+  import type { ExerciseResourceRecord } from "#lib/db/schema";
+  import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import {
     MAX_EXERCISE_RESOURCE_BYTES,
     ResourceError,
@@ -13,36 +13,32 @@
     insertSnippetFor,
     sanitizeResourceName,
     validateResource,
-  } from "$lib/latex/resources";
+  } from "#lib/latex/resources";
 
-  /**
-   * Staging area the files belong to. The editor passes a staging id, not the
-   * exercise id, so files can be attached before the exercise exists; they are
-   * committed onto the exercise when the editor is saved.
-   */
-  export let exerciseId: string;
-  /** Called with the LaTeX snippet that references the clicked file. */
-  export let onInsert: (snippet: string) => void = () => {};
-  /** Called after any change, so the parent can refresh a preview. */
-  export let onChange: () => void = () => {};
+  interface Props {
+    /** Staging id (not the exercise id), so files can be attached before the exercise exists; committed on save. */
+    exerciseId: string;
+    /** Called with the LaTeX snippet that references the clicked file. */
+    onInsert?: (snippet: string) => void;
+    /** Called after any change, so the parent can refresh a preview. */
+    onChange?: () => void;
+  }
 
-  let resources: ExerciseResourceRecord[] = [];
-  let thumbnails: Record<string, string> = {};
-  let errorMsg = "";
-  let busy = false;
-  let dragOver = false;
-  let renamingId: string | null = null;
-  let renameValue = "";
-  let fileInput: HTMLInputElement;
+  let { exerciseId, onInsert = () => {}, onChange = () => {} }: Props = $props();
 
-  $: usedBytes = resources.reduce((sum, r) => sum + r.byteSize, 0);
-  $: usedPercent = Math.min(100, Math.round((usedBytes / MAX_EXERCISE_RESOURCE_BYTES) * 100));
+  let resources: ExerciseResourceRecord[] = $state.raw([]);
+  let thumbnails: Record<string, string> = $state.raw({});
+  let errorMsg = $state("");
+  let busy = $state(false);
+  let dragOver = $state(false);
+  let renamingId: string | null = $state(null);
+  let renameValue = $state("");
+  let fileInput: HTMLInputElement | undefined = $state();
+
+  let usedBytes = $derived(resources.reduce((sum, r) => sum + r.byteSize, 0));
+  let usedPercent = $derived(Math.min(100, Math.round((usedBytes / MAX_EXERCISE_RESOURCE_BYTES) * 100)));
 
   let loadedFor = "";
-  $: if (exerciseId && exerciseId !== loadedFor) {
-    loadedFor = exerciseId;
-    void load();
-  }
 
   async function load() {
     try {
@@ -53,11 +49,8 @@
     }
   }
 
-  /**
-   * Only files whose bytes are already here get a thumbnail. Rows seeded from
-   * the server carry metadata only, and downloading every figure just to draw a
-   * 36px square would make opening the editor expensive.
-   */
+  // Only files whose bytes are already local get a thumbnail; server-seeded rows carry
+  // metadata only, and downloading every figure for a 36px square would be expensive.
   async function buildThumbnails() {
     const key = get(sessionStore).sessionKey;
     for (const res of resources) {
@@ -159,6 +152,14 @@
       errorMsg = err?.message || "Rename failed.";
     }
   }
+
+  $effect.pre(() => {
+    const id = exerciseId;
+    if (id && id !== loadedFor) {
+      loadedFor = id;
+      untrack(() => void load());
+    }
+  });
 </script>
 
 <div class="flex min-w-0 flex-col gap-2 rounded-xl border border-line bg-surface-sunken p-3">
@@ -178,11 +179,14 @@
       : 'border-line-strong text-muted'}"
     role="button"
     tabindex="0"
-    on:dragover|preventDefault={() => (dragOver = true)}
-    on:dragleave={() => (dragOver = false)}
-    on:drop={handleDrop}
-    on:click={() => fileInput?.click()}
-    on:keydown={(e) => (e.key === "Enter" || e.key === " ") && fileInput?.click()}
+    ondragover={(e) => {
+      e.preventDefault();
+      dragOver = true;
+    }}
+    ondragleave={() => (dragOver = false)}
+    ondrop={handleDrop}
+    onclick={() => fileInput?.click()}
+    onkeydown={(e) => (e.key === "Enter" || e.key === " ") && fileInput?.click()}
   >
     {#if busy}
       Storing files…
@@ -190,7 +194,7 @@
       Drop files here or click to choose — PNG, JPG, PDF and any other file the document needs.
     {/if}
   </div>
-  <input class="hidden" type="file" multiple bind:this={fileInput} on:change={handlePicked} />
+  <input class="hidden" type="file" multiple bind:this={fileInput} onchange={handlePicked} />
 
   <p class="m-0 text-xs text-muted">
     Reference a file by its name, e.g. <code class="text-content">\includegraphics{"{figure.png}"}</code>. Files are
@@ -214,7 +218,7 @@
           </div>
           <div class="flex min-w-0 flex-1 flex-col">
             {#if renamingId === res.id}
-              <TextInput size="sm" bind:value={renameValue} on:keydown={(e) => e.key === "Enter" && commitRename(res)} />
+              <TextInput size="sm" bind:value={renameValue} onkeydown={(e) => e.key === "Enter" && commitRename(res)} />
               <div class="mt-1 flex gap-1">
                 <Button size="sm" onClick={() => commitRename(res)}>Save</Button>
                 <Button size="sm" variant="outlined" severity="secondary" onClick={() => (renamingId = null)}>Cancel</Button>

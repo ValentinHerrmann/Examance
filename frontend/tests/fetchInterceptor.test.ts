@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// `fetchInterceptor.ts` is a module with a top-level side effect: on first
-// import it monkey-patches `globalThis.fetch` (guarded by the
-// `__busytex_fetch_intercepted__` sentinel so it only installs once). To get
-// a fresh install for every test case we reset the module registry and clear
-// the sentinel/patched fetch before each `import()`.
+// `fetchInterceptor.ts` patches `globalThis.fetch` on first import (guarded by the
+// `__busytex_fetch_intercepted__` sentinel), so reset modules and the sentinel per test.
 async function loadInterceptor() {
   vi.resetModules();
   delete (globalThis as any).__busytex_fetch_intercepted__;
@@ -15,10 +12,8 @@ function textBody(text: string): Uint8Array {
   return new TextEncoder().encode(text);
 }
 
-// Node's current DOM lib typings for `Response`'s `BodyInit` union don't
-// accept `Uint8Array<ArrayBufferLike>` directly (a lib-version quirk, not a
-// real runtime restriction). Cast at the boundary to keep the test bodies
-// readable.
+// Node's DOM typings reject `Uint8Array<ArrayBufferLike>` as `BodyInit` (lib quirk, not a
+// runtime restriction); cast at the boundary.
 function asBody(bytes: Uint8Array): BodyInit {
   return bytes as unknown as BodyInit;
 }
@@ -132,13 +127,9 @@ describe('busytex fetch interceptor', () => {
     }
   });
 
-  // Regression test for the root cause behind spurious
-  // "File `ulem.sty' not found" style errors: a truncated/corrupted chunk
-  // download used to be silently mounted into the virtual filesystem as a
-  // short/garbled file, producing a confusing "package not found" LaTeX
-  // error instead of a clear "download is corrupted" signal. The fix makes
-  // a byte-count mismatch between the declared and actually-received size
-  // surface as a hard stream error instead.
+  // Regression: a truncated chunk download used to be mounted as a short file, causing a
+  // confusing "File `ulem.sty' not found" LaTeX error. A declared/received byte-count mismatch
+  // must now surface as a hard stream error.
   it('errors the response body stream instead of silently truncating when a single chunk download is short', async () => {
     const original = textBody('this payload is definitely more than eight bytes long');
     const truncated = original.slice(0, 8); // simulate a cut-off download

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import { faArrowRight, faCircleQuestion } from "@fortawesome/free-solid-svg-icons";
-  import { openHelp } from "$lib/stores/helpStore";
-  import HelpButton from "$lib/components/help/HelpButton.svelte";
-  import { Button, Card, EmptyState, Icon } from "$lib/components/ui";
+  import { openHelp } from "#lib/stores/helpStore";
+  import HelpButton from "#lib/components/help/HelpButton.svelte";
+  import { Button, Card, EmptyState, Icon } from "#lib/components/ui";
 
   const steps = [
     { n: 1, title: "dashboard.onboarding.step1Title", text: "dashboard.onboarding.step1Text", topic: "examCreation" },
@@ -45,12 +45,12 @@
       {/each}
     </ol>
 
-    <svelte:fragment slot="actions">
+    {#snippet actions()}
       <Button href="/exam/new">{$t("dashboard.onboarding.createFirst")}</Button>
       <Button variant="outlined" severity="secondary" onClick={() => document.getElementById("importFile")?.click()}>
         {$t("dashboard.onboarding.importArchive")}
       </Button>
-    </svelte:fragment>
+    {/snippet}
   </EmptyState>
 
   <p class="m-0 text-center text-sm">

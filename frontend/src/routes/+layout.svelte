@@ -1,97 +1,81 @@
 <script lang="ts">
   import "../app.css";
   import "./+layout.css";
-  import { onMount } from "svelte";
-  import { page } from "$app/stores";
+  import { onMount, untrack, type Snippet } from "svelte";
+  import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { get } from "svelte/store";
-  import { registerHygieneListeners, lockSession } from "$lib/db/hygiene";
+  import { registerHygieneListeners, lockSession } from "#lib/db/hygiene";
   import {
     sessionStore,
     isUnlocked,
     isAuthenticated,
     markSessionReady,
-  } from "$lib/stores/session";
-  import { vaultIntegrityStore } from "$lib/stores/vaultIntegrity";
-  import { api } from "$lib/api/client";
+  } from "#lib/stores/session";
+  import { vaultIntegrityStore } from "#lib/stores/vaultIntegrity";
+  import { api } from "#lib/api/client";
   import {
     storagePolicyStore,
     storagePolicyBadgeStore,
-  } from "$lib/stores/storagePolicy";
-  import { safeLocalStorage } from "$lib/utils/storage";
-  import { registerCspDiagnostics } from "$lib/utils/cspDiagnostics";
-  import { effectiveBackendStore } from "$lib/stores/backendStore";
+  } from "#lib/stores/storagePolicy";
+  import { safeLocalStorage } from "#lib/utils/storage";
+  import { registerCspDiagnostics } from "#lib/utils/cspDiagnostics";
+  import { effectiveBackendStore } from "#lib/stores/backendStore";
   import {
     frontendVersion,
     displayVersionUrl,
     backendVersionStore,
     versionStatus,
     refreshBackendVersion,
-  } from "$lib/stores/versionStore";
-  import { registerNavigationGuard, isGradeActivePath, isPublicPath } from "$lib/stores/navigationStore";
+  } from "#lib/stores/versionStore";
+  import { registerNavigationGuard, isGradeActivePath, isPublicPath } from "#lib/stores/navigationStore";
   import {
     importArchiveInteractively,
     exportArchiveInteractively,
     clearWorkspace,
     confirmWorkspaceClear,
-  } from "$lib/services/archiveService";
-  import ImportConflictModal from "$lib/components/storage/ImportConflictModal.svelte";
-  import StorageModeSwitchWizard from "$lib/components/storage/StorageModeSwitchWizard.svelte";
-  import { adoptServerStorageIfLocalEmpty, pendingSwitchStore, resumeModeSwitch } from "$lib/services/storageModeSwitch";
-  import AppNavbar from "$lib/components/layout/AppNavbar.svelte";
-  import AppFooter from "$lib/components/layout/AppFooter.svelte";
-  import NavDrawer from "$lib/components/layout/NavDrawer.svelte";
-  import ExamSidebar from "$lib/components/layout/ExamSidebar.svelte";
-  import { examNavContext } from "$lib/stores/shell";
-  import { theme, applyTheme } from "$lib/stores/theme";
-  import { Alert, Button } from "$lib/components/ui";
-  import StoragePolicyModal from "$lib/components/StoragePolicyModal.svelte";
-  import SessionTimeoutWarning from "$lib/components/SessionTimeoutWarning.svelte";
-  import HttpCatModal from "$lib/components/HttpCatModal.svelte";
-  import HelpModal from "$lib/components/help/HelpModal.svelte";
-  import { helpSeen, helpStore, openHelp, toggleHelp } from "$lib/stores/helpStore";
-  import { locale, t, translate } from "$lib/i18n";
+  } from "#lib/services/archiveService";
+  import ImportConflictModal from "#lib/components/storage/ImportConflictModal.svelte";
+  import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
+  import { adoptServerStorageIfLocalEmpty, pendingSwitchStore, resumeModeSwitch } from "#lib/services/storageModeSwitch";
+  import AppNavbar from "#lib/components/layout/AppNavbar.svelte";
+  import AppFooter from "#lib/components/layout/AppFooter.svelte";
+  import NavDrawer from "#lib/components/layout/NavDrawer.svelte";
+  import ExamSidebar from "#lib/components/layout/ExamSidebar.svelte";
+  import { examNavContext } from "#lib/stores/shell";
+  import { theme, applyTheme } from "#lib/stores/theme";
+  import { Alert, Button } from "#lib/components/ui";
+  import StoragePolicyModal from "#lib/components/StoragePolicyModal.svelte";
+  import SessionTimeoutWarning from "#lib/components/SessionTimeoutWarning.svelte";
+  import HttpCatModal from "#lib/components/HttpCatModal.svelte";
+  import HelpModal from "#lib/components/help/HelpModal.svelte";
+  import { helpSeen, helpStore, openHelp, toggleHelp } from "#lib/stores/helpStore";
+  import { locale, t, translate } from "#lib/i18n";
 
-  let fileInput: HTMLInputElement;
-  let isSettingsModalOpen = false;
-  let isInitializing = true;
+  interface Props {
+    children?: Snippet;
+  }
+
+  let { children }: Props = $props();
+
+  let fileInput: HTMLInputElement | undefined = $state();
+  let isSettingsModalOpen = $state(false);
+  let isInitializing = $state(true);
   let showFocusNav = false;
 
   // A mode switch interrupted after its wipe: say why the workspace is empty.
-  let switchWizardOpen = false;
-  let resumeBannerDismissed = false;
-  $: interruptedSwitch =
-    $pendingSwitchStore && $pendingSwitchStore.phase === "reimport" ? $pendingSwitchStore : null;
+  let switchWizardOpen = $state(false);
+  let resumeBannerDismissed = $state(false);
+  let interruptedSwitch = $derived(
+    $pendingSwitchStore && $pendingSwitchStore.phase === "reimport" ? $pendingSwitchStore : null,
+  );
 
-  $: isGradeActive = isGradeActivePath($page.url.pathname);
+  let isGradeActive = $derived(isGradeActivePath(page.url.pathname));
 
-  // The inline script in app.html applied the theme before the first paint;
-  // from here on the store keeps <html data-theme> in step with the user's
-  // choice and with OS changes while "system" is selected.
-  $: if (typeof document !== "undefined") {
-    applyTheme($theme);
-  }
-
-  $: showFullNav = $isUnlocked && $page.url.pathname !== "/unlock";
-  $: showExamSidebar =
-    showFullNav && !!$examNavContext && $page.url.pathname.startsWith(`/exam/${$examNavContext.examId}`);
-
-  // app.html ships a static <html lang="en">; keep it truthful so screen
-  // readers and browser translation follow the selected language.
-  $: if (typeof document !== "undefined") {
-    document.documentElement.lang = $locale;
-  }
-
-  // Re-probe the server's version whenever the address changes or the session
-  // unlocks. `refreshBackendVersion` de-duplicates concurrent calls, so the
-  // overlap with the onMount call below is harmless.
-  $: if (typeof window !== "undefined" && ($effectiveBackendStore || $isUnlocked)) {
-    void refreshBackendVersion();
-  }
-
-  $: if (!isInitializing && !$isUnlocked && typeof window !== "undefined" && !isPublicPath($page.url.pathname)) {
-    goto("/unlock");
-  }
+  let showFullNav = $derived($isUnlocked && page.url.pathname !== "/unlock");
+  let showExamSidebar = $derived(
+    showFullNav && !!$examNavContext && page.url.pathname.startsWith(`/exam/${$examNavContext.examId}`),
+  );
 
   function handleFooterClick() {
     if (get(isUnlocked)) {
@@ -101,10 +85,7 @@
     }
   }
 
-  /**
-   * F1 and "?" open the help panel. Both are ignored while the caret is in a
-   * text field — "?" is a perfectly ordinary character in a LaTeX body.
-   */
+  /** F1 and "?" open help; both are ignored in text fields ("?" is ordinary in a LaTeX body). */
   function handleGlobalKeydown(event: KeyboardEvent) {
     if (event.ctrlKey || event.metaKey || event.altKey) {
       return;
@@ -158,10 +139,8 @@
       // the account's server data rather than an empty local vault.
       if (mode === "authenticated") await adoptServerStorageIfLocalEmpty();
 
-      // Keys are back — all `awaitSessionReady()` gates on — so release
-      // routes here, before the token refresh below (that refresh is about
-      // the access cookie, not the vault; `client.ts` already handles a race
-      // with an unrefreshed token).
+      // Keys are back, so release `awaitSessionReady()` routes before the token refresh below
+      // (that refresh is about the access cookie, not the vault; `client.ts` handles the race).
       markSessionReady();
 
       if (mode === "hybrid" || mode === "authenticated") {
@@ -173,7 +152,7 @@
           return;
         }
       }
-    } else if (!get(isUnlocked) && !isPublicPath($page.url.pathname)) {
+    } else if (!get(isUnlocked) && !isPublicPath(page.url.pathname)) {
       // Local mode no longer auto-unlocks: its keys come from a passphrase the
       // user supplies, and nothing derived from it is persisted. Every locked
       // session therefore goes through /unlock, whichever mode it is in.
@@ -203,7 +182,6 @@
     if (file && (await importArchiveInteractively(file))) window.location.href = "/";
   }
 
-
   async function handleCloseWorkspace() {
     if (!confirmWorkspaceClear()) {
       return;
@@ -217,6 +195,45 @@
       alert(translate("workspace.archive.clearFailed", { message: err.message }));
     }
   }
+
+  // The inline script in app.html applied the theme before the first paint;
+  // from here on the store keeps <html data-theme> in step with the user's
+  // choice and with OS changes while "system" is selected.
+  $effect.pre(() => {
+    const currentTheme = $theme;
+    if (typeof document !== "undefined") {
+      untrack(() => applyTheme(currentTheme));
+    }
+  });
+
+  // app.html ships a static <html lang="en">; keep it truthful so screen
+  // readers and browser translation follow the selected language.
+  $effect.pre(() => {
+    const lang = $locale;
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = lang;
+    }
+  });
+
+  // Re-probe the server's version whenever the address changes or the session
+  // unlocks. `refreshBackendVersion` de-duplicates concurrent calls, so the
+  // overlap with the onMount call below is harmless.
+  $effect.pre(() => {
+    const backend = $effectiveBackendStore;
+    const unlocked = $isUnlocked;
+    if (typeof window !== "undefined" && (backend || unlocked)) {
+      untrack(() => void refreshBackendVersion());
+    }
+  });
+
+  $effect.pre(() => {
+    const initializing = isInitializing;
+    const unlocked = $isUnlocked;
+    const pathname = page.url.pathname;
+    if (!initializing && !unlocked && typeof window !== "undefined" && !isPublicPath(pathname)) {
+      untrack(() => goto("/unlock"));
+    }
+  });
 </script>
 
 <input
@@ -224,10 +241,10 @@
   accept=".bgproj"
   style="display: none"
   bind:this={fileInput}
-  on:change={handleFileSelected}
+  onchange={handleFileSelected}
 />
 
-<svelte:window on:keydown={handleGlobalKeydown} />
+<svelte:window onkeydown={handleGlobalKeydown} />
 
 <SessionTimeoutWarning />
 <HttpCatModal />
@@ -266,45 +283,42 @@
       {$t("storagePolicy.switch.resumeBody", {
         to: $storagePolicyBadgeStore.text,
       })}
-      <svelte:fragment slot="actions">
+      {#snippet actions()}
         <Button variant="outlined" severity="warning" size="sm" onClick={() => (switchWizardOpen = true)}>
           {$t("storagePolicy.switch.resumeContinue")}
         </Button>
         <Button variant="text" severity="secondary" size="sm" onClick={() => (resumeBannerDismissed = true)}>
           {$t("storagePolicy.switch.resumeDismiss")}
         </Button>
-      </svelte:fragment>
+      {/snippet}
     </Alert>
   {/if}
 
   {#if $vaultIntegrityStore.count > 0}
-    <!--
-      Not a toast or the HTTP error modal: until unlocked with the right key,
-      affected records render blank, so this stays on screen next to them.
-    -->
+    <!-- Not a toast: until unlocked with the right key, affected records render blank, so this stays. -->
     <Alert severity="danger" title={$t("misc.vaultIntegrity.heading")} class="mx-3 mt-2 sm:mx-4">
       {$t("misc.vaultIntegrity.body", {
         count: $vaultIntegrityStore.count,
         kinds: $vaultIntegrityStore.kinds.join(", "),
       })}
-      <svelte:fragment slot="actions">
+      {#snippet actions()}
         <Button variant="outlined" severity="danger" size="sm" onClick={handleLock}>
           {$t("misc.vaultIntegrity.action")}
         </Button>
         <Button variant="text" severity="secondary" size="sm" onClick={() => vaultIntegrityStore.reset()}>
           {$t("misc.vaultIntegrity.dismiss")}
         </Button>
-      </svelte:fragment>
+      {/snippet}
     </Alert>
   {/if}
 
   <div class="app-body">
     {#if showExamSidebar && $examNavContext}
-      <ExamSidebar context={$examNavContext} pathname={$page.url.pathname} {isGradeActive} />
+      <ExamSidebar context={$examNavContext} pathname={page.url.pathname} {isGradeActive} />
     {/if}
 
     <main class="app-main">
-      <slot />
+      {@render children?.()}
 
       <AppFooter
         onBackendClick={handleFooterClick}
@@ -326,7 +340,7 @@
 
   <StoragePolicyModal
     isOpen={isSettingsModalOpen}
-    on:close={() => (isSettingsModalOpen = false)}
+    onClose={() => (isSettingsModalOpen = false)}
   />
 </div>
 

@@ -1,13 +1,16 @@
 <script lang="ts">
-  import { gradingStore } from "$lib/grading/gradingStore";
-  import { t } from "$lib/i18n";
+  import { gradingStore } from "#lib/grading/gradingStore";
+  import { t } from "#lib/i18n";
   import { faTrashCan } from "@fortawesome/free-solid-svg-icons";
-  import { Modal, Button, Icon } from "$lib/components/ui";
+  import { Modal, Button, Icon } from "#lib/components/ui";
 
-  // Destructive action confirm/cancel are callback props out to the parent,
-  // which gates the actual clearing behind the user's explicit confirmation.
-  export let onConfirm: () => void;
-  export let onCancel: () => void;
+  interface Props {
+    /** Destructive: the parent gates the actual clearing behind this explicit confirmation. */
+    onConfirm: () => void;
+    onCancel: () => void;
+  }
+
+  let { onConfirm, onCancel }: Props = $props();
 </script>
 
 <Modal open={$gradingStore.showClearConfirmModal} size="small" onClose={onCancel} bare>

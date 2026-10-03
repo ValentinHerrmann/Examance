@@ -1,11 +1,8 @@
 /**
- * Turns a blocked inline script into an actionable console message. The raw
- * browser error reads like a CORS or build failure; on this project it has
- * always been a Cloudflare dashboard feature rewriting the HTML after the build
- * hashed it. See docs/deployment.md, "Cloudflare dashboard settings".
- *
- * Never "fix" it by allowing the injector's host in `script-src`: that sends
- * visitor data to a third party (docs/data_flow_and_security.md).
+ * Turns a blocked inline script into an actionable console message: the raw error looks like CORS
+ * or a build failure, but here it is a Cloudflare dashboard feature rewriting the HTML after the build
+ * hashed it (docs/deployment.md, "Cloudflare dashboard settings"). Never "fix" it by allowing the
+ * injector's host in `script-src`: that sends visitor data to a third party (docs/data_flow_and_security.md).
  */
 
 const EDGE_INJECTORS: [RegExp, string][] = [

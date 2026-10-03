@@ -66,12 +66,9 @@ describe('src/app.html', () => {
 });
 
 describe('the deployed origin is self-contained', () => {
-  // The CSP is `default-src 'self'` with no CDN allowances, and docs/ tells
-  // schools the browser contacts no external host. Two regressions already got
-  // past review: the pdf.js worker loaded from cdnjs.cloudflare.com on five
-  // call sites, and HttpCatModal fetched an image from http.cat on every API
-  // error — each one leaking the user's IP and User-Agent to a third party.
-  // This is the check that would have caught both.
+  // The CSP is `default-src 'self'` and docs promise the browser contacts no external host.
+  // Two regressions got past review (pdf.js worker from cdnjs, HttpCatModal fetching http.cat),
+  // each leaking IP and User-Agent to a third party; this check would have caught both.
   it('names no off-origin host in src/', () => {
     const offenders: string[] = [];
     for (const file of sourceFiles(srcDir)) {

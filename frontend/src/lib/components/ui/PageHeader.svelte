@@ -1,17 +1,32 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
-  import HelpButton from "$lib/components/help/HelpButton.svelte";
-  import type { HelpTopicId } from "$lib/help/topics";
+  import HelpButton from "#lib/components/help/HelpButton.svelte";
+  import type { HelpTopicId } from "#lib/help/topics";
   import Icon from "./Icon.svelte";
 
   /** Page/section title bar. Wraps on narrow screens; never accent-coloured. */
-  export let title: string;
-  export let subtitle: string | undefined = undefined;
-  export let level: "h1" | "h2" = "h1";
-  /** Renders a subtle "?" next to the title that opens the help panel there. */
-  export let helpTopic: HelpTopicId | undefined = undefined;
-  /** Link above the title, e.g. back to the parent list. */
-  export let back: { href: string; label: string } | undefined = undefined;
+  interface Props {
+    title: string;
+    subtitle?: string | undefined;
+    level?: "h1" | "h2";
+    /** Renders a subtle "?" next to the title that opens the help panel there. */
+    helpTopic?: HelpTopicId | undefined;
+    /** Link above the title, e.g. back to the parent list. */
+    back?: { href: string; label: string } | undefined;
+    meta?: Snippet;
+    actions?: Snippet;
+  }
+
+  let {
+    title,
+    subtitle = undefined,
+    level = "h1",
+    helpTopic = undefined,
+    back = undefined,
+    meta,
+    actions,
+  }: Props = $props();
 </script>
 
 <div class="mb-4">
@@ -38,10 +53,10 @@
       {#if subtitle}
         <p class="mt-1 mb-0 text-sm text-muted">{subtitle}</p>
       {/if}
-      <slot name="meta" />
+      {@render meta?.()}
     </div>
-    {#if $$slots.actions}
-      <div class="flex flex-wrap items-center gap-2"><slot name="actions" /></div>
+    {#if actions}
+      <div class="flex flex-wrap items-center gap-2">{@render actions?.()}</div>
     {/if}
   </div>
 </div>

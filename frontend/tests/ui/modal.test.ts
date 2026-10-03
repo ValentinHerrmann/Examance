@@ -47,10 +47,10 @@ describe('Modal', () => {
     const opener = document.createElement('button');
     document.body.appendChild(opener);
     opener.focus();
-    const { getByRole, component } = render(Modal, { open: true, title: 'T' });
+    const { getByRole, rerender } = render(Modal, { open: true, title: 'T' });
     await flush();
     expect(getByRole('dialog').contains(document.activeElement)).toBe(true);
-    component.$set({ open: false });
+    await rerender({ open: false });
     await flush();
     expect(document.activeElement).toBe(opener);
   });
@@ -69,10 +69,10 @@ describe('Modal', () => {
     expect(closeB).toHaveBeenCalledTimes(1);
     expect(closeA).not.toHaveBeenCalled();
 
-    b.component.$set({ open: false });
+    await b.rerender({ open: false });
     await flush();
     expect(main.style.overflow).toBe('hidden');
-    a.component.$set({ open: false });
+    await a.rerender({ open: false });
     await flush();
     expect(main.style.overflow).not.toBe('hidden');
   });

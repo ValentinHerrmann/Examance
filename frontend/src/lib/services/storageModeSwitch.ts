@@ -1,8 +1,7 @@
 /**
- * Gated storage-mode switching: export → wipe → switch → import. The `.bgproj`
- * archive is the only bridge between modes. This service holds the one token
- * `commitStorageMode` accepts and uses it only after an export was recorded;
- * the phase is persisted so a reload after the wipe resumes the switch.
+ * Gated storage-mode switching: export -> wipe -> switch -> import; the `.bgproj` archive is the only
+ * bridge between modes. This service holds the one token `commitStorageMode` accepts and uses it only
+ * after an export was recorded; the phase is persisted so a reload after the wipe resumes the switch.
  */
 
 import { get, writable } from 'svelte/store';
@@ -11,11 +10,11 @@ import {
   disarmStorageModeSwitch,
   storagePolicyStore,
   type StorageMode,
-} from '$lib/stores/storagePolicy';
-import { safeLocalStorage } from '$lib/utils/storage';
-import { wipeDatabase } from '$lib/db/hygiene';
-import { projectStore } from '$lib/stores/project';
-import { db } from '$lib/db/db';
+} from '#lib/stores/storagePolicy';
+import { safeLocalStorage } from '#lib/utils/storage';
+import { wipeDatabase } from '#lib/db/hygiene';
+import { projectStore } from '#lib/stores/project';
+import { db } from '#lib/db/db';
 
 const PENDING_KEY = 'bg_pending_mode_switch';
 
@@ -58,11 +57,9 @@ export async function localWorkspaceIsEmpty(): Promise<boolean> {
 }
 
 /**
- * Called on server sign-in. A browser with an empty local workspace has nothing
- * the gate could protect, so it adopts server storage directly instead of
- * showing the account an empty local vault. Any local data keeps the mode as is.
- *
- * @returns true when the mode changed.
+ * Called on server sign-in. An empty local workspace has nothing the gate could protect, so it adopts
+ * server storage directly (else the account would see an empty local vault); any local data keeps the
+ * mode. Returns true when the mode changed.
  */
 export async function adoptServerStorageIfLocalEmpty(): Promise<boolean> {
   if (get(storagePolicyStore).storageMode !== 'all-local' || get(pendingSwitchStore)) return false;
@@ -92,9 +89,8 @@ export const markExported = (archiveFilename: string | null = null) =>
   update({ phase: 'exported', archiveFilename });
 
 /**
- * Switches the mode, then wipes the local store. Server rows are never touched
- * — the account keeps its data and the archive is the portable copy. Mode first:
- * if the wipe fails, the repositories already point at the new store.
+ * Switches the mode, then wipes the local store; server rows are never touched (the archive is the
+ * portable copy). Mode first: if the wipe fails, repositories already point at the new store.
  */
 export async function commitModeSwitch(): Promise<void> {
   const pending = get(pendingSwitchStore);

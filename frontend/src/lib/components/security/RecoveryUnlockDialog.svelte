@@ -1,45 +1,27 @@
 <script lang="ts">
-  /**
-   * Recovers the data key with the printable recovery code.
-   *
-   * Reached when the account's password wrap is unusable — which is what a
-   * server-side password write (a reset, an admin action, the CLI) leaves
-   * behind, because the server cannot re-wrap a key it has never seen. Getting
-   * through this dialog is the difference between a reset that keeps the
-   * teacher's exams and one that leaves them staring at blank fields.
-   */
-  import { Button, Field, Modal, TextInput } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
-  import { EnvelopeFactorMissingError } from "$lib/services/keyEnvelopeService";
+  /** Recovers the data key with the printable recovery code, for when the password wrap is unusable (e.g. a server-side password reset, which cannot re-wrap a key it never saw). */
+  import { Button, Field, Modal, TextInput } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { EnvelopeFactorMissingError } from "#lib/services/keyEnvelopeService";
 
-  export let onSubmit: (recoveryCode: string) => Promise<void>;
-  /**
-   * Start over with a new data key. Irreversible, so it is confirmed in two
-   * steps rather than offered as a button next to the code field.
-   */
-  export let onStartFresh: (() => Promise<void>) | undefined = undefined;
-  /**
-   * Open the vault with a PRF passkey instead.
-   *
-   * A reset invalidates only the *password* wrap — a passkey's still holds the
-   * same key, so for anyone who has one this recovers everything and the
-   * destructive route below is never needed.
-   */
-  export let onPasskey: (() => Promise<void>) | undefined = undefined;
 
-  let showFreshConfirm = false;
-  let recoveryCode = "";
-  let isWorking = false;
-  let errorMsg = "";
+  interface Props {
+    onSubmit: (recoveryCode: string) => Promise<void>;
+    /** Start over with a new data key. Irreversible, so confirmed in two steps. */
+    onStartFresh?: (() => Promise<void>) | undefined;
+    /** Open the vault with a PRF passkey instead; a reset only invalidates the password wrap, so this recovers everything. */
+    onPasskey?: (() => Promise<void>) | undefined;
+  }
 
-  /**
-   * Run one of the alternative routes, reporting what went wrong.
-   *
-   * The button used to call the handler straight from `on:click`, so a rejection
-   * became an unhandled promise and the dialog showed nothing at all — the only
-   * evidence was in the console.
-   */
-  async function run(action: (() => Promise<void>) | undefined, fallbackMsg: string) {
+  let { onSubmit, onStartFresh = undefined, onPasskey = undefined }: Props = $props();
+
+  let showFreshConfirm = $state(false);
+  let recoveryCode = $state("");
+  let isWorking = $state(false);
+  let errorMsg = $state("");
+
+  /** Run one alternative route and surface a rejection in the dialog instead of an unhandled promise. */
+  async function runRoute(action: (() => Promise<void>) | undefined, fallbackMsg: string) {
     if (!action) {
       return;
     }
@@ -48,8 +30,7 @@
     try {
       await action();
     } catch (err: unknown) {
-      // "No passkey copy of the key is stored" is a different answer from "the
-      // ceremony failed", and the teacher can act on the first one.
+      // "No passkey copy stored" is actionable, unlike "ceremony failed".
       errorMsg =
         err instanceof EnvelopeFactorMissingError
           ? $t("security.unlock.passkeyHasNoCopy")
@@ -68,8 +49,7 @@
     try {
       await onSubmit(recoveryCode);
     } catch {
-      // Any failure here is the same failure from the teacher's point of view:
-      // this code does not open this account.
+      // Every failure reads the same: this code does not open this account.
       errorMsg = $t("security.unlock.wrong");
     } finally {
       isWorking = false;
@@ -86,7 +66,7 @@
 >
   <form
     class="flex flex-col gap-4"
-    on:submit|preventDefault={submit}
+    onsubmit={(e) => { e.preventDefault(); submit(); }}
   >
     <p class="text-sm text-muted">{$t("security.unlock.intro")}</p>
 
@@ -104,7 +84,7 @@
         <Button
           severity="secondary"
           disabled={isWorking}
-          onClick={() => run(onPasskey, $t("security.unlock.passkeyFailed"))}
+          onClick={() => runRoute(onPasskey, $t("security.unlock.passkeyFailed"))}
         >
           {$t("security.unlock.usePasskey")}
         </Button>
@@ -120,7 +100,7 @@
           <Button
             severity="danger"
             disabled={isWorking}
-            onClick={() => run(onStartFresh, $t("security.unlock.startFreshFailed"))}
+            onClick={() => runRoute(onStartFresh, $t("security.unlock.startFreshFailed"))}
           >
             {$t("security.unlock.startFreshConfirm")}
           </Button>
@@ -133,9 +113,11 @@
     {/if}
   </form>
 
-  <svelte:fragment slot="footer">
-    <Button disabled={isWorking || !recoveryCode.trim()} loading={isWorking} onClick={submit}>
-      {isWorking ? $t("security.unlock.working") : $t("security.unlock.submit")}
-    </Button>
-  </svelte:fragment>
+  {#snippet footer()}
+
+      <Button disabled={isWorking || !recoveryCode.trim()} loading={isWorking} onClick={submit}>
+        {isWorking ? $t("security.unlock.working") : $t("security.unlock.submit")}
+      </Button>
+
+  {/snippet}
 </Modal>

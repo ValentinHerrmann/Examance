@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { PageShell, PageHeader, Card, Icon } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
-  import { HELP_TOPICS } from "$lib/help/topics";
-  import HelpTopicContent from "$lib/components/help/HelpTopicContent.svelte";
-  import SectionNav from "$lib/components/settings/SectionNav.svelte";
+  import { PageShell, PageHeader, Card, Icon } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { HELP_TOPICS } from "#lib/help/topics";
+  import HelpTopicContent from "#lib/components/help/HelpTopicContent.svelte";
+  import SectionNav from "#lib/components/settings/SectionNav.svelte";
 
-  $: navItems = HELP_TOPICS.map((topic) => ({
+  let navItems = $derived(HELP_TOPICS.map((topic) => ({
     id: topic.id,
     label: $t(topic.titleKey),
     icon: topic.icon,
-  }));
+  })));
 </script>
 
 <svelte:head>

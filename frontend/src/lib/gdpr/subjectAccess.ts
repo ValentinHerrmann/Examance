@@ -1,25 +1,20 @@
 /**
- * GDPR Art. 15 / Art. 20 — subject access export for a single student.
- *
- * The `.bgproj` archive is a teacher-key-encrypted backup of the whole
- * workspace: useful for disaster recovery, useless as the "copy of the personal
- * data undergoing processing" a data subject is entitled to. This produces that
- * copy — one student, decrypted, in a readable format the school can hand over.
- *
- * Mirrors erasure.ts in structure: resolve via the repositories, decrypt with
- * the active session key, and record the disclosure in the audit log.
+ * GDPR Art. 15 / Art. 20 subject access export for one student. The `.bgproj` archive is a
+ * teacher-key-encrypted whole-workspace backup, useless as the readable "copy of the personal data"
+ * a data subject is owed; this produces that copy (one student, decrypted). Mirrors erasure.ts:
+ * resolve via repositories, decrypt with the session key, record the disclosure in the audit log.
  */
 
 import { get } from 'svelte/store';
 
-import { db } from '$lib/db/db';
-import { scoreRepository } from '$lib/repositories/scoreRepository';
+import { db } from '#lib/db/db';
+import { scoreRepository } from '#lib/repositories/scoreRepository';
 import {
   decryptStudent,
   decryptSubmission,
   encryptAuditEntry,
-} from '$lib/db/dbEncryption';
-import { sessionStore } from '$lib/stores/session';
+} from '#lib/db/dbEncryption';
+import { sessionStore } from '#lib/stores/session';
 
 export interface SubjectAccessSubmission {
   submissionId: string;
@@ -45,12 +40,7 @@ export interface SubjectAccessExport {
   notes: string[];
 }
 
-/**
- * Build a decrypted export of everything held about one student.
- *
- * @param pseudonymId Raw pseudonym ID (as shown in the erasure table).
- * @throws if the session is locked — nothing can be decrypted without the key.
- */
+/** Build a decrypted export of everything held about one student (raw pseudonym ID). @throws if the session is locked (no key, nothing decryptable). */
 export async function exportStudentData(pseudonymId: string): Promise<SubjectAccessExport> {
   const key = get(sessionStore).sessionKey;
   if (!key) {

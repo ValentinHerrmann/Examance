@@ -1,23 +1,20 @@
 <script lang="ts">
-  import type { GradingKeyConfig, GradeCutoff } from '$lib/db/schema';
-  import { getPresetCutoffs } from '$lib/analytics/gradingKey';
-  import { t } from '$lib/i18n';
+  import type { GradingKeyConfig, GradeCutoff } from '#lib/db/schema';
+  import { getPresetCutoffs } from '#lib/analytics/gradingKey';
+  import { t } from '#lib/i18n';
 
-  import InfoTip from "$lib/components/help/InfoTip.svelte";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
   import { faChartColumn } from '@fortawesome/free-solid-svg-icons';
-  import { Badge, Button, Icon, controlClass, controlSmClass } from '$lib/components/ui';
+  import { Badge, Button, Icon, controlClass, controlSmClass } from '#lib/components/ui';
 
-  export let gradingKey: GradingKeyConfig = {
+  interface Props {
+    gradingKey?: GradingKeyConfig;
+  }
+
+  let { gradingKey = $bindable({
     preset: 'linear_50',
     cutoffs: getPresetCutoffs('linear_50'),
-  };
-
-  $: if (!gradingKey || !gradingKey.cutoffs || gradingKey.cutoffs.length === 0) {
-    gradingKey = {
-      preset: 'linear_50',
-      cutoffs: getPresetCutoffs('linear_50'),
-    };
-  }
+  }) }: Props = $props();
 
   function applyPreset(preset: GradingKeyConfig['preset']) {
     gradingKey = {
@@ -30,6 +27,16 @@
     gradingKey.preset = 'custom';
     gradingKey = { ...gradingKey };
   }
+
+  $effect.pre(() => {
+    const key = gradingKey;
+    if (!key || !key.cutoffs || key.cutoffs.length === 0) {
+      gradingKey = {
+        preset: 'linear_50',
+        cutoffs: getPresetCutoffs('linear_50'),
+      };
+    }
+  });
 </script>
 
 <div class="my-4 flex flex-col gap-5 rounded-md border border-line bg-surface-sunken p-4">
@@ -80,7 +87,7 @@
             step="0.01"
             class="{controlClass} {controlSmClass} w-20 text-center font-semibold"
             bind:value={cutoff.minPercentage}
-            on:input={handleInputChange}
+            oninput={handleInputChange}
           />
           <span class="text-xs text-muted">%</span>
         </div>

@@ -1,8 +1,4 @@
-/**
- * GDPR Retention Verification.
- *
- * Checks project/exam retention period against current date per Art. 5(1)(e).
- */
+/** GDPR retention verification: checks a project/exam retention period against the current date (Art. 5(1)(e)). */
 
 export interface RetentionCheckResult {
   isExpired: boolean;
@@ -10,11 +6,7 @@ export interface RetentionCheckResult {
   daysRemaining: number;
 }
 
-/**
- * Check if the project/exam has exceeded its retention date.
- *
- * @param expiresAtIso ISO date string (e.g. "2026-07-25T00:00:00Z" or "2026-07-25")
- */
+/** Check whether the project/exam exceeded its retention date (`expiresAtIso` is an ISO date or datetime). */
 export function checkRetention(expiresAtIso: string): RetentionCheckResult {
   const expiresAt = new Date(expiresAtIso).getTime();
   const now = Date.now();

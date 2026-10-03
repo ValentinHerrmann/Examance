@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { createEventDispatcher, onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import { get } from "svelte/store";
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import { db } from "$lib/db/db";
-  import { sessionStore, isAuthenticated } from "$lib/stores/session";
-  import { storagePolicyStore } from "$lib/stores/storagePolicy";
-  import { saveExerciseEncrypted, loadExercisesEncrypted } from "$lib/db/dbEncryption";
-  import { api } from "$lib/api/client";
-  import { parseExerciseScore } from "$lib/latex/scoreParser";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import { db } from "#lib/db/db";
+  import { sessionStore, isAuthenticated } from "#lib/stores/session";
+  import { storagePolicyStore } from "#lib/stores/storagePolicy";
+  import { saveExerciseEncrypted, loadExercisesEncrypted } from "#lib/db/dbEncryption";
+  import { api } from "#lib/api/client";
+  import { parseExerciseScore } from "#lib/latex/scoreParser";
   import {
     parseMcOptions,
     buildMcOptionsLatex,
@@ -15,91 +15,90 @@
     MC_MAX_OPTIONS,
     MC_MIN_OPTIONS,
     type McOption,
-  } from "$lib/latex/mcOptions";
-  import { getLatestForSlot } from "$lib/latex/compileCache";
-  import { compileExercisePreview } from "$lib/latex/exercisePreview";
-  import { pdfBytesToUrl } from "$lib/latex/pdfPreview";
-  import { exerciseResourceRepository } from "$lib/repositories/exerciseResourceRepository";
-  import ExerciseResourcePanel from "$lib/components/exercise/ExerciseResourcePanel.svelte";
+  } from "#lib/latex/mcOptions";
+  import { getLatestForSlot } from "#lib/latex/compileCache";
+  import { compileExercisePreview } from "#lib/latex/exercisePreview";
+  import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
+  import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
+  import ExerciseResourcePanel from "#lib/components/exercise/ExerciseResourcePanel.svelte";
   import LatexEditor from "./LatexEditor.svelte";
   import DualPdfPreview from "./DualPdfPreview.svelte";
-  import SuggestInput from "$lib/components/common/SuggestInput.svelte";
-  import { recordValue } from "$lib/utils/recentValues";
-  import { t, translate } from "$lib/i18n";
-  import InfoTip from "$lib/components/help/InfoTip.svelte";
-  import { ConfirmDialog, Alert, Badge, Button, Checkbox, Icon, Modal, Select, TextInput, controlClass, controlSmClass } from "$lib/components/ui";
+  import SuggestInput from "#lib/components/common/SuggestInput.svelte";
+  import { recordValue } from "#lib/utils/recentValues";
+  import { t, translate } from "#lib/i18n";
+  import InfoTip from "#lib/components/help/InfoTip.svelte";
+  import { ConfirmDialog, Alert, Badge, Button, Checkbox, Icon, Modal, Select, TextInput, controlClass, controlSmClass } from "#lib/components/ui";
   import { faBook, faChevronLeft, faChevronRight, faCode, faPlus, faTag, faXmark } from "@fortawesome/free-solid-svg-icons";
 
-  export let isOpen = false;
-  export let editingExercise: ExerciseRecord | null = null;
-  export let isCreatingVersion = false;
-  export let versionBaseEx: ExerciseRecord | null = null;
+  interface Props {
+    isOpen?: boolean;
+    editingExercise?: ExerciseRecord | null;
+    isCreatingVersion?: boolean;
+    versionBaseEx?: ExerciseRecord | null;
+    onClose?: () => void;
+    onSave?: (detail: { exercise: ExerciseRecord; isNewVersion: boolean }) => void;
+  }
 
-  const dispatch = createEventDispatcher<{
-    close: void;
-    save: { exercise: ExerciseRecord; isNewVersion: boolean };
-  }>();
+  let {
+    isOpen = false,
+    editingExercise = null,
+    isCreatingVersion = false,
+    versionBaseEx = null,
+    onClose,
+    onSave
+  }: Props = $props();
 
   // Form field state
-  let editorName = "";
-  let editorTopicTag = "_General";
-  let editorGrade = "";
-  let editorSubject = "";
-  let editorVariantKey = "";
-  let editorLatexBody = "";
-  let editorQuestionType: "free_text" | "mc" = "free_text";
-  let mcQuestionText = "";
-  let mcOptions: McOption[] = [];
+  let editorName = $state("");
+  let editorTopicTag = $state("_General");
+  let editorGrade = $state("");
+  let editorSubject = $state("");
+  let editorVariantKey = $state("");
+  let editorLatexBody = $state("");
+  let editorQuestionType: "free_text" | "mc" = $state("free_text");
+  let mcQuestionText = $state("");
+  let mcOptions: McOption[] = $state.raw([]);
   /** Column layout of the options: "auto" (one per option) or an explicit count, as a <select> value. */
-  let mcColumns = "auto";
+  let mcColumns = $state("auto");
   const MC_COLUMN_CHOICES = Array.from({ length: MC_MAX_COLUMNS }, (_, i) => String(i + 1));
   let mcOptionsError = "";
   /** Points deducted per wrongly-crossed MC option (right-minus-wrong scoring). Matches the printed scoring text convention. */
-  let editorPenalty = 0.5;
+  let editorPenalty = $state(0.5);
 
   // Initial state for dirty tracking
-  let initialName = "";
-  let initialTopicTag = "";
-  let initialGrade = "";
-  let initialSubject = "";
-  let initialVariantKey = "";
-  let initialLatexBody = "";
-  let initialQuestionType: "free_text" | "mc" = "free_text";
-  let initialPenalty = 0.5;
+  let initialName = $state("");
+  let initialTopicTag = $state("");
+  let initialGrade = $state("");
+  let initialSubject = $state("");
+  let initialVariantKey = $state("");
+  let initialLatexBody = $state("");
+  let initialQuestionType: "free_text" | "mc" = $state("free_text");
+  let initialPenalty = $state(0.5);
 
   // Confirmation modal state
-  let showConfirmClose = false;
+  let showConfirmClose = $state(false);
 
-  /**
-   * Staging area for resource files, always a fresh id.
-   *
-   * Files are attached to it while the dialog is open — which is what makes
-   * uploading (and previewing) work before the exercise exists anywhere — and
-   * committed onto the real exercise on save. Closing without saving throws
-   * the staged set away, like every other field in this dialog.
-   */
-  let resourceStagingId = "";
+  // Fresh staging id for resource files: lets upload/preview work before the exercise exists.
+  // Committed onto the real exercise on save; closing without saving discards the staged set.
+  let resourceStagingId = $state("");
   let resourcesCommitted = false;
 
   // Preview state
-  let isPreviewLoading = false;
-  let previewPdfUrl: string | null = null;
-  let previewSolutionPdfUrl: string | null = null;
+  let isPreviewLoading = $state(false);
+  let previewPdfUrl: string | null = $state(null);
+  let previewSolutionPdfUrl: string | null = $state(null);
   // Both panes start collapsed: there is nothing to preview until the user
   // compiles, so reserving half the dialog for an empty placeholder on open
   // wastes space. Expanding either pane is still one click away.
-  let showAngabePreview = false;
-  let showLoesungPreview = false;
-  let showLatexPanel = true;
-  $: hasAnyPreview = showAngabePreview || showLoesungPreview;
-  let isSaving = false;
-  let errorMsg = "";
+  let showAngabePreview = $state(false);
+  let showLoesungPreview = $state(false);
+  let showLatexPanel = $state(true);
+  let hasAnyPreview = $derived(showAngabePreview || showLoesungPreview);
+  let isSaving = $state(false);
+  let errorMsg = $state("");
 
-  /**
-   * Move the staged files onto the exercise that was just written. Upload
-   * failures are reported but never fail the save — the exercise itself is
-   * already stored, and the files stay staged locally.
-   */
+  // Move the staged files onto the just-written exercise. Upload failures never fail the save:
+  // the exercise is already stored and the files stay staged locally.
   async function commitStagedResources(exerciseId: string, key: CryptoKey | null) {
     try {
       const { errors } = await exerciseResourceRepository.commit(
@@ -125,14 +124,7 @@
   }
 
   // Track initialization on isOpen or exercise props change
-  let lastOpenState = false;
-  $: if (isOpen && !lastOpenState) {
-    initForm();
-    lastOpenState = true;
-  } else if (!isOpen && lastOpenState) {
-    lastOpenState = false;
-    cleanupPreview();
-  }
+  let lastOpenState = $state(false);
 
   function initForm() {
     if (isCreatingVersion && versionBaseEx) {
@@ -275,7 +267,7 @@
     cleanupPreview();
   });
 
-  $: isDirty =
+  let isDirty = $derived(
     (editingExercise || isCreatingVersion
       ? false
       : editorName !== initialName ||
@@ -285,7 +277,8 @@
     editorVariantKey !== initialVariantKey ||
     editorLatexBody !== initialLatexBody ||
     editorQuestionType !== initialQuestionType ||
-    (editorQuestionType !== "free_text" && editorPenalty !== initialPenalty);
+    (editorQuestionType !== "free_text" && editorPenalty !== initialPenalty)
+  );
 
   function requestClose() {
     if (isDirty) {
@@ -303,7 +296,7 @@
     if (!resourcesCommitted && resourceStagingId) {
       void exerciseResourceRepository.deleteForExercise(resourceStagingId);
     }
-    dispatch("close");
+    onClose?.();
   }
 
   async function handlePreviewExercise() {
@@ -436,7 +429,7 @@
         // A new version is a new exercise row; the staged set (the base
         // version's files plus anything added here) becomes its file set.
         await commitStagedResources(savedEx.id, key);
-        dispatch("save", { exercise: savedEx, isNewVersion: true });
+        onSave?.({ exercise: savedEx, isNewVersion: true });
         forceClose();
         return;
       }
@@ -511,7 +504,7 @@
       }
 
       await commitStagedResources(record.id, key);
-      dispatch("save", { exercise: record, isNewVersion: false });
+      onSave?.({ exercise: record, isNewVersion: false });
       forceClose();
     } catch (err: any) {
       errorMsg = translate("exercises.editor.saveFailed", { message: err.message });
@@ -522,20 +515,30 @@
 
   const editorColumnBase =
     "flex flex-col h-full min-h-0 overflow-hidden rounded-md border border-line bg-surface-sunken transition-all duration-200";
-  // Below the `@3xl` container width this column stacks above DualPdfPreview
-  // instead of sitting beside it. DualPdfPreview carries its own explicit
-  // `min-height: 18rem` (DualPdfPreview.svelte), which flexbox honours as a real
-  // floor; this column's `overflow-hidden` resets its own automatic minimum to
-  // 0, so without a matching floor here the flex distribution squeezes it
-  // toward nothing first — collapsing the LaTeX/MC inputs on phones.
-  $: editorColumnClass = showLatexPanel
+  // Below `@3xl` this column stacks above DualPdfPreview (which has its own 18rem floor);
+  // `overflow-hidden` zeroes this column's auto minimum, so it needs a matching floor on phones.
+  let editorColumnClass = $derived(showLatexPanel
     ? `${editorColumnBase} min-h-80 flex-1 min-w-0 p-0 gap-0 @3xl:min-h-0`
-    : `${editorColumnBase} w-full h-10 flex-none min-w-0 p-0 @3xl:h-full @3xl:w-10 @3xl:min-w-10`;
+    : `${editorColumnBase} w-full h-10 flex-none min-w-0 p-0 @3xl:h-full @3xl:w-10 @3xl:min-w-10`);
+
+  $effect.pre(() => {
+    const open = isOpen;
+    const last = lastOpenState;
+    untrack(() => {
+      if (open && !last) {
+        initForm();
+        lastOpenState = true;
+      } else if (!open && last) {
+        lastOpenState = false;
+        cleanupPreview();
+      }
+    });
+  });
 </script>
 
 {#if isOpen}
   <Modal open={isOpen} size="full" tall bare onClose={requestClose} labelledBy="exercise-editor-title">
-    <svelte:fragment slot="header">
+    {#snippet header()}
       <div class="flex min-w-0 items-center gap-2">
         <h2 id="exercise-editor-title" class="m-0 truncate text-xl font-semibold text-content">
           {isCreatingVersion
@@ -548,7 +551,7 @@
           <Badge severity="primary">v{(versionBaseEx?.version || 1) + 1}</Badge>
         {/if}
       </div>
-    </svelte:fragment>
+    {/snippet}
 
     <div class="flex h-full max-h-full w-full flex-col overflow-hidden">
       <div class="shrink-0 border-b border-line px-4 pb-3">
@@ -675,7 +678,7 @@
               <button
                 type="button"
                 class="group flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-left"
-                on:click={handleToggleLatex}
+                onclick={handleToggleLatex}
                 title={$t("exercises.editor.collapseLatexTitle")}
               >
                 <span class="whitespace-nowrap text-sm font-semibold text-content">{$t("exercises.editor.latexSourceCodeLabel")}</span>
@@ -710,7 +713,7 @@
                       bind:value={mcQuestionText}
                       rows={4}
                       showQuickInsert
-                      on:change={regenerateMcLatex}
+                      onChange={regenerateMcLatex}
                     />
                   </div>
 
@@ -731,7 +734,7 @@
 
                   <div class="flex flex-col gap-1">
                     <label class="font-semibold text-content" for="mc-columns">{$t("exercises.editor.mcColumnsLabel")}</label>
-                    <Select id="mc-columns" size="sm" class="w-full @xl:w-72" bind:value={mcColumns} on:change={regenerateMcLatex}>
+                    <Select id="mc-columns" size="sm" class="w-full @xl:w-72" bind:value={mcColumns} onchange={regenerateMcLatex}>
                       <option value="auto">{$t("exercises.editor.mcColumnsAuto", { max: MC_MAX_COLUMNS })}</option>
                       {#each MC_COLUMN_CHOICES as choice}
                         <option value={choice}>{choice}</option>
@@ -762,7 +765,7 @@
                         <input
                           type="text"
                           value={option.text}
-                          on:input={(e) => updateOptionText(index, e.currentTarget.value)}
+                          oninput={(e) => updateOptionText(index, e.currentTarget.value)}
                           placeholder={$t("exercises.editor.mcOptionPlaceholder", { number: index + 1 })}
                           class="{controlClass} {controlSmClass} flex-1"
                         />
@@ -801,7 +804,7 @@
             <button
               type="button"
               class="group flex h-full w-full cursor-pointer flex-row items-center gap-3 border-0 bg-surface-sunken px-3 py-1 text-muted hover:bg-surface-raised hover:text-accent @3xl:flex-col @3xl:px-1 @3xl:py-3"
-              on:click={handleToggleLatex}
+              onclick={handleToggleLatex}
               title={$t("exercises.editor.expandLatexTitle")}
             >
               <Icon icon={faChevronLeft} class="shrink-0 -rotate-90 @3xl:rotate-180" />
@@ -825,7 +828,7 @@
       </div>
     </div>
 
-    <svelte:fragment slot="footer">
+    {#snippet footer()}
       <Button variant="outlined" severity="secondary" onClick={requestClose}>{$t("common.cancel")}</Button>
       <Button onClick={handleSaveExercise} disabled={isSaving}>
         {isSaving
@@ -834,7 +837,7 @@
             ? $t("exercises.editor.saveButtonNewVersion")
             : $t("exercises.editor.saveButton")}
       </Button>
-    </svelte:fragment>
+    {/snippet}
   </Modal>
 {/if}
 

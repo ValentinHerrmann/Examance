@@ -1,13 +1,6 @@
 /**
- * verify-sri.mjs
- *
- * Build-time SRI verification script.
- * Reads static/sri-manifest.json and verifies:
- *   - "wasm" section: each entry's hash matches the vendored blob in static/wasm/
- *   - "js" section: each entry's hash matches the built bundle in build/assets/
- *
- * Exits with code 1 on any mismatch (CI will catch this).
- *
+ * Build-time SRI check of static/sri-manifest.json: "wasm" hashes must match static/wasm/,
+ * "js" hashes the built bundle in build/assets/. Exits 1 on any mismatch (CI).
  * Usage: node scripts/verify-sri.mjs
  */
 

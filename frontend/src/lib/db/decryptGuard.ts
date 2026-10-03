@@ -4,7 +4,7 @@
  * The marker is a plain field so it survives `{ ...record }`.
  */
 
-import { vaultIntegrityStore } from '$lib/stores/vaultIntegrity';
+import { vaultIntegrityStore } from '#lib/stores/vaultIntegrity';
 
 /** `'error'`: would not open (wrong key, corruption), reported. `'locked'`: no key yet, silent. */
 export type DecryptFailureReason = 'error' | 'locked';

@@ -1,25 +1,32 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { tick } from "svelte";
 
   /**
-   * Short text tip for the wrapped element (Artemis tooltip spec). Shows on
-   * hover and on keyboard focus — never hover-only, so touch and keyboard
-   * users get it too. Rendered `position: fixed`, so a scrolling or clipped
-   * ancestor (the sidebar rail, a table) cannot cut it off.
-   *
-   * Not a substitute for an accessible name: the wrapped control still needs
-   * its own `aria-label`.
+   * Short text tip (Artemis spec), shown on hover and keyboard focus, never hover-only. `position: fixed`
+   * so clipped/scrolling ancestors cannot cut it off. Not an accessible name: the control keeps its own `aria-label`.
    */
-  export let text: string;
-  export let placement: "top" | "bottom" | "right" | "left" = "top";
-  export let disabled = false;
-  /** Classes for the wrapper around the trigger, e.g. `flex w-full` for nav rows. */
-  export let wrapperClass = "inline-flex min-w-0";
+  interface Props {
+    text: string;
+    placement?: "top" | "bottom" | "right" | "left";
+    disabled?: boolean;
+    /** Classes for the wrapper around the trigger, e.g. `flex w-full` for nav rows. */
+    wrapperClass?: string;
+    children?: Snippet;
+  }
 
-  let anchor: HTMLElement;
-  let tip: HTMLElement | undefined;
-  let visible = false;
-  let style = "";
+  let {
+    text,
+    placement = "top",
+    disabled = false,
+    wrapperClass = "inline-flex min-w-0",
+    children,
+  }: Props = $props();
+
+  let anchor: HTMLElement | undefined = $state();
+  let tip: HTMLElement | undefined = $state();
+  let visible = $state(false);
+  let style = $state("");
 
   async function show() {
     if (disabled || !text) return;
@@ -59,17 +66,17 @@
   }
 </script>
 
-<!-- svelte-ignore a11y-no-static-element-interactions -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <span
   bind:this={anchor}
   class={wrapperClass}
-  on:mouseenter={show}
-  on:mouseleave={hide}
-  on:focusin={show}
-  on:focusout={hide}
-  on:keydown={(event) => event.key === "Escape" && hide()}
+  onmouseenter={show}
+  onmouseleave={hide}
+  onfocusin={show}
+  onfocusout={hide}
+  onkeydown={(event) => event.key === "Escape" && hide()}
 >
-  <slot />
+  {@render children?.()}
 </span>
 
 {#if visible}

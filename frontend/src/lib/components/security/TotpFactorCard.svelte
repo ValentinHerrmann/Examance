@@ -1,32 +1,30 @@
 <script lang="ts">
-  /**
-   * The authenticator app, with its backup codes.
-   *
-   * Backup codes belong here rather than on their own card: they are not a
-   * factor, they are the authenticator's stand-in, and reading them as a third
-   * thing is precisely the confusion the sign-in screen already had to fix.
-   */
-  import { Button, Card } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
-  import { ApiError } from "$lib/api/client";
-  import { disableTotp, regenerateBackupCodes, type MfaStatus } from "$lib/api/mfa";
+  /** The authenticator app with its backup codes. Backup codes live here because they are the authenticator's stand-in, not a separate factor. */
+  import { Button, Card } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { ApiError } from "#lib/api/client";
+  import { disableTotp, regenerateBackupCodes, type MfaStatus } from "#lib/api/mfa";
   import BackupCodeList from "./BackupCodeList.svelte";
   import FactorMeta from "./FactorMeta.svelte";
   import TotpEnrollDialog from "./TotpEnrollDialog.svelte";
 
-  export let status: MfaStatus;
-  export let onChanged: () => void;
+  interface Props {
+    status: MfaStatus;
+    onChanged: () => void;
+  }
+
+  let { status, onChanged }: Props = $props();
 
   /** Below this, a lost phone is close to a lockout. */
   const LOW_WATERMARK = 3;
 
-  let errorMsg = "";
-  let showEnroll = false;
-  let freshCodes: string[] | null = null;
-  let isWorking = false;
+  let errorMsg = $state("");
+  let showEnroll = $state(false);
+  let freshCodes: string[] | null = $state.raw(null);
+  let isWorking = $state(false);
 
-  $: enrolled = status.enrolled.includes("totp");
-  $: codesLow = status.remaining_backup_codes <= LOW_WATERMARK;
+  let enrolled = $derived(status.enrolled.includes("totp"));
+  let codesLow = $derived(status.remaining_backup_codes <= LOW_WATERMARK);
 
   async function handleEnrolled(codes: string[]) {
     showEnroll = false;

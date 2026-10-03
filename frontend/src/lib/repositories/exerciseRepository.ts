@@ -1,18 +1,16 @@
 import { get } from 'svelte/store';
-import { api } from '$lib/api/client';
-import { db } from '$lib/db/db';
-import { storagePolicyStore } from '$lib/stores/storagePolicy';
-import { encryptExercise, decryptExercise } from '$lib/db/dbEncryption';
-import { enqueueRequest } from '$lib/services/offlineQueue';
-import type { ExerciseRecord } from '$lib/db/schema';
-import { normalizeMcExercise, serializeMcAnswers } from '$lib/grading/mcExerciseHash';
-import { invalidateOwner } from '$lib/latex/compileCache';
+import { api } from '#lib/api/client';
+import { db } from '#lib/db/db';
+import { storagePolicyStore } from '#lib/stores/storagePolicy';
+import { encryptExercise, decryptExercise } from '#lib/db/dbEncryption';
+import { enqueueRequest } from '#lib/services/offlineQueue';
+import type { ExerciseRecord } from '#lib/db/schema';
+import { normalizeMcExercise, serializeMcAnswers } from '#lib/grading/mcExerciseHash';
+import { invalidateOwner } from '#lib/latex/compileCache';
 
 /**
- * The one API → ExerciseRecord mapper. Use it for every exercise payload (library
- * list, exam detail, …): hand-rolled copies dropped variantKey/exerciseGroupId/
- * isCurrent, so variants of one exercise became indistinguishable and the
- * stripped record overwrote the full one in IndexedDB.
+ * The one API -> ExerciseRecord mapper; use it for every exercise payload. Hand-rolled copies dropped
+ * variantKey/exerciseGroupId/isCurrent, making variants indistinguishable and overwriting the full IndexedDB record.
  */
 export function mapApiToExerciseRecord(raw: any): ExerciseRecord {
   const baseRecord: ExerciseRecord = {
@@ -64,12 +62,39 @@ export function mapExerciseRecordToApi(ex: ExerciseRecord): any {
   };
 }
 
+/**
+ * Re-seals local rows stored without a payload. Variant creation in the exercise
+ * library used to `put` decrypted records straight into Dexie, leaving plaintext
+ * at rest; such rows still read fine, so they are healed on the next load.
+ * Rows that failed to decrypt are skipped (they have a payload, and the guard
+ * would refuse them anyway). A failure here must never break loading.
+ */
+async function sealPlaintextRows(
+  raw: ExerciseRecord[],
+  decrypted: ExerciseRecord[],
+  key: CryptoKey | null
+): Promise<void> {
+  if (!key) return;
+  const plaintext = decrypted.filter(
+    (ex, i) => !ex.decryptFailed && !(raw[i].payloadCt && raw[i].payloadIv)
+  );
+  if (plaintext.length === 0) return;
+  try {
+    const sealed = await Promise.all(plaintext.map((ex) => encryptExercise(ex, key)));
+    await db.exercises.bulkPut(sealed);
+  } catch (err) {
+    console.warn('Could not re-seal plaintext exercise rows:', err);
+  }
+}
+
 export const exerciseRepository = {
   async getAll(key: CryptoKey | null): Promise<ExerciseRecord[]> {
     const policy = get(storagePolicyStore);
     if (policy.storageMode === 'all-local') {
       const raw = await db.exercises.toArray();
-      return Promise.all(raw.map((ex) => decryptExercise(ex, key)));
+      const exercises = await Promise.all(raw.map((ex) => decryptExercise(ex, key)));
+      await sealPlaintextRows(raw, exercises, key);
+      return exercises;
     } else {
       try {
         // silentError: the caller falls back to the local copy on failure.

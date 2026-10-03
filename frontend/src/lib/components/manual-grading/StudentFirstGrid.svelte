@@ -1,79 +1,85 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { faArrowLeft, faArrowRight, faCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Button, EmptyState, TableScroller, controlClass, controlSmClass } from "$lib/components/ui";
+  import { Button, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
   import { get } from "svelte/store";
-  import { sessionStore } from "$lib/stores/session";
-  import { storagePolicyStore } from "$lib/stores/storagePolicy";
-  import { api } from "$lib/api/client";
-  import { db } from "$lib/db/db";
-  import { saveSubmissionEncrypted } from "$lib/db/dbEncryption";
-  import { scoreRepository } from "$lib/repositories/scoreRepository";
-  import { calculateGradeDetail } from "$lib/analytics/gradingKey";
-  import { buildSubmissionMap } from "$lib/utils/studentLookup";
+  import { sessionStore } from "#lib/stores/session";
+  import { storagePolicyStore } from "#lib/stores/storagePolicy";
+  import { api } from "#lib/api/client";
+  import { db } from "#lib/db/db";
+  import { saveSubmissionEncrypted } from "#lib/db/dbEncryption";
+  import { scoreRepository } from "#lib/repositories/scoreRepository";
+  import { calculateGradeDetail } from "#lib/analytics/gradingKey";
+  import { buildSubmissionMap } from "#lib/utils/studentLookup";
   import type {
     ExamRecord,
     ExerciseRecord,
     ExerciseScoreRecord,
     StudentRecord,
     SubmissionRecord,
-  } from "$lib/db/schema";
-  import { t } from "$lib/i18n";
+  } from "#lib/db/schema";
+  import { t } from "#lib/i18n";
 
-  export let exam: ExamRecord | null = null;
-  export let examId: string;
-  export let exercises: ExerciseRecord[] = [];
-  export let students: StudentRecord[] = [];
-  export let submissions: SubmissionRecord[] = [];
-  export let scoresMap: Map<string, Record<string, number | null>> = new Map();
-  export let onScoresChanged: () => void = () => {};
-  export let onOpenRoster: () => void = () => {};
-
-  let currentStudentIndex = 0;
-  let inputElements: (HTMLInputElement | null)[] = [];
-
-  $: currentStudent = students[currentStudentIndex];
-  let submissionMap = new Map<string, SubmissionRecord>();
-  $: {
-    buildSubmissionMap(submissions, students).then((m) => {
-      submissionMap = m;
-    });
-  }
-  $: currentSub = (currentStudent && submissionMap) ? submissionMap.get(currentStudent.pseudonymId) : null;
-
-  // Local state for exercise inputs of current student: exerciseIndex -> raw string
-  let rawInputs: Record<number, string> = {};
-
-  $: {
-    const newRaw: Record<number, string> = {};
-    if (currentSub) {
-      const subScores = scoresMap.get(currentSub.id);
-      exercises.forEach((ex, idx) => {
-        const val = subScores?.[ex.id];
-        newRaw[idx] = val !== null && val !== undefined ? String(val) : "";
-      });
-    }
-    rawInputs = newRaw;
+  interface Props {
+    exam?: ExamRecord | null;
+    examId: string;
+    exercises?: ExerciseRecord[];
+    students?: StudentRecord[];
+    submissions?: SubmissionRecord[];
+    scoresMap?: Map<string, Record<string, number | null>>;
+    onScoresChanged?: () => void;
+    onOpenRoster?: () => void;
   }
 
-  $: totalMaxPoints = exercises.reduce((sum, ex) => sum + (ex.maxPoints || 0), 0);
+  let {
+    exam = null,
+    examId,
+    exercises = [],
+    students = [],
+    submissions = [],
+    scoresMap = new Map(),
+    onScoresChanged = () => {},
+    onOpenRoster = () => {},
+  }: Props = $props();
+
+  let currentStudentIndex = $state(0);
+  let inputElements: (HTMLInputElement | null)[] = $state([]);
+
+  let currentStudent = $derived(students[currentStudentIndex]);
+  // Raw: holds the parent's submission objects, which handleSaveCurrentStudent mutates and persists.
+  let submissionMap = $state.raw(new Map<string, SubmissionRecord>());
+  // Only the newest build may write, so a slower stale build cannot overwrite a newer map.
+  let submissionMapSeq = 0;
+  let currentSub = $derived(
+    currentStudent && submissionMap ? submissionMap.get(currentStudent.pseudonymId) : null,
+  );
+
+  // Editable buffer for the current student (exerciseIndex -> input string), bound by the inputs.
+  let rawInputs: Record<number, string> = $state({});
+
+  let totalMaxPoints = $derived(exercises.reduce((sum, ex) => sum + (ex.maxPoints || 0), 0));
 
   // Live total & grade calculation
-  $: parsedScores = exercises.map((ex, idx) => {
-    const str = (rawInputs[idx] ?? "").trim().replace(",", ".");
-    if (str === "") return null;
-    const num = parseFloat(str);
-    return isNaN(num) ? null : num;
-  });
+  let parsedScores = $derived(
+    exercises.map((ex, idx) => {
+      const str = (rawInputs[idx] ?? "").trim().replace(",", ".");
+      if (str === "") return null;
+      const num = parseFloat(str);
+      return isNaN(num) ? null : num;
+    }),
+  );
 
-  $: isFullyGraded = exercises.length > 0 && parsedScores.every((s) => s !== null);
-  $: sumGradedScores = Math.round(
-    parsedScores.reduce((sum: number, s: number | null) => sum + (s ?? 0), 0) * 100
-  ) / 100;
-  $: liveTotalScore = isFullyGraded ? sumGradedScores : undefined;
+  let isFullyGraded = $derived(exercises.length > 0 && parsedScores.every((s) => s !== null));
+  let sumGradedScores = $derived(
+    Math.round(parsedScores.reduce((sum: number, s: number | null) => sum + (s ?? 0), 0) * 100) / 100,
+  );
+  let liveTotalScore = $derived(isFullyGraded ? sumGradedScores : undefined);
 
-  $: gradeDetail = isFullyGraded && liveTotalScore !== undefined
-    ? calculateGradeDetail(liveTotalScore, totalMaxPoints, exam?.gradingKey)
-    : null;
+  let gradeDetail = $derived(
+    isFullyGraded && liveTotalScore !== undefined
+      ? calculateGradeDetail(liveTotalScore, totalMaxPoints, exam?.gradingKey)
+      : null,
+  );
 
   function handleKeyDown(e: KeyboardEvent, index: number) {
     if (e.key === "Enter" || e.key === "ArrowDown") {
@@ -173,6 +179,34 @@
       currentStudentIndex += 1;
     }
   }
+
+  $effect.pre(() => {
+    const subs = submissions;
+    const sts = students;
+    const seq = ++submissionMapSeq;
+    untrack(() =>
+      buildSubmissionMap(subs, sts).then((m) => {
+        if (seq === submissionMapSeq) submissionMap = m;
+      }),
+    );
+  });
+
+  $effect.pre(() => {
+    const sub = currentSub;
+    const scores = scoresMap;
+    const exs = exercises;
+    untrack(() => {
+      const newRaw: Record<number, string> = {};
+      if (sub) {
+        const subScores = scores.get(sub.id);
+        exs.forEach((ex, idx) => {
+          const val = subScores?.[ex.id];
+          newRaw[idx] = val !== null && val !== undefined ? String(val) : "";
+        });
+      }
+      rawInputs = newRaw;
+    });
+  });
 </script>
 
 <div class="flex min-w-0 flex-col gap-4">
@@ -192,7 +226,7 @@
           id="student-select"
           class="{controlClass} {controlSmClass} w-full sm:w-56"
           bind:value={currentStudentIndex}
-          on:change={handleSaveCurrentStudent}
+          onchange={handleSaveCurrentStudent}
         >
           {#each students as st, idx}
             <option value={idx}>
@@ -281,9 +315,9 @@
                     class="{controlClass} {controlSmClass} w-24 text-right font-semibold"
                     aria-invalid={isInvalid ? "true" : undefined}
                     placeholder="-"
-                    on:keydown={(e) => handleKeyDown(e, idx)}
-                    on:blur={handleSaveCurrentStudent}
-                    on:change={handleSaveCurrentStudent}
+                    onkeydown={(e) => handleKeyDown(e, idx)}
+                    onblur={handleSaveCurrentStudent}
+                    onchange={handleSaveCurrentStudent}
                   />
                   <span class="ml-1.5 text-sm text-muted">
                     / {ex.maxPoints}

@@ -1,19 +1,32 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { tick } from "svelte";
 
   /**
-   * Anchored panel: `trigger` slot + default slot content. Fixed-positioned
-   * from the trigger rect and clamped to the viewport, so no scroll container
-   * clips it. Outside click and Escape close; focus returns to the trigger.
+   * Anchored panel: `trigger` snippet + children. Fixed-positioned from the trigger rect and clamped to
+   * the viewport, so no scroll container clips it. Outside click and Escape close; focus returns to the trigger.
    */
-  export let open = false;
-  export let placement: "bottom-start" | "bottom-end" | "top-start" = "bottom-start";
-  export let onClose: (() => void) | undefined = undefined;
-  export let panelClass = "";
+  interface Props {
+    open?: boolean;
+    placement?: "bottom-start" | "bottom-end" | "top-start";
+    onClose?: (() => void) | undefined;
+    panelClass?: string;
+    trigger?: Snippet;
+    children?: Snippet;
+  }
 
-  let root: HTMLElement;
-  let panel: HTMLElement | undefined;
-  let pos = { top: 0, left: 0 };
+  let {
+    open = $bindable(false),
+    placement = "bottom-start",
+    onClose = undefined,
+    panelClass = "",
+    trigger,
+    children,
+  }: Props = $props();
+
+  let root: HTMLElement | undefined = $state();
+  let panel: HTMLElement | undefined = $state();
+  let pos = $state({ top: 0, left: 0 });
   const MARGIN = 8;
 
   function close() {
@@ -36,12 +49,8 @@
     pos = { top, left };
   }
 
-  $: if (typeof window !== "undefined") {
-    if (open) void tick().then(reposition);
-  }
-
   function onPointerDown(event: PointerEvent) {
-    if (open && !root.contains(event.target as Node) && !panel?.contains(event.target as Node)) {
+    if (open && !root?.contains(event.target as Node) && !panel?.contains(event.target as Node)) {
       open = false;
       onClose?.();
     }
@@ -54,17 +63,22 @@
     }
   }
 
+  $effect.pre(() => {
+    const isOpen = open;
+    if (typeof window === "undefined") return;
+    if (isOpen) void tick().then(reposition);
+  });
 </script>
 
 <svelte:window
-  on:pointerdown={onPointerDown}
-  on:keydown={onKeydown}
-  on:resize={() => open && reposition()}
-  on:scroll|capture={() => open && reposition()}
+  onpointerdown={onPointerDown}
+  onkeydown={onKeydown}
+  onresize={() => open && reposition()}
+  onscrollcapture={() => open && reposition()}
 />
 
 <span bind:this={root} class="inline-flex" data-popover-trigger>
-  <slot name="trigger" />
+  {@render trigger?.()}
 </span>
 
 {#if open}
@@ -73,6 +87,6 @@
     class="fixed rounded-md border border-line bg-surface-raised text-content shadow-md {panelClass}"
     style="z-index: var(--z-dropdown); top: {pos.top}px; left: {pos.left}px; max-width: calc(100vw - 1rem)"
   >
-    <slot />
+    {@render children?.()}
   </div>
 {/if}

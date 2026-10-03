@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
-  import { fmt } from "$lib/utils/format";
-  import { Button, Badge, Spinner, TableScroller } from "$lib/components/ui";
+  import { t } from "#lib/i18n";
+  import { fmt } from "#lib/utils/format";
+  import { Button, Badge, Spinner, TableScroller } from "#lib/components/ui";
   interface ScannedSubmissionItem {
     id: string;
     pseudonymHash: string;
@@ -16,18 +16,34 @@
     annotationIv?: Uint8Array;
   }
 
-  export let scannedSubmissions: ScannedSubmissionItem[] = [];
-  /** True while the submissions list is still loading — suppresses the empty state so a slow fetch cannot look like "nothing here yet". */
-  export let loading = false;
-  export let exportingId: string | null = null;
-  export let isGraded: (item: ScannedSubmissionItem) => boolean;
-  export let onPreview: (item: ScannedSubmissionItem) => void;
-  export let onGoToGrading: (item: ScannedSubmissionItem) => void;
-  export let onExportPdf: (item: ScannedSubmissionItem) => void;
-  export let onSplit: (item: ScannedSubmissionItem) => void;
-  export let onDeleteGrading: (item: ScannedSubmissionItem) => void;
-  export let onDelete: (item: ScannedSubmissionItem) => void;
-  export let onDeleteAll: () => void;
+  interface Props {
+    scannedSubmissions?: ScannedSubmissionItem[];
+    /** True while the submissions list is still loading — suppresses the empty state so a slow fetch cannot look like "nothing here yet". */
+    loading?: boolean;
+    exportingId?: string | null;
+    isGraded: (item: ScannedSubmissionItem) => boolean;
+    onPreview: (item: ScannedSubmissionItem) => void;
+    onGoToGrading: (item: ScannedSubmissionItem) => void;
+    onExportPdf: (item: ScannedSubmissionItem) => void;
+    onSplit: (item: ScannedSubmissionItem) => void;
+    onDeleteGrading: (item: ScannedSubmissionItem) => void;
+    onDelete: (item: ScannedSubmissionItem) => void;
+    onDeleteAll: () => void;
+  }
+
+  let {
+    scannedSubmissions = [],
+    loading = false,
+    exportingId = null,
+    isGraded,
+    onPreview,
+    onGoToGrading,
+    onExportPdf,
+    onSplit,
+    onDeleteGrading,
+    onDelete,
+    onDeleteAll
+  }: Props = $props();
 </script>
 
 <div class="mt-10 min-w-0 rounded-xl border border-line bg-surface-raised p-4 sm:p-6">

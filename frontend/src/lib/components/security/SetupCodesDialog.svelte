@@ -1,27 +1,18 @@
 <script lang="ts">
-  /**
-   * The one "write this down" screen at the end of a sign-in.
-   *
-   * Backup codes and the recovery code are minted at different moments —
-   * the codes when the authenticator is confirmed, the recovery code when the
-   * key envelope is created — and used to be shown in two consecutive dialogs
-   * that looked identical. Teachers read the second one as "more backup codes
-   * in another format", which is a reasonable reading of two unlabelled grids
-   * of random characters.
-   *
-   * They are shown together here, each said to be for what it is actually for,
-   * and acknowledged once. Either half may be absent: a sign-in that only
-   * created the envelope has no backup codes to show, and vice versa.
-   */
-  import { Alert, Button, Checkbox, Modal } from "$lib/components/ui";
-  import { t } from "$lib/i18n";
+  /** The single "write this down" screen after sign-in: backup codes and recovery code shown together, each labelled for its purpose, acknowledged once. Either half may be absent. */
+  import { Alert, Button, Checkbox, Modal } from "#lib/components/ui";
+  import { t } from "#lib/i18n";
 
-  export let backupCodes: string[] | null = null;
-  export let recoveryCode: string | null = null;
-  export let onConfirm: () => void;
+  interface Props {
+    backupCodes?: string[] | null;
+    recoveryCode?: string | null;
+    onConfirm: () => void;
+  }
 
-  let acknowledged = false;
-  let copied = false;
+  let { backupCodes = null, recoveryCode = null, onConfirm }: Props = $props();
+
+  let acknowledged = $state(false);
+  let copied = $state(false);
 
   async function copyRecovery() {
     if (!recoveryCode) return;
@@ -114,9 +105,11 @@
     <Checkbox class="items-start" bind:checked={acknowledged} label={$t("security.setupCodes.confirmLabel")} />
   </div>
 
-  <svelte:fragment slot="footer">
-    <Button disabled={!acknowledged} onClick={onConfirm}>
-      {$t("security.setupCodes.done")}
-    </Button>
-  </svelte:fragment>
+  {#snippet footer()}
+
+      <Button disabled={!acknowledged} onClick={onConfirm}>
+        {$t("security.setupCodes.done")}
+      </Button>
+
+  {/snippet}
 </Modal>

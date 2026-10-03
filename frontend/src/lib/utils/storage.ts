@@ -1,21 +1,11 @@
 /**
- * Safe wrappers around localStorage and sessionStorage.
+ * Safe wrappers around localStorage and sessionStorage. Some browsers report
+ * `typeof localStorage === 'object'` but throw SecurityError on access (Firefox private mode,
+ * "Block all site data", Safari ITP), so a `typeof` guard is not enough: wrap every read/write
+ * in try-catch. Import from here, never use the globals directly; the `safe*` functions never throw.
  *
- * Some browsers report `typeof localStorage === 'object'` but then throw a
- * SecurityError when the API is actually accessed — this happens in:
- *   - Firefox private browsing with certain settings
- *   - Any browser with "Block all cookies / site data" turned on
- *   - Safari ITP in some third-party contexts
- *
- * Using `typeof x !== 'undefined'` as a guard is therefore NOT sufficient;
- * every actual read/write must be wrapped in a try-catch.
- *
- * Rule: import from here instead of accessing localStorage / sessionStorage
- * directly.  All functions are synchronous, and the `safe*` ones never throw.
- *
- * `setItemOrThrow` is the deliberate exception: for the vault's salt/nonce, a
- * swallowed write would let the next unlock derive a different key over the
- * same IndexedDB, silently blanking every record.
+ * `setItemOrThrow` is the exception: for the vault's salt/nonce a swallowed write would let the
+ * next unlock derive a different key over the same IndexedDB, silently blanking every record.
  */
 
 /** Thrown by `setItemOrThrow` when the value could not be persisted. */

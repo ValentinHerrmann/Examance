@@ -2,7 +2,7 @@
  * Worker Pool Manager with back-pressure queuing and dynamic memory downgrade support.
  */
 
-import { detectHardware, PipelineMonitor } from '$lib/hardware/detect';
+import { detectHardware, PipelineMonitor } from '#lib/hardware/detect';
 
 export interface WorkerTask<TReq, TRes> {
   request: TReq;

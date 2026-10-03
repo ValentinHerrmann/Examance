@@ -1,9 +1,13 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import { faLock } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Card, EmptyState, Spinner } from "$lib/components/ui";
+  import { Button, Card, EmptyState, Spinner } from "#lib/components/ui";
 
-  export let mode: 'loading' | 'locked';
+  interface Props {
+    mode: 'loading' | 'locked';
+  }
+
+  let { mode }: Props = $props();
 </script>
 
 {#if mode === 'loading'}
@@ -18,9 +22,9 @@
       title={$t("dashboard.sessionState.lockedTitle")}
       description={$t("dashboard.sessionState.lockedText")}
     >
-      <svelte:fragment slot="actions">
+      {#snippet actions()}
         <Button href="/unlock">{$t("dashboard.sessionState.unlockButton")}</Button>
-      </svelte:fragment>
+      {/snippet}
     </EmptyState>
   </Card>
 {/if}

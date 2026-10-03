@@ -1,16 +1,27 @@
 <script lang="ts">
-  import type { ExamRecord } from '$lib/db/schema';
-  import { t } from '$lib/i18n';
-  import { Alert } from '$lib/components/ui';
+  import type { ExamRecord } from '#lib/db/schema';
+  import { t } from '#lib/i18n';
+  import { Alert } from '#lib/components/ui';
 
-  export let exam: ExamRecord | null;
-  export let totalPoints: number;
-  export let submissionsCount: number;
-  export let studentsCount: number;
-  export let gradedCount: number;
-  export let storagePolicy: string;
+  interface Props {
+    exam: ExamRecord | null;
+    totalPoints: number;
+    submissionsCount: number;
+    studentsCount: number;
+    gradedCount: number;
+    storagePolicy: string;
+  }
 
-  $: gradeTypeLabel = exam?.gradingKey
+  let {
+    exam,
+    totalPoints,
+    submissionsCount,
+    studentsCount,
+    gradedCount,
+    storagePolicy
+  }: Props = $props();
+
+  let gradeTypeLabel = $derived(exam?.gradingKey
     ? exam.gradingKey.preset === 'linear_50'
       ? $t("exam.metadata.gradeType.linear50")
       : exam.gradingKey.preset === 'linear_40'
@@ -18,15 +29,11 @@
         : exam.gradingKey.preset === 'even_split'
           ? $t("exam.metadata.gradeType.even")
           : $t("exam.metadata.gradeType.custom")
-    : null;
+    : null);
 </script>
 
 {#if exam}
-  <!-- Title, testart, class, subject and date already appear once in the exam page header
-       (the persistent page header) — repeating them here as a
-       second title block was the "multi-level top bars" losing height across
-       every visit to this tab. Only the fields the exam page header doesn't show remain,
-       as one compact stat row instead of a title-block-plus-grid. -->
+  <!-- Title/testart/class/subject/date are already in the exam page header; only the fields it lacks stay here, as one compact row. -->
   <div class="mb-4 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
     {#if exam.lehrernachname}
       <span>{$t("common.teacher")}: {exam.lehrernachname}</span>

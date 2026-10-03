@@ -1,27 +1,13 @@
 /**
- * gradingStore — scoped exception to this codebase's normal "plain props" convention.
- *
- * WHY THIS EXISTS: the grading route (frontend/src/routes/exam/[id]/grade/+page.svelte)
- * manages a large amount of tightly-coupled, cross-cutting state (current submission
- * index, per-exercise scores, manual-override flags, active exercise/stamp target,
- * vector annotation strokes, canvas zoom/pan, PDF paging). Passing all of this down
- * through 15+ individual props to leaf components (ScanCanvasViewer, ScoreEntry,
- * AnnotationToolbar, ZoomPageControls, ...) would be unreadable and error-prone.
- *
- * Leaf grading components subscribe to this store directly via `$gradingStore` and
- * call the named setters below to mutate it. This is a DELIBERATE, SCOPED exception
- * for the grading feature only — it is not a new project-wide convention. Elsewhere
- * in this codebase, components take plain props and callback props
- * (`onAction={handler}`), per the established architecture rules.
- *
- * Async operations (loading a submission's scan/annotations, saving score +
- * annotations to IndexedDB/server) stay OWNED by the route, not by this store.
- * The route reads/writes store state (e.g. `get(gradingStore).currentStrokes`)
- * around those async calls, but the store itself holds no async logic.
+ * gradingStore: a deliberate, scoped exception to the "plain props" convention, for the grading
+ * feature only. The grading route (exam/[id]/grade/+page.svelte) has too much cross-cutting state
+ * (submission index, scores, overrides, stamp target, strokes, zoom/pan, PDF paging) to pass as
+ * props to 15+ leaves, which subscribe via `$gradingStore` and call the setters below.
+ * Async work (loading/saving scans and annotations) stays owned by the route; the store has none.
  */
 
 import { writable, get } from 'svelte/store';
-import type { OmrScoreMeta } from '$lib/db/schema';
+import type { OmrScoreMeta } from '#lib/db/schema';
 
 export type ToolType =
   | 'pen'
@@ -78,11 +64,7 @@ export interface GradingState {
   isAutoCropEnabled: boolean;
   currentStrokes: VectorStroke[];
 
-  /**
-   * True once the teacher changed something on the current submission (stroke, score,
-   * MC toggle) since it was loaded or last saved. Loading saved annotations or
-   * re-deriving auto scores never sets it — only the explicit mutators below do.
-   */
+    /** True once the teacher changed the current submission (stroke, score, MC toggle) since load/save; loading and re-deriving auto scores never set it. */
   isDirty: boolean;
 
   // PDF paging

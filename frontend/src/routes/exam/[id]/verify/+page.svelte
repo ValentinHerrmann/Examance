@@ -1,64 +1,62 @@
 <script lang="ts">
   import { goto, afterNavigate } from "$app/navigation";
-  import { page } from "$app/stores";
-  import { onMount } from "svelte";
-  import { browser } from "$app/environment";
+  import { page } from "$app/state";
+  import { onMount, untrack } from "svelte";
+  import { browser } from "$app/env";
   import { get } from "svelte/store";
-  import { sessionStore, isUnlocked, awaitSessionReady } from "$lib/stores/session";
-  import { t, translate } from "$lib/i18n";
-  import { Alert, Button, EmptyState, PageHeader, PageShell, Spinner } from "$lib/components/ui";
+  import { sessionStore, isUnlocked, awaitSessionReady } from "#lib/stores/session";
+  import { t, translate } from "#lib/i18n";
+  import { Alert, Button, EmptyState, PageHeader, PageShell, Spinner } from "#lib/components/ui";
   import {
     computeMcVerificationStats,
     categorizeMcItem,
     isMcReviewed,
     type McVerificationStats,
     type McDetectionItem,
-  } from "$lib/grading/mcVerification";
-  import McVerificationOverview from "$lib/components/verify/McVerificationOverview.svelte";
-  import McVerificationQueue from "$lib/components/verify/McVerificationQueue.svelte";
-  import McDetectionSettingsPanel from "$lib/components/verify/McDetectionSettingsPanel.svelte";
-  import McRerunDialog from "$lib/components/verify/McRerunDialog.svelte";
-  import { buildOmrScoreRecord, mergeRedetectionIntoVerified } from "$lib/grading/omrResult";
-  import { createOmrRun } from "$lib/grading/omrSettings";
-  import { omrSettingsStore } from "$lib/stores/omrSettings";
-  import { loadPdfjs } from "$lib/pdf/pdfjs";
+  } from "#lib/grading/mcVerification";
+  import McVerificationOverview from "#lib/components/verify/McVerificationOverview.svelte";
+  import McVerificationQueue from "#lib/components/verify/McVerificationQueue.svelte";
+  import McDetectionSettingsPanel from "#lib/components/verify/McDetectionSettingsPanel.svelte";
+  import McRerunDialog from "#lib/components/verify/McRerunDialog.svelte";
+  import { buildOmrScoreRecord, mergeRedetectionIntoVerified } from "#lib/grading/omrResult";
+  import { createOmrRun } from "#lib/grading/omrSettings";
+  import { spawnOmrWorker } from "#lib/workers/spawn";
+  import { omrSettingsStore } from "#lib/stores/omrSettings";
+  import { loadPdfjs } from "#lib/pdf/pdfjs";
   import {
     loadOmrTemplateEncrypted,
-  } from "$lib/db/dbEncryption";
-  import { submissionRepository } from "$lib/repositories/submissionRepository";
-  import { loadExamMcExercises, resolveMcExercises, computeMcExercisesHash } from "$lib/grading/mcExerciseHash";
-  import { prepareOmrTemplate, loadExamCompileContext } from "$lib/grading/omrTemplatePrep";
-  import { restoreOriginalDetection, type McQuestionType } from "$lib/grading/mcScore";
-  import { decrypt } from "$lib/crypto/aesGcm";
+  } from "#lib/db/dbEncryption";
+  import { submissionRepository } from "#lib/repositories/submissionRepository";
+  import { loadExamMcExercises, resolveMcExercises, computeMcExercisesHash } from "#lib/grading/mcExerciseHash";
+  import { prepareOmrTemplate, loadExamCompileContext } from "#lib/grading/omrTemplatePrep";
+  import { restoreOriginalDetection, type McQuestionType } from "#lib/grading/mcScore";
+  import { decrypt } from "#lib/crypto/aesGcm";
   import type {
     OmrWorkerRequest,
     OmrWorkerResponse,
     OmrExerciseAnswerKey,
-  } from "$lib/workers/omrWorker";
-  import type { ExerciseScoreRecord } from "$lib/db/schema";
-  import { scoreRepository } from "$lib/repositories/scoreRepository";
+  } from "#lib/workers/omrWorker";
+  import type { ExerciseScoreRecord } from "#lib/db/schema";
+  import { scoreRepository } from "#lib/repositories/scoreRepository";
 
-  $: examId = $page.params.id || "";
+  let examId = $derived(page.params.id || "");
 
-  let stats: McVerificationStats | null = null;
-  let loading = true;
-  let errorMsg = "";
+  // Raw: computed by lib/grading, replaced wholesale on every refresh.
+  let stats = $state.raw<McVerificationStats | null>(null);
+  let loading = $state(true);
+  let errorMsg = $state("");
 
-  let isRerunningMc = false;
-  let showRerunDialog = false;
-  let rerunMcMessage = "";
-  let rerunMcError = "";
-  let isResettingReviews = false;
-  let resetReviewsMessage = "";
-  let resetReviewsError = "";
+  let isRerunningMc = $state(false);
+  let showRerunDialog = $state(false);
+  let rerunMcMessage = $state("");
+  let rerunMcError = $state("");
+  let isResettingReviews = $state(false);
+  let resetReviewsMessage = $state("");
+  let resetReviewsError = $state("");
   let lastRefreshId = 0;
   let lastRefreshedKey = "";
 
-  $: currentRefreshKey = `${examId}:${$sessionStore.sessionKey ? "unlocked" : "locked"}`;
-  $: if (browser && examId && $sessionStore.sessionKey && currentRefreshKey !== lastRefreshedKey) {
-    lastRefreshedKey = currentRefreshKey;
-    refresh();
-  }
+  let currentRefreshKey = $derived(`${examId}:${$sessionStore.sessionKey ? "unlocked" : "locked"}`);
 
   afterNavigate(() => {
     if (examId && $sessionStore.sessionKey && currentRefreshKey !== lastRefreshedKey) {
@@ -100,13 +98,8 @@
     showRerunDialog = true;
   }
 
-  /**
-   * Re-detects every MC question with the current settings. Unverified questions take the new
-   * reading. Verified ones (`isMcReviewed`) keep the teacher's answer, score and review — only
-   * their recorded detection is refreshed (`mergeRedetectionIntoVerified`), which makes re-runs
-   * useful for comparing settings on already-verified sheets (issue #32: settings never change a
-   * verified result). Hand-typed scores without a detection are not touched.
-   */
+  /** Re-detects every MC question. Verified ones keep answer, score and review; only their detection is
+   *  refreshed (issue #32). Hand-typed scores without a detection are never touched. */
   async function handleRerunMcDetection() {
     showRerunDialog = false;
     if (!examId || isRerunningMc || isResettingReviews) return;
@@ -194,9 +187,7 @@
 
       const pdfjsLib = await loadPdfjs();
 
-      const worker = new Worker(new URL("$lib/workers/omrWorker.ts", import.meta.url), {
-        type: "module",
-      });
+      const worker = spawnOmrWorker();
       const runOmr = (req: OmrWorkerRequest): Promise<OmrWorkerResponse> =>
         new Promise((resolve, reject) => {
           const onMessage = (event: MessageEvent<OmrWorkerResponse>) => {
@@ -409,14 +400,8 @@
     goto(`/exam/${examId}/verify-item?submissionId=${item.submissionId}&exerciseId=${item.exerciseId}&queue=${queueTag}`);
   }
 
-  $: failedItems = stats?.items.filter((i) => categorizeMcItem(i) === "failed") ?? [];
-  $: unsureItems = stats?.items.filter((i) => categorizeMcItem(i) === "unsure") ?? [];
-  $: otherItems = stats?.items.filter((i) => categorizeMcItem(i) === "confident") ?? [];
-
-  // Each queue's badge is scoped to that queue's own items — a student with MC
-  // items in several categories gets an independent "reviewed/total" count per
-  // category (e.g. "1/1" in confident, "0/1" in unsure), not one combined count
-  // repeated identically in every section they appear in.
+  // Each queue's badge counts only that queue's items, so a student gets an independent
+  // "reviewed/total" per category instead of one combined count repeated in every section.
   function buildStudentProgress(items: McDetectionItem[]) {
     const map = new Map<string, { total: number; reviewed: number }>();
     for (const it of items) {
@@ -427,9 +412,21 @@
     }
     return map;
   }
-  $: failedProgress = buildStudentProgress(failedItems);
-  $: unsureProgress = buildStudentProgress(unsureItems);
-  $: confidentProgress = buildStudentProgress(otherItems);
+
+  let failedItems = $derived(stats?.items.filter((i) => categorizeMcItem(i) === "failed") ?? []);
+  let unsureItems = $derived(stats?.items.filter((i) => categorizeMcItem(i) === "unsure") ?? []);
+  let otherItems = $derived(stats?.items.filter((i) => categorizeMcItem(i) === "confident") ?? []);
+  let failedProgress = $derived(buildStudentProgress(failedItems));
+  let unsureProgress = $derived(buildStudentProgress(unsureItems));
+  let confidentProgress = $derived(buildStudentProgress(otherItems));
+
+  $effect.pre(() => {
+    const key = currentRefreshKey;
+    if (browser && examId && $sessionStore.sessionKey && key !== lastRefreshedKey) {
+      lastRefreshedKey = key;
+      untrack(refresh);
+    }
+  });
 </script>
 
 <PageShell width="fluid">
@@ -438,7 +435,7 @@
     subtitle={$t("scanning.verify.description")}
     helpTopic="scanning"
   >
-    <svelte:fragment slot="actions">
+    {#snippet actions()}
       <Button
         variant="outlined" severity="secondary"
         size="sm"
@@ -463,7 +460,7 @@
       >
         {loading ? $t("scanning.verify.refreshing") : $t("scanning.verify.refresh")}
       </Button>
-    </svelte:fragment>
+    {/snippet}
   </PageHeader>
 
   {#if rerunMcMessage}
@@ -486,10 +483,10 @@
   {:else if stats}
     {#if stats.totalQuestions === 0}
       <EmptyState title={$t("scanning.verify.emptyTitle")} description={$t("scanning.verify.emptyDescription")}>
-        <svelte:fragment slot="actions">
+        {#snippet actions()}
           <Button variant="outlined" severity="secondary" href={`/exam/${examId}`}>{$t("scanning.verify.examSetup")}</Button>
           <Button href={`/exam/${examId}/scan`}>{$t("scanning.verify.goToScan")}</Button>
-        </svelte:fragment>
+        {/snippet}
       </EmptyState>
     {:else}
       <McDetectionSettingsPanel

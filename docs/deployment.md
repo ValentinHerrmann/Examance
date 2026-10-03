@@ -263,7 +263,7 @@ Every Pages build needs the ~500 MB of BusyTeX assets. From GitHub's release CDN
 
 A build falls through processed mirror → raw mirror → GitHub → upstream `texlyre-busytex download-assets`, so a missing or unreachable mirror costs speed, never the build. Only the build reads the bucket — browsers never do, so the CSP and the no-third-party-transfer statements are unaffected.
 
-`.github/workflows/mirror-busytex.yml` keeps it filled: whenever `frontend/package-lock.json`, `busytex-mirror.mjs`, `process-large-files.mjs` or `fetch-interceptor.js` change (PRs from this repository, `main`, or manually) it uploads whichever of the two objects is missing, producing the processed one on Node 22.16.0 — the Pages image's version, so its chunks are byte-identical to a fallback build's and Pages keeps deduplicating the upload. Nothing needs doing on a BusyTeX update or a change to the processing scripts. Old objects (~500 MB each) stay in the bucket; delete them whenever convenient, or set an R2 lifecycle rule.
+`.github/workflows/mirror-busytex.yml` keeps it filled: whenever `frontend/package-lock.json`, `busytex-mirror.mjs`, `process-large-files.mjs` or `fetch-interceptor.js` change (PRs from this repository, `main`, or manually) it uploads whichever of the two objects is missing, producing the processed one on the Node version pinned in `frontend/.node-version` (the one Pages builds with), so its chunks are byte-identical to a fallback build's and Pages keeps deduplicating the upload. Nothing needs doing on a BusyTeX update or a change to the processing scripts. Old objects (~500 MB each) stay in the bucket; delete them whenever convenient, or set an R2 lifecycle rule.
 
 One-time setup:
 

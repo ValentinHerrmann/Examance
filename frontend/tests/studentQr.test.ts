@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseStudentQr } from '$lib/utils/studentQr';
+import { parseStudentQr } from '#lib/utils/studentQr';
 
 describe('parseStudentQr', () => {
   describe('standard format: "Lastname, Firstname_NumericID"', () => {

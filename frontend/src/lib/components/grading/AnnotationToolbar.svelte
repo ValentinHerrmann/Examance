@@ -1,13 +1,15 @@
 <script lang="ts">
-  import { gradingStore, type ToolType } from "$lib/grading/gradingStore";
-  import { t } from "$lib/i18n";
+  import { gradingStore, type ToolType } from "#lib/grading/gradingStore";
+  import { t } from "#lib/i18n";
   import { faCheck, faEraser, faPen, faRulerHorizontal, faTrashCan } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Icon } from "$lib/components/ui";
+  import { Button, Icon } from "#lib/components/ui";
 
-  // Destructive: clearing annotations is gated by a confirm-dialog step owned
-  // by the parent/route, so this component only requests it — it never mutates
-  // the store directly for this action.
-  export let onClearRequested: () => void;
+  interface Props {
+    /** Clearing is gated by a parent-owned confirm dialog; this component only requests it, never mutates the store. */
+    onClearRequested: () => void;
+  }
+
+  let { onClearRequested }: Props = $props();
 
   /* Finger-sized (48px) glyph-over-label tool button. `!` beats the Button
    * size recipe's own padding/gap. */
@@ -18,11 +20,7 @@
   }
 </script>
 
-<!--
-  Below `lg` the toolbar docks as a horizontal strip above the canvas: floating
-  it there covered most of the scan on a phone. From `lg` up it returns to the
-  overlay position, where there is room to spare.
--->
+<!-- Below `lg` docked as a strip above the canvas (floating covered the scan on phones); overlay from `lg` up. -->
 <div
   class="scroll-pane z-30 flex shrink-0 flex-row gap-1 overflow-x-auto rounded-md border border-line bg-surface-raised p-1.5
     lg:absolute lg:top-3 lg:left-3 lg:max-h-[calc(100%-3rem)] lg:flex-col lg:overflow-x-visible lg:overflow-y-auto lg:p-1 lg:shadow-md"

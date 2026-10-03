@@ -1,14 +1,13 @@
 /**
- * Import conflict detection and resolution, before anything is written: keep
- * existing, take the archive's, or import as a copy under a new id. No copies
- * for students and submissions — a duplicate pseudonym is a data-protection problem.
+ * Import conflict detection and resolution before anything is written: keep existing, take the
+ * archive's, or import as a copy. No copies for students/submissions (duplicate pseudonym = data-protection problem).
  */
 
-import { db } from '$lib/db/db';
-import { examRepository } from '$lib/repositories/examRepository';
-import { exerciseRepository } from '$lib/repositories/exerciseRepository';
-import { studentRepository } from '$lib/repositories/studentRepository';
-import { submissionRepository } from '$lib/repositories/submissionRepository';
+import { db } from '#lib/db/db';
+import { examRepository } from '#lib/repositories/examRepository';
+import { exerciseRepository } from '#lib/repositories/exerciseRepository';
+import { studentRepository } from '#lib/repositories/studentRepository';
+import { submissionRepository } from '#lib/repositories/submissionRepository';
 
 export type ConflictKind = 'exam' | 'exercise' | 'mcGroup' | 'student' | 'submission' | 'resource';
 export type ConflictChoice = 'keep-existing' | 'take-imported' | 'import-as-copy';
@@ -116,10 +115,8 @@ const SPECS: KindSpec[] = [
     title: (r) => String(r.pseudonymHash ?? r.id).slice(0, 8),
     fields: {
       ...props('totalScore', 'createdAt'),
-      // `r.scanCt`/`annotationCt` are only present on a full fetch; `hasScan`/
-      // `hasAnnotations` are the list endpoint's cheap presence flags and stay
-      // accurate even when the byte fields were omitted (see
-      // submissionRepository's `includeScans`).
+      // `scanCt`/`annotationCt` exist only on a full fetch; `hasScan`/`hasAnnotations` are the list
+      // endpoint's cheap flags and stay accurate without the bytes (see submissionRepository `includeScans`).
       hasScan: (r) => Boolean(r.scanCt) || Boolean(r.hasScan),
       hasAnnotations: (r) => Boolean(r.annotationCt) || Boolean(r.hasAnnotations),
     },
@@ -165,9 +162,8 @@ function compare(spec: KindSpec, current: Row, incoming: Row): ArchiveConflict |
 }
 
 /**
- * Compares an archive against what the target store already holds. Reads go
- * through the repositories, so it asks the store the import will write to.
- * Identical collisions are counted, not returned — they need no decision.
+ * Compares an archive against what the target store holds (via the repositories, so it asks the
+ * store the import writes to). Identical collisions are counted, not returned.
  */
 export async function detectConflicts(
   payload: Row,
@@ -206,11 +202,8 @@ export function applyToAll(
 }
 
 /**
- * Rewrites the payload according to the decisions: kept records are dropped,
- * copies get one fresh id that every reference follows.
- *
- * The payload stays loosely typed: the archive is versioned JSON that may carry
- * fields this build does not know, and they must survive the round-trip.
+ * Rewrites the payload per the decisions: kept records dropped, copies get one fresh id that every
+ * reference follows. Loosely typed on purpose: the archive may carry unknown fields that must round-trip.
  */
 export function applyResolutions(
   payload: Row,

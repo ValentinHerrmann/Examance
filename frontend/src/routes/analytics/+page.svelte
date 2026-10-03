@@ -1,44 +1,40 @@
 <script lang="ts">
-  import { t } from '$lib/i18n';
-  import { onMount } from 'svelte';
-  import { browser } from '$app/environment';
+  import { t } from '#lib/i18n';
+  import { onMount, untrack } from 'svelte';
+  import { browser } from '$app/env';
   import { afterNavigate, goto } from '$app/navigation';
   import { get } from 'svelte/store';
-  import { sessionStore, isUnlocked, awaitSessionReady } from '$lib/stores/session';
-  import { db } from '$lib/db/db';
-  import type { ExamRecord, ExerciseRecord } from '$lib/db/schema';
-  import { loadExamsEncrypted, loadExercisesEncrypted, decryptExercise, decryptScore } from '$lib/db/dbEncryption';
-  import { scoreRepository } from '$lib/repositories/scoreRepository';
-  import { submissionRepository } from '$lib/repositories/submissionRepository';
-  import type { ExercisePerformance, VariantDetail, VariantGroupComparison } from '$lib/analytics/analyticsTypes';
-  import AnalyticsStateBanner from '$lib/components/analytics/AnalyticsStateBanner.svelte';
-  import KpiSummaryBar from '$lib/components/analytics/KpiSummaryBar.svelte';
-  import VariantFairnessTable from '$lib/components/analytics/VariantFairnessTable.svelte';
-  import ExerciseQualityTable from '$lib/components/analytics/ExerciseQualityTable.svelte';
-  import { PageShell, PageHeader } from '$lib/components/ui';
+  import { sessionStore, isUnlocked, awaitSessionReady } from '#lib/stores/session';
+  import { db } from '#lib/db/db';
+  import type { ExamRecord, ExerciseRecord } from '#lib/db/schema';
+  import { loadExamsEncrypted, loadExercisesEncrypted, decryptExercise, decryptScore } from '#lib/db/dbEncryption';
+  import { scoreRepository } from '#lib/repositories/scoreRepository';
+  import { submissionRepository } from '#lib/repositories/submissionRepository';
+  import type { ExercisePerformance, VariantDetail, VariantGroupComparison } from '#lib/analytics/analyticsTypes';
+  import AnalyticsStateBanner from '#lib/components/analytics/AnalyticsStateBanner.svelte';
+  import KpiSummaryBar from '#lib/components/analytics/KpiSummaryBar.svelte';
+  import VariantFairnessTable from '#lib/components/analytics/VariantFairnessTable.svelte';
+  import ExerciseQualityTable from '#lib/components/analytics/ExerciseQualityTable.svelte';
+  import { PageShell, PageHeader } from '#lib/components/ui';
 
-  let isInitializing = true;
+  let isInitializing = $state(true);
   let activeLoadPromise: Promise<void> | null = null;
   let pendingReload = false;
-  let exams: ExamRecord[] = [];
-  let exerciseStats: ExercisePerformance[] = [];
-  let variantGroups: VariantGroupComparison[] = [];
-  let overallAvgScore: number | null = null;
-  let totalSubmissionsCount = 0;
-  let gradedSubmissionsCount = 0;
-  let showAllExercises = false;
+  let exams: ExamRecord[] = $state.raw([]);
+  let exerciseStats: ExercisePerformance[] = $state.raw([]);
+  let variantGroups: VariantGroupComparison[] = $state.raw([]);
+  let overallAvgScore: number | null = $state(null);
+  let totalSubmissionsCount = $state(0);
+  let gradedSubmissionsCount = $state(0);
+  let showAllExercises = $state(false);
 
-  $: displayedExerciseStats = showAllExercises
+  let displayedExerciseStats = $derived(showAllExercises
     ? exerciseStats
-    : exerciseStats.filter((e) => e.avgScorePercent !== null);
+    : exerciseStats.filter((e) => e.avgScorePercent !== null));
 
-  $: displayedVariantGroups = showAllExercises
+  let displayedVariantGroups = $derived(showAllExercises
     ? variantGroups
-    : variantGroups.filter((g) => g.variants.some((v) => v.avgScorePercent !== null));
-
-  $: if (browser && $isUnlocked && $sessionStore.sessionKey) {
-    triggerAnalyticsLoad();
-  }
+    : variantGroups.filter((g) => g.variants.some((v) => v.avgScorePercent !== null)));
 
   afterNavigate(() => {
     if ($isUnlocked && $sessionStore.sessionKey) {
@@ -350,6 +346,12 @@
     console.error('Failed to load analytics:', err);
   }
 }
+
+  $effect.pre(() => {
+    if (browser && $isUnlocked && $sessionStore.sessionKey) {
+      untrack(() => triggerAnalyticsLoad());
+    }
+  });
 </script>
 
 <PageShell width="full">

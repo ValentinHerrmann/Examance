@@ -14,7 +14,7 @@ This document details the third-party software components and licenses used in E
 | **zxing-wasm** | 1.2.3 | MIT | `sha256-PLACEHOLDER_FILL_AFTER_VENDORING` |
 | **texlyre-busytex** (Tectonic/XeLaTeX via WASM, local-compile path) | 1.2.3 | MIT | not tracked in `sri-manifest.json` |
 
-*Integrity verification is scaffolded but not wired in.* `fetchAndVerifyWasm()` exists in `$lib/crypto/sri.ts` but is not called from any loader; `static/sri-manifest.json` declares `"enforced": false` with every hash still a placeholder. The Argon2 module that derives every encryption key is therefore loaded unverified today. `opencv.js`, previously listed here, is not a dependency of the current codebase (zero references under `frontend/src`) and has been removed from this table.
+*Integrity verification is scaffolded but not wired in.* `fetchAndVerifyWasm()` exists in `#lib/crypto/sri.ts` but is not called from any loader; `static/sri-manifest.json` declares `"enforced": false` with every hash still a placeholder. The Argon2 module that derives every encryption key is therefore loaded unverified today. `opencv.js`, previously listed here, is not a dependency of the current codebase (zero references under `frontend/src`) and has been removed from this table.
 
 ---
 
@@ -24,13 +24,12 @@ Runtime (shipped) dependencies from `frontend/package.json`:
 
 | Library | Version | License | Purpose |
 |---|---|---|---|
-| **SvelteKit** | 2.5.0 | MIT | Static application framework (Svelte 4, not 5 — see `CLAUDE.md`) |
+| **SvelteKit** | 3.0.0 | MIT | Static application framework (Svelte 5, runes) |
 | **Dexie.js** | 4.0.0 | Apache 2.0 | Typed IndexedDB wrapper, primary encrypted local store |
 | **fflate** | 0.8.2 | MIT | High-performance DEFLATE compression in workers |
 | **qrcode** | 1.5.3 | MIT | QR code data URL generator |
-| **pdfjs-dist** | 6.1.200 | Apache 2.0 | PDF rendering and annotation extraction; worker bundled from own origin (`$lib/pdf/pdfjs.ts`) per the CSP, not loaded from a CDN |
+| **pdfjs-dist** | 6.1.200 | Apache 2.0 | PDF rendering and annotation extraction; worker bundled from own origin (`#lib/pdf/pdfjs.ts`) per the CSP, not loaded from a CDN |
 | **pdf-lib** | 1.17.1 | MIT | Client-side PDF generation/manipulation |
-| **layerchart** | 1.0.13 | MIT | Charting (class statistics, grade distribution) |
 | **Tailwind CSS** | 4.3.3 | MIT | Utility CSS, build-time only |
 | **Font Awesome Free** (`@fortawesome/free-solid-svg-icons`, `@fortawesome/fontawesome-svg-core`) | see `package.json` | Icons CC BY 4.0, code MIT | UI icons, imported per icon and embedded as SVG paths; no font or script is loaded. Attribution is in `frontend/static/third-party-notices.txt`, linked from the footer |
 

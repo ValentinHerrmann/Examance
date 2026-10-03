@@ -1,49 +1,50 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
-  import { t } from "$lib/i18n";
-  import { isDesktop } from "$lib/stores/viewport";
-  import PdfEmbedViewer from "$lib/components/PdfEmbedViewer.svelte";
+  import { t } from "#lib/i18n";
+  import { isDesktop } from "#lib/stores/viewport";
+  import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
   import { faChevronLeft, faChevronRight, faDownload, faFileLines, faFilePdf } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Icon, Tabs } from "$lib/components/ui";
+  import { Button, Icon, Tabs } from "#lib/components/ui";
 
-  export let previewPdfUrl: string | null = null;
-  export let previewSolutionPdfUrl: string | null = null;
-  export let showAngabePreview: boolean = true;
-  export let showLoesungPreview: boolean = false;
-  // Left undefined so the catalog default stays reactive to the language
-  // switch; callers can still pass an explicit pane title.
-  export let titleAngabe: string | undefined = undefined;
-  export let titleLoesung: string | undefined = undefined;
-  export let height: string = "100%";
-  export let placeholderText: string | undefined = undefined;
+  // Titles/placeholder stay undefined by default so the catalog text follows the language switch.
+  interface Props {
+    previewPdfUrl?: string | null;
+    previewSolutionPdfUrl?: string | null;
+    showAngabePreview?: boolean;
+    showLoesungPreview?: boolean;
+    titleAngabe?: string | undefined;
+    titleLoesung?: string | undefined;
+    height?: string;
+    placeholderText?: string | undefined;
+  }
 
-  $: angabeTitle = titleAngabe ?? $t("editor.pdfPreview.titleAngabe");
-  $: loesungTitle = titleLoesung ?? $t("editor.pdfPreview.titleLoesung");
-  $: placeholder = placeholderText ?? $t("editor.pdfPreview.placeholder");
+  let {
+    previewPdfUrl = null,
+    previewSolutionPdfUrl = null,
+    showAngabePreview = $bindable(true),
+    showLoesungPreview = $bindable(false),
+    titleAngabe = undefined,
+    titleLoesung = undefined,
+    height = "100%",
+    placeholderText = undefined
+  }: Props = $props();
 
-  const dispatch = createEventDispatcher<{
-    toggleAngabe: boolean;
-    toggleLoesung: boolean;
-  }>();
+  let angabeTitle = $derived(titleAngabe ?? $t("editor.pdfPreview.titleAngabe"));
+  let loesungTitle = $derived(titleLoesung ?? $t("editor.pdfPreview.titleLoesung"));
+  let placeholder = $derived(placeholderText ?? $t("editor.pdfPreview.placeholder"));
 
   function handleToggleAngabe() {
     showAngabePreview = !showAngabePreview;
-    dispatch("toggleAngabe", showAngabePreview);
   }
 
   function handleToggleLoesung() {
     showLoesungPreview = !showLoesungPreview;
-    dispatch("toggleLoesung", showLoesungPreview);
   }
 
-  /* Below `lg` two PDF iframes side by side are unreadable, so the split
-   * becomes a segmented switch over a single pane. Callers still pass a pixel
-   * height; it is capped against the viewport so the preview cannot grow taller
-   * than the screen on a phone. */
+  // Below `lg` the split becomes a segmented switch over a single pane; height is capped to the viewport.
   type PaneId = "angabe" | "loesung";
-  let mobilePane: PaneId = "angabe";
+  let mobilePane: PaneId = $state("angabe");
 
-  $: panes = [
+  let panes = $derived([
     {
       id: "angabe" as PaneId,
       title: angabeTitle,
@@ -60,12 +61,11 @@
       shown: showLoesungPreview,
       toggle: handleToggleLoesung,
     },
-  ];
+  ]);
 
-  $: activePane = panes.find((p) => p.id === mobilePane) ?? panes[0];
+  let activePane = $derived(panes.find((p) => p.id === mobilePane) ?? panes[0]);
 
-  // Keep the desktop visibility flags (and their events) in step with the
-  // mobile switch, so a caller that reads them sees the same selection.
+  // Keep the desktop visibility flags in step with the mobile switch.
   function selectMobilePane(id: PaneId) {
     mobilePane = id;
     if (id === "angabe" && !showAngabePreview) {
@@ -89,7 +89,7 @@
             <button
               type="button"
               class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 truncate border-0 bg-transparent p-0 text-left text-content"
-              on:click={pane.toggle}
+              onclick={pane.toggle}
               title={$t("editor.pdfPreview.collapse", { title: pane.title })}
             >
               <Icon icon={pane.icon} class="text-muted" />
@@ -134,7 +134,7 @@
           <button
             type="button"
             class="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 border-0 bg-surface-raised py-3 text-content hover:bg-surface-inset"
-            on:click={pane.toggle}
+            onclick={pane.toggle}
             title={$t("editor.pdfPreview.expand", { title: pane.title })}
           >
             <Icon icon={faChevronLeft} class="text-muted" />

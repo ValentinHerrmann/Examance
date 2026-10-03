@@ -1,51 +1,50 @@
 <script lang="ts">
-  import { isUnlocked, sessionStore, awaitSessionReady } from '$lib/stores/session';
-  import { db } from '$lib/db/db';
-  import type { ExamRecord, ExerciseRecord } from '$lib/db/schema';
-  import { saveExamEncrypted } from '$lib/db/dbEncryption';
-  import { importArchiveInteractively } from '$lib/services/archiveService';
-  import { checkRetention, type RetentionCheckResult } from '$lib/gdpr/retention';
+  import { isUnlocked, sessionStore, awaitSessionReady } from '#lib/stores/session';
+  import { db } from '#lib/db/db';
+  import type { ExamRecord, ExerciseRecord } from '#lib/db/schema';
+  import { saveExamEncrypted } from '#lib/db/dbEncryption';
+  import { importArchiveInteractively } from '#lib/services/archiveService';
+  import { checkRetention, type RetentionCheckResult } from '#lib/gdpr/retention';
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
 
-  import { examRepository } from '$lib/repositories/examRepository';
-  import { exerciseRepository } from '$lib/repositories/exerciseRepository';
-  import { submissionRepository } from '$lib/repositories/submissionRepository';
+  import { examRepository } from '#lib/repositories/examRepository';
+  import { exerciseRepository } from '#lib/repositories/exerciseRepository';
+  import { submissionRepository } from '#lib/repositories/submissionRepository';
   import { goto } from '$app/navigation';
-  import { t, translate } from '$lib/i18n';
-  import { loadSyncedExams } from '$lib/services/examSync';
-  import { computeExamStats } from '$lib/utils/examStats';
-  import { createExpandSet } from '$lib/utils/expandSet';
-  import { createLazyMap } from '$lib/utils/lazyMap';
-  import { countActiveFilters, countOptions, matchesQuery, uniqueSorted } from '$lib/utils/listFilter';
+  import { t, translate } from '#lib/i18n';
+  import { loadSyncedExams } from '#lib/services/examSync';
+  import { computeExamStats } from '#lib/utils/examStats';
+  import { createExpandSet } from '#lib/utils/expandSet';
+  import { createLazyMap } from '#lib/utils/lazyMap';
+  import { countActiveFilters, countOptions, matchesQuery, uniqueSorted } from '#lib/utils/listFilter';
   import { faPlus, faUpload } from '@fortawesome/free-solid-svg-icons';
 
-  import DashboardSessionState from '$lib/components/dashboard/DashboardSessionState.svelte';
-  import RetentionModal from '$lib/components/dashboard/RetentionModal.svelte';
-  import OnboardingEmptyState from '$lib/components/dashboard/OnboardingEmptyState.svelte';
-  import DeleteWithUsageModal from '$lib/components/common/DeleteWithUsageModal.svelte';
-  import ListFilterPanel from '$lib/components/common/ListFilterPanel.svelte';
-  import ExamList from '$lib/components/dashboard/ExamList.svelte';
-  import { Alert, Button, FilterLayout, PageHeader, PageShell } from '$lib/components/ui';
-  import PreviewHost from '$lib/components/common/PreviewHost.svelte';
-  import { createPreviewFlow } from '$lib/stores/previewFlow';
-  import { compileExamPreview } from '$lib/exam/examPreview';
-  import { buildExamItems, loadExamCompileContext } from '$lib/grading/omrTemplatePrep';
+  import DashboardSessionState from '#lib/components/dashboard/DashboardSessionState.svelte';
+  import RetentionModal from '#lib/components/dashboard/RetentionModal.svelte';
+  import OnboardingEmptyState from '#lib/components/dashboard/OnboardingEmptyState.svelte';
+  import DeleteWithUsageModal from '#lib/components/common/DeleteWithUsageModal.svelte';
+  import ListFilterPanel from '#lib/components/common/ListFilterPanel.svelte';
+  import ExamList from '#lib/components/dashboard/ExamList.svelte';
+  import { Alert, Button, FilterLayout, PageHeader, PageShell } from '#lib/components/ui';
+  import PreviewHost from '#lib/components/common/PreviewHost.svelte';
+  import { createPreviewFlow } from '#lib/stores/previewFlow';
+  import { compileExamPreview } from '#lib/exam/examPreview';
+  import { buildExamItems, loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
 
-
-  let exams: ExamRecord[] = [];
+  let exams: ExamRecord[] = $state.raw([]);
   /** Set when the server refused the exam list, so the view can say so. */
-  let examsLoadFailed = false;
-  let examStatsMap = new Map<string, { avgScore: number | null; count: number }>();
-  let isImporting = false;
-  let importStatus = '';
-  let isInitializing = true;
-  let expiredExam: { exam: ExamRecord; check: RetentionCheckResult } | null = null;
+  let examsLoadFailed = $state(false);
+  let examStatsMap = $state.raw(new Map<string, { avgScore: number | null; count: number }>());
+  let isImporting = $state(false);
+  let importStatus = $state('');
+  let isInitializing = $state(true);
+  let expiredExam: { exam: ExamRecord; check: RetentionCheckResult } | null = $state.raw(null);
 
-  let searchQuery = '';
-  let selectedGradeFilter = 'ALL';
-  let selectedSubjectFilter = 'ALL';
-  let selectedTestartFilter = 'ALL';
+  let searchQuery = $state('');
+  let selectedGradeFilter = $state('ALL');
+  let selectedSubjectFilter = $state('ALL');
+  let selectedTestartFilter = $state('ALL');
 
   /** Exercises per expanded exam, fetched on first expand and dropped on refresh. */
   const exerciseMap = createLazyMap<ExerciseRecord[]>((examId) =>
@@ -54,29 +53,29 @@
 
   // Badge on the mobile filter button, so an active filter is visible without
   // opening the drawer.
-  $: activeFilterCount = countActiveFilters(searchQuery, selectedGradeFilter, selectedSubjectFilter, selectedTestartFilter);
+  let activeFilterCount = $derived(countActiveFilters(searchQuery, selectedGradeFilter, selectedSubjectFilter, selectedTestartFilter));
 
-  let fileInput: HTMLInputElement;
+  let fileInput: HTMLInputElement | undefined = $state();
 
   // Which exam rows are expanded (the list is collapsibles, like the exercise
   // library).
   const expandedExams = createExpandSet((examId) => exerciseMap.ensure(examId));
 
   /** Set while a re-fetch is running; the list stays visible and is marked busy. */
-  let isRefreshing = false;
+  let isRefreshing = $state(false);
   let refreshAgain = false;
 
   // Delete modal state
-  let isDeleteModalOpen = false;
-  let deletingExam: { id: string; title?: string; submissionCount: number } | null = null;
-  let isDeleting = false;
-  let deleteError = '';
+  let isDeleteModalOpen = $state(false);
+  let deletingExam: { id: string; title?: string; submissionCount: number } | null = $state(null);
+  let isDeleting = $state(false);
+  let deleteError = $state('');
 
-  $: availableGrades = uniqueSorted(exams, (e) => e.grade);
-  $: availableSubjects = uniqueSorted(exams, (e) => e.fach);
-  $: testartOptions = countOptions(exams, (e) => e.testart);
+  let availableGrades = $derived(uniqueSorted(exams, (e) => e.grade));
+  let availableSubjects = $derived(uniqueSorted(exams, (e) => e.fach));
+  let testartOptions = $derived(countOptions(exams, (e) => e.testart));
 
-  $: filteredExams = exams.filter(
+  let filteredExams = $derived(exams.filter(
     (e) =>
       (selectedGradeFilter === 'ALL' ||
         e.grade === selectedGradeFilter ||
@@ -84,7 +83,7 @@
       (selectedSubjectFilter === 'ALL' || e.fach === selectedSubjectFilter) &&
       (selectedTestartFilter === 'ALL' || e.testart === selectedTestartFilter) &&
       matchesQuery(searchQuery, e.title, e.grade, e.klasse, e.fach, e.testart)
-  );
+  ));
 
   onMount(async () => {
     try {
@@ -237,7 +236,7 @@
       subtitle={$t("dashboard.header.subtitle")}
       helpTopic="gettingStarted"
     >
-      <svelte:fragment slot="actions">
+      {#snippet actions()}
         <Button
           variant="outlined"
           severity="secondary"
@@ -252,12 +251,12 @@
           type="file"
           id="importFile"
           accept=".bgproj"
-          on:change={handleImportArchive}
+          onchange={handleImportArchive}
           disabled={isImporting}
           hidden
         />
         <Button href="/exam/new" icon={faPlus}>{$t("dashboard.header.createButton")}</Button>
-      </svelte:fragment>
+      {/snippet}
     </PageHeader>
 
     {#if importStatus}
@@ -281,7 +280,7 @@
         activeCount={activeFilterCount}
         busy={isRefreshing}
       >
-        <svelte:fragment slot="filters">
+        {#snippet filters()}
           <ListFilterPanel
             bind:searchQuery
             bind:selectedGrade={selectedGradeFilter}
@@ -294,7 +293,7 @@
             pillAllLabel={$t('dashboard.filterBar.allTestarts', { count: exams.length })}
             onPillSelect={(value) => (selectedTestartFilter = value)}
           />
-        </svelte:fragment>
+        {/snippet}
 
         <ExamList
           exams={filteredExams}

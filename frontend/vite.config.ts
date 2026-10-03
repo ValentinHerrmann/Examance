@@ -1,22 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
-// defineConfig from vitest/config, not vite — it is the overload that knows
-// about the `test` block below.
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+// vitest/config's defineConfig knows about the `test` block below.
 import { defineConfig, type Plugin } from 'vitest/config';
 import wasm from 'vite-plugin-wasm';
 import tailwindcss from '@tailwindcss/vite';
+import { svelteTesting } from '@testing-library/svelte/vite';
 
 /**
- * In Vite dev mode, optimizeDeps excludes argon2-browser so it is served directly
- * to the browser as a native ES module. The argon2-bundled.min.js file is a Webpack
- * UMD bundle that executes `!function(A,I){...}(this, ...)`.
- * In native ESM, `this` is undefined at top level, so `A.argon2 = I()` crashes with
- * `TypeError: can't access property "argon2", A is undefined` (which triggers debugger
- * exception traps in attached browser sessions).
- *
- * This plugin transforms `argon2-bundled.min.js` so that `this` is replaced with `globalThis`,
- * and an explicit default export of `globalThis.argon2` is provided.
+ * argon2-bundled.min.js is a UMD bundle calling `}(this, …)`; served as native ESM (dev, optimizeDeps
+ * exclude) `this` is undefined and it crashes. Rewrite it to `globalThis` and add a default export.
  */
 function argon2BundlePlugin(): Plugin {
   return {
@@ -31,11 +26,7 @@ function argon2BundlePlugin(): Plugin {
   };
 }
 
-/**
- * Repository-root VERSION file — the single source of truth for the release
- * number, written by .github/workflows/deploy-release.yml from the release tag.
- * A dev checkout that predates it still has to build, hence the fallback.
- */
+/** Root VERSION file (release number, written by deploy-release.yml); falls back for older checkouts. */
 function readVersionFile(): string {
   try {
     return readFileSync(fileURLToPath(new URL('../VERSION', import.meta.url)), 'utf-8').trim();
@@ -44,13 +35,7 @@ function readVersionFile(): string {
   }
 }
 
-/**
- * PREVIEW_VERSION is written by .github/workflows/deploy-preview.yml's
- * `frontend` job as an extra commit on the `preview` branch, holding the full
- * `<release>-PR#<number> [<built-at>]` string composed there — Cloudflare
- * Pages has no notion of PR numbers, so this is the only way to get one into
- * the build. Absent on ad-hoc/manual preview builds that skip that job.
- */
+/** PREVIEW_VERSION (`<release>-PR#<n> [<built-at>]`) is committed by deploy-preview.yml; Pages knows no PR numbers. */
 function readPreviewVersionFile(): string {
   try {
     return readFileSync(fileURLToPath(new URL('../PREVIEW_VERSION', import.meta.url)), 'utf-8').trim();
@@ -59,12 +44,7 @@ function readPreviewVersionFile(): string {
   }
 }
 
-/**
- * Cloudflare Pages sets CF_PAGES_BRANCH/CF_PAGES_COMMIT_SHA on every build.
- * `release` is the production branch; anything else (in practice `preview`) is
- * a preview deployment, so a preview build is never mistaken for the release
- * it was branched from.
- */
+/** Pages sets CF_PAGES_BRANCH: `release` is production, anything else a preview, never mistaken for its release. */
 function computeAppVersion(): string {
   const branch = process.env.CF_PAGES_BRANCH;
   if (!branch) return '0.0.0-dev'; // local dev, vitest, ad-hoc builds
@@ -77,12 +57,7 @@ function computeAppVersion(): string {
   return sha ? `${readVersionFile()}-${sha}` : readVersionFile();
 }
 
-/**
- * The GitHub repository this frontend is published from — used to build a
- * clickable link next to the version tag in the footer and navbar badge (see
- * versionStore.ts): a release build links to its GitHub Release, a preview or
- * dev build links to the exact commit it was built from.
- */
+/** Linked next to the version tag: release builds link their GitHub Release, others their commit. */
 const REPO_URL = 'https://github.com/ValentinHerrmann/Examance';
 
 /** Full commit SHA of this build, when Cloudflare Pages provides one. */
@@ -90,10 +65,7 @@ function computeCommitSha(): string {
   return process.env.CF_PAGES_COMMIT_SHA ?? '';
 }
 
-// Seeds the backend address on a fresh browser profile so a production frontend
-// defaults to the production API and a preview frontend to the preview API. It
-// is only a default — the value is revalidated by normalizeBackendUrl() and the
-// user can still point the app anywhere from the settings dialog.
+// Default backend for a fresh profile (production vs preview API); still revalidated and user-changeable.
 const PROD_BACKEND_URL =
   process.env.PUBLIC_PROD_BACKEND_URL ?? 'https://api-examance.valentin-herrmann.com';
 const PREVIEW_BACKEND_URL =
@@ -110,10 +82,19 @@ function computeDefaultBackendUrl(): string {
 }
 
 export default defineConfig({
-  plugins: [tailwindcss(), wasm(), argon2BundlePlugin(), sveltekit()],
-  // Component tests mount Svelte in jsdom, which needs Svelte's browser build
-  // (its default resolution under Node is the SSR build, where mount fails).
-  resolve: { conditions: process.env.VITEST ? ['browser'] : [] },
+  plugins: [
+    tailwindcss(),
+    wasm(),
+    argon2BundlePlugin(),
+    // SvelteKit 3 reads its config here (svelte.config.js is gone). `version.name` stays at its
+    // default so "new deployment" detection works; the CSP hash comes from the build output.
+    sveltekit({
+      adapter: adapter({ pages: 'build', assets: 'build', fallback: 'index.html', precompress: false, strict: true }),
+      preprocess: vitePreprocess(),
+    }),
+    // No-op outside Vitest; inside it, resolves Svelte's browser build for jsdom.
+    svelteTesting(),
+  ],
   define: {
     __APP_VERSION__: JSON.stringify(computeAppVersion()),
     __APP_COMMIT_SHA__: JSON.stringify(computeCommitSha()),
@@ -151,7 +132,7 @@ export default defineConfig({
     // Gzip-sizing every chunk only feeds the build log and cost ~9 s per
     // Cloudflare Pages build.
     reportCompressedSize: false,
-    rollupOptions: {
+    rolldownOptions: {
       external: [/.*\.wasm$/],
       // No `output.*FileNames` overrides here — SvelteKit owns the output
       // layout and ignores them, always emitting under `_app/immutable/`,

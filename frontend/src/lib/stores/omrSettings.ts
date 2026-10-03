@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { safeLocalStorage } from '$lib/utils/storage';
+import { safeLocalStorage } from '#lib/utils/storage';
 import {
   DEFAULT_OMR_PARAMS,
   OMR_ALGORITHM_VERSION,
@@ -9,16 +9,13 @@ import {
   type OmrDetectionParams,
   type OmrParamsError,
   type OmrSettingsProfile,
-} from '$lib/grading/omrSettings';
+} from '#lib/grading/omrSettings';
 
 /**
- * The MC-detection settings the *next* detection run will use. Per browser, not per account
- * and not synced — same treatment as `bg_storage_policy` / `bg_locale`. Survives lock, wipe
- * and storage-mode switches (it is not in IndexedDB).
- *
- * Callers take one `get(omrSettingsStore)` snapshot at the start of a run and use it for every
- * page, so a settings change mid-run cannot produce a batch with mixed parameters. Past runs are
- * never affected: each detection carries its own `omrMeta.run` snapshot.
+ * MC-detection settings for the *next* run. Per browser, not per account, not synced (like
+ * `bg_storage_policy` / `bg_locale`); survives lock, wipe and mode switches (not in IndexedDB).
+ * Callers take one `get()` snapshot per run so a mid-run change can't mix parameters; past runs are
+ * unaffected (each detection carries its own `omrMeta.run`).
  */
 const STORAGE_KEY = 'bg_omr_settings';
 

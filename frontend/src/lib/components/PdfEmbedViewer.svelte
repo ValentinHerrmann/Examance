@@ -1,12 +1,6 @@
 <script lang="ts">
-  /**
-   * Thin, chromeless PDF preview built on EmbedPDF (WASM/PDFium) instead of
-   * an `<iframe>`/`<object>` pointed at a blob URL. Unlike the browser's
-   * built-in PDF plugin, this never shows a toolbar — see `lib/pdf/embedpdf.ts`
-   * for the (empty) UI schema — and it supports smooth mouse-wheel zooming,
-   * pinch-to-zoom, and an auto-hiding zoom preset overlay.
-   */
-  import { onDestroy } from "svelte";
+  // Chromeless PDF preview on EmbedPDF (WASM/PDFium) with wheel/pinch zoom and a zoom overlay; see `lib/pdf/embedpdf.ts`.
+  import { onDestroy, untrack } from "svelte";
   import {
     ZoomMode,
     ZoomPlugin,
@@ -14,25 +8,29 @@
     type ZoomLevel,
     type ZoomCapability,
   } from "@embedpdf/snippet";
-  import { t } from "$lib/i18n";
-  import { theme as appTheme } from "$lib/stores/theme";
+  import { t } from "#lib/i18n";
+  import { theme as appTheme } from "#lib/stores/theme";
 
-  /** URL (including `blob:`) of the PDF to display. `null` renders nothing. */
-  export let src: string | null = null;
-  /** Defaults to the app theme and follows it while mounted. */
-  export let theme: "light" | "dark" | "system" | undefined = undefined;
-  export let zoomLevel: ZoomLevel | undefined = undefined;
+  interface Props {
+    /** URL (including `blob:`) of the PDF to display. `null` renders nothing. */
+    src?: string | null;
+    /** Defaults to the app theme and follows it while mounted. */
+    theme?: "light" | "dark" | "system" | undefined;
+    zoomLevel?: ZoomLevel | undefined;
+  }
 
-  $: effectiveTheme = theme ?? $appTheme;
+  let { src = null, theme = undefined, zoomLevel = undefined }: Props = $props();
 
-  let containerEl: HTMLDivElement;
-  let viewer: EmbedPdfContainer | null = null;
-  let mountedSrc: string | null = null;
+  let effectiveTheme = $derived(theme ?? $appTheme);
+
+  let containerEl: HTMLDivElement | undefined = $state();
+  let viewer: EmbedPdfContainer | null = $state.raw(null);
+  let mountedSrc: string | null = $state(null);
   let zoomCap: ZoomCapability | null = null;
   let unsubscribeZoom: (() => void) | null = null;
 
-  let currentZoomPercent: number = 100;
-  let isOverlayVisible: boolean = false;
+  let currentZoomPercent: number = $state(100);
+  let isOverlayVisible: boolean = $state(false);
   let overlayTimeout: ReturnType<typeof setTimeout> | null = null;
   let isMouseOverOverlay: boolean = false;
 
@@ -143,6 +141,7 @@
     zoomCap = null;
     if (containerEl) {
       containerEl.removeEventListener("wheel", handleWheel, { capture: true });
+      // eslint-disable-next-line svelte/no-dom-manipulating -- the container only ever holds the imperatively mounted viewer
       containerEl.innerHTML = "";
     }
     viewer = null;
@@ -151,7 +150,7 @@
   }
 
   async function mount(url: string) {
-    const { mountEmbedPdf } = await import("$lib/pdf/embedpdf");
+    const { mountEmbedPdf } = await import("#lib/pdf/embedpdf");
     // A src change (or unmount racing a fast page switch) may land here
     // after containerEl is gone or after a newer `mount()` already ran.
     if (!containerEl || src !== url) return;
@@ -197,17 +196,24 @@
     }
   }
 
-  // `containerEl` only exists after the initial render (bind:this), so this
-  // reactive block also covers the "mount on first render" case — no
-  // separate onMount() call needed.
-  $: if (containerEl && src && src !== mountedSrc) {
-    mount(src);
-  } else if (containerEl && !src && mountedSrc) {
-    destroy();
-  }
+  // `containerEl` exists only after first render, so this also covers mount-on-first-render.
+  $effect(() => {
+    const el = containerEl;
+    const url = src;
+    const mounted = mountedSrc;
+    if (el && url && url !== mounted) {
+      untrack(() => mount(url));
+    } else if (el && !url && mounted) {
+      untrack(() => destroy());
+    }
+  });
 
   // Keep an already mounted viewer in sync when the app theme flips.
-  $: viewer?.setTheme(effectiveTheme);
+  $effect(() => {
+    const v = viewer;
+    const th = effectiveTheme;
+    untrack(() => v?.setTheme(th));
+  });
 
   onDestroy(() => {
     destroy();
@@ -219,8 +225,8 @@
   {#if src && isOverlayVisible}
     <div
       class="zoom-overlay absolute top-2.5 right-3 z-20 flex items-center gap-1.5 rounded-md border border-navbar-hover bg-navbar/90 px-2 py-1 text-xs font-medium text-navbar-muted shadow-md backdrop-blur-sm"
-      on:mouseenter={handleOverlayMouseEnter}
-      on:mouseleave={handleOverlayMouseLeave}
+      onmouseenter={handleOverlayMouseEnter}
+      onmouseleave={handleOverlayMouseLeave}
       role="toolbar"
       tabindex="-1"
       aria-label="Zoom controls"
@@ -230,14 +236,14 @@
       <button
         type="button"
         class="cursor-pointer rounded-sm border-none bg-transparent px-1.5 py-0.5 text-xs font-medium text-navbar-muted transition-colors hover:bg-navbar-hover hover:text-navbar-content pointer-coarse:min-h-11 pointer-coarse:min-w-11"
-        on:click={() => setZoom(1.0)}
+        onclick={() => setZoom(1.0)}
       >
         100%
       </button>
       <button
         type="button"
         class="inline-flex cursor-pointer items-center justify-center rounded-sm border-none bg-transparent px-1.5 py-0.5 text-navbar-muted transition-colors hover:bg-navbar-hover hover:text-navbar-content pointer-coarse:min-h-11 pointer-coarse:min-w-11"
-        on:click={() => setZoom(ZoomMode.FitWidth)}
+        onclick={() => setZoom(ZoomMode.FitWidth)}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="m18 8 4 4-4 4M6 8l-4 4 4 4M2 12h20" />
@@ -246,7 +252,7 @@
       <button
         type="button"
         class="inline-flex cursor-pointer items-center justify-center rounded-sm border-none bg-transparent px-1.5 py-0.5 text-navbar-muted transition-colors hover:bg-navbar-hover hover:text-navbar-content pointer-coarse:min-h-11 pointer-coarse:min-w-11"
-        on:click={() => setZoom(ZoomMode.FitPage)}
+        onclick={() => setZoom(ZoomMode.FitPage)}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="m8 18 4 4 4-4M8 6l4-4 4 4M12 2v20" />

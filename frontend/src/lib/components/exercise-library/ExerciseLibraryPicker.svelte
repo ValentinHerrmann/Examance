@@ -1,43 +1,64 @@
 <script lang="ts">
-  import { type ExerciseGroup } from "$lib/exercise-library/groupExercises";
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import { parseExerciseScore } from "$lib/latex/scoreParser";
-  import { isMcQuestion } from "$lib/grading/mcScore";
-  import { t } from "$lib/i18n";
+  import { type ExerciseGroup } from "#lib/exercise-library/groupExercises";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import { parseExerciseScore } from "#lib/latex/scoreParser";
+  import { isMcQuestion } from "#lib/grading/mcScore";
+  import { t } from "#lib/i18n";
   import { faPenToSquare, faEye, faCheck } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Badge, Checkbox, Icon, TextInput, Select } from "$lib/components/ui";
+  import { Button, Badge, Checkbox, Icon, TextInput, Select } from "#lib/components/ui";
 
+  interface Props {
+    filteredGroups: ExerciseGroup[];
+    totalVariantsCount: number;
+    availableGrades: string[];
+    availableSubjects: string[];
+    availableTopics: string[];
+    searchQuery: string;
+    selectedGradeFilter: string;
+    selectedSubjectFilter: string;
+    selectedTopicFilter: string;
+    typeFilter?: "normal" | "mc";
+    activeVariantPerGroup: Record<string, string>;
+    selectedLibraryIds: string[];
+    mcStagingIds?: string[];
+    /** exerciseId → title of the MC group it already belongs to; such questions cannot be staged again. */
+    mcGroupMembership?: Record<string, string>;
+    onToggleSelection: (id: string) => void;
+    onToggleMcStaging?: (id: string) => void;
+    onSetGroupVariant: (groupId: string, vKey: string) => void;
+    onQuickEdit: (ex: ExerciseRecord) => void;
+    onOpenPreview: (ex: ExerciseRecord) => void;
+  }
 
+  let {
+    filteredGroups,
+    totalVariantsCount,
+    availableGrades,
+    availableSubjects,
+    availableTopics,
+    searchQuery = $bindable(),
+    selectedGradeFilter = $bindable(),
+    selectedSubjectFilter = $bindable(),
+    selectedTopicFilter = $bindable(),
+    typeFilter = "normal",
+    activeVariantPerGroup,
+    selectedLibraryIds,
+    mcStagingIds = [],
+    mcGroupMembership = {},
+    onToggleSelection,
+    onToggleMcStaging = () => {},
+    onSetGroupVariant,
+    onQuickEdit,
+    onOpenPreview
+  }: Props = $props();
 
-  export let filteredGroups: ExerciseGroup[];
-  export let totalVariantsCount: number;
-  export let availableGrades: string[];
-  export let availableSubjects: string[];
-  export let availableTopics: string[];
-  export let searchQuery: string;
-  export let selectedGradeFilter: string;
-  export let selectedSubjectFilter: string;
-  export let selectedTopicFilter: string;
-  export let typeFilter: "normal" | "mc" = "normal";
-  export let activeVariantPerGroup: Record<string, string>;
-  export let selectedLibraryIds: string[];
-  export let mcStagingIds: string[] = [];
-  /** exerciseId → title of the MC group it already belongs to; such questions cannot be staged again. */
-  export let mcGroupMembership: Record<string, string> = {};
-  export let onToggleSelection: (id: string) => void;
-  export let onToggleMcStaging: (id: string) => void = () => {};
-  export let onSetGroupVariant: (groupId: string, vKey: string) => void;
-  export let onQuickEdit: (ex: ExerciseRecord) => void;
-  export let onOpenPreview: (ex: ExerciseRecord) => void;
-
-  // Declared reactively so the template re-runs it when the locale changes.
-  $: checkboxTitle = (isMc: boolean, isSelected: boolean, ownerGroup: string | undefined): string => {
+  function checkboxTitle(isMc: boolean, isSelected: boolean, ownerGroup: string | undefined): string {
     if (!isMc) {
       return isSelected ? $t("exercises.libraryPicker.checkboxRemoveFromExam") : $t("exercises.libraryPicker.checkboxAddToExam");
     }
     if (ownerGroup !== undefined) return $t("exercises.libraryPicker.checkboxInOtherMcGroup", { title: ownerGroup });
     return isSelected ? $t("exercises.libraryPicker.checkboxRemoveMcStaging") : $t("exercises.libraryPicker.checkboxAddMcStaging");
-  };
+  }
 
   const pillBase =
     "cursor-pointer rounded-xl border border-line bg-surface-base px-2.5 py-1 text-sm text-muted hover:border-line-strong";
@@ -64,7 +85,8 @@
     "flex flex-wrap items-start gap-3 rounded-xl border border-line bg-surface-raised px-4 py-3 hover:border-line-strong hover:bg-highlight @3xl:flex-nowrap";
   const rowSelected =
     "flex flex-wrap items-start gap-3 rounded-xl border border-primary bg-primary/10 px-4 py-3 @3xl:flex-nowrap";
-  $: displayedGroups = filteredGroups.filter((g) => {
+
+  let displayedGroups = $derived(filteredGroups.filter((g) => {
     if (selectedTopicFilter !== "ALL" && g.topicTag !== selectedTopicFilter) return false;
     const activeVKey = activeVariantPerGroup[g.groupId] || Array.from(g.variants.keys())[0] || "_General";
     const vMembers = g.variants.get(activeVKey) || [];
@@ -72,7 +94,7 @@
     if (!activeEx) return false;
     const isMc = isMcQuestion(activeEx);
     return typeFilter === "mc" ? isMc : !isMc;
-  });
+  }));
 </script>
 
 <div class="mb-4 flex flex-col gap-3">
@@ -117,7 +139,7 @@
     <button
       type="button"
       class={selectedTopicFilter === "ALL" ? pillActive : pillBase}
-      on:click={() => (selectedTopicFilter = "ALL")}
+      onclick={() => (selectedTopicFilter = "ALL")}
     >
       {$t("exercises.libraryPicker.allTopics", { count: filteredGroups.length })}
     </button>
@@ -126,7 +148,7 @@
       <button
         type="button"
         class={selectedTopicFilter === topic ? pillActive : pillBase}
-        on:click={() => (selectedTopicFilter = topic)}
+        onclick={() => (selectedTopicFilter = topic)}
       >
         {topic} ({groupCount})
       </button>
@@ -200,7 +222,7 @@
                 <button
                   type="button"
                   class={variantPillClass(vKey === activeVKey, hasSelected)}
-                  on:click={() => onSetGroupVariant(group.groupId, vKey)}
+                  onclick={() => onSetGroupVariant(group.groupId, vKey)}
                   title={$t("exercises.libraryPicker.switchVariantTitle", { key: vKey })}
                 >
                   {#if hasSelected}

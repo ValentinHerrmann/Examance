@@ -1,9 +1,6 @@
 /**
- * Catalog of LaTeX snippets offered by the "quick insert" toolbar in
- * LatexEditor.svelte. Covers the exam template's answer-key macros
- * (backend/latex-assets/sty/Loesung.sty), scoring macros
- * (backend/latex-assets/sty/Schulaufgabe.sty), and a small set of
- * generic LaTeX constructs teachers commonly forget the syntax for.
+ * Catalog of LaTeX snippets for the quick-insert toolbar in LatexEditor.svelte: answer-key macros
+ * (Loesung.sty), scoring macros (Schulaufgabe.sty) and a few generic constructs, all in backend/latex-assets/sty/.
  */
 
 export interface QuickInsertArg {
@@ -33,20 +30,13 @@ export interface QuickInsertMacro {
   preview: string;
   args: QuickInsertArg[];
   buildTemplate: (args: string[]) => QuickInsertTemplate;
-  /**
-   * Which argument receives a wrapped selection (default 0). Macros whose
-   * meaningful "content" argument isn't the first one — e.g. \textcolor's
-   * text comes after the color — set this so a selection lands where a
-   * user would expect, instead of overwriting an unrelated argument.
-   */
+    /** Argument that receives a wrapped selection (default 0); set where the content argument isn't first, e.g. \textcolor. */
   selectionArgIndex?: number;
 }
 
 /**
- * Interleaves literalParts and args (literalParts.length === args.length + 1)
- * into one string, tracking each arg's [from,to) span in the result so
- * callers don't have to search for placeholder text (which may recur
- * elsewhere in the template, e.g. "text" inside "\textbf").
+ * Interleaves literalParts and args (literalParts.length === args.length + 1) into one string and
+ * tracks each arg's [from,to) span, so callers needn't search for placeholder text that may recur.
  */
 export function templateJoin(literalParts: string[], args: string[]): QuickInsertTemplate {
   let text = "";

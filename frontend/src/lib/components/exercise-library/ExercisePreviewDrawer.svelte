@@ -1,22 +1,32 @@
 <script lang="ts">
-  import type { ExerciseRecord } from "$lib/db/schema";
-  import { parseExerciseScore } from "$lib/latex/scoreParser";
-  import LatexViewer from "$lib/components/LatexViewer.svelte";
-  import { t } from "$lib/i18n";
+  import type { ExerciseRecord } from "#lib/db/schema";
+  import { parseExerciseScore } from "#lib/latex/scoreParser";
+  import LatexViewer from "#lib/components/LatexViewer.svelte";
+  import { t } from "#lib/i18n";
   import { faCheck } from "@fortawesome/free-solid-svg-icons";
-  import { Modal, Button, Badge } from "$lib/components/ui";
+  import { Modal, Button, Badge } from "#lib/components/ui";
 
-  export let previewModalEx: ExerciseRecord;
-  export let isModalSelected: boolean;
-  export let onClose: () => void;
-  export let onToggleSelection: (id: string) => void;
-  export let onQuickEdit: (ex: ExerciseRecord) => void;
+  interface Props {
+    previewModalEx: ExerciseRecord;
+    isModalSelected: boolean;
+    onClose: () => void;
+    onToggleSelection: (id: string) => void;
+    onQuickEdit: (ex: ExerciseRecord) => void;
+  }
 
-  $: modalScore = parseExerciseScore(previewModalEx.latexBody || "") || previewModalEx.maxPoints || 0;
+  let {
+    previewModalEx,
+    isModalSelected,
+    onClose,
+    onToggleSelection,
+    onQuickEdit
+  }: Props = $props();
+
+  let modalScore = $derived(parseExerciseScore(previewModalEx.latexBody || "") || previewModalEx.maxPoints || 0);
 </script>
 
 <Modal open={true} size="large" onClose={onClose}>
-  <svelte:fragment slot="header">
+  {#snippet header()}
     <div class="min-w-0">
       <div class="mb-1.5 flex items-center gap-2">
         <h2 class="m-0 truncate text-xl font-semibold text-content">{previewModalEx.name}</h2>
@@ -35,14 +45,14 @@
         {/if}
       </div>
     </div>
-  </svelte:fragment>
+  {/snippet}
 
   <div class="flex flex-col gap-1.5">
     <h3 class="m-0 text-sm font-semibold text-muted">{$t("exercises.previewDrawer.latexSourceCodeLabel")}</h3>
     <LatexViewer code={previewModalEx.latexBody || "\\begin{Aufgabe}{}\n\\end{Aufgabe}"} maxHeight="350px" />
   </div>
 
-  <svelte:fragment slot="footer">
+  {#snippet footer()}
     <Button
       variant={isModalSelected ? "solid" : "outlined"}
       severity={isModalSelected ? "primary" : "secondary"}
@@ -60,5 +70,5 @@
     <Button variant="text" severity="secondary" onClick={onClose}>
       {$t("common.close")}
     </Button>
-  </svelte:fragment>
+  {/snippet}
 </Modal>
