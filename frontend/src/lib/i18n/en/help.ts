@@ -215,7 +215,8 @@ export const help: Translations['help'] = {
             },
             s3: {
                 h: 'Language',
-                p1: 'The interface is available in German and English, switchable here or from the status bar. The printed exam is unaffected — it is always in German.',
+                p1: 'The interface is available in German and English, switchable here or from the navigation bar at the top. The printed exam is unaffected — it is always in German.',
+                p2: 'The colour scheme (light, dark or follow the system) can be chosen in the navigation bar and here in Settings. It only affects the interface, not the printed exam.',
             },
             s4: {
                 h: 'Session and deletion',

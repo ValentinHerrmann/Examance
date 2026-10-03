@@ -32,6 +32,11 @@ Runtime (shipped) dependencies from `frontend/package.json`:
 | **pdf-lib** | 1.17.1 | MIT | Client-side PDF generation/manipulation |
 | **layerchart** | 1.0.13 | MIT | Charting (class statistics, grade distribution) |
 | **Tailwind CSS** | 4.3.3 | MIT | Utility CSS, build-time only |
+| **Font Awesome Free** (`@fortawesome/free-solid-svg-icons`, `@fortawesome/fontawesome-svg-core`) | see `package.json` | Icons CC BY 4.0, code MIT | UI icons, imported per icon and embedded as SVG paths; no font or script is loaded. Attribution is in `frontend/static/third-party-notices.txt`, linked from the footer |
+
+### Design language
+
+The interface follows the **Artemis** design language of TUM AET (MIT licensed) as an acknowledgement of its look and feel. The tokens in `frontend/src/app.css` are re-implemented from the published UI kit; no Artemis code is copied or shipped.
 
 ---
 

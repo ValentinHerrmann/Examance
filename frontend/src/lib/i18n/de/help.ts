@@ -215,7 +215,8 @@ export const help = {
             },
             s3: {
                 h: 'Sprache',
-                p1: 'Die Oberfläche gibt es auf Deutsch und Englisch, umschaltbar hier oder über die Statusleiste. Die gedruckte Klausur bleibt davon unberührt — sie ist immer auf Deutsch.',
+                p1: 'Die Oberfläche gibt es auf Deutsch und Englisch, umschaltbar hier oder über die Navigationsleiste oben. Die gedruckte Klausur bleibt davon unberührt — sie ist immer auf Deutsch.',
+                p2: 'Das Farbschema (Hell, Dunkel oder passend zum System) lässt sich in der Navigationsleiste und hier in den Einstellungen wählen. Es betrifft nur die Oberfläche, nicht die gedruckte Klausur.',
             },
             s4: {
                 h: 'Sitzung und Löschung',

@@ -199,7 +199,7 @@ This endpoint is unauthenticated by design — the frontend probes it before any
 
 ### Compatibility indicator
 
-**A difference in major version means the frontend and backend are incompatible.** The status bar shows the version and colours it accordingly:
+**A difference in major version means the frontend and backend are incompatible.** The footer (`AppFooter.svelte`) shows the version and colours it accordingly; a mismatch additionally puts a badge in the navbar, and an incompatible major version shows a non-dismissible danger banner above the page content:
 
 ```mermaid
 stateDiagram-v2
@@ -389,7 +389,7 @@ docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env up 
 Two things to know before rolling back:
 
 - **Migrations run forward only.** `alembic upgrade head` runs on every deploy; reverting to an older image does **not** undo it. A schema change that an older backend cannot read has to be reverted deliberately with `alembic downgrade`, by hand, after taking a database dump. Automatic downgrade is deliberately never wired into CI.
-- Rolling the backend back **across a major version** leaves the frontend on the newer major, so the status bar goes red until the frontend is rolled back too (re-point the `release` branch at the older commit).
+- Rolling the backend back **across a major version** leaves the frontend on the newer major, so the footer version goes red and the incompatibility banner appears until the frontend is rolled back too (re-point the `release` branch at the older commit).
 
 **Logs**
 
