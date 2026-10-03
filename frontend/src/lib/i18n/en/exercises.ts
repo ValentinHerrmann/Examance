@@ -5,11 +5,12 @@ export const exercises: Translations['exercises'] = {
     page: {
         title: 'Exercise Library',
         subtitle: 'Reusable LaTeX exercise collection, live-linked to your exams.',
-        createButton: '+ Create new exercise',
+        createButton: 'Create new exercise',
         filtersTitle: 'Filters',
         showFilters: 'Show filters',
         hideFilters: 'Hide filters',
         loadFailed: 'Failed to load exercise library.',
+        localFallback: 'Your exercises could not be loaded from the server. Showing what is stored locally — this may not be everything. Sign in again or try later.',
         groupNameRequired: 'Group name is required.',
         groupSaveFailed: 'Failed to save group metadata: {message}',
         regroupFailed: 'Regrouping failed: {message}',
@@ -81,7 +82,7 @@ export const exercises: Translations['exercises'] = {
     deleteModal: {
         title: 'Delete exercise: {name}',
         checkingUsage: 'Checking exercise usage in exams...',
-        warningTitle: '️ Warning: exercise is in use',
+        warningTitle: 'Warning: exercise is in use',
         usageInfo: 'This exercise is currently used in {count} exam(s):',
         usageWarning: 'Deleting it will remove it permanently from the library and from these exams.',
         confirmPlain: 'Are you sure you want to delete this exercise from your library?',
@@ -103,11 +104,6 @@ export const exercises: Translations['exercises'] = {
     },
     filterSidebar: {
         searchPlaceholder: 'Search exercises by name, topic, grade, subject or LaTeX content...',
-        gradeLabel: 'Grade:',
-        allGrades: 'All grades',
-        gradeOption: 'Grade {grade}',
-        subjectLabel: 'Subject:',
-        allSubjects: 'All subjects',
         allTopics: 'All topics ({count})',
     },
     groupList: {

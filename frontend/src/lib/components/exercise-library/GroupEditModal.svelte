@@ -1,28 +1,12 @@
 <script lang="ts">
+  import { type ExerciseGroup } from "$lib/exercise-library/groupExercises";
   import type { ExerciseRecord } from "$lib/db/schema";
   import SuggestInput from "$lib/components/common/SuggestInput.svelte";
   import { recordValue } from "$lib/utils/recentValues";
   import { t } from "$lib/i18n";
   import { Modal, Button, controlClass } from "$lib/components/ui";
 
-  interface VariantMember {
-    ex: ExerciseRecord;
-    variantLabel: string;
-    version: number;
-    isCurrent: boolean;
-  }
 
-  interface ExerciseGroup {
-    groupId: string;
-    name: string;
-    topicTag: string;
-    grade?: string;
-    subject?: string;
-    maxPoints: number;
-    minPoints: number;
-    variants: Map<string, VariantMember[]>;
-    allMembers: VariantMember[];
-  }
 
   export let isOpen = false;
   export let editingGroup: ExerciseGroup | null = null;

@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ExerciseRecord } from "$lib/db/schema";
   import type { ExamUsageEntry } from "$lib/exercise-library/examUsage";
-  import { getGroupRepresentative, type ExerciseGroup } from "./ExerciseGroupList";
+  import { getGroupRepresentative, type ExerciseGroup } from "$lib/exercise-library/groupExercises";
   import { t } from "$lib/i18n";
   import {
     faPenToSquare,
@@ -52,98 +52,86 @@
       {@const rep = getGroupRepresentative(group)}
       {@const variantCount = group.variants.size}
       {@const isExpanded = !!expandedGroups[group.groupId]}
-      <ExpandableCard expanded={isExpanded} onToggle={() => onToggleGroup(group.groupId)}>
-        <svelte:fragment slot="header">
-          <div class="flex items-start gap-4">
-            <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-              <h3 class="m-0 text-lg font-semibold text-content">{group.name || $t("exercises.untitled")}</h3>
-              <div class="flex flex-wrap items-center gap-2">
-                {#if group.topicTag}
-                  <Badge>{group.topicTag}</Badge>
-                {/if}
-                {#if rep?.grade}
-                  <Badge severity="info">{$t("exercises.groupList.gradeBadge", { grade: rep.grade })}</Badge>
-                {/if}
-                {#if rep?.subject}
-                  <Badge severity="success">{rep.subject}</Badge>
-                {/if}
-                <Badge severity="primary">
-                  {group.variants.size > 1 && group.minPoints !== group.maxPoints
-                    ? $t("exercises.groupList.pointsRange", { min: group.minPoints, max: group.maxPoints })
-                    : $t("exercises.groupList.pointsSingle", { max: group.maxPoints })}
-                </Badge>
-                <Badge>{variantCount !== 1 ? $t("exercises.groupList.variantCountPlural", { count: variantCount }) : $t("exercises.groupList.variantCountSingular", { count: variantCount })}</Badge>
-                <span on:click|stopPropagation on:keydown|stopPropagation role="presentation">
-                  <Button
-                    variant="text"
-                    severity="secondary"
-                    size="sm"
-                    iconOnly
-                    icon={faPenToSquare}
-                    title={$t("exercises.groupList.editGroupTitle")}
-                    ariaLabel={$t("exercises.groupList.editGroupAriaLabel")}
-                    onClick={() => onEditGroup(group)}
-                  />
-                </span>
-              </div>
-            </div>
+      <ExpandableCard
+        title={group.name || $t("exercises.untitled")}
+        expanded={isExpanded}
+        onToggle={() => onToggleGroup(group.groupId)}
+      >
+        <svelte:fragment slot="badges">
+          {#if group.topicTag}
+            <Badge>{group.topicTag}</Badge>
+          {/if}
+          {#if rep?.grade}
+            <Badge severity="info">{$t("exercises.groupList.gradeBadge", { grade: rep.grade })}</Badge>
+          {/if}
+          {#if rep?.subject}
+            <Badge severity="success">{rep.subject}</Badge>
+          {/if}
+          <Badge severity="primary">
+            {group.variants.size > 1 && group.minPoints !== group.maxPoints
+              ? $t("exercises.groupList.pointsRange", { min: group.minPoints, max: group.maxPoints })
+              : $t("exercises.groupList.pointsSingle", { max: group.maxPoints })}
+          </Badge>
+          <Badge>{variantCount !== 1 ? $t("exercises.groupList.variantCountPlural", { count: variantCount }) : $t("exercises.groupList.variantCountSingular", { count: variantCount })}</Badge>
+        </svelte:fragment>
 
-            <!-- Variant pills row (collapsed preview) -->
-            {#if !isExpanded}
-              <div class="mt-2 flex flex-wrap gap-2">
-                {#each group.variants.keys() as vKey}
-                  {@const vMembers = group.variants.get(vKey) || []}
-                  {@const latestVer = vMembers[0]?.version || 1}
-                  <span class={vKey !== '_General' ? variantPillHasVariant : variantPillBase}>
-                    {vKey} <strong>v{latestVer}</strong>
-                  </span>
-                {/each}
-              </div>
-            {/if}
-          </div>
+        <svelte:fragment slot="actions">
+          <Button
+            variant="text"
+            severity="secondary"
+            size="sm"
+            iconOnly
+            icon={faPenToSquare}
+            title={$t("exercises.groupList.editGroupTitle")}
+            ariaLabel={$t("exercises.groupList.editGroupAriaLabel")}
+            onClick={() => onEditGroup(group)}
+          />
+        </svelte:fragment>
+
+        <svelte:fragment slot="preview">
+          {#each group.variants.keys() as vKey}
+            {@const vMembers = group.variants.get(vKey) || []}
+            {@const latestVer = vMembers[0]?.version || 1}
+            <span class={vKey !== '_General' ? variantPillHasVariant : variantPillBase}>
+              {vKey} <strong>v{latestVer}</strong>
+            </span>
+          {/each}
         </svelte:fragment>
 
         <svelte:fragment slot="body">
           {#each group.variants as [vKey, vMembers], vIdx}
             {@const used = usageMap.get(`${group.groupId}|${vKey}`)}
-            <div class="{vIdx === group.variants.size - 1 ? '' : 'mb-4 border-b border-line pb-4'}">
-              <div class="mb-3 flex items-center gap-3">
+            <div class="{vIdx === group.variants.size - 1 ? '' : 'mb-2 border-b border-line pb-2'}">
+              <div class="mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span class={vKey !== '_General' ? variantLabelHasVariant : variantLabelBase}>
                   {vKey}
                 </span>
-                <span class="text-xs text-muted">v{vMembers[0]?.version || 1}{vMembers[0]?.isCurrent ? $t("exercises.groupList.currentSuffix") : ''}</span>
-              </div>
-
-              <div class="mb-3 ml-2 text-sm">
-                <h4 class="m-0 mb-1 text-xs font-semibold text-muted">{$t("exercises.groupList.usedInExams")}</h4>
-                {#if used === undefined || used === "loading"}
-                  <p class="m-0 text-muted">{$t("exercises.groupList.loadingUsage")}</p>
-                {:else if used.length === 0}
-                  <p class="m-0 text-muted">{$t("exercises.groupList.notUsed")}</p>
-                {:else}
-                  <ul class="m-0 flex list-none flex-wrap gap-2 p-0">
+                <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+                  <span class="font-semibold">{$t("exercises.groupList.usedInExams")}:</span>
+                  {#if used === undefined || used === "loading"}
+                    <span>{$t("exercises.groupList.loadingUsage")}</span>
+                  {:else if used.length === 0}
+                    <span>{$t("exercises.groupList.notUsed")}</span>
+                  {:else}
                     {#each used as exam (exam.id)}
-                      <li class="min-w-0">
-                        <a
-                          href="/exam/{exam.id}"
-                          class="inline-block break-words rounded-md border border-line bg-surface-sunken px-2 py-1 text-accent hover:bg-highlight"
-                        >{exam.title}{exam.datum ? ` (${exam.datum})` : ""}</a>
-                      </li>
+                      <a
+                        href="/exam/{exam.id}"
+                        class="min-w-0 break-words rounded-md border border-line bg-surface-sunken px-1.5 py-0.5 text-accent hover:bg-highlight"
+                      >{exam.title}{exam.datum ? ` (${exam.datum})` : ""}</a>
                     {/each}
-                  </ul>
-                {/if}
+                  {/if}
+                </div>
               </div>
 
               {#each vMembers as member}
-                <div class="mb-3 ml-2">
-                  <div class="mb-2 flex items-center gap-2">
+                <div class="mb-1.5 ml-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+                  <div class="flex items-center gap-2">
                     <Badge>v{member.version}</Badge>
                     {#if member.isCurrent}
                       <Badge severity="success">{$t("exercises.groupList.currentBadge")}</Badge>
                     {/if}
                   </div>
-
-                  <div class="flex flex-wrap justify-end gap-1.5">
+                  <div class="flex flex-wrap justify-end gap-2">
                     <Button
                       variant="outlined"
                       severity="secondary"
@@ -198,9 +186,9 @@
               {/each}
             </div>
           {/each}
+        </svelte:fragment>
 
-          <!-- Group-level actions -->
-          <div class="mt-2 flex justify-end gap-2 border-t border-dashed border-line pt-4">
+        <svelte:fragment slot="footer">
             <Button
               variant="outlined"
               severity="secondary"
@@ -225,7 +213,6 @@
               title={$t("exercises.groupList.newVersionOfFirstTitle")}
               onClick={() => onNewVersion(rep)}
             >{$t("exercises.groupList.newVersionText")}</Button>
-          </div>
         </svelte:fragment>
       </ExpandableCard>
     {/each}

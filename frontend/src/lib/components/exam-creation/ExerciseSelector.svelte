@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { type ExerciseGroup } from "$lib/exercise-library/groupExercises";
   import type { ExerciseRecord } from "$lib/db/schema";
   import ExerciseLibraryPicker from "$lib/components/exercise-library/ExerciseLibraryPicker.svelte";
   import ExercisePreviewDrawer from "$lib/components/exercise-library/ExercisePreviewDrawer.svelte";
@@ -8,24 +9,7 @@
   import { t } from "$lib/i18n";
   import { Button, Card } from "$lib/components/ui";
 
-  interface VariantMember {
-    ex: ExerciseRecord;
-    variantLabel: string;
-    version: number;
-    isCurrent: boolean;
-  }
 
-  interface ExerciseGroup {
-    groupId: string;
-    name: string;
-    topicTag: string;
-    grade?: string;
-    subject?: string;
-    maxPoints: number;
-    minPoints: number;
-    variants: Map<string, VariantMember[]>;
-    allMembers: VariantMember[];
-  }
 
   export let activeTab: "library" | "mc" | "custom";
   export let selectedLibraryIds: string[];

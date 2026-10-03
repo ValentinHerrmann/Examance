@@ -24,16 +24,11 @@ export const dashboard = {
         step2Text: 'Fügen Sie Aufgaben aus Ihrer Aufgabenbibliothek hinzu oder erstellen Sie neue.',
         step3Title: 'Scannen & Bewerten',
         step3Text: 'Laden Sie Schüler-PDFs hoch, bewerten Sie anonym und prüfen Sie die Analysen.',
-        createFirst: '+ Erste Prüfung erstellen',
+        createFirst: 'Erste Prüfung erstellen',
         importArchive: 'Oder .bgproj-Archiv importieren',
     },
     filterBar: {
         searchPlaceholder: 'Prüfungen nach Titel, Klasse, Fach suchen…',
-        gradeLabel: 'Klassenstufe:',
-        allGrades: 'Alle Klassenstufen',
-        gradeOption: 'Klassenstufe {grade}',
-        subjectLabel: 'Fach:',
-        allSubjects: 'Alle Fächer',
         allTestarts: 'Alle Prüfungstypen ({count})',
     },
     examList: {
@@ -51,7 +46,6 @@ export const dashboard = {
         noExercises: 'Keine Aufgaben zugeordnet.',
         loadingExercises: 'Aufgaben werden geladen…',
         untitledExercise: 'Unbenannte Aufgabe',
-        deleteTitle: 'Prüfung löschen',
     },
     retentionModal: {
         title: 'DSGVO-Aufbewahrungswarnung (Art. 5)',
@@ -69,7 +63,7 @@ export const dashboard = {
     deleteFailed: 'Löschen fehlgeschlagen: {message}',
     deleteModal: {
         title: 'Prüfung löschen: {title}',
-        warningTitle: '⚠️ Warnung: Prüfung enthält Abgaben',
+        warningTitle: 'Warnung: Prüfung enthält Abgaben',
         usageInfo: 'Zu dieser Prüfung gehören {count} Abgabe(n).',
         usageWarning: 'Beim Löschen werden die Prüfungsdaten und alle zugehörigen Abgaben dauerhaft entfernt.',
         confirmPlain: 'Möchten Sie diese Prüfung wirklich löschen?',

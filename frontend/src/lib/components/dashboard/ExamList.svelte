@@ -32,51 +32,33 @@
       {@const stats = examStatsMap.get(exam.id)}
       {@const courseLabel = formatExamCourse(exam.grade, exam.klasse)}
       {@const isExpanded = !!expandedExams[exam.id]}
-      <ExpandableCard expanded={isExpanded} onToggle={() => onToggleExam(exam.id)}>
-        <svelte:fragment slot="header">
-          <div class="flex items-start gap-4">
-            <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-              <h3 class="m-0 text-lg font-semibold break-words text-content">{exam.title || $t("dashboard.examList.untitledExam")}</h3>
-              <div class="flex flex-wrap items-center gap-2">
-                {#if courseLabel}
-                  <Badge severity="info">{$t("dashboard.examList.classLabel", { course: courseLabel })}</Badge>
-                {/if}
-                {#if exam.fach}
-                  <Badge severity="success">{exam.fach}</Badge>
-                {/if}
-                {#if exam.testart}
-                  <Badge>{exam.testart}</Badge>
-                {/if}
-                {#if stats && stats.avgScore !== null}
-                  <Badge severity="primary">{$t("dashboard.examList.averageScore", { score: stats.avgScore })}</Badge>
-                {/if}
-                {#if stats && stats.count > 0}
-                  <Badge severity="secondary">{$t("dashboard.examList.gradedCount", { count: stats.count })}</Badge>
-                {/if}
-                <span on:click|stopPropagation on:keydown|stopPropagation role="presentation">
-                  <Button
-                    variant="text"
-                    severity="secondary"
-                    size="sm"
-                    iconOnly
-                    icon={faTrash}
-                    title={$t("dashboard.examList.deleteTitle")}
-                    ariaLabel={$t("dashboard.examList.deleteTitle")}
-                    onClick={() => onDelete(exam.id, exam.title)}
-                  />
-                </span>
-              </div>
-            </div>
+      <ExpandableCard
+        title={exam.title || $t("dashboard.examList.untitledExam")}
+        expanded={isExpanded}
+        onToggle={() => onToggleExam(exam.id)}
+      >
+        <svelte:fragment slot="badges">
+          {#if courseLabel}
+            <Badge severity="info">{$t("dashboard.examList.classLabel", { course: courseLabel })}</Badge>
+          {/if}
+          {#if exam.fach}
+            <Badge severity="success">{exam.fach}</Badge>
+          {/if}
+          {#if exam.testart}
+            <Badge>{exam.testart}</Badge>
+          {/if}
+          {#if stats && stats.avgScore !== null}
+            <Badge severity="primary">{$t("dashboard.examList.averageScore", { score: stats.avgScore })}</Badge>
+          {/if}
+          {#if stats && stats.count > 0}
+            <Badge severity="secondary">{$t("dashboard.examList.gradedCount", { count: stats.count })}</Badge>
+          {/if}
+        </svelte:fragment>
 
-            <!-- Date preview (collapsed only) -->
-            {#if !isExpanded && (exam.datum || exam.createdAt)}
-              <div class="mt-2 flex flex-wrap gap-2">
-                <span class={previewPill}>
-                  {exam.datum || $fmt.date(exam.createdAt)}
-                </span>
-              </div>
-            {/if}
-          </div>
+        <svelte:fragment slot="preview">
+          {#if exam.datum || exam.createdAt}
+            <span class={previewPill}>{exam.datum || $fmt.date(exam.createdAt)}</span>
+          {/if}
         </svelte:fragment>
 
         <svelte:fragment slot="body">
@@ -124,8 +106,9 @@
               </Button>
             {/each}
           </div>
+        </svelte:fragment>
 
-          <div class="mt-3 flex justify-end gap-2 border-t border-dashed border-line pt-4">
+        <svelte:fragment slot="footer">
             <Button variant="outlined" severity="secondary" size="sm" icon={faEye} onClick={() => onPreview(exam)}>{$t("common.preview")}</Button>
             <Button href="/exam/{exam.id}" size="sm">{$t("dashboard.examList.openExam")}</Button>
             <Button
@@ -135,7 +118,6 @@
               icon={faTrash}
               onClick={() => onDelete(exam.id, exam.title)}
             >{$t("common.delete")}</Button>
-          </div>
         </svelte:fragment>
       </ExpandableCard>
     {/each}

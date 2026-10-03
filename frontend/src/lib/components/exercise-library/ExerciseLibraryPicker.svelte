@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { type ExerciseGroup } from "$lib/exercise-library/groupExercises";
   import type { ExerciseRecord } from "$lib/db/schema";
   import { parseExerciseScore } from "$lib/latex/scoreParser";
   import { isMcQuestion } from "$lib/grading/mcScore";
@@ -6,24 +7,7 @@
   import { faPenToSquare, faEye, faCheck } from "@fortawesome/free-solid-svg-icons";
   import { Button, Badge, Checkbox, Icon, TextInput, Select } from "$lib/components/ui";
 
-  interface VariantMember {
-    ex: ExerciseRecord;
-    variantLabel: string;
-    version: number;
-    isCurrent: boolean;
-  }
 
-  interface ExerciseGroup {
-    groupId: string;
-    name: string;
-    topicTag: string;
-    grade?: string;
-    subject?: string;
-    maxPoints: number;
-    minPoints: number;
-    variants: Map<string, VariantMember[]>;
-    allMembers: VariantMember[];
-  }
 
   export let filteredGroups: ExerciseGroup[];
   export let totalVariantsCount: number;

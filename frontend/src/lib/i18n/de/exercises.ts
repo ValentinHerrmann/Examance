@@ -3,11 +3,12 @@ export const exercises = {
     page: {
         title: 'Aufgabenbibliothek',
         subtitle: 'Wiederverwendbare LaTeX-Aufgabensammlung, live verknüpft mit Ihren Prüfungen.',
-        createButton: '+ Neue Aufgabe erstellen',
+        createButton: 'Neue Aufgabe erstellen',
         filtersTitle: 'Filter',
         showFilters: 'Filter anzeigen',
         hideFilters: 'Filter ausblenden',
         loadFailed: 'Aufgabenbibliothek konnte nicht geladen werden.',
+        localFallback: 'Ihre Aufgaben konnten nicht vom Server geladen werden. Es wird angezeigt, was lokal vorliegt — das ist möglicherweise nicht alles. Melden Sie sich erneut an oder versuchen Sie es später noch einmal.',
         groupNameRequired: 'Gruppenname ist erforderlich.',
         groupSaveFailed: 'Gruppenmetadaten konnten nicht gespeichert werden: {message}',
         regroupFailed: 'Umgruppierung fehlgeschlagen: {message}',
@@ -79,7 +80,7 @@ export const exercises = {
     deleteModal: {
         title: 'Aufgabe löschen: {name}',
         checkingUsage: 'Aufgabennutzung in Prüfungen wird geprüft...',
-        warningTitle: '️ Warnung: Aufgabe wird verwendet',
+        warningTitle: 'Warnung: Aufgabe wird verwendet',
         usageInfo: 'Diese Aufgabe wird derzeit in {count} Prüfung(en) verwendet:',
         usageWarning: 'Beim Löschen wird sie dauerhaft aus der Bibliothek entfernt und aus diesen Prüfungen entfernt.',
         confirmPlain: 'Möchten Sie diese Aufgabe wirklich aus Ihrer Bibliothek löschen?',
@@ -101,11 +102,6 @@ export const exercises = {
     },
     filterSidebar: {
         searchPlaceholder: 'Aufgaben nach Name, Thema, Klasse, Fach oder LaTeX-Inhalt durchsuchen...',
-        gradeLabel: 'Klasse:',
-        allGrades: 'Alle Klassen',
-        gradeOption: 'Klasse {grade}',
-        subjectLabel: 'Fach:',
-        allSubjects: 'Alle Fächer',
         allTopics: 'Alle Themen ({count})',
     },
     groupList: {

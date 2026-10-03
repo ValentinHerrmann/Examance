@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { type ExerciseGroup, groupExercises } from "$lib/exercise-library/groupExercises";
   import { onMount } from "svelte";
   import { db } from "$lib/db/db";
   import { sessionStore, isAuthenticated, awaitSessionReady } from "$lib/stores/session";
@@ -8,13 +9,14 @@
   import { api } from "$lib/api/client";
   import { parseExerciseScore } from "$lib/latex/scoreParser";
   import { get } from "svelte/store";
+  import { countActiveFilters, matchesQuery, uniqueSorted } from "$lib/utils/listFilter";
   import { t, translate } from "$lib/i18n";
 
   import LatexEditor, { type DiffDecorationConfig, type DiffLineDecoration, type DiffLinePaddingDecoration, type DiffWordDecoration, type DiffGapDecoration } from "$lib/components/LatexEditor.svelte";
   import { highlightLatexToHtml } from "$lib/latex/highlighter";
   import ExerciseEditorModal from "$lib/components/ExerciseEditorModal.svelte";
-  import ExerciseFilterSidebar from "$lib/components/exercise-library/ExerciseFilterSidebar.svelte";
-  import { Alert, Button, ConfirmDialog, FilterDrawer, PageHeader, PageShell } from "$lib/components/ui";
+  import ListFilterPanel from "$lib/components/common/ListFilterPanel.svelte";
+  import { Alert, Button, ConfirmDialog, FilterLayout, PageHeader, PageShell } from "$lib/components/ui";
   import PdfPreviewModal from "$lib/components/PdfPreviewModal.svelte";
   import { loadExamUsage, type ExamUsageEntry } from "$lib/exercise-library/examUsage";
   import { compileExercisePreview } from "$lib/latex/exercisePreview";
@@ -32,19 +34,13 @@
   let selectedGrade: string = "ALL";
   let selectedSubject: string = "ALL";
   let searchQuery: string = "";
-  let isFilterDrawerOpen = false;
 
   // Badge on the mobile filter button, so an active filter is visible without
   // opening the drawer.
-  $: activeFilterCount =
-    (selectedTopic !== "ALL" ? 1 : 0) +
-    (selectedGrade !== "ALL" ? 1 : 0) +
-    (selectedSubject !== "ALL" ? 1 : 0) +
-    (searchQuery.trim() !== "" ? 1 : 0);
+  $: activeFilterCount = countActiveFilters(searchQuery, selectedTopic, selectedGrade, selectedSubject);
   let isLoading = false;
   let errorMsg = "";
   let isLocalFallback = false;
-  let isSyncingExercises = false;
 
   // Shared Editor modal state
   let isEditorOpen = false;
@@ -82,84 +78,8 @@
 
   /* ── Exercise Grouping ── */
 
-  interface VariantMember {
-    ex: ExerciseRecord;
-    variantLabel: string;
-    version: number;
-    isCurrent: boolean;
-  }
 
-  interface ExerciseGroup {
-    groupId: string;
-    name: string;
-    topicTag: string;
-    grade?: string;
-    subject?: string;
-    maxPoints: number;
-    minPoints: number;
-    variants: Map<string, VariantMember[]>;
-    allMembers: VariantMember[];
-  }
 
-  function groupExercises(exs: ExerciseRecord[]): ExerciseGroup[] {
-    const buckets = new Map<string, ExerciseRecord[]>();
-
-    for (const ex of exs) {
-      const key = ex.exerciseGroupId || (`name:${ex.name || translate("exercises.untitled")}`);
-      if (!buckets.has(key)) buckets.set(key, []);
-      buckets.get(key)!.push(ex);
-    }
-
-    const groups: ExerciseGroup[] = [];
-
-    for (const [groupId, members] of buckets) {
-      const currentMembers = members.filter((m) => m.isCurrent !== false);
-      if (currentMembers.length === 0) continue;
-
-      const name = currentMembers[0]?.name || translate("exercises.untitled");
-      const topicTag = currentMembers[0]?.topicTag || "_General";
-      const grade = currentMembers[0]?.grade;
-      const subject = currentMembers[0]?.subject;
-
-      const variants = new Map<string, VariantMember[]>();
-      for (const ex of currentMembers) {
-        const vKey = ex.variantKey || "_General";
-        if (!variants.has(vKey)) variants.set(vKey, []);
-        variants.get(vKey)!.push({
-          ex,
-          variantLabel: vKey,
-          version: ex.version || 1,
-          isCurrent: ex.isCurrent !== false,
-        });
-      }
-
-      const sortedVariants = new Map<string, VariantMember[]>();
-      const keys = [...variants.keys()].sort((a, b) => {
-        if (a === "_General") return -1;
-        if (b === "_General") return 1;
-        return a.localeCompare(b);
-      });
-      for (const k of keys) sortedVariants.set(k, variants.get(k)!);
-
-      for (const [, vMembers] of sortedVariants) {
-        vMembers.sort((a, b) => b.version - a.version);
-      }
-
-      const allMembers: VariantMember[] = [];
-      for (const [, vMembers] of sortedVariants) {
-        allMembers.push(...vMembers);
-      }
-
-      const scores = allMembers.map((m) => parseExerciseScore(m.ex.latexBody || "") || m.ex.maxPoints || 0);
-      const maxPoints = scores.length > 0 ? Math.max(...scores) : 0;
-      const minPoints = scores.length > 0 ? Math.min(...scores) : 0;
-
-      groups.push({ groupId, name, topicTag, grade, subject, maxPoints, minPoints, variants: sortedVariants, allMembers });
-    }
-
-    groups.sort((a, b) => a.name.localeCompare(b.name));
-    return groups;
-  }
 
   function toggleGroup(groupId: string) {
     expandedGroups = { ...expandedGroups, [groupId]: !expandedGroups[groupId] };
@@ -293,44 +213,25 @@
   $: isDiffLeftDirty = diffLeftEx ? diffLeftLatex !== (diffLeftEx.latexBody || "") : false;
   $: isDiffRightDirty = diffRightEx ? diffRightLatex !== (diffRightEx.latexBody || "") : false;
 
-  $: availableTopics = Array.from(
-    new Set(
-      exercises.map((e) => e.topicTag).filter((t): t is string => Boolean(t)),
-    ),
-  ).sort();
+  $: availableGrades = uniqueSorted(exercises, (e) => e.grade);
+  $: availableSubjects = uniqueSorted(exercises, (e) => e.subject);
 
-  $: availableGrades = Array.from(
-    new Set(
-      exercises.map((e) => e.grade).filter((g): g is string => Boolean(g)),
-    ),
-  ).sort();
-
-  $: availableSubjects = Array.from(
-    new Set(
-      exercises.map((e) => e.subject).filter((s): s is string => Boolean(s)),
-    ),
-  ).sort();
-
-  $: filteredExercises = exercises.filter((ex) => {
-    const matchesTopic =
-      selectedTopic === "ALL" || ex.topicTag === selectedTopic;
-    const matchesGrade =
-      selectedGrade === "ALL" || ex.grade === selectedGrade;
-    const matchesSubject =
-      selectedSubject === "ALL" || ex.subject === selectedSubject;
-    const q = searchQuery.toLowerCase().trim();
-    const matchesSearch =
-      !q ||
-      (ex.name && ex.name.toLowerCase().includes(q)) ||
-      (ex.topicTag && ex.topicTag.toLowerCase().includes(q)) ||
-      (ex.grade && ex.grade.toLowerCase().includes(q)) ||
-      (ex.subject && ex.subject.toLowerCase().includes(q)) ||
-      (ex.latexBody && ex.latexBody.toLowerCase().includes(q));
-    return matchesTopic && matchesGrade && matchesSubject && matchesSearch;
-  });
+  $: filteredExercises = exercises.filter(
+    (ex) =>
+      (selectedTopic === "ALL" || ex.topicTag === selectedTopic) &&
+      (selectedGrade === "ALL" || ex.grade === selectedGrade) &&
+      (selectedSubject === "ALL" || ex.subject === selectedSubject) &&
+      matchesQuery(searchQuery, ex.name, ex.topicTag, ex.grade, ex.subject, ex.latexBody)
+  );
 
   // Grouped view: filter then group
   $: allGroups = groupExercises(exercises);
+  // Topic pills count groups, not exercise rows.
+  $: topicPillOptions = uniqueSorted(exercises, (e) => e.topicTag).map((topic) => ({
+    value: topic,
+    label: topic,
+    count: allGroups.filter((g) => g.topicTag === topic).length,
+  }));
   $: filteredGroups = groupExercises(filteredExercises);
 
   onMount(() => {
@@ -346,7 +247,7 @@
     try {
       if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
         try {
-          const remoteExs = (await api.get("/exercises")) as any[];
+          const remoteExs = (await api.get("/exercises", { silentError: true })) as any[];
           exercises = remoteExs.map((e: any) => ({
             id: e.id,
             teacherId: e.teacher_id,
@@ -864,65 +765,54 @@
     </svelte:fragment>
   </PageHeader>
 
+  {#if isLocalFallback}
+    <Alert severity="danger" class="mb-6">{$t("exercises.page.localFallback")}</Alert>
+  {/if}
   {#if errorMsg}
     <Alert severity="danger" class="mb-6">{errorMsg}</Alert>
   {/if}
 
   <!-- Below `lg` the filter panel moves into a drawer; see FilterDrawer. -->
-  <FilterDrawer
-    bind:open={isFilterDrawerOpen}
+  <FilterLayout
     title={$t("exercises.page.filtersTitle")}
     toggleLabel={$t("exercises.page.showFilters")}
     activeCount={activeFilterCount}
   >
-    <ExerciseFilterSidebar
-      bind:searchQuery
-      bind:selectedGrade
-      bind:selectedSubject
-      {selectedTopic}
-      {availableTopics}
-      {availableGrades}
-      {availableSubjects}
-      {allGroups}
-      onTopicChange={(topic) => {
-        selectedTopic = topic;
-        isFilterDrawerOpen = false;
-      }}
-    />
-  </FilterDrawer>
-
-  <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
-    <div class="sticky top-2 hidden max-h-[calc(100dvh-1rem)] overflow-y-auto lg:block">
-      <ExerciseFilterSidebar
+    <svelte:fragment slot="filters" let:close>
+      <ListFilterPanel
         bind:searchQuery
         bind:selectedGrade
         bind:selectedSubject
-        {selectedTopic}
-        {availableTopics}
-        {availableGrades}
-        {availableSubjects}
-        {allGroups}
-        onTopicChange={(topic) => (selectedTopic = topic)}
+        searchPlaceholder={$t("exercises.filterSidebar.searchPlaceholder")}
+        gradeOptions={availableGrades}
+        subjectOptions={availableSubjects}
+        pillOptions={topicPillOptions}
+        pillSelected={selectedTopic}
+        pillAllLabel={$t("exercises.filterSidebar.allTopics", { count: allGroups.length })}
+        onPillSelect={(topic) => {
+          selectedTopic = topic;
+          close();
+        }}
       />
-    </div>
+    </svelte:fragment>
 
-    <ExerciseGroupList
-      {isLoading}
-      {filteredGroups}
-      {expandedGroups}
-      onToggleGroup={toggleGroup}
-      onEditGroup={openGroupModal}
-      onEditExercise={openEditModal}
-      onNewVersion={openNewVersionModal}
-      onDiff={openDiffModal}
-      onRegroup={openRegroupModal}
-      onDelete={openDeleteModal}
-      onPreview={openPreview}
-      {usageMap}
-      onOpenVariant={openVariantModal}
-      onCreateFirst={openCreateModal}
-    />
-  </div>
+  <ExerciseGroupList
+    {isLoading}
+    {filteredGroups}
+    {expandedGroups}
+    onToggleGroup={toggleGroup}
+    onEditGroup={openGroupModal}
+    onEditExercise={openEditModal}
+    onNewVersion={openNewVersionModal}
+    onDiff={openDiffModal}
+    onRegroup={openRegroupModal}
+    onDelete={openDeleteModal}
+    onPreview={openPreview}
+    {usageMap}
+    onOpenVariant={openVariantModal}
+    onCreateFirst={openCreateModal}
+  />
+  </FilterLayout>
 </PageShell>
 
 <ConfirmDialog

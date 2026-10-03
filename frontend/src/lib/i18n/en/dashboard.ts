@@ -7,7 +7,7 @@ export const dashboard: Translations['dashboard'] = {
         subtitle: 'Manage, grade, and analyze your Schulaufgabe exams',
         importing: 'Importing…',
         importButton: 'Import .bgproj',
-        createButton: 'Create New Exam',
+        createButton: 'Create new exam',
         showFilters: 'Show filters',
         filtersTitle: 'Filters',
     },
@@ -26,16 +26,11 @@ export const dashboard: Translations['dashboard'] = {
         step2Text: 'Add questions from your Exercise Library or create new ones.',
         step3Title: 'Scan & Grade',
         step3Text: 'Upload student PDFs, anonymously score, and review analytics.',
-        createFirst: '+ Create First Exam',
+        createFirst: 'Create first exam',
         importArchive: 'Or Import .bgproj Archive',
     },
     filterBar: {
         searchPlaceholder: 'Search exams by title, class, subject…',
-        gradeLabel: 'Grade:',
-        allGrades: 'All Grades',
-        gradeOption: 'Grade {grade}',
-        subjectLabel: 'Subject:',
-        allSubjects: 'All Subjects',
         allTestarts: 'All exam types ({count})',
     },
     examList: {
@@ -53,7 +48,6 @@ export const dashboard: Translations['dashboard'] = {
         noExercises: 'No exercises assigned.',
         loadingExercises: 'Loading exercises…',
         untitledExercise: 'Untitled exercise',
-        deleteTitle: 'Delete exam',
     },
     retentionModal: {
         title: 'GDPR Retention Warning (Art. 5)',
@@ -71,7 +65,7 @@ export const dashboard: Translations['dashboard'] = {
     deleteFailed: 'Delete failed: {message}',
     deleteModal: {
         title: 'Delete exam: {title}',
-        warningTitle: '⚠️ Warning: exam contains submissions',
+        warningTitle: 'Warning: exam contains submissions',
         usageInfo: 'This exam has {count} submission(s).',
         usageWarning: 'Deleting permanently removes the exam data and all of its submissions.',
         confirmPlain: 'Do you really want to delete this exam?',

@@ -9,6 +9,7 @@ export { default as EmptyState } from "./EmptyState.svelte";
 export { default as ExpandableCard } from "./ExpandableCard.svelte";
 export { default as Field } from "./Field.svelte";
 export { default as FilterDrawer } from "./FilterDrawer.svelte";
+export { default as FilterLayout } from "./FilterLayout.svelte";
 export { default as FilterPills } from "./FilterPills.svelte";
 export { default as Icon } from "./Icon.svelte";
 export { default as Menu } from "./Menu.svelte";

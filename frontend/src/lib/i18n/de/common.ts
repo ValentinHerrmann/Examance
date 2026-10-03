@@ -52,5 +52,12 @@ export const common = {
     saving: 'Speichert…',
     saved: 'Gespeichert',
     unsavedChangesConfirm: 'Es gibt ungespeicherte Änderungen. Möchten Sie diese Seite wirklich verlassen?',
-    deleting: 'Löscht…'
+    deleting: 'Löscht…',
+    filters: {
+        grade: 'Klasse',
+        allGrades: 'Alle Klassen',
+        gradeOption: 'Klasse {grade}',
+        subject: 'Fach',
+        allSubjects: 'Alle Fächer',
+    },
 } as const;

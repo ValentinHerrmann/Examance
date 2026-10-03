@@ -16,14 +16,15 @@
   import { offlineQueue } from '$lib/services/offlineQueue';
   import { goto } from '$app/navigation';
   import { t, translate } from '$lib/i18n';
-  import { faUpload } from '@fortawesome/free-solid-svg-icons';
+  import { countActiveFilters, countOptions, matchesQuery, uniqueSorted } from '$lib/utils/listFilter';
+  import { faPlus, faUpload } from '@fortawesome/free-solid-svg-icons';
 
   import DashboardSessionState from '$lib/components/dashboard/DashboardSessionState.svelte';
   import RetentionModal from '$lib/components/dashboard/RetentionModal.svelte';
   import OnboardingEmptyState from '$lib/components/dashboard/OnboardingEmptyState.svelte';
-  import ExamFilterSidebar from '$lib/components/dashboard/ExamFilterSidebar.svelte';
+  import ListFilterPanel from '$lib/components/common/ListFilterPanel.svelte';
   import ExamList from '$lib/components/dashboard/ExamList.svelte';
-  import { Alert, Button, ConfirmDeleteModal, ConfirmDialog, FilterDrawer, PageHeader, PageShell } from '$lib/components/ui';
+  import { Alert, Button, ConfirmDeleteModal, ConfirmDialog, FilterLayout, PageHeader, PageShell } from '$lib/components/ui';
   import PdfPreviewModal from '$lib/components/PdfPreviewModal.svelte';
   import { getCachedPreview } from '$lib/latex/pdfPreview';
 
@@ -41,18 +42,13 @@
   let selectedGradeFilter = 'ALL';
   let selectedSubjectFilter = 'ALL';
   let selectedTestartFilter = 'ALL';
-  let isFilterDrawerOpen = false;
 
   /** Exercises per expanded exam, fetched on first expand and dropped on refresh. */
   let exerciseMap = new Map<string, ExerciseRecord[] | 'loading'>();
 
   // Badge on the mobile filter button, so an active filter is visible without
   // opening the drawer.
-  $: activeFilterCount =
-    (selectedGradeFilter !== 'ALL' ? 1 : 0) +
-    (selectedSubjectFilter !== 'ALL' ? 1 : 0) +
-    (selectedTestartFilter !== 'ALL' ? 1 : 0) +
-    (searchQuery.trim() !== '' ? 1 : 0);
+  $: activeFilterCount = countActiveFilters(searchQuery, selectedGradeFilter, selectedSubjectFilter, selectedTestartFilter);
 
   let fileInput: HTMLInputElement;
 
@@ -68,41 +64,19 @@
   let deletingExam: { id: string; title?: string; submissionCount: number } | null = null;
   let isDeleteLoading = false;
 
-  $: availableGrades = Array.from(
-    new Set(exams.map((e) => e.grade).filter((g): g is string => Boolean(g)))
-  ).sort();
+  $: availableGrades = uniqueSorted(exams, (e) => e.grade);
+  $: availableSubjects = uniqueSorted(exams, (e) => e.fach);
+  $: testartOptions = countOptions(exams, (e) => e.testart);
 
-  $: availableSubjects = Array.from(
-    new Set(exams.map((e) => e.fach).filter((f): f is string => Boolean(f)))
-  ).sort();
-
-  $: testartOptions = Array.from(
-    new Set(exams.map((e) => e.testart).filter((t): t is string => Boolean(t)))
-  )
-    .sort()
-    .map((testart) => ({
-      value: testart,
-      label: testart,
-      count: exams.filter((e) => e.testart === testart).length,
-    }));
-
-  $: filteredExams = exams.filter((e) => {
-    const matchesGrade =
-      selectedGradeFilter === 'ALL' ||
-      e.grade === selectedGradeFilter ||
-      (!e.grade && e.klasse === selectedGradeFilter);
-    const matchesSubject = selectedSubjectFilter === 'ALL' || e.fach === selectedSubjectFilter;
-    const matchesTestart = selectedTestartFilter === 'ALL' || e.testart === selectedTestartFilter;
-    const q = searchQuery.toLowerCase().trim();
-    const matchesSearch =
-      !q ||
-      (e.title && e.title.toLowerCase().includes(q)) ||
-      (e.grade && e.grade.toLowerCase().includes(q)) ||
-      (e.klasse && e.klasse.toLowerCase().includes(q)) ||
-      (e.fach && e.fach.toLowerCase().includes(q)) ||
-      (e.testart && e.testart.toLowerCase().includes(q));
-    return matchesGrade && matchesSubject && matchesTestart && matchesSearch;
-  });
+  $: filteredExams = exams.filter(
+    (e) =>
+      (selectedGradeFilter === 'ALL' ||
+        e.grade === selectedGradeFilter ||
+        (!e.grade && e.klasse === selectedGradeFilter)) &&
+      (selectedSubjectFilter === 'ALL' || e.fach === selectedSubjectFilter) &&
+      (selectedTestartFilter === 'ALL' || e.testart === selectedTestartFilter) &&
+      matchesQuery(searchQuery, e.title, e.grade, e.klasse, e.fach, e.testart)
+  );
 
   onMount(async () => {
     try {
@@ -443,7 +417,7 @@
           disabled={isImporting}
           hidden
         />
-        <Button href="/exam/new">{$t("dashboard.header.createButton")}</Button>
+        <Button href="/exam/new" icon={faPlus}>{$t("dashboard.header.createButton")}</Button>
       </svelte:fragment>
     </PageHeader>
 
@@ -462,54 +436,37 @@
     {#if exams.length === 0}
       {#if !examsLoadFailed}<OnboardingEmptyState />{/if}
     {:else}
-      <!-- Below `lg` the filter panel moves into a drawer; see FilterDrawer. -->
-      <FilterDrawer
-        bind:open={isFilterDrawerOpen}
-        title={$t("dashboard.header.filtersTitle")}
-        toggleLabel={$t("dashboard.header.showFilters")}
+      <FilterLayout
+        title={$t('dashboard.header.filtersTitle')}
+        toggleLabel={$t('dashboard.header.showFilters')}
         activeCount={activeFilterCount}
       >
-        <ExamFilterSidebar
-          bind:searchQuery
-          bind:selectedGradeFilter
-          bind:selectedSubjectFilter
-          bind:selectedTestartFilter
-          {availableGrades}
-          {availableSubjects}
-          {testartOptions}
-          totalExamCount={exams.length}
-        />
-      </FilterDrawer>
-
-      <div class="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,17.5rem)_minmax(0,1fr)]">
-        <div class="sticky top-2 hidden max-h-[calc(100dvh-1rem)] min-w-0 overflow-y-auto lg:block">
-          <div class="flex min-w-0 flex-col gap-6">
-            <ExamFilterSidebar
-              bind:searchQuery
-              bind:selectedGradeFilter
-              bind:selectedSubjectFilter
-              bind:selectedTestartFilter
-              {availableGrades}
-              {availableSubjects}
-              {testartOptions}
-              totalExamCount={exams.length}
-            />
-          </div>
-        </div>
-
-        <div class="min-w-0">
-          <ExamList
-            exams={filteredExams}
-            {examStatsMap}
-            {exerciseMap}
-            isLoading={isRefreshing}
-            {expandedExams}
-            onToggleExam={toggleExam}
-            onDelete={handleDeleteDashboardExam}
-            onPreview={openExamPreview}
+        <svelte:fragment slot="filters">
+          <ListFilterPanel
+            bind:searchQuery
+            bind:selectedGrade={selectedGradeFilter}
+            bind:selectedSubject={selectedSubjectFilter}
+            searchPlaceholder={$t('dashboard.filterBar.searchPlaceholder')}
+            gradeOptions={availableGrades}
+            subjectOptions={availableSubjects}
+            pillOptions={testartOptions}
+            pillSelected={selectedTestartFilter}
+            pillAllLabel={$t('dashboard.filterBar.allTestarts', { count: exams.length })}
+            onPillSelect={(value) => (selectedTestartFilter = value)}
           />
-        </div>
-      </div>
+        </svelte:fragment>
+
+          <ExamList
+          exams={filteredExams}
+          {examStatsMap}
+          {exerciseMap}
+          isLoading={isRefreshing}
+          {expandedExams}
+          onToggleExam={toggleExam}
+          onDelete={handleDeleteDashboardExam}
+          onPreview={openExamPreview}
+        />
+      </FilterLayout>
     {/if}
   {/if}
 </PageShell>
