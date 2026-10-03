@@ -97,9 +97,9 @@ export const grading = {
         manualEdit: 'Manuell bearbeitet',
     },
     zoom: {
-        pagePrevTitle: 'Vorherige Seite (Pfeil links)',
+        pagePrevTitle: 'Zur vorherigen Seite springen',
         pageIndicator: 'S. {current}/{total}',
-        pageNextTitle: 'Nächste Seite (Pfeil rechts)',
+        pageNextTitle: 'Zur nächsten Seite springen',
         autoCropOnTitle: 'Ränder zugeschnitten (Klicken zum Zurücksetzen)',
         autoCropOffTitle: 'Ränder zuschneiden',
         autoCropOn: 'Zuschnitt',

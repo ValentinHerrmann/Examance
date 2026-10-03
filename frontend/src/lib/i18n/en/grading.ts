@@ -99,9 +99,9 @@ export const grading: Translations['grading'] = {
         manualEdit: 'Manually edited',
     },
     zoom: {
-        pagePrevTitle: 'Previous page (left arrow)',
+        pagePrevTitle: 'Jump to previous page',
         pageIndicator: 'p. {current}/{total}',
-        pageNextTitle: 'Next page (right arrow)',
+        pageNextTitle: 'Jump to next page',
         autoCropOnTitle: 'Margins cropped (click to reset)',
         autoCropOffTitle: 'Crop margins',
         autoCropOn: 'Cropped',
