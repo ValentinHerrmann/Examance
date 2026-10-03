@@ -67,7 +67,7 @@ Each environment is a complete, isolated stack. The compose **project name** nam
 
 ```mermaid
 flowchart TB
-  NG["nginx + certbot<br/>(managed on the host,<br/>not by these workflows)"]
+  NG["Caddy<br/>(managed on the host,<br/>not by these workflows)"]
 
   subgraph P["docker compose -p examance-prod"]
     PB["backend<br/>127.0.0.1:8000"]
@@ -93,7 +93,7 @@ flowchart TB
   NG --> VB
 ```
 
-Postgres and Redis publish **no ports at all**; only the API is bound, and only to loopback. TLS terminates at the host's nginx.
+Postgres and Redis publish **no ports at all**; only the API is bound, and only to loopback. TLS terminates at the host's Caddy.
 
 ---
 
@@ -356,7 +356,7 @@ docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env up 
 docker network inspect examance-prod_default -f '{{(index .IPAM.Config 0).Gateway}}'
 ```
 
-Then an nginx server block per environment proxying to `127.0.0.1:8000` / `127.0.0.1:8001`, with `certbot --nginx` for TLS. nginx and certbot are managed on the host and are deliberately **not** touched by these workflows.
+Then a Caddy site block per environment with a plain `reverse_proxy` to `127.0.0.1:8000` / `127.0.0.1:8001`. Caddy obtains and renews TLS certificates by itself. It is managed on the host and deliberately **not** touched by these workflows.
 
 Two settings the two stacks must **not** share:
 
@@ -368,7 +368,7 @@ Two settings the two stacks must **not** share:
   server clock rejects correct codes and looks, to the teacher, exactly like a
   wrong one.
 
-Each server block's `location` proxying to the backend must set `proxy_read_timeout`/`proxy_send_timeout` to at least `COMPILE_TIMEOUT_SECONDS` (`backend/app/services/latex.py`, 120s as of writing) plus margin — e.g. `150s`. nginx's own default (60s) is below that, and compile (`/api/v1/compile/latex`, `/api/v1/exams/{id}/compile`) is the one endpoint that legitimately runs that long. If nginx's timeout fires first, it serves the browser its own bare 504 page and drops the connection *before* the backend's own timeout handling gets a chance to run — the backend finishes and logs a clean, CORS-header-carrying 504 moments later, but nobody ever receives it. The browser then reports this as a CORS error ("No 'Access-Control-Allow-Origin' header is present"), not a timeout, because nginx's error page carries no CORS headers at all — same root cause as the "500 has to carry CORS headers itself" gotcha below, one layer further out. Signature in the backend's own access log: a `"... HTTP/1.0" 504 Gateway Timeout` line for a request nobody saw succeed or fail in the browser (`HTTP/1.0` is nginx's default `proxy_http_version` towards the upstream, confirming the request came through nginx as expected).
+No proxy timeout tuning is needed. Caddy's `reverse_proxy` has no response timeout by default, so the slow endpoints (`/api/v1/compile/latex`, `/api/v1/exams/{id}/compile`, up to `COMPILE_TIMEOUT_SECONDS` in `backend/app/services/latex.py`) reach the backend's own timeout handling, whose 504 carries CORS headers. Do not add a `response_header_timeout` or similar below `COMPILE_TIMEOUT_SECONDS` plus margin: a proxy that answers before the backend does sends its own error page without CORS headers, and the browser then reports a CORS error instead of a timeout.
 
 `PROXY_ALLOWED_IPS` must name the actual proxy address — never `*`. With a wildcard, any client could spoof `X-Forwarded-For` to reset its own rate-limit bucket and poison the audit log's IP hashes.
 

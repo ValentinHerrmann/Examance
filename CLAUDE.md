@@ -4,34 +4,16 @@
 
 Examance = product name. "BlindGrade" = old name, still the repo name and some internal identifiers (DB user, default CORS origin). Legacy, not bugs — don't "fix".
 
-Privacy-first, zero-knowledge-encrypted anonymous exam grading. LaTeX exams, QR-decoded pseudonymous submissions, canvas-annotation grading, analytics. Client-side encryption at rest: Argon2id + HKDF-SHA-256 + AES-256-GCM (`docs/data_flow_and_security.md`). Storage modes (`lib/stores/storagePolicy.ts`): `all-local` (IndexedDB/Dexie, default), `all-server`, `hybrid` (exercises/exams on server, student identity/submissions local). **Switching modes is gated**: `storagePolicyStore.updateSetting` cannot set `storageMode` at all — it goes through `commitStorageMode(mode, token)`, and only `lib/services/storageModeSwitch.ts` holds a token. The flow is export → wipe → switch → import; the `.bgproj` archive is the only bridge between modes. One exception: a server sign-in on a browser with an **empty** local workspace adopts `all-server` directly (`adoptServerStorageIfLocalEmpty`) — otherwise a fresh browser shows the account an empty vault.
+Privacy-first, zero-knowledge-encrypted anonymous exam grading. LaTeX exams, QR-decoded pseudonymous submissions, canvas-annotation grading, analytics. Client-side encryption at rest: Argon2id + HKDF-SHA-256 + AES-256-GCM (`docs/data_flow_and_security.md`).
 
-## Architecture
+Storage modes (`lib/stores/storagePolicy.ts`): `all-local` (IndexedDB/Dexie, default), `all-server`, `hybrid` (exercises/exams on server, student identity/submissions local). **Switching modes is gated**: `storagePolicyStore.updateSetting` cannot set `storageMode` at all — it goes through `commitStorageMode(mode, token)`, and only `lib/services/storageModeSwitch.ts` holds a token. The flow is export → wipe → switch → import; the `.bgproj` archive is the only bridge between modes. One exception: a server sign-in on a browser with an **empty** local workspace adopts `all-server` directly (`adoptServerStorageIfLocalEmpty`), otherwise a fresh browser shows the account an empty vault.
 
-**Backend** `backend/` — Python 3.12, FastAPI async, SQLAlchemy 2.0, Alembic, PostgreSQL (asyncpg; psycopg2 sync fallback), Redis (rate limiting + login cooloff), argon2-cffi, PyJWT, slowapi, cryptography, py_webauthn, Click CLI. Deps: `uv`.
+## Where things live
 
-- `app/main.py` → `create_app()`. Routers `auth, compile, exams, exercises, keys, mfa, webauthn, students, submissions, admin, user` under `/api/v1`; `/api/health`; docs `/api/docs`.
-- `app/{config,database,dependencies,cli}.py` + `middleware,models,routers,schemas,services`.
-- Tests `backend/tests/`: pytest + pytest-asyncio, aiosqlite in-memory, httpx AsyncClient.
-- Ruff `select = E,F,I,UP,S,B` (S=security, B=bugbear), mypy `strict=true`. Lint is a security control here — keep new code passing both.
-
-**Frontend** `frontend/` — SvelteKit 2.5 on **Svelte 4 (not 5)**, TypeScript, Vite 5, Tailwind v4, `adapter-static` → `frontend/build/`. `argon2-browser`, `dexie` (IndexedDB, primary encrypted store in local mode), `pdf-lib`/`pdfjs-dist`, `zxing-wasm` (QR decode) / `qrcode` (generate), `texlyre-busytex` (WASM LaTeX via Tectonic).
-
-- `src/lib/{analytics,api,archive,components,crypto,db,exam,exercise-library,gdpr,grading,hardware,latex,pdf,repositories,services,stores,utils,workers}`; `src/routes/{admin,analytics,exam,exercises,forgot-password,legal,reset-password,settings,unlock}`.
-- **Components**: new ones → `src/lib/components/<feature>/`. Shared primitives live in `src/lib/components/ui/` (see **Design system** below). Legacy components still loose at `components/` root (`DualPdfPreview`, `ExerciseEditorModal`, `GradingKeyEditor`, `LatexEditor`, `LatexViewer`, `SessionTimeoutWarning`, `StoragePolicyModal`, `ZoomableImage`, plus `HttpCatModal`/`PdfEmbedViewer`) — leftovers, don't copy. Routes hold data-loading, handlers, session state; components hold markup. Wire with callback props (`onAction={handler}`, `bind:value`), **not** `createEventDispatcher` — 4 legacy roots still use it (`DualPdfPreview`, `ExerciseEditorModal`, `LatexEditor`, `StoragePolicyModal`); don't follow. Prop-drilling exception: `src/lib/grading/gradingStore.ts`, leaf grading components subscribe directly (15+ interdependent fields, justified in-file).
-- **Design system** (Artemis overhaul): the TUM AET Artemis UI-kit look, with its tokens re-implemented (no code copied). **Inline Tailwind utilities in markup** are the house dialect. A component's own `<style>` block is for the rare rule utilities cannot express (a shared class used by many sibling elements, a keyframe). Never add a `.css` file — the only ones left are `src/app.css` and `routes/+layout.css`.
-  - **Light + dark** via `<html data-theme>`, resolved by `lib/stores/theme.ts` (pref `bg_theme`: `system`/`light`/`dark`). An inline no-flash script in `app.html` applies it before first paint; it is hashed into the CSP like any inline script, and its storage key must stay in sync with the store.
-  - **Tokens** live in `@theme static` blocks in `src/app.css` (light, plus a dark override set). Use the token utility (`bg-surface-raised`), never a raw hex or Tailwind shade. Surfaces `surface-base|raised|sunken|inset|viewer`, `control`; lines `line`/`line-strong`/`line-hover`; text `content`/`muted`/`subtle`; `accent` (text/links) vs `primary` (fills) + `primary-contrast`; `focus`; `highlight*`; state families `danger|success|warning|info` each with `-contrast` (text on the fill) and `-fg` (text on a surface); `navbar*`; widths `max-w-form|narrow|medium|wide|page` (`PageShell` also takes `fluid`); z-index ladder as CSS vars (`--z-dropdown` 1000 / `--z-modal` 2000 / `--z-toast` 3000); grade colours.
-  - **Rules**: never use a fill colour (`primary`, `danger`, …) as text colour — use `accent` / `*-fg`. Radius `md` for controls and panels, `xl` for cards and dialogs. No emoji/glyph chrome: icons are FontAwesome through `ui/Icon` with per-icon imports from `@fortawesome/free-solid-svg-icons`. Variant maps (`{ primary: "bg-primary …" }`) must hold literal class strings so Tailwind sees them.
-  - **Primitives** (`src/lib/components/ui/index.ts`, import from `$lib/components/ui`): `Alert`, `Badge`, `Button`, `Card`, `Checkbox`, `ConfirmDialog`, `EmptyState`, `Field`, `Icon`, `Menu`/`MenuItem`, `Modal`, `PageHeader`, `PageShell` (the one page root), `Panel`, `Popover`, `Radio`, `Select`, `Spinner`, `Switch`, `TableScroller`, `Tabs`, `TextInput`, `Textarea`, `Tooltip`, plus `controlClass`/`controlSmClass`.
-  - **Overview lists** (exam page `routes/+page.svelte`, exercise library `routes/exercises/+page.svelte`) share one set of parts — extend these, don't fork: `ui/FilterLayout` (drawer + sticky sidebar + list column, `busy` dims the list) with `common/ListFilterPanel` and `utils/listFilter.ts`; `ui/ExpandableCard` (`title`/`badges`/`actions`/`preview`/`body`/`footer` slots); `utils/lazyMap` + `utils/expandSet` (lazy per-card data, expand state; errors are `error`, never "empty"); `common/DeleteWithUsageModal` over `ConfirmDeleteModal` (`busy` + inline `error`, no `alert()`); `stores/previewFlow` + `common/PreviewHost` (Preview = last compile from the in-memory `compileCache`, else ask and compile in the modal; owns the object URLs); `exercise-library/groupExercises` (the one grouping + `ExerciseGroup` type). Lists stay visible while refreshing (stale-while-revalidate: `isLoading` = first load only; overlapping refreshes coalesce). Exam compile (preamble, `buildExerciseInputs`, resources) lives in `lib/exam/examPreview.ts`, shared by the exam page, OMR prep and the dashboard preview.
-  - **Modal** (every dialog goes through it): sizes `small|medium|large|full` + `tall`; backdrop click is off by default (`closeOnBackdrop`) so a stray click cannot discard input; below `sm` everything but `small` is a full-height sheet. The panel is a size container, so inside it use `@md:`/`@xl:` container variants, not viewport ones. Scroll lock goes through `lib/utils/scrollLock.ts` and locks `.app-main` (the real scroller), ref-counted. Only the topmost modal handles Escape/Tab.
-  - **Tables**: `.data-table` (+ `-compact|-striped|-hover`) in `app.css`, wrapped in `TableScroller`.
-- **Responsive rule: mobile-first, always.** Unprefixed classes describe the phone; `sm:`/`md:`/`lg:`/`xl:` add back. Tailwind's default breakpoints only (640/768/1024/1280) — **never** `max-[900px]:`, `max-md:`, or a raw `@media` in component code. The old codebase mixed six cut points in three syntaxes, which is how the exercise filter panel ended up stuck over the content in a 768–1199px dead band. Every grid/flex child that can hold wide content needs `min-w-0`.
-  - **App shell** (`routes/+layout.css`): `.app-layout` is `100dvh` with `overflow: clip`, body is `overflow: hidden`, and `.app-main` is the only scroller (thin bar, scrolls both axes). `AppFooter` is the last child of `.app-main` on every route including grade; the grade root fills via `flex-1 min-h-0`. Don't reintroduce `overflow: hidden` on the layout — it made anything wider than the viewport unreachable — and don't nest a second `100vh`/`100dvh` inside. Never put `min-h-full`/`h-full` on a page root either: the footer is a sibling inside `.app-main`, so the page plus footer overflows by the footer's height (a needless scrollbar); centred pages use `PageShell center` (`flex-1`). `AppNavbar` (dark slate in both themes) shows links from `xl`, burger + `NavDrawer` below; minimal variant on locked/public pages; none on the grade page. Exam steps live in `ExamSidebar` from `lg` (rail or open, pref `bg_sidebar_collapsed`), in the drawer below; `routes/exam/[id]/+layout.svelte` publishes `examNavContext` in `lib/stores/shell.ts` for both.
-  - `src/lib/stores/viewport.ts` (`isPhone`/`isTablet`/`isDesktop`/`isTouch`/`viewportWidth`) is for the few places where a narrow screen changes *behaviour*, not styling. Anything purely visual belongs in a breakpoint variant.
-  - **Target devices**: unscaled 1920×1080 (primary); 1920×1080 laptops at 125/150 % scaling (1536×730, 1280×600 — tight height); iPad Pro 12.9″ portrait 1024 (= `lg`) and landscape, touch/pencil; 6–7″ phones portrait. Touch targets ≥44px via `pointer-coarse:`.
-- There is no `postinstall`: busytex is fetched by `predev` (into `static/core`) and by `npm run build` (`scripts/build.mjs`). `svelte-check --threshold error` should be clean; treat any error as new.
+- `backend/` — FastAPI + SQLAlchemy + Alembic. Conventions, auth/data-key rules, backend gotchas: `backend/CLAUDE.md`.
+- `frontend/` — SvelteKit on **Svelte 4 (not 5)**. Design system, responsive rules, i18n, MC data model, LaTeX resources, frontend gotchas: `frontend/CLAUDE.md`.
+- `docs/` — product, legal and deployment docs. Developer deep-dives, read on demand: `docs/dev/omr.md` (MC detection), `docs/dev/training_donation.md`, `docs/dev/ci_and_audit.md`, `docs/dev/build_and_csp.md`.
+- `backend/latex-assets/` is copied to `frontend/static/latex-assets/` at build time; both are committed. Edit the backend copy.
 
 ## Commands
 
@@ -42,196 +24,34 @@ Privacy-first, zero-knowledge-encrypted anonymous exam grading. LaTeX exams, QR-
 | `make migrate` / `make migrate-auto MSG="..."` | apply Alembic migrations / autogenerate one |
 | `make lint` / `make lint-frontend` | `ruff check app && mypy app` / `npm run lint && npm run check` |
 | `make test-backend` / `make test-frontend` / `make test` | pytest / vitest / both |
-| `npm run test:e2e` | Playwright functional suite (not wired into `make`): projects `desktop` 1920×950, `ipad-portrait`, `phone`; all-local mode, no backend; shell navigation isolated in `e2e/helpers/nav.ts` |
+| `npm run test:e2e` | Playwright suite (not wired into `make`) |
 | `npm run sri:verify` | subresource-integrity check (also in CI) |
 
-Prefer `make` over hand-rolled `cd backend && ...`. Run mypy through an env that has the
-**dev** extras (`uvx -p 3.12 --with-editable ".[dev]" mypy app`, from `backend/`): a bare
-`mypy` reports ~187 spurious untyped-decorator errors, and one without `[dev]` disagrees with
-CI about `redis` (the `types-redis` stubs make `Redis` generic, redis 8's own types do not).
-The real baseline is zero errors. `predev` fetches the LaTeX/WASM assets into `static/core` — don't strip it. `npm run build` goes through `scripts/build.mjs`: without `static/core/busytex` (every Cloudflare build) it fetches and gzips busytex into `frontend/.busytex/` *in parallel with* `vite build` and moves it into `build/` afterwards; with it, Vite copies it as usual.
+Prefer `make` over hand-rolled `cd backend && ...`. Deps: `uv` backend, `npm` frontend; no pip, poetry, yarn. mypy needs the dev extras (see `backend/CLAUDE.md`).
 
 ## Token discipline
 
-Tracked source is tiny (172 files in `frontend/src`, 44 in `backend/app`, ~1 MB); the working tree is ~2 GB of generated assets.
+- Never walk: `frontend/build/`, `frontend/node_modules/`, `frontend/static/core/busytex/` (~500 MB WASM), `frontend/.svelte-kit/`, `backend/blindgrade.db`, `latex-sample-project/`. Scope with `git ls-files` or explicit globs; never recurse from the root.
+- Lockfiles (`frontend/package-lock.json`, `backend/uv.lock`) are grep-only.
+- Files over ~600 lines (e.g. `routes/exam/[id]/+page.svelte`, `routes/exam/[id]/scan/+page.svelte`, `routes/exam/new/+page.svelte`, `routes/exercises/+page.svelte`, `ScanCanvasViewer.svelte`): grep to the symbol, then Read with `offset`/`limit`.
+- Narrow commands while iterating: `pytest tests/test_auth.py -q`, `npx vitest run <file>`, `npx svelte-check --threshold error` (plain `npm run check` buries real errors under CSS warnings). Full `make` targets once at the end.
 
-**Context**
+## Deployment (rules only; full picture in `docs/deployment.md`)
 
-- Never walk: `frontend/build/` (~500 MB), `frontend/node_modules/` (~350 MB), `frontend/static/core/busytex/` (~500 MB WASM), `frontend/.svelte-kit/`, `backend/__pycache__/`, `backend/blindgrade.db`, `latex-sample-project/`. Scope with `git ls-files` or explicit globs; never recurse from the root.
-- Lockfiles grep-only: `frontend/package-lock.json` (7051 lines), `backend/uv.lock` (1652). Never read whole.
-- `frontend/static/latex-assets/` = build-time `cp -r` of `backend/latex-assets/`; both committed. Edit the backend copy — reading both is duplicate context.
-- Slice big files (grep to the symbol, then Read with `offset`/`limit`): `routes/exam/[id]/+page.svelte` 1266, `routes/exercises/+page.svelte` 1265, `routes/exam/[id]/scan/+page.svelte` 1036, `lib/db/dbEncryption.ts` 649, `routes/exam/new/+page.svelte` 618, `lib/components/grading/ScanCanvasViewer.svelte` 604.
-- Narrow commands while iterating: `pytest tests/test_auth.py -q`, `npx vitest run <file>`, `npx svelte-check --threshold error` (plain `npm run check` buries the 2 real errors under ~106 CSS warnings). Full `make` targets once at the end — see "Validate before done".
-- Delegate wide searches to subagents; report conclusions, not file dumps.
-- No verification-by-reread — Edit/Write error out on failure.
-
-**Output**
-
-- Caveman style, level `full` (`caveman` skill; `/caveman full` re-arms, `/caveman off` disables): drop articles, filler, hedging, pleasantries; fragments fine. Identifiers, commands, numbers, exact error strings stay verbatim. Never compress negations (not/never/only/except), security warnings, irreversible-action confirmations, or ordered multi-step instructions — plain prose there.
-- Persisted prose stays normal English: code, comments, commits, docs, PR/issue text, memory files.
-- No progress narration — fire tool calls directly. Text before a call only to warn about something destructive or resolve a real ambiguity.
-- No code echo — reference `file:line` instead of pasting what the tool result already showed.
-
-## Deployment
-
-Full picture with diagrams: `docs/deployment.md`. Summary:
-
-Two independent instances, production and preview, always on the same version. Root `/VERSION` (bare semver, no `v`) is the single source of truth — `frontend/package.json` and `backend/pyproject.toml` versions are **not** part of the chain, don't "sync" them. Prod version = `VERSION` verbatim; preview = `VERSION` + `-PR#<number> [<dd.MM.yyyy | HH:mm>]`, composed once in `deploy-preview.yml`'s `version` job and both used as the backend `APP_VERSION` build-arg and stamped into a `PREVIEW_VERSION` file committed onto the `preview` branch for `frontend/vite.config.ts` to read (Cloudflare Pages builds have no PR-number env var of their own). Status bar displays the backend version (source of truth for compatibility); PR links route to the PR. A differing major version means frontend and backend are incompatible.
-
-- Release published (`deploy-release.yml`) → writes `VERSION` to the default branch, force-pushes to branch `release`, builds `ghcr.io/<owner>/examance-backend:<version>`, deploys over SSH. Trigger is `published`, **not** `created` — `created` also fires on draft-save.
-- Non-draft PR (`deploy-preview.yml`) → force-pushes PR head to branch `preview`, builds `:sha-<sha>`, deploys to the preview stack. Draft PRs and fork PRs deploy nothing. PR pushes redeploy only the side that changed relative to what the stack runs (`preview` branch / `preview-backend` marker, same `PR#<n>` required); pushes to main and manual runs deploy both. Production always deploys both. Both workflows wait for Cloudflare Pages' check run before going green. Pages builds fetch BusyTeX already chunked from an R2 mirror (`BUSYTEX_MIRROR_URL`, filled by `mirror-busytex.yml`; object names keyed on version + a hash of `process-large-files.mjs`/`fetch-interceptor.js` in `scripts/busytex-mirror.mjs`) before falling back to raw archive / GitHub — `docs/deployment.md` §5.
-
-Frontend → **Cloudflare Pages** via git integration (build `npm run build` in `frontend/`, output `frontend/build/`), building **only** `release` (production) and `preview` (preview). Dashboard-managed, no `wrangler.toml` in-repo. Version reaches the bundle through Vite `define` (`__APP_VERSION__`, computed in `vite.config.ts` from `CF_PAGES_BRANCH`/`CF_PAGES_COMMIT_SHA`) and is shown in `AppFooter.svelte`, coloured by `compareVersions()` in `lib/stores/versionStore.ts`; a mismatch also puts a badge in the navbar, and an incompatible major version shows a non-dismissible danger banner.
-
-Backend → `deploy/docker-compose.deploy.yml` on one SSH host, two isolated stacks (`docker compose -p examance-prod` :8000, `-p examance-preview` :8001). Project names namespace containers *and* volumes, so preview never touches production data. The dev `docker-compose.yml` is a separate, dev-only file — its `retention-cron` is broken (busybox calling `docker exec`, hardcoded container name) but inert behind `profiles: [prod]`; the working one lives in the deploy file. Version is baked in via `--build-arg APP_VERSION` → `Settings.APP_VERSION` → `GET /api/health`, which returns `{"status": "ok", "version": ...}` unauthenticated by design. Migrations run **forward only** on deploy; rolling back an image does not undo them.
-
-Response headers come from `frontend/static/_headers`, which is a **template**: `npm run build` runs `scripts/generate-csp-headers.mjs`, which replaces the `__INLINE_SCRIPT_HASHES__` token in `script-src` with the SHA-256 of every inline script in `build/**/*.html`. Never hard-code a `sha256-` literal there — SvelteKit's inline bootstrap embeds the content-hashed entry chunk filenames, so its hash changes with any bundle change (including a dependency or Node version difference between your machine and the Pages build image) and a pinned hash takes the deployed app down with "Executing inline script violates the following Content Security Policy directive". `tests/cspHeaders.test.ts` guards this.
-
-A console error reading `Executing inline script violates the following Content Security Policy directive 'script-src 'self' …'` on a deployed stack is **not** a CORS error and **not** a build failure: it means a Cloudflare dashboard feature (Web Analytics above all, also Rocket Loader and Email Obfuscation) is rewriting the HTML after the build hashed it. Turn the feature off — never widen `script-src`. `lib/utils/cspDiagnostics.ts` says so at runtime, `npm run csp:verify` guards the build side, and `docs/deployment.md` has the full checklist.
-
-The policy is `script-src 'self'` with no CDN allowances: third-party assets (e.g. the pdf.js worker, see `src/lib/pdf/pdfjs.ts`) must be bundled and served from our own origin — required by the CSP and by the "no third-party transfer" claims in `docs/`.
-
-## i18n (German / English)
-
-UI text lives in typed catalogs under `frontend/src/lib/i18n/`; the app ships German and
-English with a language toggle in `AppNavbar.svelte` and a radio section in `SettingsForm.svelte`.
-
-- `de/<ns>.ts` is the **source of truth** (`export const <ns> = {...} as const`).
-  `en/<ns>.ts` is annotated `Translations['<ns>']`, so a missing or misspelled key is a
-  `svelte-check` error. `types.ts` widens the `as const` literals back to `string` — German
-  pins the key *structure*, not the wording. Both are aggregated by `de/index.ts` / `en/index.ts`;
-  a new namespace must be added to both.
-- Markup: `{$t("ns.key")}`, `{$t("ns.key", { name })}`. Plain `.ts`, `alert`/`confirm`/`prompt`:
-  `translate("ns.key")`. Runtime-composed keys: `tOptional` / `translateOptional`.
-  Dates and numbers: `$fmt.date` / `$fmt.number` / `$fmt.percent` from `lib/utils/format.ts`.
-- Locale is `bg_locale` in `safeLocalStorage`, detected as saved → `navigator.language` → `en`.
-  Missing key falls back to German, then to the key itself. Interpolation only — no ICU plurals.
-- Backend errors are localized **client-side** by the `code` the API sends alongside its English
-  `detail` (`errors.code.<CODE>`, applied in `lib/api/client.ts`); `err.message` stays the fallback.
-  No backend or `Teacher` model changes.
-- **Exam/PDF output is deliberately NOT translated** — `Schulaufgabe.sty` captions,
-  `\begin{Aufgabe}`, `\Loesung*`, the MC rubric prose, and German seed defaults
-  (`testart`/`fach`/`title`) are exam content and a stable macro API. `routes/exam/new` keeps
-  `toLocaleDateString("de-DE")` because that value is printed in the PDF.
-- Legal pages: German is legally binding (§ 5 DDG, Art. 12 DSGVO). `en/legal.ts` holds the
-  German text as a placeholder — **never** machine-translate it.
-- `tests/locale.test.ts` guards detection, persistence, interpolation and de/en key parity.
-
-## Multiple Choice (MC) Data Model
-
-- **MC Question**: An individual `Exercise` / `ExerciseRecord` (`question_type: mc|sc|tf`, `correct_answers` JSON / `options` & `correctAnswers` arrays, `penalty`). Reuses the standard `exercise_group_id` + `variant_key` mechanism for variants.
-- **MC Group (`\McExercise{a}{b}{c}`)**: A per-exam layout container (`ExamMcGroup` / `ExamMcGroupRecord`, 1+ sub-items, no upper limit) linking member exercises via `ExamExercise.mc_group_id` and `sub_index`. Rendered into a single `\begin{Aufgabe}` by `format_mc_group_latex()`.
-- **Grading & Statistics Invariant**: Grading and statistics are strictly per-question (`exerciseId`), treating `ExamMcGroup` solely as LaTeX rendering and layout metadata.
-- **Group membership lives on the junction row**, not on the exercise: `ExamExercise.mc_group_id`/`sub_index` server-side, `examExercises.mcGroupId`/`subIndex` in Dexie. The Dexie primary key is `[examId+exerciseId]`, so **any `examExercises.put`/`bulkPut` that omits those two fields silently dissolves the group** — the group then renders empty and its members reappear as standalone exercises. Always merge onto the stored record or carry `mc_group_id`/`sub_index` through from the API response.
-- Group ids are **client-chosen and stable** (like exam/exercise ids); `_persist_mc_groups` keeps them and answers 409 on collision. `exam_exercises.mc_group_id` is `ON DELETE SET NULL` — dissolving a group must never delete its members' exam links.
-- `PATCH /exams/{id}` replaces `mc_groups` and `exercise_links` wholesale. An exercise may appear **once** in `exercise_links` (under its group if grouped) — `(exam_id, exercise_id)` is the primary key. `exam/[id]/+page.svelte`'s `buildExamLinkPayload()` is the single builder for both the Dexie records and that payload; don't hand-roll a second one.
-- No cap on group count or size; an exercise belongs to at most one group (staging rules: `lib/exam/mcGroupStaging.ts`, shared by `exam/new` and `exam/[id]`). Past 26 members the sub-label switches from `a)` to `1)` — `mcSubLabel` (`lib/grading/mcGroupLabels.ts`) and both group formatters must agree. An MC question's option column count lives only in its LaTeX body as `\LoesungMulti[N]` (`lib/latex/mcOptions.ts`).
-- `examItems` (the exam page's item order) is view state, rebuilt on load from the persisted `order_index` values via `buildExamItems()`. Group members share their group's `order_index`.
-
-## LaTeX Resource Files
-
-Teacher-uploaded files an exercise's LaTeX references (`\includegraphics{figure.png}`, `\input{data.tex}`). Any file type is allowed **except SVG** (refused with a convert-to-PDF hint — `frontend/src/lib/latex/resources.ts`, mirrored in `backend/app/services/latex_resources.py`; keep the two in sync).
-
-- Attached **per exercise**, referenced by **flat sanitized filename** — files are written next to `main.tex` in both engines, never in a subdirectory. Names that collide with a bundled `latex-assets` file (including the worker's flattened `sty/x.sty` → `x.sty`) are rejected at upload.
-- Limits: 5 MB per file, 25 MB per exercise, 20 MB / 30 files per compile request; `BODY_LIMIT_COMPILE` is 28 MB and `BODY_LIMIT_RESOURCE` 7 MB.
-- Storage: Dexie table `exerciseResources` (v8), bytes AES-256-GCM encrypted; server table `exercise_resources`, bytes **plaintext** — same treatment as `exercises.latex_body`, since Tectonic cannot read ciphertext.
-- The editor stages files under a throwaway id (`ExerciseResourcePanel` gets a staging id, never the exercise id) and `exerciseResourceRepository.commit()` moves the staged set onto the exercise on save — that is what makes uploading and previewing work before an exercise exists. Cancel discards. The staged set is authoritative on commit: files removed while editing are deleted server-side too.
-- Local compile: `compiler.ts` → worker `additionalFiles`. Server compile sends `resource_exercise_ids` for saved exercises (server reads its own rows) and inline base64 only for staged/local-only files. `POST /exams/{id}/compile` always reads the rows from the DB.
-- Two exercises with *different* files under the same name is a hard error before compiling (`mergeResources`); identical bytes are deduped.
-- Resource API calls pass `silentError` and report in the panel — a 404 for an exercise the server has never seen must not raise the global toast.
-- A missing graphic does not fail XeLaTeX. The worker reports `missingGraphics` and callers surface it — do not treat a successful compile as proof the figures rendered.
-
-## Authentication & the data key
-
-**Sign-in is a passkey alone, or two-of-three factors** (password, passkey, TOTP). A passkey
-stands alone (`SELF_SUFFICIENT_FACTORS`) only because every ceremony requires user
-verification — never loosen that, never add password/TOTP there. Enrollment still demands two
-factors. `app/services/auth_policy.py` is the only place the rule lives. After a password the
-unlock page auto-starts the passkey prompt once per step; cancelling it is silent and leaves
-the chooser. Consequences worth knowing before you touch anything here:
-
-- `POST /auth/login` does **not** return a session — it returns `{status, satisfied, available}`
-  and sets a short-lived, single-use, non-refreshable `auth_pending` cookie. A backend test that
-  logs in must go through `tests/factors.py` (`sign_in`, `complete_login`, `complete_reset`), not
-  `/auth/login` alone.
-- Scopes on the access token: `full` (two distinct factors), `auth_pending`, `enroll`
-  (fewer than two factors enrolled), `reset_pending`. `get_current_teacher` demands `full`;
-  `get_pending_teacher` returns a `PendingSession` for the rest. `/keys/envelopes` and `/mfa/*`
-  deliberately accept the non-full scopes — an account that predates the envelope has one factor,
-  so the wizard that gets it out of enrollment is also the one that first stores its key.
-- `available` is only ever returned *after* a factor is proven. Never add an endpoint that
-  answers "which factors does this email have" — that is an account-existence oracle. TOTP is
-  second-position only for the same reason.
-- Removing a factor goes through `may_remove_factor`: never below two factors, never below the
-  last *key-capable* one. TOTP is not key-capable (server-side secret, six digits).
-
-**The data key is random and wrapped, not derived.** `key_envelopes` holds one wrap per factor;
-the payload is a *bundle* (`{dek, fallback, legacy}`) because `decrypt()` walks the whole PBKDF2
-chain. Client side: `lib/crypto/keyEnvelope.ts` (wrap/unwrap) and
-`lib/services/keyEnvelopeService.ts` (lifecycle). Rules that will cost data if broken:
-
-- `sessionNonce` stays `getUserSessionNonce(email)`. Server-stored ciphertext was sealed under it.
-- `openWithPassword(..., { allowMigration })`: only a password the server has **just accepted**
-  may run the one-time migration (no envelope yet). The unlock page tracks `passwordVerified`;
-  the vault prompt after a passkey-only sign-in passes `allowMigration: false`. Migrating with an
-  unchecked password seals a wrong key as the DEK and orphans every existing record.
-- A PRF passkey that signs in but cannot open the vault (no wrap, or a wrap sealed under another
-  passkey's secret) is **healed**: once the vault opens by password/recovery, `finishUnlock`
-  writes a fresh wrap for it (`passkeyToHeal`). `EnvelopeChangedError` is never healed — it is
-  the envelope-substitution alarm. Registration only wraps when the follow-up assertion's
-  `rawId` matches the new credential.
-- "Passkey opens data" = a non-invalidated passkey envelope exists (`passkeyWrapIds`), **never**
-  `supports_prf` (a registration-time guess). Settings' "enable data access"
-  (`enablePasskeyUnlock`) wraps from the open session, ceremony pinned via `allowCredentials`.
-  Passkeys stored in Bitwarden get no PRF (as of 2026) — they sign in but can't open data.
-- The migration **adopts** the previously derived key as the DEK, so nothing is re-encrypted and
-  the session key is byte-identical. It is also the only moment the fallback/legacy keys exist —
-  capture them or those records are unreadable forever.
-- Any server-side password write (admin reset, `cli.py set-password`, completing a reset) must
-  call `invalidate_password_wrap`. The server cannot re-wrap a key it has never seen; marking the
-  wrap stale is what sends the teacher to the recovery code instead of a vault of blank fields.
-- `encryption_salt_b64` on student uploads carries the **`key_id`**, not a salt. The name is
-  historical.
-
-`WEBAUTHN_RP_ID` is per stack — a passkey registered against production will not work against
-preview, and vice versa. Rotating `SECRET_KEY` invalidates every TOTP enrollment.
-
-## Gotchas worth knowing
-
-- **A swallowed API error still opens the global HTTP error modal.** `api.*` calls `httpErrorStore.showError()` before throwing, so a `try { … } catch {}` around a best-effort request produces a dialog for a failure nobody handles. Pass `silentError: true` on anything with a local fallback, an offline-queue fallback, or an expected 409.
-- **Never re-encrypt a record that failed to decrypt.** `decryptX()` marks it (`decryptFailed: 'error' | 'locked'`, `lib/db/decryptGuard.ts`) and every `encryptX()` calls `assertEncryptable()` first, which throws. This exists because the old helpers returned a *blank* record on failure and the next save sealed those blanks over the real payload — a wrong key was indistinguishable from "no data" and destroyed it. `encryptX(rec, null)` throws for the same reason: it used to emit plaintext columns while carrying the stale ciphertext forward, and the stale ciphertext won on the next read.
-- **Routes must `await awaitSessionReady()` before touching the vault.** Svelte 4 mounts children before the parent, so a route's `onMount` runs before `+layout.svelte` restores keys; without the gate the key is `null` on every F5.
-- **Per-exercise scores have a server home now** (`exercise_scores`, migration `0021`). Go through `scoreRepository`, never `db.exerciseScores` directly — the direct writes had no storage-mode branch, so `all-server` grading lived only in IndexedDB and `lockSession()` wiped it on the idle timeout. The bulk write is a `PUT` keyed on `(submission_id, exercise_id)`, so it is idempotent and safe to replay from the offline queue. There is deliberately **no plaintext `score` column**: the client seals score, `selectedOptions` and `omrMeta` into one payload, and a per-question plaintext record reconstructs the answer sheet.
-- **Grading views must never clear an OMR-read MC score row.** The grade page's legacy "score 0 + no strokes → ungraded" coercion and the manual grids' "empty input → `deleteOne`" used to delete rows carrying `omrMeta`, which silently dropped the question from the MC verification queue. MC grading outside the verify view is optional: skip or carry `selectedOptions`/`omrMeta` forward. The unsaved-changes prompt keys on `gradingStore.isDirty`, not on "strokes exist".
-- **An absent `annotation_ciphertext_b64` means "don't touch", not "delete".** Deleting needs `clear_annotations: true`. It used to mean the latter, so every caller that saved a submission without carrying the stroke layer erased the teacher's corrections server-side.
-- **Import never writes before it has decrypted and resolved conflicts.** `decryptArchive()` touches nothing; `applyArchive()` writes under the **live** session key. Do not reintroduce a wipe before validation, and do not call `sessionStore.unlock()` with the archive key — the vault cannot re-derive it, so everything written afterwards dies with the tab.
-- **Map exercise API payloads only through `mapApiToExerciseRecord`** (`lib/repositories/exerciseRepository.ts`). Hand-rolled field lists dropped `variantKey`/`exerciseGroupId`/`isCurrent`, so variants became indistinguishable and the stripped record was `bulkPut` over the full one in IndexedDB.
-- **`POST /exams` and `POST /exercises` are create-only** — a known id answers 409. Re-queuing that POST can never succeed; update with `PATCH` instead.
-- **`POST /auth/refresh` rotates the refresh token and treats a second use of a revoked one as theft**, revoking every session the teacher has. `client.ts` therefore both deduplicates concurrent refreshes and, for `REFRESH_GRACE_MS` after a successful one, retries a 401 instead of refreshing again. Do not remove either guard.
-- **A 500 has to carry CORS headers itself.** The global handler in `app/main.py` runs in `ServerErrorMiddleware`, outside `CORSMiddleware`, so an unhandled exception reaches the browser as "No 'Access-Control-Allow-Origin' header" and the real fault is invisible. The handler echoes an allowlisted `Origin` for that reason (`is_allowed_origin`, `app/middleware/cors.py`) — do not remove it.
-- **`ci.yml` installs unpinned deps.** `uv pip install -e ".[dev]"` and `npm ci` both resolve to the newest allowed versions, so a new mypy or a fresh advisory turns CI red without a code change. The frontend `npm audit` gate is deliberately scoped to `--omit=dev`: the build toolchain (Vite/SvelteKit/Svelte 4) carries advisories that only a Svelte 5 + Vite 7 migration would clear, and none of it ships to a browser. `@sveltejs/kit` sits in `devDependencies` for that reason — that is where the SvelteKit template puts it too. The `--omit=dev` tree is still not only shipped code: `@embedpdf/snippet`'s packages declare non-optional `svelte >=5`/`react`/`vue` peers, so npm auto-installs a nested Svelte 5 (and its `devalue`) as "prod" although only the preact build is bundled; `layerchart` likewise makes root Svelte 4 prod. Their advisories hit the gate — fix with a lockfile bump (`npm audit fix`), never `--force` (it moves root Svelte to 5).
-
-- **The same failure mode exists one layer out, at nginx, and the app can't fix it.** `/compile/latex` and `/exams/{id}/compile` are the only endpoints that legitimately run tens of seconds (Tectonic, up to `COMPILE_TIMEOUT_SECONDS`). If nginx's `proxy_read_timeout` (60s default) is shorter, nginx serves its own bare 504 and drops the connection before the backend's own — CORS-header-carrying — timeout response is ready; the backend finishes moments later and logs a clean 504 nobody receives. Browser symptom is indistinguishable from a CORS misconfig, flaky (races transient host load), and stops reproducing on its own without anything being fixed. nginx is host-managed, not in this repo (`docs/deployment.md` §6) — its `proxy_read_timeout`/`proxy_send_timeout` must be set ≥ `COMPILE_TIMEOUT_SECONDS` + margin on the host; there is no code-side fix. A cold Tectonic cache (first compile after a fresh container downloads TeX bundles) triggers exactly this; `deploy/docker-compose.deploy.yml` keeps `/var/cache/tectonic` in the `tectonic_cache` volume so it survives redeploys.
-- **Svelte 4 only re-runs a template expression when a name it mentions changes.** A plain `function` helper that reads reactive state hides that dependency: `{@const { x } = box(c)}` never re-ran when `box` read a `$:`-derived `px`, so on a window resize the stats charts' gridlines moved and their bars did not. Declare such helpers as `$: box = (c) => …` (see `stats/ColumnChart.svelte`); pure helpers that use only their arguments can stay plain functions.
-- **MC detection (OMR) params live only in `lib/grading/omrSettings.ts`** (issue #32). The worker takes them per request; the user's next-run profile is `bg_omr_settings` in localStorage (`stores/omrSettings.ts`), snapshotted once per run. Every detection stamps `omrMeta.run` (params, deciding `algorithmVersion` = `params.algorithm`, and `pipelineVersion` = `OMR_ALGORITHM_VERSION`) and raw per-bubble `fillRatio`/`redoRatio`/`detectedState` via `grading/omrResult.ts` — the one builder for scan and re-run. `mcScore.ts` builders must spread `...omrMeta`, never enumerate fields, or the snapshot is lost on the first review. A re-run never changes a verified result: rows where `isMcReviewed()` is true keep selection/score/review and only get their recorded detection refreshed (`mergeRedetectionIntoVerified`, for comparing settings); hand-typed scores are not touched. `detectedState` is immutable; `state` follows corrections. Bump `OMR_ALGORITHM_VERSION` when detection semantics change. `params.algorithm` (4 = `measureBox` + stroke-based `classifyV4`, default; 2 = fill ratio, fallback) decides; the worker always runs both and stores the other verdict per bubble as `alt`, and the verify panel compares them on verified boxes. v3 (area thresholds on the clean v4 measurement) misread thin-pen crosses — don't gate crosses on fill again. `effectiveRedoRect` fixes a template bug: `\OmrBox`'s redo link sits in a zero-width `\makebox[0pt][r]` but a `\special` has no width, so the captured redo rect covers the box itself. Overlay "unsure" frames come from `detectedState`/`flaggedOptions` + review status, never from `state` (review builders rewrite it). An `ambiguous` box counts by its persisted `provisional` (closer) reading until verified.
-- **Opt-in training-data donation** (`services/trainingDonation.ts`, `routers/training.py`): 80×48 crops of *verified* MC boxes go to the configured backend's `POST /training/omr-samples`, which **requires a full session** (a public write into the prod DB was judged too dangerous) — all-local users without an account cannot donate. The account is used only for the daily quota (hashed key in `ephemeral_store`) plus a global cap; never store, log or audit it with a sample, and keep the table free of foreign keys. Quota answers are 429 **without `Retry-After`** and there is no slowapi limit on that POST: `client.ts` starts the *login* lockout on any 429 carrying one. Uploads go through `api.post(..., { silentError: true })`. The only id in a sample is a random per-box `sample_token` kept in the sealed `omrMeta.donation.tokens`; re-donating a corrected box reuses it so the server replaces the row. Consent is off by default (`bg_omr_donation`, versioned); withdrawal or sign-out drops everything unsent. Changing what is sent means bumping `DONATION_CONSENT_VERSION` and the privacy text (`legal.datenschutz.section10`).
-- **One shared preview stack.** `deploy-preview.yml` force-pushes the PR head to `preview`; the newest non-draft PR push wins for *both* frontend and backend (a side is only skipped if already deployed from the same PR). Testing PR A while PR B was pushed later means testing B. The footer version carries the PR number — check it before debugging.
-
-## Environment
-
-`backend/.env.example` → `backend/.env`. Postgres + Redis via `docker-compose.yml`. `CORS_ALLOWED_ORIGINS` defaults to `http://localhost:5173` + `https://examance.pages.dev`, plus `CORS_ALLOWED_ORIGIN_REGEX` covering `*.valentin-herrmann.com` and `*.examance.pages.dev` preview subdomains. In development (`ENVIRONMENT=development`), `effective_cors_origin_regex` dynamically allows arbitrary loopback/localhost ports. No wildcard fallback; an empty list is a hard startup error (`require_cors_origins`, `backend/app/config.py`). Override explicitly for any other origin.
+- Two independent stacks, production and preview, on the same version. Root `/VERSION` (bare semver) is the single source of truth; `frontend/package.json` and `backend/pyproject.toml` versions are **not** part of the chain, don't "sync" them. A differing major version means frontend and backend are incompatible.
+- Release workflow triggers on `published`, **not** `created` (`created` also fires on draft-save).
+- **One shared preview stack.** The newest non-draft PR push wins for both frontend and backend, so testing PR A after PR B was pushed means testing B. The footer version carries the PR number; check it before debugging.
+- Frontend is Cloudflare Pages (builds only `release` and `preview`); backend is Docker behind Caddy on one SSH host. Migrations run **forward only** on deploy; rolling back an image does not undo them.
+- CSP: never hard-code a `sha256-` literal in `frontend/static/_headers` (it is a template filled at build), and never widen `script-src` to silence a CSP error. Details and diagnosis: `docs/dev/build_and_csp.md`.
 
 ## Standing instructions
-- **Prefer cheaper models** for mechanical or well-defined work; aggressively hand-off work to cheaper models; expensive models are on a tight budget! Escalate only when reasoning complexity really demands it.
-- **Only basic verification, dont run unittests**: Extensive testing will be done by a human.
-- **Security/privacy first**: client-side encryption-at-rest, GDPR-regulated data. Call out any change touching auth, crypto, or retention — read `docs/data_flow_and_security.md` and `docs/breach_response_checklist.md` first.
+
+- **Prefer cheaper models** for mechanical or well-defined work and hand it off aggressively (wide searches go to subagents, which report conclusions rather than file dumps). Expensive models are on a tight budget; escalate only when reasoning complexity really demands it.
+- **Only basic verification, don't run unit tests.** Extensive testing is done by a human. Don't run non-terminating npm commands (dev servers, watch mode) unless asked.
+- **Security/privacy first**: client-side encryption at rest, GDPR-regulated data. Call out any change touching auth, crypto or retention, and read `docs/data_flow_and_security.md` and `docs/breach_response_checklist.md` first.
 - **No secrets in commits**: never commit `backend/.env` or real secret values. `backend/.env.example` is a template.
-- **Dep managers**: `uv` backend, `npm` frontend. No pip, poetry, yarn.
-- **Local mode is the default** for exercise/exam management — don't default to server endpoints when `all-local` paths exist.
-- Mind WASM/Argon2 asset resolution (`busytex.wasm`, `argon2.wasm`) in frontend bundling config.
-- **busytex local-compile quirks** (`frontend/src/lib/latex/compiler.ts`/`compiler.worker.ts`): (1) first-ever local compile in a cold browser session can throw spurious `File 'X.sty' not found` errors (e.g. `ulem.sty`) while `texlive-extra` is still downloading/indexing — self-resolves on retry once cached, not a packaging bug. (2) Local (WASM XeLaTeX) compiles can silently drop exercise content that the same source compiles fine on the server — `compiler.worker.ts` only reports failure when the engine itself reports `!success`, so a non-fatal LaTeX error mid-document (e.g. an unavailable package/macro used only inside an exercise body) can produce a PDF that's missing content without surfacing an error. Root cause not yet isolated — needs the browser console log from a local compile to identify the failing package/macro.
-- Don't run non-terminating npm commands (dev servers, watch mode) unless asked.
-- If you find out something, which should be known for future agent-sessions (e.g. structural or constraints), add it to CLAUDE.MD but do no clutter it!
-- **NEVER USE WRITING GIT COMMANDS when running on a computer (only allowed in cloud mode)!** (like commit, push, branch, ...)
-- **Follow Claude-Code Mode strictly**: Never edit files in planning mode; do not even ask for it! Just make a PLAN in PLAN MODE!
-- Keep in-app-help and documentation up to date.
+- **Local mode is the default** for exercise/exam management; don't default to server endpoints when `all-local` paths exist.
+- **NEVER USE WRITING GIT COMMANDS when running on a computer** (commit, push, branch, …). Only allowed in cloud mode.
+- **Follow Claude-Code mode strictly**: never edit files in planning mode, don't even ask. Just make a PLAN in plan mode.
+- Keep in-app help and documentation up to date.
+- If you learn something future agent sessions should know (structure, constraints), add it to the closest `CLAUDE.md` or `docs/dev/` file, but don't clutter. Persisted prose (code, comments, commits, docs, PRs, memory) is normal English, not caveman.
