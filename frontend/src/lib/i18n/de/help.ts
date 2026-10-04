@@ -157,7 +157,7 @@ export const help = {
             },
             s2: {
                 h: 'Annotieren',
-                p1: 'Korrekturzeichen entstehen auf einer Ebene über dem Scan. Das Original bleibt unverändert und lässt sich jederzeit wieder ohne Anmerkungen anzeigen.',
+                p1: 'Korrekturzeichen entstehen auf einer Ebene über dem Scan. Das Original bleibt unverändert und lässt sich jederzeit wieder ohne Anmerkungen anzeigen. Alle Seiten einer Abgabe stehen untereinander: Mit Mausrad oder Scrollleiste blättern Sie durch, auf Touchgeräten mit zwei Fingern (ein Finger zeichnet). Strg + Mausrad oder Zwei-Finger-Zoom vergrößert.',
                 p2: 'Punkte werden pro Aufgabe vergeben. Note und Gesamtpunktzahl ergeben sich laufend aus dem hinterlegten Notenschlüssel.',
             },
             s3: {
