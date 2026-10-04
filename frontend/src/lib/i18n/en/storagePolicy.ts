@@ -31,6 +31,7 @@ export const storagePolicy: Translations['storagePolicy'] = {
         examsStay: 'Exams and exercises stay on the server and are not affected by the switch.',
         checking: 'Checking what needs to be transferred…',
         nothingToMove: 'There are no results to transfer.',
+        hybridResultsElsewhere: 'This browser holds no results. In hybrid mode they live in the browser where they were recorded. Best switch there, or transfer them later from there via the "Transfer to server" notice.',
         otherTabsNote: 'Other open tabs of this app are blocked during the transfer and reloaded afterwards.',
         backupButton: 'Download backup (.bgproj)',
         backupOptional: 'Optional, but recommended.',

@@ -209,7 +209,8 @@ export async function moveResults(from: StorageMode | null, to: StorageMode): Pr
       try {
         results = direction === 'to-browser' ? await readServer(examId) : await readLocal(examId);
       } catch (err) {
-        if (err instanceof ApiError && (err.status === 404 || err.status === 401)) {
+        // An exam deleted meanwhile has nothing to move; anything else (an expired session) aborts.
+        if (err instanceof ApiError && err.status === 404) {
           result.skippedExams.push(examId);
           continue;
         }

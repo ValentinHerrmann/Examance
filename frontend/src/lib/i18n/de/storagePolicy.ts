@@ -29,6 +29,7 @@ export const storagePolicy = {
         examsStay: 'Prüfungen und Aufgaben bleiben auf dem Server und sind von dem Wechsel nicht betroffen.',
         checking: 'Prüfe, was übertragen werden muss …',
         nothingToMove: 'Es gibt keine Ergebnisse zu übertragen.',
+        hybridResultsElsewhere: 'Dieser Browser enthält keine Ergebnisse. Im Hybrid-Modus liegen sie in dem Browser, in dem sie erfasst wurden. Wechseln Sie am besten dort — oder übertragen Sie sie später dort über den Hinweis „Auf den Server übertragen“.',
         otherTabsNote: 'Andere geöffnete Tabs dieser App werden während der Übertragung gesperrt und danach neu geladen.',
         backupButton: 'Sicherung herunterladen (.bgproj)',
         backupOptional: 'Optional, aber empfohlen.',

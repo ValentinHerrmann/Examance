@@ -174,6 +174,10 @@
         <p class="flex items-center gap-2"><Spinner /> {$t('storagePolicy.switch.checking')}</p>
       {:else if !somethingToMove}
         <p>{$t('storagePolicy.switch.nothingToMove')}</p>
+        {#if from === 'hybrid' && direction === 'to-server'}
+          <!-- Hybrid results live in the browser that recorded them; this one has none to send. -->
+          <Alert severity="warning">{$t('storagePolicy.switch.hybridResultsElsewhere')}</Alert>
+        {/if}
       {:else}
         <p>{$t('storagePolicy.switch.otherTabsNote')}</p>
         {#if from}

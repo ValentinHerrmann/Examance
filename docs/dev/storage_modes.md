@@ -1,76 +1,97 @@
-# Storage modes: consistency strategy
+# Storage modes: strategy and invariants
 
-Issue #47 ("Ensure consistent mode switching") reported three symptoms: modes got mixed up, server data appeared while all-local was selected, and the mode changed on its own. This page records the decision on how to prevent that, and the invariants the code enforces. Product-level data flow is in `docs/data_flow_and_security.md`.
+Issue #47 ("Ensure consistent mode switching") reported that modes got mixed up, that server data appeared in local mode, and that the mode changed on its own. It took three rounds:
 
-## Root causes found
+1. **Round 1** bound the data in each browser to an owner and a mode.
+2. **Round 2** made the UI state-accurate.
+3. **Round 3** (the current design) reshaped the product: local mode is gone, the mode belongs to the account, and switching is a fluent move of the results.
 
-1. **Silent adoption.** `adoptServerStorageIfLocalEmpty()` ran at every sign-in and on every authenticated reload, flipping `all-local` to `all-server` whenever the workspace looked empty. Example: switch to all-local, choose "import later", reload. The mode was all-server again, showing server data.
-2. **One unlabelled database.** Local data and the server mirror (`examSync.ts`, page loaders) share the same Dexie tables. Nothing recorded which mode, account, backend or key the rows belonged to.
-3. **Non-atomic switch.** The mode was committed first, then the wipe ran, and its failure was ignored (`clearAllTables()` swallowed every error). The server mirror could survive into all-local.
-4. **No cross-tab coherence.** A tab still holding the old mode kept routing to the old store. Changing the LaTeX engine there wrote the stale mode back into `bg_storage_policy`.
-5. **Mode-blind offline queue.** Queued server writes were replayed after a switch to all-local, or under another account's cookies.
+## Model
 
-## Decision: strict data separation, fluent session
+- **Every session is an account session.** The local passphrase vault and the `all-local` mode were discontinued; there is no migration (see "Legacy local data").
+- **Exams and exercises always live on the server.** The storage mode only decides where grading results live. Grading results are students, submissions with their scans and annotations, and per-exercise scores.
 
-The issue offered two options:
+  | Mode | Results live in |
+  |---|---|
+  | `all-server` | On the server, client-side encrypted except `total_score` |
+  | `hybrid` | Only in the browser where they were recorded (IndexedDB, encrypted) |
 
-1. Strict separation: forced export and logout, full data clear.
-2. Fluent combination: switching without logout.
+- **The mode belongs to the account.** It is stored in `teachers.storage_mode` (Alembic `0024`) and every browser of the account follows it.
+  - It is nullable, with **no default**. Nothing ever sets it implicitly.
+  - Until the account chooses, `openWorkspace()` returns `needs-choice`. The root layout then keeps routes unmounted and opens the settings modal (`StoragePolicyModal`, `mustChoose`) in a non-dismissible state.
+- **Capabilities.** `GET /user/capabilities` returns `{storage_mode, allowed_storage_modes, features}`. It is built by the single function `capabilities_for(teacher)` in `backend/app/services/capabilities.py`.
+  - The frontend renders every mode and server-feature option from `stores/capabilities.ts`, never from a hard-coded list. A disallowed option shows "not enabled for your account".
+  - `PUT /user/storage-mode {mode, expected}` is compare-and-set: 409 when another browser changed it, 403 when the mode is not allowed.
+  - Per-user admin switches later are a lookup added inside `capabilities_for`, with no API or UI change. If an account's current mode becomes disallowed, the app treats it like `needs-choice`.
 
-We chose **option 1 for the data, without forcing a logout.**
+## Why the switch is fluent now
 
-**Why not fluent mixing.**
-- It needs two-way sync between an end-to-end-encrypted IndexedDB and the server: per-record origin, tombstones, conflict resolution, and reconciling passphrase-vault keys with account keys.
-- Every bug above is a symptom of the implicit mixing that already existed. Making it official would multiply those edge cases.
-- It would also make the privacy guarantees unprovable. "Student identities never leave this device" (hybrid) and "nothing is stored on a server" (all-local) only hold when every record has exactly one home.
+Round 1 rejected fluent mixing. Two things made it unsafe then: local mode had its own passphrase key, and exams lived in two different stores. Both are gone.
 
-**Why no forced logout.**
-- Signing in is *identity*; the storage mode is *data location*.
-- Forcing a logout in all-local would only remove stateless services (server LaTeX compile, training donation) and buy no consistency.
-- Consistency comes from binding the *data* to a mode and an owner.
+Both modes now seal under the same account data key, and only the results move. A move therefore needs no re-encryption, no export/wipe/import, and no data-loss window.
 
-**Server LaTeX compile with local data** is allowed: it is processing, not storage. `routers/compile.py` compiles in a temp directory and neither persists nor logs the source. Enabling it in all-local asks for consent once, because the exam LaTeX (including solutions) and its files do leave the device.
+## The move (`frontend/src/lib/services/resultsMover.ts`)
 
-**The server copy after leaving `all-server`** is offered for deletion after a verified import, not forced. The wizard step calls `POST /user/purge-server-student-data`, which soft-deletes with a 7-day grace period. Exams and exercises stay on the server.
+1. **Preconditions.** Flush the offline queue; refuse while writes for this workspace are still pending (`PendingWritesError`, "send now"). Record the move in `bg_pending_mode_switch`, so other tabs show a blocking overlay (`stores/workspaceSync.ts`).
+2. **Copy, per exam.** Read the results from the source side, then write them to the destination:
+   - **Server → browser:** `GET` students, `submissions?include_scans=true`, and scores.
+   - **Browser → server:** students by `POST` (upsert on pseudonym), submissions by `POST` with id (upsert), scores by `PUT` (upsert on submission+exercise).
 
-## Invariants
+   A record that fails to decrypt aborts the move rather than being re-sealed as blanks.
+3. **Verify** the destination counts per exam (`MoveVerificationError`).
+4. **Commit.** Write the account's mode with compare-and-set on `from`, publish it, remember it in the manifest, and announce it (`bg_mode_changed`) so other tabs reload.
+5. **Old copy, asked each time.** The user keeps it or deletes it:
+   - **To the browser:** `POST /user/purge-server-student-data` soft-deletes, with a 7-day grace period.
+   - **To the server:** the local result tables are cleared in one Dexie transaction.
+6. **Reload** the page, because every list was loaded under the old mode.
 
-| # | Invariant | Where |
-|---|---|---|
-| I1 | A single-row `workspace` table (Dexie v10) is the source of truth for the mode. It stores `{workspaceId, mode, owner, canary, explicit}` in the same database as the data. `bg_storage_policy` is only a boot cache, rewritten from the manifest on load. The LaTeX engine has its own key, `bg_latex_compilation`. | `lib/db/workspace.ts`, `lib/stores/storagePolicy.ts` |
-| I2 | A mode change is one transaction: every data table is cleared and the new manifest written together. On failure the old mode and all its data remain. The offline queue and the compile cache are cleared with it. | `replaceWorkspace()` |
-| I3 | A session opens the workspace only if it owns it. A known constant sealed under the data key (the canary) must decrypt. A server-backed workspace must also belong to the signed-in account on the same backend. Unclaimed (legacy) workspaces are claimed at the first unlock whose key opens the existing data. | `openWorkspace()`, called by `/unlock` and the root layout |
-| I4 | Nothing changes the mode implicitly. The only exception is an explicit sign-in on a workspace that nobody chose a mode for (`explicit: false`) and that holds no data and no queued writes: it adopts `all-server`. That adoption counts as a choice. Reloads never adopt. | `adoptServerStorageIfPristine()` |
-| I5 | Server-backed workspaces require an account session. A passphrase session on one is blocked (`needs-sign-in`). The `isServerBacked()` and mode-only checks in repositories therefore agree whenever routes are mounted. | `openWorkspace()` |
-| I6 | Any workspace replacement updates `bg_workspace_id` in localStorage, which reloads every other tab. A switch in progress (`bg_pending_mode_switch`) blocks the other tabs behind an overlay. | `lib/stores/workspaceSync.ts` |
-| I7 | Offline-queue entries carry the `workspaceId`. They are replayed only into that workspace, and only while it is server-backed and open. A switch is refused while the current workspace still has queued writes ("send now" first). | `lib/services/offlineQueue.ts`, `beginModeSwitch()` |
-| I8 | IndexedDB fallbacks in server modes read only the cache of the workspace the session owns (guaranteed by I3). | repositories |
+**Interruptions and leftovers:**
+- **Interrupted move:** every write is an idempotent upsert, so it is simply run again. The layout shows "run again" when a pending record exists that this tab does not own.
+- **Stray local results:** an `all-server` browser that still holds local results (for example a former hybrid browser after another browser switched the account) shows a banner. It runs the same mover towards the server.
+- **Hybrid browser without results:** shows a hint that results live only in the browser where they were recorded.
 
-## Owner mismatch handling
+**The first choice** runs through the same dialog with `from = null`. If neither side holds results, the choice is just the compare-and-set write.
 
-When I3 fails, the root layout renders `WorkspaceBlocked` instead of any route, so nothing reads or writes the vault. What happens depends on the case:
+## Workspace manifest and owner binding (`frontend/src/lib/db/workspace.ts`)
 
-| Case | Behaviour |
-|---|---|
-| Empty workspace, no queued writes | Taken over silently (nothing to lose). |
-| `all-server`, other owner, no queued writes | The local cache is dropped and re-claimed (the data is on the server). |
-| `all-server`, other owner, queued writes | Blocked (`pending-writes`): sign in as the other account, or reset to discard. |
-| `hybrid`, other account or backend | Blocked (`foreign-account`): the local results are real data. |
-| Key does not open the canary | Blocked (`foreign-key`). Example: a local passphrase vault opened by an account sign-in, or the other way round. |
-| Server-backed workspace, passphrase session | Blocked (`needs-sign-in`). |
+**The manifest** is a single-row `workspace` table holding `workspaceId`, the last known mode (an offline copy only), the owner (account id, e-mail, backend), and a key canary.
 
-Every blocked screen offers "sign out and use the matching credentials", plus a confirmed reset that deletes this browser's data. Bridging a passphrase vault into an account key is out of scope: use an archive export and import.
+**Owner check.** `openWorkspace()` runs after every unlock and before routes mount:
+- The canary must decrypt, and the account and backend must match.
+- An unclaimed manifest is claimed if its existing data opens with the session key.
+- Data without local results (only a cache) of another owner is replaced silently.
+- Otherwise the session is blocked:
+  - `foreign-account` / `foreign-key`, with a confirmed reset;
+  - `pending-writes` when another account's offline writes wait.
+- Unbound offline-queue entries are stamped only after the owner check passes.
 
-## Switch flow
+**Resetting the workspace** (`replaceWorkspace`) is one transaction: every data table is cleared and the new manifest written. It also clears the offline queue and the compile cache.
 
-The steps are confirm → export (or an explicit skip) → `commitModeSwitch()` → import → optional server purge.
+**Cross-tab coherence:** a change of `bg_workspace_id` or `bg_mode_changed` reloads every other tab.
 
-`commitModeSwitch()` runs `replaceWorkspace()`, which is atomic. A reload between steps resumes the switch. A reload during `switching` checks the manifest: if the mode already changed it continues at the import, otherwise it returns to the wipe step.
+**`teacherId` in the multi-tab handover:** it is part of the `PROVIDE_KEYS` broadcast. Without it, a restored tab compared an e-mail against a teacher id and treated the account as foreign.
 
-## UX rules
+## Legacy local data
 
-- **Local sessions without an account are first-class.** The passphrase door always works for an all-local workspace protected by a passphrase. Server-only options (server modes, server LaTeX) are shown disabled with "only available when signed in", not hidden and not failing later.
-- **The unlock page shows what this browser holds** ("In this browser: All Local · protected by your passphrase" or "… belongs to account x@y (host)"). It also marks the door that opens it. The other door explains up front why it won't open this data and what to do instead.
-- **A wrong passphrase is reported inline as a wrong passphrase.** The canary detects it before entering the app, and the keys are dropped. It never leads to a reset offer.
-- **Blocked states name the owner and lead with the way back in** (sign out and use the right door). A reset is the last resort, behind a confirmation, with an extra warning when hybrid student data would be lost. A passphrase user facing a server-backed workspace gets "Start a local workspace": the server copy stays untouched and only this browser's cache goes.
-- **Displayed state is always the committed state.** Mode and LaTeX radios never toggle themselves (`preventDefault` on click). The checked option moves only when the store does, so a cancelled wizard or a declined consent leaves the UI on the real setting. The account menu shows the *session* ("Signed in with account" / "Local session (no account)"); the storage badge shows the *mode*. The two are never conflated.
+A pre-#47 browser has no manifest. One is created from what the browser had cached (`legacyCachedMode()`), and the old per-browser key `bg_storage_policy` is then removed:
+- **No cache, or `all-local`, with data:** the manifest gets the mode `all-local`, which marks legacy local data.
+- **A cached `hybrid` or `all-server` with data:** kept as the offline copy, so the results of a former hybrid browser stay recognised. The account still has to choose its mode on the server.
+- **Leftover passphrase parameters** (`bg_anon_*`) next to unclaimed data are also treated as legacy local data.
+
+Legacy local data is never opened. The blocked screen (`legacy-local`) offers only "delete and continue", which removes the data and the `bg_anon_*` keys.
+
+## Archives (`frontend/src/lib/archive/`)
+
+- **Bytes are base64.** They are encoded as `{ $b64 }` (`binary.ts`). Plain `JSON.stringify` had turned every `Uint8Array` into an object nobody could read, so scans were lost. Old numbered-key objects are still decoded.
+- **Scans travel decrypted.** Scans, annotations and audit notes go inside the password envelope (Argon2id + AES-GCM), like names, scores and resource files already did. The importer re-seals them under its own key, so an archive opens for another account.
+- **Results-only export.** The "Share results (without exercise texts)" menu entry calls `packProject(…, { includeExerciseCode: false })`. It keeps exams, students, scans, annotations, scores, exercise names, points and MC answer keys, but no LaTeX and no resource files.
+  - The imported exercises carry `exercises.code_withheld` (Alembic `0025`).
+  - Grading, verification and statistics work.
+  - Compiling, editing and building the OMR template are refused with a message, and the exercise library hides these exercises.
+- **Fresh ids on remapped exams.** When an exam gets a fresh id on import, its submissions and their score rows get fresh ids too. This prevents cross-account collisions on the same server, which used to 409 silently into the offline queue.
+- **Server writes report errors.** Result writes to the server during import are direct; failures land in the import summary.
+
+## Tests
+
+- **Unit tests:** `frontend/tests/storageModeSwitch.test.ts`, `storagePolicy.test.ts`, `archiveBinary.test.ts`, `backend/tests/test_storage_mode.py`.
+- **The e2e suite** (`frontend/e2e/`) still signs in through the removed passphrase vault and runs without a backend. It needs a backend or API-mock fixture before it can run again; it is not part of CI.
