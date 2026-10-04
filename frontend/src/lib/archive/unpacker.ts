@@ -34,6 +34,7 @@ import { submissionServerPayload } from '#lib/repositories/submissionRepository'
 import type { AuditEntry, ExerciseScoreRecord, SubmissionRecord } from '#lib/db/schema';
 import { decodeBinary } from './binary';
 import { importPayloadToServer } from './serverImport';
+import { addMissing, bump, newReport, type ArchiveReport } from './report';
 
 function describe(err: any): string {
   return err?.message ?? String(err);
@@ -47,7 +48,8 @@ function describe(err: any): string {
 async function resealScans(
   sub: any,
   key: CryptoKey,
-  errors: string[]
+  report: ArchiveReport,
+  examLabel: string
 ): Promise<SubmissionRecord> {
   const { scanBytes, annotationBytes, ...rest } = sub;
   const record: SubmissionRecord = { ...rest };
@@ -65,7 +67,8 @@ async function resealScans(
     } catch {
       record.scanCt = undefined;
       record.scanIv = undefined;
-      errors.push(`The scan of submission ${sub.id} was sealed by another account and could not be imported.`);
+      // An archive from before scans travelled decrypted: sealed by another account, unreadable here.
+      addMissing(report, { reason: 'scanUnreadable', exam: examLabel, item: sub.id });
     }
   }
   if (annotationBytes instanceof Uint8Array) {
@@ -84,9 +87,20 @@ async function resealScans(
 }
 
 export interface ImportResult {
+  /** Exams written (created or under a new id). */
   examCount: number;
+  /** Students written. */
   studentCount: number;
   errors: string[];
+  report: ArchiveReport;
+}
+
+export interface ApplyOptions {
+  report?: ArchiveReport;
+  /** Exams this account owns already (from `detectConflicts`): results of kept exams go there. */
+  ownExamIds?: Set<string>;
+  /** Exercises the user chose to take from the archive over an existing one. */
+  takeImportedIds?: Set<string>;
 }
 
 /** Opens the archive envelope and returns its payload. Read-only; the archive key never leaves this function. */
@@ -170,7 +184,8 @@ export async function decryptArchive(
 /** Writes a decrypted, already-resolved payload (output of `applyResolutions`, not the raw archive) into the current store. */
 export async function applyArchive(
   payload: Record<string, any>,
-  onProgress?: (event: ProgressEvent) => void
+  onProgress?: (event: ProgressEvent) => void,
+  { report = newReport('import'), ownExamIds = new Set(), takeImportedIds }: ApplyOptions = {}
 ): Promise<ImportResult> {
   // Always the live session key, never the archive's — records arrive already
   // decrypted and only need re-sealing under this vault's key.
@@ -190,13 +205,15 @@ export async function applyArchive(
 
   const exams: any[] = Array.isArray(payload.exams) ? payload.exams : [];
   const exercises: any[] = Array.isArray(payload.exercises) ? payload.exercises : [];
-  const examCount = exams.length;
-  const studentCount = Array.isArray(payload.students) ? payload.students.length : 0;
+  report.codeWithheld = payload.codeWithheld === true;
+  const examLabel = new Map<string, string>(exams.map((e) => [e.id, e.title || e.id]));
+  const labelOf = (examId: string) => examLabel.get(examId) ?? examId;
+  const exerciseLabel = new Map<string, string>(exercises.map((e) => [e.id, e.name || e.title || e.id]));
 
   /** Rewrites an archived id to the id actually created on the server. */
   const remap = (id: string | undefined) => (id ? (idMap.get(id) ?? id) : id);
 
-  const result = await importPayloadToServer(payload);
+  const result = await importPayloadToServer(payload, { report, takeImportedIds });
   idMap = result.idMap;
   mcGroupIdMap = result.mcGroupIdMap;
   errors.push(...result.errors);
@@ -226,11 +243,22 @@ export async function applyArchive(
   const remapSubmission = (id: string) => submissionIdMap.get(id) ?? id;
   const local = resultsAreLocal();
 
+  // Results need an exam to belong to: one created by this import, or one the account already
+  // has (a kept or identical exam). Results of an exam that failed to import have nowhere to go.
+  const examAvailable = (archivedExamId: string) =>
+    result.createdExamIds.has(archivedExamId) || ownExamIds.has(archivedExamId);
+  const skipForMissingExam = (archivedExamId: string, what: string) => {
+    if (examAvailable(archivedExamId)) return false;
+    addMissing(report, { reason: 'examNotImported', exam: labelOf(archivedExamId), item: what });
+    return true;
+  };
+
   // Results go where the account keeps them: this browser in hybrid mode (through the
   // repositories), the server in all-server mode. Server writes are direct, so a rejection is
   // reported here instead of disappearing into the offline queue.
   if (Array.isArray(payload.students)) {
     for (const item of payload.students) {
+      if (skipForMissingExam(item.examId, 'students')) continue;
       const student = { ...item, examId: remap(item.examId) };
       try {
         if (local) await saveStudentEncrypted(student, activeKey);
@@ -238,18 +266,22 @@ export async function applyArchive(
           await api.post(`/exams/${student.examId}/students`, await studentServerPayload(student, activeKey), {
             silentError: true,
           });
+        bump(report, 'students', 'created');
       } catch (err) {
-        errors.push(`Student of exam ${student.examId}: ${describe(err)}`);
+        errors.push(`Student of exam ${labelOf(item.examId)}: ${describe(err)}`);
+        bump(report, 'students', 'failed');
       }
     }
   }
 
   if (Array.isArray(payload.submissions)) {
     for (const item of payload.submissions) {
+      if (skipForMissingExam(item.examId, 'submissions')) continue;
       const sub = await resealScans(
         { ...item, id: remapSubmission(item.id), examId: remap(item.examId) },
         activeKey,
-        errors
+        report,
+        labelOf(item.examId)
       );
       try {
         if (local) await saveSubmissionEncrypted(sub, activeKey);
@@ -257,8 +289,12 @@ export async function applyArchive(
           await api.post(`/exams/${sub.examId}/submissions`, await submissionServerPayload(sub), {
             silentError: true,
           });
+        bump(report, 'submissions', 'created');
+        if (sub.scanCt) bump(report, 'scans', 'created');
+        if (sub.annotationCt) bump(report, 'annotations', 'created');
       } catch (err) {
         errors.push(`Submission ${sub.id}: ${describe(err)}`);
+        bump(report, 'submissions', 'failed');
       }
     }
   }
@@ -266,14 +302,26 @@ export async function applyArchive(
   if (Array.isArray(payload.exerciseScores)) {
     // Scores are addressed per exam; the archive only records which submission
     // they belong to, so the exam id comes from that submission.
-    const examIdBySubmission = new Map<string, string>();
+    const archivedExamBySubmission = new Map<string, string>();
     for (const sub of Array.isArray(payload.submissions) ? payload.submissions : []) {
-      examIdBySubmission.set(remapSubmission(sub.id), remap(sub.examId) ?? sub.examId);
+      if (examAvailable(sub.examId)) archivedExamBySubmission.set(remapSubmission(sub.id), sub.examId);
     }
 
     const bySubmission = new Map<string, ExerciseScoreRecord[]>();
     for (const score of payload.exerciseScores) {
       const submissionId = remapSubmission(score.submissionId);
+      const archivedExamId = archivedExamBySubmission.get(submissionId);
+      // A score for an exercise this import could not link to its (new) exam would be refused by the
+      // server for the whole submission; leave it out and say which exercise is missing.
+      const linked = archivedExamId ? result.linkedExercisesByExam.get(archivedExamId) : undefined;
+      if (archivedExamId && linked && !linked.has(score.exerciseId)) {
+        addMissing(report, {
+          reason: 'scoresWithoutExercise',
+          exam: labelOf(archivedExamId),
+          item: exerciseLabel.get(score.exerciseId) ?? score.exerciseId,
+        });
+        continue;
+      }
       const record = {
         ...score,
         // Fresh row id with a fresh submission: score ids are global primary keys on the server.
@@ -287,12 +335,14 @@ export async function applyArchive(
     }
 
     for (const [submissionId, scores] of bySubmission) {
-      const examId = examIdBySubmission.get(submissionId);
+      const archivedExamId = archivedExamBySubmission.get(submissionId);
+      const examId = archivedExamId ? remap(archivedExamId) : undefined;
       if (!examId) {
         errors.push(
           `${scores.length} score(s) reference submission ${submissionId}, which the ` +
-            `archive does not contain. They were skipped.`
+            `archive does not contain or whose exam was not imported. They were skipped.`
         );
+        bump(report, 'scores', 'failed', scores.length);
         continue;
       }
       try {
@@ -305,8 +355,10 @@ export async function applyArchive(
             { silentError: true }
           );
         }
+        bump(report, 'scores', 'created', scores.length);
       } catch (err) {
         errors.push(`Scores of submission ${submissionId}: ${describe(err)}`);
+        bump(report, 'scores', 'failed', scores.length);
       }
     }
   }
@@ -370,11 +422,15 @@ export async function applyArchive(
         .map(async (a: AuditEntry) => (a.payloadCt ? a : encryptAuditEntry(a, activeKey)))
     );
     await db.auditLog.bulkPut(entries);
+    bump(report, 'auditLogs', 'created', entries.length);
   }
 
   onProgress?.({ stage: 'complete', current: 100, total: 100 });
 
-  return { examCount, studentCount, errors };
+  report.problems.push(...errors);
+  const examCount = (report.counts.exams?.created ?? 0) + (report.counts.exams?.newId ?? 0);
+  const studentCount = report.counts.students?.created ?? 0;
+  return { examCount, studentCount, errors, report };
 }
 
 /**

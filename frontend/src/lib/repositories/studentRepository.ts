@@ -66,7 +66,8 @@ export const studentRepository = {
       return Promise.all(raw.map((st) => decryptStudent(st, key)));
     } else {
       try {
-        const rawList = await api.get<any[]>(`/exams/${examId}/students`);
+        // silentError: a failure falls back to the local copy below.
+        const rawList = await api.get<any[]>(`/exams/${examId}/students`, { silentError: true });
         const serverStudents = await Promise.all(
           rawList.map((st: any) => decryptStudent(mapApiToStudentRecord(st, examId), key))
         );

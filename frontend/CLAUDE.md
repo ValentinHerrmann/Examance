@@ -74,7 +74,7 @@ Teacher-uploaded files an exercise's LaTeX references (`\includegraphics{figure.
 
 ## Gotchas
 
-- **A swallowed API error still opens the global HTTP error modal.** `api.*` calls `httpErrorStore.showError()` before throwing. Pass `silentError: true` on anything with a local fallback, an offline-queue fallback, or an expected 409.
+- **A swallowed API error still opens the global HTTP error modal.** `api.*` calls `httpErrorStore.showError()` before throwing. Pass `silentError: true` on anything with a local fallback, an offline-queue fallback, or an expected 409. Multi-step flows that report their own outcome (archive import/export) wrap their work in `collectHttpErrors()` (`stores/httpErrorStore.ts`) so stray errors land in their report instead.
 - **Never re-encrypt a record that failed to decrypt.** `decryptX()` marks it (`decryptFailed: 'error' | 'locked'`, `lib/db/decryptGuard.ts`) and every `encryptX()` calls `assertEncryptable()` first, which throws. The old helpers returned a *blank* record on failure and the next save sealed the blanks over the real payload. `encryptX(rec, null)` throws for the same reason.
 - **Every `db.exercises` (and other vault table) write takes `encryptX()` output.** A direct `put` of a decrypted record stores plaintext at rest (the old variant-creation path did). Prefer the repository `save()`. Use `db.exercises.put(await encryptExercise(rec, key))` only where the repository's `examExercises` junction merge is unwanted.
 - **Routes must `await awaitSessionReady()` before touching the vault.** Svelte mounts children before the parent, so a route's `onMount` runs before `+layout.svelte` restores keys; without the gate the key is `null` on every F5.

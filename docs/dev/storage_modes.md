@@ -89,9 +89,15 @@ Legacy local data is never opened. The blocked screen (`legacy-local`) offers on
   - Grading, verification and statistics work.
   - Compiling, editing and building the OMR template are refused with a message, and the exercise library hides these exercises.
 - **Fresh ids on remapped exams.** When an exam gets a fresh id on import, its submissions and their score rows get fresh ids too. This prevents cross-account collisions on the same server, which used to 409 silently into the offline queue.
-- **Server writes report errors.** Result writes to the server during import are direct; failures land in the import summary.
+- **Import links, it does not duplicate.**
+  - Identical records (`detectConflicts` → `identical`) are dropped by `applyResolutions` and reported as "already present"; re-POSTing them used to 409 and come back as duplicates.
+  - Conflict probes for students and submissions run only for exams the account owns (`ownExamIds`). A foreign exam id answered 401, which opened an error pop-up and triggered a token refresh.
+  - An archived exercise the server already lets this account read (`GET /exercises/{id}`: own or public, later shared) is linked instead of created. Exam links to exercises the archive lacks are probed the same way.
+  - A link that cannot be resolved is dropped and listed as missing; scores for that exercise are not sent (they would 404 per submission).
+- **Export collects what the exams link.** Linked exercises missing from `GET /exercises` (older versions) are fetched one by one. A results-only export holds only linked exercises, never the rest of the library. A scan that does not decrypt is skipped and reported instead of failing the export.
+- **Reports, not pop-ups.** Import and export fill an `ArchiveReport` (`archive/report.ts`: counts per kind and outcome, missing items, withheld items, technical problems). `ArchiveReportModal` (driven by `stores/archiveReport.ts`) shows it once the work is done; callers reload only after it is closed. Both run inside `collectHttpErrors` (`stores/httpErrorStore.ts`), which records HTTP errors into the report's technical details instead of opening the global error modal.
 
 ## Tests
 
-- **Unit tests:** `frontend/tests/storageModeSwitch.test.ts`, `storagePolicy.test.ts`, `archiveBinary.test.ts`, `backend/tests/test_storage_mode.py`.
+- **Unit tests:** `frontend/tests/storageModeSwitch.test.ts`, `storagePolicy.test.ts`, `archive.test.ts` (round trips, linking, reports; `tests/helpers/fakeServer.ts` logs requests), `archiveBinary.test.ts`, `backend/tests/test_storage_mode.py`.
 - **The e2e suite** (`frontend/e2e/`) still signs in through the removed passphrase vault and runs without a backend. It needs a backend or API-mock fixture before it can run again; it is not part of CI.

@@ -31,6 +31,9 @@ import {
 } from '#lib/db/dbEncryption';
 import type { ExerciseRecord, SubmissionRecord } from '#lib/db/schema';
 import { encodeBinary } from './binary';
+import { api } from '#lib/api/client';
+import { mapApiToExerciseRecord } from '#lib/repositories/exerciseRepository';
+import { addMissing, bump, newReport, type ArchiveReport } from './report';
 
 /** Payload layout version: 2 added `$b64` bytes, decrypted scans, and `codeWithheld`. */
 export const ARCHIVE_PAYLOAD_VERSION = 2;
@@ -48,15 +51,42 @@ export interface PackOptions {
  * Scans and annotations are sealed under this account's key; another account could never open them.
  * Like resource files they travel decrypted inside the password envelope and are re-sealed on import.
  */
-async function unsealScans(sub: SubmissionRecord, key: CryptoKey | null) {
+async function unsealScans(
+  sub: SubmissionRecord,
+  key: CryptoKey | null,
+  report: ArchiveReport,
+  examLabel: string
+) {
   const { scanCt, scanIv, annotationCt, annotationIv, ...rest } = sub;
-  const open = async (ct?: Uint8Array, iv?: Uint8Array) =>
-    ct && iv && key ? decrypt(key, ct, iv) : undefined;
-  return {
-    ...rest,
-    scanBytes: await open(scanCt, scanIv),
-    annotationBytes: await open(annotationCt, annotationIv),
+  // One unreadable scan must not fail the whole export: leave it out and say so.
+  const open = async (ct?: Uint8Array, iv?: Uint8Array) => {
+    if (!ct || !iv || !key) return undefined;
+    try {
+      return await decrypt(key, ct, iv);
+    } catch {
+      addMissing(report, { reason: 'scanUnreadable', exam: examLabel, item: sub.id });
+      return undefined;
+    }
   };
+  const scanBytes = await open(scanCt, scanIv);
+  const annotationBytes = await open(annotationCt, annotationIv);
+  if (scanBytes) bump(report, 'scans', 'included');
+  if (annotationBytes) bump(report, 'annotations', 'included');
+  return { ...rest, scanBytes, annotationBytes };
+}
+
+/** An exercise an exam links but the library list lacks (an older version, a shared one). */
+async function loadLinkedExercise(id: string): Promise<ExerciseRecord | null> {
+  try {
+    return mapApiToExerciseRecord(await api.get(`/exercises/${id}`, { silentError: true }));
+  } catch {
+    return null;
+  }
+}
+
+export interface PackResult {
+  blob: Blob;
+  report: ArchiveReport;
 }
 
 function withoutCode(ex: ExerciseRecord): ExerciseRecord {
@@ -67,7 +97,9 @@ export async function packProject(
   password: string,
   onProgress?: ProgressCallback,
   { includeExerciseCode = true }: PackOptions = {}
-): Promise<Blob> {
+): Promise<PackResult> {
+  const report = newReport('export');
+  report.codeWithheld = !includeExerciseCode;
   onProgress?.({
     phase: 'encrypting',
     current: 0,
@@ -86,7 +118,7 @@ export async function packProject(
   // 3. Collect records from IDB
   const key = get(sessionStore).sessionKey;
   const exams = await loadExamsEncrypted(key);
-  const exercises = await loadExercisesEncrypted(key);
+  const library = await loadExercisesEncrypted(key);
   const students = await loadStudentsEncrypted(key);
   // The archive is the export/import bridge — it must carry every scan, not
   // just presence flags, so this is the one caller that opts into the heavy
@@ -103,6 +135,31 @@ export async function packProject(
   const structures = await Promise.all(exams.map((e) => examRepository.getStructure(e.id)));
   const exerciseExams = structures.flatMap((s) => s.links);
   const examMcGroups = structures.flatMap((s) => s.mcGroups);
+  const examLabel = new Map(exams.map((e) => [e.id, e.title || e.id]));
+
+  // Every exercise an exported exam links must travel with it. The library list holds only current
+  // versions (own and shared), so linked older versions are fetched one by one. A full export also
+  // carries the rest of the library; a results-only export carries just the linked exercises.
+  const libraryById = new Map(library.map((ex) => [ex.id, ex]));
+  const linkedIds = [...new Set(exerciseExams.map((j) => j.exerciseId))];
+  const linked: ExerciseRecord[] = [];
+  for (const id of linkedIds) {
+    const ex = libraryById.get(id) ?? (await loadLinkedExercise(id));
+    if (ex) linked.push(ex);
+    else {
+      for (const j of exerciseExams.filter((l) => l.exerciseId === id)) {
+        addMissing(report, {
+          reason: 'exerciseUnavailable',
+          exam: examLabel.get(j.examId) ?? j.examId,
+          item: id,
+        });
+      }
+    }
+  }
+  const linkedSet = new Set(linked.map((ex) => ex.id));
+  const exercises = includeExerciseCode
+    ? [...linked, ...library.filter((ex) => !linkedSet.has(ex.id))]
+    : linked.map(withoutCode);
 
     // Resource files are decrypted with the session key and base64'd (JSON can't carry raw bytes);
     // the archive envelope protects them, and the importer re-encrypts under its own key.
@@ -131,9 +188,11 @@ export async function packProject(
     payloadVersion: ARCHIVE_PAYLOAD_VERSION,
     codeWithheld: !includeExerciseCode,
     exams,
-    exercises: includeExerciseCode ? exercises : exercises.map(withoutCode),
+    exercises,
     students,
-    submissions: await Promise.all(submissions.map((sub) => unsealScans(sub, key))),
+    submissions: await Promise.all(
+      submissions.map((sub) => unsealScans(sub, key, report, examLabel.get(sub.examId) ?? sub.examId))
+    ),
     exerciseScores,
     exerciseExams,
     examMcGroups,
@@ -177,5 +236,18 @@ export async function packProject(
     message: 'Project archive created successfully.',
   });
 
-  return new Blob([fileBuffer], { type: 'application/octet-stream' });
+  // What went in, and what deliberately did not.
+  bump(report, 'exams', 'included', exams.length);
+  bump(report, 'exercises', 'included', exercises.length);
+  bump(report, 'mcGroups', 'included', examMcGroups.length);
+  bump(report, 'students', 'included', students.length);
+  bump(report, 'submissions', 'included', submissions.length);
+  bump(report, 'scores', 'included', exerciseScores.length);
+  bump(report, 'resources', 'included', exerciseResources.length);
+  bump(report, 'auditLogs', 'included', auditLogs.length);
+  if (!includeExerciseCode) report.withheld.push('exerciseCode', 'resourceFiles');
+  // Answer-sheet templates are rebuilt from the exercises when needed; they never travel.
+  report.withheld.push('omrTemplates');
+
+  return { blob: new Blob([fileBuffer], { type: 'application/octet-stream' }), report };
 }
