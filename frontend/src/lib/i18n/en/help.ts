@@ -158,7 +158,7 @@ export const help: Translations['help'] = {
             },
             s2: {
                 h: 'Annotating',
-                p1: 'Correction marks are drawn on a layer above the scan. The original stays untouched and can be shown without annotations at any time.',
+                p1: 'Correction marks are drawn on a layer above the scan. The original stays untouched and can be shown without annotations at any time. All pages of a submission are stacked: scroll through them with the mouse wheel or scrollbar, or with two fingers on touch devices (one finger draws). Ctrl + mouse wheel or pinching zooms.',
                 p2: 'Points are awarded per exercise. Total score and grade follow continuously from the configured grading key.',
             },
             s3: {
