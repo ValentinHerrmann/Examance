@@ -1,12 +1,9 @@
 <script lang="ts">
   import { t, translate } from "#lib/i18n";
   import { get } from "svelte/store";
-  import {
-    storagePolicyStore,
-    type StorageMode,
-  } from "#lib/stores/storagePolicy";
+  import { STORAGE_MODES, storagePolicyStore, type StorageMode } from "#lib/stores/storagePolicy";
+  import { allowedStorageModes, featuresStore } from "#lib/stores/capabilities";
   import { backendStore, effectiveBackendStore } from "#lib/stores/backendStore";
-  import { isAuthenticated } from "#lib/stores/session";
   import { Alert, Button, Icon, Modal } from "#lib/components/ui";
   import { dataPlaceIcons, latexPlaceIcons } from "#lib/components/storage/placeIcons";
   import BackendUrlInput from "#lib/components/common/BackendUrlInput.svelte";
@@ -14,24 +11,36 @@
 
   interface Props {
     isOpen?: boolean;
+    /**
+     * The account has no storage mode yet (or its mode is no longer allowed): the modal cannot be
+     * dismissed, explains the choice, pre-selects nothing, and leads only to choosing a mode.
+     */
+    mustChoose?: boolean;
     onClose?: () => void;
   }
 
-  let { isOpen = false, onClose }: Props = $props();
+  let { isOpen = false, mustChoose = false, onClose }: Props = $props();
 
   let statusMsg = $state("");
   let customBackendUrl = $state("");
   let isSwitchWizardOpen = $state(false);
   let switchTarget: StorageMode | null = $state(null);
 
+  // Options come from the account's capabilities, so a mode an admin disabled shows as unavailable.
+  const MODE_COPY = {
+    "all-server": { title: "misc.storageModal.allServerTitle", text: "misc.storageModal.allServerText" },
+    hybrid: { title: "misc.storageModal.hybridTitle", text: "misc.storageModal.hybridText" },
+  } as const;
+
   function handleClose() {
+    if (mustChoose) return;
     statusMsg = "";
     onClose?.();
   }
 
-  /** Hands off to the gated storage-mode-switch wizard, which exports first. */
+  /** Hands off to the move dialog; the mode only changes once the results have arrived. */
   function handleStorageModeChange(val: StorageMode) {
-    if (val === $storagePolicyStore.storageMode) return;
+    if (val === $storagePolicyStore.storageMode || !$allowedStorageModes.includes(val)) return;
     switchTarget = val;
     isSwitchWizardOpen = true;
   }
@@ -41,23 +50,9 @@
     switchTarget = null;
   }
 
-  async function handleLatexChange(val: "server" | "local") {
+  function handleLatexChange(val: "server" | "local") {
     if (val === $storagePolicyStore.latexCompilation) return;
-
-    if (val === "server" && !get(isAuthenticated)) {
-      alert(translate("settings.alerts.serverCompileNeedsAuth"));
-      window.location.href = "/unlock";
-      return;
-    }
-    // Compiling is a stateless service, not storage, so it is allowed with local data, but the exam's
-    // LaTeX (including solutions) and its files do leave the device for it: say so once, on opt-in.
-    if (
-      val === "server" &&
-      get(storagePolicyStore).storageMode === "all-local" &&
-      !confirm(translate("storagePolicy.serverCompileConsent"))
-    ) {
-      return;
-    }
+    if (val === "server" && !$featuresStore.server_latex) return;
     storagePolicyStore.updateSetting("latexCompilation", val);
     statusMsg = translate("settings.status.latexSet", { mode: val });
   }
@@ -83,6 +78,7 @@
     "flex cursor-pointer items-start gap-3 rounded-md border border-line bg-surface-base p-3.5 transition-colors duration-150 hover:border-line-strong";
   const optionCardActive =
     "flex cursor-pointer items-start gap-3 rounded-md border border-accent bg-primary/10 p-3.5 transition-colors duration-150";
+  const optionCardDisabled = "cursor-not-allowed opacity-60";
 
   $effect.pre(() => {
     if (isOpen) {
@@ -91,129 +87,125 @@
   });
 </script>
 
-<Modal open={isOpen} size="medium" title={$t("misc.storageModal.heading")} onClose={handleClose}>
+<Modal
+  open={isOpen}
+  size="medium"
+  title={mustChoose ? $t("storagePolicy.choice.title") : $t("misc.storageModal.heading")}
+  closeOnEscape={!mustChoose}
+  onClose={mustChoose ? undefined : handleClose}
+>
   <div class="flex flex-col gap-6">
     {#if statusMsg}
       <Alert severity="success">{statusMsg}</Alert>
+    {/if}
+
+    {#if mustChoose}
+      <Alert severity="info">{$t("storagePolicy.choice.body")}</Alert>
     {/if}
 
     <div>
       <h4 class="m-0 mb-1 text-base text-content">{$t("misc.storageModal.storageHeading")}</h4>
       <p class="m-0 mb-3 text-sm text-muted">{$t("misc.storageModal.storageDescription")}</p>
 
-      <div class="flex flex-col gap-2.5 @xl:grid @xl:grid-cols-3 @xl:gap-3">
-        <label class={$storagePolicyStore.storageMode === "all-local" ? optionCardActive : optionCardBase}>
-          <input
-            type="radio"
-            name="storageMode"
-            value="all-local"
-            checked={$storagePolicyStore.storageMode === "all-local"}
-            onclick={(e) => { e.preventDefault(); handleStorageModeChange("all-local"); }}
-            class="mt-0.5 size-5 shrink-0 accent-primary"
-          />
-          <div>
-            <strong class="mb-1 flex items-center gap-1.5 text-sm text-content"><Icon icon={dataPlaceIcons["all-local"]} class="text-muted" />{$t("misc.storageModal.allLocalTitle")}</strong>
-            <p class="m-0 text-xs text-muted">{$t("misc.storageModal.allLocalText")}</p>
-          </div>
-        </label>
-
-        <label class="{$storagePolicyStore.storageMode === "all-server" ? optionCardActive : optionCardBase} {$isAuthenticated ? '' : 'cursor-not-allowed opacity-60'}">
-          <input
-            type="radio"
-            name="storageMode"
-            value="all-server"
-            checked={$storagePolicyStore.storageMode === "all-server"}
-            disabled={!$isAuthenticated}
-            onclick={(e) => { e.preventDefault(); handleStorageModeChange("all-server"); }}
-            class="mt-0.5 size-5 shrink-0 accent-primary"
-          />
-          <div>
-            <strong class="mb-1 flex items-center gap-1.5 text-sm text-content"><Icon icon={dataPlaceIcons["all-server"]} class="text-muted" />{$t("misc.storageModal.allServerTitle")}</strong>
-            <p class="m-0 text-xs text-muted">{$t("misc.storageModal.allServerText")}</p>
-          </div>
-        </label>
-
-        <label class="{$storagePolicyStore.storageMode === "hybrid" ? optionCardActive : optionCardBase} {$isAuthenticated ? '' : 'cursor-not-allowed opacity-60'}">
-          <input
-            type="radio"
-            name="storageMode"
-            value="hybrid"
-            checked={$storagePolicyStore.storageMode === "hybrid"}
-            disabled={!$isAuthenticated}
-            onclick={(e) => { e.preventDefault(); handleStorageModeChange("hybrid"); }}
-            class="mt-0.5 size-5 shrink-0 accent-primary"
-          />
-          <div>
-            <strong class="mb-1 flex items-center gap-1.5 text-sm text-content"><Icon icon={dataPlaceIcons.hybrid} class="text-muted" />{$t("misc.storageModal.hybridTitle")}</strong>
-            <p class="m-0 text-xs text-muted">{$t("misc.storageModal.hybridText")}</p>
-          </div>
-        </label>
-      </div>
-      {#if !$isAuthenticated}
-        <p class="m-0 mt-2 text-xs text-muted">{$t("storagePolicy.workspace.needsAccount")}</p>
-      {/if}
-    </div>
-
-    <div>
-      <h4 class="m-0 mb-1 text-base text-content">{$t("misc.storageModal.latexHeading")}</h4>
-      <p class="m-0 mb-3 text-sm text-muted">{$t("misc.storageModal.latexDescription")}</p>
-
-      <div class="flex flex-col gap-2.5 @xl:grid @xl:grid-cols-3 @xl:gap-3">
-        <label class={$storagePolicyStore.latexCompilation === "local" ? optionCardActive : optionCardBase}>
-          <input
-            type="radio"
-            name="latexMode"
-            value="local"
-            checked={$storagePolicyStore.latexCompilation === "local"}
-            onclick={(e) => { e.preventDefault(); handleLatexChange("local"); }}
-            class="mt-0.5 size-5 shrink-0 accent-primary"
-          />
-          <div>
-            <strong class="mb-1 flex items-center gap-1.5 text-sm text-content"><Icon icon={latexPlaceIcons.local} class="text-muted" />{$t("misc.storageModal.latexLocalTitle")}</strong>
-            <p class="m-0 text-xs text-muted">{$t("misc.storageModal.latexLocalText")}</p>
-          </div>
-        </label>
-
-        <label class="{$storagePolicyStore.latexCompilation === "server" ? optionCardActive : optionCardBase} {$isAuthenticated ? '' : 'cursor-not-allowed opacity-60'}">
-          <input
-            type="radio"
-            name="latexMode"
-            value="server"
-            checked={$storagePolicyStore.latexCompilation === "server"}
-            disabled={!$isAuthenticated}
-            onclick={(e) => { e.preventDefault(); handleLatexChange("server"); }}
-            class="mt-0.5 size-5 shrink-0 accent-primary"
-          />
-          <div>
-            <strong class="mb-1 flex items-center gap-1.5 text-sm text-content"><Icon icon={latexPlaceIcons.server} class="text-muted" />{$t("misc.storageModal.latexServerTitle")}</strong>
-            <p class="m-0 text-xs text-muted">{$t("misc.storageModal.latexServerText")}</p>
-          </div>
-        </label>
-      </div>
-      {#if !$isAuthenticated}
-        <p class="m-0 mt-2 text-xs text-muted">{$t("storagePolicy.workspace.needsAccount")}</p>
-      {/if}
-    </div>
-
-    <div>
-      <h4 class="m-0 mb-1 text-base text-content">{$t("misc.storageModal.backendHeading")}</h4>
-      <p class="m-0 mb-3 text-sm text-muted">{$t("misc.storageModal.backendDescription")}</p>
-      <div class="flex items-center gap-2">
-        <BackendUrlInput
-          bind:value={customBackendUrl}
-          placeholder={$t("misc.storageModal.backendPlaceholder")}
-          class="flex-1"
-        />
-        <Button onClick={handleSaveBackendUrl}>{$t("common.save")}</Button>
+      <div class="flex flex-col gap-2.5 @xl:grid @xl:grid-cols-2 @xl:gap-3">
+        {#each STORAGE_MODES as mode (mode)}
+          {@const allowed = $allowedStorageModes.includes(mode)}
+          <label
+            class="{$storagePolicyStore.storageMode === mode ? optionCardActive : optionCardBase} {allowed
+              ? ''
+              : optionCardDisabled}"
+          >
+            <input
+              type="radio"
+              name="storageMode"
+              value={mode}
+              checked={$storagePolicyStore.storageMode === mode}
+              disabled={!allowed}
+              onclick={(e) => { e.preventDefault(); handleStorageModeChange(mode); }}
+              class="mt-0.5 size-5 shrink-0 accent-primary"
+            />
+            <div>
+              <strong class="mb-1 flex items-center gap-1.5 text-sm text-content">
+                <Icon icon={dataPlaceIcons[mode]} class="text-muted" />{$t(MODE_COPY[mode].title)}
+              </strong>
+              <p class="m-0 text-xs text-muted">{$t(MODE_COPY[mode].text)}</p>
+              {#if !allowed}
+                <p class="m-0 mt-1 text-xs text-muted">{$t("storagePolicy.notEnabled")}</p>
+              {/if}
+            </div>
+          </label>
+        {/each}
       </div>
     </div>
+
+    {#if !mustChoose}
+      <div>
+        <h4 class="m-0 mb-1 text-base text-content">{$t("misc.storageModal.latexHeading")}</h4>
+        <p class="m-0 mb-3 text-sm text-muted">{$t("misc.storageModal.latexDescription")}</p>
+
+        <div class="flex flex-col gap-2.5 @xl:grid @xl:grid-cols-2 @xl:gap-3">
+          <label class={$storagePolicyStore.latexCompilation === "local" ? optionCardActive : optionCardBase}>
+            <input
+              type="radio"
+              name="latexMode"
+              value="local"
+              checked={$storagePolicyStore.latexCompilation === "local"}
+              onclick={(e) => { e.preventDefault(); handleLatexChange("local"); }}
+              class="mt-0.5 size-5 shrink-0 accent-primary"
+            />
+            <div>
+              <strong class="mb-1 flex items-center gap-1.5 text-sm text-content"><Icon icon={latexPlaceIcons.local} class="text-muted" />{$t("misc.storageModal.latexLocalTitle")}</strong>
+              <p class="m-0 text-xs text-muted">{$t("misc.storageModal.latexLocalText")}</p>
+            </div>
+          </label>
+
+          <label
+            class="{$storagePolicyStore.latexCompilation === 'server' ? optionCardActive : optionCardBase} {$featuresStore.server_latex
+              ? ''
+              : optionCardDisabled}"
+          >
+            <input
+              type="radio"
+              name="latexMode"
+              value="server"
+              checked={$storagePolicyStore.latexCompilation === "server"}
+              disabled={!$featuresStore.server_latex}
+              onclick={(e) => { e.preventDefault(); handleLatexChange("server"); }}
+              class="mt-0.5 size-5 shrink-0 accent-primary"
+            />
+            <div>
+              <strong class="mb-1 flex items-center gap-1.5 text-sm text-content"><Icon icon={latexPlaceIcons.server} class="text-muted" />{$t("misc.storageModal.latexServerTitle")}</strong>
+              <p class="m-0 text-xs text-muted">{$t("misc.storageModal.latexServerText")}</p>
+              {#if !$featuresStore.server_latex}
+                <p class="m-0 mt-1 text-xs text-muted">{$t("storagePolicy.notEnabled")}</p>
+              {/if}
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="m-0 mb-1 text-base text-content">{$t("misc.storageModal.backendHeading")}</h4>
+        <p class="m-0 mb-3 text-sm text-muted">{$t("misc.storageModal.backendDescription")}</p>
+        <div class="flex items-center gap-2">
+          <BackendUrlInput
+            bind:value={customBackendUrl}
+            placeholder={$t("misc.storageModal.backendPlaceholder")}
+            class="flex-1"
+          />
+          <Button onClick={handleSaveBackendUrl}>{$t("common.save")}</Button>
+        </div>
+      </div>
+    {/if}
   </div>
 
   {#snippet footer()}
-    <a href="/settings" class="mr-auto text-sm text-accent no-underline hover:underline" onclick={handleClose}>
-      {$t("misc.storageModal.fullSettingsLink")}
-    </a>
-    <Button variant="outlined" severity="secondary" onClick={handleClose}>{$t("common.close")}</Button>
+    {#if !mustChoose}
+      <a href="/settings" class="mr-auto text-sm text-accent no-underline hover:underline" onclick={handleClose}>
+        {$t("misc.storageModal.fullSettingsLink")}
+      </a>
+      <Button variant="outlined" severity="secondary" onClick={handleClose}>{$t("common.close")}</Button>
+    {/if}
   {/snippet}
 </Modal>
 

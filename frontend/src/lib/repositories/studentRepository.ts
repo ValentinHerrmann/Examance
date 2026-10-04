@@ -10,6 +10,35 @@ import type { StudentRecord } from '#lib/db/schema';
 import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
 import { ensure64CharHex } from '#lib/crypto/hmac';
 
+/** A student row as `GET /exams/{id}/students` returns it, still sealed. */
+export function mapApiToStudentRecord(st: any, fallbackExamId: string): StudentRecord {
+  const payloadCt = st.pii_ciphertext_b64 ? base64ToUint8Array(st.pii_ciphertext_b64) : undefined;
+  const payloadIv = st.iv_b64 ? base64ToUint8Array(st.iv_b64) : undefined;
+  return {
+    pseudonymId: st.pseudonym_hmac || st.pseudonymId,
+    examId: st.exam_id || fallbackExamId,
+    fallbackCode: st.fallback_code || st.fallbackCode,
+    piiCt: payloadCt || new Uint8Array(0),
+    piiIv: payloadIv || new Uint8Array(12),
+    payloadCt,
+    payloadIv,
+  };
+}
+
+/** The `POST /exams/{id}/students` body for a decrypted student; seals the identity under `key`. */
+export async function studentServerPayload(student: StudentRecord, key: CryptoKey | null) {
+  const encrypted = await encryptStudent(student, key);
+  return {
+    pseudonym_hmac: await ensure64CharHex(student.pseudonymId),
+    pii_ciphertext_b64: encrypted.payloadCt ? uint8ArrayToBase64(encrypted.payloadCt) : uint8ArrayToBase64(student.piiCt),
+    iv_b64: encrypted.payloadIv ? uint8ArrayToBase64(encrypted.payloadIv) : uint8ArrayToBase64(student.piiIv),
+    // Not an Argon2id salt: ciphertext is sealed under HKDF(dataKey, sessionNonce). These 16 bytes
+    // record *which data-key generation* sealed it, so a later key rotation is diagnosable rather
+    // than silently unreadable (formerly 16 hardcoded zero bytes).
+    encryption_salt_b64: uint8ArrayToBase64(currentKeyId()),
+  };
+}
+
 export const studentRepository = {
   async getAll(key: CryptoKey | null): Promise<StudentRecord[]> {
     if (resultsAreLocal()) {
@@ -38,20 +67,9 @@ export const studentRepository = {
     } else {
       try {
         const rawList = await api.get<any[]>(`/exams/${examId}/students`);
-        const serverStudents = await Promise.all(rawList.map(async (st: any) => {
-          const payloadCt = st.pii_ciphertext_b64 ? base64ToUint8Array(st.pii_ciphertext_b64) : undefined;
-          const payloadIv = st.iv_b64 ? base64ToUint8Array(st.iv_b64) : undefined;
-          const rec: StudentRecord = {
-            pseudonymId: st.pseudonym_hmac || st.pseudonymId,
-            examId: st.exam_id || examId,
-            fallbackCode: st.fallback_code || st.fallbackCode,
-            piiCt: payloadCt || new Uint8Array(0),
-            piiIv: payloadIv || new Uint8Array(12),
-            payloadCt,
-            payloadIv,
-          };
-          return decryptStudent(rec, key);
-        }));
+        const serverStudents = await Promise.all(
+          rawList.map((st: any) => decryptStudent(mapApiToStudentRecord(st, examId), key))
+        );
         const localRaw = await db.students.where('examId').equals(examId).toArray();
         const localStudents = await Promise.all(localRaw.map((st) => decryptStudent(st, key)));
         const combinedMap = new Map<string, StudentRecord>();
@@ -107,16 +125,7 @@ export const studentRepository = {
     }
 
     if (policy.storageMode === 'all-server') {
-      const pseudonymHmac = await ensure64CharHex(student.pseudonymId);
-      const payload = {
-        pseudonym_hmac: pseudonymHmac,
-        pii_ciphertext_b64: encrypted.payloadCt ? uint8ArrayToBase64(encrypted.payloadCt) : uint8ArrayToBase64(student.piiCt),
-        iv_b64: encrypted.payloadIv ? uint8ArrayToBase64(encrypted.payloadIv) : uint8ArrayToBase64(student.piiIv),
-                // Not an Argon2id salt: ciphertext is sealed under HKDF(dataKey, sessionNonce). These 16 bytes
-                // record *which data-key generation* sealed it, so a later key rotation is diagnosable rather
-                // than silently unreadable (formerly 16 hardcoded zero bytes).
-        encryption_salt_b64: uint8ArrayToBase64(currentKeyId()),
-      };
+      const payload = await studentServerPayload(student, key);
       try {
         await api.post(`/exams/${student.examId}/students`, payload);
       } catch {

@@ -4,6 +4,7 @@ export const workspace: Translations['workspace'] = {
     menu: {
         open: 'Open .bgproj',
         export: 'Export .bgproj',
+        shareResults: 'Share results (without exercise texts)',
         clear: 'Clear Workspace',
     },
     session: {
@@ -11,7 +12,6 @@ export const workspace: Translations['workspace'] = {
         localMode: 'Local session (no account)',
         lockSession: 'Lock Session',
         lock: 'Lock',
-        connectToCloud: 'Connect to Cloud',
     },
     archive: {
         promptImportPassword: 'Enter password for this .bgproj archive:',

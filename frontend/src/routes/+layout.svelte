@@ -16,7 +16,6 @@
   import { api } from "#lib/api/client";
   import {
     storagePolicyStore,
-    storagePolicyBadgeStore,
   } from "#lib/stores/storagePolicy";
   import { safeLocalStorage } from "#lib/utils/storage";
   import { registerCspDiagnostics } from "#lib/utils/cspDiagnostics";
@@ -37,8 +36,9 @@
   } from "#lib/services/archiveService";
   import ImportConflictModal from "#lib/components/storage/ImportConflictModal.svelte";
   import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
-  import { pendingSwitchStore, resumeModeSwitch } from "#lib/services/storageModeSwitch";
-  import { loadWorkspace, openWorkspace } from "#lib/db/workspace";
+  import { pendingSwitchStore, switchOwnedHere } from "#lib/services/storageModeSwitch";
+  import { loadWorkspace, localResultCount, openWorkspace } from "#lib/db/workspace";
+  import type { StorageMode } from "#lib/stores/storagePolicy";
   import { workspaceStatusStore } from "#lib/stores/workspaceState";
   import { registerWorkspaceSync, switchRunningElsewhere } from "#lib/stores/workspaceSync";
   import WorkspaceBlocked from "#lib/components/storage/WorkspaceBlocked.svelte";
@@ -67,12 +67,38 @@
   let isInitializing = $state(true);
   let showFocusNav = false;
 
-  // A mode switch interrupted after its wipe: say why the workspace is empty.
+  // The storage-mode move dialog, opened from the banners below (interrupted move, stray results).
   let switchWizardOpen = $state(false);
+  let switchTarget: StorageMode | null = $state(null);
   let resumeBannerDismissed = $state(false);
-  let interruptedSwitch = $derived(
-    $pendingSwitchStore && $pendingSwitchStore.phase === "reimport" ? $pendingSwitchStore : null,
+  // A move a reload or crash interrupted: running it again is safe (every step is an upsert).
+  let interruptedSwitch = $derived($pendingSwitchStore && !$switchOwnedHere ? $pendingSwitchStore : null);
+  // Results still held in this browser (hybrid's home, or leftovers after the account left hybrid).
+  let localResults = $state(0);
+  let hybridHintDismissed = $state(false);
+  let workspaceReady = $derived($workspaceStatusStore.state === "ok" && page.url.pathname !== "/unlock");
+  let strayLocalResults = $derived(
+    workspaceReady && $storagePolicyStore.storageMode === "all-server" && localResults > 0,
   );
+  let hybridWithoutResults = $derived(
+    workspaceReady && $storagePolicyStore.storageMode === "hybrid" && localResults === 0,
+  );
+  let mustChooseMode = $derived(
+    $workspaceStatusStore.state === "needs-choice" && page.url.pathname !== "/unlock",
+  );
+
+  function openSwitch(target: StorageMode) {
+    switchTarget = target;
+    switchWizardOpen = true;
+  }
+
+  async function refreshLocalResults() {
+    try {
+      localResults = await localResultCount();
+    } catch {
+      localResults = 0;
+    }
+  }
 
   let isGradeActive = $derived(isGradeActivePath(page.url.pathname));
 
@@ -141,16 +167,12 @@
     const isLockedInStorage =
       safeLocalStorage.getItem("bg_session_locked") === "true";
 
-    const savedMode = safeLocalStorage.getItem("bg_session_mode");
-
-    const policy = get(storagePolicyStore);
-
     if (restored && get(isUnlocked)) {
       const mode = get(sessionStore).mode;
-      // Before routes read: the session must own this browser's workspace (owner binding, see
-      // lib/db/workspace.ts). A reload never changes the mode; only an explicit sign-in may adopt
-      // server storage, and only on a pristine workspace.
+      // Before routes read: the session must own this browser's workspace, and the account's
+      // storage mode comes from the server (lib/db/workspace.ts). Nothing here changes the mode.
       await openWorkspace();
+      await refreshLocalResults();
 
       // Keys are back, so release `awaitSessionReady()` routes before the token refresh below
       // (that refresh is about the access cookie, not the vault; `client.ts` handles the race).
@@ -166,17 +188,13 @@
         }
       }
     } else if (!get(isUnlocked) && !isPublicPath(page.url.pathname)) {
-      // Local mode no longer auto-unlocks: its keys come from a passphrase the
-      // user supplies, and nothing derived from it is persisted. Every locked
-      // session therefore goes through /unlock, whichever mode it is in.
+      // Every locked session goes through /unlock: keys come from the account sign-in.
       await goto("/unlock");
     }
     isInitializing = false;
     // Releases every route blocked on `awaitSessionReady()`, whether or not
     // the session came back unlocked — routes check `isUnlocked` themselves.
     markSessionReady();
-
-    await resumeModeSwitch(); // picks up a switch a reload interrupted
   });
 
   async function handleLock() {
@@ -247,6 +265,12 @@
       untrack(() => goto("/unlock"));
     }
   });
+
+  // A sign-in on /unlock opens the workspace without remounting the layout: count again.
+  $effect.pre(() => {
+    const state = $workspaceStatusStore.state;
+    if (state === "ok") untrack(() => void refreshLocalResults());
+  });
 </script>
 
 <input
@@ -278,6 +302,10 @@
       onHelpClick={() => openHelp()}
       onOpenArchive={triggerOpenBgproj}
       onExportArchive={() => exportArchiveInteractively()}
+      onShareResults={() =>
+        exportArchiveInteractively(`examance-results-${new Date().toISOString().slice(0, 10)}.bgproj`, {
+          includeExerciseCode: false,
+        })}
       onClearWorkspace={handleCloseWorkspace}
       onLock={handleLock}
     />
@@ -291,19 +319,39 @@
     </Alert>
   {/if}
 
-  {#if interruptedSwitch && !resumeBannerDismissed}
+  {#if interruptedSwitch && workspaceReady && !resumeBannerDismissed}
     <Alert severity="warning" title={$t("storagePolicy.switch.resumeBanner")} class="mx-3 mt-2 sm:mx-4">
-      {$t("storagePolicy.switch.resumeBody", {
-        to: $storagePolicyBadgeStore.text,
-      })}
+      {$t("storagePolicy.switch.resumeBody")}
       {#snippet actions()}
-        <Button variant="outlined" severity="warning" size="sm" onClick={() => (switchWizardOpen = true)}>
+        <Button
+          variant="outlined"
+          severity="warning"
+          size="sm"
+          onClick={() => interruptedSwitch && openSwitch(interruptedSwitch.to)}
+        >
           {$t("storagePolicy.switch.resumeContinue")}
         </Button>
         <Button variant="text" severity="secondary" size="sm" onClick={() => (resumeBannerDismissed = true)}>
           {$t("storagePolicy.switch.resumeDismiss")}
         </Button>
       {/snippet}
+    </Alert>
+  {/if}
+
+  {#if strayLocalResults && !interruptedSwitch}
+    <Alert severity="warning" title={$t("storagePolicy.switch.strayHeading")} class="mx-3 mt-2 sm:mx-4">
+      {$t("storagePolicy.switch.strayBody", { count: localResults })}
+      {#snippet actions()}
+        <Button variant="outlined" severity="warning" size="sm" onClick={() => openSwitch("all-server")}>
+          {$t("storagePolicy.switch.strayUpload")}
+        </Button>
+      {/snippet}
+    </Alert>
+  {/if}
+
+  {#if hybridWithoutResults && !hybridHintDismissed}
+    <Alert severity="info" class="mx-3 mt-2 sm:mx-4" onDismiss={() => (hybridHintDismissed = true)}>
+      {$t("storagePolicy.switch.hybridElsewhere")}
     </Alert>
   {/if}
 
@@ -336,6 +384,11 @@
         <PageShell width="medium" center>
           <WorkspaceBlocked reason={$workspaceStatusStore.reason} />
         </PageShell>
+      {:else if mustChooseMode}
+        <!-- No storage mode yet: routes stay unmounted until the account has chosen one (modal below). -->
+        <PageShell width="narrow" center>
+          <p class="text-center text-sm text-muted">{$t("storagePolicy.choice.waiting")}</p>
+        </PageShell>
       {:else}
         {@render children?.()}
       {/if}
@@ -359,7 +412,8 @@
   <HelpModal />
 
   <StoragePolicyModal
-    isOpen={isSettingsModalOpen}
+    isOpen={isSettingsModalOpen || mustChooseMode}
+    mustChoose={mustChooseMode}
     onClose={() => (isSettingsModalOpen = false)}
   />
 </div>
@@ -382,8 +436,11 @@
 
 <StorageModeSwitchWizard
   open={switchWizardOpen}
-  target={null}
-  onClose={() => (switchWizardOpen = false)}
+  target={switchTarget}
+  onClose={() => {
+    switchWizardOpen = false;
+    switchTarget = null;
+  }}
 />
 
 <ImportConflictModal />

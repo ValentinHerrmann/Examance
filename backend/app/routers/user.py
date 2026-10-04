@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, cast
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import Result, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,9 +17,54 @@ from app.models.exam import Exam
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
+from app.schemas.capabilities import CapabilitiesOut, StorageModeUpdate
 from app.services import audit as audit_svc
+from app.services.capabilities import capabilities_for
 
 router = APIRouter(prefix="/user", tags=["user"])
+
+
+def _capabilities_out(teacher: Teacher) -> CapabilitiesOut:
+    caps = capabilities_for(teacher)
+    return CapabilitiesOut(
+        storage_mode=teacher.storage_mode,  # type: ignore[arg-type]  # constrained by ck_teachers_storage_mode
+        allowed_storage_modes=list(caps.allowed_storage_modes),  # type: ignore[arg-type]
+        features=caps.features,
+    )
+
+
+@router.get("/capabilities", response_model=CapabilitiesOut)
+async def get_capabilities(teacher: Teacher = Depends(get_current_teacher)) -> CapabilitiesOut:
+    """The account's storage mode (null until chosen) and what it may use."""
+    return _capabilities_out(teacher)
+
+
+@router.put("/storage-mode", response_model=CapabilitiesOut)
+async def set_storage_mode(
+    body: StorageModeUpdate,
+    teacher: Teacher = Depends(get_current_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> CapabilitiesOut:
+    """
+    Records the account's storage mode, compare-and-set on `expected`. Moving the results
+    between server and browser is the client's job and happens before this call; this only
+    states where they now live.
+    """
+    if body.mode not in capabilities_for(teacher).allowed_storage_modes:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This storage mode is not enabled for your account.",
+            headers={"code": "ERR_STORAGE_MODE_NOT_ALLOWED"},
+        )
+    if teacher.storage_mode != body.expected:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The storage mode was changed elsewhere.",
+            headers={"code": "ERR_STORAGE_MODE_CHANGED"},
+        )
+    teacher.storage_mode = body.mode
+    await db.flush()
+    return _capabilities_out(teacher)
 
 
 def _rowcount(result: Result[Any]) -> int:

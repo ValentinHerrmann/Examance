@@ -37,6 +37,11 @@ class Exercise(Base):
     variant_key: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     group: Mapped[ExerciseGroup | None] = relationship("ExerciseGroup", back_populates="exercises")
     is_public: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
+    # The code was withheld: imported from another teacher's results-only archive. Name, points and
+    # answer key are present so scans and scores grade as usual; there is nothing to compile.
+    code_withheld: Mapped[bool] = mapped_column(
+        nullable=False, default=False, server_default="false"
+    )
     is_current: Mapped[bool] = mapped_column(nullable=False, default=True)
     question_type: Mapped[str] = mapped_column(
         Enum("free_text", "mc", "sc", "tf", name="question_type"),

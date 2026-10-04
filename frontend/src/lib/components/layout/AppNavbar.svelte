@@ -21,7 +21,7 @@
   import { locale, t, toggleLocale, LOCALE_LABELS, type Locale } from "#lib/i18n";
   import { dataPlaceIcons, latexPlaceIcons } from "#lib/components/storage/placeIcons";
   import type { TranslationKey } from "#lib/i18n/types";
-  import type { StorageMode } from "#lib/stores/storagePolicy";
+  import { getStoragePolicyBadge, type StorageMode } from "#lib/stores/storagePolicy";
   import type { VersionStatus } from "#lib/stores/versionStore";
   import { themePreference, setThemePreference, theme, type ThemePreference } from "#lib/stores/theme";
   import { mobileNavOpen } from "#lib/stores/shell";
@@ -37,7 +37,8 @@
     authenticated?: boolean;
     userRole?: string | null;
     userEmail?: string | null;
-    storageMode?: StorageMode;
+    /** `null` = the account has not chosen a mode yet. */
+    storageMode?: StorageMode | null;
     latexCompilation?: "local" | "server";
     versionStatus?: VersionStatus;
     helpUnseen?: boolean;
@@ -45,6 +46,8 @@
     onHelpClick?: () => void;
     onOpenArchive?: () => void;
     onExportArchive?: () => void;
+    /** Export exams with scans and results but without the exercises' code, to share with another teacher. */
+    onShareResults?: () => void;
     onClearWorkspace?: () => void;
     onLock?: () => void;
   }
@@ -54,7 +57,7 @@
     authenticated = false,
     userRole = null,
     userEmail = null,
-    storageMode = "all-local",
+    storageMode = null,
     latexCompilation = "local",
     versionStatus = "no-server",
     helpUnseen = false,
@@ -62,6 +65,7 @@
     onHelpClick = () => {},
     onOpenArchive = () => {},
     onExportArchive = () => {},
+    onShareResults = () => {},
     onClearWorkspace = () => {},
     onLock = () => {},
   }: Props = $props();
@@ -79,7 +83,6 @@
   }
 
   const dataKeys: Record<StorageMode, { label: TranslationKey; title: TranslationKey }> = {
-    "all-local": { label: "nav.dataLocal", title: "storagePolicy.allLocalTitle" },
     "all-server": { label: "nav.dataCloud", title: "storagePolicy.allServerTitle" },
     hybrid: { label: "nav.dataHybrid", title: "storagePolicy.hybridTitle" },
   };
@@ -89,8 +92,9 @@
     server: { label: "nav.latexServerShort", title: "nav.latexServerTitle" },
   };
 
-  let dataLabel = $derived($t(dataKeys[storageMode].label));
-  let dataTitle = $derived($t(dataKeys[storageMode].title));
+  let notChosenBadge = $derived(getStoragePolicyBadge({ storageMode: null, latexCompilation }));
+  let dataLabel = $derived(storageMode ? $t(dataKeys[storageMode].label) : notChosenBadge.text);
+  let dataTitle = $derived(storageMode ? $t(dataKeys[storageMode].title) : notChosenBadge.title);
   let latexLabel = $derived($t(latexKeys[latexCompilation].label));
   let latexTitle = $derived($t(latexKeys[latexCompilation].title));
 
@@ -184,7 +188,9 @@
           onclick={onStorageClick}
         >
           <Icon icon={faDatabase} class="text-xs opacity-70" />
-          <Icon icon={dataPlaceIcons[storageMode]} />
+          {#if storageMode}
+            <Icon icon={dataPlaceIcons[storageMode]} />
+          {/if}
           <span class="hidden truncate xl:inline">{$t("nav.dataLabel")}: {dataLabel}</span>
         </button>
         <button
@@ -208,6 +214,7 @@
       >
         <MenuItem icon={faFileImport} onSelect={onOpenArchive}>{$t("workspace.menu.open")}</MenuItem>
         <MenuItem icon={faFileExport} onSelect={onExportArchive}>{$t("workspace.menu.export")}</MenuItem>
+        <MenuItem icon={faFileExport} onSelect={onShareResults}>{$t("workspace.menu.shareResults")}</MenuItem>
         <MenuItem icon={faTrashCan} danger onSelect={onClearWorkspace}>{$t("workspace.menu.clear")}</MenuItem>
       </Menu>
     {/if}

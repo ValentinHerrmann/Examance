@@ -2,6 +2,7 @@ export const workspace = {
     menu: {
         open: '.bgproj öffnen',
         export: '.bgproj exportieren',
+        shareResults: 'Ergebnisse teilen (ohne Aufgabentexte)',
         clear: 'Arbeitsbereich leeren',
     },
     session: {
@@ -9,7 +10,6 @@ export const workspace = {
         localMode: 'Lokale Sitzung (ohne Konto)',
         lockSession: 'Sitzung sperren',
         lock: 'Sperren',
-        connectToCloud: 'Mit Cloud verbinden',
     },
     archive: {
         promptImportPassword: 'Passwort für dieses .bgproj-Archiv eingeben:',

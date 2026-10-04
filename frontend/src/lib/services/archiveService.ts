@@ -3,7 +3,7 @@ import { clearAllTables } from "#lib/db/db";
 import { projectStore } from "#lib/stores/project";
 import { sessionStore } from "#lib/stores/session";
 import { askAboutConflicts } from "#lib/stores/conflictPrompt";
-import { packProject } from "#lib/archive/packer";
+import { packProject, type PackOptions } from "#lib/archive/packer";
 import { applyArchive, decryptArchive, type ImportResult } from "#lib/archive/unpacker";
 import {
   applyResolutions,
@@ -73,8 +73,12 @@ export function formatImportSummary(result: {
 }
 
 /** Exports the workspace as an encrypted .bgproj archive (browser download; default filename "workspace.bgproj"). @throws Error if export fails. */
-export async function exportBgprojArchive(password: string, filename = "workspace.bgproj"): Promise<void> {
-  const blob = await packProject(password);
+export async function exportBgprojArchive(
+  password: string,
+  filename = "workspace.bgproj",
+  opts: PackOptions = {}
+): Promise<void> {
+  const blob = await packProject(password, undefined, opts);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -85,11 +89,14 @@ export async function exportBgprojArchive(password: string, filename = "workspac
 }
 
 /** The whole interactive export (password prompt, download, error alert), shared by workspace menu, exam page and mode-switch wizard. Returns true when written. */
-export async function exportArchiveInteractively(filename = "workspace.bgproj"): Promise<boolean> {
+export async function exportArchiveInteractively(
+  filename = "workspace.bgproj",
+  opts: PackOptions = {}
+): Promise<boolean> {
   const password = promptArchivePassword(translate("workspace.archive.promptExportPassword"));
   if (!password) return false;
   try {
-    await exportBgprojArchive(password, filename);
+    await exportBgprojArchive(password, filename, opts);
     return true;
   } catch (err: any) {
     alert(translate("workspace.archive.exportFailed", { message: err.message }));

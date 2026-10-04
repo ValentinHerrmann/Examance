@@ -1,12 +1,14 @@
 /**
- * The workspace manifest: one row in IndexedDB stating which storage mode the data beside it belongs to
- * and whose key sealed it. Invariants (docs/dev/storage_modes.md):
- * - I1 The manifest is the source of truth for the mode; `bg_storage_policy` is only a boot cache.
- * - I2 A mode change is one transaction: every data table is cleared and the new manifest written together.
- * - I3 A session opens the workspace only if it owns it: the canary must decrypt under its key, and a
- *   server-backed workspace must belong to the signed-in account on the same backend.
- * - I4 Nothing changes the mode implicitly, except adopting server storage at an explicit sign-in on a
- *   workspace nobody ever chose a mode for and that holds nothing.
+ * The workspace manifest: one row in IndexedDB stating whose key sealed the data beside it and the
+ * last storage mode the account had in this browser. Invariants (docs/dev/storage_modes.md):
+ * - The account's storage mode lives on the server and every browser follows it. There is no default
+ *   and nothing sets it implicitly; until the account chooses, the app shows the choice
+ *   (`needs-choice`). The manifest's copy only serves offline loads.
+ * - A session opens the workspace only if it owns it: the canary must decrypt under its key, and the
+ *   workspace must belong to the signed-in account on the same backend.
+ * - Resetting the workspace is one transaction: every data table is cleared and the new manifest
+ *   written together.
+ * - A workspace from the discontinued local mode is never opened; it can only be deleted.
  */
 
 import { get } from 'svelte/store';
@@ -14,14 +16,15 @@ import { db, vaultTables } from './db';
 import type { WorkspaceManifestRecord, WorkspaceOwner } from './schema';
 import { decrypt, encrypt } from '#lib/crypto/aesGcm';
 import { backendStore } from '#lib/stores/backendStore';
-import { sessionStore } from '#lib/stores/session';
+import { hasLegacyLocalVault, removeLegacyLocalVault, sessionStore } from '#lib/stores/session';
 import {
   armStorageModeSwitch,
   disarmStorageModeSwitch,
-  hasCachedStorageMode,
+  legacyCachedMode,
   storagePolicyStore,
   type StorageMode,
 } from '#lib/stores/storagePolicy';
+import { capabilitiesStore, loadCapabilities } from '#lib/stores/capabilities';
 import { workspaceIdStore, workspaceStatusStore, type WorkspaceStatus } from '#lib/stores/workspaceState';
 import { clearOfflineQueue, hasQueuedWrites, stampUnboundQueueEntries } from '#lib/services/offlineQueue';
 import { safeLocalStorage } from '#lib/utils/storage';
@@ -33,7 +36,10 @@ const CANARY_TEXT = 'examance-workspace-canary-v1';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-function applyMode(mode: StorageMode): void {
+type ManifestMode = WorkspaceManifestRecord['mode'];
+
+/** Publishes the account's mode to the store every repository routes by. */
+export function applyMode(mode: StorageMode | null): void {
   if (get(storagePolicyStore).storageMode === mode) return;
   try {
     storagePolicyStore.commitStorageMode(mode, armStorageModeSwitch());
@@ -42,15 +48,14 @@ function applyMode(mode: StorageMode): void {
   }
 }
 
-function publish(manifest: WorkspaceManifestRecord): void {
-  applyMode(manifest.mode);
+function publishId(manifest: WorkspaceManifestRecord): void {
   workspaceIdStore.set(manifest.workspaceId);
   if (safeLocalStorage.getItem(WORKSPACE_ID_KEY) !== manifest.workspaceId) {
     safeLocalStorage.setItem(WORKSPACE_ID_KEY, manifest.workspaceId);
   }
 }
 
-function newManifest(mode: StorageMode, explicit: boolean): WorkspaceManifestRecord {
+function newManifest(mode: ManifestMode): WorkspaceManifestRecord {
   return {
     id: 'current',
     workspaceId: crypto.randomUUID(),
@@ -58,7 +63,6 @@ function newManifest(mode: StorageMode, explicit: boolean): WorkspaceManifestRec
     owner: null,
     canaryCt: null,
     canaryIv: null,
-    explicit,
     createdAt: new Date().toISOString(),
   };
 }
@@ -70,43 +74,43 @@ export async function workspaceIsEmpty(): Promise<boolean> {
   return counts.every((n) => n === 0);
 }
 
+/** Students, submissions and scores held in this browser (what `hybrid` keeps local). */
+export async function localResultCount(): Promise<number> {
+  if (!db.students) return 0;
+  const counts = await Promise.all([db.students.count(), db.submissions.count(), db.exerciseScores.count()]);
+  return counts.reduce((a, b) => a + b, 0);
+}
+
 /**
- * Loads the manifest and publishes its mode, creating it on first use. A browser from before the
- * manifest gets one from its cached mode; the mode counts as chosen when data exists or a non-default
- * mode was cached (a cached `all-local` alone may just be the default written by the LaTeX setting).
+ * Loads the manifest, creating it on first use. A browser from before the manifest gets the mode it
+ * had cached, so legacy local data is recognised (`'all-local'`, the old default) and a former
+ * hybrid browser keeps knowing that its results are real data.
  */
 export async function loadWorkspace(): Promise<WorkspaceManifestRecord> {
   if (!db.isOpen()) await db.open();
-  const cachedMode = get(storagePolicyStore).storageMode;
-  const explicitHint = hasCachedStorageMode() && cachedMode !== 'all-local';
   const empty = await workspaceIsEmpty();
-
   const manifest = await db.transaction('rw', db.workspace, async () => {
     const existing = await db.workspace.get('current');
     if (existing) return existing;
-    const fresh = newManifest(cachedMode, explicitHint || !empty);
+    const legacy = legacyCachedMode();
+    // Only data makes a cached mode matter: an empty browser has nothing to protect.
+    const fresh = newManifest(empty ? null : legacy);
     await db.workspace.put(fresh);
     return fresh;
   });
-  // Writes queued before the manifest existed (or before this tab loaded it) belong to this workspace;
-  // entries of a replaced workspace always carry their old id and are never adopted.
-  stampUnboundQueueEntries(manifest.workspaceId);
-  publish(manifest);
+  publishId(manifest);
   return manifest;
 }
 
 /**
- * Replaces the whole workspace with an empty one in `mode` (I2): data tables and manifest change in one
- * transaction, so a failure leaves the old mode with all its data. Clears the offline queue (its writes
- * belong to a workspace that no longer exists) and claims the new workspace for the current session.
+ * Replaces the whole workspace with an empty one (one transaction: data tables and manifest change
+ * together, so a failure leaves everything as it was). Clears the offline queue, whose writes belong
+ * to a workspace that no longer exists, and claims the new workspace for the current session.
  * @throws when IndexedDB refuses; nothing has changed then.
  */
-export async function replaceWorkspace(
-  mode: StorageMode,
-  { explicit }: { explicit: boolean }
-): Promise<WorkspaceManifestRecord> {
+export async function replaceWorkspace(mode: StorageMode | null): Promise<WorkspaceManifestRecord> {
   if (!db.isOpen()) await db.open();
-  const manifest = newManifest(mode, explicit);
+  const manifest = newManifest(mode);
   const tables = [...vaultTables(), db.workspace];
   await db.transaction('rw', tables, async () => {
     await Promise.all(tables.map((t) => t.clear()));
@@ -115,14 +119,19 @@ export async function replaceWorkspace(
   const { clearCompileCache } = await import('#lib/latex/compileCache');
   clearCompileCache();
   clearOfflineQueue();
-  publish(manifest);
+  publishId(manifest);
   if (get(sessionStore).sessionKey) return claim(manifest);
   return manifest;
 }
 
+/** Stores the account's mode as this browser's offline copy. */
+export async function rememberMode(mode: StorageMode): Promise<void> {
+  if (!db.isOpen()) await db.open();
+  await db.workspace.update('current', { mode });
+}
+
 function sessionIdentity(): WorkspaceOwner {
   const s = get(sessionStore);
-  if (s.email === null) return { kind: 'local-vault', accountId: null, backendOrigin: null };
   return {
     kind: 'account',
     accountId: s.teacherId ?? s.email,
@@ -174,108 +183,136 @@ async function existingDataOpens(): Promise<boolean> {
 }
 
 function sameAccount(a: WorkspaceOwner | null, b: WorkspaceOwner): boolean {
-  return !!a && a.accountId === b.accountId && a.backendOrigin === b.backendOrigin;
+  if (!a) return false;
+  // A tab restored before teacherId was shared across tabs may only know the e-mail; either matches.
+  const sameId = a.accountId === b.accountId || (!!a.accountEmail && a.accountEmail === b.accountEmail);
+  return sameId && a.backendOrigin === b.backendOrigin;
 }
 
-async function decide(): Promise<WorkspaceStatus> {
-  const session = get(sessionStore);
-  if (!session.sessionKey) return { state: 'unchecked' };
+function isLegacyLocal(manifest: WorkspaceManifestRecord): boolean {
+  return manifest.mode === 'all-local' || manifest.owner?.kind === 'local-vault';
+}
 
-  const manifest = await loadWorkspace();
-  const serverBacked = manifest.mode !== 'all-local';
+/** Owner binding: may this session open this browser's data? Takes over what holds nothing worth keeping. */
+async function checkOwner(manifest: WorkspaceManifestRecord): Promise<WorkspaceStatus> {
+  const empty = await workspaceIsEmpty();
+  const pendingWrites = hasQueuedWrites(manifest.workspaceId);
+
+  if (isLegacyLocal(manifest) || (!manifest.owner && hasLegacyLocalVault() && !empty)) {
+    if (empty && !pendingWrites) {
+      await discardLegacyLocalWorkspace();
+      return { state: 'ok' };
+    }
+    return { state: 'blocked', reason: 'legacy-local' };
+  }
+
   const identity = sessionIdentity();
-
-  // I5: server-backed data is only reachable signed in; a passphrase session must not read its cache.
-  if (serverBacked && identity.kind !== 'account') return { state: 'blocked', reason: 'needs-sign-in' };
-
-  // An unclaimed workspace (first unlock since the manifest exists) is judged by its existing data.
   const unclaimed = !manifest.owner || !manifest.canaryCt;
   const keyOk = unclaimed ? await existingDataOpens() : await canaryOpens(manifest);
-  const accountOk = unclaimed || !serverBacked || sameAccount(manifest.owner, identity);
+  const accountOk = unclaimed || sameAccount(manifest.owner, identity);
   if (keyOk && accountOk) {
     if (unclaimed) await claim(manifest);
+    // Only now, with the owner confirmed, may writes queued before the manifest existed join it.
+    stampUnboundQueueEntries(manifest.workspaceId);
     return { state: 'ok' };
   }
 
-  // Someone else's workspace. Nothing in it: take it over.
-  const pendingWrites = hasQueuedWrites(manifest.workspaceId);
-  if (!pendingWrites && (await workspaceIsEmpty())) {
-    await replaceWorkspace(manifest.mode, { explicit: manifest.explicit });
+  // Someone else's workspace. Nothing in it worth keeping: take it over.
+  if (!pendingWrites && (empty || (await localResultCount()) === 0)) {
+    // Without local results the tables hold only a cache of the other account's server data.
+    await replaceWorkspace(null);
     return { state: 'ok' };
   }
-  // An all-server workspace only holds a cache of the server; drop it unless it carries unsent writes.
-  if (manifest.mode === 'all-server') {
-    if (pendingWrites) return { state: 'blocked', reason: 'pending-writes' };
-    await replaceWorkspace('all-server', { explicit: manifest.explicit });
-    return { state: 'ok' };
-  }
+  if (pendingWrites) return { state: 'blocked', reason: 'pending-writes' };
   return { state: 'blocked', reason: keyOk ? 'foreign-account' : 'foreign-key' };
 }
 
+async function decide(): Promise<WorkspaceStatus> {
+  if (!get(sessionStore).sessionKey) return { state: 'unchecked' };
+
+  const manifest = await loadWorkspace();
+  const owner = await checkOwner(manifest);
+  if (owner.state !== 'ok') return owner;
+
+  // The account's mode, from the server. Offline, fall back to the last answer this tab or browser saw.
+  let mode: StorageMode | null;
+  let allowed: StorageMode[];
+  try {
+    const caps = await loadCapabilities();
+    mode = caps.storageMode;
+    allowed = caps.allowedStorageModes;
+  } catch (err) {
+    console.warn('[workspace] could not load capabilities, using the cached mode', err);
+    const cached = get(capabilitiesStore);
+    const current = await currentManifest();
+    mode = cached?.storageMode ?? (current?.mode === 'all-server' || current?.mode === 'hybrid' ? current.mode : null);
+    allowed = cached?.allowedStorageModes ?? (mode ? [mode] : []);
+  }
+
+  if (!mode || !allowed.includes(mode)) {
+    applyMode(null);
+    return { state: 'needs-choice' };
+  }
+  applyMode(mode);
+  await rememberMode(mode);
+  return { state: 'ok' };
+}
+
 /**
- * Checks that the unlocked session owns this browser's workspace (I3) and publishes the result. Call
- * after every unlock (sign-in, passphrase, restored session) and before routes touch the vault.
+ * Checks that the unlocked session owns this browser's workspace, loads the account's storage mode and
+ * publishes the result. Call after every unlock and before routes touch the vault.
  */
 export async function openWorkspace(): Promise<WorkspaceStatus> {
   let status: WorkspaceStatus;
   try {
     status = await decide();
   } catch (err) {
-    console.error('[workspace] owner check failed', err);
+    console.error('[workspace] opening the workspace failed', err);
     status = { state: 'blocked', reason: 'foreign-key' };
   }
   workspaceStatusStore.set(status);
   return status;
 }
 
-/** Read-only view of the manifest for settings and the switch service. */
+/** Read-only view of the manifest. */
 export async function currentManifest(): Promise<WorkspaceManifestRecord | undefined> {
   if (!db.isOpen()) await db.open();
   return db.workspace.get('current');
 }
 
+/** Deletes a workspace of the discontinued local mode and its passphrase parameters. */
+async function discardLegacyLocalWorkspace(): Promise<void> {
+  await replaceWorkspace(null);
+  removeLegacyLocalVault();
+}
+
 /**
- * The blocked screen's last resort: drop this browser's data (same mode, unless the session cannot use
- * it) and claim an empty workspace for the current session. Destroys data the session cannot read anyway.
+ * The blocked screen's last resort: drop this browser's data and claim an empty workspace for the
+ * current session, then load the account's mode again. Destroys data the session cannot use anyway.
  */
 export async function resetWorkspaceForCurrentSession(): Promise<void> {
   const manifest = await loadWorkspace();
-  const mode = manifest.mode !== 'all-local' && get(sessionStore).email === null ? 'all-local' : manifest.mode;
-  await replaceWorkspace(mode, { explicit: true });
-  workspaceStatusStore.set({ state: 'ok' });
+  if (isLegacyLocal(manifest) || hasLegacyLocalVault()) await discardLegacyLocalWorkspace();
+  else await replaceWorkspace(null);
+  await openWorkspace();
 }
 
-/**
- * I4: on an explicit server sign-in, a workspace nobody chose a mode for and that holds nothing adopts
- * server storage, so a fresh browser shows the account's data instead of an empty local vault. Any
- * workspace with data, or whose mode was chosen (wizard, earlier adoption, legacy data), keeps its mode.
- * Never call this on reload. Returns true when the mode changed.
- */
-export async function adoptServerStorageIfPristine(): Promise<boolean> {
-  const manifest = await loadWorkspace();
-  if (manifest.mode !== 'all-local' || manifest.explicit) return false;
-  if (!(await workspaceIsEmpty()) || hasQueuedWrites(manifest.workspaceId)) return false;
-  await replaceWorkspace('all-server', { explicit: true });
-  return true;
-}
-
-/** What the UI may say about this browser's workspace, also while locked (the manifest holds no secrets). */
+/** What a blocked screen may say about this browser's workspace (the manifest holds no secrets). */
 export interface WorkspaceSummary {
-  mode: StorageMode;
-  /** Null: not yet bound to a key (fresh or legacy browser). */
-  ownerKind: WorkspaceOwner['kind'] | null;
+  mode: ManifestMode;
   accountEmail: string | null;
   backendOrigin: string | null;
   hasData: boolean;
+  localResults: number;
 }
 
 export async function describeWorkspace(): Promise<WorkspaceSummary> {
   const manifest = await loadWorkspace();
   return {
     mode: manifest.mode,
-    ownerKind: manifest.owner?.kind ?? null,
     accountEmail: manifest.owner?.accountEmail ?? null,
     backendOrigin: manifest.owner?.backendOrigin ?? null,
     hasData: !(await workspaceIsEmpty()),
+    localResults: await localResultCount(),
   };
 }

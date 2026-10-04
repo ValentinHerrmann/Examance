@@ -8,13 +8,16 @@
   import InfoTip from "#lib/components/help/InfoTip.svelte";
 
   interface Props {
-    storageMode: StorageMode;
+    /** Null until the account has chosen one. */
+    storageMode: StorageMode | null;
     latexCompilation: "server" | "local";
     uiLocale: Locale;
     onStorageModeChange: (val: StorageMode) => void;
     onLatexChange: (val: "server" | "local") => void;
-    /** Server modes and server compilation need an account session; a passphrase session sees them disabled. */
-    signedIn: boolean;
+    /** Modes this account may choose (`stores/capabilities.ts`); the others render disabled. */
+    allowedModes: StorageMode[];
+    /** Whether this account may compile on the server. */
+    serverLatexEnabled: boolean;
     onLocaleChange: (val: Locale) => void;
   }
 
@@ -24,7 +27,8 @@
     uiLocale,
     onStorageModeChange,
     onLatexChange,
-    signedIn,
+    allowedModes,
+    serverLatexEnabled,
     onLocaleChange
   }: Props = $props();
 
@@ -44,8 +48,8 @@
   const description = "mt-0 mb-4 text-sm text-muted";
 
   /**
-   * The radios never select themselves: a mode change runs through the switch wizard (and may be
-   * cancelled), a server compile through a consent prompt. Cancelling the native toggle keeps the
+   * The radios never select themselves: a mode change runs through the move dialog (and may be
+   * cancelled). Cancelling the native toggle keeps the
    * checked dot on what is actually in effect; the store moves it once a change is committed.
    */
   function gated(event: MouseEvent, request: () => void) {
@@ -62,29 +66,14 @@
     </h2>
     <p class={description}>{$t("settings.storage.description")}</p>
     <div class={options}>
-      <label class={option}>
-        <input
-          class={radio}
-          type="radio"
-          name="storageMode"
-          value="all-local"
-          checked={storageMode === "all-local"}
-          onclick={(e) => gated(e, () => onStorageModeChange("all-local"))}
-        />
-        <div class="min-w-0">
-          <p class={optionTitle}><Icon icon={dataPlaceIcons["all-local"]} class="text-muted" />{$t("settings.storage.allLocalTitle")}<InfoTip text={$t("help.tips.storageLocal")} topic="storageModes" /></p>
-          <p class={optionText}>{$t("settings.storage.allLocalText")}</p>
-        </div>
-      </label>
-
-      <label class="{option} {signedIn ? '' : 'cursor-not-allowed opacity-60'}">
+      <label class="{option} {allowedModes.includes("all-server") ? '' : 'cursor-not-allowed opacity-60'}">
         <input
           class={radio}
           type="radio"
           name="storageMode"
           value="all-server"
           checked={storageMode === "all-server"}
-          disabled={!signedIn}
+          disabled={!allowedModes.includes("all-server")}
           onclick={(e) => gated(e, () => onStorageModeChange("all-server"))}
         />
         <div class="min-w-0">
@@ -93,14 +82,14 @@
         </div>
       </label>
 
-      <label class="{option} {signedIn ? '' : 'cursor-not-allowed opacity-60'}">
+      <label class="{option} {allowedModes.includes("hybrid") ? '' : 'cursor-not-allowed opacity-60'}">
         <input
           class={radio}
           type="radio"
           name="storageMode"
           value="hybrid"
           checked={storageMode === "hybrid"}
-          disabled={!signedIn}
+          disabled={!allowedModes.includes("hybrid")}
           onclick={(e) => gated(e, () => onStorageModeChange("hybrid"))}
         />
         <div class="min-w-0">
@@ -109,8 +98,8 @@
         </div>
       </label>
     </div>
-    {#if !signedIn}
-      <p class="m-0 mt-3 text-xs text-muted">{$t("storagePolicy.workspace.needsAccount")}</p>
+    {#if allowedModes.length < 2}
+      <p class="m-0 mt-3 text-xs text-muted">{$t("storagePolicy.notEnabled")}</p>
     {/if}
   </Card>
 </div>
@@ -137,14 +126,14 @@
           <p class={optionText}>{$t("settings.latex.localText")}</p>
         </div>
       </label>
-      <label class="{option} {signedIn ? '' : 'cursor-not-allowed opacity-60'}">
+      <label class="{option} {serverLatexEnabled ? '' : 'cursor-not-allowed opacity-60'}">
         <input
           class={radio}
           type="radio"
           name="latexCompilation"
           value="server"
           checked={latexCompilation === "server"}
-          disabled={!signedIn}
+          disabled={!serverLatexEnabled}
           onclick={(e) => gated(e, () => onLatexChange("server"))}
         />
         <div class="min-w-0">
@@ -153,8 +142,8 @@
         </div>
       </label>
     </div>
-    {#if !signedIn}
-      <p class="m-0 mt-3 text-xs text-muted">{$t("storagePolicy.workspace.needsAccount")}</p>
+    {#if !serverLatexEnabled}
+      <p class="m-0 mt-3 text-xs text-muted">{$t("storagePolicy.notEnabled")}</p>
     {/if}
   </Card>
 </div>

@@ -180,7 +180,8 @@
       if (isServerBacked()) {
         try {
           const remoteExs = (await api.get("/exercises", { silentError: true })) as any[];
-          exercises = remoteExs.map(mapApiToExerciseRecord);
+          // Exercises whose code was withheld (results-only imports) belong to their exam, not the library.
+          exercises = remoteExs.map(mapApiToExerciseRecord).filter((ex) => !ex.codeWithheld);
           const encryptedExs = await Promise.all(exercises.map(ex => encryptExercise(ex, key)));
           await db.exercises.bulkPut(encryptedExs);
           isLocalFallback = false;
@@ -189,12 +190,12 @@
             "Failed to fetch remote exercises, falling back to IDB:",
             apiErr,
           );
-          exercises = await loadExercisesEncrypted(key);
+          exercises = (await loadExercisesEncrypted(key)).filter((ex) => !ex.codeWithheld);
           isLocalFallback = true;
         }
       } else {
         isLocalFallback = false;
-        exercises = await loadExercisesEncrypted(key);
+        exercises = (await loadExercisesEncrypted(key)).filter((ex) => !ex.codeWithheld);
       }
     } catch (err: any) {
       errorMsg = err.message || translate("exercises.page.loadFailed");
@@ -395,16 +396,14 @@
       const key = get(sessionStore).sessionKey;
       await saveExerciseEncrypted(updatedEx, key);
 
-      if ($storagePolicyStore.storageMode !== "all-local") {
-        await api.patch(`/exercises/${updatedEx.id}`, {
-          exercise_group_id: updatedEx.exerciseGroupId,
-          name: updatedEx.name,
-          topic_tag: updatedEx.topicTag,
-          grade: updatedEx.grade || null,
-          subject: updatedEx.subject || null,
-          variant_key: updatedEx.variantKey || null
-        });
-      }
+      await api.patch(`/exercises/${updatedEx.id}`, {
+        exercise_group_id: updatedEx.exerciseGroupId,
+        name: updatedEx.name,
+        topic_tag: updatedEx.topicTag,
+        grade: updatedEx.grade || null,
+        subject: updatedEx.subject || null,
+        variant_key: updatedEx.variantKey || null
+      });
       
       isRegroupModalOpen = false;
       regroupingExercise = null;
@@ -598,44 +597,10 @@
     }
 
     try {
-      if ($storagePolicyStore.storageMode !== "all-local") {
-        await api.post(`/exercises/${variantBaseEx.id}/new-variant`, {
-          latex_body: variantLatexBody,
-          variant_key: variantKey,
-        });
-      } else {
-        // Both writes go through encryptExercise(): a direct put of these
-        // decrypted records left plaintext at rest. encryptExercise() also
-        // refuses a base record that never decrypted (decryptGuard).
-        const key = get(sessionStore).sessionKey;
-        const groupId = variantBaseEx.exerciseGroupId || crypto.randomUUID();
-        const sealedBase = variantBaseEx.exerciseGroupId
-          ? null
-          : await encryptExercise({ ...variantBaseEx, exerciseGroupId: groupId }, key);
-        const variantRecord: ExerciseRecord = {
-          id: crypto.randomUUID(),
-          teacherId: $sessionStore.email || "local-teacher",
-          name: variantBaseEx.name,
-          topicTag: variantBaseEx.topicTag,
-          grade: variantBaseEx.grade,
-          subject: variantBaseEx.subject,
-          latexBody: variantLatexBody,
-          maxPoints: parseExerciseScore(variantLatexBody),
-          version: 1,
-          exerciseGroupId: groupId,
-          variantKey: variantKey,
-          isCurrent: true,
-          questionType: variantBaseEx.questionType,
-          options: variantBaseEx.options,
-          correctAnswers: variantBaseEx.correctAnswers,
-          penalty: variantBaseEx.penalty ?? 0,
-          updatedAt: new Date().toISOString(),
-        };
-        // Seal both before writing either, so a refusal leaves nothing half-done.
-        const sealedVariant = await encryptExercise(variantRecord, key);
-        if (sealedBase) await db.exercises.put(sealedBase);
-        await db.exercises.put(sealedVariant);
-      }
+      await api.post(`/exercises/${variantBaseEx.id}/new-variant`, {
+        latex_body: variantLatexBody,
+        variant_key: variantKey,
+      });
 
       forceCloseVariantModal();
       await loadExercises();

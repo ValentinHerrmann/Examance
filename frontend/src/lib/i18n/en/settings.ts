@@ -15,8 +15,6 @@ export const settings: Translations['settings'] = {
     storage: {
         heading: '1. Global Data Storage Strategy',
         description: 'Select where your exams, exercises, student identities, and results are stored:',
-        allLocalTitle: 'All Local (Privacy First)',
-        allLocalText: 'Exams, exercise library, student identities, and scans stored 100% locally in your browser IndexedDB.',
         allServerTitle: 'All Server',
         allServerText: 'All data synchronized and stored on the secure BlindGrade server.',
         hybridTitle: 'Hybrid Mode (Library on Server, Results Local)',
@@ -200,7 +198,6 @@ export const settings: Translations['settings'] = {
         exportFailed: 'Export failed.',
     },
     alerts: {
-        serverCompileNeedsAuth: 'Server compilation requires an authenticated session. Please log in.',
         serverStorageNeedsAuth: 'Server storage modes require an authenticated session. Please log in.',
         storageModeConfirm: 'Changing storage mode requires clearing the current active session state. Please make sure you have exported a .bgproj backup first!\n\nDo you want to proceed and switch storage mode?',
         eraseStudentConfirm: 'Are you sure you want to permanently erase this student identity and all submissions?',

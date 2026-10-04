@@ -12,7 +12,6 @@
     onStats: () => void;
     onAddExercises: () => void;
     onDeleteAllSubmissions: () => void;
-    storagePolicy: string;
   }
 
   let {
@@ -24,8 +23,7 @@
     onGrade,
     onStats,
     onAddExercises,
-    onDeleteAllSubmissions,
-    storagePolicy
+    onDeleteAllSubmissions
   }: Props = $props();
 </script>
 
@@ -34,11 +32,9 @@
     <Button size="sm" onClick={onAddExercises}>
       {$t("exam.actionBar.addExercises")}
     </Button>
-    {#if storagePolicy === 'all-local'}
-      <Button size="sm" variant="outlined" severity="secondary" onClick={onScan}>
-        {$t("exam.actionBar.scan")}
-      </Button>
-    {/if}
+    <Button size="sm" variant="outlined" severity="secondary" onClick={onScan}>
+      {$t("exam.actionBar.scan")}
+    </Button>
   </div>
 
   <div class="flex flex-wrap gap-2">

@@ -74,6 +74,7 @@ def _to_res(ex: Exercise) -> ExerciseResponse:
         grade=ex.grade,
         subject=ex.subject,
         latex_body=ex.latex_body,
+        code_withheld=ex.code_withheld,
         max_points=ex.max_points,
         version=ex.version,
         exercise_group_id=ex.exercise_group_id,
@@ -253,7 +254,8 @@ async def create_exercise(
         "topic_tag": group_topic,
         "grade": group_grade,
         "subject": group_subject,
-        "latex_body": body.latex_body,
+        "latex_body": None if body.code_withheld else body.latex_body,
+        "code_withheld": body.code_withheld,
         "max_points": computed_score,
         "version": 1,
         "exercise_group_id": group_id,
@@ -307,6 +309,9 @@ async def update_exercise(
         ex.subject = body.subject
     if body.latex_body is not None:
         ex.latex_body = body.latex_body
+    # Points follow the LaTeX only when there is some: an empty body used to reset max_points
+    # to 0, which zeroed every score scale of an exercise saved without code.
+    if body.latex_body:
         ex.max_points = parse_exercise_score(body.latex_body)
     elif body.max_points is not None:
         ex.max_points = body.max_points

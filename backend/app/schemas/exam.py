@@ -42,7 +42,11 @@ class ExerciseCreate(BaseModel):
     topic_tag: str | None = None
     grade: str | None = None
     subject: str | None = None
-    latex_body: str = ""
+    # None: the exercise's code was withheld (an exam imported from a results-only archive).
+    # The row keeps its name, points and answer key so scans and scores stay gradeable, but
+    # nothing can be compiled.
+    latex_body: str | None = ""
+    code_withheld: bool = False
     max_points: float = 0.0
     order_index: int = 1
     question_type: str = "free_text"
@@ -93,6 +97,7 @@ class ExerciseResponse(BaseModel):
     grade: str | None = None
     subject: str | None = None
     latex_body: str | None = None
+    code_withheld: bool = False
     max_points: float = 0.0
     version: int = 1
     exercise_group_id: uuid.UUID | None = None

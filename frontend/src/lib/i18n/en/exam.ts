@@ -92,7 +92,6 @@ export const exam: Translations['exam'] = {
     metadata: {
         submissions: 'Submissions',
         graded: 'Graded',
-        localBanner: 'Stored locally — sync with server for export & statistics',
         gradeType: {
             linear50: 'Linear (50%)',
             linear40: 'Linear (40%)',
@@ -187,5 +186,11 @@ export const exam: Translations['exam'] = {
         custom: 'Custom',
         gradeLabel: 'Grade {grade}',
         from: 'From',
+    },
+    resultsOnly: {
+        badge: 'Results only',
+        noCompile: 'This exam was imported without its exercise texts (results only). It cannot be compiled.',
+        noOmr: 'This exam was imported without its exercise texts. Without LaTeX no answer-sheet template can be built, so new scans are not read automatically.',
+        noEdit: 'This exercise was imported without its text and cannot be edited.',
     },
 };

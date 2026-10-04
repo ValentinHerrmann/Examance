@@ -27,10 +27,10 @@ describe('storagePolicyStore', () => {
     expect(get(storagePolicyStore)).toEqual(DEFAULT_POLICY);
   });
 
-  it('persists storageMode changes to localStorage', () => {
+  it('never persists the storage mode in this browser: it belongs to the account', () => {
     storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'local' });
     expect(get(storagePolicyStore).storageMode).toBe('all-server');
-    expect(JSON.parse(localStorage.getItem('bg_storage_policy') || '{}').storageMode).toBe('all-server');
+    expect(localStorage.getItem('bg_storage_policy')).toBeNull();
   });
 
   it('persists latexCompilation changes to localStorage', () => {
@@ -48,7 +48,7 @@ describe('storagePolicyStore', () => {
 });
 
 describe('getStoragePolicyBadge', () => {
-  it.each(['all-local', 'all-server', 'hybrid'] as const)('has text and title but no icon for %s', (storageMode) => {
+  it.each([null, 'all-server', 'hybrid'] as const)('has text and title but no icon for %s', (storageMode) => {
     const badge = getStoragePolicyBadge({ storageMode, latexCompilation: 'local' });
     expect(Object.keys(badge).sort()).toEqual(['text', 'title']);
     expect(badge.text).toBeTruthy();
@@ -56,7 +56,7 @@ describe('getStoragePolicyBadge', () => {
   });
 
   it('differs per mode', () => {
-    const texts = (['all-local', 'all-server', 'hybrid'] as const).map(
+    const texts = ([null, 'all-server', 'hybrid'] as const).map(
       (storageMode) => getStoragePolicyBadge({ storageMode, latexCompilation: 'local' }).text
     );
     expect(new Set(texts).size).toBe(3);

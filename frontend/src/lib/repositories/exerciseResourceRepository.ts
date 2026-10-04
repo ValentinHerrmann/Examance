@@ -1,26 +1,20 @@
 /**
  * Exercise resource files: local staging area plus server sync. The editor works against a *staging*
  * owner id, never the live exercise, so files can be attached and previewed before the exercise exists
- * anywhere; Save commits the staged set, cancel discards it. Dexie is always the working copy; in
- * server/hybrid mode the staged set is flushed to the API on save, and server-seeded rows carry only
+ * anywhere; Save commits the staged set, cancel discards it. Dexie is always the working copy; the
+ * staged set is flushed to the API on save, and server-seeded rows carry only
  * metadata until their bytes are needed.
  */
 
-import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
 import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import { db } from '#lib/db/db';
 import { decryptResourceBytes, encryptResource } from '#lib/db/dbEncryption';
 import type { ExerciseResourceRecord } from '#lib/db/schema';
-import { storagePolicyStore } from '#lib/stores/storagePolicy';
 import type { LatexResourceFile } from '#lib/latex/resources';
 
 /** Resource requests never raise the global error toast: the panel reports them in place. */
 const QUIET = { silentError: true };
-
-function isLocalMode(): boolean {
-  return get(storagePolicyStore).storageMode === 'all-local';
-}
 
 function mapApiToRecord(raw: any, ownerId: string): ExerciseResourceRecord {
   const remoteExerciseId = raw.exercise_id ?? raw.exerciseId;
@@ -74,7 +68,7 @@ export const exerciseResourceRepository = {
       );
     }
 
-    if (isLocalMode() || local.length > 0) return;
+    if (local.length > 0) return;
 
     try {
       for (const row of await listOnServer(exerciseId, stagingId)) {
@@ -154,51 +148,47 @@ export const exerciseResourceRepository = {
   ): Promise<{ errors: string[] }> {
     const errors: string[] = [];
     const staged = await this.listLocal(stagingId);
-    const serverBacked = !isLocalMode();
+    let remote: ExerciseResourceRecord[] = [];
+    try {
+      remote = await listOnServer(exerciseId);
+    } catch (err: any) {
+      errors.push(err?.message || 'Could not read the exercise files from the server.');
+    }
 
-    if (serverBacked) {
-      let remote: ExerciseResourceRecord[] = [];
-      try {
-        remote = await listOnServer(exerciseId);
-      } catch (err: any) {
-        errors.push(err?.message || 'Could not read the exercise files from the server.');
-      }
-
-      const stagedNames = new Set(staged.map((r) => r.filename));
-      for (const row of remote) {
-        if (!stagedNames.has(row.filename) && row.remoteId) {
-          try {
-            await api.delete(`/exercises/${exerciseId}/resources/${row.remoteId}`, QUIET);
-          } catch {
-            // Already gone, or gone by someone else's hand — nothing to undo.
-          }
-        }
-      }
-
-      for (const row of staged) {
-        const unchanged =
-          !row.pendingUpload &&
-          row.remoteExerciseId === exerciseId &&
-          remote.some((r) => r.filename === row.filename && r.byteSize === row.byteSize);
-        if (unchanged) continue;
-
+    const stagedNames = new Set(staged.map((r) => r.filename));
+    for (const row of remote) {
+      if (!stagedNames.has(row.filename) && row.remoteId) {
         try {
-          const bytes = await this.getBytes(row, key);
-          const created = await api.post<any>(
-            `/exercises/${exerciseId}/resources`,
-            {
-              filename: row.filename,
-              mime_type: row.mimeType,
-              content_b64: uint8ArrayToBase64(bytes)
-            },
-            QUIET
-          );
-          row.remoteId = created.id;
-          row.remoteExerciseId = exerciseId;
-          row.pendingUpload = false;
-        } catch (err: any) {
-          errors.push(`${row.filename}: ${err?.message || 'upload failed'}`);
+          await api.delete(`/exercises/${exerciseId}/resources/${row.remoteId}`, QUIET);
+        } catch {
+          // Already gone, or gone by someone else's hand — nothing to undo.
         }
+      }
+    }
+
+    for (const row of staged) {
+      const unchanged =
+        !row.pendingUpload &&
+        row.remoteExerciseId === exerciseId &&
+        remote.some((r) => r.filename === row.filename && r.byteSize === row.byteSize);
+      if (unchanged) continue;
+
+      try {
+        const bytes = await this.getBytes(row, key);
+        const created = await api.post<any>(
+          `/exercises/${exerciseId}/resources`,
+          {
+            filename: row.filename,
+            mime_type: row.mimeType,
+            content_b64: uint8ArrayToBase64(bytes)
+          },
+          QUIET
+        );
+        row.remoteId = created.id;
+        row.remoteExerciseId = exerciseId;
+        row.pendingUpload = false;
+      } catch (err: any) {
+        errors.push(`${row.filename}: ${err?.message || 'upload failed'}`);
       }
     }
 
@@ -213,8 +203,7 @@ export const exerciseResourceRepository = {
   },
 
     /**
-     * Resource files for a compilation. `inline` = bytes the server can't look up (staged files, all of
-     * local mode); `exerciseIds` = saved exercises whose files the server loads itself (smaller request).
+     * Resource files for a compilation. `inline` = bytes the server can't look up (staged files); `exerciseIds` = saved exercises whose files the server loads itself (smaller request).
      * `needBytes` forces everything inline: the WASM engine runs in the browser with no database.
      */
   async collectForCompile(
@@ -226,7 +215,7 @@ export const exerciseResourceRepository = {
     const exerciseIds: string[] = [];
 
     for (const owner of owners) {
-      const serverResolvable = !owner.staged && !isLocalMode();
+      const serverResolvable = !owner.staged;
       if (serverResolvable && !needBytes) {
         exerciseIds.push(owner.id);
         continue;

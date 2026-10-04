@@ -148,7 +148,7 @@ const EXERCISE: RecordCodec<ExerciseRecord> = {
   plain: [
     'id', 'teacherId', 'examId', 'orderIndex', 'maxPoints', 'topicTag', 'grade', 'subject',
     'version', 'exerciseGroupId', 'variantKey', 'isCurrent', 'createdAt', 'updatedAt',
-    'questionType', 'penalty',
+    'questionType', 'penalty', 'codeWithheld',
   ],
   sealed: ['title', 'name', 'latexBody', 'options', 'correctAnswers'],
 };

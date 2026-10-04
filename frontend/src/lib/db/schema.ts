@@ -69,6 +69,12 @@ export interface ExerciseRecord extends MaybeUndecryptable {
   options?: string[];
   correctAnswers?: number[];
   penalty: number;
+  /**
+   * The exercise's code was withheld: it came from a results-only archive of another teacher. Name,
+   * points and answer key are there, so its scans and scores grade and count as usual, but there is
+   * no LaTeX to compile or edit.
+   */
+  codeWithheld?: boolean;
   /** AES-256-GCM encrypted payload containing title, name, latexBody, options, correctAnswers. */
   payloadCt?: Uint8Array;
   /** 12-byte GCM IV for payloadCt. */
@@ -301,31 +307,35 @@ export interface AuditEntry extends MaybeUndecryptable {
 
 /** Who a workspace belongs to; see `lib/db/workspace.ts`. */
 export interface WorkspaceOwner {
+  /** `'local-vault'` only on manifests from before local mode was discontinued (legacy detection). */
   kind: 'local-vault' | 'account';
-  /** Teacher id (or e-mail for sessions restored without one); null for a local passphrase vault. */
+  /** Teacher id (or e-mail for sessions restored without one). */
   accountId: string | null;
-  /** Normalised backend origin the account lives on; null for a local passphrase vault. */
+  /** Normalised backend origin the account lives on. */
   backendOrigin: string | null;
-  /** The account's e-mail, only so the locked screen can say whose workspace this is. */
+  /** The account's e-mail, only so a blocked screen can say whose workspace this is. */
   accountEmail?: string | null;
 }
 
 /**
- * The single row of the `workspace` table: which storage mode the data in this database belongs to and
- * whose key sealed it. Lives in the same database as the data, so mode and data cannot drift apart.
+ * The single row of the `workspace` table: whose key sealed the data in this database, and the last
+ * storage mode the account had here. The account's mode itself lives on the server
+ * (`GET /user/capabilities`); this copy only serves offline loads. `'all-local'` marks a workspace
+ * from before local mode was discontinued.
  */
 export interface WorkspaceManifestRecord {
   /** Always `'current'` (single-row table). */
   id: 'current';
-  /** Random id, new for every switch or reset; offline-queue entries are bound to it. */
+  /** Random id, new for every reset; offline-queue entries are bound to it. */
   workspaceId: string;
-  mode: 'all-server' | 'all-local' | 'hybrid';
+  /** Null until the account has chosen a mode. */
+  mode: 'all-server' | 'hybrid' | 'all-local' | null;
   /** Null until the first unlock claims the workspace. */
   owner: WorkspaceOwner | null;
   /** A known constant sealed under the owner's data key: proves a session key belongs to this workspace. */
   canaryCt: Uint8Array | null;
   canaryIv: Uint8Array | null;
-  /** True once a person chose this mode (wizard, migration); only a non-explicit, empty workspace may be adopted. */
-  explicit: boolean;
+  /** Legacy field from the per-browser mode era; ignored. */
+  explicit?: boolean;
   createdAt: string;
 }

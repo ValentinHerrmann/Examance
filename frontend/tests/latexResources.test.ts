@@ -1,5 +1,10 @@
 import 'fake-indexeddb/auto'; // In-memory IndexedDB — must precede the Dexie module
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Resources sync with the server in every mode now; the staging rules under test are local.
+vi.mock('../src/lib/api/client', () => ({
+  api: { get: vi.fn().mockResolvedValue([]), post: vi.fn().mockResolvedValue({ id: 'remote-1' }), delete: vi.fn().mockResolvedValue(undefined) },
+}));
 
 import { db } from '../src/lib/db/db';
 import { exerciseResourceRepository } from '../src/lib/repositories/exerciseResourceRepository';
@@ -78,7 +83,7 @@ describe('exercise resource staging', () => {
 
   beforeEach(async () => {
     await db.exerciseResources.clear();
-    storagePolicyStore.setPolicy({ storageMode: 'all-local', latexCompilation: 'local' });
+    storagePolicyStore.setPolicy({ storageMode: 'hybrid', latexCompilation: 'local' });
     key = await crypto.subtle.importKey(
       'raw',
       new Uint8Array(32).fill(11),

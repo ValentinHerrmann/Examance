@@ -2,19 +2,21 @@ import { writable } from 'svelte/store';
 
 /**
  * Why the current session may not open this browser's workspace (see `lib/db/workspace.ts`):
- * - `foreign-key`: the data is sealed under another vault or account key.
- * - `foreign-account`: a hybrid workspace owned by another account or backend (its local results are real data).
- * - `needs-sign-in`: a server-backed workspace opened with a local passphrase session.
- * - `pending-writes`: an all-server cache of another owner still holds unsent offline writes.
+ * - `foreign-key`: the data is sealed under another account's key.
+ * - `foreign-account`: local results that belong to another account or backend.
+ * - `pending-writes`: another account's offline writes are still waiting for the server.
+ * - `legacy-local`: data from the discontinued local mode, which can no longer be opened.
  */
-export type WorkspaceBlockReason = 'foreign-key' | 'foreign-account' | 'needs-sign-in' | 'pending-writes';
+export type WorkspaceBlockReason = 'foreign-key' | 'foreign-account' | 'pending-writes' | 'legacy-local';
 
 export type WorkspaceStatus =
   | { state: 'unchecked' }
   | { state: 'ok' }
+  /** The account has not chosen a storage mode (or its mode is no longer allowed): show the choice. */
+  | { state: 'needs-choice' }
   | { state: 'blocked'; reason: WorkspaceBlockReason };
 
-/** Set by `openWorkspace()`; the root layout renders a blocking screen while it is `blocked`. */
+/** Set by `openWorkspace()`; the root layout renders a blocking screen or the mode choice from it. */
 export const workspaceStatusStore = writable<WorkspaceStatus>({ state: 'unchecked' });
 
 /**

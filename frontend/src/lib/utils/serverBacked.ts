@@ -1,8 +1,11 @@
 import { get } from "svelte/store";
 import { isAuthenticated } from "#lib/stores/session";
-import { storagePolicyStore } from "#lib/stores/storagePolicy";
 
-/** True when the signed-in teacher's exams/exercises live on (or sync with) the server. */
+/**
+ * True when exams and exercises are read from and written to the server. Since local mode was
+ * discontinued (issue #47) that is every signed-in session; both storage modes keep exams and
+ * exercises on the server and differ only in where grading results live (`resultsAreLocal()`).
+ */
 export function isServerBacked(): boolean {
-  return get(isAuthenticated) && get(storagePolicyStore).storageMode !== "all-local";
+  return get(isAuthenticated);
 }

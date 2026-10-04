@@ -82,7 +82,7 @@ export async function loadExamCompileContext(examId: string, key: CryptoKey | nu
   let mcGroups: McGroup[] = [];
   let libraryExercises: ExerciseRecord[] = [];
 
-  if (get(isAuthenticated) && get(storagePolicyStore).storageMode !== "all-local") {
+  if (get(isAuthenticated)) {
     try {
       const remoteExam = (await api.get(`/exams/${examId}`)) as any;
       exam = mapApiToExamRecord(remoteExam);
@@ -142,6 +142,11 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   console.log("[PrepareOMR] MC exercises count:", mcExercises.length, mcExercises.map((e) => ({ id: e.id, name: e.name })));
   if (mcExercises.length === 0) {
     throw new Error(translate("exam.page.omr.noExercisesError"));
+  }
+
+  // Results-only imports carry no LaTeX: a blank sheet cannot be compiled, so no new scans are read.
+  if (mcExercises.some((ex) => ex.codeWithheld)) {
+    throw new Error(translate("exam.resultsOnly.noOmr"));
   }
 
   const invalidExs = mcExercises.filter(

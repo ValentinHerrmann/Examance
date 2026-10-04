@@ -4,14 +4,26 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, String, func
+from sqlalchemy import CheckConstraint, DateTime, Enum, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
+# Storage modes a teacher can choose (docs/dev/storage_modes.md). Exams and exercises always
+# live on the server; the mode only decides whether grading results do too ("all-server") or
+# stay in one browser ("hybrid"). Which of these an account may use is decided by
+# app/services/capabilities.py.
+STORAGE_MODES = ("all-server", "hybrid")
+
 
 class Teacher(Base):
     __tablename__ = "teachers"
+    __table_args__ = (
+        CheckConstraint(
+            "storage_mode IS NULL OR storage_mode IN ('all-server', 'hybrid')",
+            name="ck_teachers_storage_mode",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
@@ -37,6 +49,9 @@ class Teacher(Base):
     password_last_used_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # The account's storage mode. Null until the teacher chooses one explicitly; there is no
+    # default, and nothing writes it implicitly. Every browser of the account follows this value.
+    storage_mode: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

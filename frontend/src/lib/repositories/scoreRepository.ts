@@ -1,5 +1,5 @@
 /**
- * Per-exercise grading results: IndexedDB in `all-local`/`hybrid`, server-side in `all-server`
+ * Per-exercise grading results: IndexedDB in `hybrid`, server-side in `all-server`
  * (`/exams/{id}/submissions/{id}/scores`). The payload (score, selected options, OMR metadata) is
  * sealed client-side either way; the server only stores ciphertext.
  */
@@ -15,7 +15,7 @@ import type { ExerciseScoreRecord } from '#lib/db/schema';
 const submissionPath = (examId: string, submissionId: string) =>
   `/exams/${examId}/submissions/${submissionId}/scores`;
 
-function fromApi(s: any): ExerciseScoreRecord {
+export function fromApi(s: any): ExerciseScoreRecord {
   return {
     id: s.id,
     submissionId: s.submission_id,
@@ -25,7 +25,7 @@ function fromApi(s: any): ExerciseScoreRecord {
   };
 }
 
-function toApi(s: ExerciseScoreRecord) {
+export function toApi(s: ExerciseScoreRecord) {
   return {
     id: s.id,
     exercise_id: s.exerciseId,

@@ -8,7 +8,7 @@
 import { get } from 'svelte/store';
 import { db } from '#lib/db/db';
 import { sessionStore } from '#lib/stores/session';
-import { storagePolicyStore } from '#lib/stores/storagePolicy';
+import { resultsAreLocal } from '#lib/stores/storagePolicy';
 import {
   BGPROJ_MAGIC,
   BGPROJ_VERSION,
@@ -17,19 +17,71 @@ import {
 } from './format';
 import { deriveKey } from '#lib/crypto/keyDerivation';
 import { deriveSessionKey } from '#lib/crypto/sessionKey';
-import { base64ToUint8Array, toArrayBuffer } from '#lib/crypto/aesGcm';
+import { api } from '#lib/api/client';
+import { base64ToUint8Array, decrypt, encrypt, toArrayBuffer } from '#lib/crypto/aesGcm';
 import {
-  saveExamEncrypted,
-  saveExerciseEncrypted,
   saveStudentEncrypted,
   saveSubmissionEncrypted,
+  encryptAuditEntry,
   encryptExam,
   encryptExercise,
   encryptResource,
+  encryptScore,
 } from '#lib/db/dbEncryption';
-import { scoreRepository } from '#lib/repositories/scoreRepository';
-import type { ExerciseScoreRecord } from '#lib/db/schema';
+import { scoreRepository, toApi as scoreToApi } from '#lib/repositories/scoreRepository';
+import { studentServerPayload } from '#lib/repositories/studentRepository';
+import { submissionServerPayload } from '#lib/repositories/submissionRepository';
+import type { AuditEntry, ExerciseScoreRecord, SubmissionRecord } from '#lib/db/schema';
+import { decodeBinary } from './binary';
 import { importPayloadToServer } from './serverImport';
+
+function describe(err: any): string {
+  return err?.message ?? String(err);
+}
+
+/**
+ * Re-seals an archived submission's scan and annotation under the live key. Current archives carry
+ * them decrypted (`scanBytes`); older ones carried the exporter's ciphertext, which opens only when
+ * the exporter was this very account; otherwise the scan is dropped and reported.
+ */
+async function resealScans(
+  sub: any,
+  key: CryptoKey,
+  errors: string[]
+): Promise<SubmissionRecord> {
+  const { scanBytes, annotationBytes, ...rest } = sub;
+  const record: SubmissionRecord = { ...rest };
+  const seal = async (bytes: Uint8Array) => {
+    const { ciphertext, iv } = await encrypt(key, bytes);
+    return { ct: ciphertext, iv };
+  };
+  if (scanBytes instanceof Uint8Array) {
+    const s = await seal(scanBytes);
+    record.scanCt = s.ct;
+    record.scanIv = s.iv;
+  } else if (record.scanCt && record.scanIv) {
+    try {
+      await decrypt(key, record.scanCt, record.scanIv);
+    } catch {
+      record.scanCt = undefined;
+      record.scanIv = undefined;
+      errors.push(`The scan of submission ${sub.id} was sealed by another account and could not be imported.`);
+    }
+  }
+  if (annotationBytes instanceof Uint8Array) {
+    const a = await seal(annotationBytes);
+    record.annotationCt = a.ct;
+    record.annotationIv = a.iv;
+  } else if (record.annotationCt && record.annotationIv) {
+    try {
+      await decrypt(key, record.annotationCt, record.annotationIv);
+    } catch {
+      record.annotationCt = undefined;
+      record.annotationIv = undefined;
+    }
+  }
+  return record;
+}
 
 export interface ImportResult {
   examCount: number;
@@ -109,7 +161,7 @@ export async function decryptArchive(
   // 6. Parse payload JSON
   try {
     const jsonStr = new TextDecoder().decode(decompressedInner);
-    return JSON.parse(jsonStr);
+    return decodeBinary(JSON.parse(jsonStr)) as Record<string, any>;
   } catch {
     throw new Error('Corrupted archive: Payload is not valid JSON.');
   }
@@ -127,11 +179,9 @@ export async function applyArchive(
     throw new Error('Unlock the session before importing an archive.');
   }
 
-    // Persist. In server-backed modes exams/exercises must be *created* under the importing account:
-    // saveExamEncrypted/saveExerciseEncrypted go through repository.save(), which PATCHes ids the
-    // account doesn't own and never writes IndexedDB. importPayloadToServer() creates them instead
-    // and reports id substitutions.
-  const isServerBacked = get(storagePolicyStore).storageMode !== 'all-local';
+    // Exams and exercises are *created* under the importing account: saveExamEncrypted/
+    // saveExerciseEncrypted go through repository.save(), which PATCHes ids the account doesn't own.
+    // importPayloadToServer() creates them instead and reports id substitutions.
   const errors: string[] = [];
   let idMap = new Map<string, string>();
   // Filled by the server import so the local mirror uses the same group ids
@@ -146,47 +196,70 @@ export async function applyArchive(
   /** Rewrites an archived id to the id actually created on the server. */
   const remap = (id: string | undefined) => (id ? (idMap.get(id) ?? id) : id);
 
-  if (isServerBacked) {
-    const result = await importPayloadToServer(payload);
-    idMap = result.idMap;
-    mcGroupIdMap = result.mcGroupIdMap;
-    errors.push(...result.errors);
+  const result = await importPayloadToServer(payload);
+  idMap = result.idMap;
+  mcGroupIdMap = result.mcGroupIdMap;
+  errors.push(...result.errors);
 
-    // Mirror into IndexedDB so the local cache is warm before the first refresh.
-    for (const exam of exams) {
-      if (!result.createdExamIds.has(exam.id)) continue;
-      await db.exams.put(await encryptExam({ ...exam, id: remap(exam.id) }, activeKey));
-    }
-    for (const ex of exercises) {
-      if (!result.createdExerciseIds.has(ex.id)) continue;
-      await db.exercises.put(
-        await encryptExercise(
-          { ...ex, id: remap(ex.id), examId: remap(ex.examId) },
-          activeKey
-        )
-      );
-    }
-  } else {
-    for (const item of exams) {
-      await saveExamEncrypted(item, activeKey);
-    }
-    for (const item of exercises) {
-      await saveExerciseEncrypted(item, activeKey);
-    }
+  // Mirror into IndexedDB so the local cache is warm before the first refresh.
+  for (const exam of exams) {
+    if (!result.createdExamIds.has(exam.id)) continue;
+    await db.exams.put(await encryptExam({ ...exam, id: remap(exam.id) }, activeKey));
+  }
+  for (const ex of exercises) {
+    if (!result.createdExerciseIds.has(ex.id)) continue;
+    await db.exercises.put(
+      await encryptExercise(
+        { ...ex, id: remap(ex.id), examId: remap(ex.examId) },
+        activeKey
+      )
+    );
   }
 
-  // Students, submissions and scores go through their repositories in every mode
-  // — those already keep identity data local in hybrid mode — but must point at
-  // the exam ids that actually got created.
+  // Submissions of an exam that got a fresh id get fresh ids too: their archived ids may belong to
+  // another account's exam on this server (a 409 that used to vanish into the offline queue).
+  // Submissions of an exam that kept its id keep theirs, so re-importing one's own backup upserts.
+  const submissionIdMap = new Map<string, string>();
+  for (const sub of Array.isArray(payload.submissions) ? payload.submissions : []) {
+    if (remap(sub.examId) !== sub.examId) submissionIdMap.set(sub.id, crypto.randomUUID());
+  }
+  const remapSubmission = (id: string) => submissionIdMap.get(id) ?? id;
+  const local = resultsAreLocal();
+
+  // Results go where the account keeps them: this browser in hybrid mode (through the
+  // repositories), the server in all-server mode. Server writes are direct, so a rejection is
+  // reported here instead of disappearing into the offline queue.
   if (Array.isArray(payload.students)) {
     for (const item of payload.students) {
-      await saveStudentEncrypted({ ...item, examId: remap(item.examId) }, activeKey);
+      const student = { ...item, examId: remap(item.examId) };
+      try {
+        if (local) await saveStudentEncrypted(student, activeKey);
+        else
+          await api.post(`/exams/${student.examId}/students`, await studentServerPayload(student, activeKey), {
+            silentError: true,
+          });
+      } catch (err) {
+        errors.push(`Student of exam ${student.examId}: ${describe(err)}`);
+      }
     }
   }
 
   if (Array.isArray(payload.submissions)) {
     for (const item of payload.submissions) {
-      await saveSubmissionEncrypted({ ...item, examId: remap(item.examId) }, activeKey);
+      const sub = await resealScans(
+        { ...item, id: remapSubmission(item.id), examId: remap(item.examId) },
+        activeKey,
+        errors
+      );
+      try {
+        if (local) await saveSubmissionEncrypted(sub, activeKey);
+        else
+          await api.post(`/exams/${sub.examId}/submissions`, await submissionServerPayload(sub), {
+            silentError: true,
+          });
+      } catch (err) {
+        errors.push(`Submission ${sub.id}: ${describe(err)}`);
+      }
     }
   }
 
@@ -195,12 +268,19 @@ export async function applyArchive(
     // they belong to, so the exam id comes from that submission.
     const examIdBySubmission = new Map<string, string>();
     for (const sub of Array.isArray(payload.submissions) ? payload.submissions : []) {
-      examIdBySubmission.set(sub.id, remap(sub.examId) ?? sub.examId);
+      examIdBySubmission.set(remapSubmission(sub.id), remap(sub.examId) ?? sub.examId);
     }
 
     const bySubmission = new Map<string, ExerciseScoreRecord[]>();
     for (const score of payload.exerciseScores) {
-      const record = { ...score, exerciseId: remap(score.exerciseId) };
+      const submissionId = remapSubmission(score.submissionId);
+      const record = {
+        ...score,
+        // Fresh row id with a fresh submission: score ids are global primary keys on the server.
+        id: submissionId !== score.submissionId ? crypto.randomUUID() : score.id,
+        submissionId,
+        exerciseId: remap(score.exerciseId),
+      };
       const bucket = bySubmission.get(record.submissionId);
       if (bucket) bucket.push(record);
       else bySubmission.set(record.submissionId, [record]);
@@ -215,7 +295,19 @@ export async function applyArchive(
         );
         continue;
       }
-      await scoreRepository.saveMany(examId, submissionId, scores, activeKey);
+      try {
+        if (local) await scoreRepository.saveMany(examId, submissionId, scores, activeKey);
+        else {
+          const sealed = await Promise.all(scores.map((sc) => encryptScore(sc, activeKey)));
+          await api.put(
+            `/exams/${examId}/submissions/${submissionId}/scores`,
+            { scores: sealed.map(scoreToApi) },
+            { silentError: true }
+          );
+        }
+      } catch (err) {
+        errors.push(`Scores of submission ${submissionId}: ${describe(err)}`);
+      }
     }
   }
 
@@ -269,7 +361,15 @@ export async function applyArchive(
   }
 
   if (Array.isArray(payload.auditLogs) && payload.auditLogs.length > 0) {
-    await db.auditLog.bulkPut(payload.auditLogs);
+    // Current archives carry the entries decrypted; re-seal them under this account's key. Entries
+    // of older archives are still sealed under the exporter's key and only open for that account.
+    const entries = await Promise.all(
+      payload.auditLogs
+        // An entry the exporter could not open carries no note worth sealing again.
+        .filter((a: AuditEntry) => !a.decryptFailed)
+        .map(async (a: AuditEntry) => (a.payloadCt ? a : encryptAuditEntry(a, activeKey)))
+    );
+    await db.auditLog.bulkPut(entries);
   }
 
   onProgress?.({ stage: 'complete', current: 100, total: 100 });

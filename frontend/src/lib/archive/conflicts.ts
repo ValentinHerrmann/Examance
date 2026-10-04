@@ -117,8 +117,9 @@ const SPECS: KindSpec[] = [
       ...props('totalScore', 'createdAt'),
       // `scanCt`/`annotationCt` exist only on a full fetch; `hasScan`/`hasAnnotations` are the list
       // endpoint's cheap flags and stay accurate without the bytes (see submissionRepository `includeScans`).
-      hasScan: (r) => Boolean(r.scanCt) || Boolean(r.hasScan),
-      hasAnnotations: (r) => Boolean(r.annotationCt) || Boolean(r.hasAnnotations),
+      // Archived submissions carry the decrypted bytes (`scanBytes`/`annotationBytes`) instead.
+      hasScan: (r) => Boolean(r.scanCt) || Boolean(r.scanBytes) || Boolean(r.hasScan),
+      hasAnnotations: (r) => Boolean(r.annotationCt) || Boolean(r.annotationBytes) || Boolean(r.hasAnnotations),
     },
     allowCopy: false,
     existing: (rows, key) => perExam(rows, (id) => submissionRepository.getByExamId(id, key)),

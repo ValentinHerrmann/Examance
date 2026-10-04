@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Shown instead of the app while the unlocked session does not own this browser's workspace
+  // Shown instead of the app while the signed-in account may not open this browser's workspace
   // (lib/db/workspace.ts, owner binding). Nothing is read or written until the person decides. It names
   // whose workspace this is and offers the way back in, plus a confirmed reset as the last resort.
   import { onMount } from 'svelte';
@@ -18,12 +18,12 @@
 
   // Literal keys per case, so a missing translation is a type error.
   const COPY = {
-    passphraseOwned: {
-      title: 'storagePolicy.workspace.blocked.passphraseOwned.title',
-      body: 'storagePolicy.workspace.blocked.passphraseOwned.body',
-      primary: 'storagePolicy.workspace.blocked.passphraseOwned.primary',
-      reset: 'storagePolicy.workspace.blocked.passphraseOwned.reset',
-      resetButton: 'storagePolicy.workspace.blocked.passphraseOwned.resetButton',
+    legacyLocal: {
+      title: 'storagePolicy.workspace.blocked.legacyLocal.title',
+      body: 'storagePolicy.workspace.blocked.legacyLocal.body',
+      primary: 'storagePolicy.workspace.blocked.legacyLocal.primary',
+      reset: 'storagePolicy.workspace.blocked.legacyLocal.reset',
+      resetButton: 'storagePolicy.workspace.blocked.legacyLocal.resetButton',
     },
     accountOwned: {
       title: 'storagePolicy.workspace.blocked.accountOwned.title',
@@ -38,13 +38,6 @@
       primary: 'storagePolicy.workspace.blocked.unknownOwner.primary',
       reset: 'storagePolicy.workspace.blocked.unknownOwner.reset',
       resetButton: 'storagePolicy.workspace.blocked.unknownOwner.resetButton',
-    },
-    needsSignIn: {
-      title: 'storagePolicy.workspace.blocked.needsSignIn.title',
-      body: 'storagePolicy.workspace.blocked.needsSignIn.body',
-      primary: 'storagePolicy.workspace.blocked.needsSignIn.primary',
-      reset: 'storagePolicy.workspace.blocked.needsSignIn.reset',
-      resetButton: 'storagePolicy.workspace.blocked.needsSignIn.resetButton',
     },
     pendingWrites: {
       title: 'storagePolicy.workspace.blocked.pendingWrites.title',
@@ -61,12 +54,9 @@
   let errorMsg = $state('');
 
   let variant = $derived.by((): keyof typeof COPY => {
-    if (reason === 'needs-sign-in') return 'needsSignIn';
+    if (reason === 'legacy-local') return 'legacyLocal';
     if (reason === 'pending-writes') return 'pendingWrites';
-    if (reason === 'foreign-account') return 'accountOwned';
-    if (summary?.ownerKind === 'local-vault') return 'passphraseOwned';
-    if (summary?.ownerKind === 'account') return 'accountOwned';
-    return 'unknownOwner';
+    return summary?.accountEmail ? 'accountOwned' : 'unknownOwner';
   });
   let copy = $derived(COPY[variant]);
   let owner = $derived(
@@ -74,10 +64,10 @@
       ? summary.backendOrigin
         ? `${summary.accountEmail} (${extractHostname(summary.backendOrigin)})`
         : summary.accountEmail
-      : (summary?.backendOrigin ? extractHostname(summary.backendOrigin) : '?'),
+      : '?',
   );
-  // Hybrid keeps student data only in this browser; starting over loses it for good.
-  let losesLocalResults = $derived(summary?.mode === 'hybrid' && summary.hasData);
+  // Results kept only in this browser are lost for good by a reset.
+  let losesLocalResults = $derived((summary?.localResults ?? 0) > 0);
 
   onMount(async () => {
     summary = await describeWorkspace();
@@ -98,23 +88,23 @@
 </script>
 
 <div class="mx-auto w-full max-w-form space-y-4 rounded-xl border border-line bg-surface-raised p-6">
-    <h1 class="m-0 text-lg font-semibold text-content">{$t(copy.title, { owner })}</h1>
-    <p class="m-0 text-sm text-muted">{$t(copy.body, { owner })}</p>
+  <h1 class="m-0 text-lg font-semibold text-content">{$t(copy.title, { owner })}</h1>
+  <p class="m-0 text-sm text-muted">{$t(copy.body, { owner })}</p>
 
-    <Button onClick={lockSession}>{$t(copy.primary, { owner })}</Button>
+  <Button onClick={lockSession}>{$t(copy.primary, { owner })}</Button>
 
-    <div class="space-y-2 border-t border-line pt-4">
-      <p class="m-0 text-sm text-muted">{$t(copy.reset, { owner })}</p>
-      {#if losesLocalResults}
-        <p class="m-0 text-sm text-warning-fg">{$t('storagePolicy.workspace.blocked.hybridLoss')}</p>
-      {/if}
-      <Checkbox bind:checked={confirmed} label={$t('storagePolicy.workspace.blocked.resetConfirm')} />
-      <Button severity="danger" variant="outlined" disabled={!confirmed} loading={busy} onClick={handleReset}>
-        {$t(copy.resetButton)}
-      </Button>
-    </div>
-
-    {#if errorMsg}
-      <Alert severity="danger" class="whitespace-pre-wrap">{errorMsg}</Alert>
+  <div class="space-y-2 border-t border-line pt-4">
+    <p class="m-0 text-sm text-muted">{$t(copy.reset, { owner })}</p>
+    {#if losesLocalResults}
+      <p class="m-0 text-sm text-warning-fg">{$t('storagePolicy.workspace.blocked.resultsLoss')}</p>
     {/if}
+    <Checkbox bind:checked={confirmed} label={$t('storagePolicy.workspace.blocked.resetConfirm')} />
+    <Button severity="danger" variant="outlined" disabled={!confirmed} loading={busy} onClick={handleReset}>
+      {$t(copy.resetButton)}
+    </Button>
+  </div>
+
+  {#if errorMsg}
+    <Alert severity="danger" class="whitespace-pre-wrap">{errorMsg}</Alert>
+  {/if}
 </div>

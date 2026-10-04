@@ -1,8 +1,6 @@
-import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
 import { db } from '#lib/db/db';
-import { storagePolicyStore } from '#lib/stores/storagePolicy';
-import { encryptExercise, decryptExercise } from '#lib/db/dbEncryption';
+import { decryptExercise } from '#lib/db/dbEncryption';
 import { enqueueRequest } from '#lib/services/offlineQueue';
 import type { ExerciseRecord } from '#lib/db/schema';
 import { normalizeMcExercise, serializeMcAnswers } from '#lib/grading/mcExerciseHash';
@@ -23,6 +21,7 @@ export function mapApiToExerciseRecord(raw: any): ExerciseRecord {
     title: raw.name || raw.title || 'Exercise',
     name: raw.name || raw.title,
     latexBody: raw.latex_body || raw.latexBody || '',
+    codeWithheld: raw.code_withheld ?? raw.codeWithheld ?? undefined,
     maxPoints: raw.max_points ?? raw.maxPoints ?? 0,
     topicTag: raw.topic_tag || raw.topicTag,
     grade: raw.grade,
@@ -46,7 +45,9 @@ export function mapExerciseRecordToApi(ex: ExerciseRecord): any {
   return {
     id: ex.id,
     name: ex.title || ex.name || 'Exercise',
-    latex_body: ex.latexBody || '',
+    // Withheld code stays withheld (null body); the server then keeps max_points as sent.
+    latex_body: ex.codeWithheld ? null : ex.latexBody || '',
+    code_withheld: ex.codeWithheld ?? false,
     max_points: ex.maxPoints,
     topic_tag: ex.topicTag,
     grade: ex.grade,
@@ -62,53 +63,24 @@ export function mapExerciseRecordToApi(ex: ExerciseRecord): any {
   };
 }
 
-/**
- * Re-seals local rows stored without a payload. Variant creation in the exercise
- * library used to `put` decrypted records straight into Dexie, leaving plaintext
- * at rest; such rows still read fine, so they are healed on the next load.
- * Rows that failed to decrypt are skipped (they have a payload, and the guard
- * would refuse them anyway). A failure here must never break loading.
- */
-async function sealPlaintextRows(
-  raw: ExerciseRecord[],
-  decrypted: ExerciseRecord[],
-  key: CryptoKey | null
-): Promise<void> {
-  if (!key) return;
-  const plaintext = decrypted.filter(
-    (ex, i) => !ex.decryptFailed && !(raw[i].payloadCt && raw[i].payloadIv)
-  );
-  if (plaintext.length === 0) return;
-  try {
-    const sealed = await Promise.all(plaintext.map((ex) => encryptExercise(ex, key)));
-    await db.exercises.bulkPut(sealed);
-  } catch (err) {
-    console.warn('Could not re-seal plaintext exercise rows:', err);
-  }
-}
-
 export const exerciseRepository = {
-  async getAll(key: CryptoKey | null): Promise<ExerciseRecord[]> {
-    const policy = get(storagePolicyStore);
-    if (policy.storageMode === 'all-local') {
-      const raw = await db.exercises.toArray();
-      const exercises = await Promise.all(raw.map((ex) => decryptExercise(ex, key)));
-      await sealPlaintextRows(raw, exercises, key);
-      return exercises;
-    } else {
-      try {
-        // silentError: the caller falls back to the local copy on failure.
-        const rawList = await api.get<any[]>('/exercises', { silentError: true });
-        return rawList.map(mapApiToExerciseRecord);
-      } catch (err: any) {
-        return [];
-      }
+  async getAll(_key: CryptoKey | null): Promise<ExerciseRecord[]> {
+    try {
+      // silentError: the caller falls back to the local copy on failure.
+      const rawList = await api.get<any[]>('/exercises', { silentError: true });
+      return rawList.map(mapApiToExerciseRecord);
+    } catch (err: any) {
+      return [];
     }
   },
 
   async getByExamId(examId: string, key: CryptoKey | null): Promise<ExerciseRecord[]> {
-    const policy = get(storagePolicyStore);
-    if (policy.storageMode === 'all-local') {
+    try {
+      const rawList = await api.get<any[]>(`/exams/${examId}/exercises`, { silentError: true });
+      const mapped = rawList.map(mapApiToExerciseRecord);
+      mapped.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0) || (a.subIndex || 0) - (b.subIndex || 0));
+      return mapped;
+    } catch (err: any) {
       const links = await db.examExercises.where('examId').equals(examId).toArray();
       links.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0) || (a.subIndex || 0) - (b.subIndex || 0));
       if (links.length > 0) {
@@ -123,94 +95,44 @@ export const exerciseRepository = {
         return exercises;
       }
       const raw = await db.exercises.where('examId').equals(examId).toArray();
-      return Promise.all(raw.map((ex) => decryptExercise(ex, key)));
-    } else {
-      try {
-        const rawList = await api.get<any[]>(`/exams/${examId}/exercises`, { silentError: true });
-        const mapped = rawList.map(mapApiToExerciseRecord);
-        mapped.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0) || (a.subIndex || 0) - (b.subIndex || 0));
-        return mapped;
-      } catch (err: any) {
-        const links = await db.examExercises.where('examId').equals(examId).toArray();
-        links.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0) || (a.subIndex || 0) - (b.subIndex || 0));
-        if (links.length > 0) {
-          const exercises: ExerciseRecord[] = [];
-          for (const link of links) {
-            const rawEx = await db.exercises.get(link.exerciseId);
-            if (rawEx) {
-              const ex = await decryptExercise(rawEx, key);
-              exercises.push({ ...ex, orderIndex: link.orderIndex, subIndex: link.subIndex, mcGroupId: link.mcGroupId });
-            }
-          }
-          return exercises;
-        }
-        const raw = await db.exercises.where('examId').equals(examId).toArray();
-        if (raw.length > 0) {
-          return Promise.all(raw.map((ex) => decryptExercise(ex, key)));
-        }
-        return [];
+      if (raw.length > 0) {
+        return Promise.all(raw.map((ex) => decryptExercise(ex, key)));
       }
+      return [];
     }
   },
 
-  async save(ex: ExerciseRecord, key: CryptoKey | null): Promise<void> {
-    const policy = get(storagePolicyStore);
-    if (policy.storageMode === 'all-local') {
-      const encrypted = await encryptExercise(ex, key);
-      await db.exercises.put(encrypted);
-      if (ex.examId) {
-        // Merge onto the stored junction instead of replacing it: the record
-        // also carries the exercise's MC group membership (mcGroupId/subIndex),
-        // which an exercise-level save knows nothing about and must not drop.
-        const existingLink = await db.examExercises.get([ex.examId, ex.id]);
-        await db.examExercises.put({
-          ...(existingLink ?? {}),
-          examId: ex.examId,
-          exerciseId: ex.id,
-          orderIndex: ex.orderIndex || existingLink?.orderIndex || 0,
-          mcGroupId: ex.mcGroupId ?? existingLink?.mcGroupId,
-          subIndex: ex.subIndex ?? existingLink?.subIndex,
-        });
-      }
-    } else {
-      const payload = mapExerciseRecordToApi(ex);
-      try {
-        await api.post('/exercises', payload, { silentError: true });
-      } catch (err: any) {
-        // POST /exercises is create-only and answers 409 for an id it already
-        // knows. Re-queuing that POST could never succeed — it just replayed the
-        // same conflict on every flush. An existing exercise is a PATCH.
-        if (err?.status === 409) {
-          const { id: _id, ...patchPayload } = payload;
-          try {
-            await api.patch(`/exercises/${ex.id}`, patchPayload, { silentError: true });
-          } catch {
-            enqueueRequest(`/exercises/${ex.id}`, 'PATCH', patchPayload);
-          }
-        } else {
-          enqueueRequest('/exercises', 'POST', payload);
+  async save(ex: ExerciseRecord, _key: CryptoKey | null): Promise<void> {
+    const payload = mapExerciseRecordToApi(ex);
+    try {
+      await api.post('/exercises', payload, { silentError: true });
+    } catch (err: any) {
+      // POST /exercises is create-only and answers 409 for an id it already
+      // knows. Re-queuing that POST could never succeed — it just replayed the
+      // same conflict on every flush. An existing exercise is a PATCH.
+      if (err?.status === 409) {
+        const { id: _id, ...patchPayload } = payload;
+        try {
+          await api.patch(`/exercises/${ex.id}`, patchPayload, { silentError: true });
+        } catch {
+          enqueueRequest(`/exercises/${ex.id}`, 'PATCH', patchPayload);
         }
+      } else {
+        enqueueRequest('/exercises', 'POST', payload);
       }
     }
   },
 
   async delete(id: string): Promise<void> {
     invalidateOwner('exercise', id);
-    const policy = get(storagePolicyStore);
-    if (policy.storageMode === 'all-local') {
-      await db.exercises.delete(id);
-      await db.examExercises.where('exerciseId').equals(id).delete();
-      await db.exerciseResources.where('exerciseId').equals(id).delete();
-    } else {
-      try {
-        await api.delete(`/exercises/${id}`);
-      } catch (err: any) {
-        enqueueRequest(`/exercises/${id}`, 'DELETE');
-      }
-      // The server cascades its own rows; drop the local mirror either way, or
-      // an IndexedDB fallback would bring the exercise back.
-      await db.exercises.delete(id);
-      await db.exerciseResources.where('exerciseId').equals(id).delete();
+    try {
+      await api.delete(`/exercises/${id}`);
+    } catch (err: any) {
+      enqueueRequest(`/exercises/${id}`, 'DELETE');
     }
+    // The server cascades its own rows; drop the local mirror either way, or
+    // an IndexedDB fallback would bring the exercise back.
+    await db.exercises.delete(id);
+    await db.exerciseResources.where('exerciseId').equals(id).delete();
   },
 };
