@@ -54,12 +54,20 @@ interface KindSpec {
   text?: (row: Row) => string;
   allowCopy: boolean;
   /** What the target store already holds, for the rows the archive brings. */
-  existing: (rows: Row[], key: CryptoKey | null) => Promise<Row[]>;
+  existing: (rows: Row[], key: CryptoKey | null, ownExamIds: Set<string>) => Promise<Row[]>;
 }
 
-/** Students and submissions are scoped per exam, so they are loaded per exam. */
-async function perExam(rows: Row[], load: (examId: string) => Promise<Row[]>): Promise<Row[]> {
-  const examIds = [...new Set(rows.map((r) => r.examId as string))];
+/**
+ * Students and submissions are scoped per exam, so they are loaded per exam, and only for exams
+ * this account owns: another account's exam cannot hold this account's results, and asking the
+ * server about it answers 401 (which used to raise an error pop-up and a token refresh per exam).
+ */
+async function perExam(
+  rows: Row[],
+  ownExamIds: Set<string>,
+  load: (examId: string) => Promise<Row[]>
+): Promise<Row[]> {
+  const examIds = [...new Set(rows.map((r) => r.examId as string))].filter((id) => ownExamIds.has(id));
   return (await Promise.all(examIds.map(load))).flat();
 }
 
@@ -106,7 +114,7 @@ const SPECS: KindSpec[] = [
     title: (r) => r.studentName || r.fallbackCode || r.pseudonymId,
     fields: props('studentName', 'studentNumber', 'fallbackCode'),
     allowCopy: false,
-    existing: (rows, key) => perExam(rows, (id) => studentRepository.getByExamId(id, key)),
+    existing: (rows, key, own) => perExam(rows, own, (id) => studentRepository.getByExamId(id, key)),
   },
   {
     kind: 'submission',
@@ -122,7 +130,7 @@ const SPECS: KindSpec[] = [
       hasAnnotations: (r) => Boolean(r.annotationCt) || Boolean(r.annotationBytes) || Boolean(r.hasAnnotations),
     },
     allowCopy: false,
-    existing: (rows, key) => perExam(rows, (id) => submissionRepository.getByExamId(id, key)),
+    existing: (rows, key, own) => perExam(rows, own, (id) => submissionRepository.getByExamId(id, key)),
   },
   {
     kind: 'resource',
@@ -162,30 +170,38 @@ function compare(spec: KindSpec, current: Row, incoming: Row): ArchiveConflict |
   };
 }
 
+export interface ConflictScan {
+  conflicts: ArchiveConflict[];
+  identicalCount: number;
+  /** Records the target store already holds unchanged, per kind; the import skips them. */
+  identical: { kind: ConflictKind; id: string }[];
+  /** Exams this account owns (results of other exams cannot conflict). */
+  ownExamIds: Set<string>;
+}
+
 /**
  * Compares an archive against what the target store holds (via the repositories, so it asks the
- * store the import writes to). Identical collisions are counted, not returned.
+ * store the import writes to). Identical collisions are not returned as conflicts; they are listed
+ * so the import skips them instead of writing a duplicate.
  */
-export async function detectConflicts(
-  payload: Row,
-  key: CryptoKey | null
-): Promise<{ conflicts: ArchiveConflict[]; identicalCount: number }> {
+export async function detectConflicts(payload: Row, key: CryptoKey | null): Promise<ConflictScan> {
   const conflicts: ArchiveConflict[] = [];
-  let identicalCount = 0;
+  const identical: { kind: ConflictKind; id: string }[] = [];
+  const ownExamIds = new Set((await examRepository.getAll(key)).map((e) => e.id));
 
   for (const spec of SPECS) {
     const rows: Row[] = payload[spec.payloadKey] ?? [];
     if (rows.length === 0) continue;
-    const existing = new Map((await spec.existing(rows, key)).map((r) => [spec.id(r), r]));
+    const existing = new Map((await spec.existing(rows, key, ownExamIds)).map((r) => [spec.id(r), r]));
     for (const incoming of rows) {
       const current = existing.get(spec.id(incoming));
       if (!current) continue;
       const conflict = compare(spec, current, incoming);
       if (conflict) conflicts.push(conflict);
-      else identicalCount++;
+      else identical.push({ kind: spec.kind, id: spec.id(incoming) });
     }
   }
-  return { conflicts, identicalCount };
+  return { conflicts, identicalCount: identical.length, identical, ownExamIds };
 }
 
 /** Every conflict gets `choice`; a copy falls back to keep where not allowed. */
@@ -208,10 +224,12 @@ export function applyToAll(
  */
 export function applyResolutions(
   payload: Row,
-  decisions: DecisionMap
+  decisions: DecisionMap,
+  identical: { id: string }[] = []
 ): { payload: Row; idMap: Map<string, string>; skipped: Set<string> } {
   const idMap = new Map<string, string>();
-  const skipped = new Set<string>();
+  // Identical records are already there: writing them again only produced 409s and duplicates.
+  const skipped = new Set<string>(identical.map((r) => r.id));
   for (const d of decisions.values()) {
     if (d.choice === 'keep-existing') skipped.add(d.id);
     if (d.choice === 'import-as-copy') idMap.set(d.id, crypto.randomUUID());
@@ -233,8 +251,10 @@ export function applyResolutions(
       (r) => `${r.exerciseId}:${r.filename}`,
       (r) => ({ exerciseId: remap(r.exerciseId) })
     ),
+    // A kept exam keeps its own links. A kept exercise is still linked: the importer reuses the
+    // existing exercise instead of dropping the link (`serverImport.ts`).
     exerciseExams: ((payload.exerciseExams ?? []) as Row[])
-      .filter((j) => !skipped.has(j.examId) && !skipped.has(j.exerciseId))
+      .filter((j) => !skipped.has(j.examId))
       .map((j) => ({
         ...j,
         examId: remap(j.examId),

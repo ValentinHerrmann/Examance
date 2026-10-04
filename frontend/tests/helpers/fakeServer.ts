@@ -33,6 +33,10 @@ interface State {
   links: Map<string, Link[]>;
   mcGroups: Map<string, any[]>;
   resources: any[];
+  /** Exercises that exist but belong to another account and are private: `GET /exercises/:id` answers 404. */
+  hiddenExerciseIds: Set<string>;
+  /** Every request, as "METHOD /path", so tests can assert what was (not) called. */
+  requests: string[];
 }
 
 const state: State = {
@@ -41,6 +45,8 @@ const state: State = {
   links: new Map(),
   mcGroups: new Map(),
   resources: [],
+  hiddenExerciseIds: new Set(),
+  requests: [],
 };
 
 export const fakeServer = {
@@ -51,6 +57,8 @@ export const fakeServer = {
     state.links.clear();
     state.mcGroups.clear();
     state.resources = [];
+    state.hiddenExerciseIds.clear();
+    state.requests = [];
   },
 };
 
@@ -92,6 +100,7 @@ function createExercise(body: any) {
 }
 
 async function request(method: string, path: string, body?: any): Promise<any> {
+  state.requests.push(`${method} ${path.split('?')[0]}`);
   const parts = path.split('?')[0].split('/').filter(Boolean);
 
   if (parts[0] === 'exams') {
@@ -117,6 +126,10 @@ async function request(method: string, path: string, body?: any): Promise<any> {
     if (method === 'POST' && !id) return createExercise(body);
     const exercise = id ? state.exercises.get(id) : undefined;
     if (!exercise) throw notFound(path);
+    if (method === 'GET' && !sub) {
+      if (state.hiddenExerciseIds.has(id)) throw notFound(path);
+      return exercise;
+    }
     if (method === 'PATCH' && !sub) {
       state.exercises.set(id, { ...exercise, ...body, id });
       return state.exercises.get(id);

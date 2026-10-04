@@ -3,21 +3,40 @@ import { clearAllTables } from "#lib/db/db";
 import { projectStore } from "#lib/stores/project";
 import { sessionStore } from "#lib/stores/session";
 import { askAboutConflicts } from "#lib/stores/conflictPrompt";
+import { showArchiveReport } from "#lib/stores/archiveReport";
+import { collectHttpErrors, type CollectedHttpError } from "#lib/stores/httpErrorStore";
+import { bump, newReport, type ArchiveReport, type ReportKind } from "#lib/archive/report";
 import { packProject, type PackOptions } from "#lib/archive/packer";
 import { applyArchive, decryptArchive, type ImportResult } from "#lib/archive/unpacker";
 import {
   applyResolutions,
   detectConflicts,
   type ArchiveConflict,
+  type ConflictKind,
   type DecisionMap,
 } from "#lib/archive/conflicts";
 import { translate } from "#lib/i18n";
 
 type ConflictResolver = (conflicts: ArchiveConflict[], identicalCount: number) => Promise<DecisionMap>;
 
+const KIND_TO_REPORT: Record<ConflictKind, ReportKind> = {
+  exam: "exams",
+  exercise: "exercises",
+  mcGroup: "mcGroups",
+  student: "students",
+  submission: "submissions",
+  resource: "resources",
+};
+
+/** HTTP errors a batch run collected instead of showing, as report details. */
+function describeHttpErrors(errors: CollectedHttpError[]): string[] {
+  return errors.map((e) => `HTTP ${e.status}${e.code ? ` ${e.code}` : ""}: ${e.message}`);
+}
+
 /**
  * Imports a .bgproj archive, merging with the workspace. Order matters: decrypt (touches nothing),
- * ask about every collision, then write under the live session key.
+ * ask about every collision, then write under the live session key. Every outcome goes into the
+ * returned report; no request raises the global HTTP error modal.
  * @throws on rejected password, locked session, or cancelled conflict dialog; nothing is written then.
  */
 export async function openBgprojArchive(
@@ -30,46 +49,44 @@ export async function openBgprojArchive(
   const key = get(sessionStore).sessionKey;
   if (!key) throw new Error(translate("workspace.archive.lockedCannotImport"));
 
-  const { conflicts, identicalCount } = await detectConflicts(payload, key);
-  const decisions = conflicts.length > 0 ? await resolve(conflicts, identicalCount) : new Map();
+  const report = newReport("import", file.name);
+  const { result, errors } = await collectHttpErrors(async () => {
+    const scan = await detectConflicts(payload, key);
+    const decisions = scan.conflicts.length > 0 ? await resolve(scan.conflicts, scan.identicalCount) : new Map();
 
-  return applyArchive(applyResolutions(payload, decisions).payload);
+    // The teacher's decisions and the identical records, as report counts.
+    for (const r of scan.identical) bump(report, KIND_TO_REPORT[r.kind], "alreadyPresent");
+    const takeImportedIds = new Set<string>();
+    for (const d of (decisions as DecisionMap).values()) {
+      const kind = KIND_TO_REPORT[d.kind];
+      if (d.choice === "keep-existing") bump(report, kind, "keptExisting");
+      if (d.choice === "import-as-copy") bump(report, kind, "copied");
+      if (d.choice === "take-imported") {
+        bump(report, kind, "replaced");
+        takeImportedIds.add(d.id);
+      }
+    }
+
+    const resolved = applyResolutions(payload, decisions, scan.identical).payload;
+    return applyArchive(resolved, undefined, { report, ownExamIds: scan.ownExamIds, takeImportedIds });
+  });
+  report.problems.push(...describeHttpErrors(errors));
+  return result;
 }
 
-/** The whole interactive import (password prompt, import, summary/error alert), shared by workspace menu and dashboard. Returns true when something was imported. */
+/** The whole interactive import (password prompt, import, report modal), shared by workspace menu and dashboard. Returns true when something was imported. */
 export async function importArchiveInteractively(file: File): Promise<boolean> {
   const password = promptArchivePassword(translate("workspace.archive.promptImportPassword"));
   if (!password) return false;
+  let result: ImportResult;
   try {
-    alert(formatImportSummary(await openBgprojArchive(file, password)));
-    return true;
+    result = await openBgprojArchive(file, password);
   } catch (err: any) {
     alert(translate("workspace.archive.importFailed", { message: err.message }));
     return false;
   }
-}
-
-/** User-facing import summary; lists every record the server rejected. */
-export function formatImportSummary(result: {
-  examCount: number;
-  studentCount: number;
-  errors: string[];
-}): string {
-  const loaded = translate("workspace.archive.summaryLoaded", {
-    examCount: result.examCount,
-    studentCount: result.studentCount,
-  });
-  if (result.errors.length === 0) {
-    return translate("workspace.archive.summarySuccess", { loaded });
-  }
-  return (
-    translate("workspace.archive.summaryProblems", {
-      errorCount: result.errors.length,
-      loaded,
-    }) +
-    `\n\n${translate("workspace.archive.summaryProblemsHeading")}\n` +
-    result.errors.map((e) => `• ${e}`).join('\n')
-  );
+  await showArchiveReport(result.report);
+  return true;
 }
 
 /** Exports the workspace as an encrypted .bgproj archive (browser download; default filename "workspace.bgproj"). @throws Error if export fails. */
@@ -77,8 +94,11 @@ export async function exportBgprojArchive(
   password: string,
   filename = "workspace.bgproj",
   opts: PackOptions = {}
-): Promise<void> {
-  const blob = await packProject(password, undefined, opts);
+): Promise<ArchiveReport> {
+  const { result, errors } = await collectHttpErrors(() => packProject(password, undefined, opts));
+  const { blob, report } = result;
+  report.filename = filename;
+  report.problems.push(...describeHttpErrors(errors));
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -86,22 +106,25 @@ export async function exportBgprojArchive(
   a.click();
   // Revoking synchronously after click() can cancel the download.
   setTimeout(() => URL.revokeObjectURL(url), 0);
+  return report;
 }
 
-/** The whole interactive export (password prompt, download, error alert), shared by workspace menu, exam page and mode-switch wizard. Returns true when written. */
+/** The whole interactive export (password prompt, download, report modal or error alert), shared by workspace menu, exam page and mode-switch wizard. Returns true when written. */
 export async function exportArchiveInteractively(
   filename = "workspace.bgproj",
   opts: PackOptions = {}
 ): Promise<boolean> {
   const password = promptArchivePassword(translate("workspace.archive.promptExportPassword"));
   if (!password) return false;
+  let report: ArchiveReport;
   try {
-    await exportBgprojArchive(password, filename, opts);
-    return true;
+    report = await exportBgprojArchive(password, filename, opts);
   } catch (err: any) {
     alert(translate("workspace.archive.exportFailed", { message: err.message }));
     return false;
   }
+  await showArchiveReport(report);
+  return true;
 }
 
 /** Clears the entire local workspace (all tables + project state). @throws Error if clearing fails. */

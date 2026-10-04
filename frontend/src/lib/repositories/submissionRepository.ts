@@ -94,8 +94,10 @@ export const submissionRepository = {
       return Promise.all(raw.map((sub) => decryptSubmission(sub, key)));
     } else {
       try {
+        // silentError: a failure degrades to "no submissions" below.
         const rawList = await api.get<any[]>(
-          `/exams/${examId}/submissions${includeScansQS(opts.includeScans)}`
+          `/exams/${examId}/submissions${includeScansQS(opts.includeScans)}`,
+          { silentError: true }
         );
         return rawList.map((s: any) => mapApiToSubmissionRecord(s, examId));
       } catch {
@@ -110,7 +112,7 @@ export const submissionRepository = {
       return raw ? decryptSubmission(raw, key) : null;
     } else {
       try {
-        const s = await api.get<any>(`/exams/${examId}/submissions/${id}`);
+        const s = await api.get<any>(`/exams/${examId}/submissions/${id}`, { silentError: true });
         return mapApiToSubmissionRecord(s, examId);
       } catch {
         return null;

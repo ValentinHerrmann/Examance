@@ -35,6 +35,7 @@
     confirmWorkspaceClear,
   } from "#lib/services/archiveService";
   import ImportConflictModal from "#lib/components/storage/ImportConflictModal.svelte";
+  import ArchiveReportModal from "#lib/components/storage/ArchiveReportModal.svelte";
   import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
   import { pendingSwitchStore, switchOwnedHere } from "#lib/services/storageModeSwitch";
   import { loadWorkspace, localResultCount, openWorkspace } from "#lib/db/workspace";
@@ -444,3 +445,4 @@
 />
 
 <ImportConflictModal />
+<ArchiveReportModal />
