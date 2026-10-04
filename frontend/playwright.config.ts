@@ -1,7 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Playwright config for the regression suite: Vite dev server, all-local mode, no backend.
+ * Playwright config for the regression suite: Vite dev server, mocked backend (an in-memory fake
+ * of the API answers for `http://localhost:8000`, see e2e/helpers/backend.ts), no real server.
  * `npm run dev` is NOT the web server command because its `predev` hook downloads the
  * LaTeX/WASM assets, making runs depend on the network.
  * Run one project: `--project=desktop`; one area: `-g "\[exercises\]"`.
@@ -32,7 +33,7 @@ export default defineConfig({
   grepInvert: wantsScreens ? undefined : /@screens/,
   testMatch: /.*\.spec\.ts$/,
 
-  // Generous timeouts: the vault passphrase is stretched with Argon2id running
+  // Generous timeouts: every sign-in stretches the password with Argon2id running
   // in WASM, and the very first page load after a cold Vite start has to
   // pre-bundle dependencies.
   timeout: 120_000,

@@ -6,7 +6,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './helpers/guards';
 import { label } from './helpers/i18n';
-import { chooseTheme, header, lockApp, openHelp, openStoragePolicy, openWorkspaceMenu } from './helpers/nav';
+import { chooseTheme, header, openHelp, openStoragePolicy, openWorkspaceMenu } from './helpers/nav';
 import { exerciseEditor } from './helpers/flows';
 import { THEMES, mainRoutes, pinTheme, seedWorkspace, visit } from './helpers/seed';
 
@@ -72,8 +72,8 @@ for (const theme of THEMES) {
 }
 
 test('[layout] the unlock page fits when locked', async ({ page }) => {
-  await seedWorkspace(page);
-  await lockApp(page);
+  await page.goto('/unlock');
+  await expect(page.getByLabel(label('auth.unlock.cloud.email'))).toBeVisible();
   await page.waitForTimeout(500);
   const m = await page.evaluate(() => {
     const doc = document.scrollingElement!;

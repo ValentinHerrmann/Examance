@@ -1,9 +1,9 @@
 /**
- * Shared setup for the device-matrix specs (layout, a11y, screens): one vault
- * with one exercise and one exam, plus the list of routes worth checking.
+ * Shared setup for the device-matrix specs (layout, a11y, screens): one signed-in
+ * account with one exercise and one exam, plus the list of routes worth checking.
  */
 import type { Page } from '@playwright/test';
-import { createExam, createExercise, createVault, currentExamId, exerciseBody } from './flows';
+import { createExam, createExercise, currentExamId, exerciseBody, signInFirstTime } from './flows';
 import { gotoDashboard, gotoExerciseLibrary, settleNavigation } from './nav';
 
 export type Theme = 'light' | 'dark';
@@ -20,9 +20,9 @@ export async function pinTheme(page: Page, theme: Theme): Promise<void> {
   }, theme);
 }
 
-/** Create the vault, an exercise and an exam; returns the exam id. */
+/** Sign in for the first time, create an exercise and an exam; returns the exam id. */
 export async function seedWorkspace(page: Page): Promise<string> {
-  await createVault(page);
+  await signInFirstTime(page);
   await gotoExerciseLibrary(page);
   await createExercise(page, { name: 'Layout exercise', topic: 'Layout', latex: exerciseBody('layout', 3) });
   await gotoDashboard(page);
