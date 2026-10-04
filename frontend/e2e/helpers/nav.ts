@@ -273,11 +273,11 @@ export async function importWorkspace(page: Page, filePath: string): Promise<voi
 /** Lock the session through the navbar's account menu; lands on `/unlock`. */
 export async function lockApp(page: Page): Promise<void> {
   const locale = await currentLocale(page);
-  // Local mode: the trigger is named "Account"; signed in it carries the email.
+  // The account menu is the last menu button in the header (its label is the signed-in email).
   const trigger = header(page).locator('button[aria-haspopup="menu"]').last();
   await trigger.click();
   await page
-    .getByRole('menuitem', { name: label('workspace.session.lock', undefined, locale) })
+    .getByRole('menuitem', { name: label('workspace.session.lockSession', undefined, locale) })
     .click();
   await page.waitForURL((url) => url.pathname === '/unlock');
   await settleNavigation(page);
