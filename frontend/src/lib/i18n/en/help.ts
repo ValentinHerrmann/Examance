@@ -23,9 +23,8 @@ export const help: Translations['help'] = {
         unlockLink: 'New here? How Examance works',
     },
     tips: {
-        storageLocal: 'Everything stays encrypted in this device’s browser. Not a single byte reaches a server — but there is no sync and no backup other than the .bgproj archive. Exception: the optional, anonymised donation of tick-box crops, if enabled in Settings while signed in to a server account.',
-        storageServer: 'All data is synced, but only ever as ciphertext. The key stays in the browser, so the server cannot read the contents.',
-        storageHybrid: 'Exercises and exam templates live on the server (useful for a shared department catalogue), while student data and grading results stay strictly local.',
+        storageServer: 'Exams, exercises and results live on the server, but encrypted: the key stays in the browser, so the server cannot read the contents. Only the LaTeX source of exercises and exams and the total score are unencrypted.',
+        storageHybrid: 'Exercises and exams live on the server (useful for a shared department catalogue). Student data, scans and scores stay in this browser only, encrypted, and are not visible on other devices.',
         latexLocal: 'The exam is typeset in the browser (WebAssembly XeLaTeX). The LaTeX source never leaves the device, but the first run takes longer.',
         latexServer: 'The server typesets the exam. Faster on low-spec hardware, but the LaTeX source is transmitted.',
         variantKey: 'Variants are different phrasings of the same exercise (group A/B/C). They share grading and statistics while making copying harder.',
@@ -52,30 +51,30 @@ export const help: Translations['help'] = {
                 l5: 'Grade anonymously, then analyse or export the results.',
             },
             s3: {
-                h: 'Back up your workspace',
-                p1: 'In local mode all data lives in this browser only. Export the workspace regularly as a password-protected .bgproj archive — that is also how you move it to another device.',
+                h: 'Back up your workspace and share results',
+                p1: 'The workspace menu creates a password-protected .bgproj archive (Argon2id + AES-GCM) with exams, student data, scans, annotations and scores. It is the main backup for results that live only in this browser in hybrid mode, and the archive can also be imported into a different account. "Share results (without exercise texts)" exports the same but without LaTeX code and resource files; exercise names, points and MC answer keys are kept. Whoever imports such an archive can grade and analyse the exams; they carry a "Results only" notice, and compiling, editing and building MC answer-sheet templates are disabled for those exercises. They do not appear in the exercise library. Pass the archive and its password on separately, because it contains student data.',
             },
         },
         storageModes: {
             title: 'Storage & encryption',
-            summary: 'Where your data lives — local, on the server, or a mix.',
+            summary: 'Where your data lives — entirely on the server, or with results only in the browser.',
             s1: {
-                h: 'The three storage strategies',
-                l1: 'All local (default): exams, exercises, student data and scans stay encrypted in the browser. No byte reaches a server.',
-                l2: 'All server: everything is synced, but only as AES-256-GCM ciphertext. The server stores the blobs; it cannot read them.',
-                l3: 'Hybrid: the exercise library and exam templates live on the server, while student data and grading results stay local.',
+                h: 'The two storage locations',
+                l1: 'All on the server: exams, exercises and results (student data, submissions with scans, scores) live on the server and are available in every browser of your account. They are encrypted client-side with AES-256-GCM; the server stores only ciphertext and cannot read it. The LaTeX source of exercises and exams and the total score stay unencrypted.',
+                l2: 'Hybrid: exercises and exams live on the server. Student data, submissions with scans and scores live only in the browser where they were recorded, encrypted in its local database. They are not visible on other devices, so back them up with a .bgproj archive.',
+                l3: 'The storage location belongs to your account, not to the browser: you choose it in a dialog the first time you sign in (there is no default), and it then applies in all browsers of your account. A purely local mode without an account no longer exists.',
             },
             s2: {
                 h: 'What is encrypted',
-                p1: 'The content is encrypted: exercise and exam text, student data, scans, annotations and scores. Only technical link fields such as ids and orderings stay in plain text.',
-                p2: 'Without the password the stored data cannot be recovered — not even by whoever runs the server. A forgotten password means the local workspace is lost.',
+                p1: 'The contents are encrypted: student data, names, scans, annotations and scores. Only technical linking fields such as ids and ordering stay unencrypted, along with the LaTeX source of exercises and exams and the total score.',
+                p2: 'The key is derived from your password. Without the password and recovery code the encrypted data cannot be recovered — not even by whoever runs the server. In hybrid mode this also applies to the results that live only in this browser.',
             },
             s3: {
                 h: 'Changing storage location',
-                p1: 'You can change the storage location in Settings, but data is not transferred automatically. The switch therefore walks you through four steps: back the workspace up as an encrypted archive file (.bgproj), clear local storage, change the storage location, import the archive again in the new mode.',
-                p2: 'The archive file is the only bridge between storage locations. The switch is not possible without an export, because clearing local storage cannot be undone. Exams stored on the server are kept; only this browser\'s local storage is cleared. When you leave "All Server", you can have the student data on the server deleted after the import. Changes not yet sent must be sent before the switch, and other open tabs are blocked while it runs.',
-                p3: 'On import, Examance checks whether records already exist. For every conflict you see both versions side by side and decide which one applies. Student data and submissions cannot be imported as a copy, because duplicate pseudonyms are not permissible under data protection rules.',
-                p4: 'The storage location never changes by itself. The one exception: signing in on a browser where no storage location was ever chosen and that holds no data switches straight to server storage — there is nothing local to lose, and your exams from the server appear right away. A browser\'s workspace also always belongs to exactly one key: data encrypted with a different account or local passphrase is not opened. Instead, a notice explains how to sign in with the matching credentials or reset the workspace.',
+                p1: 'You change the storage location in Settings. The switch moves the results directly, exam by exam, from the server to the browser or the other way round; Examance checks that every record arrived. Only then does your account’s storage location change, and the page reloads. No export and re-import is needed for this; you can create a .bgproj backup beforehand if you like.',
+                p2: 'Afterwards Examance asks each time whether to keep or delete the old copy. When switching to "Hybrid", the copy on the server is marked for deletion (with a 7-day grace period); when switching to "All on the server", the local copy in this browser is cleared. Changes not yet sent must be sent first ("Send now"), otherwise the switch is refused. Other open tabs are blocked while it runs and reload afterwards.',
+                p3: 'If a browser in "All on the server" mode still holds local results, for example from earlier hybrid use, a notice offers to upload them to the server. In hybrid mode, a browser without results shows a notice: the results live only in the browser where they were recorded.',
+                p4: 'A browser’s storage always belongs to exactly one account on one server: data belonging to a different account is not opened; a notice explains how to sign in with the matching credentials or reset the storage. Browsers holding data from the former purely local mode (without an account) show a notice instead that this data can no longer be opened. You can delete it and carry on; it is not migrated.',
             },
         },
         exercises: {
@@ -120,7 +119,7 @@ export const help: Translations['help'] = {
             },
             s4: {
                 h: 'Typeset and print',
-                p1: 'The run produces a print-ready PDF with QR codes — one per exam, variant and student slot. In local mode it happens entirely in the browser.',
+                p1: 'The run produces a print-ready PDF with QR codes — one per exam, variant and student slot. If you typeset in the browser, it happens entirely on the device.',
                 p2: 'Print the sheets exactly as typeset. The QR code has to stay readable, otherwise the scan cannot be assigned automatically later.',
                 p3: 'In the exam overview, “Preview” in an expanded entry opens the last compiled PDF. If there is none, you are asked and the exam is compiled and shown right in the window. The preview is kept only until the page is reloaded.',
             },
@@ -131,7 +130,7 @@ export const help: Translations['help'] = {
             s1: {
                 h: 'Importing the stack',
                 p1: 'Scan the whole stack into a single PDF on the school copier and upload it here. Examance splits it into individual submissions along the QR codes.',
-                p2: 'Every page is encrypted in the browser immediately. In local mode the scan never leaves the device — apart from the optionally donated, anonymised crops of individual tick boxes.',
+                p2: 'Every page is encrypted in the browser immediately. In hybrid mode the scan never leaves the device, and in all-server mode it is transferred only as ciphertext — apart from the optionally donated, anonymised crops of individual tick boxes.',
             },
             s2: {
                 h: 'Pseudonyms, not names',
@@ -208,11 +207,11 @@ export const help: Translations['help'] = {
             summary: 'Storage strategy, LaTeX compilation, language, MC detection and data deletion.',
             s1: {
                 h: 'Storage strategy',
-                p1: 'Decides where exercises, exams and student data are stored. The default is the strictly local mode.',
+                p1: 'Decides where the results (student data, submissions, scores) are stored: entirely on the server, or in this browser only (hybrid). The setting belongs to your account and applies in all browsers. You must choose when you first sign in; there is no default. Which options your account may use is decided by the server.',
             },
             s2: {
                 h: 'LaTeX compilation',
-                p1: 'Independently of that, you choose where the exam is typeset: in the browser (nothing leaves the device, but the first run is slower) or on the server (faster on low-spec hardware).',
+                p1: 'Independently of that, you can choose where the exam is typeset: in the browser (nothing leaves the device, but the first run is slower) or on the server (faster on weak hardware). This choice applies per browser; typesetting on the server is only available if your account allows it.',
                 p2: 'The first run in the browser downloads the LaTeX environment. If it fails with a message about a missing .sty file, retry once the download has finished.',
             },
             s3: {
@@ -260,10 +259,10 @@ export const help: Translations['help'] = {
         },
         accounts: {
             title: 'Accounts & roles',
-            summary: 'When an account is needed, which roles exist, how passwords are reset.',
+            summary: 'Why an account is needed, which roles exist, how passwords are reset.',
             s1: {
                 h: 'Do you need an account?',
-                p1: 'Not in strictly local mode: the workspace is protected by a password only. An account is required once data is to be synced through a server.',
+                p1: 'Yes. Using Examance always requires a server account; the former local mode with a passphrase and no account no longer exists. Which storage locations and features your account may use is decided by the server.',
             },
             s2: {
                 h: 'Roles',
@@ -311,7 +310,7 @@ export const help: Translations['help'] = {
             },
             s4: {
                 h: 'No password, no data',
-                p1: 'There is no back door and no recovery. Lose the password to a local workspace and its content is gone for good — so export a .bgproj archive regularly.',
+                p1: 'There is no back door and no recovery by the server operators. Lose the password and recovery code and the encrypted content of your account is gone for good — in hybrid mode that includes the results that live only in this browser. Back these up regularly as a .bgproj archive.',
             },
         },
     },

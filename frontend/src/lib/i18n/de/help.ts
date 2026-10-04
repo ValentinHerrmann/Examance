@@ -23,9 +23,8 @@ export const help = {
         unlockLink: 'Neu hier? So funktioniert Examance',
     },
     tips: {
-        storageLocal: 'Alles bleibt verschlüsselt im Browser dieses Geräts. Kein Byte erreicht einen Server — dafür gibt es auch keine Synchronisierung und kein Backup außer dem .bgproj-Archiv. Ausnahme: die freiwillige, anonymisierte Spende von Ankreuz-Bildausschnitten, sofern in den Einstellungen aktiviert und mit einem Server-Konto angemeldet.',
-        storageServer: 'Alle Daten werden synchronisiert, aber ausschließlich als Chiffrat. Der Schlüssel bleibt im Browser, der Server kann die Inhalte nicht lesen.',
-        storageHybrid: 'Aufgaben und Klausurvorlagen liegen auf dem Server (gut für ein Fachschafts-Repertoire), Schülerdaten und Korrekturen bleiben ausschließlich lokal.',
+        storageServer: 'Klausuren, Aufgaben und Ergebnisse liegen auf dem Server, aber verschlüsselt: Der Schlüssel bleibt im Browser, der Server kann die Inhalte nicht lesen. Unverschlüsselt sind nur der LaTeX-Quelltext von Aufgaben und Klausuren sowie die Gesamtpunktzahl.',
+        storageHybrid: 'Aufgaben und Klausuren liegen auf dem Server (gut für ein Fachschafts-Repertoire). Schülerdaten, Scans und Punkte bleiben nur in diesem Browser, verschlüsselt, und sind auf anderen Geräten nicht sichtbar.',
         latexLocal: 'Die Klausur wird direkt im Browser gesetzt (WebAssembly-XeLaTeX). Der LaTeX-Quelltext verlässt das Gerät nicht, der erste Lauf dauert dafür länger.',
         latexServer: 'Der Server setzt die Klausur. Schneller auf schwacher Hardware, dafür wird der LaTeX-Quelltext übertragen.',
         variantKey: 'Varianten sind unterschiedliche Fassungen derselben Aufgabe (Gruppe A/B/C). Sie teilen sich Auswertung und Statistik, verhindern aber das Abschreiben.',
@@ -52,30 +51,30 @@ export const help = {
                 l5: 'Anonym korrigieren und die Ergebnisse auswerten oder exportieren.',
             },
             s3: {
-                h: 'Arbeitsbereich sichern',
-                p1: 'Im lokalen Modus liegen alle Daten nur in diesem Browser. Sichern Sie den Arbeitsbereich regelmäßig als passwortgeschütztes .bgproj-Archiv — darüber lässt er sich auch auf ein anderes Gerät übertragen.',
+                h: 'Arbeitsbereich sichern und Ergebnisse teilen',
+                p1: 'Im Menü des Arbeitsbereichs erzeugen Sie ein passwortgeschütztes .bgproj-Archiv (Argon2id + AES-GCM) mit Klausuren, Schülerdaten, Scans, Annotationen und Punkten. Das ist die wichtigste Sicherung für Ergebnisse, die im Hybrid-Modus nur in diesem Browser liegen, und das Archiv lässt sich auch in einem anderen Konto einlesen. Mit „Ergebnisse teilen (ohne Aufgabentexte)“ exportieren Sie dasselbe, aber ohne LaTeX-Code und Ressourcendateien; enthalten bleiben Aufgabennamen, Punktzahlen und MC-Lösungsschlüssel. Wer ein solches Archiv einliest, kann die Klausuren korrigieren und auswerten; sie tragen den Hinweis „Nur Ergebnisse“, und Kompilieren, Bearbeiten sowie das Erstellen von MC-Antwortbogen-Vorlagen sind für diese Aufgaben gesperrt. In der Aufgabenbibliothek erscheinen sie nicht. Geben Sie das Archiv und sein Passwort getrennt weiter, denn es enthält Schülerdaten.',
             },
         },
         storageModes: {
             title: 'Speicherorte & Verschlüsselung',
-            summary: 'Wo Ihre Daten liegen — lokal, auf dem Server oder gemischt.',
+            summary: 'Wo Ihre Daten liegen — komplett auf dem Server oder mit den Ergebnissen nur im Browser.',
             s1: {
-                h: 'Die drei Speicherstrategien',
-                l1: 'Nur lokal (Voreinstellung): Klausuren, Aufgaben, Schülerdaten und Scans bleiben verschlüsselt im Browser. Es erreicht kein Byte einen Server.',
-                l2: 'Nur Server: Alles wird synchronisiert, aber ausschließlich als AES-256-GCM-Chiffrat. Der Server speichert die Blobs, lesen kann er sie nicht.',
-                l3: 'Hybrid: Aufgabenbibliothek und Klausurvorlagen liegen auf dem Server, Schülerdaten und Korrekturergebnisse bleiben lokal.',
+                h: 'Die zwei Speicherorte',
+                l1: 'Alles auf dem Server: Klausuren, Aufgaben und Ergebnisse (Schülerdaten, Abgaben mit Scans, Punkte) liegen auf dem Server und sind in jedem Browser Ihres Kontos verfügbar. Sie sind clientseitig mit AES-256-GCM verschlüsselt; der Server speichert nur Chiffrat und kann es nicht lesen. Unverschlüsselt bleiben der LaTeX-Quelltext von Aufgaben und Klausuren sowie die Gesamtpunktzahl.',
+                l2: 'Hybrid: Aufgaben und Klausuren liegen auf dem Server. Schülerdaten, Abgaben mit Scans und Punkte liegen nur in dem Browser, in dem sie erfasst wurden, verschlüsselt in dessen lokaler Datenbank. Auf anderen Geräten sind sie nicht sichtbar — sichern Sie sie mit einem .bgproj-Archiv.',
+                l3: 'Der Speicherort gehört zu Ihrem Konto, nicht zum Browser: Sie wählen ihn beim ersten Anmelden in einem Dialog (es gibt keine Voreinstellung), und er gilt dann in allen Browsern Ihres Kontos. Einen rein lokalen Modus ohne Konto gibt es nicht mehr.',
             },
             s2: {
                 h: 'Was verschlüsselt wird',
-                p1: 'Verschlüsselt sind die Inhalte: Aufgabentexte, Klausurtexte, Schülerdaten, Scans, Annotationen und Punkte. Unverschlüsselt bleiben nur technische Verknüpfungsfelder wie IDs und Reihenfolgen.',
-                p2: 'Ohne das Passwort sind die gespeicherten Daten nicht wiederherstellbar — auch nicht durch die Serverbetreiber. Ein vergessenes Passwort bedeutet den Verlust des lokalen Arbeitsbereichs.',
+                p1: 'Verschlüsselt sind die Inhalte: Schülerdaten, Namen, Scans, Annotationen und Punkte. Unverschlüsselt bleiben technische Verknüpfungsfelder wie IDs und Reihenfolgen sowie der LaTeX-Quelltext von Aufgaben und Klausuren und die Gesamtpunktzahl.',
+                p2: 'Der Schlüssel wird aus Ihrem Passwort abgeleitet. Ohne Passwort und Wiederherstellungscode sind die verschlüsselten Daten nicht wiederherstellbar — auch nicht durch die Serverbetreiber. Im Hybrid-Modus gilt das auch für die Ergebnisse, die nur in diesem Browser liegen.',
             },
             s3: {
                 h: 'Speicherort wechseln',
-                p1: 'Der Speicherort lässt sich in den Einstellungen ändern, aber Daten werden dabei nicht automatisch übertragen. Der Wechsel führt Sie deshalb durch vier Schritte: Arbeitsbereich als verschlüsselte Archivdatei (.bgproj) sichern, lokalen Speicher leeren, Speicherort umstellen, Archiv im neuen Modus wieder einlesen.',
-                p2: 'Die Archivdatei ist die einzige Brücke zwischen den Speicherorten. Ohne Export ist der Wechsel nicht möglich — das Leeren des lokalen Speichers lässt sich nicht rückgängig machen. Auf dem Server gespeicherte Klausuren bleiben dabei erhalten; geleert wird nur der lokale Speicher dieses Browsers. Wer von „Alles auf dem Server“ wechselt, kann nach dem Einlesen die Schülerdaten auf dem Server löschen lassen. Noch nicht übertragene Änderungen müssen vor dem Wechsel gesendet werden, und andere geöffnete Tabs werden währenddessen gesperrt.',
-                p3: 'Beim Einlesen prüft Examance, ob es Datensätze bereits gibt. Für jeden Konflikt sehen Sie beide Fassungen nebeneinander und entscheiden, welche gelten soll. Bei Schülerdaten und Abgaben ist dabei keine Kopie möglich, weil doppelte Pseudonyme datenschutzrechtlich nicht zulässig sind.',
-                p4: 'Der Speicherort ändert sich nie von selbst. Einzige Ausnahme: Melden Sie sich in einem Browser an, in dem noch nie ein Speicherort gewählt wurde und der leer ist, wird direkt auf den Server-Speicher umgestellt — lokal geht nichts verloren, und Ihre Klausuren vom Server erscheinen sofort. Außerdem gehört der Arbeitsbereich eines Browsers immer genau einem Schlüssel: Daten, die mit einem anderen Konto oder einer anderen lokalen Passphrase verschlüsselt wurden, werden nicht geöffnet. Stattdessen erklärt ein Hinweis, wie Sie sich mit dem passenden Zugang anmelden oder den Arbeitsbereich zurücksetzen.',
+                p1: 'Den Speicherort ändern Sie in den Einstellungen. Beim Wechsel werden die Ergebnisse direkt verschoben, je Klausur vom Server in den Browser oder umgekehrt; Examance prüft, dass alle Datensätze angekommen sind. Erst danach wechselt der Speicherort Ihres Kontos, und die Seite lädt neu. Ein Export und Wiedereinlesen ist dafür nicht nötig; auf Wunsch legen Sie vorher eine .bgproj-Sicherung an.',
+                p2: 'Danach fragt Examance jedes Mal, ob die alte Kopie behalten oder gelöscht werden soll. Beim Wechsel zu „Hybrid“ wird die Kopie auf dem Server zum Löschen vorgemerkt (mit 7 Tagen Frist), beim Wechsel zu „Alles auf dem Server“ wird die lokale Kopie in diesem Browser geleert. Noch nicht gesendete Änderungen müssen vorher gesendet werden („Jetzt senden“), sonst wird der Wechsel abgelehnt. Andere geöffnete Tabs sind währenddessen gesperrt und laden danach neu.',
+                p3: 'Hat ein Browser im Modus „Alles auf dem Server“ noch lokale Ergebnisse, etwa aus früherer Hybrid-Nutzung, bietet ein Hinweis an, sie auf den Server hochzuladen. Im Hybrid-Modus zeigt ein Browser ohne Ergebnisse einen Hinweis: Die Ergebnisse liegen nur in dem Browser, in dem sie erfasst wurden.',
+                p4: 'Der Browser-Speicher gehört immer genau einem Konto auf einem Server: Daten, die zu einem anderen Konto gehören, werden nicht geöffnet; ein Hinweis erklärt, wie Sie sich mit dem passenden Zugang anmelden oder den Speicher zurücksetzen. Browser mit Daten aus dem früheren rein lokalen Modus (ohne Konto) zeigen stattdessen einen Hinweis, dass sich diese Daten nicht mehr öffnen lassen. Sie können sie löschen und weiterarbeiten; eine Übernahme gibt es nicht.',
             },
         },
         exercises: {
@@ -120,7 +119,7 @@ export const help = {
             },
             s4: {
                 h: 'Setzen und drucken',
-                p1: 'Beim Setzen entsteht ein druckfertiges PDF mit QR-Code — je Klausur, Variante und Schülerplatz ein eigener Code. Im lokalen Modus läuft der Satz vollständig im Browser.',
+                p1: 'Beim Setzen entsteht ein druckfertiges PDF mit QR-Code — je Klausur, Variante und Schülerplatz ein eigener Code. Setzen Sie im Browser, läuft der Satz vollständig auf dem Gerät.',
                 p2: 'Drucken Sie die Bögen so aus, wie sie gesetzt wurden. Der QR-Code muss lesbar bleiben, sonst kann der Scan später nicht automatisch zugeordnet werden.',
                 p3: 'In der Prüfungsübersicht öffnet „Vorschau“ im aufgeklappten Eintrag das zuletzt kompilierte PDF. Gibt es noch keines, werden Sie gefragt und die Prüfung wird direkt im Fenster kompiliert und angezeigt. Die Vorschau bleibt nur bis zum Neuladen der Seite erhalten.',
             },
@@ -131,7 +130,7 @@ export const help = {
             s1: {
                 h: 'Stapel einlesen',
                 p1: 'Scannen Sie den kompletten Stapel am Schulkopierer in ein einziges PDF und laden Sie es hier hoch. Examance trennt es anhand der QR-Codes in einzelne Abgaben.',
-                p2: 'Jede Seite wird sofort im Browser verschlüsselt. Im lokalen Modus verlässt der Scan das Gerät nicht — abgesehen von den optional gespendeten, anonymisierten Bildausschnitten einzelner Kästchen.',
+                p2: 'Jede Seite wird sofort im Browser verschlüsselt. Im Hybrid-Modus verlässt der Scan das Gerät nicht, im Server-Modus wird er nur als Chiffrat übertragen — abgesehen von den optional gespendeten, anonymisierten Bildausschnitten einzelner Kästchen.',
             },
             s2: {
                 h: 'Pseudonyme statt Namen',
@@ -208,11 +207,11 @@ export const help = {
             summary: 'Speicherstrategie, LaTeX-Kompilierung, Sprache, MC-Erkennung und Datenlöschung.',
             s1: {
                 h: 'Speicherstrategie',
-                p1: 'Legt fest, wo Aufgaben, Klausuren und Schülerdaten liegen. Die Voreinstellung ist der rein lokale Modus.',
+                p1: 'Legt fest, wo die Ergebnisse (Schülerdaten, Abgaben, Punkte) liegen: komplett auf dem Server oder nur in diesem Browser (Hybrid). Die Einstellung gehört zu Ihrem Konto und gilt in allen Browsern. Beim ersten Anmelden müssen Sie wählen, es gibt keine Voreinstellung. Welche Optionen Ihr Konto nutzen darf, legt der Server fest.',
             },
             s2: {
                 h: 'LaTeX-Kompilierung',
-                p1: 'Unabhängig davon lässt sich wählen, wo die Klausur gesetzt wird: im Browser (nichts verlässt das Gerät, dafür langsamer beim ersten Lauf) oder auf dem Server (schneller auf schwacher Hardware).',
+                p1: 'Unabhängig davon lässt sich wählen, wo die Klausur gesetzt wird: im Browser (nichts verlässt das Gerät, dafür langsamer beim ersten Lauf) oder auf dem Server (schneller auf schwacher Hardware). Die Wahl gilt je Browser; das Setzen auf dem Server ist nur verfügbar, wenn Ihr Konto es erlaubt.',
                 p2: 'Der erste Satz im Browser lädt die LaTeX-Umgebung nach. Schlägt er mit einer Meldung über eine fehlende .sty-Datei fehl, hilft ein zweiter Versuch, sobald der Download abgeschlossen ist.',
             },
             s3: {
@@ -260,10 +259,10 @@ export const help = {
         },
         accounts: {
             title: 'Konten & Rollen',
-            summary: 'Wann ein Konto nötig ist, welche Rollen es gibt, wie Passwörter zurückgesetzt werden.',
+            summary: 'Warum ein Konto nötig ist, welche Rollen es gibt, wie Passwörter zurückgesetzt werden.',
             s1: {
                 h: 'Braucht es ein Konto?',
-                p1: 'Im rein lokalen Modus nicht: Der Arbeitsbereich wird nur mit einem Passwort geschützt. Ein Konto ist erst nötig, wenn Daten über einen Server synchronisiert werden sollen.',
+                p1: 'Ja. Jede Nutzung von Examance setzt ein Server-Konto voraus; den früheren lokalen Modus mit Passphrase und ohne Konto gibt es nicht mehr. Welche Speicherorte und Funktionen Ihr Konto nutzen darf, legt der Server fest.',
             },
             s2: {
                 h: 'Rollen',
@@ -311,7 +310,7 @@ export const help = {
             },
             s4: {
                 h: 'Kein Passwort, keine Daten',
-                p1: 'Es gibt keine Hintertür und keine Wiederherstellung. Verlieren Sie das Passwort zu einem lokalen Arbeitsbereich, sind dessen Inhalte endgültig verloren — sichern Sie deshalb regelmäßig ein .bgproj-Archiv.',
+                p1: 'Es gibt keine Hintertür und keine Wiederherstellung durch die Serverbetreiber. Verlieren Sie Passwort und Wiederherstellungscode, sind die verschlüsselten Inhalte Ihres Kontos endgültig verloren — im Hybrid-Modus auch die Ergebnisse, die nur in diesem Browser liegen. Sichern Sie diese deshalb regelmäßig als .bgproj-Archiv.',
             },
         },
     },
