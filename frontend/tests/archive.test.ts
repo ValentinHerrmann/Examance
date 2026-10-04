@@ -1,6 +1,12 @@
 import 'fake-indexeddb/auto'; // In-memory IndexedDB mock for Vitest — must be imported before Dexie db module
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { get } from 'svelte/store';
+
+// Exams and exercises always live on the server (issue #47): the archive round-trips run against an
+// in-memory fake of the API. Results stay in IndexedDB because the tests run in hybrid mode.
+vi.mock('../src/lib/api/client', async () => (await import('./helpers/fakeServer')).clientModule);
+
+import { fakeServer } from './helpers/fakeServer';
 import { packProject } from '../src/lib/archive/packer';
 import { decryptArchive, unpackProject } from '../src/lib/archive/unpacker';
 import { db } from '../src/lib/db/db';
@@ -8,24 +14,40 @@ import {
   saveExamEncrypted,
   saveStudentEncrypted,
   saveExerciseEncrypted,
+  saveSubmissionEncrypted,
   loadExamsEncrypted,
   loadStudentsEncrypted,
   loadExamExercisesEncrypted,
 } from '../src/lib/db/dbEncryption';
+import { decrypt, encrypt } from '../src/lib/crypto/aesGcm';
 import { sessionStore } from '../src/lib/stores/session';
+import { storagePolicyStore } from '../src/lib/stores/storagePolicy';
 import { eraseStudent } from '../src/lib/gdpr/erasure';
 import { checkRetention } from '../src/lib/gdpr/retention';
+
+const exam = (id: string, title: string) => ({
+  id,
+  teacherId: 'teacher-1',
+  title,
+  retentionUntil: '2028-01-01',
+  compilationStatus: 'compiled' as const,
+  createdAt: new Date().toISOString(),
+});
 
 describe('.bgproj Archive Packer and Unpacker', () => {
   const testPassword = 'SuperSecretTeacherPassword123!';
   let testKey: CryptoKey;
 
   beforeEach(async () => {
+    fakeServer.reset();
     await db.exams.clear();
     await db.exercises.clear();
+    await db.examExercises.clear();
     await db.students.clear();
     await db.submissions.clear();
+    await db.exerciseScores.clear();
     await db.auditLog.clear();
+    storagePolicyStore.setPolicy({ storageMode: 'hybrid', latexCompilation: 'local' });
 
     const rawKey = new Uint8Array(32).fill(7);
     testKey = await crypto.subtle.importKey(
@@ -43,17 +65,8 @@ describe('.bgproj Archive Packer and Unpacker', () => {
   });
 
   it('performs full pack and unpack round-trip correctly', async () => {
-    // Populate mock DB data
     const examId = 'exam-uuid-1';
-    await saveExamEncrypted({
-      id: examId,
-      teacherId: 'teacher-1',
-      title: 'Mathematics Final Exam',
-      retentionUntil: '2027-12-31',
-      compilationStatus: 'compiled',
-      createdAt: new Date().toISOString(),
-    }, testKey);
-
+    await saveExamEncrypted(exam(examId, 'Mathematics Final Exam'), testKey);
     await saveStudentEncrypted({
       pseudonymId: 'student-uuid-99',
       examId,
@@ -62,20 +75,19 @@ describe('.bgproj Archive Packer and Unpacker', () => {
       piiIv: new Uint8Array(12).fill(1),
     }, testKey);
 
-    // Pack project
     const packedBytes = await packProject(testPassword);
     expect(packedBytes.size).toBeGreaterThan(41); // Larger than header
 
-    // Clear local DB before import
+    // A fresh account on an empty server, and a browser without results.
+    fakeServer.reset();
     await db.exams.clear();
     await db.students.clear();
 
-    // Unpack project
     const result = await unpackProject(packedBytes, testPassword);
+    expect(result.errors).toEqual([]);
     expect(result.examCount).toBe(1);
     expect(result.studentCount).toBe(1);
 
-    // Verify restored IDB contents
     const currentKey = get(sessionStore).sessionKey!;
     const restoredExams = await loadExamsEncrypted(currentKey);
     expect(restoredExams).toHaveLength(1);
@@ -89,16 +101,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
   it('preserves exercise-exam junction links on pack and unpack round-trip', async () => {
     const examId = 'exam-uuid-2';
     const exerciseId = 'exercise-uuid-1';
-
-    await saveExamEncrypted({
-      id: examId,
-      teacherId: 'teacher-1',
-      title: 'Physics Exam',
-      retentionUntil: '2027-12-31',
-      compilationStatus: 'compiled',
-      createdAt: new Date().toISOString(),
-    }, testKey);
-
+    await saveExamEncrypted(exam(examId, 'Physics Exam'), testKey);
     await saveExerciseEncrypted({
       id: exerciseId,
       name: 'Kinematics Problem',
@@ -106,19 +109,10 @@ describe('.bgproj Archive Packer and Unpacker', () => {
       questionType: 'free_text',
       penalty: 0,
     }, testKey);
-
-
-    await db.examExercises.put({
-      examId,
-      exerciseId,
-      orderIndex: 1,
-    });
+    fakeServer.state.links.set(examId, [{ exercise_id: exerciseId, order_index: 1 }]);
 
     const packedBytes = await packProject(testPassword);
-
-    await db.exams.clear();
-    await db.exercises.clear();
-    await db.examExercises.clear();
+    fakeServer.reset();
 
     const result = await unpackProject(packedBytes, testPassword);
     expect(result.examCount).toBe(1);
@@ -131,15 +125,65 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     expect(restoredExercises[0].orderIndex).toBe(1);
   });
 
-  it('guarantees nonce and salt freshness on every pack operation', async () => {
-    await db.exams.add({
-      id: 'exam-1',
-      teacherId: 't-1',
-      title: 'Physics Midterm',
-      retentionUntil: '2027-01-01',
-      compilationStatus: 'compiled',
+  it('carries scans through the archive and re-seals them under the live key', async () => {
+    // Archives used to turn every Uint8Array into a {"0":…} object: scans never survived.
+    const examId = 'exam-scan';
+    await saveExamEncrypted(exam(examId, 'Scanned Exam'), testKey);
+    const scanBytes = new TextEncoder().encode('%PDF-1.7 fake scan');
+    const sealed = await encrypt(testKey, scanBytes);
+    await saveSubmissionEncrypted({
+      id: 'sub-scan-1',
+      examId,
+      pseudonymHash: 'pseudo-1',
+      totalScore: 12,
       createdAt: new Date().toISOString(),
-    });
+      scanCt: sealed.ciphertext,
+      scanIv: sealed.iv,
+    }, testKey);
+
+    const packed = await packProject(testPassword);
+    fakeServer.reset();
+    await db.submissions.clear();
+
+    const result = await unpackProject(packed, testPassword);
+    expect(result.errors).toEqual([]);
+
+    const restored = await db.submissions.get('sub-scan-1');
+    expect(restored?.scanCt).toBeInstanceOf(Uint8Array);
+    const opened = await decrypt(get(sessionStore).sessionKey!, restored!.scanCt!, restored!.scanIv!);
+    expect(new TextDecoder().decode(opened)).toBe('%PDF-1.7 fake scan');
+  });
+
+  it('withholds exercise code from a results-only archive', async () => {
+    const examId = 'exam-shared';
+    const exerciseId = 'exercise-shared';
+    await saveExamEncrypted(exam(examId, 'Shared Exam'), testKey);
+    await saveExerciseEncrypted({
+      id: exerciseId,
+      name: 'Secret Exercise',
+      latexBody: '\\begin{Aufgabe} secret \\end{Aufgabe}',
+      maxPoints: 4,
+      questionType: 'free_text',
+      penalty: 0,
+    }, testKey);
+    fakeServer.state.links.set(examId, [{ exercise_id: exerciseId, order_index: 1 }]);
+
+    const packed = await packProject(testPassword, undefined, { includeExerciseCode: false });
+    fakeServer.reset();
+
+    const result = await unpackProject(packed, testPassword);
+    expect(result.errors).toEqual([]);
+
+    const imported = [...fakeServer.state.exercises.values()];
+    expect(imported).toHaveLength(1);
+    expect(imported[0].name).toBe('Secret Exercise');
+    expect(imported[0].code_withheld).toBe(true);
+    expect(imported[0].latex_body).toBeNull();
+    expect(imported[0].max_points).toBe(4);
+  });
+
+  it('guarantees nonce and salt freshness on every pack operation', async () => {
+    await saveExamEncrypted(exam('exam-1', 'Physics Midterm'), testKey);
 
     // Export twice with identical data & password
     const pack1Blob = await packProject(testPassword);
@@ -148,29 +192,15 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     const pack2 = new Uint8Array(await pack2Blob.arrayBuffer());
 
     // Salt (bytes 7..22) must be different
-    const salt1 = pack1.subarray(7, 23);
-    const salt2 = pack2.subarray(7, 23);
-    expect(salt1).not.toEqual(salt2);
-
+    expect(pack1.subarray(7, 23)).not.toEqual(pack2.subarray(7, 23));
     // Nonce (bytes 23..34) must be different
-    const nonce1 = pack1.subarray(23, 35);
-    const nonce2 = pack2.subarray(23, 35);
-    expect(nonce1).not.toEqual(nonce2);
-
+    expect(pack1.subarray(23, 35)).not.toEqual(pack2.subarray(23, 35));
     // Ciphertext bytes must be completely different
     expect(pack1).not.toEqual(pack2);
   });
 
   it('rejects unpack if password is wrong or ciphertext is tampered', async () => {
-    await db.exams.add({
-      id: 'e1',
-      teacherId: 't1',
-      title: 'Chemistry',
-      retentionUntil: '2028-01-01',
-      compilationStatus: 'compiled',
-      createdAt: new Date().toISOString(),
-    });
-
+    await saveExamEncrypted(exam('e1', 'Chemistry'), testKey);
     const packed = await packProject(testPassword);
 
     // Wrong password
@@ -186,35 +216,11 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     // Importing used to clear every table first — and, in archiveService, to do
     // so *before* the password had even been checked. An import now adds to
     // what is there; replacing is opt-in and happens after decryption.
-    await saveExamEncrypted({
-      id: 'old-exam-id',
-      teacherId: 'teacher-1',
-      title: 'Old History Exam',
-      retentionUntil: '2025-01-01',
-      compilationStatus: 'compiled',
-      createdAt: new Date().toISOString(),
-    }, testKey);
-
-    await db.exams.clear();
-    await saveExamEncrypted({
-      id: 'new-exam-id',
-      teacherId: 'teacher-1',
-      title: 'New Biology Exam',
-      retentionUntil: '2028-01-01',
-      compilationStatus: 'compiled',
-      createdAt: new Date().toISOString(),
-    }, testKey);
+    await saveExamEncrypted(exam('new-exam-id', 'New Biology Exam'), testKey);
     const newProjectPacked = await packProject(testPassword);
 
-    await db.exams.clear();
-    await saveExamEncrypted({
-      id: 'old-exam-id',
-      teacherId: 'teacher-1',
-      title: 'Old History Exam',
-      retentionUntil: '2025-01-01',
-      compilationStatus: 'compiled',
-      createdAt: new Date().toISOString(),
-    }, testKey);
+    fakeServer.reset();
+    await saveExamEncrypted(exam('old-exam-id', 'Old History Exam'), testKey);
 
     const result = await unpackProject(newProjectPacked, testPassword);
     expect(result.examCount).toBe(1);
@@ -225,15 +231,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
   });
 
   it('leaves the workspace untouched when the password is wrong', async () => {
-    await db.exams.clear();
-    await saveExamEncrypted({
-      id: 'precious-exam',
-      teacherId: 'teacher-1',
-      title: 'Do not lose me',
-      retentionUntil: '2028-01-01',
-      compilationStatus: 'compiled',
-      createdAt: new Date().toISOString(),
-    }, testKey);
+    await saveExamEncrypted(exam('precious-exam', 'Do not lose me'), testKey);
     const packed = await packProject(testPassword);
 
     await expect(decryptArchive(packed, 'the-wrong-password')).rejects.toThrow();
@@ -247,15 +245,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     // The importer used to call sessionStore.unlock() with a key derived from
     // the archive's own random salt, which the vault cannot re-derive: every
     // record written afterwards was sealed under a key that died with the tab.
-    await db.exams.clear();
-    await saveExamEncrypted({
-      id: 'keyed-exam',
-      teacherId: 'teacher-1',
-      title: 'Key check',
-      retentionUntil: '2028-01-01',
-      compilationStatus: 'compiled',
-      createdAt: new Date().toISOString(),
-    }, testKey);
+    await saveExamEncrypted(exam('keyed-exam', 'Key check'), testKey);
     const packed = await packProject(testPassword);
     const keyBefore = get(sessionStore).sessionKey;
 

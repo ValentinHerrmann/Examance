@@ -43,9 +43,9 @@ No account required · Encrypted at rest · GDPR by design
 
 ---
 
-## Getting started — no account required
+## Getting started — sign in with your account
 
-Two entry points, changeable later in Settings: a fully local, offline-first workspace with **zero server dependency**, or a school-managed cloud account for cross-device sync. Either way, data is encrypted client-side (Argon2id → HKDF-SHA-256 → AES-256-GCM) before it is ever written to disk.
+Every user signs in with a server account; the data key comes from the account's key envelope (password, passkey or recovery code) and never reaches the server. Storage mode is chosen at first sign-in and changeable later. Data is encrypted client-side (Argon2id → HKDF-SHA-256 → AES-256-GCM) before it is stored or sent.
 
 ![width:820px](screenshots/pitch/01-welcome.png)
 
@@ -75,7 +75,7 @@ The library groups exercises, tracks **variants** (anti-copying A/B/C phrasings 
 
 ## Pillar 1 — Assembling the exam
 
-Pick exercises from the library, configure the grading key (linear, *Oberstufe*-weighted, or custom cutoffs 1–6), and Examance renders a print-ready, QR-coded booklet locally via WASM XeLaTeX (Tectonic) — no source ever leaves the browser in local mode.
+Pick exercises from the library, configure the grading key (linear, *Oberstufe*-weighted, or custom cutoffs 1–6), and Examance renders a print-ready, QR-coded booklet locally via WASM XeLaTeX (Tectonic) — LaTeX source stays in the browser with the local engine.
 
 ![width:820px](screenshots/pitch/05-exam-creation.png)
 
@@ -95,7 +95,7 @@ Pick exercises from the library, configure the grading key (linear, *Oberstufe*-
 
 ## Pillar 3 — Didactic analytics, privacy-preserving
 
-Score distributions, per-topic heatmaps for knowledge gaps, exercise/question quality metrics across years, variant-fairness comparisons, and CSV/XLSX export — all computed from the encrypted local vault, the same data that was never uploaded anywhere.
+Score distributions, per-topic heatmaps for knowledge gaps, exercise/question quality metrics across years, variant-fairness comparisons, and CSV/XLSX export — all computed client-side from encrypted data; in `hybrid` mode it never leaves the browser.
 
 ![width:920px](screenshots/pitch/07-analytics.png)
 
@@ -110,11 +110,12 @@ Score distributions, per-topic heatmaps for knowledge gaps, exercise/question qu
 
 ![bg right:40%](screenshots/pitch/06-privacy-settings.png)
 
-- **All Local** *(default)* — encrypted entirely in the browser (IndexedDB), zero bytes reach a server. Export/import as a password-protected `.bgproj` archive.
-- **All Server** — synced as **AES-256-GCM ciphertext**; the server never sees plaintext.
-- **Hybrid** — shared exercise library on the server, identities & results stay local.
+- Exams and exercises always live on the server.
+- **All Server** — identities, scans, annotations and scores stored as **AES-256-GCM ciphertext**; the server never sees plaintext.
+- **Hybrid** — identities, scans and scores stay only in this browser (IndexedDB, encrypted).
+- Switching moves results; password-protected `.bgproj` archives for backup or sharing results.
 
-LaTeX compiles locally (WASM, nothing leaves the browser) or server-side. The local engine auto-routes around hardware limits: sequential rendering on low-spec/eco devices, multi-core/SIMD on capable machines.
+LaTeX compiles locally (WASM, nothing leaves the browser) or via optional stateless server compile. The local engine auto-routes around hardware limits: sequential rendering on low-spec/eco devices, multi-core/SIMD on capable machines.
 
 ---
 

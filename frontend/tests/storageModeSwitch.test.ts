@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'; // In-memory IndexedDB — must precede the Dexie 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { get } from 'svelte/store';
 
-import { db } from '../src/lib/db/db';
+import { clearAllTables, db } from '../src/lib/db/db';
 import {
   DEFAULT_POLICY,
   armStorageModeSwitch,
@@ -18,6 +18,18 @@ import {
   pendingSwitchStore,
 } from '../src/lib/services/storageModeSwitch';
 import { directionFor } from '../src/lib/services/resultsMover';
+
+// Vitest runs in node: an in-memory localStorage for the manifest's legacy-cache reads.
+// safeLocalStorage probes lazily and retries, so installing it here is early enough.
+const mockStorage: Record<string, string> = {};
+globalThis.localStorage = {
+  getItem: (key: string) => mockStorage[key] ?? null,
+  setItem: (key: string, val: string) => { mockStorage[key] = val; },
+  removeItem: (key: string) => { delete mockStorage[key]; },
+  clear: () => { for (const k of Object.keys(mockStorage)) delete mockStorage[k]; },
+  length: 0,
+  key: () => null,
+};
 
 describe('storage mode is not settable outside the workspace layer', () => {
   beforeEach(() => {
@@ -91,7 +103,8 @@ describe('workspace manifest', () => {
   beforeEach(async () => {
     localStorage.clear();
     await db.workspace.clear();
-    await db.exams.clear();
+    // Every data table: rows left by the blocks above would make the browser look non-empty.
+    await clearAllTables();
   });
 
   it('starts an empty browser without a mode', async () => {

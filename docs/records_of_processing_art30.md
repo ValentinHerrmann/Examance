@@ -2,7 +2,7 @@
 
 *Verzeichnis von Verarbeitungstätigkeiten*
 
-Two variants follow. Use §A if the school runs Examance itself or teachers use `all-local` mode (school = sole controller). Use §A **and** §B if a third party hosts the backend (school = controller, operator = processor) — this includes `hybrid` mode, since exercises and exam metadata reach that party's server even though student identity and submissions do not; each party keeps its own record.
+Two variants follow. Every user signs in with a server account; the former `all-local` mode (no account, no server) was discontinued with issue #47. Each account uses one of two storage modes: `all-server` (pupil identities, scans, annotations and per-exercise scores stored on the server as client-side ciphertext; `total_score` plaintext) or `hybrid` (those results only in the teacher's browser, encrypted in IndexedDB). In both, exams and exercises (LaTeX, exam metadata, resource files) are plaintext on the server. Use §A if the school runs Examance itself (school = sole controller). Use §A **and** §B if a third party hosts the backend (school = controller, operator = processor) — this applies to both modes, including `hybrid`, since exercises and exam metadata reach that party's server even though pupil identity and submissions do not; each party keeps its own record.
 
 Fields in *[brackets]* must be completed. Technical fields are pre-filled from the codebase and should be re-checked whenever the architecture changes.
 
