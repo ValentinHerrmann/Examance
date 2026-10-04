@@ -24,7 +24,7 @@ import {
   storagePolicyStore,
   type StorageMode,
 } from '#lib/stores/storagePolicy';
-import { capabilitiesStore, loadCapabilities } from '#lib/stores/capabilities';
+import { allowedModesFrom, capabilitiesStore, loadCapabilities } from '#lib/stores/capabilities';
 import { workspaceIdStore, workspaceStatusStore, type WorkspaceStatus } from '#lib/stores/workspaceState';
 import { clearOfflineQueue, hasQueuedWrites, stampUnboundQueueEntries } from '#lib/services/offlineQueue';
 import { safeLocalStorage } from '#lib/utils/storage';
@@ -240,13 +240,13 @@ async function decide(): Promise<WorkspaceStatus> {
   try {
     const caps = await loadCapabilities();
     mode = caps.storageMode;
-    allowed = caps.allowedStorageModes;
+    allowed = allowedModesFrom(caps);
   } catch (err) {
     console.warn('[workspace] could not load capabilities, using the cached mode', err);
     const cached = get(capabilitiesStore);
     const current = await currentManifest();
     mode = cached?.storageMode ?? (current?.mode === 'all-server' || current?.mode === 'hybrid' ? current.mode : null);
-    allowed = cached?.allowedStorageModes ?? (mode ? [mode] : []);
+    allowed = cached ? allowedModesFrom(cached) : allowedModesFrom(null);
   }
 
   if (!mode || !allowed.includes(mode)) {

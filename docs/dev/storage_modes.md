@@ -19,7 +19,7 @@ Issue #47 ("Ensure consistent mode switching") reported that modes got mixed up,
 - **The mode belongs to the account.** It is stored in `teachers.storage_mode` (Alembic `0024`) and every browser of the account follows it.
   - It is nullable, with **no default**. Nothing ever sets it implicitly.
   - Until the account chooses, `openWorkspace()` returns `needs-choice`. The root layout then keeps routes unmounted and opens the settings modal (`StoragePolicyModal`, `mustChoose`) in a non-dismissible state.
-- **Capabilities.** `GET /user/capabilities` returns `{storage_mode, allowed_storage_modes, features}`. It is built by the single function `capabilities_for(teacher)` in `backend/app/services/capabilities.py`.
+- **Capabilities** (structure only for now: `ENFORCE_CAPABILITIES = false` in `frontend/src/lib/stores/capabilities.ts` unlocks every mode and server feature for every account, whatever the server answers; enforcing per-user switches is a follow-up). `GET /user/capabilities` returns `{storage_mode, allowed_storage_modes, features}`. It is built by the single function `capabilities_for(teacher)` in `backend/app/services/capabilities.py`.
   - The frontend renders every mode and server-feature option from `stores/capabilities.ts`, never from a hard-coded list. A disallowed option shows "not enabled for your account".
   - `PUT /user/storage-mode {mode, expected}` is compare-and-set: 409 when another browser changed it, 403 when the mode is not allowed.
   - Per-user admin switches later are a lookup added inside `capabilities_for`, with no API or UI change. If an account's current mode becomes disallowed, the app treats it like `needs-choice`.

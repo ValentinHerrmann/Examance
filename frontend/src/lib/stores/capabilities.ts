@@ -7,10 +7,20 @@
 
 import { derived, get, writable } from 'svelte/store';
 import { api } from '#lib/api/client';
-import { isStorageMode, type StorageMode } from '#lib/stores/storagePolicy';
+import { isStorageMode, STORAGE_MODES, type StorageMode } from '#lib/stores/storagePolicy';
 import { safeSessionStorage } from '#lib/utils/storage';
 
 export type FeatureName = 'server_latex' | 'training_donation';
+
+/**
+ * Per-account restrictions are not enforced yet: every account may use every storage mode and server
+ * feature, whatever the capabilities answer says (or whether it arrived at all). The structure stays so
+ * the admin switch can be turned on later (a follow-up PR) by setting this to true; the UI keeps
+ * rendering its options from the helpers below.
+ */
+export const ENFORCE_CAPABILITIES = false;
+
+const ALL_FEATURES: Record<FeatureName, boolean> = { server_latex: true, training_donation: true };
 
 export interface Capabilities {
   storageMode: StorageMode | null;
@@ -73,12 +83,23 @@ export function clearCapabilities(): void {
   capabilitiesStore.set(null);
 }
 
-/** Storage modes this account may choose (empty until loaded). */
-export const allowedStorageModes = derived(capabilitiesStore, ($c) => $c?.allowedStorageModes ?? []);
-
-/** A server feature is usable only when the server says so; unknown means off. */
-export function featureEnabled(name: FeatureName): boolean {
-  return get(capabilitiesStore)?.features[name] === true;
+/** Storage modes an account with these capabilities may choose. */
+export function allowedModesFrom(caps: Capabilities | null): StorageMode[] {
+  if (!ENFORCE_CAPABILITIES) return [...STORAGE_MODES];
+  return caps?.allowedStorageModes ?? [];
 }
 
-export const featuresStore = derived(capabilitiesStore, ($c) => $c?.features ?? {});
+function featuresFrom(caps: Capabilities | null): Partial<Record<FeatureName, boolean>> {
+  if (!ENFORCE_CAPABILITIES) return ALL_FEATURES;
+  return caps?.features ?? {};
+}
+
+/** Storage modes this account may choose. */
+export const allowedStorageModes = derived(capabilitiesStore, ($c) => allowedModesFrom($c));
+
+/** Whether this account may use a server feature. */
+export function featureEnabled(name: FeatureName): boolean {
+  return featuresFrom(get(capabilitiesStore))[name] === true;
+}
+
+export const featuresStore = derived(capabilitiesStore, ($c) => featuresFrom($c));
