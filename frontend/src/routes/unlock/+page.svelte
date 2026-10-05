@@ -54,6 +54,7 @@
   let email = $state("");
   let backendUrl = $state(get(backendStore));
   let errorMsg = $state("");
+  let infoMsg = $state("");
   let isLoading = $state(false);
   /** Set when a login minted a new recovery code that must be shown once. */
   let pendingRecoveryCode: string | null = $state(null);
@@ -90,6 +91,7 @@
 
   async function handleUnlock() {
     errorMsg = "";
+    infoMsg = "";
     const trimmedBackendUrl = backendUrl.trim();
     if (!trimmedBackendUrl) {
       errorMsg = translate("auth.unlock.errors.enterServerAddress");
@@ -170,6 +172,16 @@
   /** Act on the server's answer: enrolment needed, another factor outstanding, or vault can be opened. */
   async function handleAuthStep(step: AuthStep) {
     factorErrorMsg = "";
+
+    if (step.status === "approval_pending") {
+      // The password was right, but no admin has approved this self-registered account yet.
+      // The server issued no token; there is nothing to continue.
+      authStep = null;
+      password = "";
+      passwordVerified = false;
+      infoMsg = translate("auth.unlock.approvalPending");
+      return;
+    }
 
     if (step.status !== "ok") {
       // Enrollment and the second factor are both rendered from `authStep`.
@@ -315,6 +327,7 @@
     // failure reported there would be invisible.
     const inProgress = authStep !== null;
     errorMsg = "";
+    infoMsg = "";
     factorErrorMsg = "";
     isLoading = true;
     passkeyPending = inProgress;
@@ -667,6 +680,7 @@
       bind:email
       bind:password
       {errorMsg}
+      {infoMsg}
       {isLoading}
       onUnlock={handleUnlock}
       onPasskey={canUsePasskeys ? () => handlePasskey() : undefined}

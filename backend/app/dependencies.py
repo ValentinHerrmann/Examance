@@ -58,7 +58,9 @@ async def get_current_teacher(
 
     result = await db.execute(select(Teacher).where(Teacher.id == teacher_id))
     teacher = result.scalar_one_or_none()
-    if teacher is None:
+    # A pending account never receives a token (auth.advance_sign_in); refusing one here too
+    # keeps a token minted by any other path from reaching anything.
+    if teacher is None or teacher.approved_at is None:
         raise credentials_exc
 
     # Everything outside the login and enrollment endpoints needs a session that
@@ -137,7 +139,7 @@ async def get_pending_teacher(
 
     result = await db.execute(select(Teacher).where(Teacher.id == teacher_id))
     teacher = result.scalar_one_or_none()
-    if teacher is None:
+    if teacher is None or teacher.approved_at is None:
         raise credentials_exc
 
     scope = str(payload.get("scope", "full"))

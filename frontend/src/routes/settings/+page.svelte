@@ -34,7 +34,7 @@
   import SectionNav from "#lib/components/settings/SectionNav.svelte";
   import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
   import { currentManifest } from "#lib/db/workspace";
-  import { allowedStorageModes, featuresStore } from "#lib/stores/capabilities";
+  import { allowedStorageModes, effectiveLatexStore, featuresStore } from "#lib/stores/capabilities";
 
   /** GDPR Art. 15 — hand the data subject a readable copy of their own data. */
   async function handleExportStudent(pseudonymId: string) {
@@ -163,7 +163,7 @@
 
         <SettingsForm
           storageMode={$storagePolicyStore.storageMode}
-          latexCompilation={$storagePolicyStore.latexCompilation}
+          latexCompilation={$effectiveLatexStore}
           uiLocale={$locale}
           onStorageModeChange={handleStorageModeChange}
           onLatexChange={handleLatexChange}

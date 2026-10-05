@@ -5,14 +5,27 @@ import uuid
 from datetime import UTC, datetime
 
 import jwt
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Cookie,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
 from app.dependencies import PendingSession, get_pending_teacher
 from app.middleware.rate_limit import limiter
+from app.models.exam import Exam
+from app.models.exercise import Exercise
+from app.models.key_envelope import KeyEnvelope
 from app.models.refresh_token import RefreshToken
 from app.models.teacher import Teacher
 from app.schemas.auth import (
@@ -22,12 +35,16 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
     PasswordFactorRequest,
+    RegisterCompleteRequest,
+    RegisterCompleteResponse,
+    RegisterRequest,
+    RegistrationStatus,
     ResetPasswordRequest,
     ResetTokenRequest,
     TotpFactorRequest,
 )
+from app.services import account_mail, auth_policy, login_throttle, pending_token, registration
 from app.services import audit as audit_svc
-from app.services import auth_policy, login_throttle, pending_token
 from app.services import mfa as mfa_svc
 from app.services.crypto import hash_password, needs_rehash, verify_password
 from app.services.jwt import (
@@ -39,7 +56,7 @@ from app.services.jwt import (
 from app.services.key_envelope import invalidate_password_wrap, replace_envelope_set
 from app.services.password_reset import (
     complete_password_reset,
-    create_and_send_reset_token,
+    create_reset_token,
     verify_reset_token,
 )
 
@@ -116,6 +133,7 @@ def _clear_auth_cookies(response: Response) -> None:
 async def forgot_password(
     body: ForgotPasswordRequest,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
     """
@@ -127,8 +145,9 @@ async def forgot_password(
     )
     teacher = result.scalar_one_or_none()
 
-    if teacher:
-        _token, _sent = await create_and_send_reset_token(db, teacher)
+    # A pending account gets no reset link: it holds no token of any kind until approved.
+    if teacher and teacher.approved_at is not None:
+        _token, mail = await create_reset_token(db, teacher)
         await audit_svc.write(
             db,
             teacher_id=teacher.id,
@@ -136,12 +155,118 @@ async def forgot_password(
             action="PASSWORD_RESET_REQUESTED",
             request_ip=request.client.host if request.client else None,
         )
+        # Committed before the response, and the mail sent after it: awaiting SMTP here made
+        # an existing address measurably slower to answer than an unknown one.
+        await db.commit()
+        background_tasks.add_task(account_mail.send_all, [mail])
 
     return {
         "message": (
             "If an account exists for that email, a password reset link has been sent."
         )
     }
+
+
+@router.get("/register", response_model=RegistrationStatus)
+async def registration_status() -> RegistrationStatus:
+    """Whether this server accepts self-registrations. A deployment setting, not per address."""
+    return RegistrationStatus(enabled=settings.REGISTRATION_ENABLED)
+
+
+def _require_registration_enabled() -> None:
+    if not settings.REGISTRATION_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Registration is disabled on this server.",
+            headers={"code": "ERR_REGISTRATION_DISABLED"},
+        )
+
+
+@router.post("/register", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("20/hour")
+async def register(
+    body: RegisterRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """
+    Ask for an account: mails a verification link to the address.
+
+    Answers the same whether or not the address already has an account (none is mailed then),
+    and the mail is sent after the response so the timing does not tell either. The link leads
+    to the page where the registrant chooses a password; nothing is created before that.
+    """
+    _require_registration_enabled()
+    email = registration.normalize_email(body.email)
+    try:
+        mail = await registration.request_registration(db, email)
+        await db.commit()
+    except IntegrityError:
+        # A concurrent request for the same address won the insert; its mail covers this one.
+        await db.rollback()
+        mail = None
+    if mail is not None:
+        background_tasks.add_task(account_mail.send_all, [mail])
+    return {
+        "message": (
+            "If this address can be registered, a confirmation link has been sent to it."
+        )
+    }
+
+
+@router.post("/register/complete", response_model=RegisterCompleteResponse)
+@limiter.limit("20/hour")
+async def complete_registration(
+    body: RegisterCompleteRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> RegisterCompleteResponse:
+    """
+    Verify the address with the mailed token and create the account with the chosen password.
+
+    An address on the admin's always-allowed list is approved immediately; any other account
+    waits for an admin, who is notified. Neither outcome issues a session: the registrant signs
+    in normally afterwards and sets up a second factor then.
+    """
+    _require_registration_enabled()
+    invalid = HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="This confirmation link is invalid or has expired. Register again.",
+        headers={"code": "ERR_INVALID_REGISTRATION_TOKEN"},
+    )
+    try:
+        teacher = await registration.complete_registration(
+            db, body.token, body.new_password, body.note
+        )
+        approved = teacher.approved_at is not None
+        ip = request.client.host if request.client else None
+        await audit_svc.write(
+            db,
+            teacher_id=teacher.id,
+            teacher_email=teacher.email,
+            action="USER_REGISTERED",
+            request_ip=ip,
+        )
+        if approved:
+            await audit_svc.write(
+                db,
+                teacher_id=teacher.id,
+                teacher_email="system:allowed-domain",
+                action="USER_APPROVED",
+                target_id=str(teacher.id),
+                request_ip=ip,
+            )
+        notices = [] if approved else await registration.admin_notices(db, teacher)
+        await db.commit()
+    except (registration.RegistrationTokenError, IntegrityError):
+        await db.rollback()
+        raise invalid from None
+
+    if notices:
+        background_tasks.add_task(account_mail.send_all, notices)
+    return RegisterCompleteResponse(status="approved" if approved else "pending")
 
 
 @router.post("/reset/start", response_model=AuthResponse)
@@ -181,6 +306,16 @@ async def start_reset(
     await pending_token.register(decode_token(scope_token).get("jti"))
     _set_pending_cookie(response, scope_token, "reset_pending")
 
+    # Something to recover exists once the account holds a key copy, or authored anything (an
+    # account from before key envelopes holds data sealed under its old password). A fresh
+    # account, invited or self-registered, has neither and skips the recovery-code step.
+    holds_key_or_data = False
+    for model in (KeyEnvelope, Exam, Exercise):
+        found = await db.scalar(select(model.id).where(model.teacher_id == teacher.id).limit(1))
+        if found is not None:
+            holds_key_or_data = True
+            break
+
     return AuthResponse(
         id=teacher.id,
         email=teacher.email,
@@ -190,6 +325,7 @@ async def start_reset(
         available=(
             await auth_policy.remaining_factors(db, teacher, amr) if complete else []
         ),
+        needs_key_recovery=holds_key_or_data,
     )
 
 
@@ -403,6 +539,20 @@ async def advance_sign_in(
       come next, which is safe to disclose now that one has been proven.
     """
     amr = sorted({*already_presented, factor})
+
+    # An account no admin has approved yet holds no token of any kind: not a session, not an
+    # enrollment token, not a reset. Answered only now that a factor was proven, so it tells
+    # nothing to someone who merely knows the address.
+    if teacher.approved_at is None:
+        _clear_auth_cookies(response)
+        return AuthResponse(
+            id=teacher.id,
+            email=teacher.email,
+            role=teacher.role,
+            status="approval_pending",
+            satisfied=amr,
+            available=[],
+        )
 
     # Factor activity, for the security page. Recorded here because this is the
     # one place every proven factor passes through; a passkey's own timestamp is
@@ -861,7 +1011,7 @@ async def refresh(
     teacher_id = uuid.UUID(payload["sub"])
     result2 = await db.execute(select(Teacher).where(Teacher.id == teacher_id))
     teacher = result2.scalar_one_or_none()
-    if teacher is None:
+    if teacher is None or teacher.approved_at is None:
         raise credentials_exc
 
     # Re-check the policy rather than trusting the token.

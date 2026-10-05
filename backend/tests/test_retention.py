@@ -41,6 +41,7 @@ async def _seed_exam(
         email=f"retention-{uuid.uuid4().hex[:8]}@example.com",
         password_hash=hash_password("twelve-chars-plus"),
         role="teacher",
+        approved_at=datetime.now(UTC),
     )
     db.add(teacher)
     await db.flush()

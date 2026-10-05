@@ -50,7 +50,12 @@ async def create_teacher(
     role: str = "teacher",
     password: str = DEFAULT_PASSWORD,
 ) -> Teacher:
-    teacher = Teacher(email=email, password_hash=hash_password(password), role=role)
+    teacher = Teacher(
+        email=email,
+        password_hash=hash_password(password),
+        role=role,
+        approved_at=datetime.now(UTC),
+    )
     db.add(teacher)
     await db.commit()
     return teacher

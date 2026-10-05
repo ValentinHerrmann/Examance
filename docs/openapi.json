@@ -52,6 +52,114 @@
         }
       }
     },
+    "/api/v1/auth/register": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Registration Status",
+        "description": "Whether this server accepts self-registrations. A deployment setting, not per address.",
+        "operationId": "registration_status_api_v1_auth_register_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Register",
+        "description": "Ask for an account: mails a verification link to the address.\n\nAnswers the same whether or not the address already has an account (none is mailed then),\nand the mail is sent after the response so the timing does not tell either. The link leads\nto the page where the registrant chooses a password; nothing is created before that.",
+        "operationId": "register_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Register Api V1 Auth Register Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register/complete": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Complete Registration",
+        "description": "Verify the address with the mailed token and create the account with the chosen password.\n\nAn address on the admin's always-allowed list is approved immediately; any other account\nwaits for an admin, who is notified. Neither outcome issues a session: the registrant signs\nin normally afterwards and sets up a second factor then.",
+        "operationId": "complete_registration_api_v1_auth_register_complete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterCompleteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/reset/start": {
       "post": {
         "tags": [
@@ -141,6 +249,130 @@
                     "type": "string"
                   },
                   "title": "Response Reset Password Api V1 Auth Reset Password Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/change-password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Change Password",
+        "description": "Change the password of a signed-in account, keeping the session.\n\nThe alternative was signing out and going through the emailed reset, which\ninvalidates the password wrap and then asks for the recovery code to undo\nthe damage \u2014 an absurd amount of ceremony for a routine change. From an open\nsession the browser already holds the data key, so it can re-wrap it under\nthe new password and send both together.\n\nWritten in one transaction for the same reason the reset is: a password that\nchanged without its key copy looks like a working account right up until the\nnext sign-in opens a vault of blank fields.\n\nThe current password is verified through the same throttle as `/auth/login`.\nWithout that this endpoint would be a password oracle that skips the cooloff\n\u2014 slower per guess, but unbounded.",
+        "operationId": "change_password_api_v1_auth_change_password_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Change Password Api V1 Auth Change Password Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/factor/password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Factor Password",
+        "description": "Present the password as the *second* factor.\n\n`/auth/login` hard-codes an empty presented-factor list, so it can only ever\nopen a sign-in. That left passkey-then-password \u2014 one of the three pairs the\npolicy promises \u2014 impossible to express, and the sign-in screen with nothing\nto offer but the authenticator after a passkey.\n\nThe account is the one named by the pending token. Nothing here takes an\nemail: doing so would turn the second step into a probe for which addresses\nhave accounts.\n\nNot reachable in the reset flow. A reset exists because the password is\nunavailable, and the emailed token already stands in for it.",
+        "operationId": "factor_password_api_v1_auth_factor_password_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordFactorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
                 }
               }
             }
@@ -419,7 +651,7 @@
           "compile"
         ],
         "summary": "Compile Latex Endpoint",
-        "description": "Compile LaTeX source to PDF via Tectonic.\n\nResource files (images, PDFs, data files) reach the working directory two\nways: `resource_exercise_ids` names exercises whose stored files the server\nloads itself, and `resources` carries files the server cannot know about \u2014\nan unsaved exercise, or a client that keeps everything local. Both are\nwritten into the temp working directory and deleted with it.\n\nRate limited: 10 req/min per IP.\nBody limit: BODY_LIMIT_COMPILE (enforced by BodyLimitMiddleware).\nLaTeX source is NEVER logged \u2014 see LaTeXRequest.__repr__ and latex service.\nThe 422 detail carries only TeX diagnostics, never raw engine or log output.",
+        "description": "Compile LaTeX source to PDF via Tectonic.\n\nResource files (images, PDFs, data files) reach the working directory two\nways: `resource_exercise_ids` names exercises whose stored files the server\nloads itself, and `resources` carries files the server cannot know about \u2014\nan unsaved exercise, or a client that keeps everything local. Both are\nwritten into the temp working directory and deleted with it. The exam header\nlogo is named by `logo_exam_id` / `account_logo` and resolved here as well.\n\nRate limited: 10 req/min per IP.\nBody limit: BODY_LIMIT_COMPILE (enforced by BodyLimitMiddleware).\nLaTeX source is NEVER logged \u2014 see LaTeXRequest.__repr__ and latex service.\nThe 422 detail carries only TeX diagnostics, never raw engine or log output.",
         "operationId": "compile_latex_endpoint_api_v1_compile_latex_post",
         "parameters": [
           {
@@ -901,6 +1133,396 @@
               "type": "boolean",
               "default": false,
               "title": "Answers"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/logo": {
+      "get": {
+        "tags": [
+          "logos"
+        ],
+        "summary": "Get Account Logo",
+        "description": "The account's logo setting (`default`, `none`, `custom`) and what it prints.",
+        "operationId": "get_account_logo_api_v1_user_logo_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountLogoInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "logos"
+        ],
+        "summary": "Set Account Logo",
+        "description": "Choose the account logo: the bundled default (`default`), none (`none`), or its own file\n(`custom`, PNG, JPEG or PDF up to 2 MB in `content_b64`).",
+        "operationId": "set_account_logo_api_v1_user_logo_put",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountLogoUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountLogoInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "logos"
+        ],
+        "summary": "Reset Account Logo",
+        "description": "Reset the account logo to the default; same as `PUT {\"mode\": \"default\"}`.",
+        "operationId": "reset_account_logo_api_v1_user_logo_delete",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountLogoInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/logo/file": {
+      "get": {
+        "tags": [
+          "logos"
+        ],
+        "summary": "Download Account Logo",
+        "description": "The logo the account prints (its own or the default); 404 when it prints none.",
+        "operationId": "download_account_logo_api_v1_user_logo_file_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exams/{exam_id}/logo": {
+      "get": {
+        "tags": [
+          "logos"
+        ],
+        "summary": "Get Exam Logo Info",
+        "description": "The exam's logo setting and the logo it resolves to.",
+        "operationId": "get_exam_logo_info_api_v1_exams__exam_id__logo_get",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamLogoInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "logos"
+        ],
+        "summary": "Set Exam Logo",
+        "description": "Choose the exam's logo: follow the account (`account`), print none (`none`), or print its\nown (`custom`, with `content_b64` to replace the stored file).",
+        "operationId": "set_exam_logo_api_v1_exams__exam_id__logo_put",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExamLogoUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamLogoInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exams/{exam_id}/logo/file": {
+      "get": {
+        "tags": [
+          "logos"
+        ],
+        "summary": "Download Exam Logo",
+        "description": "The logo this exam prints (its own, the account's, or the default); 404 for none.",
+        "operationId": "download_exam_logo_api_v1_exams__exam_id__logo_file_get",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
             }
           },
           {
@@ -2147,6 +2769,18 @@
             }
           },
           {
+            "name": "include_scans",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include scan_ciphertext_b64/scan_iv_b64 for every submission. Off by default: the scan PDF is the bulk of a submission's payload, so an overview listing all of an exam's submissions must not ship every scan just to show a table. Use has_scan for a presence indicator, and GET /exams/{id}/submissions/{sub_id} to fetch one scan's bytes on demand.",
+              "default": false,
+              "title": "Include Scans"
+            },
+            "description": "Include scan_ciphertext_b64/scan_iv_b64 for every submission. Off by default: the scan PDF is the bulk of a submission's payload, so an overview listing all of an exam's submissions must not ship every scan just to show a table. Use has_scan for a presence indicator, and GET /exams/{id}/submissions/{sub_id} to fetch one scan's bytes on demand."
+          },
+          {
             "name": "access_token",
             "in": "cookie",
             "required": false,
@@ -2533,13 +3167,449 @@
         }
       }
     },
+    "/api/v1/exams/{exam_id}/submissions/{submission_id}/scores": {
+      "get": {
+        "tags": [
+          "exercise-scores"
+        ],
+        "summary": "List Scores",
+        "operationId": "list_scores_api_v1_exams__exam_id__submissions__submission_id__scores_get",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          },
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExerciseScoreResponse"
+                  },
+                  "title": "Response List Scores Api V1 Exams  Exam Id  Submissions  Submission Id  Scores Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "exercise-scores"
+        ],
+        "summary": "Put Scores",
+        "description": "Upsert the listed scores; unlisted ones are left alone (clearing is a DELETE).\n\nRows resolve by (submission_id, exercise_id), never by the client's id, so a\nreplay updates in place instead of answering 409.",
+        "operationId": "put_scores_api_v1_exams__exam_id__submissions__submission_id__scores_put",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExerciseScoreBulkPut"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExerciseScoreResponse"
+                  },
+                  "title": "Response Put Scores Api V1 Exams  Exam Id  Submissions  Submission Id  Scores Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "exercise-scores"
+        ],
+        "summary": "Delete All Scores",
+        "operationId": "delete_all_scores_api_v1_exams__exam_id__submissions__submission_id__scores_delete",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          },
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exams/{exam_id}/submissions/{submission_id}/scores/{exercise_id}": {
+      "delete": {
+        "tags": [
+          "exercise-scores"
+        ],
+        "summary": "Delete Score",
+        "operationId": "delete_score_api_v1_exams__exam_id__submissions__submission_id__scores__exercise_id__delete",
+        "parameters": [
+          {
+            "name": "exercise_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exercise Id"
+            }
+          },
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          },
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exams/{exam_id}/scores": {
+      "get": {
+        "tags": [
+          "exercise-scores"
+        ],
+        "summary": "List Exam Scores",
+        "operationId": "list_exam_scores_api_v1_exams__exam_id__scores_get",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExerciseScoreResponse"
+                  },
+                  "title": "Response List Exam Scores Api V1 Exams  Exam Id  Scores Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/users": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Users",
+        "description": "Accounts, newest first (Admin only). `pending` = waiting for approval.",
+        "operationId": "list_users_api_v1_admin_users_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "pending",
+                "active"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "admin"
         ],
         "summary": "Create User",
-        "description": "Create a teacher/admin account without a password (Admin only).\n\nGenerates and emails a single-use password set token to the user.",
+        "description": "Invite a teacher/admin: create the account without a password (Admin only).\n\nThe account is approved with the given features, and the address counts as verified: the\nmailed set-password link is the only way in, so using it proves the mailbox. A pending\nself-registration for the same address is superseded (its link stops working).",
         "operationId": "create_user_api_v1_admin_users_post",
         "parameters": [
           {
@@ -2593,13 +3663,206 @@
         }
       }
     },
+    "/api/v1/admin/users/{user_id}/approve": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Approve User",
+        "description": "Approve a pending registration with the given features (Admin only).\n\nConditional on the account still being pending, so two admins approving at once send one\nmail. The registrant's note is erased: it only served this decision.",
+        "operationId": "approve_user_api_v1_admin_users__user_id__approve_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminApproveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{user_id}/reject": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Reject User",
+        "description": "Reject a pending registration: the account is deleted and the registrant told (Admin only).\n\nOnly ever deletes an account that is still pending; an approved one is refused.",
+        "operationId": "reject_user_api_v1_admin_users__user_id__reject_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{user_id}/features": {
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Update User Features",
+        "description": "Change an account's feature switches (Admin only).\n\nRevoking `server_results` from an account in \"all-server\" mode does not touch its data: the\nnext time it opens, the app asks it to move its results into the browser.",
+        "operationId": "update_user_features_api_v1_admin_users__user_id__features_patch",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountFeaturesUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/users/{user_id}/reset-password": {
       "post": {
         "tags": [
           "admin"
         ],
         "summary": "Reset User Password",
-        "description": "Trigger an admin-forced password reset for an existing user (Admin only).\n\nGenerates and emails a single-use password reset token. The user's existing\npassword remains active until they set a new password via the link.",
+        "description": "Trigger an admin-forced password reset for an existing user (Admin only).\n\nGenerates and emails a single-use password reset token. The user's existing\npassword remains active until they set a new password via the link. For an\ninvited account that never set a password this resends the invitation.",
         "operationId": "reset_user_password_api_v1_admin_users__user_id__reset_password_post",
         "parameters": [
           {
@@ -2639,6 +3902,239 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/allowed-domains": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Allowed Domains",
+        "description": "Domains whose registrations are approved automatically (Admin only).",
+        "operationId": "list_allowed_domains_api_v1_admin_allowed_domains_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AllowedDomainResponse"
+                  },
+                  "title": "Response List Allowed Domains Api V1 Admin Allowed Domains Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Add Allowed Domain",
+        "description": "Approve every future registration from a domain automatically (Admin only).\n\nExact match on the part after '@'; subdomains need their own entry. Existing accounts are\nnot affected.",
+        "operationId": "add_allowed_domain_api_v1_admin_allowed_domains_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AllowedDomainRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllowedDomainResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/allowed-domains/{domain_id}": {
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Update Allowed Domain",
+        "description": "Change the features future registrations from a domain receive (Admin only).",
+        "operationId": "update_allowed_domain_api_v1_admin_allowed_domains__domain_id__patch",
+        "parameters": [
+          {
+            "name": "domain_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Domain Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountFeaturesUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllowedDomainResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Remove Allowed Domain",
+        "description": "Stop approving a domain automatically (Admin only). Existing accounts stay.",
+        "operationId": "remove_allowed_domain_api_v1_admin_allowed_domains__domain_id__delete",
+        "parameters": [
+          {
+            "name": "domain_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Domain Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -2836,6 +4332,116 @@
                     "$ref": "#/components/schemas/AuditLogResponse"
                   },
                   "title": "Response List Audit Logs Api V1 Admin Audit Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/capabilities": {
+      "get": {
+        "tags": [
+          "user"
+        ],
+        "summary": "Get Capabilities",
+        "description": "The account's storage mode (null until chosen) and what it may use.",
+        "operationId": "get_capabilities_api_v1_user_capabilities_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilitiesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/storage-mode": {
+      "put": {
+        "tags": [
+          "user"
+        ],
+        "summary": "Set Storage Mode",
+        "description": "Records the account's storage mode, compare-and-set on `expected`. Moving the results\nbetween server and browser is the client's job and happens before this call; this only\nstates where they now live.",
+        "operationId": "set_storage_mode_api_v1_user_storage_mode_put",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageModeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilitiesOut"
                 }
               }
             }
@@ -3228,7 +4834,7 @@
           "mfa"
         ],
         "summary": "Mfa Status",
-        "description": "What this account has enrolled, and whether that is enough to sign in.",
+        "description": "What this account has enrolled, and whether that is enough to sign in.\n\nAlso everything the security page needs to describe each factor: when it was\nadded, when it last answered, and whether a recovery code is on file. All of\nit is about the *authenticated* account \u2014 nothing here is reachable before a\nfactor has been proven, which is what keeps it from being a profile oracle\nfor an arbitrary email address.",
         "operationId": "mfa_status_api_v1_mfa_status_get",
         "parameters": [
           {
@@ -3612,7 +5218,7 @@
           "webauthn"
         ],
         "summary": "Login Verify",
-        "description": "Present a passkey as a sign-in factor.\n\nContributes exactly one factor \u2014 the `passkey` kind \u2014 whether it comes first\nor second, and never short-circuits the policy on its own.\n\nThe cookie is read directly rather than through a dependency because this\nendpoint has to work both ways: with no session at all (passkey first) and\nwith a sign-in already part-way through (passkey second).",
+        "description": "Present a passkey as a sign-in factor.\n\nContributes the `passkey` factor whether it comes first or second. On its\nown it satisfies the policy, so a passkey-first sign-in ends in a full\nsession (or enrollment, for an account with fewer than two factors).\n\nThe cookie is read directly rather than through a dependency because this\nendpoint has to work both ways: with no session at all (passkey first) and\nwith a sign-in already part-way through (passkey second).",
         "operationId": "login_verify_api_v1_webauthn_login_verify_post",
         "parameters": [
           {
@@ -3767,6 +5373,81 @@
         }
       }
     },
+    "/api/v1/training/status": {
+      "get": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Training Status",
+        "description": "Whether this deployment accepts training-data donations. Public, read-only.",
+        "operationId": "training_status_api_v1_training_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/training/omr-samples": {
+      "post": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Donate Omr Samples",
+        "description": "Store a batch of teacher-verified checkbox crops, unlinked from the account.",
+        "operationId": "donate_omr_samples_api_v1_training_omr_samples_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OmrSampleBatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "tags": [
@@ -3795,6 +5476,151 @@
   },
   "components": {
     "schemas": {
+      "AccountFeatures": {
+        "properties": {
+          "server_results": {
+            "type": "boolean",
+            "title": "Server Results",
+            "default": true
+          },
+          "server_latex": {
+            "type": "boolean",
+            "title": "Server Latex",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AccountFeatures",
+        "description": "The per-account switches an admin sets (app/services/capabilities.py).\n\nserver_results: grading results and student data may live on the server (\"all-server\").\nserver_latex:   LaTeX may be compiled on the server.\nExams and exercises always live on the server and need no switch."
+      },
+      "AccountFeaturesUpdate": {
+        "properties": {
+          "server_results": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server Results"
+          },
+          "server_latex": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server Latex"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AccountFeaturesUpdate",
+        "description": "A partial change of `AccountFeatures`; omitted switches stay as they are."
+      },
+      "AccountLogoInfo": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "default",
+              "account",
+              "exam",
+              "none"
+            ],
+            "title": "Source"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type"
+          },
+          "byte_size": {
+            "type": "integer",
+            "title": "Byte Size",
+            "default": 0
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "default",
+              "none",
+              "custom"
+            ],
+            "title": "Mode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "mode"
+        ],
+        "title": "AccountLogoInfo"
+      },
+      "AccountLogoUpdate": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "default",
+              "none",
+              "custom"
+            ],
+            "title": "Mode"
+          },
+          "content_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content B64"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "title": "AccountLogoUpdate",
+        "description": "The account's logo choice: ``default`` prints the bundled default logo (MTG), ``none`` prints\nno logo, ``custom`` prints ``content_b64``. ``custom`` without content keeps the stored file.\nThe type is read from the bytes, never from the client."
+      },
+      "AdminApproveRequest": {
+        "properties": {
+          "features": {
+            "$ref": "#/components/schemas/AccountFeatures"
+          }
+        },
+        "type": "object",
+        "title": "AdminApproveRequest"
+      },
       "AdminCreateUserRequest": {
         "properties": {
           "email": {
@@ -3810,13 +5636,17 @@
             ],
             "title": "Role",
             "default": "teacher"
+          },
+          "features": {
+            "$ref": "#/components/schemas/AccountFeatures"
           }
         },
         "type": "object",
         "required": [
           "email"
         ],
-        "title": "AdminCreateUserRequest"
+        "title": "AdminCreateUserRequest",
+        "description": "An invitation: the account is created approved, the address counts as verified."
       },
       "AdminCreateUserResponse": {
         "properties": {
@@ -3880,6 +5710,142 @@
           "user_id"
         ],
         "title": "AdminResetPasswordResponse"
+      },
+      "AdminUserList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminUserResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AdminUserList"
+      },
+      "AdminUserResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "teacher",
+              "admin"
+            ],
+            "title": "Role"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "registration_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registration Note"
+          },
+          "features": {
+            "$ref": "#/components/schemas/AccountFeatures"
+          },
+          "password_set": {
+            "type": "boolean",
+            "title": "Password Set"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "role",
+          "created_at",
+          "approved_at",
+          "registration_note",
+          "features",
+          "password_set"
+        ],
+        "title": "AdminUserResponse"
+      },
+      "AllowedDomainRequest": {
+        "properties": {
+          "domain": {
+            "type": "string",
+            "maxLength": 254,
+            "minLength": 1,
+            "title": "Domain"
+          },
+          "features": {
+            "$ref": "#/components/schemas/AccountFeatures"
+          }
+        },
+        "type": "object",
+        "required": [
+          "domain"
+        ],
+        "title": "AllowedDomainRequest"
+      },
+      "AllowedDomainResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "features": {
+            "$ref": "#/components/schemas/AccountFeatures"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "domain",
+          "features",
+          "created_at"
+        ],
+        "title": "AllowedDomainResponse"
       },
       "AuditLogResponse": {
         "properties": {
@@ -3968,7 +5934,8 @@
             "enum": [
               "ok",
               "factor_required",
-              "enroll_required"
+              "enroll_required",
+              "approval_pending"
             ],
             "title": "Status",
             "default": "ok"
@@ -3986,6 +5953,17 @@
             },
             "type": "array",
             "title": "Available"
+          },
+          "needs_key_recovery": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Needs Key Recovery"
           }
         },
         "type": "object",
@@ -4034,6 +6012,50 @@
         ],
         "title": "BackupCodeRequest"
       },
+      "CapabilitiesOut": {
+        "properties": {
+          "storage_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "all-server",
+                  "hybrid"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Mode"
+          },
+          "allowed_storage_modes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "all-server",
+                "hybrid"
+              ]
+            },
+            "type": "array",
+            "title": "Allowed Storage Modes"
+          },
+          "features": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Features"
+          }
+        },
+        "type": "object",
+        "required": [
+          "storage_mode",
+          "allowed_storage_modes",
+          "features"
+        ],
+        "title": "CapabilitiesOut"
+      },
       "CeremonyOptionsResponse": {
         "properties": {
           "handle": {
@@ -4056,6 +6078,37 @@
           "options_json"
         ],
         "title": "CeremonyOptionsResponse"
+      },
+      "ChangePasswordRequest": {
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Current Password"
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 12,
+            "title": "New Password"
+          },
+          "envelope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KeyEnvelopeSetIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "ChangePasswordRequest"
       },
       "ClassStatsResponse": {
         "properties": {
@@ -4356,6 +6409,94 @@
           "retention_until"
         ],
         "title": "ExamCreate"
+      },
+      "ExamLogoInfo": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "default",
+              "account",
+              "exam",
+              "none"
+            ],
+            "title": "Source"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type"
+          },
+          "byte_size": {
+            "type": "integer",
+            "title": "Byte Size",
+            "default": 0
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "account",
+              "none",
+              "custom"
+            ],
+            "title": "Mode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "mode"
+        ],
+        "title": "ExamLogoInfo"
+      },
+      "ExamLogoUpdate": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "account",
+              "none",
+              "custom"
+            ],
+            "title": "Mode"
+          },
+          "content_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content B64"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "title": "ExamLogoUpdate",
+        "description": "An exam's logo choice: ``account`` follows the account logo, ``none`` prints no logo,\n``custom`` prints ``content_b64``. ``custom`` without content keeps the exam's stored file."
       },
       "ExamMcGroupCreate": {
         "properties": {
@@ -4863,9 +7004,21 @@
             "title": "Subject"
           },
           "latex_body": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Latex Body",
             "default": ""
+          },
+          "code_withheld": {
+            "type": "boolean",
+            "title": "Code Withheld",
+            "default": false
           },
           "max_points": {
             "type": "number",
@@ -5258,6 +7411,11 @@
             ],
             "title": "Latex Body"
           },
+          "code_withheld": {
+            "type": "boolean",
+            "title": "Code Withheld",
+            "default": false
+          },
           "max_points": {
             "type": "number",
             "title": "Max Points",
@@ -5352,6 +7510,122 @@
           "id"
         ],
         "title": "ExerciseResponse"
+      },
+      "ExerciseScoreBulkPut": {
+        "properties": {
+          "scores": {
+            "items": {
+              "$ref": "#/components/schemas/ExerciseScoreIn"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Scores"
+          }
+        },
+        "type": "object",
+        "title": "ExerciseScoreBulkPut"
+      },
+      "ExerciseScoreIn": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "exercise_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Exercise Id"
+          },
+          "payload_ciphertext_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload Ciphertext B64"
+          },
+          "payload_iv_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload Iv B64"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exercise_id"
+        ],
+        "title": "ExerciseScoreIn"
+      },
+      "ExerciseScoreResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "submission_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Submission Id"
+          },
+          "exercise_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Exercise Id"
+          },
+          "payload_ciphertext_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload Ciphertext B64"
+          },
+          "payload_iv_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload Iv B64"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "submission_id",
+          "exercise_id",
+          "updated_at"
+        ],
+        "title": "ExerciseScoreResponse"
       },
       "ExerciseUpdate": {
         "properties": {
@@ -5761,6 +8035,23 @@
             "type": "array",
             "maxItems": 100,
             "title": "Resource Exercise Ids"
+          },
+          "logo_exam_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Exam Id"
+          },
+          "account_logo": {
+            "type": "boolean",
+            "title": "Account Logo",
+            "default": false
           }
         },
         "type": "object",
@@ -5864,6 +8155,71 @@
           "remaining_backup_codes": {
             "type": "integer",
             "title": "Remaining Backup Codes"
+          },
+          "has_recovery_code": {
+            "type": "boolean",
+            "title": "Has Recovery Code",
+            "default": false
+          },
+          "recovery_created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recovery Created At"
+          },
+          "password_changed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password Changed At"
+          },
+          "password_last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password Last Used At"
+          },
+          "totp_created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totp Created At"
+          },
+          "totp_last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totp Last Used At"
           }
         },
         "type": "object",
@@ -5875,6 +8231,350 @@
           "remaining_backup_codes"
         ],
         "title": "MfaStatusResponse"
+      },
+      "OmrSampleBatch": {
+        "properties": {
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/OmrSampleIn"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Samples"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "samples"
+        ],
+        "title": "OmrSampleBatch"
+      },
+      "OmrSampleFeatures": {
+        "properties": {
+          "fill": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Fill"
+          },
+          "redo_ratio": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redo Ratio"
+          },
+          "min_cell_fill": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Min Cell Fill"
+          },
+          "cell_evenness": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Cell Evenness"
+          },
+          "ring_fill": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Ring Fill"
+          },
+          "spill_excess": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": -1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spill Excess"
+          },
+          "ink_contrast": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Ink Contrast"
+          },
+          "stroke_span": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Stroke Span"
+          },
+          "stroke_frac": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Stroke Frac"
+          },
+          "redo_near_frac": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redo Near Frac"
+          },
+          "snap_dx": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": -1.0,
+            "title": "Snap Dx"
+          },
+          "snap_dy": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": -1.0,
+            "title": "Snap Dy"
+          },
+          "border_found": {
+            "type": "boolean",
+            "title": "Border Found"
+          },
+          "bg": {
+            "type": "integer",
+            "maximum": 255.0,
+            "minimum": 0.0,
+            "title": "Bg"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "fill",
+          "min_cell_fill",
+          "cell_evenness",
+          "ring_fill",
+          "ink_contrast",
+          "stroke_span",
+          "stroke_frac",
+          "snap_dx",
+          "snap_dy",
+          "border_found",
+          "bg"
+        ],
+        "title": "OmrSampleFeatures"
+      },
+      "OmrSampleIn": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version"
+          },
+          "algorithm_version": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Algorithm Version"
+          },
+          "label_selected": {
+            "type": "boolean",
+            "title": "Label Selected"
+          },
+          "detected_state": {
+            "type": "string",
+            "enum": [
+              "blank",
+              "ambiguous",
+              "marked",
+              "undone",
+              "redone"
+            ],
+            "title": "Detected State"
+          },
+          "provisional": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provisional"
+          },
+          "alt_state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "blank",
+                  "ambiguous",
+                  "marked",
+                  "undone",
+                  "redone"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt State"
+          },
+          "reasons": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "solid",
+                "spill",
+                "faint",
+                "thin",
+                "redo"
+              ]
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Reasons"
+          },
+          "has_redo_zone": {
+            "type": "boolean",
+            "title": "Has Redo Zone"
+          },
+          "crop_b64": {
+            "type": "string",
+            "maxLength": 6000,
+            "minLength": 1,
+            "title": "Crop B64"
+          },
+          "features": {
+            "$ref": "#/components/schemas/OmrSampleFeatures"
+          },
+          "sample_token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sample Token"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schema_version",
+          "algorithm_version",
+          "label_selected",
+          "detected_state",
+          "has_redo_zone",
+          "crop_b64",
+          "features"
+        ],
+        "title": "OmrSampleIn"
+      },
+      "PasswordFactorRequest": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "PasswordFactorRequest"
+      },
+      "RegisterCompleteRequest": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 12,
+            "title": "New Password"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "title": "RegisterCompleteRequest"
+      },
+      "RegisterCompleteResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "pending"
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "RegisterCompleteResponse"
+      },
+      "RegisterRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "RegisterRequest"
+      },
+      "RegistrationStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "RegistrationStatus",
+        "description": "Whether this server accepts self-registrations (GET /auth/register)."
       },
       "RegistrationVerifyRequest": {
         "properties": {
@@ -5958,6 +8658,40 @@
           "token"
         ],
         "title": "ResetTokenRequest"
+      },
+      "StorageModeUpdate": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "all-server",
+              "hybrid"
+            ],
+            "title": "Mode"
+          },
+          "expected": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "all-server",
+                  "hybrid"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mode",
+          "expected"
+        ],
+        "title": "StorageModeUpdate"
       },
       "StudentIdentityCreate": {
         "properties": {
@@ -6097,6 +8831,11 @@
               }
             ],
             "title": "Total Score"
+          },
+          "clear_annotations": {
+            "type": "boolean",
+            "title": "Clear Annotations",
+            "default": false
           }
         },
         "type": "object",
@@ -6180,6 +8919,16 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "has_scan": {
+            "type": "boolean",
+            "title": "Has Scan",
+            "default": false
+          },
+          "has_annotations": {
+            "type": "boolean",
+            "title": "Has Annotations",
+            "default": false
           }
         },
         "type": "object",
@@ -6240,6 +8989,24 @@
           "code"
         ],
         "title": "TotpFactorRequest"
+      },
+      "TrainingStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "retention_days": {
+            "type": "integer",
+            "title": "Retention Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled",
+          "retention_days"
+        ],
+        "title": "TrainingStatus"
       },
       "ValidationError": {
         "properties": {

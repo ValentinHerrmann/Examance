@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { resultsAreLocal } from "#lib/stores/storagePolicy";
   import { type ExerciseGroup, groupExercises } from "#lib/exercise-library/groupExercises";
   import { page } from "$app/state";
   import { onMount, onDestroy, untrack } from "svelte";
@@ -375,11 +376,12 @@
         await api.patch(`/exams/${exam.id}`, examPayload, { silentError: true });
       }
 
-      // 3. Post students
-      const localStudents = await db.students
-        .where("examId")
-        .equals(exam.id)
-        .toArray();
+      // 3. Post students. Only in all-server mode: in hybrid the results belong in this browser, and
+      // moving them is the results mover's job, never a side effect of syncing the exam.
+      const uploadResults = !resultsAreLocal();
+      const localStudents = uploadResults
+        ? await db.students.where("examId").equals(exam.id).toArray()
+        : [];
       for (const st of localStudents) {
         try {
           const ct = st.payloadCt || st.piiCt || new Uint8Array([0]);
@@ -397,11 +399,10 @@
         } catch {}
       }
 
-      // 4. Post submissions
-      const localSubmissions = await db.submissions
-        .where("examId")
-        .equals(exam.id)
-        .toArray();
+      // 4. Post submissions (all-server mode only, as above)
+      const localSubmissions = uploadResults
+        ? await db.submissions.where("examId").equals(exam.id).toArray()
+        : [];
       for (const sub of localSubmissions) {
         try {
           const pseudonymHmac = await ensure64CharHex(sub.pseudonymHash);

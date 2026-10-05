@@ -27,6 +27,7 @@ from app.schemas.exam import (
     ExamUpdate,
     ExerciseResponse,
 )
+from app.services.capabilities import require_server_latex
 from app.services.exercise_resource_store import load_resources_for_exercises
 from app.services.latex import CompilationError, compile_exam_latex
 from app.services.latex_resources import ResourceError
@@ -548,7 +549,7 @@ async def delete_exam(
 async def compile_exam_endpoint(
     answers: bool = False,
     exam: Exam = Depends(get_exam_for_teacher),
-    teacher: Teacher = Depends(get_current_teacher),
+    teacher: Teacher = Depends(require_server_latex),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     """Compile complete exam LaTeX document using live-linked library exercises."""

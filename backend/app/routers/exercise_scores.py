@@ -21,6 +21,7 @@ from app.models.exercise_score import ExerciseScore
 from app.models.scan_submission import ScanSubmission
 from app.schemas.binary import GCM_IV_BYTES, decode_b64
 from app.schemas.exercise_score import ExerciseScoreBulkPut, ExerciseScoreResponse
+from app.services.capabilities import require_server_results_writable
 
 router = APIRouter(
     prefix="/exams/{exam_id}/submissions/{submission_id}/scores",
@@ -69,7 +70,11 @@ async def list_exam_scores(
     return [_to_response(row) for row in rows.scalars()]
 
 
-@router.put("", response_model=list[ExerciseScoreResponse])
+@router.put(
+    "",
+    response_model=list[ExerciseScoreResponse],
+    dependencies=[Depends(require_server_results_writable)],
+)
 async def put_scores(
     body: ExerciseScoreBulkPut,
     exam: Exam = Depends(get_exam_for_teacher),

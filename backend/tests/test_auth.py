@@ -1,6 +1,8 @@
 """Auth integration tests (login, logout, session security)."""
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +18,7 @@ async def _create_test_teacher(db: AsyncSession, email: str, password: str = "s3
         email=email,
         password_hash=hash_password(password),
         role="teacher",
+        approved_at=datetime.now(UTC),
     )
     db.add(teacher)
     await db.commit()
@@ -151,7 +154,12 @@ async def test_login_uninitialized_password_is_indistinguishable(
     The old ERR_PASSWORD_NOT_SET response told an unauthenticated caller which
     addresses have accounts here. The hint now lives in the reset mail instead.
     """
-    teacher = Teacher(email="uninit@example.com", password_hash=None, role="teacher")
+    teacher = Teacher(
+        email="uninit@example.com",
+        password_hash=None,
+        role="teacher",
+        approved_at=datetime.now(UTC),
+    )
     db.add(teacher)
     await db.commit()
 

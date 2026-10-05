@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +13,8 @@ from app.config import settings
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.teacher import Teacher
-from app.services import email as email_svc
+from app.services import account_mail
+from app.services.account_mail import Mail
 from app.services.crypto import hash_password
 from app.services.key_envelope import invalidate_password_wrap
 
@@ -22,14 +24,13 @@ def hash_reset_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
 
-async def create_and_send_reset_token(
-    db: AsyncSession, teacher: Teacher
-) -> tuple[str, bool]:
+async def create_reset_token(db: AsyncSession, teacher: Teacher) -> tuple[str, Mail]:
     """
-    Generate a single-use password reset token, persist its hash, invalidate prior
-    unused tokens for this teacher, and send a reset email.
+    Generate a single-use password reset token, persist its hash and invalidate prior unused
+    tokens for this teacher. Returns the raw token and the mail carrying it, unsent.
 
-    Returns a tuple of (raw_token, email_sent_successfully).
+    An account without a password gets the invitation wording: it was created by an admin and
+    has never signed in.
     """
     raw_token = secrets.token_urlsafe(32)
     token_hash = hash_reset_token(raw_token)
@@ -51,32 +52,23 @@ async def create_and_send_reset_token(
     db.add(reset_token_record)
     await db.flush()
 
-    reset_link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={raw_token}"
-    subject = "Reset your Examance password"
-    body_text = (
-        f"Hello,\n\n"
-        f"A password set or reset link was generated for your account ({teacher.email}).\n\n"
-        f"Please use the link below to set your password:\n{reset_link}\n\n"
-        f"This link expires in {settings.PASSWORD_RESET_TOKEN_TTL_HOURS} hours.\n\n"
-        f"If you did not request this, you can ignore this email."
-    )
-    body_html = (
-        f"<p>Hello,</p>"
-        "<p>A password set or reset link was generated for your account "
-        f"(<strong>{teacher.email}</strong>).</p>"
-        f'<p><a href="{reset_link}">Click here to set your password</a></p>'
-        f"<p>This link expires in {settings.PASSWORD_RESET_TOKEN_TTL_HOURS} hours.</p>"
-        f"<p>If you did not request this, you can ignore this email.</p>"
-    )
+    link = account_mail.frontend_link(f"/reset-password?token={raw_token}")
+    kind: Literal["reset", "invite"] = "invite" if teacher.password_hash is None else "reset"
+    return raw_token, account_mail.set_password_mail(teacher.email, link, kind)
 
-    sent = await email_svc.send_email(
-        to_email=teacher.email,
-        subject=subject,
-        body_text=body_text,
-        body_html=body_html,
-    )
 
-    return raw_token, sent
+async def create_and_send_reset_token(
+    db: AsyncSession, teacher: Teacher
+) -> tuple[str, bool]:
+    """
+    `create_reset_token`, then send the mail right away.
+
+    Returns a tuple of (raw_token, email_sent_successfully). For callers that report delivery
+    (the admin endpoints); public endpoints send from a background task instead, so their
+    response time does not reveal whether an account exists.
+    """
+    raw_token, mail = await create_reset_token(db, teacher)
+    return raw_token, await account_mail.send(mail)
 
 
 async def verify_reset_token(
@@ -101,6 +93,11 @@ async def verify_reset_token(
         expires_at = expires_at.replace(tzinfo=UTC)
 
     if token_record.used_at is not None or expires_at <= now:
+        return None, None
+
+    # A pending account holds no token of any kind, a reset included. Covers /auth/reset/start
+    # and /auth/reset-password alike.
+    if teacher.approved_at is None:
         return None, None
 
     return token_record, teacher

@@ -7,6 +7,7 @@
 
 import { api } from '#lib/api/client';
 import { translate } from '#lib/i18n';
+import { featureEnabled } from '#lib/stores/capabilities';
 import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import { mergeResources, type LatexResourceFile } from './resources';
 import type { CompileLogo } from './logo';
@@ -148,7 +149,13 @@ export async function compileLatex(
       const localFiles = logo?.file ? [...resources, logo.file] : resources;
       return await compileLocalWasm(latexSource, onStatus, localFiles);
     } catch (err: any) {
-      if (promptFallback && typeof window !== 'undefined' && window.confirm(translate('misc.compiler.localFailedTryServer'))) {
+      // Offer the server only to an account that may use it; it would refuse the compile otherwise.
+      if (
+        promptFallback &&
+        featureEnabled('server_latex') &&
+        typeof window !== 'undefined' &&
+        window.confirm(translate('misc.compiler.localFailedTryServer'))
+      ) {
         const result = await compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo);
         return { ...result, usedFallback: true };
       }

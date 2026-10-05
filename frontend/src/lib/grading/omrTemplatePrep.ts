@@ -25,7 +25,7 @@ import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
 import { api } from "#lib/api/client";
 import { mapApiToExamRecord } from "#lib/repositories/examRepository";
 import { isAuthenticated } from "#lib/stores/session";
-import { storagePolicyStore } from "#lib/stores/storagePolicy";
+import { effectiveLatexCompilation } from "#lib/stores/capabilities";
 import { translate } from "#lib/i18n";
 
 export interface ExamItemRef {
@@ -170,7 +170,7 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   const lmultiCount = (fullTex.match(/\\Lmulti/g) || []).length;
   console.log(`[PrepareOMR] LaTeX macro counts in fullTex: \\OmrExercise=${omrExCount}, \\multi=${multiCount}, \\Lmulti=${lmultiCount}, fullTex length=${fullTex.length}`);
 
-  const useLocal = get(storagePolicyStore).latexCompilation === "local";
+  const useLocal = effectiveLatexCompilation() === "local";
   if (!useLocal && !get(isAuthenticated)) {
     throw new Error(translate("exam.page.omr.loginRequired"));
   }

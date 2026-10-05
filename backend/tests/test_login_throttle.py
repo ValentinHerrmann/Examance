@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 
 import pytest
 import pytest_asyncio
@@ -37,7 +38,12 @@ async def throttling() -> AsyncGenerator[None, None]:
 
 
 async def _create_teacher(db: AsyncSession, email: str) -> Teacher:
-    teacher = Teacher(email=email, password_hash=hash_password(_PASSWORD), role="teacher")
+    teacher = Teacher(
+        email=email,
+        password_hash=hash_password(_PASSWORD),
+        role="teacher",
+        approved_at=datetime.now(UTC),
+    )
     db.add(teacher)
     await db.commit()
     return teacher

@@ -52,6 +52,7 @@ async def test_initial_admin_bootstrap_credential_mismatch_warning(
         email="mismatchadmin@example.com",
         password_hash=hash_password("OriginalPassword123!"),
         role="teacher",
+        approved_at=datetime.now(UTC),
     )
     db.add(existing_user)
     await db.commit()
@@ -148,6 +149,7 @@ async def test_forgot_password_generic_response(client: AsyncClient, db: AsyncSe
         email="existing@example.com",
         password_hash=hash_password("Password12345!"),
         role="teacher",
+        approved_at=datetime.now(UTC),
     )
     db.add(user)
     await db.commit()
@@ -179,6 +181,7 @@ async def test_invalid_or_expired_reset_token(client: AsyncClient, db: AsyncSess
         email="tokentest@example.com",
         password_hash=hash_password("OldPassword123!"),
         role="teacher",
+        approved_at=datetime.now(UTC),
     )
     db.add(teacher)
     await db.commit()
@@ -216,6 +219,7 @@ async def test_admin_forced_password_reset(client: AsyncClient, db: AsyncSession
         email="teacher-to-reset@example.com",
         password_hash=hash_password("OldWorkingPassword123!"),
         role="teacher",
+        approved_at=datetime.now(UTC),
     )
     db.add(teacher)
     await db.commit()
@@ -284,6 +288,7 @@ async def test_admin_reset_password_email_failure_reported(
         email="teacher-rfail@example.com",
         password_hash=hash_password("TeacherPass123!"),
         role="teacher",
+        approved_at=datetime.now(UTC),
     )
     db.add(teacher)
     await db.commit()

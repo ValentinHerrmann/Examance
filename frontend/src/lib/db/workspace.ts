@@ -246,7 +246,9 @@ async function decide(): Promise<WorkspaceStatus> {
     const cached = get(capabilitiesStore);
     const current = await currentManifest();
     mode = cached?.storageMode ?? (current?.mode === 'all-server' || current?.mode === 'hybrid' ? current.mode : null);
-    allowed = cached ? allowedModesFrom(cached) : allowedModesFrom(null);
+    // Without any cached answer, trust the mode this browser last worked in rather than allowing nothing,
+    // which would strand an offline tab in a choice it cannot make.
+    allowed = cached ? allowedModesFrom(cached) : mode ? [mode] : [];
   }
 
   if (!mode || !allowed.includes(mode)) {

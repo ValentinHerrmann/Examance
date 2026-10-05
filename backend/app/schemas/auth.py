@@ -88,11 +88,19 @@ class AuthResponse(BaseModel):
     #   factor_required — one down, `available` says what may come next.
     #   enroll_required — fewer than two factors enrolled; only the enrollment
     #                     endpoints are reachable until that is fixed.
-    status: Literal["ok", "factor_required", "enroll_required"] = "ok"
+    #   approval_pending — a self-registered account an admin has not approved
+    #                     yet. No token at all. Only ever answered after a
+    #                     factor was proven, like everything else here.
+    status: Literal["ok", "factor_required", "enroll_required", "approval_pending"] = "ok"
     satisfied: list[str] = Field(default_factory=list)
     # Only ever populated after a factor has been proven. Answering it earlier
     # would turn the endpoint into an account-profile oracle.
     available: list[str] = Field(default_factory=list)
+    # /auth/reset/start only: false when the account holds no key envelope and
+    # has authored nothing, i.e. a fresh (invited or self-registered) account
+    # that cannot have data to recover. Its reset skips the recovery-code step.
+    # Answered to the holder of the mailed token alone.
+    needs_key_recovery: bool | None = None
 
 
 class TokenClaims(BaseModel):
@@ -101,3 +109,26 @@ class TokenClaims(BaseModel):
     role: str
     exp: int          # Unix timestamp
     jti: str | None = None  # JWT ID — used for refresh token revocation
+
+
+class RegistrationStatus(BaseModel):
+    """Whether this server accepts self-registrations (GET /auth/register)."""
+
+    enabled: bool
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+
+
+class RegisterCompleteRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
+    # Shown to the approving admin; erased on approval. Ignored for auto-approved domains.
+    note: str | None = Field(default=None, max_length=500)
+
+
+class RegisterCompleteResponse(BaseModel):
+    # approved: the domain is on the admin's always-allowed list; sign in now.
+    # pending:  an admin has to approve the account first.
+    status: Literal["approved", "pending"]

@@ -21,7 +21,11 @@ from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
 from app.schemas.capabilities import CapabilitiesOut, StorageModeUpdate
 from app.services import audit as audit_svc
-from app.services.capabilities import capabilities_for
+from app.services.capabilities import (
+    account_features,
+    capabilities_for,
+    require_server_results_writable,
+)
 from app.services.logo import get_teacher_logo
 
 router = APIRouter(prefix="/user", tags=["user"])
@@ -156,7 +160,11 @@ async def purge_server_student_data(
     }
 
 
-@router.post("/restore-server-data", status_code=status.HTTP_200_OK)
+@router.post(
+    "/restore-server-data",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_server_results_writable)],
+)
 async def restore_server_data(
     request: Request,
     teacher: Teacher = Depends(get_current_teacher),
@@ -289,6 +297,10 @@ async def export_own_data(
             "email": teacher.email,
             "role": teacher.role,
             "created_at": teacher.created_at.isoformat() if teacher.created_at else None,
+            "approved_at": teacher.approved_at.isoformat() if teacher.approved_at else None,
+            "registration_note": teacher.registration_note,
+            "storage_mode": teacher.storage_mode,
+            "features": account_features(teacher),
             # The logo is printed on the exams, so the export carries the file itself.
             # "default" prints the bundled default logo, which is not the teacher's data.
             "exam_logo": (

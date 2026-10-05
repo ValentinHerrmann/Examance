@@ -44,6 +44,17 @@ class AuditLog(Base):
             "PASSKEY_REMOVED",
             "KEY_ENVELOPE_RESET",
             "ORPHANED_DATA_DELETED",
+            # Account registration and approval (issue #53).
+            "USER_REGISTERED",
+            "USER_APPROVED",
+            "USER_REJECTED",
+            "USER_FEATURES_CHANGED",
+            "ALLOWED_DOMAIN_ADDED",
+            "ALLOWED_DOMAIN_CHANGED",
+            "ALLOWED_DOMAIN_REMOVED",
+            # Written by /auth/change-password since it shipped, but never an enum member,
+            # which Postgres rejects. Added with migration 0028.
+            "PASSWORD_CHANGED",
             name="audit_action",
         ),
         nullable=False,

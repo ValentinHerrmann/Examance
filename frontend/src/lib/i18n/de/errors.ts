@@ -27,6 +27,14 @@ export const errors = {
         ERR_LAST_FACTOR_PROTECTED: 'Dieser Faktor kann nicht entfernt werden, ohne den Zugang zum Konto oder zu den Daten zu verlieren.',
         ERR_MFA_REQUIRED: 'Für diese Aktion ist eine vollständige Anmeldung erforderlich.',
         ERR_STEP_EXPIRED: 'Dieser Anmeldeschritt ist abgelaufen. Bitte melden Sie sich erneut an.',
+        ERR_REGISTRATION_DISABLED: 'Die Selbstregistrierung ist auf diesem Server ausgeschaltet.',
+        ERR_INVALID_REGISTRATION_TOKEN: 'Dieser Bestätigungslink ist ungültig oder abgelaufen. Bitte registrieren Sie sich erneut.',
+        ERR_FEATURE_NOT_ALLOWED: 'Diese Funktion ist für Ihr Konto nicht freigeschaltet.',
+        ERR_ACCOUNT_PENDING: 'Für diese Adresse wartet eine Registrierung auf Freigabe. Geben Sie sie frei oder lehnen Sie sie ab.',
+        ERR_ACCOUNT_EXISTS: 'Ein Konto mit dieser E-Mail-Adresse existiert bereits.',
+        ERR_ALREADY_APPROVED: 'Dieses Konto ist bereits freigegeben.',
+        ERR_INVALID_DOMAIN: 'Bitte geben Sie eine Domain wie schule.example ein.',
+        ERR_DOMAIN_EXISTS: 'Diese Domain steht bereits auf der Liste.',
     },
 
     /** HTTP status titles for the generic error modal. */

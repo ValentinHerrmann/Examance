@@ -41,6 +41,7 @@
   import { loadWorkspace, localResultCount, openWorkspace } from "#lib/db/workspace";
   import type { StorageMode } from "#lib/stores/storagePolicy";
   import { workspaceStatusStore } from "#lib/stores/workspaceState";
+  import { effectiveLatexStore } from "#lib/stores/capabilities";
   import { registerWorkspaceSync, switchRunningElsewhere } from "#lib/stores/workspaceSync";
   import WorkspaceBlocked from "#lib/components/storage/WorkspaceBlocked.svelte";
   import AppNavbar from "#lib/components/layout/AppNavbar.svelte";
@@ -296,7 +297,7 @@
       userRole={$sessionStore.role}
       userEmail={$sessionStore.email}
       storageMode={$storagePolicyStore.storageMode}
-      latexCompilation={$storagePolicyStore.latexCompilation}
+      latexCompilation={$effectiveLatexStore}
       versionStatus={$versionStatus}
       helpUnseen={!$helpSeen}
       onStorageClick={handleFooterClick}

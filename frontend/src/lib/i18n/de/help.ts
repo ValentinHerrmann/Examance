@@ -264,10 +264,10 @@ export const help = {
         },
         accounts: {
             title: 'Konten & Rollen',
-            summary: 'Warum ein Konto nötig ist, welche Rollen es gibt, wie Passwörter zurückgesetzt werden.',
+            summary: 'Konto beantragen, Freigabe und Funktionen, Rollen, Passwort zurücksetzen.',
             s1: {
                 h: 'Braucht es ein Konto?',
-                p1: 'Ja. Jede Nutzung von Examance setzt ein Server-Konto voraus; den früheren lokalen Modus mit Passphrase und ohne Konto gibt es nicht mehr. Welche Speicherorte und Funktionen Ihr Konto nutzen darf, legt der Server fest.',
+                p1: 'Ja. Jede Nutzung von Examance setzt ein Server-Konto voraus; den früheren lokalen Modus mit Passphrase und ohne Konto gibt es nicht mehr. Welche Speicherorte und Funktionen Ihr Konto nutzen darf, legt die Administration fest.',
             },
             s2: {
                 h: 'Rollen',
@@ -295,6 +295,21 @@ export const help = {
             s5: {
                 h: 'Zu viele Fehlversuche',
                 p1: 'Nach mehreren falschen Passwörtern wird das Konto kurzzeitig gesperrt; die Wartezeit verlängert sich mit jedem weiteren Fehlversuch und endet von selbst. Wenn Sie das sehen, ohne es selbst ausgelöst zu haben, versucht jemand anderes, sich bei Ihrem Konto anzumelden.',
+            },
+            s8: {
+                h: 'Konto beantragen',
+                p1: 'Über „Konto beantragen“ auf der Anmeldeseite geben Sie Ihre E-Mail-Adresse an und erhalten einen Bestätigungslink. Über diesen Link legen Sie Ihr Passwort fest; erst dann entsteht das Konto. Ob es für eine Adresse bereits ein Konto gibt, verrät die Seite bewusst nicht.',
+                p2: 'Stammt Ihre Adresse von einer Domain, die die Administration freigeschaltet hat, ist das Konto sofort aktiv. Andernfalls wartet es auf Freigabe; bis dahin meldet die Anmeldung nur „wartet auf Freigabe“, und Sie erhalten eine E-Mail, sobald es freigeschaltet ist. Den zweiten Anmeldefaktor richten Sie bei der ersten Anmeldung ein.',
+            },
+            s9: {
+                h: 'Freigabe und Funktionen',
+                p1: 'Die Administration gibt jedes Konto frei und legt fest, was es nutzen darf: Schülerdaten und Ergebnisse auf dem Server (sonst bleiben sie in diesem Browser) und LaTeX-Kompilierung auf dem Server (sonst kompiliert der Browser). Prüfungen und Aufgaben liegen immer auf dem Server. Nicht freigeschaltete Optionen zeigt die App als „nicht freigeschaltet“ an.',
+                p2: 'Wird „Schülerdaten auf dem Server“ später abgeschaltet, bittet die App beim nächsten Öffnen darum, die Ergebnisse in den Browser zu verschieben. Dabei geht nichts verloren.',
+            },
+            s10: {
+                h: 'Für Administratoren: Einladungen und erlaubte Domains',
+                p1: 'Unter Benutzerverwaltung laden Sie Personen per E-Mail ein; das Konto ist sofort freigegeben, und die Person legt über den Link ihr Passwort fest. Offene Registrierungen geben Sie dort frei oder lehnen sie ab; eine Ablehnung löscht die Registrierung.',
+                p2: 'Registrierungen von „immer erlaubten“ Domains werden nach der E-Mail-Bestätigung automatisch freigegeben. Tragen Sie nur Domains ein, deren Postfächer Ihre Einrichtung selbst vergibt, nie öffentliche Anbieter.',
             },
         },
         privacy: {

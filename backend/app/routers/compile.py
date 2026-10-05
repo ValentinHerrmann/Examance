@@ -8,10 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_teacher
 from app.middleware.rate_limit import limiter
 from app.models.teacher import Teacher
 from app.schemas.latex import LaTeXRequest
+from app.services.capabilities import require_server_latex
 from app.services.exercise_resource_store import load_resources_for_exercises
 from app.services.latex import CompilationError, compile_latex
 from app.services.latex_resources import ResourceError
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/compile", tags=["compile"])
 async def compile_latex_endpoint(
     request: Request,  # Required by slowapi for rate limiting
     body: LaTeXRequest,
-    teacher: Annotated[Teacher, Depends(get_current_teacher)],
+    teacher: Annotated[Teacher, Depends(require_server_latex)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Response:
     """

@@ -185,7 +185,13 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   });
 
   function auth(method: string, parts: string[], body: any): Handled {
-    const [, action] = parts;
+    const [, action, step] = parts;
+    // Self-registration: always open, and every completion waits for an admin.
+    if (action === 'register') {
+      if (method === 'GET') return ok({ enabled: true });
+      if (method === 'POST' && step === 'complete') return ok({ status: 'pending' });
+      if (method === 'POST') return ok({ message: 'If this address can be registered, a link was sent.' });
+    }
     if (method !== 'POST') return undefined;
     if (action === 'login') {
       // Any credentials are accepted: the suite tests the app, not the login policy.
@@ -239,7 +245,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   const capabilities = () => ({
     storage_mode: state.storageMode,
     allowed_storage_modes: [...ALLOWED_MODES],
-    features: { server_latex: true, training_donation: true },
+    features: { server_results: true, server_latex: true, training_donation: true },
   });
 
   function user(method: string, parts: string[], body: any): Handled {

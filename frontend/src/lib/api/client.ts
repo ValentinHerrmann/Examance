@@ -140,7 +140,8 @@ async function handleNonOkResponse(resp: Response, silentError?: boolean): Promi
  * an unrelated success (e.g. a health poll) says nothing about the account's lock state.
  */
 function noteAuthSuccess(path: string): void {
-  if (path.startsWith('/auth/')) {
+  // A registration request proves nothing about signing in, so it must not lift a sign-in lockout.
+  if (path.startsWith('/auth/') && !path.startsWith('/auth/register')) {
     loginLockout.clear();
   }
 }

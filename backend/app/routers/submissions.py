@@ -18,6 +18,7 @@ from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.schemas.binary import GCM_IV_BYTES, decode_b64
 from app.schemas.submission import SubmissionCreate, SubmissionResponse, SubmissionScoreUpdate
+from app.services.capabilities import require_server_results_writable
 
 router = APIRouter(prefix="/exams/{exam_id}/submissions", tags=["submissions"])
 
@@ -78,7 +79,12 @@ async def list_submissions(
     ]
 
 
-@router.post("", response_model=SubmissionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=SubmissionResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_server_results_writable)],
+)
 async def upload_submission(
     body: SubmissionCreate,
     exam: Exam = Depends(get_exam_for_teacher),
@@ -247,7 +253,11 @@ async def get_submission(
     )
 
 
-@router.patch("/{sub_id}/score", response_model=SubmissionResponse)
+@router.patch(
+    "/{sub_id}/score",
+    response_model=SubmissionResponse,
+    dependencies=[Depends(require_server_results_writable)],
+)
 async def update_score(
     sub_id: uuid.UUID,
     body: SubmissionScoreUpdate,

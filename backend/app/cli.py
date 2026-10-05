@@ -2,7 +2,9 @@
 Management CLI commands.
 
 Usage (from /app directory inside container):
-    python -m app.cli create-invite [--expires-days 7]
+    python -m app.cli create-user --email user@school.example [--role admin --allow-admin]
+    python -m app.cli approve-user --email user@school.example
+    python -m app.cli send-password-reset --email user@school.example
     python -m app.cli run-retention [--dry-run]
     python -m app.cli training-export --out samples.jsonl [--since 2026-01-01]
 
@@ -12,7 +14,7 @@ NOT by an in-process scheduler — avoids multi-worker duplication.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import NoReturn
 
 import click
@@ -75,6 +77,43 @@ def send_password_reset(email: str) -> None:
             except (OperationalError, ProgrammingError) as exc:
                 _raise_schema_hint(exc)
 
+    asyncio.run(_send())
+
+
+@cli.command("approve-user")
+@click.option("--email", required=True, help="User email.")
+def approve_user(email: str) -> None:
+    """
+    Approve a pending account (recovery path when no admin can sign in to do it).
+
+    Keeps the account's feature switches as they are.
+    """
+    from app.models.teacher import Teacher
+
+    normalized_email = email.strip().lower()
+
+    async def _approve() -> str:
+        from app.database import AsyncSessionLocal
+
+        async with AsyncSessionLocal() as db:
+            try:
+                result = await db.execute(
+                    select(Teacher).where(func.lower(Teacher.email) == normalized_email)
+                )
+                teacher = result.scalar_one_or_none()
+                if teacher is None:
+                    raise click.ClickException("No user found with this email.")
+                if teacher.approved_at is not None:
+                    return f"Already approved: {teacher.email}"
+                teacher.approved_at = datetime.now(UTC)
+                teacher.registration_note = None
+                await db.commit()
+                return f"Approved: {teacher.email}"
+            except (OperationalError, ProgrammingError) as exc:
+                _raise_schema_hint(exc)
+
+    click.echo(asyncio.run(_approve()))
+
 
 @cli.command("create-user")
 @click.option("--email", required=True, help="User email.")
@@ -126,6 +165,7 @@ def create_user(email: str, role: str, allow_admin: bool, password: str) -> None
                     email=normalized_email,
                     password_hash=hash_password(password),
                     role=typed_role,
+                    approved_at=datetime.now(UTC),
                 )
                 db.add(teacher)
                 await db.commit()

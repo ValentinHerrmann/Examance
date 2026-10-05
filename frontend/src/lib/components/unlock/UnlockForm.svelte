@@ -14,6 +14,8 @@
     email: string;
     password: string;
     errorMsg: string;
+    /** A neutral notice, e.g. that the account still waits for an admin's approval. */
+    infoMsg?: string;
     isLoading: boolean;
     onUnlock: () => void;
     /** Passkey sign-in (no email, no second factor), or undefined without WebAuthn. */
@@ -25,6 +27,7 @@
     email = $bindable(),
     password = $bindable(),
     errorMsg,
+    infoMsg = "",
     isLoading,
     onUnlock,
     onPasskey,
@@ -53,6 +56,9 @@
 
 {#if errorMsg}
   <Alert severity="danger" class="mb-5">{errorMsg}</Alert>
+{/if}
+{#if infoMsg}
+  <Alert severity="info" class="mb-5">{infoMsg}</Alert>
 {/if}
 
 <div class="mx-auto w-full max-w-form">
@@ -126,6 +132,11 @@
         </Button>
         <p class="m-0 text-center text-xs text-muted">{$t("auth.unlock.cloud.passkeyHint")}</p>
       {/if}
+
+      <p class="m-0 text-center text-sm text-muted">
+        {$t("auth.unlock.cloud.noAccount")}
+        <a href="/register" class="text-accent no-underline hover:underline">{$t("auth.unlock.cloud.register")}</a>
+      </p>
     </form>
   </Card>
 </div>

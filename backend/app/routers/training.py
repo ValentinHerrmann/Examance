@@ -1,6 +1,7 @@
 """Training router — opt-in OMR training-data donation.
 
-Donating needs a full session: accounts are invite-only, so a public write into
+Donating needs a full session: accounts are approved by an admin (or come from a
+domain an admin allow-listed) before they hold any token, so a public write into
 the production database cannot be abused by anyone who merely finds the URL. The
 stored rows stay unlinked all the same — deliberately:
 

@@ -40,6 +40,11 @@
   let availableFactors = $derived(
     (step?.available ?? ["totp"]).filter((f) => f !== "password" && (f !== "passkey" || canUsePasskeys)),
   );
+  /**
+   * False for a fresh account (no key copy, nothing authored): there is no data to recover, so the
+   * recovery-code step (and its "your data stays sealed" warning) is skipped.
+   */
+  let needsKeyRecovery = $state(true);
   /** A passkey that carried the second factor and yielded its PRF secret; it already recovered the data key, so the recovery-code step is skipped. */
   let passkeyUnwrap = $state.raw<{ credentialIdB64: string; prfOutput: Uint8Array } | null>(null);
 
@@ -82,9 +87,14 @@
     isSubmitting = true;
     try {
       step = await startReset(token);
+      needsKeyRecovery = step.needs_key_recovery !== false;
       // An account that never finished enrolling has no second factor to offer;
       // requiring one would strand it. It goes straight to key recovery.
-      stage = step.status === "factor_required" ? "factor" : "key";
+      if (step.status === "factor_required") {
+        stage = "factor";
+      } else {
+        await enterKeyStage();
+      }
     } catch (err: unknown) {
       errorMsg = err instanceof ApiError ? err.message : translate("auth.resetPassword.errors.failed");
     } finally {
@@ -98,7 +108,7 @@
     try {
       step = useBackupCode ? await submitBackupCode(code) : await submitTotp(code);
       if (step.status === "ok") {
-        stage = "key";
+        await enterKeyStage();
       }
     } catch (err: unknown) {
       factorErrorMsg =
@@ -132,6 +142,21 @@
       }
     } catch {
       factorErrorMsg = translate("security.passkey.failed");
+    }
+  }
+
+  /** After the factors: the recovery-code step, or straight to finishing when there is nothing to recover. */
+  async function enterKeyStage() {
+    if (needsKeyRecovery) {
+      stage = "key";
+      return;
+    }
+    await finishReset(false);
+    if (recoveryErrorMsg) {
+      // The key step is not on screen; report on the password step instead.
+      errorMsg = recoveryErrorMsg;
+      recoveryErrorMsg = "";
+      stage = "password";
     }
   }
 

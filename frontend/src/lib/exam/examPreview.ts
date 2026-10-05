@@ -1,4 +1,3 @@
-import { get } from "svelte/store";
 import type { ExamRecord, ExerciseRecord } from "#lib/db/schema";
 import type { McGroup } from "#lib/db/dbEncryption";
 import { compileWithCache } from "#lib/latex/compileCache";
@@ -7,7 +6,7 @@ import { formatExerciseLatex, formatMcGroupLatex } from "#lib/latex/scoreParser"
 import type { ExamItemRef } from "#lib/grading/omrTemplatePrep";
 import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
 import { resolveCompileLogo } from "#lib/latex/logo";
-import { storagePolicyStore } from "#lib/stores/storagePolicy";
+import { effectiveLatexCompilation } from "#lib/stores/capabilities";
 import { formatExamCourse } from "#lib/utils/examLabel";
 import { translate } from "#lib/i18n";
 
@@ -69,7 +68,7 @@ export async function collectExamResources(
       }
     }
   }
-  const needBytes = get(storagePolicyStore).latexCompilation === "local";
+  const needBytes = effectiveLatexCompilation() === "local";
   return exerciseResourceRepository.collectForCompile(owners, sessionKey, needBytes);
 }
 
@@ -123,7 +122,7 @@ export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamP
   // Results-only imports have no LaTeX: compiling would produce empty exercise blocks.
   if (examHasWithheldCode(exercises)) throw new Error(translate("exam.resultsOnly.noCompile"));
   const inputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups);
-  const useLocal = get(storagePolicyStore).latexCompilation === "local";
+  const useLocal = effectiveLatexCompilation() === "local";
   const collected = await collectExamResources(examItems, exercises, libraryExercises, mcGroups, key);
   const logo = await resolveCompileLogo(exam.id, useLocal);
   const opts = { resources: collected.inline, resourceExerciseIds: collected.exerciseIds, logo };

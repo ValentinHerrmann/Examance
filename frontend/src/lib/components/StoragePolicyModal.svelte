@@ -2,7 +2,7 @@
   import { t, translate } from "#lib/i18n";
   import { get } from "svelte/store";
   import { STORAGE_MODES, storagePolicyStore, type StorageMode } from "#lib/stores/storagePolicy";
-  import { allowedStorageModes, featuresStore } from "#lib/stores/capabilities";
+  import { allowedStorageModes, effectiveLatexStore, featuresStore } from "#lib/stores/capabilities";
   import { backendStore, effectiveBackendStore } from "#lib/stores/backendStore";
   import { Alert, Button, Icon, Modal } from "#lib/components/ui";
   import { dataPlaceIcons, latexPlaceIcons } from "#lib/components/storage/placeIcons";
@@ -144,12 +144,12 @@
         <p class="m-0 mb-3 text-sm text-muted">{$t("misc.storageModal.latexDescription")}</p>
 
         <div class="flex flex-col gap-2.5 @xl:grid @xl:grid-cols-2 @xl:gap-3">
-          <label class={$storagePolicyStore.latexCompilation === "local" ? optionCardActive : optionCardBase}>
+          <label class={$effectiveLatexStore === "local" ? optionCardActive : optionCardBase}>
             <input
               type="radio"
               name="latexMode"
               value="local"
-              checked={$storagePolicyStore.latexCompilation === "local"}
+              checked={$effectiveLatexStore === "local"}
               onclick={(e) => { e.preventDefault(); handleLatexChange("local"); }}
               class="mt-0.5 size-5 shrink-0 accent-primary"
             />
@@ -160,7 +160,7 @@
           </label>
 
           <label
-            class="{$storagePolicyStore.latexCompilation === 'server' ? optionCardActive : optionCardBase} {$featuresStore.server_latex
+            class="{$effectiveLatexStore === 'server' ? optionCardActive : optionCardBase} {$featuresStore.server_latex
               ? ''
               : optionCardDisabled}"
           >
@@ -168,7 +168,7 @@
               type="radio"
               name="latexMode"
               value="server"
-              checked={$storagePolicyStore.latexCompilation === "server"}
+              checked={$effectiveLatexStore === "server"}
               disabled={!$featuresStore.server_latex}
               onclick={(e) => { e.preventDefault(); handleLatexChange("server"); }}
               class="mt-0.5 size-5 shrink-0 accent-primary"
