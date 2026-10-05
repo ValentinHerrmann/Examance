@@ -84,6 +84,8 @@ export const legal = {
             hostingWebPlaceholder: '[Cloudflare Pages, Cloudflare Inc., USA — Angemessenheitsbeschluss / Standardvertragsklauseln prüfen]',
             hostingDbLabel: 'Hosting von Datenbank und Cache:',
             hostingDbPlaceholder: '[Anbieter, Standort]',
+            httpCatLabel: 'Fehlerbilder:',
+            httpCatText: 'Zeigt die Anwendung eine HTTP-Fehlermeldung an, lädt der Browser ein illustrierendes Bild vom Dienst http.cat (Betreiber in den USA). Dabei werden ausschließlich Ihre IP-Adresse, die Browserkennung (User-Agent) und der HTTP-Statuscode des Fehlers übermittelt; es werden weder Referrer noch Cookies oder Inhalte der Anwendung gesendet. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO.',
         },
         section7: {
             heading: '7. Speicherdauer',
