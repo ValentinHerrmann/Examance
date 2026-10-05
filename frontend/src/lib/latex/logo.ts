@@ -159,3 +159,57 @@ export async function resolveCompileLogo(
 export function clearLogoCache(): void {
   bytesCache.clear();
 }
+
+// --- archives (.bgproj) ------------------------------------------------------------------------
+
+/**
+ * An exam's logo as it travels in a `.bgproj` archive: the exam's setting plus the bytes it
+ * printed (its own file, or the account logo it followed), so an importer gets the same header
+ * whatever their own account logo is.
+ */
+export interface ArchivedExamLogo {
+  examId: string;
+  mode: ExamLogoMode;
+  mimeType?: LogoMime | null;
+  /** Absent when the exam printed no logo. */
+  bytes?: Uint8Array;
+}
+
+/** Reads an exam's logo for an archive. Throws when the server cannot be asked. */
+export async function exportExamLogo(examId: string): Promise<ArchivedExamLogo> {
+  const info = await getExamLogoInfo(examId);
+  if (info.source === 'none') return { examId, mode: info.mode };
+  return { examId, mode: info.mode, mimeType: info.mime_type, bytes: await fetchExamLogo(examId) };
+}
+
+function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
+
+/**
+ * Gives an imported exam (`examId`, already created on the server) the header it was exported
+ * with. An exam that followed the exporter's account logo keeps following the importer's account
+ * only when that prints the same thing; otherwise it gets the archived file (or no logo) as its own.
+ * `accountLogo` is the importer's account logo (null: none). Returns whether anything was written.
+ */
+export async function restoreExamLogo(
+  examId: string,
+  archived: ArchivedExamLogo,
+  accountLogo: Uint8Array | null
+): Promise<boolean> {
+  const bytes = archived.bytes && archived.bytes.length > 0 ? archived.bytes : null;
+  if (archived.mode === 'none' || (!bytes && accountLogo)) {
+    await setExamLogo(examId, 'none');
+    return true;
+  }
+  if (!bytes) return false; // Printed no logo, and the importer's account has none either.
+  if (archived.mode === 'account' && accountLogo && sameBytes(bytes, accountLogo)) return false;
+  await setExamLogo(examId, 'custom', bytes);
+  return true;
+}
+
+/** The importer's account logo bytes, or null when there is none. */
+export async function loadAccountLogoBytes(): Promise<Uint8Array | null> {
+  const info = await getAccountLogoInfo();
+  return info.source === 'none' ? null : fetchAccountLogo();
+}

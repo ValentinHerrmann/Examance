@@ -327,7 +327,8 @@ files, for the same reason (Tectonic compiles it): `teacher_logos` holds the acc
 detected from the magic bytes, at most 2 MB; they are served back only to their owner with
 `nosniff` and a sandbox CSP. A logo is school branding, not personal data of pupils. It follows
 its owner's lifecycle (`ON DELETE CASCADE` from the account or exam) and is listed in the account
-export (`GET /user/me/export`, metadata; the file itself from `GET /user/logo/file`). Migration
+export (`GET /user/me/export`, with the files base64-encoded: the account logo and each exam's
+setting and own file) and in `.bgproj` archives (see Archives). Migration
 `0026_exam_logos` gave every account that existed before the bundled MTG logo as its account
 logo, so existing exams kept their header.
 
@@ -456,6 +457,13 @@ LaTeX code and no resource files. Imported exercises are marked `code_withheld`:
 exams show a "Results only" notice, grading and statistics work, compiling,
 editing and building OMR answer-sheet templates are disabled, and the exercise
 library hides them.
+
+**Exam logos travel with their exam** in both kinds of archive (`examLogos`, payload version 3):
+each exam's setting plus the bytes it printed, its own file or the account logo it followed. On
+import every created exam (copies included) gets the same header: it keeps following the
+importer's account logo only when that is byte-identical, otherwise the archived file (or "no
+logo") is pinned on the exam. A kept exam keeps its own logo. Older archives carry no logos; their
+exams follow the importer's account logo.
 
 **Import resolves collisions before it writes.** `decryptArchive()` opens the
 envelope and touches nothing — a wrong password costs nothing, where the old

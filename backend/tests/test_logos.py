@@ -156,3 +156,19 @@ async def test_logo_names_are_reserved_for_resources(client: AsyncClient, db: As
         json={"filename": "examance-logo.png", "content_b64": _b64(PNG)},
     )
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_account_export_carries_the_logos(client: AsyncClient, db: AsyncSession) -> None:
+    await sign_in(client, db, "logo-export@example.com")
+    await client.put("/api/v1/user/logo", json={"content_b64": _b64(PNG)})
+    exam_id = await _create_exam(client)
+    await client.put(
+        f"/api/v1/exams/{exam_id}/logo", json={"mode": "custom", "content_b64": _b64(PDF)}
+    )
+
+    export = (await client.get("/api/v1/user/me/export")).json()
+    assert export["account"]["exam_logo"]["content_b64"] == _b64(PNG)
+    (exam,) = [e for e in export["exams"] if e["id"] == exam_id]
+    assert exam["logo"]["mode"] == "custom"
+    assert exam["logo"]["file"]["content_b64"] == _b64(PDF)

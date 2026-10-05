@@ -375,7 +375,7 @@ Two rules the endpoint enforces rather than trusts the client with:
 | `GET` | `/api/v1/user/logo/file` | Account Logo File | Yes | The logo bytes, served as `image/png`, `image/jpeg` or `application/pdf` with `nosniff`; 404 when none is set. |
 | `PUT` | `/api/v1/user/logo` | Set Account Logo | Yes | `{"content_b64": ...}`. PNG, JPEG or PDF (detected from the bytes), ≤ 2 MB. Printed on every exam that does not override it. |
 | `DELETE` | `/api/v1/user/logo` | Remove Account Logo | Yes | Exams that follow the account logo then print none. |
-| `GET` | `/api/v1/user/me/export` | Export Own Data | Yes | GDPR Art. 15/20 export of what the server holds *about the teacher*: account fields, authored exams, audit trail. Does **not** cover student data — see §4.5/§4.6 for that. |
+| `GET` | `/api/v1/user/me/export` | Export Own Data | Yes | GDPR Art. 15/20 export of what the server holds *about the teacher*: account fields (with the account logo file), authored exams (with each exam's logo setting and own logo file), audit trail. Does **not** cover student data — see §4.5/§4.6 for that. |
 | `DELETE` | `/api/v1/user/me` | Delete Account | Yes | GDPR Art. 17 — soft-deletes the teacher's account and authored content (exams, student identities, submissions) on the standard grace period, then schedules irreversible erasure. |
 
 ---

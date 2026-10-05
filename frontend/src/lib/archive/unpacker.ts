@@ -35,6 +35,7 @@ import type { AuditEntry, ExerciseScoreRecord, SubmissionRecord } from '#lib/db/
 import { decodeBinary } from './binary';
 import { importPayloadToServer } from './serverImport';
 import { addMissing, bump, newReport, type ArchiveReport } from './report';
+import { loadAccountLogoBytes, restoreExamLogo, type ArchivedExamLogo } from '#lib/latex/logo';
 
 function describe(err: any): string {
   return err?.message ?? String(err);
@@ -231,6 +232,29 @@ export async function applyArchive(
         activeKey
       )
     );
+  }
+
+  // Each created exam gets the header logo it was exported with (archives before payload
+  // version 3 carry none, so their exams follow this account's logo).
+  const examLogos: ArchivedExamLogo[] = Array.isArray(payload.examLogos) ? payload.examLogos : [];
+  const logosToRestore = examLogos.filter((l) => result.createdExamIds.has(l.examId));
+  if (logosToRestore.length > 0) {
+    let accountLogo: Uint8Array | null = null;
+    try {
+      accountLogo = await loadAccountLogoBytes();
+    } catch {
+      // Unknown: treated as none, so archived logo files are pinned on their exams.
+    }
+    for (const logo of logosToRestore) {
+      const examId = remap(logo.examId) ?? logo.examId;
+      try {
+        if (await restoreExamLogo(examId, logo, accountLogo)) bump(report, 'logos', 'created');
+      } catch (err) {
+        errors.push(`Logo of exam "${labelOf(logo.examId)}": ${describe(err)}`);
+        addMissing(report, { reason: 'logoUnavailable', exam: labelOf(logo.examId) });
+        bump(report, 'logos', 'failed');
+      }
+    }
   }
 
   // Submissions of an exam that got a fresh id get fresh ids too: their archived ids may belong to
