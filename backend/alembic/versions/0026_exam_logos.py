@@ -1,16 +1,18 @@
 """exam logos
 
-Adds teacher_logos (an account that prints no logo or its own instead of the default) and
-exam_logos (an exam that prints no logo or its own instead of the account's), issue #46. Until now
-Schulaufgabe.sty printed the bundled MTG logo on every exam; the style now prints whichever logo
-file the compile writes. The MTG logo stays the default: an account without a teacher_logos row
-prints it, so existing exams look the same without a backfill.
+Adds teacher_logos (the logo printed in every exam header of an account) and exam_logos (an
+exam that prints no logo or its own instead), issue #46. Until now Schulaufgabe.sty printed the
+bundled MTG logo on every exam; the style now prints whichever logo file the compile writes.
+Every existing account gets the MTG logo as its account logo, so the exams it already has look
+the same; new accounts start without one.
 
 Revision ID: 0026_exam_logos
 Revises: 0025_exercise_code_withheld
 Create Date: 2026-10-05
 """
 from __future__ import annotations
+
+from pathlib import Path
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -23,24 +25,24 @@ down_revision = "0025_exercise_code_withheld"
 branch_labels = None
 depends_on = None
 
+_LEGACY_LOGO_CANDIDATES = (
+    Path(__file__).resolve().parents[2] / "latex-assets" / "img" / "logo_mtg.pdf",
+    Path("latex-assets") / "img" / "logo_mtg.pdf",
+)
+
 
 def upgrade() -> None:
     op.create_table(
         "teacher_logos",
         sa.Column("teacher_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("mode", sa.String(length=8), nullable=False),
-        sa.Column("mime_type", sa.String(length=32), nullable=True),
-        sa.Column("byte_size", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("content", sa.LargeBinary(), nullable=True),
+        sa.Column("mime_type", sa.String(length=32), nullable=False),
+        sa.Column("byte_size", sa.Integer(), nullable=False),
+        sa.Column("content", sa.LargeBinary(), nullable=False),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
             server_default=sa.text("now()"),
             nullable=False,
-        ),
-        sa.CheckConstraint("mode IN ('none', 'custom')", name="ck_teacher_logos_mode"),
-        sa.CheckConstraint(
-            "mode = 'none' OR content IS NOT NULL", name="ck_teacher_logos_custom_content"
         ),
         sa.ForeignKeyConstraint(["teacher_id"], ["teachers.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("teacher_id"),
@@ -64,6 +66,20 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["exam_id"], ["exams.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("exam_id"),
+    )
+
+    legacy = next((p for p in _LEGACY_LOGO_CANDIDATES if p.is_file()), None)
+    if legacy is None:
+        return
+    content = legacy.read_bytes()
+    op.get_bind().execute(
+        sa.text(
+            "INSERT INTO teacher_logos (teacher_id, mime_type, byte_size, content) "
+            "SELECT id, 'application/pdf', :size, :content FROM teachers"
+        ).bindparams(
+            sa.bindparam("size", len(content), type_=sa.Integer()),
+            sa.bindparam("content", content, type_=sa.LargeBinary()),
+        )
     )
 
 
