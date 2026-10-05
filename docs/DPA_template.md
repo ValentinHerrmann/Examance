@@ -32,8 +32,9 @@ Pursuant to GDPR Article 32, the Processor implements the following security gua
 4. **Tectonic Subprocess Isolation:** LaTeX compilation uses the system binary invoked with the `--untrusted` flag, which disables shell escape (`\write18`) and filesystem access outside the per-compilation working directory. Document sources are additionally screened for absolute and parent-directory file references, and compiler output is not returned verbatim to the client.
 5. **k-Anonymity Controls:** Aggregated statistical analysis endpoints enforce a minimum $k \ge 5$ class size threshold before outputting mean or standard deviation metrics.
 6. **Access Control:** Every object-level endpoint resolves records under an ownership predicate bound to the authenticated teacher; cross-tenant reads and writes return 404 without disclosing whether the record exists.
-7. **Rate Limiting:** Authentication endpoints are rate limited with a shared Redis-backed counter (registration, login and token refresh), bounding credential-guessing and the CPU cost of Argon2id verification.
-8. **Storage Limitation:** Expired exams cascade a deletion deadline onto their student identities and submissions, which are then irreversibly deleted; audit entries are deleted after a configured period.
+7. **Rate Limiting:** Authentication endpoints are rate limited with a shared Redis-backed counter (account registration and its e-mail verification, login, password reset and token refresh), bounding credential-guessing and the CPU cost of Argon2id verification. The two registration endpoints are limited to 20 requests per hour per IP address, and a verification mail goes to the same address at most once per cooldown period (default 5 minutes).
+8. **Storage Limitation:** Expired exams cascade a deletion deadline onto their student identities and submissions, which are then irreversibly deleted; audit entries are deleted after a configured period. Registration requests that were never verified are deleted when their link expires, and registered accounts that nobody approved are erased after a configured period (default 90 days).
+9. **Account Approval:** Where self-registration is enabled (it is off by default), an account is created only after the registrant has confirmed the address through a mailed single-use link (stored only as a hash), and it holds no session or other token until an administrator of the installation approves it or its e-mail domain is on that administrator's allowlist. Registration answers identically whether or not an address already has an account, so it cannot be used to find out who has one. Optional per-account switches let an administrator withhold server-side storage of grading results and server-side LaTeX compilation from an account.
 
 ---
 
@@ -56,6 +57,7 @@ the placeholders below must be completed before this agreement is signed.
 | Cloudflare, Inc. (Cloudflare Pages) | Hosting and delivery of the web interface | USA, with EU edge locations | EU–US Data Privacy Framework and/or SCCs — verify current status and record the transfer impact assessment |
 | *[Database hosting provider]* | PostgreSQL 16 — encrypted payloads at rest | *[country]* | *[none required if EU/EEA]* |
 | *[Cache hosting provider]* | Redis 7 — rate-limit counters | *[country]* | *[none required if EU/EEA]* |
+| *[Mail (SMTP) provider]* | Delivery of account mails (registration confirmation, invitation, approval, rejection, password reset); sees the recipient address and the mail content | *[country]* | *[none required if EU/EEA]* |
 
 4.3 **Third-country transfers.** The web interface is delivered by a
 US-headquartered provider, so Chapter V GDPR applies even though the

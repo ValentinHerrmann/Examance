@@ -19,10 +19,23 @@ Issue #47 ("Ensure consistent mode switching") reported that modes got mixed up,
 - **The mode belongs to the account.** It is stored in `teachers.storage_mode` (Alembic `0024`) and every browser of the account follows it.
   - It is nullable, with **no default**. Nothing ever sets it implicitly.
   - Until the account chooses, `openWorkspace()` returns `needs-choice`. The root layout then keeps routes unmounted and opens the settings modal (`StoragePolicyModal`, `mustChoose`) in a non-dismissible state.
-- **Capabilities** (structure only for now: `ENFORCE_CAPABILITIES = false` in `frontend/src/lib/stores/capabilities.ts` unlocks every mode and server feature for every account, whatever the server answers; enforcing per-user switches is a follow-up). `GET /user/capabilities` returns `{storage_mode, allowed_storage_modes, features}`. It is built by the single function `capabilities_for(teacher)` in `backend/app/services/capabilities.py`.
-  - The frontend renders every mode and server-feature option from `stores/capabilities.ts`, never from a hard-coded list. A disallowed option shows "not enabled for your account".
-  - `PUT /user/storage-mode {mode, expected}` is compare-and-set: 409 when another browser changed it, 403 when the mode is not allowed.
-  - Per-user admin switches later are a lookup added inside `capabilities_for`, with no API or UI change. If an account's current mode becomes disallowed, the app treats it like `needs-choice`.
+- **Capabilities** (`GET /user/capabilities` returns `{storage_mode, allowed_storage_modes, features}`). It is built by the single function `capabilities_for(teacher)` in `backend/app/services/capabilities.py`. Since issue #53 an admin sets two switches per account, stored as `teachers.allow_server_results` and `allow_server_latex` (both default to on, and accounts that existed before kept everything); the Admin UI (`/admin/users`) and `PATCH /admin/users/{id}/features` change them, and new accounts get them from the invitation, the approval or the always-allowed domain they registered with. They are **enforced**, on both sides: `ENFORCE_CAPABILITIES = true` in `frontend/src/lib/stores/capabilities.ts`, and the server refuses what the account may not use.
+  - `server_results`: whether `all-server` is allowed. `hybrid` is always allowed, so `allowed_storage_modes` is never empty. `capabilities_for` reports `["hybrid"]` without it.
+  - `server_latex`: whether LaTeX may be compiled on the server. Exams and exercises always live on the server and have **no** switch.
+  - The frontend renders every mode and server-feature option from `stores/capabilities.ts`, never from a hard-coded list. A disallowed option shows "not enabled for your account". Compile sites pick their engine through `effectiveLatexCompilation()` (never the raw preference), so without `server_latex` they compile locally in the browser.
+  - `PUT /user/storage-mode {mode, expected}` is compare-and-set: 409 `ERR_STORAGE_MODE_CHANGED` when another browser changed it, 403 `ERR_STORAGE_MODE_NOT_ALLOWED` when the mode is not allowed.
+  - Server-side gates (`ERR_FEATURE_NOT_ALLOWED`, 403): `POST /compile/latex` and `POST /exams/{id}/compile` need `server_latex`. The result **write** endpoints (`POST /exams/{id}/students`, `POST /exams/{id}/submissions`, `PATCH …/submissions/{id}/score`, `PUT …/scores`, `POST /user/restore-server-data`) need `server_results`, **unless** the account's stored mode is still `all-server` (see "Revoking `server_results`"). Reads and deletes are never gated.
+
+## Revoking `server_results`
+
+An admin can switch `server_results` off for an account whose results already live on the server. Nothing is deleted or moved by the switch itself, and nothing is lost:
+
+1. The account's stored mode stays `all-server`, but `capabilities_for` no longer lists it as allowed. On the next unlock `openWorkspace()` sees a mode that is not allowed and returns `needs-choice` (the same path as a first choice), so routes stay unmounted and the storage modal opens, non-dismissible.
+2. The choice offers only the allowed modes, i.e. `hybrid`. Choosing it runs the normal move (below) from the **server's recorded mode**: `StorageModeSwitchWizard` takes `from` from the capabilities answer when the workspace has published no mode, because the compare-and-set compares against the server's value. The results are read from the server (reads are never gated), written to the browser and verified, then the mode is committed and the old server copy is kept or soft-deleted, as asked.
+3. Until that move has happened the account keeps its write access to the server. The gate on result writes lets an account through while its stored mode is `all-server`, because refusing those writes would strand grading done in the meantime in the offline queue. Once the mode is `hybrid` the writes are refused; in that mode the client keeps results in the browser and does not send them to the server anyway.
+4. Offline with no cached capabilities, a tab trusts the mode its browser last worked in instead of allowing nothing, so it is not stranded in a choice it cannot make.
+
+Revoking `server_latex` needs no move: the compile sites fall back to local compilation, and the server refuses a compile request that still arrives.
 
 ## Why the switch is fluent now
 

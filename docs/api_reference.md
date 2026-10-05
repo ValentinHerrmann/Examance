@@ -21,6 +21,7 @@ All API v1 endpoints are served relative to the root URL path:
 |---|---|---|
 | `200 OK` | Success | Request succeeded and response contains payload. |
 | `201 Created` | Resource Created | Resource successfully created or upserted. |
+| `202 Accepted` | Accepted | Request accepted; the outcome is deliberately not revealed (e.g. `POST /api/v1/auth/register`). |
 | `204 No Content` | Deleted / Modified | Action completed with no return payload. |
 | `400 Bad Request` | Client Error | Invalid input structure, missing mandatory fields, or malformed JSON. |
 | `401 Unauthorized` | Unauthenticated | Missing, invalid, or expired session cookies/credentials. |
@@ -47,16 +48,18 @@ Examance uses secure, HttpOnly, SameSite-protected cookies for session managemen
 - **`access_token`**: Short-lived JWT (15-minute validity) used for API authorization.
 - **`refresh_token`**: Long-lived JWT (7-day validity) used to obtain new access tokens.
 
-Cookies are issued automatically upon successful login (`POST /api/v1/auth/login`) and cleared upon logout (`POST /api/v1/auth/logout`). There is no public self-registration endpoint — accounts are provisioned by an admin or by the initial-admin bootstrap; see `account_creation_and_management.md`.
+Cookies are issued automatically upon successful login (`POST /api/v1/auth/login`) and cleared upon logout (`POST /api/v1/auth/logout`). Accounts are provisioned by an admin invitation, by the initial-admin bootstrap, by the CLI, or — only when the operator sets `REGISTRATION_ENABLED=true` — by self-registration (§4.1, "Registration & approval"). A new self-registered account is **pending** until an admin approves it, and a pending account never receives a token: not a session, not an enrollment token, not a refresh token, not a reset link. See `account_creation_and_management.md`.
 
 ### Refresh Token Rotation & Reuse Detection
 - Every refresh token contains a unique JWT ID (`jti`).
 - Exchanging a refresh token via `POST /api/v1/auth/refresh` invalidates the old `jti` and issues a new refresh token.
 - If a previously used `jti` is presented again (indicating token theft or replay), the entire token family for that session is immediately revoked and the user is logged out.
+- A refresh for an account that is not approved is refused (`401`), like every other authenticated route.
 
 ### Initial Admin Bootstrap & Admin User Provisioning
 - The backend automatically creates an initial `admin` user on startup if `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` are configured in `.env`.
-- Admins create user accounts via `POST /api/v1/admin/users` without specifying passwords. Accounts are created with uninitialized password hashes (`password_hash = None`), and single-use password reset tokens are emailed automatically.
+- Admins invite user accounts via `POST /api/v1/admin/users` without specifying passwords. Accounts are created approved, with the chosen role and features, and with uninitialized password hashes (`password_hash = None`); a single-use set-password token is emailed automatically.
+- The bootstrap admin and accounts created with `python -m app.cli create-user` are created approved. `teachers.approved_at` has no default on purpose: a code path that forgets to set it produces a pending account that cannot sign in, never an unvetted one that can.
 
 ### Single-Use Password Reset Tokens
 - Password reset links carry 32-byte URL-safe raw tokens.
@@ -97,8 +100,8 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
-| `POST` | `/api/v1/auth/login` | User Login | No | Authenticates email and password. Returns `401 ERR_PASSWORD_NOT_SET` if account password is uninitialized. Sets `access_token` and `refresh_token` cookies. |
-| `POST` | `/api/v1/auth/forgot-password` | Request Reset Link | No | Generates single-use reset token and emails link to user. Returns generic success message to prevent email enumeration. |
+| `POST` | `/api/v1/auth/login` | User Login | No | First sign-in factor: email and password. An unknown address, a wrong password and an account whose password is not set yet all answer `401 ERR_INVALID_CREDENTIALS`. Does not return a session on its own; see "Sign-in factors" below. An account still waiting for admin approval answers `approval_pending` (no cookie), but only after the password was correct. |
+| `POST` | `/api/v1/auth/forgot-password` | Request Reset Link | No | Generates single-use reset token and emails link to an approved user. Returns generic success message to prevent email enumeration; nothing is sent for an unknown address or a pending account. The mail goes out after the response, so the response time does not reveal whether the address has an account. |
 | `POST` | `/api/v1/auth/reset-password` | Complete Reset | No | Validates token, sets new user password, marks token used, and revokes active refresh tokens. |
 | `POST` | `/api/v1/auth/refresh` | Refresh Session | Yes (`refresh_token`) | Rotates refresh token and issues new access token cookie. |
 | `POST` | `/api/v1/auth/logout` | Logout | Yes | Invalidates session and clears session cookies. |
@@ -107,6 +110,22 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 - **`LoginRequest`**: `{"email": "string", "password": "string"}`
 - **`ForgotPasswordRequest`**: `{"email": "string"}`
 - **`ResetPasswordRequest`**: `{"token": "string", "new_password": "string"}`
+
+#### Registration & approval (`/api/v1/auth`)
+
+Self-registration is off unless the operator sets `REGISTRATION_ENABLED=true` (which needs `SMTP_HOST` outside development). With it off, the two `POST` endpoints answer `403 ERR_REGISTRATION_DISABLED`.
+
+| Method | Endpoint | Summary | Auth Required | Description |
+|---|---|---|---|---|
+| `GET` | `/api/v1/auth/register` | Registration Status | No | `{"enabled": true \| false}`: whether this server accepts self-registrations. A deployment setting, not per address. |
+| `POST` | `/api/v1/auth/register` | Request Registration | No | Rate limit 20/hour per IP. Always answers `202` with the same generic message. Mails `{FRONTEND_URL}/verify-email?token=...` only when no account exists for the address, and not again within `REGISTRATION_RESEND_COOLDOWN_SECONDS` (a fresh link replaces the old one). The mail is sent after the response, so neither the body nor the timing reveals whether an account exists. Nothing is created in `teachers` yet. |
+| `POST` | `/api/v1/auth/register/complete` | Complete Registration | No | Rate limit 20/hour per IP. Claims the single-use token and creates the account with the chosen password. Does not issue a session. `400 ERR_INVALID_REGISTRATION_TOKEN` for an unknown, used or expired token. |
+
+- **`RegisterRequest`**: `{"email": "string"}`
+- **`RegisterCompleteRequest`**: `{"token": "string", "new_password": "string (12-256 characters)", "note": "string (optional, up to 500 characters)"}`
+- **`RegisterCompleteResponse`**: `{"status": "approved" | "pending"}`. `approved`: the address's domain is on the admin's always-allowed list, the account is approved at once with that domain's features, and the note is discarded. `pending`: the note is stored on the account and approved admins get a notice mail (a count and a link, never the registrant's address or note; none if another pending account arrived within the last 15 minutes).
+- Until the link is used, the address is held only in `registration_requests` (address, SHA-256 hash of the token, expiry, last-sent time). Expired rows are deleted by the retention job, as are pending accounts older than `PENDING_ACCOUNT_RETENTION_DAYS` (default 90) that hold no data.
+- A pending account (`teachers.approved_at` is null) holds no token of any kind. Sign-in answers `status: "approval_pending"` with no cookie, only after a factor was proven; `get_current_teacher`, the pending-scope dependency and `POST /auth/refresh` refuse it, and reset tokens are refused for it.
 
 ---
 
@@ -143,7 +162,7 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
   the route's body limit is 28 MB. Names are sanitised, must not collide with a
   bundled LaTeX asset, and `.svg` is rejected (convert to PDF — it stays vector).
 - **Response**: Binary stream (`application/pdf`).
-- **Errors**: `422 ERR_COMPILE_FAILED` (TeX diagnostics), `422 ERR_RESOURCE_INVALID` (a resource
+- **Errors**: `403 ERR_FEATURE_NOT_ALLOWED` (the account's `server_latex` switch is off; `POST /api/v1/exams/{id}/compile` answers the same), `422 ERR_COMPILE_FAILED` (TeX diagnostics), `422 ERR_RESOURCE_INVALID` (a resource
   name is not usable), `503 ERR_COMPILE_UNAVAILABLE` (the engine itself is missing or cannot
   run), `504 ERR_COMPILE_TIMEOUT`. Unhandled faults return `500 ERR_INTERNAL` **with** CORS
   headers, so a browser reports the status rather than a phantom CORS failure.
@@ -160,7 +179,7 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 | `PATCH` | `/api/v1/exams/{exam_id}` | Update Exam | Yes | Updates exam details and exercise links. |
 | `DELETE` | `/api/v1/exams/{exam_id}` | Soft-Delete Exam | Yes | Soft-deletes exam and marks it inaccessible. |
 | `GET` | `/api/v1/exams/{exam_id}/exercises` | List Exam Exercises | Yes | Retrieves exercises linked to the specified exam in display order. |
-| `POST` | `/api/v1/exams/{exam_id}/compile` | Compile Exam | Yes | Compiles the complete exam LaTeX document from its live-linked library exercises; returns `application/pdf`. |
+| `POST` | `/api/v1/exams/{exam_id}/compile` | Compile Exam | Yes | Compiles the complete exam LaTeX document from its live-linked library exercises; returns `application/pdf`. Needs the account's `server_latex` feature (`403 ERR_FEATURE_NOT_ALLOWED` otherwise). |
 | `GET` | `/api/v1/exams/{exam_id}/logo` | Exam Logo | Yes | The exam's logo setting (`mode`: `account`, `none`, `custom`) and what it resolves to (`source`: `default`, `account`, `exam`, `none`, plus type and size). |
 | `GET` | `/api/v1/exams/{exam_id}/logo/file` | Exam Logo File | Yes | Bytes of the logo the exam prints; 404 when it prints none. |
 | `PUT` | `/api/v1/exams/{exam_id}/logo` | Set Exam Logo | Yes | `{"mode": "account" \| "none" \| "custom", "content_b64"?}`. `custom` without content keeps the stored file. PNG, JPEG or PDF (detected from the bytes), ≤ 2 MB; `422 ERR_LOGO_INVALID` otherwise. |
@@ -265,8 +284,9 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 A sign-in needs a passkey alone (`/webauthn/login/verify`, user verification
 required) or two of three factors. Each step returns
 `{status, satisfied, available}`: `factor_required` with the kinds still open,
-`enroll_required` when the account has fewer than two factors, or `ok` with the
-session cookies set.
+`enroll_required` when the account has fewer than two factors, `approval_pending`
+for a self-registered account no admin has approved yet (no cookie is set), or
+`ok` with the session cookies set.
 
 | Method | Endpoint | Summary |
 |---|---|---|
@@ -274,7 +294,7 @@ session cookies set.
 | `POST` | `/auth/factor/password` | The password as the *second* factor. Takes no email — the account is the one the pending token names. Not reachable in the reset flow. |
 | `POST` | `/auth/factor/totp` | Second factor: authenticator code. Second position only. |
 | `POST` | `/auth/factor/backup-code` | Spends a backup code in place of the authenticator. |
-| `POST` | `/auth/reset/start` | Opens a password reset with the emailed token. |
+| `POST` | `/auth/reset/start` | Opens a password reset with the emailed token. The response also carries `needs_key_recovery`: `false` for a fresh account (no key envelope, no exam, no exercise), whose reset page then skips the recovery-code step. |
 | `POST` | `/auth/reset-password` | Sets the new password and, in the same transaction, the re-wrapped key. |
 | `POST` | `/auth/change-password` | In-session password change. Full scope only, verifies the current password through the login throttle, and writes the re-wrapped key in the same transaction. Revokes every refresh token and re-issues this session's. |
 | `GET` | `/mfa/status` | Enrolled factors, which of them are key-capable, backup codes left, whether a recovery code is on file, and when each factor was added and last used. |
@@ -324,6 +344,8 @@ Two rules the endpoint enforces rather than trusts the client with:
 | `DELETE` | `/api/v1/exams/{exam_id}/submissions/{submission_id}/grading` | Clear Grading | Yes | Clears all grading data (score + annotations) for a submission, without deleting it. |
 | `DELETE` | `/api/v1/exams/{exam_id}/submissions/{submission_id}` | Delete Submission | Yes | Deletes specified submission scan. |
 
+> **Result writes follow the account's features.** `POST /exams/{id}/students`, `POST /exams/{id}/submissions`, `PATCH /exams/{id}/submissions/{id}/score`, `PUT /exams/{id}/submissions/{id}/scores` and `POST /user/restore-server-data` answer `403 ERR_FEATURE_NOT_ALLOWED` when the account's `server_results` switch is off **and** its stored storage mode is not `all-server`. An account whose switch was revoked while it is still in `all-server` keeps writing until it has moved its results into the browser, because refusing those writes would strand them in the offline queue. Reads and deletes are never gated: the move and GDPR erasure need them.
+
 #### Submission Payload
 ```json
 {
@@ -342,13 +364,25 @@ Two rules the endpoint enforces rather than trusts the client with:
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
 | `GET` | `/api/v1/admin/stats/{exam_id}` | Class Statistics | Yes (Admin) | Evaluates $k$-anonymity ($k \ge 5$) and returns aggregate exam stats. |
-| `POST` | `/api/v1/admin/users` | Create User | Yes (Admin) | Provisions a new teacher or admin account without a password (`password_hash = None`) and sends a reset token via email. |
-| `POST` | `/api/v1/admin/users/{user_id}/reset-password` | Force Password Reset | Yes (Admin) | Generates and emails a single-use password reset link for an existing user account. |
+| `GET` | `/api/v1/admin/users` | List Accounts | Yes (Admin) | Accounts, newest first. Query: `status` (`all` default, `pending`, `active`), `limit` (1-200, default 100), `offset`. Returns `{"items": [AdminUserResponse], "total": n}`. |
+| `POST` | `/api/v1/admin/users` | Invite User | Yes (Admin) | Invitation: creates an approved teacher or admin account with the given features and without a password (`password_hash = None`), and mails a set-password link with invitation wording. The address counts as verified, because that link is the only way in. Deletes any pending `registration_requests` row for the address. `409 ERR_ACCOUNT_PENDING` if a pending account exists for the address, `409 ERR_ACCOUNT_EXISTS` for any other existing account. |
+| `POST` | `/api/v1/admin/users/{user_id}/approve` | Approve Registration | Yes (Admin) | Approves a pending account with the given features, erases the registrant's note and mails "approved, sign in". Conditional on the account still being pending: `409 ERR_ALREADY_APPROVED` otherwise. |
+| `POST` | `/api/v1/admin/users/{user_id}/reject` | Reject Registration | Yes (Admin) | Deletes a pending account and mails a short rejection. `204`. Pending accounts only (`409 ERR_ALREADY_APPROVED` otherwise). |
+| `PATCH` | `/api/v1/admin/users/{user_id}/features` | Change Features | Yes (Admin) | Partial update of the account's feature switches. Revoking `server_results` does not touch data; see `dev/storage_modes.md`. |
+| `POST` | `/api/v1/admin/users/{user_id}/reset-password` | Force Password Reset | Yes (Admin) | Generates and emails a single-use password reset link for an existing user account. For an invited account that never set a password it resends the invitation. Refused with `409 ERR_ACCOUNT_PENDING` for a pending account. |
+| `GET` | `/api/v1/admin/allowed-domains` | List Allowed Domains | Yes (Admin) | Domains whose registrations are approved automatically. |
+| `POST` | `/api/v1/admin/allowed-domains` | Add Allowed Domain | Yes (Admin) | `{"domain", "features"}`. The domain is lowercased and a leading `@` removed; only plain hostnames (at least two labels, no wildcards) are accepted: `400 ERR_INVALID_DOMAIN`. `409 ERR_DOMAIN_EXISTS` for a duplicate. |
+| `PATCH` | `/api/v1/admin/allowed-domains/{domain_id}` | Change Domain Features | Yes (Admin) | Same body as the account features update. |
+| `DELETE` | `/api/v1/admin/allowed-domains/{domain_id}` | Remove Allowed Domain | Yes (Admin) | `204`. |
 | `GET` | `/api/v1/admin/audit` | List Audit Logs | Yes (Admin) | Paginated audit log listing. |
 
-#### Admin User Creation Schemas
-- **`AdminCreateUserRequest`**: `{"email": "teacher@school.com", "role": "teacher"}`
+#### Admin User Schemas
+- **`AccountFeatures`**: `{"server_results": true, "server_latex": true}`. `server_results`: the `all-server` storage mode is allowed (`hybrid` always is). `server_latex`: server-side LaTeX compilation is allowed. Exams and exercises always live on the server and have no switch. Both default to `true`, so accounts that existed before the switches keep everything. `AccountFeaturesUpdate` has the same fields, each optional.
+- **`AdminCreateUserRequest`**: `{"email": "teacher@school.com", "role": "teacher", "features": {"server_results": true, "server_latex": true}}`
 - **`AdminCreateUserResponse`**: `{"id": "uuid...", "email": "teacher@school.com", "role": "teacher", "created_at": "...", "password_reset_sent": true}`
+- **`AdminApproveRequest`**: `{"features": {"server_results": true, "server_latex": true}}`
+- **`AdminUserResponse`**: `{"id": "uuid...", "email": "...", "role": "teacher", "created_at": "...", "approved_at": "... | null", "registration_note": "... | null", "features": {...}, "password_set": true}`. `approved_at: null` means pending; `registration_note` is set only while pending; `password_set: false` marks an invitation nobody has accepted.
+- **`AllowedDomainRequest`**: `{"domain": "school.example", "features": {...}}`. **`AllowedDomainResponse`**: `{"id": "uuid...", "domain": "school.example", "features": {...}, "created_at": "..."}`. The match is exact on the part after `@`; a subdomain needs its own entry. Changes affect future registrations only, never existing accounts.
 - **`AdminResetPasswordResponse`**: `{"message": "Password reset link generated...", "user_id": "uuid...", "password_reset_sent": true}`
 
 #### Admin Stats Response Example
@@ -369,13 +403,15 @@ Two rules the endpoint enforces rather than trusts the client with:
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
+| `GET` | `/api/v1/user/capabilities` | Capabilities | Yes | `{"storage_mode", "allowed_storage_modes", "features"}`: the account's storage mode (null until chosen), the modes it may choose, and its features: `server_results`, `server_latex` (admin switches) and `training_donation` (deployment setting). Built by `capabilities_for(teacher)`; the frontend renders its options from this and nothing else. |
+| `PUT` | `/api/v1/user/storage-mode` | Set Storage Mode | Yes | `{"mode", "expected"}`: compare-and-set, `409 ERR_STORAGE_MODE_CHANGED` if another browser changed it meanwhile, `403 ERR_STORAGE_MODE_NOT_ALLOWED` if the mode is not allowed for the account (`all-server` without `server_results`). Moving the results happens in the client before this call. |
 | `POST` | `/api/v1/user/purge-server-student-data` | Purge Server Student Data | Yes | Soft-deletes this teacher's server-side student identities and submissions (7-day retention grace) — the local→`all-local` migration step in `data_flow_and_security.md` §5. |
-| `POST` | `/api/v1/user/restore-server-data` | Restore Server Data | Yes | Restores soft-deleted student identities and submissions for the current teacher, if still within the 7-day grace period. |
+| `POST` | `/api/v1/user/restore-server-data` | Restore Server Data | Yes | Restores soft-deleted student identities and submissions for the current teacher, if still within the 7-day grace period. Subject to the result-write rule in §4.6 (`403 ERR_FEATURE_NOT_ALLOWED`). |
 | `GET` | `/api/v1/user/logo` | Account Logo | Yes | The account's logo setting (`mode`: `default` = bundled MTG logo, `none`, `custom`) and what it prints (`source`: `default`, `account`, `none`, plus type and size). |
 | `GET` | `/api/v1/user/logo/file` | Account Logo File | Yes | Bytes of the logo the account prints (its own or the default), served as `image/png`, `image/jpeg` or `application/pdf` with `nosniff`; 404 for `none`. |
 | `PUT` | `/api/v1/user/logo` | Set Account Logo | Yes | `{"mode": "default" \| "none" \| "custom", "content_b64"?}`. `custom` without content keeps the stored file. PNG, JPEG or PDF (detected from the bytes), ≤ 2 MB; `422 ERR_LOGO_INVALID` otherwise. Printed on every exam that does not override it. |
 | `DELETE` | `/api/v1/user/logo` | Reset Account Logo | Yes | Back to the default (MTG) logo; same as `PUT {"mode": "default"}`. Returns the new setting. |
-| `GET` | `/api/v1/user/me/export` | Export Own Data | Yes | GDPR Art. 15/20 export of what the server holds *about the teacher*: account fields (with the account logo file), authored exams (with each exam's logo setting and own logo file), audit trail. Does **not** cover student data — see §4.5/§4.6 for that. |
+| `GET` | `/api/v1/user/me/export` | Export Own Data | Yes | GDPR Art. 15/20 export of what the server holds *about the teacher*: account fields (including `approved_at`, `registration_note`, `storage_mode` and `features`, with the account logo file), authored exams (with each exam's logo setting and own logo file), audit trail. Does **not** cover student data — see §4.5/§4.6 for that. |
 | `DELETE` | `/api/v1/user/me` | Delete Account | Yes | GDPR Art. 17 — soft-deletes the teacher's account and authored content (exams, student identities, submissions) on the standard grace period, then schedules irreversible erasure. |
 
 ---
