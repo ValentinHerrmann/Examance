@@ -246,10 +246,14 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     const [, action] = parts;
     if (method === 'GET' && action === 'capabilities') return ok(capabilities());
     if (action === 'logo') {
-      if (method === 'GET' && parts.length === 2) return ok(NO_LOGO);
+      // No default logo file in the fake: the account prints none until it uploads one (issue #46).
+      if (method === 'GET' && parts.length === 2) return ok({ ...NO_LOGO, mode: 'default' });
       if (method === 'GET' && parts[2] === 'file') return notFound('No logo.');
-      if (method === 'PUT') return ok({ ...NO_LOGO, source: 'account', mime_type: 'image/png', byte_size: 1 });
-      if (method === 'DELETE') return noContent();
+      if (method === 'PUT') {
+        const custom = body?.mode === 'custom';
+        return ok({ ...NO_LOGO, mode: body?.mode ?? 'default', ...(custom ? { source: 'account', mime_type: 'image/png', byte_size: 1 } : {}) });
+      }
+      if (method === 'DELETE') return ok({ ...NO_LOGO, mode: 'default' });
     }
     if (method === 'PUT' && action === 'storage-mode') {
       if (!ALLOWED_MODES.includes(body?.mode)) {

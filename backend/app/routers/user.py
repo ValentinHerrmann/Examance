@@ -290,7 +290,12 @@ async def export_own_data(
             "role": teacher.role,
             "created_at": teacher.created_at.isoformat() if teacher.created_at else None,
             # The logo is printed on the exams, so the export carries the file itself.
-            "exam_logo": _logo_export(logo.mime_type, logo.content) if logo else None,
+            # "default" prints the bundled default logo, which is not the teacher's data.
+            "exam_logo": (
+                {"mode": "default"}
+                if logo is None
+                else {"mode": logo.mode, "file": _logo_export(logo.mime_type, logo.content)}
+            ),
         },
         "exams": [
             {
@@ -303,7 +308,7 @@ async def export_own_data(
                 "created_at": exam.created_at.isoformat() if exam.created_at else None,
                 "retention_until": exam.retention_until.isoformat(),
                 "deleted_at": exam.deleted_at.isoformat() if exam.deleted_at else None,
-                # "account": prints exam_logo above; "none": no logo; "custom": its own file.
+                # "account": prints the account's exam_logo; "none": no logo; "custom": own file.
                 "logo": _exam_logo_export(exam_logos.get(exam.id)),
             }
             for exam in exams

@@ -322,15 +322,16 @@ which — like exercises themselves — is outside the exam retention sweep.
 ### Exam logos on the server
 
 The logo printed in the exam header (issue #46) is stored as **plaintext bytes** like resource
-files, for the same reason (Tectonic compiles it): `teacher_logos` holds the account logo,
-`exam_logos` an exam's override (`none`, or its own file). Only PNG, JPEG and PDF are accepted,
-detected from the magic bytes, at most 2 MB; they are served back only to their owner with
-`nosniff` and a sandbox CSP. A logo is school branding, not personal data of pupils. It follows
-its owner's lifecycle (`ON DELETE CASCADE` from the account or exam) and is listed in the account
-export (`GET /user/me/export`, with the files base64-encoded: the account logo and each exam's
-setting and own file) and in `.bgproj` archives (see Archives). Migration
-`0026_exam_logos` gave every account that existed before the bundled MTG logo as its account
-logo, so existing exams kept their header.
+files, for the same reason (Tectonic compiles it): `teacher_logos` holds an account's deviation
+from the default (`none`, or its own file), `exam_logos` an exam's deviation from its account.
+Without a `teacher_logos` row an account prints the bundled default logo (MTG,
+`latex-assets/img/logo_mtg.pdf`), which every exam printed before logos were configurable;
+resetting deletes the row. Only PNG, JPEG and PDF are accepted, detected from the magic bytes, at
+most 2 MB; they are served back only to their owner with `nosniff` and a sandbox CSP. A logo is
+school branding, not personal data of pupils. It follows its owner's lifecycle (`ON DELETE
+CASCADE` from the account or exam) and is part of the account export (`GET /user/me/export`, with
+the files base64-encoded: the account's setting and own file, each exam's setting and own file)
+and of `.bgproj` archives (see Archives).
 
 ---
 

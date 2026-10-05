@@ -1,22 +1,33 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { faTrash, faUpload } from "@fortawesome/free-solid-svg-icons";
-  import { t, translate } from "#lib/i18n";
-  import { Alert, Button, Card } from "#lib/components/ui";
+  import { faBan, faRotateLeft, faUpload } from "@fortawesome/free-solid-svg-icons";
+  import { t, translate, type TranslationKey } from "#lib/i18n";
+  import { Alert, Badge, Button, Card } from "#lib/components/ui";
   import LogoPreview from "./LogoPreview.svelte";
   import {
     LOGO_ACCEPT,
     LogoError,
-    deleteAccountLogo,
     fetchAccountLogo,
     getAccountLogoInfo,
     readLogoFile,
-    uploadAccountLogo,
+    setAccountLogo,
+    type AccountLogoInfo,
+    type AccountLogoMode,
     type LogoMime,
   } from "#lib/latex/logo";
 
-  /** The account logo (issue #46): printed in the header of every exam that does not override it. */
+  /**
+   * The account logo (issue #46): printed in the header of every exam that does not override it.
+   * Without a choice it is the bundled default (MTG); "reset" returns to that.
+   */
 
+  const MODE_LABEL = {
+    default: "logo.mode.default",
+    none: "logo.mode.none",
+    custom: "logo.mode.custom",
+  } as const satisfies Record<AccountLogoMode, TranslationKey>;
+
+  let mode = $state<AccountLogoMode>("default");
   let bytes = $state.raw<Uint8Array | null>(null);
   let mime = $state<LogoMime | null>(null);
   let loading = $state(true);
@@ -29,22 +40,22 @@
     return (err as Error)?.message || translate("logo.errors.generic");
   }
 
-  async function load() {
-    loading = true;
+  /** Shows what the account now prints; `picked` saves re-downloading a file just uploaded. */
+  async function show(info: AccountLogoInfo, picked?: Uint8Array) {
+    mode = info.mode;
+    mime = info.mime_type;
+    bytes = info.source === "none" ? null : (picked ?? (await fetchAccountLogo()));
+  }
+
+  async function run(action: () => Promise<void>) {
+    busy = true;
     error = "";
     try {
-      const info = await getAccountLogoInfo();
-      if (info.source === "none") {
-        bytes = null;
-        mime = null;
-      } else {
-        bytes = await fetchAccountLogo();
-        mime = info.mime_type;
-      }
+      await action();
     } catch (err) {
       error = messageOf(err);
     } finally {
-      loading = false;
+      busy = false;
     }
   }
 
@@ -53,36 +64,31 @@
     const file = input.files?.[0];
     input.value = "";
     if (!file) return;
-    busy = true;
-    error = "";
-    try {
+    await run(async () => {
       const picked = await readLogoFile(file);
-      const info = await uploadAccountLogo(picked.bytes);
-      bytes = picked.bytes;
-      mime = info.mime_type;
-    } catch (err) {
-      error = messageOf(err);
-    } finally {
-      busy = false;
-    }
+      await show(await setAccountLogo("custom", picked.bytes), picked.bytes);
+    });
   }
 
-  async function handleRemove() {
-    if (!confirm(translate("logo.account.removeConfirm"))) return;
-    busy = true;
-    error = "";
+  function handleNone() {
+    if (!confirm(translate("logo.account.noneConfirm"))) return;
+    void run(async () => show(await setAccountLogo("none")));
+  }
+
+  function handleReset() {
+    if (!confirm(translate("logo.account.resetConfirm"))) return;
+    void run(async () => show(await setAccountLogo("default")));
+  }
+
+  onMount(async () => {
     try {
-      await deleteAccountLogo();
-      bytes = null;
-      mime = null;
+      await show(await getAccountLogoInfo());
     } catch (err) {
       error = messageOf(err);
     } finally {
-      busy = false;
+      loading = false;
     }
-  }
-
-  onMount(load);
+  });
 </script>
 
 <div id="logo" class="scroll-mt-16 lg:scroll-mt-4">
@@ -93,22 +99,26 @@
     {/if}
     <div class="flex flex-wrap items-center gap-3">
       <LogoPreview {bytes} {mime} />
-      <div class="flex flex-wrap gap-2">
-        <Button
-          variant="outlined"
-          icon={faUpload}
-          disabled={loading}
-          loading={busy}
-          onClick={() => fileInput?.click()}
-        >
-          {bytes ? $t("logo.replace") : $t("logo.upload")}
+      {#if !loading}
+        <Badge severity={mode === "custom" ? "success" : mode === "none" ? "secondary" : "info"}>
+          {$t(MODE_LABEL[mode])}
+        </Badge>
+      {/if}
+    </div>
+    <div class="mt-3 flex flex-wrap gap-2">
+      <Button variant="outlined" icon={faUpload} disabled={loading} loading={busy} onClick={() => fileInput?.click()}>
+        {mode === "custom" ? $t("logo.replace") : $t("logo.upload")}
+      </Button>
+      {#if !loading && mode !== "none"}
+        <Button variant="outlined" severity="secondary" icon={faBan} disabled={busy} onClick={handleNone}>
+          {$t("logo.account.useNone")}
         </Button>
-        {#if bytes}
-          <Button variant="outlined" severity="danger" icon={faTrash} disabled={busy} onClick={handleRemove}>
-            {$t("logo.remove")}
-          </Button>
-        {/if}
-      </div>
+      {/if}
+      {#if !loading && mode !== "default"}
+        <Button variant="outlined" severity="secondary" icon={faRotateLeft} disabled={busy} onClick={handleReset}>
+          {$t("logo.account.reset")}
+        </Button>
+      {/if}
     </div>
     <input bind:this={fileInput} type="file" accept={LOGO_ACCEPT} class="hidden" onchange={handleFile} />
     <p class="mt-3 mb-0 text-xs text-muted">{$t("logo.formats")}</p>

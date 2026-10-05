@@ -236,7 +236,7 @@ export const help = {
             },
             s7: {
                 h: 'Logo auf der Klausur',
-                p1: 'Unter „Logo für Klausuren“ hinterlegen Sie ein Logo (PNG, JPEG oder PDF, höchstens 2 MB), das oben links auf der ersten Seite jeder Klausur steht. Ohne Logo bleibt die Stelle frei; das Seitenlayout und die Lage der Ankreuzkästchen ändern sich dadurch nicht.',
+                p1: 'Oben links auf der ersten Seite jeder Klausur steht ein Logo, voreingestellt das MTG-Logo. Unter „Logo für Klausuren“ laden Sie ein eigenes hoch (PNG, JPEG oder PDF, höchstens 2 MB), wählen „Kein Logo“ oder setzen auf das Standardlogo zurück. Ohne Logo bleibt die Stelle frei; das Seitenlayout und die Lage der Ankreuzkästchen ändern sich dadurch nicht. In der Klausurübersicht zeigt jede aufgeklappte Klausur, welches Logo sie druckt.',
                 p2: 'In den Klausurdaten einer Klausur lässt sich das Logo überschreiben: das Logo aus den Einstellungen, kein Logo oder ein eigenes Logo nur für diese Klausur. Das Logo wird wie die Aufgaben auf dem Server gespeichert.',
             },
         },

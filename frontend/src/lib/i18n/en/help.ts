@@ -236,7 +236,7 @@ export const help: Translations['help'] = {
             },
             s7: {
                 h: 'Logo on the exam',
-                p1: 'Under “Exam logo” you can store a logo (PNG, JPEG or PDF, at most 2 MB) that is printed at the top left of the first page of every exam. Without a logo the spot stays empty; the page layout and the position of the answer boxes do not change.',
+                p1: 'A logo is printed at the top left of the first page of every exam; the MTG logo is the default. Under “Exam logo” you can upload your own (PNG, JPEG or PDF, at most 2 MB), choose “No logo”, or reset to the default. Without a logo the spot stays empty; the page layout and the position of the answer boxes do not change. In the exam overview, every expanded exam shows which logo it prints.',
                 p2: 'An exam’s details can override the logo: the logo from the settings, no logo, or an own logo for this exam only. Like the exercises, the logo is stored on the server.',
             },
         },

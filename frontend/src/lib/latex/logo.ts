@@ -22,7 +22,9 @@ export const LOGO_FILENAMES = ['pdf', 'png', 'jpg', 'jpeg'].map((ext) => `${LOGO
 export const LOGO_ACCEPT = 'application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg';
 
 export type LogoMime = 'application/pdf' | 'image/png' | 'image/jpeg';
-export type LogoSource = 'account' | 'exam' | 'none';
+/** Where a printed logo comes from: the bundled default (MTG), the account's or exam's own file, or nowhere. */
+export type LogoSource = 'default' | 'account' | 'exam' | 'none';
+export type AccountLogoMode = 'default' | 'none' | 'custom';
 export type ExamLogoMode = 'account' | 'none' | 'custom';
 
 export interface LogoInfo {
@@ -30,6 +32,10 @@ export interface LogoInfo {
   mime_type: LogoMime | null;
   byte_size: number;
   updated_at: string | null;
+}
+
+export interface AccountLogoInfo extends LogoInfo {
+  mode: AccountLogoMode;
 }
 
 export interface ExamLogoInfo extends LogoInfo {
@@ -88,20 +94,22 @@ export async function readLogoFile(file: File): Promise<{ bytes: Uint8Array; mim
 
 // --- account logo ------------------------------------------------------------------------------
 
-export function getAccountLogoInfo(): Promise<LogoInfo> {
-  return api.get<LogoInfo>('/user/logo', QUIET);
+export function getAccountLogoInfo(): Promise<AccountLogoInfo> {
+  return api.get<AccountLogoInfo>('/user/logo', QUIET);
 }
 
+/** The logo the account prints (its own or the default). */
 export async function fetchAccountLogo(): Promise<Uint8Array> {
   return new Uint8Array(await api.getBinary('/user/logo/file', QUIET));
 }
 
-export function uploadAccountLogo(bytes: Uint8Array): Promise<LogoInfo> {
-  return api.put<LogoInfo>('/user/logo', { content_b64: uint8ArrayToBase64(bytes) }, QUIET);
-}
-
-export async function deleteAccountLogo(): Promise<void> {
-  await api.delete('/user/logo', QUIET);
+/** `custom` needs `bytes` unless the account already stores a file; `default` resets to the MTG logo. */
+export function setAccountLogo(mode: AccountLogoMode, bytes?: Uint8Array): Promise<AccountLogoInfo> {
+  return api.put<AccountLogoInfo>(
+    '/user/logo',
+    { mode, ...(bytes ? { content_b64: uint8ArrayToBase64(bytes) } : {}) },
+    QUIET
+  );
 }
 
 // --- exam logo ---------------------------------------------------------------------------------
@@ -113,6 +121,17 @@ export function getExamLogoInfo(examId: string): Promise<ExamLogoInfo> {
 /** The logo the exam prints (its own or the account's). */
 export async function fetchExamLogo(examId: string): Promise<Uint8Array> {
   return new Uint8Array(await api.getBinary(`/exams/${examId}/logo/file`, QUIET));
+}
+
+/** What an exam prints, for display: its setting, the resolved source and the bytes (null: none). */
+export interface ExamLogoPreview {
+  info: ExamLogoInfo;
+  bytes: Uint8Array | null;
+}
+
+export async function loadExamLogoPreview(examId: string): Promise<ExamLogoPreview> {
+  const info = await getExamLogoInfo(examId);
+  return { info, bytes: info.source === 'none' ? null : await fetchExamLogo(examId) };
 }
 
 /** `custom` without bytes keeps the exam's stored file. */

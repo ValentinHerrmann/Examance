@@ -1,7 +1,8 @@
 """
 Exam header logos (issue #46): validation and resolution.
 
-Every account may store one logo; an exam either uses it, prints none, or carries its own.
+Every account prints the bundled default logo (MTG) until it stores its own logo or chooses none;
+an exam either uses the account's choice, prints none, or carries its own.
 The logo reaches the compile working directory under a fixed name
 (``examance-logo.<ext>``, :data:`LOGO_FILENAMES`). ``Schulaufgabe.sty`` prints whichever of
 those files exists, so the LaTeX source never names the logo and stays the same whatever the
@@ -16,6 +17,8 @@ import base64
 import binascii
 import uuid
 from dataclasses import dataclass
+from functools import cache
+from pathlib import Path
 from typing import Literal
 
 from sqlalchemy import select
@@ -39,7 +42,16 @@ _MIME_EXTENSIONS = {
 #: Every name a logo can have in the working directory. Reserved for resource uploads.
 LOGO_FILENAMES = frozenset(f"{LOGO_BASENAME}.{ext}" for ext in ("pdf", "png", "jpg", "jpeg"))
 
-LogoSource = Literal["account", "exam", "none"]
+#: Where a printed logo comes from: the bundled default, the account's own file, the exam's own
+#: file, or nowhere.
+LogoSource = Literal["default", "account", "exam", "none"]
+
+# The default logo: what every exam printed before logos were configurable. Resolved like
+# ``app.services.latex.ASSETS_DIR``.
+_ASSETS_DIR = Path(__file__).resolve().parents[2] / "latex-assets"
+if not _ASSETS_DIR.exists():
+    _ASSETS_DIR = Path("latex-assets")
+DEFAULT_LOGO_PATH = _ASSETS_DIR / "img" / "logo_mtg.pdf"
 
 
 class LogoError(ValueError):
@@ -83,6 +95,20 @@ def decode_logo(content_b64: str) -> tuple[bytes, str]:
     return content, sniff_logo_mime(content)
 
 
+@cache
+def _default_logo_bytes() -> bytes | None:
+    try:
+        return DEFAULT_LOGO_PATH.read_bytes()
+    except OSError:
+        return None
+
+
+def default_logo() -> ResolvedLogo | None:
+    """The bundled default logo, or None if the image ships without it."""
+    content = _default_logo_bytes()
+    return ResolvedLogo("application/pdf", content) if content else None
+
+
 def logo_filename(mime_type: str) -> str:
     return f"{LOGO_BASENAME}.{_MIME_EXTENSIONS.get(mime_type, 'pdf')}"
 
@@ -113,10 +139,17 @@ async def resolve_logo(
                 return "exam", ResolvedLogo(override.mime_type, override.content)
             return "none", None
 
-    account = await get_teacher_logo(teacher_id, db)
+    return resolve_account_logo(await get_teacher_logo(teacher_id, db))
+
+
+def resolve_account_logo(account: TeacherLogo | None) -> tuple[LogoSource, ResolvedLogo | None]:
+    """The account's logo: no row is the default, ``none`` prints nothing, ``custom`` its file."""
     if account is None:
-        return "none", None
-    return "account", ResolvedLogo(account.mime_type, account.content)
+        logo = default_logo()
+        return ("default", logo) if logo else ("none", None)
+    if account.mode == "custom" and account.content and account.mime_type:
+        return "account", ResolvedLogo(account.mime_type, account.content)
+    return "none", None
 
 
 async def resolve_logo_for_compile(

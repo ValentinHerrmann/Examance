@@ -35,26 +35,39 @@ async def _create_exam(client: AsyncClient) -> str:
 async def test_account_logo_roundtrip(client: AsyncClient, db: AsyncSession) -> None:
     await sign_in(client, db, "logo-account@example.com")
 
-    assert (await client.get("/api/v1/user/logo")).json()["source"] == "none"
-    assert (await client.get("/api/v1/user/logo/file")).status_code == 404
+    # Without a choice the account prints the bundled default (MTG) logo.
+    info = (await client.get("/api/v1/user/logo")).json()
+    assert (info["mode"], info["source"], info["mime_type"]) == (
+        "default",
+        "default",
+        "application/pdf",
+    )
+    assert (await client.get("/api/v1/user/logo/file")).content.startswith(b"%PDF-")
 
-    put = await client.put("/api/v1/user/logo", json={"content_b64": _b64(PNG)})
+    put = await client.put(
+        "/api/v1/user/logo", json={"mode": "custom", "content_b64": _b64(PNG)}
+    )
     assert put.status_code == 200, put.text
     # The type comes from the bytes, not from anything the client says.
-    assert put.json()["mime_type"] == "image/png"
+    assert (put.json()["source"], put.json()["mime_type"]) == ("account", "image/png")
 
     file = await client.get("/api/v1/user/logo/file")
     assert file.content == PNG
     assert file.headers["x-content-type-options"] == "nosniff"
 
-    assert (await client.delete("/api/v1/user/logo")).status_code == 204
-    assert (await client.get("/api/v1/user/logo")).json()["source"] == "none"
+    none = (await client.put("/api/v1/user/logo", json={"mode": "none"})).json()
+    assert none["source"] == "none"
+    assert (await client.get("/api/v1/user/logo/file")).status_code == 404
+
+    reset = await client.delete("/api/v1/user/logo")
+    assert reset.status_code == 200
+    assert (reset.json()["mode"], reset.json()["source"]) == ("default", "default")
 
 
 @pytest.mark.asyncio
 async def test_non_image_logo_is_refused(client: AsyncClient, db: AsyncSession) -> None:
     await sign_in(client, db, "logo-svg@example.com")
-    resp = await client.put("/api/v1/user/logo", json={"content_b64": _b64(b"<svg/>")})
+    resp = await client.put("/api/v1/user/logo", json={"mode": "custom", "content_b64": _b64(b"<svg/>")})
     assert resp.status_code == 422
     assert resp.headers.get("code") == "ERR_LOGO_INVALID"
 
@@ -62,7 +75,7 @@ async def test_non_image_logo_is_refused(client: AsyncClient, db: AsyncSession) 
 @pytest.mark.asyncio
 async def test_exam_follows_account_until_overridden(client: AsyncClient, db: AsyncSession) -> None:
     await sign_in(client, db, "logo-exam@example.com")
-    await client.put("/api/v1/user/logo", json={"content_b64": _b64(PNG)})
+    await client.put("/api/v1/user/logo", json={"mode": "custom", "content_b64": _b64(PNG)})
     exam_id = await _create_exam(client)
 
     info = (await client.get(f"/api/v1/exams/{exam_id}/logo")).json()
@@ -89,7 +102,7 @@ async def test_exam_follows_account_until_overridden(client: AsyncClient, db: As
 @pytest.mark.asyncio
 async def test_compile_writes_the_exam_logo(client: AsyncClient, db: AsyncSession) -> None:
     await sign_in(client, db, "logo-compile@example.com")
-    await client.put("/api/v1/user/logo", json={"content_b64": _b64(PNG)})
+    await client.put("/api/v1/user/logo", json={"mode": "custom", "content_b64": _b64(PNG)})
     exam_id = await _create_exam(client)
 
     seen: list[object] = []
@@ -141,8 +154,9 @@ async def test_compile_never_reads_another_teachers_exam_logo(
             json={"latex": "\\documentclass{article}", "logo_exam_id": exam_id},
         )
     assert resp.status_code == 200
-    # Falls back to the intruder's own (absent) account logo.
-    assert seen == [None]
+    # Falls back to the intruder's own account logo (the default), never the owner's file.
+    (fallback,) = seen
+    assert getattr(fallback, "content", b"") != PDF
 
 
 @pytest.mark.asyncio
@@ -161,14 +175,15 @@ async def test_logo_names_are_reserved_for_resources(client: AsyncClient, db: As
 @pytest.mark.asyncio
 async def test_account_export_carries_the_logos(client: AsyncClient, db: AsyncSession) -> None:
     await sign_in(client, db, "logo-export@example.com")
-    await client.put("/api/v1/user/logo", json={"content_b64": _b64(PNG)})
+    await client.put("/api/v1/user/logo", json={"mode": "custom", "content_b64": _b64(PNG)})
     exam_id = await _create_exam(client)
     await client.put(
         f"/api/v1/exams/{exam_id}/logo", json={"mode": "custom", "content_b64": _b64(PDF)}
     )
 
     export = (await client.get("/api/v1/user/me/export")).json()
-    assert export["account"]["exam_logo"]["content_b64"] == _b64(PNG)
+    assert export["account"]["exam_logo"]["mode"] == "custom"
+    assert export["account"]["exam_logo"]["file"]["content_b64"] == _b64(PNG)
     (exam,) = [e for e in export["exams"] if e["id"] == exam_id]
     assert exam["logo"]["mode"] == "custom"
     assert exam["logo"]["file"]["content_b64"] == _b64(PDF)
