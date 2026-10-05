@@ -194,7 +194,7 @@ accounts here.
 
 ### Account registration and approval
 
-Accounts come from an admin invitation, the CLI or bootstrap, or, when the operator turns it on (`REGISTRATION_ENABLED`, off by default, issue #53), self-registration. The operator guide is `account_creation_and_management.md` §7; this is the security shape.
+Accounts come from an admin invitation, the CLI or bootstrap, or self-registration (issue #53, always available). The operator guide is `account_creation_and_management.md` §7; this is the security shape.
 
 **Flow.** `POST /auth/register {email}` mails a single-use link, `POST /auth/register/complete {token, new_password, note?}` creates the account with the password the registrant chose. An address whose domain is on the admin's allowlist (`allowed_email_domains`, exact match on the part after `@`) is approved on the spot with that domain's features; any other account is **pending** (`teachers.approved_at` is NULL) until an admin approves it. The registration touches no key material: there is no key envelope until the first sign-in, when the browser creates the data key and the recovery code as for any new account.
 

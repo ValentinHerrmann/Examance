@@ -53,26 +53,6 @@
       }
     },
     "/api/v1/auth/register": {
-      "get": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Registration Status",
-        "description": "Whether this server accepts self-registrations. A deployment setting, not per address.",
-        "operationId": "registration_status_api_v1_auth_register_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RegistrationStatus"
-                }
-              }
-            }
-          }
-        }
-      },
       "post": {
         "tags": [
           "auth"
@@ -8561,20 +8541,6 @@
           "email"
         ],
         "title": "RegisterRequest"
-      },
-      "RegistrationStatus": {
-        "properties": {
-          "enabled": {
-            "type": "boolean",
-            "title": "Enabled"
-          }
-        },
-        "type": "object",
-        "required": [
-          "enabled"
-        ],
-        "title": "RegistrationStatus",
-        "description": "Whether this server accepts self-registrations (GET /auth/register)."
       },
       "RegistrationVerifyRequest": {
         "properties": {

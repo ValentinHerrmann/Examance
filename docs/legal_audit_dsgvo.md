@@ -51,7 +51,7 @@ Derived from the backend models and `data_flow_and_security.md` §3. "Pseudonymo
 | `pseudonym_hmac` | Pseudonymous identifier | Server | n/a (is itself an HMAC) |
 | Exam metadata (title, class, subject, date, teacher surname) | Personal (identifies a teacher and a class) | Server | **No** |
 | Teacher email, role, password hash, approval timestamp, feature switches | Personal | Server (`teachers`) | Hash only (Argon2id) |
-| Registration request: email address, SHA-256 of the verification token, expiry, last-sent time. Only where self-registration is enabled; deleted when the link is used, otherwise by the retention job after expiry | Personal (a not-yet-verified address, possibly of a third party) | Server (`registration_requests`) | **No** (address in plaintext; the token is stored as a hash) |
+| Registration request: email address, SHA-256 of the verification token, expiry, last-sent time. Deleted when the link is used, otherwise by the retention job after expiry | Personal (a not-yet-verified address, possibly of a third party) | Server (`registration_requests`) | **No** (address in plaintext; the token is stored as a hash) |
 | Registration note: optional free text (up to 500 characters) a registrant leaves for the approving admin; erased on approval, never stored for an allowlisted domain, purged with an unapproved account after `PENDING_ACCOUNT_RETENTION_DAYS` | Personal (free text, content up to the registrant) | Server (`teachers.registration_note`) | **No** |
 | Always-allowed e-mail domains and the features their accounts receive | Not personal data | Server (`allowed_email_domains`) | n/a |
 | Audit entries: teacher email, action, SHA-256 of target, SHA-256 of IP | Personal | Server (`audit_logs`) | **No** (IP is hashed) |
@@ -204,12 +204,12 @@ Two things a reader should not over-read. The upgrade rewrites rows on this devi
 
 ### L18 — Self-registration adds processing the privacy notice does not describe yet · Art. 13, 5(1)(c)+(e), 25, 30, 35 · [C+P] · **Open (code done, documents and notice pending)**
 
-Issue #53 lets a person register for an account (`REGISTRATION_ENABLED`, off by default; the deploy examples switch it on). That adds data categories and a data-subject group the earlier findings did not cover: a registrant's e-mail address before verification (possibly of a third party who never asked for anything), a hashed verification token, an optional free-text note for the approving admin, the approval timestamp and per-account feature switches. See §3.
+Issue #53 lets anyone register for an account (always available). That adds data categories and a data-subject group the earlier findings did not cover: a registrant's e-mail address before verification (possibly of a third party who never asked for anything), a hashed verification token, an optional free-text note for the approving admin, the approval timestamp and per-account feature switches. See §3.
 
 *What the code does about it.* The design follows data protection by default (Art. 25): nothing is created before the mailed link is used, so `teachers` holds verified addresses only; registration answers identically for known and unknown addresses, with the mail sent after the response, so it is no account-existence oracle; a pending account holds no token of any kind and can create no data; the note is never put into a mail, is erased on approval and is not stored at all for an allowlisted domain; the admin notice mail carries a count, not registrant data; expired requests and accounts nobody approves are erased by the retention job (`PENDING_ACCOUNT_RETENTION_DAYS`, default 90); every step is in the audit trail. The risks are assessed as R11–R14 in `dpia_art35.md`.
 
 *What is still open.*
-- **The in-app privacy notice (Datenschutzerklärung) must be updated.** The German text in `frontend/src/lib/i18n/de/legal.ts` is the legally binding version and is not changed by the engineering work: a human has to add the registration processing (categories, purposes, retention, recipients including the mail provider, and the registrant's rights) and have it reviewed. Until then, a deployment that enables registration collects data its notice does not describe, which is an Art. 13 gap on day one.
+- **The in-app privacy notice (Datenschutzerklärung) must be updated.** The German text in `frontend/src/lib/i18n/de/legal.ts` is the legally binding version and is not changed by the engineering work: a human has to add the registration processing (categories, purposes, retention, recipients including the mail provider, and the registrant's rights) and have it reviewed. Registration has no switch, so until then every deployment of this version collects data its notice does not describe, which is an Art. 13 gap on day one.
 - **Legal basis for the registrant's data.** Before approval there is no teacher yet, so the school-law basis in L11 may not carry the processing. The DPO has to decide and the notice has to state it; this document does not fix one.
 - **Registrants cannot use the in-app Art. 15/17 routes** from L8: a pending account has no session. The operator must answer such requests by hand (R14).
 - **Complete `records_of_processing_art30.md` and the DPIA** for the new categories and for the mail provider behind `SMTP_HOST`, which registration now makes mandatory.
@@ -243,7 +243,7 @@ Ordered by what blocks a school deployment.
 6. **Decide the private-device question** (L12) if teachers use personal machines.
 7. **Set a real `SECRET_KEY`** and confirm the app refuses to start without one — it now does.
 8. **Consider enforcing SRI** (§5) by vendoring and hashing the WASM binaries.
-9. **Before enabling `REGISTRATION_ENABLED`:** update the German privacy policy (`frontend/src/lib/i18n/de/legal.ts`, by a human), settle the legal basis for registrants, and extend the Art. 30 record and the DPIA (L18).
+9. **Before deploying self-registration (issue #53), which has no switch:** update the German privacy policy (`frontend/src/lib/i18n/de/legal.ts`, by a human), settle the legal basis for registrants, and extend the Art. 30 record and the DPIA (L18).
 
 ---
 

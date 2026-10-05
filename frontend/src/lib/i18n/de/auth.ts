@@ -76,7 +76,6 @@ export const auth = {
         sending: 'Wird gesendet…',
         sent: 'Falls diese Adresse registriert werden kann, ist ein Bestätigungslink unterwegs.',
         sentHint: 'Der Link ist nur begrenzt gültig. Haben Sie bereits ein Konto, nutzen Sie stattdessen „Passwort vergessen?“ auf der Anmeldeseite.',
-        disabled: 'Auf diesem Server ist die Selbstregistrierung ausgeschaltet. Bitten Sie Ihre Administration um eine Einladung.',
         backToSignIn: 'Zurück zur Anmeldung',
         errors: {
             enterEmail: 'Bitte geben Sie Ihre E-Mail-Adresse ein.',

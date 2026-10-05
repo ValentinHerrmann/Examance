@@ -38,7 +38,6 @@ from app.schemas.auth import (
     RegisterCompleteRequest,
     RegisterCompleteResponse,
     RegisterRequest,
-    RegistrationStatus,
     ResetPasswordRequest,
     ResetTokenRequest,
     TotpFactorRequest,
@@ -167,21 +166,6 @@ async def forgot_password(
     }
 
 
-@router.get("/register", response_model=RegistrationStatus)
-async def registration_status() -> RegistrationStatus:
-    """Whether this server accepts self-registrations. A deployment setting, not per address."""
-    return RegistrationStatus(enabled=settings.REGISTRATION_ENABLED)
-
-
-def _require_registration_enabled() -> None:
-    if not settings.REGISTRATION_ENABLED:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Registration is disabled on this server.",
-            headers={"code": "ERR_REGISTRATION_DISABLED"},
-        )
-
-
 @router.post("/register", status_code=status.HTTP_202_ACCEPTED)
 @limiter.limit("20/hour")
 async def register(
@@ -197,7 +181,6 @@ async def register(
     and the mail is sent after the response so the timing does not tell either. The link leads
     to the page where the registrant chooses a password; nothing is created before that.
     """
-    _require_registration_enabled()
     email = registration.normalize_email(body.email)
     try:
         mail = await registration.request_registration(db, email)
@@ -230,7 +213,6 @@ async def complete_registration(
     waits for an admin, who is notified. Neither outcome issues a session: the registrant signs
     in normally afterwards and sets up a second factor then.
     """
-    _require_registration_enabled()
     invalid = HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
         detail="This confirmation link is invalid or has expired. Register again.",

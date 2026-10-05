@@ -162,11 +162,10 @@ class Settings(BaseSettings):
     # Password reset configuration
     PASSWORD_RESET_TOKEN_TTL_HOURS: int = 24
 
-    # Self-registration (app/services/registration.py). Off by default so an upgrade never opens
-    # registration silently; it needs SMTP outside development (see validate_registration_mail).
-    # A registration only creates an account once the mailed link is used, and that account
-    # stays pending until an admin approves it (or its domain is on the admin's allowlist).
-    REGISTRATION_ENABLED: bool = False
+    # Self-registration (app/services/registration.py), always available. A registration only
+    # creates an account once the mailed link is used, and that account stays pending until an
+    # admin approves it (or its domain is on the admin's allowlist). Without SMTP the link cannot
+    # be delivered; `send_email` logs every failed delivery.
     REGISTRATION_TOKEN_TTL_HOURS: int = 24
     # Minimum gap between two verification mails to the same address.
     REGISTRATION_RESEND_COOLDOWN_SECONDS: int = 300
@@ -269,18 +268,6 @@ class Settings(BaseSettings):
                 "URL blocklists; outbound mail relays reject password-reset links pointing "
                 "there. Point FRONTEND_URL at a custom domain (ideally sharing the registrable "
                 "domain of SMTP_FROM_EMAIL), or leave SMTP_HOST unset to disable email delivery."
-            )
-        return self
-
-    @model_validator(mode="after")
-    def validate_registration_mail(self) -> Settings:
-        """Refuse open registration without mail delivery: nobody could ever verify."""
-        if self.is_dev or not self.REGISTRATION_ENABLED:
-            return self
-        if not self.SMTP_HOST:
-            raise ValueError(
-                "REGISTRATION_ENABLED needs SMTP_HOST outside development: registrations are "
-                "completed through a mailed verification link."
             )
         return self
 

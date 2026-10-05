@@ -168,12 +168,6 @@ async def _create_exam(client: AsyncClient) -> str:
 # --------------------------------------------------------------------------------------------
 
 
-@pytest.fixture(autouse=True)
-def registration_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Registration is off by default; tests that want it off say so themselves."""
-    monkeypatch.setattr(settings, "REGISTRATION_ENABLED", True)
-
-
 @pytest_asyncio.fixture
 async def visitor(client: AsyncClient) -> AsyncGenerator[AsyncClient, None]:
     """A second, anonymous client (the registrant) next to the signed-in `client`."""
@@ -202,35 +196,6 @@ async def retention_db(
 # --------------------------------------------------------------------------------------------
 # Public registration flow
 # --------------------------------------------------------------------------------------------
-
-
-async def test_registration_status_reports_the_setting(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    for enabled in (False, True):
-        monkeypatch.setattr(settings, "REGISTRATION_ENABLED", enabled)
-        resp = await client.get(REGISTER)
-        assert resp.status_code == 200
-        assert resp.json() == {"enabled": enabled}
-
-
-async def test_registration_is_refused_when_disabled(
-    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(settings, "REGISTRATION_ENABLED", False)
-    email = _email()
-
-    with _outbox() as sent:
-        start = await client.post(REGISTER, json={"email": email})
-        finish = await client.post(
-            COMPLETE, json={"token": "irrelevant", "new_password": DEFAULT_PASSWORD}
-        )
-
-    for resp in (start, finish):
-        assert resp.status_code == 403
-        assert resp.headers.get("code") == "ERR_REGISTRATION_DISABLED"
-    sent.assert_not_called()
-    assert await _find_request(db, email) is None
 
 
 async def test_register_mails_a_verification_link(client: AsyncClient, db: AsyncSession) -> None:

@@ -111,12 +111,6 @@ class TokenClaims(BaseModel):
     jti: str | None = None  # JWT ID — used for refresh token revocation
 
 
-class RegistrationStatus(BaseModel):
-    """Whether this server accepts self-registrations (GET /auth/register)."""
-
-    enabled: bool
-
-
 class RegisterRequest(BaseModel):
     email: EmailStr
 

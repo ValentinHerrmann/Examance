@@ -6,12 +6,6 @@
 
 import { api } from './client';
 
-/** Whether this server accepts self-registrations at all (a deployment setting). */
-export async function registrationEnabled(): Promise<boolean> {
-  const res = await api.get<{ enabled: boolean }>('/auth/register', { silentError: true });
-  return res.enabled;
-}
-
 /** Asks for a verification link to be mailed to `email`. */
 export async function requestRegistration(email: string): Promise<void> {
   await api.post('/auth/register', { email }, { silentError: true });

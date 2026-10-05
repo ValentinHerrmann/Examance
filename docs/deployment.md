@@ -356,7 +356,7 @@ docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env up 
 docker network inspect examance-prod_default -f '{{(index .IPAM.Config 0).Gateway}}'
 ```
 
-Self-registration (issue #53) is off unless the stack's `.env` sets `REGISTRATION_ENABLED=true`; the compose file defaults it to `false`, and the backend refuses to start with it on but `SMTP_HOST` unset. The env templates turn it on together with `REGISTRATION_TOKEN_TTL_HOURS`, `REGISTRATION_RESEND_COOLDOWN_SECONDS` and `PENDING_ACCOUNT_RETENTION_DAYS`; an existing server `.env` needs them added by hand. Approval, features and allowed domains: `docs/account_creation_and_management.md` §7.
+Self-registration (issue #53) is always available and needs working SMTP for its verification links. Its settings `REGISTRATION_TOKEN_TTL_HOURS`, `REGISTRATION_RESEND_COOLDOWN_SECONDS` and `PENDING_ACCOUNT_RETENTION_DAYS` have sensible defaults (24 h, 300 s, 90 days) and only need an entry in `.env` to change them. Approval, features and allowed domains: `docs/account_creation_and_management.md` §7.
 
 Then a Caddy site block per environment with a plain `reverse_proxy` to `127.0.0.1:8000` / `127.0.0.1:8001`. Caddy obtains and renews TLS certificates by itself. It is managed on the host and deliberately **not** touched by these workflows.
 

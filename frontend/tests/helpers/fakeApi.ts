@@ -186,9 +186,8 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
 
   function auth(method: string, parts: string[], body: any): Handled {
     const [, action, step] = parts;
-    // Self-registration: always open, and every completion waits for an admin.
+    // Self-registration: every completion waits for an admin.
     if (action === 'register') {
-      if (method === 'GET') return ok({ enabled: true });
       if (method === 'POST' && step === 'complete') return ok({ status: 'pending' });
       if (method === 'POST') return ok({ message: 'If this address can be registered, a link was sent.' });
     }

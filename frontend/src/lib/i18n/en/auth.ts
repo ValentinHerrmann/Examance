@@ -78,7 +78,6 @@ export const auth: Translations['auth'] = {
         sending: 'Sending…',
         sent: 'If this address can be registered, a confirmation link is on its way.',
         sentHint: 'The link is valid for a limited time. If you already have an account, use "Forgot password?" on the sign-in page instead.',
-        disabled: 'Self-registration is turned off on this server. Ask your administrator for an invitation.',
         backToSignIn: 'Back to sign-in',
         errors: {
             enterEmail: 'Please enter your email address.',

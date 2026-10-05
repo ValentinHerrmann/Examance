@@ -48,7 +48,7 @@ Examance uses secure, HttpOnly, SameSite-protected cookies for session managemen
 - **`access_token`**: Short-lived JWT (15-minute validity) used for API authorization.
 - **`refresh_token`**: Long-lived JWT (7-day validity) used to obtain new access tokens.
 
-Cookies are issued automatically upon successful login (`POST /api/v1/auth/login`) and cleared upon logout (`POST /api/v1/auth/logout`). Accounts are provisioned by an admin invitation, by the initial-admin bootstrap, by the CLI, or — only when the operator sets `REGISTRATION_ENABLED=true` — by self-registration (§4.1, "Registration & approval"). A new self-registered account is **pending** until an admin approves it, and a pending account never receives a token: not a session, not an enrollment token, not a refresh token, not a reset link. See `account_creation_and_management.md`.
+Cookies are issued automatically upon successful login (`POST /api/v1/auth/login`) and cleared upon logout (`POST /api/v1/auth/logout`). Accounts are provisioned by an admin invitation, by the initial-admin bootstrap, by the CLI, or by self-registration (§4.1, "Registration & approval"), which is always available. A new self-registered account is **pending** until an admin approves it, and a pending account never receives a token: not a session, not an enrollment token, not a refresh token, not a reset link. See `account_creation_and_management.md`.
 
 ### Refresh Token Rotation & Reuse Detection
 - Every refresh token contains a unique JWT ID (`jti`).
@@ -113,11 +113,10 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 
 #### Registration & approval (`/api/v1/auth`)
 
-Self-registration is off unless the operator sets `REGISTRATION_ENABLED=true` (which needs `SMTP_HOST` outside development). With it off, the two `POST` endpoints answer `403 ERR_REGISTRATION_DISABLED`.
+Self-registration is always available; it needs working mail delivery (`SMTP_HOST`) for the verification link to arrive.
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
-| `GET` | `/api/v1/auth/register` | Registration Status | No | `{"enabled": true \| false}`: whether this server accepts self-registrations. A deployment setting, not per address. |
 | `POST` | `/api/v1/auth/register` | Request Registration | No | Rate limit 20/hour per IP. Always answers `202` with the same generic message. Mails `{FRONTEND_URL}/verify-email?token=...` only when no account exists for the address, and not again within `REGISTRATION_RESEND_COOLDOWN_SECONDS` (a fresh link replaces the old one). The mail is sent after the response, so neither the body nor the timing reveals whether an account exists. Nothing is created in `teachers` yet. |
 | `POST` | `/api/v1/auth/register/complete` | Complete Registration | No | Rate limit 20/hour per IP. Claims the single-use token and creates the account with the chosen password. Does not issue a session. `400 ERR_INVALID_REGISTRATION_TOKEN` for an unknown, used or expired token. |
 

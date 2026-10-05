@@ -2,7 +2,7 @@
 
 Guide for creating and managing teacher and administrator accounts in **Examance**.
 
-An account comes into being in one of four ways: the initial admin bootstrap (§1), an admin's invitation (§2), the CLI (§1 and the quick reference), or self-registration (§7, off by default). Every account is either **approved** or **pending**. Only an approved account can sign in; a pending account holds no session, no enrollment token and no reset link of any kind until an admin approves it.
+An account comes into being in one of four ways: the initial admin bootstrap (§1), an admin's invitation (§2), the CLI (§1 and the quick reference), or self-registration (§7, always available). Every account is either **approved** or **pending**. Only an approved account can sign in; a pending account holds no session, no enrollment token and no reset link of any kind until an admin approves it.
 
 ---
 
@@ -209,18 +209,17 @@ If `POST /api/v1/auth/login` returns `401 Unauthorized` for the initial admin ac
 
 ## 7. Self-Registration, Approval and Features
 
-Self-registration lets a teacher ask for an account without an invitation. It is **off by default** and an operator turns it on deliberately (issue #53).
+Self-registration lets a teacher ask for an account without an invitation (issue #53). It is always available: there is no switch to turn it off, because an account it creates can do nothing until it is approved (§7.3) or comes from a domain an admin allow-listed (§7.4).
 
-### 7.1 Turning it on
+### 7.1 Settings
 
 | Setting | Default | Meaning |
 | :--- | :--- | :--- |
-| `REGISTRATION_ENABLED` | `false` | Master switch. The `deploy/env.*.example` files set it to `true`. With it off, the registration endpoints answer `403 ERR_REGISTRATION_DISABLED` and the `/register` page says so. |
 | `REGISTRATION_TOKEN_TTL_HOURS` | `24` | How long the mailed verification link works. |
 | `REGISTRATION_RESEND_COOLDOWN_SECONDS` | `300` | Minimum gap between two verification mails to the same address. |
 | `PENDING_ACCOUNT_RETENTION_DAYS` | `90` | Verified accounts nobody approved are erased after this many days (§7.5). |
 
-`REGISTRATION_ENABLED=true` needs `SMTP_HOST`: outside development the backend refuses to start without it, because nobody could verify an address otherwise.
+Registration needs working mail delivery (`SMTP_HOST`): without it the verification link never arrives. Every failed delivery is logged; in development without `SMTP_HOST` the mail, link included, is written to the log instead.
 
 ### 7.2 The flow
 

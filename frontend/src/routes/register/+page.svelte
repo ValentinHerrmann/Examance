@@ -1,10 +1,9 @@
 <script lang="ts">
   // Self-registration, step one (issue #53): ask for a verification link. The server answers the same
   // whether or not the address already has an account, so this page cannot say which it was either.
-  import { onMount } from "svelte";
   import { get } from "svelte/store";
   import { ApiError } from "#lib/api/client";
-  import { registrationEnabled, requestRegistration } from "#lib/api/registration";
+  import { requestRegistration } from "#lib/api/registration";
   import { t, translate } from "#lib/i18n";
   import { backendStore } from "#lib/stores/backendStore";
   import BackendUrlInput from "#lib/components/common/BackendUrlInput.svelte";
@@ -15,16 +14,6 @@
   let isSubmitting = $state(false);
   let errorMsg = $state("");
   let sent = $state(false);
-  /** Null while unknown (not checked yet, or the server was unreachable): the form stays usable. */
-  let enabled = $state<boolean | null>(null);
-
-  onMount(async () => {
-    try {
-      enabled = await registrationEnabled();
-    } catch {
-      enabled = null;
-    }
-  });
 
   async function handleRegister() {
     errorMsg = "";
@@ -52,9 +41,7 @@
       sent = true;
     } catch (err: unknown) {
       backendStore.restoreSavedUrl();
-      if (err instanceof ApiError && err.code === "ERR_REGISTRATION_DISABLED") {
-        enabled = false;
-      } else if (err instanceof ApiError && err.status === 429) {
+      if (err instanceof ApiError && err.status === 429) {
         // The rate limiter's 429 carries no code of its own.
         errorMsg = translate("auth.register.errors.tooMany");
       } else if (err instanceof ApiError) {
@@ -76,9 +63,7 @@
       <p class="mt-2 mb-0 text-sm leading-snug text-muted">{$t("auth.register.subtitle")}</p>
     </div>
 
-    {#if enabled === false}
-      <Alert severity="info" class="mb-5">{$t("auth.register.disabled")}</Alert>
-    {:else if sent}
+    {#if sent}
       <Alert severity="success" class="mb-3">{$t("auth.register.sent")}</Alert>
       <p class="m-0 mb-2 text-sm text-muted">{$t("auth.register.sentHint")}</p>
     {:else}

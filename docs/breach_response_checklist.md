@@ -28,7 +28,7 @@ authority. Do this first, before Phase 2 below.
   ```sql
   UPDATE refresh_tokens SET revoked = true WHERE teacher_id = '<COMPROMISED_TEACHER_ID>';
   ```
-- [ ] **1b. Close registration if it is involved:** revoking sessions does **not** invalidate registration links, because a registration holds no session. If self-registration is being abused, or the mail provider's account or mail logs may have been exposed (verification mails carry the links), set `REGISTRATION_ENABLED=false` and restart the backend (the registration endpoints then answer `403 ERR_REGISTRATION_DISABLED`), and delete the outstanding links, which is what invalidates them (registrants simply register again):
+- [ ] **1b. Close registration if it is involved:** revoking sessions does **not** invalidate registration links, because a registration holds no session. If self-registration is being abused, or the mail provider's account or mail logs may have been exposed (verification mails carry the links), block `/api/v1/auth/register*` at the reverse proxy (Caddy) for as long as needed (registration has no switch of its own), and delete the outstanding links, which is what invalidates them (registrants simply register again):
   ```sql
   DELETE FROM registration_requests;
   ```
