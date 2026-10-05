@@ -9,6 +9,7 @@
   } from "#lib/crypto/sessionKey";
   import { sessionStore } from "#lib/stores/session";
   import { api, ApiError } from "#lib/api/client";
+  import { httpErrorStore } from "#lib/stores/httpErrorStore";
   import { Argon2UnavailableError } from "#lib/crypto/keyDerivation";
   import { backendStore } from "#lib/stores/backendStore";
   import { get } from "svelte/store";
@@ -135,6 +136,7 @@
     } catch (err: any) {
       // Revert store to last saved URL if authentication failed
       backendStore.restoreSavedUrl();
+      showInvalidCredentialsPopup(err);
       if (err instanceof ApiError && err.code === 'ERR_ACCOUNT_LOCKED') {
         errorMsg = translate("errors.code.ERR_ACCOUNT_LOCKED");
       } else if (err instanceof EnvelopeChangedError) {
@@ -152,6 +154,16 @@
       }
     } finally {
       isLoading = false;
+    }
+  }
+
+  /**
+   * Wrong email or password: the login calls stay `silentError` (other failures are reported
+   * inline), but rejected credentials also get the global 401 pop-up (issue #59 follow-up).
+   */
+  function showInvalidCredentialsPopup(err: unknown) {
+    if (err instanceof ApiError && err.status === 401 && err.code === "ERR_INVALID_CREDENTIALS") {
+      httpErrorStore.showError(401, err.message, err.code);
     }
   }
 
@@ -408,6 +420,7 @@
       passwordVerified = true;
       await handleAuthStep(step);
     } catch (err: any) {
+      showInvalidCredentialsPopup(err);
       const code = err instanceof ApiError ? err.code : "";
       factorErrorMsg =
         vaultFailureMessage(err) ??
@@ -500,6 +513,7 @@
       await handleAuthStep(step);
     } catch (err: any) {
       isFinishing = false;
+      showInvalidCredentialsPopup(err);
       errorMsg = err?.message || translate("auth.unlock.errors.unlockFailed");
     } finally {
       isLoading = false;
