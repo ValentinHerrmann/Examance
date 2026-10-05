@@ -20,6 +20,7 @@ from app.models.teacher import Teacher
 from app.schemas.capabilities import CapabilitiesOut, StorageModeUpdate
 from app.services import audit as audit_svc
 from app.services.capabilities import capabilities_for
+from app.services.logo import get_teacher_logo
 
 router = APIRouter(prefix="/user", tags=["user"])
 
@@ -238,6 +239,7 @@ async def export_own_data(
     exams_res = await db.execute(
         select(Exam).where(Exam.teacher_id == teacher.id).order_by(Exam.created_at.asc())
     )
+    logo = await get_teacher_logo(teacher.id, db)
     audit_res = await db.execute(
         select(AuditLog)
         .where(AuditLog.teacher_id == teacher.id)
@@ -260,6 +262,10 @@ async def export_own_data(
             "email": teacher.email,
             "role": teacher.role,
             "created_at": teacher.created_at.isoformat() if teacher.created_at else None,
+            # The file itself is downloadable from GET /user/logo/file.
+            "exam_logo": (
+                {"mime_type": logo.mime_type, "byte_size": logo.byte_size} if logo else None
+            ),
         },
         "exams": [
             {

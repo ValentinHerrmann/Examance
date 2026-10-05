@@ -8,6 +8,8 @@
   import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from '#lib/utils/examLabel';
   import { t } from '#lib/i18n';
   import { Modal, Button, controlClass } from '#lib/components/ui';
+  import ExamLogoField from '#lib/components/logo/ExamLogoField.svelte';
+  import type { ExamLogoChange } from '#lib/latex/logo';
 
   interface Props {
     isOpen?: boolean;
@@ -22,6 +24,9 @@
     editInfoText: string;
     editRetentionUntil: string;
     editGradingKey: GradingKeyConfig;
+    /** Exam whose logo choice is edited; the staged choice lands in `logoChange`. */
+    examId?: string;
+    logoChange?: ExamLogoChange | null;
     onSave: () => void;
     onCancel: () => void;
   }
@@ -39,6 +44,8 @@
     editInfoText = $bindable(),
     editRetentionUntil = $bindable(),
     editGradingKey = $bindable(),
+    examId = undefined,
+    logoChange = $bindable(null),
     onSave,
     onCancel
   }: Props = $props();
@@ -135,6 +142,12 @@
     <span class="text-sm font-medium text-content">{$t("exam.metadataEditor.infoText")}</span>
     <LatexEditor bind:value={editInfoText} rows={4} />
   </div>
+
+  {#if examId && isOpen}
+    <div class="mb-4">
+      <ExamLogoField {examId} bind:change={logoChange} />
+    </div>
+  {/if}
 
   <div class="mt-2">
     <GradingKeyEditor bind:gradingKey={editGradingKey} />

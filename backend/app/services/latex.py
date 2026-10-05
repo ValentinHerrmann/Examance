@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from app.services.latex_resources import validate_resource_name
+from app.services.logo import ResolvedLogo
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +144,7 @@ async def compile_latex(
     extra_files: dict[str, str] | None = None,
     preview: bool = True,
     binary_files: dict[str, bytes] | None = None,
+    logo: ResolvedLogo | None = None,
 ) -> bytes:
     """
     Compile *latex_source* with Tectonic and return raw PDF bytes.
@@ -155,6 +157,9 @@ async def compile_latex(
     ``app.services.latex_resources``, so a resource can neither escape the
     working directory nor shadow a bundled .sty. They exist only for the
     lifetime of this compilation.
+
+    *logo* is the exam header logo (``app.services.logo``). It is written under its reserved
+    name, which ``Schulaufgabe.sty`` looks for; without it the header has no logo.
     """
     reject_unsafe_paths(latex_source)
     for content in (extra_files or {}).values():
@@ -198,6 +203,9 @@ async def compile_latex(
                 target_path = _safe_extra_file_path(tmpdir, validate_resource_name(rel_path))
                 target_path.parent.mkdir(parents=True, exist_ok=True)
                 target_path.write_bytes(blob)
+
+        if logo is not None:
+            (tmpdir / logo.filename).write_bytes(logo.content)
 
         tex_file = tmpdir / "main.tex"
         tex_file.write_text(latex_source, encoding="utf-8")
@@ -342,6 +350,7 @@ async def compile_exam_latex(
     mc_groups: list[Any] | None = None,
     show_answers: bool = False,
     binary_files: dict[str, bytes] | None = None,
+    logo: ResolvedLogo | None = None,
 ) -> bytes:
     """
     Build complete LaTeX document for an Exam model and compile it.
@@ -350,6 +359,7 @@ async def compile_exam_latex(
     mc_groups: list of ExamMcGroup (or dicts) with id, title, scoring_text, order_index
     binary_files: resource files of the exam's exercises, merged by the caller
         (see app.services.latex_resources.merge_resources)
+    logo: the exam's header logo, resolved by the caller (app.services.logo.resolve_logo)
     """
     extra_files: dict[str, str] = {}
     exercise_inputs: list[str] = []
@@ -476,5 +486,5 @@ async def compile_exam_latex(
 """
 
     return await compile_latex(
-        main_tex, extra_files=extra_files, preview=False, binary_files=binary_files
+        main_tex, extra_files=extra_files, preview=False, binary_files=binary_files, logo=logo
     )

@@ -8,6 +8,7 @@ from app.models.exercise_group import ExerciseGroup
 from app.models.exercise_resource import ExerciseResource
 from app.models.exercise_score import ExerciseScore
 from app.models.key_envelope import KeyEnvelope
+from app.models.logo import ExamLogo, TeacherLogo
 from app.models.mfa_credential import MfaBackupCode, MfaCredential
 from app.models.omr_training_sample import OmrTrainingSample
 from app.models.password_reset_token import PasswordResetToken
@@ -27,6 +28,8 @@ __all__ = [
     "ExerciseResource",
     "ExerciseScore",
     "KeyEnvelope",
+    "TeacherLogo",
+    "ExamLogo",
     "MfaCredential",
     "MfaBackupCode",
     "ExamExercise",

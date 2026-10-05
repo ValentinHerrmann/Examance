@@ -1,0 +1,30 @@
+export const logo = {
+    upload: 'Logo hochladen',
+    replace: 'Logo ersetzen',
+    remove: 'Logo entfernen',
+    noLogo: 'Kein Logo',
+    pdfLogo: 'PDF-Logo ({size} KB)',
+    previewAlt: 'Vorschau des Logos',
+    formats: 'PNG, JPEG oder PDF, höchstens 2 MB. Es wird oben links auf der ersten Seite 9 mm hoch gedruckt; ein PDF bleibt gestochen scharf.',
+    account: {
+        heading: 'Logo für Klausuren',
+        description: 'Dieses Logo steht oben links auf jeder Klausur, z. B. das Logo Ihrer Schule. Einzelne Klausuren können in ihren Klausurdaten ein eigenes oder gar kein Logo verwenden.',
+        removeConfirm: 'Logo entfernen? Klausuren, die das Kontologo verwenden, werden dann ohne Logo gesetzt.',
+    },
+    exam: {
+        heading: 'Logo',
+        account: 'Logo aus den Einstellungen verwenden',
+        none: 'Kein Logo',
+        custom: 'Eigenes Logo für diese Klausur',
+        noAccountLogo: 'In den Einstellungen ist kein Logo hinterlegt.',
+        toSettings: 'Zu den Einstellungen',
+        needsFile: 'Bitte eine Datei auswählen, sonst bleibt die bisherige Einstellung bestehen.',
+        saveFailed: 'Das Logo konnte nicht gespeichert werden: {message}',
+    },
+    errors: {
+        empty: 'Die Datei ist leer.',
+        tooLarge: 'Das Logo ist größer als 2 MB. Bitte ein kleineres Bild oder ein PDF verwenden.',
+        type: 'Das Logo muss eine PNG-, JPEG- oder PDF-Datei sein.',
+        generic: 'Das Logo konnte nicht geladen werden.',
+    },
+} as const;

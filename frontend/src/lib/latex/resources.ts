@@ -3,6 +3,7 @@
  * placed flat next to `main.tex`, so the source's filename is the filename on disk in both engines.
  * Mirrored by `backend/app/services/latex_resources.py`: what the browser accepts the server accepts.
  */
+import { LOGO_FILENAMES } from './logo';
 
 /** Hard cap for a single file. */
 export const MAX_RESOURCE_BYTES = 5 * 1024 * 1024;
@@ -36,11 +37,11 @@ export interface LatexResourceFile {
 export class ResourceError extends Error {}
 
 /**
- * Names a user file must not take: `main.tex` and friends plus every bundled LaTeX asset (basenames
+ * Names a user file must not take: `main.tex` and friends, the exam logo's names (`logo.ts`), and every bundled LaTeX asset (basenames
  * too, since the worker flattens `sty/x.sty`). Loaded from the generated asset index, cached;
  * failure degrades to the static base list rather than blocking an upload.
  */
-const BASE_RESERVED_NAMES = ['main.tex', 'main.log', 'main.aux', 'main.pdf', 'index.json'];
+const BASE_RESERVED_NAMES = ['main.tex', 'main.log', 'main.aux', 'main.pdf', 'index.json', ...LOGO_FILENAMES];
 let reservedNamesCache: Set<string> | null = null;
 
 export async function getReservedNames(): Promise<Set<string>> {

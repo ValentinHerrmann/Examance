@@ -319,6 +319,18 @@ Teachers are warned in the upload UI not to attach files containing personal dat
 of pupils. Resource files follow their exercise's lifecycle (`ON DELETE CASCADE`),
 which — like exercises themselves — is outside the exam retention sweep.
 
+### Exam logos on the server
+
+The logo printed in the exam header (issue #46) is stored as **plaintext bytes** like resource
+files, for the same reason (Tectonic compiles it): `teacher_logos` holds the account logo,
+`exam_logos` an exam's override (`none`, or its own file). Only PNG, JPEG and PDF are accepted,
+detected from the magic bytes, at most 2 MB; they are served back only to their owner with
+`nosniff` and a sandbox CSP. A logo is school branding, not personal data of pupils. It follows
+its owner's lifecycle (`ON DELETE CASCADE` from the account or exam) and is listed in the account
+export (`GET /user/me/export`, metadata; the file itself from `GET /user/logo/file`). Migration
+`0026_exam_logos` gave every account that existed before the bundled MTG logo as its account
+logo, so existing exams kept their header.
+
 ---
 
 ## 4. DevTools Security & Session Hygiene Lifecycle

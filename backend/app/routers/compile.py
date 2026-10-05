@@ -15,6 +15,7 @@ from app.schemas.latex import LaTeXRequest
 from app.services.exercise_resource_store import load_resources_for_exercises
 from app.services.latex import CompilationError, compile_latex
 from app.services.latex_resources import ResourceError
+from app.services.logo import resolve_logo_for_compile
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,8 @@ async def compile_latex_endpoint(
     ways: `resource_exercise_ids` names exercises whose stored files the server
     loads itself, and `resources` carries files the server cannot know about —
     an unsaved exercise, or a client that keeps everything local. Both are
-    written into the temp working directory and deleted with it.
+    written into the temp working directory and deleted with it. The exam header
+    logo is named by `logo_exam_id` / `account_logo` and resolved here as well.
 
     Rate limited: 10 req/min per IP.
     Body limit: BODY_LIMIT_COMPILE (enforced by BodyLimitMiddleware).
@@ -50,8 +52,15 @@ async def compile_latex_endpoint(
         # Inline files win: they are the caller's current, unsaved version of a
         # file whose stored copy may be stale.
         binary_files.update(body.binary_files())
+        logo = (
+            await resolve_logo_for_compile(teacher.id, body.logo_exam_id, db)
+            if body.logo_exam_id is not None or body.account_logo
+            else None
+        )
 
-        pdf_bytes = await compile_latex(body.latex, preview=True, binary_files=binary_files)
+        pdf_bytes = await compile_latex(
+            body.latex, preview=True, binary_files=binary_files, logo=logo
+        )
     except ResourceError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

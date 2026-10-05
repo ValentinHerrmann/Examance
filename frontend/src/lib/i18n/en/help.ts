@@ -204,7 +204,7 @@ export const help: Translations['help'] = {
         },
         settings: {
             title: 'Settings',
-            summary: 'Storage strategy, LaTeX compilation, language, MC detection and data deletion.',
+            summary: 'Storage strategy, LaTeX compilation, exam logo, language, MC detection and data deletion.',
             s1: {
                 h: 'Storage strategy',
                 p1: 'Decides where the results (student data, submissions, scores) are stored: entirely on the server, or in this browser only (hybrid). The setting belongs to your account and applies in all browsers. You must choose when you first sign in; there is no default. Which options your account may use is decided by the server.',
@@ -233,6 +233,11 @@ export const help: Translations['help'] = {
                 h: 'Improve MC detection (optional)',
                 p1: 'When this option is on and you are signed in to a server account, the browser collects a small crop per box (80×48 pixels, grayscale, no question text) for every verified or corrected tick-box question, along with the confirmed label, the original detection and a few numeric features, and sends them in batches to this installation\'s server. Names, pseudonyms, exam/submission/question ids and timestamps are never sent; each box only carries a random id, so a later correction replaces the earlier label. Signing in only guards against abuse — the account is not stored with the crops.',
                 p2: 'The goal is a shared, better classifier so new installations get good detection from the start. The setting is off by default, applies only to this browser, and can be switched off again at any time.',
+            },
+            s7: {
+                h: 'Logo on the exam',
+                p1: 'Under “Exam logo” you can store a logo (PNG, JPEG or PDF, at most 2 MB) that is printed at the top left of the first page of every exam. Without a logo the spot stays empty; the page layout and the position of the answer boxes do not change.',
+                p2: 'An exam’s details can override the logo: the logo from the settings, no logo, or an own logo for this exam only. Like the exercises, the logo is stored on the server.',
             },
         },
         security: {

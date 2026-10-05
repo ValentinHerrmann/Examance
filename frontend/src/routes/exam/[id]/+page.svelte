@@ -56,6 +56,7 @@
   import ExamActionBar from "#lib/components/exam/ExamActionBar.svelte";
   import ExerciseList from "#lib/components/exam/ExerciseList.svelte";
   import ExamMetadataEditor from "#lib/components/exam/ExamMetadataEditor.svelte";
+  import { setExamLogo, type ExamLogoChange } from "#lib/latex/logo";
   import ExamLibraryModal from "#lib/components/exam/ExamLibraryModal.svelte";
   import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
   import {
@@ -558,6 +559,7 @@
   let editFach = $state("");
   let editLehrernachname = $state("");
   let editInfoText = $state("");
+  let editLogoChange: ExamLogoChange | null = $state.raw(null);
   let editRetentionUntil = $state("");
   let editGradingKey: GradingKeyConfig = $state({
     preset: "linear_50",
@@ -589,6 +591,7 @@
         editFach !== initialMetadata.fach ||
         editLehrernachname !== initialMetadata.lehrernachname ||
         editInfoText !== initialMetadata.infoText ||
+        editLogoChange !== null ||
         editRetentionUntil !== initialMetadata.retentionUntil),
   );
 
@@ -684,6 +687,7 @@
       infoText: editInfoText,
       retentionUntil: editRetentionUntil,
     };
+    editLogoChange = null;
     showMetadataConfirm = false;
     isEditingMetadata = true;
   }
@@ -738,6 +742,15 @@
       };
       const key = get(sessionStore).sessionKey;
       await saveExamEncrypted(exam, key);
+
+      if (editLogoChange) {
+        try {
+          await setExamLogo(exam.id, editLogoChange.mode, editLogoChange.bytes);
+        } catch (err: any) {
+          alert(translate("logo.exam.saveFailed", { message: err.message }));
+          return;
+        }
+      }
 
       forceCancelMetadata();
       alert(translate("exam.page.metadata.saveSuccess"));
@@ -1158,6 +1171,8 @@
       bind:editInfoText
       bind:editRetentionUntil
       bind:editGradingKey
+      examId={exam?.id}
+      bind:logoChange={editLogoChange}
       onSave={handleSaveMetadata}
       onCancel={requestCancelMetadata}
     />

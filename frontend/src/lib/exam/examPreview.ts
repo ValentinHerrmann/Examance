@@ -6,6 +6,7 @@ import type { CompileResult } from "#lib/latex/compiler";
 import { formatExerciseLatex, formatMcGroupLatex } from "#lib/latex/scoreParser";
 import type { ExamItemRef } from "#lib/grading/omrTemplatePrep";
 import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
+import { resolveCompileLogo } from "#lib/latex/logo";
 import { storagePolicyStore } from "#lib/stores/storagePolicy";
 import { formatExamCourse } from "#lib/utils/examLabel";
 import { translate } from "#lib/i18n";
@@ -124,7 +125,8 @@ export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamP
   const inputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups);
   const useLocal = get(storagePolicyStore).latexCompilation === "local";
   const collected = await collectExamResources(examItems, exercises, libraryExercises, mcGroups, key);
-  const opts = { resources: collected.inline, resourceExerciseIds: collected.exerciseIds };
+  const logo = await resolveCompileLogo(exam.id, useLocal);
+  const opts = { resources: collected.inline, resourceExerciseIds: collected.exerciseIds, logo };
 
   const angabe = await compileWithCache(
     { kind: "exam", id: exam.id, variant: "angabe" },

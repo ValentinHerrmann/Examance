@@ -79,6 +79,12 @@ class LaTeXRequest(BaseModel):
     #: upload bytes the server already has. Only exercises the caller may read
     #: are honoured; unknown ids are ignored.
     resource_exercise_ids: list[UUID] = Field(default_factory=list, max_length=100)
+    #: The exam header logo to place in the working directory (app.services.logo):
+    #: ``logo_exam_id`` prints that exam's logo (an exam the caller does not own falls back to
+    #: the account logo); ``account_logo`` alone prints the account logo, for an exam the server
+    #: does not know yet. Neither prints no logo, as for an exercise preview.
+    logo_exam_id: UUID | None = None
+    account_logo: bool = False
 
     @field_validator("latex")
     @classmethod

@@ -26,6 +26,7 @@ from app.routers import (
     exercise_scores,
     exercises,
     keys,
+    logos,
     mfa,
     students,
     submissions,
@@ -243,6 +244,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, prefix=API_PREFIX)
     app.include_router(compile.router, prefix=API_PREFIX)
     app.include_router(exams.router, prefix=API_PREFIX)
+    app.include_router(logos.router, prefix=API_PREFIX)
     app.include_router(exercises.router, prefix=API_PREFIX)
     app.include_router(students.router, prefix=API_PREFIX)
     app.include_router(submissions.router, prefix=API_PREFIX)

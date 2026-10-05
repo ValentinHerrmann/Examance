@@ -204,7 +204,7 @@ export const help = {
         },
         settings: {
             title: 'Einstellungen',
-            summary: 'Speicherstrategie, LaTeX-Kompilierung, Sprache, MC-Erkennung und Datenlöschung.',
+            summary: 'Speicherstrategie, LaTeX-Kompilierung, Klausur-Logo, Sprache, MC-Erkennung und Datenlöschung.',
             s1: {
                 h: 'Speicherstrategie',
                 p1: 'Legt fest, wo die Ergebnisse (Schülerdaten, Abgaben, Punkte) liegen: komplett auf dem Server oder nur in diesem Browser (Hybrid). Die Einstellung gehört zu Ihrem Konto und gilt in allen Browsern. Beim ersten Anmelden müssen Sie wählen, es gibt keine Voreinstellung. Welche Optionen Ihr Konto nutzen darf, legt der Server fest.',
@@ -233,6 +233,11 @@ export const help = {
                 h: 'MC-Erkennung verbessern (freiwillig)',
                 p1: 'Ist diese Option aktiviert und sind Sie mit einem Server-Konto angemeldet, sammelt der Browser für jede geprüfte oder korrigierte Ankreuzfrage einen kleinen Bildausschnitt je Kästchen (80×48 Pixel, Graustufen, ohne Aufgabentext) mit der bestätigten Wertung, der ursprünglichen Erkennung und ein paar Messwerten und sendet sie gebündelt an den Server dieser Installation. Namen, Pseudonyme, Klausur-, Abgabe- oder Fragen-IDs und Zeitstempel werden nicht mitgeschickt; je Kästchen nur eine zufällige Kennung, damit eine spätere Korrektur die frühere Wertung ersetzt. Die Anmeldung dient nur dem Missbrauchsschutz — das Konto wird nicht mit den Ausschnitten gespeichert.',
                 p2: 'Ziel ist ein gemeinsamer, besserer Klassifikator, von dem auch neue Installationen von Anfang an profitieren. Die Einstellung ist standardmäßig aus, gilt nur für diesen Browser und lässt sich jederzeit wieder abschalten.',
+            },
+            s7: {
+                h: 'Logo auf der Klausur',
+                p1: 'Unter „Logo für Klausuren“ hinterlegen Sie ein Logo (PNG, JPEG oder PDF, höchstens 2 MB), das oben links auf der ersten Seite jeder Klausur steht. Ohne Logo bleibt die Stelle frei; das Seitenlayout und die Lage der Ankreuzkästchen ändern sich dadurch nicht.',
+                p2: 'In den Klausurdaten einer Klausur lässt sich das Logo überschreiben: das Logo aus den Einstellungen, kein Logo oder ein eigenes Logo nur für diese Klausur. Das Logo wird wie die Aufgaben auf dem Server gespeichert.',
             },
         },
         security: {
