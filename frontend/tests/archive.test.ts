@@ -165,7 +165,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     await saveExerciseEncrypted({
       id: exerciseId,
       name: 'Secret Exercise',
-      latexBody: '\\begin{Aufgabe} secret \\end{Aufgabe}',
+      latexBody: '\\begin{Aufgabe}[4] secret \\end{Aufgabe}',
       maxPoints: 4,
       questionType: 'free_text',
       penalty: 0,

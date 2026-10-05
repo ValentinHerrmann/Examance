@@ -61,6 +61,8 @@ export interface FakeApiState {
   storageMode: FakeStorageMode | null;
   /** Email of the last sign-in. */
   email: string;
+  /** Exercises that exist but belong to another account and are private: `GET /exercises/:id` answers 404, like `get_readable_exercise`. */
+  hiddenExerciseIds: Set<string>;
   /** Every request seen, `"METHOD /path"`, in order. */
   requests: string[];
   /** Requests no route matched (see the file header). */
@@ -145,6 +147,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     envelopes: { keyId: null, rows: [] },
     storageMode: initialMode(),
     email: DEFAULT_EMAIL,
+    hiddenExerciseIds: new Set(),
     requests: [],
     unhandled: [],
   };
@@ -162,6 +165,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     state.envelopes = { keyId: null, rows: [] };
     state.storageMode = initialMode();
     state.email = DEFAULT_EMAIL;
+    state.hiddenExerciseIds.clear();
     state.requests.length = 0;
     state.unhandled.length = 0;
   }
@@ -591,7 +595,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     }
     if (!sub) {
       if (method === 'GET') {
-        const exercise = state.exercises.get(id);
+        const exercise = state.hiddenExerciseIds.has(id) ? undefined : state.exercises.get(id);
         return exercise ? ok(exerciseResponse(exercise)) : notFound('Exercise not found');
       }
       if (method === 'PATCH') return updateExercise(id, body);
