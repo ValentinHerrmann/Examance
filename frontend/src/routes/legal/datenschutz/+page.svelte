@@ -63,6 +63,7 @@
   <ul>
     <li>{$t("legal.datenschutz.section6.hostingWebLabel")} <span class="placeholder">{$t("legal.datenschutz.section6.hostingWebPlaceholder")}</span></li>
     <li>{$t("legal.datenschutz.section6.hostingDbLabel")} <span class="placeholder">{$t("legal.datenschutz.section6.hostingDbPlaceholder")}</span></li>
+    <li>{$t("legal.datenschutz.section6.httpCatLabel")} {$t("legal.datenschutz.section6.httpCatText")}</li>
   </ul>
 
   <h2>{$t("legal.datenschutz.section7.heading")}</h2>
