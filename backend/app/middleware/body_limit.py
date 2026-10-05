@@ -28,7 +28,7 @@ class BodyLimitMiddleware(BaseHTTPMiddleware):
             return settings.BODY_LIMIT_COMPILE
         if path.startswith("/api/v1/training"):
             return settings.BODY_LIMIT_TRAINING
-        if path.endswith("/resources") or "/resources/" in path:
+        if path.endswith("/resources") or "/resources/" in path or path.endswith("/logo"):
             return settings.BODY_LIMIT_RESOURCE
         if "/submissions" in path and method == "POST":
             return settings.BODY_LIMIT_SUBMISSION

@@ -10,6 +10,7 @@
   import { parseExerciseScore, formatExerciseLatex, formatMcGroupLatex } from "#lib/latex/scoreParser";
   import { recordValue } from "#lib/utils/recentValues";
   import { compileWithCache, getLatestForSlot, invalidateOwner } from "#lib/latex/compileCache";
+  import { resolveCompileLogo } from "#lib/latex/logo";
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import { get } from "svelte/store";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
@@ -428,6 +429,8 @@ ${exerciseInputs}
       const compileOpts = {
         resources: collectedResources.inline,
         resourceExerciseIds: collectedResources.exerciseIds,
+        // The draft is not on the server yet, so it prints the account logo.
+        logo: await resolveCompileLogo(null, useLocal),
       };
 
       const resAngabe = await compileWithCache(

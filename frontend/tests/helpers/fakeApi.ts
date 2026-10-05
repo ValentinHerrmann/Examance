@@ -86,6 +86,7 @@ const ALLOWED_MODES: FakeStorageMode[] = ['all-server', 'hybrid'];
 type Handled = FakeResponse | undefined;
 
 const ok = (body?: unknown): FakeResponse => ({ status: 200, body });
+const NO_LOGO = { source: 'none', mime_type: null, byte_size: 0, updated_at: null };
 const created = (body?: unknown): FakeResponse => ({ status: 201, body });
 const noContent = (): FakeResponse => ({ status: 204 });
 const fail = (status: number, detail: string, code = 'ERR_UNKNOWN'): FakeResponse => ({
@@ -244,6 +245,16 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   function user(method: string, parts: string[], body: any): Handled {
     const [, action] = parts;
     if (method === 'GET' && action === 'capabilities') return ok(capabilities());
+    if (action === 'logo') {
+      // No default logo file in the fake: the account prints none until it uploads one (issue #46).
+      if (method === 'GET' && parts.length === 2) return ok({ ...NO_LOGO, mode: 'default' });
+      if (method === 'GET' && parts[2] === 'file') return notFound('No logo.');
+      if (method === 'PUT') {
+        const custom = body?.mode === 'custom';
+        return ok({ ...NO_LOGO, mode: body?.mode ?? 'default', ...(custom ? { source: 'account', mime_type: 'image/png', byte_size: 1 } : {}) });
+      }
+      if (method === 'DELETE') return ok({ ...NO_LOGO, mode: 'default' });
+    }
     if (method === 'PUT' && action === 'storage-mode') {
       if (!ALLOWED_MODES.includes(body?.mode)) {
         return fail(403, 'This storage mode is not enabled for your account.', 'ERR_STORAGE_MODE_NOT_ALLOWED');
@@ -982,6 +993,15 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       return undefined;
     }
     if (sub === 'exercises' && method === 'GET') return ok(examResponse(exam).exercises);
+    if (sub === 'logo' && rest.length === 0) {
+      // The account has no logo, so an exam that follows it prints none (issue #46).
+      if (method === 'GET') return ok({ ...NO_LOGO, mode: 'account' });
+      if (method === 'PUT') {
+        const custom = body?.mode === 'custom';
+        return ok({ ...NO_LOGO, mode: body?.mode ?? 'account', ...(custom ? { source: 'exam', mime_type: 'image/png', byte_size: 1 } : {}) });
+      }
+    }
+    if (sub === 'logo' && rest[0] === 'file' && method === 'GET') return notFound('No logo.');
     if (sub === 'students') return students(method, id, rest, body);
     if (sub === 'submissions') return submissions(method, id, rest, query, body);
     if (sub === 'scores' && method === 'GET' && rest.length === 0) {

@@ -20,6 +20,7 @@ import {
 import { computeMcExercisesHash, resolveMcExercises } from "#lib/grading/mcExerciseHash";
 import { compileWithCache } from "#lib/latex/compileCache";
 import { buildExamLatex, buildExerciseInputs, collectExamResources } from "#lib/exam/examPreview";
+import { resolveCompileLogo } from "#lib/latex/logo";
 import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
 import { api } from "#lib/api/client";
 import { mapApiToExamRecord } from "#lib/repositories/examRepository";
@@ -175,7 +176,9 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   }
 
   const collected = await collectExamResources(examItems, exercises, libraryExercises, mcGroups, key);
-  const resourceOptions = { resources: collected.inline, resourceExerciseIds: collected.exerciseIds };
+  // Same header as the printed exam, so the template matches the sheets that get scanned.
+  const logo = await resolveCompileLogo(examId, useLocal);
+  const resourceOptions = { resources: collected.inline, resourceExerciseIds: collected.exerciseIds, logo };
 
   const result = await compileWithCache(
     { kind: "omr-blank", id: examId, variant: "blank" },

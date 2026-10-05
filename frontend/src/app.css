@@ -27,6 +27,8 @@
   --color-surface-sunken: #f8fafc;
   --color-surface-inset: #f1f5f9;
   --color-surface-viewer: #cfd6df;
+  /* Printed paper: previews of what goes on the sheet (exam logo). Same in dark mode. */
+  --color-paper: #ffffff;
   --color-control: #ffffff;
 
   --color-line: #e2e8f0;

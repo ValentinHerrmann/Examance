@@ -251,6 +251,8 @@ export function applyResolutions(
       (r) => `${r.exerciseId}:${r.filename}`,
       (r) => ({ exerciseId: remap(r.exerciseId) })
     ),
+    // The logo is part of its exam: a kept exam keeps its own, a copy takes the archived one.
+    examLogos: rewrite('examLogos', (r) => r.examId, (r) => ({ examId: remap(r.examId) })),
     // A kept exam keeps its own links. A kept exercise is still linked: the importer reuses the
     // existing exercise instead of dropping the link (`serverImport.ts`).
     exerciseExams: ((payload.exerciseExams ?? []) as Row[])

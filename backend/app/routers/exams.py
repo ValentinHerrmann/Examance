@@ -30,6 +30,7 @@ from app.schemas.exam import (
 from app.services.exercise_resource_store import load_resources_for_exercises
 from app.services.latex import CompilationError, compile_exam_latex
 from app.services.latex_resources import ResourceError
+from app.services.logo import resolve_logo
 
 router = APIRouter(prefix="/exams", tags=["exams"])
 
@@ -567,9 +568,16 @@ async def compile_exam_endpoint(
             headers={"code": "ERR_COMPILE_FAILED"},
         ) from exc
 
+    _, logo = await resolve_logo(teacher.id, exam.id, db)
+
     try:
         pdf_bytes = await compile_exam_latex(
-            exam, ex_tuples, mc_groups, show_answers=answers, binary_files=binary_files
+            exam,
+            ex_tuples,
+            mc_groups,
+            show_answers=answers,
+            binary_files=binary_files,
+            logo=logo,
         )
         exam.compilation_status = "compiled"
         await db.flush()

@@ -17,6 +17,7 @@
   import OmrDetectionSettingsCard from "#lib/components/settings/OmrDetectionSettingsCard.svelte";
   import { omrSettingsStore } from "#lib/stores/omrSettings";
   import OmrDonationCard from "#lib/components/settings/OmrDonationCard.svelte";
+  import AccountLogoCard from "#lib/components/logo/AccountLogoCard.svelte";
   import { trainingDonationStore } from "#lib/stores/trainingDonation";
   import { fetchDonationAvailable } from "#lib/services/trainingDonation";
   import { backendStore, extractHostname } from "#lib/stores/backendStore";
@@ -130,6 +131,7 @@
     { id: "latex", label: $t("settings.latex.heading") },
     { id: "language", label: $t("settings.language.heading") },
     { id: "theme", label: $t("settings.theme.heading") },
+    { id: "logo", label: $t("logo.account.heading") },
     { id: "omr", label: $t("settings.omr.heading") },
     ...(donationAvailable || $trainingDonationStore.enabled
       ? [{ id: "donation", label: $t("settings.donation.heading") }]
@@ -174,6 +176,8 @@
             {$t("storagePolicy.workspace.ownerLabel")}: {workspaceOwnerLabel}
           </p>
         {/if}
+
+        <AccountLogoCard />
 
         <OmrDetectionSettingsCard
           profile={$omrSettingsStore}

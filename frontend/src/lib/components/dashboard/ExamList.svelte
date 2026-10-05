@@ -7,12 +7,17 @@
   import { examNavItems } from "#lib/components/layout/examNavItems";
   import { faEye, faTrash } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, Card, EmptyState, ExpandableCard } from "#lib/components/ui";
+  import LogoPreview from "#lib/components/logo/LogoPreview.svelte";
+  import type { ExamLogoPreview, LogoSource } from "#lib/latex/logo";
+  import type { TranslationKey } from "#lib/i18n";
 
   interface Props {
     exams: ExamRecord[];
     examStatsMap: Map<string, { avgScore: number | null; count: number }>;
     /** Lazily loaded per exam on first expand; absent = not requested yet. */
     exerciseMap?: Map<string, LazyEntry<ExerciseRecord[]>>;
+    /** The header logo per exam, loaded on first expand like the exercises. */
+    logoMap?: Map<string, LazyEntry<ExamLogoPreview>>;
     isLoading?: boolean;
     expandedExams?: { [examId: string]: boolean };
     onToggleExam: (examId: string) => void;
@@ -24,12 +29,20 @@
     exams,
     examStatsMap,
     exerciseMap = new Map(),
+    logoMap = new Map(),
     isLoading = false,
     expandedExams = {},
     onToggleExam,
     onDelete,
     onPreview
   }: Props = $props();
+
+  const SOURCE_LABEL = {
+    default: "logo.source.default",
+    account: "logo.source.account",
+    exam: "logo.source.exam",
+    none: "logo.source.none",
+  } as const satisfies Record<LogoSource, TranslationKey>;
 
   const previewPill = "rounded-xl border border-line bg-surface-sunken px-2.5 py-1 text-xs text-muted";
 </script>
@@ -89,6 +102,21 @@
           {#if exam.retentionUntil}
             <p class="m-0 mt-1 text-xs text-muted">{$t("dashboard.examList.retentionUntil", { date: exam.retentionUntil })}</p>
           {/if}
+
+          {@const logo = logoMap.get(exam.id)}
+          <div class="mt-3">
+            <h4 class="m-0 mb-2 text-sm font-semibold text-content">{$t("logo.overviewLabel")}</h4>
+            {#if logo === undefined || logo.status === "loading"}
+              <p class="m-0 text-sm text-muted">{$t("common.loading")}</p>
+            {:else if logo.status === "error"}
+              <p class="m-0 text-sm text-danger-fg">{$t("common.loadFailedShort")}</p>
+            {:else}
+              <div class="flex flex-wrap items-center gap-3">
+                <LogoPreview size="sm" bytes={logo.value.bytes} mime={logo.value.info.mime_type} />
+                <span class="text-sm text-muted">{$t(SOURCE_LABEL[logo.value.info.source])}</span>
+              </div>
+            {/if}
+          </div>
 
           {@const used = exerciseMap.get(exam.id)}
           <div class="mt-3">

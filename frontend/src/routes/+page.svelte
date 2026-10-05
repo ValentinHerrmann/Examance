@@ -17,6 +17,7 @@
   import { computeExamStats } from '#lib/utils/examStats';
   import { createExpandSet } from '#lib/utils/expandSet';
   import { createLazyMap } from '#lib/utils/lazyMap';
+  import { loadExamLogoPreview, type ExamLogoPreview } from '#lib/latex/logo';
   import { countActiveFilters, countOptions, matchesQuery, uniqueSorted } from '#lib/utils/listFilter';
   import { faPlus, faUpload } from '@fortawesome/free-solid-svg-icons';
 
@@ -57,9 +58,15 @@
 
   let fileInput: HTMLInputElement | undefined = $state();
 
+  /** The header logo each expanded exam prints, loaded with its exercises. */
+  const logoMap = createLazyMap<ExamLogoPreview>(loadExamLogoPreview);
+
   // Which exam rows are expanded (the list is collapsibles, like the exercise
   // library).
-  const expandedExams = createExpandSet((examId) => exerciseMap.ensure(examId));
+  const expandedExams = createExpandSet((examId) => {
+    exerciseMap.ensure(examId);
+    logoMap.ensure(examId);
+  });
 
   /** Set while a re-fetch is running; the list stays visible and is marked busy. */
   let isRefreshing = $state(false);
@@ -145,7 +152,11 @@
 
     expandedExams.prune(exams.map((e) => e.id));
     exerciseMap.reset();
-    for (const id of expandedExams.ids()) exerciseMap.ensure(id);
+    logoMap.reset();
+    for (const id of expandedExams.ids()) {
+      exerciseMap.ensure(id);
+      logoMap.ensure(id);
+    }
   }
 
   async function handleImportArchive(event: Event) {
@@ -299,6 +310,7 @@
           exams={filteredExams}
           {examStatsMap}
           exerciseMap={$exerciseMap}
+          logoMap={$logoMap}
           isLoading={isRefreshing && exams.length === 0}
           expandedExams={$expandedExams}
           onToggleExam={expandedExams.toggle}

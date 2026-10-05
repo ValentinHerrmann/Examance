@@ -9,6 +9,7 @@ import { api } from '#lib/api/client';
 import { translate } from '#lib/i18n';
 import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import { mergeResources, type LatexResourceFile } from './resources';
+import type { CompileLogo } from './logo';
 
 export interface CompileResult {
   pdfBytes: Uint8Array;
@@ -127,36 +128,41 @@ async function compileLocalWasm(
  * @param useLocal Compile locally with WebAssembly.
  * @param opts.resources Files referenced by name, placed flat next to main.tex in both engines.
  * @param opts.resourceExerciseIds Exercises whose stored files the server loads itself; ignored locally.
+ * @param opts.logo Exam header logo (lib/latex/logo.ts): resolved by the server, or its bytes locally.
  */
 export async function compileLatex(
   latexSource: string,
   useLocal = false,
   onStatus?: (status: string) => void,
   promptFallback = true,
-  opts: { resources?: LatexResourceFile[]; resourceExerciseIds?: string[] } = {}
+  opts: { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo } = {}
 ): Promise<CompileResult> {
   // Throws on a real filename conflict between two exercises — surfacing that
   // beats compiling a document where one figure silently wins.
   const resources = mergeResources(opts.resources ?? []);
+  const { logo } = opts;
 
   if (useLocal) {
     try {
-      return await compileLocalWasm(latexSource, onStatus, resources);
+      // The logo goes in after the merge: its name is reserved, so no exercise file can collide.
+      const localFiles = logo?.file ? [...resources, logo.file] : resources;
+      return await compileLocalWasm(latexSource, onStatus, localFiles);
     } catch (err: any) {
       if (promptFallback && typeof window !== 'undefined' && window.confirm(translate('misc.compiler.localFailedTryServer'))) {
-        const result = await compileOnServer(latexSource, resources, opts.resourceExerciseIds);
+        const result = await compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo);
         return { ...result, usedFallback: true };
       }
       throw err;
     }
   }
-  return compileOnServer(latexSource, resources, opts.resourceExerciseIds);
+  return compileOnServer(latexSource, resources, opts.resourceExerciseIds, logo);
 }
 
 async function compileOnServer(
   latexSource: string,
   resources: LatexResourceFile[] = [],
-  resourceExerciseIds: string[] = []
+  resourceExerciseIds: string[] = [],
+  logo?: CompileLogo
 ): Promise<CompileResult> {
   try {
     const pdfBuffer = await api.postJsonForBinary(
@@ -167,7 +173,9 @@ async function compileOnServer(
           filename: r.filename,
           content_b64: uint8ArrayToBase64(r.content)
         })),
-        resource_exercise_ids: resourceExerciseIds
+        resource_exercise_ids: resourceExerciseIds,
+        logo_exam_id: logo?.examId ?? null,
+        account_logo: Boolean(logo && !logo.examId)
       }
     );
     return {

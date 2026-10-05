@@ -13,6 +13,7 @@ export type ReportKind =
   | 'annotations'
   | 'scores'
   | 'resources'
+  | 'logos'
   | 'auditLogs';
 
 export const REPORT_KINDS: readonly ReportKind[] = [
@@ -25,6 +26,7 @@ export const REPORT_KINDS: readonly ReportKind[] = [
   'annotations',
   'scores',
   'resources',
+  'logos',
   'auditLogs',
 ];
 
@@ -67,8 +69,14 @@ export const REPORT_OUTCOMES: readonly ReportOutcome[] = [
  * - `scoresWithoutExercise`: scores for such an exercise, not imported.
  * - `scanUnreadable`: a scan that could not be decrypted (export) or opened (import).
  * - `examNotImported`: results of an exam that was not imported, so they had nowhere to go.
+ * - `logoUnavailable`: an exam's header logo could not be read (export) or written (import).
  */
-export type MissingReason = 'exerciseUnavailable' | 'scoresWithoutExercise' | 'scanUnreadable' | 'examNotImported';
+export type MissingReason =
+  | 'exerciseUnavailable'
+  | 'scoresWithoutExercise'
+  | 'scanUnreadable'
+  | 'examNotImported'
+  | 'logoUnavailable';
 
 export interface MissingItem {
   reason: MissingReason;

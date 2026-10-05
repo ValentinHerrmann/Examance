@@ -1,6 +1,7 @@
 """User management router — /api/v1/user for storage policy actions (purge/restore)."""
 from __future__ import annotations
 
+import base64
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, cast
 
@@ -14,12 +15,14 @@ from app.database import get_db
 from app.dependencies import get_current_teacher
 from app.models.audit_log import AuditLog
 from app.models.exam import Exam
+from app.models.logo import ExamLogo
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
 from app.schemas.capabilities import CapabilitiesOut, StorageModeUpdate
 from app.services import audit as audit_svc
 from app.services.capabilities import capabilities_for
+from app.services.logo import get_teacher_logo
 
 router = APIRouter(prefix="/user", tags=["user"])
 
@@ -220,6 +223,22 @@ async def restore_server_data(
     }
 
 
+def _logo_export(mime_type: str | None, content: bytes | None) -> dict[str, Any] | None:
+    if not content:
+        return None
+    return {
+        "mime_type": mime_type,
+        "byte_size": len(content),
+        "content_b64": base64.b64encode(content).decode("ascii"),
+    }
+
+
+def _exam_logo_export(row: ExamLogo | None) -> dict[str, Any]:
+    if row is None:
+        return {"mode": "account"}
+    return {"mode": row.mode, "file": _logo_export(row.mime_type, row.content)}
+
+
 @router.get("/me/export", status_code=status.HTTP_200_OK)
 async def export_own_data(
     request: Request,
@@ -238,6 +257,16 @@ async def export_own_data(
     exams_res = await db.execute(
         select(Exam).where(Exam.teacher_id == teacher.id).order_by(Exam.created_at.asc())
     )
+    exams = list(exams_res.scalars().all())
+    logo = await get_teacher_logo(teacher.id, db)
+    exam_logos = {
+        row.exam_id: row
+        for row in (
+            await db.execute(
+                select(ExamLogo).where(ExamLogo.exam_id.in_([e.id for e in exams]))
+            )
+        ).scalars()
+    }
     audit_res = await db.execute(
         select(AuditLog)
         .where(AuditLog.teacher_id == teacher.id)
@@ -260,6 +289,13 @@ async def export_own_data(
             "email": teacher.email,
             "role": teacher.role,
             "created_at": teacher.created_at.isoformat() if teacher.created_at else None,
+            # The logo is printed on the exams, so the export carries the file itself.
+            # "default" prints the bundled default logo, which is not the teacher's data.
+            "exam_logo": (
+                {"mode": "default"}
+                if logo is None
+                else {"mode": logo.mode, "file": _logo_export(logo.mime_type, logo.content)}
+            ),
         },
         "exams": [
             {
@@ -272,8 +308,10 @@ async def export_own_data(
                 "created_at": exam.created_at.isoformat() if exam.created_at else None,
                 "retention_until": exam.retention_until.isoformat(),
                 "deleted_at": exam.deleted_at.isoformat() if exam.deleted_at else None,
+                # "account": prints the account's exam_logo; "none": no logo; "custom": own file.
+                "logo": _exam_logo_export(exam_logos.get(exam.id)),
             }
-            for exam in exams_res.scalars().all()
+            for exam in exams
         ],
         "audit_log": [
             {

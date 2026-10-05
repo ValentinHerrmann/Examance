@@ -21,6 +21,7 @@ import { editor } from './editor';
 import { misc } from './misc';
 import { help } from './help';
 import { security } from './security';
+import { logo } from './logo';
 
 export const de = {
     common,
@@ -44,4 +45,5 @@ export const de = {
     misc,
     help,
     security,
+    logo,
 } as const;

@@ -16,6 +16,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from app.services.logo import LOGO_FILENAMES
+
 # Resolved the same way as ``app.services.latex.ASSETS_DIR``; kept independent
 # so this module stays importable from the compile service without a cycle.
 ASSETS_DIR = Path(__file__).resolve().parents[2] / "latex-assets"
@@ -66,9 +68,10 @@ def _bundled_asset_names() -> set[str]:
 
     ``compile_latex`` copies every top-level entry of ``latex-assets`` into the
     working directory, and the local WASM worker additionally flattens
-    ``sty/x.sty`` to ``x.sty`` (compiler.worker.ts). Both spellings are reserved.
+    ``sty/x.sty`` to ``x.sty`` (compiler.worker.ts). Both spellings are reserved, and so are
+    the names the exam logo takes (``app.services.logo``).
     """
-    reserved = {"main.tex", "main.log", "main.aux", "main.pdf", "index.json"}
+    reserved = {"main.tex", "main.log", "main.aux", "main.pdf", "index.json", *LOGO_FILENAMES}
     if ASSETS_DIR.exists():
         for item in ASSETS_DIR.iterdir():
             reserved.add(item.name)

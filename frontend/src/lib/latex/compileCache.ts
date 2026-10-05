@@ -1,7 +1,7 @@
 /**
  * In-memory LaTeX compilation cache: avoids re-compiling identical documents across tab switches
  * and preview reopen. Entries are keyed by a (kind, id, variant) tuple and verified by a SHA-256 of
- * the LaTeX source, app version, engine and resource files, so exercises, exams, OMR layouts and
+ * the LaTeX source, app version, engine, resource files and exam logo, so exercises, exams, OMR layouts and
  * Angabe/Lösung cannot collide and any content change misses. Entries hold raw PDF bytes; callers
  * create short-lived object URLs and revoke them on destroy.
  */
@@ -9,6 +9,7 @@
 import { frontendVersion } from '#lib/stores/versionStore';
 import { compileLatex, type CompileResult } from './compiler';
 import { mergeResources, type LatexResourceFile } from './resources';
+import { clearLogoCache, type CompileLogo } from './logo';
 
 export type CompileKind = 'exam' | 'exercise' | 'omr-blank';
 export type CompileVariant = 'angabe' | 'loesung' | 'blank';
@@ -51,14 +52,15 @@ export async function computeCompileContentHash(
   latexSource: string,
   resources: LatexResourceFile[] = [],
   resourceExerciseIds: string[] = [],
-  engine: 'local' | 'server' = 'local'
+  engine: 'local' | 'server' = 'local',
+  logoFingerprint = ''
 ): Promise<string> {
   const enc = new TextEncoder();
   const sortedResources = [...resources].sort((a, b) => a.filename.localeCompare(b.filename));
   const sortedExIds = [...resourceExerciseIds].sort();
 
   const parts: Uint8Array[] = [];
-  const metaHeader = `v:${frontendVersion || '0.0.0'}|engine:${engine}|latex:${latexSource}|exIds:${JSON.stringify(sortedExIds)}|resCount:${sortedResources.length}`;
+  const metaHeader = `v:${frontendVersion || '0.0.0'}|engine:${engine}|latex:${latexSource}|exIds:${JSON.stringify(sortedExIds)}|logo:${logoFingerprint}|resCount:${sortedResources.length}`;
   parts.push(enc.encode(metaHeader));
 
   for (const res of sortedResources) {
@@ -187,6 +189,7 @@ export function invalidateOwner(kind: CompileKind, id: string): void {
  */
 export function clearCompileCache(): void {
   cache.clear();
+  clearLogoCache();
   currentTotalBytes = 0;
 }
 
@@ -207,7 +210,7 @@ export async function compileWithCache(
   useLocal = false,
   onStatus?: (status: string) => void,
   promptFallback = true,
-  opts: { resources?: LatexResourceFile[]; resourceExerciseIds?: string[] } = {}
+  opts: { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo } = {}
 ): Promise<CompileResult> {
   const engine: 'local' | 'server' = useLocal ? 'local' : 'server';
   const resources = mergeResources(opts.resources ?? []);
@@ -215,7 +218,8 @@ export async function compileWithCache(
     latexSource,
     resources,
     opts.resourceExerciseIds ?? [],
-    engine
+    engine,
+    opts.logo?.fingerprint
   );
 
   const hit = getCached(key, hash);

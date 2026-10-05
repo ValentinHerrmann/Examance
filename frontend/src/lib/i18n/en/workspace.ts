@@ -53,6 +53,7 @@ export const workspace: Translations['workspace'] = {
             annotations: 'Grading annotations',
             scores: 'Scores',
             resources: 'Resource files',
+            logos: 'Exam logos',
             auditLogs: 'Audit entries',
         },
         outcome: {
@@ -71,6 +72,7 @@ export const workspace: Translations['workspace'] = {
             scoresWithoutExercise: 'Scores not imported because the exercise is missing',
             scanUnreadable: 'Scan unreadable',
             examNotImported: 'Results without an imported exam',
+            logoUnavailable: 'Exam logo not transferred',
         },
         withheldItem: {
             exerciseCode: 'LaTeX code of the exercises',

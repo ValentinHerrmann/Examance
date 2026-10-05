@@ -214,12 +214,26 @@
     \end{center}
 }
 
+% Exam logo (top left of page 1). The compile writes the teacher's logo next to
+% main.tex as examance-logo.<pdf|png|jpg|jpeg> (backend app/services/logo.py,
+% frontend lib/latex/logo.ts); without one the header simply has no logo. The
+% box is always 9mm tall, so the page layout (and the OMR template) is the
+% same with and without a logo.
+\newcommand{\ExamLogoFile}[1]{%
+    \includegraphics[height=9mm,width=6cm,keepaspectratio]{#1}}
+\newcommand{\ExamLogo}{%
+    \IfFileExists{examance-logo.pdf}{\ExamLogoFile{examance-logo.pdf}}{%
+    \IfFileExists{examance-logo.png}{\ExamLogoFile{examance-logo.png}}{%
+    \IfFileExists{examance-logo.jpg}{\ExamLogoFile{examance-logo.jpg}}{%
+    \IfFileExists{examance-logo.jpeg}{\ExamLogoFile{examance-logo.jpeg}}{%
+    \rule{0pt}{9mm}}}}}}
+
 % Setup headers and footers at document start
 \AtBeginDocument{
     \fancyheadoffset[L]{5mm}
     \fancyheadoffset[R]{5mm}
     \lhead{\ifnum\thepage=1
-    {\hspace{1cm}\includegraphics[height=9mm]{logo_mtg.pdf}}
+    {\hspace{1cm}\ExamLogo}
     \else
     \hspace{1cm}\Nrtext. \Testarttesttext \ in \Fachtext%Name:
     \fi}

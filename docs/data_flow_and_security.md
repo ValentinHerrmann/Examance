@@ -319,6 +319,20 @@ Teachers are warned in the upload UI not to attach files containing personal dat
 of pupils. Resource files follow their exercise's lifecycle (`ON DELETE CASCADE`),
 which — like exercises themselves — is outside the exam retention sweep.
 
+### Exam logos on the server
+
+The logo printed in the exam header (issue #46) is stored as **plaintext bytes** like resource
+files, for the same reason (Tectonic compiles it): `teacher_logos` holds an account's deviation
+from the default (`none`, or its own file), `exam_logos` an exam's deviation from its account.
+Without a `teacher_logos` row an account prints the bundled default logo (MTG,
+`latex-assets/img/logo_mtg.pdf`), which every exam printed before logos were configurable;
+resetting deletes the row. Only PNG, JPEG and PDF are accepted, detected from the magic bytes, at
+most 2 MB; they are served back only to their owner with `nosniff` and a sandbox CSP. A logo is
+school branding, not personal data of pupils. It follows its owner's lifecycle (`ON DELETE
+CASCADE` from the account or exam) and is part of the account export (`GET /user/me/export`, with
+the files base64-encoded: the account's setting and own file, each exam's setting and own file)
+and of `.bgproj` archives (see Archives).
+
 ---
 
 ## 4. DevTools Security & Session Hygiene Lifecycle
@@ -444,6 +458,13 @@ LaTeX code and no resource files. Imported exercises are marked `code_withheld`:
 exams show a "Results only" notice, grading and statistics work, compiling,
 editing and building OMR answer-sheet templates are disabled, and the exercise
 library hides them.
+
+**Exam logos travel with their exam** in both kinds of archive (`examLogos`, payload version 3):
+each exam's setting plus the bytes it printed, its own file or the account logo it followed. On
+import every created exam (copies included) gets the same header: it keeps following the
+importer's account logo only when that is byte-identical, otherwise the archived file (or "no
+logo") is pinned on the exam. A kept exam keeps its own logo. Older archives carry no logos; their
+exams follow the importer's account logo.
 
 **Import resolves collisions before it writes.** `decryptArchive()` opens the
 envelope and touches nothing — a wrong password costs nothing, where the old

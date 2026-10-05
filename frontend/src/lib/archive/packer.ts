@@ -34,9 +34,13 @@ import { encodeBinary } from './binary';
 import { api } from '#lib/api/client';
 import { mapApiToExerciseRecord } from '#lib/repositories/exerciseRepository';
 import { addMissing, bump, newReport, type ArchiveReport } from './report';
+import { exportExamLogo, type ArchivedExamLogo } from '#lib/latex/logo';
 
-/** Payload layout version: 2 added `$b64` bytes, decrypted scans, and `codeWithheld`. */
-export const ARCHIVE_PAYLOAD_VERSION = 2;
+/**
+ * Payload layout version: 2 added `$b64` bytes, decrypted scans, and `codeWithheld`; 3 added
+ * `examLogos`. Older archives import with every exam following the importer's account logo.
+ */
+export const ARCHIVE_PAYLOAD_VERSION = 3;
 
 export interface PackOptions {
   /**
@@ -175,6 +179,17 @@ export async function packProject(
     }))
   );
 
+  // The header logo is part of the exam, so it travels in every archive, results-only included.
+  // The bytes are what the exam printed, so the importer's own account logo cannot change it.
+  const examLogos: ArchivedExamLogo[] = [];
+  for (const exam of exams) {
+    try {
+      examLogos.push(await exportExamLogo(exam.id));
+    } catch {
+      addMissing(report, { reason: 'logoUnavailable', exam: examLabel.get(exam.id) ?? exam.id });
+    }
+  }
+
   onProgress?.({
     phase: 'encrypting',
     current: 30,
@@ -197,6 +212,7 @@ export async function packProject(
     exerciseExams,
     examMcGroups,
     exerciseResources,
+    examLogos,
     auditLogs,
   };
 
@@ -244,6 +260,7 @@ export async function packProject(
   bump(report, 'submissions', 'included', submissions.length);
   bump(report, 'scores', 'included', exerciseScores.length);
   bump(report, 'resources', 'included', exerciseResources.length);
+  bump(report, 'logos', 'included', examLogos.filter((l) => l.bytes).length);
   bump(report, 'auditLogs', 'included', auditLogs.length);
   if (!includeExerciseCode) report.withheld.push('exerciseCode', 'resourceFiles');
   // Answer-sheet templates are rebuilt from the exercises when needed; they never travel.

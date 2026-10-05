@@ -52,7 +52,7 @@ export const help = {
             },
             s3: {
                 h: 'Arbeitsbereich sichern und Ergebnisse teilen',
-                p1: 'Im Menü des Arbeitsbereichs erzeugen Sie ein passwortgeschütztes .bgproj-Archiv (Argon2id + AES-GCM) mit Klausuren, Schülerdaten, Scans, Annotationen und Punkten. Das ist die wichtigste Sicherung für Ergebnisse, die im Hybrid-Modus nur in diesem Browser liegen, und das Archiv lässt sich auch in einem anderen Konto einlesen. Mit „Ergebnisse teilen (ohne Aufgabentexte)“ exportieren Sie dasselbe, aber ohne LaTeX-Code und Ressourcendateien; enthalten bleiben Aufgabennamen, Punktzahlen und MC-Lösungsschlüssel. Wer ein solches Archiv einliest, kann die Klausuren korrigieren und auswerten; sie tragen den Hinweis „Nur Ergebnisse“, und Kompilieren, Bearbeiten sowie das Erstellen von MC-Antwortbogen-Vorlagen sind für diese Aufgaben gesperrt. In der Aufgabenbibliothek erscheinen sie nicht. Ist eine Aufgabe auf dem Server für Sie bereits verfügbar, wird sie verknüpft statt kopiert. Nach jedem Export und Import zeigt ein Bericht, was enthalten bzw. übernommen wurde, was bewusst fehlt und welche verknüpften Aufgaben nicht verfügbar waren. Geben Sie das Archiv und sein Passwort getrennt weiter, denn es enthält Schülerdaten.',
+                p1: 'Im Menü des Arbeitsbereichs erzeugen Sie ein passwortgeschütztes .bgproj-Archiv (Argon2id + AES-GCM) mit Klausuren, Schülerdaten, Scans, Annotationen und Punkten. Das ist die wichtigste Sicherung für Ergebnisse, die im Hybrid-Modus nur in diesem Browser liegen, und das Archiv lässt sich auch in einem anderen Konto einlesen. Jede Klausur nimmt ihr Logo mit, sodass sie nach dem Import denselben Kopf trägt. Mit „Ergebnisse teilen (ohne Aufgabentexte)“ exportieren Sie dasselbe, aber ohne LaTeX-Code und Ressourcendateien; enthalten bleiben Aufgabennamen, Punktzahlen und MC-Lösungsschlüssel. Wer ein solches Archiv einliest, kann die Klausuren korrigieren und auswerten; sie tragen den Hinweis „Nur Ergebnisse“, und Kompilieren, Bearbeiten sowie das Erstellen von MC-Antwortbogen-Vorlagen sind für diese Aufgaben gesperrt. In der Aufgabenbibliothek erscheinen sie nicht. Ist eine Aufgabe auf dem Server für Sie bereits verfügbar, wird sie verknüpft statt kopiert. Nach jedem Export und Import zeigt ein Bericht, was enthalten bzw. übernommen wurde, was bewusst fehlt und welche verknüpften Aufgaben nicht verfügbar waren. Geben Sie das Archiv und sein Passwort getrennt weiter, denn es enthält Schülerdaten.',
             },
         },
         storageModes: {
@@ -204,7 +204,7 @@ export const help = {
         },
         settings: {
             title: 'Einstellungen',
-            summary: 'Speicherstrategie, LaTeX-Kompilierung, Sprache, MC-Erkennung und Datenlöschung.',
+            summary: 'Speicherstrategie, LaTeX-Kompilierung, Klausur-Logo, Sprache, MC-Erkennung und Datenlöschung.',
             s1: {
                 h: 'Speicherstrategie',
                 p1: 'Legt fest, wo die Ergebnisse (Schülerdaten, Abgaben, Punkte) liegen: komplett auf dem Server oder nur in diesem Browser (Hybrid). Die Einstellung gehört zu Ihrem Konto und gilt in allen Browsern. Beim ersten Anmelden müssen Sie wählen, es gibt keine Voreinstellung. Welche Optionen Ihr Konto nutzen darf, legt der Server fest.',
@@ -233,6 +233,11 @@ export const help = {
                 h: 'MC-Erkennung verbessern (freiwillig)',
                 p1: 'Ist diese Option aktiviert und sind Sie mit einem Server-Konto angemeldet, sammelt der Browser für jede geprüfte oder korrigierte Ankreuzfrage einen kleinen Bildausschnitt je Kästchen (80×48 Pixel, Graustufen, ohne Aufgabentext) mit der bestätigten Wertung, der ursprünglichen Erkennung und ein paar Messwerten und sendet sie gebündelt an den Server dieser Installation. Namen, Pseudonyme, Klausur-, Abgabe- oder Fragen-IDs und Zeitstempel werden nicht mitgeschickt; je Kästchen nur eine zufällige Kennung, damit eine spätere Korrektur die frühere Wertung ersetzt. Die Anmeldung dient nur dem Missbrauchsschutz — das Konto wird nicht mit den Ausschnitten gespeichert.',
                 p2: 'Ziel ist ein gemeinsamer, besserer Klassifikator, von dem auch neue Installationen von Anfang an profitieren. Die Einstellung ist standardmäßig aus, gilt nur für diesen Browser und lässt sich jederzeit wieder abschalten.',
+            },
+            s7: {
+                h: 'Logo auf der Klausur',
+                p1: 'Oben links auf der ersten Seite jeder Klausur steht ein Logo, voreingestellt das MTG-Logo. Unter „Logo für Klausuren“ laden Sie ein eigenes hoch (PNG, JPEG oder PDF, höchstens 2 MB), wählen „Kein Logo“ oder setzen auf das Standardlogo zurück. Ohne Logo bleibt die Stelle frei; das Seitenlayout und die Lage der Ankreuzkästchen ändern sich dadurch nicht. In der Klausurübersicht zeigt jede aufgeklappte Klausur, welches Logo sie druckt.',
+                p2: 'In den Klausurdaten einer Klausur lässt sich das Logo überschreiben: das Logo aus den Einstellungen, kein Logo oder ein eigenes Logo nur für diese Klausur. Das Logo wird wie die Aufgaben auf dem Server gespeichert.',
             },
         },
         security: {

@@ -51,6 +51,7 @@ export const workspace = {
             annotations: 'Korrekturanmerkungen',
             scores: 'Punktwerte',
             resources: 'Ressourcendateien',
+            logos: 'Klausur-Logos',
             auditLogs: 'Protokolleinträge',
         },
         outcome: {
@@ -69,6 +70,7 @@ export const workspace = {
             scoresWithoutExercise: 'Punktwerte nicht übernommen, weil die Aufgabe fehlt',
             scanUnreadable: 'Scan nicht lesbar',
             examNotImported: 'Ergebnisse ohne übernommene Prüfung',
+            logoUnavailable: 'Logo der Prüfung nicht übernommen',
         },
         withheldItem: {
             exerciseCode: 'LaTeX-Code der Aufgaben',

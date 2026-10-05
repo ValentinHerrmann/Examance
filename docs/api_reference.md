@@ -122,9 +122,16 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
   {
     "latex": "\\documentclass{article}...",
     "resources": [{ "filename": "figure.png", "content_b64": "iVBORw0..." }],
-    "resource_exercise_ids": ["uuid..."]
+    "resource_exercise_ids": ["uuid..."],
+    "logo_exam_id": "uuid...",
+    "account_logo": false
   }
   ```
+- **`logo_exam_id`** / **`account_logo`** (optional): the exam header logo the server writes next
+  to `main.tex` (`examance-logo.<pdf|png|jpg>`, printed by `Schulaufgabe.sty`). `logo_exam_id`
+  prints that exam's logo (an exam the caller does not own falls back to the account logo);
+  `account_logo: true` prints the account logo, for a draft the server does not know yet. Neither
+  prints no logo.
 - **`resource_exercise_ids`** (optional): exercises whose stored resource files the server
   should load from its own database, so a client in server/hybrid mode does not upload bytes
   the server already has. Only exercises the caller may read are honoured; unknown ids are
@@ -154,6 +161,9 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 | `DELETE` | `/api/v1/exams/{exam_id}` | Soft-Delete Exam | Yes | Soft-deletes exam and marks it inaccessible. |
 | `GET` | `/api/v1/exams/{exam_id}/exercises` | List Exam Exercises | Yes | Retrieves exercises linked to the specified exam in display order. |
 | `POST` | `/api/v1/exams/{exam_id}/compile` | Compile Exam | Yes | Compiles the complete exam LaTeX document from its live-linked library exercises; returns `application/pdf`. |
+| `GET` | `/api/v1/exams/{exam_id}/logo` | Exam Logo | Yes | The exam's logo setting (`mode`: `account`, `none`, `custom`) and what it resolves to (`source`: `default`, `account`, `exam`, `none`, plus type and size). |
+| `GET` | `/api/v1/exams/{exam_id}/logo/file` | Exam Logo File | Yes | Bytes of the logo the exam prints; 404 when it prints none. |
+| `PUT` | `/api/v1/exams/{exam_id}/logo` | Set Exam Logo | Yes | `{"mode": "account" \| "none" \| "custom", "content_b64"?}`. `custom` without content keeps the stored file. PNG, JPEG or PDF (detected from the bytes), ≤ 2 MB; `422 ERR_LOGO_INVALID` otherwise. |
 
 #### Exam Query Parameters & Schemas
 - **Query Filters** (`GET /api/v1/exams`): `grade` (string), `subject` (string).
@@ -361,7 +371,11 @@ Two rules the endpoint enforces rather than trusts the client with:
 |---|---|---|---|---|
 | `POST` | `/api/v1/user/purge-server-student-data` | Purge Server Student Data | Yes | Soft-deletes this teacher's server-side student identities and submissions (7-day retention grace) — the local→`all-local` migration step in `data_flow_and_security.md` §5. |
 | `POST` | `/api/v1/user/restore-server-data` | Restore Server Data | Yes | Restores soft-deleted student identities and submissions for the current teacher, if still within the 7-day grace period. |
-| `GET` | `/api/v1/user/me/export` | Export Own Data | Yes | GDPR Art. 15/20 export of what the server holds *about the teacher*: account fields, authored exams, audit trail. Does **not** cover student data — see §4.5/§4.6 for that. |
+| `GET` | `/api/v1/user/logo` | Account Logo | Yes | The account's logo setting (`mode`: `default` = bundled MTG logo, `none`, `custom`) and what it prints (`source`: `default`, `account`, `none`, plus type and size). |
+| `GET` | `/api/v1/user/logo/file` | Account Logo File | Yes | Bytes of the logo the account prints (its own or the default), served as `image/png`, `image/jpeg` or `application/pdf` with `nosniff`; 404 for `none`. |
+| `PUT` | `/api/v1/user/logo` | Set Account Logo | Yes | `{"mode": "default" \| "none" \| "custom", "content_b64"?}`. `custom` without content keeps the stored file. PNG, JPEG or PDF (detected from the bytes), ≤ 2 MB; `422 ERR_LOGO_INVALID` otherwise. Printed on every exam that does not override it. |
+| `DELETE` | `/api/v1/user/logo` | Reset Account Logo | Yes | Back to the default (MTG) logo; same as `PUT {"mode": "default"}`. Returns the new setting. |
+| `GET` | `/api/v1/user/me/export` | Export Own Data | Yes | GDPR Art. 15/20 export of what the server holds *about the teacher*: account fields (with the account logo file), authored exams (with each exam's logo setting and own logo file), audit trail. Does **not** cover student data — see §4.5/§4.6 for that. |
 | `DELETE` | `/api/v1/user/me` | Delete Account | Yes | GDPR Art. 17 — soft-deletes the teacher's account and authored content (exams, student identities, submissions) on the standard grace period, then schedules irreversible erasure. |
 
 ---

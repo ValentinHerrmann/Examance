@@ -52,7 +52,7 @@ export const help: Translations['help'] = {
             },
             s3: {
                 h: 'Back up your workspace and share results',
-                p1: 'The workspace menu creates a password-protected .bgproj archive (Argon2id + AES-GCM) with exams, student data, scans, annotations and scores. It is the main backup for results that live only in this browser in hybrid mode, and the archive can also be imported into a different account. "Share results (without exercise texts)" exports the same but without LaTeX code and resource files; exercise names, points and MC answer keys are kept. Whoever imports such an archive can grade and analyse the exams; they carry a "Results only" notice, and compiling, editing and building MC answer-sheet templates are disabled for those exercises. They do not appear in the exercise library. An exercise already available to you on the server is linked instead of copied. After every export and import a report shows what was included or imported, what was deliberately left out, and which linked exercises were not available. Pass the archive and its password on separately, because it contains student data.',
+                p1: 'The workspace menu creates a password-protected .bgproj archive (Argon2id + AES-GCM) with exams, student data, scans, annotations and scores. It is the main backup for results that live only in this browser in hybrid mode, and the archive can also be imported into a different account. Every exam carries its logo, so it keeps the same header after import. "Share results (without exercise texts)" exports the same but without LaTeX code and resource files; exercise names, points and MC answer keys are kept. Whoever imports such an archive can grade and analyse the exams; they carry a "Results only" notice, and compiling, editing and building MC answer-sheet templates are disabled for those exercises. They do not appear in the exercise library. An exercise already available to you on the server is linked instead of copied. After every export and import a report shows what was included or imported, what was deliberately left out, and which linked exercises were not available. Pass the archive and its password on separately, because it contains student data.',
             },
         },
         storageModes: {
@@ -204,7 +204,7 @@ export const help: Translations['help'] = {
         },
         settings: {
             title: 'Settings',
-            summary: 'Storage strategy, LaTeX compilation, language, MC detection and data deletion.',
+            summary: 'Storage strategy, LaTeX compilation, exam logo, language, MC detection and data deletion.',
             s1: {
                 h: 'Storage strategy',
                 p1: 'Decides where the results (student data, submissions, scores) are stored: entirely on the server, or in this browser only (hybrid). The setting belongs to your account and applies in all browsers. You must choose when you first sign in; there is no default. Which options your account may use is decided by the server.',
@@ -233,6 +233,11 @@ export const help: Translations['help'] = {
                 h: 'Improve MC detection (optional)',
                 p1: 'When this option is on and you are signed in to a server account, the browser collects a small crop per box (80×48 pixels, grayscale, no question text) for every verified or corrected tick-box question, along with the confirmed label, the original detection and a few numeric features, and sends them in batches to this installation\'s server. Names, pseudonyms, exam/submission/question ids and timestamps are never sent; each box only carries a random id, so a later correction replaces the earlier label. Signing in only guards against abuse — the account is not stored with the crops.',
                 p2: 'The goal is a shared, better classifier so new installations get good detection from the start. The setting is off by default, applies only to this browser, and can be switched off again at any time.',
+            },
+            s7: {
+                h: 'Logo on the exam',
+                p1: 'A logo is printed at the top left of the first page of every exam; the MTG logo is the default. Under “Exam logo” you can upload your own (PNG, JPEG or PDF, at most 2 MB), choose “No logo”, or reset to the default. Without a logo the spot stays empty; the page layout and the position of the answer boxes do not change. In the exam overview, every expanded exam shows which logo it prints.',
+                p2: 'An exam’s details can override the logo: the logo from the settings, no logo, or an own logo for this exam only. Like the exercises, the logo is stored on the server.',
             },
         },
         security: {
