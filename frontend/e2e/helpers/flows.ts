@@ -1,5 +1,5 @@
 /**
- * Shared user flows (create/unlock vault, create exercises and exams) so a form change has
+ * Shared user flows (sign in, create exercises and exams) so a form change has
  * one place to fix. They drive page content; shell navigation lives in `nav.ts`. Selectors
  * are role/label/catalog-text based; unavoidable workarounds (CodeMirror) stay isolated.
  */
@@ -8,8 +8,9 @@ import { expect } from './guards';
 import { label, labelExact, literal, type Locale } from './i18n';
 import { currentLocale, gotoExerciseLibrary } from './nav';
 
-/** Passphrase used for every test vault (12+ characters are required). */
-export const VAULT_PASSPHRASE = 'correct horse battery staple 42';
+/** Credentials of the e2e account; the fake backend (`helpers/backend.ts`) accepts any pair. */
+export const E2E_EMAIL = 'teacher@e2e.example';
+export const E2E_PASSWORD = 'correct horse battery staple 42';
 
 /* -------------------------------------------------------------------------- */
 /* Small shared helpers                                                        */
@@ -50,7 +51,7 @@ export async function readCodeMirror(scope: Locator, index = 0): Promise<string>
 }
 
 /* -------------------------------------------------------------------------- */
-/* Vault                                                                       */
+/* Sign-in                                                                     */
 /* -------------------------------------------------------------------------- */
 
 /** The dashboard's main heading. */
@@ -64,25 +65,35 @@ export async function expectDashboard(page: Page): Promise<void> {
 }
 
 /**
- * Create the local (all-local) vault on a fresh browser profile. The page ends
- * on the empty dashboard.
+ * Sign in on `/unlock` (the page must be open) with the e2e account. The account's first sign-in
+ * creates its key envelopes and ends in the dialog with the one-time setup codes, which is
+ * acknowledged here (`firstTime`). Ends on the dashboard, except for an account without a storage
+ * mode (the `storageMode: null` fixture option): the root layout then asks for one first, and the
+ * caller carries on from the choice dialog (`waitForDashboard: false`).
  */
-export async function createVault(page: Page, passphrase = VAULT_PASSPHRASE): Promise<void> {
-  await page.goto('/unlock');
-  await page.getByLabel(await l(page, 'auth.unlock.local.choosePassphrase')).fill(passphrase);
-  await page.getByLabel(await l(page, 'auth.unlock.local.repeatPassphrase')).fill(passphrase);
-  await page.getByRole('button', { name: await l(page, 'auth.unlock.local.createWorkspace') }).click();
-  await expectDashboard(page);
+export async function signIn(
+  page: Page,
+  { firstTime, waitForDashboard = true }: { firstTime: boolean; waitForDashboard?: boolean },
+): Promise<void> {
+  await page.getByLabel(await lx(page, 'auth.unlock.cloud.email')).fill(E2E_EMAIL);
+  await page.getByLabel(await lx(page, 'auth.unlock.cloud.password')).fill(E2E_PASSWORD);
+  await page.getByRole('button', { name: await l(page, 'auth.unlock.cloud.connectAndSignIn') }).click();
+  if (firstTime) {
+    await page.getByLabel(await l(page, 'security.setupCodes.confirmLabel')).check();
+    await page.getByRole('button', { name: await lx(page, 'security.setupCodes.done') }).click();
+  }
+  if (waitForDashboard) await expectDashboard(page);
 }
 
-/**
- * Unlock the existing local vault on `/unlock`. Used after locking or after a
- * reload that dropped the session.
- */
-export async function unlockVault(page: Page, passphrase = VAULT_PASSPHRASE): Promise<void> {
-  await page.getByLabel(await l(page, 'auth.unlock.local.workspacePassphrase')).fill(passphrase);
-  await page.getByRole('button', { name: await l(page, 'auth.unlock.local.unlockWorkspace') }).click();
-  await expectDashboard(page);
+/** Open `/unlock` on a fresh browser profile and sign in for the first time. */
+export async function signInFirstTime(page: Page, opts: { waitForDashboard?: boolean } = {}): Promise<void> {
+  await page.goto('/unlock');
+  await signIn(page, { firstTime: true, ...opts });
+}
+
+/** Sign in again on `/unlock` (after locking, or after a reload that dropped the session): no setup codes. */
+export async function signInAgain(page: Page): Promise<void> {
+  await signIn(page, { firstTime: false });
 }
 
 /* -------------------------------------------------------------------------- */

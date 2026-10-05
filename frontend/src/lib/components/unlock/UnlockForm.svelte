@@ -6,7 +6,6 @@
     faCircleQuestion,
     faCloud,
     faKey,
-    faShieldHalved,
   } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Badge, Button, Card, Field, Icon, TextInput } from "#lib/components/ui";
 
@@ -17,15 +16,8 @@
     errorMsg: string;
     isLoading: boolean;
     onUnlock: () => void;
-    onUnlockLocal: () => void;
     /** Passkey sign-in (no email, no second factor), or undefined without WebAuthn. */
     onPasskey?: (() => void) | undefined;
-    localPassphrase: string;
-    localPassphraseConfirm: string;
-    /** First use on this device, or a legacy vault being migrated — confirm the passphrase. */
-    isNewLocalVault: boolean;
-    /** A vault created before the passphrase change; unlocking re-encrypts it. */
-    needsLegacyMigration: boolean;
   }
 
   let {
@@ -35,12 +27,7 @@
     errorMsg,
     isLoading,
     onUnlock,
-    onUnlockLocal,
     onPasskey,
-    localPassphrase = $bindable(),
-    localPassphraseConfirm = $bindable(),
-    isNewLocalVault,
-    needsLegacyMigration,
   }: Props = $props();
 </script>
 
@@ -68,78 +55,7 @@
   <Alert severity="danger" class="mb-5">{errorMsg}</Alert>
 {/if}
 
-<div class="grid min-w-0 grid-cols-1 gap-5 md:grid-cols-2 md:gap-8">
-  <!-- Option A: Local Mode -->
-  <Card padded={false} class="relative flex flex-col p-5 sm:p-6">
-    <Badge severity="primary" class="absolute top-3 right-3 sm:top-5 sm:right-5">
-      {$t("auth.unlock.local.noAccountRequired")}
-    </Badge>
-    <div class="mb-2 flex items-center gap-3 pr-24">
-      <Icon icon={faShieldHalved} class="shrink-0 text-3xl text-accent" />
-      <h2 class="m-0 text-xl font-medium text-content">{$t("auth.unlock.local.startWorkspace")}</h2>
-    </div>
-    <p class="m-0 mb-3 text-sm leading-snug text-muted">
-      {$t("auth.unlock.local.description")}
-    </p>
-    <ul class="m-0 mb-6 flex flex-1 list-none flex-col gap-2.5 p-0 text-sm [overflow-wrap:anywhere] text-content">
-      <li>{$t("auth.unlock.local.featureNoRegistration")}</li>
-      <li>{$t("auth.unlock.local.featureEncrypted")}</li>
-      <li>{$t("auth.unlock.local.featureExportImport")}</li>
-    </ul>
-
-    {#if needsLegacyMigration}
-      <p class="m-0 mb-2 text-left text-sm leading-snug text-warning-fg">
-        {$t("auth.unlock.local.legacyMigrationNotice")}
-      </p>
-    {/if}
-
-    <form onsubmit={(e) => { e.preventDefault(); onUnlockLocal(); }} class="mt-auto flex w-full flex-col gap-3">
-      <Field
-        forId="localPassphrase"
-        label={isNewLocalVault ? $t("auth.unlock.local.choosePassphrase") : $t("auth.unlock.local.workspacePassphrase")}
-      >
-        {#snippet children({ id })}
-          <TextInput
-            {id}
-            type="password"
-            autocomplete={isNewLocalVault ? "new-password" : "current-password"}
-            bind:value={localPassphrase}
-            placeholder={$t("auth.unlock.local.passphrasePlaceholder")}
-            disabled={isLoading}
-          />
-        {/snippet}
-      </Field>
-
-      {#if isNewLocalVault}
-        <Field forId="localPassphraseConfirm" label={$t("auth.unlock.local.repeatPassphrase")}>
-          {#snippet children({ id })}
-            <TextInput
-              {id}
-              type="password"
-              autocomplete="new-password"
-              bind:value={localPassphraseConfirm}
-              disabled={isLoading}
-            />
-          {/snippet}
-        </Field>
-        <p class="m-0 mb-2 text-left text-sm leading-snug text-muted">
-          {$t("auth.unlock.local.noRecoveryWarning")}
-        </p>
-      {/if}
-
-      <Button type="submit" block disabled={isLoading}>
-        {#if needsLegacyMigration}
-          {$t("auth.unlock.local.setPassphraseAndMigrate")}
-        {:else if isNewLocalVault}
-          {$t("auth.unlock.local.createWorkspace")}
-        {:else}
-          {$t("auth.unlock.local.unlockWorkspace")}
-        {/if}
-      </Button>
-    </form>
-  </Card>
-
-  <!-- Option B: Cloud Account -->
+<div class="mx-auto w-full max-w-form">
   <Card padded={false} class="relative flex flex-col p-5 sm:p-6">
     <Badge severity="info" class="absolute top-3 right-3 sm:top-5 sm:right-5">
       {$t("auth.unlock.cloud.schoolAccount")}

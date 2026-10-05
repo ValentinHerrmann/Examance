@@ -22,7 +22,6 @@ export const nav: Translations['nav'] = {
     latexLabel: 'LaTeX',
     dataCloud: 'Cloud',
     dataHybrid: 'Hybrid',
-    dataLocal: 'Local',
     latexServerShort: 'Server',
     latexLocalShort: 'Local',
     latexServerTitle: 'LaTeX is compiled on the server',

@@ -18,11 +18,11 @@ Examance addresses all three at once: it automates the mechanical parts of gradi
 
 ---
 
-## 2. Getting started — no account required
+## 2. Getting started — sign in with your account
 
-Two entry points, chosen up front and changeable later in Settings: a fully local, offline-first workspace with **zero server dependency**, or a school-managed cloud account for cross-device sync. Either way, all sensitive data is encrypted client-side before it is ever written to disk (Argon2id → HKDF-SHA-256 → AES-256-GCM; details in `data_flow_and_security.md`).
+Every user signs in with a server account. The data key comes from the account's key envelope and is unlocked with a password, a passkey or a recovery code; the server never sees it. On first sign-in the teacher chooses one of two storage modes (changeable later in Settings, which moves the results). Either way, all sensitive data is encrypted client-side before it is stored or transmitted (Argon2id → HKDF-SHA-256 → AES-256-GCM; details in `data_flow_and_security.md`).
 
-![Welcome screen — Start Local Workspace vs. Connect to Cloud Server](screenshots/pitch/01-welcome.png)
+![Welcome screen (screenshot predates issue #47 and still shows the discontinued local workspace option)](screenshots/pitch/01-welcome.png)
 
 Once unlocked, the dashboard is the home base for every exam in the workspace:
 
@@ -40,7 +40,7 @@ The library groups exercises, tracks **variants** (e.g., a "vehicle" vs. "furnit
 
 ![Exercise library — grouped, tagged, filterable](screenshots/pitch/04-exercise-library.png)
 
-Building an exam is then an assembly step: pick exercises from the library (or add one-off custom items), configure the grading key (linear, *Oberstufe*-weighted, or custom cutoffs per grade 1–6), and Examance renders the LaTeX into a print-ready, QR-coded booklet — one unique code per exam/variant/student slot, generated locally via a WASM XeLaTeX engine (Tectonic) with no source ever leaving the browser in local mode.
+Building an exam is then an assembly step: pick exercises from the library (or add one-off custom items), configure the grading key (linear, *Oberstufe*-weighted, or custom cutoffs per grade 1–6), and Examance renders the LaTeX into a print-ready, QR-coded booklet — one unique code per exam/variant/student slot, generated locally via a WASM XeLaTeX engine (Tectonic) with the LaTeX source staying in the browser when the local engine is used (exams and exercises themselves are stored on the server).
 
 ![Exam creation — metadata, grading key, exercise assembly](screenshots/pitch/05-exam-creation.png)
 
@@ -52,7 +52,7 @@ The paper workflow stays familiar for students — write, submit — and only tu
 
 1. **Write** — students complete the printed, QR-coded exam with pen and paper as usual.
 2. **Scan** — the stack goes through the school scanner into a single PDF.
-3. **Split & encrypt** — Examance splits the PDF by QR code and encrypts every page client-side; the plaintext scan never has to touch a server if local mode is used.
+3. **Split & encrypt** — Examance splits the PDF by QR code and encrypts every page client-side; the plaintext scan never has to touch a server in `hybrid` mode.
 4. **Grade** — the teacher corrects on-screen with pen/mouse annotations over the scan (destructive-free HTML5 canvas overlay; originals stay untouched).
 
 Two grading paths, matched to question type:
@@ -68,7 +68,7 @@ Once submissions are graded, Examance aggregates results into class- and cross-e
 
 ![Global multi-exam analytics — cross-exam metrics and fairness comparisons](screenshots/pitch/07-analytics.png)
 
-All of this runs on data that, in the default storage mode, was never uploaded anywhere (except an optional, anonymised checkbox-crop donation the teacher must switch on) — analytics are computed from the encrypted local vault the same way grading was.
+All of this runs on data that, in `hybrid` mode, was never uploaded anywhere (except an optional, anonymised checkbox-crop donation the teacher must switch on) — analytics are computed from the encrypted data the same way grading was (in the browser, or on ciphertext decrypted client-side in `all-server` mode).
 
 ---
 
@@ -78,11 +78,14 @@ Configurable independently in **Settings**, per school's policy and per componen
 
 ![Settings — storage strategy and LaTeX compilation mode](screenshots/pitch/06-privacy-settings.png)
 
-- **All Local** *(default)* — exams, exercise library, student identities, and scans are encrypted and stored entirely in the browser (IndexedDB). Zero bytes reach a server. The whole workspace can be exported/imported as a single password-protected `.bgproj` archive (e.g., on a USB stick) for backup or transfer between machines.
-- **All Server** — everything synced through the backend as **AES-256-GCM ciphertext**; the server generates and stores encrypted blobs but the key never leaves the client, so it can never read plaintext exam or student data.
-- **Hybrid** — exercise library and exam templates live on the server (useful for a department sharing a catalog across teachers), while student identities and grading results stay 100% local.
+Exams and exercises (LaTeX, metadata, resource files) always live on the server. The account's storage mode decides where the grading results live:
 
-LaTeX compilation is a separate toggle: local WebAssembly (Tectonic, nothing leaves the browser) or server-side compilation for lower-spec hardware. The local WASM engine additionally routes around hardware limits automatically — sequential "assembly line" rendering on low-spec/eco devices to bound memory use, multi-core/SIMD parallel rendering via Web Workers on capable machines — so a large multi-page exam PDF compiles reliably even on aging school laptops.
+- **All Server** — student identities, scans, annotations and per-exercise scores are stored on the server as **AES-256-GCM ciphertext** (only `total_score` is plaintext); the key never leaves the client, so the server can never read them.
+- **Hybrid** — student identities, scans and scores stay only in the browser where they were recorded (IndexedDB, encrypted).
+
+Switching modes moves the results between server and browser; deleting the old copy is optional (soft delete, 7-day grace). Results can also be exported as a password-protected `.bgproj` archive (Argon2id + AES-GCM); a "results only" archive can be handed to another teacher and contains no exercise LaTeX. The former all-local mode (no account) was discontinued.
+
+LaTeX compilation is a separate toggle: local WebAssembly (Tectonic, nothing leaves the browser) or optional, stateless server-side compilation (temporary directory, nothing stored, no student data) for lower-spec hardware. The local WASM engine additionally routes around hardware limits automatically — sequential "assembly line" rendering on low-spec/eco devices to bound memory use, multi-core/SIMD parallel rendering via Web Workers on capable machines — so a large multi-page exam PDF compiles reliably even on aging school laptops.
 
 ---
 

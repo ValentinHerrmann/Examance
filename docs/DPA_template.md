@@ -66,6 +66,6 @@ EU/EEA, this row does not apply and should be removed.
 
 4.4 **Scope of processor access.** The Processor cannot decrypt student
 identity data, submission scans, or grading annotations: those are encrypted in
-the data subject's browser with a key derived from the teacher's passphrase,
-which is never transmitted. The Processor does have access to per-submission
+the data subject's browser with a data key held in the account's key envelope (unlocked by the
+teacher's password, passkey or recovery code), which is never transmitted. The Processor does have access to per-submission
 scores in plaintext and to exam metadata (title, class, subject, date).

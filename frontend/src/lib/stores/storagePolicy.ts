@@ -2,139 +2,171 @@ import { writable, derived, get } from 'svelte/store';
 import { safeLocalStorage } from '#lib/utils/storage';
 import { t, translate } from '#lib/i18n';
 
-export type StorageMode = 'all-server' | 'all-local' | 'hybrid';
+/**
+ * Where an account keeps its grading results (docs/dev/storage_modes.md). Exams and exercises always
+ * live on the server; `hybrid` keeps students, submissions and scores in one browser only. Which modes
+ * an account may choose comes from the server (`lib/stores/capabilities.ts`), never from this list.
+ */
+export type StorageMode = 'all-server' | 'hybrid';
+
+export const STORAGE_MODES: readonly StorageMode[] = ['all-server', 'hybrid'];
+
+export function isStorageMode(value: unknown): value is StorageMode {
+    return value === 'all-server' || value === 'hybrid';
+}
 
 export interface StoragePolicy {
-    storageMode: StorageMode;
+    /** The account's mode as the server reported it; null until the account has chosen one. */
+    storageMode: StorageMode | null;
     latexCompilation: 'server' | 'local';
 }
 
-const STORAGE_KEY = 'bg_storage_policy';
+/**
+ * Pre-#47 browsers kept the mode per browser under this key. It is read once, when the workspace
+ * manifest is created (`legacyCachedMode`), and then removed; the account's mode lives on the server.
+ */
+const LEGACY_MODE_KEY = 'bg_storage_policy';
+/** The LaTeX engine is a per-browser preference with its own key. */
+const LATEX_KEY = 'bg_latex_compilation';
 
 /**
- * Changing the storage mode changes which store every repository uses, and data doesn't follow. Switching
- * is gated via `services/storageModeSwitch.ts` (forces an archive export first, sole holder of a valid
- * token); `updateSetting` is narrowed to `latexCompilation` so any other caller is a compile error.
+ * Changing the storage mode changes which store every repository uses. The mode is therefore only
+ * settable through `commitStorageMode` with a token from `armStorageModeSwitch`, which only
+ * `lib/db/workspace.ts` calls when it publishes the account's mode; `updateSetting` is narrowed to
+ * `latexCompilation` so any other caller is a compile error.
  */
 let activeSwitchToken: string | null = null;
 
-/** Called by the switch service when it begins a gated mode change. */
+/** Called by the workspace layer right before it publishes the account's mode. */
 export function armStorageModeSwitch(): string {
   activeSwitchToken = crypto.randomUUID();
   return activeSwitchToken;
 }
 
-/** Called by the switch service once the change is committed or abandoned. */
+/** Called once the change is committed or abandoned. */
 export function disarmStorageModeSwitch(): void {
   activeSwitchToken = null;
 }
 
+/** No storage mode by default: every account chooses one explicitly. */
 export const DEFAULT_POLICY: StoragePolicy = {
-    storageMode: 'all-local',
+    storageMode: null,
     latexCompilation: 'local',
 };
 
+function modeLabel(mode: StorageMode | null): string {
+    if (mode === 'all-server') return translate('storagePolicy.allServer');
+    if (mode === 'hybrid') return translate('storagePolicy.hybrid');
+    return translate('storagePolicy.notChosen');
+}
+
 export function getStoragePolicyLabel(policy: StoragePolicy): string {
-    const modeLabel = policy.storageMode === 'all-server'
-        ? translate('storagePolicy.allServer')
-        : policy.storageMode === 'all-local'
-            ? translate('storagePolicy.allLocal')
-            : translate('storagePolicy.hybrid');
     const latexLabel = policy.latexCompilation === 'server'
         ? translate('storagePolicy.latexServer')
         : translate('storagePolicy.latexLocal');
-    return `${modeLabel} | ${latexLabel}`;
+    return `${modeLabel(policy.storageMode)} | ${latexLabel}`;
 }
 
 export function getStoragePolicyBadge(policy: StoragePolicy): { text: string; title: string } {
-    if (policy.storageMode === 'all-local') {
-        return {
-            text: translate('storagePolicy.allLocal'),
-            title: translate('storagePolicy.allLocalTitle'),
-        };
-    } else if (policy.storageMode === 'all-server') {
+    if (policy.storageMode === 'all-server') {
         return {
             text: translate('storagePolicy.allServer'),
             title: translate('storagePolicy.allServerTitle'),
         };
-    } else {
+    }
+    if (policy.storageMode === 'hybrid') {
         return {
             text: translate('storagePolicy.hybridShort'),
             title: translate('storagePolicy.hybridTitle'),
         };
     }
+    return {
+        text: translate('storagePolicy.notChosen'),
+        title: translate('storagePolicy.notChosenTitle'),
+    };
+}
+
+function parseLatex(value: unknown): 'server' | 'local' | null {
+    return value === 'server' || value === 'local' ? value : null;
+}
+
+/**
+ * The per-browser mode a pre-#47 browser had cached, for legacy detection only: `'all-local'` when
+ * the browser used local mode (the old default, also when nothing was cached). Removes the key.
+ */
+export function legacyCachedMode(): StorageMode | 'all-local' {
+    const saved = safeLocalStorage.getItem(LEGACY_MODE_KEY);
+    safeLocalStorage.removeItem(LEGACY_MODE_KEY);
+    if (!saved) return 'all-local';
+    try {
+        const parsed = JSON.parse(saved);
+        if (isStorageMode(parsed.storageMode)) return parsed.storageMode;
+        if (parsed.examAndExerciseStorage === 'server') {
+            return parsed.resultsAndStudentsData === 'server' ? 'all-server' : 'hybrid';
+        }
+    } catch {
+        // Unreadable: treat like the old default.
+    }
+    return 'all-local';
 }
 
 function getInitialPolicy(): StoragePolicy {
-    const saved = safeLocalStorage.getItem(STORAGE_KEY);
-    if (saved) {
-        try {
-            const parsed = JSON.parse(saved);
-            let storageMode: StorageMode = DEFAULT_POLICY.storageMode;
-            let latexCompilation: 'server' | 'local' = DEFAULT_POLICY.latexCompilation;
-
-            if (parsed.storageMode === 'all-server' || parsed.storageMode === 'all-local' || parsed.storageMode === 'hybrid') {
-                storageMode = parsed.storageMode;
-            } else if (parsed.examAndExerciseStorage === 'server' && parsed.resultsAndStudentsData === 'server') {
-                storageMode = 'all-server';
-            } else if (parsed.examAndExerciseStorage === 'server' && parsed.resultsAndStudentsData === 'local') {
-                storageMode = 'hybrid';
-            }
-
-            if (parsed.latexCompilation === 'server' || parsed.latexCompilation === 'local') {
-                latexCompilation = parsed.latexCompilation;
-            }
-
-            return { storageMode, latexCompilation };
-        } catch {
-            return DEFAULT_POLICY;
-        }
+    let legacyLatex: 'server' | 'local' | null = null;
+    try {
+        legacyLatex = parseLatex(JSON.parse(safeLocalStorage.getItem(LEGACY_MODE_KEY) ?? '{}').latexCompilation);
+    } catch {
+        // ignore
     }
-    return DEFAULT_POLICY;
+    const latexCompilation =
+        parseLatex(safeLocalStorage.getItem(LATEX_KEY)) ?? legacyLatex ?? DEFAULT_POLICY.latexCompilation;
+    // The mode is unknown until `openWorkspace()` has asked the server.
+    return { storageMode: null, latexCompilation };
 }
 
 function createStoragePolicyStore() {
     const { subscribe, set, update } = writable<StoragePolicy>(getInitialPolicy());
 
+    // Another tab changed the engine: follow it. Mode changes reload the tab instead (`workspaceSync.ts`).
+    if (typeof window !== 'undefined') {
+        window.addEventListener('storage', (event) => {
+            if (event.key !== LATEX_KEY) return;
+            const latexCompilation = parseLatex(event.newValue);
+            if (latexCompilation) update((current) => ({ ...current, latexCompilation }));
+        });
+    }
+
     return {
         subscribe,
-        /** Replaces the whole policy. Tests and first-run seeding only. */
+        /** Replaces the whole policy. Tests only. */
         setPolicy(policy: StoragePolicy) {
-            safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify(policy));
+            safeLocalStorage.setItem(LATEX_KEY, policy.latexCompilation);
             set(policy);
         },
 
-                /** Everything except the storage mode, deliberately not assignable here (see `armStorageModeSwitch`). */
+        /** Everything except the storage mode, deliberately not assignable here (see `armStorageModeSwitch`). */
         updateSetting<K extends 'latexCompilation'>(key: K, value: StoragePolicy[K]) {
-            update((current) => {
-                const next = { ...current, [key]: value };
-                safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-                return next;
-            });
+            safeLocalStorage.setItem(LATEX_KEY, value);
+            update((current) => ({ ...current, [key]: value }));
         },
 
-                /** Sets the storage mode; only reachable from an armed switch, so every mode change has an export behind it. @throws if `token` isn't the one the switch service holds. */
-        commitStorageMode(mode: StorageMode, token: string) {
+        /** Publishes the account's mode; only reachable from the workspace layer. @throws if `token` isn't the armed one. */
+        commitStorageMode(mode: StorageMode | null, token: string) {
             if (!activeSwitchToken || token !== activeSwitchToken) {
                 throw new Error(
-                    'Refusing to change the storage mode outside a gated switch. ' +
-                        'Use services/storageModeSwitch.ts, which exports the workspace first.'
+                    'Refusing to change the storage mode outside the workspace layer. ' +
+                        'Use services/resultsMover.ts, which moves the results first.'
                 );
             }
-            update((current) => {
-                const next = { ...current, storageMode: mode };
-                safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-                return next;
-            });
+            update((current) => ({ ...current, storageMode: mode }));
         }
     };
 }
 
 export const storagePolicyStore = createStoragePolicyStore();
 
-/** True when grading results (students, submissions, scores) live in IndexedDB: `hybrid` keeps them local by design, only `all-server` doesn't. */
+/** True when grading results (students, submissions, scores) live in IndexedDB, i.e. in `hybrid` mode. */
 export function resultsAreLocal(): boolean {
-    return get(storagePolicyStore).storageMode !== 'all-server';
+    return get(storagePolicyStore).storageMode === 'hybrid';
 }
 
 // `t` is a dependency so switching language re-renders these labels; the
@@ -148,4 +180,3 @@ export const storagePolicyBadgeStore = derived(
     [storagePolicyStore, t],
     ([$policy]) => getStoragePolicyBadge($policy)
 );
-

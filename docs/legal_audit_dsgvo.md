@@ -15,10 +15,10 @@ Examance supports two deployment shapes, and the duties differ. Every finding be
 
 | Deployment | Controller | Processor | Notes |
 | :--- | :--- | :--- | :--- |
-| **A — School self-hosts.** The school runs the backend, or teachers use `all-local` mode with no backend at all. | The school | none | No Art. 28 contract needed. The school owes Art. 30 records, the Art. 35 DPIA, and the Art. 13 notice directly. |
+| **A — School self-hosts.** The school runs the backend itself (every user signs in with a server account; the former `all-local` mode with no backend was discontinued with issue #47). | The school | none | No Art. 28 contract needed. The school owes Art. 30 records, the Art. 35 DPIA, and the Art. 13 notice directly. |
 | **B — A third party hosts for schools.** | Each school | The operator | Art. 28 contract required before any processing — see `DPA_template.md`. The operator owes Art. 32 measures, Art. 33(2) notification to the school, and sub-processor transparency. |
 
-In **both** shapes the school is the controller: it decides that exams are graded and why. The teacher is not a separate controller; they act for the school. In `all-local` mode the data never leaves the teacher's browser, which changes the technical exposure but **not** the school's controllership — see L12. `hybrid` mode sits between the two: student identity and submissions stay local like `all-local`, but exercises and exam metadata go to a backend like shape B.
+In **both** shapes the school is the controller: it decides that exams are graded and why. The teacher is not a separate controller; they act for the school. Each account uses one of two storage modes, chosen at first sign-in. In `hybrid` mode pupil identity, scans and scores stay in the teacher's browser, which changes the technical exposure but **not** the school's controllership — see L12; exercises and exam metadata still go to the backend. In `all-server` mode the pupil data also reaches the backend, as client-side ciphertext. (Until issue #47 a third mode, `all-local`, kept everything in the browser with no account.)
 
 ---
 
@@ -32,7 +32,7 @@ DSGVO applies directly. BDSG supplements it. For a public school, the decisive a
 | Supplementary state data-protection law | **BayDSG** | *[state DSG]* |
 | Competent supervisory authority | **Bayerischer Landesbeauftragter für den Datenschutz (BayLfD)** — public bodies, including state schools. **Not** BayLDA, which supervises the private sector. | *[authority competent for public bodies]* |
 | Statutory retention for written exam work | Set by BaySchO — **confirm the current period with the school's DPO**; this audit does not fix a number | *[period]* |
-| Processing on private devices | Bavarian rules restrict processing student data on privately owned devices — relevant to `all-local` mode, and to `hybrid` mode for the student data it keeps local, see L12 | *[state rules]* |
+| Processing on private devices | Bavarian rules restrict processing student data on privately owned devices — relevant to `hybrid` mode for the student data it keeps in the browser (and, historically, the discontinued `all-local` mode), see L12 | *[state rules]* |
 
 **Why Bavaria is assumed:** the codebase is built around Bavarian exam terminology — `testart` defaults to *Kurzarbeit*, the LaTeX package is `Schulaufgabe.sty`, and scoring uses *BE* (Bewertungseinheiten). If the deployment is in another Land, change the table above; nothing else in this document depends on it.
 
@@ -140,13 +140,13 @@ No document stated why the processing is lawful. For a Bavarian public school it
 
 The Datenschutzerklärung template states this with a placeholder for the state-law citation. The controller must confirm it.
 
-### L12 — `all-local` (and `hybrid`) put student data on the teacher's device · Art. 32; state rules on private devices · [C] · **Improved, residual risk stands**
+### L12 — `hybrid` (formerly also `all-local`) puts student data on the teacher's device · Art. 32; state rules on private devices · [C] · **Improved, residual risk stands**
 
-`all-local` is the default mode: student identities, scans and annotations live in the teacher's browser profile. `hybrid` mode keeps the same student-data exposure — only exercises and exam metadata move to a backend there. Until this change set, the anonymous variant generated a random password and stored it **in cleartext in `localStorage`, beside the IndexedDB it protected** — so encryption at rest gave no protection whatsoever against anyone with access to the browser profile.
+*Current state (issue #47):* `all-local` and the local passphrase login are discontinued; every user has a server account and the data key comes from the account's key envelope (password, passkey or recovery code). In `hybrid` mode student identities, scans and scores live only in the teacher's browser profile (IndexedDB, encrypted); in `all-server` mode they are stored on the server as ciphertext. Old local-mode browser data cannot be opened anymore and is only offered for deletion. *History (until issue #47):* `all-local` was the default mode and kept the same student-data exposure with no server at all. Until the fix described below, the anonymous variant generated a random password and stored it **in cleartext in `localStorage`, beside the IndexedDB it protected** — so encryption at rest gave no protection whatsoever against anyone with access to the browser profile.
 
-**Fixed:** the vault is now keyed by a passphrase the user supplies, which is never persisted; only the salt and nonce are stored. Existing vaults are re-encrypted on next unlock.
+**Fixed (historical, local vault):** the vault was keyed by a passphrase the user supplied, which is never persisted; only the salt and nonce are stored. Existing vaults are re-encrypted on next unlock.
 
-**Residual risk, stated deliberately:** while a tab is unlocked, the derived session key sits in `sessionStorage` so the workspace survives a page reload. Anyone who can run script on the origin, or who reaches an already-unlocked tab, can read the data. `all-local` (and `hybrid`, for its local portion) protects a *stored* device, not an *unattended* one.
+**Residual risk, stated deliberately:** while a tab is unlocked, the derived session key sits in `sessionStorage` so the workspace survives a page reload. Anyone who can run script on the origin, or who reaches an already-unlocked tab, can read the data. `hybrid` (for its local portion; previously also `all-local`) protects a *stored* device, not an *unattended* one.
 
 **Open for the controller:** Bavarian rules restrict processing student data on privately owned devices. If teachers use personal laptops, the school must authorise it and set conditions (full-disk encryption, screen lock, no shared profiles). This is an organisational control the software cannot supply.
 
@@ -189,7 +189,7 @@ Two controls now hold the line, which is the point of the finding: the CSP is `d
 
 `encryptStudent()` (`lib/db/dbEncryption.ts`) writes `fallbackCode`, `studentName` and `studentNumber` into the returned `StudentRecord` **in addition to** the encrypted `payloadCt`/`payloadIv` it produces from the same fields, and `studentRepository.ts` persists that record as-is via `db.students.put()`. `fallbackCode` is also a plaintext Dexie index (`db.ts`: `students: 'pseudonymId, examId, fallbackCode'`).
 
-This contradicts `data_flow_and_security.md` Core Invariant 1 ("zero unencrypted text" when locked) for exactly the fields — a pupil's name and ID number — that invariant exists to protect, in both `all-local` and `hybrid` mode.
+This contradicts `data_flow_and_security.md` Core Invariant 1 ("zero unencrypted text" when locked) for exactly the fields — a pupil's name and ID number — that invariant exists to protect, in `hybrid` mode (and, until issue #47, `all-local` mode).
 
 **Found during a documentation review** (2026-08-17) while verifying the storage table in §3 against the live schema.
 
@@ -204,7 +204,7 @@ Two things a reader should not over-read. The upgrade rewrites rows on this devi
 Things a reader should not conclude from this document:
 
 - **"Zero-knowledge" is not absolute.** It holds for student identity, scans and annotations. Scores and exam metadata are plaintext on the server. The phrase is used in the marketing sense, and the DPA now says which fields it covers.
-- **Encryption at rest depends on the passphrase.** A weak teacher passphrase is offline-guessable against a stolen dump. Nothing in the software enforces passphrase strength for the local vault beyond a 12-character minimum.
+- **Encryption at rest depends on the passphrase.** A weak account password or badly stored recovery code is offline-guessable against a stolen dump or browser profile. (Until issue #47 the same applied to the local passphrase, with only a 12-character minimum.)
 - **Vaults written before the PBKDF2 increase** are still openable via a decrypt-only legacy path at 1,000 iterations, until re-encrypted. Data protected only by that key is materially weaker.
 - **Subresource integrity is not enforced.** `sri-manifest.json` declares `"enforced": false`; no WASM binary is vendored or hash-verified. The build step reports the absence of the control rather than pretending to pass. The Argon2 module that derives every key is therefore loaded unverified.
 - **The Vite dev-server advisory (GHSA-4w7w-66w2-5vf9) is closed.** It was open while the frontend was on Svelte 4 (pinned to Vite 5); the Svelte 5 / SvelteKit 3 / Vite 8 migration removed it, and `npm audit` reports no known advisory for the full frontend tree at the time of that change. It only ever affected the development server, never the shipped static files.

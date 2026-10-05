@@ -32,6 +32,8 @@
   import { PageShell, PageHeader, Card, Button, Alert } from "#lib/components/ui";
   import SectionNav from "#lib/components/settings/SectionNav.svelte";
   import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
+  import { currentManifest } from "#lib/db/workspace";
+  import { allowedStorageModes, featuresStore } from "#lib/stores/capabilities";
 
   /** GDPR Art. 15 — hand the data subject a readable copy of their own data. */
   async function handleExportStudent(pseudonymId: string) {
@@ -54,15 +56,27 @@
   let isErasing = $state(false);
   let statusMsg = $state("");
   let isSwitchWizardOpen = $state(false);
+  // Who this browser's workspace is bound to (lib/db/workspace.ts); shown under the storage settings.
+  let workspaceOwnerLabel = $state("");
+
+  async function loadWorkspaceOwner() {
+    const owner = (await currentManifest())?.owner;
+    workspaceOwnerLabel = !owner
+      ? ""
+      : translate("storagePolicy.workspace.ownerAccount", {
+          account: $sessionStore.email ?? owner.accountEmail ?? owner.accountId ?? "?",
+          server: extractHostname(owner.backendOrigin ?? ""),
+        });
+  }
   let switchTarget: StorageMode | null = $state(null);
   let donationAvailable = $state(false);
 
   onMount(async () => {
     void fetchDonationAvailable().then((ok) => (donationAvailable = ok));
     await awaitSessionReady();
+    void loadWorkspaceOwner();
     if (!$isUnlocked) {
-      // Keys are passphrase-derived and never persisted — send the user to
-      // /unlock rather than silently reconstructing a session.
+      // Keys come from the account sign-in and are never persisted — send the user to /unlock.
       await goto("/unlock");
       return;
     }
@@ -70,19 +84,16 @@
     students = await studentRepository.getAll(key);
   });
 
-  async function handleLatexChange(val: "server" | "local") {
-    if (val === "server" && !get(isAuthenticated)) {
-      alert(translate("settings.alerts.serverCompileNeedsAuth"));
-      window.location.href = "/unlock";
-      return;
-    }
+  function handleLatexChange(val: "server" | "local") {
+    // The option is disabled when the account may not compile on the server; this guards the handler too.
+    if (val === "server" && !$featuresStore.server_latex) return;
     storagePolicyStore.updateSetting("latexCompilation", val);
     statusMsg = translate("settings.status.latexSet", { mode: val });
   }
 
-  /** Same gated storage-mode-switch wizard as the quick-config modal. */
+  /** Same move dialog as the quick-config modal. */
   function handleStorageModeChange(val: StorageMode) {
-    if (val === $storagePolicyStore.storageMode) return;
+    if (val === $storagePolicyStore.storageMode || !$allowedStorageModes.includes(val)) return;
     switchTarget = val;
     isSwitchWizardOpen = true;
   }
@@ -155,7 +166,14 @@
           onStorageModeChange={handleStorageModeChange}
           onLatexChange={handleLatexChange}
           onLocaleChange={handleLocaleChange}
+          allowedModes={$allowedStorageModes}
+          serverLatexEnabled={$featuresStore.server_latex === true}
         />
+        {#if workspaceOwnerLabel}
+          <p class="-mt-2 px-1 text-xs text-muted">
+            {$t("storagePolicy.workspace.ownerLabel")}: {workspaceOwnerLabel}
+          </p>
+        {/if}
 
         <OmrDetectionSettingsCard
           profile={$omrSettingsStore}
@@ -165,7 +183,7 @@
 
         <OmrDonationCard
           enabled={$trainingDonationStore.enabled}
-          available={donationAvailable}
+          available={donationAvailable && $featuresStore.training_donation === true}
           signedIn={$isAuthenticated}
           host={extractHostname($backendStore)}
           onChange={(enabled) => trainingDonationStore.setEnabled(enabled)}

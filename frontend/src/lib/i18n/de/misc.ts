@@ -7,8 +7,6 @@ export const misc = {
         heading: 'Speicher- & Serverkonfiguration',
         storageHeading: '1. Speicherstrategie',
         storageDescription: 'Legen Sie fest, wo Prüfungsdaten und Noten gespeichert werden:',
-        allLocalTitle: 'Alles lokal (ohne Cloud)',
-        allLocalText: 'Alle Daten bleiben verschlüsselt in der IndexedDB dieses Geräts. Kein Server erforderlich.',
         allServerTitle: '️ Alles auf dem Server',
         allServerText: 'Alle Daten werden mit dem sicheren BlindGrade-Server synchronisiert und dort gespeichert.',
         hybridTitle: '️ Hybrid-Modus',

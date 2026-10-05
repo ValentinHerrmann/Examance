@@ -20,7 +20,6 @@ export const nav = {
     latexLabel: 'LaTeX',
     dataCloud: 'Cloud',
     dataHybrid: 'Hybrid',
-    dataLocal: 'Lokal',
     latexServerShort: 'Server',
     latexLocalShort: 'Lokal',
     latexServerTitle: 'LaTeX wird auf dem Server kompiliert',

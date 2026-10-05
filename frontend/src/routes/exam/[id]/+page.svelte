@@ -47,7 +47,6 @@
     OmrExerciseAnswerKey,
   } from "#lib/workers/omrWorker";
   import { sessionStore, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
-  import { storagePolicyStore } from "#lib/stores/storagePolicy";
   import { get } from "svelte/store";
   import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
   import { getPresetCutoffs } from "#lib/analytics/gradingKey";
@@ -179,7 +178,7 @@
     const isStale = () => seq !== loadSeq;
     const key = get(sessionStore).sessionKey;
     try {
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
+      if ($isAuthenticated) {
         try {
           const remoteExam = (await api.get(`/exams/${id}`)) as any;
           if (isStale()) return;
@@ -599,7 +598,6 @@
   let gradedCount = $derived(
     submissions.filter((s) => typeof s.totalScore === "number" && !isNaN(s.totalScore)).length,
   );
-  let storagePolicyModeString = $derived($storagePolicyStore.storageMode);
 
   let isLibraryModalOpen = $state(false);
   let libraryExercises: ExerciseRecord[] = $state.raw([]);
@@ -708,7 +706,7 @@
     // editGradingKey is a deep edit buffer (GradingKeyEditor mutates it); persist a plain copy.
     const gradingKey = $state.snapshot(editGradingKey);
     try {
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
+      if ($isAuthenticated) {
         await api.patch(`/exams/${exam.id}`, {
           title: editTitle,
           testart: editTestart,
@@ -754,7 +752,7 @@
     }
     const key = get(sessionStore).sessionKey;
     try {
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
+      if ($isAuthenticated) {
         const remoteExs = (await api.get("/exercises")) as any[];
         libraryExercises = remoteExs.map(mapApiToExerciseRecord);
       } else {
@@ -992,20 +990,18 @@
       return;
     }
 
-    if ($storagePolicyStore.storageMode !== "all-local") {
-      try {
-        // silentError: the failure is reported inline below, and the global
-        // HTTP error modal on top of an autosave is pure noise.
-        await api.patch(
-          `/exams/${currentExamId}`,
-          { mc_groups: mcGroupsPayload, exercise_links: exerciseLinksPayload },
-          { silentError: true },
-        );
-        errorMsg = "";
-      } catch (err) {
-        console.error("Failed to sync exercise links to server:", err);
-        errorMsg = translate("exam.page.exerciseLinks.saveFailed");
-      }
+    try {
+      // silentError: the failure is reported inline below, and the global
+      // HTTP error modal on top of an autosave is pure noise.
+      await api.patch(
+        `/exams/${currentExamId}`,
+        { mc_groups: mcGroupsPayload, exercise_links: exerciseLinksPayload },
+        { silentError: true },
+      );
+      errorMsg = "";
+    } catch (err) {
+      console.error("Failed to sync exercise links to server:", err);
+      errorMsg = translate("exam.page.exerciseLinks.saveFailed");
     }
   }
 
@@ -1119,6 +1115,13 @@
     </Alert>
   {/if}
 
+  {#if exercises.some((ex) => ex.codeWithheld)}
+    <!-- Imported from another teacher's results-only archive: grading and statistics work, compiling doesn't. -->
+    <Alert severity="info" title={$t("exam.resultsOnly.badge")} class="mb-6">
+      {$t("exam.resultsOnly.noCompile")}
+    </Alert>
+  {/if}
+
   {#if !exam}
     <div class="text-muted">{$t("exam.page.loading")}</div>
   {:else}
@@ -1128,7 +1131,6 @@
       {submissionsCount}
       {studentsCount}
       {gradedCount}
-      storagePolicy={storagePolicyModeString}
     />
 
     <ExamActionBar
@@ -1141,7 +1143,6 @@
       onStats={handleStats}
       onAddExercises={openLibraryModal}
       onDeleteAllSubmissions={handleDeleteAllSubmissions}
-      storagePolicy={storagePolicyModeString}
     />
 
     <ExamMetadataEditor

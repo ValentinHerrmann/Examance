@@ -335,6 +335,11 @@
   }
 
   async function handleSaveExercise() {
+    // Imported without code: there is nothing to edit, and a save would turn the exercise into an empty one.
+    if (editingExercise?.codeWithheld) {
+      errorMsg = translate("exam.resultsOnly.noEdit");
+      return;
+    }
     if (!editorName.trim()) {
       errorMsg = translate("exercises.editor.nameRequired");
       return;
@@ -366,7 +371,7 @@
     try {
       if (isCreatingVersion && versionBaseEx) {
         let savedEx: ExerciseRecord;
-        if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
+        if ($isAuthenticated) {
           const res = (await api.post(`/exercises/${versionBaseEx.id}/new-version`, {
             name: editorName,
             topic_tag: editorTopicTag,
@@ -477,7 +482,7 @@
         }
       }
 
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
+      if ($isAuthenticated) {
         try {
           const payload = {
             name: record.name,
@@ -830,7 +835,7 @@
 
     {#snippet footer()}
       <Button variant="outlined" severity="secondary" onClick={requestClose}>{$t("common.cancel")}</Button>
-      <Button onClick={handleSaveExercise} disabled={isSaving}>
+      <Button onClick={handleSaveExercise} disabled={isSaving || !!editingExercise?.codeWithheld}>
         {isSaving
           ? $t("exercises.editor.saveButtonSaving")
           : isCreatingVersion

@@ -9,6 +9,7 @@
 import { clearAllTables } from './db';
 import { sessionStore } from '#lib/stores/session';
 import { storagePolicyStore } from '#lib/stores/storagePolicy';
+import { workspaceStatusStore } from '#lib/stores/workspaceState';
 import { get, writable } from 'svelte/store';
 
 import { api } from '#lib/api/client';
@@ -36,6 +37,8 @@ export async function lockSession(): Promise<void> {
   timeUntilLock.set(null);
   await clearCompileCache();
   sessionStore.lock();
+  // The next unlock decides afresh whether its session owns the workspace.
+  workspaceStatusStore.set({ state: 'unchecked' });
   try {
     await api.post('/auth/logout');
   } catch {

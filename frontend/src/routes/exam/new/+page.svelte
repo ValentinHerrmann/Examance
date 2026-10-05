@@ -215,7 +215,7 @@ Frage hier eingeben... \\BE
     await awaitSessionReady();
     const key = get(sessionStore).sessionKey;
     try {
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
+      if ($isAuthenticated) {
         try {
           const remoteExs = (await api.get("/exercises")) as any[];
           libraryExercises = remoteExs.map(mapApiToExerciseRecord);
@@ -322,7 +322,7 @@ Frage hier eingeben... \\BE
     if (saveCustomToLibrary) {
       const key = get(sessionStore).sessionKey;
       await saveExerciseEncrypted(newEx, key);
-      if ($isAuthenticated && $storagePolicyStore.storageMode !== "all-local") {
+      if ($isAuthenticated) {
         try {
           await api.post("/exercises", {
             id: newEx.id,
@@ -573,27 +573,25 @@ ${exerciseInputs}
         await db.examMcGroups.bulkPut(examMcGroupRecords);
       }
 
-      if ($storagePolicyStore.storageMode !== "all-local") {
-        try {
-          await api.post("/exams", {
-            id: examId,
-            title,
-            testart,
-            grade,
-            klasse,
-            datum,
-            nr,
-            fach,
-            lehrernachname,
-            info_text: infoText,
-            grading_key: $state.snapshot(gradingKey),
-            retention_until: retentionUntil,
-            mc_groups: mcGroupsPayload,
-            exercise_links: exerciseLinksPayload,
-          });
-        } catch (apiErr) {
-          console.warn("Failed to sync exam to server:", apiErr);
-        }
+      try {
+        await api.post("/exams", {
+          id: examId,
+          title,
+          testart,
+          grade,
+          klasse,
+          datum,
+          nr,
+          fach,
+          lehrernachname,
+          info_text: infoText,
+          grading_key: $state.snapshot(gradingKey),
+          retention_until: retentionUntil,
+          mc_groups: mcGroupsPayload,
+          exercise_links: exerciseLinksPayload,
+        });
+      } catch (apiErr) {
+        console.warn("Failed to sync exam to server:", apiErr);
       }
 
       sessionStore.setDirty(false);

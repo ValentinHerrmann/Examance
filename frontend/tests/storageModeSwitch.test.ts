@@ -2,142 +2,142 @@ import 'fake-indexeddb/auto'; // In-memory IndexedDB — must precede the Dexie 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { get } from 'svelte/store';
 
-import { db } from '../src/lib/db/db';
+import { clearAllTables, db } from '../src/lib/db/db';
 import {
   DEFAULT_POLICY,
   armStorageModeSwitch,
   disarmStorageModeSwitch,
   storagePolicyStore,
 } from '../src/lib/stores/storagePolicy';
+import { currentManifest, loadWorkspace, localResultCount } from '../src/lib/db/workspace';
+import { offlineQueue } from '../src/lib/services/offlineQueue';
 import {
-  abortModeSwitch,
-  adoptServerStorageIfLocalEmpty,
+  PendingWritesError,
   beginModeSwitch,
-  commitModeSwitch,
   finishModeSwitch,
-  localWorkspaceIsEmpty,
-  markExported,
   pendingSwitchStore,
-  requireExport,
 } from '../src/lib/services/storageModeSwitch';
+import { directionFor } from '../src/lib/services/resultsMover';
 
-describe('storage mode is not settable outside a gated switch', () => {
+// Vitest runs in node: an in-memory localStorage for the manifest's legacy-cache reads.
+// safeLocalStorage probes lazily and retries, so installing it here is early enough.
+const mockStorage: Record<string, string> = {};
+globalThis.localStorage = {
+  getItem: (key: string) => mockStorage[key] ?? null,
+  setItem: (key: string, val: string) => { mockStorage[key] = val; },
+  removeItem: (key: string) => { delete mockStorage[key]; },
+  clear: () => { for (const k of Object.keys(mockStorage)) delete mockStorage[k]; },
+  length: 0,
+  key: () => null,
+};
+
+describe('storage mode is not settable outside the workspace layer', () => {
   beforeEach(() => {
     disarmStorageModeSwitch();
-    pendingSwitchStore.set(null);
     storagePolicyStore.setPolicy(DEFAULT_POLICY);
   });
 
-  it('refuses a mode change without a token', () => {
-    // Signing in used to flip all-local -> all-server right here, and the next
-    // idle lock then wiped the whole local database.
-    expect(() => storagePolicyStore.commitStorageMode('all-server', 'made-up')).toThrow();
-    expect(get(storagePolicyStore).storageMode).toBe('all-local');
+  it('has no default mode: the account chooses explicitly', () => {
+    expect(get(storagePolicyStore).storageMode).toBeNull();
   });
 
-  it('refuses a stale token from an earlier switch', () => {
+  it('refuses a mode change without a token', () => {
+    expect(() => storagePolicyStore.commitStorageMode('all-server', 'made-up')).toThrow();
+    expect(get(storagePolicyStore).storageMode).toBeNull();
+  });
+
+  it('refuses a stale token', () => {
     const first = armStorageModeSwitch();
-    armStorageModeSwitch(); // a second switch supersedes the first
+    armStorageModeSwitch();
     expect(() => storagePolicyStore.commitStorageMode('all-server', first)).toThrow();
   });
 
-  it('accepts the token the active switch holds', () => {
-    const token = armStorageModeSwitch();
-    storagePolicyStore.commitStorageMode('hybrid', token);
+  it('accepts the armed token', () => {
+    storagePolicyStore.commitStorageMode('hybrid', armStorageModeSwitch());
     expect(get(storagePolicyStore).storageMode).toBe('hybrid');
   });
 });
 
-describe('gated switch flow', () => {
+describe('fluent switch coordination', () => {
   beforeEach(async () => {
-    disarmStorageModeSwitch();
-    pendingSwitchStore.set(null);
-    storagePolicyStore.setPolicy(DEFAULT_POLICY);
-    await db.exams.clear();
-    await db.exercises.clear();
+    finishModeSwitch();
+    offlineQueue.set([]);
+    await db.workspace.clear();
     await db.students.clear();
     await db.submissions.clear();
     await db.exerciseScores.clear();
   });
 
-  it('refuses to wipe and switch before an export has been recorded', async () => {
-    beginModeSwitch('all-server');
-    requireExport();
-
-    await expect(commitModeSwitch()).rejects.toThrow(/exported/i);
-    // Nothing moved: the mode is unchanged and the switch is still open.
-    expect(get(storagePolicyStore).storageMode).toBe('all-local');
-    expect(get(pendingSwitchStore)?.phase).toBe('export');
+  it('moves results towards the browser for hybrid and towards the server for all-server', () => {
+    expect(directionFor('hybrid')).toBe('to-browser');
+    expect(directionFor('all-server')).toBe('to-server');
   });
 
-  it('wipes the local store and switches once the export is recorded', async () => {
-    await db.exams.put({
-      id: 'exam-1',
-      teacherId: 't1',
-      retentionUntil: '2030-01-01',
-      compilationStatus: 'pending',
-      createdAt: new Date().toISOString(),
-    });
-
-    beginModeSwitch('all-server');
-    requireExport();
-    markExported('workspace.bgproj');
-    await commitModeSwitch();
-
-    expect(get(storagePolicyStore).storageMode).toBe('all-server');
-    expect(await db.exams.count()).toBe(0);
-    // Still open, so the wizard can offer the re-import step.
-    expect(get(pendingSwitchStore)?.phase).toBe('reimport');
-
+  it('records the move so other tabs can block, and clears it when done', () => {
+    beginModeSwitch(null, 'hybrid');
+    expect(get(pendingSwitchStore)).toMatchObject({ from: null, to: 'hybrid' });
     finishModeSwitch();
     expect(get(pendingSwitchStore)).toBeNull();
   });
 
-  it('can be abandoned before the wipe, but not after', async () => {
-    beginModeSwitch('all-server');
-    expect(abortModeSwitch()).toBe(true);
+  it('refuses to start while writes still wait for the server', async () => {
+    const { workspaceId } = await loadWorkspace();
+    offlineQueue.set([{ id: 'q1', url: '/exams', method: 'POST', body: {}, timestamp: 0, workspaceId }]);
+    expect(() => beginModeSwitch('all-server', 'hybrid')).toThrow(PendingWritesError);
     expect(get(pendingSwitchStore)).toBeNull();
-
-    beginModeSwitch('all-server');
-    requireExport();
-    markExported('workspace.bgproj');
-    await commitModeSwitch();
-
-    // The local store is already gone; going back would present an empty
-    // workspace as if it were intact.
-    expect(abortModeSwitch()).toBe(false);
-    expect(get(pendingSwitchStore)?.phase).toBe('reimport');
   });
 
-  it('reports an empty local workspace so the export step can be skipped', async () => {
-    expect(await localWorkspaceIsEmpty()).toBe(true);
+  it('counts only results as local results', async () => {
+    expect(await localResultCount()).toBe(0);
+    await db.submissions.put({
+      id: 'sub-1',
+      examId: 'exam-1',
+      pseudonymHash: 'p',
+      createdAt: new Date().toISOString(),
+    } as never);
+    expect(await localResultCount()).toBe(1);
+  });
+});
+
+describe('workspace manifest', () => {
+  beforeEach(async () => {
+    localStorage.clear();
+    await db.workspace.clear();
+    // Every data table: rows left by the blocks above would make the browser look non-empty.
+    await clearAllTables();
+  });
+
+  it('starts an empty browser without a mode', async () => {
+    const manifest = await loadWorkspace();
+    expect(manifest.mode).toBeNull();
+    expect((await currentManifest())?.workspaceId).toBe(manifest.workspaceId);
+  });
+
+  it('recognises data of the discontinued local mode', async () => {
+    // No cached mode at all was the old default: all-local.
     await db.exams.put({
-      id: 'exam-2',
+      id: 'exam-legacy',
       teacherId: 't1',
       retentionUntil: '2030-01-01',
       compilationStatus: 'pending',
       createdAt: new Date().toISOString(),
     });
-    expect(await localWorkspaceIsEmpty()).toBe(false);
+    const manifest = await loadWorkspace();
+    expect(manifest.mode).toBe('all-local');
   });
 
-  it('adopts server storage on sign-in when the local workspace is empty', async () => {
-    expect(await adoptServerStorageIfLocalEmpty()).toBe(true);
-    expect(get(storagePolicyStore).storageMode).toBe('all-server');
-    // The token is spent: nothing else can change the mode afterwards.
-    expect(() => storagePolicyStore.commitStorageMode('all-local', 'made-up')).toThrow();
-  });
-
-  it('never switches a workspace that holds local data', async () => {
+  it('keeps a former hybrid browser recognisable', async () => {
+    localStorage.setItem('bg_storage_policy', JSON.stringify({ storageMode: 'hybrid' }));
     await db.exams.put({
-      id: 'exam-3',
+      id: 'exam-hybrid',
       teacherId: 't1',
       retentionUntil: '2030-01-01',
       compilationStatus: 'pending',
       createdAt: new Date().toISOString(),
     });
-    expect(await adoptServerStorageIfLocalEmpty()).toBe(false);
-    expect(get(storagePolicyStore).storageMode).toBe('all-local');
-    expect(await db.exams.count()).toBe(1);
+    const manifest = await loadWorkspace();
+    expect(manifest.mode).toBe('hybrid');
+    // The per-browser cache is gone; the account's mode lives on the server now.
+    expect(localStorage.getItem('bg_storage_policy')).toBeNull();
   });
 });

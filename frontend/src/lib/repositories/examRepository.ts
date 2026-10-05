@@ -2,7 +2,7 @@ import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
 import { db } from '#lib/db/db';
 import { storagePolicyStore } from '#lib/stores/storagePolicy';
-import { encryptExam, decryptExam } from '#lib/db/dbEncryption';
+import { decryptExam } from '#lib/db/dbEncryption';
 import { enqueueRequest } from '#lib/services/offlineQueue';
 import type { ExamRecord, ExamExerciseRecord, ExamMcGroupRecord } from '#lib/db/schema';
 import { invalidateOwner } from '#lib/latex/compileCache';
@@ -57,16 +57,14 @@ export interface ExamStructure {
 export const examRepository = {
     /**
      * An exam's exercise links and MC groups from whichever store owns them. `mapApiToExamRecord` drops
-     * `exercises`/`mc_groups` and in `all-server` mode the local tables can be empty (e.g. after a lock),
-     * so this fetches from the server there.
+     * `exercises`/`mc_groups` and the local tables can be empty (e.g. after a lock), so this fetches
+     * from the server and only falls back to the local mirror when that fails.
      */
   async getStructure(examId: string): Promise<ExamStructure> {
     const local = async () => ({
       links: await db.examExercises.where('examId').equals(examId).toArray(),
       mcGroups: await db.examMcGroups.where('examId').equals(examId).toArray(),
     });
-    if (get(storagePolicyStore).storageMode === 'all-local') return local();
-
     try {
       const remote = (await api.get<any>(`/exams/${examId}`, { silentError: true })) as any;
       return {
@@ -94,72 +92,54 @@ export const examRepository = {
   async getAll(key: CryptoKey | null): Promise<ExamRecord[]> {
     const policy = get(storagePolicyStore);
     if (!db.exams) return [];
-    if (policy.storageMode === 'all-local') {
-      const raw = await db.exams.toArray();
-      return Promise.all(raw.map((e) => decryptExam(e, key)));
-    } else {
-      try {
-        // silentError: every failure here falls back to the local copy, so the
-        // global HTTP error modal would fire for an outcome the user never sees.
-        const rawList = await api.get<any[]>('/exams', { silentError: true });
-        return rawList.map(mapApiToExamRecord);
-      } catch (err: any) {
-        if (policy.storageMode === 'hybrid') {
-          const raw = await db.exams.toArray();
-          return Promise.all(raw.map((e) => decryptExam(e, key)));
-        }
-        return [];
+    try {
+      // silentError: every failure here falls back to the local copy, so the
+      // global HTTP error modal would fire for an outcome the user never sees.
+      const rawList = await api.get<any[]>('/exams', { silentError: true });
+      return rawList.map(mapApiToExamRecord);
+    } catch (err: any) {
+      if (policy.storageMode === 'hybrid') {
+        const raw = await db.exams.toArray();
+        return Promise.all(raw.map((e) => decryptExam(e, key)));
       }
+      return [];
     }
   },
 
   async getById(id: string, key: CryptoKey | null): Promise<ExamRecord | undefined> {
-    const policy = get(storagePolicyStore);
     if (!db.exams) return undefined;
-    if (policy.storageMode === 'all-local') {
+    try {
+      const raw = await api.get<any>(`/exams/${id}`, { silentError: true });
+      return mapApiToExamRecord(raw);
+    } catch (err: any) {
       const raw = await db.exams.get(id);
-      if (!raw) return undefined;
-      return decryptExam(raw, key);
-    } else {
-      try {
-        const raw = await api.get<any>(`/exams/${id}`, { silentError: true });
-        return mapApiToExamRecord(raw);
-      } catch (err: any) {
-        const raw = await db.exams.get(id);
-        if (raw) return decryptExam(raw, key);
-        return undefined;
-      }
+      if (raw) return decryptExam(raw, key);
+      return undefined;
     }
   },
 
-  async save(exam: ExamRecord, key: CryptoKey | null): Promise<void> {
-    const policy = get(storagePolicyStore);
+  async save(exam: ExamRecord, _key: CryptoKey | null): Promise<void> {
     if (!db.exams) return;
-    if (policy.storageMode === 'all-local') {
-      const encrypted = await encryptExam(exam, key);
-      await db.exams.put(encrypted);
-    } else {
-      const payload = mapExamRecordToApi(exam);
-      if (exam.id) {
-        try {
-          await api.patch(`/exams/${exam.id}`, payload, { silentError: true });
-        } catch (err: any) {
-          if (err?.status === 404) {
-            try {
-              await api.post('/exams', payload, { silentError: true });
-            } catch (postErr: any) {
-              enqueueRequest('/exams', 'POST', payload);
-            }
-          } else {
-            enqueueRequest(`/exams/${exam.id}`, 'PATCH', payload);
+    const payload = mapExamRecordToApi(exam);
+    if (exam.id) {
+      try {
+        await api.patch(`/exams/${exam.id}`, payload, { silentError: true });
+      } catch (err: any) {
+        if (err?.status === 404) {
+          try {
+            await api.post('/exams', payload, { silentError: true });
+          } catch (postErr: any) {
+            enqueueRequest('/exams', 'POST', payload);
           }
+        } else {
+          enqueueRequest(`/exams/${exam.id}`, 'PATCH', payload);
         }
-      } else {
-        try {
-          await api.post('/exams', payload, { silentError: true });
-        } catch (err: any) {
-          enqueueRequest('/exams', 'POST', payload);
-        }
+      }
+    } else {
+      try {
+        await api.post('/exams', payload, { silentError: true });
+      } catch (err: any) {
+        enqueueRequest('/exams', 'POST', payload);
       }
     }
   },
@@ -211,13 +191,10 @@ export const examRepository = {
 
     await this.deleteLocalCascade(id);
 
-    const policy = get(storagePolicyStore);
-    if (policy.storageMode !== 'all-local') {
-      try {
-        await api.delete(`/exams/${id}`, { silentError: true });
-      } catch (err: any) {
-        enqueueRequest(`/exams/${id}`, 'DELETE');
-      }
+    try {
+      await api.delete(`/exams/${id}`, { silentError: true });
+    } catch (err: any) {
+      enqueueRequest(`/exams/${id}`, 'DELETE');
     }
   },
 };

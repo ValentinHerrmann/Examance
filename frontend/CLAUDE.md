@@ -2,7 +2,7 @@
 
 Loads when working under `frontend/`. Cross-cutting rules are in the root `CLAUDE.md`.
 
-SvelteKit 3 on **Svelte 5 (runes only, no legacy syntax)**, TypeScript 6, Vite 8 (Rolldown), Tailwind v4, `adapter-static` → `build/`. Kit config lives in `vite.config.ts` (`sveltekit({ … })`; there is no `svelte.config.js`). Imports use `#lib/…` (`package.json` "imports" + a matching tsconfig `paths` entry); worker URLs stay relative (`lib/workers/spawn.ts`). Node is pinned in `.node-version` (Kit 3 needs ≥ 22.17). Notable libs: `argon2-browser`, `dexie` (IndexedDB, primary encrypted store in local mode), `pdf-lib`/`pdfjs-dist`, `zxing-wasm` (QR decode) / `qrcode`, `texlyre-busytex` (WASM LaTeX). `svelte-check --threshold error` should be clean; treat any error as new. Build/CSP/BusyTeX details: `docs/dev/build_and_csp.md`.
+SvelteKit 3 on **Svelte 5 (runes only, no legacy syntax)**, TypeScript 6, Vite 8 (Rolldown), Tailwind v4, `adapter-static` → `build/`. Kit config lives in `vite.config.ts` (`sveltekit({ … })`; there is no `svelte.config.js`). Imports use `#lib/…` (`package.json` "imports" + a matching tsconfig `paths` entry); worker URLs stay relative (`lib/workers/spawn.ts`). Node is pinned in `.node-version` (Kit 3 needs ≥ 22.17). Notable libs: `argon2-browser`, `dexie` (IndexedDB: encrypted cache of server data and, in hybrid mode, the home of grading results), `pdf-lib`/`pdfjs-dist`, `zxing-wasm` (QR decode) / `qrcode`, `texlyre-busytex` (WASM LaTeX). `svelte-check --threshold error` should be clean; treat any error as new. Build/CSP/BusyTeX details: `docs/dev/build_and_csp.md`.
 
 ## Components
 
@@ -32,7 +32,7 @@ SvelteKit 3 on **Svelte 5 (runes only, no legacy syntax)**, TypeScript 6, Vite 8
 - **Target devices**: unscaled 1920×1080 (primary); 1920×1080 laptops at 125/150 % scaling (1536×730, 1280×600, tight height); iPad Pro 12.9″ portrait 1024 (= `lg`) and landscape, touch/pencil; 6–7″ phones portrait. Touch targets ≥44px via `pointer-coarse:`.
 - **Shell** (`routes/+layout.css`): `.app-layout` is `100dvh` with `overflow: clip`, body is `overflow: hidden`, and `.app-main` is the only scroller. `AppFooter` is the last child of `.app-main` on every route; the grade root fills via `flex-1 min-h-0`. Don't reintroduce `overflow: hidden` on the layout, don't nest a second `100vh`/`100dvh`, and never put `min-h-full`/`h-full` on a page root (page plus footer would overflow by the footer's height); centred pages use `PageShell center`.
 - `AppNavbar` shows links from `xl`, burger + `NavDrawer` below; minimal variant on locked/public pages; none on the grade page. Exam steps live in `ExamSidebar` from `lg` (pref `bg_sidebar_collapsed`), in the drawer below; `routes/exam/[id]/+layout.svelte` publishes `examNavContext` (`lib/stores/shell.ts`) for both.
-- E2E: `npm run test:e2e` (Playwright, projects `desktop` 1920×950, `ipad-portrait`, `phone`; all-local mode, no backend; shell navigation in `e2e/helpers/nav.ts`).
+- E2E: `npm run test:e2e` (Playwright, projects `desktop` 1920×950, `ipad-portrait`, `phone`; shell navigation in `e2e/helpers/nav.ts`). The browser's API calls are answered by the stateful in-memory fake `tests/helpers/fakeApi.ts` (shared with the vitest archive tests, wired in by `e2e/helpers/backend.ts`), so no backend has to run; sign-in helpers live in `e2e/helpers/flows.ts`. A request the fake has no route for fails the test: extend the fake rather than the app. Not part of CI.
 
 ## i18n (German / English)
 
@@ -74,7 +74,7 @@ Teacher-uploaded files an exercise's LaTeX references (`\includegraphics{figure.
 
 ## Gotchas
 
-- **A swallowed API error still opens the global HTTP error modal.** `api.*` calls `httpErrorStore.showError()` before throwing. Pass `silentError: true` on anything with a local fallback, an offline-queue fallback, or an expected 409.
+- **A swallowed API error still opens the global HTTP error modal.** `api.*` calls `httpErrorStore.showError()` before throwing. Pass `silentError: true` on anything with a local fallback, an offline-queue fallback, or an expected 409. Multi-step flows that report their own outcome (archive import/export) wrap their work in `collectHttpErrors()` (`stores/httpErrorStore.ts`) so stray errors land in their report instead.
 - **Never re-encrypt a record that failed to decrypt.** `decryptX()` marks it (`decryptFailed: 'error' | 'locked'`, `lib/db/decryptGuard.ts`) and every `encryptX()` calls `assertEncryptable()` first, which throws. The old helpers returned a *blank* record on failure and the next save sealed the blanks over the real payload. `encryptX(rec, null)` throws for the same reason.
 - **Every `db.exercises` (and other vault table) write takes `encryptX()` output.** A direct `put` of a decrypted record stores plaintext at rest (the old variant-creation path did). Prefer the repository `save()`. Use `db.exercises.put(await encryptExercise(rec, key))` only where the repository's `examExercises` junction merge is unwanted.
 - **Routes must `await awaitSessionReady()` before touching the vault.** Svelte mounts children before the parent, so a route's `onMount` runs before `+layout.svelte` restores keys; without the gate the key is `null` on every F5.

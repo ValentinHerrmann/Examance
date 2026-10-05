@@ -8,6 +8,7 @@ import type { ExamItemRef } from "#lib/grading/omrTemplatePrep";
 import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
 import { storagePolicyStore } from "#lib/stores/storagePolicy";
 import { formatExamCourse } from "#lib/utils/examLabel";
+import { translate } from "#lib/i18n";
 
 /** The LaTeX `\Aufgabe` blocks of an exam in item order (standalone exercises and MC groups). */
 export function buildExerciseInputs(
@@ -111,8 +112,15 @@ export interface ExamPreviewResult {
 }
 
 /** Compiles the Angabe and Lösung PDFs of an exam into the compile cache. */
+/** True when the exam contains exercises imported without their code (results-only archive). */
+export function examHasWithheldCode(exercises: ExerciseRecord[]): boolean {
+  return exercises.some((ex) => ex.codeWithheld);
+}
+
 export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamPreviewResult> {
   const { exam, exercises, libraryExercises, mcGroups, examItems, key } = input;
+  // Results-only imports have no LaTeX: compiling would produce empty exercise blocks.
+  if (examHasWithheldCode(exercises)) throw new Error(translate("exam.resultsOnly.noCompile"));
   const inputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups);
   const useLocal = get(storagePolicyStore).latexCompilation === "local";
   const collected = await collectExamResources(examItems, exercises, libraryExercises, mcGroups, key);

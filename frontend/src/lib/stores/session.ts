@@ -6,13 +6,11 @@
  */
 
 import { writable, derived, get } from 'svelte/store';
-import { deriveKeyWithFallback, generateSalt } from '#lib/crypto/keyDerivation';
-import { deriveSessionKey, generateSessionNonce } from '#lib/crypto/sessionKey';
 import { uint8ArrayToBase64, base64ToUint8Array, toArrayBuffer } from '#lib/crypto/aesGcm';
 import { safeLocalStorage, safeSessionStorage } from '#lib/utils/storage';
 
 export interface SessionState {
-  mode: 'local' | 'hybrid' | 'authenticated' | null;
+  mode: 'hybrid' | 'authenticated' | null;
   masterKey: CryptoKey | null;            // Argon2id/PBKDF2-derived HKDF CryptoKey
   masterKeyRaw: Uint8Array | null;         // Raw 32-byte master key material
   sessionKey: CryptoKey | null;           // HKDF-derived AES-GCM key from masterKey + nonce
@@ -65,45 +63,19 @@ const SESSION_STORAGE_KEYS = {
 } as const;
 
 /**
- * localStorage keys for the local-only vault. SALT and NONCE are non-secret derivation parameters that
- * must persist. LEGACY_PASSWORD is the pre-passphrase design (random password in cleartext beside its
- * data); only read to migrate such a vault, and deleted once that succeeds.
+ * localStorage keys of the discontinued local passphrase vault (issue #47). Never read for keys any
+ * more; only to recognise a browser that still holds such a vault and to remove them with it.
  */
-const LOCAL_VAULT_KEYS = {
-  SALT: 'bg_anon_salt',
-  NONCE: 'bg_anon_nonce',
-  LEGACY_PASSWORD: 'bg_anon_pwd',
-} as const;
+const LEGACY_LOCAL_VAULT_KEYS = ['bg_anon_salt', 'bg_anon_nonce', 'bg_anon_pwd'] as const;
 
-/** True when a local vault has been initialised on this device. */
-export function hasLocalVault(): boolean {
-  return safeLocalStorage.getItem(LOCAL_VAULT_KEYS.SALT) !== null;
-}
-
-/** True when this device still holds a vault keyed by the old stored password. */
+/** True when this browser still holds parameters of the discontinued local passphrase vault. */
 export function hasLegacyLocalVault(): boolean {
-  return safeLocalStorage.getItem(LOCAL_VAULT_KEYS.LEGACY_PASSWORD) !== null;
+  return LEGACY_LOCAL_VAULT_KEYS.some((k) => safeLocalStorage.getItem(k) !== null);
 }
 
-function readOrCreateLocalVaultParams(): { salt: Uint8Array; sessionNonce: Uint8Array } {
-  const saltB64 = safeLocalStorage.getItem(LOCAL_VAULT_KEYS.SALT);
-  const nonceB64 = safeLocalStorage.getItem(LOCAL_VAULT_KEYS.NONCE);
-
-  if (saltB64 && nonceB64) {
-    return {
-      salt: base64ToUint8Array(saltB64),
-      sessionNonce: base64ToUint8Array(nonceB64),
-    };
-  }
-
-  const salt = generateSalt();
-  const sessionNonce = generateSessionNonce();
-  // setItemOrThrow, not setItem: a swallowed write here (private mode, blocked
-  // site data, quota) would let the next unlock derive a different key over
-  // the same IndexedDB, silently blanking every record.
-  safeLocalStorage.setItemOrThrow(LOCAL_VAULT_KEYS.SALT, uint8ArrayToBase64(salt));
-  safeLocalStorage.setItemOrThrow(LOCAL_VAULT_KEYS.NONCE, uint8ArrayToBase64(sessionNonce));
-  return { salt, sessionNonce };
+/** Forgets the discontinued local vault's parameters (its data is deleted by the workspace layer). */
+export function removeLegacyLocalVault(): void {
+  LEGACY_LOCAL_VAULT_KEYS.forEach((k) => safeLocalStorage.removeItem(k));
 }
 
 async function exportSessionKeyToBase64(key: CryptoKey | null): Promise<string | null> {
@@ -153,7 +125,7 @@ async function saveToSessionStorage(params: {
   email?: string | null;
   teacherId?: string | null;
   role?: 'teacher' | 'admin' | null;
-  mode: 'local' | 'hybrid' | 'authenticated';
+  mode: 'hybrid' | 'authenticated';
 }) {
   if (!safeSessionStorage.isAvailable()) return;
   try {
@@ -245,6 +217,9 @@ function initBroadcastChannel(
                 sessionNonceB64: uint8ArrayToBase64(state.sessionNonce),
                 mode: state.mode,
                 email: state.email,
+                // Without it a tab restored this way identified the account by e-mail only, and the
+                // workspace owner check (lib/db/workspace.ts) took that for another account.
+                teacherId: state.teacherId,
                 role: state.role,
               });
             }
@@ -280,7 +255,7 @@ function createSessionStore() {
       email?: string;
       teacherId?: string;
       role?: 'teacher' | 'admin';
-      mode?: 'local' | 'hybrid' | 'authenticated';
+      mode?: 'hybrid' | 'authenticated';
     }) {
       const mode = params.mode ?? 'authenticated';
       safeLocalStorage.removeItem('bg_session_locked');
@@ -331,6 +306,11 @@ function createSessionStore() {
       const mode = safeSessionStorage.getItem(SESSION_STORAGE_KEYS.MODE) as SessionState['mode'];
 
       if (!sessionB64 || !nonceB64 || !mode) {
+        return false;
+      }
+      // A tab still holding a session of the discontinued local mode must sign in again.
+      if ((mode as string) === 'local') {
+        clearSessionStorage();
         return false;
       }
 
@@ -442,6 +422,7 @@ function createSessionStore() {
                 fallbackMasterKeyRaw,
                 sessionNonce,
                 email: data.email,
+                teacherId: data.teacherId,
                 role: data.role,
                 mode: data.mode,
               });
@@ -457,6 +438,7 @@ function createSessionStore() {
                 sessionNonce,
                 lockedAt: null,
                 email: data.email ?? s.email,
+                teacherId: data.teacherId ?? s.teacherId,
                 role: data.role ?? s.role,
               }));
 
@@ -476,159 +458,6 @@ function createSessionStore() {
           resolve(false);
         }, timeoutMs);
       });
-    },
-
-        /**
-         * Unlock the local-only workspace from a user passphrase, never persisted. Only the salt and session
-         * nonce are kept in localStorage (neither secret, both needed to re-derive the keys). Earlier builds
-         * stored a random password beside the encrypted IndexedDB, so encryption at rest protected nothing
-         * against anyone with the browser profile; such vaults are found by `hasLegacyLocalVault()` and
-         * migrated by `migrateLegacyLocalVault()`.
-         */
-    async unlockLocalSession(passphrase: string) {
-      if (!passphrase) {
-        throw new Error('A passphrase is required to unlock the local workspace.');
-      }
-
-      const { salt, sessionNonce } = readOrCreateLocalVaultParams();
-      const {
-        masterKey,
-        rawMasterKey,
-        fallbackMasterKey,
-        rawFallbackMasterKey,
-        legacyMasterKey,
-        rawLegacyMasterKey,
-      } = await deriveKeyWithFallback(passphrase, salt);
-
-      const sessionKey = await deriveSessionKey(masterKey, sessionNonce);
-      const fallbackSessionKey = fallbackMasterKey
-        ? await deriveSessionKey(fallbackMasterKey, sessionNonce)
-        : null;
-      const legacySessionKey = legacyMasterKey
-        ? await deriveSessionKey(legacyMasterKey, sessionNonce)
-        : null;
-
-      safeLocalStorage.removeItem('bg_session_locked');
-      safeLocalStorage.setItem('bg_session_mode', 'local');
-
-      await saveToSessionStorage({
-        masterKeyRaw: rawMasterKey,
-        sessionKey,
-        fallbackSessionKey,
-        fallbackMasterKeyRaw: rawFallbackMasterKey,
-        legacySessionKey,
-        legacyMasterKeyRaw: rawLegacyMasterKey,
-        sessionNonce,
-        mode: 'local',
-      });
-
-      update((s) => ({
-        ...s,
-        mode: 'local',
-        masterKey,
-        masterKeyRaw: rawMasterKey,
-        sessionKey,
-        fallbackSessionKey,
-        fallbackMasterKeyRaw: rawFallbackMasterKey,
-        legacySessionKey,
-        legacyMasterKeyRaw: rawLegacyMasterKey,
-        sessionNonce,
-        lockedAt: null,
-        email: null,
-        teacherId: null,
-        role: null,
-      }));
-    },
-
-        /**
-         * Migrate a vault from the old "password in localStorage" design: re-encrypt every record to a key
-         * from *newPassphrase*, then delete the stored password. On any failure nothing is deleted and the
-         * old password still opens the vault, so retrying is safe.
-         */
-    async migrateLegacyLocalVault(newPassphrase: string) {
-      if (!newPassphrase) {
-        throw new Error('A passphrase is required to migrate the local workspace.');
-      }
-      if (!safeLocalStorage.isAvailable()) {
-        throw new Error('Local storage is unavailable.');
-      }
-
-      const legacyPassword = safeLocalStorage.getItem(LOCAL_VAULT_KEYS.LEGACY_PASSWORD);
-      if (!legacyPassword) {
-        throw new Error('No legacy local workspace to migrate.');
-      }
-
-      const { salt: oldSalt, sessionNonce: oldNonce } = readOrCreateLocalVaultParams();
-
-      // Old key: whatever the previous build would have derived.
-      const oldDerived = await deriveKeyWithFallback(legacyPassword, oldSalt);
-      const oldSessionKey = await deriveSessionKey(oldDerived.masterKey, oldNonce);
-
-      // New key: fresh salt and nonce, so the new vault shares no derivation
-      // parameters with the compromised one.
-      const newSalt = generateSalt();
-      const newNonce = generateSessionNonce();
-      const newDerived = await deriveKeyWithFallback(newPassphrase, newSalt);
-      const newSessionKey = await deriveSessionKey(newDerived.masterKey, newNonce);
-
-      // New parameters go in BEFORE the rekey, via setItemOrThrow: if that
-      // write fails, we bail before the vault is re-encrypted under
-      // parameters nothing could later derive.
-      const previousSaltB64 = safeLocalStorage.getItem(LOCAL_VAULT_KEYS.SALT);
-      const previousNonceB64 = safeLocalStorage.getItem(LOCAL_VAULT_KEYS.NONCE);
-      safeLocalStorage.setItemOrThrow(LOCAL_VAULT_KEYS.SALT, uint8ArrayToBase64(newSalt));
-      safeLocalStorage.setItemOrThrow(LOCAL_VAULT_KEYS.NONCE, uint8ArrayToBase64(newNonce));
-
-      try {
-        const { rekeyDatabase } = await import('#lib/db/rekey');
-        await rekeyDatabase(oldSessionKey, newSessionKey);
-      } catch (err) {
-        // The vault is still sealed under the old key — put the parameters that
-        // open it back, so the next unlock finds the data where it left it.
-        if (previousSaltB64 !== null) {
-          safeLocalStorage.setItem(LOCAL_VAULT_KEYS.SALT, previousSaltB64);
-        }
-        if (previousNonceB64 !== null) {
-          safeLocalStorage.setItem(LOCAL_VAULT_KEYS.NONCE, previousNonceB64);
-        }
-        throw err;
-      }
-
-      // Only now is the cleartext password removed.
-      safeLocalStorage.removeItem(LOCAL_VAULT_KEYS.LEGACY_PASSWORD);
-
-      const fallbackSessionKey = newDerived.fallbackMasterKey
-        ? await deriveSessionKey(newDerived.fallbackMasterKey, newNonce)
-        : null;
-
-      safeLocalStorage.removeItem('bg_session_locked');
-      safeLocalStorage.setItem('bg_session_mode', 'local');
-
-      await saveToSessionStorage({
-        masterKeyRaw: newDerived.rawMasterKey,
-        sessionKey: newSessionKey,
-        fallbackSessionKey,
-        fallbackMasterKeyRaw: newDerived.rawFallbackMasterKey,
-        sessionNonce: newNonce,
-        mode: 'local',
-      });
-
-      update((s) => ({
-        ...s,
-        mode: 'local',
-        masterKey: newDerived.masterKey,
-        masterKeyRaw: newDerived.rawMasterKey,
-        sessionKey: newSessionKey,
-        fallbackSessionKey,
-        fallbackMasterKeyRaw: newDerived.rawFallbackMasterKey,
-        legacySessionKey: null,
-        legacyMasterKeyRaw: null,
-        sessionNonce: newNonce,
-        lockedAt: null,
-        email: null,
-        teacherId: null,
-        role: null,
-      }));
     },
 
     /** Wipe all key material and lock UI across all tabs. */

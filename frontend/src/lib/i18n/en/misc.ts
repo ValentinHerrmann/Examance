@@ -5,8 +5,6 @@ export const misc: Translations['misc'] = {
         heading: 'Storage & Server Configuration',
         storageHeading: '1. Storage Policy',
         storageDescription: 'Select where exam data and student grades are stored:',
-        allLocalTitle: 'All Local (Zero Cloud)',
-        allLocalText: 'All data stays on this device in encrypted IndexedDB. No backend required.',
         allServerTitle: '️ All Server',
         allServerText: 'All data synchronized and stored on the secure BlindGrade server.',
         hybridTitle: '️ Hybrid Mode',

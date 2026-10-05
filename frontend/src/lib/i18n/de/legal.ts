@@ -72,11 +72,11 @@ export const legal = {
         },
         section5: {
             heading: '5. Verschlüsselung und Speicherort',
-            para1Before: 'Identitätsdaten, Scans und Korrekturanmerkungen werden bereits im Browser verschlüsselt (AES-256-GCM), bevor sie gespeichert oder übertragen werden. Der Server erhält diese Inhalte ausschließlich als Chiffrat und besitzt den Schlüssel nicht. Im Standardmodus (',
-            para1Emphasis: 'local-only',
-            para1After: ') verlassen die Daten das Gerät der Lehrkraft überhaupt nicht.',
+            para1Before: 'Zur Nutzung ist ein Konto auf dem Examance-Server erforderlich. Der Datenschlüssel wird im Browser aus dem Schlüsselumschlag des Kontos (Passwort, Passkey oder Wiederherstellungscode) abgeleitet; der Server erhält ihn nie. Identitätsdaten, Scans und Korrekturanmerkungen werden bereits im Browser verschlüsselt (AES-256-GCM), bevor sie gespeichert oder übertragen werden. Der Server erhält diese Inhalte ausschließlich als Chiffrat und besitzt den Schlüssel nicht. Die Lehrkraft wählt je Konto beim ersten Anmelden ausdrücklich einen von zwei Speichermodi. Im Modus (',
+            para1Emphasis: 'all-server',
+            para1After: ') werden Identitäten, Scans, Korrekturanmerkungen und Punktzahlen je Aufgabe als Chiffrat auf dem Server gespeichert. Im Modus „hybrid“ verbleiben Schülerdaten, Scans und Punktzahlen ausschließlich im verschlüsselten Browserspeicher (IndexedDB) des Geräts, auf dem sie erfasst wurden, und werden nicht an den Server übertragen. Prüfungen und Aufgaben (LaTeX-Quelltext, Ressourcendateien) liegen in beiden Modi unverschlüsselt auf dem Server. Beim Wechsel des Modus werden die Ergebnisse zwischen Server und Browser verschoben; das Löschen der bisherigen Kopie ist optional (vorläufiges Löschen mit 7 Tagen Karenzzeit). Die optionale serverseitige LaTeX-Kompilierung arbeitet zustandslos (temporäres Verzeichnis, keine Speicherung, keine Schülerdaten). Ein früherer rein lokaler Modus ohne Konto wird nicht mehr angeboten; ältere lokale Browserdaten können nicht mehr geöffnet und nur noch gelöscht werden.',
             para3: 'Ausnahme: die freiwillige Spende anonymisierter Ankreuzfeld-Ausschnitte (Abschnitt 10), sofern die Lehrkraft sie aktiviert hat.',
-            para2: 'Nicht verschlüsselt gespeichert werden serverseitig: die Gesamtpunktzahl je Pseudonym sowie Metadaten der Prüfung (Titel, Klasse, Fach, Datum). Pseudonymisierte Daten bleiben personenbezogene Daten im Sinne des Erwägungsgrundes 26 DSGVO.',
+            para2: 'Nicht verschlüsselt gespeichert werden serverseitig: die Gesamtpunktzahl je Pseudonym (nur im Modus all-server) sowie Prüfungs- und Aufgabeninhalte und Metadaten der Prüfung (Titel, Klasse, Fach, Datum). Pseudonymisierte Daten bleiben personenbezogene Daten im Sinne des Erwägungsgrundes 26 DSGVO.',
         },
         section6: {
             heading: '6. Empfänger und Auftragsverarbeiter',

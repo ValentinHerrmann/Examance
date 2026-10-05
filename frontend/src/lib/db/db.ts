@@ -18,6 +18,7 @@ import type {
   OmrTemplateRecord,
   StudentRecord,
   SubmissionRecord,
+  WorkspaceManifestRecord,
 } from './schema';
 
 export class BlindGradeDB extends Dexie {
@@ -31,6 +32,7 @@ export class BlindGradeDB extends Dexie {
   exerciseResources!: Table<ExerciseResourceRecord>;
   auditLog!: Table<AuditEntry>;
   omrTemplates!: Table<OmrTemplateRecord>;
+  workspace!: Table<WorkspaceManifestRecord>;
 
   constructor() {
     super('BlindGrade');
@@ -153,6 +155,13 @@ export class BlindGradeDB extends Dexie {
             delete student.studentNumber;
           }),
       );
+
+    // v10: adds `workspace`, a single-row manifest stamping the storage mode and owner of everything
+    // else in this database (docs/dev/storage_modes.md). Not one of `vaultTables()`: wiping the data
+    // keeps the manifest, replacing the workspace rewrites it in the same transaction.
+    this.version(10).stores({
+      workspace: 'id',
+    });
   }
 }
 
@@ -190,28 +199,34 @@ export async function migrateLegacyDatabase(): Promise<void> {
   }
 }
 
+/** Every table that holds workspace data (everything but the `workspace` manifest). */
+export function vaultTables(): Table[] {
+  return [
+    db.exams,
+    db.exercises,
+    db.examExercises,
+    db.examMcGroups,
+    db.students,
+    db.submissions,
+    db.exerciseScores,
+    db.auditLog,
+    db.omrTemplates,
+    db.exerciseResources,
+  ];
+}
+
 /**
- * Clears all Dexie IndexedDB tables.
+ * Clears every workspace data table in one transaction; the manifest is kept.
+ * @throws when IndexedDB refuses: a silently half-cleared database is how server rows used to leak into
+ * an all-local workspace, so callers must see the failure.
  */
 export async function clearAllTables(): Promise<void> {
   if (typeof indexedDB === 'undefined') return;
-  try {
-    if (!db.isOpen()) {
-      await db.open();
-    }
-    await Promise.all([
-      db.exams.clear(),
-      db.exercises.clear(),
-      db.examExercises.clear(),
-      db.examMcGroups.clear(),
-      db.students.clear(),
-      db.submissions.clear(),
-      db.exerciseScores.clear(),
-      db.auditLog.clear(),
-      db.omrTemplates.clear(),
-      db.exerciseResources.clear(),
-    ]);
-  } catch {
-    // Ignore clear errors on un-opened DB
+  if (!db.isOpen()) {
+    await db.open();
   }
+  const tables = vaultTables();
+  await db.transaction('rw', tables, async () => {
+    await Promise.all(tables.map((t) => t.clear()));
+  });
 }

@@ -16,7 +16,6 @@
   import { api } from "#lib/api/client";
   import {
     storagePolicyStore,
-    storagePolicyBadgeStore,
   } from "#lib/stores/storagePolicy";
   import { safeLocalStorage } from "#lib/utils/storage";
   import { registerCspDiagnostics } from "#lib/utils/cspDiagnostics";
@@ -36,15 +35,21 @@
     confirmWorkspaceClear,
   } from "#lib/services/archiveService";
   import ImportConflictModal from "#lib/components/storage/ImportConflictModal.svelte";
+  import ArchiveReportModal from "#lib/components/storage/ArchiveReportModal.svelte";
   import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
-  import { adoptServerStorageIfLocalEmpty, pendingSwitchStore, resumeModeSwitch } from "#lib/services/storageModeSwitch";
+  import { pendingSwitchStore, switchOwnedHere } from "#lib/services/storageModeSwitch";
+  import { loadWorkspace, localResultCount, openWorkspace } from "#lib/db/workspace";
+  import type { StorageMode } from "#lib/stores/storagePolicy";
+  import { workspaceStatusStore } from "#lib/stores/workspaceState";
+  import { registerWorkspaceSync, switchRunningElsewhere } from "#lib/stores/workspaceSync";
+  import WorkspaceBlocked from "#lib/components/storage/WorkspaceBlocked.svelte";
   import AppNavbar from "#lib/components/layout/AppNavbar.svelte";
   import AppFooter from "#lib/components/layout/AppFooter.svelte";
   import NavDrawer from "#lib/components/layout/NavDrawer.svelte";
   import ExamSidebar from "#lib/components/layout/ExamSidebar.svelte";
   import { examNavContext } from "#lib/stores/shell";
   import { theme, applyTheme } from "#lib/stores/theme";
-  import { Alert, Button } from "#lib/components/ui";
+  import { Alert, Button, PageShell } from "#lib/components/ui";
   import StoragePolicyModal from "#lib/components/StoragePolicyModal.svelte";
   import SessionTimeoutWarning from "#lib/components/SessionTimeoutWarning.svelte";
   import HttpCatModal from "#lib/components/HttpCatModal.svelte";
@@ -63,12 +68,38 @@
   let isInitializing = $state(true);
   let showFocusNav = false;
 
-  // A mode switch interrupted after its wipe: say why the workspace is empty.
+  // The storage-mode move dialog, opened from the banners below (interrupted move, stray results).
   let switchWizardOpen = $state(false);
+  let switchTarget: StorageMode | null = $state(null);
   let resumeBannerDismissed = $state(false);
-  let interruptedSwitch = $derived(
-    $pendingSwitchStore && $pendingSwitchStore.phase === "reimport" ? $pendingSwitchStore : null,
+  // A move a reload or crash interrupted: running it again is safe (every step is an upsert).
+  let interruptedSwitch = $derived($pendingSwitchStore && !$switchOwnedHere ? $pendingSwitchStore : null);
+  // Results still held in this browser (hybrid's home, or leftovers after the account left hybrid).
+  let localResults = $state(0);
+  let hybridHintDismissed = $state(false);
+  let workspaceReady = $derived($workspaceStatusStore.state === "ok" && page.url.pathname !== "/unlock");
+  let strayLocalResults = $derived(
+    workspaceReady && $storagePolicyStore.storageMode === "all-server" && localResults > 0,
   );
+  let hybridWithoutResults = $derived(
+    workspaceReady && $storagePolicyStore.storageMode === "hybrid" && localResults === 0,
+  );
+  let mustChooseMode = $derived(
+    $workspaceStatusStore.state === "needs-choice" && page.url.pathname !== "/unlock",
+  );
+
+  function openSwitch(target: StorageMode) {
+    switchTarget = target;
+    switchWizardOpen = true;
+  }
+
+  async function refreshLocalResults() {
+    try {
+      localResults = await localResultCount();
+    } catch {
+      localResults = 0;
+    }
+  }
 
   let isGradeActive = $derived(isGradeActivePath(page.url.pathname));
 
@@ -115,6 +146,14 @@
     // Before hygiene, so a violation during boot is still explained.
     registerCspDiagnostics();
     registerHygieneListeners();
+    registerWorkspaceSync();
+    // The manifest in IndexedDB is the source of truth for the mode; this refreshes the
+    // localStorage cache the stores booted from before anything routes a request.
+    try {
+      await loadWorkspace();
+    } catch (err) {
+      console.error("[layout] could not load the workspace manifest", err);
+    }
 
     let restored = false;
     if (!get(isUnlocked)) {
@@ -129,15 +168,12 @@
     const isLockedInStorage =
       safeLocalStorage.getItem("bg_session_locked") === "true";
 
-    const savedMode = safeLocalStorage.getItem("bg_session_mode");
-
-    const policy = get(storagePolicyStore);
-
     if (restored && get(isUnlocked)) {
       const mode = get(sessionStore).mode;
-      // Same rule as sign-in, before routes read: an empty local workspace shows
-      // the account's server data rather than an empty local vault.
-      if (mode === "authenticated") await adoptServerStorageIfLocalEmpty();
+      // Before routes read: the session must own this browser's workspace, and the account's
+      // storage mode comes from the server (lib/db/workspace.ts). Nothing here changes the mode.
+      await openWorkspace();
+      await refreshLocalResults();
 
       // Keys are back, so release `awaitSessionReady()` routes before the token refresh below
       // (that refresh is about the access cookie, not the vault; `client.ts` handles the race).
@@ -153,17 +189,13 @@
         }
       }
     } else if (!get(isUnlocked) && !isPublicPath(page.url.pathname)) {
-      // Local mode no longer auto-unlocks: its keys come from a passphrase the
-      // user supplies, and nothing derived from it is persisted. Every locked
-      // session therefore goes through /unlock, whichever mode it is in.
+      // Every locked session goes through /unlock: keys come from the account sign-in.
       await goto("/unlock");
     }
     isInitializing = false;
     // Releases every route blocked on `awaitSessionReady()`, whether or not
     // the session came back unlocked — routes check `isUnlocked` themselves.
     markSessionReady();
-
-    resumeModeSwitch(); // re-arms a switch a reload interrupted
   });
 
   async function handleLock() {
@@ -234,6 +266,12 @@
       untrack(() => goto("/unlock"));
     }
   });
+
+  // A sign-in on /unlock opens the workspace without remounting the layout: count again.
+  $effect.pre(() => {
+    const state = $workspaceStatusStore.state;
+    if (state === "ok") untrack(() => void refreshLocalResults());
+  });
 </script>
 
 <input
@@ -265,6 +303,10 @@
       onHelpClick={() => openHelp()}
       onOpenArchive={triggerOpenBgproj}
       onExportArchive={() => exportArchiveInteractively()}
+      onShareResults={() =>
+        exportArchiveInteractively(`examance-results-${new Date().toISOString().slice(0, 10)}.bgproj`, {
+          includeExerciseCode: false,
+        })}
       onClearWorkspace={handleCloseWorkspace}
       onLock={handleLock}
     />
@@ -278,19 +320,39 @@
     </Alert>
   {/if}
 
-  {#if interruptedSwitch && !resumeBannerDismissed}
+  {#if interruptedSwitch && workspaceReady && !resumeBannerDismissed}
     <Alert severity="warning" title={$t("storagePolicy.switch.resumeBanner")} class="mx-3 mt-2 sm:mx-4">
-      {$t("storagePolicy.switch.resumeBody", {
-        to: $storagePolicyBadgeStore.text,
-      })}
+      {$t("storagePolicy.switch.resumeBody")}
       {#snippet actions()}
-        <Button variant="outlined" severity="warning" size="sm" onClick={() => (switchWizardOpen = true)}>
+        <Button
+          variant="outlined"
+          severity="warning"
+          size="sm"
+          onClick={() => interruptedSwitch && openSwitch(interruptedSwitch.to)}
+        >
           {$t("storagePolicy.switch.resumeContinue")}
         </Button>
         <Button variant="text" severity="secondary" size="sm" onClick={() => (resumeBannerDismissed = true)}>
           {$t("storagePolicy.switch.resumeDismiss")}
         </Button>
       {/snippet}
+    </Alert>
+  {/if}
+
+  {#if strayLocalResults && !interruptedSwitch}
+    <Alert severity="warning" title={$t("storagePolicy.switch.strayHeading")} class="mx-3 mt-2 sm:mx-4">
+      {$t("storagePolicy.switch.strayBody", { count: localResults })}
+      {#snippet actions()}
+        <Button variant="outlined" severity="warning" size="sm" onClick={() => openSwitch("all-server")}>
+          {$t("storagePolicy.switch.strayUpload")}
+        </Button>
+      {/snippet}
+    </Alert>
+  {/if}
+
+  {#if hybridWithoutResults && !hybridHintDismissed}
+    <Alert severity="info" class="mx-3 mt-2 sm:mx-4" onDismiss={() => (hybridHintDismissed = true)}>
+      {$t("storagePolicy.switch.hybridElsewhere")}
     </Alert>
   {/if}
 
@@ -318,7 +380,19 @@
     {/if}
 
     <main class="app-main">
-      {@render children?.()}
+      {#if $workspaceStatusStore.state === "blocked" && page.url.pathname !== "/unlock"}
+        <!-- Routes stay unmounted: they would read a vault this session does not own. -->
+        <PageShell width="medium" center>
+          <WorkspaceBlocked reason={$workspaceStatusStore.reason} />
+        </PageShell>
+      {:else if mustChooseMode}
+        <!-- No storage mode yet: routes stay unmounted until the account has chosen one (modal below). -->
+        <PageShell width="narrow" center>
+          <p class="text-center text-sm text-muted">{$t("storagePolicy.choice.waiting")}</p>
+        </PageShell>
+      {:else}
+        {@render children?.()}
+      {/if}
 
       <AppFooter
         onBackendClick={handleFooterClick}
@@ -339,15 +413,36 @@
   <HelpModal />
 
   <StoragePolicyModal
-    isOpen={isSettingsModalOpen}
+    isOpen={isSettingsModalOpen || mustChooseMode}
+    mustChoose={mustChooseMode}
     onClose={() => (isSettingsModalOpen = false)}
   />
 </div>
 
+{#if $switchRunningElsewhere}
+  <!-- Another tab is replacing the workspace; anything done here would land in the wrong store. -->
+  <div
+    class="fixed inset-0 flex items-center justify-center bg-surface-base/90 p-4 backdrop-blur-sm"
+    style="z-index: var(--z-modal)"
+    role="alertdialog"
+    aria-live="assertive"
+    aria-label={$t("storagePolicy.workspace.switchElsewhereTitle")}
+  >
+    <div class="max-w-narrow space-y-2 rounded-xl border border-line bg-surface-raised p-6 text-center shadow-lg">
+      <h2 class="text-lg font-semibold text-content">{$t("storagePolicy.workspace.switchElsewhereTitle")}</h2>
+      <p class="text-sm text-muted">{$t("storagePolicy.workspace.switchElsewhereBody")}</p>
+    </div>
+  </div>
+{/if}
+
 <StorageModeSwitchWizard
   open={switchWizardOpen}
-  target={null}
-  onClose={() => (switchWizardOpen = false)}
+  target={switchTarget}
+  onClose={() => {
+    switchWizardOpen = false;
+    switchTarget = null;
+  }}
 />
 
 <ImportConflictModal />
+<ArchiveReportModal />

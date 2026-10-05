@@ -10,7 +10,6 @@ export const placeIcons: Record<"local" | "cloud" | "hybrid", IconDefinition> = 
 };
 
 export const dataPlaceIcons: Record<StorageMode, IconDefinition> = {
-  "all-local": placeIcons.local,
   "all-server": placeIcons.cloud,
   hybrid: placeIcons.hybrid,
 };

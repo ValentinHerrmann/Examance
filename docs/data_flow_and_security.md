@@ -9,14 +9,14 @@ This document describes the privacy-first data storage architecture, client-side
 Examance uses a zero-knowledge, client-side encryption-at-rest model designed to prevent unauthorized access to sensitive exam data, student PII, scan images, and grading scores—even when inspecting browser storage via Developer Tools.
 
 ### Core Invariants
-1. **No Unauthenticated DevTools Access**: When a user is locked or logged out, browser DevTools inspection reveals **zero unencrypted text** (no LaTeX preamble/body, exam metadata, answer keys, fallback codes, or raw scores). Storage is either completely purged (`all-server` mode) or stored as opaque AES-256-GCM binary ciphertexts (`all-local` / `hybrid` mode).
+1. **No Unauthenticated DevTools Access**: When a user is locked or logged out, browser DevTools inspection reveals **zero unencrypted text** (no LaTeX preamble/body, exam metadata, answer keys, fallback codes, or raw scores). Storage is either completely purged (`all-server` mode) or stored as opaque AES-256-GCM binary ciphertexts (`hybrid` mode, where student data, submissions and scores live only in the browser).
 
    *Previously broken here (2026-08-17, now fixed):* `encryptStudent()` used to re-emit `fallbackCode`, `studentName` and `studentNumber` as plain properties next to the ciphertext it had just made of those same fields, `studentRepository.save()` persisted that record unchanged — and did so *before* the storage-mode check, so pupil names landed in local IndexedDB even in `all-server` mode — and `fallbackCode` was a plaintext Dexie index. Identity fields now exist only inside `payloadCt`; `encryptStudent()` refuses to write them at all without a key; the local write happens only outside `all-server` mode; and Dexie v9 drops the index and strips the columns from existing rows. Tracked as L17 in `legal_audit_dsgvo.md` §4.
-2. **Key material is passphrase-derived and tab-scoped.** The master key is derived from a passphrase the user enters; **the passphrase itself is never persisted anywhere**. To survive an F5 reload, the derived `sessionKey` and master key bytes are written to **`sessionStorage`**, which is per-tab and cleared when the tab closes; they are also wiped on manual lock, on inactivity timeout, and on a lock broadcast from another tab. `localStorage` holds only the Argon2id salt, the session nonce, and non-secret UI state (e.g. language, storage policy, the MC-detection thresholds in `bg_omr_settings`) — never a key or a passphrase. **Nothing derived from the passphrase is written to IndexedDB.**
+2. **Key material is tab-scoped.** Every user has a server account; the data key is unwrapped in the browser from the password the user enters (or another factor, §2), and **the password itself is never persisted anywhere**. There are no local passphrase vaults any more: the `all-local` mode was discontinued with issue #47. To survive an F5 reload, the derived `sessionKey` and master key bytes are written to **`sessionStorage`**, which is per-tab and cleared when the tab closes; they are also wiped on manual lock, on inactivity timeout, and on a lock broadcast from another tab. `localStorage` holds only the Argon2id salt, the session nonce, and non-secret UI state (e.g. language, the storage-mode boot cache `bg_storage_policy`, the MC-detection thresholds in `bg_omr_settings`) — never a key or a password. **Nothing derived from the password is written to IndexedDB.**
 
    *This is a deliberate trade of key exposure for usability: while a tab is unlocked, script running on the origin can read the session key out of `sessionStorage`. The alternative — re-prompting on every reload — was judged worse for the grading workflow. It also means the vault is only as private as the browser profile is: anyone who can run script on this origin, or who reaches an already-unlocked tab, can read the data.*
 
-   *Earlier builds of the anonymous local mode generated a random password and stored it in `localStorage`, beside the IndexedDB it protected. That defeated encryption at rest entirely and has been removed; existing vaults are migrated on next unlock.*
+   *Earlier builds of the anonymous local mode generated a random password and stored it in `localStorage`, beside the IndexedDB it protected. That defeated encryption at rest entirely. The whole local mode has since been discontinued; see "Legacy local data" in §5.*
 3. **Data Loss Prevention**: Edits and grading annotations are protected against tab closing/reloading (`beforeunload`) and SvelteKit client-side SPA navigation (`beforeNavigate` via `sessionStore.isDirty`).
 
 ---
@@ -209,7 +209,9 @@ accounts here.
 | `exerciseResources` | `id, exerciseId, [exerciseId+filename]` | Raw file bytes (`dataCt`) of a teacher-uploaded LaTeX resource (image, PDF, data file). `filename`, `mimeType` and `byteSize` stay plaintext — they are index/display fields, not content | Opaque Binary Ciphertext / Purged |
 | `auditLog` | `id, action, timestamp` | Action note details | Opaque Binary Ciphertext / Purged |
 
-*Previously broken here (2026-10-03, now fixed):* in `all-local` mode, creating an exercise variant in the library (`handleSaveVariant()`, `routes/exercises/+page.svelte`) wrote the new variant, and the base exercise it had just tagged with a group id, to `exercises` without `encryptExercise()`. Name, LaTeX body and answer choices sat in IndexedDB in plaintext. Both writes are now sealed. Rows already affected are re-sealed the next time the library loads under a key (`sealPlaintextRows()` in `exerciseRepository.ts`). This was teacher-authored exercise content on the teacher's own device, not student data, and nothing left the device.
+*Previously broken here (2026-10-03, now fixed):* in the then-existing `all-local` mode, creating an exercise variant in the library (`handleSaveVariant()`, `routes/exercises/+page.svelte`) wrote the new variant, and the base exercise it had just tagged with a group id, to `exercises` without `encryptExercise()`. Name, LaTeX body and answer choices sat in IndexedDB in plaintext. Both writes are now sealed. Rows already affected are re-sealed the next time the library loads under a key (`sealPlaintextRows()` in `exerciseRepository.ts`). This was teacher-authored exercise content on the teacher's own device, not student data, and nothing left the device.
+
+*What the table means per location.* It describes the browser representation (IndexedDB). On the server, everything above is client-side encrypted **except** the LaTeX of exams and exercises and `total_score`, which are plaintext there (see below). In `all-server` mode IndexedDB is only a purged-on-lock cache; in `hybrid` mode `students`, `submissions` and `exerciseScores` exist only in IndexedDB.
 
 ### Per-exercise scores on the server
 
@@ -240,7 +242,9 @@ per-pupil samples, and must not remove the human review step (DPIA Art. 22
 assumption, `dpia_art35.md`).
 
 `hybrid` keeps scores local, like submissions and student identities — they are
-grading results, and that is the axis hybrid mode splits on.
+grading results, and that is the axis hybrid mode splits on. In hybrid mode such
+results are visible only in the browser that recorded them; the `.bgproj` archive
+(§5) is the backup.
 
 ### Training-data donation (opt-in)
 
@@ -284,18 +288,25 @@ the tight crop and the absence of any stored id/account/IP) and dataset
 poisoning or storage exhaustion (mitigated by requiring an account, the
 per-account and global daily quotas, strict request validation
 (`extra="forbid"`), consistency filtering applied at training time, and the
-kill switch). This is the only path by which
-`all-local` mode sends anything to a server; see the qualifier on exercise
-resource files below and `tips.storageLocal` / `scanning.s4.p4` in the in-app
-help.
+kill switch). In `hybrid` mode this is the only
+path by which student-derived data reaches a server for *storage* (apart from
+the account's own mode data); see the qualifier on server compilation below and
+`scanning.s4.p4` in the in-app help.
+
+**Server compilation is processing, not storage.** With "LaTeX Server" enabled, a
+compile sends the exam's full LaTeX source (including solution variants) and its
+resource files to `POST /compile/latex`; it is compiled in a temp directory that
+is deleted afterwards, and neither persisted nor logged. Student data is never part
+of a compile request. It requires a sign-in and the `server_latex` capability of the account (§5), and
+enabling it asks for consent once (`storagePolicy.serverCompileConsent`). The choice is a per-browser preference, independent of the storage mode.
 
 ### Exercise resource files on the server
 
-In `all-server` and `hybrid` mode an exercise's resource files are stored in the
+In both remaining modes (`all-server` and `hybrid`) an exercise's resource files are stored in the
 `exercise_resources` table as **plaintext bytes**, exactly as `exercises.latex_body`
 is plaintext there: an exercise kept on the server is server-readable by design,
-and the Tectonic compiler cannot read ciphertext. The zero-knowledge path is the
-default `all-local` mode, where the bytes never leave the browser except inline in
+and the Tectonic compiler cannot read ciphertext. Resource files of exercises that are
+not on the server never leave the browser except inline in
 a server *compile* request, which writes them to a temp directory that is deleted
 with the process — and except the opt-in, anonymised MC training-data donation
 described above, which is off by default and independent of storage mode.
@@ -333,7 +344,7 @@ sequenceDiagram
     alt Storage Policy == 'all-server'
         Page->>IDB: Wipe IndexedDB (wipeDatabase())
         Note over IDB: IndexedDB completely empty in DevTools
-    else Storage Policy == 'all-local' / 'hybrid'
+    else Storage Policy == 'hybrid'
         Note over IDB: IndexedDB contains only encrypted Uint8Array blobs
     end
 
@@ -342,56 +353,97 @@ sequenceDiagram
 
 ---
 
-## 5. Data Migration & Sync Sequence
+## 5. Storage Modes, Data Migration & Sharing
+
+Two storage modes remain (issue #47). The `all-local` mode and the local
+passphrase login (no account) were **discontinued**: every user signs in with a
+server account.
+
+* `all-server`: exams, exercises **and results** (students, submissions with
+  scans, scores) live on the server. Everything is client-side encrypted except
+  the LaTeX of exams/exercises and `total_score`.
+* `hybrid`: exams and exercises live on the server; student data, submissions,
+  scans and scores live only in this browser, encrypted in IndexedDB.
+
+**The mode belongs to the account.** It is stored on the server
+(`teachers.storage_mode`) and has no default: on first sign-in the user must
+choose in a non-dismissible settings modal, and every browser of the account
+follows it. The manifest row in IndexedDB (`lib/db/workspace.ts`) and the
+`bg_storage_policy` boot cache mirror it; `commitStorageMode(mode, token)` accepts
+only a token armed by the workspace layer. Which modes and features an account
+may use comes from `GET /user/capabilities` (`backend/app/services/capabilities.py`),
+e.g. `server_latex` for server compilation; it is the hook for future per-user
+admin switches.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor User
-    participant Store as Local Storage Policy
-    participant IDB as Local IndexedDB
+    participant Mover as resultsMover.ts
+    participant IDB as Browser IndexedDB
     participant Server as Backend API
 
-    rect rgb(30, 41, 59)
-    note right of User: Switching storage mode is gated — no implicit sync
-    User->>Store: Request switch to 'all-server'
-    Store->>User: Force export of an encrypted .bgproj archive
-    User->>Store: Confirm
-    Store->>IDB: wipeDatabase() — local store only, server rows untouched
-    Store->>Store: commitStorageMode(mode, token)
-    User->>Store: Import the archive in the new mode
-    Store->>Server: Create records, asking about every collision first
+    User->>Mover: Request switch (optional .bgproj backup first)
+    Mover->>Mover: Refuse if offline-queue writes are pending ("send now" first)
+    loop per exam
+        Mover->>Server: Read or write results in place (idempotent upserts)
+        Mover->>IDB: Write or read the other side
+        Mover->>Mover: Verify counts
     end
-
-    rect rgb(30, 41, 59)
-    note right of User: Leaving a server mode — the same gate, plus a purge
-    User->>Store: Request switch to 'all-local'
-    Store->>User: Force export of an encrypted .bgproj archive
-    Store->>Server: POST /user/purge-server-student-data
-    Server-->>Store: Soft-delete student data (7-day temporary retention)
+    Mover->>Server: Set account mode (only after ALL results arrived)
+    Mover->>User: Keep or delete the old copy? (asked every time)
+    alt to browser (hybrid)
+        Mover->>Server: POST /user/purge-server-student-data
+        Server-->>Mover: Soft-delete (7-day grace)
+    else to server (all-server)
+        Mover->>IDB: Clear local copy
     end
+    Mover->>User: Reload (other tabs were blocked and reload too)
 ```
 
-**Why the switch is gated.** Changing the storage mode changes which store every
-repository talks to, and the data does not follow. The handler this replaced was
-`confirm()` → `wipeDatabase()` → set mode → reload: it destroyed the local
-workspace without uploading any of it, and never checked whether the destination
-already held equivalent data. Signing in also used to flip `all-local` →
-`all-server` silently, after which the next idle lock ran that same wipe.
+**Fluent move instead of a gate.** The earlier flow (forced export, wipe,
+re-import) is gone. `resultsMover.ts` moves results in place, per exam, with
+idempotent upserts and count verification. The account's mode changes only after
+every result has arrived, so an interrupted move leaves the old mode and its
+data intact and can be repeated. Afterwards the user decides each time whether to
+keep or delete the old copy; the server copy is soft-deleted with the existing
+7-day temporary retention. A move is refused while offline-queue writes are
+pending, and other tabs are blocked during it. An `all-server` browser that still
+holds local results (a former hybrid browser) shows a banner offering to upload
+them; in `hybrid` mode a browser without results shows a hint that results live
+only in the browser where they were recorded. The older bug this design avoids:
+the original handler was `confirm()` -> `wipeDatabase()` -> set mode -> reload and
+destroyed local data without uploading it.
 
-The mode is therefore not settable from application code at all:
-`storagePolicyStore.updateSetting` is narrowed to `latexCompilation`, and
-`commitStorageMode(mode, token)` accepts only a token held by
-`lib/services/storageModeSwitch.ts`, which refuses to proceed until an export
-has been recorded. The switch state is persisted, so a reload mid-flight resumes
-instead of presenting an emptied workspace with no stated reason.
+**Owner binding.** The manifest records who the workspace belongs to (an account
+on a backend) and a canary sealed under that account's data key. After every
+unlock, `openWorkspace()` checks the canary and the account and backend. A
+session that does not own the workspace sees a blocking screen instead of the app:
+nothing is read or written; hybrid results are never touched without a confirmed
+reset. Offline-queue entries are bound to the `workspaceId` they were made in and
+are never replayed into another one. Details: `docs/dev/storage_modes.md`.
 
-One case skips the gate: a server sign-in (or a restored authenticated session)
-on a browser whose local workspace holds no exams, exercises, students,
-submissions or scores adopts `all-server` directly
-(`adoptServerStorageIfLocalEmpty`). There is nothing local to lose, and staying
-on `all-local` would show the account an empty vault. A browser with any local
-data keeps its mode.
+**Legacy local data.** A browser that still holds data from the discontinued local
+mode (no account) shows a screen saying it cannot be opened; the user may delete
+it and continue. There is no migration, and the former sign-in adoption exception
+(`adoptServerStorageIfPristine`) no longer applies because the mode comes from the
+account.
+
+### Archives (`.bgproj`)
+
+The archive is a password envelope (Argon2id + AES-GCM). Binaries are
+base64-encoded; earlier, scans and annotations were lost on export. Scans and
+annotations now travel **decrypted inside the envelope**, as names, scores and
+resources already did, and are re-sealed under the importer's key on import. The
+archive is therefore only as strong as its password, and archives can be shared
+between teachers and accounts. Treat an archive as student data.
+
+*Share results (without exercise texts)* (workspace menu) exports exams, students,
+scans, annotations, scores, exercise names, points and MC answer keys, but no
+LaTeX code and no resource files. Imported exercises are marked `code_withheld`:
+exams show a "Results only" notice, grading and statistics work, compiling,
+editing and building OMR answer-sheet templates are disabled, and the exercise
+library hides them.
 
 **Import resolves collisions before it writes.** `decryptArchive()` opens the
 envelope and touches nothing — a wrong password costs nothing, where the old

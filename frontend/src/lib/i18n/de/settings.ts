@@ -13,8 +13,6 @@ export const settings = {
     storage: {
         heading: '1. Globale Speicherstrategie',
         description: 'Legen Sie fest, wo Prüfungen, Aufgaben, Schüleridentitäten und Ergebnisse gespeichert werden:',
-        allLocalTitle: 'Alles lokal (Datenschutz zuerst)',
-        allLocalText: 'Prüfungen, Aufgabenbibliothek, Schüleridentitäten und Scans werden zu 100 % lokal in der IndexedDB Ihres Browsers gespeichert.',
         allServerTitle: 'Alles auf dem Server',
         allServerText: 'Alle Daten werden mit dem sicheren BlindGrade-Server synchronisiert und dort gespeichert.',
         hybridTitle: 'Hybrid-Modus (Bibliothek auf dem Server, Ergebnisse lokal)',
@@ -196,7 +194,6 @@ export const settings = {
         exportFailed: 'Export fehlgeschlagen.',
     },
     alerts: {
-        serverCompileNeedsAuth: 'Die Serverkompilierung erfordert eine authentifizierte Sitzung. Bitte melden Sie sich an.',
         serverStorageNeedsAuth: 'Serverbasierte Speichermodi erfordern eine authentifizierte Sitzung. Bitte melden Sie sich an.',
         storageModeConfirm: 'Ein Wechsel des Speichermodus setzt den aktuellen Sitzungszustand zurück. Stellen Sie sicher, dass Sie zuvor ein .bgproj-Backup exportiert haben!\n\nMöchten Sie fortfahren und den Speichermodus wechseln?',
         eraseStudentConfirm: 'Möchten Sie diese Schüleridentität und alle zugehörigen Abgaben wirklich dauerhaft löschen?',

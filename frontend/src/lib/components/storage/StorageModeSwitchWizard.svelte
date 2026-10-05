@@ -1,198 +1,274 @@
 <script lang="ts">
-  // The gated storage-mode switch: explain → export → wipe & switch → import.
-  // Conflicts during import are answered by the dialog mounted in the root layout.
+  // The fluent storage-mode change: explain → (optional backup) → move the results → keep or delete
+  // the old copy → reload. Nothing is wiped up front; the account's mode changes only after every
+  // result arrived (services/resultsMover.ts). Also used for the account's first choice.
   import { untrack } from 'svelte';
   import { get } from 'svelte/store';
   import { t, translate } from '#lib/i18n';
-  import { Alert, Badge, Button, Checkbox, Modal } from '#lib/components/ui';
-  import { isAuthenticated } from '#lib/stores/session';
-  import { getStoragePolicyBadge, type StorageMode } from '#lib/stores/storagePolicy';
+  import { Alert, Badge, Button, Modal, Spinner } from '#lib/components/ui';
+  import { ApiError } from '#lib/api/client';
+  import { getStoragePolicyBadge, storagePolicyStore, type StorageMode } from '#lib/stores/storagePolicy';
   import {
-    abortModeSwitch,
-    beginModeSwitch,
-    commitModeSwitch,
-    finishModeSwitch,
-    localWorkspaceIsEmpty,
-    markExported,
-    pendingSwitchStore,
-    requireExport,
-  } from '#lib/services/storageModeSwitch';
-  import {
-    exportArchiveInteractively,
-    importArchiveInteractively,
-  } from '#lib/services/archiveService';
+    deleteOldCopy,
+    directionFor,
+    hasResultsToMove,
+    moveProgressStore,
+    moveResults,
+    type MoveResult,
+  } from '#lib/services/resultsMover';
+  import { PendingWritesError } from '#lib/services/storageModeSwitch';
+  import { flushOfflineQueue, pendingWritesCount } from '#lib/services/offlineQueue';
+  import { exportArchiveInteractively } from '#lib/services/archiveService';
 
   interface Props {
     open?: boolean;
-    /** The mode to switch to; null when resuming an interrupted switch. */
+    /** The mode to change to. */
     target?: StorageMode | null;
     onClose: () => void;
   }
 
   let { open = false, target = null, onClose }: Props = $props();
 
+  type Step = 'explain' | 'moving' | 'cleanup' | 'done';
   const STEPS = [
-    { phase: 'confirm', label: 'storagePolicy.switch.stepExplain' },
-    { phase: 'export', label: 'storagePolicy.switch.stepExport' },
-    { phase: 'exported', label: 'storagePolicy.switch.stepSwitch' },
-    { phase: 'reimport', label: 'storagePolicy.switch.stepImport' },
+    { step: 'explain', label: 'storagePolicy.switch.stepExplain' },
+    { step: 'moving', label: 'storagePolicy.switch.stepMove' },
+    { step: 'cleanup', label: 'storagePolicy.switch.stepCleanup' },
+    { step: 'done', label: 'storagePolicy.switch.stepDone' },
   ] as const;
 
-  let understood = $state(false);
+  let step: Step = $state('explain');
+  let from: StorageMode | null = $state(null);
+  let somethingToMove: boolean | null = $state(null);
   let busy = $state(false);
   let errorMsg = $state('');
-  let workspaceEmpty = $state(false);
+  let blockedByPendingWrites = $state(false);
+  let result = $state.raw<MoveResult | null>(null);
+  let deleted = $state.raw<{ students: number; submissions: number } | null>(null);
+  let backupDone = $state(false);
 
-  let pending = $derived($pendingSwitchStore);
-  let phase = $derived(pending?.phase === 'switching' ? 'exported' : pending?.phase);
-  let toLabel = $derived(pending ? modeLabel(pending.to) : '');
+  let direction = $derived(target ? directionFor(target) : 'to-server');
+  let toLabel = $derived(target ? modeLabel(target) : '');
+  let movedAnything = $derived(!!result && result.students + result.submissions + result.scores > 0);
 
-  function modeLabel(mode: StorageMode): string {
+  function modeLabel(mode: StorageMode | null): string {
     return getStoragePolicyBadge({ storageMode: mode, latexCompilation: 'local' }).text;
   }
 
-  async function start(to: StorageMode) {
-    if (to !== 'all-local' && !get(isAuthenticated)) {
-      errorMsg = translate('storagePolicy.switch.needsAuth');
-      return;
+  async function prepare() {
+    step = 'explain';
+    from = get(storagePolicyStore).storageMode;
+    somethingToMove = null;
+    errorMsg = '';
+    result = null;
+    deleted = null;
+    backupDone = false;
+    blockedByPendingWrites = get(pendingWritesCount) > 0;
+    try {
+      somethingToMove = target ? await hasResultsToMove(directionFor(target)) : false;
+    } catch {
+      // Unknown: the move itself will find out; say there may be something to move.
+      somethingToMove = true;
     }
-    beginModeSwitch(to);
-    workspaceEmpty = await localWorkspaceIsEmpty();
   }
 
-  async function runAction(action: () => Promise<unknown>) {
+  async function run(action: () => Promise<unknown>) {
     busy = true;
     errorMsg = '';
     try {
       await action();
     } catch (err: any) {
-      errorMsg = err.message;
+      if (err instanceof PendingWritesError) {
+        blockedByPendingWrites = true;
+      } else if (err instanceof ApiError && err.status === 409) {
+        errorMsg = translate('storagePolicy.switch.changedElsewhere');
+      } else if (err instanceof ApiError && err.status === 403) {
+        errorMsg = translate('storagePolicy.notEnabled');
+      } else {
+        errorMsg = err?.message ?? String(err);
+      }
+      if (step === 'moving') step = 'explain';
     } finally {
       busy = false;
     }
   }
 
-  function close() {
-    understood = false;
-    errorMsg = '';
-    onClose();
+  async function handleSyncNow() {
+    await flushOfflineQueue();
+    if (get(pendingWritesCount) > 0) {
+      errorMsg = translate('storagePolicy.switch.pendingWritesStill');
+      return;
+    }
+    blockedByPendingWrites = false;
+  }
+
+  async function handleBackup() {
+    const filename = `examance-${new Date().toISOString().slice(0, 10)}.bgproj`;
+    if (await exportArchiveInteractively(filename)) backupDone = true;
+  }
+
+  async function handleMove() {
+    if (!target) return;
+    step = 'moving';
+    result = await moveResults(from, target);
+    step = movedAnything ? 'cleanup' : 'done';
+  }
+
+  async function handleDeleteOld() {
+    deleted = await deleteOldCopy(direction);
+    step = 'done';
+  }
+
+  function finish() {
+    // Every list on the page was loaded under the old mode: start over rather than show stale rows.
+    window.location.reload();
   }
 
   function handleCancel() {
-    if (abortModeSwitch()) close();
-    else errorMsg = translate('storagePolicy.switch.cannotAbortAfterWipe');
-  }
-
-  async function handleExport() {
-    const filename = `examance-${new Date().toISOString().slice(0, 10)}.bgproj`;
-    if (await exportArchiveInteractively(filename)) markExported(filename);
-  }
-
-  async function handleImport(event: Event) {
-    const input = event.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (file && (await importArchiveInteractively(file))) {
-      finishModeSwitch();
-      close();
+    if (busy || step === 'moving') return;
+    if (step === 'cleanup' || step === 'done') {
+      finish();
+      return;
     }
-  }
-
-  function handleImportLater() {
-    finishModeSwitch();
-    close();
+    onClose();
   }
 
   $effect.pre(() => {
     const isOpen = open;
     const to = target;
-    const p = pending;
-    if (isOpen && to && !p) untrack(() => void start(to));
+    if (isOpen && to) untrack(() => void prepare());
   });
 </script>
 
 <Modal
   {open}
   size="medium"
-  title={$t('storagePolicy.switch.title')}
+  title={$t('storagePolicy.switch.title', { to: toLabel })}
   closeOnBackdrop={false}
-  closeOnEscape={!busy}
-  onClose={handleCancel}
+  closeOnEscape={!busy && step === 'explain'}
+  onClose={step === 'moving' ? undefined : handleCancel}
 >
-  {#if pending}
-    <ol class="mb-4 flex flex-wrap gap-2 text-xs text-muted">
-      {#each STEPS as step, i (step.phase)}
-        <li>
-          <Badge severity={phase === step.phase ? 'primary' : 'secondary'}>{i + 1}. {$t(step.label)}</Badge>
-        </li>
-      {/each}
-    </ol>
+  <ol class="mb-4 flex flex-wrap gap-2 text-xs text-muted">
+    {#each STEPS as s, i (s.step)}
+      <li><Badge severity={step === s.step ? 'primary' : 'secondary'}>{i + 1}. {$t(s.label)}</Badge></li>
+    {/each}
+  </ol>
 
-    <div class="space-y-2 text-sm text-muted">
-      {#if phase === 'confirm'}
-        <h4 class="font-semibold text-content">
-          {$t('storagePolicy.switch.introHeading', { from: modeLabel(pending.from), to: toLabel })}
-        </h4>
-        <p>{$t('storagePolicy.switch.introBody')}</p>
-        <p>{$t('storagePolicy.switch.bridgeNote')}</p>
-        <p class="text-muted">{$t('storagePolicy.switch.serverKeptNote')}</p>
-        <Checkbox bind:checked={understood} label={$t('storagePolicy.switch.understandCheckbox')} class="pt-2" />
-      {:else if phase === 'export'}
-        <h4 class="font-semibold text-content">{$t('storagePolicy.switch.exportHeading')}</h4>
-        <p>{$t('storagePolicy.switch.exportBody')}</p>
-        <p class="text-muted">{$t('storagePolicy.switch.exportRequired')}</p>
-      {:else if phase === 'exported'}
-        <h4 class="font-semibold text-content">{$t('storagePolicy.switch.wipeHeading')}</h4>
-        <p class="text-warning-fg">{$t('storagePolicy.switch.wipeWarning', { to: toLabel })}</p>
-        {#if pending.archiveFilename}
-          <p class="text-xs text-muted">
-            {$t('storagePolicy.switch.exportDone', { filename: pending.archiveFilename })}
-          </p>
+  <div class="space-y-2 text-sm text-muted">
+    {#if blockedByPendingWrites && step === 'explain'}
+      <h4 class="font-semibold text-content">{$t('storagePolicy.switch.pendingWritesHeading')}</h4>
+      <p>{$t('storagePolicy.switch.pendingWritesBody', { count: $pendingWritesCount })}</p>
+    {:else if step === 'explain'}
+      <h4 class="font-semibold text-content">
+        {from
+          ? $t('storagePolicy.switch.introHeading', { from: modeLabel(from), to: toLabel })
+          : $t('storagePolicy.switch.firstChoiceHeading', { to: toLabel })}
+      </h4>
+      <p>
+        {direction === 'to-browser'
+          ? $t('storagePolicy.switch.toBrowserBody')
+          : $t('storagePolicy.switch.toServerBody')}
+      </p>
+      <p>{$t('storagePolicy.switch.examsStay')}</p>
+      {#if somethingToMove === null}
+        <p class="flex items-center gap-2"><Spinner /> {$t('storagePolicy.switch.checking')}</p>
+      {:else if !somethingToMove}
+        <p>{$t('storagePolicy.switch.nothingToMove')}</p>
+        {#if from === 'hybrid' && direction === 'to-server'}
+          <!-- Hybrid results live in the browser that recorded them; this one has none to send. -->
+          <Alert severity="warning">{$t('storagePolicy.switch.hybridResultsElsewhere')}</Alert>
         {/if}
-      {:else if phase === 'reimport'}
-        <h4 class="font-semibold text-content">{$t('storagePolicy.switch.importHeading')}</h4>
-        <p>{$t('storagePolicy.switch.importBody')}</p>
-        <input
-          type="file"
-          accept=".bgproj"
-          disabled={busy}
-          onchange={(e) => runAction(() => handleImport(e))}
-          class="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-surface-inset
-                 file:px-3 file:py-1.5 file:text-content"
-        />
+      {:else}
+        <p>{$t('storagePolicy.switch.otherTabsNote')}</p>
+        {#if from}
+          <div class="flex flex-wrap items-center gap-2 pt-1">
+            <Button variant="outlined" severity="secondary" size="sm" disabled={busy} onClick={() => run(handleBackup)}>
+              {$t('storagePolicy.switch.backupButton')}
+            </Button>
+            <span class="text-xs">
+              {backupDone ? $t('storagePolicy.switch.backupDone') : $t('storagePolicy.switch.backupOptional')}
+            </span>
+          </div>
+        {/if}
       {/if}
-    </div>
-  {/if}
+    {:else if step === 'moving'}
+      <h4 class="font-semibold text-content">{$t('storagePolicy.switch.movingHeading')}</h4>
+      {#if $moveProgressStore}
+        <p>
+          {$t('storagePolicy.switch.movingProgress', {
+            done: $moveProgressStore.examsDone,
+            total: $moveProgressStore.examsTotal,
+            submissions: $moveProgressStore.submissions,
+          })}
+        </p>
+      {/if}
+      <p class="flex items-center gap-2"><Spinner /> {$t('storagePolicy.switch.movingKeepOpen')}</p>
+    {:else if step === 'cleanup' && result}
+      <h4 class="font-semibold text-content">{$t('storagePolicy.switch.cleanupHeading')}</h4>
+      <p>
+        {$t('storagePolicy.switch.movedSummary', {
+          students: result.students,
+          submissions: result.submissions,
+          scores: result.scores,
+        })}
+      </p>
+      <p>
+        {direction === 'to-browser'
+          ? $t('storagePolicy.switch.cleanupServerBody')
+          : $t('storagePolicy.switch.cleanupBrowserBody')}
+      </p>
+    {:else if step === 'done'}
+      <h4 class="font-semibold text-content">{$t('storagePolicy.switch.doneHeading', { to: toLabel })}</h4>
+      {#if result && movedAnything}
+        <p>
+          {$t('storagePolicy.switch.movedSummary', {
+            students: result.students,
+            submissions: result.submissions,
+            scores: result.scores,
+          })}
+        </p>
+      {/if}
+      {#if deleted}
+        <p>
+          {direction === 'to-browser'
+            ? $t('storagePolicy.switch.purgeDone', { students: deleted.students, submissions: deleted.submissions })
+            : $t('storagePolicy.switch.localDeleted')}
+        </p>
+      {/if}
+    {/if}
+
+    {#if result && result.skippedExams.length > 0}
+      <Alert severity="warning">{$t('storagePolicy.switch.skippedExams', { count: result.skippedExams.length })}</Alert>
+    {/if}
+  </div>
 
   {#if errorMsg}
     <Alert severity="danger" class="mt-3 whitespace-pre-wrap">{errorMsg}</Alert>
   {/if}
 
   {#snippet footer()}
-    {#if phase === 'reimport'}
-      <Button variant="outlined" severity="secondary" disabled={busy} onClick={handleImportLater}>
-        {$t('storagePolicy.switch.importSkip')}
-      </Button>
-    {:else if pending}
+    {#if step === 'explain'}
       <Button variant="outlined" severity="secondary" disabled={busy} onClick={handleCancel}>
         {$t('storagePolicy.switch.cancel')}
       </Button>
-      {#if phase === 'confirm'}
-        <Button disabled={!understood} onClick={requireExport}>
-          {$t('storagePolicy.switch.stepExport')}
-        </Button>
-      {:else if phase === 'export'}
-        <Button variant="text" severity="secondary" disabled={busy} onClick={() => markExported()}>
-          {$t(workspaceEmpty ? 'storagePolicy.switch.skipExportEmpty' : 'storagePolicy.switch.skipExportHaveArchive')}
-        </Button>
-        <Button loading={busy} onClick={() => runAction(handleExport)}>
-          {$t('storagePolicy.switch.exportButton')}
-        </Button>
-      {:else if phase === 'exported'}
-        <Button severity="danger" loading={busy} onClick={() => runAction(commitModeSwitch)}>
-          {$t('storagePolicy.switch.wipeButton')}
+      {#if blockedByPendingWrites}
+        <Button loading={busy} onClick={() => run(handleSyncNow)}>{$t('storagePolicy.switch.pendingWritesSync')}</Button>
+      {:else}
+        <Button loading={busy} disabled={somethingToMove === null} onClick={() => run(handleMove)}>
+          {somethingToMove ? $t('storagePolicy.switch.moveButton') : $t('storagePolicy.switch.chooseButton', { to: toLabel })}
         </Button>
       {/if}
+    {:else if step === 'cleanup'}
+      <Button variant="outlined" severity="secondary" disabled={busy} onClick={() => (step = 'done')}>
+        {$t('storagePolicy.switch.keepOld')}
+      </Button>
+      <Button severity="danger" loading={busy} onClick={() => run(handleDeleteOld)}>
+        {direction === 'to-browser'
+          ? $t('storagePolicy.switch.deleteServerCopy')
+          : $t('storagePolicy.switch.deleteBrowserCopy')}
+      </Button>
+    {:else if step === 'done'}
+      <Button onClick={finish}>{$t('storagePolicy.switch.finish')}</Button>
     {/if}
   {/snippet}
 </Modal>

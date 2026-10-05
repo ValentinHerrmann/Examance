@@ -90,7 +90,6 @@ export const exam = {
     metadata: {
         submissions: 'Abgaben',
         graded: 'Korrigiert',
-        localBanner: 'Lokal gespeichert — Synchronisieren mit Server für Export & Statistik',
         gradeType: {
             linear50: 'Linear (50%)',
             linear40: 'Linear (40%)',
@@ -185,5 +184,11 @@ export const exam = {
         custom: 'Individuell',
         gradeLabel: 'Note {grade}',
         from: 'Ab',
+    },
+    resultsOnly: {
+        badge: 'Nur Ergebnisse',
+        noCompile: 'Diese Prüfung wurde ohne Aufgabentexte importiert (nur Ergebnisse). Sie lässt sich nicht kompilieren.',
+        noOmr: 'Diese Prüfung wurde ohne Aufgabentexte importiert. Ohne LaTeX lässt sich kein Ankreuzbogen erzeugen, neue Scans werden daher nicht automatisch ausgewertet.',
+        noEdit: 'Diese Aufgabe wurde ohne Aufgabentext importiert und lässt sich nicht bearbeiten.',
     },
 } as const;

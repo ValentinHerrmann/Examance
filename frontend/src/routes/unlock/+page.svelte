@@ -7,11 +7,7 @@
     deriveSessionKey,
     generateSessionNonce,
   } from "#lib/crypto/sessionKey";
-  import {
-    hasLegacyLocalVault,
-    hasLocalVault,
-    sessionStore,
-  } from "#lib/stores/session";
+  import { sessionStore } from "#lib/stores/session";
   import { api, ApiError } from "#lib/api/client";
   import { Argon2UnavailableError } from "#lib/crypto/keyDerivation";
   import { backendStore } from "#lib/stores/backendStore";
@@ -46,9 +42,12 @@
     rewrapForNewPassword,
     startFreshVault,
   } from "#lib/services/keyEnvelopeService";
-  import { adoptServerStorageIfLocalEmpty } from "#lib/services/storageModeSwitch";
+  import {
+    openWorkspace,
+  } from "#lib/db/workspace";
+  import { workspaceStatusStore } from "#lib/stores/workspaceState";
+  import WorkspaceBlocked from "#lib/components/storage/WorkspaceBlocked.svelte";
 
-  const LOCAL_PASSPHRASE_MIN_LENGTH = 12;
 
   let password = $state("");
   let email = $state("");
@@ -87,12 +86,6 @@
   /** A PRF passkey that signed in but has no working wrap; re-wrapped once the vault opens another way. */
   let passkeyToHeal: { credentialIdB64: string; prfOutput: Uint8Array } | null = $state.raw(null);
 
-  // Local workspace passphrase. Never persisted — it is the only input to the
-  // key derivation, so losing it means the local vault cannot be opened.
-  let localPassphrase = $state("");
-  let localPassphraseConfirm = $state("");
-  const needsLegacyMigration = hasLegacyLocalVault();
-  const isNewLocalVault = !hasLocalVault() || needsLegacyMigration;
 
   async function handleUnlock() {
     errorMsg = "";
@@ -246,10 +239,16 @@
     await finishUnlock(step, normalizedEmail, vault);
   }
 
-  // Leave for an authenticated session. An empty local workspace switches to server storage first;
-  // local data is never switched away silently.
+  // Leave for an authenticated session. The session must own this browser's workspace and the
+  // account's storage mode is loaded (lib/db/workspace.ts); a blocked workspace stays on this page
+  // with an explanation, an unchosen mode is asked for by the root layout.
   async function enterApp() {
-    await adoptServerStorageIfLocalEmpty();
+    // A workspace this account does not own stays on this page with an explanation (see template).
+    const status = await openWorkspace();
+    if (status.state === "blocked") {
+      isFinishing = false;
+      return;
+    }
     await goto("/");
   }
 
@@ -514,44 +513,6 @@
     await enterApp();
   }
 
-  async function handleUnlockLocal() {
-    errorMsg = "";
-
-    if (!localPassphrase) {
-      errorMsg = translate("auth.unlock.errors.enterLocalPassphrase");
-      return;
-    }
-    if (isNewLocalVault || needsLegacyMigration) {
-      if (localPassphrase.length < LOCAL_PASSPHRASE_MIN_LENGTH) {
-        errorMsg = translate("auth.unlock.errors.passphraseTooShort", { minLength: LOCAL_PASSPHRASE_MIN_LENGTH });
-        return;
-      }
-      if (localPassphrase !== localPassphraseConfirm) {
-        errorMsg = translate("auth.unlock.errors.passphrasesDoNotMatch");
-        return;
-      }
-    }
-
-    isLoading = true;
-    try {
-      // Unlocking deliberately does not change the configured storage mode —
-      // that only happens through the gated switch, which exports first.
-      if (needsLegacyMigration) {
-        // Re-encrypts the existing vault away from the password that used to
-        // sit in localStorage. Nothing is deleted unless this succeeds.
-        await sessionStore.migrateLegacyLocalVault(localPassphrase);
-      } else {
-        await sessionStore.unlockLocalSession(localPassphrase);
-      }
-
-      await goto("/");
-    } catch (err: any) {
-      errorMsg = err?.message || translate("auth.unlock.errors.localSessionInitFailed");
-    } finally {
-      isLoading = false;
-    }
-  }
-
   // Finish a recovery: unwrap the data key with the code, re-wrap it under the new password. The key
   // never changes, so every existing exam, scan and score stays readable.
   async function handleRecovery(recoveryCode: string) {
@@ -660,7 +621,9 @@
   <!-- Above the step: the cooloff can be hit from the form, the second factor and the vault prompt alike. -->
   <LockoutNotice />
 
-  {#if isFinishing}
+  {#if $workspaceStatusStore.state === "blocked"}
+    <WorkspaceBlocked reason={$workspaceStatusStore.reason} />
+  {:else if isFinishing}
     <Card class="mx-auto w-full max-w-form sm:p-6">
       <SigningInStep email={finishingEmail} />
     </Card>
@@ -689,14 +652,9 @@
       bind:backendUrl
       bind:email
       bind:password
-      bind:localPassphrase
-      bind:localPassphraseConfirm
-      {isNewLocalVault}
-      {needsLegacyMigration}
       {errorMsg}
       {isLoading}
       onUnlock={handleUnlock}
-      onUnlockLocal={handleUnlockLocal}
       onPasskey={canUsePasskeys ? () => handlePasskey() : undefined}
     />
   {/if}

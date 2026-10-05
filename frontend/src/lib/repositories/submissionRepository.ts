@@ -32,6 +32,20 @@ export function mapApiToSubmissionRecord(s: any, fallbackExamId: string): Submis
 const includeScansQS = (includeScans: boolean | undefined) =>
   includeScans ? '?include_scans=true' : '';
 
+/** The `POST /exams/{id}/submissions` body for a decrypted submission (scan bytes stay sealed). */
+export async function submissionServerPayload(submission: SubmissionRecord, opts: { clearAnnotations?: boolean } = {}) {
+  return {
+    id: submission.id,
+    pseudonym_hmac: await ensure64CharHex(submission.pseudonymHash),
+    total_score: submission.totalScore ?? null,
+    scan_ciphertext_b64: submission.scanCt ? uint8ArrayToBase64(submission.scanCt) : undefined,
+    scan_iv_b64: submission.scanIv ? uint8ArrayToBase64(submission.scanIv) : undefined,
+    annotation_ciphertext_b64: submission.annotationCt ? uint8ArrayToBase64(submission.annotationCt) : undefined,
+    annotation_iv_b64: submission.annotationIv ? uint8ArrayToBase64(submission.annotationIv) : undefined,
+    clear_annotations: opts.clearAnnotations ?? false,
+  };
+}
+
 export const submissionRepository = {
     /** @param knownExams exams the caller already has, avoiding a second `/exams` fetch. */
     /**
@@ -80,8 +94,10 @@ export const submissionRepository = {
       return Promise.all(raw.map((sub) => decryptSubmission(sub, key)));
     } else {
       try {
+        // silentError: a failure degrades to "no submissions" below.
         const rawList = await api.get<any[]>(
-          `/exams/${examId}/submissions${includeScansQS(opts.includeScans)}`
+          `/exams/${examId}/submissions${includeScansQS(opts.includeScans)}`,
+          { silentError: true }
         );
         return rawList.map((s: any) => mapApiToSubmissionRecord(s, examId));
       } catch {
@@ -96,7 +112,7 @@ export const submissionRepository = {
       return raw ? decryptSubmission(raw, key) : null;
     } else {
       try {
-        const s = await api.get<any>(`/exams/${examId}/submissions/${id}`);
+        const s = await api.get<any>(`/exams/${examId}/submissions/${id}`, { silentError: true });
         return mapApiToSubmissionRecord(s, examId);
       } catch {
         return null;
@@ -114,17 +130,7 @@ export const submissionRepository = {
       const encrypted = await encryptSubmission(submission, key);
       await db.submissions.put(encrypted);
     } else {
-      const pseudonymHmac = await ensure64CharHex(submission.pseudonymHash);
-      const payload = {
-        id: submission.id,
-        pseudonym_hmac: pseudonymHmac,
-        total_score: submission.totalScore ?? null,
-        scan_ciphertext_b64: submission.scanCt ? uint8ArrayToBase64(submission.scanCt) : undefined,
-        scan_iv_b64: submission.scanIv ? uint8ArrayToBase64(submission.scanIv) : undefined,
-        annotation_ciphertext_b64: submission.annotationCt ? uint8ArrayToBase64(submission.annotationCt) : undefined,
-        annotation_iv_b64: submission.annotationIv ? uint8ArrayToBase64(submission.annotationIv) : undefined,
-        clear_annotations: opts.clearAnnotations ?? false,
-      };
+      const payload = await submissionServerPayload(submission, opts);
       try {
         await api.post(`/exams/${submission.examId}/submissions`, payload);
       } catch {

@@ -2,16 +2,15 @@
  * Functional regression suite: asserts behaviour and data, never layout, classes or visuals,
  * so it survives UI redesigns with changes to `helpers/nav.ts` only. Texts come from the
  * i18n catalogs via `helpers/i18n.ts`. Titles are tagged by area (`-g "\[exam\]"`).
- * Runs in all-local mode with no backend; LaTeX compilation is never awaited or asserted.
+ * Runs against the mocked backend (`helpers/backend.ts`, in the account's `all-server` mode unless
+ * a describe sets `storageMode`); LaTeX compilation is never awaited or asserted.
  */
 import { test, expect } from './helpers/guards';
 import { label, labelExact, literal, rawTemplate, stem } from './helpers/i18n';
 import {
-  VAULT_PASSPHRASE,
   createExam,
   createExercise,
   createExerciseInLibrary,
-  createVault,
   currentExamId,
   exerciseBody,
   exerciseGroupHeading,
@@ -21,8 +20,9 @@ import {
   openExamFromDashboard,
   searchExerciseLibrary,
   setCodeMirror,
+  signInAgain,
+  signInFirstTime,
   t,
-  unlockVault,
 } from './helpers/flows';
 import {
   clearWorkspace,
@@ -42,59 +42,76 @@ import {
 } from './helpers/nav';
 
 /* -------------------------------------------------------------------------- */
-/* 1. Vault                                                                    */
+/* 1. Authentication                                                           */
 /* -------------------------------------------------------------------------- */
 
-test.describe('vault', () => {
-  test('[vault] create, lock and unlock again keeps the data', async ({ page }) => {
-    await createVault(page);
+test.describe('auth', () => {
+  test('[auth] sign in, lock and sign in again keeps the data', async ({ page }) => {
+    await signInFirstTime(page);
 
     // Something to find again after the lock.
-    await createExerciseInLibrary(page, { name: 'Persisted exercise', topic: 'Vault' });
+    await createExerciseInLibrary(page, { name: 'Persisted exercise', topic: 'Auth' });
     await gotoDashboard(page);
     await expectDashboard(page);
 
     await lockApp(page);
-    // The vault now exists, so the form asks for the passphrase instead of a new one.
-    await expect(page.getByLabel(await t(page, 'auth.unlock.local.workspacePassphrase'))).toBeVisible();
-    await expect(page.getByLabel(await t(page, 'auth.unlock.local.repeatPassphrase'))).toHaveCount(0);
+    // Locked: the sign-in form is back, with no setup codes this time.
+    await expect(page.getByLabel(await t(page, 'auth.unlock.cloud.email'))).toBeVisible();
 
     // A locked session must not reach protected pages.
     await page.goto('/exercises');
     await expect(page).toHaveURL((url) => url.pathname === '/unlock');
 
-    await unlockVault(page);
+    // The stored key envelopes open the vault again (the fake echoes them back unchanged).
+    await signInAgain(page);
     await gotoExerciseLibrary(page);
     await expect(exerciseGroupHeading(page, 'Persisted exercise')).toBeVisible();
   });
 
-  test('[vault] unauthenticated visits are sent to the unlock page', async ({ page }) => {
+  test('[auth] unauthenticated visits are sent to the unlock page', async ({ page }) => {
     await page.goto('/');
     await expect(page).toHaveURL((url) => url.pathname === '/unlock');
     await expect(page.getByRole('heading', { name: await t(page, 'auth.unlock.title') })).toBeVisible();
     await page.goto('/exam/new');
     await expect(page).toHaveURL((url) => url.pathname === '/unlock');
   });
+});
 
-  test('[vault] refuses a too short or mismatching passphrase when creating a vault', async ({
-    page,
-  }) => {
-    await page.goto('/unlock');
-    const choose = page.getByLabel(await t(page, 'auth.unlock.local.choosePassphrase'));
-    const repeat = page.getByLabel(await t(page, 'auth.unlock.local.repeatPassphrase'));
-    const create = page.getByRole('button', { name: await t(page, 'auth.unlock.local.createWorkspace') });
+test.describe('auth, first storage choice', () => {
+  // An account that has not chosen where its results live: the first sign-in must ask.
+  test.use({ storageMode: null });
 
-    await choose.fill('short');
-    await repeat.fill('short');
-    await create.click();
-    await expect(page.getByText(await t(page, 'auth.unlock.errors.passphraseTooShort', { minLength: 12 }))).toBeVisible();
+  for (const mode of ['all-server', 'hybrid'] as const) {
+    test(`[auth] first sign-in asks for a storage mode and remembers ${mode}`, async ({ page, backend }) => {
+      await signInFirstTime(page, { waitForDashboard: false });
 
-    await choose.fill(VAULT_PASSPHRASE);
-    await repeat.fill(`${VAULT_PASSPHRASE} but different`);
-    await create.click();
-    await expect(page.getByText(await t(page, 'auth.unlock.errors.passphrasesDoNotMatch'))).toBeVisible();
-    await expect(page).toHaveURL((url) => url.pathname === '/unlock');
-  });
+      // The choice cannot be dismissed: no close button, and Escape leaves it open.
+      const choice = page.getByRole('dialog', { name: await t(page, 'storagePolicy.choice.title') });
+      await expect(choice).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(choice).toBeVisible();
+      await expect(choice.getByRole('button', { name: labelExact('common.close') })).toHaveCount(0);
+
+      // Picking a mode opens the move dialog; with nothing to move it just records the choice.
+      const title = mode === 'all-server' ? 'misc.storageModal.allServerTitle' : 'misc.storageModal.hybridTitle';
+      await choice.getByRole('radio', { name: await t(page, title) }).click();
+      const wizard = page.getByRole('dialog', { name: await t(page, 'storagePolicy.switch.title', { to: '' }) });
+      await expect(wizard).toBeVisible();
+      await wizard
+        .getByRole('button', { name: await t(page, 'storagePolicy.switch.chooseButton', { to: '' }) })
+        .click();
+      await expect.poll(() => backend.state.storageMode).toBe(mode);
+
+      await wizard.getByRole('button', { name: await t(page, 'storagePolicy.switch.finish') }).click();
+      await expectDashboard(page);
+      await expect(page.getByRole('dialog', { name: await t(page, 'storagePolicy.choice.title') })).toHaveCount(0);
+
+      // The server remembers the choice: a reload does not ask again.
+      await page.reload();
+      await expectDashboard(page);
+      await expect(page.getByRole('dialog', { name: await t(page, 'storagePolicy.choice.title') })).toHaveCount(0);
+    });
+  }
 });
 
 /* -------------------------------------------------------------------------- */
@@ -103,7 +120,7 @@ test.describe('vault', () => {
 
 test.describe('exercises', () => {
   test('[exercises] create, filter, edit, add a variant and delete', async ({ page }) => {
-    await createVault(page);
+    await signInFirstTime(page);
     await gotoExerciseLibrary(page);
 
     // Empty state first: the library offers to create the first exercise.
@@ -197,7 +214,7 @@ test.describe('exercises', () => {
   });
 
   test('[exercises] a multiple-choice exercise validates and saves', async ({ page }) => {
-    await createVault(page);
+    await signInFirstTime(page);
     await gotoExerciseLibrary(page);
 
     // Without a correct option the editor refuses to save.
@@ -238,7 +255,7 @@ test.describe('exam', () => {
   test('[exam] create from exercises and an MC group, and the links survive a reload', async ({
     page,
   }) => {
-    await createVault(page);
+    await signInFirstTime(page);
     await gotoExerciseLibrary(page);
     await createExercise(page, { name: 'Free A', topic: 'T1', latex: exerciseBody('Free A body', 3) });
     await createExercise(page, { name: 'Free B', topic: 'T2', latex: exerciseBody('Free B body', 2) });
@@ -287,7 +304,7 @@ test.describe('exam', () => {
   });
 
   test('[exam] edit the metadata and link another exercise from the library', async ({ page }) => {
-    await createVault(page);
+    await signInFirstTime(page);
     await gotoExerciseLibrary(page);
     await createExercise(page, { name: 'Linked first', topic: 'L', latex: exerciseBody('first', 2) });
     await createExercise(page, { name: 'Linked second', topic: 'L', latex: exerciseBody('second', 2) });
@@ -336,7 +353,7 @@ test.describe('exam', () => {
   });
 
   test('[exam] every workflow tab renders its heading or empty state', async ({ page }) => {
-    await createVault(page);
+    await signInFirstTime(page);
     await gotoExerciseLibrary(page);
     await createExercise(page, { name: 'Tab exercise', topic: 'Tabs', latex: exerciseBody('tab', 2) });
     await gotoDashboard(page);
@@ -368,7 +385,7 @@ test.describe('exam', () => {
 
 test.describe('settings', () => {
   test('[settings] changing the language switches the UI and survives a reload', async ({ page }) => {
-    await createVault(page);
+    await signInFirstTime(page);
     await gotoSettings(page);
     await expect(page.getByRole('heading', { name: label('settings.pageTitle', undefined, 'en') })).toBeVisible();
 
@@ -402,7 +419,7 @@ test.describe('help', () => {
   test('[help] opens from the status bar, navigates topics, searches and closes with Escape', async ({
     page,
   }) => {
-    await createVault(page);
+    await signInFirstTime(page);
     const dialog = await openHelp(page);
 
     // The topic index and one topic's content.
@@ -435,7 +452,7 @@ test.describe('help', () => {
   });
 
   test('[help] opens with F1 unless a text field has focus', async ({ page }) => {
-    await createVault(page);
+    await signInFirstTime(page);
 
     const dialog = await openHelpWithKeyboard(page);
     await page.keyboard.press('Escape');
@@ -458,11 +475,11 @@ test.describe('help', () => {
   });
 
   test('[help] the storage and privacy dialog opens and closes', async ({ page }) => {
-    await createVault(page);
+    await signInFirstTime(page);
     const dialog = await openStoragePolicy(page);
 
-    // A fresh vault is all-local with local LaTeX compilation.
-    await expect(dialog.getByRole('radio', { name: await t(page, 'misc.storageModal.allLocalTitle') })).toBeChecked();
+    // The mocked account stores everything on the server; LaTeX compiles locally by default.
+    await expect(dialog.getByRole('radio', { name: await t(page, 'misc.storageModal.allServerTitle') })).toBeChecked();
     await expect(dialog.getByRole('radio', { name: await t(page, 'misc.storageModal.latexLocalTitle') })).toBeChecked();
 
     // The dialog has a close icon and a footer button; either closes it.
@@ -483,8 +500,9 @@ test.describe('workspace', () => {
   test('[workspace] export, clear and import restores exercises and exams', async ({
     page,
     dialogs,
+    backend,
   }, testInfo) => {
-    await createVault(page);
+    await signInFirstTime(page);
     await gotoExerciseLibrary(page);
     await createExercise(page, { name: 'Roundtrip exercise', topic: 'RT', latex: exerciseBody('rt', 2) });
     await gotoDashboard(page);
@@ -500,6 +518,17 @@ test.describe('workspace', () => {
     await dialogs.expectSeen('prompt', label('workspace.archive.promptExportPassword'));
 
     // --- clear ---
+    // Clearing only empties this browser's tables; exams and exercises live on the server. Drop them
+    // there too, so the import below has to bring them back.
+    for (const table of [
+      backend.state.exams,
+      backend.state.exercises,
+      backend.state.links,
+      backend.state.mcGroups,
+      backend.state.groups,
+    ]) {
+      table.clear();
+    }
     await clearWorkspace(page);
     await dialogs.expectSeen('confirm', label('workspace.archive.confirmClear'));
     await dialogs.expectSeen('alert', label('workspace.archive.cleared'));
@@ -533,7 +562,7 @@ test.describe('legal', () => {
   test('[legal] Impressum and privacy policy are reachable from the dashboard and the grade page', async ({
     page,
   }) => {
-    await createVault(page);
+    await signInFirstTime(page);
 
     const expectLegalPages = async () => {
       await gotoLegal(page, 'impressum');

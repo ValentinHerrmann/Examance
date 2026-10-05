@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { ExamRecord } from '#lib/db/schema';
   import { t } from '#lib/i18n';
-  import { Alert } from '#lib/components/ui';
 
   interface Props {
     exam: ExamRecord | null;
@@ -9,7 +8,6 @@
     submissionsCount: number;
     studentsCount: number;
     gradedCount: number;
-    storagePolicy: string;
   }
 
   let {
@@ -17,8 +15,7 @@
     totalPoints,
     submissionsCount,
     studentsCount,
-    gradedCount,
-    storagePolicy
+    gradedCount
   }: Props = $props();
 
   let gradeTypeLabel = $derived(exam?.gradingKey
@@ -46,8 +43,4 @@
       <span>{$t("common.grade")}: {gradeTypeLabel}</span>
     {/if}
   </div>
-
-  {#if storagePolicy === 'all-local'}
-    <Alert severity="warning" class="mb-6">{$t("exam.metadata.localBanner")}</Alert>
-  {/if}
 {/if}

@@ -1,48 +1,36 @@
 /**
  * Shared Playwright fixtures: import `test` and `expect` from here, not `@playwright/test`.
  * Adds a pinned UI locale (`bg_locale`, English unless `appLocale` is set; never overwrites a
- * language the app saved, so it survives reload), a guard failing on uncaught page errors or
- * `console.error` outside a justified allowlist, and a `dialogs` recorder for the native
- * dialogs of the archive flows (`lib/services/archiveService.ts`).
+ * language the app saved, so it survives reload), the mocked `backend` (a fresh in-memory fake
+ * API per test, in the account storage mode given by the `storageMode` option; a request it has
+ * no route for fails the test), a guard failing on uncaught page errors or `console.error`
+ * outside a justified allowlist, and a `dialogs` recorder for the native dialogs of the archive
+ * flows (`lib/services/archiveService.ts`).
  */
 import { test as base, expect, type Dialog, type Page } from '@playwright/test';
+import { createFakeApi, type FakeApi, type FakeStorageMode } from '../../tests/helpers/fakeApi';
+import { installFakeBackend } from './backend';
 import { DEFAULT_LOCALE, type Locale } from './i18n';
 
 /** localStorage key the app reads its locale from (`lib/i18n/index.ts`). */
 const LOCALE_STORAGE_KEY = 'bg_locale';
 
 /**
- * Console errors that are expected noise in all-local mode without a backend. Keep minimal:
- * every entry must say why it is harmless; anything else is a real finding.
+ * Console errors that are expected noise. Keep minimal: every entry must say why it is harmless;
+ * anything else is a real finding. Empty because the fake backend answers every request the app
+ * makes; add an entry only for a deliberate error answer the browser logs (a 409 or 404 the app
+ * handles itself).
  */
 interface AllowedConsoleError {
   /** Matched against the console message text. */
   message: RegExp;
   /** Matched against the URL the browser reports for the message (the failing request). */
   url: RegExp;
-  /** Why this is expected when no backend is running. */
+  /** Why this is expected. */
   why: string;
 }
 
-/** Default dev backend (`lib/stores/backendStore.ts`); nothing listens there in this suite. */
-const ABSENT_BACKEND = /^https?:\/\/localhost:8000\/api\//;
-
-export const ALLOWED_CONSOLE_ERRORS: AllowedConsoleError[] = [
-  {
-    // `refreshBackendVersion()` probes GET /api/health on boot; all-local mode runs without
-    // a server, so the refused connection is normal (the browser logs it as a console error).
-    message: /Failed to load resource: net::ERR_CONNECTION_REFUSED/,
-    url: ABSENT_BACKEND,
-    why: 'version probe / best-effort logout against the absent default backend',
-  },
-  {
-    // A dev backend may run on the default port; the security settings page probes it and
-    // gets 401 without a session (expected, not a UI defect).
-    message: /Failed to load resource: the server responded with a status of 401/,
-    url: /^https?:\/\/localhost:8000\/api\/v1\/(mfa\/status|webauthn\/credentials|auth\/refresh)$/,
-    why: 'security settings page probes absent default backend',
-  },
-];
+export const ALLOWED_CONSOLE_ERRORS: AllowedConsoleError[] = [];
 
 /** A native browser dialog the app raised, as recorded by the `dialogs` fixture. */
 export interface RecordedDialog {
@@ -98,6 +86,14 @@ export class DialogRecorder {
 interface Fixtures {
   /** Locale the app is pinned to for this test. */
   appLocale: Locale;
+  /**
+   * The account's storage mode on the fake server: `'all-server'` (default, results go through the
+   * fake too), `'hybrid'`, or `null` for an account that has not chosen one yet (the first sign-in
+   * then asks). Set per file or describe with `test.use({ storageMode })`.
+   */
+  storageMode: FakeStorageMode | null;
+  /** The stateful fake API answering for the default backend; inspect or seed `backend.state`. */
+  backend: FakeApi;
   dialogs: DialogRecorder;
   /** Page errors / console errors collected for this test (read-only view). */
   pageIssues: string[];
@@ -105,6 +101,7 @@ interface Fixtures {
 
 export const test = base.extend<Fixtures>({
   appLocale: [DEFAULT_LOCALE, { option: true }],
+  storageMode: ['all-server', { option: true }],
 
   context: async ({ context, appLocale }, use) => {
     // Runs before any page script on every navigation. Only seeds the value:
@@ -121,6 +118,21 @@ export const test = base.extend<Fixtures>({
     );
     await use(context);
   },
+
+  // Automatic, so no test can reach a real (absent) backend. A route the fake lacks answers 404 and
+  // is listed here after the test body, so a gap in the mock reads as one and not as an app bug.
+  backend: [
+    async ({ context, storageMode }, use) => {
+      const api = createFakeApi({ storageMode });
+      await installFakeBackend(context, api);
+      await use(api);
+      expect(
+        api.state.unhandled,
+        'requests the fake backend (tests/helpers/fakeApi.ts) has no route for; add a handler',
+      ).toEqual([]);
+    },
+    { auto: true },
+  ],
 
   // Automatic so that an unexpected dialog never hangs a test: Playwright would
   // auto-dismiss it (cancelling e.g. the archive password prompt) otherwise.

@@ -33,7 +33,8 @@ describe('scoreRepository', () => {
     await db.exerciseScores.clear();
     await db.submissions.clear();
     offlineQueue.set([]);
-    storagePolicyStore.setPolicy({ storageMode: 'all-local', latexCompilation: 'local' });
+    // Hybrid keeps results in IndexedDB.
+    storagePolicyStore.setPolicy({ storageMode: 'hybrid', latexCompilation: 'local' });
     key = await aesKey();
   });
 

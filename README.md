@@ -1,6 +1,6 @@
 # Examance
 
-Privacy-first, zero-knowledge-encrypted anonymous exam grading. Teachers author LaTeX exams, print QR-coded booklets, scan and grade submissions against a pseudonym rather than a name, and get class-level analytics — all with student identity, scans and grading annotations encrypted client-side before they ever reach a server (or without a server at all, in the default local-only mode). Repo name `BlindGrade` is legacy; the product is Examance.
+Privacy-first, zero-knowledge-encrypted anonymous exam grading. Teachers author LaTeX exams, print QR-coded booklets, scan and grade submissions against a pseudonym rather than a name, and get class-level analytics — all with student identity, scans and grading annotations encrypted client-side before they ever reach a server (in `all-server` mode as ciphertext on the server; in `hybrid` mode grading results stay only in the teacher's browser). Every user signs in with a server account. Repo name `BlindGrade` is legacy; the product is Examance.
 
 [Concept Pitch](docs/concept_pitch.md) ([slides PDF](docs/concept_pitch.pdf)) — problem, feature walkthrough with current screenshots, security modes. (Superseded [slide deck](docs/BlindGrade_Presentation.pdf) / [poster](docs/BlindGrade_Poster.png) kept for reference — pre-rename, AI-generated mockups, not current UI.)
 

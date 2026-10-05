@@ -6,7 +6,7 @@ Examance = product name. "BlindGrade" = old name, still the repo name and some i
 
 Privacy-first, zero-knowledge-encrypted anonymous exam grading. LaTeX exams, QR-decoded pseudonymous submissions, canvas-annotation grading, analytics. Client-side encryption at rest: Argon2id + HKDF-SHA-256 + AES-256-GCM (`docs/data_flow_and_security.md`).
 
-Storage modes (`lib/stores/storagePolicy.ts`): `all-local` (IndexedDB/Dexie, default), `all-server`, `hybrid` (exercises/exams on server, student identity/submissions local). **Switching modes is gated**: `storagePolicyStore.updateSetting` cannot set `storageMode` at all — it goes through `commitStorageMode(mode, token)`, and only `lib/services/storageModeSwitch.ts` holds a token. The flow is export → wipe → switch → import; the `.bgproj` archive is the only bridge between modes. One exception: a server sign-in on a browser with an **empty** local workspace adopts `all-server` directly (`adoptServerStorageIfLocalEmpty`), otherwise a fresh browser shows the account an empty vault.
+Storage modes (`lib/stores/storagePolicy.ts`, `docs/dev/storage_modes.md`, issue #47): every session is a server-account session (the `all-local` mode and the passphrase login were discontinued). Exams/exercises always live on the server; the mode only decides where grading results live: `all-server` or `hybrid` (results only in this browser, IndexedDB). **The mode belongs to the account** (`teachers.storage_mode`, nullable, no default; first sign-in must choose in the non-dismissible settings modal) and comes with the account's capabilities (`GET /user/capabilities`, `backend/app/services/capabilities.py`): render mode/feature options from `stores/capabilities.ts`, never from hard-coded lists, so per-user admin switches stay possible (not enforced yet: `ENFORCE_CAPABILITIES = false` unlocks everything for every account). Switching is a **fluent move** of the results (`services/resultsMover.ts`: idempotent per-exam upserts, verify, then compare-and-set the mode, then keep/delete the old copy). `commitStorageMode(mode, token)` is armed only by `lib/db/workspace.ts`; after every unlock call `openWorkspace()` (owner binding + mode load; `needs-choice`/blocked states keep routes unmounted).
 
 ## Where things live
 
@@ -50,7 +50,7 @@ Prefer `make` over hand-rolled `cd backend && ...`. Deps: `uv` backend, `npm` fr
 - **Only basic verification, don't run unit tests.** Extensive testing is done by a human. Don't run non-terminating npm commands (dev servers, watch mode) unless asked.
 - **Security/privacy first**: client-side encryption at rest, GDPR-regulated data. Call out any change touching auth, crypto or retention, and read `docs/data_flow_and_security.md` and `docs/breach_response_checklist.md` first.
 - **No secrets in commits**: never commit `backend/.env` or real secret values. `backend/.env.example` is a template.
-- **Local mode is the default** for exercise/exam management; don't default to server endpoints when `all-local` paths exist.
+- **Results follow the account's mode**: route students/submissions/scores through their repositories (`resultsAreLocal()` = hybrid); never write results to the other side directly outside `resultsMover.ts`.
 - **NEVER USE WRITING GIT COMMANDS when running on a computer** (commit, push, branch, …). Only allowed in cloud mode.
 - **Follow Claude-Code mode strictly**: never edit files in planning mode, don't even ask. Just make a PLAN in plan mode.
 - Keep in-app help and documentation up to date.
