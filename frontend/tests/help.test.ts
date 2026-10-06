@@ -69,6 +69,8 @@ describe('topicForPath', () => {
     ['/admin/users', 'accounts'],
     ['/legal/datenschutz', 'privacy'],
     ['/unlock', 'accounts'],
+    ['/register', 'accounts'],
+    ['/verify-email', 'accounts'],
   ];
 
   it.each(cases)('%s → %s', (path, expected) => {

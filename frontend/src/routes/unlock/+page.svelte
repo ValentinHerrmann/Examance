@@ -13,7 +13,7 @@
   import { Argon2UnavailableError } from "#lib/crypto/keyDerivation";
   import { backendStore } from "#lib/stores/backendStore";
   import { get } from "svelte/store";
-  import { Card, PageShell } from "#lib/components/ui";
+  import { Alert, Card, PageShell } from "#lib/components/ui";
   import UnlockForm from "#lib/components/unlock/UnlockForm.svelte";
   import {
     FactorChooser,
@@ -54,6 +54,9 @@
   let email = $state("");
   let backendUrl = $state(get(backendStore));
   let errorMsg = $state("");
+  let infoMsg = $state("");
+  /** Shown above the factor chooser after the authenticator was just enrolled. */
+  let factorNotice = $state("");
   let isLoading = $state(false);
   /** Set when a login minted a new recovery code that must be shown once. */
   let pendingRecoveryCode: string | null = $state(null);
@@ -90,6 +93,8 @@
 
   async function handleUnlock() {
     errorMsg = "";
+    infoMsg = "";
+    factorNotice = "";
     const trimmedBackendUrl = backendUrl.trim();
     if (!trimmedBackendUrl) {
       errorMsg = translate("auth.unlock.errors.enterServerAddress");
@@ -171,9 +176,22 @@
   async function handleAuthStep(step: AuthStep) {
     factorErrorMsg = "";
 
+    if (step.status === "approval_pending") {
+      // The password was right, but no admin has approved this self-registered account yet.
+      // The server issued no token; there is nothing to continue.
+      authStep = null;
+      password = "";
+      passwordVerified = false;
+      infoMsg = translate("auth.unlock.approvalPending");
+      return;
+    }
+
     if (step.status !== "ok") {
-      // Enrollment and the second factor are both rendered from `authStep`.
+      // Enrollment and the second factor are both rendered from `authStep`. The loading step must give way
+      // to them: the template checks `isFinishing` first, so leaving it set hid the step for good (seen
+      // right after enrolling the authenticator, when the replayed password now needs a second factor).
       authStep = step;
+      isFinishing = false;
       return;
     }
 
@@ -283,7 +301,7 @@
       }
     }
     const keys = await materializeSession(vault, normalizedEmail);
-    sessionStore.unlock({
+    await sessionStore.unlock({
       ...keys,
       email: step.email,
       teacherId: step.id,
@@ -315,6 +333,7 @@
     // failure reported there would be invisible.
     const inProgress = authStep !== null;
     errorMsg = "";
+    infoMsg = "";
     factorErrorMsg = "";
     isLoading = true;
     passkeyPending = inProgress;
@@ -510,6 +529,9 @@
     try {
       const step = await submitPassword(email.trim().toLowerCase(), password);
       passwordVerified = true;
+      // With the authenticator confirmed the account has two factors, so the password alone now asks for
+      // the second one. The confirmation code is spent; the next code from the app finishes the sign-in.
+      if (step.status === "factor_required") factorNotice = translate("auth.unlock.enrolledEnterNextCode");
       await handleAuthStep(step);
     } catch (err: any) {
       isFinishing = false;
@@ -540,7 +562,7 @@
     const newCode = await rewrapForNewPassword(teacherId, vault, password);
     const keys = await materializeSession(vault, normalizedEmail);
 
-    sessionStore.unlock({
+    await sessionStore.unlock({
       ...keys,
       email: userEmail,
       teacherId,
@@ -574,7 +596,7 @@
 
     const normalizedEmail = userEmail.trim().toLowerCase();
     const keys = await materializeSession(vault, normalizedEmail);
-    sessionStore.unlock({
+    await sessionStore.unlock({
       ...keys,
       email: userEmail,
       teacherId,
@@ -596,7 +618,7 @@
 
     const vault = await startFreshVault(teacherId, password);
     const keys = await materializeSession(vault, normalizedEmail);
-    sessionStore.unlock({
+    await sessionStore.unlock({
       ...keys,
       email: userEmail,
       teacherId,
@@ -644,6 +666,9 @@
   {:else if authStep && authStep.status === "factor_required"}
     <!-- One factor is in; the password stays in memory, so this step replaces the form instead of routing. -->
     <Card class="mx-auto w-full max-w-form sm:p-6">
+      {#if factorNotice}
+        <Alert severity="info" class="mb-4">{factorNotice}</Alert>
+      {/if}
       <FactorChooser
         available={chooserFactors}
         {passkeyPending}
@@ -667,6 +692,7 @@
       bind:email
       bind:password
       {errorMsg}
+      {infoMsg}
       {isLoading}
       onUnlock={handleUnlock}
       onPasskey={canUsePasskeys ? () => handlePasskey() : undefined}

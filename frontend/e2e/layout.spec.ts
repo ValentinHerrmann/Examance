@@ -7,7 +7,7 @@ import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './helpers/guards';
 import { label } from './helpers/i18n';
 import { chooseTheme, header, openHelp, openStoragePolicy, openWorkspaceMenu } from './helpers/nav';
-import { exerciseEditor } from './helpers/flows';
+import { exerciseEditor, signInFirstTime } from './helpers/flows';
 import { THEMES, mainRoutes, pinTheme, seedWorkspace, visit } from './helpers/seed';
 
 const projectName = () => test.info().project.name;
@@ -264,4 +264,47 @@ test('[layout] main dialogs are as wide as their size token and have no nested s
   const library = page.getByRole('dialog', { name: label('exam.libraryModal.header', undefined, 'en') });
   await expect(library).toBeVisible();
   await expectDialogFits(page, library, 'large', 'exam library');
+});
+
+/* -------------------------------------------------------------------------- */
+/* Account management (admin)                                                   */
+/* -------------------------------------------------------------------------- */
+
+test('[layout] account management fits every tab without sideways scrolling', async ({ page, backend }) => {
+  backend.state.role = 'admin';
+  await signInFirstTime(page);
+  await visit(page, '/admin/users');
+
+  const tabs = page.getByRole('tablist').getByRole('tab');
+  await expect(tabs).toHaveCount(4);
+  for (let i = 0; i < 4; i++) {
+    await tabs.nth(i).click();
+    await page.waitForTimeout(300);
+    const where = `admin tab ${i + 1}`;
+
+    const m = await page.evaluate(() => {
+      const doc = document.scrollingElement!;
+      const main = document.querySelector('.app-main');
+      const width = document.documentElement.clientWidth;
+      // Every visible switch must sit inside the viewport, reachable without scrolling sideways.
+      const switches = [...document.querySelectorAll('[role=switch]')].filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      });
+      const offscreen = switches.filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.left < 0 || r.right > width + 1;
+      }).length;
+      return {
+        docH: doc.scrollWidth - doc.clientWidth,
+        mainH: main ? main.scrollWidth - main.clientWidth : 0,
+        switches: switches.length,
+        offscreen,
+      };
+    });
+
+    expect.soft(m.docH, `${where}: document scrolls horizontally`).toBeLessThanOrEqual(0);
+    expect.soft(m.mainH, `${where}: .app-main overflows horizontally`).toBeLessThanOrEqual(1);
+    expect.soft(m.offscreen, `${where}: switches outside the viewport`).toBe(0);
+  }
 });

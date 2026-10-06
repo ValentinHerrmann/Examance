@@ -192,6 +192,39 @@ An account that has no password set answers exactly like a wrong password. The
 older, distinct response told an unauthenticated caller which addresses have
 accounts here.
 
+### Account registration and approval
+
+Accounts come from an admin invitation, the CLI or bootstrap, or self-registration (issue #53, always available). The operator guide is `account_creation_and_management.md` §7; this is the security shape.
+
+**Flow.** `POST /auth/register {email}` mails a single-use link, `POST /auth/register/complete {token, new_password, note?}` creates the account with the password the registrant chose. An address whose domain is on the admin's allowlist (`allowed_email_domains`, exact match on the part after `@`) is approved on the spot with that domain's features; any other account is **pending** (`teachers.approved_at` is NULL) until an admin approves it. The registration touches no key material: there is no key envelope until the first sign-in, when the browser creates the data key and the recovery code as for any new account.
+
+**Where it lives.**
+
+| Table / column | Holds | Personal data? |
+| :--- | :--- | :--- |
+| `account_deletion_requests` | Account id, SHA-256 of the 32-byte random token, the keep-exercises choice, expiry. At most one row per account, until the link is used (the account goes with it), replaced or expired (`ACCOUNT_DELETION_TOKEN_TTL_MINUTES`, default 60). | No (an id) |
+| `registration_requests` | E-mail address in plaintext, SHA-256 of the 32-byte random token, expiry, last-sent time. One row per address, until the link is used, replaced or expired (`REGISTRATION_TOKEN_TTL_HOURS`, default 24). | Yes (address) |
+| `teachers.approved_at` | NULL = pending. No default, deliberately: a write path that forgets it fails closed. Migration `0028` backfilled existing accounts with `created_at`. | Account metadata |
+| `teachers.registration_note` | Optional free text (up to 500 characters) for the approving admin. Erased on approval; never stored for an allowlisted address; never put in a mail. | Yes (free text) |
+| `teachers.allow_server_results`, `allow_server_latex` | The per-account feature switches (§5). | Account metadata |
+| `allowed_email_domains` | The admin's always-allowed domains and their features. | No |
+
+Until the link is used no `teachers` row exists, so that table holds verified addresses only.
+
+**The approval gate.** A pending account holds no token of any kind: not a session, not an enrollment token, not a reset token. `advance_sign_in`, which every factor endpoint (passkey included) goes through, answers `approval_pending` with no cookie. As defence in depth `get_current_teacher`, `get_pending_teacher` and `POST /auth/refresh` refuse an unapproved account, `POST /auth/forgot-password` sends it nothing, and reset tokens are refused for it.
+
+**No account-existence oracle.** The rule of §2 holds here too. `POST /auth/register` always answers `202` with the same message and sends no mail for an address that already has an account; the mail is sent from a background task after the response, so the response time does not tell either (`/auth/forgot-password` was changed the same way, since awaiting SMTP in the request made an existing address measurably slower). Sign-in answers `approval_pending` only after a factor (the password) was proven; a wrong password for a pending account is the same `401 ERR_INVALID_CREDENTIALS` as for an unknown one, so knowing an address teaches nothing.
+
+**Abuse limits.** Both public endpoints are limited to 20 per hour per IP; a verification mail to the same address is sent at most every `REGISTRATION_RESEND_COOLDOWN_SECONDS` (default 300), and a new link invalidates the old; the admin notice mail carries only a count and a link, never the registrant's address or note, and is skipped when another pending account arrived within the last 15 minutes. An unapproved account can create nothing: it has no token to do so. The allowlist is a trust decision of the admin: listing a public mail provider would approve everyone at it, so the Admin UI warns against it; entries match exactly (no subdomains, no wildcards), and a change never touches existing accounts.
+
+**Account deletion.** Self-deletion is two-step: a signed-in request mails a single-use link (`account_deletion_requests`: account id, SHA-256 of a 32-byte random token, the keep-exercises choice, expiry of `ACCOUNT_DELETION_TOKEN_TTL_MINUTES`, default 60), and the public confirm endpoint deletes the account behind a valid token. The preview endpoint never deletes, so link scanners are harmless; the token travels in request bodies, never in an API URL. Possession of the mailbox plus a request made while signed in is the authorisation; an attacker with a stolen session alone cannot delete the account. A kept exercise loses its owner and group and is visible to no one.
+
+**Retention.** The retention job deletes expired `account_deletion_requests` rows and expired `registration_requests` rows and pending accounts older than `PENDING_ACCOUNT_RETENTION_DAYS` (default 90). Only a plain `teacher` account with no exam, exercise or key envelope qualifies. The audit row is `USER_REJECTED` with the actor `system:retention-cron` and a hash of the account id, never the address. Admin rejection deletes the account at once.
+
+**Limit: a pending registrant has no session**, so they cannot use the in-app export or deletion (`/user/me/export`, `/user/me/deletion-request`). Their data is the address, a password hash and an optional note; a request under Art. 15 or 17 goes to the operator, and rejecting the registration (or the 90-day purge) erases it. See R14 in `dpia_art35.md`.
+
+**Audit.** `USER_REGISTERED`, `USER_APPROVED` (actor `system:allowed-domain` for an automatic approval), `USER_REJECTED`, `USER_FEATURES_CHANGED`, `ALLOWED_DOMAIN_ADDED`, `ALLOWED_DOMAIN_CHANGED`, `ALLOWED_DOMAIN_REMOVED`. Migration `0028` also adds `PASSWORD_CHANGED` to the audit enum: `/auth/change-password` had been writing it without it ever being a member, which PostgreSQL rejects.
+
 ---
 
 ## 3. Data Storage Topology & Encryption-at-Rest
@@ -260,7 +293,7 @@ algorithm/schema version and a random per-box `sample_token` to
 Switching the option off, or signing out, drops everything not yet sent.
 
 **Authenticated, stored unlinked.** The endpoint requires a full session, so only
-accounts of the installation (invite-only) can write into the production
+accounts of the installation (approved by an admin, or from a domain an admin allow-listed, and so holding no token before that) can write into the production
 database. The account is used for a per-account daily quota
 (`TRAINING_SAMPLES_PER_TEACHER_PER_DAY`, counter keyed by a SHA-256 of the
 account id in the ephemeral store, expiring with the day) and nothing else: no
@@ -297,7 +330,7 @@ the account's own mode data); see the qualifier on server compilation below and
 compile sends the exam's full LaTeX source (including solution variants) and its
 resource files to `POST /compile/latex`; it is compiled in a temp directory that
 is deleted afterwards, and neither persisted nor logged. Student data is never part
-of a compile request. It requires a sign-in and the `server_latex` capability of the account (§5), and
+of a compile request. It requires a sign-in and the `server_latex` capability of the account (§5; the server answers `403 ERR_FEATURE_NOT_ALLOWED` without it), and
 enabling it asks for consent once (`storagePolicy.serverCompileConsent`). The choice is a per-browser preference, independent of the storage mode.
 
 ### Exercise resource files on the server
@@ -385,9 +418,21 @@ choose in a non-dismissible settings modal, and every browser of the account
 follows it. The manifest row in IndexedDB (`lib/db/workspace.ts`) and the
 `bg_storage_policy` boot cache mirror it; `commitStorageMode(mode, token)` accepts
 only a token armed by the workspace layer. Which modes and features an account
-may use comes from `GET /user/capabilities` (`backend/app/services/capabilities.py`),
-e.g. `server_latex` for server compilation; it is the hook for future per-user
-admin switches.
+may use comes from `GET /user/capabilities` (`backend/app/services/capabilities.py`).
+An admin sets two switches per account (issue #53), and both are enforced:
+
+* `server_results`: the `all-server` mode is allowed (`hybrid` always is). The
+  server refuses result *writes* (students, submissions, scores, restore) with
+  `403 ERR_FEATURE_NOT_ALLOWED` for an account that has the switch off and is not
+  currently in `all-server`; reads and deletes are never refused, because the
+  move and erasure need them.
+* `server_latex`: server-side LaTeX compilation (`POST /compile/latex`,
+  `POST /exams/{id}/compile`); without it the app compiles in the browser.
+
+Exams and exercises always live on the server and have no switch. An account whose
+stored mode is no longer allowed opens in `needs-choice`, and the choice moves its
+results into the browser first (`docs/dev/storage_modes.md`); nothing is lost and
+nothing is deleted by the revocation itself.
 
 ```mermaid
 sequenceDiagram

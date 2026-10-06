@@ -38,9 +38,10 @@
   import ArchiveReportModal from "#lib/components/storage/ArchiveReportModal.svelte";
   import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
   import { pendingSwitchStore, switchOwnedHere } from "#lib/services/storageModeSwitch";
-  import { loadWorkspace, localResultCount, openWorkspace } from "#lib/db/workspace";
+  import { loadWorkspace, localResultCount, openWorkspace, refreshCapabilities } from "#lib/db/workspace";
   import type { StorageMode } from "#lib/stores/storagePolicy";
   import { workspaceStatusStore } from "#lib/stores/workspaceState";
+  import { effectiveLatexStore } from "#lib/stores/capabilities";
   import { registerWorkspaceSync, switchRunningElsewhere } from "#lib/stores/workspaceSync";
   import WorkspaceBlocked from "#lib/components/storage/WorkspaceBlocked.svelte";
   import AppNavbar from "#lib/components/layout/AppNavbar.svelte";
@@ -267,6 +268,16 @@
     }
   });
 
+  // Admins change an account's switches at any time (issue #53): ask again whenever the tab comes back
+  // into view, at most every 30 s, so a change shows without signing in again.
+  let lastCapabilitiesCheck = 0;
+  function recheckCapabilities() {
+    if (document.visibilityState !== "visible" || isInitializing) return;
+    if (Date.now() - lastCapabilitiesCheck < 30_000) return;
+    lastCapabilitiesCheck = Date.now();
+    void refreshCapabilities();
+  }
+
   // A sign-in on /unlock opens the workspace without remounting the layout: count again.
   $effect.pre(() => {
     const state = $workspaceStatusStore.state;
@@ -282,7 +293,8 @@
   onchange={handleFileSelected}
 />
 
-<svelte:window onkeydown={handleGlobalKeydown} />
+<svelte:window onkeydown={handleGlobalKeydown} onfocus={recheckCapabilities} />
+<svelte:document onvisibilitychange={recheckCapabilities} />
 
 <SessionTimeoutWarning />
 <HttpCatModal />
@@ -296,7 +308,7 @@
       userRole={$sessionStore.role}
       userEmail={$sessionStore.email}
       storageMode={$storagePolicyStore.storageMode}
-      latexCompilation={$storagePolicyStore.latexCompilation}
+      latexCompilation={$effectiveLatexStore}
       versionStatus={$versionStatus}
       helpUnseen={!$helpSeen}
       onStorageClick={handleFooterClick}

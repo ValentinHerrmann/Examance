@@ -48,6 +48,7 @@
   <ul>
     <li>{$t("legal.datenschutz.section4.li1")}</li>
     <li>{$t("legal.datenschutz.section4.li2")}</li>
+    <li>{$t("legal.datenschutz.section4.li3")}</li>
   </ul>
 
   <h2>{$t("legal.datenschutz.section5.heading")}</h2>
@@ -63,6 +64,7 @@
   <ul>
     <li>{$t("legal.datenschutz.section6.hostingWebLabel")} <span class="placeholder">{$t("legal.datenschutz.section6.hostingWebPlaceholder")}</span></li>
     <li>{$t("legal.datenschutz.section6.hostingDbLabel")} <span class="placeholder">{$t("legal.datenschutz.section6.hostingDbPlaceholder")}</span></li>
+    <li>{$t("legal.datenschutz.section6.mailLabel")} {$t("legal.datenschutz.section6.mailText")} <span class="placeholder">{$t("legal.datenschutz.section6.mailPlaceholder")}</span>.</li>
     <li>{$t("legal.datenschutz.section6.httpCatLabel")} {$t("legal.datenschutz.section6.httpCatText")}</li>
   </ul>
 
@@ -73,6 +75,11 @@
     {$t("legal.datenschutz.section7.textMiddle")}
     <span class="placeholder">{$t("legal.datenschutz.section7.auditPlaceholder")}</span>
     {$t("legal.datenschutz.section7.textEnd")}
+    {$t("legal.datenschutz.section7.registrationBefore")}
+    <span class="placeholder">{$t("legal.datenschutz.section7.registrationTtlPlaceholder")}</span>
+    {$t("legal.datenschutz.section7.registrationMiddle")}
+    <span class="placeholder">{$t("legal.datenschutz.section7.pendingPlaceholder")}</span>
+    {$t("legal.datenschutz.section7.registrationEnd")}
   </p>
 
   <h2>{$t("legal.datenschutz.section8.heading")}</h2>
@@ -99,4 +106,10 @@
     {$t("legal.datenschutz.section10.para3After")}
   </p>
   <p><span class="placeholder">{$t("legal.datenschutz.section10.legalBasisPlaceholder")}</span></p>
+
+  <h2>{$t("legal.datenschutz.section11.heading")}</h2>
+  <p>{$t("legal.datenschutz.section11.para1")}</p>
+  <p>{$t("legal.datenschutz.section11.para2")}</p>
+  <p>{$t("legal.datenschutz.section11.para3")}</p>
+  <p><span class="placeholder">{$t("legal.datenschutz.section11.legalBasisPlaceholder")}</span></p>
 </LegalPage>

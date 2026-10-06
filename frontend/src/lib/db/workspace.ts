@@ -1,14 +1,7 @@
 /**
- * The workspace manifest: one row in IndexedDB stating whose key sealed the data beside it and the
- * last storage mode the account had in this browser. Invariants (docs/dev/storage_modes.md):
- * - The account's storage mode lives on the server and every browser follows it. There is no default
- *   and nothing sets it implicitly; until the account chooses, the app shows the choice
- *   (`needs-choice`). The manifest's copy only serves offline loads.
- * - A session opens the workspace only if it owns it: the canary must decrypt under its key, and the
- *   workspace must belong to the signed-in account on the same backend.
- * - Resetting the workspace is one transaction: every data table is cleared and the new manifest
- *   written together.
- * - A workspace from the discontinued local mode is never opened; it can only be deleted.
+ * The workspace manifest: one IndexedDB row saying whose key sealed the data and the last storage mode (an offline copy only).
+ * A session opens the workspace only if it owns it; a workspace from the discontinued local mode is never opened, only deleted.
+ * Invariants and detail: docs/dev/storage_modes.md ("Workspace manifest and owner binding").
  */
 
 import { get } from 'svelte/store';
@@ -24,7 +17,14 @@ import {
   storagePolicyStore,
   type StorageMode,
 } from '#lib/stores/storagePolicy';
-import { allowedModesFrom, capabilitiesStore, loadCapabilities } from '#lib/stores/capabilities';
+import {
+  AccountMismatchError,
+  allowedModesFrom,
+  cachedCapabilities,
+  capabilitiesStore,
+  clearCapabilities,
+  loadCapabilities,
+} from '#lib/stores/capabilities';
 import { workspaceIdStore, workspaceStatusStore, type WorkspaceStatus } from '#lib/stores/workspaceState';
 import { clearOfflineQueue, hasQueuedWrites, stampUnboundQueueEntries } from '#lib/services/offlineQueue';
 import { safeLocalStorage } from '#lib/utils/storage';
@@ -103,10 +103,9 @@ export async function loadWorkspace(): Promise<WorkspaceManifestRecord> {
 }
 
 /**
- * Replaces the whole workspace with an empty one (one transaction: data tables and manifest change
- * together, so a failure leaves everything as it was). Clears the offline queue, whose writes belong
- * to a workspace that no longer exists, and claims the new workspace for the current session.
- * @throws when IndexedDB refuses; nothing has changed then.
+ * Replaces the whole workspace with an empty one in one transaction (tables plus manifest, so a failure changes nothing),
+ * clears the offline queue (its writes belong to the old workspace) and claims the new one for the current session.
+ * @throws when IndexedDB refuses.
  */
 export async function replaceWorkspace(mode: StorageMode | null): Promise<WorkspaceManifestRecord> {
   if (!db.isOpen()) await db.open();
@@ -242,11 +241,16 @@ async function decide(): Promise<WorkspaceStatus> {
     mode = caps.storageMode;
     allowed = allowedModesFrom(caps);
   } catch (err) {
+    if (err instanceof AccountMismatchError) return lockForeignSession();
     console.warn('[workspace] could not load capabilities, using the cached mode', err);
-    const cached = get(capabilitiesStore);
+    const cached = cachedCapabilities();
+    // The UI renders from the store: a reload left it empty, a previous account may have filled it.
+    capabilitiesStore.set(cached);
     const current = await currentManifest();
     mode = cached?.storageMode ?? (current?.mode === 'all-server' || current?.mode === 'hybrid' ? current.mode : null);
-    allowed = cached ? allowedModesFrom(cached) : allowedModesFrom(null);
+    // Without any cached answer, trust the mode this browser last worked in rather than allowing nothing,
+    // which would strand an offline tab in a choice it cannot make.
+    allowed = cached ? allowedModesFrom(cached) : mode ? [mode] : [];
   }
 
   if (!mode || !allowed.includes(mode)) {
@@ -256,6 +260,41 @@ async function decide(): Promise<WorkspaceStatus> {
   applyMode(mode);
   await rememberMode(mode);
   return { state: 'ok' };
+}
+
+/**
+ * Another tab signed in as a different account, so this tab's server session now belongs to that
+ * account. Drop this tab's keys and answer without signing out: logging out would end the other
+ * tab's session, which is the one the cookie now belongs to.
+ */
+function lockForeignSession(): WorkspaceStatus {
+  clearCapabilities();
+  // Not `lock()`: that broadcasts and would also drop the keys of the tab that owns the cookie now.
+  sessionStore.reset();
+  if (typeof window !== 'undefined' && window.location.pathname !== '/unlock') window.location.href = '/unlock';
+  return { state: 'unchecked' };
+}
+
+/**
+ * Re-asks the server what the account may use (admins change its switches at any time); runs whenever the tab refocuses.
+ * Only a changed answer re-runs `openWorkspace()`, which asks for a new mode if the current one is no longer allowed.
+ * Offline, nothing changes.
+ */
+export async function refreshCapabilities(): Promise<void> {
+  const state = get(workspaceStatusStore).state;
+  if (!get(sessionStore).sessionKey || (state !== 'ok' && state !== 'needs-choice')) return;
+  const before = cachedCapabilities();
+  let caps;
+  try {
+    caps = await loadCapabilities();
+  } catch (err) {
+    if (err instanceof AccountMismatchError) workspaceStatusStore.set(lockForeignSession());
+    return;
+  }
+  const changed =
+    caps.storageMode !== before?.storageMode ||
+    allowedModesFrom(caps).join() !== (before ? allowedModesFrom(before).join() : '');
+  if (changed) await openWorkspace();
 }
 
 /**

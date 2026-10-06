@@ -10,6 +10,8 @@
     value?: string | undefined;
     label?: string | undefined;
     onChange?: ((id: string) => void) | undefined;
+    /** Below `sm`, show only icons (and counts); labels stay for screen readers. Every item needs an icon. */
+    compact?: boolean;
     class?: string;
   }
 
@@ -18,6 +20,7 @@
     value = items[0]?.id,
     label = undefined,
     onChange = undefined,
+    compact = false,
     class: className = "",
   }: Props = $props();
 
@@ -67,10 +70,10 @@
         role="tab"
         aria-selected={selected ? "true" : "false"}
         tabindex={selected ? 0 : -1}
-        class="{base} {state}"
+        class="{base} {state} {compact ? 'flex-1 justify-center sm:flex-none' : ''}"
         onclick={() => select(item.id)}
       >
-        {#if item.icon}<Icon icon={item.icon} />{/if}{item.label}{#if item.count !== undefined}<span
+        {#if item.icon}<Icon icon={item.icon} />{/if}<span class={compact ? "sr-only sm:not-sr-only" : ""}>{item.label}</span>{#if item.count !== undefined}<span
             class="rounded-md bg-surface-inset px-1.5 text-sm font-normal text-muted">{item.count}</span
           >{/if}
       </a>
@@ -80,10 +83,10 @@
         role="tab"
         aria-selected={selected ? "true" : "false"}
         tabindex={selected ? 0 : -1}
-        class="{base} {state}"
+        class="{base} {state} {compact ? 'flex-1 justify-center sm:flex-none' : ''}"
         onclick={() => select(item.id)}
       >
-        {#if item.icon}<Icon icon={item.icon} />{/if}{item.label}{#if item.count !== undefined}<span
+        {#if item.icon}<Icon icon={item.icon} />{/if}<span class={compact ? "sr-only sm:not-sr-only" : ""}>{item.label}</span>{#if item.count !== undefined}<span
             class="rounded-md bg-surface-inset px-1.5 text-sm font-normal text-muted">{item.count}</span
           >{/if}
       </button>

@@ -3,31 +3,57 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 import jwt
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Cookie,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
 from app.dependencies import PendingSession, get_pending_teacher
 from app.middleware.rate_limit import limiter
+from app.models.exam import Exam
+from app.models.exercise import Exercise
+from app.models.key_envelope import KeyEnvelope
 from app.models.refresh_token import RefreshToken
 from app.models.teacher import Teacher
 from app.schemas.auth import (
+    AccountDeletionPreview,
+    AccountDeletionTokenRequest,
     AuthResponse,
     BackupCodeRequest,
     ChangePasswordRequest,
     ForgotPasswordRequest,
     LoginRequest,
     PasswordFactorRequest,
+    RegisterCompleteRequest,
+    RegisterCompleteResponse,
+    RegisterRequest,
     ResetPasswordRequest,
     ResetTokenRequest,
     TotpFactorRequest,
 )
+from app.services import (
+    account_deletion,
+    account_mail,
+    auth_policy,
+    login_throttle,
+    pending_token,
+    registration,
+)
 from app.services import audit as audit_svc
-from app.services import auth_policy, login_throttle, pending_token
 from app.services import mfa as mfa_svc
 from app.services.crypto import hash_password, needs_rehash, verify_password
 from app.services.jwt import (
@@ -39,7 +65,7 @@ from app.services.jwt import (
 from app.services.key_envelope import invalidate_password_wrap, replace_envelope_set
 from app.services.password_reset import (
     complete_password_reset,
-    create_and_send_reset_token,
+    create_reset_token,
     verify_reset_token,
 )
 
@@ -74,13 +100,10 @@ def _set_auth_cookies(
 
 
 def _set_pending_cookie(response: Response, token: str, scope: str) -> None:
-    """
-    Set the short-lived cookie for a sign-in that is not finished.
+    """Set the short-lived cookie for a sign-in that is not finished.
 
-    No refresh cookie is issued: a half-authenticated session must not be
-    renewable, and any refresh cookie left from an earlier session is cleared so
-    it cannot be used to skip the remaining factor.
-    """
+    No refresh cookie is issued (a half-authenticated session must not be renewable), and any
+    older refresh cookie is cleared so it cannot be used to skip the remaining factor."""
     response.set_cookie(
         ACCESS_COOKIE,
         token,
@@ -95,14 +118,10 @@ def _set_pending_cookie(response: Response, token: str, scope: str) -> None:
 
 
 def _clear_auth_cookies(response: Response) -> None:
-    """
-    Clear both auth cookies.
+    """Clear both auth cookies.
 
-    The delete must repeat the attributes the cookie was set with. A
-    ``SameSite=None`` cookie sent back without ``Secure`` is rejected outright
-    by Chrome and Firefox, so an attribute mismatch here silently leaves the
-    access cookie in place until it expires.
-    """
+    The delete must repeat the attributes the cookie was set with: Chrome and Firefox reject a
+    `SameSite=None` cookie sent without `Secure`, silently leaving the access cookie in place."""
     response.delete_cookie(ACCESS_COOKIE, path="/", **_COOKIE_KWARGS)  # type: ignore[arg-type]
     response.delete_cookie(
         REFRESH_COOKIE,
@@ -116,6 +135,7 @@ def _clear_auth_cookies(response: Response) -> None:
 async def forgot_password(
     body: ForgotPasswordRequest,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
     """
@@ -127,8 +147,9 @@ async def forgot_password(
     )
     teacher = result.scalar_one_or_none()
 
-    if teacher:
-        _token, _sent = await create_and_send_reset_token(db, teacher)
+    # A pending account gets no reset link: it holds no token of any kind until approved.
+    if teacher and teacher.approved_at is not None:
+        _token, mail = await create_reset_token(db, teacher)
         await audit_svc.write(
             db,
             teacher_id=teacher.id,
@@ -136,11 +157,143 @@ async def forgot_password(
             action="PASSWORD_RESET_REQUESTED",
             request_ip=request.client.host if request.client else None,
         )
+        # Committed before the response, and the mail sent after it: awaiting SMTP here made
+        # an existing address measurably slower to answer than an unknown one.
+        await db.commit()
+        background_tasks.add_task(account_mail.send_all, [mail])
 
     return {
         "message": (
             "If an account exists for that email, a password reset link has been sent."
         )
+    }
+
+
+@router.post("/register", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("20/hour")
+async def register(
+    body: RegisterRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """Ask for an account: mails a verification link to the address; nothing is created until used.
+
+    Answers the same whether or not the address already has an account (nothing is mailed then),
+    and the mail goes out after the response so timing does not tell either."""
+    email = registration.normalize_email(body.email)
+    try:
+        mail = await registration.request_registration(db, email)
+        await db.commit()
+    except IntegrityError:
+        # A concurrent request for the same address won the insert; its mail covers this one.
+        await db.rollback()
+        mail = None
+    if mail is not None:
+        background_tasks.add_task(account_mail.send_all, [mail])
+    return {
+        "message": (
+            "If this address can be registered, a confirmation link has been sent to it."
+        )
+    }
+
+
+@router.post("/register/complete", response_model=RegisterCompleteResponse)
+@limiter.limit("20/hour")
+async def complete_registration(
+    body: RegisterCompleteRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> RegisterCompleteResponse:
+    """Verify the address with the mailed token and create the account with the chosen password.
+
+    An address on the admin's always-allowed list is approved at once, any other account waits
+    for an admin (notified). Neither issues a session: the registrant signs in and enrolls then."""
+    invalid = HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="This confirmation link is invalid or has expired. Register again.",
+        headers={"code": "ERR_INVALID_REGISTRATION_TOKEN"},
+    )
+    try:
+        teacher = await registration.complete_registration(
+            db, body.token, body.new_password, body.note
+        )
+        approved = teacher.approved_at is not None
+        ip = request.client.host if request.client else None
+        await audit_svc.write(
+            db,
+            teacher_id=teacher.id,
+            teacher_email=teacher.email,
+            action="USER_REGISTERED",
+            request_ip=ip,
+        )
+        if approved:
+            await audit_svc.write(
+                db,
+                teacher_id=teacher.id,
+                teacher_email="system:allowed-domain",
+                action="USER_APPROVED",
+                target_id=str(teacher.id),
+                request_ip=ip,
+            )
+        notices = [] if approved else await registration.admin_notices(db, teacher)
+        await db.commit()
+    except (registration.RegistrationTokenError, IntegrityError):
+        await db.rollback()
+        raise invalid from None
+
+    if notices:
+        background_tasks.add_task(account_mail.send_all, notices)
+    return RegisterCompleteResponse(status="approved" if approved else "pending")
+
+
+@router.post("/account-deletion/preview", response_model=AccountDeletionPreview)
+@limiter.limit("20/hour")
+async def preview_account_deletion(
+    body: AccountDeletionTokenRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> AccountDeletionPreview:
+    """
+    What the mailed self-deletion link would delete, for the confirmation page. Deletes nothing:
+    a mail scanner that opens the link must not delete the account.
+    """
+    deletion, teacher = await account_deletion.find_deletion_request(db, body.token)
+    return AccountDeletionPreview(
+        email=teacher.email,
+        keep_exercises=deletion.keep_exercises,
+        expires_at=deletion.expires_at,
+    )
+
+
+@router.post("/account-deletion/confirm", status_code=status.HTTP_200_OK)
+@limiter.limit("20/hour")
+async def confirm_account_deletion(
+    body: AccountDeletionTokenRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """GDPR Art. 17: delete the account behind the mailed single-use link (last admin refused).
+
+    No session needed (the link proves the mailbox); exercises stay ownerless if the holder asked.
+    Cookies are left alone (they may belong to another account; this one's tokens die with it)."""
+    deletion, teacher = await account_deletion.claim_deletion_request(db, body.token)
+    await account_deletion.ensure_not_last_admin(db, teacher)
+    result = await account_deletion.delete_account(
+        db,
+        teacher,
+        actor=teacher,
+        keep_exercises=deletion.keep_exercises,
+        request_ip=request.client.host if request.client else None,
+    )
+    return {
+        "status": "ok",
+        "account_deleted": True,
+        "kept_exercises": deletion.keep_exercises,
+        "purged_student_identities": result.purged_student_identities,
+        "purged_submissions": result.purged_submissions,
+        "retention_until": result.retention_until.isoformat(),
     }
 
 
@@ -152,19 +305,10 @@ async def start_reset(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> AuthResponse:
-    """
-    Open a password reset with the emailed link.
+    """Open a password reset with the emailed link (the token is *one* of the two required factors).
 
-    A reset re-establishes the password, so the password is unavailable by
-    definition and the emailed token stands in for it — but only as *one* of the
-    two factors the policy wants. Mailbox access alone completing a reset is
-    exactly the bypass the second factor exists to close.
-
-    An account that has not finished enrolling is the one exception: it has no
-    second factor to offer, so requiring one would strand it. It gets a
-    ``reset_pending`` token that can complete the reset on its own, and is held
-    in enrollment at the next sign-in like every other single-factor account.
-    """
+    Mailbox access alone must not complete a reset. An account that has not finished enrolling has
+    no second factor to offer, so it gets a `reset_pending` token that completes it alone."""
     token_record, teacher = await verify_reset_token(db, body.token)
     if not token_record or not teacher:
         raise HTTPException(
@@ -181,6 +325,16 @@ async def start_reset(
     await pending_token.register(decode_token(scope_token).get("jti"))
     _set_pending_cookie(response, scope_token, "reset_pending")
 
+    # Something to recover exists once the account holds a key copy, or authored anything (an
+    # account from before key envelopes holds data sealed under its old password). A fresh
+    # account, invited or self-registered, has neither and skips the recovery-code step.
+    holds_key_or_data = False
+    for model in (KeyEnvelope, Exam, Exercise):
+        found = await db.scalar(select(model.id).where(model.teacher_id == teacher.id).limit(1))
+        if found is not None:
+            holds_key_or_data = True
+            break
+
     return AuthResponse(
         id=teacher.id,
         email=teacher.email,
@@ -190,6 +344,7 @@ async def start_reset(
         available=(
             await auth_policy.remaining_factors(db, teacher, amr) if complete else []
         ),
+        needs_key_recovery=holds_key_or_data,
     )
 
 
@@ -202,19 +357,10 @@ async def reset_password(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
-    """
-    Set the new password, and store the re-wrapped data key with it.
+    """Set the new password and store the re-wrapped data key with it, in one transaction.
 
-    The envelope is written in the same transaction as the password on purpose.
-    Two round trips could leave a teacher whose password changed but whose key
-    copy did not, which is indistinguishable from a working account until the
-    next sign-in fails to open anything.
-
-    Without an envelope in the body the password wrap is marked unusable
-    instead — the "I do not have my recovery code" path. The teacher keeps their
-    account and is told plainly, on the next sign-in, that their existing data
-    needs the recovery code.
-    """
+    A password without its key copy looks like a working account until a sign-in opens nothing.
+    No envelope: the password wrap is marked unusable and the teacher needs the recovery code."""
     if session.scope != "reset_pending":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -275,23 +421,10 @@ async def change_password(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
-    """
-    Change the password of a signed-in account, keeping the session.
+    """Change the password of a signed-in account, keeping the session.
 
-    The alternative was signing out and going through the emailed reset, which
-    invalidates the password wrap and then asks for the recovery code to undo
-    the damage — an absurd amount of ceremony for a routine change. From an open
-    session the browser already holds the data key, so it can re-wrap it under
-    the new password and send both together.
-
-    Written in one transaction for the same reason the reset is: a password that
-    changed without its key copy looks like a working account right up until the
-    next sign-in opens a vault of blank fields.
-
-    The current password is verified through the same throttle as `/auth/login`.
-    Without that this endpoint would be a password oracle that skips the cooloff
-    — slower per guess, but unbounded.
-    """
+    The client re-wraps the data key; wrap and password go in one transaction so they never diverge.
+    The current password uses the `/auth/login` throttle, else this is a cooloff-free oracle."""
     if session.scope != "full":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -329,19 +462,14 @@ async def change_password(
     if body.envelope is not None:
         await replace_envelope_set(db, teacher, body.envelope)
     else:
-        # No re-wrap arrived, so the stored one no longer opens under this
-        # password and the server cannot fix that — it has never seen the key.
-        # Marking it stale is what sends the teacher to their recovery code
-        # rather than to a vault that silently reads as empty.
+        # No re-wrap arrived, so the stored wrap no longer opens under this password and the server
+        # has never seen the key. Marking it stale sends the teacher to the recovery code instead
+        # of a vault that silently reads as empty.
         await invalidate_password_wrap(db, teacher.id)
 
-    # Every session goes, and this one is immediately re-issued. A teacher who
-    # changes their password from their own browser has not asked to be logged
-    # out of it — but the refresh cookie is path-scoped to `/auth/refresh` and so
-    # never reaches this endpoint, leaving no way to tell which stored token
-    # belongs to the caller. Revoking the lot and minting a replacement lands in
-    # the same place and is the stricter of the two: no token that predates the
-    # password change survives anywhere.
+    # Revoke every session and re-issue this one: the refresh cookie is path-scoped to
+    # `/auth/refresh`, so the caller's stored token cannot be identified. Also stricter: no token
+    # that predates the password change survives.
     await db.execute(
         update(RefreshToken)
         .where(RefreshToken.teacher_id == teacher.id, RefreshToken.revoked.is_(False))
@@ -389,25 +517,29 @@ async def advance_sign_in(
     *,
     flow: str = "auth_pending",
 ) -> AuthResponse:
-    """
-    Record that *factor* was proven and decide what the session becomes.
+    """Record that *factor* was proven and decide the session; the sign-in rule lives only here.
 
-    Every factor endpoint funnels through here so the sign-in rule (a passkey,
-    or any two factors) is decided in one place. Three outcomes:
-
-    * Fewer than two factors enrolled — the account gets an ``enroll`` token and
-      can reach nothing but the enrollment endpoints.
-    * A passkey, or two distinct factors, presented — a real session, with the
-      refresh cookie and the LOGIN audit entry.
-    * Otherwise — an ``auth_pending`` token plus the list of factors that may
-      come next, which is safe to disclose now that one has been proven.
-    """
+    Outcomes: `enroll` token (<2 factors enrolled); full session + refresh cookie + LOGIN audit
+    (passkey or two distinct factors); else `auth_pending` plus the factors that may come next."""
     amr = sorted({*already_presented, factor})
 
-    # Factor activity, for the security page. Recorded here because this is the
-    # one place every proven factor passes through; a passkey's own timestamp is
-    # written by the WebAuthn service, which is the only one that knows *which*
-    # credential answered.
+    # An account no admin has approved yet holds no token of any kind: not a session, not an
+    # enrollment token, not a reset. Answered only now that a factor was proven, so it tells
+    # nothing to someone who merely knows the address.
+    if teacher.approved_at is None:
+        _clear_auth_cookies(response)
+        return AuthResponse(
+            id=teacher.id,
+            email=teacher.email,
+            role=teacher.role,
+            status="approval_pending",
+            satisfied=amr,
+            available=[],
+        )
+
+    # Factor activity for the security page, recorded here because every proven factor passes
+    # through; a passkey's own timestamp is written by the WebAuthn service (it knows *which*
+    # credential answered).
     if factor == "password":
         teacher.password_last_used_at = datetime.now(tz=UTC)
 
@@ -497,14 +629,10 @@ async def advance_sign_in(
 
 
 async def _require_pending(session: PendingSession, *, allow_scopes: set[str]) -> None:
-    """
-    Reject a pending token that is the wrong kind, or already spent.
+    """Reject a pending token that is the wrong kind, or already spent.
 
-    Consuming the token is what makes it single-use, so it happens here — but
-    only *after* the scope check, and the caller is responsible for handing the
-    teacher a fresh one when the factor itself turns out to be wrong. See
-    `_reissue_pending`: a mistyped code must cost an attempt, not the sign-in.
-    """
+    Consuming the token makes it single-use, so it happens here, but only *after* the scope check.
+    The caller hands out a fresh one when the factor is wrong (`_reissue_pending`)."""
     if session.scope not in allow_scopes:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -520,24 +648,10 @@ async def _require_pending(session: PendingSession, *, allow_scopes: set[str]) -
 
 
 async def _reissue_pending_headers(session: PendingSession) -> dict[str, str]:
-    """
-    Headers that hand back an equivalent pending token after a factor was rejected.
+    """Headers that reissue an equivalent pending token after a rejected factor.
 
-    The single-use property exists so a captured token cannot be replayed to
-    collect a second factor twice. It was never meant to punish a typo — but
-    consuming it before verifying the code did exactly that: one wrong digit, or
-    a phone whose clock had drifted, burned the token and every retry then failed
-    as an expired step, with no way forward but reloading the page.
-
-    Returned as headers rather than set on the injected `Response` because these
-    paths all end in a raised `HTTPException`, and FastAPI merges that response
-    only on the success path — a cookie set there is silently dropped. Verified
-    by test, not assumed.
-
-    Only the access cookie is reissued: the refresh cookie was already cleared
-    when the sign-in started, and must stay cleared. Retries remain bounded by
-    the per-account throttle, which counts this failure.
-    """
+    A typo must cost an attempt, not the single-use step. Headers, not `Response` cookies, since
+    FastAPI drops those on a raised `HTTPException`. Only the access cookie is reissued."""
     token = create_access_token(
         session.teacher.id,
         session.teacher.email,
@@ -566,21 +680,10 @@ async def factor_password(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> AuthResponse:
-    """
-    Present the password as the *second* factor.
+    """Present the password as the *second* factor (`/auth/login` can only open a sign-in).
 
-    `/auth/login` hard-codes an empty presented-factor list, so it can only ever
-    open a sign-in. That left passkey-then-password — one of the three pairs the
-    policy promises — impossible to express, and the sign-in screen with nothing
-    to offer but the authenticator after a passkey.
-
-    The account is the one named by the pending token. Nothing here takes an
-    email: doing so would turn the second step into a probe for which addresses
-    have accounts.
-
-    Not reachable in the reset flow. A reset exists because the password is
-    unavailable, and the emailed token already stands in for it.
-    """
+    The account comes from the pending token; taking an email here would make the second step an
+    account-existence probe. Not reachable in the reset flow (the emailed token stands in)."""
     # Scope before anything else, so the reset refusal is about the flow rather
     # than about a reset token happening to carry `password` in its amr.
     if session.scope != "auth_pending":
@@ -639,14 +742,10 @@ async def factor_totp(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> AuthResponse:
-    """
-    Present an authenticator code as the second factor.
+    """Present an authenticator code as the second factor.
 
-    Second position only. A TOTP code does not identify an account, so accepting
-    one first would mean taking an email address alongside it — turning this into
-    a probe for which addresses have accounts. Password and passkey both identify
-    the account by themselves, so requiring one of them first costs nothing.
-    """
+    Second position only: a TOTP code does not identify an account, so accepting it first would
+    need an email alongside it, a probe for which addresses have accounts."""
     if "totp" in session.amr:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -661,10 +760,8 @@ async def factor_totp(
     outcome = await mfa_svc.verify_totp(db, teacher, body.code)
 
     if outcome == "replayed":
-        # The code is genuine; its window has already been spent. That is what a
-        # sign-in straight after a password reset produces, because the reset
-        # took a code of its own moments earlier and the app is still showing it.
-        # Not a guess, so it costs no attempt and no audit row — only a wait.
+        # Genuine code whose window is already spent (e.g. right after a password reset took one).
+        # Not a guess: it costs no attempt and no audit row, only a wait.
         retry_headers = await _reissue_pending_headers(session)
         await db.commit()
         raise HTTPException(
@@ -766,10 +863,9 @@ async def login(
     password_ok = verify_password(body.password, stored_hash if stored_hash else dummy_hash)
 
     if not teacher or stored_hash is None or not password_ok:
-        # An account without a password answers exactly like a wrong password.
-        # The distinct ERR_PASSWORD_NOT_SET response that used to live here told
-        # an unauthenticated caller which addresses have accounts; the "you have
-        # not set a password yet" hint belongs in the reset mail instead.
+        # An account without a password answers exactly like a wrong password: a distinct response
+        # would tell an unauthenticated caller which addresses have accounts (the "not set a
+        # password yet" hint belongs in the reset mail).
         cooloff = await login_throttle.register_failure(db, normalized_email, teacher)
         if teacher is not None:
             # Only for accounts that exist: audit_log.teacher_email is NOT NULL,
@@ -861,18 +957,12 @@ async def refresh(
     teacher_id = uuid.UUID(payload["sub"])
     result2 = await db.execute(select(Teacher).where(Teacher.id == teacher_id))
     teacher = result2.scalar_one_or_none()
-    if teacher is None:
+    if teacher is None or teacher.approved_at is None:
         raise credentials_exc
 
-    # Re-check the policy rather than trusting the token.
-    #
-    # This used to mint a `full` access token unconditionally, which made the
-    # refresh cookie a way around the two-of-three rule entirely: anything
-    # holding one — a cookie left over from before the policy, or one a browser
-    # failed to drop when `_set_pending_cookie` deleted it — could upgrade a
-    # half-finished sign-in straight to a full session. The `amr` now travels on
-    # the refresh token, and an account whose factors have since been reset fails
-    # closed into enrollment instead of being handed a session.
+    # Re-check the policy, never trust the token: a refresh cookie must not upgrade a half-finished
+    # sign-in to a full session. The `amr` travels on the refresh token; an account whose factors
+    # were reset since fails closed into enrollment.
     amr = payload.get("amr") or []
     if not isinstance(amr, list):
         amr = []
@@ -941,16 +1031,10 @@ async def logout(
     refresh_token: str | None = Cookie(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """
-    Clear auth cookies and revoke the refresh token.
+    """Clear auth cookies and revoke the refresh token.
 
-    Deliberately requires no session. It used to depend on a full one, which
-    meant a teacher who abandoned a half-finished sign-in — or whose access token
-    had simply expired — could not clear their own cookies: logout answered 403
-    and the pending cookie sat there until it timed out. Clearing cookies is
-    never an action that needs protecting; the refresh revocation below is
-    authenticated by the refresh token itself.
-    """
+    Deliberately needs no session, so a teacher with a half-finished or expired sign-in can still
+    clear their cookies. The revocation is authenticated by the refresh token itself."""
     if refresh_token:
         try:
             payload = decode_token(refresh_token)

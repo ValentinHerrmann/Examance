@@ -6,6 +6,7 @@ logout cookie clearing, and the CSRF origin backstop.
 from __future__ import annotations
 
 import re
+from datetime import UTC, datetime
 
 import pytest
 from httpx import AsyncClient
@@ -192,6 +193,7 @@ async def test_logout_clears_cookies_with_matching_attributes(
         email="logout-attrs@example.com",
         password_hash=hash_password("twelve-chars-plus"),
         role="teacher",
+        approved_at=datetime.now(UTC),
     )
     db.add(teacher)
     await db.commit()

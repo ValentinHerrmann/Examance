@@ -18,6 +18,7 @@ from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.schemas.binary import GCM_IV_BYTES, decode_b64
 from app.schemas.submission import SubmissionCreate, SubmissionResponse, SubmissionScoreUpdate
+from app.services.capabilities import require_server_results_writable
 
 router = APIRouter(prefix="/exams/{exam_id}/submissions", tags=["submissions"])
 
@@ -78,17 +79,21 @@ async def list_submissions(
     ]
 
 
-@router.post("", response_model=SubmissionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=SubmissionResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_server_results_writable)],
+)
 async def upload_submission(
     body: SubmissionCreate,
     exam: Exam = Depends(get_exam_for_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> SubmissionResponse:
     """Upload encrypted scan submission."""
-    # Ensure student identity exists first to satisfy foreign key constraint.
-    # The FK spans (pseudonym_hmac, exam_id), so an identity is looked up within
-    # this exam only; the database itself now prevents a submission from linking
-    # to an identity in another exam (and therefore another tenant).
+    # Ensure the student identity exists first (foreign key). The FK spans (pseudonym_hmac,
+    # exam_id), so the identity is looked up within this exam only: a submission cannot link to
+    # another exam's (and tenant's) identity.
     student_res = await db.execute(
         select(StudentIdentity).where(
             StudentIdentity.pseudonym_hmac == body.pseudonym_hmac,
@@ -247,7 +252,11 @@ async def get_submission(
     )
 
 
-@router.patch("/{sub_id}/score", response_model=SubmissionResponse)
+@router.patch(
+    "/{sub_id}/score",
+    response_model=SubmissionResponse,
+    dependencies=[Depends(require_server_results_writable)],
+)
 async def update_score(
     sub_id: uuid.UUID,
     body: SubmissionScoreUpdate,

@@ -32,9 +32,10 @@
   } from "#lib/i18n";
   import { PageShell, PageHeader, Card, Button, Alert } from "#lib/components/ui";
   import SectionNav from "#lib/components/settings/SectionNav.svelte";
+  import DeleteAccountCard from "#lib/components/settings/DeleteAccountCard.svelte";
   import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
-  import { currentManifest } from "#lib/db/workspace";
-  import { allowedStorageModes, featuresStore } from "#lib/stores/capabilities";
+  import { currentManifest, refreshCapabilities } from "#lib/db/workspace";
+  import { allowedStorageModes, effectiveLatexStore, featuresStore } from "#lib/stores/capabilities";
 
   /** GDPR Art. 15 — hand the data subject a readable copy of their own data. */
   async function handleExportStudent(pseudonymId: string) {
@@ -76,6 +77,8 @@
     void fetchDonationAvailable().then((ok) => (donationAvailable = ok));
     await awaitSessionReady();
     void loadWorkspaceOwner();
+    // The options below follow the account's switches, which an admin may have just changed.
+    void refreshCapabilities();
     if (!$isUnlocked) {
       // Keys come from the account sign-in and are never persisted — send the user to /unlock.
       await goto("/unlock");
@@ -139,6 +142,7 @@
     ...($isAuthenticated ? [{ id: "security", label: $t("security.page.title") }] : []),
     { id: "gdpr", label: $t("admin.gdprErasureTable.title") },
     { id: "hygiene", label: $t("settings.hygiene.heading") },
+    ...($isAuthenticated ? [{ id: "delete-account", label: $t("settings.deleteAccount.heading") }] : []),
   ]);
 
   async function handleClearAllSessionData() {
@@ -163,7 +167,7 @@
 
         <SettingsForm
           storageMode={$storagePolicyStore.storageMode}
-          latexCompilation={$storagePolicyStore.latexCompilation}
+          latexCompilation={$effectiveLatexStore}
           uiLocale={$locale}
           onStorageModeChange={handleStorageModeChange}
           onLatexChange={handleLatexChange}
@@ -220,6 +224,12 @@
             <Button severity="danger" onClick={handleClearAllSessionData}>{$t("settings.hygiene.button")}</Button>
           </Card>
         </div>
+
+        {#if $isAuthenticated}
+          <div id="delete-account" class="scroll-mt-16 lg:scroll-mt-4">
+            <DeleteAccountCard email={$sessionStore.email ?? ""} />
+          </div>
+        {/if}
       </div>
     </div>
   </PageShell>

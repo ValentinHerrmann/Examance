@@ -21,6 +21,16 @@ export const errors: Translations['errors'] = {
         ERR_LAST_FACTOR_PROTECTED: 'That factor cannot be removed without losing access to the account or to your data.',
         ERR_MFA_REQUIRED: 'This action needs a fully signed-in session.',
         ERR_STEP_EXPIRED: 'This sign-in step has expired. Please start again.',
+        ERR_INVALID_REGISTRATION_TOKEN: 'This confirmation link is invalid or has expired. Please register again.',
+        ERR_FEATURE_NOT_ALLOWED: 'This feature is not enabled for your account.',
+        ERR_ACCOUNT_PENDING: 'A registration for this address is waiting for approval. Approve or reject it.',
+        ERR_ACCOUNT_EXISTS: 'An account with this email address already exists.',
+        ERR_ALREADY_APPROVED: 'This account is already approved.',
+        ERR_LAST_ADMIN: 'The last admin account cannot be deleted. Make another account an admin first.',
+        ERR_INVALID_DELETION_TOKEN: 'This deletion link is invalid or has expired. Request a new one in the settings.',
+        ERR_DELETE_SELF: 'Delete your own account in the settings.',
+        ERR_INVALID_DOMAIN: 'Enter a domain such as school.example.',
+        ERR_DOMAIN_EXISTS: 'This domain is already on the list.',
     },
 
     http: {

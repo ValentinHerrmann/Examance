@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,6 +55,13 @@ async def create_initial_admin(db: AsyncSession) -> None:
                 existing_admin.role,
                 admin_email,
             )
+        elif existing_admin.approved_at is None:
+            # Approval arrived after this account was created (migration 0028 backfills, but
+            # a row written by an old container during the deploy would be missed). Only the
+            # configured admin with the configured password is healed, never anyone else.
+            existing_admin.approved_at = datetime.now(UTC)
+            await db.commit()
+            logger.warning("Initial admin user (%s) was not approved; approved it.", admin_email)
         else:
             logger.info(
                 "Initial admin user (%s) already exists with matching credentials. "
@@ -66,6 +74,7 @@ async def create_initial_admin(db: AsyncSession) -> None:
         email=admin_email,
         password_hash=hash_password(settings.INITIAL_ADMIN_PASSWORD),
         role="admin",
+        approved_at=datetime.now(UTC),
     )
     db.add(admin)
     await db.commit()

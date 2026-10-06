@@ -223,6 +223,7 @@ export const help: Translations['help'] = {
                 h: 'Session and deletion',
                 p1: 'The session locks itself after a period of inactivity; afterwards the content is reachable only with the password again.',
                 p2: 'Data deletion removes individual student records (GDPR access and erasure requests) or the entire workspace. Deletion is final and cannot be undone.',
+                p3: 'Under “Delete account” you can delete your own account. You receive an email with a link; the account is deleted only when you open it and confirm. Everything stored with it on the server goes (exams, results, sign-in factors), and the browser you confirm in is cleared (other browsers keep their local copy, which can no longer be read without the account). Your exercises can optionally stay on the server without your name, so they can be shared later. Admins can also delete other accounts in account management, with the same option.',
             },
             s5: {
                 h: 'Fine-tuning MC detection',
@@ -264,10 +265,10 @@ export const help: Translations['help'] = {
         },
         accounts: {
             title: 'Accounts & roles',
-            summary: 'Why an account is needed, which roles exist, how passwords are reset.',
+            summary: 'Requesting an account, approval and features, roles, password resets.',
             s1: {
                 h: 'Do you need an account?',
-                p1: 'Yes. Using Examance always requires a server account; the former local mode with a passphrase and no account no longer exists. Which storage locations and features your account may use is decided by the server.',
+                p1: 'Yes. Every use of Examance needs a server account; the former local mode with a passphrase and no account no longer exists. Which storage locations and features your account may use is decided by your administrator.',
             },
             s2: {
                 h: 'Roles',
@@ -295,6 +296,21 @@ export const help: Translations['help'] = {
             s5: {
                 h: 'Too many failed attempts',
                 p1: 'After several wrong passwords the account is locked briefly; the wait grows with each further failure and ends by itself. If you see this without having caused it, somebody else is trying to sign in to your account.',
+            },
+            s8: {
+                h: 'Requesting an account',
+                p1: 'With "Request an account" on the sign-in page you enter your email address and receive a confirmation link. Through that link you choose your password; only then is the account created. The page deliberately does not reveal whether an address already has an account.',
+                p2: 'If your address belongs to a domain your administrator has allowed, the account is active right away. Otherwise it waits for approval; until then signing in only reports "awaiting approval", and you get an email once it is approved. You set up your second sign-in factor on your first sign-in.',
+            },
+            s9: {
+                h: 'Approval and features',
+                p1: 'Your administrator approves every account and decides what it may use: student data and results on the server (otherwise they stay in this browser) and LaTeX compilation on the server (otherwise the browser compiles). Exams and exercises always live on the server. Options your account may not use show as "not enabled".',
+                p2: 'If "student data on the server" is turned off later, the app asks you, the next time it opens, to move your results into the browser. Nothing is lost.',
+            },
+            s10: {
+                h: 'For administrators: invitations and allowed domains',
+                p1: 'In User Management you invite people by email; the account is approved right away, and the person chooses their password through the link. Pending registrations are approved or rejected there; rejecting deletes the registration.',
+                p2: 'Registrations from "always-allowed" domains are approved automatically once the address is confirmed. Only list domains whose mailboxes your institution hands out itself, never public providers.',
             },
         },
         privacy: {

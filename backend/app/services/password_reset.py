@@ -1,9 +1,9 @@
 """Password reset token and delivery services."""
 from __future__ import annotations
 
-import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,27 +12,20 @@ from app.config import settings
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.teacher import Teacher
-from app.services import email as email_svc
+from app.services import account_mail
+from app.services.account_mail import Mail
 from app.services.crypto import hash_password
 from app.services.key_envelope import invalidate_password_wrap
+from app.services.tokens import aware, hash_token
 
 
-def hash_reset_token(raw_token: str) -> str:
-    """Compute SHA-256 hash of raw reset token."""
-    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+async def create_reset_token(db: AsyncSession, teacher: Teacher) -> tuple[str, Mail]:
+    """Generate a single-use reset token, persist its hash, invalidate prior unused tokens.
 
-
-async def create_and_send_reset_token(
-    db: AsyncSession, teacher: Teacher
-) -> tuple[str, bool]:
-    """
-    Generate a single-use password reset token, persist its hash, invalidate prior
-    unused tokens for this teacher, and send a reset email.
-
-    Returns a tuple of (raw_token, email_sent_successfully).
-    """
+    Returns the raw token and the unsent mail carrying it. An account without a password (admin
+    created, never signed in) gets the invitation wording."""
     raw_token = secrets.token_urlsafe(32)
-    token_hash = hash_reset_token(raw_token)
+    token_hash = hash_token(raw_token)
     expires_at = datetime.now(UTC) + timedelta(hours=settings.PASSWORD_RESET_TOKEN_TTL_HOURS)
 
     # Invalidate prior unused reset tokens for this teacher
@@ -51,39 +44,27 @@ async def create_and_send_reset_token(
     db.add(reset_token_record)
     await db.flush()
 
-    reset_link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={raw_token}"
-    subject = "Reset your Examance password"
-    body_text = (
-        f"Hello,\n\n"
-        f"A password set or reset link was generated for your account ({teacher.email}).\n\n"
-        f"Please use the link below to set your password:\n{reset_link}\n\n"
-        f"This link expires in {settings.PASSWORD_RESET_TOKEN_TTL_HOURS} hours.\n\n"
-        f"If you did not request this, you can ignore this email."
-    )
-    body_html = (
-        f"<p>Hello,</p>"
-        "<p>A password set or reset link was generated for your account "
-        f"(<strong>{teacher.email}</strong>).</p>"
-        f'<p><a href="{reset_link}">Click here to set your password</a></p>'
-        f"<p>This link expires in {settings.PASSWORD_RESET_TOKEN_TTL_HOURS} hours.</p>"
-        f"<p>If you did not request this, you can ignore this email.</p>"
-    )
+    link = account_mail.frontend_link(f"/reset-password?token={raw_token}")
+    kind: Literal["reset", "invite"] = "invite" if teacher.password_hash is None else "reset"
+    return raw_token, account_mail.set_password_mail(teacher.email, link, kind)
 
-    sent = await email_svc.send_email(
-        to_email=teacher.email,
-        subject=subject,
-        body_text=body_text,
-        body_html=body_html,
-    )
 
-    return raw_token, sent
+async def create_and_send_reset_token(
+    db: AsyncSession, teacher: Teacher
+) -> tuple[str, bool]:
+    """`create_reset_token`, then send the mail now; returns (raw_token, email_sent).
+
+    For callers that report delivery (admin endpoints). Public endpoints send from a background
+    task instead, so response time does not reveal whether an account exists."""
+    raw_token, mail = await create_reset_token(db, teacher)
+    return raw_token, await account_mail.send(mail)
 
 
 async def verify_reset_token(
     db: AsyncSession, raw_token: str
 ) -> tuple[PasswordResetToken | None, Teacher | None]:
     """Verify raw token matches an unused, unexpired reset token record."""
-    token_hash = hash_reset_token(raw_token)
+    token_hash = hash_token(raw_token)
     stmt = (
         select(PasswordResetToken, Teacher)
         .join(Teacher, PasswordResetToken.teacher_id == Teacher.id)
@@ -96,11 +77,12 @@ async def verify_reset_token(
 
     token_record, teacher = row
     now = datetime.now(UTC)
-    expires_at = token_record.expires_at
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=UTC)
+    if token_record.used_at is not None or aware(token_record.expires_at) <= now:
+        return None, None
 
-    if token_record.used_at is not None or expires_at <= now:
+    # A pending account holds no token of any kind, a reset included. Covers /auth/reset/start
+    # and /auth/reset-password alike.
+    if teacher.approved_at is None:
         return None, None
 
     return token_record, teacher
@@ -120,10 +102,9 @@ async def complete_password_reset(
     teacher.password_hash = hash_password(new_password)
     teacher.password_changed_at = datetime.now(UTC)
 
-    # The new password cannot open the old wrap, and the server has no way to
-    # re-wrap: it never sees the data key. Marking the wrap stale is what makes
-    # the client offer the recovery code instead of silently showing a vault of
-    # blank fields. The recovery and passkey wraps still hold the same key.
+    # The server never sees the data key, so it cannot re-wrap it for the new password: a stale wrap
+    # makes the client offer the recovery code, not a vault of blank fields. The recovery and
+    # passkey wraps still hold the same key.
     await invalidate_password_wrap(db, teacher.id)
 
     # Force re-authentication across all active sessions by revoking refresh tokens

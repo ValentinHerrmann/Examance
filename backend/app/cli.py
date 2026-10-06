@@ -1,18 +1,11 @@
-"""
-Management CLI commands.
+"""Management CLI. Commands: `python -m app.cli --help` (from /app inside the container).
 
-Usage (from /app directory inside container):
-    python -m app.cli create-invite [--expires-days 7]
-    python -m app.cli run-retention [--dry-run]
-    python -m app.cli training-export --out samples.jsonl [--since 2026-01-01]
-
-Invoked by external cron (systemd timer / Kubernetes CronJob).
-NOT by an in-process scheduler — avoids multi-worker duplication.
-"""
+Retention (`run-retention`) is invoked by external cron (systemd timer / Kubernetes CronJob),
+never by an in-process scheduler, which would duplicate work across workers."""
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import NoReturn
 
 import click
@@ -75,6 +68,43 @@ def send_password_reset(email: str) -> None:
             except (OperationalError, ProgrammingError) as exc:
                 _raise_schema_hint(exc)
 
+    asyncio.run(_send())
+
+
+@cli.command("approve-user")
+@click.option("--email", required=True, help="User email.")
+def approve_user(email: str) -> None:
+    """
+    Approve a pending account (recovery path when no admin can sign in to do it).
+
+    Keeps the account's feature switches as they are.
+    """
+    from app.models.teacher import Teacher
+
+    normalized_email = email.strip().lower()
+
+    async def _approve() -> str:
+        from app.database import AsyncSessionLocal
+
+        async with AsyncSessionLocal() as db:
+            try:
+                result = await db.execute(
+                    select(Teacher).where(func.lower(Teacher.email) == normalized_email)
+                )
+                teacher = result.scalar_one_or_none()
+                if teacher is None:
+                    raise click.ClickException("No user found with this email.")
+                if teacher.approved_at is not None:
+                    return f"Already approved: {teacher.email}"
+                teacher.approved_at = datetime.now(UTC)
+                teacher.registration_note = None
+                await db.commit()
+                return f"Approved: {teacher.email}"
+            except (OperationalError, ProgrammingError) as exc:
+                _raise_schema_hint(exc)
+
+    click.echo(asyncio.run(_approve()))
+
 
 @cli.command("create-user")
 @click.option("--email", required=True, help="User email.")
@@ -126,6 +156,7 @@ def create_user(email: str, role: str, allow_admin: bool, password: str) -> None
                     email=normalized_email,
                     password_hash=hash_password(password),
                     role=typed_role,
+                    approved_at=datetime.now(UTC),
                 )
                 db.add(teacher)
                 await db.commit()
@@ -171,10 +202,8 @@ def set_password(email: str, password: str) -> None:
                     raise click.ClickException("No user found with this email.")
 
                 teacher.password_hash = hash_password(password)
-                # The server cannot re-wrap the teacher's data key — it never
-                # sees that key. Marking the password wrap stale is what sends
-                # them to the recovery-code path on the next sign-in instead of
-                # into a vault of blank fields.
+                # The server never sees the data key, so it cannot re-wrap it: a stale password
+                # wrap sends the teacher to the recovery code, not into a vault of blank fields.
                 await invalidate_password_wrap(db, teacher.id)
                 await db.commit()
             except (OperationalError, ProgrammingError) as exc:
@@ -191,19 +220,10 @@ def set_password(email: str, password: str) -> None:
 @cli.command("run-retention")
 @click.option("--dry-run", is_flag=True, default=False, help="Print actions without DB writes.")
 def run_retention(dry_run: bool) -> None:
-    """
-    Apply the retention policy (GDPR Art. 5(1)(e)).
+    """Apply the retention policy (GDPR Art. 5(1)(e)): soft-delete, then hard-delete after grace.
 
-    Soft-deletes exams past retention_until and stamps their student identities
-    and submissions for erasure; hard-deletes those whose grace period has
-    elapsed; removes audit entries past their retention period.
-
-    Designed to be called by an EXTERNAL cron job (not in-process scheduler).
-    Safe to run multiple times — idempotent (already deleted rows are skipped).
-
-    This job is the ONLY thing that erases expired student data. If it is not
-    scheduled, nothing is ever deleted.
-    """
+    Idempotent; run it from EXTERNAL cron, not in-process. It is the ONLY thing that erases
+    expired student data and audit entries: if it is not scheduled, nothing is ever deleted."""
     from app.services.retention import run as _run
 
     try:
@@ -235,13 +255,10 @@ def run_retention(dry_run: bool) -> None:
     help="Only samples donated on or after this date (YYYY-MM-DD).",
 )
 def training_export(out_path: str, since: datetime | None) -> None:
-    """
-    Export donated OMR training samples for offline model training.
+    """Export donated OMR training samples as JSON Lines for offline model training.
 
-    Each line: label, versions, detector metadata/features and the grayscale
-    crop (base64, row-major, crop_width x crop_height). The rows carry no
-    identifiers by design — keep the export that way (no joins, no enrichment).
-    """
+    Rows (label, versions, detector features, base64 grayscale crop) carry no identifiers by
+    design: keep the export that way, no joins or enrichment."""
     import base64
     import json
 

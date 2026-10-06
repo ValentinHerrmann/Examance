@@ -1,9 +1,7 @@
 """Per-exercise scores — /api/v1/exams/{id}/submissions/{id}/scores.
 
-The payload (score, selected options, OMR metadata) is sealed client-side; the
-server stores only the ciphertext. Writes are keyed on (submission, exercise),
-so every endpoint here is idempotent and safe to replay from the offline queue.
-"""
+The payload (score, selected options, OMR metadata) is sealed client-side; the server stores only
+the ciphertext. Writes are keyed on (submission, exercise): idempotent, safe to replay offline."""
 from __future__ import annotations
 
 import base64
@@ -21,6 +19,7 @@ from app.models.exercise_score import ExerciseScore
 from app.models.scan_submission import ScanSubmission
 from app.schemas.binary import GCM_IV_BYTES, decode_b64
 from app.schemas.exercise_score import ExerciseScoreBulkPut, ExerciseScoreResponse
+from app.services.capabilities import require_server_results_writable
 
 router = APIRouter(
     prefix="/exams/{exam_id}/submissions/{submission_id}/scores",
@@ -69,7 +68,11 @@ async def list_exam_scores(
     return [_to_response(row) for row in rows.scalars()]
 
 
-@router.put("", response_model=list[ExerciseScoreResponse])
+@router.put(
+    "",
+    response_model=list[ExerciseScoreResponse],
+    dependencies=[Depends(require_server_results_writable)],
+)
 async def put_scores(
     body: ExerciseScoreBulkPut,
     exam: Exam = Depends(get_exam_for_teacher),

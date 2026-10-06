@@ -8,6 +8,7 @@
   import { Alert, Badge, Button, Modal, Spinner } from '#lib/components/ui';
   import { ApiError } from '#lib/api/client';
   import { getStoragePolicyBadge, storagePolicyStore, type StorageMode } from '#lib/stores/storagePolicy';
+  import { capabilitiesStore } from '#lib/stores/capabilities';
   import {
     deleteOldCopy,
     directionFor,
@@ -57,7 +58,10 @@
 
   async function prepare() {
     step = 'explain';
-    from = get(storagePolicyStore).storageMode;
+    // An admin may have disallowed the account's mode: the workspace then publishes no mode (needs-choice)
+    // while the server still records it. The move must start from that recorded mode, or its
+    // compare-and-set fails and the results stay behind.
+    from = get(storagePolicyStore).storageMode ?? get(capabilitiesStore)?.storageMode ?? null;
     somethingToMove = null;
     errorMsg = '';
     result = null;

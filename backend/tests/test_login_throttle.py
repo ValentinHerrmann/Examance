@@ -1,13 +1,12 @@
 """Per-account login cooloff.
 
-The suite runs with RATE_LIMIT_ENABLED=false (see conftest), which also switches
-the throttle off by default, so each test enables it explicitly and restores the
-previous setting afterwards.
-"""
+The suite runs with RATE_LIMIT_ENABLED=false (see conftest), which also switches the throttle off
+by default, so each test enables it explicitly and restores the previous setting."""
 from __future__ import annotations
 
 import time
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 
 import pytest
 import pytest_asyncio
@@ -37,7 +36,12 @@ async def throttling() -> AsyncGenerator[None, None]:
 
 
 async def _create_teacher(db: AsyncSession, email: str) -> Teacher:
-    teacher = Teacher(email=email, password_hash=hash_password(_PASSWORD), role="teacher")
+    teacher = Teacher(
+        email=email,
+        password_hash=hash_password(_PASSWORD),
+        role="teacher",
+        approved_at=datetime.now(UTC),
+    )
     db.add(teacher)
     await db.commit()
     return teacher
@@ -120,18 +124,10 @@ async def test_unknown_account_is_throttled_the_same_way(
 async def test_an_unreachable_redis_does_not_stall_the_login(
     client: AsyncClient, db: AsyncSession, throttling: None
 ) -> None:
-    """
-    The throttle must fail fast, not hang.
+    """The throttle must fail fast: an unreachable Redis may not stall the login.
 
-    `Redis.from_url()` leaves `socket_connect_timeout` unset, so redis-py falls
-    back to the OS TCP connect timeout — roughly two minutes on Linux. With the
-    throttle on the login path that turned a misconfigured Redis into a sign-in
-    that blocked until the browser gave up and reported the server unreachable,
-    which is a far worse outcome than the guessing this prevents.
-
-    Port 1 on the loopback address refuses fast on most hosts and black-holes on
-    the rest; either way the deadline below is what has to hold.
-    """
+    `Redis.from_url()` leaves `socket_connect_timeout` unset, so redis-py waits for the OS connect
+    timeout (~2 min on Linux) and the browser reports the server down: worse than guessing."""
     email = "redis-down@example.com"
     await _create_teacher(db, email)
 

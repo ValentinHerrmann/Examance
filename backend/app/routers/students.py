@@ -14,11 +14,17 @@ from app.models.student_identity import StudentIdentity
 from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
 from app.schemas.student import StudentIdentityCreate, StudentIdentityResponse
 from app.services import audit as audit_svc
+from app.services.capabilities import require_server_results_writable
 
 router = APIRouter(prefix="/exams/{exam_id}/students", tags=["students"])
 
 
-@router.post("", response_model=StudentIdentityResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=StudentIdentityResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_server_results_writable)],
+)
 async def upload_student_identity(
     body: StudentIdentityCreate,
     exam: Exam = Depends(get_exam_for_teacher),

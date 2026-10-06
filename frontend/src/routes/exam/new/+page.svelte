@@ -3,7 +3,7 @@
   import { onMount, onDestroy, untrack } from "svelte";
   import { db } from "#lib/db/db";
   import { sessionStore, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
-  import { storagePolicyStore } from "#lib/stores/storagePolicy";
+  import { effectiveLatexStore } from "#lib/stores/capabilities";
   import type { ExerciseRecord } from "#lib/db/schema";
   import { loadExercisesEncrypted, saveExerciseEncrypted, saveExamEncrypted, encryptExercise } from "#lib/db/dbEncryption";
   import { api } from "#lib/api/client";
@@ -408,7 +408,7 @@ ${exerciseInputs}
       const fullTexAngabe = getPreamble("sans,punkte");
       const fullTexLoesung = getPreamble("sans,punkte,antworten");
 
-      const useLocal = $storagePolicyStore.latexCompilation === "local";
+      const useLocal = $effectiveLatexStore === "local";
       if (useLocal) {
         errorMsg = translate("examCreation.status.compilingPdf");
       }

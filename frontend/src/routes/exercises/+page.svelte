@@ -3,7 +3,7 @@
   import { onMount, untrack } from "svelte";
   import { db } from "#lib/db/db";
   import { sessionStore, awaitSessionReady } from "#lib/stores/session";
-  import { storagePolicyStore } from "#lib/stores/storagePolicy";
+  import { effectiveLatexStore } from "#lib/stores/capabilities";
   import type { ExerciseRecord } from "#lib/db/schema";
   import { loadExercisesEncrypted, saveExerciseEncrypted, encryptExercise } from "#lib/db/dbEncryption";
   import { api } from "#lib/api/client";
@@ -102,7 +102,7 @@
         latexBody: ex.latexBody ?? "",
         resourceOwnerId: ex.id!,
         staged: false,
-        useLocal: $storagePolicyStore.latexCompilation === "local",
+        useLocal: $effectiveLatexStore === "local",
         key: get(sessionStore).sessionKey,
         onStatus,
       }),

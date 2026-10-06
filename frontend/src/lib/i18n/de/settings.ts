@@ -179,6 +179,16 @@ export const settings = {
         privacyNote: 'Details in der Datenschutzerklärung:',
         privacyLink: 'Datenschutz',
     },
+    deleteAccount: {
+        heading: 'Konto löschen',
+        description: 'Löscht Ihr Konto und alles, was dazu auf dem Server gespeichert ist: Prüfungen, Bewertungsergebnisse, Aufgabengruppen und Anmeldefaktoren, dazu Ihre Aufgaben, sofern Sie sie nicht behalten. Wir senden Ihnen einen Link zur Bestätigung; gelöscht wird erst, wenn Sie ihn öffnen und bestätigen.',
+        keepExercises: 'Meine Aufgaben auf dem Server behalten',
+        keepExercisesHint: 'Sie bleiben ohne Ihren Namen erhalten, damit sie später geteilt werden können; vorerst sieht sie niemand.',
+        button: 'Bestätigungs-E-Mail senden',
+        resend: 'Neuen Link senden',
+        sent: 'Wir haben einen Bestätigungslink an {email} gesendet. Er ist {minutes} Minuten gültig.',
+        failed: 'Die Bestätigungs-E-Mail konnte nicht angefordert werden.',
+    },
     hygiene: {
         heading: 'Sitzungsdaten bereinigen',
         description: 'Alle zwischengespeicherten Prüfungs-, Schüler- und Scandaten dauerhaft aus dem lokalen Browserspeicher löschen.',

@@ -1,15 +1,14 @@
 /**
- * IDB hygiene: clear-on-close (best-effort) + session timeout. SECURITY: a UX courtesy, NOT a guarantee;
- * the beforeunload/visibilitychange wipe doesn't reliably fire on crashes, process kills, mobile tab
- * discards or force-quits. If it fails the blobs stay safe: a new session can't derive the key without
- * the password and sensitive fields (piiCt, scanCt) are encrypted before every write. Encryption at
- * rest is the PRIMARY protection.
+ * IDB hygiene: best-effort clear-on-close plus session timeout. SECURITY: a courtesy, NOT a guarantee (the unload
+ * wipe does not reliably fire on crashes, kills, mobile tab discards). If it fails the data stays safe: a new session
+ * cannot derive the key without the password and sensitive fields are encrypted before every write (the PRIMARY protection).
  */
 
 import { clearAllTables } from './db';
 import { sessionStore } from '#lib/stores/session';
 import { storagePolicyStore } from '#lib/stores/storagePolicy';
 import { workspaceStatusStore } from '#lib/stores/workspaceState';
+import { clearCapabilities } from '#lib/stores/capabilities';
 import { get, writable } from 'svelte/store';
 
 import { api } from '#lib/api/client';
@@ -37,6 +36,7 @@ export async function lockSession(): Promise<void> {
   timeUntilLock.set(null);
   await clearCompileCache();
   sessionStore.lock();
+  clearCapabilities();
   // The next unlock decides afresh whether its session owns the workspace.
   workspaceStatusStore.set({ state: 'unchecked' });
   try {

@@ -1,15 +1,17 @@
-"""
-Shared helper for signing a test client in.
+"""Shared helpers for signing a test client in through the real endpoints, like a browser does.
 
-Login needs a passkey on its own, or any two of password, passkey and
-authenticator — so a password alone does not produce a session. These helpers enrol an
-authenticator directly in the database and then drive the real endpoints, so the
-suite exercises the same path a browser takes rather than a shortcut around it.
-"""
+A password alone yields no session (a passkey, or any two of password/passkey/TOTP), so these
+enrol an authenticator directly in the database first."""
 from __future__ import annotations
 
+import re
 import time
+import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
+from typing import Any
+from unittest.mock import AsyncMock, patch
 
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +23,29 @@ from app.services.crypto import hash_password
 from app.services.mfa_secret import encrypt_secret
 
 DEFAULT_PASSWORD = "Password123!-ok"  # noqa: S105 - test fixture credential
+
+
+def unique_email(prefix: str) -> str:
+    """The test database is shared across the session, so every address is unique."""
+    return f"{prefix}-{uuid.uuid4().hex[:8]}@school.example"
+
+
+@contextmanager
+def outbox() -> Iterator[AsyncMock]:
+    """Capture outgoing mail instead of sending it (delivery reports success)."""
+    with patch("app.services.email.send_email", return_value=True) as sent:
+        yield sent
+
+
+def mails_to(sent: AsyncMock, address: str) -> list[dict[str, Any]]:
+    return [call.kwargs for call in sent.call_args_list if call.kwargs["to_email"] == address]
+
+
+def token_in(mail: dict[str, Any], page: str) -> str:
+    """The raw token from the ``/<page>?token=...`` link of a captured mail."""
+    found = re.search(rf"/{page}\?token=([\w-]+)", mail["body_text"])
+    assert found is not None, mail["body_text"]
+    return found.group(1)
 
 
 async def enrol_totp(db: AsyncSession, teacher: Teacher) -> bytes:
@@ -50,7 +75,12 @@ async def create_teacher(
     role: str = "teacher",
     password: str = DEFAULT_PASSWORD,
 ) -> Teacher:
-    teacher = Teacher(email=email, password_hash=hash_password(password), role=role)
+    teacher = Teacher(
+        email=email,
+        password_hash=hash_password(password),
+        role=role,
+        approved_at=datetime.now(UTC),
+    )
     db.add(teacher)
     await db.commit()
     return teacher

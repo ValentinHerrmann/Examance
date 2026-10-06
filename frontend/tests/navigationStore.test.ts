@@ -10,6 +10,8 @@ describe('navigationStore public path helpers', () => {
     expect(isPublicPath('/reset-password')).toBe(true);
     expect(isPublicPath('/reset-password?token=abcdef')).toBe(true);
     expect(isPublicPath('/forgot-password')).toBe(true);
+    expect(isPublicPath('/register')).toBe(true);
+    expect(isPublicPath('/verify-email?token=abcdef')).toBe(true);
   });
 
   it('rejects protected paths', () => {

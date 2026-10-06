@@ -4,15 +4,14 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, String, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, String, func, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
-# Storage modes a teacher can choose (docs/dev/storage_modes.md). Exams and exercises always
-# live on the server; the mode only decides whether grading results do too ("all-server") or
-# stay in one browser ("hybrid"). Which of these an account may use is decided by
-# app/services/capabilities.py.
+# Storage modes (docs/dev/storage_modes.md). Exams and exercises always live on the server; the
+# mode only decides whether grading results do too ("all-server") or stay in one browser
+# ("hybrid"). Which modes an account may use: app/services/capabilities.py.
 STORAGE_MODES = ("all-server", "hybrid")
 
 
@@ -52,6 +51,21 @@ class Teacher(Base):
     # The account's storage mode. Null until the teacher chooses one explicitly; there is no
     # default, and nothing writes it implicitly. Every browser of the account follows this value.
     storage_mode: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # When an admin (or an always-allowed domain) approved the account; null = pending, which holds
+    # no token of any kind (`advance_sign_in` in app/routers/auth.py, app/dependencies.py). No
+    # default on purpose: a write path that forgets it locks the account out, never one in.
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Optional note a self-registered teacher leaves for the approving admin. Erased on approval.
+    registration_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Per-account feature switches set by an admin (app/services/capabilities.py): whether results
+    # may live on the server ("all-server") and whether LaTeX may compile there. Both the Python and
+    # the server default are needed: without the former a fresh row leaves them unloaded.
+    allow_server_results: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=true()
+    )
+    allow_server_latex: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=true()
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

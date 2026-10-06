@@ -12,9 +12,15 @@ export interface AuthStep {
   id: string;
   email: string;
   role: 'teacher' | 'admin';
-  status: 'ok' | 'factor_required' | 'enroll_required';
+  /** `approval_pending`: a self-registered account no admin has approved yet; no session was created. */
+  status: 'ok' | 'factor_required' | 'enroll_required' | 'approval_pending';
   satisfied: FactorKind[];
   available: FactorKind[];
+  /**
+   * `/auth/reset/start` only: false for a fresh account (no key copy, nothing authored), so there is
+   * no data to recover and the recovery-code step is skipped.
+   */
+  needs_key_recovery?: boolean | null;
 }
 
 export interface MfaStatus {

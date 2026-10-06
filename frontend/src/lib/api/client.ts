@@ -44,6 +44,11 @@ export class ApiError extends Error {
   }
 }
 
+/** The server's message for an API error, else the given fallback text. */
+export function apiErrorMessage(err: unknown, fallback: string): string {
+  return err instanceof ApiError ? err.message : fallback;
+}
+
 /** `Retry-After` in seconds, or null when absent or not a plain count. */
 function parseRetryAfter(response: Response): number | null {
   const raw = response.headers.get('Retry-After');
@@ -140,7 +145,8 @@ async function handleNonOkResponse(resp: Response, silentError?: boolean): Promi
  * an unrelated success (e.g. a health poll) says nothing about the account's lock state.
  */
 function noteAuthSuccess(path: string): void {
-  if (path.startsWith('/auth/')) {
+  // Registration and account deletion prove nothing about signing in, so they must not lift a lockout.
+  if (path.startsWith('/auth/') && !path.startsWith('/auth/register') && !path.startsWith('/auth/account-deletion')) {
     loginLockout.clear();
   }
 }
@@ -195,11 +201,9 @@ async function request<T>(
   }
 
   if (resp.status === 403 && resp.headers.get('code') === 'ERR_MFA_ENROLLMENT_REQUIRED') {
-    // The session is real but the account no longer satisfies the two-factor policy (e.g. an admin
-    // reset its factors): nothing to refresh, so lock and send the teacher to sign in, where
-    // enrollment happens. Must come *before* the 401 branch (refreshing would rotate a valid token
-    // for nothing). Skipped on /unlock: enrollment runs there and its scope is expected to be
-    // rejected elsewhere; locking mid-flow would wipe sessionStorage and broadcast SESSION_LOCKED.
+    // The account no longer satisfies the two-factor policy (e.g. an admin reset its factors): lock and send the
+    // teacher to /unlock to enroll. Must come before the 401 branch (a refresh would rotate a valid token for nothing).
+    // Skipped on /unlock itself, where enrollment runs: locking mid-flow would wipe sessionStorage and broadcast SESSION_LOCKED.
     const onUnlockPage =
       typeof window !== 'undefined' && window.location.pathname.startsWith('/unlock');
     if (!onUnlockPage) {

@@ -4,7 +4,7 @@
   import type { ExerciseRecord } from "#lib/db/schema";
   import { db } from "#lib/db/db";
   import { sessionStore, isAuthenticated } from "#lib/stores/session";
-  import { storagePolicyStore } from "#lib/stores/storagePolicy";
+  import { effectiveLatexStore } from "#lib/stores/capabilities";
   import { saveExerciseEncrypted, loadExercisesEncrypted } from "#lib/db/dbEncryption";
   import { api } from "#lib/api/client";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
@@ -309,7 +309,7 @@
         latexBody: editorLatexBody,
         resourceOwnerId: resourceStagingId,
         staged: true,
-        useLocal: $storagePolicyStore.latexCompilation === "local",
+        useLocal: $effectiveLatexStore === "local",
         key: get(sessionStore).sessionKey
       });
       if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);

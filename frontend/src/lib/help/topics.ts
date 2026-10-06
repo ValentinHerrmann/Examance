@@ -248,7 +248,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { headingKey: "help.topics.settings.s3.h", bodyKeys: ["help.topics.settings.s3.p1"] },
       {
         headingKey: "help.topics.settings.s4.h",
-        bodyKeys: ["help.topics.settings.s4.p1", "help.topics.settings.s4.p2"],
+        bodyKeys: ["help.topics.settings.s4.p1", "help.topics.settings.s4.p2", "help.topics.settings.s4.p3"],
       },
       {
         headingKey: "help.topics.settings.s5.h",
@@ -290,6 +290,18 @@ export const HELP_TOPICS: HelpTopic[] = [
     sections: [
       { headingKey: "help.topics.accounts.s1.h", bodyKeys: ["help.topics.accounts.s1.p1"] },
       { headingKey: "help.topics.accounts.s2.h", bodyKeys: ["help.topics.accounts.s2.p1"] },
+      {
+        headingKey: "help.topics.accounts.s8.h",
+        bodyKeys: ["help.topics.accounts.s8.p1", "help.topics.accounts.s8.p2"],
+      },
+      {
+        headingKey: "help.topics.accounts.s9.h",
+        bodyKeys: ["help.topics.accounts.s9.p1", "help.topics.accounts.s9.p2"],
+      },
+      {
+        headingKey: "help.topics.accounts.s10.h",
+        bodyKeys: ["help.topics.accounts.s10.p1", "help.topics.accounts.s10.p2"],
+      },
       {
         headingKey: "help.topics.accounts.s6.h",
         bodyKeys: ["help.topics.accounts.s6.p1", "help.topics.accounts.s6.p2"],
@@ -345,6 +357,12 @@ export function topicForPath(pathname: string): HelpTopicId {
   if (pathname.startsWith("/settings")) return "settings";
   if (pathname.startsWith("/admin")) return "accounts";
   if (pathname.startsWith("/legal")) return "privacy";
-  if (pathname.startsWith("/unlock") || pathname.startsWith("/forgot-password")) return "accounts";
+  if (
+    pathname.startsWith("/unlock") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/verify-email")
+  )
+    return "accounts";
   return "gettingStarted";
 }

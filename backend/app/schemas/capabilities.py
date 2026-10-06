@@ -1,6 +1,7 @@
 """Schemas for /user/capabilities and /user/storage-mode."""
 from __future__ import annotations
 
+import uuid
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
@@ -9,6 +10,9 @@ StorageMode = Literal["all-server", "hybrid"]
 
 
 class CapabilitiesOut(BaseModel):
+    # The account the answer is about. A tab compares it with its own session: cookies are shared
+    # by every tab of a browser, so a sign-in elsewhere would otherwise answer for another account.
+    account_id: uuid.UUID
     storage_mode: StorageMode | None
     allowed_storage_modes: list[StorageMode]
     features: dict[str, bool]

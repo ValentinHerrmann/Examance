@@ -50,7 +50,10 @@ Derived from the backend models and `data_flow_and_security.md` §3. "Pseudonymo
 | `total_score` per submission | **Pseudonymous, plaintext** | Server (`scan_submissions`) | **No** |
 | `pseudonym_hmac` | Pseudonymous identifier | Server | n/a (is itself an HMAC) |
 | Exam metadata (title, class, subject, date, teacher surname) | Personal (identifies a teacher and a class) | Server | **No** |
-| Teacher email, role, password hash | Personal | Server (`teachers`) | Hash only (Argon2id) |
+| Teacher email, role, password hash, approval timestamp, feature switches | Personal | Server (`teachers`) | Hash only (Argon2id) |
+| Registration request: email address, SHA-256 of the verification token, expiry, last-sent time. Deleted when the link is used, otherwise by the retention job after expiry | Personal (a not-yet-verified address, possibly of a third party) | Server (`registration_requests`) | **No** (address in plaintext; the token is stored as a hash) |
+| Registration note: optional free text (up to 500 characters) a registrant leaves for the approving admin; erased on approval, never stored for an allowlisted domain, purged with an unapproved account after `PENDING_ACCOUNT_RETENTION_DAYS` | Personal (free text, content up to the registrant) | Server (`teachers.registration_note`) | **No** |
+| Always-allowed e-mail domains and the features their accounts receive | Not personal data | Server (`allowed_email_domains`) | n/a |
 | Audit entries: teacher email, action, SHA-256 of target, SHA-256 of IP | Personal | Server (`audit_logs`) | **No** (IP is hashed) |
 | MC training-data donation: 80×48 grayscale checkbox crop, verified label, detector reading, features | Opt-in, off by default, signed-in accounts only; anonymised at rest (no name/pseudonym/exam/submission/question id, no account, no IP stored; only a random per-box token) | Server (`omr_training_samples`) | No — not personal data as stored, but see note below |
 
@@ -118,7 +121,7 @@ Templates: `records_of_processing_art30.md`, `dpia_art35.md`. Both need the cont
 
 `routers/user.py` could purge *student* data but offered the account holder nothing. Teachers are data subjects too: the system holds their email, role, authored exams and audit trail.
 
-**Fixed:** `GET /api/v1/user/me/export` (Art. 15/20) and `DELETE /api/v1/user/me` (Art. 17). Deletion soft-deletes the teacher's exams and student data on the standard grace period and removes the account; audit rows are retained with `teacher_id` nulled under Art. 17(3)(b) and age out under L7's period. That retention decision is documented in the endpoint rather than left implicit.
+**Fixed:** `GET /api/v1/user/me/export` (Art. 15/20) and account deletion (Art. 17; since PR #64 confirmed through a mailed single-use link, `POST /user/me/deletion-request` then `POST /auth/account-deletion/confirm`, with the option to keep authored exercises without an owner). Deletion soft-deletes the teacher's exams and student data on the standard grace period and removes the account; audit rows are retained with `teacher_id` nulled under Art. 17(3)(b) and age out under L7's period. That retention decision is documented in the endpoint rather than left implicit.
 
 ### L9 — No subject access export for a student · Art. 15(3), 20 · [C] · **Fixed**
 
@@ -199,6 +202,19 @@ This contradicts `data_flow_and_security.md` Core Invariant 1 ("zero unencrypted
 
 Two things a reader should not over-read. The upgrade rewrites rows on this device when the browser next opens the database — a device that never opens it again keeps its old rows. And server-side `student_identities` rows were never affected: they only ever held ciphertext.
 
+### L18 — Self-registration adds processing the privacy notice does not describe yet · Art. 13, 5(1)(c)+(e), 25, 30, 35 · [C+P] · **Open (code and draft notice done, legal review pending)**
+
+Issue #53 lets anyone register for an account (always available). That adds data categories and a data-subject group the earlier findings did not cover: a registrant's e-mail address before verification (possibly of a third party who never asked for anything), a hashed verification token, an optional free-text note for the approving admin, the approval timestamp and per-account feature switches. See §3.
+
+*What the code does about it.* The design follows data protection by default (Art. 25): nothing is created before the mailed link is used, so `teachers` holds verified addresses only; registration answers identically for known and unknown addresses, with the mail sent after the response, so it is no account-existence oracle; a pending account holds no token of any kind and can create no data; the note is never put into a mail, is erased on approval and is not stored at all for an allowlisted domain; the admin notice mail carries a count, not registrant data; expired requests and accounts nobody approves are erased by the retention job (`PENDING_ACCOUNT_RETENTION_DAYS`, default 90); every step is in the audit trail. The risks are assessed as R11–R14 in `dpia_art35.md`.
+
+*What is still open.*
+- **The in-app privacy notice (Datenschutzerklärung) has a draft that needs legal review.** The German text in `frontend/src/lib/i18n/de/legal.ts` (mirrored unchanged in `en/legal.ts`) now describes the registration processing: categories (§4), the mail provider as recipient (§6), retention of requests and pending accounts (§7) and a new §11 on registration, approval and the registrant's rights. Still open: review of the wording, and the placeholders for the mail provider, the retention values and the legal basis. Registration has no switch, so every deployment of this version relies on that draft.
+- **Legal basis for the registrant's data.** Before approval there is no teacher yet, so the school-law basis in L11 may not carry the processing. The DPO has to decide and the notice has to state it; this document does not fix one.
+- **Registrants cannot use the in-app Art. 15/17 routes** from L8: a pending account has no session. The operator must answer such requests by hand (R14).
+- **Complete `records_of_processing_art30.md` and the DPIA** for the new categories and for the mail provider behind `SMTP_HOST`, which registration now makes mandatory.
+- **Allowlist is a trust decision.** An admin who lists a public mail provider approves everyone there. The Admin UI warns; nothing else prevents it (R12).
+
 ---
 
 ## 5. Honest caveats
@@ -227,6 +243,7 @@ Ordered by what blocks a school deployment.
 6. **Decide the private-device question** (L12) if teachers use personal machines.
 7. **Set a real `SECRET_KEY`** and confirm the app refuses to start without one — it now does.
 8. **Consider enforcing SRI** (§5) by vendoring and hashing the WASM binaries.
+9. **Before deploying self-registration (issue #53), which has no switch:** have the drafted registration passages of the German privacy policy (`frontend/src/lib/i18n/de/legal.ts`) legally reviewed and fill their placeholders, settle the legal basis for registrants, and extend the Art. 30 record and the DPIA (L18).
 
 ---
 
@@ -237,3 +254,4 @@ Ordered by what blocks a school deployment.
 - `breach_response_checklist.md` — Art. 33/34 procedure, extended alongside this audit
 - `records_of_processing_art30.md` — Art. 30 template
 - `dpia_art35.md` — DPIA screening and template
+- `account_creation_and_management.md` — how accounts are invited, registered, approved and restricted (§7)

@@ -17,12 +17,9 @@ PLACEHOLDER_SECRET_KEYS = frozenset(
     }
 )
 
-# Free, instantly-provisioned hosting domains. They are heavily abused for
-# phishing and therefore carry a poor reputation on URI blocklists (SURBL /
-# URIBL / Spamhaus DBL). A password-reset mail linking to one of them gets
-# rejected by outbound relays with a body-URL rule, e.g.
-#   550 5.7.1 Refused by local policy. Sending of SPAM is not permitted! (B-URL)
-# Use a custom domain that matches the SMTP_FROM_EMAIL domain instead.
+# Free hosting domains, abused for phishing and so on URI blocklists (SURBL / URIBL / Spamhaus DBL):
+# relays reject reset mails linking to them ("550 5.7.1 ... (B-URL)"). Use a custom domain that
+# matches the SMTP_FROM_EMAIL domain instead.
 BLOCKLISTED_LINK_DOMAINS = (
     ".pages.dev",
     ".workers.dev",
@@ -64,12 +61,9 @@ class Settings(BaseSettings):
 
     # CORS — required; app refuses to start if unset or empty
     CORS_ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "https://examance.pages.dev"]
-    # Production base regex (fullmatch):
-    #   - https://<anything>.valentin-herrmann.com and the bare apex domain
-    #   - https://examance.pages.dev and any Cloudflare Pages preview
-    #     subdomain of it (https://<branch>.examance.pages.dev)
-    # Note: Localhost origins (any port) are appended dynamically via
-    # `effective_cors_origin_regex` only when `ENVIRONMENT == "development"`.
+    # Production base regex (fullmatch): valentin-herrmann.com (apex and subdomains) and
+    # examance.pages.dev (plus its Cloudflare Pages previews). Loopback origins on any port are
+    # added by `effective_cors_origin_regex` only when ENVIRONMENT == "development".
     CORS_ALLOWED_ORIGIN_REGEX: str | None = (
         r"https://([a-zA-Z0-9-]+\.)*valentin-herrmann\.com"
         r"|https://([a-zA-Z0-9-]+\.)?examance\.pages\.dev"
@@ -83,26 +77,14 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "production"
     LOG_LEVEL: str = "INFO"
 
-    # Build version, baked into the image at build time (Dockerfile ARG/ENV
-    # APP_VERSION) from the repository-root VERSION file. Informational only:
-    # it is reported by GET /api/health so the frontend can tell whether it is
-    # talking to a compatible server. Production builds carry a bare semver
-    # ("1.4.0"); preview builds append the PR number and build timestamp
-    # ("1.4.0-PR#123 [18.08.2026 | 14:32]"), composed in deploy-preview.yml.
+    # Build version baked into the image (Dockerfile ARG/ENV APP_VERSION) from the root VERSION
+    # file. Informational: GET /api/health reports it so the frontend can check compatibility.
+    # Production is bare semver ("1.4.0"); preview appends PR number and build time.
     APP_VERSION: str = "0.0.0-dev"
 
-    # Retention bounds.
-    #
-    # MAX enforces Art. 5(1)(e) storage limitation: no exam may be scheduled to
-    # live indefinitely.
-    #
-    # MIN is a floor on how soon an exam may be scheduled for deletion, and
-    # defaults to 0 — i.e. none. A teacher must stay free to delete a draft or a
-    # practice exam immediately; forcing a floor would work against the erasure
-    # the regulation wants. The statutory duty to retain graded written work
-    # (set by state school law, e.g. BaySchO in Bavaria) binds the school as an
-    # organisational control over official records, not this field on every exam
-    # object. Schools that do want it enforced in software can raise this.
+    # Retention bounds. MAX enforces Art. 5(1)(e) storage limitation: no exam lives indefinitely.
+    # MIN is 0 on purpose: teachers must be able to delete a draft at once. The duty to retain
+    # graded work (school law, e.g. BaySchO) binds the school, not each exam; schools may raise MIN.
     RETENTION_MIN_DAYS: int = 0
     RETENTION_MAX_DAYS: int = 3650          # 10 years
     # Grace period between soft-delete and irreversible erasure.
@@ -122,10 +104,8 @@ class Settings(BaseSettings):
     TRAINING_SAMPLES_PER_TEACHER_PER_DAY: int = 2000
     TRAINING_SAMPLES_PER_DAY_MAX: int = 20000
 
-    # Body size limits (bytes)
-    # Compile requests carry the document plus, in local-storage mode, every
-    # resource file it references (base64, so ~4/3 of the raw bytes). The
-    # 10/min rate limit on the compile route bounds the volume this allows.
+    # Body size limits (bytes). Compile requests carry the document plus its resource files
+    # (base64, ~4/3 of raw); the compile route's 10/min rate limit bounds the volume.
     BODY_LIMIT_COMPILE: int = 28 * 1024 * 1024      # 28 MB
     # Single resource-file upload: 5 MB raw, base64-inflated, plus JSON slack.
     BODY_LIMIT_RESOURCE: int = 7 * 1024 * 1024      # 7 MB
@@ -150,27 +130,30 @@ class Settings(BaseSettings):
     # Frontend base URL for email link generation
     FRONTEND_URL: str = "http://localhost:5173"
 
-    # WebAuthn relying party. Defaults to the FRONTEND_URL host.
-    #
-    # A passkey is bound to its relying-party ID and will not work under a
-    # different registrable domain. Production and the preview stack are
-    # different domains, so each needs its own value *and* its own enrollments —
-    # that is a property of WebAuthn, not something configuration can paper over.
+    # WebAuthn relying party; defaults to the FRONTEND_URL host. A passkey is bound to its RP ID,
+    # so production and preview (different domains) each need their own value *and* enrollments.
     WEBAUTHN_RP_ID: str = ""
     WEBAUTHN_RP_NAME: str = "Examance"
 
     # Password reset configuration
     PASSWORD_RESET_TOKEN_TTL_HOURS: int = 24
 
-    # Per-account login throttling.
-    #
-    # slowapi's limits are keyed on the client IP, which stops a spray from one
-    # host but does nothing against a distributed guess at a single account.
-    # These knobs drive `app.services.login_throttle`, which counts failures per
-    # account and applies an exponential, capped cooloff.
-    #
-    # The cap is deliberate: any per-account lockout lets someone who knows an
-    # email lock its owner out, so the lock always expires on its own.
+    # Self-registration (app/services/registration.py), always available: the account exists only
+    # after the mailed link is used and stays pending until admin approval (or an allowlisted
+    # domain). Without SMTP the link cannot be delivered; `send_email` logs each failed delivery.
+    REGISTRATION_TOKEN_TTL_HOURS: int = 24
+    # Minimum gap between two verification mails to the same address.
+    REGISTRATION_RESEND_COOLDOWN_SECONDS: int = 300
+    # Verified accounts nobody approved are erased after this many days (only when they hold no
+    # data, which a pending account cannot create).
+    PENDING_ACCOUNT_RETENTION_DAYS: int = 90
+    # Lifetime of the mailed link that confirms deleting one's own account
+    # (app/services/account_deletion.py).
+    ACCOUNT_DELETION_TOKEN_TTL_MINUTES: int = 60
+
+    # Per-account login throttling (`app.services.login_throttle`): slowapi limits per client IP and
+    # misses a distributed guess at one account. Exponential cooloff, capped on purpose so the lock
+    # always expires: otherwise anyone who knows an email could lock its owner out.
     LOGIN_THROTTLE_ENABLED: bool | None = None  # defaults to RATE_LIMIT_ENABLED
     LOGIN_MAX_FAILED_ATTEMPTS: int = 5
     LOGIN_LOCKOUT_BASE_SECONDS: int = 60
@@ -241,13 +224,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_frontend_url_for_email(self) -> Settings:
-        """
-        Refuse to start when password-reset links would point at a blocklisted domain.
+        """Refuse to start when password-reset links would point at a blocklisted domain.
 
-        Only enforced when mail is actually delivered (SMTP_HOST set) outside
-        development, since that is the configuration in which the relay rejects
-        the message at DATA time — long after the user requested the reset.
-        """
+        Enforced only when mail is really sent (SMTP_HOST set, not development): the relay rejects
+        the message at DATA time, long after the user requested the reset."""
         if self.is_dev or not self.SMTP_HOST:
             return self
         host = urlparse(self.FRONTEND_URL).hostname or ""
@@ -303,15 +283,10 @@ class Settings(BaseSettings):
 
     @property
     def effective_cors_origin_regex(self) -> str | None:
-        """
-        Return the combined CORS origin regex.
+        """Return the combined CORS origin regex.
 
-        In development (ENVIRONMENT == "development"), arbitrary ports on
-        localhost and 127.0.0.1 are also permitted to allow local frontend
-        debugging with varying ports. In production, loopback origins on
-        arbitrary ports are excluded to prevent local dev CSRF vectors against
-        hosted instances.
-        """
+        Development also permits any port on localhost/127.0.0.1; production never does, to keep
+        local-dev CSRF vectors away from hosted instances."""
         if not self.is_dev:
             return self.CORS_ALLOWED_ORIGIN_REGEX
         if self.CORS_ALLOWED_ORIGIN_REGEX:

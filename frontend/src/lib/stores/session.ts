@@ -1,8 +1,7 @@
 /**
- * Session store: in-memory key state with tab persistence via sessionStorage + BroadcastChannel.
- * SECURITY: no accessToken field; auth tokens live in httpOnly cookies, never read or stored by JS.
- * masterKey (HKDF) and sessionKey (AES-GCM) sit in tab-isolated volatile sessionStorage, synced across
- * tabs via BroadcastChannel, and are wiped on manual lock, 60-minute inactivity (hygiene.ts), tab close/browser quit.
+ * Session store: in-memory key state, persisted per tab via sessionStorage and synced across tabs via BroadcastChannel.
+ * SECURITY: no accessToken field; auth tokens live in httpOnly cookies, never read or stored by JS. masterKey (HKDF) and
+ * sessionKey (AES-GCM) are wiped on manual lock, 60-minute inactivity (hygiene.ts), tab close or browser quit.
  */
 
 import { writable, derived, get } from 'svelte/store';
@@ -260,9 +259,8 @@ function createSessionStore() {
       const mode = params.mode ?? 'authenticated';
       safeLocalStorage.removeItem('bg_session_locked');
       safeLocalStorage.setItem('bg_session_mode', mode);
-      if (params.email) {
-        safeLocalStorage.setItem('bg_user_email', params.email);
-      }
+      // Older versions stored the address here; nothing reads it, so erase it.
+      safeLocalStorage.removeItem('bg_user_email');
 
       await saveToSessionStorage({
         masterKeyRaw: params.masterKeyRaw,
@@ -528,10 +526,9 @@ export const isAuthenticated = derived(
 // ---------------------------------------------------------------------------
 
 /**
- * Resolves once the root layout finished restoring the session. Svelte mounts children before
- * parents, so a route's `onMount` runs before `+layout.svelte` restores keys, asks other tabs or
- * refreshes the token. Every vault-touching route must await this, then still check `isUnlocked`
- * and redirect to `/unlock`.
+ * Resolves once the root layout finished restoring the session (keys, other tabs, token refresh). Svelte mounts children
+ * before parents, so a route's `onMount` runs earlier: every vault-touching route must await this, then still check
+ * `isUnlocked` and redirect to `/unlock`.
  */
 let resolveSessionReady: (() => void) | null = null;
 let sessionReadyPromise: Promise<void> = new Promise<void>((resolve) => {

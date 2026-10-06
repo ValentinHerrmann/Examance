@@ -1,10 +1,7 @@
 """Retention policy tests (GDPR Art. 5(1)(e), Art. 17).
 
-The regression these guard: expiring an exam used to soft-delete only the Exam
-row. Nothing else ever set retention_until on the student identities and
-submissions belonging to it, and no code path hard-deletes an Exam — so the
-personal data of every expired exam stayed in the database indefinitely.
-"""
+Guards that expiring an exam also stamps its students and submissions with a grace deadline:
+nothing else sets retention_until and nothing hard-deletes an Exam, so data would stay forever."""
 from __future__ import annotations
 
 import uuid
@@ -41,6 +38,7 @@ async def _seed_exam(
         email=f"retention-{uuid.uuid4().hex[:8]}@example.com",
         password_hash=hash_password("twelve-chars-plus"),
         role="teacher",
+        approved_at=datetime.now(UTC),
     )
     db.add(teacher)
     await db.flush()
