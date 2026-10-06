@@ -1,7 +1,6 @@
 """Password reset token and delivery services."""
 from __future__ import annotations
 
-import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Literal
@@ -17,11 +16,7 @@ from app.services import account_mail
 from app.services.account_mail import Mail
 from app.services.crypto import hash_password
 from app.services.key_envelope import invalidate_password_wrap
-
-
-def hash_reset_token(raw_token: str) -> str:
-    """Compute SHA-256 hash of raw reset token."""
-    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+from app.services.tokens import aware, hash_token
 
 
 async def create_reset_token(db: AsyncSession, teacher: Teacher) -> tuple[str, Mail]:
@@ -33,7 +28,7 @@ async def create_reset_token(db: AsyncSession, teacher: Teacher) -> tuple[str, M
     has never signed in.
     """
     raw_token = secrets.token_urlsafe(32)
-    token_hash = hash_reset_token(raw_token)
+    token_hash = hash_token(raw_token)
     expires_at = datetime.now(UTC) + timedelta(hours=settings.PASSWORD_RESET_TOKEN_TTL_HOURS)
 
     # Invalidate prior unused reset tokens for this teacher
@@ -75,7 +70,7 @@ async def verify_reset_token(
     db: AsyncSession, raw_token: str
 ) -> tuple[PasswordResetToken | None, Teacher | None]:
     """Verify raw token matches an unused, unexpired reset token record."""
-    token_hash = hash_reset_token(raw_token)
+    token_hash = hash_token(raw_token)
     stmt = (
         select(PasswordResetToken, Teacher)
         .join(Teacher, PasswordResetToken.teacher_id == Teacher.id)
@@ -88,11 +83,7 @@ async def verify_reset_token(
 
     token_record, teacher = row
     now = datetime.now(UTC)
-    expires_at = token_record.expires_at
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=UTC)
-
-    if token_record.used_at is not None or expires_at <= now:
+    if token_record.used_at is not None or aware(token_record.expires_at) <= now:
         return None, None
 
     # A pending account holds no token of any kind, a reset included. Covers /auth/reset/start

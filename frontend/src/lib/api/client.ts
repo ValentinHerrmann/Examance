@@ -44,6 +44,11 @@ export class ApiError extends Error {
   }
 }
 
+/** The server's message for an API error, else the given fallback text. */
+export function apiErrorMessage(err: unknown, fallback: string): string {
+  return err instanceof ApiError ? err.message : fallback;
+}
+
 /** `Retry-After` in seconds, or null when absent or not a plain count. */
 function parseRetryAfter(response: Response): number | null {
   const raw = response.headers.get('Retry-After');
@@ -140,8 +145,8 @@ async function handleNonOkResponse(resp: Response, silentError?: boolean): Promi
  * an unrelated success (e.g. a health poll) says nothing about the account's lock state.
  */
 function noteAuthSuccess(path: string): void {
-  // A registration request proves nothing about signing in, so it must not lift a sign-in lockout.
-  if (path.startsWith('/auth/') && !path.startsWith('/auth/register')) {
+  // Registration and account deletion prove nothing about signing in, so they must not lift a lockout.
+  if (path.startsWith('/auth/') && !path.startsWith('/auth/register') && !path.startsWith('/auth/account-deletion')) {
     loginLockout.clear();
   }
 }

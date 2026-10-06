@@ -4,6 +4,7 @@
  * reports failures inline.
  */
 
+import type { TranslationKey } from '#lib/i18n';
 import { api } from './client';
 
 /**
@@ -15,6 +16,12 @@ export type AccountFeature = (typeof ACCOUNT_FEATURES)[number];
 export type AccountFeatures = Record<AccountFeature, boolean>;
 
 export const ALL_FEATURES_ON: AccountFeatures = { server_results: true, server_latex: true };
+
+/** Short column headers for the switches in the admin tables. */
+export const FEATURE_COLUMNS = {
+  server_results: 'admin.accounts.columnResults',
+  server_latex: 'admin.accounts.columnLatex',
+} as const satisfies Record<AccountFeature, TranslationKey>;
 
 export interface AdminUser {
   id: string;
@@ -37,12 +44,17 @@ export interface AllowedDomain {
   created_at: string;
 }
 
-export async function listUsers(status: 'all' | 'pending' | 'active' = 'all'): Promise<AdminUser[]> {
-  const res = await api.get<{ items: AdminUser[]; total: number }>(
-    `/admin/users?status=${status}&limit=200`,
-    { silentError: true },
-  );
-  return res.items;
+/** Every account, newest first. The server answers at most 200 per page. */
+export async function listUsers(): Promise<AdminUser[]> {
+  const users: AdminUser[] = [];
+  for (;;) {
+    const page = await api.get<{ items: AdminUser[]; total: number }>(
+      `/admin/users?limit=200&offset=${users.length}`,
+      { silentError: true },
+    );
+    users.push(...page.items);
+    if (page.items.length === 0 || users.length >= page.total) return users;
+  }
 }
 
 /** Invites `email`: the account is created approved and receives a set-password link. */

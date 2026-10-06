@@ -223,7 +223,7 @@ export const help: Translations['help'] = {
                 h: 'Session and deletion',
                 p1: 'The session locks itself after a period of inactivity; afterwards the content is reachable only with the password again.',
                 p2: 'Data deletion removes individual student records (GDPR access and erasure requests) or the entire workspace. Deletion is final and cannot be undone.',
-                p3: 'Under “Delete account” you can delete your own account. You receive an email with a link; the account is deleted only when you open it and confirm. Everything stored with it on the server goes (exams, results, sign-in factors), and this browser is cleared. Your exercises can optionally stay on the server without your name, so they can be shared later. Admins can also delete other accounts in account management, with the same option.',
+                p3: 'Under “Delete account” you can delete your own account. You receive an email with a link; the account is deleted only when you open it and confirm. Everything stored with it on the server goes (exams, results, sign-in factors), and the browser you confirm in is cleared (other browsers keep their local copy, which can no longer be read without the account). Your exercises can optionally stay on the server without your name, so they can be shared later. Admins can also delete other accounts in account management, with the same option.',
             },
             s5: {
                 h: 'Fine-tuning MC detection',

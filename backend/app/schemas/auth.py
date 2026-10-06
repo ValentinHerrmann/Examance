@@ -117,7 +117,7 @@ class RegisterRequest(BaseModel):
 
 
 class RegisterCompleteRequest(BaseModel):
-    token: str
+    token: str = Field(min_length=1, max_length=200)
     new_password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
     # Shown to the approving admin; erased on approval. Ignored for auto-approved domains.
     note: str | None = Field(default=None, max_length=500)

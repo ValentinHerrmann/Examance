@@ -98,10 +98,10 @@ async def run(*, dry_run: bool = False) -> int:
         ) or 0
 
         # 5. Registration links that expired unused.
-        expired_requests_res = await db.execute(
-            select(RegistrationRequest).where(RegistrationRequest.expires_at < now)
-        )
-        expired_requests = list(expired_requests_res.scalars().all())
+        expired_requests_filter = RegistrationRequest.expires_at < now
+        expired_request_count = await db.scalar(
+            select(func.count()).select_from(RegistrationRequest).where(expired_requests_filter)
+        ) or 0
 
         # 7. Account-deletion links that expired unconfirmed.
         expired_deletions_filter = AccountDeletionRequest.expires_at < now
@@ -130,7 +130,7 @@ async def run(*, dry_run: bool = False) -> int:
             + len(expired_submissions)
             + len(expired_audit)
             + expired_sample_count
-            + len(expired_requests)
+            + expired_request_count
             + len(stale_pending)
             + expired_deletion_count
         )
@@ -173,8 +173,8 @@ async def run(*, dry_run: bool = False) -> int:
         if expired_sample_count:
             await db.execute(delete(OmrTrainingSample).where(expired_sample_filter))
 
-        for registration in expired_requests:
-            await db.delete(registration)
+        if expired_request_count:
+            await db.execute(delete(RegistrationRequest).where(expired_requests_filter))
 
         for account in stale_pending:
             await db.delete(account)

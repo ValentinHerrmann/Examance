@@ -3,11 +3,10 @@ from __future__ import annotations
 
 import base64
 from datetime import UTC, date, datetime, timedelta
-from typing import Any, cast
+from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
-from sqlalchemy import Result, select, update
-from sqlalchemy.engine import CursorResult
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -31,6 +30,7 @@ from app.services.capabilities import (
     require_server_results_writable,
 )
 from app.services.logo import get_teacher_logo
+from app.services.tokens import rowcount
 
 router = APIRouter(prefix="/user", tags=["user"])
 
@@ -79,17 +79,6 @@ async def set_storage_mode(
     return _capabilities_out(teacher)
 
 
-def _rowcount(result: Result[Any]) -> int:
-    """
-    Read the affected-row count off a DML result.
-
-    `AsyncSession.execute` is typed as returning `Result`, but a DML statement
-    always yields a `CursorResult`, which is where `rowcount` lives. The cast
-    keeps that narrowing in one place instead of at every call site.
-    """
-    return cast("CursorResult[Any]", result).rowcount
-
-
 
 @router.post("/purge-server-student-data", status_code=status.HTTP_200_OK)
 async def purge_server_student_data(
@@ -133,7 +122,7 @@ async def purge_server_student_data(
         .values(deleted_at=now, retention_until=retention_until)
     )
     students_res = await db.execute(students_update)
-    purged_students_count = _rowcount(students_res)
+    purged_students_count = rowcount(students_res)
 
     # Soft-delete scan submissions
     submissions_update = (
@@ -145,7 +134,7 @@ async def purge_server_student_data(
         .values(deleted_at=now, retention_until=retention_until)
     )
     submissions_res = await db.execute(submissions_update)
-    purged_submissions_count = _rowcount(submissions_res)
+    purged_submissions_count = rowcount(submissions_res)
 
     # Audit log
     await audit_svc.write(
@@ -204,7 +193,7 @@ async def restore_server_data(
         .values(deleted_at=None, retention_until=None)
     )
     students_res = await db.execute(students_update)
-    restored_students_count = _rowcount(students_res)
+    restored_students_count = rowcount(students_res)
 
     # Restore scan submissions
     submissions_update = (
@@ -217,7 +206,7 @@ async def restore_server_data(
         .values(deleted_at=None, retention_until=None)
     )
     submissions_res = await db.execute(submissions_update)
-    restored_submissions_count = _rowcount(submissions_res)
+    restored_submissions_count = rowcount(submissions_res)
 
     # Audit log
     await audit_svc.write(

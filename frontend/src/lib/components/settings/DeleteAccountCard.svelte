@@ -2,7 +2,7 @@
   // Deleting one's own account (GDPR Art. 17). This only asks: the server mails a single-use link
   // whose page (`routes/delete-account`) confirms the deletion. The holder may keep their library
   // exercises on the server without their name, for sharing later.
-  import { ApiError } from "#lib/api/client";
+  import { apiErrorMessage } from "#lib/api/client";
   import { requestAccountDeletion } from "#lib/api/account";
   import { t } from "#lib/i18n";
   import { Alert, Button, Card, Checkbox } from "#lib/components/ui";
@@ -25,7 +25,7 @@
     try {
       sentMinutes = await requestAccountDeletion(keepExercises);
     } catch (err) {
-      error = err instanceof ApiError ? err.message : $t("settings.deleteAccount.failed");
+      error = apiErrorMessage(err, $t("settings.deleteAccount.failed"));
     } finally {
       busy = false;
     }

@@ -2,7 +2,8 @@
   // Password reset wizard. Needs a second factor (mailbox alone must not take over an account); the data key is
   // unwrapped in the browser with the recovery code and re-wrapped under the new password, sent in one request.
   import { onMount } from "svelte";
-  import { api, ApiError } from "#lib/api/client";
+  import { api, apiErrorMessage, ApiError } from "#lib/api/client";
+  import { takeUrlToken } from "#lib/utils/urlToken";
   import { t, translate } from "#lib/i18n";
   import { startReset, submitBackupCode, submitTotp, type AuthStep } from "#lib/api/mfa";
   import { loginOptions, verifyLogin } from "#lib/api/webauthn";
@@ -15,7 +16,8 @@
     pinEnvelopeSet,
   } from "#lib/services/keyEnvelopeService";
   import { FactorChooser, RecoveryCodeDialog } from "#lib/components/security";
-  import { Alert, Button, Card, Field, PageShell, TextInput } from "#lib/components/ui";
+  import { Alert, Button, Field, TextInput } from "#lib/components/ui";
+  import AuthCard from "#lib/components/unlock/AuthCard.svelte";
 
   type Stage = "password" | "factor" | "key";
 
@@ -49,8 +51,7 @@
   let passkeyUnwrap = $state.raw<{ credentialIdB64: string; prfOutput: Uint8Array } | null>(null);
 
   onMount(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    token = urlParams.get("token") || "";
+    token = takeUrlToken();
     if (!token) {
       errorMsg = translate("auth.resetPassword.errors.tokenMissingOnLoad");
     }
@@ -96,7 +97,7 @@
         await enterKeyStage();
       }
     } catch (err: unknown) {
-      errorMsg = err instanceof ApiError ? err.message : translate("auth.resetPassword.errors.failed");
+      errorMsg = apiErrorMessage(err, translate("auth.resetPassword.errors.failed"));
     } finally {
       isSubmitting = false;
     }
@@ -134,10 +135,12 @@
         passkeyUnwrap = { credentialIdB64: parsed.rawId, prfOutput: assertion.prfOutput };
       }
       if (step.status === "ok") {
-        stage = "key";
         if (passkeyUnwrap) {
           // The passkey already holds a copy of the data key. Nothing else to ask for.
+          stage = "key";
           await finishReset(true);
+        } else {
+          await enterKeyStage();
         }
       }
     } catch {
@@ -199,134 +202,126 @@
       recoveryCode = "";
       issuedRecoveryCode = mintedCode;
     } catch (err: unknown) {
-      recoveryErrorMsg =
-        err instanceof ApiError ? err.message : translate("auth.resetPassword.errors.failed");
+      recoveryErrorMsg = apiErrorMessage(err, translate("auth.resetPassword.errors.failed"));
     } finally {
       isSubmitting = false;
     }
   }
 </script>
 
-<PageShell width="form" center>
-  <Card class="sm:p-8">
+<AuthCard title={$t("auth.resetPassword.title")} subtitle={$t("auth.resetPassword.subtitle")}>
+
+  {#if successMsg}
+    <Alert severity="success" class="mb-5">{successMsg}</Alert>
     <div class="mb-6 text-center">
-      <img src="/favicon.png" alt="Examance logo" class="mx-auto mb-3 size-14 rounded-xl object-contain" />
-      <h1 class="m-0 text-2xl font-normal text-content">{$t("auth.resetPassword.title")}</h1>
-      <p class="mt-2 mb-0 text-sm leading-snug text-muted">{$t("auth.resetPassword.subtitle")}</p>
+      <Button href="/unlock">{$t("auth.resetPassword.proceedToSignIn")}</Button>
     </div>
-
-    {#if successMsg}
-      <Alert severity="success" class="mb-5">{successMsg}</Alert>
-      <div class="mb-6 text-center">
-        <Button href="/unlock">{$t("auth.resetPassword.proceedToSignIn")}</Button>
-      </div>
-    {:else if stage === "factor"}
-      <h2 class="m-0 text-lg font-semibold text-content">{$t("security.reset.step2Title")}</h2>
-      <p class="mt-1 mb-4 text-sm text-muted">{$t("security.reset.step2Intro")}</p>
-      <!--
-        The same chooser the sign-in screen uses, minus the password: a reset
-        exists because the password is unavailable, and the emailed token
-        already stands in for it.
-      -->
-      <FactorChooser
-        available={availableFactors}
-        onTotp={handleSecondFactor}
-        onPassword={async () => {}}
-        onPasskey={handlePasskeyFactor}
-        errorMsg={factorErrorMsg}
-      />
-    {:else if stage === "key"}
-      <h2 class="m-0 text-lg font-semibold text-content">{$t("security.reset.keyTitle")}</h2>
-      {#if passkeyUnwrap}
-        <p class="mt-1 mb-4 text-sm text-muted">{$t("security.reset.passkeyRecovered")}</p>
-      {:else}
-        <p class="mt-1 mb-4 text-sm text-muted">{$t("security.reset.keyIntro")}</p>
-      {/if}
-
-      <form class="flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); finishReset(true); }}>
-        {#if !passkeyUnwrap}
-          <Field label={$t("security.unlock.label")} error={recoveryErrorMsg}>
-            <TextInput
-              bind:value={recoveryCode}
-              placeholder={$t("security.unlock.placeholder")}
-              class="font-mono tracking-wider"
-            />
-        </Field>
-        {:else if recoveryErrorMsg}
-          <p class="m-0 text-sm text-danger-fg" role="alert">{recoveryErrorMsg}</p>
-        {/if}
-
-        <Button
-          type="submit"
-          block
-          disabled={isSubmitting || (!passkeyUnwrap && !recoveryCode.trim())}
-          loading={isSubmitting}
-        >
-          {isSubmitting ? $t("security.reset.working") : $t("security.unlock.submit")}
-        </Button>
-      </form>
-
-      <div class="mt-4 flex flex-col gap-2">
-        {#if skipConfirmed}
-          <p class="m-0 text-sm text-content" role="alert">
-            {$t("security.reset.keySkipWarning")}
-          </p>
-          <Button variant="solid" severity="danger" disabled={isSubmitting} onClick={() => finishReset(false)}>
-            {$t("security.reset.keySkipConfirm")}
-          </Button>
-        {:else}
-          <Button variant="text" size="sm" class="self-start" onClick={() => (skipConfirmed = true)}>
-            {$t("security.reset.keySkip")}
-          </Button>
-        {/if}
-      </div>
+  {:else if stage === "factor"}
+    <h2 class="m-0 text-lg font-semibold text-content">{$t("security.reset.step2Title")}</h2>
+    <p class="mt-1 mb-4 text-sm text-muted">{$t("security.reset.step2Intro")}</p>
+    <!--
+      The same chooser the sign-in screen uses, minus the password: a reset
+      exists because the password is unavailable, and the emailed token
+      already stands in for it.
+    -->
+    <FactorChooser
+      available={availableFactors}
+      onTotp={handleSecondFactor}
+      onPassword={async () => {}}
+      onPasskey={handlePasskeyFactor}
+      errorMsg={factorErrorMsg}
+    />
+  {:else if stage === "key"}
+    <h2 class="m-0 text-lg font-semibold text-content">{$t("security.reset.keyTitle")}</h2>
+    {#if passkeyUnwrap}
+      <p class="mt-1 mb-4 text-sm text-muted">{$t("security.reset.passkeyRecovered")}</p>
     {:else}
-      {#if errorMsg}
-        <Alert severity="danger" class="mb-5">{errorMsg}</Alert>
-      {/if}
-
-      <form onsubmit={(e) => { e.preventDefault(); handleResetPassword(); }} class="flex flex-col gap-5">
-        <Field forId="newPassword" label={$t("auth.resetPassword.newPasswordLabel")}>
-          {#snippet children({ id })}
-            <TextInput
-              {id}
-              type="password"
-              bind:value={newPassword}
-              placeholder={$t("auth.resetPassword.newPasswordPlaceholder")}
-              autocomplete="new-password"
-              minlength={12}
-              required
-              disabled={isSubmitting || !token}
-            />
-          {/snippet}
-        </Field>
-
-        <Field forId="confirmPassword" label={$t("auth.resetPassword.confirmPasswordLabel")}>
-          {#snippet children({ id })}
-            <TextInput
-              {id}
-              type="password"
-              bind:value={confirmPassword}
-              placeholder={$t("auth.resetPassword.confirmPasswordPlaceholder")}
-              autocomplete="new-password"
-              minlength={12}
-              required
-              disabled={isSubmitting || !token}
-            />
-          {/snippet}
-        </Field>
-
-        <Button type="submit" block disabled={isSubmitting || !token}>
-          {isSubmitting ? $t("auth.resetPassword.setting") : $t("auth.resetPassword.setPassword")}
-        </Button>
-      </form>
+      <p class="mt-1 mb-4 text-sm text-muted">{$t("security.reset.keyIntro")}</p>
     {/if}
 
-    <div class="mt-6 text-center">
-      <a href="/unlock" class="text-sm text-accent no-underline hover:underline">{$t("auth.resetPassword.backToUnlock")}</a>
+    <form class="flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); finishReset(true); }}>
+      {#if !passkeyUnwrap}
+        <Field label={$t("security.unlock.label")} error={recoveryErrorMsg}>
+          <TextInput
+            bind:value={recoveryCode}
+            placeholder={$t("security.unlock.placeholder")}
+            class="font-mono tracking-wider"
+          />
+      </Field>
+      {:else if recoveryErrorMsg}
+        <p class="m-0 text-sm text-danger-fg" role="alert">{recoveryErrorMsg}</p>
+      {/if}
+
+      <Button
+        type="submit"
+        block
+        disabled={isSubmitting || (!passkeyUnwrap && !recoveryCode.trim())}
+        loading={isSubmitting}
+      >
+        {isSubmitting ? $t("security.reset.working") : $t("security.unlock.submit")}
+      </Button>
+    </form>
+
+    <div class="mt-4 flex flex-col gap-2">
+      {#if skipConfirmed}
+        <p class="m-0 text-sm text-content" role="alert">
+          {$t("security.reset.keySkipWarning")}
+        </p>
+        <Button variant="solid" severity="danger" disabled={isSubmitting} onClick={() => finishReset(false)}>
+          {$t("security.reset.keySkipConfirm")}
+        </Button>
+      {:else}
+        <Button variant="text" size="sm" class="self-start" onClick={() => (skipConfirmed = true)}>
+          {$t("security.reset.keySkip")}
+        </Button>
+      {/if}
     </div>
-  </Card>
-</PageShell>
+  {:else}
+    {#if errorMsg}
+      <Alert severity="danger" class="mb-5">{errorMsg}</Alert>
+    {/if}
+
+    <form onsubmit={(e) => { e.preventDefault(); handleResetPassword(); }} class="flex flex-col gap-5">
+      <Field forId="newPassword" label={$t("auth.resetPassword.newPasswordLabel")}>
+        {#snippet children({ id })}
+          <TextInput
+            {id}
+            type="password"
+            bind:value={newPassword}
+            placeholder={$t("auth.resetPassword.newPasswordPlaceholder")}
+            autocomplete="new-password"
+            minlength={12}
+            required
+            disabled={isSubmitting || !token}
+          />
+        {/snippet}
+      </Field>
+
+      <Field forId="confirmPassword" label={$t("auth.resetPassword.confirmPasswordLabel")}>
+        {#snippet children({ id })}
+          <TextInput
+            {id}
+            type="password"
+            bind:value={confirmPassword}
+            placeholder={$t("auth.resetPassword.confirmPasswordPlaceholder")}
+            autocomplete="new-password"
+            minlength={12}
+            required
+            disabled={isSubmitting || !token}
+          />
+        {/snippet}
+      </Field>
+
+      <Button type="submit" block disabled={isSubmitting || !token}>
+        {isSubmitting ? $t("auth.resetPassword.setting") : $t("auth.resetPassword.setPassword")}
+      </Button>
+    </form>
+  {/if}
+
+  <div class="mt-6 text-center">
+    <a href="/unlock" class="text-sm text-accent no-underline hover:underline">{$t("auth.resetPassword.backToUnlock")}</a>
+  </div>
+</AuthCard>
 
 {#if issuedRecoveryCode}
   <!-- The code that got us here is spent; this replacement is shown once. -->

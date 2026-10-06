@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { api, ApiError } from "#lib/api/client";
+  import { api, apiErrorMessage } from "#lib/api/client";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Button, Card, Field, PageShell, TextInput } from "#lib/components/ui";
+  import { Alert, Button, Field, TextInput } from "#lib/components/ui";
+  import AuthCard from "#lib/components/unlock/AuthCard.svelte";
 
   let email = $state("");
   let isSubmitting = $state(false);
@@ -28,53 +29,42 @@
       successMsg = res.message || translate("auth.forgotPassword.defaultSuccess");
       email = "";
     } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        errorMsg = err.message;
-      } else {
-        errorMsg = translate("auth.forgotPassword.errors.failed");
-      }
+      errorMsg = apiErrorMessage(err, translate("auth.forgotPassword.errors.failed"));
     } finally {
       isSubmitting = false;
     }
   }
 </script>
 
-<PageShell width="form" center>
-  <Card class="sm:p-8">
-    <div class="mb-6 text-center">
-      <img src="/favicon.png" alt="Examance logo" class="mx-auto mb-3 size-14 rounded-xl object-contain" />
-      <h1 class="m-0 text-2xl font-normal text-content">{$t("auth.forgotPassword.title")}</h1>
-      <p class="mt-2 mb-0 text-sm leading-snug text-muted">{$t("auth.forgotPassword.subtitle")}</p>
-    </div>
+<AuthCard title={$t("auth.forgotPassword.title")} subtitle={$t("auth.forgotPassword.subtitle")}>
 
-    {#if successMsg}
-      <Alert severity="success" class="mb-5">{successMsg}</Alert>
-    {/if}
-    {#if errorMsg}
-      <Alert severity="danger" class="mb-5">{errorMsg}</Alert>
-    {/if}
+  {#if successMsg}
+    <Alert severity="success" class="mb-5">{successMsg}</Alert>
+  {/if}
+  {#if errorMsg}
+    <Alert severity="danger" class="mb-5">{errorMsg}</Alert>
+  {/if}
 
-    <form onsubmit={(e) => { e.preventDefault(); handleForgotPassword(); }} class="flex flex-col gap-5">
-      <Field forId="email" label={$t("auth.forgotPassword.emailLabel")}>
-        {#snippet children({ id })}
-          <TextInput
-            {id}
-            type="email"
-            bind:value={email}
-            placeholder={$t("auth.forgotPassword.emailPlaceholder")}
-            required
-            disabled={isSubmitting}
-          />
-        {/snippet}
-      </Field>
+  <form onsubmit={(e) => { e.preventDefault(); handleForgotPassword(); }} class="flex flex-col gap-5">
+    <Field forId="email" label={$t("auth.forgotPassword.emailLabel")}>
+      {#snippet children({ id })}
+        <TextInput
+          {id}
+          type="email"
+          bind:value={email}
+          placeholder={$t("auth.forgotPassword.emailPlaceholder")}
+          required
+          disabled={isSubmitting}
+        />
+      {/snippet}
+    </Field>
 
-      <Button type="submit" block disabled={isSubmitting}>
-        {isSubmitting ? $t("auth.forgotPassword.sending") : $t("auth.forgotPassword.sendLink")}
-      </Button>
-    </form>
+    <Button type="submit" block disabled={isSubmitting}>
+      {isSubmitting ? $t("auth.forgotPassword.sending") : $t("auth.forgotPassword.sendLink")}
+    </Button>
+  </form>
 
-    <div class="mt-6 text-center">
-      <a href="/unlock" class="text-sm text-accent no-underline hover:underline">{$t("auth.forgotPassword.backToUnlock")}</a>
-    </div>
-  </Card>
-</PageShell>
+  <div class="mt-6 text-center">
+    <a href="/unlock" class="text-sm text-accent no-underline hover:underline">{$t("auth.forgotPassword.backToUnlock")}</a>
+  </div>
+</AuthCard>

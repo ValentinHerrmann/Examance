@@ -11,13 +11,9 @@ is only exercised through its callers' other refusals.
 """
 from __future__ import annotations
 
-import re
 import uuid
-from collections.abc import Iterator
-from contextlib import contextmanager
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient
@@ -29,7 +25,7 @@ from app.models.exam import Exam
 from app.models.exercise import Exercise
 from app.models.teacher import Teacher
 
-from .factors import create_teacher, sign_in
+from .factors import create_teacher, mails_to, outbox, sign_in, token_in, unique_email
 
 pytestmark = pytest.mark.asyncio
 
@@ -40,24 +36,10 @@ CONFIRM = "/api/v1/auth/account-deletion/confirm"
 CAPABILITIES = "/api/v1/user/capabilities"
 
 
-def _email(prefix: str) -> str:
-    return f"{prefix}-{uuid.uuid4().hex[:8]}@school.example"
-
-
-@contextmanager
-def _outbox() -> Iterator[AsyncMock]:
-    with patch("app.services.email.send_email", return_value=True) as sent:
-        yield sent
-
-
 def _token_from(sent: AsyncMock, address: str) -> str:
-    mails: list[dict[str, Any]] = [
-        call.kwargs for call in sent.call_args_list if call.kwargs["to_email"] == address
-    ]
+    mails = mails_to(sent, address)
     assert mails, "no mail to the account holder"
-    found = re.search(r"/delete-account\?token=([\w-]+)", mails[-1]["body_text"])
-    assert found is not None, mails[-1]["body_text"]
-    return found.group(1)
+    return token_in(mails[-1], "delete-account")
 
 
 async def _gone(db: AsyncSession, teacher_id: uuid.UUID) -> bool:
@@ -83,7 +65,7 @@ async def _add_exercises(db: AsyncSession, teacher: Teacher) -> tuple[uuid.UUID,
 
 
 async def _request(client: AsyncClient, email: str, *, keep: bool = False) -> str:
-    with _outbox() as sent:
+    with outbox() as sent:
         resp = await client.post(REQUEST, json={"keep_exercises": keep})
     assert resp.status_code == 202, resp.text
     return _token_from(sent, email)
@@ -97,7 +79,7 @@ async def _request(client: AsyncClient, email: str, *, keep: bool = False) -> st
 async def test_request_mails_a_link_and_deletes_nothing(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    email = _email("self")
+    email = unique_email("self")
     teacher = await sign_in(client, db, email)
 
     token = await _request(client, email)
@@ -110,7 +92,7 @@ async def test_request_mails_a_link_and_deletes_nothing(
 
 
 async def test_confirm_deletes_the_account_once(client: AsyncClient, db: AsyncSession) -> None:
-    email = _email("self")
+    email = unique_email("self")
     teacher = await sign_in(client, db, email)
     token = await _request(client, email)
 
@@ -125,7 +107,7 @@ async def test_confirm_deletes_the_account_once(client: AsyncClient, db: AsyncSe
 
 
 async def test_a_new_request_replaces_the_old_link(client: AsyncClient, db: AsyncSession) -> None:
-    email = _email("self")
+    email = unique_email("self")
     await sign_in(client, db, email)
     old = await _request(client, email)
     new = await _request(client, email)
@@ -135,7 +117,7 @@ async def test_a_new_request_replaces_the_old_link(client: AsyncClient, db: Asyn
 
 
 async def test_expired_link_is_refused(client: AsyncClient, db: AsyncSession) -> None:
-    email = _email("self")
+    email = unique_email("self")
     teacher = await sign_in(client, db, email)
     token = await _request(client, email)
     row = await db.scalar(
@@ -161,7 +143,7 @@ async def test_unknown_token_is_refused(client: AsyncClient) -> None:
 async def test_keep_exercises_leaves_library_exercises_without_owner(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    email = _email("keep")
+    email = unique_email("keep")
     teacher = await sign_in(client, db, email)
     teacher_id = teacher.id
     library_id, bound_id = await _add_exercises(db, teacher)
@@ -183,7 +165,7 @@ async def test_keep_exercises_leaves_library_exercises_without_owner(
 async def test_without_keep_no_exercise_is_orphaned(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    email = _email("drop")
+    email = unique_email("drop")
     teacher = await sign_in(client, db, email)
     teacher_id = teacher.id
     library_id, _ = await _add_exercises(db, teacher)
@@ -203,8 +185,8 @@ async def test_without_keep_no_exercise_is_orphaned(
 
 
 async def test_admin_deletes_an_account(client: AsyncClient, db: AsyncSession) -> None:
-    await sign_in(client, db, _email("admin"), role="admin")
-    target = await create_teacher(db, _email("target"))
+    await sign_in(client, db, unique_email("admin"), role="admin")
+    target = await create_teacher(db, unique_email("target"))
 
     resp = await client.delete(f"{ADMIN_USERS}/{target.id}")
 
@@ -213,8 +195,8 @@ async def test_admin_deletes_an_account(client: AsyncClient, db: AsyncSession) -
 
 
 async def test_admin_delete_can_keep_exercises(client: AsyncClient, db: AsyncSession) -> None:
-    await sign_in(client, db, _email("admin"), role="admin")
-    target = await create_teacher(db, _email("target"))
+    await sign_in(client, db, unique_email("admin"), role="admin")
+    target = await create_teacher(db, unique_email("target"))
     library_id, _ = await _add_exercises(db, target)
 
     resp = await client.delete(f"{ADMIN_USERS}/{target.id}", params={"keep_exercises": "true"})
@@ -229,7 +211,7 @@ async def test_admin_delete_can_keep_exercises(client: AsyncClient, db: AsyncSes
 async def test_admin_cannot_delete_own_account_there(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    admin = await sign_in(client, db, _email("admin"), role="admin")
+    admin = await sign_in(client, db, unique_email("admin"), role="admin")
 
     resp = await client.delete(f"{ADMIN_USERS}/{admin.id}")
 
@@ -239,8 +221,10 @@ async def test_admin_cannot_delete_own_account_there(
 
 
 async def test_pending_account_is_not_deleted(client: AsyncClient, db: AsyncSession) -> None:
-    await sign_in(client, db, _email("admin"), role="admin")
-    pending = Teacher(email=_email("pending"), password_hash=None, role="teacher", approved_at=None)
+    await sign_in(client, db, unique_email("admin"), role="admin")
+    pending = Teacher(
+        email=unique_email("pending"), password_hash=None, role="teacher", approved_at=None
+    )
     db.add(pending)
     await db.commit()
 
@@ -253,8 +237,8 @@ async def test_pending_account_is_not_deleted(client: AsyncClient, db: AsyncSess
 async def test_teacher_cannot_delete_other_accounts(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    await sign_in(client, db, _email("teacher"))
-    other = await create_teacher(db, _email("other"))
+    await sign_in(client, db, unique_email("teacher"))
+    other = await create_teacher(db, unique_email("other"))
 
     resp = await client.delete(f"{ADMIN_USERS}/{other.id}")
 
@@ -263,7 +247,7 @@ async def test_teacher_cannot_delete_other_accounts(
 
 
 async def test_capabilities_name_the_account(client: AsyncClient, db: AsyncSession) -> None:
-    teacher = await sign_in(client, db, _email("caps"))
+    teacher = await sign_in(client, db, unique_email("caps"))
 
     resp = await client.get(CAPABILITIES)
 

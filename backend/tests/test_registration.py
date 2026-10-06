@@ -16,14 +16,12 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import re
 import secrets
 import uuid
-from collections.abc import AsyncGenerator, Iterator
-from contextlib import contextmanager
+from collections.abc import AsyncGenerator
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
@@ -42,7 +40,15 @@ from app.services import retention
 from app.services.crypto import hash_password
 from app.services.password_reset import create_reset_token
 
-from .factors import DEFAULT_PASSWORD, create_teacher, sign_in
+from .factors import (
+    DEFAULT_PASSWORD,
+    create_teacher,
+    mails_to,
+    outbox,
+    sign_in,
+    token_in,
+    unique_email,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -65,29 +71,11 @@ ALL_FEATURES = {"server_results": True, "server_latex": True}
 
 
 def _email(prefix: str = "reg") -> str:
-    return f"{prefix}-{uuid.uuid4().hex[:8]}@school.example"
+    return unique_email(prefix)
 
 
 def _unique_domain() -> str:
     return f"{uuid.uuid4().hex[:10]}.example"
-
-
-@contextmanager
-def _outbox() -> Iterator[AsyncMock]:
-    """Capture outgoing mail instead of sending it (delivery reports success)."""
-    with patch("app.services.email.send_email", return_value=True) as sent:
-        yield sent
-
-
-def _mails_to(sent: AsyncMock, address: str) -> list[dict[str, Any]]:
-    return [call.kwargs for call in sent.call_args_list if call.kwargs["to_email"] == address]
-
-
-def _token_in(mail: dict[str, Any], page: str) -> str:
-    """The raw token from the ``/<page>?token=...`` link of a captured mail."""
-    found = re.search(rf"/{page}\?token=([\w-]+)", mail["body_text"])
-    assert found is not None, mail["body_text"]
-    return found.group(1)
 
 
 async def _find_teacher(db: AsyncSession, email: str) -> Teacher | None:
@@ -113,15 +101,15 @@ async def _find_request(db: AsyncSession, email: str) -> RegistrationRequest | N
 
 async def _request_link(client: AsyncClient, email: str) -> str:
     """POST /auth/register and return the raw token from the one mail that went out."""
-    with _outbox() as sent:
+    with outbox() as sent:
         resp = await client.post(REGISTER, json={"email": email})
     assert resp.status_code == 202, resp.text
-    (mail,) = _mails_to(sent, email)
-    return _token_in(mail, "verify-email")
+    (mail,) = mails_to(sent, email)
+    return token_in(mail, "verify-email")
 
 
 async def _complete(client: AsyncClient, token: str, *, note: str | None = None) -> Response:
-    with _outbox():
+    with outbox():
         return await client.post(
             COMPLETE,
             json={"token": token, "new_password": DEFAULT_PASSWORD, "note": note},
@@ -201,12 +189,12 @@ async def retention_db(
 async def test_register_mails_a_verification_link(client: AsyncClient, db: AsyncSession) -> None:
     email = _email()
 
-    with _outbox() as sent:
+    with outbox() as sent:
         resp = await client.post(REGISTER, json={"email": email})
 
     assert resp.status_code == 202
-    (mail,) = _mails_to(sent, email)
-    token = _token_in(mail, "verify-email")
+    (mail,) = mails_to(sent, email)
+    token = token_in(mail, "verify-email")
     assert f"{settings.FRONTEND_URL.rstrip('/')}/verify-email?token={token}" in mail["body_text"]
 
     # Nothing is created until the link is used, and the token is only stored as a hash.
@@ -222,7 +210,7 @@ async def test_register_gives_nothing_away_for_a_known_address(
     known = _email("known")
     await create_teacher(db, known)
 
-    with _outbox() as sent:
+    with outbox() as sent:
         fresh_resp = await client.post(REGISTER, json={"email": _email()})
         assert sent.call_count == 1  # the new address got its mail
         known_resp = await client.post(REGISTER, json={"email": known})
@@ -240,13 +228,13 @@ async def test_resend_cooldown_sends_one_mail(
     monkeypatch.setattr(settings, "REGISTRATION_RESEND_COOLDOWN_SECONDS", 300)
     email = _email()
 
-    with _outbox() as sent:
+    with outbox() as sent:
         first = await client.post(REGISTER, json={"email": email})
         second = await client.post(REGISTER, json={"email": email})
 
     assert first.status_code == second.status_code == 202
     assert first.json() == second.json()
-    assert len(_mails_to(sent, email)) == 1
+    assert len(mails_to(sent, email)) == 1
 
 
 async def test_a_resent_link_replaces_the_previous_one(
@@ -398,7 +386,7 @@ async def test_forgot_password_sends_nothing_to_a_pending_account(
     pending = _email("pending")
     await _register(client, pending)
 
-    with _outbox() as sent:
+    with outbox() as sent:
         pending_resp = await client.post(FORGOT, json={"email": pending})
         unknown_resp = await client.post(FORGOT, json={"email": _email("nobody")})
 
@@ -467,7 +455,7 @@ async def test_approval_applies_features_and_clears_the_note(
     url = f"{ADMIN_USERS}/{(await _teacher(db, email)).id}/approve"
     features = {"server_results": False, "server_latex": True}
 
-    with _outbox() as sent:
+    with outbox() as sent:
         resp = await client.post(url, json={"features": features})
 
     assert resp.status_code == 200, resp.text
@@ -479,7 +467,7 @@ async def test_approval_applies_features_and_clears_the_note(
     assert teacher.approved_at is not None
     assert teacher.registration_note is None
     assert (teacher.allow_server_results, teacher.allow_server_latex) == (False, True)
-    (mail,) = _mails_to(sent, email)
+    (mail,) = mails_to(sent, email)
     assert "approved" in mail["subject"]
     assert "Physics" not in mail["body_text"]  # what a registrant typed is never mailed
 
@@ -549,12 +537,12 @@ async def test_reject_deletes_a_pending_account_and_tells_the_registrant(
     await _register(visitor, email)
     pending = await _teacher(db, email)
 
-    with _outbox() as sent:
+    with outbox() as sent:
         resp = await client.post(f"{ADMIN_USERS}/{pending.id}/reject")
 
     assert resp.status_code == 204
     assert await _find_teacher(db, email) is None
-    (mail,) = _mails_to(sent, email)
+    (mail,) = mails_to(sent, email)
     assert "not approved" in mail["body_text"]
 
 
@@ -564,7 +552,7 @@ async def test_an_approved_account_cannot_be_rejected(
     email = _email()
     approved = await create_teacher(db, email)
 
-    with _outbox() as sent:
+    with outbox() as sent:
         resp = await client.post(f"{ADMIN_USERS}/{approved.id}/reject")
 
     assert resp.status_code == 409
@@ -580,7 +568,7 @@ async def test_admin_password_reset_refuses_a_pending_account(
     await _register(visitor, email)
     pending = await _teacher(db, email)
 
-    with _outbox() as sent:
+    with outbox() as sent:
         resp = await client.post(f"{ADMIN_USERS}/{pending.id}/reset-password")
 
     assert resp.status_code == 409
@@ -595,7 +583,7 @@ async def test_invite_creates_an_approved_account_and_supersedes_a_pending_link(
     stale_token = await _request_link(visitor, email)  # an unverified self-registration
     features = {"server_results": False, "server_latex": False}
 
-    with _outbox() as sent:
+    with outbox() as sent:
         resp = await client.post(
             ADMIN_USERS, json={"email": email, "role": "teacher", "features": features}
         )
@@ -610,9 +598,9 @@ async def test_invite_creates_an_approved_account_and_supersedes_a_pending_link(
     _assert_invalid_token(await _complete(visitor, stale_token))
 
     # The invitation link opens a reset; the account has no data, so no key recovery step.
-    (mail,) = _mails_to(sent, email)
+    (mail,) = mails_to(sent, email)
     assert "invited" in mail["subject"]
-    start = await visitor.post(RESET_START, json={"token": _token_in(mail, "reset-password")})
+    start = await visitor.post(RESET_START, json={"token": token_in(mail, "reset-password")})
     assert start.status_code == 200, start.text
     assert start.json()["needs_key_recovery"] is False
 
@@ -625,7 +613,7 @@ async def test_invite_refuses_pending_and_existing_addresses(
     existing = _email("existing")
     await create_teacher(db, existing)
 
-    with _outbox() as sent:
+    with outbox() as sent:
         on_pending = await client.post(ADMIN_USERS, json={"email": pending})
         on_existing = await client.post(ADMIN_USERS, json={"email": existing})
 

@@ -9,23 +9,10 @@
 import { derived, get, writable } from 'svelte/store';
 import { api } from '#lib/api/client';
 import { sessionStore } from '#lib/stores/session';
-import { isStorageMode, STORAGE_MODES, storagePolicyStore, type StorageMode } from '#lib/stores/storagePolicy';
+import { isStorageMode, storagePolicyStore, type StorageMode } from '#lib/stores/storagePolicy';
 import { safeSessionStorage } from '#lib/utils/storage';
 
 export type FeatureName = 'server_results' | 'server_latex' | 'training_donation';
-
-/**
- * Per-account restrictions are enforced: the UI offers only what the capabilities answer allows, and
- * the server refuses the rest (server LaTeX compiles, result writes outside `all-server`). Setting this
- * to false unlocks every mode and feature in the UI again (the server still refuses).
- */
-export const ENFORCE_CAPABILITIES = true;
-
-const ALL_FEATURES: Record<FeatureName, boolean> = {
-  server_results: true,
-  server_latex: true,
-  training_donation: true,
-};
 
 export interface Capabilities {
   /** The account the answer is about; null in a cache written before the server sent it. */
@@ -42,12 +29,9 @@ function sessionAccountId(): string | null {
   return get(sessionStore).teacherId ?? null;
 }
 
-/** The cached answer, only if it is about this tab's account: another account's switches never apply here. */
 function readCache(): Capabilities | null {
   try {
-    const cached: Capabilities | null = JSON.parse(safeSessionStorage.getItem(CACHE_KEY) ?? 'null');
-    const account = sessionAccountId();
-    return cached && cached.accountId && account && cached.accountId === account ? cached : null;
+    return JSON.parse(safeSessionStorage.getItem(CACHE_KEY) ?? 'null');
   } catch {
     return null;
   }
@@ -74,9 +58,11 @@ capabilitiesStore.subscribe((value) => {
   if (value) safeSessionStorage.setItem(CACHE_KEY, JSON.stringify(value));
 });
 
-/** This tab's last answer for its own account, for when the server cannot be asked. */
+/** This tab's last answer, only if it is about this tab's account: another account's switches never apply. */
 export function cachedCapabilities(): Capabilities | null {
-  return get(capabilitiesStore) ?? readCache();
+  const account = sessionAccountId();
+  const mine = (caps: Capabilities | null) => (account && caps?.accountId === account ? caps : null);
+  return mine(get(capabilitiesStore)) ?? mine(readCache());
 }
 
 interface CapabilitiesResponse {
@@ -130,12 +116,10 @@ export function clearCapabilities(): void {
 
 /** Storage modes an account with these capabilities may choose. */
 export function allowedModesFrom(caps: Capabilities | null): StorageMode[] {
-  if (!ENFORCE_CAPABILITIES) return [...STORAGE_MODES];
   return caps?.allowedStorageModes ?? [];
 }
 
 function featuresFrom(caps: Capabilities | null): Partial<Record<FeatureName, boolean>> {
-  if (!ENFORCE_CAPABILITIES) return ALL_FEATURES;
   return caps?.features ?? {};
 }
 

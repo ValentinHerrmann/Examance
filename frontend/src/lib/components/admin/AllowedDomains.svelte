@@ -5,11 +5,12 @@
   import {
     ACCOUNT_FEATURES,
     ALL_FEATURES_ON,
+    FEATURE_COLUMNS,
     type AccountFeature,
     type AccountFeatures,
     type AllowedDomain,
   } from "#lib/api/admin";
-  import { t, type TranslationKey } from "#lib/i18n";
+  import { t } from "#lib/i18n";
   import { Alert, Button, Field, Switch, TableScroller, TextInput } from "#lib/components/ui";
   import FeatureSwitches from "./FeatureSwitches.svelte";
 
@@ -26,11 +27,6 @@
 
   let newDomain = $state("");
   let features = $state<AccountFeatures>({ ...ALL_FEATURES_ON });
-
-  const COLUMN: Record<AccountFeature, TranslationKey> = {
-    server_results: "admin.accounts.columnResults",
-    server_latex: "admin.accounts.columnLatex",
-  };
 
   async function submit() {
     if (await onAdd(newDomain.trim(), $state.snapshot(features))) {
@@ -81,7 +77,7 @@
           <tr>
             <th>{$t("admin.domains.columnDomain")}</th>
             {#each ACCOUNT_FEATURES as key (key)}
-              <th>{$t(COLUMN[key])}</th>
+              <th>{$t(FEATURE_COLUMNS[key])}</th>
             {/each}
             <th><span class="sr-only">{$t("admin.accounts.columnActions")}</span></th>
           </tr>
@@ -95,7 +91,7 @@
                   <Switch
                     checked={domain.features[key]}
                     disabled={busy}
-                    ariaLabel={`${$t(COLUMN[key])}: ${domain.domain}`}
+                    ariaLabel={`${$t(FEATURE_COLUMNS[key])}: ${domain.domain}`}
                     onChange={(value) => onToggleFeature(domain, key, value)}
                   />
                 </td>

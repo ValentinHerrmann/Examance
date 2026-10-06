@@ -28,6 +28,7 @@ import {
   AccountMismatchError,
   allowedModesFrom,
   cachedCapabilities,
+  capabilitiesStore,
   clearCapabilities,
   loadCapabilities,
 } from '#lib/stores/capabilities';
@@ -251,6 +252,8 @@ async function decide(): Promise<WorkspaceStatus> {
     if (err instanceof AccountMismatchError) return lockForeignSession();
     console.warn('[workspace] could not load capabilities, using the cached mode', err);
     const cached = cachedCapabilities();
+    // The UI renders from the store: a reload left it empty, a previous account may have filled it.
+    capabilitiesStore.set(cached);
     const current = await currentManifest();
     mode = cached?.storageMode ?? (current?.mode === 'all-server' || current?.mode === 'hybrid' ? current.mode : null);
     // Without any cached answer, trust the mode this browser last worked in rather than allowing nothing,
@@ -274,7 +277,8 @@ async function decide(): Promise<WorkspaceStatus> {
  */
 function lockForeignSession(): WorkspaceStatus {
   clearCapabilities();
-  sessionStore.lock();
+  // Not `lock()`: that broadcasts and would also drop the keys of the tab that owns the cookie now.
+  sessionStore.reset();
   if (typeof window !== 'undefined' && window.location.pathname !== '/unlock') window.location.href = '/unlock';
   return { state: 'unchecked' };
 }
@@ -286,7 +290,8 @@ function lockForeignSession(): WorkspaceStatus {
  * is no longer allowed). Offline, nothing changes.
  */
 export async function refreshCapabilities(): Promise<void> {
-  if (!get(sessionStore).sessionKey || get(workspaceStatusStore).state !== 'ok') return;
+  const state = get(workspaceStatusStore).state;
+  if (!get(sessionStore).sessionKey || (state !== 'ok' && state !== 'needs-choice')) return;
   const before = cachedCapabilities();
   let caps;
   try {

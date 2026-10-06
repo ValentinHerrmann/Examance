@@ -4,8 +4,8 @@
   // results into the browser. Phones get one row per account with labelled switches; the table
   // starts at `md`. Any account but the admin's own can be deleted (the own one: settings page).
   import { faMagnifyingGlass, faTrash } from "@fortawesome/free-solid-svg-icons";
-  import { ACCOUNT_FEATURES, type AccountFeature, type AdminUser } from "#lib/api/admin";
-  import { t, type TranslationKey } from "#lib/i18n";
+  import { ACCOUNT_FEATURES, FEATURE_COLUMNS, type AccountFeature, type AdminUser } from "#lib/api/admin";
+  import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
   import { Badge, Button, Icon, Switch, TableScroller, TextInput } from "#lib/components/ui";
   import FeatureSwitches from "./FeatureSwitches.svelte";
@@ -13,7 +13,8 @@
   interface Props {
     users: AdminUser[];
     /** The account a change is running for. */
-    busyId: string | null;
+    /** Accounts with a request in flight. */
+    busy: ReadonlySet<string>;
     onToggleFeature: (user: AdminUser, key: AccountFeature, value: boolean) => void;
     onResendInvite: (user: AdminUser) => void;
     /** The signed-in admin's account, which cannot be deleted here. */
@@ -21,12 +22,7 @@
     onDelete: (user: AdminUser) => void;
   }
 
-  let { users, busyId, onToggleFeature, onResendInvite, ownId, onDelete }: Props = $props();
-
-  const COLUMN: Record<AccountFeature, TranslationKey> = {
-    server_results: "admin.accounts.columnResults",
-    server_latex: "admin.accounts.columnLatex",
-  };
+  let { users, busy, onToggleFeature, onResendInvite, ownId, onDelete }: Props = $props();
 
   let query = $state("");
   let shown = $derived.by(() => {
@@ -75,7 +71,7 @@
             </div>
             <FeatureSwitches
               features={user.features}
-              disabled={busyId === user.id}
+              disabled={busy.has(user.id)}
               compact
               onChange={(key, value) => onToggleFeature(user, key, value)}
             />
@@ -84,7 +80,7 @@
                 size="sm"
                 variant="outlined"
                 block
-                disabled={busyId === user.id}
+                disabled={busy.has(user.id)}
                 onClick={() => onResendInvite(user)}
               >
                 {$t("admin.accounts.resendInvite")}
@@ -97,7 +93,7 @@
                 severity="danger"
                 icon={faTrash}
                 block
-                disabled={busyId !== null}
+                disabled={busy.size > 0}
                 onClick={() => onDelete(user)}
               >
                 {$t("admin.accounts.delete")}
@@ -117,7 +113,7 @@
                 <th>{$t("admin.users.roleLabel")}</th>
                 <th>{$t("admin.accounts.columnStatus")}</th>
                 {#each ACCOUNT_FEATURES as key (key)}
-                  <th>{$t(COLUMN[key])}</th>
+                  <th>{$t(FEATURE_COLUMNS[key])}</th>
                 {/each}
                 <th><span class="sr-only">{$t("admin.accounts.columnActions")}</span></th>
               </tr>
@@ -132,15 +128,15 @@
                     <td>
                       <Switch
                         checked={user.features[key]}
-                        disabled={busyId === user.id}
-                        ariaLabel={`${$t(COLUMN[key])}: ${user.email}`}
+                        disabled={busy.has(user.id)}
+                        ariaLabel={`${$t(FEATURE_COLUMNS[key])}: ${user.email}`}
                         onChange={(value) => onToggleFeature(user, key, value)}
                       />
                     </td>
                   {/each}
                   <td class="text-right whitespace-nowrap">
                     {#if !user.password_set}
-                      <Button size="sm" variant="text" disabled={busyId === user.id} onClick={() => onResendInvite(user)}>
+                      <Button size="sm" variant="text" disabled={busy.has(user.id)} onClick={() => onResendInvite(user)}>
                         {$t("admin.accounts.resendInvite")}
                       </Button>
                     {/if}
@@ -152,7 +148,7 @@
                         severity="danger"
                         size="sm"
                         ariaLabel={$t("admin.accounts.deleteLabel", { email: user.email })}
-                        disabled={busyId !== null}
+                        disabled={busy.size > 0}
                         onClick={() => onDelete(user)}
                       />
                     {/if}

@@ -19,14 +19,12 @@ AUDIT_LOG_RETENTION_DAYS rather than living forever.
 """
 from __future__ import annotations
 
-import hashlib
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
-from typing import Any, cast
 
 from fastapi import HTTPException, status
-from sqlalchemy import CursorResult, delete, func, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -39,6 +37,7 @@ from app.models.teacher import Teacher
 from app.services import account_mail
 from app.services import audit as audit_svc
 from app.services.account_mail import Mail
+from app.services.tokens import aware, hash_token, rowcount
 
 
 @dataclass(frozen=True)
@@ -46,19 +45,6 @@ class DeletionResult:
     purged_student_identities: int
     purged_submissions: int
     retention_until: date
-
-
-def _rowcount(result: Any) -> int:
-    return cast("CursorResult[Any]", result).rowcount
-
-
-def _hash_token(raw_token: str) -> str:
-    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
-
-
-def _aware(moment: datetime) -> datetime:
-    # SQLite (tests) hands timestamps back without a zone; they were written in UTC.
-    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
 
 
 def _invalid_token() -> HTTPException:
@@ -80,7 +66,7 @@ async def create_deletion_request(
     db.add(
         AccountDeletionRequest(
             teacher_id=teacher.id,
-            token_hash=_hash_token(raw_token),
+            token_hash=hash_token(raw_token),
             keep_exercises=keep_exercises,
             expires_at=datetime.now(UTC)
             + timedelta(minutes=settings.ACCOUNT_DELETION_TOKEN_TTL_MINUTES),
@@ -97,10 +83,10 @@ async def find_deletion_request(
     """The open request behind *raw_token* and its account. @raises 400 when unknown or expired."""
     request = await db.scalar(
         select(AccountDeletionRequest).where(
-            AccountDeletionRequest.token_hash == _hash_token(raw_token)
+            AccountDeletionRequest.token_hash == hash_token(raw_token)
         )
     )
-    if request is None or _aware(request.expires_at) <= datetime.now(UTC):
+    if request is None or aware(request.expires_at) <= datetime.now(UTC):
         raise _invalid_token()
     teacher = await db.get(Teacher, request.teacher_id)
     if teacher is None:
@@ -119,7 +105,7 @@ async def claim_deletion_request(
     removed = await db.execute(
         delete(AccountDeletionRequest).where(AccountDeletionRequest.id == request.id)
     )
-    if _rowcount(removed) != 1:
+    if rowcount(removed) != 1:
         raise _invalid_token()
     return request, teacher
 
@@ -128,12 +114,15 @@ async def ensure_not_last_admin(db: AsyncSession, teacher: Teacher) -> None:
     """Refuse to delete the only remaining admin: nobody could approve accounts afterwards."""
     if teacher.role != "admin":
         return
-    admins = await db.scalar(
-        select(func.count()).select_from(Teacher).where(
-            Teacher.role == "admin", Teacher.approved_at.isnot(None)
+    # Locks the admin rows, so two admins deleting each other at once cannot both pass.
+    admins = (
+        await db.scalars(
+            select(Teacher.id)
+            .where(Teacher.role == "admin", Teacher.approved_at.isnot(None))
+            .with_for_update()
         )
-    )
-    if (admins or 0) <= 1:
+    ).all()
+    if len(admins) <= 1:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="The last admin account cannot be deleted.",
@@ -173,7 +162,7 @@ async def delete_account(
             )
             .values(deleted_at=now, retention_until=retention_until)
         )
-        purged_students = _rowcount(students_res)
+        purged_students = rowcount(students_res)
         submissions_res = await db.execute(
             update(ScanSubmission)
             .where(
@@ -182,7 +171,7 @@ async def delete_account(
             )
             .values(deleted_at=now, retention_until=retention_until)
         )
-        purged_submissions = _rowcount(submissions_res)
+        purged_submissions = rowcount(submissions_res)
 
         await db.execute(
             update(Exam)
@@ -196,7 +185,7 @@ async def delete_account(
         await db.execute(
             update(Exercise)
             .where(Exercise.teacher_id == teacher.id, Exercise.exam_id.is_(None))
-            .values(teacher_id=None, exercise_group_id=None)
+            .values(teacher_id=None, exercise_group_id=None, is_public=False)
         )
 
     # Written before the row disappears; audit_svc snapshots the email.

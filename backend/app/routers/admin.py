@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 import uuid
 from datetime import UTC, datetime
-from typing import Annotated, Any, Literal, cast
+from typing import Annotated, Literal, cast
 
 from fastapi import (
     APIRouter,
@@ -16,7 +16,7 @@ from fastapi import (
     Response,
     status,
 )
-from sqlalchemy import CursorResult, delete, func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,16 +49,12 @@ from app.services import mfa as mfa_svc
 from app.services import webauthn as webauthn_svc
 from app.services.account_deletion import delete_account, ensure_not_last_admin
 from app.services.password_reset import create_and_send_reset_token
+from app.services.tokens import rowcount
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 # Minimum sample size for k-anonymity score statistics
 K_ANONYMITY_THRESHOLD = 5
-
-
-def _rowcount(result: Any) -> int:
-    # DML results are CursorResults; `AsyncSession.execute` is typed as the base Result.
-    return cast("CursorResult[Any]", result).rowcount
 
 
 def _features(row: Teacher | AllowedEmailDomain) -> AccountFeatures:
@@ -70,6 +66,14 @@ def _features(row: Teacher | AllowedEmailDomain) -> AccountFeatures:
 def _apply_features(row: Teacher | AllowedEmailDomain, features: AccountFeatures) -> None:
     row.allow_server_results = features.server_results
     row.allow_server_latex = features.server_latex
+
+
+def _patch_features(row: Teacher | AllowedEmailDomain, change: AccountFeaturesUpdate) -> None:
+    """Apply the switches *change* names; omitted ones stay."""
+    if change.server_results is not None:
+        row.allow_server_results = change.server_results
+    if change.server_latex is not None:
+        row.allow_server_latex = change.server_latex
 
 
 def _user_out(user: Teacher) -> AdminUserResponse:
@@ -209,7 +213,7 @@ async def approve_user(
         )
     )
     user = await _load_user(db, user_id)
-    if _rowcount(changed) != 1:
+    if rowcount(changed) != 1:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="This account is already approved.",
@@ -245,7 +249,7 @@ async def reject_user(
     removed = await db.execute(
         delete(Teacher).where(Teacher.id == user_id, Teacher.approved_at.is_(None))
     )
-    if _rowcount(removed) != 1:
+    if rowcount(removed) != 1:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Only an account waiting for approval can be rejected.",
@@ -278,10 +282,7 @@ async def update_user_features(
     next time it opens, the app asks it to move its results into the browser.
     """
     user = await _load_user(db, user_id)
-    if body.server_results is not None:
-        user.allow_server_results = body.server_results
-    if body.server_latex is not None:
-        user.allow_server_latex = body.server_latex
+    _patch_features(user, body)
     await audit_svc.write(
         db,
         teacher_id=admin.id,
@@ -306,7 +307,7 @@ async def delete_user(
     library exercises stay on the server without an owner (`services/account_deletion.py`).
 
     A pending registration is rejected instead (`/reject`, which tells the registrant), and an
-    admin deletes their own account from the settings page (`DELETE /user/me`).
+    admin deletes their own account from the settings page (confirmed by a mailed link).
     """
     user = await _load_user(db, user_id)
     if user.id == admin.id:
@@ -452,10 +453,7 @@ async def update_allowed_domain(
 ) -> AllowedDomainResponse:
     """Change the features future registrations from a domain receive (Admin only)."""
     row = await _load_domain(db, domain_id)
-    if body.server_results is not None:
-        row.allow_server_results = body.server_results
-    if body.server_latex is not None:
-        row.allow_server_latex = body.server_latex
+    _patch_features(row, body)
     await audit_svc.write(
         db,
         teacher_id=admin.id,

@@ -260,9 +260,8 @@ function createSessionStore() {
       const mode = params.mode ?? 'authenticated';
       safeLocalStorage.removeItem('bg_session_locked');
       safeLocalStorage.setItem('bg_session_mode', mode);
-      if (params.email) {
-        safeLocalStorage.setItem('bg_user_email', params.email);
-      }
+      // Older versions stored the address here; nothing reads it, so erase it.
+      safeLocalStorage.removeItem('bg_user_email');
 
       await saveToSessionStorage({
         masterKeyRaw: params.masterKeyRaw,

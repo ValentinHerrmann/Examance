@@ -5,7 +5,7 @@
     checked?: boolean;
     disabled?: boolean;
     id?: string | undefined;
-    /** Accessible name when there is no visible `label`. */
+    /** Accessible name; defaults to the visible `label`. */
     ariaLabel?: string | undefined;
     label?: string | undefined;
     onChange?: ((checked: boolean) => void) | undefined;
@@ -36,7 +36,7 @@
     type="button"
     role="switch"
     aria-checked={checked ? "true" : "false"}
-    aria-label={label ? undefined : ariaLabel}
+    aria-label={ariaLabel ?? label}
     {disabled}
     {...rest}
     onclick={toggle}

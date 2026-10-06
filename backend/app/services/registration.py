@@ -12,13 +12,11 @@ either way, and mail goes out from a background task so timing does not tell eit
 """
 from __future__ import annotations
 
-import hashlib
 import re
 import secrets
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
 
-from sqlalchemy import CursorResult, delete, func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -28,6 +26,7 @@ from app.models.teacher import Teacher
 from app.services import account_mail
 from app.services.account_mail import Mail
 from app.services.crypto import hash_password
+from app.services.tokens import aware, hash_token, rowcount
 
 # A quiet period between admin notices: a burst of registrations produces one mail.
 ADMIN_NOTICE_QUIET_MINUTES = 15
@@ -58,15 +57,6 @@ def normalize_domain(raw: str) -> str:
     return domain
 
 
-def _hash_token(raw_token: str) -> str:
-    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
-
-
-def _aware(moment: datetime) -> datetime:
-    # SQLite (tests) hands timestamps back without a zone; they were written in UTC.
-    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
-
-
 async def domain_rule(db: AsyncSession, email: str) -> AllowedEmailDomain | None:
     """The always-allowed entry for *email*'s domain, if any."""
     result = await db.execute(
@@ -94,7 +84,7 @@ async def request_registration(db: AsyncSession, email: str) -> Mail | None:
         select(RegistrationRequest).where(RegistrationRequest.email == email)
     )
     cooldown = timedelta(seconds=settings.REGISTRATION_RESEND_COOLDOWN_SECONDS)
-    if request is not None and _aware(request.last_sent_at) + cooldown > now:
+    if request is not None and aware(request.last_sent_at) + cooldown > now:
         return None
 
     raw_token = secrets.token_urlsafe(32)
@@ -103,14 +93,14 @@ async def request_registration(db: AsyncSession, email: str) -> Mail | None:
         db.add(
             RegistrationRequest(
                 email=email,
-                token_hash=_hash_token(raw_token),
+                token_hash=hash_token(raw_token),
                 expires_at=expires_at,
                 last_sent_at=now,
             )
         )
     else:
         # A fresh token replaces the old one, so only the newest link works.
-        request.token_hash = _hash_token(raw_token)
+        request.token_hash = hash_token(raw_token)
         request.expires_at = expires_at
         request.last_sent_at = now
 
@@ -129,16 +119,16 @@ async def complete_registration(
     violation at that point (an admin invited the address meanwhile) is the same error.
     """
     request = await db.scalar(
-        select(RegistrationRequest).where(RegistrationRequest.token_hash == _hash_token(raw_token))
+        select(RegistrationRequest).where(RegistrationRequest.token_hash == hash_token(raw_token))
     )
     now = datetime.now(UTC)
-    if request is None or _aware(request.expires_at) <= now:
+    if request is None or aware(request.expires_at) <= now:
         raise RegistrationTokenError
 
     claimed = await db.execute(
         delete(RegistrationRequest).where(RegistrationRequest.id == request.id)
     )
-    if cast("CursorResult[Any]", claimed).rowcount != 1:
+    if rowcount(claimed) != 1:
         raise RegistrationTokenError
 
     email = request.email

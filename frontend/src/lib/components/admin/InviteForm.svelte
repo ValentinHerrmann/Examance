@@ -35,6 +35,8 @@
     const dirty = email.trim() !== "";
     untrack(() => onDirty?.(dirty));
   });
+  // Switching tabs unmounts the form and drops its input, so nothing is unsaved any more.
+  $effect(() => () => onDirty?.(false));
 </script>
 
 <form class="flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); submit(); }}>

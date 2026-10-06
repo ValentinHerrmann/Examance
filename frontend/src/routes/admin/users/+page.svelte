@@ -3,7 +3,8 @@
   // feature switches and always-allowed domains. Data loading and handlers live here; the components in
   // lib/components/admin hold the markup.
   import { onMount } from "svelte";
-  import { ApiError } from "#lib/api/client";
+  import { SvelteSet } from "svelte/reactivity";
+  import { apiErrorMessage } from "#lib/api/client";
   import {
     addAllowedDomain,
     approveUser,
@@ -23,7 +24,7 @@
   } from "#lib/api/admin";
   import { awaitSessionReady, isUnlocked, sessionStore } from "#lib/stores/session";
   import { refreshCapabilities } from "#lib/db/workspace";
-  import { t, translate } from "#lib/i18n";
+  import { t, translate, type TranslationKey } from "#lib/i18n";
   import { faEnvelope, faGlobe, faUserCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Button, Card, Checkbox, ConfirmDialog, PageHeader, PageShell, Tabs } from "#lib/components/ui";
   import { safeLocalStorage } from "#lib/utils/storage";
@@ -33,68 +34,55 @@
   import AllowedDomains from "#lib/components/admin/AllowedDomains.svelte";
 
   type Notice = { severity: "success" | "warning" | "danger"; text: string } | null;
+  type Section = "pending" | "accounts" | "invite" | "domains";
 
   let users = $state.raw<AdminUser[]>([]);
   let domains = $state.raw<AllowedDomain[]>([]);
   let loading = $state(true);
   let loadError = $state("");
 
-  let busyUserId = $state<string | null>(null);
-  let inviteBusy = $state(false);
-  let domainsBusy = $state(false);
-  let pendingNotice: Notice = $state(null);
-  let inviteNotice: Notice = $state(null);
-  let accountsNotice: Notice = $state(null);
-  let domainsNotice: Notice = $state(null);
+  /** Account ids (or the INVITE / DOMAINS forms) with a request in flight. */
+  const busy = new SvelteSet<string>();
+  const INVITE = "invite";
+  const DOMAINS = "domains";
+  let notices = $state<Record<Section, Notice>>({ pending: null, accounts: null, invite: null, domains: null });
   let rejecting = $state.raw<AdminUser | null>(null);
   let deleting = $state.raw<AdminUser | null>(null);
   let deleteKeepsExercises = $state(false);
 
   // One task per tab, so a phone shows one short screen at a time. The choice is remembered per browser.
-  type AdminTab = "pending" | "accounts" | "invite" | "domains";
   const TAB_KEY = "bg_admin_tab";
-  const TABS: readonly AdminTab[] = ["pending", "accounts", "invite", "domains"];
-  function savedTab(): AdminTab | null {
-    try {
-      const value = safeLocalStorage.getItem(TAB_KEY);
-      return TABS.includes(value as AdminTab) ? (value as AdminTab) : null;
-    } catch {
-      return null;
-    }
-  }
-  let tab = $state<AdminTab>(savedTab() ?? "accounts");
-  let tabChosen = savedTab() !== null;
+  const TABS: readonly Section[] = ["pending", "accounts", "invite", "domains"];
+  const savedTab = safeLocalStorage.getItem(TAB_KEY) as Section | null;
+  let tabChosen = savedTab !== null && TABS.includes(savedTab);
+  let tab = $state<Section>(tabChosen && savedTab ? savedTab : "accounts");
   function selectTab(id: string) {
-    if (!TABS.includes(id as AdminTab)) return;
-    tab = id as AdminTab;
+    if (!TABS.includes(id as Section)) return;
+    tab = id as Section;
     tabChosen = true;
-    try {
-      safeLocalStorage.setItem(TAB_KEY, id);
-    } catch {
-      // Only a convenience; the page works without it.
-    }
+    safeLocalStorage.setItem(TAB_KEY, id);
   }
 
   let isAdmin = $derived($isUnlocked && $sessionStore.role === "admin");
   let pending = $derived(users.filter((u) => u.approved_at === null));
   let approved = $derived(users.filter((u) => u.approved_at !== null));
 
-  function messageOf(err: unknown, fallback: string): string {
-    return err instanceof ApiError ? err.message : fallback;
-  }
-
   function replaceUser(updated: AdminUser) {
     users = users.map((u) => (u.id === updated.id ? updated : u));
+  }
+
+  function replaceDomain(updated: AllowedDomain) {
+    domains = domains.map((d) => (d.id === updated.id ? updated : d));
   }
 
   async function load() {
     loading = true;
     loadError = "";
     try {
-      [users, domains] = await Promise.all([listUsers("all"), listAllowedDomains()]);
+      [users, domains] = await Promise.all([listUsers(), listAllowedDomains()]);
       if (!tabChosen && users.some((u) => u.approved_at === null)) tab = "pending";
     } catch (err) {
-      loadError = messageOf(err, translate("admin.loadFailed"));
+      loadError = apiErrorMessage(err, translate("admin.loadFailed"));
     } finally {
       loading = false;
     }
@@ -109,152 +97,132 @@
     if (isAdmin) await load();
   });
 
-  async function handleApprove(user: AdminUser, features: AccountFeatures) {
-    pendingNotice = null;
-    busyUserId = user.id;
+  /** One admin action: clears the section's notice, marks `id` busy, reports a failure (after `undo`). */
+  async function run(
+    section: Section,
+    id: string,
+    failKey: TranslationKey,
+    action: () => Promise<void>,
+    undo?: () => void,
+  ): Promise<boolean> {
+    notices[section] = null;
+    busy.add(id);
     try {
-      replaceUser(await approveUser(user.id, features));
-      pendingNotice = { severity: "success", text: translate("admin.pending.approved", { email: user.email }) };
+      await action();
+      return true;
     } catch (err) {
-      pendingNotice = { severity: "danger", text: messageOf(err, translate("admin.pending.failed")) };
+      undo?.();
+      notices[section] = { severity: "danger", text: apiErrorMessage(err, translate(failKey)) };
+      return false;
     } finally {
-      busyUserId = null;
+      busy.delete(id);
     }
+  }
+
+  const success = (text: string): Notice => ({ severity: "success", text });
+
+  function handleApprove(user: AdminUser, features: AccountFeatures) {
+    return run("pending", user.id, "admin.pending.failed", async () => {
+      replaceUser(await approveUser(user.id, features));
+      notices.pending = success(translate("admin.pending.approved", { email: user.email }));
+    });
   }
 
   async function confirmReject() {
     const user = rejecting;
     if (!user) return;
-    pendingNotice = null;
-    busyUserId = user.id;
-    try {
+    await run("pending", user.id, "admin.pending.failed", async () => {
       await rejectUser(user.id);
       users = users.filter((u) => u.id !== user.id);
-      pendingNotice = { severity: "success", text: translate("admin.pending.rejected", { email: user.email }) };
-    } catch (err) {
-      pendingNotice = { severity: "danger", text: messageOf(err, translate("admin.pending.failed")) };
-    } finally {
-      busyUserId = null;
-      rejecting = null;
-    }
+      notices.pending = success(translate("admin.pending.rejected", { email: user.email }));
+    });
+    rejecting = null;
   }
 
-  async function handleToggleUserFeature(user: AdminUser, key: AccountFeature, value: boolean) {
-    accountsNotice = null;
-    // Optimistic, and reverted by value on failure so the switch follows the real state.
+  function handleToggleUserFeature(user: AdminUser, key: AccountFeature, value: boolean) {
+    // Optimistic; a failure puts the row back.
     replaceUser({ ...user, features: { ...user.features, [key]: value } });
-    busyUserId = user.id;
-    try {
-      replaceUser(await updateUserFeatures(user.id, { [key]: value }));
-      // The admin's own switches apply to this tab right away.
-      if (user.id === $sessionStore.teacherId) void refreshCapabilities();
-    } catch (err) {
-      replaceUser(user);
-      accountsNotice = { severity: "danger", text: messageOf(err, translate("admin.accounts.failed")) };
-    } finally {
-      busyUserId = null;
-    }
+    return run(
+      "accounts",
+      user.id,
+      "admin.accounts.failed",
+      async () => {
+        replaceUser(await updateUserFeatures(user.id, { [key]: value }));
+        // The admin's own switches apply to this tab right away.
+        if (user.id === $sessionStore.teacherId) void refreshCapabilities();
+      },
+      () => replaceUser(user),
+    );
   }
 
   async function confirmDelete() {
     const user = deleting;
     if (!user) return;
-    accountsNotice = null;
-    busyUserId = user.id;
-    try {
+    await run("accounts", user.id, "admin.accounts.failed", async () => {
       await deleteUser(user.id, deleteKeepsExercises);
       users = users.filter((u) => u.id !== user.id);
-      accountsNotice = { severity: "success", text: translate("admin.accounts.deleted", { email: user.email }) };
-    } catch (err) {
-      accountsNotice = { severity: "danger", text: messageOf(err, translate("admin.accounts.failed")) };
-    } finally {
-      busyUserId = null;
-      deleting = null;
-    }
+      notices.accounts = success(translate("admin.accounts.deleted", { email: user.email }));
+    });
+    deleting = null;
   }
 
-  async function handleResendInvite(user: AdminUser) {
-    accountsNotice = null;
-    busyUserId = user.id;
-    try {
+  function handleResendInvite(user: AdminUser) {
+    return run("accounts", user.id, "admin.accounts.failed", async () => {
       const res = await resendSetPasswordLink(user.id);
-      accountsNotice = res.password_reset_sent
-        ? { severity: "success", text: translate("admin.accounts.resent", { email: user.email }) }
+      notices.accounts = res.password_reset_sent
+        ? success(translate("admin.accounts.resent", { email: user.email }))
         : { severity: "warning", text: translate("admin.accounts.resendMailFailed", { email: user.email }) };
-    } catch (err) {
-      accountsNotice = { severity: "danger", text: messageOf(err, translate("admin.accounts.failed")) };
-    } finally {
-      busyUserId = null;
-    }
+    });
   }
 
   async function handleInvite(email: string, role: "teacher" | "admin", features: AccountFeatures): Promise<boolean> {
-    inviteNotice = null;
     if (!email) {
-      inviteNotice = { severity: "danger", text: translate("admin.users.emailRequired") };
+      notices.invite = { severity: "danger", text: translate("admin.users.emailRequired") };
       return false;
     }
-    inviteBusy = true;
-    try {
+    const sent = await run("invite", INVITE, "admin.users.createFailed", async () => {
       const created = await inviteUser(email, role, features);
-      const roleLabel = role === "admin" ? translate("admin.users.roleAdmin") : translate("admin.users.roleTeacher");
-      inviteNotice = created.password_reset_sent
-        ? { severity: "success", text: translate("admin.users.createdSuccess", { role: roleLabel, email }) }
+      const roleLabel = translate(role === "admin" ? "admin.users.roleAdmin" : "admin.users.roleTeacher");
+      notices.invite = created.password_reset_sent
+        ? success(translate("admin.users.createdSuccess", { role: roleLabel, email }))
         : { severity: "warning", text: translate("admin.users.createdWarning", { role: roleLabel, email }) };
-      sessionStore.setDirty(false);
-      users = await listUsers("all");
-      return true;
-    } catch (err) {
-      inviteNotice = { severity: "danger", text: messageOf(err, translate("admin.users.createFailed")) };
-      return false;
-    } finally {
-      inviteBusy = false;
-    }
+    });
+    // The invitation went out; a failed refresh only leaves the list as it was.
+    if (sent) users = await listUsers().catch(() => users);
+    return sent;
   }
 
-  async function handleAddDomain(domain: string, features: AccountFeatures): Promise<boolean> {
-    domainsNotice = null;
-    domainsBusy = true;
-    try {
+  function handleAddDomain(domain: string, features: AccountFeatures): Promise<boolean> {
+    return run("domains", DOMAINS, "admin.domains.failed", async () => {
       const added = await addAllowedDomain(domain, features);
       domains = [...domains, added].sort((a, b) => a.domain.localeCompare(b.domain));
-      return true;
-    } catch (err) {
-      domainsNotice = { severity: "danger", text: messageOf(err, translate("admin.domains.failed")) };
-      return false;
-    } finally {
-      domainsBusy = false;
-    }
+    });
   }
 
-  async function handleToggleDomainFeature(domain: AllowedDomain, key: AccountFeature, value: boolean) {
-    domainsNotice = null;
-    const replace = (next: AllowedDomain) => (domains = domains.map((d) => (d.id === next.id ? next : d)));
-    replace({ ...domain, features: { ...domain.features, [key]: value } });
-    domainsBusy = true;
-    try {
-      replace(await updateAllowedDomain(domain.id, { [key]: value }));
-    } catch (err) {
-      replace(domain);
-      domainsNotice = { severity: "danger", text: messageOf(err, translate("admin.domains.failed")) };
-    } finally {
-      domainsBusy = false;
-    }
+  function handleToggleDomainFeature(domain: AllowedDomain, key: AccountFeature, value: boolean) {
+    replaceDomain({ ...domain, features: { ...domain.features, [key]: value } });
+    return run(
+      "domains",
+      DOMAINS,
+      "admin.domains.failed",
+      async () => replaceDomain(await updateAllowedDomain(domain.id, { [key]: value })),
+      () => replaceDomain(domain),
+    );
   }
 
-  async function handleRemoveDomain(domain: AllowedDomain) {
-    domainsNotice = null;
-    domainsBusy = true;
-    try {
+  function handleRemoveDomain(domain: AllowedDomain) {
+    return run("domains", DOMAINS, "admin.domains.failed", async () => {
       await removeAllowedDomain(domain.id);
       domains = domains.filter((d) => d.id !== domain.id);
-    } catch (err) {
-      domainsNotice = { severity: "danger", text: messageOf(err, translate("admin.domains.failed")) };
-    } finally {
-      domainsBusy = false;
-    }
+    });
   }
 </script>
+
+{#snippet heading(section: Section)}
+  <h2 class="m-0 mb-1 text-lg font-semibold text-content">{$t(`admin.${section}.title`)}</h2>
+  <p class="m-0 mb-4 text-sm text-muted">{$t(`admin.${section}.intro`)}</p>
+  {#if notices[section]}<Alert severity={notices[section].severity} class="mb-4">{notices[section].text}</Alert>{/if}
+{/snippet}
 
 <PageShell width="wide">
   <PageHeader title={$t("admin.users.pageTitle")} subtitle={$t("admin.users.pageSubtitle")} helpTopic="accounts" />
@@ -293,15 +261,13 @@
 
       {#if tab === "pending"}
         <Card class="min-w-0">
-          <h2 class="m-0 mb-1 text-lg font-semibold text-content">{$t("admin.pending.title")}</h2>
-          <p class="m-0 mb-4 text-sm text-muted">{$t("admin.pending.intro")}</p>
-          {#if pendingNotice}<Alert severity={pendingNotice.severity} class="mb-4">{pendingNotice.text}</Alert>{/if}
+          {@render heading("pending")}
           {#if loading}
             <p class="m-0 text-sm text-muted">{$t("admin.loading")}</p>
           {:else}
             <PendingAccounts
               users={pending}
-              busyId={busyUserId}
+              {busy}
               onApprove={handleApprove}
               onReject={(user) => (rejecting = user)}
             />
@@ -309,15 +275,13 @@
         </Card>
       {:else if tab === "accounts"}
         <Card class="min-w-0">
-          <h2 class="m-0 mb-1 text-lg font-semibold text-content">{$t("admin.accounts.title")}</h2>
-          <p class="m-0 mb-4 text-sm text-muted">{$t("admin.accounts.intro")}</p>
-          {#if accountsNotice}<Alert severity={accountsNotice.severity} class="mb-4">{accountsNotice.text}</Alert>{/if}
+          {@render heading("accounts")}
           {#if loading}
             <p class="m-0 text-sm text-muted">{$t("admin.loading")}</p>
           {:else}
             <AccountList
               users={approved}
-              busyId={busyUserId}
+              {busy}
               onToggleFeature={handleToggleUserFeature}
               onResendInvite={handleResendInvite}
               ownId={$sessionStore.teacherId}
@@ -330,23 +294,19 @@
         </Card>
       {:else if tab === "invite"}
         <Card class="min-w-0 md:max-w-form">
-          <h2 class="m-0 mb-1 text-lg font-semibold text-content">{$t("admin.invite.title")}</h2>
-          <p class="m-0 mb-4 text-sm text-muted">{$t("admin.invite.intro")}</p>
-          {#if inviteNotice}<Alert severity={inviteNotice.severity} class="mb-4">{inviteNotice.text}</Alert>{/if}
+          {@render heading("invite")}
           <InviteForm
-            busy={inviteBusy}
+            busy={busy.has(INVITE)}
             onInvite={handleInvite}
             onDirty={(dirty) => sessionStore.setDirty(dirty)}
           />
         </Card>
       {:else}
         <Card class="min-w-0">
-          <h2 class="m-0 mb-1 text-lg font-semibold text-content">{$t("admin.domains.title")}</h2>
-          <p class="m-0 mb-4 text-sm text-muted">{$t("admin.domains.intro")}</p>
-          {#if domainsNotice}<Alert severity={domainsNotice.severity} class="mb-4">{domainsNotice.text}</Alert>{/if}
+          {@render heading("domains")}
           <AllowedDomains
             {domains}
-            busy={domainsBusy}
+            busy={busy.has(DOMAINS)}
             onAdd={handleAddDomain}
             onToggleFeature={handleToggleDomainFeature}
             onRemove={handleRemoveDomain}
@@ -364,7 +324,7 @@
   confirmText={$t("admin.pending.reject")}
   cancelText={$t("common.cancel")}
   severity="danger"
-  busy={busyUserId !== null}
+  busy={busy.size > 0}
   onConfirm={confirmReject}
   onCancel={() => (rejecting = null)}
 />
@@ -376,9 +336,9 @@
   confirmText={$t("admin.accounts.delete")}
   cancelText={$t("common.cancel")}
   severity="danger"
-  busy={busyUserId !== null}
+  busy={busy.size > 0}
   onConfirm={confirmDelete}
   onCancel={() => (deleting = null)}
 >
-  <Checkbox bind:checked={deleteKeepsExercises} disabled={busyUserId !== null} label={$t("admin.accounts.keepExercises")} />
+  <Checkbox bind:checked={deleteKeepsExercises} disabled={busy.size > 0} label={$t("admin.accounts.keepExercises")} />
 </ConfirmDialog>

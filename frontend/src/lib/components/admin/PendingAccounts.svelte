@@ -10,12 +10,13 @@
   interface Props {
     users: AdminUser[];
     /** The account an approve/reject is running for. */
-    busyId: string | null;
+    /** Accounts with a request in flight. */
+    busy: ReadonlySet<string>;
     onApprove: (user: AdminUser, features: AccountFeatures) => void;
     onReject: (user: AdminUser) => void;
   }
 
-  let { users, busyId, onApprove, onReject }: Props = $props();
+  let { users, busy, onApprove, onReject }: Props = $props();
 
   /** Features chosen per pending account before approving; everything on until the admin changes it. */
   let drafts = $state<Record<string, AccountFeatures>>({});
@@ -45,15 +46,15 @@
         <div class="flex min-w-0 shrink-0 flex-col gap-3 lg:w-72">
           <FeatureSwitches
             features={draftFor(user.id)}
-            disabled={busyId === user.id}
+            disabled={busy.has(user.id)}
             onChange={(key, value) => (drafts = { ...drafts, [user.id]: { ...draftFor(user.id), [key]: value } })}
           />
           <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <Button
               size="sm"
               class="w-full sm:w-auto"
-              loading={busyId === user.id}
-              disabled={busyId !== null}
+              loading={busy.has(user.id)}
+              disabled={busy.size > 0}
               onClick={() => onApprove(user, draftFor(user.id))}
             >
               {$t("admin.pending.approve")}
@@ -63,7 +64,7 @@
               class="w-full sm:w-auto"
               variant="outlined"
               severity="danger"
-              disabled={busyId !== null}
+              disabled={busy.size > 0}
               onClick={() => onReject(user)}
             >
               {$t("admin.pending.reject")}
