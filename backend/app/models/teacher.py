@@ -9,10 +9,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
-# Storage modes a teacher can choose (docs/dev/storage_modes.md). Exams and exercises always
-# live on the server; the mode only decides whether grading results do too ("all-server") or
-# stay in one browser ("hybrid"). Which of these an account may use is decided by
-# app/services/capabilities.py.
+# Storage modes (docs/dev/storage_modes.md). Exams and exercises always live on the server; the
+# mode only decides whether grading results do too ("all-server") or stay in one browser
+# ("hybrid"). Which modes an account may use: app/services/capabilities.py.
 STORAGE_MODES = ("all-server", "hybrid")
 
 
@@ -52,17 +51,14 @@ class Teacher(Base):
     # The account's storage mode. Null until the teacher chooses one explicitly; there is no
     # default, and nothing writes it implicitly. Every browser of the account follows this value.
     storage_mode: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    # When an admin (or an always-allowed domain) approved the account. Null means pending, and a
-    # pending account holds no token of any kind (app/routers/auth.py `advance_sign_in`,
-    # app/dependencies.py). Deliberately no default: a write path that forgets to set it locks the
-    # account out instead of letting an unvetted one in. Self-registered rows only exist once the
-    # address is verified (app/services/registration.py), so every row has a verified address.
+    # When an admin (or an always-allowed domain) approved the account; null = pending, which holds
+    # no token of any kind (`advance_sign_in` in app/routers/auth.py, app/dependencies.py). No
+    # default on purpose: a write path that forgets it locks the account out, never one in.
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Optional note a self-registered teacher leaves for the approving admin. Erased on approval.
     registration_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    # Per-account feature switches, set by an admin (app/services/capabilities.py). Exams and
-    # exercises always live on the server; these decide whether grading results may
-    # ("all-server" mode) and whether LaTeX may be compiled on the server. Both the Python and
+    # Per-account feature switches set by an admin (app/services/capabilities.py): whether results
+    # may live on the server ("all-server") and whether LaTeX may compile there. Both the Python and
     # the server default are needed: without the former a fresh row leaves them unloaded.
     allow_server_results: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=true()

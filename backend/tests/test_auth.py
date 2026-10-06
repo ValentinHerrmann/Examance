@@ -212,14 +212,10 @@ async def test_logout_clears_cookies(client: AsyncClient, db: AsyncSession) -> N
 async def test_a_refresh_cookie_cannot_skip_the_second_factor(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    A refresh token minted for a half-finished sign-in must not become a session.
+    """A refresh token minted for a half-finished sign-in must not become a session.
 
-    Refresh used to hand out a `full` access token unconditionally, so any
-    surviving refresh cookie — one left over from before the policy, or one a
-    browser did not drop when the sign-in demoted it — was a complete way around
-    the two-of-three rule.
-    """
+    Otherwise any surviving refresh cookie (pre-policy, or kept by a browser after the sign-in
+    demoted it) would be a way around the two-of-three rule."""
     from datetime import UTC, datetime
 
     from app.models.refresh_token import RefreshToken
@@ -298,13 +294,10 @@ async def _enrol_passkey(db: AsyncSession, teacher: Teacher) -> None:
 async def _pending_cookie(
     client: AsyncClient, teacher: Teacher, amr: list[str], *, scope: str = "auth_pending"
 ) -> None:
-    """
-    Put the client mid-sign-in with *amr* already proven.
+    """Put the client mid-sign-in with *amr* already proven.
 
-    A passkey ceremony needs a real authenticator, so the token a passkey step
-    would have issued is minted directly. Everything downstream — the scope, the
-    single-use jti, the factor list — is the same object the endpoint produces.
-    """
+    A passkey ceremony needs a real authenticator, so the token it would issue is minted directly;
+    scope, single-use jti and factor list match what the endpoint produces."""
     from app.services import pending_token
     from app.services.jwt import create_access_token, decode_token
 
@@ -319,14 +312,10 @@ async def _pending_cookie(
 async def test_the_password_completes_a_passkey_sign_in(
     client: AsyncClient, db: AsyncSession
 ) -> None:
-    """
-    Passkey then password — one of the three pairs the policy promises.
+    """Passkey then password: one of the three pairs the policy promises.
 
-    `/auth/login` hard-codes an empty presented-factor list, so it can only ever
-    open a sign-in. Without a factor endpoint of its own the password could
-    never come second, and a passkey-first sign-in had nothing to offer but the
-    authenticator: a policy that says "any two" and a screen that meant one.
-    """
+    `/auth/login` only ever opens a sign-in (empty presented-factor list), so the password needs a
+    factor endpoint of its own to come second; else "any two" would offer only the authenticator."""
     teacher = await _create_test_teacher(db, "passkey-then-password@example.com")
     await _enrol_passkey(db, teacher)
     await _pending_cookie(client, teacher, ["passkey"])

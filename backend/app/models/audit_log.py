@@ -71,10 +71,9 @@ class AuditLog(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    # AuditLog rows are never soft-deleted or edited — the trail is append-only.
-    # They are, however, hard-deleted once AUDIT_LOG_RETENTION_DAYS has elapsed
-    # (see services/retention.py): the rows hold teacher_email and ip_hash, and
-    # Art. 17(3) justifies retaining that for a defined period, not forever.
+    # AuditLog rows are append-only (never soft-deleted or edited) but hard-deleted after
+    # AUDIT_LOG_RETENTION_DAYS (services/retention.py): they hold teacher_email and ip_hash, which
+    # Art. 17(3) justifies keeping for a defined period, not forever.
 
     def __repr__(self) -> str:
         return (

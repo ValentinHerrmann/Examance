@@ -1,22 +1,7 @@
-"""Deleting an account (GDPR Art. 17): by its holder or by an admin.
+"""Deleting an account (GDPR Art. 17) by its holder (mailed single-use link) or an admin.
 
-The holder asks in the settings (`POST /user/me/deletion-request`) and confirms through a mailed,
-single-use link (`POST /auth/account-deletion/confirm`); opening the link alone deletes nothing,
-so a mail scanner that fetches it is harmless. An admin deletes another account directly.
-
-Either way the holder may keep their library exercises on the server (for sharing, which is
-planned): they lose their owner (`teacher_id` NULL) and their group, and nobody sees them until
-that feature decides. Exam-bound exercise copies (`exam_id` set) always go with their exams.
-
-Student identities and submissions under the account's exams are soft-deleted with the standard
-grace period first, matching `purge-server-student-data`; deleting the teacher row then cascades
-to everything the account owns (exams, exercises, credentials, key envelopes, logos, tokens).
-
-Audit rows are kept, with `teacher_id` nulled by the FK's ON DELETE SET NULL and the email
-snapshot left in place: Art. 17(3)(b) permits retaining what is needed for a legal obligation,
-and the trail exists to evidence lawful handling of student data. Those rows age out under
-AUDIT_LOG_RETENTION_DAYS rather than living forever.
-"""
+Flow: docs/account_creation_and_management.md. Students are soft-deleted first (grace period);
+audit rows stay (Art. 17(3)(b)) until AUDIT_LOG_RETENTION_DAYS; kept exercises have no owner."""
 from __future__ import annotations
 
 import secrets
@@ -138,12 +123,10 @@ async def delete_account(
     keep_exercises: bool = False,
     request_ip: str | None = None,
 ) -> DeletionResult:
-    """
-    Delete *teacher* and everything the account owns. *actor* is the account holder or an admin;
-    the audit entry names who did it. The caller checks permission and `ensure_not_last_admin`.
-    With *keep_exercises* the library exercises (every version, with their resources) stay
-    without an owner instead.
-    """
+    """Delete *teacher* and everything the account owns; *actor* (holder or admin) is audited.
+
+    The caller checks permission and `ensure_not_last_admin`. With *keep_exercises* the library
+    exercises (every version, with resources) stay without an owner instead."""
     now = datetime.now(UTC)
     retention_until = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)
 

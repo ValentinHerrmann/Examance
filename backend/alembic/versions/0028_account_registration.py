@@ -1,17 +1,7 @@
 """account registration
 
-Self-registration with e-mail verification and admin approval (issue #53):
-
-- `teachers.approved_at`: null means pending; a pending account holds no token. Every existing
-  account was created by an admin, the CLI or the bootstrap, so it is backfilled as approved at
-  its creation time. No server default on purpose (fail closed).
-- `teachers.registration_note`: the optional note a registrant leaves for the admin.
-- `teachers.allow_server_results` / `allow_server_latex`: the per-account feature switches read
-  by app/services/capabilities.py. Existing accounts keep everything.
-- `registration_requests`: addresses awaiting verification (hashed token, TTL).
-- `allowed_email_domains`: domains whose registrations are approved automatically.
-- New audit_action members for the above, plus PASSWORD_CHANGED, which /auth/change-password
-  has been writing without it ever being a member (Postgres rejects that).
+Self-registration with admin approval (issue #53): `approved_at` NULL = pending, no default (fail
+closed), old rows backfilled. Adds feature switches, registration tables and audit actions.
 
 Revision ID: 0028_account_registration
 Revises: 0027_teacher_logo_modes

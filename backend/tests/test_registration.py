@@ -1,17 +1,7 @@
-"""Self-registration, admin approval and per-account features (issue #53).
+"""Self-registration, approval and per-account features (issue #53), plus retention of stale ones.
 
-Covers the public flow (verification mail, single-use token, auto-approval for allowed domains),
-what a pending account can and cannot do, the admin side (approve, reject, invite, feature
-switches, allowed domains), where the switches are enforced, and retention of stale
-registrations.
-
-Mail is captured by patching ``app.services.email.send_email``. The raw verification token only
-exists inside the mailed link, so the tests read it back from the captured message. Background
-tasks run inside the request under httpx's ASGITransport, so a captured mail is there as soon as
-the ``await client.post(...)`` returns.
-
-The database is shared across the whole session: every address and domain is unique per test.
-"""
+Mail is captured by patching ``app.services.email.send_email`` (background tasks run in-request).
+The database is shared across the session, so every address and domain is unique per test."""
 from __future__ import annotations
 
 import base64

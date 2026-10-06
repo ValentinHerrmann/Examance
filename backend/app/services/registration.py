@@ -1,15 +1,6 @@
-"""Self-registration: request, e-mail verification, approval (issue #53).
-
-1. `request_registration` stores a hashed, single-use token for an address that has no account
-   yet and returns the verification mail. Nothing is created in `teachers`.
-2. `complete_registration` claims the token, then creates the account with the password the
-   registrant chose. An address on the admin's always-allowed list is approved on the spot with
-   that domain's features; any other stays pending (`approved_at` null), and a pending account
-   holds no token of any kind until an admin approves it.
-
-Neither step may reveal whether an account exists for an address: the endpoints answer the same
-either way, and mail goes out from a background task so timing does not tell either.
-"""
+"""Self-registration (issue #53): `request_registration` stores a hashed single-use token and mails
+it; only `complete_registration` creates the account, approved at once just for allowlisted domains.
+Neither step may reveal whether an address already has an account."""
 from __future__ import annotations
 
 import re
@@ -66,13 +57,10 @@ async def domain_rule(db: AsyncSession, email: str) -> AllowedEmailDomain | None
 
 
 async def request_registration(db: AsyncSession, email: str) -> Mail | None:
-    """
-    Create or refresh the registration request for *email* and return its verification mail.
+    """Create or refresh the registration request for *email* and return its verification mail.
 
-    Returns None, sending nothing, when the address already has an account or a mail went out
-    within the cooldown. The caller commits (a concurrent request for the same address fails the
-    commit on the unique email; treat that like the cooldown) and sends the mail afterwards.
-    """
+    None (nothing sent) if the address has an account or a mail went out within the cooldown. The
+    caller commits, then sends; a unique-email failure on commit is a race: treat it as cooldown."""
     existing_account = await db.scalar(
         select(Teacher.id).where(func.lower(Teacher.email) == email)
     )
@@ -111,13 +99,10 @@ async def request_registration(db: AsyncSession, email: str) -> Mail | None:
 async def complete_registration(
     db: AsyncSession, raw_token: str, password: str, note: str | None
 ) -> Teacher:
-    """
-    Claim the token and create the account. Raises `RegistrationTokenError`.
+    """Claim the token and create the account; raises `RegistrationTokenError`.
 
-    The token is claimed by deleting its row and checking that this call deleted it, so two
-    concurrent completions cannot both create an account. The caller commits; a unique-email
-    violation at that point (an admin invited the address meanwhile) is the same error.
-    """
+    Claiming deletes the token row and checks this call deleted it, so concurrent completions cannot
+    both create an account. The caller commits; a unique-email violation then is the same error."""
     request = await db.scalar(
         select(RegistrationRequest).where(RegistrationRequest.token_hash == hash_token(raw_token))
     )

@@ -21,31 +21,10 @@ from app.models.teacher import Teacher
 
 
 async def run(*, dry_run: bool = False) -> int:
-    """
-    Apply the retention policy. Returns the number of affected rows.
+    """Apply the retention policy and return the number of affected rows. Idempotent.
 
-    1. Exams past ``retention_until`` are soft-deleted, and their student
-       identities and submissions are stamped with a grace deadline.
-    2. Student identities and submissions whose grace deadline has passed are
-       hard-deleted.
-    3. Audit entries older than AUDIT_LOG_RETENTION_DAYS are removed.
-    4. Donated OMR training samples older than TRAINING_SAMPLE_RETENTION_DAYS
-       are removed.
-    5. Registration requests whose verification link expired are removed.
-    6. Verified registrations nobody approved within PENDING_ACCOUNT_RETENTION_DAYS
-       are removed. Only plain teacher accounts that hold nothing (no exam,
-       exercise or key envelope) qualify: a pending account cannot create data,
-       so anything that does is not a stale registration and is left alone.
-    7. Account-deletion links that expired unconfirmed are removed (a confirmed
-       one goes with its account).
-
-    Step 1's cascade is the part that matters: soft-deleting the exam alone —
-    which is all this service used to do — left the student personal data in the
-    database forever, because nothing else ever set ``retention_until`` on those
-    rows and no code path hard-deletes an Exam.
-
-    Idempotent: re-running skips rows already handled.
-    """
+    Steps are numbered inline. Step 1 must cascade a grace deadline onto the exam's student data:
+    nothing hard-deletes an Exam, so soft-deleting it alone would keep personal data forever."""
     today = date.today()
     now = datetime.now(tz=UTC)
     grace_deadline = today + timedelta(days=settings.RETENTION_GRACE_DAYS)

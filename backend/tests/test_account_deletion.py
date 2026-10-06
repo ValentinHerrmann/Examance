@@ -1,14 +1,7 @@
-"""Deleting accounts: by the holder through a mailed link, and by an admin.
+"""Account deletion by the holder (mailed link: preview, then confirm) and by an admin.
 
-The holder asks with `POST /user/me/deletion-request`; the mailed link's page previews
-(`/auth/account-deletion/preview`, deletes nothing) and confirms (`/auth/account-deletion/confirm`,
-single use). Either path may keep the library exercises on the server without an owner.
-
-Mail is captured by patching ``app.services.email.send_email``; background tasks run inside the
-request under httpx's ASGITransport. The database is shared across the whole session, so every
-address is unique per test and the last-admin guard (which counts every admin in the database)
-is only exercised through its callers' other refusals.
-"""
+Mail is captured by patching ``app.services.email.send_email``. The database is shared across the
+session: addresses are unique per test, so the last-admin guard (counts every admin) is not hit."""
 from __future__ import annotations
 
 import uuid

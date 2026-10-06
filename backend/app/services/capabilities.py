@@ -1,11 +1,7 @@
-"""What an account may use: storage modes and optional server features.
+"""What an account may use (issue #53): storage modes and server features; decided only here.
 
-The single place that decides it. An admin sets two switches per account (issue #53):
-`allow_server_results` (the "all-server" mode, i.e. student data and grading results on the
-server; "hybrid" is always allowed) and `allow_server_latex`. Exams and exercises always live on
-the server and need no switch. The frontend renders its options from `capabilities_for`, and
-the endpoints below refuse what an account may not use.
-"""
+Admin switches per account: `allow_server_results` ("all-server" mode; "hybrid" is always allowed)
+and `allow_server_latex`. The frontend renders from `capabilities_for`; endpoints enforce it."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -65,14 +61,10 @@ async def require_server_latex(teacher: Teacher = Depends(get_current_teacher)) 
 async def require_server_results_writable(
     teacher: Teacher = Depends(get_current_teacher),
 ) -> Teacher:
-    """
-    The signed-in teacher, if their account may write grading results to the server.
+    """The signed-in teacher, if their account may write grading results to the server.
 
-    An account whose switch was revoked while it is still in "all-server" mode keeps writing
-    until it has moved its results into the browser (services/resultsMover.ts): refusing those
-    writes would strand them in the offline queue. Reads and deletes are never gated; the move
-    and GDPR erasure need them.
-    """
+    A revoked account still in "all-server" keeps writing until resultsMover.ts moved its results
+    out (else they strand offline). Reads and deletes are never gated (move, erasure need them)."""
     if "all-server" in capabilities_for(teacher).allowed_storage_modes:
         return teacher
     if teacher.storage_mode == "all-server":
