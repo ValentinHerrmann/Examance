@@ -22,7 +22,9 @@
   } from "#lib/api/admin";
   import { awaitSessionReady, isUnlocked, sessionStore } from "#lib/stores/session";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Badge, Button, Card, ConfirmDialog, PageHeader, PageShell } from "#lib/components/ui";
+  import { faEnvelope, faGlobe, faUserCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
+  import { Alert, Button, Card, ConfirmDialog, PageHeader, PageShell, Tabs } from "#lib/components/ui";
+  import { safeLocalStorage } from "#lib/utils/storage";
   import PendingAccounts from "#lib/components/admin/PendingAccounts.svelte";
   import AccountList from "#lib/components/admin/AccountList.svelte";
   import InviteForm from "#lib/components/admin/InviteForm.svelte";
@@ -44,6 +46,31 @@
   let domainsNotice: Notice = $state(null);
   let rejecting = $state.raw<AdminUser | null>(null);
 
+  // One task per tab, so a phone shows one short screen at a time. The choice is remembered per browser.
+  type AdminTab = "pending" | "accounts" | "invite" | "domains";
+  const TAB_KEY = "bg_admin_tab";
+  const TABS: readonly AdminTab[] = ["pending", "accounts", "invite", "domains"];
+  function savedTab(): AdminTab | null {
+    try {
+      const value = safeLocalStorage.getItem(TAB_KEY);
+      return TABS.includes(value as AdminTab) ? (value as AdminTab) : null;
+    } catch {
+      return null;
+    }
+  }
+  let tab = $state<AdminTab>(savedTab() ?? "accounts");
+  let tabChosen = savedTab() !== null;
+  function selectTab(id: string) {
+    if (!TABS.includes(id as AdminTab)) return;
+    tab = id as AdminTab;
+    tabChosen = true;
+    try {
+      safeLocalStorage.setItem(TAB_KEY, id);
+    } catch {
+      // Only a convenience; the page works without it.
+    }
+  }
+
   let isAdmin = $derived($isUnlocked && $sessionStore.role === "admin");
   let pending = $derived(users.filter((u) => u.approved_at === null));
   let approved = $derived(users.filter((u) => u.approved_at !== null));
@@ -61,6 +88,7 @@
     loadError = "";
     try {
       [users, domains] = await Promise.all([listUsers("all"), listAllowedDomains()]);
+      if (!tabChosen && users.some((u) => u.approved_at === null)) tab = "pending";
     } catch (err) {
       loadError = messageOf(err, translate("admin.loadFailed"));
     } finally {
@@ -227,27 +255,53 @@
         </Alert>
       {/if}
 
-      <Card>
-        <h2 class="m-0 mb-1 flex items-center gap-2 text-lg font-semibold text-content">
-          {$t("admin.pending.title")}
-          {#if pending.length > 0}<Badge severity="warning" size="xs">{pending.length}</Badge>{/if}
-        </h2>
-        <p class="m-0 mb-4 text-sm text-muted">{$t("admin.pending.intro")}</p>
-        {#if pendingNotice}<Alert severity={pendingNotice.severity} class="mb-4">{pendingNotice.text}</Alert>{/if}
-        {#if loading}
-          <p class="m-0 text-sm text-muted">{$t("admin.loading")}</p>
-        {:else}
-          <PendingAccounts
-            users={pending}
-            busyId={busyUserId}
-            onApprove={handleApprove}
-            onReject={(user) => (rejecting = user)}
-          />
-        {/if}
-      </Card>
+      <Tabs
+        label={$t("admin.users.pageTitle")}
+        value={tab}
+        onChange={selectTab}
+        compact
+        items={[
+          { id: "pending", label: $t("admin.tabs.pending"), icon: faUserCheck, count: pending.length },
+          { id: "accounts", label: $t("admin.tabs.accounts"), icon: faUsers },
+          { id: "invite", label: $t("admin.tabs.invite"), icon: faEnvelope },
+          { id: "domains", label: $t("admin.tabs.domains"), icon: faGlobe },
+        ]}
+      />
 
-      <div class="grid min-w-0 gap-5 xl:grid-cols-2">
+      {#if tab === "pending"}
         <Card class="min-w-0">
+          <h2 class="m-0 mb-1 text-lg font-semibold text-content">{$t("admin.pending.title")}</h2>
+          <p class="m-0 mb-4 text-sm text-muted">{$t("admin.pending.intro")}</p>
+          {#if pendingNotice}<Alert severity={pendingNotice.severity} class="mb-4">{pendingNotice.text}</Alert>{/if}
+          {#if loading}
+            <p class="m-0 text-sm text-muted">{$t("admin.loading")}</p>
+          {:else}
+            <PendingAccounts
+              users={pending}
+              busyId={busyUserId}
+              onApprove={handleApprove}
+              onReject={(user) => (rejecting = user)}
+            />
+          {/if}
+        </Card>
+      {:else if tab === "accounts"}
+        <Card class="min-w-0">
+          <h2 class="m-0 mb-1 text-lg font-semibold text-content">{$t("admin.accounts.title")}</h2>
+          <p class="m-0 mb-4 text-sm text-muted">{$t("admin.accounts.intro")}</p>
+          {#if accountsNotice}<Alert severity={accountsNotice.severity} class="mb-4">{accountsNotice.text}</Alert>{/if}
+          {#if loading}
+            <p class="m-0 text-sm text-muted">{$t("admin.loading")}</p>
+          {:else}
+            <AccountList
+              users={approved}
+              busyId={busyUserId}
+              onToggleFeature={handleToggleUserFeature}
+              onResendInvite={handleResendInvite}
+            />
+          {/if}
+        </Card>
+      {:else if tab === "invite"}
+        <Card class="min-w-0 md:max-w-form">
           <h2 class="m-0 mb-1 text-lg font-semibold text-content">{$t("admin.invite.title")}</h2>
           <p class="m-0 mb-4 text-sm text-muted">{$t("admin.invite.intro")}</p>
           {#if inviteNotice}<Alert severity={inviteNotice.severity} class="mb-4">{inviteNotice.text}</Alert>{/if}
@@ -257,7 +311,7 @@
             onDirty={(dirty) => sessionStore.setDirty(dirty)}
           />
         </Card>
-
+      {:else}
         <Card class="min-w-0">
           <h2 class="m-0 mb-1 text-lg font-semibold text-content">{$t("admin.domains.title")}</h2>
           <p class="m-0 mb-4 text-sm text-muted">{$t("admin.domains.intro")}</p>
@@ -270,23 +324,7 @@
             onRemove={handleRemoveDomain}
           />
         </Card>
-      </div>
-
-      <Card>
-        <h2 class="m-0 mb-1 text-lg font-semibold text-content">{$t("admin.accounts.title")}</h2>
-        <p class="m-0 mb-4 text-sm text-muted">{$t("admin.accounts.intro")}</p>
-        {#if accountsNotice}<Alert severity={accountsNotice.severity} class="mb-4">{accountsNotice.text}</Alert>{/if}
-        {#if loading}
-          <p class="m-0 text-sm text-muted">{$t("admin.loading")}</p>
-        {:else}
-          <AccountList
-            users={approved}
-            busyId={busyUserId}
-            onToggleFeature={handleToggleUserFeature}
-            onResendInvite={handleResendInvite}
-          />
-        {/if}
-      </Card>
+      {/if}
     </div>
   {/if}
 </PageShell>

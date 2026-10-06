@@ -61,6 +61,11 @@ export interface FakeApiState {
   storageMode: FakeStorageMode | null;
   /** Email of the last sign-in. */
   email: string;
+  /** Role the sign-in reports; set `'admin'` before signing in to open the admin pages. */
+  role: 'teacher' | 'admin';
+  /** Accounts and always-allowed domains the admin page lists (`/admin/*`). */
+  adminUsers: any[];
+  adminDomains: any[];
   /** Exercises that exist but belong to another account and are private: `GET /exercises/:id` answers 404, like `get_readable_exercise`. */
   hiddenExerciseIds: Set<string>;
   /** Every request seen, `"METHOD /path"`, in order. */
@@ -132,6 +137,22 @@ function withDefaults<T extends object>(base: T, over: Record<string, any>): T {
   return out as T;
 }
 
+/** Accounts the admin page lists: one pending registration, one active teacher, one open invitation (long addresses on purpose). */
+function seedAdminUsers(): any[] {
+  const all = { server_results: true, server_latex: true };
+  return [
+    { id: 'u-pending', email: 'very.long.firstname.lastname@grundschule-am-beispielweg.example', role: 'teacher', created_at: '2026-10-01T08:00:00Z', approved_at: null, registration_note: 'Mathematik und Physik, Klasse 9b — bitte freischalten.', features: all, password_set: true },
+    { id: 'u-active', email: 'teacher@e2e.example', role: 'teacher', created_at: '2026-09-01T08:00:00Z', approved_at: '2026-09-01T08:00:00Z', registration_note: null, features: all, password_set: true },
+    { id: 'u-invited', email: 'neue.kollegin.mit.langem.namen@gymnasium-beispielstadt.example', role: 'admin', created_at: '2026-09-20T08:00:00Z', approved_at: '2026-09-20T08:00:00Z', registration_note: null, features: { server_results: false, server_latex: true }, password_set: false },
+  ];
+}
+
+function seedAdminDomains(): any[] {
+  return [
+    { id: 'd-1', domain: 'gymnasium-beispielstadt.example', features: { server_results: true, server_latex: false }, created_at: '2026-09-01T08:00:00Z' },
+  ];
+}
+
 export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   const initialMode = (): FakeStorageMode | null => (opts.storageMode === undefined ? 'all-server' : opts.storageMode);
 
@@ -148,6 +169,9 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     envelopes: { keyId: null, rows: [] },
     storageMode: initialMode(),
     email: DEFAULT_EMAIL,
+    role: 'teacher',
+    adminUsers: seedAdminUsers(),
+    adminDomains: seedAdminDomains(),
     hiddenExerciseIds: new Set(),
     requests: [],
     unhandled: [],
@@ -166,6 +190,9 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     state.envelopes = { keyId: null, rows: [] };
     state.storageMode = initialMode();
     state.email = DEFAULT_EMAIL;
+    state.role = 'teacher';
+    state.adminUsers = seedAdminUsers();
+    state.adminDomains = seedAdminDomains();
     state.hiddenExerciseIds.clear();
     state.requests.length = 0;
     state.unhandled.length = 0;
@@ -178,7 +205,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   const authStep = () => ({
     id: FAKE_TEACHER_ID,
     email: state.email,
-    role: 'teacher',
+    role: state.role,
     status: 'ok',
     satisfied: ['password', 'totp'],
     available: ['password', 'totp'],
@@ -1017,6 +1044,58 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   }
 
   /* ------------------------------------------------------------------------ */
+  /* Admin (account management)                                                */
+  /* ------------------------------------------------------------------------ */
+
+  function admin(method: string, parts: string[], query: URLSearchParams, body: any): Handled {
+    const [, resource, id, action] = parts;
+    if (state.role !== 'admin') return fail(403, 'Admin role required.', 'ERR_FORBIDDEN');
+    if (resource === 'users') {
+      if (method === 'GET' && !id) {
+        const status = query.get('status') ?? 'all';
+        const items = state.adminUsers.filter((u) =>
+          status === 'pending' ? u.approved_at === null : status === 'active' ? u.approved_at !== null : true,
+        );
+        return ok({ items, total: items.length });
+      }
+      const user = state.adminUsers.find((u) => u.id === id);
+      if (!user) return fail(404, 'User not found.', 'ERR_NOT_FOUND');
+      if (method === 'POST' && action === 'approve') {
+        Object.assign(user, { approved_at: new Date().toISOString(), registration_note: null, features: body.features });
+        return ok(user);
+      }
+      if (method === 'POST' && action === 'reject') {
+        state.adminUsers = state.adminUsers.filter((u) => u.id !== id);
+        return noContent();
+      }
+      if (method === 'PATCH' && action === 'features') {
+        user.features = { ...user.features, ...body };
+        return ok(user);
+      }
+      if (method === 'POST' && action === 'reset-password') return ok({ message: 'sent', user_id: id, password_reset_sent: true });
+    }
+    if (resource === 'allowed-domains') {
+      if (method === 'GET') return ok(state.adminDomains);
+      if (method === 'POST') {
+        const row = { id: crypto.randomUUID(), domain: String(body.domain).toLowerCase(), features: body.features, created_at: new Date().toISOString() };
+        state.adminDomains.push(row);
+        return ok(row);
+      }
+      const row = state.adminDomains.find((d) => d.id === id);
+      if (!row) return fail(404, 'Domain not found.', 'ERR_NOT_FOUND');
+      if (method === 'PATCH') {
+        row.features = { ...row.features, ...body };
+        return ok(row);
+      }
+      if (method === 'DELETE') {
+        state.adminDomains = state.adminDomains.filter((d) => d.id !== id);
+        return noContent();
+      }
+    }
+    return undefined;
+  }
+
+  /* ------------------------------------------------------------------------ */
   /* Dispatch                                                                  */
   /* ------------------------------------------------------------------------ */
 
@@ -1052,6 +1131,9 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         break;
       case 'exercises':
         handled = exercises(verb, parts, url.searchParams, payload);
+        break;
+      case 'admin':
+        handled = admin(verb, parts, url.searchParams, payload);
         break;
     }
     if (handled) return handled;

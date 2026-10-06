@@ -22,6 +22,12 @@ export const admin: Translations['admin'] = {
     loading: 'Loading…',
     loadFailed: 'Could not load the accounts.',
     retry: 'Try again',
+    tabs: {
+        pending: 'Approvals',
+        accounts: 'Accounts',
+        invite: 'Invite',
+        domains: 'Domains',
+    },
     features: {
         heading: 'Features',
         server_results: 'Student data and results on the server',
@@ -58,6 +64,8 @@ export const admin: Translations['admin'] = {
         columnActions: 'Actions',
         statusActive: 'Active',
         statusInvited: 'Invited',
+        search: 'Search accounts',
+        noMatch: 'No account matches the search.',
         resendInvite: 'Resend invitation',
         resent: 'The invitation to {email} was sent again.',
         resendMailFailed: 'The link for {email} was created, but the email could not be sent.',

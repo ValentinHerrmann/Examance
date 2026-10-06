@@ -8,10 +8,12 @@
   interface Props {
     features: AccountFeatures;
     disabled?: boolean;
+    /** Leave out the "exercises are always on the server" footnote (lists repeat it per row otherwise). */
+    compact?: boolean;
     onChange: (key: AccountFeature, value: boolean) => void;
   }
 
-  let { features, disabled = false, onChange }: Props = $props();
+  let { features, disabled = false, compact = false, onChange }: Props = $props();
 
   const LABELS: Record<AccountFeature, TranslationKey> = {
     server_results: "admin.features.server_results",
@@ -23,5 +25,7 @@
   {#each ACCOUNT_FEATURES as key (key)}
     <Switch checked={features[key]} {disabled} label={$t(LABELS[key])} onChange={(value) => onChange(key, value)} />
   {/each}
-  <p class="m-0 text-xs text-muted">{$t("admin.features.exercisesAlways")}</p>
+  {#if !compact}
+    <p class="m-0 text-xs text-muted">{$t("admin.features.exercisesAlways")}</p>
+  {/if}
 </div>

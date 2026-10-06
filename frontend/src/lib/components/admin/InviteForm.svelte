@@ -67,7 +67,7 @@
   </fieldset>
 
   <div>
-    <Button type="submit" loading={busy}>
+    <Button type="submit" loading={busy} class="w-full sm:w-auto">
       {busy ? $t("admin.invite.sending") : $t("admin.invite.submit")}
     </Button>
   </div>

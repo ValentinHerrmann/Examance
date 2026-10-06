@@ -20,6 +20,12 @@ export const admin = {
     loading: 'Wird geladen…',
     loadFailed: 'Die Konten konnten nicht geladen werden.',
     retry: 'Erneut versuchen',
+    tabs: {
+        pending: 'Freigaben',
+        accounts: 'Konten',
+        invite: 'Einladen',
+        domains: 'Domains',
+    },
     features: {
         heading: 'Funktionen',
         server_results: 'Schülerdaten und Ergebnisse auf dem Server',
@@ -56,6 +62,8 @@ export const admin = {
         columnActions: 'Aktionen',
         statusActive: 'Aktiv',
         statusInvited: 'Eingeladen',
+        search: 'Konten durchsuchen',
+        noMatch: 'Kein Konto passt zur Suche.',
         resendInvite: 'Einladung erneut senden',
         resent: 'Die Einladung an {email} wurde erneut gesendet.',
         resendMailFailed: 'Der Link für {email} wurde erzeugt, aber die E-Mail konnte nicht gesendet werden.',

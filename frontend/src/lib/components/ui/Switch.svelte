@@ -40,15 +40,19 @@
     {disabled}
     {...rest}
     onclick={toggle}
-    class="relative h-6 w-10 shrink-0 cursor-pointer rounded-full border-0 p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-60 {checked
-      ? 'bg-primary'
-      : 'bg-line-strong'}"
+    class="group inline-flex h-6 w-10 shrink-0 cursor-pointer items-center border-0 bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-60 pointer-coarse:h-11"
   >
+    <!-- The pill is drawn inside the button: on coarse pointers the button grows to a 44px hit area
+         (app.css gives every button that minimum height), and the pill must not stretch with it. -->
     <span
-      class="absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow-xs transition-transform {checked
-        ? 'translate-x-4'
-        : ''}"
-    ></span>
+      class="relative block h-6 w-10 rounded-full transition-colors {checked ? 'bg-primary' : 'bg-line-strong'}"
+    >
+      <span
+        class="absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow-xs transition-transform {checked
+          ? 'translate-x-4'
+          : ''}"
+      ></span>
+    </span>
   </button>
   {#if label}<span class="text-base text-content">{label}</span>{/if}
 </span>

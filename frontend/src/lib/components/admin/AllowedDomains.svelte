@@ -46,6 +46,35 @@
   {#if domains.length === 0}
     <p class="m-0 text-sm text-muted">{$t("admin.domains.empty")}</p>
   {:else}
+    <!-- Phones and small tablets: one row per domain. -->
+    <ul class="m-0 flex list-none flex-col gap-3 p-0 md:hidden">
+      {#each domains as domain (domain.id)}
+        <li class="flex min-w-0 flex-col gap-3 rounded-md border border-line bg-surface-base p-4">
+          <div class="flex min-w-0 items-center justify-between gap-2">
+            <strong class="min-w-0 break-words text-content">@{domain.domain}</strong>
+            <Button
+              iconOnly
+              icon={faTrash}
+              variant="text"
+              severity="danger"
+              size="sm"
+              ariaLabel={$t("admin.domains.remove", { domain: domain.domain })}
+              disabled={busy}
+              onClick={() => onRemove(domain)}
+            />
+          </div>
+          <FeatureSwitches
+            features={domain.features}
+            disabled={busy}
+            compact
+            onChange={(key, value) => onToggleFeature(domain, key, value)}
+          />
+        </li>
+      {/each}
+    </ul>
+
+    <!-- From md: the table. -->
+    <div class="hidden min-w-0 md:block">
     <TableScroller label={$t("admin.domains.title")}>
       <table class="data-table data-table-compact w-full">
         <thead>
@@ -60,7 +89,7 @@
         <tbody>
           {#each domains as domain (domain.id)}
             <tr>
-              <td class="break-all text-content">@{domain.domain}</td>
+              <td class="break-words text-content">@{domain.domain}</td>
               {#each ACCOUNT_FEATURES as key (key)}
                 <td>
                   <Switch
@@ -88,6 +117,7 @@
         </tbody>
       </table>
     </TableScroller>
+    </div>
   {/if}
 
   <form class="flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); submit(); }}>
@@ -110,7 +140,7 @@
       />
     </fieldset>
     <div>
-      <Button type="submit" variant="outlined" loading={busy}>{$t("admin.domains.add")}</Button>
+      <Button type="submit" variant="outlined" loading={busy} class="w-full sm:w-auto">{$t("admin.domains.add")}</Button>
     </div>
   </form>
 </div>
