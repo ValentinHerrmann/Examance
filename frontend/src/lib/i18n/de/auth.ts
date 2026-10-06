@@ -11,6 +11,7 @@ export const auth = {
             couldNotReachServer: 'Der Server konnte nicht erreicht werden. Falls Sie einen lokalen Backend-Server verwenden, stellen Sie sicher, dass dieser läuft und CORS für diesen Ursprung aktiviert ist.',
             unlockFailed: 'Entsperren fehlgeschlagen. Prüfen Sie Ihr Passwort bzw. Ihre Zugangsdaten.',
         },
+        enrolledEnterNextCode: 'Authenticator-App eingerichtet. Geben Sie den nächsten Code aus der App ein, um die Anmeldung abzuschließen.',
         approvalPending: 'Ihr Konto wartet noch auf die Freigabe durch die Administration. Sie erhalten eine E-Mail, sobald es freigeschaltet ist.',
         cloud: {
             schoolAccount: 'Schulkonto',

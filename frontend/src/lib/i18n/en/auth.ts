@@ -13,6 +13,7 @@ export const auth: Translations['auth'] = {
             couldNotReachServer: 'Could not reach the server. If you are using a local backend, make sure it is running and has CORS enabled for this origin.',
             unlockFailed: 'Unlock failed. Check your password or credentials.',
         },
+        enrolledEnterNextCode: 'Authenticator set up. Enter the next code from the app to finish signing in.',
         approvalPending: 'Your account is waiting for an administrator to approve it. You will get an email as soon as it is approved.',
         cloud: {
             schoolAccount: 'School Account',
