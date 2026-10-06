@@ -1,9 +1,7 @@
 /**
- * What the signed-in account may use, as the server decides it (`GET /user/capabilities`,
- * `backend/app/services/capabilities.py`): its storage mode, the modes it may choose, and optional
- * server features. Every option the UI offers for these is rendered from this store. An admin sets
- * two switches per account (issue #53): `server_results` (whether `all-server` is among the allowed
- * modes; `hybrid` always is) and `server_latex`. Exams and exercises always live on the server.
+ * What the signed-in account may use, as the server decides it (`GET /user/capabilities`, `backend/app/services/capabilities.py`):
+ * storage mode, allowed modes and server features. The UI renders every such option from this store, never from hard-coded lists.
+ * Admin switches per account (issue #53): `server_results` (allows `all-server`; `hybrid` is always allowed) and `server_latex`.
  */
 
 import { derived, get, writable } from 'svelte/store';
@@ -84,10 +82,9 @@ function fromResponse(res: CapabilitiesResponse): Capabilities {
 }
 
 /**
- * Fetches the account's capabilities. Admins change them at any time, so this runs at every unlock and
- * again whenever the tab comes back into view (`lib/db/workspace.ts`).
- * @throws on network or auth failure (callers fall back to the cache), `AccountMismatchError` when the
- * server session belongs to another account.
+ * Fetches the account's capabilities; runs at every unlock and whenever the tab refocuses (`lib/db/workspace.ts`).
+ * @throws on network or auth failure (callers fall back to the cache), `AccountMismatchError` when the server
+ * session belongs to another account.
  */
 export async function loadCapabilities(): Promise<Capabilities> {
   const res = await api.get<CapabilitiesResponse>('/user/capabilities', { silentError: true });

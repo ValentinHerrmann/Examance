@@ -201,11 +201,9 @@ async function request<T>(
   }
 
   if (resp.status === 403 && resp.headers.get('code') === 'ERR_MFA_ENROLLMENT_REQUIRED') {
-    // The session is real but the account no longer satisfies the two-factor policy (e.g. an admin
-    // reset its factors): nothing to refresh, so lock and send the teacher to sign in, where
-    // enrollment happens. Must come *before* the 401 branch (refreshing would rotate a valid token
-    // for nothing). Skipped on /unlock: enrollment runs there and its scope is expected to be
-    // rejected elsewhere; locking mid-flow would wipe sessionStorage and broadcast SESSION_LOCKED.
+    // The account no longer satisfies the two-factor policy (e.g. an admin reset its factors): lock and send the
+    // teacher to /unlock to enroll. Must come before the 401 branch (a refresh would rotate a valid token for nothing).
+    // Skipped on /unlock itself, where enrollment runs: locking mid-flow would wipe sessionStorage and broadcast SESSION_LOCKED.
     const onUnlockPage =
       typeof window !== 'undefined' && window.location.pathname.startsWith('/unlock');
     if (!onUnlockPage) {

@@ -124,12 +124,9 @@ async function compileLocalWasm(
 }
 
 /**
- * Compile a LaTeX string to PDF bytes.
- *
- * @param useLocal Compile locally with WebAssembly.
- * @param opts.resources Files referenced by name, placed flat next to main.tex in both engines.
- * @param opts.resourceExerciseIds Exercises whose stored files the server loads itself; ignored locally.
- * @param opts.logo Exam header logo (lib/latex/logo.ts): resolved by the server, or its bytes locally.
+ * Compile a LaTeX string to PDF bytes, locally with WebAssembly when `useLocal`. `opts.resources` are placed flat next to
+ * main.tex in both engines; `opts.resourceExerciseIds` name exercises whose files the server loads itself (ignored locally);
+ * `opts.logo` is the exam header logo (lib/latex/logo.ts), resolved by the server or sent as bytes locally.
  */
 export async function compileLatex(
   latexSource: string,

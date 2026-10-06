@@ -1,9 +1,7 @@
 /**
- * IDB hygiene: clear-on-close (best-effort) + session timeout. SECURITY: a UX courtesy, NOT a guarantee;
- * the beforeunload/visibilitychange wipe doesn't reliably fire on crashes, process kills, mobile tab
- * discards or force-quits. If it fails the blobs stay safe: a new session can't derive the key without
- * the password and sensitive fields (piiCt, scanCt) are encrypted before every write. Encryption at
- * rest is the PRIMARY protection.
+ * IDB hygiene: best-effort clear-on-close plus session timeout. SECURITY: a courtesy, NOT a guarantee (the unload
+ * wipe does not reliably fire on crashes, kills, mobile tab discards). If it fails the data stays safe: a new session
+ * cannot derive the key without the password and sensitive fields are encrypted before every write (the PRIMARY protection).
  */
 
 import { clearAllTables } from './db';

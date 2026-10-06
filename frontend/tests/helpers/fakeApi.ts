@@ -1,19 +1,7 @@
 /**
- * A stateful in-memory fake of the Examance API (`/api/v1`), shared by the vitest archive tests
- * (`fakeServer.ts`, which mocks `lib/api/client`) and the Playwright suite (`e2e/helpers/backend.ts`,
- * which answers the browser's requests with it). Exams and exercises always live on the server since
- * local mode was discontinued (issue #47), and every sign-in needs the auth, key-envelope and
- * capabilities routes, so neither suite can run without a backend.
- *
- * Framework-free on purpose: no vitest, no Playwright, no app imports. `handle()` takes what the
- * client sends (method, path relative to `/api/v1` including the query string, parsed JSON body) and
- * returns what the server would answer. Responses are snake_case like the real API, so the
- * repositories' mappers run unchanged. Blobs the client seals (scans, scores, student identities,
- * key envelopes) are stored opaquely and echoed back. Shapes follow `backend/app/schemas/*.py`.
- *
- * A request that no route matches answers 404 and is recorded in `state.unhandled`; the e2e
- * `backend` fixture fails the test on any such entry, so a missing endpoint reads as a gap in this
- * fake and not as an app bug. A *domain* 404 (unknown exam, exercise, ...) is a normal answer.
+ * Stateful in-memory fake of the Examance API (`/api/v1`) for the vitest archive tests and the Playwright suite (frontend/CLAUDE.md, E2E).
+ * Framework-free (no vitest, Playwright or app imports); snake_case responses like the real API (`backend/app/schemas/*.py`), sealed blobs echoed.
+ * An unrouted request answers 404 and lands in `state.unhandled`, which fails the e2e test: extend this fake, not the app.
  */
 
 export type FakeStorageMode = 'all-server' | 'hybrid';

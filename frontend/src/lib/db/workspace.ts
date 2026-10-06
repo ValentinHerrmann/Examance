@@ -1,14 +1,7 @@
 /**
- * The workspace manifest: one row in IndexedDB stating whose key sealed the data beside it and the
- * last storage mode the account had in this browser. Invariants (docs/dev/storage_modes.md):
- * - The account's storage mode lives on the server and every browser follows it. There is no default
- *   and nothing sets it implicitly; until the account chooses, the app shows the choice
- *   (`needs-choice`). The manifest's copy only serves offline loads.
- * - A session opens the workspace only if it owns it: the canary must decrypt under its key, and the
- *   workspace must belong to the signed-in account on the same backend.
- * - Resetting the workspace is one transaction: every data table is cleared and the new manifest
- *   written together.
- * - A workspace from the discontinued local mode is never opened; it can only be deleted.
+ * The workspace manifest: one IndexedDB row saying whose key sealed the data and the last storage mode (an offline copy only).
+ * A session opens the workspace only if it owns it; a workspace from the discontinued local mode is never opened, only deleted.
+ * Invariants and detail: docs/dev/storage_modes.md ("Workspace manifest and owner binding").
  */
 
 import { get } from 'svelte/store';
@@ -110,10 +103,9 @@ export async function loadWorkspace(): Promise<WorkspaceManifestRecord> {
 }
 
 /**
- * Replaces the whole workspace with an empty one (one transaction: data tables and manifest change
- * together, so a failure leaves everything as it was). Clears the offline queue, whose writes belong
- * to a workspace that no longer exists, and claims the new workspace for the current session.
- * @throws when IndexedDB refuses; nothing has changed then.
+ * Replaces the whole workspace with an empty one in one transaction (tables plus manifest, so a failure changes nothing),
+ * clears the offline queue (its writes belong to the old workspace) and claims the new one for the current session.
+ * @throws when IndexedDB refuses.
  */
 export async function replaceWorkspace(mode: StorageMode | null): Promise<WorkspaceManifestRecord> {
   if (!db.isOpen()) await db.open();
@@ -284,10 +276,9 @@ function lockForeignSession(): WorkspaceStatus {
 }
 
 /**
- * Asks the server again what the account may use and applies it. Admins change an account's switches
- * at any time; this runs whenever the tab comes back into view, so a change shows without signing in
- * again. Only a changed answer re-runs `openWorkspace()` (which asks for a new mode if the current one
- * is no longer allowed). Offline, nothing changes.
+ * Re-asks the server what the account may use (admins change its switches at any time); runs whenever the tab refocuses.
+ * Only a changed answer re-runs `openWorkspace()`, which asks for a new mode if the current one is no longer allowed.
+ * Offline, nothing changes.
  */
 export async function refreshCapabilities(): Promise<void> {
   const state = get(workspaceStatusStore).state;
