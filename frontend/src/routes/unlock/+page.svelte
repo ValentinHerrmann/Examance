@@ -301,7 +301,7 @@
       }
     }
     const keys = await materializeSession(vault, normalizedEmail);
-    sessionStore.unlock({
+    await sessionStore.unlock({
       ...keys,
       email: step.email,
       teacherId: step.id,
@@ -562,7 +562,7 @@
     const newCode = await rewrapForNewPassword(teacherId, vault, password);
     const keys = await materializeSession(vault, normalizedEmail);
 
-    sessionStore.unlock({
+    await sessionStore.unlock({
       ...keys,
       email: userEmail,
       teacherId,
@@ -596,7 +596,7 @@
 
     const normalizedEmail = userEmail.trim().toLowerCase();
     const keys = await materializeSession(vault, normalizedEmail);
-    sessionStore.unlock({
+    await sessionStore.unlock({
       ...keys,
       email: userEmail,
       teacherId,
@@ -618,7 +618,7 @@
 
     const vault = await startFreshVault(teacherId, password);
     const keys = await materializeSession(vault, normalizedEmail);
-    sessionStore.unlock({
+    await sessionStore.unlock({
       ...keys,
       email: userEmail,
       teacherId,
