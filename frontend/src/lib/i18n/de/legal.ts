@@ -68,7 +68,8 @@ export const legal = {
         section4: {
             heading: '4. Kategorien personenbezogener Daten',
             li1: 'Bei Schülerinnen und Schülern: Name, Kennnummer, abgegebene Prüfungsarbeit (Scan), Korrekturanmerkungen, erreichte Punktzahl.',
-            li2: 'Bei Lehrkräften: E-Mail-Adresse, Rolle, Zeitpunkte von Anmeldungen und Exporten, gekürzter Hashwert der IP-Adresse.',
+            li2: 'Bei Lehrkräften: E-Mail-Adresse, Rolle, Zeitpunkt der Freigabe des Kontos, die von der Administration freigeschalteten Funktionen, Zeitpunkte von Anmeldungen und Exporten, gekürzter Hashwert der IP-Adresse.',
+            li3: 'Bei Personen, die ein Konto beantragen: E-Mail-Adresse und ein Hashwert des Bestätigungslinks, bis die Adresse bestätigt ist; danach der Hashwert des gewählten Passworts und eine freiwillige Nachricht an die Administration, bis über die Freigabe entschieden ist.',
         },
         section5: {
             heading: '5. Verschlüsselung und Speicherort',
@@ -84,6 +85,9 @@ export const legal = {
             hostingWebPlaceholder: '[Cloudflare Pages, Cloudflare Inc., USA — Angemessenheitsbeschluss / Standardvertragsklauseln prüfen]',
             hostingDbLabel: 'Hosting von Datenbank und Cache:',
             hostingDbPlaceholder: '[Anbieter, Standort]',
+            mailLabel: 'E-Mail-Versand:',
+            mailText: 'Bestätigungslinks, Einladungen, Links zum Zurücksetzen des Passworts sowie Benachrichtigungen über Freigabe oder Ablehnung werden per E-Mail versandt über',
+            mailPlaceholder: '[E-Mail-Versanddienst, Anbieter, Standort]',
             httpCatLabel: 'Fehlerbilder:',
             httpCatText: 'Zeigt die Anwendung eine HTTP-Fehlermeldung an, lädt der Browser ein illustrierendes Bild vom Dienst http.cat (Betreiber in den USA). Dabei werden ausschließlich Ihre IP-Adresse, die Browserkennung (User-Agent) und der HTTP-Statuscode des Fehlers übermittelt; es werden weder Referrer noch Cookies oder Inhalte der Anwendung gesendet. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO.',
         },
@@ -94,6 +98,11 @@ export const legal = {
             textMiddle: 'Tagen unwiderruflich gelöscht. Protokolldaten werden nach',
             auditPlaceholder: '[AUDIT_LOG_RETENTION_DAYS]',
             textEnd: 'Tagen gelöscht. Gesetzliche Aufbewahrungsfristen für Leistungsnachweise bleiben unberührt.',
+            registrationBefore: 'Nicht bestätigte Kontoanträge werden nach',
+            registrationTtlPlaceholder: '[REGISTRATION_TOKEN_TTL_HOURS]',
+            registrationMiddle: 'Stunden gelöscht, nicht freigegebene Konten nach',
+            pendingPlaceholder: '[PENDING_ACCOUNT_RETENTION_DAYS]',
+            registrationEnd: 'Tagen. Ein abgelehnter Antrag wird sofort gelöscht; die Nachricht an die Administration wird mit der Freigabe gelöscht.',
         },
         section8: {
             heading: '8. Ihre Rechte',
@@ -112,6 +121,13 @@ export const legal = {
             retentionPlaceholder: '[TRAINING_SAMPLE_RETENTION_DAYS]',
             para3After: 'Tagen gelöscht. Die Einwilligung kann jederzeit in den Einstellungen widerrufen werden; bereits übermittelte Ausschnitte können mangels Personenbezug nicht mehr einzelnen Personen zugeordnet und daher nicht gezielt gelöscht werden.',
             legalBasisPlaceholder: '[Rechtsgrundlage der Anonymisierung und Übermittlung durch die Schule / Lehrkraft — rechtlich prüfen]',
+        },
+        section11: {
+            heading: '11. Registrierung eines Kontos',
+            para1: 'Lehrkräfte können über „Konto beantragen“ selbst ein Konto beantragen. Dazu wird die angegebene E-Mail-Adresse gespeichert und ein Bestätigungslink an sie gesendet; vom Link wird nur ein Hashwert gespeichert. Ein Konto entsteht erst, wenn über diesen Link ein Passwort festgelegt wird. Die Anwendung gibt in keinem Schritt preis, ob für eine Adresse bereits ein Konto besteht; für bereits registrierte Adressen wird keine E-Mail versandt.',
+            para2: 'Ein so angelegtes Konto kann erst genutzt werden, nachdem die Administration dieser Installation es freigegeben hat; stammt die Adresse von einer Domain, die die Administration als „immer erlaubt“ eingetragen hat, erfolgt die Freigabe automatisch. Die Administration sieht bis zur Entscheidung die E-Mail-Adresse und die freiwillige Nachricht. Lehnt sie den Antrag ab, wird das Konto gelöscht und die Person per E-Mail benachrichtigt.',
+            para3: 'Personen, deren Konto noch nicht freigegeben ist, können die Auskunfts- und Löschfunktionen der Anwendung noch nicht nutzen; sie wenden sich für ihre Rechte nach Abschnitt 8 an die verantwortliche Stelle.',
+            legalBasisPlaceholder: '[Rechtsgrundlage der Verarbeitung von Kontoanträgen — rechtlich prüfen]',
         },
     },
 } as const;

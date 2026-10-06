@@ -202,14 +202,14 @@ This contradicts `data_flow_and_security.md` Core Invariant 1 ("zero unencrypted
 
 Two things a reader should not over-read. The upgrade rewrites rows on this device when the browser next opens the database — a device that never opens it again keeps its old rows. And server-side `student_identities` rows were never affected: they only ever held ciphertext.
 
-### L18 — Self-registration adds processing the privacy notice does not describe yet · Art. 13, 5(1)(c)+(e), 25, 30, 35 · [C+P] · **Open (code done, documents and notice pending)**
+### L18 — Self-registration adds processing the privacy notice does not describe yet · Art. 13, 5(1)(c)+(e), 25, 30, 35 · [C+P] · **Open (code and draft notice done, legal review pending)**
 
 Issue #53 lets anyone register for an account (always available). That adds data categories and a data-subject group the earlier findings did not cover: a registrant's e-mail address before verification (possibly of a third party who never asked for anything), a hashed verification token, an optional free-text note for the approving admin, the approval timestamp and per-account feature switches. See §3.
 
 *What the code does about it.* The design follows data protection by default (Art. 25): nothing is created before the mailed link is used, so `teachers` holds verified addresses only; registration answers identically for known and unknown addresses, with the mail sent after the response, so it is no account-existence oracle; a pending account holds no token of any kind and can create no data; the note is never put into a mail, is erased on approval and is not stored at all for an allowlisted domain; the admin notice mail carries a count, not registrant data; expired requests and accounts nobody approves are erased by the retention job (`PENDING_ACCOUNT_RETENTION_DAYS`, default 90); every step is in the audit trail. The risks are assessed as R11–R14 in `dpia_art35.md`.
 
 *What is still open.*
-- **The in-app privacy notice (Datenschutzerklärung) must be updated.** The German text in `frontend/src/lib/i18n/de/legal.ts` is the legally binding version and is not changed by the engineering work: a human has to add the registration processing (categories, purposes, retention, recipients including the mail provider, and the registrant's rights) and have it reviewed. Registration has no switch, so until then every deployment of this version collects data its notice does not describe, which is an Art. 13 gap on day one.
+- **The in-app privacy notice (Datenschutzerklärung) has a draft that needs legal review.** The German text in `frontend/src/lib/i18n/de/legal.ts` (mirrored unchanged in `en/legal.ts`) now describes the registration processing: categories (§4), the mail provider as recipient (§6), retention of requests and pending accounts (§7) and a new §11 on registration, approval and the registrant's rights. Still open: review of the wording, and the placeholders for the mail provider, the retention values and the legal basis. Registration has no switch, so every deployment of this version relies on that draft.
 - **Legal basis for the registrant's data.** Before approval there is no teacher yet, so the school-law basis in L11 may not carry the processing. The DPO has to decide and the notice has to state it; this document does not fix one.
 - **Registrants cannot use the in-app Art. 15/17 routes** from L8: a pending account has no session. The operator must answer such requests by hand (R14).
 - **Complete `records_of_processing_art30.md` and the DPIA** for the new categories and for the mail provider behind `SMTP_HOST`, which registration now makes mandatory.
@@ -243,7 +243,7 @@ Ordered by what blocks a school deployment.
 6. **Decide the private-device question** (L12) if teachers use personal machines.
 7. **Set a real `SECRET_KEY`** and confirm the app refuses to start without one — it now does.
 8. **Consider enforcing SRI** (§5) by vendoring and hashing the WASM binaries.
-9. **Before deploying self-registration (issue #53), which has no switch:** update the German privacy policy (`frontend/src/lib/i18n/de/legal.ts`, by a human), settle the legal basis for registrants, and extend the Art. 30 record and the DPIA (L18).
+9. **Before deploying self-registration (issue #53), which has no switch:** have the drafted registration passages of the German privacy policy (`frontend/src/lib/i18n/de/legal.ts`) legally reviewed and fill their placeholders, settle the legal basis for registrants, and extend the Art. 30 record and the DPIA (L18).
 
 ---
 
