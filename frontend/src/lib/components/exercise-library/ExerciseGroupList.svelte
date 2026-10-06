@@ -3,6 +3,7 @@
   import type { LazyEntry } from "#lib/utils/lazyMap";
   import { usageKey, type ExamUsageEntry } from "#lib/exercise-library/examUsage";
   import { getGroupRepresentative, type ExerciseGroup } from "#lib/exercise-library/groupExercises";
+  import type { SyncStatus } from "#lib/api/exerciseSharing";
   import { t } from "#lib/i18n";
   import {
     faPenToSquare,
@@ -12,44 +13,79 @@
     faTrash,
     faClone,
     faEye,
-    faEllipsisVertical
+    faEllipsisVertical,
+    faShareNodes,
+    faRotate,
+    faLinkSlash,
+    faCopy
   } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, ExpandableCard, Menu, MenuItem } from "#lib/components/ui";
 
+  const noop = () => {};
+
   interface Props {
+    /** `shared`: other accounts' exercises (issue #65), preview and copy only. */
+    mode?: "own" | "shared";
     isLoading?: boolean;
     filteredGroups?: ExerciseGroup[];
     expandedGroups?: { [groupId: string]: boolean };
     onToggleGroup: (groupId: string) => void;
-    onEditGroup: (group: ExerciseGroup) => void;
-    onEditExercise: (ex: ExerciseRecord) => void;
-    onNewVersion: (ex: ExerciseRecord) => void;
-    onDiff: (ex: ExerciseRecord) => void;
-    onRegroup: (ex: ExerciseRecord) => void;
-    onDelete: (ex: ExerciseRecord) => void;
+    onEditGroup?: (group: ExerciseGroup) => void;
+    onEditExercise?: (ex: ExerciseRecord) => void;
+    onNewVersion?: (ex: ExerciseRecord) => void;
+    onDiff?: (ex: ExerciseRecord) => void;
+    onRegroup?: (ex: ExerciseRecord) => void;
+    onDelete?: (ex: ExerciseRecord) => void;
     onPreview: (ex: ExerciseRecord) => void;
     /** Keyed `${groupId}|${variantKey}`; absent = not requested yet. */
     usageMap?: Map<string, LazyEntry<ExamUsageEntry[]>>;
-    onOpenVariant: (ex: ExerciseRecord) => void;
-    onCreateFirst: () => void;
+    onOpenVariant?: (ex: ExerciseRecord) => void;
+    onCreateFirst?: () => void;
+    /** The account may share and copy (capability `exercise_sharing`). */
+    sharingEnabled?: boolean;
+    /** Own copied groups by group id: their state against the shared source. */
+    syncStatus?: Map<string, SyncStatus>;
+    /** Shared mode: the sharer's e-mail by group id. */
+    sharedBy?: Map<string, string>;
+    onShare?: (group: ExerciseGroup) => void;
+    onResync?: (group: ExerciseGroup) => void;
+    onUnlink?: (group: ExerciseGroup) => void;
+    onCopy?: (group: ExerciseGroup) => void;
+    /** Group id of a copy in progress. */
+    copyingGroupId?: string;
   }
 
   let {
+    mode = "own",
     isLoading = false,
     filteredGroups = [],
     expandedGroups = {},
     onToggleGroup,
-    onEditGroup,
-    onEditExercise,
-    onNewVersion,
-    onDiff,
-    onRegroup,
-    onDelete,
+    onEditGroup = noop,
+    onEditExercise = noop,
+    onNewVersion = noop,
+    onDiff = noop,
+    onRegroup = noop,
+    onDelete = noop,
     onPreview,
     usageMap = new Map(),
-    onOpenVariant,
-    onCreateFirst
+    onOpenVariant = noop,
+    onCreateFirst = noop,
+    sharingEnabled = false,
+    syncStatus = new Map(),
+    sharedBy = new Map(),
+    onShare = noop,
+    onResync = noop,
+    onUnlink = noop,
+    onCopy = noop,
+    copyingGroupId = ""
   }: Props = $props();
+
+  let isShared = $derived(mode === "shared");
+
+  function groupIsShared(group: ExerciseGroup): boolean {
+    return group.allMembers.some((m) => m.ex.isShared);
+  }
 
   const variantPillBase =
     "rounded-xl border border-line bg-surface-sunken px-2.5 py-1 text-xs text-muted";
@@ -64,8 +100,12 @@
   <div class="p-12 text-center text-muted">{$t("exercises.groupList.loading")}</div>
 {:else if filteredGroups.length === 0}
   <div class="flex flex-col items-center gap-4 p-12 text-center text-muted">
-    <p class="m-0">{$t("exercises.groupList.empty")}</p>
-    <Button onClick={onCreateFirst}>{$t("exercises.groupList.createFirst")}</Button>
+    {#if isShared}
+      <p class="m-0">{$t("exercises.sharing.empty")}</p>
+    {:else}
+      <p class="m-0">{$t("exercises.groupList.empty")}</p>
+      <Button onClick={onCreateFirst}>{$t("exercises.groupList.createFirst")}</Button>
+    {/if}
   </div>
 {:else}
   <div class="flex flex-col gap-4">
@@ -73,6 +113,7 @@
       {@const rep = getGroupRepresentative(group)}
       {@const variantCount = group.variants.size}
       {@const isExpanded = !!expandedGroups[group.groupId]}
+      {@const sync = syncStatus.get(group.groupId)}
       <ExpandableCard
         title={group.name || $t("exercises.untitled")}
         expanded={isExpanded}
@@ -94,19 +135,35 @@
               : $t("exercises.groupList.pointsSingle", { max: group.maxPoints })}
           </Badge>
           <Badge>{variantCount !== 1 ? $t("exercises.groupList.variantCountPlural", { count: variantCount }) : $t("exercises.groupList.variantCountSingular", { count: variantCount })}</Badge>
+          {#if isShared}
+            <Badge severity="contrast">{$t("exercises.sharing.sharedBy", { email: sharedBy.get(group.groupId) ?? "" })}</Badge>
+          {:else}
+            {#if groupIsShared(group)}
+              <Badge severity="info" icon={faShareNodes} title={$t("exercises.sharing.sharedBadgeTitle")}>{$t("exercises.sharing.sharedBadge")}</Badge>
+            {/if}
+            {#if sync?.state === "update_available"}
+              <Badge severity="warning" icon={faRotate}>{$t("exercises.sharing.updateBadge")}</Badge>
+            {:else if sync?.state === "source_unavailable"}
+              <Badge>{$t("exercises.sharing.unavailableBadge")}</Badge>
+            {:else if sync}
+              <Badge title={$t("exercises.sharing.linkedTitle")}>{$t("exercises.sharing.linkedBadge")}</Badge>
+            {/if}
+          {/if}
         {/snippet}
 
         {#snippet actions()}
-          <Button
-            variant="text"
-            severity="secondary"
-            size="sm"
-            iconOnly
-            icon={faPenToSquare}
-            title={$t("exercises.groupList.editGroupTitle")}
-            ariaLabel={$t("exercises.groupList.editGroupAriaLabel")}
-            onClick={() => onEditGroup(group)}
-          />
+          {#if !isShared}
+            <Button
+              variant="text"
+              severity="secondary"
+              size="sm"
+              iconOnly
+              icon={faPenToSquare}
+              title={$t("exercises.groupList.editGroupTitle")}
+              ariaLabel={$t("exercises.groupList.editGroupAriaLabel")}
+              onClick={() => onEditGroup(group)}
+            />
+          {/if}
         {/snippet}
 
         {#snippet preview()}
@@ -127,6 +184,7 @@
                 <span class={vKey !== '_General' ? variantLabelHasVariant : variantLabelBase}>
                   {vKey}
                 </span>
+                {#if !isShared}
                 <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
                   <span class="font-semibold">{$t("exercises.groupList.usedInExams")}:</span>
                   {#if used === undefined || used.status === "loading"}
@@ -144,6 +202,7 @@
                     {/each}
                   {/if}
                 </div>
+                {/if}
               </div>
 
               {#each vMembers as member}
@@ -162,6 +221,7 @@
                       icon={faEye}
                       onClick={() => onPreview(member.ex)}
                     >{$t("common.preview")}</Button>
+                    {#if !isShared}
                     <Button
                       variant="outlined"
                       severity="secondary"
@@ -181,6 +241,7 @@
                       <MenuItem icon={faRightLeft} onSelect={() => onRegroup(member.ex)}>{$t("exercises.groupList.regroupTitle")}</MenuItem>
                       <MenuItem icon={faTrash} danger onSelect={() => onDelete(member.ex)}>{$t("exercises.groupList.deleteTitle")}</MenuItem>
                     </Menu>
+                    {/if}
                   </div>
                 </div>
               {/each}
@@ -189,6 +250,15 @@
         {/snippet}
 
         {#snippet footer()}
+          {#if isShared}
+            <Button
+              size="sm"
+              icon={faCopy}
+              loading={copyingGroupId === group.groupId}
+              disabled={!!copyingGroupId && copyingGroupId !== group.groupId}
+              onClick={() => onCopy(group)}
+            >{$t("exercises.sharing.copy")}</Button>
+          {:else}
           <Button
             variant="outlined"
             severity="secondary"
@@ -213,6 +283,29 @@
             title={$t("exercises.groupList.newVersionOfFirstTitle")}
             onClick={() => onNewVersion(rep)}
           >{$t("exercises.groupList.newVersionText")}</Button>
+          {#if sharingEnabled || groupIsShared(group)}
+            <Button
+              variant="outlined"
+              severity="secondary"
+              size="sm"
+              icon={faShareNodes}
+              onClick={() => onShare(group)}
+            >{groupIsShared(group) ? $t("exercises.sharing.stopSharing") : $t("exercises.sharing.share")}</Button>
+          {/if}
+          {#if sync && sharingEnabled && sync.state !== "source_unavailable"}
+            <Button
+              variant={sync.state === "update_available" ? "solid" : "outlined"}
+              severity={sync.state === "update_available" ? "primary" : "secondary"}
+              size="sm"
+              icon={faRotate}
+              onClick={() => onResync(group)}
+            >{$t("exercises.sharing.resync")}</Button>
+          {/if}
+          {#if sync}
+            <Button variant="text" severity="secondary" size="sm" icon={faLinkSlash} onClick={() => onUnlink(group)}
+            >{$t("exercises.sharing.unlink")}</Button>
+          {/if}
+          {/if}
         {/snippet}
       </ExpandableCard>
     {/each}

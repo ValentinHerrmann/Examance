@@ -36,7 +36,7 @@ async def compile_latex_endpoint(
     or local-only exercises). LaTeX source is NEVER logged; 422 detail is TeX diagnostics only."""
     try:
         binary_files = await load_resources_for_exercises(
-            body.resource_exercise_ids, teacher.id, db
+            body.resource_exercise_ids, teacher, db
         )
         # Inline files win: they are the caller's current, unsaved version of a
         # file whose stored copy may be stale.

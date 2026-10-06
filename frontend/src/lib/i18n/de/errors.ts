@@ -29,6 +29,8 @@ export const errors = {
         ERR_STEP_EXPIRED: 'Dieser Anmeldeschritt ist abgelaufen. Bitte melden Sie sich erneut an.',
         ERR_INVALID_REGISTRATION_TOKEN: 'Dieser Bestätigungslink ist ungültig oder abgelaufen. Bitte registrieren Sie sich erneut.',
         ERR_FEATURE_NOT_ALLOWED: 'Diese Funktion ist für Ihr Konto nicht freigeschaltet.',
+        ERR_SHARE_SOURCE_CHANGED: 'Die Quelle hat sich inzwischen geändert. Bitte prüfen Sie die Änderungen erneut.',
+        ERR_SHARE_SOURCE_UNAVAILABLE: 'Die Quelle dieser Aufgabe wird nicht mehr geteilt.',
         ERR_ACCOUNT_PENDING: 'Für diese Adresse wartet eine Registrierung auf Freigabe. Geben Sie sie frei oder lehnen Sie sie ab.',
         ERR_ACCOUNT_EXISTS: 'Ein Konto mit dieser E-Mail-Adresse existiert bereits.',
         ERR_ALREADY_APPROVED: 'Dieses Konto ist bereits freigegeben.',

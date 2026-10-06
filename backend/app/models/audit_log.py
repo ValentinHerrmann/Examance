@@ -57,6 +57,10 @@ class AuditLog(Base):
             "PASSWORD_CHANGED",
             # A self-deletion link was mailed (migration 0029).
             "DELETION_REQUESTED",
+            # Exercise sharing (issue #65, migration 0030).
+            "EXERCISE_SHARING_CHANGED",
+            "EXERCISE_COPIED",
+            "EXERCISE_RESYNCED",
             name="audit_action",
         ),
         nullable=False,

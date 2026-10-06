@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { type ExerciseGroup, groupExercises } from "#lib/exercise-library/groupExercises";
+  import { type ExerciseGroup, getGroupRepresentative, groupExercises } from "#lib/exercise-library/groupExercises";
   import { onMount, untrack } from "svelte";
   import { db } from "#lib/db/db";
   import { sessionStore, awaitSessionReady } from "#lib/stores/session";
-  import { effectiveLatexStore } from "#lib/stores/capabilities";
+  import { effectiveLatexStore, featuresStore } from "#lib/stores/capabilities";
   import type { ExerciseRecord } from "#lib/db/schema";
   import { loadExercisesEncrypted, saveExerciseEncrypted, encryptExercise } from "#lib/db/dbEncryption";
   import { api } from "#lib/api/client";
@@ -17,7 +17,7 @@
   import { highlightLatexToHtml } from "#lib/latex/highlighter";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import ListFilterPanel from "#lib/components/common/ListFilterPanel.svelte";
-  import { Alert, Button, FilterLayout, PageHeader, PageShell } from "#lib/components/ui";
+  import { Alert, Button, ConfirmDialog, FilterLayout, PageHeader, PageShell, Tabs } from "#lib/components/ui";
   import PreviewHost from "#lib/components/common/PreviewHost.svelte";
   import { createPreviewFlow } from "#lib/stores/previewFlow";
   import { loadExamUsage, usageKey, type ExamUsageEntry } from "#lib/exercise-library/examUsage";
@@ -25,15 +25,50 @@
   import { createLazyMap } from "#lib/utils/lazyMap";
   import { exerciseRepository, mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
   import { compileExercisePreview } from "#lib/latex/exercisePreview";
-  import { faPlus } from "@fortawesome/free-solid-svg-icons";
+  import { faBook, faPlus, faShareNodes } from "@fortawesome/free-solid-svg-icons";
   import ExerciseGroupList from "#lib/components/exercise-library/ExerciseGroupList.svelte";
   import GroupEditModal from "#lib/components/exercise-library/GroupEditModal.svelte";
   import RegroupModal from "#lib/components/exercise-library/RegroupModal.svelte";
   import DeleteWithUsageModal from "#lib/components/common/DeleteWithUsageModal.svelte";
   import VariantModal from "#lib/components/exercise-library/VariantModal.svelte";
   import ExerciseDiffModal from "#lib/components/exercise-library/ExerciseDiffModal.svelte";
+  import ShareExerciseModal from "#lib/components/exercise-library/ShareExerciseModal.svelte";
+  import ResyncModal from "#lib/components/exercise-library/ResyncModal.svelte";
+  import {
+    applyResync,
+    copySharedExercise,
+    listSharedExercises,
+    loadResyncPreview,
+    loadSyncStatus,
+    setExerciseSharing,
+    unlinkSource,
+    type ResyncPreview,
+    type SharedExercise,
+    type SyncStatus,
+  } from "#lib/api/exerciseSharing";
 
   let exercises: ExerciseRecord[] = $state.raw([]);
+
+  // Sharing (issue #65): other accounts' exercises are listed separately and only ever copied.
+  let view = $state<"own" | "shared">("own");
+  let sharingEnabled = $derived($featuresStore.exercise_sharing === true);
+  let sharedRows: SharedExercise[] = $state.raw([]);
+  let sharedLoading = $state(false);
+  let sharedError = $state("");
+  let syncStatus: Map<string, SyncStatus> = $state.raw(new Map());
+  let sharingNotice = $state("");
+  let sharingError = $state("");
+  let copyingGroupId = $state("");
+  let shareGroup: ExerciseGroup | null = $state.raw(null);
+  let isSharing = $state(false);
+  let shareError = $state("");
+  let isResyncOpen = $state(false);
+  let resyncGroupId = $state("");
+  let resyncPreview: ResyncPreview | null = $state.raw(null);
+  let isResyncing = $state(false);
+  let resyncError = $state("");
+  let unlinkGroup: ExerciseGroup | null = $state.raw(null);
+  let isUnlinking = $state(false);
   let selectedTopic: string = $state("ALL");
   let selectedGrade: string = $state("ALL");
   let selectedSubject: string = $state("ALL");
@@ -130,10 +165,15 @@
   let isDiffLeftDirty = $derived(diffLeftEx ? diffLeftLatex !== (diffLeftEx.latexBody || "") : false);
   let isDiffRightDirty = $derived(diffRightEx ? diffRightLatex !== (diffRightEx.latexBody || "") : false);
 
-  let availableGrades = $derived(uniqueSorted(exercises, (e) => e.grade));
-  let availableSubjects = $derived(uniqueSorted(exercises, (e) => e.subject));
+  let sharedExercises = $derived(sharedRows.map((r) => r.exercise));
+  let sharedBy = $derived(new Map(sharedRows.map((r) => [r.exercise.exerciseGroupId ?? "", r.sharedByEmail])));
+  /** The list the filters apply to: the own library or what others share. */
+  let viewExercises = $derived(view === "shared" ? sharedExercises : exercises);
 
-  let filteredExercises = $derived(exercises.filter(
+  let availableGrades = $derived(uniqueSorted(viewExercises, (e) => e.grade));
+  let availableSubjects = $derived(uniqueSorted(viewExercises, (e) => e.subject));
+
+  let filteredExercises = $derived(viewExercises.filter(
     (ex) =>
       (selectedTopic === "ALL" || ex.topicTag === selectedTopic) &&
       (selectedGrade === "ALL" || ex.grade === selectedGrade) &&
@@ -143,11 +183,12 @@
 
   // Grouped view: filter then group
   let allGroups = $derived(groupExercises(exercises));
+  let viewGroups = $derived(view === "shared" ? groupExercises(sharedExercises) : allGroups);
   // Topic pills count groups, not exercise rows.
-  let topicPillOptions = $derived(uniqueSorted(exercises, (e) => e.topicTag).map((topic) => ({
+  let topicPillOptions = $derived(uniqueSorted(viewExercises, (e) => e.topicTag).map((topic) => ({
     value: topic,
     label: topic,
-    count: allGroups.filter((g) => g.topicTag === topic).length,
+    count: viewGroups.filter((g) => g.topicTag === topic).length,
   })));
   let filteredGroups = $derived(groupExercises(filteredExercises));
 
@@ -201,7 +242,131 @@
       errorMsg = err.message || translate("exercises.page.loadFailed");
     }
     usage.reset();
-    expandedGroups.prune(groupExercises(exercises).map((g) => g.groupId));
+    expandedGroups.prune([...groupExercises(exercises), ...groupExercises(sharedExercises)].map((g) => g.groupId));
+    await refreshSyncStatus();
+  }
+
+  /** Which own copies have changes at their shared source. Online only; a failure keeps the last answer. */
+  async function refreshSyncStatus() {
+    if (!sharingEnabled || !isServerBacked() || isLocalFallback) return;
+    try {
+      syncStatus = new Map((await loadSyncStatus()).map((s) => [s.groupId, s]));
+    } catch {
+      sharingError = translate("exercises.sharing.statusFailed");
+    }
+  }
+
+  async function loadShared() {
+    sharedLoading = true;
+    sharedError = "";
+    try {
+      sharedRows = await listSharedExercises();
+    } catch (err: any) {
+      sharedError = err?.message || translate("exercises.sharing.loadFailed");
+    } finally {
+      sharedLoading = false;
+    }
+  }
+
+  function switchView(next: string) {
+    view = next === "shared" ? "shared" : "own";
+    if (view === "shared") loadShared();
+  }
+
+  function groupIsShared(group: ExerciseGroup): boolean {
+    return group.allMembers.some((m) => m.ex.isShared);
+  }
+
+  function openShareModal(group: ExerciseGroup) {
+    shareError = "";
+    shareGroup = group;
+  }
+
+  async function handleShareConfirm() {
+    if (!shareGroup) return;
+    const group = shareGroup;
+    isSharing = true;
+    shareError = "";
+    try {
+      await setExerciseSharing(getGroupRepresentative(group).id, !groupIsShared(group));
+      shareGroup = null;
+      await loadExercises();
+    } catch (err: any) {
+      shareError = err?.message || translate("exercises.sharing.shareModal.failed");
+    } finally {
+      isSharing = false;
+    }
+  }
+
+  async function handleCopy(group: ExerciseGroup) {
+    copyingGroupId = group.groupId;
+    sharingNotice = "";
+    sharingError = "";
+    try {
+      await copySharedExercise(getGroupRepresentative(group).id);
+      sharingNotice = translate("exercises.sharing.copied", { name: group.name });
+      await loadExercises();
+    } catch (err: any) {
+      sharingError = err?.message || translate("exercises.sharing.copyFailed");
+    } finally {
+      copyingGroupId = "";
+    }
+  }
+
+  async function fetchResyncPreview() {
+    resyncPreview = null;
+    try {
+      resyncPreview = await loadResyncPreview(resyncGroupId);
+    } catch (err: any) {
+      resyncError = err?.message || translate("exercises.sharing.resyncModal.failed");
+    }
+  }
+
+  function openResync(group: ExerciseGroup) {
+    resyncGroupId = group.groupId;
+    resyncError = "";
+    isResyncOpen = true;
+    fetchResyncPreview();
+  }
+
+  /** Applies exactly the reviewed preview; the server refuses (409) if the source moved on meanwhile. */
+  async function handleApplyResync() {
+    if (!resyncPreview) return;
+    isResyncing = true;
+    resyncError = "";
+    try {
+      await applyResync(resyncPreview);
+      isResyncOpen = false;
+      sharingNotice = translate("exercises.sharing.resyncModal.applied");
+      await loadExercises();
+    } catch (err: any) {
+      if (err?.status === 409) {
+        resyncError = translate("exercises.sharing.resyncModal.changedMeanwhile");
+        await fetchResyncPreview();
+      } else if (err?.status === 404) {
+        resyncError = translate("exercises.sharing.resyncModal.unavailable");
+      } else {
+        resyncError = err?.message || translate("exercises.sharing.resyncModal.failed");
+      }
+    } finally {
+      isResyncing = false;
+    }
+  }
+
+  async function handleUnlinkConfirm() {
+    if (!unlinkGroup) return;
+    isUnlinking = true;
+    sharingError = "";
+    try {
+      await unlinkSource(unlinkGroup.groupId);
+      unlinkGroup = null;
+      await loadExercises();
+    } catch (err: any) {
+      unlinkGroup = null;
+      sharingError = err?.message || translate("exercises.sharing.unlinkFailed");
+    } finally {
+      isUnlinking = false;
+    }
   }
 
   function openCreateModal() {
@@ -663,6 +828,27 @@
   {#if errorMsg}
     <Alert severity="danger" class="mb-6">{errorMsg}</Alert>
   {/if}
+  {#if sharingNotice}
+    <Alert severity="success" class="mb-6" onDismiss={() => (sharingNotice = "")}>{sharingNotice}</Alert>
+  {/if}
+  {#if sharingError}
+    <Alert severity="danger" class="mb-6" onDismiss={() => (sharingError = "")}>{sharingError}</Alert>
+  {/if}
+  {#if sharingEnabled && !isLocalFallback}
+    <Tabs
+      class="mb-4"
+      label={$t("exercises.sharing.tabsLabel")}
+      value={view}
+      onChange={switchView}
+      items={[
+        { id: "own", label: $t("exercises.sharing.tabOwn"), icon: faBook },
+        { id: "shared", label: $t("exercises.sharing.tabShared"), icon: faShareNodes },
+      ]}
+    />
+  {/if}
+  {#if view === "shared" && sharedError}
+    <Alert severity="danger" class="mb-6">{sharedError}</Alert>
+  {/if}
 
   <!-- Below `lg` the filter panel moves into a drawer; see FilterDrawer. -->
   <FilterLayout
@@ -681,7 +867,7 @@
         subjectOptions={availableSubjects}
         pillOptions={topicPillOptions}
         pillSelected={selectedTopic}
-        pillAllLabel={$t("exercises.filterSidebar.allTopics", { count: allGroups.length })}
+        pillAllLabel={$t("exercises.filterSidebar.allTopics", { count: viewGroups.length })}
         onPillSelect={(topic) => {
           selectedTopic = topic;
           close();
@@ -689,26 +875,76 @@
       />
     {/snippet}
 
-  <ExerciseGroupList
-    isLoading={isLoading && exercises.length === 0}
-    {filteredGroups}
-    expandedGroups={$expandedGroups}
-    onToggleGroup={expandedGroups.toggle}
-    onEditGroup={openGroupModal}
-    onEditExercise={openEditModal}
-    onNewVersion={openNewVersionModal}
-    onDiff={openDiffModal}
-    onRegroup={openRegroupModal}
-    onDelete={openDeleteModal}
-    onPreview={exercisePreview.open}
-    usageMap={$usage}
-    onOpenVariant={openVariantModal}
-    onCreateFirst={openCreateModal}
-  />
+  {#if view === "shared"}
+    <ExerciseGroupList
+      mode="shared"
+      isLoading={sharedLoading && sharedRows.length === 0}
+      {filteredGroups}
+      expandedGroups={$expandedGroups}
+      onToggleGroup={expandedGroups.toggle}
+      onPreview={exercisePreview.open}
+      {sharedBy}
+      onCopy={handleCopy}
+      {copyingGroupId}
+    />
+  {:else}
+    <ExerciseGroupList
+      isLoading={isLoading && exercises.length === 0}
+      {filteredGroups}
+      expandedGroups={$expandedGroups}
+      onToggleGroup={expandedGroups.toggle}
+      onEditGroup={openGroupModal}
+      onEditExercise={openEditModal}
+      onNewVersion={openNewVersionModal}
+      onDiff={openDiffModal}
+      onRegroup={openRegroupModal}
+      onDelete={openDeleteModal}
+      onPreview={exercisePreview.open}
+      usageMap={$usage}
+      onOpenVariant={openVariantModal}
+      onCreateFirst={openCreateModal}
+      {sharingEnabled}
+      {syncStatus}
+      onShare={openShareModal}
+      onResync={openResync}
+      onUnlink={(group) => (unlinkGroup = group)}
+    />
+  {/if}
   </FilterLayout>
 </PageShell>
 
 <PreviewHost flow={exercisePreview} />
+
+<ShareExerciseModal
+  open={!!shareGroup}
+  shared={shareGroup ? groupIsShared(shareGroup) : false}
+  email={$sessionStore.email ?? ""}
+  name={shareGroup?.name ?? ""}
+  busy={isSharing}
+  error={shareError}
+  onConfirm={handleShareConfirm}
+  onClose={() => (shareGroup = null)}
+/>
+
+<ResyncModal
+  open={isResyncOpen}
+  preview={resyncPreview}
+  busy={isResyncing}
+  error={resyncError}
+  onApply={handleApplyResync}
+  onClose={() => (isResyncOpen = false)}
+/>
+
+<ConfirmDialog
+  open={!!unlinkGroup}
+  title={$t("exercises.sharing.unlinkTitle")}
+  message={$t("exercises.sharing.unlinkBody")}
+  confirmText={$t("exercises.sharing.unlink")}
+  cancelText={$t("common.cancel")}
+  busy={isUnlinking}
+  onConfirm={handleUnlinkConfirm}
+  onCancel={() => (unlinkGroup = null)}
+/>
 
 <VariantModal
   isOpen={isVariantModalOpen}

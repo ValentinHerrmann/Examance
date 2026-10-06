@@ -87,6 +87,8 @@ class ExerciseGroupResponse(BaseModel):
     grade: str | None = None
     subject: str | None = None
     created_at: datetime
+    # The shared group this one was copied from; resync compares against it (issue #65).
+    source_group_id: uuid.UUID | None = None
 
 
 class ExerciseResponse(BaseModel):
@@ -109,6 +111,10 @@ class ExerciseResponse(BaseModel):
     penalty: float = 0.0
     mc_group_id: uuid.UUID | None = None
     sub_index: int | None = None
+    # Sharing (issue #65); only filled for the caller's own rows.
+    is_shared: bool = False
+    shared_at: datetime | None = None
+    copied_from_exercise_id: uuid.UUID | None = None
 
 
 class ExamMcGroupCreate(BaseModel):

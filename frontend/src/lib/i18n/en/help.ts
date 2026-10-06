@@ -79,7 +79,7 @@ export const help: Translations['help'] = {
         },
         exercises: {
             title: 'Exercise library',
-            summary: 'Create, tag and maintain exercises, with variants and versions.',
+            summary: 'Create, tag and maintain exercises, with variants and versions, and share them with others.',
             s1: {
                 h: 'Collect instead of copy',
                 p1: 'Exercises live in a shared library, tagged by grade, subject and topic. Each one is a LaTeX fragment with a live preview; its score is read from the source automatically.',
@@ -100,6 +100,12 @@ export const help: Translations['help'] = {
                 h: 'Images and files',
                 p1: 'You can attach files that the LaTeX source references, e.g. figures via \\includegraphics. SVG is not supported — convert it to PDF first.',
                 p2: 'A missing graphic does not abort the run: the exam is still typeset, but the missing file is reported. Check the preview before printing.',
+            },
+            s5: {
+                h: 'Sharing and copying exercises',
+                p1: '“Share…” makes an exercise group with all its current variants and files visible to every account of this installation, together with your email address. Others can view and copy it but not change it. Only share exercises without personal data of pupils, and only what you are allowed to pass on.',
+                p2: 'Under “Shared by others” you copy an exercise into your library. You get your own copy to edit freely and use in exams; changes or deletion by the person who shared it never affect your exams.',
+                p3: 'When the source changes, the copy shows “Update available”. “Update…” shows the differences and takes them over as a new version; your previous version and the exams that use it stay unchanged. If the source is no longer shared, your copy remains. Whether your account may share is set by the administrators.',
             },
         },
         examCreation: {

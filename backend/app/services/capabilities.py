@@ -1,7 +1,8 @@
 """What an account may use (issue #53): storage modes and server features; decided only here.
 
-Admin switches per account: `allow_server_results` ("all-server" mode; "hybrid" is always allowed)
-and `allow_server_latex`. The frontend renders from `capabilities_for`; endpoints enforce it."""
+Admin switches per account: `allow_server_results` ("all-server" mode; "hybrid" is always allowed),
+`allow_server_latex` and `allow_exercise_sharing` (issue #65). The frontend renders from
+`capabilities_for`; endpoints enforce it."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -13,7 +14,7 @@ from app.dependencies import get_current_teacher
 from app.models.teacher import STORAGE_MODES, Teacher
 
 # The switches an admin can set per account, by their API name. Order is display order.
-ACCOUNT_FEATURES = ("server_results", "server_latex")
+ACCOUNT_FEATURES = ("server_results", "server_latex", "exercise_sharing")
 
 
 @dataclass(frozen=True)
@@ -27,6 +28,7 @@ def account_features(teacher: Teacher) -> dict[str, bool]:
     return {
         "server_results": teacher.allow_server_results,
         "server_latex": teacher.allow_server_latex,
+        "exercise_sharing": teacher.allow_exercise_sharing,
     }
 
 
@@ -55,6 +57,13 @@ async def require_server_latex(teacher: Teacher = Depends(get_current_teacher)) 
     """The signed-in teacher, if their account may compile LaTeX on the server."""
     if not capabilities_for(teacher).features.get("server_latex"):
         raise _not_allowed("Server-side LaTeX compilation is not enabled for this account.")
+    return teacher
+
+
+async def require_exercise_sharing(teacher: Teacher = Depends(get_current_teacher)) -> Teacher:
+    """The signed-in teacher, if their account may share, browse, copy and resync exercises."""
+    if not teacher.allow_exercise_sharing:
+        raise _not_allowed("Exercise sharing is not enabled for this account.")
     return teacher
 
 

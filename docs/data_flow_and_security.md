@@ -206,7 +206,7 @@ Accounts come from an admin invitation, the CLI or bootstrap, or self-registrati
 | `registration_requests` | E-mail address in plaintext, SHA-256 of the 32-byte random token, expiry, last-sent time. One row per address, until the link is used, replaced or expired (`REGISTRATION_TOKEN_TTL_HOURS`, default 24). | Yes (address) |
 | `teachers.approved_at` | NULL = pending. No default, deliberately: a write path that forgets it fails closed. Migration `0028` backfilled existing accounts with `created_at`. | Account metadata |
 | `teachers.registration_note` | Optional free text (up to 500 characters) for the approving admin. Erased on approval; never stored for an allowlisted address; never put in a mail. | Yes (free text) |
-| `teachers.allow_server_results`, `allow_server_latex` | The per-account feature switches (§5). | Account metadata |
+| `teachers.allow_server_results`, `allow_server_latex`, `allow_exercise_sharing` | The per-account feature switches (§5). | Account metadata |
 | `allowed_email_domains` | The admin's always-allowed domains and their features. | No |
 
 Until the link is used no `teachers` row exists, so that table holds verified addresses only.
@@ -366,6 +366,49 @@ CASCADE` from the account or exam) and is part of the account export (`GET /user
 the files base64-encoded: the account's setting and own file, each exam's setting and own file)
 and of `.bgproj` archives (see Archives).
 
+### Exercise sharing (issue #65)
+
+A teacher may share an exercise group (all its current variants, with their resource files) with
+**every account of the installation**. It is a per-group, opt-in action behind a confirmation that
+the content holds no pupil data and may be passed on. Since exercises are plaintext on the server
+anyway (see above), sharing needs no key exchange and touches no key material. What changes is who
+reads the content, and that the sharer's **e-mail address** is shown with it. The legal basis is the
+teacher's consent; stopping the share withdraws it.
+
+* **Visibility is decided in one place**, `backend/app/services/exercise_sharing.py`
+  (`shared_with_clause` / `readable_clause`), evaluated per query: a current library row with code,
+  `is_public`, an approved owner whose `exercise_sharing` switch is on, and a viewer whose switch is
+  on. Revoking a switch hides the rows at once (fail closed) without deleting anything. Ownerless
+  rows kept from a deleted account are never visible. A foreign row never carries `teacher_id` or
+  `exam_id` in a response; non-shared ids answer 404 like non-existent ones.
+* **Copy-on-use invariant.** An exam links only its owner's exercises
+  (`_resolve_linkable_exercise` is own-only, archive import links only owned rows). A shared exercise
+  is used by copying it into the own library (`POST /exercises/{id}/copy`): a new private group with
+  fresh ids, resource files duplicated. Before this, the read predicate allowed linking another
+  account's "public" row, and since `exam_exercises` and `exercise_scores` cascade on the exercise,
+  its owner's delete (or account deletion) would have removed it from the other teacher's exam and
+  deleted that teacher's server-side scores; an in-place edit would have changed an exam already
+  printed and graded. Nothing ever set `is_public`, so no such link existed; migration `0030` still
+  resets the flag.
+* **Resync.** A copied group keeps `source_group_id`, and each copied row keeps
+  `copied_from_exercise_id` and `synced_fingerprint` (SHA-256 over LaTeX, question type, answer key,
+  penalty, points and the resource files' names, types and content hashes). None of these has a
+  foreign key, so nothing on the source side cascades. `GET /exercises/sync-status` reports
+  `update_available`, `up_to_date` or `source_unavailable` (unshared and deleted look the same) plus
+  `locally_modified`. A resync **never updates a row in place**: each changed variant becomes a new
+  version, the previous row stays as history, so exams linking it and their scores are untouched,
+  and local edits survive in the version history. It is compare-and-set: the client sends the source
+  fingerprints it reviewed in the preview and gets `409 ERR_SHARE_SOURCE_CHANGED` if the source moved
+  on meanwhile.
+* **Owner privacy.** The sharer never learns who copied or resynced (no counts, no notifications).
+* **Revocation.** Stopping the share (never gated, also after the switch was revoked) hides the
+  group and stops new copies and resyncs; existing copies belong to their copiers. Deleting the
+  account removes the originals; copies stay. The keep-exercises path of account deletion unshares.
+* **Audit and export.** `EXERCISE_SHARING_CHANGED`, `EXERCISE_COPIED`, `EXERCISE_RESYNCED` (target:
+  group id, hashed). `GET /user/me/export` lists the account's shared exercises. Copy and resync are
+  rate-limited (60 per hour) and run in one transaction each; sharing, copying and resync are
+  online-only in the client (never in the offline queue).
+
 ---
 
 ## 4. DevTools Security & Session Hygiene Lifecycle
@@ -419,7 +462,7 @@ follows it. The manifest row in IndexedDB (`lib/db/workspace.ts`) and the
 `bg_storage_policy` boot cache mirror it; `commitStorageMode(mode, token)` accepts
 only a token armed by the workspace layer. Which modes and features an account
 may use comes from `GET /user/capabilities` (`backend/app/services/capabilities.py`).
-An admin sets two switches per account (issue #53), and both are enforced:
+An admin sets three switches per account (issues #53, #65), and all are enforced:
 
 * `server_results`: the `all-server` mode is allowed (`hybrid` always is). The
   server refuses result *writes* (students, submissions, scores, restore) with
@@ -428,6 +471,8 @@ An admin sets two switches per account (issue #53), and both are enforced:
   move and erasure need them.
 * `server_latex`: server-side LaTeX compilation (`POST /compile/latex`,
   `POST /exams/{id}/compile`); without it the app compiles in the browser.
+* `exercise_sharing`: sharing own exercises with, and browsing, copying and
+  resyncing exercises from, other accounts (§3 "Exercise sharing").
 
 Exams and exercises always live on the server and have no switch. An account whose
 stored mode is no longer allowed opens in `needs-choice`, and the choice moves its

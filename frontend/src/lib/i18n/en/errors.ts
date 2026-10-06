@@ -23,6 +23,8 @@ export const errors: Translations['errors'] = {
         ERR_STEP_EXPIRED: 'This sign-in step has expired. Please start again.',
         ERR_INVALID_REGISTRATION_TOKEN: 'This confirmation link is invalid or has expired. Please register again.',
         ERR_FEATURE_NOT_ALLOWED: 'This feature is not enabled for your account.',
+        ERR_SHARE_SOURCE_CHANGED: 'The source changed in the meantime. Please review the changes again.',
+        ERR_SHARE_SOURCE_UNAVAILABLE: 'The source of this exercise is no longer shared.',
         ERR_ACCOUNT_PENDING: 'A registration for this address is waiting for approval. Approve or reject it.',
         ERR_ACCOUNT_EXISTS: 'An account with this email address already exists.',
         ERR_ALREADY_APPROVED: 'This account is already approved.',

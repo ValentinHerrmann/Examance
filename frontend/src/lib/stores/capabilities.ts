@@ -1,7 +1,8 @@
 /**
  * What the signed-in account may use, as the server decides it (`GET /user/capabilities`, `backend/app/services/capabilities.py`):
  * storage mode, allowed modes and server features. The UI renders every such option from this store, never from hard-coded lists.
- * Admin switches per account (issue #53): `server_results` (allows `all-server`; `hybrid` is always allowed) and `server_latex`.
+ * Admin switches per account (issue #53): `server_results` (allows `all-server`; `hybrid` is always allowed), `server_latex`
+ * and `exercise_sharing` (issue #65).
  */
 
 import { derived, get, writable } from 'svelte/store';
@@ -10,7 +11,7 @@ import { sessionStore } from '#lib/stores/session';
 import { isStorageMode, storagePolicyStore, type StorageMode } from '#lib/stores/storagePolicy';
 import { safeSessionStorage } from '#lib/utils/storage';
 
-export type FeatureName = 'server_results' | 'server_latex' | 'training_donation';
+export type FeatureName = 'server_results' | 'server_latex' | 'exercise_sharing' | 'training_donation';
 
 export interface Capabilities {
   /** The account the answer is about; null in a cache written before the server sent it. */

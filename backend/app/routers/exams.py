@@ -119,15 +119,12 @@ async def _fetch_exam_exercises(exam_id: uuid.UUID, db: AsyncSession) -> list[Ex
 async def _resolve_linkable_exercise(
     exercise_id: uuid.UUID, teacher: Teacher, db: AsyncSession
 ) -> Exercise:
-    """Load an exercise *teacher* may place into their own exam: their own or published ones.
+    """Load an exercise *teacher* may place into their own exam: only their own.
 
-    Unknown or foreign private exercises raise 404; otherwise linking an arbitrary UUID would make
-    the exam read/compile endpoints a cross-tenant disclosure channel."""
+    A shared exercise is copied first (issue #65): linking another account's row would let its
+    owner's edit or deletion cascade into this exam and its scores. Anything else raises 404."""
     res = await db.execute(
-        select(Exercise).where(
-            Exercise.id == exercise_id,
-            or_(Exercise.teacher_id == teacher.id, Exercise.is_public.is_(True)),
-        )
+        select(Exercise).where(Exercise.id == exercise_id, Exercise.teacher_id == teacher.id)
     )
     ex = res.scalar_one_or_none()
     if ex is None:
@@ -549,7 +546,7 @@ async def compile_exam_endpoint(
     # uploads them for a compile — they are read straight out of the database.
     try:
         binary_files = await load_resources_for_exercises(
-            [t[0].id for t in ex_tuples if getattr(t[0], "id", None)], teacher.id, db
+            [t[0].id for t in ex_tuples if getattr(t[0], "id", None)], teacher, db
         )
     except ResourceError as exc:
         raise HTTPException(

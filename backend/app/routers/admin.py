@@ -59,13 +59,16 @@ K_ANONYMITY_THRESHOLD = 5
 
 def _features(row: Teacher | AllowedEmailDomain) -> AccountFeatures:
     return AccountFeatures(
-        server_results=row.allow_server_results, server_latex=row.allow_server_latex
+        server_results=row.allow_server_results,
+        server_latex=row.allow_server_latex,
+        exercise_sharing=row.allow_exercise_sharing,
     )
 
 
 def _apply_features(row: Teacher | AllowedEmailDomain, features: AccountFeatures) -> None:
     row.allow_server_results = features.server_results
     row.allow_server_latex = features.server_latex
+    row.allow_exercise_sharing = features.exercise_sharing
 
 
 def _patch_features(row: Teacher | AllowedEmailDomain, change: AccountFeaturesUpdate) -> None:
@@ -74,6 +77,8 @@ def _patch_features(row: Teacher | AllowedEmailDomain, change: AccountFeaturesUp
         row.allow_server_results = change.server_results
     if change.server_latex is not None:
         row.allow_server_latex = change.server_latex
+    if change.exercise_sharing is not None:
+        row.allow_exercise_sharing = change.exercise_sharing
 
 
 def _user_out(user: Teacher) -> AdminUserResponse:
@@ -207,6 +212,7 @@ async def approve_user(
             registration_note=None,
             allow_server_results=body.features.server_results,
             allow_server_latex=body.features.server_latex,
+            allow_exercise_sharing=body.features.exercise_sharing,
         )
     )
     user = await _load_user(db, user_id)

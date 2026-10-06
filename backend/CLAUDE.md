@@ -25,7 +25,7 @@ Background: `docs/data_flow_and_security.md`. Any change here touches auth/crypt
 - Access-token scopes: `full` (two distinct factors), `auth_pending`, `enroll` (fewer than two factors enrolled), `reset_pending`. `get_current_teacher` demands `full`; `get_pending_teacher` returns a `PendingSession` for the rest. `/keys/envelopes` and `/mfa/*` deliberately accept the non-full scopes (an account that predates the envelope has one factor, so the wizard that gets it out of enrollment is also the one that first stores its key).
 - `available` is only ever returned *after* a factor is proven. Never add an endpoint that answers "which factors does this email have": that is an account-existence oracle. TOTP is second-position only for the same reason.
 - **An unapproved account holds no token of any kind** (`teachers.approved_at` NULL = pending self-registration). `advance_sign_in` answers `approval_pending` (no cookie) only after a factor was proven; `get_current_teacher`, `get_pending_teacher`, `/auth/refresh` and `verify_reset_token` refuse such accounts too. `approved_at` has no default on purpose (fail closed): every new `Teacher(...)` write path, tests included, must set it. Registrations live in `registration_requests` until the mailed link is used, so `teachers` only holds verified addresses. Public registration endpoints answer identically for known and unknown addresses and send mail from `BackgroundTasks`.
-- Per-account features (`allow_server_results`, `allow_server_latex`) are decided in `app/services/capabilities.py` only; `require_server_latex` / `require_server_results_writable` gate the endpoints. Result writes stay allowed while an account revoked in `all-server` mode still has to move its results out; reads and deletes are never gated.
+- Per-account features (`allow_server_results`, `allow_server_latex`, `allow_exercise_sharing`) are decided in `app/services/capabilities.py` only; `require_server_latex` / `require_server_results_writable` / `require_exercise_sharing` gate the endpoints. Result writes stay allowed while an account revoked in `all-server` mode still has to move its results out; reads and deletes are never gated.
 - Account deletion lives in `app/services/account_deletion.py`. Self-deletion runs only through the mailed single-use token (`/auth/account-deletion/confirm`; the preview never deletes). Kept exercises are ownerless (`teacher_id` NULL, `exam_id` NULL, group NULL): never treat `teacher_id IS NULL` as "visible to everyone". The SQLite test database does not enforce foreign keys, so tests cannot observe cascades.
 - Removing a factor goes through `may_remove_factor`: never below two factors, never below the last *key-capable* one. TOTP is not key-capable (server-side secret, six digits).
 
@@ -38,6 +38,14 @@ Background: `docs/data_flow_and_security.md`. Any change here touches auth/crypt
 - "Passkey opens data" = a non-invalidated passkey envelope exists (`passkeyWrapIds`), **never** `supports_prf` (a registration-time guess). Settings' "enable data access" (`enablePasskeyUnlock`) wraps from the open session, ceremony pinned via `allowCredentials`. Passkeys stored in Bitwarden had no PRF as of 2026; they sign in but cannot open data (verify before relying on this).
 - Any server-side password write (admin reset, `cli.py set-password`, completing a reset) must call `invalidate_password_wrap`. The server cannot re-wrap a key it has never seen; marking the wrap stale sends the teacher to the recovery code instead of a vault of blank fields.
 - `encryption_salt_b64` on student uploads carries the **`key_id`**, not a salt. The name is historical.
+
+## Exercise sharing (issue #65)
+
+Background: `docs/data_flow_and_security.md` §3 "Exercise sharing".
+
+- **Never link a foreign exercise into an exam.** `exam_exercises` and `exercise_scores` cascade on the exercise, so the owner's delete would strip another teacher's exam and scores. `_resolve_linkable_exercise` is own-only; a shared exercise is copied first.
+- Who may read a foreign exercise is decided only by `app/services/exercise_sharing.py` (`shared_with_clause`, `readable_clause`). Writes stay on `get_exercise_for_teacher`. A foreign row never returns `teacher_id`/`exam_id`.
+- Copy provenance (`copied_from_exercise_id`, `synced_fingerprint`, `exercise_groups.source_group_id`) has no FK on purpose. Resync only adds versions (`next_version`, shared with `create_new_version`); it never updates a row an exam may link. Resource writes must set `content_sha256` (the fingerprint covers file bytes).
 
 ## Gotchas
 

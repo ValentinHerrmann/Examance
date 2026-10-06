@@ -15,6 +15,7 @@ from app.dependencies import get_current_teacher
 from app.middleware.rate_limit import limiter
 from app.models.audit_log import AuditLog
 from app.models.exam import Exam
+from app.models.exercise import Exercise
 from app.models.logo import ExamLogo
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
@@ -264,6 +265,12 @@ async def export_own_data(
         .where(AuditLog.teacher_id == teacher.id)
         .order_by(AuditLog.created_at.asc())
     )
+    # Shared rows disclose the account's e-mail to every other account (issue #65).
+    shared_res = await db.execute(
+        select(Exercise)
+        .where(Exercise.teacher_id == teacher.id, Exercise.is_public.is_(True))
+        .order_by(Exercise.shared_at.asc())
+    )
 
     await audit_svc.write(
         db,
@@ -308,6 +315,17 @@ async def export_own_data(
                 "logo": _exam_logo_export(exam_logos.get(exam.id)),
             }
             for exam in exams
+        ],
+        "shared_exercises": [
+            {
+                "id": str(ex.id),
+                "name": ex.name,
+                "version": ex.version,
+                "variant_key": ex.variant_key,
+                "is_current": ex.is_current,
+                "shared_at": ex.shared_at.isoformat() if ex.shared_at else None,
+            }
+            for ex in shared_res.scalars().all()
         ],
         "audit_log": [
             {

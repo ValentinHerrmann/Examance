@@ -58,12 +58,16 @@ class Teacher(Base):
     # Optional note a self-registered teacher leaves for the approving admin. Erased on approval.
     registration_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     # Per-account feature switches set by an admin (app/services/capabilities.py): whether results
-    # may live on the server ("all-server") and whether LaTeX may compile there. Both the Python and
-    # the server default are needed: without the former a fresh row leaves them unloaded.
+    # may live on the server ("all-server"), whether LaTeX may compile there, and whether the
+    # account may share and copy exercises (issue #65). Both the Python and the server default are
+    # needed: without the former a fresh row leaves them unloaded.
     allow_server_results: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=true()
     )
     allow_server_latex: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=true()
+    )
+    allow_exercise_sharing: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=true()
     )
     created_at: Mapped[datetime] = mapped_column(

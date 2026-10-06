@@ -31,12 +31,14 @@ class AccountFeatures(BaseModel):
     """The per-account switches an admin sets (app/services/capabilities.py).
 
     server_results: results and student data may live on the server ("all-server").
-    server_latex: LaTeX may be compiled on the server. Exams and exercises need no switch."""
+    server_latex: LaTeX may be compiled on the server.
+    exercise_sharing: exercises may be shared with, and copied from, other accounts (issue #65)."""
 
     model_config = ConfigDict(extra="forbid")
 
     server_results: bool = True
     server_latex: bool = True
+    exercise_sharing: bool = True
 
 
 class AccountFeaturesUpdate(BaseModel):
@@ -46,6 +48,7 @@ class AccountFeaturesUpdate(BaseModel):
 
     server_results: bool | None = None
     server_latex: bool | None = None
+    exercise_sharing: bool | None = None
 
 
 class AdminCreateUserRequest(BaseModel):

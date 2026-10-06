@@ -238,12 +238,13 @@ The Admin UI lists pending registrations with their note. For each, an admin cho
 
 - **Approve** (`POST /admin/users/{id}/approve`): sets `approved_at`, applies the features, erases the note and mails "approved, sign in". Two admins approving at once send one mail; the second gets `409 ERR_ALREADY_APPROVED`.
 - **Reject** (`POST /admin/users/{id}/reject`): deletes the pending account and mails a short rejection. Only pending accounts can be rejected.
-- **Features**, two switches per account, changeable at any time (`PATCH /admin/users/{id}/features`):
+- **Features**, three switches per account, changeable at any time (`PATCH /admin/users/{id}/features`):
 
   | Switch | If on | If off |
   | :--- | :--- | :--- |
   | `server_results` | The account may choose the `all-server` storage mode (grading results on the server, client-side encrypted). | Only `hybrid` (results stay in the browser). |
   | `server_latex` | LaTeX may be compiled on the server. | The app compiles locally in the browser. |
+  | `exercise_sharing` | The account may share its exercises with every account of the installation (its e-mail is shown with them), and browse, copy and resync exercises others share (issue #65). | No sharing, browsing, copying or resync. Exercises it already shared are hidden from everyone at once (nothing is deleted; switching it back on restores them); it can still stop sharing. Copies others took stay theirs. |
 
   Exams and exercises always live on the server and have no switch. New and existing accounts default to everything on; accounts created before this feature kept everything. The switches are enforced: the interface offers only what the account's capabilities allow, and the server refuses the rest with `403 ERR_FEATURE_NOT_ALLOWED`. What happens to an account that loses `server_results` while its results are on the server is described in `docs/dev/storage_modes.md`: it moves them into its browser, and nothing is lost.
 

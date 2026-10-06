@@ -79,7 +79,7 @@ export const help = {
         },
         exercises: {
             title: 'Aufgabenbibliothek',
-            summary: 'Aufgaben anlegen, verschlagworten, in Varianten und Versionen pflegen.',
+            summary: 'Aufgaben anlegen, verschlagworten, in Varianten und Versionen pflegen und mit anderen teilen.',
             s1: {
                 h: 'Sammeln statt kopieren',
                 p1: 'Aufgaben liegen in einer gemeinsamen Bibliothek und werden nach Jahrgang, Fach und Thema verschlagwortet. Jede Aufgabe ist ein LaTeX-Fragment mit Live-Vorschau; die Punktzahl wird automatisch aus dem Quelltext gelesen.',
@@ -100,6 +100,12 @@ export const help = {
                 h: 'Bilder und Dateien',
                 p1: 'Zu jeder Aufgabe lassen sich Dateien hochladen, die der LaTeX-Quelltext einbindet, etwa Abbildungen über \\includegraphics. SVG wird nicht unterstützt — bitte vorher in PDF umwandeln.',
                 p2: 'Fehlt eine Grafik, bricht der Satz nicht ab: Die Klausur wird trotzdem gesetzt, die fehlende Datei aber gemeldet. Prüfen Sie die Vorschau, bevor Sie drucken.',
+            },
+            s5: {
+                h: 'Aufgaben teilen und übernehmen',
+                p1: '„Teilen…“ macht eine Aufgabengruppe mit allen aktuellen Varianten und Dateien für alle Konten dieser Installation sichtbar, zusammen mit Ihrer E-Mail-Adresse. Andere können sie ansehen und übernehmen, aber nicht ändern. Teilen Sie nur Aufgaben ohne personenbezogene Daten von Schülerinnen und Schülern und nur, was Sie weitergeben dürfen.',
+                p2: 'Unter „Von anderen geteilt“ übernehmen Sie eine Aufgabe in Ihre Bibliothek. Sie erhalten eine eigene Kopie, die Sie frei bearbeiten und in Prüfungen verwenden; Änderungen oder das Löschen durch die Person, die geteilt hat, wirken sich nie auf Ihre Prüfungen aus.',
+                p3: 'Ändert sich die Quelle, zeigt die Kopie „Aktualisierung verfügbar“. „Aktualisieren…“ zeigt die Unterschiede und übernimmt sie als neue Version; Ihre bisherige Version und die Prüfungen, die sie verwenden, bleiben unverändert. Wird die Quelle nicht mehr geteilt, bleibt Ihre Kopie bestehen. Ob Ihr Konto teilen darf, legt die Administration fest.',
             },
         },
         examCreation: {
