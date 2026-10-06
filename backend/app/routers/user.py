@@ -86,15 +86,10 @@ async def purge_server_student_data(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """
-    Soft-delete all student identities and scan submissions belonging to the current teacher
-    with a 7-day retention grace period before hard deletion.
+    """Soft-delete the teacher's student identities and scan submissions (hard delete after 7 days).
 
-    LaTeX exercise templates and exam structures remain intact — including the
-    resource files attached to exercises, which are teacher-authored content,
-    not student data. A file that does contain personal data (e.g. a photo of a
-    pupil) has to be deleted with the exercise or the file itself.
-    """
+    LaTeX exercises, exam structures and their resource files stay (teacher-authored content).
+    A file with personal data (e.g. a pupil photo) must be deleted with the exercise or itself."""
     now = datetime.now(UTC)
     retention_until = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)
 
@@ -247,15 +242,10 @@ async def export_own_data(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """
-    GDPR Art. 15/20 — machine-readable copy of the account holder's own data.
+    """GDPR Art. 15/20: machine-readable copy of the account holder's own data.
 
-    Covers only what the server holds *about the teacher*: account fields, the
-    exams they authored, and their audit trail. Student payloads are deliberately
-    excluded — they are encrypted with a key the server never has, and they are
-    not the teacher's personal data. Use the client-side per-student export for
-    a student's Art. 15 request.
-    """
+    Only what the server holds *about the teacher*: account fields, authored exams, audit trail.
+    Student payloads are excluded (the server cannot read them); use the client-side export."""
     exams_res = await db.execute(
         select(Exam).where(Exam.teacher_id == teacher.id).order_by(Exam.created_at.asc())
     )
@@ -339,12 +329,10 @@ async def request_account_deletion(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """
-    GDPR Art. 17: ask to delete one's own account. Mails a single-use link (valid
-    ACCOUNT_DELETION_TOKEN_TTL_MINUTES) whose page confirms the deletion
-    (`POST /auth/account-deletion/confirm`, `services/account_deletion.py`). A new request
-    replaces an open one. The last admin account is refused up front.
-    """
+    """GDPR Art. 17: ask to delete one's own account; mails a single-use confirmation link.
+
+    The link leads to `POST /auth/account-deletion/confirm` (see `services/account_deletion.py`).
+    A new request replaces an open one; the last admin account is refused up front."""
     await ensure_not_last_admin(db, teacher)
     mail = await create_deletion_request(db, teacher, keep_exercises=body.keep_exercises)
     await audit_svc.write(

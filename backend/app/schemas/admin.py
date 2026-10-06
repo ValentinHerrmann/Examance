@@ -28,13 +28,10 @@ class ClassStatsResponse(BaseModel):
 
 
 class AccountFeatures(BaseModel):
-    """
-    The per-account switches an admin sets (app/services/capabilities.py).
+    """The per-account switches an admin sets (app/services/capabilities.py).
 
-    server_results: grading results and student data may live on the server ("all-server").
-    server_latex:   LaTeX may be compiled on the server.
-    Exams and exercises always live on the server and need no switch.
-    """
+    server_results: results and student data may live on the server ("all-server").
+    server_latex: LaTeX may be compiled on the server. Exams and exercises need no switch."""
 
     model_config = ConfigDict(extra="forbid")
 

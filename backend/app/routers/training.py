@@ -1,18 +1,7 @@
-"""Training router — opt-in OMR training-data donation.
+"""Training router: opt-in OMR training-data donation (see docs/dev/training_donation.md).
 
-Donating needs a full session: accounts are approved by an admin (or come from a
-domain an admin allow-listed) before they hold any token, so a public write into
-the production database cannot be abused by anyone who merely finds the URL. The
-stored rows stay unlinked all the same — deliberately:
-
-- The teacher is used for the daily quota and nothing else: no teacher column,
-  no audit entry (the audit trail stores an ip_hash), no log line. The quota key
-  is a SHA-256 of the account id and expires with the day.
-- Quota answers are 429 *without* ``Retry-After``: the client starts its login
-  lockout on any 429 that carries one. For the same reason there is no slowapi
-  limit on the POST.
-- ``TRAINING_DONATION_ENABLED=false`` turns donating off (404 / enabled=false).
-"""
+Full session only; the account is used for the daily quota and never stored, audited or logged.
+Quota answers are 429 without ``Retry-After`` (client login lockout), hence no slowapi limit."""
 from __future__ import annotations
 
 import hashlib

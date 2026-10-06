@@ -1,9 +1,7 @@
 """Per-exercise scores — /api/v1/exams/{id}/submissions/{id}/scores.
 
-The payload (score, selected options, OMR metadata) is sealed client-side; the
-server stores only the ciphertext. Writes are keyed on (submission, exercise),
-so every endpoint here is idempotent and safe to replay from the offline queue.
-"""
+The payload (score, selected options, OMR metadata) is sealed client-side; the server stores only
+the ciphertext. Writes are keyed on (submission, exercise): idempotent, safe to replay offline."""
 from __future__ import annotations
 
 import base64

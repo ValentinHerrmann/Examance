@@ -91,10 +91,9 @@ async def upload_submission(
     db: AsyncSession = Depends(get_db),
 ) -> SubmissionResponse:
     """Upload encrypted scan submission."""
-    # Ensure student identity exists first to satisfy foreign key constraint.
-    # The FK spans (pseudonym_hmac, exam_id), so an identity is looked up within
-    # this exam only; the database itself now prevents a submission from linking
-    # to an identity in another exam (and therefore another tenant).
+    # Ensure the student identity exists first (foreign key). The FK spans (pseudonym_hmac,
+    # exam_id), so the identity is looked up within this exam only: a submission cannot link to
+    # another exam's (and tenant's) identity.
     student_res = await db.execute(
         select(StudentIdentity).where(
             StudentIdentity.pseudonym_hmac == body.pseudonym_hmac,

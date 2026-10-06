@@ -30,21 +30,10 @@ async def compile_latex_endpoint(
     teacher: Annotated[Teacher, Depends(require_server_latex)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Response:
-    """
-    Compile LaTeX source to PDF via Tectonic.
+    """Compile LaTeX source to PDF via Tectonic (body limit: BODY_LIMIT_COMPILE).
 
-    Resource files (images, PDFs, data files) reach the working directory two
-    ways: `resource_exercise_ids` names exercises whose stored files the server
-    loads itself, and `resources` carries files the server cannot know about —
-    an unsaved exercise, or a client that keeps everything local. Both are
-    written into the temp working directory and deleted with it. The exam header
-    logo is named by `logo_exam_id` / `account_logo` and resolved here as well.
-
-    Rate limited: 10 req/min per IP.
-    Body limit: BODY_LIMIT_COMPILE (enforced by BodyLimitMiddleware).
-    LaTeX source is NEVER logged — see LaTeXRequest.__repr__ and latex service.
-    The 422 detail carries only TeX diagnostics, never raw engine or log output.
-    """
+    Extra files come from `resource_exercise_ids` (stored on the server) and `resources` (unsaved
+    or local-only exercises). LaTeX source is NEVER logged; 422 detail is TeX diagnostics only."""
     try:
         binary_files = await load_resources_for_exercises(
             body.resource_exercise_ids, teacher.id, db

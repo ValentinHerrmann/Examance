@@ -133,13 +133,10 @@ async def create_user(
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AdminCreateUserResponse:
-    """
-    Invite a teacher/admin: create the account without a password (Admin only).
+    """Invite a teacher/admin: create the account without a password (Admin only).
 
-    The account is approved with the given features, and the address counts as verified: the
-    mailed set-password link is the only way in, so using it proves the mailbox. A pending
-    self-registration for the same address is superseded (its link stops working).
-    """
+    Approved with the given features; the address counts as verified because the mailed
+    set-password link is the only way in. A pending self-registration for it is superseded."""
     normalized_email = registration.normalize_email(body.email)
     existing = await db.execute(
         select(Teacher).where(func.lower(Teacher.email) == normalized_email)
@@ -302,13 +299,10 @@ async def delete_user(
     db: Annotated[AsyncSession, Depends(get_db)],
     keep_exercises: bool = False,
 ) -> Response:
-    """
-    Delete an approved account and everything it owns (Admin only). With `keep_exercises` its
-    library exercises stay on the server without an owner (`services/account_deletion.py`).
+    """Delete an approved account and everything it owns (Admin only).
 
-    A pending registration is rejected instead (`/reject`, which tells the registrant), and an
-    admin deletes their own account from the settings page (confirmed by a mailed link).
-    """
+    With `keep_exercises` its library exercises stay ownerless (`services/account_deletion.py`).
+    Pending registrations go through `/reject`; admins delete their own account in settings."""
     user = await _load_user(db, user_id)
     if user.id == admin.id:
         raise HTTPException(
@@ -335,13 +329,10 @@ async def reset_user_password(
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AdminResetPasswordResponse:
-    """
-    Trigger an admin-forced password reset for an existing user (Admin only).
+    """Trigger an admin-forced password reset for an existing user (Admin only).
 
-    Generates and emails a single-use password reset token. The user's existing
-    password remains active until they set a new password via the link. For an
-    invited account that never set a password this resends the invitation.
-    """
+    Emails a single-use reset token; the existing password stays active until the link is used.
+    For an invited account that never set a password this resends the invitation."""
     result = await db.execute(select(Teacher).where(Teacher.id == user_id))
     user = result.scalar_one_or_none()
     if user is None:
@@ -491,20 +482,10 @@ async def reset_user_factors(
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, str]:
-    """
-    Clear a user's authenticator and passkeys (Admin only).
+    """Clear a user's authenticator and passkeys (Admin only), the escape hatch for a lost factor.
 
-    The escape hatch for a teacher who has lost a factor and cannot get back in.
-    Every sign-in needs two of three factors, and a teacher with exactly two who
-    loses one has no path back on their own — backup codes only cover the
-    authenticator.
-
-    What this does **not** do is restore access to their data. Their key copies
-    are untouched, because the server cannot read them: the wraps for the
-    factors removed here are gone with those factors, and the recovery code
-    remains the way back to the exams themselves. An administrator who could
-    undo that could also read the data.
-    """
+    Does not restore data access: the server cannot read key copies, so the removed factors' wraps
+    are gone; the recovery code stays the way back (else an admin could read the data)."""
     result = await db.execute(select(Teacher).where(Teacher.id == user_id))
     user = result.scalar_one_or_none()
     if user is None:

@@ -119,13 +119,10 @@ async def _fetch_exam_exercises(exam_id: uuid.UUID, db: AsyncSession) -> list[Ex
 async def _resolve_linkable_exercise(
     exercise_id: uuid.UUID, teacher: Teacher, db: AsyncSession
 ) -> Exercise:
-    """
-    Load an exercise *teacher* is allowed to place into their own exam.
+    """Load an exercise *teacher* may place into their own exam: their own or published ones.
 
-    Own exercises plus explicitly published ones. Unknown or foreign private
-    exercises raise 404 — without this check, linking an arbitrary UUID turns
-    the exam read/compile endpoints into a cross-tenant disclosure channel.
-    """
+    Unknown or foreign private exercises raise 404; otherwise linking an arbitrary UUID would make
+    the exam read/compile endpoints a cross-tenant disclosure channel."""
     res = await db.execute(
         select(Exercise).where(
             Exercise.id == exercise_id,
@@ -163,14 +160,10 @@ def _resolve_mc_group_id(
 
 
 def _dedupe_exercise_links(links: list[Any]) -> list[Any]:
-    """
-    Collapse repeated exercise_ids in an exercise_links payload.
+    """Collapse repeated exercise_ids in an exercise_links payload.
 
-    (exam_id, exercise_id) is the exam_exercises primary key, so an exercise
-    listed twice — e.g. once standalone and once as an MC group member — used to
-    raise an IntegrityError and surface as a 500. The entry carrying MC group
-    membership wins; otherwise the first occurrence does.
-    """
+    (exam_id, exercise_id) is the primary key, so a duplicate (e.g. standalone and as an MC group
+    member) would raise an IntegrityError (500). MC group membership wins, else the first entry."""
     kept: dict[uuid.UUID, Any] = {}
     order: list[uuid.UUID] = []
     for link in links:
@@ -289,14 +282,10 @@ async def _persist_mc_groups(
     mc_groups_data: list[Any],
     db: AsyncSession,
 ) -> dict[uuid.UUID, uuid.UUID]:
-    """
-    Create ExamMcGroup rows and return the {client_id: db_id} mapping.
+    """Create ExamMcGroup rows and return the {client_id: db_id} mapping.
 
-    A client-supplied id is kept verbatim, exactly like Exam.id and Exercise.id.
-    Minting a fresh id here instead meant every save handed the client a *new*
-    group id, so the local (IndexedDB) group records and everything referencing
-    them drifted out of sync with the server on every single write.
-    """
+    A client-supplied id is kept verbatim, like Exam.id and Exercise.id: minting a fresh one would
+    desync the client's local (IndexedDB) group records on every write."""
     id_map: dict[uuid.UUID, uuid.UUID] = {}
     for g in mc_groups_data:
         group_id = g.id or uuid.uuid4()

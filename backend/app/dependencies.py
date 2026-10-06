@@ -98,16 +98,10 @@ async def get_pending_teacher(
     access_token: str | None = Cookie(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> PendingSession:
-    """
-    Accept a half-finished sign-in.
+    """Accept a half-finished sign-in (factor, enrollment and key-recovery endpoints only).
 
-    Guards only the factor, enrollment and key-recovery endpoints — the ones a
-    teacher has to reach *before* they hold a full session. Returns the account
-    together with the token's scope and the factors already presented, because
-    the next step needs both: the second factor is verified against the account
-    named in the token, never against an email the caller supplies, or the second
-    step could be answered for somebody else.
-    """
+    Returns the account, token scope and factors already presented. The next factor is checked
+    against the account named in the token, never an email the caller supplies."""
     credentials_exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Not authenticated.",
@@ -193,15 +187,10 @@ async def get_exercise_for_teacher(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> Exercise:
-    """
-    Return the exercise only if it belongs to *teacher*.
+    """Return the exercise only if it belongs to *teacher*; use for every write path.
 
-    Use for every write path. Published exercises (`is_public`) are deliberately
-    NOT writable by non-owners — sharing grants read access only.
-
-    Raises 404 (not 403) so a non-owner cannot distinguish "exists but is
-    someone else's" from "does not exist".
-    """
+    Public (`is_public`) exercises are never writable by non-owners. Raises 404, not 403, so a
+    non-owner cannot tell "someone else's" from "does not exist"."""
     result = await db.execute(
         select(Exercise).where(
             Exercise.id == exercise_id,
