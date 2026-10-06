@@ -8,6 +8,7 @@
 
 import { derived, get, writable } from 'svelte/store';
 import { api } from '#lib/api/client';
+import { sessionStore } from '#lib/stores/session';
 import { isStorageMode, STORAGE_MODES, storagePolicyStore, type StorageMode } from '#lib/stores/storagePolicy';
 import { safeSessionStorage } from '#lib/utils/storage';
 
@@ -27,6 +28,8 @@ const ALL_FEATURES: Record<FeatureName, boolean> = {
 };
 
 export interface Capabilities {
+  /** The account the answer is about; null in a cache written before the server sent it. */
+  accountId: string | null;
   storageMode: StorageMode | null;
   allowedStorageModes: StorageMode[];
   features: Partial<Record<FeatureName, boolean>>;
@@ -34,36 +37,72 @@ export interface Capabilities {
 
 const CACHE_KEY = 'bg_capabilities';
 
+/** The account this tab is signed in as, from the sign-in response. */
+function sessionAccountId(): string | null {
+  return get(sessionStore).teacherId ?? null;
+}
+
+/** The cached answer, only if it is about this tab's account: another account's switches never apply here. */
 function readCache(): Capabilities | null {
   try {
-    return JSON.parse(safeSessionStorage.getItem(CACHE_KEY) ?? 'null');
+    const cached: Capabilities | null = JSON.parse(safeSessionStorage.getItem(CACHE_KEY) ?? 'null');
+    const account = sessionAccountId();
+    return cached && cached.accountId && account && cached.accountId === account ? cached : null;
   } catch {
     return null;
   }
 }
 
-/** Null until loaded (or while signed out). Cached per tab so a reload offline still knows the answer. */
-export const capabilitiesStore = writable<Capabilities | null>(readCache());
+/**
+ * The server answered for a different account than this tab is signed in as. The access cookie is
+ * shared by every tab of the browser, so signing in as someone else in another tab swaps the account
+ * under this one. The tab must lock rather than show (or write) another account's data.
+ */
+export class AccountMismatchError extends Error {
+  constructor() {
+    super('The server session belongs to a different account than this tab.');
+    this.name = 'AccountMismatchError';
+  }
+}
+
+/**
+ * Null until loaded (or while signed out). Cached per tab so a reload offline still knows the answer;
+ * the cache is read back through `cachedCapabilities()` once the session (and so the account) is known.
+ */
+export const capabilitiesStore = writable<Capabilities | null>(null);
 capabilitiesStore.subscribe((value) => {
   if (value) safeSessionStorage.setItem(CACHE_KEY, JSON.stringify(value));
-  else safeSessionStorage.removeItem(CACHE_KEY);
 });
 
+/** This tab's last answer for its own account, for when the server cannot be asked. */
+export function cachedCapabilities(): Capabilities | null {
+  return get(capabilitiesStore) ?? readCache();
+}
+
 interface CapabilitiesResponse {
+  account_id: string;
   storage_mode: string | null;
   allowed_storage_modes: string[];
   features: Record<string, boolean>;
 }
 
 function fromResponse(res: CapabilitiesResponse): Capabilities {
+  const account = sessionAccountId();
+  if (account && res.account_id && res.account_id !== account) throw new AccountMismatchError();
   return {
+    accountId: res.account_id ?? null,
     storageMode: isStorageMode(res.storage_mode) ? res.storage_mode : null,
     allowedStorageModes: res.allowed_storage_modes.filter(isStorageMode),
     features: res.features as Capabilities['features'],
   };
 }
 
-/** Fetches the account's capabilities. @throws on network or auth failure (callers fall back to the cache). */
+/**
+ * Fetches the account's capabilities. Admins change them at any time, so this runs at every unlock and
+ * again whenever the tab comes back into view (`lib/db/workspace.ts`).
+ * @throws on network or auth failure (callers fall back to the cache), `AccountMismatchError` when the
+ * server session belongs to another account.
+ */
 export async function loadCapabilities(): Promise<Capabilities> {
   const res = await api.get<CapabilitiesResponse>('/user/capabilities', { silentError: true });
   const caps = fromResponse(res);
@@ -83,8 +122,10 @@ export async function saveAccountStorageMode(mode: StorageMode, expected: Storag
   return caps;
 }
 
+/** Forgets the answer, e.g. at sign-out: the next account must never start from this one's switches. */
 export function clearCapabilities(): void {
   capabilitiesStore.set(null);
+  safeSessionStorage.removeItem(CACHE_KEY);
 }
 
 /** Storage modes an account with these capabilities may choose. */

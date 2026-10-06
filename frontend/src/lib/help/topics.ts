@@ -248,7 +248,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { headingKey: "help.topics.settings.s3.h", bodyKeys: ["help.topics.settings.s3.p1"] },
       {
         headingKey: "help.topics.settings.s4.h",
-        bodyKeys: ["help.topics.settings.s4.p1", "help.topics.settings.s4.p2"],
+        bodyKeys: ["help.topics.settings.s4.p1", "help.topics.settings.s4.p2", "help.topics.settings.s4.p3"],
       },
       {
         headingKey: "help.topics.settings.s5.h",

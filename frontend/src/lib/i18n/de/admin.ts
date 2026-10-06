@@ -68,6 +68,11 @@ export const admin = {
         resent: 'Die Einladung an {email} wurde erneut gesendet.',
         resendMailFailed: 'Der Link für {email} wurde erzeugt, aber die E-Mail konnte nicht gesendet werden.',
         failed: 'Die Änderung ist fehlgeschlagen.',
+        delete: 'Konto löschen',
+        deleteLabel: 'Das Konto {email} löschen',
+        deleteTitle: 'Konto löschen?',
+        deleteMessage: '{email} und alles, was dazu auf dem Server gespeichert ist (Prüfungen, Aufgaben, Ergebnisse, Anmeldefaktoren), wird gelöscht. Das lässt sich nicht rückgängig machen.',
+        deleted: 'Das Konto {email} wurde gelöscht.',
     },
     domains: {
         title: 'Immer erlaubte Domains',

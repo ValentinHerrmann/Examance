@@ -2,8 +2,8 @@
   // Approved accounts with their feature switches (issue #53). Turning `server_results` off for an
   // account in all-server mode touches no data: the next time it opens, the app asks it to move its
   // results into the browser. Phones get one row per account with labelled switches; the table
-  // starts at `md`.
-  import { faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
+  // starts at `md`. Any account but the admin's own can be deleted (the own one: settings page).
+  import { faMagnifyingGlass, faTrash } from "@fortawesome/free-solid-svg-icons";
   import { ACCOUNT_FEATURES, type AccountFeature, type AdminUser } from "#lib/api/admin";
   import { t, type TranslationKey } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
@@ -16,9 +16,12 @@
     busyId: string | null;
     onToggleFeature: (user: AdminUser, key: AccountFeature, value: boolean) => void;
     onResendInvite: (user: AdminUser) => void;
+    /** The signed-in admin's account, which cannot be deleted here. */
+    ownId: string | null;
+    onDelete: (user: AdminUser) => void;
   }
 
-  let { users, busyId, onToggleFeature, onResendInvite }: Props = $props();
+  let { users, busyId, onToggleFeature, onResendInvite, ownId, onDelete }: Props = $props();
 
   const COLUMN: Record<AccountFeature, TranslationKey> = {
     server_results: "admin.accounts.columnResults",
@@ -87,6 +90,19 @@
                 {$t("admin.accounts.resendInvite")}
               </Button>
             {/if}
+            {#if user.id !== ownId}
+              <Button
+                size="sm"
+                variant="outlined"
+                severity="danger"
+                icon={faTrash}
+                block
+                disabled={busyId !== null}
+                onClick={() => onDelete(user)}
+              >
+                {$t("admin.accounts.delete")}
+              </Button>
+            {/if}
           </li>
         {/each}
       </ul>
@@ -127,6 +143,18 @@
                       <Button size="sm" variant="text" disabled={busyId === user.id} onClick={() => onResendInvite(user)}>
                         {$t("admin.accounts.resendInvite")}
                       </Button>
+                    {/if}
+                    {#if user.id !== ownId}
+                      <Button
+                        iconOnly
+                        icon={faTrash}
+                        variant="text"
+                        severity="danger"
+                        size="sm"
+                        ariaLabel={$t("admin.accounts.deleteLabel", { email: user.email })}
+                        disabled={busyId !== null}
+                        onClick={() => onDelete(user)}
+                      />
                     {/if}
                   </td>
                 </tr>

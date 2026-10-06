@@ -26,6 +26,8 @@ export const errors: Translations['errors'] = {
         ERR_ACCOUNT_PENDING: 'A registration for this address is waiting for approval. Approve or reject it.',
         ERR_ACCOUNT_EXISTS: 'An account with this email address already exists.',
         ERR_ALREADY_APPROVED: 'This account is already approved.',
+        ERR_LAST_ADMIN: 'The last admin account cannot be deleted. Make another account an admin first.',
+        ERR_DELETE_SELF: 'Delete your own account in the settings.',
         ERR_INVALID_DOMAIN: 'Enter a domain such as school.example.',
         ERR_DOMAIN_EXISTS: 'This domain is already on the list.',
     },

@@ -183,6 +183,14 @@ export const settings: Translations['settings'] = {
         privacyNote: 'Details in the privacy policy:',
         privacyLink: 'Privacy',
     },
+    deleteAccount: {
+        heading: 'Delete account',
+        description: 'Deletes your account and everything stored with it on the server: exams, exercises, grading results and sign-in factors. Results kept only in this browser are cleared too. This cannot be undone.',
+        confirmLabel: 'Type your email address ({email}) to confirm',
+        button: 'Delete my account',
+        deleting: 'Deleting…',
+        failed: 'The account could not be deleted.',
+    },
     hygiene: {
         heading: 'Session Data Hygiene',
         description: 'Permanently clear all cached exam, student, and scan data from local browser storage.',

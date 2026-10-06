@@ -7,6 +7,7 @@
   import {
     addAllowedDomain,
     approveUser,
+    deleteUser,
     inviteUser,
     listAllowedDomains,
     listUsers,
@@ -21,6 +22,7 @@
     type AllowedDomain,
   } from "#lib/api/admin";
   import { awaitSessionReady, isUnlocked, sessionStore } from "#lib/stores/session";
+  import { refreshCapabilities } from "#lib/db/workspace";
   import { t, translate } from "#lib/i18n";
   import { faEnvelope, faGlobe, faUserCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Button, Card, ConfirmDialog, PageHeader, PageShell, Tabs } from "#lib/components/ui";
@@ -45,6 +47,7 @@
   let accountsNotice: Notice = $state(null);
   let domainsNotice: Notice = $state(null);
   let rejecting = $state.raw<AdminUser | null>(null);
+  let deleting = $state.raw<AdminUser | null>(null);
 
   // One task per tab, so a phone shows one short screen at a time. The choice is remembered per browser.
   type AdminTab = "pending" | "accounts" | "invite" | "domains";
@@ -142,11 +145,30 @@
     busyUserId = user.id;
     try {
       replaceUser(await updateUserFeatures(user.id, { [key]: value }));
+      // The admin's own switches apply to this tab right away.
+      if (user.id === $sessionStore.teacherId) void refreshCapabilities();
     } catch (err) {
       replaceUser(user);
       accountsNotice = { severity: "danger", text: messageOf(err, translate("admin.accounts.failed")) };
     } finally {
       busyUserId = null;
+    }
+  }
+
+  async function confirmDelete() {
+    const user = deleting;
+    if (!user) return;
+    accountsNotice = null;
+    busyUserId = user.id;
+    try {
+      await deleteUser(user.id);
+      users = users.filter((u) => u.id !== user.id);
+      accountsNotice = { severity: "success", text: translate("admin.accounts.deleted", { email: user.email }) };
+    } catch (err) {
+      accountsNotice = { severity: "danger", text: messageOf(err, translate("admin.accounts.failed")) };
+    } finally {
+      busyUserId = null;
+      deleting = null;
     }
   }
 
@@ -297,6 +319,8 @@
               busyId={busyUserId}
               onToggleFeature={handleToggleUserFeature}
               onResendInvite={handleResendInvite}
+              ownId={$sessionStore.teacherId}
+              onDelete={(user) => (deleting = user)}
             />
           {/if}
         </Card>
@@ -339,4 +363,16 @@
   busy={busyUserId !== null}
   onConfirm={confirmReject}
   onCancel={() => (rejecting = null)}
+/>
+
+<ConfirmDialog
+  open={deleting !== null}
+  title={$t("admin.accounts.deleteTitle")}
+  message={$t("admin.accounts.deleteMessage", { email: deleting?.email ?? "" })}
+  confirmText={$t("admin.accounts.delete")}
+  cancelText={$t("common.cancel")}
+  severity="danger"
+  busy={busyUserId !== null}
+  onConfirm={confirmDelete}
+  onCancel={() => (deleting = null)}
 />

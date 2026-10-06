@@ -146,7 +146,7 @@
           "auth"
         ],
         "summary": "Start Reset",
-        "description": "Open a password reset with the emailed link.\n\nA reset re-establishes the password, so the password is unavailable by\ndefinition and the emailed token stands in for it \u2014 but only as *one* of the\ntwo factors the policy wants. Mailbox access alone completing a reset is\nexactly the bypass the second factor exists to close.\n\nAn account that has not finished enrolling is the one exception: it has no\nsecond factor to offer, so requiring one would strand it. It gets a\n``reset_pending`` token that can complete the reset on its own, and is held\nin enrollment at the next sign-in like every other single-factor account.",
+        "description": "Open a password reset with the emailed link.\n\nA reset re-establishes the password, so the password is unavailable by\ndefinition and the emailed token stands in for it — but only as *one* of the\ntwo factors the policy wants. Mailbox access alone completing a reset is\nexactly the bypass the second factor exists to close.\n\nAn account that has not finished enrolling is the one exception: it has no\nsecond factor to offer, so requiring one would strand it. It gets a\n``reset_pending`` token that can complete the reset on its own, and is held\nin enrollment at the next sign-in like every other single-factor account.",
         "operationId": "start_reset_api_v1_auth_reset_start_post",
         "requestBody": {
           "content": {
@@ -188,7 +188,7 @@
           "auth"
         ],
         "summary": "Reset Password",
-        "description": "Set the new password, and store the re-wrapped data key with it.\n\nThe envelope is written in the same transaction as the password on purpose.\nTwo round trips could leave a teacher whose password changed but whose key\ncopy did not, which is indistinguishable from a working account until the\nnext sign-in fails to open anything.\n\nWithout an envelope in the body the password wrap is marked unusable\ninstead \u2014 the \"I do not have my recovery code\" path. The teacher keeps their\naccount and is told plainly, on the next sign-in, that their existing data\nneeds the recovery code.",
+        "description": "Set the new password, and store the re-wrapped data key with it.\n\nThe envelope is written in the same transaction as the password on purpose.\nTwo round trips could leave a teacher whose password changed but whose key\ncopy did not, which is indistinguishable from a working account until the\nnext sign-in fails to open anything.\n\nWithout an envelope in the body the password wrap is marked unusable\ninstead — the \"I do not have my recovery code\" path. The teacher keeps their\naccount and is told plainly, on the next sign-in, that their existing data\nneeds the recovery code.",
         "operationId": "reset_password_api_v1_auth_reset_password_post",
         "parameters": [
           {
@@ -252,7 +252,7 @@
           "auth"
         ],
         "summary": "Change Password",
-        "description": "Change the password of a signed-in account, keeping the session.\n\nThe alternative was signing out and going through the emailed reset, which\ninvalidates the password wrap and then asks for the recovery code to undo\nthe damage \u2014 an absurd amount of ceremony for a routine change. From an open\nsession the browser already holds the data key, so it can re-wrap it under\nthe new password and send both together.\n\nWritten in one transaction for the same reason the reset is: a password that\nchanged without its key copy looks like a working account right up until the\nnext sign-in opens a vault of blank fields.\n\nThe current password is verified through the same throttle as `/auth/login`.\nWithout that this endpoint would be a password oracle that skips the cooloff\n\u2014 slower per guess, but unbounded.",
+        "description": "Change the password of a signed-in account, keeping the session.\n\nThe alternative was signing out and going through the emailed reset, which\ninvalidates the password wrap and then asks for the recovery code to undo\nthe damage — an absurd amount of ceremony for a routine change. From an open\nsession the browser already holds the data key, so it can re-wrap it under\nthe new password and send both together.\n\nWritten in one transaction for the same reason the reset is: a password that\nchanged without its key copy looks like a working account right up until the\nnext sign-in opens a vault of blank fields.\n\nThe current password is verified through the same throttle as `/auth/login`.\nWithout that this endpoint would be a password oracle that skips the cooloff\n— slower per guess, but unbounded.",
         "operationId": "change_password_api_v1_auth_change_password_post",
         "parameters": [
           {
@@ -316,7 +316,7 @@
           "auth"
         ],
         "summary": "Factor Password",
-        "description": "Present the password as the *second* factor.\n\n`/auth/login` hard-codes an empty presented-factor list, so it can only ever\nopen a sign-in. That left passkey-then-password \u2014 one of the three pairs the\npolicy promises \u2014 impossible to express, and the sign-in screen with nothing\nto offer but the authenticator after a passkey.\n\nThe account is the one named by the pending token. Nothing here takes an\nemail: doing so would turn the second step into a probe for which addresses\nhave accounts.\n\nNot reachable in the reset flow. A reset exists because the password is\nunavailable, and the emailed token already stands in for it.",
+        "description": "Present the password as the *second* factor.\n\n`/auth/login` hard-codes an empty presented-factor list, so it can only ever\nopen a sign-in. That left passkey-then-password — one of the three pairs the\npolicy promises — impossible to express, and the sign-in screen with nothing\nto offer but the authenticator after a passkey.\n\nThe account is the one named by the pending token. Nothing here takes an\nemail: doing so would turn the second step into a probe for which addresses\nhave accounts.\n\nNot reachable in the reset flow. A reset exists because the password is\nunavailable, and the emailed token already stands in for it.",
         "operationId": "factor_password_api_v1_auth_factor_password_post",
         "parameters": [
           {
@@ -376,7 +376,7 @@
           "auth"
         ],
         "summary": "Factor Totp",
-        "description": "Present an authenticator code as the second factor.\n\nSecond position only. A TOTP code does not identify an account, so accepting\none first would mean taking an email address alongside it \u2014 turning this into\na probe for which addresses have accounts. Password and passkey both identify\nthe account by themselves, so requiring one of them first costs nothing.",
+        "description": "Present an authenticator code as the second factor.\n\nSecond position only. A TOTP code does not identify an account, so accepting\none first would mean taking an email address alongside it — turning this into\na probe for which addresses have accounts. Password and passkey both identify\nthe account by themselves, so requiring one of them first costs nothing.",
         "operationId": "factor_totp_api_v1_auth_factor_totp_post",
         "parameters": [
           {
@@ -496,7 +496,7 @@
           "auth"
         ],
         "summary": "Login",
-        "description": "Verify credentials, set httpOnly access + refresh cookies.\n\nResponse body contains only { email, role } \u2014 never the token value.",
+        "description": "Verify credentials, set httpOnly access + refresh cookies.\n\nResponse body contains only { email, role } — never the token value.",
         "operationId": "login_api_v1_auth_login_post",
         "requestBody": {
           "content": {
@@ -588,7 +588,7 @@
           "auth"
         ],
         "summary": "Logout",
-        "description": "Clear auth cookies and revoke the refresh token.\n\nDeliberately requires no session. It used to depend on a full one, which\nmeant a teacher who abandoned a half-finished sign-in \u2014 or whose access token\nhad simply expired \u2014 could not clear their own cookies: logout answered 403\nand the pending cookie sat there until it timed out. Clearing cookies is\nnever an action that needs protecting; the refresh revocation below is\nauthenticated by the refresh token itself.",
+        "description": "Clear auth cookies and revoke the refresh token.\n\nDeliberately requires no session. It used to depend on a full one, which\nmeant a teacher who abandoned a half-finished sign-in — or whose access token\nhad simply expired — could not clear their own cookies: logout answered 403\nand the pending cookie sat there until it timed out. Clearing cookies is\nnever an action that needs protecting; the refresh revocation below is\nauthenticated by the refresh token itself.",
         "operationId": "logout_api_v1_auth_logout_post",
         "parameters": [
           {
@@ -631,7 +631,7 @@
           "compile"
         ],
         "summary": "Compile Latex Endpoint",
-        "description": "Compile LaTeX source to PDF via Tectonic.\n\nResource files (images, PDFs, data files) reach the working directory two\nways: `resource_exercise_ids` names exercises whose stored files the server\nloads itself, and `resources` carries files the server cannot know about \u2014\nan unsaved exercise, or a client that keeps everything local. Both are\nwritten into the temp working directory and deleted with it. The exam header\nlogo is named by `logo_exam_id` / `account_logo` and resolved here as well.\n\nRate limited: 10 req/min per IP.\nBody limit: BODY_LIMIT_COMPILE (enforced by BodyLimitMiddleware).\nLaTeX source is NEVER logged \u2014 see LaTeXRequest.__repr__ and latex service.\nThe 422 detail carries only TeX diagnostics, never raw engine or log output.",
+        "description": "Compile LaTeX source to PDF via Tectonic.\n\nResource files (images, PDFs, data files) reach the working directory two\nways: `resource_exercise_ids` names exercises whose stored files the server\nloads itself, and `resources` carries files the server cannot know about —\nan unsaved exercise, or a client that keeps everything local. Both are\nwritten into the temp working directory and deleted with it. The exam header\nlogo is named by `logo_exam_id` / `account_logo` and resolved here as well.\n\nRate limited: 10 req/min per IP.\nBody limit: BODY_LIMIT_COMPILE (enforced by BodyLimitMiddleware).\nLaTeX source is NEVER logged — see LaTeXRequest.__repr__ and latex service.\nThe 422 detail carries only TeX diagnostics, never raw engine or log output.",
         "operationId": "compile_latex_endpoint_api_v1_compile_latex_post",
         "parameters": [
           {
@@ -1949,7 +1949,7 @@
           "exercises"
         ],
         "summary": "Delete Exercise",
-        "description": "Delete an exercise from the caller's own library.\n\nIdempotent: always 204, whether or not a row was removed. Only exercises\nowned by *teacher* are ever deleted, so a foreign id is a silent no-op \u2014\nwhich also keeps the response from revealing that the id exists.",
+        "description": "Delete an exercise from the caller's own library.\n\nIdempotent: always 204, whether or not a row was removed. Only exercises\nowned by *teacher* are ever deleted, so a foreign id is a silent no-op —\nwhich also keeps the response from revealing that the id exists.",
         "operationId": "delete_exercise_api_v1_exercises__exercise_id__delete",
         "parameters": [
           {
@@ -2072,7 +2072,7 @@
           "exercises"
         ],
         "summary": "Create New Variant",
-        "description": "Create a new parallel variant (e.g. M\u00f6bel/Fahrzeug/Wildtier) under the same group.",
+        "description": "Create a new parallel variant (e.g. Möbel/Fahrzeug/Wildtier) under the same group.",
         "operationId": "create_new_variant_api_v1_exercises__exercise_id__new_variant_post",
         "parameters": [
           {
@@ -2673,7 +2673,7 @@
           "students"
         ],
         "summary": "Erase Student Identity",
-        "description": "GDPR Art. 17 Erasure \u2014 hard delete student identity + cascade submissions.\nAppends an immutable audit log entry.",
+        "description": "GDPR Art. 17 Erasure — hard delete student identity + cascade submissions.\nAppends an immutable audit log entry.",
         "operationId": "erase_student_identity_api_v1_exams__exam_id__students__pseudonym_hmac__delete",
         "parameters": [
           {
@@ -3836,6 +3836,59 @@
         }
       }
     },
+    "/api/v1/admin/users/{user_id}": {
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Delete User",
+        "description": "Delete an approved account and everything it owns (Admin only).\n\nA pending registration is rejected instead (`/reject`, which tells the registrant), and an\nadmin deletes their own account from the settings page (`DELETE /user/me`).",
+        "operationId": "delete_user_api_v1_admin_users__user_id__delete",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/users/{user_id}/reset-password": {
       "post": {
         "tags": [
@@ -4135,7 +4188,7 @@
           "admin"
         ],
         "summary": "Reset User Factors",
-        "description": "Clear a user's authenticator and passkeys (Admin only).\n\nThe escape hatch for a teacher who has lost a factor and cannot get back in.\nEvery sign-in needs two of three factors, and a teacher with exactly two who\nloses one has no path back on their own \u2014 backup codes only cover the\nauthenticator.\n\nWhat this does **not** do is restore access to their data. Their key copies\nare untouched, because the server cannot read them: the wraps for the\nfactors removed here are gone with those factors, and the recovery code\nremains the way back to the exams themselves. An administrator who could\nundo that could also read the data.",
+        "description": "Clear a user's authenticator and passkeys (Admin only).\n\nThe escape hatch for a teacher who has lost a factor and cannot get back in.\nEvery sign-in needs two of three factors, and a teacher with exactly two who\nloses one has no path back on their own — backup codes only cover the\nauthenticator.\n\nWhat this does **not** do is restore access to their data. Their key copies\nare untouched, because the server cannot read them: the wraps for the\nfactors removed here are gone with those factors, and the recovery code\nremains the way back to the exams themselves. An administrator who could\nundo that could also read the data.",
         "operationId": "reset_user_factors_api_v1_admin_users__user_id__reset_factors_post",
         "parameters": [
           {
@@ -4199,7 +4252,7 @@
           "admin"
         ],
         "summary": "Get Exam Stats",
-        "description": "Get class statistics for an exam with server-side k\u22655 anonymity enforcement.\n\nIf count < 5, score details (mean, std_dev) are suppressed to protect privacy.",
+        "description": "Get class statistics for an exam with server-side k≥5 anonymity enforcement.\n\nIf count < 5, score details (mean, std_dev) are suppressed to protect privacy.",
         "operationId": "get_exam_stats_api_v1_admin_stats__exam_id__get",
         "parameters": [
           {
@@ -4445,7 +4498,7 @@
           "user"
         ],
         "summary": "Purge Server Student Data",
-        "description": "Soft-delete all student identities and scan submissions belonging to the current teacher\nwith a 7-day retention grace period before hard deletion.\n\nLaTeX exercise templates and exam structures remain intact \u2014 including the\nresource files attached to exercises, which are teacher-authored content,\nnot student data. A file that does contain personal data (e.g. a photo of a\npupil) has to be deleted with the exercise or the file itself.",
+        "description": "Soft-delete all student identities and scan submissions belonging to the current teacher\nwith a 7-day retention grace period before hard deletion.\n\nLaTeX exercise templates and exam structures remain intact — including the\nresource files attached to exercises, which are teacher-authored content,\nnot student data. A file that does contain personal data (e.g. a photo of a\npupil) has to be deleted with the exercise or the file itself.",
         "operationId": "purge_server_student_data_api_v1_user_purge_server_student_data_post",
         "parameters": [
           {
@@ -4549,7 +4602,7 @@
           "user"
         ],
         "summary": "Export Own Data",
-        "description": "GDPR Art. 15/20 \u2014 machine-readable copy of the account holder's own data.\n\nCovers only what the server holds *about the teacher*: account fields, the\nexams they authored, and their audit trail. Student payloads are deliberately\nexcluded \u2014 they are encrypted with a key the server never has, and they are\nnot the teacher's personal data. Use the client-side per-student export for\na student's Art. 15 request.",
+        "description": "GDPR Art. 15/20 — machine-readable copy of the account holder's own data.\n\nCovers only what the server holds *about the teacher*: account fields, the\nexams they authored, and their audit trail. Student payloads are deliberately\nexcluded — they are encrypted with a key the server never has, and they are\nnot the teacher's personal data. Use the client-side per-student export for\na student's Art. 15 request.",
         "operationId": "export_own_data_api_v1_user_me_export_get",
         "parameters": [
           {
@@ -4601,7 +4654,7 @@
           "user"
         ],
         "summary": "Delete Own Account",
-        "description": "GDPR Art. 17 \u2014 erase the account holder's own account and authored content.\n\nStudent identities and submissions under the teacher's exams are soft-deleted\nwith the standard grace period and erased by the retention job, matching\n`purge-server-student-data`.\n\nAudit rows are kept, with `teacher_id` nulled by the FK's ON DELETE SET NULL\nand the email snapshot left in place: Art. 17(3)(b) permits retaining what is\nneeded for a legal obligation, and the trail exists to evidence lawful\nhandling of student data. Those rows age out under AUDIT_LOG_RETENTION_DAYS\nrather than living forever.",
+        "description": "GDPR Art. 17: erase the account holder's own account and everything it owns\n(`services/account_deletion.py`). The last admin account is refused.",
         "operationId": "delete_own_account_api_v1_user_me_delete",
         "parameters": [
           {
@@ -4761,7 +4814,7 @@
           "keys"
         ],
         "summary": "Delete Envelope",
-        "description": "Remove a single wrap \u2014 used when a passkey is deregistered.\n\nThe recovery wrap cannot be deleted this way: it is the factor that always\nworks, and dropping it would leave the account one forgotten password away\nfrom unreadable data.",
+        "description": "Remove a single wrap — used when a passkey is deregistered.\n\nThe recovery wrap cannot be deleted this way: it is the factor that always\nworks, and dropping it would leave the account one forgotten password away\nfrom unreadable data.",
         "operationId": "delete_envelope_api_v1_keys_envelopes__envelope_id__delete",
         "parameters": [
           {
@@ -4814,7 +4867,7 @@
           "mfa"
         ],
         "summary": "Mfa Status",
-        "description": "What this account has enrolled, and whether that is enough to sign in.\n\nAlso everything the security page needs to describe each factor: when it was\nadded, when it last answered, and whether a recovery code is on file. All of\nit is about the *authenticated* account \u2014 nothing here is reachable before a\nfactor has been proven, which is what keeps it from being a profile oracle\nfor an arbitrary email address.",
+        "description": "What this account has enrolled, and whether that is enough to sign in.\n\nAlso everything the security page needs to describe each factor: when it was\nadded, when it last answered, and whether a recovery code is on file. All of\nit is about the *authenticated* account — nothing here is reachable before a\nfactor has been proven, which is what keeps it from being a profile oracle\nfor an arbitrary email address.",
         "operationId": "mfa_status_api_v1_mfa_status_get",
         "parameters": [
           {
@@ -5994,6 +6047,11 @@
       },
       "CapabilitiesOut": {
         "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
           "storage_mode": {
             "anyOf": [
               {
@@ -6030,6 +6088,7 @@
         },
         "type": "object",
         "required": [
+          "account_id",
           "storage_mode",
           "allowed_storage_modes",
           "features"
@@ -6500,7 +6559,7 @@
           "scoring_text": {
             "type": "string",
             "title": "Scoring Text",
-            "default": "F\u00fcr jedes korrekte Kreuz 1BE; f\u00fcr jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE"
+            "default": "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE"
           },
           "order_index": {
             "type": "integer",
@@ -7315,7 +7374,7 @@
           "created_at"
         ],
         "title": "ExerciseResourceResponse",
-        "description": "Metadata only \u2014 the bytes are fetched from the download endpoint."
+        "description": "Metadata only — the bytes are fetched from the download endpoint."
       },
       "ExerciseResponse": {
         "properties": {

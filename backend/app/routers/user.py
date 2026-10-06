@@ -21,6 +21,7 @@ from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
 from app.schemas.capabilities import CapabilitiesOut, StorageModeUpdate
 from app.services import audit as audit_svc
+from app.services.account_deletion import delete_account, ensure_not_last_admin
 from app.services.capabilities import (
     account_features,
     capabilities_for,
@@ -34,6 +35,7 @@ router = APIRouter(prefix="/user", tags=["user"])
 def _capabilities_out(teacher: Teacher) -> CapabilitiesOut:
     caps = capabilities_for(teacher)
     return CapabilitiesOut(
+        account_id=teacher.id,
         storage_mode=teacher.storage_mode,  # type: ignore[arg-type]  # constrained by ck_teachers_storage_mode
         allowed_storage_modes=list(caps.allowed_storage_modes),  # type: ignore[arg-type]
         features=caps.features,
@@ -343,70 +345,20 @@ async def delete_own_account(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
-    GDPR Art. 17 — erase the account holder's own account and authored content.
-
-    Student identities and submissions under the teacher's exams are soft-deleted
-    with the standard grace period and erased by the retention job, matching
-    `purge-server-student-data`.
-
-    Audit rows are kept, with `teacher_id` nulled by the FK's ON DELETE SET NULL
-    and the email snapshot left in place: Art. 17(3)(b) permits retaining what is
-    needed for a legal obligation, and the trail exists to evidence lawful
-    handling of student data. Those rows age out under AUDIT_LOG_RETENTION_DAYS
-    rather than living forever.
+    GDPR Art. 17: erase the account holder's own account and everything it owns
+    (`services/account_deletion.py`). The last admin account is refused.
     """
-    now = datetime.now(UTC)
-    retention_until = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)
-
-    exam_ids = (
-        await db.execute(select(Exam.id).where(Exam.teacher_id == teacher.id))
-    ).scalars().all()
-
-    purged_students = 0
-    purged_submissions = 0
-    if exam_ids:
-        students_res = await db.execute(
-            update(StudentIdentity)
-            .where(
-                StudentIdentity.exam_id.in_(exam_ids),
-                StudentIdentity.deleted_at.is_(None),
-            )
-            .values(deleted_at=now, retention_until=retention_until)
-        )
-        purged_students = _rowcount(students_res)
-        submissions_res = await db.execute(
-            update(ScanSubmission)
-            .where(
-                ScanSubmission.exam_id.in_(exam_ids),
-                ScanSubmission.deleted_at.is_(None),
-            )
-            .values(deleted_at=now, retention_until=retention_until)
-        )
-        purged_submissions = _rowcount(submissions_res)
-
-        await db.execute(
-            update(Exam)
-            .where(Exam.teacher_id == teacher.id, Exam.deleted_at.is_(None))
-            .values(deleted_at=now, retention_until=retention_until)
-        )
-
-    # Written before the row disappears — audit_svc snapshots the email.
-    await audit_svc.write(
+    await ensure_not_last_admin(db, teacher)
+    result = await delete_account(
         db,
-        teacher_id=teacher.id,
-        teacher_email=teacher.email,
-        action="DELETE",
-        target_id=str(teacher.id),
+        teacher,
+        actor=teacher,
         request_ip=request.client.host if request.client else None,
     )
-    await db.flush()
-
-    await db.delete(teacher)
-
     return {
         "status": "ok",
         "account_deleted": True,
-        "purged_student_identities": purged_students,
-        "purged_submissions": purged_submissions,
-        "retention_until": retention_until.isoformat(),
+        "purged_student_identities": result.purged_student_identities,
+        "purged_submissions": result.purged_submissions,
+        "retention_until": result.retention_until.isoformat(),
     }

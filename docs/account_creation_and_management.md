@@ -247,6 +247,10 @@ The Admin UI lists pending registrations with their note. For each, an admin cho
 
   Exams and exercises always live on the server and have no switch. New and existing accounts default to everything on; accounts created before this feature kept everything. The switches are enforced: the interface offers only what the account's capabilities allow, and the server refuses the rest with `403 ERR_FEATURE_NOT_ALLOWED`. What happens to an account that loses `server_results` while its results are on the server is described in `docs/dev/storage_modes.md`: it moves them into its browser, and nothing is lost.
 
+- **Delete** (`DELETE /admin/users/{id}`, trash button in the account list): deletes an approved account and everything it owns, after a confirmation. An admin cannot delete their own account here, nor the last admin; a pending registration is rejected instead.
+
+Every account holder can delete their own account under **Settings → Delete account** (`DELETE /user/me`), by typing their address to confirm. Exams, exercises, results, sign-in factors and key envelopes go with it; the browser's copy is wiped and the tab returns to the sign-in page. The last admin account cannot be deleted. Audit rows stay (with the account reference nulled) until `AUDIT_LOG_RETENTION_DAYS`.
+
 If no admin can sign in to approve, the operator can approve from the command line (`python -m app.cli approve-user --email user@school.com`); it leaves the account's features unchanged.
 
 ### 7.4 Always-allowed domains
@@ -261,7 +265,7 @@ Registrations that nobody completes and accounts that nobody approves do not sta
 
 ### 7.6 Audit trail
 
-`USER_REGISTERED`, `USER_APPROVED` (with the actor `system:allowed-domain` for an automatic approval), `USER_REJECTED`, `USER_FEATURES_CHANGED`, `ALLOWED_DOMAIN_ADDED`, `ALLOWED_DOMAIN_CHANGED` and `ALLOWED_DOMAIN_REMOVED`.
+`USER_REGISTERED`, `USER_APPROVED` (with the actor `system:allowed-domain` for an automatic approval), `USER_REJECTED`, `USER_FEATURES_CHANGED`, `DELETE` (account deletion; the actor is the account holder or the deleting admin), `ALLOWED_DOMAIN_ADDED`, `ALLOWED_DOMAIN_CHANGED` and `ALLOWED_DOMAIN_REMOVED`.
 
 ---
 

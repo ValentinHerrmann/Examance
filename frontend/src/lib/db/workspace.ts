@@ -24,7 +24,13 @@ import {
   storagePolicyStore,
   type StorageMode,
 } from '#lib/stores/storagePolicy';
-import { allowedModesFrom, capabilitiesStore, loadCapabilities } from '#lib/stores/capabilities';
+import {
+  AccountMismatchError,
+  allowedModesFrom,
+  cachedCapabilities,
+  clearCapabilities,
+  loadCapabilities,
+} from '#lib/stores/capabilities';
 import { workspaceIdStore, workspaceStatusStore, type WorkspaceStatus } from '#lib/stores/workspaceState';
 import { clearOfflineQueue, hasQueuedWrites, stampUnboundQueueEntries } from '#lib/services/offlineQueue';
 import { safeLocalStorage } from '#lib/utils/storage';
@@ -242,8 +248,9 @@ async function decide(): Promise<WorkspaceStatus> {
     mode = caps.storageMode;
     allowed = allowedModesFrom(caps);
   } catch (err) {
+    if (err instanceof AccountMismatchError) return lockForeignSession();
     console.warn('[workspace] could not load capabilities, using the cached mode', err);
-    const cached = get(capabilitiesStore);
+    const cached = cachedCapabilities();
     const current = await currentManifest();
     mode = cached?.storageMode ?? (current?.mode === 'all-server' || current?.mode === 'hybrid' ? current.mode : null);
     // Without any cached answer, trust the mode this browser last worked in rather than allowing nothing,
@@ -258,6 +265,40 @@ async function decide(): Promise<WorkspaceStatus> {
   applyMode(mode);
   await rememberMode(mode);
   return { state: 'ok' };
+}
+
+/**
+ * Another tab signed in as a different account, so this tab's server session now belongs to that
+ * account. Drop this tab's keys and answer without signing out: logging out would end the other
+ * tab's session, which is the one the cookie now belongs to.
+ */
+function lockForeignSession(): WorkspaceStatus {
+  clearCapabilities();
+  sessionStore.lock();
+  if (typeof window !== 'undefined' && window.location.pathname !== '/unlock') window.location.href = '/unlock';
+  return { state: 'unchecked' };
+}
+
+/**
+ * Asks the server again what the account may use and applies it. Admins change an account's switches
+ * at any time; this runs whenever the tab comes back into view, so a change shows without signing in
+ * again. Only a changed answer re-runs `openWorkspace()` (which asks for a new mode if the current one
+ * is no longer allowed). Offline, nothing changes.
+ */
+export async function refreshCapabilities(): Promise<void> {
+  if (!get(sessionStore).sessionKey || get(workspaceStatusStore).state !== 'ok') return;
+  const before = cachedCapabilities();
+  let caps;
+  try {
+    caps = await loadCapabilities();
+  } catch (err) {
+    if (err instanceof AccountMismatchError) workspaceStatusStore.set(lockForeignSession());
+    return;
+  }
+  const changed =
+    caps.storageMode !== before?.storageMode ||
+    allowedModesFrom(caps).join() !== (before ? allowedModesFrom(before).join() : '');
+  if (changed) await openWorkspace();
 }
 
 /**

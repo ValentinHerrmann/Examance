@@ -179,6 +179,14 @@ export const settings = {
         privacyNote: 'Details in der Datenschutzerklärung:',
         privacyLink: 'Datenschutz',
     },
+    deleteAccount: {
+        heading: 'Konto löschen',
+        description: 'Löscht Ihr Konto und alles, was dazu auf dem Server gespeichert ist: Prüfungen, Aufgaben, Bewertungsergebnisse und Anmeldefaktoren. Ergebnisse, die nur in diesem Browser liegen, werden ebenfalls entfernt. Das lässt sich nicht rückgängig machen.',
+        confirmLabel: 'Geben Sie zur Bestätigung Ihre E-Mail-Adresse ({email}) ein',
+        button: 'Mein Konto löschen',
+        deleting: 'Wird gelöscht…',
+        failed: 'Das Konto konnte nicht gelöscht werden.',
+    },
     hygiene: {
         heading: 'Sitzungsdaten bereinigen',
         description: 'Alle zwischengespeicherten Prüfungs-, Schüler- und Scandaten dauerhaft aus dem lokalen Browserspeicher löschen.',

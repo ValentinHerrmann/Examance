@@ -269,6 +269,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   }
 
   const capabilities = () => ({
+    account_id: FAKE_TEACHER_ID,
     storage_mode: state.storageMode,
     allowed_storage_modes: [...ALLOWED_MODES],
     features: { server_results: true, server_latex: true, training_donation: true },
@@ -277,6 +278,9 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   function user(method: string, parts: string[], body: any): Handled {
     const [, action] = parts;
     if (method === 'GET' && action === 'capabilities') return ok(capabilities());
+    if (method === 'DELETE' && action === 'me' && parts.length === 2) {
+      return ok({ status: 'ok', account_deleted: true, purged_student_identities: 0, purged_submissions: 0, retention_until: '2026-12-31' });
+    }
     if (action === 'logo') {
       // No default logo file in the fake: the account prints none until it uploads one (issue #46).
       if (method === 'GET' && parts.length === 2) return ok({ ...NO_LOGO, mode: 'default' });
@@ -1065,6 +1069,11 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         return ok(user);
       }
       if (method === 'POST' && action === 'reject') {
+        state.adminUsers = state.adminUsers.filter((u) => u.id !== id);
+        return noContent();
+      }
+      if (method === 'DELETE' && !action) {
+        if (user.approved_at === null) return fail(409, 'This account is waiting for approval.', 'ERR_ACCOUNT_PENDING');
         state.adminUsers = state.adminUsers.filter((u) => u.id !== id);
         return noContent();
       }

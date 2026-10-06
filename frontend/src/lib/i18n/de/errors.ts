@@ -32,6 +32,8 @@ export const errors = {
         ERR_ACCOUNT_PENDING: 'Für diese Adresse wartet eine Registrierung auf Freigabe. Geben Sie sie frei oder lehnen Sie sie ab.',
         ERR_ACCOUNT_EXISTS: 'Ein Konto mit dieser E-Mail-Adresse existiert bereits.',
         ERR_ALREADY_APPROVED: 'Dieses Konto ist bereits freigegeben.',
+        ERR_LAST_ADMIN: 'Das letzte Admin-Konto kann nicht gelöscht werden. Machen Sie zuerst ein anderes Konto zum Admin.',
+        ERR_DELETE_SELF: 'Ihr eigenes Konto löschen Sie in den Einstellungen.',
         ERR_INVALID_DOMAIN: 'Bitte geben Sie eine Domain wie schule.example ein.',
         ERR_DOMAIN_EXISTS: 'Diese Domain steht bereits auf der Liste.',
     },

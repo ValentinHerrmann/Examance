@@ -70,6 +70,11 @@ export const admin: Translations['admin'] = {
         resent: 'The invitation to {email} was sent again.',
         resendMailFailed: 'The link for {email} was created, but the email could not be sent.',
         failed: 'The change failed.',
+        delete: 'Delete account',
+        deleteLabel: 'Delete the account {email}',
+        deleteTitle: 'Delete account?',
+        deleteMessage: '{email} and everything stored with it on the server (exams, exercises, results, sign-in factors) will be deleted. This cannot be undone.',
+        deleted: 'The account {email} was deleted.',
     },
     domains: {
         title: 'Always-allowed domains',

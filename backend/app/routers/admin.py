@@ -6,7 +6,16 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated, Any, Literal, cast
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from sqlalchemy import CursorResult, delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,6 +47,7 @@ from app.services import account_mail, registration
 from app.services import audit as audit_svc
 from app.services import mfa as mfa_svc
 from app.services import webauthn as webauthn_svc
+from app.services.account_deletion import delete_account, ensure_not_last_admin
 from app.services.password_reset import create_and_send_reset_token
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -281,6 +291,38 @@ async def update_user_features(
     )
     await db.flush()
     return _user_out(user)
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    user_id: uuid.UUID,
+    request: Request,
+    admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Response:
+    """
+    Delete an approved account and everything it owns (Admin only).
+
+    A pending registration is rejected instead (`/reject`, which tells the registrant), and an
+    admin deletes their own account from the settings page (`DELETE /user/me`).
+    """
+    user = await _load_user(db, user_id)
+    if user.id == admin.id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Delete your own account from the settings page.",
+            headers={"code": "ERR_DELETE_SELF"},
+        )
+    if user.approved_at is None:
+        raise _pending_conflict()
+    await ensure_not_last_admin(db, user)
+    await delete_account(
+        db,
+        user,
+        actor=admin,
+        request_ip=request.client.host if request.client else None,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/users/{user_id}/reset-password", status_code=status.HTTP_200_OK)
