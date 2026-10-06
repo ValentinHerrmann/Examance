@@ -163,20 +163,21 @@ async def test_keep_exercises_leaves_library_exercises_without_owner(
 ) -> None:
     email = _email("keep")
     teacher = await sign_in(client, db, email)
+    teacher_id = teacher.id
     library_id, bound_id = await _add_exercises(db, teacher)
     token = await _request(client, email, keep=True)
 
     resp = await client.post(CONFIRM, json={"token": token})
 
     assert resp.status_code == 200
-    assert await _gone(db, teacher.id)
+    assert await _gone(db, teacher_id)
     kept = await db.get(Exercise, library_id)
     assert kept is not None
     assert kept.teacher_id is None
     # The exam-bound copy is not orphaned: it goes with its exam (the FK cascades on Postgres;
     # the SQLite test database does not enforce foreign keys).
     bound = await db.get(Exercise, bound_id)
-    assert bound is None or bound.teacher_id == teacher.id
+    assert bound is None or bound.teacher_id == teacher_id
 
 
 async def test_without_keep_no_exercise_is_orphaned(
@@ -184,6 +185,7 @@ async def test_without_keep_no_exercise_is_orphaned(
 ) -> None:
     email = _email("drop")
     teacher = await sign_in(client, db, email)
+    teacher_id = teacher.id
     library_id, _ = await _add_exercises(db, teacher)
     token = await _request(client, email)
 
@@ -192,7 +194,7 @@ async def test_without_keep_no_exercise_is_orphaned(
     db.expire_all()
     # Deleted with the account by the FK cascade on Postgres; never left behind without owner.
     library = await db.get(Exercise, library_id)
-    assert library is None or library.teacher_id == teacher.id
+    assert library is None or library.teacher_id == teacher_id
 
 
 # --------------------------------------------------------------------------------------------
