@@ -247,9 +247,15 @@ The Admin UI lists pending registrations with their note. For each, an admin cho
 
   Exams and exercises always live on the server and have no switch. New and existing accounts default to everything on; accounts created before this feature kept everything. The switches are enforced: the interface offers only what the account's capabilities allow, and the server refuses the rest with `403 ERR_FEATURE_NOT_ALLOWED`. What happens to an account that loses `server_results` while its results are on the server is described in `docs/dev/storage_modes.md`: it moves them into its browser, and nothing is lost.
 
-- **Delete** (`DELETE /admin/users/{id}`, trash button in the account list): deletes an approved account and everything it owns, after a confirmation. An admin cannot delete their own account here, nor the last admin; a pending registration is rejected instead.
+- **Delete** (`DELETE /admin/users/{id}`, trash button in the account list): deletes an approved account and everything it owns, after a confirmation. The dialog can keep the account's exercises on the server (`?keep_exercises=true`, see below). An admin cannot delete their own account here, nor the last admin; a pending registration is rejected instead.
 
-Every account holder can delete their own account under **Settings → Delete account** (`DELETE /user/me`), by typing their address to confirm. Exams, exercises, results, sign-in factors and key envelopes go with it; the browser's copy is wiped and the tab returns to the sign-in page. The last admin account cannot be deleted. Audit rows stay (with the account reference nulled) until `AUDIT_LOG_RETENTION_DAYS`.
+Every account holder can delete their own account under **Settings → Delete account**, confirmed by e-mail:
+
+1. The settings ask (`POST /user/me/deletion-request`, optionally "keep my exercises"). The server mails a single-use link to `/delete-account?token=…`, valid `ACCOUNT_DELETION_TOKEN_TTL_MINUTES` (default 60). A new request replaces an open one. The request is audited as `DELETION_REQUESTED`.
+2. The link's page shows what will be deleted (`POST /auth/account-deletion/preview`). Opening it deletes nothing, so a mail scanner that fetches the link is harmless.
+3. "Delete account now" (`POST /auth/account-deletion/confirm`) deletes the account. No sign-in is needed on that page: the link proves control of the mailbox, and the request was made while signed in. If the same browser holds a session of that account, its local copy is wiped.
+
+Exams, results, exercise groups, the logo, sign-in factors and key envelopes go with the account. **Exercises** go too, unless the holder (or the deleting admin) chose to keep them: then the library exercises, with every version and their resource files, stay on the server **without an owner** (`teacher_id` and group NULL). Nobody sees them for now; they are kept for the planned exercise sharing. Exam-bound copies always go with their exams. The last admin account cannot be deleted. Audit rows stay (with the account reference nulled) until `AUDIT_LOG_RETENTION_DAYS`; expired, unconfirmed links are removed by the retention job.
 
 If no admin can sign in to approve, the operator can approve from the command line (`python -m app.cli approve-user --email user@school.com`); it leaves the account's features unchanged.
 
@@ -265,7 +271,7 @@ Registrations that nobody completes and accounts that nobody approves do not sta
 
 ### 7.6 Audit trail
 
-`USER_REGISTERED`, `USER_APPROVED` (with the actor `system:allowed-domain` for an automatic approval), `USER_REJECTED`, `USER_FEATURES_CHANGED`, `DELETE` (account deletion; the actor is the account holder or the deleting admin), `ALLOWED_DOMAIN_ADDED`, `ALLOWED_DOMAIN_CHANGED` and `ALLOWED_DOMAIN_REMOVED`.
+`USER_REGISTERED`, `USER_APPROVED` (with the actor `system:allowed-domain` for an automatic approval), `USER_REJECTED`, `USER_FEATURES_CHANGED`, `DELETION_REQUESTED` (a self-deletion link was mailed), `DELETE` (account deletion; the actor is the account holder or the deleting admin), `ALLOWED_DOMAIN_ADDED`, `ALLOWED_DOMAIN_CHANGED` and `ALLOWED_DOMAIN_REMOVED`.
 
 ---
 

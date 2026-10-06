@@ -140,6 +140,92 @@
         }
       }
     },
+    "/api/v1/auth/account-deletion/preview": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Preview Account Deletion",
+        "description": "What the mailed self-deletion link would delete, for the confirmation page. Deletes nothing:\na mail scanner that opens the link must not delete the account.",
+        "operationId": "preview_account_deletion_api_v1_auth_account_deletion_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDeletionTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDeletionPreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/account-deletion/confirm": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Confirm Account Deletion",
+        "description": "GDPR Art. 17: delete the account behind the mailed link (single use), keeping the library\nexercises without an owner if the holder asked for that. The last admin account is refused.\n\nNo session needed: the link proves control of the mailbox, and the holder asked for it while\nsigned in. Cookies are left alone: they may belong to another account signed in in this\nbrowser, and the deleted account's own tokens die with it (refresh tokens cascade, access\ntokens no longer resolve to an account).",
+        "operationId": "confirm_account_deletion_api_v1_auth_account_deletion_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDeletionTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Confirm Account Deletion Api V1 Auth Account Deletion Confirm Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/reset/start": {
       "post": {
         "tags": [
@@ -3842,7 +3928,7 @@
           "admin"
         ],
         "summary": "Delete User",
-        "description": "Delete an approved account and everything it owns (Admin only).\n\nA pending registration is rejected instead (`/reject`, which tells the registrant), and an\nadmin deletes their own account from the settings page (`DELETE /user/me`).",
+        "description": "Delete an approved account and everything it owns (Admin only). With `keep_exercises` its\nlibrary exercises stay on the server without an owner (`services/account_deletion.py`).\n\nA pending registration is rejected instead (`/reject`, which tells the registrant), and an\nadmin deletes their own account from the settings page (`DELETE /user/me`).",
         "operationId": "delete_user_api_v1_admin_users__user_id__delete",
         "parameters": [
           {
@@ -3853,6 +3939,16 @@
               "type": "string",
               "format": "uuid",
               "title": "User Id"
+            }
+          },
+          {
+            "name": "keep_exercises",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Keep Exercises"
             }
           },
           {
@@ -4648,14 +4744,14 @@
         }
       }
     },
-    "/api/v1/user/me": {
-      "delete": {
+    "/api/v1/user/me/deletion-request": {
+      "post": {
         "tags": [
           "user"
         ],
-        "summary": "Delete Own Account",
-        "description": "GDPR Art. 17: erase the account holder's own account and everything it owns\n(`services/account_deletion.py`). The last admin account is refused.",
-        "operationId": "delete_own_account_api_v1_user_me_delete",
+        "summary": "Request Account Deletion",
+        "description": "GDPR Art. 17: ask to delete one's own account. Mails a single-use link (valid\nACCOUNT_DELETION_TOKEN_TTL_MINUTES) whose page confirms the deletion\n(`POST /auth/account-deletion/confirm`, `services/account_deletion.py`). A new request\nreplaces an open one. The last admin account is refused up front.",
+        "operationId": "request_account_deletion_api_v1_user_me_deletion_request_post",
         "parameters": [
           {
             "name": "access_token",
@@ -4674,15 +4770,25 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDeletionRequestIn"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": {
+          "202": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Delete Own Account Api V1 User Me Delete"
+                  "title": "Response Request Account Deletion Api V1 User Me Deletion Request Post"
                 }
               }
             }
@@ -5509,6 +5615,58 @@
   },
   "components": {
     "schemas": {
+      "AccountDeletionPreview": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "keep_exercises": {
+            "type": "boolean",
+            "title": "Keep Exercises"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "keep_exercises",
+          "expires_at"
+        ],
+        "title": "AccountDeletionPreview"
+      },
+      "AccountDeletionRequestIn": {
+        "properties": {
+          "keep_exercises": {
+            "type": "boolean",
+            "title": "Keep Exercises",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AccountDeletionRequestIn"
+      },
+      "AccountDeletionTokenRequest": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "AccountDeletionTokenRequest",
+        "description": "The token from the mailed self-deletion link. In a body, never a URL, so no log keeps it."
+      },
       "AccountFeatures": {
         "properties": {
           "server_results": {

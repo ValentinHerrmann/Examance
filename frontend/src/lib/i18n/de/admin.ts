@@ -71,8 +71,9 @@ export const admin = {
         delete: 'Konto löschen',
         deleteLabel: 'Das Konto {email} löschen',
         deleteTitle: 'Konto löschen?',
-        deleteMessage: '{email} und alles, was dazu auf dem Server gespeichert ist (Prüfungen, Aufgaben, Ergebnisse, Anmeldefaktoren), wird gelöscht. Das lässt sich nicht rückgängig machen.',
+        deleteMessage: '{email} und alles, was dazu auf dem Server gespeichert ist (Prüfungen, Ergebnisse, Anmeldefaktoren und, sofern nicht behalten, die Aufgaben), wird gelöscht. Das lässt sich nicht rückgängig machen.',
         deleted: 'Das Konto {email} wurde gelöscht.',
+        keepExercises: 'Aufgaben des Kontos auf dem Server behalten (ohne Besitzer, für späteres Teilen)',
     },
     domains: {
         title: 'Immer erlaubte Domains',

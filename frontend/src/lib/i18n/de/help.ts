@@ -223,7 +223,7 @@ export const help = {
                 h: 'Sitzung und Löschung',
                 p1: 'Die Sitzung sperrt sich nach Inaktivität von selbst; danach sind alle Inhalte wieder nur mit dem Passwort erreichbar.',
                 p2: 'Über die Datenlöschung lassen sich einzelne Schülerdaten (Auskunfts- und Löschansprüche nach DSGVO) oder der gesamte Arbeitsbereich entfernen. Das Löschen ist endgültig und kann nicht rückgängig gemacht werden.',
-                p3: 'Unter „Konto löschen“ können Sie Ihr eigenes Konto löschen. Dabei wird alles entfernt, was dazu auf dem Server gespeichert ist (Prüfungen, Aufgaben, Ergebnisse, Anmeldefaktoren), und dieser Browser wird geleert. Zur Bestätigung geben Sie Ihre E-Mail-Adresse ein. Admins können in der Kontenverwaltung auch andere Konten löschen.',
+                p3: 'Unter „Konto löschen“ können Sie Ihr eigenes Konto löschen. Sie erhalten eine E-Mail mit einem Link; gelöscht wird erst, wenn Sie ihn öffnen und bestätigen. Dabei wird alles entfernt, was dazu auf dem Server gespeichert ist (Prüfungen, Ergebnisse, Anmeldefaktoren), und dieser Browser wird geleert. Ihre Aufgaben können auf Wunsch ohne Ihren Namen auf dem Server bleiben, damit sie später geteilt werden können. Admins können in der Kontenverwaltung auch andere Konten löschen, mit derselben Option.',
             },
             s5: {
                 h: 'MC-Erkennung feinjustieren',

@@ -56,6 +56,7 @@ export function isPublicPath(pathname: string): boolean {
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/verify-email") ||
+    pathname.startsWith("/delete-account") ||
     pathname.startsWith("/help")
   );
 }

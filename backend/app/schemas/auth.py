@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
@@ -120,6 +121,18 @@ class RegisterCompleteRequest(BaseModel):
     new_password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
     # Shown to the approving admin; erased on approval. Ignored for auto-approved domains.
     note: str | None = Field(default=None, max_length=500)
+
+
+class AccountDeletionTokenRequest(BaseModel):
+    """The token from the mailed self-deletion link. In a body, never a URL, so no log keeps it."""
+
+    token: str = Field(min_length=1, max_length=200)
+
+
+class AccountDeletionPreview(BaseModel):
+    email: str
+    keep_exercises: bool
+    expires_at: datetime
 
 
 class RegisterCompleteResponse(BaseModel):

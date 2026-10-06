@@ -33,6 +33,7 @@ export const errors = {
         ERR_ACCOUNT_EXISTS: 'Ein Konto mit dieser E-Mail-Adresse existiert bereits.',
         ERR_ALREADY_APPROVED: 'Dieses Konto ist bereits freigegeben.',
         ERR_LAST_ADMIN: 'Das letzte Admin-Konto kann nicht gelöscht werden. Machen Sie zuerst ein anderes Konto zum Admin.',
+        ERR_INVALID_DELETION_TOKEN: 'Dieser Löschlink ist ungültig oder abgelaufen. Fordern Sie in den Einstellungen einen neuen an.',
         ERR_DELETE_SELF: 'Ihr eigenes Konto löschen Sie in den Einstellungen.',
         ERR_INVALID_DOMAIN: 'Bitte geben Sie eine Domain wie schule.example ein.',
         ERR_DOMAIN_EXISTS: 'Diese Domain steht bereits auf der Liste.',

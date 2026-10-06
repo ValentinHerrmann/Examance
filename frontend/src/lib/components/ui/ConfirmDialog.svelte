@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import Modal from "./Modal.svelte";
   import Button from "./Button.svelte";
 
@@ -15,6 +16,8 @@
     role?: "dialog" | "alertdialog";
     onConfirm?: (() => void) | undefined;
     onCancel?: (() => void) | undefined;
+    /** Extra controls under the message, e.g. an option for the confirmed action. */
+    children?: Snippet;
   }
 
   let {
@@ -28,11 +31,13 @@
     role = "alertdialog",
     onConfirm = undefined,
     onCancel = undefined,
+    children,
   }: Props = $props();
 </script>
 
 <Modal {open} size="small" {title} {role} onClose={() => onCancel?.()}>
   <p class="m-0 leading-normal text-muted">{message}</p>
+  {#if children}<div class="mt-4">{@render children()}</div>{/if}
 
   {#snippet footer()}
   

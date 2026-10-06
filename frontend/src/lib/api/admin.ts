@@ -63,9 +63,9 @@ export async function rejectUser(id: string): Promise<void> {
   await api.post(`/admin/users/${id}/reject`, {}, { silentError: true });
 }
 
-/** Deletes an approved account and everything it owns. Not for the admin's own account, nor a pending one. */
-export async function deleteUser(id: string): Promise<void> {
-  await api.delete(`/admin/users/${id}`, { silentError: true });
+/** Deletes an approved account and everything it owns (its library exercises stay ownerless with `keepExercises`). Not for the admin's own account, nor a pending one. */
+export async function deleteUser(id: string, keepExercises: boolean): Promise<void> {
+  await api.delete(`/admin/users/${id}${keepExercises ? '?keep_exercises=true' : ''}`, { silentError: true });
 }
 
 export async function updateUserFeatures(id: string, features: Partial<AccountFeatures>): Promise<AdminUser> {

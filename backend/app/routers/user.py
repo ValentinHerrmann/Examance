@@ -5,7 +5,7 @@ import base64
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import Result, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_teacher
+from app.middleware.rate_limit import limiter
 from app.models.audit_log import AuditLog
 from app.models.exam import Exam
 from app.models.logo import ExamLogo
@@ -20,8 +21,10 @@ from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
 from app.schemas.capabilities import CapabilitiesOut, StorageModeUpdate
+from app.schemas.user import AccountDeletionRequestIn
+from app.services import account_mail
 from app.services import audit as audit_svc
-from app.services.account_deletion import delete_account, ensure_not_last_admin
+from app.services.account_deletion import create_deletion_request, ensure_not_last_admin
 from app.services.capabilities import (
     account_features,
     capabilities_for,
@@ -338,27 +341,34 @@ async def export_own_data(
     }
 
 
-@router.delete("/me", status_code=status.HTTP_200_OK)
-async def delete_own_account(
+@router.post("/me/deletion-request", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("5/hour")
+async def request_account_deletion(
+    body: AccountDeletionRequestIn,
     request: Request,
+    background_tasks: BackgroundTasks,
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
-    GDPR Art. 17: erase the account holder's own account and everything it owns
-    (`services/account_deletion.py`). The last admin account is refused.
+    GDPR Art. 17: ask to delete one's own account. Mails a single-use link (valid
+    ACCOUNT_DELETION_TOKEN_TTL_MINUTES) whose page confirms the deletion
+    (`POST /auth/account-deletion/confirm`, `services/account_deletion.py`). A new request
+    replaces an open one. The last admin account is refused up front.
     """
     await ensure_not_last_admin(db, teacher)
-    result = await delete_account(
+    mail = await create_deletion_request(db, teacher, keep_exercises=body.keep_exercises)
+    await audit_svc.write(
         db,
-        teacher,
-        actor=teacher,
+        teacher_id=teacher.id,
+        teacher_email=teacher.email,
+        action="DELETION_REQUESTED",
+        target_id=str(teacher.id),
         request_ip=request.client.host if request.client else None,
     )
+    await db.commit()
+    background_tasks.add_task(account_mail.send_all, [mail])
     return {
-        "status": "ok",
-        "account_deleted": True,
-        "purged_student_identities": result.purged_student_identities,
-        "purged_submissions": result.purged_submissions,
-        "retention_until": result.retention_until.isoformat(),
+        "status": "sent",
+        "expires_in_minutes": settings.ACCOUNT_DELETION_TOKEN_TTL_MINUTES,
     }

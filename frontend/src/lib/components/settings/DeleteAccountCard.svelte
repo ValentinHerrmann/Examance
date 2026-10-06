@@ -1,12 +1,11 @@
 <script lang="ts">
-  // Deleting one's own account (GDPR Art. 17, `DELETE /user/me`). Typing the address is the
-  // confirmation; afterwards this browser's copy is wiped and the tab returns to the sign-in page.
-  import { ApiError, api } from "#lib/api/client";
+  // Deleting one's own account (GDPR Art. 17). This only asks: the server mails a single-use link
+  // whose page (`routes/delete-account`) confirms the deletion. The holder may keep their library
+  // exercises on the server without their name, for sharing later.
+  import { ApiError } from "#lib/api/client";
+  import { requestAccountDeletion } from "#lib/api/account";
   import { t } from "#lib/i18n";
-  import { Alert, Button, Card, Field, TextInput } from "#lib/components/ui";
-  import { wipeDatabase } from "#lib/db/hygiene";
-  import { clearCapabilities } from "#lib/stores/capabilities";
-  import { sessionStore } from "#lib/stores/session";
+  import { Alert, Button, Card, Checkbox } from "#lib/components/ui";
 
   interface Props {
     email: string;
@@ -14,40 +13,39 @@
 
   let { email }: Props = $props();
 
-  let typed = $state("");
+  let keepExercises = $state(false);
   let busy = $state(false);
   let error = $state("");
-  let confirmed = $derived(typed.trim().toLowerCase() === email.trim().toLowerCase() && email !== "");
+  let sentMinutes = $state<number | null>(null);
 
-  async function remove() {
-    if (!confirmed || busy) return;
+  async function request() {
+    if (busy) return;
     busy = true;
     error = "";
     try {
-      await api.delete("/user/me", { silentError: true });
+      sentMinutes = await requestAccountDeletion(keepExercises);
     } catch (err) {
       error = err instanceof ApiError ? err.message : $t("settings.deleteAccount.failed");
+    } finally {
       busy = false;
-      return;
     }
-    // The server session ended with the account; drop everything this browser still holds.
-    await wipeDatabase();
-    clearCapabilities();
-    sessionStore.lock();
-    window.location.href = "/unlock";
   }
 </script>
 
 <Card tone="danger" title={$t("settings.deleteAccount.heading")}>
   <p class="mt-0 mb-4 text-sm text-muted">{$t("settings.deleteAccount.description")}</p>
   {#if error}<Alert severity="danger" class="mb-4">{error}</Alert>{/if}
-  <form class="flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); remove(); }}>
-    <Field label={$t("settings.deleteAccount.confirmLabel", { email })} forId="delete-account-email">
-      <TextInput id="delete-account-email" type="email" bind:value={typed} autocomplete="off" disabled={busy} />
-    </Field>
+  {#if sentMinutes !== null}
+    <Alert severity="info" class="mb-4">{$t("settings.deleteAccount.sent", { email, minutes: sentMinutes })}</Alert>
+  {/if}
+  <form class="flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); request(); }}>
+    <div class="flex flex-col gap-1">
+      <Checkbox bind:checked={keepExercises} disabled={busy} label={$t("settings.deleteAccount.keepExercises")} />
+      <p class="m-0 text-xs text-muted">{$t("settings.deleteAccount.keepExercisesHint")}</p>
+    </div>
     <div>
-      <Button type="submit" severity="danger" loading={busy} disabled={!confirmed} class="w-full sm:w-auto">
-        {busy ? $t("settings.deleteAccount.deleting") : $t("settings.deleteAccount.button")}
+      <Button type="submit" severity="danger" loading={busy} class="w-full sm:w-auto">
+        {sentMinutes !== null ? $t("settings.deleteAccount.resend") : $t("settings.deleteAccount.button")}
       </Button>
     </div>
   </form>

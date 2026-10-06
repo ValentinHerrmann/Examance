@@ -113,6 +113,30 @@ def approved_mail(email: str) -> Mail:
     )
 
 
+def deletion_mail(email: str, link: str, *, keep_exercises: bool) -> Mail:
+    """Confirms deleting one's own account; the link leads to a page with a final button."""
+    exercises = (
+        "Your exercises stay on the server without your name; everything else is deleted."
+        if keep_exercises
+        else "Your exercises are deleted too."
+    )
+    return _compose(
+        email,
+        "Confirm deleting your Examance account",
+        [
+            f"You asked to delete your Examance account ({email}).",
+            "Open the link and confirm to delete the account with its exams, results and "
+            f"sign-in factors. {exercises} This cannot be undone.",
+        ],
+        link=("Delete my account", link),
+        footer=[
+            f"This link expires in {settings.ACCOUNT_DELETION_TOKEN_TTL_MINUTES} minutes.",
+            "If this was not you, ignore this email and change your password: nothing is "
+            "deleted without the link.",
+        ],
+    )
+
+
 def rejected_mail(email: str) -> Mail:
     return _compose(
         email,

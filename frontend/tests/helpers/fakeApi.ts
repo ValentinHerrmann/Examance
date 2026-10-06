@@ -219,6 +219,11 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       if (method === 'POST') return ok({ message: 'If this address can be registered, a link was sent.' });
     }
     if (method !== 'POST') return undefined;
+    // Self-deletion link: any token previews the signed-in address and deletes on confirm.
+    if (action === 'account-deletion') {
+      if (step === 'preview') return ok({ email: state.email, keep_exercises: false, expires_at: '2099-01-01T00:00:00Z' });
+      if (step === 'confirm') return ok({ status: 'ok', account_deleted: true, kept_exercises: false });
+    }
     if (action === 'login') {
       // Any credentials are accepted: the suite tests the app, not the login policy.
       state.email = String(body?.email ?? DEFAULT_EMAIL).trim().toLowerCase();
@@ -278,8 +283,8 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   function user(method: string, parts: string[], body: any): Handled {
     const [, action] = parts;
     if (method === 'GET' && action === 'capabilities') return ok(capabilities());
-    if (method === 'DELETE' && action === 'me' && parts.length === 2) {
-      return ok({ status: 'ok', account_deleted: true, purged_student_identities: 0, purged_submissions: 0, retention_until: '2026-12-31' });
+    if (method === 'POST' && action === 'me' && parts[2] === 'deletion-request') {
+      return ok({ status: 'sent', expires_in_minutes: 60 });
     }
     if (action === 'logo') {
       // No default logo file in the fake: the account prints none until it uploads one (issue #46).

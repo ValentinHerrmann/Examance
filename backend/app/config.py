@@ -172,6 +172,9 @@ class Settings(BaseSettings):
     # Verified accounts nobody approved are erased after this many days (only when they hold no
     # data, which a pending account cannot create).
     PENDING_ACCOUNT_RETENTION_DAYS: int = 90
+    # Lifetime of the mailed link that confirms deleting one's own account
+    # (app/services/account_deletion.py).
+    ACCOUNT_DELETION_TOKEN_TTL_MINUTES: int = 60
 
     # Per-account login throttling.
     #

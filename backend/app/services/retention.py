@@ -8,6 +8,7 @@ from sqlalchemy import delete, func, select, update
 
 from app.config import settings
 from app.database import AsyncSessionLocal
+from app.models.account_deletion_request import AccountDeletionRequest
 from app.models.audit_log import AuditLog
 from app.models.exam import Exam
 from app.models.exercise import Exercise
@@ -35,6 +36,8 @@ async def run(*, dry_run: bool = False) -> int:
        are removed. Only plain teacher accounts that hold nothing (no exam,
        exercise or key envelope) qualify: a pending account cannot create data,
        so anything that does is not a stale registration and is left alone.
+    7. Account-deletion links that expired unconfirmed are removed (a confirmed
+       one goes with its account).
 
     Step 1's cascade is the part that matters: soft-deleting the exam alone —
     which is all this service used to do — left the student personal data in the
@@ -100,6 +103,14 @@ async def run(*, dry_run: bool = False) -> int:
         )
         expired_requests = list(expired_requests_res.scalars().all())
 
+        # 7. Account-deletion links that expired unconfirmed.
+        expired_deletions_filter = AccountDeletionRequest.expires_at < now
+        expired_deletion_count = await db.scalar(
+            select(func.count()).select_from(AccountDeletionRequest).where(
+                expired_deletions_filter
+            )
+        ) or 0
+
         # 6. Pending accounts nobody approved, holding no data.
         stale_pending_res = await db.execute(
             select(Teacher).where(
@@ -121,6 +132,7 @@ async def run(*, dry_run: bool = False) -> int:
             + expired_sample_count
             + len(expired_requests)
             + len(stale_pending)
+            + expired_deletion_count
         )
 
         if dry_run:
@@ -166,6 +178,9 @@ async def run(*, dry_run: bool = False) -> int:
 
         for account in stale_pending:
             await db.delete(account)
+
+        if expired_deletion_count:
+            await db.execute(delete(AccountDeletionRequest).where(expired_deletions_filter))
 
         # Audit the exam expiries. Deliberately no entry per erased student
         # record: that would recreate, in the audit trail, the very identifiers

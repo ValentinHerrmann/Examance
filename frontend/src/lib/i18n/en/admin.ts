@@ -73,8 +73,9 @@ export const admin: Translations['admin'] = {
         delete: 'Delete account',
         deleteLabel: 'Delete the account {email}',
         deleteTitle: 'Delete account?',
-        deleteMessage: '{email} and everything stored with it on the server (exams, exercises, results, sign-in factors) will be deleted. This cannot be undone.',
+        deleteMessage: '{email} and everything stored with it on the server (exams, results, sign-in factors, and its exercises unless kept) will be deleted. This cannot be undone.',
         deleted: 'The account {email} was deleted.',
+        keepExercises: 'Keep the account\'s exercises on the server (without owner, for sharing later)',
     },
     domains: {
         title: 'Always-allowed domains',

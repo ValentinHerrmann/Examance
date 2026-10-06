@@ -1,4 +1,5 @@
 """Models package — import all for Alembic autogenerate discovery."""
+from app.models.account_deletion_request import AccountDeletionRequest
 from app.models.allowed_email_domain import AllowedEmailDomain
 from app.models.audit_log import AuditLog
 from app.models.exam import Exam
@@ -24,6 +25,7 @@ __all__ = [
     "Teacher",
     "PasswordResetToken",
     "RegistrationRequest",
+    "AccountDeletionRequest",
     "AllowedEmailDomain",
     "RefreshToken",
     "Exam",

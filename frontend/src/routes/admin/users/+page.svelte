@@ -25,7 +25,7 @@
   import { refreshCapabilities } from "#lib/db/workspace";
   import { t, translate } from "#lib/i18n";
   import { faEnvelope, faGlobe, faUserCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Button, Card, ConfirmDialog, PageHeader, PageShell, Tabs } from "#lib/components/ui";
+  import { Alert, Button, Card, Checkbox, ConfirmDialog, PageHeader, PageShell, Tabs } from "#lib/components/ui";
   import { safeLocalStorage } from "#lib/utils/storage";
   import PendingAccounts from "#lib/components/admin/PendingAccounts.svelte";
   import AccountList from "#lib/components/admin/AccountList.svelte";
@@ -48,6 +48,7 @@
   let domainsNotice: Notice = $state(null);
   let rejecting = $state.raw<AdminUser | null>(null);
   let deleting = $state.raw<AdminUser | null>(null);
+  let deleteKeepsExercises = $state(false);
 
   // One task per tab, so a phone shows one short screen at a time. The choice is remembered per browser.
   type AdminTab = "pending" | "accounts" | "invite" | "domains";
@@ -161,7 +162,7 @@
     accountsNotice = null;
     busyUserId = user.id;
     try {
-      await deleteUser(user.id);
+      await deleteUser(user.id, deleteKeepsExercises);
       users = users.filter((u) => u.id !== user.id);
       accountsNotice = { severity: "success", text: translate("admin.accounts.deleted", { email: user.email }) };
     } catch (err) {
@@ -320,7 +321,10 @@
               onToggleFeature={handleToggleUserFeature}
               onResendInvite={handleResendInvite}
               ownId={$sessionStore.teacherId}
-              onDelete={(user) => (deleting = user)}
+              onDelete={(user) => {
+                deleteKeepsExercises = false;
+                deleting = user;
+              }}
             />
           {/if}
         </Card>
@@ -375,4 +379,6 @@
   busy={busyUserId !== null}
   onConfirm={confirmDelete}
   onCancel={() => (deleting = null)}
-/>
+>
+  <Checkbox bind:checked={deleteKeepsExercises} disabled={busyUserId !== null} label={$t("admin.accounts.keepExercises")} />
+</ConfirmDialog>

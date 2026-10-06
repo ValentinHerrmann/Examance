@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 import jwt
 from fastapi import (
@@ -29,6 +30,8 @@ from app.models.key_envelope import KeyEnvelope
 from app.models.refresh_token import RefreshToken
 from app.models.teacher import Teacher
 from app.schemas.auth import (
+    AccountDeletionPreview,
+    AccountDeletionTokenRequest,
     AuthResponse,
     BackupCodeRequest,
     ChangePasswordRequest,
@@ -42,7 +45,14 @@ from app.schemas.auth import (
     ResetTokenRequest,
     TotpFactorRequest,
 )
-from app.services import account_mail, auth_policy, login_throttle, pending_token, registration
+from app.services import (
+    account_deletion,
+    account_mail,
+    auth_policy,
+    login_throttle,
+    pending_token,
+    registration,
+)
 from app.services import audit as audit_svc
 from app.services import mfa as mfa_svc
 from app.services.crypto import hash_password, needs_rehash, verify_password
@@ -249,6 +259,60 @@ async def complete_registration(
     if notices:
         background_tasks.add_task(account_mail.send_all, notices)
     return RegisterCompleteResponse(status="approved" if approved else "pending")
+
+
+@router.post("/account-deletion/preview", response_model=AccountDeletionPreview)
+@limiter.limit("20/hour")
+async def preview_account_deletion(
+    body: AccountDeletionTokenRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> AccountDeletionPreview:
+    """
+    What the mailed self-deletion link would delete, for the confirmation page. Deletes nothing:
+    a mail scanner that opens the link must not delete the account.
+    """
+    deletion, teacher = await account_deletion.find_deletion_request(db, body.token)
+    return AccountDeletionPreview(
+        email=teacher.email,
+        keep_exercises=deletion.keep_exercises,
+        expires_at=deletion.expires_at,
+    )
+
+
+@router.post("/account-deletion/confirm", status_code=status.HTTP_200_OK)
+@limiter.limit("20/hour")
+async def confirm_account_deletion(
+    body: AccountDeletionTokenRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    GDPR Art. 17: delete the account behind the mailed link (single use), keeping the library
+    exercises without an owner if the holder asked for that. The last admin account is refused.
+
+    No session needed: the link proves control of the mailbox, and the holder asked for it while
+    signed in. Cookies are left alone: they may belong to another account signed in in this
+    browser, and the deleted account's own tokens die with it (refresh tokens cascade, access
+    tokens no longer resolve to an account).
+    """
+    deletion, teacher = await account_deletion.claim_deletion_request(db, body.token)
+    await account_deletion.ensure_not_last_admin(db, teacher)
+    result = await account_deletion.delete_account(
+        db,
+        teacher,
+        actor=teacher,
+        keep_exercises=deletion.keep_exercises,
+        request_ip=request.client.host if request.client else None,
+    )
+    return {
+        "status": "ok",
+        "account_deleted": True,
+        "kept_exercises": deletion.keep_exercises,
+        "purged_student_identities": result.purged_student_identities,
+        "purged_submissions": result.purged_submissions,
+        "retention_until": result.retention_until.isoformat(),
+    }
 
 
 @router.post("/reset/start", response_model=AuthResponse)

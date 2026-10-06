@@ -185,11 +185,13 @@ export const settings: Translations['settings'] = {
     },
     deleteAccount: {
         heading: 'Delete account',
-        description: 'Deletes your account and everything stored with it on the server: exams, exercises, grading results and sign-in factors. Results kept only in this browser are cleared too. This cannot be undone.',
-        confirmLabel: 'Type your email address ({email}) to confirm',
-        button: 'Delete my account',
-        deleting: 'Deleting…',
-        failed: 'The account could not be deleted.',
+        description: 'Deletes your account and everything stored with it on the server: exams, grading results, exercise groups and sign-in factors, and your exercises unless you keep them. We email you a link to confirm; nothing is deleted before you open it and confirm.',
+        keepExercises: 'Keep my exercises on the server',
+        keepExercisesHint: 'They stay without your name so they can be shared later; for now nobody sees them.',
+        button: 'Send confirmation email',
+        resend: 'Send a new link',
+        sent: 'We sent a confirmation link to {email}. It is valid for {minutes} minutes.',
+        failed: 'The confirmation email could not be requested.',
     },
     hygiene: {
         heading: 'Session Data Hygiene',

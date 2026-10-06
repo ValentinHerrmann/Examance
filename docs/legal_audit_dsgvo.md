@@ -121,7 +121,7 @@ Templates: `records_of_processing_art30.md`, `dpia_art35.md`. Both need the cont
 
 `routers/user.py` could purge *student* data but offered the account holder nothing. Teachers are data subjects too: the system holds their email, role, authored exams and audit trail.
 
-**Fixed:** `GET /api/v1/user/me/export` (Art. 15/20) and `DELETE /api/v1/user/me` (Art. 17). Deletion soft-deletes the teacher's exams and student data on the standard grace period and removes the account; audit rows are retained with `teacher_id` nulled under Art. 17(3)(b) and age out under L7's period. That retention decision is documented in the endpoint rather than left implicit.
+**Fixed:** `GET /api/v1/user/me/export` (Art. 15/20) and account deletion (Art. 17; since PR #64 confirmed through a mailed single-use link, `POST /user/me/deletion-request` then `POST /auth/account-deletion/confirm`, with the option to keep authored exercises without an owner). Deletion soft-deletes the teacher's exams and student data on the standard grace period and removes the account; audit rows are retained with `teacher_id` nulled under Art. 17(3)(b) and age out under L7's period. That retention decision is documented in the endpoint rather than left implicit.
 
 ### L9 — No subject access export for a student · Art. 15(3), 20 · [C] · **Fixed**
 

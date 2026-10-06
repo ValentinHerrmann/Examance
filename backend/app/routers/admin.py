@@ -299,9 +299,11 @@ async def delete_user(
     request: Request,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    keep_exercises: bool = False,
 ) -> Response:
     """
-    Delete an approved account and everything it owns (Admin only).
+    Delete an approved account and everything it owns (Admin only). With `keep_exercises` its
+    library exercises stay on the server without an owner (`services/account_deletion.py`).
 
     A pending registration is rejected instead (`/reject`, which tells the registrant), and an
     admin deletes their own account from the settings page (`DELETE /user/me`).
@@ -320,6 +322,7 @@ async def delete_user(
         db,
         user,
         actor=admin,
+        keep_exercises=keep_exercises,
         request_ip=request.client.host if request.client else None,
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

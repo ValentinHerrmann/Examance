@@ -55,6 +55,8 @@ class AuditLog(Base):
             # Written by /auth/change-password since it shipped, but never an enum member,
             # which Postgres rejects. Added with migration 0028.
             "PASSWORD_CHANGED",
+            # A self-deletion link was mailed (migration 0029).
+            "DELETION_REQUESTED",
             name="audit_action",
         ),
         nullable=False,
