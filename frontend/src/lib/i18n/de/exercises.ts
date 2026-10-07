@@ -137,6 +137,9 @@ export const exercises = {
         hideEditor: 'Editor ausblenden',
         resetTheirs: 'Auf „{label}“ zurücksetzen',
         resetMine: '„{label}“ übernehmen',
+        lineAdded: 'hinzugefügt',
+        lineRemoved: 'entfernt',
+        lineChanged: 'geändert',
     },
     contributions: {
         tab: 'Vorschläge',
@@ -200,6 +203,7 @@ export const exercises = {
             confirmReject: 'Ablehnen',
             acceptVersion: 'Als neue Version übernehmen',
             acceptVariant: 'Als neue Variante übernehmen',
+            originalChanged: 'Das Original wurde inzwischen geändert. Ihre Bearbeitung bleibt erhalten; bitte prüfen Sie sie gegen die aktuelle Version, bevor Sie erneut übernehmen.',
         },
     },
     sharing: {
@@ -228,7 +232,7 @@ export const exercises = {
         unlinkFailed: 'Das Lösen von der Quelle ist fehlgeschlagen.',
         editorShare: 'Mit allen Konten teilen',
         editorShareNotice: 'Beim Speichern wird die ganze Aufgabengruppe mit allen Konten dieser Installation geteilt, zusammen mit Ihrer E-Mail-Adresse ({email}). Teilen Sie nur Aufgaben ohne personenbezogene Daten von Schülerinnen und Schülern und nur, was Sie weitergeben dürfen.',
-        editorShareFailed: 'Die Aufgabe wurde gespeichert, aber die Freigabe konnte nicht geändert werden. Bitte versuchen Sie es erneut, sobald Sie online sind.',
+        editorShareFailed: 'Die Aufgabe wurde gespeichert, aber die Freigabe konnte nicht geändert werden: {message}',
         menu: 'Teilen',
         bulk: {
             shareAll: 'Alle meine Aufgaben teilen…',
@@ -273,11 +277,8 @@ export const exercises = {
             source: 'Quelle',
             points: 'Punkte: {own} → {source}',
             nothing: 'Es gibt keine Änderungen zu übernehmen.',
-            apply: 'Übernehmen',
             applySelected: '{count} übernehmen',
             applied: 'Die Aufgabe wurde aktualisiert.',
-            changedMeanwhile: 'Die Quelle hat sich inzwischen erneut geändert. Bitte prüfen Sie die neue Fassung.',
-            unavailable: 'Die Quelle wird nicht mehr geteilt.',
             failed: 'Die Aktualisierung ist fehlgeschlagen.',
         },
     },

@@ -21,9 +21,6 @@ export interface SyncStatus {
   groupId: string;
   state: SyncState;
   locallyModified: boolean;
-  changedVariants: number;
-  newVariants: number;
-  removedVariants: number;
   /** Variants added to the copy; they can be proposed to the original. */
   localVariants: number;
 }
@@ -39,7 +36,6 @@ export interface ResyncVariant {
 
 export interface ResyncPreview {
   groupId: string;
-  state: SyncState;
   variants: ResyncVariant[];
 }
 
@@ -79,9 +75,6 @@ export async function loadSyncStatus(): Promise<SyncStatus[]> {
     groupId: r.group_id,
     state: r.state,
     locallyModified: r.locally_modified,
-    changedVariants: r.changed_variants,
-    newVariants: r.new_variants,
-    removedVariants: r.removed_variants,
     localVariants: r.local_variants ?? 0,
   }));
 }
@@ -90,7 +83,6 @@ export async function loadResyncPreview(groupId: string): Promise<ResyncPreview>
   const res = await api.get<any>(`/exercises/groups/${groupId}/resync-preview`, { silentError: true });
   return {
     groupId: res.group_id,
-    state: res.state,
     variants: (res.variants as any[]).map((v) => ({
       kind: v.kind,
       locallyModified: v.locally_modified,

@@ -2,6 +2,7 @@
   import { untrack } from "svelte";
   import type { ResyncPreview, ResyncVariant } from "#lib/api/exerciseSharing";
   import { t } from "#lib/i18n";
+  import { resyncVariantLabel } from "#lib/exercise-library/groupExercises";
   import { Alert, Badge, Button, Checkbox, Modal, Spinner, Textarea } from "#lib/components/ui";
   import LatexSideBySideDiff from "./LatexSideBySideDiff.svelte";
 
@@ -13,11 +14,13 @@
     email?: string;
     busy?: boolean;
     error?: string;
+    /** Reloads the preview after a failed load. */
+    onRetry?: () => void;
     onSubmit: (exerciseIds: string[], message: string) => void;
     onClose: () => void;
   }
 
-  let { open = false, preview = null, email = "", busy = false, error = "", onSubmit, onClose }: Props = $props();
+  let { open = false, preview = null, email = "", busy = false, error = "", onRetry, onSubmit, onClose }: Props = $props();
 
   let chosen: Record<string, boolean> = $state({});
   let message = $state("");
@@ -31,10 +34,7 @@
   let candidates = $derived(preview?.variants.filter(contributable) ?? []);
   let selectedIds = $derived(candidates.filter((v) => chosen[v.own!.id]).map((v) => v.own!.id));
 
-  function label(v: ResyncVariant): string {
-    const key = v.own?.variantKey || v.source?.variantKey;
-    return key ? $t("exercises.sharing.resyncModal.variant", { key }) : (v.own?.name || "");
-  }
+  const label = (v: ResyncVariant) => resyncVariantLabel(v, "own");
 
   function resetBuffers(p: ResyncPreview | null) {
     const next: Record<string, boolean> = {};
@@ -49,13 +49,14 @@
   });
 </script>
 
-<Modal {open} size="large" title={$t("exercises.contributions.contributeModal.title")} {onClose}>
-  {#if error}
-    <div class="mb-3"><Alert severity="danger">{error}</Alert></div>
-  {/if}
-  {#if !preview}
+{#snippet retry()}
+  <Button size="sm" variant="outlined" severity="secondary" onClick={onRetry}>{$t("common.retry")}</Button>
+{/snippet}
+
+<Modal {open} size="large" title={$t("exercises.contributions.contributeModal.title")} {onClose} {error} errorActions={!preview && onRetry ? retry : undefined}>
+  {#if !preview && !error}
     <div class="flex items-center gap-2 p-6 text-muted"><Spinner /> {$t("exercises.sharing.resyncModal.loading")}</div>
-  {:else}
+  {:else if preview}
     <div class="flex flex-col gap-3">
       <p class="m-0 text-content">{$t("exercises.contributions.contributeModal.intro")}</p>
       <Alert severity="warning">{$t("exercises.contributions.contributeModal.email", { email })}</Alert>

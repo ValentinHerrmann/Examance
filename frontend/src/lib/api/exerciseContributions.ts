@@ -19,7 +19,6 @@ export interface ContributionSummary {
   status: ContributionStatus;
   decisionNote: string | null;
   createdAt: string;
-  decidedAt: string | null;
   /** Incoming: who proposed it. Outgoing: the author it was sent to. */
   counterpartEmail: string | null;
   /** The author's variant changed since the contributor's last update. */
@@ -39,12 +38,10 @@ export interface PendingForGroup {
 export interface ContributionFile {
   filename: string;
   change: 'added' | 'removed' | 'changed' | 'unchanged';
-  resourceId: string | null;
 }
 
 export interface ContributionDetail extends ContributionSummary {
   latexBody: string | null;
-  maxPoints: number;
   /** Author only: the current row the proposal applies to (null for a new variant). */
   base: ExerciseRecord | null;
   files: ContributionFile[];
@@ -61,7 +58,6 @@ function toSummary(raw: any): ContributionSummary {
     status: raw.status,
     decisionNote: raw.decision_note ?? null,
     createdAt: raw.created_at,
-    decidedAt: raw.decided_at ?? null,
     counterpartEmail: raw.counterpart_email ?? null,
     stale: !!raw.stale,
     targetGone: !!raw.target_gone,
@@ -90,9 +86,8 @@ export async function loadContribution(id: string): Promise<ContributionDetail> 
   return {
     ...toSummary(raw),
     latexBody: raw.latex_body ?? null,
-    maxPoints: raw.max_points ?? 0,
     base: raw.base ? mapApiToExerciseRecord(raw.base) : null,
-    files: (raw.files as any[]).map((f) => ({ filename: f.filename, change: f.change, resourceId: f.resource_id ?? null })),
+    files: (raw.files as any[]).map((f) => ({ filename: f.filename, change: f.change })),
   };
 }
 

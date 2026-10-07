@@ -30,6 +30,7 @@ export const errors: Translations['errors'] = {
         ERR_CONTRIBUTION_LIMIT: 'You have too many open proposals. Wait for decisions first.',
         ERR_CONTRIBUTION_DECIDED: 'This proposal was already decided.',
         ERR_CONTRIBUTION_TARGET_GONE: 'The variant no longer exists; accept the proposal as a new variant.',
+        ERR_VARIANT_KEY_TAKEN: 'This variant key already exists in the exercise. Please choose another.',
         ERR_ACCOUNT_PENDING: 'A registration for this address is waiting for approval. Approve or reject it.',
         ERR_ACCOUNT_EXISTS: 'An account with this email address already exists.',
         ERR_ALREADY_APPROVED: 'This account is already approved.',

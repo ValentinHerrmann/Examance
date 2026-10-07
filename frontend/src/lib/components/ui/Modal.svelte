@@ -9,6 +9,7 @@
   import { faXmark } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
   import { lockScroll } from "#lib/utils/scrollLock";
+  import Alert from "./Alert.svelte";
   import Button from "./Button.svelte";
 
   /**
@@ -32,6 +33,9 @@
     /** Fixed 90dvh height, so `h-full` children (editors, viewers) can fill it. */
     tall?: boolean;
     role?: "dialog" | "alertdialog";
+    /** Shown as a danger alert at the top of the body; `errorActions` sits next to it (e.g. a retry). */
+    error?: string;
+    errorActions?: Snippet;
     header?: Snippet;
     children?: Snippet;
     footer?: Snippet;
@@ -48,6 +52,8 @@
     bare = false,
     tall = false,
     role = "dialog",
+    error = "",
+    errorActions,
     header,
     children,
     footer,
@@ -213,6 +219,9 @@
           ? ''
           : 'px-4 pb-4'} {!bare && !(header || title || onClose) ? 'pt-4' : ''}"
       >
+        {#if error}
+          <Alert severity="danger" class="mb-3" actions={errorActions}>{error}</Alert>
+        {/if}
         {@render children?.()}
       </div>
 

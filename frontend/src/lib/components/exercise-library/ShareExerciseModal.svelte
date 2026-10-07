@@ -38,10 +38,7 @@
   });
 </script>
 
-<Modal {open} size="medium" {title} {onClose}>
-  {#if error}
-    <div class="mb-3"><Alert severity="danger">{error}</Alert></div>
-  {/if}
+<Modal {open} size="medium" {title} {onClose} {error}>
   {#if mode === "single"}
     <p class="m-0 mb-3 font-semibold text-content">{name || $t("exercises.untitled")}</p>
   {/if}

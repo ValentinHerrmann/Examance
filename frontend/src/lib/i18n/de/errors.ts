@@ -36,6 +36,7 @@ export const errors = {
         ERR_CONTRIBUTION_LIMIT: 'Sie haben zu viele offene Vorschläge. Warten Sie auf Entscheidungen.',
         ERR_CONTRIBUTION_DECIDED: 'Über diesen Vorschlag wurde bereits entschieden.',
         ERR_CONTRIBUTION_TARGET_GONE: 'Die Variante gibt es nicht mehr; übernehmen Sie den Vorschlag als neue Variante.',
+        ERR_VARIANT_KEY_TAKEN: 'Diesen Variantenschlüssel gibt es in der Aufgabe schon. Bitte einen anderen wählen.',
         ERR_ACCOUNT_PENDING: 'Für diese Adresse wartet eine Registrierung auf Freigabe. Geben Sie sie frei oder lehnen Sie sie ab.',
         ERR_ACCOUNT_EXISTS: 'Ein Konto mit dieser E-Mail-Adresse existiert bereits.',
         ERR_ALREADY_APPROVED: 'Dieses Konto ist bereits freigegeben.',

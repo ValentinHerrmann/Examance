@@ -2,7 +2,7 @@
   import { type ExerciseGroup } from "#lib/exercise-library/groupExercises";
   import type { ExerciseRecord } from "#lib/db/schema";
   import { t } from "#lib/i18n";
-  import { Alert, Modal, Button, Select } from "#lib/components/ui";
+  import { Modal, Button, Select } from "#lib/components/ui";
 
   interface Props {
     isOpen?: boolean;
@@ -26,10 +26,7 @@
   }: Props = $props();
 </script>
 
-<Modal open={isOpen && !!regroupingExercise} size="small" title={$t("exercises.regroupModal.title")} onClose={onClose}>
-  {#if error}
-    <div class="mb-3"><Alert severity="danger">{error}</Alert></div>
-  {/if}
+<Modal open={isOpen && !!regroupingExercise} size="small" title={$t("exercises.regroupModal.title")} onClose={onClose} {error}>
   {#if regroupingExercise}
     <p class="m-0 mb-5 text-content">
       {$t("exercises.regroupModal.moveMessage", { name: regroupingExercise.name })}

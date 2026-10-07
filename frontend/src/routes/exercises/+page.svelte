@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { type ExerciseGroup, getGroupRepresentative, groupExercises } from "#lib/exercise-library/groupExercises";
+  import { type ExerciseGroup, getGroupRepresentative, groupExercises, groupIsShared } from "#lib/exercise-library/groupExercises";
   import { onMount, tick, untrack } from "svelte";
   import { db } from "#lib/db/db";
   import { sessionStore, awaitSessionReady } from "#lib/stores/session";
@@ -7,12 +7,12 @@
   import { page } from "$app/state";
   import type { ExerciseRecord } from "#lib/db/schema";
   import { loadExercisesEncrypted, saveExerciseEncrypted, encryptExercise } from "#lib/db/dbEncryption";
-  import { api } from "#lib/api/client";
+  import { api, ApiError, apiErrorMessage } from "#lib/api/client";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
   import { get } from "svelte/store";
   import { isServerBacked } from "#lib/utils/serverBacked";
   import { countActiveFilters, matchesQuery, uniqueSorted } from "#lib/utils/listFilter";
-  import { t, translate } from "#lib/i18n";
+  import { t, translate, type TranslationKey } from "#lib/i18n";
 
   import LatexEditor, { type DiffDecorationConfig, type DiffLineDecoration, type DiffLinePaddingDecoration, type DiffWordDecoration, type DiffGapDecoration } from "#lib/components/LatexEditor.svelte";
   import { highlightLatexToHtml } from "#lib/latex/highlighter";
@@ -96,6 +96,7 @@
   let incoming: ContributionSummary[] = $state.raw([]);
   let outgoing: ContributionSummary[] = $state.raw([]);
   let proposalsLoading = $state(false);
+  let proposalsFailed = $state(false);
   let pendingProposals = $state(0);
   let pendingByGroup: Map<string, PendingForGroup> = $state.raw(new Map());
   /** Set from the tag on a library card: the Proposals view shows only that group. */
@@ -106,6 +107,8 @@
   let reviewDetail: ContributionDetail | null = $state.raw(null);
   let isReviewBusy = $state(false);
   let reviewError = $state("");
+  /** Set after a 409 on accept: the reloaded detail keeps the author's hand-merged text. */
+  let reviewKeepEdits = $state(false);
   let contributeGroupId = $state("");
   let contributePreview: ResyncPreview | null = $state.raw(null);
   let isContributeBusy = $state(false);
@@ -124,6 +127,13 @@
   let loadAgain = false;
   let errorMsg = $state("");
   let isLocalFallback = $state(false);
+  /** Sharing UI (tabs, menu, sync status) needs the capability and a live server. */
+  let sharingAvailable = $derived(sharingEnabled && !isLocalFallback);
+  /** A deep link (`?view=proposals`) must not strand the user on a view without its tab bar. */
+  let activeView = $derived(sharingAvailable ? view : "own");
+
+  /** The server's message, else the given fallback text. */
+  const failText = (err: unknown, fallback: TranslationKey) => apiErrorMessage(err, translate(fallback));
 
   // Shared Editor modal state
   let isEditorOpen = $state(false);
@@ -209,7 +219,7 @@
   let sharedExercises = $derived(sharedRows.map((r) => r.exercise));
   let sharedBy = $derived(new Map(sharedRows.map((r) => [r.exercise.exerciseGroupId ?? "", r.sharedByEmail])));
   /** The list the filters apply to: the own library or what others share. */
-  let viewExercises = $derived(view === "shared" ? sharedExercises : exercises);
+  let viewExercises = $derived(activeView === "shared" ? sharedExercises : exercises);
 
   let availableGrades = $derived(uniqueSorted(viewExercises, (e) => e.grade));
   let availableSubjects = $derived(uniqueSorted(viewExercises, (e) => e.subject));
@@ -224,7 +234,7 @@
 
   // Grouped view: filter then group
   let allGroups = $derived(groupExercises(exercises));
-  let viewGroups = $derived(view === "shared" ? groupExercises(sharedExercises) : allGroups);
+  let viewGroups = $derived(activeView === "shared" ? groupExercises(sharedExercises) : allGroups);
   // Topic pills count groups, not exercise rows.
   let topicPillOptions = $derived(uniqueSorted(viewExercises, (e) => e.topicTag).map((topic) => ({
     value: topic,
@@ -236,9 +246,11 @@
   onMount(() => {
     const requested = page.url.searchParams.get("view");
     const groupParam = page.url.searchParams.get("group");
-    if (requested === "proposals" || requested === "shared") switchView(requested);
+    if (requested === "proposals" || requested === "shared") view = requested;
+    // Loaded once the library is in: only then is it known whether the view is available.
     loadExercises().then(() => {
       if (groupParam) openGroupInLibrary(groupParam);
+      else loadActiveView();
     });
   });
 
@@ -285,16 +297,16 @@
         exercises = (await loadExercisesEncrypted(key)).filter((ex) => !ex.codeWithheld);
       }
     } catch (err: any) {
-      errorMsg = err.message || translate("exercises.page.loadFailed");
+      errorMsg = failText(err, "exercises.page.loadFailed");
     }
     usage.reset();
     expandedGroups.prune([...groupExercises(exercises), ...groupExercises(sharedExercises)].map((g) => g.groupId));
-    await refreshSyncStatus();
+    void refreshSyncStatus();
   }
 
   /** Which own copies have changes at their shared source. Online only; a failure keeps the last answer. */
   async function refreshSyncStatus() {
-    if (!sharingEnabled || !isServerBacked() || isLocalFallback) return;
+    if (!sharingAvailable || !isServerBacked()) return;
     try {
       syncStatus = new Map((await loadSyncStatus()).map((s) => [s.groupId, s]));
       const summary = await loadContributionSummary();
@@ -307,16 +319,17 @@
 
   async function loadProposals() {
     proposalsLoading = true;
+    proposalsFailed = false;
     sharingError = "";
     try {
       [incoming, outgoing] = await Promise.all([listContributions("incoming"), listContributions("outgoing")]);
       pendingProposals = incoming.filter((c) => c.status === "pending").length;
-    } catch (err: any) {
-      sharingError = err?.message || translate("exercises.contributions.loadFailed");
+    } catch (err) {
+      proposalsFailed = true;
+      sharingError = failText(err, "exercises.contributions.loadFailed");
     } finally {
       proposalsLoading = false;
     }
-    await refreshSyncStatus();
   }
 
   function openProposalsFor(group: ExerciseGroup) {
@@ -335,14 +348,21 @@
     document.getElementById(`exercise-group-${groupId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  async function openReview(item: ContributionSummary) {
+  function openReview(item: ContributionSummary) {
     reviewId = item.id;
     reviewDetail = null;
+    reviewKeepEdits = false;
+    fetchReviewDetail(item.id);
+  }
+
+  /** Applies the answer only while `id` is still the open review (a late one must not land on another). */
+  async function fetchReviewDetail(id: string) {
     reviewError = "";
     try {
-      reviewDetail = await loadContribution(item.id);
-    } catch (err: any) {
-      reviewError = err?.message || translate("exercises.contributions.loadFailed");
+      const detail = await loadContribution(id);
+      if (reviewId === id) reviewDetail = detail;
+    } catch (err) {
+      if (reviewId === id) reviewError = failText(err, "exercises.contributions.loadFailed");
     }
   }
 
@@ -351,33 +371,38 @@
     reviewDetail = null;
   }
 
-  async function handleAcceptProposal(opts: { latexBody?: string; asVariant: boolean; variantKey?: string }) {
-    if (!reviewId) return;
+  async function handleAcceptProposal(id: string, opts: { latexBody?: string; asVariant: boolean; variantKey?: string }) {
     isReviewBusy = true;
     reviewError = "";
     try {
-      await acceptContribution(reviewId, opts);
-      closeReview();
+      await acceptContribution(id, opts);
+      if (reviewId === id) closeReview();
       sharingNotice = translate("exercises.contributions.accepted");
       await Promise.all([loadProposals(), loadExercises()]);
-    } catch (err: any) {
-      reviewError = err?.message || translate("exercises.contributions.decideFailed");
-      if (err?.status === 409) reviewDetail = await loadContribution(reviewId).catch(() => reviewDetail);
+    } catch (err) {
+      if (reviewId !== id) return;
+      reviewError = failText(err, "exercises.contributions.decideFailed");
+      if (err instanceof ApiError && err.status === 409) {
+        const fresh = await loadContribution(id).catch(() => null);
+        if (fresh && reviewId === id) {
+          reviewKeepEdits = true;
+          reviewDetail = fresh;
+        }
+      }
     } finally {
       isReviewBusy = false;
     }
   }
 
-  async function handleRejectProposal(note: string) {
-    if (!reviewId) return;
+  async function handleRejectProposal(id: string, note: string) {
     isReviewBusy = true;
     reviewError = "";
     try {
-      await rejectContribution(reviewId, note);
-      closeReview();
-      await loadProposals();
-    } catch (err: any) {
-      reviewError = err?.message || translate("exercises.contributions.decideFailed");
+      await rejectContribution(id, note);
+      if (reviewId === id) closeReview();
+      await Promise.all([loadProposals(), refreshSyncStatus()]);
+    } catch (err) {
+      if (reviewId === id) reviewError = failText(err, "exercises.contributions.decideFailed");
     } finally {
       isReviewBusy = false;
     }
@@ -388,35 +413,42 @@
     sharingError = "";
     try {
       await withdrawContribution(item.id);
-      await loadProposals();
-    } catch (err: any) {
-      sharingError = err?.message || translate("exercises.contributions.decideFailed");
+      await Promise.all([loadProposals(), refreshSyncStatus()]);
+    } catch (err) {
+      sharingError = failText(err, "exercises.contributions.decideFailed");
     } finally {
       withdrawingId = "";
     }
   }
 
-  async function openContribute(group: ExerciseGroup) {
+  function openContribute(group: ExerciseGroup) {
     contributeGroupId = group.groupId;
     contributePreview = null;
+    fetchContributePreview(group.groupId);
+  }
+
+  async function fetchContributePreview(groupId: string) {
     contributeError = "";
     try {
-      contributePreview = await loadResyncPreview(group.groupId);
-    } catch (err: any) {
-      contributeError = err?.message || translate("exercises.contributions.submitFailed");
+      const preview = await loadResyncPreview(groupId);
+      if (contributeGroupId === groupId) contributePreview = preview;
+    } catch (err) {
+      if (contributeGroupId === groupId) contributeError = failText(err, "exercises.contributions.loadFailed");
     }
   }
 
   async function handleSubmitContribution(exerciseIds: string[], message: string) {
+    const groupId = contributeGroupId;
+    if (!groupId) return;
     isContributeBusy = true;
     contributeError = "";
     try {
-      await submitContributions(contributeGroupId, exerciseIds, message);
-      contributeGroupId = "";
+      await submitContributions(groupId, exerciseIds, message);
+      if (contributeGroupId === groupId) contributeGroupId = "";
       sharingNotice = translate("exercises.contributions.submitted");
       await refreshSyncStatus();
-    } catch (err: any) {
-      contributeError = err?.message || translate("exercises.contributions.submitFailed");
+    } catch (err) {
+      if (contributeGroupId === groupId) contributeError = failText(err, "exercises.contributions.submitFailed");
     } finally {
       isContributeBusy = false;
     }
@@ -434,8 +466,8 @@
           : translate("exercises.sharing.bulk.unsharedDone", { groups: res.groups });
       bulkMode = null;
       await loadExercises();
-    } catch (err: any) {
-      bulkError = err?.message || translate("exercises.sharing.shareModal.failed");
+    } catch (err) {
+      bulkError = failText(err, "exercises.sharing.shareModal.failed");
     } finally {
       isBulkBusy = false;
     }
@@ -448,8 +480,8 @@
     try {
       await setSharingPaused(!sharingPaused);
       markSharingPaused(!sharingPaused);
-    } catch (err: any) {
-      sharingError = err?.message || translate("exercises.sharing.pause.failed");
+    } catch (err) {
+      sharingError = failText(err, "exercises.sharing.pause.failed");
     } finally {
       isPauseBusy = false;
     }
@@ -460,8 +492,8 @@
     sharedError = "";
     try {
       sharedRows = await listSharedExercises();
-    } catch (err: any) {
-      sharedError = err?.message || translate("exercises.sharing.loadFailed");
+    } catch (err) {
+      sharedError = failText(err, "exercises.sharing.loadFailed");
     } finally {
       sharedLoading = false;
     }
@@ -471,13 +503,14 @@
   function switchView(next: string, focusGroupId = "", focusName = "") {
     proposalFocusGroupId = focusGroupId;
     proposalFocusName = focusName;
+    sharingError = "";
     view = next === "shared" || next === "proposals" ? next : "own";
-    if (view === "shared") loadShared();
-    if (view === "proposals") loadProposals();
+    loadActiveView();
   }
 
-  function groupIsShared(group: ExerciseGroup): boolean {
-    return group.allMembers.some((m) => m.ex.isShared);
+  function loadActiveView() {
+    if (activeView === "shared") loadShared();
+    else if (activeView === "proposals") loadProposals();
   }
 
   function openShareModal(group: ExerciseGroup) {
@@ -494,8 +527,8 @@
       await setExerciseSharing(getGroupRepresentative(group).id, !groupIsShared(group));
       shareGroup = null;
       await loadExercises();
-    } catch (err: any) {
-      shareError = err?.message || translate("exercises.sharing.shareModal.failed");
+    } catch (err) {
+      shareError = failText(err, "exercises.sharing.shareModal.failed");
     } finally {
       isSharing = false;
     }
@@ -509,48 +542,52 @@
       await copySharedExercise(getGroupRepresentative(group).id);
       sharingNotice = translate("exercises.sharing.copied", { name: group.name });
       await loadExercises();
-    } catch (err: any) {
-      sharingError = err?.message || translate("exercises.sharing.copyFailed");
+    } catch (err) {
+      sharingError = failText(err, "exercises.sharing.copyFailed");
     } finally {
       copyingGroupId = "";
     }
   }
 
-  async function fetchResyncPreview() {
-    resyncPreview = null;
+  /** Keeps the shown preview until the new one is in; a late answer for another group is dropped. */
+  async function fetchResyncPreview(groupId: string) {
     try {
-      resyncPreview = await loadResyncPreview(resyncGroupId);
-    } catch (err: any) {
-      resyncError = err?.message || translate("exercises.sharing.resyncModal.failed");
+      const preview = await loadResyncPreview(groupId);
+      if (resyncGroupId === groupId) resyncPreview = preview;
+    } catch (err) {
+      if (resyncGroupId === groupId) resyncError = failText(err, "exercises.sharing.resyncModal.failed");
     }
   }
 
   function openResync(group: ExerciseGroup) {
     resyncGroupId = group.groupId;
+    resyncPreview = null;
     resyncError = "";
     isResyncOpen = true;
-    fetchResyncPreview();
+    fetchResyncPreview(group.groupId);
+  }
+
+  function closeResync() {
+    isResyncOpen = false;
+    resyncGroupId = "";
   }
 
   /** Applies the chosen, reviewed variants; the server refuses (409) if one moved on meanwhile. */
   async function handleApplyResync(selected: Set<string>, overrides: Record<string, string>) {
-    if (!resyncPreview) return;
+    const preview = resyncPreview;
+    if (!preview) return;
+    const groupId = preview.groupId;
     isResyncing = true;
     resyncError = "";
     try {
-      await applyResync(resyncPreview, selected, overrides);
-      isResyncOpen = false;
+      await applyResync(preview, selected, overrides);
+      if (resyncGroupId === groupId) closeResync();
       sharingNotice = translate("exercises.sharing.resyncModal.applied");
       await loadExercises();
-    } catch (err: any) {
-      if (err?.status === 409) {
-        resyncError = translate("exercises.sharing.resyncModal.changedMeanwhile");
-        await fetchResyncPreview();
-      } else if (err?.status === 404) {
-        resyncError = translate("exercises.sharing.resyncModal.unavailable");
-      } else {
-        resyncError = err?.message || translate("exercises.sharing.resyncModal.failed");
-      }
+    } catch (err) {
+      if (resyncGroupId !== groupId) return;
+      resyncError = failText(err, "exercises.sharing.resyncModal.failed");
+      if (err instanceof ApiError && err.code === "ERR_SHARE_SOURCE_CHANGED") await fetchResyncPreview(groupId);
     } finally {
       isResyncing = false;
     }
@@ -564,9 +601,9 @@
       await unlinkSource(unlinkGroup.groupId);
       unlinkGroup = null;
       await loadExercises();
-    } catch (err: any) {
+    } catch (err) {
       unlinkGroup = null;
-      sharingError = err?.message || translate("exercises.sharing.unlinkFailed");
+      sharingError = failText(err, "exercises.sharing.unlinkFailed");
     } finally {
       isUnlinking = false;
     }
@@ -593,8 +630,8 @@
     isEditorOpen = true;
   }
 
-  function handleExerciseSaved(detail: { sharingFailed?: boolean }) {
-    if (detail.sharingFailed) sharingError = translate("exercises.sharing.editorShareFailed");
+  function handleExerciseSaved(detail: { sharingError: string | null }) {
+    if (detail.sharingError) sharingError = translate("exercises.sharing.editorShareFailed", { message: detail.sharingError });
     loadExercises();
   }
 
@@ -1022,7 +1059,7 @@
     helpTopic="exercises"
   >
     {#snippet actions()}
-      {#if sharingEnabled && !isLocalFallback}
+      {#if sharingAvailable}
         <Menu label={$t("exercises.sharing.menu")} icon={faShareNodes} showLabel labelClass="hidden sm:inline" align="end">
           {#snippet children({ close })}
             <MenuItem icon={faShareNodes} onSelect={() => { bulkError = ""; bulkMode = "bulkShare"; close(); }}>{$t("exercises.sharing.bulk.shareAll")}</MenuItem>
@@ -1057,11 +1094,11 @@
       {/snippet}
     </Alert>
   {/if}
-  {#if sharingEnabled && !isLocalFallback}
+  {#if sharingAvailable}
     <Tabs
       class="mb-4"
       label={$t("exercises.sharing.tabsLabel")}
-      value={view}
+      value={activeView}
       onChange={switchView}
       items={[
         { id: "own", label: $t("exercises.sharing.tabOwn"), icon: faBook },
@@ -1070,7 +1107,7 @@
       ]}
     />
   {/if}
-  {#if view === "shared" && sharedError}
+  {#if activeView === "shared" && sharedError}
     <Alert severity="danger" class="mb-6">{sharedError}</Alert>
   {/if}
 
@@ -1099,11 +1136,12 @@
       />
     {/snippet}
 
-  {#if view === "proposals"}
+  {#if activeView === "proposals"}
     <ContributionList
       {incoming}
       {outgoing}
       isLoading={proposalsLoading && incoming.length === 0 && outgoing.length === 0}
+      error={proposalsFailed}
       busyId={withdrawingId}
       onReview={openReview}
       onWithdraw={handleWithdraw}
@@ -1112,10 +1150,11 @@
       focusName={proposalFocusName}
       onClearFocus={() => switchView("proposals")}
     />
-  {:else if view === "shared"}
+  {:else if activeView === "shared"}
     <ExerciseGroupList
       mode="shared"
       isLoading={sharedLoading && sharedRows.length === 0}
+      error={!!sharedError}
       {filteredGroups}
       expandedGroups={$expandedGroups}
       onToggleGroup={expandedGroups.toggle}
@@ -1171,6 +1210,7 @@
   email={$sessionStore.email ?? ""}
   busy={isContributeBusy}
   error={contributeError}
+  onRetry={() => fetchContributePreview(contributeGroupId)}
   onSubmit={handleSubmitContribution}
   onClose={() => (contributeGroupId = "")}
 />
@@ -1180,6 +1220,8 @@
   detail={reviewDetail}
   busy={isReviewBusy}
   error={reviewError}
+  keepEdits={reviewKeepEdits}
+  onRetry={() => fetchReviewDetail(reviewId)}
   onAccept={handleAcceptProposal}
   onReject={handleRejectProposal}
   onClose={closeReview}
@@ -1201,8 +1243,12 @@
   preview={resyncPreview}
   busy={isResyncing}
   error={resyncError}
+  onRetry={() => {
+    resyncError = "";
+    fetchResyncPreview(resyncGroupId);
+  }}
   onApply={handleApplyResync}
-  onClose={() => (isResyncOpen = false)}
+  onClose={closeResync}
 />
 
 <ConfirmDialog
@@ -1234,6 +1280,7 @@
   editingExercise={editingExercise}
   isCreatingVersion={isCreatingVersion}
   versionBaseEx={versionBaseEx}
+  canShare={sharingAvailable}
   onClose={() => (isEditorOpen = false)}
   onSave={handleExerciseSaved}
 />

@@ -10,6 +10,8 @@
     incoming?: ContributionSummary[];
     outgoing?: ContributionSummary[];
     isLoading?: boolean;
+    /** The load failed (reported by the page): show no "nothing here" texts. */
+    error?: boolean;
     busyId?: string;
     onReview: (item: ContributionSummary) => void;
     onWithdraw: (item: ContributionSummary) => void;
@@ -25,6 +27,7 @@
     incoming = [],
     outgoing = [],
     isLoading = false,
+    error = false,
     busyId = "",
     onReview,
     onWithdraw,
@@ -98,7 +101,7 @@
 
 {#if isLoading}
   <div class="p-12 text-center text-muted">{$t("exercises.contributions.loading")}</div>
-{:else}
+{:else if !error}
   <div class="flex flex-col gap-6">
     {#if focusGroupId}
       <div class="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface-sunken px-3 py-2 text-sm text-content">

@@ -77,9 +77,6 @@ export interface ExerciseRecord extends MaybeUndecryptable {
   codeWithheld?: boolean;
   /** Shared with every account of the installation (issue #65); own rows only. */
   isShared?: boolean;
-  sharedAt?: string;
-  /** The shared row this copy was taken from (resync lineage); own rows only. */
-  copiedFromExerciseId?: string;
   /** The group was copied from another account: it can be proposed back, never shared. */
   groupCopied?: boolean;
   /** AES-256-GCM encrypted payload containing title, name, latexBody, options, correctAnswers. */

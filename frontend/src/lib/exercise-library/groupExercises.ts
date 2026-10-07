@@ -1,4 +1,5 @@
 import type { ExerciseRecord } from "#lib/db/schema";
+import type { ResyncVariant } from "#lib/api/exerciseSharing";
 import { parseExerciseScore } from "#lib/latex/scoreParser";
 import { translate } from "#lib/i18n";
 
@@ -23,6 +24,23 @@ export interface ExerciseGroup {
 
 export function getGroupRepresentative(group: ExerciseGroup): ExerciseRecord {
   return group.allMembers[0]?.ex || ({ id: "", name: group.name } as ExerciseRecord);
+}
+
+/** Any member is shared with other accounts (sharing applies to the whole group). */
+export function groupIsShared(group: ExerciseGroup): boolean {
+  return group.allMembers.some((m) => m.ex.isShared);
+}
+
+/** Copied from another account: never shared as one's own (contributing back is the path). */
+export function groupIsCopy(group: ExerciseGroup): boolean {
+  return group.allMembers.some((m) => m.ex.groupCopied);
+}
+
+/** "Variant X" for a resync/proposal row, else its name; `prefer` picks which side is read first. */
+export function resyncVariantLabel(v: ResyncVariant, prefer: "own" | "source"): string {
+  const [first, second] = prefer === "own" ? [v.own, v.source] : [v.source, v.own];
+  const key = first?.variantKey || second?.variantKey;
+  return key ? translate("exercises.sharing.resyncModal.variant", { key }) : first?.name || second?.name || "";
 }
 
 /** Buckets exercises by group id (or name), keeping only current versions, variants sorted `_General` first. */

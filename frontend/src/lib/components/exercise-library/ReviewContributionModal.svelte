@@ -12,12 +12,17 @@
     detail?: ContributionDetail | null;
     busy?: boolean;
     error?: string;
-    onAccept: (opts: { latexBody?: string; asVariant: boolean; variantKey?: string }) => void;
-    onReject: (note: string) => void;
+    /** The original changed while reviewing: keep the edit buffer on the next `detail`, with a warning. */
+    keepEdits?: boolean;
+    /** Reloads the detail after a failed load. */
+    onRetry?: () => void;
+    /** Both get the id of the shown proposal, so a late switch can never decide another one. */
+    onAccept: (id: string, opts: { latexBody?: string; asVariant: boolean; variantKey?: string }) => void;
+    onReject: (id: string, note: string) => void;
     onClose: () => void;
   }
 
-  let { open = false, detail = null, busy = false, error = "", onAccept, onReject, onClose }: Props = $props();
+  let { open = false, detail = null, busy = false, error = "", keepEdits = false, onRetry, onAccept, onReject, onClose }: Props = $props();
 
   let result = $state("");
   let variantKey = $state("");
@@ -38,33 +43,36 @@
   function accept() {
     if (!detail) return;
     const edited = result !== (detail.latexBody ?? "");
-    onAccept({
+    onAccept(detail.id, {
       latexBody: edited ? result : undefined,
       asVariant: detail.kind === "version" && detail.targetGone,
       variantKey: asVariant ? variantKey.trim() || undefined : undefined,
     });
   }
 
-  function resetBuffers(d: ContributionDetail | null) {
-    result = d?.latexBody ?? "";
-    variantKey = d?.variantKey ?? "";
+  function resetBuffers(d: ContributionDetail | null, keep: boolean) {
+    if (!keep) {
+      result = d?.latexBody ?? "";
+      variantKey = d?.variantKey ?? "";
+    }
     note = "";
     rejecting = false;
   }
 
   $effect.pre(() => {
     const d = detail;
-    untrack(() => resetBuffers(d));
+    untrack(() => resetBuffers(d, keepEdits));
   });
 </script>
 
-<Modal {open} size="large" title={$t("exercises.contributions.reviewModal.title")} {onClose}>
-  {#if error}
-    <div class="mb-3"><Alert severity="danger">{error}</Alert></div>
-  {/if}
-  {#if !detail}
+{#snippet retry()}
+  <Button size="sm" variant="outlined" severity="secondary" onClick={onRetry}>{$t("common.retry")}</Button>
+{/snippet}
+
+<Modal {open} size="large" title={$t("exercises.contributions.reviewModal.title")} {onClose} {error} errorActions={!detail && onRetry ? retry : undefined}>
+  {#if !detail && !error}
     <div class="flex items-center gap-2 p-6 text-muted"><Spinner /> {$t("exercises.sharing.resyncModal.loading")}</div>
-  {:else}
+  {:else if detail}
     <div class="flex flex-col gap-3">
       <div class="flex flex-wrap items-center gap-2">
         <span class="font-semibold text-content">{detail.exerciseName || $t("exercises.untitled")}</span>
@@ -83,6 +91,9 @@
         <Alert severity="info">{$t("exercises.contributions.alreadyDecided")}</Alert>
       {:else}
         <p class="m-0 text-content">{$t("exercises.contributions.reviewModal.intro")}</p>
+        {#if keepEdits}
+          <Alert severity="warning">{$t("exercises.contributions.reviewModal.originalChanged")}</Alert>
+        {/if}
         {#if detail.targetGone}
           <Alert severity="warning">{$t("exercises.contributions.targetGone")}</Alert>
         {:else if detail.stale}
@@ -128,7 +139,7 @@
     <Button variant="outlined" severity="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
     {#if detail && pending}
       {#if rejecting}
-        <Button severity="danger" loading={busy} onClick={() => onReject(note)}>{$t("exercises.contributions.reviewModal.confirmReject")}</Button>
+        <Button severity="danger" loading={busy} onClick={() => detail && onReject(detail.id, note)}>{$t("exercises.contributions.reviewModal.confirmReject")}</Button>
       {:else}
         <Button variant="outlined" severity="danger" disabled={busy} onClick={() => (rejecting = true)}>{$t("exercises.contributions.reviewModal.reject")}</Button>
         <Button loading={busy} onClick={accept}>

@@ -1,8 +1,6 @@
 /**
- * What the signed-in account may use, as the server decides it (`GET /user/capabilities`, `backend/app/services/capabilities.py`):
- * storage mode, allowed modes and server features. The UI renders every such option from this store, never from hard-coded lists.
- * Admin switches per account (issue #53): `server_results` (allows `all-server`; `hybrid` is always allowed), `server_latex`
- * and `exercise_sharing` (issue #65).
+ * What the account may use, as the server decides it (`GET /user/capabilities`): storage mode, allowed modes, features.
+ * Render every such option from this store, never from hard-coded lists. Per-account admin switches: issues #53, #65.
  */
 
 import { derived, get, writable } from 'svelte/store';

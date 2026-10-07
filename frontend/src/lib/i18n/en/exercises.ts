@@ -139,6 +139,9 @@ export const exercises: Translations['exercises'] = {
         hideEditor: 'Hide editor',
         resetTheirs: 'Reset to “{label}”',
         resetMine: 'Use “{label}”',
+        lineAdded: 'added',
+        lineRemoved: 'removed',
+        lineChanged: 'changed',
     },
     contributions: {
         tab: 'Proposals',
@@ -202,6 +205,7 @@ export const exercises: Translations['exercises'] = {
             confirmReject: 'Reject',
             acceptVersion: 'Accept as new version',
             acceptVariant: 'Accept as new variant',
+            originalChanged: 'The original changed in the meantime. Your edit is kept; please check it against the current version before accepting again.',
         },
     },
     sharing: {
@@ -230,7 +234,7 @@ export const exercises: Translations['exercises'] = {
         unlinkFailed: 'Unlinking from the source failed.',
         editorShare: 'Share with all accounts',
         editorShareNotice: 'On save, the whole exercise group is shared with every account of this installation, together with your email address ({email}). Only share exercises without personal data of pupils, and only what you are allowed to pass on.',
-        editorShareFailed: 'The exercise was saved, but its sharing could not be changed. Please try again once you are online.',
+        editorShareFailed: 'The exercise was saved, but its sharing could not be changed: {message}',
         menu: 'Sharing',
         bulk: {
             shareAll: 'Share all my exercises…',
@@ -275,11 +279,8 @@ export const exercises: Translations['exercises'] = {
             source: 'Source',
             points: 'Points: {own} → {source}',
             nothing: 'There are no changes to take over.',
-            apply: 'Take over',
             applySelected: 'Take over {count}',
             applied: 'The exercise was updated.',
-            changedMeanwhile: 'The source changed again in the meantime. Please review the new version.',
-            unavailable: 'The source is no longer shared.',
             failed: 'Updating failed.',
         },
     },

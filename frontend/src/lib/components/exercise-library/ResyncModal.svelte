@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import type { ResyncPreview, ResyncVariant } from "#lib/api/exerciseSharing";
+  import { resyncVariantLabel } from "#lib/exercise-library/groupExercises";
   import { t } from "#lib/i18n";
   import { Alert, Badge, Button, Checkbox, Modal, Spinner } from "#lib/components/ui";
   import MergeEditor from "./MergeEditor.svelte";
@@ -12,12 +13,14 @@
     preview?: ResyncPreview | null;
     busy?: boolean;
     error?: string;
+    /** Reloads the preview after a failed load. */
+    onRetry?: () => void;
     /** `selected`: source row ids to take over; `overrides`: hand-merged LaTeX by source row id. */
     onApply: (selected: Set<string>, overrides: Record<string, string>) => void;
     onClose: () => void;
   }
 
-  let { open = false, preview = null, busy = false, error = "", onApply, onClose }: Props = $props();
+  let { open = false, preview = null, busy = false, error = "", onRetry, onApply, onClose }: Props = $props();
 
   // Local edit buffers, reset whenever a new preview arrives.
   let chosen: Record<string, boolean> = $state({});
@@ -37,10 +40,7 @@
 
   const kindSeverity = { changed: "warning", new: "info", removed: "secondary", unchanged: "success", local: "secondary" } as const;
 
-  function variantLabel(v: ResyncVariant): string {
-    const key = v.source?.variantKey || v.own?.variantKey;
-    return key ? $t("exercises.sharing.resyncModal.variant", { key }) : (v.source?.name || v.own?.name || "");
-  }
+  const variantLabel = (v: ResyncVariant) => resyncVariantLabel(v, "source");
 
   function apply() {
     const selected = new Set(applicable.filter((v) => chosen[v.sourceExerciseId!]).map((v) => v.sourceExerciseId!));
@@ -71,13 +71,14 @@
   }
 </script>
 
-<Modal {open} size="large" title={$t("exercises.sharing.resyncModal.title")} {onClose}>
-  {#if error}
-    <div class="mb-3"><Alert severity="danger">{error}</Alert></div>
-  {/if}
-  {#if !preview}
+{#snippet retry()}
+  <Button size="sm" variant="outlined" severity="secondary" onClick={onRetry}>{$t("common.retry")}</Button>
+{/snippet}
+
+<Modal {open} size="large" title={$t("exercises.sharing.resyncModal.title")} {onClose} {error} errorActions={!preview && onRetry ? retry : undefined}>
+  {#if !preview && !error}
     <div class="flex items-center gap-2 p-6 text-muted"><Spinner /> {$t("exercises.sharing.resyncModal.loading")}</div>
-  {:else}
+  {:else if preview}
     <div class="flex flex-col gap-3">
       <p class="m-0 text-content">{$t("exercises.sharing.resyncModal.intro")}</p>
       {#if locallyModified}
