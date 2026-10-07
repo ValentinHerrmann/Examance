@@ -20,6 +20,7 @@ export const CHART_PALETTE: ChartPalette = {
   muted: '#525252',
   subtle: '#737373',
   'surface-raised': '#ffffff', // fill of hollow marks (median diamond); exports target light pages
+  primary: '#3779b4', // bars without a grade colour (global analysis); the app's light primary, 4.6:1 on white
   'grade-1': '#15803d',
   'grade-2': '#16a34a',
   'grade-3': '#ca8a04',

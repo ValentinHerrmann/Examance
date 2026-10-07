@@ -204,7 +204,7 @@ export const help: Translations['help'] = {
             summary: 'Topic heatmaps, exercise quality and variant fairness across exams.',
             s1: {
                 h: 'Across exams',
-                p1: 'The analytics view combines several exams and shows how results develop over time, across grades and across subjects.',
+                p1: 'The analytics view combines several exams and shows how results develop over time, across grades and across subjects. The overall score histogram sorts all fully graded submissions into 10 % ranges by the share of their exam’s maximum points they reached.',
             },
             s2: {
                 h: 'Topics and knowledge gaps',
