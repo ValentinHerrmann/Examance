@@ -115,6 +115,8 @@ class ExerciseResponse(BaseModel):
     is_shared: bool = False
     shared_at: datetime | None = None
     copied_from_exercise_id: uuid.UUID | None = None
+    # The row's group was copied from another account: it can be proposed back, not shared.
+    group_copied: bool = False
 
 
 class ExamMcGroupCreate(BaseModel):

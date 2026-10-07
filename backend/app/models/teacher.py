@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, String, func, true
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, String, false, func, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -69,6 +69,10 @@ class Teacher(Base):
     )
     allow_exercise_sharing: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=true()
+    )
+    # The teacher's own pause (issue #65): hides everything they share, keeps the per-group choice.
+    sharing_paused: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

@@ -16,6 +16,7 @@ from app.middleware.rate_limit import limiter
 from app.models.audit_log import AuditLog
 from app.models.exam import Exam
 from app.models.exercise import Exercise
+from app.models.exercise_contribution import ExerciseContribution
 from app.models.logo import ExamLogo
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
@@ -43,6 +44,7 @@ def _capabilities_out(teacher: Teacher) -> CapabilitiesOut:
         storage_mode=teacher.storage_mode,  # type: ignore[arg-type]  # constrained by ck_teachers_storage_mode
         allowed_storage_modes=list(caps.allowed_storage_modes),  # type: ignore[arg-type]
         features=caps.features,
+        sharing_paused=teacher.sharing_paused,
     )
 
 
@@ -272,6 +274,12 @@ async def export_own_data(
         .order_by(Exercise.shared_at.asc())
     )
 
+    submitted_res = await db.execute(
+        select(ExerciseContribution)
+        .where(ExerciseContribution.contributor_id == teacher.id)
+        .order_by(ExerciseContribution.created_at.asc())
+    )
+
     await audit_svc.write(
         db,
         teacher_id=teacher.id,
@@ -292,6 +300,7 @@ async def export_own_data(
             "registration_note": teacher.registration_note,
             "storage_mode": teacher.storage_mode,
             "features": account_features(teacher),
+            "sharing_paused": teacher.sharing_paused,
             # The logo is printed on the exams, so the export carries the file itself.
             # "default" prints the bundled default logo, which is not the teacher's data.
             "exam_logo": (
@@ -326,6 +335,20 @@ async def export_own_data(
                 "shared_at": ex.shared_at.isoformat() if ex.shared_at else None,
             }
             for ex in shared_res.scalars().all()
+        ],
+        # Proposals this account sent; content is kept only while undecided.
+        "contributions_submitted": [
+            {
+                "id": str(c.id),
+                "kind": c.kind,
+                "variant_key": c.variant_key,
+                "status": c.status,
+                "message": c.message,
+                "latex_body": c.latex_body,
+                "created_at": c.created_at.isoformat(),
+                "decided_at": c.decided_at.isoformat() if c.decided_at else None,
+            }
+            for c in submitted_res.scalars().all()
         ],
         "audit_log": [
             {

@@ -6,6 +6,7 @@ from app.models.exam import Exam
 from app.models.exam_exercise import ExamExercise
 from app.models.exam_mc_group import ExamMcGroup
 from app.models.exercise import Exercise
+from app.models.exercise_contribution import ExerciseContribution, ExerciseContributionResource
 from app.models.exercise_group import ExerciseGroup
 from app.models.exercise_resource import ExerciseResource
 from app.models.exercise_score import ExerciseScore
@@ -31,6 +32,8 @@ __all__ = [
     "Exam",
     "Exercise",
     "ExerciseGroup",
+    "ExerciseContribution",
+    "ExerciseContributionResource",
     "ExerciseResource",
     "ExerciseScore",
     "KeyEnvelope",

@@ -11,6 +11,7 @@ import uuid
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Literal
 
 from sqlalchemy import ColumnElement, and_, false, or_, select
@@ -20,11 +21,12 @@ from app.models.exercise import Exercise
 from app.models.exercise_group import ExerciseGroup
 from app.models.exercise_resource import ExerciseResource
 from app.models.teacher import Teacher
+from app.services.latex_score import parse_exercise_score
 
 
 def shared_with_clause(viewer: Teacher) -> ColumnElement[bool]:
     """Rows another account shared and *viewer* may see: current library rows with code whose
-    owner is approved and still has the switch on. Checked per query, so revoking fails closed."""
+    owner is approved, has the switch on and has not paused. Checked per query (fails closed)."""
     if not viewer.allow_exercise_sharing:
         return false()
     # Correlate on exercises only: a caller that also joins teachers must not empty this subquery.
@@ -33,6 +35,7 @@ def shared_with_clause(viewer: Teacher) -> ColumnElement[bool]:
         .where(
             Teacher.id == Exercise.teacher_id,
             Teacher.allow_exercise_sharing.is_(True),
+            Teacher.sharing_paused.is_(False),
             Teacher.approved_at.is_not(None),
         )
         .correlate(Exercise)
@@ -211,6 +214,7 @@ async def copy_shared_group(
         grade=source.grade,
         subject=source.subject,
         source_group_id=source.exercise_group_id,
+        copied_at=datetime.now(UTC),
     )
     db.add(group)
     await db.flush()
@@ -247,7 +251,8 @@ class VariantPlan:
     source: Exercise | None
     own: Exercise | None
     source_fingerprint: str | None = None
-    kind: Literal["changed", "new", "unchanged", "removed"] = "unchanged"
+    # "local": a variant the recipient added to the copy; it can be proposed to the original.
+    kind: Literal["changed", "new", "unchanged", "removed", "local"] = "unchanged"
     locally_modified: bool = False
 
 
@@ -340,6 +345,9 @@ async def plan_groups(
                 )
                 variant.kind = "unchanged" if fp == own.synced_fingerprint else "changed"
             plan.variants.append(variant)
+        for own in own_rows:
+            if own.exercise_group_id == group.id and not own.copied_from_exercise_id:
+                plan.variants.append(VariantPlan(source=None, own=own, kind="local"))
         for own in mine:
             if own.id not in matched:
                 plan.variants.append(
@@ -383,46 +391,75 @@ class ResyncConflict(Exception):
     """The source changed after the preview the client reviewed."""
 
 
-async def apply_resync(
-    plan: GroupPlan, reviewed: dict[uuid.UUID, str], db: AsyncSession
-) -> list[Exercise]:
-    """Bring *plan*'s group up to its source. Compare-and-set on *reviewed* (source row id ->
-    fingerprint the user saw). Never updates a row in place: changes become new versions."""
-    expected = {v.source.id: v.source_fingerprint for v in plan.applicable if v.source}
-    if expected != reviewed:
-        raise ResyncConflict
-    # A new variant joins the group's share state, like a new variant made in the editor.
-    sibling = next((v.own for v in plan.variants if v.own is not None), None)
+def new_variant_row(group: ExerciseGroup, sibling: Exercise | None, **content: object) -> Exercise:
+    """Version 1 of a new variant in *group*; it joins the group's share state like one made
+    in the editor. *content* carries variant key, LaTeX, answers and provenance."""
     shared = bool(sibling and sibling.is_public)
+    fields: dict[str, object] = {
+        "teacher_id": group.teacher_id,
+        "name": group.name,
+        "topic_tag": group.topic_tag,
+        "grade": group.grade,
+        "subject": group.subject,
+        "version": 1,
+        "exercise_group_id": group.id,
+        "is_current": True,
+        "is_public": shared,
+        "shared_at": sibling.shared_at if sibling and shared else None,
+    }
+    fields.update(content)
+    return Exercise(**fields)
+
+
+def edited_content(base: dict[str, object], latex_body: str | None) -> dict[str, object]:
+    """*base* content with the user's edited LaTeX (points follow it); None keeps *base*."""
+    if latex_body is None:
+        return base
+    points = parse_exercise_score(latex_body) if latex_body.strip() else base["max_points"]
+    return {**base, "latex_body": latex_body, "max_points": points}
+
+
+async def apply_resync(
+    plan: GroupPlan,
+    reviewed: dict[uuid.UUID, str],
+    db: AsyncSession,
+    overrides: dict[uuid.UUID, str] | None = None,
+) -> list[Exercise]:
+    """Take over the *reviewed* variants (source row id -> fingerprint the user saw; a subset is
+    fine, the rest stays pending). Compare-and-set per variant. *overrides* holds edited LaTeX.
+    Never updates a row in place: changes become new versions."""
+    overrides = overrides or {}
+    applicable = {v.source.id: v for v in plan.applicable if v.source}
+    if not reviewed or any(
+        sid not in applicable or applicable[sid].source_fingerprint != fp
+        for sid, fp in reviewed.items()
+    ):
+        raise ResyncConflict
+    if not set(overrides) <= set(reviewed):
+        raise ResyncConflict
+    sibling = next((v.own for v in plan.variants if v.own is not None), None)
     created: list[Exercise] = []
-    for variant in plan.applicable:
+    for sid in reviewed:
+        variant = applicable[sid]
         src = variant.source
         if src is None:
             continue
+        content = edited_content(_content_from(src), overrides.get(sid))
         if variant.own is not None:
             row = next_version(
                 variant.own,
                 copied_from_exercise_id=src.id,
                 synced_fingerprint=variant.source_fingerprint,
-                **_content_from(src),
+                **content,
             )
         else:
-            group = plan.group
-            row = Exercise(
-                teacher_id=group.teacher_id,
-                name=group.name,
-                topic_tag=group.topic_tag,
-                grade=group.grade,
-                subject=group.subject,
-                version=1,
-                exercise_group_id=group.id,
+            row = new_variant_row(
+                plan.group,
+                sibling,
                 variant_key=src.variant_key,
-                is_current=True,
-                is_public=shared,
-                shared_at=sibling.shared_at if sibling and shared else None,
                 copied_from_exercise_id=src.id,
                 synced_fingerprint=variant.source_fingerprint,
-                **_content_from(src),
+                **content,
             )
         db.add(row)
         await db.flush()

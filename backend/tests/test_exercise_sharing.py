@@ -224,3 +224,90 @@ async def test_unsharing_makes_the_source_unavailable(shared) -> None:
     assert (await b.post(f"{API}/{ex_id}/copy")).status_code == 404
     resp = await b.post(f"{API}/groups/{copied['group_id']}/resync", json={})
     assert resp.status_code == 404
+
+
+async def _add_variant(client: AsyncClient, ex_id: str, key: str, body: str) -> str:
+    resp = await client.post(
+        f"{API}/{ex_id}/new-variant", json={"latex_body": body, "variant_key": key}
+    )
+    assert resp.status_code == 201, resp.text
+    return str(resp.json()["id"])
+
+
+@pytest.mark.asyncio
+async def test_resync_takes_only_selected_variants_and_stores_edits(shared) -> None:
+    a, b, ex_id = shared["a"], shared["b"], shared["ex_id"]
+    other_id = await _add_variant(a, ex_id, "B", "\\BE Variant B")
+    copied = await _copy(b, ex_id)
+    group_id = copied["group_id"]
+
+    await a.patch(f"{API}/{ex_id}", json={"latex_body": "\\BE Original fixed"})
+    await a.patch(f"{API}/{other_id}", json={"latex_body": "\\BE Variant B fixed"})
+    preview = (await b.get(f"{API}/groups/{group_id}/resync-preview")).json()
+    changed = [v for v in preview["variants"] if v["kind"] == "changed"]
+    assert len(changed) == 2
+    first = changed[0]
+    sid = first["source_exercise_id"]
+
+    resp = await b.post(
+        f"{API}/groups/{group_id}/resync",
+        json={
+            "source_fingerprints": {sid: first["source_fingerprint"]},
+            "overrides": {sid: {"latex_body": "\\BE \\BE Merged by hand"}},
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    (row,) = resp.json()
+    assert row["latex_body"] == "\\BE \\BE Merged by hand"
+    assert row["max_points"] == 2.0
+
+    status = await _status(b, group_id)
+    assert status["state"] == "update_available"
+    assert status["changed_variants"] == 1
+    assert status["locally_modified"] is True
+
+
+@pytest.mark.asyncio
+async def test_resync_rejects_overrides_outside_the_selection(shared) -> None:
+    a, b, ex_id = shared["a"], shared["b"], shared["ex_id"]
+    copied = await _copy(b, ex_id)
+    await a.patch(f"{API}/{ex_id}", json={"latex_body": "\\BE Changed"})
+    resp = await b.post(
+        f"{API}/groups/{copied['group_id']}/resync",
+        json={"source_fingerprints": {}, "overrides": {ex_id: {"latex_body": "x"}}},
+    )
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_pause_hides_and_resume_restores(shared) -> None:
+    a, b, ex_id = shared["a"], shared["b"], shared["ex_id"]
+    assert (await a.put(f"{API}/sharing/pause", json={"paused": True})).status_code == 204
+    assert ex_id not in [r["id"] for r in (await b.get(f"{API}/shared")).json()]
+    caps = (await a.get("/api/v1/user/capabilities")).json()
+    assert caps["sharing_paused"] is True
+    assert (await a.put(f"{API}/sharing/pause", json={"paused": False})).status_code == 204
+    assert ex_id in [r["id"] for r in (await b.get(f"{API}/shared")).json()]
+
+
+@pytest.mark.asyncio
+async def test_copies_are_never_shared_as_ones_own(shared) -> None:
+    b, ex_id = shared["b"], shared["ex_id"]
+    copied = await _copy(b, ex_id)
+    (row,) = copied["exercises"]
+    resp = await b.put(f"{API}/{row['id']}/sharing", json={"shared": True})
+    assert resp.status_code == 400
+    assert resp.headers.get("code") == "ERR_SHARE_COPY"
+
+    own = await b.post(API, json={"name": "Own task", "latex_body": "\\BE Mine"})
+    bulk = await b.post(f"{API}/sharing/bulk", json={"shared": True})
+    assert bulk.status_code == 200, bulk.text
+    assert bulk.json()["skipped_copies"] == 1
+    listing = {r["id"]: r for r in (await b.get(API)).json()}
+    assert listing[own.json()["id"]]["is_shared"] is True
+    assert listing[row["id"]]["is_shared"] is False
+    assert listing[row["id"]]["group_copied"] is True
+
+    off = await b.post(f"{API}/sharing/bulk", json={"shared": False})
+    assert off.status_code == 200
+    assert (await b.get(API)).json()[0]["is_shared"] is False

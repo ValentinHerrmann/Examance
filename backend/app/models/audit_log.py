@@ -61,6 +61,11 @@ class AuditLog(Base):
             "EXERCISE_SHARING_CHANGED",
             "EXERCISE_COPIED",
             "EXERCISE_RESYNCED",
+            # Contributions back to a shared original (migration 0031).
+            "CONTRIBUTION_SUBMITTED",
+            "CONTRIBUTION_ACCEPTED",
+            "CONTRIBUTION_REJECTED",
+            "CONTRIBUTION_WITHDRAWN",
             name="audit_action",
         ),
         nullable=False,

@@ -19,7 +19,6 @@ from app.models.exam_exercise import ExamExercise
 from app.models.exam_mc_group import ExamMcGroup
 from app.models.exercise import Exercise
 from app.models.teacher import Teacher
-from app.routers.exercises import parse_exercise_score
 from app.schemas.exam import (
     ExamCreate,
     ExamMcGroupResponse,
@@ -31,6 +30,7 @@ from app.services.capabilities import require_server_latex
 from app.services.exercise_resource_store import load_resources_for_exercises
 from app.services.latex import CompilationError, compile_exam_latex
 from app.services.latex_resources import ResourceError
+from app.services.latex_score import parse_exercise_score
 from app.services.logo import resolve_logo
 
 router = APIRouter(prefix="/exams", tags=["exams"])

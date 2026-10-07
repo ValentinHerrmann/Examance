@@ -155,7 +155,7 @@ def test_tex_error_extraction_does_not_leak_log_context() -> None:
 
 
 def test_parse_exercise_score_lmulti_and_be() -> None:
-    from app.routers.exercises import parse_exercise_score
+    from app.services.latex_score import parse_exercise_score
 
     snippet_1 = """\\begin{Aufgabe}{Grundlagen}
 Wie oft wird der Inhalt einer For-Schleife mit dem folgenden Kopf durchlaufen? 

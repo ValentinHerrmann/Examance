@@ -100,6 +100,17 @@ def admin_notice_mail(admin_email: str, pending: int) -> Mail:
     )
 
 
+def contribution_notice_mail(owner_email: str, pending: int) -> Mail:
+    """Tells an author that colleagues proposed changes to their shared exercises. Carries no
+    proposal content and no contributor address."""
+    return _compose(
+        owner_email,
+        "Examance: proposed changes to your shared exercises",
+        [f"{pending} proposal(s) for your shared exercises await your review."],
+        link=("Review proposals", frontend_link("/exercises?view=proposals")),
+    )
+
+
 def approved_mail(email: str) -> Mail:
     return _compose(
         email,

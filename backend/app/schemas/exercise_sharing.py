@@ -52,10 +52,11 @@ class SyncStatusItem(BaseModel):
     changed_variants: int
     new_variants: int
     removed_variants: int
+    local_variants: int = 0
 
 
 class ResyncVariant(BaseModel):
-    kind: Literal["changed", "new", "unchanged", "removed"]
+    kind: Literal["changed", "new", "unchanged", "removed", "local"]
     locally_modified: bool
     source_exercise_id: uuid.UUID | None = None
     source_fingerprint: str | None = None
@@ -70,9 +71,35 @@ class ResyncPreviewResponse(BaseModel):
     variants: list[ResyncVariant]
 
 
+class ResyncOverride(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    latex_body: str = Field(max_length=200_000)
+
+
 class ResyncRequest(BaseModel):
-    """The source fingerprints the user reviewed (compare-and-set against the current source)."""
+    """The variants to take over, by source row id -> the fingerprint the user reviewed (CAS); a
+    subset is fine. `overrides` holds the user's edited LaTeX for some of them."""
 
     model_config = ConfigDict(extra="forbid")
 
     source_fingerprints: dict[uuid.UUID, str] = Field(default_factory=dict)
+    overrides: dict[uuid.UUID, ResyncOverride] = Field(default_factory=dict)
+
+
+class BulkSharingUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    shared: bool
+
+
+class BulkSharingResult(BaseModel):
+    groups: int
+    # Groups copied from another account: never shared as one's own.
+    skipped_copies: int
+
+
+class SharingPauseUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    paused: bool
