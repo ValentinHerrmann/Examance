@@ -124,6 +124,7 @@ async def contribution_count(
     outgoing = (
         await db.execute(
             select(Exercise.exercise_group_id, func.count())
+            .select_from(ExerciseContribution)
             .join(Exercise, Exercise.id == ExerciseContribution.from_exercise_id)
             .where(
                 ExerciseContribution.contributor_id == teacher.id,
