@@ -46,9 +46,10 @@ async def _summary(
     other_id = row.contributor_id if incoming else row.owner_id
     other = await db.get(Teacher, other_id)
     group = await db.get(ExerciseGroup, row.source_group_id)
+    # Derived from the author's current rows, so only the author gets it.
     st = (
         await contrib.staleness(row, db)
-        if row.status == "pending"
+        if incoming and row.status == "pending"
         else contrib.Staleness(False, False)
     )
     return ContributionSummary(

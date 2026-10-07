@@ -106,6 +106,13 @@ export const help: Translations['help'] = {
                 p1: '“Share…” makes an exercise group with all its current variants and files visible to every account of this installation, together with your email address. Others can view and copy it but not change it. Only share exercises without personal data of pupils, and only what you are allowed to pass on.',
                 p2: 'Under “Shared by others” you copy an exercise into your library. You get your own copy to edit freely and use in exams; changes or deletion by the person who shared it never affect your exams.',
                 p3: 'When the source changes, the copy shows “Update available”. “Update…” shows the differences and takes them over as a new version; your previous version and the exams that use it stay unchanged. If the source is no longer shared, your copy remains. Whether your account may share is set by the administrators.',
+                p4: 'You can also share an exercise right in the editor (“Share with all accounts”), or share or stop sharing all at once from the “Sharing” menu. “Pause sharing” hides everything you share for a while without forgetting your choices. Exercises copied from others are never shared as your own. When updating, you choose which variants to take over and can edit the result right in the dialog.',
+            },
+            s6: {
+                h: 'Proposing changes to the original',
+                p1: 'If you improved your copy or added a variant, “Propose to original…” suggests it to the person who shares the exercise. Changed variants are proposed as a new version, added ones as a new variant. Your email address is shown to them.',
+                p2: 'They see proposals under “Proposals” and get a short email notice without content. They compare the proposal with their current version, can edit it, and accept or reject it. Accepting always adds a new version or variant; existing versions and exams stay unchanged. A PDF preview is available only after accepting.',
+                p3: 'After the decision the proposal’s content is deleted, the entry itself after 30 days; open proposals after 180 days. You can withdraw an open proposal at any time. Accepted changes reach your copy through “Update…”.',
             },
         },
         examCreation: {

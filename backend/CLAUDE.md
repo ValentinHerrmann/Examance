@@ -46,6 +46,7 @@ Background: `docs/data_flow_and_security.md` §3 "Exercise sharing".
 - **Never link a foreign exercise into an exam.** `exam_exercises` and `exercise_scores` cascade on the exercise, so the owner's delete would strip another teacher's exam and scores. `_resolve_linkable_exercise` is own-only; a shared exercise is copied first.
 - Who may read a foreign exercise is decided only by `app/services/exercise_sharing.py` (`shared_with_clause`, `readable_clause`). Writes stay on `get_exercise_for_teacher`. A foreign row never returns `teacher_id`/`exam_id`.
 - Copy provenance (`copied_from_exercise_id`, `synced_fingerprint`, `exercise_groups.source_group_id`) has no FK on purpose. Resync only adds versions (`next_version`, shared with `create_new_version`); it never updates a row an exam may link. Resource writes must set `content_sha256` (the fingerprint covers file bytes).
+- Contributions (`services/exercise_contributions.py`, router `exercise_contributions.py`, registered **before** the exercises router): the owner's library changes only on an explicit accept of an immutable snapshot, and only via `next_version`/`new_variant_row`. Claim with a conditional `UPDATE … WHERE status='pending'`; clear the payload on every decision. A copied group (`copied_at`, never cleared) is never shared as one's own.
 
 ## Gotchas
 

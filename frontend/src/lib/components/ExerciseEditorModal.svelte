@@ -4,7 +4,8 @@
   import type { ExerciseRecord } from "#lib/db/schema";
   import { db } from "#lib/db/db";
   import { sessionStore, isAuthenticated } from "#lib/stores/session";
-  import { effectiveLatexStore } from "#lib/stores/capabilities";
+  import { effectiveLatexStore, featuresStore } from "#lib/stores/capabilities";
+  import { setExerciseSharing } from "#lib/api/exerciseSharing";
   import { saveExerciseEncrypted, loadExercisesEncrypted } from "#lib/db/dbEncryption";
   import { api } from "#lib/api/client";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
@@ -36,7 +37,8 @@
     isCreatingVersion?: boolean;
     versionBaseEx?: ExerciseRecord | null;
     onClose?: () => void;
-    onSave?: (detail: { exercise: ExerciseRecord; isNewVersion: boolean }) => void;
+    /** `sharingFailed`: the exercise was saved, but changing its share state did not reach the server. */
+    onSave?: (detail: { exercise: ExerciseRecord; isNewVersion: boolean; sharingFailed?: boolean }) => void;
   }
 
   let {
@@ -74,6 +76,12 @@
   let initialLatexBody = $state("");
   let initialQuestionType: "free_text" | "mc" = $state("free_text");
   let initialPenalty = $state(0.5);
+
+  // Sharing (issue #65): applies to the whole group; copies of others' exercises are never shared.
+  let editorShared = $state(false);
+  let initialShared = $state(false);
+  let baseRecord = $derived(isCreatingVersion ? versionBaseEx : editingExercise);
+  let canShare = $derived($featuresStore.exercise_sharing === true && $isAuthenticated && !baseRecord?.groupCopied);
 
   // Confirmation modal state
   let showConfirmClose = $state(false);
@@ -164,6 +172,8 @@
     initialLatexBody = editorLatexBody;
     initialQuestionType = editorQuestionType;
     initialPenalty = editorPenalty;
+    editorShared = !!(isCreatingVersion ? versionBaseEx?.isShared : editingExercise?.isShared);
+    initialShared = editorShared;
     // Seed the staging area from whichever exercise is being edited or
     // versioned; a new version therefore starts with the base version's
     // figures without ever writing back to it.
@@ -277,8 +287,20 @@
     editorVariantKey !== initialVariantKey ||
     editorLatexBody !== initialLatexBody ||
     editorQuestionType !== initialQuestionType ||
-    (editorQuestionType !== "free_text" && editorPenalty !== initialPenalty)
+    (editorQuestionType !== "free_text" && editorPenalty !== initialPenalty) ||
+    editorShared !== initialShared
   );
+
+  /** Applies a changed share state after the save; online only. @returns false if it failed. */
+  async function applySharing(exerciseId: string): Promise<boolean> {
+    if (!canShare || editorShared === initialShared) return true;
+    try {
+      await setExerciseSharing(exerciseId, editorShared);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   function requestClose() {
     if (isDirty) {
@@ -434,7 +456,8 @@
         // A new version is a new exercise row; the staged set (the base
         // version's files plus anything added here) becomes its file set.
         await commitStagedResources(savedEx.id, key);
-        onSave?.({ exercise: savedEx, isNewVersion: true });
+        const sharingOk = await applySharing(savedEx.id);
+        onSave?.({ exercise: savedEx, isNewVersion: true, sharingFailed: !sharingOk });
         forceClose();
         return;
       }
@@ -509,7 +532,8 @@
       }
 
       await commitStagedResources(record.id, key);
-      onSave?.({ exercise: record, isNewVersion: false });
+      const sharingOk = await applySharing(record.id);
+      onSave?.({ exercise: record, isNewVersion: false, sharingFailed: !sharingOk });
       forceClose();
     } catch (err: any) {
       errorMsg = translate("exercises.editor.saveFailed", { message: err.message });
@@ -665,10 +689,22 @@
                   >{$t("exercises.editor.mcButton")}</Button>
                 </div>
               </div>
+
+              {#if canShare}
+                <div class="flex min-w-0 items-center gap-1.5 text-xs">
+                  <Checkbox bind:checked={editorShared} label={$t("exercises.sharing.editorShare")} />
+                </div>
+              {/if}
             </div>
           {/if}
         </div>
       </div>
+
+      {#if canShare && editorShared && !initialShared}
+        <Alert severity="warning" class="mx-4 mt-3 shrink-0">
+          {$t("exercises.sharing.editorShareNotice", { email: $sessionStore.email ?? "" })}
+        </Alert>
+      {/if}
 
       {#if errorMsg}
         <Alert severity="danger" class="mx-4 mt-3 shrink-0">

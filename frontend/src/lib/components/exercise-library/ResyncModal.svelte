@@ -1,23 +1,30 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import type { ResyncPreview, ResyncVariant } from "#lib/api/exerciseSharing";
-  import { computeSideBySideDiff, type DiffLine } from "#lib/latex/diff";
   import { t } from "#lib/i18n";
-  import { Alert, Badge, Button, Modal, Spinner } from "#lib/components/ui";
+  import { Alert, Badge, Button, Checkbox, Modal, Spinner } from "#lib/components/ui";
+  import MergeEditor from "./MergeEditor.svelte";
 
-  /** Review what a resync takes over from the source, then apply it (issue #65). Read-only diff. */
+  /** Review what a resync takes over from the source; choose variants and edit the merge (issue #65). */
   interface Props {
     open?: boolean;
     /** Null while loading. */
     preview?: ResyncPreview | null;
     busy?: boolean;
     error?: string;
-    onApply: () => void;
+    /** `selected`: source row ids to take over; `overrides`: hand-merged LaTeX by source row id. */
+    onApply: (selected: Set<string>, overrides: Record<string, string>) => void;
     onClose: () => void;
   }
 
   let { open = false, preview = null, busy = false, error = "", onApply, onClose }: Props = $props();
 
-  let applicable = $derived(preview?.variants.filter((v) => v.kind === "changed" || v.kind === "new") ?? []);
+  // Local edit buffers, reset whenever a new preview arrives.
+  let chosen: Record<string, boolean> = $state({});
+  let merged: Record<string, string> = $state({});
+
+  let applicable = $derived(preview?.variants.filter((v) => (v.kind === "changed" || v.kind === "new") && v.sourceExerciseId) ?? []);
+  let selectedCount = $derived(applicable.filter((v) => chosen[v.sourceExerciseId!]).length);
   let locallyModified = $derived(preview?.variants.some((v) => v.locallyModified && v.kind === "changed") ?? false);
 
   const kindKey = {
@@ -25,21 +32,42 @@
     new: "exercises.sharing.resyncModal.kindNew",
     removed: "exercises.sharing.resyncModal.kindRemoved",
     unchanged: "exercises.sharing.resyncModal.kindUnchanged",
+    local: "exercises.sharing.resyncModal.kindLocal",
   } as const;
 
-  const kindSeverity = { changed: "warning", new: "info", removed: "secondary", unchanged: "success" } as const;
-
-  const lineClass: Record<DiffLine["type"], string> = {
-    added: "bg-success/15",
-    removed: "bg-danger/15",
-    modified: "bg-warning/15",
-    unchanged: "",
-    empty: "bg-surface-sunken",
-  };
+  const kindSeverity = { changed: "warning", new: "info", removed: "secondary", unchanged: "success", local: "secondary" } as const;
 
   function variantLabel(v: ResyncVariant): string {
     const key = v.source?.variantKey || v.own?.variantKey;
     return key ? $t("exercises.sharing.resyncModal.variant", { key }) : (v.source?.name || v.own?.name || "");
+  }
+
+  function apply() {
+    const selected = new Set(applicable.filter((v) => chosen[v.sourceExerciseId!]).map((v) => v.sourceExerciseId!));
+    const overrides: Record<string, string> = {};
+    for (const v of applicable) {
+      const id = v.sourceExerciseId!;
+      if (selected.has(id) && merged[id] !== undefined && merged[id] !== (v.source?.latexBody ?? "")) overrides[id] = merged[id];
+    }
+    onApply(selected, overrides);
+  }
+
+  $effect.pre(() => {
+    const p = preview;
+    untrack(() => resetBuffers(p));
+  });
+
+  function resetBuffers(p: ResyncPreview | null) {
+    const nextChosen: Record<string, boolean> = {};
+    const nextMerged: Record<string, string> = {};
+    for (const v of p?.variants ?? []) {
+      if ((v.kind === "changed" || v.kind === "new") && v.sourceExerciseId) {
+        nextChosen[v.sourceExerciseId] = true;
+        nextMerged[v.sourceExerciseId] = v.source?.latexBody ?? "";
+      }
+    }
+    chosen = nextChosen;
+    merged = nextMerged;
   }
 </script>
 
@@ -59,27 +87,27 @@
         <Alert severity="info">{$t("exercises.sharing.resyncModal.nothing")}</Alert>
       {/if}
       {#each preview.variants as v, i (v.sourceExerciseId ?? v.own?.id ?? i)}
+        {@const sid = v.sourceExerciseId}
         <section class="rounded-md border border-line p-3">
           <div class="mb-2 flex flex-wrap items-center gap-2">
-            <span class="font-semibold text-content">{variantLabel(v)}</span>
+            {#if (v.kind === "changed" || v.kind === "new") && sid}
+              <Checkbox bind:checked={chosen[sid]} label={variantLabel(v)} />
+            {:else}
+              <span class="font-semibold text-content">{variantLabel(v)}</span>
+            {/if}
             <Badge severity={kindSeverity[v.kind]}>{$t(kindKey[v.kind])}</Badge>
             {#if v.kind === "changed" && v.own && v.source && v.own.maxPoints !== v.source.maxPoints}
               <Badge>{$t("exercises.sharing.resyncModal.points", { own: v.own.maxPoints, source: v.source.maxPoints })}</Badge>
             {/if}
           </div>
-          {#if v.kind === "changed" || v.kind === "new"}
-            {@const diff = computeSideBySideDiff(v.own?.latexBody ?? "", v.source?.latexBody ?? "")}
-            <div class="overflow-x-auto rounded-md border border-line">
-              <div class="grid min-w-[36rem] grid-cols-2 font-mono text-xs">
-                <div class="border-b border-r border-line bg-surface-sunken px-2 py-1 font-sans font-semibold text-muted">{$t("exercises.sharing.resyncModal.own")}</div>
-                <div class="border-b border-line bg-surface-sunken px-2 py-1 font-sans font-semibold text-muted">{$t("exercises.sharing.resyncModal.source")}</div>
-                {#each diff.leftLines as left, row (row)}
-                  {@const right = diff.rightLines[row]}
-                  <div class="min-w-0 whitespace-pre-wrap break-words border-r border-line px-2 py-0.5 text-content {lineClass[left.type]}">{left.text ?? ""}</div>
-                  <div class="min-w-0 whitespace-pre-wrap break-words px-2 py-0.5 text-content {right ? lineClass[right.type] : ''}">{right?.text ?? ""}</div>
-                {/each}
-              </div>
-            </div>
+          {#if (v.kind === "changed" || v.kind === "new") && sid && chosen[sid]}
+            <MergeEditor
+              mine={v.own?.latexBody ?? ""}
+              theirs={v.source?.latexBody ?? ""}
+              bind:value={merged[sid]}
+              mineLabel={$t("exercises.sharing.resyncModal.own")}
+              theirsLabel={$t("exercises.sharing.resyncModal.source")}
+            />
           {/if}
         </section>
       {/each}
@@ -88,6 +116,8 @@
 
   {#snippet footer()}
     <Button variant="outlined" severity="secondary" onClick={onClose}>{$t("common.cancel")}</Button>
-    <Button loading={busy} disabled={!preview || applicable.length === 0} onClick={onApply}>{$t("exercises.sharing.resyncModal.apply")}</Button>
+    <Button loading={busy} disabled={!preview || selectedCount === 0} onClick={apply}>
+      {$t("exercises.sharing.resyncModal.applySelected", { count: selectedCount })}
+    </Button>
   {/snippet}
 </Modal>

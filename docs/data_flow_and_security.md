@@ -400,6 +400,31 @@ teacher's consent; stopping the share withdraws it.
   and local edits survive in the version history. It is compare-and-set: the client sends the source
   fingerprints it reviewed in the preview and gets `409 ERR_SHARE_SOURCE_CHANGED` if the source moved
   on meanwhile.
+* **Selective and hand-merged resync.** The user may take over a subset of the changed
+  variants (the rest stays pending) and edit the merged LaTeX in the dialog. Each chosen variant
+  is still compare-and-set against its reviewed fingerprint; an edited result keeps the source
+  fingerprint as its sync point, so the copy then reports `locally_modified`.
+* **Sharing controls.** Besides the per-group action there is a share checkbox in the exercise
+  editor, bulk share/unshare of all own groups, and a **pause** (`teachers.sharing_paused`,
+  checked per query like the admin switch): it hides everything the teacher shares without
+  forgetting the per-group choices. A group copied from another account (`exercise_groups.copied_at`,
+  set on copy and never cleared, not even by unlink) is **never shared as one's own**
+  (`400 ERR_SHARE_COPY`; bulk share skips it): the author consented to share it, not the copier.
+* **Contributions back to the original** (`exercise_contributions`, migration `0031`). From a
+  linked copy, a teacher proposes changed variants (as new versions) and variants they added (as new
+  variants) to the author. The proposal is an **immutable snapshot** (LaTeX, answer key, points,
+  resource files) the author reviews as a diff against their current version; they may edit it,
+  then accept or reject. Accepting adds a new version (`next_version` on the current row of that
+  variant, so a proposal based on an older version still lands on top, with a warning) or a new
+  variant at version 1; nothing is updated in place. A double accept is refused by a conditional
+  update (409). The contributor's e-mail is shown to the author (consent at submit); the author is
+  notified in-app and by a throttled mail that carries only a count and a link. Only the two
+  participants can see a proposal (404 for anyone else). The payload is cleared at decision time;
+  retention drops decided proposals after `CONTRIBUTION_RETENTION_DAYS` (30) and undecided ones after
+  `CONTRIBUTION_PENDING_MAX_DAYS` (180). Abuse limits: one pending proposal per variant (a newer one
+  withdraws the older), 20 pending per contributor, 30 submissions per hour. Audit:
+  `CONTRIBUTION_SUBMITTED`, `_ACCEPTED`, `_REJECTED`, `_WITHDRAWN`. The export lists the proposals an
+  account sent.
 * **Owner privacy.** The sharer never learns who copied or resynced (no counts, no notifications).
 * **Revocation.** Stopping the share (never gated, also after the switch was revoked) hides the
   group and stops new copies and resyncs; existing copies belong to their copiers. Deleting the

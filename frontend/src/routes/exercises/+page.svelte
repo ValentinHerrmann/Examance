@@ -3,7 +3,8 @@
   import { onMount, untrack } from "svelte";
   import { db } from "#lib/db/db";
   import { sessionStore, awaitSessionReady } from "#lib/stores/session";
-  import { effectiveLatexStore, featuresStore } from "#lib/stores/capabilities";
+  import { capabilitiesStore, effectiveLatexStore, featuresStore, markSharingPaused } from "#lib/stores/capabilities";
+  import { page } from "$app/state";
   import type { ExerciseRecord } from "#lib/db/schema";
   import { loadExercisesEncrypted, saveExerciseEncrypted, encryptExercise } from "#lib/db/dbEncryption";
   import { api } from "#lib/api/client";
@@ -17,7 +18,7 @@
   import { highlightLatexToHtml } from "#lib/latex/highlighter";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import ListFilterPanel from "#lib/components/common/ListFilterPanel.svelte";
-  import { Alert, Button, ConfirmDialog, FilterLayout, PageHeader, PageShell, Tabs } from "#lib/components/ui";
+  import { Alert, Button, ConfirmDialog, FilterLayout, Menu, MenuItem, PageHeader, PageShell, Tabs } from "#lib/components/ui";
   import PreviewHost from "#lib/components/common/PreviewHost.svelte";
   import { createPreviewFlow } from "#lib/stores/previewFlow";
   import { loadExamUsage, usageKey, type ExamUsageEntry } from "#lib/exercise-library/examUsage";
@@ -25,7 +26,7 @@
   import { createLazyMap } from "#lib/utils/lazyMap";
   import { exerciseRepository, mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
   import { compileExercisePreview } from "#lib/latex/exercisePreview";
-  import { faBook, faPlus, faShareNodes } from "@fortawesome/free-solid-svg-icons";
+  import { faBook, faCodePullRequest, faPause, faPlay, faPlus, faShareNodes, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
   import ExerciseGroupList from "#lib/components/exercise-library/ExerciseGroupList.svelte";
   import GroupEditModal from "#lib/components/exercise-library/GroupEditModal.svelte";
   import RegroupModal from "#lib/components/exercise-library/RegroupModal.svelte";
@@ -34,13 +35,29 @@
   import ExerciseDiffModal from "#lib/components/exercise-library/ExerciseDiffModal.svelte";
   import ShareExerciseModal from "#lib/components/exercise-library/ShareExerciseModal.svelte";
   import ResyncModal from "#lib/components/exercise-library/ResyncModal.svelte";
+  import ContributeModal from "#lib/components/exercise-library/ContributeModal.svelte";
+  import ReviewContributionModal from "#lib/components/exercise-library/ReviewContributionModal.svelte";
+  import ContributionList from "#lib/components/exercise-library/ContributionList.svelte";
+  import {
+    acceptContribution,
+    listContributions,
+    loadContribution,
+    pendingIncomingCount,
+    rejectContribution,
+    submitContributions,
+    withdrawContribution,
+    type ContributionDetail,
+    type ContributionSummary,
+  } from "#lib/api/exerciseContributions";
   import {
     applyResync,
+    bulkSetSharing,
     copySharedExercise,
     listSharedExercises,
     loadResyncPreview,
     loadSyncStatus,
     setExerciseSharing,
+    setSharingPaused,
     unlinkSource,
     type ResyncPreview,
     type SharedExercise,
@@ -50,7 +67,7 @@
   let exercises: ExerciseRecord[] = $state.raw([]);
 
   // Sharing (issue #65): other accounts' exercises are listed separately and only ever copied.
-  let view = $state<"own" | "shared">("own");
+  let view = $state<"own" | "shared" | "proposals">("own");
   let sharingEnabled = $derived($featuresStore.exercise_sharing === true);
   let sharedRows: SharedExercise[] = $state.raw([]);
   let sharedLoading = $state(false);
@@ -69,6 +86,25 @@
   let resyncError = $state("");
   let unlinkGroup: ExerciseGroup | null = $state.raw(null);
   let isUnlinking = $state(false);
+  let sharingPaused = $derived($capabilitiesStore?.sharingPaused === true);
+  let bulkMode: "bulkShare" | "bulkUnshare" | null = $state(null);
+  let isBulkBusy = $state(false);
+  let bulkError = $state("");
+  let isPauseBusy = $state(false);
+  // Proposals back to shared originals.
+  let incoming: ContributionSummary[] = $state.raw([]);
+  let outgoing: ContributionSummary[] = $state.raw([]);
+  let proposalsLoading = $state(false);
+  let pendingProposals = $state(0);
+  let withdrawingId = $state("");
+  let reviewId = $state("");
+  let reviewDetail: ContributionDetail | null = $state.raw(null);
+  let isReviewBusy = $state(false);
+  let reviewError = $state("");
+  let contributeGroupId = $state("");
+  let contributePreview: ResyncPreview | null = $state.raw(null);
+  let isContributeBusy = $state(false);
+  let contributeError = $state("");
   let selectedTopic: string = $state("ALL");
   let selectedGrade: string = $state("ALL");
   let selectedSubject: string = $state("ALL");
@@ -193,6 +229,8 @@
   let filteredGroups = $derived(groupExercises(filteredExercises));
 
   onMount(() => {
+    const requested = page.url.searchParams.get("view");
+    if (requested === "proposals" || requested === "shared") switchView(requested);
     loadExercises();
   });
 
@@ -251,8 +289,141 @@
     if (!sharingEnabled || !isServerBacked() || isLocalFallback) return;
     try {
       syncStatus = new Map((await loadSyncStatus()).map((s) => [s.groupId, s]));
+      pendingProposals = await pendingIncomingCount();
     } catch {
       sharingError = translate("exercises.sharing.statusFailed");
+    }
+  }
+
+  async function loadProposals() {
+    proposalsLoading = true;
+    sharingError = "";
+    try {
+      [incoming, outgoing] = await Promise.all([listContributions("incoming"), listContributions("outgoing")]);
+      pendingProposals = incoming.filter((c) => c.status === "pending").length;
+    } catch (err: any) {
+      sharingError = err?.message || translate("exercises.contributions.loadFailed");
+    } finally {
+      proposalsLoading = false;
+    }
+  }
+
+  async function openReview(item: ContributionSummary) {
+    reviewId = item.id;
+    reviewDetail = null;
+    reviewError = "";
+    try {
+      reviewDetail = await loadContribution(item.id);
+    } catch (err: any) {
+      reviewError = err?.message || translate("exercises.contributions.loadFailed");
+    }
+  }
+
+  function closeReview() {
+    reviewId = "";
+    reviewDetail = null;
+  }
+
+  async function handleAcceptProposal(opts: { latexBody?: string; asVariant: boolean; variantKey?: string }) {
+    if (!reviewId) return;
+    isReviewBusy = true;
+    reviewError = "";
+    try {
+      await acceptContribution(reviewId, opts);
+      closeReview();
+      sharingNotice = translate("exercises.contributions.accepted");
+      await Promise.all([loadProposals(), loadExercises()]);
+    } catch (err: any) {
+      reviewError = err?.message || translate("exercises.contributions.decideFailed");
+      if (err?.status === 409) reviewDetail = await loadContribution(reviewId).catch(() => reviewDetail);
+    } finally {
+      isReviewBusy = false;
+    }
+  }
+
+  async function handleRejectProposal(note: string) {
+    if (!reviewId) return;
+    isReviewBusy = true;
+    reviewError = "";
+    try {
+      await rejectContribution(reviewId, note);
+      closeReview();
+      await loadProposals();
+    } catch (err: any) {
+      reviewError = err?.message || translate("exercises.contributions.decideFailed");
+    } finally {
+      isReviewBusy = false;
+    }
+  }
+
+  async function handleWithdraw(item: ContributionSummary) {
+    withdrawingId = item.id;
+    sharingError = "";
+    try {
+      await withdrawContribution(item.id);
+      await loadProposals();
+    } catch (err: any) {
+      sharingError = err?.message || translate("exercises.contributions.decideFailed");
+    } finally {
+      withdrawingId = "";
+    }
+  }
+
+  async function openContribute(group: ExerciseGroup) {
+    contributeGroupId = group.groupId;
+    contributePreview = null;
+    contributeError = "";
+    try {
+      contributePreview = await loadResyncPreview(group.groupId);
+    } catch (err: any) {
+      contributeError = err?.message || translate("exercises.contributions.submitFailed");
+    }
+  }
+
+  async function handleSubmitContribution(exerciseIds: string[], message: string) {
+    isContributeBusy = true;
+    contributeError = "";
+    try {
+      await submitContributions(contributeGroupId, exerciseIds, message);
+      contributeGroupId = "";
+      sharingNotice = translate("exercises.contributions.submitted");
+    } catch (err: any) {
+      contributeError = err?.message || translate("exercises.contributions.submitFailed");
+    } finally {
+      isContributeBusy = false;
+    }
+  }
+
+  async function handleBulkConfirm() {
+    if (!bulkMode) return;
+    isBulkBusy = true;
+    bulkError = "";
+    try {
+      const res = await bulkSetSharing(bulkMode === "bulkShare");
+      sharingNotice =
+        bulkMode === "bulkShare"
+          ? translate("exercises.sharing.bulk.sharedDone", { groups: res.groups, skipped: res.skippedCopies })
+          : translate("exercises.sharing.bulk.unsharedDone", { groups: res.groups });
+      bulkMode = null;
+      await loadExercises();
+    } catch (err: any) {
+      bulkError = err?.message || translate("exercises.sharing.shareModal.failed");
+    } finally {
+      isBulkBusy = false;
+    }
+  }
+
+  /** Pause hides everything shared without forgetting the per-group choices. */
+  async function togglePause() {
+    isPauseBusy = true;
+    sharingError = "";
+    try {
+      await setSharingPaused(!sharingPaused);
+      markSharingPaused(!sharingPaused);
+    } catch (err: any) {
+      sharingError = err?.message || translate("exercises.sharing.pause.failed");
+    } finally {
+      isPauseBusy = false;
     }
   }
 
@@ -269,8 +440,9 @@
   }
 
   function switchView(next: string) {
-    view = next === "shared" ? "shared" : "own";
+    view = next === "shared" || next === "proposals" ? next : "own";
     if (view === "shared") loadShared();
+    if (view === "proposals") loadProposals();
   }
 
   function groupIsShared(group: ExerciseGroup): boolean {
@@ -329,13 +501,13 @@
     fetchResyncPreview();
   }
 
-  /** Applies exactly the reviewed preview; the server refuses (409) if the source moved on meanwhile. */
-  async function handleApplyResync() {
+  /** Applies the chosen, reviewed variants; the server refuses (409) if one moved on meanwhile. */
+  async function handleApplyResync(selected: Set<string>, overrides: Record<string, string>) {
     if (!resyncPreview) return;
     isResyncing = true;
     resyncError = "";
     try {
-      await applyResync(resyncPreview);
+      await applyResync(resyncPreview, selected, overrides);
       isResyncOpen = false;
       sharingNotice = translate("exercises.sharing.resyncModal.applied");
       await loadExercises();
@@ -390,7 +562,8 @@
     isEditorOpen = true;
   }
 
-  function handleExerciseSaved() {
+  function handleExerciseSaved(detail: { sharingFailed?: boolean }) {
+    if (detail.sharingFailed) sharingError = translate("exercises.sharing.editorShareFailed");
     loadExercises();
   }
 
@@ -818,6 +991,17 @@
     helpTopic="exercises"
   >
     {#snippet actions()}
+      {#if sharingEnabled && !isLocalFallback}
+        <Menu label={$t("exercises.sharing.menu")} icon={faShareNodes} showLabel labelClass="hidden sm:inline" align="end">
+          {#snippet children({ close })}
+            <MenuItem icon={faShareNodes} onSelect={() => { bulkError = ""; bulkMode = "bulkShare"; close(); }}>{$t("exercises.sharing.bulk.shareAll")}</MenuItem>
+            <MenuItem icon={faEyeSlash} onSelect={() => { bulkError = ""; bulkMode = "bulkUnshare"; close(); }}>{$t("exercises.sharing.bulk.unshareAll")}</MenuItem>
+            <MenuItem icon={sharingPaused ? faPlay : faPause} onSelect={() => { close(); togglePause(); }}>
+              {sharingPaused ? $t("exercises.sharing.pause.resume") : $t("exercises.sharing.pause.pause")}
+            </MenuItem>
+          {/snippet}
+        </Menu>
+      {/if}
       <Button icon={faPlus} onClick={openCreateModal}>{$t("exercises.page.createButton")}</Button>
     {/snippet}
   </PageHeader>
@@ -834,6 +1018,14 @@
   {#if sharingError}
     <Alert severity="danger" class="mb-6" onDismiss={() => (sharingError = "")}>{sharingError}</Alert>
   {/if}
+  {#if sharingEnabled && sharingPaused}
+    <Alert severity="warning" class="mb-6">
+      {$t("exercises.sharing.pause.banner")}
+      {#snippet actions()}
+        <Button size="sm" variant="outlined" severity="secondary" icon={faPlay} loading={isPauseBusy} onClick={togglePause}>{$t("exercises.sharing.pause.resume")}</Button>
+      {/snippet}
+    </Alert>
+  {/if}
   {#if sharingEnabled && !isLocalFallback}
     <Tabs
       class="mb-4"
@@ -843,6 +1035,7 @@
       items={[
         { id: "own", label: $t("exercises.sharing.tabOwn"), icon: faBook },
         { id: "shared", label: $t("exercises.sharing.tabShared"), icon: faShareNodes },
+        { id: "proposals", label: $t("exercises.contributions.tab"), icon: faCodePullRequest, count: pendingProposals || undefined },
       ]}
     />
   {/if}
@@ -875,7 +1068,16 @@
       />
     {/snippet}
 
-  {#if view === "shared"}
+  {#if view === "proposals"}
+    <ContributionList
+      {incoming}
+      {outgoing}
+      isLoading={proposalsLoading && incoming.length === 0 && outgoing.length === 0}
+      busyId={withdrawingId}
+      onReview={openReview}
+      onWithdraw={handleWithdraw}
+    />
+  {:else if view === "shared"}
     <ExerciseGroupList
       mode="shared"
       isLoading={sharedLoading && sharedRows.length === 0}
@@ -908,12 +1110,43 @@
       onShare={openShareModal}
       onResync={openResync}
       onUnlink={(group) => (unlinkGroup = group)}
+      onContribute={openContribute}
     />
   {/if}
   </FilterLayout>
 </PageShell>
 
 <PreviewHost flow={exercisePreview} />
+
+<ShareExerciseModal
+  open={!!bulkMode}
+  mode={bulkMode ?? "bulkShare"}
+  email={$sessionStore.email ?? ""}
+  busy={isBulkBusy}
+  error={bulkError}
+  onConfirm={handleBulkConfirm}
+  onClose={() => (bulkMode = null)}
+/>
+
+<ContributeModal
+  open={!!contributeGroupId}
+  preview={contributePreview}
+  email={$sessionStore.email ?? ""}
+  busy={isContributeBusy}
+  error={contributeError}
+  onSubmit={handleSubmitContribution}
+  onClose={() => (contributeGroupId = "")}
+/>
+
+<ReviewContributionModal
+  open={!!reviewId}
+  detail={reviewDetail}
+  busy={isReviewBusy}
+  error={reviewError}
+  onAccept={handleAcceptProposal}
+  onReject={handleRejectProposal}
+  onClose={closeReview}
+/>
 
 <ShareExerciseModal
   open={!!shareGroup}

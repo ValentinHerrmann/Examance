@@ -17,7 +17,8 @@
     faShareNodes,
     faRotate,
     faLinkSlash,
-    faCopy
+    faCopy,
+    faCodePullRequest
   } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, ExpandableCard, Menu, MenuItem } from "#lib/components/ui";
 
@@ -51,6 +52,8 @@
     onResync?: (group: ExerciseGroup) => void;
     onUnlink?: (group: ExerciseGroup) => void;
     onCopy?: (group: ExerciseGroup) => void;
+    /** Propose the copy's changes to the original's author. */
+    onContribute?: (group: ExerciseGroup) => void;
     /** Group id of a copy in progress. */
     copyingGroupId?: string;
   }
@@ -78,6 +81,7 @@
     onResync = noop,
     onUnlink = noop,
     onCopy = noop,
+    onContribute = noop,
     copyingGroupId = ""
   }: Props = $props();
 
@@ -85,6 +89,11 @@
 
   function groupIsShared(group: ExerciseGroup): boolean {
     return group.allMembers.some((m) => m.ex.isShared);
+  }
+
+  /** Copied from another account: never shared as one's own (contributing back is the path). */
+  function groupIsCopy(group: ExerciseGroup): boolean {
+    return group.allMembers.some((m) => m.ex.groupCopied);
   }
 
   const variantPillBase =
@@ -283,7 +292,7 @@
             title={$t("exercises.groupList.newVersionOfFirstTitle")}
             onClick={() => onNewVersion(rep)}
           >{$t("exercises.groupList.newVersionText")}</Button>
-          {#if sharingEnabled || groupIsShared(group)}
+          {#if (sharingEnabled && !groupIsCopy(group)) || groupIsShared(group)}
             <Button
               variant="outlined"
               severity="secondary"
@@ -300,6 +309,15 @@
               icon={faRotate}
               onClick={() => onResync(group)}
             >{$t("exercises.sharing.resync")}</Button>
+          {/if}
+          {#if sync && sharingEnabled && sync.state !== "source_unavailable" && (sync.locallyModified || sync.localVariants > 0)}
+            <Button
+              variant="outlined"
+              severity="secondary"
+              size="sm"
+              icon={faCodePullRequest}
+              onClick={() => onContribute(group)}
+            >{$t("exercises.contributions.propose")}</Button>
           {/if}
           {#if sync}
             <Button variant="text" severity="secondary" size="sm" icon={faLinkSlash} onClick={() => onUnlink(group)}

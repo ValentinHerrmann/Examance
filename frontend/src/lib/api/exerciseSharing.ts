@@ -24,10 +24,12 @@ export interface SyncStatus {
   changedVariants: number;
   newVariants: number;
   removedVariants: number;
+  /** Variants added to the copy; they can be proposed to the original. */
+  localVariants: number;
 }
 
 export interface ResyncVariant {
-  kind: 'changed' | 'new' | 'unchanged' | 'removed';
+  kind: 'changed' | 'new' | 'unchanged' | 'removed' | 'local';
   locallyModified: boolean;
   sourceExerciseId: string | null;
   sourceFingerprint: string | null;
@@ -80,6 +82,7 @@ export async function loadSyncStatus(): Promise<SyncStatus[]> {
     changedVariants: r.changed_variants,
     newVariants: r.new_variants,
     removedVariants: r.removed_variants,
+    localVariants: r.local_variants ?? 0,
   }));
 }
 
@@ -100,22 +103,45 @@ export async function loadResyncPreview(groupId: string): Promise<ResyncPreview>
 }
 
 /**
- * Applies a reviewed preview: changed variants become new versions, new source variants new rows.
- * @throws ApiError 409 `ERR_SHARE_SOURCE_CHANGED` when the source changed after the preview.
+ * Takes over the chosen variants of a reviewed preview (others stay pending): changed ones become new
+ * versions, new source variants new rows. `overrides` maps a source row id to hand-merged LaTeX.
+ * @throws ApiError 409 `ERR_SHARE_SOURCE_CHANGED` when a chosen source changed after the preview.
  */
-export async function applyResync(preview: ResyncPreview): Promise<ExerciseRecord[]> {
+export async function applyResync(
+  preview: ResyncPreview,
+  selected: Set<string>,
+  overrides: Record<string, string> = {},
+): Promise<ExerciseRecord[]> {
   const reviewed: Record<string, string> = {};
+  const edits: Record<string, { latex_body: string }> = {};
   for (const v of preview.variants) {
-    if ((v.kind === 'changed' || v.kind === 'new') && v.sourceExerciseId && v.sourceFingerprint) {
-      reviewed[v.sourceExerciseId] = v.sourceFingerprint;
+    const id = v.sourceExerciseId;
+    if ((v.kind === 'changed' || v.kind === 'new') && id && v.sourceFingerprint && selected.has(id)) {
+      reviewed[id] = v.sourceFingerprint;
+      if (id in overrides) edits[id] = { latex_body: overrides[id] };
     }
   }
   const rows = await api.post<any[]>(
     `/exercises/groups/${preview.groupId}/resync`,
-    { source_fingerprints: reviewed },
+    { source_fingerprints: reviewed, overrides: edits },
     { silentError: true },
   );
   return rows.map(mapApiToExerciseRecord);
+}
+
+/** Shares (or stops sharing) every own exercise group; copies of others' groups are skipped. */
+export async function bulkSetSharing(shared: boolean): Promise<{ groups: number; skippedCopies: number }> {
+  const res = await api.post<{ groups: number; skipped_copies: number }>(
+    '/exercises/sharing/bulk',
+    { shared },
+    { silentError: true },
+  );
+  return { groups: res.groups, skippedCopies: res.skipped_copies };
+}
+
+/** Pauses (hides everything shared, keeping each choice) or resumes this account's sharing. */
+export async function setSharingPaused(paused: boolean): Promise<void> {
+  await api.put('/exercises/sharing/pause', { paused }, { silentError: true });
 }
 
 /** Detaches a copied group from its source; the content stays. */

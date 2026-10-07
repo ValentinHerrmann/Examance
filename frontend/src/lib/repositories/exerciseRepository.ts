@@ -39,6 +39,7 @@ export function mapApiToExerciseRecord(raw: any): ExerciseRecord {
     isShared: raw.is_shared ?? raw.isShared ?? false,
     sharedAt: raw.shared_at ?? raw.sharedAt ?? undefined,
     copiedFromExerciseId: raw.copied_from_exercise_id ?? raw.copiedFromExerciseId ?? undefined,
+    groupCopied: raw.group_copied ?? raw.groupCopied ?? false,
   };
 
   return normalizeMcExercise(baseRecord);
