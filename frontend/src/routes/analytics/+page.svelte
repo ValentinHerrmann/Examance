@@ -6,13 +6,19 @@
   import { get } from 'svelte/store';
   import { sessionStore, isUnlocked, awaitSessionReady } from '#lib/stores/session';
   import { db } from '#lib/db/db';
-  import type { ExamRecord, ExerciseRecord } from '#lib/db/schema';
-  import { loadExamsEncrypted, loadExercisesEncrypted, decryptExercise, decryptScore } from '#lib/db/dbEncryption';
+  import type { ExamRecord, ExerciseRecord, SubmissionRecord } from '#lib/db/schema';
+  import { loadExamsEncrypted, loadExercisesEncrypted, loadExamExercisesEncrypted, decryptExercise, decryptScore } from '#lib/db/dbEncryption';
   import { scoreRepository } from '#lib/repositories/scoreRepository';
   import { submissionRepository } from '#lib/repositories/submissionRepository';
   import type { ExercisePerformance, VariantDetail, VariantGroupComparison } from '#lib/analytics/analyticsTypes';
+  import {
+    calculateOverallScoreDistribution,
+    examMaxPoints,
+    type OverallScoreDistribution,
+  } from '#lib/analytics/overallScores';
   import AnalyticsStateBanner from '#lib/components/analytics/AnalyticsStateBanner.svelte';
   import KpiSummaryBar from '#lib/components/analytics/KpiSummaryBar.svelte';
+  import OverallScoreHistogram from '#lib/components/analytics/OverallScoreHistogram.svelte';
   import VariantFairnessTable from '#lib/components/analytics/VariantFairnessTable.svelte';
   import ExerciseQualityTable from '#lib/components/analytics/ExerciseQualityTable.svelte';
   import { PageShell, PageHeader } from '#lib/components/ui';
@@ -26,6 +32,7 @@
   let overallAvgScore: number | null = $state(null);
   let totalSubmissionsCount = $state(0);
   let gradedSubmissionsCount = $state(0);
+  let scoreDistribution: OverallScoreDistribution | null = $state.raw(null);
   let showAllExercises = $state(false);
 
   let displayedExerciseStats = $derived(showAllExercises
@@ -342,10 +349,27 @@
     });
 
     variantGroups = vList;
+
+    scoreDistribution = await loadScoreDistribution(allSubmissions, key);
   } catch (err) {
     console.error('Failed to load analytics:', err);
   }
 }
+
+  // Maxima come from the per-exam exercise list the exam statistics use, so both views share one 100 %.
+  async function loadScoreDistribution(submissions: SubmissionRecord[], key: CryptoKey | null) {
+    const known = new Set(exams.map((e) => e.id));
+    const gradedExamIds = new Set(
+      submissions.filter((s) => typeof s.totalScore === 'number' && known.has(s.examId)).map((s) => s.examId),
+    );
+    const maxPointsByExam = new Map<string, number>();
+    await Promise.all(
+      [...gradedExamIds].map(async (examId) => {
+        maxPointsByExam.set(examId, examMaxPoints(await loadExamExercisesEncrypted(examId, key)));
+      }),
+    );
+    return calculateOverallScoreDistribution(submissions, maxPointsByExam);
+  }
 
   $effect.pre(() => {
     if (browser && $isUnlocked && $sessionStore.sessionKey) {
@@ -375,6 +399,8 @@
       {overallAvgScore}
       flaggedCount={exerciseStats.filter((e) => e.flaggedProblematic).length}
     />
+
+    <OverallScoreHistogram class="mb-6" distribution={scoreDistribution} />
 
     <div class="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-2">
       <!-- Section 1: Variant Fairness & Difficulty Comparison -->

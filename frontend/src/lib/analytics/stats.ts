@@ -37,7 +37,7 @@ export interface PercentageEntry {
 }
 
 /** Bonus exercises (`maxPoints: 0`) and MC penalties push percentages past both ends. */
-function clampPercentage(value: number): number {
+export function clampPercentage(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.min(100, Math.max(0, value));
 }

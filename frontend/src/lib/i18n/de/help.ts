@@ -204,7 +204,7 @@ export const help = {
             summary: 'Themen-Heatmaps, Aufgabenqualität und Variantenfairness über mehrere Klausuren.',
             s1: {
                 h: 'Über Klausuren hinweg',
-                p1: 'Die Analyse fasst mehrere Klausuren zusammen und zeigt, wie sich Ergebnisse über Zeit, Jahrgänge und Fächer entwickeln.',
+                p1: 'Die Analyse fasst mehrere Klausuren zusammen und zeigt, wie sich Ergebnisse über Zeit, Jahrgänge und Fächer entwickeln. Das Histogramm der Gesamtergebnisse ordnet alle vollständig bewerteten Abgaben nach dem erreichten Prozentanteil der Maximalpunkte ihrer Klausur in 10-%-Bereiche ein.',
             },
             s2: {
                 h: 'Themen und Wissenslücken',
