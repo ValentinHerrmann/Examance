@@ -66,6 +66,12 @@ class AuditLog(Base):
             "CONTRIBUTION_ACCEPTED",
             "CONTRIBUTION_REJECTED",
             "CONTRIBUTION_WITHDRAWN",
+            # Consent and its withdrawal, told apart (migration 0032). The old
+            # EXERCISE_SHARING_CHANGED stays for rows written before it.
+            "EXERCISE_SHARED",
+            "EXERCISE_UNSHARED",
+            "EXERCISE_SHARING_PAUSED",
+            "EXERCISE_SHARING_RESUMED",
             name="audit_action",
         ),
         nullable=False,

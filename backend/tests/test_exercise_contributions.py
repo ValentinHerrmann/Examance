@@ -5,18 +5,15 @@ variant: an exam built on the previous row keeps it."""
 from __future__ import annotations
 
 import uuid
-from collections.abc import AsyncGenerator
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.database import get_db
-from app.main import app
 from app.models.exercise_contribution import ExerciseContribution
 from app.services import retention
 
@@ -27,25 +24,8 @@ CONTRIB = f"{API}/contributions"
 
 
 @pytest_asyncio.fixture
-async def clients(engine) -> AsyncGenerator[tuple[AsyncClient, AsyncClient, AsyncClient], None]:
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
-
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
-        async with session_factory() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception:
-                await session.rollback()
-                raise
-
-    app.dependency_overrides[get_db] = override_get_db
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="https://test") as a:
-        async with AsyncClient(transport=transport, base_url="https://test") as b:
-            async with AsyncClient(transport=transport, base_url="https://test") as c:
-                yield a, b, c
-    app.dependency_overrides.clear()
+async def clients(client_factory) -> tuple[AsyncClient, AsyncClient, AsyncClient]:
+    return await client_factory(3)
 
 
 @pytest_asyncio.fixture
@@ -323,3 +303,35 @@ async def test_pending_tags_and_library_links_point_to_own_groups(linked) -> Non
     outgoing = (await b.get(CONTRIB, params={"direction": "outgoing"})).json()
     (mine,) = [i for i in outgoing if i["id"] == cid]
     assert mine["library_group_id"] == linked["group_id"]
+
+
+@pytest.mark.asyncio
+async def test_a_reject_after_the_accept_is_refused(linked) -> None:
+    a, b = linked["a"], linked["b"]
+    await _edit_copy(b, linked["copy_id"], "\\BE Better")
+    (cid,) = await _propose(b, linked["group_id"], [linked["copy_id"]])
+    assert (await a.post(f"{CONTRIB}/{cid}/accept", json={})).status_code == 200
+    resp = await a.post(f"{CONTRIB}/{cid}/reject", json={"note": "Too late"})
+    assert resp.status_code == 409
+    detail = (await a.get(f"{CONTRIB}/{cid}")).json()
+    assert detail["status"] == "accepted" and detail["decision_note"] is None
+
+
+@pytest.mark.asyncio
+async def test_a_variant_key_taken_meanwhile_must_be_renamed(linked) -> None:
+    a, b = linked["a"], linked["b"]
+    added = await b.post(
+        f"{API}/{linked['copy_id']}/new-variant",
+        json={"latex_body": "\\BE Zoo context", "variant_key": "Zoo"},
+    )
+    (cid,) = await _propose(b, linked["group_id"], [added.json()["id"]])
+    own = await a.post(
+        f"{API}/{linked['ex_id']}/new-variant",
+        json={"latex_body": "\\BE The author's zoo", "variant_key": "Zoo"},
+    )
+    assert own.status_code == 201, own.text
+    taken = await a.post(f"{CONTRIB}/{cid}/accept", json={})
+    assert taken.status_code == 409
+    assert taken.headers.get("code") == "ERR_VARIANT_KEY_TAKEN"
+    renamed = await a.post(f"{CONTRIB}/{cid}/accept", json={"variant_key": "Zoo 2"})
+    assert renamed.status_code == 200, renamed.text

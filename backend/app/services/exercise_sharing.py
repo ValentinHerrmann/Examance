@@ -14,10 +14,12 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Literal
 
+from fastapi import HTTPException
 from sqlalchemy import ColumnElement, and_, false, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.exercise import Exercise
+from app.models.exercise_contribution import ExerciseContributionResource
 from app.models.exercise_group import ExerciseGroup
 from app.models.exercise_resource import ExerciseResource
 from app.models.teacher import Teacher
@@ -70,8 +72,8 @@ def sha256_hex(content: bytes) -> str:
 async def resource_digests(
     exercise_ids: Iterable[uuid.UUID], db: AsyncSession
 ) -> dict[uuid.UUID, list[ResourceDigest]]:
-    """Per exercise, its resources as digests. Bytes are read only for rows not hashed yet,
-    whose hash is stored on the way (rows written before migration 0030)."""
+    """Per exercise, its resources as digests. Rows not hashed yet (older than 0032's backfill)
+    are hashed in memory only: the rows may belong to another account, so never write them."""
     ids = list(dict.fromkeys(exercise_ids))
     out: dict[uuid.UUID, list[ResourceDigest]] = defaultdict(list)
     if not ids:
@@ -93,8 +95,7 @@ async def resource_digests(
         for res in (
             await db.execute(select(ExerciseResource).where(ExerciseResource.id.in_(missing)))
         ).scalars():
-            res.content_sha256 = sha256_hex(res.content)
-            filled[res.id] = res.content_sha256
+            filled[res.id] = sha256_hex(res.content)
     for r in rows:
         out[r.exercise_id].append((r.filename, r.mime_type, r.content_sha256 or filled[r.id]))
     return out
@@ -118,6 +119,17 @@ def content_fingerprint(ex: Exercise, resources: Sequence[ResourceDigest]) -> st
 # --- Copying --------------------------------------------------------------
 
 
+def file_fields(f: ExerciseResource | ExerciseContributionResource) -> dict[str, object]:
+    """The five fields a copied file carries (copies, proposal snapshots, accepts)."""
+    return {
+        "filename": f.filename,
+        "mime_type": f.mime_type,
+        "byte_size": f.byte_size,
+        "content": f.content,
+        "content_sha256": f.content_sha256 or sha256_hex(f.content),
+    }
+
+
 async def copy_resources(source_id: uuid.UUID, target_id: uuid.UUID, db: AsyncSession) -> None:
     """Duplicate every resource of *source_id* onto *target_id* (versions, variants, copies)."""
     rows = (
@@ -130,16 +142,7 @@ async def copy_resources(source_id: uuid.UUID, target_id: uuid.UUID, db: AsyncSe
         .all()
     )
     for row in rows:
-        db.add(
-            ExerciseResource(
-                exercise_id=target_id,
-                filename=row.filename,
-                mime_type=row.mime_type,
-                byte_size=row.byte_size,
-                content=row.content,
-                content_sha256=row.content_sha256 or sha256_hex(row.content),
-            )
-        )
+        db.add(ExerciseResource(exercise_id=target_id, **file_fields(row)))
     if rows:
         await db.flush()
 
@@ -275,14 +278,17 @@ class GroupPlan:
 
 
 async def plan_groups(
-    viewer: Teacher, db: AsyncSession, group_id: uuid.UUID | None = None
+    viewer: Teacher, db: AsyncSession, group_id: uuid.UUID | None = None, *, lock: bool = False
 ) -> list[GroupPlan]:
-    """Compare *viewer*'s linked groups (or one of them) with their sources."""
+    """Compare *viewer*'s linked groups (or one of them) with their sources. Writers pass *lock*:
+    the group row lock serializes them, so two cannot both version the same current row."""
     query = select(ExerciseGroup).where(
         ExerciseGroup.teacher_id == viewer.id, ExerciseGroup.source_group_id.is_not(None)
     )
     if group_id is not None:
         query = query.where(ExerciseGroup.id == group_id)
+    if lock:
+        query = query.with_for_update()
     groups = list((await db.execute(query)).scalars())
     if not groups:
         return []
@@ -375,6 +381,16 @@ async def plan_groups(
     return plans
 
 
+async def plan_group(
+    viewer: Teacher, db: AsyncSession, group_id: uuid.UUID, *, lock: bool = False
+) -> GroupPlan:
+    """The plan of one of *viewer*'s linked groups; 404 if it is not one."""
+    plans = await plan_groups(viewer, db, group_id, lock=lock)
+    if not plans:
+        raise HTTPException(404, "Exercise group not found")
+    return plans[0]
+
+
 def _mark_synced(own: Exercise, src: Exercise, fp: str) -> None:
     """Content equal to the source means in sync (e.g. a proposal accepted unchanged): advance the
     sync point. Provenance only, on the copy owner's own row in their own request."""
@@ -405,8 +421,15 @@ def _match(
     return None
 
 
-class ResyncConflict(Exception):
+class ResyncConflict(HTTPException):
     """The source changed after the preview the client reviewed."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            409,
+            "The original changed meanwhile; review the update again.",
+            headers={"code": "ERR_SHARE_SOURCE_CHANGED"},
+        )
 
 
 def new_variant_row(group: ExerciseGroup, sibling: Exercise | None, **content: object) -> Exercise:
@@ -447,9 +470,9 @@ async def apply_resync(
     fine, the rest stays pending). Compare-and-set per variant. *overrides* holds edited LaTeX.
     Never updates a row in place: changes become new versions."""
     overrides = overrides or {}
-    applicable = {v.source.id: v for v in plan.applicable if v.source}
+    applicable = {v.source.id: (v, v.source) for v in plan.applicable if v.source}
     if not reviewed or any(
-        sid not in applicable or applicable[sid].source_fingerprint != fp
+        sid not in applicable or applicable[sid][0].source_fingerprint != fp
         for sid, fp in reviewed.items()
     ):
         raise ResyncConflict
@@ -458,10 +481,7 @@ async def apply_resync(
     sibling = next((v.own for v in plan.variants if v.own is not None), None)
     created: list[Exercise] = []
     for sid in reviewed:
-        variant = applicable[sid]
-        src = variant.source
-        if src is None:
-            continue
+        variant, src = applicable[sid]
         content = edited_content(_content_from(src), overrides.get(sid))
         if variant.own is not None:
             row = next_version(

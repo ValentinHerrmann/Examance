@@ -60,10 +60,15 @@ async def require_server_latex(teacher: Teacher = Depends(get_current_teacher)) 
     return teacher
 
 
-async def require_exercise_sharing(teacher: Teacher = Depends(get_current_teacher)) -> Teacher:
-    """The signed-in teacher, if their account may share, browse, copy and resync exercises."""
+def ensure_exercise_sharing(teacher: Teacher) -> None:
+    """403 unless the account may share, browse, copy and resync exercises."""
     if not teacher.allow_exercise_sharing:
         raise _not_allowed("Exercise sharing is not enabled for this account.")
+
+
+async def require_exercise_sharing(teacher: Teacher = Depends(get_current_teacher)) -> Teacher:
+    """The signed-in teacher, if their account may share, browse, copy and resync exercises."""
+    ensure_exercise_sharing(teacher)
     return teacher
 
 

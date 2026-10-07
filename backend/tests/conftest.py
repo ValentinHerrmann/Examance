@@ -12,7 +12,8 @@ os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 os.environ.setdefault("RATE_LIMIT_STORAGE_URI", "memory://")
 
 import asyncio  # noqa: E402
-from collections.abc import AsyncGenerator  # noqa: E402
+from collections.abc import AsyncGenerator, Awaitable, Callable  # noqa: E402
+from contextlib import AsyncExitStack  # noqa: E402
 
 import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
@@ -71,4 +72,39 @@ async def client(engine) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides[get_db] = override_get_db
     async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         yield ac
+    app.dependency_overrides.clear()
+
+
+ClientFactory = Callable[[int], Awaitable[tuple[AsyncClient, ...]]]
+
+
+@pytest_asyncio.fixture
+async def client_factory(engine) -> AsyncGenerator[ClientFactory, None]:
+    """`await make(n)`: n independent clients (own cookie jars) on the test database."""
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+        async with session_factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    app.dependency_overrides[get_db] = override_get_db
+    transport = ASGITransport(app=app)
+    async with AsyncExitStack() as stack:
+
+        async def make(n: int) -> tuple[AsyncClient, ...]:
+            return tuple(
+                [
+                    await stack.enter_async_context(
+                        AsyncClient(transport=transport, base_url="https://test")
+                    )
+                    for _ in range(n)
+                ]
+            )
+
+        yield make
     app.dependency_overrides.clear()

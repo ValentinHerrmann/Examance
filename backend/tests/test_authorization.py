@@ -8,16 +8,12 @@ foreign exercise into their own exam to read its body back out.
 from __future__ import annotations
 
 import uuid
-from collections.abc import AsyncGenerator
 from datetime import date, timedelta
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
-from app.database import get_db
-from app.main import app
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .factors import sign_in
 
@@ -25,25 +21,9 @@ PASSWORD = "correct-horse-battery-staple"
 
 
 @pytest_asyncio.fixture
-async def clients(engine) -> AsyncGenerator[tuple[AsyncClient, AsyncClient], None]:
+async def clients(client_factory) -> tuple[AsyncClient, AsyncClient]:
     """Two independent clients so each teacher keeps its own cookie jar."""
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
-
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
-        async with session_factory() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception:
-                await session.rollback()
-                raise
-
-    app.dependency_overrides[get_db] = override_get_db
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="https://test") as a:
-        async with AsyncClient(transport=transport, base_url="https://test") as b:
-            yield a, b
-    app.dependency_overrides.clear()
+    return await client_factory(2)
 
 
 async def _register(client: AsyncClient, db: AsyncSession, email: str) -> None:

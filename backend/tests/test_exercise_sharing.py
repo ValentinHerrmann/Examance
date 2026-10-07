@@ -6,18 +6,17 @@ from __future__ import annotations
 
 import base64
 import uuid
-from collections.abc import AsyncGenerator
 from datetime import date, timedelta
 from typing import Any
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy import update
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from httpx import AsyncClient
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
-from app.main import app
+from app.models.audit_log import AuditLog
+from app.models.exercise_resource import ExerciseResource
 from app.models.teacher import Teacher
 
 from .factors import sign_in
@@ -26,25 +25,9 @@ API = "/api/v1/exercises"
 
 
 @pytest_asyncio.fixture
-async def clients(engine) -> AsyncGenerator[tuple[AsyncClient, AsyncClient], None]:
+async def clients(client_factory) -> tuple[AsyncClient, AsyncClient]:
     """Two independent clients so each teacher keeps its own cookie jar."""
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
-
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
-        async with session_factory() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception:
-                await session.rollback()
-                raise
-
-    app.dependency_overrides[get_db] = override_get_db
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="https://test") as a:
-        async with AsyncClient(transport=transport, base_url="https://test") as b:
-            yield a, b
-    app.dependency_overrides.clear()
+    return await client_factory(2)
 
 
 @pytest_asyncio.fixture
@@ -323,3 +306,54 @@ async def test_copy_equal_to_the_changed_source_is_in_sync(shared) -> None:
     status = await _status(b, copied["group_id"])
     assert status["state"] == "up_to_date"
     assert status["locally_modified"] is False
+
+
+@pytest.mark.asyncio
+async def test_a_moved_copy_taints_its_new_group(shared) -> None:
+    b, ex_id = shared["b"], shared["ex_id"]
+    (row,) = (await _copy(b, ex_id))["exercises"]
+    own = (await b.post(API, json={"name": "Own task", "latex_body": "\\BE Mine"})).json()
+    moved = await b.patch(f"{API}/{row['id']}", json={"exercise_group_id": own["exercise_group_id"]})
+    assert moved.status_code == 200, moved.text
+    resp = await b.put(f"{API}/{own['id']}/sharing", json={"shared": True})
+    assert resp.status_code == 400
+    assert resp.headers.get("code") == "ERR_SHARE_COPY"
+
+
+@pytest.mark.asyncio
+async def test_audit_tells_consent_from_withdrawal(shared, db: AsyncSession) -> None:
+    a, ex_id, owner = shared["a"], shared["ex_id"], shared["owner"]
+    await a.put(f"{API}/{ex_id}/sharing", json={"shared": False})
+    await a.put(f"{API}/sharing/pause", json={"paused": True})
+    await a.put(f"{API}/sharing/pause", json={"paused": False})
+    actions = set(
+        (await db.execute(select(AuditLog.action).where(AuditLog.teacher_id == owner.id)))
+        .scalars()
+        .all()
+    )
+    assert {
+        "EXERCISE_SHARED",
+        "EXERCISE_UNSHARED",
+        "EXERCISE_SHARING_PAUSED",
+        "EXERCISE_SHARING_RESUMED",
+    } <= actions
+
+
+@pytest.mark.asyncio
+async def test_a_recipients_read_never_writes_the_owners_rows(shared, db: AsyncSession) -> None:
+    b, ex_id = shared["b"], shared["ex_id"]
+    copied = await _copy(b, ex_id)
+    # An owner file hashed by neither upload nor migration (rows older than 0032's backfill).
+    await db.execute(
+        update(ExerciseResource)
+        .where(ExerciseResource.exercise_id == uuid.UUID(ex_id))
+        .values(content_sha256=None)
+    )
+    await db.commit()
+    assert (await _status(b, copied["group_id"]))["state"] == "up_to_date"
+    stored = await db.scalar(
+        select(ExerciseResource.content_sha256).where(
+            ExerciseResource.exercise_id == uuid.UUID(ex_id)
+        )
+    )
+    assert stored is None

@@ -438,8 +438,17 @@ teacher's consent; stopping the share withdraws it.
 * **Revocation.** Stopping the share (never gated, also after the switch was revoked) hides the
   group and stops new copies and resyncs; existing copies belong to their copiers. Deleting the
   account removes the originals; copies stay. The keep-exercises path of account deletion unshares.
-* **Audit and export.** `EXERCISE_SHARING_CHANGED`, `EXERCISE_COPIED`, `EXERCISE_RESYNCED` (target:
-  group id, hashed). `GET /user/me/export` lists the account's shared exercises. Copy and resync are
+* **Concurrency.** Writers lock the group row (`SELECT … FOR UPDATE`): a resync, or accepting two
+  proposals for one variant, never leaves two current rows. Every decision on a proposal (accept,
+  reject, withdraw) claims it with one conditional `UPDATE`; the loser gets 409 and changes nothing.
+  Accepting a proposal as a variant refuses a key the group already has (409).
+* **No cross-account writes.** Resource hashes (`content_sha256`) were backfilled by migration 0032;
+  a row still missing one is hashed in memory only, never written, so a read by one account never
+  locks or writes another account's rows.
+* **Audit and export.** `EXERCISE_SHARED` and `EXERCISE_UNSHARED` (consent given or withdrawn, single
+  or bulk), `EXERCISE_SHARING_PAUSED`, `EXERCISE_SHARING_RESUMED`, `EXERCISE_COPIED`,
+  `EXERCISE_RESYNCED` (target: group or account id, hashed). Rows before migration 0032 carry the
+  combined `EXERCISE_SHARING_CHANGED`. `GET /user/me/export` lists the account's shared exercises. Copy and resync are
   rate-limited (60 per hour) and run in one transaction each; sharing, copying and resync are
   online-only in the client (never in the offline queue).
 

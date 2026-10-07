@@ -94,6 +94,19 @@ async def run(*, dry_run: bool = False) -> int:
             )
         ) or 0
 
+        # 6. Pending accounts nobody approved, holding no data.
+        stale_pending_res = await db.execute(
+            select(Teacher).where(
+                Teacher.approved_at.is_(None),
+                Teacher.role == "teacher",
+                Teacher.created_at < pending_cutoff,
+                ~select(Exam.id).where(Exam.teacher_id == Teacher.id).exists(),
+                ~select(Exercise.id).where(Exercise.teacher_id == Teacher.id).exists(),
+                ~select(KeyEnvelope.id).where(KeyEnvelope.teacher_id == Teacher.id).exists(),
+            )
+        )
+        stale_pending = list(stale_pending_res.scalars().all())
+
         # 8. Exercise proposals: decided ones (payload cleared at decision) and stale pending ones.
         contribution_filter = or_(
             and_(
@@ -112,19 +125,6 @@ async def run(*, dry_run: bool = False) -> int:
         expired_contribution_count = await db.scalar(
             select(func.count()).select_from(ExerciseContribution).where(contribution_filter)
         ) or 0
-
-        # 6. Pending accounts nobody approved, holding no data.
-        stale_pending_res = await db.execute(
-            select(Teacher).where(
-                Teacher.approved_at.is_(None),
-                Teacher.role == "teacher",
-                Teacher.created_at < pending_cutoff,
-                ~select(Exam.id).where(Exam.teacher_id == Teacher.id).exists(),
-                ~select(Exercise.id).where(Exercise.teacher_id == Teacher.id).exists(),
-                ~select(KeyEnvelope.id).where(KeyEnvelope.teacher_id == Teacher.id).exists(),
-            )
-        )
-        stale_pending = list(stale_pending_res.scalars().all())
 
         total_affected = (
             len(expired_exams)

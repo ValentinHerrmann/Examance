@@ -5,6 +5,7 @@ paths. Only the owner and the contributor of a proposal ever see it; anyone else
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -31,57 +32,78 @@ from app.services import audit as audit_svc
 from app.services import exercise_contributions as contrib
 from app.services.capabilities import require_exercise_sharing
 from app.services.exercise_sharing import resource_digests
-from app.services.latex_resources import resolve_content_disposition
+from app.services.latex_resources import resource_response
 
 router = APIRouter(prefix="/exercises/contributions", tags=["exercise-contributions"])
 
 
-def _http(err: contrib.ContributionError) -> HTTPException:
-    headers = {"code": err.code} if err.code else None
-    return HTTPException(status_code=err.status, detail=err.detail, headers=headers)
-
-
-async def _summary(
-    row: ExerciseContribution, viewer: Teacher, db: AsyncSession
-) -> ContributionSummary:
-    incoming = row.owner_id == viewer.id
-    other_id = row.contributor_id if incoming else row.owner_id
-    other = await db.get(Teacher, other_id)
-    group = await db.get(ExerciseGroup, row.source_group_id)
-    # Derived from the author's current rows, so only the author gets it.
-    st = (
-        await contrib.staleness(row, db)
-        if incoming and row.status == "pending"
-        else contrib.Staleness(False, False)
+async def _summaries(
+    rows: Sequence[ExerciseContribution], viewer: Teacher, db: AsyncSession
+) -> list[ContributionSummary]:
+    """Summaries as *viewer* sees them, with one query per lookup kind rather than per row."""
+    teacher_ids = {r.contributor_id if r.owner_id == viewer.id else r.owner_id for r in rows}
+    emails = dict(
+        (await db.execute(select(Teacher.id, Teacher.email).where(Teacher.id.in_(teacher_ids))))
+        .tuples()
+        .all()
     )
-    return ContributionSummary(
-        id=row.id,
-        direction="incoming" if incoming else "outgoing",
-        exercise_name=group.name if group else None,
-        kind=row.kind,  # type: ignore[arg-type]
-        variant_key=row.variant_key,
-        message=row.message,
-        status=row.status,  # type: ignore[arg-type]
-        decision_note=row.decision_note,
-        created_at=row.created_at,
-        decided_at=row.decided_at,
-        counterpart_email=other.email if other else None,
-        stale=st.stale,
-        target_gone=st.target_gone,
-        result_exercise_id=row.result_exercise_id,
-        library_group_id=row.source_group_id if incoming else await _own_copy_group(row, db),
-    )
-
-
-async def _own_copy_group(row: ExerciseContribution, db: AsyncSession) -> uuid.UUID | None:
-    """The contributor's group the proposal came from, if that row is still theirs."""
-    if row.from_exercise_id is None:
-        return None
-    return await db.scalar(
-        select(Exercise.exercise_group_id).where(
-            Exercise.id == row.from_exercise_id, Exercise.teacher_id == row.contributor_id
+    names = dict(
+        (
+            await db.execute(
+                select(ExerciseGroup.id, ExerciseGroup.name).where(
+                    ExerciseGroup.id.in_({r.source_group_id for r in rows})
+                )
+            )
         )
+        .tuples()
+        .all()
     )
+    # The contributor's group a proposal came from, if that row is still theirs.
+    from_ids = {r.from_exercise_id for r in rows if r.from_exercise_id is not None}
+    copy_groups = dict(
+        (
+            await db.execute(
+                select(Exercise.id, Exercise.exercise_group_id).where(
+                    Exercise.id.in_(from_ids), Exercise.teacher_id == viewer.id
+                )
+            )
+        )
+        .tuples()
+        .all()
+    )
+    out: list[ContributionSummary] = []
+    for row in rows:
+        incoming = row.owner_id == viewer.id
+        # Derived from the author's current rows, so only the author gets it.
+        st = (
+            await contrib.staleness(row, db)
+            if incoming and row.status == "pending"
+            else contrib.Staleness(False, False)
+        )
+        out.append(
+            ContributionSummary(
+                id=row.id,
+                direction="incoming" if incoming else "outgoing",
+                exercise_name=names.get(row.source_group_id),
+                kind=row.kind,  # type: ignore[arg-type]
+                variant_key=row.variant_key,
+                message=row.message,
+                status=row.status,  # type: ignore[arg-type]
+                decision_note=row.decision_note,
+                created_at=row.created_at,
+                decided_at=row.decided_at,
+                counterpart_email=emails.get(row.contributor_id if incoming else row.owner_id),
+                stale=st.stale,
+                target_gone=st.target_gone,
+                result_exercise_id=row.result_exercise_id,
+                library_group_id=(
+                    row.source_group_id
+                    if incoming
+                    else copy_groups.get(row.from_exercise_id) if row.from_exercise_id else None
+                ),
+            )
+        )
+    return out
 
 
 @router.get("", response_model=list[ContributionSummary])
@@ -103,8 +125,8 @@ async def list_contributions(
             .order_by(ExerciseContribution.created_at.desc())
             .limit(200)
         )
-    ).scalars()
-    return [await _summary(row, teacher, db) for row in rows]
+    ).scalars().all()
+    return await _summaries(rows, teacher, db)
 
 
 @router.get("/summary", response_model=ContributionCount)
@@ -153,11 +175,8 @@ async def get_contribution(
     db: AsyncSession = Depends(get_db),
 ) -> ContributionDetail:
     """The proposal; the owner also gets the current row it applies to and a file comparison."""
-    try:
-        row = await contrib.load_for(teacher, contribution_id, db)
-    except contrib.ContributionError as err:
-        raise _http(err) from None
-    summary = await _summary(row, teacher, db)
+    row = await contrib.load_for(teacher, contribution_id, db)
+    (summary,) = await _summaries([row], teacher, db)
     files = list(
         (
             await db.execute(
@@ -207,36 +226,11 @@ async def download_contribution_resource(
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     """A proposed file, for the owner and the contributor only; served like exercise resources."""
-    try:
-        row = await contrib.load_for(teacher, contribution_id, db)
-    except contrib.ContributionError as err:
-        raise _http(err) from None
+    row = await contrib.load_for(teacher, contribution_id, db)
     file = await db.get(ExerciseContributionResource, resource_id)
     if file is None or file.contribution_id != row.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
-    media_type, disposition = resolve_content_disposition(file.mime_type)
-    return Response(
-        content=file.content,
-        media_type=media_type,
-        headers={
-            "Content-Disposition": f'{disposition}; filename="{file.filename}"',
-            "X-Content-Type-Options": "nosniff",
-            "Content-Security-Policy": "sandbox; default-src 'none'",
-        },
-    )
-
-
-async def _audit(
-    db: AsyncSession, teacher: Teacher, action: str, row_id: uuid.UUID, request: Request
-) -> None:
-    await audit_svc.write(
-        db,
-        teacher_id=teacher.id,
-        teacher_email=teacher.email,
-        action=action,
-        target_id=str(row_id),
-        request_ip=request.client.host if request.client else None,
-    )
+    return resource_response(file.content, file.mime_type, file.filename)
 
 
 @router.post("/{contribution_id}/accept", response_model=ContributionSummary)
@@ -249,22 +243,18 @@ async def accept_contribution(
 ) -> ContributionSummary:
     """Adopt a proposal as a new version (or a new variant at version 1); the owner may edit it.
     Nothing is updated in place, so the owner's exams keep the rows they link."""
-    try:
-        await contrib.accept(
-            teacher,
-            contribution_id,
-            db,
-            latex_override=body.latex_body,
-            as_variant=body.as_variant,
-            variant_key=body.variant_key,
-        )
-    except contrib.ContributionError as err:
-        raise _http(err) from None
-    await _audit(db, teacher, "CONTRIBUTION_ACCEPTED", contribution_id, request)
-    row = await db.get(ExerciseContribution, contribution_id, populate_existing=True)
-    if row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Proposal not found")
-    return await _summary(row, teacher, db)
+    await contrib.accept(
+        teacher,
+        contribution_id,
+        db,
+        latex_override=body.latex_body,
+        as_variant=body.as_variant,
+        variant_key=body.variant_key,
+    )
+    await audit_svc.log(db, request, teacher, "CONTRIBUTION_ACCEPTED", contribution_id)
+    row = await contrib.load_for(teacher, contribution_id, db, refresh=True)
+    (summary,) = await _summaries([row], teacher, db)
+    return summary
 
 
 @router.post("/{contribution_id}/reject", status_code=status.HTTP_204_NO_CONTENT)
@@ -276,13 +266,10 @@ async def reject_contribution(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Decline a proposal (owner); its content is dropped at once. Never gated."""
-    try:
-        await contrib.decide_without_merge(
-            teacher, contribution_id, db, status="rejected", note=body.note
-        )
-    except contrib.ContributionError as err:
-        raise _http(err) from None
-    await _audit(db, teacher, "CONTRIBUTION_REJECTED", contribution_id, request)
+    await contrib.decide_without_merge(
+        teacher, contribution_id, db, status="rejected", note=body.note
+    )
+    await audit_svc.log(db, request, teacher, "CONTRIBUTION_REJECTED", contribution_id)
 
 
 @router.post("/{contribution_id}/withdraw", status_code=status.HTTP_204_NO_CONTENT)
@@ -293,8 +280,5 @@ async def withdraw_contribution(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Take back an own pending proposal; its content is dropped at once. Never gated."""
-    try:
-        await contrib.decide_without_merge(teacher, contribution_id, db, status="withdrawn")
-    except contrib.ContributionError as err:
-        raise _http(err) from None
-    await _audit(db, teacher, "CONTRIBUTION_WITHDRAWN", contribution_id, request)
+    await contrib.decide_without_merge(teacher, contribution_id, db, status="withdrawn")
+    await audit_svc.log(db, request, teacher, "CONTRIBUTION_WITHDRAWN", contribution_id)

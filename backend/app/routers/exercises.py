@@ -63,11 +63,11 @@ from app.services import account_mail
 from app.services import audit as audit_svc
 from app.services import exercise_contributions as contributions
 from app.services import exercise_sharing as sharing
-from app.services.capabilities import require_exercise_sharing
+from app.services.capabilities import ensure_exercise_sharing, require_exercise_sharing
 from app.services.latex_resources import (
     MAX_EXERCISE_RESOURCE_BYTES,
     MAX_RESOURCE_BYTES,
-    resolve_content_disposition,
+    resource_response,
 )
 from app.services.latex_score import parse_exercise_score
 
@@ -99,24 +99,13 @@ def _to_res(ex: Exercise) -> ExerciseResponse:
     )
 
 
+_SHARED_FIELDS = SharedExerciseResponse.model_fields.keys() - {"shared_by_email"}
+
+
 def _to_shared_res(ex: Exercise, shared_by_email: str) -> SharedExerciseResponse:
-    """Another account's row: no owner id, no exam id, no provenance."""
+    """Another account's row; the schema is the allowlist (no owner id, exam id or provenance)."""
     return SharedExerciseResponse(
-        id=ex.id,
-        exercise_group_id=ex.exercise_group_id,
-        name=ex.name,
-        topic_tag=ex.topic_tag,
-        grade=ex.grade,
-        subject=ex.subject,
-        latex_body=ex.latex_body,
-        max_points=ex.max_points,
-        version=ex.version,
-        variant_key=ex.variant_key,
-        question_type=ex.question_type,
-        correct_answers=ex.correct_answers,
-        penalty=ex.penalty,
-        shared_at=ex.shared_at,
-        shared_by_email=shared_by_email,
+        **{f: getattr(ex, f) for f in _SHARED_FIELDS}, shared_by_email=shared_by_email
     )
 
 
@@ -143,6 +132,23 @@ async def _require_own_group(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Exercise group not found"
         )
+    return group
+
+
+async def _group_of(ex: Exercise, teacher: Teacher, db: AsyncSession) -> ExerciseGroup:
+    """The own group of *ex*, created (and *ex* moved into it) for a loose exercise."""
+    if ex.exercise_group_id is not None:
+        return await _require_own_group(ex.exercise_group_id, teacher.id, db)
+    group = ExerciseGroup(
+        teacher_id=teacher.id,
+        name=ex.name or "Untitled Group",
+        topic_tag=ex.topic_tag,
+        grade=ex.grade,
+        subject=ex.subject,
+    )
+    db.add(group)
+    await db.flush()
+    ex.exercise_group_id = group.id
     return group
 
 
@@ -228,7 +234,10 @@ async def list_shared_exercises(
     query = query.where(sharing.shared_with_clause(teacher))
     query = _filtered(query, topic_tag, grade, subject, search)
     query = query.order_by(
-        Exercise.name.asc(), Exercise.exercise_group_id.asc(), Exercise.variant_key.asc()
+        Exercise.name.asc(),
+        Exercise.exercise_group_id.asc(),
+        Exercise.variant_key.asc(),
+        Exercise.id.asc(),  # unique tiebreak: offset paging must not skip or repeat rows
     )
     rows = (await db.execute(query.limit(limit).offset(offset))).tuples().all()
     return [_to_shared_res(ex, email) for ex, email in rows]
@@ -421,8 +430,14 @@ async def update_exercise(
         ex.max_points = parse_exercise_score(body.latex_body)
     elif body.max_points is not None:
         ex.max_points = body.max_points
-    if body.exercise_group_id is not None:
-        await _require_own_group(body.exercise_group_id, teacher.id, db)
+    if body.exercise_group_id is not None and body.exercise_group_id != ex.exercise_group_id:
+        target = await _require_own_group(body.exercise_group_id, teacher.id, db)
+        # A copy stays a copy when moved: the target group can no longer be shared as one's own.
+        old = await db.get(ExerciseGroup, ex.exercise_group_id) if ex.exercise_group_id else None
+        if target.copied_at is None and (
+            ex.copied_from_exercise_id is not None or (old is not None and old.copied_at)
+        ):
+            target.copied_at = datetime.now(UTC)
         ex.exercise_group_id = body.exercise_group_id
     if body.variant_key is not None:
         ex.variant_key = body.variant_key
@@ -490,22 +505,7 @@ async def create_new_version(
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseResponse:
     """Create a new corrected version of an existing exercise (archives previous version)."""
-    group_id = old_ex.exercise_group_id
-    if not group_id:
-        group = ExerciseGroup(
-            teacher_id=teacher.id,
-            name=old_ex.name or "Untitled Group",
-            topic_tag=old_ex.topic_tag,
-            grade=old_ex.grade,
-            subject=old_ex.subject,
-        )
-        db.add(group)
-        await db.flush()
-        group_id = group.id
-        old_ex.exercise_group_id = group_id
-    else:
-        group = await _require_own_group(group_id, teacher.id, db)
-
+    group = await _group_of(old_ex, teacher, db)
     new_latex = body.latex_body if body.latex_body is not None else old_ex.latex_body
     computed_score = parse_exercise_score(new_latex) if new_latex else old_ex.max_points
 
@@ -539,47 +539,18 @@ async def create_new_variant(
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseResponse:
     """Create a new parallel variant (e.g. Möbel/Fahrzeug/Wildtier) under the same group."""
-    group_id = base_ex.exercise_group_id
-    if not group_id:
-        group = ExerciseGroup(
-            teacher_id=teacher.id,
-            name=base_ex.name or "Untitled Group",
-            topic_tag=base_ex.topic_tag,
-            grade=base_ex.grade,
-            subject=base_ex.subject,
-        )
-        db.add(group)
-        await db.flush()
-        group_id = group.id
-        base_ex.exercise_group_id = group_id
-    else:
-        group = await _require_own_group(group_id, teacher.id, db)
-
-    group_name = group.name if group else base_ex.name
-    group_topic = group.topic_tag if group else base_ex.topic_tag
-    group_grade = group.grade if group else base_ex.grade
-    group_subject = group.subject if group else base_ex.subject
-
+    group = await _group_of(base_ex, teacher, db)
     computed_score = parse_exercise_score(body.latex_body) if body.latex_body else body.max_points
-
-    variant_ex = Exercise(
-        teacher_id=teacher.id,
-        name=group_name,
-        topic_tag=group_topic,
-        grade=group_grade,
-        subject=group_subject,
+    # New work: it joins the group's share state but has no copy provenance.
+    variant_ex = sharing.new_variant_row(
+        group,
+        base_ex,
         latex_body=body.latex_body,
         max_points=computed_score,
-        version=1,
-        exercise_group_id=group_id,
         variant_key=body.variant_key,
-        is_current=True,
         question_type=base_ex.question_type,
         correct_answers=base_ex.correct_answers,
         penalty=base_ex.penalty,
-        # A variant joins its group's share state; it is new work, so it has no copy provenance.
-        is_public=base_ex.is_public,
-        shared_at=base_ex.shared_at,
     )
     db.add(variant_ex)
     await db.flush()
@@ -662,24 +633,22 @@ async def delete_exercise(
 # everyone but their owner and are only ever copied; a copy stays linked to its source for resync.
 
 
-def _client_ip(request: Request) -> str | None:
-    return request.client.host if request.client else None
-
-
 def _shared(src: Exercise, emails: dict[uuid.UUID, str]) -> SharedExerciseResponse:
     email = emails.get(src.teacher_id, "") if src.teacher_id else ""
     return _to_shared_res(src, email)
 
 
-async def _linked_plan(
-    group_id: uuid.UUID, teacher: Teacher, db: AsyncSession
-) -> sharing.GroupPlan:
-    plans = await sharing.plan_groups(teacher, db, group_id)
-    if not plans:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Exercise group not found"
-        )
-    return plans[0]
+def _set_shared(rows: list[Exercise], shared: bool) -> None:
+    """Flip the share state of *rows*; `shared_at` marks when consent was given."""
+    shared_at = datetime.now(UTC) if shared else None
+    for row in rows:
+        if row.is_public != shared:
+            row.is_public = shared
+            row.shared_at = shared_at
+
+
+def _sharing_action(shared: bool) -> str:
+    return "EXERCISE_SHARED" if shared else "EXERCISE_UNSHARED"
 
 
 @router.put("/{exercise_id}/sharing", response_model=list[ExerciseResponse])
@@ -692,30 +661,14 @@ async def set_exercise_sharing(
 ) -> list[ExerciseResponse]:
     """Share an own exercise group (all its variants) with every account, or stop sharing it.
     Stopping is never gated, so a revoked account can still withdraw; copies stay with copiers."""
-    if body.shared and not teacher.allow_exercise_sharing:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Exercise sharing is not enabled for this account.",
-            headers={"code": "ERR_FEATURE_NOT_ALLOWED"},
-        )
+    if body.shared:
+        ensure_exercise_sharing(teacher)
     if ex.exam_id is not None or ex.code_withheld:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only library exercises with code can be shared.",
         )
-    if ex.exercise_group_id is None:
-        group = ExerciseGroup(
-            teacher_id=teacher.id,
-            name=ex.name or "Untitled Group",
-            topic_tag=ex.topic_tag,
-            grade=ex.grade,
-            subject=ex.subject,
-        )
-        db.add(group)
-        await db.flush()
-        ex.exercise_group_id = group.id
-    else:
-        group = await _require_own_group(ex.exercise_group_id, teacher.id, db)
+    group = await _group_of(ex, teacher, db)
     if body.shared and group.copied_at is not None:
         # The original's author consented to share it, not this account; propose changes instead.
         raise HTTPException(
@@ -738,19 +691,14 @@ async def set_exercise_sharing(
         .scalars()
         .all()
     )
-    shared_at = datetime.now(UTC) if body.shared else None
-    for row in rows:
-        if row.is_public != body.shared:
-            row.is_public = body.shared
-            row.shared_at = shared_at
-    await audit_svc.write(
-        db,
-        teacher_id=teacher.id,
-        teacher_email=teacher.email,
-        action="EXERCISE_SHARING_CHANGED",
-        target_id=str(ex.exercise_group_id),
-        request_ip=_client_ip(request),
-    )
+    if body.shared and any(r.copied_from_exercise_id for r in rows):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An exercise copied from another account cannot be shared.",
+            headers={"code": "ERR_SHARE_COPY"},
+        )
+    _set_shared(list(rows), body.shared)
+    await audit_svc.log(db, request, teacher, _sharing_action(body.shared), group.id)
     await db.flush()
     return [_to_res(r) for r in rows if r.is_current]
 
@@ -764,24 +712,18 @@ async def set_sharing_bulk(
 ) -> BulkSharingResult:
     """Share or stop sharing every own library group at once. Copied groups are skipped (never
     shared as one's own); stopping is never gated."""
-    if body.shared and not teacher.allow_exercise_sharing:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Exercise sharing is not enabled for this account.",
-            headers={"code": "ERR_FEATURE_NOT_ALLOWED"},
-        )
+    if body.shared:
+        ensure_exercise_sharing(teacher)
     groups = list(
         (await db.execute(select(ExerciseGroup).where(ExerciseGroup.teacher_id == teacher.id)))
         .scalars()
     )
-    copies = {g.id for g in groups if g.copied_at is not None}
-    targets = [g.id for g in groups if not (body.shared and g.id in copies)]
     rows = (
         (
             await db.execute(
                 select(Exercise).where(
                     Exercise.teacher_id == teacher.id,
-                    Exercise.exercise_group_id.in_(targets),
+                    Exercise.exercise_group_id.in_([g.id for g in groups]),
                     Exercise.exam_id.is_(None),
                     Exercise.code_withheld.is_(False),
                 )
@@ -790,22 +732,13 @@ async def set_sharing_bulk(
         .scalars()
         .all()
     )
-    shared_at = datetime.now(UTC) if body.shared else None
-    touched: set[uuid.UUID] = set()
-    for row in rows:
-        if row.exercise_group_id is not None:
-            touched.add(row.exercise_group_id)
-        if row.is_public != body.shared:
-            row.is_public = body.shared
-            row.shared_at = shared_at
-    await audit_svc.write(
-        db,
-        teacher_id=teacher.id,
-        teacher_email=teacher.email,
-        action="EXERCISE_SHARING_CHANGED",
-        target_id=str(teacher.id),
-        request_ip=_client_ip(request),
-    )
+    # A group is a copy if it was copied or holds a copied row (e.g. moved in by hand).
+    copies: set[uuid.UUID | None] = {g.id for g in groups if g.copied_at is not None}
+    copies |= {r.exercise_group_id for r in rows if r.copied_from_exercise_id}
+    picked = [r for r in rows if not (body.shared and r.exercise_group_id in copies)]
+    _set_shared(picked, body.shared)
+    touched = {r.exercise_group_id for r in picked if r.exercise_group_id is not None}
+    await audit_svc.log(db, request, teacher, _sharing_action(body.shared), teacher.id)
     await db.flush()
     return BulkSharingResult(groups=len(touched), skipped_copies=len(copies) if body.shared else 0)
 
@@ -819,21 +752,11 @@ async def set_sharing_paused(
 ) -> None:
     """Hide (or show again) everything the account shares; per-group choices are kept. Pausing
     is never gated; resuming needs the sharing switch."""
-    if not body.paused and not teacher.allow_exercise_sharing:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Exercise sharing is not enabled for this account.",
-            headers={"code": "ERR_FEATURE_NOT_ALLOWED"},
-        )
+    if not body.paused:
+        ensure_exercise_sharing(teacher)
     teacher.sharing_paused = body.paused
-    await audit_svc.write(
-        db,
-        teacher_id=teacher.id,
-        teacher_email=teacher.email,
-        action="EXERCISE_SHARING_CHANGED",
-        target_id=str(teacher.id),
-        request_ip=_client_ip(request),
-    )
+    action = "EXERCISE_SHARING_PAUSED" if body.paused else "EXERCISE_SHARING_RESUMED"
+    await audit_svc.log(db, request, teacher, action, teacher.id)
     await db.flush()
 
 
@@ -859,14 +782,7 @@ async def copy_shared_exercise(
     if source is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")
     group, rows = await sharing.copy_shared_group(source, teacher, db)
-    await audit_svc.write(
-        db,
-        teacher_id=teacher.id,
-        teacher_email=teacher.email,
-        action="EXERCISE_COPIED",
-        target_id=str(group.id),
-        request_ip=_client_ip(request),
-    )
+    await audit_svc.log(db, request, teacher, "EXERCISE_COPIED", group.id)
     return CopyResponse(group_id=group.id, exercises=[_to_res(r) for r in rows])
 
 
@@ -878,7 +794,7 @@ async def resync_preview(
 ) -> ResyncPreviewResponse:
     """Per variant of a copied group: own current row, source current row and the source
     fingerprint the resync request must echo."""
-    plan = await _linked_plan(group_id, teacher, db)
+    plan = await sharing.plan_group(teacher, db, group_id)
     emails = await _owner_emails([v.source for v in plan.variants if v.source], db)
     return ResyncPreviewResponse(
         group_id=plan.group.id,
@@ -909,34 +825,20 @@ async def resync_group(
     """Bring a copied group up to its source: changed variants become new versions (the old row
     stays for the exams that link it), new source variants new rows. 409 if the source changed
     since the reviewed preview."""
-    plan = await _linked_plan(group_id, teacher, db)
+    plan = await sharing.plan_group(teacher, db, group_id, lock=True)
     if plan.state == "source_unavailable":
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="The source of this exercise is no longer shared.",
             headers={"code": "ERR_SHARE_SOURCE_UNAVAILABLE"},
         )
-    try:
-        created = await sharing.apply_resync(
-            plan,
-            body.source_fingerprints,
-            db,
-            {sid: o.latex_body for sid, o in body.overrides.items()},
-        )
-    except sharing.ResyncConflict:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="The source changed after the preview; review it again.",
-            headers={"code": "ERR_SHARE_SOURCE_CHANGED"},
-        ) from None
-    await audit_svc.write(
+    created = await sharing.apply_resync(
+        plan,
+        body.source_fingerprints,
         db,
-        teacher_id=teacher.id,
-        teacher_email=teacher.email,
-        action="EXERCISE_RESYNCED",
-        target_id=str(plan.group.id),
-        request_ip=_client_ip(request),
+        {sid: o.latex_body for sid, o in body.overrides.items()},
     )
+    await audit_svc.log(db, request, teacher, "EXERCISE_RESYNCED", plan.group.id)
     return [_to_res(r) for r in created]
 
 
@@ -956,20 +858,9 @@ async def submit_contributions(
 ) -> list[uuid.UUID]:
     """Propose variants of a linked copy to the original's author: changed ones as new versions,
     ones added to the copy as new variants. The author is notified and decides."""
-    try:
-        rows = await contributions.submit(teacher, group_id, body.exercise_ids, body.message, db)
-    except contributions.ContributionError as err:
-        headers = {"code": err.code} if err.code else None
-        raise HTTPException(status_code=err.status, detail=err.detail, headers=headers) from None
+    rows = await contributions.submit(teacher, group_id, body.exercise_ids, body.message, db)
     for row in rows:
-        await audit_svc.write(
-            db,
-            teacher_id=teacher.id,
-            teacher_email=teacher.email,
-            action="CONTRIBUTION_SUBMITTED",
-            target_id=str(row.id),
-            request_ip=_client_ip(request),
-        )
+        await audit_svc.log(db, request, teacher, "CONTRIBUTION_SUBMITTED", row.id)
     mails = await contributions.notice_mails(db, rows[0].owner_id, [r.id for r in rows])
     background_tasks.add_task(account_mail.send_all, mails)
     return [r.id for r in rows]
@@ -1117,25 +1008,9 @@ async def download_exercise_resource(
     ex: Exercise = Depends(get_readable_exercise),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    """
-    Return a resource's raw bytes.
-
-    Only png/jpeg/pdf are served under their own media type; anything else is
-    an opaque download. A stored text/html file returned inline from the API
-    origin would be stored XSS, so the type is never taken at face value and
-    sniffing is disabled.
-    """
+    """Return a resource's raw bytes (see `resource_response` for the XSS hardening)."""
     row = await _get_resource(ex.id, resource_id, db)
-    media_type, disposition = resolve_content_disposition(row.mime_type)
-    return Response(
-        content=row.content,
-        media_type=media_type,
-        headers={
-            "Content-Disposition": f'{disposition}; filename="{row.filename}"',
-            "X-Content-Type-Options": "nosniff",
-            "Content-Security-Policy": "sandbox; default-src 'none'",
-        },
-    )
+    return resource_response(row.content, row.mime_type, row.filename)
 
 
 @router.patch("/{exercise_id}/resources/{resource_id}", response_model=ExerciseResourceResponse)

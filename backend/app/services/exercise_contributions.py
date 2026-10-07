@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from fastapi import HTTPException
 from sqlalchemy import ColumnElement, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,23 +22,20 @@ from app.services import account_mail
 from app.services.exercise_sharing import (
     content_fingerprint,
     edited_content,
+    file_fields,
     new_variant_row,
     next_version,
-    plan_groups,
+    plan_group,
     resource_digests,
-    sha256_hex,
 )
 
 MAX_PENDING_PER_CONTRIBUTOR = 20
 NOTICE_QUIET_MINUTES = 15
 
 
-class ContributionError(Exception):
+class ContributionError(HTTPException):
     def __init__(self, status: int, detail: str, code: str | None = None) -> None:
-        super().__init__(detail)
-        self.status = status
-        self.detail = detail
-        self.code = code
+        super().__init__(status, detail, headers={"code": code} if code else None)
 
 
 def _not_found() -> ContributionError:
@@ -71,18 +69,13 @@ async def submit(
 ) -> list[ExerciseContribution]:
     """Snapshot the chosen variants of *contributor*'s linked copy as proposals to the original.
     Changed variants become version proposals, variants added to the copy variant proposals."""
-    plans = await plan_groups(contributor, db, group_id)
-    if not plans:
-        raise ContributionError(404, "Exercise group not found")
-    plan = plans[0]
+    plan = await plan_group(contributor, db, group_id, lock=True)
     sources = [v.source for v in plan.variants if v.source is not None]
     if not sources or plan.group.source_group_id is None:
         raise ContributionError(
             404, "The original is no longer shared.", "ERR_SHARE_SOURCE_UNAVAILABLE"
         )
-    owner_id = sources[0].teacher_id
-    if owner_id is None:
-        raise ContributionError(404, "The original is no longer shared.")
+    owner_id = sources[0].teacher_id  # never None: shared rows have an approved owner
     by_own = {v.own.id: v for v in plan.variants if v.own is not None}
 
     picked: list[tuple[Exercise, str, uuid.UUID | None]] = []
@@ -138,7 +131,7 @@ async def submit(
             from_exercise_id=own.id,
             kind=kind,
             variant_key=own.variant_key,
-            message=(message or "").strip()[:1000] or None,
+            message=(message or "").strip() or None,
             base_fingerprint=own.synced_fingerprint if kind == "version" else None,
             status="pending",
             **_payload(own),
@@ -149,16 +142,7 @@ async def submit(
             await db.execute(select(ExerciseResource).where(ExerciseResource.exercise_id == own.id))
         ).scalars()
         for f in files:
-            db.add(
-                ExerciseContributionResource(
-                    contribution_id=row.id,
-                    filename=f.filename,
-                    mime_type=f.mime_type,
-                    byte_size=f.byte_size,
-                    content=f.content,
-                    content_sha256=f.content_sha256 or sha256_hex(f.content),
-                )
-            )
+            db.add(ExerciseContributionResource(contribution_id=row.id, **file_fields(f)))
         created.append(row)
     await db.flush()
     return created
@@ -192,8 +176,11 @@ async def notice_mails(
     return [account_mail.contribution_notice_mail(owner.email, pending)]
 
 
-async def _close(db: AsyncSession, where: Sequence[ColumnElement[bool]], status: str) -> int:
-    """Decide matching pending proposals and drop their payload (content and files)."""
+async def _close(
+    db: AsyncSession, where: Sequence[ColumnElement[bool]], status: str, **extra: object
+) -> int:
+    """Decide matching pending proposals and drop their payload (content and files): the only
+    place a payload is cleared. Returns how many were still pending, i.e. claimed here."""
     ids = list(
         (
             await db.execute(
@@ -213,6 +200,7 @@ async def _close(db: AsyncSession, where: Sequence[ColumnElement[bool]], status:
             decided_at=datetime.now(UTC),
             latex_body=None,
             correct_answers=None,
+            **extra,
         )
         .execution_options(synchronize_session=False)
     )
@@ -225,10 +213,11 @@ async def _close(db: AsyncSession, where: Sequence[ColumnElement[bool]], status:
 
 
 async def load_for(
-    viewer: Teacher, contribution_id: uuid.UUID, db: AsyncSession
+    viewer: Teacher, contribution_id: uuid.UUID, db: AsyncSession, *, refresh: bool = False
 ) -> ExerciseContribution:
-    """The proposal, if *viewer* is its owner or contributor; 404 otherwise."""
-    row = await db.get(ExerciseContribution, contribution_id)
+    """The proposal, if *viewer* is its owner or contributor; 404 otherwise. *refresh* re-reads
+    it after a bulk UPDATE in this request."""
+    row = await db.get(ExerciseContribution, contribution_id, populate_existing=refresh)
     if row is None or viewer.id not in (row.owner_id, row.contributor_id):
         raise _not_found()
     return row
@@ -288,7 +277,9 @@ async def accept(
         raise _not_found()
     if row.status != "pending":
         raise _decided()
-    group = await db.get(ExerciseGroup, row.source_group_id)
+    # The group lock serializes accepts into one group: two proposals for one variant must not
+    # both version the same current row.
+    group = await db.get(ExerciseGroup, row.source_group_id, with_for_update=True)
     if group is None or group.teacher_id != owner.id:
         raise _not_found()
 
@@ -302,15 +293,16 @@ async def accept(
         },
         latex_override,
     )
-    files = list(
-        (
+    files = [
+        file_fields(f)
+        for f in (
             await db.execute(
                 select(ExerciseContributionResource).where(
                     ExerciseContributionResource.contribution_id == row.id
                 )
             )
         ).scalars()
-    )
+    ]
     base = None if as_variant else await resolve_base(row, db)
     if row.kind == "version" and not as_variant and base is None:
         raise ContributionError(
@@ -319,54 +311,39 @@ async def accept(
             "ERR_CONTRIBUTION_TARGET_GONE",
         )
 
-    # Claim first: of two concurrent accepts only one sees the row still pending.
-    claimed = await db.execute(
-        update(ExerciseContribution)
-        .where(ExerciseContribution.id == row.id, ExerciseContribution.status == "pending")
-        .values(status="accepted", decided_at=datetime.now(UTC))
-        .execution_options(synchronize_session=False)
-    )
-    if not getattr(claimed, "rowcount", 0):
-        raise _decided()
-
     if base is not None:
         result = next_version(base, **content)
     else:
-        sibling = (
-            await db.execute(
-                select(Exercise).where(
-                    Exercise.teacher_id == owner.id,
-                    Exercise.exercise_group_id == group.id,
-                    Exercise.is_current.is_(True),
+        current = list(
+            (
+                await db.execute(
+                    select(Exercise).where(
+                        Exercise.teacher_id == owner.id,
+                        Exercise.exercise_group_id == group.id,
+                        Exercise.is_current.is_(True),
+                    )
                 )
-            )
-        ).scalars().first()
+            ).scalars()
+        )
         key = (variant_key or "").strip() or row.variant_key
-        result = new_variant_row(group, sibling, variant_key=key, **content)
+        if any(r.variant_key == key for r in current):
+            # A second current row with one key would make later matching ambiguous.
+            raise ContributionError(
+                409, "This variant key already exists in the exercise.", "ERR_VARIANT_KEY_TAKEN"
+            )
+        result = new_variant_row(
+            group, current[0] if current else None, variant_key=key, **content
+        )
     db.add(result)
     await db.flush()
     for f in files:
-        db.add(
-            ExerciseResource(
-                exercise_id=result.id,
-                filename=f.filename,
-                mime_type=f.mime_type,
-                byte_size=f.byte_size,
-                content=f.content,
-                content_sha256=f.content_sha256,
-            )
-        )
-    await db.execute(
-        update(ExerciseContribution)
-        .where(ExerciseContribution.id == row.id)
-        .values(result_exercise_id=result.id, latex_body=None, correct_answers=None)
-        .execution_options(synchronize_session=False)
-    )
-    await db.execute(
-        delete(ExerciseContributionResource).where(
-            ExerciseContributionResource.contribution_id == row.id
-        )
-    )
+        db.add(ExerciseResource(exercise_id=result.id, **f))
+    # The claim: of two concurrent decisions only one sees the row still pending; the loser's
+    # new row is rolled back with its request.
+    if not await _close(
+        db, (ExerciseContribution.id == row.id,), "accepted", result_exercise_id=result.id
+    ):
+        raise _decided()
     await db.flush()
     return result
 
@@ -385,13 +362,6 @@ async def decide_without_merge(
         raise _not_found()
     if viewer.id != (row.owner_id if status == "rejected" else row.contributor_id):
         raise _not_found()
-    if row.status != "pending":
+    note = ((note or "").strip() or None) if status == "rejected" else None
+    if not await _close(db, (ExerciseContribution.id == row.id,), status, decision_note=note):
         raise _decided()
-    await _close(db, (ExerciseContribution.id == row.id,), status)
-    if status == "rejected" and note:
-        await db.execute(
-            update(ExerciseContribution)
-            .where(ExerciseContribution.id == row.id)
-            .values(decision_note=note.strip()[:1000] or None)
-            .execution_options(synchronize_session=False)
-        )
