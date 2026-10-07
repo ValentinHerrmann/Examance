@@ -127,17 +127,17 @@ function withDefaults<T extends object>(base: T, over: Record<string, any>): T {
 
 /** Accounts the admin page lists: one pending registration, one active teacher, one open invitation (long addresses on purpose). */
 function seedAdminUsers(): any[] {
-  const all = { server_results: true, server_latex: true };
+  const all = { server_results: true, server_latex: true, exercise_sharing: true };
   return [
     { id: 'u-pending', email: 'very.long.firstname.lastname@grundschule-am-beispielweg.example', role: 'teacher', created_at: '2026-10-01T08:00:00Z', approved_at: null, registration_note: 'Mathematik und Physik, Klasse 9b — bitte freischalten.', features: all, password_set: true },
     { id: 'u-active', email: 'teacher@e2e.example', role: 'teacher', created_at: '2026-09-01T08:00:00Z', approved_at: '2026-09-01T08:00:00Z', registration_note: null, features: all, password_set: true },
-    { id: 'u-invited', email: 'neue.kollegin.mit.langem.namen@gymnasium-beispielstadt.example', role: 'admin', created_at: '2026-09-20T08:00:00Z', approved_at: '2026-09-20T08:00:00Z', registration_note: null, features: { server_results: false, server_latex: true }, password_set: false },
+    { id: 'u-invited', email: 'neue.kollegin.mit.langem.namen@gymnasium-beispielstadt.example', role: 'admin', created_at: '2026-09-20T08:00:00Z', approved_at: '2026-09-20T08:00:00Z', registration_note: null, features: { server_results: false, server_latex: true, exercise_sharing: false }, password_set: false },
   ];
 }
 
 function seedAdminDomains(): any[] {
   return [
-    { id: 'd-1', domain: 'gymnasium-beispielstadt.example', features: { server_results: true, server_latex: false }, created_at: '2026-09-01T08:00:00Z' },
+    { id: 'd-1', domain: 'gymnasium-beispielstadt.example', features: { server_results: true, server_latex: false, exercise_sharing: true }, created_at: '2026-09-01T08:00:00Z' },
   ];
 }
 
@@ -629,6 +629,11 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       if (method === 'GET') return listExercises(query);
       if (method === 'POST') return createExercise(body);
       return undefined;
+    }
+    // Exercise sharing (issue #65): nobody shares anything in the fake.
+    if (method === 'GET' && !sub && (id === 'shared' || id === 'sync-status')) return ok([]);
+    if (method === 'GET' && id === 'contributions' && sub === 'summary' && rest.length === 0) {
+      return ok({ incoming_pending: 0, pending_by_group: [] });
     }
     if (id === 'groups') {
       return method === 'PATCH' && sub && rest.length === 0 ? updateGroup(sub, body) : undefined;

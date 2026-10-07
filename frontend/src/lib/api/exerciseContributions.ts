@@ -1,0 +1,124 @@
+/**
+ * Proposals from a linked copy back to the shared original (issue #65): submit, list, review, decide.
+ * Online-only (never the offline queue); every call is `silentError`, the library page reports inline.
+ */
+
+import type { ExerciseRecord } from '#lib/db/schema';
+import { mapApiToExerciseRecord } from '#lib/repositories/exerciseRepository';
+import { api } from './client';
+
+export type ContributionStatus = 'pending' | 'accepted' | 'rejected' | 'withdrawn';
+
+export interface ContributionSummary {
+  id: string;
+  direction: 'incoming' | 'outgoing';
+  exerciseName: string | null;
+  kind: 'version' | 'variant';
+  variantKey: string | null;
+  message: string | null;
+  status: ContributionStatus;
+  decisionNote: string | null;
+  createdAt: string;
+  /** Incoming: who proposed it. Outgoing: the author it was sent to. */
+  counterpartEmail: string | null;
+  /** The author's variant changed since the contributor's last update. */
+  stale: boolean;
+  /** The variant it changes no longer exists; it can only be accepted as a new variant. */
+  targetGone: boolean;
+  /** The viewer's own exercise group it is about (author: the original; contributor: the copy). */
+  libraryGroupId: string | null;
+}
+
+/** Pending proposals per own exercise group, for the tag on the library card. */
+export interface PendingForGroup {
+  incoming: number;
+  outgoing: number;
+}
+
+export interface ContributionFile {
+  filename: string;
+  change: 'added' | 'removed' | 'changed' | 'unchanged';
+}
+
+export interface ContributionDetail extends ContributionSummary {
+  latexBody: string | null;
+  /** Author only: the current row the proposal applies to (null for a new variant). */
+  base: ExerciseRecord | null;
+  files: ContributionFile[];
+}
+
+function toSummary(raw: any): ContributionSummary {
+  return {
+    id: raw.id,
+    direction: raw.direction,
+    exerciseName: raw.exercise_name ?? null,
+    kind: raw.kind,
+    variantKey: raw.variant_key ?? null,
+    message: raw.message ?? null,
+    status: raw.status,
+    decisionNote: raw.decision_note ?? null,
+    createdAt: raw.created_at,
+    counterpartEmail: raw.counterpart_email ?? null,
+    stale: !!raw.stale,
+    targetGone: !!raw.target_gone,
+    libraryGroupId: raw.library_group_id ?? null,
+  };
+}
+
+export async function listContributions(direction: 'incoming' | 'outgoing'): Promise<ContributionSummary[]> {
+  const rows = await api.get<any[]>(`/exercises/contributions?direction=${direction}`, { silentError: true });
+  return rows.map(toSummary);
+}
+
+/** Pending proposals: the incoming total (tab badge) and per own group (library tag). */
+export async function loadContributionSummary(): Promise<{ incomingPending: number; byGroup: Map<string, PendingForGroup> }> {
+  const res = await api.get<{ incoming_pending: number; pending_by_group: any[] }>('/exercises/contributions/summary', {
+    silentError: true,
+  });
+  return {
+    incomingPending: res.incoming_pending,
+    byGroup: new Map(res.pending_by_group.map((g) => [g.group_id, { incoming: g.incoming, outgoing: g.outgoing }])),
+  };
+}
+
+export async function loadContribution(id: string): Promise<ContributionDetail> {
+  const raw = await api.get<any>(`/exercises/contributions/${id}`, { silentError: true });
+  return {
+    ...toSummary(raw),
+    latexBody: raw.latex_body ?? null,
+    base: raw.base ? mapApiToExerciseRecord(raw.base) : null,
+    files: (raw.files as any[]).map((f) => ({ filename: f.filename, change: f.change })),
+  };
+}
+
+/** Proposes variants of an own linked copy (changed ones as versions, added ones as variants). */
+export async function submitContributions(groupId: string, exerciseIds: string[], message: string): Promise<string[]> {
+  return api.post<string[]>(
+    `/exercises/groups/${groupId}/contributions`,
+    { exercise_ids: exerciseIds, message: message.trim() || null },
+    { silentError: true },
+  );
+}
+
+/**
+ * Adopts a proposal as a new version (or a new variant at version 1). `latexBody`: the author's edit.
+ * @throws ApiError 409 `ERR_CONTRIBUTION_TARGET_GONE` (retry with `asVariant`) or `ERR_CONTRIBUTION_DECIDED`.
+ */
+export async function acceptContribution(
+  id: string,
+  opts: { latexBody?: string; asVariant?: boolean; variantKey?: string } = {},
+): Promise<void> {
+  await api.post(
+    `/exercises/contributions/${id}/accept`,
+    { latex_body: opts.latexBody ?? null, as_variant: !!opts.asVariant, variant_key: opts.variantKey || null },
+    { silentError: true },
+  );
+}
+
+export async function rejectContribution(id: string, note: string): Promise<void> {
+  await api.post(`/exercises/contributions/${id}/reject`, { note: note.trim() || null }, { silentError: true });
+}
+
+export async function withdrawContribution(id: string): Promise<void> {
+  await api.post(`/exercises/contributions/${id}/withdraw`, undefined, { silentError: true });
+}

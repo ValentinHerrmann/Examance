@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import and_, delete, func, or_, select, update
 
 from app.config import settings
 from app.database import AsyncSessionLocal
@@ -12,6 +12,10 @@ from app.models.account_deletion_request import AccountDeletionRequest
 from app.models.audit_log import AuditLog
 from app.models.exam import Exam
 from app.models.exercise import Exercise
+from app.models.exercise_contribution import (
+    ExerciseContribution,
+    ExerciseContributionResource,
+)
 from app.models.key_envelope import KeyEnvelope
 from app.models.omr_training_sample import OmrTrainingSample
 from app.models.registration_request import RegistrationRequest
@@ -103,6 +107,25 @@ async def run(*, dry_run: bool = False) -> int:
         )
         stale_pending = list(stale_pending_res.scalars().all())
 
+        # 8. Exercise proposals: decided ones (payload cleared at decision) and stale pending ones.
+        contribution_filter = or_(
+            and_(
+                ExerciseContribution.status != "pending",
+                ExerciseContribution.decided_at < now - timedelta(
+                    days=settings.CONTRIBUTION_RETENTION_DAYS
+                ),
+            ),
+            and_(
+                ExerciseContribution.status == "pending",
+                ExerciseContribution.created_at < now - timedelta(
+                    days=settings.CONTRIBUTION_PENDING_MAX_DAYS
+                ),
+            ),
+        )
+        expired_contribution_count = await db.scalar(
+            select(func.count()).select_from(ExerciseContribution).where(contribution_filter)
+        ) or 0
+
         total_affected = (
             len(expired_exams)
             + len(expired_students)
@@ -112,6 +135,7 @@ async def run(*, dry_run: bool = False) -> int:
             + expired_request_count
             + len(stale_pending)
             + expired_deletion_count
+            + expired_contribution_count
         )
 
         if dry_run:
@@ -160,6 +184,17 @@ async def run(*, dry_run: bool = False) -> int:
 
         if expired_deletion_count:
             await db.execute(delete(AccountDeletionRequest).where(expired_deletions_filter))
+
+        if expired_contribution_count:
+            # Files first: SQLite (tests) does not enforce the ON DELETE CASCADE.
+            await db.execute(
+                delete(ExerciseContributionResource).where(
+                    ExerciseContributionResource.contribution_id.in_(
+                        select(ExerciseContribution.id).where(contribution_filter)
+                    )
+                )
+            )
+            await db.execute(delete(ExerciseContribution).where(contribution_filter))
 
         # Audit the exam expiries. Deliberately no entry per erased student
         # record: that would recreate, in the audit trail, the very identifiers

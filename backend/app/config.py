@@ -150,6 +150,10 @@ class Settings(BaseSettings):
     # Lifetime of the mailed link that confirms deleting one's own account
     # (app/services/account_deletion.py).
     ACCOUNT_DELETION_TOKEN_TTL_MINUTES: int = 60
+    # Exercise contributions (issue #65): decided proposals (payload already cleared) are dropped
+    # this many days after the decision; undecided ones after the second limit.
+    CONTRIBUTION_RETENTION_DAYS: int = 30
+    CONTRIBUTION_PENDING_MAX_DAYS: int = 180
 
     # Per-account login throttling (`app.services.login_throttle`): slowapi limits per client IP and
     # misses a distributed guess at one account. Exponential cooloff, capped on purpose so the lock

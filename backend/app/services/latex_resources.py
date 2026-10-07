@@ -16,6 +16,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from fastapi import Response
+
 from app.services.logo import LOGO_FILENAMES
 
 # Resolved the same way as ``app.services.latex.ASSETS_DIR``; kept independent
@@ -148,6 +150,21 @@ def resolve_content_disposition(mime_type: str | None) -> tuple[str, str]:
     if mime_type in INLINE_SAFE_MIME_TYPES:
         return mime_type, "inline"
     return "application/octet-stream", "attachment"
+
+
+def resource_response(content: bytes, mime_type: str | None, filename: str) -> Response:
+    """A stored resource as a response. The type is never taken at face value and sniffing is
+    off: a text/html file served inline from the API origin would be stored XSS."""
+    media_type, disposition = resolve_content_disposition(mime_type)
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'{disposition}; filename="{filename}"',
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "sandbox; default-src 'none'",
+        },
+    )
 
 
 def merge_resources(

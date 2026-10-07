@@ -30,6 +30,7 @@ export const admin = {
         heading: 'Funktionen',
         server_results: 'Schülerdaten und Ergebnisse auf dem Server',
         server_latex: 'LaTeX auf dem Server kompilieren',
+        exercise_sharing: 'Aufgaben teilen und übernehmen',
         exercisesAlways: 'Prüfungen und Aufgaben liegen immer auf dem Server.',
     },
     pending: {
@@ -59,6 +60,7 @@ export const admin = {
         columnStatus: 'Status',
         columnResults: 'Ergebnisse auf Server',
         columnLatex: 'LaTeX auf Server',
+        columnSharing: 'Aufgaben teilen',
         columnActions: 'Aktionen',
         statusActive: 'Aktiv',
         statusInvited: 'Eingeladen',

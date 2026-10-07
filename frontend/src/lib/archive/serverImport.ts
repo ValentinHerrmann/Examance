@@ -9,11 +9,14 @@
  * another account on the same server may carry taken ids. Those 409, get one retry under a fresh
  * UUID, and `idMap` records the substitution so links, submissions and scores follow.
  *
- * Exercises the account can already read on the server (its own, or another teacher's shared one)
- * are linked rather than copied. Every request is silent; outcomes go into the `ArchiveReport`.
+ * Exercises the account already owns on the server are linked rather than copied; anything else (another
+ * teacher's, shared or not) is created as an own copy, since an exam never links a foreign row (issue #65).
+ * Every request is silent; outcomes go into the `ArchiveReport`.
  */
 
+import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
+import { sessionStore } from '#lib/stores/session';
 import { mapExamRecordToApi } from '#lib/repositories/examRepository';
 import { mapExerciseRecordToApi } from '#lib/repositories/exerciseRepository';
 import type { ExamRecord, ExerciseRecord } from '#lib/db/schema';
@@ -71,11 +74,12 @@ async function createWithIdFallback(
   }
 }
 
-/** True when this account can read (and therefore link) the exercise on the server: own or shared. */
-async function exerciseAvailable(id: string): Promise<boolean> {
+/** True when this account owns the exercise on the server and may link it. The server omits `teacher_id` on a shared row. */
+async function exerciseOwned(id: string): Promise<boolean> {
   try {
-    await api.get(`/exercises/${id}`, { silentError: true });
-    return true;
+    const res = await api.get<any>(`/exercises/${id}`, { silentError: true });
+    const me = get(sessionStore).teacherId;
+    return !!res?.teacher_id && (!me || res.teacher_id === me);
   } catch {
     return false;
   }
@@ -111,8 +115,8 @@ export async function importPayloadToServer(
   for (const ex of exercises) {
     const label = ex.title || ex.name || ex.id;
 
-    // Already on the server for this account (its own, or shared by another teacher): link it.
-    if (ex.id && !takeImportedIds.has(ex.id) && (await exerciseAvailable(ex.id))) {
+    // Already on the server and owned by this account: link it.
+    if (ex.id && !takeImportedIds.has(ex.id) && (await exerciseOwned(ex.id))) {
       reusedExerciseIds.add(ex.id);
       bump(report, 'exercises', 'linked');
       continue;
@@ -167,12 +171,12 @@ export async function importPayloadToServer(
     }
   }
 
-  // 1c. Links to exercises the archive does not carry (e.g. a shared exercise of another teacher):
-  // reuse them when this account can read them on the server.
+  // 1c. Links to exercises the archive does not carry: reuse them only when this account owns them on
+  // the server. Another teacher's exercise, shared or not, is never linked (copy it in the library).
   const archivedExerciseIds = new Set(exercises.map((ex) => ex.id));
   for (const id of new Set(junctions.map((j) => j.exerciseId as string))) {
     if (archivedExerciseIds.has(id) || reusedExerciseIds.has(id)) continue;
-    if (await exerciseAvailable(id)) {
+    if (await exerciseOwned(id)) {
       reusedExerciseIds.add(id);
       bump(report, 'exercises', 'linked');
     }

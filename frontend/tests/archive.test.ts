@@ -278,15 +278,15 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     expect(report.missing).toEqual([]);
   });
 
-  it('links an exercise already readable on the server instead of copying it', async () => {
-    // Prepares for exercises shared between accounts: the importer reuses what it can read.
+  it('links an exercise the account already owns on the server instead of copying it', async () => {
+    // Only own rows are linked; another account's exercise, shared or not, is copied (issue #65).
     const examId = 'exam-linking';
     await saveExamEncrypted(exam(examId, 'Linking Exam'), testKey);
     await saveExerciseEncrypted({ id: 'ex-shared', name: 'Shared', maxPoints: 2, questionType: 'free_text', penalty: 0 }, testKey);
     fakeServer.state.links.set(examId, [{ exercise_id: 'ex-shared', order_index: 1 }]);
     const packed = await packBlob(testPassword, undefined, { includeExerciseCode: false });
 
-    // Another account: the exam is new, the exercise is readable (e.g. public).
+    // The exam is new; the exercise still exists on the server and belongs to this account.
     fakeServer.state.exams.clear();
     fakeServer.state.links.clear();
     const report = (await unpackProject(packed, testPassword)).report;

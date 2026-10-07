@@ -23,6 +23,7 @@ from app.routers import (
     auth,
     compile,
     exams,
+    exercise_contributions,
     exercise_scores,
     exercises,
     keys,
@@ -245,6 +246,8 @@ def create_app() -> FastAPI:
     app.include_router(compile.router, prefix=API_PREFIX)
     app.include_router(exams.router, prefix=API_PREFIX)
     app.include_router(logos.router, prefix=API_PREFIX)
+    # Before exercises: its /{exercise_id} would capture /exercises/contributions.
+    app.include_router(exercise_contributions.router, prefix=API_PREFIX)
     app.include_router(exercises.router, prefix=API_PREFIX)
     app.include_router(students.router, prefix=API_PREFIX)
     app.include_router(submissions.router, prefix=API_PREFIX)

@@ -130,6 +130,14 @@ export const HELP_TOPICS: HelpTopic[] = [
         headingKey: "help.topics.exercises.s4.h",
         bodyKeys: ["help.topics.exercises.s4.p1", "help.topics.exercises.s4.p2"],
       },
+      {
+        headingKey: "help.topics.exercises.s5.h",
+        bodyKeys: ["help.topics.exercises.s5.p1", "help.topics.exercises.s5.p2", "help.topics.exercises.s5.p3", "help.topics.exercises.s5.p4"],
+      },
+      {
+        headingKey: "help.topics.exercises.s6.h",
+        bodyKeys: ["help.topics.exercises.s6.p1", "help.topics.exercises.s6.p2", "help.topics.exercises.s6.p3"],
+      },
     ],
   },
   {

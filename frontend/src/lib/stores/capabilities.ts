@@ -1,7 +1,6 @@
 /**
- * What the signed-in account may use, as the server decides it (`GET /user/capabilities`, `backend/app/services/capabilities.py`):
- * storage mode, allowed modes and server features. The UI renders every such option from this store, never from hard-coded lists.
- * Admin switches per account (issue #53): `server_results` (allows `all-server`; `hybrid` is always allowed) and `server_latex`.
+ * What the account may use, as the server decides it (`GET /user/capabilities`): storage mode, allowed modes, features.
+ * Render every such option from this store, never from hard-coded lists. Per-account admin switches: issues #53, #65.
  */
 
 import { derived, get, writable } from 'svelte/store';
@@ -10,7 +9,7 @@ import { sessionStore } from '#lib/stores/session';
 import { isStorageMode, storagePolicyStore, type StorageMode } from '#lib/stores/storagePolicy';
 import { safeSessionStorage } from '#lib/utils/storage';
 
-export type FeatureName = 'server_results' | 'server_latex' | 'training_donation';
+export type FeatureName = 'server_results' | 'server_latex' | 'exercise_sharing' | 'training_donation';
 
 export interface Capabilities {
   /** The account the answer is about; null in a cache written before the server sent it. */
@@ -18,6 +17,8 @@ export interface Capabilities {
   storageMode: StorageMode | null;
   allowedStorageModes: StorageMode[];
   features: Partial<Record<FeatureName, boolean>>;
+  /** The teacher paused their own exercise sharing (issue #65). */
+  sharingPaused?: boolean;
 }
 
 const CACHE_KEY = 'bg_capabilities';
@@ -68,6 +69,7 @@ interface CapabilitiesResponse {
   storage_mode: string | null;
   allowed_storage_modes: string[];
   features: Record<string, boolean>;
+  sharing_paused?: boolean;
 }
 
 function fromResponse(res: CapabilitiesResponse): Capabilities {
@@ -78,6 +80,7 @@ function fromResponse(res: CapabilitiesResponse): Capabilities {
     storageMode: isStorageMode(res.storage_mode) ? res.storage_mode : null,
     allowedStorageModes: res.allowed_storage_modes.filter(isStorageMode),
     features: res.features as Capabilities['features'],
+    sharingPaused: res.sharing_paused === true,
   };
 }
 
@@ -103,6 +106,11 @@ export async function saveAccountStorageMode(mode: StorageMode, expected: Storag
   const caps = fromResponse(res);
   capabilitiesStore.set(caps);
   return caps;
+}
+
+/** Reflects a pause/resume made by this tab without refetching. */
+export function markSharingPaused(paused: boolean): void {
+  capabilitiesStore.update((caps) => (caps ? { ...caps, sharingPaused: paused } : caps));
 }
 
 /** Forgets the answer, e.g. at sign-out: the next account must never start from this one's switches. */

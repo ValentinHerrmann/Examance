@@ -25,6 +25,10 @@ class ExerciseGroup(Base):
     topic_tag: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
     grade: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     subject: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    # The shared group this one was copied from (resync link). No FK: see Exercise provenance.
+    source_group_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True, index=True)
+    # Set by copy and never cleared (not even by unlink): a copy is not re-shared as one's own.
+    copied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

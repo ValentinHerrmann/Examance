@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -36,7 +37,14 @@ class Exercise(Base):
     )
     variant_key: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     group: Mapped[ExerciseGroup | None] = relationship("ExerciseGroup", back_populates="exercises")
+    # Shared with every account of the installation (issue #65). Read it only through
+    # app/services/exercise_sharing.py; a foreign row is never linked into an exam, only copied.
     is_public: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
+    shared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Copy provenance for resync. No FK on purpose: the source's deletion never reaches a copy.
+    # `synced_fingerprint` is the content at the last sync, when source and copy were identical.
+    copied_from_exercise_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    synced_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # The code was withheld: imported from another teacher's results-only archive. Name, points and
     # answer key are present so scans and scores grade as usual; there is nothing to compile.
     code_withheld: Mapped[bool] = mapped_column(

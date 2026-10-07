@@ -3,7 +3,7 @@
   import LatexEditor from "#lib/components/LatexEditor.svelte";
   import { t } from "#lib/i18n";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
-  import { Alert, ConfirmDialog, Modal, Button, controlClass } from "#lib/components/ui";
+  import { ConfirmDialog, Modal, Button, controlClass } from "#lib/components/ui";
 
   interface Props {
     isOpen?: boolean;
@@ -33,10 +33,7 @@
   }: Props = $props();
 </script>
 
-<Modal open={isOpen && !!variantBaseEx} size="large" title={$t("exercises.variantModal.title")} onClose={onRequestClose}>
-  {#if error}
-    <div class="mb-3"><Alert severity="danger">{error}</Alert></div>
-  {/if}
+<Modal open={isOpen && !!variantBaseEx} size="large" title={$t("exercises.variantModal.title")} onClose={onRequestClose} {error}>
   {#if variantBaseEx}
     <p class="m-0 mb-4 text-sm text-muted">
       {$t("exercises.variantModal.hint")}

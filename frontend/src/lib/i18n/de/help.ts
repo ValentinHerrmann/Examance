@@ -79,7 +79,7 @@ export const help = {
         },
         exercises: {
             title: 'Aufgabenbibliothek',
-            summary: 'Aufgaben anlegen, verschlagworten, in Varianten und Versionen pflegen.',
+            summary: 'Aufgaben anlegen, verschlagworten, in Varianten und Versionen pflegen und mit anderen teilen.',
             s1: {
                 h: 'Sammeln statt kopieren',
                 p1: 'Aufgaben liegen in einer gemeinsamen Bibliothek und werden nach Jahrgang, Fach und Thema verschlagwortet. Jede Aufgabe ist ein LaTeX-Fragment mit Live-Vorschau; die Punktzahl wird automatisch aus dem Quelltext gelesen.',
@@ -100,6 +100,19 @@ export const help = {
                 h: 'Bilder und Dateien',
                 p1: 'Zu jeder Aufgabe lassen sich Dateien hochladen, die der LaTeX-Quelltext einbindet, etwa Abbildungen über \\includegraphics. SVG wird nicht unterstützt — bitte vorher in PDF umwandeln.',
                 p2: 'Fehlt eine Grafik, bricht der Satz nicht ab: Die Klausur wird trotzdem gesetzt, die fehlende Datei aber gemeldet. Prüfen Sie die Vorschau, bevor Sie drucken.',
+            },
+            s5: {
+                h: 'Aufgaben teilen und übernehmen',
+                p1: '„Teilen…“ macht eine Aufgabengruppe mit allen aktuellen Varianten und Dateien für alle Konten dieser Installation sichtbar, zusammen mit Ihrer E-Mail-Adresse. Andere können sie ansehen und übernehmen, aber nicht ändern. Teilen Sie nur Aufgaben ohne personenbezogene Daten von Schülerinnen und Schülern und nur, was Sie weitergeben dürfen.',
+                p2: 'Unter „Von anderen geteilt“ übernehmen Sie eine Aufgabe in Ihre Bibliothek. Sie erhalten eine eigene Kopie, die Sie frei bearbeiten und in Prüfungen verwenden; Änderungen oder das Löschen durch die Person, die geteilt hat, wirken sich nie auf Ihre Prüfungen aus.',
+                p3: 'Ändert sich die Quelle, zeigt die Kopie „Aktualisierung verfügbar“. „Aktualisieren…“ zeigt die Unterschiede und übernimmt sie als neue Version; Ihre bisherige Version und die Prüfungen, die sie verwenden, bleiben unverändert. Wird die Quelle nicht mehr geteilt, bleibt Ihre Kopie bestehen. Ob Ihr Konto teilen darf, legt die Administration fest.',
+                p4: 'Sie können eine Aufgabe auch direkt im Editor („Mit allen Konten teilen“, mit derselben Bestätigung wie im Teilen-Dialog) oder über das Menü „Teilen“ alle auf einmal teilen oder nicht mehr teilen. „Teilen pausieren“ blendet alles Geteilte vorübergehend aus, ohne Ihre Auswahl zu vergessen. Von anderen übernommene Aufgaben werden nie als Ihre eigenen geteilt. Beim Aktualisieren wählen Sie, welche Varianten Sie übernehmen, und können das Ergebnis direkt im Dialog bearbeiten.',
+            },
+            s6: {
+                h: 'Änderungen dem Original vorschlagen',
+                p1: 'Haben Sie Ihre Kopie verbessert oder eine Variante ergänzt, schlägt „Dem Original vorschlagen…“ das der Person vor, die die Aufgabe teilt. Geänderte Varianten werden als neue Version vorgeschlagen, ergänzte als neue Variante. Ihre E-Mail-Adresse wird dabei angezeigt.',
+                p2: 'Die Person sieht Vorschläge unter „Vorschläge“ und erhält eine kurze E-Mail-Benachrichtigung ohne Inhalt. Sie vergleicht den Vorschlag mit ihrer aktuellen Version, kann ihn bearbeiten und übernimmt oder lehnt ihn ab. Übernommen wird immer als neue Version oder neue Variante; bestehende Versionen und Prüfungen bleiben unverändert. Eine PDF-Vorschau gibt es erst nach dem Übernehmen.',
+                p3: 'Nach der Entscheidung wird der Inhalt des Vorschlags gelöscht, der Eintrag selbst nach 30 Tagen; offene Vorschläge nach 180 Tagen. Sie können einen offenen Vorschlag jederzeit zurückziehen. Übernommene Änderungen erreichen Ihre Kopie über „Aktualisieren…“. Wurde Ihr Vorschlag unverändert übernommen, ist Ihre Kopie automatisch wieder auf dem Stand des Originals; nur bei einer bearbeiteten Übernahme erscheint „Aktualisierung verfügbar“. Aufgaben mit offenem Vorschlag tragen in der Bibliothek ein Schild, das direkt zu den Vorschlägen führt; von dort öffnet „In der Bibliothek öffnen“ die Aufgabe.',
             },
         },
         examCreation: {

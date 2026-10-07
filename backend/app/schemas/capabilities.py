@@ -16,6 +16,8 @@ class CapabilitiesOut(BaseModel):
     storage_mode: StorageMode | None
     allowed_storage_modes: list[StorageMode]
     features: dict[str, bool]
+    # The teacher paused their own sharing (issue #65); shared exercises are hidden meanwhile.
+    sharing_paused: bool = False
 
 
 class StorageModeUpdate(BaseModel):

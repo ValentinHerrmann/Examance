@@ -2,6 +2,8 @@ import { writable, type Readable } from "svelte/store";
 
 export interface ExpandSet extends Readable<Record<string, boolean>> {
   toggle(id: string): void;
+  /** Expands *id* if it is collapsed (e.g. when navigating to a card). */
+  open(id: string): void;
   /** Forgets expanded ids that no longer exist (after a refresh or delete). */
   prune(validIds: Iterable<string>): void;
   /** Currently expanded ids. */
@@ -24,6 +26,9 @@ export function createExpandSet(onExpand?: (id: string) => void): ExpandSet {
       const open = !state[id];
       set({ ...state, [id]: open });
       if (open) onExpand?.(id);
+    },
+    open(id) {
+      if (!state[id]) this.toggle(id);
     },
     prune(validIds) {
       const valid = new Set(validIds);

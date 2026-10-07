@@ -57,6 +57,21 @@ class AuditLog(Base):
             "PASSWORD_CHANGED",
             # A self-deletion link was mailed (migration 0029).
             "DELETION_REQUESTED",
+            # Exercise sharing (issue #65, migration 0030).
+            "EXERCISE_SHARING_CHANGED",
+            "EXERCISE_COPIED",
+            "EXERCISE_RESYNCED",
+            # Contributions back to a shared original (migration 0031).
+            "CONTRIBUTION_SUBMITTED",
+            "CONTRIBUTION_ACCEPTED",
+            "CONTRIBUTION_REJECTED",
+            "CONTRIBUTION_WITHDRAWN",
+            # Consent and its withdrawal, told apart (migration 0032). The old
+            # EXERCISE_SHARING_CHANGED stays for rows written before it.
+            "EXERCISE_SHARED",
+            "EXERCISE_UNSHARED",
+            "EXERCISE_SHARING_PAUSED",
+            "EXERCISE_SHARING_RESUMED",
             name="audit_action",
         ),
         nullable=False,

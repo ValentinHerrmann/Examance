@@ -168,7 +168,7 @@ async def delete_account(
         await db.execute(
             update(Exercise)
             .where(Exercise.teacher_id == teacher.id, Exercise.exam_id.is_(None))
-            .values(teacher_id=None, exercise_group_id=None, is_public=False)
+            .values(teacher_id=None, exercise_group_id=None, is_public=False, shared_at=None)
         )
 
     # Written before the row disappears; audit_svc snapshots the email.

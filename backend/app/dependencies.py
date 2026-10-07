@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import jwt
 from fastapi import Cookie, Depends, HTTPException, status
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -14,6 +14,7 @@ from app.models.exam import Exam
 from app.models.exercise import Exercise
 from app.models.scan_submission import ScanSubmission
 from app.models.teacher import Teacher
+from app.services.exercise_sharing import readable_clause
 from app.services.jwt import decode_token
 
 
@@ -189,7 +190,7 @@ async def get_exercise_for_teacher(
 ) -> Exercise:
     """Return the exercise only if it belongs to *teacher*; use for every write path.
 
-    Public (`is_public`) exercises are never writable by non-owners. Raises 404, not 403, so a
+    Shared (`is_public`) exercises are never writable by non-owners. Raises 404, not 403, so a
     non-owner cannot tell "someone else's" from "does not exist"."""
     result = await db.execute(
         select(Exercise).where(
@@ -208,17 +209,12 @@ async def get_readable_exercise(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> Exercise:
-    """
-    Return the exercise if *teacher* owns it or it was explicitly published.
+    """Return the exercise if *teacher* owns it or it is shared with them (issue #65).
 
-    Read-only counterpart to `get_exercise_for_teacher`; mirrors the ownership
-    predicate already applied by `list_exercises`.
-    """
+    Read-only counterpart to `get_exercise_for_teacher`; never use it to write or to link an
+    exercise into an exam (a shared row is only ever copied)."""
     result = await db.execute(
-        select(Exercise).where(
-            Exercise.id == exercise_id,
-            or_(Exercise.teacher_id == teacher.id, Exercise.is_public.is_(True)),
-        )
+        select(Exercise).where(Exercise.id == exercise_id, readable_clause(teacher))
     )
     exercise = result.scalar_one_or_none()
     if exercise is None:

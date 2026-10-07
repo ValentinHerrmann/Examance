@@ -4,24 +4,26 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.exercise import Exercise
 from app.models.exercise_resource import ExerciseResource
+from app.models.teacher import Teacher
+from app.services.exercise_sharing import readable_clause
 from app.services.latex_resources import merge_resources
 
 
 async def load_resources_for_exercises(
     exercise_ids: Sequence[uuid.UUID],
-    teacher_id: uuid.UUID,
+    teacher: Teacher,
     db: AsyncSession,
 ) -> dict[str, bytes]:
     """
     Resource files of *exercise_ids*, merged into one working-directory map.
 
     Only exercises the teacher may read are considered — their own, or ones
-    explicitly published — mirroring ``get_readable_exercise``. Ids the caller
+    shared with them — mirroring ``get_readable_exercise``. Ids the caller
     may not read are skipped rather than rejected: the compile endpoint takes
     the list as a hint about what the document needs, not as an assertion of
     ownership, and a missing figure is a better failure mode than a 403 on an
@@ -35,8 +37,7 @@ async def load_resources_for_exercises(
         (
             await db.execute(
                 select(Exercise.id, Exercise.name).where(
-                    Exercise.id.in_(unique_ids),
-                    or_(Exercise.teacher_id == teacher_id, Exercise.is_public.is_(True)),
+                    Exercise.id.in_(unique_ids), readable_clause(teacher)
                 )
             )
         )

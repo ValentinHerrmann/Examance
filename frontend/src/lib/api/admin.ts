@@ -11,16 +11,17 @@ import { api } from './client';
  * The switches an admin sets per account. Exams and exercises always live on the server and need none.
  * Keys mirror `AccountFeatures` in backend/app/schemas/admin.py; the UI renders them in this order.
  */
-export const ACCOUNT_FEATURES = ['server_results', 'server_latex'] as const;
+export const ACCOUNT_FEATURES = ['server_results', 'server_latex', 'exercise_sharing'] as const;
 export type AccountFeature = (typeof ACCOUNT_FEATURES)[number];
 export type AccountFeatures = Record<AccountFeature, boolean>;
 
-export const ALL_FEATURES_ON: AccountFeatures = { server_results: true, server_latex: true };
+export const ALL_FEATURES_ON: AccountFeatures = { server_results: true, server_latex: true, exercise_sharing: true };
 
 /** Short column headers for the switches in the admin tables. */
 export const FEATURE_COLUMNS = {
   server_results: 'admin.accounts.columnResults',
   server_latex: 'admin.accounts.columnLatex',
+  exercise_sharing: 'admin.accounts.columnSharing',
 } as const satisfies Record<AccountFeature, TranslationKey>;
 
 export interface AdminUser {

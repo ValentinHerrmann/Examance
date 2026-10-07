@@ -47,6 +47,8 @@ class ExerciseResource(Base):
     )
     byte_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    # Hex SHA-256 of `content` for resync change detection; null rows are filled lazily.
+    content_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

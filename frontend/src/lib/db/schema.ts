@@ -75,6 +75,10 @@ export interface ExerciseRecord extends MaybeUndecryptable {
    * no LaTeX to compile or edit.
    */
   codeWithheld?: boolean;
+  /** Shared with every account of the installation (issue #65); own rows only. */
+  isShared?: boolean;
+  /** The group was copied from another account: it can be proposed back, never shared. */
+  groupCopied?: boolean;
   /** AES-256-GCM encrypted payload containing title, name, latexBody, options, correctAnswers. */
   payloadCt?: Uint8Array;
   /** 12-byte GCM IV for payloadCt. */
