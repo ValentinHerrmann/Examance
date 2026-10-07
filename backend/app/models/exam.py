@@ -41,6 +41,7 @@ class Exam(Base):
     datum: Mapped[str | None] = mapped_column(String(100), nullable=True)
     nr: Mapped[str | None] = mapped_column(String(10), nullable=True)
     fach: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    topic: Mapped[str | None] = mapped_column(String(200), nullable=True)
     lehrernachname: Mapped[str | None] = mapped_column(String(100), nullable=True)
     info_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     grading_key: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

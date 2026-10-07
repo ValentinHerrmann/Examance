@@ -6532,6 +6532,18 @@
             ],
             "title": "Fach"
           },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
           "lehrernachname": {
             "anyOf": [
               {
@@ -6872,6 +6884,17 @@
             ],
             "title": "Fach"
           },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
           "lehrernachname": {
             "anyOf": [
               {
@@ -7036,6 +7059,18 @@
               }
             ],
             "title": "Fach"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
           },
           "lehrernachname": {
             "anyOf": [

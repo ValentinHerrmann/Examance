@@ -36,6 +36,11 @@ def validate_retention_until(value: date | None) -> date | None:
     return value
 
 
+def normalize_topic(value: Any) -> Any:
+    """Trim the optional exam topic; blank means none. Runs before max_length (padding is free)."""
+    return (value.strip() or None) if isinstance(value, str) else value
+
+
 class ExerciseCreate(BaseModel):
     id: uuid.UUID | None = None
     name: str = "Exercise"
@@ -157,6 +162,7 @@ class ExamCreate(BaseModel):
     datum: str | None = None
     nr: str | None = None
     fach: str | None = None
+    topic: str | None = Field(default=None, max_length=200)
     lehrernachname: str | None = None
     info_text: str | None = None
     grading_key: dict[str, Any] | None = None
@@ -166,6 +172,7 @@ class ExamCreate(BaseModel):
     mc_groups: list[ExamMcGroupCreate] = []
 
     _check_retention = field_validator("retention_until")(validate_retention_until)
+    _normalize_topic = field_validator("topic", mode="before")(normalize_topic)
 
 
 class ExamUpdate(BaseModel):
@@ -178,6 +185,8 @@ class ExamUpdate(BaseModel):
     datum: str | None = None
     nr: str | None = None
     fach: str | None = None
+    # Absent keeps the stored topic; null or blank clears it (checked via model_fields_set).
+    topic: str | None = Field(default=None, max_length=200)
     lehrernachname: str | None = None
     info_text: str | None = None
     grading_key: dict[str, Any] | None = None
@@ -186,6 +195,7 @@ class ExamUpdate(BaseModel):
     mc_groups: list[ExamMcGroupCreate] | None = None
 
     _check_retention = field_validator("retention_until")(validate_retention_until)
+    _normalize_topic = field_validator("topic", mode="before")(normalize_topic)
 
 
 class ExamResponse(BaseModel):
@@ -202,6 +212,7 @@ class ExamResponse(BaseModel):
     datum: str | None = None
     nr: str | None = None
     fach: str | None = None
+    topic: str | None = None
     lehrernachname: str | None = None
     info_text: str | None = None
     grading_key: dict[str, Any] | None = None
