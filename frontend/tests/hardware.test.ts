@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { detectHardware, PipelineMonitor } from '../src/lib/hardware/detect';
 import { generateLatex, generateQrDataUrl } from '../src/lib/latex/generator';
 

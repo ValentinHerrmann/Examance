@@ -274,7 +274,7 @@ describe('compileCache', () => {
       expect(res2.pdfBytes).toEqual(res1.pdfBytes);
 
       // Third run with modified LaTeX: cache miss -> compiles again
-      const res3 = await compileWithCache(key, source + ' extra', true);
+      await compileWithCache(key, source + ' extra', true);
       expect(compileSpy).toHaveBeenCalledTimes(2);
     });
   });
