@@ -143,6 +143,11 @@ export const exercises: Translations['exercises'] = {
     contributions: {
         tab: 'Proposals',
         propose: 'Propose to original…',
+        openInLibrary: 'Open in library',
+        tagIncoming: '{count} proposals',
+        tagOutgoing: 'Proposal pending',
+        focusedOn: 'Proposals for “{name}”',
+        showAll: 'Show all',
         loading: 'Loading proposals…',
         loadFailed: 'Proposals could not be loaded.',
         decideFailed: 'The decision could not be saved.',

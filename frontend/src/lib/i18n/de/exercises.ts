@@ -141,6 +141,11 @@ export const exercises = {
     contributions: {
         tab: 'Vorschläge',
         propose: 'Dem Original vorschlagen…',
+        openInLibrary: 'In der Bibliothek öffnen',
+        tagIncoming: '{count} Vorschläge',
+        tagOutgoing: 'Vorschlag offen',
+        focusedOn: 'Vorschläge zu „{name}“',
+        showAll: 'Alle anzeigen',
         loading: 'Vorschläge werden geladen…',
         loadFailed: 'Vorschläge konnten nicht geladen werden.',
         decideFailed: 'Die Entscheidung konnte nicht gespeichert werden.',

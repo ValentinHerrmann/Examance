@@ -3,7 +3,7 @@
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
   import { Badge, Button } from "#lib/components/ui";
-  import { faMagnifyingGlass, faRotateLeft } from "@fortawesome/free-solid-svg-icons";
+  import { faArrowUpRightFromSquare, faMagnifyingGlass, faRotateLeft, faXmark } from "@fortawesome/free-solid-svg-icons";
 
   /** The "Proposals" view: proposals to my shared exercises and the ones I sent (issue #65). */
   interface Props {
@@ -13,9 +13,29 @@
     busyId?: string;
     onReview: (item: ContributionSummary) => void;
     onWithdraw: (item: ContributionSummary) => void;
+    /** Jump to the exercise group in the own library. */
+    onOpenGroup: (groupId: string) => void;
+    /** Show only proposals about this own group (set from the tag on a library card). */
+    focusGroupId?: string;
+    focusName?: string;
+    onClearFocus: () => void;
   }
 
-  let { incoming = [], outgoing = [], isLoading = false, busyId = "", onReview, onWithdraw }: Props = $props();
+  let {
+    incoming = [],
+    outgoing = [],
+    isLoading = false,
+    busyId = "",
+    onReview,
+    onWithdraw,
+    onOpenGroup,
+    focusGroupId = "",
+    focusName = "",
+    onClearFocus,
+  }: Props = $props();
+
+  const inFocus = (item: ContributionSummary) => !focusGroupId || item.libraryGroupId === focusGroupId;
+  let shownOutgoing = $derived(outgoing.filter(inFocus));
 
   const statusSeverity = { pending: "warning", accepted: "success", rejected: "danger", withdrawn: "secondary" } as const;
   const statusKey = {
@@ -25,7 +45,9 @@
     withdrawn: "exercises.contributions.status.withdrawn",
   } as const;
 
-  let sortedIncoming = $derived([...incoming].sort((a, b) => Number(b.status === "pending") - Number(a.status === "pending")));
+  let sortedIncoming = $derived(
+    incoming.filter(inFocus).sort((a, b) => Number(b.status === "pending") - Number(a.status === "pending")),
+  );
 </script>
 
 {#snippet card(item: ContributionSummary)}
@@ -57,7 +79,12 @@
         <span class="min-w-0 break-words text-sm text-muted">{$t("exercises.contributions.note", { note: item.decisionNote })}</span>
       {/if}
     </div>
-    <div class="flex shrink-0 gap-2">
+    <div class="flex shrink-0 flex-wrap gap-2">
+      {#if item.libraryGroupId}
+        <Button variant="text" severity="secondary" size="sm" icon={faArrowUpRightFromSquare} onClick={() => onOpenGroup(item.libraryGroupId!)}>
+          {$t("exercises.contributions.openInLibrary")}
+        </Button>
+      {/if}
       {#if item.direction === "incoming" && item.status === "pending"}
         <Button size="sm" icon={faMagnifyingGlass} onClick={() => onReview(item)}>{$t("exercises.contributions.review")}</Button>
       {:else if item.direction === "outgoing" && item.status === "pending"}
@@ -73,6 +100,12 @@
   <div class="p-12 text-center text-muted">{$t("exercises.contributions.loading")}</div>
 {:else}
   <div class="flex flex-col gap-6">
+    {#if focusGroupId}
+      <div class="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface-sunken px-3 py-2 text-sm text-content">
+        <span class="min-w-0 break-words">{$t("exercises.contributions.focusedOn", { name: focusName || $t("exercises.untitled") })}</span>
+        <Button variant="text" severity="secondary" size="sm" icon={faXmark} onClick={onClearFocus}>{$t("exercises.contributions.showAll")}</Button>
+      </div>
+    {/if}
     <section class="flex flex-col gap-2">
       <h2 class="m-0 text-base font-semibold text-content">{$t("exercises.contributions.incoming")}</h2>
       {#if sortedIncoming.length === 0}
@@ -85,11 +118,11 @@
     </section>
     <section class="flex flex-col gap-2">
       <h2 class="m-0 text-base font-semibold text-content">{$t("exercises.contributions.outgoing")}</h2>
-      {#if outgoing.length === 0}
+      {#if shownOutgoing.length === 0}
         <p class="m-0 text-sm text-muted">{$t("exercises.contributions.noOutgoing")}</p>
       {:else}
         <ul class="m-0 flex list-none flex-col gap-2 p-0">
-          {#each outgoing as item (item.id)}{@render card(item)}{/each}
+          {#each shownOutgoing as item (item.id)}{@render card(item)}{/each}
         </ul>
       {/if}
     </section>

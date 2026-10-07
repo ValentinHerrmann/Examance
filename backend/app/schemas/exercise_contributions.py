@@ -49,6 +49,9 @@ class ContributionSummary(BaseModel):
     stale: bool = False
     target_gone: bool = False
     result_exercise_id: uuid.UUID | None = None
+    # The viewer's own exercise group this proposal is about (author: the original; contributor:
+    # their copy). Never the other account's group.
+    library_group_id: uuid.UUID | None = None
 
 
 class ContributionFile(BaseModel):
@@ -69,5 +72,13 @@ class ContributionDetail(ContributionSummary):
     files: list[ContributionFile] = []
 
 
+class PendingForGroup(BaseModel):
+    group_id: uuid.UUID
+    incoming: int = 0
+    outgoing: int = 0
+
+
 class ContributionCount(BaseModel):
     incoming_pending: int
+    # Pending proposals per own group, for the tag on the library card.
+    pending_by_group: list[PendingForGroup] = []

@@ -425,6 +425,15 @@ teacher's consent; stopping the share withdraws it.
   withdraws the older), 20 pending per contributor, 30 submissions per hour. Audit:
   `CONTRIBUTION_SUBMITTED`, `_ACCEPTED`, `_REJECTED`, `_WITHDRAWN`. The export lists the proposals an
   account sent.
+* **Content-equal means in sync.** When a copy's variant has the same content fingerprint as its
+  source (a proposal accepted unchanged, or the same edit made by hand), the copy owner's next status
+  check advances its sync point (`synced_fingerprint`, `copied_from_exercise_id`) instead of offering
+  an update, and links an added variant to the identical source variant. This touches provenance
+  only, on the copy owner's own rows in their own request; no account writes another account's rows.
+  An edited acceptance differs in content and is offered as a normal update.
+* **Navigation.** Proposals carry the viewer's own group (`library_group_id`: the original for the
+  author, the copy for the contributor; never the other side's id) and `/contributions/summary`
+  reports pending proposals per own group, so the library tags groups and links both ways.
 * **Owner privacy.** The sharer never learns who copied or resynced (no counts, no notifications).
 * **Revocation.** Stopping the share (never gated, also after the switch was revoked) hides the
   group and stops new copies and resyncs; existing copies belong to their copiers. Deleting the

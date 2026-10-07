@@ -311,3 +311,15 @@ async def test_copies_are_never_shared_as_ones_own(shared) -> None:
     off = await b.post(f"{API}/sharing/bulk", json={"shared": False})
     assert off.status_code == 200
     assert (await b.get(API)).json()[0]["is_shared"] is False
+
+
+@pytest.mark.asyncio
+async def test_copy_equal_to_the_changed_source_is_in_sync(shared) -> None:
+    a, b, ex_id = shared["a"], shared["b"], shared["ex_id"]
+    copied = await _copy(b, ex_id)
+    (row,) = copied["exercises"]
+    await a.patch(f"{API}/{ex_id}", json={"latex_body": "\\BE Same fix"})
+    await b.patch(f"{API}/{row['id']}", json={"latex_body": "\\BE Same fix"})
+    status = await _status(b, copied["group_id"])
+    assert status["state"] == "up_to_date"
+    assert status["locally_modified"] is False

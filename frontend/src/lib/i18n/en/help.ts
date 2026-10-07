@@ -112,7 +112,7 @@ export const help: Translations['help'] = {
                 h: 'Proposing changes to the original',
                 p1: 'If you improved your copy or added a variant, “Propose to original…” suggests it to the person who shares the exercise. Changed variants are proposed as a new version, added ones as a new variant. Your email address is shown to them.',
                 p2: 'They see proposals under “Proposals” and get a short email notice without content. They compare the proposal with their current version, can edit it, and accept or reject it. Accepting always adds a new version or variant; existing versions and exams stay unchanged. A PDF preview is available only after accepting.',
-                p3: 'After the decision the proposal’s content is deleted, the entry itself after 30 days; open proposals after 180 days. You can withdraw an open proposal at any time. Accepted changes reach your copy through “Update…”.',
+                p3: 'After the decision the proposal’s content is deleted, the entry itself after 30 days; open proposals after 180 days. You can withdraw an open proposal at any time. Accepted changes reach your copy through “Update…”. If your proposal was accepted unchanged, your copy is automatically back in sync with the original; only an edited acceptance shows “Update available”. Exercises with an open proposal carry a tag in the library that leads straight to the proposals; from there, “Open in library” opens the exercise.',
             },
         },
         examCreation: {

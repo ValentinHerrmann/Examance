@@ -259,3 +259,67 @@ async def test_retention_drops_old_decided_proposals(linked, engine, monkeypatch
             select(ExerciseContribution).where(ExerciseContribution.id == uuid.UUID(cid))
         )
         assert gone.scalar_one_or_none() is None
+
+
+async def _status(b: AsyncClient, group_id: str) -> dict[str, Any]:
+    (item,) = [s for s in (await b.get(f"{API}/sync-status")).json() if s["group_id"] == group_id]
+    return dict(item)
+
+
+@pytest.mark.asyncio
+async def test_identical_accept_needs_no_update(linked) -> None:
+    a, b = linked["a"], linked["b"]
+    await _edit_copy(b, linked["copy_id"], "\\BE Better wording")
+    (cid,) = await _propose(b, linked["group_id"], [linked["copy_id"]])
+    assert (await a.post(f"{CONTRIB}/{cid}/accept", json={})).status_code == 200
+    status = await _status(b, linked["group_id"])
+    assert status["state"] == "up_to_date"
+    assert status["changed_variants"] == 0
+    assert status["locally_modified"] is False
+
+
+@pytest.mark.asyncio
+async def test_edited_accept_still_offers_the_update(linked) -> None:
+    a, b = linked["a"], linked["b"]
+    await _edit_copy(b, linked["copy_id"], "\\BE Better wording")
+    (cid,) = await _propose(b, linked["group_id"], [linked["copy_id"]])
+    resp = await a.post(f"{CONTRIB}/{cid}/accept", json={"latex_body": "\\BE Author's take"})
+    assert resp.status_code == 200
+    assert (await _status(b, linked["group_id"]))["state"] == "update_available"
+
+
+@pytest.mark.asyncio
+async def test_accepted_variant_links_the_contributors_variant(linked) -> None:
+    a, b = linked["a"], linked["b"]
+    added = await b.post(
+        f"{API}/{linked['copy_id']}/new-variant",
+        json={"latex_body": "\\BE Extra context", "variant_key": "Extra"},
+    )
+    (cid,) = await _propose(b, linked["group_id"], [added.json()["id"]])
+    assert (await a.post(f"{CONTRIB}/{cid}/accept", json={})).status_code == 200
+    status = await _status(b, linked["group_id"])
+    assert status["state"] == "up_to_date"
+    assert status["new_variants"] == 0 and status["local_variants"] == 0
+
+
+@pytest.mark.asyncio
+async def test_pending_tags_and_library_links_point_to_own_groups(linked) -> None:
+    a, b = linked["a"], linked["b"]
+    await _edit_copy(b, linked["copy_id"], "\\BE Tagged")
+    (cid,) = await _propose(b, linked["group_id"], [linked["copy_id"]])
+    owner_group = (await a.get(f"{API}/{linked['ex_id']}")).json()["exercise_group_id"]
+
+    owner_summary = (await a.get(f"{CONTRIB}/summary")).json()
+    assert {"group_id": owner_group, "incoming": 1, "outgoing": 0} in owner_summary[
+        "pending_by_group"
+    ]
+    contributor_summary = (await b.get(f"{CONTRIB}/summary")).json()
+    assert {"group_id": linked["group_id"], "incoming": 0, "outgoing": 1} in contributor_summary[
+        "pending_by_group"
+    ]
+
+    (incoming,) = [i for i in (await a.get(CONTRIB)).json() if i["id"] == cid]
+    assert incoming["library_group_id"] == owner_group
+    outgoing = (await b.get(CONTRIB, params={"direction": "outgoing"})).json()
+    (mine,) = [i for i in outgoing if i["id"] == cid]
+    assert mine["library_group_id"] == linked["group_id"]

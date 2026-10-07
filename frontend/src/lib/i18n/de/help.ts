@@ -112,7 +112,7 @@ export const help = {
                 h: 'Änderungen dem Original vorschlagen',
                 p1: 'Haben Sie Ihre Kopie verbessert oder eine Variante ergänzt, schlägt „Dem Original vorschlagen…“ das der Person vor, die die Aufgabe teilt. Geänderte Varianten werden als neue Version vorgeschlagen, ergänzte als neue Variante. Ihre E-Mail-Adresse wird dabei angezeigt.',
                 p2: 'Die Person sieht Vorschläge unter „Vorschläge“ und erhält eine kurze E-Mail-Benachrichtigung ohne Inhalt. Sie vergleicht den Vorschlag mit ihrer aktuellen Version, kann ihn bearbeiten und übernimmt oder lehnt ihn ab. Übernommen wird immer als neue Version oder neue Variante; bestehende Versionen und Prüfungen bleiben unverändert. Eine PDF-Vorschau gibt es erst nach dem Übernehmen.',
-                p3: 'Nach der Entscheidung wird der Inhalt des Vorschlags gelöscht, der Eintrag selbst nach 30 Tagen; offene Vorschläge nach 180 Tagen. Sie können einen offenen Vorschlag jederzeit zurückziehen. Übernommene Änderungen erreichen Ihre Kopie über „Aktualisieren…“.',
+                p3: 'Nach der Entscheidung wird der Inhalt des Vorschlags gelöscht, der Eintrag selbst nach 30 Tagen; offene Vorschläge nach 180 Tagen. Sie können einen offenen Vorschlag jederzeit zurückziehen. Übernommene Änderungen erreichen Ihre Kopie über „Aktualisieren…“. Wurde Ihr Vorschlag unverändert übernommen, ist Ihre Kopie automatisch wieder auf dem Stand des Originals; nur bei einer bearbeiteten Übernahme erscheint „Aktualisierung verfügbar“. Aufgaben mit offenem Vorschlag tragen in der Bibliothek ein Schild, das direkt zu den Vorschlägen führt; von dort öffnet „In der Bibliothek öffnen“ die Aufgabe.',
             },
         },
         examCreation: {

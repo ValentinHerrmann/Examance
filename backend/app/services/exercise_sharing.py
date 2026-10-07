@@ -324,10 +324,16 @@ async def plan_groups(
     }
     digests = await resource_digests([r.id for r in own_rows + source_rows], db)
 
+    def own_fp(row: Exercise) -> str:
+        return content_fingerprint(row, digests.get(row.id, []))
+
     plans: list[GroupPlan] = []
     for group in groups:
         mine = [
             r for r in own_rows if r.exercise_group_id == group.id and r.copied_from_exercise_id
+        ]
+        added = [
+            r for r in own_rows if r.exercise_group_id == group.id and not r.copied_from_exercise_id
         ]
         theirs = [r for r in source_rows if r.exercise_group_id == group.source_group_id]
         plan = GroupPlan(group=group, state="source_unavailable" if not theirs else "up_to_date")
@@ -335,19 +341,24 @@ async def plan_groups(
         for src in theirs:
             own = _match(src, mine, matched, lineage)
             fp = content_fingerprint(src, digests.get(src.id, []))
+            if own is None:
+                # A variant the recipient added with the same content (an accepted proposal) is it.
+                own = next((r for r in added if own_fp(r) == fp), None)
+                if own is not None:
+                    added.remove(own)
             variant = VariantPlan(source=src, own=own, source_fingerprint=fp)
             if own is None:
                 variant.kind = "new"
             else:
                 matched.add(own.id)
-                variant.locally_modified = (
-                    content_fingerprint(own, digests.get(own.id, [])) != own.synced_fingerprint
-                )
+                current = own_fp(own)
+                if current == fp:
+                    _mark_synced(own, src, fp)
+                variant.locally_modified = current != own.synced_fingerprint
                 variant.kind = "unchanged" if fp == own.synced_fingerprint else "changed"
             plan.variants.append(variant)
-        for own in own_rows:
-            if own.exercise_group_id == group.id and not own.copied_from_exercise_id:
-                plan.variants.append(VariantPlan(source=None, own=own, kind="local"))
+        for own in added:
+            plan.variants.append(VariantPlan(source=None, own=own, kind="local"))
         for own in mine:
             if own.id not in matched:
                 plan.variants.append(
@@ -355,14 +366,21 @@ async def plan_groups(
                         source=None,
                         own=own,
                         kind="removed",
-                        locally_modified=content_fingerprint(own, digests.get(own.id, []))
-                        != own.synced_fingerprint,
+                        locally_modified=own_fp(own) != own.synced_fingerprint,
                     )
                 )
         if theirs and plan.applicable:
             plan.state = "update_available"
         plans.append(plan)
     return plans
+
+
+def _mark_synced(own: Exercise, src: Exercise, fp: str) -> None:
+    """Content equal to the source means in sync (e.g. a proposal accepted unchanged): advance the
+    sync point. Provenance only, on the copy owner's own row in their own request."""
+    if own.synced_fingerprint != fp or own.copied_from_exercise_id != src.id:
+        own.synced_fingerprint = fp
+        own.copied_from_exercise_id = src.id
 
 
 def _match(

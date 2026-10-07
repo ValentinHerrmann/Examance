@@ -8,11 +8,12 @@ import uuid
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_teacher
+from app.models.exercise import Exercise
 from app.models.exercise_contribution import ExerciseContribution, ExerciseContributionResource
 from app.models.exercise_group import ExerciseGroup
 from app.models.teacher import Teacher
@@ -24,6 +25,7 @@ from app.schemas.exercise_contributions import (
     ContributionFile,
     ContributionReject,
     ContributionSummary,
+    PendingForGroup,
 )
 from app.services import audit as audit_svc
 from app.services import exercise_contributions as contrib
@@ -67,6 +69,18 @@ async def _summary(
         stale=st.stale,
         target_gone=st.target_gone,
         result_exercise_id=row.result_exercise_id,
+        library_group_id=row.source_group_id if incoming else await _own_copy_group(row, db),
+    )
+
+
+async def _own_copy_group(row: ExerciseContribution, db: AsyncSession) -> uuid.UUID | None:
+    """The contributor's group the proposal came from, if that row is still theirs."""
+    if row.from_exercise_id is None:
+        return None
+    return await db.scalar(
+        select(Exercise.exercise_group_id).where(
+            Exercise.id == row.from_exercise_id, Exercise.teacher_id == row.contributor_id
+        )
     )
 
 
@@ -98,13 +112,37 @@ async def contribution_count(
     teacher: Teacher = Depends(get_current_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> ContributionCount:
-    rows = await db.execute(
-        select(ExerciseContribution.id).where(
-            ExerciseContribution.owner_id == teacher.id,
-            ExerciseContribution.status == "pending",
+    """Pending proposals: the incoming total (tab badge) and per own group (library tag)."""
+    pending = ExerciseContribution.status == "pending"
+    incoming = (
+        await db.execute(
+            select(ExerciseContribution.source_group_id, func.count())
+            .where(ExerciseContribution.owner_id == teacher.id, pending)
+            .group_by(ExerciseContribution.source_group_id)
         )
+    ).tuples().all()
+    outgoing = (
+        await db.execute(
+            select(Exercise.exercise_group_id, func.count())
+            .join(Exercise, Exercise.id == ExerciseContribution.from_exercise_id)
+            .where(
+                ExerciseContribution.contributor_id == teacher.id,
+                Exercise.teacher_id == teacher.id,
+                Exercise.exercise_group_id.is_not(None),
+                pending,
+            )
+            .group_by(Exercise.exercise_group_id)
+        )
+    ).tuples().all()
+    by_group: dict[uuid.UUID, PendingForGroup] = {}
+    for gid, n in incoming:
+        by_group.setdefault(gid, PendingForGroup(group_id=gid)).incoming = n
+    for copy_gid, n in outgoing:
+        if copy_gid is not None:
+            by_group.setdefault(copy_gid, PendingForGroup(group_id=copy_gid)).outgoing = n
+    return ContributionCount(
+        incoming_pending=sum(n for _gid, n in incoming), pending_by_group=list(by_group.values())
     )
-    return ContributionCount(incoming_pending=len(rows.all()))
 
 
 @router.get("/{contribution_id}", response_model=ContributionDetail)

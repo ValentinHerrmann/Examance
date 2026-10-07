@@ -26,6 +26,14 @@ export interface ContributionSummary {
   stale: boolean;
   /** The variant it changes no longer exists; it can only be accepted as a new variant. */
   targetGone: boolean;
+  /** The viewer's own exercise group it is about (author: the original; contributor: the copy). */
+  libraryGroupId: string | null;
+}
+
+/** Pending proposals per own exercise group, for the tag on the library card. */
+export interface PendingForGroup {
+  incoming: number;
+  outgoing: number;
 }
 
 export interface ContributionFile {
@@ -57,6 +65,7 @@ function toSummary(raw: any): ContributionSummary {
     counterpartEmail: raw.counterpart_email ?? null,
     stale: !!raw.stale,
     targetGone: !!raw.target_gone,
+    libraryGroupId: raw.library_group_id ?? null,
   };
 }
 
@@ -65,9 +74,15 @@ export async function listContributions(direction: 'incoming' | 'outgoing'): Pro
   return rows.map(toSummary);
 }
 
-export async function pendingIncomingCount(): Promise<number> {
-  const res = await api.get<{ incoming_pending: number }>('/exercises/contributions/summary', { silentError: true });
-  return res.incoming_pending;
+/** Pending proposals: the incoming total (tab badge) and per own group (library tag). */
+export async function loadContributionSummary(): Promise<{ incomingPending: number; byGroup: Map<string, PendingForGroup> }> {
+  const res = await api.get<{ incoming_pending: number; pending_by_group: any[] }>('/exercises/contributions/summary', {
+    silentError: true,
+  });
+  return {
+    incomingPending: res.incoming_pending,
+    byGroup: new Map(res.pending_by_group.map((g) => [g.group_id, { incoming: g.incoming, outgoing: g.outgoing }])),
+  };
 }
 
 export async function loadContribution(id: string): Promise<ContributionDetail> {

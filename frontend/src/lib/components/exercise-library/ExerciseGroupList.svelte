@@ -4,6 +4,7 @@
   import { usageKey, type ExamUsageEntry } from "#lib/exercise-library/examUsage";
   import { getGroupRepresentative, type ExerciseGroup } from "#lib/exercise-library/groupExercises";
   import type { SyncStatus } from "#lib/api/exerciseSharing";
+  import type { PendingForGroup } from "#lib/api/exerciseContributions";
   import { t } from "#lib/i18n";
   import {
     faPenToSquare,
@@ -54,6 +55,9 @@
     onCopy?: (group: ExerciseGroup) => void;
     /** Propose the copy's changes to the original's author. */
     onContribute?: (group: ExerciseGroup) => void;
+    /** Pending proposals by own group id; the tag opens the Proposals tab for that group. */
+    pendingByGroup?: Map<string, PendingForGroup>;
+    onOpenProposals?: (group: ExerciseGroup) => void;
     /** Group id of a copy in progress. */
     copyingGroupId?: string;
   }
@@ -82,6 +86,8 @@
     onUnlink = noop,
     onCopy = noop,
     onContribute = noop,
+    pendingByGroup = new Map(),
+    onOpenProposals = noop,
     copyingGroupId = ""
   }: Props = $props();
 
@@ -123,6 +129,8 @@
       {@const variantCount = group.variants.size}
       {@const isExpanded = !!expandedGroups[group.groupId]}
       {@const sync = syncStatus.get(group.groupId)}
+      {@const pending = isShared ? undefined : pendingByGroup.get(group.groupId)}
+      <div id="exercise-group-{group.groupId}" class="scroll-mt-24">
       <ExpandableCard
         title={group.name || $t("exercises.untitled")}
         expanded={isExpanded}
@@ -149,6 +157,20 @@
           {:else}
             {#if groupIsShared(group)}
               <Badge severity="info" icon={faShareNodes} title={$t("exercises.sharing.sharedBadgeTitle")}>{$t("exercises.sharing.sharedBadge")}</Badge>
+            {/if}
+            {#if pending && (pending.incoming > 0 || pending.outgoing > 0)}
+              <!-- The card header toggles on click; the tag must not. -->
+              <span onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
+              <Button
+                variant="outlined"
+                severity="warning"
+                size="sm"
+                icon={faCodePullRequest}
+                onClick={() => onOpenProposals(group)}
+              >{pending.incoming > 0
+                ? $t("exercises.contributions.tagIncoming", { count: pending.incoming })
+                : $t("exercises.contributions.tagOutgoing")}</Button>
+              </span>
             {/if}
             {#if sync?.state === "update_available"}
               <Badge severity="warning" icon={faRotate}>{$t("exercises.sharing.updateBadge")}</Badge>
@@ -326,6 +348,7 @@
           {/if}
         {/snippet}
       </ExpandableCard>
+      </div>
     {/each}
   </div>
 {/if}

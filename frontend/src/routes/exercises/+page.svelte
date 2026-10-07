@@ -1,6 +1,6 @@
 <script lang="ts">
   import { type ExerciseGroup, getGroupRepresentative, groupExercises } from "#lib/exercise-library/groupExercises";
-  import { onMount, untrack } from "svelte";
+  import { onMount, tick, untrack } from "svelte";
   import { db } from "#lib/db/db";
   import { sessionStore, awaitSessionReady } from "#lib/stores/session";
   import { capabilitiesStore, effectiveLatexStore, featuresStore, markSharingPaused } from "#lib/stores/capabilities";
@@ -42,12 +42,13 @@
     acceptContribution,
     listContributions,
     loadContribution,
-    pendingIncomingCount,
+    loadContributionSummary,
     rejectContribution,
     submitContributions,
     withdrawContribution,
     type ContributionDetail,
     type ContributionSummary,
+    type PendingForGroup,
   } from "#lib/api/exerciseContributions";
   import {
     applyResync,
@@ -96,6 +97,10 @@
   let outgoing: ContributionSummary[] = $state.raw([]);
   let proposalsLoading = $state(false);
   let pendingProposals = $state(0);
+  let pendingByGroup: Map<string, PendingForGroup> = $state.raw(new Map());
+  /** Set from the tag on a library card: the Proposals view shows only that group. */
+  let proposalFocusGroupId = $state("");
+  let proposalFocusName = $state("");
   let withdrawingId = $state("");
   let reviewId = $state("");
   let reviewDetail: ContributionDetail | null = $state.raw(null);
@@ -230,8 +235,11 @@
 
   onMount(() => {
     const requested = page.url.searchParams.get("view");
+    const groupParam = page.url.searchParams.get("group");
     if (requested === "proposals" || requested === "shared") switchView(requested);
-    loadExercises();
+    loadExercises().then(() => {
+      if (groupParam) openGroupInLibrary(groupParam);
+    });
   });
 
   /** Overlapping calls coalesce into one more run, so a slow earlier fetch can't overwrite newer data. */
@@ -289,7 +297,9 @@
     if (!sharingEnabled || !isServerBacked() || isLocalFallback) return;
     try {
       syncStatus = new Map((await loadSyncStatus()).map((s) => [s.groupId, s]));
-      pendingProposals = await pendingIncomingCount();
+      const summary = await loadContributionSummary();
+      pendingProposals = summary.incomingPending;
+      pendingByGroup = summary.byGroup;
     } catch {
       sharingError = translate("exercises.sharing.statusFailed");
     }
@@ -306,6 +316,23 @@
     } finally {
       proposalsLoading = false;
     }
+    await refreshSyncStatus();
+  }
+
+  function openProposalsFor(group: ExerciseGroup) {
+    switchView("proposals", group.groupId, group.name);
+  }
+
+  /** Shows an own exercise group: own view, filters cleared (they could hide it), expanded, scrolled to. */
+  async function openGroupInLibrary(groupId: string) {
+    switchView("own");
+    searchQuery = "";
+    selectedTopic = "ALL";
+    selectedGrade = "ALL";
+    selectedSubject = "ALL";
+    expandedGroups.open(groupId);
+    await tick();
+    document.getElementById(`exercise-group-${groupId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function openReview(item: ContributionSummary) {
@@ -387,6 +414,7 @@
       await submitContributions(contributeGroupId, exerciseIds, message);
       contributeGroupId = "";
       sharingNotice = translate("exercises.contributions.submitted");
+      await refreshSyncStatus();
     } catch (err: any) {
       contributeError = err?.message || translate("exercises.contributions.submitFailed");
     } finally {
@@ -439,7 +467,10 @@
     }
   }
 
-  function switchView(next: string) {
+  /** Changing the tab by hand drops a focus set from a card's proposal tag. */
+  function switchView(next: string, focusGroupId = "", focusName = "") {
+    proposalFocusGroupId = focusGroupId;
+    proposalFocusName = focusName;
     view = next === "shared" || next === "proposals" ? next : "own";
     if (view === "shared") loadShared();
     if (view === "proposals") loadProposals();
@@ -1076,6 +1107,10 @@
       busyId={withdrawingId}
       onReview={openReview}
       onWithdraw={handleWithdraw}
+      onOpenGroup={openGroupInLibrary}
+      focusGroupId={proposalFocusGroupId}
+      focusName={proposalFocusName}
+      onClearFocus={() => switchView("proposals")}
     />
   {:else if view === "shared"}
     <ExerciseGroupList
@@ -1111,6 +1146,8 @@
       onResync={openResync}
       onUnlink={(group) => (unlinkGroup = group)}
       onContribute={openContribute}
+      {pendingByGroup}
+      onOpenProposals={openProposalsFor}
     />
   {/if}
   </FilterLayout>
