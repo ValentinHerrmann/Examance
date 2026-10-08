@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies import get_teaching_teacher
 from app.middleware.rate_limit import limiter
 from app.models.teacher import Teacher
 from app.schemas.latex import LaTeXRequest
@@ -19,7 +20,11 @@ from app.services.logo import resolve_logo_for_compile
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/compile", tags=["compile"])
+router = APIRouter(
+    prefix="/compile",
+    tags=["compile"],
+    dependencies=[Depends(get_teaching_teacher)],
+)
 
 
 @router.post("/latex")

@@ -229,23 +229,6 @@ async def test_list_submissions_omits_scan_by_default(
 
 
 @pytest.mark.asyncio
-async def test_admin_stats_k_anonymity(client: AsyncClient, db: AsyncSession) -> None:
-    await _create_teacher_and_login(client, db, "admin@example.com", role="admin")
-
-    e_resp = await client.post(
-        "/api/v1/exams",
-        json={"title": "Stats Exam", "retention_until": "2027-12-31"},
-    )
-    exam_id = e_resp.json()["id"]
-
-    # Less than 5 submissions -> suppressed
-    stats1 = await client.get(f"/api/v1/admin/stats/{exam_id}")
-    assert stats1.status_code == 200
-    assert stats1.json()["k_anonymity_satisfied"] is False
-    assert stats1.json()["mean_score"] is None
-
-
-@pytest.mark.asyncio
 async def test_admin_can_create_teacher_user(client: AsyncClient, db: AsyncSession) -> None:
     await _create_teacher_and_login(client, db, "admin-create@example.com", role="admin")
 

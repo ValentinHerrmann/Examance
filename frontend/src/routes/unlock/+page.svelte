@@ -47,6 +47,7 @@
     openWorkspace,
   } from "#lib/db/workspace";
   import { workspaceStatusStore } from "#lib/stores/workspaceState";
+  import { ADMIN_HOME } from "#lib/stores/navigationStore";
   import WorkspaceBlocked from "#lib/components/storage/WorkspaceBlocked.svelte";
 
 
@@ -279,7 +280,7 @@
       isFinishing = false;
       return;
     }
-    await goto("/");
+    await goto(status.state === "admin" ? ADMIN_HOME : "/");
   }
 
   /** Start the session from an opened vault and leave the sign-in screen. */

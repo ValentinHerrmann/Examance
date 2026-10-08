@@ -14,6 +14,8 @@ export type WorkspaceStatus =
   | { state: 'ok' }
   /** The account has not chosen a storage mode (or its mode is no longer allowed): show the choice. */
   | { state: 'needs-choice' }
+  /** An admin account: it holds no exams or results, so this browser's workspace is never opened (issue #58). */
+  | { state: 'admin' }
   | { state: 'blocked'; reason: WorkspaceBlockReason };
 
 /** Set by `openWorkspace()`; the root layout renders a blocking screen or the mode choice from it. */

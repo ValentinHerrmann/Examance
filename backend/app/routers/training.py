@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.dependencies import get_current_teacher
+from app.dependencies import get_teaching_teacher
 from app.middleware.rate_limit import limiter
 from app.models.omr_training_sample import OmrTrainingSample
 from app.models.teacher import Teacher
@@ -55,7 +55,7 @@ async def training_status(request: Request) -> TrainingStatus:  # request: requi
 @router.post("/omr-samples", status_code=status.HTTP_204_NO_CONTENT)
 async def donate_omr_samples(
     body: OmrSampleBatch,
-    teacher: Annotated[Teacher, Depends(get_current_teacher)],
+    teacher: Annotated[Teacher, Depends(get_teaching_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Response:
     """Store a batch of teacher-verified checkbox crops, unlinked from the account."""

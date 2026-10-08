@@ -285,7 +285,8 @@ export const help = {
             },
             s2: {
                 h: 'Rollen',
-                p1: 'Lehrkräfte sehen ausschließlich ihre eigenen Klausuren. Administratorinnen und Administratoren verwalten zusätzlich die Konten der Schule — sie erhalten dadurch keinen Zugriff auf fremde Klausurinhalte, denn diese sind clientseitig verschlüsselt.',
+                p1: 'Lehrkräfte arbeiten mit Prüfungen, Aufgaben und Ergebnissen und sehen ausschließlich ihre eigenen. Administratorinnen und Administratoren verwalten nur Konten und Server: Sie können keine Prüfungen oder Aufgaben anlegen oder öffnen, und die App zeigt ihnen nur Benutzerverwaltung, Einstellungen und Hilfe. Wer verwaltet und selbst unterrichtet, nutzt zwei Konten.',
+                p2: 'Auch die Administration erhält keinen Zugriff auf fremde Klausurinhalte, denn diese sind clientseitig verschlüsselt.',
             },
             s6: {
                 h: 'Zwei Anmeldefaktoren',

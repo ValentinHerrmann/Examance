@@ -4,6 +4,8 @@ Guide for creating and managing teacher and administrator accounts in **Examance
 
 An account comes into being in one of four ways: the initial admin bootstrap (§1), an admin's invitation (§2), the CLI (§1 and the quick reference), or self-registration (§7, always available). Every account is either **approved** or **pending**. Only an approved account can sign in; a pending account holds no session, no enrollment token and no reset link of any kind until an admin approves it.
 
+**Roles.** A **teacher** account works with exams, exercises and results. An **admin** account manages users and the server only (accounts, approvals, features, allowed domains, audit log) and can neither create nor open exams or exercises (issue #58): every teaching endpoint answers it with `403 ERR_TEACHER_ROLE_REQUIRED`, and the app shows admins only user management, settings and help. Someone who administers and also teaches uses two accounts. Self-registration always creates teachers; an invitation, `create-user` or the bootstrap may create admins. §8 changes a role.
+
 ---
 
 ## 1. Initial Admin Bootstrap (Automatic Startup)
@@ -276,6 +278,19 @@ Registrations that nobody completes and accounts that nobody approves do not sta
 
 ---
 
+## 8. Changing a Role (CLI)
+
+```bash
+python -m app.cli set-role --email user@school.com --role teacher   # or --role admin [--force]
+```
+
+- The change applies on the server at once and signs the account out everywhere (its refresh tokens are revoked), so every browser picks up the new role at the next sign-in.
+- Demoting the **last approved admin** is refused: nobody could approve or manage accounts afterwards. Make another account an admin first.
+- Making an account that owns exams or exercises an admin is refused unless `--force` is given: an admin cannot open them, so they stay stored but inaccessible while the account is an admin. Nothing is deleted; setting the role back to `teacher` makes them reachable again.
+- **Admin accounts from before issue #58** keep any exams or exercises they own, but cannot reach them any more. To get at them, make another account an admin (invitation or `create-user --role admin --allow-admin`), then `set-role --role teacher` for the old one.
+
+---
+
 ## Quick Reference Commands
 
 | Action | Command |
@@ -285,5 +300,6 @@ Registrations that nobody completes and accounts that nobody approves do not sta
 | **Approve a pending account (CLI)** | `python -m app.cli approve-user --email user@school.com` (recovery path when no admin can sign in; normally approve in the Admin UI) |
 | **Direct Password Reset** | `python -m app.cli set-password --email user@school.com` (does **not** restore the user's encrypted data) |
 | **Send Reset Email** | `python -m app.cli send-password-reset --email user@school.com` |
+| **Change a Role (CLI)** | `python -m app.cli set-role --email user@school.com --role teacher` (see §8; `--force` makes an account that owns exams or exercises an admin) |
 
 

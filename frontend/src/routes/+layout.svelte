@@ -27,7 +27,13 @@
     versionStatus,
     refreshBackendVersion,
   } from "#lib/stores/versionStore";
-  import { registerNavigationGuard, isGradeActivePath, isPublicPath } from "#lib/stores/navigationStore";
+  import {
+    registerNavigationGuard,
+    isGradeActivePath,
+    isPublicPath,
+    isAdminPath,
+    ADMIN_HOME,
+  } from "#lib/stores/navigationStore";
   import {
     importArchiveInteractively,
     exportArchiveInteractively,
@@ -103,6 +109,12 @@
   }
 
   let isGradeActive = $derived(isGradeActivePath(page.url.pathname));
+
+  // Admins manage users and the server only (issue #58). Teaching routes stay unmounted until the
+  // session's role is known, so an admin never renders one or calls its (refusing) endpoints.
+  let isAdmin = $derived($isUnlocked && $sessionStore.role === "admin");
+  let roleKnown = $derived(!isInitializing || $workspaceStatusStore.state !== "unchecked");
+  let holdRoute = $derived(!isAdminPath(page.url.pathname) && (!roleKnown || isAdmin));
 
   let showFullNav = $derived($isUnlocked && page.url.pathname !== "/unlock");
   let showExamSidebar = $derived(
@@ -283,6 +295,12 @@
     const state = $workspaceStatusStore.state;
     if (state === "ok") untrack(() => void refreshLocalResults());
   });
+
+  // The one guard that keeps admins out of teaching routes (issue #58); the server refuses them anyway.
+  $effect.pre(() => {
+    const offLimits = isAdmin && !isAdminPath(page.url.pathname);
+    if (offLimits && typeof window !== "undefined") untrack(() => goto(ADMIN_HOME, { replaceState: true }));
+  });
 </script>
 
 <input
@@ -402,6 +420,8 @@
         <PageShell width="narrow" center>
           <p class="text-center text-sm text-muted">{$t("storagePolicy.choice.waiting")}</p>
         </PageShell>
+      {:else if holdRoute}
+        <!-- A teaching route while the role is unknown, or for an admin (redirected below). -->
       {:else}
         {@render children?.()}
       {/if}
@@ -426,6 +446,7 @@
 
   <StoragePolicyModal
     isOpen={isSettingsModalOpen || mustChooseMode}
+    teaching={!isAdmin}
     mustChoose={mustChooseMode}
     onClose={() => (isSettingsModalOpen = false)}
   />

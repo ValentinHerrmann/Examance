@@ -12,7 +12,11 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_exam_for_teacher, get_submission_for_teacher
+from app.dependencies import (
+    get_exam_for_teacher,
+    get_submission_for_teacher,
+    get_teaching_teacher,
+)
 from app.models.exam import Exam
 from app.models.exam_exercise import ExamExercise
 from app.models.exercise_score import ExerciseScore
@@ -24,9 +28,14 @@ from app.services.capabilities import require_server_results_writable
 router = APIRouter(
     prefix="/exams/{exam_id}/submissions/{submission_id}/scores",
     tags=["exercise-scores"],
+    dependencies=[Depends(get_teaching_teacher)],
 )
 # Exam-wide read: one request for the stats page instead of one per submission.
-exam_router = APIRouter(prefix="/exams/{exam_id}/scores", tags=["exercise-scores"])
+exam_router = APIRouter(
+    prefix="/exams/{exam_id}/scores",
+    tags=["exercise-scores"],
+    dependencies=[Depends(get_teaching_teacher)],
+)
 
 
 def _b64(value: bytes | None) -> str | None:

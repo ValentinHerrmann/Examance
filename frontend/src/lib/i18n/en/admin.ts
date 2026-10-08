@@ -13,7 +13,7 @@ export const admin: Translations['admin'] = {
         roleLabel: 'Role',
         roleTeacher: 'Teacher',
         roleAdmin: 'Admin',
-        adminHint: 'Create admin accounts only when operationally necessary.',
+        adminHint: 'Admin accounts manage users and the server only and cannot create exams or exercises. Create them only when operationally necessary.',
         emailRequired: 'Email is required.',
         createdSuccess: 'Created {role} account for {email}. Password setup email has been sent.',
         createdWarning: 'Created {role} account for {email}, but email delivery failed. Please check SMTP configuration on the server.',

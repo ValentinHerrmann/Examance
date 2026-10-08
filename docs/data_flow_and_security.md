@@ -196,6 +196,8 @@ accounts here.
 
 Accounts come from an admin invitation, the CLI or bootstrap, or self-registration (issue #53, always available). The operator guide is `account_creation_and_management.md` §7; this is the security shape.
 
+**Roles (issue #58).** An admin account manages users and the server only. It holds no exams, exercises or results: every teaching endpoint refuses it (`get_teaching_teacher`, `403 ERR_TEACHER_ROLE_REQUIRED`), its capabilities offer no storage mode or feature, and the browser never opens a workspace for it. No admin endpoint returns another account's teaching data or statistics. Self-registration only ever creates teachers; `cli.py set-role` changes a role and signs the account out everywhere.
+
 **Flow.** `POST /auth/register {email}` mails a single-use link, `POST /auth/register/complete {token, new_password, note?}` creates the account with the password the registrant chose. An address whose domain is on the admin's allowlist (`allowed_email_domains`, exact match on the part after `@`) is approved on the spot with that domain's features; any other account is **pending** (`teachers.approved_at` is NULL) until an admin approves it. The registration touches no key material: there is no key envelope until the first sign-in, when the browser creates the data key and the recovery code as for any new account.
 
 **Where it lives.**

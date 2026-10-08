@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_exam_for_teacher
+from app.dependencies import get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
 from app.models.exercise_score import ExerciseScore
 from app.models.scan_submission import ScanSubmission
@@ -20,7 +20,11 @@ from app.schemas.binary import GCM_IV_BYTES, decode_b64
 from app.schemas.submission import SubmissionCreate, SubmissionResponse, SubmissionScoreUpdate
 from app.services.capabilities import require_server_results_writable
 
-router = APIRouter(prefix="/exams/{exam_id}/submissions", tags=["submissions"])
+router = APIRouter(
+    prefix="/exams/{exam_id}/submissions",
+    tags=["submissions"],
+    dependencies=[Depends(get_teaching_teacher)],
+)
 
 
 @router.get("", response_model=list[SubmissionResponse])

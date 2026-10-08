@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from typing import NoReturn
 
 import click
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.config import settings  # noqa: F401 — validates config at import
@@ -167,6 +167,94 @@ def create_user(email: str, role: str, allow_admin: bool, password: str) -> None
 
     created = asyncio.run(_insert())
     click.echo(f"Created user: {created.email} ({created.role}) id={created.id}")
+
+
+@cli.command("set-role")
+@click.option("--email", required=True, help="User email.")
+@click.option(
+    "--role",
+    type=click.Choice(["teacher", "admin"], case_sensitive=True),
+    required=True,
+    help="New role.",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Make an account that owns exams or exercises an admin anyway.",
+)
+def set_role(email: str, role: str, force: bool) -> None:
+    """Change an account's role; admins manage users and the server only (issue #58).
+
+    An admin's own exams and exercises are kept but unreachable until it is a teacher again.
+    Signs the account out everywhere, so every browser picks up the new role."""
+    from app.models.exam import Exam
+    from app.models.exercise import Exercise
+    from app.models.refresh_token import RefreshToken
+    from app.models.teacher import Teacher
+
+    normalized_email = email.strip().lower()
+
+    async def _update() -> str:
+        from app.database import AsyncSessionLocal
+
+        async with AsyncSessionLocal() as db:
+            try:
+                result = await db.execute(
+                    select(Teacher).where(func.lower(Teacher.email) == normalized_email)
+                )
+                teacher = result.scalar_one_or_none()
+                if teacher is None:
+                    raise click.ClickException("No user found with this email.")
+                if teacher.role == role:
+                    return f"Unchanged: {teacher.email} is already {role}."
+
+                if role == "teacher":
+                    # Locks the admin rows, like ensure_not_last_admin, so two demotions can't race.
+                    admins = (
+                        await db.scalars(
+                            select(Teacher.id)
+                            .where(Teacher.role == "admin", Teacher.approved_at.isnot(None))
+                            .with_for_update()
+                        )
+                    ).all()
+                    if not [admin_id for admin_id in admins if admin_id != teacher.id]:
+                        raise click.ClickException(
+                            "Refusing to demote the last approved admin: nobody could approve "
+                            "or manage accounts afterwards. Make another account an admin first."
+                        )
+                else:
+                    exams = await db.scalar(
+                        select(func.count())
+                        .select_from(Exam)
+                        .where(Exam.teacher_id == teacher.id, Exam.deleted_at.is_(None))
+                    )
+                    exercises = await db.scalar(
+                        select(func.count())
+                        .select_from(Exercise)
+                        .where(Exercise.teacher_id == teacher.id, Exercise.is_current.is_(True))
+                    )
+                    if (exams or exercises) and not force:
+                        raise click.ClickException(
+                            f"{teacher.email} owns {exams or 0} exam(s) and {exercises or 0} "
+                            "exercise(s). Admin accounts cannot open exams or exercises, so this "
+                            "data stays stored but inaccessible while the account is an admin "
+                            "(set the role back to teacher to reach it again). Re-run with "
+                            "--force to proceed anyway."
+                        )
+
+                teacher.role = role
+                await db.execute(
+                    update(RefreshToken)
+                    .where(RefreshToken.teacher_id == teacher.id)
+                    .values(revoked=True)
+                )
+                await db.commit()
+                return f"{teacher.email} is now {role}; their sessions were signed out."
+            except (OperationalError, ProgrammingError) as exc:
+                _raise_schema_hint(exc)
+
+    click.echo(asyncio.run(_update()))
 
 
 @cli.command("set-password")

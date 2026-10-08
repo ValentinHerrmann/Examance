@@ -134,8 +134,8 @@ def create_app() -> FastAPI:
         {
             "name": "admin",
             "description": (
-                "System administration, user provision, audit logging, "
-                "and k-anonymity class statistics (k >= 5)."
+                "User and server management: accounts, approvals, features, allowed domains "
+                "and the audit log. Admin accounts hold no exams or exercises."
             ),
         },
         {
@@ -186,7 +186,7 @@ def create_app() -> FastAPI:
         "- **Session Hygiene**: State stored in HttpOnly cookies (`access_token` 15 min, "
         "`refresh_token` 7 days with rotation & reuse detection).\n"
         "- **Privacy Safeguards**: LaTeX requests redacted in logs (`LaTeXRequest`), "
-        "IP addresses stored as SHA-256 hashes, k-anonymity (k >= 5) enforced on class stats.\n"
+        "IP addresses stored as SHA-256 hashes.\n"
         "- **LaTeX Engine**: Compilation rendered using sandboxed Tectonic "
         "(`tectonic --untrusted`)."
     )
