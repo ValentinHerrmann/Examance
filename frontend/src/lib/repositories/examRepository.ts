@@ -3,7 +3,7 @@ import { api } from '#lib/api/client';
 import { db } from '#lib/db/db';
 import { storagePolicyStore } from '#lib/stores/storagePolicy';
 import { decryptExam } from '#lib/db/dbEncryption';
-import { enqueueRequest } from '#lib/services/offlineQueue';
+import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import type { ExamRecord, ExamExerciseRecord, ExamMcGroupRecord } from '#lib/db/schema';
 import { invalidateOwner } from '#lib/latex/compileCache';
 
@@ -132,17 +132,17 @@ export const examRepository = {
           try {
             await api.post('/exams', payload, { silentError: true });
           } catch (postErr: any) {
-            enqueueRequest('/exams', 'POST', payload);
+            enqueueOrThrow(postErr, '/exams', 'POST', payload);
           }
         } else {
-          enqueueRequest(`/exams/${exam.id}`, 'PATCH', payload);
+          enqueueOrThrow(err, `/exams/${exam.id}`, 'PATCH', payload);
         }
       }
     } else {
       try {
         await api.post('/exams', payload, { silentError: true });
       } catch (err: any) {
-        enqueueRequest('/exams', 'POST', payload);
+        enqueueOrThrow(err, '/exams', 'POST', payload);
       }
     }
   },
@@ -197,7 +197,7 @@ export const examRepository = {
     try {
       await api.delete(`/exams/${id}`, { silentError: true });
     } catch (err: any) {
-      enqueueRequest(`/exams/${id}`, 'DELETE');
+      enqueueOrThrow(err, `/exams/${id}`, 'DELETE');
     }
   },
 };

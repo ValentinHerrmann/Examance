@@ -2,7 +2,7 @@ import { api } from '#lib/api/client';
 import { db } from '#lib/db/db';
 import { resultsAreLocal } from '#lib/stores/storagePolicy';
 import { encryptSubmission, decryptSubmission } from '#lib/db/dbEncryption';
-import { enqueueRequest } from '#lib/services/offlineQueue';
+import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import type { SubmissionRecord } from '#lib/db/schema';
 import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
 import { ensure64CharHex } from '#lib/crypto/hmac';
@@ -132,9 +132,9 @@ export const submissionRepository = {
     } else {
       const payload = await submissionServerPayload(submission, opts);
       try {
-        await api.post(`/exams/${submission.examId}/submissions`, payload);
-      } catch {
-        enqueueRequest(`/exams/${submission.examId}/submissions`, 'POST', payload);
+        await api.post(`/exams/${submission.examId}/submissions`, payload, { silentError: true });
+      } catch (err) {
+        enqueueOrThrow(err, `/exams/${submission.examId}/submissions`, 'POST', payload);
       }
     }
   },
@@ -150,9 +150,9 @@ export const submissionRepository = {
       await db.submissions.delete(id);
     } else {
       try {
-        await api.delete(`/exams/${examId}/submissions/${id}`);
-      } catch {
-        enqueueRequest(`/exams/${examId}/submissions/${id}`, 'DELETE');
+        await api.delete(`/exams/${examId}/submissions/${id}`, { silentError: true });
+      } catch (err) {
+        enqueueOrThrow(err, `/exams/${examId}/submissions/${id}`, 'DELETE');
       }
     }
   },
@@ -181,9 +181,9 @@ export const submissionRepository = {
       // The local mirror goes too, so a fallback read cannot resurrect them.
       await db.exerciseScores.where('submissionId').equals(id).delete();
       try {
-        await api.delete(`/exams/${examId}/submissions/${id}/grading`);
-      } catch {
-        enqueueRequest(`/exams/${examId}/submissions/${id}/grading`, 'DELETE');
+        await api.delete(`/exams/${examId}/submissions/${id}/grading`, { silentError: true });
+      } catch (err) {
+        enqueueOrThrow(err, `/exams/${examId}/submissions/${id}/grading`, 'DELETE');
       }
     }
   },

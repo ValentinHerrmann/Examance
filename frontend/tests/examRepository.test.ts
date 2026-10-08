@@ -26,6 +26,7 @@ vi.mock('../src/lib/api/client', () => ({
 
 vi.mock('../src/lib/services/offlineQueue', () => ({
   enqueueRequest: vi.fn(),
+  enqueueOrThrow: vi.fn(),
 }));
 
 describe('examRepository mapping & saving', () => {

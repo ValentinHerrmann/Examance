@@ -30,6 +30,11 @@ export const misc = {
         localFailedTryServer: 'Die lokale LaTeX-Kompilierung ist fehlgeschlagen. Möchten Sie stattdessen auf dem Server kompilieren?',
     },
 
+    rejectedWrites: {
+        heading: 'Änderungen vom Server abgelehnt',
+        body: '{count} offline gespeicherte Änderung(en) hat der Server beim Nachsenden abgelehnt; sie wurden verworfen. ' +
+            'Bitte prüfen Sie die betroffenen Daten und geben Sie sie bei Bedarf erneut ein. Letzter Fehler: {message}',
+    },
     vaultIntegrity: {
         heading: 'Achtung: Daten konnten nicht entschlüsselt werden',
         body: '{count} Datensatz/Datensätze ({kinds}) konnten mit dem aktuellen Schlüssel nicht gelesen werden.' +

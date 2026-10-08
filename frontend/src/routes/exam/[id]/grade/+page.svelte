@@ -27,7 +27,7 @@
   import { isMcQuestion } from "#lib/grading/mcScore";
   import GradingWorkspace from "#lib/components/grading/GradingWorkspace.svelte";
   import { t, translate } from "#lib/i18n";
-  import { EmptyState } from "#lib/components/ui";
+  import { Alert, Button, EmptyState } from "#lib/components/ui";
 
   interface Props {
     params?: Record<string, string>;
@@ -108,7 +108,16 @@
       gradingStore.setActiveExerciseId(exercises[0].id);
     }
     const key = get(sessionStore).sessionKey;
-    const existingScores = await scoreRepository.getBySubmissionId(examId, sub.id, key);
+    scoresLoadError = "";
+    let existingScores: ExerciseScoreRecord[];
+    try {
+      existingScores = await scoreRepository.getBySubmissionId(examId, sub.id, key);
+    } catch (err) {
+      // Saving now would read every stored score as ungraded and delete it: block until a reload works.
+      loadedScores = new Map();
+      scoresLoadError = err instanceof Error ? err.message : String(err);
+      return;
+    }
     const existingMap = new Map(existingScores.map((es) => [es.exerciseId, es]));
     loadedScores = existingMap;
 
@@ -154,6 +163,8 @@
   /** Score rows as loaded for the current submission — lets a save keep an MC row it
    *  would otherwise have deleted (see handleSaveScore). */
   let loadedScores = new Map<string, ExerciseScoreRecord>();
+  /** Set when the current submission's scores failed to load; saving is refused meanwhile. */
+  let scoresLoadError = $state("");
 
   async function loadStrokesFor(sub: SubmissionRecord): Promise<VectorStroke[]> {
     const { sessionKey, fallbackSessionKey } = get(sessionStore);
@@ -177,6 +188,9 @@
     gradingStore.setSaving(true);
 
     try {
+      if (scoresLoadError) {
+        throw new Error(translate("grading.page.scoresLoadFailed", { message: scoresLoadError }));
+      }
       currentSub.totalScore = isFullyGraded ? sumGradedScores : undefined;
       const key = get(sessionStore).sessionKey;
 
@@ -202,7 +216,8 @@
             selectedOptions: mc?.selectedOptions,
             omrMeta: mc?.omrMeta,
           });
-        } else {
+        } else if (!loaded?.decryptFailed) {
+          // A row that would not decrypt shows as ungraded; deleting it would destroy the real score.
           toClear.push(ex.id);
         }
       }
@@ -285,12 +300,30 @@
   function stayOnLastSub() {
     gradingStore.setShowLastSubModal(false);
   }
+
+  async function retryScoresLoad() {
+    if (!currentSub) return;
+    // The reload resets the inputs; unsaved strokes stay, so keep the unsaved-changes prompt armed.
+    const wasDirty = get(gradingStore).isDirty;
+    await initExerciseScores(currentSub);
+    if (wasDirty) gradingStore.markDirty();
+  }
 </script>
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-base text-content">
   {#if submissions.length === 0}
     <EmptyState level="h1" title={$t("grading.page.empty")} class="py-16" />
   {:else}
+    {#if scoresLoadError}
+      <Alert severity="danger" class="m-3 shrink-0">
+        {$t("grading.page.scoresLoadFailed", { message: scoresLoadError })}
+        {#snippet actions()}
+          <Button variant="outlined" severity="danger" size="sm" onClick={retryScoresLoad}>
+            {$t("common.retry")}
+          </Button>
+        {/snippet}
+      </Alert>
+    {/if}
     <GradingWorkspace
       {examId}
       {exam}

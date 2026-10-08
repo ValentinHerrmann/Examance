@@ -13,6 +13,7 @@
     markSessionReady,
   } from "#lib/stores/session";
   import { vaultIntegrityStore } from "#lib/stores/vaultIntegrity";
+  import { rejectedWritesStore } from "#lib/services/offlineQueue";
   import { refreshSession } from "#lib/api/client";
   import {
     storagePolicyStore,
@@ -391,6 +392,17 @@
   {#if hybridWithoutResults && !hybridHintDismissed}
     <Alert severity="info" class="mx-3 mt-2 sm:mx-4" onDismiss={() => (hybridHintDismissed = true)}>
       {$t("storagePolicy.switch.hybridElsewhere")}
+    </Alert>
+  {/if}
+
+  {#if $rejectedWritesStore.count > 0}
+    <Alert
+      severity="danger"
+      title={$t("misc.rejectedWrites.heading")}
+      class="mx-3 mt-2 sm:mx-4"
+      onDismiss={() => rejectedWritesStore.set({ count: 0, lastMessage: "" })}
+    >
+      {$t("misc.rejectedWrites.body", { count: $rejectedWritesStore.count, message: $rejectedWritesStore.lastMessage })}
     </Alert>
   {/if}
 

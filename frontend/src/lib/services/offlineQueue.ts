@@ -1,5 +1,6 @@
 import { derived, get, writable } from 'svelte/store';
 import { api } from '#lib/api/client';
+import { httpErrorStore } from '#lib/stores/httpErrorStore';
 import { isUnlocked } from '#lib/stores/session';
 import { workspaceIdStore, workspaceStatusStore } from '#lib/stores/workspaceState';
 import { isServerBacked } from '#lib/utils/serverBacked';
@@ -55,6 +56,32 @@ export function enqueueRequest(
   offlineQueue.update((q) => [...q, req]);
 }
 
+/** No response, a server-side failure or an explicit "later": a replay can succeed. Any other 4xx is refused again. */
+export function isTransientError(err: unknown): boolean {
+  const { code, status } = (err ?? {}) as { code?: unknown; status?: unknown };
+  if (code === 'ERR_NETWORK') return true;
+  return typeof status === 'number' && (status >= 500 || status === 408 || status === 429);
+}
+
+/**
+ * Fallback for a failed server write: queue it when a replay can succeed. Otherwise report it like a
+ * non-silent request and rethrow, so the caller never treats a refused write as saved.
+ */
+export function enqueueOrThrow(
+  err: unknown,
+  url: string,
+  method: QueuedRequest['method'],
+  body?: unknown
+): void {
+  const { status, message, code } = (err ?? {}) as { status?: unknown; message?: string; code?: string };
+  if (method === 'DELETE' && status === 404) return; // already gone: the requested state
+  if (!isTransientError(err)) {
+    if (typeof status === 'number') httpErrorStore.showError(status, message, code);
+    throw err;
+  }
+  enqueueRequest(url, method, body);
+}
+
 /** True when the workspace still has writes waiting for the server. */
 export function hasQueuedWrites(workspaceId: string): boolean {
   return get(offlineQueue).some((req) => req.workspaceId === workspaceId);
@@ -77,60 +104,100 @@ export function clearOfflineQueue(): void {
   offlineQueue.set([]);
 }
 
-let isFlushing = false;
+/** Queued writes the server refused on replay; dropped (a replay cannot succeed) and shown by the root layout. */
+export const rejectedWritesStore = writable<{ count: number; lastMessage: string }>({ count: 0, lastMessage: '' });
 
-export async function flushOfflineQueue(): Promise<void> {
-  if (isFlushing) return;
-    // Never replay against a session that isn't fully signed in: `online` fires readily on a tablet, and a
-    // sign-in in progress has demoted the access cookie, so replaying would burst 403s for replayable writes.
+type ReplayOutcome = 'keep' | 'applied' | 'rejected';
+
+/** keep: stop here and retry this entry and everything behind it later. */
+export function replayOutcome(req: Pick<QueuedRequest, 'method'>, err: unknown): ReplayOutcome {
+  const { status, code } = (err ?? {}) as { status?: unknown; code?: unknown };
+  if (isTransientError(err) || (typeof navigator !== 'undefined' && !navigator.onLine)) return 'keep';
+  if (typeof status !== 'number' || status === 0) return 'keep';
+  // A lapsed session or a sign-in in another tab is not the write's fault (the server also answers 401
+  // for an exam it no longer has, which cannot be told apart, so such an entry waits too).
+  if (status === 401 || (status === 403 && typeof code === 'string' && code.startsWith('ERR_MFA'))) return 'keep';
+  // An earlier attempt landed before its response was lost, or the target is already gone.
+  if ((req.method === 'POST' && status === 409) || (req.method === 'DELETE' && status === 404)) return 'applied';
+  return 'rejected';
+}
+
+function send(req: QueuedRequest): Promise<unknown> {
+  // Silent: a replay is a background retry, and one modal per queued request would be a wall of dialogs.
+  const opts = { silentError: true };
+  if (req.method === 'POST') return api.post(req.url, req.body, opts);
+  if (req.method === 'PUT') return api.put(req.url, req.body, opts);
+  if (req.method === 'PATCH') return api.patch(req.url, req.body, opts);
+  return api.delete(req.url, opts);
+}
+
+/** `needs-choice` too: the owner check passed, and the mode-switch wizard waits for this queue to drain. */
+const isFlushable = (state: string) => state === 'ok' || state === 'needs-choice';
+
+async function replay(): Promise<void> {
+  // Never replay against a session that isn't fully signed in: `online` fires readily on a tablet, and a
+  // sign-in in progress has demoted the access cookie, so replaying would burst 403s for replayable writes.
   if (!get(isUnlocked)) return;
-    // Only into the workspace the writes were made in, and only while it is a server-backed one the
-    // session owns: a queue replayed after a switch to all-local leaked local work back to the server.
-  if (!isServerBacked() || get(workspaceStatusStore).state !== 'ok') return;
+  // Only into the workspace the writes were made in, and only once the session has proven it owns it.
+  if (!isServerBacked() || !isFlushable(get(workspaceStatusStore).state)) return;
   const workspaceId = get(workspaceIdStore);
   if (!workspaceId) return;
-  isFlushing = true;
+  // Entries of another workspace stay untouched (never replayed here, dropped when it is replaced).
+  const pending = get(offlineQueue).filter((req) => req.workspaceId === workspaceId);
+  if (pending.length === 0) return;
+
+  const processed = new Set<string>();
+  const rejected: string[] = [];
   try {
-    let currentQueue: QueuedRequest[] = [];
-    offlineQueue.subscribe((q) => (currentQueue = q))();
-
-    // Entries of another workspace stay untouched (never replayed here, dropped when it is replaced).
-    const foreign = currentQueue.filter((req) => req.workspaceId !== workspaceId);
-    currentQueue = currentQueue.filter((req) => req.workspaceId === workspaceId);
-    if (currentQueue.length === 0) return;
-
-    const remaining: QueuedRequest[] = [...foreign];
-        // silentError throughout: a replay is a background retry; a 409 for a record that already reached the
-        // server is expected, and a global error modal per queued request would be a wall of dialogs.
-    for (let i = 0; i < currentQueue.length; i++) {
-      const req = currentQueue[i];
+    for (const req of pending) {
+      if (!get(isUnlocked)) break;
       try {
-        if (req.method === 'POST') {
-          await api.post(req.url, req.body, { silentError: true });
-        } else if (req.method === 'PUT') {
-          await api.put(req.url, req.body, { silentError: true });
-        } else if (req.method === 'PATCH') {
-          await api.patch(req.url, req.body, { silentError: true });
-        } else if (req.method === 'DELETE') {
-          await api.delete(req.url, { silentError: true });
-        }
-      } catch (err: any) {
-        if (err?.code === 'ERR_NETWORK' || (typeof navigator !== 'undefined' && !navigator.onLine)) {
-          // Still offline: keep this request *and everything queued behind it*.
-          // Dropping the tail here silently lost writes the user had made.
-          remaining.push(...currentQueue.slice(i));
-          break;
-        }
+        await send(req);
+      } catch (err) {
+        const outcome = replayOutcome(req, err);
+        // Keep this request *and everything queued behind it*, in order.
+        if (outcome === 'keep') break;
+        if (outcome === 'rejected') rejected.push((err as Error)?.message || String(err));
       }
+      processed.add(req.id);
     }
-    offlineQueue.set(remaining);
   } finally {
-    isFlushing = false;
+    // update(), not set(): writes queued while this ran must survive.
+    offlineQueue.update((q) => q.filter((req) => !processed.has(req.id)));
+  }
+  if (rejected.length > 0) {
+    rejectedWritesStore.update(({ count }) => ({ count: count + rejected.length, lastMessage: rejected[rejected.length - 1] }));
   }
 }
 
+let flushing: Promise<void> | null = null;
+
+/** Replays the current workspace's queued writes in order; concurrent callers share one run. */
+export function flushOfflineQueue(): Promise<void> {
+  flushing ??= replay().finally(() => {
+    flushing = null;
+  });
+  return flushing;
+}
+
+const FLUSH_INTERVAL_MS = 60_000;
+let flushTimer: ReturnType<typeof setInterval> | null = null;
+
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => {
-    flushOfflineQueue();
+    void flushOfflineQueue();
+  });
+  // `online` alone misses a server that was down while the network was up: also flush whenever the
+  // workspace opens, and periodically while it is open.
+  workspaceStatusStore.subscribe(({ state }) => {
+    if (isFlushable(state)) {
+      flushTimer ??= setInterval(() => {
+        if (navigator.onLine) void flushOfflineQueue();
+      }, FLUSH_INTERVAL_MS);
+      void flushOfflineQueue();
+    } else if (flushTimer !== null) {
+      clearInterval(flushTimer);
+      flushTimer = null;
+    }
   });
 }

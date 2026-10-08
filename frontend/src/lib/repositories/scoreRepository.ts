@@ -8,7 +8,7 @@ import { api } from '#lib/api/client';
 import { db } from '#lib/db/db';
 import { resultsAreLocal } from '#lib/stores/storagePolicy';
 import { encryptScore, decryptScore } from '#lib/db/dbEncryption';
-import { enqueueRequest } from '#lib/services/offlineQueue';
+import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
 import type { ExerciseScoreRecord } from '#lib/db/schema';
 
@@ -38,13 +38,9 @@ async function openAll(rows: ExerciseScoreRecord[], key: CryptoKey | null) {
   return Promise.all(rows.map((row) => decryptScore(row, key)));
 }
 
-/** GET that degrades to "no scores" — callers render an empty grid, not a modal. */
+/** A failed GET throws, never reads as "no scores": grading views delete rows they think are ungraded. */
 async function fetchScores(path: string, key: CryptoKey | null) {
-  try {
-    return openAll((await api.get<any[]>(path, { silentError: true })).map(fromApi), key);
-  } catch {
-    return [];
-  }
+  return openAll((await api.get<any[]>(path, { silentError: true })).map(fromApi), key);
 }
 
 /** Server write with offline-queue fallback. Safe to replay: the endpoints are idempotent. */
@@ -52,8 +48,8 @@ async function send(method: 'PUT' | 'DELETE', path: string, body?: unknown) {
   try {
     if (method === 'PUT') await api.put(path, body, { silentError: true });
     else await api.delete(path, { silentError: true });
-  } catch {
-    enqueueRequest(path, method, body);
+  } catch (err) {
+    enqueueOrThrow(err, path, method, body);
   }
 }
 
