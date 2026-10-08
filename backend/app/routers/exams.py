@@ -595,8 +595,9 @@ async def compile_exam_endpoint(
         exam.compilation_status = "compiled"
         await db.flush()
     except TimeoutError:
+        # Each failure commits before raising: get_db rolls back on the exception and would drop it.
         exam.compilation_status = "failed"
-        await db.flush()
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail="Compilation timed out.",
@@ -604,7 +605,7 @@ async def compile_exam_endpoint(
         ) from None
     except CompilationError as exc:
         exam.compilation_status = "failed"
-        await db.flush()
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
@@ -612,7 +613,7 @@ async def compile_exam_endpoint(
         ) from exc
     except OSError as exc:
         exam.compilation_status = "failed"
-        await db.flush()
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="The LaTeX compilation service is unavailable.",

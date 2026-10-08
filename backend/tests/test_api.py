@@ -917,6 +917,30 @@ async def test_exercise_writes_reject_values_the_columns_cannot_hold(
     assert group.status_code == 422
 
 
+@pytest.mark.asyncio
+async def test_failed_exam_compile_keeps_its_status(client: AsyncClient, db: AsyncSession) -> None:
+    from app.services.latex import CompilationError
+
+    await _create_teacher_and_login(client, db, f"status-{uuid.uuid4().hex[:8]}@example.com")
+    exam = await client.post(
+        "/api/v1/exams",
+        json={
+            "title": "Status",
+            "retention_until": (date.today() + timedelta(days=30)).isoformat(),
+        },
+    )
+    assert exam.status_code == 201, exam.text
+    exam_id = exam.json()["id"]
+
+    with patch("app.routers.exams.compile_exam_latex", side_effect=CompilationError("! Boom")):
+        failed = await client.post(f"/api/v1/exams/{exam_id}/compile")
+    assert failed.status_code == 422
+
+    # The 422 used to roll the status back to "pending".
+    reloaded = await client.get(f"/api/v1/exams/{exam_id}")
+    assert reloaded.json()["compilation_status"] == "failed"
+
+
 
 
 
