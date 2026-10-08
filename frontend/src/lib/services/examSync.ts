@@ -2,7 +2,7 @@ import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
 import { db } from '#lib/db/db';
 import type { ExamRecord, ExerciseRecord } from '#lib/db/schema';
-import { encryptExam, encryptExercise, loadExamsEncrypted } from '#lib/db/dbEncryption';
+import { decryptExam, encryptExam, encryptExercise } from '#lib/db/dbEncryption';
 import { mapApiToExamRecord } from '#lib/repositories/examRepository';
 import { mapApiToExerciseRecord } from '#lib/repositories/exerciseRepository';
 import { offlineQueue } from '#lib/services/offlineQueue';
@@ -16,7 +16,9 @@ import { isServerBacked } from '#lib/utils/serverBacked';
  * request would read as "all my data is gone").
  */
 export async function loadSyncedExams(key: CryptoKey | null): Promise<{ exams: ExamRecord[]; failed: boolean }> {
-  const localExams = await loadExamsEncrypted(key);
+  // IndexedDB itself: examRepository.getAll() answers with the server list, which made the purge
+  // and the pending-exam merge below compare the server with itself.
+  const localExams = await Promise.all((await db.exams.toArray()).map((e) => decryptExam(e, key)));
 
     if (isServerBacked()) {
       try {
@@ -48,7 +50,8 @@ export async function loadSyncedExams(key: CryptoKey | null): Promise<{ exams: E
 
         const exams = [...remoteExams, ...pendingLocalExams];
 
-        const encryptedExams = await Promise.all(exams.map((ex) => encryptExam(ex, key)));
+        // Pending local exams are already stored (and may not decrypt): only the server's rows are written.
+        const encryptedExams = await Promise.all(remoteExams.map((ex) => encryptExam(ex, key)));
         await db.exams.bulkPut(encryptedExams);
 
 
