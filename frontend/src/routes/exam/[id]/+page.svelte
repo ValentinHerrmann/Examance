@@ -1166,7 +1166,6 @@
       onScan={handleScan}
       onGrade={handleGrade}
       onStats={handleStats}
-      onAddExercises={openLibraryModal}
       onDeleteAllSubmissions={handleDeleteAllSubmissions}
     />
 
@@ -1273,20 +1272,19 @@
         {/if}
       </Card>
 
-    <div class="min-w-0">
       <ExerciseList
         {exercises}
         {mcGroups}
         {libraryExercises}
         {examItems}
         onRemove={removeExerciseLink}
+        onAddExercises={openLibraryModal}
         onMoveUp={(idx) => moveExerciseOrder(idx, "up")}
         onMoveDown={(idx) => moveExerciseOrder(idx, "down")}
         onMoveExamItem={moveExamItem}
         onRemoveMcGroup={removeMcGroup}
         onEditMcGroup={editMcGroup}
       />
-    </div>
     </div>
   {/if}
 </PageShell>
