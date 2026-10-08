@@ -6663,6 +6663,28 @@
         }
       }
     },
+    "/api/v1/privacy/retention": {
+      "get": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "Retention Periods",
+        "description": "Configured retention periods. Public: no session, no personal data.",
+        "operationId": "retention_periods_api_v1_privacy_retention_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetentionPeriods"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "tags": [
@@ -10703,6 +10725,49 @@
           "locally_modified"
         ],
         "title": "ResyncVariant"
+      },
+      "RetentionPeriods": {
+        "properties": {
+          "grace_days": {
+            "type": "integer",
+            "title": "Grace Days"
+          },
+          "audit_log_days": {
+            "type": "integer",
+            "title": "Audit Log Days"
+          },
+          "registration_link_hours": {
+            "type": "integer",
+            "title": "Registration Link Hours"
+          },
+          "pending_account_days": {
+            "type": "integer",
+            "title": "Pending Account Days"
+          },
+          "contribution_days": {
+            "type": "integer",
+            "title": "Contribution Days"
+          },
+          "contribution_pending_days": {
+            "type": "integer",
+            "title": "Contribution Pending Days"
+          },
+          "training_sample_days": {
+            "type": "integer",
+            "title": "Training Sample Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grace_days",
+          "audit_log_days",
+          "registration_link_hours",
+          "pending_account_days",
+          "contribution_days",
+          "contribution_pending_days",
+          "training_sample_days"
+        ],
+        "title": "RetentionPeriods"
       },
       "SharedExerciseResponse": {
         "properties": {
