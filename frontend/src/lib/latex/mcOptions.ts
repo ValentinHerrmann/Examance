@@ -46,19 +46,41 @@ function scanOptions(tex: string): McOption[] {
   });
 }
 
-/** The `{…}` argument as the editor writes it; else the item text up to the enclosing group's end. */
+/**
+ * `\multi` takes no argument: its item text runs to the next option (already cut off), an
+ * unmatched `\end{` or the enclosing group's end. A leading `{…}` is only a TeX group.
+ */
 function optionText(rest: string): string {
-  const from = rest.length - rest.trimStart().length;
-  const braced = rest[from] === "{";
-  let depth = braced ? 0 : 1;
-  for (let i = from; i < rest.length; i++) {
+  let depth = 0;
+  let envs = 0;
+  let end = rest.length;
+  for (let i = 0; i < rest.length; i++) {
     if (rest[i] === "\\") {
-      if (!braced && rest.startsWith("\\end{", i)) return rest.slice(from, i).trim();
+      if (depth === 0 && rest.startsWith("\\begin{", i)) envs++;
+      else if (depth === 0 && rest.startsWith("\\end{", i) && envs-- === 0) {
+        end = i;
+        break;
+      }
       i++;
     } else if (rest[i] === "{") depth++;
-    else if (rest[i] === "}" && --depth === 0) return rest.slice(braced ? from + 1 : from, i).trim();
+    else if (rest[i] === "}" && --depth < 0) {
+      end = i;
+      break;
+    }
   }
-  return rest.slice(braced ? from + 1 : from).trim();
+  return unwrapLeadingGroup(rest.slice(0, end).trim());
+}
+
+/** A group prints its content: `{a}` → "a" (the editor's form), `{A} (2 P.)` → "A (2 P.)", `{} Ja` → "Ja". */
+function unwrapLeadingGroup(text: string): string {
+  if (text[0] !== "{") return text;
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "\\") i++;
+    else if (text[i] === "{") depth++;
+    else if (text[i] === "}" && --depth === 0) return (text.slice(1, i) + text.slice(i + 1)).trim();
+  }
+  return text;
 }
 
 /**
