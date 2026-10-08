@@ -72,6 +72,8 @@ This was the most serious compliance defect found: the application's central sto
 
 **Fixed:** exam expiry now stamps a grace deadline onto the exam's student identities and submissions, and the same job hard-deletes them once it passes. Covered by `tests/test_retention.py`, which fails against the previous implementation.
 
+*Follow-up (issue #69):* the same gap remained for deliberate deletion. `DELETE /exams/{id}` soft-deleted only the exam (which the job then skips) and `DELETE …/submissions/{id}` set no deadline, so that data was never erased either. Both now stamp the grace deadline, restore no longer revives a deleted exam's rows, and migration `0034_deleted_exam_retention` backfilled the rows deleted before.
+
 ### L2 — Erasing one student deleted every student's submissions · Art. 5(1)(d), 17 · [C+P] · **Fixed**
 
 `lib/gdpr/erasure.ts` selected the submissions to delete with `allSubs.filter((s) => s.pseudonymHash)` — a truthiness test, not an identity comparison. Every submission in the exam carries a `pseudonymHash`, so an Art. 17 request from one pupil destroyed the graded work of the entire class.

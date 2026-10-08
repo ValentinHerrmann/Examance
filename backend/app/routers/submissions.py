@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import base64
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.dependencies import get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
@@ -347,7 +348,9 @@ async def delete_submission(
     if sub is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found.")
 
+    # Retention only erases soft-deleted rows that carry a deadline.
     sub.deleted_at = datetime.now(UTC)
+    sub.retention_until = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)
     await db.flush()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

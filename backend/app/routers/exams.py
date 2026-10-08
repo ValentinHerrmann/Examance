@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from urllib.parse import quote
 
@@ -12,12 +12,15 @@ from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_teacher, get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
 from app.models.exam_exercise import ExamExercise
 from app.models.exam_mc_group import ExamMcGroup
 from app.models.exercise import Exercise
+from app.models.scan_submission import ScanSubmission
+from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
 from app.schemas.exam import (
     ExamCreate,
@@ -532,8 +535,23 @@ async def delete_exam(
     exam: Exam = Depends(get_exam_for_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Soft-delete an exam."""
-    exam.deleted_at = datetime.now(tz=UTC)
+    """Soft-delete an exam and start the erasure grace period of its student data.
+
+    Retention skips deleted exams and only erases child rows with a deadline, so without the
+    cascade a deleted exam's identities and submissions would be kept forever."""
+    now = datetime.now(tz=UTC)
+    grace_deadline = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)
+    exam.deleted_at = now
+    await db.execute(
+        update(StudentIdentity)
+        .where(StudentIdentity.exam_id == exam.id, StudentIdentity.deleted_at.is_(None))
+        .values(deleted_at=now, retention_until=grace_deadline)
+    )
+    await db.execute(
+        update(ScanSubmission)
+        .where(ScanSubmission.exam_id == exam.id, ScanSubmission.deleted_at.is_(None))
+        .values(deleted_at=now, retention_until=grace_deadline)
+    )
 
 
 @router.post("/{exam_id}/compile")
