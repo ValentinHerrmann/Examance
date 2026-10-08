@@ -343,6 +343,22 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     return undefined;
   }
 
+  /** Public retention periods for the privacy statement; the backend's defaults. */
+  function privacy(method: string, parts: string[]): Handled {
+    if (method === 'GET' && parts[1] === 'retention') {
+      return ok({
+        grace_days: 7,
+        audit_log_days: 365,
+        registration_link_hours: 24,
+        pending_account_days: 90,
+        contribution_days: 30,
+        contribution_pending_days: 180,
+        training_sample_days: 730,
+      });
+    }
+    return undefined;
+  }
+
   /* ------------------------------------------------------------------------ */
   /* Exercises                                                                 */
   /* ------------------------------------------------------------------------ */
@@ -1142,6 +1158,9 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         break;
       case 'training':
         handled = training(verb, parts);
+        break;
+      case 'privacy':
+        handled = privacy(verb, parts);
         break;
       case 'exams':
         handled = exams(verb, parts, url.searchParams, payload);

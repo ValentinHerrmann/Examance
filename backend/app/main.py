@@ -29,6 +29,7 @@ from app.routers import (
     keys,
     logos,
     mfa,
+    privacy,
     students,
     submissions,
     training,
@@ -262,6 +263,7 @@ def create_app() -> FastAPI:
     app.include_router(mfa.router, prefix=API_PREFIX)
     app.include_router(webauthn.router, prefix=API_PREFIX)
     app.include_router(training.router, prefix=API_PREFIX)
+    app.include_router(privacy.router, prefix=API_PREFIX)
 
     @app.get("/api/health", tags=["meta"])
     async def health() -> dict[str, str]:
