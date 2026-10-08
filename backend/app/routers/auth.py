@@ -68,6 +68,7 @@ from app.services.password_reset import (
     create_reset_token,
     verify_reset_token,
 )
+from app.services.tokens import rowcount
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -386,7 +387,9 @@ async def reset_password(
         )
 
     try:
-        teacher = await complete_password_reset(db, body.token, body.new_password)
+        teacher = await complete_password_reset(
+            db, body.token, body.new_password, teacher_id=teacher.id
+        )
     except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -937,22 +940,24 @@ async def refresh(
 
     result = await db.execute(select(RefreshToken).where(RefreshToken.jti == jti))
     rt = result.scalar_one_or_none()
-    if rt is None or rt.revoked:
-        # Possible token theft — revoke all tokens for this teacher
-        if rt is not None:
-            teacher_id = rt.teacher_id
-            # Revoke all refresh tokens for this teacher
-            from sqlalchemy import update
-
-            await db.execute(
-                update(RefreshToken)
-                .where(RefreshToken.teacher_id == teacher_id, RefreshToken.revoked.is_(False))
-                .values(revoked=True)
-            )
+    if rt is None:
         raise credentials_exc
-
-    # Revoke old token
-    rt.revoked = True
+    # Claim it in one conditional UPDATE, so of two concurrent uses only one rotates. A token that
+    # was already rotated is presented again: possible theft, so the whole family is revoked.
+    claimed = await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.jti == jti, RefreshToken.revoked.is_(False))
+        .values(revoked=True)
+    )
+    if rowcount(claimed) != 1:
+        await db.execute(
+            update(RefreshToken)
+            .where(RefreshToken.teacher_id == rt.teacher_id, RefreshToken.revoked.is_(False))
+            .values(revoked=True)
+        )
+        # get_db rolls back on the 401 below; the revocation must survive it.
+        await db.commit()
+        raise credentials_exc
 
     teacher_id = uuid.UUID(payload["sub"])
     result2 = await db.execute(select(Teacher).where(Teacher.id == teacher_id))

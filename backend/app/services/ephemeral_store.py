@@ -154,6 +154,18 @@ async def delete(*keys: str) -> None:
         _memory.pop(key, None)
 
 
+async def take(key: str) -> bool:
+    """Delete *key* and report whether it was present, in one step, so a marker is spent once.
+
+    When Redis answers it alone decides (shared across workers); the local copy only stands in
+    while Redis is unreachable."""
+    deleted = await _call("delete", key)
+    entry = _memory.pop(key, None)
+    if deleted is not None:
+        return int(deleted) > 0
+    return entry is not None and entry[1] > time.monotonic()
+
+
 def reset() -> None:
     """Drop the in-process fallback store and the circuit state. Test helper."""
     global _circuit_open_until

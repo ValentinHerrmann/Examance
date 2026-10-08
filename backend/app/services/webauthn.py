@@ -87,11 +87,7 @@ async def _store_challenge(handle: str, challenge: bytes) -> None:
 
 
 async def _take_challenge(handle: str, challenge_b64: str) -> bool:
-    key = _CHALLENGE_PREFIX + handle + ":" + challenge_b64
-    if await ephemeral_store.get(key) is None:
-        return False
-    await ephemeral_store.delete(key)
-    return True
+    return await ephemeral_store.take(_CHALLENGE_PREFIX + handle + ":" + challenge_b64)
 
 
 async def registration_options(db: AsyncSession, teacher: Teacher) -> tuple[str, str]:

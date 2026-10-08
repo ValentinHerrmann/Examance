@@ -36,7 +36,10 @@ from app.services.jwt import decode_token
 
 router = APIRouter(prefix="/webauthn", tags=["webauthn"])
 
-_REGISTER_SCOPES = {"full", "enroll", "auth_pending"}
+# Listing is fine mid-sign-in; registering needs the finished sign-in or an account still
+# enrolling, or one proven factor could add a passkey and then sign in with it alone.
+_LIST_SCOPES = {"full", "enroll", "auth_pending"}
+_REGISTER_SCOPES = {"full", "enroll"}
 
 
 def _b64(value: bytes) -> str:
@@ -229,7 +232,7 @@ async def list_credentials(
     session: PendingSession = Depends(get_pending_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> CredentialListResponse:
-    if session.scope not in _REGISTER_SCOPES:
+    if session.scope not in _LIST_SCOPES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authenticated.",

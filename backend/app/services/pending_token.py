@@ -33,8 +33,4 @@ async def consume(jti: str | None) -> bool:
     """
     if not jti:
         return False
-    key = _PREFIX + jti
-    if await ephemeral_store.get(key) is None:
-        return False
-    await ephemeral_store.delete(key)
-    return True
+    return await ephemeral_store.take(_PREFIX + jti)

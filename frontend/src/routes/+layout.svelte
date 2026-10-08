@@ -13,7 +13,7 @@
     markSessionReady,
   } from "#lib/stores/session";
   import { vaultIntegrityStore } from "#lib/stores/vaultIntegrity";
-  import { api } from "#lib/api/client";
+  import { refreshSession } from "#lib/api/client";
   import {
     storagePolicyStore,
   } from "#lib/stores/storagePolicy";
@@ -182,7 +182,7 @@
 
       if (mode === "hybrid" || mode === "authenticated") {
         try {
-          await api.post("/auth/refresh", undefined, { silentError: true });
+          await refreshSession();
         } catch {
           await lockSession();
           isInitializing = false;

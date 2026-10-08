@@ -105,6 +105,21 @@ let lastRefreshAt = 0;
  */
 const REFRESH_GRACE_MS = 5000;
 
+/**
+ * Rotate the refresh cookie once for every concurrent caller in this tab. Tabs share the cookie,
+ * so the rotation runs under a cross-tab lock: a waiting tab then sends the new token, not the revoked one.
+ */
+export function refreshSession(): Promise<void> {
+  if (!refreshPromise) {
+    const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+    const run = locks ? locks.request('examance-auth-refresh', () => refreshToken()) : refreshToken();
+    refreshPromise = run.finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
 async function refreshToken(): Promise<void> {
   const { signal, cancel } = withTimeoutSignal(DEFAULT_TIMEOUT_MS);
   try {
@@ -219,9 +234,7 @@ async function request<T>(
     // Deduplicate concurrent refreshes. A request that 401'd by racing a just-finished refresh
     // retries directly; a second rotation would trip token-theft detection and revoke every session.
     if (!refreshPromise && Date.now() - lastRefreshAt >= REFRESH_GRACE_MS) {
-      refreshPromise = refreshToken().finally(() => {
-        refreshPromise = null;
-      });
+      void refreshSession().catch(() => {});
     }
     try {
       if (refreshPromise) await refreshPromise;

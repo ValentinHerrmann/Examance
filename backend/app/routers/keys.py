@@ -32,20 +32,15 @@ from app.services.key_envelope import replace_envelope_set
 
 router = APIRouter(prefix="/keys", tags=["keys"])
 
-# The envelope has to be reachable before a full session exists. An account that
-# predates the envelope has only a password, so it lands in the enrollment scope
-# — and the wizard that gets it out of there is the same one that stores its key
-# for the first time, while the password is still in hand. A password reset lands
-# in `reset_pending` for the same reason.
-#
-# This is not a hole in the two-of-three policy: everything here is ciphertext
-# the caller has to be able to unwrap anyway, and it is scoped to the account
-# named in the token.
-_ENVELOPE_SCOPES = {"full", "enroll", "auth_pending", "reset_pending"}
+# Reads precede a full session (the reset and vault prompts unwrap first); the rows are ciphertext.
+_ENVELOPE_READ_SCOPES = {"full", "enroll", "auth_pending", "reset_pending"}
+# Writes need the finished sign-in, or an account still enrolling: one proven factor must never
+# replace or drop the only wraps of the data key. A reset stores its set via /auth/reset-password.
+_ENVELOPE_WRITE_SCOPES = {"full", "enroll"}
 
 
-def _require_envelope_scope(session: PendingSession) -> Teacher:
-    if session.scope not in _ENVELOPE_SCOPES:
+def _require_envelope_scope(session: PendingSession, *, write: bool = False) -> Teacher:
+    if session.scope not in (_ENVELOPE_WRITE_SCOPES if write else _ENVELOPE_READ_SCOPES):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authenticated.",
@@ -115,7 +110,7 @@ async def replace_envelopes(
     which is indistinguishable from a working set until the day someone needs to
     recover with it.
     """
-    teacher = _require_envelope_scope(session)
+    teacher = _require_envelope_scope(session, write=True)
     rows = await replace_envelope_set(db, teacher, body)
 
     await audit_svc.write(
@@ -145,7 +140,7 @@ async def delete_envelope(
     works, and dropping it would leave the account one forgotten password away
     from unreadable data.
     """
-    teacher = _require_envelope_scope(session)
+    teacher = _require_envelope_scope(session, write=True)
     result = await db.execute(
         select(KeyEnvelope).where(
             KeyEnvelope.id == envelope_id, KeyEnvelope.teacher_id == teacher.id

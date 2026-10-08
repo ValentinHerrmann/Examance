@@ -28,11 +28,16 @@ from app.services import mfa as mfa_svc
 
 router = APIRouter(prefix="/mfa", tags=["mfa"])
 
-_ENROLL_SCOPES = {"full", "enroll", "auth_pending"}
+# Read-only status is fine mid-sign-in; adding a factor needs the finished sign-in or an account
+# still enrolling, or one proven factor could enroll its own second one.
+_STATUS_SCOPES = {"full", "enroll", "auth_pending"}
+_ENROLL_SCOPES = {"full", "enroll"}
 
 
-def _require_enrollment_scope(session: PendingSession) -> None:
-    if session.scope not in _ENROLL_SCOPES:
+def _require_enrollment_scope(
+    session: PendingSession, scopes: set[str] = _ENROLL_SCOPES
+) -> None:
+    if session.scope not in scopes:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authenticated for enrollment.",
@@ -54,7 +59,7 @@ async def mfa_status(
     factor has been proven, which is what keeps it from being a profile oracle
     for an arbitrary email address.
     """
-    _require_enrollment_scope(session)
+    _require_enrollment_scope(session, _STATUS_SCOPES)
     teacher = session.teacher
     enrolled = await auth_policy.enrolled_factors(db, teacher)
     capable = await auth_policy.key_capable_factors(db, teacher)
