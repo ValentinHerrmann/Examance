@@ -513,6 +513,14 @@ async def create_new_version(
     group = await _group_of(old_ex, teacher, db)
     new_latex = body.latex_body if body.latex_body is not None else old_ex.latex_body
     computed_score = parse_exercise_score(new_latex) if new_latex else old_ex.max_points
+    # Absent fields keep the old version's value; an explicit null clears the answer key.
+    answer_fields: dict[str, object] = {}
+    if body.question_type is not None:
+        answer_fields["question_type"] = body.question_type
+    if "correct_answers" in body.model_fields_set:
+        answer_fields["correct_answers"] = body.correct_answers
+    if body.penalty is not None:
+        answer_fields["penalty"] = body.penalty
 
     # One versioning path (shared with resync): share state and copy provenance carry over.
     new_ex = sharing.next_version(
@@ -524,6 +532,7 @@ async def create_new_version(
         latex_body=new_latex,
         max_points=computed_score,
         variant_key=body.variant_key or old_ex.variant_key,
+        **answer_fields,
     )
     db.add(new_ex)
     await db.flush()
