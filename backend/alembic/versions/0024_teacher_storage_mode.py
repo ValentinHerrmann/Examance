@@ -1,8 +1,4 @@
-"""teacher storage mode
-
-Adds teachers.storage_mode: the account's chosen storage mode ('all-server' or 'hybrid'). Nullable with
-no default and no backfill: every account chooses explicitly on its next sign-in (issue #47). The mode
-used to live per browser, so no server-side value could be derived from existing data.
+"""teacher storage mode: nullable, no default, no backfill; chosen on next sign-in (#47)
 
 Revision ID: 0024_teacher_storage_mode
 Revises: 0023_omr_training_sample_token

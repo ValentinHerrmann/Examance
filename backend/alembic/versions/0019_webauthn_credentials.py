@@ -1,14 +1,7 @@
 """Passkeys as a sign-in factor.
 
-The third of the three factors, alongside the password and the authenticator.
-Nothing secret is stored: the public key is public by construction, and
-`prf_salt` is the *input* to the authenticator's PRF extension rather than its
-output. The derived secret never leaves the browser, which is what lets a passkey
-also unwrap the data key without the server being able to.
-
-`supports_prf` records whether the authenticator implements PRF at all. Where it
-does not, the passkey authenticates and nothing more — a distinction the UI has
-to surface rather than let a teacher assume they are covered.
+Nothing secret is stored; `prf_salt` is the PRF input, the secret never leaves the browser.
+`supports_prf` False means authentication only; the UI must surface that.
 """
 from __future__ import annotations
 

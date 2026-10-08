@@ -14,10 +14,8 @@ class MfaCredential(Base):
     """
     One authenticator-app enrollment per teacher.
 
-    The shared secret is encrypted with a key derived from SECRET_KEY (see
-    `app/services/mfa_secret.py`) rather than stored raw: the server must be able
-    to compute the expected code, so this is not zero-knowledge, but a database
-    dump on its own does not hand over working seeds.
+    The secret is encrypted under a key derived from SECRET_KEY (`app/services/mfa_secret.py`):
+    not zero-knowledge (the server computes codes), but a database dump alone yields no seeds.
     """
 
     __tablename__ = "mfa_credentials"
@@ -56,12 +54,8 @@ class MfaBackupCode(Base):
     """
     A single-use stand-in for the authenticator app.
 
-    `code_hash` holds a keyed digest (`mfa_secret.backup_code_digest`), not a
-    password hash: a backup code is machine-generated with no dictionary behind
-    it, so Argon2id bought nothing and cost ten 64 MB hashes per issued set.
-    Sets issued before that change are Argon2id hashes and are still accepted —
-    they cannot be converted, since the plaintext is gone — and are replaced by
-    digests when the teacher regenerates.
+    `code_hash` is a keyed digest (`mfa_secret.backup_code_digest`), not Argon2id (machine-made
+    codes). Legacy Argon2id hashes stay valid until the set is regenerated.
     """
 
     __tablename__ = "mfa_backup_codes"

@@ -1,16 +1,8 @@
 """
 KeyEnvelope — a copy of the client's data key, wrapped by one recovery factor.
 
-The teacher's data-encryption key (DEK) used to be *derived* from their login
-password, which meant a password reset produced a different key and silently
-orphaned every vault. Instead the DEK is now random and stored here once per
-factor that may unwrap it: the password, a printable recovery code, and each
-PRF-capable passkey.
-
-Nothing in this table lets the server read anything. It holds only ciphertext, a
-public salt and public KDF parameters; the key-encryption keys are derived in the
-browser from material that never leaves it. Changing a password re-wraps the same
-DEK under a new key-encryption key, so no data has to be re-encrypted.
+The random DEK is wrapped once per factor, so a password reset re-wraps it instead of
+orphaning the vault. Only ciphertext and public salts/KDF params live here; KEKs stay client-side.
 """
 from __future__ import annotations
 
@@ -57,10 +49,8 @@ class KeyEnvelope(Base):
     kdf_salt: Mapped[bytes] = mapped_column(LargeBinary(16), nullable=False)
     kdf_params: Mapped[dict[str, int]] = mapped_column(JSON, nullable=False)
 
-    # AES-256-GCM over {"v":1,"dek":…,"fallback":…,"legacy":…}. The bundle carries
-    # the whole decrypt chain, not just the current key: a vault can still hold
-    # records that only open under the superseded PBKDF2 keys, and this is the
-    # only moment at which all of them are available together.
+    # AES-256-GCM over {"v":1,"dek":…,"fallback":…,"legacy":…}. Carries the whole decrypt
+    # chain: old records may only open under superseded PBKDF2 keys, available only at wrap time.
     wrapped_bundle: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     wrap_iv: Mapped[bytes] = mapped_column(LargeBinary(12), nullable=False)
 

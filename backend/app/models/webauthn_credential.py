@@ -14,10 +14,8 @@ class WebAuthnCredential(Base):
     """
     One passkey, as one of the account's sign-in factors.
 
-    Nothing secret is stored here. The public key is public by construction, and
-    `prf_salt` is the *input* to the authenticator's PRF extension rather than
-    its output — the derived secret never leaves the browser, which is what lets
-    a passkey also unwrap the data key without the server being able to.
+    Nothing secret is stored: `prf_salt` is the PRF *input*; the derived secret never leaves the
+    browser, which is what lets a passkey unwrap the data key without the server.
     """
 
     __tablename__ = "webauthn_credentials"

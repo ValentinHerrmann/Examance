@@ -1,8 +1,4 @@
-"""exercise code withheld
-
-Adds exercises.code_withheld: the exercise came from another teacher's results-only .bgproj
-archive and has no LaTeX. It keeps name, points and answer key so its scans and scores grade as
-usual; the client disables compiling and editing it (issue #47).
+"""exercise code withheld: results-only .bgproj import has no LaTeX; client blocks editing (#47)
 
 Revision ID: 0025_exercise_code_withheld
 Revises: 0024_teacher_storage_mode

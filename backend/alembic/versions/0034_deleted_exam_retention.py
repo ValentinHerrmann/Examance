@@ -1,8 +1,4 @@
-"""deleted exam retention
-
-Issue #69: deleting an exam (or one submission) left its student data without an erasure deadline,
-and retention only erases soft-deleted rows that have one. Backfills once: children of deleted
-exams are soft-deleted, and every soft-deleted row without a deadline gets the grace period.
+"""deleted exam retention (#69): backfill erasure deadlines for soft-deleted rows
 
 Revision ID: 0034_deleted_exam_retention
 Revises: 0033_exam_topic

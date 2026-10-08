@@ -1,9 +1,7 @@
 name: Deploy Preview
 
-# Every non-draft pull request — and every push to one — redeploys the shared
-# preview instance. Draft PRs deploy nothing. A direct push to main (e.g. a
-# merge) redeploys it too, versioned with the short commit hash instead of a
-# PR number.
+# Every non-draft PR (and push to one) redeploys the shared preview; drafts deploy nothing.
+# A push to main redeploys it too, versioned with the short commit hash.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -11,11 +9,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# There is one preview instance, so a newer push supersedes an in-flight deploy.
-# Runs that deploy nothing (draft or fork PRs, see the `version` job's `if`)
-# get a group of their own: otherwise re-running an old draft-era run, or
-# pushing to a draft, cancels the real deploy in progress and then skips
-# every job itself, leaving the frontend published without its backend.
+# A newer push supersedes an in-flight deploy. Runs that deploy nothing (draft or fork PRs) get
+# their own group, or they would cancel the real deploy and skip, leaving a frontend without its backend.
 concurrency:
   group: >-
     ${{ github.event_name == 'pull_request' &&
@@ -79,14 +74,9 @@ jobs:
           echo "sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
           echo "Preview version ${VERSION}"
 
-      # Pull requests redeploy only the side whose files changed. The baseline
-      # is what the shared preview stack runs *now* — the `preview` branch
-      # Cloudflare built, and the `preview-backend` marker moved after a
-      # healthy backend deploy — never the PR's previous push, or PR B could
-      # ship its frontend on top of PR A's backend. A side is kept only if it
-      # was deployed from this same <release>-PR#<n>, so both halves always
-      # come from one PR (the status bar compares versions without the build
-      # time). Pushes to main and manual runs always deploy both.
+      # PRs redeploy only the changed side, diffed against what the preview runs *now* (`preview`
+      # branch, `preview-backend` marker), never the PR's previous push. A side is kept only if
+      # deployed from this same <release>-PR#<n>; main pushes and manual runs deploy both.
       - name: Decide which sides to deploy
         id: scope
         env:
@@ -152,10 +142,8 @@ jobs:
           ref: ${{ needs.version.outputs.sha }}
           fetch-depth: 0
 
-      # Cloudflare Pages builds only `preview` and has no notion of PR numbers,
-      # so the version string computed above is stamped into a file the build
-      # reads directly (see readPreviewVersionFile() in vite.config.ts) for the
-      # version display and PR linking.
+      # Cloudflare Pages knows no PR numbers, so the version is stamped into a file the build
+      # reads (readPreviewVersionFile() in vite.config.ts).
       - name: Stamp preview version file
         env:
           VERSION: ${{ needs.version.outputs.version }}

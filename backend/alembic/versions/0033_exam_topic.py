@@ -1,7 +1,4 @@
-"""exam topic
-
-Adds exams.topic: an optional free-text topic for organising exams (issue #57). Unlike fach and
-klasse it is never printed on the exam.
+"""exam topic (#57): optional free text, never printed on the exam
 
 Revision ID: 0033_exam_topic
 Revises: 0032_sharing_audit_split

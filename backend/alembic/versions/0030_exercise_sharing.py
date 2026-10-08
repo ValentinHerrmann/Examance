@@ -1,8 +1,4 @@
-"""exercise sharing
-
-Issue #65: share exercise groups with the whole installation, copy them, resync copies later.
-`is_public` is reset to false (fail closed; nothing ever set it) and now means "shared". Adds the
-per-account switch `allow_exercise_sharing`, copy provenance (no FKs) and audit actions.
+"""exercise sharing (#65): is_public reset to false (fail closed), copy provenance without FKs
 
 Revision ID: 0030_exercise_sharing
 Revises: 0029_account_deletion_requests

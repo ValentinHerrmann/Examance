@@ -1,7 +1,4 @@
-"""account registration
-
-Self-registration with admin approval (issue #53): `approved_at` NULL = pending, no default (fail
-closed), old rows backfilled. Adds feature switches, registration tables and audit actions.
+"""account registration (#53): approved_at NULL = pending, no default (fail closed)
 
 Revision ID: 0028_account_registration
 Revises: 0027_teacher_logo_modes

@@ -15,12 +15,8 @@ class OmrTrainingSample(Base):
     """
     Opt-in training data for a shared MC-box classifier.
 
-    Deliberately unlinked: no foreign key, no teacher, exam, submission or pupil id,
-    no IP, and only a day-granular date (needed for retention). The donating
-    account is known while the request runs (donations need a session) but is
-    never written here. A row is a small
-    grayscale crop of one checkbox (plus its redo zone) and the teacher-verified
-    label — see docs/data_flow_and_security.md "Training-data donation".
+    Deliberately unlinked: no FK, teacher, exam, submission or pupil id, no IP, only a day-granular
+    date (retention). Grayscale checkbox crop plus verified label ("Training-data donation").
     """
 
     __tablename__ = "omr_training_samples"

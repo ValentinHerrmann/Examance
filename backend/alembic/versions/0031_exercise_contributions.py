@@ -1,7 +1,4 @@
-"""exercise contributions
-
-Issue #65 follow-up: proposals from a linked copy back to the shared original, the teacher's own
-sharing pause, and `exercise_groups.copied_at` (copies are never re-shared as one's own).
+"""exercise contributions (#65): proposals from a linked copy to its shared original
 
 Revision ID: 0031_exercise_contributions
 Revises: 0030_exercise_sharing

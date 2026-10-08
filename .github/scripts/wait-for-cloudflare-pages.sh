@@ -1,14 +1,7 @@
 #!/usr/bin/env bash
-# Blocks until Cloudflare Pages has finished building and publishing <sha>.
-#
-# Cloudflare Pages builds the `preview`/`release` branches through its git
-# integration, outside GitHub Actions. It reports the result as a check run
-# ("Cloudflare Pages: <project>", app `cloudflare-workers-and-pages`) on the
-# commit it built, so the deploy workflows can wait on that check with their
-# own GITHUB_TOKEN instead of needing a Cloudflare API token.
-#
-# Usage: wait-for-cloudflare-pages.sh <sha> [timeout-seconds]
-# Needs GH_TOKEN (with `checks: read`) and GITHUB_REPOSITORY in the environment.
+# Blocks until Cloudflare Pages has built <sha>, by polling its check run ("Cloudflare Pages:
+# <project>") with GITHUB_TOKEN, so no Cloudflare API token is needed.
+# Usage: wait-for-cloudflare-pages.sh <sha> [timeout-seconds]; needs GH_TOKEN (`checks: read`), GITHUB_REPOSITORY.
 set -euo pipefail
 
 SHA="${1:?commit sha required}"
