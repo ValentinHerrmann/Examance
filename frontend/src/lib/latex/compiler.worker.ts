@@ -12,11 +12,9 @@ const packages = [
   '/core/busytex/texlive-extra.js'
 ];
 
-// --- Asset-version cache busting ---
-// texlyre-busytex's own `ensureCacheVersion` is a no-op here (it guards on `localStorage`, absent in
-// Workers) and keys on the npm version, which does not change when we redeploy our own TeX Live
-// bundles, so stale packages would cause bogus "File `X.sty' not found". We track our own
-// fingerprint (the chunk manifest) in IndexedDB (available in Workers) and wipe the cache when it changes.
+// Asset-version cache busting: texlyre-busytex's `ensureCacheVersion` is a no-op in Workers (guards on `localStorage`) and
+// keys on the npm version, which doesn't change when we redeploy our TeX Live bundles (stale packages, bogus "File `X.sty'
+// not found"). We track the chunk-manifest fingerprint in IndexedDB instead and wipe the cache when it changes.
 const ASSET_VERSION_DB = 'blindgrade-busytex-asset-version';
 const ASSET_VERSION_STORE = 'version';
 const ASSET_VERSION_KEY = 'fingerprint';

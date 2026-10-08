@@ -9,11 +9,9 @@ import { offlineQueue } from '#lib/services/offlineQueue';
 import { isServerBacked } from '#lib/utils/serverBacked';
 
 /**
- * The exam list as the dashboard shows it. In server-backed modes the server is authoritative: fetched,
- * mirrored into IndexedDB (exams, exercises, links, MC groups, for offline export), and local leftovers
- * the server no longer knows are purged, except exams still in the offline queue. On a failed fetch the
- * local copy is returned with `failed: true` (all-server caches nothing, so without the flag a rejected
- * request would read as "all my data is gone").
+ * The exam list as the dashboard shows it. In server-backed modes the server is authoritative: fetched and mirrored into
+ * IndexedDB (for offline export), local leftovers it no longer knows are purged (except exams in the offline queue). A failed
+ * fetch returns the local copy with `failed: true`, else a rejected request would read as "all my data is gone".
  */
 export async function loadSyncedExams(key: CryptoKey | null): Promise<{ exams: ExamRecord[]; failed: boolean }> {
   // IndexedDB itself: examRepository.getAll() answers with the server list, which made the purge

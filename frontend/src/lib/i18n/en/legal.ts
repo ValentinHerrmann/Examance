@@ -1,11 +1,8 @@
 import type { Translations } from '../types';
 
-// -----------------------------------------------------------------------------
-// PLACEHOLDER TRANSLATIONS — DO NOT MACHINE-TRANSLATE.
-// Impressum (§ 18 MStV, § 5 DDG) and Datenschutzerklärung (Art. 12/13 DSGVO) are legally binding in German.
-// Every value except `backToHome` and `notConfigured` is deliberately identical to `../de/legal.ts`. Replace
-// only with a reviewed, legally checked English version, alongside the German one.
-// -----------------------------------------------------------------------------
+// PLACEHOLDER TRANSLATIONS, DO NOT MACHINE-TRANSLATE: Impressum (§ 18 MStV, § 5 DDG) and Datenschutzerklärung (Art. 12/13
+// DSGVO) are legally binding in German. Every value except `backToHome` and `notConfigured` is deliberately identical to
+// `../de/legal.ts`; replace only with a reviewed, legally checked English version, alongside the German one.
 
 export const legal: Translations['legal'] = {
     // Navigational/structural labels — not part of the legally binding text.

@@ -1,14 +1,7 @@
 /**
- * Key envelope: the wrapped copies of the data-encryption key (DEK).
- *
- * The DEK is random and independent of any password. (When it was derived from the password, a reset
- * changed the key and silently orphaned every vault: decryptors in `lib/db/dbEncryption.ts` swallow
- * GCM failures, so teachers saw blank titles/names instead of an error.) Each recovering factor
- * (password, printable recovery code, PRF-capable passkey) derives a KEK in this browser and wraps its
- * own copy; a password change re-wraps the same DEK, nothing is re-encrypted.
- *
- * The server stores only ciphertext, a public salt and public KDF params; it never sees a password,
- * recovery code or PRF output, so it cannot unwrap anything.
+ * Key envelope: wrapped copies of the random data-encryption key (DEK), independent of any password (a password-derived
+ * DEK orphaned every vault on reset, and decryptors swallow GCM failures, so teachers saw blank names). Each factor
+ * (password, recovery code, PRF passkey) wraps its own copy in-browser; the server holds ciphertext and public KDF params only.
  */
 
 import { decrypt, fromBase64url, toArrayBuffer, toBase64url } from './aesGcm';

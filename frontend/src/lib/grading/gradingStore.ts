@@ -1,9 +1,7 @@
 /**
- * gradingStore: a deliberate, scoped exception to the "plain props" convention, for the grading
- * feature only. The grading route (exam/[id]/grade/+page.svelte) has too much cross-cutting state
- * (submission index, scores, overrides, stamp target, strokes, zoom/pan, PDF paging) to pass as
- * props to 15+ leaves, which subscribe via `$gradingStore` and call the setters below.
- * Async work (loading/saving scans and annotations) stays owned by the route; the store has none.
+ * gradingStore: a deliberate, scoped exception to the "plain props" convention. The grading route has too much cross-cutting
+ * state (submission, scores, strokes, zoom/pan, PDF paging) to pass to 15+ leaves, which subscribe via `$gradingStore`.
+ * Async loading/saving stays owned by the route; the store has none.
  */
 
 import { writable, get } from 'svelte/store';

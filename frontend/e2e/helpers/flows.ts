@@ -26,10 +26,9 @@ async function lx(page: Page, key: string, vars?: Record<string, string | number
 }
 
 /**
- * Replace the content of a CodeMirror 6 editor. `.cm-content` has no label, role or test id,
- * so this relies on its class name; select-all + insertText ignores the editor's key handling.
- * @param scope  Container of exactly the editor to fill (e.g. a dialog).
- * @param index  Which editor inside the scope, when there are several.
+ * Replace a CodeMirror 6 editor's content. `.cm-content` has no label or role, so this relies on its class name;
+ * select-all + insertText bypasses the editor's key handling.
+ * @param scope  Container of exactly the editor to fill (e.g. a dialog); @param index picks among several.
  */
 export async function setCodeMirror(
   page: Page,
@@ -65,11 +64,9 @@ export async function expectDashboard(page: Page): Promise<void> {
 }
 
 /**
- * Sign in on `/unlock` (the page must be open) with the e2e account. The account's first sign-in
- * creates its key envelopes and ends in the dialog with the one-time setup codes, which is
- * acknowledged here (`firstTime`). Ends on the dashboard, except for an account without a storage
- * mode (the `storageMode: null` fixture option): the root layout then asks for one first, and the
- * caller carries on from the choice dialog (`waitForDashboard: false`).
+ * Sign in on `/unlock` with the e2e account; a first sign-in acknowledges the one-time setup codes dialog (`firstTime`).
+ * Ends on the dashboard, except for a `storageMode: null` account: the layout then asks for a mode first and the
+ * caller continues from that dialog (`waitForDashboard: false`).
  */
 export async function signIn(
   page: Page,

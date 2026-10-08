@@ -13,10 +13,9 @@ function roundShape(shape: OmrShapeFeatures): OmrShapeFeatures {
 }
 
 /**
- * Re-detection of an already-verified question: the teacher's decision (selection, score,
- * `source`/`reviewedAt`, donation marker) stays; only the recorded detection is replaced. A re-run that
- * could not read the question leaves the row untouched, else its `failed` confidence and empty
- * `original` would move a verified item into the "failed" queue.
+ * Re-detection of an already-verified question: the teacher's decision (selection, score, `source`/`reviewedAt`, donation
+ * marker) stays, only the recorded detection is replaced. A re-run that could not read the question leaves the row
+ * untouched, else its `failed` confidence and empty `original` would move it into the "failed" queue.
  */
 export function mergeRedetectionIntoVerified(
   existing: ExerciseScoreRecord,
@@ -48,10 +47,9 @@ export function mergeRedetectionIntoVerified(
 }
 
 /**
- * Turns one worker result into the persisted score row (initial scan and re-run). Keeps raw
- * per-bubble readings, registration stats and the run snapshot, so a reviewed row is a labelled
- * calibration sample. All of it lives in the sealed `omrMeta`: pupil-derived, never a plaintext
- * column, index or log line.
+ * Turns one worker result into the persisted score row (initial scan and re-run), keeping raw per-bubble readings,
+ * registration stats and the run snapshot so a reviewed row is a calibration sample. All of it lives in the sealed
+ * `omrMeta`: pupil-derived, never a plaintext column, index or log line.
  */
 export function buildOmrScoreRecord(
   r: OmrExerciseResult,

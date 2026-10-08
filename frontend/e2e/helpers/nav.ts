@@ -1,8 +1,6 @@
 /**
- * App-shell navigation (header, menus, session buttons, footer, help, exam tab strip). A
- * shell redesign must only require changes HERE: selectors prefer landmarks, roles and
- * catalog-derived names. Shell today: `AppNavbar` (banner; burger drawer below `xl`, absent
- * on grade), `AppFooter` (contentinfo), `ExamSidebar` (from `lg`).
+ * App-shell navigation (header, menus, footer, help, exam tab strip). A shell redesign must only require changes
+ * HERE: selectors prefer landmarks, roles and catalog-derived names.
  */
 import type { Download, Locator, Page } from '@playwright/test';
 import { expect } from './guards';
@@ -54,10 +52,8 @@ export async function currentLocale(page: Page): Promise<Locale> {
 }
 
 /**
- * Wait until the page has stopped navigating. Locking navigates to `/unlock`
- * more than once (the lock service and the layout's lock handler both assign
- * `location.href`, and the unlock page can reload again), so the first matching
- * URL is not yet the page the test will interact with.
+ * Wait until the page has stopped navigating. Locking navigates to `/unlock` more than once (lock service, layout
+ * handler, unlock-page reload), so the first matching URL is not yet the page the test will interact with.
  */
 export async function settleNavigation(page: Page, quietMs = 700): Promise<void> {
   let lastNavigation = Date.now();

@@ -63,11 +63,9 @@ export function unescapeLatex(text: string | undefined | null): string {
 }
 
 /**
- * Ensures LaTeX content is wrapped in \begin{Aufgabe}{<title>} ... \end{Aufgabe}, adding whichever is missing.
- *
- * With `exerciseId`, an `\OmrExercise{<id>}` call is injected before the body (inert without
- * `\multi`/`\Lmulti`, see Loesung.sty) so OMR template capture can map bubbles back to exerciseId
- * without changing the stored latexBody (see mcOptions.ts).
+ * Ensures LaTeX content is wrapped in \begin{Aufgabe}{<title>} ... \end{Aufgabe}, adding whichever is missing. With
+ * `exerciseId`, an inert `\OmrExercise{<id>}` call (see Loesung.sty) is injected before the body so OMR template capture can
+ * map bubbles back to exerciseId without changing the stored latexBody (see mcOptions.ts).
  */
 export function formatExerciseLatex(
   latexBody: string | undefined | null,

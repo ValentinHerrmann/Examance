@@ -1,8 +1,7 @@
 /**
- * GDPR Art. 15 / Art. 20 subject access export for one student. The `.bgproj` archive is a
- * teacher-key-encrypted whole-workspace backup, useless as the readable "copy of the personal data"
- * a data subject is owed; this produces that copy (one student, decrypted). Mirrors erasure.ts:
- * resolve via repositories, decrypt with the session key, record the disclosure in the audit log.
+ * GDPR Art. 15 / Art. 20 subject access export for one student: the readable, decrypted copy of their personal data that
+ * the teacher-key-encrypted `.bgproj` backup cannot serve. Mirrors erasure.ts: resolve via repositories, decrypt with the
+ * session key, record the disclosure in the audit log.
  */
 
 import { get } from 'svelte/store';

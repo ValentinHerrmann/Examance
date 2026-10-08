@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 /**
- * Rewrites the `__INLINE_SCRIPT_HASHES__` placeholder in `build/_headers` with the SHA-256
- * of every inline <script> in the built HTML. SvelteKit's bootstrap script embeds hashed chunk
- * filenames, so its hash changes with any bundle change and a hand-written one goes stale
- * (blank deployed app, fine in dev). Fail-closed: if this never runs, the placeholder stays,
- * the script stays blocked and the app breaks loudly instead of shipping a weaker policy.
- * Usage: node scripts/generate-csp-headers.mjs [buildDir]
+ * Rewrites the `__INLINE_SCRIPT_HASHES__` placeholder in `build/_headers` with the SHA-256 of every inline <script>
+ * (SvelteKit's bootstrap hash changes with any bundle). Fail-closed: if never run, the script stays blocked and the app
+ * breaks loudly. Usage: node scripts/generate-csp-headers.mjs [buildDir]
  */
 
 import { createHash } from 'node:crypto';

@@ -1,9 +1,7 @@
 /**
- * In-memory LaTeX compilation cache: avoids re-compiling identical documents across tab switches
- * and preview reopen. Entries are keyed by a (kind, id, variant) tuple and verified by a SHA-256 of
- * the LaTeX source, app version, engine, resource files and exam logo, so exercises, exams, OMR layouts and
- * Angabe/Lösung cannot collide and any content change misses. Entries hold raw PDF bytes; callers
- * create short-lived object URLs and revoke them on destroy.
+ * In-memory LaTeX compilation cache: avoids re-compiling identical documents across tab switches and preview reopen. Keyed
+ * by (kind, id, variant) and verified by a SHA-256 of source, app version, engine, resources and exam logo, so any content
+ * change misses. Entries hold raw PDF bytes; callers create short-lived object URLs and revoke them on destroy.
  */
 
 import { frontendVersion } from '#lib/stores/versionStore';

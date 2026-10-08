@@ -1,8 +1,6 @@
 /**
- * Byte arrays inside the .bgproj JSON payload. `JSON.stringify` writes a `Uint8Array` as an object
- * of numbered keys (`{"0":37,"1":80,…}`), and the old packer did exactly that: every scan and
- * annotation came back as an object no decoder accepted. Bytes are now stored as `{ $b64: "…" }`;
- * reading also understands the old numbered-key shape for the fields that held bytes.
+ * Byte arrays inside the .bgproj JSON payload are stored as `{ $b64: "…" }`: `JSON.stringify` writes a `Uint8Array` as
+ * numbered keys, which no decoder accepts. Reading also understands that old numbered-key shape.
  */
 
 import { base64ToUint8Array, uint8ArrayToBase64 } from '#lib/crypto/aesGcm';

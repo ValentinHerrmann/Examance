@@ -1,12 +1,7 @@
 /**
- * Per-box measurement and classification for MC answer boxes. Two algorithms run on every box (the
- * other's verdict is stored as `alt`; `params.algorithm` decides):
- *  - **v2** (fallback): global-Otsu dark map, fixed-inset template rect, fill-ratio thresholds plus shape checks.
- *  - **v4** (default): `measureBox` with per-box local threshold, window snapped onto the printed border
- *    (template rect sits ~0.5ex below the drawn box: `\OmrBox` links at the baseline, TikZ draws at
- *    `baseline=-0.5ex`) and stroke structure; a thin-pen cross fills only ~10-30 %, so area thresholds (v3) failed.
- * Both share `effectiveRedoRect` and the `provisional` reading of ambiguous boxes. Only `solid` changes a
- * reading; `thin`/`faint`/`spill` only make a box `ambiguous`. Pure functions, testable on synthetic bitmaps.
+ * Per-box measurement and classification for MC answer boxes. v2 (fallback: global Otsu, fixed-inset rect, fill ratio + shape
+ * checks) and v4 (default: per-box local threshold, stroke structure; see docs/dev/omr.md) run on every box, the other's
+ * verdict is stored as `alt`. Only `solid` changes a reading; `thin`/`faint`/`spill` only make a box `ambiguous`. Pure functions.
  */
 import type { OmrDetectionParams } from './omrSettings';
 

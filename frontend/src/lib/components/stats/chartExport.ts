@@ -1,10 +1,7 @@
 /**
- * Chart export as SVG, PDF and PNG. `var(--color-*)` tokens mean nothing outside the app's
- * stylesheet, so each is swapped for a literal light-palette colour; no background is drawn.
- *
- * The PDF is vector output: `svgToPdf` redraws only `line` (optionally dashed), `rect`, `path`
- * and `text` with pdf-lib. A new element type in `ColumnChart` must be added there too;
- * unknown elements throw rather than silently vanishing.
+ * Chart export as SVG, PDF and PNG. `var(--color-*)` tokens mean nothing outside the app's stylesheet, so each is
+ * swapped for a literal light-palette colour. The PDF redraws only `line`, `rect`, `path` and `text` (`svgToPdf`): a new
+ * element type in `ColumnChart` must be added there too; unknown elements throw rather than silently vanishing.
  */
 
 /** Token name (without `--color-`) → literal colour. */

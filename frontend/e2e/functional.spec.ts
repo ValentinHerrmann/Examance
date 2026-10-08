@@ -1,9 +1,7 @@
 /**
- * Functional regression suite: asserts behaviour and data, never layout, classes or visuals,
- * so it survives UI redesigns with changes to `helpers/nav.ts` only. Texts come from the
- * i18n catalogs via `helpers/i18n.ts`. Titles are tagged by area (`-g "\[exam\]"`).
- * Runs against the mocked backend (`helpers/backend.ts`, in the account's `all-server` mode unless
- * a describe sets `storageMode`); LaTeX compilation is never awaited or asserted.
+ * Functional regression suite: asserts behaviour and data, never layout or visuals, so UI redesigns only touch
+ * `helpers/nav.ts`. Texts come from the i18n catalogs (`helpers/i18n.ts`); LaTeX compilation is never awaited or
+ * asserted. Titles are tagged by area (`-g "\[exam\]"`).
  */
 import { test, expect } from './helpers/guards';
 import { label, labelExact, literal, rawTemplate, stem } from './helpers/i18n';

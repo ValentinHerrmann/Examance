@@ -204,10 +204,9 @@ export interface ExerciseScoreRecord extends MaybeUndecryptable {
 }
 
 /**
- * A pupil's identity within one exam. `fallbackCode`, `studentName`, `studentNumber` exist only on
- * records that went through `decryptStudent()`; stored (IndexedDB and server) they live solely inside
- * `payloadCt`. `encryptStudent()` strips them; writing them back as plain columns is the L17 leak
- * (docs/legal_audit_dsgvo.md) that broke Core Invariant 1 in every mode.
+ * A pupil's identity within one exam. `fallbackCode`, `studentName`, `studentNumber` exist only on records returned by
+ * `decryptStudent()`; stored, they live solely inside `payloadCt`. Writing them back as plain columns is the L17 leak
+ * (docs/legal_audit_dsgvo.md) that broke Core Invariant 1.
  */
 export interface StudentRecord extends MaybeUndecryptable {
   /** Raw pseudonym UUID — only in local IDB, never sent to server. */
@@ -324,10 +323,9 @@ export interface WorkspaceOwner {
 }
 
 /**
- * The single row of the `workspace` table: whose key sealed the data in this database, and the last
- * storage mode the account had here. The account's mode itself lives on the server
- * (`GET /user/capabilities`); this copy only serves offline loads. `'all-local'` marks a workspace
- * from before local mode was discontinued.
+ * The single row of the `workspace` table: whose key sealed this database's data and the account's last storage mode here
+ * (offline loads only; the real mode lives on the server, `GET /user/capabilities`). `'all-local'` marks a workspace from
+ * before local mode was discontinued.
  */
 export interface WorkspaceManifestRecord {
   /** Always `'current'` (single-row table). */

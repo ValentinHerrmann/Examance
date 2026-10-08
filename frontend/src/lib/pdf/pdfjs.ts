@@ -1,11 +1,7 @@
 /**
- * Single entry point for pdf.js. The worker is bundled from `pdfjs-dist` (Vite `?url`), not pulled
- * from cdnjs, because:
- *  1. CSP: `script-src 'self'` / `worker-src 'self' blob:` (static/_headers) blocks a CDN worker,
- *     which would break every PDF view in production.
- *  2. Privacy: exam scans contain student PII; a CDN worker discloses every user's IP and referrer,
- *     a transfer the DSGVO documentation says does not happen.
- * It also avoids version skew with whatever `pdfjsLib.version` resolved to on the CDN.
+ * Single entry point for pdf.js. The worker is bundled from `pdfjs-dist` (Vite `?url`), never a CDN: `script-src 'self'` /
+ * `worker-src 'self' blob:` (static/_headers) would block it, and a CDN worker discloses every user's IP and referrer while
+ * exam scans hold student PII (the DSGVO documentation says no such transfer happens).
  */
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 

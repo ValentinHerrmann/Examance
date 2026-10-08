@@ -1,17 +1,7 @@
 /**
- * Self-hosted, chromeless EmbedPDF (PDFium WASM) config for read-only previews. Two deliberate
- * deviations from upstream defaults (see also `pdf/pdfjs.ts`):
- *
- *  1. Upstream fetches its WASM, fallback fonts, default stamp library and toolbar font from
- *     third-party CDNs (jsdelivr, Google Fonts), leaking IP/referrer, which `script-src 'self'`
- *     is meant to rule out. We bundle the WASM (`wasmUrl`), null the fonts (`fontFallback: null`,
- *     `fonts: { ui: null, signature: null }`) and empty the stamp libraries/manifests (the plugin
- *     fetches its default manifest on init even when the UI is hidden via `disabledCategories`).
- *     Vite's `?url` gives a path-absolute string that fails inside EmbedPDF's `blob:` Worker (no
- *     base, viewer hangs on "Loading document..."), so it is resolved via `new URL(wasmUrl, location.href)`.
- *
- *  2. The full toolbar/sidebar/menu UI is unneeded for a read-only preview; `chromelessUiSchema` is
- *     an empty schema, while the zoom/pan/scroll plugins keep working without any UI.
+ * Self-hosted, chromeless EmbedPDF (PDFium WASM) for read-only previews (see also `pdf/pdfjs.ts`). Upstream fetches WASM,
+ * fonts and stamp libraries from third-party CDNs (IP/referrer leak, against `script-src 'self'`), so all are bundled or
+ * nulled. `wasmUrl` is resolved via `new URL(wasmUrl, location.href)`: Vite's path-absolute `?url` hangs the `blob:` Worker.
  */
 import EmbedPDF, {
   ZoomMode,

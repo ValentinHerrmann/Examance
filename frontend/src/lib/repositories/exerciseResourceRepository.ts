@@ -1,9 +1,7 @@
 /**
- * Exercise resource files: local staging area plus server sync. The editor works against a *staging*
- * owner id, never the live exercise, so files can be attached and previewed before the exercise exists
- * anywhere; Save commits the staged set, cancel discards it. Dexie is always the working copy; the
- * staged set is flushed to the API on save, and server-seeded rows carry only
- * metadata until their bytes are needed.
+ * Exercise resource files: local staging area plus server sync. The editor works against a *staging* owner id, never the
+ * live exercise, so files can be attached and previewed before it exists; Save flushes the staged set to the API, cancel
+ * discards it. Dexie is the working copy; server-seeded rows carry only metadata until their bytes are needed.
  */
 
 import { api } from '#lib/api/client';

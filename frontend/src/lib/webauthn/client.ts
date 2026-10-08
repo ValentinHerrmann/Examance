@@ -1,19 +1,15 @@
 /**
- * WebAuthn ceremonies in the browser, two separate jobs: (1) authentication, a passkey being one of
- * three sign-in factors; (2) key recovery, where an authenticator with the PRF extension derives a
- * device-bound secret that wraps a copy of the data key. Without PRF the passkey only signs in, and
- * the UI must say so rather than let anyone assume otherwise.
+ * WebAuthn ceremonies in the browser, two jobs: (1) authentication, a passkey being one of three sign-in factors; (2) key
+ * recovery, where a PRF-capable authenticator derives a device-bound secret that wraps a copy of the data key. Without PRF
+ * the passkey only signs in, and the UI must say so.
  */
 
 import { fromBase64url, toArrayBuffer, toBase64url } from '#lib/crypto/aesGcm';
 
 /**
- * The PRF input, fixed for the whole app. It must be supplied *before* the ceremony, and at sign-in the
- * answering passkey is unknown (`/webauthn/login/options` takes no account identifier on purpose), so no
- * per-credential value is possible; sign-in once passed nothing, so PRF was never requested and no
- * passkey could open the vault. A constant is fine: a PRF salt is a public domain-separation input, and
- * the derived secret is still per credential (the authenticator's PRF key is per credential and
- * RP-scoped). `addPasskeyWrap` still uses its own random HKDF salt per wrap.
+ * The PRF input, fixed for the whole app: it must be supplied *before* the ceremony and at sign-in the answering passkey is
+ * unknown (`/webauthn/login/options` takes no account identifier on purpose), so no per-credential value is possible. A
+ * constant is fine: a PRF salt is a public domain-separation input and the derived secret stays per credential.
  */
 export const APP_PRF_SALT: Uint8Array = new TextEncoder().encode(
   'examance-passkey-prf-v1--------',

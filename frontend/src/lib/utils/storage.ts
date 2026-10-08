@@ -1,11 +1,7 @@
 /**
- * Safe wrappers around localStorage and sessionStorage. Some browsers report
- * `typeof localStorage === 'object'` but throw SecurityError on access (Firefox private mode,
- * "Block all site data", Safari ITP), so a `typeof` guard is not enough: wrap every read/write
- * in try-catch. Import from here, never use the globals directly; the `safe*` functions never throw.
- *
- * `setItemOrThrow` is the exception: for the vault's salt/nonce a swallowed write would let the
- * next unlock derive a different key over the same IndexedDB, silently blanking every record.
+ * Safe wrappers around localStorage/sessionStorage: some browsers report `typeof localStorage === 'object'` but throw
+ * SecurityError on access (Firefox private mode, Safari ITP). Import from here, never the globals; `safe*` never throw.
+ * `setItemOrThrow` is the exception: a swallowed write of the vault's salt/nonce would silently blank every record next unlock.
  */
 
 /** Thrown by `setItemOrThrow` when the value could not be persisted. */
