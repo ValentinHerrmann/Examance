@@ -1,6 +1,7 @@
 import './fetchInterceptor';
 
 import { BusyTexRunner, XeLatex, isPackageCached, clearAllPackageCache } from 'texlyre-busytex';
+import type { LogEntry } from 'texlyre-busytex';
 
 let runner: BusyTexRunner | null = null;
 let xelatex: XeLatex | null = null;
@@ -121,7 +122,13 @@ async function initRunner(onStatus: (status: string) => void) {
       busytexBasePath: '/core/busytex',
       preloadDataPackages: packages
     });
-    await runner.initialize();
+    try {
+      await runner.initialize();
+    } catch (err) {
+      // A half-built runner would make the next call fail with "failed to initialize" instead of retrying.
+      resetRunner();
+      throw err;
+    }
     xelatex = new XeLatex(runner);
   } else {
     onStatus('compiling');
@@ -203,6 +210,53 @@ export function extractMissingGraphics(log: string | undefined | null): string[]
     .map((line) => line.trim());
 }
 
+// The xetex_bibtex8_dvipdfmx pipeline runs xdvipdfmx even after XeTeX failed, so the log then ends in
+// this fatal while the real error sits in the XeTeX step's log (`result.logs`).
+export const XDV_OPEN_FATAL_PATTERN = /xdvipdfmx:fatal: Could not open specified DVI \(or XDV\) file/i;
+
+/** TeX "!" errors, each through its `l.<n>` context line and the line after it. */
+export function extractTexErrors(text: string | undefined | null, maxBlocks = 5): string[] {
+  if (!text) return [];
+  const lines = text.split('\n');
+  const blocks: string[] = [];
+  for (let i = 0; i < lines.length && blocks.length < maxBlocks; i++) {
+    if (!lines[i].startsWith('!')) continue;
+    const limit = Math.min(lines.length, i + 12);
+    let j = i + 1;
+    while (j < limit && !/^l\.\d+/.test(lines[j])) j++;
+    const stop = j < limit ? j + 2 : limit;
+    blocks.push(
+      lines
+        .slice(i, stop)
+        .map((line) => line.trimEnd())
+        .filter(Boolean)
+        .join('\n')
+    );
+    i = stop - 1;
+  }
+  return blocks;
+}
+
+type CompileStep = Partial<Pick<LogEntry, 'cmd' | 'log' | 'stdout' | 'stderr' | 'exit_code'>>;
+
+/** The message for a failed compile: the XeTeX step's errors when the log only shows the follow-up xdvipdfmx fatal. */
+export function describeCompileFailure(result: {
+  log?: string | null;
+  logs?: readonly CompileStep[] | null;
+}): string {
+  const full = result.log || 'Compilation failed';
+  if (!XDV_OPEN_FATAL_PATTERN.test(full)) return full;
+
+  const steps = (result.logs ?? []).filter((step) => !/xdvipdfmx/i.test(step.cmd ?? ''));
+  const failed =
+    steps.find((step) => (step.exit_code ?? 0) !== 0) ?? steps.find((step) => /xetex/i.test(step.cmd ?? ''));
+  for (const text of [failed?.log, failed?.stdout, failed?.stderr]) {
+    const blocks = extractTexErrors(text);
+    if (blocks.length > 0) return blocks.join('\n\n');
+  }
+  return full;
+}
+
 async function recoverFromPossiblyCorruptedCache(): Promise<void> {
   resetRunner();
   try {
@@ -220,7 +274,23 @@ let cacheRecoveryAttempted = false;
 
 let compileQueue: Promise<void> = Promise.resolve();
 
+/** Boots the engine and loads the bundled assets without compiling; a failure only costs the head start. */
+async function preloadEngine(): Promise<void> {
+  try {
+    await initRunner(() => {});
+    await loadAdditionalFiles();
+  } catch (err) {
+    console.warn('[CompilerWorker] Preload failed; the first compile will retry.', err);
+  }
+}
+
 self.onmessage = (e: MessageEvent) => {
+  // Queued like a compile, so a compile posted meanwhile waits for the boot instead of racing it.
+  if (e.data?.type === 'preload') {
+    compileQueue = compileQueue.then(preloadEngine);
+    return;
+  }
+
   const { id, latexSource, resources } = e.data as {
     id: number;
     latexSource: string;
@@ -266,7 +336,7 @@ self.onmessage = (e: MessageEvent) => {
       if (
         !result.success &&
         !cacheRecoveryAttempted &&
-        looksLikeMissingBundledPackage(result.log)
+        looksLikeMissingBundledPackage(describeCompileFailure(result))
       ) {
         cacheRecoveryAttempted = true;
         console.warn(
@@ -305,11 +375,12 @@ self.onmessage = (e: MessageEvent) => {
       } else {
         // Not reset here — an ordinary compile error (e.g. a LaTeX typo)
         // shouldn't force a full engine reboot on the next attempt.
-        self.postMessage({ id, success: false, error: result.log || "Compilation failed" });
+        self.postMessage({ id, success: false, error: describeCompileFailure(result) });
       }
     } catch (error: any) {
-      // A thrown error is different: the engine itself is in an unknown state,
-      // so this one really does warrant a reset.
+      // A thrown error is different: the engine itself is in an unknown state, so reset. Required for
+      // texlyre-busytex's 180 s timeout, which rejects without stopping its worker: that worker's late
+      // answer would otherwise resolve the next compile.
       resetRunner();
       self.postMessage({ id, success: false, error: error.message || "Unknown error in compilation worker" });
     }
