@@ -2,6 +2,7 @@
   import { onMount, untrack } from "svelte";
   import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "#lib/db/schema";
   import {
+    applyAnswerKeyScore,
     applyMcCorrection,
     computeMcScore,
     restoreOriginalDetection,
@@ -124,12 +125,15 @@
   let confidence = $derived(omrMeta?.confidence ?? "ambiguous");
   let source = $derived(omrMeta?.source ?? "omr");
 
-  // Recomputed from the current answer key: a stored score can predate a fix of the options.
-  let currentScore = $derived(mismatch ? (scoreRecord?.score ?? 0) : scoreFor(selectedOptions));
-
   function scoreFor(selection: number[]): number {
     return computeMcScore(questionType, selection, correctAnswers, exercise.penalty ?? 0, exercise.maxPoints);
   }
+
+  // The stored score is shown and confirmed as is (it may be hand-typed in a grading grid); only a
+  // toggle here recomputes it. A differing answer-key score is offered, never applied silently.
+  let score: number = $derived(scoreRecord?.score ?? scoreFor(scoreRecord?.selectedOptions ?? []));
+  let keyScore = $derived(mismatch ? null : scoreFor(selectedOptions));
+  let keyScoreDiffers = $derived(keyScore !== null && Math.abs(keyScore - score) > 1e-9);
 
   // Redraws when bubble positions/states, submission or exercise change; the ids avoid
   // template-key collisions across submissions.
@@ -185,11 +189,13 @@
       correctAnswers,
       exercise.penalty ?? 0,
       exercise.maxPoints,
-      omrMeta
+      omrMeta,
+      score
     );
 
     selectedOptions = nextSelectedOptions;
     omrMeta = nextOmrMeta;
+    score = nextScore;
 
     isSaving = true;
     try {
@@ -211,10 +217,10 @@
       omrMeta
     );
     if (!res) return;
-    const nextScore = mismatch ? res.nextScore : scoreFor(res.nextSelectedOptions);
-
+    // Back to the snapshot's stored score; if the answer key has changed since, the hint offers it.
     selectedOptions = res.nextSelectedOptions;
     omrMeta = res.nextOmrMeta;
+    score = res.nextScore;
     justRestored = true;
     setTimeout(() => {
       justRestored = false;
@@ -222,7 +228,7 @@
 
     isSaving = true;
     try {
-      await onSave(exercise.id, res.nextSelectedOptions, nextScore, res.nextOmrMeta);
+      await onSave(exercise.id, res.nextSelectedOptions, res.nextScore, res.nextOmrMeta);
     } catch (err) {
       console.error("Failed to restore original detection:", err);
     } finally {
@@ -232,7 +238,7 @@
 
   async function handleConfirmAsCorrect() {
     if (isSaving || mismatch) return;
-    const res = confirmDetection(selectedOptions, currentScore, omrMeta);
+    const res = confirmDetection(selectedOptions, score, omrMeta);
 
     selectedOptions = res.nextSelectedOptions;
     omrMeta = res.nextOmrMeta;
@@ -243,6 +249,31 @@
       (currentIndex < totalItems - 1 ? onNext : onEndOfQueue)();
     } catch (err) {
       console.error("Failed to confirm detection:", err);
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  async function handleApplyKeyScore() {
+    if (isSaving || mismatch || !omrMeta || !keyScoreDiffers) return;
+    const res = applyAnswerKeyScore(
+      questionType,
+      selectedOptions,
+      correctAnswers,
+      exercise.penalty ?? 0,
+      exercise.maxPoints,
+      score,
+      omrMeta
+    );
+
+    omrMeta = res.nextOmrMeta;
+    score = res.nextScore;
+
+    isSaving = true;
+    try {
+      await onSave(exercise.id, res.nextSelectedOptions, res.nextScore, res.nextOmrMeta);
+    } catch (err) {
+      console.error("Failed to apply the answer-key score:", err);
     } finally {
       isSaving = false;
     }
@@ -499,9 +530,18 @@
             </span>
           </div>
           <span class="text-xs font-bold font-mono text-success-fg">
-            {$t("scanning.itemCard.scoreLabel", { score: currentScore, maxPoints: exercise.maxPoints })}
+            {$t("scanning.itemCard.scoreLabel", { score, maxPoints: exercise.maxPoints })}
           </span>
         </div>
+
+        {#if keyScoreDiffers && keyScore !== null}
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+            <span class="min-w-0">{$t("scanning.itemCard.keyScoreDiffers", { stored: score, key: keyScore })}</span>
+            <Button size="sm" variant="text" disabled={isSaving} title={$t("scanning.itemCard.applyKeyScoreTooltip")} onClick={handleApplyKeyScore}>
+              {$t("scanning.itemCard.applyKeyScore")}
+            </Button>
+          </div>
+        {/if}
 
         {#if mismatch}
           <Alert severity="danger" class="mb-3">
