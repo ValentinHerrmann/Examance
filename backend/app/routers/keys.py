@@ -1,11 +1,7 @@
 """
-Key-envelope router — /api/v1/keys/*
-
-Stores the wrapped copies of a teacher's data-encryption key. Everything here is
-opaque to the server: it holds ciphertext, a public salt and public KDF
-parameters, and never sees a password, a recovery code or a PRF output.
-
-A teacher can only ever read or write their own envelopes.
+Key-envelope router — /api/v1/keys/*: wrapped copies of a teacher's data key.
+Opaque to the server: ciphertext, public salt and KDF params, never a password or recovery code.
+A teacher can only read or write their own envelopes.
 """
 from __future__ import annotations
 
@@ -76,11 +72,8 @@ async def list_envelopes(
     db: AsyncSession = Depends(get_db),
 ) -> KeyEnvelopeListOut:
     """
-    Return every wrap for the calling teacher.
-
-    Invalidated rows are returned too, marked as such, so the client can tell
-    "this factor was orphaned by an admin password write" apart from "this
-    factor was never enrolled" and offer the right recovery path.
+    Return every wrap for the calling teacher, invalidated rows included and marked, so the client
+    can tell a factor orphaned by an admin password write from one never enrolled.
     """
     teacher = _require_envelope_scope(session)
     result = await db.execute(
@@ -104,11 +97,8 @@ async def replace_envelopes(
 ) -> KeyEnvelopeListOut:
     """
     Replace the teacher's whole envelope set in one transaction.
-
-    Wholesale replacement is deliberate. Merging risks leaving a set where the
-    password wrap is new and the recovery wrap still holds the previous DEK,
-    which is indistinguishable from a working set until the day someone needs to
-    recover with it.
+    Wholesale on purpose: merging could leave a new password wrap beside a recovery wrap holding
+    the previous DEK, which looks healthy until someone needs to recover.
     """
     teacher = _require_envelope_scope(session, write=True)
     rows = await replace_envelope_set(db, teacher, body)
@@ -134,11 +124,9 @@ async def delete_envelope(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """
-    Remove a single wrap — used when a passkey is deregistered.
-
-    The recovery wrap cannot be deleted this way: it is the factor that always
-    works, and dropping it would leave the account one forgotten password away
-    from unreadable data.
+    Remove a single wrap (used when a passkey is deregistered).
+    The recovery wrap cannot be deleted this way: it always works, and dropping it would leave
+    the account one forgotten password from unreadable data.
     """
     teacher = _require_envelope_scope(session, write=True)
     result = await db.execute(

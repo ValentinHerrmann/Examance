@@ -1,27 +1,7 @@
 """
-The two-of-three factor policy.
-
-One place decides what a session needs, so the rule cannot drift between the
-login endpoints, the enrollment endpoints and the guard that decides a factor may
-be removed.
-
-The three factors are **password**, **passkey** and **TOTP**. A session needs
-either a passkey on its own or two *distinct* factors. A passkey qualifies alone
-because every ceremony demands user verification (`webauthn.py`): it is already
-possession plus a local biometric or PIN. Password and TOTP never stand alone.
-
-Enrollment still asks for two factors, so a teacher who signs in with a password
-always has a second one to present, and losing any single factor does not lock
-them out.
-
-Two rules, not one:
-
-1. At least two factors enrolled, or the account cannot authenticate at all and
-   is held in the enrollment scope.
-2. At least one *key-capable* factor. TOTP authenticates but cannot unwrap the
-   data key — the secret lives server-side and a six-digit code carries no
-   entropy to derive from. An account whose only factors were TOTP and a passkey
-   without PRF could sign in and still not read its own exams.
+The two-of-three factor policy: the one place deciding what a session needs.
+A session needs a passkey alone or two distinct factors (password, passkey, TOTP), and at least
+one enrolled factor must be key-capable (rules in backend/CLAUDE.md).
 """
 from __future__ import annotations
 
@@ -44,10 +24,9 @@ ALL_FACTORS: tuple[FactorKind, ...] = ("password", "passkey", "totp")
 # environment variable can switch off is not one.
 REQUIRED_FACTOR_COUNT = 2
 
-# Factors that can also yield a key-encryption key for the data-key envelope.
-# A passkey only qualifies when its authenticator supports the PRF extension,
-# which is why membership here is necessary but not sufficient — see
-# `key_capable_factors`.
+# Factors that can also yield a key-encryption key for the data-key envelope. A passkey only
+# qualifies if its authenticator supports PRF, so membership here is necessary but not
+# sufficient (see `key_capable_factors`).
 KEY_CAPABLE_FACTORS: frozenset[str] = frozenset({"password", "passkey"})
 
 # Factors that complete a sign-in by themselves. Only a passkey: the ceremony
@@ -93,11 +72,8 @@ async def enrolled_factors(db: AsyncSession, teacher: Teacher) -> set[FactorKind
 
 async def key_capable_factors(db: AsyncSession, teacher: Teacher) -> set[FactorKind]:
     """
-    Of the enrolled factors, those that can unwrap the data key.
-
-    A password counts when a usable password wrap exists — an admin-forced
-    password write invalidates that wrap, and a factor that authenticates but
-    cannot open the vault does not satisfy this rule.
+    Of the enrolled factors, those that can unwrap the data key. A password counts only while a
+    usable wrap exists (an admin-forced password write invalidates it).
     """
     factors = await enrolled_factors(db, teacher)
     capable: set[FactorKind] = set()
@@ -158,11 +134,8 @@ async def may_remove_factor(
     db: AsyncSession, teacher: Teacher, kind: FactorKind
 ) -> tuple[bool, str | None]:
     """
-    Whether removing *kind* would leave the account unusable.
-
-    This single guard is what makes "any two of three" safe to offer: without it
-    a teacher could delete their way below the policy, or below their last means
-    of opening their own data.
+    Whether removing *kind* would leave the account unusable: below the policy, or below its last
+    means of opening its own data. This guard makes "any two of three" safe to offer.
     """
     enrolled = await enrolled_factors(db, teacher)
     if kind not in enrolled:

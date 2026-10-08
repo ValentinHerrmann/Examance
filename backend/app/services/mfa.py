@@ -49,12 +49,9 @@ async def get_credential(db: AsyncSession, teacher_id: uuid.UUID) -> MfaCredenti
 
 async def start_enrollment(db: AsyncSession, teacher: Teacher) -> str:
     """
-    Create (or replace) an unconfirmed enrollment and return its otpauth URI.
-
-    Replacing an unconfirmed row is deliberate: a teacher who abandons the
-    enrollment screen and comes back should get a working secret, not a
-    stalemate. A *confirmed* enrollment is never replaced this way — removing one
-    goes through the factor-removal guard.
+    Create (or replace) an unconfirmed enrollment and return its otpauth URI. Replacing is
+    deliberate (an abandoned screen should yield a working secret); a *confirmed* enrollment is
+    never replaced this way, its removal goes through the factor-removal guard.
     """
     existing = await get_credential(db, teacher.id)
     if existing is not None and existing.confirmed_at is not None:
@@ -112,13 +109,9 @@ TotpResult = Literal["ok", "invalid", "replayed"]
 
 async def verify_totp(db: AsyncSession, teacher: Teacher, code: str) -> TotpResult:
     """
-    Check a code against a confirmed enrollment, refusing replays.
-
-    Three outcomes rather than two. "replayed" is a correct code whose window has
-    already been spent — the one the authenticator is still showing a moment
-    after it was used, which every sign-in straight after a password reset hits.
-    The caller must not treat it as a wrong guess: it proves possession, and
-    charging it to the failure counter turns a thirty-second wait into a lockout.
+    Check a code against a confirmed enrollment, refusing replays. "replayed" is a correct code
+    whose window is already spent (the app still shows it right after a password reset): it proves
+    possession, so callers must not count it as a failure or a thirty-second wait becomes a lockout.
     """
     credential = await get_credential(db, teacher.id)
     if credential is None or credential.confirmed_at is None:
@@ -167,16 +160,9 @@ async def issue_backup_codes(db: AsyncSession, teacher: Teacher) -> list[str]:
 
 async def consume_backup_code(db: AsyncSession, teacher: Teacher, code: str) -> bool:
     """
-    Spend one backup code.
-
-    Looked up by keyed digest, so the work is one hash and one indexed read
-    however many codes are stored, and no comparison depends on the submitted
-    value.
-
-    Sets issued before the digest existed are Argon2id hashes and cannot be
-    converted — the plaintext is gone. Those are still verified row by row, so
-    the accounts holding them keep working; a set regenerated from the security
-    panel replaces them with digests and stops paying for it.
+    Spend one backup code, looked up by keyed digest (one hash, one indexed read, no value-dependent
+    comparison). Legacy Argon2id sets cannot be converted (the plaintext is gone) and are still
+    verified row by row until regenerated from the security panel.
     """
     normalized = normalize_backup_code(code)
     if not normalized:

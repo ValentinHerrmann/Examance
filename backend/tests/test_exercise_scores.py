@@ -1,9 +1,6 @@
-"""Per-exercise score endpoints.
-
-The behaviour under test is mostly about *not* failing: the bulk write has to be
-replayable, and clearing a score that is not there has to be a no-op. Both
-because the client reaches these endpoints from an offline-queue flush and from
-a keystroke in the grading grid, where a 409 or a 404 would surface as a modal.
+"""Per-exercise score endpoints. The behaviour under test is mostly *not* failing: bulk writes must
+be replayable and clearing a missing score a no-op, since offline-queue flushes and grid keystrokes
+would otherwise surface a 409 or 404 as a modal.
 """
 from __future__ import annotations
 

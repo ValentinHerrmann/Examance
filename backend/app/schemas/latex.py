@@ -1,13 +1,6 @@
 """Pydantic model for LaTeX compilation requests.
-
-SECURITY: __repr__ is overridden to prevent LaTeX source from appearing in:
-  - Exception tracebacks
-  - Framework debug logging
-  - APM / Sentry error reports
-  - Any log at any level in any environment
-
-There is no env-var toggle for this. The redaction is unconditional. The same
-applies to attached resource files: only their names may ever be logged.
+SECURITY: __repr__ is overridden so LaTeX source never reaches tracebacks, debug logging or
+error reports, unconditionally (no env toggle). Likewise only resource file names may be logged.
 """
 from __future__ import annotations
 
@@ -74,15 +67,13 @@ class LaTeXResource(BaseModel):
 class LaTeXRequest(BaseModel):
     latex: str
     resources: list[LaTeXResource] = Field(default_factory=list)
-    #: Exercises whose stored resource files this document needs. The server
-    #: loads them from the database, so a client in server/hybrid mode does not
-    #: upload bytes the server already has. Only exercises the caller may read
-    #: are honoured; unknown ids are ignored.
+    #: Exercises whose stored resource files this document needs; the server loads them itself, so
+    #: clients need not upload bytes it already has. Only exercises the caller may read are
+    #: honoured; unknown ids are ignored.
     resource_exercise_ids: list[UUID] = Field(default_factory=list, max_length=100)
-    #: The exam header logo to place in the working directory (app.services.logo):
-    #: ``logo_exam_id`` prints that exam's logo (an exam the caller does not own falls back to
+    #: Exam header logo (app.services.logo): ``logo_exam_id`` prints that exam's logo (not owned:
     #: the account logo); ``account_logo`` alone prints the account logo, for an exam the server
-    #: does not know yet. Neither prints no logo, as for an exercise preview.
+    #: does not know yet. Neither prints no logo.
     logo_exam_id: UUID | None = None
     account_logo: bool = False
 

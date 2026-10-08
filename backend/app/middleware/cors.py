@@ -18,11 +18,9 @@ def _origin_pattern() -> re.Pattern[str] | None:
 
 def is_allowed_origin(origin: str | None) -> bool:
     """
-    Whether *origin* is on the CORS allowlist.
-
-    Shared by CORSMiddleware's own configuration, the CSRF origin guard and the
-    500 handler, so all three agree on what "allowed" means. fullmatch mirrors
-    Starlette — a prefix match would let evil.example.com.attacker.test through.
+    Whether *origin* is on the CORS allowlist; shared by CORSMiddleware, the origin guard and
+    the 500 handler so all three agree. fullmatch mirrors Starlette: a prefix match would let
+    evil.example.com.attacker.test through.
     """
     if not origin:
         return False
@@ -46,11 +44,9 @@ def add_cors_middleware(app: FastAPI) -> None:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-        # Routers attach the machine-readable error code as a response header
-        # (e.g. HTTPException(headers={"code": "ERR_INVALID_CREDENTIALS"})).
-        # Response headers are not readable cross-origin unless they are named
-        # here, so without this the frontend's errors.code.* localization and
-        # the Retry-After on a login cooloff are invisible to the browser.
+        # Routers send the error code as a response header (``code``); cross-origin it is unreadable
+        # unless exposed here, which would hide errors.code.* localization and Retry-After from the
+        # SPA.
         expose_headers=["code", "Retry-After"],
     )
 

@@ -1,24 +1,7 @@
 """
-Per-account login throttling with an exponential, capped cooloff.
-
-slowapi's limits (``app/middleware/rate_limit.py``) are keyed on the client IP.
-That bounds a spray from one host, but a guesser rotating source addresses is
-effectively unthrottled against a single account. This module adds the missing
-half: a failure counter keyed on the *account*, and a lock that makes further
-attempts cheap to reject.
-
-Two stores are used on purpose:
-
-* Redis holds the rolling failure count, so it is shared across uvicorn workers
-  and expires on its own. The key is a SHA-256 of the normalized email, so a
-  Redis dump is not a list of who has an account here.
-* ``teachers.locked_until`` mirrors the lock, so flushing Redis cannot silently
-  clear one and an operator can see the state in the database.
-
-The lock always expires. Any per-account lockout hands an attacker who knows an
-email a denial-of-service against its owner, so the cooloff is capped by
-``LOGIN_LOCKOUT_MAX_SECONDS`` and is never escalated by attempts made while it
-is already in force.
+Per-account login throttling with an exponential, capped cooloff, complementing the per-IP
+slowapi limits. Failure count in Redis under a hashed email, lock mirrored in the database;
+the lock always expires and is never escalated while in force (backend/CLAUDE.md).
 """
 from __future__ import annotations
 
@@ -48,11 +31,8 @@ def _enabled() -> bool:
 
 def _cooloff_seconds(failures: int) -> int:
     """
-    Exponential cooloff, capped.
-
-    The first lock lands at LOGIN_MAX_FAILED_ATTEMPTS and lasts
-    LOGIN_LOCKOUT_BASE_SECONDS; each further failure doubles it up to
-    LOGIN_LOCKOUT_MAX_SECONDS.
+    Exponential cooloff, capped: the first lock lands at LOGIN_MAX_FAILED_ATTEMPTS and lasts
+    LOGIN_LOCKOUT_BASE_SECONDS; each further failure doubles it up to LOGIN_LOCKOUT_MAX_SECONDS.
     """
     over = max(failures - settings.LOGIN_MAX_FAILED_ATTEMPTS, 0)
     # Bound the exponent before shifting so a large counter cannot allocate a

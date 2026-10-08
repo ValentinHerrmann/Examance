@@ -651,10 +651,7 @@ async def test_exercise_usage_and_deletion(client: AsyncClient, db: AsyncSession
 async def test_cors_preflight_origins(client: AsyncClient) -> None:
     """
     Preflight must reflect whatever origin allowlist is configured.
-
-    Driven off `settings` rather than hardcoded production hostnames: CI narrows
-    CORS_ALLOWED_ORIGINS to localhost, so asserting against examance.pages.dev
-    made the test depend on ambient configuration rather than on behaviour.
+    Driven off `settings`, not hardcoded hostnames: CI narrows CORS_ALLOWED_ORIGINS to localhost.
     """
     from app.config import settings
 

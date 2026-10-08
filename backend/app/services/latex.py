@@ -111,12 +111,9 @@ def format_exam_course(grade: str | None, klasse: str | None) -> str:
 
 def escape_tex(text: str | None) -> str:
     """
-    Escape LaTeX special characters in plain (non-LaTeX) user text before
-    it's interpolated into a command argument, e.g. \\begin{Aufgabe}{<title>}.
-
-    Do NOT use this on fields that are legitimately raw LaTeX by design
-    (`latex_body`, `info_text`/`\\Info{}`) -- only on plain-text metadata
-    like titles, scoring text, class, date, etc.
+    Escape LaTeX special characters in plain user text before interpolating it into a command
+    argument, e.g. \\begin{Aufgabe}{<title>}. Never use it on fields that are raw LaTeX by design
+    (`latex_body`, `info_text`/`\\Info{}`), only on plain-text metadata like titles and class.
     """
     if not text:
         return ""
@@ -158,12 +155,8 @@ _MAX_ERROR_LINE_CHARS = 200
 
 def _extract_tex_error(tmpdir: Path) -> str:
     """
-    Extract the TeX diagnostic lines from main.log, and nothing else.
-
-    Only lines TeX itself emits as errors (those beginning with "!") are kept.
-    The surrounding log echoes source context — including the contents of any
-    file the document pulled in — so forwarding arbitrary log or stderr text to
-    the caller would turn a failed compile into a file-disclosure channel.
+    Extract only TeX's own error lines (starting with "!") from main.log. The rest of the log
+    echoes source context, including pulled-in files, so forwarding it would disclose files.
     """
     log_file = tmpdir / "main.log"
     error_lines: list[str] = []
@@ -194,19 +187,9 @@ async def compile_latex(
     logo: ResolvedLogo | None = None,
 ) -> bytes:
     """
-    Compile *latex_source* with Tectonic and return raw PDF bytes.
-
-    Copies sty/ and img/ from ASSETS_DIR into temp working directory.
-
-    *binary_files* are teacher-uploaded resources (images, PDFs, data files)
-    keyed by the flat name the document references. They are written after the
-    bundled assets and their names are validated by
-    ``app.services.latex_resources``, so a resource can neither escape the
-    working directory nor shadow a bundled .sty. They exist only for the
-    lifetime of this compilation.
-
-    *logo* is the exam header logo (``app.services.logo``). It is written under its reserved
-    name, which ``Schulaufgabe.sty`` looks for; without it the header has no logo.
+    Compile *latex_source* with Tectonic and return raw PDF bytes. *binary_files* are teacher
+    resources by flat name, validated by ``app.services.latex_resources`` so they cannot escape the
+    workdir or shadow a .sty. *logo* is the exam header logo (``app.services.logo``).
     """
     reject_unsafe_paths(latex_source)
     for content in (extra_files or {}).values():

@@ -12,11 +12,9 @@ class CSPMiddleware(BaseHTTPMiddleware):
     """Inject a strict Content-Security-Policy header on every response."""
 
     def _build_csp(self) -> str:
-        # Inline styles are permitted only for SvelteKit hydration.
-        # script-src 'self' — no eval, no inline scripts.
-        # Note: connect-src here only covers the backend's API responses (such as
-        # /api/docs Swagger UI in dev). CORS preflight for cross-origin SPA requests
-        # is handled by CORSMiddleware and effective_cors_origin_regex.
+        # Inline styles only for SvelteKit hydration; script-src 'self' (no eval, no inline
+        # scripts). connect-src covers only the API's own responses; CORS preflight is
+        # CORSMiddleware's job.
         return (
             "default-src 'none'; "
             "script-src 'self'; "

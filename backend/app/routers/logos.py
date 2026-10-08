@@ -1,9 +1,6 @@
 """Exam header logos (issue #46) — /api/v1/user/logo and /api/v1/exams/{id}/logo.
-
-An account prints the bundled default logo (MTG) until it chooses its own file or none; an exam
-follows its account, prints none, or prints its own (``app.services.logo``). Bytes travel as
-base64 JSON like exercise resources and are served back only to their owner, as an image or PDF
-with sniffing disabled.
+An account prints the bundled default logo until it picks its own or none; an exam follows
+its account, prints none, or its own (``app.services.logo``). Owner-only, sniffing disabled.
 """
 from __future__ import annotations
 

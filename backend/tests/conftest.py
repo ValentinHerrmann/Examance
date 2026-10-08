@@ -3,10 +3,9 @@ from __future__ import annotations
 
 import os
 
-# Must be set before `app.config` is imported: Settings is instantiated at
-# import time and, outside development, refuses to start on a placeholder
-# SECRET_KEY. Rate limiting is disabled so the suite can register/log in
-# repeatedly from one client address without tripping the production limits.
+# Must be set before `app.config` is imported: Settings is built at import time and refuses a
+# placeholder SECRET_KEY outside development. Rate limiting is off so the suite can log in
+# repeatedly.
 os.environ.setdefault("ENVIRONMENT", "development")
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 os.environ.setdefault("RATE_LIMIT_STORAGE_URI", "memory://")
