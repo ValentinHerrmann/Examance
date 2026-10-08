@@ -88,6 +88,20 @@ describe('printedMcOptions', () => {
     ]);
   });
 
+  it('treats a brace group after \\multi as part of the item text, not as its argument', () => {
+    const body = '\\LoesungMulti[2]{\n  \\multi{} Ja\n  \\Lmulti{A} (2 P.)\n  \\multi{\\textbf{x}} y\n}';
+    expect(printedMcOptions(body)).toEqual([
+      { text: 'Ja', correct: false },
+      { text: 'A (2 P.)', correct: true },
+      { text: '\\textbf{x} y', correct: false },
+    ]);
+  });
+
+  it('keeps an environment inside an unbraced option', () => {
+    const body = '\\multi $\\begin{pmatrix}1\\end{pmatrix}$ \\Lmulti zwei\n\\end{description}';
+    expect(printedMcOptions(body).map((o) => o.text)).toEqual(['$\\begin{pmatrix}1\\end{pmatrix}$', 'zwei']);
+  });
+
   it('is empty for missing or empty bodies', () => {
     expect(printedMcOptions(undefined)).toEqual([]);
     expect(printedMcOptions('')).toEqual([]);
