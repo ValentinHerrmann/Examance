@@ -1,11 +1,12 @@
-/** GDPR Art. 17 Right to Erasure: hard-deletes a student record and all their submissions from Dexie IDB and appends an AUDITLOG entry. */
+/** GDPR Art. 17 Right to Erasure: deletes a student identity and all their submissions wherever they live, and appends an AUDITLOG entry. */
 
 import { db } from '#lib/db/db';
 import { sessionStore } from '#lib/stores/session';
 import { encryptAuditEntry } from '#lib/db/dbEncryption';
-import { scoreRepository } from '#lib/repositories/scoreRepository';
+import { ensure64CharHex } from '#lib/crypto/hmac';
+import { studentRepository } from '#lib/repositories/studentRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
-import { storagePolicyStore } from '#lib/stores/storagePolicy';
+import { resultsAreLocal } from '#lib/stores/storagePolicy';
 import { api } from '#lib/api/client';
 import { get } from 'svelte/store';
 
@@ -15,69 +16,55 @@ export interface ErasureResult {
   auditEntryId: string;
 }
 
-/** Permanently erase a student's identity and scan submissions (by raw pseudonym ID, within an exam) from local IDB and optionally the server. */
+/** Permanently erase a student's identity and submissions (by raw pseudonym ID, within an exam) in both storage modes. */
 export async function eraseStudent(pseudonymId: string, examId: string): Promise<ErasureResult> {
   const auditId = crypto.randomUUID();
-  let submissionsCount = 0;
-
-  // Compute SHA-256 target_hash of pseudonymId for audit logging
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pseudonymId));
-  const targetHash = Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  // The same key the server stores the identity under (`pseudonym_hmac`).
+  const pseudonymHmac = await ensure64CharHex(pseudonymId);
 
   const key = get(sessionStore).sessionKey;
   const encryptedAudit = await encryptAuditEntry({
     id: auditId,
     action: 'DELETE',
-    targetId: targetHash,
+    targetId: pseudonymHmac,
     timestamp: new Date().toISOString(),
     note: 'GDPR Art. 17 student erasure',
   }, key);
 
-  const student = await db.students.get(pseudonymId);
-  if (!student) {
-    throw new Error(`Student record not found for ID: ${pseudonymId}`);
-  }
-
-  const allSubs = await submissionRepository.getByExamId(examId, key);
-    // THIS student's submissions only. Locally `pseudonymHash` holds the raw pseudonymId (see
-    // scan/+page.svelte), so compare directly: a truthiness check would match every submission and erase all students' work.
-  const matchingSubs = allSubs.filter((s) => s.pseudonymHash === pseudonymId);
-  submissionsCount = matchingSubs.length;
-
-  // Scores go first and OUTSIDE the transaction: in server mode this is a
-  // network call, which a Dexie transaction can't span. Doing it before the
-  // local delete also means the local records survive to retry if it fails.
-  for (const sub of matchingSubs) {
-    await scoreRepository.deleteBySubmissionId(examId, sub.id);
-  }
-
-  await db.transaction('rw', [db.students, db.submissions, db.auditLog], async () => {
-    await db.students.delete(pseudonymId);
-    for (const sub of matchingSubs) {
-      await db.submissions.delete(sub.id);
+  // Hybrid: a server copy can outlive a switch from all-server (the move may keep it). Delete it first,
+  // so a failure (reported by the caller) leaves everything in place for a retry; 404 means none exists.
+  if (resultsAreLocal()) {
+    try {
+      await api.delete(`/exams/${examId}/students/${pseudonymHmac}`, { silentError: true });
+    } catch (err) {
+      if ((err as { status?: unknown })?.status !== 404) throw err;
     }
+  }
+
+  // THIS student's submissions only: locally `pseudonymHash` holds the raw pseudonymId, the server sends the HMAC.
+  // Compare exactly: a truthiness check would match every submission and erase all students' work.
+  const matchingSubs = (await submissionRepository.getByExamId(examId, key)).filter(
+    (s) => s.pseudonymHash === pseudonymId || s.pseudonymHash === pseudonymHmac
+  );
+
+  // Through the repositories, so each mode's copy goes (scores included); a refused server delete throws.
+  // In all-server the identity delete also cascades server-side, so a failed list above loses nothing.
+  for (const sub of matchingSubs) {
+    await submissionRepository.delete(examId, sub.id);
+  }
+  await studentRepository.delete(examId, pseudonymId);
+
+  await db.transaction('rw', [db.submissions, db.auditLog], async () => {
+    await db.submissions.bulkDelete(matchingSubs.map((sub) => sub.id));
     // Append immutable audit log entry
     await db.auditLog.add(encryptedAudit);
   });
 
-  // Mark session dirty
   sessionStore.setDirty(true);
-
-  // If server sync enabled, notify server of student erasure
-  if (get(storagePolicyStore).storageMode === 'all-server') {
-
-    try {
-      await api.delete(`/exams/${examId}/students/${targetHash}`);
-    } catch (err) {
-      console.warn('Server student erasure failed (local erasure completed):', err);
-    }
-  }
 
   return {
     pseudonymId,
-    submissionsErased: submissionsCount,
+    submissionsErased: matchingSubs.length,
     auditEntryId: auditId,
   };
 }
