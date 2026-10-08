@@ -513,7 +513,9 @@
         }
       }
 
-      if ($isAuthenticated) {
+      // saveExerciseEncrypted() already created a new exercise on the server; a second
+      // POST is a 409 (create-only). The PATCH sends explicit nulls so cleared fields stick.
+      if ($isAuthenticated && editingExercise) {
         try {
           const payload = {
             name: record.name,
@@ -526,14 +528,7 @@
             correct_answers: editorQuestionType !== "free_text" ? { options: optionsArray, correct: correctIndices } : null,
             penalty: record.penalty || 0,
           };
-          if (editingExercise) {
-            await api.patch(`/exercises/${id}`, payload);
-          } else {
-            await api.post("/exercises", {
-              id: record.id,
-              ...payload,
-            });
-          }
+          await api.patch(`/exercises/${id}`, payload);
         } catch (apiErr) {
           console.warn("Failed to sync exercise to server:", apiErr);
         }

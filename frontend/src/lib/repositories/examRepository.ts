@@ -147,6 +147,16 @@ export const examRepository = {
     }
   },
 
+  /** A brand-new exam with its links in one create-only POST; save() would first probe with a 404ing PATCH. */
+  async create(exam: ExamRecord, structure: { exercise_links: unknown[]; mc_groups: unknown[] }): Promise<void> {
+    const payload = { ...mapExamRecordToApi(exam), ...structure };
+    try {
+      await api.post('/exams', payload, { silentError: true });
+    } catch (err: any) {
+      enqueueOrThrow(err, '/exams', 'POST', payload);
+    }
+  },
+
     /** Removes every local table an exam owns. The single implementation for all exam deletions, so no owned table is missed. */
   async deleteLocalCascade(id: string): Promise<void> {
     if (!db.exams) return;
