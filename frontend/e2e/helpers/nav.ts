@@ -215,12 +215,22 @@ const WORKSPACE_ITEM_KEYS: Record<WorkspaceAction, string> = {
   clear: 'workspace.menu.clear',
 };
 
-/** Open the navbar's Workspace menu and return the menu that holds its items. */
+/**
+ * Open the menu that holds the workspace items: the navbar's Workspace menu from `sm`, the
+ * account menu on phones (the bar has no room for a separate one, issue #67).
+ */
 export async function openWorkspaceMenu(page: Page): Promise<Locator> {
   const locale = await currentLocale(page);
-  const menu = page.getByRole('menu', { name: label('nav.workspace', undefined, locale) });
+  const workspace = header(page).getByRole('button', { name: label('nav.workspace', undefined, locale) });
+  const inBar = await workspace.isVisible();
+  const menu = inBar
+    ? page.getByRole('menu', { name: label('nav.workspace', undefined, locale) })
+    : page.getByRole('menu').filter({
+        has: page.getByRole('menuitem', { name: label('workspace.menu.open', undefined, locale) }),
+      });
   if (!(await menu.isVisible())) {
-    await header(page).getByRole('button', { name: label('nav.workspace', undefined, locale) }).click();
+    const trigger = inBar ? workspace : header(page).locator('button[aria-haspopup="menu"]').last();
+    await trigger.click();
   }
   await expect(menu).toBeVisible();
   return menu;
@@ -314,10 +324,14 @@ export async function openHelpWithKeyboard(page: Page): Promise<Locator> {
   return dialog;
 }
 
-/** Open the storage & privacy dialog from the navbar's storage-mode button. */
+/**
+ * Open the storage & privacy dialog from the navbar's storage-mode button (from `sm`), or from
+ * the footer's server button on phones, which opens the same dialog.
+ */
 export async function openStoragePolicy(page: Page): Promise<Locator> {
   const locale = await currentLocale(page);
-  await header(page).getByRole('button', { name: label('nav.storageMode', undefined, locale) }).click();
+  const pill = header(page).getByRole('button', { name: label('nav.storageMode', undefined, locale) });
+  await ((await pill.isVisible()) ? pill : statusBar(page).getByRole('button')).click();
   const dialog = page.getByRole('dialog', { name: label('misc.storageModal.heading', undefined, locale) });
   await expect(dialog).toBeVisible();
   return dialog;
