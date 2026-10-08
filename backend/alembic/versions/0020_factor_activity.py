@@ -1,11 +1,6 @@
 """When each sign-in factor was last used, and when the password last changed.
 
-Passkeys already carried `created_at` / `last_used_at`, so the security page
-could say something useful about them and nothing at all about the other two
-factors. These columns close that gap.
-
-All nullable with no backfill: NULL means "not recorded since this shipped",
-which the UI says outright rather than inventing a date from `created_at`.
+Nullable, no backfill: NULL means not recorded, shown as such rather than faked.
 """
 from __future__ import annotations
 

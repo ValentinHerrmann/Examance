@@ -1,9 +1,4 @@
-"""teacher logo modes
-
-The bundled MTG logo becomes the account default instead of a copied file (issue #46): an
-account without a teacher_logos row prints it, and a row now records a deviation, `none` (no
-logo) or `custom` (its own file), like exam_logos. Rows that 0026 backfilled with the MTG logo
-are removed, so those accounts follow the default (and pick up a future change to it).
+"""teacher logo modes (#46): MTG logo is the default; rows backfilled by 0026 are removed
 
 Revision ID: 0027_teacher_logo_modes
 Revises: 0026_exam_logos

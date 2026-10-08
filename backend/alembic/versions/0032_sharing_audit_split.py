@@ -1,7 +1,4 @@
-"""sharing audit split and resource hash backfill
-
-Issue #65 review: the audit tells consent from withdrawal (share/unshare, pause/resume), and
-resource hashes are backfilled once so no request ever writes another account's rows.
+"""sharing audit split (#65): consent vs withdrawal actions, resource hashes backfilled once
 
 Revision ID: 0032_sharing_audit_split
 Revises: 0031_exercise_contributions

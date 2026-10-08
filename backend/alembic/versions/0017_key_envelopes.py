@@ -1,13 +1,7 @@
-"""Wrapped copies of the client's data-encryption key.
+"""Wrapped copies of the client's data-encryption key, one per unwrapping factor.
 
-The DEK used to be derived from the login password, so a password reset produced
-a different key and silently orphaned every vault. It is now random and stored
-here once per factor that may unwrap it — the password, a printable recovery
-code, and each PRF-capable passkey.
-
-Nothing in this table lets the server decrypt anything: it holds ciphertext, a
-public salt and public KDF parameters. The key-encryption keys are derived in the
-browser from material that never leaves it.
+Holds only ciphertext, a public salt and KDF parameters: the server can decrypt nothing.
+KEKs are derived in the browser from material that never leaves it.
 """
 from __future__ import annotations
 

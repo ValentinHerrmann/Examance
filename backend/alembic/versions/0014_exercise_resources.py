@@ -1,10 +1,4 @@
-"""exercise resource files
-
-Adds the exercise_resources table: teacher-uploaded files (figures, data
-files, ...) that a LaTeX exercise references by flat filename. Content is
-stored as plaintext bytes, like exercises.latex_body — an exercise kept on the
-server is server-readable by design; zero-knowledge storage is the all-local
-mode, where the bytes are encrypted in IndexedDB instead.
+"""exercise resource files, stored as plaintext bytes like exercises.latex_body
 
 Revision ID: 0014_exercise_resources
 Revises: 0013_scope_identity_to_exam

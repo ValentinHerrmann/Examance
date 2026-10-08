@@ -1,8 +1,4 @@
-"""per-exercise scores
-
-Adds exercise_scores. Per-question results previously existed only in the
-client's IndexedDB, which lockSession() wipes in all-server mode. Payload is
-client-sealed; there is deliberately no plaintext score column.
+"""per-exercise scores; payload is client-sealed, deliberately no plaintext score column
 
 Revision ID: 0021_exercise_scores
 Revises: 0020_factor_activity

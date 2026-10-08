@@ -1,10 +1,7 @@
 name: Deploy Release
 
-# Publishing a GitHub Release is the only action required to ship production.
-# The version comes from the release tag.
-#
-# `published` rather than `created`: `created` also fires when a draft release
-# is saved, which would deploy unfinished releases.
+# Publishing a GitHub Release ships production; the version comes from the tag.
+# `published`, not `created`: `created` also fires on draft-save and would deploy unfinished releases.
 on:
   release:
     types: [published]

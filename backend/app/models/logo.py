@@ -24,13 +24,9 @@ LOGO_MODES = ("none", "custom")
 
 class TeacherLogo(Base):
     """
-    The account's deviation from the default logo (the bundled MTG logo, ``app.services.logo``):
-    ``none`` prints no logo, ``custom`` prints ``content``. No row means the default; deleting the
-    row resets to it. Exams follow this unless they override it.
-
-    ``content`` is plaintext for the same reason as ``ExerciseResource.content``: Tectonic
-    compiles it, and a school logo is printed on every handed-out sheet anyway. Only PNG, JPEG
-    and PDF are accepted (``app.services.logo``), so the bytes are always an image.
+    The account's deviation from the default logo (``app.services.logo``): ``none`` or ``custom``.
+    No row means the default; exams follow this unless they override it. ``content`` is plaintext
+    like ``ExerciseResource.content`` (Tectonic compiles it); only PNG, JPEG, PDF.
     """
 
     __tablename__ = "teacher_logos"

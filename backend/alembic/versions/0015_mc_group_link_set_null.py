@@ -1,10 +1,7 @@
 """Make exam_exercises.mc_group_id ON DELETE SET NULL instead of CASCADE.
 
-Dissolving or rewriting an MC group must not delete the exam↔exercise links of
-its members: those exercises stay part of the exam, they just stop being grouped.
-With ON DELETE CASCADE, every `PATCH /exams/{id}` that replaced the group set
-also deleted the member junction rows, so the exercises silently dropped out of
-the exam (and the group came back empty).
+Dissolving an MC group must not delete its members' exam links, or PATCH /exams/{id}
+silently dropped the exercises from the exam.
 """
 from __future__ import annotations
 

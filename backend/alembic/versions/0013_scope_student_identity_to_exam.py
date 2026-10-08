@@ -1,16 +1,4 @@
-"""scope student identities to their exam
-
-Re-keys student_identities from a global primary key on pseudonym_hmac to a
-composite (pseudonym_hmac, exam_id). The hmac has always been documented as a
-per-exam value (docs/api_reference.md, docs/DPA_template.md) and the client-side
-store already keys students by (pseudonymId, examId); the global server key was
-the outlier. It made a pupil's identity unusable in a second exam, which blocked
-importing a .bgproj workspace into another account on the same server.
-
-scan_submissions references the identity, so its single-column foreign key is
-replaced by a two-column one. That is a strengthening: the database now enforces
-that a submission may only reference an identity registered under its own exam,
-a rule previously checked in application code.
+"""scope student identities to their exam: composite key (pseudonym_hmac, exam_id) and FK
 
 Revision ID: 0013_scope_identity_to_exam
 Revises: 0012_pwd_reset_remove_invites

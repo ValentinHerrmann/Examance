@@ -1,8 +1,4 @@
-"""omr training samples
-
-Adds omr_training_samples: opt-in, anonymous crops of teacher-verified MC answer
-boxes for training a shared checkbox classifier. No foreign keys and no
-identifiers by design; created_on is a date so retention can purge old rows.
+"""omr training samples: opt-in anonymous crops, no FKs or identifiers by design
 
 Revision ID: 0022_omr_training_samples
 Revises: 0021_exercise_scores
