@@ -665,6 +665,9 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
   /* Exams                                                                     */
   /* ------------------------------------------------------------------------ */
 
+  /** Mirrors the backend's exam topic rule: trimmed, blank means none. */
+  const normalizeTopic = (value: unknown) => (typeof value === 'string' ? value.trim() || null : null);
+
   function examResponse(exam: any) {
     const links = (state.links.get(exam.id) ?? [])
       .map((link, idx) => ({ link, idx }))
@@ -699,6 +702,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       teacher_id: FAKE_TEACHER_ID,
       compilation_status: 'pending',
       latex_template: '',
+      topic: null,
       ...exam,
       exercises,
       mc_groups: mcGroups,
@@ -789,7 +793,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       });
     }
 
-    state.exams.set(id, { ...fields, id, created_at: now() });
+    state.exams.set(id, { ...fields, topic: normalizeTopic(fields.topic), id, created_at: now() });
     state.links.set(id, links);
     return created(examResponse(state.exams.get(id)));
   }
@@ -816,6 +820,8 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     }
 
     for (const [key, value] of Object.entries(fields)) if (value != null && key !== 'id') exam[key] = value;
+    // Unlike the other fields, null or blank clears the topic and only an absent key keeps it.
+    if ('topic' in fields) exam.topic = normalizeTopic(fields.topic);
     return ok(examResponse(exam));
   }
 

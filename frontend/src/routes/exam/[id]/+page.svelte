@@ -68,6 +68,7 @@
     toggleStaged,
   } from "#lib/exam/mcGroupStaging";
   import { t, translate } from "#lib/i18n";
+  import { exerciseTopicSuggestions } from "#lib/utils/examLabel";
   import { ConfirmDialog, Alert, Button, Card, PageHeader, PageShell } from "#lib/components/ui";
 
   let examId = $derived(page.params.id || "");
@@ -360,6 +361,7 @@
         datum: exam.datum,
         nr: exam.nr,
         fach: exam.fach,
+        topic: exam.topic,
         lehrernachname: exam.lehrernachname,
         info_text: exam.infoText,
         latex_template: exam.latexTemplate,
@@ -558,6 +560,7 @@
   let editDatum = $state("");
   let editNr = $state("");
   let editFach = $state("");
+  let editTopic = $state("");
   let editLehrernachname = $state("");
   let editInfoText = $state("");
   let editLogoChange: ExamLogoChange | null = $state.raw(null);
@@ -575,6 +578,7 @@
     datum: "",
     nr: "",
     fach: "",
+    topic: "",
     lehrernachname: "",
     infoText: "",
     retentionUntil: "",
@@ -590,6 +594,7 @@
         editDatum !== initialMetadata.datum ||
         editNr !== initialMetadata.nr ||
         editFach !== initialMetadata.fach ||
+        editTopic !== initialMetadata.topic ||
         editLehrernachname !== initialMetadata.lehrernachname ||
         editInfoText !== initialMetadata.infoText ||
         editLogoChange !== null ||
@@ -668,6 +673,7 @@
     editDatum = exam.datum || "";
     editNr = exam.nr || "1";
     editFach = exam.fach || "Informatik";
+    editTopic = exam.topic || "";
     editLehrernachname = exam.lehrernachname || "";
     editInfoText = exam.infoText || "";
     editRetentionUntil = exam.retentionUntil || "";
@@ -684,6 +690,7 @@
       datum: editDatum,
       nr: editNr,
       fach: editFach,
+      topic: editTopic,
       lehrernachname: editLehrernachname,
       infoText: editInfoText,
       retentionUntil: editRetentionUntil,
@@ -710,6 +717,8 @@
     if (!exam) return;
     // editGradingKey is a deep edit buffer (GradingKeyEditor mutates it); persist a plain copy.
     const gradingKey = $state.snapshot(editGradingKey);
+    // Sent even when empty: "" is how the server learns the topic was cleared.
+    const topic = editTopic.trim();
     try {
       if ($isAuthenticated) {
         await api.patch(`/exams/${exam.id}`, {
@@ -720,6 +729,7 @@
           datum: editDatum,
           nr: editNr,
           fach: editFach,
+          topic,
           lehrernachname: editLehrernachname,
           info_text: editInfoText,
           grading_key: gradingKey,
@@ -736,6 +746,7 @@
         datum: editDatum,
         nr: editNr,
         fach: editFach,
+        topic,
         lehrernachname: editLehrernachname,
         infoText: editInfoText,
         retentionUntil: editRetentionUntil,
@@ -1168,6 +1179,8 @@
       bind:editDatum
       bind:editNr
       bind:editFach
+      bind:editTopic
+      topicSuggestions={exerciseTopicSuggestions(exercises)}
       bind:editLehrernachname
       bind:editInfoText
       bind:editRetentionUntil

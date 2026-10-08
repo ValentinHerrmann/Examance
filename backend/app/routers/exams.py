@@ -92,6 +92,7 @@ def _to_exam_response(
         datum=e.datum,
         nr=e.nr,
         fach=e.fach,
+        topic=e.topic,
         lehrernachname=e.lehrernachname,
         info_text=e.info_text,
         grading_key=e.grading_key,
@@ -260,6 +261,7 @@ async def list_exams(
                 Exam.grade.ilike(search_pattern),
                 Exam.klasse.ilike(search_pattern),
                 Exam.fach.ilike(search_pattern),
+                Exam.topic.ilike(search_pattern),
             )
         )
 
@@ -328,6 +330,7 @@ async def create_exam(
         "datum": body.datum,
         "nr": body.nr,
         "fach": body.fach,
+        "topic": body.topic,
         "lehrernachname": body.lehrernachname,
         "info_text": body.info_text,
         "grading_key": body.grading_key,
@@ -471,6 +474,8 @@ async def update_exam(
         exam.nr = body.nr
     if body.fach is not None:
         exam.fach = body.fach
+    if "topic" in body.model_fields_set:
+        exam.topic = body.topic
     if body.lehrernachname is not None:
         exam.lehrernachname = body.lehrernachname
     if body.info_text is not None:

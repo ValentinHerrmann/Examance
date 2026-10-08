@@ -121,6 +121,7 @@ export const help: Translations['help'] = {
             s1: {
                 h: 'Header data',
                 p1: 'Subject, class, exam type, date and number appear on the cover sheet. These are exam content and are therefore always printed in German, whatever language the interface is in.',
+                p2: 'The optional topic (for example “Recursion”) organises your exams in the overview, where you can filter and search by it, and is never printed on the exam.',
             },
             s2: {
                 h: 'Assembling exercises',

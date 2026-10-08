@@ -516,6 +516,35 @@ async def test_update_exam_metadata_patch_repeatedly(client: AsyncClient, db: As
 
 
 @pytest.mark.asyncio
+async def test_exam_topic_is_optional_trimmed_and_clearable(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await _create_teacher_and_login(client, db, "topiceditor@example.com")
+    retention_date = (date.today() + timedelta(days=365)).isoformat()
+    exam_id = str(uuid.uuid4())
+
+    created = await client.post(
+        "/api/v1/exams",
+        json={"id": exam_id, "title": "Topic Exam", "retention_until": retention_date},
+    )
+    assert created.status_code == 201
+    assert created.json()["topic"] is None
+
+    # Whitespace is trimmed; an absent topic leaves the stored one alone.
+    res = await client.patch(f"/api/v1/exams/{exam_id}", json={"topic": "  Rekursion  "})
+    assert res.json()["topic"] == "Rekursion"
+    res = await client.patch(f"/api/v1/exams/{exam_id}", json={"title": "Renamed"})
+    assert res.json()["topic"] == "Rekursion"
+    assert (await client.get("/api/v1/exams")).json()[0]["topic"] == "Rekursion"
+
+    # A blank topic clears it; more than 200 characters is refused.
+    res = await client.patch(f"/api/v1/exams/{exam_id}", json={"topic": "   "})
+    assert res.json()["topic"] is None
+    too_long = await client.patch(f"/api/v1/exams/{exam_id}", json={"topic": "x" * 201})
+    assert too_long.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_exam_mc_group_creation_and_compilation(client: AsyncClient, db: AsyncSession) -> None:
     await _create_teacher_and_login(client, db, "mcteacher@example.com")
 

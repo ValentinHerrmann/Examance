@@ -187,6 +187,7 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 
 #### Exam Query Parameters & Schemas
 - **Query Filters** (`GET /api/v1/exams`): `grade` (string), `subject` (string).
+- **`topic`** (optional, free text, ≤ 200 characters): organises exams in the overview; never printed on the exam. Trimmed on write; blank is stored as `null`. On `PATCH` an absent field keeps the stored topic, while `null` or blank clears it.
 - **`ExamCreate`**:
   ```json
   {
@@ -195,6 +196,7 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
     "retention_until": "2027-12-31",
     "klasse": "10a",
     "fach": "Informatik",
+    "topic": "Sorting algorithms",
     "exercise_ids": ["uuid..."],
     "exercises": [
       {

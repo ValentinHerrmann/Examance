@@ -69,5 +69,7 @@ export const common: Translations['common'] = {
         gradeOption: 'Grade {grade}',
         subject: 'Subject',
         allSubjects: 'All subjects',
+        topic: 'Topic',
+        allTopics: 'All topics',
     },
 };

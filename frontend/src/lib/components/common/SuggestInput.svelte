@@ -14,6 +14,7 @@
     placeholder?: string;
     required?: boolean;
     disabled?: boolean;
+    maxlength?: HTMLInputAttributes["maxlength"];
     autocomplete?: HTMLInputAttributes["autocomplete"];
     class?: string;
     maxSuggestions?: number;
@@ -32,6 +33,7 @@
     placeholder = "",
     required = false,
     disabled = false,
+    maxlength = undefined,
     autocomplete = undefined,
     class: className = "",
     maxSuggestions = 15,
@@ -204,6 +206,7 @@
     {placeholder}
     {required}
     {disabled}
+    {maxlength}
     class="w-full {className}"
     oninput={handleInput}
     {onchange}

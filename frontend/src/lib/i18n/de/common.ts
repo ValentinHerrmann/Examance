@@ -67,5 +67,7 @@ export const common = {
         gradeOption: 'Klasse {grade}',
         subject: 'Fach',
         allSubjects: 'Alle Fächer',
+        topic: 'Thema',
+        allTopics: 'Alle Themen',
     },
 } as const;

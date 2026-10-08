@@ -316,6 +316,7 @@ async def export_own_data(
                 "grade": exam.grade,
                 "klasse": exam.klasse,
                 "fach": exam.fach,
+                "topic": exam.topic,
                 "datum": exam.datum,
                 "created_at": exam.created_at.isoformat() if exam.created_at else None,
                 "retention_until": exam.retention_until.isoformat(),
