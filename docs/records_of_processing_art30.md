@@ -4,6 +4,8 @@
 
 Two variants follow. Every user signs in with a server account; the former `all-local` mode (no account, no server) was discontinued with issue #47. Each account uses one of two storage modes: `all-server` (pupil identities, scans, annotations and per-exercise scores stored on the server as client-side ciphertext; `total_score` plaintext) or `hybrid` (those results only in the teacher's browser, encrypted in IndexedDB). In both, exams and exercises (LaTeX, exam metadata, resource files) are plaintext on the server. Use §A if the school runs Examance itself (school = sole controller). Use §A **and** §B if a third party hosts the backend (school = controller, operator = processor) — this applies to both modes, including `hybrid`, since exercises and exam metadata reach that party's server even though pupil identity and submissions do not; each party keeps its own record.
 
+The current production installation is run by a private individual for teachers (shape C in `legal_audit_dsgvo.md` §1). Its operator keeps §B for pupil data and a record in the form of §A, as controller, for teacher accounts, request logs and the opt-in features (exercise sharing, training-data donation); the public privacy statement (`/legal/datenschutz`) describes that split and relies on the EU–US Data Privacy Framework (Art. 45) for Cloudflare.
+
 Fields in *[brackets]* must be completed. Technical fields are pre-filled from the codebase and should be re-checked whenever the architecture changes.
 
 ---

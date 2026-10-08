@@ -251,6 +251,7 @@ Per-environment `SECRET_KEY` and `POSTGRES_PASSWORD` live **only** in the server
 - Production branch: `release`.
 - Preview branches: **only** `preview` (Settings → Builds → "Include only certain branches"). This keeps every feature branch from consuming build minutes and gives preview a stable URL, `prev-examance.valentin-herrmann.com`, already covered by `CORS_ALLOWED_ORIGIN_REGEX`.
 - Environment variable `BUSYTEX_MIRROR_URL` (Settings → Variables and Secrets, for **both** Production and Preview): the public base URL of the R2 bucket below, e.g. `https://pub-<id>.r2.dev`. Optional — without it, builds download BusyTeX from GitHub.
+- Environment variables for the operator details on `/legal/impressum` and `/legal/datenschutz` (Settings → Variables and Secrets, for **both** Production and Preview, since both pages are public on both stacks): `VITE_LEGAL_NAME`, `VITE_LEGAL_STREET` (street and number), `VITE_LEGAL_POSTCODE_CITY`, `VITE_LEGAL_EMAIL`, and optionally `VITE_LEGAL_PHONE` (shown only when set). They are read at build time (`frontend/src/lib/legal/operator.ts`) and inlined into the bundle, so they are kept out of the repository but are public once deployed; a change needs a rebuild. A build missing any required value renders marked placeholders and a "not configured" banner on both pages. The retention periods in the privacy statement come from the backend's settings at runtime (`GET /api/v1/privacy/retention`), not from these variables.
 
 ### BusyTeX mirror (Cloudflare R2)
 

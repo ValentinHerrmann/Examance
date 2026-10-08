@@ -43,7 +43,7 @@ UI text lives in typed catalogs under `src/lib/i18n/`; language toggle in `AppNa
 - Locale is `bg_locale` in `safeLocalStorage`, detected as saved → `navigator.language` → `en`. Missing key falls back to German, then to the key. Interpolation only, no ICU plurals.
 - Backend errors are localized **client-side** by the `code` the API sends next to its English `detail` (`errors.code.<CODE>`, applied in `lib/api/client.ts`); `err.message` stays the fallback.
 - **Exam/PDF output is deliberately NOT translated**: `Schulaufgabe.sty` captions, `\begin{Aufgabe}`, `\Loesung*`, the MC rubric prose and German seed defaults (`testart`/`fach`/`title`) are exam content and a stable macro API. `routes/exam/new` keeps `toLocaleDateString("de-DE")` because that value is printed in the PDF.
-- Legal pages: German is legally binding (§ 5 DDG, Art. 12 DSGVO). `en/legal.ts` holds the German text as a placeholder; **never** machine-translate it.
+- Legal pages: German is legally binding (§ 18 MStV, § 5 DDG, Art. 12 DSGVO). `en/legal.ts` holds the German text as a placeholder; **never** machine-translate it. The operator's identity comes only from the `VITE_LEGAL_*` build variables (`lib/legal/operator.ts`, `docs/deployment.md`), never from committed text; retention numbers come from `GET /privacy/retention`.
 - `tests/locale.test.ts` guards detection, persistence, interpolation and de/en key parity.
 
 ## Multiple Choice (MC) data model

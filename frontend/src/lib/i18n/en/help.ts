@@ -331,8 +331,8 @@ export const help: Translations['help'] = {
             summary: 'What is encrypted, what protects the session, how long data is kept.',
             s1: {
                 h: 'Zero knowledge',
-                p1: 'The key is derived from your password in the browser (Argon2id, HKDF-SHA-256) and is never transmitted. Encryption is AES-256-GCM, applied before anything is written or sent.',
-                p2: 'A server therefore only ever sees ciphertext. Even if the server database were breached, exam and student data stay unreadable.',
+                p1: 'Your data key is unlocked in the browser with your password, passkey or recovery code (Argon2id, HKDF-SHA-256) and is never transmitted. Encryption is AES-256-GCM, applied before anything is written or sent.',
+                p2: 'Student data, scans, annotations and per-exercise scores therefore reach the server only as ciphertext and stay unreadable even if the server database were breached. Exams and exercises, and in all-server mode the total score per pseudonym, are stored there unencrypted.',
             },
             s2: {
                 h: 'Session hygiene',

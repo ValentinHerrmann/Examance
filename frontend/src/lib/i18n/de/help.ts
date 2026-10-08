@@ -331,8 +331,8 @@ export const help = {
             summary: 'Was verschlüsselt ist, was die Sitzung schützt, wie lange Daten bleiben.',
             s1: {
                 h: 'Zero Knowledge',
-                p1: 'Der Schlüssel wird im Browser aus Ihrem Passwort abgeleitet (Argon2id, HKDF-SHA-256) und niemals übertragen. Verschlüsselt wird mit AES-256-GCM, bevor etwas geschrieben oder gesendet wird.',
-                p2: 'Ein Server sieht daher immer nur Chiffrat. Auch bei einem Einbruch in die Serverdatenbank bleiben Klausur- und Schülerdaten unlesbar.',
+                p1: 'Ihr Datenschlüssel wird im Browser mit Passwort, Passkey oder Wiederherstellungscode entsperrt (Argon2id, HKDF-SHA-256) und niemals übertragen. Verschlüsselt wird mit AES-256-GCM, bevor etwas geschrieben oder gesendet wird.',
+                p2: 'Schülerdaten, Scans, Korrekturanmerkungen und Punktzahlen je Aufgabe erreichen den Server daher nur als Chiffrat und bleiben auch bei einem Einbruch in die Serverdatenbank unlesbar. Prüfungen und Aufgaben sowie im Modus all-server die Gesamtpunktzahl je Pseudonym liegen dort unverschlüsselt.',
             },
             s2: {
                 h: 'Sitzungshygiene',
