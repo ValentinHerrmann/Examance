@@ -819,6 +819,128 @@ def test_export_openapi_cli(tmp_path: Path) -> None:
     assert "/api/v1/auth/login" in content["paths"]
 
 
+@pytest.mark.asyncio
+async def test_new_version_takes_the_answer_key_from_the_body(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await _create_teacher_and_login(client, db, f"version-key-{uuid.uuid4().hex[:8]}@example.com")
+    created = await client.post(
+        "/api/v1/exercises",
+        json={
+            "name": "MC question",
+            "latex_body": "\\BE",
+            "question_type": "mc",
+            "correct_answers": {"options": ["a", "b"], "correct": [0]},
+            "penalty": 0.5,
+        },
+    )
+    assert created.status_code == 201, created.text
+    ex_id = created.json()["id"]
+
+    changed = await client.post(
+        f"/api/v1/exercises/{ex_id}/new-version",
+        json={
+            "question_type": "sc",
+            "correct_answers": {"options": ["a", "b", "c"], "correct": [2]},
+            "penalty": 1.0,
+        },
+    )
+    assert changed.status_code == 201, changed.text
+    assert changed.json()["question_type"] == "sc"
+    assert changed.json()["correct_answers"] == {"options": ["a", "b", "c"], "correct": [2]}
+    assert changed.json()["penalty"] == 1.0
+
+    # Absent fields keep the previous version's values; an explicit null clears the key.
+    kept = await client.post(
+        f"/api/v1/exercises/{changed.json()['id']}/new-version", json={"latex_body": "\\BE \\BE"}
+    )
+    assert kept.status_code == 201, kept.text
+    assert kept.json()["question_type"] == "sc"
+    assert kept.json()["correct_answers"] == {"options": ["a", "b", "c"], "correct": [2]}
+    assert kept.json()["penalty"] == 1.0
+
+    cleared = await client.post(
+        f"/api/v1/exercises/{kept.json()['id']}/new-version",
+        json={"question_type": "free_text", "correct_answers": None},
+    )
+    assert cleared.status_code == 201, cleared.text
+    assert cleared.json()["question_type"] == "free_text"
+    assert cleared.json()["correct_answers"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"title": "x" * 501},
+        {"nr": "x" * 11},
+        {"fach": "x" * 101},
+        {"klasse": "x" * 51},
+        {"exercises": [{"question_type": "essay"}]},
+        {"exercises": [{"name": "x" * 201}]},
+        {"exercises": [{"order_index": -1}]},
+        {"exercise_links": [{"exercise_id": str(uuid.uuid4()), "sub_index": 10_001}]},
+        {"mc_groups": [{"title": "x" * 201}]},
+    ],
+)
+async def test_exam_create_rejects_values_the_columns_cannot_hold(
+    client: AsyncClient, db: AsyncSession, overrides: dict[str, object]
+) -> None:
+    await _create_teacher_and_login(client, db, f"bounds-{uuid.uuid4().hex[:8]}@example.com")
+    body: dict[str, object] = {
+        "title": "Bounds",
+        "retention_until": (date.today() + timedelta(days=30)).isoformat(),
+    }
+    body.update(overrides)
+    resp = await client.post("/api/v1/exams", json=body)
+    assert resp.status_code == 422, resp.text
+
+
+@pytest.mark.asyncio
+async def test_exercise_writes_reject_values_the_columns_cannot_hold(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await _create_teacher_and_login(client, db, f"ex-bounds-{uuid.uuid4().hex[:8]}@example.com")
+    created = await client.post(
+        "/api/v1/exercises", json={"name": "x" * 200, "variant_key": "x" * 100}
+    )
+    assert created.status_code == 201, created.text  # exactly at the limits
+    ex = created.json()
+
+    assert (await client.post("/api/v1/exercises", json={"subject": "x" * 101})).status_code == 422
+    for patch_body in ({"question_type": "bogus"}, {"grade": "x" * 51}, {"topic_tag": "x" * 201}):
+        resp = await client.patch(f"/api/v1/exercises/{ex['id']}", json=patch_body)
+        assert resp.status_code == 422, patch_body
+    group = await client.patch(
+        f"/api/v1/exercises/groups/{ex['exercise_group_id']}", json={"name": "x" * 201}
+    )
+    assert group.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_failed_exam_compile_keeps_its_status(client: AsyncClient, db: AsyncSession) -> None:
+    from app.services.latex import CompilationError
+
+    await _create_teacher_and_login(client, db, f"status-{uuid.uuid4().hex[:8]}@example.com")
+    exam = await client.post(
+        "/api/v1/exams",
+        json={
+            "title": "Status",
+            "retention_until": (date.today() + timedelta(days=30)).isoformat(),
+        },
+    )
+    assert exam.status_code == 201, exam.text
+    exam_id = exam.json()["id"]
+
+    with patch("app.routers.exams.compile_exam_latex", side_effect=CompilationError("! Boom")):
+        failed = await client.post(f"/api/v1/exams/{exam_id}/compile")
+    assert failed.status_code == 422
+
+    # The 422 used to roll the status back to "pending".
+    reloaded = await client.get(f"/api/v1/exams/{exam_id}")
+    assert reloaded.json()["compilation_status"] == "failed"
+
+
 
 
 

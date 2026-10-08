@@ -1061,7 +1061,7 @@
           "exams"
         ],
         "summary": "Delete Exam",
-        "description": "Soft-delete an exam.",
+        "description": "Soft-delete an exam and start the erasure grace period of its student data.\n\nRetention skips deleted exams and only erases child rows with a deadline, so without the\ncascade a deleted exam's identities and submissions would be kept forever.",
         "operationId": "delete_exam_api_v1_exams__exam_id__delete",
         "parameters": [
           {
@@ -3831,7 +3831,7 @@
           "students"
         ],
         "summary": "List Student Identities",
-        "description": "List all encrypted student identities for an exam.",
+        "description": "List the exam's encrypted student identities that are not soft-deleted.",
         "operationId": "list_student_identities_api_v1_exams__exam_id__students_get",
         "parameters": [
           {
@@ -8089,7 +8089,8 @@
           "testart": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -8100,7 +8101,8 @@
           "grade": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -8111,7 +8113,8 @@
           "klasse": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -8122,7 +8125,8 @@
           "datum": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -8133,7 +8137,8 @@
           "nr": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 10
               },
               {
                 "type": "null"
@@ -8144,7 +8149,8 @@
           "fach": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -8167,7 +8173,8 @@
           "lehrernachname": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -8343,6 +8350,7 @@
           },
           "title": {
             "type": "string",
+            "maxLength": 200,
             "title": "Title",
             "default": "Grundlagen"
           },
@@ -8353,6 +8361,8 @@
           },
           "order_index": {
             "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
             "title": "Order Index",
             "default": 1
           }
@@ -8583,7 +8593,8 @@
           "title": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 500
               },
               {
                 "type": "null"
@@ -8617,7 +8628,8 @@
           "testart": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -8628,7 +8640,8 @@
           "grade": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -8639,7 +8652,8 @@
           "klasse": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -8650,7 +8664,8 @@
           "datum": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -8661,7 +8676,8 @@
           "nr": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 10
               },
               {
                 "type": "null"
@@ -8672,7 +8688,8 @@
           "fach": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -8695,7 +8712,8 @@
           "lehrernachname": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -8819,13 +8837,15 @@
           },
           "name": {
             "type": "string",
+            "maxLength": 200,
             "title": "Name",
             "default": "Exercise"
           },
           "topic_tag": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 200
               },
               {
                 "type": "null"
@@ -8836,7 +8856,8 @@
           "grade": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -8847,7 +8868,8 @@
           "subject": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -8879,11 +8901,19 @@
           },
           "order_index": {
             "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
             "title": "Order Index",
             "default": 1
           },
           "question_type": {
             "type": "string",
+            "enum": [
+              "free_text",
+              "mc",
+              "sc",
+              "tf"
+            ],
             "title": "Question Type",
             "default": "free_text"
           },
@@ -8919,7 +8949,8 @@
           "variant_key": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -8942,7 +8973,9 @@
           "sub_index": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "maximum": 10000.0,
+                "minimum": 0.0
               },
               {
                 "type": "null"
@@ -9035,7 +9068,8 @@
           "name": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 200
               },
               {
                 "type": "null"
@@ -9046,7 +9080,8 @@
           "topic_tag": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 200
               },
               {
                 "type": "null"
@@ -9057,7 +9092,8 @@
           "grade": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -9068,7 +9104,8 @@
           "subject": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -9089,6 +9126,8 @@
           },
           "order_index": {
             "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
             "title": "Order Index",
             "default": 1
           },
@@ -9107,7 +9146,9 @@
           "sub_index": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "maximum": 10000.0,
+                "minimum": 0.0
               },
               {
                 "type": "null"
@@ -9544,7 +9585,8 @@
           "name": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 200
               },
               {
                 "type": "null"
@@ -9555,7 +9597,8 @@
           "topic_tag": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 200
               },
               {
                 "type": "null"
@@ -9566,7 +9609,8 @@
           "grade": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -9577,7 +9621,8 @@
           "subject": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -9622,7 +9667,8 @@
           "variant_key": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -9633,7 +9679,13 @@
           "question_type": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "free_text",
+                  "mc",
+                  "sc",
+                  "tf"
+                ]
               },
               {
                 "type": "null"

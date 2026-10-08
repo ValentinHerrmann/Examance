@@ -168,8 +168,9 @@ async def restore_server_data(
     """
     today = date.today()
 
+    # Never a deleted exam's rows: retention skips deleted exams, so they would stay forever.
     exam_ids_result = await db.execute(
-        select(Exam.id).where(Exam.teacher_id == teacher.id)
+        select(Exam.id).where(Exam.teacher_id == teacher.id, Exam.deleted_at.is_(None))
     )
     exam_ids = exam_ids_result.scalars().all()
 
