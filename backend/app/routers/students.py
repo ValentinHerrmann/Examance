@@ -56,6 +56,9 @@ async def upload_student_identity(
         existing.pii_ciphertext = pii_bytes
         existing.iv = iv_bytes
         existing.encryption_salt = salt_bytes
+        # An upload onto a soft-deleted identity makes it live again, or retention would erase it.
+        existing.deleted_at = None
+        existing.retention_until = None
         await db.flush()
         return StudentIdentityResponse(
             pseudonym_hmac=existing.pseudonym_hmac,
@@ -131,9 +134,11 @@ async def list_student_identities(
     exam: Exam = Depends(get_exam_for_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> list[StudentIdentityResponse]:
-    """List all encrypted student identities for an exam."""
+    """List the exam's encrypted student identities that are not soft-deleted."""
     result = await db.execute(
-        select(StudentIdentity).where(StudentIdentity.exam_id == exam.id)
+        select(StudentIdentity).where(
+            StudentIdentity.exam_id == exam.id, StudentIdentity.deleted_at.is_(None)
+        )
     )
     identities = result.scalars().all()
     return [

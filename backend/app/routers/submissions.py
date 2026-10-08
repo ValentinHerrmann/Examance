@@ -117,6 +117,15 @@ async def upload_submission(
             )
         )
         await db.flush()
+    elif existing_identity.deleted_at is not None:
+        # Its erasure would cascade to this submission. It comes back as the placeholder, as if
+        # already erased: only a student upload brings deleted PII back.
+        existing_identity.pii_ciphertext = b"\x00"
+        existing_identity.iv = b"\x00" * 12
+        existing_identity.encryption_salt = b"\x00" * 16
+        existing_identity.deleted_at = None
+        existing_identity.retention_until = None
+        await db.flush()
 
     scan_bytes = (
         decode_b64(body.scan_ciphertext_b64, "scan_ciphertext_b64")
@@ -152,6 +161,9 @@ async def upload_submission(
                     detail="Submission belongs to another exam.",
                 )
             existing_sub.pseudonym_hmac = body.pseudonym_hmac
+            # An upsert onto a soft-deleted submission makes it live again.
+            existing_sub.deleted_at = None
+            existing_sub.retention_until = None
             if body.total_score is not None:
                 existing_sub.total_score = body.total_score
             if scan_bytes is not None:
