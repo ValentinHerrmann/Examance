@@ -184,7 +184,8 @@ async def get_exam_for_teacher(
     """
     Return the exam if it belongs to *teacher* and is not soft-deleted.
 
-    Always raises 401 (not 404) for unauthorized access — never leaks resource existence.
+    Missing, foreign and deleted all answer the same 404, so existence never leaks. Not 401: the
+    client would refresh the session, and a queued write for a deleted exam would retry forever.
     """
     result = await db.execute(
         select(Exam).where(
@@ -195,8 +196,11 @@ async def get_exam_for_teacher(
     )
     exam = result.scalar_one_or_none()
     if exam is None:
-        # 401 not 404 — per API contract: never leak resource existence
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Exam not found.",
+            headers={"code": "ERR_EXAM_NOT_FOUND"},
+        )
     return exam
 
 

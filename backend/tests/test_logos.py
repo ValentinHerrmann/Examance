@@ -140,7 +140,7 @@ async def test_compile_never_reads_another_teachers_exam_logo(
 
     client.cookies.clear()
     await sign_in(client, db, "logo-intruder@example.com")
-    assert (await client.get(f"/api/v1/exams/{exam_id}/logo/file")).status_code == 401
+    assert (await client.get(f"/api/v1/exams/{exam_id}/logo/file")).status_code == 404
 
     seen: list[object] = []
 

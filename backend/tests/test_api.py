@@ -67,9 +67,9 @@ async def test_exam_crud_flow(client: AsyncClient, db: AsyncSession) -> None:
     del_resp = await client.delete(f"/api/v1/exams/{exam_id}")
     assert del_resp.status_code == 204
 
-    # Deleted exam is inaccessible (returns 401 per API security contract)
+    # Deleted exam is inaccessible (the same 404 as a missing or foreign one)
     get_del_resp = await client.get(f"/api/v1/exams/{exam_id}")
-    assert get_del_resp.status_code == 401
+    assert get_del_resp.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -748,18 +748,18 @@ async def test_list_student_identities(
     assert len(students) == 1
     assert students[0]["pseudonym_hmac"] == pseudonym_hmac
 
-    # Different teacher should get 401 (ownership check — never leak resource existence)
+    # Different teacher gets the same 404 as for a missing exam (never leak resource existence)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as client2:
         await _create_teacher_and_login(client2, db, "studentteacher2@example.com")
         list_resp2 = await client2.get(f"/api/v1/exams/{exam_id}/students")
-        assert list_resp2.status_code == 401
+        assert list_resp2.status_code == 404
 
 
 async def test_create_exam_wrong_method(
     client: AsyncClient,
     db: AsyncSession,
 ) -> None:
-    """POST /api/v1/exams/{exam_id}/students returns 401 if exam_id is not found or owned by another."""
+    """POST /exams/{exam_id}/students answers 404 for an exam not found or owned by another."""
     await _create_teacher_and_login(client, db, "studentteacher3@example.com")
 
     retention_date = (date.today() + timedelta(days=365)).isoformat()
@@ -795,7 +795,7 @@ async def test_create_exam_wrong_method(
                 "encryption_salt_b64": base64.b64encode(secrets.token_bytes(16)).decode(),
             },
         )
-        assert st_resp2.status_code == 401
+        assert st_resp2.status_code == 404
 
 
 def test_export_openapi_cli(tmp_path: Path) -> None:

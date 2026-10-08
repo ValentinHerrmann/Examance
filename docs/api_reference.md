@@ -26,7 +26,7 @@ All API v1 endpoints are served relative to the root URL path:
 | `400 Bad Request` | Client Error | Invalid input structure, missing mandatory fields, or malformed JSON. |
 | `401 Unauthorized` | Unauthenticated | Missing, invalid, or expired session cookies/credentials. |
 | `403 Forbidden` | Access Denied | Authenticated user lacks required role/permissions (e.g., non-admin calling admin routes, or an admin calling a teaching route: `ERR_TEACHER_ROLE_REQUIRED`). |
-| `404 Not Found` | Not Found | Requested entity does not exist or user has no access. |
+| `404 Not Found` | Not Found | Requested entity does not exist or user has no access; the two are never told apart (an exam answers `ERR_EXAM_NOT_FOUND` whether it is missing, deleted or another account's). |
 | `409 Conflict` | Entity Conflict | Duplicate record (e.g., registering user with already existing email). |
 | `413 Payload Too Large` | Limit Exceeded | Request body exceeds configured size limit. |
 | `429 Too Many Requests` | Rate Limited | Rate limit exceeded for specific IP or route. |
