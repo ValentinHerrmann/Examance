@@ -4,7 +4,7 @@ Loads when working under `backend/`. Cross-cutting rules are in the root `CLAUDE
 
 Python 3.12, FastAPI (async), SQLAlchemy 2.0, Alembic, PostgreSQL (asyncpg; psycopg2 sync fallback), Redis (rate limiting + login cooloff), argon2-cffi, PyJWT, slowapi, cryptography, py_webauthn, Click CLI. Deps: `uv`.
 
-- `app/main.py` → `create_app()`. Routers `auth, compile, exams, exercises, keys, mfa, webauthn, students, submissions, admin, user` (plus `training`) under `/api/v1`; `/api/health`; docs `/api/docs`.
+- `app/main.py` → `create_app()`. Routers `auth, compile, exams, exercises, keys, mfa, webauthn, students, submissions, admin, user` (plus `training`, and the public `privacy` facts for the privacy statement) under `/api/v1`; `/api/health`; docs `/api/docs`.
 - Tests in `backend/tests/`: pytest + pytest-asyncio, aiosqlite in-memory, httpx AsyncClient.
 - Ruff `select = E,F,I,UP,S,B` (S = security, B = bugbear) and mypy `strict = true`. Lint is a security control here; keep new code passing both.
 - Run mypy with the **dev** extras (`uvx -p 3.12 --with-editable ".[dev]" mypy app`, from `backend/`). A bare `mypy` reports ~187 spurious untyped-decorator errors, and one without `[dev]` disagrees with CI about `redis` (the `types-redis` stubs make `Redis` generic, redis 8's own types do not). The real baseline is zero errors.

@@ -423,6 +423,7 @@ Two rules the endpoint enforces rather than trusts the client with:
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
 | `GET` | `/api/health` | Health Check | No | Returns `{"status": "ok", "version": "1.4.0"}`. The version is deliberately public — it is how the frontend detects an incompatible backend; see `deployment.md` §4. |
+| `GET` | `/api/v1/privacy/retention` | Retention Periods | No | The configured retention periods the privacy statement (`/legal/datenschutz`) shows: `{"grace_days", "audit_log_days", "registration_link_hours", "pending_account_days", "contribution_days", "contribution_pending_days", "training_sample_days"}`, read from the settings of the same names. Configuration only, no personal data. Rate limit 60/minute per IP. |
 
 ---
 
