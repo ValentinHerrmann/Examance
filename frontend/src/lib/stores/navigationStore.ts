@@ -66,5 +66,10 @@ export const ADMIN_HOME = "/admin/users";
 
 /** Paths an admin may open; every other route is teaching and redirects to `ADMIN_HOME`. */
 export function isAdminPath(pathname: string): boolean {
-  return isPublicPath(pathname) || pathname.startsWith("/admin") || pathname.startsWith("/settings");
+  return (
+    isPublicPath(pathname) ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/settings") ||
+    pathname.startsWith("/help")
+  );
 }
