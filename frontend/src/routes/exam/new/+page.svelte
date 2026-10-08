@@ -4,8 +4,9 @@
   import { db } from "#lib/db/db";
   import { sessionStore, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
   import { effectiveLatexStore } from "#lib/stores/capabilities";
-  import type { ExerciseRecord } from "#lib/db/schema";
-  import { loadExercisesEncrypted, saveExerciseEncrypted, saveExamEncrypted, encryptExercise } from "#lib/db/dbEncryption";
+  import type { ExamRecord, ExerciseRecord } from "#lib/db/schema";
+  import { loadExercisesEncrypted, saveExerciseEncrypted, encryptExercise } from "#lib/db/dbEncryption";
+  import { examRepository } from "#lib/repositories/examRepository";
   import { api } from "#lib/api/client";
   import { parseExerciseScore, formatExerciseLatex, formatMcGroupLatex } from "#lib/latex/scoreParser";
   import { recordValue } from "#lib/utils/recentValues";
@@ -328,19 +329,8 @@ Frage hier eingeben... \\BE
 
     if (saveCustomToLibrary) {
       const key = get(sessionStore).sessionKey;
+      // The repository creates it on the server; a second POST would be a 409 (create-only).
       await saveExerciseEncrypted(newEx, key);
-      if ($isAuthenticated) {
-        try {
-          await api.post("/exercises", {
-            id: newEx.id,
-            name: newEx.name,
-            topic_tag: newEx.topicTag,
-            latex_body: newEx.latexBody,
-          });
-        } catch (apiErr) {
-          console.warn("Failed to sync new exercise to server:", apiErr);
-        }
-      }
       libraryExercises = [...libraryExercises, newEx];
     } else {
       libraryExercises = [...libraryExercises, newEx];
@@ -504,8 +494,7 @@ ${exerciseInputs}
       .split("T")[0];
 
     try {
-      const key = get(sessionStore).sessionKey;
-      await saveExamEncrypted({
+      const examRecord: ExamRecord = {
         id: examId,
         teacherId: $sessionStore.email || "local-teacher",
         title,
@@ -522,7 +511,7 @@ ${exerciseInputs}
         retentionUntil,
         compilationStatus: "pending",
         createdAt: new Date().toISOString(),
-      }, key);
+      };
 
       // Save junction links in IDB following examItems order
       let order = 1;
@@ -579,31 +568,12 @@ ${exerciseInputs}
         }
       }
 
+      // One create-only POST with the links: a second POST is a 409 and the links were lost with it.
+      await examRepository.create(examRecord, { exercise_links: exerciseLinksPayload, mc_groups: mcGroupsPayload });
+
       await db.examExercises.bulkPut(examExerciseRecords);
       if (examMcGroupRecords.length > 0) {
         await db.examMcGroups.bulkPut(examMcGroupRecords);
-      }
-
-      try {
-        await api.post("/exams", {
-          id: examId,
-          title,
-          testart,
-          grade,
-          klasse,
-          datum,
-          nr,
-          fach,
-          topic: topic.trim() || undefined,
-          lehrernachname,
-          info_text: infoText,
-          grading_key: $state.snapshot(gradingKey),
-          retention_until: retentionUntil,
-          mc_groups: mcGroupsPayload,
-          exercise_links: exerciseLinksPayload,
-        });
-      } catch (apiErr) {
-        console.warn("Failed to sync exam to server:", apiErr);
       }
 
       sessionStore.setDirty(false);
