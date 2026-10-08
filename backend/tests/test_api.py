@@ -868,6 +868,55 @@ async def test_new_version_takes_the_answer_key_from_the_body(
     assert cleared.json()["correct_answers"] is None
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"title": "x" * 501},
+        {"nr": "x" * 11},
+        {"fach": "x" * 101},
+        {"klasse": "x" * 51},
+        {"exercises": [{"question_type": "essay"}]},
+        {"exercises": [{"name": "x" * 201}]},
+        {"exercises": [{"order_index": -1}]},
+        {"exercise_links": [{"exercise_id": str(uuid.uuid4()), "sub_index": 10_001}]},
+        {"mc_groups": [{"title": "x" * 201}]},
+    ],
+)
+async def test_exam_create_rejects_values_the_columns_cannot_hold(
+    client: AsyncClient, db: AsyncSession, overrides: dict[str, object]
+) -> None:
+    await _create_teacher_and_login(client, db, f"bounds-{uuid.uuid4().hex[:8]}@example.com")
+    body: dict[str, object] = {
+        "title": "Bounds",
+        "retention_until": (date.today() + timedelta(days=30)).isoformat(),
+    }
+    body.update(overrides)
+    resp = await client.post("/api/v1/exams", json=body)
+    assert resp.status_code == 422, resp.text
+
+
+@pytest.mark.asyncio
+async def test_exercise_writes_reject_values_the_columns_cannot_hold(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await _create_teacher_and_login(client, db, f"ex-bounds-{uuid.uuid4().hex[:8]}@example.com")
+    created = await client.post(
+        "/api/v1/exercises", json={"name": "x" * 200, "variant_key": "x" * 100}
+    )
+    assert created.status_code == 201, created.text  # exactly at the limits
+    ex = created.json()
+
+    assert (await client.post("/api/v1/exercises", json={"subject": "x" * 101})).status_code == 422
+    for patch_body in ({"question_type": "bogus"}, {"grade": "x" * 51}, {"topic_tag": "x" * 201}):
+        resp = await client.patch(f"/api/v1/exercises/{ex['id']}", json=patch_body)
+        assert resp.status_code == 422, patch_body
+    group = await client.patch(
+        f"/api/v1/exercises/groups/{ex['exercise_group_id']}", json={"name": "x" * 201}
+    )
+    assert group.status_code == 422
+
+
 
 
 
