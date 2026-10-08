@@ -1,8 +1,6 @@
-// `npm run build`: the Vite build plus the BusyTeX assets (~500 MB). On a clean checkout the
-// assets are downloaded/processed in a staging dir alongside `vite build` and moved into build/
-// afterwards (hides ~20 s, avoids Vite copying 500 MB twice). With BUSYTEX_MIRROR_URL set, the
-// processed R2 copy is tried first (busytex-mirror.mjs). If static/core/busytex exists, nothing
-// is staged.
+// `npm run build`: Vite build plus the BusyTeX assets (~500 MB), staged alongside `vite build` and moved into build/
+// afterwards (hides ~20 s, avoids Vite copying 500 MB twice). With BUSYTEX_MIRROR_URL set the processed R2 copy is
+// tried first (busytex-mirror.mjs); an existing static/core/busytex skips staging.
 import fs from 'node:fs';
 import path from 'node:path';
 import { PROCESSED_ARCHIVE, mirrorUrl, run, streamExtract } from './busytex-mirror.mjs';

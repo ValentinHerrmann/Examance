@@ -1,12 +1,7 @@
 /**
- * A tiny in-memory backend for tests that need exams and exercises, which always live on the
- * server since local mode was discontinued (issue #47). It is `fakeApi.ts` (shared with the
- * Playwright suite) behind a mock of `lib/api/client`; anything the fake has no route for answers
- * 404. Install it in a test file with:
- *
+ * In-memory backend for tests that need exams and exercises (always server-side, issue #47): `fakeApi.ts` behind a mock of
+ * `lib/api/client`; unrouted calls answer 404. Install with
  *   vi.mock('../src/lib/api/client', async () => (await import('./helpers/fakeServer')).clientModule);
- *
- * Responses are snake_case, like the real API, so the repositories' mappers run unchanged.
  */
 
 import { createFakeApi, type FakeResponse } from './fakeApi';

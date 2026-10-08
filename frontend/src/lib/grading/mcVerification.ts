@@ -111,10 +111,9 @@ export interface ConfusionBucket {
 }
 
 /**
- * Per-OPTION (bubble) classification of OMR reliability, unlike per-QUESTION `DetectionQualityStats`.
- * Ground truth is the human's final selection once reviewed; unreviewed items are bucketed by OMR's
- * original call crossed with its per-option `flaggedOptions` uncertainty. Excludes `failed` items
- * and items without an `original` snapshot (pure-manual entries).
+ * Per-OPTION (bubble) classification of OMR reliability, unlike per-QUESTION `DetectionQualityStats`. Ground truth is the
+ * human's final selection; unreviewed items are bucketed by OMR's original call crossed with `flaggedOptions`. Excludes
+ * `failed` items and items without an `original` snapshot (pure-manual entries).
  */
 export interface DetectionConfusionMatrix {
   totalOptionsEvaluated: number;
@@ -161,10 +160,9 @@ export interface McVerificationStats {
 }
 
 /**
- * `items` has one entry per (submission, MC/SC/TF exercise) pair, the granularity of the verification
- * queues. `*Questions` counts use that granularity; `totalMarkedBoxes` (and `markedBoxes`) sum
- * `markedCount` per marked bubble. Don't conflate them: box counts as headline numbers scaled with
- * marks per question regardless of confidence.
+ * `items` has one entry per (submission, MC/SC/TF exercise) pair; `*Questions` counts use that granularity, while
+ * `totalMarkedBoxes`/`markedBoxes` sum `markedCount` per marked bubble. Don't conflate them: box counts as headline numbers
+ * scaled with marks per question regardless of confidence.
  */
 export async function computeMcVerificationStats(
   examId: string,

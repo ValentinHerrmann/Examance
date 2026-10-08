@@ -1,10 +1,6 @@
-// Shared naming and download helpers for the BusyTeX assets, used by fetch-busytex.mjs,
-// build.mjs and .github/workflows/mirror-busytex.yml (`node scripts/busytex-mirror.mjs keys`)
-// so all agree on what the R2 mirror holds:
-//   busytex-assets-v<version>.tar.gz          upstream release archive, byte for byte
-//   busytex-processed-v<version>-<hash>.tar   process-large-files.mjs output (gzipped chunks,
-//     manifest, fetch interceptor), i.e. what ends up in build/core/busytex; <hash> covers the
-//     scripts that produce it, so changing either yields a new object instead of stale output.
+// Shared naming/download helpers for the BusyTeX assets (fetch-busytex.mjs, build.mjs, mirror-busytex.yml `keys`) so all
+// agree on what the R2 mirror holds: `busytex-assets-v<version>.tar.gz` (upstream archive, byte for byte) and
+// `busytex-processed-v<version>-<hash>.tar` (process-large-files.mjs output; <hash> covers its scripts, so no stale output).
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';

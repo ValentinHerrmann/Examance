@@ -1,9 +1,7 @@
 /**
- * Builds anonymous training samples (opt-in donation) from one teacher-verified MC question: a small
- * grayscale crop of one box plus its redo zone, the teacher's label and the detector's reading. It
- * deliberately carries no exam, submission, exercise, pupil or teacher id and no timestamp. The only id,
- * `sample_token`, is random per box so a re-donation replaces the earlier sample. Must match
- * backend/app/schemas/training.py.
+ * Builds anonymous training samples (opt-in donation) from one teacher-verified MC question: a small grayscale crop of one
+ * box plus redo zone, the teacher's label and the detector's reading. Deliberately no exam, submission, exercise, pupil or
+ * teacher id and no timestamp; `sample_token` is random per box so a re-donation replaces it. Match backend/app/schemas/training.py.
  */
 import type { OmrScoreMeta } from '#lib/db/schema';
 import { renderScanPage } from './mcCropRender';

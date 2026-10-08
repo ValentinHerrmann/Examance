@@ -49,10 +49,9 @@ if (!globalScope.__busytex_fetch_intercepted__) {
   }
 
     /**
-     * Concatenates the bodies of `responses` while counting raw (pre-decompression) bytes. If the
-     * manifest's expected size doesn't match, the stream errors instead of closing, so a truncated
-     * chunk download fails visibly rather than leaving a partial busytex filesystem ("File `X.sty'
-     * not found" for bundled packages).
+     * Concatenates `responses` while counting raw (pre-decompression) bytes. A size mismatch with the manifest errors the
+     * stream instead of closing it, so a truncated chunk fails visibly rather than leaving a partial busytex filesystem
+     * ("File `X.sty' not found" for bundled packages).
      */
   function createVerifiedStream(
     responses: Response[],

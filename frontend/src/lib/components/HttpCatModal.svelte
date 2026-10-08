@@ -3,10 +3,9 @@
   import { t, tOptional } from "#lib/i18n";
   import { Modal } from "#lib/components/ui";
 
-  // The status image comes from http.cat on purpose (issue #59): sending the IP there is accepted,
-  // nothing more. Only IP, User-Agent and the status code (the URL path) leave the browser — no
-  // Referer, no cookies, and only while the modal is open. It cannot be self-hosted (licence).
-  // CSP img-src allows exactly this host; see docs/legal_audit_dsgvo.md, finding L16.
+  // The status image comes from http.cat on purpose (issue #59): only IP, User-Agent and status code leave the browser
+  // (no Referer, no cookies, only while the modal is open). It cannot be self-hosted (licence); CSP img-src allows
+  // exactly this host (docs/legal_audit_dsgvo.md, finding L16).
 
   let status = $derived($httpErrorStore.status);
 

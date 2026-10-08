@@ -1,8 +1,7 @@
 /**
- * Cross-tab coherence for the workspace (I6, docs/dev/storage_modes.md). A tab holding the previous mode
- * in memory keeps routing to the old store and mirroring server rows into a database that has moved on,
- * so any change of the workspace reloads every other tab, and a move of the results blocks them.
- * `storage` events fire only in the *other* tabs of the origin, which is exactly the audience.
+ * Cross-tab coherence for the workspace (I6, docs/dev/storage_modes.md): a tab holding the previous mode would route to the
+ * old store and mirror server rows into a database that moved on, so any workspace change reloads every other tab and a
+ * results move blocks them. `storage` events fire only in the *other* tabs, which is exactly the audience.
  */
 
 import { derived, writable } from 'svelte/store';

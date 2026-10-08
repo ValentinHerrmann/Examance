@@ -1,8 +1,7 @@
 /**
- * Background scroll lock for dialogs and drawers. `.app-main` scrolls, not the document (see
- * routes/+layout.css), so it is locked rather than `body`. Ref-counted so closing a top dialog
- * doesn't unlock the page under a lower one; the scroller is padded by its scrollbar width so
- * content doesn't shift.
+ * Background scroll lock for dialogs and drawers. `.app-main` scrolls, not the document (routes/+layout.css), so it is
+ * locked rather than `body`. Ref-counted so closing a top dialog doesn't unlock the page under a lower one; padded by its
+ * scrollbar width so content doesn't shift.
  */
 
 const SCROLLER_SELECTOR = '.app-main';

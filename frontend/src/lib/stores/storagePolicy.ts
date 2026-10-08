@@ -30,10 +30,9 @@ const LEGACY_MODE_KEY = 'bg_storage_policy';
 const LATEX_KEY = 'bg_latex_compilation';
 
 /**
- * Changing the storage mode changes which store every repository uses. The mode is therefore only
- * settable through `commitStorageMode` with a token from `armStorageModeSwitch`, which only
- * `lib/db/workspace.ts` calls when it publishes the account's mode; `updateSetting` is narrowed to
- * `latexCompilation` so any other caller is a compile error.
+ * The storage mode decides which store every repository uses, so it is only settable via `commitStorageMode` with a token
+ * from `armStorageModeSwitch` (only `lib/db/workspace.ts` calls it); `updateSetting` is narrowed to `latexCompilation` so
+ * any other caller is a compile error.
  */
 let activeSwitchToken: string | null = null;
 

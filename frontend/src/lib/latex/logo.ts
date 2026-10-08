@@ -1,10 +1,7 @@
 /**
- * Exam header logos (issue #46). The account stores one logo; an exam follows it, prints none, or
- * prints its own. The compile places the logo next to `main.tex` as `examance-logo.<ext>`, and
- * `Schulaufgabe.sty` prints whichever of those files exists, so the LaTeX source never names it.
- *
- * Mirrored by `backend/app/services/logo.py` (limits, accepted types, file names). The server
- * resolves the logo itself for a server compile; the local engine gets the bytes from here.
+ * Exam header logos (issue #46). The account stores one logo; an exam follows it, prints none, or prints its own. The compile
+ * places it next to `main.tex` as `examance-logo.<ext>` and `Schulaufgabe.sty` prints whichever exists, so the LaTeX never
+ * names it. Mirrored by `backend/app/services/logo.py` (limits, types, names); the local engine gets the bytes from here.
  */
 import { api } from '#lib/api/client';
 import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
@@ -206,10 +203,9 @@ function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
 }
 
 /**
- * Gives an imported exam (`examId`, already created on the server) the header it was exported
- * with. An exam that followed the exporter's account logo keeps following the importer's account
- * only when that prints the same thing; otherwise it gets the archived file (or no logo) as its own.
- * `accountLogo` is the importer's account logo (null: none). Returns whether anything was written.
+ * Gives an imported exam (already created on the server) the header it was exported with: it keeps following the importer's
+ * account logo (`accountLogo`, null: none) only if that prints the same thing, else it gets the archived file (or no logo)
+ * as its own. Returns whether anything was written.
  */
 export async function restoreExamLogo(
   examId: string,

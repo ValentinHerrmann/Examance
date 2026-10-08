@@ -14,10 +14,9 @@ import {
 import { Argon2UnavailableError } from '../src/lib/crypto/keyDerivation';
 
 /**
- * Pins a lockout: `deriveKey` used to fall back to PBKDF2 silently when the Argon2 WASM failed
- * to load, so a wrap made with WASM could never be opened without it (a correct password read
- * as wrong). The suite missed it because the argon2 mock always threw, so wrap and unwrap ran
- * the same branch and could never disagree.
+ * Pins a lockout: `deriveKey` once fell back to PBKDF2 silently when the Argon2 WASM failed to load, so a wrap made with
+ * WASM could never be opened without it (a correct password read as wrong). The suite missed it because the argon2 mock
+ * always threw, so wrap and unwrap ran the same branch.
  */
 
 const TEACHER_ID = '11111111-2222-3333-4444-555555555555';

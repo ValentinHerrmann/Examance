@@ -70,12 +70,9 @@ export async function decryptResourceBytes(
   return resource.data ?? new Uint8Array(0);
 }
 
-// ---------------------------------------------------------------------------
-// Record codecs
-// Plain index/link columns stay readable (Dexie queries them); everything in `sealed` goes into one
-// AES-256-GCM `payloadCt`. Both lists are whitelists: a field in neither is dropped on write, so
-// spreading extra data onto a record can never leak it into IndexedDB in plaintext.
-// ---------------------------------------------------------------------------
+// Record codecs: plain index/link columns stay readable (Dexie queries them); everything in `sealed` goes into one
+// AES-256-GCM `payloadCt`. Both lists are whitelists: a field in neither is dropped on write, so extra data spread onto a
+// record can never leak into IndexedDB in plaintext.
 
 interface RecordCodec<T> {
   kind: string;
@@ -196,11 +193,8 @@ export const decryptSubmission = (r: SubmissionRecord, k: Key) => openRecord(r, 
 export const encryptAuditEntry = (r: AuditEntry, k: Key) => sealRecord(r, k, AUDIT);
 export const decryptAuditEntry = (r: AuditEntry, k: Key) => openRecord(r, k, AUDIT);
 
-// ---------------------------------------------------------------------------
-// OmrTemplateRecord
-// One per exam (id === examId), bubble/fiducial rects from a blank compile (pdfjs getAnnotations()).
+// OmrTemplateRecord: one per exam (id === examId), bubble/fiducial rects from a blank compile (pdfjs getAnnotations()).
 // Follows the ScoreRecord pattern above (direct db.* access, no repository).
-// ---------------------------------------------------------------------------
 
 export async function encryptOmrTemplate(
   tpl: OmrTemplateRecord,

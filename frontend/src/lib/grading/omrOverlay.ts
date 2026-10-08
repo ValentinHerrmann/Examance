@@ -84,11 +84,9 @@ export function formatSignedScore(value: number): string {
 }
 
 /**
- * Draws OMR-derived annotations over every MC/SC/TF exercise on one page, as a non-persisted overlay
- * separate from the manual strokes. Rects are normalized [minX,minY,maxX,maxY] in [0,1] (from
- * omrWorker.ts), so `w`/`h` are the raster's pixel size. Marked/ambiguous bubbles get a box (red solid
- * = marked, amber dashed = ambiguous) and score stamp; unmarked correct options the `missing` stamp;
- * MC group members a running total ("a) 1/2") above the cluster.
+ * Draws OMR-derived annotations over every MC/SC/TF exercise on one page, as a non-persisted overlay separate from manual
+ * strokes. Rects are normalized [minX,minY,maxX,maxY] in [0,1] (omrWorker.ts), so `w`/`h` are the raster's pixel size.
+ * Boxes: red solid = marked, amber dashed = ambiguous; plus score/`missing` stamps and a running total per MC group.
  */
 export function drawOmrOverlayForPage(
   ctx: CanvasRenderingContext2D,

@@ -1,15 +1,12 @@
 /**
- * Tunable parameters of the OMR pipeline, the single source of truth; `omrWorker.ts` reads every
- * threshold from the `OmrDetectionParams` of each request. Each detection stamps its params into
- * the sealed `omrMeta.run` (see `omrResult.ts`), so settings changes only affect future runs and
- * a learned profile is just another `OmrSettingsProfile` (`source: 'learned'`).
- * Pure module: no DOM, no stores (the worker imports it).
+ * Tunable parameters of the OMR pipeline, the single source of truth: `omrWorker.ts` reads every threshold from the
+ * request's `OmrDetectionParams`, and each detection stamps them into the sealed `omrMeta.run` (`omrResult.ts`), so settings
+ * changes only affect future runs. Pure module (no DOM, no stores; the worker imports it).
  */
 
-/** Bump when feature extraction or classification semantics change (not for param changes).
- *  1 = fill ratio only. 2 = + shape analysis (`omrShape.ts`). 3 = local threshold etc., withdrawn:
- *  area thresholds misread thin-pen crosses. 4 = v3 measurement + stroke-based decision
- *  (`classifyV4`), redo-zone geometry fixed. `params.algorithm` selects 2 or 4; the other runs alongside. */
+/** Bump when feature extraction or classification semantics change (not for param changes). 2 = fill ratio + shape
+ *  analysis (`omrShape.ts`); 4 = local threshold + stroke-based decision (`classifyV4`); 3 was withdrawn (area thresholds
+ *  misread thin-pen crosses). `params.algorithm` selects 2 or 4; the other runs alongside. */
 export const OMR_ALGORITHM_VERSION = 4;
 
 /** Algorithms a run can be decided by (`params.algorithm`). */

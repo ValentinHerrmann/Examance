@@ -1,14 +1,7 @@
 /**
- * Opt-in donation of teacher-verified checkbox crops to the configured backend (training data for a
- * shared MC-box classifier; see docs/data_flow_and_security.md). Privacy rules, keep them:
- *  - nothing is sent unless the teacher opted in (`trainingDonationStore.enabled`, default off) AND is
- *    signed in (accounts only, so a public URL can't fill the production DB);
- *  - withdrawing consent or signing out drops everything unsent, in every tab;
- *  - only teacher-verified questions (`isMcReviewed`) are donated;
- *  - samples carry only a random per-box token (`omrTrainingSample.ts`); the server uses the account
- *    for its daily quota only and never stores it with a sample;
- *  - failures are dropped, never retried. Uploads pass `silentError`: no global error dialog, and the
- *    quota 429 has no `Retry-After`, so it can't start the login lockout.
+ * Opt-in donation of teacher-verified checkbox crops (see docs/data_flow_and_security.md). Privacy rules, keep them: send only
+ * when opted in (default off) AND signed in, only `isMcReviewed` questions, with a random per-box token (the account counts
+ * for the daily quota only, never stored with a sample); drop unsent data on withdrawal/sign-out, never retry failures.
  */
 import { get } from 'svelte/store';
 import { api } from '#lib/api/client';

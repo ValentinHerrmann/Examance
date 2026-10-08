@@ -1,10 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Playwright config for the regression suite: Vite dev server, mocked backend (an in-memory fake
- * of the API answers for `http://localhost:8000`, see e2e/helpers/backend.ts), no real server.
- * `npm run dev` is NOT the web server command because its `predev` hook downloads the
- * LaTeX/WASM assets, making runs depend on the network.
+ * Playwright config: Vite dev server plus a mocked backend (e2e/helpers/backend.ts), no real server. Not `npm run dev`:
+ * its `predev` hook downloads the LaTeX/WASM assets, making runs network-dependent.
  * Run one project: `--project=desktop`; one area: `-g "\[exercises\]"`.
  */
 const PORT = 4173;

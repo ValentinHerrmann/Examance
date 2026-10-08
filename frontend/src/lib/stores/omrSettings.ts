@@ -12,10 +12,8 @@ import {
 } from '#lib/grading/omrSettings';
 
 /**
- * MC-detection settings for the *next* run. Per browser, not per account, not synced (like
- * `bg_storage_policy` / `bg_locale`); survives lock, wipe and mode switches (not in IndexedDB).
- * Callers take one `get()` snapshot per run so a mid-run change can't mix parameters; past runs are
- * unaffected (each detection carries its own `omrMeta.run`).
+ * MC-detection settings for the *next* run. Per browser, not per account, not synced (like `bg_storage_policy` / `bg_locale`);
+ * survives lock, wipe and mode switches. Callers take one `get()` snapshot per run so a mid-run change can't mix parameters.
  */
 const STORAGE_KEY = 'bg_omr_settings';
 

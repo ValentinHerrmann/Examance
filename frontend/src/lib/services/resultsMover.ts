@@ -1,13 +1,7 @@
 /**
- * Fluent storage-mode change: moves the grading results (students, submissions with their scans,
- * per-exercise scores) between the server and this browser in place. Exams and exercises stay on the
- * server in both modes, and both sides seal under the same account data key, so nothing is
- * re-encrypted; rows only change shape.
- *
- * Every write is an idempotent upsert (students by pseudonym, submissions by id, scores by
- * submission+exercise), so an interrupted move is simply run again. The account's mode changes only
- * after every exam's results arrived and the counts were verified; deleting the old copy is a
- * separate, optional last step. Strategy: docs/dev/storage_modes.md.
+ * Fluent storage-mode change: moves grading results between server and this browser in place; both sides seal under the same
+ * account data key, so nothing is re-encrypted. Every write is an idempotent upsert (rerun an interrupted move); the mode flips
+ * only after counts verify, deleting the old copy is a separate last step. Strategy: docs/dev/storage_modes.md.
  */
 
 import { get, writable } from 'svelte/store';

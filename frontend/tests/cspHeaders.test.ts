@@ -12,12 +12,9 @@ const headersTemplate = readFileSync(
 const srcDir = fileURLToPath(new URL('../src', import.meta.url));
 
 /**
- * Hosts the app is allowed to name in source. Everything here is either an
- * XML namespace (never fetched), a placeholder shown in a form field, or a
- * same-machine dev address — none of them contact a third party at runtime —
- * except `http.cat`: the one intentional third party, an image in the HTTP
- * error modal (issue #59), allowed by img-src in static/_headers and named as a
- * recipient in the Art. 30 record and the privacy policy.
+ * Hosts the app may name in source: XML namespaces (never fetched), form placeholders and same-machine dev addresses, none
+ * contacting a third party, except `http.cat`: the one intentional third party (issue #59), allowed by img-src in
+ * static/_headers and named as a recipient in the Art. 30 record and the privacy policy.
  */
 const ALLOWED_HOSTS = new Set(['www.w3.org', 'localhost', 'api.example.org', 'http.cat']);
 
@@ -69,10 +66,9 @@ describe('src/app.html', () => {
 });
 
 describe('the deployed origin is self-contained', () => {
-  // The CSP is `default-src 'self'` and docs promise the browser contacts no external host.
-  // Two regressions got past review (pdf.js worker from cdnjs, HttpCatModal fetching http.cat),
-  // each leaking IP and User-Agent to a third party; this check would have caught both.
-  // http.cat has since been reintroduced deliberately (issue #59) and is allowlisted above.
+  // The CSP is `default-src 'self'` and docs promise no external host is contacted. Two regressions got past review (pdf.js
+  // worker from cdnjs, HttpCatModal fetching http.cat), each leaking IP and User-Agent; http.cat is now deliberate (issue #59)
+  // and allowlisted above.
   it('names no off-origin host in src/', () => {
     const offenders: string[] = [];
     for (const file of sourceFiles(srcDir)) {

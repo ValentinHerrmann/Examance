@@ -1,8 +1,7 @@
 /**
- * Web Worker for OMR and fiducial alignment. Pipeline: binarize (Otsu), locate the 4 corner
- * fiducials (largest dark blob per quadrant), homography (4-point DLT, 3-point affine fallback),
- * sample each bubble's fill ratio, score via the shared mcScore.ts. No OpenCV.js: bubble positions
- * come from the PDF's `omr://` link annotations (captured by "Prepare OMR"); only fiducials are detected.
+ * Web Worker for OMR and fiducial alignment: binarize (Otsu), locate the 4 corner fiducials (largest dark blob per quadrant),
+ * homography (4-point DLT, 3-point affine fallback), sample each bubble's fill ratio, score via mcScore.ts. No OpenCV.js:
+ * bubble positions come from the PDF's `omr://` link annotations ("Prepare OMR"); only fiducials are detected.
  */
 
 import type { OmrFiducialRect, OmrPageTemplate } from '#lib/db/schema';

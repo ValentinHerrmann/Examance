@@ -1,8 +1,7 @@
 /**
- * Dexie IndexedDB instance, all BlindGrade local stores. Tables:
- *   exams (plaintext metadata, no PII), exercises (plaintext library), examExercises (junction),
- *   students ({ pseudonymId, fallbackCode, piiCt, piiIv }, PII encrypted), submissions (scan + annotation
- *   ciphertexts only), auditLog (merged into .bgproj on export), exerciseResources (encrypted LaTeX resource files).
+ * Dexie IndexedDB instance, all BlindGrade local stores: exams, exercises, examExercises, students, submissions, auditLog
+ * (merged into .bgproj on export), exerciseResources. Only exam metadata and the exercise library are plaintext;
+ * student PII, scans, annotations and resources are ciphertext.
  */
 
 import { browser } from '$app/env';
@@ -126,12 +125,9 @@ export class BlindGradeDB extends Dexie {
       exerciseResources: 'id, exerciseId, [exerciseId+filename]',
     });
 
-        // v9: drops the plaintext `fallbackCode` index from `students` and strips plaintext identity columns
-        // from every row. `encryptStudent()` used to return fallbackCode/studentName/studentNumber next to
-        // their ciphertext and `studentRepository.save()` persisted them, so names sat unencrypted in IndexedDB
-        // in all storage modes (L17, docs/legal_audit_dsgvo.md). The index goes because nothing queries it and
-        // an index is itself a plaintext copy. The strip never re-encrypts (`payloadCt` already holds the
-        // fields), so it needs no key and works while locked.
+        // v9: drops the plaintext `fallbackCode` index from `students` and strips plaintext identity columns from every row
+        // (L17, docs/legal_audit_dsgvo.md: names sat unencrypted in IndexedDB). The strip never re-encrypts (`payloadCt`
+        // already holds the fields), so it needs no key and works while locked.
     this.version(9)
       .stores({
         exams: 'id, teacherId, retentionUntil',

@@ -43,11 +43,8 @@ export function clampPercentage(value: number): number {
 }
 
 /**
- * Preliminary percentage from graded exercises only, e.g. max {5,3,10,15}, scores {4,1,null,null}
- * gives (4+1)/(5+3) = 62.5%. Null when nothing is graded.
- *
- * @param exerciseMaxPoints - max points per exercise in order
- * @param exerciseScores - scores (null/undefined = not graded)
+ * Preliminary percentage from graded exercises only (null/undefined score = not graded), e.g. max {5,3,10,15},
+ * scores {4,1,null,null} gives (4+1)/(5+3) = 62.5%. Null when nothing is graded.
  */
 export function calculateSubmissionPercentage(
   exerciseMaxPoints: number[],

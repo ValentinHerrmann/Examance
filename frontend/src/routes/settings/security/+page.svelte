@@ -1,12 +1,7 @@
 <script lang="ts">
   /**
-   * Sign-in and security, on its own page.
-   *
-   * Everything that decides whether this account can be reached and whether its
-   * data can be read, in one place and in one load. The two panels this replaces
-   * sat halfway down the settings page and each fetched its own state, so
-   * registering a passkey left the factor list next to it describing the account
-   * as it had been a moment earlier.
+   * Sign-in and security, on its own page: everything that decides whether this account can be reached and its data read,
+   * in one load. The two panels it replaces each fetched their own state, so registering a passkey left the factor list stale.
    */
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
