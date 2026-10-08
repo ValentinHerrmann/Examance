@@ -89,6 +89,7 @@
 
   <h2>{$t("legal.datenschutz.section10.heading")}</h2>
   <p>{$t("legal.datenschutz.section10.para1")}</p>
+  <p>{$t("legal.datenschutz.section10.objection")}</p>
   <p>{$t("legal.datenschutz.section10.para2")}</p>
 
   <h2>{$t("legal.datenschutz.section11.heading")}</h2>

@@ -134,7 +134,8 @@ services:
       retries: 5
       start_period: 20s
 
-  # Retention sweep, once a day.
+  # Retention sweep at start and then once a day: every deploy recreates this container, so a
+  # sleep-first loop would postpone the sweep indefinitely on a stack deployed more than daily.
   #
   # Runs the backend image directly rather than shelling out to `docker exec`
   # from a busybox container the way the development compose file does — that
@@ -151,8 +152,8 @@ services:
     command:
       - |
         while true; do
-          sleep 86400
           python -m app.cli run-retention || echo "retention sweep failed" >&2
+          sleep 86400
         done
 
 volumes:

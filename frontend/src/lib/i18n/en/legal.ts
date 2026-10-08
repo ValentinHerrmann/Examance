@@ -66,7 +66,7 @@ export const legal: Translations['legal'] = {
             heading: '4. Prüfungen und Schülerdaten',
             para1: 'Prüfungen und Aufgaben (Texte, Dateien und Angaben wie Titel, Klasse, Fach, Datum oder Name der Lehrkraft) werden unverschlüsselt auf dem Server gespeichert; Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.',
             para2: 'Identitäten von Schülerinnen und Schülern, Scans, Korrekturanmerkungen und Punktzahlen je Aufgabe werden bereits im Browser verschlüsselt (AES-256-GCM); den Schlüssel erhält der Server nie. Je Konto gilt einer von zwei Speichermodi: Im Modus „all-server“ liegen diese Daten verschlüsselt auf dem Server, dazu unverschlüsselt die Gesamtpunktzahl je Pseudonym für die Statistik. Im Modus „hybrid“ bleiben sie verschlüsselt im Browser (IndexedDB) und werden nicht an den Server übertragen.',
-            para3: 'Für Schülerdaten ist die Lehrkraft bzw. ihre Schule verantwortlich; der Betreiber verarbeitet sie nur in deren Auftrag und nach deren Weisung (Art. 28 DSGVO). Schülerinnen, Schüler und Eltern wenden sich mit Anfragen bitte an die Lehrkraft bzw. die Schule.',
+            para3: 'Für Schülerdaten ist die Lehrkraft bzw. ihre Schule verantwortlich. Der Betreiber stellt dafür nur die technische Plattform bereit, kann die im Browser verschlüsselten Inhalte nicht lesen und nutzt die Daten nicht für eigene Zwecke; einen Vertrag zur Auftragsverarbeitung (Art. 28 DSGVO) können Schulen beim Betreiber anfordern. Schülerinnen, Schüler und Eltern wenden sich mit Anfragen bitte an die Lehrkraft bzw. die Schule.',
         },
         section5: {
             heading: '5. Freiwillige Funktionen',
@@ -82,7 +82,7 @@ export const legal: Translations['legal'] = {
         },
         section7: {
             heading: '7. Fehlerbilder von http.cat',
-            text: 'Zeigt die Anwendung eine HTTP-Fehlermeldung an, lädt Ihr Browser ein passendes Bild vom Dienst http.cat (Betreiber in den USA). Dabei werden nur Ihre IP-Adresse, die Browserkennung und der Statuscode des Fehlers übermittelt, keine Cookies, keine Herkunftsadresse und keine Inhalte der Anwendung. Rechtsgrundlage ist das berechtigte Interesse an einer verständlichen Fehleranzeige (Art. 6 Abs. 1 lit. f DSGVO).',
+            text: 'Zeigt die Anwendung eine HTTP-Fehlermeldung an, lädt Ihr Browser ein passendes Bild vom Dienst http.cat (Betreiber in den USA). Examance gibt dabei nur den Statuscode des Fehlers weiter, keine Herkunftsadresse und keine Inhalte der Anwendung; der Anbieter erhält wie bei jedem Abruf Ihre IP-Adresse und Browserkennung. Ob für den Anbieter ein Angemessenheitsbeschluss (Art. 45 DSGVO) gilt, ist dem Betreiber nicht bekannt; geeignete Garantien (Art. 46 DSGVO) bestehen nicht. Rechtsgrundlage ist das berechtigte Interesse an einer verständlichen Fehleranzeige (Art. 6 Abs. 1 lit. f DSGVO).',
         },
         section8: {
             heading: '8. Cookies und Speicher im Browser',
@@ -93,7 +93,7 @@ export const legal: Translations['legal'] = {
             intro: 'Personenbezogene Daten werden gelöscht, sobald sie für ihren Zweck nicht mehr erforderlich sind:',
             account: 'Kontodaten, Prüfungen und Aufgaben: bis zur Löschung des Kontos, die Sie in den Einstellungen auslösen können.',
             students: 'Schülerdaten und Abgaben auf dem Server: bis zu dem Aufbewahrungsdatum, das die Lehrkraft je Prüfung festlegt, oder bis zu ihrer Löschung; danach endgültig nach einer Übergangsfrist von {graceDays} Tagen.',
-            registration: 'Unbestätigte Registrierungen nach {registrationLinkHours} Stunden, nicht freigegebene Konten nach {pendingAccountDays} Tagen, abgelehnte Anträge sofort.',
+            registration: 'Unbestätigte Registrierungen spätestens einen Tag nach Ablauf des {registrationLinkHours} Stunden gültigen Bestätigungslinks, nicht freigegebene Konten nach {pendingAccountDays} Tagen, abgelehnte Anträge sofort.',
             auditLog: 'Sicherheitsprotokoll: {auditLogDays} Tage.',
             contributions: 'Änderungsvorschläge: der Inhalt mit der Entscheidung, der Eintrag {contributionDays} Tage danach; unentschiedene Vorschläge nach {contributionPendingDays} Tagen.',
             donation: 'Gespendete Ankreuzfeld-Ausschnitte: {trainingSampleDays} Tage.',
@@ -104,7 +104,8 @@ export const legal: Translations['legal'] = {
         },
         section10: {
             heading: '10. Ihre Rechte',
-            para1: 'Sie haben das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen Verarbeitungen auf Grundlage berechtigter Interessen (Art. 21). Eine Einwilligung können Sie jederzeit mit Wirkung für die Zukunft widerrufen (Art. 7 Abs. 3). Wenden Sie sich dazu an den Verantwortlichen (Abschnitt 1).',
+            para1: 'Sie haben das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21, siehe unten). Eine Einwilligung können Sie jederzeit mit Wirkung für die Zukunft widerrufen (Art. 7 Abs. 3). Wenden Sie sich dazu an den Verantwortlichen (Abschnitt 1).',
+            objection: 'Widerspruchsrecht: Soweit der Betreiber Daten auf Grundlage berechtigter Interessen verarbeitet (Art. 6 Abs. 1 lit. f DSGVO, Abschnitte 2, 3 und 7), können Sie dem aus Gründen, die sich aus Ihrer besonderen Situation ergeben, jederzeit widersprechen (Art. 21 Abs. 1 DSGVO). Die Daten werden dann nicht mehr verarbeitet, es sei denn, es bestehen zwingende schutzwürdige Gründe, die Ihre Interessen überwiegen, oder die Verarbeitung dient der Geltendmachung, Ausübung oder Verteidigung von Rechtsansprüchen.',
             para2: 'Sie können sich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO).',
         },
         section11: {
