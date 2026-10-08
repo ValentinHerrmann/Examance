@@ -96,19 +96,19 @@
   <div class="mb-4 grid grid-cols-1 gap-4 @3xl:grid-cols-2">
     <div class="flex flex-col gap-1">
       <label for="editTitle" class="text-sm font-medium text-content">{$t("exam.metadataEditor.examTitle")}</label>
-      <input id="editTitle" type="text" bind:value={editTitle} class={controlClass} />
+      <input id="editTitle" type="text" bind:value={editTitle} maxlength={500} class={controlClass} />
     </div>
     <div class="flex flex-col gap-1">
       <label for="editTestart" class="text-sm font-medium text-content">{$t("exam.metadataEditor.testart")}</label>
-      <SuggestInput id="editTestart" storageKey="exam.testart" bind:value={editTestart} class={controlClass} />
+      <SuggestInput id="editTestart" storageKey="exam.testart" bind:value={editTestart} maxlength={100} class={controlClass} />
     </div>
     <div class="flex flex-col gap-1">
       <label for="editGrade" class="text-sm font-medium text-content">{$t("exam.metadataEditor.grade")}</label>
-      <SuggestInput id="editGrade" storageKey="exam.grade" bind:value={editGrade} placeholder="10" class={controlClass} />
+      <SuggestInput id="editGrade" storageKey="exam.grade" bind:value={editGrade} maxlength={50} placeholder="10" class={controlClass} />
     </div>
     <div class="flex flex-col gap-1">
       <label for="editKlasse" class="text-sm font-medium text-content">{$t("exam.metadataEditor.klasse")}</label>
-      <SuggestInput id="editKlasse" storageKey="exam.klasse" bind:value={editKlasse} placeholder="a" class={controlClass} />
+      <SuggestInput id="editKlasse" storageKey="exam.klasse" bind:value={editKlasse} maxlength={50} placeholder="a" class={controlClass} />
     </div>
     {#if fullCoursePreview}
       <div class="flex flex-col gap-1 @3xl:col-span-2">
@@ -128,15 +128,15 @@
     </div>
     <div class="flex flex-col gap-1">
       <label for="editNr" class="text-sm font-medium text-content">{$t("exam.metadataEditor.nr")}</label>
-      <input id="editNr" type="text" bind:value={editNr} class={controlClass} />
+      <input id="editNr" type="text" bind:value={editNr} maxlength={10} class={controlClass} />
     </div>
     <div class="flex flex-col gap-1">
       <label for="editFach" class="text-sm font-medium text-content">{$t("exam.metadataEditor.fach")}</label>
-      <SuggestInput id="editFach" storageKey="exam.fach" bind:value={editFach} class={controlClass} />
+      <SuggestInput id="editFach" storageKey="exam.fach" bind:value={editFach} maxlength={100} class={controlClass} />
     </div>
     <div class="flex flex-col gap-1">
       <label for="editLehrernachname" class="text-sm font-medium text-content">{$t("exam.metadataEditor.lehrernachname")}</label>
-      <SuggestInput id="editLehrernachname" storageKey="exam.lehrernachname" bind:value={editLehrernachname} class={controlClass} />
+      <SuggestInput id="editLehrernachname" storageKey="exam.lehrernachname" bind:value={editLehrernachname} maxlength={100} class={controlClass} />
     </div>
     <div class="flex flex-col gap-1">
       <label for="editRetention" class="text-sm font-medium text-content">{$t("exam.metadataEditor.retentionUntil")}</label>
