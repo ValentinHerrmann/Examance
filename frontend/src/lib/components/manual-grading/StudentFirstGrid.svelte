@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { faArrowLeft, faArrowRight, faCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Button, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
+  import { Alert, Button, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
   import { storagePolicyStore } from "#lib/stores/storagePolicy";
@@ -56,6 +56,7 @@
 
   // Editable buffer for the current student (exerciseIndex -> input string), bound by the inputs.
   let rawInputs: Record<number, string> = $state({});
+  let saveError = $state("");
 
   let totalMaxPoints = $derived(exercises.reduce((sum, ex) => sum + (ex.maxPoints || 0), 0));
 
@@ -97,8 +98,20 @@
     }
   }
 
-  async function handleSaveCurrentStudent() {
-    if (!currentSub) return;
+  /** False when nothing was written; the error is shown inline and the student stays selected. */
+  async function handleSaveCurrentStudent(): Promise<boolean> {
+    if (!currentSub) return true;
+    try {
+      await saveCurrentStudent(currentSub);
+      saveError = "";
+      return true;
+    } catch (err) {
+      saveError = err instanceof Error ? err.message : String(err);
+      return false;
+    }
+  }
+
+  async function saveCurrentStudent(currentSub: SubmissionRecord) {
     const key = get(sessionStore).sessionKey;
 
     let subScores = scoresMap.get(currentSub.id);
@@ -136,7 +149,8 @@
           });
           subScores[ex.id] = val;
         }
-      } else if (existing?.omrMeta) {
+      } else if (existing?.omrMeta || existing?.decryptFailed) {
+        // An undecryptable row only looks ungraded: deleting it would destroy the real score.
         subScores[ex.id] = existing.score ?? null;
       } else {
         toClear.push(ex.id);
@@ -167,14 +181,14 @@
   }
 
   async function prevStudent() {
-    await handleSaveCurrentStudent();
+    if (!(await handleSaveCurrentStudent())) return;
     if (currentStudentIndex > 0) {
       currentStudentIndex -= 1;
     }
   }
 
   async function nextStudent() {
-    await handleSaveCurrentStudent();
+    if (!(await handleSaveCurrentStudent())) return;
     if (currentStudentIndex < students.length - 1) {
       currentStudentIndex += 1;
     }
@@ -262,6 +276,12 @@
         </Button>
       </div>
     </div>
+
+    {#if saveError}
+      <Alert severity="danger" onDismiss={() => (saveError = "")}>
+        {$t("grading.manual.saveFailed", { message: saveError })}
+      </Alert>
+    {/if}
 
     {#if currentStudent}
       <div class="flex flex-wrap items-center justify-between gap-4 rounded-md border border-line bg-surface-raised px-5 py-4">

@@ -5,6 +5,7 @@ export const grading: Translations['grading'] = {
         empty: 'No submissions exist for this exam.',
         saveSuccess: 'Grade and annotations saved successfully!',
         saveFailed: 'Failed to save grade: {message}',
+        scoresLoadFailed: "This submission's saved scores could not be loaded ({message}). Saving is blocked until they load, so no grading is lost.",
         unsavedNext: 'There are unsaved annotations for this student. Switch to the next student anyway?',
         unsavedPrev: 'There are unsaved annotations for this student. Switch to the previous student anyway?',
     },
@@ -124,7 +125,9 @@ export const grading: Translations['grading'] = {
             tabStudentFirst: 'Student-first entry (all exercises per student)',
             tabRoster: 'Student roster ({count})',
             loading: 'Loading exam data...',
+            loadFailed: 'The exam data could not be loaded ({message}). Entry is blocked so that no saved scores are lost.',
         },
+        saveFailed: 'Scores not saved: {message}',
         exerciseFirst: {
             noExercises: 'No exercises have been defined for this exam yet.',
             goToSetup: 'Go to setup & exercises',

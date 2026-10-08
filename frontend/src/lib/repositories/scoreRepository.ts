@@ -38,13 +38,9 @@ async function openAll(rows: ExerciseScoreRecord[], key: CryptoKey | null) {
   return Promise.all(rows.map((row) => decryptScore(row, key)));
 }
 
-/** GET that degrades to "no scores" — callers render an empty grid, not a modal. */
+/** A failed GET throws, never reads as "no scores": grading views delete rows they think are ungraded. */
 async function fetchScores(path: string, key: CryptoKey | null) {
-  try {
-    return openAll((await api.get<any[]>(path, { silentError: true })).map(fromApi), key);
-  } catch {
-    return [];
-  }
+  return openAll((await api.get<any[]>(path, { silentError: true })).map(fromApi), key);
 }
 
 /** Server write with offline-queue fallback. Safe to replay: the endpoints are idempotent. */

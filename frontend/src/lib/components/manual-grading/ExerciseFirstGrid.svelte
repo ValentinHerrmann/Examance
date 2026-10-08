@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
+  import { Alert, Badge, Button, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
   import { storagePolicyStore } from "#lib/stores/storagePolicy";
@@ -44,6 +44,7 @@
 
   // Editable buffer (studentIndex -> input string), bound by the inputs; reset when its sources change.
   let rawInputs: Record<number, string> = $state({});
+  let saveError = $state("");
 
   function handleKeyDown(e: KeyboardEvent, index: number) {
     if (e.key === "Enter" || e.key === "ArrowDown") {
@@ -62,6 +63,16 @@
   }
 
   async function handleScoreChange(st: StudentRecord, index: number) {
+    try {
+      await saveScore(st, index);
+      saveError = "";
+    } catch (err) {
+      // Nothing is cleared after a failed read: the error stays inline until a save goes through.
+      saveError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  async function saveScore(st: StudentRecord, index: number) {
     if (!activeExercise) return;
     const sub = submissionMap.get(st.pseudonymId);
     if (!sub) return;
@@ -108,8 +119,8 @@
         },
         key,
       );
-    } else if (existing?.omrMeta) {
-      // keep the OMR row untouched
+    } else if (existing?.omrMeta || existing?.decryptFailed) {
+      // Keep an OMR row untouched; an undecryptable one only looks ungraded.
     } else {
       await scoreRepository.deleteOne(examId, sub.id, activeExercise.id);
     }
@@ -242,6 +253,12 @@
         </div>
       {/if}
     </div>
+
+    {#if saveError}
+      <Alert severity="danger" onDismiss={() => (saveError = "")}>
+        {$t("grading.manual.saveFailed", { message: saveError })}
+      </Alert>
+    {/if}
 
     <TableScroller>
       <table class="data-table data-table-compact data-table-sticky data-table-hover">

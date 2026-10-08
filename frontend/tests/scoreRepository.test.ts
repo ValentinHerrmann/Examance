@@ -143,6 +143,15 @@ describe('scoreRepository', () => {
     expect(await db.exerciseScores.count()).toBe(0);
   });
 
+  it('throws on a failed server read instead of reporting no scores', async () => {
+    // Grading views read "no row" as ungraded and delete it on save.
+    storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'local' });
+    vi.mocked(api.get).mockRejectedValue(new Error('unreachable'));
+
+    await expect(scoreRepository.getBySubmissionId('exam-1', 'sub-1', key)).rejects.toThrow('unreachable');
+    await expect(scoreRepository.getByExamId('exam-1', key)).rejects.toThrow('unreachable');
+  });
+
   it('queues a failed server write as a replayable PUT', async () => {
     storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'local' });
     vi.mocked(api.put).mockRejectedValue(new Error('offline'));
