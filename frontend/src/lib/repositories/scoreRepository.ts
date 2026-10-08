@@ -8,7 +8,7 @@ import { api } from '#lib/api/client';
 import { db } from '#lib/db/db';
 import { resultsAreLocal } from '#lib/stores/storagePolicy';
 import { encryptScore, decryptScore } from '#lib/db/dbEncryption';
-import { enqueueRequest } from '#lib/services/offlineQueue';
+import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import { uint8ArrayToBase64, base64ToUint8Array } from '#lib/crypto/aesGcm';
 import type { ExerciseScoreRecord } from '#lib/db/schema';
 
@@ -48,8 +48,8 @@ async function send(method: 'PUT' | 'DELETE', path: string, body?: unknown) {
   try {
     if (method === 'PUT') await api.put(path, body, { silentError: true });
     else await api.delete(path, { silentError: true });
-  } catch {
-    enqueueRequest(path, method, body);
+  } catch (err) {
+    enqueueOrThrow(err, path, method, body);
   }
 }
 

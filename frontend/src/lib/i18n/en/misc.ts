@@ -28,6 +28,11 @@ export const misc: Translations['misc'] = {
         localFailedTryServer: 'Local LaTeX compilation failed. Do you want to try compiling on the server?',
     },
 
+    rejectedWrites: {
+        heading: 'Changes refused by the server',
+        body: 'The server refused {count} change(s) saved while offline when they were sent again; they were discarded. ' +
+            'Please check the affected data and enter it again if needed. Last error: {message}',
+    },
     vaultIntegrity: {
         heading: 'Warning: some data could not be decrypted',
         body: '{count} record(s) ({kinds}) could not be read with the current key.' +

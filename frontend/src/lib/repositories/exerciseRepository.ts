@@ -1,7 +1,7 @@
 import { api } from '#lib/api/client';
 import { db } from '#lib/db/db';
 import { decryptExercise } from '#lib/db/dbEncryption';
-import { enqueueRequest } from '#lib/services/offlineQueue';
+import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import type { ExerciseRecord } from '#lib/db/schema';
 import { normalizeMcExercise, serializeMcAnswers } from '#lib/grading/mcExerciseHash';
 import { invalidateOwner } from '#lib/latex/compileCache';
@@ -116,11 +116,11 @@ export const exerciseRepository = {
         const { id: _id, ...patchPayload } = payload;
         try {
           await api.patch(`/exercises/${ex.id}`, patchPayload, { silentError: true });
-        } catch {
-          enqueueRequest(`/exercises/${ex.id}`, 'PATCH', patchPayload);
+        } catch (patchErr) {
+          enqueueOrThrow(patchErr, `/exercises/${ex.id}`, 'PATCH', patchPayload);
         }
       } else {
-        enqueueRequest('/exercises', 'POST', payload);
+        enqueueOrThrow(err, '/exercises', 'POST', payload);
       }
     }
   },
@@ -128,13 +128,14 @@ export const exerciseRepository = {
   async delete(id: string): Promise<void> {
     invalidateOwner('exercise', id);
     try {
-      await api.delete(`/exercises/${id}`);
+      await api.delete(`/exercises/${id}`, { silentError: true });
     } catch (err: any) {
-      enqueueRequest(`/exercises/${id}`, 'DELETE');
+      enqueueOrThrow(err, `/exercises/${id}`, 'DELETE');
+    } finally {
+      // The server cascades its own rows; drop the local mirror either way, or
+      // an IndexedDB fallback would bring the exercise back.
+      await db.exercises.delete(id);
+      await db.exerciseResources.where('exerciseId').equals(id).delete();
     }
-    // The server cascades its own rows; drop the local mirror either way, or
-    // an IndexedDB fallback would bring the exercise back.
-    await db.exercises.delete(id);
-    await db.exerciseResources.where('exerciseId').equals(id).delete();
   },
 };
