@@ -7,7 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_teacher, get_exam_for_teacher, get_teaching_teacher
+from app.middleware.rate_limit import limiter
 from app.models.exam import Exam
 from app.models.exam_exercise import ExamExercise
 from app.models.exam_mc_group import ExamMcGroup
@@ -555,7 +556,9 @@ async def delete_exam(
 
 
 @router.post("/{exam_id}/compile")
+@limiter.limit("10/minute")
 async def compile_exam_endpoint(
+    request: Request,  # Required by slowapi for rate limiting
     answers: bool = False,
     exam: Exam = Depends(get_exam_for_teacher),
     teacher: Teacher = Depends(require_server_latex),

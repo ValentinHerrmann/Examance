@@ -167,6 +167,10 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
   name is not usable), `503 ERR_COMPILE_UNAVAILABLE` (the engine itself is missing or cannot
   run), `504 ERR_COMPILE_TIMEOUT`. Unhandled faults return `500 ERR_INTERNAL` **with** CORS
   headers, so a browser reports the status rather than a phantom CORS failure.
+- **Limits**: this route and `POST /api/v1/exams/{id}/compile` are each rate-limited to 10
+  per minute per IP (`429`). At most `LATEX_MAX_CONCURRENT_COMPILES` (default 2) Tectonic runs
+  happen at once per backend process; a request waits for a slot up to its own compile timeout
+  (30 s preview, 120 s exam) and then gets `504 ERR_COMPILE_TIMEOUT`.
 
 ---
 

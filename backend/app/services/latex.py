@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import ctypes
 import logging
 import os
@@ -10,9 +11,11 @@ import shutil
 import sys
 import tempfile
 import uuid
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
+from app.config import settings
 from app.services.latex_resources import validate_resource_name
 from app.services.logo import ResolvedLogo
 
@@ -64,6 +67,21 @@ def forbid_environ_reads() -> None:
 
 class CompilationError(Exception):
     """Raised when Tectonic exits non-zero or the process fails."""
+
+
+# Process-wide cap on concurrent Tectonic runs; the rate limits alone still allow a burst per IP.
+_compile_slots = asyncio.Semaphore(settings.LATEX_MAX_CONCURRENT_COMPILES)
+
+
+@contextlib.asynccontextmanager
+async def _compile_slot(wait_seconds: float) -> AsyncIterator[None]:
+    """Hold one Tectonic slot; waiting longer than *wait_seconds* raises TimeoutError."""
+    async with asyncio.timeout(wait_seconds):
+        await _compile_slots.acquire()
+    try:
+        yield
+    finally:
+        _compile_slots.release()
 
 
 _TEX_ESCAPE_MAP = {
@@ -262,33 +280,34 @@ async def compile_latex(
         ]
 
         passes = 2
-        for pass_idx in range(passes):
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=str(tmpdir),
-                env=_child_env(),
-            )
-
-            try:
-                _stdout, _stderr = await asyncio.wait_for(
-                    proc.communicate(), timeout=timeout
+        async with _compile_slot(timeout):
+            for pass_idx in range(passes):
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=str(tmpdir),
+                    env=_child_env(),
                 )
-            except TimeoutError:
-                proc.kill()
-                await proc.communicate()
-                raise
 
-            logger.debug(
-                "LaTeX pass %d finished (exit %d)", pass_idx + 1, proc.returncode
-            )
+                try:
+                    _stdout, _stderr = await asyncio.wait_for(
+                        proc.communicate(), timeout=timeout
+                    )
+                except TimeoutError:
+                    proc.kill()
+                    await proc.communicate()
+                    raise
 
-            if proc.returncode != 0:
-                err_snippet = _extract_tex_error(tmpdir)
-                raise CompilationError(
-                    f"LaTeX compilation failed on pass {pass_idx + 1}: {err_snippet}"
+                logger.debug(
+                    "LaTeX pass %d finished (exit %d)", pass_idx + 1, proc.returncode
                 )
+
+                if proc.returncode != 0:
+                    err_snippet = _extract_tex_error(tmpdir)
+                    raise CompilationError(
+                        f"LaTeX compilation failed on pass {pass_idx + 1}: {err_snippet}"
+                    )
 
         pdf_path = tmpdir / "main.pdf"
         if not pdf_path.exists():
