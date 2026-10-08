@@ -42,42 +42,49 @@
   }: Props = $props();
 
   const id = `list-filter-${nextId++}`;
+
+  // A chosen value stays listed after its last item is gone, or the filter would hide everything with no way back.
+  const withSelected = (options: string[], selected: string) =>
+    selected === "ALL" || options.includes(selected) ? options : [...options, selected];
+  let grades = $derived(withSelected(gradeOptions, selectedGrade));
+  let subjects = $derived(withSelected(subjectOptions, selectedSubject));
+  let topics = $derived(withSelected(topicOptions, selectedTopic));
 </script>
 
 <div class="flex min-w-0 flex-col gap-4">
   <TextInput type="text" placeholder={searchPlaceholder} bind:value={searchQuery} />
 
   <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-    {#if gradeOptions.length > 0}
+    {#if grades.length > 0}
       <div class="flex min-w-0 flex-col gap-1 text-sm text-content">
         <label class="text-muted" for="{id}-grade">{$t("common.filters.grade")}</label>
         <Select id="{id}-grade" bind:value={selectedGrade}>
           <option value="ALL">{$t("common.filters.allGrades")}</option>
-          {#each gradeOptions as g}
+          {#each grades as g}
             <option value={g}>{$t("common.filters.gradeOption", { grade: g })}</option>
           {/each}
         </Select>
       </div>
     {/if}
 
-    {#if subjectOptions.length > 0}
+    {#if subjects.length > 0}
       <div class="flex min-w-0 flex-col gap-1 text-sm text-content">
         <label class="text-muted" for="{id}-subject">{$t("common.filters.subject")}</label>
         <Select id="{id}-subject" bind:value={selectedSubject}>
           <option value="ALL">{$t("common.filters.allSubjects")}</option>
-          {#each subjectOptions as s}
+          {#each subjects as s}
             <option value={s}>{s}</option>
           {/each}
         </Select>
       </div>
     {/if}
 
-    {#if topicOptions.length > 0}
+    {#if topics.length > 0}
       <div class="flex min-w-0 flex-col gap-1 text-sm text-content sm:col-span-2 lg:col-span-1 xl:col-span-2">
         <label class="text-muted" for="{id}-topic">{$t("common.filters.topic")}</label>
         <Select id="{id}-topic" bind:value={selectedTopic}>
           <option value="ALL">{$t("common.filters.allTopics")}</option>
-          {#each topicOptions as topic}
+          {#each topics as topic}
             <option value={topic}>{topic}</option>
           {/each}
         </Select>
