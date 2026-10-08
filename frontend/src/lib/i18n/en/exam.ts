@@ -82,10 +82,10 @@ export const exam: Translations['exam'] = {
     actionBar: {
         addExercises: '+ Add Exercises',
         scan: 'Scan',
-        grade: '️ Grade',
+        grade: 'Grade',
         stats: 'Statistics',
-        edit: '️ Edit',
-        deleteSubmissions: '️ Delete Submissions',
+        edit: 'Edit',
+        deleteSubmissions: 'Delete Submissions',
         export: 'Export',
         delete: 'Delete',
     },
@@ -150,7 +150,7 @@ export const exam: Translations['exam'] = {
         mcGroupLabel: 'MC Group: {title}',
         subExercisesCount: 'MC ({count} sub-exercises)',
         editGroup: 'Edit MC Group',
-        editGroupButton: '️ Edit',
+        editGroupButton: 'Edit',
         empty: 'No exercises added yet.',
     },
     sidebar: {

@@ -80,10 +80,10 @@ export const exam = {
     actionBar: {
         addExercises: '+ Aufgaben hinzufügen',
         scan: 'Scannen',
-        grade: '️ Korrigieren',
+        grade: 'Korrigieren',
         stats: 'Statistik',
-        edit: '️ Bearbeiten',
-        deleteSubmissions: '️ Abgaben löschen',
+        edit: 'Bearbeiten',
+        deleteSubmissions: 'Abgaben löschen',
         export: 'Export',
         delete: 'Löschen',
     },
@@ -148,7 +148,7 @@ export const exam = {
         mcGroupLabel: 'MC-Gruppe: {title}',
         subExercisesCount: 'MC ({count} Teilaufgaben)',
         editGroup: 'MC-Gruppe bearbeiten',
-        editGroupButton: '️ Bearbeiten',
+        editGroupButton: 'Bearbeiten',
         empty: 'Noch keine Aufgaben hinzugefügt.',
     },
     sidebar: {
