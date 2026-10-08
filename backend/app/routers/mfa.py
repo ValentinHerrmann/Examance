@@ -1,10 +1,7 @@
 """
-MFA enrollment — /api/v1/mfa/*
-
-Reachable from a half-finished sign-in as well as a full session: an account
-that has not yet enrolled two factors holds an ``enroll``-scoped token and can
-reach nothing else, so enrollment has to work from there or the account would be
-stuck.
+MFA enrollment — /api/v1/mfa/*. Reachable from a half-finished sign-in as well as a full session:
+an account with fewer than two factors holds an ``enroll``-scoped token that reaches nothing
+else, so enrollment has to work from there.
 """
 from __future__ import annotations
 
@@ -51,13 +48,9 @@ async def mfa_status(
     db: AsyncSession = Depends(get_db),
 ) -> MfaStatusResponse:
     """
-    What this account has enrolled, and whether that is enough to sign in.
-
-    Also everything the security page needs to describe each factor: when it was
-    added, when it last answered, and whether a recovery code is on file. All of
-    it is about the *authenticated* account — nothing here is reachable before a
-    factor has been proven, which is what keeps it from being a profile oracle
-    for an arbitrary email address.
+    What this account has enrolled, whether that is enough to sign in, and per-factor details for
+    the security page. Only about the *authenticated* account, so it is no profile oracle for an
+    email.
     """
     _require_enrollment_scope(session, _STATUS_SCOPES)
     teacher = session.teacher
@@ -98,11 +91,8 @@ async def enroll_totp(
 ) -> MfaEnrollResponse:
     """
     Start an authenticator enrollment.
-
-    The secret is returned exactly once, inside the `otpauth://` URI. It is not
-    retrievable afterwards: a teacher who loses the enrollment mid-setup starts
-    over, which costs a minute, whereas an endpoint that hands back an existing
-    secret would let anyone holding a session clone the second factor.
+    The secret is returned once, in the `otpauth://` URI, and never again: re-serving it would let
+    anyone holding a session clone the second factor, while a lost setup just starts over.
     """
     _require_enrollment_scope(session)
     try:
@@ -176,12 +166,8 @@ async def disable_totp(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """
-    Remove the authenticator.
-
-    Refused when it would drop the account below two sign-in factors, or below
-    its last means of decrypting its own data. That guard is what makes "any two
-    of three" safe to offer: without it a teacher could delete their way out of
-    their own account.
+    Remove the authenticator, refused if it would drop the account below two sign-in factors or
+    below its last means of decrypting its own data. That guard makes "any two of three" safe.
     """
     if session.scope != "full":
         raise HTTPException(

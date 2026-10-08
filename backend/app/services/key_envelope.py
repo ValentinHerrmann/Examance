@@ -1,16 +1,7 @@
 """
-Key-envelope maintenance the server is allowed to perform.
-
-The server can never *re-wrap* anything — that needs the new password, which it
-sees only as an Argon2id hash, and the data key, which it never sees at all. But
-it can mark a wrap stale, and it must, whenever a password is set outside the
-browser flow that would have re-wrapped alongside it.
-
-Without this the `password` wrap would still be keyed to a password nobody knows.
-The client would derive a key-encryption key that does not open it, and the
-teacher would land in a vault of blank fields rather than being told to recover
-with their recovery code — which is exactly the failure this whole change exists
-to remove.
+Key-envelope maintenance the server may perform. It can never re-wrap (that needs the new
+password and the data key), but must mark the `password` wrap stale when a password is set
+outside the browser flow; otherwise the client derives a key that opens nothing (blank vault).
 """
 from __future__ import annotations
 
@@ -55,14 +46,9 @@ async def replace_envelope_set(
     db: AsyncSession, teacher: Teacher, body: KeyEnvelopeSetIn
 ) -> list[KeyEnvelope]:
     """
-    Replace a teacher's whole envelope set, validating it first.
-
-    Wholesale by design. Merging risks a set where the password wrap holds a new
-    data key while the recovery wrap still holds the previous one — which looks
-    healthy right up until the day someone needs to recover with it.
-
-    Shared with the password-reset endpoint, which writes the new wrap in the
-    same transaction as the new password so the two cannot end up disagreeing.
+    Replace a teacher's whole envelope set, validating it first. Wholesale by design: merging could
+    pair a new data key in the password wrap with the old one in the recovery wrap. Shared with
+    password reset, which writes the new wrap in the same transaction as the new password.
     """
     key_id = decode_b64(body.key_id_b64, "key_id_b64", expected_len=KEY_ID_BYTES)
 

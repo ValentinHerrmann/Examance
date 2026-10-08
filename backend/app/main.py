@@ -212,12 +212,9 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        # This handler runs in ServerErrorMiddleware, which sits OUTSIDE
-        # CORSMiddleware, so its response would otherwise reach the browser
-        # without Access-Control-Allow-Origin. The fetch then fails as a CORS
-        # error and the actual fault — a crashed handler, an unreachable Redis,
-        # a missing engine binary — is invisible to whoever is debugging it.
-        # The headers are added here by hand, for allowlisted origins only.
+        # Runs in ServerErrorMiddleware, outside CORSMiddleware, so a 500 would reach the browser
+        # without Access-Control-Allow-Origin and look like a CORS error, hiding the real fault.
+        # Headers are added by hand, for allowlisted origins only.
         logging.getLogger("app.main").exception(
             "Unhandled exception on %s %s", request.method, request.url.path
         )
@@ -267,10 +264,8 @@ def create_app() -> FastAPI:
 
     @app.get("/api/health", tags=["meta"])
     async def health() -> dict[str, str]:
-        # `version` is deliberately public. It is how the frontend detects that
-        # it is talking to an incompatible server (differing major version), and
-        # it is the same class of information a Server header already leaks. No
-        # authentication, crypto or retention behaviour depends on it.
+        # `version` is deliberately public: the frontend uses it to detect an incompatible server
+        # (differing major version). No auth, crypto or retention behaviour depends on it.
         return {"status": "ok", "version": settings.APP_VERSION}
 
     return app

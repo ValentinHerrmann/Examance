@@ -13,10 +13,8 @@ from app.config import settings
 def validate_retention_until(value: date | None) -> date | None:
     """
     Keep the retention date inside the configured window.
-
-    The upper bound enforces Art. 5(1)(e): nothing may be scheduled to be kept
-    indefinitely. The lower bound is off by default (RETENTION_MIN_DAYS = 0) so
-    a teacher can still delete a draft immediately — see the note in config.py.
+    The upper bound enforces Art. 5(1)(e) (nothing kept indefinitely); the lower bound is off by
+    default (RETENTION_MIN_DAYS = 0) so drafts can be deleted at once, see config.py.
     """
     if value is None:
         return None

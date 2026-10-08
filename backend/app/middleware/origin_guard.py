@@ -12,16 +12,9 @@ _STATE_CHANGING = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 class OriginGuardMiddleware(BaseHTTPMiddleware):
     """
-    Reject state-changing requests carrying a disallowed ``Origin`` header.
-
-    Session cookies use ``SameSite=None`` because the SPA and the API live on
-    different registrable domains, so the browser attaches them to cross-site
-    requests. CORS already blocks an attacker from *reading* the response, and
-    a JSON content type forces a preflight — but neither stops the request from
-    being *sent*. This check does, and it costs one dict lookup.
-
-    A missing Origin is allowed through: non-browser clients (curl, the CLI,
-    server-to-server calls) do not send one, and those are not CSRF-reachable.
+    Reject state-changing requests with a disallowed ``Origin`` header (CSRF).
+    Cookies are ``SameSite=None`` (cross-site SPA); CORS blocks reading the response, not sending.
+    A missing Origin passes: non-browser clients (curl, CLI) are not CSRF-reachable.
     """
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:

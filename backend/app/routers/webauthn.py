@@ -1,13 +1,7 @@
 """
-Passkeys — /api/v1/webauthn/*
-
-A passkey is one of the three sign-in factors, and the only one that completes a
-sign-in by itself: every ceremony requires user verification, so it proves
-possession plus a local biometric or PIN (`auth_policy.SELF_SUFFICIENT_FACTORS`).
-In second position it finishes a sign-in begun with the password.
-
-Registration needs a session. Authentication does not — that is the point of a
-first-position factor.
+Passkeys — /api/v1/webauthn/*. One of the three sign-in factors, and the only one that completes
+a sign-in alone: every ceremony requires user verification (`auth_policy.SELF_SUFFICIENT_FACTORS`).
+Registration needs a session; authentication does not (it is a first-position factor).
 """
 from __future__ import annotations
 
@@ -145,15 +139,9 @@ async def login_verify(
     access_token: str | None = Cookie(default=None),
 ) -> AuthResponse:
     """
-    Present a passkey as a sign-in factor.
-
-    Contributes the `passkey` factor whether it comes first or second. On its
-    own it satisfies the policy, so a passkey-first sign-in ends in a full
-    session (or enrollment, for an account with fewer than two factors).
-
-    The cookie is read directly rather than through a dependency because this
-    endpoint has to work both ways: with no session at all (passkey first) and
-    with a sign-in already part-way through (passkey second).
+    Present a passkey as a sign-in factor, first or second; on its own it satisfies the policy.
+    The cookie is read directly, not via a dependency, because this must work with no session
+    (passkey first) and with a sign-in part-way through (passkey second).
     """
     already: list[str] = []
     flow = "auth_pending"
@@ -206,15 +194,9 @@ async def login_verify(
             headers={"code": "ERR_PASSKEY_FAILED"},
         )
 
-    # The passkey has to belong to the account this sign-in is already for.
-    #
-    # Without this the two halves could come from different accounts: prove your
-    # own password to get a pending token carrying `amr: ["password"]`, then
-    # present someone else's passkey, and `advance_sign_in` would run with their
-    # teacher and your factor list — a full session as them, on the single factor
-    # their authenticator provides. Restarting is the right answer rather than
-    # quietly dropping `already`, since a mismatch is either an attack or a stale
-    # cookie and neither should silently become a sign-in.
+    # The passkey must belong to the account this sign-in is for: else your password plus another
+    # account's passkey would run `advance_sign_in` with their teacher and your factors. A mismatch
+    # is an attack or stale cookie; restart.
     if pending_subject and pending_subject != str(teacher.id):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -11,14 +11,9 @@ from app.config import settings
 
 class BodyLimitMiddleware(BaseHTTPMiddleware):
     """
-    Enforce per-route request body size limits.
-
-    Rejects oversized requests with HTTP 413.
-
-    The Content-Length header is checked first as a cheap early reject, but it
-    is neither trustworthy nor always present: a chunked request carries no
-    Content-Length at all. The limit is therefore also enforced while the body
-    streams, so an unbounded chunked upload cannot slip past the header check.
+    Enforce per-route request body size limits, rejecting oversized requests with HTTP 413.
+    Content-Length is only an early reject (untrusted, absent on chunked uploads), so the limit
+    is also enforced while the body streams.
     """
 
     def _get_limit(self, path: str, method: str) -> int:
@@ -63,11 +58,8 @@ class BodyLimitMiddleware(BaseHTTPMiddleware):
         async def limited_receive() -> Message:
             """
             Stop feeding the body downstream once the limit is passed.
-
-            Raising here would surface as Starlette's generic "error parsing the
-            body" 400. Instead the stream is cut short — the handler fails fast
-            on the truncated body — and dispatch replaces whatever it returned
-            with a 413 below.
+            Raising would surface as a generic 400; instead the stream is cut short and dispatch
+            replaces the response with a 413.
             """
             nonlocal received, exceeded
             message = await original_receive()

@@ -1,9 +1,6 @@
 """Changing a password from an open session.
-
-The route that did not exist before: a signed-in teacher had to sign out and go
-through the emailed reset, which invalidates their key wrap and then asks for
-the recovery code to undo the damage. This writes the new password and the
-re-wrapped key together, and leaves the session it was made from alive.
+Writes the new password and the re-wrapped key together and keeps the current session alive,
+unlike the emailed reset, which invalidates the key wrap and needs the recovery code.
 """
 from __future__ import annotations
 

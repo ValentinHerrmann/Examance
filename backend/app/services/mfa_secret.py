@@ -1,16 +1,7 @@
 """
-Encryption for TOTP shared secrets at rest.
-
-Unlike everything else in this system, this key material cannot be
-zero-knowledge: the server has to compute the expected code, so it has to be
-able to read the secret. What this buys is narrower but real — a stolen database
-dump on its own does not yield working authenticator seeds, because the key is
-derived from SECRET_KEY, which lives in the environment rather than the
-database.
-
-Consequence worth stating plainly: rotating SECRET_KEY invalidates every TOTP
-enrollment. It already invalidates every session, so the blast radius grows
-rather than changes shape, but it does grow.
+Encryption for TOTP shared secrets at rest. Cannot be zero-knowledge (the server computes the
+code), but the key derives from SECRET_KEY (environment, not database), so a DB dump alone
+yields no seeds. Rotating SECRET_KEY invalidates every TOTP enrollment, as it does every session.
 """
 from __future__ import annotations
 
@@ -39,16 +30,9 @@ def _wrapping_key() -> bytes:
 
 def backup_code_digest(normalized_code: str) -> str:
     """
-    Keyed digest of a backup code, for storage and lookup.
-
-    Deliberately not a password hash. A backup code is around fifty bits of
-    `secrets.choice` output, so there is no dictionary for Argon2id to slow
-    down, and the cost was real: ten Argon2id hashes at 64 MB each to issue a
-    set, and one per stored code on every attempt, all of it blocking the single
-    worker's event loop. Keying the digest from SECRET_KEY is what a database
-    dump alone cannot get past, and looking the digest up in the index is
-    constant-time by construction — no row-by-row comparison, no early exit to
-    reason about.
+    Keyed digest of a backup code, for storage and lookup. Deliberately not a password hash: the
+    code is ~50 bits of `secrets.choice`, so Argon2id has nothing to slow and only blocks the event
+    loop. Keying from SECRET_KEY defeats a DB dump alone.
     """
     mac = hmac.new(_derive(_BACKUP_INFO), normalized_code.encode("utf-8"), hashlib.sha256)
     return mac.hexdigest()
@@ -63,10 +47,7 @@ def encrypt_secret(secret: bytes) -> tuple[bytes, bytes]:
 
 def decrypt_secret(ciphertext: bytes, iv: bytes) -> bytes:
     """
-    Recover a stored secret.
-
-    Raises `cryptography.exceptions.InvalidTag` when SECRET_KEY has changed —
-    which is the correct outcome: the enrollment is gone and the teacher must
-    re-enroll, rather than the server silently accepting nothing.
+    Recover a stored secret. Raises `cryptography.exceptions.InvalidTag` when SECRET_KEY has
+    changed, which is correct: the enrollment is gone and the teacher must re-enroll.
     """
     return AESGCM(_wrapping_key()).decrypt(iv, ciphertext, _INFO)

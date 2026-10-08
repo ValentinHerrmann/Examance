@@ -623,11 +623,9 @@ async def delete_exercise(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """
-    Delete an exercise from the caller's own library.
-
-    Idempotent: always 204, whether or not a row was removed. Only exercises
-    owned by *teacher* are ever deleted, so a foreign id is a silent no-op —
-    which also keeps the response from revealing that the id exists.
+    Delete an exercise from the caller's own library. Idempotent: always 204.
+    Only exercises owned by *teacher* are deleted, so a foreign id is a silent no-op that
+    does not reveal the id exists.
     """
     result = await db.execute(
         select(Exercise).where(
@@ -893,11 +891,8 @@ async def unlink_group_source(
 
 
 # --- Resource files -------------------------------------------------------
-#
-# Files a teacher attaches to an exercise so its LaTeX can reference them
-# (\includegraphics{figure.png}, \input{data.tex}, ...). Bytes are stored in
-# plaintext, exactly like latex_body; the zero-knowledge path is all-local
-# mode, where they never leave the browser. See docs/data_flow_and_security.md.
+# Files attached to an exercise so its LaTeX can reference them (\includegraphics, \input).
+# Stored in plaintext, exactly like latex_body; see docs/data_flow_and_security.md.
 
 
 async def _get_resource(

@@ -20,14 +20,9 @@ async def load_resources_for_exercises(
     db: AsyncSession,
 ) -> dict[str, bytes]:
     """
-    Resource files of *exercise_ids*, merged into one working-directory map.
-
-    Only exercises the teacher may read are considered — their own, or ones
-    shared with them — mirroring ``get_readable_exercise``. Ids the caller
-    may not read are skipped rather than rejected: the compile endpoint takes
-    the list as a hint about what the document needs, not as an assertion of
-    ownership, and a missing figure is a better failure mode than a 403 on an
-    exercise that was deleted between save and compile.
+    Resource files of *exercise_ids*, merged into one working-directory map. Only exercises the
+    teacher may read are used (mirrors ``get_readable_exercise``); the rest are skipped, not
+    rejected: the list is a hint, and a missing figure beats a 403 for a deleted exercise.
     """
     if not exercise_ids:
         return {}

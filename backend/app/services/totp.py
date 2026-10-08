@@ -1,13 +1,7 @@
 """
-RFC 6238 TOTP, on the standard library.
-
-Deliberately not a dependency. The algorithm below is HMAC plus a truncation
-rule; `pyotp` would add a supply-chain surface larger than the code it replaces,
-for something this repository can test directly.
-
-The shared secret is stored encrypted (see `mfa_secret.py`). That is not
-zero-knowledge — the server has to compute the expected code — but it means a
-stolen database dump alone does not yield working authenticator seeds.
+RFC 6238 TOTP on the standard library, deliberately not a dependency: it is HMAC plus a truncation
+rule, and `pyotp` would add more supply-chain surface than the code it replaces. The secret is
+stored encrypted (`mfa_secret.py`), not zero-knowledge, since the server computes codes.
 """
 from __future__ import annotations
 
@@ -23,10 +17,8 @@ from urllib.parse import quote
 TOTP_STEP_SECONDS = 30
 TOTP_DIGITS = 6
 
-# 20 bytes is the RFC 4226 recommendation and what SHA-1 HMAC consumes without
-# rehashing. SHA-1 here is HMAC-SHA-1, which is not affected by the collision
-# attacks on plain SHA-1 — and it is the only variant authenticator apps
-# universally support.
+# 20 bytes is the RFC 4226 recommendation. HMAC-SHA-1 is unaffected by SHA-1 collision attacks
+# and is the only variant authenticator apps universally support.
 TOTP_SECRET_BYTES = 20
 
 # One step either side. Wider windows buy very little usability and multiply the
@@ -70,21 +62,9 @@ def verify_code(
     secret: bytes, code: str, timestamp: int, *, last_used_step: int | None
 ) -> CodeCheck:
     """
-    Check *code*, saying both whether it is usable and whether it is a replay.
-
-    Recording the matched step is what lets the caller refuse the same code a
-    second time: within a 30-second window a code that has been observed once —
-    over someone's shoulder, in a proxied request — would otherwise still work.
-
-    The two failures are reported separately because they are not the same
-    event. A spent code proves possession of the secret; it is the code the
-    teacher's own app is showing, one window too late, which is what every
-    sign-in immediately after a password reset produces. Calling that "invalid"
-    sends them looking for a problem that fixes itself in thirty seconds, and
-    counting it as a failed attempt walks them into a lockout.
-
-    Comparison is constant-time, and every candidate step is evaluated before
-    answering, so timing does not reveal which one matched.
+    Check *code*, reporting usable and replay separately. The matched step is recorded so a code is
+    refused twice. A spent code proves possession (e.g. right after a password reset), so it must
+    not count as a failure. Constant-time; all steps evaluated.
     """
     candidate = code.strip().replace(" ", "")
     if len(candidate) != TOTP_DIGITS or not candidate.isdigit():
@@ -107,11 +87,9 @@ def verify_code(
 
 def provisioning_uri(secret: bytes, account_email: str, issuer: str = "Examance") -> str:
     """
-    The `otpauth://` URI an authenticator app scans.
-
-    Rendered as a QR code in the browser from the bundled `qrcode` dependency —
-    the Content-Security-Policy is `script-src 'self'`, so a third-party QR
-    service is not an option, and the secret must not leave the browser anyway.
+    The `otpauth://` URI an authenticator app scans, rendered as a QR code in the browser from the
+    bundled `qrcode` dependency: CSP is `script-src 'self'` and the secret must not leave the
+    browser.
     """
     label = quote(f"{issuer}:{account_email}", safe="")
     params = "&".join(

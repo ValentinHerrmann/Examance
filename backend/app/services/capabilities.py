@@ -1,8 +1,6 @@
-"""What an account may use (issue #53): storage modes and server features; decided only here.
-
-Admin switches per account: `allow_server_results` ("all-server" mode; "hybrid" is always allowed),
-`allow_server_latex` and `allow_exercise_sharing` (issue #65). The frontend renders from
-`capabilities_for`; endpoints enforce it."""
+"""What an account may use (issue #53), decided only here. Admin switches: `allow_server_results`
+(all-server), `allow_server_latex`, `allow_exercise_sharing` (issue #65). The frontend renders
+from `capabilities_for`; endpoints enforce it."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field

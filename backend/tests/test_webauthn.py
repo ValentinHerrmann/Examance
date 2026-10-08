@@ -1,9 +1,7 @@
 """
-Passkey endpoints.
-
-The ceremonies themselves need a real authenticator, so these cover the parts
-that are ours: that a passkey alone completes a sign-in (and only for its own
-account), that the challenge is single-use, and that the removal guard holds.
+Passkey endpoints. The ceremonies need a real authenticator, so these cover our parts: a passkey
+alone completes a sign-in (only for its own account), the challenge is single-use, and the
+removal guard holds.
 """
 from __future__ import annotations
 
@@ -17,11 +15,9 @@ from .factors import DEFAULT_PASSWORD, create_teacher, sign_in
 @pytest.mark.asyncio
 async def test_login_options_need_no_account(client: AsyncClient) -> None:
     """
-    The ceremony takes no account identifier.
-
-    That is deliberate: a passkey is a first-position factor precisely because
-    the authenticator names the account. Asking the server which passkeys an
-    email has would rebuild the account-profile oracle the design avoids.
+    The ceremony takes no account identifier: a passkey is a first-position factor because the
+    authenticator names the account, and asking which passkeys an email has would rebuild the
+    account-profile oracle.
     """
     client.cookies.clear()
     resp = await client.post("/api/v1/webauthn/login/options")
@@ -99,15 +95,9 @@ async def test_the_challenge_it_issued_is_the_challenge_it_accepts(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     """
-    Round-trip the challenge the client actually echoes back.
-
-    The other tests here post a challenge that was never issued, which is
-    refused for the right reason by accident: the stored key was built with
-    padded base64url and the options JSON carries the unpadded form, so *every*
-    challenge looked unissued and no passkey could ever be registered. A
-    negative test cannot see that. This one submits the exact string the browser
-    sends and asserts the ceremony gets past the lookup — the verification then
-    fails on the deliberately bogus credential, which is a different error.
+    Round-trip the challenge as the client echoes it. Negative tests cannot see that the key was
+    once stored padded while the options JSON is unpadded, so every challenge looked unissued. This
+    sends the browser's exact string.
     """
     await sign_in(client, db, "passkey-roundtrip@example.com")
 
@@ -140,18 +130,9 @@ async def test_a_passkey_cannot_finish_another_accounts_sign_in(
     client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """
-    The two halves of a sign-in must belong to the same account.
-
-    `login_verify` reads the factors already presented off whatever pending
-    cookie is attached, and used to trust them whoever the passkey turned out to
-    belong to. So proving your own password, then presenting someone else's
-    passkey, produced a full session as them on the single factor their
-    authenticator provides — the two-of-three rule undone for the account that
-    consented to neither step.
-
-    The ceremony is stubbed because it is py_webauthn's and not what is under
-    test; a bogus assertion would be rejected before the account check is ever
-    reached, and the test would pass without the guard it exists to pin.
+    The two halves of a sign-in must belong to the same account: `login_verify` used to trust the
+    pending cookie's factors, so your password plus someone else's passkey gave a full session as
+    them. The ceremony is stubbed so the account check is reached.
     """
     import secrets
 

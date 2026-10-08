@@ -201,10 +201,8 @@ def test_format_exercise_latex_cases() -> None:
     res5 = format_exercise_latex(None, "Leere Aufgabe")
     assert res5 == "\\begin{Aufgabe}{Leere Aufgabe}\n\\end{Aufgabe}"
 
-    # Case 6: Title with LaTeX special chars (e.g. the default "New_Exercise"
-    # name) must be escaped, or Tectonic fails with "Missing $ inserted"
-    # on the bare underscore -- see format_mc_group_latex test below for the
-    # exact two-exercise scenario this was reported against.
+    # Case 6: Title with LaTeX special chars (e.g. the default "New_Exercise") must be escaped, or
+    # Tectonic fails with "Missing $ inserted" (see the format_mc_group_latex test below).
     res6 = format_exercise_latex("Frage hier eingeben...", "New_Exercise")
     assert res6 == "\\begin{Aufgabe}{New\\_Exercise}\nFrage hier eingeben...\n\\end{Aufgabe}"
 
@@ -223,10 +221,9 @@ def test_escape_tex() -> None:
 
 
 def test_format_mc_group_latex_escapes_default_titles() -> None:
-    """Two MC exercises left at the default name "New_Exercise" used to
-    produce '! Missing $ inserted' on Tectonic pass 1, because the bare
-    underscore in the un-renamed title was spliced straight into
-    \\begin{Aufgabe}{New_Exercise} (a text-mode LaTeX argument)."""
+    """Two MC exercises left at the default name "New_Exercise" used to produce '! Missing $
+    inserted' on Tectonic pass 1: the bare underscore was spliced into
+    \\begin{Aufgabe}{New_Exercise}."""
     from app.services.latex import format_mc_group_latex
 
     members = [

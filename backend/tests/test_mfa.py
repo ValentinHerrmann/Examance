@@ -205,13 +205,9 @@ async def test_only_admins_can_clear_factors(client: AsyncClient, db: AsyncSessi
 @pytest.mark.asyncio
 async def test_a_mistyped_code_can_be_retried(client: AsyncClient, db: AsyncSession) -> None:
     """
-    One wrong digit costs an attempt, not the sign-in.
-
-    The pending token is single-use, and it used to be spent before the code was
-    checked — so a typo, or a phone whose clock had drifted, left every retry
-    reporting an expired step as "invalid code" with no way forward but a reload.
-    It is now consumed only by a factor that actually succeeds, and a failure
-    hands back an equivalent token to try again with.
+    One wrong digit costs an attempt, not the sign-in. The single-use pending token used to be spent
+    before the code was checked, so a typo left every retry failing. Now only a succeeding factor
+    consumes it; a failure hands back an equivalent token.
     """
     email = "retry-totp@example.com"
     teacher = await create_teacher(db, email)
@@ -304,11 +300,8 @@ async def test_status_reports_recovery_and_factor_activity(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     """
-    What the security page renders per factor.
-
-    The dates are nullable on purpose: they were added after the factors were,
-    so an account that has been signing in for months can legitimately have
-    none, and the page says "not recorded" rather than inventing one.
+    What the security page renders per factor. The dates are nullable on purpose: added after the
+    factors, so older accounts have none and the page says "not recorded" rather than inventing one.
     """
     email = "status-detail@example.com"
     await sign_in(client, db, email)
@@ -361,11 +354,8 @@ async def test_a_spent_code_says_so_instead_of_calling_itself_invalid(
 ) -> None:
     """
     The code the authenticator is *still showing* is not a wrong code.
-
-    Every sign-in straight after a password reset hits this: the reset took a
-    code of its own moments earlier, and the app has not rolled over yet. Saying
-    "invalid" sends the teacher hunting for a problem that fixes itself in
-    thirty seconds.
+    Every sign-in right after a password reset hits this (the reset took a code moments earlier);
+    saying "invalid" sends the teacher hunting for a problem that fixes itself in thirty seconds.
     """
     email = "spent-code@example.com"
     teacher = await create_teacher(db, email)

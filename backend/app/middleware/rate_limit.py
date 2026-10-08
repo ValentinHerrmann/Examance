@@ -6,15 +6,9 @@ from slowapi.util import get_remote_address
 
 from app.config import settings
 
-# Shared limiter instance — imported by routers that need rate limiting.
-#
-# Storage is Redis-backed in production (RATE_LIMIT_STORAGE_URI derives from
-# REDIS_URL) so counters are shared across uvicorn workers and survive restarts.
-# An in-memory backend would multiply every limit by the worker count.
-#
-# NOTE: get_remote_address trusts the peer address uvicorn reports. Behind a
-# proxy that means --forwarded-allow-ips must name the proxy explicitly, never
-# "*", or clients could spoof X-Forwarded-For to reset their own counters.
+# Shared limiter, Redis-backed in production so counters span workers and survive restarts.
+# get_remote_address trusts uvicorn's peer address: behind a proxy --forwarded-allow-ips must
+# name it explicitly, never "*", or clients can spoof X-Forwarded-For to reset their counters.
 limiter = Limiter(
     key_func=get_remote_address,
     storage_uri=settings.RATE_LIMIT_STORAGE_URI,
