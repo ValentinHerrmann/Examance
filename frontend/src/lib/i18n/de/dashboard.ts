@@ -28,7 +28,7 @@ export const dashboard = {
         importArchive: 'Oder .bgproj-Archiv importieren',
     },
     filterBar: {
-        searchPlaceholder: 'Prüfungen nach Titel, Klasse, Fach suchen…',
+        searchPlaceholder: 'Prüfungen nach Titel, Klasse, Fach, Thema suchen…',
         allTestarts: 'Alle Prüfungstypen ({count})',
     },
     examList: {

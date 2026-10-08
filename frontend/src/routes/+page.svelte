@@ -46,6 +46,7 @@
   let selectedGradeFilter = $state('ALL');
   let selectedSubjectFilter = $state('ALL');
   let selectedTestartFilter = $state('ALL');
+  let selectedTopicFilter = $state('ALL');
 
   /** Exercises per expanded exam, fetched on first expand and dropped on refresh. */
   const exerciseMap = createLazyMap<ExerciseRecord[]>((examId) =>
@@ -54,7 +55,7 @@
 
   // Badge on the mobile filter button, so an active filter is visible without
   // opening the drawer.
-  let activeFilterCount = $derived(countActiveFilters(searchQuery, selectedGradeFilter, selectedSubjectFilter, selectedTestartFilter));
+  let activeFilterCount = $derived(countActiveFilters(searchQuery, selectedGradeFilter, selectedSubjectFilter, selectedTestartFilter, selectedTopicFilter));
 
   let fileInput: HTMLInputElement | undefined = $state();
 
@@ -80,6 +81,7 @@
 
   let availableGrades = $derived(uniqueSorted(exams, (e) => e.grade));
   let availableSubjects = $derived(uniqueSorted(exams, (e) => e.fach));
+  let availableTopics = $derived(uniqueSorted(exams, (e) => e.topic));
   let testartOptions = $derived(countOptions(exams, (e) => e.testart));
 
   let filteredExams = $derived(exams.filter(
@@ -89,7 +91,8 @@
         (!e.grade && e.klasse === selectedGradeFilter)) &&
       (selectedSubjectFilter === 'ALL' || e.fach === selectedSubjectFilter) &&
       (selectedTestartFilter === 'ALL' || e.testart === selectedTestartFilter) &&
-      matchesQuery(searchQuery, e.title, e.grade, e.klasse, e.fach, e.testart)
+      (selectedTopicFilter === 'ALL' || e.topic === selectedTopicFilter) &&
+      matchesQuery(searchQuery, e.title, e.grade, e.klasse, e.fach, e.testart, e.topic)
   ));
 
   onMount(async () => {
@@ -296,9 +299,11 @@
             bind:searchQuery
             bind:selectedGrade={selectedGradeFilter}
             bind:selectedSubject={selectedSubjectFilter}
+            bind:selectedTopic={selectedTopicFilter}
             searchPlaceholder={$t('dashboard.filterBar.searchPlaceholder')}
             gradeOptions={availableGrades}
             subjectOptions={availableSubjects}
+            topicOptions={availableTopics}
             pillOptions={testartOptions}
             pillSelected={selectedTestartFilter}
             pillAllLabel={$t('dashboard.filterBar.allTestarts', { count: exams.length })}

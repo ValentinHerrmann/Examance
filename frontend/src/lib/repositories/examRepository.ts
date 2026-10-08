@@ -18,6 +18,7 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     datum: raw.datum,
     nr: raw.nr,
     fach: raw.fach,
+    topic: raw.topic ?? undefined,
     lehrernachname: raw.lehrernachname,
     infoText: raw.info_text || raw.infoText,
     gradingKey: raw.grading_key || raw.gradingKey,
@@ -40,6 +41,8 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     datum: exam.datum,
     nr: exam.nr,
     fach: exam.fach,
+    // "" clears the stored topic, undefined leaves it alone (the server tells them apart).
+    topic: exam.topic,
     lehrernachname: exam.lehrernachname,
     info_text: exam.infoText,
     grading_key: exam.gradingKey,

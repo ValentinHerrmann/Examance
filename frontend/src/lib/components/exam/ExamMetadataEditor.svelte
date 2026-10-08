@@ -20,6 +20,9 @@
     editDatum: string;
     editNr: string;
     editFach: string;
+    editTopic?: string;
+    /** Topics of the exam's exercises, offered next to the previously used exam topics. */
+    topicSuggestions?: string[];
     editLehrernachname: string;
     editInfoText: string;
     editRetentionUntil: string;
@@ -40,6 +43,8 @@
     editDatum = $bindable(),
     editNr = $bindable(),
     editFach = $bindable(),
+    editTopic = $bindable(""),
+    topicSuggestions = [],
     editLehrernachname = $bindable(),
     editInfoText = $bindable(),
     editRetentionUntil = $bindable(),
@@ -68,6 +73,7 @@
     if (editGrade) recordValue("exam.grade", editGrade);
     if (editKlasse) recordValue("exam.klasse", editKlasse);
     if (editFach) recordValue("exam.fach", editFach);
+    if (editTopic) recordValue("exam.topic", editTopic);
     if (editLehrernachname) recordValue("exam.lehrernachname", editLehrernachname);
     if (editDauer) recordValue("exam.dauer", editDauer);
     onSave();
@@ -135,6 +141,11 @@
     <div class="flex flex-col gap-1">
       <label for="editRetention" class="text-sm font-medium text-content">{$t("exam.metadataEditor.retentionUntil")}</label>
       <input id="editRetention" type="date" bind:value={editRetentionUntil} class={controlClass} />
+    </div>
+    <div class="flex flex-col gap-1 @3xl:col-span-2">
+      <label for="editTopic" class="text-sm font-medium text-content">{$t("exam.metadataEditor.topic")}</label>
+      <SuggestInput id="editTopic" storageKey="exam.topic" extraSuggestions={topicSuggestions} bind:value={editTopic} maxlength={200} placeholder={$t("exam.metadataEditor.topicPlaceholder")} class={controlClass} />
+      <p class="m-0 text-sm text-muted">{$t("exam.metadataEditor.topicHint")}</p>
     </div>
   </div>
 

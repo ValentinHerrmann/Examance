@@ -30,7 +30,7 @@ export const dashboard: Translations['dashboard'] = {
         importArchive: 'Or Import .bgproj Archive',
     },
     filterBar: {
-        searchPlaceholder: 'Search exams by title, class, subject…',
+        searchPlaceholder: 'Search exams by title, class, subject, topic…',
         allTestarts: 'All exam types ({count})',
     },
     examList: {

@@ -96,6 +96,7 @@ describe('examRepository mapping & saving', () => {
       datum: '14.08.2026',
       nr: '2',
       fach: 'Mathematik',
+      topic: 'Rekursion',
       lehrernachname: 'Schmidt',
       info_text: 'No calculator',
       grading_key: { preset: 'linear_40', cutoffs: [{ minPercentage: 50, grade: '4' }] },
@@ -110,6 +111,8 @@ describe('examRepository mapping & saving', () => {
     const mapped = mapApiToExamRecord(raw);
 
     expect(mapped.gradingKey).toEqual(raw.grading_key);
+    expect(mapped.topic).toBe('Rekursion');
+    expect(mapExamRecordToApi(mapped).topic).toBe('Rekursion');
     expect(mapped.latexPreamble).toBe(raw.latex_preamble);
     expect(mapped.latexTemplate).toBe(raw.latex_template);
     expect(mapped.numVersions).toBe(raw.num_versions);

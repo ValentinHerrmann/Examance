@@ -121,6 +121,7 @@ export const help = {
             s1: {
                 h: 'Kopfdaten',
                 p1: 'Fach, Klasse, Testart, Datum und Nummer erscheinen auf dem Deckblatt der Klausur. Diese Angaben sind Prüfungsinhalt und werden deshalb immer auf Deutsch gedruckt, unabhängig von der Sprache der Oberfläche.',
+                p2: 'Das optionale Thema (z. B. „Rekursion“) ordnet Ihre Klausuren in der Prüfungsübersicht, wo Sie danach filtern und suchen können, und wird nicht auf die Klausur gedruckt.',
             },
             s2: {
                 h: 'Aufgaben zusammenstellen',

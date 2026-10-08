@@ -30,7 +30,7 @@
     type McGroupDraft,
   } from "#lib/exam/mcGroupStaging";
   import ExamLivePreviewPanel from "#lib/components/exam-creation/ExamLivePreviewPanel.svelte";
-  import { formatExamCourse } from "#lib/utils/examLabel";
+  import { exerciseTopicSuggestions, formatExamCourse } from "#lib/utils/examLabel";
   import { t, translate } from "#lib/i18n";
   import { PageShell, PageHeader, Alert, Button } from "#lib/components/ui";
 
@@ -47,6 +47,8 @@
   let datum = $state(new Date().toLocaleDateString("de-DE") + DATUM_DURATION_SUFFIX_DE);
   let nr = $state("1");
   let fach = $state("Informatik");
+  // Organisational only (issue #57): not printed on the PDF, so not part of the LaTeX below.
+  let topic = $state("");
   let lehrernachname = $state("");
   let infoText = $state(`\\begin{itemize}
     \\item Die Arbeit wird anonymisiert korrigiert. Trage deine Initialen ins QR-Code-Feld ein.
@@ -194,6 +196,10 @@ Frage hier eingeben... \\BE
       .map((id) => libraryExercises.find((e) => e.id === id))
       .filter((e): e is ExerciseRecord => Boolean(e)),
   })));
+
+  let topicSuggestions = $derived(
+    exerciseTopicSuggestions([...selectedExercises, ...mcGroupExercises.flatMap(({ members }) => members)]),
+  );
 
   let totalPoints = $derived(
     selectedExercises.reduce(
@@ -487,6 +493,7 @@ ${exerciseInputs}
     if (grade) recordValue("exam.grade", grade);
     if (klasse) recordValue("exam.klasse", klasse);
     if (fach) recordValue("exam.fach", fach);
+    if (topic.trim()) recordValue("exam.topic", topic);
     if (lehrernachname) recordValue("exam.lehrernachname", lehrernachname);
 
     isLoading = true;
@@ -508,6 +515,7 @@ ${exerciseInputs}
         datum,
         nr,
         fach,
+        topic: topic.trim() || undefined,
         lehrernachname,
         infoText,
         gradingKey: $state.snapshot(gradingKey),
@@ -586,6 +594,7 @@ ${exerciseInputs}
           datum,
           nr,
           fach,
+          topic: topic.trim() || undefined,
           lehrernachname,
           info_text: infoText,
           grading_key: $state.snapshot(gradingKey),
@@ -672,6 +681,8 @@ ${exerciseInputs}
           bind:nr
           bind:datum
           bind:fach
+          bind:topic
+          {topicSuggestions}
           bind:lehrernachname
           bind:infoText
         />

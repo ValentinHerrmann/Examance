@@ -13,6 +13,9 @@
     nr: string;
     datum: string;
     fach: string;
+    topic?: string;
+    /** Topics of the selected exercises, offered next to the previously used exam topics. */
+    topicSuggestions?: string[];
     lehrernachname: string;
     infoText: string;
   }
@@ -25,6 +28,8 @@
     nr = $bindable(),
     datum = $bindable(),
     fach = $bindable(),
+    topic = $bindable(""),
+    topicSuggestions = [],
     lehrernachname = $bindable(),
     infoText = $bindable()
   }: Props = $props();
@@ -157,6 +162,18 @@
       />
     </Field>
   </div>
+
+  <Field label={$t("examCreation.metadataForm.topicLabel")} forId="topic" hint={$t("examCreation.metadataForm.topicHint")}>
+    <SuggestInput
+      id="topic"
+      class={controlClass}
+      storageKey="exam.topic"
+      extraSuggestions={topicSuggestions}
+      bind:value={topic}
+      maxlength={200}
+      placeholder={$t("examCreation.metadataForm.topicPlaceholder")}
+    />
+  </Field>
 
   <Field label={$t("examCreation.metadataForm.infoLabel")} forId="info">
     <Textarea id="info" rows={2} bind:value={infoText} />

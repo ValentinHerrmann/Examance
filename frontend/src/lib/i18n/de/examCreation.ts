@@ -39,6 +39,9 @@ export const examCreation = {
         fachPlaceholder: 'Informatik',
         lehrerLabel: 'Lehrer Nachname (\\Lehrernachname)',
         lehrerPlaceholder: 'Her',
+        topicLabel: 'Thema (optional)',
+        topicPlaceholder: 'z. B. Rekursion',
+        topicHint: 'Zur Organisation in der Übersicht (Filter und Suche). Wird nicht auf die Prüfung gedruckt.',
         infoLabel: 'Kopfzeilen-Hinweistext (\\Info)',
     },
     exerciseSelector: {

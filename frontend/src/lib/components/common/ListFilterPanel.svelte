@@ -8,6 +8,7 @@
 
   /**
    * Filter panel shared by the exam and exercise overviews (search, grade/subject selects, category pills).
+   * The topic select shows only with `topicOptions` (the exercise overview filters topics by pills instead).
    * Mounted in both the desktop sidebar and the phone drawer, so select ids are unique per instance.
    */
   interface Props {
@@ -15,8 +16,10 @@
     searchPlaceholder: string;
     selectedGrade?: string;
     selectedSubject?: string;
+    selectedTopic?: string;
     gradeOptions?: string[];
     subjectOptions?: string[];
+    topicOptions?: string[];
     pillOptions?: { value: string; label: string; count: number }[];
     pillSelected?: string;
     pillAllLabel: string;
@@ -28,8 +31,10 @@
     searchPlaceholder,
     selectedGrade = $bindable("ALL"),
     selectedSubject = $bindable("ALL"),
+    selectedTopic = $bindable("ALL"),
     gradeOptions = [],
     subjectOptions = [],
+    topicOptions = [],
     pillOptions = [],
     pillSelected = "ALL",
     pillAllLabel,
@@ -62,6 +67,18 @@
           <option value="ALL">{$t("common.filters.allSubjects")}</option>
           {#each subjectOptions as s}
             <option value={s}>{s}</option>
+          {/each}
+        </Select>
+      </div>
+    {/if}
+
+    {#if topicOptions.length > 0}
+      <div class="flex min-w-0 flex-col gap-1 text-sm text-content sm:col-span-2 lg:col-span-1 xl:col-span-2">
+        <label class="text-muted" for="{id}-topic">{$t("common.filters.topic")}</label>
+        <Select id="{id}-topic" bind:value={selectedTopic}>
+          <option value="ALL">{$t("common.filters.allTopics")}</option>
+          {#each topicOptions as topic}
+            <option value={topic}>{topic}</option>
           {/each}
         </Select>
       </div>

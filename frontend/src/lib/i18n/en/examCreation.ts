@@ -41,6 +41,9 @@ export const examCreation: Translations['examCreation'] = {
         fachPlaceholder: 'Informatik',
         lehrerLabel: 'Teacher Last Name (\\Lehrernachname)',
         lehrerPlaceholder: 'Her',
+        topicLabel: 'Topic (optional)',
+        topicPlaceholder: 'e.g. Recursion',
+        topicHint: 'For organising your exams in the overview (filter and search). Not printed on the exam.',
         infoLabel: 'Header Info Instructions (\\Info)',
     },
     exerciseSelector: {

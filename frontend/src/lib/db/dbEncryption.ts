@@ -138,7 +138,7 @@ const EXAM: RecordCodec<ExamRecord> = {
   kind: 'exam',
   plain: ['id', 'teacherId', 'retentionUntil', 'compilationStatus', 'createdAt', 'isDirty'],
   sealed: [
-    'title', 'testart', 'grade', 'klasse', 'datum', 'nr', 'fach', 'lehrernachname',
+    'title', 'testart', 'grade', 'klasse', 'datum', 'nr', 'fach', 'topic', 'lehrernachname',
     'infoText', 'latexPreamble', 'latexTemplate', 'numVersions', 'gradingKey',
   ],
 };

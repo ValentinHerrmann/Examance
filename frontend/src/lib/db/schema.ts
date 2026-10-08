@@ -29,6 +29,8 @@ export interface ExamRecord extends MaybeUndecryptable {
   datum?: string;
   nr?: string;
   fach?: string;
+  /** Optional organising label, never printed on the exam (issue #57). */
+  topic?: string;
   lehrernachname?: string;
   infoText?: string;
   latexPreamble?: string;
