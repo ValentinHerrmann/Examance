@@ -50,12 +50,14 @@
   async function forgetLocally(email: string) {
     const same = (other: string | null | undefined) => !!other && other.toLowerCase() === email.toLowerCase();
     const signedIn = same($sessionStore.email);
+    // An admin session never owns this browser's workspace (issue #58): only the owner check below applies.
+    const ownsWorkspace = signedIn && $sessionStore.role !== "admin";
     if (signedIn) {
       clearCapabilities();
       sessionStore.lock();
     }
     const owner = (await currentManifest())?.owner;
-    if (signedIn || (same(owner?.accountEmail) && owner?.backendOrigin === (get(backendStore) || null))) {
+    if (ownsWorkspace || (same(owner?.accountEmail) && owner?.backendOrigin === (get(backendStore) || null))) {
       await replaceWorkspace(null);
     }
   }

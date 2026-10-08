@@ -25,12 +25,13 @@
   import type { VersionStatus } from "#lib/stores/versionStore";
   import { themePreference, setThemePreference, theme, type ThemePreference } from "#lib/stores/theme";
   import { mobileNavOpen } from "#lib/stores/shell";
+  import { ADMIN_HOME } from "#lib/stores/navigationStore";
   import { Icon, Menu, MenuItem } from "#lib/components/ui";
 
   /**
    * Artemis navbar, dark slate in both themes: brand and (from `xl`) main links left; storage mode, workspace, language,
    * theme, help, account right. Below `xl` the links move into the drawer (they do not fit at 1024px). `minimal` is for
-   * locked and public pages: brand, language, theme, help.
+   * locked and public pages: brand, language, theme, help. Admins get user management only (issue #58).
    */
   interface Props {
     variant?: "full" | "minimal";
@@ -70,12 +71,16 @@
     onLock = () => {},
   }: Props = $props();
 
-  let links = $derived([
-    { href: "/", label: $t("nav.dashboard") },
-    { href: "/exercises", label: $t("nav.exerciseLibrary") },
-    { href: "/analytics", label: $t("nav.analytics") },
-    ...(userRole === "admin" ? [{ href: "/admin/users", label: $t("nav.userManagement") }] : []),
-  ]);
+  let isAdmin = $derived(userRole === "admin");
+  let links = $derived(
+    isAdmin
+      ? [{ href: ADMIN_HOME, label: $t("nav.userManagement") }]
+      : [
+          { href: "/", label: $t("nav.dashboard") },
+          { href: "/exercises", label: $t("nav.exerciseLibrary") },
+          { href: "/analytics", label: $t("nav.analytics") },
+        ],
+  );
 
   let currentPath = $derived(page.url.pathname);
   function isActive(href: string) {
@@ -132,7 +137,7 @@
   {/if}
 
   <a
-    href="/"
+    href={isAdmin ? ADMIN_HOME : "/"}
     class="mr-2 inline-flex min-h-10 shrink-0 items-center gap-2.5 pointer-coarse:min-h-11 rounded-md px-1 text-lg font-semibold text-navbar-content no-underline"
   >
     <img src="/favicon.png" alt={$t("nav.logoAlt")} class="size-7 rounded-sm object-contain" />
@@ -178,6 +183,7 @@
         </span>
       {/if}
 
+      {#if !isAdmin}
       <!-- Data + LaTeX: one joined pill on phones, separate controls from sm. Mark (what) + state icon (where). -->
       <div class="flex items-center sm:gap-1">
         <button
@@ -217,6 +223,7 @@
         <MenuItem icon={faFileExport} onSelect={onShareResults}>{$t("workspace.menu.shareResults")}</MenuItem>
         <MenuItem icon={faTrashCan} danger onSelect={onClearWorkspace}>{$t("workspace.menu.clear")}</MenuItem>
       </Menu>
+      {/if}
     {/if}
 
     <button

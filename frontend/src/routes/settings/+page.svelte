@@ -72,6 +72,8 @@
   }
   let switchTarget: StorageMode | null = $state(null);
   let donationAvailable = $state(false);
+  // Admins hold no exams or results (issue #58): only language, theme, security and account deletion apply.
+  let isAdmin = $derived($sessionStore.role === "admin");
 
   onMount(async () => {
     void fetchDonationAvailable().then((ok) => (donationAvailable = ok));
@@ -84,6 +86,7 @@
       await goto("/unlock");
       return;
     }
+    if (isAdmin) return;
     const key = get(sessionStore).sessionKey;
     students = await studentRepository.getAll(key);
   });
@@ -129,7 +132,12 @@
     }
   }
 
-  let navItems = $derived([
+  let navItems = $derived(isAdmin ? [
+    { id: "language", label: $t("settings.language.heading") },
+    { id: "theme", label: $t("settings.theme.heading") },
+    { id: "security", label: $t("security.page.title") },
+    { id: "delete-account", label: $t("settings.deleteAccount.heading") },
+  ] : [
     { id: "storage-policy", label: $t("settings.storage.heading") },
     { id: "latex", label: $t("settings.latex.heading") },
     { id: "language", label: $t("settings.language.heading") },
@@ -174,7 +182,9 @@
           onLocaleChange={handleLocaleChange}
           allowedModes={$allowedStorageModes}
           serverLatexEnabled={$featuresStore.server_latex === true}
+          teaching={!isAdmin}
         />
+        {#if !isAdmin}
         {#if workspaceOwnerLabel}
           <p class="-mt-2 px-1 text-xs text-muted">
             {$t("storagePolicy.workspace.ownerLabel")}: {workspaceOwnerLabel}
@@ -196,6 +206,7 @@
           host={extractHostname($backendStore)}
           onChange={(enabled) => trainingDonationStore.setEnabled(enabled)}
         />
+        {/if}
 
         {#if $isAuthenticated}
           <!-- Server accounts only: a local vault has no sign-in factors. -->
@@ -209,6 +220,7 @@
           </div>
         {/if}
 
+        {#if !isAdmin}
         <div id="gdpr" class="scroll-mt-16 lg:scroll-mt-4">
           <GdprErasureTable
             {students}
@@ -224,6 +236,7 @@
             <Button severity="danger" onClick={handleClearAllSessionData}>{$t("settings.hygiene.button")}</Button>
           </Card>
         </div>
+        {/if}
 
         {#if $isAuthenticated}
           <div id="delete-account" class="scroll-mt-16 lg:scroll-mt-4">

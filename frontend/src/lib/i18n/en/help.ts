@@ -285,7 +285,8 @@ export const help: Translations['help'] = {
             },
             s2: {
                 h: 'Roles',
-                p1: 'Teachers see only their own exams. Administrators additionally manage the school’s accounts — which gives them no access to anyone else’s exam content, because that is encrypted client-side.',
+                p1: 'Teachers work with exams, exercises and results and see only their own. Administrators manage accounts and the server only: they cannot create or open exams or exercises, and the app shows them just user management, settings and help. Someone who administers and also teaches uses two accounts.',
+                p2: 'Administrators get no access to anyone’s exam content either, because it is encrypted client-side.',
             },
             s6: {
                 h: 'Two sign-in factors',

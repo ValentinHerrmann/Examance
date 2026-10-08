@@ -272,7 +272,8 @@ test('[layout] main dialogs are as wide as their size token and have no nested s
 
 test('[layout] account management fits every tab without sideways scrolling', async ({ page, backend }) => {
   backend.state.role = 'admin';
-  await signInFirstTime(page);
+  // Admins land on account management, never on the dashboard (issue #58).
+  await signInFirstTime(page, { waitForDashboard: false });
   await visit(page, '/admin/users');
 
   const tabs = page.getByRole('tablist').getByRole('tab');

@@ -11,7 +11,7 @@ export const admin = {
         roleLabel: 'Rolle',
         roleTeacher: 'Lehrer',
         roleAdmin: 'Admin',
-        adminHint: 'Erstellen Sie Admin-Konten nur, wenn es betrieblich notwendig ist.',
+        adminHint: 'Admin-Konten verwalten nur Benutzer und Server und können keine Prüfungen oder Aufgaben anlegen. Erstellen Sie sie nur, wenn es betrieblich notwendig ist.',
         emailRequired: 'E-Mail ist erforderlich.',
         createdSuccess: '{role}-Konto für {email} wurde erstellt. E-Mail zur Passworteinrichtung wurde gesendet.',
         createdWarning: '{role}-Konto für {email} wurde erstellt, aber der E-Mail-Versand ist fehlgeschlagen. Bitte überprüfen Sie die SMTP-Konfiguration auf dem Server.',

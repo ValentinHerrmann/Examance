@@ -8,6 +8,7 @@
   import { lockScroll } from "#lib/utils/scrollLock";
   import { Badge, Button, Icon } from "#lib/components/ui";
   import { examNavItems } from "./examNavItems";
+  import { ADMIN_HOME } from "#lib/stores/navigationStore";
 
   /**
    * Navigation drawer below `xl`, opened by the navbar burger. Lists the current exam's steps first (phones have no
@@ -19,11 +20,15 @@
 
   let { userRole = null }: Props = $props();
 
+  // Admins manage users and the server only (issue #58).
   let links = $derived([
-    { href: "/", label: $t("nav.dashboard") },
-    { href: "/exercises", label: $t("nav.exerciseLibrary") },
-    { href: "/analytics", label: $t("nav.analytics") },
-    ...(userRole === "admin" ? [{ href: "/admin/users", label: $t("nav.userManagement") }] : []),
+    ...(userRole === "admin"
+      ? [{ href: ADMIN_HOME, label: $t("nav.userManagement") }]
+      : [
+          { href: "/", label: $t("nav.dashboard") },
+          { href: "/exercises", label: $t("nav.exerciseLibrary") },
+          { href: "/analytics", label: $t("nav.analytics") },
+        ]),
     { href: "/settings", label: $t("nav.settings") },
     { href: "/help", label: $t("help.ui.navLabel") },
   ]);

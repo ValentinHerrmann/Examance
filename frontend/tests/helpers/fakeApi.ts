@@ -261,11 +261,15 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     return undefined;
   }
 
+  // Like the backend, an admin account gets no storage mode and no features (issue #58).
   const capabilities = () => ({
     account_id: FAKE_TEACHER_ID,
     storage_mode: state.storageMode,
-    allowed_storage_modes: [...ALLOWED_MODES],
-    features: { server_results: true, server_latex: true, training_donation: true },
+    allowed_storage_modes: state.role === 'admin' ? [] : [...ALLOWED_MODES],
+    features:
+      state.role === 'admin'
+        ? { server_results: false, server_latex: false, training_donation: false }
+        : { server_results: true, server_latex: true, training_donation: true },
   });
 
   function user(method: string, parts: string[], body: any): Handled {
