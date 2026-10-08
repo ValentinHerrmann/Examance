@@ -113,6 +113,9 @@
 
   async function saveCurrentStudent(currentSub: SubmissionRecord) {
     const key = get(sessionStore).sessionKey;
+    // Read before any await: a student switch meanwhile refills the inputs with the next student's scores.
+    const scores = parsedScores;
+    const total = liveTotalScore;
 
     let subScores = scoresMap.get(currentSub.id);
     if (!subScores) {
@@ -134,7 +137,7 @@
 
     for (let i = 0; i < exercises.length; i++) {
       const ex = exercises[i];
-      const val = parsedScores[i];
+      const val = scores[i];
       const existing = existingById.get(ex.id);
 
       if (val !== null && val !== undefined && !isNaN(val)) {
@@ -163,7 +166,7 @@
       await scoreRepository.deleteOne(examId, currentSub.id, exerciseId);
     }
 
-    currentSub.totalScore = liveTotalScore;
+    currentSub.totalScore = total;
     await saveSubmissionEncrypted(currentSub, key);
 
     const policy = get(storagePolicyStore);
@@ -236,11 +239,12 @@
     <div class="flex flex-wrap items-center justify-between gap-4 rounded-md border border-line bg-surface-sunken p-3">
       <div class="flex min-w-0 flex-wrap items-center gap-2">
         <label for="student-select" class="text-sm text-content">{$t("grading.manual.studentFirst.selectStudent")}</label>
+        <!-- No save on change: the binding has already switched the student, so it wrote the previous
+             student's inputs onto the new one. The inputs save on blur before the select gets focus. -->
         <select
           id="student-select"
           class="{controlClass} {controlSmClass} w-full sm:w-56"
           bind:value={currentStudentIndex}
-          onchange={handleSaveCurrentStudent}
         >
           {#each students as st, idx}
             <option value={idx}>
