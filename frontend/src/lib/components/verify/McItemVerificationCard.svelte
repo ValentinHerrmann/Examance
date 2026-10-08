@@ -3,10 +3,12 @@
   import type { ExerciseRecord, ExerciseScoreRecord, OmrScoreMeta } from "#lib/db/schema";
   import {
     applyMcCorrection,
+    computeMcScore,
     restoreOriginalDetection,
     confirmDetection,
     type McQuestionType,
   } from "#lib/grading/mcScore";
+  import { matchBoxesToOptions } from "#lib/grading/mcBoxOptions";
   import { renderMcCrop } from "#lib/grading/mcCropRender";
   import { t, translate } from "#lib/i18n";
   import { isMcReviewed, type McQueueCategory } from "#lib/grading/mcVerification";
@@ -111,27 +113,23 @@
     saveOverlayPreference(showOverlay);
   }
 
-  let options = $derived(exercise.options ?? []);
   let correctAnswers = $derived(exercise.correctAnswers ?? []);
   let questionType = $derived((exercise.questionType as McQuestionType) || "mc");
-  let isSingleAnswer = $derived(questionType === "sc" || questionType === "tf");
+  // Each box carries its own reading (reasons, provisional verdict); a box/option mismatch is shown
+  // as such and not scored here, never mapped onto other options.
+  let boxOptions = $derived(matchBoxesToOptions(exercise, omrMeta?.detections));
+  let options = $derived(boxOptions.options);
+  let mismatch = $derived(boxOptions.mismatch);
   let flaggedOptions = $derived(new Set(omrMeta?.flaggedOptions ?? []));
-  // Why shape analysis changed/flagged a box — recorded at detection, survives corrections.
-  let reasonsByOption = $derived(
-    new Map((omrMeta?.detections?.bubbles ?? []).map((b) => [b.optionIndex, b.reasons ?? []]))
-  );
-  // The detector's provisional reading of an uncertain box — what counts until verified.
-  let provisionalByOption = $derived(
-    new Map(
-      (omrMeta?.detections?.bubbles ?? [])
-        .filter((b) => b.detectedState === "ambiguous" && b.provisional !== undefined)
-        .map((b) => [b.optionIndex, b.provisional as boolean])
-    )
-  );
   let confidence = $derived(omrMeta?.confidence ?? "ambiguous");
   let source = $derived(omrMeta?.source ?? "omr");
 
-  let currentScore = $derived(scoreRecord?.score ?? 0);
+  // Recomputed from the current answer key: a stored score can predate a fix of the options.
+  let currentScore = $derived(mismatch ? (scoreRecord?.score ?? 0) : scoreFor(selectedOptions));
+
+  function scoreFor(selection: number[]): number {
+    return computeMcScore(questionType, selection, correctAnswers, exercise.penalty ?? 0, exercise.maxPoints);
+  }
 
   // Redraws when bubble positions/states, submission or exercise change; the ids avoid
   // template-key collisions across submissions.
@@ -161,7 +159,8 @@
         bubbles,
         scale: 3.0,
         neighbourRects,
-        overlay: { exercise, omrMeta: currentOmrMeta },
+        // The overlay stamps right/wrong per optionIndex, which is meaningless on a mismatch.
+        overlay: mismatch ? undefined : { exercise, omrMeta: currentOmrMeta },
       });
       if (thisRequestId !== cropRequestId) return;
       cropDataUrl = url.plain;
@@ -178,6 +177,7 @@
   }
 
   async function handleToggleOption(idx: number) {
+    if (mismatch) return;
     const { nextSelectedOptions, nextScore, nextOmrMeta } = applyMcCorrection(
       questionType,
       selectedOptions,
@@ -211,6 +211,7 @@
       omrMeta
     );
     if (!res) return;
+    const nextScore = mismatch ? res.nextScore : scoreFor(res.nextSelectedOptions);
 
     selectedOptions = res.nextSelectedOptions;
     omrMeta = res.nextOmrMeta;
@@ -221,7 +222,7 @@
 
     isSaving = true;
     try {
-      await onSave(exercise.id, res.nextSelectedOptions, res.nextScore, res.nextOmrMeta);
+      await onSave(exercise.id, res.nextSelectedOptions, nextScore, res.nextOmrMeta);
     } catch (err) {
       console.error("Failed to restore original detection:", err);
     } finally {
@@ -230,7 +231,7 @@
   }
 
   async function handleConfirmAsCorrect() {
-    if (isSaving) return;
+    if (isSaving || mismatch) return;
     const res = confirmDetection(selectedOptions, currentScore, omrMeta);
 
     selectedOptions = res.nextSelectedOptions;
@@ -289,9 +290,7 @@
 
   function formatOptionLabels(indices: number[]): string {
     if (indices.length === 0) return translate("scanning.itemCard.originalNone");
-    return indices
-      .map((i) => (options[i] ? `${String.fromCharCode(65 + i)}` : `#${i + 1}`))
-      .join(", ");
+    return indices.map((i) => String.fromCharCode(65 + i)).join(", ");
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -301,7 +300,7 @@
 
     if (e.key >= "1" && e.key <= "9") {
       const idx = Number(e.key) - 1;
-      if (idx < options.length) {
+      if (idx < options.length && !mismatch) {
         e.preventDefault();
         handleToggleOption(idx);
       }
@@ -436,16 +435,21 @@
       <div class="text-xs font-medium text-muted mb-2 w-full flex items-center justify-between gap-2">
         <div class="flex items-center gap-2">
           <span>{$t("scanning.itemCard.scanCrop")}</span>
-          <Switch
-            checked={showOverlay}
-            label={$t("scanning.itemCard.overlayToggleLabel")}
-            title={showOverlay ? $t("scanning.itemCard.hideOverlayTooltip") : $t("scanning.itemCard.showOverlayTooltip")}
-            class="text-sm"
-            onChange={() => toggleOverlay()}
-          />
+          {#if !mismatch}
+            <Switch
+              checked={showOverlay}
+              label={$t("scanning.itemCard.overlayToggleLabel")}
+              title={showOverlay ? $t("scanning.itemCard.hideOverlayTooltip") : $t("scanning.itemCard.showOverlayTooltip")}
+              class="text-sm"
+              onChange={() => toggleOverlay()}
+            />
+          {/if}
         </div>
         <span class="font-mono text-xs text-muted">
-          {$t("scanning.itemCard.sourceConfidence", { source, confidence })}
+          {$t("scanning.itemCard.sourceConfidence", {
+            source: $t(`scanning.itemCard.sourceLabel.${source}`),
+            confidence: $t(`scanning.itemCard.confidenceLabel.${confidence}`),
+          })}
         </span>
       </div>
       {#if omrMeta?.alignmentUncertain}
@@ -499,7 +503,11 @@
           </span>
         </div>
 
-        {#if confidence === "failed"}
+        {#if mismatch}
+          <Alert severity="danger" class="mb-3">
+            {$t("scanning.itemCard.optionMismatch", { boxes: mismatch.boxes, options: mismatch.options })}
+          </Alert>
+        {:else if confidence === "failed"}
           <Alert severity="danger" class="mb-3">{$t("scanning.itemCard.detectionFailed")}</Alert>
         {:else if confidence === "ambiguous"}
           <Alert severity="warning" class="mb-3">{$t("scanning.itemCard.ambiguousDetection")}</Alert>
@@ -512,14 +520,16 @@
         {/if}
 
         <div class="space-y-2">
-          {#each options as opt, idx}
+          {#each options as opt (opt.index)}
+            {@const idx = opt.index}
             {@const isSelected = selectedOptions.includes(idx)}
-            {@const isCorrect = correctAnswers.includes(idx)}
             {@const isFlagged = flaggedOptions.has(idx)}
             {@const letter = String.fromCharCode(65 + idx)}
+            {@const provisional = opt.bubble?.detectedState === "ambiguous" ? opt.bubble.provisional : undefined}
             <div
               role="button"
-              tabindex="0"
+              tabindex={mismatch ? -1 : 0}
+              aria-disabled={mismatch !== null}
               onclick={() => handleToggleOption(idx)}
               onkeydown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -527,7 +537,8 @@
                   handleToggleOption(idx);
                 }
               }}
-              class="w-full flex items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-left text-sm transition-all duration-150 cursor-pointer select-none pointer-coarse:min-h-11
+              class="w-full flex items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-left text-sm transition-all duration-150 select-none pointer-coarse:min-h-11
+                {mismatch ? 'cursor-default' : 'cursor-pointer'}
                 {isSelected ? 'border-primary bg-highlight font-semibold' : 'border-line bg-surface-sunken hover:border-line-strong'}
                 {isFlagged ? 'border-dashed border-warning' : ''}"
             >
@@ -535,7 +546,7 @@
                 <input
                   type="checkbox"
                   checked={isSelected}
-                  disabled={isSaving}
+                  disabled={isSaving || mismatch !== null}
                   aria-label={$t("scanning.itemCard.checkboxLabel", { label: letter })}
                   onclick={(e) => {
                     e.stopPropagation();
@@ -545,13 +556,15 @@
                 />
                 <span class="font-mono text-xs text-muted font-bold">{letter}.</span>
                 <span class="flex min-w-0 flex-col">
-                  <span class="text-content truncate">{opt}</span>
-                  {#each reasonsByOption.get(idx) ?? [] as reason}
+                  <span class="text-content truncate {opt.text === null ? 'italic' : ''}">
+                    {opt.text ?? $t("scanning.itemCard.boxWithoutOption")}
+                  </span>
+                  {#each opt.bubble?.reasons ?? [] as reason}
                     <span class="text-xs font-normal text-warning-fg">{$t(`scanning.itemCard.reason.${reason}`)}</span>
                   {/each}
-                  {#if reviewStatus === "unreviewed" && provisionalByOption.has(idx)}
+                  {#if reviewStatus === "unreviewed" && provisional !== undefined}
                     <span class="text-xs font-normal text-warning-fg">
-                      {provisionalByOption.get(idx)
+                      {provisional
                         ? $t("scanning.itemCard.provisionalTicked")
                         : $t("scanning.itemCard.provisionalNotTicked")}
                     </span>
@@ -559,11 +572,11 @@
                 </span>
               </div>
               <div class="flex items-center gap-2 shrink-0">
-                {#if isSelected}
-                  <span class={isCorrect ? "text-success-fg font-bold text-xs" : "text-danger-fg font-bold text-xs"}>
-                    {isCorrect ? $t("scanning.itemCard.correct") : $t("scanning.itemCard.incorrect")}
+                {#if opt.text !== null && isSelected}
+                  <span class={opt.isCorrect ? "text-success-fg font-bold text-xs" : "text-danger-fg font-bold text-xs"}>
+                    {opt.isCorrect ? $t("scanning.itemCard.correct") : $t("scanning.itemCard.incorrect")}
                   </span>
-                {:else if isCorrect}
+                {:else if opt.isCorrect}
                   <span class="text-muted text-xs">{$t("scanning.itemCard.keyCorrect")}</span>
                 {/if}
                 {#if isFlagged}
@@ -579,7 +592,7 @@
         </p>
 
         <div class="mt-4 flex flex-wrap items-center gap-2">
-          <Button size="sm" severity="success" disabled={isSaving} title={$t("scanning.itemCard.confirmDetectionTooltip")} onClick={handleConfirmAsCorrect}>
+          <Button size="sm" severity="success" disabled={isSaving || mismatch !== null} title={$t("scanning.itemCard.confirmDetectionTooltip")} onClick={handleConfirmAsCorrect}>
             {$t("scanning.itemCard.confirmDetection")}
           </Button>
           {#if hasOriginal && !isMatchesOriginal}
