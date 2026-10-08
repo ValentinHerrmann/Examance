@@ -10,6 +10,18 @@ export interface ParsedStudentQr {
   displayName: string;
 }
 
+/**
+ * Display form of a "Lastname, Firstname" name with empty parts dropped, so a missing last name
+ * gives "Firstname", not ", Firstname". Also cleans names stored before this existed.
+ */
+export function formatStudentName(name: string | null | undefined): string {
+  return (name ?? '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
 export function parseStudentQr(
   qrString: string | null | undefined,
 ): ParsedStudentQr | null {
@@ -47,7 +59,7 @@ export function parseStudentQr(
 
   const lastname = namePart.substring(0, commaIdx).trim();
   const firstname = namePart.substring(commaIdx + 1).trim();
-  const displayName = firstname ? `${lastname}, ${firstname}` : lastname;
+  const displayName = formatStudentName(`${lastname}, ${firstname}`);
 
   return {
     lastname,

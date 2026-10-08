@@ -3,7 +3,7 @@
  * \Lmulti{correct} ... } macros in backend/latex-assets/sty/Loesung.sty.
  */
 
-import { escapeLatex } from "./scoreParser";
+import { escapeLatex, unescapeLatex } from "./scoreParser";
 
 export interface McOption {
   text: string;
@@ -27,13 +27,52 @@ export interface McOptionsParseResult {
   columns: number | null;
 }
 
-const LOESUNG_MULTI_RE = /\\LoesungMulti\[(\d+)\]\{([\s\S]*)\}\s*$/;
-const OPTION_RE = /\\(Lmulti|multi)\{([^}]*)\}/g;
+// `[N]` is optional: Loesung.sty defaults \LoesungMulti to 2 columns.
+const LOESUNG_MULTI_RE = /\\LoesungMulti(?:\[(\d+)\])?\s*\{([\s\S]*)\}\s*$/;
+const LOESUNG_MULTI_DEFAULT_COLUMNS = 2;
+// A control word ends at the first non-letter, so `\multicols` is not an option.
+const OPTION_MACRO_RE = /\\(Lmulti|multi)(?![A-Za-z])/g;
+// `%` up to the line end, unless escaped (an odd number of backslashes before it).
+const COMMENT_RE = /(^|[^\\])((?:\\\\)*)%.*$/gm;
+
+/** One box per `\multi`/`\Lmulti`, in printed order (the OMR counter's order). Comments print nothing. */
+function scanOptions(tex: string): McOption[] {
+  const source = tex.replace(COMMENT_RE, "$1$2");
+  const starts = [...source.matchAll(OPTION_MACRO_RE)];
+  return starts.map((m, k) => {
+    const end = k + 1 < starts.length ? starts[k + 1].index : source.length;
+    const text = optionText(source.slice(m.index + m[0].length, end));
+    return { text: unescapeLatex(text), correct: m[1] === "Lmulti" };
+  });
+}
+
+/** The `{…}` argument as the editor writes it; else the item text up to the enclosing group's end. */
+function optionText(rest: string): string {
+  const from = rest.length - rest.trimStart().length;
+  const braced = rest[from] === "{";
+  let depth = braced ? 0 : 1;
+  for (let i = from; i < rest.length; i++) {
+    if (rest[i] === "\\") {
+      if (!braced && rest.startsWith("\\end{", i)) return rest.slice(from, i).trim();
+      i++;
+    } else if (rest[i] === "{") depth++;
+    else if (rest[i] === "}" && --depth === 0) return rest.slice(braced ? from + 1 : from, i).trim();
+  }
+  return rest.slice(braced ? from + 1 : from).trim();
+}
 
 /**
- * Splits a MC exercise's latex body into free-text question intro and
- * structured options. Returns an empty options array if no \LoesungMulti
- * block is found (e.g. a brand-new exercise).
+ * The options a body prints, one per answer box, wherever they stand: `\OmrExercise` numbers every
+ * `\multi`/`\Lmulti` of the body, so this is what the OMR template's `optionIndex` refers to.
+ */
+export function printedMcOptions(latexBody: string | undefined | null): McOption[] {
+  return scanOptions(latexBody || "");
+}
+
+/**
+ * Splits a MC exercise's latex body into free-text question intro and structured options (texts
+ * unescaped, the inverse of buildMcOptionsLatex). Returns an empty options array if no
+ * \LoesungMulti block is found (e.g. a brand-new exercise).
  */
 export function parseMcOptions(latexBody: string | undefined | null): McOptionsParseResult {
   const body = latexBody || "";
@@ -43,14 +82,8 @@ export function parseMcOptions(latexBody: string | undefined | null): McOptionsP
   }
 
   const questionText = body.slice(0, match.index).trim();
-  const storedColumns = Number(match[1]);
-  const optionsBlock = match[2];
-  const options: McOption[] = [];
-  let optionMatch: RegExpExecArray | null;
-  OPTION_RE.lastIndex = 0;
-  while ((optionMatch = OPTION_RE.exec(optionsBlock)) !== null) {
-    options.push({ text: optionMatch[2].trim(), correct: optionMatch[1] === "Lmulti" });
-  }
+  const storedColumns = match[1] === undefined ? LOESUNG_MULTI_DEFAULT_COLUMNS : Number(match[1]);
+  const options = scanOptions(match[2]);
 
   return { questionText, options, columns: storedColumns === autoColumns(options.length) ? null : storedColumns };
 }

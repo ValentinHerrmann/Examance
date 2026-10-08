@@ -49,6 +49,19 @@ export function escapeLatex(text: string | undefined | null): string {
   return text.replace(/[\\&%$#_{}~^]/g, (ch) => TEX_ESCAPE_MAP[ch] ?? ch);
 }
 
+const TEX_UNESCAPE_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(TEX_ESCAPE_MAP).map(([ch, seq]) => [seq, ch])
+);
+
+/** Inverse of `escapeLatex`. One pass, so `\textbackslash{}\%` comes back as `\%`, not `%`. */
+export function unescapeLatex(text: string | undefined | null): string {
+  if (!text) return "";
+  return text.replace(
+    /\\(?:textbackslash|textasciitilde|textasciicircum)\{\}|\\[&%$#_{}]/g,
+    (seq) => TEX_UNESCAPE_MAP[seq] ?? seq
+  );
+}
+
 /**
  * Ensures LaTeX content is wrapped in \begin{Aufgabe}{<title>} ... \end{Aufgabe}, adding whichever is missing.
  *
