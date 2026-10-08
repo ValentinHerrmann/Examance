@@ -47,6 +47,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan — run startup/shutdown logic here."""
     from app.database import AsyncSessionLocal
     from app.services.bootstrap import create_initial_admin
+    from app.services.latex import forbid_environ_reads
+
+    forbid_environ_reads()  # before the first compile can spawn tectonic
 
     if not settings.SMTP_HOST:
         if not settings.is_dev:

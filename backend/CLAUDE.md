@@ -57,3 +57,4 @@ Background: `docs/data_flow_and_security.md` §3 "Exercise sharing".
 - Absent `annotation_ciphertext_b64` means "don't touch"; deleting needs `clear_annotations: true`.
 - Per-exercise scores live in `exercise_scores` (no plaintext `score` column by design; the client seals the payload).
 - The training-donation endpoint has its own constraints: `docs/dev/training_donation.md`.
+- **Tectonic reads any file the backend user may read**: `--untrusted` only blocks shell-escape and extra search paths, and the regex in `latex.py` is a tripwire. Secrets stay out of its reach because the subprocess gets `_child_env()` (never pass `os.environ`), the server calls `forbid_environ_reads()` at startup (non-dumpable, so `/proc/<pid>/environ` is closed to same-user children), and the compose healthcheck runs under `env -i`. Never put a secret in a file the backend user can read.

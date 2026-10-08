@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import asyncio
+import ctypes
 import logging
+import os
 import re
 import shutil
+import sys
 import tempfile
 import uuid
 from pathlib import Path
@@ -18,9 +21,18 @@ logger = logging.getLogger(__name__)
 PREVIEW_TIMEOUT_SECONDS = 30
 COMPILE_TIMEOUT_SECONDS = 120
 
-# Secondary defence behind `tectonic --untrusted`: reject the obvious ways a
-# document asks for a file outside its working directory. TeX can construct
-# paths in many ways, so this is a tripwire, not the boundary.
+# Tectonic reads absolute and `../` paths whatever `--untrusted` says (its FilesystemIo allows
+# them), so a document can typeset any file this user may read. Secrets therefore stay out of
+# the child's environment, and `forbid_environ_reads()` hides the server's own /proc entries.
+_CHILD_ENV_KEYS = (
+    "PATH", "HOME", "LANG", "LC_ALL", "TZ", "XDG_CACHE_HOME", "TECTONIC_CACHE_DIR",
+    "SSL_CERT_FILE", "SSL_CERT_DIR", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
+    "http_proxy", "https_proxy", "no_proxy",
+)
+_PR_SET_DUMPABLE = 4
+
+# A tripwire for the obvious ways a document asks for a file outside its directory, not the
+# boundary: TeX can build paths in many ways.
 _ABSOLUTE_OR_PARENT_PATH = re.compile(
     r"\\(?:input|include|InputIfFileExists|openin|openout|write|read"
     r"|lstinputlisting|includegraphics|import|subimport|verbatiminput)"
@@ -30,6 +42,24 @@ _ABSOLUTE_OR_PARENT_PATH = re.compile(
 ASSETS_DIR = Path(__file__).resolve().parents[2] / "latex-assets"
 if not ASSETS_DIR.exists():
     ASSETS_DIR = Path("latex-assets")
+
+
+def _child_env() -> dict[str, str]:
+    return {key: value for key in _CHILD_ENV_KEYS if (value := os.environ.get(key)) is not None}
+
+
+def forbid_environ_reads() -> None:
+    """Make this process's /proc/<pid>/environ and memory unreadable to its same-user children.
+
+    Linux only, called once at startup; the process can still read its own entries."""
+    if not sys.platform.startswith("linux"):
+        return
+    try:
+        libc = ctypes.CDLL(None, use_errno=True)
+        if libc.prctl(_PR_SET_DUMPABLE, 0, 0, 0, 0) != 0:
+            raise OSError(ctypes.get_errno(), "prctl(PR_SET_DUMPABLE, 0) failed")
+    except (OSError, AttributeError) as exc:
+        logger.warning("Could not hide the server environment from LaTeX compiles: %s", exc)
 
 
 class CompilationError(Exception):
@@ -81,9 +111,8 @@ def reject_unsafe_paths(latex_source: str) -> None:
     """
     Raise CompilationError if *latex_source* references an absolute or parent path.
 
-    A TeX document can read arbitrary files (``\\input{/app/.env}``) and typeset
-    them into the resulting PDF. ``--untrusted`` is the real control; this check
-    fails fast with a clearer message and covers the common cases.
+    A TeX document can read arbitrary files and typeset them into the PDF; this only fails fast
+    with a clearer message on the common cases (the boundary is the scrubbed child environment).
     """
     if _ABSOLUTE_OR_PARENT_PATH.search(latex_source):
         raise CompilationError(
@@ -223,8 +252,7 @@ async def compile_latex(
 
         cmd = [
             "tectonic",
-            # Refuses shell-escape and filesystem access outside the working
-            # directory. Must precede the input path.
+            # Refuses shell-escape and extra search paths (not file reads). Must precede the input.
             "--untrusted",
             "-k",
             str(tex_file),
@@ -240,6 +268,7 @@ async def compile_latex(
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(tmpdir),
+                env=_child_env(),
             )
 
             try:
