@@ -187,11 +187,11 @@ async function request<T>(
 
   const timeoutMs = options.binary ? BINARY_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
 
-  let resp: Response;
-  {
+  // Used for the first attempt and the retry after a refresh alike, so both fail as ERR_NETWORK.
+  const send = async (): Promise<Response> => {
     const { signal, cancel } = withTimeoutSignal(timeoutMs);
     try {
-      resp = await fetch(`${getBaseUrl()}${path}`, {
+      return await fetch(`${getBaseUrl()}${path}`, {
         method,
         headers,
         body: bodyInit,
@@ -213,7 +213,9 @@ async function request<T>(
     } finally {
       cancel();
     }
-  }
+  };
+
+  const resp = await send();
 
   if (resp.status === 403 && resp.headers.get('code') === 'ERR_MFA_ENROLLMENT_REQUIRED') {
     // The account no longer satisfies the two-factor policy (e.g. an admin reset its factors): lock and send the
@@ -251,19 +253,7 @@ async function request<T>(
     }
 
     // Retry original request after refresh
-    const retry = withTimeoutSignal(timeoutMs);
-    let retryResp: Response;
-    try {
-      retryResp = await fetch(`${getBaseUrl()}${path}`, {
-        method,
-        headers,
-        body: bodyInit,
-        credentials: 'include',
-        signal: retry.signal,
-      });
-    } finally {
-      retry.cancel();
-    }
+    const retryResp = await send();
     if (!retryResp.ok) {
       await handleNonOkResponse(retryResp, options.silentError);
     }
