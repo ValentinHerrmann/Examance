@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_exam_for_teacher
+from app.dependencies import get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
 from app.models.student_identity import StudentIdentity
 from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
@@ -16,7 +16,11 @@ from app.schemas.student import StudentIdentityCreate, StudentIdentityResponse
 from app.services import audit as audit_svc
 from app.services.capabilities import require_server_results_writable
 
-router = APIRouter(prefix="/exams/{exam_id}/students", tags=["students"])
+router = APIRouter(
+    prefix="/exams/{exam_id}/students",
+    tags=["students"],
+    dependencies=[Depends(get_teaching_teacher)],
+)
 
 
 @router.post(

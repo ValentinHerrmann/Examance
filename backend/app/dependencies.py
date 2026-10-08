@@ -159,9 +159,26 @@ async def get_admin_teacher(
     return teacher
 
 
+async def get_teaching_teacher(
+    teacher: Teacher = Depends(get_current_teacher),
+) -> Teacher:
+    """Require a teacher account: admins manage users and the server only (issue #58).
+
+    Gates every endpoint that reads or writes exams, exercises, results or their settings.
+    An admin's legacy data is kept but unreachable until `cli.py set-role` makes it a teacher."""
+    if teacher.role != "teacher":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin accounts manage users and the server; exams and exercises need a "
+            "teacher account.",
+            headers={"code": "ERR_TEACHER_ROLE_REQUIRED"},
+        )
+    return teacher
+
+
 async def get_exam_for_teacher(
     exam_id: uuid.UUID,
-    teacher: Teacher = Depends(get_current_teacher),
+    teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> Exam:
     """
@@ -185,7 +202,7 @@ async def get_exam_for_teacher(
 
 async def get_exercise_for_teacher(
     exercise_id: uuid.UUID,
-    teacher: Teacher = Depends(get_current_teacher),
+    teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> Exercise:
     """Return the exercise only if it belongs to *teacher*; use for every write path.
@@ -206,7 +223,7 @@ async def get_exercise_for_teacher(
 
 async def get_readable_exercise(
     exercise_id: uuid.UUID,
-    teacher: Teacher = Depends(get_current_teacher),
+    teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> Exercise:
     """Return the exercise if *teacher* owns it or it is shared with them (issue #65).

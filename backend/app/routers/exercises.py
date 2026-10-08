@@ -23,6 +23,7 @@ from app.dependencies import (
     get_current_teacher,
     get_exercise_for_teacher,
     get_readable_exercise,
+    get_teaching_teacher,
 )
 from app.middleware.rate_limit import limiter
 from app.models.exam import Exam
@@ -71,7 +72,11 @@ from app.services.latex_resources import (
 )
 from app.services.latex_score import parse_exercise_score
 
-router = APIRouter(prefix="/exercises", tags=["exercises"])
+router = APIRouter(
+    prefix="/exercises",
+    tags=["exercises"],
+    dependencies=[Depends(get_teaching_teacher)],
+)
 
 
 def _to_res(ex: Exercise) -> ExerciseResponse:

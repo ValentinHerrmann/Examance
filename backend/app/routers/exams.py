@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_teacher, get_exam_for_teacher
+from app.dependencies import get_current_teacher, get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
 from app.models.exam_exercise import ExamExercise
 from app.models.exam_mc_group import ExamMcGroup
@@ -33,7 +33,7 @@ from app.services.latex_resources import ResourceError
 from app.services.latex_score import parse_exercise_score
 from app.services.logo import resolve_logo
 
-router = APIRouter(prefix="/exams", tags=["exams"])
+router = APIRouter(prefix="/exams", tags=["exams"], dependencies=[Depends(get_teaching_teacher)])
 
 
 def _to_exercise_response(

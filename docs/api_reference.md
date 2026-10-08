@@ -25,7 +25,7 @@ All API v1 endpoints are served relative to the root URL path:
 | `204 No Content` | Deleted / Modified | Action completed with no return payload. |
 | `400 Bad Request` | Client Error | Invalid input structure, missing mandatory fields, or malformed JSON. |
 | `401 Unauthorized` | Unauthenticated | Missing, invalid, or expired session cookies/credentials. |
-| `403 Forbidden` | Access Denied | Authenticated user lacks required role/permissions (e.g., non-admin calling admin routes). |
+| `403 Forbidden` | Access Denied | Authenticated user lacks required role/permissions (e.g., non-admin calling admin routes, or an admin calling a teaching route: `ERR_TEACHER_ROLE_REQUIRED`). |
 | `404 Not Found` | Not Found | Requested entity does not exist or user has no access. |
 | `409 Conflict` | Entity Conflict | Duplicate record (e.g., registering user with already existing email). |
 | `413 Payload Too Large` | Limit Exceeded | Request body exceeds configured size limit. |
@@ -60,6 +60,7 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 - The backend automatically creates an initial `admin` user on startup if `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` are configured in `.env`.
 - Admins invite user accounts via `POST /api/v1/admin/users` without specifying passwords. Accounts are created approved, with the chosen role and features, and with uninitialized password hashes (`password_hash = None`); a single-use set-password token is emailed automatically.
 - The bootstrap admin and accounts created with `python -m app.cli create-user` are created approved. `teachers.approved_at` has no default on purpose: a code path that forgets to set it produces a pending account that cannot sign in, never an unvetted one that can.
+- **Admins manage users and the server only** (issue #58). Every endpoint that reads or writes exams, exercises, results or their settings (the compile, exams, logos, exercises, contributions, students, submissions and scores routers, `POST /training/omr-samples`, and `/user/storage-mode`, `/user/purge-server-student-data`, `/user/restore-server-data`) requires a teacher account (`get_teaching_teacher`) and answers an admin with `403 ERR_TEACHER_ROLE_REQUIRED`. Admins keep `/admin/*` and their own account endpoints (auth, MFA, passkeys, key envelopes, capabilities, export, deletion). `python -m app.cli set-role` changes a role.
 
 ### Single-Use Password Reset Tokens
 - Password reset links carry 32-byte URL-safe raw tokens.
@@ -88,9 +89,8 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
   LaTeXRequest(latex='<REDACTED len=...>')
   ```
 
-### $k$-Anonymity Enforcement ($k \ge 5$)
-- Class statistics endpoints (`GET /api/v1/admin/stats/{exam_id}`) enforce a strict $k$-anonymity threshold ($k \ge 5$).
-- If an exam has fewer than 5 submissions, grade aggregates (mean, min, max score) are suppressed (`k_anonymity_satisfied: false`, `mean_score: null`) to prevent individual score identification.
+### Aggregate Statistics
+- The server computes no aggregate score statistics. Class statistics are computed in the teacher's browser from their own results. The former `GET /api/v1/admin/stats/{exam_id}` was removed (issue #58): it gave every admin the score statistics of any teacher's exam.
 
 ---
 
@@ -364,7 +364,6 @@ Two rules the endpoint enforces rather than trusts the client with:
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
-| `GET` | `/api/v1/admin/stats/{exam_id}` | Class Statistics | Yes (Admin) | Evaluates $k$-anonymity ($k \ge 5$) and returns aggregate exam stats. |
 | `GET` | `/api/v1/admin/users` | List Accounts | Yes (Admin) | Accounts, newest first. Query: `status` (`all` default, `pending`, `active`), `limit` (1-200, default 100), `offset`. Returns `{"items": [AdminUserResponse], "total": n}`. |
 | `POST` | `/api/v1/admin/users` | Invite User | Yes (Admin) | Invitation: creates an approved teacher or admin account with the given features and without a password (`password_hash = None`), and mails a set-password link with invitation wording. The address counts as verified, because that link is the only way in. Deletes any pending `registration_requests` row for the address. `409 ERR_ACCOUNT_PENDING` if a pending account exists for the address, `409 ERR_ACCOUNT_EXISTS` for any other existing account. |
 | `POST` | `/api/v1/admin/users/{user_id}/approve` | Approve Registration | Yes (Admin) | Approves a pending account with the given features, erases the registrant's note and mails "approved, sign in". Conditional on the account still being pending: `409 ERR_ALREADY_APPROVED` otherwise. |
@@ -387,25 +386,13 @@ Two rules the endpoint enforces rather than trusts the client with:
 - **`AllowedDomainRequest`**: `{"domain": "school.example", "features": {...}}`. **`AllowedDomainResponse`**: `{"id": "uuid...", "domain": "school.example", "features": {...}, "created_at": "..."}`. The match is exact on the part after `@`; a subdomain needs its own entry. Changes affect future registrations only, never existing accounts.
 - **`AdminResetPasswordResponse`**: `{"message": "Password reset link generated...", "user_id": "uuid...", "password_reset_sent": true}`
 
-#### Admin Stats Response Example
-```json
-{
-  "exam_id": "uuid...",
-  "total_submissions": 8,
-  "k_anonymity_satisfied": true,
-  "mean_score": 82.4,
-  "min_score": 54.0,
-  "max_score": 98.5
-}
-```
-
 ---
 
 ### 4.8 User Router (`/api/v1/user`)
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
-| `GET` | `/api/v1/user/capabilities` | Capabilities | Yes | `{"account_id", "storage_mode", "allowed_storage_modes", "features"}`: the account the answer is about (a tab locks itself when it differs from its own sign-in, because the cookie is shared by every tab of a browser), the account's storage mode (null until chosen), the modes it may choose, and its features: `server_results`, `server_latex` (admin switches) and `training_donation` (deployment setting). Built by `capabilities_for(teacher)`; the frontend renders its options from this and nothing else. |
+| `GET` | `/api/v1/user/capabilities` | Capabilities | Yes | `{"account_id", "storage_mode", "allowed_storage_modes", "features"}`: the account the answer is about (a tab locks itself when it differs from its own sign-in, because the cookie is shared by every tab of a browser), the account's storage mode (null until chosen), the modes it may choose, and its features: `server_results`, `server_latex` (admin switches) and `training_donation` (deployment setting). Built by `capabilities_for(teacher)`; the frontend renders its options from this and nothing else. An admin account gets no modes and no features. |
 | `PUT` | `/api/v1/user/storage-mode` | Set Storage Mode | Yes | `{"mode", "expected"}`: compare-and-set, `409 ERR_STORAGE_MODE_CHANGED` if another browser changed it meanwhile, `403 ERR_STORAGE_MODE_NOT_ALLOWED` if the mode is not allowed for the account (`all-server` without `server_results`). Moving the results happens in the client before this call. |
 | `POST` | `/api/v1/user/purge-server-student-data` | Purge Server Student Data | Yes | Soft-deletes this teacher's server-side student identities and submissions (7-day retention grace) — the local→`all-local` migration step in `data_flow_and_security.md` §5. |
 | `POST` | `/api/v1/user/restore-server-data` | Restore Server Data | Yes | Restores soft-deleted student identities and submissions for the current teacher, if still within the 7-day grace period. Subject to the result-write rule in §4.6 (`403 ERR_FEATURE_NOT_ALLOWED`). |

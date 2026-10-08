@@ -18,15 +18,6 @@ class AuditLogResponse(BaseModel):
     created_at: datetime
 
 
-class ClassStatsResponse(BaseModel):
-    exam_id: uuid.UUID
-    total_submissions: int
-    mean_score: float | None
-    std_dev: float | None
-    k_anonymity_satisfied: bool
-    suppressed_reason: str | None = None
-
-
 class AccountFeatures(BaseModel):
     """The per-account switches an admin sets (app/services/capabilities.py).
 

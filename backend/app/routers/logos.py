@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_teacher, get_exam_for_teacher
+from app.dependencies import get_current_teacher, get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
 from app.models.logo import ExamLogo, TeacherLogo
 from app.models.teacher import Teacher
@@ -28,7 +28,7 @@ from app.services.logo import (
     resolve_logo,
 )
 
-router = APIRouter(tags=["logos"])
+router = APIRouter(tags=["logos"], dependencies=[Depends(get_teaching_teacher)])
 
 
 def _invalid(detail: str) -> HTTPException:
