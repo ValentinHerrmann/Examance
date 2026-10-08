@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import time
 
 import pytest
 from httpx import AsyncClient
@@ -347,6 +348,13 @@ async def test_status_reports_recovery_and_factor_activity(
     assert after["recovery_created_at"] is not None
 
 
+def _spent_code(secret: bytes) -> str:
+    """The code of the step the next sign-in spends (or the one before, if it rolls over).
+
+    Re-reading the clock after the sign-in can land on a fresh, unspent step."""
+    return totp_svc.generate_code(secret, totp_svc.current_step(int(time.time())))
+
+
 @pytest.mark.asyncio
 async def test_a_spent_code_says_so_instead_of_calling_itself_invalid(
     client: AsyncClient, db: AsyncSession
@@ -362,6 +370,7 @@ async def test_a_spent_code_says_so_instead_of_calling_itself_invalid(
     email = "spent-code@example.com"
     teacher = await create_teacher(db, email)
     secret = await enrol_totp(db, teacher)
+    spent = _spent_code(secret)
     await complete_login(client, email, secret)
 
     client.cookies.clear()
@@ -371,9 +380,7 @@ async def test_a_spent_code_says_so_instead_of_calling_itself_invalid(
     client.cookies.update(first.cookies)
 
     # The same window's code, already spent by the sign-in above.
-    replay = await client.post(
-        "/api/v1/auth/factor/totp", json={"code": current_code(secret)}
-    )
+    replay = await client.post("/api/v1/auth/factor/totp", json={"code": spent})
     assert replay.status_code == 401
     assert replay.headers.get("code") == "ERR_MFA_CODE_ALREADY_USED"
 
@@ -391,6 +398,7 @@ async def test_a_spent_code_costs_no_attempt(client: AsyncClient, db: AsyncSessi
     email = "spent-code-throttle@example.com"
     teacher = await create_teacher(db, email)
     secret = await enrol_totp(db, teacher)
+    spent = _spent_code(secret)
     await complete_login(client, email, secret)
 
     for _ in range(6):
@@ -399,9 +407,7 @@ async def test_a_spent_code_costs_no_attempt(client: AsyncClient, db: AsyncSessi
             "/api/v1/auth/login", json={"email": email, "password": DEFAULT_PASSWORD}
         )
         client.cookies.update(first.cookies)
-        resp = await client.post(
-            "/api/v1/auth/factor/totp", json={"code": current_code(secret)}
-        )
+        resp = await client.post("/api/v1/auth/factor/totp", json={"code": spent})
         assert resp.headers.get("code") == "ERR_MFA_CODE_ALREADY_USED", resp.text
 
     # Past LOGIN_MAX_FAILED_ATTEMPTS, and still not locked.
