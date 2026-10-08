@@ -52,6 +52,32 @@ function discardWorker(): void {
   worker = null;
 }
 
+/** The worker already asked to preload; keyed on the instance so a replaced worker is preloaded again. */
+let preloadedWorker: Worker | null = null;
+
+/**
+ * Boots the local engine (WASM + TeX Live packages) without compiling, so the first compile does not pay
+ * for it. Idempotent per worker; a failure is logged only, the first compile retries the boot itself.
+ */
+export function preloadLocalEngine(): void {
+  try {
+    const w = acquireWorker();
+    if (preloadedWorker === w) return;
+    preloadedWorker = w;
+    // No compile is listening yet: a worker that fails to load must not stay behind as the one to compile on.
+    w.addEventListener(
+      'error',
+      () => {
+        if (worker === w) discardWorker();
+      },
+      { once: true }
+    );
+    w.postMessage({ type: 'preload' });
+  } catch (err) {
+    console.warn('[compiler] Could not preload the local LaTeX engine:', err);
+  }
+}
+
 async function compileLocalWasm(
   latexSource: string,
   onStatus?: (status: string) => void,

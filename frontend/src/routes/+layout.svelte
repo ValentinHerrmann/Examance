@@ -48,6 +48,7 @@
   import type { StorageMode } from "#lib/stores/storagePolicy";
   import { workspaceStatusStore } from "#lib/stores/workspaceState";
   import { effectiveLatexStore } from "#lib/stores/capabilities";
+  import { preloadLocalLatexEngine } from "#lib/latex/preload";
   import { registerWorkspaceSync, switchRunningElsewhere } from "#lib/stores/workspaceSync";
   import WorkspaceBlocked from "#lib/components/storage/WorkspaceBlocked.svelte";
   import AppNavbar from "#lib/components/layout/AppNavbar.svelte";
@@ -300,6 +301,13 @@
   $effect.pre(() => {
     const offLimits = isAdmin && !isAdminPath(page.url.pathname);
     if (offLimits && typeof window !== "undefined") untrack(() => goto(ADMIN_HOME, { replaceState: true }));
+  });
+
+  // Boot the local LaTeX engine as soon as it is the chosen one (sign-in, or the setting flips), not at the first compile.
+  $effect.pre(() => {
+    const engine = $effectiveLatexStore;
+    const state = $workspaceStatusStore.state;
+    if (engine === "local" && state === "ok") untrack(() => preloadLocalLatexEngine());
   });
 </script>
 

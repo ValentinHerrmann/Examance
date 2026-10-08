@@ -23,3 +23,7 @@ A console error reading `Executing inline script violates the following Content 
 ## BusyTeX mirror
 
 Pages builds fetch BusyTeX already chunked from an R2 mirror (`BUSYTEX_MIRROR_URL`, filled by `mirror-busytex.yml`; object names keyed on version + a hash of `process-large-files.mjs` / `fetch-interceptor.js` in `scripts/busytex-mirror.mjs`) before falling back to the raw archive / GitHub. See `docs/deployment.md` §5.
+
+## Local LaTeX preload
+
+The root layout boots the local engine ahead of the first compile (`lib/latex/preload.ts`, issue #51). It uses the same compiler worker, `/core/busytex` assets and IndexedDB package cache as a compile, so it needs no extra CSP source (`worker-src 'self' blob:`, `connect-src 'self'`) and no COEP header (only `Cross-Origin-Opener-Policy` is set). The compiler is imported lazily so the worker asset stays out of the root-layout chunk.
