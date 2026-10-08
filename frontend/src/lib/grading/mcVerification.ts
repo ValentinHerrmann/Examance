@@ -7,6 +7,8 @@ import { ensure64CharHex } from "#lib/crypto/hmac";
 import { loadLocalMcGroups } from "#lib/db/dbEncryption";
 import type { ExerciseRecord, OmrScoreMeta } from "#lib/db/schema";
 import type { OmrRunInfo } from "#lib/grading/omrSettings";
+import { formatStudentName } from "#lib/utils/studentQr";
+import { translate } from "#lib/i18n";
 
 /**
  * The one definition of "a teacher has verified this detection". A re-run must never touch
@@ -182,7 +184,7 @@ export async function computeMcVerificationStats(
 
   const studentMap = new Map<string, string>();
   for (const st of students) {
-    const label = st.studentName || st.fallbackCode || "";
+    const label = formatStudentName(st.studentName) || st.fallbackCode || "";
     if (!label) continue;
     if (st.pseudonymId) {
       studentMap.set(st.pseudonymId, label);
@@ -195,7 +197,7 @@ export async function computeMcVerificationStats(
     const direct = studentMap.get(sub.pseudonymHash);
     if (direct) return direct;
     const hex = await ensure64CharHex(sub.pseudonymHash);
-    return studentMap.get(hex) || `Unmatched (${sub.id.slice(0, 8)})`;
+    return studentMap.get(hex) || translate("scanning.verifyItem.submissionLabelFallback", { shortId: sub.id.slice(0, 8) });
   }
 
   // One read for the exam, then grouped in memory, to avoid an N+1 network
