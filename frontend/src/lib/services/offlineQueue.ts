@@ -112,7 +112,7 @@ type ReplayOutcome = 'keep' | 'applied' | 'rejected';
 /** keep: stop here and retry this entry and everything behind it later. */
 export function replayOutcome(req: Pick<QueuedRequest, 'method'>, err: unknown): ReplayOutcome {
   const { status, code } = (err ?? {}) as { status?: unknown; code?: unknown };
-  if (isTransientError(err) || (typeof navigator !== 'undefined' && !navigator.onLine)) return 'keep';
+  if (isTransientError(err) || (typeof navigator !== 'undefined' && navigator.onLine === false)) return 'keep';
   if (typeof status !== 'number' || status === 0) return 'keep';
   // A lapsed session or a sign-in in another tab is not the write's fault: wait for it to be fixed.
   if (status === 401 || (status === 403 && typeof code === 'string' && code.startsWith('ERR_MFA'))) return 'keep';

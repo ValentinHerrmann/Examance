@@ -400,6 +400,7 @@ describe('GDPR Erasure & Retention', () => {
     storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'local' });
     const examId = 'exam-gdpr-2';
     const hmac = await ensure64CharHex('student-on-server');
+    fakeServer.state.exams.set(examId, { id: examId, title: 'GDPR', created_at: new Date().toISOString() });
     fakeServer.state.students.set(examId, [{ pseudonym_hmac: hmac, exam_id: examId }]);
     fakeServer.state.submissions.set(examId, [{ id: 'sub-s', exam_id: examId, pseudonym_hmac: hmac }]);
 
