@@ -23,6 +23,7 @@ from app.dependencies import (
     get_current_teacher,
     get_exercise_for_teacher,
     get_readable_exercise,
+    get_teaching_teacher,
 )
 from app.middleware.rate_limit import limiter
 from app.models.exam import Exam
@@ -71,7 +72,11 @@ from app.services.latex_resources import (
 )
 from app.services.latex_score import parse_exercise_score
 
-router = APIRouter(prefix="/exercises", tags=["exercises"])
+router = APIRouter(
+    prefix="/exercises",
+    tags=["exercises"],
+    dependencies=[Depends(get_teaching_teacher)],
+)
 
 
 def _to_res(ex: Exercise) -> ExerciseResponse:
@@ -508,6 +513,14 @@ async def create_new_version(
     group = await _group_of(old_ex, teacher, db)
     new_latex = body.latex_body if body.latex_body is not None else old_ex.latex_body
     computed_score = parse_exercise_score(new_latex) if new_latex else old_ex.max_points
+    # Absent fields keep the old version's value; an explicit null clears the answer key.
+    answer_fields: dict[str, object] = {}
+    if body.question_type is not None:
+        answer_fields["question_type"] = body.question_type
+    if "correct_answers" in body.model_fields_set:
+        answer_fields["correct_answers"] = body.correct_answers
+    if body.penalty is not None:
+        answer_fields["penalty"] = body.penalty
 
     # One versioning path (shared with resync): share state and copy provenance carry over.
     new_ex = sharing.next_version(
@@ -519,6 +532,7 @@ async def create_new_version(
         latex_body=new_latex,
         max_points=computed_score,
         variant_key=body.variant_key or old_ex.variant_key,
+        **answer_fields,
     )
     db.add(new_ex)
     await db.flush()
@@ -609,11 +623,9 @@ async def delete_exercise(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """
-    Delete an exercise from the caller's own library.
-
-    Idempotent: always 204, whether or not a row was removed. Only exercises
-    owned by *teacher* are ever deleted, so a foreign id is a silent no-op —
-    which also keeps the response from revealing that the id exists.
+    Delete an exercise from the caller's own library. Idempotent: always 204.
+    Only exercises owned by *teacher* are deleted, so a foreign id is a silent no-op that
+    does not reveal the id exists.
     """
     result = await db.execute(
         select(Exercise).where(
@@ -879,11 +891,8 @@ async def unlink_group_source(
 
 
 # --- Resource files -------------------------------------------------------
-#
-# Files a teacher attaches to an exercise so its LaTeX can reference them
-# (\includegraphics{figure.png}, \input{data.tex}, ...). Bytes are stored in
-# plaintext, exactly like latex_body; the zero-knowledge path is all-local
-# mode, where they never leave the browser. See docs/data_flow_and_security.md.
+# Files attached to an exercise so its LaTeX can reference them (\includegraphics, \input).
+# Stored in plaintext, exactly like latex_body; see docs/data_flow_and_security.md.
 
 
 async def _get_resource(

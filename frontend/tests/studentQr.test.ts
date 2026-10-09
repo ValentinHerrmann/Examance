@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseStudentQr } from '#lib/utils/studentQr';
+import { formatStudentName, parseStudentQr } from '#lib/utils/studentQr';
 
 describe('parseStudentQr', () => {
   describe('standard format: "Lastname, Firstname_NumericID"', () => {
@@ -62,6 +62,16 @@ describe('parseStudentQr', () => {
     });
   });
 
+  describe('empty last name: ", Firstname_NumericID"', () => {
+    it('shows the first name without a leading comma', () => {
+      const result = parseStudentQr(', ERIKA MUSTERMANN_4711');
+      expect(result).not.toBeNull();
+      expect(result!.lastname).toBe('');
+      expect(result!.firstname).toBe('ERIKA MUSTERMANN');
+      expect(result!.displayName).toBe('ERIKA MUSTERMANN');
+    });
+  });
+
   describe('invalid inputs', () => {
     it('returns null for null input', () => {
       expect(parseStudentQr(null)).toBeNull();
@@ -82,5 +92,23 @@ describe('parseStudentQr', () => {
     it('returns null for string with only spaces', () => {
       expect(parseStudentQr('   ')).toBeNull();
     });
+  });
+});
+
+describe('formatStudentName', () => {
+  it('keeps a complete "Lastname, Firstname"', () => {
+    expect(formatStudentName('Mustermann, Erika')).toBe('Mustermann, Erika');
+  });
+
+  it('drops empty parts and stray whitespace', () => {
+    expect(formatStudentName(', ERIKA MUSTERMANN')).toBe('ERIKA MUSTERMANN');
+    expect(formatStudentName('Mustermann, ')).toBe('Mustermann');
+    expect(formatStudentName('  Mustermann ,  Erika ')).toBe('Mustermann, Erika');
+  });
+
+  it('gives an empty string for missing names', () => {
+    expect(formatStudentName(undefined)).toBe('');
+    expect(formatStudentName(null)).toBe('');
+    expect(formatStudentName(' , ')).toBe('');
   });
 });

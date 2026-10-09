@@ -4,8 +4,9 @@
   import { db } from "#lib/db/db";
   import { sessionStore, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
   import { effectiveLatexStore } from "#lib/stores/capabilities";
-  import type { ExerciseRecord } from "#lib/db/schema";
-  import { loadExercisesEncrypted, saveExerciseEncrypted, saveExamEncrypted, encryptExercise } from "#lib/db/dbEncryption";
+  import type { ExamRecord, ExerciseRecord } from "#lib/db/schema";
+  import { loadExercisesEncrypted, saveExerciseEncrypted, encryptExercise } from "#lib/db/dbEncryption";
+  import { examRepository } from "#lib/repositories/examRepository";
   import { api } from "#lib/api/client";
   import { parseExerciseScore, formatExerciseLatex, formatMcGroupLatex } from "#lib/latex/scoreParser";
   import { recordValue } from "#lib/utils/recentValues";
@@ -30,7 +31,7 @@
     type McGroupDraft,
   } from "#lib/exam/mcGroupStaging";
   import ExamLivePreviewPanel from "#lib/components/exam-creation/ExamLivePreviewPanel.svelte";
-  import { formatExamCourse } from "#lib/utils/examLabel";
+  import { exerciseTopicSuggestions, formatExamCourse } from "#lib/utils/examLabel";
   import { t, translate } from "#lib/i18n";
   import { PageShell, PageHeader, Alert, Button } from "#lib/components/ui";
 
@@ -47,6 +48,8 @@
   let datum = $state(new Date().toLocaleDateString("de-DE") + DATUM_DURATION_SUFFIX_DE);
   let nr = $state("1");
   let fach = $state("Informatik");
+  // Organisational only (issue #57): not printed on the PDF, so not part of the LaTeX below.
+  let topic = $state("");
   let lehrernachname = $state("");
   let infoText = $state(`\\begin{itemize}
     \\item Die Arbeit wird anonymisiert korrigiert. Trage deine Initialen ins QR-Code-Feld ein.
@@ -195,6 +198,10 @@ Frage hier eingeben... \\BE
       .filter((e): e is ExerciseRecord => Boolean(e)),
   })));
 
+  let topicSuggestions = $derived(
+    exerciseTopicSuggestions([...selectedExercises, ...mcGroupExercises.flatMap(({ members }) => members)]),
+  );
+
   let totalPoints = $derived(
     selectedExercises.reduce(
       (sum, ex) => sum + (parseExerciseScore(ex.latexBody || "") || ex.maxPoints || 0),
@@ -322,19 +329,8 @@ Frage hier eingeben... \\BE
 
     if (saveCustomToLibrary) {
       const key = get(sessionStore).sessionKey;
+      // The repository creates it on the server; a second POST would be a 409 (create-only).
       await saveExerciseEncrypted(newEx, key);
-      if ($isAuthenticated) {
-        try {
-          await api.post("/exercises", {
-            id: newEx.id,
-            name: newEx.name,
-            topic_tag: newEx.topicTag,
-            latex_body: newEx.latexBody,
-          });
-        } catch (apiErr) {
-          console.warn("Failed to sync new exercise to server:", apiErr);
-        }
-      }
       libraryExercises = [...libraryExercises, newEx];
     } else {
       libraryExercises = [...libraryExercises, newEx];
@@ -487,6 +483,7 @@ ${exerciseInputs}
     if (grade) recordValue("exam.grade", grade);
     if (klasse) recordValue("exam.klasse", klasse);
     if (fach) recordValue("exam.fach", fach);
+    if (topic.trim()) recordValue("exam.topic", topic);
     if (lehrernachname) recordValue("exam.lehrernachname", lehrernachname);
 
     isLoading = true;
@@ -497,8 +494,7 @@ ${exerciseInputs}
       .split("T")[0];
 
     try {
-      const key = get(sessionStore).sessionKey;
-      await saveExamEncrypted({
+      const examRecord: ExamRecord = {
         id: examId,
         teacherId: $sessionStore.email || "local-teacher",
         title,
@@ -508,13 +504,14 @@ ${exerciseInputs}
         datum,
         nr,
         fach,
+        topic: topic.trim() || undefined,
         lehrernachname,
         infoText,
         gradingKey: $state.snapshot(gradingKey),
         retentionUntil,
         compilationStatus: "pending",
         createdAt: new Date().toISOString(),
-      }, key);
+      };
 
       // Save junction links in IDB following examItems order
       let order = 1;
@@ -571,30 +568,12 @@ ${exerciseInputs}
         }
       }
 
+      // One create-only POST with the links: a second POST is a 409 and the links were lost with it.
+      await examRepository.create(examRecord, { exercise_links: exerciseLinksPayload, mc_groups: mcGroupsPayload });
+
       await db.examExercises.bulkPut(examExerciseRecords);
       if (examMcGroupRecords.length > 0) {
         await db.examMcGroups.bulkPut(examMcGroupRecords);
-      }
-
-      try {
-        await api.post("/exams", {
-          id: examId,
-          title,
-          testart,
-          grade,
-          klasse,
-          datum,
-          nr,
-          fach,
-          lehrernachname,
-          info_text: infoText,
-          grading_key: $state.snapshot(gradingKey),
-          retention_until: retentionUntil,
-          mc_groups: mcGroupsPayload,
-          exercise_links: exerciseLinksPayload,
-        });
-      } catch (apiErr) {
-        console.warn("Failed to sync exam to server:", apiErr);
       }
 
       sessionStore.setDirty(false);
@@ -672,6 +651,8 @@ ${exerciseInputs}
           bind:nr
           bind:datum
           bind:fach
+          bind:topic
+          {topicSuggestions}
           bind:lehrernachname
           bind:infoText
         />

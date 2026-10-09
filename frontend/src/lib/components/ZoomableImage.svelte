@@ -104,6 +104,7 @@
 </script>
 
 <div
+  role="presentation"
   class="relative flex max-h-[70dvh] min-h-[200px] w-full touch-none select-none items-center justify-center overflow-hidden rounded-md bg-surface-viewer {isDragging ? 'cursor-grabbing' : 'cursor-grab'}"
   use:wheelAction
   onmousedown={handleMouseDown}

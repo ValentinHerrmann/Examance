@@ -179,9 +179,33 @@
     parsedRows = rows;
   }
 
+  let importing = $state(false);
+  let importError = $state("");
+
   async function executeImport() {
+    if (importing) return;
+    importing = true;
+    importError = "";
+    try {
+      await importRows();
+    } catch (err) {
+      // Rows written so far stay; a retry reuses them (students created here are remembered on their row).
+      importError = (err as Error)?.message || String(err);
+      return;
+    } finally {
+      importing = false;
+    }
+    onImportComplete();
+    onClose();
+  }
+
+  async function importRows() {
     const key = get(sessionStore).sessionKey;
     const policy = get(storagePolicyStore);
+    // OMR-read MC rows carry selectedOptions/omrMeta that a pasted score must not drop (verify queue).
+    const existingScores = new Map(
+      (await scoreRepository.getByExamId(examId, key)).map((row) => [`${row.submissionId}:${row.exerciseId}`, row]),
+    );
 
     for (const row of parsedRows) {
       let student = row.matchedStudent;
@@ -198,6 +222,7 @@
           piiIv: new Uint8Array(12),
         };
         await studentRepository.save(student, key);
+        row.matchedStudent = student;
 
         const newSub: SubmissionRecord = {
           id: crypto.randomUUID(),
@@ -243,11 +268,14 @@
 
         if (scoreVal !== null && scoreVal !== undefined && !isNaN(scoreVal)) {
           if (scoreVal >= 0 && scoreVal <= ex.maxPoints) {
+            const existing = existingScores.get(`${activeSub.id}:${ex.id}`);
             rowScores.push({
               id: crypto.randomUUID(),
               submissionId: activeSub.id,
               exerciseId: ex.id,
               score: scoreVal,
+              selectedOptions: existing?.selectedOptions,
+              omrMeta: existing?.omrMeta,
             });
             subScores[ex.id] = scoreVal;
           }
@@ -280,9 +308,6 @@
         }
       }
     }
-
-    onImportComplete();
-    onClose();
   }
 
   $effect.pre(() => {
@@ -297,7 +322,7 @@
   });
 </script>
 
-<Modal open={true} size="large" title={$t("grading.manual.paste.title")} onClose={onClose}>
+<Modal open={true} size="large" title={$t("grading.manual.paste.title")} error={importError} onClose={onClose}>
   <div class="mb-3 flex flex-wrap gap-2">
     <Badge severity={step === 1 ? "primary" : "secondary"}>{$t("grading.manual.paste.step1")}</Badge>
     <Badge severity={step === 2 ? "primary" : "secondary"}>{$t("grading.manual.paste.step2")}</Badge>
@@ -393,7 +418,7 @@
         <Button variant="outlined" severity="secondary" icon={faArrowLeft} onClick={() => (step = 2)}>
           {$t("grading.manual.paste.back")}
         </Button>
-        <Button icon={faCheck} onClick={executeImport}>
+        <Button icon={faCheck} loading={importing} disabled={importing} onClick={executeImport}>
           {$t("grading.manual.paste.executeImport")}
         </Button>
       {/if}

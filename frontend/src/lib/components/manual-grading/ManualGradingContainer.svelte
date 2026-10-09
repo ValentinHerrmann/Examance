@@ -1,6 +1,6 @@
 <script lang="ts">
   import { faClipboard, faPen, faUser, faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Card, PageHeader, Tabs } from "#lib/components/ui";
+  import { Alert, Button, Card, PageHeader, Tabs } from "#lib/components/ui";
   import { onMount } from "svelte";
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
@@ -32,6 +32,8 @@
   let activeTab: "roster" | "exercise-first" | "student-first" = $state("exercise-first");
   let showImportModal = $state(false);
   let loading = $state(true);
+  // Grids treat a missing score as ungraded and delete it on save, so none renders after a failed load.
+  let loadError = $state("");
 
   // Raw: these records go to repositories, and children mutate them in place before `onScoresChanged`.
   let exam: ExamRecord | null = $state.raw(null);
@@ -46,6 +48,7 @@
 
   async function refreshAllData() {
     loading = true;
+    loadError = "";
     const key = get(sessionStore).sessionKey;
     try {
       exam = (await loadExamEncrypted(examId, key)) || null;
@@ -80,6 +83,7 @@
       scoresMap = newScoresMap;
     } catch (err) {
       console.error("Failed to load manual grading data:", err);
+      loadError = err instanceof Error ? err.message : String(err);
     } finally {
       loading = false;
     }
@@ -119,6 +123,13 @@
   <Card class="min-h-96">
     {#if loading}
       <div class="flex min-h-60 items-center justify-center text-muted">{$t("grading.manual.container.loading")}</div>
+    {:else if loadError}
+      <Alert severity="danger">
+        {$t("grading.manual.container.loadFailed", { message: loadError })}
+        {#snippet actions()}
+          <Button variant="outlined" severity="danger" size="sm" onClick={refreshAllData}>{$t("common.retry")}</Button>
+        {/snippet}
+      </Alert>
     {:else if activeTab === "roster"}
       <RosterManager
         {examId}

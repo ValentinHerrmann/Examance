@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Examance API",
-    "description": "Privacy-first anonymous exam grading backend.\n\n## Key Security & Architecture Features\n- **Zero-Knowledge Encryption**: Student PII, submission scans, and annotations are encrypted client-side (Argon2id + AES-256-GCM) before reaching the server.\n- **Multi-factor sign-in**: a session needs a passkey (user verification required) or two distinct factors out of password, passkey and authenticator (TOTP). Fewer than two enrolled means an enrollment-scoped token that reaches nothing else.\n- **Recoverable data key**: the client's key is random and wrapped per factor (`key_envelopes`), so a password reset re-wraps it rather than orphaning every vault. The server holds ciphertext only.\n- **Session Hygiene**: State stored in HttpOnly cookies (`access_token` 15 min, `refresh_token` 7 days with rotation & reuse detection).\n- **Privacy Safeguards**: LaTeX requests redacted in logs (`LaTeXRequest`), IP addresses stored as SHA-256 hashes, k-anonymity (k >= 5) enforced on class stats.\n- **LaTeX Engine**: Compilation rendered using sandboxed Tectonic (`tectonic --untrusted`).",
+    "description": "Privacy-first anonymous exam grading backend.\n\n## Key Security & Architecture Features\n- **Zero-Knowledge Encryption**: Student PII, submission scans, and annotations are encrypted client-side (Argon2id + AES-256-GCM) before reaching the server.\n- **Multi-factor sign-in**: a session needs a passkey (user verification required) or two distinct factors out of password, passkey and authenticator (TOTP). Fewer than two enrolled means an enrollment-scoped token that reaches nothing else.\n- **Recoverable data key**: the client's key is random and wrapped per factor (`key_envelopes`), so a password reset re-wraps it rather than orphaning every vault. The server holds ciphertext only.\n- **Session Hygiene**: State stored in HttpOnly cookies (`access_token` 15 min, `refresh_token` 7 days with rotation & reuse detection).\n- **Privacy Safeguards**: LaTeX requests redacted in logs (`LaTeXRequest`), IP addresses stored as SHA-256 hashes.\n- **LaTeX Engine**: Compilation rendered using sandboxed Tectonic (`tectonic --untrusted`).",
     "version": "0.0.0-dev"
   },
   "paths": {
@@ -1061,7 +1061,7 @@
           "exams"
         ],
         "summary": "Delete Exam",
-        "description": "Soft-delete an exam.",
+        "description": "Soft-delete an exam and start the erasure grace period of its student data.\n\nRetention skips deleted exams and only erases child rows with a deadline, so without the\ncascade a deleted exam's identities and submissions would be kept forever.",
         "operationId": "delete_exam_api_v1_exams__exam_id__delete",
         "parameters": [
           {
@@ -1630,13 +1630,445 @@
         }
       }
     },
+    "/api/v1/exercises/contributions": {
+      "get": {
+        "tags": [
+          "exercise-contributions"
+        ],
+        "summary": "List Contributions",
+        "description": "Proposals to the caller's exercises (incoming) or from the caller (outgoing).",
+        "operationId": "list_contributions_api_v1_exercises_contributions_get",
+        "parameters": [
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "incoming",
+                "outgoing"
+              ],
+              "type": "string",
+              "default": "incoming",
+              "title": "Direction"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContributionSummary"
+                  },
+                  "title": "Response List Contributions Api V1 Exercises Contributions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exercises/contributions/summary": {
+      "get": {
+        "tags": [
+          "exercise-contributions"
+        ],
+        "summary": "Contribution Count",
+        "description": "Pending proposals: the incoming total (tab badge) and per own group (library tag).",
+        "operationId": "contribution_count_api_v1_exercises_contributions_summary_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContributionCount"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exercises/contributions/{contribution_id}": {
+      "get": {
+        "tags": [
+          "exercise-contributions"
+        ],
+        "summary": "Get Contribution",
+        "description": "The proposal; the owner also gets the current row it applies to and a file comparison.",
+        "operationId": "get_contribution_api_v1_exercises_contributions__contribution_id__get",
+        "parameters": [
+          {
+            "name": "contribution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Contribution Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContributionDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exercises/contributions/{contribution_id}/resources/{resource_id}": {
+      "get": {
+        "tags": [
+          "exercise-contributions"
+        ],
+        "summary": "Download Contribution Resource",
+        "description": "A proposed file, for the owner and the contributor only; served like exercise resources.",
+        "operationId": "download_contribution_resource_api_v1_exercises_contributions__contribution_id__resources__resource_id__get",
+        "parameters": [
+          {
+            "name": "contribution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Contribution Id"
+            }
+          },
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Resource Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exercises/contributions/{contribution_id}/accept": {
+      "post": {
+        "tags": [
+          "exercise-contributions"
+        ],
+        "summary": "Accept Contribution",
+        "description": "Adopt a proposal as a new version (or a new variant at version 1); the owner may edit it.\nNothing is updated in place, so the owner's exams keep the rows they link.",
+        "operationId": "accept_contribution_api_v1_exercises_contributions__contribution_id__accept_post",
+        "parameters": [
+          {
+            "name": "contribution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Contribution Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContributionAccept"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContributionSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exercises/contributions/{contribution_id}/reject": {
+      "post": {
+        "tags": [
+          "exercise-contributions"
+        ],
+        "summary": "Reject Contribution",
+        "description": "Decline a proposal (owner); its content is dropped at once. Never gated.",
+        "operationId": "reject_contribution_api_v1_exercises_contributions__contribution_id__reject_post",
+        "parameters": [
+          {
+            "name": "contribution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Contribution Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContributionReject"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exercises/contributions/{contribution_id}/withdraw": {
+      "post": {
+        "tags": [
+          "exercise-contributions"
+        ],
+        "summary": "Withdraw Contribution",
+        "description": "Take back an own pending proposal; its content is dropped at once. Never gated.",
+        "operationId": "withdraw_contribution_api_v1_exercises_contributions__contribution_id__withdraw_post",
+        "parameters": [
+          {
+            "name": "contribution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Contribution Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/exercises": {
       "get": {
         "tags": [
           "exercises"
         ],
         "summary": "List Exercises",
-        "description": "List all exercises in the teacher's exercise library.",
+        "description": "List the teacher's own library. Shared rows are listed by `/shared` and only ever copied,\nso the library, the exam picker and the offline mirror never hold another account's row.",
         "operationId": "list_exercises_api_v1_exercises_get",
         "parameters": [
           {
@@ -1833,6 +2265,201 @@
         }
       }
     },
+    "/api/v1/exercises/shared": {
+      "get": {
+        "tags": [
+          "exercises"
+        ],
+        "summary": "List Shared Exercises",
+        "description": "Current exercises other accounts shared with the installation (read-only; copy to use).",
+        "operationId": "list_shared_exercises_api_v1_exercises_shared_get",
+        "parameters": [
+          {
+            "name": "topic_tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Topic Tag"
+            }
+          },
+          {
+            "name": "grade",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Grade"
+            }
+          },
+          {
+            "name": "subject",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Subject"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SharedExerciseResponse"
+                  },
+                  "title": "Response List Shared Exercises Api V1 Exercises Shared Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exercises/sync-status": {
+      "get": {
+        "tags": [
+          "exercises"
+        ],
+        "summary": "Get Sync Status",
+        "description": "For each own group copied from a shared one: whether the source changed since the last\nsync. \"source_unavailable\" does not tell unshared from deleted, on purpose.",
+        "operationId": "get_sync_status_api_v1_exercises_sync_status_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SyncStatusItem"
+                  },
+                  "title": "Response Get Sync Status Api V1 Exercises Sync Status Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/exercises/groups/{group_id}": {
       "patch": {
         "tags": [
@@ -1909,7 +2536,7 @@
           "exercises"
         ],
         "summary": "Get Exercise",
-        "description": "Get an exercise from the library (own exercises or published ones).",
+        "description": "Get an own exercise, or one shared with the caller (then without owner id or provenance,\nso `teacher_id` tells the caller whether the row is theirs).",
         "operationId": "get_exercise_api_v1_exercises__exercise_id__get",
         "parameters": [
           {
@@ -2282,6 +2909,515 @@
         }
       }
     },
+    "/api/v1/exercises/{exercise_id}/sharing": {
+      "put": {
+        "tags": [
+          "exercises"
+        ],
+        "summary": "Set Exercise Sharing",
+        "description": "Share an own exercise group (all its variants) with every account, or stop sharing it.\nStopping is never gated, so a revoked account can still withdraw; copies stay with copiers.",
+        "operationId": "set_exercise_sharing_api_v1_exercises__exercise_id__sharing_put",
+        "parameters": [
+          {
+            "name": "exercise_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exercise Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExerciseSharingUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExerciseResponse"
+                  },
+                  "title": "Response Set Exercise Sharing Api V1 Exercises  Exercise Id  Sharing Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exercises/sharing/bulk": {
+      "post": {
+        "tags": [
+          "exercises"
+        ],
+        "summary": "Set Sharing Bulk",
+        "description": "Share or stop sharing every own library group at once. Copied groups are skipped (never\nshared as one's own); stopping is never gated.",
+        "operationId": "set_sharing_bulk_api_v1_exercises_sharing_bulk_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkSharingUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkSharingResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exercises/sharing/pause": {
+      "put": {
+        "tags": [
+          "exercises"
+        ],
+        "summary": "Set Sharing Paused",
+        "description": "Hide (or show again) everything the account shares; per-group choices are kept. Pausing\nis never gated; resuming needs the sharing switch.",
+        "operationId": "set_sharing_paused_api_v1_exercises_sharing_pause_put",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SharingPauseUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exercises/{exercise_id}/copy": {
+      "post": {
+        "tags": [
+          "exercises"
+        ],
+        "summary": "Copy Shared Exercise",
+        "description": "Copy a shared exercise group into the caller's library as a new private group that stays\nlinked to its source. 404 for anything not shared with the caller, existing or not.",
+        "operationId": "copy_shared_exercise_api_v1_exercises__exercise_id__copy_post",
+        "parameters": [
+          {
+            "name": "exercise_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Exercise Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exercises/groups/{group_id}/resync-preview": {
+      "get": {
+        "tags": [
+          "exercises"
+        ],
+        "summary": "Resync Preview",
+        "description": "Per variant of a copied group: own current row, source current row and the source\nfingerprint the resync request must echo.",
+        "operationId": "resync_preview_api_v1_exercises_groups__group_id__resync_preview_get",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Group Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResyncPreviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exercises/groups/{group_id}/resync": {
+      "post": {
+        "tags": [
+          "exercises"
+        ],
+        "summary": "Resync Group",
+        "description": "Bring a copied group up to its source: changed variants become new versions (the old row\nstays for the exams that link it), new source variants new rows. 409 if the source changed\nsince the reviewed preview.",
+        "operationId": "resync_group_api_v1_exercises_groups__group_id__resync_post",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Group Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResyncRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExerciseResponse"
+                  },
+                  "title": "Response Resync Group Api V1 Exercises Groups  Group Id  Resync Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exercises/groups/{group_id}/contributions": {
+      "post": {
+        "tags": [
+          "exercises"
+        ],
+        "summary": "Submit Contributions",
+        "description": "Propose variants of a linked copy to the original's author: changed ones as new versions,\nones added to the copy as new variants. The author is notified and decides.",
+        "operationId": "submit_contributions_api_v1_exercises_groups__group_id__contributions_post",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Group Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContributionSubmit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "title": "Response Submit Contributions Api V1 Exercises Groups  Group Id  Contributions Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exercises/groups/{group_id}/source": {
+      "delete": {
+        "tags": [
+          "exercises"
+        ],
+        "summary": "Unlink Group Source",
+        "description": "Detach a copied group from its source; the content stays, update notices stop.",
+        "operationId": "unlink_group_source_api_v1_exercises_groups__group_id__source_delete",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Group Id"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/exercises/{exercise_id}/resources": {
       "get": {
         "tags": [
@@ -2420,7 +3556,7 @@
           "exercises"
         ],
         "summary": "Download Exercise Resource",
-        "description": "Return a resource's raw bytes.\n\nOnly png/jpeg/pdf are served under their own media type; anything else is\nan opaque download. A stored text/html file returned inline from the API\norigin would be stored XSS, so the type is never taken at face value and\nsniffing is disabled.",
+        "description": "Return a resource's raw bytes (see `resource_response` for the XSS hardening).",
         "operationId": "download_exercise_resource_api_v1_exercises__exercise_id__resources__resource_id__get",
         "parameters": [
           {
@@ -2695,7 +3831,7 @@
           "students"
         ],
         "summary": "List Student Identities",
-        "description": "List all encrypted student identities for an exam.",
+        "description": "List the exam's encrypted student identities that are not soft-deleted.",
         "operationId": "list_student_identities_api_v1_exams__exam_id__students_get",
         "parameters": [
           {
@@ -4342,66 +5478,6 @@
         }
       }
     },
-    "/api/v1/admin/stats/{exam_id}": {
-      "get": {
-        "tags": [
-          "admin"
-        ],
-        "summary": "Get Exam Stats",
-        "description": "Get class statistics for an exam with server-side k\u22655 anonymity enforcement.\n\nIf count < 5, score details (mean, std_dev) are suppressed to protect privacy.",
-        "operationId": "get_exam_stats_api_v1_admin_stats__exam_id__get",
-        "parameters": [
-          {
-            "name": "exam_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Exam Id"
-            }
-          },
-          {
-            "name": "access_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Access Token"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ClassStatsResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/admin/audit": {
       "get": {
         "tags": [
@@ -5587,6 +6663,28 @@
         }
       }
     },
+    "/api/v1/privacy/retention": {
+      "get": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "Retention Periods",
+        "description": "Configured retention periods. Public: no session, no personal data.",
+        "operationId": "retention_periods_api_v1_privacy_retention_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetentionPeriods"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "tags": [
@@ -5678,12 +6776,17 @@
             "type": "boolean",
             "title": "Server Latex",
             "default": true
+          },
+          "exercise_sharing": {
+            "type": "boolean",
+            "title": "Exercise Sharing",
+            "default": true
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "AccountFeatures",
-        "description": "The per-account switches an admin sets (app/services/capabilities.py).\n\nserver_results: results and student data may live on the server (\"all-server\").\nserver_latex: LaTeX may be compiled on the server. Exams and exercises need no switch."
+        "description": "The per-account switches an admin sets (app/services/capabilities.py).\n\nserver_results: results and student data may live on the server (\"all-server\").\nserver_latex: LaTeX may be compiled on the server.\nexercise_sharing: exercises may be shared with, and copied from, other accounts (issue #65)."
       },
       "AccountFeaturesUpdate": {
         "properties": {
@@ -5708,6 +6811,17 @@
               }
             ],
             "title": "Server Latex"
+          },
+          "exercise_sharing": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exercise Sharing"
           }
         },
         "additionalProperties": false,
@@ -6203,6 +7317,38 @@
         ],
         "title": "BackupCodeRequest"
       },
+      "BulkSharingResult": {
+        "properties": {
+          "groups": {
+            "type": "integer",
+            "title": "Groups"
+          },
+          "skipped_copies": {
+            "type": "integer",
+            "title": "Skipped Copies"
+          }
+        },
+        "type": "object",
+        "required": [
+          "groups",
+          "skipped_copies"
+        ],
+        "title": "BulkSharingResult"
+      },
+      "BulkSharingUpdate": {
+        "properties": {
+          "shared": {
+            "type": "boolean",
+            "title": "Shared"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "shared"
+        ],
+        "title": "BulkSharingUpdate"
+      },
       "CapabilitiesOut": {
         "properties": {
           "account_id": {
@@ -6242,6 +7388,11 @@
             },
             "type": "object",
             "title": "Features"
+          },
+          "sharing_paused": {
+            "type": "boolean",
+            "title": "Sharing Paused",
+            "default": false
           }
         },
         "type": "object",
@@ -6307,44 +7458,79 @@
         ],
         "title": "ChangePasswordRequest"
       },
-      "ClassStatsResponse": {
+      "ContributionAccept": {
         "properties": {
-          "exam_id": {
+          "latex_body": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latex Body"
+          },
+          "as_variant": {
+            "type": "boolean",
+            "title": "As Variant",
+            "default": false
+          },
+          "variant_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Key"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ContributionAccept"
+      },
+      "ContributionCount": {
+        "properties": {
+          "incoming_pending": {
+            "type": "integer",
+            "title": "Incoming Pending"
+          },
+          "pending_by_group": {
+            "items": {
+              "$ref": "#/components/schemas/PendingForGroup"
+            },
+            "type": "array",
+            "title": "Pending By Group",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "incoming_pending"
+        ],
+        "title": "ContributionCount"
+      },
+      "ContributionDetail": {
+        "properties": {
+          "id": {
             "type": "string",
             "format": "uuid",
-            "title": "Exam Id"
+            "title": "Id"
           },
-          "total_submissions": {
-            "type": "integer",
-            "title": "Total Submissions"
-          },
-          "mean_score": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
+          "direction": {
+            "type": "string",
+            "enum": [
+              "incoming",
+              "outgoing"
             ],
-            "title": "Mean Score"
+            "title": "Direction"
           },
-          "std_dev": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Std Dev"
-          },
-          "k_anonymity_satisfied": {
-            "type": "boolean",
-            "title": "K Anonymity Satisfied"
-          },
-          "suppressed_reason": {
+          "exercise_name": {
             "anyOf": [
               {
                 "type": "string"
@@ -6353,18 +7539,452 @@
                 "type": "null"
               }
             ],
-            "title": "Suppressed Reason"
+            "title": "Exercise Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "version",
+              "variant"
+            ],
+            "title": "Kind"
+          },
+          "variant_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Key"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "rejected",
+              "withdrawn"
+            ],
+            "title": "Status"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "counterpart_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterpart Email"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale",
+            "default": false
+          },
+          "target_gone": {
+            "type": "boolean",
+            "title": "Target Gone",
+            "default": false
+          },
+          "result_exercise_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Exercise Id"
+          },
+          "library_group_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Library Group Id"
+          },
+          "latex_body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latex Body"
+          },
+          "question_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question Type"
+          },
+          "correct_answers": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct Answers"
+          },
+          "max_points": {
+            "type": "number",
+            "title": "Max Points",
+            "default": 0.0
+          },
+          "penalty": {
+            "type": "number",
+            "title": "Penalty",
+            "default": 0.0
+          },
+          "base": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExerciseResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/ContributionFile"
+            },
+            "type": "array",
+            "title": "Files",
+            "default": []
           }
         },
         "type": "object",
         "required": [
-          "exam_id",
-          "total_submissions",
-          "mean_score",
-          "std_dev",
-          "k_anonymity_satisfied"
+          "id",
+          "direction",
+          "kind",
+          "status",
+          "created_at"
         ],
-        "title": "ClassStatsResponse"
+        "title": "ContributionDetail"
+      },
+      "ContributionFile": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "change": {
+            "type": "string",
+            "enum": [
+              "added",
+              "removed",
+              "changed",
+              "unchanged"
+            ],
+            "title": "Change"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "change"
+        ],
+        "title": "ContributionFile"
+      },
+      "ContributionReject": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ContributionReject"
+      },
+      "ContributionSubmit": {
+        "properties": {
+          "exercise_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Exercise Ids"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "exercise_ids"
+        ],
+        "title": "ContributionSubmit"
+      },
+      "ContributionSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "incoming",
+              "outgoing"
+            ],
+            "title": "Direction"
+          },
+          "exercise_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exercise Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "version",
+              "variant"
+            ],
+            "title": "Kind"
+          },
+          "variant_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Key"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "rejected",
+              "withdrawn"
+            ],
+            "title": "Status"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "counterpart_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterpart Email"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale",
+            "default": false
+          },
+          "target_gone": {
+            "type": "boolean",
+            "title": "Target Gone",
+            "default": false
+          },
+          "result_exercise_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Exercise Id"
+          },
+          "library_group_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Library Group Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "direction",
+          "kind",
+          "status",
+          "created_at"
+        ],
+        "title": "ContributionSummary"
+      },
+      "CopyResponse": {
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Group Id"
+          },
+          "exercises": {
+            "items": {
+              "$ref": "#/components/schemas/ExerciseResponse"
+            },
+            "type": "array",
+            "title": "Exercises"
+          }
+        },
+        "type": "object",
+        "required": [
+          "group_id",
+          "exercises"
+        ],
+        "title": "CopyResponse"
       },
       "CredentialListResponse": {
         "properties": {
@@ -6469,7 +8089,8 @@
           "testart": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -6480,7 +8101,8 @@
           "grade": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -6491,7 +8113,8 @@
           "klasse": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -6502,7 +8125,8 @@
           "datum": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -6513,7 +8137,8 @@
           "nr": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 10
               },
               {
                 "type": "null"
@@ -6524,7 +8149,8 @@
           "fach": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -6532,10 +8158,23 @@
             ],
             "title": "Fach"
           },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
           "lehrernachname": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -6711,6 +8350,7 @@
           },
           "title": {
             "type": "string",
+            "maxLength": 200,
             "title": "Title",
             "default": "Grundlagen"
           },
@@ -6721,6 +8361,8 @@
           },
           "order_index": {
             "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
             "title": "Order Index",
             "default": 1
           }
@@ -6872,6 +8514,17 @@
             ],
             "title": "Fach"
           },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
           "lehrernachname": {
             "anyOf": [
               {
@@ -6940,7 +8593,8 @@
           "title": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 500
               },
               {
                 "type": "null"
@@ -6974,7 +8628,8 @@
           "testart": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -6985,7 +8640,8 @@
           "grade": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -6996,7 +8652,8 @@
           "klasse": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -7007,7 +8664,8 @@
           "datum": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -7018,7 +8676,8 @@
           "nr": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 10
               },
               {
                 "type": "null"
@@ -7029,7 +8688,8 @@
           "fach": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -7037,10 +8697,23 @@
             ],
             "title": "Fach"
           },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
           "lehrernachname": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -7164,13 +8837,15 @@
           },
           "name": {
             "type": "string",
+            "maxLength": 200,
             "title": "Name",
             "default": "Exercise"
           },
           "topic_tag": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 200
               },
               {
                 "type": "null"
@@ -7181,7 +8856,8 @@
           "grade": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -7192,7 +8868,8 @@
           "subject": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -7224,11 +8901,19 @@
           },
           "order_index": {
             "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
             "title": "Order Index",
             "default": 1
           },
           "question_type": {
             "type": "string",
+            "enum": [
+              "free_text",
+              "mc",
+              "sc",
+              "tf"
+            ],
             "title": "Question Type",
             "default": "free_text"
           },
@@ -7264,7 +8949,8 @@
           "variant_key": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -7287,7 +8973,9 @@
           "sub_index": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "maximum": 10000.0,
+                "minimum": 0.0
               },
               {
                 "type": "null"
@@ -7352,6 +9040,18 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "source_group_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Group Id"
           }
         },
         "type": "object",
@@ -7368,7 +9068,8 @@
           "name": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 200
               },
               {
                 "type": "null"
@@ -7379,7 +9080,8 @@
           "topic_tag": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 200
               },
               {
                 "type": "null"
@@ -7390,7 +9092,8 @@
           "grade": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -7401,7 +9104,8 @@
           "subject": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -7422,6 +9126,8 @@
           },
           "order_index": {
             "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
             "title": "Order Index",
             "default": 1
           },
@@ -7440,7 +9146,9 @@
           "sub_index": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "maximum": 10000.0,
+                "minimum": 0.0
               },
               {
                 "type": "null"
@@ -7700,6 +9408,40 @@
               }
             ],
             "title": "Sub Index"
+          },
+          "is_shared": {
+            "type": "boolean",
+            "title": "Is Shared",
+            "default": false
+          },
+          "shared_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared At"
+          },
+          "copied_from_exercise_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Copied From Exercise Id"
+          },
+          "group_copied": {
+            "type": "boolean",
+            "title": "Group Copied",
+            "default": false
           }
         },
         "type": "object",
@@ -7824,12 +9566,27 @@
         ],
         "title": "ExerciseScoreResponse"
       },
+      "ExerciseSharingUpdate": {
+        "properties": {
+          "shared": {
+            "type": "boolean",
+            "title": "Shared"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "shared"
+        ],
+        "title": "ExerciseSharingUpdate"
+      },
       "ExerciseUpdate": {
         "properties": {
           "name": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 200
               },
               {
                 "type": "null"
@@ -7840,7 +9597,8 @@
           "topic_tag": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 200
               },
               {
                 "type": "null"
@@ -7851,7 +9609,8 @@
           "grade": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -7862,7 +9621,8 @@
           "subject": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -7907,7 +9667,8 @@
           "variant_key": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -7918,7 +9679,13 @@
           "question_type": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "free_text",
+                  "mc",
+                  "sc",
+                  "tf"
+                ]
               },
               {
                 "type": "null"
@@ -8696,6 +10463,30 @@
         ],
         "title": "PasswordFactorRequest"
       },
+      "PendingForGroup": {
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Group Id"
+          },
+          "incoming": {
+            "type": "integer",
+            "title": "Incoming",
+            "default": 0
+          },
+          "outgoing": {
+            "type": "integer",
+            "title": "Outgoing",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "group_id"
+        ],
+        "title": "PendingForGroup"
+      },
       "RegisterCompleteRequest": {
         "properties": {
           "token": {
@@ -8843,6 +10634,348 @@
           "token"
         ],
         "title": "ResetTokenRequest"
+      },
+      "ResyncOverride": {
+        "properties": {
+          "latex_body": {
+            "type": "string",
+            "maxLength": 200000,
+            "title": "Latex Body"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "latex_body"
+        ],
+        "title": "ResyncOverride"
+      },
+      "ResyncPreviewResponse": {
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Group Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "up_to_date",
+              "update_available",
+              "source_unavailable"
+            ],
+            "title": "State"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/ResyncVariant"
+            },
+            "type": "array",
+            "title": "Variants"
+          }
+        },
+        "type": "object",
+        "required": [
+          "group_id",
+          "state",
+          "variants"
+        ],
+        "title": "ResyncPreviewResponse"
+      },
+      "ResyncRequest": {
+        "properties": {
+          "source_fingerprints": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "type": "object",
+            "title": "Source Fingerprints"
+          },
+          "overrides": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ResyncOverride"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "type": "object",
+            "title": "Overrides"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ResyncRequest",
+        "description": "The variants to take over, by source row id -> the fingerprint the user reviewed (CAS); a\nsubset is fine. `overrides` holds the user's edited LaTeX for some of them."
+      },
+      "ResyncVariant": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "changed",
+              "new",
+              "unchanged",
+              "removed",
+              "local"
+            ],
+            "title": "Kind"
+          },
+          "locally_modified": {
+            "type": "boolean",
+            "title": "Locally Modified"
+          },
+          "source_exercise_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Exercise Id"
+          },
+          "source_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Fingerprint"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SharedExerciseResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "own": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExerciseResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "locally_modified"
+        ],
+        "title": "ResyncVariant"
+      },
+      "RetentionPeriods": {
+        "properties": {
+          "grace_days": {
+            "type": "integer",
+            "title": "Grace Days"
+          },
+          "audit_log_days": {
+            "type": "integer",
+            "title": "Audit Log Days"
+          },
+          "registration_link_hours": {
+            "type": "integer",
+            "title": "Registration Link Hours"
+          },
+          "pending_account_days": {
+            "type": "integer",
+            "title": "Pending Account Days"
+          },
+          "contribution_days": {
+            "type": "integer",
+            "title": "Contribution Days"
+          },
+          "contribution_pending_days": {
+            "type": "integer",
+            "title": "Contribution Pending Days"
+          },
+          "training_sample_days": {
+            "type": "integer",
+            "title": "Training Sample Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grace_days",
+          "audit_log_days",
+          "registration_link_hours",
+          "pending_account_days",
+          "contribution_days",
+          "contribution_pending_days",
+          "training_sample_days"
+        ],
+        "title": "RetentionPeriods"
+      },
+      "SharedExerciseResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "exercise_group_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exercise Group Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "topic_tag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic Tag"
+          },
+          "grade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grade"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "latex_body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latex Body"
+          },
+          "max_points": {
+            "type": "number",
+            "title": "Max Points",
+            "default": 0.0
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 1
+          },
+          "variant_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Key"
+          },
+          "question_type": {
+            "type": "string",
+            "title": "Question Type",
+            "default": "free_text"
+          },
+          "correct_answers": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct Answers"
+          },
+          "penalty": {
+            "type": "number",
+            "title": "Penalty",
+            "default": 0.0
+          },
+          "shared_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared At"
+          },
+          "shared_by_email": {
+            "type": "string",
+            "title": "Shared By Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "shared_by_email"
+        ],
+        "title": "SharedExerciseResponse",
+        "description": "Another account's shared row. Carries no owner id and no exam id, only the sharer's\ne-mail, which they agreed to disclose when sharing."
+      },
+      "SharingPauseUpdate": {
+        "properties": {
+          "paused": {
+            "type": "boolean",
+            "title": "Paused"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "paused"
+        ],
+        "title": "SharingPauseUpdate"
       },
       "StorageModeUpdate": {
         "properties": {
@@ -9145,6 +11278,55 @@
         "title": "SubmissionScoreUpdate",
         "description": "Schema for updating submission score."
       },
+      "SyncStatusItem": {
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Group Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "up_to_date",
+              "update_available",
+              "source_unavailable"
+            ],
+            "title": "State"
+          },
+          "locally_modified": {
+            "type": "boolean",
+            "title": "Locally Modified"
+          },
+          "changed_variants": {
+            "type": "integer",
+            "title": "Changed Variants"
+          },
+          "new_variants": {
+            "type": "integer",
+            "title": "New Variants"
+          },
+          "removed_variants": {
+            "type": "integer",
+            "title": "Removed Variants"
+          },
+          "local_variants": {
+            "type": "integer",
+            "title": "Local Variants",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "group_id",
+          "state",
+          "locally_modified",
+          "changed_variants",
+          "new_variants",
+          "removed_variants"
+        ],
+        "title": "SyncStatusItem"
+      },
       "TotpConfirmRequest": {
         "properties": {
           "code": {
@@ -9262,7 +11444,7 @@
     },
     {
       "name": "admin",
-      "description": "System administration, user provision, audit logging, and k-anonymity class statistics (k >= 5)."
+      "description": "User and server management: accounts, approvals, features, allowed domains and the audit log. Admin accounts hold no exams or exercises."
     },
     {
       "name": "user",

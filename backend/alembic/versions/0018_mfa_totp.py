@@ -1,13 +1,7 @@
-"""Authenticator (TOTP) enrollment and single-use backup codes.
+"""Authenticator (TOTP) enrollment and single-use backup codes (two-of-three factor login).
 
-Part of moving login to a two-of-three factor policy: password, passkey and
-authenticator, any two of which sign a teacher in. Enrolling all three means
-losing any one of them is not a lockout.
-
-The TOTP secret is stored encrypted under a key derived from SECRET_KEY. The
-server has to compute the expected code, so this cannot be zero-knowledge; what
-it buys is that a database dump on its own yields no working seeds. Rotating
-SECRET_KEY therefore invalidates every enrollment.
+The secret is encrypted under a key derived from SECRET_KEY (not zero-knowledge: the server
+checks codes), so rotating SECRET_KEY invalidates every enrollment.
 """
 from __future__ import annotations
 

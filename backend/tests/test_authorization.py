@@ -1,9 +1,6 @@
 """Cross-tenant object-level authorization tests.
-
-Guards the ownership predicates on the exercise library and on exam→exercise
-linking. Before these checks existed, any authenticated teacher could read,
-rewrite or delete another teacher's exercises by primary key, and could link a
-foreign exercise into their own exam to read its body back out.
+Guards the ownership predicates on the exercise library and exam->exercise linking: without them
+any teacher could read, rewrite or delete another's exercises by id, or link one into their exam.
 """
 from __future__ import annotations
 

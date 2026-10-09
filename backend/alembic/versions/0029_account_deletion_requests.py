@@ -1,7 +1,4 @@
-"""account deletion requests
-
-Mailed single-use link confirms self-deletion: one open request per account (hashed token, TTL)
-storing whether the library exercises are kept ownerless. Adds audit action DELETION_REQUESTED.
+"""account deletion requests: hashed single-use token with TTL, one open per account
 
 Revision ID: 0029_account_deletion_requests
 Revises: 0028_account_registration

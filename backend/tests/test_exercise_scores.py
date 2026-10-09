@@ -1,9 +1,6 @@
-"""Per-exercise score endpoints.
-
-The behaviour under test is mostly about *not* failing: the bulk write has to be
-replayable, and clearing a score that is not there has to be a no-op. Both
-because the client reaches these endpoints from an offline-queue flush and from
-a keystroke in the grading grid, where a 409 or a 404 would surface as a modal.
+"""Per-exercise score endpoints. The behaviour under test is mostly *not* failing: bulk writes must
+be replayable and clearing a missing score a no-op, since offline-queue flushes and grid keystrokes
+would otherwise surface a 409 or 404 as a modal.
 """
 from __future__ import annotations
 
@@ -203,10 +200,9 @@ async def test_another_teacher_cannot_reach_the_scores(
     client.cookies.clear()
     await sign_in(client, db, "scores-intruder@example.com")
 
-    # get_exam_for_teacher answers 401 rather than 404 — never leaking whether
-    # somebody else's exam exists.
-    assert (await client.get(url)).status_code == 401
-    assert (await client.get(f"/api/v1/exams/{exam_id}/scores")).status_code == 401
+    # The same 404 as for a missing exam, never leaking whether it exists.
+    assert (await client.get(url)).status_code == 404
+    assert (await client.get(f"/api/v1/exams/{exam_id}/scores")).status_code == 404
     assert (
         await client.put(url, json={"scores": [{"exercise_id": exercise_id}]})
-    ).status_code == 401
+    ).status_code == 404

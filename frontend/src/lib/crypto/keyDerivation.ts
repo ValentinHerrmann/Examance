@@ -1,8 +1,7 @@
 /**
- * Key derivation: Argon2id master key from password + salt (argon2-browser WASM), returned as a
- * non-extractable HKDF CryptoKey (WebCrypto requires extractable=false for HKDF).
- * NOTE: the WASM binary is NOT integrity-verified today: `fetchAndVerifyWasm()` (./sri.ts) has no
- * call site (nothing vendored, placeholder manifest hashes). See static/sri-manifest.json ("enforced": false).
+ * Key derivation: Argon2id master key from password + salt (argon2-browser WASM) as a non-extractable HKDF CryptoKey.
+ * NOTE: the WASM binary is NOT integrity-verified today: `fetchAndVerifyWasm()` (./sri.ts) has no call site (nothing
+ * vendored, placeholder manifest hashes). See static/sri-manifest.json ("enforced": false).
  */
 
 import { toArrayBuffer } from './aesGcm';

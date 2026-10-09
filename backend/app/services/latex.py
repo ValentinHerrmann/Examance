@@ -2,14 +2,20 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import ctypes
 import logging
+import os
 import re
 import shutil
+import sys
 import tempfile
 import uuid
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
+from app.config import settings
 from app.services.latex_resources import validate_resource_name
 from app.services.logo import ResolvedLogo
 
@@ -18,9 +24,18 @@ logger = logging.getLogger(__name__)
 PREVIEW_TIMEOUT_SECONDS = 30
 COMPILE_TIMEOUT_SECONDS = 120
 
-# Secondary defence behind `tectonic --untrusted`: reject the obvious ways a
-# document asks for a file outside its working directory. TeX can construct
-# paths in many ways, so this is a tripwire, not the boundary.
+# Tectonic reads absolute and `../` paths whatever `--untrusted` says (its FilesystemIo allows
+# them), so a document can typeset any file this user may read. Secrets therefore stay out of
+# the child's environment, and `forbid_environ_reads()` hides the server's own /proc entries.
+_CHILD_ENV_KEYS = (
+    "PATH", "HOME", "LANG", "LC_ALL", "TZ", "XDG_CACHE_HOME", "TECTONIC_CACHE_DIR",
+    "SSL_CERT_FILE", "SSL_CERT_DIR", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
+    "http_proxy", "https_proxy", "no_proxy",
+)
+_PR_SET_DUMPABLE = 4
+
+# A tripwire for the obvious ways a document asks for a file outside its directory, not the
+# boundary: TeX can build paths in many ways.
 _ABSOLUTE_OR_PARENT_PATH = re.compile(
     r"\\(?:input|include|InputIfFileExists|openin|openout|write|read"
     r"|lstinputlisting|includegraphics|import|subimport|verbatiminput)"
@@ -32,8 +47,41 @@ if not ASSETS_DIR.exists():
     ASSETS_DIR = Path("latex-assets")
 
 
+def _child_env() -> dict[str, str]:
+    return {key: value for key in _CHILD_ENV_KEYS if (value := os.environ.get(key)) is not None}
+
+
+def forbid_environ_reads() -> None:
+    """Make this process's /proc/<pid>/environ and memory unreadable to its same-user children.
+
+    Linux only, called once at startup; the process can still read its own entries."""
+    if not sys.platform.startswith("linux"):
+        return
+    try:
+        libc = ctypes.CDLL(None, use_errno=True)
+        if libc.prctl(_PR_SET_DUMPABLE, 0, 0, 0, 0) != 0:
+            raise OSError(ctypes.get_errno(), "prctl(PR_SET_DUMPABLE, 0) failed")
+    except (OSError, AttributeError) as exc:
+        logger.warning("Could not hide the server environment from LaTeX compiles: %s", exc)
+
+
 class CompilationError(Exception):
     """Raised when Tectonic exits non-zero or the process fails."""
+
+
+# Process-wide cap on concurrent Tectonic runs; the rate limits alone still allow a burst per IP.
+_compile_slots = asyncio.Semaphore(settings.LATEX_MAX_CONCURRENT_COMPILES)
+
+
+@contextlib.asynccontextmanager
+async def _compile_slot(wait_seconds: float) -> AsyncIterator[None]:
+    """Hold one Tectonic slot; waiting longer than *wait_seconds* raises TimeoutError."""
+    async with asyncio.timeout(wait_seconds):
+        await _compile_slots.acquire()
+    try:
+        yield
+    finally:
+        _compile_slots.release()
 
 
 _TEX_ESCAPE_MAP = {
@@ -63,12 +111,9 @@ def format_exam_course(grade: str | None, klasse: str | None) -> str:
 
 def escape_tex(text: str | None) -> str:
     """
-    Escape LaTeX special characters in plain (non-LaTeX) user text before
-    it's interpolated into a command argument, e.g. \\begin{Aufgabe}{<title>}.
-
-    Do NOT use this on fields that are legitimately raw LaTeX by design
-    (`latex_body`, `info_text`/`\\Info{}`) -- only on plain-text metadata
-    like titles, scoring text, class, date, etc.
+    Escape LaTeX special characters in plain user text before interpolating it into a command
+    argument, e.g. \\begin{Aufgabe}{<title>}. Never use it on fields that are raw LaTeX by design
+    (`latex_body`, `info_text`/`\\Info{}`), only on plain-text metadata like titles and class.
     """
     if not text:
         return ""
@@ -81,9 +126,8 @@ def reject_unsafe_paths(latex_source: str) -> None:
     """
     Raise CompilationError if *latex_source* references an absolute or parent path.
 
-    A TeX document can read arbitrary files (``\\input{/app/.env}``) and typeset
-    them into the resulting PDF. ``--untrusted`` is the real control; this check
-    fails fast with a clearer message and covers the common cases.
+    A TeX document can read arbitrary files and typeset them into the PDF; this only fails fast
+    with a clearer message on the common cases (the boundary is the scrubbed child environment).
     """
     if _ABSOLUTE_OR_PARENT_PATH.search(latex_source):
         raise CompilationError(
@@ -111,12 +155,8 @@ _MAX_ERROR_LINE_CHARS = 200
 
 def _extract_tex_error(tmpdir: Path) -> str:
     """
-    Extract the TeX diagnostic lines from main.log, and nothing else.
-
-    Only lines TeX itself emits as errors (those beginning with "!") are kept.
-    The surrounding log echoes source context — including the contents of any
-    file the document pulled in — so forwarding arbitrary log or stderr text to
-    the caller would turn a failed compile into a file-disclosure channel.
+    Extract only TeX's own error lines (starting with "!") from main.log. The rest of the log
+    echoes source context, including pulled-in files, so forwarding it would disclose files.
     """
     log_file = tmpdir / "main.log"
     error_lines: list[str] = []
@@ -147,19 +187,9 @@ async def compile_latex(
     logo: ResolvedLogo | None = None,
 ) -> bytes:
     """
-    Compile *latex_source* with Tectonic and return raw PDF bytes.
-
-    Copies sty/ and img/ from ASSETS_DIR into temp working directory.
-
-    *binary_files* are teacher-uploaded resources (images, PDFs, data files)
-    keyed by the flat name the document references. They are written after the
-    bundled assets and their names are validated by
-    ``app.services.latex_resources``, so a resource can neither escape the
-    working directory nor shadow a bundled .sty. They exist only for the
-    lifetime of this compilation.
-
-    *logo* is the exam header logo (``app.services.logo``). It is written under its reserved
-    name, which ``Schulaufgabe.sty`` looks for; without it the header has no logo.
+    Compile *latex_source* with Tectonic and return raw PDF bytes. *binary_files* are teacher
+    resources by flat name, validated by ``app.services.latex_resources`` so they cannot escape the
+    workdir or shadow a .sty. *logo* is the exam header logo (``app.services.logo``).
     """
     reject_unsafe_paths(latex_source)
     for content in (extra_files or {}).values():
@@ -223,8 +253,7 @@ async def compile_latex(
 
         cmd = [
             "tectonic",
-            # Refuses shell-escape and filesystem access outside the working
-            # directory. Must precede the input path.
+            # Refuses shell-escape and extra search paths (not file reads). Must precede the input.
             "--untrusted",
             "-k",
             str(tex_file),
@@ -234,32 +263,34 @@ async def compile_latex(
         ]
 
         passes = 2
-        for pass_idx in range(passes):
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=str(tmpdir),
-            )
-
-            try:
-                _stdout, _stderr = await asyncio.wait_for(
-                    proc.communicate(), timeout=timeout
+        async with _compile_slot(timeout):
+            for pass_idx in range(passes):
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=str(tmpdir),
+                    env=_child_env(),
                 )
-            except TimeoutError:
-                proc.kill()
-                await proc.communicate()
-                raise
 
-            logger.debug(
-                "LaTeX pass %d finished (exit %d)", pass_idx + 1, proc.returncode
-            )
+                try:
+                    _stdout, _stderr = await asyncio.wait_for(
+                        proc.communicate(), timeout=timeout
+                    )
+                except TimeoutError:
+                    proc.kill()
+                    await proc.communicate()
+                    raise
 
-            if proc.returncode != 0:
-                err_snippet = _extract_tex_error(tmpdir)
-                raise CompilationError(
-                    f"LaTeX compilation failed on pass {pass_idx + 1}: {err_snippet}"
+                logger.debug(
+                    "LaTeX pass %d finished (exit %d)", pass_idx + 1, proc.returncode
                 )
+
+                if proc.returncode != 0:
+                    err_snippet = _extract_tex_error(tmpdir)
+                    raise CompilationError(
+                        f"LaTeX compilation failed on pass {pass_idx + 1}: {err_snippet}"
+                    )
 
         pdf_path = tmpdir / "main.pdf"
         if not pdf_path.exists():

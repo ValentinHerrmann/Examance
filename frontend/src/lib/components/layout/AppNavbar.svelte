@@ -25,12 +25,14 @@
   import type { VersionStatus } from "#lib/stores/versionStore";
   import { themePreference, setThemePreference, theme, type ThemePreference } from "#lib/stores/theme";
   import { mobileNavOpen } from "#lib/stores/shell";
+  import { minWidth } from "#lib/stores/viewport";
+  import { ADMIN_HOME } from "#lib/stores/navigationStore";
   import { Icon, Menu, MenuItem } from "#lib/components/ui";
 
   /**
    * Artemis navbar, dark slate in both themes: brand and (from `xl`) main links left; storage mode, workspace, language,
    * theme, help, account right. Below `xl` the links move into the drawer (they do not fit at 1024px). `minimal` is for
-   * locked and public pages: brand, language, theme, help.
+   * locked and public pages: brand, language, theme, help. Admins get user management only (issue #58).
    */
   interface Props {
     variant?: "full" | "minimal";
@@ -70,12 +72,16 @@
     onLock = () => {},
   }: Props = $props();
 
-  let links = $derived([
-    { href: "/", label: $t("nav.dashboard") },
-    { href: "/exercises", label: $t("nav.exerciseLibrary") },
-    { href: "/analytics", label: $t("nav.analytics") },
-    ...(userRole === "admin" ? [{ href: "/admin/users", label: $t("nav.userManagement") }] : []),
-  ]);
+  let isAdmin = $derived(userRole === "admin");
+  let links = $derived(
+    isAdmin
+      ? [{ href: ADMIN_HOME, label: $t("nav.userManagement") }]
+      : [
+          { href: "/", label: $t("nav.dashboard") },
+          { href: "/exercises", label: $t("nav.exerciseLibrary") },
+          { href: "/analytics", label: $t("nav.analytics") },
+        ],
+  );
 
   let currentPath = $derived(page.url.pathname);
   function isActive(href: string) {
@@ -106,15 +112,25 @@
 
   const themeOptions: ThemePreference[] = ["system", "light", "dark"];
 
+  // Behaviour, not looks: the workspace actions sit in the account menu on phones, in their own menu from `sm`.
+  const smUp = minWidth("sm", true);
+
   let nextLocale = $derived(($locale === "de" ? "en" : "de") as Locale);
 
-  // One look for every control on the slate bar.
+  // One look for every control on the slate bar. `shrink-0`: a squeezed control would clip silently (issue #67).
   const control =
-    "inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2.5 text-sm font-medium " +
+    "inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2.5 text-sm font-medium " +
     "text-navbar-muted no-underline hover:bg-navbar-hover hover:text-navbar-content " +
     "aria-expanded:bg-navbar-hover aria-expanded:text-navbar-content pointer-coarse:min-h-11";
   const iconControl = control + " w-10 justify-center px-0 pointer-coarse:w-11";
 </script>
+
+{#snippet workspaceItems()}
+  <MenuItem icon={faFileImport} onSelect={onOpenArchive}>{$t("workspace.menu.open")}</MenuItem>
+  <MenuItem icon={faFileExport} onSelect={onExportArchive}>{$t("workspace.menu.export")}</MenuItem>
+  <MenuItem icon={faFileExport} onSelect={onShareResults}>{$t("workspace.menu.shareResults")}</MenuItem>
+  <MenuItem icon={faTrashCan} danger onSelect={onClearWorkspace}>{$t("workspace.menu.clear")}</MenuItem>
+{/snippet}
 
 <header
   class="flex min-h-12 shrink-0 items-center gap-1 bg-navbar px-2 pt-[env(safe-area-inset-top)] text-navbar-content sm:gap-2 sm:px-4"
@@ -132,7 +148,7 @@
   {/if}
 
   <a
-    href="/"
+    href={isAdmin ? ADMIN_HOME : "/"}
     class="mr-2 inline-flex min-h-10 shrink-0 items-center gap-2.5 pointer-coarse:min-h-11 rounded-md px-1 text-lg font-semibold text-navbar-content no-underline"
   >
     <img src="/favicon.png" alt={$t("nav.logoAlt")} class="size-7 rounded-sm object-contain" />
@@ -161,7 +177,7 @@
     {#if variant === "full"}
       {#if versionStatus === "mismatch" || versionStatus === "incompatible"}
         <span
-          class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold {versionStatus ===
+          class="hidden shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold sm:inline-flex {versionStatus ===
           'incompatible'
             ? 'bg-danger text-danger-contrast'
             : 'bg-warning text-warning-contrast'}"
@@ -178,8 +194,9 @@
         </span>
       {/if}
 
-      <!-- Data + LaTeX: one joined pill on phones, separate controls from sm. Mark (what) + state icon (where). -->
-      <div class="flex items-center sm:gap-1">
+      {#if !isAdmin}
+      <!-- Data + LaTeX from sm (mark + state icon); on phones they do not fit and live in the drawer, the version in the footer. -->
+      <div class="hidden items-center sm:flex sm:gap-1">
         <button
           type="button"
           class="{control} gap-1 px-1.5 sm:gap-2 sm:px-2.5"
@@ -206,17 +223,17 @@
         </button>
       </div>
 
-      <Menu
-        label={$t("nav.workspace")}
-        icon={faFolderOpen}
-        labelClass="hidden 2xl:inline"
-        triggerClass={control}
-      >
-        <MenuItem icon={faFileImport} onSelect={onOpenArchive}>{$t("workspace.menu.open")}</MenuItem>
-        <MenuItem icon={faFileExport} onSelect={onExportArchive}>{$t("workspace.menu.export")}</MenuItem>
-        <MenuItem icon={faFileExport} onSelect={onShareResults}>{$t("workspace.menu.shareResults")}</MenuItem>
-        <MenuItem icon={faTrashCan} danger onSelect={onClearWorkspace}>{$t("workspace.menu.clear")}</MenuItem>
-      </Menu>
+      {#if $smUp}
+        <Menu
+          label={$t("nav.workspace")}
+          icon={faFolderOpen}
+          labelClass="hidden 2xl:inline"
+          triggerClass={control}
+        >
+          {@render workspaceItems()}
+        </Menu>
+      {/if}
+      {/if}
     {/if}
 
     <button
@@ -270,6 +287,10 @@
         <p class="m-0 px-3 pt-2 pb-1 text-xs text-muted">
           {authenticated ? $t("workspace.session.cloudMode") : $t("workspace.session.localMode")}
         </p>
+        {#if !isAdmin && !$smUp}
+          {@render workspaceItems()}
+          <div role="separator" class="my-1 border-t border-line"></div>
+        {/if}
         <MenuItem icon={faGear} href="/settings">{$t("nav.settings")}</MenuItem>
         <MenuItem icon={authenticated ? faArrowRightFromBracket : faLock} onSelect={onLock}>
           {authenticated ? $t("workspace.session.lockSession") : $t("workspace.session.lock")}

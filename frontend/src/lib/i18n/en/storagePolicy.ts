@@ -137,6 +137,7 @@ export const storagePolicy: Translations['storagePolicy'] = {
             title: 'Title',
             testart: 'Exam type',
             fach: 'Subject',
+            topic: 'Topic',
             grade: 'Year group',
             klasse: 'Class',
             datum: 'Date',

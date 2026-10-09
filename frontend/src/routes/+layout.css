@@ -1,12 +1,6 @@
-/* App shell geometry. Base styles and tokens live in src/app.css.
- *
- *   .app-layout   100dvh column: navbar, banners, body
- *   .app-body     row: exam sidebar (exam routes, lg+) + main
- *   .app-main     the one scroller; the footer is its last child
- *
- * Only `.app-main` scrolls. The document never does (body is overflow:hidden),
- * so a 1px overflow somewhere can no longer add a second, page-level bar.
- */
+/* App shell geometry (base styles and tokens: src/app.css): `.app-layout` is a 100dvh column (navbar, banners, body),
+ * `.app-body` a row (exam sidebar lg+, main), `.app-main` the one scroller with the footer as last child. The document never
+ * scrolls (body is overflow:hidden), so a 1px overflow can't add a second, page-level bar. */
 
 .app-layout {
   display: flex;

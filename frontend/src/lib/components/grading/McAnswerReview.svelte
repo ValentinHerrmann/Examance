@@ -42,7 +42,8 @@
       correctAnswers,
       exercise.penalty ?? 0,
       exercise.maxPoints,
-      omrMeta
+      omrMeta,
+      $gradingStore.scoreInputs[exercise.id] ?? undefined
     );
 
     gradingStore.setMcStateForExercise(exercise.id, {

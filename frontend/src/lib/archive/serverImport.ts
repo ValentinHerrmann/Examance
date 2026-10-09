@@ -1,17 +1,7 @@
 /**
- * Create the contents of an imported .bgproj archive on the server.
- *
- * Import must work for anyone with the archive password, whichever account exported it, so the
- * `examRepository.save()` path is out: it PATCHes when a record has an id, and the backend answers
- * 401 (not 404) for another account's exam, so its create-fallback never fires. Everything is POSTed.
- *
- * Archived UUIDs are reused so references survive, but ids are globally unique: an archive from
- * another account on the same server may carry taken ids. Those 409, get one retry under a fresh
- * UUID, and `idMap` records the substitution so links, submissions and scores follow.
- *
- * Exercises the account already owns on the server are linked rather than copied; anything else (another
- * teacher's, shared or not) is created as an own copy, since an exam never links a foreign row (issue #65).
- * Every request is silent; outcomes go into the `ArchiveReport`.
+ * Creates an imported .bgproj archive's contents on the server by POSTing everything, never `examRepository.save()`: it
+ * PATCHes when a record has an id and the backend answers 401 (not 404) for another account's exam, so its create-fallback
+ * never fires. A taken archived id (409) is retried once under a fresh UUID kept in `idMap`; foreign exercises are copied (#65).
  */
 
 import { get } from 'svelte/store';
@@ -106,10 +96,9 @@ export async function importPayloadToServer(
     : [];
   const exerciseName = new Map(exercises.map((ex) => [ex.id, ex.name || ex.title || ex.id]));
 
-    // 1. Exercises first (exams link to them by id). The archived exercise_group_id belongs to the
-    // exporting account and create_exercise 404s on a group the caller doesn't own, so groups are
-    // re-created: the first member of each group is sent without one (backend mints it) and the
-    // returned id is reused for the rest. Variant/version grouping survives under owned ids.
+    // 1. Exercises first (exams link to them by id). The archived exercise_group_id belongs to the exporting account and
+    // create_exercise 404s on a group the caller doesn't own, so groups are re-created: the first member is sent without
+    // one (backend mints it) and the returned id is reused for the rest.
   const groupIdMap = new Map<string, string>();
 
   for (const ex of exercises) {

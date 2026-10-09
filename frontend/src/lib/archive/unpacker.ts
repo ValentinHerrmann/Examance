@@ -1,8 +1,7 @@
 /**
- * Import a .bgproj archive. `decryptArchive()` only opens the envelope (no tables, session or
- * stores touched), so a wrong password costs nothing. `applyArchive()` writes, only after
- * decryption succeeded and every conflict has a decision. Never call `sessionStore.unlock()`
- * with the archive key; records are re-encrypted under the live session key.
+ * Import a .bgproj archive. `decryptArchive()` only opens the envelope (touches no tables, session or stores), so a wrong
+ * password costs nothing; `applyArchive()` writes only after decryption succeeded and every conflict has a decision.
+ * Never call `sessionStore.unlock()` with the archive key; records are re-encrypted under the live session key.
  */
 
 import { get } from 'svelte/store';

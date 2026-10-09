@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_exam_for_teacher
+from app.dependencies import get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
 from app.models.student_identity import StudentIdentity
 from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
@@ -16,7 +16,11 @@ from app.schemas.student import StudentIdentityCreate, StudentIdentityResponse
 from app.services import audit as audit_svc
 from app.services.capabilities import require_server_results_writable
 
-router = APIRouter(prefix="/exams/{exam_id}/students", tags=["students"])
+router = APIRouter(
+    prefix="/exams/{exam_id}/students",
+    tags=["students"],
+    dependencies=[Depends(get_teaching_teacher)],
+)
 
 
 @router.post(
@@ -52,6 +56,9 @@ async def upload_student_identity(
         existing.pii_ciphertext = pii_bytes
         existing.iv = iv_bytes
         existing.encryption_salt = salt_bytes
+        # An upload onto a soft-deleted identity makes it live again, or retention would erase it.
+        existing.deleted_at = None
+        existing.retention_until = None
         await db.flush()
         return StudentIdentityResponse(
             pseudonym_hmac=existing.pseudonym_hmac,
@@ -127,9 +134,11 @@ async def list_student_identities(
     exam: Exam = Depends(get_exam_for_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> list[StudentIdentityResponse]:
-    """List all encrypted student identities for an exam."""
+    """List the exam's encrypted student identities that are not soft-deleted."""
     result = await db.execute(
-        select(StudentIdentity).where(StudentIdentity.exam_id == exam.id)
+        select(StudentIdentity).where(
+            StudentIdentity.exam_id == exam.id, StudentIdentity.deleted_at.is_(None)
+        )
     )
     identities = result.scalars().all()
     return [

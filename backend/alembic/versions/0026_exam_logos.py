@@ -1,10 +1,4 @@
-"""exam logos
-
-Adds teacher_logos (the logo printed in every exam header of an account) and exam_logos (an
-exam that prints no logo or its own instead), issue #46. Until now Schulaufgabe.sty printed the
-bundled MTG logo on every exam; the style now prints whichever logo file the compile writes.
-Every existing account gets the MTG logo as its account logo, so the exams it already has look
-the same; new accounts start without one.
+"""exam logos (#46): existing accounts get the MTG logo as account logo, new ones none
 
 Revision ID: 0026_exam_logos
 Revises: 0025_exercise_code_withheld

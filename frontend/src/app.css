@@ -4,22 +4,9 @@
  * override in settings wins. Rarely needed: the tokens below already switch. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/* ---------------------------------------------------------------------------
- * Design tokens — the Artemis design language (TUM AET UI kit, re-implemented,
- * no code copied).
- *
- * Light values are the defaults. `:root[data-theme="dark"]` further down
- * re-points the same variables, so every utility (`bg-surface-raised`), every
- * chart reading `var(--color-*)` and the CodeMirror theme follow the active
- * theme without a single `dark:` variant in component code.
- *
- * `static`: Tailwind v4 drops theme variables it never sees spelled out in
- * source, and several of these are only read at runtime (charts, canvas).
- *
- * Breakpoints are Tailwind's defaults on purpose (sm 640 / md 768 / lg 1024 /
- * xl 1280 / 2xl 1536). Layout code is mobile-first. Inside a Modal and inside
- * the exam content area, use container variants (`@md:`, `@3xl:`) instead.
- * ------------------------------------------------------------------------ */
+/* Design tokens: the Artemis design language (TUM AET UI kit, re-implemented, no code copied). Light values are the
+ * defaults; `:root[data-theme="dark"]` re-points the same variables, so no `dark:` variants in components. `static`:
+ * Tailwind v4 drops theme variables not spelled out in source, and some are only read at runtime (charts, canvas). */
 @theme static {
   /* Surfaces: the gray canvas with white tiles is the Artemis shell look. */
   --color-surface-base: #e9ecef;

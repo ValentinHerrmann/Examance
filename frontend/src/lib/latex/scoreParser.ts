@@ -49,12 +49,23 @@ export function escapeLatex(text: string | undefined | null): string {
   return text.replace(/[\\&%$#_{}~^]/g, (ch) => TEX_ESCAPE_MAP[ch] ?? ch);
 }
 
+const TEX_UNESCAPE_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(TEX_ESCAPE_MAP).map(([ch, seq]) => [seq, ch])
+);
+
+/** Inverse of `escapeLatex`. One pass, so `\textbackslash{}\%` comes back as `\%`, not `%`. */
+export function unescapeLatex(text: string | undefined | null): string {
+  if (!text) return "";
+  return text.replace(
+    /\\(?:textbackslash|textasciitilde|textasciicircum)\{\}|\\[&%$#_{}]/g,
+    (seq) => TEX_UNESCAPE_MAP[seq] ?? seq
+  );
+}
+
 /**
- * Ensures LaTeX content is wrapped in \begin{Aufgabe}{<title>} ... \end{Aufgabe}, adding whichever is missing.
- *
- * With `exerciseId`, an `\OmrExercise{<id>}` call is injected before the body (inert without
- * `\multi`/`\Lmulti`, see Loesung.sty) so OMR template capture can map bubbles back to exerciseId
- * without changing the stored latexBody (see mcOptions.ts).
+ * Ensures LaTeX content is wrapped in \begin{Aufgabe}{<title>} ... \end{Aufgabe}, adding whichever is missing. With
+ * `exerciseId`, an inert `\OmrExercise{<id>}` call (see Loesung.sty) is injected before the body so OMR template capture can
+ * map bubbles back to exerciseId without changing the stored latexBody (see mcOptions.ts).
  */
 export function formatExerciseLatex(
   latexBody: string | undefined | null,

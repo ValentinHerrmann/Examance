@@ -13,7 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_teacher
+from app.dependencies import get_current_teacher, get_teaching_teacher
 from app.models.exercise import Exercise
 from app.models.exercise_contribution import ExerciseContribution, ExerciseContributionResource
 from app.models.exercise_group import ExerciseGroup
@@ -34,7 +34,11 @@ from app.services.capabilities import require_exercise_sharing
 from app.services.exercise_sharing import resource_digests
 from app.services.latex_resources import resource_response
 
-router = APIRouter(prefix="/exercises/contributions", tags=["exercise-contributions"])
+router = APIRouter(
+    prefix="/exercises/contributions",
+    tags=["exercise-contributions"],
+    dependencies=[Depends(get_teaching_teacher)],
+)
 
 
 async def _summaries(

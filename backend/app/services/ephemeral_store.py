@@ -1,27 +1,6 @@
 """
-Short-lived shared counters and markers.
-
-Redis where one is configured, an in-process dict otherwise. Everything stored
-here expires on its own and is safe to lose: a lost login-failure counter means
-an attacker gets a few more attempts, a lost single-use marker means a pending
-token could be replayed inside its ten-minute window. Both are bounded.
-
-**This runs on the login path, so it must fail fast.** The first version did not:
-`Redis.from_url()` leaves `socket_connect_timeout` unset, so redis-py inherits
-the OS TCP connect timeout — around 130 seconds on Linux. A misconfigured or
-unreachable Redis therefore did not degrade, it hung, and every sign-in blocked
-until the browser gave up at 25 seconds and reported the server as unreachable.
-That is a worse failure than the attack the throttle prevents.
-
-Three things keep that from recurring:
-
-* explicit connect and operation timeouts, so an unreachable Redis costs a
-  fraction of a second rather than minutes;
-* `asyncio.wait_for` as a hard outer bound, since a socket timeout does not cover
-  a server that accepts the connection and then stalls;
-* a circuit breaker, so one failure does not make every subsequent request pay
-  the timeout again.
-
+Short-lived shared counters and markers: Redis if configured, else an in-process dict. All of it
+expires and is safe to lose. Runs on the login path, so it must fail fast (backend/CLAUDE.md).
 Keys are hashed by callers where they would otherwise be personal data.
 """
 from __future__ import annotations
@@ -96,11 +75,8 @@ def _get_client() -> Redis[bytes] | None:
 
 async def _call(operation: str, *args: Any) -> Any | None:
     """
-    Run one Redis command, or give up quickly.
-
-    Returns None both when Redis is unusable and when the command legitimately
-    returned nothing; callers treat the two the same, which is what makes losing
-    the store safe.
+    Run one Redis command, or give up quickly. Returns None both when Redis is unusable and when the
+    command returned nothing; callers treat both alike, which is what makes losing the store safe.
     """
     if not uses_redis() or _circuit_is_open():
         return None
@@ -154,6 +130,18 @@ async def delete(*keys: str) -> None:
         _memory.pop(key, None)
 
 
+async def take(key: str) -> bool:
+    """Delete *key* and report whether it was present, in one step, so a marker is spent once.
+
+    When Redis answers it alone decides (shared across workers); the local copy only stands in
+    while Redis is unreachable."""
+    deleted = await _call("delete", key)
+    entry = _memory.pop(key, None)
+    if deleted is not None:
+        return int(deleted) > 0
+    return entry is not None and entry[1] > time.monotonic()
+
+
 def reset() -> None:
     """Drop the in-process fallback store and the circuit state. Test helper."""
     global _circuit_open_until
@@ -163,13 +151,9 @@ def reset() -> None:
 
 async def check_reachable() -> bool:
     """
-    Probe the configured store once, for a startup log line.
-
-    Worth doing because the failure this guards against is otherwise invisible:
-    a misconfigured REDIS_URL degrades silently to per-process counters, and the
-    only outward sign is that throttling stops being shared across workers. Note
-    the default is ``redis://localhost:6379/0``, which inside a container points
-    at the container itself.
+    Probe the configured store once, for a startup log line. A misconfigured REDIS_URL otherwise
+    degrades silently to per-process counters; the default ``redis://localhost:6379/0`` points at
+    the container itself inside Docker.
     """
     if not uses_redis():
         return False

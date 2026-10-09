@@ -74,6 +74,9 @@
           {#if exam.testart}
             <Badge>{exam.testart}</Badge>
           {/if}
+          {#if exam.topic}
+            <Badge title={exam.topic}>{exam.topic}</Badge>
+          {/if}
           {#if stats && stats.avgScore !== null}
             <Badge severity="primary">{$t("dashboard.examList.averageScore", { score: stats.avgScore })}</Badge>
           {/if}

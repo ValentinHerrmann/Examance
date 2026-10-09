@@ -1,14 +1,7 @@
-"""Per-account login cooloff, plus the full audit_action enum.
+"""Per-account login cooloff (teachers.locked_until) plus the full audit_action enum.
 
-Adds `teachers.locked_until` — the database-side mirror of the Redis login
-cooloff in `app/services/login_throttle.py`, so flushing Redis cannot silently
-clear a lock.
-
-Also extends `audit_action`. Two of the new members are not new behaviour:
-`admin.py` has been writing CREATE_USER_EMAIL_FAILED and
-PASSWORD_RESET_EMAIL_FAILED all along, which Postgres rejects because they were
-never enum members. The rest cover the authentication work that follows. They
-are all added here, once, so later migrations need no enum surgery.
+The DB mirrors the Redis cooloff so flushing Redis cannot clear a lock; all enum members
+are added here once so later migrations need no enum surgery.
 """
 from __future__ import annotations
 

@@ -25,7 +25,7 @@ export const help = {
     tips: {
         storageServer: 'Klausuren, Aufgaben und Ergebnisse liegen auf dem Server, aber verschlüsselt: Der Schlüssel bleibt im Browser, der Server kann die Inhalte nicht lesen. Unverschlüsselt sind nur der LaTeX-Quelltext von Aufgaben und Klausuren sowie die Gesamtpunktzahl.',
         storageHybrid: 'Aufgaben und Klausuren liegen auf dem Server (gut für ein Fachschafts-Repertoire). Schülerdaten, Scans und Punkte bleiben nur in diesem Browser, verschlüsselt, und sind auf anderen Geräten nicht sichtbar.',
-        latexLocal: 'Die Klausur wird direkt im Browser gesetzt (WebAssembly-XeLaTeX). Der LaTeX-Quelltext verlässt das Gerät nicht, der erste Lauf dauert dafür länger.',
+        latexLocal: 'Die Klausur wird direkt im Browser gesetzt (WebAssembly-XeLaTeX). Der LaTeX-Quelltext verlässt das Gerät nicht. Die Engine wird nach der Anmeldung bzw. beim Umstellen im Hintergrund geladen (einmaliger Download); bis dahin dauert der erste Lauf länger.',
         latexServer: 'Der Server setzt die Klausur. Schneller auf schwacher Hardware, dafür wird der LaTeX-Quelltext übertragen.',
         variantKey: 'Varianten sind unterschiedliche Fassungen derselben Aufgabe (Gruppe A/B/C). Sie teilen sich Auswertung und Statistik, verhindern aber das Abschreiben.',
         mcPenalty: 'Punktabzug für falsch angekreuzte Optionen. 0 bedeutet: keine Minuspunkte. Die Gesamtpunktzahl einer Aufgabe wird nie negativ.',
@@ -121,6 +121,7 @@ export const help = {
             s1: {
                 h: 'Kopfdaten',
                 p1: 'Fach, Klasse, Testart, Datum und Nummer erscheinen auf dem Deckblatt der Klausur. Diese Angaben sind Prüfungsinhalt und werden deshalb immer auf Deutsch gedruckt, unabhängig von der Sprache der Oberfläche.',
+                p2: 'Das optionale Thema (z. B. „Rekursion“) ordnet Ihre Klausuren in der Prüfungsübersicht, wo Sie danach filtern und suchen können, und wird nicht auf die Klausur gedruckt.',
             },
             s2: {
                 h: 'Aufgaben zusammenstellen',
@@ -155,10 +156,11 @@ export const help = {
             },
             s4: {
                 h: 'MC-Erkennung prüfen und erneut ausführen',
-                p1: 'Angekreuzte Kästchen werden beim Einlesen automatisch erkannt. In der MC-Prüfansicht bestätigen oder korrigieren Sie unsichere Erkennungen; jede bestätigte oder korrigierte Frage gilt als geprüft.',
+                p1: 'Angekreuzte Kästchen werden beim Einlesen automatisch erkannt. In der MC-Prüfansicht bestätigen oder korrigieren Sie unsichere Erkennungen; jede bestätigte oder korrigierte Frage gilt als geprüft. Bestätigt wird die gespeicherte Punktzahl, auch eine von Hand eingetragene; erst das Umschalten eines Kästchens berechnet sie neu. Weicht sie vom Lösungsschlüssel ab, bietet die Karte „Schlüssel-Punkte übernehmen“ an.',
                 p2: '„MC-Erkennung erneut ausführen“ wertet alle Scans mit den aktuellen Einstellungen neu aus. Noch nicht geprüfte Fragen übernehmen das neue Ergebnis; bei geprüften Fragen bleiben Ihre Antwort und Punktzahl immer unverändert, nur ihre Erkennung wird zum Vergleich neu berechnet. Von Hand eingetragene Punktzahlen bleiben unberührt. Vorher zeigt ein Dialog, was sich ändert und ob die Einstellungen vom letzten Lauf abweichen; der Bereich „Erkennungseinstellungen“ vergleicht die Werte des letzten Laufs mit den aktuell gültigen.',
                 p3: 'Neben dem Füllgrad prüft die Erkennung auch die Form der Markierung: Ein gleichmäßig ausgefülltes Kästchen gilt als zurückgenommen, eine Markierung weit über das Kästchen hinaus oder eine sehr blasse Markierung wird als unsicher vorgelegt. Der Grund steht in der Prüfansicht direkt bei der Antwortoption. Beim Verfahren v2 lässt sich die Formanalyse in den Einstellungen abschalten. Unter Einstellungen → MC-Erkennung wählen Sie das Erkennungsverfahren: v4 (Standard, Strichform) oder v2 (älteres Verfahren, Füllgrad). Das jeweils andere läuft immer mit; der Bereich „Erkennungseinstellungen“ der Prüfansicht zeigt, wie viele Ihrer geprüften Kästchen jedes Verfahren richtig erkannt hätte. Unsichere Kästchen bleiben gelb umrahmt, bis die Frage geprüft ist.',
                 p4: 'Bis zur Prüfung zählt ein unsicheres Kästchen vorläufig als das Ergebnis, dem die Messwerte näher liegen — angekreuzt oder nicht angekreuzt; die Prüfansicht zeigt dazu „Vorläufig als angekreuzt / nicht angekreuzt gewertet“. Der Button „🎲 Stichprobe prüfen“ öffnet eine zufällige, noch nicht geprüfte, aber sichere Erkennung — so lassen sich auch unauffällige Fragen stichprobenhaft kontrollieren.',
+                p5: 'Die Prüfansicht zeigt die Antwortoptionen so, wie sie auf dem Bogen gedruckt sind, und berechnet die Punkte mit dem aktuellen Lösungsschlüssel der Aufgabe. Passt die Zahl der Kästchen auf dem Scan nicht zu den Optionen der Aufgabe (sie wurde nach dem Druck geändert), weist die Prüfansicht darauf hin und bewertet die Frage nicht; vergeben Sie die Punkte dann im Arbeitsbereich.',
             },
         },
         grading: {
@@ -204,7 +206,7 @@ export const help = {
             summary: 'Themen-Heatmaps, Aufgabenqualität und Variantenfairness über mehrere Klausuren.',
             s1: {
                 h: 'Über Klausuren hinweg',
-                p1: 'Die Analyse fasst mehrere Klausuren zusammen und zeigt, wie sich Ergebnisse über Zeit, Jahrgänge und Fächer entwickeln.',
+                p1: 'Die Analyse fasst mehrere Klausuren zusammen und zeigt, wie sich Ergebnisse über Zeit, Jahrgänge und Fächer entwickeln. Das Histogramm der Gesamtergebnisse ordnet alle vollständig bewerteten Abgaben nach dem erreichten Prozentanteil der Maximalpunkte ihrer Klausur in 10-%-Bereiche ein.',
             },
             s2: {
                 h: 'Themen und Wissenslücken',
@@ -285,7 +287,8 @@ export const help = {
             },
             s2: {
                 h: 'Rollen',
-                p1: 'Lehrkräfte sehen ausschließlich ihre eigenen Klausuren. Administratorinnen und Administratoren verwalten zusätzlich die Konten der Schule — sie erhalten dadurch keinen Zugriff auf fremde Klausurinhalte, denn diese sind clientseitig verschlüsselt.',
+                p1: 'Lehrkräfte arbeiten mit Prüfungen, Aufgaben und Ergebnissen und sehen ausschließlich ihre eigenen. Administratorinnen und Administratoren verwalten nur Konten und Server: Sie können keine Prüfungen oder Aufgaben anlegen oder öffnen, und die App zeigt ihnen nur Benutzerverwaltung, Einstellungen und Hilfe. Wer verwaltet und selbst unterrichtet, nutzt zwei Konten.',
+                p2: 'Auch die Administration erhält keinen Zugriff auf fremde Klausurinhalte, denn diese sind clientseitig verschlüsselt.',
             },
             s6: {
                 h: 'Zwei Anmeldefaktoren',
@@ -331,8 +334,8 @@ export const help = {
             summary: 'Was verschlüsselt ist, was die Sitzung schützt, wie lange Daten bleiben.',
             s1: {
                 h: 'Zero Knowledge',
-                p1: 'Der Schlüssel wird im Browser aus Ihrem Passwort abgeleitet (Argon2id, HKDF-SHA-256) und niemals übertragen. Verschlüsselt wird mit AES-256-GCM, bevor etwas geschrieben oder gesendet wird.',
-                p2: 'Ein Server sieht daher immer nur Chiffrat. Auch bei einem Einbruch in die Serverdatenbank bleiben Klausur- und Schülerdaten unlesbar.',
+                p1: 'Ihr Datenschlüssel wird im Browser mit Passwort, Passkey oder Wiederherstellungscode entsperrt (Argon2id, HKDF-SHA-256) und niemals übertragen. Verschlüsselt wird mit AES-256-GCM, bevor etwas geschrieben oder gesendet wird.',
+                p2: 'Schülerdaten, Scans, Korrekturanmerkungen und Punktzahlen je Aufgabe erreichen den Server daher nur als Chiffrat und bleiben auch bei einem Einbruch in die Serverdatenbank unlesbar. Prüfungen und Aufgaben sowie im Modus all-server die Gesamtpunktzahl je Pseudonym liegen dort unverschlüsselt.',
             },
             s2: {
                 h: 'Sitzungshygiene',

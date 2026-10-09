@@ -4,10 +4,15 @@
   import { afterNavigate } from "$app/navigation";
   import { faXmark } from "@fortawesome/free-solid-svg-icons";
   import { t } from "#lib/i18n";
+  import type { TranslationKey } from "#lib/i18n/types";
+  import { storagePolicyStore, type StorageMode } from "#lib/stores/storagePolicy";
+  import { effectiveLatexStore } from "#lib/stores/capabilities";
+  import { dataPlaceIcons, latexPlaceIcons } from "#lib/components/storage/placeIcons";
   import { mobileNavOpen, examNavContext } from "#lib/stores/shell";
   import { lockScroll } from "#lib/utils/scrollLock";
   import { Badge, Button, Icon } from "#lib/components/ui";
   import { examNavItems } from "./examNavItems";
+  import { ADMIN_HOME } from "#lib/stores/navigationStore";
 
   /**
    * Navigation drawer below `xl`, opened by the navbar burger. Lists the current exam's steps first (phones have no
@@ -19,14 +24,26 @@
 
   let { userRole = null }: Props = $props();
 
+  // Admins manage users and the server only (issue #58).
   let links = $derived([
-    { href: "/", label: $t("nav.dashboard") },
-    { href: "/exercises", label: $t("nav.exerciseLibrary") },
-    { href: "/analytics", label: $t("nav.analytics") },
-    ...(userRole === "admin" ? [{ href: "/admin/users", label: $t("nav.userManagement") }] : []),
+    ...(userRole === "admin"
+      ? [{ href: ADMIN_HOME, label: $t("nav.userManagement") }]
+      : [
+          { href: "/", label: $t("nav.dashboard") },
+          { href: "/exercises", label: $t("nav.exerciseLibrary") },
+          { href: "/analytics", label: $t("nav.analytics") },
+        ]),
     { href: "/settings", label: $t("nav.settings") },
     { href: "/help", label: $t("help.ui.navLabel") },
   ]);
+
+  // Phones: the navbar has no room for the data and LaTeX indicators (issue #67), so they are listed here.
+  const dataKeys: Record<StorageMode, TranslationKey> = { "all-server": "nav.dataCloud", hybrid: "nav.dataHybrid" };
+  const latexKeys: Record<"local" | "server", TranslationKey> = {
+    local: "nav.latexLocalShort",
+    server: "nav.latexServerShort",
+  };
+  let storageMode = $derived($storagePolicyStore.storageMode);
 
   let currentPath = $derived(page.url.pathname);
   function isActive(href: string) {
@@ -112,6 +129,26 @@
           </li>
         {/each}
       </ul>
+
+      {#if userRole !== "admin" && storageMode}
+        <hr class="my-2 border-line sm:hidden" />
+        <ul class="m-0 flex list-none flex-col gap-0.5 p-0 sm:hidden">
+          <li>
+            <a href="/settings#storage-policy" class="{row} text-content hover:bg-surface-inset">
+              <Icon icon={dataPlaceIcons[storageMode]} class="w-5 text-muted" />
+              <span class="min-w-0 flex-1 truncate">{$t("nav.dataLabel")}</span>
+              <span class="text-sm font-normal text-muted">{$t(dataKeys[storageMode])}</span>
+            </a>
+          </li>
+          <li>
+            <a href="/settings#latex" class="{row} text-content hover:bg-surface-inset">
+              <Icon icon={latexPlaceIcons[$effectiveLatexStore]} class="w-5 text-muted" />
+              <span class="min-w-0 flex-1 truncate">{$t("nav.latexLabel")}</span>
+              <span class="text-sm font-normal text-muted">{$t(latexKeys[$effectiveLatexStore])}</span>
+            </a>
+          </li>
+        </ul>
+      {/if}
     </nav>
   </div>
 {/if}

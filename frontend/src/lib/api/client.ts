@@ -105,6 +105,21 @@ let lastRefreshAt = 0;
  */
 const REFRESH_GRACE_MS = 5000;
 
+/**
+ * Rotate the refresh cookie once for every concurrent caller in this tab. Tabs share the cookie,
+ * so the rotation runs under a cross-tab lock: a waiting tab then sends the new token, not the revoked one.
+ */
+export function refreshSession(): Promise<void> {
+  if (!refreshPromise) {
+    const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+    const run = locks ? locks.request('examance-auth-refresh', () => refreshToken()) : refreshToken();
+    refreshPromise = run.finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
 async function refreshToken(): Promise<void> {
   const { signal, cancel } = withTimeoutSignal(DEFAULT_TIMEOUT_MS);
   try {
@@ -172,11 +187,11 @@ async function request<T>(
 
   const timeoutMs = options.binary ? BINARY_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
 
-  let resp: Response;
-  {
+  // Used for the first attempt and the retry after a refresh alike, so both fail as ERR_NETWORK.
+  const send = async (): Promise<Response> => {
     const { signal, cancel } = withTimeoutSignal(timeoutMs);
     try {
-      resp = await fetch(`${getBaseUrl()}${path}`, {
+      return await fetch(`${getBaseUrl()}${path}`, {
         method,
         headers,
         body: bodyInit,
@@ -198,7 +213,9 @@ async function request<T>(
     } finally {
       cancel();
     }
-  }
+  };
+
+  const resp = await send();
 
   if (resp.status === 403 && resp.headers.get('code') === 'ERR_MFA_ENROLLMENT_REQUIRED') {
     // The account no longer satisfies the two-factor policy (e.g. an admin reset its factors): lock and send the
@@ -219,9 +236,7 @@ async function request<T>(
     // Deduplicate concurrent refreshes. A request that 401'd by racing a just-finished refresh
     // retries directly; a second rotation would trip token-theft detection and revoke every session.
     if (!refreshPromise && Date.now() - lastRefreshAt >= REFRESH_GRACE_MS) {
-      refreshPromise = refreshToken().finally(() => {
-        refreshPromise = null;
-      });
+      void refreshSession().catch(() => {});
     }
     try {
       if (refreshPromise) await refreshPromise;
@@ -238,19 +253,7 @@ async function request<T>(
     }
 
     // Retry original request after refresh
-    const retry = withTimeoutSignal(timeoutMs);
-    let retryResp: Response;
-    try {
-      retryResp = await fetch(`${getBaseUrl()}${path}`, {
-        method,
-        headers,
-        body: bodyInit,
-        credentials: 'include',
-        signal: retry.signal,
-      });
-    } finally {
-      retry.cancel();
-    }
+    const retryResp = await send();
     if (!retryResp.ok) {
       await handleNonOkResponse(retryResp, options.silentError);
     }

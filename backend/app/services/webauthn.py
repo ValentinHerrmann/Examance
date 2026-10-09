@@ -1,15 +1,7 @@
 """
-WebAuthn ceremonies.
-
-The parsing is `py_webauthn`'s rather than ours on purpose: attestation objects
-are CBOR/COSE structures, and hand-rolled parsers for those are how relying
-parties get CVEs.
-
-A passkey is one of the three sign-in factors. Where the authenticator supports
-the PRF extension it is also key-capable: the browser derives a secret from the
-authenticator that never leaves the device, and that secret wraps a copy of the
-data key. Where it does not, the passkey authenticates and nothing more — a
-distinction the UI has to surface, not bury.
+WebAuthn ceremonies. Parsing is `py_webauthn`'s on purpose: hand-rolled CBOR/COSE parsers are how
+relying parties get CVEs. A passkey is one of the three factors; it is key-capable only with the
+PRF extension (a device-bound secret wraps a data-key copy), otherwise it merely authenticates.
 """
 from __future__ import annotations
 
@@ -44,22 +36,17 @@ from app.services import ephemeral_store
 _CHALLENGE_PREFIX = "webauthn:challenge:"
 _CHALLENGE_TTL_SECONDS = 300
 
-# Generated per credential and currently unread: the client cannot use a
-# per-credential input, because the PRF salt has to be chosen before the ceremony
-# and a sign-in does not yet know which passkey will answer. It uses one
-# application-wide constant instead (see `webauthn/client.ts`). Kept because a
-# per-credential value is the obvious basis for rotating PRF inputs later.
+# Per credential and currently unread: the PRF salt must be chosen before the ceremony, when the
+# passkey is unknown, so the client uses one application-wide constant (`webauthn/client.ts`).
+# Kept as the basis for rotating PRF inputs later.
 PRF_SALT_BYTES = 32
 
 
 def _challenge_b64(value: bytes) -> str:
     """
-    Unpadded base64url — the form py_webauthn puts in the options JSON.
-
-    Which is the form the browser echoes back, and therefore the only one the
-    lookup key may use. Storing the padded spelling instead meant the key never
-    matched what came back, so every ceremony read as expired and no passkey
-    could be registered or used at all.
+    Unpadded base64url, the form py_webauthn puts in the options JSON and the browser echoes back,
+    hence the only valid lookup key. The padded spelling never matched, so every ceremony read as
+    expired.
     """
     return base64.urlsafe_b64encode(value).decode().rstrip("=")
 
@@ -87,11 +74,7 @@ async def _store_challenge(handle: str, challenge: bytes) -> None:
 
 
 async def _take_challenge(handle: str, challenge_b64: str) -> bool:
-    key = _CHALLENGE_PREFIX + handle + ":" + challenge_b64
-    if await ephemeral_store.get(key) is None:
-        return False
-    await ephemeral_store.delete(key)
-    return True
+    return await ephemeral_store.take(_CHALLENGE_PREFIX + handle + ":" + challenge_b64)
 
 
 async def registration_options(db: AsyncSession, teacher: Teacher) -> tuple[str, str]:
@@ -167,11 +150,8 @@ async def verify_registration(
 
 async def authentication_options() -> tuple[str, str]:
     """
-    Options for a passkey sign-in.
-
-    No credential list and no account name: the ceremony uses a discoverable
-    credential, so the authenticator names the account. Asking the server which
-    passkeys an email has would be the account-profile oracle this design avoids.
+    Options for a passkey sign-in. No credential list or account name: the discoverable credential
+    names the account, and asking which passkeys an email has would be an account-profile oracle.
     """
     options = generate_authentication_options(
         rp_id=settings.WEBAUTHN_RP_ID,

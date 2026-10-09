@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { faArrowLeft, faArrowRight, faCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Button, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
+  import { Alert, Button, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
   import { storagePolicyStore } from "#lib/stores/storagePolicy";
@@ -56,6 +56,7 @@
 
   // Editable buffer for the current student (exerciseIndex -> input string), bound by the inputs.
   let rawInputs: Record<number, string> = $state({});
+  let saveError = $state("");
 
   let totalMaxPoints = $derived(exercises.reduce((sum, ex) => sum + (ex.maxPoints || 0), 0));
 
@@ -97,9 +98,24 @@
     }
   }
 
-  async function handleSaveCurrentStudent() {
-    if (!currentSub) return;
+  /** False when nothing was written; the error is shown inline and the student stays selected. */
+  async function handleSaveCurrentStudent(): Promise<boolean> {
+    if (!currentSub) return true;
+    try {
+      await saveCurrentStudent(currentSub);
+      saveError = "";
+      return true;
+    } catch (err) {
+      saveError = err instanceof Error ? err.message : String(err);
+      return false;
+    }
+  }
+
+  async function saveCurrentStudent(currentSub: SubmissionRecord) {
     const key = get(sessionStore).sessionKey;
+    // Read before any await: a student switch meanwhile refills the inputs with the next student's scores.
+    const scores = parsedScores;
+    const total = liveTotalScore;
 
     let subScores = scoresMap.get(currentSub.id);
     if (!subScores) {
@@ -121,7 +137,7 @@
 
     for (let i = 0; i < exercises.length; i++) {
       const ex = exercises[i];
-      const val = parsedScores[i];
+      const val = scores[i];
       const existing = existingById.get(ex.id);
 
       if (val !== null && val !== undefined && !isNaN(val)) {
@@ -136,7 +152,8 @@
           });
           subScores[ex.id] = val;
         }
-      } else if (existing?.omrMeta) {
+      } else if (existing?.omrMeta || existing?.decryptFailed) {
+        // An undecryptable row only looks ungraded: deleting it would destroy the real score.
         subScores[ex.id] = existing.score ?? null;
       } else {
         toClear.push(ex.id);
@@ -149,7 +166,7 @@
       await scoreRepository.deleteOne(examId, currentSub.id, exerciseId);
     }
 
-    currentSub.totalScore = liveTotalScore;
+    currentSub.totalScore = total;
     await saveSubmissionEncrypted(currentSub, key);
 
     const policy = get(storagePolicyStore);
@@ -167,14 +184,14 @@
   }
 
   async function prevStudent() {
-    await handleSaveCurrentStudent();
+    if (!(await handleSaveCurrentStudent())) return;
     if (currentStudentIndex > 0) {
       currentStudentIndex -= 1;
     }
   }
 
   async function nextStudent() {
-    await handleSaveCurrentStudent();
+    if (!(await handleSaveCurrentStudent())) return;
     if (currentStudentIndex < students.length - 1) {
       currentStudentIndex += 1;
     }
@@ -222,11 +239,12 @@
     <div class="flex flex-wrap items-center justify-between gap-4 rounded-md border border-line bg-surface-sunken p-3">
       <div class="flex min-w-0 flex-wrap items-center gap-2">
         <label for="student-select" class="text-sm text-content">{$t("grading.manual.studentFirst.selectStudent")}</label>
+        <!-- No save on change: the binding has already switched the student, so it wrote the previous
+             student's inputs onto the new one. The inputs save on blur before the select gets focus. -->
         <select
           id="student-select"
           class="{controlClass} {controlSmClass} w-full sm:w-56"
           bind:value={currentStudentIndex}
-          onchange={handleSaveCurrentStudent}
         >
           {#each students as st, idx}
             <option value={idx}>
@@ -262,6 +280,12 @@
         </Button>
       </div>
     </div>
+
+    {#if saveError}
+      <Alert severity="danger" onDismiss={() => (saveError = "")}>
+        {$t("grading.manual.saveFailed", { message: saveError })}
+      </Alert>
+    {/if}
 
     {#if currentStudent}
       <div class="flex flex-wrap items-center justify-between gap-4 rounded-md border border-line bg-surface-raised px-5 py-4">

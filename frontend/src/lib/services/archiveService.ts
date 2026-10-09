@@ -34,9 +34,8 @@ function describeHttpErrors(errors: CollectedHttpError[]): string[] {
 }
 
 /**
- * Imports a .bgproj archive, merging with the workspace. Order matters: decrypt (touches nothing),
- * ask about every collision, then write under the live session key. Every outcome goes into the
- * returned report; no request raises the global HTTP error modal.
+ * Imports a .bgproj archive, merging with the workspace: decrypt (touches nothing), ask about every collision, then write
+ * under the live session key. Every outcome goes into the returned report; no request raises the global HTTP error modal.
  * @throws on rejected password, locked session, or cancelled conflict dialog; nothing is written then.
  */
 export async function openBgprojArchive(

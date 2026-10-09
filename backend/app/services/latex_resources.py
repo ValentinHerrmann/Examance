@@ -1,15 +1,7 @@
 """
-Validation rules for teacher-uploaded LaTeX resource files.
-
-A resource is any file a teacher attaches to an exercise so the document can
-reference it (``\\includegraphics{figure.png}``, ``\\input{data.tex}``, ...).
-The rules here are mirrored one-to-one by ``frontend/src/lib/latex/resources.ts``
-so a file accepted by the browser is also accepted by the server, and both
-engines see the same working directory.
-
-Resources are written *flat* next to ``main.tex`` in the compile working
-directory, which is why the name has to be sanitised and why names that would
-shadow a bundled asset are refused.
+Validation rules for teacher-uploaded LaTeX resource files (images, data, ...), mirrored
+one-to-one by ``frontend/src/lib/latex/resources.ts`` so both engines accept the same files.
+Resources are written flat next to ``main.tex``, hence the name sanitising and reserved names.
 """
 from __future__ import annotations
 
@@ -65,13 +57,9 @@ class ResourceConflictError(ResourceError):
 
 def _bundled_asset_names() -> set[str]:
     """
-    Names a user file must not take, because a bundled asset already owns them
-    in the compile working directory.
-
-    ``compile_latex`` copies every top-level entry of ``latex-assets`` into the
-    working directory, and the local WASM worker additionally flattens
-    ``sty/x.sty`` to ``x.sty`` (compiler.worker.ts). Both spellings are reserved, and so are
-    the names the exam logo takes (``app.services.logo``).
+    Names a user file must not take: bundled assets own them in the compile working directory.
+    ``compile_latex`` copies every top-level ``latex-assets`` entry and the WASM worker flattens
+    ``sty/x.sty`` to ``x.sty`` (compiler.worker.ts); both are reserved, as are the logo names.
     """
     reserved = {"main.tex", "main.log", "main.aux", "main.pdf", "index.json", *LOGO_FILENAMES}
     if ASSETS_DIR.exists():
@@ -86,11 +74,8 @@ def _bundled_asset_names() -> set[str]:
 
 def sanitize_resource_name(raw_name: str) -> str:
     """
-    Reduce *raw_name* to a flat, LaTeX-friendly filename.
-
-    Directory components are dropped rather than preserved: resources live flat
-    in the working directory, so a path here can only be a mistake or an escape
-    attempt.
+    Reduce *raw_name* to a flat, LaTeX-friendly filename. Directory components are dropped:
+    resources live flat in the working directory, so a path can only be a mistake or an escape.
     """
     name = Path(raw_name.strip().replace("\\", "/")).name
     name = _ALLOWED_CHARS.sub("_", name)
@@ -171,12 +156,9 @@ def merge_resources(
     per_owner: list[tuple[str, str, bytes]],
 ) -> dict[str, bytes]:
     """
-    Flatten ``(owner_label, filename, content)`` triples into one working-dir map.
-
-    Two exercises may legitimately both own ``figure.png``. Identical bytes are
-    written once; differing bytes are a genuine conflict the teacher has to
-    resolve by renaming, because the flat filename is the reference used in the
-    LaTeX source and rewriting it would be guesswork.
+    Flatten ``(owner_label, filename, content)`` triples into one working-dir map. Identical bytes
+    are written once; differing bytes are a conflict the teacher resolves by renaming, since
+    rewriting the name in the LaTeX source would be guesswork.
     """
     merged: dict[str, bytes] = {}
     origins: dict[str, str] = {}

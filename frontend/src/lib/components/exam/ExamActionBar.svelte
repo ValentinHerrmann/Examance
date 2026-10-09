@@ -10,7 +10,6 @@
     onScan: () => void;
     onGrade: () => void;
     onStats: () => void;
-    onAddExercises: () => void;
     onDeleteAllSubmissions: () => void;
   }
 
@@ -22,22 +21,16 @@
     onScan,
     onGrade,
     onStats,
-    onAddExercises,
     onDeleteAllSubmissions
   }: Props = $props();
 </script>
 
-<div class="mb-6 flex flex-wrap items-center justify-between gap-2">
-  <div class="flex flex-wrap gap-2">
-    <Button size="sm" onClick={onAddExercises}>
-      {$t("exam.actionBar.addExercises")}
-    </Button>
+<!-- Two groups, each on its own line on phones: regular actions, then the destructive pair pushed right from `sm`. -->
+<div class="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+  <div class="flex w-full flex-wrap gap-2 sm:w-auto">
     <Button size="sm" variant="outlined" severity="secondary" onClick={onScan}>
       {$t("exam.actionBar.scan")}
     </Button>
-  </div>
-
-  <div class="flex flex-wrap gap-2">
     <Button size="sm" variant="outlined" severity="secondary" onClick={onGrade}>
       {$t("exam.actionBar.grade")}
     </Button>
@@ -50,6 +43,9 @@
     <Button size="sm" variant="outlined" severity="secondary" onClick={onExport}>
       {$t("exam.actionBar.export")}
     </Button>
+  </div>
+
+  <div class="flex w-full flex-wrap gap-2 sm:ml-auto sm:w-auto">
     <Button size="sm" variant="outlined" severity="danger" onClick={onDeleteAllSubmissions}>
       {$t("exam.actionBar.deleteSubmissions")}
     </Button>

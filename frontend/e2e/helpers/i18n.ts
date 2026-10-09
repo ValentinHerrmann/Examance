@@ -1,8 +1,7 @@
 /**
- * Catalog-driven text matching: specs ask for a catalog key (`src/lib/i18n/{en,de}`) and get
- * a case-insensitive SUBSTRING RegExp, so rewording changes tests and app together. Emoji and
- * decorative glyphs (arrows, `+`, numbering, required `*`) are stripped because redesigns turn
- * them into icons. `{placeholders}` use `vars` or become wildcards.
+ * Catalog-driven text matching: specs pass a catalog key (`src/lib/i18n/{en,de}`) and get a case-insensitive SUBSTRING
+ * RegExp, so rewording changes tests and app together. Emoji and decorative glyphs are stripped because redesigns turn
+ * them into icons; `{placeholders}` use `vars` or become wildcards.
  */
 import { de } from '../../src/lib/i18n/de';
 import { en } from '../../src/lib/i18n/en';

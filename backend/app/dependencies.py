@@ -159,15 +159,33 @@ async def get_admin_teacher(
     return teacher
 
 
+async def get_teaching_teacher(
+    teacher: Teacher = Depends(get_current_teacher),
+) -> Teacher:
+    """Require a teacher account: admins manage users and the server only (issue #58).
+
+    Gates every endpoint that reads or writes exams, exercises, results or their settings.
+    An admin's legacy data is kept but unreachable until `cli.py set-role` makes it a teacher."""
+    if teacher.role != "teacher":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin accounts manage users and the server; exams and exercises need a "
+            "teacher account.",
+            headers={"code": "ERR_TEACHER_ROLE_REQUIRED"},
+        )
+    return teacher
+
+
 async def get_exam_for_teacher(
     exam_id: uuid.UUID,
-    teacher: Teacher = Depends(get_current_teacher),
+    teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> Exam:
     """
     Return the exam if it belongs to *teacher* and is not soft-deleted.
 
-    Always raises 401 (not 404) for unauthorized access — never leaks resource existence.
+    Missing, foreign and deleted all answer the same 404, so existence never leaks. Not 401: the
+    client would refresh the session, and a queued write for a deleted exam would retry forever.
     """
     result = await db.execute(
         select(Exam).where(
@@ -178,14 +196,17 @@ async def get_exam_for_teacher(
     )
     exam = result.scalar_one_or_none()
     if exam is None:
-        # 401 not 404 — per API contract: never leak resource existence
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Exam not found.",
+            headers={"code": "ERR_EXAM_NOT_FOUND"},
+        )
     return exam
 
 
 async def get_exercise_for_teacher(
     exercise_id: uuid.UUID,
-    teacher: Teacher = Depends(get_current_teacher),
+    teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> Exercise:
     """Return the exercise only if it belongs to *teacher*; use for every write path.
@@ -206,7 +227,7 @@ async def get_exercise_for_teacher(
 
 async def get_readable_exercise(
     exercise_id: uuid.UUID,
-    teacher: Teacher = Depends(get_current_teacher),
+    teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> Exercise:
     """Return the exercise if *teacher* owns it or it is shared with them (issue #65).

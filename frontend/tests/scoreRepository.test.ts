@@ -143,9 +143,18 @@ describe('scoreRepository', () => {
     expect(await db.exerciseScores.count()).toBe(0);
   });
 
+  it('throws on a failed server read instead of reporting no scores', async () => {
+    // Grading views read "no row" as ungraded and delete it on save.
+    storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'local' });
+    vi.mocked(api.get).mockRejectedValue(new Error('unreachable'));
+
+    await expect(scoreRepository.getBySubmissionId('exam-1', 'sub-1', key)).rejects.toThrow('unreachable');
+    await expect(scoreRepository.getByExamId('exam-1', key)).rejects.toThrow('unreachable');
+  });
+
   it('queues a failed server write as a replayable PUT', async () => {
     storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'local' });
-    vi.mocked(api.put).mockRejectedValue(new Error('offline'));
+    vi.mocked(api.put).mockRejectedValue(Object.assign(new Error('offline'), { status: 0, code: 'ERR_NETWORK' }));
 
     await scoreRepository.saveMany(
       'exam-1',
@@ -161,5 +170,18 @@ describe('scoreRepository', () => {
     expect(queued).toHaveLength(1);
     expect(queued[0].method).toBe('PUT');
     expect(queued[0].url).toBe('/exams/exam-1/submissions/sub-1/scores');
+  });
+
+  it('rethrows a refused write instead of queuing it', async () => {
+    // A 4xx would be refused again on every replay; the caller must learn it was not saved.
+    storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'local' });
+    vi.mocked(api.put).mockRejectedValue(Object.assign(new Error('forbidden'), { status: 403, code: 'ERR_X' }));
+
+    await expect(
+      scoreRepository.saveMany('exam-1', 'sub-1', [{ id: 'sc-1', submissionId: 'sub-1', exerciseId: 'ex-1', score: 3 }], key)
+    ).rejects.toThrow('forbidden');
+    let queued: unknown[] = [];
+    offlineQueue.subscribe((q) => (queued = q))();
+    expect(queued).toHaveLength(0);
   });
 });

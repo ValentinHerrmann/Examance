@@ -17,9 +17,11 @@
      */
     mustChoose?: boolean;
     onClose?: () => void;
+    /** False for an admin account: it holds no exams, so only the server address is offered (issue #58). */
+    teaching?: boolean;
   }
 
-  let { isOpen = false, mustChoose = false, onClose }: Props = $props();
+  let { isOpen = false, mustChoose = false, onClose, teaching = true }: Props = $props();
 
   let statusMsg = $state("");
   let customBackendUrl = $state("");
@@ -103,6 +105,7 @@
       <Alert severity="info">{$t("storagePolicy.choice.body")}</Alert>
     {/if}
 
+    {#if teaching}
     <div>
       <h4 class="m-0 mb-1 text-base text-content">{$t("misc.storageModal.storageHeading")}</h4>
       <p class="m-0 mb-3 text-sm text-muted">{$t("misc.storageModal.storageDescription")}</p>
@@ -137,8 +140,9 @@
         {/each}
       </div>
     </div>
+    {/if}
 
-    {#if !mustChoose}
+    {#if !mustChoose && teaching}
       <div>
         <h4 class="m-0 mb-1 text-base text-content">{$t("misc.storageModal.latexHeading")}</h4>
         <p class="m-0 mb-3 text-sm text-muted">{$t("misc.storageModal.latexDescription")}</p>
@@ -183,7 +187,9 @@
           </label>
         </div>
       </div>
+    {/if}
 
+    {#if !mustChoose}
       <div>
         <h4 class="m-0 mb-1 text-base text-content">{$t("misc.storageModal.backendHeading")}</h4>
         <p class="m-0 mb-3 text-sm text-muted">{$t("misc.storageModal.backendDescription")}</p>

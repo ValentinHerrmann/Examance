@@ -1,7 +1,7 @@
 # Legal Audit — DSGVO / BDSG / Bavarian School Law
 
 **Subject:** Examance (repository: BlindGrade), a privacy-first exam authoring and grading application.
-**Assumed deployment:** hosted, used and maintained in Germany, primarily for Bavarian schools.
+**Assumed deployment:** hosted, used and maintained in Germany, primarily for Bavarian schools. The current production installation is run by a private individual for teachers (shape C in §1).
 **Method:** manual review of the source tree against the Regulation, read alongside a static security review of the same codebase. Every finding cites the code it is drawn from.
 **Status of this document:** the code findings below were remediated in the same change set that introduced this file; each carries its post-fix state. The organisational findings (Art. 30, Art. 35, legal basis, operator identity) remain open and are the school's to complete.
 
@@ -11,14 +11,15 @@
 
 ## 1. Role model — who owes which duty
 
-Examance supports two deployment shapes, and the duties differ. Every finding below is tagged **[C]** (controller), **[P]** (processor) or **[C+P]**.
+Examance supports three deployment shapes, and the duties differ. Every finding below is tagged **[C]** (controller), **[P]** (processor) or **[C+P]**.
 
 | Deployment | Controller | Processor | Notes |
 | :--- | :--- | :--- | :--- |
 | **A — School self-hosts.** The school runs the backend itself (every user signs in with a server account; the former `all-local` mode with no backend was discontinued with issue #47). | The school | none | No Art. 28 contract needed. The school owes Art. 30 records, the Art. 35 DPIA, and the Art. 13 notice directly. |
 | **B — A third party hosts for schools.** | Each school | The operator | Art. 28 contract required before any processing — see `DPA_template.md`. The operator owes Art. 32 measures, Art. 33(2) notification to the school, and sub-processor transparency. |
+| **C — A private individual hosts for teachers** (the current production installation, issue #61). | The operator, for teacher accounts and the public pages; the teacher or their school, for pupil data | The operator, for pupil data | Shape B with a private operator: teachers sign up themselves. The public privacy statement (`/legal/datenschutz`) is written for this shape: it names the operator as controller for account, log and opt-in data (Art. 6(1)(b), (f), (a)) and as processor for pupil data (Art. 28). The operator's identity comes from build-time variables (`docs/deployment.md`), not from the repository. |
 
-In **both** shapes the school is the controller: it decides that exams are graded and why. The teacher is not a separate controller; they act for the school. Each account uses one of two storage modes, chosen at first sign-in. In `hybrid` mode pupil identity, scans and scores stay in the teacher's browser, which changes the technical exposure but **not** the school's controllership — see L12; exercises and exam metadata still go to the backend. In `all-server` mode the pupil data also reaches the backend, as client-side ciphertext. (Until issue #47 a third mode, `all-local`, kept everything in the browser with no account.)
+In shapes A and B the school is the controller: it decides that exams are graded and why. The teacher is not a separate controller; they act for the school. In shape C the teacher, or the school they act for, is the controller for pupil data. Each account uses one of two storage modes, chosen at first sign-in. In `hybrid` mode pupil identity, scans and scores stay in the teacher's browser, which changes the technical exposure but **not** the school's controllership — see L12; exercises and exam metadata still go to the backend. In `all-server` mode the pupil data also reaches the backend, as client-side ciphertext. (Until issue #47 a third mode, `all-local`, kept everything in the browser with no account.)
 
 ---
 
@@ -71,6 +72,8 @@ This was the most serious compliance defect found: the application's central sto
 
 **Fixed:** exam expiry now stamps a grace deadline onto the exam's student identities and submissions, and the same job hard-deletes them once it passes. Covered by `tests/test_retention.py`, which fails against the previous implementation.
 
+*Follow-up (issue #69):* the same gap remained for deliberate deletion. `DELETE /exams/{id}` soft-deleted only the exam (which the job then skips) and `DELETE …/submissions/{id}` set no deadline, so that data was never erased either. Both now stamp the grace deadline, restore no longer revives a deleted exam's rows, and migration `0034_deleted_exam_retention` backfilled the rows deleted before.
+
 ### L2 — Erasing one student deleted every student's submissions · Art. 5(1)(d), 17 · [C+P] · **Fixed**
 
 `lib/gdpr/erasure.ts` selected the submissions to delete with `allSubs.filter((s) => s.pseudonymHash)` — a truthiness test, not an identity comparison. Every submission in the exam carries a `pseudonymHash`, so an Art. 17 request from one pupil destroyed the graded work of the entire class.
@@ -99,11 +102,11 @@ The sub-processor list named "PostgreSQL 16 Hosting Provider" and "Redis 7 Hosti
 
 **Fixed in the template:** Cloudflare is now named with a transfer-basis column, and the remaining hosting providers have placeholder rows. **Open for the operator:** name the actual providers and record the transfer impact assessment. If the school self-hosts the frontend inside the EU/EEA, delete that row instead.
 
-### L5 — No Impressum and no Datenschutzerklärung · § 5 DDG, Art. 12–14 · [C] · **Fixed (scaffolding)**
+### L5 — No Impressum and no Datenschutzerklärung · § 5 DDG, Art. 12–14 · [C] · **Fixed**
 
 Neither existed anywhere in the application. § 5 DDG requires a reachable Impressum; Art. 13 requires the information notice to be given at collection.
 
-**Fixed:** `/legal/impressum` and `/legal/datenschutz` were added, linked from a footer on every page, and exempted from the unlock redirect so they are reachable without logging in. **Open:** both ship with clearly marked placeholders — operator identity, DPO contact, the state-law legal basis, and the hosting details are facts only the operator can supply. They must be completed and legally reviewed before production.
+**Fixed:** `/legal/impressum` and `/legal/datenschutz` were added, linked from a footer on every page, and exempted from the unlock redirect so they are reachable without logging in. Since issue #61 both are written for deployment shape C and kept to the legal minimum (§ 18(1) MStV / § 5 DDG; Art. 13 mandatory items). The operator's name, address and e-mail are build-time variables (`VITE_LEGAL_*`, `docs/deployment.md`); a build without them shows marked placeholders and a "not configured" banner. The retention periods are read at runtime from the backend's settings (`GET /api/v1/privacy/retention`), so the statement cannot drift from what the retention job enforces. **Open:** a school self-hosting (shape A) or a commercial operator (shape B) must rewrite the text for its own role model and legal basis.
 
 ### L6 — No Art. 30 record and no Art. 35 DPIA · Art. 30, 35 · [C] · **Open (templates provided)**
 
@@ -184,7 +187,7 @@ Neither is a disclosure of exam content: only request metadata leaves the browse
 
 Two controls now hold the line, which is the point of the finding: the CSP is `default-src 'self'` with no CDN allowances, so a reintroduced load is *blocked* rather than silently working; and `frontend/tests/cspHeaders.test.ts` fails the build if any file under `frontend/src/` names an off-origin host outside a small allowlist (XML namespaces, `localhost`, and a form placeholder).
 
-**Reintroduced deliberately (issue #59):** the owner decided the `http.cat` status image comes back, with the rule that sending the IP address is acceptable and nothing more. `HttpCatModal` requests `https://http.cat/<status>` only while the error modal is open, with `referrerpolicy="no-referrer"` (on top of the site-wide `Referrer-Policy: no-referrer`) and without credentials. What reaches the operator is the IP address, User-Agent, timing and the status code in the URL path; no Referer, no cookies, no application content. It is image-only: CSP `img-src` allows exactly `https://http.cat`, `script-src` and `connect-src` are unchanged, and `http.cat` is the one third-party entry in the `cspHeaders.test.ts` allowlist. The operator is named as a recipient in the Art. 30 record and in the privacy policy (Datenschutzerklärung §6, legal basis Art. 6(1)(f)). The image is still not self-hosted (licence). The text rendering remains as loading and failure fallback.
+**Reintroduced deliberately (issue #59):** the owner decided the `http.cat` status image comes back, with the rule that sending the IP address is acceptable and nothing more. `HttpCatModal` requests `https://http.cat/<status>` only while the error modal is open, with `referrerpolicy="no-referrer"` (on top of the site-wide `Referrer-Policy: no-referrer`) and without credentials. What reaches the operator is the IP address, User-Agent, timing and the status code in the URL path; no Referer, no cookies, no application content. It is image-only: CSP `img-src` allows exactly `https://http.cat`, `script-src` and `connect-src` are unchanged, and `http.cat` is the one third-party entry in the `cspHeaders.test.ts` allowlist. The operator is named as a recipient in the Art. 30 record and in the privacy policy (Datenschutzerklärung §7, legal basis Art. 6(1)(f)). The image is still not self-hosted (licence). The text rendering remains as loading and failure fallback.
 
 **Note for a reader assessing the past:** these loads were live in every deployed version before this branch. If a retrospective assessment is needed, the exposure is request metadata only, continuous, to Cloudflare Inc. (pdf.js) and the `http.cat` operator.
 
@@ -202,15 +205,14 @@ This contradicts `data_flow_and_security.md` Core Invariant 1 ("zero unencrypted
 
 Two things a reader should not over-read. The upgrade rewrites rows on this device when the browser next opens the database — a device that never opens it again keeps its old rows. And server-side `student_identities` rows were never affected: they only ever held ciphertext.
 
-### L18 — Self-registration adds processing the privacy notice does not describe yet · Art. 13, 5(1)(c)+(e), 25, 30, 35 · [C+P] · **Open (code and draft notice done, legal review pending)**
+### L18 — Self-registration adds processing the privacy notice did not describe · Art. 13, 5(1)(c)+(e), 25, 30, 35 · [C+P] · **Mostly fixed (notice done; Art. 30 and DPIA open)**
 
 Issue #53 lets anyone register for an account (always available). That adds data categories and a data-subject group the earlier findings did not cover: a registrant's e-mail address before verification (possibly of a third party who never asked for anything), a hashed verification token, an optional free-text note for the approving admin, the approval timestamp and per-account feature switches. See §3.
 
 *What the code does about it.* The design follows data protection by default (Art. 25): nothing is created before the mailed link is used, so `teachers` holds verified addresses only; registration answers identically for known and unknown addresses, with the mail sent after the response, so it is no account-existence oracle; a pending account holds no token of any kind and can create no data; the note is never put into a mail, is erased on approval and is not stored at all for an allowlisted domain; the admin notice mail carries a count, not registrant data; expired requests and accounts nobody approves are erased by the retention job (`PENDING_ACCOUNT_RETENTION_DAYS`, default 90); every step is in the audit trail. The risks are assessed as R11–R14 in `dpia_art35.md`.
 
 *What is still open.*
-- **The in-app privacy notice (Datenschutzerklärung) has a draft that needs legal review.** The German text in `frontend/src/lib/i18n/de/legal.ts` (mirrored unchanged in `en/legal.ts`) now describes the registration processing: categories (§4), the mail provider as recipient (§6), retention of requests and pending accounts (§7) and a new §11 on registration, approval and the registrant's rights. Still open: review of the wording, and the placeholders for the mail provider, the retention values and the legal basis. Registration has no switch, so every deployment of this version relies on that draft.
-- **Legal basis for the registrant's data.** Before approval there is no teacher yet, so the school-law basis in L11 may not carry the processing. The DPO has to decide and the notice has to state it; this document does not fix one.
+- **Privacy notice: done for shape C (issue #61).** The German text in `frontend/src/lib/i18n/de/legal.ts` (mirrored unchanged in `en/legal.ts`) describes registration and approval (§3), names the mail provider as a processor category (§6) and states the real retention periods of requests and pending accounts (§9). The legal basis for the registrant's data is Art. 6(1)(b) (steps prior to the user relationship the registrant asked for). A school or commercial operator must still settle its own basis, since the school-law basis in L11 may not carry a registrant who is not yet a teacher.
 - **Registrants cannot use the in-app Art. 15/17 routes** from L8: a pending account has no session. The operator must answer such requests by hand (R14).
 - **Complete `records_of_processing_art30.md` and the DPIA** for the new categories and for the mail provider behind `SMTP_HOST`, which registration now makes mandatory.
 - **Allowlist is a trust decision.** An admin who lists a public mail provider approves everyone there. The Admin UI warns; nothing else prevents it (R12).
@@ -228,6 +230,7 @@ Things a reader should not conclude from this document:
 - **The Vite dev-server advisory (GHSA-4w7w-66w2-5vf9) is closed.** It was open while the frontend was on Svelte 4 (pinned to Vite 5); the Svelte 5 / SvelteKit 3 / Vite 8 migration removed it, and `npm audit` reports no known advisory for the full frontend tree at the time of that change. It only ever affected the development server, never the shipped static files.
 - **This review missed the third-party asset loads on its first pass** (L16). The methodology audited requests to our own backend and did not enumerate what the browser fetches from other origins; two CDN loads were live in every deployed version until they were found afterwards. Treat the "no external hosts" property as resting on the CSP and the test that now enforce it, not on the thoroughness of this document.
 - **The full LaTeX compile path was not executed end-to-end** during this work: the sandbox could not reach Tectonic's TeX Live bundle. `--untrusted` was confirmed to be a real, documented flag on the pinned version and its placement is unit-tested, but a live compile should be run before deployment.
+- **`--untrusted` does not confine file reads** (found in issue #69, from the Tectonic 0.17.0 source: its filesystem layer always allows absolute and `../` paths). A teacher with server LaTeX could typeset any file the backend user may read, which included the process environment holding `SECRET_KEY` and the database password. Mitigated by starting Tectonic with a secret-free environment, marking the server process non-dumpable (its `/proc` entries become unreadable to the compiler) and starting the container healthcheck with an empty environment. Residual: files readable by the backend user (application code, Tectonic cache) remain readable; a separate compile container without secrets would remove that too.
 
 ---
 
@@ -235,7 +238,7 @@ Things a reader should not conclude from this document:
 
 Ordered by what blocks a school deployment.
 
-1. **Complete the Impressum and Datenschutzerklärung placeholders** (L5, L11) — operator identity, DPO, legal basis. Blocking: shipping without these is unlawful on day one.
+1. **Set the operator details for the legal pages** (L5) — the `VITE_LEGAL_*` build variables in both Cloudflare Pages environments (`docs/deployment.md`). In shape A or B, also rewrite the text for that role model (DPO, school-law legal basis). Blocking: shipping without these is unlawful on day one.
 2. **Confirm the state-law parameters in §2** with the school's DPO, especially the statutory retention period. Blocking.
 3. **Conduct the DPIA** (L6) using `dpia_art35.md`. Blocking: it is required, and it must precede processing.
 4. **Complete the Art. 30 record** (L6) using `records_of_processing_art30.md`.
@@ -243,7 +246,7 @@ Ordered by what blocks a school deployment.
 6. **Decide the private-device question** (L12) if teachers use personal machines.
 7. **Set a real `SECRET_KEY`** and confirm the app refuses to start without one — it now does.
 8. **Consider enforcing SRI** (§5) by vendoring and hashing the WASM binaries.
-9. **Before deploying self-registration (issue #53), which has no switch:** have the drafted registration passages of the German privacy policy (`frontend/src/lib/i18n/de/legal.ts`) legally reviewed and fill their placeholders, settle the legal basis for registrants, and extend the Art. 30 record and the DPIA (L18).
+9. **Self-registration (issue #53), which has no switch:** extend the Art. 30 record and the DPIA (L18). The privacy statement covers it for shape C since issue #61.
 
 ---
 

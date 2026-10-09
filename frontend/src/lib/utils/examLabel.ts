@@ -14,6 +14,12 @@ export function formatExamCourse(grade?: string | null, klasse?: string | null):
   return g || k || '';
 }
 
+/** Distinct exercise topics as exam-topic suggestions; "_General" is the editor's default, not a topic. */
+export function exerciseTopicSuggestions(exercises: { topicTag?: string | null }[]): string[] {
+  const topics = exercises.map((e) => e.topicTag?.trim()).filter((t): t is string => !!t && t !== '_General');
+  return [...new Set(topics)].sort();
+}
+
 /**
  * Parse a combined date/duration string into separate datumDate and dauer parts.
  * e.g. "20.05.2025 (30 Min)" -> { datumDate: "20.05.2025", dauer: "30 Min" }

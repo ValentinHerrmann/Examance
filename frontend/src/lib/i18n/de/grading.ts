@@ -3,6 +3,7 @@ export const grading = {
         empty: 'Keine Abgaben zu dieser Prüfung vorhanden.',
         saveSuccess: 'Note und Anmerkungen erfolgreich gespeichert!',
         saveFailed: 'Speichern der Note fehlgeschlagen: {message}',
+        scoresLoadFailed: 'Die gespeicherten Punkte dieser Abgabe konnten nicht geladen werden ({message}). Speichern ist gesperrt, bis sie geladen sind, damit keine Bewertung verloren geht.',
         unsavedNext: 'Es gibt ungespeicherte Anmerkungen für diesen Schüler. Trotzdem zum nächsten Schüler wechseln?',
         unsavedPrev: 'Es gibt ungespeicherte Anmerkungen für diesen Schüler. Trotzdem zum vorherigen Schüler wechseln?',
     },
@@ -122,7 +123,9 @@ export const grading = {
             tabStudentFirst: 'Schülerweise Eingabe (alle Aufgaben pro Schüler)',
             tabRoster: 'Schülerliste ({count})',
             loading: 'Prüfungsdaten werden geladen...',
+            loadFailed: 'Die Prüfungsdaten konnten nicht geladen werden ({message}). Die Eingabe ist gesperrt, damit keine gespeicherten Punkte verloren gehen.',
         },
+        saveFailed: 'Punkte nicht gespeichert: {message}',
         exerciseFirst: {
             noExercises: 'Für diese Prüfung sind noch keine Aufgaben definiert.',
             goToSetup: 'Zu Einrichtung & Aufgaben',

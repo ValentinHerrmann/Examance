@@ -513,7 +513,9 @@
         }
       }
 
-      if ($isAuthenticated) {
+      // saveExerciseEncrypted() already created a new exercise on the server; a second
+      // POST is a 409 (create-only). The PATCH sends explicit nulls so cleared fields stick.
+      if ($isAuthenticated && editingExercise) {
         try {
           const payload = {
             name: record.name,
@@ -526,14 +528,7 @@
             correct_answers: editorQuestionType !== "free_text" ? { options: optionsArray, correct: correctIndices } : null,
             penalty: record.penalty || 0,
           };
-          if (editingExercise) {
-            await api.patch(`/exercises/${id}`, payload);
-          } else {
-            await api.post("/exercises", {
-              id: record.id,
-              ...payload,
-            });
-          }
+          await api.patch(`/exercises/${id}`, payload);
         } catch (apiErr) {
           console.warn("Failed to sync exercise to server:", apiErr);
         }
@@ -611,7 +606,7 @@
               <TextInput
                 id="editorVariantKey"
                 size="sm"
-                bind:value={editorVariantKey}
+                bind:value={editorVariantKey} maxlength={100}
                 placeholder={$t("exercises.editor.variantKeyPlaceholder")}
               />
             </div>
@@ -622,7 +617,7 @@
                 <TextInput
                   id="editorName"
                   size="sm"
-                  bind:value={editorName}
+                  bind:value={editorName} maxlength={200}
                   required
                   placeholder={$t("exercises.editor.namePlaceholder")}
                 />
@@ -633,7 +628,7 @@
                 <SuggestInput
                   id="editorTopic"
                   storageKey="exercise.topic"
-                  bind:value={editorTopicTag}
+                  bind:value={editorTopicTag} maxlength={200}
                   placeholder="_Vererbung"
                   required
                   class="{controlClass} {controlSmClass}"
@@ -645,7 +640,7 @@
                 <SuggestInput
                   id="editorGrade"
                   storageKey="exercise.grade"
-                  bind:value={editorGrade}
+                  bind:value={editorGrade} maxlength={50}
                   placeholder={$t("exercises.editor.gradePlaceholder")}
                   class="{controlClass} {controlSmClass}"
                 />
@@ -656,7 +651,7 @@
                 <SuggestInput
                   id="editorSubject"
                   storageKey="exercise.subject"
-                  bind:value={editorSubject}
+                  bind:value={editorSubject} maxlength={100}
                   placeholder={$t("exercises.editor.subjectPlaceholder")}
                   class="{controlClass} {controlSmClass}"
                 />
@@ -667,7 +662,7 @@
                 <TextInput
                   id="editorVariantKey"
                   size="sm"
-                  bind:value={editorVariantKey}
+                  bind:value={editorVariantKey} maxlength={100}
                   placeholder={$t("exercises.editor.variantKeyPlaceholderPlain")}
                 />
               </div>

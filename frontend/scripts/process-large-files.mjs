@@ -10,10 +10,8 @@ const MAX_FILE_SIZE = 24 * 1024 * 1024; // 24MB limit for Cloudflare Pages
 const CHUNK_SIZE = 20 * 1024 * 1024;    // 20MB chunk size for splitting
 
 const manifest = {};
-// Large files are collected during the walk and compressed concurrently
-// afterwards: zlib's async gzip runs on the libuv threadpool, so the four
-// TeX Live bundles no longer compress one after another (this runs on every
-// Cloudflare Pages build).
+// Large files are compressed concurrently after the walk: async gzip runs on the libuv threadpool, so the four TeX Live
+// bundles don't compress one after another (this runs on every Cloudflare Pages build).
 const largeFiles = [];
 
 async function processDirectory(dir) {

@@ -1,11 +1,7 @@
 /**
- * Answers the app's API requests from the stateful in-memory fake (`tests/helpers/fakeApi.ts`,
- * shared with the vitest archive tests), so the suite needs no running backend and every run
- * starts from an empty server. The app is served from `http://localhost:4173` and talks to the
- * default dev backend `http://localhost:8000` (`lib/stores/backendStore.ts`), which makes every
- * call cross-origin with credentials: responses carry the CORS headers of the real server and
- * preflights are answered here. The route lives on the browser *context*, so it survives reloads
- * and new pages. Nothing here touches the app's CSP.
+ * Answers the app's API from the in-memory fake (`tests/helpers/fakeApi.ts`), so no backend runs. Calls from :4173 to
+ * :8000 are cross-origin with credentials, so responses carry the real CORS headers and preflights are answered here.
+ * Routed on the browser context so it survives reloads and new pages; never touches the app's CSP.
  */
 import type { BrowserContext, Route } from '@playwright/test';
 import type { FakeApi } from '../../tests/helpers/fakeApi';

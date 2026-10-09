@@ -3,15 +3,16 @@ from __future__ import annotations
 
 import base64
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
-from app.dependencies import get_exam_for_teacher
+from app.dependencies import get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
 from app.models.exercise_score import ExerciseScore
 from app.models.scan_submission import ScanSubmission
@@ -20,7 +21,11 @@ from app.schemas.binary import GCM_IV_BYTES, decode_b64
 from app.schemas.submission import SubmissionCreate, SubmissionResponse, SubmissionScoreUpdate
 from app.services.capabilities import require_server_results_writable
 
-router = APIRouter(prefix="/exams/{exam_id}/submissions", tags=["submissions"])
+router = APIRouter(
+    prefix="/exams/{exam_id}/submissions",
+    tags=["submissions"],
+    dependencies=[Depends(get_teaching_teacher)],
+)
 
 
 @router.get("", response_model=list[SubmissionResponse])
@@ -112,6 +117,15 @@ async def upload_submission(
             )
         )
         await db.flush()
+    elif existing_identity.deleted_at is not None:
+        # Its erasure would cascade to this submission. It comes back as the placeholder, as if
+        # already erased: only a student upload brings deleted PII back.
+        existing_identity.pii_ciphertext = b"\x00"
+        existing_identity.iv = b"\x00" * 12
+        existing_identity.encryption_salt = b"\x00" * 16
+        existing_identity.deleted_at = None
+        existing_identity.retention_until = None
+        await db.flush()
 
     scan_bytes = (
         decode_b64(body.scan_ciphertext_b64, "scan_ciphertext_b64")
@@ -147,6 +161,9 @@ async def upload_submission(
                     detail="Submission belongs to another exam.",
                 )
             existing_sub.pseudonym_hmac = body.pseudonym_hmac
+            # An upsert onto a soft-deleted submission makes it live again.
+            existing_sub.deleted_at = None
+            existing_sub.retention_until = None
             if body.total_score is not None:
                 existing_sub.total_score = body.total_score
             if scan_bytes is not None:
@@ -343,7 +360,9 @@ async def delete_submission(
     if sub is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found.")
 
+    # Retention only erases soft-deleted rows that carry a deadline.
     sub.deleted_at = datetime.now(UTC)
+    sub.retention_until = date.today() + timedelta(days=settings.RETENTION_GRACE_DAYS)
     await db.flush()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

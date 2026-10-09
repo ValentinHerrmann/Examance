@@ -7,6 +7,8 @@ import { ensure64CharHex } from "#lib/crypto/hmac";
 import { loadLocalMcGroups } from "#lib/db/dbEncryption";
 import type { ExerciseRecord, OmrScoreMeta } from "#lib/db/schema";
 import type { OmrRunInfo } from "#lib/grading/omrSettings";
+import { formatStudentName } from "#lib/utils/studentQr";
+import { translate } from "#lib/i18n";
 
 /**
  * The one definition of "a teacher has verified this detection". A re-run must never touch
@@ -109,10 +111,9 @@ export interface ConfusionBucket {
 }
 
 /**
- * Per-OPTION (bubble) classification of OMR reliability, unlike per-QUESTION `DetectionQualityStats`.
- * Ground truth is the human's final selection once reviewed; unreviewed items are bucketed by OMR's
- * original call crossed with its per-option `flaggedOptions` uncertainty. Excludes `failed` items
- * and items without an `original` snapshot (pure-manual entries).
+ * Per-OPTION (bubble) classification of OMR reliability, unlike per-QUESTION `DetectionQualityStats`. Ground truth is the
+ * human's final selection; unreviewed items are bucketed by OMR's original call crossed with `flaggedOptions`. Excludes
+ * `failed` items and items without an `original` snapshot (pure-manual entries).
  */
 export interface DetectionConfusionMatrix {
   totalOptionsEvaluated: number;
@@ -159,10 +160,9 @@ export interface McVerificationStats {
 }
 
 /**
- * `items` has one entry per (submission, MC/SC/TF exercise) pair, the granularity of the verification
- * queues. `*Questions` counts use that granularity; `totalMarkedBoxes` (and `markedBoxes`) sum
- * `markedCount` per marked bubble. Don't conflate them: box counts as headline numbers scaled with
- * marks per question regardless of confidence.
+ * `items` has one entry per (submission, MC/SC/TF exercise) pair; `*Questions` counts use that granularity, while
+ * `totalMarkedBoxes`/`markedBoxes` sum `markedCount` per marked bubble. Don't conflate them: box counts as headline numbers
+ * scaled with marks per question regardless of confidence.
  */
 export async function computeMcVerificationStats(
   examId: string,
@@ -182,7 +182,7 @@ export async function computeMcVerificationStats(
 
   const studentMap = new Map<string, string>();
   for (const st of students) {
-    const label = st.studentName || st.fallbackCode || "";
+    const label = formatStudentName(st.studentName) || st.fallbackCode || "";
     if (!label) continue;
     if (st.pseudonymId) {
       studentMap.set(st.pseudonymId, label);
@@ -195,7 +195,7 @@ export async function computeMcVerificationStats(
     const direct = studentMap.get(sub.pseudonymHash);
     if (direct) return direct;
     const hex = await ensure64CharHex(sub.pseudonymHash);
-    return studentMap.get(hex) || `Unmatched (${sub.id.slice(0, 8)})`;
+    return studentMap.get(hex) || translate("scanning.verifyItem.submissionLabelFallback", { shortId: sub.id.slice(0, 8) });
   }
 
   // One read for the exam, then grouped in memory, to avoid an N+1 network

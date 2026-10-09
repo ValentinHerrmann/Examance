@@ -1,8 +1,6 @@
 /**
- * App-shell navigation (header, menus, session buttons, footer, help, exam tab strip). A
- * shell redesign must only require changes HERE: selectors prefer landmarks, roles and
- * catalog-derived names. Shell today: `AppNavbar` (banner; burger drawer below `xl`, absent
- * on grade), `AppFooter` (contentinfo), `ExamSidebar` (from `lg`).
+ * App-shell navigation (header, menus, footer, help, exam tab strip). A shell redesign must only require changes
+ * HERE: selectors prefer landmarks, roles and catalog-derived names.
  */
 import type { Download, Locator, Page } from '@playwright/test';
 import { expect } from './guards';
@@ -54,10 +52,8 @@ export async function currentLocale(page: Page): Promise<Locale> {
 }
 
 /**
- * Wait until the page has stopped navigating. Locking navigates to `/unlock`
- * more than once (the lock service and the layout's lock handler both assign
- * `location.href`, and the unlock page can reload again), so the first matching
- * URL is not yet the page the test will interact with.
+ * Wait until the page has stopped navigating. Locking navigates to `/unlock` more than once (lock service, layout
+ * handler, unlock-page reload), so the first matching URL is not yet the page the test will interact with.
  */
 export async function settleNavigation(page: Page, quietMs = 700): Promise<void> {
   let lastNavigation = Date.now();
@@ -215,12 +211,22 @@ const WORKSPACE_ITEM_KEYS: Record<WorkspaceAction, string> = {
   clear: 'workspace.menu.clear',
 };
 
-/** Open the navbar's Workspace menu and return the menu that holds its items. */
+/**
+ * Open the menu that holds the workspace items: the navbar's Workspace menu from `sm`, the
+ * account menu on phones (the bar has no room for a separate one, issue #67).
+ */
 export async function openWorkspaceMenu(page: Page): Promise<Locator> {
   const locale = await currentLocale(page);
-  const menu = page.getByRole('menu', { name: label('nav.workspace', undefined, locale) });
+  const workspace = header(page).getByRole('button', { name: label('nav.workspace', undefined, locale) });
+  const inBar = await workspace.isVisible();
+  const menu = inBar
+    ? page.getByRole('menu', { name: label('nav.workspace', undefined, locale) })
+    : page.getByRole('menu').filter({
+        has: page.getByRole('menuitem', { name: label('workspace.menu.open', undefined, locale) }),
+      });
   if (!(await menu.isVisible())) {
-    await header(page).getByRole('button', { name: label('nav.workspace', undefined, locale) }).click();
+    const trigger = inBar ? workspace : header(page).locator('button[aria-haspopup="menu"]').last();
+    await trigger.click();
   }
   await expect(menu).toBeVisible();
   return menu;
@@ -314,10 +320,14 @@ export async function openHelpWithKeyboard(page: Page): Promise<Locator> {
   return dialog;
 }
 
-/** Open the storage & privacy dialog from the navbar's storage-mode button. */
+/**
+ * Open the storage & privacy dialog from the navbar's storage-mode button (from `sm`), or from
+ * the footer's server button on phones, which opens the same dialog.
+ */
 export async function openStoragePolicy(page: Page): Promise<Locator> {
   const locale = await currentLocale(page);
-  await header(page).getByRole('button', { name: label('nav.storageMode', undefined, locale) }).click();
+  const pill = header(page).getByRole('button', { name: label('nav.storageMode', undefined, locale) });
+  await ((await pill.isVisible()) ? pill : statusBar(page).getByRole('button')).click();
   const dialog = page.getByRole('dialog', { name: label('misc.storageModal.heading', undefined, locale) });
   await expect(dialog).toBeVisible();
   return dialog;

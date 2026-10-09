@@ -1,9 +1,4 @@
-"""omr training sample token
-
-Adds omr_training_samples.sample_token: a random per-box id the donating browser
-keeps in its sealed score row, so a re-donation after a corrected label replaces
-the earlier row instead of leaving a contradicting one. Nullable for rows donated
-before the token existed.
+"""omr training sample token: re-donation replaces the earlier row; nullable for old rows
 
 Revision ID: 0023_omr_training_sample_token
 Revises: 0022_omr_training_samples

@@ -6,7 +6,7 @@
 
 import type { ExerciseRecord } from '#lib/db/schema';
 import { isMcQuestion } from './mcScore';
-import { parseMcOptions } from '#lib/latex/mcOptions';
+import { printedMcOptions } from '#lib/latex/mcOptions';
 import {
   loadExamExercisesEncrypted,
   loadExercisesEncrypted,
@@ -19,12 +19,21 @@ export interface McGroupLike {
 }
 
 /**
- * Normalizes an ExerciseRecord so `options` and `correctAnswers` are populated for MC/SC/TF:
- * accepts the backend `{ options, correct }` object and parses `latexBody` via `parseMcOptions`
- * when either is missing.
+ * Fills `options`/`correctAnswers` for MC/SC/TF. The LaTeX wins: it is what is printed and what the
+ * OMR template numbers, while the stored `{ options, correct }` goes stale on edits that write only
+ * `latex_body` (new variants, the diff editor, resync). The stored copy is the fallback without one.
  */
 export function normalizeMcExercise(ex: ExerciseRecord): ExerciseRecord {
   if (!isMcQuestion(ex)) return ex;
+
+  const printed = printedMcOptions(ex.latexBody);
+  if (printed.length > 0) {
+    return {
+      ...ex,
+      options: printed.map((o) => o.text),
+      correctAnswers: printed.flatMap((o, i) => (o.correct ? [i] : [])),
+    };
+  }
 
   let options: string[] = Array.isArray(ex.options) ? [...ex.options] : [];
   let correctAnswers: number[] = [];
@@ -39,18 +48,6 @@ export function normalizeMcExercise(ex: ExerciseRecord): ExerciseRecord {
     }
   } else if (Array.isArray(rawAnswers)) {
     correctAnswers = rawAnswers;
-  }
-
-  if ((options.length === 0 || correctAnswers.length === 0) && ex.latexBody) {
-    const parsed = parseMcOptions(ex.latexBody);
-    if (parsed.options.length > 0) {
-      if (options.length === 0) {
-        options = parsed.options.map((o) => o.text);
-      }
-      if (correctAnswers.length === 0) {
-        correctAnswers = parsed.options.flatMap((o, i) => (o.correct ? [i] : []));
-      }
-    }
   }
 
   return {

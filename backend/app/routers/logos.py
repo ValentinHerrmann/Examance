@@ -1,9 +1,6 @@
 """Exam header logos (issue #46) — /api/v1/user/logo and /api/v1/exams/{id}/logo.
-
-An account prints the bundled default logo (MTG) until it chooses its own file or none; an exam
-follows its account, prints none, or prints its own (``app.services.logo``). Bytes travel as
-base64 JSON like exercise resources and are served back only to their owner, as an image or PDF
-with sniffing disabled.
+An account prints the bundled default logo until it picks its own or none; an exam follows
+its account, prints none, or its own (``app.services.logo``). Owner-only, sniffing disabled.
 """
 from __future__ import annotations
 
@@ -13,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_teacher, get_exam_for_teacher
+from app.dependencies import get_current_teacher, get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
 from app.models.logo import ExamLogo, TeacherLogo
 from app.models.teacher import Teacher
@@ -28,7 +25,7 @@ from app.services.logo import (
     resolve_logo,
 )
 
-router = APIRouter(tags=["logos"])
+router = APIRouter(tags=["logos"], dependencies=[Depends(get_teaching_teacher)])
 
 
 def _invalid(detail: str) -> HTTPException:

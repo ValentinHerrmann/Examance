@@ -135,6 +135,7 @@ export const storagePolicy = {
             title: 'Titel',
             testart: 'Testart',
             fach: 'Fach',
+            topic: 'Thema',
             grade: 'Jahrgangsstufe',
             klasse: 'Klasse',
             datum: 'Datum',

@@ -13,6 +13,9 @@
     nr: string;
     datum: string;
     fach: string;
+    topic?: string;
+    /** Topics of the selected exercises, offered next to the previously used exam topics. */
+    topicSuggestions?: string[];
     lehrernachname: string;
     infoText: string;
   }
@@ -25,6 +28,8 @@
     nr = $bindable(),
     datum = $bindable(),
     fach = $bindable(),
+    topic = $bindable(""),
+    topicSuggestions = [],
     lehrernachname = $bindable(),
     infoText = $bindable()
   }: Props = $props();
@@ -60,7 +65,7 @@
   <Field label={$t("examCreation.metadataForm.titleLabel")} forId="title">
     <TextInput
       id="title"
-      bind:value={title}
+      bind:value={title} maxlength={500}
       placeholder={$t("examCreation.metadataForm.titlePlaceholder")}
       required
     />
@@ -72,7 +77,7 @@
         id="testart"
         class={controlClass}
         storageKey="exam.testart"
-        bind:value={testart}
+        bind:value={testart} maxlength={100}
         placeholder={$t("examCreation.metadataForm.testartPlaceholder")}
         required
       />
@@ -83,7 +88,7 @@
         id="grade"
         class={controlClass}
         storageKey="exam.grade"
-        bind:value={grade}
+        bind:value={grade} maxlength={50}
         placeholder={$t("examCreation.metadataForm.gradePlaceholder")}
         required
       />
@@ -94,13 +99,13 @@
         id="klasse"
         class={controlClass}
         storageKey="exam.klasse"
-        bind:value={klasse}
+        bind:value={klasse} maxlength={50}
         placeholder={$t("examCreation.metadataForm.klassePlaceholder")}
       />
     </Field>
 
     <Field label={$t("examCreation.metadataForm.nrLabel")} forId="nr">
-      <TextInput id="nr" bind:value={nr} placeholder={$t("examCreation.metadataForm.nrPlaceholder")} required />
+      <TextInput id="nr" bind:value={nr} maxlength={10} placeholder={$t("examCreation.metadataForm.nrPlaceholder")} required />
     </Field>
   </div>
 
@@ -140,7 +145,7 @@
         id="fach"
         class={controlClass}
         storageKey="exam.fach"
-        bind:value={fach}
+        bind:value={fach} maxlength={100}
         placeholder={$t("examCreation.metadataForm.fachPlaceholder")}
         required
       />
@@ -151,12 +156,24 @@
         id="lehrer"
         class={controlClass}
         storageKey="exam.lehrernachname"
-        bind:value={lehrernachname}
+        bind:value={lehrernachname} maxlength={100}
         placeholder={$t("examCreation.metadataForm.lehrerPlaceholder")}
         required
       />
     </Field>
   </div>
+
+  <Field label={$t("examCreation.metadataForm.topicLabel")} forId="topic" hint={$t("examCreation.metadataForm.topicHint")}>
+    <SuggestInput
+      id="topic"
+      class={controlClass}
+      storageKey="exam.topic"
+      extraSuggestions={topicSuggestions}
+      bind:value={topic}
+      maxlength={200}
+      placeholder={$t("examCreation.metadataForm.topicPlaceholder")}
+    />
+  </Field>
 
   <Field label={$t("examCreation.metadataForm.infoLabel")} forId="info">
     <Textarea id="info" rows={2} bind:value={infoText} />

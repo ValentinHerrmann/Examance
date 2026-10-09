@@ -31,10 +31,8 @@ class ExamMcGroup(Base):
     )
     order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
-    # No delete-orphan: a member is an exam↔exercise link that outlives the
-    # group it happened to be placed in (see ExamExercise.mc_group_id). The DB
-    # nulls the column out on delete; passive_deletes keeps the ORM from
-    # second-guessing that with its own UPDATE/DELETE.
+    # No delete-orphan: a member link outlives its group (see ExamExercise.mc_group_id).
+    # The DB nulls the column; passive_deletes keeps the ORM from issuing its own UPDATE.
     members: Mapped[list[ExamExercise]] = relationship(
         "ExamExercise",
         foreign_keys="ExamExercise.mc_group_id",

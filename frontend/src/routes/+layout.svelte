@@ -13,7 +13,8 @@
     markSessionReady,
   } from "#lib/stores/session";
   import { vaultIntegrityStore } from "#lib/stores/vaultIntegrity";
-  import { api } from "#lib/api/client";
+  import { rejectedWritesStore } from "#lib/services/offlineQueue";
+  import { refreshSession } from "#lib/api/client";
   import {
     storagePolicyStore,
   } from "#lib/stores/storagePolicy";
@@ -27,7 +28,13 @@
     versionStatus,
     refreshBackendVersion,
   } from "#lib/stores/versionStore";
-  import { registerNavigationGuard, isGradeActivePath, isPublicPath } from "#lib/stores/navigationStore";
+  import {
+    registerNavigationGuard,
+    isGradeActivePath,
+    isPublicPath,
+    isAdminPath,
+    ADMIN_HOME,
+  } from "#lib/stores/navigationStore";
   import {
     importArchiveInteractively,
     exportArchiveInteractively,
@@ -42,6 +49,7 @@
   import type { StorageMode } from "#lib/stores/storagePolicy";
   import { workspaceStatusStore } from "#lib/stores/workspaceState";
   import { effectiveLatexStore } from "#lib/stores/capabilities";
+  import { preloadLocalLatexEngine } from "#lib/latex/preload";
   import { registerWorkspaceSync, switchRunningElsewhere } from "#lib/stores/workspaceSync";
   import WorkspaceBlocked from "#lib/components/storage/WorkspaceBlocked.svelte";
   import AppNavbar from "#lib/components/layout/AppNavbar.svelte";
@@ -103,6 +111,12 @@
   }
 
   let isGradeActive = $derived(isGradeActivePath(page.url.pathname));
+
+  // Admins manage users and the server only (issue #58). Teaching routes stay unmounted until the
+  // session's role is known, so an admin never renders one or calls its (refusing) endpoints.
+  let isAdmin = $derived($isUnlocked && $sessionStore.role === "admin");
+  let roleKnown = $derived(!isInitializing || $workspaceStatusStore.state !== "unchecked");
+  let holdRoute = $derived(!isAdminPath(page.url.pathname) && (!roleKnown || isAdmin));
 
   let showFullNav = $derived($isUnlocked && page.url.pathname !== "/unlock");
   let showExamSidebar = $derived(
@@ -182,7 +196,7 @@
 
       if (mode === "hybrid" || mode === "authenticated") {
         try {
-          await api.post("/auth/refresh", undefined, { silentError: true });
+          await refreshSession();
         } catch {
           await lockSession();
           isInitializing = false;
@@ -283,6 +297,19 @@
     const state = $workspaceStatusStore.state;
     if (state === "ok") untrack(() => void refreshLocalResults());
   });
+
+  // The one guard that keeps admins out of teaching routes (issue #58); the server refuses them anyway.
+  $effect.pre(() => {
+    const offLimits = isAdmin && !isAdminPath(page.url.pathname);
+    if (offLimits && typeof window !== "undefined") untrack(() => goto(ADMIN_HOME, { replaceState: true }));
+  });
+
+  // Boot the local LaTeX engine as soon as it is the chosen one (sign-in, or the setting flips), not at the first compile.
+  $effect.pre(() => {
+    const engine = $effectiveLatexStore;
+    const state = $workspaceStatusStore.state;
+    if (engine === "local" && state === "ok") untrack(() => preloadLocalLatexEngine());
+  });
 </script>
 
 <input
@@ -368,6 +395,17 @@
     </Alert>
   {/if}
 
+  {#if $rejectedWritesStore.count > 0}
+    <Alert
+      severity="danger"
+      title={$t("misc.rejectedWrites.heading")}
+      class="mx-3 mt-2 sm:mx-4"
+      onDismiss={() => rejectedWritesStore.set({ count: 0, lastMessage: "" })}
+    >
+      {$t("misc.rejectedWrites.body", { count: $rejectedWritesStore.count, message: $rejectedWritesStore.lastMessage })}
+    </Alert>
+  {/if}
+
   {#if $vaultIntegrityStore.count > 0}
     <!-- Not a toast: until unlocked with the right key, affected records render blank, so this stays. -->
     <Alert severity="danger" title={$t("misc.vaultIntegrity.heading")} class="mx-3 mt-2 sm:mx-4">
@@ -402,6 +440,8 @@
         <PageShell width="narrow" center>
           <p class="text-center text-sm text-muted">{$t("storagePolicy.choice.waiting")}</p>
         </PageShell>
+      {:else if holdRoute}
+        <!-- A teaching route while the role is unknown, or for an admin (redirected below). -->
       {:else}
         {@render children?.()}
       {/if}
@@ -426,6 +466,7 @@
 
   <StoragePolicyModal
     isOpen={isSettingsModalOpen || mustChooseMode}
+    teaching={!isAdmin}
     mustChoose={mustChooseMode}
     onClose={() => (isSettingsModalOpen = false)}
   />

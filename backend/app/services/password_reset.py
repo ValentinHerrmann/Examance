@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import secrets
+import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
@@ -89,13 +90,15 @@ async def verify_reset_token(
 
 
 async def complete_password_reset(
-    db: AsyncSession, raw_token: str, new_password: str
+    db: AsyncSession, raw_token: str, new_password: str, *, teacher_id: uuid.UUID
 ) -> Teacher:
     """
     Validate token, set new teacher password, mark token used, and revoke all active refresh tokens.
+
+    The token must belong to `teacher_id`, the account whose factors the reset session proved.
     """
     token_record, teacher = await verify_reset_token(db, raw_token)
-    if not token_record or not teacher:
+    if not token_record or not teacher or teacher.id != teacher_id:
         raise ValueError("Invalid or expired password reset token.")
 
     token_record.used_at = datetime.now(UTC)

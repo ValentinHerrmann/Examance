@@ -25,8 +25,8 @@ All API v1 endpoints are served relative to the root URL path:
 | `204 No Content` | Deleted / Modified | Action completed with no return payload. |
 | `400 Bad Request` | Client Error | Invalid input structure, missing mandatory fields, or malformed JSON. |
 | `401 Unauthorized` | Unauthenticated | Missing, invalid, or expired session cookies/credentials. |
-| `403 Forbidden` | Access Denied | Authenticated user lacks required role/permissions (e.g., non-admin calling admin routes). |
-| `404 Not Found` | Not Found | Requested entity does not exist or user has no access. |
+| `403 Forbidden` | Access Denied | Authenticated user lacks required role/permissions (e.g., non-admin calling admin routes, or an admin calling a teaching route: `ERR_TEACHER_ROLE_REQUIRED`). |
+| `404 Not Found` | Not Found | Requested entity does not exist or user has no access; the two are never told apart (an exam answers `ERR_EXAM_NOT_FOUND` whether it is missing, deleted or another account's). |
 | `409 Conflict` | Entity Conflict | Duplicate record (e.g., registering user with already existing email). |
 | `413 Payload Too Large` | Limit Exceeded | Request body exceeds configured size limit. |
 | `429 Too Many Requests` | Rate Limited | Rate limit exceeded for specific IP or route. |
@@ -60,6 +60,7 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
 - The backend automatically creates an initial `admin` user on startup if `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` are configured in `.env`.
 - Admins invite user accounts via `POST /api/v1/admin/users` without specifying passwords. Accounts are created approved, with the chosen role and features, and with uninitialized password hashes (`password_hash = None`); a single-use set-password token is emailed automatically.
 - The bootstrap admin and accounts created with `python -m app.cli create-user` are created approved. `teachers.approved_at` has no default on purpose: a code path that forgets to set it produces a pending account that cannot sign in, never an unvetted one that can.
+- **Admins manage users and the server only** (issue #58). Every endpoint that reads or writes exams, exercises, results or their settings (the compile, exams, logos, exercises, contributions, students, submissions and scores routers, `POST /training/omr-samples`, and `/user/storage-mode`, `/user/purge-server-student-data`, `/user/restore-server-data`) requires a teacher account (`get_teaching_teacher`) and answers an admin with `403 ERR_TEACHER_ROLE_REQUIRED`. Admins keep `/admin/*` and their own account endpoints (auth, MFA, passkeys, key envelopes, capabilities, export, deletion). `python -m app.cli set-role` changes a role.
 
 ### Single-Use Password Reset Tokens
 - Password reset links carry 32-byte URL-safe raw tokens.
@@ -88,9 +89,8 @@ Cookies are issued automatically upon successful login (`POST /api/v1/auth/login
   LaTeXRequest(latex='<REDACTED len=...>')
   ```
 
-### $k$-Anonymity Enforcement ($k \ge 5$)
-- Class statistics endpoints (`GET /api/v1/admin/stats/{exam_id}`) enforce a strict $k$-anonymity threshold ($k \ge 5$).
-- If an exam has fewer than 5 submissions, grade aggregates (mean, min, max score) are suppressed (`k_anonymity_satisfied: false`, `mean_score: null`) to prevent individual score identification.
+### Aggregate Statistics
+- The server computes no aggregate score statistics. Class statistics are computed in the teacher's browser from their own results. The former `GET /api/v1/admin/stats/{exam_id}` was removed (issue #58): it gave every admin the score statistics of any teacher's exam.
 
 ---
 
@@ -167,6 +167,10 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
   name is not usable), `503 ERR_COMPILE_UNAVAILABLE` (the engine itself is missing or cannot
   run), `504 ERR_COMPILE_TIMEOUT`. Unhandled faults return `500 ERR_INTERNAL` **with** CORS
   headers, so a browser reports the status rather than a phantom CORS failure.
+- **Limits**: this route and `POST /api/v1/exams/{id}/compile` are each rate-limited to 10
+  per minute per IP (`429`). At most `LATEX_MAX_CONCURRENT_COMPILES` (default 2) Tectonic runs
+  happen at once per backend process; a request waits for a slot up to its own compile timeout
+  (30 s preview, 120 s exam) and then gets `504 ERR_COMPILE_TIMEOUT`.
 
 ---
 
@@ -178,7 +182,7 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 | `GET` | `/api/v1/exams` | List Exams | Yes | Lists all active (non-deleted) exams owned by the authenticated teacher. |
 | `GET` | `/api/v1/exams/{exam_id}` | Get Exam Details | Yes | Retrieves full exam metadata and live-linked exercises. |
 | `PATCH` | `/api/v1/exams/{exam_id}` | Update Exam | Yes | Updates exam details and exercise links. |
-| `DELETE` | `/api/v1/exams/{exam_id}` | Soft-Delete Exam | Yes | Soft-deletes exam and marks it inaccessible. |
+| `DELETE` | `/api/v1/exams/{exam_id}` | Soft-Delete Exam | Yes | Soft-deletes exam and marks it inaccessible. Its student identities and submissions are soft-deleted on the standard grace period (`RETENTION_GRACE_DAYS`) and then erased by the retention job. |
 | `GET` | `/api/v1/exams/{exam_id}/exercises` | List Exam Exercises | Yes | Retrieves exercises linked to the specified exam in display order. |
 | `POST` | `/api/v1/exams/{exam_id}/compile` | Compile Exam | Yes | Compiles the complete exam LaTeX document from its live-linked library exercises; returns `application/pdf`. Needs the account's `server_latex` feature (`403 ERR_FEATURE_NOT_ALLOWED` otherwise). |
 | `GET` | `/api/v1/exams/{exam_id}/logo` | Exam Logo | Yes | The exam's logo setting (`mode`: `account`, `none`, `custom`) and what it resolves to (`source`: `default`, `account`, `exam`, `none`, plus type and size). |
@@ -187,6 +191,7 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 
 #### Exam Query Parameters & Schemas
 - **Query Filters** (`GET /api/v1/exams`): `grade` (string), `subject` (string).
+- **`topic`** (optional, free text, ≤ 200 characters): organises exams in the overview; never printed on the exam. Trimmed on write; blank is stored as `null`. On `PATCH` an absent field keeps the stored topic, while `null` or blank clears it.
 - **`ExamCreate`**:
   ```json
   {
@@ -195,6 +200,7 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
     "retention_until": "2027-12-31",
     "klasse": "10a",
     "fach": "Informatik",
+    "topic": "Sorting algorithms",
     "exercise_ids": ["uuid..."],
     "exercises": [
       {
@@ -245,8 +251,8 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
-| `POST` | `/api/v1/exams/{exam_id}/students` | Upload Student PII | Yes | Stores/upserts client-side encrypted student PII record. |
-| `GET` | `/api/v1/exams/{exam_id}/students` | List Exam Students | Yes | Lists encrypted student records associated with exam. |
+| `POST` | `/api/v1/exams/{exam_id}/students` | Upload Student PII | Yes | Stores/upserts client-side encrypted student PII record. An upsert onto a soft-deleted identity makes it live again (no erasure deadline). |
+| `GET` | `/api/v1/exams/{exam_id}/students` | List Exam Students | Yes | Lists the exam's encrypted student records that are not soft-deleted. |
 | `DELETE` | `/api/v1/exams/{exam_id}/students/{pseudonym_hmac}` | GDPR Erasure | Yes | GDPR Art. 17 right-to-erasure deletion of student record. Scoped to this exam only — see note below. |
 
 > **Identity scope.** A student identity is keyed by `(pseudonym_hmac, exam_id)`, not by
@@ -339,11 +345,11 @@ Two rules the endpoint enforces rather than trusts the client with:
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
 | `GET` | `/api/v1/exams/{exam_id}/submissions` | List Submissions | Yes | Lists all non-deleted submissions for an exam. |
-| `POST` | `/api/v1/exams/{exam_id}/submissions` | Upload Submission | Yes | Stores/upserts encrypted scan submission and anonymized score. |
+| `POST` | `/api/v1/exams/{exam_id}/submissions` | Upload Submission | Yes | Stores/upserts encrypted scan submission and anonymized score. An upsert onto a soft-deleted submission makes it live again; a soft-deleted identity of the same pseudonym comes back only as an empty placeholder (its PII is not revived). |
 | `GET` | `/api/v1/exams/{exam_id}/submissions/{submission_id}` | Get Submission | Yes | Retrieves single encrypted submission payload. |
 | `PATCH` | `/api/v1/exams/{exam_id}/submissions/{submission_id}/score` | Update Score | Yes | Updates the plaintext `total_score` used for server-side statistics. |
 | `DELETE` | `/api/v1/exams/{exam_id}/submissions/{submission_id}/grading` | Clear Grading | Yes | Clears all grading data (score + annotations) for a submission, without deleting it. |
-| `DELETE` | `/api/v1/exams/{exam_id}/submissions/{submission_id}` | Delete Submission | Yes | Deletes specified submission scan. |
+| `DELETE` | `/api/v1/exams/{exam_id}/submissions/{submission_id}` | Delete Submission | Yes | Soft-deletes the submission; the retention job erases it (with its scores) after the grace period (`RETENTION_GRACE_DAYS`). |
 
 > **Result writes follow the account's features.** `POST /exams/{id}/students`, `POST /exams/{id}/submissions`, `PATCH /exams/{id}/submissions/{id}/score`, `PUT /exams/{id}/submissions/{id}/scores` and `POST /user/restore-server-data` answer `403 ERR_FEATURE_NOT_ALLOWED` when the account's `server_results` switch is off **and** its stored storage mode is not `all-server`. An account whose switch was revoked while it is still in `all-server` keeps writing until it has moved its results into the browser, because refusing those writes would strand them in the offline queue. Reads and deletes are never gated: the move and GDPR erasure need them.
 
@@ -364,7 +370,6 @@ Two rules the endpoint enforces rather than trusts the client with:
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
-| `GET` | `/api/v1/admin/stats/{exam_id}` | Class Statistics | Yes (Admin) | Evaluates $k$-anonymity ($k \ge 5$) and returns aggregate exam stats. |
 | `GET` | `/api/v1/admin/users` | List Accounts | Yes (Admin) | Accounts, newest first. Query: `status` (`all` default, `pending`, `active`), `limit` (1-200, default 100), `offset`. Returns `{"items": [AdminUserResponse], "total": n}`. |
 | `POST` | `/api/v1/admin/users` | Invite User | Yes (Admin) | Invitation: creates an approved teacher or admin account with the given features and without a password (`password_hash = None`), and mails a set-password link with invitation wording. The address counts as verified, because that link is the only way in. Deletes any pending `registration_requests` row for the address. `409 ERR_ACCOUNT_PENDING` if a pending account exists for the address, `409 ERR_ACCOUNT_EXISTS` for any other existing account. |
 | `POST` | `/api/v1/admin/users/{user_id}/approve` | Approve Registration | Yes (Admin) | Approves a pending account with the given features, erases the registrant's note and mails "approved, sign in". Conditional on the account still being pending: `409 ERR_ALREADY_APPROVED` otherwise. |
@@ -387,28 +392,16 @@ Two rules the endpoint enforces rather than trusts the client with:
 - **`AllowedDomainRequest`**: `{"domain": "school.example", "features": {...}}`. **`AllowedDomainResponse`**: `{"id": "uuid...", "domain": "school.example", "features": {...}, "created_at": "..."}`. The match is exact on the part after `@`; a subdomain needs its own entry. Changes affect future registrations only, never existing accounts.
 - **`AdminResetPasswordResponse`**: `{"message": "Password reset link generated...", "user_id": "uuid...", "password_reset_sent": true}`
 
-#### Admin Stats Response Example
-```json
-{
-  "exam_id": "uuid...",
-  "total_submissions": 8,
-  "k_anonymity_satisfied": true,
-  "mean_score": 82.4,
-  "min_score": 54.0,
-  "max_score": 98.5
-}
-```
-
 ---
 
 ### 4.8 User Router (`/api/v1/user`)
 
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
-| `GET` | `/api/v1/user/capabilities` | Capabilities | Yes | `{"account_id", "storage_mode", "allowed_storage_modes", "features"}`: the account the answer is about (a tab locks itself when it differs from its own sign-in, because the cookie is shared by every tab of a browser), the account's storage mode (null until chosen), the modes it may choose, and its features: `server_results`, `server_latex` (admin switches) and `training_donation` (deployment setting). Built by `capabilities_for(teacher)`; the frontend renders its options from this and nothing else. |
+| `GET` | `/api/v1/user/capabilities` | Capabilities | Yes | `{"account_id", "storage_mode", "allowed_storage_modes", "features"}`: the account the answer is about (a tab locks itself when it differs from its own sign-in, because the cookie is shared by every tab of a browser), the account's storage mode (null until chosen), the modes it may choose, and its features: `server_results`, `server_latex` (admin switches) and `training_donation` (deployment setting). Built by `capabilities_for(teacher)`; the frontend renders its options from this and nothing else. An admin account gets no modes and no features. |
 | `PUT` | `/api/v1/user/storage-mode` | Set Storage Mode | Yes | `{"mode", "expected"}`: compare-and-set, `409 ERR_STORAGE_MODE_CHANGED` if another browser changed it meanwhile, `403 ERR_STORAGE_MODE_NOT_ALLOWED` if the mode is not allowed for the account (`all-server` without `server_results`). Moving the results happens in the client before this call. |
 | `POST` | `/api/v1/user/purge-server-student-data` | Purge Server Student Data | Yes | Soft-deletes this teacher's server-side student identities and submissions (7-day retention grace) — the local→`all-local` migration step in `data_flow_and_security.md` §5. |
-| `POST` | `/api/v1/user/restore-server-data` | Restore Server Data | Yes | Restores soft-deleted student identities and submissions for the current teacher, if still within the 7-day grace period. Subject to the result-write rule in §4.6 (`403 ERR_FEATURE_NOT_ALLOWED`). |
+| `POST` | `/api/v1/user/restore-server-data` | Restore Server Data | Yes | Restores soft-deleted student identities and submissions of the current teacher's non-deleted exams, if still within the 7-day grace period. Subject to the result-write rule in §4.6 (`403 ERR_FEATURE_NOT_ALLOWED`). |
 | `GET` | `/api/v1/user/logo` | Account Logo | Yes | The account's logo setting (`mode`: `default` = bundled MTG logo, `none`, `custom`) and what it prints (`source`: `default`, `account`, `none`, plus type and size). |
 | `GET` | `/api/v1/user/logo/file` | Account Logo File | Yes | Bytes of the logo the account prints (its own or the default), served as `image/png`, `image/jpeg` or `application/pdf` with `nosniff`; 404 for `none`. |
 | `PUT` | `/api/v1/user/logo` | Set Account Logo | Yes | `{"mode": "default" \| "none" \| "custom", "content_b64"?}`. `custom` without content keeps the stored file. PNG, JPEG or PDF (detected from the bytes), ≤ 2 MB; `422 ERR_LOGO_INVALID` otherwise. Printed on every exam that does not override it. |
@@ -423,6 +416,7 @@ Two rules the endpoint enforces rather than trusts the client with:
 | Method | Endpoint | Summary | Auth Required | Description |
 |---|---|---|---|---|
 | `GET` | `/api/health` | Health Check | No | Returns `{"status": "ok", "version": "1.4.0"}`. The version is deliberately public — it is how the frontend detects an incompatible backend; see `deployment.md` §4. |
+| `GET` | `/api/v1/privacy/retention` | Retention Periods | No | The configured retention periods the privacy statement (`/legal/datenschutz`) shows: `{"grace_days", "audit_log_days", "registration_link_hours", "pending_account_days", "contribution_days", "contribution_pending_days", "training_sample_days"}`, read from the settings of the same names. Configuration only, no personal data. Rate limit 60/minute per IP. |
 
 ---
 

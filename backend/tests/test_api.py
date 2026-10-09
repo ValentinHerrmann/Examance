@@ -67,9 +67,9 @@ async def test_exam_crud_flow(client: AsyncClient, db: AsyncSession) -> None:
     del_resp = await client.delete(f"/api/v1/exams/{exam_id}")
     assert del_resp.status_code == 204
 
-    # Deleted exam is inaccessible (returns 401 per API security contract)
+    # Deleted exam is inaccessible (the same 404 as a missing or foreign one)
     get_del_resp = await client.get(f"/api/v1/exams/{exam_id}")
-    assert get_del_resp.status_code == 401
+    assert get_del_resp.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -226,23 +226,6 @@ async def test_list_submissions_omits_scan_by_default(
         b"EncryptedScanBytes"
     ).decode()
     assert subs_full[0]["has_scan"] is True
-
-
-@pytest.mark.asyncio
-async def test_admin_stats_k_anonymity(client: AsyncClient, db: AsyncSession) -> None:
-    await _create_teacher_and_login(client, db, "admin@example.com", role="admin")
-
-    e_resp = await client.post(
-        "/api/v1/exams",
-        json={"title": "Stats Exam", "retention_until": "2027-12-31"},
-    )
-    exam_id = e_resp.json()["id"]
-
-    # Less than 5 submissions -> suppressed
-    stats1 = await client.get(f"/api/v1/admin/stats/{exam_id}")
-    assert stats1.status_code == 200
-    assert stats1.json()["k_anonymity_satisfied"] is False
-    assert stats1.json()["mean_score"] is None
 
 
 @pytest.mark.asyncio
@@ -533,6 +516,35 @@ async def test_update_exam_metadata_patch_repeatedly(client: AsyncClient, db: As
 
 
 @pytest.mark.asyncio
+async def test_exam_topic_is_optional_trimmed_and_clearable(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await _create_teacher_and_login(client, db, "topiceditor@example.com")
+    retention_date = (date.today() + timedelta(days=365)).isoformat()
+    exam_id = str(uuid.uuid4())
+
+    created = await client.post(
+        "/api/v1/exams",
+        json={"id": exam_id, "title": "Topic Exam", "retention_until": retention_date},
+    )
+    assert created.status_code == 201
+    assert created.json()["topic"] is None
+
+    # Whitespace is trimmed; an absent topic leaves the stored one alone.
+    res = await client.patch(f"/api/v1/exams/{exam_id}", json={"topic": "  Rekursion  "})
+    assert res.json()["topic"] == "Rekursion"
+    res = await client.patch(f"/api/v1/exams/{exam_id}", json={"title": "Renamed"})
+    assert res.json()["topic"] == "Rekursion"
+    assert (await client.get("/api/v1/exams")).json()[0]["topic"] == "Rekursion"
+
+    # A blank topic clears it; more than 200 characters is refused.
+    res = await client.patch(f"/api/v1/exams/{exam_id}", json={"topic": "   "})
+    assert res.json()["topic"] is None
+    too_long = await client.patch(f"/api/v1/exams/{exam_id}", json={"topic": "x" * 201})
+    assert too_long.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_exam_mc_group_creation_and_compilation(client: AsyncClient, db: AsyncSession) -> None:
     await _create_teacher_and_login(client, db, "mcteacher@example.com")
 
@@ -639,10 +651,7 @@ async def test_exercise_usage_and_deletion(client: AsyncClient, db: AsyncSession
 async def test_cors_preflight_origins(client: AsyncClient) -> None:
     """
     Preflight must reflect whatever origin allowlist is configured.
-
-    Driven off `settings` rather than hardcoded production hostnames: CI narrows
-    CORS_ALLOWED_ORIGINS to localhost, so asserting against examance.pages.dev
-    made the test depend on ambient configuration rather than on behaviour.
+    Driven off `settings`, not hardcoded hostnames: CI narrows CORS_ALLOWED_ORIGINS to localhost.
     """
     from app.config import settings
 
@@ -736,18 +745,18 @@ async def test_list_student_identities(
     assert len(students) == 1
     assert students[0]["pseudonym_hmac"] == pseudonym_hmac
 
-    # Different teacher should get 401 (ownership check — never leak resource existence)
+    # Different teacher gets the same 404 as for a missing exam (never leak resource existence)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as client2:
         await _create_teacher_and_login(client2, db, "studentteacher2@example.com")
         list_resp2 = await client2.get(f"/api/v1/exams/{exam_id}/students")
-        assert list_resp2.status_code == 401
+        assert list_resp2.status_code == 404
 
 
 async def test_create_exam_wrong_method(
     client: AsyncClient,
     db: AsyncSession,
 ) -> None:
-    """POST /api/v1/exams/{exam_id}/students returns 401 if exam_id is not found or owned by another."""
+    """POST /exams/{exam_id}/students answers 404 for an exam not found or owned by another."""
     await _create_teacher_and_login(client, db, "studentteacher3@example.com")
 
     retention_date = (date.today() + timedelta(days=365)).isoformat()
@@ -783,7 +792,7 @@ async def test_create_exam_wrong_method(
                 "encryption_salt_b64": base64.b64encode(secrets.token_bytes(16)).decode(),
             },
         )
-        assert st_resp2.status_code == 401
+        assert st_resp2.status_code == 404
 
 
 def test_export_openapi_cli(tmp_path: Path) -> None:
@@ -805,6 +814,128 @@ def test_export_openapi_cli(tmp_path: Path) -> None:
     content = json.loads(out_file.read_text(encoding="utf-8"))
     assert content["info"]["title"] == "Examance API"
     assert "/api/v1/auth/login" in content["paths"]
+
+
+@pytest.mark.asyncio
+async def test_new_version_takes_the_answer_key_from_the_body(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await _create_teacher_and_login(client, db, f"version-key-{uuid.uuid4().hex[:8]}@example.com")
+    created = await client.post(
+        "/api/v1/exercises",
+        json={
+            "name": "MC question",
+            "latex_body": "\\BE",
+            "question_type": "mc",
+            "correct_answers": {"options": ["a", "b"], "correct": [0]},
+            "penalty": 0.5,
+        },
+    )
+    assert created.status_code == 201, created.text
+    ex_id = created.json()["id"]
+
+    changed = await client.post(
+        f"/api/v1/exercises/{ex_id}/new-version",
+        json={
+            "question_type": "sc",
+            "correct_answers": {"options": ["a", "b", "c"], "correct": [2]},
+            "penalty": 1.0,
+        },
+    )
+    assert changed.status_code == 201, changed.text
+    assert changed.json()["question_type"] == "sc"
+    assert changed.json()["correct_answers"] == {"options": ["a", "b", "c"], "correct": [2]}
+    assert changed.json()["penalty"] == 1.0
+
+    # Absent fields keep the previous version's values; an explicit null clears the key.
+    kept = await client.post(
+        f"/api/v1/exercises/{changed.json()['id']}/new-version", json={"latex_body": "\\BE \\BE"}
+    )
+    assert kept.status_code == 201, kept.text
+    assert kept.json()["question_type"] == "sc"
+    assert kept.json()["correct_answers"] == {"options": ["a", "b", "c"], "correct": [2]}
+    assert kept.json()["penalty"] == 1.0
+
+    cleared = await client.post(
+        f"/api/v1/exercises/{kept.json()['id']}/new-version",
+        json={"question_type": "free_text", "correct_answers": None},
+    )
+    assert cleared.status_code == 201, cleared.text
+    assert cleared.json()["question_type"] == "free_text"
+    assert cleared.json()["correct_answers"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"title": "x" * 501},
+        {"nr": "x" * 11},
+        {"fach": "x" * 101},
+        {"klasse": "x" * 51},
+        {"exercises": [{"question_type": "essay"}]},
+        {"exercises": [{"name": "x" * 201}]},
+        {"exercises": [{"order_index": -1}]},
+        {"exercise_links": [{"exercise_id": str(uuid.uuid4()), "sub_index": 10_001}]},
+        {"mc_groups": [{"title": "x" * 201}]},
+    ],
+)
+async def test_exam_create_rejects_values_the_columns_cannot_hold(
+    client: AsyncClient, db: AsyncSession, overrides: dict[str, object]
+) -> None:
+    await _create_teacher_and_login(client, db, f"bounds-{uuid.uuid4().hex[:8]}@example.com")
+    body: dict[str, object] = {
+        "title": "Bounds",
+        "retention_until": (date.today() + timedelta(days=30)).isoformat(),
+    }
+    body.update(overrides)
+    resp = await client.post("/api/v1/exams", json=body)
+    assert resp.status_code == 422, resp.text
+
+
+@pytest.mark.asyncio
+async def test_exercise_writes_reject_values_the_columns_cannot_hold(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await _create_teacher_and_login(client, db, f"ex-bounds-{uuid.uuid4().hex[:8]}@example.com")
+    created = await client.post(
+        "/api/v1/exercises", json={"name": "x" * 200, "variant_key": "x" * 100}
+    )
+    assert created.status_code == 201, created.text  # exactly at the limits
+    ex = created.json()
+
+    assert (await client.post("/api/v1/exercises", json={"subject": "x" * 101})).status_code == 422
+    for patch_body in ({"question_type": "bogus"}, {"grade": "x" * 51}, {"topic_tag": "x" * 201}):
+        resp = await client.patch(f"/api/v1/exercises/{ex['id']}", json=patch_body)
+        assert resp.status_code == 422, patch_body
+    group = await client.patch(
+        f"/api/v1/exercises/groups/{ex['exercise_group_id']}", json={"name": "x" * 201}
+    )
+    assert group.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_failed_exam_compile_keeps_its_status(client: AsyncClient, db: AsyncSession) -> None:
+    from app.services.latex import CompilationError
+
+    await _create_teacher_and_login(client, db, f"status-{uuid.uuid4().hex[:8]}@example.com")
+    exam = await client.post(
+        "/api/v1/exams",
+        json={
+            "title": "Status",
+            "retention_until": (date.today() + timedelta(days=30)).isoformat(),
+        },
+    )
+    assert exam.status_code == 201, exam.text
+    exam_id = exam.json()["id"]
+
+    with patch("app.routers.exams.compile_exam_latex", side_effect=CompilationError("! Boom")):
+        failed = await client.post(f"/api/v1/exams/{exam_id}/compile")
+    assert failed.status_code == 422
+
+    # The 422 used to roll the status back to "pending".
+    reloaded = await client.get(f"/api/v1/exams/{exam_id}")
+    assert reloaded.json()["compilation_status"] == "failed"
 
 
 

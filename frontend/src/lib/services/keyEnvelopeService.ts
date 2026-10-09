@@ -1,8 +1,7 @@
 /**
- * Envelope lifecycle: how a signed-in browser gets the data key. `openWithPassword` on normal sign-in
- * (one-time migration for pre-envelope accounts); `openWithRecoveryCode` when the password is gone (makes
- * reset survivable); `rewrapForNewPassword`/`rewrapForChangedPassword` after reset/in-session change.
- * None re-encrypt anything: the data key is stable, only its wraps are rewritten.
+ * Envelope lifecycle: how a signed-in browser gets the data key. `openWithPassword` on sign-in (one-time migration for
+ * pre-envelope accounts), `openWithRecoveryCode` when the password is gone, `rewrapFor*` after reset/change. None
+ * re-encrypt anything: the data key is stable, only its wraps are rewritten.
  */
 
 import {
@@ -183,10 +182,9 @@ async function buildSet(
 }
 
 /**
- * Open the vault with the password, migrating the account if it has no envelope. The migration adopts
- * the *existing* derived key as the data key (not a fresh one): all records on disk and server were
- * sealed with it, so nothing is re-encrypted and no half-converted vault exists. It is also the only
- * moment the PBKDF2 fallback and legacy keys exist, so they are captured into the bundle here or lost.
+ * Open the vault with the password, migrating the account if it has no envelope. Migration adopts the *existing* derived key
+ * as data key (all records were sealed with it: nothing re-encrypted, no half-converted vault). It is also the only moment
+ * the PBKDF2 fallback and legacy keys exist, so they are captured into the bundle here or lost.
  */
 export async function openWithPassword(
   teacherId: string,
@@ -240,10 +238,9 @@ export async function openWithPassword(
 }
 
 /**
- * Rewrite a wrap that opened only under the superseded KDF (`deriveKey` once substituted PBKDF2 when
- * Argon2 WASM failed to load without recording it, so the wrap says `argon2id` but stops opening once
- * the WASM loads). Repaired on the sign-in that noticed. Best effort: the teacher already has the right
- * key, and a failed repair write must not take that away.
+ * Rewrite a wrap that opened only under the superseded KDF (`deriveKey` once used PBKDF2 unrecorded when Argon2 WASM failed
+ * to load, so the wrap says `argon2id` but stops opening once WASM loads). Best effort on the sign-in that noticed: the
+ * teacher already has the right key, and a failed repair write must not take that away.
  */
 async function healFallbackWrap(
   teacherId: string,
@@ -291,10 +288,8 @@ export async function openWithRecoveryCode(
 }
 
 /**
- * Re-wrap the same data key under a new password (change or reset). Issues a fresh recovery code (the
- * old one was just spent or belongs to a dead password) and returns it to be shown once. Passkey wraps
- * are carried through (see `setWithReplacedWrap`): rebuilding from two secrets deletes wraps of every
- * other factor.
+ * Re-wrap the same data key under a new password (change or reset), issuing a fresh recovery code to show once. Passkey
+ * wraps are carried through (see `setWithReplacedWrap`): rebuilding from two secrets would delete every other factor's wrap.
  */
 export async function rewrapForNewPassword(
   teacherId: string,
@@ -317,11 +312,9 @@ export async function rewrapForNewPassword(
 }
 
 /**
- * Abandon the old data key and start over under the current password: the way out for a teacher whose
- * password was reset and whose recovery code is gone (the reset invalidates the password wrap, so the
- * session holds no key). IRREVERSIBLE: `keep` is empty so passkey wraps go too (they hold the *old* key;
- * passkeys still sign in but must be re-added before they open anything), and everything sealed under
- * the old key stays sealed forever. That cost must be spelled out before calling.
+ * Abandon the old data key and start over under the current password, for a teacher whose password was reset and whose
+ * recovery code is gone. IRREVERSIBLE: `keep` is empty so passkey wraps go too (they hold the *old* key; re-add them), and
+ * everything sealed under the old key stays sealed forever. Spell that cost out before calling.
  */
 export async function startFreshVault(
   teacherId: string,
@@ -339,10 +332,9 @@ export async function startFreshVault(
 }
 
 /**
- * Rebuild exactly one Argon2id wrap, carrying all others through untouched. `saveEnvelopes` replaces
- * the whole set and `buildSet` only emits wraps it has a secret for, so building a set to change one
- * factor silently deletes the others (passkeys stop opening the vault with no signal until tried).
- * The rest stay opaque ciphertext holding the same data key.
+ * Rebuild exactly one Argon2id wrap, carrying all others through untouched: `saveEnvelopes` replaces the whole set and
+ * `buildSet` only emits wraps it has a secret for, so building a set to change one factor silently deletes the others
+ * (passkeys stop opening the vault with no signal until tried).
  */
 async function setWithReplacedWrap(
   teacherId: string,
@@ -393,10 +385,9 @@ export async function regenerateRecoveryCode(
 }
 
 /**
- * Re-wrap the data key for an in-session password change. Returns the set instead of saving it: the
- * server writes password and key copy in one transaction, so it travels in the change-password request.
- * The recovery wrap is carried through (it can't be rebuilt without the gone code plaintext, and holds
- * the same key). Pin the returned set with `pinEnvelopeSet` once the request succeeds.
+ * Re-wrap the data key for an in-session password change. Returns the set instead of saving it: the server writes password
+ * and key copy in one transaction, so it travels in the change-password request (`pinEnvelopeSet` it on success). The
+ * recovery wrap is carried through, since it can't be rebuilt without the gone code plaintext.
  */
 export async function rewrapForChangedPassword(
   teacherId: string,
@@ -429,10 +420,9 @@ async function importHkdf(raw: Uint8Array): Promise<CryptoKey> {
 }
 
 /**
- * Turn an opened vault into the keys the session store holds. The session nonce stays
- * `getUserSessionNonce(email)` (HKDF salt, not a secret) because every existing record, local and
- * server, was sealed under it; since migration adopts the old derived key as DEK, the resulting
- * session key is byte-identical to the old scheme's, so nothing is re-encrypted.
+ * Turn an opened vault into the keys the session store holds. The session nonce stays `getUserSessionNonce(email)` (HKDF
+ * salt, not a secret) because every existing record was sealed under it; migration adopted the old derived key as DEK, so
+ * the session key is byte-identical to the old scheme's and nothing is re-encrypted.
  */
 export async function materializeSession(
   vault: OpenedVault,
@@ -463,11 +453,9 @@ export async function materializeSession(
 }
 
 /**
- * Build the envelope set for a password reset, without saving it. The reset endpoint writes the new
- * password and this set in one transaction: two round trips could leave a changed password with a stale
- * key copy, which looks fine until the next sign-in opens nothing. Returns the fresh recovery code to
- * show once (the old one was just spent). Passkey wraps are carried through: rebuilding from password and
- * new code alone would drop them, leaving passkeys that sign in but open nothing, with no symptom.
+ * Build the envelope set for a password reset, without saving it: the reset endpoint writes the new password and this set in
+ * one transaction, since two round trips could leave a changed password with a stale key copy (opens nothing at next sign-in).
+ * Returns the fresh recovery code to show once. Passkey wraps are carried through, else they would sign in but open nothing.
  */
 export async function buildResetEnvelopeSet(
   teacherId: string,

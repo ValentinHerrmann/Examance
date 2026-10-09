@@ -201,10 +201,8 @@ def test_format_exercise_latex_cases() -> None:
     res5 = format_exercise_latex(None, "Leere Aufgabe")
     assert res5 == "\\begin{Aufgabe}{Leere Aufgabe}\n\\end{Aufgabe}"
 
-    # Case 6: Title with LaTeX special chars (e.g. the default "New_Exercise"
-    # name) must be escaped, or Tectonic fails with "Missing $ inserted"
-    # on the bare underscore -- see format_mc_group_latex test below for the
-    # exact two-exercise scenario this was reported against.
+    # Case 6: Title with LaTeX special chars (e.g. the default "New_Exercise") must be escaped, or
+    # Tectonic fails with "Missing $ inserted" (see the format_mc_group_latex test below).
     res6 = format_exercise_latex("Frage hier eingeben...", "New_Exercise")
     assert res6 == "\\begin{Aufgabe}{New\\_Exercise}\nFrage hier eingeben...\n\\end{Aufgabe}"
 
@@ -223,10 +221,9 @@ def test_escape_tex() -> None:
 
 
 def test_format_mc_group_latex_escapes_default_titles() -> None:
-    """Two MC exercises left at the default name "New_Exercise" used to
-    produce '! Missing $ inserted' on Tectonic pass 1, because the bare
-    underscore in the un-renamed title was spliced straight into
-    \\begin{Aufgabe}{New_Exercise} (a text-mode LaTeX argument)."""
+    """Two MC exercises left at the default name "New_Exercise" used to produce '! Missing $
+    inserted' on Tectonic pass 1: the bare underscore was spliced into
+    \\begin{Aufgabe}{New_Exercise}."""
     from app.services.latex import format_mc_group_latex
 
     members = [
@@ -335,5 +332,86 @@ Zeichne das Klassendiagramm.
 """
     pdf_bytes = await compile_latex(snippet, preview=True)
     assert pdf_bytes.startswith(b"%PDF-")
+
+
+@pytest.mark.asyncio
+async def test_compile_slots_cap_concurrent_runs(monkeypatch) -> None:
+    import asyncio
+
+    from app.services import latex
+
+    monkeypatch.setattr(latex, "_compile_slots", asyncio.Semaphore(1))
+    async with latex._compile_slot(1):
+        with pytest.raises(TimeoutError):
+            async with latex._compile_slot(0.05):
+                pass
+    # Freed on exit, including after a wait that timed out.
+    async with latex._compile_slot(0.05):
+        pass
+
+
+@pytest.mark.asyncio
+async def test_tectonic_runs_inside_a_compile_slot(monkeypatch) -> None:
+    import asyncio
+    import tempfile
+    from pathlib import Path
+    from unittest.mock import AsyncMock, patch
+
+    from app.services import latex
+
+    monkeypatch.setattr(latex, "_compile_slots", asyncio.Semaphore(1))
+    slot_held: list[bool] = []
+
+    async def fake_exec(*args, **kwargs):
+        slot_held.append(latex._compile_slots.locked())
+        proc = AsyncMock()
+        proc.returncode = 0
+        proc.communicate = AsyncMock(return_value=(b"", b""))
+        return proc
+
+    original_mkdtemp = tempfile.mkdtemp
+
+    def fake_mkdtemp(**kwargs):
+        d = original_mkdtemp(**kwargs)
+        (Path(d) / "main.pdf").write_bytes(b"%PDF-1.4 fake")
+        return d
+
+    with patch("asyncio.create_subprocess_exec", side_effect=fake_exec), \
+         patch("tempfile.mkdtemp", side_effect=fake_mkdtemp):
+        await compile_latex("\\documentclass{article}", preview=True)
+
+    assert slot_held == [True, True]
+    assert not latex._compile_slots.locked()
+
+
+@pytest.mark.asyncio
+async def test_exam_compile_is_rate_limited(client, db, monkeypatch) -> None:
+    import uuid
+    from datetime import date, timedelta
+    from unittest.mock import patch
+
+    from app.middleware.rate_limit import limiter
+    from tests.factors import sign_in, unique_email
+
+    await sign_in(client, db, unique_email("compile-limit"))
+    exam = await client.post(
+        "/api/v1/exams",
+        json={
+            "title": f"Limited {uuid.uuid4().hex[:6]}",
+            "retention_until": (date.today() + timedelta(days=30)).isoformat(),
+        },
+    )
+    assert exam.status_code == 201, exam.text
+    url = f"/api/v1/exams/{exam.json()['id']}/compile"
+
+    limiter.reset()
+    monkeypatch.setattr(limiter, "enabled", True)
+    try:
+        with patch("app.routers.exams.compile_exam_latex", return_value=b"%PDF-1.4 fake"):
+            statuses = [(await client.post(url)).status_code for _ in range(11)]
+    finally:
+        limiter.reset()
+    assert statuses[:10] == [200] * 10
+    assert statuses[10] == 429
 
 

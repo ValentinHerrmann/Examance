@@ -151,7 +151,9 @@ export function applyMcCorrection(
   correctAnswers: number[],
   penalty: number,
   maxPoints: number,
-  omrMeta?: OmrScoreMeta
+  omrMeta?: OmrScoreMeta,
+  /** The stored score, for the first `original` snapshot; a hand-typed score must survive in it. */
+  storedScore?: number
 ): McCorrectionResult {
   const isSingleAnswer = questionType === 'sc' || questionType === 'tf';
 
@@ -163,7 +165,8 @@ export function applyMcCorrection(
       ? selectedOptions.filter((o) => o !== toggledOptionIdx)
       : [...selectedOptions, toggledOptionIdx].sort((a, b) => a - b);
 
-  const currentScore = computeMcScore(questionType, selectedOptions, correctAnswers, penalty, maxPoints);
+  const currentScore =
+    storedScore ?? computeMcScore(questionType, selectedOptions, correctAnswers, penalty, maxPoints);
   const original = resolveOriginalSnapshot(omrMeta, selectedOptions, currentScore);
 
   const correctedDetections = omrMeta?.detections
@@ -256,6 +259,26 @@ export function restoreOriginalDetection(
     nextSelectedOptions: restoredOptions,
     nextScore: restoredScore,
     nextOmrMeta,
+  };
+}
+
+/**
+ * Replaces a stored score (hand-typed, or from an older answer key) with the answer key's score for
+ * the unchanged selection. Snapshots the stored values as `original`; the review state is untouched.
+ */
+export function applyAnswerKeyScore(
+  questionType: McQuestionType,
+  selectedOptions: number[],
+  correctAnswers: number[],
+  penalty: number,
+  maxPoints: number,
+  storedScore: number,
+  omrMeta: OmrScoreMeta
+): McCorrectionResult {
+  return {
+    nextSelectedOptions: [...selectedOptions],
+    nextScore: computeMcScore(questionType, selectedOptions, correctAnswers, penalty, maxPoints),
+    nextOmrMeta: { ...omrMeta, original: resolveOriginalSnapshot(omrMeta, selectedOptions, storedScore) },
   };
 }
 

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.dependencies import get_current_teacher
+from app.dependencies import get_current_teacher, get_teaching_teacher
 from app.middleware.rate_limit import limiter
 from app.models.audit_log import AuditLog
 from app.models.exam import Exam
@@ -57,7 +57,7 @@ async def get_capabilities(teacher: Teacher = Depends(get_current_teacher)) -> C
 @router.put("/storage-mode", response_model=CapabilitiesOut)
 async def set_storage_mode(
     body: StorageModeUpdate,
-    teacher: Teacher = Depends(get_current_teacher),
+    teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> CapabilitiesOut:
     """
@@ -86,7 +86,7 @@ async def set_storage_mode(
 @router.post("/purge-server-student-data", status_code=status.HTTP_200_OK)
 async def purge_server_student_data(
     request: Request,
-    teacher: Teacher = Depends(get_current_teacher),
+    teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Soft-delete the teacher's student identities and scan submissions (hard delete after 7 days).
@@ -159,7 +159,7 @@ async def purge_server_student_data(
 )
 async def restore_server_data(
     request: Request,
-    teacher: Teacher = Depends(get_current_teacher),
+    teacher: Teacher = Depends(get_teaching_teacher),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
@@ -168,8 +168,9 @@ async def restore_server_data(
     """
     today = date.today()
 
+    # Never a deleted exam's rows: retention skips deleted exams, so they would stay forever.
     exam_ids_result = await db.execute(
-        select(Exam.id).where(Exam.teacher_id == teacher.id)
+        select(Exam.id).where(Exam.teacher_id == teacher.id, Exam.deleted_at.is_(None))
     )
     exam_ids = exam_ids_result.scalars().all()
 
@@ -316,6 +317,7 @@ async def export_own_data(
                 "grade": exam.grade,
                 "klasse": exam.klasse,
                 "fach": exam.fach,
+                "topic": exam.topic,
                 "datum": exam.datum,
                 "created_at": exam.created_at.isoformat() if exam.created_at else None,
                 "retention_until": exam.retention_until.isoformat(),

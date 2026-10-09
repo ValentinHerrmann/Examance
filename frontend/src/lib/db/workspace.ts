@@ -226,8 +226,24 @@ async function checkOwner(manifest: WorkspaceManifestRecord): Promise<WorkspaceS
   return { state: 'blocked', reason: keyOk ? 'foreign-account' : 'foreign-key' };
 }
 
+/**
+ * Admins hold no exams or results (issue #58): never check, claim or replace this browser's workspace
+ * (it may hold a teacher's data) and never ask for a mode. The capabilities load only binds the tab to its account.
+ */
+async function openAdminSession(): Promise<WorkspaceStatus> {
+  applyMode(null);
+  try {
+    await loadCapabilities();
+  } catch (err) {
+    if (err instanceof AccountMismatchError) return lockForeignSession();
+    console.warn('[workspace] could not load capabilities', err);
+  }
+  return { state: 'admin' };
+}
+
 async function decide(): Promise<WorkspaceStatus> {
   if (!get(sessionStore).sessionKey) return { state: 'unchecked' };
+  if (get(sessionStore).role === 'admin') return openAdminSession();
 
   const manifest = await loadWorkspace();
   const owner = await checkOwner(manifest);
@@ -282,7 +298,7 @@ function lockForeignSession(): WorkspaceStatus {
  */
 export async function refreshCapabilities(): Promise<void> {
   const state = get(workspaceStatusStore).state;
-  if (!get(sessionStore).sessionKey || (state !== 'ok' && state !== 'needs-choice')) return;
+  if (!get(sessionStore).sessionKey || (state !== 'ok' && state !== 'needs-choice' && state !== 'admin')) return;
   const before = cachedCapabilities();
   let caps;
   try {

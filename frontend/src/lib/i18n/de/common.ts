@@ -13,6 +13,9 @@ export const common = {
     previewCompile: 'Kompilieren',
     previewMissingGraphic: 'Vorschau erstellt, aber eine Grafik konnte nicht geladen werden: {name}',
     previewFailed: 'Vorschau fehlgeschlagen: {message}',
+    zoomControls: 'Zoom',
+    zoomFitWidth: 'An Seitenbreite anpassen',
+    zoomFitPage: 'Ganze Seite anzeigen',
     back: 'Zurück',
     next: 'Weiter',
     loading: 'Lädt…',
@@ -64,5 +67,7 @@ export const common = {
         gradeOption: 'Klasse {grade}',
         subject: 'Fach',
         allSubjects: 'Alle Fächer',
+        topic: 'Thema',
+        allTopics: 'Alle Themen',
     },
 } as const;

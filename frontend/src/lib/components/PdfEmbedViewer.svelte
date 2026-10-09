@@ -229,7 +229,7 @@
       onmouseleave={handleOverlayMouseLeave}
       role="toolbar"
       tabindex="-1"
-      aria-label="Zoom controls"
+      aria-label={$t("common.zoomControls")}
     >
       <span class="min-w-9 px-1 text-center font-semibold text-navbar-content">{currentZoomPercent}%</span>
       <span class="h-3 w-px bg-navbar-muted"></span>
@@ -244,6 +244,8 @@
         type="button"
         class="inline-flex cursor-pointer items-center justify-center rounded-sm border-none bg-transparent px-1.5 py-0.5 text-navbar-muted transition-colors hover:bg-navbar-hover hover:text-navbar-content pointer-coarse:min-h-11 pointer-coarse:min-w-11"
         onclick={() => setZoom(ZoomMode.FitWidth)}
+        aria-label={$t("common.zoomFitWidth")}
+        title={$t("common.zoomFitWidth")}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="m18 8 4 4-4 4M6 8l-4 4 4 4M2 12h20" />
@@ -253,6 +255,8 @@
         type="button"
         class="inline-flex cursor-pointer items-center justify-center rounded-sm border-none bg-transparent px-1.5 py-0.5 text-navbar-muted transition-colors hover:bg-navbar-hover hover:text-navbar-content pointer-coarse:min-h-11 pointer-coarse:min-w-11"
         onclick={() => setZoom(ZoomMode.FitPage)}
+        aria-label={$t("common.zoomFitPage")}
+        title={$t("common.zoomFitPage")}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="m8 18 4 4 4-4M8 6l4-4 4 4M12 2v20" />

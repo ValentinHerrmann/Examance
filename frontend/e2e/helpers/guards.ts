@@ -1,11 +1,7 @@
 /**
- * Shared Playwright fixtures: import `test` and `expect` from here, not `@playwright/test`.
- * Adds a pinned UI locale (`bg_locale`, English unless `appLocale` is set; never overwrites a
- * language the app saved, so it survives reload), the mocked `backend` (a fresh in-memory fake
- * API per test, in the account storage mode given by the `storageMode` option; a request it has
- * no route for fails the test), a guard failing on uncaught page errors or `console.error`
- * outside a justified allowlist, and a `dialogs` recorder for the native dialogs of the archive
- * flows (`lib/services/archiveService.ts`).
+ * Shared Playwright fixtures: import `test` and `expect` from here. Adds a pinned UI locale, the mocked `backend`
+ * (fresh fake API per test, unrouted requests fail), a guard failing on uncaught page errors or non-allowlisted
+ * `console.error`, and a `dialogs` recorder for the native dialogs of the archive flows.
  */
 import { test as base, expect, type Dialog, type Page } from '@playwright/test';
 import { createFakeApi, type FakeApi, type FakeStorageMode } from '../../tests/helpers/fakeApi';
@@ -16,10 +12,8 @@ import { DEFAULT_LOCALE, type Locale } from './i18n';
 const LOCALE_STORAGE_KEY = 'bg_locale';
 
 /**
- * Console errors that are expected noise. Keep minimal: every entry must say why it is harmless;
- * anything else is a real finding. Empty because the fake backend answers every request the app
- * makes; add an entry only for a deliberate error answer the browser logs (a 409 or 404 the app
- * handles itself).
+ * Expected console noise; keep minimal and justify every entry (anything else is a real finding). Empty because the
+ * fake backend answers every request; add one only for a deliberate error answer the app handles itself (409, 404).
  */
 interface AllowedConsoleError {
   /** Matched against the console message text. */

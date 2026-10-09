@@ -1,15 +1,7 @@
 """
-Exam header logos (issue #46): validation and resolution.
-
-Every account prints the bundled default logo (MTG) until it stores its own logo or chooses none;
-an exam either uses the account's choice, prints none, or carries its own.
-The logo reaches the compile working directory under a fixed name
-(``examance-logo.<ext>``, :data:`LOGO_FILENAMES`). ``Schulaufgabe.sty`` prints whichever of
-those files exists, so the LaTeX source never names the logo and stays the same whatever the
-teacher picks. The names are reserved, so an exercise resource cannot take or shadow them
-(``app.services.latex_resources``).
-
-Mirrored by ``frontend/src/lib/latex/logo.ts``.
+Exam header logos (issue #46): validation and resolution. Accounts print the bundled default
+(MTG) until they store their own or none; an exam follows the account, prints none, or has its own.
+Written as ``examance-logo.<ext>`` (:data:`LOGO_FILENAMES`, reserved from resources); see logo.ts.
 """
 from __future__ import annotations
 

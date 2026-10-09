@@ -1,13 +1,7 @@
 """
-Single-use tracking for the tokens that carry a sign-in forward.
-
-An `auth_pending`, `enroll` or `reset_pending` token authenticates nothing but
-the next step, and it lives for ten minutes. Within that window a captured one
-could otherwise be presented repeatedly. Registering its id when it is issued and
-burning the id when it is spent makes each token good for exactly one step.
-
-Losing the store (a Redis restart) degrades to the ten-minute expiry rather than
-failing the sign-in — see `ephemeral_store`.
+Single-use tracking for sign-in tokens (`auth_pending`, `enroll`, `reset_pending`): the id is
+registered at issue and burned when spent, so each token is good for one step. Losing the store
+(Redis restart) degrades to the ten-minute expiry; see `ephemeral_store`.
 """
 from __future__ import annotations
 
@@ -25,16 +19,10 @@ async def register(jti: str | None) -> None:
 
 async def consume(jti: str | None) -> bool:
     """
-    Spend a pending token. False when it was already spent or is unknown.
-
-    A token issued before the store was reachable will read as unknown. That is
-    treated as spent rather than valid: the caller simply starts the sign-in
-    again, which is the safe direction to fail.
+    Spend a pending token. False when it was already spent or is unknown (e.g. issued before the
+    store was reachable): treated as spent, so the caller restarts the sign-in, the safe way to
+    fail.
     """
     if not jti:
         return False
-    key = _PREFIX + jti
-    if await ephemeral_store.get(key) is None:
-        return False
-    await ephemeral_store.delete(key)
-    return True
+    return await ephemeral_store.take(_PREFIX + jti)

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { encrypt, decrypt, toBase64url, fromBase64url, uint8ArrayToBase64, base64ToUint8Array } from '../src/lib/crypto/aesGcm';
-import { hmacPseudonymId, importHmacKey, hmacSha256Hex, ensure64CharHex } from '../src/lib/crypto/hmac';
+import { hmacPseudonymId, ensure64CharHex } from '../src/lib/crypto/hmac';
 import { deriveSessionKey, generateSessionNonce } from '../src/lib/crypto/sessionKey';
 import { getUserSalt, getUserSessionNonce } from '../src/lib/crypto/keyDerivation';
 import {
@@ -8,12 +8,6 @@ import {
   decryptExam,
   encryptExercise,
   decryptExercise,
-  encryptStudent,
-  decryptStudent,
-  encryptScore,
-  decryptScore,
-  encryptSubmission,
-  decryptSubmission,
 } from '../src/lib/db/dbEncryption';
 
 describe('AES-256-GCM Cryptography', () => {

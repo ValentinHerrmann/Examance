@@ -1,13 +1,14 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import LegalPage from "#lib/components/legal/LegalPage.svelte";
+  import OperatorDetails from "#lib/components/legal/OperatorDetails.svelte";
   import { t } from "#lib/i18n";
-  import { fetchDonationStatus } from "#lib/services/trainingDonation";
+  import { fetchRetentionPeriods, type RetentionPeriods } from "#lib/legal/retentionPeriods";
 
-  /** Retention of donated training samples, as the configured backend reports it. */
-  let donationRetentionDays: number | null = $state(null);
+  /** Null while loading or when the backend is unreachable: section 9 then states the criteria instead. */
+  let periods: RetentionPeriods | null = $state.raw(null);
   onMount(() => {
-    void fetchDonationStatus().then((s) => (donationRetentionDays = s.retentionDays));
+    void fetchRetentionPeriods().then((p) => (periods = p));
   });
 </script>
 
@@ -15,101 +16,83 @@
   <title>{$t("legal.datenschutz.pageTitle")}</title>
 </svelte:head>
 
-<LegalPage
-  title={$t("legal.datenschutz.title")}
-  subtitle={$t("legal.datenschutz.subtitle")}
->
-  <p class="todo-banner">
-    <strong>{$t("legal.datenschutz.todoBanner.strong")}</strong>
-    {$t("legal.datenschutz.todoBanner.text")}
-    <code>docs/legal_audit_dsgvo.md</code>.
-  </p>
-
+<LegalPage title={$t("legal.datenschutz.title")} subtitle={$t("legal.datenschutz.subtitle")}>
   <h2>{$t("legal.datenschutz.section1.heading")}</h2>
-  <p>
-    <span class="placeholder">{$t("legal.datenschutz.section1.text")}</span>
-  </p>
+  <p>{$t("legal.datenschutz.section1.text")}</p>
+  <OperatorDetails />
 
   <h2>{$t("legal.datenschutz.section2.heading")}</h2>
-  <p>
-    <span class="placeholder">{$t("legal.datenschutz.section2.text")}</span>
-  </p>
+  <p>{$t("legal.datenschutz.section2.para1")}</p>
+  <p>{$t("legal.datenschutz.section2.para2")}</p>
+  <p>{$t("legal.datenschutz.section2.para3")}</p>
 
   <h2>{$t("legal.datenschutz.section3.heading")}</h2>
-  <p>
-    {$t("legal.datenschutz.section3.para1Before")}
-    <span class="placeholder">{$t("legal.datenschutz.section3.para1Placeholder")}</span>.
-  </p>
-  <p>
-    {$t("legal.datenschutz.section3.para2")}
-  </p>
+  <p>{$t("legal.datenschutz.section3.para1")}</p>
+  <p>{$t("legal.datenschutz.section3.para2")}</p>
+  <p>{$t("legal.datenschutz.section3.para3")}</p>
 
   <h2>{$t("legal.datenschutz.section4.heading")}</h2>
-  <ul>
-    <li>{$t("legal.datenschutz.section4.li1")}</li>
-    <li>{$t("legal.datenschutz.section4.li2")}</li>
-    <li>{$t("legal.datenschutz.section4.li3")}</li>
-  </ul>
+  <p>{$t("legal.datenschutz.section4.para1")}</p>
+  <p>{$t("legal.datenschutz.section4.para2")}</p>
+  <p>{$t("legal.datenschutz.section4.para3")}</p>
 
   <h2>{$t("legal.datenschutz.section5.heading")}</h2>
-  <p>
-    {$t("legal.datenschutz.section5.para1Before")}<em>{$t("legal.datenschutz.section5.para1Emphasis")}</em>{$t("legal.datenschutz.section5.para1After")}
-    {$t("legal.datenschutz.section5.para3")}
-  </p>
-  <p>
-    {$t("legal.datenschutz.section5.para2")}
-  </p>
-
-  <h2>{$t("legal.datenschutz.section6.heading")}</h2>
+  <p>{$t("legal.datenschutz.section5.intro")}</p>
   <ul>
-    <li>{$t("legal.datenschutz.section6.hostingWebLabel")} <span class="placeholder">{$t("legal.datenschutz.section6.hostingWebPlaceholder")}</span></li>
-    <li>{$t("legal.datenschutz.section6.hostingDbLabel")} <span class="placeholder">{$t("legal.datenschutz.section6.hostingDbPlaceholder")}</span></li>
-    <li>{$t("legal.datenschutz.section6.mailLabel")} {$t("legal.datenschutz.section6.mailText")} <span class="placeholder">{$t("legal.datenschutz.section6.mailPlaceholder")}</span>.</li>
-    <li>{$t("legal.datenschutz.section6.httpCatLabel")} {$t("legal.datenschutz.section6.httpCatText")}</li>
+    <li>
+      <strong>{$t("legal.datenschutz.section5.sharingLabel")}</strong>
+      {$t("legal.datenschutz.section5.sharingText")}
+    </li>
+    <li>
+      <strong>{$t("legal.datenschutz.section5.donationLabel")}</strong>
+      {$t("legal.datenschutz.section5.donationText")}
+    </li>
   </ul>
 
+  <h2>{$t("legal.datenschutz.section6.heading")}</h2>
+  <p>{$t("legal.datenschutz.section6.text")}</p>
+
   <h2>{$t("legal.datenschutz.section7.heading")}</h2>
-  <p>
-    {$t("legal.datenschutz.section7.textBefore")}
-    <span class="placeholder">{$t("legal.datenschutz.section7.gracePlaceholder")}</span>
-    {$t("legal.datenschutz.section7.textMiddle")}
-    <span class="placeholder">{$t("legal.datenschutz.section7.auditPlaceholder")}</span>
-    {$t("legal.datenschutz.section7.textEnd")}
-    {$t("legal.datenschutz.section7.registrationBefore")}
-    <span class="placeholder">{$t("legal.datenschutz.section7.registrationTtlPlaceholder")}</span>
-    {$t("legal.datenschutz.section7.registrationMiddle")}
-    <span class="placeholder">{$t("legal.datenschutz.section7.pendingPlaceholder")}</span>
-    {$t("legal.datenschutz.section7.registrationEnd")}
-  </p>
+  <p>{$t("legal.datenschutz.section7.text")}</p>
 
   <h2>{$t("legal.datenschutz.section8.heading")}</h2>
-  <p>
-    {$t("legal.datenschutz.section8.text")}
-  </p>
+  <p>{$t("legal.datenschutz.section8.text")}</p>
 
   <h2>{$t("legal.datenschutz.section9.heading")}</h2>
-  <p>
-    {$t("legal.datenschutz.section9.textBefore")}
-    <span class="placeholder">{$t("legal.datenschutz.section9.placeholder")}</span>.
-  </p>
+  <p>{$t("legal.datenschutz.section9.intro")}</p>
+  <ul>
+    <li>{$t("legal.datenschutz.section9.account")}</li>
+    {#if periods}
+      <li>{$t("legal.datenschutz.section9.students", { graceDays: periods.graceDays })}</li>
+      <li>
+        {$t("legal.datenschutz.section9.registration", {
+          registrationLinkHours: periods.registrationLinkHours,
+          pendingAccountDays: periods.pendingAccountDays,
+        })}
+      </li>
+      <li>{$t("legal.datenschutz.section9.auditLog", { auditLogDays: periods.auditLogDays })}</li>
+      <li>
+        {$t("legal.datenschutz.section9.contributions", {
+          contributionDays: periods.contributionDays,
+          contributionPendingDays: periods.contributionPendingDays,
+        })}
+      </li>
+      <li>{$t("legal.datenschutz.section9.donation", { trainingSampleDays: periods.trainingSampleDays })}</li>
+    {/if}
+    <li>{$t("legal.datenschutz.section9.counters")}</li>
+    <li>{$t("legal.datenschutz.section9.serverLog")}</li>
+    <li>{$t("legal.datenschutz.section9.browser")}</li>
+  </ul>
+  {#if !periods}
+    <p>{$t("legal.datenschutz.section9.fallback")}</p>
+  {/if}
 
   <h2>{$t("legal.datenschutz.section10.heading")}</h2>
   <p>{$t("legal.datenschutz.section10.para1")}</p>
+  <p>{$t("legal.datenschutz.section10.objection")}</p>
   <p>{$t("legal.datenschutz.section10.para2")}</p>
-  <p>
-    {$t("legal.datenschutz.section10.para3Before")}
-    {#if donationRetentionDays !== null}
-      {donationRetentionDays}
-    {:else}
-      <span class="placeholder">{$t("legal.datenschutz.section10.retentionPlaceholder")}</span>
-    {/if}
-    {$t("legal.datenschutz.section10.para3After")}
-  </p>
-  <p><span class="placeholder">{$t("legal.datenschutz.section10.legalBasisPlaceholder")}</span></p>
 
   <h2>{$t("legal.datenschutz.section11.heading")}</h2>
   <p>{$t("legal.datenschutz.section11.para1")}</p>
   <p>{$t("legal.datenschutz.section11.para2")}</p>
-  <p>{$t("legal.datenschutz.section11.para3")}</p>
-  <p><span class="placeholder">{$t("legal.datenschutz.section11.legalBasisPlaceholder")}</span></p>
 </LegalPage>

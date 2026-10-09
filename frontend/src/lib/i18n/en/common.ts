@@ -15,6 +15,9 @@ export const common: Translations['common'] = {
     previewCompile: 'Compile',
     previewMissingGraphic: 'Preview rendered, but a graphic could not be loaded: {name}',
     previewFailed: 'Preview failed: {message}',
+    zoomControls: 'Zoom',
+    zoomFitWidth: 'Fit to page width',
+    zoomFitPage: 'Show whole page',
     back: 'Back',
     next: 'Next',
     loading: 'Loading…',
@@ -66,5 +69,7 @@ export const common: Translations['common'] = {
         gradeOption: 'Grade {grade}',
         subject: 'Subject',
         allSubjects: 'All subjects',
+        topic: 'Topic',
+        allTopics: 'All topics',
     },
 };

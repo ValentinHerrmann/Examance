@@ -78,7 +78,7 @@ const SPECS: KindSpec[] = [
     id: (r) => r.id,
     title: (r) => r.title || r.id,
     fields: {
-      ...props('title', 'testart', 'fach', 'grade', 'klasse', 'datum', 'nr', 'numVersions', 'retentionUntil'),
+      ...props('title', 'testart', 'fach', 'topic', 'grade', 'klasse', 'datum', 'nr', 'numVersions', 'retentionUntil'),
       gradingKey: (r) => r.gradingKey?.preset,
     },
     text: (r) => r.latexPreamble ?? '',

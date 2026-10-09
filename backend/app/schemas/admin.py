@@ -18,21 +18,9 @@ class AuditLogResponse(BaseModel):
     created_at: datetime
 
 
-class ClassStatsResponse(BaseModel):
-    exam_id: uuid.UUID
-    total_submissions: int
-    mean_score: float | None
-    std_dev: float | None
-    k_anonymity_satisfied: bool
-    suppressed_reason: str | None = None
-
-
 class AccountFeatures(BaseModel):
-    """The per-account switches an admin sets (app/services/capabilities.py).
-
-    server_results: results and student data may live on the server ("all-server").
-    server_latex: LaTeX may be compiled on the server.
-    exercise_sharing: exercises may be shared with, and copied from, other accounts (issue #65)."""
+    """The per-account admin switches (app/services/capabilities.py): server_results ("all-server"
+    allowed), server_latex (server-side compile), exercise_sharing (sharing/copying, issue #65)."""
 
     model_config = ConfigDict(extra="forbid")
 

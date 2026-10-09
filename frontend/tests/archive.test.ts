@@ -25,6 +25,7 @@ import { decrypt, encrypt } from '../src/lib/crypto/aesGcm';
 import { sessionStore } from '../src/lib/stores/session';
 import { storagePolicyStore } from '../src/lib/stores/storagePolicy';
 import { eraseStudent } from '../src/lib/gdpr/erasure';
+import { ensure64CharHex } from '../src/lib/crypto/hmac';
 import { checkRetention } from '../src/lib/gdpr/retention';
 
 const packBlob = async (...args: Parameters<typeof packProject>) => (await packProject(...args)).blob;
@@ -391,6 +392,24 @@ describe('GDPR Erasure & Retention', () => {
     const logs = await db.auditLog.toArray();
     expect(logs).toHaveLength(1);
     expect(logs[0].action).toBe('DELETE');
+  });
+
+  it('erases a student held only on the server (all-server)', async () => {
+    // The old erasure required a local student row, which all-server never has.
+    fakeServer.reset();
+    storagePolicyStore.setPolicy({ storageMode: 'all-server', latexCompilation: 'local' });
+    const examId = 'exam-gdpr-2';
+    const hmac = await ensure64CharHex('student-on-server');
+    fakeServer.state.exams.set(examId, { id: examId, title: 'GDPR', created_at: new Date().toISOString() });
+    fakeServer.state.students.set(examId, [{ pseudonym_hmac: hmac, exam_id: examId }]);
+    fakeServer.state.submissions.set(examId, [{ id: 'sub-s', exam_id: examId, pseudonym_hmac: hmac }]);
+
+    const result = await eraseStudent('student-on-server', examId);
+
+    expect(result.submissionsErased).toBe(1);
+    expect(fakeServer.state.students.get(examId)).toEqual([]);
+    expect(fakeServer.state.submissions.get(examId) ?? []).toEqual([]);
+    expect(await db.auditLog.count()).toBe(1);
   });
 
   it('checks retention period correctly', () => {

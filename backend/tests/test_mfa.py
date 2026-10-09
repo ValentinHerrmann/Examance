@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import time
 
 import pytest
 from httpx import AsyncClient
@@ -204,13 +205,9 @@ async def test_only_admins_can_clear_factors(client: AsyncClient, db: AsyncSessi
 @pytest.mark.asyncio
 async def test_a_mistyped_code_can_be_retried(client: AsyncClient, db: AsyncSession) -> None:
     """
-    One wrong digit costs an attempt, not the sign-in.
-
-    The pending token is single-use, and it used to be spent before the code was
-    checked — so a typo, or a phone whose clock had drifted, left every retry
-    reporting an expired step as "invalid code" with no way forward but a reload.
-    It is now consumed only by a factor that actually succeeds, and a failure
-    hands back an equivalent token to try again with.
+    One wrong digit costs an attempt, not the sign-in. The single-use pending token used to be spent
+    before the code was checked, so a typo left every retry failing. Now only a succeeding factor
+    consumes it; a failure hands back an equivalent token.
     """
     email = "retry-totp@example.com"
     teacher = await create_teacher(db, email)
@@ -303,11 +300,8 @@ async def test_status_reports_recovery_and_factor_activity(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     """
-    What the security page renders per factor.
-
-    The dates are nullable on purpose: they were added after the factors were,
-    so an account that has been signing in for months can legitimately have
-    none, and the page says "not recorded" rather than inventing one.
+    What the security page renders per factor. The dates are nullable on purpose: added after the
+    factors, so older accounts have none and the page says "not recorded" rather than inventing one.
     """
     email = "status-detail@example.com"
     await sign_in(client, db, email)
@@ -347,21 +341,26 @@ async def test_status_reports_recovery_and_factor_activity(
     assert after["recovery_created_at"] is not None
 
 
+def _spent_code(secret: bytes) -> str:
+    """The code of the step the next sign-in spends (or the one before, if it rolls over).
+
+    Re-reading the clock after the sign-in can land on a fresh, unspent step."""
+    return totp_svc.generate_code(secret, totp_svc.current_step(int(time.time())))
+
+
 @pytest.mark.asyncio
 async def test_a_spent_code_says_so_instead_of_calling_itself_invalid(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     """
     The code the authenticator is *still showing* is not a wrong code.
-
-    Every sign-in straight after a password reset hits this: the reset took a
-    code of its own moments earlier, and the app has not rolled over yet. Saying
-    "invalid" sends the teacher hunting for a problem that fixes itself in
-    thirty seconds.
+    Every sign-in right after a password reset hits this (the reset took a code moments earlier);
+    saying "invalid" sends the teacher hunting for a problem that fixes itself in thirty seconds.
     """
     email = "spent-code@example.com"
     teacher = await create_teacher(db, email)
     secret = await enrol_totp(db, teacher)
+    spent = _spent_code(secret)
     await complete_login(client, email, secret)
 
     client.cookies.clear()
@@ -371,9 +370,7 @@ async def test_a_spent_code_says_so_instead_of_calling_itself_invalid(
     client.cookies.update(first.cookies)
 
     # The same window's code, already spent by the sign-in above.
-    replay = await client.post(
-        "/api/v1/auth/factor/totp", json={"code": current_code(secret)}
-    )
+    replay = await client.post("/api/v1/auth/factor/totp", json={"code": spent})
     assert replay.status_code == 401
     assert replay.headers.get("code") == "ERR_MFA_CODE_ALREADY_USED"
 
@@ -391,6 +388,7 @@ async def test_a_spent_code_costs_no_attempt(client: AsyncClient, db: AsyncSessi
     email = "spent-code-throttle@example.com"
     teacher = await create_teacher(db, email)
     secret = await enrol_totp(db, teacher)
+    spent = _spent_code(secret)
     await complete_login(client, email, secret)
 
     for _ in range(6):
@@ -399,9 +397,7 @@ async def test_a_spent_code_costs_no_attempt(client: AsyncClient, db: AsyncSessi
             "/api/v1/auth/login", json={"email": email, "password": DEFAULT_PASSWORD}
         )
         client.cookies.update(first.cookies)
-        resp = await client.post(
-            "/api/v1/auth/factor/totp", json={"code": current_code(secret)}
-        )
+        resp = await client.post("/api/v1/auth/factor/totp", json={"code": spent})
         assert resp.headers.get("code") == "ERR_MFA_CODE_ALREADY_USED", resp.text
 
     # Past LOGIN_MAX_FAILED_ATTEMPTS, and still not locked.

@@ -5,11 +5,12 @@
  */
 
 import { clearAllTables } from './db';
-import { sessionStore } from '#lib/stores/session';
+import { isUnlocked, sessionStore } from '#lib/stores/session';
 import { storagePolicyStore } from '#lib/stores/storagePolicy';
 import { workspaceStatusStore } from '#lib/stores/workspaceState';
 import { clearCapabilities } from '#lib/stores/capabilities';
 import { get, writable } from 'svelte/store';
+import { safeLocalStorage } from '#lib/utils/storage';
 
 import { api } from '#lib/api/client';
 
@@ -56,45 +57,77 @@ export async function lockSession(): Promise<void> {
 const TIMEOUT_MS = 60 * 60 * 1000;
 /** Warning threshold in milliseconds (5 minutes). */
 const WARNING_THRESHOLD_MS = 5 * 60 * 1000;
+/** Last activity in any tab of this browser: a lock (which every tab follows) needs all of them idle. */
+export const LAST_ACTIVITY_KEY = 'bg_last_activity';
+const ACTIVITY_WRITE_MS = 15_000;
 
-let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
-let intervalHandle: ReturnType<typeof setInterval> | null = null;
-let expirationTime: number = 0;
+let tickHandle: ReturnType<typeof setInterval> | null = null;
+let lastActivity = 0;
+let lastWritten = 0;
 
 export const timeUntilLock = writable<number | null>(null);
 
-export function keepSessionAlive(): void {
-  resetTimeout();
+function sharedLastActivity(): number {
+  const value = Number(safeLocalStorage.getItem(LAST_ACTIVITY_KEY));
+  return Number.isFinite(value) ? value : 0;
 }
 
-function resetTimeout(): void {
-  if (timeoutHandle !== null) clearTimeout(timeoutHandle);
-  if (intervalHandle !== null) clearInterval(intervalHandle);
+/** Throttled, so mousemove does not write storage on every event; the tick catches up the trailing write. */
+function publishActivity(force = false): void {
+  if (lastActivity <= lastWritten || (!force && Date.now() - lastWritten < ACTIVITY_WRITE_MS)) return;
+  lastWritten = lastActivity;
+  if (sharedLastActivity() < lastActivity) safeLocalStorage.setItem(LAST_ACTIVITY_KEY, String(lastActivity));
+}
 
-  expirationTime = Date.now() + TIMEOUT_MS;
+function recordActivity(): void {
+  lastActivity = Date.now();
+  if (tickHandle !== null) publishActivity();
+}
+
+export function keepSessionAlive(): void {
+  recordActivity();
+  publishActivity(true);
   timeUntilLock.set(null);
+}
 
-  timeoutHandle = setTimeout(async () => {
-    if (intervalHandle !== null) clearInterval(intervalHandle);
+/** Pure: milliseconds until the idle lock, from the newest activity seen in any tab. */
+export function remainingUntilLock(localLast: number, sharedLast: number, now: number): number {
+  return Math.max(localLast, sharedLast) + TIMEOUT_MS - now;
+}
+
+async function tick(): Promise<void> {
+  publishActivity();
+  const remaining = remainingUntilLock(lastActivity, sharedLastActivity(), Date.now());
+  if (remaining <= 0) {
+    disarm();
     await lockSession();
-  }, TIMEOUT_MS);
+  } else if (remaining <= WARNING_THRESHOLD_MS) {
+    timeUntilLock.set(Math.ceil(remaining / 1000));
+  } else {
+    timeUntilLock.set(null);
+  }
+}
 
-  intervalHandle = setInterval(() => {
-    const remaining = expirationTime - Date.now();
-    if (remaining <= WARNING_THRESHOLD_MS && remaining > 0) {
-      timeUntilLock.set(Math.ceil(remaining / 1000));
-    } else {
-      timeUntilLock.set(null);
-    }
-  }, 1000);
+/** Only while unlocked: a locked tab has nothing to lock (its timer would log out a later sign-in). */
+function arm(): void {
+  if (tickHandle !== null) return;
+  lastActivity = Date.now();
+  publishActivity(true);
+  tickHandle = setInterval(() => void tick(), 1000);
+}
+
+function disarm(): void {
+  if (tickHandle !== null) clearInterval(tickHandle);
+  tickHandle = null;
+  timeUntilLock.set(null);
 }
 
 /** Register all hygiene event listeners. Call once on app startup. */
 export function registerHygieneListeners(): void {
   // Inactivity timeout — reset on any user interaction
   const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'pointerdown', 'scroll', 'touchstart'];
-  ACTIVITY_EVENTS.forEach((evt) => window.addEventListener(evt, resetTimeout, { passive: true }));
-  resetTimeout(); // Start timer immediately
+  ACTIVITY_EVENTS.forEach((evt) => window.addEventListener(evt, recordActivity, { passive: true }));
+  isUnlocked.subscribe((unlocked) => (unlocked ? arm() : disarm()));
 
   // Inactivity timeout — lock session on timeout (data remains safe encrypted at rest)
   document.addEventListener('visibilitychange', () => {

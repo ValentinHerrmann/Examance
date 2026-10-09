@@ -1,50 +1,35 @@
 import type { Translations } from '../types';
 
-// -----------------------------------------------------------------------------
-// PLACEHOLDER TRANSLATIONS — DO NOT MACHINE-TRANSLATE.
-// Impressum (§ 5 DDG) and Datenschutzerklärung (Art. 12/13 DSGVO) are legally binding in German.
-// Every value except `backToHome` is deliberately identical to `../de/legal.ts`, not an English
-// translation. Replace only with a reviewed, legally-checked English version, alongside the German one.
-// -----------------------------------------------------------------------------
+// PLACEHOLDER TRANSLATIONS, DO NOT MACHINE-TRANSLATE: Impressum (§ 18 MStV, § 5 DDG) and Datenschutzerklärung (Art. 12/13
+// DSGVO) are legally binding in German. Every value except `backToHome` and `notConfigured` is deliberately identical to
+// `../de/legal.ts`; replace only with a reviewed, legally checked English version, alongside the German one.
 
 export const legal: Translations['legal'] = {
-    // Navigational/structural label — not part of the legally binding text.
+    // Navigational/structural labels — not part of the legally binding text.
     backToHome: 'Back to Examance',
+    notConfigured: {
+        strong: 'Operator details missing.',
+        text: 'This build carries no operator details (VITE_LEGAL_*, see docs/deployment.md); the marked fields are placeholders.',
+    },
 
-    // PLACEHOLDER — German legal text (Impressum, § 5 DDG). Do not machine-translate.
+    // Operator block shared by Impressum and Datenschutzerklärung; values come from the build (lib/legal/operator.ts).
+    operator: {
+        namePlaceholder: '[Name]',
+        streetPlaceholder: '[Straße und Hausnummer]',
+        postcodeCityPlaceholder: '[PLZ und Ort]',
+        emailPlaceholder: '[E-Mail-Adresse]',
+        country: 'Deutschland',
+        emailLabel: 'E-Mail:',
+        phoneLabel: 'Telefon:',
+    },
+
+    // PLACEHOLDER — German legal text. Do not machine-translate.
     impressum: {
         pageTitle: 'Impressum — Examance',
         title: 'Impressum',
-        subtitle: 'Anbieterkennzeichnung nach § 5 DDG',
-        todoBanner: {
-            strong: 'Vor dem Produktivbetrieb ausfüllen.',
-            text: 'Die markierten Felder müssen durch die Angaben des tatsächlichen Betreibers ersetzt werden. Ein unvollständiges Impressum ist abmahnfähig.',
-        },
+        subtitle: 'Angaben nach § 18 Abs. 1 MStV und, soweit anwendbar, § 5 DDG',
         provider: {
-            heading: 'Diensteanbieter',
-            namePlaceholder: '[Name der Schule / des Schulträgers]',
-            streetPlaceholder: '[Straße und Hausnummer]',
-            cityPlaceholder: '[PLZ und Ort]',
-            country: 'Deutschland',
-        },
-        representative: {
-            heading: 'Vertretungsberechtigt',
-            namePlaceholder: '[Name der Schulleitung bzw. der vertretungsberechtigten Person]',
-        },
-        contact: {
-            heading: 'Kontakt',
-            phoneLabel: 'Telefon:',
-            phonePlaceholder: '[Telefonnummer]',
-            emailLabel: 'E-Mail:',
-            emailPlaceholder: '[E-Mail-Adresse]',
-        },
-        authority: {
-            heading: 'Zuständige Aufsichtsbehörde',
-            placeholder: '[Zuständiges Staatliches Schulamt / Ministerium]',
-        },
-        responsible: {
-            heading: 'Verantwortlich für den Inhalt',
-            placeholder: '[Name, Anschrift]',
+            heading: 'Anbieter',
         },
         privacy: {
             heading: 'Datenschutz',
@@ -53,92 +38,77 @@ export const legal: Translations['legal'] = {
         },
     },
 
-    // PLACEHOLDER — German legal text (Datenschutzerklärung, Art. 12/13 DSGVO). Do not machine-translate.
+    // PLACEHOLDER — German legal text. Do not machine-translate.
     datenschutz: {
         pageTitle: 'Datenschutzerklärung — Examance',
         title: 'Datenschutzerklärung',
-        subtitle: 'Informationen nach Art. 13 und 14 DSGVO',
-        todoBanner: {
-            strong: 'Vor dem Produktivbetrieb ausfüllen und rechtlich prüfen lassen.',
-            text: 'Die markierten Felder sind betreiberspezifisch. Die Rechtsgrundlage und die Aufbewahrungsfristen richten sich nach dem Schulrecht des jeweiligen Landes — siehe',
-        },
+        subtitle: 'Informationen nach Art. 13 DSGVO',
         section1: {
             heading: '1. Verantwortlicher',
-            text: '[Name und Anschrift der Schule als verantwortliche Stelle]',
+            text: 'Verantwortlich für die Verarbeitung personenbezogener Daten auf dieser Website und dem zugehörigen Server ist:',
         },
         section2: {
-            heading: '2. Datenschutzbeauftragte / Datenschutzbeauftragter',
-            text: '[Name, Anschrift, E-Mail]',
+            heading: '2. Aufruf der Website',
+            para1: 'Die Weboberfläche wird über Cloudflare Pages ausgeliefert; Anfragen an den Server von Examance laufen ebenfalls über das Netz von Cloudflare. Anbieter ist die Cloudflare, Inc., USA, die als Auftragsverarbeiter tätig ist (Art. 28 DSGVO). Die Übermittlung in die USA stützt sich auf den Angemessenheitsbeschluss zum EU-U.S. Data Privacy Framework (Art. 45 DSGVO).',
+            para2: 'Bei jedem Aufruf werden technisch notwendige Verbindungsdaten verarbeitet: IP-Adresse, Zeitpunkt, aufgerufene Adresse, Statuscode und Browserkennung. Der Server nutzt die IP-Adresse außerdem, um die Zahl der Anfragen zu begrenzen, und schreibt Anfragen (IP-Adresse, Zeitpunkt, Anfrage, Statuscode) in ein technisches Protokoll zur Fehlersuche. Bei sicherheitsrelevanten Kontoaktionen wie Anmeldung, Passwortänderung, Export oder Löschung speichert er einen Hashwert der IP-Adresse im Sicherheitsprotokoll.',
+            para3: 'Zweck ist die sichere und stabile Bereitstellung des Dienstes; Rechtsgrundlage ist das berechtigte Interesse des Betreibers daran (Art. 6 Abs. 1 lit. f DSGVO).',
         },
         section3: {
-            heading: '3. Zwecke und Rechtsgrundlage der Verarbeitung',
-            para1Before: 'Examance wird zur Erstellung, Durchführung und Bewertung schriftlicher Leistungsnachweise eingesetzt. Die Verarbeitung erfolgt zur Wahrnehmung einer Aufgabe, die im öffentlichen Interesse liegt bzw. in Ausübung öffentlicher Gewalt (Art. 6 Abs. 1 lit. e DSGVO) in Verbindung mit',
-            para1Placeholder: '[landesrechtliche Grundlage, in Bayern z. B. Art. 85 BayEUG i. V. m. BaySchO]',
-            para2: 'Eine Einwilligung wird für diese Verarbeitung nicht eingeholt und ist nicht erforderlich; ein Widerruf ist daher nicht vorgesehen.',
+            heading: '3. Nutzerkonto',
+            para1: 'Examance richtet sich an Lehrkräfte. Ein Konto entsteht auf Einladung der Administration oder durch Registrierung: Nach Bestätigung der E-Mail-Adresse über einen zugesandten Link und Festlegen eines Passworts gibt die Administration das Konto frei, für bestimmte E-Mail-Domains automatisch. Bis zur Entscheidung sieht die Administration die E-Mail-Adresse und eine freiwillige Nachricht; ein abgelehnter Antrag wird gelöscht.',
+            para2: 'Gespeichert werden E-Mail-Adresse, Rolle, ein Hashwert des Passworts, die Anmeldefaktoren (öffentliche Schlüssel von Passkeys, verschlüsseltes Geheimnis für Einmalcodes, Hashwerte von Wiederherstellungscodes), der verschlüsselte Datenschlüssel, Kontoeinstellungen wie Speichermodus und freigeschaltete Funktionen sowie Zeitpunkte wie Erstellung, Freigabe und letzte Nutzung eines Anmeldefaktors. Das Sicherheitsprotokoll enthält E-Mail-Adresse, Aktion, Zeitpunkt und Hashwerte der IP-Adresse und des betroffenen Objekts.',
+            para3: 'Rechtsgrundlage ist die Bereitstellung des Dienstes auf Ihren Wunsch (Art. 6 Abs. 1 lit. b DSGVO), für das Sicherheitsprotokoll das berechtigte Interesse an der Sicherheit der Konten (Art. 6 Abs. 1 lit. f DSGVO).',
         },
         section4: {
-            heading: '4. Kategorien personenbezogener Daten',
-            li1: 'Bei Schülerinnen und Schülern: Name, Kennnummer, abgegebene Prüfungsarbeit (Scan), Korrekturanmerkungen, erreichte Punktzahl.',
-            li2: 'Bei Lehrkräften: E-Mail-Adresse, Rolle, Zeitpunkt der Freigabe des Kontos, die von der Administration freigeschalteten Funktionen, Zeitpunkte von Anmeldungen und Exporten, gekürzter Hashwert der IP-Adresse.',
-            li3: 'Bei Personen, die ein Konto beantragen: E-Mail-Adresse und ein Hashwert des Bestätigungslinks, bis die Adresse bestätigt ist; danach der Hashwert des gewählten Passworts und eine freiwillige Nachricht an die Administration, bis über die Freigabe entschieden ist.',
+            heading: '4. Prüfungen und Schülerdaten',
+            para1: 'Prüfungen und Aufgaben (Texte, Dateien und Angaben wie Titel, Klasse, Fach, Datum oder Name der Lehrkraft) werden unverschlüsselt auf dem Server gespeichert; Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.',
+            para2: 'Identitäten von Schülerinnen und Schülern, Scans, Korrekturanmerkungen und Punktzahlen je Aufgabe werden bereits im Browser verschlüsselt (AES-256-GCM); den Schlüssel erhält der Server nie. Je Konto gilt einer von zwei Speichermodi: Im Modus „all-server“ liegen diese Daten verschlüsselt auf dem Server, dazu unverschlüsselt die Gesamtpunktzahl je Pseudonym für die Statistik. Im Modus „hybrid“ bleiben sie verschlüsselt im Browser (IndexedDB) und werden nicht an den Server übertragen.',
+            para3: 'Für Schülerdaten ist die Lehrkraft bzw. ihre Schule verantwortlich. Der Betreiber stellt dafür nur die technische Plattform bereit, kann die im Browser verschlüsselten Inhalte nicht lesen und nutzt die Daten nicht für eigene Zwecke; einen Vertrag zur Auftragsverarbeitung (Art. 28 DSGVO) können Schulen beim Betreiber anfordern. Schülerinnen, Schüler und Eltern wenden sich mit Anfragen bitte an die Lehrkraft bzw. die Schule.',
         },
         section5: {
-            heading: '5. Verschlüsselung und Speicherort',
-            para1Before: 'Zur Nutzung ist ein Konto auf dem Examance-Server erforderlich. Der Datenschlüssel wird im Browser aus dem Schlüsselumschlag des Kontos (Passwort, Passkey oder Wiederherstellungscode) abgeleitet; der Server erhält ihn nie. Identitätsdaten, Scans und Korrekturanmerkungen werden bereits im Browser verschlüsselt (AES-256-GCM), bevor sie gespeichert oder übertragen werden. Der Server erhält diese Inhalte ausschließlich als Chiffrat und besitzt den Schlüssel nicht. Die Lehrkraft wählt je Konto beim ersten Anmelden ausdrücklich einen von zwei Speichermodi. Im Modus (',
-            para1Emphasis: 'all-server',
-            para1After: ') werden Identitäten, Scans, Korrekturanmerkungen und Punktzahlen je Aufgabe als Chiffrat auf dem Server gespeichert. Im Modus „hybrid“ verbleiben Schülerdaten, Scans und Punktzahlen ausschließlich im verschlüsselten Browserspeicher (IndexedDB) des Geräts, auf dem sie erfasst wurden, und werden nicht an den Server übertragen. Prüfungen und Aufgaben (LaTeX-Quelltext, Ressourcendateien) liegen in beiden Modi unverschlüsselt auf dem Server. Beim Wechsel des Modus werden die Ergebnisse zwischen Server und Browser verschoben; das Löschen der bisherigen Kopie ist optional (vorläufiges Löschen mit 7 Tagen Karenzzeit). Die optionale serverseitige LaTeX-Kompilierung arbeitet zustandslos (temporäres Verzeichnis, keine Speicherung, keine Schülerdaten). Ein früherer rein lokaler Modus ohne Konto wird nicht mehr angeboten; ältere lokale Browserdaten können nicht mehr geöffnet und nur noch gelöscht werden.',
-            para3: 'Ausnahme: die freiwillige Spende anonymisierter Ankreuzfeld-Ausschnitte (Abschnitt 10), sofern die Lehrkraft sie aktiviert hat.',
-            para2: 'Nicht verschlüsselt gespeichert werden serverseitig: die Gesamtpunktzahl je Pseudonym (nur im Modus all-server) sowie Prüfungs- und Aufgabeninhalte und Metadaten der Prüfung (Titel, Klasse, Fach, Datum). Pseudonymisierte Daten bleiben personenbezogene Daten im Sinne des Erwägungsgrundes 26 DSGVO. Teilt eine Lehrkraft eine Aufgabe (freiwillig, je Aufgabe), sind deren Inhalt, Ressourcendateien und die E-Mail-Adresse der Lehrkraft für alle Konten dieser Installation sichtbar; Rechtsgrundlage ist die Einwilligung der Lehrkraft (Art. 6 Abs. 1 lit. a DSGVO), die sie durch Beenden des Teilens jederzeit widerrufen kann. Bereits übernommene Kopien verbleiben bei den jeweiligen Konten. Schlägt eine Lehrkraft aus ihrer Kopie Änderungen am Original vor, sieht die teilende Lehrkraft den Vorschlag und die E-Mail-Adresse der vorschlagenden Lehrkraft; der Inhalt eines Vorschlags wird mit der Entscheidung gelöscht, der Eintrag 30 Tage danach, unentschiedene Vorschläge nach 180 Tagen. Die teilende Lehrkraft erhält dazu eine E-Mail-Benachrichtigung ohne Inhalt.',
+            heading: '5. Freiwillige Funktionen',
+            intro: 'Die folgenden Funktionen sind ausgeschaltet, bis Sie sie nutzen, und beruhen auf Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO). Sie können die Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen (Art. 7 Abs. 3 DSGVO).',
+            sharingLabel: 'Teilen von Aufgaben:',
+            sharingText: 'Teilen Sie eine Aufgabe, sind ihr Inhalt, ihre Dateien und Ihre E-Mail-Adresse für die anderen Konten dieser Installation sichtbar. Sie widerrufen, indem Sie das Teilen beenden; bereits erstellte Kopien bleiben bei den jeweiligen Konten. Schlagen Sie Änderungen an einer geteilten Aufgabe vor, sieht die teilende Lehrkraft den Vorschlag und Ihre E-Mail-Adresse und erhält eine E-Mail-Benachrichtigung ohne Inhalt.',
+            donationLabel: 'Spende von Ankreuzfeld-Ausschnitten:',
+            donationText: 'Sie können in den Einstellungen Ausschnitte bereits geprüfter Multiple-Choice-Kästchen an den Betreiber senden, um die automatische Erkennung zu verbessern. Übermittelt werden je Kästchen nur ein kleiner Graustufen-Ausschnitt ohne Aufgabentext, Ihre geprüfte Entscheidung, technische Messwerte und eine zufällige Kennung, aber keine Namen, Pseudonyme, Kennungen von Prüfungen oder Abgaben und keine Zeitstempel. Die Ausschnitte werden ohne Bezug zu Ihrem Konto gespeichert; das Konto dient nur einem Tageskontingent, dessen Zähler (Hashwert der Kontokennung) nach 24 Stunden verfällt. Nach dem Widerruf in den Einstellungen wird nichts mehr gesendet; bereits gespendete Ausschnitte lassen sich niemandem zuordnen und daher nicht gezielt löschen.',
         },
         section6: {
-            heading: '6. Empfänger und Auftragsverarbeiter',
-            hostingWebLabel: 'Hosting der Weboberfläche:',
-            hostingWebPlaceholder: '[Cloudflare Pages, Cloudflare Inc., USA — Angemessenheitsbeschluss / Standardvertragsklauseln prüfen]',
-            hostingDbLabel: 'Hosting von Datenbank und Cache:',
-            hostingDbPlaceholder: '[Anbieter, Standort]',
-            mailLabel: 'E-Mail-Versand:',
-            mailText: 'Bestätigungslinks, Einladungen, Links zum Zurücksetzen des Passworts sowie Benachrichtigungen über Freigabe oder Ablehnung werden per E-Mail versandt über',
-            mailPlaceholder: '[E-Mail-Versanddienst, Anbieter, Standort]',
-            httpCatLabel: 'Fehlerbilder:',
-            httpCatText: 'Zeigt die Anwendung eine HTTP-Fehlermeldung an, lädt der Browser ein illustrierendes Bild vom Dienst http.cat (Betreiber in den USA). Dabei werden ausschließlich Ihre IP-Adresse, die Browserkennung (User-Agent) und der HTTP-Statuscode des Fehlers übermittelt; es werden weder Referrer noch Cookies oder Inhalte der Anwendung gesendet. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO.',
+            heading: '6. E-Mail-Versand',
+            text: 'Für E-Mails wie Bestätigungs- und Einladungslinks, das Zurücksetzen des Passworts, die Bestätigung einer Kontolöschung und Benachrichtigungen nutzt der Betreiber einen E-Mail-Dienstleister als Auftragsverarbeiter (Art. 28 DSGVO). Verarbeitet werden E-Mail-Adresse und Inhalt der Nachricht; Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.',
         },
         section7: {
-            heading: '7. Speicherdauer',
-            textBefore: 'Für jede Prüfung wird ein Aufbewahrungsdatum festgelegt. Nach dessen Ablauf werden Identitätsdaten und Abgaben nach einer Übergangsfrist von',
-            gracePlaceholder: '[RETENTION_GRACE_DAYS]',
-            textMiddle: 'Tagen unwiderruflich gelöscht. Protokolldaten werden nach',
-            auditPlaceholder: '[AUDIT_LOG_RETENTION_DAYS]',
-            textEnd: 'Tagen gelöscht. Gesetzliche Aufbewahrungsfristen für Leistungsnachweise bleiben unberührt.',
-            registrationBefore: 'Nicht bestätigte Kontoanträge werden nach',
-            registrationTtlPlaceholder: '[REGISTRATION_TOKEN_TTL_HOURS]',
-            registrationMiddle: 'Stunden gelöscht, nicht freigegebene Konten nach',
-            pendingPlaceholder: '[PENDING_ACCOUNT_RETENTION_DAYS]',
-            registrationEnd: 'Tagen. Ein abgelehnter Antrag wird sofort gelöscht; die Nachricht an die Administration wird mit der Freigabe gelöscht.',
+            heading: '7. Fehlerbilder von http.cat',
+            text: 'Zeigt die Anwendung eine HTTP-Fehlermeldung an, lädt Ihr Browser ein passendes Bild vom Dienst http.cat (Betreiber in den USA). Examance gibt dabei nur den Statuscode des Fehlers weiter, keine Herkunftsadresse und keine Inhalte der Anwendung; der Anbieter erhält wie bei jedem Abruf Ihre IP-Adresse und Browserkennung. Ob für den Anbieter ein Angemessenheitsbeschluss (Art. 45 DSGVO) gilt, ist dem Betreiber nicht bekannt; geeignete Garantien (Art. 46 DSGVO) bestehen nicht. Rechtsgrundlage ist das berechtigte Interesse an einer verständlichen Fehleranzeige (Art. 6 Abs. 1 lit. f DSGVO).',
         },
         section8: {
-            heading: '8. Ihre Rechte',
-            text: 'Sie haben das Recht auf Auskunft (Art. 15), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) sowie Widerspruch gegen die Verarbeitung (Art. 21). Wenden Sie sich dafür an die oben genannte verantwortliche Stelle.',
+            heading: '8. Cookies und Speicher im Browser',
+            text: 'Examance speichert im Browser nur, was für den Dienst technisch erforderlich ist (§ 25 Abs. 2 Nr. 2 TDDDG): Anmelde-Cookies des Servers, Einstellungen wie Sprache und Darstellung, noch nicht an den Server übertragene Änderungen, den Sitzungsschlüssel für die Dauer der Sitzung und den verschlüsselten Datenspeicher (IndexedDB). Es gibt kein Tracking und keine Analyse- oder Werbedienste.',
         },
         section9: {
-            heading: '9. Beschwerderecht',
-            textBefore: 'Sie können sich bei einer Aufsichtsbehörde beschweren. Für bayerische öffentliche Schulen ist dies der Bayerische Landesbeauftragte für den Datenschutz (BayLfD), Wagmüllerstraße 18, 80538 München. In anderen Ländern ist die jeweils für öffentliche Stellen zuständige Aufsichtsbehörde einschlägig:',
-            placeholder: '[zuständige Aufsichtsbehörde]',
+            heading: '9. Speicherdauer',
+            intro: 'Personenbezogene Daten werden gelöscht, sobald sie für ihren Zweck nicht mehr erforderlich sind:',
+            account: 'Kontodaten, Prüfungen und Aufgaben: bis zur Löschung des Kontos, die Sie in den Einstellungen auslösen können.',
+            students: 'Schülerdaten und Abgaben auf dem Server: bis zu dem Aufbewahrungsdatum, das die Lehrkraft je Prüfung festlegt, oder bis zu ihrer Löschung; danach endgültig nach einer Übergangsfrist von {graceDays} Tagen.',
+            registration: 'Unbestätigte Registrierungen spätestens einen Tag nach Ablauf des {registrationLinkHours} Stunden gültigen Bestätigungslinks, nicht freigegebene Konten nach {pendingAccountDays} Tagen, abgelehnte Anträge sofort.',
+            auditLog: 'Sicherheitsprotokoll: {auditLogDays} Tage.',
+            contributions: 'Änderungsvorschläge: der Inhalt mit der Entscheidung, der Eintrag {contributionDays} Tage danach; unentschiedene Vorschläge nach {contributionPendingDays} Tagen.',
+            donation: 'Gespendete Ankreuzfeld-Ausschnitte: {trainingSampleDays} Tage.',
+            fallback: 'Die genauen Fristen legt der Server dieser Installation fest; sie erscheinen hier, sobald er erreichbar ist. Schülerdaten werden nach Ablauf des von der Lehrkraft festgelegten Aufbewahrungsdatums gelöscht; unbestätigte Registrierungen, nicht freigegebene Konten, das Sicherheitsprotokoll, Änderungsvorschläge und gespendete Ausschnitte nach festen Fristen.',
+            counters: 'Zähler zur Begrenzung von Anfragen und Anmeldeversuchen: höchstens eine Stunde.',
+            serverLog: 'Technisches Protokoll des Servers: bis zur nächsten Aktualisierung des Servers.',
+            browser: 'Daten im Browser: bis Sie sie in der Anwendung oder im Browser löschen; der Sitzungsschlüssel endet mit der Sitzung.',
         },
         section10: {
-            heading: '10. Freiwillige Spende anonymisierter Ankreuzfeld-Ausschnitte',
-            para1: 'Lehrkräfte können in den Einstellungen freiwillig (Opt-in, standardmäßig deaktiviert) einwilligen, zur Verbesserung der automatischen Erkennung von Ankreuzfeldern Ausschnitte bereits von ihnen geprüfter Multiple-Choice-Kästchen an den Betreiber dieses Examance-Servers zu senden.',
-            para2: 'Übermittelt werden je Kästchen ausschließlich: ein kleiner Graustufen-Ausschnitt des Kästchens und des danebenliegenden Korrekturfelds (ohne Aufgabentext), die von der Lehrkraft geprüfte Entscheidung „angekreuzt / nicht angekreuzt“ sowie technische Messwerte der Erkennung. Nicht übermittelt werden Namen, Pseudonyme, Kennungen von Prüfung, Abgabe oder Aufgabe oder Zeitstempel; je Kästchen wird lediglich eine zufällig erzeugte Kennung übertragen, damit eine spätere Korrektur der Lehrkraft die frühere Wertung ersetzt. Die Übermittlung erfolgt nur mit angemeldetem Konto, damit ausschließlich Konten dieser Installation spenden können; das Konto wird dabei nicht mit den Ausschnitten gespeichert, sondern nur für ein Tageskontingent verwendet, dessen Zähler (Hashwert der Kontokennung) nach 24 Stunden verfällt. IP-Adressen werden nicht zusammen mit den Ausschnitten gespeichert. Die Ausschnitte werden vor der Übertragung im Browser anonymisiert und auf dem Server ohne Bezug zu Personen gespeichert.',
-            para3Before: 'Die Ausschnitte werden ausschließlich zum Trainieren und Bewerten des Erkennungsverfahrens verwendet und nach',
-            retentionPlaceholder: '[TRAINING_SAMPLE_RETENTION_DAYS]',
-            para3After: 'Tagen gelöscht. Die Einwilligung kann jederzeit in den Einstellungen widerrufen werden; bereits übermittelte Ausschnitte können mangels Personenbezug nicht mehr einzelnen Personen zugeordnet und daher nicht gezielt gelöscht werden.',
-            legalBasisPlaceholder: '[Rechtsgrundlage der Anonymisierung und Übermittlung durch die Schule / Lehrkraft — rechtlich prüfen]',
+            heading: '10. Ihre Rechte',
+            para1: 'Sie haben das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21, siehe unten). Eine Einwilligung können Sie jederzeit mit Wirkung für die Zukunft widerrufen (Art. 7 Abs. 3). Wenden Sie sich dazu an den Verantwortlichen (Abschnitt 1).',
+            objection: 'Widerspruchsrecht: Soweit der Betreiber Daten auf Grundlage berechtigter Interessen verarbeitet (Art. 6 Abs. 1 lit. f DSGVO, Abschnitte 2, 3 und 7), können Sie dem aus Gründen, die sich aus Ihrer besonderen Situation ergeben, jederzeit widersprechen (Art. 21 Abs. 1 DSGVO). Die Daten werden dann nicht mehr verarbeitet, es sei denn, es bestehen zwingende schutzwürdige Gründe, die Ihre Interessen überwiegen, oder die Verarbeitung dient der Geltendmachung, Ausübung oder Verteidigung von Rechtsansprüchen.',
+            para2: 'Sie können sich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO).',
         },
         section11: {
-            heading: '11. Registrierung eines Kontos',
-            para1: 'Lehrkräfte können über „Konto beantragen“ selbst ein Konto beantragen. Dazu wird die angegebene E-Mail-Adresse gespeichert und ein Bestätigungslink an sie gesendet; vom Link wird nur ein Hashwert gespeichert. Ein Konto entsteht erst, wenn über diesen Link ein Passwort festgelegt wird. Die Anwendung gibt in keinem Schritt preis, ob für eine Adresse bereits ein Konto besteht; für bereits registrierte Adressen wird keine E-Mail versandt.',
-            para2: 'Ein so angelegtes Konto kann erst genutzt werden, nachdem die Administration dieser Installation es freigegeben hat; stammt die Adresse von einer Domain, die die Administration als „immer erlaubt“ eingetragen hat, erfolgt die Freigabe automatisch. Die Administration sieht bis zur Entscheidung die E-Mail-Adresse und die freiwillige Nachricht. Lehnt sie den Antrag ab, wird das Konto gelöscht und die Person per E-Mail benachrichtigt.',
-            para3: 'Personen, deren Konto noch nicht freigegeben ist, können die Auskunfts- und Löschfunktionen der Anwendung noch nicht nutzen; sie wenden sich für ihre Rechte nach Abschnitt 8 an die verantwortliche Stelle.',
-            legalBasisPlaceholder: '[Rechtsgrundlage der Verarbeitung von Kontoanträgen — rechtlich prüfen]',
+            heading: '11. Weitere Hinweise',
+            para1: 'Ohne E-Mail-Adresse und Anmeldefaktoren kann kein Konto eingerichtet und Examance nicht genutzt werden; eine gesetzliche Pflicht, diese Daten bereitzustellen, besteht nicht.',
+            para2: 'Eine automatisierte Entscheidungsfindung nach Art. 22 DSGVO findet nicht statt: Die automatische Erkennung von Ankreuzungen unterstützt die Lehrkraft nur, die Bewertung legt die Lehrkraft fest.',
         },
     },
 };

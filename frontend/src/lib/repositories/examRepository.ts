@@ -3,7 +3,7 @@ import { api } from '#lib/api/client';
 import { db } from '#lib/db/db';
 import { storagePolicyStore } from '#lib/stores/storagePolicy';
 import { decryptExam } from '#lib/db/dbEncryption';
-import { enqueueRequest } from '#lib/services/offlineQueue';
+import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import type { ExamRecord, ExamExerciseRecord, ExamMcGroupRecord } from '#lib/db/schema';
 import { invalidateOwner } from '#lib/latex/compileCache';
 
@@ -18,6 +18,7 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     datum: raw.datum,
     nr: raw.nr,
     fach: raw.fach,
+    topic: raw.topic ?? undefined,
     lehrernachname: raw.lehrernachname,
     infoText: raw.info_text || raw.infoText,
     gradingKey: raw.grading_key || raw.gradingKey,
@@ -40,6 +41,8 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     datum: exam.datum,
     nr: exam.nr,
     fach: exam.fach,
+    // "" clears the stored topic, undefined leaves it alone (the server tells them apart).
+    topic: exam.topic,
     lehrernachname: exam.lehrernachname,
     info_text: exam.infoText,
     grading_key: exam.gradingKey,
@@ -129,18 +132,28 @@ export const examRepository = {
           try {
             await api.post('/exams', payload, { silentError: true });
           } catch (postErr: any) {
-            enqueueRequest('/exams', 'POST', payload);
+            enqueueOrThrow(postErr, '/exams', 'POST', payload);
           }
         } else {
-          enqueueRequest(`/exams/${exam.id}`, 'PATCH', payload);
+          enqueueOrThrow(err, `/exams/${exam.id}`, 'PATCH', payload);
         }
       }
     } else {
       try {
         await api.post('/exams', payload, { silentError: true });
       } catch (err: any) {
-        enqueueRequest('/exams', 'POST', payload);
+        enqueueOrThrow(err, '/exams', 'POST', payload);
       }
+    }
+  },
+
+  /** A brand-new exam with its links in one create-only POST; save() would first probe with a 404ing PATCH. */
+  async create(exam: ExamRecord, structure: { exercise_links: unknown[]; mc_groups: unknown[] }): Promise<void> {
+    const payload = { ...mapExamRecordToApi(exam), ...structure };
+    try {
+      await api.post('/exams', payload, { silentError: true });
+    } catch (err: any) {
+      enqueueOrThrow(err, '/exams', 'POST', payload);
     }
   },
 
@@ -194,7 +207,7 @@ export const examRepository = {
     try {
       await api.delete(`/exams/${id}`, { silentError: true });
     } catch (err: any) {
-      enqueueRequest(`/exams/${id}`, 'DELETE');
+      enqueueOrThrow(err, `/exams/${id}`, 'DELETE');
     }
   },
 };

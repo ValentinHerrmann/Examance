@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   computeMcScore,
+  applyAnswerKeyScore,
   applyMcCorrection,
   restoreOriginalDetection,
   confirmDetection,
@@ -109,6 +110,45 @@ describe("mcScore", () => {
       // Toggling the already selected option clears it
       const cleared = applyMcCorrection("sc", [1], 1, [1], 0, 1);
       expect(cleared.nextSelectedOptions).toEqual([]);
+    });
+  });
+
+  describe("stored (hand-typed) scores", () => {
+    const omrMeta: OmrScoreMeta = { confidence: "high", source: "omr" };
+
+    it("applyMcCorrection snapshots the stored score, not the answer key's", () => {
+      // Teacher typed 1.5 in a grid; the key would give 2 for [0, 1].
+      const res = applyMcCorrection("mc", [0, 1], 2, [0, 1], 1, 2, omrMeta, 1.5);
+      expect(res.nextOmrMeta.original?.score).toBe(1.5);
+      expect(res.nextOmrMeta.original?.selectedOptions).toEqual([0, 1]);
+      expect(res.nextScore).toBe(1); // the toggle itself recomputes
+    });
+
+    it("confirmDetection keeps the stored score as both result and snapshot", () => {
+      const res = confirmDetection([0, 1], 1.5, omrMeta);
+      expect(res.nextScore).toBe(1.5);
+      expect(res.nextOmrMeta.original?.score).toBe(1.5);
+    });
+
+    it("applyAnswerKeyScore replaces the score, snapshots the stored one and leaves the review alone", () => {
+      const res = applyAnswerKeyScore("mc", [0, 1], [0, 1], 1, 2, 1.5, omrMeta);
+      expect(res.nextScore).toBe(2);
+      expect(res.nextSelectedOptions).toEqual([0, 1]);
+      expect(res.nextOmrMeta.original).toEqual({
+        confidence: "high",
+        selectedOptions: [0, 1],
+        score: 1.5,
+        flaggedOptions: undefined,
+      });
+      expect(res.nextOmrMeta.source).toBe("omr");
+      expect(res.nextOmrMeta.reviewedAt).toBeUndefined();
+    });
+
+    it("applyAnswerKeyScore keeps an existing snapshot", () => {
+      const reviewed = applyMcCorrection("mc", [0], 1, [0, 1], 0, 2, omrMeta, 0.5).nextOmrMeta;
+      const res = applyAnswerKeyScore("mc", [0, 1], [0, 1], 0, 2, 1, reviewed);
+      expect(res.nextOmrMeta.original?.score).toBe(0.5);
+      expect(res.nextOmrMeta.reviewedAt).toBe(reviewed.reviewedAt);
     });
   });
 

@@ -22,14 +22,8 @@ class ExerciseResource(Base):
     """
     A binary file attached to one exercise (figure, data file, ...).
 
-    ``content`` is stored in plaintext, exactly like ``Exercise.latex_body``:
-    an exercise that lives on the server is server-readable by design (see
-    docs/data_flow_and_security.md), and Tectonic cannot compile ciphertext.
-    Teachers who need zero-knowledge storage use the default all-local mode,
-    where the bytes are AES-256-GCM encrypted in IndexedDB instead.
-
-    ``filename`` is the sanitised, flat name the LaTeX source references
-    (``\\includegraphics{figure.png}``); it is unique per exercise.
+    ``content`` is plaintext like ``Exercise.latex_body`` (Tectonic cannot compile ciphertext;
+    docs/data_flow_and_security.md). ``filename`` is the flat name LaTeX uses, unique per exercise.
     """
 
     __tablename__ = "exercise_resources"

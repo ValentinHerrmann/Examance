@@ -60,3 +60,16 @@ export function isPublicPath(pathname: string): boolean {
     pathname.startsWith("/help")
   );
 }
+
+/** Where an admin lands: admins manage users and the server only (issue #58). */
+export const ADMIN_HOME = "/admin/users";
+
+/** Paths an admin may open; every other route is teaching and redirects to `ADMIN_HOME`. */
+export function isAdminPath(pathname: string): boolean {
+  return (
+    isPublicPath(pathname) ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/settings") ||
+    pathname.startsWith("/help")
+  );
+}

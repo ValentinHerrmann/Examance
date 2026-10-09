@@ -19,6 +19,8 @@
     /** Whether this account may compile on the server. */
     serverLatexEnabled: boolean;
     onLocaleChange: (val: Locale) => void;
+    /** False for an admin account: it holds no exams, so storage mode and LaTeX engine are hidden (issue #58). */
+    teaching?: boolean;
   }
 
   let {
@@ -29,7 +31,8 @@
     onLatexChange,
     allowedModes,
     serverLatexEnabled,
-    onLocaleChange
+    onLocaleChange,
+    teaching = true,
   }: Props = $props();
 
   const themeLabels = {
@@ -58,6 +61,7 @@
   }
 </script>
 
+{#if teaching}
 <div id="storage-policy" class={sectionId}>
   <Card>
     <h2 class="m-0 mb-1 flex items-center gap-2 text-xl font-medium text-content">
@@ -147,6 +151,7 @@
     {/if}
   </Card>
 </div>
+{/if}
 
 <div id="language" class={sectionId}>
   <Card>

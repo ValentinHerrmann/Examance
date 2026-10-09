@@ -29,6 +29,7 @@ from app.routers import (
     keys,
     logos,
     mfa,
+    privacy,
     students,
     submissions,
     training,
@@ -47,6 +48,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan — run startup/shutdown logic here."""
     from app.database import AsyncSessionLocal
     from app.services.bootstrap import create_initial_admin
+    from app.services.latex import forbid_environ_reads
+
+    forbid_environ_reads()  # before the first compile can spawn tectonic
 
     if not settings.SMTP_HOST:
         if not settings.is_dev:
@@ -131,8 +135,8 @@ def create_app() -> FastAPI:
         {
             "name": "admin",
             "description": (
-                "System administration, user provision, audit logging, "
-                "and k-anonymity class statistics (k >= 5)."
+                "User and server management: accounts, approvals, features, allowed domains "
+                "and the audit log. Admin accounts hold no exams or exercises."
             ),
         },
         {
@@ -183,7 +187,7 @@ def create_app() -> FastAPI:
         "- **Session Hygiene**: State stored in HttpOnly cookies (`access_token` 15 min, "
         "`refresh_token` 7 days with rotation & reuse detection).\n"
         "- **Privacy Safeguards**: LaTeX requests redacted in logs (`LaTeXRequest`), "
-        "IP addresses stored as SHA-256 hashes, k-anonymity (k >= 5) enforced on class stats.\n"
+        "IP addresses stored as SHA-256 hashes.\n"
         "- **LaTeX Engine**: Compilation rendered using sandboxed Tectonic "
         "(`tectonic --untrusted`)."
     )
@@ -208,12 +212,9 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        # This handler runs in ServerErrorMiddleware, which sits OUTSIDE
-        # CORSMiddleware, so its response would otherwise reach the browser
-        # without Access-Control-Allow-Origin. The fetch then fails as a CORS
-        # error and the actual fault — a crashed handler, an unreachable Redis,
-        # a missing engine binary — is invisible to whoever is debugging it.
-        # The headers are added here by hand, for allowlisted origins only.
+        # Runs in ServerErrorMiddleware, outside CORSMiddleware, so a 500 would reach the browser
+        # without Access-Control-Allow-Origin and look like a CORS error, hiding the real fault.
+        # Headers are added by hand, for allowlisted origins only.
         logging.getLogger("app.main").exception(
             "Unhandled exception on %s %s", request.method, request.url.path
         )
@@ -259,13 +260,12 @@ def create_app() -> FastAPI:
     app.include_router(mfa.router, prefix=API_PREFIX)
     app.include_router(webauthn.router, prefix=API_PREFIX)
     app.include_router(training.router, prefix=API_PREFIX)
+    app.include_router(privacy.router, prefix=API_PREFIX)
 
     @app.get("/api/health", tags=["meta"])
     async def health() -> dict[str, str]:
-        # `version` is deliberately public. It is how the frontend detects that
-        # it is talking to an incompatible server (differing major version), and
-        # it is the same class of information a Server header already leaks. No
-        # authentication, crypto or retention behaviour depends on it.
+        # `version` is deliberately public: the frontend uses it to detect an incompatible server
+        # (differing major version). No auth, crypto or retention behaviour depends on it.
         return {"status": "ok", "version": settings.APP_VERSION}
 
     return app

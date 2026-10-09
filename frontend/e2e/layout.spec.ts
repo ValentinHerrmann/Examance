@@ -113,9 +113,21 @@ test('[layout] shell: navbar, sidebar, grade page, widths and touch targets', as
     await expect(inlineNav).toBeHidden();
   }
 
-  // Data + LaTeX indicators stay in the bar at every width (icon-only until 2xl).
-  await expect(header(page).getByRole('button', { name: label('nav.storageMode', undefined, locale) })).toBeVisible();
-  await expect(header(page).getByRole('button', { name: label('nav.latexMode', undefined, locale) })).toBeVisible();
+  // Data + LaTeX indicators sit in the bar from `sm` (icon-only until xl); on phones they live in the drawer.
+  const dataPill = header(page).getByRole('button', { name: label('nav.storageMode', undefined, locale) });
+  const latexPill = header(page).getByRole('button', { name: label('nav.latexMode', undefined, locale) });
+  if (width >= 640) {
+    await expect(dataPill).toBeVisible();
+    await expect(latexPill).toBeVisible();
+  } else {
+    await expect(dataPill).toBeHidden();
+    await expect(latexPill).toBeHidden();
+    await burger.click();
+    const drawer = page.getByRole('navigation', { name: label('nav.menuLabel', undefined, locale) });
+    await expect(drawer.getByRole('link', { name: label('nav.dataLabel', undefined, locale) })).toBeVisible();
+    await expect(drawer.getByRole('link', { name: label('nav.latexLabel', undefined, locale) })).toBeVisible();
+    await page.keyboard.press('Escape');
+  }
 
   // Touch targets in navbar and sidebar.
   if (isTouch()) {
@@ -272,7 +284,8 @@ test('[layout] main dialogs are as wide as their size token and have no nested s
 
 test('[layout] account management fits every tab without sideways scrolling', async ({ page, backend }) => {
   backend.state.role = 'admin';
-  await signInFirstTime(page);
+  // Admins land on account management, never on the dashboard (issue #58).
+  await signInFirstTime(page, { waitForDashboard: false });
   await visit(page, '/admin/users');
 
   const tabs = page.getByRole('tablist').getByRole('tab');

@@ -1,7 +1,6 @@
 /**
- * Turns a blocked inline script into an actionable console message: the raw error looks like CORS
- * or a build failure, but here it is a Cloudflare dashboard feature rewriting the HTML after the build
- * hashed it (docs/deployment.md, "Cloudflare dashboard settings"). Never "fix" it by allowing the
+ * Turns a blocked inline script into an actionable console message: it looks like CORS or a build failure, but is a Cloudflare
+ * dashboard feature rewriting the HTML after the build hashed it (docs/deployment.md). Never "fix" it by allowing the
  * injector's host in `script-src`: that sends visitor data to a third party (docs/data_flow_and_security.md).
  */
 

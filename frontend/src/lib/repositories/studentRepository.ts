@@ -3,7 +3,7 @@ import { api } from '#lib/api/client';
 import { db } from '#lib/db/db';
 import { resultsAreLocal, storagePolicyStore } from '#lib/stores/storagePolicy';
 import { encryptStudent, decryptStudent } from '#lib/db/dbEncryption';
-import { enqueueRequest } from '#lib/services/offlineQueue';
+import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import { currentKeyId } from '#lib/services/keyEnvelopeService';
 import { examRepository } from './examRepository';
 import type { StudentRecord } from '#lib/db/schema';
@@ -128,9 +128,9 @@ export const studentRepository = {
     if (policy.storageMode === 'all-server') {
       const payload = await studentServerPayload(student, key);
       try {
-        await api.post(`/exams/${student.examId}/students`, payload);
-      } catch {
-        enqueueRequest(`/exams/${student.examId}/students`, 'POST', payload);
+        await api.post(`/exams/${student.examId}/students`, payload, { silentError: true });
+      } catch (err) {
+        enqueueOrThrow(err, `/exams/${student.examId}/students`, 'POST', payload);
       }
     }
   },
@@ -171,9 +171,9 @@ export const studentRepository = {
     if (policy.storageMode === 'all-server') {
       const url = examId ? `/exams/${examId}/students/${pseudonymHmac}` : `/students/${pseudonymHmac}`;
       try {
-        await api.delete(url);
-      } catch {
-        enqueueRequest(url, 'DELETE');
+        await api.delete(url, { silentError: true });
+      } catch (err) {
+        enqueueOrThrow(err, url, 'DELETE');
       }
     }
   },

@@ -25,7 +25,7 @@ export const help: Translations['help'] = {
     tips: {
         storageServer: 'Exams, exercises and results live on the server, but encrypted: the key stays in the browser, so the server cannot read the contents. Only the LaTeX source of exercises and exams and the total score are unencrypted.',
         storageHybrid: 'Exercises and exams live on the server (useful for a shared department catalogue). Student data, scans and scores stay in this browser only, encrypted, and are not visible on other devices.',
-        latexLocal: 'The exam is typeset in the browser (WebAssembly XeLaTeX). The LaTeX source never leaves the device, but the first run takes longer.',
+        latexLocal: 'The exam is typeset in the browser (WebAssembly XeLaTeX). The LaTeX source never leaves the device. The engine loads in the background after sign-in or when you switch to this option (one-time download); until then the first run takes longer.',
         latexServer: 'The server typesets the exam. Faster on low-spec hardware, but the LaTeX source is transmitted.',
         variantKey: 'Variants are different phrasings of the same exercise (group A/B/C). They share grading and statistics while making copying harder.',
         mcPenalty: 'Points deducted for a wrongly ticked option. 0 means no negative marking. An exercise total never drops below zero.',
@@ -121,6 +121,7 @@ export const help: Translations['help'] = {
             s1: {
                 h: 'Header data',
                 p1: 'Subject, class, exam type, date and number appear on the cover sheet. These are exam content and are therefore always printed in German, whatever language the interface is in.',
+                p2: 'The optional topic (for example “Recursion”) organises your exams in the overview, where you can filter and search by it, and is never printed on the exam.',
             },
             s2: {
                 h: 'Assembling exercises',
@@ -155,10 +156,11 @@ export const help: Translations['help'] = {
             },
             s4: {
                 h: 'Verifying and re-running MC detection',
-                p1: 'Ticked boxes are detected automatically when scans are imported. In the MC verification view you confirm or correct uncertain detections; every confirmed or corrected question counts as verified.',
+                p1: 'Ticked boxes are detected automatically when scans are imported. In the MC verification view you confirm or correct uncertain detections; every confirmed or corrected question counts as verified. Confirming keeps the stored score, including one entered by hand; only toggling a box recomputes it. If it differs from the answer key, the card offers "Apply answer-key score".',
                 p2: '"Re-run MC detection" re-evaluates all scans with the current settings. Unverified questions take the new result; for verified questions your answer and score always stay unchanged and only their detection is recomputed for comparison. Manually entered scores are not touched. A dialog first shows what will change and whether the settings differ from the last run; the "Detection settings" panel compares the latest run\'s values with the ones currently in effect.',
                 p3: 'Besides the fill level, detection also checks the shape of a mark: an evenly filled box counts as withdrawn, and a mark reaching far beyond the box or a very faint mark is flagged as uncertain. The reason is shown next to the answer option in the verification view. With method v2, shape analysis can be switched off in Settings. Under Settings → MC detection you choose the detection method: v4 (default, stroke shape) or v2 (older method, fill level). The other one always runs alongside; the "Detection settings" panel of the verification view shows how many of your verified boxes each method would have read correctly. Unsure boxes keep their yellow frame until the question is verified.',
                 p4: 'Until verified, an uncertain box counts provisionally as whichever outcome its measurements are closer to — ticked or not ticked; the verification view shows "Provisionally counted as ticked / not ticked" for it. The "🎲 Check a sample" button opens a random, not-yet-verified but confident detection, so you can spot-check unremarkable questions too.',
+                p5: 'The verification view lists the answer options as printed on the sheet and scores them with the exercise\'s current answer key. If the number of boxes on the scan does not match the exercise\'s options (it was changed after printing), the view says so and does not score the question; award the points in the canvas workspace instead.',
             },
         },
         grading: {
@@ -204,7 +206,7 @@ export const help: Translations['help'] = {
             summary: 'Topic heatmaps, exercise quality and variant fairness across exams.',
             s1: {
                 h: 'Across exams',
-                p1: 'The analytics view combines several exams and shows how results develop over time, across grades and across subjects.',
+                p1: 'The analytics view combines several exams and shows how results develop over time, across grades and across subjects. The overall score histogram sorts all fully graded submissions into 10 % ranges by the share of their exam’s maximum points they reached.',
             },
             s2: {
                 h: 'Topics and knowledge gaps',
@@ -285,7 +287,8 @@ export const help: Translations['help'] = {
             },
             s2: {
                 h: 'Roles',
-                p1: 'Teachers see only their own exams. Administrators additionally manage the school’s accounts — which gives them no access to anyone else’s exam content, because that is encrypted client-side.',
+                p1: 'Teachers work with exams, exercises and results and see only their own. Administrators manage accounts and the server only: they cannot create or open exams or exercises, and the app shows them just user management, settings and help. Someone who administers and also teaches uses two accounts.',
+                p2: 'Administrators get no access to anyone’s exam content either, because it is encrypted client-side.',
             },
             s6: {
                 h: 'Two sign-in factors',
@@ -331,8 +334,8 @@ export const help: Translations['help'] = {
             summary: 'What is encrypted, what protects the session, how long data is kept.',
             s1: {
                 h: 'Zero knowledge',
-                p1: 'The key is derived from your password in the browser (Argon2id, HKDF-SHA-256) and is never transmitted. Encryption is AES-256-GCM, applied before anything is written or sent.',
-                p2: 'A server therefore only ever sees ciphertext. Even if the server database were breached, exam and student data stay unreadable.',
+                p1: 'Your data key is unlocked in the browser with your password, passkey or recovery code (Argon2id, HKDF-SHA-256) and is never transmitted. Encryption is AES-256-GCM, applied before anything is written or sent.',
+                p2: 'Student data, scans, annotations and per-exercise scores therefore reach the server only as ciphertext and stay unreadable even if the server database were breached. Exams and exercises, and in all-server mode the total score per pseudonym, are stored there unencrypted.',
             },
             s2: {
                 h: 'Session hygiene',

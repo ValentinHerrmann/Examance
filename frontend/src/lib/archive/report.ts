@@ -31,13 +31,9 @@ export const REPORT_KINDS: readonly ReportKind[] = [
 ];
 
 /**
- * - `included`: written into the archive (export).
- * - `created`: written under its archived id (import).
- * - `newId`: written under a fresh id because the archived one was taken.
- * - `linked`: an exercise that already exists on the server (own or shared) was reused.
- * - `alreadyPresent`: an identical record existed; nothing was written.
- * - `keptExisting` / `replaced` / `copied`: the user's conflict decisions.
- * - `failed`: the server refused it or it could not be read.
+ * `included` (export), `created` (archived id), `newId` (archived id was taken), `linked` (existing exercise reused),
+ * `alreadyPresent` (identical, nothing written), `keptExisting`/`replaced`/`copied` (conflict decisions), `failed`
+ * (refused by the server or unreadable).
  */
 export type ReportOutcome =
   | 'included'
@@ -63,13 +59,9 @@ export const REPORT_OUTCOMES: readonly ReportOutcome[] = [
 ];
 
 /**
- * Something an exam refers to that is not there:
- * - `exerciseUnavailable`: an exam links an exercise that is neither in the archive nor available
- *   to this account on the server (import), or could not be loaded (export).
- * - `scoresWithoutExercise`: scores for such an exercise, not imported.
- * - `scanUnreadable`: a scan that could not be decrypted (export) or opened (import).
- * - `examNotImported`: results of an exam that was not imported, so they had nowhere to go.
- * - `logoUnavailable`: an exam's header logo could not be read (export) or written (import).
+ * What an exam refers to that is not there: `exerciseUnavailable` (neither in the archive nor available to the account),
+ * `scoresWithoutExercise`, `scanUnreadable` (not decryptable/openable), `examNotImported` (its results had nowhere to
+ * go), `logoUnavailable`.
  */
 export type MissingReason =
   | 'exerciseUnavailable'

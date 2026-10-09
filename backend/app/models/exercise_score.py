@@ -14,10 +14,8 @@ class ExerciseScore(Base):
     """
     Per-exercise grading result for one submission.
 
-    No plaintext score column, unlike ``ScanSubmission.total_score``: score,
-    selected options and OMR metadata travel as one client-sealed payload, and a
-    per-question plaintext record would reconstruct the pupil's answer sheet.
-    (submission_id, exercise_id) is the identity, which makes writes idempotent.
+    No plaintext score column (it would reconstruct the answer sheet): one client-sealed payload.
+    (submission_id, exercise_id) is the identity, so writes are idempotent.
     """
 
     __tablename__ = "exercise_scores"

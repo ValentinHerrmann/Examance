@@ -3,8 +3,6 @@
  * the master key is only used to re-derive it on unlock.
  */
 
-import { writable, derived, get } from 'svelte/store';
-import { deriveKey, generateSalt } from '#lib/crypto/keyDerivation';
 import { toArrayBuffer } from '#lib/crypto/aesGcm';
 
 /** 12-byte nonce for session key derivation. */

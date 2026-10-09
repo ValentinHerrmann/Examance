@@ -48,17 +48,16 @@ def _send_sync(
             if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
                 server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
             server.send_message(msg)
-        logger.info("Sent email to %s with subject: %s", to_email, subject)
+        # No recipient address in logs (personal data the privacy statement does not list there).
+        logger.info("Sent email with subject: %s", subject)
         return True
     except Exception as exc:
-        # Never log the message body: it carries the live password-reset token.
-        logger.error(
-            "Failed to send email to %s with subject '%s': %s",
-            to_email,
-            subject,
-            exc,
-            exc_info=True,
+        # Never log the body (it carries live tokens) or the address; a refused recipient's error
+        # text contains the address, so only its class is logged.
+        reason = (
+            type(exc).__name__ if isinstance(exc, smtplib.SMTPRecipientsRefused) else repr(exc)
         )
+        logger.error("Failed to send email with subject '%s': %s", subject, reason)
         return False
 
 
