@@ -89,8 +89,8 @@ jobs:
 
           # ...but the copy pushed to `release` must NOT, or Cloudflare Pages
           # skips the production build.
-          git commit --amend -m "chore: release $VERSION"
-          git push origin HEAD:refs/heads/release --force --allow-empty
+          git commit --allow-empty --amend -m "chore: release $VERSION"
+          git push origin HEAD:refs/heads/release --force 
 
       # Cloudflare Pages builds `release` on its own; without this the run
       # would report success while the frontend is still building (or failed).
