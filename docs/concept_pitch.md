@@ -1,100 +1,26 @@
-# Examance — Concept Pitch
+# Examance pitch index
 
-*Privacy-first, zero-knowledge-encrypted anonymous exam management and grading.*
+Audience-specific decks (16:9) and posters (A3 portrait) in German. Each audience gets one deck and one poster; all six share the theme in [`pitches/examance-theme.css`](pitches/examance-theme.css), which reuses the app's dark-theme colour tokens, navbar, chips and step markers so the material reads as part of the product. Screenshots are taken in the app's dark theme to match.
 
-> This replaces the earlier `BlindGrade_Presentation.pdf` / `BlindGrade_Poster.png` deck (AI-generated mockup slides, pre-rename). All screenshots below are taken from the current app (v`0.1.0`-line, `main`), running in the default **All Local** storage mode. Repo name `BlindGrade` is legacy — see `CLAUDE.md`; the product is **Examance**.
+| Audience | Deck | Poster | Focus |
+|---|---|---|---|
+| Computer science teachers (beta testers) | [PDF](pitches/examance-beta-cs.pdf) · [source](pitches/examance-beta-cs.md) | [PDF](posters/examance-beta-cs.pdf) · [source](posters/examance-beta-cs.md) | Pipeline, LaTeX, OMR, crypto architecture, known limits, how the beta works |
+| Teachers | [PDF](pitches/examance-teachers.pdf) · [source](pitches/examance-teachers.md) | [PDF](posters/examance-teachers.pdf) · [source](posters/examance-teachers.md) | The workflow step by step, blind grading, privacy in plain words |
+| School leadership, DPO, IT | [PDF](pitches/examance-administration.pdf) · [source](pitches/examance-administration.md) | [PDF](posters/examance-administration.pdf) · [source](posters/examance-administration.md) | What the server can and cannot read, admin role, operating models, open decisions, pilot |
 
----
+## Rules for these materials
 
-## 1. The problem in the teachers' lounge
+- Inform, don't advertise: state what the product does, what it does not do and what is still open. Every claim must match the code and [`data_flow_and_security.md`](data_flow_and_security.md) / [`legal_audit_dsgvo.md`](legal_audit_dsgvo.md); update the decks when those change.
+- Screenshots are real captures of the current UI with demo data only ([inventory](screenshots/pitch/README.md)). No mock-ups, no real pupil data.
+- The legal documents are working templates; the decks say so and must keep saying so.
 
-| | |
-|---|---|
-| **The workflow** | Manual correction, transcribing points into spreadsheets, and computing statistics eat into teachers' limited time. |
-| **The bias (halo effect)** | A name on the cover sheet unconsciously influences grading before a single answer is read. Genuine objectivity is hard to achieve by willpower alone. |
-| **Data protection** | Mainstream cloud edtech tools are frequently a poor — sometimes outright illegal — fit for sensitive pupil data and grades under GDPR/BDSG and Bavarian school law (see `legal_audit_dsgvo.md`). |
+## Rendering
 
-Examance addresses all three at once: it automates the mechanical parts of grading, structurally removes the student's identity from the corrector's view during scoring, and is built so that, in its default mode, sensitive data never leaves the teacher's browser at all (except an optional, anonymised checkbox-crop donation the teacher must switch on).
+Run from the source's directory (input file first, since `--theme-set` takes several values):
 
----
+```
+npx @marp-team/marp-cli <source.md> --pdf --html --allow-local-files \
+  --theme-set ../pitches/examance-theme.css --theme-set ../posters/examance-poster.css -o <source.pdf>
+```
 
-## 2. Getting started — sign in with your account
-
-Every user signs in with a server account. The data key comes from the account's key envelope and is unlocked with a password, a passkey or a recovery code; the server never sees it. On first sign-in the teacher chooses one of two storage modes (changeable later in Settings, which moves the results). Either way, all sensitive data is encrypted client-side before it is stored or transmitted (Argon2id → HKDF-SHA-256 → AES-256-GCM; details in `data_flow_and_security.md`).
-
-![Welcome screen (screenshot predates issue #47 and still shows the discontinued local workspace option)](screenshots/pitch/01-welcome.png)
-
-Once unlocked, the dashboard is the home base for every exam in the workspace:
-
-![Exams dashboard — onboarding empty state](screenshots/pitch/02-dashboard.png)
-
----
-
-## 3. Pillar 1 — Reusable exercise library & LaTeX exam authoring
-
-Exercises live in a **shared, taggable library** (topic, grade, subject) rather than being copy-pasted between exam files each term. Each exercise is authored as a LaTeX fragment with live PDF preview and automatic point-value parsing, and supports free-text, single-choice, and multiple-choice question types.
-
-![Exercise editor — LaTeX source with live grade/subject/topic tagging](screenshots/pitch/03-exercise-editor.png)
-
-The library groups exercises, tracks **variants** (e.g., a "vehicle" vs. "furniture" phrasing of the same logic problem, for anti-copying A/B/C groups) and **versions** (fix history with diffing), all filterable by grade, subject, and topic:
-
-![Exercise library — grouped, tagged, filterable](screenshots/pitch/04-exercise-library.png)
-
-Building an exam is then an assembly step: pick exercises from the library (or add one-off custom items), configure the grading key (linear, *Oberstufe*-weighted, or custom cutoffs per grade 1–6), and Examance renders the LaTeX into a print-ready, QR-coded booklet — one unique code per exam/variant/student slot, generated locally via a WASM XeLaTeX engine (Tectonic) with the LaTeX source staying in the browser when the local engine is used (exams and exercises themselves are stored on the server).
-
-![Exam creation — metadata, grading key, exercise assembly](screenshots/pitch/05-exam-creation.png)
-
----
-
-## 4. Pillar 2 — Digital, anonymous correction
-
-The paper workflow stays familiar for students — write, submit — and only turns digital at the teacher's desk:
-
-1. **Write** — students complete the printed, QR-coded exam with pen and paper as usual.
-2. **Scan** — the stack goes through the school scanner into a single PDF.
-3. **Split & encrypt** — Examance splits the PDF by QR code and encrypts every page client-side; the plaintext scan never has to touch a server in `hybrid` mode.
-4. **Grade** — the teacher corrects on-screen with pen/mouse annotations over the scan (destructive-free HTML5 canvas overlay; originals stay untouched).
-
-Two grading paths, matched to question type:
-
-- **Free-text / manual**: the teacher sees the handwriting and the answer — **not** the student's name — during scoring. Identity and answer are decoupled for the whole grading pass, only re-linked afterward for the class list.
-- **Multiple-choice / single-choice**: a WebAssembly optical-mark-recognition (OMR) pass detects marked boxes automatically and applies configured penalty logic, no manual tallying required.
-
----
-
-## 5. Pillar 3 — Didactic analytics, without compromising privacy
-
-Once submissions are graded, Examance aggregates results into class- and cross-exam analytics — score distributions, per-topic heatmaps highlighting knowledge gaps, exercise/question quality metrics (which questions consistently underperform across years), and variant-fairness comparisons (did group A's variant turn out harder than group B's?). CSV/XLSX export supports handing results to the school's grade-management system.
-
-![Global multi-exam analytics — cross-exam metrics and fairness comparisons](screenshots/pitch/07-analytics.png)
-
-All of this runs on data that, in `hybrid` mode, was never uploaded anywhere (except an optional, anonymised checkbox-crop donation the teacher must switch on) — analytics are computed from the encrypted data the same way grading was (in the browser, or on ciphertext decrypted client-side in `all-server` mode).
-
----
-
-## 6. No compromises on data protection
-
-Configurable independently in **Settings**, per school's policy and per component (storage vs. LaTeX compilation):
-
-![Settings — storage strategy and LaTeX compilation mode](screenshots/pitch/06-privacy-settings.png)
-
-Exams and exercises (LaTeX, metadata, resource files) always live on the server. The account's storage mode decides where the grading results live:
-
-- **All Server** — student identities, scans, annotations and per-exercise scores are stored on the server as **AES-256-GCM ciphertext** (only `total_score` is plaintext); the key never leaves the client, so the server can never read them.
-- **Hybrid** — student identities, scans and scores stay only in the browser where they were recorded (IndexedDB, encrypted).
-
-Switching modes moves the results between server and browser; deleting the old copy is optional (soft delete, 7-day grace). Results can also be exported as a password-protected `.bgproj` archive (Argon2id + AES-GCM); a "results only" archive can be handed to another teacher and contains no exercise LaTeX. The former all-local mode (no account) was discontinued.
-
-LaTeX compilation is a separate toggle: local WebAssembly (Tectonic, nothing leaves the browser) or optional, stateless server-side compilation (temporary directory, nothing stored, no student data) for lower-spec hardware. The local WASM engine additionally routes around hardware limits automatically — sequential "assembly line" rendering on low-spec/eco devices to bound memory use, multi-core/SIMD parallel rendering via Web Workers on capable machines — so a large multi-page exam PDF compiles reliably even on aging school laptops.
-
----
-
-## 7. Conclusion — value at every level
-
-| For teachers | For students | For school leadership |
-|---|---|---|
-| Real time savings: automatic MC/SC scoring, a reusable exercise library, and the end of manual grade tallying. | Guaranteed fairness — objective, anonymous grading through strict identity/answer decoupling during correction. | Legal certainty: a privacy-by-design system with no compromise on GDPR/Bavarian school-law data protection (see `legal_audit_dsgvo.md` for the current audit state and open items). |
-
----
-
-**Product:** Examance — Privacy-First Anonymous Exam Management. Repo: `BlindGrade` (legacy name). See `README.md` for the documentation index, `deployment.md` for the production/preview topology, and `data_flow_and_security.md` for the full encryption architecture.
+Posters use the `examance-poster` theme (A3, `size: a3`), which imports the slide theme.
