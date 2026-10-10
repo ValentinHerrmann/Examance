@@ -9,45 +9,45 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Alle Screenshots: echte Ob
 
 <span class="kicker">Für Lehrkräfte</span>
 
-# Die Klausur bleibt auf Papier. Korrigiert wird ohne Namen.
+# Aufgaben sammeln, Klausuren setzen, fair bewerten.
 
-<p class="lead">Examance begleitet eine schriftliche Prüfung vom Aufgabenblatt bis zur Notenübersicht – im Browser, mit verschlüsselten Schülerdaten.</p>
+<p class="lead">Examance ist Aufgabenbibliothek, Klausursatz und Notenbuch in einem – im Browser, mit verschlüsselten Schülerdaten. Korrigieren können Sie weiter auf Papier oder anonym am Bildschirm.</p>
 
-<figure class="shot h420" style="margin-top:20px"><img src="../screenshots/pitch/06-grading.jpg"><figcaption>Korrekturansicht: „Anonymer Schüler #7 von 14“, Stempel auf dem Scan, Punkte je Aufgabe</figcaption></figure>
+<div class="cols" style="grid-template-columns: 7fr 5fr; gap: 18px; margin-top: 16px">
+<figure class="shot h260"><img src="../screenshots/pitch/03-exercise-editor.jpg"><figcaption>Aufgabeneditor: Bausteine per Klick, Live-Vorschau</figcaption></figure>
+<figure class="shot h260"><img src="../screenshots/pitch/04b-exam-setup.jpg"><figcaption>Fertige Klausur mit Lösungsblatt</figcaption></figure>
+</div>
 
 <div class="band">
 
-## So läuft es
+## Was Examance kann
 
-<div class="steps">
-<div><b>Aufgaben sammeln</b><span>Einmal anlegen, immer wiederfinden.</span></div>
-<div><b>Klausur setzen</b><span>Druckfertiges PDF mit Lösung.</span></div>
-<div><b>Schreiben lassen</b><span>Auf Papier, mit QR-Code.</span></div>
-<div><b>Stapel scannen</b><span>Ein PDF, automatisch zugeordnet.</span></div>
-<div><b>Korrigieren</b><span>Ohne Namen, dann auswerten.</span></div>
+<div class="feat">
+<div class="card"><span class="tag blue">Erstellen</span><h3>Aufgabenbibliothek</h3><p>Einmal schreiben, immer wiederfinden – nach Thema, Klasse, Fach. Mit Varianten (Gruppe A/B) und Versionen.</p></div>
+<div class="card"><span class="tag blue">Erstellen</span><h3>Aufgabeneditor</h3><p>Karopapier, Linien, Lücken, Lösungstext per Klick. Punkte im Text, Summe automatisch, Vorschau von Aufgabe und Lösung.</p></div>
+<div class="card"><span class="tag blue">Erstellen</span><h3>Multiple Choice</h3><p>Fragen und Optionen ohne LaTeX eintippen, richtige anhaken, Punktabzug für falsche Kreuze einstellen.</p></div>
+<div class="card"><span class="tag blue">Erstellen</span><h3>Klausur setzen</h3><p>Aufgaben anhaken, Variante pro Klasse wählen, Notenschlüssel festlegen – Prüfung und Lösung als druckfertiges PDF.</p></div>
+<div class="card"><span class="tag teal">Gemeinsam</span><h3>Teilen & Vorschläge</h3><p>Aufgaben mit Kolleginnen teilen, Kopien übernehmen, Verbesserungen vorschlagen. Die Autorin entscheidet.</p></div>
+<div class="card"><span class="tag amber">Korrigieren</span><h3>Papier oder Bildschirm</h3><p>Punkte eintippen oder aus Excel einfügen – oder scannen: QR-Zuordnung, anonyme Korrektur, MC-Kreuze werden gelesen.</p></div>
 </div>
 </div>
 
-<div class="band cols" style="gap:28px">
+<div class="band cols" style="gap:18px">
 <div>
 
-## Was sich ändert
+## Auswerten
 
-<div class="card"><ul>
-<li><strong>Wiederverwenden:</strong> Aufgaben mit Varianten und Versionen in einer Bibliothek.</li>
-<li><strong>Fairer korrigieren:</strong> Sie sehen die Antwort, nicht die Person. MC-Kreuze werden gelesen, Sie bestätigen.</li>
-<li><strong>Schneller auswerten:</strong> Notenverteilung, Grenzfälle und schwache Aufgaben auf einen Blick.</li>
-</ul></div>
+<figure class="shot h240"><img src="../screenshots/pitch/08-results.jpg"><figcaption>Notenverteilung, Grenzfälle, Export</figcaption></figure>
 </div>
 <div>
 
-## Datenschutz
+## Vergleichen
 
-<div class="stack">
-<div class="card"><h3>Lesbar auf dem Server</h3><p>Aufgabentexte, Klausurdaten, Gesamtpunkte ohne Namen, Ihr Konto.</p></div>
-<div class="card ok"><h3>Nur mit Ihrem Schlüssel lesbar</h3><p>Namen, Scans, Anmerkungen, Einzelpunkte. Auch die Administration kann sie nicht öffnen.</p></div>
-</div>
+<figure class="shot h240"><img src="../screenshots/pitch/09b-variant-comparison.jpg"><figcaption>Waren Gruppe A und B gleich schwer?</figcaption></figure>
 </div>
 </div>
 
-<div class="card warn" style="margin-top:24px"><p style="margin:0"><strong>Beta-Phase.</strong> Probieren Sie den Ablauf zuerst mit einer Probeklausur aus. Sie brauchen ein Konto (Einladung oder Antrag), einen zweiten Anmeldefaktor und einen Kopierer, der in ein PDF scannt.</p></div>
+<div class="cols band" style="gap:18px">
+<div class="card ok"><h3>Datenschutz</h3><p>Namen, Scans und Einzelpunkte sind nur mit Ihrem Schlüssel lesbar – auch nicht für die Administration. Anmeldung mit zwei Faktoren.</p></div>
+<div class="card warn"><h3>Beta-Phase</h3><p>Starten Sie mit der Bibliothek und einer Probeklausur. Ein Handbuch ist in die App eingebaut.</p></div>
+</div>

@@ -11,49 +11,30 @@ footer: 'Examance 0.2 (Beta) · MIT-Lizenz · Stand Oktober 2026 · Alle Screens
 
 # Klausuren in LaTeX. Korrektur im Browser. Schlüssel beim Nutzer.
 
-<p class="lead">Wir suchen Informatik-Lehrkräfte, die Examance mit einer echten Kurzarbeit durchspielen und uns sagen, wo es hakt.</p>
+<p class="lead">Wir suchen Informatik-Lehrkräfte, die Examance mit einer echten Kurzarbeit durchspielen – vom Aufgabeneditor bis zur Variantenstatistik – und uns sagen, wo es hakt.</p>
 
-<div class="cols" style="grid-template-columns: 7fr 5fr; gap: 24px; margin-top: 20px">
-<figure class="shot h340"><img src="../screenshots/pitch/03-exercise-editor.jpg"><figcaption>Aufgabeneditor: LaTeX links, gesetzte Aufgabe rechts</figcaption></figure>
-<figure class="shot h340"><img src="../screenshots/pitch/18-scanned-sheet-mc.jpg" style="object-position: center 44%"><figcaption>Gescannter Bogen (synthetisch), MC-Teil</figcaption></figure>
+<div class="cols" style="grid-template-columns: 7fr 5fr; gap: 18px; margin-top: 14px">
+<figure class="shot h260"><img src="../screenshots/pitch/03-exercise-editor.jpg"><figcaption>LaTeX-Editor mit Live-Satz (XeLaTeX als WebAssembly)</figcaption></figure>
+<figure class="shot h260"><img src="../screenshots/pitch/18-scanned-sheet-mc.jpg" style="object-position: center 44%"><figcaption>Synthetischer Scan: QR-Pseudonym, Passmarken, MC-Kreuze</figcaption></figure>
 </div>
 
 <div class="band">
 
-## Pipeline
+## Pipeline und Testfelder
 
-<div class="steps">
-<div><b>LaTeX</b><span><code>Schulaufgabe.sty</code>, jedes <code>\BE</code> ein Punkt</span></div>
-<div><b>Satz</b><span>XeLaTeX als WASM oder Tectonic</span></div>
-<div><b>Scan</b><span>pdf.js, zxing-wasm, OMR in Web Workern</span></div>
-<div><b>Korrektur</b><span>Pseudonym statt Name, Ebenen auf dem Scan</span></div>
-<div><b>Statistik</b><span>Grenzfälle, Aufgabenqualität, Varianten</span></div>
+<div class="feat">
+<div class="card"><span class="tag blue">Authoring</span><h3>Editor & Bibliothek</h3><p>Lösungs-Makros, Ressourcen, TikZ/UML, Varianten und Versionen, MC-Editor mit Punktabzug.</p></div>
+<div class="card"><span class="tag teal">Kollaboration</span><h3>Teilen & Vorschläge</h3><p>Kopie statt Link, Resync mit Merge-Editor, Vorschläge mit Diff – wie Pull Requests für Aufgaben.</p></div>
+<div class="card"><span class="tag amber">Erkennung</span><h3>QR & OMR</h3><p>Zwei Verfahren (Strichform, Füllgrad) laufen mit; Unsicheres wird vorgelegt, Stichproben gegen Bias.</p></div>
+<div class="card"><span class="tag blue">Korrektur</span><h3>Bildschirm oder Papier</h3><p>Stempel auf dem Scan – oder Punkte aus Excel einfügen. Beides speist dieselbe Statistik.</p></div>
+<div class="card"><span class="tag green">Krypto</span><h3>Zero-Knowledge-Speicher</h3><p>Argon2id → verpackter Datenschlüssel → HKDF → AES-256-GCM. Der Server hält nur Chiffrat.</p></div>
+<div class="card"><span class="tag red">Offen</span><h3>Bekannte Grenzen</h3><p>Schlüssel im Tab, LaTeX und Gesamtpunkte im Klartext, seltene Abweichungen im WASM-Satz.</p></div>
 </div>
 </div>
 
-<div class="band cols" style="gap:24px">
-<div>
-
-## Kryptografie
-
-<div class="card"><ul>
-<li>Zufälliger Datenschlüssel, je Faktor verpackt mit <strong>Argon2id</strong> + HKDF</li>
-<li>Datensätze mit <strong>AES-256-GCM</strong>, frischer IV pro Vorgang</li>
-<li>Anmeldung: zwei von drei Faktoren (Passwort, TOTP, Passkey mit PRF)</li>
-<li>Admin-Reset öffnet keine Daten; nur der Wiederherstellungscode</li>
-</ul></div>
-</div>
-<div>
-
-## Offen gesagt
-
-<div class="card"><ul>
-<li>Sitzungsschlüssel liegt im Tab (<code>sessionStorage</code>)</li>
-<li>LaTeX-Quelltext, Klausurmetadaten und Gesamtpunkte sind serverseitig Klartext</li>
-<li>MC-Erkennung ist eine Messung; unsichere Kreuze legt sie zur Prüfung vor</li>
-<li>Lokaler WASM-Satz: seltene Abweichungen gegenüber dem Server</li>
-</ul></div>
-</div>
+<div class="band cols" style="gap:18px">
+<figure class="shot h240"><img src="../screenshots/pitch/21-proposal-review.jpg"><figcaption>Vorschlag eines Kollegen mit Diff</figcaption></figure>
+<figure class="shot h240"><img src="../screenshots/pitch/09b-variant-comparison.jpg"><figcaption>Variantenvergleich: Gruppe B 24 Punkte schwächer</figcaption></figure>
 </div>
 
 <div class="band">
@@ -61,9 +42,9 @@ footer: 'Examance 0.2 (Beta) · MIT-Lizenz · Stand Oktober 2026 · Alle Screens
 ## Mitmachen
 
 <div class="steps four">
-<div><b>Konto</b><span>Einladung, zwei Faktoren, Speicherort wählen</span></div>
-<div><b>Probelauf</b><span>Kleine Klausur mit erfundenen Daten</span></div>
-<div><b>Echter Einsatz</b><span>Eine Kurzarbeit komplett durchspielen</span></div>
-<div><b>Rückmeldung</b><span>Issue im Repository oder an den Betreiber</span></div>
+<div><b>Konto</b><span>Einladung, zwei Faktoren, Speicherort</span></div>
+<div><b>Probelauf</b><span>Klausur mit erfundenen Daten</span></div>
+<div><b>Echter Einsatz</b><span>Eine Kurzarbeit komplett</span></div>
+<div><b>Rückmeldung</b><span>Issue oder direkt an den Betreiber</span></div>
 </div>
 </div>

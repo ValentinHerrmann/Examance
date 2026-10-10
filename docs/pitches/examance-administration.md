@@ -122,6 +122,26 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Alle Screenshots: echte Ob
 
 ---
 
+<span class="kicker">Aufgaben teilen</span>
+
+<div class="cols l">
+<div class="stack">
+
+## Teilen ist steuerbar – und betrifft nie Schülerdaten
+
+<ul class="small">
+<li>Lehrkräfte können Aufgaben mit allen Konten der Instanz teilen, Kopien übernehmen und dem Original Verbesserungen vorschlagen.</li>
+<li>Die Administration schaltet die Funktion <strong>pro Konto</strong> ein oder aus.</li>
+<li>Vor dem ersten Teilen bestätigt die Lehrkraft ausdrücklich: keine personenbezogenen Daten von Schülerinnen und Schülern, und sie darf die Aufgabe weitergeben.</li>
+<li>Bei geteilten Aufgaben und Vorschlägen ist die E-Mail-Adresse der Lehrkraft sichtbar; darauf weist die App vorher hin.</li>
+<li>Geteilt werden nur Aufgabentexte und ihre Dateien – keine Klausuren, Scans oder Ergebnisse.</li>
+</ul>
+</div>
+<figure class="shot"><img src="../screenshots/pitch/20-share-confirm.jpg"><figcaption>Hinweis und Pflichtbestätigung beim Teilen einer Aufgabe</figcaption></figure>
+</div>
+
+---
+
 <span class="kicker">Konten</span>
 
 <div class="cols l">

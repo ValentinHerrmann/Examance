@@ -11,7 +11,8 @@ Audience-specific decks (16:9) and posters (A3 portrait) in German. Each audienc
 ## Rules for these materials
 
 - Inform, don't advertise: state what the product does, what it does not do and what is still open. Every claim must match the code and [`data_flow_and_security.md`](data_flow_and_security.md) / [`legal_audit_dsgvo.md`](legal_audit_dsgvo.md); update the decks when those change.
-- Screenshots are real captures of the current UI with demo data only ([inventory](screenshots/pitch/README.md)). No mock-ups, no real pupil data.
+- Screenshots are real captures of the current UI with demo data only ([inventory](screenshots/pitch/README.md)), produced by the reproducible [demo instance](demo-instance/README.md). No mock-ups, no real pupil data.
+- Teachers mostly care about creating exams and may keep grading on paper: lead with the library, editor and exam builder, and present scanning as an option.
 - The legal documents are working templates; the decks say so and must keep saying so.
 
 ## Rendering

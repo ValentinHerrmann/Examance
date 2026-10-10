@@ -1,24 +1,23 @@
 # Pitch screenshots
 
-Real captures of the current UI (German locale, 1600×1000 at 2×, dark theme to match the decks), taken against a local stack with **demo data only**: a demo school (`gymnasium-example.de`), invented accounts and a synthetic class of 14. The scans are synthetic: the compiled exam PDF with handwriting-font answers, ticked boxes and pseudonymous `BG:` QR codes, imported through the normal scan pipeline. Grading, MC detection and statistics are the app's own results on that data.
+Real captures of the current UI (German, dark theme to match the decks, 1600×1000 at 2×), taken from the local demo instance in [`../../demo-instance/`](../../demo-instance/README.md) with **demo data only**: invented accounts at `gymnasium-example.de`, three synthetic classes, synthetic scans with pseudonymous QR codes. Grading, MC detection and statistics are the app's own results on that data. Regenerate with `docs/demo-instance/setup.sh` (or `capture.mjs` + `assets.py` for single files).
 
 | File | Shows |
 |---|---|
 | `01-dashboard.jpg` | Exam overview |
-| `02-library.jpg` | Exercise library with filters |
-| `03-exercise-editor.jpg` | Exercise editor, LaTeX source and compiled preview |
-| `04-exam-setup.jpg` | Exam setup with compiled PDF |
-| `05-scan-import.jpg` | Scan import after reading 14 booklets |
+| `02-library.jpg` | Exercise library, one exercise with variants Gruppe A/B |
+| `03-exercise-editor.jpg`, `03b-mc-editor.jpg` | LaTeX editor with live preview; structured multiple-choice editor |
+| `04-exam-builder.jpg`, `04b-exam-setup.jpg` | Picking exercises and variants; compiled exam and solution sheet |
+| `05-scan-import.jpg` | Scan import after reading 26 booklets |
 | `06-grading.jpg` | Blind grading with stamps |
 | `07-mc-review.jpg` | MC detection review of one answer |
-| `08-results.jpg` | Grade overview and distribution |
-| `09-analytics.jpg` | Cross-exam analytics |
-| `10-settings-storage.jpg` | Settings: storage mode and LaTeX engine |
-| `11-security.jpg` | Settings: sign-in factors |
-| `12-signin-second-factor.jpg` | Mandatory second-factor setup at first sign-in |
-| `13-storage-choice.jpg` | Mandatory storage-mode choice at first sign-in |
+| `08-results.jpg`, `08b-paper-entry.jpg` | Grade overview; points of a paper-graded class pasted from Excel |
+| `09-analytics.jpg`, `09b-variant-comparison.jpg` | Cross-exam analytics; Gruppe A vs. B comparison |
+| `10-settings-storage.jpg`, `11-security.jpg` | Storage mode and LaTeX engine; sign-in factors |
+| `12-signin-second-factor.jpg`, `13-storage-choice.jpg` | Mandatory second factor and storage choice at first sign-in |
 | `14-admin-accounts.jpg`, `15-admin-approvals.jpg`, `16-admin-domains.jpg` | Admin user management |
 | `17-scanned-sheet.jpg`, `18-scanned-sheet-mc.jpg` | Synthetic scanned exam pages |
+| `19-shared-library.jpg`, `20-share-confirm.jpg`, `21-proposal-review.jpg` | Exercise sharing: shared tab, mandatory confirmation, reviewing a colleague's proposal |
 | `examance-logo.png` | App logo (from `frontend/static/favicon.png`) |
 
-Replace a capture when the UI it shows changes. Never use real pupil data or a production account.
+Never use real pupil data or a production account.

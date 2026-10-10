@@ -88,6 +88,25 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Alle Screenshots: echte Ob
 
 ---
 
+<span class="kicker">Teilen und Beitragen</span>
+
+<div class="cols" style="grid-template-columns: 7fr 5fr">
+<figure class="shot"><img src="../screenshots/pitch/21-proposal-review.jpg"><figcaption>Vorschlag eines Kollegen: Diff gegen die aktuelle Version, Übernahme als neue Version oder Variante</figcaption></figure>
+<div class="stack">
+
+## Wie Pull Requests, nur für Aufgaben
+
+<ul class="small">
+<li>Geteilte Aufgaben sind für alle Konten der Instanz lesbar, aber nie verlinkbar: Wer sie nutzt, arbeitet mit einer <strong>Kopie</strong>.</li>
+<li>Die Kopie merkt sich ihre Quelle; Änderungen des Originals lassen sich einspielen (Merge-Editor).</li>
+<li>Verbesserungen gehen als <strong>Vorschlag</strong> zurück. Die Autorin sieht den Diff, kann ihn bearbeiten, annehmen oder mit Begründung ablehnen.</li>
+<li>Angenommen wird immer als neue Version oder Variante – Prüfungen, die die alte nutzen, bleiben unverändert.</li>
+</ul>
+</div>
+</div>
+
+---
+
 <span class="kicker">Scan und Erkennung</span>
 
 <div class="cols" style="grid-template-columns: 3fr 9fr; gap: 28px">
@@ -129,8 +148,7 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Alle Screenshots: echte Ob
 
 <span class="kicker">Auswertung</span>
 
-<div class="cols r">
-<figure class="shot"><img src="../screenshots/pitch/09-analytics.jpg"><figcaption>Prüfungsübergreifende Analyse (Demodaten aus drei Klausuren)</figcaption></figure>
+<div class="cols" style="grid-template-columns: 5fr 7fr">
 <div class="stack">
 
 ## Daten über die eigenen Aufgaben
@@ -138,11 +156,12 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Alle Screenshots: echte Ob
 <ul class="small">
 <li>Ergebnisverteilung über alle Klausuren.</li>
 <li><strong>Aufgabenqualität</strong>: welche Fragen über mehrere Termine hinweg schwach ausfallen.</li>
-<li><strong>Variantenvergleich</strong>: waren Gruppe A und B gleich schwer?</li>
+<li><strong>Variantenvergleich</strong>: Gruppe A in der 10b gegen Gruppe B in der 10a; ab 15 Prozentpunkten Differenz markiert.</li>
 <li>Diagramme als SVG, PDF und PNG; Ergebnisse als Tabelle.</li>
 </ul>
 <div class="card tint"><p class="small" style="margin:0">Die Auswertung rechnet im Browser auf den entschlüsselten Daten. Der Server kennt nur die Gesamtpunktzahl je Abgabe.</p></div>
 </div>
+<figure class="shot"><img src="../screenshots/pitch/09b-variant-comparison.jpg"><figcaption>Variantenvergleich aus den Demodaten: Gruppe B fiel 24 Prozentpunkte schwächer aus</figcaption></figure>
 </div>
 
 ---

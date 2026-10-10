@@ -11,7 +11,7 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Alle Screenshots: echte Ob
 
 # Prüfungsdaten, die der Server nicht lesen kann.
 
-<p class="lead">Examance unterstützt Lehrkräfte bei Papierklausuren: setzen, scannen, anonym korrigieren, auswerten. Schülerdaten werden im Browser verschlüsselt, bevor sie gespeichert werden.</p>
+<p class="lead">Examance unterstützt Lehrkräfte bei Papierklausuren: Aufgaben sammeln und teilen, Klausuren setzen, auf Papier oder anonym am Bildschirm korrigieren, auswerten. Schülerdaten werden im Browser verschlüsselt, bevor sie gespeichert werden.</p>
 
 <div class="band">
 
@@ -26,37 +26,31 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Alle Screenshots: echte Ob
 </table>
 </div>
 
-<div class="band cols" style="grid-template-columns: 6fr 5fr; gap: 24px">
-<figure class="shot"><img src="../screenshots/pitch/14-admin-accounts.jpg"><figcaption>Benutzerverwaltung: Funktionen je Konto</figcaption></figure>
-<div class="stack">
-<div class="card"><h3>Die Administration kann</h3><p>Konten freigeben und einladen, Schul-Domains hinterlegen, pro Konto Server-Ergebnisse, Server-LaTeX und Teilen erlauben.</p></div>
-<div class="card ok"><h3>Sie kann nicht</h3><p>Klausuren, Ergebnisse oder Schülerdaten von Lehrkräften öffnen – auch nicht in der Datenbank oder nach einem Passwort-Reset.</p></div>
+<div class="band">
+
+## Funktionen und ihre Steuerung
+
+<div class="feat">
+<div class="card"><span class="tag blue">Lehrkräfte</span><h3>Erstellen & Setzen</h3><p>Aufgabenbibliothek, Klausur als PDF. Satz im Browser; Server-Satz pro Konto freischaltbar.</p></div>
+<div class="card"><span class="tag blue">Lehrkräfte</span><h3>Korrigieren & Auswerten</h3><p>Punkte von Hand oder anonym am Scan; Noten, Grenzfälle, Vergleiche über Klassen.</p></div>
+<div class="card"><span class="tag teal">Steuerbar</span><h3>Aufgaben teilen</h3><p>Pro Konto an/aus. Pflichtbestätigung „keine Schülerdaten“. Nie Klausuren oder Ergebnisse.</p></div>
+<div class="card"><span class="tag teal">Steuerbar</span><h3>Speicherort</h3><p>Ergebnisse nur im Browser (Hybrid) oder verschlüsselt auf dem Server – pro Konto erlaubt.</p></div>
+<div class="card"><span class="tag green">Konten</span><h3>Zugang</h3><p>Einladung oder Antrag mit Freigabe; Schul-Domains automatisch. Zwei Anmeldefaktoren Pflicht.</p></div>
+<div class="card"><span class="tag green">Admin</span><h3>Keine Hintertür</h3><p>Admin-Konten sehen keine Unterrichtsdaten; ein Passwort-Reset öffnet keine Daten.</p></div>
 </div>
 </div>
 
-<div class="band cols" style="gap:24px">
-<div>
-
-## Sicherheit
-
-<div class="card"><ul>
-<li>Zwei Anmeldefaktoren sind Pflicht; Passkeys möglich</li>
-<li>Zwei Speichermodi: Ergebnisse nur im Browser oder verschlüsselt auf dem Server</li>
-<li>Auskunft und Löschung je Schülerin und Schüler (Art. 15/17)</li>
-<li>Offener Quellcode (MIT), selbst betreibbar</li>
-</ul></div>
+<div class="band cols" style="grid-template-columns: 6fr 5fr; gap: 18px">
+<figure class="shot h260"><img src="../screenshots/pitch/14-admin-accounts.jpg"><figcaption>Benutzerverwaltung: Funktionen je Konto</figcaption></figure>
+<figure class="shot h260"><img src="../screenshots/pitch/20-share-confirm.jpg"><figcaption>Bestätigung vor dem Teilen einer Aufgabe</figcaption></figure>
 </div>
-<div>
 
-## Vor dem Einsatz
-
-<div class="card warn"><ul>
+<div class="band cols" style="gap:18px">
+<div class="card warn"><h3>Vor dem Einsatz</h3><ul>
 <li>Rechtsgrundlage und Aufbewahrungsfrist bestätigen</li>
 <li>Betriebsmodell wählen, ggf. AV-Vertrag</li>
 <li>DSFA und Verzeichnis abschließen (Vorlagen liegen bei)</li>
 <li>Regel für private Endgeräte festlegen</li>
 </ul></div>
+<div class="card tint"><h3>Vorschlag</h3><p>Ein begrenzter Pilot in einer Fachschaft, zuerst mit erfundenen Daten, mit paralleler Datenschutzprüfung. Offener Quellcode (MIT), selbst betreibbar. Examance ist in der Beta-Phase.</p></div>
 </div>
-</div>
-
-<div class="card tint" style="margin-top:24px"><p style="margin:0"><strong>Vorschlag:</strong> ein begrenzter Pilot in einer Fachschaft, zuerst mit erfundenen Daten, mit paralleler Datenschutzprüfung. Examance ist in der Beta-Phase.</p></div>
