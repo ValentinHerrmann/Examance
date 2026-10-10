@@ -22,6 +22,7 @@ This section points to the current, audience-specific materials for the product.
 - [Computer science beta poster source](posters/examance-beta-cs.md)
 - [Teacher poster source](posters/examance-teachers.md)
 - [Administration poster source](posters/examance-administration.md)
+- [Shared portrait poster theme](posters/examance-poster.css)
 
 ## Product facts behind these materials
 

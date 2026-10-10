@@ -8,4 +8,4 @@ Use the current sources here instead:
 - [Teacher pitch](pitches/examance-teachers.md)
 - [Administration pitch](pitches/examance-administration.md)
 
-These decks are rendered to PDF in the same directories and reference the current screenshots and architecture.
+These decks are rendered to PDF in the same directories and reference the current screenshots and architecture. Posters use the shared print theme at [posters/examance-poster.css](posters/examance-poster.css) to produce true portrait A3 output.

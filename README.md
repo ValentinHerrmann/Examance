@@ -48,6 +48,8 @@ Backend API at `http://localhost:8000/api/docs`, frontend at `http://localhost:5
 * [Teacher poster](docs/posters/examance-teachers.pdf)
 * [Administration poster](docs/posters/examance-administration.pdf)
 
+Render the decks with `npx @marp-team/marp-cli --allow-local-files <source.md> -o <source.pdf>`. Render posters with the shared portrait theme: `npx @marp-team/marp-cli --theme-set docs/posters/examance-poster.css --allow-local-files <poster.md> -o <poster.pdf>`.
+
 **Developer** — architecture, API, accounts:
 * [Data Flow, Encryption-at-Rest & DevTools Security Architecture](docs/data_flow_and_security.md) — client-side crypto, storage modes, session hygiene
 * [REST API Reference](docs/api_reference.md) — endpoints, auth, `/api/v1` schemas
