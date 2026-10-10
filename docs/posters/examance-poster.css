@@ -1,0 +1,7 @@
+/* @theme examance-poster */
+@import-theme 'default';
+
+section {
+  width: 297mm;
+  height: 420mm;
+}

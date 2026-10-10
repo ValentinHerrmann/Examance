@@ -39,8 +39,14 @@ Backend API at `http://localhost:8000/api/docs`, frontend at `http://localhost:5
 
 ## Documentation
 
-**Pitch** — what it does and why, with current screenshots:
-* [Concept Pitch](docs/concept_pitch.md) — long-form doc · [slides PDF](docs/concept_pitch.pdf) — same content as a presentation deck ([Marp](https://marp.app) source: `docs/concept_pitch_slides.md`, rebuild with `npx @marp-team/marp-cli --allow-local-files docs/concept_pitch_slides.md -o docs/concept_pitch.pdf`)
+**Pitch & posters** — current audience-specific materials, using the actual app and current privacy model:
+* [Examance pitch index](docs/concept_pitch.md) — overview and links to all current versions
+* [Computer Science beta pitch](docs/pitches/examance-beta-cs.pdf) — for beta testers and real-data pilots
+* [Teacher pitch](docs/pitches/examance-teachers.pdf) — for general classroom adoption
+* [Administration pitch](docs/pitches/examance-administration.pdf) — for school leadership and governance
+* [Computer Science beta poster](docs/posters/examance-beta-cs.pdf)
+* [Teacher poster](docs/posters/examance-teachers.pdf)
+* [Administration poster](docs/posters/examance-administration.pdf)
 
 **Developer** — architecture, API, accounts:
 * [Data Flow, Encryption-at-Rest & DevTools Security Architecture](docs/data_flow_and_security.md) — client-side crypto, storage modes, session hygiene
