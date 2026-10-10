@@ -1,6 +1,6 @@
 # Examance pitch index
 
-Audience-specific decks (16:9) and posters (A3 portrait) in German. Each audience gets one deck and one poster; all six share the theme in [`pitches/examance-theme.css`](pitches/examance-theme.css), which reuses the app's colour tokens, navbar, chips and step markers so the material reads as part of the product.
+Audience-specific decks (16:9) and posters (A3 portrait) in German. Each audience gets one deck and one poster; all six share the theme in [`pitches/examance-theme.css`](pitches/examance-theme.css), which reuses the app's dark-theme colour tokens, navbar, chips and step markers so the material reads as part of the product. Screenshots are taken in the app's dark theme to match.
 
 | Audience | Deck | Poster | Focus |
 |---|---|---|---|

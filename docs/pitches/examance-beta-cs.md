@@ -83,7 +83,7 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Alle Screenshots: echte Ob
 <li>Bibliothek nach Thema, Jahrgang und Fach; optional mit der Fachschaft teilen und Änderungen vorschlagen.</li>
 </ul>
 </div>
-<figure class="shot"><img src="../screenshots/pitch/02-library-dark.jpg"><figcaption>Aufgabenbibliothek, dunkles Farbschema</figcaption></figure>
+<figure class="shot"><img src="../screenshots/pitch/02-library.jpg"><figcaption>Aufgabenbibliothek mit Filtern nach Thema, Klasse und Fach</figcaption></figure>
 </div>
 
 ---
@@ -111,7 +111,7 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Alle Screenshots: echte Ob
 <span class="kicker">Korrektur</span>
 
 <div class="cols r">
-<figure class="shot"><img src="../screenshots/pitch/06-grading-dark.jpg"><figcaption>Korrektur im dunklen Farbschema; oben nur Laufnummer und Pseudonym</figcaption></figure>
+<figure class="shot"><img src="../screenshots/pitch/06-grading.jpg"><figcaption>Korrekturansicht; oben nur Laufnummer und Pseudonym</figcaption></figure>
 <div class="stack">
 
 ## Blind korrigieren, sauber speichern
