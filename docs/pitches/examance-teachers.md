@@ -1,139 +1,199 @@
 ---
 marp: true
+theme: examance
 paginate: true
 size: 16:9
-theme: default
-style: |
-  :root { --ink:#f8fafc; --navy:#0f172a; --slate:#1e293b; --cyan:#38bdf8; --muted:#94a3b8; --line:#334155; --coral:#fb7185; }
-  section { background:var(--navy); color:var(--ink); font-family:"Segoe UI",sans-serif; padding:58px 72px; }
-  h1 { font-size:2.9em; letter-spacing:-.04em; line-height:.98; color:var(--ink); }
-  h2 { font-size:2em; letter-spacing:-.035em; line-height:1; color:var(--ink); }
-  h3 { color:var(--coral); text-transform:uppercase; letter-spacing:.12em; font-size:1em; }
-  p,li { font-size:.82em; line-height:1.35; }
-  .eyebrow { color:var(--coral); text-transform:uppercase; letter-spacing:.16em; font-size:.55em; font-weight:700; }
-  .deck { color:var(--muted); font-size:1em; max-width:730px; }
-  .grid { display:grid; grid-template-columns:1fr 1fr; gap:34px; align-items:center; }
-  .flow { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:38px; }
-  .step { border-top:4px solid var(--coral); padding:16px 4px 0; min-height:130px; }
-  .step b { display:block; font-size:1.6em; color:var(--coral); margin-bottom:12px; }
-  .step span { color:var(--muted); font-size:.72em; }
-  .panel { background:var(--slate); border:1px solid var(--line); border-radius:18px; padding:22px; }
-  .quote { font-size:1.55em; line-height:1.12; border-left:4px solid var(--coral); padding-left:24px; }
-  .metric { border-top:2px solid var(--coral); padding-top:13px; }
-  .metric b { display:block; font-size:1.2em; margin-bottom:5px; }
-  .metric span { color:var(--muted); font-size:.74em; }
-  .legacy { border:1px solid var(--coral); padding:6px 9px; color:#fecdd3; border-radius:999px; font-size:.5em; letter-spacing:.08em; text-transform:uppercase; display:inline-block; }
-  .concept { color:#bae6fd; border:1px solid var(--cyan); padding:6px 9px; border-radius:999px; font-size:.5em; letter-spacing:.08em; text-transform:uppercase; display:inline-block; }
-  img { max-width:100%; max-height:480px; object-fit:contain; border-radius:14px; border:1px solid var(--line); }
-  figure { margin:0; } figcaption { color:var(--muted); font-size:.48em; margin-top:8px; }
+header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· Für Lehrkräfte</em>'
+footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Alle Screenshots: echte Oberfläche mit Demodaten'
 ---
 
-<div class="eyebrow">Examance / Für Lehrkräfte</div>
+<!-- _class: title -->
+<!-- _paginate: false -->
 
-# Mehr Zeit für<br><span style="color:var(--coral)">gute Rückmeldung.</span>
+<div class="cols center" style="grid-template-columns: 6fr 7fr">
+<div>
+<img class="logo" src="../screenshots/pitch/examance-logo.png">
+<span class="kicker">Für Lehrkräfte</span>
 
-<p class="deck">Der vertraute Papier-Test bleibt. Nur der mühsame Teil danach wird klarer, fairer und besser auswertbar.</p>
+# Die Klausur bleibt auf Papier. Der Aufwand drumherum wird kleiner.
 
-<div style="margin-top:70px"><span class="concept">VISUELLES KONZEPT / AKTUELLER UI-CAPTURE FOLGT</span></div>
-
----
-
-<div class="eyebrow">01 / Der bekannte Nachmittag</div>
-
-# Korrigieren ist wichtig.<br>Alles drumherum nicht.
-
-<div class="grid">
-<div><p class="quote">Namen, Punkte, Tabellen, Nachfragen. Die Rückmeldung an die Klasse wartet, während der Papierstapel wächst.</p></div>
-<div><div class="metric"><b>Wiederverwenden</b><span>Aufgaben und Varianten bleiben auffindbar.</span></div><div class="metric"><b>Fairer korrigieren</b><span>Die Identität bleibt während des Markierens im Hintergrund.</span></div><div class="metric"><b>Schneller verstehen</b><span>Ergebnisse zeigen, was als Nächstes gelernt werden sollte.</span></div></div>
+<p class="lead">Examance begleitet eine schriftliche Prüfung vom Aufgabenblatt bis zur Notenübersicht – im Browser, mit anonymer Korrektur und verschlüsselten Schülerdaten.</p>
+</div>
+<figure class="shot"><img src="../screenshots/pitch/06-grading.jpg"><figcaption>Korrekturansicht: Scan, Stempel, Punkte je Aufgabe</figcaption></figure>
 </div>
 
 ---
 
-<div class="eyebrow">02 / Der Ablauf</div>
+<span class="kicker">Der Ablauf</span>
 
-# Papier rein.<br><span style="color:var(--coral)">Klarheit raus.</span>
+# Fünf Schritte, ein Werkzeug
 
-<div class="flow">
-<div class="step"><b>01</b><span>Übung auswählen oder neu schreiben</span></div>
-<div class="step"><b>02</b><span>Heft drucken und austeilen</span></div>
-<div class="step"><b>03</b><span>Stapel scannen und korrigieren</span></div>
-<div class="step"><b>04</b><span>Ergebnisse für die nächste Stunde lesen</span></div>
+<p class="lead">Was heute auf Word-Dateien, Kopierer, Rotstift und Tabellen verteilt ist, läuft in einer Reihenfolge.</p>
+
+<div class="steps" style="margin-top:26px">
+<div><b>Aufgaben sammeln</b><span>Einmal anlegen, nach Thema, Klasse und Fach wiederfinden.</span></div>
+<div><b>Klausur setzen</b><span>Aufgaben auswählen, Notenschlüssel festlegen, druckfertiges PDF mit Lösung.</span></div>
+<div><b>Schreiben lassen</b><span>Ganz normal auf Papier. Jeder Bogen trägt einen QR-Code.</span></div>
+<div><b>Stapel scannen</b><span>Ein PDF vom Schulkopierer. Examance trennt und ordnet die Bögen zu.</span></div>
+<div><b>Korrigieren & auswerten</b><span>Ohne Namen korrigieren, danach Noten, Verteilung und Export.</span></div>
 </div>
 
-<div style="margin-top:48px"><span class="concept">CONCEPT / WORKFLOW DIAGRAM</span></div>
+<div class="card tint" style="margin-top:26px"><p class="small" style="margin:0">Sie können jederzeit aussteigen: Punkte lassen sich auch von Hand in eine Tabelle eintragen („Papier & Excel“), und jede Klausur lässt sich als verschlüsseltes Archiv exportieren.</p></div>
 
 ---
 
-<div class="eyebrow">03 / Der Arbeitsplatz</div>
+<span class="kicker">1 · Aufgabenbibliothek</span>
 
-<div class="grid">
-<figure><img src="../screenshots/pitch/05-exam-creation.png"><figcaption><span class="legacy">ALTE UI / LEGACY CAPTURE</span> Exam-Aufbau: als Produktbeleg markiert, aktueller Capture folgt.</figcaption></figure>
-<div><h2>Ein Test, nicht fünf Dateien.</h2><p>Aufgaben, Punktelogik, Varianten und druckfertiger Satz gehören in einen Ablauf.</p><div class="panel"><strong>Für den Unterricht</strong><br><span style="color:var(--muted);font-size:.74em">Auch bestehende Papier- und LaTeX-Routinen bleiben anschlussfähig.</span></div></div>
+<div class="cols r">
+<figure class="shot"><img src="../screenshots/pitch/02-library.jpg"><figcaption>Aufgabenbibliothek mit Filtern nach Thema, Klasse und Fach</figcaption></figure>
+<div class="stack">
+
+## Gute Aufgaben gehen nicht mehr verloren
+
+<ul>
+<li>Jede Aufgabe liegt einmal in der Bibliothek und ist in jeder späteren Klausur wieder verfügbar.</li>
+<li><strong>Varianten</strong> (Gruppe A/B) teilen sich Punkte und Statistik.</li>
+<li><strong>Versionen</strong>: Änderungen erzeugen eine neue Fassung, alte Klausuren bleiben unverändert.</li>
+<li>Die Punktzahl wird aus dem Aufgabentext gezählt, nicht nachgetragen.</li>
+<li>Optional mit der Fachschaft teilen, wenn die Schule das freischaltet.</li>
+</ul>
 </div>
-
----
-
-<div class="eyebrow">04 / Wiederverwenden</div>
-
-# Gute Aufgaben<br>müssen nicht verloren gehen.
-
-<div class="grid">
-<div><p>Eine Bibliothek für Übungen, Themen, Jahrgänge und Varianten. Änderungen bleiben sichtbar, statt sich in Kopien zu verstecken.</p><div class="metric"><b>Einmal pflegen.</b><span>In mehreren Prüfungen sinnvoll einsetzen.</span></div></div>
-<figure><img src="../screenshots/pitch/04-exercise-library.png"><figcaption><span class="legacy">ALTE UI / LEGACY CAPTURE</span> Bibliothek: alte Oberfläche, nicht als aktueller Screenshot ausgeben.</figcaption></figure>
-</div>
-
----
-
-<div class="eyebrow">05 / Fairness</div>
-
-# Erst die Antwort.<br><span style="color:var(--coral)">Dann der Name.</span>
-
-<div class="grid">
-<div><p class="quote">Beim Korrigieren zählt, was auf dem Blatt steht — nicht, wer darauf steht.</p><p style="color:var(--muted)">Die Korrektur ist pseudonym beziehungsweise identity-hidden. Die spätere Zuordnung für Noten und Verwaltung bleibt möglich.</p></div>
-<figure><img src="../screenshots/pitch/placeholder-grading.svg"><figcaption><span class="concept">CONCEPT / NOT A SCREENSHOT</span> Visualisierung des Korrekturschritts.</figcaption></figure>
 </div>
 
 ---
 
-<div class="eyebrow">06 / Automatische Unterstützung</div>
+<span class="kicker">2 · Klausur setzen</span>
 
-# Automatik hilft.<br>Die Lehrkraft entscheidet.
+<div class="cols l">
+<div class="stack">
 
-<div class="grid">
-<figure><img src="../screenshots/pitch/placeholder-omr.svg"><figcaption><span class="concept">CONCEPT / NOT A SCREENSHOT</span> OMR-Verifikation mit sichtbaren Unsicherheiten.</figcaption></figure>
-<div><p>Bei MC- und SC-Aufgaben kann Examance Markierungen erkennen und zur Kontrolle vorlegen. Unklare Fälle bleiben sichtbar.</p><div class="panel"><strong>Wichtig</strong><br><span style="color:var(--muted);font-size:.74em">Kein blindes Vertrauen in eine Zahl. Ein kurzer Prüfpunkt im Arbeitsfluss.</span></div></div>
+## Aus der Auswahl wird ein druckfertiges PDF
+
+<ul>
+<li>Aufgaben und Multiple-Choice-Gruppen zusammenstellen, Reihenfolge festlegen.</li>
+<li>Notenschlüssel: linear, nach Oberstufenpunkten oder mit eigenen Grenzen.</li>
+<li>Kopf mit Schullogo, Klasse, Datum und Punktetabelle – im vertrauten Schulaufgaben-Layout.</li>
+<li>Lösungsblatt entsteht aus derselben Quelle.</li>
+<li>Der Satz läuft standardmäßig <strong>im Browser</strong>; der Aufgabentext verlässt dabei das Gerät nicht.</li>
+</ul>
+</div>
+<figure class="shot"><img src="../screenshots/pitch/04-exam-setup.jpg"><figcaption>Klausur mit vier Aufgaben, Vorschau des gesetzten PDFs</figcaption></figure>
 </div>
 
 ---
 
-<div class="eyebrow">07 / Die nächste Stunde</div>
+<span class="kicker">3 · Scannen und zuordnen</span>
 
-# Aus dem Ergebnis<br>wird eine Entscheidung.
+# Ein Stapel, ein PDF, vierzehn Abgaben
 
-<div class="grid">
-<figure><img src="../screenshots/pitch/placeholder-analytics.svg"><figcaption><span class="concept">CONCEPT / NOT A SCREENSHOT</span> Beispielhafte Auswertung; Zahlen sind Demo-Daten.</figcaption></figure>
-<div><div class="metric"><b>Wo hakt es?</b><span>Themen und Aufgaben sichtbar machen.</span></div><div class="metric"><b>Was war zu leicht?</b><span>Prüfungen über Zeit vergleichen.</span></div><div class="metric"><b>Was kommt jetzt?</b><span>Rückmeldung und Unterricht gezielter planen.</span></div></div>
+<div class="cols" style="grid-template-columns: 3fr 9fr; gap: 28px; align-items:start">
+<figure class="shot"><img src="../screenshots/pitch/17-scanned-sheet.jpg"><figcaption>Gescannter Bogen (synthetisch)</figcaption></figure>
+<div class="stack">
+<figure class="shot h340 bottom"><img src="../screenshots/pitch/05-scan-import.jpg"><figcaption>Nach dem Einlesen: 14 Abgaben, nur mit Pseudonym-Code</figcaption></figure>
+<p class="small">Der QR-Code verweist auf ein <strong>Pseudonym</strong>, nicht auf einen Namen. Unlesbare Codes landen in einer Prüfliste. Jede Seite wird sofort im Browser verschlüsselt.</p>
+</div>
 </div>
 
 ---
 
-<div class="eyebrow">08 / Vertrauen</div>
+<span class="kicker">4 · Korrigieren</span>
 
-# Datenschutz verständlich<br>im Arbeitsablauf.
+<div class="cols r">
+<figure class="shot"><img src="../screenshots/pitch/06-grading.jpg"><figcaption>„Anonymer Schüler #7 von 14“ – der Name ist während der Korrektur nicht sichtbar</figcaption></figure>
+<div class="stack">
 
-<div class="flow">
-<div class="step"><b>Account</b><span>Jede Nutzung läuft über ein Serverkonto.</span></div>
-<div class="step"><b>Schlüssel</b><span>Sensible Payloads werden clientseitig verschlüsselt.</span></div>
-<div class="step"><b>Hybrid</b><span>Ergebnisse bleiben in diesem Browser.</span></div>
-<div class="step"><b>Server</b><span>Ergebnisse können verschlüsselt auf dem Server liegen.</span></div>
+## Erst die Antwort. Dann der Name.
+
+<p>Sie sehen Handschrift, Aufgabe und Punkte – aber nicht, wer die Arbeit geschrieben hat. Die Zuordnung zur Person entsteht erst nach dem Korrekturgang.</p>
+
+<ul class="small">
+<li>Stempel für ganze, halbe und Viertelpunkte, „Falsch“, „Fehlt“, Folgefehler.</li>
+<li>Anmerkungen liegen als Ebene über dem Scan; das Original bleibt unverändert.</li>
+<li>Die Note und der Abstand zur nächsten Notengrenze stehen daneben.</li>
+<li>Funktioniert mit Maus, Stift und Tablet.</li>
+</ul>
 </div>
-<p class="deck" style="margin-top:42px">Die genaue Wahl hängt von Schulrichtlinie und Kontofähigkeiten ab. Pseudonym während der Korrektur bedeutet nicht anonym im gesamten Prozess.</p>
+</div>
 
 ---
 
-<div class="eyebrow">09 / Nächster Schritt</div>
+<span class="kicker">5 · Multiple Choice</span>
 
-# Ein echter Ablauf<br>ist die beste Produktdemo.
+# Kreuze werden gelesen. Sie entscheiden.
 
-<p class="deck">Für einen sinnvollen Praxistest braucht es eine Prüfungssequenz, eine reale Korrekturroutine, freigegebene oder synthetische Beispieldaten und ehrliches Feedback zur Verständlichkeit.</p>
-<div class="panel" style="margin-top:50px"><strong>Gesucht</strong><br><span style="color:var(--muted);font-size:.8em">Lehrkräfte, die sagen, wo der Ablauf Zeit spart, wo er Fragen aufwirft und welche Rückmeldung im Unterricht wirklich ankommt.</span></div>
+<div class="cols" style="grid-template-columns: 8fr 4fr">
+<figure class="shot"><img src="../screenshots/pitch/07-mc-review.jpg"><figcaption>Prüfansicht einer erkannten MC-Antwort mit Scan-Ausschnitt</figcaption></figure>
+<div class="stack">
+<div class="card"><h3>Automatisch erkannt</h3><p>Angekreuzte Kästchen werden beim Einlesen ausgewertet und mit dem Lösungsschlüssel verrechnet.</p></div>
+<div class="card"><h3>Unsicheres wird vorgelegt</h3><p>Blasse, übermalte oder zurückgenommene Kreuze erscheinen markiert zur Bestätigung.</p></div>
+<div class="card"><h3>Stichproben</h3><p>Auch sichere Erkennungen lassen sich zufällig nachprüfen.</p></div>
+</div>
+</div>
+
+---
+
+<span class="kicker">6 · Auswertung</span>
+
+<div class="cols r">
+<figure class="shot"><img src="../screenshots/pitch/08-results.jpg"><figcaption>Notenübersicht einer Klausur (14 Abgaben, Demodaten)</figcaption></figure>
+<div class="stack">
+
+## Was die Klasse kann – und was nicht
+
+<ul>
+<li>Notendurchschnitt, Median, Verteilung und Bestehensquote auf einen Blick.</li>
+<li><strong>Grenzfälle</strong>: wer knapp unter oder über einer Notengrenze liegt, mit direktem Sprung in die Korrektur.</li>
+<li>Über mehrere Klausuren: welche Aufgaben regelmäßig schwach ausfallen, ob Varianten gleich schwer waren.</li>
+<li>Export als Tabelle und PDF.</li>
+</ul>
+</div>
+</div>
+
+---
+
+<!-- _class: center -->
+
+<span class="kicker">Datenschutz in einfachen Worten</span>
+
+# Was der Server sieht – und was nicht
+
+<div class="cols" style="margin-top:8px">
+<div class="card">
+<h3>Liegt lesbar auf dem Server</h3>
+<ul class="small">
+<li>Aufgaben- und Klausurtexte (für Bibliothek und Satz)</li>
+<li>Klausurdaten: Titel, Klasse, Fach, Datum, Ihr Nachname</li>
+<li>Gesamtpunktzahl je Abgabe, ohne Namen</li>
+<li>Ihre E-Mail-Adresse und Ihre Anmeldedaten</li>
+</ul>
+</div>
+<div class="card ok">
+<h3>Nur mit Ihrem Schlüssel lesbar</h3>
+<ul class="small">
+<li>Namen und Nummern der Schülerinnen und Schüler</li>
+<li>Scans, Anmerkungen und Punkte je Aufgabe</li>
+<li>Der Schlüssel entsteht im Browser und verlässt ihn nicht – auch die Administration kann diese Daten nicht öffnen.</li>
+</ul>
+</div>
+</div>
+
+<div class="card tint" style="margin-top:18px"><p class="small" style="margin:0">Im <strong>Hybrid-Modus</strong> verlassen Schülerdaten, Scans und Punkte den Browser gar nicht; im Server-Modus liegen sie dort nur verschlüsselt. Welcher Modus erlaubt ist, kann Ihre Schule festlegen. Angemeldet wird immer mit zwei Faktoren.</p></div>
+
+---
+
+<!-- _class: center -->
+
+<span class="kicker">Einstieg</span>
+
+# Was Sie brauchen
+
+<div class="cols3" style="margin-top:12px">
+<div class="card"><h3>Ein Konto</h3><p>Per Einladung der Administration oder selbst beantragt; Konten mit Schuladresse können automatisch freigeschaltet werden.</p></div>
+<div class="card"><h3>Einen zweiten Faktor</h3><p>Authenticator-App oder Passkey (Fingerabdruck, Gesichtserkennung, Geräte-PIN) und einen Wiederherstellungscode auf Papier.</p></div>
+<div class="card"><h3>Browser und Kopierer</h3><p>Ein aktueller Desktop-Browser oder ein Tablet; ein Kopierer, der einen Stapel in ein PDF scannt.</p></div>
+</div>
+
+<div class="card warn" style="margin-top:22px">
+<h3>Examance ist in der Beta-Phase</h3>
+<p class="small" style="margin:0">Probieren Sie den Ablauf zuerst mit einer Probeklausur aus, bevor Sie eine echte Arbeit damit korrigieren. Im Hybrid-Modus liegen Ergebnisse nur in diesem Browser – sichern Sie sie über das verschlüsselte Archiv. Ein Handbuch ist in die App eingebaut (Fragezeichen oben rechts).</p>
+</div>

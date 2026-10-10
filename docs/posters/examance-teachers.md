@@ -1,41 +1,53 @@
 ---
 marp: true
-paginate: false
-size: A3
 theme: examance-poster
-style: |
-  @page { size:A3 portrait; margin:0; }
-  :root { width: 297mm; height: 420mm; }
-  section { width:297mm !important; height:420mm !important; background:#0f172a; color:#f8fafc; font-family:"Segoe UI",sans-serif; padding:15mm 16mm; }
-  h1 { color:#f8fafc; font-size:2.8em; line-height:.92; letter-spacing:-.06em; margin:0 0 6mm; }
-  h2 { color:#fb7185; font-size:1.1em; text-transform:uppercase; letter-spacing:.13em; margin:0 0 4mm; }
-  p,li { font-size:13px; line-height:1.3; } ul { padding-left:18px; }
-  .eyebrow { color:#fb7185; text-transform:uppercase; letter-spacing:.16em; font-size:13px; font-weight:700; }
-  .hero { color:#cbd5e1; font-size:18px; line-height:1.2; margin-bottom:8mm; }
-  .panel { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:4mm; margin:3mm 0; }
-  .flow { display:grid; grid-template-columns:repeat(2,1fr); gap:3mm; }
-  .step { border-left:4px solid #fb7185; padding:3mm 3mm 3mm 4mm; background:#1e293b; min-height:20mm; }
-  .step b { display:block; color:#fb7185; font-size:19px; margin-bottom:2mm; }
-  .concept { display:inline-block; border:1px solid #38bdf8; color:#bae6fd; border-radius:999px; padding:2mm 3mm; font-size:11px; letter-spacing:.08em; }
-  .badge { display:inline-block; border:1px solid #fb7185; color:#fecdd3; border-radius:999px; padding:2mm 3mm; font-size:11px; letter-spacing:.08em; }
-  img { width:100%; max-height:76mm; object-fit:contain; border:1px solid #334155; border-radius:12px; }
-  .footer { border-top:1px solid #334155; margin-top:5mm; padding-top:3mm; color:#94a3b8; font-size:11px; }
+size: a3
+paginate: false
+header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· Für Lehrkräfte</em>'
+footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Alle Screenshots: echte Oberfläche mit Demodaten'
 ---
 
-<div class="eyebrow">EXAMANCE / FÜR LEHRKRÄFTE</div>
-<h1>Mehr Zeit für<br><span style="color:#fb7185">gute Rückmeldung.</span></h1>
-<p class="hero">Der Papier-Test bleibt. Der mühsame Teil danach wird klarer, fairer und besser auswertbar.</p>
-<img src="../screenshots/pitch/placeholder-grading.svg">
-<p><span class="concept">CONCEPT / NOT A SCREENSHOT</span></p>
+<span class="kicker">Für Lehrkräfte</span>
 
-<h2>Vom Blatt zur nächsten Stunde</h2>
-<div class="flow">
-<div class="step"><b>01 / Auswählen</b>Übungen wiederverwenden und anpassen.</div>
-<div class="step"><b>02 / Drucken</b>QR-codiertes Heft ausgeben.</div>
-<div class="step"><b>03 / Korrigieren</b>Antwort markieren, Name bleibt im Hintergrund.</div>
-<div class="step"><b>04 / Verstehen</b>Themen, Aufgaben und nächste Schritte sehen.</div>
+# Die Klausur bleibt auf Papier. Korrigiert wird ohne Namen.
+
+<p class="lead">Examance begleitet eine schriftliche Prüfung vom Aufgabenblatt bis zur Notenübersicht – im Browser, mit verschlüsselten Schülerdaten.</p>
+
+<figure class="shot h420" style="margin-top:20px"><img src="../screenshots/pitch/06-grading.jpg"><figcaption>Korrekturansicht: „Anonymer Schüler #7 von 14“, Stempel auf dem Scan, Punkte je Aufgabe</figcaption></figure>
+
+<div class="band">
+
+## So läuft es
+
+<div class="steps">
+<div><b>Aufgaben sammeln</b><span>Einmal anlegen, immer wiederfinden.</span></div>
+<div><b>Klausur setzen</b><span>Druckfertiges PDF mit Lösung.</span></div>
+<div><b>Schreiben lassen</b><span>Auf Papier, mit QR-Code.</span></div>
+<div><b>Stapel scannen</b><span>Ein PDF, automatisch zugeordnet.</span></div>
+<div><b>Korrigieren</b><span>Ohne Namen, dann auswerten.</span></div>
+</div>
 </div>
 
-<div class="panel"><h2>Was sich verändert</h2><ul><li>Weniger Übertragen und Nachrechnen</li><li>Mehr Fairness im Korrekturschritt</li><li>Automatische Unterstützung bei MC/SC mit Kontrolle</li><li>Ergebnisse als Gesprächsgrundlage für den Unterricht</li></ul></div>
-<div class="panel"><h2>Datenschutz im Ablauf</h2><p>Sensible Payloads werden clientseitig verschlüsselt. Ergebnisse können je nach Kontomodus im Browser oder verschlüsselt auf dem Server liegen. Pseudonym während der Korrektur bedeutet nicht anonym im gesamten Prozess.</p></div>
-<div class="footer">Examance · Workflow-Visualisierung gekennzeichnet · Beispiel- und Legacy-Ansichten vor externer Nutzung ersetzen</div>
+<div class="band cols" style="gap:28px">
+<div>
+
+## Was sich ändert
+
+<div class="card"><ul>
+<li><strong>Wiederverwenden:</strong> Aufgaben mit Varianten und Versionen in einer Bibliothek.</li>
+<li><strong>Fairer korrigieren:</strong> Sie sehen die Antwort, nicht die Person. MC-Kreuze werden gelesen, Sie bestätigen.</li>
+<li><strong>Schneller auswerten:</strong> Notenverteilung, Grenzfälle und schwache Aufgaben auf einen Blick.</li>
+</ul></div>
+</div>
+<div>
+
+## Datenschutz
+
+<div class="stack">
+<div class="card"><h3>Lesbar auf dem Server</h3><p>Aufgabentexte, Klausurdaten, Gesamtpunkte ohne Namen, Ihr Konto.</p></div>
+<div class="card ok"><h3>Nur mit Ihrem Schlüssel lesbar</h3><p>Namen, Scans, Anmerkungen, Einzelpunkte. Auch die Administration kann sie nicht öffnen.</p></div>
+</div>
+</div>
+</div>
+
+<div class="card warn" style="margin-top:24px"><p style="margin:0"><strong>Beta-Phase.</strong> Probieren Sie den Ablauf zuerst mit einer Probeklausur aus. Sie brauchen ein Konto (Einladung oder Antrag), einen zweiten Anmeldefaktor und einen Kopierer, der in ein PDF scannt.</p></div>

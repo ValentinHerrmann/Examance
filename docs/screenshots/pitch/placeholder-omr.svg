@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760">
-<rect width="1200" height="760" fill="#0f172a"/>
-<rect x="54" y="54" width="1092" height="652" rx="24" fill="#1e293b" stroke="#38bdf8" stroke-width="3"/>
-<text x="96" y="132" fill="#f8fafc" font-family="Arial, sans-serif" font-size="32" font-weight="700">OMR verification queue</text>
-<g fill="#f8fafc"><rect x="100" y="190" width="1000" height="84" rx="12"/><rect x="100" y="302" width="1000" height="84" rx="12"/><rect x="100" y="414" width="1000" height="84" rx="12"/></g>
-<g fill="#94a3b8"><rect x="138" y="220" width="260" height="24" rx="12"/><rect x="138" y="332" width="340" height="24" rx="12"/><rect x="138" y="444" width="220" height="24" rx="12"/></g>
-<g fill="#f59e0b"><circle cx="1018" cy="232" r="20"/><circle cx="1018" cy="344" r="20"/><circle cx="1018" cy="456" r="20"/></g>
-<text x="82" y="650" fill="#f8fafc" font-family="Arial, sans-serif" font-size="30" font-weight="700">CONCEPT / NOT A SCREENSHOT - teacher confirms uncertain marks</text>
-</svg>

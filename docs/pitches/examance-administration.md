@@ -1,120 +1,241 @@
 ---
 marp: true
+theme: examance
 paginate: true
 size: 16:9
-theme: default
-style: |
-  :root { --ink:#f8fafc; --navy:#0f172a; --slate:#1e293b; --cyan:#38bdf8; --muted:#94a3b8; --line:#334155; --green:#5eead4; }
-  section { background:var(--navy); color:var(--ink); font-family:"Segoe UI",sans-serif; padding:58px 72px; }
-  h1 { font-size:2.8em; letter-spacing:-.04em; line-height:.98; color:var(--ink); }
-  h2 { font-size:2em; letter-spacing:-.035em; line-height:1; color:var(--ink); }
-  h3 { color:var(--green); text-transform:uppercase; letter-spacing:.12em; font-size:1em; }
-  p,li { font-size:.78em; line-height:1.35; }
-  .eyebrow { color:var(--green); text-transform:uppercase; letter-spacing:.16em; font-size:.55em; font-weight:700; }
-  .deck { color:var(--muted); font-size:1em; max-width:760px; }
-  .grid { display:grid; grid-template-columns:1fr 1fr; gap:34px; align-items:center; }
-  .flow { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
-  .step { background:var(--slate); border:1px solid var(--line); border-radius:14px; padding:17px 14px; min-height:125px; }
-  .step b { color:var(--green); display:block; font-size:1.05em; margin-bottom:13px; }
-  .step span { color:var(--muted); font-size:.65em; }
-  .panel { background:var(--slate); border:1px solid var(--line); border-radius:18px; padding:22px; }
-  .metric { border-top:2px solid var(--green); padding-top:12px; }
-  .metric b { display:block; margin-bottom:5px; }
-  .metric span { color:var(--muted); font-size:.72em; }
-  .concept { color:#bae6fd; border:1px solid var(--cyan); padding:6px 9px; border-radius:999px; font-size:.5em; letter-spacing:.08em; text-transform:uppercase; display:inline-block; }
-  .legacy { border:1px solid #fb7185; padding:6px 9px; color:#fecdd3; border-radius:999px; font-size:.5em; letter-spacing:.08em; text-transform:uppercase; display:inline-block; }
-  img { max-width:100%; max-height:470px; object-fit:contain; border-radius:14px; border:1px solid var(--line); }
-  figure { margin:0; } figcaption { color:var(--muted); font-size:.48em; margin-top:8px; }
-  table { width:100%; border-collapse:collapse; font-size:.58em; } th,td { padding:10px; text-align:left; border-bottom:1px solid var(--line); } th { color:var(--green); }
+header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· Für Schulleitung, Datenschutz und IT</em>'
+footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Alle Screenshots: echte Oberfläche mit Demodaten'
 ---
 
-<div class="eyebrow">Examance / Schulische Verantwortung</div>
+<!-- _class: title -->
+<!-- _paginate: false -->
 
-# Innovation,<br><span style="color:var(--green)">die sich prüfen lässt.</span>
+<div class="cols center" style="grid-template-columns: 6fr 7fr">
+<div>
+<img class="logo" src="../screenshots/pitch/examance-logo.png">
+<span class="kicker">Für Schulleitung, Datenschutz und IT</span>
 
-<p class="deck">Ein Bewertungsworkflow für Schulen, die Entlastung, Fairness und Datenschutz gemeinsam betrachten müssen.</p>
-<div style="margin-top:70px"><span class="concept">CONCEPT / GOVERNANCE VISUALS ARE NOT DEPLOYMENT EVIDENCE</span></div>
+# Was Examance mit Prüfungsdaten macht – und was nicht.
 
----
-
-<div class="eyebrow">01 / Die Entscheidung</div>
-
-# Digital ist keine<br>Compliance-Strategie.
-
-<div class="grid">
-<div><p class="deck">Eine Einführung braucht mehr als eine Funktionsliste: Verantwortlichkeiten, Datenflüsse, Löschung, Konten, Hosting und die Grenzen des Produkts müssen sichtbar sein.</p></div>
-<div><div class="metric"><b>Produktkontrolle</b><span>Verschlüsselung, Rollen, Speicheroptionen, Auditspuren.</span></div><div class="metric"><b>Schulentscheidung</b><span>Rechtsgrundlage, Aufbewahrung, Geräte, DPA, DPO-Prüfung.</span></div><div class="metric"><b>Pilotnachweis</b><span>Ein echter Ablauf mit messbaren und prüfbaren Kriterien.</span></div></div>
+<p class="lead">Ein Überblick über Datenflüsse, Verschlüsselung, Rollen und die Punkte, die eine Schule vor dem Einsatz selbst entscheiden muss.</p>
+</div>
+<figure class="shot"><img src="../screenshots/pitch/14-admin-accounts.jpg"><figcaption>Benutzerverwaltung: Funktionen je Konto ein- und ausschalten</figcaption></figure>
 </div>
 
 ---
 
-<div class="eyebrow">02 / Betriebsmodell</div>
+<span class="kicker">Worum es geht</span>
 
-# Wer sieht was?<br><span style="color:var(--green)">Und wer entscheidet?</span>
+# Ein Werkzeug für schriftliche Prüfungen auf Papier
 
-<div class="flow">
-<div class="step"><b>Lehrkraft</b><span>Erstellt Exams, scannt, korrigiert und wertet aus.</span></div>
-<div class="step"><b>Admin</b><span>Verwaltet Konten, Rollen und serverseitige Fähigkeiten.</span></div>
-<div class="step"><b>Examance</b><span>Stellt Produkt, Backend und dokumentierte Kontrollen bereit.</span></div>
-<div class="step"><b>Schule</b><span>Legt Zweck, Richtlinie, Fristen und Verantwortliche fest.</span></div>
+<p class="lead">Lehrkräfte stellen Klausuren aus einer Aufgabenbibliothek zusammen, lassen sie wie gewohnt schreiben, scannen den Stapel und korrigieren am Bildschirm – ohne dabei die Namen zu sehen.</p>
+
+<div class="steps" style="margin-top:22px">
+<div><b>Aufgaben</b><span>Bibliothek je Lehrkraft, optional in der Fachschaft geteilt.</span></div>
+<div><b>Klausur</b><span>Druckfertiges PDF mit Notenschlüssel und Lösung.</span></div>
+<div><b>Papier</b><span>Schülerinnen und Schüler schreiben wie bisher.</span></div>
+<div><b>Scan</b><span>QR-Code mit Pseudonym ordnet die Bögen zu.</span></div>
+<div><b>Korrektur</b><span>Anonym, danach Noten und Auswertung.</span></div>
 </div>
-<p class="deck" style="margin-top:36px">Die Rollen im Produkt ersetzen keine institutionelle Verantwortungszuweisung.</p>
+
+<div class="cols3" style="margin-top:22px">
+<div class="card"><h3>Web-Anwendung</h3><p>Keine Installation auf Schulrechnern; jede Lehrkraft hat ein eigenes Serverkonto.</p></div>
+<div class="card"><h3>Offener Quellcode</h3><p>MIT-Lizenz. Die Schule kann den Code prüfen lassen und selbst betreiben.</p></div>
+<div class="card"><h3>Beta</h3><p>Version 0.2. Für einen begrenzten, begleiteten Einsatz gedacht, nicht für den flächigen Betrieb.</p></div>
+</div>
 
 ---
 
-<div class="eyebrow">03 / Datenfluss</div>
+<span class="kicker">Datenfluss</span>
 
-<div class="grid">
-<div><h2>Verschlüsselung ist eine Grenze, keine Abkürzung.</h2><p>Sensible Payloads werden im Browser verschlüsselt. Exams und Übungen bleiben serververwaltet. Der Kontomodus entscheidet, wo Ergebnisse liegen.</p><div class="panel"><strong>Scope präzise halten</strong><br><span style="color:var(--muted);font-size:.72em">Pseudonymisierung während der Korrektur ist nicht dasselbe wie Anonymität. Server-Metadaten und institutionelle Pflichten bleiben relevant.</span></div></div>
-<figure><img src="../screenshots/pitch/placeholder-analytics.svg"><figcaption><span class="concept">CONCEPT / NOT A SCREENSHOT</span> Konzeptvisualisierung; keine Darstellung eines konkreten Deployments.</figcaption></figure>
+# Verschlüsselt wird im Browser – vor dem Speichern
+
+<div class="flow" style="margin-top:8px">
+<div class="box key"><h3>Browser der Lehrkraft</h3>Der Schlüssel entsteht hier aus der Anmeldung und verlässt das Gerät nicht. Scans werden hier gelesen und verschlüsselt.</div>
+<div class="arrow">→</div>
+<div class="box"><h3>Übertragung</h3>Nur Chiffrat für Schülerdaten, über TLS.</div>
+<div class="arrow">→</div>
+<div class="box"><h3>Server</h3>Speichert Chiffrat, Kontodaten und die Aufgabenbibliothek. Kann Schülerdaten nicht entschlüsseln.</div>
 </div>
+
+<table style="margin-top:20px">
+<tr><th>Daten</th><th>Wo</th><th>Für den Server lesbar?</th></tr>
+<tr><td>Namen, Schülernummern, Scans, Anmerkungen, Einzelpunkte</td><td>Browser; im Server-Modus zusätzlich auf dem Server</td><td class="y">Nein – AES-256-GCM, Schlüssel nur im Browser</td></tr>
+<tr><td>Gesamtpunktzahl je Abgabe (pseudonym)</td><td>Server</td><td class="n">Ja, ohne Namen</td></tr>
+<tr><td>Klausurdaten: Titel, Klasse, Fach, Datum, Nachname der Lehrkraft</td><td>Server</td><td class="n">Ja</td></tr>
+<tr><td>Aufgaben- und Klausurtexte (LaTeX)</td><td>Server</td><td class="n">Ja</td></tr>
+<tr><td>Konto: E-Mail, Rolle, Passwort-Hash, Freischaltungen</td><td>Server</td><td class="n">Ja (Passwort nur als Argon2id-Hash)</td></tr>
+</table>
 
 ---
 
-<div class="eyebrow">04 / Speicheroptionen</div>
+<span class="kicker">Speicherort</span>
 
-# Zwei Speicherformen.<br>Eine Kontoverantwortung.
+<div class="cols l">
+<div class="stack">
+
+## Zwei Modi, pro Konto festgelegt
 
 <table>
-<tr><th></th><th>Hybrid</th><th>All-server</th></tr>
-<tr><td><strong>Ergebnisse</strong></td><td>In diesem Browser, verschlüsselt</td><td>Auf dem Server, verschlüsselt</td></tr>
-<tr><td><strong>Exams / Übungen</strong></td><td colspan="2">Serververwaltet</td></tr>
-<tr><td><strong>Schlüssel</strong></td><td colspan="2">Bleibt clientseitig</td></tr>
-<tr><td><strong>Entscheidung</strong></td><td colspan="2">Kontomodus und freigeschaltete Fähigkeiten</td></tr>
+<tr><th></th><th>Hybrid</th><th>Server</th></tr>
+<tr><td>Aufgaben, Klausuren</td><td>Server</td><td>Server</td></tr>
+<tr><td>Schülerdaten, Scans, Punkte</td><td>nur im Browser</td><td>Server, verschlüsselt</td></tr>
+<tr><td>Mehrere Geräte</td><td>nein</td><td>ja</td></tr>
+<tr><td>Sicherung</td><td>verschl. Archiv</td><td>serverseitig</td></tr>
 </table>
-<p class="deck" style="margin-top:35px">Der passende Modus ist eine Governance- und Betriebsentscheidung, nicht nur eine Präferenz im UI.</p>
 
----
-
-<div class="eyebrow">05 / Rollen und Fähigkeiten</div>
-
-# Admins verwalten<br><span style="color:var(--green)">den Rahmen.</span>
-
-<div class="grid">
-<figure><img src="../screenshots/pitch/06-privacy-settings.png"><figcaption><span class="legacy">ALTE UI / LEGACY CAPTURE</span> Privacy settings: aktueller Capture und Admin-Ansicht fehlen noch.</figcaption></figure>
-<div><div class="metric"><b>Server results</b><span>Ob All-server verfügbar ist.</span></div><div class="metric"><b>Server LaTeX</b><span>Welche Compile-Wege erlaubt sind.</span></div><div class="metric"><b>Exercise sharing</b><span>Ob gemeinsames Teilen freigeschaltet ist.</span></div><p style="color:var(--muted);font-size:.68em">Fähigkeiten müssen aus dem Account-Kontext kommen, nicht aus einer hard-codierten Marketingliste.</p></div>
+<div class="card warn"><p class="small" style="margin:0"><strong>Hinweis Hybrid:</strong> Die Daten liegen dann auf dem Gerät der Lehrkraft. Landesrecht kann die Verarbeitung auf privaten Endgeräten einschränken (in Bayern z. B. ausdrücklich geregelt).</p></div>
+</div>
+<div class="stack">
+<figure class="shot"><img src="../screenshots/pitch/13-storage-choice.jpg"><figcaption>Bei der ersten Anmeldung muss der Modus gewählt werden</figcaption></figure>
+<p class="small">Die Administration legt pro Konto fest, ob der Server-Modus erlaubt ist. Wird er entzogen, verschiebt die App die Ergebnisse beim nächsten Öffnen in den Browser; ein Wechsel wird geprüft, bevor die alte Kopie gelöscht wird.</p>
+</div>
 </div>
 
 ---
 
-<div class="eyebrow">06 / Vor dem Rollout</div>
+<span class="kicker">Rollen</span>
 
-# Die offenen Punkte<br>gehören auf den Tisch.
+# Was die Administration kann – und was nicht
 
-<div class="flow" style="grid-template-columns:repeat(3,1fr)">
-<div class="step"><b>Recht</b><span>Rechtsgrundlage, DPA, DPIA, Art. 30, DPO-Prüfung.</span></div>
-<div class="step"><b>Betrieb</b><span>Hosting, Subprozessoren, Backups, Löschfristen, private Geräte.</span></div>
-<div class="step"><b>Produkt</b><span>Scanfehler, Wiederherstellung, Rollen, Support und Export.</span></div>
+<div class="cols" style="margin-top:6px">
+<div class="card">
+<h3>Kann</h3>
+<ul class="small">
+<li>Registrierungen freigeben oder ablehnen, Personen einladen</li>
+<li>Domains festlegen, deren Adressen automatisch freigeschaltet werden</li>
+<li>Pro Konto: Ergebnisse auf dem Server, LaTeX auf dem Server, Aufgaben teilen</li>
+<li>Konten löschen; Rollen werden auf dem Server per Kommandozeile geändert</li>
+</ul>
 </div>
-<div class="panel" style="margin-top:34px"><strong>Wichtig:</strong> Die vorhandenen Rechtsdokumente sind Arbeitsvorlagen und keine Rechtszertifizierung.</div>
+<div class="card ok">
+<h3>Kann nicht</h3>
+<ul class="small">
+<li>Klausuren, Aufgaben oder Ergebnisse von Lehrkräften öffnen – Admin-Konten haben gar keinen Zugriff auf Unterrichtsdaten</li>
+<li>Verschlüsselte Schülerdaten lesen, auch nicht direkt in der Datenbank</li>
+<li>Nach einem Passwort-Reset die Daten einer Lehrkraft wiederherstellen; dafür gibt es nur ihren persönlichen Wiederherstellungscode</li>
+</ul>
+</div>
+</div>
+
+<p class="small muted" style="margin-top:16px">Das ist Absicht: Wer den Server betreibt, soll Prüfungsdaten nicht einsehen können – auch nicht bei einem Einbruch in den Server.</p>
 
 ---
 
-<div class="eyebrow">07 / Pilotentscheidung</div>
+<span class="kicker">Konten</span>
 
-# Erst ein kontrollierter<br><span style="color:var(--green)">Ablauf. Dann Skalierung.</span>
+<div class="cols l">
+<div class="stack">
 
-<div class="grid">
-<div><p class="deck">Ein Pilot mit einer Abteilung oder einer Klasse macht Nutzen, Risiken und Verantwortlichkeiten sichtbar, bevor die Schule breiter ausrollt.</p><div class="metric"><b>Erfolgskriterien</b><span>Weniger manuelle Arbeit, bessere Rückmeldung, nachvollziehbare Datenflüsse, klarer Eskalationsweg.</span></div></div>
-<div class="panel"><h3>Für die Entscheidung</h3><p>Eine reale Prüfungssequenz, synthetische oder freigegebene Daten, dokumentierte Schulrichtlinie und ein Review mit den Verantwortlichen.</p><span class="concept">CONCEPT / PILOT FRAMEWORK</span></div>
+## Wer ein Konto bekommt, entscheidet die Schule
+
+<ul class="small">
+<li><strong>Einladung</strong> durch die Administration, oder</li>
+<li><strong>Registrierung</strong>: E-Mail bestätigen, Passwort wählen, dann Freigabe durch die Administration.</li>
+<li>Adressen von hinterlegten Schul-Domains werden nach der E-Mail-Bestätigung automatisch freigeschaltet.</li>
+<li>Unbestätigte und nicht freigegebene Anträge werden nach einer Frist automatisch gelöscht.</li>
+</ul>
+</div>
+<figure class="shot"><img src="../screenshots/pitch/15-admin-approvals.jpg"><figcaption>Freigaben: zwei Registrierungen warten, Funktionen vorab wählbar</figcaption></figure>
+</div>
+
+---
+
+<span class="kicker">Anmeldung</span>
+
+<div class="cols" style="grid-template-columns: 7fr 5fr">
+<div class="stack">
+
+## Ein Passwort allein reicht nicht
+
+<ul class="small">
+<li>Zwei von drei Faktoren: Passwort, Authenticator-App, Passkey. Ein Passkey mit Geräte-PIN oder Biometrie genügt allein.</li>
+<li>Ohne zweiten Faktor erreicht ein Konto nichts außer der Einrichtung.</li>
+<li>Sperre nach Fehlversuchen pro Konto, zeitlich begrenzt.</li>
+<li>Sitzungen laufen nach Inaktivität ab; ein gesperrter Tab enthält keine lesbaren Daten.</li>
+<li>Protokoll sicherheitsrelevanter Aktionen, IP-Adressen nur als Hash.</li>
+</ul>
+</div>
+<figure class="shot"><img src="../screenshots/pitch/12-signin-second-factor.jpg"><figcaption>Erste Anmeldung: der zweite Faktor ist Pflicht</figcaption></figure>
+</div>
+
+---
+
+<span class="kicker">Betrieb</span>
+
+# Drei Betriebsmodelle, drei Verantwortungslagen
+
+<table style="margin-top:8px">
+<tr><th>Modell</th><th>Verantwortlich für Schülerdaten</th><th>Was es braucht</th></tr>
+<tr><td><strong>A · Schule betreibt selbst</strong><br><span class="xs muted">Backend als Docker-Container, Frontend statisch</span></td><td>Die Schule</td><td>Kein Auftragsverarbeitungsvertrag; Verzeichnis, DSFA und Information der Betroffenen durch die Schule</td></tr>
+<tr><td><strong>B · Dienstleister betreibt für Schulen</strong></td><td>Die Schule</td><td>Vertrag zur Auftragsverarbeitung (Vorlage liegt bei), Unterauftragnehmer offenlegen</td></tr>
+<tr><td><strong>C · Private Instanz für Lehrkräfte</strong><br><span class="xs muted">so läuft die aktuelle Beta-Instanz</span></td><td>Lehrkraft bzw. ihre Schule</td><td>Klärung mit der Schule, bevor echte Schülerdaten verarbeitet werden</td></tr>
+</table>
+
+<div class="card tint" style="margin-top:18px"><p class="small" style="margin:0">Wird das Frontend über einen CDN-Anbieter mit Sitz in den USA ausgeliefert, ist das eine Drittlandübermittlung von Zugriffsdaten. Beim Selbstbetrieb in der EU entfällt sie.</p></div>
+
+---
+
+<span class="kicker">Unterlagen</span>
+
+# Was bereits dokumentiert ist
+
+<div class="cols3" style="margin-top:8px">
+<div class="card"><h3>Datenfluss & Sicherheit</h3><p>Schlüsselableitung, Verschlüsselung, Sitzungen, Anmeldefaktoren, bekannte Kompromisse.</p></div>
+<div class="card"><h3>DSGVO-Prüfung</h3><p>Technische Bewertung gegen DSGVO, BDSG und bayerisches Schulrecht, mit Befunden und Stand.</p></div>
+<div class="card"><h3>DSFA-Vorlage</h3><p>Datenschutz-Folgenabschätzung nach Art. 35, vorbereitet zum Ausfüllen.</p></div>
+<div class="card"><h3>Verzeichnis (Art. 30)</h3><p>Vorlage für das Verzeichnis von Verarbeitungstätigkeiten.</p></div>
+<div class="card"><h3>AV-Vertrag</h3><p>Vorlage für die Auftragsverarbeitung (Modell B).</p></div>
+<div class="card"><h3>Vorfallsplan</h3><p>Checkliste für den Fall einer Datenpanne, mit Meldewegen.</p></div>
+</div>
+
+<div class="card warn" style="margin-top:18px"><p class="small" style="margin:0">Diese Unterlagen sind <strong>Arbeitsvorlagen aus der Entwicklung</strong>. Sie ersetzen weder die Prüfung durch die oder den Datenschutzbeauftragten noch eine Rechtsberatung.</p></div>
+
+---
+
+<!-- _class: center -->
+
+<span class="kicker">Vor einem Einsatz</span>
+
+# Was die Schule entscheiden muss
+
+<div class="cols" style="margin-top:8px">
+<div class="card">
+<ul class="small">
+<li>Rechtsgrundlage bestätigen (in Bayern Art. 85 BayEUG mit BaySchO)</li>
+<li>Aufbewahrungsfrist für Prüfungsarbeiten festlegen</li>
+<li>Betriebsmodell wählen, ggf. AV-Vertrag schließen</li>
+<li>DSFA abschließen und das Verzeichnis ergänzen</li>
+</ul>
+</div>
+<div class="card">
+<ul class="small">
+<li>Regel für private Endgeräte, besonders für den Hybrid-Modus</li>
+<li>Welche Funktionen freigeschaltet werden (Server-Ergebnisse, Teilen)</li>
+<li>Ansprechperson und Supportweg für Lehrkräfte</li>
+<li>Information der Schülerinnen, Schüler und Eltern</li>
+</ul>
+</div>
+</div>
+
+<div class="card tint" style="margin-top:18px"><p class="small" style="margin:0">Für Auskunft und Löschung nach Art. 15 und 17 DSGVO gibt es in der App eine eigene Ansicht je Schülerin und Schüler. Ein täglicher Aufbewahrungslauf löscht abgelaufene Daten auf dem Server; die Fristen sind konfigurierbar und stehen in der Datenschutzerklärung der Instanz.</p></div>
+
+---
+
+<!-- _class: center -->
+
+<span class="kicker">Vorschlag</span>
+
+# Erst ein begrenzter Pilot
+
+<div class="steps four" style="margin-top:10px">
+<div><b>Rahmen</b><span>Eine Fachschaft, ein Halbjahr, wenige freiwillige Lehrkräfte.</span></div>
+<div><b>Probelauf</b><span>Zuerst mit erfundenen Daten, dann eine echte Kurzarbeit.</span></div>
+<div><b>Begleitung</b><span>Datenschutzprüfung parallel; Rückfragen an einen festen Kontakt.</span></div>
+<div><b>Bilanz</b><span>Zeitaufwand, Fehler bei Scan und Erkennung, Akzeptanz, offene Rechtsfragen.</span></div>
+</div>
+
+<div class="cols" style="margin-top:22px">
+<div class="card ok"><h3>Ausstieg jederzeit</h3><p>Ergebnisse lassen sich als Tabelle und als verschlüsseltes Archiv exportieren; Lehrkräfte können ihr Konto selbst löschen.</p></div>
+<div class="card"><h3>Ansehen statt glauben</h3><p>Der komplette Ablauf lässt sich mit einer Probeklausur und erfundenen Daten vorführen, einschließlich Benutzerverwaltung.</p></div>
 </div>

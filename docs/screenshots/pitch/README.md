@@ -1,19 +1,24 @@
-# Pitch screenshot inventory
+# Pitch screenshots
 
-Status labels are part of the visual assets and must remain visible in exported materials.
+Real captures of the current UI (German locale, 1600×1000 at 2×, light theme unless named `-dark`), taken against a local stack with **demo data only**: a demo school (`gymnasium-example.de`), invented accounts and a synthetic class of 14. The scans are synthetic: the compiled exam PDF with handwriting-font answers, ticked boxes and pseudonymous `BG:` QR codes, imported through the normal scan pipeline. Grading, MC detection and statistics are the app's own results on that data.
 
-| Asset | Status | Use | Replacement |
-|---|---|---|---|
-| `01-welcome.png` | legacy capture | Avoid in external materials | Capture current account setup and storage choice |
-| `02-dashboard.png` | legacy capture | Product context only | Capture current populated dashboard |
-| `03-exercise-editor.png` | legacy capture | Product context only | Capture current editor with sample exercise |
-| `04-exercise-library.png` | legacy capture | Product context only | Capture current library with variants and versions |
-| `05-exam-creation.png` | legacy capture | Product context only | Capture current exam builder and QR preview |
-| `06-privacy-settings.png` | legacy capture | Privacy illustration only | Capture current storage/capability settings |
-| `07-analytics.png` | legacy capture | Analytics illustration only | Capture current demo analytics with sample-data badge |
-| `placeholder-scan.svg` | concept placeholder | Scan ingestion workflow | Replace with real scan import capture |
-| `placeholder-grading.svg` | concept placeholder | Identity-hidden grading workflow | Replace with real grading capture using synthetic data |
-| `placeholder-omr.svg` | concept placeholder | OMR verification | Replace with real OMR verification capture |
-| `placeholder-analytics.svg` | concept placeholder | Analytics story | Replace with current analytics capture and demo-data label |
+| File | Shows |
+|---|---|
+| `01-dashboard.jpg` | Exam overview |
+| `02-library.jpg`, `02-library-dark.jpg` | Exercise library with filters |
+| `03-exercise-editor.jpg` | Exercise editor, LaTeX source and compiled preview |
+| `04-exam-setup.jpg` | Exam setup with compiled PDF |
+| `05-scan-import.jpg` | Scan import after reading 14 booklets |
+| `06-grading.jpg`, `06-grading-dark.jpg` | Blind grading with stamps |
+| `07-mc-review.jpg` | MC detection review of one answer |
+| `08-results.jpg`, `08-results-dark.jpg` | Grade overview and distribution |
+| `09-analytics.jpg` | Cross-exam analytics |
+| `10-settings-storage.jpg` | Settings: storage mode and LaTeX engine |
+| `11-security.jpg` | Settings: sign-in factors |
+| `12-signin-second-factor.jpg` | Mandatory second-factor setup at first sign-in |
+| `13-storage-choice.jpg` | Mandatory storage-mode choice at first sign-in |
+| `14-admin-accounts.jpg`, `15-admin-approvals.jpg`, `16-admin-domains.jpg` | Admin user management |
+| `17-scanned-sheet.jpg`, `18-scanned-sheet-mc.jpg` | Synthetic scanned exam pages |
+| `examance-logo.png` | App logo (from `frontend/static/favicon.png`) |
 
-Legacy captures are never presented as current UI: every use includes an `ALTE UI / LEGACY CAPTURE` badge.
+Replace a capture when the UI it shows changes. Never use real pupil data or a production account.

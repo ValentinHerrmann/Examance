@@ -41,14 +41,14 @@ Backend API at `http://localhost:8000/api/docs`, frontend at `http://localhost:5
 
 **Pitch & posters** — current audience-specific materials, using the actual app and current privacy model:
 * [Examance pitch index](docs/concept_pitch.md) — overview and links to all current versions
-* [Computer Science beta pitch](docs/pitches/examance-beta-cs.pdf) — for beta testers and real-data pilots
+* [Computer Science beta pitch](docs/pitches/examance-beta-cs.pdf) — for computer science teachers joining the beta
 * [Teacher pitch](docs/pitches/examance-teachers.pdf) — for general classroom adoption
 * [Administration pitch](docs/pitches/examance-administration.pdf) — for school leadership and governance
 * [Computer Science beta poster](docs/posters/examance-beta-cs.pdf)
 * [Teacher poster](docs/posters/examance-teachers.pdf)
 * [Administration poster](docs/posters/examance-administration.pdf)
 
-Render the decks with `npx @marp-team/marp-cli --allow-local-files <source.md> -o <source.pdf>`. Render posters with the shared portrait theme: `npx @marp-team/marp-cli --theme-set docs/posters/examance-poster.css --allow-local-files <poster.md> -o <poster.pdf>`.
+Sources are [Marp](https://marp.app) Markdown sharing one theme that mirrors the app's design tokens. Render from the source's directory with `npx @marp-team/marp-cli <source.md> --pdf --html --allow-local-files --theme-set ../pitches/examance-theme.css --theme-set ../posters/examance-poster.css -o <source.pdf>` (keep the input file first: `--theme-set` takes several values).
 
 **Developer** — architecture, API, accounts:
 * [Data Flow, Encryption-at-Rest & DevTools Security Architecture](docs/data_flow_and_security.md) — client-side crypto, storage modes, session hygiene

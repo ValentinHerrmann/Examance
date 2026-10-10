@@ -1,41 +1,62 @@
 ---
 marp: true
-paginate: false
-size: A3
 theme: examance-poster
-style: |
-  @page { size:A3 portrait; margin:0; }
-  :root { width: 297mm; height: 420mm; }
-  section { width:297mm !important; height:420mm !important; background:#0f172a; color:#f8fafc; font-family:"Segoe UI",sans-serif; padding:15mm 16mm; }
-  h1 { color:#f8fafc; font-size:2.7em; line-height:.92; letter-spacing:-.06em; margin:0 0 6mm; }
-  h2 { color:#5eead4; font-size:1.1em; text-transform:uppercase; letter-spacing:.13em; margin:0 0 4mm; }
-  p,li { font-size:13px; line-height:1.3; } ul { padding-left:18px; }
-  .eyebrow { color:#5eead4; text-transform:uppercase; letter-spacing:.16em; font-size:13px; font-weight:700; }
-  .hero { color:#cbd5e1; font-size:18px; line-height:1.2; margin-bottom:8mm; }
-  .panel { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:4mm; margin:3mm 0; }
-  .flow { display:grid; grid-template-columns:repeat(2,1fr); gap:3mm; }
-  .step { border-left:4px solid #5eead4; padding:3mm 3mm 3mm 4mm; background:#1e293b; min-height:20mm; }
-  .step b { display:block; color:#5eead4; font-size:19px; margin-bottom:2mm; }
-  .concept { display:inline-block; border:1px solid #38bdf8; color:#bae6fd; border-radius:999px; padding:2mm 3mm; font-size:11px; letter-spacing:.08em; }
-  .legacy { display:inline-block; border:1px solid #fb7185; color:#fecdd3; border-radius:999px; padding:2mm 3mm; font-size:11px; letter-spacing:.08em; }
-  img { width:100%; max-height:72mm; object-fit:contain; border:1px solid #334155; border-radius:12px; }
-  .footer { border-top:1px solid #334155; margin-top:5mm; padding-top:3mm; color:#94a3b8; font-size:11px; }
+size: a3
+paginate: false
+header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· Für Schulleitung, Datenschutz und IT</em>'
+footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Alle Screenshots: echte Oberfläche mit Demodaten'
 ---
 
-<div class="eyebrow">EXAMANCE / SCHULLEITUNG</div>
-<h1>Innovation,<br><span style="color:#5eead4">die sich prüfen lässt.</span></h1>
-<p class="hero">Ein Bewertungsworkflow für Entlastung, Fairness und Datenschutz mit klaren Verantwortungsgrenzen.</p>
-<img src="../screenshots/pitch/placeholder-analytics.svg">
-<p><span class="concept">CONCEPT / GOVERNANCE VISUAL</span></p>
+<span class="kicker">Für Schulleitung, Datenschutz und IT</span>
 
-<h2>Wer entscheidet was?</h2>
-<div class="flow">
-<div class="step"><b>Schule</b>Zweck, Rechtsgrundlage, Fristen, Geräte und Verantwortliche.</div>
-<div class="step"><b>Lehrkraft</b>Prüfungen, Scans, Korrektur und fachliche Auswertung.</div>
-<div class="step"><b>Admin</b>Konten, Rollen und freigeschaltete Fähigkeiten.</div>
-<div class="step"><b>Examance</b>Produkt, Backend und dokumentierte technische Kontrollen.</div>
+# Prüfungsdaten, die der Server nicht lesen kann.
+
+<p class="lead">Examance unterstützt Lehrkräfte bei Papierklausuren: setzen, scannen, anonym korrigieren, auswerten. Schülerdaten werden im Browser verschlüsselt, bevor sie gespeichert werden.</p>
+
+<div class="band">
+
+## Was wo liegt
+
+<table>
+<tr><th>Daten</th><th>Für den Server lesbar?</th></tr>
+<tr><td>Namen, Schülernummern, Scans, Anmerkungen, Einzelpunkte</td><td class="y">Nein – AES-256-GCM, Schlüssel nur im Browser</td></tr>
+<tr><td>Gesamtpunktzahl je Abgabe</td><td class="n">Ja, pseudonym, ohne Namen</td></tr>
+<tr><td>Klausurdaten (Titel, Klasse, Fach, Datum, Nachname der Lehrkraft), Aufgabentexte</td><td class="n">Ja</td></tr>
+<tr><td>Konto: E-Mail, Rolle, Freischaltungen</td><td class="n">Ja (Passwort nur als Hash)</td></tr>
+</table>
 </div>
 
-<div class="panel"><h2>Aktuelle Produktgrenzen</h2><ul><li>Exams und Übungen bleiben serververwaltet.</li><li>Ergebnisse liegen je nach Kontomodus hybrid oder all-server.</li><li>Sensible Payloads werden clientseitig verschlüsselt.</li><li>Pseudonyme Korrektur ist nicht gleich Anonymität.</li></ul></div>
-<div class="panel"><h2>Vor dem Rollout</h2><ul><li>DPA, DPIA, Art. 30 und DPO-Prüfung</li><li>Hosting, Subprozessoren, Backups und Löschung</li><li>Private-Geräte-Regel und Supportprozess</li><li>Kontrollierter Pilot mit realem Ablauf</li></ul><p>Die vorhandenen Rechtsdokumente sind Arbeitsvorlagen, keine Rechtszertifizierung.</p></div>
-<div class="footer">Examance · Governance-Visuals sind keine Deployment-Nachweise · Statuslabels nicht entfernen</div>
+<div class="band cols" style="grid-template-columns: 6fr 5fr; gap: 24px">
+<figure class="shot"><img src="../screenshots/pitch/14-admin-accounts.jpg"><figcaption>Benutzerverwaltung: Funktionen je Konto</figcaption></figure>
+<div class="stack">
+<div class="card"><h3>Die Administration kann</h3><p>Konten freigeben und einladen, Schul-Domains hinterlegen, pro Konto Server-Ergebnisse, Server-LaTeX und Teilen erlauben.</p></div>
+<div class="card ok"><h3>Sie kann nicht</h3><p>Klausuren, Ergebnisse oder Schülerdaten von Lehrkräften öffnen – auch nicht in der Datenbank oder nach einem Passwort-Reset.</p></div>
+</div>
+</div>
+
+<div class="band cols" style="gap:24px">
+<div>
+
+## Sicherheit
+
+<div class="card"><ul>
+<li>Zwei Anmeldefaktoren sind Pflicht; Passkeys möglich</li>
+<li>Zwei Speichermodi: Ergebnisse nur im Browser oder verschlüsselt auf dem Server</li>
+<li>Auskunft und Löschung je Schülerin und Schüler (Art. 15/17)</li>
+<li>Offener Quellcode (MIT), selbst betreibbar</li>
+</ul></div>
+</div>
+<div>
+
+## Vor dem Einsatz
+
+<div class="card warn"><ul>
+<li>Rechtsgrundlage und Aufbewahrungsfrist bestätigen</li>
+<li>Betriebsmodell wählen, ggf. AV-Vertrag</li>
+<li>DSFA und Verzeichnis abschließen (Vorlagen liegen bei)</li>
+<li>Regel für private Endgeräte festlegen</li>
+</ul></div>
+</div>
+</div>
+
+<div class="card tint" style="margin-top:24px"><p style="margin:0"><strong>Vorschlag:</strong> ein begrenzter Pilot in einer Fachschaft, zuerst mit erfundenen Daten, mit paralleler Datenschutzprüfung. Examance ist in der Beta-Phase.</p></div>

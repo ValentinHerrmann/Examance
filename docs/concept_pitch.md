@@ -1,34 +1,26 @@
 # Examance pitch index
 
-This section points to the current, audience-specific materials for the product. The older BlindGrade-era pitch deck and poster were removed because they no longer reflect the product architecture, privacy model or account-based workflow.
+Audience-specific decks (16:9) and posters (A3 portrait) in German. Each audience gets one deck and one poster; all six share the theme in [`pitches/examance-theme.css`](pitches/examance-theme.css), which reuses the app's colour tokens, navbar, chips and step markers so the material reads as part of the product.
 
-## Current pitch decks
+| Audience | Deck | Poster | Focus |
+|---|---|---|---|
+| Computer science teachers (beta testers) | [PDF](pitches/examance-beta-cs.pdf) · [source](pitches/examance-beta-cs.md) | [PDF](posters/examance-beta-cs.pdf) · [source](posters/examance-beta-cs.md) | Pipeline, LaTeX, OMR, crypto architecture, known limits, how the beta works |
+| Teachers | [PDF](pitches/examance-teachers.pdf) · [source](pitches/examance-teachers.md) | [PDF](posters/examance-teachers.pdf) · [source](posters/examance-teachers.md) | The workflow step by step, blind grading, privacy in plain words |
+| School leadership, DPO, IT | [PDF](pitches/examance-administration.pdf) · [source](pitches/examance-administration.md) | [PDF](posters/examance-administration.pdf) · [source](posters/examance-administration.md) | What the server can and cannot read, admin role, operating models, open decisions, pilot |
 
-- [Computer science beta testers](pitches/examance-beta-cs.pdf)
-- [General teachers](pitches/examance-teachers.pdf)
-- [Administration and school leadership](pitches/examance-administration.pdf)
+## Rules for these materials
 
-## Current posters
+- Inform, don't advertise: state what the product does, what it does not do and what is still open. Every claim must match the code and [`data_flow_and_security.md`](data_flow_and_security.md) / [`legal_audit_dsgvo.md`](legal_audit_dsgvo.md); update the decks when those change.
+- Screenshots are real captures of the current UI with demo data only ([inventory](screenshots/pitch/README.md)). No mock-ups, no real pupil data.
+- The legal documents are working templates; the decks say so and must keep saying so.
 
-- [Computer science beta testers](posters/examance-beta-cs.pdf)
-- [General teachers](posters/examance-teachers.pdf)
-- [Administration and school leadership](posters/examance-administration.pdf)
+## Rendering
 
-## Source files
+Run from the source's directory (input file first, since `--theme-set` takes several values):
 
-- [Computer science beta pitch source](pitches/examance-beta-cs.md)
-- [Teacher pitch source](pitches/examance-teachers.md)
-- [Administration pitch source](pitches/examance-administration.md)
-- [Computer science beta poster source](posters/examance-beta-cs.md)
-- [Teacher poster source](posters/examance-teachers.md)
-- [Administration poster source](posters/examance-administration.md)
-- [Shared portrait poster theme](posters/examance-poster.css)
+```
+npx @marp-team/marp-cli <source.md> --pdf --html --allow-local-files \
+  --theme-set ../pitches/examance-theme.css --theme-set ../posters/examance-poster.css -o <source.pdf>
+```
 
-## Product facts behind these materials
-
-- Examance is the product name; the repo name BlindGrade is legacy.
-- Exams and exercises remain on the server; the storage mode decides where grading results live.
-- Client-side encryption is used before data is stored or transmitted.
-- Every user signs in with a server account; no local-only mode remains in the supported product flow.
-
-See [README.md](../README.md), [docs/data_flow_and_security.md](data_flow_and_security.md), and [docs/legal_audit_dsgvo.md](legal_audit_dsgvo.md) for the current architecture and compliance context.
+Posters use the `examance-poster` theme (A3, `size: a3`), which imports the slide theme.
