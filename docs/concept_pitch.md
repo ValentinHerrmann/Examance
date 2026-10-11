@@ -24,4 +24,6 @@ npx @marp-team/marp-cli <source.md> --pdf --html --allow-local-files \
   --theme-set ../pitches/examance-theme.css --theme-set ../posters/examance-poster.css -o <source.pdf>
 ```
 
-Posters use the `examance-poster` theme (A3, `size: a3`), which imports the slide theme.
+Posters use the `examance-poster` theme (A3, `size: a3`), which imports the slide theme and overrides the colours with a higher-contrast print palette (dark greys print muddy on office printers).
+
+UI tour poster for all audiences: [1 page](posters/examance-ui-tour.pdf) · [2 pages](posters/examance-ui-tour-2p.pdf) (sources alongside). Every screenshot gets a caption with what is shown and the benefit (green).

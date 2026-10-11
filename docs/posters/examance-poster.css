@@ -64,3 +64,22 @@ h1 { font-size: 40px; margin-bottom: 12px; }
 }
 .card { border-width: 1.5px; border-color: var(--line-strong); }
 .shot figcaption, .cap, .steps span, .lead { color: var(--muted); }
+
+/* UI tour posters: screenshot grid with a title, what is shown and the benefit. */
+.tour { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 16px; }
+.tour.two { grid-template-columns: repeat(2, 1fr); gap: 18px 22px; }
+.tour figure { margin: 0; background: var(--surface-raised); border: 1.5px solid var(--line-strong); border-radius: 12px; padding: 8px 8px 10px; }
+.tour img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top left; border-radius: 7px; background: var(--surface-inset); }
+.tour img.fit { object-fit: contain; object-position: center; }
+.tour figcaption { margin: 7px 3px 0; font-size: 12.5px; line-height: 1.35; color: var(--muted); }
+.tour figcaption b { display: block; font-size: 14.5px; color: var(--heading); margin-bottom: 2px; }
+.tour figcaption em { font-style: normal; color: var(--success-fg); font-weight: 600; }
+.tour.two figcaption { font-size: 13.5px; }
+.tour.two figcaption b { font-size: 16px; }
+.step-h { display: flex; align-items: center; gap: 10px; margin: 16px 0 10px; font-size: 22px; }
+.step-h::after { content: ''; flex: 1; height: 1px; background: var(--line-strong); }
+
+.crypto .algo { font: 700 22px/1.2 ui-monospace, monospace; color: var(--success-fg); }
+.crypto { display: block; }
+.crypto .algo { display: block; font-size: 20px; margin-bottom: 4px; }
+.tour.r169 img { aspect-ratio: 16 / 9; }
