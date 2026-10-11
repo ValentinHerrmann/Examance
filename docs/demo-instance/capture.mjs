@@ -272,14 +272,6 @@ async function tour() {
     await page.waitForTimeout(800);
     await shot(page, 'tour-grading');
   }
-  if (t('mc-review')) {
-    // The showcase booklet (mkscans.py CFG.showcase): correct, wrong, cancelled+re-crossed, unsure.
-    await go(page, `/exam/${ids['10b']}/verify`, 7000);
-    const item = page.getByText('Personenbezogene Daten a)').locator('xpath=ancestor::*[.//button][1]').filter({ hasText: 'Y5QYAD' });
-    await item.getByRole('button', { name: /Element überprüfen/ }).first().click();
-    await page.waitForTimeout(6000);
-    await shot(page, 'tour-mc-review');
-  }
   if (t('paper')) {
     await go(page, `/exam/${ids['9c']}/manual`, 5000);
     await shot(page, 'tour-paper');
@@ -300,6 +292,17 @@ async function tour() {
     await shot(page, 'tour-library');
   }
   await ctx.close();
+  if (t('mc-review')) {
+    // Showcase booklet (mkscans.py CFG.showcase). Scale 3: the scan strip is small in the UI.
+    const c = await open({ profile: 'berger', width: 1280, height: 800, scale: 3 });
+    await login(c.page, 'berger');
+    await go(c.page, `/exam/${ids['10b']}/verify`, 7000);
+    const item = c.page.getByText('Personenbezogene Daten a)').locator('xpath=ancestor::*[.//button][1]').filter({ hasText: 'Y5QYAD' });
+    await item.getByRole('button', { name: /Element überprüfen/ }).first().click();
+    await c.page.waitForTimeout(15000);
+    await shot(c.page, 'tour-mc-review');
+    await c.ctx.close();
+  }
   if (t('proposal')) {
     const c = await open({ profile: 'yilmaz', width: 1280, height: 800 });
     await login(c.page, 'yilmaz');

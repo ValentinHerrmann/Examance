@@ -62,16 +62,25 @@ TOUR = {
 (OUT / "tour").mkdir(exist_ok=True)
 for name, (src, crop) in TOUR.items():
     Image.open(SHOTS / f"{src}.png").convert("RGB").crop(crop).save(OUT / "tour" / f"{name}.jpg", quality=88, optimize=True)
-# MC check: scan strip above the answer panel; the empty viewer area in between is dropped.
+# MC check (captured at scale 3), rearranged wide so the scan strip can be shown large:
+# title | warning, then the enlarged scan strip, then the four answer cards in two columns.
 mc = Image.open(SHOTS / "tour-mc-review.png").convert("RGB")
-head, strip, panel = mc.crop((400, 350, 1525, 470)), mc.crop((459, 1236, 1584, 1359)), mc.crop((1659, 639, 2466, 1554))
-W = strip.width
-strip = strip.resize((W, round(strip.height * W / strip.width)), Image.LANCZOS)
-panel = panel.resize((W, round(panel.height * W / panel.width)), Image.LANCZOS)
-canvas = Image.new("RGB", (W, head.height + strip.height + panel.height + 40), (34, 39, 46))
+BG, GAP = (34, 39, 46), 20
+head, warn = mc.crop((630, 530, 1828, 700)), mc.crop((2496, 1200, 3694, 1434))
+opts = [mc.crop(b) for b in ((2496, 1470, 3694, 1596), (2496, 1620, 3694, 1746), (2496, 1770, 3694, 1896), (2496, 1920, 3694, 2140))]
+W = 2 * warn.width + GAP
+strip = [mc.crop((700, 1778, 2365, 1836)), mc.crop((700, 1836, 2365, 1912))]
+strip = [p.resize((W - 40, round(p.height * (W - 40) / p.width)), Image.LANCZOS) for p in strip]
+paper = Image.new("RGB", (W, sum(p.height for p in strip) + 35), (246, 246, 243))
+paper.paste(strip[0], (20, 15))
+paper.paste(strip[1], (20, 20 + strip[0].height))
+rows = [(head, warn), (paper,), (opts[0], opts[1]), (opts[2], opts[3])]
+H = sum(max(p.height for p in r) for r in rows) + GAP * (len(rows) - 1)
+canvas = Image.new("RGB", (W, H), BG)
 y = 0
-for part in (head, strip, panel):
-    canvas.paste(part, (0, y))
-    y += part.height + 20
+for r in rows:
+    for n, part in enumerate(r):
+        canvas.paste(part, (n * (warn.width + GAP), y))
+    y += max(p.height for p in r) + GAP
 canvas.save(OUT / "tour" / "t-mc-review.jpg", quality=88, optimize=True)
 print("assets", len(SPEC) + 2 + len(TOUR) + 1)

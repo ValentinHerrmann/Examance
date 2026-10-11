@@ -23,12 +23,12 @@ export function writeState(name, value) {
 }
 
 /** Launch a persistent profile per account. Dark theme and German UI unless overridden. */
-export async function open({ profile, theme = 'dark', locale = 'de', width = 1600, height = 1000 } = {}) {
+export async function open({ profile, theme = 'dark', locale = 'de', width = 1600, height = 1000, scale = 2 } = {}) {
   const ctx = await chromium.launchPersistentContext(path.join(STATE, `profile-${profile}`), {
     executablePath: process.env.CHROMIUM_PATH || undefined,
     headless: true,
     viewport: { width, height },
-    deviceScaleFactor: 2,
+    deviceScaleFactor: scale,
     locale: locale === 'de' ? 'de-DE' : 'en-US',
   });
   await ctx.addInitScript(([t, l]) => {

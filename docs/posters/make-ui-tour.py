@@ -16,7 +16,7 @@ S = {
     "library": ("tour/t-library.jpg", "Aufgabenbibliothek", "nach Thema, Klasse, Fach; Varianten und Versionen", "einmal schreiben, immer wiederverwenden"),
     "proposal": ("tour/t-proposal.jpg", "Teilen & Vorschläge", "Kollegium schlägt Änderungen vor, die Autorin entscheidet", "gemeinsamer Aufgabenpool der Fachschaft"),
     "grading": ("tour/t-grading.jpg", "Anonym korrigieren", "QR-Aufkleber statt Name; Aufgabe für Aufgabe, Stempel direkt im Scan", "fair, ohne Halo-Effekt"),
-    "mcreview": ("tour/t-mc-review.jpg", "MC-Erkennung", "richtig, falsch, zurückgenommen und neu gesetzt; Unsicheres wird markiert", "Sie entscheiden im Zweifel"),
+    "mcreview": ("tour/t-mc-review.jpg", "MC-Erkennung", "richtig, falsch, leer, zurückgenommen und neu gesetzt; Unsicheres wird markiert", "Sie entscheiden im Zweifel"),
     "paper": ("tour/t-paper-entry.jpg", "Papierkorrektur", "Punkte tippen oder aus Excel einfügen", "Auswertung auch ohne Scanner"),
     "results": ("tour/t-results.jpg", "Ergebnisse", "Notenspiegel, Schnitt, Grenzfälle", "fertig, sobald die Punkte da sind"),
     "variant": ("09b-variant-comparison.jpg", "Variantenvergleich", "Gruppe B 24 Prozentpunkte schwächer", "unfaire Varianten fallen auf"),
@@ -34,8 +34,9 @@ def row(*ks, extra=""):
     return '<div class="jrow">' + "".join(fig(k) for k in ks) + extra + "</div>\n"
 
 
-def crypto(flex):
-    return (f'<div class="card ok" style="flex:{flex} 1 0"><div class="algo">AES-256-GCM</div>'
+def crypto(flex=None):
+    style = f' style="flex:{flex} 1 0"' if flex else ' style="margin-top:14px"'
+    return (f'<div class="card ok"{style}><div class="algo">AES-256-GCM</div>'
             '<p style="margin:0;font-size:15px">Namen, Scans und Punkte werden <b>im Browser</b> verschlüsselt '
             '(Ende-zu-Ende). Der Schlüssel entsteht aus Ihrem Passwort (Argon2id) und verlässt Ihr Gerät nie – '
             'der Server sieht nur Chiffretext. Anmeldung mit zweitem Faktor.</p>'
@@ -52,11 +53,11 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Echte Oberfläche mit Demo
 ---
 """
 one = (FM + "\n# Klausuren schreiben, setzen, fair bewerten.\n\n"
-       + row("editor-tight", "mc") + row("setup", "grading", "mcreview") + row("paper", "results", "variant")
-       + row("proposal", extra=crypto(1.6)))
+       + row("editor-tight", "mc") + row("setup", "grading", "paper") + row("mcreview", extra=crypto(1.05))
+       + row("results", "variant", "proposal"))
 two = (FM + '\n<span class="kicker">Teil 1 · Erstellen</span>\n\n# Von der Aufgabe zur druckfertigen Klausur.\n\n'
        + row("editor", "mc") + row("builder", "setup") + row("library", "proposal")
        + '\n---\n\n<span class="kicker">Teil 2 · Korrigieren und auswerten</span>\n\n# Anonym bewerten, fair vergleichen.\n\n'
-       + row("grading", "mcreview") + row("paper", "results") + row("variant", extra=crypto(1.3)))
+       + row("mcreview") + row("grading", "paper") + row("results", "variant") + crypto())
 (HERE / "examance-ui-tour.md").write_text(one)
 (HERE / "examance-ui-tour-2p.md").write_text(two)
