@@ -203,6 +203,118 @@ async function admin() {
   await ctx.close();
 }
 
+/** Narrower window for the UI tour posters: larger text once printed. Saved as tour-<name>.png. */
+async function tour() {
+  const T = ['editor', 'editor-mc', 'exam-new', 'exam-setup', 'grading', 'mc-review', 'paper', 'results', 'analytics-variants', 'library', 'proposal'];
+  if (!T.some((n) => want('tour-' + n))) return;
+  const { ctx, page } = await open({ profile: 'berger', width: 1280, height: 800 });
+  await login(page, 'berger');
+  const t = (n) => want('tour-' + n);
+  if (t('editor')) {
+    await go(page, '/exercises');
+    await page.getByRole('heading', { name: 'Bubblesort nachvollziehen', level: 3 }).click();
+    await page.waitForTimeout(1200);
+    await page.getByRole('button', { name: /^Bearbeiten$/ }).first().click();
+    await page.waitForTimeout(2000);
+    const ed = page.getByRole('dialog').last();
+    await ed.getByRole('button', { name: /Live-Vorschau PDF/ }).click();
+    for (let k = 0; k < 30 && (await page.getByText(/Kompiliert/).count()); k++) await page.waitForTimeout(3000);
+    for (const pane of ['Aufgabe PDF', 'Lösung PDF']) {
+      const p = ed.getByText(pane, { exact: true });
+      if (await p.count()) { await p.first().click(); await page.waitForTimeout(2500); }
+    }
+    await page.waitForTimeout(25000);
+    await shot(page, 'tour-editor');
+    await page.keyboard.press('Escape');
+  }
+  if (t('editor-mc')) {
+    await go(page, '/exercises');
+    await page.getByRole('heading', { name: 'Personenbezogene Daten', level: 3 }).click();
+    await page.waitForTimeout(1200);
+    await page.getByRole('button', { name: /^Bearbeiten$/ }).first().click();
+    await page.waitForTimeout(2500);
+    await page.getByRole('dialog').last().locator('.overflow-y-auto, [class*=overflow-auto]').first().evaluate((el) => el.scrollTo(0, 260)).catch(() => {});
+    await page.waitForTimeout(800);
+    await shot(page, 'tour-editor-mc');
+    await page.keyboard.press('Escape');
+  }
+  if (t('exam-new')) {
+    await go(page, '/exam/new');
+    await page.getByLabel(/Prüfungstitel/).fill('Leistungsnachweis Informatik 10c');
+    await page.getByRole('button', { name: /Aus Bibliothek/ }).click();
+    const search = page.getByRole('textbox', { name: /Aufgabenbibliothek nach Name/ });
+    for (const n of ['Gruppe A', 'Bubblesort', 'Klassendiagramm']) {
+      await search.fill(n);
+      await page.waitForTimeout(600);
+      await page.getByRole('checkbox', { name: /Zur Prüfung hinzufügen/ }).first().check();
+    }
+    await search.fill('');
+    await page.waitForTimeout(800);
+    await scrollTo(page, page.getByText(/2\. Aufgaben auswählen/), 70);
+    await shot(page, 'tour-exam-new');
+  }
+  if (t('exam-setup')) {
+    await page.setViewportSize({ width: 1280, height: 1100 });
+    await go(page, `/exam/${ids['10b']}`);
+    await page.getByRole('button', { name: /Live-Vorschau PDF/ }).click();
+    await page.getByText(/OMR-Vorlage gespeichert/).waitFor({ timeout: 300000 });
+    const sol = page.getByText('Lösung PDF', { exact: true });
+    if (await sol.count()) await sol.first().click();
+    await page.waitForTimeout(6000);
+    await scrollTo(page, page.getByText(/LaTeX-Prüfungskompilierung/), 20);
+    await shot(page, 'tour-exam-setup');
+    await page.setViewportSize({ width: 1280, height: 800 });
+  }
+  if (t('grading')) {
+    await go(page, `/exam/${ids['10b']}/grade`, 6000);
+    for (let i = 0; i < 6; i++) { await page.getByRole('button', { name: /Nächster/ }).click(); await page.waitForTimeout(2000); }
+    await page.getByText('Q1', { exact: true }).first().click();
+    await page.waitForTimeout(800);
+    await shot(page, 'tour-grading');
+  }
+  if (t('mc-review')) {
+    // The showcase booklet (mkscans.py CFG.showcase): correct, wrong, cancelled+re-crossed, unsure.
+    await go(page, `/exam/${ids['10b']}/verify`, 7000);
+    const item = page.getByText('Personenbezogene Daten a)').locator('xpath=ancestor::*[.//button][1]').filter({ hasText: 'Y5QYAD' });
+    await item.getByRole('button', { name: /Element überprüfen/ }).first().click();
+    await page.waitForTimeout(6000);
+    await shot(page, 'tour-mc-review');
+  }
+  if (t('paper')) {
+    await go(page, `/exam/${ids['9c']}/manual`, 5000);
+    await shot(page, 'tour-paper');
+  }
+  if (t('results')) {
+    await go(page, `/exam/${ids['10b']}/stats`, 6000);
+    await shot(page, 'tour-results');
+  }
+  if (t('analytics-variants')) {
+    await go(page, '/analytics', 7000);
+    await scrollTo(page, page.getByText(/Schwierigkeits- & Fairnessvergleich/), 20);
+    await shot(page, 'tour-analytics-variants');
+  }
+  if (t('library')) {
+    await go(page, '/exercises');
+    await page.getByRole('heading', { name: 'Binärzahlen umrechnen', level: 3 }).click();
+    await page.waitForTimeout(1500);
+    await shot(page, 'tour-library');
+  }
+  await ctx.close();
+  if (t('proposal')) {
+    const c = await open({ profile: 'yilmaz', width: 1280, height: 800 });
+    await login(c.page, 'yilmaz');
+    await go(c.page, '/exercises');
+    await c.page.getByRole('button', { name: /Vorschläge/ }).or(c.page.getByRole('tab', { name: /Vorschläge/ })).first().click();
+    await c.page.waitForTimeout(2500);
+    await c.page.getByRole('button', { name: /^Prüfen/ }).first().click();
+    await c.page.waitForTimeout(2500);
+    await shot(c.page, 'tour-proposal');
+    await c.ctx.close();
+  }
+}
+
+if (only.some((n) => n.startsWith('tour')) || !only.length) await tour();
+if (only.some((n) => n.startsWith('tour'))) process.exit(0);
 await teacher();
 await colleague();
 await onboarding();

@@ -34,6 +34,7 @@ Results: *10b* (26 pupils, Gruppe A) and *10a* (25 pupils, Gruppe B, weaker on t
 | `mkscans.py`, `data/answers.json`, `data/classes.json` | Synthetic scans and the grading plan per class |
 | `mkpaper.py` | Spreadsheet for the paper-graded class |
 | `seed-results.mjs` | Scan import, grading, showcase annotations, Excel paste |
-| `capture.mjs`, `assets.py` | Dark-theme screenshots and crops |
+| `capture.mjs`, `assets.py` | Dark-theme screenshots and crops (`node capture.mjs tour-…` for the 1280 px UI tour set) |
+| `showcase.mjs <raw> <hash>` | Swaps the MC showcase booklet (`showcase` in `data/classes.json`; `mkscans.py` prints both prefixes) into an already seeded instance |
 
 Never point these scripts at a real server: `reset.sh` drops the local database.

@@ -1,5 +1,5 @@
 {
- "10b": { "size": 26, "mean": 68, "sd": 15, "seed": 10, "answers": "A" },
+ "10b": { "size": 26, "mean": 68, "sd": 15, "seed": 10, "answers": "A", "showcase": ["x", "x", "undo-redo", "faint"] },
  "10a": { "size": 25, "mean": 64, "sd": 15, "seed": 11, "answers": "B", "q1_bias": -0.22 },
  "9c": { "size": 24, "mean": 66, "sd": 16, "seed": 9 }
 }

@@ -60,10 +60,10 @@ def write(d, lines, x, y, font, r, ink, lh=17):
         d.text(((x + r.uniform(-2, 2)) * S, (y + i * lh + r.uniform(-1.5, 1.5)) * S), t, font=font, fill=ink)
 
 
-def cross(d, rect, r, ink):
+def cross(d, rect, r, ink, pen=2.2):
     x0, y0, x1, y1 = (v * S for v in (rect.x0 + 1.5, rect.y0 + 1.5, rect.x0 + 11, rect.y1 - 1.5))
     j = lambda: r.uniform(-2, 2)  # noqa: E731
-    w = int(2.2 * S / 2)
+    w = int(pen * S / 2)
     d.line([(x0 + j(), y0 + j()), (x1 + j(), y1 + j())], fill=ink, width=w)
     d.line([(x1 + j(), y0 + j()), (x0 + j(), y1 + j())], fill=ink, width=w)
 
@@ -80,6 +80,25 @@ def sticker(payload):
     return lab
 
 
+def undo(d, rect, r, ink):
+    """Box filled in with the pen: the pupil cancels this answer."""
+    for k in range(9):
+        y = (rect.y0 + 2 + k * (rect.y1 - rect.y0 - 4) / 8) * S
+        d.line([((rect.x0 + 1.5) * S, y + r.uniform(-1, 1)), ((rect.x0 + 11) * S, y + r.uniform(-1, 1))], fill=ink, width=int(2.4 * S))
+
+
+def redo(d, rect, r, ink):
+    """Cross in the zone left of the box: the pupil re-selects a cancelled answer."""
+    # Bold: detection wants about half the zone inked (redoMarkedHigh).
+    cross(d, pymupdf.Rect(rect.x0 - 12.5, rect.y0, rect.x0 - 2, rect.y1), r, ink, pen=7)
+
+
+def faint(d, rect, r):
+    """A light, short stroke: detection should flag this box as unsure."""
+    x0, y0 = (rect.x0 + 4) * S, (rect.y0 + 4) * S
+    d.line([(x0, y0), (x0 + 3.5 * S, y0 + 4 * S)], fill=(150, 160, 190), width=int(1.1 * S))
+
+
 def scanify(im, r):
     im = im.rotate(r.uniform(-0.6, 0.6), resample=Image.BICUBIC, fillcolor=(245, 245, 242))
     a = np.asarray(im).astype(np.int16)
@@ -92,6 +111,8 @@ def scanify(im, r):
 
 plan = {}
 out = pymupdf.open()
+showcase = None  # first mid-range pupil who misses MC 1 gets the marks from CFG["showcase"]
+show_pdf = pymupdf.open()
 for idx, pct in enumerate(targets(CFG["size"], CFG["mean"], CFG["sd"], CFG["seed"])):
     r = random.Random(CFG["seed"] * 1000 + idx)
     f = pct / 100
@@ -120,13 +141,31 @@ for idx, pct in enumerate(targets(CFG["size"], CFG["mean"], CFG["sd"], CFG["seed
     write(d1, ans["q2a"][level(fr["q2"])], 40, 412, font, r, ink)
     write(d1, ans["q2b"][level(fr["q2"])], 40, 520, font, r, ink, lh=28)
     write(d2, ans["q3"][level(fr["q3"])], 40, 92, font, r, ink, lh=28)
+    special = CFG.get("showcase") if showcase is None and not mc_right[0] and 50 <= pct <= 75 else None
     for qi, ex in enumerate(order):
+        if special and qi == 0:
+            showcase = pseudo
+            for o, how in enumerate(special):
+                if how == "x":
+                    cross(d2, boxes[ex][o], r, ink)
+                elif how == "undo-redo":
+                    undo(d2, boxes[ex][o], r, ink)
+                    redo(d2, boxes[ex][o], r, ink)
+                elif how == "faint":
+                    faint(d2, boxes[ex][o], r)
+            continue
         chosen = set(MC_KEYS[qi]) if mc_right[qi] else {(MC_KEYS[qi][0] + 1 + r.randrange(3)) % 4}
         for o in chosen:
             cross(d2, boxes[ex][o], r, ink)
     for im in (p1, p2):
-        pg = out.new_page(width=595.28, height=841.89)
-        pg.insert_image(pg.rect, stream=scanify(im, r))
+        data = scanify(im, r)
+        for doc_ in (out, show_pdf) if special else (out,):
+            pg = doc_.new_page(width=595.28, height=841.89)
+            pg.insert_image(pg.rect, stream=data)
 out.save(OUT, deflate=True)
+if showcase:
+    # Single booklet, so the showcase can be re-imported into an existing instance.
+    show_pdf.save(OUT.replace(".pdf", "-showcase.pdf"), deflate=True)
+    print(KEY, "showcase", showcase[:10], hashlib.sha256(showcase.encode()).hexdigest()[:10])
 Path(PLAN).write_text(json.dumps(plan, indent=1))
 print(KEY, "students", len(plan) // 2, "mean target", round(statistics.mean(v["pct"] for v in plan.values()), 1))

@@ -46,18 +46,32 @@ scan = pymupdf.open(HERE / ".state/scan-10b.pdf")
 for idx, name in [(12, "17-scanned-sheet"), (13, "18-scanned-sheet-mc")]:
     pm = scan[idx].get_pixmap(dpi=150)
     Image.frombytes("RGB", (pm.width, pm.height), pm.samples).save(OUT / f"{name}.jpg", quality=84, optimize=True)
-# Tighter crops for the UI tour posters: drop empty right halves, navbars and sidebars.
+# UI tour posters: captures from the 1280 px window (capture.mjs tour-*), cropped to the content.
 TOUR = {
-    "t-mc-editor": ("03b-mc-editor", (0, 0, 1190, 1503)),
-    "t-exam-builder": ("04-exam-builder", (0, 75, 1185, 1500)),
-    "t-paper-entry": ("08b-paper-entry", (270, 120, 2160, 1500)),
-    "t-exercise-editor": ("03-exercise-editor", (0, 0, 2400, 1140)),
-    "t-exam-setup": ("04b-exam-setup", (270, 120, 2400, 1500)),
-    "t-shared-library": ("19-shared-library", (0, 0, 2400, 820)),
-    "t-scanned-sheet": ("17-scanned-sheet", (0, 0, 1241, 980)),
-    "t-analytics": ("09-analytics", (0, 0, 2400, 1050)),
+    "t-exercise-editor": ("tour-editor", (135, 90, 2430, 1515)),
+    "t-mc-editor": ("tour-editor-mc", (165, 90, 1260, 1515)),
+    "t-exam-builder": ("tour-exam-new", (45, 105, 1260, 1600)),
+    "t-exam-setup": ("tour-exam-setup", (375, 120, 2514, 1530)),
+    "t-grading": ("tour-grading", (135, 0, 2560, 1530)),
+    "t-paper-entry": ("tour-paper", (375, 120, 2514, 1600)),
+    "t-results": ("tour-results", (345, 120, 2560, 1600)),
+    "t-exercise-editor-tight": ("tour-editor", (135, 360, 2430, 1385)),
+    "t-library": ("tour-library", (600, 400, 2515, 1170)),
+    "t-proposal": ("tour-proposal", (135, 210, 2430, 1395)),
 }
 (OUT / "tour").mkdir(exist_ok=True)
 for name, (src, crop) in TOUR.items():
-    Image.open(OUT / f"{src}.jpg").crop(crop).save(OUT / "tour" / f"{name}.jpg", quality=86, optimize=True)
-print("assets", len(SPEC) + 2 + len(TOUR))
+    Image.open(SHOTS / f"{src}.png").convert("RGB").crop(crop).save(OUT / "tour" / f"{name}.jpg", quality=88, optimize=True)
+# MC check: scan strip above the answer panel; the empty viewer area in between is dropped.
+mc = Image.open(SHOTS / "tour-mc-review.png").convert("RGB")
+head, strip, panel = mc.crop((400, 350, 1525, 470)), mc.crop((459, 1236, 1584, 1359)), mc.crop((1659, 639, 2466, 1554))
+W = strip.width
+strip = strip.resize((W, round(strip.height * W / strip.width)), Image.LANCZOS)
+panel = panel.resize((W, round(panel.height * W / panel.width)), Image.LANCZOS)
+canvas = Image.new("RGB", (W, head.height + strip.height + panel.height + 40), (34, 39, 46))
+y = 0
+for part in (head, strip, panel):
+    canvas.paste(part, (0, y))
+    y += part.height + 20
+canvas.save(OUT / "tour" / "t-mc-review.jpg", quality=88, optimize=True)
+print("assets", len(SPEC) + 2 + len(TOUR) + 1)
