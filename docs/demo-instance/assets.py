@@ -46,4 +46,18 @@ scan = pymupdf.open(HERE / ".state/scan-10b.pdf")
 for idx, name in [(12, "17-scanned-sheet"), (13, "18-scanned-sheet-mc")]:
     pm = scan[idx].get_pixmap(dpi=150)
     Image.frombytes("RGB", (pm.width, pm.height), pm.samples).save(OUT / f"{name}.jpg", quality=84, optimize=True)
-print("assets", len(SPEC) + 2)
+# Tighter crops for the UI tour posters: drop empty right halves, navbars and sidebars.
+TOUR = {
+    "t-mc-editor": ("03b-mc-editor", (0, 0, 1190, 1503)),
+    "t-exam-builder": ("04-exam-builder", (0, 75, 1185, 1500)),
+    "t-paper-entry": ("08b-paper-entry", (270, 120, 2160, 1500)),
+    "t-exercise-editor": ("03-exercise-editor", (0, 0, 2400, 1140)),
+    "t-exam-setup": ("04b-exam-setup", (270, 120, 2400, 1500)),
+    "t-shared-library": ("19-shared-library", (0, 0, 2400, 820)),
+    "t-scanned-sheet": ("17-scanned-sheet", (0, 0, 1241, 980)),
+    "t-analytics": ("09-analytics", (0, 0, 2400, 1050)),
+}
+(OUT / "tour").mkdir(exist_ok=True)
+for name, (src, crop) in TOUR.items():
+    Image.open(OUT / f"{src}.jpg").crop(crop).save(OUT / "tour" / f"{name}.jpg", quality=86, optimize=True)
+print("assets", len(SPEC) + 2 + len(TOUR))
