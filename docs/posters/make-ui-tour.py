@@ -98,13 +98,14 @@ def layout(items, avail, fixed_last=None, reorder=True, per_row=3):
 
 
 CGAP = 18
-CRYPTO_TEXT = 330  # characters in the encryption card
+
 
 
 def block_h(k, w):
     """Height of one item in a column of width w (figure: image plus caption; card: text estimate)."""
     if k == "crypto":
-        return 70 + 21 * -(-CRYPTO_TEXT // int(w / 7.6)) + 30
+        # heading line per item, then the wrapped description (14.5 px text, ~20 px per line)
+        return 95 + sum(20 * (1 + -(-int(len(d) * 1.1) // max(8, int((w - 70) / 7.0)))) + 8 for t, d in PRIVACY)
     return w / aspect(k) + caption_h(k, w) + ROWGAP
 
 
@@ -130,6 +131,8 @@ def masonry(items, avail):
         if items[0] not in a:
             continue
         wa, wb = col_width(a, avail), col_width(b, avail)
+        if col_h(a, wa) > avail or col_h(b, wb) > avail:
+            continue
         slack = W - CGAP - wa - wb
         if slack < 0:  # too few items to fill the height at full width: shrink both, leave space below
             f = (W - CGAP) / (wa + wb)
@@ -159,13 +162,21 @@ def fig(k, col=False):
             f'<figcaption><b>{t}</b> · {d} – <em>{a}</em></figcaption></figure>')
 
 
+PRIVACY = [
+    ("Ende-zu-Ende verschlüsselt", "Namen, Scans, Punkte und Anmerkungen werden im Browser mit AES-256-GCM verschlüsselt, bevor sie gespeichert werden."),
+    ("Schlüssel bleibt bei Ihnen", "Ein zufälliger 256-Bit-Schlüssel, freigeschaltet durch Ihr Passwort (Argon2id) oder Ihren Passkey. Er verlässt Ihr Gerät nie."),
+    ("Server sieht nur Chiffretext", "Auch die Administration kann keine Noten oder Namen lesen; sie verwaltet nur Konten."),
+    ("Anonym von Anfang an", "Bögen tragen ein Pseudonym im QR-Code; Namen erscheinen erst nach der Korrektur, entschlüsselt auf Ihrem Gerät."),
+    ("Sie wählen den Speicherort", "Ergebnisse verschlüsselt auf dem Schulserver oder nur in diesem Browser."),
+    ("Zwei Faktoren", "Anmeldung mit Passwort plus Authenticator-App oder Passkey."),
+]
+
+
 def crypto(col=False):
     style = "" if col else f' style="flex:{CRYPTO_ASPECT} 1 0"'
-    return (f'<div class="card ok"{style}><div class="algo">AES-256-GCM</div>'
-            '<p style="margin:0;font-size:15px">Namen, Scans und Punkte werden <b>im Browser</b> verschlüsselt '
-            '(Ende-zu-Ende). Der Schlüssel entsteht aus Ihrem Passwort (Argon2id) und verlässt Ihr Gerät nie – '
-            'der Server sieht nur Chiffretext. Anmeldung mit zweitem Faktor.</p>'
-            f'<p class="url">{URL}</p></div>')
+    items = "".join(f"<li><b>{t}</b> {d}</li>" for t, d in PRIVACY)
+    return (f'<div class="card ok privacy"{style}><div class="algo">AES-256-GCM</div>'
+            f'<ul>{items}</ul><p class="url">{URL}</p></div>')
 
 
 def rows_md(rows):

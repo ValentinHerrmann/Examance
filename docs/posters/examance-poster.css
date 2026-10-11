@@ -86,3 +86,6 @@ section.tour h1 { margin-bottom: 4px; }
 .mcol figcaption b { color: var(--heading); }
 .mcol figcaption em { font-style: normal; color: var(--success-fg); font-weight: 600; }
 .mcol .card { margin-top: 14px; }
+.privacy ul { margin: 4px 0 0; padding-left: 18px; }
+.privacy li { font-size: 14.5px; line-height: 1.38; margin: 0 0 8px; color: var(--content); }
+.privacy li b { display: block; color: var(--heading); font-size: 15px; }
