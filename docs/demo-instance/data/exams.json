@@ -1,0 +1,12 @@
+[
+ { "key": "10b", "title": "Leistungsnachweis Informatik 10b", "testart": "Kurzarbeit", "grade": "10", "klasse": "b", "nr": "2", "datum": "14.10.2026",
+   "free": [["Binärzahlen umrechnen", "Gruppe A"], ["Bubblesort nachvollziehen"], ["SQL-Abfrage formulieren"]],
+   "mc": ["Personenbezogene Daten", "Laufzeit von Schleifen", "Hexadezimalziffern"], "scan": true },
+ { "key": "10a", "title": "Leistungsnachweis Informatik 10a", "testart": "Kurzarbeit", "grade": "10", "klasse": "a", "nr": "2", "datum": "13.10.2026",
+   "free": [["Binärzahlen umrechnen", "Gruppe B"], ["Bubblesort nachvollziehen"], ["SQL-Abfrage formulieren"]],
+   "mc": ["Personenbezogene Daten", "Laufzeit von Schleifen", "Hexadezimalziffern"], "scan": true },
+ { "key": "9c", "title": "Stegreifaufgabe Informatik 9c", "testart": "Stegreifaufgabe", "grade": "9", "klasse": "c", "nr": "1", "datum": "24.09.2026",
+   "free": [["Caesar-Verschlüsselung"], ["Binärzahlen umrechnen", "Gruppe A"]], "mc": [], "paper": true },
+ { "key": "q11", "title": "Rekursion und Netzwerke Q11", "testart": "Kurzarbeit", "grade": "11", "klasse": "", "nr": "1", "datum": "05.11.2026",
+   "free": [["Rekursive Fakultät"], ["IPv4-Adressen"], ["Tabellen normalisieren"]], "mc": [] }
+]

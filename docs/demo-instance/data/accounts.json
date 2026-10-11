@@ -1,0 +1,11 @@
+{
+ "admin": { "email": "admin@gymnasium-example.de", "password": "Admin-Demo-Passwort-2026!", "role": "admin" },
+ "berger": { "email": "m.berger@gymnasium-example.de", "password": "Lehrkraft-Demo-2026!", "role": "teacher", "mode": "all-server" },
+ "yilmaz": { "email": "s.yilmaz@gymnasium-example.de", "password": "Lehrkraft-Demo-2026!", "role": "teacher", "mode": "all-server" },
+ "weber": { "email": "n.weber@gymnasium-example.de", "password": "Lehrkraft-Demo-2026!", "role": "teacher" },
+ "hoffmann": { "email": "t.hoffmann@gymnasium-example.de", "password": "Lehrkraft-Demo-2026!", "role": "teacher", "storage_mode": "all-server" },
+ "wagner": { "email": "k.wagner@gymnasium-example.de", "password": "Lehrkraft-Demo-2026!", "role": "teacher", "storage_mode": "hybrid", "allow_server_results": false },
+ "richter": { "email": "a.richter@gymnasium-example.de", "password": "Lehrkraft-Demo-2026!", "role": "teacher", "storage_mode": "hybrid", "allow_exercise_sharing": false },
+ "koch": { "email": "l.koch@gymnasium-example.de", "password": "Lehrkraft-Demo-2026!", "role": "teacher", "pending": true },
+ "schneider": { "email": "j.schneider@seminar-example.de", "password": "Lehrkraft-Demo-2026!", "role": "teacher", "pending": true }
+}

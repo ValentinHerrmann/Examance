@@ -1,0 +1,91 @@
+/* @theme examance-poster */
+/* @size a3 1123px 1588px */
+/* A3 portrait poster on top of the slide theme (docs/pitches/examance-theme.css). */
+@import 'examance';
+
+section {
+  width: 1123px;
+  height: 1588px;
+  padding: 92px 64px 64px;
+  font-size: 20px;
+}
+header { height: 58px; padding: 0 40px; font-size: 19px; }
+header img { height: 30px; width: 30px; }
+footer { height: 40px; padding: 0 40px; font-size: 13px; }
+
+h1 { font-size: 52px; line-height: 1.08; margin-bottom: 18px; }
+h2 { font-size: 27px; margin-bottom: 12px; }
+.lead { font-size: 23px; }
+.kicker { font-size: 15px; }
+
+.band { margin-top: 30px; }
+.band > h2 { display: flex; align-items: center; gap: 12px; }
+.band > h2::after { content: ''; flex: 1; height: 1px; background: var(--line-strong); }
+
+.steps > div { padding: 14px 14px 12px; }
+.steps b { font-size: 16.5px; }
+.steps span { font-size: 14px; }
+
+.card p, .card li { font-size: 16px; }
+
+/* Dense feature grid for the posters */
+.feat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.feat .card { padding: 14px 16px; }
+.feat .card h3 { font-size: 17px; margin-bottom: 4px; }
+.feat .card p { font-size: 14.5px; line-height: 1.4; margin: 0; }
+.feat .card .tag { font-size: 12px; margin: 0 0 6px; }
+.band { margin-top: 18px; }
+section { padding-top: 84px; }
+h1 { font-size: 40px; margin-bottom: 12px; }
+.lead { font-size: 19px; line-height: 1.4; }
+.shot.h240 img { height: 240px; object-fit: cover; object-position: top left; }
+.shot.h260 img { height: 260px; object-fit: cover; object-position: top left; }
+.shot.h280 img { height: 280px; object-fit: cover; object-position: top left; }
+.shot figcaption { font-size: 12px; }
+
+/* Print palette: office printers flatten dark greys, so posters use a deeper base,
+   brighter text and stronger lines/cards than the screen theme on A3. */
+:root {
+  --surface-base: #0d1014;
+  --surface-raised: #1c2128;
+  --surface-inset: #222831;
+  --line: #4a545f;
+  --line-strong: #6b7785;
+  --content: #f4f6f8;
+  --heading: #ffffff;
+  --muted: #c9d1da;
+  --accent: #9cc8f0;
+  --primary: #8ec0ec;
+  --navbar: #2a323c;
+  --success-fg: #2ee6b0;
+  --warning-fg: #ffb733;
+  --danger-fg: #ff9e94;
+  --info-fg: #5fe0f5;
+}
+.card { border-width: 1.5px; border-color: var(--line-strong); }
+.shot figcaption, .cap, .steps span, .lead { color: var(--muted); }
+
+/* UI tour posters: justified rows; each figure's flex-grow is its image's aspect ratio,
+   so images in a row share one height and fill the width without gaps. */
+.jrow { display: flex; gap: 16px; margin-top: 14px; align-items: flex-start; }
+.jrow figure { margin: 0; min-width: 0; }
+.jrow img { display: block; width: 100%; border-radius: 8px; border: 1.5px solid var(--line-strong); }
+.jrow figcaption { margin-top: 6px; font-size: 14px; line-height: 1.3; color: var(--muted); }
+.jrow figcaption b { color: var(--heading); }
+.jrow figcaption em { font-style: normal; color: var(--success-fg); font-weight: 600; }
+.jrow .card { align-self: stretch; display: flex; flex-direction: column; justify-content: center; }
+.algo { font: 700 21px/1.2 ui-monospace, monospace; color: var(--success-fg); margin-bottom: 6px; }
+.url { margin: 10px 0 0; font: 700 17px/1.2 ui-monospace, monospace; color: var(--accent); }
+section.tour { padding: 76px 28px 50px; }
+section.tour h1 { margin-bottom: 4px; }
+/* Two-column variant: column widths are computed so both columns fill the page height. */
+.mcols { display: flex; gap: 18px; justify-content: space-between; align-items: flex-start; }
+.mcol figure { margin: 14px 0 0; }
+.mcol img { display: block; width: 100%; border-radius: 8px; border: 1.5px solid var(--line-strong); }
+.mcol figcaption { margin-top: 6px; font-size: 14px; line-height: 1.3; color: var(--muted); }
+.mcol figcaption b { color: var(--heading); }
+.mcol figcaption em { font-style: normal; color: var(--success-fg); font-weight: 600; }
+.mcol .card { margin-top: 14px; }
+.privacy ul { margin: 4px 0 0; padding-left: 18px; }
+.privacy li { font-size: 14.5px; line-height: 1.38; margin: 0 0 8px; color: var(--content); }
+.privacy li b { display: block; color: var(--heading); font-size: 15px; }
