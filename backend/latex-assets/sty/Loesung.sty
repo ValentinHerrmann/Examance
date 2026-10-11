@@ -25,6 +25,9 @@ escapeinside={(*@}{@*)}
   }%
 }
 
+% Student version: the solution is typeset into a discarded box, so a \BE/\hBE/\qBE inside
+% it still adds to \TaskScore and the score box matches the solution sheet.
+\newsavebox{\LSG@discard}
 \providecommand{\LSG}[2]{%
 	\ifthenelse{\boolean{Antworten}}{%
         \textcolor{\LFarbe}{%
@@ -35,6 +38,7 @@ escapeinside={(*@}{@*)}
             \renewcommand{\umldrawcolor}{black}%
         }%
     }{%
+        \savebox{\LSG@discard}{\parbox{\linewidth}{#1}}%
         #2%
     }%
 }
