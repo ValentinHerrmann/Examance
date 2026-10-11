@@ -15,7 +15,7 @@ S = {
     "variantdiff": ("tour/t-variant-diff.jpg", "Varianten vergleichen", "Gruppe A und B nebeneinander, Unterschiede markiert", "nur die Zahlen ändern sich, der Aufbau bleibt"),
     "proposal": ("tour/t-proposal.jpg", "Teilen & Vorschläge", "Kollegium schlägt Änderungen vor, die Autorin entscheidet", "gemeinsamer Aufgabenpool der Fachschaft"),
     "grading": ("tour/t-grading.jpg", "Anonym korrigieren", "QR-Aufkleber statt Name; Haken-Stempel direkt im Scan ergeben die Punkte", "fair, ohne Halo-Effekt"),
-    "mcreview": ("tour/t-mc-review.jpg", "MC-Erkennung", "A richtig, D zurückgenommen und neu gesetzt (unsicher markiert) – 0,5 von 2 Punkten", "Sie entscheiden im Zweifel"),
+    "mcreview": ("tour/t-mc-review.jpg", "MC-Erkennung", "A richtig, D neu gesetzt und als unsicher markiert: 0,5 von 2 Punkten", "Sie entscheiden im Zweifel"),
     "paper": ("tour/t-paper-entry.jpg", "Papierkorrektur", "Punkte tippen oder aus Excel einfügen", "Auswertung auch ohne Scanner"),
     "results": ("tour/t-results.jpg", "Ergebnisse", "Notenspiegel, Schnitt, Grenzfälle", "fertig, sobald die Punkte da sind"),
     "variant": ("09b-variant-comparison.jpg", "Variantenvergleich", "Gruppe B 24 Prozentpunkte schwächer", "unfaire Varianten fallen auf"),
@@ -52,11 +52,11 @@ footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Echte Oberfläche mit Demo
 ---
 """
 one = (FM + "\n# Klausuren schreiben, setzen, fair bewerten.\n\n"
-       + row("editor", "mc") + row("setup", "grading", "paper") + row("mcreview", extra=crypto(0.9))
-       + row("results", "variant", "proposal"))
+       + row("editor", "mc") + row("setup", "grading", "paper") + row("mcreview", "results", "variant")
+       + row("proposal", extra=crypto(1.7)))
 two = (FM + '\n<span class="kicker">Teil 1 · Erstellen</span>\n\n# Von der Aufgabe zur druckfertigen Klausur.\n\n'
        + row("editor", "mc") + row("builder", "setup") + row("variantdiff", "proposal")
        + '\n---\n\n<span class="kicker">Teil 2 · Korrigieren und auswerten</span>\n\n# Anonym bewerten, fair vergleichen.\n\n'
-       + row("grading", "paper") + row("mcreview", extra=crypto(0.9)) + row("results", "variant"))
+       + row("grading", "mcreview") + row("paper", "results") + row("variant", extra=crypto(1.0)))
 (HERE / "examance-ui-tour.md").write_text(one)
 (HERE / "examance-ui-tour-2p.md").write_text(two)

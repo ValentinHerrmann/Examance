@@ -333,8 +333,9 @@ async function tour() {
   }
   await ctx.close();
   if (t('mc-review')) {
-    // Showcase booklet (mkscans.py CFG.showcase). Scale 3: the scan strip is small in the UI.
-    const c = await open({ profile: 'berger', width: 1280, height: 800, scale: 3 });
+    // Showcase booklet (mkscans.py CFG.showcase). Narrow window: the page stacks the scan crop above the
+    // answer panel at full width, so the crop is large in a genuine screenshot.
+    const c = await open({ profile: 'berger', width: 760, height: 1150, scale: 3 });
     await login(c.page, 'berger');
     await go(c.page, `/exam/${ids['10b']}/verify`, 7000);
     const item = c.page.getByText('Personenbezogene Daten a)').locator('xpath=ancestor::*[.//button][1]').filter({ hasText: 'Y5QYAD' });

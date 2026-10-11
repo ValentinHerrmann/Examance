@@ -61,30 +61,6 @@ TOUR = {
 (OUT / "tour").mkdir(exist_ok=True)
 for name, (src, crop) in TOUR.items():
     Image.open(SHOTS / f"{src}.png").convert("RGB").crop(crop).save(OUT / "tour" / f"{name}.jpg", quality=88, optimize=True)
-# MC check (captured at scale 3), two columns: title, enlarged scan strip and warning | points and answer cards.
-mc = Image.open(SHOTS / "tour-mc-review.png").convert("RGB")
-BG, GAP = (34, 39, 46), 18
-W = 1198
-head, warn = mc.crop((630, 530, 630 + W, 700)), mc.crop((2496, 1200, 3694, 1434))
-points = mc.crop((2496, 975, 3694, 1130))
-opts = [mc.crop(b) for b in ((2496, 1470, 3694, 1596), (2496, 1620, 3694, 1746), (2496, 1770, 3694, 1896), (2496, 1920, 3694, 2140))]
-question = mc.crop((700, 1778, 2365, 1836))
-rows = [mc.crop((700, 1836, 1640, 1912)), mc.crop((1640, 1836, 2365, 1912))]
-k = (W - 40) / rows[0].width
-question = question.resize((W - 40, round(question.height * (W - 40) / question.width)), Image.LANCZOS)
-rows = [r.resize((round(r.width * k), round(r.height * k)), Image.LANCZOS) for r in rows]
-paper = Image.new("RGB", (W, question.height + sum(r.height for r in rows) + 50), (246, 246, 243))
-y = 15
-for part in (question, *rows):
-    paper.paste(part, (20, y))
-    y += part.height + 10
-cols = [[head, paper, warn], [points, *opts]]
-H = max(sum(p.height for p in c) + GAP * (len(c) - 1) for c in cols)
-canvas = Image.new("RGB", (2 * W + GAP, H), BG)
-for n, col in enumerate(cols):
-    y = 0
-    for part in col:
-        canvas.paste(part, (n * (W + GAP), y))
-        y += part.height + GAP
-canvas.save(OUT / "tour" / "t-mc-review.jpg", quality=88, optimize=True)
+# MC check: one contiguous crop of the stacked narrow-window layout (scan crop above the answer panel).
+Image.open(SHOTS / "tour-mc-review.png").convert("RGB").crop((120, 1380, 2160, 3100)).save(OUT / "tour" / "t-mc-review.jpg", quality=88, optimize=True)
 print("assets", len(SPEC) + 2 + len(TOUR) + 1)
