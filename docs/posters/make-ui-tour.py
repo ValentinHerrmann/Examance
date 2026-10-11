@@ -1,5 +1,8 @@
 """Writes the UI tour poster sources (examance-ui-tour.md, examance-ui-tour-2p.md).
-Images sit in justified rows: each figure's flex-grow is its aspect ratio. Run from anywhere."""
+Images sit in justified rows (each figure's flex-grow is its aspect ratio); the row split and order
+per page are searched so the rows fill the page height. Run from anywhere."""
+import functools
+import itertools
 from pathlib import Path
 
 from PIL import Image
@@ -22,24 +25,155 @@ S = {
 }
 
 
-def fig(k):
+W = 1123 - 2 * 28          # content width (section.tour padding)
+GAP, ROWGAP, LINE = 16, 14, 18.5
+CRYPTO_ASPECT = 1.0       # the encryption card behaves like an image of this shape
+
+
+@functools.cache
+def aspect(k):
+    if k == "crypto":
+        return CRYPTO_ASPECT
+    im = Image.open(HERE / P / S[k][0])
+    return im.width / im.height
+
+
+def caption_h(k, width):
+    if k == "crypto":
+        return 0
     f, t, d, a = S[k]
-    im = Image.open(HERE / P / f)
-    return (f'<figure style="flex:{im.width / im.height:.3f} 1 0"><img src="{P}{f}">'
+    chars = len(t) + len(d) + len(a) + 6
+    return 6 + LINE * -(-int(chars * 1.15) // max(1, int(width / 7.0)))
+
+
+@functools.cache
+def _row_h(ks):
+    h = (W - GAP * (len(ks) - 1)) / sum(aspect(k) for k in ks)
+    return h + max(caption_h(k, h * aspect(k)) for k in ks) + ROWGAP
+
+
+def row_h(ks):
+    return _row_h(tuple(ks))
+
+
+def layout(items, avail, fixed_last=None, reorder=True, per_row=3):
+    """Best order and row split: fill `avail` px without exceeding it, images at least 300 px wide."""
+    best = None
+    pool = [k for k in items if k != fixed_last]
+    for perm in (itertools.permutations(pool) if reorder else [pool]):
+        seq = list(perm) + ([fixed_last] if fixed_last else [])
+        n = len(seq)
+        for cuts in itertools.product([0, 1], repeat=n - 1):
+            rows, cur = [], [seq[0]]
+            for k, c in zip(seq[1:], cuts, strict=True):
+                if c:
+                    rows.append(cur)
+                    cur = [k]
+                else:
+                    cur.append(k)
+            rows.append(cur)
+            if any(len(r) > per_row for r in rows):
+                continue
+            if any((W - GAP * (len(r) - 1)) / sum(aspect(k) for k in r) * aspect(k) < 260 for r in rows for k in r if k != "crypto"):
+                continue
+            total = sum(row_h(r) for r in rows)
+            if total > avail:
+                continue
+            minw = min((W - GAP * (len(r) - 1)) / sum(aspect(k) for k in r) * aspect(k) for r in rows for k in r if k != "crypto")
+            score = (avail - total) - 0.2 * min(minw, 420)
+            if best is None or score < best[0]:
+                best = (score, rows, total)
+    rows, total = best[1], best[2]
+    global CRYPTO_ASPECT
+    for r in rows:
+        if "crypto" in r and len(r) > 1:
+            # The card has no intrinsic shape: narrow it until its row takes the leftover height.
+            others = sum(aspect(k) for k in r if k != "crypto")
+            gaps = W - GAP * (len(r) - 1)
+            h_now = gaps / (others + CRYPTO_ASPECT)
+            target = h_now + (avail - total) - 4
+            CRYPTO_ASPECT = max(0.55, min(3.0, gaps / target - others))
+    print(f"layout {[len(r) for r in rows]} fill {total:.0f}/{avail}, crypto {CRYPTO_ASPECT:.2f}")
+    return rows
+
+
+CGAP = 18
+CRYPTO_TEXT = 330  # characters in the encryption card
+
+
+def block_h(k, w):
+    """Height of one item in a column of width w (figure: image plus caption; card: text estimate)."""
+    if k == "crypto":
+        return 70 + 21 * -(-CRYPTO_TEXT // int(w / 7.6)) + 30
+    return w / aspect(k) + caption_h(k, w) + ROWGAP
+
+
+def col_h(ks, w):
+    return sum(block_h(k, w) for k in ks)
+
+
+def col_width(ks, avail):
+    """Widest column width whose items still fit `avail` (heights grow with width)."""
+    lo, hi = 150.0, float(W)
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        lo, hi = (mid, hi) if col_h(ks, mid) <= avail else (lo, mid)
+    return lo
+
+
+def masonry(items, avail):
+    """Split items (in order of appearance) into two columns whose widths fill the page width."""
+    best = None
+    for mask in range(1, 2 ** len(items) - 1):
+        a = [k for i, k in enumerate(items) if mask >> i & 1]
+        b = [k for i, k in enumerate(items) if not mask >> i & 1]
+        if items[0] not in a:
+            continue
+        wa, wb = col_width(a, avail), col_width(b, avail)
+        slack = W - CGAP - wa - wb
+        if slack < 0:  # too few items to fill the height at full width: shrink both, leave space below
+            f = (W - CGAP) / (wa + wb)
+            wa, wb = wa * f, wb * f
+            waste = avail - max(col_h(a, wa), col_h(b, wb))
+        else:
+            waste = slack * 1.5
+        score = waste + 3 * max(0, 480 - min(wa, wb))  # fill the page, but keep both columns readable
+        if best is None or score < best[0]:
+            best = (score, a, b, wa, wb)
+    _, a, b, wa, wb = best
+    slack = W - CGAP - wa - wb
+    print(f"masonry {a} | {b} widths {wa:.0f}+{wb:.0f}, slack {slack:.0f}")
+    return a, b, wa, wb
+
+
+def masonry_md(items, avail):
+    a, b, wa, wb = masonry(items, avail)
+    col = lambda ks, w: f'<div class="mcol" style="width:{w:.0f}px">' + "".join(crypto(col=True) if k == "crypto" else fig(k, col=True) for k in ks) + "</div>"  # noqa: E731
+    return '<div class="mcols">' + col(a, wa) + col(b, wb) + "</div>\n"
+
+
+def fig(k, col=False):
+    f, t, d, a = S[k]
+    style = "" if col else f' style="flex:{aspect(k):.3f} 1 0"'
+    return (f'<figure{style}><img src="{P}{f}">'
             f'<figcaption><b>{t}</b> · {d} – <em>{a}</em></figcaption></figure>')
 
 
-def row(*ks, extra=""):
-    return '<div class="jrow">' + "".join(fig(k) for k in ks) + extra + "</div>\n"
-
-
-def crypto(flex=None):
-    style = f' style="flex:{flex} 1 0"' if flex else ' style="margin-top:14px"'
+def crypto(col=False):
+    style = "" if col else f' style="flex:{CRYPTO_ASPECT} 1 0"'
     return (f'<div class="card ok"{style}><div class="algo">AES-256-GCM</div>'
             '<p style="margin:0;font-size:15px">Namen, Scans und Punkte werden <b>im Browser</b> verschlüsselt '
             '(Ende-zu-Ende). Der Schlüssel entsteht aus Ihrem Passwort (Argon2id) und verlässt Ihr Gerät nie – '
             'der Server sieht nur Chiffretext. Anmeldung mit zweitem Faktor.</p>'
             f'<p class="url">{URL}</p></div>')
+
+
+def rows_md(rows):
+    global CRYPTO_ASPECT
+    md = "".join('<div class="jrow">' + "".join(crypto() if k == "crypto" else fig(k) for k in r) + "</div>\n" for r in rows)
+    CRYPTO_ASPECT = 1.0
+    return md
+    return "".join('<div class="jrow">' + "".join(crypto() if k == "crypto" else fig(k) for k in r) + "</div>\n" for r in rows)
 
 
 FM = f"""---
@@ -51,12 +185,13 @@ header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· {URL}</em>'
 footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
 ---
 """
-one = (FM + "\n# Klausuren schreiben, setzen, fair bewerten.\n\n"
-       + row("editor", "mc") + row("setup", "grading", "paper") + row("mcreview", "results", "variant")
-       + row("proposal", extra=crypto(1.7)))
-two = (FM + '\n<span class="kicker">Teil 1 · Erstellen</span>\n\n# Von der Aufgabe zur druckfertigen Klausur.\n\n'
-       + row("editor", "mc") + row("builder", "setup") + row("variantdiff", "proposal")
-       + '\n---\n\n<span class="kicker">Teil 2 · Korrigieren und auswerten</span>\n\n# Anonym bewerten, fair vergleichen.\n\n'
-       + row("grading", "mcreview") + row("paper", "results") + row("variant", extra=crypto(1.0)))
+TITLED = 1538 - 136      # content bottom minus where the first row starts (measured in the PDF)
+KICKED = 1538 - 180
+one = (FM + '\n<!-- _class: tour -->\n\n# Klausuren schreiben, setzen, fair bewerten.\n\n'
+       + masonry_md(["editor", "setup", "grading", "mcreview", "paper", "variant", "crypto"], TITLED))
+two = (FM + '\n<!-- _class: tour -->\n\n<span class="kicker">Teil 1 · Erstellen</span>\n\n# Von der Aufgabe zur druckfertigen Klausur.\n\n'
+       + masonry_md(["editor", "mc", "builder", "setup", "variantdiff", "proposal"], KICKED)
+       + '\n---\n\n<!-- _class: tour -->\n\n<span class="kicker">Teil 2 · Korrigieren und auswerten</span>\n\n# Anonym bewerten, fair vergleichen.\n\n'
+       + rows_md(layout(["grading", "mcreview", "paper", "results", "variant", "crypto"], KICKED, "crypto")))
 (HERE / "examance-ui-tour.md").write_text(one)
 (HERE / "examance-ui-tour-2p.md").write_text(two)
