@@ -266,3 +266,4 @@ coverage/
 test-results/
 playwright-report/
 playwright/.cache/
+docs/demo-instance/.state/
