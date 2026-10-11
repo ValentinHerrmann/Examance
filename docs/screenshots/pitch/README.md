@@ -18,7 +18,7 @@ Real captures of the current UI (German, dark theme to match the decks, 1600×10
 | `14-admin-accounts.jpg`, `15-admin-approvals.jpg`, `16-admin-domains.jpg` | Admin user management |
 | `17-scanned-sheet.jpg`, `18-scanned-sheet-mc.jpg` | Synthetic scanned exam pages |
 | `19-shared-library.jpg`, `20-share-confirm.jpg`, `21-proposal-review.jpg` | Exercise sharing: shared tab, mandatory confirmation, reviewing a colleague's proposal |
-| `tour/t-*.jpg` | UI tour poster crops from a narrower 1280 px window (`capture.mjs tour-*`, cropped by `assets.py`); `t-mc-review` is the showcase booklet (correct, wrong, cancelled and re-crossed, unsure) |
+| `tour/t-*.jpg` | UI tour poster crops from a narrower 1280 px window (`capture.mjs tour-*`, cropped by `assets.py`); `t-mc-review` is the showcase booklet (A crossed, D cancelled and re-crossed and flagged unsure: 0.5 of 2 points); `t-variant-diff` compares Gruppe A and B |
 | `examance-logo.png` | App logo (from `frontend/static/favicon.png`) |
 
 Never use real pupil data or a production account.

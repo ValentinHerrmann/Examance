@@ -205,12 +205,13 @@ async function admin() {
 
 /** Narrower window for the UI tour posters: larger text once printed. Saved as tour-<name>.png. */
 async function tour() {
-  const T = ['editor', 'editor-mc', 'exam-new', 'exam-setup', 'grading', 'mc-review', 'paper', 'results', 'analytics-variants', 'library', 'proposal'];
+  const T = ['variant-diff', 'editor', 'editor-mc', 'exam-new', 'exam-setup', 'grading', 'mc-review', 'paper', 'results', 'analytics-variants', 'library', 'proposal'];
   if (!T.some((n) => want('tour-' + n))) return;
   const { ctx, page } = await open({ profile: 'berger', width: 1280, height: 800 });
   await login(page, 'berger');
   const t = (n) => want('tour-' + n);
   if (t('editor')) {
+    await page.setViewportSize({ width: 1280, height: 1000 });
     await go(page, '/exercises');
     await page.getByRole('heading', { name: 'Bubblesort nachvollziehen', level: 3 }).click();
     await page.waitForTimeout(1200);
@@ -219,13 +220,14 @@ async function tour() {
     const ed = page.getByRole('dialog').last();
     await ed.getByRole('button', { name: /Live-Vorschau PDF/ }).click();
     for (let k = 0; k < 30 && (await page.getByText(/Kompiliert/).count()); k++) await page.waitForTimeout(3000);
-    for (const pane of ['Aufgabe PDF', 'Lösung PDF']) {
+    for (const pane of ['Aufgabe PDF']) {
       const p = ed.getByText(pane, { exact: true });
       if (await p.count()) { await p.first().click(); await page.waitForTimeout(2500); }
     }
     await page.waitForTimeout(25000);
     await shot(page, 'tour-editor');
     await page.keyboard.press('Escape');
+    await page.setViewportSize({ width: 1280, height: 800 });
   }
   if (t('editor-mc')) {
     await go(page, '/exercises');
@@ -266,15 +268,42 @@ async function tour() {
     await page.setViewportSize({ width: 1280, height: 800 });
   }
   if (t('grading')) {
-    await go(page, `/exam/${ids['10b']}/grade`, 6000);
-    for (let i = 0; i < 6; i++) { await page.getByRole('button', { name: /Nächster/ }).click(); await page.waitForTimeout(2000); }
-    await page.getByText('Q1', { exact: true }).first().click();
-    await page.waitForTimeout(800);
+    // Booklet af14… (plan 3 / 4 / 2.5), zoomed onto tasks 1-2. With stamps a task's score is the sum of its
+    // stamps, so the stamps (set once, persisted) cover Q1-Q3 and add up to the plan.
+    await go(page, `/exam/${ids['10b']}/scan`, 8000);
+    const subId = await page.locator('td[title^="Pseudonym: af14e273c5"]').locator('xpath=ancestor::tr[1]').locator('td[title^="Abgabe-ID: "]').getAttribute('title');
+    const open1 = async () => {
+      await go(page, `/exam/${ids['10b']}/grade?submissionId=${subId.replace('Abgabe-ID: ', '')}`, 9000);
+      for (let i = 0; i < 3; i++) { await page.getByRole('button', { name: /Vergrößern/ }).first().click(); await page.waitForTimeout(500); }
+      await page.mouse.move(600, 500);
+      await page.mouse.wheel(0, 330);
+      await page.waitForTimeout(1500);
+    };
+    await open1();
+    const progress = readState('progress.json', {});
+    if (!progress['tour-stamps']) {
+      const stamp = async (q, tool, pts) => {
+        await page.getByText(q, { exact: true }).first().click();
+        await page.getByRole('button', { name: tool }).first().click();
+        for (const [x, y] of pts) { await page.mouse.click(x, y); await page.waitForTimeout(400); }
+      };
+      const ONE = /^\+1\.0|\+1,0/, HALF = /^\+0\.5|\+0,5|½/;
+      await stamp('Q1', ONE, [[448, 166], [275, 234], [358, 337]]);
+      await stamp('Q2', ONE, [[262, 526], [262, 558], [262, 589]]);
+      await page.mouse.move(600, 500); await page.mouse.wheel(0, 120); await page.waitForTimeout(1200);
+      await stamp('Q2', ONE, [[540, 613]]);
+      await page.mouse.click(611, 721); await page.waitForTimeout(3000); // next page
+      await stamp('Q3', ONE, [[506, 256], [602, 290]]);
+      await stamp('Q3', HALF, [[640, 322]]);
+      await page.getByRole('button', { name: /Note & Anmerkungen speichern/ }).click();
+      await page.waitForTimeout(3000);
+      writeState('progress.json', { ...progress, 'tour-stamps': true });
+      await open1();
+      const v = [];
+      for (const q of ['Q1', 'Q2', 'Q3']) v.push(await page.getByText(q, { exact: true }).first().locator('xpath=ancestor::*[.//input][1]').locator('input').first().inputValue());
+      console.log('af14 scores after stamping', v.join(' / '));
+    }
     await shot(page, 'tour-grading');
-  }
-  if (t('paper')) {
-    await go(page, `/exam/${ids['9c']}/manual`, 5000);
-    await shot(page, 'tour-paper');
   }
   if (t('results')) {
     await go(page, `/exam/${ids['10b']}/stats`, 6000);
@@ -284,6 +313,17 @@ async function tour() {
     await go(page, '/analytics', 7000);
     await scrollTo(page, page.getByText(/Schwierigkeits- & Fairnessvergleich/), 20);
     await shot(page, 'tour-analytics-variants');
+  }
+  if (t('variant-diff')) {
+    await go(page, '/exercises');
+    await page.getByRole('heading', { name: 'Binärzahlen umrechnen', level: 3 }).click();
+    await page.waitForTimeout(1500);
+    await page.getByRole('button', { name: /^Bearbeiten$/ }).first().locator('xpath=following-sibling::*[1]').click();
+    await page.waitForTimeout(800);
+    await page.getByText('LaTeX-Diff vergleichen').first().click();
+    await page.waitForTimeout(3000);
+    await shot(page, 'tour-variant-diff');
+    await page.keyboard.press('Escape');
   }
   if (t('library')) {
     await go(page, '/exercises');
@@ -301,6 +341,14 @@ async function tour() {
     await item.getByRole('button', { name: /Element überprüfen/ }).first().click();
     await c.page.waitForTimeout(15000);
     await shot(c.page, 'tour-mc-review');
+    await c.ctx.close();
+  }
+  if (t('paper')) {
+    // Narrow window: the points column holds one number.
+    const c = await open({ profile: 'berger', width: 900, height: 800 });
+    await login(c.page, 'berger');
+    await go(c.page, `/exam/${ids['9c']}/manual`, 5000);
+    await shot(c.page, 'tour-paper');
     await c.ctx.close();
   }
   if (t('proposal')) {

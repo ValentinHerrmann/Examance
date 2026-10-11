@@ -24,6 +24,8 @@ Results: *10b* (26 pupils, Gruppe A) and *10a* (25 pupils, Gruppe B, weaker on t
 
 `./setup.sh --keep` reuses the current database; each seeding step records its progress in `.state/progress.json` and skips what is done. `node capture.mjs grading results` retakes single screenshots; `python assets.py` re-crops them.
 
+The demo exercises put `\BE` inside their solutions (checkmark per scored part). The student sheet counts those only with the `\LSG` fix from PR #84; without it the score boxes read "/ 0".
+
 ## Files
 
 | File | Does |
@@ -35,6 +37,7 @@ Results: *10b* (26 pupils, Gruppe A) and *10a* (25 pupils, Gruppe B, weaker on t
 | `mkpaper.py` | Spreadsheet for the paper-graded class |
 | `seed-results.mjs` | Scan import, grading, showcase annotations, Excel paste |
 | `capture.mjs`, `assets.py` | Dark-theme screenshots and crops (`node capture.mjs tour-…` for the 1280 px UI tour set) |
+| `relatex.mjs "<name>[|<variant>]" …` | Pushes changed exercise LaTeX from `data/library.json` into an already seeded instance |
 | `showcase.mjs <raw> <hash>` | Swaps the MC showcase booklet (`showcase` in `data/classes.json`; `mkscans.py` prints both prefixes) into an already seeded instance |
 
 Never point these scripts at a real server: `reset.sh` drops the local database.
