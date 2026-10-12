@@ -203,7 +203,7 @@
     kind: 'exam',
     idOf: (exam) => exam.id,
     titleOf: (exam) => exam.title || translate('dashboard.examList.untitledExam'),
-    compile: async (exam, onStatus) => {
+    compile: async (exam, onStatus, onAngabe) => {
       const key = get(sessionStore).sessionKey;
       const ctx = await loadExamCompileContext(exam.id, key);
       if (!ctx) throw new Error(translate('exam.page.examNotFoundOrDeleted'));
@@ -212,6 +212,7 @@
         examItems: buildExamItems(ctx.exercises, ctx.mcGroups),
         key,
         onStatus,
+        onAngabe,
       });
     },
   });

@@ -10,6 +10,7 @@ export const common: Translations['common'] = {
     preview: 'Preview',
     loadFailedShort: 'Could not be loaded.',
     previewCompiling: 'Compiling PDF…',
+    previewCompilingSolution: 'Solution is still compiling…',
     previewNoneTitle: 'No preview available',
     previewNoneText: 'There is no compiled PDF yet. Compile and show it now?',
     previewCompile: 'Compile',

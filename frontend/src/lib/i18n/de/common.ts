@@ -8,6 +8,7 @@ export const common = {
     preview: 'Vorschau',
     loadFailedShort: 'Konnte nicht geladen werden.',
     previewCompiling: 'PDF wird kompiliert…',
+    previewCompilingSolution: 'Lösung wird noch kompiliert…',
     previewNoneTitle: 'Keine Vorschau vorhanden',
     previewNoneText: 'Es gibt noch kein kompiliertes PDF. Jetzt kompilieren und anzeigen?',
     previewCompile: 'Kompilieren',

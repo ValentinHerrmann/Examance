@@ -10,6 +10,8 @@
     loesungUrl?: string | null;
     /** Shown while a compile is running. */
     busy?: boolean;
+    /** The Angabe is shown while the Lösung still compiles. */
+    loesungPending?: boolean;
     notice?: string;
     error?: string;
     onClose: () => void;
@@ -21,6 +23,7 @@
     angabeUrl = null,
     loesungUrl = null,
     busy = false,
+    loesungPending = false,
     notice = "",
     error = "",
     onClose
@@ -39,6 +42,12 @@
       <span>{notice || $t("common.previewCompiling")}</span>
     </div>
   {:else}
+    {#if loesungPending}
+      <div class="mb-2 flex items-center gap-2 text-sm text-muted">
+        <Spinner />
+        <span>{$t("common.previewCompilingSolution")}</span>
+      </div>
+    {/if}
     <DualPdfPreview
       previewPdfUrl={angabeUrl}
       previewSolutionPdfUrl={loesungUrl}

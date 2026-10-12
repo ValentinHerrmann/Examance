@@ -103,6 +103,8 @@ export interface ExamPreviewInput {
   examItems: ExamItemRef[];
   key: CryptoKey | null;
   onStatus?: (status: string) => void;
+  /** Called as soon as the Angabe is ready, before the Lösung compile starts. */
+  onAngabe?: (angabe: CompileResult) => void;
 }
 
 export interface ExamPreviewResult {
@@ -135,6 +137,7 @@ export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamP
     false,
     opts
   );
+  input.onAngabe?.(angabe);
   const loesung = await compileWithCache(
     { kind: "exam", id: exam.id, variant: "loesung" },
     buildExamLatex(exam, inputs, "sans,punkte,antworten"),

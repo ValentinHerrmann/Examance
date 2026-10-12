@@ -331,6 +331,7 @@
   async function handlePreviewExercise() {
     isPreviewLoading = true;
     errorMsg = "";
+    let angabeShown = false;
     try {
       const res = await compileExercisePreview({
         cacheId: editingExercise?.id || resourceStagingId,
@@ -339,10 +340,18 @@
         resourceOwnerId: resourceStagingId,
         staged: true,
         useLocal: $effectiveLatexStore === "local",
-        key: get(sessionStore).sessionKey
+        key: get(sessionStore).sessionKey,
+        onAngabe: (angabe) => {
+          if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+          previewPdfUrl = pdfBytesToUrl(angabe.pdfBytes);
+          angabeShown = true;
+          showAngabePreview = true;
+        }
       });
-      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
-      previewPdfUrl = pdfBytesToUrl(res.angabe.pdfBytes);
+      if (!angabeShown) {
+        if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+        previewPdfUrl = pdfBytesToUrl(res.angabe.pdfBytes);
+      }
       if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
       previewSolutionPdfUrl = pdfBytesToUrl(res.loesung.pdfBytes);
 

@@ -227,6 +227,42 @@ async function fetchAdditionalFiles(): Promise<{ path: string; content: Uint8Arr
   return filesArrays.flat();
 }
 
+const AUX_EXTENSIONS = ['.aux', '.toc', '.out'];
+const MAX_TEX_RUNS = 4;
+
+/**
+ * busytex's own rerun loop always does 4 XeTeX runs (its `rerunfilecheck` pattern matches whenever hyperref loads the
+ * package), ~3.5 s each. We run single passes (`rerun: false`) and feed the previous run's aux files back until they stop
+ * changing: usually 2 runs (Schulaufgabe.sty passes each task's score to the next run through the aux file).
+ */
+async function compileUntilStable(
+  engine: XeLatex,
+  activeRunner: BusyTexRunner | null,
+  input: string,
+  baseFiles: { path: string; content: Uint8Array }[]
+) {
+  let aux: { path: string; content: Uint8Array }[] = [];
+  let result = await engine.compile({ input, additionalFiles: baseFiles, rerun: false });
+  for (let run = 1; run < MAX_TEX_RUNS && result.success && activeRunner; run++) {
+    const next = (await activeRunner.readProjectFiles())
+      .filter((f) => AUX_EXTENSIONS.some((ext) => f.path.endsWith(`main${ext}`)))
+      .map((f) => ({ path: f.path.split('/').pop() as string, content: f.content as Uint8Array }));
+    if (run > 1 && sameFiles(aux, next)) break;
+    aux = next;
+    result = await engine.compile({ input, additionalFiles: [...baseFiles, ...aux], rerun: false });
+  }
+  return result;
+}
+
+function sameFiles(a: { path: string; content: Uint8Array }[], b: { path: string; content: Uint8Array }[]): boolean {
+  if (a.length !== b.length) return false;
+  const byPath = new Map(a.map((f) => [f.path, f.content]));
+  return b.every((f) => {
+    const other = byPath.get(f.path);
+    return !!other && other.length === f.content.length && other.every((v, i) => v === f.content[i]);
+  });
+}
+
 function resetRunner() {
   if (runner) {
     try {
@@ -357,7 +393,8 @@ self.onmessage = (e: MessageEvent) => {
         throw new Error("XeLatex engine failed to initialize");
       }
 
-      const additionalFiles = await loadAdditionalFiles();
+      // A copy: the loaded list is cached for the worker's life, resources must not leak into later compiles.
+      const additionalFiles = [...(await loadAdditionalFiles())];
 
       // Teacher-uploaded resources go in flat, after the bundled assets, and
       // never over one: a name that would shadow an asset is already refused
@@ -371,10 +408,7 @@ self.onmessage = (e: MessageEvent) => {
         additionalFiles.push({ path: res.filename, content: res.content });
       }
 
-      return xelatex.compile({
-        input: latexSource,
-        additionalFiles
-      });
+      return compileUntilStable(xelatex, runner, latexSource, additionalFiles);
     };
 
     try {
