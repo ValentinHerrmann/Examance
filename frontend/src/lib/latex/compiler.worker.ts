@@ -93,46 +93,16 @@ async function ensureAssetCacheIsFresh(): Promise<void> {
 
 // --- Runner lifecycle ----------------------------------------------------
 
-/**
- * Downloads the engine files ourselves, counting real network bytes for the progress bar (busytex only reports package
- * counts). They land in the HTTP cache (immutable), which busytex's own fetches then hit. Failures are ignored: busytex
- * retries the download itself.
- */
-async function prefetchEngineFiles(): Promise<void> {
+/** Sum of the compressed chunk sizes: the total scripts/fetch-interceptor.js reports, which tells its byte messages apart from emscripten's. */
+async function compressedEngineBytes(): Promise<number> {
   const text = await fetchAssetFingerprint();
-  if (!text) return;
-  let urls: string[] = [];
-  let total = 0;
+  if (!text) return 0;
   try {
-    const manifest = JSON.parse(text) as Record<string, { chunks?: string[]; gzippedSize?: number }>;
-    const wanted = ['/core/busytex/busytex.wasm', ...packages.map((pkg) => pkg.replace(/\.js$/, '.data'))];
-    for (const key of wanted) {
-      urls.push(...(manifest[key]?.chunks ?? []));
-      total += manifest[key]?.gzippedSize ?? 0;
-    }
+    const manifest = JSON.parse(text) as Record<string, { gzippedSize?: number }>;
+    return Object.values(manifest).reduce((sum, e) => sum + (e?.gzippedSize ?? 0), 0);
   } catch {
-    return;
+    return 0;
   }
-  if (total <= 0) return;
-
-  let loaded = 0;
-  const report = () => self.postMessage({ type: 'download', loaded, total });
-  report();
-  const queue = [...urls];
-  const drain = async () => {
-    for (let url = queue.shift(); url; url = queue.shift()) {
-      const res = await fetch(url);
-      if (!res.ok || !res.body) continue;
-      const reader = res.body.getReader();
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        loaded += value.byteLength;
-        report();
-      }
-    }
-  };
-  await Promise.all([drain(), drain(), drain()]);
 }
 
 async function initRunner(onStatus: (status: string) => void) {
@@ -158,26 +128,28 @@ async function initRunner(onStatus: (status: string) => void) {
       onStatus('compiling');
     }
 
-    if (!allCached) {
-      try {
-        await prefetchEngineFiles();
-      } catch (err) {
-        console.warn('[CompilerWorker] Could not prefetch the engine files for the progress bar:', err);
-      } finally {
-        self.postMessage({ type: 'download', done: true });
-      }
-    }
-
+    // Progress for the loading dialog (store: lib/latex/downloadProgress.ts). The nested busytex worker reports bytes via
+    // scripts/fetch-interceptor.js as "Downloading data... (loaded/total)" with the manifest's compressed total; emscripten's
+    // own lines of that shape carry uncompressed per-package totals and are ignored. Package steps arrive as "Preparing... (n/m)".
+    // The dialog stays up until initialize() is through, also when everything is cached.
+    const compressedTotal = await compressedEngineBytes();
     runner = new BusyTexRunner({
       busytexBasePath: '/core/busytex',
-      preloadDataPackages: packages
+      preloadDataPackages: packages,
+      onDownloadProgress: ({ loaded, total }) => {
+        if (total === compressedTotal) self.postMessage({ type: 'download', phase: 'download', loaded, total });
+        else if (total > 1 && total < 1000) self.postMessage({ type: 'download', phase: 'prepare', step: loaded, steps: total });
+      }
     });
+    self.postMessage({ type: 'download', phase: 'prepare', step: 0, steps: 0 });
     try {
       await runner.initialize();
     } catch (err) {
       // A half-built runner would make the next call fail with "failed to initialize" instead of retrying.
       resetRunner();
       throw err;
+    } finally {
+      self.postMessage({ type: 'download', done: true });
     }
     xelatex = new XeLatex(runner);
   } else {

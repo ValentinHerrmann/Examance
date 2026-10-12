@@ -5,6 +5,7 @@
  * Falls back to server POST /api/v1/compile/latex if WASM compiler is unavailable.
  */
 
+import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
 import { translate } from '#lib/i18n';
 import { featureEnabled } from '#lib/stores/capabilities';
@@ -36,13 +37,32 @@ let compileQueue: Promise<any> = Promise.resolve();
 /** How long a single compile may run before we stop waiting for the worker. */
 const COMPILE_TIMEOUT_MS = 5 * 60 * 1000;
 
+function currentIsDownload(): boolean {
+  return get(latexDownloadProgress)?.phase === 'download';
+}
+
 function acquireWorker(): Worker {
   if (!worker) {
     const w = new Worker(new URL('./compiler.worker.ts', import.meta.url), { type: 'module' });
     // Download progress is not tied to a compile id, so it is handled here for the worker's whole life.
+    let bytesDone = false;
     w.addEventListener('message', (e: MessageEvent) => {
-      if (e.data?.type !== 'download') return;
-      latexDownloadProgress.set(e.data.done ? null : { loaded: e.data.loaded, total: e.data.total });
+      const m = e.data;
+      if (m?.type !== 'download') return;
+      if (m.done) {
+        bytesDone = false;
+        latexDownloadProgress.set(null);
+      } else if (m.phase === 'download') {
+        // Bytes lead while they are still coming in; after the last one the dialog moves on to unpacking.
+        bytesDone = m.loaded >= m.total;
+        latexDownloadProgress.set(
+          bytesDone
+            ? { phase: 'prepare', step: 0, steps: 0 }
+            : { phase: 'download', loaded: m.loaded, total: m.total }
+        );
+      } else if (m.steps === 0 || bytesDone || !currentIsDownload()) {
+        latexDownloadProgress.set({ phase: 'prepare', step: m.step, steps: m.steps });
+      }
     });
     worker = w;
   }
