@@ -5,14 +5,13 @@
  * Falls back to server POST /api/v1/compile/latex if WASM compiler is unavailable.
  */
 
-import { get } from 'svelte/store';
 import { api } from '#lib/api/client';
 import { translate } from '#lib/i18n';
 import { featureEnabled } from '#lib/stores/capabilities';
 import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import { mergeResources, type LatexResourceFile } from './resources';
 import type { CompileLogo } from './logo';
-import { latexDownloadProgress } from './downloadProgress';
+import { latexDownloadProgress, type LatexDownloadProgress } from './downloadProgress';
 
 export interface CompileResult {
   pdfBytes: Uint8Array;
@@ -37,8 +36,18 @@ let compileQueue: Promise<any> = Promise.resolve();
 /** How long a single compile may run before we stop waiting for the worker. */
 const COMPILE_TIMEOUT_MS = 5 * 60 * 1000;
 
-function currentIsDownload(): boolean {
-  return get(latexDownloadProgress)?.phase === 'download';
+/**
+ * What the engine is doing while it boots, and how many compiles wait for it. The dialog shows for a real download (always)
+ * and for unpacking only while a compile is actually waiting: a cached engine that boots in the background after a page load
+ * is not worth interrupting anyone for.
+ */
+let engineLoad: LatexDownloadProgress | null = null;
+let waitingCompiles = 0;
+
+function publishLoad(): void {
+  latexDownloadProgress.set(
+    engineLoad && (engineLoad.phase === 'download' || waitingCompiles > 0) ? engineLoad : null
+  );
 }
 
 function acquireWorker(): Worker {
@@ -51,18 +60,17 @@ function acquireWorker(): Worker {
       if (m?.type !== 'download') return;
       if (m.done) {
         bytesDone = false;
-        latexDownloadProgress.set(null);
+        engineLoad = null;
       } else if (m.phase === 'download') {
         // Bytes lead while they are still coming in; after the last one the dialog moves on to unpacking.
         bytesDone = m.loaded >= m.total;
-        latexDownloadProgress.set(
-          bytesDone
-            ? { phase: 'prepare', step: 0, steps: 0 }
-            : { phase: 'download', loaded: m.loaded, total: m.total }
-        );
-      } else if (m.steps === 0 || bytesDone || !currentIsDownload()) {
-        latexDownloadProgress.set({ phase: 'prepare', step: m.step, steps: m.steps });
+        engineLoad = bytesDone
+          ? { phase: 'prepare', step: 0, steps: 0 }
+          : { phase: 'download', loaded: m.loaded, total: m.total };
+      } else if (m.steps === 0 || bytesDone || engineLoad?.phase !== 'download') {
+        engineLoad = { phase: 'prepare', step: m.step, steps: m.steps };
       }
+      publishLoad();
     });
     worker = w;
   }
@@ -78,7 +86,8 @@ function discardWorker(reason = 'unspecified'): void {
     // Already gone; nothing to do.
   }
   worker = null;
-  latexDownloadProgress.set(null);
+  engineLoad = null;
+  publishLoad();
 }
 
 /** The worker already asked to preload; keyed on the instance so a replaced worker is preloaded again. */
@@ -173,8 +182,16 @@ async function compileLocalWasm(
     });
   };
 
+  // A waiting compile makes an engine that is still unpacking visible in the loading dialog.
+  waitingCompiles++;
+  publishLoad();
   const nextQueue = compileQueue.then(runTask, runTask);
   compileQueue = nextQueue;
+  const done = () => {
+    waitingCompiles--;
+    publishLoad();
+  };
+  nextQueue.then(done, done);
   return nextQueue;
 }
 
