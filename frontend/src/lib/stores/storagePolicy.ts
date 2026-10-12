@@ -47,10 +47,13 @@ export function disarmStorageModeSwitch(): void {
   activeSwitchToken = null;
 }
 
-/** No storage mode by default: every account chooses one explicitly. */
+/**
+ * No storage mode by default: every account chooses one explicitly. The LaTeX default is `server`; accounts the admin did
+ * not allow server LaTeX fall back to local via `effectiveLatexCompilation()`. Only an explicit choice is persisted.
+ */
 export const DEFAULT_POLICY: StoragePolicy = {
     storageMode: null,
-    latexCompilation: 'local',
+    latexCompilation: 'server',
 };
 
 function modeLabel(mode: StorageMode | null): string {
