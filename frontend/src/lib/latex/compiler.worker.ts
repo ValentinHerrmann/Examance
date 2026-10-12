@@ -93,19 +93,46 @@ async function ensureAssetCacheIsFresh(): Promise<void> {
 
 // --- Runner lifecycle ----------------------------------------------------
 
-/** Uncompressed bytes of the TeX Live packages, i.e. the unit busytex counts its download progress in. */
-async function expectedDownloadBytes(): Promise<number> {
+/**
+ * Downloads the engine files ourselves, counting real network bytes for the progress bar (busytex only reports package
+ * counts). They land in the HTTP cache (immutable), which busytex's own fetches then hit. Failures are ignored: busytex
+ * retries the download itself.
+ */
+async function prefetchEngineFiles(): Promise<void> {
   const text = await fetchAssetFingerprint();
-  if (!text) return 0;
+  if (!text) return;
+  let urls: string[] = [];
+  let total = 0;
   try {
-    const manifest = JSON.parse(text) as Record<string, { originalSize?: number }>;
-    return packages.reduce(
-      (sum, pkg) => sum + (manifest[pkg.replace(/\.js$/, '.data')]?.originalSize ?? 0),
-      0
-    );
+    const manifest = JSON.parse(text) as Record<string, { chunks?: string[]; gzippedSize?: number }>;
+    const wanted = ['/core/busytex/busytex.wasm', ...packages.map((pkg) => pkg.replace(/\.js$/, '.data'))];
+    for (const key of wanted) {
+      urls.push(...(manifest[key]?.chunks ?? []));
+      total += manifest[key]?.gzippedSize ?? 0;
+    }
   } catch {
-    return 0;
+    return;
   }
+  if (total <= 0) return;
+
+  let loaded = 0;
+  const report = () => self.postMessage({ type: 'download', loaded, total });
+  report();
+  const queue = [...urls];
+  const drain = async () => {
+    for (let url = queue.shift(); url; url = queue.shift()) {
+      const res = await fetch(url);
+      if (!res.ok || !res.body) continue;
+      const reader = res.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        loaded += value.byteLength;
+        report();
+      }
+    }
+  };
+  await Promise.all([drain(), drain(), drain()]);
 }
 
 async function initRunner(onStatus: (status: string) => void) {
@@ -131,26 +158,23 @@ async function initRunner(onStatus: (status: string) => void) {
       onStatus('compiling');
     }
 
-    // Absolute byte counts for the progress bar (store: lib/latex/downloadProgress.ts). busytex only learns a
-    // package's size when it starts, so its own total grows; the manifest total is known up front.
-    const expected = allCached ? 0 : await expectedDownloadBytes();
-    const report = (loaded: number, total: number) =>
-      self.postMessage({ type: 'download', loaded, total: Math.max(total, expected) });
-    if (!allCached) report(0, expected);
+    if (!allCached) {
+      try {
+        await prefetchEngineFiles();
+      } catch (err) {
+        console.warn('[CompilerWorker] Could not prefetch the engine files for the progress bar:', err);
+      } finally {
+        self.postMessage({ type: 'download', done: true });
+      }
+    }
 
     runner = new BusyTexRunner({
       busytexBasePath: '/core/busytex',
-      preloadDataPackages: packages,
-      onDownloadProgress: ({ loaded, total }) => {
-        // busytex's final "All downloads complete." message is 1/1; the done signal below ends the bar.
-        if (total > 1) report(loaded, total);
-      }
+      preloadDataPackages: packages
     });
     try {
       await runner.initialize();
-      if (!allCached) self.postMessage({ type: 'download', done: true });
     } catch (err) {
-      if (!allCached) self.postMessage({ type: 'download', done: true });
       // A half-built runner would make the next call fail with "failed to initialize" instead of retrying.
       resetRunner();
       throw err;

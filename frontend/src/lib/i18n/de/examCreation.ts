@@ -12,7 +12,7 @@ export const examCreation = {
     },
     status: {
         compilingPdf: 'PDF wird kompiliert…',
-        loadingLocalCompiler: 'Lokaler LaTeX-Compiler wird geladen… (Erstmaliger Download von ca. 32MB, bitte warten)',
+        loadingLocalCompiler: 'Lokaler LaTeX-Compiler wird geladen… (Einmaliger Download von ca. 500 MB, Fortschritt siehe unten links)',
         creatingExam: 'Prüfung wird erstellt…',
     },
     submit: {
