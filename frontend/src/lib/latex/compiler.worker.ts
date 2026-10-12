@@ -133,7 +133,7 @@ async function initRunner(onStatus: (status: string) => void) {
     // own lines of that shape carry uncompressed per-package totals and are ignored. Package steps arrive as "Preparing... (n/m)".
     // The dialog stays up until initialize() is through, also when everything is cached.
     const compressedTotal = await compressedEngineBytes();
-    console.info('[CompilerWorker] creating a new engine (loading dialog shows)');
+    console.info(`[CompilerWorker] creating a new engine (TeX Live packages cached: ${allCached})`);
     runner = new BusyTexRunner({
       busytexBasePath: '/core/busytex',
       preloadDataPackages: packages,
