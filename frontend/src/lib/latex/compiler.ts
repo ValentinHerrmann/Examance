@@ -11,6 +11,7 @@ import { featureEnabled } from '#lib/stores/capabilities';
 import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import { mergeResources, type LatexResourceFile } from './resources';
 import type { CompileLogo } from './logo';
+import { latexDownloadProgress } from './downloadProgress';
 
 export interface CompileResult {
   pdfBytes: Uint8Array;
@@ -36,9 +37,15 @@ let compileQueue: Promise<any> = Promise.resolve();
 const COMPILE_TIMEOUT_MS = 5 * 60 * 1000;
 
 function acquireWorker(): Worker {
-  worker ??= new Worker(new URL('./compiler.worker.ts', import.meta.url), {
-    type: 'module'
-  });
+  if (!worker) {
+    const w = new Worker(new URL('./compiler.worker.ts', import.meta.url), { type: 'module' });
+    // Download progress is not tied to a compile id, so it is handled here for the worker's whole life.
+    w.addEventListener('message', (e: MessageEvent) => {
+      if (e.data?.type !== 'download') return;
+      latexDownloadProgress.set(e.data.done ? null : { loaded: e.data.loaded, total: e.data.total });
+    });
+    worker = w;
+  }
   return worker;
 }
 
@@ -50,6 +57,7 @@ function discardWorker(): void {
     // Already gone; nothing to do.
   }
   worker = null;
+  latexDownloadProgress.set(null);
 }
 
 /** The worker already asked to preload; keyed on the instance so a replaced worker is preloaded again. */

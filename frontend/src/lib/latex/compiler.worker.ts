@@ -93,6 +93,21 @@ async function ensureAssetCacheIsFresh(): Promise<void> {
 
 // --- Runner lifecycle ----------------------------------------------------
 
+/** Uncompressed bytes of the TeX Live packages, i.e. the unit busytex counts its download progress in. */
+async function expectedDownloadBytes(): Promise<number> {
+  const text = await fetchAssetFingerprint();
+  if (!text) return 0;
+  try {
+    const manifest = JSON.parse(text) as Record<string, { originalSize?: number }>;
+    return packages.reduce(
+      (sum, pkg) => sum + (manifest[pkg.replace(/\.js$/, '.data')]?.originalSize ?? 0),
+      0
+    );
+  } catch {
+    return 0;
+  }
+}
+
 async function initRunner(onStatus: (status: string) => void) {
   if (!runner) {
     await ensureAssetCacheIsFresh();
@@ -116,13 +131,26 @@ async function initRunner(onStatus: (status: string) => void) {
       onStatus('compiling');
     }
 
+    // Absolute byte counts for the progress bar (store: lib/latex/downloadProgress.ts). busytex only learns a
+    // package's size when it starts, so its own total grows; the manifest total is known up front.
+    const expected = allCached ? 0 : await expectedDownloadBytes();
+    const report = (loaded: number, total: number) =>
+      self.postMessage({ type: 'download', loaded, total: Math.max(total, expected) });
+    if (!allCached) report(0, expected);
+
     runner = new BusyTexRunner({
       busytexBasePath: '/core/busytex',
-      preloadDataPackages: packages
+      preloadDataPackages: packages,
+      onDownloadProgress: ({ loaded, total }) => {
+        // busytex's final "All downloads complete." message is 1/1; the done signal below ends the bar.
+        if (total > 1) report(loaded, total);
+      }
     });
     try {
       await runner.initialize();
+      if (!allCached) self.postMessage({ type: 'download', done: true });
     } catch (err) {
+      if (!allCached) self.postMessage({ type: 'download', done: true });
       // A half-built runner would make the next call fail with "failed to initialize" instead of retrying.
       resetRunner();
       throw err;

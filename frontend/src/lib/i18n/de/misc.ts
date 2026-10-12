@@ -27,6 +27,9 @@ export const misc = {
     },
 
     compiler: {
+        downloadTitle: 'LaTeX-Paket wird geladen',
+        downloadHint: 'Einmalig; danach liegt es im Browser-Cache und Klausuren lassen sich lokal kompilieren.',
+        downloadBytes: '{loaded} von {total}',
         localFailedTryServer: 'Die lokale LaTeX-Kompilierung ist fehlgeschlagen. Möchten Sie stattdessen auf dem Server kompilieren?',
     },
 
