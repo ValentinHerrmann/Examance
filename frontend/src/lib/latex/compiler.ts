@@ -37,17 +37,18 @@ let compileQueue: Promise<any> = Promise.resolve();
 const COMPILE_TIMEOUT_MS = 5 * 60 * 1000;
 
 /**
- * What the engine is doing while it boots, and how many compiles wait for it. The dialog shows for a real download (always)
- * and for unpacking only while a compile is actually waiting: a cached engine that boots in the background after a page load
- * is not worth interrupting anyone for.
+ * What the engine is doing while it boots, and how many compiles wait for it. The dialog shows for a real download and
+ * whenever a compile is waiting; a cached engine that boots in the background after a page load is not worth interrupting
+ * anyone for.
  */
 let engineLoad: LatexDownloadProgress | null = null;
+/** The TeX Live packages were already in the browser's cache: the boot still streams them, but nothing is downloaded. */
+let engineCached = false;
 let waitingCompiles = 0;
 
 function publishLoad(): void {
-  latexDownloadProgress.set(
-    engineLoad && (engineLoad.phase === 'download' || waitingCompiles > 0) ? engineLoad : null
-  );
+  const visible = engineLoad && (waitingCompiles > 0 || (engineLoad.phase === 'download' && !engineCached));
+  latexDownloadProgress.set(visible ? engineLoad : null);
 }
 
 function acquireWorker(): Worker {
@@ -58,6 +59,7 @@ function acquireWorker(): Worker {
     w.addEventListener('message', (e: MessageEvent) => {
       const m = e.data;
       if (m?.type !== 'download') return;
+      if (typeof m.cached === 'boolean') engineCached = m.cached;
       if (m.done) {
         bytesDone = false;
         engineLoad = null;

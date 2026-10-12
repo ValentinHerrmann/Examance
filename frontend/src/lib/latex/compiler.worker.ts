@@ -138,11 +138,11 @@ async function initRunner(onStatus: (status: string) => void) {
       busytexBasePath: '/core/busytex',
       preloadDataPackages: packages,
       onDownloadProgress: ({ loaded, total }) => {
-        if (total === compressedTotal) self.postMessage({ type: 'download', phase: 'download', loaded, total });
-        else if (total > 1 && total < 1000) self.postMessage({ type: 'download', phase: 'prepare', step: loaded, steps: total });
+        if (total === compressedTotal) self.postMessage({ type: 'download', phase: 'download', loaded, total, cached: allCached });
+        else if (total > 1 && total < 1000) self.postMessage({ type: 'download', phase: 'prepare', step: loaded, steps: total, cached: allCached });
       }
     });
-    self.postMessage({ type: 'download', phase: 'prepare', step: 0, steps: 0 });
+    self.postMessage({ type: 'download', phase: 'prepare', step: 0, steps: 0, cached: allCached });
     try {
       await runner.initialize();
     } catch (err) {
