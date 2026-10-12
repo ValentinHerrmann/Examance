@@ -133,6 +133,7 @@ async function initRunner(onStatus: (status: string) => void) {
     // own lines of that shape carry uncompressed per-package totals and are ignored. Package steps arrive as "Preparing... (n/m)".
     // The dialog stays up until initialize() is through, also when everything is cached.
     const compressedTotal = await compressedEngineBytes();
+    console.info('[CompilerWorker] creating a new engine (loading dialog shows)');
     runner = new BusyTexRunner({
       busytexBasePath: '/core/busytex',
       preloadDataPackages: packages,
@@ -146,7 +147,7 @@ async function initRunner(onStatus: (status: string) => void) {
       await runner.initialize();
     } catch (err) {
       // A half-built runner would make the next call fail with "failed to initialize" instead of retrying.
-      resetRunner();
+      resetRunner(`initialize failed: ${err instanceof Error ? err.message : err}`);
       throw err;
     } finally {
       self.postMessage({ type: 'download', done: true });
@@ -235,8 +236,9 @@ function sameFiles(a: { path: string; content: Uint8Array }[], b: { path: string
   });
 }
 
-function resetRunner() {
+function resetRunner(reason = 'unspecified') {
   if (runner) {
+    console.info(`[CompilerWorker] engine reset: ${reason}`);
     try {
       runner.terminate();
     } catch {}
@@ -316,7 +318,7 @@ export function describeCompileFailure(result: {
 }
 
 async function recoverFromPossiblyCorruptedCache(): Promise<void> {
-  resetRunner();
+  resetRunner('cache recovery after a missing bundled package');
   try {
     await clearAllPackageCache();
   } catch (err) {
@@ -437,7 +439,7 @@ self.onmessage = (e: MessageEvent) => {
       // A thrown error is different: the engine itself is in an unknown state, so reset. Required for
       // texlyre-busytex's 180 s timeout, which rejects without stopping its worker: that worker's late
       // answer would otherwise resolve the next compile.
-      resetRunner();
+      resetRunner(`compile threw: ${error?.message || error}`);
       self.postMessage({ id, success: false, error: error.message || "Unknown error in compilation worker" });
     }
   });

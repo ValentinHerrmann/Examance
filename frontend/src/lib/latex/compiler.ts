@@ -70,7 +70,8 @@ function acquireWorker(): Worker {
 }
 
 /** Drops the worker so the next compile starts a fresh one. */
-function discardWorker(): void {
+function discardWorker(reason = 'unspecified'): void {
+  console.info(`[compiler] compiler worker discarded: ${reason}`);
   try {
     worker?.terminate();
   } catch {
@@ -96,7 +97,7 @@ export function preloadLocalEngine(): void {
     w.addEventListener(
       'error',
       () => {
-        if (worker === w) discardWorker();
+        if (worker === w) discardWorker('worker error before any compile');
       },
       { once: true }
     );
@@ -155,12 +156,12 @@ async function compileLocalWasm(
 
       const onError = (event: ErrorEvent) => {
         // The worker itself failed, so it is not reusable.
-        discardWorker();
+        discardWorker(`worker error during a compile: ${event.message}`);
         settle(() => reject(new Error(event.message || 'Local compilation worker crashed')));
       };
 
       const timer = setTimeout(() => {
-        discardWorker();
+        discardWorker('compile timeout');
         settle(() =>
           reject(new Error('Local compilation timed out. The document may be too large.'))
         );
