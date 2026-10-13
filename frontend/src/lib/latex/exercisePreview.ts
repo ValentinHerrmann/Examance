@@ -37,6 +37,8 @@ export interface ExercisePreviewInput {
   useLocal: boolean;
   key: CryptoKey | null;
   onStatus?: (status: string) => void;
+  /** Called as soon as the Angabe is ready, before the Lösung compile starts. */
+  onAngabe?: (angabe: CompileResult) => void;
 }
 
 export interface ExercisePreviewResult {
@@ -64,6 +66,7 @@ export async function compileExercisePreview(input: ExercisePreviewInput): Promi
     { kind: "exercise", id: input.cacheId, variant: "angabe" },
     angabeTex, input.useLocal, input.onStatus, false, opts
   );
+  input.onAngabe?.(angabe);
   const loesung = await compileWithCache(
     { kind: "exercise", id: input.cacheId, variant: "loesung" },
     loesungTex, input.useLocal, undefined, false, opts

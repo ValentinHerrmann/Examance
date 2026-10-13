@@ -181,7 +181,7 @@
     kind: "exercise",
     idOf: (ex) => ex.id!,
     titleOf: (ex) => ex.name || translate("exercises.untitled"),
-    compile: (ex, onStatus) =>
+    compile: (ex, onStatus, onAngabe) =>
       compileExercisePreview({
         cacheId: ex.id!,
         name: ex.name ?? "",
@@ -191,6 +191,7 @@
         useLocal: $effectiveLatexStore === "local",
         key: get(sessionStore).sessionKey,
         onStatus,
+        onAngabe,
       }),
   });
 

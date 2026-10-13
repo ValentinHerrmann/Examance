@@ -25,6 +25,11 @@ export const misc: Translations['misc'] = {
     },
 
     compiler: {
+        downloadTitle: 'Downloading LaTeX engine',
+        downloadHint: 'One-time download; afterwards it stays in the browser cache and exams compile locally.',
+        downloadBytes: '{loaded} of {total}',
+        prepare: 'Unpacking…',
+        prepareStep: 'Unpacking package {step} of {steps}…',
         localFailedTryServer: 'Local LaTeX compilation failed. Do you want to try compiling on the server?',
     },
 

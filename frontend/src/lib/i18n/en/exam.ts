@@ -27,7 +27,7 @@ export const exam: Translations['exam'] = {
             invalidExercisesError: 'OMR preparation failed: MC exercise(s) {names} do not contain \\multi or \\Lmulti option bubbles in their LaTeX body. Please check and edit the exercise options.',
             compilingBlank: 'Compiling blank exam…',
             loginRequired: 'Please log in to compile LaTeX on the server.',
-            loadingCompiler: 'Loading local LaTeX compiler… (Downloading ~32MB on first load, please wait)',
+            loadingCompiler: 'Loading local LaTeX compiler… (One-time download of about 500 MB, progress shown at the bottom left)',
             extractingBubbles: 'Extracting bubble positions…',
             noBubblesError: 'OMR preparation failed: the compiled exam has no MC bubble markers at all. The LaTeX MC/OMR macros likely failed to render — check that the exam actually contains MC exercises and that sty/Loesung.sty is up to date.',
             shortFiducialsError: 'OMR preparation failed: page(s) {pages} have fewer than 4 corner fiducial markers (needed for scan alignment). The LaTeX fiducial macros likely failed to render on those pages — re-check sty/Schulaufgabe.sty and re-run Prepare OMR.',
@@ -39,7 +39,7 @@ export const exam: Translations['exam'] = {
             staleWarning: 'MC answer key changed since the OMR template was captured — auto-grading may be inaccurate until you refresh the OMR template.',
         },
         preview: {
-            loadingCompiler: 'Loading local LaTeX compiler… (Downloading ~32MB on first load, please wait)',
+            loadingCompiler: 'Loading local LaTeX compiler… (One-time download of about 500 MB, progress shown at the bottom left)',
             compiling: 'Compiling PDF…',
             compilingPreviews: 'Compiling Previews…',
             failed: 'Preview failed: {message}',

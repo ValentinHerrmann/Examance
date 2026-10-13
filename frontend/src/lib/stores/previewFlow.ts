@@ -11,6 +11,8 @@ export interface PreviewState {
   angabeUrl: string | null;
   loesungUrl: string | null;
   busy: boolean;
+  /** The Angabe is shown, the Lösung is still compiling. */
+  loesungPending: boolean;
   notice: string;
   error: string;
 }
@@ -31,7 +33,8 @@ interface PreviewFlowOptions<T> {
   titleOf: (item: T) => string;
   compile: (
     item: T,
-    onStatus: (status: string) => void
+    onStatus: (status: string) => void,
+    onAngabe: (angabe: CompileResult) => void
   ) => Promise<{ angabe: CompileResult; loesung: CompileResult; missingGraphics: string[] }>;
 }
 
@@ -41,6 +44,7 @@ const idle: PreviewState = {
   angabeUrl: null,
   loesungUrl: null,
   busy: false,
+  loesungPending: false,
   notice: "",
   error: "",
 };
@@ -95,20 +99,33 @@ export function createPreviewFlow<T>(options: PreviewFlowOptions<T>): PreviewFlo
       if (item === null) return;
       const mine = ++token;
       set({ phase: "open", busy: true, notice: "", error: "" });
+      // The Angabe is shown as soon as it exists; the Lösung compile (a second full run) follows behind it.
+      let angabeShown = false;
       try {
-        const res = await options.compile(item, (status) => {
-          if (mine !== token) return;
-          set({
-            notice:
-              status === "downloading"
-                ? translate("exam.page.preview.loadingCompiler")
-                : translate("common.previewCompiling"),
-          });
-        });
+        const res = await options.compile(
+          item,
+          (status) => {
+            if (mine !== token) return;
+            set({
+              notice:
+                status === "downloading"
+                  ? translate("exam.page.preview.loadingCompiler")
+                  : translate("common.previewCompiling"),
+            });
+          },
+          (angabe) => {
+            if (mine !== token) return;
+            revokeUrls();
+            angabeShown = true;
+            set({ angabeUrl: pdfBytesToUrl(angabe.pdfBytes), busy: false, loesungPending: true, notice: "" });
+          }
+        );
         if (mine !== token) return;
-        revokeUrls();
+        if (!angabeShown) {
+          revokeUrls();
+          set({ angabeUrl: pdfBytesToUrl(res.angabe.pdfBytes) });
+        }
         set({
-          angabeUrl: pdfBytesToUrl(res.angabe.pdfBytes),
           loesungUrl: pdfBytesToUrl(res.loesung.pdfBytes),
           error: res.missingGraphics.length
             ? translate("common.previewMissingGraphic", { name: res.missingGraphics[0] })
@@ -118,7 +135,7 @@ export function createPreviewFlow<T>(options: PreviewFlowOptions<T>): PreviewFlo
         if (mine !== token) return;
         set({ error: translate("common.previewFailed", { message: err?.message || "" }) });
       } finally {
-        if (mine === token) set({ busy: false, notice: "" });
+        if (mine === token) set({ busy: false, loesungPending: false, notice: "" });
       }
     },
 

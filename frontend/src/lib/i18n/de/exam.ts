@@ -25,7 +25,7 @@ export const exam = {
             invalidExercisesError: 'OMR-Vorbereitung fehlgeschlagen: MC-Aufgabe(n) {names} enthalten keine \\multi- oder \\Lmulti-Antwortblasen im LaTeX-Code. Bitte die Aufgabenoptionen prüfen und bearbeiten.',
             compilingBlank: 'Leere Prüfung wird kompiliert…',
             loginRequired: 'Bitte melden Sie sich an, um LaTeX auf dem Server zu kompilieren.',
-            loadingCompiler: 'Lokaler LaTeX-Compiler wird geladen… (Download von ca. 32 MB beim ersten Laden, bitte warten)',
+            loadingCompiler: 'Lokaler LaTeX-Compiler wird geladen… (Einmaliger Download von ca. 500 MB, Fortschritt siehe unten links)',
             extractingBubbles: 'Positionen der Antwortblasen werden extrahiert…',
             noBubblesError: 'OMR-Vorbereitung fehlgeschlagen: Die kompilierte Prüfung enthält überhaupt keine MC-Antwortblasen-Markierungen. Die LaTeX-MC/OMR-Makros wurden vermutlich nicht korrekt gerendert — bitte prüfen, ob die Prüfung tatsächlich MC-Aufgaben enthält und sty/Loesung.sty aktuell ist.',
             shortFiducialsError: 'OMR-Vorbereitung fehlgeschlagen: Seite(n) {pages} haben weniger als 4 Eck-Passmarken (für die Scan-Ausrichtung erforderlich). Die LaTeX-Passmarken-Makros wurden auf diesen Seiten vermutlich nicht korrekt gerendert — bitte sty/Schulaufgabe.sty prüfen und OMR-Vorbereitung erneut ausführen.',
@@ -37,7 +37,7 @@ export const exam = {
             staleWarning: 'Der MC-Lösungsschlüssel hat sich seit der Erfassung der OMR-Vorlage geändert — die automatische Korrektur kann ungenau sein, bis Sie die OMR-Vorlage aktualisieren.',
         },
         preview: {
-            loadingCompiler: 'Lokaler LaTeX-Compiler wird geladen… (Download von ca. 32 MB beim ersten Laden, bitte warten)',
+            loadingCompiler: 'Lokaler LaTeX-Compiler wird geladen… (Einmaliger Download von ca. 500 MB, Fortschritt siehe unten links)',
             compiling: 'PDF wird kompiliert…',
             compilingPreviews: 'Vorschauen werden kompiliert…',
             failed: 'Vorschau fehlgeschlagen: {message}',

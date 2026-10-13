@@ -14,7 +14,7 @@ export const examCreation: Translations['examCreation'] = {
     },
     status: {
         compilingPdf: 'Compiling PDF...',
-        loadingLocalCompiler: 'Loading local LaTeX compiler... (Downloading ~32MB on first load, please wait)',
+        loadingLocalCompiler: 'Loading local LaTeX compiler... (One-time download of about 500 MB, progress shown at the bottom left)',
         creatingExam: 'Creating Exam...',
     },
     submit: {

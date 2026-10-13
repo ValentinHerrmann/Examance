@@ -32,6 +32,7 @@
   angabeUrl={$flow.angabeUrl}
   loesungUrl={$flow.loesungUrl}
   busy={$flow.busy}
+  loesungPending={$flow.loesungPending}
   notice={$flow.notice}
   error={$flow.error}
   onClose={() => flow.close()}

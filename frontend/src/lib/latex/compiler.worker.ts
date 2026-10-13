@@ -93,6 +93,18 @@ async function ensureAssetCacheIsFresh(): Promise<void> {
 
 // --- Runner lifecycle ----------------------------------------------------
 
+/** Sum of the compressed chunk sizes: the total scripts/fetch-interceptor.js reports, which tells its byte messages apart from emscripten's. */
+async function compressedEngineBytes(): Promise<number> {
+  const text = await fetchAssetFingerprint();
+  if (!text) return 0;
+  try {
+    const manifest = JSON.parse(text) as Record<string, { gzippedSize?: number }>;
+    return Object.values(manifest).reduce((sum, e) => sum + (e?.gzippedSize ?? 0), 0);
+  } catch {
+    return 0;
+  }
+}
+
 async function initRunner(onStatus: (status: string) => void) {
   if (!runner) {
     await ensureAssetCacheIsFresh();
@@ -116,16 +128,29 @@ async function initRunner(onStatus: (status: string) => void) {
       onStatus('compiling');
     }
 
+    // Progress for the loading dialog (store: lib/latex/downloadProgress.ts). The nested busytex worker reports bytes via
+    // scripts/fetch-interceptor.js as "Downloading data... (loaded/total)" with the manifest's compressed total; emscripten's
+    // own lines of that shape carry uncompressed per-package totals and are ignored. Package steps arrive as "Preparing... (n/m)".
+    // The dialog stays up until initialize() is through, also when everything is cached.
+    const compressedTotal = await compressedEngineBytes();
+    console.info(`[CompilerWorker] creating a new engine (TeX Live packages cached: ${allCached})`);
     runner = new BusyTexRunner({
       busytexBasePath: '/core/busytex',
-      preloadDataPackages: packages
+      preloadDataPackages: packages,
+      onDownloadProgress: ({ loaded, total }) => {
+        if (total === compressedTotal) self.postMessage({ type: 'download', phase: 'download', loaded, total, cached: allCached });
+        else if (total > 1 && total < 1000) self.postMessage({ type: 'download', phase: 'prepare', step: loaded, steps: total, cached: allCached });
+      }
     });
+    self.postMessage({ type: 'download', phase: 'prepare', step: 0, steps: 0, cached: allCached });
     try {
       await runner.initialize();
     } catch (err) {
       // A half-built runner would make the next call fail with "failed to initialize" instead of retrying.
-      resetRunner();
+      resetRunner(`initialize failed: ${err instanceof Error ? err.message : err}`);
       throw err;
+    } finally {
+      self.postMessage({ type: 'download', done: true });
     }
     xelatex = new XeLatex(runner);
   } else {
@@ -175,8 +200,45 @@ async function fetchAdditionalFiles(): Promise<{ path: string; content: Uint8Arr
   return filesArrays.flat();
 }
 
-function resetRunner() {
+const AUX_EXTENSIONS = ['.aux', '.toc', '.out'];
+const MAX_TEX_RUNS = 4;
+
+/**
+ * busytex's own rerun loop always does 4 XeTeX runs (its `rerunfilecheck` pattern matches whenever hyperref loads the
+ * package), ~3.5 s each. We run single passes (`rerun: false`) and feed the previous run's aux files back until they stop
+ * changing: usually 2 runs (Schulaufgabe.sty passes each task's score to the next run through the aux file).
+ */
+async function compileUntilStable(
+  engine: XeLatex,
+  activeRunner: BusyTexRunner | null,
+  input: string,
+  baseFiles: { path: string; content: Uint8Array }[]
+) {
+  let aux: { path: string; content: Uint8Array }[] = [];
+  let result = await engine.compile({ input, additionalFiles: baseFiles, rerun: false });
+  for (let run = 1; run < MAX_TEX_RUNS && result.success && activeRunner; run++) {
+    const next = (await activeRunner.readProjectFiles())
+      .filter((f) => AUX_EXTENSIONS.some((ext) => f.path.endsWith(`main${ext}`)))
+      .map((f) => ({ path: f.path.split('/').pop() as string, content: f.content as Uint8Array }));
+    if (run > 1 && sameFiles(aux, next)) break;
+    aux = next;
+    result = await engine.compile({ input, additionalFiles: [...baseFiles, ...aux], rerun: false });
+  }
+  return result;
+}
+
+function sameFiles(a: { path: string; content: Uint8Array }[], b: { path: string; content: Uint8Array }[]): boolean {
+  if (a.length !== b.length) return false;
+  const byPath = new Map(a.map((f) => [f.path, f.content]));
+  return b.every((f) => {
+    const other = byPath.get(f.path);
+    return !!other && other.length === f.content.length && other.every((v, i) => v === f.content[i]);
+  });
+}
+
+function resetRunner(reason = 'unspecified') {
   if (runner) {
+    console.info(`[CompilerWorker] engine reset: ${reason}`);
     try {
       runner.terminate();
     } catch {}
@@ -256,7 +318,7 @@ export function describeCompileFailure(result: {
 }
 
 async function recoverFromPossiblyCorruptedCache(): Promise<void> {
-  resetRunner();
+  resetRunner('cache recovery after a missing bundled package');
   try {
     await clearAllPackageCache();
   } catch (err) {
@@ -305,7 +367,8 @@ self.onmessage = (e: MessageEvent) => {
         throw new Error("XeLatex engine failed to initialize");
       }
 
-      const additionalFiles = await loadAdditionalFiles();
+      // A copy: the loaded list is cached for the worker's life, resources must not leak into later compiles.
+      const additionalFiles = [...(await loadAdditionalFiles())];
 
       // Teacher-uploaded resources go in flat, after the bundled assets, and
       // never over one: a name that would shadow an asset is already refused
@@ -319,10 +382,7 @@ self.onmessage = (e: MessageEvent) => {
         additionalFiles.push({ path: res.filename, content: res.content });
       }
 
-      return xelatex.compile({
-        input: latexSource,
-        additionalFiles
-      });
+      return compileUntilStable(xelatex, runner, latexSource, additionalFiles);
     };
 
     try {
@@ -379,7 +439,7 @@ self.onmessage = (e: MessageEvent) => {
       // A thrown error is different: the engine itself is in an unknown state, so reset. Required for
       // texlyre-busytex's 180 s timeout, which rejects without stopping its worker: that worker's late
       // answer would otherwise resolve the next compile.
-      resetRunner();
+      resetRunner(`compile threw: ${error?.message || error}`);
       self.postMessage({ id, success: false, error: error.message || "Unknown error in compilation worker" });
     }
   });
