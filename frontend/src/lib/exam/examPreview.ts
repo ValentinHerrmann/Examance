@@ -5,7 +5,8 @@ import type { CompileResult } from "#lib/latex/compiler";
 import { formatExerciseLatex, formatMcGroupLatex } from "#lib/latex/scoreParser";
 import type { ExamItemRef } from "#lib/grading/omrTemplatePrep";
 import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
-import { resolveCompileLogo } from "#lib/latex/logo";
+import { resolveCompileLogo, type CompileLogo } from "#lib/latex/logo";
+import type { LatexResourceFile } from "#lib/latex/resources";
 import { effectiveLatexCompilation } from "#lib/stores/capabilities";
 import { formatExamCourse } from "#lib/utils/examLabel";
 import { translate } from "#lib/i18n";
@@ -44,14 +45,16 @@ export function buildExerciseInputs(
 /**
  * Resource files of every exercise in the exam, for the compiler. Files are written flat, so
  * same-name different files conflict; mergeResources() (lib/latex/resources.ts) raises it
- * before compiling. The server engine loads its own rows and only gets exercise ids.
+ * before compiling. The server engine loads its own rows and only gets exercise ids, unless
+ * `needBytes` (local engine, raw export) asks for every file's bytes.
  */
 export async function collectExamResources(
   examItems: ExamItemRef[],
   exercises: ExerciseRecord[],
   libraryExercises: ExerciseRecord[],
   mcGroups: McGroup[],
-  sessionKey: CryptoKey | null
+  sessionKey: CryptoKey | null,
+  needBytes = effectiveLatexCompilation() === "local"
 ) {
   const owners: { id: string; label?: string }[] = [];
   let exerciseCount = 0;
@@ -68,7 +71,6 @@ export async function collectExamResources(
       }
     }
   }
-  const needBytes = effectiveLatexCompilation() === "local";
   return exerciseResourceRepository.collectForCompile(owners, sessionKey, needBytes);
 }
 
@@ -113,25 +115,49 @@ export interface ExamPreviewResult {
   missingGraphics: string[];
 }
 
-/** Compiles the Angabe and Lösung PDFs of an exam into the compile cache. */
 /** True when the exam contains exercises imported without their code (results-only archive). */
 export function examHasWithheldCode(exercises: ExerciseRecord[]): boolean {
   return exercises.some((ex) => ex.codeWithheld);
 }
 
-export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamPreviewResult> {
+/** Everything a compile of the exam needs: both LaTeX sources, the resource files and the logo. */
+export interface ExamSources {
+  angabeTex: string;
+  loesungTex: string;
+  resources: LatexResourceFile[];
+  resourceExerciseIds: string[];
+  logo: CompileLogo | undefined;
+}
+
+/** `needBytes` loads resource and logo bytes (local engine, raw export); otherwise the server resolves them by id. */
+export async function prepareExamSources(
+  input: Pick<ExamPreviewInput, "exam" | "exercises" | "libraryExercises" | "mcGroups" | "examItems" | "key">,
+  needBytes: boolean
+): Promise<ExamSources> {
   const { exam, exercises, libraryExercises, mcGroups, examItems, key } = input;
   // Results-only imports have no LaTeX: compiling would produce empty exercise blocks.
   if (examHasWithheldCode(exercises)) throw new Error(translate("exam.resultsOnly.noCompile"));
   const inputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups);
+  const collected = await collectExamResources(examItems, exercises, libraryExercises, mcGroups, key, needBytes);
+  return {
+    angabeTex: buildExamLatex(exam, inputs, "sans,punkte"),
+    loesungTex: buildExamLatex(exam, inputs, "sans,punkte,antworten"),
+    resources: collected.inline,
+    resourceExerciseIds: collected.exerciseIds,
+    logo: await resolveCompileLogo(exam.id, needBytes),
+  };
+}
+
+/** Compiles the Angabe and Lösung PDFs of an exam into the compile cache. */
+export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamPreviewResult> {
+  const { exam } = input;
   const useLocal = effectiveLatexCompilation() === "local";
-  const collected = await collectExamResources(examItems, exercises, libraryExercises, mcGroups, key);
-  const logo = await resolveCompileLogo(exam.id, useLocal);
-  const opts = { resources: collected.inline, resourceExerciseIds: collected.exerciseIds, logo };
+  const src = await prepareExamSources(input, useLocal);
+  const opts = { resources: src.resources, resourceExerciseIds: src.resourceExerciseIds, logo: src.logo };
 
   const angabe = await compileWithCache(
     { kind: "exam", id: exam.id, variant: "angabe" },
-    buildExamLatex(exam, inputs, "sans,punkte"),
+    src.angabeTex,
     useLocal,
     input.onStatus,
     false,
@@ -140,7 +166,7 @@ export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamP
   input.onAngabe?.(angabe);
   const loesung = await compileWithCache(
     { kind: "exam", id: exam.id, variant: "loesung" },
-    buildExamLatex(exam, inputs, "sans,punkte,antworten"),
+    src.loesungTex,
     useLocal,
     undefined,
     false,

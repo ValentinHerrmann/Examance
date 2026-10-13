@@ -5,6 +5,7 @@ export const exercises: Translations['exercises'] = {
     page: {
         title: 'Exercise Library',
         subtitle: 'Reusable LaTeX exercise collection, live-linked to your exams.',
+        exportLibraryButton: 'Export library',
         createButton: 'Create new exercise',
         filtersTitle: 'Filters',
         showFilters: 'Show filters',
@@ -104,6 +105,7 @@ export const exercises: Translations['exercises'] = {
         allTopics: 'All topics ({count})',
     },
     groupList: {
+        exportTitle: 'Export the group with all variants and images as a ZIP',
         loading: 'Loading exercise library...',
         empty: 'No exercises found matching your criteria.',
         createFirst: 'Create first exercise',

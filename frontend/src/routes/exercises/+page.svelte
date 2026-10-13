@@ -26,8 +26,9 @@
   import { createLazyMap } from "#lib/utils/lazyMap";
   import { exerciseRepository, mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
   import { compileExercisePreview } from "#lib/latex/exercisePreview";
-  import { faBook, faCodePullRequest, faPause, faPlay, faPlus, faShareNodes, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+  import { faBook, faCodePullRequest, faPause, faPlay, faPlus, faShareNodes, faEyeSlash, faFileZipper } from "@fortawesome/free-solid-svg-icons";
   import ExerciseGroupList from "#lib/components/exercise-library/ExerciseGroupList.svelte";
+  import ExerciseExportModal from "#lib/components/exercise-library/ExerciseExportModal.svelte";
   import GroupEditModal from "#lib/components/exercise-library/GroupEditModal.svelte";
   import RegroupModal from "#lib/components/exercise-library/RegroupModal.svelte";
   import DeleteWithUsageModal from "#lib/components/common/DeleteWithUsageModal.svelte";
@@ -77,6 +78,8 @@
   let sharingNotice = $state("");
   let sharingError = $state("");
   let copyingGroupId = $state("");
+  /** Groups being exported as ZIP: one group, or the whole library. */
+  let exportTarget: { groups: ExerciseGroup[]; library: boolean } | null = $state.raw(null);
   let shareGroup: ExerciseGroup | null = $state.raw(null);
   let isSharing = $state(false);
   let shareError = $state("");
@@ -1071,6 +1074,10 @@
           {/snippet}
         </Menu>
       {/if}
+      {#if activeView === "own" && allGroups.length > 0}
+        <Button variant="outlined" severity="secondary" icon={faFileZipper} onClick={() => (exportTarget = { groups: allGroups, library: true })}
+        >{$t("exercises.page.exportLibraryButton")}</Button>
+      {/if}
       <Button icon={faPlus} onClick={openCreateModal}>{$t("exercises.page.createButton")}</Button>
     {/snippet}
   </PageHeader>
@@ -1188,12 +1195,17 @@
       onContribute={openContribute}
       {pendingByGroup}
       onOpenProposals={openProposalsFor}
+      onExport={(group) => (exportTarget = { groups: [group], library: false })}
     />
   {/if}
   </FilterLayout>
 </PageShell>
 
 <PreviewHost flow={exercisePreview} />
+
+{#if exportTarget}
+  <ExerciseExportModal groups={exportTarget.groups} library={exportTarget.library} onClose={() => (exportTarget = null)} />
+{/if}
 
 <ShareExerciseModal
   open={!!bulkMode}

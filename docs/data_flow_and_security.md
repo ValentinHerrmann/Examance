@@ -613,6 +613,18 @@ which the vault cannot re-derive.
 
 ---
 
+### Raw exports (plain ZIP, issue #82)
+
+The exam export ("Export (ZIP)" on an exam) and the exercise-library export are built
+**entirely in the browser** (`frontend/src/lib/export/`) and are **not encrypted**. The exam
+ZIP can hold graded scans with annotations, names, scores, grades (summary PDF, `grades.csv`)
+and the LaTeX source; results are read through the repositories of the account's storage
+mode, so hybrid results never pass through the server. Each exam export is recorded with
+`logExportAction`, and the dialog states that the file contains personal data in plain text.
+After the download the file is outside Examance's protection and the teacher is responsible
+for it. The exercise export holds only authored content (LaTeX, resource files, bundled
+assets), which the server already stores in plaintext.
+
 ## 6. Data Loss Prevention Guards
 
 ### Internal Route Navigation Interceptor

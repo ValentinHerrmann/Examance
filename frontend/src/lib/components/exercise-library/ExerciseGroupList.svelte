@@ -19,7 +19,8 @@
     faRotate,
     faLinkSlash,
     faCopy,
-    faCodePullRequest
+    faCodePullRequest,
+    faFileZipper
   } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, ExpandableCard, Menu, MenuItem } from "#lib/components/ui";
 
@@ -57,6 +58,8 @@
     /** Pending proposals by own group id; the tag opens the Proposals tab for that group. */
     pendingByGroup?: Map<string, PendingForGroup>;
     onOpenProposals: (group: ExerciseGroup) => void;
+    /** Raw ZIP export of the whole group. */
+    onExport: (group: ExerciseGroup) => void;
   }
 
   /** Other accounts' exercises (issue #65): preview and copy only. */
@@ -191,6 +194,14 @@
     title={$t("exercises.groupList.newVersionOfFirstTitle")}
     onClick={() => o.onNewVersion(rep)}
   >{$t("exercises.groupList.newVersionText")}</Button>
+  <Button
+    variant="outlined"
+    severity="secondary"
+    size="sm"
+    icon={faFileZipper}
+    title={$t("exercises.groupList.exportTitle")}
+    onClick={() => o.onExport(group)}
+  >{$t("export.button")}</Button>
   {#if (sharingEnabled && !groupIsCopy(group)) || groupIsShared(group)}
     <Button
       variant="outlined"

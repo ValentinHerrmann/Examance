@@ -86,7 +86,7 @@ export const exam: Translations['exam'] = {
         stats: 'Statistics',
         edit: 'Edit',
         deleteSubmissions: 'Delete Submissions',
-        export: 'Export',
+        export: 'Encrypted archive (.bgproj)',
         delete: 'Delete',
     },
     metadata: {

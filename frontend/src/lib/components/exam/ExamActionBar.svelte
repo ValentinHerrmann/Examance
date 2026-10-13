@@ -1,5 +1,6 @@
 <script lang="ts">
   import { t } from "#lib/i18n";
+  import { faFileZipper } from "@fortawesome/free-solid-svg-icons";
   import { Button } from "#lib/components/ui";
 
   interface Props {
@@ -7,6 +8,7 @@
     onEdit: () => void;
     onDelete: () => void;
     onExport: () => void;
+    onRawExport: () => void;
     onScan: () => void;
     onGrade: () => void;
     onStats: () => void;
@@ -18,6 +20,7 @@
     onEdit,
     onDelete,
     onExport,
+    onRawExport,
     onScan,
     onGrade,
     onStats,
@@ -42,6 +45,9 @@
     </Button>
     <Button size="sm" variant="outlined" severity="secondary" onClick={onExport}>
       {$t("exam.actionBar.export")}
+    </Button>
+    <Button size="sm" variant="outlined" severity="secondary" icon={faFileZipper} onClick={onRawExport}>
+      {$t("export.button")}
     </Button>
   </div>
 

@@ -28,12 +28,14 @@
   import ListFilterPanel from '#lib/components/common/ListFilterPanel.svelte';
   import ExamList from '#lib/components/dashboard/ExamList.svelte';
   import { Alert, Button, FilterLayout, PageHeader, PageShell } from '#lib/components/ui';
+  import ExamExportModal from '#lib/components/exam/ExamExportModal.svelte';
   import PreviewHost from '#lib/components/common/PreviewHost.svelte';
   import { createPreviewFlow } from '#lib/stores/previewFlow';
   import { compileExamPreview } from '#lib/exam/examPreview';
   import { buildExamItems, loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
 
   let exams: ExamRecord[] = $state.raw([]);
+  let rawExportExamId: string | null = $state(null);
   /** Set when the server refused the exam list, so the view can say so. */
   let examsLoadFailed = $state(false);
   let examStatsMap = $state.raw(new Map<string, { avgScore: number | null; count: number }>());
@@ -322,6 +324,7 @@
           onToggleExam={expandedExams.toggle}
           onDelete={handleDeleteDashboardExam}
           onPreview={examPreview.open}
+          onRawExport={(exam) => (rawExportExamId = exam.id)}
         />
       </FilterLayout>
     {/if}
@@ -329,6 +332,10 @@
 </PageShell>
 
 <PreviewHost flow={examPreview} />
+
+{#if rawExportExamId}
+  <ExamExportModal examId={rawExportExamId} onClose={() => (rawExportExamId = null)} />
+{/if}
 
 <DeleteWithUsageModal
   open={isDeleteModalOpen && !!deletingExam}

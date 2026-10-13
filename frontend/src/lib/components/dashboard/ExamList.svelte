@@ -5,7 +5,7 @@
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
   import { examNavItems } from "#lib/components/layout/examNavItems";
-  import { faEye, faTrash } from "@fortawesome/free-solid-svg-icons";
+  import { faEye, faFileZipper, faTrash } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, Card, EmptyState, ExpandableCard } from "#lib/components/ui";
   import LogoPreview from "#lib/components/logo/LogoPreview.svelte";
   import type { ExamLogoPreview, LogoSource } from "#lib/latex/logo";
@@ -23,6 +23,7 @@
     onToggleExam: (examId: string) => void;
     onDelete: (id: string, title?: string) => void;
     onPreview: (exam: ExamRecord) => void;
+    onRawExport: (exam: ExamRecord) => void;
   }
 
   let {
@@ -34,7 +35,8 @@
     expandedExams = {},
     onToggleExam,
     onDelete,
-    onPreview
+    onPreview,
+    onRawExport
   }: Props = $props();
 
   const SOURCE_LABEL = {
@@ -157,6 +159,7 @@
 
         {#snippet footer()}
           <Button variant="outlined" severity="secondary" size="sm" icon={faEye} onClick={() => onPreview(exam)}>{$t("common.preview")}</Button>
+          <Button variant="outlined" severity="secondary" size="sm" icon={faFileZipper} onClick={() => onRawExport(exam)}>{$t("export.button")}</Button>
           <Button href="/exam/{exam.id}" size="sm">{$t("dashboard.examList.openExam")}</Button>
           <Button
             variant="outlined"

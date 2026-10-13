@@ -89,7 +89,7 @@ export async function svgToPng(markup: string): Promise<Blob> {
 }
 
 /** Standard PDF fonts are WinAnsi and pdf-lib throws otherwise: map the narrow no-break space before "%" and the borderline minus sign. */
-function toWinAnsi(text: string): string {
+export function toWinAnsi(text: string): string {
   return text.replace(/\u202f/g, '\u00a0').replace(/\u2212/g, '-');
 }
 
@@ -102,6 +102,10 @@ function hexToRgb01(hex: string): [number, number, number] {
 
 /** Redraw a serialised chart as a one-page vector PDF (1 SVG unit = 1 pt). */
 export async function svgToPdf(markup: string, title: string): Promise<Blob> {
+  return new Blob([(await svgToPdfBytes(markup, title)) as BlobPart], { type: 'application/pdf' });
+}
+
+export async function svgToPdfBytes(markup: string, title: string): Promise<Uint8Array> {
   const { PDFDocument, StandardFonts, LineCapStyle, rgb, degrees } = await import('pdf-lib');
   const doc = new DOMParser().parseFromString(markup, 'image/svg+xml');
   const root = doc.documentElement;
@@ -216,8 +220,7 @@ export async function svgToPdf(markup: string, title: string): Promise<Blob> {
   };
   walk(root, 1);
 
-  const bytes = await pdf.save();
-  return new Blob([bytes as BlobPart], { type: 'application/pdf' });
+  return pdf.save();
 }
 
 /** Hand a file to the browser as a download. */
