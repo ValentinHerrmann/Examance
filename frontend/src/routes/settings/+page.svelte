@@ -167,15 +167,15 @@
 </script>
 
 {#if $isUnlocked}
-  <PageShell width="wide">
+  <PageShell width="full">
     <PageHeader title={$t("settings.pageTitle")} helpTopic="settings" />
 
     <div class="lg:flex lg:items-start lg:gap-8">
       <SectionNav items={navItems} ariaLabel={$t("settings.pageTitle")} />
 
-      <div class="flex min-w-0 max-w-3xl flex-1 flex-col gap-4">
+      <div class="grid min-w-0 flex-1 grid-cols-1 items-start gap-4 xl:grid-cols-2">
         {#if statusMsg}
-          <Alert severity="success" onDismiss={() => (statusMsg = "")}>{statusMsg}</Alert>
+          <Alert class="xl:col-span-2" severity="success" onDismiss={() => (statusMsg = "")}>{statusMsg}</Alert>
         {/if}
 
         {#if !isAdmin}
@@ -213,7 +213,7 @@
           serverLatexEnabled={$featuresStore.server_latex === true}
         />
         {#if workspaceOwnerLabel}
-          <p class="-mt-2 px-1 text-xs text-muted">
+          <p class="-mt-2 px-1 text-xs text-muted xl:col-span-2">
             {$t("storagePolicy.workspace.ownerLabel")}: {workspaceOwnerLabel}
           </p>
         {/if}
@@ -248,7 +248,7 @@
         {/if}
 
         {#if !isAdmin}
-        <div id="gdpr" class="scroll-mt-16 lg:scroll-mt-4">
+        <div id="gdpr" class="scroll-mt-16 lg:scroll-mt-4 xl:col-span-2">
           <GdprErasureTable
             {students}
             {isErasing}

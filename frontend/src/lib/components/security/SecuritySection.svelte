@@ -36,7 +36,7 @@
   onMount(load);
 </script>
 
-<div id="security" class="flex scroll-mt-16 flex-col gap-4 lg:scroll-mt-4">
+<div id="security" class="grid scroll-mt-16 grid-cols-1 items-start gap-4 lg:scroll-mt-4 xl:col-span-2 xl:grid-cols-2">
   {#if isLoading}
     <p class="m-0 text-sm text-muted">{$t("security.page.loading")}</p>
   {:else if errorMsg}
