@@ -5,6 +5,7 @@ export const statusBar = {
     backendCurrent: 'Aktueller Server',
     noServer: 'Kein Server konfiguriert',
     languageHint: 'Sprache wechseln ({language})',
+    previewBanner: 'Vorschau',
     versionMatch: 'App und Server laufen beide mit v{version}',
     versionMismatch: 'App v{version} — Versionen unterscheiden sich, bleiben aber kompatibel',
     versionIncompatible: 'App v{version} — inkompatible Hauptversion',

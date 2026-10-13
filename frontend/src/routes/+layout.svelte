@@ -63,6 +63,7 @@
   import StoragePolicyModal from "#lib/components/StoragePolicyModal.svelte";
   import SessionTimeoutWarning from "#lib/components/SessionTimeoutWarning.svelte";
   import HttpCatModal from "#lib/components/HttpCatModal.svelte";
+  import PreviewBanner from "#lib/components/layout/PreviewBanner.svelte";
   import LatexDownloadProgress from "#lib/components/latex/LatexDownloadProgress.svelte";
   import HelpModal from "#lib/components/help/HelpModal.svelte";
   import { helpSeen, helpStore, openHelp, toggleHelp } from "#lib/stores/helpStore";
@@ -328,6 +329,7 @@
 <SessionTimeoutWarning />
 <HttpCatModal />
 <LatexDownloadProgress />
+<PreviewBanner />
 
 <div class="app-layout">
   {#if !showFullNav}
