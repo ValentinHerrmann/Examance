@@ -298,7 +298,7 @@ export const help: Translations['help'] = {
             },
             s6: {
                 h: 'Two sign-in factors',
-                p1: 'You sign in with a passkey on its own, or with two of three factors: password, authenticator app, passkey. Password and authenticator app never suffice alone — a guessed password gets nowhere.',
+                p1: 'You sign in with a passkey on its own, or with two of three factors: password, authenticator app, passkey. Password and authenticator app never suffice alone — a guessed password gets nowhere. At your first sign-in you set up the second factor: a passkey (offered first) or an authenticator app.',
                 p2: 'Enrol all three where you can — then losing one is merely inconvenient. With exactly two, losing one means only an administrator can get you back in, and only to the account, not to the encrypted data. Backup codes stand in for the authenticator app and work once each.',
             },
             s7: {

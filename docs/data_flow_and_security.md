@@ -146,6 +146,12 @@ passkey signs in and nothing more; `supports_prf` records that and the settings
 panel says so, because a teacher who assumes otherwise ends up with an account
 they can reach and exams they cannot read.
 
+Adding a passkey in a signed-in session wraps the data key with the PRF secret the
+registration ceremony itself returns, where the provider evaluates PRF at creation
+(Google Password Manager, iCloud Keychain); only otherwise does a second, pinned
+assertion follow (issue #71). The wrap is round-trip-checked before it is stored, and
+a wrap that later fails to open is re-sealed by the sign-in heal path.
+
 `sign_count` is stored and checked: a counter that goes backwards is the spec's
 clone signal. A constant `0` means the authenticator does not count at all, which
 most platform ones do not, so only a *decrease from a non-zero value* is rejected.

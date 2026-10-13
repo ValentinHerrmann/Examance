@@ -55,7 +55,10 @@ passkey prompt automatically — cancelling it leaves the other factors on offer
 A passkey without PRF signs in but cannot open the encrypted data, so the
 password or recovery code is asked for afterwards. An account with fewer than two is held on the enrollment screen
 and can reach nothing else — including every existing account, on its first
-sign-in after this shipped.
+sign-in after this shipped. The enrollment screen offers a passkey first where the
+browser supports one, with the authenticator app as the alternative (issue #72). A
+passkey chosen there is then used once as the second factor; that sign-in's PRF
+secret wraps the data key as soon as the password has opened it.
 
 The two are yours to pick, in either order. Whichever factor opens the sign-in,
 the screen then offers whatever the account can still present — password,
