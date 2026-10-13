@@ -36,16 +36,15 @@
   onMount(load);
 </script>
 
-<div id="security" class="grid scroll-mt-16 grid-cols-1 items-start gap-4 lg:scroll-mt-4 xl:col-span-2 xl:grid-cols-2">
-  {#if isLoading}
-    <p class="m-0 text-sm text-muted">{$t("security.page.loading")}</p>
-  {:else if errorMsg}
-    <Alert severity="danger">{errorMsg}</Alert>
-  {:else if status && $sessionStore.teacherId}
-    <FactorSummary {status} />
-    <PasswordFactorCard {status} teacherId={$sessionStore.teacherId} onChanged={load} />
-    <TotpFactorCard {status} onChanged={load} />
-    <PasskeyManager teacherId={$sessionStore.teacherId} {passkeys} onChanged={load} />
-    <RecoveryFactorCard {status} teacherId={$sessionStore.teacherId} onChanged={load} />
-  {/if}
-</div>
+<!-- Root-level siblings on purpose: the settings page lays its direct children out in balanced columns. -->
+{#if isLoading}
+  <p id="security" class="m-0 scroll-mt-16 text-sm text-muted lg:scroll-mt-4">{$t("security.page.loading")}</p>
+{:else if errorMsg}
+  <Alert severity="danger">{errorMsg}</Alert>
+{:else if status && $sessionStore.teacherId}
+  <div id="security" class="scroll-mt-16 lg:scroll-mt-4"><FactorSummary {status} /></div>
+  <div><PasswordFactorCard {status} teacherId={$sessionStore.teacherId} onChanged={load} /></div>
+  <div><TotpFactorCard {status} onChanged={load} /></div>
+  <div><PasskeyManager teacherId={$sessionStore.teacherId} {passkeys} onChanged={load} /></div>
+  <div><RecoveryFactorCard {status} teacherId={$sessionStore.teacherId} onChanged={load} /></div>
+{/if}

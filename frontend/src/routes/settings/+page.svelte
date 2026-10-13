@@ -173,9 +173,10 @@
     <div class="lg:flex lg:items-start lg:gap-8">
       <SectionNav items={navItems} ariaLabel={$t("settings.pageTitle")} />
 
-      <div class="grid min-w-0 flex-1 grid-cols-1 items-start gap-4 xl:grid-cols-2">
+      <!-- Two balanced columns from xl (no row gaps from uneven card heights); headings and wide blocks span both. -->
+      <div class="flex min-w-0 flex-1 flex-col gap-4 xl:block xl:columns-2 xl:gap-4 xl:[&>*]:mb-4 xl:[&>*]:break-inside-avoid">
         {#if statusMsg}
-          <Alert class="xl:col-span-2" severity="success" onDismiss={() => (statusMsg = "")}>{statusMsg}</Alert>
+          <Alert class="xl:col-span-all" severity="success" onDismiss={() => (statusMsg = "")}>{statusMsg}</Alert>
         {/if}
 
         {#if !isAdmin}
@@ -213,7 +214,7 @@
           serverLatexEnabled={$featuresStore.server_latex === true}
         />
         {#if workspaceOwnerLabel}
-          <p class="-mt-2 px-1 text-xs text-muted xl:col-span-2">
+          <p class="px-1 text-xs text-muted">
             {$t("storagePolicy.workspace.ownerLabel")}: {workspaceOwnerLabel}
           </p>
         {/if}
@@ -248,7 +249,7 @@
         {/if}
 
         {#if !isAdmin}
-        <div id="gdpr" class="scroll-mt-16 lg:scroll-mt-4 xl:col-span-2">
+        <div id="gdpr" class="scroll-mt-16 lg:scroll-mt-4 xl:col-span-all">
           <GdprErasureTable
             {students}
             {isErasing}
