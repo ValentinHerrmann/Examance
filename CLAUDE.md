@@ -56,5 +56,6 @@ Prefer `make` over hand-rolled `cd backend && ...`. Deps: `uv` backend, `npm` fr
 - **NEVER USE WRITING GIT COMMANDS when running on a computer** (commit, push, branch, …). Only allowed in cloud mode.
 - **Follow Claude-Code mode strictly**: never edit files in planning mode, don't even ask. Just make a PLAN in plan mode.
 - Keep in-app help and documentation up to date.
+- **PR titles are user-facing**: GitHub generates the release notes from them and the app shows those notes to teachers after an update (previews show the PR title, issue #94). Write each title as what changes for users, in plain language a non-technical teacher understands ("Export exams and exercise libraries as ZIP", not "Add ZIP export service"); no jargon, file names or issue numbers.
 - **Comments and docstrings: at most 2-3 lines.** Say why, not what; keep invariants and "never" rules. Longer explanations go to `docs/dev/` or the nearest `CLAUDE.md`.
 - If you learn something future agent sessions should know (structure, constraints), add it to the closest `CLAUDE.md` or `docs/dev/` file, but don't clutter. Persisted prose (code, comments, commits, docs, PRs, memory) is normal English, not caveman.
