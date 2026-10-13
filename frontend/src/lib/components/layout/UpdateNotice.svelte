@@ -2,13 +2,14 @@
   import { updated } from "$app/state";
   import { t } from "#lib/i18n";
   import { Alert, Button } from "#lib/components/ui";
-  import { frontendVersion, repoUrl } from "#lib/stores/versionStore";
+  import { frontendVersion, frontendVersionUrl, repoUrl } from "#lib/stores/versionStore";
   import { parseReleaseNotes, type Inline } from "#lib/utils/releaseNotes";
 
   // Last version this browser/installed app has shown; an installed (PWA) app can stay open for days.
   const SEEN_KEY = "examance.lastSeenVersion";
   const isRelease = !frontendVersion.includes("-");
-  // TEMPORARY (issue #94): previews always show the notes so the visuals can be reviewed; remove before merging.
+  // TEMPORARY (issue #94): previews always show the deployed PR's title (deploy-preview.yml writes it as the notes) so the
+  // visuals can be reviewed; remove before merging.
   const isPreview = /PR#\d+/.test(frontendVersion);
 
   const blocks = parseReleaseNotes(__RELEASE_NOTES__, new URL(repoUrl).origin);
@@ -65,6 +66,6 @@
         {/if}
       {/each}
     </div>
-    <a class="mt-2 inline-block text-accent underline" href={`${repoUrl}/releases/tag/v${frontendVersion}`} target="_blank" rel="noopener noreferrer">{$t("statusBar.releaseNotesLink")}</a>
+    <a class="mt-2 inline-block text-accent underline" href={isPreview ? (frontendVersionUrl ?? repoUrl) : `${repoUrl}/releases/tag/v${frontendVersion}`} target="_blank" rel="noopener noreferrer">{isPreview ? $t("statusBar.linkPullRequest") : $t("statusBar.releaseNotesLink")}</a>
   </Alert>
 {/if}
