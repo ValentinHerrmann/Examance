@@ -42,7 +42,7 @@ Prefer `make` over hand-rolled `cd backend && ...`. Deps: `uv` backend, `npm` fr
 
 - Two independent stacks, production and preview, on the same version. Root `/VERSION` (bare semver) is the single source of truth; `frontend/package.json` and `backend/pyproject.toml` versions are **not** part of the chain, don't "sync" them. A differing major version means frontend and backend are incompatible.
 - Release workflow triggers on `published`, **not** `created` (`created` also fires on draft-save).
-- **One shared preview stack.** The newest non-draft PR push wins for both frontend and backend, so testing PR A after PR B was pushed means testing B. The footer version carries the PR number; check it before debugging. Previews also show a "Preview #PR" corner ribbon (`PreviewBanner.svelte`).
+- **One shared preview stack.** The newest non-draft PR push wins for both frontend and backend, so testing PR A after PR B was pushed means testing B. The footer version carries the PR number; check it before debugging. Previews also show a "Preview" corner ribbon (`PreviewBanner.svelte`).
 - Frontend is Cloudflare Pages (builds only `release` and `preview`); backend is Docker behind Caddy on one SSH host. Migrations run **forward only** on deploy; rolling back an image does not undo them.
 - CSP: never hard-code a `sha256-` literal in `frontend/static/_headers` (it is a template filled at build), and never widen `script-src` to silence a CSP error. Details and diagnosis: `docs/dev/build_and_csp.md`.
 
