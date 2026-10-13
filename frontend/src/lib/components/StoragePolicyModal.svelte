@@ -125,6 +125,7 @@
               checked={$storagePolicyStore.storageMode === mode}
               disabled={!allowed}
               onclick={(e) => { e.preventDefault(); handleStorageModeChange(mode); }}
+
               class="mt-0.5 size-5 shrink-0 accent-primary"
             />
             <div>
@@ -154,7 +155,7 @@
               name="latexMode"
               value="local"
               checked={$effectiveLatexStore === "local"}
-              onclick={(e) => { e.preventDefault(); handleLatexChange("local"); }}
+              onchange={() => handleLatexChange("local")}
               class="mt-0.5 size-5 shrink-0 accent-primary"
             />
             <div>
@@ -174,7 +175,7 @@
               value="server"
               checked={$effectiveLatexStore === "server"}
               disabled={!$featuresStore.server_latex}
-              onclick={(e) => { e.preventDefault(); handleLatexChange("server"); }}
+              onchange={() => handleLatexChange("server")}
               class="mt-0.5 size-5 shrink-0 accent-primary"
             />
             <div>
