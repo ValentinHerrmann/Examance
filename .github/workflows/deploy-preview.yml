@@ -101,7 +101,7 @@ jobs:
                 --jq '[.check_runs[] | select(.app.slug == "cloudflare-workers-and-pages")]
                       | sort_by(.started_at) | last | .conclusion // empty' 2>/dev/null || true)
               if [ "${DEPLOYED% \[*}" = "$PREFIX" ] && [ "$PAGES" = "success" ] \
-                 && git diff --quiet FETCH_HEAD HEAD -- frontend backend/latex-assets VERSION "${SHARED[@]}"; then
+                 && git diff --quiet FETCH_HEAD HEAD -- frontend VERSION "${SHARED[@]}"; then
                 FRONTEND=false
               fi
             fi

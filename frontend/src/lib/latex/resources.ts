@@ -4,6 +4,7 @@
  * Mirrored by `backend/app/services/latex_resources.py`: what the browser accepts the server accepts.
  */
 import { LOGO_FILENAMES } from './logo';
+import { fetchAssetIndex } from './assets';
 
 /** Hard cap for a single file. */
 export const MAX_RESOURCE_BYTES = 5 * 1024 * 1024;
@@ -38,7 +39,7 @@ export class ResourceError extends Error {}
 
 /**
  * Names a user file must not take: `main.tex` and friends, the exam logo's names (`logo.ts`), and every bundled LaTeX asset (basenames
- * too, since the worker flattens `sty/x.sty`). Loaded from the generated asset index, cached;
+ * too, since the worker flattens `sty/x.sty`). Loaded from the server's asset index, cached;
  * failure degrades to the static base list rather than blocking an upload.
  */
 const BASE_RESERVED_NAMES = ['main.tex', 'main.log', 'main.aux', 'main.pdf', 'index.json', ...LOGO_FILENAMES];
@@ -48,16 +49,13 @@ export async function getReservedNames(): Promise<Set<string>> {
   if (reservedNamesCache) return reservedNamesCache;
   const names = new Set(BASE_RESERVED_NAMES);
   try {
-    const res = await fetch('/latex-assets/index.json');
-    if (res.ok) {
-      const paths: string[] = await res.json();
-      for (const path of paths) {
-        names.add(path);
-        names.add(path.split('/').pop() ?? path);
-      }
+    const { files } = await fetchAssetIndex();
+    for (const { path } of files) {
+      names.add(path);
+      names.add(path.split('/').pop() ?? path);
     }
   } catch {
-    // Offline or asset index missing — the server re-checks on compile anyway.
+    // Offline or asset index unavailable — the server re-checks on compile anyway.
   }
   reservedNamesCache = names;
   return names;

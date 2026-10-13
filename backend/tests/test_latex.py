@@ -95,7 +95,7 @@ def test_reject_unsafe_paths_blocks_absolute_and_parent_references(source: str) 
     "source",
     [
         r"\input{exercises/ex_1.tex}",
-        r"\includegraphics{img/Logo.png}",
+        r"\includegraphics{img/figure.png}",
         r"\usepackage{sty/Schulaufgabe}",
         r"\begin{Aufgabe}{Titel}\BE\end{Aufgabe}",
     ],

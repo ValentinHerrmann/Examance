@@ -68,11 +68,6 @@
 /core/busytex/chunk-manifest.json
   Cache-Control: public, max-age=0, must-revalidate
 
-# Small, unhashed and edited with the app (a stale Loesung.sty kept the \BE fix out of local mode
-# for a week): revalidate on every load; the ETag makes an unchanged file a cheap 304.
-/latex-assets/*
-  Cache-Control: public, max-age=0, must-revalidate
-
 # pdf.js ships its worker as .mjs; make the JS MIME type explicit so the
 # module worker is accepted regardless of the host's extension mapping.
 /_app/immutable/assets/*.mjs
