@@ -26,6 +26,17 @@ function trimSeparators(value: string): string {
   return value.slice(start, end);
 }
 
+/** First of `path`, `path_2`, `path_3`, … (suffix inserted at `extStart`) that is not taken. */
+export function firstFree(path: string, isTaken: (p: string) => boolean, extStart = path.length): string {
+  let candidate = path;
+  let n = 1;
+  while (isTaken(candidate)) {
+    n++;
+    candidate = `${path.slice(0, extStart)}_${n}${path.slice(extStart)}`;
+  }
+  return candidate;
+}
+
 export class ZipBuilder {
   private readonly files = new Map<string, Uint8Array>();
 
@@ -33,8 +44,7 @@ export class ZipBuilder {
   add(path: string, content: Uint8Array | string): string {
     const dot = path.lastIndexOf('.');
     const extStart = dot > path.lastIndexOf('/') ? dot : path.length;
-    let unique = path;
-    for (let n = 2; this.files.has(unique); n++) unique = `${path.slice(0, extStart)}_${n}${path.slice(extStart)}`;
+    const unique = firstFree(path, (p) => this.files.has(p), extStart);
     this.files.set(unique, typeof content === 'string' ? strToU8(content) : content);
     return unique;
   }

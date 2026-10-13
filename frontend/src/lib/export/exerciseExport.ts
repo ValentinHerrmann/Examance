@@ -10,7 +10,7 @@ import { effectiveLatexCompilation } from '#lib/stores/capabilities';
 import { sessionStore } from '#lib/stores/session';
 import { addLatexProjectFiles } from './latexAssets';
 import { paceServerCompile, type ExportProgress, type ExportResult } from './progress';
-import { ZipBuilder, exportDateStamp, slug } from './zip';
+import { ZipBuilder, exportDateStamp, firstFree, slug } from './zip';
 
 export interface ExerciseExportOptions {
   /** Bundled .sty/img files, so the group documents compile as they are. */
@@ -24,8 +24,7 @@ const RESERVED_DIRS = ['sty', 'img'];
 
 /** Claims `path`, appending `_2`, `_3`, … when it is taken. */
 function claim(taken: Set<string>, path: string): string {
-  let unique = path;
-  for (let n = 2; taken.has(unique); n++) unique = `${path}_${n}`;
+  const unique = firstFree(path, (p) => taken.has(p));
   taken.add(unique);
   return unique;
 }
@@ -118,10 +117,10 @@ async function exportExercise(ctx: ExportContext, { ex, version }: GroupMember, 
 function addGroupDocument(zip: ZipBuilder, groupDir: string, parts: DocumentPart[]): string {
   const texFile = `${groupDir}.tex`;
   const content = parts
-    .map((part) => wrapExerciseReference(part.body, part.name, `\\input{${part.dir}/exercise.tex}`))
+    .map((part) => wrapExerciseReference(part.body, part.name, String.raw`\input{${part.dir}/exercise.tex}`))
     .join('\n\n');
   const dirs = parts.map((part) => `{${part.dir}/}`).join('');
-  zip.add(texFile, buildExerciseDocument(content, { solution: false, extraPreamble: `\\graphicspath{${dirs}}` }));
+  zip.add(texFile, buildExerciseDocument(content, { solution: false, extraPreamble: String.raw`\graphicspath{${dirs}}` }));
   return texFile;
 }
 
@@ -157,7 +156,7 @@ export async function exportExerciseGroups(
       const variantDir = variantDirFor(groupDir, variantKey, group.variants.size);
       const exercises = [];
       for (const member of members) {
-        const { part, entry } = await exportExercise(ctx, member, variantDir);
+        const { part, entry } = await exportExercise(ctx, member, variantDir); // NOSONAR: compiles share one worker and the server rate limit
         parts.push(part);
         exercises.push(entry);
       }

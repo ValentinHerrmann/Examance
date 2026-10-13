@@ -10,4 +10,4 @@ Their advisories hit the gate. Fix with a lockfile bump (`npm audit fix`), never
 
 ## SonarCloud
 
-SonarCloud runs as automatic analysis (no scanner step in the workflows); its settings live in the root `.sonarcloud.properties`. The quality gate allows at most 3 % duplication on new code. The i18n catalogs are excluded from copy-paste detection because `en/*.ts` mirrors `de/*.ts` key for key by design.
+SonarCloud runs as automatic analysis (no scanner step in the workflows); its settings live in the root `.sonarcloud.properties`. The quality gate allows at most 3 % duplication on new code. The i18n catalogs are excluded from copy-paste detection because `en/*.ts` mirrors `de/*.ts` key for key by design. Loops that await on purpose one step at a time (memory bounds, the single LaTeX worker, the compile rate limit) carry `// NOSONAR: <reason>` on the flagged line instead of being parallelised.

@@ -145,7 +145,7 @@ async function addGradedScans(
       continue;
     }
     try {
-      const pdf = await renderGradedPdf(sub, scoresBySubmission.get(sub.id) ?? [], key, { fallbackKey });
+      const pdf = await renderGradedPdf(sub, scoresBySubmission.get(sub.id) ?? [], key, { fallbackKey }); // NOSONAR: one scan at a time keeps memory bounded
       zip.add(`graded/${slug(name)}${GRADED_SUFFIX[gradingState(resultBySubmission.get(sub.id))]}.pdf`, pdf);
     } catch (err) {
       warnings.push(translate('export.exam.warnings.gradedOne', { name, error: errorText(err) }));

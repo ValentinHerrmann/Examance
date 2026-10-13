@@ -80,11 +80,11 @@ export async function renderGradedPdf(
     const doc = await (await loadPdfjs()).getDocument({ data: scanBytes }).promise;
     try {
       for (let n = 1; n <= doc.numPages; n++) {
-        const page = await doc.getPage(n);
+        const page = await doc.getPage(n); // NOSONAR: pages render one at a time to keep memory bounded
         const viewport = page.getViewport({ scale: RENDER_SCALE });
         const canvas = newCanvas(viewport.width, viewport.height);
-        await page.render({ canvasContext: canvas.getContext('2d')!, canvas, viewport }).promise;
-        await addPage(canvas, n, 1 / RENDER_SCALE);
+        await page.render({ canvasContext: canvas.getContext('2d')!, canvas, viewport }).promise; // NOSONAR
+        await addPage(canvas, n, 1 / RENDER_SCALE); // NOSONAR
       }
     } finally {
       await doc.loadingTask.destroy();
