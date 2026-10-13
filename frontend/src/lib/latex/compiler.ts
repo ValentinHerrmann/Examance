@@ -10,6 +10,7 @@ import { translate } from '#lib/i18n';
 import { featureEnabled } from '#lib/stores/capabilities';
 import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import { mergeResources, type LatexResourceFile } from './resources';
+import { loadLatexAssets } from './assets';
 import type { CompileLogo } from './logo';
 import { latexDownloadProgress, type LatexDownloadProgress } from './downloadProgress';
 
@@ -112,10 +113,20 @@ export function preloadLocalEngine(): void {
       },
       { once: true }
     );
-    w.postMessage({ type: 'preload' });
+    void sendAssets(w)
+      .then(() => w.postMessage({ type: 'preload' }))
+      .catch((err) => console.warn('[compiler] Could not preload the local LaTeX engine:', err));
   } catch (err) {
     console.warn('[compiler] Could not preload the local LaTeX engine:', err);
   }
+}
+
+/** The worker's bundled assets come from the authenticated endpoint; posted once per worker. */
+let assetsSentTo: Worker | null = null;
+async function sendAssets(w: Worker): Promise<void> {
+  if (assetsSentTo === w) return;
+  w.postMessage({ type: 'assets', files: await loadLatexAssets() });
+  assetsSentTo = w;
 }
 
 async function compileLocalWasm(
@@ -125,6 +136,7 @@ async function compileLocalWasm(
 ): Promise<CompileResult> {
   const runTask = async (): Promise<CompileResult> => {
     const w = acquireWorker();
+    await sendAssets(w);
     const id = ++msgIdCounter;
 
     return new Promise<CompileResult>((resolve, reject) => {

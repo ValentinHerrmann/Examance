@@ -167,7 +167,7 @@ There is exactly **one** preview instance, shared by all open PRs — the newest
 
 | Side | Baseline (what is deployed) | Inputs compared | Also required |
 |---|---|---|---|
-| Frontend | branch `preview` (what Cloudflare built) | `frontend/`, `backend/latex-assets/`, `VERSION` | its Cloudflare Pages check run succeeded |
+| Frontend | branch `preview` (what Cloudflare built) | `frontend/`, `VERSION` | its Cloudflare Pages check run succeeded |
 | Backend | branch `preview-backend`, moved only after a healthy deploy | `backend/`, `deploy/` | `/api/health` reports the same PR |
 
 Changes to `deploy-preview.yml` or `.github/scripts/` count for both. The baseline is the running stack, never the PR's previous push, so PR B never ships half of itself on top of PR A. Pushes to `main` and manual runs always deploy both sides; so does the release workflow. Because the two sides then carry different build times, the status bar compares versions without the `[<built-at>]` stamp. Cloudflare Pages builds only `preview`, so the `preview-backend` marker branch triggers nothing.

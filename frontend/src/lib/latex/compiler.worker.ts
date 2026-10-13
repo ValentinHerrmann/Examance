@@ -159,45 +159,18 @@ async function initRunner(onStatus: (status: string) => void) {
 }
 
 /**
- * The bundled LaTeX assets, fetched once per worker and cached — a compile
- * should not re-fetch `/latex-assets/index.json` and its files every time.
+ * The bundled LaTeX assets, posted once by the main thread (`compiler.ts`, which owns the
+ * authenticated fetch) before any preload or compile. `sty/x.sty` is also exposed flat as `x.sty`.
  */
-let additionalFilesPromise: Promise<{ path: string; content: Uint8Array }[]> | null = null;
+let bundledAssets: { path: string; content: Uint8Array }[] | null = null;
 
-function loadAdditionalFiles(): Promise<{ path: string; content: Uint8Array }[]> {
-  additionalFilesPromise ??= fetchAdditionalFiles().catch((err) => {
-    // Don't cache a failure: the next compile should retry rather than inherit
-    // a rejected promise for the lifetime of the worker.
-    additionalFilesPromise = null;
-    throw err;
-  });
-  return additionalFilesPromise;
-}
-
-async function fetchAdditionalFiles(): Promise<{ path: string; content: Uint8Array }[]> {
-  const indexRes = await fetch('/latex-assets/index.json');
-  if (!indexRes.ok) {
-    console.warn("Failed to load latex-assets index.json. Assets may be missing.");
-  }
-  const assetPaths: string[] = indexRes.ok ? await indexRes.json() : [];
-
-  const filesArrays = await Promise.all(
-    assetPaths
-      .filter((path) => !path.startsWith('main.'))
-      .map(async (path) => {
-        const res = await fetch(`/latex-assets/${path}`);
-      const buffer = await res.arrayBuffer();
-      const content = new Uint8Array(buffer);
-      const files = [{ path, content }];
-      
-      if (path.startsWith('sty/') && path.endsWith('.sty')) {
-        files.push({ path: path.replace('sty/', ''), content });
-      }
-      
-      return files;
-    })
+function loadAdditionalFiles(): { path: string; content: Uint8Array }[] {
+  if (!bundledAssets) throw new Error('LaTeX assets were not provided to the compiler worker.');
+  return bundledAssets.flatMap((file) =>
+    file.path.startsWith('sty/') && file.path.endsWith('.sty')
+      ? [file, { path: file.path.replace('sty/', ''), content: file.content }]
+      : [file]
   );
-  return filesArrays.flat();
 }
 
 const AUX_EXTENSIONS = ['.aux', '.toc', '.out'];
@@ -338,13 +311,18 @@ let compileQueue: Promise<void> = Promise.resolve();
 async function preloadEngine(): Promise<void> {
   try {
     await initRunner(() => {});
-    await loadAdditionalFiles();
+    loadAdditionalFiles();
   } catch (err) {
     console.warn('[CompilerWorker] Preload failed; the first compile will retry.', err);
   }
 }
 
 self.onmessage = (e: MessageEvent) => {
+  if (e.data?.type === 'assets') {
+    bundledAssets = e.data.files;
+    return;
+  }
+
   // Queued like a compile, so a compile posted meanwhile waits for the boot instead of racing it.
   if (e.data?.type === 'preload') {
     compileQueue = compileQueue.then(preloadEngine);
@@ -368,7 +346,7 @@ self.onmessage = (e: MessageEvent) => {
       }
 
       // A copy: the loaded list is cached for the worker's life, resources must not leak into later compiles.
-      const additionalFiles = [...(await loadAdditionalFiles())];
+      const additionalFiles = loadAdditionalFiles();
 
       // Teacher-uploaded resources go in flat, after the bundled assets, and
       // never over one: a name that would shadow an asset is already refused
