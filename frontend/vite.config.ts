@@ -91,6 +91,8 @@ export default defineConfig({
     sveltekit({
       adapter: adapter({ pages: 'build', assets: 'build', fallback: 'index.html', precompress: false, strict: true }),
       preprocess: vitePreprocess(),
+      // Installed (PWA) apps stay open for days: poll for new deployments so UpdateNotice can prompt a reload.
+      version: { pollInterval: 5 * 60 * 1000 },
     }),
     // No-op outside Vitest; inside it, resolves Svelte's browser build for jsdom.
     svelteTesting(),
