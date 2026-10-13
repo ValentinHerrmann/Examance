@@ -346,7 +346,7 @@
 
       previewIsPdf = isPdf;
       const mimeType = isPdf ? "application/pdf" : "image/png";
-      const blob = new Blob([decryptedBytes as unknown as BlobPart], { type: mimeType });
+      const blob = new Blob([decryptedBytes as BlobPart], { type: mimeType });
       previewObjectUrl = URL.createObjectURL(blob);
     } catch (err) {
       console.error("Preview decryption failed:", err);
@@ -409,7 +409,7 @@
       const scores = await scoreRepository.getBySubmissionId(examId, sub.id, key);
 
       const bytes = await renderGradedPdf(sub, scores, key, { fallbackKey: fallbackSessionKey });
-      downloadBlob(new Blob([bytes as unknown as BlobPart], { type: "application/pdf" }), `${item.fallbackCode || item.id}_graded.pdf`);
+      downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), `${item.fallbackCode || item.id}_graded.pdf`);
     } catch (err: any) {
       alert(translate("scanning.errorExportPdf", { message: err?.message || err }));
     } finally {

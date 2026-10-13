@@ -23,7 +23,7 @@ export const exportNs: Translations['export'] = {
             graded: 'Graded scans (PDF)',
             gradedHint: 'With annotations burned in, including partly graded submissions (file name with _partial, ungraded ones with _ungraded).',
             latex: 'LaTeX source',
-            latexHint: 'Exam (main.tex) and solution (solution.tex) with their files and logo, compilable as an Overleaf project with XeLaTeX.',
+            latexHint: 'A separate ZIP with the exam (main.tex) and solution (solution.tex), their files and logo: upload it to Overleaf as is (compiler XeLaTeX).',
             pdf: 'Compiled exam and solution (PDF)',
             pdfHint: 'Compiling may take a while.',
             summary: 'Summary (PDF)',

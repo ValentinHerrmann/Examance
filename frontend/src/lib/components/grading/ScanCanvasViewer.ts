@@ -5,55 +5,49 @@ export interface AutoCropBounds {
   h: number;
 }
 
+const INK_LUMINANCE = 225;
+const SAMPLE_STEP = 4;
+const CROP_PAD = 20;
+
+/** Bounding box of the dark (non-paper) pixels, sampled on a coarse grid; null when none. */
+function findInkBounds(data: Uint8ClampedArray, width: number, height: number): AutoCropBounds | null {
+  let minX = width;
+  let minY = height;
+  let maxX = 0;
+  let maxY = 0;
+  for (let y = 0; y < height; y += SAMPLE_STEP) {
+    for (let x = 0; x < width; x += SAMPLE_STEP) {
+      const idx = (y * width + x) * 4;
+      const lum = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+      if (lum >= INK_LUMINANCE) continue;
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  if (maxX <= minX || maxY <= minY) return null;
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
 export function getAutoCropBounds(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
 ): AutoCropBounds {
+  const full = { x: 0, y: 0, w: width, h: height };
   try {
-    const imgData = ctx.getImageData(0, 0, width, height);
-    const data = imgData.data;
-
-    let minX = width;
-    let minY = height;
-    let maxX = 0;
-    let maxY = 0;
-
-    const step = 4;
-    for (let y = 0; y < height; y += step) {
-      for (let x = 0; x < width; x += step) {
-        const idx = (y * width + x) * 4;
-        const r = data[idx];
-        const g = data[idx + 1];
-        const b = data[idx + 2];
-        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-
-        if (lum < 225) {
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-          if (y < minY) minY = y;
-          if (y > maxY) maxY = y;
-        }
-      }
-    }
-
-    if (maxX <= minX || maxY <= minY) {
-      return { x: 0, y: 0, w: width, h: height };
-    }
-
-    const pad = 20;
-    const cropX = Math.max(0, minX - pad);
-    const cropY = Math.max(0, minY - pad);
-    const cropW = Math.min(width - cropX, maxX - minX + pad * 2);
-    const cropH = Math.min(height - cropY, maxY - minY + pad * 2);
-
-    if (cropW < width * 0.95 || cropH < height * 0.95) {
-      return { x: cropX, y: cropY, w: cropW, h: cropH };
-    }
+    const ink = findInkBounds(ctx.getImageData(0, 0, width, height).data, width, height);
+    if (!ink) return full;
+    const x = Math.max(0, ink.x - CROP_PAD);
+    const y = Math.max(0, ink.y - CROP_PAD);
+    const w = Math.min(width - x, ink.w + CROP_PAD * 2);
+    const h = Math.min(height - y, ink.h + CROP_PAD * 2);
+    if (w < width * 0.95 || h < height * 0.95) return { x, y, w, h };
   } catch (e) {
     console.error("Auto crop calculation failed:", e);
   }
-  return { x: 0, y: 0, w: width, h: height };
+  return full;
 }
 
 /** Scans are sealed PDFs; legacy submissions hold a PNG. */

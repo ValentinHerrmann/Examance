@@ -22,7 +22,7 @@ export const exportNs = {
             graded: 'Korrigierte Scans (PDF)',
             gradedHint: 'Mit eingebrannten Anmerkungen, auch teilweise korrigierte Abgaben (Dateiname mit _partial, unkorrigierte mit _ungraded).',
             latex: 'LaTeX-Quelltext',
-            latexHint: 'Angabe (main.tex) und Lösung (solution.tex) samt Dateien und Logo, als Overleaf-Projekt mit XeLaTeX kompilierbar.',
+            latexHint: 'Eigene ZIP mit Angabe (main.tex) und Lösung (solution.tex) samt Dateien und Logo: direkt bei Overleaf hochladen (Compiler XeLaTeX).',
             pdf: 'Kompilierte Angabe und Lösung (PDF)',
             pdfHint: 'Das Kompilieren kann etwas dauern.',
             summary: 'Zusammenfassung (PDF)',

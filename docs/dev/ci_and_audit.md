@@ -7,3 +7,7 @@ The frontend `npm audit` gate is deliberately scoped to `--omit=dev`: the build 
 The `--omit=dev` tree is still not only shipped code: `@embedpdf/snippet`'s packages declare non-optional `svelte >=5` / `react` / `vue` peers, so npm counts Svelte (and its `devalue`) as "prod" although only the preact build is bundled.
 
 Their advisories hit the gate. Fix with a lockfile bump (`npm audit fix`), never `--force`.
+
+## SonarCloud
+
+SonarCloud runs as automatic analysis (no scanner step in the workflows); its settings live in the root `.sonarcloud.properties`. The quality gate allows at most 3 % duplication on new code. The i18n catalogs are excluded from copy-paste detection because `en/*.ts` mirrors `de/*.ts` key for key by design.

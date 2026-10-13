@@ -38,6 +38,9 @@
   let warnings = $state<string[]>([]);
   let finished = $state(false);
 
+  const progressClass =
+    "block h-3 w-full appearance-none overflow-hidden rounded-md bg-surface-inset [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-surface-inset [&::-webkit-progress-value]:bg-primary";
+
   let selected = $derived(new Set(options.filter((o) => !o.disabled && checked[o.key]).map((o) => o.key)));
 
   const progress: ExportProgress = (s, done, total) => {
@@ -54,8 +57,8 @@
       progress($t("export.dialog.packing"));
       downloadBlob(result.zip.toBlob(), result.fileName);
       warnings = result.warnings;
-      if (!warnings.length) onClose();
-      else finished = true;
+      if (warnings.length) finished = true;
+      else onClose();
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
     } finally {
@@ -87,18 +90,12 @@
 
     {#if running}
       <div class="mt-6" aria-live="polite">
-        <div
-          class="h-3 overflow-hidden rounded-md bg-surface-inset"
-          role="progressbar"
-          aria-valuemin="0"
-          aria-valuemax="100"
-          aria-valuenow={fraction === null ? undefined : Math.round(fraction * 100)}
-        >
-          <div
-            class="h-full bg-primary transition-[width] duration-200 {fraction === null ? 'animate-pulse' : ''}"
-            style="width: {fraction === null ? 100 : fraction * 100}%"
-          ></div>
-        </div>
+        <!-- No value = indeterminate (the step count is unknown, e.g. while compiling). -->
+        {#if fraction === null}
+          <progress class={progressClass} aria-label={step}></progress>
+        {:else}
+          <progress class={progressClass} aria-label={step} max="100" value={Math.round(fraction * 100)}></progress>
+        {/if}
         <p class="mt-2 text-sm text-muted">{step}</p>
       </div>
     {/if}

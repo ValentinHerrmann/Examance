@@ -32,7 +32,8 @@ export function drawStrokes(ctx: CanvasRenderingContext2D, strokes: VectorStroke
     switch (stroke.tool) {
       case 'pen':
         ctx.beginPath();
-        pts.forEach((q, i) => (i === 0 ? ctx.moveTo(q.x, q.y) : ctx.lineTo(q.x, q.y)));
+        if (p) ctx.moveTo(p.x, p.y);
+        for (const q of pts.slice(1)) ctx.lineTo(q.x, q.y);
         ctx.stroke();
         break;
       case 'line':

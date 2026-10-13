@@ -22,7 +22,7 @@ export function computeExamResults(
   const exerciseMaxPoints = exercises.map((ex) => ex.maxPoints || 0);
   const scores = new Map<string, number>();
   for (const sc of scoreRecords) {
-    if (typeof sc.score === 'number' && !isNaN(sc.score)) scores.set(`${sc.submissionId}:${sc.exerciseId}`, sc.score);
+    if (typeof sc.score === 'number' && !Number.isNaN(sc.score)) scores.set(`${sc.submissionId}:${sc.exerciseId}`, sc.score);
   }
   const results: ExamResult[] = [];
   for (const sub of submissions) {
@@ -37,6 +37,12 @@ export function computeExamResults(
 }
 
 export type GradingState = 'complete' | 'partial' | 'ungraded';
+
+/** Complete, provisional (some exercises ungraded) or no result at all. */
+export function gradingState(result: ExamResult | undefined): GradingState {
+  if (!result) return 'ungraded';
+  return result.isComplete ? 'complete' : 'partial';
+}
 
 /** A CSV row plus what the summary PDF and the graded-scan export need on top. */
 export interface GradeRow extends CsvExportRow {
@@ -66,10 +72,10 @@ export async function buildGradeRows(
       totalScore: result ? Math.round(result.gradedPoints * 100) / 100 : ungraded,
       maxPoints: totalMaxPoints ?? '',
       percentage: result ? Math.round(result.percentage * 10) / 10 : ungraded,
-      grade: grade ? grade.grade : ungraded,
+      grade: grade?.grade ?? ungraded,
       status: result && !result.isComplete ? translate('stats.exportModal.provisional') : '',
       submissionId: sub?.id,
-      state: !result ? 'ungraded' : result.isComplete ? 'complete' : 'partial',
+      state: gradingState(result),
     };
   });
 }

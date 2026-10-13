@@ -204,7 +204,7 @@ export const help: Translations['help'] = {
             s3: {
                 h: 'Export',
                 p1: 'Results can be exported as CSV, e.g. for the school’s grade management system. The file contains pseudonym, fallback code, name, score, max points, percentage and grade. The export contains real names — handle the file accordingly.',
-                p2: '“Export (ZIP)” on the exam (on the start page and in the exam overview) bundles a single exam into one ZIP; you pick the parts: graded submissions as PDF with the corrections drawn in (partially graded ones too, marked in the file name), the LaTeX source with its files (for Overleaf or XeLaTeX), the compiled task sheet and solution PDFs, a summary PDF for your records (metadata, grading key in points and percent, average, the extended chart and the student list with scores and grades, partially graded ones highlighted) and the grades as CSV. The ZIP is unencrypted and contains real names; the export is logged.',
+                p2: '“Export (ZIP)” on the exam (on the start page and in the exam overview) bundles a single exam into one ZIP; you pick the parts: graded submissions as PDF with the corrections drawn in (partially graded ones too, marked in the file name), the LaTeX source with its files as a separate ZIP (upload it to Overleaf as is, compiler XeLaTeX), the compiled task sheet and solution PDFs, a summary PDF for your records (metadata, grading key in points and percent, average, the extended chart and the student list with scores and grades, partially graded ones highlighted) and the grades as CSV. The ZIP is unencrypted and contains real names; the export is logged.',
             },
         },
         analytics: {

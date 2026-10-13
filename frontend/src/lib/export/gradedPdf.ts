@@ -17,6 +17,13 @@ export interface GradedPdfOptions {
   fallbackKey?: CryptoKey | null;
 }
 
+function newCanvas(w: number, h: number): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  return canvas;
+}
+
 function canvasToPng(canvas: HTMLCanvasElement): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
@@ -69,13 +76,6 @@ export async function renderGradedPdf(
     out.addPage([w, h]).drawImage(png, { x: 0, y: 0, width: w, height: h });
   };
 
-  const newCanvas = (w: number, h: number) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    return canvas;
-  };
-
   if (isPdfBytes(scanBytes)) {
     const doc = await (await loadPdfjs()).getDocument({ data: scanBytes }).promise;
     try {
@@ -87,7 +87,7 @@ export async function renderGradedPdf(
         await addPage(canvas, n, 1 / RENDER_SCALE);
       }
     } finally {
-      void doc.loadingTask.destroy();
+      await doc.loadingTask.destroy();
     }
   } else {
     // Legacy PNG: crop exactly as the viewer does so strokes line up; 192 dpi source.

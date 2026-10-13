@@ -21,7 +21,8 @@ export function renderChartSvg(chart: ChartSpec, docTitle: string): string {
     if (!svg) throw new Error('chartExport: chart did not render');
     return serializeChartSvg(svg, docTitle);
   } finally {
-    void unmount(instance);
+    // Without an outro unmount removes the DOM synchronously; the promise only reports failures.
+    unmount(instance).catch(console.error);
     host.remove();
   }
 }

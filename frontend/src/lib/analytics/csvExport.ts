@@ -20,7 +20,7 @@ export interface CsvExportRow {
 /** RFC 4180 quoting: wrap in quotes, double any quote inside. */
 function csvCell(value: number | string): string {
   const text = typeof value === 'number' ? String(value) : value;
-  return `"${text.replace(/"/g, '""')}"`;
+  return `"${text.replaceAll('"', '""')}"`;
 }
 
 /**
@@ -61,5 +61,5 @@ export async function exportGradesToCsv(
 ): Promise<void> {
   await logExportAction(examId, 'CSV', key);
   const blob = new Blob([buildGradesCsv(rows) as BlobPart], { type: 'text/csv;charset=utf-8;' });
-  downloadBlob(blob, `${examTitle.replace(/[^a-z0-9_-]/gi, '_')}_grades.csv`);
+  downloadBlob(blob, `${examTitle.replaceAll(/[^a-z0-9_-]/gi, '_')}_grades.csv`);
 }
