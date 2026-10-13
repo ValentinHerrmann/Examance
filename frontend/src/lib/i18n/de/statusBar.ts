@@ -16,4 +16,10 @@ export const statusBar = {
     incompatibleTitle: 'Inkompatible Serverversion',
     incompatibleBody: 'Diese App (v{app}) und der Server (v{server}) haben unterschiedliche Hauptversionen. Speichern kann fehlschlagen. Laden Sie die Seite neu oder wenden Sie sich an die Administration.',
     mismatchShort: 'Versionen weichen ab',
+    updateTitle: 'Neue Version verfügbar',
+    updateBody: 'Laden Sie neu, um die aktuelle Version zu erhalten. Nicht gespeicherte Arbeit in offenen Editoren kann verloren gehen.',
+    updateReload: 'Jetzt neu laden',
+    releaseNotesTitle: 'Aktualisiert auf v{version}',
+    releaseNotesLink: 'Release Notes auf GitHub ansehen',
+    releaseNotesDismiss: 'Schließen',
 } as const;

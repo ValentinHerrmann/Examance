@@ -35,6 +35,15 @@ function readVersionFile(): string {
   }
 }
 
+/** Root RELEASE_NOTES.md (the GitHub Release body, written by deploy-release.yml); empty when absent. */
+function readReleaseNotes(): string {
+  try {
+    return readFileSync(fileURLToPath(new URL('../RELEASE_NOTES.md', import.meta.url)), 'utf-8').trim();
+  } catch {
+    return '';
+  }
+}
+
 /** PREVIEW_VERSION (`<release>-PR#<n> [<built-at>]`) is committed by deploy-preview.yml; Pages knows no PR numbers. */
 function readPreviewVersionFile(): string {
   try {
@@ -91,6 +100,8 @@ export default defineConfig({
     sveltekit({
       adapter: adapter({ pages: 'build', assets: 'build', fallback: 'index.html', precompress: false, strict: true }),
       preprocess: vitePreprocess(),
+      // Installed (PWA) apps stay open for days: poll for new deployments so UpdateNotice can prompt a reload.
+      version: { pollInterval: 5 * 60 * 1000 },
     }),
     // No-op outside Vitest; inside it, resolves Svelte's browser build for jsdom.
     svelteTesting(),
@@ -98,6 +109,7 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(computeAppVersion()),
     __APP_COMMIT_SHA__: JSON.stringify(computeCommitSha()),
+    __RELEASE_NOTES__: JSON.stringify(readReleaseNotes()),
     __REPO_URL__: JSON.stringify(REPO_URL),
     __DEFAULT_BACKEND_URL__: JSON.stringify(computeDefaultBackendUrl()),
     __PROD_BACKEND_URL__: JSON.stringify(PROD_BACKEND_URL),

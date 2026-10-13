@@ -74,13 +74,23 @@ jobs:
         env:
           VERSION: ${{ needs.version.outputs.version }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          # Via env, never interpolated into the script: the body is free text.
+          RELEASE_BODY: ${{ github.event.release.body }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           printf '%s\n' "$VERSION" > VERSION
-          git add VERSION
+
+          # The in-app "what's new" notice inlines these at build time (frontend/vite.config.ts).
+          # A manual dispatch has no event body, so read it from the published release (may not exist yet).
+          if [ -z "$RELEASE_BODY" ] && [ "${{ github.event_name }}" != "release" ]; then
+            RELEASE_BODY="$(gh release view "v$VERSION" --json body --jq .body 2>/dev/null || gh release view "$VERSION" --json body --jq .body 2>/dev/null || true)"
+          fi
+          printf '%s\n' "$RELEASE_BODY" > RELEASE_NOTES.md
+          git add VERSION RELEASE_NOTES.md
 
           # The commit that lands on the default branch carries [skip ci] so it
           # does not re-trigger the CI workflow...

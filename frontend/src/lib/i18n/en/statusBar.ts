@@ -18,4 +18,10 @@ export const statusBar: Translations['statusBar'] = {
     incompatibleTitle: 'Incompatible server version',
     incompatibleBody: 'This app (v{app}) and the server (v{server}) run different major versions. Saving may fail. Reload the page or contact your administrator.',
     mismatchShort: 'Versions differ',
+    updateTitle: 'A new version is available',
+    updateBody: 'Reload to get the latest version. Unsaved work in open editors may be lost.',
+    updateReload: 'Reload now',
+    releaseNotesTitle: 'Updated to v{version}',
+    releaseNotesLink: 'View release notes on GitHub',
+    releaseNotesDismiss: 'Dismiss',
 };
