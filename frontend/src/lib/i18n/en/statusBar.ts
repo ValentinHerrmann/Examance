@@ -7,6 +7,7 @@ export const statusBar: Translations['statusBar'] = {
     backendCurrent: 'Current Backend Server',
     noServer: 'No Server Configured',
     languageHint: 'Switch language ({language})',
+    previewBanner: 'Preview',
     versionMatch: 'App and server both run v{version}',
     versionMismatch: 'App v{version} — versions differ but stay compatible',
     versionIncompatible: 'App v{version} — incompatible major version',

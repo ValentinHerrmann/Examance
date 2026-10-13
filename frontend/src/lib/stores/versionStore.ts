@@ -4,6 +4,9 @@ import { effectiveBackendStore } from '#lib/stores/backendStore';
 /** Build version of this bundle, inlined by Vite (vite.config.ts): bare semver in production ("1.4.0"), "1.4.0-PR#123 [18.08.2026 | 14:32]" for previews, "0.0.0-dev" locally. */
 export const frontendVersion: string = __APP_VERSION__;
 
+/** True for preview deployments (see vite.config.ts); production and local dev are false. */
+export const isPreviewBuild: boolean = __IS_PREVIEW__;
+
 /** GitHub repository this frontend is published from (see vite.config.ts). */
 export const repoUrl: string = __REPO_URL__;
 

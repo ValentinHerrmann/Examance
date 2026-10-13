@@ -66,6 +66,12 @@ function computeAppVersion(): string {
   return sha ? `${readVersionFile()}-${sha}` : readVersionFile();
 }
 
+/** Any Pages branch other than `release` is a preview; local dev and vitest are not (no banner). */
+function computeIsPreview(): boolean {
+  const branch = process.env.CF_PAGES_BRANCH;
+  return !!branch && branch !== 'release';
+}
+
 /** Linked next to the version tag: release builds link their GitHub Release, others their commit. */
 const REPO_URL = 'https://github.com/ValentinHerrmann/Examance';
 
@@ -108,6 +114,7 @@ export default defineConfig({
   ],
   define: {
     __APP_VERSION__: JSON.stringify(computeAppVersion()),
+    __IS_PREVIEW__: JSON.stringify(computeIsPreview()),
     __APP_COMMIT_SHA__: JSON.stringify(computeCommitSha()),
     __RELEASE_NOTES__: JSON.stringify(readReleaseNotes()),
     __REPO_URL__: JSON.stringify(REPO_URL),
