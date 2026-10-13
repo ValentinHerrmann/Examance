@@ -43,7 +43,6 @@ export function mainRoutes(examId: string): RouteSpec[] {
     { name: 'exercises', path: '/exercises' },
     { name: 'analytics', path: '/analytics' },
     { name: 'settings', path: '/settings' },
-    { name: 'settings-security', path: '/settings/security' },
     { name: 'help', path: '/help' },
     { name: 'impressum', path: '/legal/impressum' },
     { name: 'exam-new', path: '/exam/new' },

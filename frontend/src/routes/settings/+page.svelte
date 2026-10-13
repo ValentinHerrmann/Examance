@@ -32,6 +32,7 @@
   } from "#lib/i18n";
   import { PageShell, PageHeader, Card, Button, Alert } from "#lib/components/ui";
   import SectionNav from "#lib/components/settings/SectionNav.svelte";
+  import SecuritySection from "#lib/components/security/SecuritySection.svelte";
   import SettingsGroupHeading from "#lib/components/settings/SettingsGroupHeading.svelte";
   import DeleteAccountCard from "#lib/components/settings/DeleteAccountCard.svelte";
   import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
@@ -133,20 +134,21 @@
     }
   }
 
+  // Ordered by assumed frequency of use within each group, most used first.
   let navItems = $derived([
-    { id: "group-general", label: $t("settings.groups.general"), group: true },
-    { id: "language", label: $t("settings.language.heading") },
-    { id: "theme", label: $t("settings.theme.heading") },
     ...(isAdmin ? [] : [
       { id: "group-workspace", label: $t("settings.groups.workspace"), group: true },
-      { id: "storage-policy", label: $t("settings.storage.heading") },
       { id: "latex", label: $t("settings.latex.heading") },
-      { id: "logo", label: $t("logo.account.heading") },
       { id: "omr", label: $t("settings.omr.heading") },
+      { id: "logo", label: $t("logo.account.heading") },
+      { id: "storage-policy", label: $t("settings.storage.heading") },
       ...(donationAvailable || $trainingDonationStore.enabled
         ? [{ id: "donation", label: $t("settings.donation.heading") }]
         : []),
     ]),
+    { id: "group-general", label: $t("settings.groups.general"), group: true },
+    { id: "language", label: $t("settings.language.heading") },
+    { id: "theme", label: $t("settings.theme.heading") },
     { id: "group-account", label: $t("settings.groups.account"), group: true },
     ...($isAuthenticated ? [{ id: "security", label: $t("security.page.title") }] : []),
     ...(isAdmin ? [] : [
@@ -176,7 +178,11 @@
           <Alert severity="success" onDismiss={() => (statusMsg = "")}>{statusMsg}</Alert>
         {/if}
 
+        {#if !isAdmin}
+        <SettingsGroupHeading id="group-workspace" title={$t("settings.groups.workspace")} />
+
         <SettingsForm
+          part="latex"
           storageMode={$storagePolicyStore.storageMode}
           latexCompilation={$effectiveLatexStore}
           uiLocale={$locale}
@@ -185,22 +191,32 @@
           onLocaleChange={handleLocaleChange}
           allowedModes={$allowedStorageModes}
           serverLatexEnabled={$featuresStore.server_latex === true}
-          teaching={!isAdmin}
         />
-        {#if !isAdmin}
-        {#if workspaceOwnerLabel}
-          <p class="-mt-2 px-1 text-xs text-muted">
-            {$t("storagePolicy.workspace.ownerLabel")}: {workspaceOwnerLabel}
-          </p>
-        {/if}
-
-        <AccountLogoCard />
 
         <OmrDetectionSettingsCard
           profile={$omrSettingsStore}
           onSave={(params) => omrSettingsStore.save(params)}
           onReset={() => omrSettingsStore.reset()}
         />
+
+        <AccountLogoCard />
+
+        <SettingsForm
+          part="storage"
+          storageMode={$storagePolicyStore.storageMode}
+          latexCompilation={$effectiveLatexStore}
+          uiLocale={$locale}
+          onStorageModeChange={handleStorageModeChange}
+          onLatexChange={handleLatexChange}
+          onLocaleChange={handleLocaleChange}
+          allowedModes={$allowedStorageModes}
+          serverLatexEnabled={$featuresStore.server_latex === true}
+        />
+        {#if workspaceOwnerLabel}
+          <p class="-mt-2 px-1 text-xs text-muted">
+            {$t("storagePolicy.workspace.ownerLabel")}: {workspaceOwnerLabel}
+          </p>
+        {/if}
 
         <OmrDonationCard
           enabled={$trainingDonationStore.enabled}
@@ -211,18 +227,24 @@
         />
         {/if}
 
+        <SettingsGroupHeading id="group-general" title={$t("settings.groups.general")} />
+
+        <SettingsForm
+          part="general"
+          storageMode={$storagePolicyStore.storageMode}
+          latexCompilation={$effectiveLatexStore}
+          uiLocale={$locale}
+          onStorageModeChange={handleStorageModeChange}
+          onLatexChange={handleLatexChange}
+          onLocaleChange={handleLocaleChange}
+          allowedModes={$allowedStorageModes}
+          serverLatexEnabled={$featuresStore.server_latex === true}
+        />
+
         <SettingsGroupHeading id="group-account" title={$t("settings.groups.account")} />
 
         {#if $isAuthenticated}
-          <!-- Server accounts only: a local vault has no sign-in factors. -->
-          <div id="security" class="scroll-mt-16 lg:scroll-mt-4">
-            <Card title={$t("security.page.title")}>
-              <p class="mt-0 mb-4 text-sm text-muted">{$t("security.page.subtitle")}</p>
-              <Button variant="outlined" severity="secondary" onClick={() => goto("/settings/security")}>
-                {$t("security.page.open")}
-              </Button>
-            </Card>
-          </div>
+          <SecuritySection />
         {/if}
 
         {#if !isAdmin}

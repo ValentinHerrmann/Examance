@@ -2,8 +2,6 @@ export const security = {
     page: {
         title: 'Anmeldung & Sicherheit',
         subtitle: 'Womit Sie sich anmelden, was davon Ihre verschlüsselten Daten öffnen kann, und wie Sie beides ändern.',
-        open: 'Sicherheitseinstellungen öffnen',
-        backToSettings: 'Zurück zu den Einstellungen',
         loading: 'Sicherheitsstatus wird geladen …',
         localOnly: 'Dieser Arbeitsbereich ist rein lokal und hat kein Konto. Anmeldefaktoren gibt es erst mit einem Serverkonto.',
         statusEnrolled: 'Eingerichtet',
