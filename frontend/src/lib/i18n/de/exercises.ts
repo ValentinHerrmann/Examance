@@ -3,6 +3,7 @@ export const exercises = {
     page: {
         title: 'Aufgabenbibliothek',
         subtitle: 'Wiederverwendbare LaTeX-Aufgabensammlung, live verknüpft mit Ihren Prüfungen.',
+        exportLibraryButton: 'Bibliothek exportieren',
         createButton: 'Neue Aufgabe erstellen',
         filtersTitle: 'Filter',
         showFilters: 'Filter anzeigen',
@@ -102,6 +103,7 @@ export const exercises = {
         allTopics: 'Alle Themen ({count})',
     },
     groupList: {
+        exportTitle: 'Gruppe mit allen Varianten und Bildern als ZIP exportieren',
         loading: 'Aufgabenbibliothek wird geladen...',
         empty: 'Keine Aufgaben gefunden, die Ihren Kriterien entsprechen.',
         createFirst: 'Erste Aufgabe erstellen',

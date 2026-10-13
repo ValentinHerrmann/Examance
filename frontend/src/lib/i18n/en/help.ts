@@ -114,6 +114,11 @@ export const help: Translations['help'] = {
                 p2: 'They see proposals under “Proposals” and get a short email notice without content. They compare the proposal with their current version, can edit it, and accept or reject it. Accepting always adds a new version or variant; existing versions and exams stay unchanged. A PDF preview is available only after accepting.',
                 p3: 'After the decision the proposal’s content is deleted, the entry itself after 30 days; open proposals after 180 days. You can withdraw an open proposal at any time. Accepted changes reach your copy through “Update…”. If your proposal was accepted unchanged, your copy is automatically back in sync with the original; only an edited acceptance shows “Update available”. Exercises with an open proposal carry a tag in the library that leads straight to the proposals; from there, “Open in library” opens the exercise.',
             },
+            s7: {
+                h: 'Exporting (ZIP)',
+                p1: '“Export (ZIP)” on an exercise group downloads all current exercises of the group as readable LaTeX: one folder per exercise with exercise.tex and its files (e.g. images), plus a document with all exercises of the group and a manifest.json with the metadata. Optionally the bundled LaTeX files (sty) and the compiled PDFs (task sheet and solution) are added; compiling can take a few minutes for many exercises.',
+                p2: '“Export library” downloads all your own exercise groups with their files and the bundled LaTeX files as one ZIP, without PDFs. The folder can be uploaded to Overleaf or compiled locally with XeLaTeX (see README.txt). Unlike the encrypted archive (.bgproj), this ZIP cannot be imported again.',
+            },
         },
         examCreation: {
             title: 'Creating an exam',
@@ -199,6 +204,7 @@ export const help: Translations['help'] = {
             s3: {
                 h: 'Export',
                 p1: 'Results can be exported as CSV, e.g. for the school’s grade management system. The file contains pseudonym, fallback code, name, score, max points, percentage and grade. The export contains real names — handle the file accordingly.',
+                p2: '“Export (ZIP)” on the exam (on the start page and in the exam overview) bundles a single exam into one ZIP; you pick the parts: graded submissions as PDF with the corrections drawn in (partially graded ones too, marked in the file name), the LaTeX source with its files (for Overleaf or XeLaTeX), the compiled task sheet and solution PDFs, a summary PDF for your records (metadata, grading key in points and percent, average, the extended chart and the student list with scores and grades, partially graded ones highlighted) and the grades as CSV. The ZIP is unencrypted and contains real names; the export is logged.',
             },
         },
         analytics: {

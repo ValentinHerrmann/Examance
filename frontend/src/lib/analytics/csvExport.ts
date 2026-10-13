@@ -3,6 +3,7 @@
  */
 
 import { logExportAction } from '#lib/gdpr/exportAudit';
+import { downloadBlob } from '#lib/components/stats/chartExport';
 
 export interface CsvExportRow {
   studentPseudonymId: string;
@@ -23,50 +24,42 @@ function csvCell(value: number | string): string {
 }
 
 /**
- * Serialize student grade records to RFC 4180 CSV format and trigger browser file download.
+ * RFC 4180 CSV bytes with a UTF-8 BOM (Excel). The header stays English: it is a machine-readable
+ * interchange format, and German spreadsheets import it either way.
  */
+export function buildGradesCsv(rows: CsvExportRow[]): Uint8Array {
+  const lines = [
+    'Pseudonym ID,Fallback Code,Student Name,Total Score,Max Points,Percentage,Grade,Status',
+    ...rows.map((row) =>
+      [
+        row.studentPseudonymId,
+        row.fallbackCode,
+        row.studentName,
+        row.totalScore,
+        row.maxPoints,
+        row.percentage,
+        row.grade,
+        row.status,
+      ]
+        .map(csvCell)
+        .join(',')
+    ),
+  ];
+  const text = new TextEncoder().encode(lines.join('\r\n') + '\r\n');
+  const bytes = new Uint8Array(3 + text.length);
+  bytes.set([0xef, 0xbb, 0xbf]);
+  bytes.set(text, 3);
+  return bytes;
+}
+
+/** Audit-logs the export, then downloads the grades as CSV. */
 export async function exportGradesToCsv(
   examId: string,
   examTitle: string,
   rows: CsvExportRow[],
   key: CryptoKey | null
 ): Promise<void> {
-  // 1. Audit log export action
   await logExportAction(examId, 'CSV', key);
-
-  // 2. Build RFC 4180 CSV string. Header stays English: it's a
-  // machine-readable interchange format, and German spreadsheets import it
-  // either way.
-  let csvContent =
-    'Pseudonym ID,Fallback Code,Student Name,Total Score,Max Points,Percentage,Grade,Status\r\n';
-
-  rows.forEach((row) => {
-    csvContent +=
-      [
-        csvCell(row.studentPseudonymId),
-        csvCell(row.fallbackCode),
-        csvCell(row.studentName),
-        csvCell(row.totalScore),
-        csvCell(row.maxPoints),
-        csvCell(row.percentage),
-        csvCell(row.grade),
-        csvCell(row.status),
-      ].join(',') + '\r\n';
-  });
-
-  // UTF-8 BOM (\uFEFF) ensures Excel opens non-ASCII characters cleanly
-  const bom = new Uint8Array([0xef, 0xbb, 0xbf]);
-  const textBytes = new TextEncoder().encode(csvContent);
-  const blob = new Blob([bom, textBytes], { type: 'text/csv;charset=utf-8;' });
-
-  // Trigger browser download
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  const safeFilename = examTitle.replace(/[^a-z0-9_-]/gi, '_');
-  link.download = `${safeFilename}_grades.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  const blob = new Blob([buildGradesCsv(rows) as BlobPart], { type: 'text/csv;charset=utf-8;' });
+  downloadBlob(blob, `${examTitle.replace(/[^a-z0-9_-]/gi, '_')}_grades.csv`);
 }

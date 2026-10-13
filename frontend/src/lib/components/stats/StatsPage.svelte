@@ -7,7 +7,8 @@
   import StatsCards from './StatsCards.svelte';
   import BorderlineCases from './BorderlineCases.svelte';
   import ChartCard from './ChartCard.svelte';
-  import { binColumns, gradeBands, gradeColumns, normalCurve, type ChartCurve, type ChartLayer, type ChartMarker, type ChartSpan } from './chartColumns';
+  import { binColumns, gradeColumns } from './chartColumns';
+  import { buildGradeChartModel } from '#lib/analytics/gradeChartModel';
   import StatsExportModal from './StatsExportModal.svelte';
 
   interface Props {
@@ -47,62 +48,7 @@
   const num = (v: number) => $fmt.number(v, { maximumFractionDigits: 2 });
   let grades = $derived(gradeColumns(stats?.gradeBuckets ?? [], num, $fmt.percent, stats?.borderline ?? []));
   let bins = $derived(binColumns(stats?.bins ?? [], num));
-  let bands = $derived(gradeBands(stats?.gradeBuckets ?? [], num, $fmt.percent));
-  let combinedLayers: ChartLayer[] = $derived([
-    { columns: bands, fill: 1, labels: 'none', values: true, band: true },
-    { columns: bins, fill: 0.7, labels: 'axis', values: true },
-  ]);
-
-  // Mean and median as marks on the merged chart's summary strip, whose axis runs 100 % → 0 %
-  // (domain = 100 - percentage). The ± standard deviation span is there for evaluation.
-  const pctText = (p: number) => $fmt.percent(p / 100, 1);
-  const one = (v: number) => $fmt.number(v, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  let combinedMarkers: ChartMarker[] = $derived(stats?.summary
-    ? [
-        {
-          at: 100 - stats.summary.mean,
-          caption: [{ text: `${$t('stats.combined.markers.mean')} ` }, { text: pctText(stats.summary.mean), dynamic: true }],
-          title: `${$t('stats.combined.markers.meanTitle')}: ${pctText(stats.summary.mean)}`,
-        },
-        {
-          at: 100 - stats.summary.median,
-          shape: 'diamond',
-          caption: [{ text: `${$t('stats.combined.markers.median')} ` }, { text: pctText(stats.summary.median), dynamic: true }],
-          title: `${$t('stats.combined.markers.medianTitle')}: ${pctText(stats.summary.median)}`,
-        },
-      ]
-    : []);
-
-  // Upper bound first, like every range on the page ("76–52 %").
-  let sdRange = $derived(stats?.summary
-    ? `${one(Math.min(100, stats.summary.mean + stats.summary.stdDev))}–${one(Math.max(0, stats.summary.mean - stats.summary.stdDev))}\u00a0%`
-    : '');
-  let combinedSpans: ChartSpan[] = $derived(stats?.summary && stats.summary.stdDev > 0
-      ? [
-          {
-            from: 100 - (stats.summary.mean + stats.summary.stdDev),
-            to: 100 - (stats.summary.mean - stats.summary.stdDev),
-            captionOptions: [
-              [{ text: `${$t('stats.combined.markers.sdLabel')}: ` }, { text: sdRange, dynamic: true }],
-              [{ text: `${$t('stats.combined.markers.sdShort')}: ` }, { text: sdRange, dynamic: true }],
-              [{ text: sdRange, dynamic: true }],
-            ],
-            title: $t('stats.combined.markers.sdTitle', {
-              sd: pctText(stats.summary.stdDev),
-              from: pctText(Math.max(0, stats.summary.mean - stats.summary.stdDev)),
-              to: pctText(Math.min(100, stats.summary.mean + stats.summary.stdDev)),
-            }),
-          },
-        ]
-      : []);
-
-  // Uneven bins (binWidth null) are at most 5 % wide, so scale the curve to 5 %.
-  let combinedCurve: ChartCurve | null = $derived(stats?.summary
-    ? {
-        points: normalCurve(stats.summary.mean, stats.summary.stdDev, stats.results.length, stats.binWidth ?? 5),
-        title: $t('stats.combined.markers.curveTitle'),
-      }
-    : null);
+  let combined = $derived(buildGradeChartModel(stats, { t: $t, fmt: $fmt }));
 
   let provisional = $derived((stats?.results ?? []).some((r) => !r.isComplete));
   let histogramSubtitle = $derived(stats
@@ -143,15 +89,15 @@
         subtitle={$t('stats.combined.subtitle')}
         domain={100}
         plotHeight={260}
-        layers={combinedLayers}
-        markers={combinedMarkers}
-        spans={combinedSpans}
-        curve={combinedCurve}
+        layers={combined.layers}
+        markers={combined.markers}
+        spans={combined.spans}
+        curve={combined.curve}
         axisLabel={$t('stats.submissionHistogram.axisLabel')}
         examTitle={exam?.title ?? ''}
         fileName="noten_prozentverteilung"
       >
-        {#if combinedMarkers.length}
+        {#if combined.markers.length}
           <p class="mt-2 text-xs text-muted">{$t('stats.combined.markers.legend')}</p>
         {/if}
       </ChartCard>

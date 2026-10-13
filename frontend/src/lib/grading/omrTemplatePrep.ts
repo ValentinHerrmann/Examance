@@ -33,6 +33,7 @@ export interface ExamItemRef {
   id: string;
 }
 
+/** Rebuilds the item order from persisted order indices; members share their group's index and are not emitted alone. */
 export function buildExamItems(exs: ExerciseRecord[], groups: McGroup[]): ExamItemRef[] {
   const memberIds = new Set(groups.flatMap((g) => g.memberIds));
   const entries: { order: number; item: ExamItemRef }[] = [];

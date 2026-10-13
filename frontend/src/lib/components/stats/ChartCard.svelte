@@ -1,12 +1,13 @@
 <script lang="ts">
-  // Stats chart in a card with SVG/PDF/PNG download; exports render an offscreen copy at a fixed size, so files match on any screen width.
-  import { tick, type Snippet } from 'svelte';
+  // Stats chart in a card with SVG/PDF/PNG download; exports render an off-screen copy (renderChart.ts) at a fixed size.
+  import type { Snippet } from 'svelte';
   import { t } from '#lib/i18n';
   import { faDownload } from '@fortawesome/free-solid-svg-icons';
   import { Button, Card, Icon } from '#lib/components/ui';
   import ColumnChart from './ColumnChart.svelte';
   import type { ChartCurve, ChartLayer, ChartMarker, ChartSpan } from './chartColumns';
-  import { downloadBlob, serializeChartSvg, svgToPdf, svgToPng } from './chartExport';
+  import { downloadBlob, svgToPdf, svgToPng } from './chartExport';
+  import { renderChartSvg } from './renderChart';
 
   
   interface Props {
@@ -43,22 +44,17 @@
     children
   }: Props = $props();
 
-  const EXPORT_WIDTH = 1200;
-  const EXPORT_PLOT = 420;
   type ExportFormat = 'svg' | 'pdf' | 'png';
   const EXPORT_FORMATS: ExportFormat[] = ['svg', 'pdf', 'png'];
 
-  let exportSvg: SVGSVGElement | null = $state(null);
   let exporting: ExportFormat | null = $state(null);
 
   async function download(format: ExportFormat) {
     if (exporting) return;
     exporting = format;
     try {
-      await tick();
-      if (!exportSvg) return;
       const docTitle = [title.replace(/^\P{L}+/u, ''), examTitle].filter(Boolean).join(' — ');
-      const markup = serializeChartSvg(exportSvg, docTitle);
+      const markup = renderChartSvg({ domain, layers, markers, spans, curve, axisLabel, ariaLabel: title }, docTitle);
       const blob =
         format === 'svg'
           ? new Blob([markup], { type: 'image/svg+xml;charset=utf-8' })
@@ -99,9 +95,4 @@
   </div>
   <ColumnChart {domain} {plotHeight} {layers} {markers} {spans} {curve} {axisLabel} ariaLabel={title} />
   {@render children?.()}
-  {#if exporting}
-    <div class="pointer-events-none fixed top-0 -left-[10000px]" style="width: {EXPORT_WIDTH}px" aria-hidden="true">
-      <ColumnChart bind:svgEl={exportSvg} plotHeight={EXPORT_PLOT} {domain} {layers} {markers} {spans} {curve} {axisLabel} ariaLabel={title} />
-    </div>
-  {/if}
 </Card>

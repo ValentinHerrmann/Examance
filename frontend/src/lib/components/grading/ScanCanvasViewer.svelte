@@ -14,8 +14,9 @@
   import { recalculateAutoScores } from "#lib/grading/autoScore";
   import { loadLocalMcGroups } from "#lib/db/dbEncryption";
   import { buildSubLabelMap } from "#lib/grading/mcGroupLabels";
-  import { drawMissingSymbol, drawCheckmark, drawOmrOverlayForPage } from "#lib/grading/omrOverlay";
-  import { getAutoCropBounds } from "./ScanCanvasViewer";
+  import { drawOmrOverlayForPage } from "#lib/grading/omrOverlay";
+  import { drawStrokes } from "#lib/grading/strokeRenderer";
+  import { isPdfBytes, decodePngBytes, legacyScanCrop } from "./ScanCanvasViewer";
   import { translate } from "#lib/i18n";
 
   interface Props {
@@ -189,12 +190,7 @@
       if (seq !== loadSeq) return;
 
       // Detect format: PDF or PNG
-      const isPdf =
-        decryptedBytes.length > 4 &&
-        decryptedBytes[0] === 0x25 &&
-        decryptedBytes[1] === 0x50 &&
-        decryptedBytes[2] === 0x44 &&
-        decryptedBytes[3] === 0x46;
+      const isPdf = isPdfBytes(decryptedBytes);
 
       if (isPdf) {
         // PDF path: measure every page up front so the stack has its final height, then render
@@ -227,26 +223,10 @@
         // PNG/image path (legacy submissions)
         gradingStore.setPdfPaging(1, 1, false);
 
-        const blob = new Blob([decryptedBytes.buffer as ArrayBuffer], { type: "image/png" });
-        const url = URL.createObjectURL(blob);
-        const img = new Image();
-        try {
-          img.src = url;
-          await img.decode();
-        } finally {
-          URL.revokeObjectURL(url);
-        }
+        const img = await decodePngBytes(decryptedBytes);
         if (seq !== loadSeq) return;
 
-        let crop = { x: 0, y: 0, w: img.width, h: img.height };
-        if (get(gradingStore).isAutoCropEnabled) {
-          const tempCanvas = document.createElement("canvas");
-          tempCanvas.width = img.width;
-          tempCanvas.height = img.height;
-          const tempCtx = tempCanvas.getContext("2d")!;
-          tempCtx.drawImage(img, 0, 0);
-          crop = getAutoCropBounds(tempCtx, img.width, img.height);
-        }
+        const crop = legacyScanCrop(img, get(gradingStore).isAutoCropEnabled);
 
         await setPages([{ w: crop.w, h: crop.h }]);
         if (seq !== loadSeq || !scanCanvases[0]) return;
@@ -671,82 +651,7 @@
     const ctx = overlayCanvas.getContext("2d")!;
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
-    const visibleStrokes = strokes.filter(
-      (stroke) => (stroke.pageNumber ?? 1) === page
-    );
-
-    for (const stroke of visibleStrokes) {
-      ctx.strokeStyle = "#ef4444";
-      ctx.fillStyle = "#ef4444";
-      ctx.lineWidth = 4;
-      ctx.lineCap = "round";
-
-      if (stroke.tool === "pen") {
-        ctx.beginPath();
-        stroke.points.forEach((p, idx) => {
-          if (idx === 0) ctx.moveTo(p.x, p.y);
-          else ctx.lineTo(p.x, p.y);
-        });
-        ctx.stroke();
-      } else if (stroke.tool === "line") {
-        if (stroke.points.length >= 2) {
-          ctx.beginPath();
-          ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-          ctx.lineTo(stroke.points[1].x, stroke.points[1].y);
-          ctx.stroke();
-        }
-      } else if (stroke.tool === "check_full" || stroke.tool === "check") {
-        const p = stroke.points[0];
-        drawCheckmark(ctx, p.x, p.y);
-      } else if (stroke.tool === "check_half") {
-        const p = stroke.points[0];
-        drawCheckmark(ctx, p.x, p.y);
-        // 1 crossing line
-        ctx.beginPath();
-        ctx.moveTo(p.x + 1, p.y - 12);
-        ctx.lineTo(p.x + 11, p.y - 2);
-        ctx.stroke();
-      } else if (stroke.tool === "check_quarter") {
-        const p = stroke.points[0];
-        drawCheckmark(ctx, p.x, p.y);
-        // 2 crossing lines
-        ctx.beginPath();
-        ctx.moveTo(p.x - 2, p.y - 13);
-        ctx.lineTo(p.x + 8, p.y - 3);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(p.x + 5, p.y - 13);
-        ctx.lineTo(p.x + 15, p.y - 3);
-        ctx.stroke();
-      } else if (stroke.tool === "minus_full") {
-        const p = stroke.points[0];
-        ctx.font = "bold 26px sans-serif";
-        ctx.fillText("-1BE", p.x, p.y);
-      } else if (stroke.tool === "minus_half") {
-        const p = stroke.points[0];
-        ctx.font = "bold 26px sans-serif";
-        ctx.fillText("-0,5BE", p.x, p.y);
-      } else if (stroke.tool === "minus_quarter") {
-        const p = stroke.points[0];
-        ctx.font = "bold 26px sans-serif";
-        ctx.fillText("-0,25BE", p.x, p.y);
-      } else if (stroke.tool === "wrong" || stroke.tool === "cross") {
-        const p = stroke.points[0];
-        ctx.font = "bold italic 30px serif";
-        ctx.fillText("f", p.x, p.y);
-      } else if (stroke.tool === "missing") {
-        drawMissingSymbol(ctx, stroke.points[0].x, stroke.points[0].y);
-      } else if (stroke.tool === "wf") {
-        const p = stroke.points[0];
-        ctx.font = "bold 24px sans-serif";
-        ctx.fillText("WF", p.x, p.y);
-      } else if (stroke.tool === "ff") {
-        const p = stroke.points[0];
-        ctx.font = "bold 24px sans-serif";
-        ctx.fillText("FF", p.x, p.y);
-      }
-    }
-
+    drawStrokes(ctx, strokes, page);
     drawOmrDetections(ctx, overlayCanvas, page);
   }
 

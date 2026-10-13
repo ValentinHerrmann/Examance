@@ -55,3 +55,31 @@ export function getAutoCropBounds(
   }
   return { x: 0, y: 0, w: width, h: height };
 }
+
+/** Scans are sealed PDFs; legacy submissions hold a PNG. */
+export function isPdfBytes(bytes: Uint8Array): boolean {
+  return bytes.length > 4 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
+}
+
+export async function decodePngBytes(bytes: Uint8Array): Promise<HTMLImageElement> {
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'image/png' }));
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    return img;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** Crop of a legacy PNG scan; the viewer and the PDF export share it so strokes line up. */
+export function legacyScanCrop(img: HTMLImageElement, autoCrop: boolean): AutoCropBounds {
+  if (!autoCrop) return { x: 0, y: 0, w: img.width, h: img.height };
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(img, 0, 0);
+  return getAutoCropBounds(ctx, img.width, img.height);
+}

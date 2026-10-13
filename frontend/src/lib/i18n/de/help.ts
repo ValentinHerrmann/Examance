@@ -114,6 +114,11 @@ export const help = {
                 p2: 'Die Person sieht Vorschläge unter „Vorschläge“ und erhält eine kurze E-Mail-Benachrichtigung ohne Inhalt. Sie vergleicht den Vorschlag mit ihrer aktuellen Version, kann ihn bearbeiten und übernimmt oder lehnt ihn ab. Übernommen wird immer als neue Version oder neue Variante; bestehende Versionen und Prüfungen bleiben unverändert. Eine PDF-Vorschau gibt es erst nach dem Übernehmen.',
                 p3: 'Nach der Entscheidung wird der Inhalt des Vorschlags gelöscht, der Eintrag selbst nach 30 Tagen; offene Vorschläge nach 180 Tagen. Sie können einen offenen Vorschlag jederzeit zurückziehen. Übernommene Änderungen erreichen Ihre Kopie über „Aktualisieren…“. Wurde Ihr Vorschlag unverändert übernommen, ist Ihre Kopie automatisch wieder auf dem Stand des Originals; nur bei einer bearbeiteten Übernahme erscheint „Aktualisierung verfügbar“. Aufgaben mit offenem Vorschlag tragen in der Bibliothek ein Schild, das direkt zu den Vorschlägen führt; von dort öffnet „In der Bibliothek öffnen“ die Aufgabe.',
             },
+            s7: {
+                h: 'Exportieren (ZIP)',
+                p1: '„Exportieren (ZIP)“ an einer Aufgabengruppe lädt alle aktuellen Aufgaben der Gruppe als lesbares LaTeX herunter: je Aufgabe ein Ordner mit exercise.tex und ihren Dateien (z. B. Bildern), dazu ein Dokument mit allen Aufgaben der Gruppe und eine manifest.json mit den Metadaten. Optional kommen die mitgelieferten LaTeX-Dateien (sty) und die kompilierten PDFs (Angabe und Lösung) dazu; das Kompilieren kann bei vielen Aufgaben einige Minuten dauern.',
+                p2: '„Bibliothek exportieren“ lädt alle eigenen Aufgabengruppen samt Dateien und den mitgelieferten LaTeX-Dateien in einer ZIP herunter, ohne PDFs. Der Ordner lässt sich bei Overleaf hochladen oder lokal mit XeLaTeX kompilieren (siehe README.txt). Anders als das verschlüsselte Archiv (.bgproj) kann diese ZIP nicht wieder importiert werden.',
+            },
         },
         examCreation: {
             title: 'Klausur erstellen',
@@ -199,6 +204,7 @@ export const help = {
             s3: {
                 h: 'Export',
                 p1: 'Ergebnisse lassen sich als CSV exportieren, etwa zur Übernahme in die Notenverwaltung der Schule. Die Datei enthält Pseudonym, Ersatzcode, Name, Punkte, Maximalpunktzahl, Prozentwert und Note. Der Export enthält Klarnamen — behandeln Sie die Datei entsprechend.',
+                p2: '„Exportieren (ZIP)“ an der Prüfung (auf der Startseite und in der Prüfungsübersicht) bündelt eine einzelne Prüfung in einer ZIP; Sie wählen die Teile aus: korrigierte Abgaben als PDF mit eingezeichneten Korrekturen (auch teilweise korrigierte, im Dateinamen markiert), den LaTeX-Quelltext samt Dateien (für Overleaf oder XeLaTeX), die kompilierten PDFs von Angabe und Lösung, ein Übersichts-PDF zur Dokumentation (Metadaten, Notenschlüssel in Punkten und Prozent, Durchschnitt, das erweiterte Diagramm und die Schülerliste mit Punkten und Noten, teilweise korrigierte hervorgehoben) und die Noten als CSV. Die ZIP ist unverschlüsselt und enthält Klarnamen; der Export wird protokolliert.',
             },
         },
         analytics: {
