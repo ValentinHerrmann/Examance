@@ -10,16 +10,9 @@
   import { submissionRepository } from '#lib/repositories/submissionRepository';
   import { studentRepository } from '#lib/repositories/studentRepository';
   import { sessionStore, awaitSessionReady } from '#lib/stores/session';
-  import {
-    calculateSubmissionPercentage,
-    summarizeExam,
-    type ExamResult,
-    type ExamStats,
-  } from '#lib/analytics/stats';
-  import { calculateGradeFromPercentage } from '#lib/analytics/gradingKey';
+  import type { ExamStats } from '#lib/analytics/stats';
+  import { buildGradeRows, computeExamResults } from '#lib/analytics/examResults';
   import { exportGradesToCsv } from '#lib/analytics/csvExport';
-  import { buildSubmissionMap } from '#lib/utils/studentLookup';
-  import { translate } from '#lib/i18n';
 
   let examId = $derived(page.params.id || '');
 
@@ -53,50 +46,16 @@
     submissions = await submissionRepository.getByExamId(id, key);
     students = await studentRepository.getByExamId(id, key);
 
-    const exerciseMaxPoints = exercises.map((ex) => ex.maxPoints || 0);
-    totalMaxPoints = exerciseMaxPoints.reduce((sum, p) => sum + p, 0) || null;
-
-    const scores = new Map<string, number>();
-    for (const sc of await scoreRepository.getByExamId(id, key)) {
-      if (typeof sc.score === 'number' && !isNaN(sc.score)) {
-        scores.set(`${sc.submissionId}:${sc.exerciseId}`, sc.score);
-      }
-    }
-
-    const results: ExamResult[] = [];
-    for (const sub of submissions) {
-      const ordered = exercises.map((ex) => scores.get(`${sub.id}:${ex.id}`) ?? null);
-      const entry = calculateSubmissionPercentage(exerciseMaxPoints, ordered);
-      if (entry) results.push({ ...entry, submissionId: sub.id });
-    }
-    stats = summarizeExam(results, exam?.gradingKey);
+    const computed = computeExamResults(exam, exercises, submissions, await scoreRepository.getByExamId(id, key));
+    totalMaxPoints = computed.totalMaxPoints;
+    stats = computed.stats;
   }
 
   async function confirmAndExport() {
     showConfirmModal = false;
     const key = get(sessionStore).sessionKey;
-
-    const submissionByStudent = await buildSubmissionMap(submissions, students);
-    const resultBySubmission = new Map((stats?.results ?? []).map((r) => [r.submissionId, r]));
-    const ungraded = translate('stats.exportModal.ungraded');
-
-    const rows = students.map((st) => {
-      const sub = submissionByStudent.get(st.pseudonymId);
-      const result = sub ? resultBySubmission.get(sub.id) : undefined;
-      const grade = result ? calculateGradeFromPercentage(result.percentage, exam?.gradingKey) : null;
-
-      return {
-        studentPseudonymId: st.pseudonymId,
-        fallbackCode: st.fallbackCode || '',
-        studentName: st.studentName || '',
-        totalScore: result ? Math.round(result.gradedPoints * 100) / 100 : ungraded,
-        maxPoints: totalMaxPoints ?? '',
-        percentage: result ? Math.round(result.percentage * 10) / 10 : ungraded,
-        grade: grade ? grade.grade : ungraded,
-        status: result && !result.isComplete ? translate('stats.exportModal.provisional') : '',
-      };
-    });
-
+    if (!stats) return;
+    const rows = await buildGradeRows(exam, students, submissions, { stats, totalMaxPoints });
     await exportGradesToCsv(examId, exam?.title || 'Exam', rows, key);
   }
 

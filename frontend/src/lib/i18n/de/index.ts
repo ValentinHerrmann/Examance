@@ -22,6 +22,7 @@ import { misc } from './misc';
 import { help } from './help';
 import { security } from './security';
 import { logo } from './logo';
+import { exportNs } from './export';
 
 export const de = {
     common,
@@ -46,4 +47,5 @@ export const de = {
     help,
     security,
     logo,
+    export: exportNs,
 } as const;

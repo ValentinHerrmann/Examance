@@ -138,6 +138,10 @@ export const HELP_TOPICS: HelpTopic[] = [
         headingKey: "help.topics.exercises.s6.h",
         bodyKeys: ["help.topics.exercises.s6.p1", "help.topics.exercises.s6.p2", "help.topics.exercises.s6.p3"],
       },
+      {
+        headingKey: "help.topics.exercises.s7.h",
+        bodyKeys: ["help.topics.exercises.s7.p1", "help.topics.exercises.s7.p2"],
+      },
     ],
   },
   {
@@ -229,7 +233,7 @@ export const HELP_TOPICS: HelpTopic[] = [
         bodyKeys: ["help.topics.stats.s1.p1", "help.topics.stats.s1.p2"],
       },
       { headingKey: "help.topics.stats.s2.h", bodyKeys: ["help.topics.stats.s2.p1"] },
-      { headingKey: "help.topics.stats.s3.h", bodyKeys: ["help.topics.stats.s3.p1"] },
+      { headingKey: "help.topics.stats.s3.h", bodyKeys: ["help.topics.stats.s3.p1", "help.topics.stats.s3.p2"] },
     ],
   },
   {

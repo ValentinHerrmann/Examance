@@ -84,7 +84,7 @@ export const exam = {
         stats: 'Statistik',
         edit: 'Bearbeiten',
         deleteSubmissions: 'Abgaben löschen',
-        export: 'Export',
+        export: 'Verschlüsselt archivieren (.bgproj)',
         delete: 'Löschen',
     },
     metadata: {

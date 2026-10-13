@@ -18,18 +18,15 @@
     saveStudentEncrypted,
     saveSubmissionEncrypted,
     decryptStudent,
-    loadExamExercisesEncrypted,
     loadOmrTemplateEncrypted,
     loadLocalMcGroups,
   } from "#lib/db/dbEncryption";
   import { computeMcExercisesHash, loadExamMcExercises } from "#lib/grading/mcExerciseHash";
-  import { buildSubLabelMap } from "#lib/grading/mcGroupLabels";
   import { prepareOmrTemplate, loadExamCompileContext } from "#lib/grading/omrTemplatePrep";
   import { isMcQuestion } from "#lib/grading/mcScore";
   import { buildOmrScoreRecord } from "#lib/grading/omrResult";
   import { createOmrRun, type OmrPageStats } from "#lib/grading/omrSettings";
   import { omrSettingsStore } from "#lib/stores/omrSettings";
-  import { drawOmrOverlayForPage, type McOverlayState } from "#lib/grading/omrOverlay";
   import { api } from "#lib/api/client";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { studentRepository } from "#lib/repositories/studentRepository";
@@ -62,6 +59,8 @@
   import ScannedSubmissionsTable from "#lib/components/scanning/ScannedSubmissionsTable.svelte";
   import ScanPreviewModal from "#lib/components/scanning/ScanPreviewModal.svelte";
   import { t, translate } from "#lib/i18n";
+  import { renderGradedPdf } from "#lib/export/gradedPdf";
+  import { downloadBlob } from "#lib/components/stats/chartExport";
 
   interface Props {
     params?: Record<string, string>;
@@ -347,7 +346,7 @@
 
       previewIsPdf = isPdf;
       const mimeType = isPdf ? "application/pdf" : "image/png";
-      const blob = new Blob([decryptedBytes as unknown as BlobPart], { type: mimeType });
+      const blob = new Blob([decryptedBytes as BlobPart], { type: mimeType });
       previewObjectUrl = URL.createObjectURL(blob);
     } catch (err) {
       console.error("Preview decryption failed:", err);
@@ -398,220 +397,19 @@
 
   let exportingId: string | null = $state(null);
 
-  function drawStrokesOnCanvas(ctx: CanvasRenderingContext2D, strokes: any[]) {
-    for (const stroke of strokes) {
-      ctx.strokeStyle = "#ef4444";
-      ctx.fillStyle = "#ef4444";
-      ctx.lineWidth = 4;
-      ctx.lineCap = "round";
-      if (stroke.tool === "pen") {
-        ctx.beginPath();
-        stroke.points.forEach((p: any, idx: number) => {
-          if (idx === 0) ctx.moveTo(p.x, p.y);
-          else ctx.lineTo(p.x, p.y);
-        });
-        ctx.stroke();
-      } else if (stroke.tool === "line") {
-        if (stroke.points.length >= 2) {
-          ctx.beginPath();
-          ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-          ctx.lineTo(stroke.points[1].x, stroke.points[1].y);
-          ctx.stroke();
-        }
-      } else if (stroke.tool === "check_full" || stroke.tool === "check") {
-        const p = stroke.points[0];
-        ctx.beginPath();
-        ctx.moveTo(p.x - 14, p.y - 2);
-        ctx.lineTo(p.x - 4, p.y + 10);
-        ctx.lineTo(p.x + 16, p.y - 18);
-        ctx.stroke();
-      } else if (stroke.tool === "check_half") {
-        const p = stroke.points[0];
-        ctx.beginPath();
-        ctx.moveTo(p.x - 14, p.y - 2);
-        ctx.lineTo(p.x - 4, p.y + 10);
-        ctx.lineTo(p.x + 16, p.y - 18);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(p.x + 1, p.y - 12);
-        ctx.lineTo(p.x + 11, p.y - 2);
-        ctx.stroke();
-      } else if (stroke.tool === "check_quarter") {
-        const p = stroke.points[0];
-        ctx.beginPath();
-        ctx.moveTo(p.x - 14, p.y - 2);
-        ctx.lineTo(p.x - 4, p.y + 10);
-        ctx.lineTo(p.x + 16, p.y - 18);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(p.x - 2, p.y - 13);
-        ctx.lineTo(p.x + 8, p.y - 3);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(p.x + 5, p.y - 13);
-        ctx.lineTo(p.x + 15, p.y - 3);
-        ctx.stroke();
-      } else if (stroke.tool === "minus_full") {
-        ctx.font = "bold 26px sans-serif";
-        ctx.fillText("-1BE", stroke.points[0].x, stroke.points[0].y);
-      } else if (stroke.tool === "minus_half") {
-        ctx.font = "bold 26px sans-serif";
-        ctx.fillText("-0,5BE", stroke.points[0].x, stroke.points[0].y);
-      } else if (stroke.tool === "minus_quarter") {
-        ctx.font = "bold 26px sans-serif";
-        ctx.fillText("-0,25BE", stroke.points[0].x, stroke.points[0].y);
-      } else if (stroke.tool === "wrong" || stroke.tool === "cross") {
-        ctx.font = "bold italic 30px serif";
-        ctx.fillText("f", stroke.points[0].x, stroke.points[0].y);
-      } else if (stroke.tool === "missing") {
-        const p = stroke.points[0];
-        ctx.beginPath();
-        ctx.moveTo(p.x - 12, p.y - 18);
-        ctx.lineTo(p.x, p.y + 4);
-        ctx.lineTo(p.x + 12, p.y - 18);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(p.x - 15, p.y - 8);
-        ctx.lineTo(p.x + 15, p.y - 8);
-        ctx.stroke();
-      } else if (stroke.tool === "wf") {
-        ctx.font = "bold 24px sans-serif";
-        ctx.fillText("WF", stroke.points[0].x, stroke.points[0].y);
-      } else if (stroke.tool === "ff") {
-        ctx.font = "bold 24px sans-serif";
-        ctx.fillText("FF", stroke.points[0].x, stroke.points[0].y);
-      }
-    }
-  }
-
   async function handleExportPdf(item: ScannedSubmissionItem) {
     exportingId = item.id;
     try {
-      const session = get(sessionStore);
-      const key = session.sessionKey;
-      const fallbackKey = session.fallbackSessionKey;
-      if (!key && !fallbackKey) throw new Error("Session not unlocked");
+      const { sessionKey, fallbackSessionKey } = get(sessionStore);
+      const key = sessionKey || fallbackSessionKey;
+      if (!key) throw new Error("Session not unlocked");
 
-      const sub = await submissionRepository.getById(examId, item.id, key || fallbackKey);
-      if (!sub?.scanCt || !sub.scanIv) throw new Error("Scan data not found");
+      const sub = await submissionRepository.getById(examId, item.id, key);
+      if (!sub) throw new Error("Scan data not found");
+      const scores = await scoreRepository.getBySubmissionId(examId, sub.id, key);
 
-      const scanBytes = await decrypt(key || fallbackKey, sub.scanCt, sub.scanIv, fallbackKey);
-
-      // Load annotations
-      let strokes: any[] = [];
-      if (sub.annotationCt && sub.annotationIv) {
-        const annBytes = await decrypt(key || fallbackKey, sub.annotationCt, sub.annotationIv, fallbackKey);
-        strokes = JSON.parse(new TextDecoder().decode(annBytes));
-      }
-
-      // Load MC/SC/TF auto-grading overlay data (mirrors ScanCanvasViewer's gradingStore
-      // state) so the exported PDF shows the same OMR annotations as the grading UI.
-      const exercises = await loadExamExercisesEncrypted(examId, key || fallbackKey);
-      const scores = await scoreRepository.getBySubmissionId(examId, sub.id, key || fallbackKey);
-      const mcState: Record<string, McOverlayState> = {};
-      const scoreInputs: Record<string, number | null | undefined> = {};
-      for (const sc of scores) {
-        if (sc.omrMeta) mcState[sc.exerciseId] = { omrMeta: sc.omrMeta };
-        scoreInputs[sc.exerciseId] = sc.score;
-      }
-      const subExerciseLetters = buildSubLabelMap(await loadLocalMcGroups(examId).catch(() => []));
-
-      const { PDFDocument } = await import("pdf-lib");
-      const outputPdf = await PDFDocument.create();
-
-      // Helper: convert canvas to PNG bytes
-      const canvasToPng = (canvas: HTMLCanvasElement): Promise<Uint8Array> =>
-        new Promise((resolve, reject) => {
-          canvas.toBlob((blob) => {
-            if (!blob) { reject(new Error("Canvas export failed")); return; }
-            blob.arrayBuffer().then((buf) => resolve(new Uint8Array(buf))).catch(reject);
-          }, "image/png");
-        });
-
-      // Helper: load Uint8Array as HTMLImageElement
-      const loadImageFromBytes = (bytes: Uint8Array): Promise<HTMLImageElement> =>
-        new Promise((resolve, reject) => {
-          const blob = new Blob([bytes as unknown as BlobPart], { type: "image/png" });
-          const url = URL.createObjectURL(blob);
-          const img = new Image();
-          img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-          img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Failed to load image")); };
-          img.src = url;
-        });
-
-      // Detect whether scanBytes is a PDF or an image
-      const isPdf =
-        scanBytes.length > 4 &&
-        scanBytes[0] === 0x25 && // %
-        scanBytes[1] === 0x50 && // P
-        scanBytes[2] === 0x44 && // D
-        scanBytes[3] === 0x46; // F
-
-      if (isPdf) {
-        // Original PDF path: render each page with pdf.js, draw annotations, embed as PNG
-        const pdfjsLib = await loadPdfjs();
-
-        const pdfDoc = await pdfjsLib.getDocument({ data: scanBytes }).promise;
-
-        for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-          const pdfPage = await pdfDoc.getPage(pageNum);
-          const viewport = pdfPage.getViewport({ scale: 2 });
-
-          const canvas = document.createElement("canvas");
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          const ctx = canvas.getContext("2d")!;
-
-          await pdfPage.render({ canvasContext: ctx, canvas, viewport } as any).promise;
-
-          const pageStrokes = strokes.filter((s: any) => (s.pageNumber ?? 1) === pageNum);
-          if (pageStrokes.length > 0) {
-            drawStrokesOnCanvas(ctx, pageStrokes);
-          }
-          drawOmrOverlayForPage(ctx, canvas.width, canvas.height, pageNum, mcState, exercises, subExerciseLetters, scoreInputs);
-
-          const pngBytes = await canvasToPng(canvas);
-          const pngImage = await outputPdf.embedPng(pngBytes);
-          // use half the canvas size (scale=2) as the PDF page dimensions in pt
-          const outPage = outputPdf.addPage([viewport.width / 2, viewport.height / 2]);
-          outPage.drawImage(pngImage, { x: 0, y: 0, width: viewport.width / 2, height: viewport.height / 2 });
-        }
-      } else {
-        // Image path (default for ingested scans): load image, draw annotations, embed directly
-        const img = await loadImageFromBytes(scanBytes);
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(img, 0, 0);
-
-        const pageStrokes = strokes.filter((s: any) => (s.pageNumber ?? 1) === 1);
-        if (pageStrokes.length > 0) {
-          drawStrokesOnCanvas(ctx, pageStrokes);
-        }
-        drawOmrOverlayForPage(ctx, canvas.width, canvas.height, 1, mcState, exercises, subExerciseLetters, scoreInputs);
-
-        const pngBytes = await canvasToPng(canvas);
-        const pngImage = await outputPdf.embedPng(pngBytes);
-
-        // Convert pixel dimensions to PDF points at 72 DPI.
-        // Scanned images are rendered at scale=2 (~192 DPI from a 96 DPI base),
-        // so scale down to obtain a natural page size in points.
-        const dpi = 192;
-        const pageWidth = img.width * (72 / dpi);
-        const pageHeight = img.height * (72 / dpi);
-        const outPage = outputPdf.addPage([pageWidth, pageHeight]);
-        outPage.drawImage(pngImage, { x: 0, y: 0, width: pageWidth, height: pageHeight });
-      }
-
-      const pdfBytes = await outputPdf.save();
-      const blob = new Blob([pdfBytes as unknown as BlobPart], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${item.fallbackCode || item.id}_graded.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const bytes = await renderGradedPdf(sub, scores, key, { fallbackKey: fallbackSessionKey });
+      downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), `${item.fallbackCode || item.id}_graded.pdf`);
     } catch (err: any) {
       alert(translate("scanning.errorExportPdf", { message: err?.message || err }));
     } finally {
