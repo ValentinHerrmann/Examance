@@ -112,7 +112,7 @@ sequenceDiagram
     M->>GA: Publish release v1.4.0
     GA->>GA: Strip "v", assert [major].[minor].[patch]
     par Frontend
-        GA->>GA: echo 1.4.0 > VERSION
+        GA->>GA: echo 1.4.0 > VERSION, release body > RELEASE_NOTES.md
         GA->>GA: commit to main ("[skip ci]")
         GA->>R: force-push same commit without [skip ci]
         R->>CF: build (CF_PAGES_BRANCH=release)

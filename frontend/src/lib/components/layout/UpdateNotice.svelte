@@ -3,10 +3,15 @@
   import { t } from "#lib/i18n";
   import { Alert, Button } from "#lib/components/ui";
   import { frontendVersion, repoUrl } from "#lib/stores/versionStore";
+  import { parseReleaseNotes, type Inline } from "#lib/utils/releaseNotes";
 
   // Last version this browser/installed app has shown; an installed (PWA) app can stay open for days.
   const SEEN_KEY = "examance.lastSeenVersion";
   const isRelease = !frontendVersion.includes("-");
+  // TEMPORARY (issue #94): previews always show the notes so the visuals can be reviewed; remove before merging.
+  const isPreview = /PR#\d+/.test(frontendVersion);
+
+  const blocks = parseReleaseNotes(__RELEASE_NOTES__, new URL(repoUrl).origin);
 
   let showNotes = $state(false);
   let dismissedUpdate = $state(false);
@@ -19,14 +24,22 @@
   }
 
   $effect(() => {
+    if (isPreview) { showNotes = blocks.length > 0; return; }
     if (!isRelease) return;
     const seen = readSeen();
     writeSeen(frontendVersion);
-    if (!seen || seen === frontendVersion) return;
-    // No request to GitHub here: the origin stays self-contained (tests/cspHeaders.test.ts); the user follows the link.
-    showNotes = true;
+    if (seen && seen !== frontendVersion) showNotes = true;
   });
 </script>
+
+{#snippet inlines(items: Inline[])}
+  {#each items as i}
+    {#if i.kind === "bold"}<strong>{i.text}</strong>
+    {:else if i.kind === "code"}<code class="rounded-md bg-surface-sunken px-1">{i.text}</code>
+    {:else if i.kind === "link"}<a class="text-accent underline" href={i.href} target="_blank" rel="noopener noreferrer">{i.text}</a>
+    {:else}{i.text}{/if}
+  {/each}
+{/snippet}
 
 {#if updated.current && !dismissedUpdate}
   <Alert severity="info" title={$t("statusBar.updateTitle")} class="mx-3 mt-2 sm:mx-4" onDismiss={() => (dismissedUpdate = true)}>
@@ -39,6 +52,19 @@
 
 {#if showNotes}
   <Alert severity="success" title={$t("statusBar.releaseNotesTitle", { version: frontendVersion })} class="mx-3 mt-2 sm:mx-4" onDismiss={() => (showNotes = false)}>
-    <a class="underline" href={`${repoUrl}/releases/tag/v${frontendVersion}`} target="_blank" rel="noopener noreferrer">{$t("statusBar.releaseNotesLink")}</a>
+    <div class="max-h-64 space-y-2 overflow-auto text-sm">
+      {#each blocks as b}
+        {#if b.kind === "heading"}
+          <h3 class="mt-1 font-semibold">{@render inlines(b.inlines)}</h3>
+        {:else if b.kind === "list"}
+          <ul class="list-disc space-y-1 pl-5">
+            {#each b.items as item}<li class="break-words">{@render inlines(item)}</li>{/each}
+          </ul>
+        {:else}
+          <p class="break-words">{@render inlines(b.inlines)}</p>
+        {/if}
+      {/each}
+    </div>
+    <a class="mt-2 inline-block text-accent underline" href={`${repoUrl}/releases/tag/v${frontendVersion}`} target="_blank" rel="noopener noreferrer">{$t("statusBar.releaseNotesLink")}</a>
   </Alert>
 {/if}
