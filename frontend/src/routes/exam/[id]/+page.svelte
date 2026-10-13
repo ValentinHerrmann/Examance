@@ -28,7 +28,7 @@
     type McGroup,
   } from "#lib/db/dbEncryption";
   import { computeMcExercisesHash, resolveMcExercises } from "#lib/grading/mcExerciseHash";
-  import { prepareOmrTemplate } from "#lib/grading/omrTemplatePrep";
+  import { buildExamItems, mapRemoteMcGroups, prepareOmrTemplate, type ExamItemRef } from "#lib/grading/omrTemplatePrep";
   import { isMcQuestion } from "#lib/grading/mcScore";
   import { exportArchiveInteractively } from "#lib/services/archiveService";
   import { getLatestForSlot, invalidateOwner } from "#lib/latex/compileCache";
@@ -55,6 +55,7 @@
   import { goto } from "$app/navigation";
   import ExamMetadata from "#lib/components/exam/ExamMetadata.svelte";
   import ExamActionBar from "#lib/components/exam/ExamActionBar.svelte";
+  import ExamExportModal from "#lib/components/exam/ExamExportModal.svelte";
   import ExerciseList from "#lib/components/exam/ExerciseList.svelte";
   import ExamMetadataEditor from "#lib/components/exam/ExamMetadataEditor.svelte";
   import { setExamLogo, type ExamLogoChange } from "#lib/latex/logo";
@@ -73,11 +74,6 @@
 
   let examId = $derived(page.params.id || "");
 
-  interface ExamItemRef {
-    type: "exercise" | "mc_group";
-    id: string;
-  }
-
   // Raw: these records go to Dexie, encryption, the API and buildExamLinkPayload(); update immutably.
   let exam: ExamRecord | null = $state.raw(null);
   let exercises: ExerciseRecord[] = $state.raw([]);
@@ -87,6 +83,7 @@
 
   let isExporting = false;
   let exportSuccess = $state(false);
+  let rawExportOpen = $state(false);
 
   let isPreviewLoading = $state(false);
   let compileNotice = $state("");
@@ -135,45 +132,6 @@
   // Only the newest loadExam() run may write: interleaved runs each delete and re-write this exam's
   // examMcGroups/examExercises rows, which left the local MC groups empty.
   let loadSeq = 0;
-
-  /** Rebuilds the item order from persisted order indices ("exercises, then groups" moved every MC
-   *  group to the bottom on re-open). Members share their group's order index and are not emitted alone. */
-  function buildExamItems(exs: ExerciseRecord[], groups: McGroup[]): ExamItemRef[] {
-    const memberIds = new Set(groups.flatMap((g) => g.memberIds));
-    const entries: { order: number; item: ExamItemRef }[] = [];
-
-    exs.forEach((ex, idx) => {
-      if (memberIds.has(ex.id)) return;
-      entries.push({ order: ex.orderIndex ?? idx + 1, item: { type: "exercise", id: ex.id } });
-    });
-
-    groups.forEach((g, idx) => {
-      const memberOrders = g.memberIds
-        .map((id) => exs.find((e) => e.id === id)?.orderIndex)
-        .filter((o): o is number => typeof o === "number");
-      const order =
-        g.orderIndex ??
-        (memberOrders.length > 0 ? Math.min(...memberOrders) : exs.length + idx + 1);
-      entries.push({ order, item: { type: "mc_group", id: g.id } });
-    });
-
-    return entries
-      .map((entry, idx) => ({ ...entry, idx }))
-      .sort((a, b) => a.order - b.order || a.idx - b.idx)
-      .map((entry) => entry.item);
-  }
-
-  function mapRemoteMcGroups(rawGroups: any[]): McGroup[] {
-    return rawGroups.map((g: any, idx: number) => ({
-      id: g.id,
-      title: g.title,
-      scoringText: g.scoring_text ?? g.scoringText,
-      memberIds: (g.member_ids || g.members || []).map((m: any) =>
-        typeof m === "string" ? m : m.id,
-      ),
-      orderIndex: g.order_index ?? g.orderIndex ?? idx + 1,
-    }));
-  }
 
   async function loadExam(id: string) {
     await awaitSessionReady();
@@ -1163,6 +1121,7 @@
       onEdit={openMetadataEditor}
       onDelete={handleDeleteExam}
       onExport={handleExportArchive}
+      onRawExport={() => (rawExportOpen = true)}
       onScan={handleScan}
       onGrade={handleGrade}
       onStats={handleStats}
@@ -1327,3 +1286,6 @@
   onCancel={() => (showLibraryConfirm = false)}
 />
 
+{#if rawExportOpen}
+  <ExamExportModal {examId} onClose={() => (rawExportOpen = false)} />
+{/if}

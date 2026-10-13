@@ -21,6 +21,7 @@ import { misc } from './misc';
 import { help } from './help';
 import { security } from './security';
 import { logo } from './logo';
+import { exportNs } from './export';
 
 export const en: Translations = {
     common,
@@ -45,4 +46,5 @@ export const en: Translations = {
     help,
     security,
     logo,
+    export: exportNs,
 };
