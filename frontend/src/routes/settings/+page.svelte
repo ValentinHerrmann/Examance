@@ -4,6 +4,7 @@
   import { eraseStudent } from "#lib/gdpr/erasure";
   import { wipeDatabase } from "#lib/db/hygiene";
   import { sessionStore, isUnlocked, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
+  import { examRepository } from "#lib/repositories/examRepository";
   import { studentRepository } from "#lib/repositories/studentRepository";
   import { get } from "svelte/store";
   import {
@@ -57,6 +58,7 @@
   }
 
   let students: StudentRecord[] = $state.raw([]);
+  let studentExams: { id: string; title: string }[] = $state.raw([]);
   let isErasing = $state(false);
   let statusMsg = $state("");
   let isSwitchWizardOpen = $state(false);
@@ -91,6 +93,8 @@
     if (isAdmin) return;
     const key = get(sessionStore).sessionKey;
     students = await studentRepository.getAll(key);
+    const exams = await examRepository.getAll(key);
+    studentExams = exams.map((e) => ({ id: e.id, title: e.title || e.id }));
   });
 
   function handleLatexChange(val: "server" | "local") {
@@ -251,6 +255,7 @@
         <div id="gdpr" class="scroll-mt-16 lg:scroll-mt-4">
           <GdprErasureTable
             {students}
+            exams={studentExams}
             {isErasing}
             onErase={handleEraseStudent}
             onExport={handleExportStudent}
