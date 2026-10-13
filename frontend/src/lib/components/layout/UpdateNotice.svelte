@@ -27,9 +27,11 @@
   $effect(() => {
     if (isPreview) { showNotes = blocks.length > 0; return; }
     if (!isRelease) return;
+    // A missing marker also counts as "not seen yet": browsers that last ran a build without this feature (or no
+    // release build at all) have none, and releases published while the app was closed must still be announced.
     const seen = readSeen();
     writeSeen(frontendVersion);
-    if (seen && seen !== frontendVersion) showNotes = true;
+    if (seen !== frontendVersion && blocks.length > 0) showNotes = true;
   });
 </script>
 
