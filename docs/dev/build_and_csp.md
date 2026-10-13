@@ -27,3 +27,7 @@ Pages builds fetch BusyTeX already chunked from an R2 mirror (`BUSYTEX_MIRROR_UR
 ## Local LaTeX preload
 
 The root layout boots the local engine ahead of the first compile (`lib/latex/preload.ts`, issue #51). It uses the same compiler worker, `/core/busytex` assets and IndexedDB package cache as a compile, so it needs no extra CSP source (`worker-src 'self' blob:`, `connect-src 'self'`) and no COEP header (only `Cross-Origin-Opener-Policy` is set). The compiler is imported lazily so the worker asset stays out of the root-layout chunk.
+
+## Preview app name
+
+`frontend/scripts/preview-branding.mjs` runs after `vite build` on every non-`release` Cloudflare Pages branch and renames the installed app to "Examance Preview" (`build/manifest.json`, page title, iOS app title), so the preview and production PWAs can be installed side by side. It edits `build/` only.

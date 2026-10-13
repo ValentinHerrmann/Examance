@@ -4,8 +4,6 @@ export const security: Translations['security'] = {
     page: {
         title: 'Sign-in & security',
         subtitle: 'What you sign in with, which of those can open your encrypted data, and how to change either.',
-        open: 'Open security settings',
-        backToSettings: 'Back to settings',
         loading: 'Loading security status…',
         localOnly: 'This workspace is local-only and has no account. Sign-in factors start with a server account.',
         statusEnrolled: 'Set up',

@@ -94,7 +94,7 @@ password. Keep both.
 
 ---
 
-## 3. Sign-in & security (`/settings/security`)
+## 3. Sign-in & security (section of `/settings`)
 
 Everything about an account's factors lives on one page, reached from
 **Settings → Sign-in & security**. For each factor it shows whether it is set

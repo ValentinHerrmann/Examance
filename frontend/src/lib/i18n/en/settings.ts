@@ -2,8 +2,13 @@ import type { Translations } from '../types';
 
 export const settings: Translations['settings'] = {
     pageTitle: 'Settings & Privacy Configuration',
+    groups: {
+        general: 'General',
+        workspace: 'Workspace',
+        account: 'Account & privacy',
+    },
     language: {
-        heading: '3. Language',
+        heading: 'Language',
         description: 'Select the language of the user interface:',
         hint: 'Affects the interface only — generated exam PDFs stay unchanged.',
     },
@@ -13,7 +18,7 @@ export const settings: Translations['settings'] = {
         hint: '“Match system” follows your operating system setting and switches along with it.',
     },
     storage: {
-        heading: '1. Global Data Storage Strategy',
+        heading: 'Global Data Storage Strategy',
         description: 'Select where your exams, exercises, student identities, and results are stored:',
         allServerTitle: 'All Server',
         allServerText: 'All data synchronized and stored on the secure BlindGrade server.',
@@ -21,7 +26,7 @@ export const settings: Translations['settings'] = {
         hybridText: 'Exercise library and exam templates on server, but student identities and grade submissions stay 100% on your local device.',
     },
     latex: {
-        heading: '2. LaTeX Compilation',
+        heading: 'LaTeX Compilation',
         description: 'Select where LaTeX files are compiled (independent of storage strategy):',
         localTitle: 'Local Client (WebAssembly)',
         localText: 'Compiles inside your browser without sending source to any server.',
@@ -29,7 +34,7 @@ export const settings: Translations['settings'] = {
         serverText: 'High performance server-side compilation. Requires authenticated account.',
     },
     omr: {
-        heading: '4. Fine-tune MC detection (OMR)',
+        heading: 'Fine-tune MC detection (OMR)',
         description: 'Thresholds used to detect ticked boxes on scanned answer sheets. The defaults suit most scanners.',
         futureOnly:
             'Changes apply only to future detection runs (new scans or "Re-run MC detection"). Existing and especially already verified results are not changed.',
@@ -170,7 +175,7 @@ export const settings: Translations['settings'] = {
         },
     },
     donation: {
-        heading: '5. Help improve MC detection (optional)',
+        heading: 'Help improve MC detection (optional)',
         description: 'Help improve automatic checkbox detection for all teachers by donating anonymised crops of boxes you have already verified.',
         whatIsSent:
             "Sent per verified box: a small grayscale crop (only the box and the correction field next to it, no question text), your verified decision (ticked / not ticked) and the detector's measurements.",

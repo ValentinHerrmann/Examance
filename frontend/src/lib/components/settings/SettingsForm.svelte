@@ -19,8 +19,8 @@
     /** Whether this account may compile on the server. */
     serverLatexEnabled: boolean;
     onLocaleChange: (val: Locale) => void;
-    /** False for an admin account: it holds no exams, so storage mode and LaTeX engine are hidden (issue #58). */
-    teaching?: boolean;
+    /** Which cards to render, so the page can order them by how often they are used. */
+    part: "storage" | "latex" | "general";
   }
 
   let {
@@ -32,7 +32,7 @@
     allowedModes,
     serverLatexEnabled,
     onLocaleChange,
-    teaching = true,
+    part,
   }: Props = $props();
 
   const themeLabels = {
@@ -61,7 +61,7 @@
   }
 </script>
 
-{#if teaching}
+{#if part === "storage"}
 <div id="storage-policy" class={sectionId}>
   <Card>
     <h2 class="m-0 mb-1 flex items-center gap-2 text-xl font-medium text-content">
@@ -108,6 +108,7 @@
   </Card>
 </div>
 
+{:else if part === "latex"}
 <div id="latex" class={sectionId}>
   <Card>
     <h2 class="m-0 mb-1 flex items-center gap-2 text-xl font-medium text-content">
@@ -151,8 +152,7 @@
     {/if}
   </Card>
 </div>
-{/if}
-
+{:else}
 <div id="language" class={sectionId}>
   <Card>
     <h2 class="m-0 mb-1 text-xl font-medium text-content">{$t("settings.language.heading")}</h2>
@@ -178,6 +178,7 @@
   </Card>
 </div>
 
+
 <div id="theme" class={sectionId}>
   <Card>
     <h2 class="m-0 mb-1 text-xl font-medium text-content">{$t("settings.theme.heading")}</h2>
@@ -202,3 +203,5 @@
     </div>
   </Card>
 </div>
+
+{/if}

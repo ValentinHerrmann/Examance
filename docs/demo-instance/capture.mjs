@@ -124,7 +124,7 @@ async function teacher() {
     await shot(page, 'settings');
   }
   if (want('security')) {
-    await go(page, '/settings/security');
+    await go(page, '/settings#security');
     await shot(page, 'security');
   }
   if (want('shared')) {

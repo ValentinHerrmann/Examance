@@ -369,7 +369,6 @@ export function topicForPath(pathname: string): HelpTopicId {
     return "examCreation";
   }
   if (pathname.startsWith("/analytics")) return "analytics";
-  if (pathname.startsWith("/settings/security")) return "security";
   if (pathname.startsWith("/settings")) return "settings";
   if (pathname.startsWith("/admin")) return "accounts";
   if (pathname.startsWith("/legal")) return "privacy";
