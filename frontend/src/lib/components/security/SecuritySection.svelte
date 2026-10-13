@@ -36,7 +36,7 @@
   onMount(load);
 </script>
 
-<!-- Root-level siblings on purpose: the settings page lays its direct children out in balanced columns. -->
+<!-- Root-level siblings on purpose: each card is a direct child of the settings page flow. -->
 {#if isLoading}
   <p id="security" class="m-0 scroll-mt-16 text-sm text-muted lg:scroll-mt-4">{$t("security.page.loading")}</p>
 {:else if errorMsg}
