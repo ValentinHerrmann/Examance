@@ -135,6 +135,10 @@ function readPrf(credential: PublicKeyCredential): {
 export interface RegistrationResult {
   credentialJson: string;
   supportsPrf: boolean;
+  /** The PRF secret, where the provider evaluates it at creation (GPM, iCloud Keychain); saves a second prompt. */
+  prfOutput: Uint8Array | null;
+  /** How to reach the new passkey; pinning a later prompt without them can send Chrome to the "other device" dialog. */
+  transports: AuthenticatorTransport[];
 }
 
 /** Run a registration ceremony. Throws if the user cancels or it is unsupported. */
@@ -145,9 +149,19 @@ export async function register(options: ServerOptions): Promise<RegistrationResu
   if (!credential) {
     throw new Error('The passkey registration was cancelled.');
   }
+  const prf = readPrf(credential);
+  const response = credential.response as AuthenticatorAttestationResponse;
+  let transports: AuthenticatorTransport[] = [];
+  try {
+    transports = (response.getTransports?.() ?? []) as AuthenticatorTransport[];
+  } catch {
+    // Older engines lack getTransports(); the prompt then simply is not narrowed.
+  }
   return {
     credentialJson: encodeAttestation(credential),
-    supportsPrf: readPrf(credential).enabled,
+    supportsPrf: prf.enabled,
+    prfOutput: prf.output,
+    transports,
   };
 }
 
@@ -164,13 +178,18 @@ export interface AssertionResult {
  */
 export async function authenticate(
   options: ServerOptions,
-  opts: { credentialIdB64?: string } = {},
+  opts: { credentialIdB64?: string; transports?: AuthenticatorTransport[] } = {},
 ): Promise<AssertionResult> {
   const request = decodeRequestOptions(options.options_json);
   if (opts.credentialIdB64 && request.publicKey) {
-    request.publicKey.allowCredentials = [
-      { type: 'public-key', id: toArrayBuffer(fromBase64url(opts.credentialIdB64.replace(/=+$/, ''))) },
-    ];
+    const descriptor: PublicKeyCredentialDescriptor = {
+      type: 'public-key',
+      id: toArrayBuffer(fromBase64url(opts.credentialIdB64.replace(/=+$/, ''))),
+    };
+    if (opts.transports?.length) {
+      descriptor.transports = opts.transports;
+    }
+    request.publicKey.allowCredentials = [descriptor];
   }
   const credential = (await navigator.credentials.get(request)) as PublicKeyCredential | null;
   if (!credential) {

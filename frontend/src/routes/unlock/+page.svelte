@@ -18,6 +18,7 @@
   import {
     FactorChooser,
     LockoutNotice,
+    PasskeyEnrollDialog,
     RecoveryUnlockDialog,
     SetupCodesDialog,
     SigningInStep,
@@ -90,6 +91,8 @@
   let passkeyPending = $state(false);
   /** A PRF passkey that signed in but has no working wrap; re-wrapped once the vault opens another way. */
   let passkeyToHeal: { credentialIdB64: string; prfOutput: Uint8Array } | null = $state.raw(null);
+  /** Which second factor the enrollment step sets up; a passkey is offered first where the browser can make one (issue #72). */
+  let enrollWithTotp = $state(!canUsePasskeys);
 
 
   async function handleUnlock() {
@@ -516,7 +519,7 @@
 
   // Enrollment finished: replay the still-held password to turn the enrollment token into a real session
   // and store the key for the first time.
-  async function handleEnrolled(backupCodes: string[]) {
+  async function handleEnrolled(backupCodes: string[] | null) {
     // Held, not shown. The recovery code does not exist yet — it is minted when
     // the key envelope is created a few steps from here — and showing the two
     // sets in sequence is what made the second look like a repeat of the first.
@@ -532,7 +535,12 @@
       passwordVerified = true;
       // With the authenticator confirmed the account has two factors, so the password alone now asks for
       // the second one. The confirmation code is spent; the next code from the app finishes the sign-in.
-      if (step.status === "factor_required") factorNotice = translate("auth.unlock.enrolledEnterNextCode");
+      // A new passkey is asked for by itself (the effect below); its PRF secret then wraps the data key.
+      if (step.status === "factor_required") {
+        factorNotice = translate(
+          backupCodes === null ? "auth.unlock.enrolledPasskeySignIn" : "auth.unlock.enrolledEnterNextCode",
+        );
+      }
       await handleAuthStep(step);
     } catch (err: any) {
       isFinishing = false;
@@ -702,7 +710,14 @@
 </PageShell>
 
 {#if authStep && authStep.status === "enroll_required"}
-  <TotpEnrollDialog onEnrolled={handleEnrolled} />
+  {#if enrollWithTotp}
+    <TotpEnrollDialog
+      onEnrolled={handleEnrolled}
+      onUsePasskey={canUsePasskeys ? () => (enrollWithTotp = false) : undefined}
+    />
+  {:else}
+    <PasskeyEnrollDialog onEnrolled={() => handleEnrolled(null)} onUseTotp={() => (enrollWithTotp = true)} />
+  {/if}
 {/if}
 
 {#if pendingRecovery}

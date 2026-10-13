@@ -8,9 +8,11 @@
 
   interface Props {
     onEnrolled: (backupCodes: string[]) => void;
+    /** Offered when this browser can create a passkey instead (issue #72). */
+    onUsePasskey?: () => void;
   }
 
-  let { onEnrolled }: Props = $props();
+  let { onEnrolled, onUsePasskey }: Props = $props();
 
   let otpauthUri = "";
   let qrDataUrl = $state("");
@@ -91,7 +93,11 @@
   </form>
 
   {#snippet footer()}
-
+      {#if onUsePasskey}
+        <Button severity="secondary" disabled={isWorking} onClick={onUsePasskey}>
+          {$t("security.enrollPasskey.usePasskey")}
+        </Button>
+      {/if}
       <Button disabled={isWorking || !code.trim()} loading={isWorking} onClick={confirm}>
         {isWorking ? $t("security.enroll.working") : $t("security.enroll.confirm")}
       </Button>

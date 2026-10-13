@@ -92,8 +92,7 @@
     errorMsg = "";
     try {
       const options = await registrationOptions();
-      // Registration does not hand back the PRF secret, so the wrap below needs one assertion. Both
-      // ceremonies use the app-wide PRF input, which keeps the secret reproducible at sign-in.
+      // Both ceremonies use the app-wide PRF input, which keeps the secret reproducible at sign-in.
       const result = await register(options);
 
       const summary = await verifyRegistration({
@@ -109,14 +108,19 @@
 
       const vault = vaultFromSession();
       if (vault) {
-        // Wrap the data key under the PRF secret, even if registration reported no PRF (some providers
-        // only evaluate it on assertion). Pinned to the new credential so no other passkey seals it.
+        // Wrap the data key under the PRF secret. Providers that evaluate PRF at creation need no second
+        // prompt (issue #71); the others get one, pinned to the new credential so no other passkey seals it.
         try {
-          const assertion = await authenticate(await loginOptions(), {
-            credentialIdB64: summary.credential_id_b64,
-          });
-          if (assertion.prfOutput) {
-            await addPasskeyWrap(teacherId, vault, summary.credential_id_b64, assertion.prfOutput);
+          const prfOutput =
+            result.prfOutput ??
+            (
+              await authenticate(await loginOptions(), {
+                credentialIdB64: summary.credential_id_b64,
+                transports: result.transports,
+              })
+            ).prfOutput;
+          if (prfOutput) {
+            await addPasskeyWrap(teacherId, vault, summary.credential_id_b64, prfOutput);
           } else {
             unlockNotes = { ...unlockNotes, [summary.credential_id_b64]: "noPrf" };
           }

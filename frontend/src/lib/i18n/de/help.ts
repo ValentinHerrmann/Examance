@@ -298,7 +298,7 @@ export const help = {
             },
             s6: {
                 h: 'Zwei Anmeldefaktoren',
-                p1: 'Eine Anmeldung gelingt mit einem Passkey allein oder mit zwei von drei Faktoren: Passwort, Authenticator-App und Passkey. Passwort und Authenticator-App reichen nie allein — ein erratenes Passwort nützt also nichts.',
+                p1: 'Eine Anmeldung gelingt mit einem Passkey allein oder mit zwei von drei Faktoren: Passwort, Authenticator-App und Passkey. Passwort und Authenticator-App reichen nie allein — ein erratenes Passwort nützt also nichts. Bei der ersten Anmeldung richten Sie den zweiten Faktor ein: einen Passkey (wird zuerst angeboten) oder eine Authenticator-App.',
                 p2: 'Richten Sie nach Möglichkeit alle drei ein — dann ist der Verlust eines einzelnen Faktors nur lästig. Mit genau zwei bedeutet der Verlust eines Faktors, dass nur die Administration wieder Zugang verschaffen kann, und zwar nur zum Konto, nicht zu den verschlüsselten Daten. Backup-Codes ersetzen die Authenticator-App und funktionieren je einmal.',
             },
             s7: {

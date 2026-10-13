@@ -133,6 +133,15 @@ export const security: Translations['security'] = {
         invalid: 'That code does not match. Check that your device clock is correct.',
         failed: 'Setup could not be started.',
     },
+    enrollPasskey: {
+        intro: 'This account has only one sign-in factor. To make password guessing useless, Examance requires two — a passkey is the easiest.',
+        explain: 'A passkey uses the fingerprint, face recognition or device PIN of this computer or your phone. It can also sign you in without the password and open your encrypted data.',
+        create: 'Create passkey',
+        working: 'Creating passkey…',
+        useTotp: 'Use an authenticator app instead',
+        usePasskey: 'Use a passkey instead',
+        failed: 'The passkey could not be created. Try again or use an authenticator app.',
+    },
     setupCodes: {
         title: 'Save these codes',
         intro: 'Both codes are shown only now. They do different jobs — keep both somewhere outside this browser.',

@@ -130,6 +130,15 @@ export const security = {
         invalid: 'Dieser Code passt nicht. Prüfen Sie, ob die Uhrzeit Ihres Geräts korrekt ist.',
         failed: 'Die Einrichtung konnte nicht gestartet werden.',
     },
+    enrollPasskey: {
+        intro: 'Für dieses Konto ist bisher nur ein Anmeldefaktor hinterlegt. Zum Schutz vor dem Ausprobieren von Passwörtern verlangt Examance zwei — am einfachsten ist ein Passkey.',
+        explain: 'Ein Passkey nutzt Fingerabdruck, Gesichtserkennung oder die Geräte-PIN dieses Computers oder Ihres Telefons. Er meldet Sie künftig auch ohne Passwort an und kann Ihre verschlüsselten Daten öffnen.',
+        create: 'Passkey erstellen',
+        working: 'Passkey wird erstellt …',
+        useTotp: 'Stattdessen Authenticator-App verwenden',
+        usePasskey: 'Stattdessen Passkey verwenden',
+        failed: 'Der Passkey konnte nicht erstellt werden. Versuchen Sie es erneut oder verwenden Sie eine Authenticator-App.',
+    },
     setupCodes: {
         title: 'Sichern Sie diese Codes',
         intro: 'Beide Codes werden nur jetzt angezeigt. Sie haben unterschiedliche Aufgaben — bewahren Sie beide außerhalb des Browsers auf.',
