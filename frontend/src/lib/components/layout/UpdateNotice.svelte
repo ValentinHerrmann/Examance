@@ -8,7 +8,6 @@
   const SEEN_KEY = "examance.lastSeenVersion";
   const isRelease = !frontendVersion.includes("-");
 
-  let notes = $state<string | null>(null);
   let showNotes = $state(false);
   let dismissedUpdate = $state(false);
 
@@ -24,14 +23,8 @@
     const seen = readSeen();
     writeSeen(frontendVersion);
     if (!seen || seen === frontendVersion) return;
-    // Plain text only: the body is rendered as text, never as HTML.
-    fetch(`https://api.github.com/repos/${repoUrl.replace("https://github.com/", "")}/releases/tags/v${frontendVersion}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j: { body?: unknown } | null) => {
-        notes = typeof j?.body === "string" ? j.body.trim() : "";
-        showNotes = true;
-      })
-      .catch(() => { notes = ""; showNotes = true; });
+    // No request to GitHub here: the origin stays self-contained (tests/cspHeaders.test.ts); the user follows the link.
+    showNotes = true;
   });
 </script>
 
@@ -46,7 +39,6 @@
 
 {#if showNotes}
   <Alert severity="success" title={$t("statusBar.releaseNotesTitle", { version: frontendVersion })} class="mx-3 mt-2 sm:mx-4" onDismiss={() => (showNotes = false)}>
-    {#if notes}<pre class="max-h-48 overflow-auto whitespace-pre-wrap text-sm">{notes}</pre>{/if}
     <a class="underline" href={`${repoUrl}/releases/tag/v${frontendVersion}`} target="_blank" rel="noopener noreferrer">{$t("statusBar.releaseNotesLink")}</a>
   </Alert>
 {/if}
