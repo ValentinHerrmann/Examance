@@ -32,6 +32,7 @@
   } from "#lib/i18n";
   import { PageShell, PageHeader, Card, Button, Alert } from "#lib/components/ui";
   import SectionNav from "#lib/components/settings/SectionNav.svelte";
+  import SettingsGroupHeading from "#lib/components/settings/SettingsGroupHeading.svelte";
   import DeleteAccountCard from "#lib/components/settings/DeleteAccountCard.svelte";
   import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
   import { currentManifest, refreshCapabilities } from "#lib/db/workspace";
@@ -132,24 +133,26 @@
     }
   }
 
-  let navItems = $derived(isAdmin ? [
+  let navItems = $derived([
+    { id: "group-general", label: $t("settings.groups.general"), group: true },
     { id: "language", label: $t("settings.language.heading") },
     { id: "theme", label: $t("settings.theme.heading") },
-    { id: "security", label: $t("security.page.title") },
-    { id: "delete-account", label: $t("settings.deleteAccount.heading") },
-  ] : [
-    { id: "storage-policy", label: $t("settings.storage.heading") },
-    { id: "latex", label: $t("settings.latex.heading") },
-    { id: "language", label: $t("settings.language.heading") },
-    { id: "theme", label: $t("settings.theme.heading") },
-    { id: "logo", label: $t("logo.account.heading") },
-    { id: "omr", label: $t("settings.omr.heading") },
-    ...(donationAvailable || $trainingDonationStore.enabled
-      ? [{ id: "donation", label: $t("settings.donation.heading") }]
-      : []),
+    ...(isAdmin ? [] : [
+      { id: "group-workspace", label: $t("settings.groups.workspace"), group: true },
+      { id: "storage-policy", label: $t("settings.storage.heading") },
+      { id: "latex", label: $t("settings.latex.heading") },
+      { id: "logo", label: $t("logo.account.heading") },
+      { id: "omr", label: $t("settings.omr.heading") },
+      ...(donationAvailable || $trainingDonationStore.enabled
+        ? [{ id: "donation", label: $t("settings.donation.heading") }]
+        : []),
+    ]),
+    { id: "group-account", label: $t("settings.groups.account"), group: true },
     ...($isAuthenticated ? [{ id: "security", label: $t("security.page.title") }] : []),
-    { id: "gdpr", label: $t("admin.gdprErasureTable.title") },
-    { id: "hygiene", label: $t("settings.hygiene.heading") },
+    ...(isAdmin ? [] : [
+      { id: "gdpr", label: $t("admin.gdprErasureTable.title") },
+      { id: "hygiene", label: $t("settings.hygiene.heading") },
+    ]),
     ...($isAuthenticated ? [{ id: "delete-account", label: $t("settings.deleteAccount.heading") }] : []),
   ]);
 
@@ -207,6 +210,8 @@
           onChange={(enabled) => trainingDonationStore.setEnabled(enabled)}
         />
         {/if}
+
+        <SettingsGroupHeading id="group-account" title={$t("settings.groups.account")} />
 
         {#if $isAuthenticated}
           <!-- Server accounts only: a local vault has no sign-in factors. -->

@@ -6,6 +6,7 @@
   import { dataPlaceIcons, latexPlaceIcons } from "#lib/components/storage/placeIcons";
   import HelpButton from "#lib/components/help/HelpButton.svelte";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
+  import SettingsGroupHeading from "./SettingsGroupHeading.svelte";
 
   interface Props {
     /** Null until the account has chosen one. */
@@ -61,7 +62,61 @@
   }
 </script>
 
+<SettingsGroupHeading id="group-general" title={$t("settings.groups.general")} />
+
+<div id="language" class={sectionId}>
+  <Card>
+    <h2 class="m-0 mb-1 text-xl font-medium text-content">{$t("settings.language.heading")}</h2>
+    <p class={description}>{$t("settings.language.description")}</p>
+    <div class={options}>
+      {#each LOCALES as code (code)}
+        <label class={option}>
+          <input
+            class={radio}
+            type="radio"
+            name="uiLocale"
+            value={code}
+            checked={uiLocale === code}
+            onchange={() => onLocaleChange(code)}
+          />
+          <div class="min-w-0">
+            <p class={optionTitle}>{LOCALE_LABELS[code]}</p>
+            <p class={optionText}>{$t("settings.language.hint")}</p>
+          </div>
+        </label>
+      {/each}
+    </div>
+  </Card>
+</div>
+
+<div id="theme" class={sectionId}>
+  <Card>
+    <h2 class="m-0 mb-1 text-xl font-medium text-content">{$t("settings.theme.heading")}</h2>
+    <p class={description}>{$t("settings.theme.description")}</p>
+    <div class={options}>
+      {#each THEME_PREFERENCES as pref (pref)}
+        <label class={option}>
+          <input
+            class={radio}
+            type="radio"
+            name="uiTheme"
+            value={pref}
+            checked={$themePreference === pref}
+            onchange={() => setThemePreference(pref)}
+          />
+          <div class="min-w-0">
+            <p class={optionTitle}>{$t(themeLabels[pref])}</p>
+            {#if pref === "system"}<p class={optionText}>{$t("settings.theme.hint")}</p>{/if}
+          </div>
+        </label>
+      {/each}
+    </div>
+  </Card>
+</div>
+
 {#if teaching}
+<SettingsGroupHeading id="group-workspace" title={$t("settings.groups.workspace")} />
+
 <div id="storage-policy" class={sectionId}>
   <Card>
     <h2 class="m-0 mb-1 flex items-center gap-2 text-xl font-medium text-content">
@@ -152,53 +207,3 @@
   </Card>
 </div>
 {/if}
-
-<div id="language" class={sectionId}>
-  <Card>
-    <h2 class="m-0 mb-1 text-xl font-medium text-content">{$t("settings.language.heading")}</h2>
-    <p class={description}>{$t("settings.language.description")}</p>
-    <div class={options}>
-      {#each LOCALES as code (code)}
-        <label class={option}>
-          <input
-            class={radio}
-            type="radio"
-            name="uiLocale"
-            value={code}
-            checked={uiLocale === code}
-            onchange={() => onLocaleChange(code)}
-          />
-          <div class="min-w-0">
-            <p class={optionTitle}>{LOCALE_LABELS[code]}</p>
-            <p class={optionText}>{$t("settings.language.hint")}</p>
-          </div>
-        </label>
-      {/each}
-    </div>
-  </Card>
-</div>
-
-<div id="theme" class={sectionId}>
-  <Card>
-    <h2 class="m-0 mb-1 text-xl font-medium text-content">{$t("settings.theme.heading")}</h2>
-    <p class={description}>{$t("settings.theme.description")}</p>
-    <div class={options}>
-      {#each THEME_PREFERENCES as pref (pref)}
-        <label class={option}>
-          <input
-            class={radio}
-            type="radio"
-            name="uiTheme"
-            value={pref}
-            checked={$themePreference === pref}
-            onchange={() => setThemePreference(pref)}
-          />
-          <div class="min-w-0">
-            <p class={optionTitle}>{$t(themeLabels[pref])}</p>
-            {#if pref === "system"}<p class={optionText}>{$t("settings.theme.hint")}</p>{/if}
-          </div>
-        </label>
-      {/each}
-    </div>
-  </Card>
-</div>

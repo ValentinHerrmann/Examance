@@ -1,7 +1,12 @@
 export const settings = {
     pageTitle: 'Einstellungen & Datenschutz',
+    groups: {
+        general: 'Allgemein',
+        workspace: 'Arbeitsbereich',
+        account: 'Konto & Datenschutz',
+    },
     language: {
-        heading: '3. Sprache',
+        heading: 'Sprache',
         description: 'Sprache der Benutzeroberfläche auswählen:',
         hint: 'Betrifft nur die Oberfläche — erzeugte Prüfungs-PDFs bleiben unverändert.',
     },
@@ -11,7 +16,7 @@ export const settings = {
         hint: '„Wie System“ folgt der Einstellung Ihres Betriebssystems und wechselt automatisch mit.',
     },
     storage: {
-        heading: '1. Globale Speicherstrategie',
+        heading: 'Globale Speicherstrategie',
         description: 'Legen Sie fest, wo Prüfungen, Aufgaben, Schüleridentitäten und Ergebnisse gespeichert werden:',
         allServerTitle: 'Alles auf dem Server',
         allServerText: 'Alle Daten werden mit dem sicheren BlindGrade-Server synchronisiert und dort gespeichert.',
@@ -19,7 +24,7 @@ export const settings = {
         hybridText: 'Aufgabenbibliothek und Prüfungsvorlagen liegen auf dem Server, Schüleridentitäten und Notenabgaben bleiben zu 100 % auf Ihrem Gerät.',
     },
     latex: {
-        heading: '2. LaTeX-Kompilierung',
+        heading: 'LaTeX-Kompilierung',
         description: 'Legen Sie fest, wo LaTeX-Dateien kompiliert werden (unabhängig von der Speicherstrategie):',
         localTitle: 'Lokaler Client (WebAssembly)',
         localText: 'Kompiliert im Browser, ohne den Quelltext an einen Server zu senden.',
@@ -27,7 +32,7 @@ export const settings = {
         serverText: 'Schnelle serverseitige Kompilierung. Erfordert ein authentifiziertes Konto.',
     },
     omr: {
-        heading: '4. MC-Erkennung (OMR) feinjustieren',
+        heading: 'MC-Erkennung (OMR) feinjustieren',
         description: 'Schwellenwerte, mit denen angekreuzte Kästchen auf eingescannten Bögen erkannt werden. Die Standardwerte passen für die meisten Scanner.',
         futureOnly: 'Änderungen gelten nur für künftige Erkennungsläufe (neue Scans oder „MC-Erkennung erneut ausführen“). Bereits erkannte und insbesondere bereits geprüfte Ergebnisse bleiben unverändert.',
         localOnly: 'Wird nur in diesem Browser gespeichert und nicht mit anderen Geräten synchronisiert.',
@@ -167,7 +172,7 @@ export const settings = {
         },
     },
     donation: {
-        heading: '5. MC-Erkennung verbessern (freiwillig)',
+        heading: 'MC-Erkennung verbessern (freiwillig)',
         description: 'Helfen Sie, die automatische Erkennung von Ankreuzfeldern für alle Lehrkräfte zu verbessern, indem Sie anonymisierte Ausschnitte bereits geprüfter Kästchen spenden.',
         whatIsSent: 'Gesendet wird je geprüftem Kästchen: ein kleiner Graustufen-Ausschnitt (nur das Kästchen und das Korrekturfeld daneben, kein Aufgabentext), Ihre geprüfte Entscheidung (angekreuzt / nicht angekreuzt) und die Messwerte der Erkennung.',
         whatIsNotSent: 'Nicht gesendet werden: Namen, Pseudonyme, Prüfungs-, Abgabe- oder Aufgabenkennungen oder Zeitstempel. Je Kästchen wird nur eine zufällige Kennung mitgeschickt, damit eine spätere Korrektur die frühere Wertung ersetzt. Gesendet wird angemeldet, damit nur Konten dieser Installation spenden können; Ihr Konto wird dabei nicht mit den Ausschnitten gespeichert.',

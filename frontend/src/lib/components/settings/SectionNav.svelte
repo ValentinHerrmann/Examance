@@ -4,7 +4,7 @@
 
   interface Props {
     /** Anchor links to the sections of a long page (Artemis settings pattern): sticky left column from `lg`, scrolling top strip below. */
-    items: { id: string; label: string; icon?: IconDefinition }[];
+    items: { id: string; label: string; icon?: IconDefinition; group?: boolean }[];
     ariaLabel: string;
   }
 
@@ -17,10 +17,10 @@
 >
   <ul class="m-0 flex list-none gap-1 overflow-x-auto p-0 lg:flex-col lg:overflow-visible">
     {#each items as item (item.id)}
-      <li class="shrink-0 lg:shrink">
+      <li class="shrink-0 lg:shrink {item.group ? 'lg:mt-3 lg:first:mt-0' : ''}">
         <a
           href="#{item.id}"
-          class="flex items-center gap-2 rounded-md px-3 py-2 text-sm whitespace-nowrap text-muted no-underline transition-colors hover:bg-surface-inset hover:text-content pointer-coarse:min-h-11 lg:whitespace-normal"
+          class="flex items-center gap-2 rounded-md px-3 py-2 text-sm whitespace-nowrap {item.group ? 'font-semibold text-content' : 'text-muted lg:pl-5'} no-underline transition-colors hover:bg-surface-inset hover:text-content pointer-coarse:min-h-11 lg:whitespace-normal"
         >
           {#if item.icon}<Icon icon={item.icon} />{/if}
           <span class="min-w-0">{item.label}</span>
