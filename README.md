@@ -39,14 +39,10 @@ Backend API at `http://localhost:8000/api/docs`, frontend at `http://localhost:5
 
 ## Documentation
 
-**Pitch & posters** — current audience-specific materials, using the actual app and current privacy model:
-* [Examance pitch index](docs/concept_pitch.md) — overview and links to all current versions
-* [Computer Science beta pitch](docs/pitches/examance-beta-cs.pdf) — for computer science teachers joining the beta
-* [Teacher pitch](docs/pitches/examance-teachers.pdf) — for general classroom adoption
-* [Administration pitch](docs/pitches/examance-administration.pdf) — for school leadership and governance
-* [Computer Science beta poster](docs/posters/examance-beta-cs.pdf)
-* [Teacher poster](docs/posters/examance-teachers.pdf)
-* [Administration poster](docs/posters/examance-administration.pdf)
+**Pitch & posters** — two sets, each a slide deck and a poster, using the actual app and current privacy model:
+* [Examance pitch index](docs/concept_pitch.md) — overview, audiences and rendering
+* [UI deck](docs/pitches/examance-ui.pdf) · [UI poster](docs/posters/examance-ui.pdf) — screenshot tour for everyone
+* [Information deck](docs/pitches/examance-info.pdf) · [Information poster](docs/posters/examance-info.pdf) — how it works, privacy and security in detail, with diagrams; for computer science teachers, school leadership, data protection and IT
 
 Sources are [Marp](https://marp.app) Markdown sharing one theme that mirrors the app's design tokens. Render from the source's directory with `npx @marp-team/marp-cli <source.md> --pdf --html --allow-local-files --theme-set ../pitches/examance-theme.css --theme-set ../posters/examance-poster.css -o <source.pdf>` (keep the input file first: `--theme-set` takes several values).
 
