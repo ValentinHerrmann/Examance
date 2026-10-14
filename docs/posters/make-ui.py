@@ -1,6 +1,5 @@
-"""Writes the UI tour poster sources (examance-ui-tour.md, examance-ui-tour-2p.md).
-Images sit in justified rows (each figure's flex-grow is its aspect ratio); the row split and order
-per page are searched so the rows fill the page height. Run from anywhere."""
+"""Writes the UI poster (examance-ui.md, 2 pages) and the UI deck (../pitches/examance-ui.md) from one caption list.
+Poster images sit in justified rows or two columns; the split and order per page are searched so they fill the page."""
 import functools
 import itertools
 from pathlib import Path
@@ -196,13 +195,67 @@ header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· {URL}</em>'
 footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
 ---
 """
-TITLED = 1538 - 136      # content bottom minus where the first row starts (measured in the PDF)
-KICKED = 1538 - 180
-one = (FM + '\n<!-- _class: tour -->\n\n# Klausuren schreiben, setzen, fair bewerten.\n\n'
-       + masonry_md(["editor", "setup", "grading", "mcreview", "paper", "variant", "crypto"], TITLED))
-two = (FM + '\n<!-- _class: tour -->\n\n<span class="kicker">Teil 1 · Erstellen</span>\n\n# Von der Aufgabe zur druckfertigen Klausur.\n\n'
-       + masonry_md(["editor", "mc", "builder", "setup", "variantdiff", "proposal"], KICKED)
-       + '\n---\n\n<!-- _class: tour -->\n\n<span class="kicker">Teil 2 · Korrigieren und auswerten</span>\n\n# Anonym bewerten, fair vergleichen.\n\n'
-       + rows_md(layout(["grading", "mcreview", "paper", "results", "variant", "crypto"], KICKED, "crypto")))
-(HERE / "examance-ui-tour.md").write_text(one)
-(HERE / "examance-ui-tour-2p.md").write_text(two)
+KICKED = 1538 - 180       # content bottom minus where the first row starts (measured in the PDF)
+poster = (FM + '\n<!-- _class: tour -->\n\n<span class="kicker">Teil 1 · Erstellen</span>\n\n# Von der Aufgabe zur druckfertigen Klausur.\n\n'
+          + masonry_md(["editor", "mc", "builder", "setup", "variantdiff", "proposal"], KICKED)
+          + '\n---\n\n<!-- _class: tour -->\n\n<span class="kicker">Teil 2 · Korrigieren und auswerten</span>\n\n# Anonym bewerten, fair vergleichen.\n\n'
+          + rows_md(layout(["grading", "mcreview", "paper", "results", "variant", "crypto"], KICKED, "crypto")))
+(HERE / "examance-ui.md").write_text(poster)
+
+DECK_FM = f"""---
+marp: true
+theme: examance
+paginate: true
+size: 16:9
+header: '![](../screenshots/pitch/examance-logo.png) Examance <em>· {URL}</em>'
+footer: 'Examance 0.2 (Beta) · Stand Oktober 2026 · Echte Oberfläche mit Demodaten, keine echten Schülerdaten'
+---
+"""
+
+
+def shot_slide(k, part):
+    f, t, d, a = S[k]
+    return (f'\n---\n\n<!-- _class: shotslide -->\n\n<span class="kicker">{part}</span>\n\n## {t}\n\n'
+            f'<figure><img src="{P}{f}"><figcaption>{d} – <em>{a}</em></figcaption></figure>\n')
+
+
+def divider(n, title, lead):
+    return (f'\n---\n\n<!-- _class: statement -->\n\n<span class="kicker">Teil {n}</span>\n\n# {title}\n\n'
+            f'<p class="lead">{lead}</p>\n')
+
+
+cards = "".join(f'<div class="card ok"><h3>{t}</h3><p class="small" style="margin:0">{d}</p></div>' for t, d in PRIVACY)
+deck = (DECK_FM + f"""
+<!-- _class: title -->
+<!-- _paginate: false -->
+
+<div class="cols center" style="grid-template-columns: 6fr 7fr">
+<div>
+<img class="logo" src="{P}examance-logo.png">
+<span class="kicker">Rundgang durch die Oberfläche</span>
+
+# Klausuren schreiben, setzen, fair bewerten.
+
+<p class="lead">Aufgabenbibliothek, Klausursatz und Notenbuch in einem – im Browser, mit verschlüsselten Schülerdaten.</p>
+</div>
+<figure class="shot"><img src="{P}{S['setup'][0]}"><figcaption>Fertige Klausur mit Erwartungshorizont</figcaption></figure>
+</div>
+"""
+        + divider(1, "Von der Aufgabe zur druckfertigen Klausur.", "Aufgaben einmal schreiben, in Minuten zur Klausur zusammenstellen, mit dem Kollegium teilen.")
+        + "".join(shot_slide(k, "Teil 1 · Erstellen") for k in ["editor", "mc", "builder", "setup", "variantdiff", "proposal"])
+        + divider(2, "Anonym bewerten, fair vergleichen.", "Auf Papier oder am Bildschirm korrigieren – beide Wege enden in derselben Auswertung.")
+        + "".join(shot_slide(k, "Teil 2 · Korrigieren und auswerten") for k in ["paper", "grading", "mcreview", "results", "variant"])
+        + f"""
+---
+
+<!-- _class: center -->
+
+<span class="kicker">Datenschutz</span>
+
+# Schülerdaten sind nur mit Ihrem Schlüssel lesbar.
+
+<div class="cols3" style="margin-top:10px">{cards}</div>
+
+<p class="lead" style="margin-top:18px">Ausprobieren: <strong>{URL}</strong> · Details zu Technik und Datenschutz in der Informationspräsentation.</p>
+""")
+(HERE.parent / "pitches" / "examance-ui.md").write_text(deck)
