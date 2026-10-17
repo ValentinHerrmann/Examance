@@ -40,6 +40,14 @@ describe('score payload bound to its row (issue #85)', () => {
     }
   });
 
+  it('matches ids regardless of case (server UUIDs are canonical lower case)', async () => {
+    const key = await aesKey();
+    const sealed = await encryptScore({ ...score(), submissionId: 'SUB-A', exerciseId: 'EX-1' }, key);
+    const opened = await decryptScore({ ...sealed, submissionId: 'sub-a', exerciseId: 'ex-1' }, key);
+    expect(opened.decryptFailed).toBeUndefined();
+    expect(opened.score).toBe(2);
+  });
+
   it('still opens a payload sealed before the binding existed', async () => {
     const key = await aesKey();
     const payload = new TextEncoder().encode(JSON.stringify({ score: 1, selectedOptions: [3] }));

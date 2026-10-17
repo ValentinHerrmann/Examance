@@ -177,16 +177,21 @@
 
   async function handleSaveScore() {
     if (!currentSub) return;
+    // Snapshot everything this save writes: Next/Prev during the awaits below must not send the
+    // rest of the save (deletes, annotations, total) to the next student.
+    const sub = currentSub;
+    const total = isFullyGraded ? sumGradedScores : undefined;
+    const strokes = get(gradingStore).currentStrokes;
     gradingStore.setSaving(true);
 
     try {
       if (scoresLoadError) {
         throw new Error(translate("grading.page.scoresLoadFailed", { message: scoresLoadError }));
       }
-      if (loadedFor !== currentSub.id) {
+      if (loadedFor !== sub.id) {
         throw new Error(translate("grading.page.scoresNotLoaded"));
       }
-      currentSub.totalScore = isFullyGraded ? sumGradedScores : undefined;
+      sub.totalScore = total;
       const key = get(sessionStore).sessionKey;
 
       // Save individual exercise scores if graded, delete if reset to ungraded
@@ -205,7 +210,7 @@
           const mc = isMcQuestion(ex) ? mcState[ex.id] : undefined;
           toSave.push({
             id: crypto.randomUUID(),
-            submissionId: currentSub.id,
+            submissionId: sub.id,
             exerciseId: ex.id,
             score: val,
             selectedOptions: mc?.selectedOptions,
@@ -218,46 +223,45 @@
       }
       // One write for the whole sheet; the repository reconciles on
       // (submissionId, exerciseId), so no existing-row lookup is needed.
-      await scoreRepository.saveMany(examId, currentSub.id, toSave, key);
+      await scoreRepository.saveMany(examId, sub.id, toSave, key);
       for (const exerciseId of toClear) {
-        await scoreRepository.deleteOne(examId, currentSub.id, exerciseId);
+        await scoreRepository.deleteOne(examId, sub.id, exerciseId);
       }
 
       // Encrypt annotations. "No strokes" and "no key" differ: saving without a session key must
       // refuse, not silently clear the teacher's corrections.
-      const currentStrokes = get(gradingStore).currentStrokes;
       let clearAnnotations = false;
       if (!$sessionStore.sessionKey) {
         throw new Error(
           "Cannot save grading without a session key — unlock the session and try again.",
         );
       }
-      if (currentStrokes.length > 0) {
-        const annJson = JSON.stringify(currentStrokes);
+      if (strokes.length > 0) {
+        const annJson = JSON.stringify(strokes);
         const encAnn = await encrypt(
           $sessionStore.sessionKey,
           new TextEncoder().encode(annJson),
         );
-        currentSub.annotationCt = encAnn.ciphertext;
-        currentSub.annotationIv = encAnn.iv;
+        sub.annotationCt = encAnn.ciphertext;
+        sub.annotationIv = encAnn.iv;
       } else {
-        currentSub.annotationCt = undefined;
-        currentSub.annotationIv = undefined;
+        sub.annotationCt = undefined;
+        sub.annotationIv = undefined;
         clearAnnotations = true;
       }
 
-      await submissionRepository.save(currentSub, key, { clearAnnotations });
-      const next = [...submissions];
-      next[currentIndex] = { ...currentSub };
-      submissions = next;
+      await submissionRepository.save(sub, key, { clearAnnotations });
+      submissions = submissions.map((s) => (s.id === sub.id ? { ...sub } : s));
 
       if ($storagePolicyStore.storageMode === "all-server") {
-        await api.patch(`/exams/${examId}/submissions/${currentSub.id}/score`, {
-          total_score: isFullyGraded ? sumGradedScores : null,
+        await api.patch(`/exams/${examId}/submissions/${sub.id}/score`, {
+          total_score: total ?? null,
         });
       }
-      sessionStore.setDirty(false);
-      gradingStore.markClean();
+      if (currentSub?.id === sub.id) {
+        sessionStore.setDirty(false);
+        gradingStore.markClean();
+      }
       alert(translate("grading.page.saveSuccess"));
     } catch (err: any) {
       alert(translate("grading.page.saveFailed", { message: err.message }));
@@ -267,6 +271,7 @@
   }
 
   function nextStudent() {
+    if (get(gradingStore).isSaving) return;
     if (currentIndex >= submissions.length - 1) {
       gradingStore.setShowLastSubModal(true);
       return;
@@ -283,6 +288,7 @@
   }
 
   function prevStudent() {
+    if (get(gradingStore).isSaving) return;
     if (get(gradingStore).isDirty) {
       if (!confirm(translate("grading.page.unsavedPrev"))) {
         return;

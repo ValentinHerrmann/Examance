@@ -168,7 +168,8 @@ const SCORE: RecordCodec<ExerciseScoreRecord> = {
   plain: ['id', 'submissionId', 'exerciseId'],
   sealed: ['score', 'selectedOptions', 'omrMeta'],
   // Binds a result to its submission and question (issue #85): a moved row cannot pass as another pupil's.
-  aad: (r) => `score:v1:${r.submissionId}:${r.exerciseId}`,
+  // Lower-cased: the server returns canonical UUIDs, so a differently cased local id must still match.
+  aad: (r) => `score:v1:${String(r.submissionId).toLowerCase()}:${String(r.exerciseId).toLowerCase()}`,
 };
 
 // Identity fields live only inside the payload — re-emitting them as plain
