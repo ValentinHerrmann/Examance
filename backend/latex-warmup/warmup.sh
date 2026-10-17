@@ -13,7 +13,13 @@ cp -R "$assets"/. "$work"/
 cp "$here/warmup.tex" "$work/main.tex"
 cd "$work"
 # Two passes, like every compile: the second reads the .aux (scores) and pulls what it needs.
-tectonic --untrusted -k main.tex --keep-logs
-tectonic --untrusted -k main.tex --keep-logs
+# Output only on failure: a successful run prints hundreds of lines into build and deploy logs.
+for pass in 1 2; do
+  if ! tectonic --untrusted -k main.tex --keep-logs >tectonic.out 2>&1; then
+    cat tectonic.out >&2
+    echo "Tectonic warm-up failed in pass $pass" >&2
+    exit 1
+  fi
+done
 test -s main.pdf
 echo "Tectonic cache warm: ${TECTONIC_CACHE_DIR:-default location}"
