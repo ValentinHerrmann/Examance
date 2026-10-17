@@ -13,6 +13,8 @@ export interface WorkerTask<TReq, TRes> {
 export class WorkerPool<TReq, TRes> {
   private workers: Worker[] = [];
   private busyWorkers: Set<Worker> = new Set();
+  /** Removed by a downgrade while busy; terminated once their task settles. */
+  private retiring: Set<Worker> = new Set();
   private queue: WorkerTask<TReq, TRes>[] = [];
   private poolSize: number;
 
@@ -44,9 +46,8 @@ export class WorkerPool<TReq, TRes> {
     console.warn(`[WorkerPool] Reducing pool size from ${this.poolSize} to ${newSize}`);
     const toRemove = this.workers.splice(newSize);
     for (const w of toRemove) {
-      if (!this.busyWorkers.has(w)) {
-        w.terminate();
-      }
+      if (this.busyWorkers.has(w)) this.retiring.add(w);
+      else w.terminate();
     }
     this.poolSize = newSize;
   }
@@ -69,7 +70,7 @@ export class WorkerPool<TReq, TRes> {
 
     const handleMessage = (evt: MessageEvent) => {
       cleanup();
-      this.busyWorkers.delete(availableWorker);
+      this.release(availableWorker);
       if (evt.data && evt.data.type === 'ERROR') {
         task.reject(new Error(evt.data.message || 'Worker error'));
       } else {
@@ -81,7 +82,10 @@ export class WorkerPool<TReq, TRes> {
 
     const handleError = (err: ErrorEvent) => {
       cleanup();
-      this.busyWorkers.delete(availableWorker);
+      this.release(availableWorker);
+      // Replies are matched by order: a crashed worker could still answer late and hand this
+      // task's result to the next one, so it never gets another task.
+      this.replace(availableWorker);
       task.reject(new Error(err.message || 'Worker crash error'));
       this.processNext();
     };
@@ -97,12 +101,25 @@ export class WorkerPool<TReq, TRes> {
     availableWorker.postMessage(task.request);
   }
 
+  private release(worker: Worker) {
+    this.busyWorkers.delete(worker);
+    if (this.retiring.delete(worker)) worker.terminate();
+  }
+
+  private replace(worker: Worker) {
+    const idx = this.workers.indexOf(worker);
+    worker.terminate();
+    if (idx >= 0) this.workers[idx] = this.workerFactory();
+  }
+
   public terminate() {
     for (const w of this.workers) {
       w.terminate();
     }
+    for (const w of this.retiring) w.terminate();
     this.workers = [];
     this.busyWorkers.clear();
+    this.retiring.clear();
     this.queue = [];
   }
 }
