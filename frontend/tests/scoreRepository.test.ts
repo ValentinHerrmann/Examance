@@ -89,6 +89,22 @@ describe('scoreRepository', () => {
     expect(read[0].score).toBe(5);
   });
 
+  it('stores one row when a single write repeats an exercise (last one wins)', async () => {
+    await scoreRepository.saveMany(
+      'exam-1',
+      'sub-1',
+      [
+        { id: 'a', submissionId: 'sub-1', exerciseId: 'ex-1', score: 1 },
+        { id: 'b', submissionId: 'sub-1', exerciseId: 'ex-1', score: 2 },
+      ],
+      key
+    );
+
+    expect(await db.exerciseScores.toArray()).toHaveLength(1);
+    const read = await scoreRepository.getBySubmissionId('exam-1', 'sub-1', key);
+    expect(read[0].score).toBe(2);
+  });
+
   it('scopes an exam read to that exam only', async () => {
     await db.submissions.bulkPut([
       { id: 'sub-1', examId: 'exam-1', pseudonymHash: 'a', createdAt: '' },
