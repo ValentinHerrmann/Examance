@@ -131,6 +131,8 @@ async def put_scores(
             if item.id is not None:
                 row.id = item.id
             db.add(row)
+            # A repeated exercise in one batch updates this row instead of inserting a duplicate.
+            existing[item.exercise_id] = row
         row.payload_ciphertext = payload
         row.payload_iv = iv
 

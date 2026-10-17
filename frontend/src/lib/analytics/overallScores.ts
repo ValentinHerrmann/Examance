@@ -1,16 +1,25 @@
 /**
  * Overall-score distribution of the global analysis: every fully graded submission's total as a
- * percentage of its own exam's maximum points (exams differ), in fixed 10 % bins.
+ * percentage of its own exam's maximum points (exams differ), summarized like one exam's results.
  */
-import type { ExerciseRecord, SubmissionRecord } from "#lib/db/schema";
-import { clampPercentage, type PercentageHistogramBin } from "./stats";
+import type { ExerciseRecord, GradingKeyConfig, SubmissionRecord } from "#lib/db/schema";
+import { DEFAULT_CUTOFFS_LINEAR_40 } from "./gradingKey";
+import { clampPercentage, summarizeExam, type ExamResult, type ExamStats, type PercentageHistogramBin } from "./stats";
 
-const BIN_WIDTH = 10;
-const BIN_COUNT = 100 / BIN_WIDTH;
+/**
+ * Grade colours, bins and bands of the global chart. The exams behind one bar may use different
+ * keys, so the chart uses one fixed reference key (linear, pass mark 40 %; issue #89).
+ */
+export const OVERALL_GRADING_KEY: GradingKeyConfig = {
+  preset: "linear_40",
+  cutoffs: DEFAULT_CUTOFFS_LINEAR_40,
+};
 
 export interface OverallScoreDistribution {
-  /** Ascending 10 % bins (0–10 … 90–100); 100 % lands in the last one. */
+  /** Ascending bins aligned to `OVERALL_GRADING_KEY`; 100 % lands in the last one. */
   bins: PercentageHistogramBin[];
+  /** Everything the exam stats chart model needs (summary, bins, grade buckets). */
+  stats: ExamStats;
   /** Submissions that made it into the bins. */
   counted: number;
   /** No total score yet (not fully graded): left out, as in every other aggregate of the page. */
@@ -29,19 +38,10 @@ export function examMaxPoints(exercises: Pick<ExerciseRecord, "maxPoints">[]): n
  * currently includes: whatever it filters on, the histogram follows.
  */
 export function calculateOverallScoreDistribution(
-  submissions: Pick<SubmissionRecord, "examId" | "totalScore">[],
+  submissions: (Pick<SubmissionRecord, "examId" | "totalScore"> & { id?: string })[],
   maxPointsByExam: ReadonlyMap<string, number>,
 ): OverallScoreDistribution {
-  const bins: PercentageHistogramBin[] = Array.from({ length: BIN_COUNT }, (_, i) => ({
-    binStart: i * BIN_WIDTH,
-    binEnd: (i + 1) * BIN_WIDTH,
-    count: 0,
-    provisionalCount: 0,
-    // No grade colour: the exams behind one bar have different grading keys.
-    colorVar: "var(--color-primary)",
-    startsGrade: false,
-  }));
-  let counted = 0;
+  const results: ExamResult[] = [];
   let ungraded = 0;
   let withoutMaxPoints = 0;
 
@@ -56,12 +56,19 @@ export function calculateOverallScoreDistribution(
       withoutMaxPoints++;
       continue;
     }
-    // Clamped (bonus points, MC penalties) and rounded like the exam histogram, so float noise
-    // (8.1 / 9 is 89.99999999999999 %) cannot drop a 90 % result into the bin below.
-    const percentage = Math.round(clampPercentage((score / max) * 100) * 100) / 100;
-    bins[Math.min(BIN_COUNT - 1, Math.floor(percentage / BIN_WIDTH))].count++;
-    counted++;
+    // Clamped (bonus points, MC penalties); the histogram rounds like the exam one, so float
+    // noise (8.1 / 9 is 89.99999999999999 %) cannot drop a 90 % result into the bin below.
+    results.push({
+      submissionId: submission.id ?? "",
+      percentage: clampPercentage((score / max) * 100),
+      gradedCount: 1,
+      totalCount: 1,
+      isComplete: true,
+      gradedPoints: score,
+      gradedMaxPoints: max,
+    });
   }
 
-  return { bins, counted, ungraded, withoutMaxPoints };
+  const stats = summarizeExam(results, OVERALL_GRADING_KEY);
+  return { bins: stats.bins, stats, counted: results.length, ungraded, withoutMaxPoints };
 }

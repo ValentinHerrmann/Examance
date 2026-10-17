@@ -30,15 +30,15 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 /** Encrypt raw bytes with key. */
-async function encryptBytes(key: CryptoKey, bytes: Uint8Array): Promise<{ ct: Uint8Array; iv: Uint8Array }> {
-  const res = await encrypt(key, bytes);
+async function encryptBytes(key: CryptoKey, bytes: Uint8Array, aad?: Uint8Array): Promise<{ ct: Uint8Array; iv: Uint8Array }> {
+  const res = await encrypt(key, bytes, undefined, aad);
   return { ct: res.ciphertext, iv: res.iv };
 }
 
 /** Decrypt raw bytes with key. */
-async function decryptBytes(key: CryptoKey, ct: Uint8Array, iv: Uint8Array, fallbackKey?: CryptoKey | null): Promise<Uint8Array> {
+async function decryptBytes(key: CryptoKey, ct: Uint8Array, iv: Uint8Array, fallbackKey?: CryptoKey | null, aad?: Uint8Array): Promise<Uint8Array> {
   const activeFallbackKey = fallbackKey ?? (typeof window !== 'undefined' ? get(sessionStore).fallbackSessionKey : null);
-  return await decrypt(key, ct, iv, activeFallbackKey);
+  return await decrypt(key, ct, iv, activeFallbackKey, aad);
 }
 
 // ---------------------------------------------------------------------------
@@ -78,6 +78,8 @@ interface RecordCodec<T> {
   kind: string;
   plain: readonly (keyof T)[];
   sealed: readonly (keyof T)[];
+  /** Associated data binding the payload to its row: a ciphertext copied onto another row fails to open. */
+  aad?: (record: T) => string;
 }
 
 function pick<T>(record: T, fields: readonly (keyof T)[]): Partial<T> {
@@ -93,7 +95,8 @@ async function sealRecord<T extends MaybeUndecryptable & SealedPayload>(
 ): Promise<T> {
   assertEncryptable(record, key, codec.kind);
   const payload = JSON.stringify(pick(record, codec.sealed));
-  const { ct, iv } = await encryptBytes(key, encoder.encode(payload));
+  const aad = codec.aad ? encoder.encode(codec.aad(record)) : undefined;
+  const { ct, iv } = await encryptBytes(key, encoder.encode(payload), aad);
   // The whitelist drops every sealed field, which the record types mark
   // optional — so the partial is a complete record for everything required.
   return { ...pick(record, codec.plain), payloadCt: ct, payloadIv: iv } as unknown as T;
@@ -118,11 +121,21 @@ async function openRecord<T extends MaybeUndecryptable & SealedPayload>(
   if (!key) return markDecryptFailed(base, codec.kind, 'locked');
 
   try {
-    const bytes = await decryptBytes(key, payloadCt, payloadIv);
+    const bytes = await openPayload(key, payloadCt, payloadIv, codec.aad ? encoder.encode(codec.aad(record)) : undefined);
     return { ...base, ...JSON.parse(decoder.decode(bytes)) };
   } catch (err) {
     console.error(`Failed to decrypt ${codec.kind} record:`, err);
     return markDecryptFailed(base, codec.kind);
+  }
+}
+
+/** Rows sealed before their codec gained AAD still open without it; they gain the binding on their next save. */
+async function openPayload(key: CryptoKey, ct: Uint8Array, iv: Uint8Array, aad?: Uint8Array): Promise<Uint8Array> {
+  if (!aad) return decryptBytes(key, ct, iv);
+  try {
+    return await decryptBytes(key, ct, iv, undefined, aad);
+  } catch {
+    return decryptBytes(key, ct, iv);
   }
 }
 
@@ -154,6 +167,9 @@ const SCORE: RecordCodec<ExerciseScoreRecord> = {
   kind: 'score',
   plain: ['id', 'submissionId', 'exerciseId'],
   sealed: ['score', 'selectedOptions', 'omrMeta'],
+  // Binds a result to its submission and question (issue #85): a moved row cannot pass as another pupil's.
+  // Lower-cased: the server returns canonical UUIDs, so a differently cased local id must still match.
+  aad: (r) => `score:v1:${String(r.submissionId).toLowerCase()}:${String(r.exerciseId).toLowerCase()}`,
 };
 
 // Identity fields live only inside the payload — re-emitting them as plain

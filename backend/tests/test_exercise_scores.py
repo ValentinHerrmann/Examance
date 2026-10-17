@@ -125,6 +125,31 @@ async def test_put_ignores_a_stale_client_id_for_an_existing_pair(
     assert replayed.json()[0]["id"] == row_id
 
 
+async def test_put_with_a_repeated_exercise_stores_one_row(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    exam_id, exercise_id, sub_id = await _exam_with_submission(
+        client, db, "scores-duplicate@example.com"
+    )
+    url = f"/api/v1/exams/{exam_id}/submissions/{sub_id}/scores"
+    first = base64.b64encode(b"first").decode()
+    last = base64.b64encode(b"last").decode()
+
+    # Two items for the same exercise used to insert twice and fail the unique pair as a 500.
+    resp = await client.put(
+        url,
+        json={
+            "scores": [
+                {"exercise_id": exercise_id, "payload_ciphertext_b64": ct, "payload_iv_b64": IV_B64}
+                for ct in (first, last)
+            ]
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert len(resp.json()) == 1
+    assert resp.json()[0]["payload_ciphertext_b64"] == last
+
+
 async def test_put_rejects_an_exercise_outside_the_exam(
     client: AsyncClient, db: AsyncSession
 ) -> None:

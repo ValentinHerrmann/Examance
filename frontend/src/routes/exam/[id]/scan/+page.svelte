@@ -122,6 +122,8 @@
   let previewIsPdf = $state(false);
   let previewLoading = $state(false);
   let previewError = $state("");
+  /** Bumped on every open/close: a slower earlier decrypt must not show (or leak) its scan. */
+  let previewSeq = 0;
   let qrPool: WorkerPool<QrWorkerRequest, QrWorkerResponse> | null = null;
   let omrPool: WorkerPool<OmrWorkerRequest, OmrWorkerResponse> | null = null;
 
@@ -310,6 +312,7 @@
 
   async function openPreview(item: ScannedSubmissionItem) {
     closePreview();
+    const seq = previewSeq;
     previewItem = item;
     previewModalOpen = true;
     previewLoading = true;
@@ -323,6 +326,7 @@
 
     if (!scanCt || !scanIv) {
       const fullSub = await submissionRepository.getById(examId, item.id, key || fallbackKey);
+      if (seq !== previewSeq) return;
       if (fullSub) {
         scanCt = fullSub.scanCt;
         scanIv = fullSub.scanIv;
@@ -337,6 +341,7 @@
 
     try {
       const decryptedBytes = await decrypt(key || fallbackKey, scanCt, scanIv, fallbackKey);
+      if (seq !== previewSeq) return;
       const isPdf =
         decryptedBytes.length > 4 &&
         decryptedBytes[0] === 0x25 && // %
@@ -349,14 +354,16 @@
       const blob = new Blob([decryptedBytes as BlobPart], { type: mimeType });
       previewObjectUrl = URL.createObjectURL(blob);
     } catch (err) {
+      if (seq !== previewSeq) return;
       console.error("Preview decryption failed:", err);
       previewError = translate("scanning.errorPreviewDecrypt");
     } finally {
-      previewLoading = false;
+      if (seq === previewSeq) previewLoading = false;
     }
   }
 
   function closePreview() {
+    previewSeq++;
     if (previewObjectUrl) {
       URL.revokeObjectURL(previewObjectUrl);
       previewObjectUrl = null;

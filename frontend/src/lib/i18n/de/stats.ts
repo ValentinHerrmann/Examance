@@ -93,7 +93,7 @@ export const stats = {
     },
     overallHistogram: {
         title: 'Verteilung der Gesamtergebnisse',
-        subtitle: 'Gesamtpunktzahl jeder Abgabe in Prozent der Maximalpunkte ihrer Prüfung, in 10-%-Schritten. Ein Wert genau auf einer Grenze zählt zum höheren Bereich, 100 % zum obersten.',
+        subtitle: 'Gesamtpunktzahl jeder Abgabe in Prozent der Maximalpunkte ihrer Prüfung. Da die Prüfungen verschiedene Notenschlüssel haben können, folgen Farben, Notenbereiche und Balkengrenzen einem einheitlichen Referenzschlüssel (linear, bestanden ab 40 %). Ein Wert genau auf einer Grenze zählt zum höheren Bereich, 100 % zum obersten.',
         basis: 'Berücksichtigt: {counted} von {total} Abgaben. Nur vollständig bewertete Abgaben werden gezählt.',
         noMaxPoints: '{count} bewertete Abgabe(n) gehören zu Prüfungen ohne bekannte Maximalpunktzahl und fehlen deshalb.',
         barTitle: '{range} %: {count} Abgabe(n) ({share})',

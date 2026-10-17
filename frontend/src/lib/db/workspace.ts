@@ -167,6 +167,8 @@ async function canaryOpens(manifest: WorkspaceManifestRecord): Promise<boolean> 
 async function existingDataOpens(): Promise<boolean> {
   const key = get(sessionStore).sessionKey;
   for (const table of vaultTables()) {
+    // Score payloads carry row-bound AAD, so a bare decrypt would read as "foreign data".
+    if (table === db.exerciseScores) continue;
     const sealed = await table
       .filter((r: { payloadCt?: Uint8Array; payloadIv?: Uint8Array }) => !!r.payloadCt && !!r.payloadIv)
       .first();

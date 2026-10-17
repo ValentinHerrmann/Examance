@@ -6,7 +6,7 @@ export const misc: Translations['misc'] = {
         storageHeading: '1. Storage Policy',
         storageDescription: 'Select where exam data and student grades are stored:',
         allServerTitle: '️ All Server',
-        allServerText: 'All data synchronized and stored on the secure BlindGrade server.',
+        allServerText: 'All data synchronized and stored on the secure Examance server.',
         hybridTitle: '️ Hybrid Mode',
         hybridText: 'Exercise library and exam templates on server, but student identities stay 100% local.',
         latexHeading: '2. LaTeX Compilation Engine',

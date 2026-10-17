@@ -95,7 +95,7 @@ export const stats: Translations['stats'] = {
     },
     overallHistogram: {
         title: 'Overall Score Distribution',
-        subtitle: 'Each submission’s total score as a percentage of its exam’s maximum points, in 10 % steps. A value exactly on a boundary counts towards the higher range, 100 % towards the top one.',
+        subtitle: 'Each submission’s total score as a percentage of its exam’s maximum points. Since the exams may use different grading keys, colours, grade bands and bar boundaries follow one reference key (linear, pass mark 40 %). A value exactly on a boundary counts towards the higher range, 100 % towards the top one.',
         basis: 'Counted: {counted} of {total} submissions. Only fully graded submissions are included.',
         noMaxPoints: '{count} graded submission(s) belong to exams without a known maximum score and are left out.',
         barTitle: '{range} %: {count} submission(s) ({share})',

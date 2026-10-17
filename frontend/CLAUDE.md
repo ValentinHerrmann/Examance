@@ -12,6 +12,7 @@ SvelteKit 3 on **Svelte 5 (runes only, no legacy syntax)**, TypeScript 6, Vite 8
 - Prop-drilling exception: `src/lib/grading/gradingStore.ts`. Leaf grading components subscribe directly (15+ interdependent fields, justified in-file).
 - **Runes rules that protect storage behaviour** (the Svelte 4 → 5 migration relied on them):
   - Side effects are `$effect.pre` blocks that read their trigger names first and run the body in `untrack(…)`; otherwise a load/save re-fires whenever anything it reads changes. Keep existing guards (`loadSeq`, `loadedFor`, …).
+  - A `$derived` over a store (`$derived($store.x)`) changes synchronously on `set`: compute a target index once, never re-read the derived after setting it (the grade page's Next loaded the student after next and saved their MC rows onto the wrong one, issue #85).
   - Put `$effect.pre` blocks **at the end of the instance script**: they run synchronously where declared, so one above a `let` it (or a function it calls) touches throws a TDZ error (Svelte 4 ran `$:` after all declarations).
   - Records and collections that reach repositories, Dexie, stores, workers or crypto are `$state.raw` and updated by reassignment (`arr = [...arr, x]`). A deep `$state` Proxy breaks `structuredClone`/IndexedDB/`postMessage` and identity checks. Deep `$state` is for primitives and local edit buffers only; pass those on as `$state.snapshot(x)`.
   - `onwheel`/`ontouch*` are passive in Svelte 5. A handler that calls `preventDefault()` needs a non-passive listener (see `ZoomableImage`, `ScanCanvasViewer`).
