@@ -33,12 +33,6 @@ COPY pyproject.toml ./
 # Install production dependencies
 RUN uv pip install --system --no-cache -e "."
 
-# Copy application source
-COPY app/ ./app/
-COPY alembic/ ./alembic/
-COPY alembic.ini ./
-COPY latex-assets/ ./latex-assets/
-
 # Drop privileges. uvicorn and every tectonic subprocess it spawns run as this
 # user, so a compiler bug or a future path-traversal cannot read the host as
 # root. TECTONIC_CACHE_DIR must be writable by it.
@@ -47,6 +41,18 @@ RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin appu
  && mkdir -p "${TECTONIC_CACHE_DIR}" \
  && chown -R appuser:appuser /app "${TECTONIC_CACHE_DIR}"
 USER appuser
+
+# Warm Tectonic's cache once, so a fresh deployment's first preview does not time out while
+# hundreds of bundle files download (issue #75). Docker seeds a new cache volume from this.
+# Placed before the app source so code changes keep this layer cached. Public TeX files only.
+COPY --chown=appuser:appuser latex-assets/ ./latex-assets/
+COPY --chown=appuser:appuser latex-warmup/ ./latex-warmup/
+RUN sh ./latex-warmup/warmup.sh
+
+# Copy application source
+COPY --chown=appuser:appuser app/ ./app/
+COPY --chown=appuser:appuser alembic/ ./alembic/
+COPY --chown=appuser:appuser alembic.ini ./
 
 # Build version, reported by GET /api/health. Passed by the deploy workflows
 # from the repository-root VERSION file; the default keeps local builds honest
