@@ -26,32 +26,34 @@
 \begin{Aufgabe}{Text, Schriften und Formeln}
 Normal, \textbf{fett}, \textit{kursiv}, \texttt{Schreibmaschine}, \emph{betont}: äöüß.
 Formel $\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$, $\sqrt{x^2 + y^2} \geq 0$, $\alpha \cdot \beta$.
-\begin{itemize}
-  \item Punkt \ding{51} \Checkmark
-  \item Punkt
-\end{itemize}
-\begin{enumerate}[label=\alph*)]
-  \item Teil
-  \item Teil
-\end{enumerate}
-\begin{framed}Kasten\end{framed}
+
 \Loesung{Musterlösung}
 \end{Aufgabe}
 
-\begin{Aufgabe}{Multiple Choice}
-\OmrExercise{warmup}
+% Same shape as format_mc_group_latex() in app/services/latex.py.
+\begin{Aufgabe}{Multiple Choice} Kreuze jeweils die korrekten Lösungen an. Mehrere können, mind. eine ist jeweils richtig. Für falsch gesetzte Kreuze werden Punkte abgezogen (pro Teilaufgabe immer $\geq 0$ Punkte)
+
+\begin{enumerate}[label=\alph*)]
+\item \OmrExercise{warmup}
+Frage
 \LoesungMulti[2]{
   \multi Antwort A
   \Lmulti Antwort B
 }
+\end{enumerate}
+
+\LoesungLeer{1 Punkt}{0pt}
 \end{Aufgabe}
 
-\begin{Aufgabe}{Grafik}
+% Lists, frames and pictures outside an Aufgabe: its wrapfigure clashes with lists that follow it.
+\begin{itemize}
+  \item Symbol \ding{51}
+\end{itemize}
+\begin{framed}Kasten\end{framed}
 \begin{tikzpicture}
   \node[draw, rectangle] (a) at (0,0) {Start};
   \node[draw, diamond] (b) at (3,0) {?};
   \draw[->] (a) -- (b);
 \end{tikzpicture}
-\end{Aufgabe}
 
 \end{document}
