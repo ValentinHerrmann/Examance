@@ -3,6 +3,7 @@
   import { Card, EmptyState } from '#lib/components/ui';
   import ChartCard from '#lib/components/stats/ChartCard.svelte';
   import { binColumns } from '#lib/components/stats/chartColumns';
+  import { buildGradeChartModel } from '#lib/analytics/gradeChartModel';
   import { t } from '#lib/i18n';
   import { fmt } from '#lib/utils/format';
   import type { OverallScoreDistribution } from '#lib/analytics/overallScores';
@@ -17,6 +18,10 @@
 
   const num = (v: number) => $fmt.number(v, { maximumFractionDigits: 2 });
   const share = (count: number, of: number) => $fmt.percent(of > 0 ? count / of : 0, 0);
+
+  // The exam stats page's merged chart (grade bands, bins, mean/median, ±SD, normal curve), drawn
+  // with the fixed reference key; the bars get the overall page's own tooltip.
+  let model = $derived(distribution ? buildGradeChartModel(distribution.stats, { t: $t, fmt: $fmt }) : null);
 
   // Same mirrored 100 % → 0 % order as the exam charts; the tooltip names the range, count and share.
   let columns = $derived(
@@ -40,11 +45,18 @@
     title={$t('stats.overallHistogram.title')}
     subtitle={$t('stats.overallHistogram.subtitle')}
     domain={100}
-    layers={[{ columns, fill: 0.72, labels: 'axis', values: true }]}
+    plotHeight={260}
+    layers={model ? [model.layers[0], { ...model.layers[1], columns }] : []}
+    markers={model?.markers ?? []}
+    spans={model?.spans ?? []}
+    curve={model?.curve ?? null}
     axisLabel={$t('stats.submissionHistogram.axisLabel')}
     examTitle={$t('nav.analytics')}
     fileName="gesamtverteilung"
   >
+    {#if model?.markers.length}
+      <p class="mt-2 text-xs text-muted">{$t('stats.combined.markers.legend')}</p>
+    {/if}
     <p class="mt-2 text-xs text-muted">
       {$t('stats.overallHistogram.basis', { counted: num(distribution.counted), total: num(total) })}
       {#if distribution.withoutMaxPoints > 0}

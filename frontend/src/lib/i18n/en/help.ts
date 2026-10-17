@@ -212,7 +212,7 @@ export const help: Translations['help'] = {
             summary: 'Topic heatmaps, exercise quality and variant fairness across exams.',
             s1: {
                 h: 'Across exams',
-                p1: 'The analytics view combines several exams and shows how results develop over time, across grades and across subjects. The overall score histogram sorts all fully graded submissions into 10 % ranges by the share of their exam’s maximum points they reached.',
+                p1: 'The analytics view combines several exams and shows how results develop over time, across grades and across subjects. The overall score histogram sorts all fully graded submissions into 5 % ranges by the share of their exam’s maximum points they reached. Like an exam’s statistics it shows grade bands, mean, median, standard deviation and a normal curve; colours and bands follow one reference key (linear, pass mark 40 %), since the exams may use different grading keys.',
             },
             s2: {
                 h: 'Topics and knowledge gaps',
