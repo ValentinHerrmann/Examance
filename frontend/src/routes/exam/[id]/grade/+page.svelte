@@ -8,7 +8,6 @@
     ExerciseRecord,
     ExerciseScoreRecord,
     ExamRecord,
-    OmrScoreMeta,
   } from "#lib/db/schema";
   import { scoreRepository } from "#lib/repositories/scoreRepository";
   import {
@@ -25,6 +24,7 @@
   import { get } from "svelte/store";
   import { gradingStore, type VectorStroke } from "#lib/grading/gradingStore";
   import { isMcQuestion } from "#lib/grading/mcScore";
+  import { buildGradingSheet } from "#lib/grading/gradingSheet";
   import GradingWorkspace from "#lib/components/grading/GradingWorkspace.svelte";
   import { t, translate } from "#lib/i18n";
   import { Alert, Button, EmptyState } from "#lib/components/ui";
@@ -100,6 +100,9 @@
   });
 
   async function initExerciseScores(sub: SubmissionRecord) {
+    // Overlapping loads (fast Next clicks) must not let an older one win.
+    const seq = ++loadSeq;
+    loadedFor = null;
     gradingStore.setManualOverride({});
     gradingStore.setScoreInputs({});
     gradingStore.setMcState({});
@@ -113,18 +116,19 @@
     try {
       existingScores = await scoreRepository.getBySubmissionId(examId, sub.id, key);
     } catch (err) {
+      if (seq !== loadSeq) return;
       // Saving now would read every stored score as ungraded and delete it: block until a reload works.
       loadedScores = new Map();
       scoresLoadError = err instanceof Error ? err.message : String(err);
       return;
     }
-    const existingMap = new Map(existingScores.map((es) => [es.exerciseId, es]));
-    loadedScores = existingMap;
+    if (seq !== loadSeq) return;
 
     // Check strokes/annotations for exercises with active stamps. Read them from `sub`
     // itself: the canvas loads the new submission's strokes asynchronously, so the
     // store still holds the previous student's strokes at this point.
     const subStrokes = await loadStrokesFor(sub);
+    if (seq !== loadSeq) return;
     const exerciseIdsWithStrokes = new Set<string>();
     for (const stroke of subStrokes) {
       if (stroke.exerciseId) {
@@ -132,37 +136,25 @@
       }
     }
 
-    const newScoreInputs: Record<string, number | null> = {};
-    const newMcState: Record<string, { selectedOptions: number[]; omrMeta?: OmrScoreMeta }> = {};
-    const manualOverride = get(gradingStore).manualOverride;
-    for (const ex of exercises) {
-      const existing = existingMap.get(ex.id);
-      if (existing && typeof existing.score === "number" && !isNaN(existing.score)) {
-        // Legacy: score 0 without annotations means ungraded. Never for an OMR-read MC row: nulling
-        // it made the next save delete the row (and its omrMeta), dropping it from verification.
-        const isOmrMc = isMcQuestion(ex) && !!existing.omrMeta;
-        if (existing.score === 0 && !isOmrMc && !exerciseIdsWithStrokes.has(ex.id) && !manualOverride[ex.id]) {
-          newScoreInputs[ex.id] = null;
-        } else {
-          newScoreInputs[ex.id] = existing.score;
-        }
-      } else {
-        newScoreInputs[ex.id] = null;
-      }
-      if (isMcQuestion(ex) && existing) {
-        newMcState[ex.id] = {
-          selectedOptions: existing.selectedOptions ?? [],
-          omrMeta: existing.omrMeta,
-        };
-      }
-    }
-    gradingStore.setScoreInputs(newScoreInputs);
-    gradingStore.setMcState(newMcState);
+    const sheet = buildGradingSheet(
+      sub.id,
+      existingScores,
+      exercises,
+      exerciseIdsWithStrokes,
+      get(gradingStore).manualOverride
+    );
+    loadedScores = sheet.loadedScores;
+    loadedFor = sub.id;
+    gradingStore.setScoreInputs(sheet.scoreInputs);
+    gradingStore.setMcState(sheet.mcState);
   }
 
   /** Score rows as loaded for the current submission — lets a save keep an MC row it
    *  would otherwise have deleted (see handleSaveScore). */
   let loadedScores = new Map<string, ExerciseScoreRecord>();
+  /** Submission the loaded sheet belongs to; a save under any other id is refused (issue #85). */
+  let loadedFor: string | null = null;
+  let loadSeq = 0;
   /** Set when the current submission's scores failed to load; saving is refused meanwhile. */
   let scoresLoadError = $state("");
 
@@ -190,6 +182,9 @@
     try {
       if (scoresLoadError) {
         throw new Error(translate("grading.page.scoresLoadFailed", { message: scoresLoadError }));
+      }
+      if (loadedFor !== currentSub.id) {
+        throw new Error(translate("grading.page.scoresNotLoaded"));
       }
       currentSub.totalScore = isFullyGraded ? sumGradedScores : undefined;
       const key = get(sessionStore).sessionKey;
@@ -281,8 +276,10 @@
         return;
       }
     }
-    gradingStore.setCurrentIndex(currentIndex + 1);
-    initExerciseScores(submissions[currentIndex + 1]);
+    // currentIndex derives from the store and changes on set: compute the target once.
+    const target = currentIndex + 1;
+    gradingStore.setCurrentIndex(target);
+    initExerciseScores(submissions[target]);
   }
 
   function prevStudent() {
@@ -292,8 +289,9 @@
       }
     }
     if (currentIndex > 0) {
-      gradingStore.setCurrentIndex(currentIndex - 1);
-      initExerciseScores(submissions[currentIndex - 1]);
+      const target = currentIndex - 1;
+      gradingStore.setCurrentIndex(target);
+      initExerciseScores(submissions[target]);
     }
   }
 
