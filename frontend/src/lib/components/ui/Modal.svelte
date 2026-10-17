@@ -63,7 +63,7 @@
     small: "max-w-lg",
     medium: "sm:max-w-3xl",
     large: "sm:max-w-6xl",
-    full: "sm:max-w-none sm:w-[90dvw] sm:h-[90dvh]",
+    full: "sm:max-w-none sm:w-[90dvw]",
   };
 
   const id = Symbol("modal");
@@ -152,9 +152,12 @@
     }
   }
   let isSheet = $derived(size !== "small");
+  // One height class only: with both, Tailwind lets sm:h-auto beat sm:h-[90dvh] and the
+  // panel's h-full children collapse (blank PDF viewers, issue #93).
+  let fixedHeight = $derived(size === "full" || tall);
   let panelShape = $derived(isSheet
-    ? "h-dvh sm:h-auto sm:max-h-[90dvh] sm:rounded-xl sm:border sm:border-line sm:shadow-xl"
-    : "max-h-[90dvh] rounded-xl border border-line shadow-xl");
+    ? `h-dvh ${fixedHeight ? "sm:h-[90dvh]" : "sm:h-auto"} sm:max-h-[90dvh] sm:rounded-xl sm:border sm:border-line sm:shadow-xl`
+    : `max-h-[90dvh] rounded-xl border border-line shadow-xl ${tall ? "sm:h-[90dvh]" : ""}`);
   let overlayShape = $derived(isSheet ? "items-stretch sm:items-center sm:p-4" : "items-center p-4");
 
   $effect.pre(() => {
@@ -178,9 +181,7 @@
   >
     <div
       bind:this={panel}
-      class="@container flex w-full flex-col overflow-hidden bg-surface-raised text-content outline-none {panelShape} {widths[
-        size
-      ]} {tall ? 'sm:h-[90dvh]' : ''}"
+      class="@container flex w-full flex-col overflow-hidden bg-surface-raised text-content outline-none {panelShape} {widths[size]}"
       {role}
       aria-modal="true"
       aria-label={labelledBy ? undefined : title}
