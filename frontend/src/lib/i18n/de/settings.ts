@@ -19,7 +19,7 @@ export const settings = {
         heading: 'Globale Speicherstrategie',
         description: 'Legen Sie fest, wo Prüfungen, Aufgaben, Schüleridentitäten und Ergebnisse gespeichert werden:',
         allServerTitle: 'Alles auf dem Server',
-        allServerText: 'Alle Daten werden mit dem sicheren BlindGrade-Server synchronisiert und dort gespeichert.',
+        allServerText: 'Alle Daten werden mit dem sicheren Examance-Server synchronisiert und dort gespeichert.',
         hybridTitle: 'Hybrid-Modus (Bibliothek auf dem Server, Ergebnisse lokal)',
         hybridText: 'Aufgabenbibliothek und Prüfungsvorlagen liegen auf dem Server, Schüleridentitäten und Notenabgaben bleiben zu 100 % auf Ihrem Gerät.',
     },
