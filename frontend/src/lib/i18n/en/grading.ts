@@ -114,6 +114,7 @@ export const grading: Translations['grading'] = {
         fitTitle: 'Fit to view',
     },
     canvas: {
+        loading: 'Loading scan…',
         scanMissing: '[ Scan image missing / unencrypted ]',
         scanDecryptFailed: '[ Failed to decrypt scan — key mismatch or data corrupted ]',
     },

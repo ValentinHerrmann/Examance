@@ -112,6 +112,7 @@ export const grading = {
         fitTitle: 'Anpassen (Fit)',
     },
     canvas: {
+        loading: 'Scan wird geladen …',
         scanMissing: '[ Scan-Bild fehlt / unverschlüsselt ]',
         scanDecryptFailed: '[ Entschlüsselung des Scans fehlgeschlagen — Schlüssel stimmt nicht überein oder Daten beschädigt ]',
     },

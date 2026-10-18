@@ -61,6 +61,8 @@ export interface GradingState {
   zoomScale: number;
   isAutoCropEnabled: boolean;
   currentStrokes: VectorStroke[];
+  /** Submission `currentStrokes` were loaded for; null while a scan loads. A save writes annotations only for it. */
+  strokesSubmissionId: string | null;
 
     /** True once the teacher changed the current submission (stroke, score, MC toggle) since load/save; loading and re-deriving auto scores never set it. */
   isDirty: boolean;
@@ -85,6 +87,7 @@ const INITIAL_STATE: GradingState = {
   zoomScale: 1.0,
   isAutoCropEnabled: true,
   currentStrokes: [],
+  strokesSubmissionId: null,
   isDirty: false,
   currentPage: 1,
   totalPages: 1,
@@ -160,6 +163,10 @@ function createGradingStore() {
 
     setCurrentStrokes(strokes: VectorStroke[]) {
       update((s) => ({ ...s, currentStrokes: strokes }));
+    },
+
+    setStrokesSubmissionId(id: string | null) {
+      update((s) => ({ ...s, strokesSubmissionId: id }));
     },
 
     /** A user edit on the canvas (draw, stamp, erase, clear). */

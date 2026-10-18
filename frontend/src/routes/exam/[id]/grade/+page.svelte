@@ -181,7 +181,10 @@
     // rest of the save (deletes, annotations, total) to the next student.
     const sub = currentSub;
     const total = isFullyGraded ? sumGradedScores : undefined;
-    const strokes = get(gradingStore).currentStrokes;
+    const { currentStrokes: strokes, strokesSubmissionId } = get(gradingStore);
+    // Strokes still from the previous student (scan not loaded yet) must neither be written
+    // here nor clear this student's own annotations: leave the annotation layer untouched.
+    const ownsStrokes = strokesSubmissionId === sub.id;
     gradingStore.setSaving(true);
 
     try {
@@ -236,7 +239,7 @@
           "Cannot save grading without a session key — unlock the session and try again.",
         );
       }
-      if (strokes.length > 0) {
+      if (ownsStrokes && strokes.length > 0) {
         const annJson = JSON.stringify(strokes);
         const encAnn = await encrypt(
           $sessionStore.sessionKey,
@@ -244,7 +247,7 @@
         );
         sub.annotationCt = encAnn.ciphertext;
         sub.annotationIv = encAnn.iv;
-      } else {
+      } else if (ownsStrokes) {
         sub.annotationCt = undefined;
         sub.annotationIv = undefined;
         clearAnnotations = true;
