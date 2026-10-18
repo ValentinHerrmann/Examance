@@ -445,7 +445,8 @@ export function updatePackageLine(
     if (others.length) parts.push(formatCommand(command.kind, command.options, others));
     if (entry && others.length !== command.names.length) parts.push(formatPackageLine(entry));
   }
-  if (parts.length) lines[line] = `${lines[line].match(/^\s*/)?.[0] ?? ""}${parts.join(" ")}`;
+  const indent = /^\s*/.exec(lines[line])?.[0] ?? "";
+  if (parts.length) lines[line] = indent + parts.join(" ");
   else lines.splice(line, 1);
   return lines.join("\n");
 }
@@ -455,7 +456,7 @@ export function samePackageLists(a: readonly LatexPackageEntry[], b: readonly La
   const key = (list: readonly LatexPackageEntry[]) =>
     list
       .map((e) => `${e.disabled ? "-" : ""}${e.kind}:${e.name}[${splitOptions(e.options).join(",")}]`)
-      .sort()
+      .sort((x, y) => x.localeCompare(y))
       .join("|");
   return key(a) === key(b);
 }
