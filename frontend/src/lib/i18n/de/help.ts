@@ -29,6 +29,9 @@ export const help = {
         latexServer: 'Der Server setzt die Klausur. Schneller auf schwacher Hardware, dafür wird der LaTeX-Quelltext übertragen.',
         variantKey: 'Varianten sind unterschiedliche Fassungen derselben Aufgabe (Gruppe A/B/C). Sie teilen sich Auswertung und Statistik, verhindern aber das Abschreiben.',
         mcPenalty: 'Punktabzug für falsch angekreuzte Optionen. 0 bedeutet: keine Minuspunkte. Die Gesamtpunktzahl einer Aufgabe wird nie negativ.',
+        exerciseScore: String.raw`Gezählt werden \BE (1 Punkt), \hBE (0,5) und \qBE (0,25) im Quelltext, bei MC jede richtige Option. Eine feste Punktzahl ersetzt die gezählte; Feld leeren, um wieder zu zählen.`,
+        requirementLevel: 'Anforderungsbereich I: Wiedergeben, II: Anwenden und Übertragen, III: Reflektieren und Problemlösen. Erscheint nur im Erwartungshorizont.',
+        partExercises: 'Teilaufgaben a), b), c) erhalten eine eigene Unterüberschrift und ein eigenes Punktekästchen. Eine leere Punktzahl zählt die Bewertungseinheiten der Teilaufgabe.',
         blindGrading: 'Während der Korrektur wird nur das Pseudonym angezeigt, nie der Name. Erst nach dem Korrekturgang werden Ergebnis und Person wieder verknüpft.',
         pseudonymQr: 'Jeder Bogen trägt einen QR-Code für Klausur, Variante und Schülerplatz. Beim Scannen wird der Stapel daran automatisch getrennt und zugeordnet.',
         gradingKey: 'Der Notenschlüssel bestimmt, ab welcher Punktzahl welche Note gilt — linear, Oberstufen-gewichtet oder mit eigenen Grenzen.',
@@ -120,6 +123,12 @@ export const help = {
                 h: 'Exportieren (ZIP)',
                 p1: '„Exportieren (ZIP)“ an einer Aufgabengruppe lädt alle aktuellen Aufgaben der Gruppe als lesbares LaTeX herunter: je Aufgabe ein Ordner mit exercise.tex und ihren Dateien (z. B. Bildern), dazu ein Dokument mit allen Aufgaben der Gruppe und eine manifest.json mit den Metadaten. Optional kommen die mitgelieferten LaTeX-Dateien (sty) und die kompilierten PDFs (Angabe und Lösung) dazu; das Kompilieren kann bei vielen Aufgaben einige Minuten dauern.',
                 p2: '„Bibliothek exportieren“ lädt alle eigenen Aufgabengruppen samt Dateien und den mitgelieferten LaTeX-Dateien in einer ZIP herunter, ohne PDFs. Der Ordner lässt sich bei Overleaf hochladen oder lokal mit XeLaTeX kompilieren (siehe README.txt). Anders als das verschlüsselte Archiv (.bgproj) kann diese ZIP nicht wieder importiert werden.',
+            },
+            s8: {
+                h: 'Punkte, Teilaufgaben und Anforderungsbereiche',
+                p1: String.raw`Die Punktzahl einer Aufgabe ergibt sich aus den Bewertungseinheiten im Quelltext: \BE zählt einen Punkt, \hBE einen halben, \qBE einen Viertelpunkt, bei Ankreuzaufgaben jede richtige Option einen. Setzen Sie sie an die Stelle der Lösung, an der der Punkt vergeben wird; im Erwartungshorizont erscheinen sie als Haken. Der Bereich „Punkte & Aufbau“ im Editor zeigt, wie die Punktzahl zustande kommt, und erlaubt, sie fest vorzugeben.`,
+                p2: '„Teilaufgabe hinzufügen“ gliedert eine Aufgabe in a), b), c) mit eigener Unterüberschrift und eigenem Punktekästchen. Die Punkte der Teilaufgaben ergeben zusammen die Punktzahl der Aufgabe; auch für eine einzelne Teilaufgabe lässt sich die Punktzahl fest vorgeben. Bewertet wird weiterhin je Aufgabe.',
+                p3: String.raw`Anforderungsbereich (I Reproduktion, II Reorganisation und Transfer, III Reflexion und Problemlösen) und Kompetenzen lassen sich für die ganze Aufgabe oder je Teilaufgabe hinterlegen. Sie stehen als \AFB{…} und \Kompetenz{…} im Quelltext, erscheinen nur im Erwartungshorizont und reisen mit der Aufgabe in Varianten, Kopien und Archive.`,
             },
         },
         examCreation: {

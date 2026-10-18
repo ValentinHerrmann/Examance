@@ -23,9 +23,9 @@ describe('parseMcOptions', () => {
   it('reads every option in printed order, independent of the column count', () => {
     const one = parseMcOptions(THREE_OPTIONS.replace('[3]', '[1]'));
     expect(one.options).toEqual([
-      { text: 'richtig', correct: true },
-      { text: 'falsch', correct: false },
-      { text: 'auch richtig', correct: true },
+      { text: 'richtig', correct: true, source: '{richtig}' },
+      { text: 'falsch', correct: false, source: '{falsch}' },
+      { text: 'auch richtig', correct: true, source: '{auch richtig}' },
     ]);
     expect(one.columns).toBe(1);
     expect(parseMcOptions(THREE_OPTIONS.replace('[3]', '[2]')).options).toHaveLength(3);
@@ -42,8 +42,8 @@ describe('parseMcOptions', () => {
   it('keeps nested braces inside an option and unescapes its text', () => {
     const parsed = parseMcOptions('\\LoesungMulti[2]{\\Lmulti{\\textbf{fett} 50\\%}\\multi{a\\_b}}');
     expect(parsed.options).toEqual([
-      { text: '\\textbf{fett} 50%', correct: true },
-      { text: 'a_b', correct: false },
+      { text: String.raw`\textbf{fett} 50%`, correct: true, source: String.raw`{\textbf{fett} 50\%}` },
+      { text: 'a_b', correct: false, source: String.raw`{a\_b}` },
     ]);
   });
 
@@ -52,7 +52,67 @@ describe('parseMcOptions', () => {
       { text: '50% & mehr', correct: true },
       { text: 'C:\\temp {x}', correct: false },
     ];
-    expect(parseMcOptions(buildMcOptionsLatex('Frage', options)).options).toEqual(options);
+    expect(parseMcOptions(buildMcOptionsLatex('Frage', options)).options.map(({ text, correct }) => ({ text, correct }))).toEqual(options);
+  });
+
+  it('keeps the question as LaTeX: rebuilding never escapes it again', () => {
+    const body = String.raw`Berechne $x^2$ für 50\% der \textbf{Fälle} & mehr.
+
+\LoesungMulti[2]{
+  \Lmulti{ja}
+  \multi{nein}
+}`;
+    let rebuilt = body;
+    for (let i = 0; i < 3; i++) {
+      const p = parseMcOptions(rebuilt);
+      rebuilt = buildMcOptionsLatex(p.questionText, p.options, p.columns, p.trailingText);
+    }
+    expect(rebuilt).toBe(body);
+  });
+
+  it('writes untouched options back as they were, edited ones as escaped plain text', () => {
+    const parsed = parseMcOptions(String.raw`Frage
+\LoesungMulti[2]{\Lmulti{$x^2$}\multi{\textbf{a}}}`);
+    const options = [{ ...parsed.options[0], correct: false }, { ...parsed.options[1], text: '50% neu' }];
+    const rebuilt = buildMcOptionsLatex(parsed.questionText, options);
+    expect(rebuilt).toContain(String.raw`\multi{$x^2$}`);
+    expect(rebuilt).toContain(String.raw`\multi{50\% neu}`);
+  });
+
+  it('keeps text after the block and ignores braces in comments', () => {
+    const body = String.raw`Frage
+\LoesungMulti[2]{
+  \multi{a} % } kein Ende
+  \Lmulti{b}
+}
+\Loesung{Weil b.}`;
+    const parsed = parseMcOptions(body);
+    expect(parsed.options.map((o) => o.text)).toEqual(['a', 'b']);
+    expect(parsed.trailingText).toBe(String.raw`\Loesung{Weil b.}`);
+    const rebuilt = buildMcOptionsLatex(parsed.questionText, parsed.options, parsed.columns, parsed.trailingText);
+    expect(rebuilt.endsWith(String.raw`}
+\Loesung{Weil b.}`)).toBe(true);
+  });
+
+  it('keeps the scope of a leading group when it writes an untouched option back', () => {
+    const parsed = parseMcOptions(String.raw`\LoesungMulti[2]{\multi{\color{red}falsch} weil x
+\Lmulti{B}}`);
+    expect(parsed.options[0].text).toBe(String.raw`\color{red}falsch weil x`);
+    const rebuilt = buildMcOptionsLatex('Frage', [parsed.options[0], { ...parsed.options[1], correct: false }]);
+    expect(rebuilt).toContain(String.raw`\multi{{\color{red}falsch} weil x}`);
+    expect(rebuilt).toContain(String.raw`\multi{B}`);
+  });
+
+  it('flags a block that never closes instead of treating it as question text to rebuild', () => {
+    const parsed = parseMcOptions(String.raw`Frage
+\LoesungMulti[2]{
+  \multi{10%}
+  \Lmulti{B}
+}`);
+    expect(parsed.malformed).toBe(true);
+    expect(parsed.options).toEqual([]);
+    expect(parseMcOptions('Freitext').malformed).toBe(false);
+    expect(parseMcOptions(THREE_OPTIONS).malformed).toBe(false);
   });
 
   it('returns no options without a \\LoesungMulti block', () => {

@@ -23,6 +23,7 @@
     faFileZipper
   } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, ExpandableCard, Menu, MenuItem } from "#lib/components/ui";
+  import ExerciseMetaBadges from "#lib/components/exercise/ExerciseMetaBadges.svelte";
 
   interface CommonProps {
     isLoading?: boolean;
@@ -286,6 +287,7 @@
               ? $t("exercises.groupList.pointsRange", { min: group.minPoints, max: group.maxPoints })
               : $t("exercises.groupList.pointsSingle", { max: group.maxPoints })}
           </Badge>
+          <ExerciseMetaBadges latex={rep?.latexBody} />
           <Badge>{variantCount !== 1 ? $t("exercises.groupList.variantCountPlural", { count: variantCount }) : $t("exercises.groupList.variantCountSingular", { count: variantCount })}</Badge>
           {#if shared}
             <Badge severity="contrast">{$t("exercises.sharing.sharedBy", { email: shared.sharedBy?.get(group.groupId) ?? "" })}</Badge>

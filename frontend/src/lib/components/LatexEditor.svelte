@@ -40,7 +40,7 @@
 <script lang="ts">
   import { onMount, onDestroy, untrack } from "svelte";
   import { EditorView, BlockType, keymap, drawSelection, lineNumbers } from "@codemirror/view";
-  import { EditorState, EditorSelection, Compartment } from "@codemirror/state";
+  import { Annotation, EditorState, EditorSelection, Compartment } from "@codemirror/state";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
   import { StreamLanguage, syntaxHighlighting } from "@codemirror/language";
   import {
@@ -53,6 +53,9 @@
   import { computeQuickInsert } from "#lib/latex/quickInsertLogic";
   import { t, type TranslationKey } from "#lib/i18n";
   import { theme } from "#lib/stores/theme";
+  import { Icon } from "#lib/components/ui";
+  import { safeLocalStorage } from "#lib/utils/storage";
+  import { faChevronDown, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 
   interface Props {
     value?: string;
@@ -62,6 +65,7 @@
     showQuickInsert?: boolean;
     /** Called when CodeMirror re-measures line heights (re-wrap, resize, edit). */
     onGeometryChange?: (() => void) | null;
+    /** The user changed the text (typing or the quick-insert bar); not called when `value` is set from outside. */
     onChange?: (value: string) => void;
     onScroll?: (detail: { scrollTop: number; scrollLeft: number }) => void;
   }
@@ -145,6 +149,24 @@
       hoverTimer = null;
     }
     hoveredMacro = null;
+  }
+
+  // Marks the dispatch that mirrors an outside `value` change, so it does not count as an edit.
+  const externalSync = Annotation.define<boolean>();
+
+  // The palette's many buttons pushed the code out of view on phones and short laptops: it starts
+  // folded unless the screen is large, and an explicit toggle is remembered.
+  const PALETTE_KEY = "bg_latex_palette_open";
+  function initialPaletteOpen(): boolean {
+    const saved = safeLocalStorage.getItem(PALETTE_KEY);
+    if (saved !== null) return saved === "true";
+    return typeof window !== "undefined" && window.innerWidth >= 1280 && window.innerHeight >= 900;
+  }
+  let paletteOpen = $state(initialPaletteOpen());
+
+  function togglePalette() {
+    paletteOpen = !paletteOpen;
+    safeLocalStorage.setItem(PALETTE_KEY, String(paletteOpen));
   }
 
   let container: HTMLDivElement | undefined = $state();
@@ -269,7 +291,7 @@
           if (update.docChanged) {
             isInternalUpdate = true;
             value = update.state.doc.toString();
-            onChange?.(value);
+            if (!update.transactions.some((tr) => tr.annotation(externalSync))) onChange?.(value);
             isInternalUpdate = false;
           }
           if (update.geometryChanged || update.heightChanged) {
@@ -322,7 +344,8 @@
       const currentDoc = v.state.doc.toString();
       if (currentDoc !== next) {
         v.dispatch({
-          changes: { from: 0, to: currentDoc.length, insert: next }
+          changes: { from: 0, to: currentDoc.length, insert: next },
+          annotations: externalSync.of(true)
         });
       }
     });
@@ -356,7 +379,16 @@
   style="min-height: {wrapperMinHeight}"
 >
   {#if showQuickInsert && !readonly}
-    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface-raised px-2 py-1.5">
+    <button
+      type="button"
+      class="flex w-full shrink-0 cursor-pointer items-center gap-1.5 border-0 border-b border-line bg-surface-raised px-2 py-1.5 text-left text-xs font-semibold text-accent pointer-coarse:min-h-11"
+      aria-expanded={paletteOpen}
+      onclick={togglePalette}
+    >
+      <Icon icon={paletteOpen ? faChevronDown : faChevronRight} />
+      {$t("editor.quickInsertToggle")}
+    </button>
+    <div class="{paletteOpen ? 'flex' : 'hidden'} shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface-raised px-2 py-1.5">
       {#each macroCategories as { category, macros } (category)}
         {#if macros.length > 0}
           <div class="flex flex-wrap items-center gap-1">

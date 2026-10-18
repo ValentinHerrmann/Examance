@@ -105,10 +105,16 @@
     \fi
 }
 
-% BE Commands: \xdef globally accumulates the score into \TaskScore
-\newcommand{\BE}{%
+% BE Commands: \xdef globally accumulates the score into \TaskScore and, inside a
+% Teilaufgabe, into \PartScore as well (\PartScore is reset by every Teilaufgabe).
+\gdef\PartScore{0}
+\newcommand{\@addBE}[1]{%
     \ifcsname TaskScore\endcsname\else\gdef\TaskScore{0}\fi%
-    \xdef\TaskScore{\fpeval{\TaskScore + 1}}%
+    \xdef\TaskScore{\fpeval{\TaskScore + #1}}%
+    \xdef\PartScore{\fpeval{\PartScore + #1}}%
+}
+\newcommand{\BE}{%
+    \@addBE{1}%
     \ifthenelse{
         \boolean{Antworten}
     }{
@@ -116,8 +122,7 @@
     }{}%
 }
 \newcommand{\hBE}{%
-    \ifcsname TaskScore\endcsname\else\gdef\TaskScore{0}\fi%
-    \xdef\TaskScore{\fpeval{\TaskScore + 0.5}}%
+    \@addBE{0.5}%
     \ifthenelse{
         \boolean{Antworten}
     }{
@@ -125,13 +130,33 @@
     }{}%
 }
 \newcommand{\qBE}{%
-    \ifcsname TaskScore\endcsname\else\gdef\TaskScore{0}\fi%
-    \xdef\TaskScore{\fpeval{\TaskScore + 0.25}}%
+    \@addBE{0.25}%
     \ifthenelse{
         \boolean{Antworten}
     }{
         \textcolor{\LFarbe}{\quartcheckmark}
     }{}%
+}
+
+% Fixed score instead of the counted BE (issue #79): applies to the enclosing Teilaufgabe,
+% else to the whole Aufgabe. Same effect as the optional argument of either environment.
+\newif\if@inTeilaufgabe
+\gdef\TaskFixedScore{}
+\gdef\PartFixedScore{}
+\newcommand{\FestePunkte}[1]{%
+    \@bsphack%
+    \if@inTeilaufgabe\gdef\PartFixedScore{#1}\else\gdef\TaskFixedScore{#1}\fi%
+    \@esphack%
+}
+
+% Exercise metadata (issue #78): Anforderungsbereich and competencies. Invisible on the
+% student sheet, a small tag in the Erwartungshorizont. The editor reads them from the source.
+\newcommand{\MetaTag}[1]{{\footnotesize\textcolor{\LFarbe}{[#1]}}}
+\newcommand{\AFB}[1]{%
+    \ifthenelse{\boolean{Antworten}}{\MetaTag{AFB~#1}}{\@bsphack\@esphack}%
+}
+\newcommand{\Kompetenz}[1]{%
+    \ifthenelse{\boolean{Antworten}}{\MetaTag{#1}}{\@bsphack\@esphack}%
 }
 
 % Safely fetches the score of a given exercise number (1, 2, 3...)
@@ -372,6 +397,7 @@
 \begin{minipage}[t]{\textwidth}
     \neverindent
     \gdef\TaskScore{0}% Reset task score accumulator for the new exercise
+    \gdef\TaskFixedScore{}% \FestePunkte inside the body
     \def\ManualScore{#1}% Store optional override
     \stepcounter{Punkte}%
 
@@ -402,7 +428,11 @@
     \par\vspace{1ex}%
     % Determine final score: auto-calculated or manual override?
     \ifx\ManualScore\empty
-        \xdef\FinalScore{\TaskScore}%
+        \ifx\TaskFixedScore\empty
+            \xdef\FinalScore{\TaskScore}%
+        \else
+            \xdef\FinalScore{\TaskFixedScore}%
+        \fi
     \else
         \xdef\FinalScore{\ManualScore}%
     \fi
@@ -414,6 +444,47 @@
     \xdef\TotalScoreG{\fpeval{\TotalScoreG + \FinalScore}}%
 \end{minipage}
     \normalsize
+}
+
+% ==============================================================================
+% 8b. Part Exercises (Teilaufgabe, issue #77)
+% ==============================================================================
+% \begin{Teilaufgabe}[fixed score]{subtitle} inside an Aufgabe: labelled a), b), ..., the title run in
+% like \paragraph, with its own score box. Its BE count towards the Aufgabe as usual; a fixed score replaces them.
+% Like the Aufgabe box, the part box reads its score from the .aux of the previous run.
+\newcounter{Teilaufgabe}[Punkte]
+\renewcommand{\theTeilaufgabe}{\alph{Teilaufgabe}}
+
+\newsavebox{\PartBox}
+\newenvironment{Teilaufgabe}[2][]
+{%
+    \par\vspace{1ex}\noindent
+    \stepcounter{Teilaufgabe}%
+    \@inTeilaufgabetrue
+    \gdef\PartScore{0}%
+    \gdef\PartFixedScore{#1}%
+    \ifcsname TeilScore\thePunkte\theTeilaufgabe\endcsname
+        \def\PrintPartPkt{\formatScore{\csname TeilScore\thePunkte\theTeilaufgabe\endcsname}}%
+    \else
+        \def\PrintPartPkt{-}%
+    \fi
+    % Run-in title like \paragraph. The score box hangs at the right end of the first line,
+    % which \hangindent shortens so the text never runs into it.
+    \sbox\PartBox{\large\framebox[1.1\width]{~~~~ / ~\PrintPartPkt~}}%
+    \hangindent=-\dimexpr\wd\PartBox+1em\relax \hangafter=-1
+    \makebox[0pt][l]{\hspace{\linewidth}\llap{\usebox\PartBox}}%
+    \textbf{\theTeilaufgabe)\if\relax\detokenize{#2}\relax\else~#2\fi}\quad
+    \ignorespaces
+}
+{%
+    \par
+    \ifx\PartFixedScore\empty
+        \xdef\FinalPartScore{\PartScore}%
+    \else
+        \xdef\FinalPartScore{\PartFixedScore}%
+        \xdef\TaskScore{\fpeval{\TaskScore - \PartScore + \PartFixedScore}}%
+    \fi
+    \immediate\write\@auxout{\string\expandafter\string\gdef\string\csname\space TeilScore\thePunkte\theTeilaufgabe\string\endcsname{\FinalPartScore}}%
 }
 
 % ==============================================================================

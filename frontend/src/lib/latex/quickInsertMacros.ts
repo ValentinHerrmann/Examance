@@ -51,6 +51,17 @@ export function templateJoin(literalParts: string[], args: string[]): QuickInser
   return { text, argOffsets };
 }
 
+/** Scoring-palette entry wrapping one argument: `${before}${placeholder}${after}`. */
+function oneArgMacro(id: string, before: string, placeholder: string, after = "}"): QuickInsertMacro {
+  return {
+    id,
+    category: "scoring",
+    preview: `${before}${placeholder}${after}`,
+    args: [{ placeholder }],
+    buildTemplate: (a) => templateJoin([before, after], a)
+  };
+}
+
 export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
   // --- solutions (Loesung.sty) ---
   {
@@ -148,6 +159,10 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
     args: [],
     buildTemplate: () => ({ text: "\\qBE", argOffsets: [] })
   },
+  oneArgMacro("teilaufgabe", String.raw`\begin{Teilaufgabe}{`, "Teilaufgabe", "}\n\n" + String.raw`\end{Teilaufgabe}`),
+  oneArgMacro("feste-punkte", String.raw`\FestePunkte{`, "2"),
+  oneArgMacro("afb", String.raw`\AFB{`, "II"),
+  oneArgMacro("kompetenz", String.raw`\Kompetenz{`, "Kompetenz"),
 
   // --- formatting ---
   {
