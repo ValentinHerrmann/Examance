@@ -1,0 +1,59 @@
+% Cache warm-up document (issue #75): compiled once at image build and on deploy so Tectonic's
+% cache holds the bundle files and format the exam template needs. Public, synthetic content only.
+\documentclass[a4paper]{article}
+\usepackage[sans,punkte,antworten]{sty/Schulaufgabe}
+\usepackage{bbding}
+\usepackage{pifont}
+\usepackage{fontspec}
+\usepackage{framed}
+\usepackage{enumitem}
+\usetikzlibrary{shapes.geometric, arrows}
+\usepackage{sty/tikz-uml}
+
+\Info{Warm-up}
+\Fach{Informatik}
+\Lehrernachname{Muster}
+
+\neverindent
+\WarningsOff
+
+\begin{document}
+\Testart{Kurzarbeit}
+\Klasse{10a}
+\Datum{01.01.2026}
+\Nr{1}
+
+\begin{Aufgabe}{Text, Schriften und Formeln}
+Normal, \textbf{fett}, \textit{kursiv}, \texttt{Schreibmaschine}, \emph{betont}: äöüß.
+Formel $\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$, $\sqrt{x^2 + y^2} \geq 0$, $\alpha \cdot \beta$.
+
+\Loesung{Musterlösung}
+\end{Aufgabe}
+
+% Same shape as format_mc_group_latex() in app/services/latex.py.
+\begin{Aufgabe}{Multiple Choice} Kreuze jeweils die korrekten Lösungen an. Mehrere können, mind. eine ist jeweils richtig. Für falsch gesetzte Kreuze werden Punkte abgezogen (pro Teilaufgabe immer $\geq 0$ Punkte)
+
+\begin{enumerate}[label=\alph*)]
+\item \OmrExercise{warmup}
+Frage
+\LoesungMulti[2]{
+  \multi Antwort A
+  \Lmulti Antwort B
+}
+\end{enumerate}
+
+\LoesungLeer{1 Punkt}{0pt}
+\end{Aufgabe}
+
+% Lists, frames and pictures outside an Aufgabe: its wrapfigure clashes with lists that follow it.
+\begin{itemize}
+  \item Symbol \ding{51}
+\end{itemize}
+\begin{framed}Kasten\end{framed}
+\begin{tikzpicture}
+  \node[draw, rectangle] (a) at (0,0) {Start};
+  \node[draw, diamond] (b) at (3,0) {?};
+  \draw[->] (a) -- (b);
+\end{tikzpicture}
+
+\end{document}

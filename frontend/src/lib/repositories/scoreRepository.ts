@@ -79,7 +79,9 @@ export const scoreRepository = {
     key: CryptoKey | null
   ): Promise<void> {
     if (scores.length === 0) return;
-    const sealed = await Promise.all(scores.map((s) => encryptScore({ ...s, submissionId }, key)));
+    // One row per exercise, last one wins; a repeated exercise would duplicate in Dexie.
+    const unique = [...new Map(scores.map((s) => [s.exerciseId, s])).values()];
+    const sealed = await Promise.all(unique.map((s) => encryptScore({ ...s, submissionId }, key)));
 
     if (!resultsAreLocal()) {
       return send('PUT', submissionPath(examId, submissionId), { scores: sealed.map(toApi) });

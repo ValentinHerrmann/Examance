@@ -373,6 +373,8 @@ Two settings the two stacks must **not** share:
 
 No proxy timeout tuning is needed. Caddy's `reverse_proxy` has no response timeout by default, so the slow endpoints (`/api/v1/compile/latex`, `/api/v1/exams/{id}/compile`, up to `COMPILE_TIMEOUT_SECONDS` in `backend/app/services/latex.py`) reach the backend's own timeout handling, whose 504 carries CORS headers. Do not add a `response_header_timeout` or similar below `COMPILE_TIMEOUT_SECONDS` plus margin: a proxy that answers before the backend does sends its own error page without CORS headers, and the browser then reports a CORS error instead of a timeout.
 
+**Tectonic cache (issue #75).** With an empty cache, Tectonic downloads several hundred bundle files one by one and the first previews exceed `PREVIEW_TIMEOUT_SECONDS` (504). The backend image therefore compiles a synthetic warm-up document at build time (`backend/latex-warmup/`) into `TECTONIC_CACHE_DIR=/var/cache/tectonic`, and Docker seeds a new or empty `tectonic_cache` volume from it. A volume that already has content is never re-seeded, so both deploy workflows run the same `warmup.sh` in the backend container after the health check (bounded to 300 s, non-fatal; seconds when the cache is warm). To start over: stop the stack, `docker volume rm <project>_tectonic_cache`, and `up -d` again. The cache, image layer and volume hold only public TeX files, never exam content. An image build now needs `relay.fullyjustified.net` to be reachable.
+
 `PROXY_ALLOWED_IPS` must name the actual proxy address — never `*`. With a wildcard, any client could spoof `X-Forwarded-For` to reset its own rate-limit bucket and poison the audit log's IP hashes.
 
 ---

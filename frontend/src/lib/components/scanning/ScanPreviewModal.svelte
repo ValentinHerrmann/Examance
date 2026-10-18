@@ -64,14 +64,15 @@
 
   {/snippet}
 
-  <div class="flex h-full min-h-72 items-center justify-center p-4 sm:p-6">
+  <!-- A PDF fills the body; status lines and images stay centred. -->
+  <div class="flex h-full min-h-72 p-4 sm:p-6 {objectUrl && isPdf && !loading && !error ? 'flex-col' : 'items-center justify-center'}">
     {#if loading}
       <div class="font-medium text-muted">{$t("scanning.previewModal.decrypting")}</div>
     {:else if error}
       <div class="font-medium text-danger-fg">{error}</div>
     {:else if objectUrl}
       {#if isPdf}
-        <div class="h-full w-full rounded-md" role="group" aria-label={$t("scanning.previewModal.pdfTitle")}>
+        <div class="min-h-0 w-full flex-1 rounded-md" role="group" aria-label={$t("scanning.previewModal.pdfTitle")}>
           <PdfEmbedViewer src={objectUrl} />
         </div>
       {:else}

@@ -272,6 +272,14 @@ of how a named pupil answered each item reconstructs the answer sheet, which is
 a sharper disclosure than an exam total; statistics that need a number use
 `total_score`.
 
+The payload is sealed with the row's identity as GCM associated data
+(`score:v1:<submissionId>:<exerciseId>`, issue #85), so a ciphertext copied onto
+another submission or question (by a bug, or by whoever controls the server)
+fails to open and is flagged `decryptFailed` instead of passing as another pupil's
+result. Rows sealed before that change open without associated data and gain the
+binding on their next save; until then they remain movable. Archive import and the
+storage-mode move decrypt and re-seal under the final ids.
+
 Since issue #32, `omrMeta` also carries the raw per-bubble readings (fill ratio,
 redo-zone ratio, the detector's own state) and a snapshot of the detection
 settings each row was produced with. That is pupil-derived answer-sheet data

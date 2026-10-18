@@ -8,7 +8,6 @@
     ExerciseRecord,
     ExerciseScoreRecord,
     ExamRecord,
-    OmrScoreMeta,
   } from "#lib/db/schema";
   import { scoreRepository } from "#lib/repositories/scoreRepository";
   import {
@@ -25,6 +24,7 @@
   import { get } from "svelte/store";
   import { gradingStore, type VectorStroke } from "#lib/grading/gradingStore";
   import { isMcQuestion } from "#lib/grading/mcScore";
+  import { buildGradingSheet } from "#lib/grading/gradingSheet";
   import GradingWorkspace from "#lib/components/grading/GradingWorkspace.svelte";
   import { t, translate } from "#lib/i18n";
   import { Alert, Button, EmptyState } from "#lib/components/ui";
@@ -100,6 +100,9 @@
   });
 
   async function initExerciseScores(sub: SubmissionRecord) {
+    // Overlapping loads (fast Next clicks) must not let an older one win.
+    const seq = ++loadSeq;
+    loadedFor = null;
     gradingStore.setManualOverride({});
     gradingStore.setScoreInputs({});
     gradingStore.setMcState({});
@@ -113,18 +116,19 @@
     try {
       existingScores = await scoreRepository.getBySubmissionId(examId, sub.id, key);
     } catch (err) {
+      if (seq !== loadSeq) return;
       // Saving now would read every stored score as ungraded and delete it: block until a reload works.
       loadedScores = new Map();
       scoresLoadError = err instanceof Error ? err.message : String(err);
       return;
     }
-    const existingMap = new Map(existingScores.map((es) => [es.exerciseId, es]));
-    loadedScores = existingMap;
+    if (seq !== loadSeq) return;
 
     // Check strokes/annotations for exercises with active stamps. Read them from `sub`
     // itself: the canvas loads the new submission's strokes asynchronously, so the
     // store still holds the previous student's strokes at this point.
     const subStrokes = await loadStrokesFor(sub);
+    if (seq !== loadSeq) return;
     const exerciseIdsWithStrokes = new Set<string>();
     for (const stroke of subStrokes) {
       if (stroke.exerciseId) {
@@ -132,37 +136,25 @@
       }
     }
 
-    const newScoreInputs: Record<string, number | null> = {};
-    const newMcState: Record<string, { selectedOptions: number[]; omrMeta?: OmrScoreMeta }> = {};
-    const manualOverride = get(gradingStore).manualOverride;
-    for (const ex of exercises) {
-      const existing = existingMap.get(ex.id);
-      if (existing && typeof existing.score === "number" && !isNaN(existing.score)) {
-        // Legacy: score 0 without annotations means ungraded. Never for an OMR-read MC row: nulling
-        // it made the next save delete the row (and its omrMeta), dropping it from verification.
-        const isOmrMc = isMcQuestion(ex) && !!existing.omrMeta;
-        if (existing.score === 0 && !isOmrMc && !exerciseIdsWithStrokes.has(ex.id) && !manualOverride[ex.id]) {
-          newScoreInputs[ex.id] = null;
-        } else {
-          newScoreInputs[ex.id] = existing.score;
-        }
-      } else {
-        newScoreInputs[ex.id] = null;
-      }
-      if (isMcQuestion(ex) && existing) {
-        newMcState[ex.id] = {
-          selectedOptions: existing.selectedOptions ?? [],
-          omrMeta: existing.omrMeta,
-        };
-      }
-    }
-    gradingStore.setScoreInputs(newScoreInputs);
-    gradingStore.setMcState(newMcState);
+    const sheet = buildGradingSheet(
+      sub.id,
+      existingScores,
+      exercises,
+      exerciseIdsWithStrokes,
+      get(gradingStore).manualOverride
+    );
+    loadedScores = sheet.loadedScores;
+    loadedFor = sub.id;
+    gradingStore.setScoreInputs(sheet.scoreInputs);
+    gradingStore.setMcState(sheet.mcState);
   }
 
   /** Score rows as loaded for the current submission — lets a save keep an MC row it
    *  would otherwise have deleted (see handleSaveScore). */
   let loadedScores = new Map<string, ExerciseScoreRecord>();
+  /** Submission the loaded sheet belongs to; a save under any other id is refused (issue #85). */
+  let loadedFor: string | null = null;
+  let loadSeq = 0;
   /** Set when the current submission's scores failed to load; saving is refused meanwhile. */
   let scoresLoadError = $state("");
 
@@ -185,13 +177,24 @@
 
   async function handleSaveScore() {
     if (!currentSub) return;
+    // Snapshot everything this save writes: Next/Prev during the awaits below must not send the
+    // rest of the save (deletes, annotations, total) to the next student.
+    const sub = currentSub;
+    const total = isFullyGraded ? sumGradedScores : undefined;
+    const { currentStrokes: strokes, strokesSubmissionId } = get(gradingStore);
+    // Strokes still from the previous student (scan not loaded yet) must neither be written
+    // here nor clear this student's own annotations: leave the annotation layer untouched.
+    const ownsStrokes = strokesSubmissionId === sub.id;
     gradingStore.setSaving(true);
 
     try {
       if (scoresLoadError) {
         throw new Error(translate("grading.page.scoresLoadFailed", { message: scoresLoadError }));
       }
-      currentSub.totalScore = isFullyGraded ? sumGradedScores : undefined;
+      if (loadedFor !== sub.id) {
+        throw new Error(translate("grading.page.scoresNotLoaded"));
+      }
+      sub.totalScore = total;
       const key = get(sessionStore).sessionKey;
 
       // Save individual exercise scores if graded, delete if reset to ungraded
@@ -210,7 +213,7 @@
           const mc = isMcQuestion(ex) ? mcState[ex.id] : undefined;
           toSave.push({
             id: crypto.randomUUID(),
-            submissionId: currentSub.id,
+            submissionId: sub.id,
             exerciseId: ex.id,
             score: val,
             selectedOptions: mc?.selectedOptions,
@@ -223,46 +226,45 @@
       }
       // One write for the whole sheet; the repository reconciles on
       // (submissionId, exerciseId), so no existing-row lookup is needed.
-      await scoreRepository.saveMany(examId, currentSub.id, toSave, key);
+      await scoreRepository.saveMany(examId, sub.id, toSave, key);
       for (const exerciseId of toClear) {
-        await scoreRepository.deleteOne(examId, currentSub.id, exerciseId);
+        await scoreRepository.deleteOne(examId, sub.id, exerciseId);
       }
 
       // Encrypt annotations. "No strokes" and "no key" differ: saving without a session key must
       // refuse, not silently clear the teacher's corrections.
-      const currentStrokes = get(gradingStore).currentStrokes;
       let clearAnnotations = false;
       if (!$sessionStore.sessionKey) {
         throw new Error(
           "Cannot save grading without a session key — unlock the session and try again.",
         );
       }
-      if (currentStrokes.length > 0) {
-        const annJson = JSON.stringify(currentStrokes);
+      if (ownsStrokes && strokes.length > 0) {
+        const annJson = JSON.stringify(strokes);
         const encAnn = await encrypt(
           $sessionStore.sessionKey,
           new TextEncoder().encode(annJson),
         );
-        currentSub.annotationCt = encAnn.ciphertext;
-        currentSub.annotationIv = encAnn.iv;
-      } else {
-        currentSub.annotationCt = undefined;
-        currentSub.annotationIv = undefined;
+        sub.annotationCt = encAnn.ciphertext;
+        sub.annotationIv = encAnn.iv;
+      } else if (ownsStrokes) {
+        sub.annotationCt = undefined;
+        sub.annotationIv = undefined;
         clearAnnotations = true;
       }
 
-      await submissionRepository.save(currentSub, key, { clearAnnotations });
-      const next = [...submissions];
-      next[currentIndex] = { ...currentSub };
-      submissions = next;
+      await submissionRepository.save(sub, key, { clearAnnotations });
+      submissions = submissions.map((s) => (s.id === sub.id ? { ...sub } : s));
 
       if ($storagePolicyStore.storageMode === "all-server") {
-        await api.patch(`/exams/${examId}/submissions/${currentSub.id}/score`, {
-          total_score: isFullyGraded ? sumGradedScores : null,
+        await api.patch(`/exams/${examId}/submissions/${sub.id}/score`, {
+          total_score: total ?? null,
         });
       }
-      sessionStore.setDirty(false);
-      gradingStore.markClean();
+      if (currentSub?.id === sub.id) {
+        sessionStore.setDirty(false);
+        gradingStore.markClean();
+      }
       alert(translate("grading.page.saveSuccess"));
     } catch (err: any) {
       alert(translate("grading.page.saveFailed", { message: err.message }));
@@ -272,6 +274,7 @@
   }
 
   function nextStudent() {
+    if (get(gradingStore).isSaving) return;
     if (currentIndex >= submissions.length - 1) {
       gradingStore.setShowLastSubModal(true);
       return;
@@ -281,19 +284,23 @@
         return;
       }
     }
-    gradingStore.setCurrentIndex(currentIndex + 1);
-    initExerciseScores(submissions[currentIndex + 1]);
+    // currentIndex derives from the store and changes on set: compute the target once.
+    const target = currentIndex + 1;
+    gradingStore.setCurrentIndex(target);
+    initExerciseScores(submissions[target]);
   }
 
   function prevStudent() {
+    if (get(gradingStore).isSaving) return;
     if (get(gradingStore).isDirty) {
       if (!confirm(translate("grading.page.unsavedPrev"))) {
         return;
       }
     }
     if (currentIndex > 0) {
-      gradingStore.setCurrentIndex(currentIndex - 1);
-      initExerciseScores(submissions[currentIndex - 1]);
+      const target = currentIndex - 1;
+      gradingStore.setCurrentIndex(target);
+      initExerciseScores(submissions[target]);
     }
   }
 

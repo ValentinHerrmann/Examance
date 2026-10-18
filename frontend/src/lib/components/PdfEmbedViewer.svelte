@@ -220,8 +220,10 @@
   });
 </script>
 
-<div class="relative h-full w-full">
-  <div bind:this={containerEl} class="embed-pdf-viewer flex h-full w-full"></div>
+<!-- The host is absolutely positioned so it always has a real height: EmbedPDF's first zoom fit
+     needs one, and a content-sized host stayed blank for good (issue #93). -->
+<div class="relative h-full min-h-40 w-full">
+  <div bind:this={containerEl} class="embed-pdf-viewer absolute inset-0 flex"></div>
   {#if src && isOverlayVisible}
     <div
       class="zoom-overlay absolute top-2.5 right-3 z-20 flex items-center gap-1.5 rounded-md border border-navbar-hover bg-navbar/90 px-2 py-1 text-xs font-medium text-navbar-muted shadow-md backdrop-blur-sm"

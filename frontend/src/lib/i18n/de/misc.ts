@@ -8,7 +8,7 @@ export const misc = {
         storageHeading: '1. Speicherstrategie',
         storageDescription: 'Legen Sie fest, wo Prüfungsdaten und Noten gespeichert werden:',
         allServerTitle: '️ Alles auf dem Server',
-        allServerText: 'Alle Daten werden mit dem sicheren BlindGrade-Server synchronisiert und dort gespeichert.',
+        allServerText: 'Alle Daten werden mit dem sicheren Examance-Server synchronisiert und dort gespeichert.',
         hybridTitle: '️ Hybrid-Modus',
         hybridText: 'Aufgabenbibliothek und Prüfungsvorlagen liegen auf dem Server, Schüleridentitäten bleiben zu 100 % lokal.',
         latexHeading: '2. LaTeX-Kompilierung',

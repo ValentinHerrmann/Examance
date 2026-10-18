@@ -6,6 +6,7 @@ export const grading: Translations['grading'] = {
         saveSuccess: 'Grade and annotations saved successfully!',
         saveFailed: 'Failed to save grade: {message}',
         scoresLoadFailed: "This submission's saved scores could not be loaded ({message}). Saving is blocked until they load, so no grading is lost.",
+        scoresNotLoaded: "This submission's scores are still loading. Please save again in a moment.",
         unsavedNext: 'There are unsaved annotations for this student. Switch to the next student anyway?',
         unsavedPrev: 'There are unsaved annotations for this student. Switch to the previous student anyway?',
     },
@@ -113,6 +114,7 @@ export const grading: Translations['grading'] = {
         fitTitle: 'Fit to view',
     },
     canvas: {
+        loading: 'Loading scan…',
         scanMissing: '[ Scan image missing / unencrypted ]',
         scanDecryptFailed: '[ Failed to decrypt scan — key mismatch or data corrupted ]',
     },

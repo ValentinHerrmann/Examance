@@ -37,6 +37,20 @@ describe('Modal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('gives full and tall panels one fixed height class (issue #93)', async () => {
+    // Both classes together let sm:h-auto win, so h-full children (PDF viewers) collapsed.
+    const heightClasses = (props: Record<string, unknown>) => {
+      const r = render(Modal, { open: true, title: 'T', ...props });
+      const classes = r.getByRole('dialog').className.split(/\s+/).filter((c) => c.startsWith('sm:h-'));
+      cleanup();
+      document.body.innerHTML = '<div class="app-main"></div>';
+      return classes;
+    };
+    expect(heightClasses({ size: 'full' })).toEqual(['sm:h-[90dvh]']);
+    expect(heightClasses({ size: 'large', tall: true })).toEqual(['sm:h-[90dvh]']);
+    expect(heightClasses({ size: 'medium' })).toEqual(['sm:h-auto']);
+  });
+
   it('uses role alertdialog when asked', async () => {
     const { getByRole } = render(Modal, { open: true, title: 'T', role: 'alertdialog' });
     await flush();

@@ -251,6 +251,10 @@ jobs:
                 | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p') || true
               if [ "$REPORTED" = "$APP_VERSION" ]; then
                 echo "Healthy on $APP_VERSION"
+                # New cache volumes are seeded from the image; this tops up an older one (issue #75).
+                # Seconds when warm; bounded and non-fatal, a cold remainder only slows first compiles.
+                timeout 300 $COMPOSE exec -T backend sh /app/latex-warmup/warmup.sh \
+                  || echo "WARNING: Tectonic cache warm-up did not finish; first LaTeX previews may be slow." >&2
                 docker image prune -f
                 exit 0
               fi

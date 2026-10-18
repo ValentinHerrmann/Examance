@@ -136,7 +136,8 @@
     fitToPage();
   }
 
-  function applyAnnotations(annBytes: Uint8Array | null) {
+  function applyAnnotations(annBytes: Uint8Array | null, subId: string) {
+    gradingStore.setStrokesSubmissionId(subId);
     if (annBytes) {
       persistStrokes(JSON.parse(new TextDecoder().decode(annBytes)));
       redrawAllOverlays();
@@ -163,6 +164,11 @@
     void pdfDoc?.loadingTask?.destroy();
     pdfDoc = null;
     gradingStore.setPdfPaging(1, 1, false);
+    gradingStore.setStrokesSubmissionId(null);
+    // Replace the previous student's pages at once: they stayed visible next to the new
+    // student's scores until the new scan had decrypted and rendered.
+    await showMessage(translate("grading.canvas.loading"), cssVar("--color-muted", "#64748b"), 240);
+    if (seq !== loadSeq) return;
 
     const key = get(sessionStore).sessionKey;
     if ((!sub.scanCt || !sub.scanIv || !sub.annotationCt) && key) {
@@ -218,7 +224,7 @@
 
         const annBytes = await decryptAnnotations(sub);
         if (seq !== loadSeq) return;
-        applyAnnotations(annBytes);
+        applyAnnotations(annBytes, sub.id);
       } else {
         // PNG/image path (legacy submissions)
         gradingStore.setPdfPaging(1, 1, false);
@@ -235,7 +241,7 @@
 
         const annBytes = await decryptAnnotations(sub);
         if (seq !== loadSeq) return;
-        applyAnnotations(annBytes);
+        applyAnnotations(annBytes, sub.id);
       }
     } catch (err) {
       console.error("Failed to decrypt scan for grading:", err);

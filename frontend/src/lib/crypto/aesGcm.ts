@@ -22,14 +22,23 @@ export function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
-/** Encrypt with AES-256-GCM using a fresh random 12-byte IV per call. */
-export async function encrypt(key: CryptoKey, plaintext: Uint8Array, customIv?: Uint8Array): Promise<EncryptResult> {
+function gcmParams(iv: ArrayBuffer, additionalData?: Uint8Array): AesGcmParams {
+  return additionalData ? { name: 'AES-GCM', iv, additionalData: toArrayBuffer(additionalData) } : { name: 'AES-GCM', iv };
+}
+
+/** Encrypt with AES-256-GCM using a fresh random 12-byte IV per call; `additionalData` binds the ciphertext to its context. */
+export async function encrypt(
+  key: CryptoKey,
+  plaintext: Uint8Array,
+  customIv?: Uint8Array,
+  additionalData?: Uint8Array
+): Promise<EncryptResult> {
   const iv = customIv ?? crypto.getRandomValues(new Uint8Array(12)); // Fresh random IV — never reuse
 
   const plaintextBuffer = toArrayBuffer(plaintext);
 
   const ciphertextBuffer = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: toArrayBuffer(iv) },
+    gcmParams(toArrayBuffer(iv), additionalData),
     key,
     plaintextBuffer
   );
@@ -45,10 +54,11 @@ export async function decrypt(
   key: CryptoKey | null | undefined,
   ciphertext: Uint8Array,
   iv: Uint8Array,
-  fallbackKey?: CryptoKey | null
+  fallbackKey?: CryptoKey | null,
+  additionalData?: Uint8Array
 ): Promise<Uint8Array> {
+  const params = gcmParams(toArrayBuffer(iv), additionalData);
   const ciphertextBuffer = toArrayBuffer(ciphertext);
-  const ivBuffer = toArrayBuffer(iv);
   const storedSession = typeof window !== 'undefined' ? get(sessionStore) : null;
   const activeFallbackKey = fallbackKey ?? storedSession?.fallbackSessionKey ?? null;
   // Records written before the PBKDF2 iteration increase are sealed under the
@@ -59,7 +69,7 @@ export async function decrypt(
   if (key) {
     try {
       const plaintextBuffer = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: ivBuffer },
+        params,
         key,
         ciphertextBuffer
       );
@@ -73,7 +83,7 @@ export async function decrypt(
     if (!candidate) continue;
     try {
       const plaintextBuffer = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: ivBuffer },
+        params,
         candidate,
         ciphertextBuffer
       );

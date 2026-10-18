@@ -21,7 +21,7 @@ export const settings: Translations['settings'] = {
         heading: 'Global Data Storage Strategy',
         description: 'Select where your exams, exercises, student identities, and results are stored:',
         allServerTitle: 'All Server',
-        allServerText: 'All data synchronized and stored on the secure BlindGrade server.',
+        allServerText: 'All data synchronized and stored on the secure Examance server.',
         hybridTitle: 'Hybrid Mode (Library on Server, Results Local)',
         hybridText: 'Exercise library and exam templates on server, but student identities and grade submissions stay 100% on your local device.',
     },
