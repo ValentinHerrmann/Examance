@@ -255,5 +255,13 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
     preview: "\\begin{center}...\\end{center}",
     args: [{ placeholder: "content" }],
     buildTemplate: (a) => templateJoin(["\\begin{center}\n  ", "\n\\end{center}"], a)
+  },
+  {
+    // The compile moves the line into the preamble (lib/latex/preamble.ts, issue #108).
+    id: "usepackage",
+    category: "generic",
+    preview: "\\usepackage{package}",
+    args: [{ placeholder: "package" }],
+    buildTemplate: (a) => templateJoin(["\\usepackage{", "}\n"], a)
   }
 ];

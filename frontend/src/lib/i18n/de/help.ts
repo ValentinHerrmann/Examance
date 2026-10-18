@@ -97,9 +97,10 @@ export const help = {
                 p2: 'Mehrere Ankreuzaufgaben lassen sich zu einer MC-Gruppe zusammenfassen — schon beim Erstellen der Prüfung im Tab „MC-Gruppen“ oder später auf der Prüfungsseite. Eine Prüfung kann beliebig viele Gruppen beliebiger Größe enthalten; jede Frage gehört zu höchstens einer Gruppe. Das ist reine Layout-Information für den Druck — bewertet und ausgewertet wird weiterhin jede Frage einzeln.',
             },
             s4: {
-                h: 'Bilder und Dateien',
+                h: 'Bilder, Dateien und Pakete',
                 p1: 'Zu jeder Aufgabe lassen sich Dateien hochladen, die der LaTeX-Quelltext einbindet, etwa Abbildungen über \\includegraphics. SVG wird nicht unterstützt — bitte vorher in PDF umwandeln.',
                 p2: 'Fehlt eine Grafik, bricht der Satz nicht ab: Die Klausur wird trotzdem gesetzt, die fehlende Datei aber gemeldet. Prüfen Sie die Vorschau, bevor Sie drucken.',
+                p3: 'Pakete und TikZ-Bibliotheken lädt eine Aufgabe selbst: Zeilen wie \\usepackage{pgfplots} oder \\usetikzlibrary{mindmap} dürfen irgendwo im Quelltext stehen und werden beim Kompilieren in die Präambel übernommen; jeder Befehl muss dafür in einer Zeile stehen. Paketoptionen wie \\usepackage[dvipsnames]{xcolor} gelten auch für die Pakete der Vorlage. Eigene Pakete laden Sie als .sty-Datei zur Aufgabe hoch. Häufige TikZ-Bibliotheken (u. a. arrows.meta, automata, positioning, calc, patterns) sind schon geladen.',
             },
             s5: {
                 h: 'Aufgaben teilen und übernehmen',

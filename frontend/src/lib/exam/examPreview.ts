@@ -9,6 +9,7 @@ import { resolveCompileLogo, type CompileLogo } from "#lib/latex/logo";
 import type { LatexResourceFile } from "#lib/latex/resources";
 import { effectiveLatexCompilation } from "#lib/stores/capabilities";
 import { formatExamCourse } from "#lib/utils/examLabel";
+import { withExercisePreamble } from "#lib/latex/preamble";
 import { translate } from "#lib/i18n";
 
 /** The LaTeX `\Aufgabe` blocks of an exam in item order (standalone exercises and MC groups). */
@@ -76,7 +77,7 @@ export async function collectExamResources(
 
 /** Full exam document. `options` are the Schulaufgabe.sty options (`sans,punkte[,antworten]`). */
 export function buildExamLatex(exam: ExamRecord, exerciseInputs: string, options: string): string {
-  return `\\documentclass[a4paper]{article}
+  return withExercisePreamble(`\\documentclass[a4paper]{article}
 \\usepackage[${options}]{sty/Schulaufgabe}
 \\Info{${exam.infoText || ""}}
 \\Fach{${exam.fach || "Informatik"}}
@@ -94,7 +95,7 @@ export function buildExamLatex(exam: ExamRecord, exerciseInputs: string, options
 
 ${exerciseInputs}
 
-\\end{document}`;
+\\end{document}`);
 }
 
 export interface ExamPreviewInput {

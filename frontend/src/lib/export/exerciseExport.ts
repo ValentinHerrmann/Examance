@@ -120,7 +120,8 @@ function addGroupDocument(zip: ZipBuilder, groupDir: string, parts: DocumentPart
     .map((part) => wrapExerciseReference(part.body, part.name, String.raw`\input{${part.dir}/exercise.tex}`))
     .join('\n\n');
   const dirs = parts.map((part) => `{${part.dir}/}`).join('');
-  zip.add(texFile, buildExerciseDocument(content, { solution: false, extraPreamble: String.raw`\graphicspath{${dirs}}` }));
+  const packageSource = parts.map((part) => part.body).join('\n');
+  zip.add(texFile, buildExerciseDocument(content, { solution: false, extraPreamble: String.raw`\graphicspath{${dirs}}`, packageSource }));
   return texFile;
 }
 

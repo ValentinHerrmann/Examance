@@ -54,6 +54,7 @@ export const editor: Translations['editor'] = {
         enumerate: { label: 'Numbered list', description: 'A numbered list.' },
         'inline-math': { label: 'Inline math', description: 'Inline math.' },
         center: { label: 'Centered content', description: 'Centered content.' },
+        usepackage: { label: 'Load package', description: 'Loads a LaTeX package for this exercise; the line is moved into the preamble when compiling.' },
     },
 
     confirmDialog: {

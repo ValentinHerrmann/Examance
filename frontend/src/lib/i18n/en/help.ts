@@ -97,9 +97,10 @@ export const help: Translations['help'] = {
                 p2: 'Several tick-box exercises can be combined into an MC group — already while creating the exam (“MC Groups” tab) or later on the exam page. An exam can hold any number of groups of any size; each question belongs to at most one group. That is layout information for the printout only — grading and statistics stay strictly per question.',
             },
             s4: {
-                h: 'Images and files',
+                h: 'Images, files and packages',
                 p1: 'You can attach files that the LaTeX source references, e.g. figures via \\includegraphics. SVG is not supported — convert it to PDF first.',
                 p2: 'A missing graphic does not abort the run: the exam is still typeset, but the missing file is reported. Check the preview before printing.',
+                p3: 'An exercise loads its own packages and TikZ libraries: lines like \\usepackage{pgfplots} or \\usetikzlibrary{mindmap} may appear anywhere in its source and are moved into the preamble when compiling; each command has to be on a single line. Package options such as \\usepackage[dvipsnames]{xcolor} also apply to the packages of the template. Upload your own packages as a .sty file with the exercise. Common TikZ libraries (including arrows.meta, automata, positioning, calc, patterns) are already loaded.',
             },
             s5: {
                 h: 'Sharing and copying exercises',

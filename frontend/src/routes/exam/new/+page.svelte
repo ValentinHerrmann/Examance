@@ -12,6 +12,7 @@
   import { recordValue } from "#lib/utils/recentValues";
   import { compileWithCache, getLatestForSlot, invalidateOwner } from "#lib/latex/compileCache";
   import { resolveCompileLogo } from "#lib/latex/logo";
+  import { withExercisePreamble } from "#lib/latex/preamble";
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import { get } from "svelte/store";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
@@ -377,7 +378,7 @@ Frage hier eingeben... \\BE
         .filter(Boolean)
         .join("\n\n");
 
-      const getPreamble = (options: string) => `\\documentclass[a4paper]{article}
+      const getPreamble = (options: string) => withExercisePreamble(`\\documentclass[a4paper]{article}
 \\usepackage[${options}]{sty/Schulaufgabe}
 \\Info{${infoText}}
 \\Fach{${fach}}
@@ -399,7 +400,7 @@ Frage hier eingeben... \\BE
 
 ${exerciseInputs}
 
-\\end{document}`;
+\\end{document}`);
 
       const fullTexAngabe = getPreamble("sans,punkte");
       const fullTexLoesung = getPreamble("sans,punkte,antworten");

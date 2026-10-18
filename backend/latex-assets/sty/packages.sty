@@ -30,6 +30,9 @@
 \RequirePackage{titlesec}
 \RequirePackage{silence}
 \RequirePackage{tikz}
+% Libraries that pasted TikZ snippets commonly expect (issue #107); loading them changes nothing else.
+\usetikzlibrary{arrows, arrows.meta, automata, positioning, calc, shapes, fit, backgrounds, matrix,
+  decorations.pathreplacing, patterns, intersections, angles, quotes}
 \RequirePackage{listings}
 \RequirePackage{svg}
 

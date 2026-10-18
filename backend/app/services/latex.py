@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from app.config import settings
+from app.services.latex_preamble import with_exercise_preamble
 from app.services.latex_resources import validate_resource_name
 from app.services.logo import ResolvedLogo
 
@@ -37,7 +38,7 @@ _PR_SET_DUMPABLE = 4
 # A tripwire for the obvious ways a document asks for a file outside its directory, not the
 # boundary: TeX can build paths in many ways.
 _ABSOLUTE_OR_PARENT_PATH = re.compile(
-    r"\\(?:input|include|InputIfFileExists|openin|openout|write|read"
+    r"\\(?:input|include|InputIfFileExists|openin|openout|write|read|usepackage|RequirePackage"
     r"|lstinputlisting|includegraphics|import|subimport|verbatiminput)"
     r"\s*(?:\[[^\]]*\])?\s*\{?\s*(?:/|\.\./|~|\\\\)",
 )
@@ -196,7 +197,7 @@ async def compile_latex(
         reject_unsafe_paths(content)
 
     if "\\documentclass" not in latex_source:
-        latex_source = f"""\\documentclass[a4paper]{{article}}
+        latex_source = with_exercise_preamble(f"""\\documentclass[a4paper]{{article}}
 \\usepackage[sans,punkte]{{sty/Schulaufgabe}}
 \\usetikzlibrary{{shapes.geometric, arrows}}
 \\usepackage{{sty/tikz-uml}}
@@ -205,7 +206,7 @@ async def compile_latex(
 \\begin{{document}}
 {latex_source}
 \\end{{document}}
-"""
+""")
 
     tmpdir = Path(tempfile.mkdtemp(prefix="blindgrade-latex-"))
     timeout = PREVIEW_TIMEOUT_SECONDS if preview else COMPILE_TIMEOUT_SECONDS
@@ -490,6 +491,8 @@ async def compile_exam_latex(
     info_text = exam_model.info_text or ""
 
     inputs_str = "\n\n".join(exercise_inputs)
+    # The exercises are \input from extra files, so their package lines are collected from those.
+    exercise_latex = "\n".join(latex for _, _, latex in items_with_order)
 
     main_tex = f"""\\documentclass[a4paper]{{article}}
 \\usepackage[{opts_str}]{{sty/Schulaufgabe}}
@@ -515,6 +518,7 @@ async def compile_exam_latex(
 
 \\end{{document}}
 """
+    main_tex = with_exercise_preamble(main_tex, exercise_latex)
 
     return await compile_latex(
         main_tex, extra_files=extra_files, preview=False, binary_files=binary_files, logo=logo

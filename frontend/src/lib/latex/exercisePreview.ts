@@ -2,6 +2,7 @@ import { compileWithCache } from "#lib/latex/compileCache";
 import type { CompileResult } from "#lib/latex/compiler";
 import { formatExerciseLatex } from "#lib/latex/scoreParser";
 import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
+import { withExercisePreamble } from "#lib/latex/preamble";
 
 const getPreamble = (extraOpts: string) => `\\documentclass[a4paper]{article}
 \\usepackage[${extraOpts}]{sty/Schulaufgabe}
@@ -26,14 +27,20 @@ const getPreamble = (extraOpts: string) => `\\documentclass[a4paper]{article}
   \\rfoot{}
 }`;
 
-/** One standalone XeLaTeX document around already-wrapped exercise LaTeX (preview, PDFs, group export). */
+/**
+ * One standalone XeLaTeX document around already-wrapped exercise LaTeX (preview, PDFs, group export). `packageSource`
+ * holds the exercise bodies when `content` only `\input`s them, so their package lines still reach the preamble.
+ */
 export function buildExerciseDocument(
   content: string,
-  { solution, extraPreamble = "" }: { solution: boolean; extraPreamble?: string }
+  { solution, extraPreamble = "", packageSource }: { solution: boolean; extraPreamble?: string; packageSource?: string }
 ): string {
   const preamble = getPreamble(solution ? "sans,antworten" : "sans");
   const extra = extraPreamble ? `${extraPreamble}\n` : "";
-  return `${preamble}\n\\setboolean{Antworten}{${solution}}\n${extra}\\begin{document}\n\\leavevmode\\par\n${content}\n\\end{document}`;
+  return withExercisePreamble(
+    `${preamble}\n\\setboolean{Antworten}{${solution}}\n${extra}\\begin{document}\n\\leavevmode\\par\n${content}\n\\end{document}`,
+    packageSource
+  );
 }
 
 const SLOT = "\u0001";
