@@ -300,23 +300,21 @@ function formatNumber(n: number): string {
  * environment option is updated in place (or dropped) so the source never carries two fixed scores.
  */
 export function setFixedScore(latex: string, score: number | null, partIndex: number | null = null): string {
-  const masked = maskComments(latex);
-  if (partIndex == null) {
-    const opt = aufgabeOption(masked);
-    if (opt) {
-      const cleared = removeMacro(latex, "FestePunkte", topRanges(latex));
-      const o = aufgabeOption(maskComments(cleared))!;
-      return cleared.slice(0, o.start) + (score == null ? "" : `[${formatNumber(score)}]`) + cleared.slice(o.end);
-    }
-  } else {
-    const part = findParts(masked)[partIndex];
-    if (part && part.optionStart !== -1) {
-      const cleared = removeMacro(latex, "FestePunkte", [[part.innerStart, part.innerEnd]]);
-      const p = findParts(maskComments(cleared))[partIndex]!;
-      return cleared.slice(0, p.optionStart) + (score == null ? "" : `[${formatNumber(score)}]`) + cleared.slice(p.optionEnd);
-    }
+  const option = environmentOption(latex, partIndex);
+  if (!option) {
+    return setMacroValues(latex, "FestePunkte", score == null ? [] : [formatNumber(score)], partIndex);
   }
-  return setMacroValues(latex, "FestePunkte", score == null ? [] : [formatNumber(score)], partIndex);
+  const cleared = removeMacro(latex, "FestePunkte", scope(latex, partIndex).ranges);
+  const o = environmentOption(cleared, partIndex)!;
+  return cleared.slice(0, o.start) + (score == null ? "" : `[${formatNumber(score)}]`) + cleared.slice(o.end);
+}
+
+/** The `[N]` option of `\begin{Aufgabe}` (partIndex null) or of one Teilaufgabe, with its offsets. */
+function environmentOption(latex: string, partIndex: number | null): { start: number; end: number } | null {
+  const masked = maskComments(latex);
+  if (partIndex == null) return aufgabeOption(masked);
+  const part = findParts(masked)[partIndex];
+  return part && part.optionStart !== -1 ? { start: part.optionStart, end: part.optionEnd } : null;
 }
 
 /** Snippet for a new part exercise (editor button and quick insert). */

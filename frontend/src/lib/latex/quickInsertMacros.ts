@@ -51,6 +51,17 @@ export function templateJoin(literalParts: string[], args: string[]): QuickInser
   return { text, argOffsets };
 }
 
+/** Scoring-palette entry wrapping one argument: `${before}${placeholder}${after}`. */
+function oneArgMacro(id: string, before: string, placeholder: string, after = "}"): QuickInsertMacro {
+  return {
+    id,
+    category: "scoring",
+    preview: `${before}${placeholder}${after}`,
+    args: [{ placeholder }],
+    buildTemplate: (a) => templateJoin([before, after], a)
+  };
+}
+
 export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
   // --- solutions (Loesung.sty) ---
   {
@@ -148,34 +159,10 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
     args: [],
     buildTemplate: () => ({ text: "\\qBE", argOffsets: [] })
   },
-  {
-    id: "teilaufgabe",
-    category: "scoring",
-    preview: "\\begin{Teilaufgabe}{subtitle}...\\end{Teilaufgabe}",
-    args: [{ placeholder: "Teilaufgabe" }],
-    buildTemplate: (a) => templateJoin(["\\begin{Teilaufgabe}{", "}\n\n\\end{Teilaufgabe}"], a)
-  },
-  {
-    id: "feste-punkte",
-    category: "scoring",
-    preview: "\\FestePunkte{N}",
-    args: [{ placeholder: "2" }],
-    buildTemplate: (a) => templateJoin(["\\FestePunkte{", "}"], a)
-  },
-  {
-    id: "afb",
-    category: "scoring",
-    preview: "\\AFB{II}",
-    args: [{ placeholder: "II" }],
-    buildTemplate: (a) => templateJoin(["\\AFB{", "}"], a)
-  },
-  {
-    id: "kompetenz",
-    category: "scoring",
-    preview: "\\Kompetenz{text}",
-    args: [{ placeholder: "Kompetenz" }],
-    buildTemplate: (a) => templateJoin(["\\Kompetenz{", "}"], a)
-  },
+  oneArgMacro("teilaufgabe", "\\begin{Teilaufgabe}{", "Teilaufgabe", "}\n\n\\end{Teilaufgabe}"),
+  oneArgMacro("feste-punkte", "\\FestePunkte{", "2"),
+  oneArgMacro("afb", "\\AFB{", "II"),
+  oneArgMacro("kompetenz", "\\Kompetenz{", "Kompetenz"),
 
   // --- formatting ---
   {

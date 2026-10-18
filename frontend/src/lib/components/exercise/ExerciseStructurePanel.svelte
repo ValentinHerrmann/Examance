@@ -82,6 +82,28 @@
   const scoreInputClass = `${controlClass} ${controlSmClass} w-20`;
 </script>
 
+{#snippet scoreInput(fixed: number | null, counted: number, partIndex: number | null, id: string | undefined, title: string | undefined)}
+  <input
+    {id}
+    {title}
+    type="text"
+    inputmode="decimal"
+    class={scoreInputClass}
+    value={fixed === null ? "" : String(fixed)}
+    placeholder={$fmt.number(counted)}
+    onchange={(e) => changeFixed(e.currentTarget.value, partIndex)}
+  />
+{/snippet}
+
+{#snippet levelSelect(levels: string[], partIndex: number | null, id: string | undefined, ariaLabel: string | undefined)}
+  <Select {id} size="sm" aria-label={ariaLabel} value={levels[0] ?? ""} onchange={(e) => changeLevel(e.currentTarget.value, partIndex)}>
+    <option value="">{$t("exercises.structure.levelNone")}</option>
+    {#each REQUIREMENT_LEVELS as level}
+      <option value={level}>{$t("exercises.structure.levelOption", { level })}</option>
+    {/each}
+  </Select>
+{/snippet}
+
 <div class="flex shrink-0 flex-col rounded-md border border-line bg-surface-raised text-xs">
   <button
     type="button"
@@ -116,15 +138,7 @@
           {#if !isMc}
             <label class="ml-auto flex items-center gap-1.5 text-muted" for="structure-fixed">
               {$t("exercises.structure.fixedLabel")}
-              <input
-                id="structure-fixed"
-                type="text"
-                inputmode="decimal"
-                class={scoreInputClass}
-                value={structure.fixed === null ? "" : String(structure.fixed)}
-                placeholder={$fmt.number(structure.counted)}
-                onchange={(e) => changeFixed(e.currentTarget.value, null)}
-              />
+              {@render scoreInput(structure.fixed, structure.counted, null, "structure-fixed", undefined)}
             </label>
           {/if}
         </div>
@@ -146,17 +160,7 @@
         <label class="flex items-center gap-1.5 font-semibold text-content" for="structure-level">
           {$t("exercises.structure.levelLabel")}
           <InfoTip text={$t("help.tips.requirementLevel")} topic="exercises" />
-          <Select
-            id="structure-level"
-            size="sm"
-            value={structure.levels[0] ?? ""}
-            onchange={(e) => changeLevel(e.currentTarget.value, null)}
-          >
-            <option value="">{$t("exercises.structure.levelNone")}</option>
-            {#each REQUIREMENT_LEVELS as level}
-              <option value={level}>{$t("exercises.structure.levelOption", { level })}</option>
-            {/each}
-          </Select>
+          {@render levelSelect(structure.levels, null, "structure-level", undefined)}
         </label>
 
         <div class="flex min-w-0 flex-1 flex-col gap-1">
@@ -225,28 +229,10 @@
                 </span>
                 <label class="flex items-center gap-1 text-muted">
                   <span class="sr-only">{$t("exercises.structure.partScoreLabel", { label: part.label })}</span>
-                  <input
-                    type="text"
-                    inputmode="decimal"
-                    class={scoreInputClass}
-                    value={part.fixed === null ? "" : String(part.fixed)}
-                    placeholder={$fmt.number(part.counted)}
-                    title={$t("exercises.structure.partScoreTitle")}
-                    onchange={(e) => changeFixed(e.currentTarget.value, index)}
-                  />
+                  {@render scoreInput(part.fixed, part.counted, index, undefined, $t("exercises.structure.partScoreTitle"))}
                   {$t("exercises.structure.pointsUnit")}
                 </label>
-                <Select
-                  size="sm"
-                  aria-label={$t("exercises.structure.partLevelLabel", { label: part.label })}
-                  value={part.levels[0] ?? ""}
-                  onchange={(e) => changeLevel(e.currentTarget.value, index)}
-                >
-                  <option value="">{$t("exercises.structure.levelNone")}</option>
-                  {#each REQUIREMENT_LEVELS as level}
-                    <option value={level}>{$t("exercises.structure.levelOption", { level })}</option>
-                  {/each}
-                </Select>
+                {@render levelSelect(part.levels, index, undefined, $t("exercises.structure.partLevelLabel", { label: part.label }))}
               </div>
             {/each}
           {/if}
