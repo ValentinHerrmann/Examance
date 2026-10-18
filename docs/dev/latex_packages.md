@@ -9,9 +9,9 @@ template. The rules live twice, in `frontend/src/lib/latex/packages.ts` and
 | Level | Stored in | Edited in |
 |---|---|---|
 | Template | `backend/latex-assets/sty/*.sty` | read-only overview (`GET /latex/template-packages`, parsed from the files) |
-| Account | `teachers.latex_packages` (JSON) | Settings → "LaTeX-Pakete" (`GET`/`PUT /user/latex-packages`) |
-| Exercise | `\usepackage` / `\usetikzlibrary` / `\usepgfplotslibrary` lines in the exercise LaTeX | exercise editor, "Pakete" panel (it edits those lines) |
-| Exam | `exams.latex_packages` (JSON, null follows the account) | exam data dialog |
+| Account | `teachers.latex_packages` (JSON) | Settings → "LaTeX-Pakete" (`AccountPackagesCard`; `GET`/`PUT /user/latex-packages`) |
+| Exercise | `\usepackage` / `\usetikzlibrary` / `\usepgfplotslibrary` lines in the exercise LaTeX | exercise editor, `ExercisePackagesPanel` (it rewrites only lines that hold nothing but package commands) |
+| Exam | `exams.latex_packages` (JSON, null follows the account) | "Prüfung bearbeiten" dialog (`ExamPackagesField` in `ExamMetadataEditor`) |
 
 Exercise packages stay in the LaTeX on purpose: they then travel with sharing, copies, versions,
 variants, merges, archives and exports without a second field to keep in sync.

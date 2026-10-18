@@ -24,11 +24,17 @@ export interface TemplatePackages {
 let accountEntries: Promise<LatexPackageEntry[]> | null = null;
 let templatePackages: Promise<TemplatePackages> | null = null;
 
+/** The account list from the server; throws, so an editor never mistakes a failed load for an empty list. */
+export async function fetchAccountPackages(): Promise<LatexPackageEntry[]> {
+  const body = await api.get<{ entries: unknown }>("/user/latex-packages", QUIET);
+  const entries = storedEntries(body.entries);
+  accountEntries = Promise.resolve(entries);
+  return entries;
+}
+
 /** The account list, cached per session. Never throws: compiles go on without it and the next call retries. */
 export function getAccountPackages(): Promise<LatexPackageEntry[]> {
-  accountEntries ??= api
-    .get<{ entries: unknown }>("/user/latex-packages", QUIET)
-    .then((body) => storedEntries(body.entries))
+  accountEntries ??= fetchAccountPackages()
     .catch((err) => {
       console.warn("[latex-packages] account list unavailable, compiling without it", err);
       accountEntries = null;
