@@ -20,6 +20,7 @@ import {
 import { computeMcExercisesHash, resolveMcExercises } from "#lib/grading/mcExerciseHash";
 import { compileWithCache } from "#lib/latex/compileCache";
 import { buildExamLatex, buildExerciseInputs, collectExamResources } from "#lib/exam/examPreview";
+import { getAccountPackages } from "#lib/latex/packageSettings";
 import { resolveCompileLogo } from "#lib/latex/logo";
 import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
 import { api } from "#lib/api/client";
@@ -164,7 +165,7 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   const examItems = suppliedExamItems ?? buildExamItems(exercises, mcGroups);
   const exerciseInputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups);
 
-  const fullTex = buildExamLatex(exam, exerciseInputs, "sans,punkte");
+  const fullTex = buildExamLatex(exam, exerciseInputs, "sans,punkte", await getAccountPackages());
 
   const omrExCount = (fullTex.match(/\\OmrExercise/g) || []).length;
   const multiCount = (fullTex.match(/\\multi/g) || []).length;

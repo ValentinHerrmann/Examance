@@ -145,6 +145,7 @@ export const storagePolicy: Translations['storagePolicy'] = {
             numVersions: 'Number of variants',
             retentionUntil: 'Retention until',
             gradingKey: 'Grading key',
+            latexPackages: 'LaTeX packages',
             name: 'Name',
             version: 'Version',
             variantKey: 'Variant',

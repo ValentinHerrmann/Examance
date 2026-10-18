@@ -100,9 +100,11 @@ export const help = {
                 p2: 'Mehrere Ankreuzaufgaben lassen sich zu einer MC-Gruppe zusammenfassen — schon beim Erstellen der Prüfung im Tab „MC-Gruppen“ oder später auf der Prüfungsseite. Eine Prüfung kann beliebig viele Gruppen beliebiger Größe enthalten; jede Frage gehört zu höchstens einer Gruppe. Das ist reine Layout-Information für den Druck — bewertet und ausgewertet wird weiterhin jede Frage einzeln.',
             },
             s4: {
-                h: 'Bilder und Dateien',
+                h: 'Bilder, Dateien und Pakete',
                 p1: 'Zu jeder Aufgabe lassen sich Dateien hochladen, die der LaTeX-Quelltext einbindet, etwa Abbildungen über \\includegraphics. SVG wird nicht unterstützt — bitte vorher in PDF umwandeln.',
                 p2: 'Fehlt eine Grafik, bricht der Satz nicht ab: Die Klausur wird trotzdem gesetzt, die fehlende Datei aber gemeldet. Prüfen Sie die Vorschau, bevor Sie drucken.',
+                p3: 'LaTeX-Pakete verwalten Sie unter Einstellungen → „LaTeX-Pakete“. Dort steht, was die Vorlage schon lädt (darunter TikZ-Bibliotheken wie arrows.meta, automata und positioning); Sie können eigene Pakete und Bibliotheken für alle Klausuren des Kontos hinzufügen und Vorlagenpaketen Optionen mitgeben, etwa dvipsnames für xcolor. Was nur eine Aufgabe braucht, fügen Sie im Aufgaben-Editor unter „Pakete dieser Aufgabe“ hinzu: Es wird als \\usepackage-Zeile am Anfang des Quelltexts gespeichert und reist mit der Aufgabe; solche Zeilen dürfen auch von Hand im Quelltext stehen. Unter „Prüfung bearbeiten“ passen Sie die Pakete einer einzelnen Prüfung an oder lassen Pakete des Kontos weg.',
+                p4: 'Examance lädt jedes Paket nur einmal und gibt Optionen an die Pakete der Vorlage weiter, sodass keine Optionskonflikte entstehen. Setzen zwei Aufgaben dieselbe Option unterschiedlich, zeigt „Ergebnis“ den Konflikt und welcher Wert gilt. Nicht unterstützt sind inputenc und fontenc (nur für pdfLaTeX), paralist (verträgt sich nicht mit enumitem) und Optionen für geometry, hyperref und eso-pic, die Layout und Antwortbogen-Erkennung brauchen; enumerate wird durch enumitem ersetzt. Eigene Pakete laden Sie als .sty-Datei zur Aufgabe hoch.',
             },
             s5: {
                 h: 'Aufgaben teilen und übernehmen',

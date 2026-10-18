@@ -59,6 +59,7 @@
   import ExerciseList from "#lib/components/exam/ExerciseList.svelte";
   import ExamMetadataEditor from "#lib/components/exam/ExamMetadataEditor.svelte";
   import { setExamLogo, type ExamLogoChange } from "#lib/latex/logo";
+  import { entriesError, type LatexPackageEntry } from "#lib/latex/packages";
   import ExamLibraryModal from "#lib/components/exam/ExamLibraryModal.svelte";
   import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
   import {
@@ -322,6 +323,7 @@
         topic: exam.topic,
         lehrernachname: exam.lehrernachname,
         info_text: exam.infoText,
+        latex_packages: exam.latexPackages,
         latex_template: exam.latexTemplate,
         retention_until:
           exam.retentionUntil ||
@@ -522,6 +524,8 @@
   let editLehrernachname = $state("");
   let editInfoText = $state("");
   let editLogoChange: ExamLogoChange | null = $state.raw(null);
+  let editLatexPackages: LatexPackageEntry[] | null = $state.raw(null);
+  let initialLatexPackages = $state("null");
   let editRetentionUntil = $state("");
   let editGradingKey: GradingKeyConfig = $state({
     preset: "linear_50",
@@ -556,6 +560,7 @@
         editLehrernachname !== initialMetadata.lehrernachname ||
         editInfoText !== initialMetadata.infoText ||
         editLogoChange !== null ||
+        JSON.stringify(editLatexPackages) !== initialLatexPackages ||
         editRetentionUntil !== initialMetadata.retentionUntil),
   );
 
@@ -654,6 +659,8 @@
       retentionUntil: editRetentionUntil,
     };
     editLogoChange = null;
+    editLatexPackages = exam.latexPackages ?? null;
+    initialLatexPackages = JSON.stringify(editLatexPackages);
     showMetadataConfirm = false;
     isEditingMetadata = true;
   }
@@ -677,6 +684,12 @@
     const gradingKey = $state.snapshot(editGradingKey);
     // Sent even when empty: "" is how the server learns the topic was cleared.
     const topic = editTopic.trim();
+    if (editLatexPackages && entriesError(editLatexPackages)) {
+      alert(translate("latexPackages.exam.invalid"));
+      return;
+    }
+    // An empty override prints the same as none; the server stores both as "follows the account".
+    const latexPackages = editLatexPackages?.length ? editLatexPackages : null;
     try {
       if ($isAuthenticated) {
         await api.patch(`/exams/${exam.id}`, {
@@ -691,6 +704,7 @@
           lehrernachname: editLehrernachname,
           info_text: editInfoText,
           grading_key: gradingKey,
+          latex_packages: latexPackages,
           retention_until: editRetentionUntil,
         });
       }
@@ -709,6 +723,7 @@
         infoText: editInfoText,
         retentionUntil: editRetentionUntil,
         gradingKey,
+        latexPackages,
       };
       const key = get(sessionStore).sessionKey;
       await saveExamEncrypted(exam, key);
@@ -1145,6 +1160,8 @@
       bind:editGradingKey
       examId={exam?.id}
       bind:logoChange={editLogoChange}
+      bind:editLatexPackages
+      packageSources={exercises.map((ex) => ({ label: ex.name || "", latex: ex.latexBody || "" }))}
       onSave={handleSaveMetadata}
       onCancel={requestCancelMetadata}
     />

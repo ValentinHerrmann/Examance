@@ -14,7 +14,7 @@ Storage modes (`lib/stores/storagePolicy.ts`, `docs/dev/storage_modes.md`, issue
 
 - `backend/` — FastAPI + SQLAlchemy + Alembic. Conventions, auth/data-key rules, backend gotchas: `backend/CLAUDE.md`.
 - `frontend/` — SvelteKit 3 on **Svelte 5 (runes only)**. Design system, responsive rules, i18n, MC data model, LaTeX resources, frontend gotchas: `frontend/CLAUDE.md`.
-- `docs/` — product, legal and deployment docs. Pitch decks/posters (`docs/pitches/`, `docs/posters/`) use real screenshots from the scripted demo instance in `docs/demo-instance/`. Developer deep-dives, read on demand: `docs/dev/omr.md` (MC detection), `docs/dev/training_donation.md`, `docs/dev/ci_and_audit.md`, `docs/dev/build_and_csp.md`.
+- `docs/` — product, legal and deployment docs. Pitch decks/posters (`docs/pitches/`, `docs/posters/`) use real screenshots from the scripted demo instance in `docs/demo-instance/`. Developer deep-dives, read on demand: `docs/dev/omr.md` (MC detection), `docs/dev/latex_packages.md` (LaTeX package levels and conflict rules), `docs/dev/training_donation.md`, `docs/dev/ci_and_audit.md`, `docs/dev/build_and_csp.md`.
 - `backend/latex-assets/` is the single copy of the bundled LaTeX assets: Tectonic reads it directly and the browser engine fetches it from the authenticated `GET /api/v1/latex-assets/*` (`lib/latex/assets.ts`), so both compile with identical files.
 
 ## Commands

@@ -143,6 +143,7 @@ export const storagePolicy = {
             numVersions: 'Anzahl Varianten',
             retentionUntil: 'Aufbewahrung bis',
             gradingKey: 'Bewertungsmaßstab',
+            latexPackages: 'LaTeX-Pakete',
             name: 'Name',
             version: 'Version',
             variantKey: 'Variante',

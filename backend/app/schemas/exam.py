@@ -8,6 +8,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator
 
 from app.config import settings
+from app.schemas.latex_packages import LatexPackageEntry, check_entry_list
 
 
 def validate_retention_until(value: date | None) -> date | None:
@@ -170,6 +171,8 @@ class ExamCreate(BaseModel):
     lehrernachname: str | None = Field(default=None, max_length=100)
     info_text: str | None = None
     grading_key: dict[str, Any] | None = None
+    # Package entries on top of the account's (issue #108); null follows the account.
+    latex_packages: list[LatexPackageEntry] | None = None
     exercise_ids: list[uuid.UUID] = []
     exercise_links: list[ExerciseLinkCreate] = []
     exercises: list[ExerciseCreate] = []
@@ -177,6 +180,7 @@ class ExamCreate(BaseModel):
 
     _check_retention = field_validator("retention_until")(validate_retention_until)
     _normalize_topic = field_validator("topic", mode="before")(normalize_topic)
+    _check_packages = field_validator("latex_packages")(check_entry_list)
 
 
 class ExamUpdate(BaseModel):
@@ -194,12 +198,15 @@ class ExamUpdate(BaseModel):
     lehrernachname: str | None = Field(default=None, max_length=100)
     info_text: str | None = None
     grading_key: dict[str, Any] | None = None
+    # Absent keeps the stored override; null clears it, so the exam follows the account again.
+    latex_packages: list[LatexPackageEntry] | None = None
     exercise_ids: list[uuid.UUID] | None = None
     exercise_links: list[ExerciseLinkCreate] | None = None
     mc_groups: list[ExamMcGroupCreate] | None = None
 
     _check_retention = field_validator("retention_until")(validate_retention_until)
     _normalize_topic = field_validator("topic", mode="before")(normalize_topic)
+    _check_packages = field_validator("latex_packages")(check_entry_list)
 
 
 class ExamResponse(BaseModel):
@@ -220,6 +227,7 @@ class ExamResponse(BaseModel):
     lehrernachname: str | None = None
     info_text: str | None = None
     grading_key: dict[str, Any] | None = None
+    latex_packages: list[LatexPackageEntry] | None = None
     exercises: list[ExerciseResponse] = []
     mc_groups: list[ExamMcGroupResponse] = []
 

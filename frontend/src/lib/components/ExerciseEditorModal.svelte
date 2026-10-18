@@ -24,6 +24,7 @@
   import ExerciseResourcePanel from "#lib/components/exercise/ExerciseResourcePanel.svelte";
   import ExerciseStructurePanel from "#lib/components/exercise/ExerciseStructurePanel.svelte";
   import { parseExerciseStructure, setCompetencies, setRequirementLevel } from "#lib/latex/exerciseStructure";
+  import ExercisePackagesPanel from "#lib/components/latex-packages/ExercisePackagesPanel.svelte";
   import LatexEditor from "./LatexEditor.svelte";
   import DualPdfPreview from "./DualPdfPreview.svelte";
   import SuggestInput from "#lib/components/common/SuggestInput.svelte";
@@ -898,6 +899,10 @@
               <ExerciseResourcePanel
                 exerciseId={resourceStagingId}
                 onInsert={insertResourceSnippet}
+              />
+              <ExercisePackagesPanel
+                bind:latex={() => editorLatexBody, (v) => { editorLatexBody = v; handleLatexBodyEdit(v); }}
+                name={editorName}
               />
             </div>
           {:else}

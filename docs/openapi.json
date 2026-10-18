@@ -6709,6 +6709,164 @@
           }
         }
       }
+    },
+    "/api/v1/latex/template-packages": {
+      "get": {
+        "tags": [
+          "latex-packages"
+        ],
+        "summary": "Get Template Packages",
+        "description": "What the exam template loads by itself, read from the bundled .sty files.",
+        "operationId": "get_template_packages_api_v1_latex_template_packages_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplatePackages"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/latex-packages": {
+      "get": {
+        "tags": [
+          "latex-packages"
+        ],
+        "summary": "Get Account Latex Packages",
+        "description": "The packages and libraries the account adds to every document.",
+        "operationId": "get_account_latex_packages_api_v1_user_latex_packages_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountLatexPackages"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "latex-packages"
+        ],
+        "summary": "Set Account Latex Packages",
+        "description": "Replace the account's list. Entries are validated (names, options, unsupported packages).",
+        "operationId": "set_account_latex_packages_api_v1_user_latex_packages_put",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountLatexPackages"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountLatexPackages"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -8237,6 +8395,20 @@
             "type": "array",
             "title": "Mc Groups",
             "default": []
+          },
+          "latex_packages": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LatexPackageEntry"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latex Packages"
           }
         },
         "type": "object",
@@ -8574,6 +8746,20 @@
             "type": "array",
             "title": "Mc Groups",
             "default": []
+          },
+          "latex_packages": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LatexPackageEntry"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latex Packages"
           }
         },
         "type": "object",
@@ -8786,6 +8972,20 @@
               }
             ],
             "title": "Mc Groups"
+          },
+          "latex_packages": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LatexPackageEntry"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latex Packages"
           }
         },
         "type": "object",
@@ -11414,6 +11614,136 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "AccountLatexPackages": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/LatexPackageEntry"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Entries"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AccountLatexPackages",
+        "description": "The packages added to every document of the account. ``disabled`` has no meaning here."
+      },
+      "LatexPackageEntry": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "package",
+              "tikzlibrary",
+              "pgfplotslibrary"
+            ],
+            "title": "Kind",
+            "default": "package"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Name"
+          },
+          "options": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Options",
+            "default": ""
+          },
+          "disabled": {
+            "type": "boolean",
+            "title": "Disabled",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "LatexPackageEntry",
+        "description": "A package, TikZ or pgfplots library; ``disabled`` (exam level) drops an account one."
+      },
+      "TemplateLibrary": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "source"
+        ],
+        "title": "TemplateLibrary"
+      },
+      "TemplatePackage": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "options": {
+            "type": "string",
+            "title": "Options"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "locked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locked"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "options",
+          "source"
+        ],
+        "title": "TemplatePackage"
+      },
+      "TemplatePackages": {
+        "properties": {
+          "packages": {
+            "items": {
+              "$ref": "#/components/schemas/TemplatePackage"
+            },
+            "type": "array",
+            "title": "Packages"
+          },
+          "tikz_libraries": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateLibrary"
+            },
+            "type": "array",
+            "title": "Tikz Libraries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "packages",
+          "tikz_libraries"
+        ],
+        "title": "TemplatePackages",
+        "description": "What the exam template loads by itself, for the settings overview."
       }
     }
   },
