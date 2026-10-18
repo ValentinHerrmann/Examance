@@ -29,7 +29,7 @@ export const help: Translations['help'] = {
         latexServer: 'The server typesets the exam. Faster on low-spec hardware, but the LaTeX source is transmitted.',
         variantKey: 'Variants are different phrasings of the same exercise (group A/B/C). They share grading and statistics while making copying harder.',
         mcPenalty: 'Points deducted for a wrongly ticked option. 0 means no negative marking. An exercise total never drops below zero.',
-        exerciseScore: 'Counts \\BE (1 point), \\hBE (0.5) and \\qBE (0.25) in the source, and every correct option in MC questions. A fixed score replaces the counted one; clear the field to count again.',
+        exerciseScore: String.raw`Counts \BE (1 point), \hBE (0.5) and \qBE (0.25) in the source, and every correct option in MC questions. A fixed score replaces the counted one; clear the field to count again.`,
         requirementLevel: 'Requirement level I: reproduce, II: apply and transfer, III: reflect and solve problems. Shown only on the solution sheet.',
         partExercises: 'Parts a), b), c) get their own subtitle and score box. An empty score counts the part’s scoring units.',
         blindGrading: 'During grading only the pseudonym is shown, never the name. Result and person are re-linked only after the grading pass.',
@@ -124,9 +124,9 @@ export const help: Translations['help'] = {
             },
             s8: {
                 h: 'Scores, part exercises and requirement levels',
-                p1: 'An exercise’s score comes from the scoring units in its source: \\BE counts one point, \\hBE half a point, \\qBE a quarter, and in multiple-choice questions every correct option counts one. Place them where the solution earns the point; the solution sheet shows them as ticks. The “Score & structure” section in the editor shows how the score is made up and lets you fix it to a set value.',
+                p1: String.raw`An exercise’s score comes from the scoring units in its source: \BE counts one point, \hBE half a point, \qBE a quarter, and in multiple-choice questions every correct option counts one. Place them where the solution earns the point; the solution sheet shows them as ticks. The “Score & structure” section in the editor shows how the score is made up and lets you fix it to a set value.`,
                 p2: '“Add part” splits an exercise into a), b), c), each with its own subtitle and score box. The parts add up to the exercise’s score, and a single part’s score can be fixed as well. Grading still happens per exercise.',
-                p3: 'Requirement level (AFB I reproduction, II reorganisation and transfer, III reflection and problem solving) and competencies can be set for the whole exercise or per part. They are stored as \\AFB{…} and \\Kompetenz{…} in the source, appear only on the solution sheet, and travel with the exercise into variants, copies and archives.',
+                p3: String.raw`Requirement level (AFB I reproduction, II reorganisation and transfer, III reflection and problem solving) and competencies can be set for the whole exercise or per part. They are stored as \AFB{…} and \Kompetenz{…} in the source, appear only on the solution sheet, and travel with the exercise into variants, copies and archives.`,
             },
         },
         examCreation: {

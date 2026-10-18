@@ -8,21 +8,21 @@ import {
 } from '../src/lib/latex/exerciseStructure';
 import { parseExerciseScore } from '../src/lib/latex/scoreParser';
 
-const PARTS = `\\begin{Aufgabe}{Teile}
-\\AFB{II}
-Einleitung. % \\BE in a comment does not count
-\\begin{Teilaufgabe}{Erster Teil}
-\\AFB{I}
-Text \\BE \\BE \\hBE
-\\end{Teilaufgabe}
-\\begin{Teilaufgabe}[4]{Zweiter}
-Text \\BE
-\\end{Teilaufgabe}
-\\begin{Teilaufgabe}{Dritter}
-\\FestePunkte{3}
-Text \\BE
-\\end{Teilaufgabe}
-\\end{Aufgabe}`;
+const PARTS = String.raw`\begin{Aufgabe}{Teile}
+\AFB{II}
+Einleitung. % \BE in a comment does not count
+\begin{Teilaufgabe}{Erster Teil}
+\AFB{I}
+Text \BE \BE \hBE
+\end{Teilaufgabe}
+\begin{Teilaufgabe}[4]{Zweiter}
+Text \BE
+\end{Teilaufgabe}
+\begin{Teilaufgabe}{Dritter}
+\FestePunkte{3}
+Text \BE
+\end{Teilaufgabe}
+\end{Aufgabe}`;
 
 describe('parseExerciseStructure', () => {
   it('reads parts, their fixed scores and requirement levels', () => {
@@ -39,8 +39,10 @@ describe('parseExerciseStructure', () => {
     expect(parseExerciseScore(PARTS)).toBe(9.5);
   });
 
-  it('lets \\FestePunkte outside the parts fix the exercise score', () => {
-    expect(parseExerciseScore('\\FestePunkte{7}\nText \\BE')).toBe(7);
+  it(String.raw`lets \FestePunkte outside the parts fix the exercise score`, () => {
+    const src = String.raw`\FestePunkte{7}
+Text \BE`;
+    expect(parseExerciseScore(src)).toBe(7);
   });
 });
 
@@ -53,11 +55,11 @@ describe('structure editing helpers', () => {
     x = setFixedScore(x, null, 1);
     const s = parseExerciseStructure(x);
     expect(s.levels).toEqual(['III']);
-    expect(s.competencies.sort()).toEqual(['Argumentieren', 'Modellieren']);
+    expect(s.competencies).toEqual(['Modellieren', 'Argumentieren']);
     expect(s.score).toBe(12);
     expect(s.parts[1].levels).toEqual(['II']);
     expect(s.parts[1].fixed).toBeNull();
-    expect(x).not.toContain('\\begin{Teilaufgabe}[');
+    expect(x).not.toContain(String.raw`\begin{Teilaufgabe}[`);
 
     x = setFixedScore(setCompetencies(setRequirementLevel(x, null), []), null);
     const cleared = parseExerciseStructure(x);
@@ -66,15 +68,28 @@ describe('structure editing helpers', () => {
     expect(cleared.fixed).toBeNull();
   });
 
-  it('updates an existing \\begin{Aufgabe}[N] option instead of adding a second fixed score', () => {
-    const src = '\\begin{Aufgabe}[5]{O}\nA \\BE\n\\end{Aufgabe}';
-    expect(setFixedScore(src, 8)).toBe('\\begin{Aufgabe}[8]{O}\nA \\BE\n\\end{Aufgabe}');
-    expect(setFixedScore(src, null)).toBe('\\begin{Aufgabe}{O}\nA \\BE\n\\end{Aufgabe}');
+  it(String.raw`updates an existing \begin{Aufgabe}[N] option instead of adding a second fixed score`, () => {
+    const src = String.raw`\begin{Aufgabe}[5]{O}
+A \BE
+\end{Aufgabe}`;
+    expect(setFixedScore(src, 8)).toBe(String.raw`\begin{Aufgabe}[8]{O}
+A \BE
+\end{Aufgabe}`);
+    expect(setFixedScore(src, null)).toBe(String.raw`\begin{Aufgabe}{O}
+A \BE
+\end{Aufgabe}`);
   });
 
-  it('appends a part before \\end{Aufgabe}', () => {
-    const x = appendPart('\\begin{Aufgabe}{A}\nIntro\n\\end{Aufgabe}', 'Neu');
-    expect(x).toBe('\\begin{Aufgabe}{A}\nIntro\n\\begin{Teilaufgabe}{Neu}\n\n\\end{Teilaufgabe}\n\\end{Aufgabe}');
+  it(String.raw`appends a part before \end{Aufgabe}`, () => {
+    const x = appendPart(String.raw`\begin{Aufgabe}{A}
+Intro
+\end{Aufgabe}`, 'Neu');
+    expect(x).toBe(String.raw`\begin{Aufgabe}{A}
+Intro
+\begin{Teilaufgabe}{Neu}
+
+\end{Teilaufgabe}
+\end{Aufgabe}`);
     expect(parseExerciseStructure(x).parts).toHaveLength(1);
   });
 });

@@ -159,10 +159,10 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
     args: [],
     buildTemplate: () => ({ text: "\\qBE", argOffsets: [] })
   },
-  oneArgMacro("teilaufgabe", "\\begin{Teilaufgabe}{", "Teilaufgabe", "}\n\n\\end{Teilaufgabe}"),
-  oneArgMacro("feste-punkte", "\\FestePunkte{", "2"),
-  oneArgMacro("afb", "\\AFB{", "II"),
-  oneArgMacro("kompetenz", "\\Kompetenz{", "Kompetenz"),
+  oneArgMacro("teilaufgabe", String.raw`\begin{Teilaufgabe}{`, "Teilaufgabe", "}\n\n" + String.raw`\end{Teilaufgabe}`),
+  oneArgMacro("feste-punkte", String.raw`\FestePunkte{`, "2"),
+  oneArgMacro("afb", String.raw`\AFB{`, "II"),
+  oneArgMacro("kompetenz", String.raw`\Kompetenz{`, "Kompetenz"),
 
   // --- formatting ---
   {

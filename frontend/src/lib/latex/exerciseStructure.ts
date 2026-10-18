@@ -58,7 +58,7 @@ interface PartRange {
 
 /** Replaces `%` comments (not `\%`) with spaces so offsets stay valid and commented macros don't count. */
 function maskComments(latex: string): string {
-  return latex.replace(/(^|[^\\])%[^\n]*/g, (m, pre: string) => pre + " ".repeat(m.length - pre.length));
+  return latex.replaceAll(/(^|[^\\])%[^\n]*/g, (m, pre: string) => pre + " ".repeat(m.length - pre.length));
 }
 
 /** Index just past the brace group opening at `open` (which must be `{`), or -1 when unbalanced. */
@@ -79,37 +79,34 @@ function matchBrace(text: string, open: number): number {
   return -1;
 }
 
+const PART_END = String.raw`\end{Teilaufgabe}`;
+
+/** The `[...]` option starting at `pos`, if any, and the position after it. */
+function readOption(masked: string, pos: number): { optionStart: number; optionEnd: number; option: string | null; pos: number } {
+  const close = masked[pos] === "[" ? masked.indexOf("]", pos) : -1;
+  if (close === -1) return { optionStart: -1, optionEnd: -1, option: null, pos };
+  return { optionStart: pos, optionEnd: close + 1, option: masked.slice(pos + 1, close), pos: close + 1 };
+}
+
+/** The `{...}` group starting at `pos`, if any, and the position after it. */
+function readGroup(masked: string, pos: number): { text: string; pos: number } {
+  const close = masked[pos] === "{" ? matchBrace(masked, pos) : -1;
+  if (close === -1) return { text: "", pos };
+  return { text: masked.slice(pos + 1, close - 1), pos: close };
+}
+
 function findParts(masked: string): PartRange[] {
   const parts: PartRange[] = [];
   const begin = /\\begin\{Teilaufgabe\}/g;
   let m: RegExpExecArray | null;
   while ((m = begin.exec(masked))) {
     const start = m.index;
-    let pos = start + m[0].length;
-    let optionStart = -1;
-    let optionEnd = -1;
-    let option: string | null = null;
-    if (masked[pos] === "[") {
-      const close = masked.indexOf("]", pos);
-      if (close !== -1) {
-        optionStart = pos;
-        optionEnd = close + 1;
-        option = masked.slice(pos + 1, close);
-        pos = close + 1;
-      }
-    }
-    let title = "";
-    if (masked[pos] === "{") {
-      const close = matchBrace(masked, pos);
-      if (close !== -1) {
-        title = masked.slice(pos + 1, close - 1);
-        pos = close;
-      }
-    }
+    const { optionStart, optionEnd, option, pos: afterOption } = readOption(masked, start + m[0].length);
+    const { text: title, pos } = readGroup(masked, afterOption);
     const innerStart = masked[pos] === "\n" ? pos + 1 : pos;
-    const endIdx = masked.indexOf("\\end{Teilaufgabe}", innerStart);
+    const endIdx = masked.indexOf(PART_END, innerStart);
     const innerEnd = endIdx === -1 ? masked.length : endIdx;
-    const end = endIdx === -1 ? masked.length : endIdx + "\\end{Teilaufgabe}".length;
+    const end = endIdx === -1 ? masked.length : endIdx + PART_END.length;
     parts.push({ start, optionStart, optionEnd, option, title: title.trim(), innerStart, innerEnd, end });
     begin.lastIndex = end;
   }
@@ -117,7 +114,8 @@ function findParts(masked: string): PartRange[] {
 }
 
 function count(text: string, re: RegExp): number {
-  return text.match(re)?.length ?? 0;
+  // Callers pass global regexes, which matchAll requires.
+  return [...text.matchAll(re)].length;
 }
 
 function countUnits(text: string): ScoreUnits {
@@ -150,7 +148,7 @@ function macroArgs(text: string, name: string): string[] {
 
 function parseNumber(raw: string | null | undefined): number | null {
   if (raw == null) return null;
-  const n = parseFloat(raw.trim().replace(",", "."));
+  const n = Number.parseFloat(raw.trim().replace(",", "."));
   return Number.isFinite(n) ? n : null;
 }
 
@@ -164,7 +162,7 @@ function topLevelText(masked: string, parts: PartRange[]): string {
 function aufgabeOption(masked: string): { start: number; end: number; value: string } | null {
   const m = /\\begin\{Aufgabe\}\[([^\]]*)\]/.exec(masked);
   if (!m) return null;
-  const start = m.index + "\\begin{Aufgabe}".length;
+  const start = m.index + String.raw`\begin{Aufgabe}`.length;
   return { start, end: start + m[1].length + 2, value: m[1] };
 }
 
@@ -174,14 +172,14 @@ function scored(units: ScoreUnits, fixed: number | null, levels: string[], compe
 }
 
 export function parseExerciseStructure(latex: string | null | undefined): ExerciseStructure {
-  const masked = maskComments(latex || "");
+  const masked = maskComments(latex ?? "");
   const ranges = findParts(masked);
   const parts: ExercisePart[] = ranges.map((r, i) => {
     const inner = masked.slice(r.innerStart, r.innerEnd);
     const fixedArgs = macroArgs(inner, "FestePunkte");
-    const fixed = parseNumber(r.option) ?? parseNumber(fixedArgs[fixedArgs.length - 1]);
+    const fixed = parseNumber(r.option) ?? parseNumber(fixedArgs.at(-1));
     return {
-      label: String.fromCharCode(97 + (i % 26)),
+      label: String.fromCodePoint(97 + (i % 26)),
       title: r.title,
       ...scored(countUnits(inner), fixed, macroArgs(inner, "AFB"), macroArgs(inner, "Kompetenz"))
     };
@@ -199,7 +197,7 @@ export function parseExerciseStructure(latex: string | null | undefined): Exerci
   // A part's fixed score replaces its own units in the exercise total, as in Schulaufgabe.sty.
   const counted = unitScore(topUnits) + parts.reduce((s, p) => s + p.score, 0);
   const topFixedArgs = macroArgs(top, "FestePunkte");
-  const fixed = parseNumber(aufgabeOption(masked)?.value) ?? parseNumber(topFixedArgs[topFixedArgs.length - 1]);
+  const fixed = parseNumber(aufgabeOption(masked)?.value) ?? parseNumber(topFixedArgs.at(-1));
   return {
     ...scored(units, fixed, macroArgs(top, "AFB"), macroArgs(top, "Kompetenz"), counted),
     parts
@@ -226,8 +224,9 @@ function removeMacro(latex: string, name: string, ranges: Array<[number, number]
     if (masked[end] === "\n") end++;
     cuts.push([m.index, end]);
   }
+  // Cut from the end so earlier offsets stay valid.
   let out = latex;
-  for (const [s, e] of cuts.reverse()) out = out.slice(0, s) + out.slice(e);
+  for (let i = cuts.length - 1; i >= 0; i--) out = out.slice(0, cuts[i][0]) + out.slice(cuts[i][1]);
   return out;
 }
 
@@ -262,7 +261,7 @@ function scope(latex: string, partIndex: number | null): { ranges: Array<[number
   if (!part) throw new Error(`No Teilaufgabe ${partIndex}`);
   return {
     ranges: [[part.innerStart, part.innerEnd]],
-    insertAt: (text) => findParts(maskComments(text))[partIndex]!.innerStart
+    insertAt: (text) => findParts(maskComments(text))[partIndex].innerStart
   };
 }
 
@@ -319,7 +318,7 @@ function environmentOption(latex: string, partIndex: number | null): { start: nu
 
 /** Snippet for a new part exercise (editor button and quick insert). */
 export function partSnippet(title: string): string {
-  return `\\begin{Teilaufgabe}{${title}}\n\n\\end{Teilaufgabe}`;
+  return String.raw`\begin{Teilaufgabe}{${title}}` + "\n\n" + PART_END;
 }
 
 /**
@@ -328,9 +327,9 @@ export function partSnippet(title: string): string {
  */
 export function appendPart(latex: string, title: string): string {
   const masked = maskComments(latex);
-  const endIdx = masked.lastIndexOf("\\end{Aufgabe}");
+  const endIdx = masked.lastIndexOf(String.raw`\end{Aufgabe}`);
   const at = endIdx === -1 ? latex.length : endIdx;
-  const before = latex.slice(0, at).replace(/\s+$/, "");
+  const before = latex.slice(0, at).trimEnd();
   const after = latex.slice(at);
   const sep = before.length > 0 ? "\n" : "";
   return `${before}${sep}${partSnippet(title)}\n${after}`;

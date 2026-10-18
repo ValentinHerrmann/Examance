@@ -74,7 +74,7 @@
   }
 
   function addPart() {
-    const label = String.fromCharCode(97 + (structure.parts.length % 26));
+    const label = String.fromCodePoint(97 + (structure.parts.length % 26));
     onChange(appendPart(latex, translate("exercises.structure.newPartTitle", { label })));
     open = true;
   }
@@ -82,10 +82,9 @@
   const scoreInputClass = `${controlClass} ${controlSmClass} w-20`;
 </script>
 
-{#snippet scoreInput(fixed: number | null, counted: number, partIndex: number | null, id: string | undefined, title: string | undefined)}
+{#snippet scoreInput(fixed: number | null, counted: number, partIndex: number | null, attrs: { id?: string; title?: string })}
   <input
-    {id}
-    {title}
+    {...attrs}
     type="text"
     inputmode="decimal"
     class={scoreInputClass}
@@ -95,8 +94,8 @@
   />
 {/snippet}
 
-{#snippet levelSelect(levels: string[], partIndex: number | null, id: string | undefined, ariaLabel: string | undefined)}
-  <Select {id} size="sm" aria-label={ariaLabel} value={levels[0] ?? ""} onchange={(e) => changeLevel(e.currentTarget.value, partIndex)}>
+{#snippet levelSelect(levels: string[], partIndex: number | null, attrs: { id?: string; "aria-label"?: string })}
+  <Select {...attrs} size="sm" value={levels[0] ?? ""} onchange={(e) => changeLevel(e.currentTarget.value, partIndex)}>
     <option value="">{$t("exercises.structure.levelNone")}</option>
     {#each REQUIREMENT_LEVELS as level}
       <option value={level}>{$t("exercises.structure.levelOption", { level })}</option>
@@ -138,7 +137,7 @@
           {#if !isMc}
             <label class="ml-auto flex items-center gap-1.5 text-muted" for="structure-fixed">
               {$t("exercises.structure.fixedLabel")}
-              {@render scoreInput(structure.fixed, structure.counted, null, "structure-fixed", undefined)}
+              {@render scoreInput(structure.fixed, structure.counted, null, { id: "structure-fixed" })}
             </label>
           {/if}
         </div>
@@ -160,7 +159,7 @@
         <label class="flex items-center gap-1.5 font-semibold text-content" for="structure-level">
           {$t("exercises.structure.levelLabel")}
           <InfoTip text={$t("help.tips.requirementLevel")} topic="exercises" />
-          {@render levelSelect(structure.levels, null, "structure-level", undefined)}
+          {@render levelSelect(structure.levels, null, { id: "structure-level" })}
         </label>
 
         <div class="flex min-w-0 flex-1 flex-col gap-1">
@@ -229,10 +228,10 @@
                 </span>
                 <label class="flex items-center gap-1 text-muted">
                   <span class="sr-only">{$t("exercises.structure.partScoreLabel", { label: part.label })}</span>
-                  {@render scoreInput(part.fixed, part.counted, index, undefined, $t("exercises.structure.partScoreTitle"))}
+                  {@render scoreInput(part.fixed, part.counted, index, { title: $t("exercises.structure.partScoreTitle") })}
                   {$t("exercises.structure.pointsUnit")}
                 </label>
-                {@render levelSelect(part.levels, index, undefined, $t("exercises.structure.partLevelLabel", { label: part.label }))}
+                {@render levelSelect(part.levels, index, { "aria-label": $t("exercises.structure.partLevelLabel", { label: part.label }) })}
               </div>
             {/each}
           {/if}
