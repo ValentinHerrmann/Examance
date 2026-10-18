@@ -47,6 +47,7 @@ export const exercises = {
         previewButtonLoading: 'Kompiliert...',
         mcEditorTitle: 'Strukturierter Optionen-Editor (MC)',
         mcEditorHint: 'Mehrere korrekte Optionen sind erlaubt',
+        mcBlockMalformed: String.raw`Der \LoesungMulti-Block im LaTeX-Code ist nicht geschlossen (fehlt eine } oder steht ein ungeschütztes %?). Bis er wieder vollständig ist, ändert dieser Editor den Code nicht.`,
         mcQuestionTextLabel: 'Fragetext / Einleitung',
         mcPenaltyLabel: 'Punktabzug pro falschem Kreuz (right-minus-wrong)',
         mcOptionsLabel: 'Optionen ({count})',

@@ -66,6 +66,8 @@
   let mcQuestionText = $state("");
   /** LaTeX after the \LoesungMulti block; kept as is when the MC editor rebuilds the body. */
   let mcTrailingText = $state("");
+  /** The composed LaTeX has an unclosed \LoesungMulti block: the MC editor must not rebuild from it. */
+  let mcBlockMalformed = $state(false);
   let mcOptions: McOption[] = $state.raw([]);
   /** Column layout of the options: "auto" (one per option) or an explicit count, as a <select> value. */
   let mcColumns = $state("auto");
@@ -134,8 +136,9 @@
   }
 
   function insertResourceSnippet(snippet: string) {
-    if (editorQuestionType === "free_text") {
+    if (editorQuestionType === "free_text" || mcBlockMalformed) {
       editorLatexBody = `${editorLatexBody}\n${snippet}\n`;
+      if (mcBlockMalformed) syncMcStateFromLatex();
       return;
     }
     // MC: into the question, above the answer boxes.
@@ -235,11 +238,13 @@
     const parsed = parseMcOptions(withoutMetaTags(latex));
     mcQuestionText = parsed.questionText;
     mcTrailingText = parsed.trailingText;
+    mcBlockMalformed = parsed.malformed;
     mcOptions = parsed.options;
     mcColumns = parsed.columns === null ? "auto" : String(parsed.columns);
   }
 
   function regenerateMcLatex() {
+    if (mcBlockMalformed) return;
     const meta = parseExerciseStructure(editorLatexBody);
     const body = buildMcOptionsLatex(
       mcQuestionText,
@@ -250,9 +255,10 @@
     editorLatexBody = setCompetencies(setRequirementLevel(body, meta.levels[0] ?? null), meta.competencies);
   }
 
-  // Typing in the composed LaTeX updates the MC editor, so its next change rebuilds from this text.
+  // Typing in the composed LaTeX updates the MC editor (also in free-text mode, for a later switch),
+  // so its next change rebuilds from this text.
   function handleLatexBodyEdit(latex: string) {
-    if (editorQuestionType !== "free_text") syncMcStateFromLatex(latex);
+    syncMcStateFromLatex(latex);
   }
 
   function handleStructureChange(latex: string) {
@@ -796,6 +802,10 @@
                       {$t("exercises.editor.mcEditorHint")}
                     </span>
                   </div>
+
+                  {#if mcBlockMalformed}
+                    <Alert severity="warning">{$t("exercises.editor.mcBlockMalformed")}</Alert>
+                  {/if}
 
                   <div class="flex flex-col gap-1">
                     <span class="font-semibold text-content">{$t("exercises.editor.mcQuestionTextLabel")}</span>

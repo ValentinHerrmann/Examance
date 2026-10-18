@@ -23,9 +23,9 @@ describe('parseMcOptions', () => {
   it('reads every option in printed order, independent of the column count', () => {
     const one = parseMcOptions(THREE_OPTIONS.replace('[3]', '[1]'));
     expect(one.options).toEqual([
-      { text: 'richtig', correct: true, source: 'richtig' },
-      { text: 'falsch', correct: false, source: 'falsch' },
-      { text: 'auch richtig', correct: true, source: 'auch richtig' },
+      { text: 'richtig', correct: true, source: '{richtig}' },
+      { text: 'falsch', correct: false, source: '{falsch}' },
+      { text: 'auch richtig', correct: true, source: '{auch richtig}' },
     ]);
     expect(one.columns).toBe(1);
     expect(parseMcOptions(THREE_OPTIONS.replace('[3]', '[2]')).options).toHaveLength(3);
@@ -42,8 +42,8 @@ describe('parseMcOptions', () => {
   it('keeps nested braces inside an option and unescapes its text', () => {
     const parsed = parseMcOptions('\\LoesungMulti[2]{\\Lmulti{\\textbf{fett} 50\\%}\\multi{a\\_b}}');
     expect(parsed.options).toEqual([
-      { text: '\\textbf{fett} 50%', correct: true, source: '\\textbf{fett} 50\\%' },
-      { text: 'a_b', correct: false, source: 'a\\_b' },
+      { text: String.raw`\textbf{fett} 50%`, correct: true, source: String.raw`{\textbf{fett} 50\%}` },
+      { text: 'a_b', correct: false, source: String.raw`{a\_b}` },
     ]);
   });
 
@@ -92,6 +92,27 @@ describe('parseMcOptions', () => {
     const rebuilt = buildMcOptionsLatex(parsed.questionText, parsed.options, parsed.columns, parsed.trailingText);
     expect(rebuilt.endsWith(String.raw`}
 \Loesung{Weil b.}`)).toBe(true);
+  });
+
+  it('keeps the scope of a leading group when it writes an untouched option back', () => {
+    const parsed = parseMcOptions(String.raw`\LoesungMulti[2]{\multi{\color{red}falsch} weil x
+\Lmulti{B}}`);
+    expect(parsed.options[0].text).toBe(String.raw`\color{red}falsch weil x`);
+    const rebuilt = buildMcOptionsLatex('Frage', [parsed.options[0], { ...parsed.options[1], correct: false }]);
+    expect(rebuilt).toContain(String.raw`\multi{{\color{red}falsch} weil x}`);
+    expect(rebuilt).toContain(String.raw`\multi{B}`);
+  });
+
+  it('flags a block that never closes instead of treating it as question text to rebuild', () => {
+    const parsed = parseMcOptions(String.raw`Frage
+\LoesungMulti[2]{
+  \multi{10%}
+  \Lmulti{B}
+}`);
+    expect(parsed.malformed).toBe(true);
+    expect(parsed.options).toEqual([]);
+    expect(parseMcOptions('Freitext').malformed).toBe(false);
+    expect(parseMcOptions(THREE_OPTIONS).malformed).toBe(false);
   });
 
   it('returns no options without a \\LoesungMulti block', () => {

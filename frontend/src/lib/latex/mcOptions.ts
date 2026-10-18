@@ -9,7 +9,7 @@ export interface McOption {
   /** Plain text as typed in the editor (escaped when written). */
   text: string;
   correct: boolean;
-  /** LaTeX the option was read from; written back as is while `text` still matches it. */
+  /** LaTeX the option was read from (as written, leading group included); kept while `text` matches it. */
   source?: string;
 }
 
@@ -31,6 +31,8 @@ export interface McOptionsParseResult {
    * at MC_MAX_COLUMNS). Stored only in the LaTeX body as \LoesungMulti[N].
    */
   columns: number | null;
+  /** A `\LoesungMulti{` whose group never closes, e.g. while it is being typed. */
+  malformed: boolean;
 }
 
 // `[N]` is optional: Loesung.sty defaults \LoesungMulti to 2 columns.
@@ -47,8 +49,8 @@ function scanOptions(tex: string): Required<McOption>[] {
   const starts = [...source.matchAll(OPTION_MACRO_RE)];
   return starts.map((m, k) => {
     const end = k + 1 < starts.length ? starts[k + 1].index : source.length;
-    const text = optionText(source.slice(m.index + m[0].length, end));
-    return { text: unescapeLatex(text), correct: m[1] === "Lmulti", source: text };
+    const raw = optionText(source.slice(m.index + m[0].length, end));
+    return { text: sourceText(raw), correct: m[1] === "Lmulti", source: raw };
   });
 }
 
@@ -74,19 +76,23 @@ function optionText(rest: string): string {
       break;
     }
   }
-  return unwrapLeadingGroup(rest.slice(0, end).trim());
+  return rest.slice(0, end).trim();
+}
+
+/** End of the `{…}` group `text` starts with, or -1 when it does not start with a closed one. */
+function leadingGroupEnd(text: string): number {
+  return text[0] === "{" ? closingBrace(text, 0) : -1;
 }
 
 /** A group prints its content: `{a}` → "a" (the editor's form), `{A} (2 P.)` → "A (2 P.)", `{} Ja` → "Ja". */
 function unwrapLeadingGroup(text: string): string {
-  if (text[0] !== "{") return text;
-  let depth = 0;
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === "\\") i++;
-    else if (text[i] === "{") depth++;
-    else if (text[i] === "}" && --depth === 0) return (text.slice(1, i) + text.slice(i + 1)).trim();
-  }
-  return text;
+  const close = leadingGroupEnd(text);
+  return close === -1 ? text : (text.slice(1, close) + text.slice(close + 1)).trim();
+}
+
+/** The plain text an option's source shows in the editor. */
+function sourceText(raw: string): string {
+  return unescapeLatex(unwrapLeadingGroup(raw));
 }
 
 /**
@@ -94,7 +100,7 @@ function unwrapLeadingGroup(text: string): string {
  * `\multi`/`\Lmulti` of the body, so this is what the OMR template's `optionIndex` refers to.
  */
 export function printedMcOptions(latexBody: string | undefined | null): McOption[] {
-  return scanOptions(latexBody || "").map(({ text, correct }) => ({ text, correct }));
+  return scanOptions(latexBody ?? "").map(({ text, correct }) => ({ text, correct }));
 }
 
 /**
@@ -105,13 +111,14 @@ export function printedMcOptions(latexBody: string | undefined | null): McOption
 export function parseMcOptions(latexBody: string | undefined | null): McOptionsParseResult {
   const body = latexBody || "";
   // Comments are blanked, not removed, so offsets in `masked` match `body`.
-  const masked = body.replace(COMMENT_RE, (m: string, pre: string, slashes: string) =>
+  // A block that starts but never closes (mid-edit) is `malformed`: callers must not rebuild from it.
+  const masked = body.replaceAll(COMMENT_RE, (m: string, pre: string, slashes: string) =>
     pre + slashes + " ".repeat(m.length - pre.length - slashes.length));
   const match = LOESUNG_MULTI_START_RE.exec(masked);
   const open = match ? match.index + match[0].length - 1 : -1;
   const close = open === -1 ? -1 : closingBrace(masked, open);
   if (!match || close === -1) {
-    return { questionText: body, options: [], trailingText: "", columns: null };
+    return { questionText: body, options: [], trailingText: "", columns: null, malformed: !!match };
   }
 
   const questionText = body.slice(0, match.index).trim();
@@ -119,7 +126,8 @@ export function parseMcOptions(latexBody: string | undefined | null): McOptionsP
   const options = scanOptions(body.slice(open + 1, close));
   const trailingText = body.slice(close + 1).trim();
 
-  return { questionText, options, trailingText, columns: storedColumns === autoColumns(options.length) ? null : storedColumns };
+  const columns = storedColumns === autoColumns(options.length) ? null : storedColumns;
+  return { questionText, options, trailingText, columns, malformed: false };
 }
 
 /** Index of the `}` closing the group opened at `open`, or -1 when it is never closed. */
@@ -142,9 +150,13 @@ function autoColumns(optionCount: number): number {
   return clampColumns(optionCount);
 }
 
-/** An option's LaTeX: its parsed source while the text is unchanged, else the escaped text. */
+/**
+ * An option's argument: its parsed source while the text is unchanged, else the escaped text. A
+ * source that is one group (`{a}`) is unwrapped; any other keeps its leading group's scope.
+ */
 function optionLatex(o: McOption): string {
-  return o.source !== undefined && unescapeLatex(o.source) === o.text ? o.source : escapeLatex(o.text);
+  if (o.source === undefined || sourceText(o.source) !== o.text) return escapeLatex(o.text);
+  return leadingGroupEnd(o.source) === o.source.length - 1 ? o.source.slice(1, -1) : o.source;
 }
 
 /**
