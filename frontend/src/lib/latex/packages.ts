@@ -168,7 +168,7 @@ export function splitOptions(options: string): string[] {
 // --- Package commands in exercise bodies ------------------------------------------------------------------------
 
 const PACKAGE_COMMAND =
-  /\\(usepackage|usetikzlibrary|usepgfplotslibrary)\s*(?:\[((?:[^[\]{}]|\{[^{}]*\})*)\])?\s*\{([^{}]*)\}/g;
+  /\\(usepackage|usetikzlibrary|usepgfplotslibrary)\s*(?:\[([^[\]{}]*(?:\{[^{}]*\}[^[\]{}]*)*)\]\s*)?\{([^{}]*)\}/g;
 const VERBATIM_BEGIN = /\\begin\s*\{(verbatim\*?|Verbatim|lstlisting|minted|comment)\}/;
 const INLINE_VERBATIM = /\\(?:verb\*?|lstinline(?:\[[^\]]*\])?)(?:\{[^}]*\}|([^\sa-zA-Z{])(?:(?!\1).)*\1)/g;
 const COMMENT = /(?<!\\)%/;
@@ -383,8 +383,10 @@ export interface PackageLine {
   commands: { kind: PackageKind; options: string; names: string[] }[];
 }
 
-const LINE_OF_COMMANDS =
-  /^\s*(?:\\(?:usepackage|usetikzlibrary|usepgfplotslibrary)\s*(?:\[(?:[^[\]{}]|\{[^{}]*\})*\])?\s*\{[^{}]*\}\s*)+$/;
+const ANY_PACKAGE_COMMAND = /\\use(?:package|tikzlibrary|pgfplotslibrary)/;
+
+/** True for a line that holds nothing but package commands (no regex over the whole line: it would backtrack). */
+const onlyPackageCommands = (text: string) => ANY_PACKAGE_COMMAND.test(text) && !text.replace(PACKAGE_COMMAND, "").trim();
 
 /** The editable package lines of `latex`; commands elsewhere (inline, verbatim) stay read-only. */
 export function packageLines(latex: string): PackageLine[] {
@@ -398,7 +400,7 @@ export function packageLines(latex: string): PackageLine[] {
     }
     const begin = VERBATIM_BEGIN.exec(text);
     if (begin && !text.includes(`\\end{${begin[1]}}`, begin.index)) verbatimEnd = `\\end{${begin[1]}}`;
-    if (!LINE_OF_COMMANDS.test(text)) return;
+    if (!onlyPackageCommands(text)) return;
     const commands = [...text.matchAll(PACKAGE_COMMAND)].map(([, command, rawOptions, rawArgument]) => {
       const kind = COMMAND_KIND[command as PackageCommand];
       return { kind, options: kind === "package" ? (rawOptions ?? "").trim() : "", names: splitNames(rawArgument) };

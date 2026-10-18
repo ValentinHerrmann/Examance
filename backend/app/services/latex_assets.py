@@ -31,7 +31,7 @@ def resolve_asset(relative_path: str) -> Path | None:
     return ASSETS_DIR / relative_path
 
 
-_REQUIRE_PACKAGE = re.compile(r"\\RequirePackage\s*(?:\[([^\]]*)\])?\s*\{([^}]*)\}")
+_REQUIRE_PACKAGE = re.compile(r"\\RequirePackage\s*(?:\[([^\]]*)\]\s*)?\{([^}]*)\}")
 _USE_TIKZ_LIBRARY = re.compile(r"\\usetikzlibrary\s*\{([^}]*)\}")
 _TEX_COMMENT = re.compile(r"(?<!\\)%.*$", re.MULTILINE)
 # Main template files first; the rest are bundled packages the template loads.

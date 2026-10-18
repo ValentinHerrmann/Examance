@@ -172,7 +172,7 @@ def split_options(options: str) -> list[str]:
 
 _PACKAGE_COMMAND = re.compile(
     r"\\(usepackage|usetikzlibrary|usepgfplotslibrary)\s*"
-    r"(?:\[((?:[^\[\]{}]|\{[^{}]*\})*)\])?\s*\{([^{}]*)\}"
+    r"(?:\[([^\[\]{}]*(?:\{[^{}]*\}[^\[\]{}]*)*)\]\s*)?\{([^{}]*)\}"
 )
 _VERBATIM_BEGIN = re.compile(r"\\begin\s*\{(verbatim\*?|Verbatim|lstlisting|minted|comment)\}")
 _INLINE_VERBATIM = re.compile(

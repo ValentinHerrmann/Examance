@@ -18,9 +18,16 @@
     templateNames?: ReadonlySet<string>;
     /** Shown instead of the list while it is empty. */
     emptyText?: string;
+    /** Called with the new list after each change, for callers that derive `entries` instead of binding it. */
+    onEntriesChange?: (entries: LatexPackageEntry[]) => void;
   }
 
-  let { entries = $bindable(), idPrefix, templateNames = new Set(), emptyText = "" }: Props = $props();
+  let { entries = $bindable(), idPrefix, templateNames = new Set(), emptyText = "", onEntriesChange }: Props = $props();
+
+  function commit(next: LatexPackageEntry[]) {
+    entries = next;
+    onEntriesChange?.(next);
+  }
 
   const sameKey = (a: LatexPackageEntry, b: LatexPackageEntry) => a.kind === b.kind && a.name === b.name;
 
@@ -31,18 +38,18 @@
   }
 
   function update(index: number, patch: Partial<LatexPackageEntry>) {
-    entries = entries.map((entry, i) => (i === index ? { ...entry, ...patch } : entry));
+    commit(entries.map((entry, i) => (i === index ? { ...entry, ...patch } : entry)));
   }
 
   function remove(index: number) {
-    entries = entries.filter((_, i) => i !== index);
+    commit(entries.filter((_, i) => i !== index));
   }
 
   /** Puts the cursor into the options of package `name`, adding it first (the template table's "add options"). */
   export async function focusOptions(name: string) {
     let index = entries.findIndex((e) => e.kind === "package" && e.name === name);
     if (index < 0) {
-      entries = [...entries, { kind: "package", name, options: "" }];
+      commit([...entries, { kind: "package", name, options: "" }]);
       index = entries.length - 1;
     }
     await tick();
@@ -104,5 +111,5 @@
     <p class="m-0 text-sm text-muted">{emptyText}</p>
   {/if}
 
-  <PackageAddForm onAdd={(entry) => (entries = [...entries, entry])} isDuplicate={(entry) => entries.some((e) => sameKey(e, entry))} />
+  <PackageAddForm onAdd={(entry) => commit([...entries, entry])} isDuplicate={(entry) => entries.some((e) => sameKey(e, entry))} />
 </div>

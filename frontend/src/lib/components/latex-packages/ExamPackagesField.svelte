@@ -124,7 +124,8 @@
       <div class="flex min-w-0 flex-col gap-1">
         <p class="m-0 text-xs font-medium text-muted">{$t("latexPackages.exam.additions")}</p>
         <PackageEntriesEditor
-          bind:entries={() => additions, (next) => write(next, omitted)}
+          entries={additions}
+          onEntriesChange={(next) => write(next, omitted)}
           idPrefix="exam-packages"
         />
       </div>

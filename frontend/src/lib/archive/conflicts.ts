@@ -75,7 +75,7 @@ async function perExam(
 /** An exam's package additions as one comparable line (issue #108). */
 const packageSummary = (entries: unknown) =>
   storedEntries(entries)
-    .map((e) => `${e.disabled ? '-' : ''}${e.name}${e.options ? `[${e.options}]` : ''}`)
+    .map((e) => (e.disabled ? '-' : '') + e.name + (e.options ? `[${e.options}]` : ''))
     .join(', ');
 
 const SPECS: KindSpec[] = [
