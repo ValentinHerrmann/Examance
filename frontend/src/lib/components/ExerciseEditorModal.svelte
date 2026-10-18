@@ -64,6 +64,8 @@
   let editorLatexBody = $state("");
   let editorQuestionType: "free_text" | "mc" = $state("free_text");
   let mcQuestionText = $state("");
+  /** LaTeX after the \LoesungMulti block; kept as is when the MC editor rebuilds the body. */
+  let mcTrailingText = $state("");
   let mcOptions: McOption[] = $state.raw([]);
   /** Column layout of the options: "auto" (one per option) or an explicit count, as a <select> value. */
   let mcColumns = $state("auto");
@@ -132,7 +134,13 @@
   }
 
   function insertResourceSnippet(snippet: string) {
-    editorLatexBody = `${editorLatexBody}\n${snippet}\n`;
+    if (editorQuestionType === "free_text") {
+      editorLatexBody = `${editorLatexBody}\n${snippet}\n`;
+      return;
+    }
+    // MC: into the question, above the answer boxes.
+    mcQuestionText = `${mcQuestionText}\n${snippet}`;
+    regenerateMcLatex();
   }
 
   function handleToggleLatex() {
@@ -223,9 +231,10 @@
     return setCompetencies(setRequirementLevel(latex, null), []);
   }
 
-  function syncMcStateFromLatex() {
-    const parsed = parseMcOptions(withoutMetaTags(editorLatexBody));
+  function syncMcStateFromLatex(latex: string = editorLatexBody) {
+    const parsed = parseMcOptions(withoutMetaTags(latex));
     mcQuestionText = parsed.questionText;
+    mcTrailingText = parsed.trailingText;
     mcOptions = parsed.options;
     mcColumns = parsed.columns === null ? "auto" : String(parsed.columns);
   }
@@ -236,8 +245,14 @@
       mcQuestionText,
       mcOptions,
       mcColumns === "auto" ? null : Number(mcColumns),
+      mcTrailingText,
     );
     editorLatexBody = setCompetencies(setRequirementLevel(body, meta.levels[0] ?? null), meta.competencies);
+  }
+
+  // Typing in the composed LaTeX updates the MC editor, so its next change rebuilds from this text.
+  function handleLatexBodyEdit(latex: string) {
+    if (editorQuestionType !== "free_text") syncMcStateFromLatex(latex);
   }
 
   function handleStructureChange(latex: string) {
@@ -399,6 +414,8 @@
     }
 
     if (editorQuestionType !== "free_text") {
+      // The LaTeX is what gets saved: read the options from it rather than rebuilding it.
+      syncMcStateFromLatex();
       if (mcOptions.length < MC_MIN_OPTIONS) {
         errorMsg = translate("exercises.editor.mcMinOptions");
         return;
@@ -407,7 +424,6 @@
         errorMsg = translate("exercises.editor.mcCorrectRequired");
         return;
       }
-      regenerateMcLatex();
     }
 
     if (editorTopicTag) recordValue("exercise.topic", editorTopicTag);
@@ -867,7 +883,7 @@
               <div class="flex items-center justify-between px-1 text-xs">
                 <span class="font-semibold text-content">{$t("exercises.editor.latexPreviewLabel")}</span>
               </div>
-              <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert />
+              <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert onChange={handleLatexBodyEdit} />
 
               <ExerciseResourcePanel
                 exerciseId={resourceStagingId}

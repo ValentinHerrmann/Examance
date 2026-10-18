@@ -40,7 +40,7 @@
 <script lang="ts">
   import { onMount, onDestroy, untrack } from "svelte";
   import { EditorView, BlockType, keymap, drawSelection, lineNumbers } from "@codemirror/view";
-  import { EditorState, EditorSelection, Compartment } from "@codemirror/state";
+  import { Annotation, EditorState, EditorSelection, Compartment } from "@codemirror/state";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
   import { StreamLanguage, syntaxHighlighting } from "@codemirror/language";
   import {
@@ -62,6 +62,7 @@
     showQuickInsert?: boolean;
     /** Called when CodeMirror re-measures line heights (re-wrap, resize, edit). */
     onGeometryChange?: (() => void) | null;
+    /** The user changed the text (typing or the quick-insert bar); not called when `value` is set from outside. */
     onChange?: (value: string) => void;
     onScroll?: (detail: { scrollTop: number; scrollLeft: number }) => void;
   }
@@ -146,6 +147,9 @@
     }
     hoveredMacro = null;
   }
+
+  // Marks the dispatch that mirrors an outside `value` change, so it does not count as an edit.
+  const externalSync = Annotation.define<boolean>();
 
   let container: HTMLDivElement | undefined = $state();
   let view: EditorView | null = $state.raw(null);
@@ -269,7 +273,7 @@
           if (update.docChanged) {
             isInternalUpdate = true;
             value = update.state.doc.toString();
-            onChange?.(value);
+            if (!update.transactions.some((tr) => tr.annotation(externalSync))) onChange?.(value);
             isInternalUpdate = false;
           }
           if (update.geometryChanged || update.heightChanged) {
@@ -322,7 +326,8 @@
       const currentDoc = v.state.doc.toString();
       if (currentDoc !== next) {
         v.dispatch({
-          changes: { from: 0, to: currentDoc.length, insert: next }
+          changes: { from: 0, to: currentDoc.length, insert: next },
+          annotations: externalSync.of(true)
         });
       }
     });
