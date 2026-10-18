@@ -22,6 +22,8 @@
   import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import ExerciseResourcePanel from "#lib/components/exercise/ExerciseResourcePanel.svelte";
+  import ExerciseStructurePanel from "#lib/components/exercise/ExerciseStructurePanel.svelte";
+  import { parseExerciseStructure, setCompetencies, setRequirementLevel } from "#lib/latex/exerciseStructure";
   import LatexEditor from "./LatexEditor.svelte";
   import DualPdfPreview from "./DualPdfPreview.svelte";
   import SuggestInput from "#lib/components/common/SuggestInput.svelte";
@@ -216,19 +218,31 @@
     }
   }
 
+  /** MC LaTeX is rebuilt from question text and options; the AFB/competency tags travel separately. */
+  function withoutMetaTags(latex: string): string {
+    return setCompetencies(setRequirementLevel(latex, null), []);
+  }
+
   function syncMcStateFromLatex() {
-    const parsed = parseMcOptions(editorLatexBody);
+    const parsed = parseMcOptions(withoutMetaTags(editorLatexBody));
     mcQuestionText = parsed.questionText;
     mcOptions = parsed.options;
     mcColumns = parsed.columns === null ? "auto" : String(parsed.columns);
   }
 
   function regenerateMcLatex() {
-    editorLatexBody = buildMcOptionsLatex(
+    const meta = parseExerciseStructure(editorLatexBody);
+    const body = buildMcOptionsLatex(
       mcQuestionText,
       mcOptions,
       mcColumns === "auto" ? null : Number(mcColumns),
     );
+    editorLatexBody = setCompetencies(setRequirementLevel(body, meta.levels[0] ?? null), meta.competencies);
+  }
+
+  function handleStructureChange(latex: string) {
+    editorLatexBody = latex;
+    if (editorQuestionType !== "free_text") syncMcStateFromLatex();
   }
 
   function handleQuestionTypeChange() {
@@ -750,7 +764,12 @@
               >{isPreviewLoading ? $t("exercises.editor.previewButtonLoading") : $t("exercises.editor.previewButton")}</Button>
             </div>
 
-            <div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden p-2">
+            <div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
+              <ExerciseStructurePanel
+                latex={editorLatexBody}
+                isMc={editorQuestionType !== "free_text"}
+                onChange={handleStructureChange}
+              />
               {#if editorQuestionType !== "free_text"}
                 <div class="flex flex-col gap-3 rounded-md border border-line bg-surface-raised p-3 text-xs">
                   <div class="flex flex-wrap items-center justify-between gap-x-3">

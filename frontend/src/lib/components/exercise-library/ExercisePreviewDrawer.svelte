@@ -2,6 +2,7 @@
   import type { ExerciseRecord } from "#lib/db/schema";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
   import LatexViewer from "#lib/components/LatexViewer.svelte";
+  import ExerciseMetaBadges from "#lib/components/exercise/ExerciseMetaBadges.svelte";
   import { t } from "#lib/i18n";
   import { faCheck } from "@fortawesome/free-solid-svg-icons";
   import { Modal, Button, Badge } from "#lib/components/ui";
@@ -43,6 +44,7 @@
         {#if previewModalEx.questionType}
           <Badge severity="contrast">{previewModalEx.questionType}</Badge>
         {/if}
+        <ExerciseMetaBadges latex={previewModalEx.latexBody} />
       </div>
     </div>
   {/snippet}

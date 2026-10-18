@@ -37,6 +37,16 @@ export const editor: Translations['editor'] = {
         be: { label: 'Full point', description: 'Award 1 point.' },
         hbe: { label: 'Half point', description: 'Award 0.5 points.' },
         qbe: { label: 'Quarter point', description: 'Award 0.25 points.' },
+        teilaufgabe: {
+            label: 'Part exercise',
+            description: 'Part a), b), … with a subtitle and its own score box.',
+        },
+        'feste-punkte': {
+            label: 'Fixed score',
+            description: 'Fix the score of the exercise or part instead of counting scoring units.',
+        },
+        afb: { label: 'Requirement level', description: 'AFB I, II or III; shown only on the solution sheet.' },
+        kompetenz: { label: 'Competency', description: 'Competency assessed; shown only on the solution sheet.' },
         textbf: { label: 'Bold text', description: 'Bold text.' },
         textit: { label: 'Italic text', description: 'Italic text.' },
         textcolor: {

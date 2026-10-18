@@ -1,29 +1,15 @@
 /**
- * Pure helper to parse exercise max_points from LaTeX: `\begin{Aufgabe}[N]` override returns N;
- * else \BE +1, \Lmulti +1, \hBE +0.5, \qBE +0.25.
+ * Parses an exercise's max_points from its LaTeX: a fixed score (`\begin{Aufgabe}[N]` or
+ * `\FestePunkte{N}`) wins; else \BE and \Lmulti +1, \hBE +0.5, \qBE +0.25, with part exercises
+ * contributing their own fixed scores (see exerciseStructure.ts).
  */
 
 import { usesAlphaLabels } from "#lib/grading/mcGroupLabels";
+import { parseExerciseStructure } from "#lib/latex/exerciseStructure";
 
 export function parseExerciseScore(latex: string): number {
   if (!latex) return 0;
-
-  const override = latex.match(/\\begin\{Aufgabe\}\[([\d.]+)\]/);
-  if (override && override[1]) {
-    const parsed = parseFloat(override[1]);
-    if (!isNaN(parsed)) return parsed;
-  }
-
-  const beMatches = latex.match(/\\BE\b/g);
-  const lmultiMatches = latex.match(/\\Lmulti\b/g);
-  const halfMatches = latex.match(/\\hBE\b/g);
-  const quartMatches = latex.match(/\\qBE\b/g);
-
-  const full = (beMatches ? beMatches.length : 0) + (lmultiMatches ? lmultiMatches.length : 0);
-  const half = halfMatches ? halfMatches.length : 0;
-  const quart = quartMatches ? quartMatches.length : 0;
-
-  return full * 1.0 + half * 0.5 + quart * 0.25;
+  return parseExerciseStructure(latex).score;
 }
 
 const TEX_ESCAPE_MAP: Record<string, string> = {

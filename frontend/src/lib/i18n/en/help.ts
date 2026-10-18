@@ -29,6 +29,9 @@ export const help: Translations['help'] = {
         latexServer: 'The server typesets the exam. Faster on low-spec hardware, but the LaTeX source is transmitted.',
         variantKey: 'Variants are different phrasings of the same exercise (group A/B/C). They share grading and statistics while making copying harder.',
         mcPenalty: 'Points deducted for a wrongly ticked option. 0 means no negative marking. An exercise total never drops below zero.',
+        exerciseScore: 'Counts \\BE (1 point), \\hBE (0.5) and \\qBE (0.25) in the source, and every correct option in MC questions. A fixed score replaces the counted one; clear the field to count again.',
+        requirementLevel: 'Requirement level I: reproduce, II: apply and transfer, III: reflect and solve problems. Shown only on the solution sheet.',
+        partExercises: 'Parts a), b), c) get their own subtitle and score box. An empty score counts the part’s scoring units.',
         blindGrading: 'During grading only the pseudonym is shown, never the name. Result and person are re-linked only after the grading pass.',
         pseudonymQr: 'Every sheet carries a QR code for exam, variant and student slot. Scanning splits the stack along those codes and assigns the pages automatically.',
         gradingKey: 'The grading key decides which score earns which grade — linear, upper-secondary weighted, or with your own cutoffs.',
@@ -118,6 +121,12 @@ export const help: Translations['help'] = {
                 h: 'Exporting (ZIP)',
                 p1: '“Export (ZIP)” on an exercise group downloads all current exercises of the group as readable LaTeX: one folder per exercise with exercise.tex and its files (e.g. images), plus a document with all exercises of the group and a manifest.json with the metadata. Optionally the bundled LaTeX files (sty) and the compiled PDFs (task sheet and solution) are added; compiling can take a few minutes for many exercises.',
                 p2: '“Export library” downloads all your own exercise groups with their files and the bundled LaTeX files as one ZIP, without PDFs. The folder can be uploaded to Overleaf or compiled locally with XeLaTeX (see README.txt). Unlike the encrypted archive (.bgproj), this ZIP cannot be imported again.',
+            },
+            s8: {
+                h: 'Scores, part exercises and requirement levels',
+                p1: 'An exercise’s score comes from the scoring units in its source: \\BE counts one point, \\hBE half a point, \\qBE a quarter, and in multiple-choice questions every correct option counts one. Place them where the solution earns the point; the solution sheet shows them as ticks. The “Score & structure” section in the editor shows how the score is made up and lets you fix it to a set value.',
+                p2: '“Add part” splits an exercise into a), b), c), each with its own subtitle and score box. The parts add up to the exercise’s score, and a single part’s score can be fixed as well. Grading still happens per exercise.',
+                p3: 'Requirement level (AFB I reproduction, II reorganisation and transfer, III reflection and problem solving) and competencies can be set for the whole exercise or per part. They are stored as \\AFB{…} and \\Kompetenz{…} in the source, appear only on the solution sheet, and travel with the exercise into variants, copies and archives.',
             },
         },
         examCreation: {

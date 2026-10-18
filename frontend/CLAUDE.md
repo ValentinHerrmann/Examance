@@ -61,6 +61,10 @@ UI text lives in typed catalogs under `src/lib/i18n/`; language toggle in `AppNa
 - `examItems` (the exam page's item order) is view state, rebuilt on load from persisted `order_index` via `buildExamItems()`. Group members share their group's `order_index`.
 - OMR detection internals: `docs/dev/omr.md`. Training-data donation: `docs/dev/training_donation.md`.
 
+## Exercise structure (issues #77-#79)
+
+Part exercises (`\begin{Teilaufgabe}[fixed]{subtitle}`, a/b/c with own score box), fixed scores (`\FestePunkte{N}` or the `[N]` option), requirement level (`\AFB{I|II|III}`) and competencies (`\Kompetenz{…}`) are LaTeX macros in `Schulaufgabe.sty`; there are no DB columns, so they travel with variants, copies, sharing and archives. The editor reads and writes them only through `lib/latex/exerciseStructure.ts` (`parseExerciseScore` delegates to it; its counting must match the `.sty`). Grading stays per exercise. MC bodies are rebuilt from question + options, so the editor strips and re-applies the AFB/competency tags around `buildMcOptionsLatex`.
+
 ## LaTeX resource files
 
 Teacher-uploaded files an exercise's LaTeX references (`\includegraphics{figure.png}`, `\input{data.tex}`). Any type except SVG (refused with a convert-to-PDF hint: `src/lib/latex/resources.ts`, mirrored in `backend/app/services/latex_resources.py`; keep the two in sync).

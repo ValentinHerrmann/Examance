@@ -148,6 +148,34 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
     args: [],
     buildTemplate: () => ({ text: "\\qBE", argOffsets: [] })
   },
+  {
+    id: "teilaufgabe",
+    category: "scoring",
+    preview: "\\begin{Teilaufgabe}{subtitle}...\\end{Teilaufgabe}",
+    args: [{ placeholder: "Teilaufgabe" }],
+    buildTemplate: (a) => templateJoin(["\\begin{Teilaufgabe}{", "}\n\n\\end{Teilaufgabe}"], a)
+  },
+  {
+    id: "feste-punkte",
+    category: "scoring",
+    preview: "\\FestePunkte{N}",
+    args: [{ placeholder: "2" }],
+    buildTemplate: (a) => templateJoin(["\\FestePunkte{", "}"], a)
+  },
+  {
+    id: "afb",
+    category: "scoring",
+    preview: "\\AFB{II}",
+    args: [{ placeholder: "II" }],
+    buildTemplate: (a) => templateJoin(["\\AFB{", "}"], a)
+  },
+  {
+    id: "kompetenz",
+    category: "scoring",
+    preview: "\\Kompetenz{text}",
+    args: [{ placeholder: "Kompetenz" }],
+    buildTemplate: (a) => templateJoin(["\\Kompetenz{", "}"], a)
+  },
 
   // --- formatting ---
   {

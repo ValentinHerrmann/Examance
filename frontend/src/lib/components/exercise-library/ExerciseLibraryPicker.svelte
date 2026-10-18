@@ -6,6 +6,7 @@
   import { t } from "#lib/i18n";
   import { faPenToSquare, faEye, faCheck } from "@fortawesome/free-solid-svg-icons";
   import { Button, Badge, Checkbox, Icon, TextInput, Select } from "#lib/components/ui";
+  import ExerciseMetaBadges from "#lib/components/exercise/ExerciseMetaBadges.svelte";
 
   interface Props {
     filteredGroups: ExerciseGroup[];
@@ -199,6 +200,8 @@
             {#if isMc}
               <Badge size="xs" severity="warning">MC</Badge>
             {/if}
+
+            <ExerciseMetaBadges latex={activeEx?.latexBody} size="xs" />
 
             {#if ownerGroup !== undefined}
               <Badge size="xs" severity="warning">

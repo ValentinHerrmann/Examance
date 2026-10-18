@@ -41,6 +41,16 @@ export const editor = {
         be: { label: 'Ganzer Punkt', description: '1 Punkt vergeben.' },
         hbe: { label: 'Halber Punkt', description: '0,5 Punkte vergeben.' },
         qbe: { label: 'Viertelpunkt', description: '0,25 Punkte vergeben.' },
+        teilaufgabe: {
+            label: 'Teilaufgabe',
+            description: 'Teilaufgabe a), b), … mit Unterüberschrift und eigenem Punktekästchen.',
+        },
+        'feste-punkte': {
+            label: 'Feste Punktzahl',
+            description: 'Punktzahl der Aufgabe bzw. Teilaufgabe fest vorgeben, statt Bewertungseinheiten zu zählen.',
+        },
+        afb: { label: 'Anforderungsbereich', description: 'AFB I, II oder III; nur im Erwartungshorizont sichtbar.' },
+        kompetenz: { label: 'Kompetenz', description: 'Geprüfte Kompetenz; nur im Erwartungshorizont sichtbar.' },
         textbf: { label: 'Fetter Text', description: 'Fetter Text.' },
         textit: { label: 'Kursiver Text', description: 'Kursiver Text.' },
         textcolor: {
