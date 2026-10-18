@@ -431,8 +431,9 @@
 % ==============================================================================
 % 10. Packages Loaded by Exercises
 % ==============================================================================
-% The compile copies the \usepackage lines of exercise bodies into the preamble (issue #108, lib/latex/preamble.ts,
-% app/services/latex_preamble.py), so in the body they are no-ops. inputenc/fontenc are pdfLaTeX-only and skipped.
+% The compile loads the packages named by \usepackage lines of exercise bodies in the preamble (issue #108,
+% lib/latex/packages.ts, app/services/latex_packages.py), so in the body they are no-ops. Skipped there:
+% inputenc/fontenc (pdfLaTeX only) and enumerate (enumitem's shortlabels option replaces it).
 \ifdefined\AddToHook % LaTeX 2020-10 or newer; older kernels keep the plain "preamble only" error
 \ExplSyntaxOn
 \NewDocumentCommand \SchulaufgabeBodyUsepackage { O{} m O{} }
@@ -441,11 +442,14 @@
       {
         \cs_if_exist:cF { ver@ ##1 .sty }
           {
-            \clist_if_in:nnF { inputenc, fontenc } {##1}
+            \clist_if_in:nnF { inputenc, fontenc, enumerate } {##1}
               {
                 \PackageError {Schulaufgabe}
-                  { \token_to_str:N \usepackage \c_space_tl of~package~`##1'~has~to~be~written~on~a~single~line }
-                  { The~compile~moves~package~lines~of~an~exercise~into~the~preamble,~one~line~at~a~time. }
+                  {
+                    Package~`##1'~was~not~loaded:~write~its~\token_to_str:N \usepackage \c_space_tl
+                    on~one~line~or~see~the~LaTeX~package~settings
+                  }
+                  { The~compile~loads~exercise~packages~in~the~preamble,~one~line~at~a~time,~unless~unsupported. }
               }
           }
       }

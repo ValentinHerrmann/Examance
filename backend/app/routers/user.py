@@ -309,6 +309,8 @@ async def export_own_data(
                 if logo is None
                 else {"mode": logo.mode, "file": _logo_export(logo.mime_type, logo.content)}
             ),
+            # Packages added to every exam document (issue #108); null means none.
+            "latex_packages": teacher.latex_packages,
         },
         "exams": [
             {
@@ -324,6 +326,8 @@ async def export_own_data(
                 "deleted_at": exam.deleted_at.isoformat() if exam.deleted_at else None,
                 # "account": prints the account's exam_logo; "none": no logo; "custom": own file.
                 "logo": _exam_logo_export(exam_logos.get(exam.id)),
+                # Package entries on top of the account's; null follows the account.
+                "latex_packages": exam.latex_packages,
             }
             for exam in exams
         ],

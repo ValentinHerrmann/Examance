@@ -30,9 +30,11 @@ from app.schemas.exam import (
     ExamUpdate,
     ExerciseResponse,
 )
+from app.schemas.latex_packages import LatexPackageEntry
 from app.services.capabilities import require_server_latex
 from app.services.exercise_resource_store import load_resources_for_exercises
 from app.services.latex import CompilationError, compile_exam_latex
+from app.services.latex_packages import stored_entries
 from app.services.latex_resources import ResourceError
 from app.services.latex_score import parse_exercise_score
 from app.services.logo import resolve_logo
@@ -72,6 +74,21 @@ def _to_exercise_response(
 ExerciseRow = tuple[Exercise, int, uuid.UUID | None, int | None]
 
 
+def _stored_packages(value: object) -> list[LatexPackageEntry] | None:
+    """The exam's package override for responses; null when it follows the account."""
+    if value is None:
+        return None
+    return [
+        LatexPackageEntry(kind=e.kind, name=e.name, options=e.options, disabled=e.disabled)
+        for e in stored_entries(value)
+    ]
+
+
+def _packages_column(entries: list[LatexPackageEntry] | None) -> list[dict[str, Any]] | None:
+    # An empty override prints the same as none, so it is stored as "follows the account".
+    return [entry.model_dump() for entry in entries] if entries else None
+
+
 def _to_exam_response(
     e: Exam,
     exercises: list[ExerciseRow],
@@ -100,6 +117,7 @@ def _to_exam_response(
         lehrernachname=e.lehrernachname,
         info_text=e.info_text,
         grading_key=e.grading_key,
+        latex_packages=_stored_packages(e.latex_packages),
         exercises=[_to_exercise_response(ex, idx, gid, sidx) for ex, idx, gid, sidx in exercises],
         mc_groups=[
             ExamMcGroupResponse(
@@ -338,6 +356,7 @@ async def create_exam(
         "lehrernachname": body.lehrernachname,
         "info_text": body.info_text,
         "grading_key": body.grading_key,
+        "latex_packages": _packages_column(body.latex_packages),
     }
     if body.id:
         kwargs["id"] = body.id
@@ -486,6 +505,8 @@ async def update_exam(
         exam.info_text = body.info_text
     if body.grading_key is not None:
         exam.grading_key = body.grading_key
+    if "latex_packages" in body.model_fields_set:
+        exam.latex_packages = _packages_column(body.latex_packages)
 
     if body.mc_groups is not None:
         # Detach the links before dropping the groups. exam_exercises.mc_group_id
@@ -591,6 +612,7 @@ async def compile_exam_endpoint(
             show_answers=answers,
             binary_files=binary_files,
             logo=logo,
+            account_packages=teacher.latex_packages,
         )
         exam.compilation_status = "compiled"
         await db.flush()
