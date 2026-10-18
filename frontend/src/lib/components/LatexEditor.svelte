@@ -53,6 +53,9 @@
   import { computeQuickInsert } from "#lib/latex/quickInsertLogic";
   import { t, type TranslationKey } from "#lib/i18n";
   import { theme } from "#lib/stores/theme";
+  import { Icon } from "#lib/components/ui";
+  import { safeLocalStorage } from "#lib/utils/storage";
+  import { faChevronDown, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 
   interface Props {
     value?: string;
@@ -150,6 +153,21 @@
 
   // Marks the dispatch that mirrors an outside `value` change, so it does not count as an edit.
   const externalSync = Annotation.define<boolean>();
+
+  // The palette's many buttons pushed the code out of view on phones and short laptops: it starts
+  // folded unless the screen is large, and an explicit toggle is remembered.
+  const PALETTE_KEY = "bg_latex_palette_open";
+  function initialPaletteOpen(): boolean {
+    const saved = safeLocalStorage.getItem(PALETTE_KEY);
+    if (saved !== null) return saved === "true";
+    return typeof window !== "undefined" && window.innerWidth >= 1280 && window.innerHeight >= 900;
+  }
+  let paletteOpen = $state(initialPaletteOpen());
+
+  function togglePalette() {
+    paletteOpen = !paletteOpen;
+    safeLocalStorage.setItem(PALETTE_KEY, String(paletteOpen));
+  }
 
   let container: HTMLDivElement | undefined = $state();
   let view: EditorView | null = $state.raw(null);
@@ -361,7 +379,16 @@
   style="min-height: {wrapperMinHeight}"
 >
   {#if showQuickInsert && !readonly}
-    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface-raised px-2 py-1.5">
+    <button
+      type="button"
+      class="flex w-full shrink-0 cursor-pointer items-center gap-1.5 border-0 border-b border-line bg-surface-raised px-2 py-1.5 text-left text-xs font-semibold text-accent pointer-coarse:min-h-11"
+      aria-expanded={paletteOpen}
+      onclick={togglePalette}
+    >
+      <Icon icon={paletteOpen ? faChevronDown : faChevronRight} />
+      {$t("editor.quickInsertToggle")}
+    </button>
+    <div class="{paletteOpen ? 'flex' : 'hidden'} shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface-raised px-2 py-1.5">
       {#each macroCategories as { category, macros } (category)}
         {#if macros.length > 0}
           <div class="flex flex-wrap items-center gap-1">

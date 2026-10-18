@@ -1,4 +1,6 @@
 export const editor = {
+    /** Button that folds/unfolds the quick-insert palette. */
+    quickInsertToggle: 'LaTeX-Bausteine einfügen',
     /** Quick-insert palette category headings. */
     categories: {
         solutions: 'Lösungen',

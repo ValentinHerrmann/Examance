@@ -32,7 +32,7 @@
   import { t, translate } from "#lib/i18n";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
   import { ConfirmDialog, Alert, Badge, Button, Checkbox, Icon, Modal, Select, TextInput, controlClass, controlSmClass } from "#lib/components/ui";
-  import { faBook, faChevronLeft, faChevronRight, faCode, faPlus, faTag, faXmark } from "@fortawesome/free-solid-svg-icons";
+  import { faBook, faChevronDown, faChevronLeft, faChevronRight, faCode, faPlus, faTag, faXmark } from "@fortawesome/free-solid-svg-icons";
 
   interface Props {
     isOpen?: boolean;
@@ -114,6 +114,8 @@
   let showAngabePreview = $state(false);
   let showLoesungPreview = $state(false);
   let showLatexPanel = $state(true);
+  /** Phones: the metadata fields fold into a one-line summary so the code editor gets the screen. */
+  let showMetaFields = $state(false);
   let hasAnyPreview = $derived(showAngabePreview || showLoesungPreview);
   let isSaving = $state(false);
   let errorMsg = $state("");
@@ -591,13 +593,13 @@
     }
   }
 
+  // Below `@3xl` the column takes its natural height inside the body's scroller; from `@3xl` it fills
+  // its half and scrolls on its own.
   const editorColumnBase =
-    "flex flex-col h-full min-h-0 overflow-hidden rounded-md border border-line bg-surface-sunken transition-all duration-200";
-  // Below `@3xl` this column stacks above DualPdfPreview (which has its own 18rem floor);
-  // `overflow-hidden` zeroes this column's auto minimum, so it needs a matching floor on phones.
+    "flex flex-col shrink-0 rounded-md border border-line bg-surface-sunken transition-all duration-200 @3xl:h-full @3xl:min-h-0 @3xl:overflow-hidden";
   let editorColumnClass = $derived(showLatexPanel
-    ? `${editorColumnBase} min-h-80 flex-1 min-w-0 p-0 gap-0 @3xl:min-h-0`
-    : `${editorColumnBase} w-full h-10 flex-none min-w-0 p-0 @3xl:h-full @3xl:w-10 @3xl:min-w-10`);
+    ? `${editorColumnBase} min-w-0 p-0 gap-0 @3xl:flex-1 @3xl:shrink`
+    : `${editorColumnBase} w-full h-10 flex-none min-w-0 p-0 overflow-hidden @3xl:w-10 @3xl:min-w-10`);
 
   $effect.pre(() => {
     const open = isOpen;
@@ -633,7 +635,20 @@
 
     <div class="flex h-full max-h-full w-full flex-col overflow-hidden">
       <div class="shrink-0 border-b border-line px-4 pb-3">
-        <div class="flex flex-wrap items-center gap-3 rounded-md border border-line bg-surface-sunken px-3 py-2">
+        <button
+          type="button"
+          class="flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md border border-line bg-surface-sunken px-3 py-2 text-left text-sm @3xl:hidden"
+          aria-expanded={showMetaFields}
+          onclick={() => (showMetaFields = !showMetaFields)}
+        >
+          <Icon icon={showMetaFields ? faChevronDown : faChevronRight} class="shrink-0 text-muted" />
+          <span class="min-w-0 flex-1 truncate">
+            <strong class="font-semibold text-content">{editorName || $t("exercises.untitled")}</strong>
+            <span class="text-muted"> · {editorTopicTag}</span>
+          </span>
+          <span class="shrink-0 text-xs text-accent">{$t("exercises.editor.metaToggle")}</span>
+        </button>
+        <div class="{showMetaFields ? 'flex' : 'hidden'} mt-2 flex-wrap items-center gap-3 rounded-md border border-line bg-surface-sunken px-3 py-2 @3xl:mt-0 @3xl:flex">
           {#if editingExercise || isCreatingVersion}
             <div class="flex flex-wrap items-center gap-2 text-sm">
               <span class="text-xs text-muted">{$t("exercises.editor.groupLabel")}</span>
@@ -763,7 +778,8 @@
         </Alert>
       {/if}
 
-      <div class="flex min-h-0 flex-1 flex-col gap-4 p-4 @3xl:flex-row @3xl:overflow-hidden">
+      <!-- Phones: one natural scroller (no nested fixed-height panes); from @3xl two fixed columns. -->
+      <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 @3xl:flex-row @3xl:overflow-hidden">
         <div class={editorColumnClass}>
           {#if showLatexPanel}
             <div class="flex w-full shrink-0 items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-2">
@@ -774,9 +790,12 @@
                 title={$t("exercises.editor.collapseLatexTitle")}
               >
                 <span class="whitespace-nowrap text-sm font-semibold text-content">{$t("exercises.editor.latexSourceCodeLabel")}</span>
-                <Badge severity="primary" size="xs">
-                  {$t("exercises.editor.autoScoreLabel", { score: parseExerciseScore(editorLatexBody) })}
-                </Badge>
+                <!-- Phones show the score in the structure panel; here it ran under the preview button. -->
+                <span class="hidden @3xl:inline-flex">
+                  <Badge severity="primary" size="xs">
+                    {$t("exercises.editor.autoScoreLabel", { score: parseExerciseScore(editorLatexBody) })}
+                  </Badge>
+                </span>
                 <Icon icon={faChevronRight} class="shrink-0 text-muted group-hover:text-accent" />
               </button>
               <Button
@@ -787,7 +806,7 @@
               >{isPreviewLoading ? $t("exercises.editor.previewButtonLoading") : $t("exercises.editor.previewButton")}</Button>
             </div>
 
-            <div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
+            <div class="flex flex-col gap-1.5 p-2 @3xl:min-h-0 @3xl:flex-1 @3xl:overflow-y-auto">
               <ExerciseStructurePanel
                 latex={editorLatexBody}
                 isMc={editorQuestionType !== "free_text"}
@@ -894,7 +913,10 @@
               <div class="flex items-center justify-between px-1 text-xs">
                 <span class="font-semibold text-content">{$t("exercises.editor.latexPreviewLabel")}</span>
               </div>
-              <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert onChange={handleLatexBodyEdit} />
+              <!-- shrink-0: in the column's scroller the editor keeps its height instead of being squeezed under the panels below. -->
+              <div class="flex shrink-0 flex-col">
+                <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert onChange={handleLatexBodyEdit} />
+              </div>
 
               <ExerciseResourcePanel
                 exerciseId={resourceStagingId}

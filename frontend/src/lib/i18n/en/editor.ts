@@ -1,6 +1,7 @@
 import type { Translations } from '../types';
 
 export const editor: Translations['editor'] = {
+    quickInsertToggle: 'Insert LaTeX snippets',
     categories: {
         solutions: 'Solutions',
         scoring: 'Scoring',

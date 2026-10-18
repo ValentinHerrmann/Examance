@@ -46,6 +46,7 @@ export const exercises = {
         previewButton: 'Live-Vorschau PDF',
         previewButtonLoading: 'Kompiliert...',
         mcEditorTitle: 'Strukturierter Optionen-Editor (MC)',
+        metaToggle: 'Details',
         mcEditorHint: 'Mehrere korrekte Optionen sind erlaubt',
         mcBlockMalformed: String.raw`Der \LoesungMulti-Block im LaTeX-Code ist nicht geschlossen (fehlt eine } oder steht ein ungeschütztes %?). Bis er wieder vollständig ist, ändert dieser Editor den Code nicht.`,
         mcQuestionTextLabel: 'Fragetext / Einleitung',

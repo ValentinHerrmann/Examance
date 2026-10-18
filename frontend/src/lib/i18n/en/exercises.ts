@@ -48,6 +48,7 @@ export const exercises: Translations['exercises'] = {
         previewButton: 'Live preview PDF',
         previewButtonLoading: 'Compiling...',
         mcEditorTitle: 'Structured options editor (MC)',
+        metaToggle: 'Details',
         mcEditorHint: 'Multiple correct options are allowed',
         mcBlockMalformed: String.raw`The \LoesungMulti block in the LaTeX code is not closed (a missing } or an unescaped %?). Until it is complete again, this editor leaves the code unchanged.`,
         mcQuestionTextLabel: 'Question text / introduction',
