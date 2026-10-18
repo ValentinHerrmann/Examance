@@ -44,35 +44,43 @@ def _names(argument: str) -> list[str]:
     return [name.strip() for name in argument.split(",") if name.strip()]
 
 
+def _file_order(path: Path) -> tuple[int, str]:
+    return (_TEMPLATE_ORDER.index(path.stem) if path.stem in _TEMPLATE_ORDER else 99, path.stem)
+
+
+def _read_template_file(
+    path: Path,
+    packages: dict[str, dict[str, str | None]],
+    libraries: dict[str, dict[str, str | None]],
+) -> None:
+    text = _TEX_COMMENT.sub("", path.read_text(encoding="utf-8", errors="replace"))
+    for options, argument in _REQUIRE_PACKAGE.findall(text):
+        for name in _names(argument):
+            if name.startswith("sty/") or name in FORBIDDEN_PACKAGES:
+                continue
+            packages.setdefault(
+                name,
+                {
+                    "name": name,
+                    "options": " ".join(options.split()),
+                    "source": path.stem,
+                    "locked": LOCKED_PACKAGES.get(name),
+                },
+            )
+    for argument in _USE_TIKZ_LIBRARY.findall(text):
+        for name in _names(argument):
+            libraries.setdefault(name, {"name": name, "source": path.stem})
+
+
 @lru_cache(maxsize=1)
 def template_packages() -> dict[str, list[dict[str, str | None]]]:
     """Packages and TikZ libraries the bundled .sty files load, for the settings overview (#108).
 
     Read from the files themselves so the list cannot drift; pdfLaTeX-only loads are left out."""
-    files = sorted(
-        (ASSETS_DIR / "sty").glob("*.sty"),
-        key=lambda p: (_TEMPLATE_ORDER.index(p.stem) if p.stem in _TEMPLATE_ORDER else 99, p.stem),
-    )
     packages: dict[str, dict[str, str | None]] = {}
     libraries: dict[str, dict[str, str | None]] = {
         name: {"name": name, "source": "packages"} for name in _BUILDER_TIKZ_LIBRARIES
     }
-    for path in files:
-        text = _TEX_COMMENT.sub("", path.read_text(encoding="utf-8", errors="replace"))
-        for options, argument in _REQUIRE_PACKAGE.findall(text):
-            for name in _names(argument):
-                if name.startswith("sty/") or name in FORBIDDEN_PACKAGES:
-                    continue
-                packages.setdefault(
-                    name,
-                    {
-                        "name": name,
-                        "options": " ".join(options.split()),
-                        "source": path.stem,
-                        "locked": LOCKED_PACKAGES.get(name),
-                    },
-                )
-        for argument in _USE_TIKZ_LIBRARY.findall(text):
-            for name in _names(argument):
-                libraries.setdefault(name, {"name": name, "source": path.stem})
+    for path in sorted((ASSETS_DIR / "sty").glob("*.sty"), key=_file_order):
+        _read_template_file(path, packages, libraries)
     return {"packages": list(packages.values()), "tikz_libraries": list(libraries.values())}

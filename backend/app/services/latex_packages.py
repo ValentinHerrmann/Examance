@@ -201,6 +201,23 @@ def _collect(entries: list[PackageEntry], code: str) -> None:
                 entries.append(entry)
 
 
+def _scan_line(entries: list[PackageEntry], code: str) -> str | None:
+    """Collect one line's commands outside comments and verbatim; returns an open verbatim end."""
+    # Whichever comes first, a comment or a verbatim environment, ends the scannable part.
+    while True:
+        comment = _COMMENT.search(code)
+        begin = _VERBATIM_BEGIN.search(code)
+        if not begin or (comment and comment.start() < begin.start()):
+            _collect(entries, code[: comment.start()] if comment else code)
+            return None
+        _collect(entries, code[: begin.start()])
+        end = f"\\end{{{begin.group(1)}}}"
+        end_at = code.find(end, begin.end())
+        if end_at < 0:
+            return end
+        code = code[end_at + len(end):]
+
+
 def exercise_entries(latex: str) -> list[PackageEntry]:
     """Package commands in exercise LaTeX, skipping comments and verbatim; one line per command."""
     entries: list[PackageEntry] = []
@@ -212,21 +229,7 @@ def exercise_entries(latex: str) -> list[PackageEntry]:
             if end_at < 0:
                 continue
             code = code[end_at + len(verbatim_end):]
-            verbatim_end = None
-        # Walk the line: whichever comes first, a comment or a verbatim environment, ends the scan.
-        while True:
-            comment = _COMMENT.search(code)
-            begin = _VERBATIM_BEGIN.search(code)
-            if not begin or (comment and comment.start() < begin.start()):
-                _collect(entries, code[: comment.start()] if comment else code)
-                break
-            _collect(entries, code[: begin.start()])
-            end = f"\\end{{{begin.group(1)}}}"
-            end_at = code.find(end, begin.end())
-            if end_at < 0:
-                verbatim_end = end
-                break
-            code = code[end_at + len(end):]
+        verbatim_end = _scan_line(entries, code)
     return entries
 
 
@@ -254,44 +257,64 @@ class _Merged:
     sources: list[SourceRef] = field(default_factory=list)
 
 
-def _apply(
-    merged: dict[tuple[str, str], _Merged],
-    notes: list[PackageNote],
-    entry: PackageEntry,
-    ref: SourceRef,
+def _dealias(entry: PackageEntry, ref: SourceRef, notes: list[PackageNote]) -> tuple[str, str]:
+    """The entry's name and options after aliases (enumerate is enumitem's shortlabels option)."""
+    alias = PACKAGE_ALIASES.get(entry.name) if entry.kind == "package" else None
+    if alias is None:
+        return entry.name, entry.options
+    target, option = alias
+    notes.append(PackageNote("aliased", entry.kind, entry.name, target, (ref,)))
+    return target, ",".join(part for part in (option, entry.options) if part)
+
+
+def _leave_out(
+    merged: dict[tuple[str, str], _Merged], notes: list[PackageNote], key: tuple[str, str]
 ) -> None:
-    kind, name, options = entry.kind, entry.name, entry.options
-    if kind == "package" and name in PACKAGE_ALIASES:
-        target, option = PACKAGE_ALIASES[name]
-        notes.append(PackageNote("aliased", kind, name, target, (ref,)))
-        name, options = target, ",".join(part for part in (option, options) if part)
-    reason = _unsupported(kind, name)
-    if reason:
-        notes.append(PackageNote("ignored", kind, name, reason, (ref,)))
-        return
-    key = (kind, name)
+    """An exam's ``disabled`` entry: drop the package unless an exercise needs it."""
     current = merged.get(key)
-    if entry.disabled:
-        if current is None:
-            return
-        needed_by = tuple(source for source in current.sources if source.source == "exercise")
-        if needed_by:
-            notes.append(PackageNote("kept", kind, name, "", needed_by))
-        else:
-            del merged[key]
-        return
     if current is None:
-        current = merged[key] = _Merged(kind, name)
-    if ref not in current.sources:
-        current.sources.append(ref)
+        return
+    needed_by = tuple(source for source in current.sources if source.source == "exercise")
+    if needed_by:
+        notes.append(PackageNote("kept", current.kind, current.name, "", needed_by))
+    else:
+        del merged[key]
+
+
+def _merge_options(
+    current: _Merged, notes: list[PackageNote], options: str, ref: SourceRef
+) -> None:
     for item in split_options(options):
         option_key = item.partition("=")[0]
         previous = current.options.get(option_key)
         if previous is not None and previous[0] != item:
             both_exercises = previous[1].source == "exercise" and ref.source == "exercise"
             code = "conflict" if both_exercises else "override"
-            notes.append(PackageNote(code, kind, name, option_key, (previous[1], ref)))
+            notes.append(
+                PackageNote(code, current.kind, current.name, option_key, (previous[1], ref))
+            )
         current.options[option_key] = (item, ref)
+
+
+def _apply(
+    merged: dict[tuple[str, str], _Merged],
+    notes: list[PackageNote],
+    entry: PackageEntry,
+    ref: SourceRef,
+) -> None:
+    kind = entry.kind
+    name, options = _dealias(entry, ref, notes)
+    reason = _unsupported(kind, name)
+    if reason:
+        notes.append(PackageNote("ignored", kind, name, reason, (ref,)))
+        return
+    if entry.disabled:
+        _leave_out(merged, notes, (kind, name))
+        return
+    current = merged.setdefault((kind, name), _Merged(kind, name))
+    if ref not in current.sources:
+        current.sources.append(ref)
+    _merge_options(current, notes, options, ref)
 
 
 def resolve_packages(layers: Iterable[PackageLayer]) -> ResolvedPackages:
@@ -302,7 +325,7 @@ def resolve_packages(layers: Iterable[PackageLayer]) -> ResolvedPackages:
         ref = SourceRef(layer.source, layer.label)
         for entry in layer.entries:
             _apply(merged, notes, entry, ref)
-    needs_pgfplots = any(kind == "pgfplotslibrary" for kind, _ in merged)
+    needs_pgfplots = any(m.kind == "pgfplotslibrary" for m in merged.values())
     if needs_pgfplots and ("package", "pgfplots") not in merged:
         auto = SourceRef("auto")
         merged[("package", "pgfplots")] = _Merged("package", "pgfplots", sources=[auto])

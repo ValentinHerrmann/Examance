@@ -5,6 +5,8 @@ The account list applies to every document of the account; an exam adds to it th
 """
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,19 +29,19 @@ def _account(teacher: Teacher) -> AccountLatexPackages:
     )
 
 
-@router.get("/user/latex-packages", response_model=AccountLatexPackages)
+@router.get("/user/latex-packages")
 async def get_account_latex_packages(
-    teacher: Teacher = Depends(get_current_teacher),
+    teacher: Annotated[Teacher, Depends(get_current_teacher)],
 ) -> AccountLatexPackages:
     """The packages and libraries the account adds to every document."""
     return _account(teacher)
 
 
-@router.put("/user/latex-packages", response_model=AccountLatexPackages)
+@router.put("/user/latex-packages")
 async def set_account_latex_packages(
     body: AccountLatexPackages,
-    teacher: Teacher = Depends(get_current_teacher),
-    db: AsyncSession = Depends(get_db),
+    teacher: Annotated[Teacher, Depends(get_current_teacher)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AccountLatexPackages:
     """Replace the account's list. Entries are validated (names, options, unsupported packages)."""
     teacher.latex_packages = [
@@ -49,7 +51,7 @@ async def set_account_latex_packages(
     return _account(teacher)
 
 
-@router.get("/latex/template-packages", response_model=TemplatePackages)
+@router.get("/latex/template-packages")
 async def get_template_packages() -> TemplatePackages:
     """What the exam template loads by itself, read from the bundled .sty files."""
     return TemplatePackages.model_validate(template_packages())

@@ -87,10 +87,12 @@ export interface ResolvedPackages {
 
 export type EntryError = "kind" | "name" | "options" | "forbidden" | "locked" | "tooMany" | "duplicate";
 
+const BRACE_DELTA: Readonly<Record<string, number>> = { "{": 1, "}": -1 };
+
 function bracesBalanced(text: string): boolean {
   let depth = 0;
   for (const char of text) {
-    depth += char === "{" ? 1 : char === "}" ? -1 : 0;
+    depth += BRACE_DELTA[char] ?? 0;
     if (depth < 0) return false;
   }
   return depth === 0;
@@ -147,7 +149,7 @@ export function splitOptions(options: string): string[] {
   let depth = 0;
   let current = "";
   for (const char of options) {
-    depth += char === "{" ? 1 : char === "}" ? -1 : 0;
+    depth += BRACE_DELTA[char] ?? 0;
     if (char === "," && depth === 0) {
       items.push(current);
       current = "";
@@ -192,7 +194,7 @@ function splitNames(argument: string): string[] {
 }
 
 const sameEntry = (a: LatexPackageEntry, b: LatexPackageEntry) =>
-  a.kind === b.kind && a.name === b.name && a.options === b.options && !a.disabled === !b.disabled;
+  a.kind === b.kind && a.name === b.name && a.options === b.options && Boolean(a.disabled) === Boolean(b.disabled);
 
 function collect(entries: LatexPackageEntry[], code: string): void {
   for (const [, command, rawOptions, rawArgument] of code.matchAll(PACKAGE_COMMAND)) {
@@ -202,6 +204,24 @@ function collect(entries: LatexPackageEntry[], code: string): void {
       const entry: LatexPackageEntry = { kind, name, options };
       if (!entries.some((e) => sameEntry(e, entry))) entries.push(entry);
     }
+  }
+}
+
+/** Collects one line's commands outside comments and verbatim; returns an open verbatim end. */
+function scanLine(entries: LatexPackageEntry[], code: string): string | null {
+  // Whichever comes first, a comment or a verbatim environment, ends the scannable part.
+  for (;;) {
+    const comment = COMMENT.exec(code);
+    const begin = VERBATIM_BEGIN.exec(code);
+    if (!begin || (comment && comment.index < begin.index)) {
+      collect(entries, comment ? code.slice(0, comment.index) : code);
+      return null;
+    }
+    collect(entries, code.slice(0, begin.index));
+    const end = `\\end{${begin[1]}}`;
+    const endAt = code.indexOf(end, begin.index + begin[0].length);
+    if (endAt < 0) return end;
+    code = code.slice(endAt + end.length);
   }
 }
 
@@ -215,25 +235,8 @@ export function exerciseEntries(latex: string): LatexPackageEntry[] {
       const endAt = code.indexOf(verbatimEnd);
       if (endAt < 0) continue;
       code = code.slice(endAt + verbatimEnd.length);
-      verbatimEnd = null;
     }
-    // Walk the line: whichever comes first, a comment or a verbatim environment, ends the scan.
-    for (;;) {
-      const comment = COMMENT.exec(code);
-      const begin = VERBATIM_BEGIN.exec(code);
-      if (!begin || (comment && comment.index < begin.index)) {
-        collect(entries, comment ? code.slice(0, comment.index) : code);
-        break;
-      }
-      collect(entries, code.slice(0, begin.index));
-      const end = `\\end{${begin[1]}}`;
-      const endAt = code.indexOf(end, begin.index + begin[0].length);
-      if (endAt < 0) {
-        verbatimEnd = end;
-        break;
-      }
-      code = code.slice(endAt + end.length);
-    }
+    verbatimEnd = scanLine(entries, code);
   }
   return entries;
 }
@@ -260,35 +263,25 @@ interface Merged {
 
 const sameRef = (a: SourceRef, b: SourceRef) => a.source === b.source && a.label === b.label;
 
-function apply(merged: Map<string, Merged>, notes: PackageNote[], entry: LatexPackageEntry, ref: SourceRef): void {
-  let { name, options } = entry;
-  const { kind } = entry;
-  const alias = kind === "package" ? PACKAGE_ALIASES.get(name) : undefined;
-  if (alias) {
-    const [target, option] = alias;
-    notes.push({ code: "aliased", kind, name, detail: target, sources: [ref] });
-    name = target;
-    options = [option, options].filter(Boolean).join(",");
-  }
-  const reason = unsupported(kind, name);
-  if (reason) {
-    notes.push({ code: "ignored", kind, name, detail: reason, sources: [ref] });
-    return;
-  }
-  const key = `${kind}:${name}`;
-  let current = merged.get(key);
-  if (entry.disabled) {
-    if (!current) return;
-    const neededBy = current.sources.filter((s) => s.source === "exercise");
-    if (neededBy.length) notes.push({ code: "kept", kind, name, detail: "", sources: neededBy });
-    else merged.delete(key);
-    return;
-  }
-  if (!current) {
-    current = { kind, name, options: new Map(), sources: [] };
-    merged.set(key, current);
-  }
-  if (!current.sources.some((s) => sameRef(s, ref))) current.sources.push(ref);
+/** The entry's name and options after aliases (enumerate is enumitem's shortlabels option). */
+function dealias(entry: LatexPackageEntry, ref: SourceRef, notes: PackageNote[]): [string, string] {
+  const alias = entry.kind === "package" ? PACKAGE_ALIASES.get(entry.name) : undefined;
+  if (!alias) return [entry.name, entry.options];
+  const [target, option] = alias;
+  notes.push({ code: "aliased", kind: entry.kind, name: entry.name, detail: target, sources: [ref] });
+  return [target, [option, entry.options].filter(Boolean).join(",")];
+}
+
+/** An exam's `disabled` entry: drop the package unless an exercise needs it. */
+function leaveOut(merged: Map<string, Merged>, notes: PackageNote[], key: string): void {
+  const current = merged.get(key);
+  if (!current) return;
+  const neededBy = current.sources.filter((s) => s.source === "exercise");
+  if (neededBy.length) notes.push({ code: "kept", kind: current.kind, name: current.name, detail: "", sources: neededBy });
+  else merged.delete(key);
+}
+
+function mergeOptions(current: Merged, notes: PackageNote[], options: string, ref: SourceRef): void {
   for (const item of splitOptions(options)) {
     const optionKey = item.split("=", 1)[0];
     const previous = current.options.get(optionKey);
@@ -296,14 +289,36 @@ function apply(merged: Map<string, Merged>, notes: PackageNote[], entry: LatexPa
       const bothExercises = previous.ref.source === "exercise" && ref.source === "exercise";
       notes.push({
         code: bothExercises ? "conflict" : "override",
-        kind,
-        name,
+        kind: current.kind,
+        name: current.name,
         detail: optionKey,
         sources: [previous.ref, ref],
       });
     }
     current.options.set(optionKey, { item, ref });
   }
+}
+
+function apply(merged: Map<string, Merged>, notes: PackageNote[], entry: LatexPackageEntry, ref: SourceRef): void {
+  const { kind } = entry;
+  const [name, options] = dealias(entry, ref, notes);
+  const reason = unsupported(kind, name);
+  if (reason) {
+    notes.push({ code: "ignored", kind, name, detail: reason, sources: [ref] });
+    return;
+  }
+  const key = `${kind}:${name}`;
+  if (entry.disabled) {
+    leaveOut(merged, notes, key);
+    return;
+  }
+  let current = merged.get(key);
+  if (!current) {
+    current = { kind, name, options: new Map(), sources: [] };
+    merged.set(key, current);
+  }
+  if (!current.sources.some((s) => sameRef(s, ref))) current.sources.push(ref);
+  mergeOptions(current, notes, options, ref);
 }
 
 /** Merge the levels in order (account, exercises, exam): later ones override option values. */
