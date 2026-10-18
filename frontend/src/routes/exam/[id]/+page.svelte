@@ -322,6 +322,7 @@
         topic: exam.topic,
         lehrernachname: exam.lehrernachname,
         info_text: exam.infoText,
+        latex_packages: exam.latexPackages,
         latex_template: exam.latexTemplate,
         retention_until:
           exam.retentionUntil ||

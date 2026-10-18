@@ -4,6 +4,8 @@
  * Never call `sessionStore.unlock()` with the archive key; records are re-encrypted under the live session key.
  */
 
+import { samePackageLists, storedEntries } from '#lib/latex/packages';
+import { getAccountPackages } from '#lib/latex/packageSettings';
 import { get } from 'svelte/store';
 import { db } from '#lib/db/db';
 import { sessionStore } from '#lib/stores/session';
@@ -212,6 +214,16 @@ export async function applyArchive(
 
   /** Rewrites an archived id to the id actually created on the server. */
   const remap = (id: string | undefined) => (id ? (idMap.get(id) ?? id) : id);
+
+  // Exams that followed the exporting account keep its packages, unless this account has the same list.
+  const ownPackages = await getAccountPackages();
+  for (const exam of exams) {
+    const archived = storedEntries(exam.accountLatexPackages);
+    delete exam.accountLatexPackages;
+    if (exam.latexPackages == null && archived.length && !samePackageLists(archived, ownPackages)) {
+      exam.latexPackages = archived;
+    }
+  }
 
   const result = await importPayloadToServer(payload, { report, takeImportedIds });
   idMap = result.idMap;

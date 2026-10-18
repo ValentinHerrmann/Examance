@@ -58,7 +58,6 @@ export const editor = {
         enumerate: { label: 'Nummerierte Liste', description: 'Eine nummerierte Liste.' },
         'inline-math': { label: 'Formel im Text', description: 'Mathematische Formel im Fließtext.' },
         center: { label: 'Zentrierter Inhalt', description: 'Zentrierter Inhalt.' },
-        usepackage: { label: 'Paket laden', description: 'Lädt ein LaTeX-Paket für diese Aufgabe; die Zeile wird beim Kompilieren in die Präambel verschoben.' },
     },
 
     /** Generic unsaved-changes dialog (ConfirmDialog defaults). */

@@ -8,6 +8,7 @@ import { examRepository } from '#lib/repositories/examRepository';
 import { exerciseRepository } from '#lib/repositories/exerciseRepository';
 import { studentRepository } from '#lib/repositories/studentRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
+import { storedEntries } from '#lib/latex/packages';
 
 export type ConflictKind = 'exam' | 'exercise' | 'mcGroup' | 'student' | 'submission' | 'resource';
 export type ConflictChoice = 'keep-existing' | 'take-imported' | 'import-as-copy';
@@ -71,6 +72,12 @@ async function perExam(
   return (await Promise.all(examIds.map(load))).flat();
 }
 
+/** An exam's package additions as one comparable line (issue #108). */
+const packageSummary = (entries: unknown) =>
+  storedEntries(entries)
+    .map((e) => `${e.disabled ? '-' : ''}${e.name}${e.options ? `[${e.options}]` : ''}`)
+    .join(', ');
+
 const SPECS: KindSpec[] = [
   {
     kind: 'exam',
@@ -80,6 +87,7 @@ const SPECS: KindSpec[] = [
     fields: {
       ...props('title', 'testart', 'fach', 'topic', 'grade', 'klasse', 'datum', 'nr', 'numVersions', 'retentionUntil'),
       gradingKey: (r) => r.gradingKey?.preset,
+      latexPackages: (r) => packageSummary(r.latexPackages),
     },
     text: (r) => r.latexPreamble ?? '',
     allowCopy: true,

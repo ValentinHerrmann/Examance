@@ -6,6 +6,13 @@ import { decryptExam } from '#lib/db/dbEncryption';
 import { enqueueOrThrow } from '#lib/services/offlineQueue';
 import type { ExamRecord, ExamExerciseRecord, ExamMcGroupRecord } from '#lib/db/schema';
 import { invalidateOwner } from '#lib/latex/compileCache';
+import { storedEntries, type LatexPackageEntry } from '#lib/latex/packages';
+
+/** Undefined (unknown) stays undefined, so a later save leaves the server's value alone. */
+function packagesField(value: unknown): LatexPackageEntry[] | null | undefined {
+  if (value === undefined) return undefined;
+  return value === null ? null : storedEntries(value);
+}
 
 export function mapApiToExamRecord(raw: any): ExamRecord {
   return {
@@ -22,6 +29,7 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     lehrernachname: raw.lehrernachname,
     infoText: raw.info_text || raw.infoText,
     gradingKey: raw.grading_key || raw.gradingKey,
+    latexPackages: packagesField(raw.latex_packages !== undefined ? raw.latex_packages : raw.latexPackages),
     latexPreamble: raw.latex_preamble || raw.latexPreamble,
     latexTemplate: raw.latex_template || raw.latexTemplate,
     numVersions: raw.num_versions || raw.numVersions || 1,
@@ -46,6 +54,8 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     lehrernachname: exam.lehrernachname,
     info_text: exam.infoText,
     grading_key: exam.gradingKey,
+    // null clears the exam's package override, undefined leaves it alone.
+    latex_packages: exam.latexPackages,
     latex_preamble: exam.latexPreamble,
     latex_template: exam.latexTemplate,
     retention_until: exam.retentionUntil,

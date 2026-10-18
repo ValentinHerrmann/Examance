@@ -2,7 +2,8 @@ import { compileWithCache } from "#lib/latex/compileCache";
 import type { CompileResult } from "#lib/latex/compiler";
 import { formatExerciseLatex } from "#lib/latex/scoreParser";
 import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
-import { withExercisePreamble } from "#lib/latex/preamble";
+import { documentBody, documentLayers, withPackages, type LatexPackageEntry } from "#lib/latex/packages";
+import { getAccountPackages } from "#lib/latex/packageSettings";
 
 const getPreamble = (extraOpts: string) => `\\documentclass[a4paper]{article}
 \\usepackage[${extraOpts}]{sty/Schulaufgabe}
@@ -27,20 +28,24 @@ const getPreamble = (extraOpts: string) => `\\documentclass[a4paper]{article}
   \\rfoot{}
 }`;
 
-/**
- * One standalone XeLaTeX document around already-wrapped exercise LaTeX (preview, PDFs, group export). `packageSource`
- * holds the exercise bodies when `content` only `\input`s them, so their package lines still reach the preamble.
- */
+export interface ExerciseDocumentOptions {
+  solution: boolean;
+  /** The account's package list (`getAccountPackages()`), merged with the exercises' own. */
+  accountPackages: readonly LatexPackageEntry[];
+  extraPreamble?: string;
+  /** The exercise bodies when `content` only `\input`s them, so their package lines still count. */
+  packageSource?: string;
+}
+
+/** One standalone XeLaTeX document around already-wrapped exercise LaTeX (preview, PDFs, group export). */
 export function buildExerciseDocument(
   content: string,
-  { solution, extraPreamble = "", packageSource }: { solution: boolean; extraPreamble?: string; packageSource?: string }
+  { solution, accountPackages, extraPreamble = "", packageSource }: ExerciseDocumentOptions
 ): string {
   const preamble = getPreamble(solution ? "sans,antworten" : "sans");
   const extra = extraPreamble ? `${extraPreamble}\n` : "";
-  return withExercisePreamble(
-    `${preamble}\n\\setboolean{Antworten}{${solution}}\n${extra}\\begin{document}\n\\leavevmode\\par\n${content}\n\\end{document}`,
-    packageSource
-  );
+  const doc = `${preamble}\n\\setboolean{Antworten}{${solution}}\n${extra}\\begin{document}\n\\leavevmode\\par\n${content}\n\\end{document}`;
+  return withPackages(doc, documentLayers(accountPackages, packageSource ?? documentBody(doc)));
 }
 
 const SLOT = "\u0001";
@@ -79,8 +84,9 @@ export interface ExercisePreviewResult {
 export async function compileExercisePreview(input: ExercisePreviewInput): Promise<ExercisePreviewResult> {
   const name = input.name || "Aufgabe";
   const body = formatExerciseLatex(input.latexBody, name);
-  const angabeTex = buildExerciseDocument(body, { solution: false });
-  const loesungTex = buildExerciseDocument(body, { solution: true });
+  const accountPackages = await getAccountPackages();
+  const angabeTex = buildExerciseDocument(body, { solution: false, accountPackages });
+  const loesungTex = buildExerciseDocument(body, { solution: true, accountPackages });
 
   // Staged files are inlined: they may not exist on the server yet.
   const collected = await exerciseResourceRepository.collectForCompile(
