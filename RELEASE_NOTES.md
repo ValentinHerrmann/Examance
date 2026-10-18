@@ -1,15 +1,9 @@
 ## What's Changed
-* Redesign pitch decks and posters with real screenshots by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/76
-* Count \BE inside solutions on the student sheet too by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/84
-* Local LaTeX: fresh bundled assets, download progress bar, immediate background download by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/86
-* Fix event handling for storage mode and LaTeX mode changes in StoragePolicyModal by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/90
-* Serve LaTeX assets from the authenticated backend (#87) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/91
-* Raw ZIP export for exams and the exercise library by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/92
-* Get a prompt to reload when a new version is available, and see what’s new (the release notes) after each update (#94) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/95
-* Preview versions now show a corner banner so they can't be mistaken for the live app (#74) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/96
-* Settings are now grouped into General, Workspace and Account & privacy (#73) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/97
-* Passkeys: set one up as your second factor at first sign-in instead of an authenticator app, and add a passkey that opens your data with a single prompt (#71, #72) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/98
-* See what's new after an update even if you last opened the app before the "what's new" notice existed or skipped several releases (#94) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/100
+* Simpler presentation material: one screenshot poster and slide deck, plus one detailed information poster and slide deck with diagrams on how grading, encryption, sign-in and data storage work by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/101
+* Anonymous grading no longer shows the student's name as their ID when QR stickers contain names (#80) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/103
+* Grading no longer mixes up students (multiple-choice results, annotations, previous scan) and results are locked to their pupil and question; scan PDFs show in the preview and render in older browsers again; the overall score chart in Analytics looks like the exam statistics (grade colours, mean, median, spread, normal curve); first LaTeX previews on a new server no longer time out; storage dialog shows the Examance name (#85, #93, #89, #75, #81) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/104
+* Manage LaTeX packages in the settings, per exam and per exercise without option clashes, see what the template already loads, TikZ drawings with modern arrows (Stealth) and automata work out of the box, and score boxes no longer run into the page header (#106, #107, #108) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/109
+* Exercises: split into parts a), b), c) with their own subtitle and score box, tag requirement level (AFB I–III) and competencies, see at a glance in the editor how the score is made up or set it by hand, multiple-choice questions no longer get garbled when you save them, and the exercise editor keeps the LaTeX code in view on phones and small laptops (#77, #78, #79) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/105
 
 
-**Full Changelog**: https://github.com/ValentinHerrmann/Examance/compare/0.2.1...0.2.3
+**Full Changelog**: https://github.com/ValentinHerrmann/Examance/compare/0.2.3...0.3.0
