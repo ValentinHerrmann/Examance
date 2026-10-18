@@ -30,6 +30,9 @@
 \RequirePackage{titlesec}
 \RequirePackage{silence}
 \RequirePackage{tikz}
+% Libraries that pasted TikZ snippets commonly expect (issue #107); loading them changes nothing else.
+\usetikzlibrary{arrows, arrows.meta, automata, positioning, calc, shapes, fit, backgrounds, matrix,
+  decorations.pathreplacing, patterns, intersections, angles, quotes}
 \RequirePackage{listings}
 \RequirePackage{svg}
 
@@ -45,6 +48,11 @@
 \RequirePackage{framed}
 \RequirePackage{enumitem}
 
+% Packages chosen in Examance (account, exam and exercises; lib/latex/packages.ts). The document defines these
+% macros before \documentclass, where it also passes their options, so nothing clashes with a load above;
+% they run here so list packages load before hyperref, which must stay last for the OMR links.
+\ifdefined\ExamancePackages \ExamancePackages \fi
+
 % OMR: absolute-position fiducial markers on every page (eso-pic), and
 % invisible link annotations on OMR bubbles/fiducials so the client can
 % extract exact bubble rects from the compiled PDF (pdfjs getAnnotations()).
@@ -53,5 +61,6 @@
 % macro overrides do not strip link annotations.
 \RequirePackage{eso-pic}
 \RequirePackage[hidelinks,final]{hyperref}
+\ifdefined\ExamancePackagesAfterHyperref \ExamancePackagesAfterHyperref \fi % e.g. cleveref
 
 \endinput

@@ -359,9 +359,16 @@
 \setlength{\LastColWidth}{15mm}
 \newlength{\MiddleColWidth}
 \setlength{\MiddleColWidth}{\dimexpr\textwidth - \FirstColWidth - \LastColWidth - 5mm}
+\newlength{\ScoreBoxRoom}
 
+% wrapfig hangs the score box about 1.5\baselineskip + 1.4ex - \intextsep above the task, into the gap after the
+% previous one. That room is taken before the minipage and given back inside it: no change mid-page, but at the top
+% of a page TeX drops the negative space, so the box lands below the header instead of in it (issue #106).
 \newenvironment{Aufgabe}[2][]
 {%
+\setlength{\ScoreBoxRoom}{\dimexpr 1.5\baselineskip + 1.4ex - \intextsep - \topskip\relax}%
+\ifdim\ScoreBoxRoom<\z@ \setlength{\ScoreBoxRoom}{\z@}\fi
+\vspace{-\ScoreBoxRoom}%
 \begin{minipage}[t]{\textwidth}
     \neverindent
     \gdef\TaskScore{0}% Reset task score accumulator for the new exercise
@@ -377,17 +384,12 @@
         \def\PrintPkt{-}% UI Fallback for the very first compilation
     \fi
     % \aPunkte mapping removed (unused)
-    \ifdim\pagetotal=0pt
-        \def\wrapvspace{0pt}%
-    \else
-        \def\wrapvspace{-1.5\baselineskip}%
-    \fi
-    \vspace{.1mm}%
+    \vspace{\dimexpr\ScoreBoxRoom + .1mm\relax}%
     \par\noindent
 
     % Wrapfigure floats the score box right
     \begin{wrapfigure}{r}{3cm}
-        \vspace{\wrapvspace}%
+        \vspace{-1.5\baselineskip}%
         \raggedleft
         \Large\framebox[1.1\width]{ ~~~~~ / ~\PrintPkt~}%
     \end{wrapfigure}%
@@ -424,6 +426,36 @@
 
 \if@neverindent
     \neverindent
+\fi
+
+% ==============================================================================
+% 10. Packages Loaded by Exercises
+% ==============================================================================
+% The compile loads the packages named by \usepackage lines of exercise bodies in the preamble (issue #108,
+% lib/latex/packages.ts, app/services/latex_packages.py), so in the body they are no-ops. Skipped there:
+% inputenc/fontenc (pdfLaTeX only) and enumerate (enumitem's shortlabels option replaces it).
+\ifdefined\AddToHook % LaTeX 2020-10 or newer; older kernels keep the plain "preamble only" error
+\ExplSyntaxOn
+\NewDocumentCommand \SchulaufgabeBodyUsepackage { O{} m O{} }
+  {
+    \clist_map_inline:nn {#2}
+      {
+        \cs_if_exist:cF { ver@ ##1 .sty }
+          {
+            \clist_if_in:nnF { inputenc, fontenc, enumerate } {##1}
+              {
+                \PackageError {Schulaufgabe}
+                  {
+                    Package~`##1'~was~not~loaded:~write~its~\token_to_str:N \usepackage \c_space_tl
+                    on~one~line~or~see~the~LaTeX~package~settings
+                  }
+                  { The~compile~loads~exercise~packages~in~the~preamble,~one~line~at~a~time,~unless~unsupported. }
+              }
+          }
+      }
+  }
+\ExplSyntaxOff
+\AddToHook{begindocument/end}{\let\usepackage\SchulaufgabeBodyUsepackage}
 \fi
 
 \endinput

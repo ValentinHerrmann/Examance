@@ -16,6 +16,13 @@ from pathlib import Path
 from typing import Any
 
 from app.config import settings
+from app.services.latex_packages import (
+    PackageLayer,
+    document_body,
+    exercise_entries,
+    stored_entries,
+    with_packages,
+)
 from app.services.latex_resources import validate_resource_name
 from app.services.logo import ResolvedLogo
 
@@ -37,7 +44,7 @@ _PR_SET_DUMPABLE = 4
 # A tripwire for the obvious ways a document asks for a file outside its directory, not the
 # boundary: TeX can build paths in many ways.
 _ABSOLUTE_OR_PARENT_PATH = re.compile(
-    r"\\(?:input|include|InputIfFileExists|openin|openout|write|read"
+    r"\\(?:input|include|InputIfFileExists|openin|openout|write|read|usepackage|RequirePackage"
     r"|lstinputlisting|includegraphics|import|subimport|verbatiminput)"
     r"\s*(?:\[[^\]]*\])?\s*\{?\s*(?:/|\.\./|~|\\\\)",
 )
@@ -135,6 +142,10 @@ def reject_unsafe_paths(latex_source: str) -> None:
         )
 
 
+def _with_body_packages(doc: str) -> str:
+    return with_packages(doc, [PackageLayer("exercise", exercise_entries(document_body(doc)))])
+
+
 def _safe_extra_file_path(tmpdir: Path, rel_path: str) -> Path:
     """
     Resolve *rel_path* inside *tmpdir*, refusing anything that escapes it.
@@ -196,7 +207,7 @@ async def compile_latex(
         reject_unsafe_paths(content)
 
     if "\\documentclass" not in latex_source:
-        latex_source = f"""\\documentclass[a4paper]{{article}}
+        latex_source = _with_body_packages(f"""\\documentclass[a4paper]{{article}}
 \\usepackage[sans,punkte]{{sty/Schulaufgabe}}
 \\usetikzlibrary{{shapes.geometric, arrows}}
 \\usepackage{{sty/tikz-uml}}
@@ -205,7 +216,7 @@ async def compile_latex(
 \\begin{{document}}
 {latex_source}
 \\end{{document}}
-"""
+""")
 
     tmpdir = Path(tempfile.mkdtemp(prefix="blindgrade-latex-"))
     timeout = PREVIEW_TIMEOUT_SECONDS if preview else COMPILE_TIMEOUT_SECONDS
@@ -382,6 +393,7 @@ async def compile_exam_latex(
     show_answers: bool = False,
     binary_files: dict[str, bytes] | None = None,
     logo: ResolvedLogo | None = None,
+    account_packages: object = None,
 ) -> bytes:
     """
     Build complete LaTeX document for an Exam model and compile it.
@@ -391,6 +403,7 @@ async def compile_exam_latex(
     binary_files: resource files of the exam's exercises, merged by the caller
         (see app.services.latex_resources.merge_resources)
     logo: the exam's header logo, resolved by the caller (app.services.logo.resolve_logo)
+    account_packages: the teacher's ``latex_packages`` column (app.services.latex_packages)
     """
     extra_files: dict[str, str] = {}
     exercise_inputs: list[str] = []
@@ -490,6 +503,13 @@ async def compile_exam_latex(
     info_text = exam_model.info_text or ""
 
     inputs_str = "\n\n".join(exercise_inputs)
+    # The exercises are \input from extra files, so their package lines are collected from those.
+    exercise_latex = "\n".join(latex for _, _, latex in items_with_order)
+    package_layers = [
+        PackageLayer("account", stored_entries(account_packages)),
+        PackageLayer("exercise", exercise_entries(exercise_latex)),
+        PackageLayer("exam", stored_entries(getattr(exam_model, "latex_packages", None))),
+    ]
 
     main_tex = f"""\\documentclass[a4paper]{{article}}
 \\usepackage[{opts_str}]{{sty/Schulaufgabe}}
@@ -515,6 +535,7 @@ async def compile_exam_latex(
 
 \\end{{document}}
 """
+    main_tex = with_packages(main_tex, package_layers)
 
     return await compile_latex(
         main_tex, extra_files=extra_files, preview=False, binary_files=binary_files, logo=logo

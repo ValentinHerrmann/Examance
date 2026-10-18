@@ -24,6 +24,7 @@
 \Nr{1}
 
 \begin{Aufgabe}{Text, Schriften und Formeln}
+\usepackage{amsmath} % exercises may load packages; Schulaufgabe.sty makes this a no-op (issue #108)
 Normal, \textbf{fett}, \textit{kursiv}, \texttt{Schreibmaschine}, \emph{betont}: äöüß.
 Formel $\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$, $\sqrt{x^2 + y^2} \geq 0$, $\alpha \cdot \beta$.
 
@@ -54,6 +55,8 @@ Frage
   \node[draw, rectangle] (a) at (0,0) {Start};
   \node[draw, diamond] (b) at (3,0) {?};
   \draw[->] (a) -- (b);
+  \node[state, accepting] (c) at (6,0) {$z_1$};
+  \draw[-Stealth] (b) -- (c);
 \end{tikzpicture}
 
 \end{document}

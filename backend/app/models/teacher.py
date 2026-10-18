@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, String, false, func, true
+from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, Enum, String, false, func, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -72,6 +73,8 @@ class Teacher(Base):
     sharing_paused: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false()
     )
+    # LaTeX packages added to every document of the account (#108, app/services/latex_packages.py).
+    latex_packages: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

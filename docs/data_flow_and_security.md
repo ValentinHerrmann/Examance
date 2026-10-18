@@ -382,6 +382,15 @@ CASCADE` from the account or exam) and is part of the account export (`GET /user
 the files base64-encoded: the account's setting and own file, each exam's setting and own file)
 and of `.bgproj` archives (see Archives).
 
+### LaTeX packages on the server
+
+The packages a teacher adds to the exam template (issue #108) are stored as **plaintext JSON**
+like the LaTeX source they extend: `teachers.latex_packages` for the whole account,
+`exams.latex_packages` for an exam's additions (null follows the account). An entry is a package
+or library name plus options, checked against a strict character set; it is no personal data of
+pupils. Packages an exercise needs stay in its LaTeX (`\usepackage` lines), so they travel with
+the exercise. Both lists are part of the account export (`GET /user/me/export`).
+
 ### Exercise sharing (issue #65)
 
 A teacher may share an exercise group (all its current variants, with their resource files) with
@@ -614,6 +623,11 @@ import every created exam (copies included) gets the same header: it keeps follo
 importer's account logo only when that is byte-identical, otherwise the archived file (or "no
 logo") is pinned on the exam. A kept exam keeps its own logo. Older archives carry no logos; their
 exams follow the importer's account logo.
+
+**Exams carry their LaTeX packages** in both kinds of archive: an exam's own additions are a field
+of the exam record, and an exam that followed its account also carries the account's list
+(`accountLatexPackages`). On import such an exam keeps following the importer's account when the
+two lists match, otherwise the archived account list becomes the exam's own additions.
 
 **Import resolves collisions before it writes.** `decryptArchive()` opens the
 envelope and touches nothing — a wrong password costs nothing, where the old

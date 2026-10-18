@@ -60,6 +60,8 @@ export interface FakeApiState {
   requests: string[];
   /** Requests no route matched (see the file header). */
   unhandled: string[];
+  /** The account's LaTeX package list (`/user/latex-packages`, issue #108). */
+  latexPackages: any[];
 }
 
 export interface FakeApi {
@@ -79,6 +81,16 @@ const ALLOWED_MODES: FakeStorageMode[] = ['all-server', 'hybrid'];
 type Handled = FakeResponse | undefined;
 
 const ok = (body?: unknown): FakeResponse => ({ status: 200, body });
+/** A short stand-in for what the bundled template loads (the backend parses the real .sty files). */
+const TEMPLATE_PACKAGES = {
+  packages: [
+    { name: 'xcolor', options: '', source: 'packages', locked: null },
+    { name: 'tikz', options: '', source: 'packages', locked: null },
+    { name: 'geometry', options: 'left=1cm, right=1cm', source: 'packages', locked: 'layout' },
+    { name: 'hyperref', options: 'hidelinks,final', source: 'packages', locked: 'omr' },
+  ],
+  tikz_libraries: [{ name: 'arrows.meta', source: 'packages' }],
+};
 const NO_LOGO = { source: 'none', mime_type: null, byte_size: 0, updated_at: null };
 const created = (body?: unknown): FakeResponse => ({ status: 201, body });
 const noContent = (): FakeResponse => ({ status: 204 });
@@ -163,6 +175,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     hiddenExerciseIds: new Set(),
     requests: [],
     unhandled: [],
+    latexPackages: [],
   };
 
   function reset(): void {
@@ -184,6 +197,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     state.hiddenExerciseIds.clear();
     state.requests.length = 0;
     state.unhandled.length = 0;
+    state.latexPackages = [];
   }
 
   /* ------------------------------------------------------------------------ */
@@ -277,6 +291,14 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     if (method === 'GET' && action === 'capabilities') return ok(capabilities());
     if (method === 'POST' && action === 'me' && parts[2] === 'deletion-request') {
       return ok({ status: 'sent', expires_in_minutes: 60 });
+    }
+    if (action === 'latex-packages') {
+      // Stored as sent: the frontend validates entries itself, the backend tests cover the 422s.
+      if (method === 'GET') return ok({ entries: state.latexPackages });
+      if (method === 'PUT') {
+        state.latexPackages = Array.isArray(body?.entries) ? body.entries : [];
+        return ok({ entries: state.latexPackages });
+      }
     }
     if (action === 'logo') {
       // No default logo file in the fake: the account prints none until it uploads one (issue #46).
@@ -719,6 +741,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       compilation_status: 'pending',
       latex_template: '',
       topic: null,
+      latex_packages: null,
       ...exam,
       exercises,
       mc_groups: mcGroups,
@@ -1170,6 +1193,9 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
         break;
       case 'admin':
         handled = admin(verb, parts, url.searchParams, payload);
+        break;
+      case 'latex':
+        if (verb === 'GET' && parts[1] === 'template-packages') handled = ok(TEMPLATE_PACKAGES);
         break;
     }
     if (handled) return handled;

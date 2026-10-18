@@ -97,9 +97,11 @@ export const help: Translations['help'] = {
                 p2: 'Several tick-box exercises can be combined into an MC group — already while creating the exam (“MC Groups” tab) or later on the exam page. An exam can hold any number of groups of any size; each question belongs to at most one group. That is layout information for the printout only — grading and statistics stay strictly per question.',
             },
             s4: {
-                h: 'Images and files',
+                h: 'Images, files and packages',
                 p1: 'You can attach files that the LaTeX source references, e.g. figures via \\includegraphics. SVG is not supported — convert it to PDF first.',
                 p2: 'A missing graphic does not abort the run: the exam is still typeset, but the missing file is reported. Check the preview before printing.',
+                p3: 'Manage LaTeX packages under Settings → “LaTeX packages”. It lists what the template already loads (including TikZ libraries such as arrows.meta, automata and positioning); you can add packages and libraries of your own for every exam of the account and pass options to template packages, such as dvipsnames for xcolor. What only one exercise needs, add in the exercise editor under “Packages of this exercise”: it is stored as a \\usepackage line at the top of the source and travels with the exercise; such lines may also be written in the source by hand. Under “Edit Exam” you adjust the packages of a single exam or leave out packages of the account.',
+                p4: 'Examance loads every package once and passes options to the template’s packages, so no option clashes occur. If two exercises set the same option differently, “Result” shows the conflict and which value applies. Not supported are inputenc and fontenc (pdfLaTeX only), paralist (clashes with enumitem) and options for geometry, hyperref and eso-pic, which the layout and the answer-sheet recognition need; enumerate is replaced by enumitem. Upload your own packages as a .sty file with the exercise.',
             },
             s5: {
                 h: 'Sharing and copying exercises',

@@ -4,6 +4,8 @@ import type { ExerciseRecord } from '#lib/db/schema';
 import { translate } from '#lib/i18n';
 import type { ExerciseGroup } from '#lib/exercise-library/groupExercises';
 import { buildExerciseDocument, compileExercisePreview, wrapExerciseReference } from '#lib/latex/exercisePreview';
+import type { LatexPackageEntry } from '#lib/latex/packages';
+import { getAccountPackages } from '#lib/latex/packageSettings';
 import { parseExerciseScore } from '#lib/latex/scoreParser';
 import { exerciseResourceRepository } from '#lib/repositories/exerciseResourceRepository';
 import { effectiveLatexCompilation } from '#lib/stores/capabilities';
@@ -39,6 +41,7 @@ interface ExportContext {
   progress: ExportProgress;
   total: number;
   done: number;
+  accountPackages: readonly LatexPackageEntry[];
 }
 
 type GroupMember = ExerciseGroup['allMembers'][number];
@@ -114,13 +117,15 @@ async function exportExercise(ctx: ExportContext, { ex, version }: GroupMember, 
 }
 
 /** Writes `<group>.tex`, which inputs every exercise of the group; returns its path. */
-function addGroupDocument(zip: ZipBuilder, groupDir: string, parts: DocumentPart[]): string {
+function addGroupDocument(ctx: ExportContext, groupDir: string, parts: DocumentPart[]): string {
   const texFile = `${groupDir}.tex`;
   const content = parts
     .map((part) => wrapExerciseReference(part.body, part.name, String.raw`\input{${part.dir}/exercise.tex}`))
     .join('\n\n');
   const dirs = parts.map((part) => `{${part.dir}/}`).join('');
-  zip.add(texFile, buildExerciseDocument(content, { solution: false, extraPreamble: String.raw`\graphicspath{${dirs}}` }));
+  const packageSource = parts.map((part) => part.body).join('\n');
+  const extraPreamble = String.raw`\graphicspath{${dirs}}`;
+  ctx.zip.add(texFile, buildExerciseDocument(content, { solution: false, accountPackages: ctx.accountPackages, extraPreamble, packageSource }));
   return texFile;
 }
 
@@ -144,6 +149,7 @@ export async function exportExerciseGroups(
     progress,
     total: groups.reduce((n, g) => n + g.allMembers.length, 0),
     done: 0,
+    accountPackages: await getAccountPackages(),
   };
   const manifestGroups = [];
 
@@ -163,7 +169,7 @@ export async function exportExerciseGroups(
       manifestVariants.push({ key: variantKey, exercises });
     }
 
-    const texFile = addGroupDocument(ctx.zip, groupDir, parts);
+    const texFile = addGroupDocument(ctx, groupDir, parts);
     manifestGroups.push({ name: group.name, path: groupDir, texFile, variants: manifestVariants });
   }
 

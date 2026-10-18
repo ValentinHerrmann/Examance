@@ -9,6 +9,8 @@ import { resolveCompileLogo, type CompileLogo } from "#lib/latex/logo";
 import type { LatexResourceFile } from "#lib/latex/resources";
 import { effectiveLatexCompilation } from "#lib/stores/capabilities";
 import { formatExamCourse } from "#lib/utils/examLabel";
+import { documentLayers, withPackages, type LatexPackageEntry } from "#lib/latex/packages";
+import { getAccountPackages } from "#lib/latex/packageSettings";
 import { translate } from "#lib/i18n";
 
 /** The LaTeX `\Aufgabe` blocks of an exam in item order (standalone exercises and MC groups). */
@@ -74,9 +76,17 @@ export async function collectExamResources(
   return exerciseResourceRepository.collectForCompile(owners, sessionKey, needBytes);
 }
 
-/** Full exam document. `options` are the Schulaufgabe.sty options (`sans,punkte[,antworten]`). */
-export function buildExamLatex(exam: ExamRecord, exerciseInputs: string, options: string): string {
-  return `\\documentclass[a4paper]{article}
+/**
+ * Full exam document. `options` are the Schulaufgabe.sty options (`sans,punkte[,antworten]`); `accountPackages` is
+ * the account's package list (`getAccountPackages()`), merged with the exam's and the exercises' own.
+ */
+export function buildExamLatex(
+  exam: ExamRecord,
+  exerciseInputs: string,
+  options: string,
+  accountPackages: readonly LatexPackageEntry[]
+): string {
+  const doc = `\\documentclass[a4paper]{article}
 \\usepackage[${options}]{sty/Schulaufgabe}
 \\Info{${exam.infoText || ""}}
 \\Fach{${exam.fach || "Informatik"}}
@@ -95,6 +105,7 @@ export function buildExamLatex(exam: ExamRecord, exerciseInputs: string, options
 ${exerciseInputs}
 
 \\end{document}`;
+  return withPackages(doc, documentLayers(accountPackages, exerciseInputs, exam.latexPackages));
 }
 
 export interface ExamPreviewInput {
@@ -139,9 +150,10 @@ export async function prepareExamSources(
   if (examHasWithheldCode(exercises)) throw new Error(translate("exam.resultsOnly.noCompile"));
   const inputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups);
   const collected = await collectExamResources(examItems, exercises, libraryExercises, mcGroups, key, needBytes);
+  const accountPackages = await getAccountPackages();
   return {
-    angabeTex: buildExamLatex(exam, inputs, "sans,punkte"),
-    loesungTex: buildExamLatex(exam, inputs, "sans,punkte,antworten"),
+    angabeTex: buildExamLatex(exam, inputs, "sans,punkte", accountPackages),
+    loesungTex: buildExamLatex(exam, inputs, "sans,punkte,antworten", accountPackages),
     resources: collected.inline,
     resourceExerciseIds: collected.exerciseIds,
     logo: await resolveCompileLogo(exam.id, needBytes),

@@ -21,6 +21,7 @@ import { misc } from './misc';
 import { help } from './help';
 import { security } from './security';
 import { logo } from './logo';
+import { latexPackages } from './latexPackages';
 import { exportNs } from './export';
 
 export const en: Translations = {
@@ -46,5 +47,6 @@ export const en: Translations = {
     help,
     security,
     logo,
+    latexPackages,
     export: exportNs,
 };

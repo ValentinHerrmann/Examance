@@ -9,6 +9,8 @@
   import { t } from '#lib/i18n';
   import { Modal, Button, controlClass } from '#lib/components/ui';
   import ExamLogoField from '#lib/components/logo/ExamLogoField.svelte';
+  import ExamPackagesField from '#lib/components/latex-packages/ExamPackagesField.svelte';
+  import type { LatexPackageEntry } from '#lib/latex/packages';
   import type { ExamLogoChange } from '#lib/latex/logo';
 
   interface Props {
@@ -30,6 +32,10 @@
     /** Exam whose logo choice is edited; the staged choice lands in `logoChange`. */
     examId?: string;
     logoChange?: ExamLogoChange | null;
+    /** The exam's LaTeX package additions (issue #108); null follows the account. */
+    editLatexPackages?: LatexPackageEntry[] | null;
+    /** The exam's exercises, for the package result. */
+    packageSources?: { label: string; latex: string }[];
     onSave: () => void;
     onCancel: () => void;
   }
@@ -51,6 +57,8 @@
     editGradingKey = $bindable(),
     examId = undefined,
     logoChange = $bindable(null),
+    editLatexPackages = $bindable(null),
+    packageSources = [],
     onSave,
     onCancel
   }: Props = $props();
@@ -157,6 +165,9 @@
   {#if examId && isOpen}
     <div class="mb-4">
       <ExamLogoField {examId} bind:change={logoChange} />
+    </div>
+    <div class="mb-4">
+      <ExamPackagesField bind:packages={editLatexPackages} exerciseSources={packageSources} />
     </div>
   {/if}
 

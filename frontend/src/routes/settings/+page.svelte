@@ -19,6 +19,7 @@
   import { omrSettingsStore } from "#lib/stores/omrSettings";
   import OmrDonationCard from "#lib/components/settings/OmrDonationCard.svelte";
   import AccountLogoCard from "#lib/components/logo/AccountLogoCard.svelte";
+  import AccountPackagesCard from "#lib/components/latex-packages/AccountPackagesCard.svelte";
   import { trainingDonationStore } from "#lib/stores/trainingDonation";
   import { fetchDonationAvailable } from "#lib/services/trainingDonation";
   import { backendStore, extractHostname } from "#lib/stores/backendStore";
@@ -145,6 +146,7 @@
       { id: "latex", label: $t("settings.latex.heading") },
       { id: "omr", label: $t("settings.omr.heading") },
       { id: "logo", label: $t("logo.account.heading") },
+      { id: "latex-packages", label: $t("latexPackages.account.heading") },
       { id: "storage-policy", label: $t("settings.storage.heading") },
       ...(donationAvailable || $trainingDonationStore.enabled
         ? [{ id: "donation", label: $t("settings.donation.heading") }]
@@ -204,6 +206,7 @@
         />
 
         <AccountLogoCard />
+        <AccountPackagesCard />
 
         <SettingsForm
           part="storage"

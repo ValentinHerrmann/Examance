@@ -1,4 +1,5 @@
 import type { MaybeUndecryptable } from './decryptGuard';
+import type { LatexPackageEntry } from '#lib/latex/packages';
 import type { OmrPageStats, OmrRunInfo } from '#lib/grading/omrSettings';
 import type { OmrShapeFeatures, OmrShapeReason } from '#lib/grading/omrShape';
 
@@ -37,6 +38,8 @@ export interface ExamRecord extends MaybeUndecryptable {
   latexTemplate?: string;
   numVersions?: number;
   gradingKey?: GradingKeyConfig;
+  /** Package entries on top of the account's (issue #108, lib/latex/packages.ts); null follows the account. */
+  latexPackages?: LatexPackageEntry[] | null;
   retentionUntil: string;  // ISO date string
   compilationStatus: 'pending' | 'compiled' | 'failed';
   createdAt: string;

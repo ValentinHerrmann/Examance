@@ -8,6 +8,7 @@ import { frontendVersion } from '#lib/stores/versionStore';
 import { compileLatex, type CompileResult } from './compiler';
 import { mergeResources, type LatexResourceFile } from './resources';
 import { clearLogoCache, type CompileLogo } from './logo';
+import { clearPackageSettingsCache } from './packageSettings';
 
 export type CompileKind = 'exam' | 'exercise' | 'omr-blank';
 export type CompileVariant = 'angabe' | 'loesung' | 'blank';
@@ -188,6 +189,7 @@ export function invalidateOwner(kind: CompileKind, id: string): void {
 export function clearCompileCache(): void {
   cache.clear();
   clearLogoCache();
+  clearPackageSettingsCache();
   currentTotalBytes = 0;
 }
 

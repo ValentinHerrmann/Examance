@@ -22,6 +22,7 @@
   import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import ExerciseResourcePanel from "#lib/components/exercise/ExerciseResourcePanel.svelte";
+  import ExercisePackagesPanel from "#lib/components/latex-packages/ExercisePackagesPanel.svelte";
   import LatexEditor from "./LatexEditor.svelte";
   import DualPdfPreview from "./DualPdfPreview.svelte";
   import SuggestInput from "#lib/components/common/SuggestInput.svelte";
@@ -854,6 +855,7 @@
                 exerciseId={resourceStagingId}
                 onInsert={insertResourceSnippet}
               />
+              <ExercisePackagesPanel bind:latex={editorLatexBody} name={editorName} />
             </div>
           {:else}
             <button
