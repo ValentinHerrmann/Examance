@@ -163,7 +163,7 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   onProgress?.(translate("exam.page.omr.compilingBlank"));
 
   const examItems = suppliedExamItems ?? buildExamItems(exercises, mcGroups);
-  const exerciseInputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups);
+  const exerciseInputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups, exam.pageBreaks);
 
   const fullTex = buildExamLatex(exam, exerciseInputs, "sans,punkte", await getAccountPackages());
 

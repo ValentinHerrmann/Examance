@@ -32,6 +32,7 @@
   import { isMcQuestion } from "#lib/grading/mcScore";
   import { exportArchiveInteractively } from "#lib/services/archiveService";
   import { getLatestForSlot, invalidateOwner } from "#lib/latex/compileCache";
+  import { prunePageBreaks, togglePageBreak } from "#lib/exam/pageBreaks";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
   import { compileExamPreview } from "#lib/exam/examPreview";
   import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
@@ -324,6 +325,7 @@
         lehrernachname: exam.lehrernachname,
         info_text: exam.infoText,
         latex_packages: exam.latexPackages,
+        page_breaks: exam.pageBreaks,
         latex_template: exam.latexTemplate,
         retention_until:
           exam.retentionUntil ||
@@ -798,7 +800,6 @@
 
   let availableGrades = $derived([...new Set(libraryExercises.map((e) => e.grade).filter((g): g is string => Boolean(g)))].sort());
   let availableSubjects = $derived([...new Set(libraryExercises.map((e) => e.subject).filter((s): s is string => Boolean(s)))].sort());
-  let availableTopics = $derived([...new Set(libraryExercises.map((e) => e.topicTag).filter((t): t is string => Boolean(t)))].sort());
   let totalVariantsCount = $derived(libraryExercises.length);
 
   let editingMcGroup = $derived(mcGroups.find((g) => g.id === editingMcGroupId) ?? null);
@@ -852,6 +853,20 @@
     [copy[index], copy[targetIdx]] = [copy[targetIdx], copy[index]];
     examItems = copy;
     await saveExerciseLinks();
+  }
+
+  /** A break belongs to the item id, so it follows the item through reordering. */
+  async function toggleExamPageBreak(itemId: string) {
+    if (!exam) return;
+    const next = togglePageBreak(exam.pageBreaks, itemId);
+    exam = { ...exam, pageBreaks: prunePageBreaks(next, getEffectiveExamItems().map((i) => i.id)) };
+    try {
+      await saveExamEncrypted(exam, get(sessionStore).sessionKey);
+      errorMsg = "";
+    } catch (err) {
+      console.error("Failed to save page breaks:", err);
+      errorMsg = translate("exam.page.exerciseLinks.saveFailed");
+    }
   }
 
   async function moveExerciseOrder(index: number, direction: "up" | "down") {
@@ -967,6 +982,10 @@
     const { mcGroupsPayload, exerciseLinksPayload, mcGroupRecords, examExerciseRecords, items } =
       buildExamLinkPayload();
     examItems = items;
+    // Breaks of removed items go with them; the server is told only when the list changed.
+    const pageBreaks = prunePageBreaks(exam.pageBreaks, items.map((i) => i.id));
+    const breaksChanged = JSON.stringify(pageBreaks) !== JSON.stringify(exam.pageBreaks ?? null);
+    if (breaksChanged) exam = { ...exam, pageBreaks };
 
     try {
       // One transaction: this is a delete-then-reinsert of the exam's entire
@@ -993,7 +1012,11 @@
       // HTTP error modal on top of an autosave is pure noise.
       await api.patch(
         `/exams/${currentExamId}`,
-        { mc_groups: mcGroupsPayload, exercise_links: exerciseLinksPayload },
+        {
+          mc_groups: mcGroupsPayload,
+          exercise_links: exerciseLinksPayload,
+          ...(breaksChanged ? { page_breaks: pageBreaks } : {}),
+        },
         { silentError: true },
       );
       errorMsg = "";
@@ -1260,6 +1283,8 @@
         onMoveExamItem={moveExamItem}
         onRemoveMcGroup={removeMcGroup}
         onEditMcGroup={editMcGroup}
+        pageBreaks={exam.pageBreaks ?? []}
+        onTogglePageBreak={toggleExamPageBreak}
       />
     </div>
   {/if}
@@ -1271,7 +1296,6 @@
   {totalVariantsCount}
   {availableGrades}
   {availableSubjects}
-  {availableTopics}
   bind:librarySearch
   bind:selectedGradeFilter
   bind:selectedSubjectFilter

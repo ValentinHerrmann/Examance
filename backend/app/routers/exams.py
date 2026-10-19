@@ -118,6 +118,7 @@ def _to_exam_response(
         info_text=e.info_text,
         grading_key=e.grading_key,
         latex_packages=_stored_packages(e.latex_packages),
+        page_breaks=e.page_breaks,
         exercises=[_to_exercise_response(ex, idx, gid, sidx) for ex, idx, gid, sidx in exercises],
         mc_groups=[
             ExamMcGroupResponse(
@@ -357,6 +358,7 @@ async def create_exam(
         "info_text": body.info_text,
         "grading_key": body.grading_key,
         "latex_packages": _packages_column(body.latex_packages),
+        "page_breaks": body.page_breaks,
     }
     if body.id:
         kwargs["id"] = body.id
@@ -507,6 +509,8 @@ async def update_exam(
         exam.grading_key = body.grading_key
     if "latex_packages" in body.model_fields_set:
         exam.latex_packages = _packages_column(body.latex_packages)
+    if "page_breaks" in body.model_fields_set:
+        exam.page_breaks = body.page_breaks or None
 
     if body.mc_groups is not None:
         # Detach the links before dropping the groups. exam_exercises.mc_group_id

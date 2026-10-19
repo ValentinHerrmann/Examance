@@ -634,7 +634,7 @@
     {/snippet}
 
     <div class="flex h-full max-h-full w-full flex-col overflow-hidden">
-      <div class="shrink-0 border-b border-line px-4 pb-3">
+      <div class="shrink-0 border-b border-line px-4 pb-3 @3xl:pb-2">
         <button
           type="button"
           class="flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md border border-line bg-surface-sunken px-3 py-2 text-left text-sm @3xl:hidden"
@@ -648,7 +648,7 @@
           </span>
           <span class="shrink-0 text-xs text-accent">{$t("exercises.editor.metaToggle")}</span>
         </button>
-        <div class="{showMetaFields ? 'flex' : 'hidden'} mt-2 flex-wrap items-center gap-3 rounded-md border border-line bg-surface-sunken px-3 py-2 @3xl:mt-0 @3xl:flex">
+        <div class="{showMetaFields ? 'flex' : 'hidden'} mt-2 flex-wrap items-center gap-3 rounded-md border border-line bg-surface-sunken px-3 py-2 @3xl:mt-0 @3xl:flex @3xl:py-1.5">
           {#if editingExercise || isCreatingVersion}
             <div class="flex flex-wrap items-center gap-2 text-sm">
               <span class="text-xs text-muted">{$t("exercises.editor.groupLabel")}</span>
@@ -672,8 +672,9 @@
               />
             </div>
           {:else}
-            <div class="flex w-full flex-wrap items-center gap-3">
-              <div class="flex items-center gap-1.5 text-xs">
+            <!-- From @3xl a single grid row with the labels above their fields; type and share sit in the last cell. -->
+            <div class="flex w-full flex-wrap items-center gap-3 @3xl:grid @3xl:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] @3xl:items-end @3xl:gap-x-2 @3xl:gap-y-1">
+              <div class="flex items-center gap-1.5 text-xs @3xl:min-w-0 @3xl:flex-col @3xl:items-stretch @3xl:gap-0.5">
                 <label for="editorName" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.nameLabel")}</label>
                 <TextInput
                   id="editorName"
@@ -684,7 +685,7 @@
                 />
               </div>
 
-              <div class="flex items-center gap-1.5 text-xs">
+              <div class="flex items-center gap-1.5 text-xs @3xl:min-w-0 @3xl:flex-col @3xl:items-stretch @3xl:gap-0.5">
                 <label for="editorTopic" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.topicLabel")}</label>
                 <SuggestInput
                   id="editorTopic"
@@ -696,7 +697,7 @@
                 />
               </div>
 
-              <div class="flex items-center gap-1.5 text-xs">
+              <div class="flex items-center gap-1.5 text-xs @3xl:min-w-0 @3xl:flex-col @3xl:items-stretch @3xl:gap-0.5">
                 <label for="editorGrade" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.gradeLabel")}</label>
                 <SuggestInput
                   id="editorGrade"
@@ -707,7 +708,7 @@
                 />
               </div>
 
-              <div class="flex items-center gap-1.5 text-xs">
+              <div class="flex items-center gap-1.5 text-xs @3xl:min-w-0 @3xl:flex-col @3xl:items-stretch @3xl:gap-0.5">
                 <label for="editorSubject" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.subjectLabel")}</label>
                 <SuggestInput
                   id="editorSubject"
@@ -718,7 +719,7 @@
                 />
               </div>
 
-              <div class="flex items-center gap-1.5 text-xs">
+              <div class="flex items-center gap-1.5 text-xs @3xl:min-w-0 @3xl:flex-col @3xl:items-stretch @3xl:gap-0.5">
                 <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.variantKeyLabelPlain")}</label>
                 <TextInput
                   id="editorVariantKey"
@@ -728,7 +729,8 @@
                 />
               </div>
 
-              <div class="flex items-center gap-1.5 text-xs">
+              <div class="contents @3xl:flex @3xl:items-end @3xl:gap-3">
+              <div class="flex items-center gap-1.5 text-xs @3xl:flex-col @3xl:items-stretch @3xl:gap-0.5">
                 <span class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.exerciseTypeLabel")}</span>
                 <div class="inline-flex gap-1 rounded-md border border-line bg-surface-sunken p-0.5">
                   <Button
@@ -755,10 +757,11 @@
               </div>
 
               {#if shareAllowed}
-                <div class="flex min-w-0 items-center gap-1.5 text-xs">
+                <div class="flex min-w-0 items-center gap-1.5 text-xs @3xl:pb-1.5">
                   <Checkbox bind:checked={editorShared} label={$t("exercises.sharing.editorShare")} />
                 </div>
               {/if}
+              </div>
             </div>
           {/if}
         </div>
@@ -779,7 +782,7 @@
       {/if}
 
       <!-- Phones: one natural scroller (no nested fixed-height panes); from @3xl two fixed columns. -->
-      <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 @3xl:flex-row @3xl:overflow-hidden">
+      <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 @3xl:flex-row @3xl:gap-3 @3xl:overflow-hidden @3xl:p-3">
         <div class={editorColumnClass}>
           {#if showLatexPanel}
             <div class="flex w-full shrink-0 items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-2">
@@ -807,13 +810,15 @@
             </div>
 
             <div class="flex flex-col gap-1.5 p-2 @3xl:min-h-0 @3xl:flex-1 @3xl:overflow-y-auto">
-              <ExerciseStructurePanel
-                latex={editorLatexBody}
-                isMc={editorQuestionType !== "free_text"}
-                onChange={handleStructureChange}
-              />
+              <div class="shrink-0">
+                <ExerciseStructurePanel
+                  latex={editorLatexBody}
+                  isMc={editorQuestionType !== "free_text"}
+                  onChange={handleStructureChange}
+                />
+              </div>
               {#if editorQuestionType !== "free_text"}
-                <div class="flex flex-col gap-3 rounded-md border border-line bg-surface-raised p-3 text-xs">
+                <div class="flex shrink-0 flex-col gap-3 rounded-md border border-line bg-surface-raised p-3 text-xs">
                   <div class="flex flex-wrap items-center justify-between gap-x-3">
                     <h3 class="m-0 text-sm font-semibold text-content">
                       {$t("exercises.editor.mcEditorTitle")}
@@ -910,22 +915,24 @@
                   </div>
                 </div>
               {/if}
-              <div class="flex items-center justify-between px-1 text-xs">
+              <div class="flex shrink-0 items-center justify-between px-1 text-xs">
                 <span class="font-semibold text-content">{$t("exercises.editor.latexPreviewLabel")}</span>
               </div>
-              <!-- shrink-0: in the column's scroller the editor keeps its height instead of being squeezed under the panels below. -->
-              <div class="flex shrink-0 flex-col">
+              <!-- Phones: natural height (shrink-0). From @3xl the code area absorbs all free space, so folding any panel enlarges it. -->
+              <div class="flex shrink-0 flex-col @3xl:min-h-[18rem] @3xl:flex-1 @3xl:shrink">
                 <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert onChange={handleLatexBodyEdit} />
               </div>
 
-              <ExerciseResourcePanel
-                exerciseId={resourceStagingId}
-                onInsert={insertResourceSnippet}
-              />
-              <ExercisePackagesPanel
-                bind:latex={() => editorLatexBody, (v) => { editorLatexBody = v; handleLatexBodyEdit(v); }}
-                name={editorName}
-              />
+              <div class="grid shrink-0 items-start gap-1.5 @3xl:grid-cols-2">
+                <ExerciseResourcePanel
+                  exerciseId={resourceStagingId}
+                  onInsert={insertResourceSnippet}
+                />
+                <ExercisePackagesPanel
+                  bind:latex={() => editorLatexBody, (v) => { editorLatexBody = v; handleLatexBodyEdit(v); }}
+                  name={editorName}
+                />
+              </div>
             </div>
           {:else}
             <button
@@ -951,6 +958,7 @@
           titleAngabe={$t("exercises.editor.previewAngabeTitle")}
           titleLoesung={$t("exercises.editor.previewLoesungTitle")}
           placeholderText={$t("exercises.editor.previewPlaceholder")}
+          shrinkWhenCollapsed={showLatexPanel}
         />
       </div>
     </div>

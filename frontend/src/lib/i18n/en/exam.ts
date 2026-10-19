@@ -153,6 +153,11 @@ export const exam: Translations['exam'] = {
         editGroupButton: 'Edit',
         empty: 'No exercises added yet.',
     },
+    pageBreak: {
+        insert: 'Insert page break',
+        label: 'Page break',
+        remove: 'Remove page break',
+    },
     sidebar: {
         label: 'Exam navigation',
         back: 'Back to exams',

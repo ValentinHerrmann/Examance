@@ -28,7 +28,6 @@
     totalVariantsCount: number;
     availableGrades: string[];
     availableSubjects: string[];
-    availableTopics: string[];
     searchQuery: string;
     selectedGradeFilter: string;
     selectedSubjectFilter: string;
@@ -60,7 +59,6 @@
     totalVariantsCount,
     availableGrades,
     availableSubjects,
-    availableTopics,
     searchQuery = $bindable(),
     selectedGradeFilter = $bindable(),
     selectedSubjectFilter = $bindable(),
@@ -138,7 +136,6 @@
           {totalVariantsCount}
           {availableGrades}
           {availableSubjects}
-          {availableTopics}
           bind:searchQuery
           bind:selectedGradeFilter
           bind:selectedSubjectFilter

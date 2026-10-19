@@ -112,10 +112,96 @@ export function createLatexTheme(dark: boolean): Extension {
         borderLeftColor: "var(--color-focus)"
       },
       "&.cm-editor": {
-        height: "100%"
+        height: "100%",
+        flex: "1 1 auto"
       },
       ".cm-scroller": {
         overflow: "auto"
+      },
+      // Find/replace panel (@codemirror/search). The `&.cm-editor` prefix outranks the base
+      // theme's `&light`/`&dark` panel colours.
+      "&.cm-editor .cm-panels": {
+        backgroundColor: "var(--color-surface-raised)",
+        color: "var(--color-content)",
+        fontFamily: "inherit"
+      },
+      "&.cm-editor .cm-panels-top": {
+        borderBottom: "1px solid var(--color-line)"
+      },
+      "&.cm-editor .cm-panel.cm-search": {
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: "0.25rem 0.375rem",
+        padding: "0.375rem 2rem 0.375rem 0.5rem",
+        fontSize: "0.8125rem"
+      },
+      "&.cm-editor .cm-panel.cm-search .cm-textfield": {
+        margin: "0",
+        minWidth: "8rem",
+        flex: "1 1 10rem",
+        maxWidth: "16rem",
+        minHeight: "1.75rem",
+        padding: "0 0.5rem",
+        fontSize: "inherit",
+        color: "var(--color-content)",
+        backgroundColor: "var(--color-control)",
+        border: "1px solid var(--color-line-strong)",
+        borderRadius: "0.375rem"
+      },
+      "&.cm-editor .cm-panel.cm-search .cm-textfield:focus": {
+        outline: "2px solid var(--color-focus)",
+        outlineOffset: "-1px"
+      },
+      "&.cm-editor .cm-panel.cm-search .cm-button": {
+        margin: "0",
+        minHeight: "1.75rem",
+        padding: "0 0.625rem",
+        fontSize: "inherit",
+        color: "var(--color-accent)",
+        backgroundColor: "var(--color-surface-sunken)",
+        backgroundImage: "none",
+        border: "1px solid var(--color-line-strong)",
+        borderRadius: "0.375rem",
+        cursor: "pointer"
+      },
+      "&.cm-editor .cm-panel.cm-search .cm-button:hover": {
+        borderColor: "var(--color-primary)",
+        backgroundColor: "var(--color-surface-raised)"
+      },
+      "&.cm-editor .cm-panel.cm-search .cm-button:active": {
+        backgroundImage: "none",
+        backgroundColor: "var(--color-surface-inset)"
+      },
+      "&.cm-editor .cm-panel.cm-search label": {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "0.25rem",
+        fontSize: "inherit",
+        color: "var(--color-muted)"
+      },
+      "&.cm-editor .cm-panel.cm-search [name=close]": {
+        top: "0.25rem",
+        right: "0.375rem",
+        padding: "0 0.375rem",
+        fontSize: "1.25rem",
+        lineHeight: "1.5rem",
+        color: "var(--color-muted)",
+        cursor: "pointer"
+      },
+      "&.cm-editor .cm-panel.cm-search [name=close]:hover": {
+        color: "var(--color-content)"
+      },
+      ".cm-searchMatch": {
+        backgroundColor: "color-mix(in srgb, var(--color-warning) 35%, transparent)",
+        outline: "1px solid color-mix(in srgb, var(--color-warning) 60%, transparent)"
+      },
+      ".cm-searchMatch.cm-searchMatch-selected": {
+        backgroundColor: "color-mix(in srgb, var(--color-primary) 40%, transparent)",
+        outline: "1px solid var(--color-primary)"
+      },
+      ".cm-selectionMatch": {
+        backgroundColor: "color-mix(in srgb, var(--color-primary) 20%, transparent)"
       },
       ".cm-diff-line-added": {
         backgroundColor: "color-mix(in srgb, var(--color-success-fg) 15%, transparent) !important"

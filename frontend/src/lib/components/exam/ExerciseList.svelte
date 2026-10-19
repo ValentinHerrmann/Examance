@@ -10,6 +10,7 @@
   import { parseExerciseScore } from '#lib/latex/scoreParser';
   import { mcSubLabel } from '#lib/grading/mcGroupLabels';
   import ExerciseLabel from '#lib/components/exam/ExerciseLabel.svelte';
+  import PageBreakDivider from '#lib/components/exam/PageBreakDivider.svelte';
   import { t } from '#lib/i18n';
   import { faArrowUp, faArrowDown, faXmark } from '@fortawesome/free-solid-svg-icons';
   import { Badge, Button, Card } from '#lib/components/ui';
@@ -33,6 +34,9 @@
     onMoveExamItem?: ((index: number, direction: "up" | "down") => void) | undefined;
     onRemoveMcGroup?: ((groupId: string) => void) | undefined;
     onEditMcGroup?: ((groupId: string) => void) | undefined;
+    /** Ids of the items that start on a new page (a break goes before each). */
+    pageBreaks?: string[];
+    onTogglePageBreak?: ((itemId: string) => void) | undefined;
   }
 
   let {
@@ -46,7 +50,9 @@
     onMoveDown = undefined,
     onMoveExamItem = undefined,
     onRemoveMcGroup = undefined,
-    onEditMcGroup = undefined
+    onEditMcGroup = undefined,
+    pageBreaks = [],
+    onTogglePageBreak = undefined
   }: Props = $props();
 
   function memberExercises(group: McGroup): ExerciseRecord[] {
@@ -176,6 +182,9 @@
           {#if item.type === "exercise"}
             {@const exercise = exercises.find((e) => e.id === item.id) || libraryExercises.find((e) => e.id === item.id)}
             {#if exercise}
+              {#if idx > 0 && onTogglePageBreak}
+                <PageBreakDivider active={pageBreaks.includes(item.id)} onToggle={() => onTogglePageBreak(item.id)} />
+              {/if}
               {@render exerciseRow(
                 exercise,
                 idx,
@@ -187,6 +196,9 @@
           {:else if item.type === "mc_group"}
             {@const group = mcGroups.find((g) => g.id === item.id)}
             {#if group}
+              {#if idx > 0 && onTogglePageBreak}
+                <PageBreakDivider active={pageBreaks.includes(item.id)} onToggle={() => onTogglePageBreak(item.id)} />
+              {/if}
               {@render groupRow(group, idx)}
             {/if}
           {/if}

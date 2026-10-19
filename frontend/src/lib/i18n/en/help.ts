@@ -85,8 +85,8 @@ export const help: Translations['help'] = {
             summary: 'Create, tag and maintain exercises, with variants and versions, and share them with others.',
             s1: {
                 h: 'Collect instead of copy',
-                p1: 'Exercises live in a shared library, tagged by grade, subject and topic. Each one is a LaTeX fragment with a live preview; its score is read from the source automatically.',
-                p2: 'Use the filters at the top to narrow the library by grade, subject and topic and reuse an exercise in a new exam.',
+                p1: 'Exercises live in a shared library, tagged by grade, subject and topic. Each one is a LaTeX fragment with a live preview; its score is read from the source automatically and shown on every variant. In the source editor, Ctrl + F opens search and Ctrl + H search and replace (⌘ on a Mac).',
+                p2: 'Use the filters at the top to narrow the library by grade, subject and topic and reuse an exercise in a new exam. The numbers on the topics only count what matches the other filters; topics without matches are hidden. “Sort by” orders the list by name, last change, points, grade or subject; this browser remembers your choice.',
                 p3: 'Expand an entry to see, per variant, which exams use the exercise (click to open the exam). “Preview” shows the last compiled PDF; if there is none yet, Examance asks whether to compile it now.',
             },
             s2: {
@@ -137,11 +137,11 @@ export const help: Translations['help'] = {
             s1: {
                 h: 'Header data',
                 p1: 'Subject, class, exam type, date and number appear on the cover sheet. These are exam content and are therefore always printed in German, whatever language the interface is in.',
-                p2: 'The optional topic (for example “Recursion”) organises your exams in the overview, where you can filter and search by it, and is never printed on the exam.',
+                p2: 'The optional topic (for example “Recursion”) organises your exams in the overview, where you can filter and search by it, and is never printed on the exam. The overview can also be sorted by date, title, grade or subject.',
             },
             s2: {
                 h: 'Assembling exercises',
-                p1: 'Exercises come from the library, or can be created as one-offs inside the exam. Drag and drop reorders them, and the total score is recalculated as you go.',
+                p1: 'Exercises come from the library, or can be created as one-offs inside the exam. The arrows reorder them, and the total score is recalculated as you go. A long exercise continues on the next page; its heading always stays with its first lines. To start an exercise on a new page, use “Insert page break” between two exercises on the exam page. The break belongs to the exercise below it and moves with it. If you change page breaks after creating the answer-sheet template, create the template again.',
             },
             s3: {
                 h: 'Grading key',

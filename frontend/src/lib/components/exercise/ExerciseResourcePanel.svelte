@@ -2,7 +2,9 @@
   import { onDestroy, untrack } from "svelte";
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
-  import { Button, TextInput } from "#lib/components/ui";
+  import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
+  import { t, translate } from "#lib/i18n";
+  import { Badge, Button, Icon, TextInput } from "#lib/components/ui";
   import type { ExerciseResourceRecord } from "#lib/db/schema";
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import {
@@ -26,6 +28,8 @@
 
   let { exerciseId, onInsert = () => {}, onChange = () => {} }: Props = $props();
 
+  // Folded by default: the files are rarely needed and the code editor gets the space.
+  let open = $state(false);
   let resources: ExerciseResourceRecord[] = $state.raw([]);
   let thumbnails: Record<string, string> = $state.raw({});
   let errorMsg = $state("");
@@ -45,7 +49,7 @@
       resources = await exerciseResourceRepository.listLocal(exerciseId);
       await buildThumbnails();
     } catch (err: any) {
-      errorMsg = err?.message || "Could not load resource files.";
+      errorMsg = err?.message || translate("editor.resources.loadFailed");
     }
   }
 
@@ -98,7 +102,7 @@
           );
         } catch (err: any) {
           // Report the first rejection and keep the rest of the batch going.
-          errorMsg = err instanceof ResourceError ? err.message : err?.message || "Upload failed.";
+          errorMsg = err instanceof ResourceError ? err.message : err?.message || translate("editor.resources.uploadFailed");
         }
       }
       revokeThumbnails();
@@ -121,7 +125,7 @@
   }
 
   async function handleDelete(res: ExerciseResourceRecord) {
-    if (!window.confirm(`Delete "${res.filename}"? References to it in the LaTeX source will stop resolving.`)) {
+    if (!window.confirm(translate("editor.resources.confirmDelete", { name: res.filename }))) {
       return;
     }
     await exerciseResourceRepository.remove(res);
@@ -141,7 +145,7 @@
       const filename = sanitizeResourceName(renameValue);
       if (filename !== res.filename) {
         if (resources.some((r) => r.id !== res.id && r.filename === filename)) {
-          throw new ResourceError(`"${filename}" is already used by another file of this exercise.`);
+          throw new ResourceError(translate("editor.resources.nameTaken", { name: filename }));
         }
         await exerciseResourceRepository.rename(res, filename);
         await load();
@@ -149,7 +153,7 @@
       }
       renamingId = null;
     } catch (err: any) {
-      errorMsg = err?.message || "Rename failed.";
+      errorMsg = err?.message || translate("editor.resources.renameFailed");
     }
   }
 
@@ -162,79 +166,88 @@
   });
 </script>
 
-<div class="flex min-w-0 flex-col gap-2 rounded-xl border border-line bg-surface-sunken p-3">
-  <div class="flex items-baseline justify-between gap-2">
-    <h3 class="m-0 text-sm font-semibold text-content">Resource files</h3>
-    <span class="text-xs text-muted" title="Used of the per-exercise limit">
-      {formatBytes(usedBytes)} / {formatBytes(MAX_EXERCISE_RESOURCE_BYTES)}
+<div class="flex min-w-0 flex-col gap-2 rounded-xl border border-line bg-surface-sunken px-3 py-2">
+  <button type="button" class="flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent p-0 text-left pointer-coarse:min-h-11" aria-expanded={open} onclick={() => (open = !open)}>
+    <span class="flex items-center gap-2">
+      <span class="text-sm font-semibold text-content">{$t("editor.resources.heading")}</span>
+      <Badge size="xs">{resources.length}</Badge>
     </span>
-  </div>
-  <div class="h-1 overflow-hidden rounded-full bg-surface-inset">
-    <div class="h-full bg-primary" style={`width:${usedPercent}%`}></div>
-  </div>
+    <Icon icon={open ? faChevronUp : faChevronDown} class="text-muted" />
+    <span class="sr-only">{open ? $t("editor.resources.hide") : $t("editor.resources.show")}</span>
+  </button>
 
-  <div
-    class="cursor-pointer rounded-md border border-dashed p-3 text-center text-sm {dragOver
-      ? 'border-focus text-content'
-      : 'border-line-strong text-muted'}"
-    role="button"
-    tabindex="0"
-    ondragover={(e) => {
-      e.preventDefault();
-      dragOver = true;
-    }}
-    ondragleave={() => (dragOver = false)}
-    ondrop={handleDrop}
-    onclick={() => fileInput?.click()}
-    onkeydown={(e) => (e.key === "Enter" || e.key === " ") && fileInput?.click()}
-  >
-    {#if busy}
-      Storing files…
-    {:else}
-      Drop files here or click to choose — PNG, JPG, PDF and any other file the document needs.
+  {#if open}
+    <div class="flex items-baseline justify-end gap-2">
+      <span class="text-xs text-muted" title={$t("editor.resources.usedTitle")}>
+        {formatBytes(usedBytes)} / {formatBytes(MAX_EXERCISE_RESOURCE_BYTES)}
+      </span>
+    </div>
+    <div class="h-1 overflow-hidden rounded-full bg-surface-inset">
+      <div class="h-full bg-primary" style={`width:${usedPercent}%`}></div>
+    </div>
+
+    <div
+      class="cursor-pointer rounded-md border border-dashed p-3 text-center text-sm {dragOver
+        ? 'border-focus text-content'
+        : 'border-line-strong text-muted'}"
+      role="button"
+      tabindex="0"
+      ondragover={(e) => {
+        e.preventDefault();
+        dragOver = true;
+      }}
+      ondragleave={() => (dragOver = false)}
+      ondrop={handleDrop}
+      onclick={() => fileInput?.click()}
+      onkeydown={(e) => (e.key === "Enter" || e.key === " ") && fileInput?.click()}
+    >
+      {#if busy}
+        {$t("editor.resources.storing")}
+      {:else}
+        {$t("editor.resources.dropzone")}
+      {/if}
+    </div>
+    <input class="hidden" type="file" multiple bind:this={fileInput} onchange={handlePicked} />
+
+    <p class="m-0 text-xs text-muted">
+      {$t("editor.resources.hintLead")} <code class="text-content">\includegraphics{"{figure.png}"}</code>. {$t("editor.resources.hintTail")}
+    </p>
+
+    {#if errorMsg}
+      <p class="m-0 text-xs text-danger-fg" role="alert">{errorMsg}</p>
     {/if}
-  </div>
-  <input class="hidden" type="file" multiple bind:this={fileInput} onchange={handlePicked} />
 
-  <p class="m-0 text-xs text-muted">
-    Reference a file by its name, e.g. <code class="text-content">\includegraphics{"{figure.png}"}</code>. Files are
-    stored when you save the exercise. Do not upload files containing personal data of pupils.
-  </p>
-
-  {#if errorMsg}
-    <p class="m-0 text-xs text-danger-fg" role="alert">{errorMsg}</p>
-  {/if}
-
-  {#if resources.length > 0}
-    <ul class="m-0 flex max-h-56 list-none flex-col gap-1.5 overflow-y-auto p-0">
-      {#each resources as res (res.id)}
-        <li class="flex items-center gap-2 rounded-md bg-surface-inset p-1.5">
-          <div class="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-sunken">
-            {#if thumbnails[res.id]}
-              <img class="size-full object-cover" src={thumbnails[res.id]} alt={res.filename} />
-            {:else}
-              <span class="text-xs font-bold text-muted">{(res.filename.split(".").pop() || "?").toUpperCase()}</span>
-            {/if}
-          </div>
-          <div class="flex min-w-0 flex-1 flex-col">
-            {#if renamingId === res.id}
-              <TextInput size="sm" bind:value={renameValue} onkeydown={(e) => e.key === "Enter" && commitRename(res)} />
-              <div class="mt-1 flex gap-1">
-                <Button size="sm" onClick={() => commitRename(res)}>Save</Button>
-                <Button size="sm" variant="outlined" severity="secondary" onClick={() => (renamingId = null)}>Cancel</Button>
-              </div>
-            {:else}
-              <span class="truncate text-sm text-content" title={res.filename}>{res.filename}</span>
-              <span class="text-xs text-muted">{formatBytes(res.byteSize)}</span>
-            {/if}
-          </div>
-          <div class="flex shrink-0 flex-wrap justify-end gap-1">
-            <Button size="sm" variant="outlined" severity="secondary" title="Insert into the LaTeX source" onClick={() => onInsert(insertSnippetFor(res.filename))}>Insert</Button>
-            <Button size="sm" variant="outlined" severity="secondary" title="Rename" onClick={() => startRename(res)}>Rename</Button>
-            <Button size="sm" variant="outlined" severity="danger" title="Delete" onClick={() => handleDelete(res)}>Delete</Button>
-          </div>
-        </li>
-      {/each}
-    </ul>
+    {#if resources.length > 0}
+      <ul class="m-0 flex max-h-56 list-none flex-col gap-1.5 overflow-y-auto p-0">
+        {#each resources as res (res.id)}
+          <li class="flex items-center gap-2 rounded-md bg-surface-inset p-1.5">
+            <div class="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-sunken">
+              {#if thumbnails[res.id]}
+                <img class="size-full object-cover" src={thumbnails[res.id]} alt={res.filename} />
+              {:else}
+                <span class="text-xs font-bold text-muted">{(res.filename.split(".").pop() || "?").toUpperCase()}</span>
+              {/if}
+            </div>
+            <div class="flex min-w-0 flex-1 flex-col">
+              {#if renamingId === res.id}
+                <TextInput size="sm" bind:value={renameValue} onkeydown={(e) => e.key === "Enter" && commitRename(res)} />
+                <div class="mt-1 flex gap-1">
+                  <Button size="sm" onClick={() => commitRename(res)}>{$t("editor.resources.save")}</Button>
+                  <Button size="sm" variant="outlined" severity="secondary" onClick={() => (renamingId = null)}>{$t("editor.resources.cancel")}</Button>
+                </div>
+              {:else}
+                <span class="truncate text-sm text-content" title={res.filename}>{res.filename}</span>
+                <span class="text-xs text-muted">{formatBytes(res.byteSize)}</span>
+              {/if}
+            </div>
+            <div class="flex shrink-0 flex-wrap justify-end gap-1">
+              <Button size="sm" variant="outlined" severity="secondary" title={$t("editor.resources.insertTitle")} onClick={() => onInsert(insertSnippetFor(res.filename))}>{$t("editor.resources.insert")}</Button>
+              <Button size="sm" variant="outlined" severity="secondary" title={$t("editor.resources.rename")} onClick={() => startRename(res)}>{$t("editor.resources.rename")}</Button>
+              <Button size="sm" variant="outlined" severity="danger" title={$t("editor.resources.delete")} onClick={() => handleDelete(res)}>{$t("editor.resources.delete")}</Button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    {/if}
   {/if}
 </div>

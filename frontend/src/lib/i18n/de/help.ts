@@ -85,8 +85,8 @@ export const help = {
             summary: 'Aufgaben anlegen, verschlagworten, in Varianten und Versionen pflegen und mit anderen teilen.',
             s1: {
                 h: 'Sammeln statt kopieren',
-                p1: 'Aufgaben liegen in einer gemeinsamen Bibliothek und werden nach Jahrgang, Fach und Thema verschlagwortet. Jede Aufgabe ist ein LaTeX-Fragment mit Live-Vorschau; die Punktzahl wird automatisch aus dem Quelltext gelesen.',
-                p2: 'Über die Filter oben lassen sich Aufgaben nach Jahrgang, Fach und Thema eingrenzen und für eine neue Klausur wiederverwenden.',
+                p1: 'Aufgaben liegen in einer gemeinsamen Bibliothek und werden nach Jahrgang, Fach und Thema verschlagwortet. Jede Aufgabe ist ein LaTeX-Fragment mit Live-Vorschau; die Punktzahl wird automatisch aus dem Quelltext gelesen und an jeder Variante angezeigt. Im Quelltext-Editor öffnet Strg + F die Suche, Strg + H Suchen und Ersetzen (auf dem Mac ⌘).',
+                p2: 'Über die Filter oben lassen sich Aufgaben nach Jahrgang, Fach und Thema eingrenzen und für eine neue Klausur wiederverwenden. Die Zahlen an den Themen zählen nur, was zu den übrigen Filtern passt; Themen ohne Treffer werden ausgeblendet. „Sortieren nach“ ordnet die Liste nach Name, letzter Änderung, Punkten, Jahrgang oder Fach; die Wahl merkt sich dieser Browser.',
                 p3: 'Im aufgeklappten Eintrag sehen Sie je Variante, in welchen Klausuren die Aufgabe verwendet wird (Klick öffnet die Klausur). „Vorschau“ zeigt das zuletzt kompilierte PDF; gibt es noch keines, fragt Examance, ob es jetzt kompiliert werden soll.',
             },
             s2: {
@@ -137,11 +137,11 @@ export const help = {
             s1: {
                 h: 'Kopfdaten',
                 p1: 'Fach, Klasse, Testart, Datum und Nummer erscheinen auf dem Deckblatt der Klausur. Diese Angaben sind Prüfungsinhalt und werden deshalb immer auf Deutsch gedruckt, unabhängig von der Sprache der Oberfläche.',
-                p2: 'Das optionale Thema (z. B. „Rekursion“) ordnet Ihre Klausuren in der Prüfungsübersicht, wo Sie danach filtern und suchen können, und wird nicht auf die Klausur gedruckt.',
+                p2: 'Das optionale Thema (z. B. „Rekursion“) ordnet Ihre Klausuren in der Prüfungsübersicht, wo Sie danach filtern und suchen können, und wird nicht auf die Klausur gedruckt. Die Übersicht lässt sich außerdem nach Datum, Titel, Jahrgang oder Fach sortieren.',
             },
             s2: {
                 h: 'Aufgaben zusammenstellen',
-                p1: 'Aufgaben werden aus der Bibliothek übernommen oder als Einzelstück direkt in der Klausur angelegt. Die Reihenfolge lässt sich per Drag-and-drop ändern, die Gesamtpunktzahl wird laufend mitgerechnet.',
+                p1: 'Aufgaben werden aus der Bibliothek übernommen oder als Einzelstück direkt in der Klausur angelegt. Die Reihenfolge lässt sich mit den Pfeilen ändern, die Gesamtpunktzahl wird laufend mitgerechnet. Eine lange Aufgabe läuft auf der nächsten Seite weiter; ihre Überschrift bleibt dabei immer mit den ersten Zeilen zusammen. Soll eine Aufgabe auf einer neuen Seite beginnen, fügen Sie auf der Prüfungsseite zwischen zwei Aufgaben „Seitenumbruch einfügen“ ein. Der Umbruch gehört zur Aufgabe darunter und wandert beim Verschieben mit. Ändern Sie Umbrüche erst nach dem Erstellen der Antwortbogen-Vorlage, erzeugen Sie die Vorlage neu.',
             },
             s3: {
                 h: 'Notenschlüssel',

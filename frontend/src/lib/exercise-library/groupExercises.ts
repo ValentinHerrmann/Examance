@@ -43,6 +43,12 @@ export function resyncVariantLabel(v: ResyncVariant, prefer: "own" | "source"): 
   return key ? translate("exercises.sharing.resyncModal.variant", { key }) : first?.name || second?.name || "";
 }
 
+/** Points of one exercise: the LaTeX score wins, the stored maximum is the fallback. */
+export function variantPoints(source: VariantMember | ExerciseRecord): number {
+  const ex = "ex" in source ? source.ex : source;
+  return parseExerciseScore(ex.latexBody || "") || ex.maxPoints || 0;
+}
+
 /** Buckets exercises by group id (or name), keeping only current versions, variants sorted `_General` first. */
 export function groupExercises(exs: ExerciseRecord[]): ExerciseGroup[] {
   const buckets = new Map<string, ExerciseRecord[]>();
@@ -93,7 +99,7 @@ export function groupExercises(exs: ExerciseRecord[]): ExerciseGroup[] {
       allMembers.push(...vMembers);
     }
 
-    const scores = allMembers.map((m) => parseExerciseScore(m.ex.latexBody || "") || m.ex.maxPoints || 0);
+    const scores = allMembers.map(variantPoints);
     const maxPoints = scores.length > 0 ? Math.max(...scores) : 0;
     const minPoints = scores.length > 0 ? Math.min(...scores) : 0;
 

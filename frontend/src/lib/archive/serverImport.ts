@@ -10,6 +10,7 @@ import { sessionStore } from '#lib/stores/session';
 import { mapExamRecordToApi } from '#lib/repositories/examRepository';
 import { mapExerciseRecordToApi } from '#lib/repositories/exerciseRepository';
 import type { ExamRecord, ExerciseRecord } from '#lib/db/schema';
+import { remapPageBreaks } from '#lib/exam/pageBreaks';
 import { addMissing, bump, type ArchiveReport } from './report';
 
 export interface ServerImportResult {
@@ -211,7 +212,9 @@ export async function importPayloadToServer(
         order_index: g.orderIndex ?? 1,
       }));
 
-    const body = { ...mapExamRecordToApi(exam), exercise_links, mc_groups };
+    // Breaks name exercises and MC groups, whose ids may have changed above.
+    const page_breaks = remapPageBreaks(exam.pageBreaks, idMap, mcGroupIdMap);
+    const body = { ...mapExamRecordToApi(exam), page_breaks, exercise_links, mc_groups };
     const { created, error } = await createWithIdFallback('/exams', body);
     if (!created?.id) {
       errors.push(`Exam "${label}": ${error}`);

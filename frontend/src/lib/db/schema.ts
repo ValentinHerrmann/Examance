@@ -40,6 +40,8 @@ export interface ExamRecord extends MaybeUndecryptable {
   gradingKey?: GradingKeyConfig;
   /** Package entries on top of the account's (issue #108, lib/latex/packages.ts); null follows the account. */
   latexPackages?: LatexPackageEntry[] | null;
+  /** Ids of the exercises / MC groups that start on a new page (a break goes before each); layout only. */
+  pageBreaks?: string[] | null;
   retentionUntil: string;  // ISO date string
   compilationStatus: 'pending' | 'compiled' | 'failed';
   createdAt: string;

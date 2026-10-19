@@ -742,6 +742,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       latex_template: '',
       topic: null,
       latex_packages: null,
+      page_breaks: null,
       ...exam,
       exercises,
       mc_groups: mcGroups,

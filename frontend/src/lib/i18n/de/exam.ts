@@ -151,6 +151,11 @@ export const exam = {
         editGroupButton: 'Bearbeiten',
         empty: 'Noch keine Aufgaben hinzugefügt.',
     },
+    pageBreak: {
+        insert: 'Seitenumbruch einfügen',
+        label: 'Seitenumbruch',
+        remove: 'Seitenumbruch entfernen',
+    },
     sidebar: {
         label: 'Prüfungsnavigation',
         back: 'Zu den Prüfungen',

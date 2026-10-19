@@ -40,6 +40,22 @@ def normalize_topic(value: Any) -> Any:
     return (value.strip() or None) if isinstance(value, str) else value
 
 
+_MAX_PAGE_BREAKS = 500
+_MAX_ITEM_ID_LEN = 64
+
+
+def check_page_breaks(value: list[str] | None) -> list[str] | None:
+    """Bound the break list; entries are exercise/MC-group ids and may refer to nothing yet."""
+    if value is None:
+        return None
+    if len(value) > _MAX_PAGE_BREAKS:
+        raise ValueError(f"at most {_MAX_PAGE_BREAKS} page breaks are allowed.")
+    for item in value:
+        if not item or len(item) > _MAX_ITEM_ID_LEN:
+            raise ValueError(f"page break ids must be 1 to {_MAX_ITEM_ID_LEN} characters.")
+    return list(dict.fromkeys(value))
+
+
 # Request bounds mirror the model columns (String(n), the question_type enum), so an oversized
 # value is a 422 instead of a database error. Positions are small ints, far below int4.
 QuestionType = Literal["free_text", "mc", "sc", "tf"]
@@ -173,6 +189,7 @@ class ExamCreate(BaseModel):
     grading_key: dict[str, Any] | None = None
     # Package entries on top of the account's (issue #108); null follows the account.
     latex_packages: list[LatexPackageEntry] | None = None
+    page_breaks: list[str] | None = None
     exercise_ids: list[uuid.UUID] = []
     exercise_links: list[ExerciseLinkCreate] = []
     exercises: list[ExerciseCreate] = []
@@ -181,6 +198,7 @@ class ExamCreate(BaseModel):
     _check_retention = field_validator("retention_until")(validate_retention_until)
     _normalize_topic = field_validator("topic", mode="before")(normalize_topic)
     _check_packages = field_validator("latex_packages")(check_entry_list)
+    _check_page_breaks = field_validator("page_breaks")(check_page_breaks)
 
 
 class ExamUpdate(BaseModel):
@@ -200,6 +218,8 @@ class ExamUpdate(BaseModel):
     grading_key: dict[str, Any] | None = None
     # Absent keeps the stored override; null clears it, so the exam follows the account again.
     latex_packages: list[LatexPackageEntry] | None = None
+    # Absent keeps the stored breaks; null or [] clears them.
+    page_breaks: list[str] | None = None
     exercise_ids: list[uuid.UUID] | None = None
     exercise_links: list[ExerciseLinkCreate] | None = None
     mc_groups: list[ExamMcGroupCreate] | None = None
@@ -207,6 +227,7 @@ class ExamUpdate(BaseModel):
     _check_retention = field_validator("retention_until")(validate_retention_until)
     _normalize_topic = field_validator("topic", mode="before")(normalize_topic)
     _check_packages = field_validator("latex_packages")(check_entry_list)
+    _check_page_breaks = field_validator("page_breaks")(check_page_breaks)
 
 
 class ExamResponse(BaseModel):
@@ -228,6 +249,7 @@ class ExamResponse(BaseModel):
     info_text: str | None = None
     grading_key: dict[str, Any] | None = None
     latex_packages: list[LatexPackageEntry] | None = None
+    page_breaks: list[str] | None = None
     exercises: list[ExerciseResponse] = []
     mc_groups: list[ExamMcGroupResponse] = []
 
