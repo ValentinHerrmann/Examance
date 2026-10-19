@@ -44,6 +44,8 @@ export const help: Translations['help'] = {
                 h: 'What Examance does',
                 p1: 'Examance covers an exam end to end: collect exercises, typeset the exam, import the scanned sheets, grade them anonymously, and analyse the results.',
                 p2: 'All sensitive data is encrypted in the browser before it is stored. The key is derived from your password and never leaves the device.',
+                p3: 'For a quick overview, two posters under "Discover Examance" (linked from the sign-in page) show what Examance does, what the interface looks like and how your data is protected.',
+                p4: 'To try things out, "Add example data" in the still empty exam overview creates example exercises, two example exams and already graded sheets of invented students, some of them scanned. They are not shared, are stored and encrypted like your own data, and can be deleted like any exam and exercise.',
             },
             s2: {
                 h: 'The usual workflow',
@@ -93,6 +95,7 @@ export const help: Translations['help'] = {
                 h: 'Variants and versions',
                 p1: 'Variants are equivalent phrasings of the same exercise, e.g. for groups A and B. They are analysed together but make copying harder.',
                 p2: 'Versions record the revision history: a reworked exercise replaces the old one without invalidating the analysis of past exams.',
+                p3: '"Duplicate" creates a separate, unshared copy of the group: the current version of every variant, with its files. Use it to start a similar exercise without touching the original.',
             },
             s3: {
                 h: 'Multiple choice',
@@ -142,6 +145,7 @@ export const help: Translations['help'] = {
             s2: {
                 h: 'Assembling exercises',
                 p1: 'Exercises come from the library, or can be created as one-offs inside the exam. The arrows reorder them, and the total score is recalculated as you go. A long exercise continues on the next page; its heading always stays with its first lines. To start an exercise on a new page, use “Insert page break” between two exercises on the exam page. The break belongs to the exercise below it and moves with it. If you change page breaks after creating the answer-sheet template, create the template again.',
+                p2: '"Duplicate" (in the exam overview and on the exam page) creates a new exam with the same header, exercises, MC groups, grading key and settings, for example for a parallel class or next school year. Students, scans and results are never copied; the copy gets its own QR codes.',
             },
             s3: {
                 h: 'Grading key',
@@ -332,7 +336,7 @@ export const help: Translations['help'] = {
             },
             s8: {
                 h: 'Requesting an account',
-                p1: 'With "Request an account" on the sign-in page you enter your email address and receive a confirmation link. Through that link you choose your password; only then is the account created. The page deliberately does not reveal whether an address already has an account.',
+                p1: 'With "Request an account" on the sign-in page you enter your email address and receive a confirmation link. Through that link you choose your password; only then is the account created. The page deliberately does not reveal whether an address already has an account. If the email does not arrive, look in your spam or junk folder.',
                 p2: 'If your address belongs to a domain your administrator has allowed, the account is active right away. Otherwise it waits for approval; until then signing in only reports "awaiting approval", and you get an email once it is approved. You set up your second sign-in factor on your first sign-in.',
             },
             s9: {

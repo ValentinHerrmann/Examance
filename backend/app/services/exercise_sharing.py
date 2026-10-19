@@ -244,6 +244,64 @@ async def copy_shared_group(
     return group, created
 
 
+async def duplicate_own_group(
+    source: Exercise, teacher: Teacher, db: AsyncSession
+) -> tuple[ExerciseGroup, list[Exercise]]:
+    """Copy the current rows of *source*'s own group into a new private group (issue #121).
+    No resync link; a duplicate of a copy stays marked as copied so it is never shared as own."""
+    sources: list[Exercise] = [source]
+    origin: ExerciseGroup | None = None
+    if source.exercise_group_id is not None:
+        origin = await db.get(ExerciseGroup, source.exercise_group_id)
+        sources = list(
+            (
+                await db.execute(
+                    select(Exercise)
+                    .where(
+                        Exercise.exercise_group_id == source.exercise_group_id,
+                        Exercise.teacher_id == teacher.id,
+                        Exercise.is_current.is_(True),
+                    )
+                    .order_by(Exercise.variant_key.asc())
+                )
+            ).scalars()
+        ) or [source]
+    was_copied = (origin is not None and origin.copied_at is not None) or any(
+        s.copied_from_exercise_id for s in sources
+    )
+    base = origin or source
+    group = ExerciseGroup(
+        teacher_id=teacher.id,
+        name=f"{base.name or 'Untitled Group'} (Kopie)"[:200],
+        topic_tag=base.topic_tag,
+        grade=base.grade,
+        subject=base.subject,
+        copied_at=datetime.now(UTC) if was_copied else None,
+    )
+    db.add(group)
+    await db.flush()
+    created: list[Exercise] = []
+    for src in sources:
+        row = Exercise(
+            teacher_id=teacher.id,
+            name=group.name,
+            topic_tag=group.topic_tag,
+            grade=group.grade,
+            subject=group.subject,
+            version=1,
+            exercise_group_id=group.id,
+            variant_key=src.variant_key,
+            is_current=True,
+            code_withheld=src.code_withheld,
+            **_content_from(src),
+        )
+        db.add(row)
+        await db.flush()
+        await copy_resources(src.id, row.id, db)
+        created.append(row)
+    return group, created
+
+
 # --- Sync status and resync -----------------------------------------------
 
 SyncState = Literal["up_to_date", "update_available", "source_unavailable"]

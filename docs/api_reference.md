@@ -183,6 +183,7 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 | `GET` | `/api/v1/exams/{exam_id}` | Get Exam Details | Yes | Retrieves full exam metadata and live-linked exercises. |
 | `PATCH` | `/api/v1/exams/{exam_id}` | Update Exam | Yes | Updates exam details and exercise links. |
 | `DELETE` | `/api/v1/exams/{exam_id}` | Soft-Delete Exam | Yes | Soft-deletes exam and marks it inaccessible. Its student identities and submissions are soft-deleted on the standard grace period (`RETENTION_GRACE_DAYS`) and then erased by the retention job. |
+| `POST` | `/api/v1/exams/{exam_id}/duplicate` | Duplicate Exam | Yes | Body `{"retention_until"}`. Creates a new exam titled "… (Kopie)" with the same header fields, settings, logo override, MC groups (new ids), page breaks (following those ids) and links to the same library exercises (a legacy exam-bound exercise gets its own copy). Never copies students, submissions or scores; `compilation_status` starts at `pending`. Rate limit 60/hour. |
 | `GET` | `/api/v1/exams/{exam_id}/exercises` | List Exam Exercises | Yes | Retrieves exercises linked to the specified exam in display order. |
 | `POST` | `/api/v1/exams/{exam_id}/compile` | Compile Exam | Yes | Compiles the complete exam LaTeX document from its live-linked library exercises; returns `application/pdf`. Needs the account's `server_latex` feature (`403 ERR_FEATURE_NOT_ALLOWED` otherwise). |
 | `GET` | `/api/v1/exams/{exam_id}/logo` | Exam Logo | Yes | The exam's logo setting (`mode`: `account`, `none`, `custom`) and what it resolves to (`source`: `default`, `account`, `exam`, `none`, plus type and size). |
@@ -227,6 +228,7 @@ Self-registration is always available; it needs working mail delivery (`SMTP_HOS
 | `PATCH` | `/api/v1/exercises/groups/{group_id}` | Update Exercise Group | Yes | Updates group metadata and cascades it to every member variant. |
 | `POST` | `/api/v1/exercises/{id}/new-version` | Create Version | Yes | Creates a new version of an exercise, updating `is_current`. |
 | `POST` | `/api/v1/exercises/{id}/new-variant` | Create Variant | Yes | Creates a parallel variant within the same exercise group. |
+| `POST` | `/api/v1/exercises/{id}/duplicate` | Duplicate Exercise | Yes | Copies the current version of every variant of an own exercise group (with its files) into a new private group named "… (Kopie)", version 1, without copy provenance. A duplicate of a copied group stays marked as copied, so it is never shared as one's own. Returns `{group_id, exercises}`. Rate limit 60/hour. |
 | `GET` | `/api/v1/exercises/{id}/usage` | Exercise Usage | Yes | Lists exams referencing this exercise and count. |
 | `DELETE` | `/api/v1/exercises/{id}` | Delete Exercise | Yes | Soft-deletes exercise from the caller's own library. Idempotent (always `204`); a foreign id is a silent no-op. |
 | `GET` | `/api/v1/exercises/{id}/resources` | List Resources | Yes | Metadata of the exercise's resource files (no bytes). Readable for own and published exercises. |

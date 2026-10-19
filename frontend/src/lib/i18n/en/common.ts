@@ -8,6 +8,7 @@ export const common: Translations['common'] = {
     confirm: 'Confirm',
     edit: 'Edit',
     preview: 'Preview',
+    duplicate: 'Duplicate',
     loadFailedShort: 'Could not be loaded.',
     previewCompiling: 'Compiling PDF…',
     previewCompilingSolution: 'Solution is still compiling…',

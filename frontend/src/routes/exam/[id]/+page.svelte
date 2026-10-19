@@ -419,6 +419,22 @@
     }
   }
 
+  let isDuplicating = $state(false);
+
+  /** A copy with the same exercises and settings but no results (issue #121), opened right away. */
+  async function handleDuplicateExam() {
+    if (!exam) return;
+    isDuplicating = true;
+    try {
+      const copy = await examRepository.duplicate(exam.id);
+      await goto(`/exam/${copy.id}`);
+    } catch (err: any) {
+      alert(translate("dashboard.duplicateFailed", { message: err?.message ?? "" }));
+    } finally {
+      isDuplicating = false;
+    }
+  }
+
   async function handleExportArchive() {
     isExporting = true;
     try {
@@ -1164,6 +1180,8 @@
       onGrade={handleGrade}
       onStats={handleStats}
       onDeleteAllSubmissions={handleDeleteAllSubmissions}
+      onDuplicate={handleDuplicateExam}
+      {isDuplicating}
     />
 
     <ExamMetadataEditor

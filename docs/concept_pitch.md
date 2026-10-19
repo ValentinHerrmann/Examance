@@ -29,3 +29,5 @@ npx @marp-team/marp-cli <source.md> --pdf --html --allow-local-files \
 ```
 
 Posters use the `examance-poster` theme (A3, `size: a3`), which imports the slide theme and overrides the colours with a higher-contrast print palette (dark greys print muddy on office printers).
+
+The app ships the two committed poster PDFs on its public "Discover Examance" page (`/about`, linked from the sign-in page; `frontend/src/lib/about/posters.ts`, issue #119). They are bundled at build time, so re-render and commit the PDF whenever a poster's `.md` changes; the next deployment picks it up.

@@ -6,6 +6,7 @@ export const common = {
     confirm: 'Bestätigen',
     edit: 'Bearbeiten',
     preview: 'Vorschau',
+    duplicate: 'Duplizieren',
     loadFailedShort: 'Konnte nicht geladen werden.',
     previewCompiling: 'PDF wird kompiliert…',
     previewCompilingSolution: 'Lösung wird noch kompiliert…',

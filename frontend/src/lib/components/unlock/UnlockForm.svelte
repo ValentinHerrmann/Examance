@@ -1,10 +1,12 @@
 <script lang="ts">
   import BackendUrlInput from "#lib/components/common/BackendUrlInput.svelte";
+  import PosterTeaser from "#lib/components/about/PosterTeaser.svelte";
   import { t } from "#lib/i18n";
   import {
     faArrowRight,
     faCircleQuestion,
     faCloud,
+    faLightbulb,
     faKey,
   } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Badge, Button, Card, Field, Icon, TextInput } from "#lib/components/ui";
@@ -41,17 +43,21 @@
   <!-- The very first screen someone sees, and the one place where no workspace
        exists yet to explain itself. /help is a public path, so this works while
        locked. -->
-  <Button
-    href="/help"
-    variant="outlined"
-    severity="primary"
-    size="sm"
-    icon={faCircleQuestion}
-    iconRight={faArrowRight}
-    class="mt-3"
-  >
-    {$t("help.ui.unlockLink")}
-  </Button>
+  <div class="mt-3 flex flex-wrap justify-center gap-2">
+    <Button
+      href="/help"
+      variant="outlined"
+      severity="primary"
+      size="sm"
+      icon={faCircleQuestion}
+      iconRight={faArrowRight}
+    >
+      {$t("help.ui.unlockLink")}
+    </Button>
+    <Button href="/about" variant="outlined" severity="secondary" size="sm" icon={faLightbulb}>
+      {$t("about.headerLink")}
+    </Button>
+  </div>
 </div>
 
 {#if errorMsg}
@@ -140,3 +146,5 @@
     </form>
   </Card>
 </div>
+
+<PosterTeaser class="mt-4" />

@@ -227,6 +227,19 @@ export function applyToAll(
   return decisions;
 }
 
+/** Annotation strokes name their exercise; a copied exercise's strokes must follow its new id. */
+function remapStrokeExercises(bytes: unknown, idMap: Map<string, string>): unknown {
+  if (!(bytes instanceof Uint8Array) || idMap.size === 0) return bytes;
+  try {
+    const strokes = JSON.parse(new TextDecoder().decode(bytes));
+    if (!Array.isArray(strokes)) return bytes;
+    const next = strokes.map((st) => (st?.exerciseId && idMap.has(st.exerciseId) ? { ...st, exerciseId: idMap.get(st.exerciseId) } : st));
+    return new TextEncoder().encode(JSON.stringify(next));
+  } catch {
+    return bytes; // Not stroke JSON: leave it exactly as archived.
+  }
+}
+
 /**
  * Rewrites the payload per the decisions: kept records dropped, copies get one fresh id that every
  * reference follows. Loosely typed on purpose: the archive may carry unknown fields that must round-trip.
@@ -255,7 +268,10 @@ export function applyResolutions(
     exercises: rewrite('exercises', (r) => r.id, (r) => ({ id: remap(r.id), examId: remap(r.examId) })),
     examMcGroups: rewrite('examMcGroups', (r) => r.id, (r) => ({ id: remap(r.id), examId: remap(r.examId) })),
     students: rewrite('students', (r) => r.pseudonymId, (r) => ({ examId: remap(r.examId) })),
-    submissions: rewrite('submissions', (r) => r.id, (r) => ({ examId: remap(r.examId) })),
+    submissions: rewrite('submissions', (r) => r.id, (r) => ({
+      examId: remap(r.examId),
+      annotationBytes: remapStrokeExercises(r.annotationBytes, idMap),
+    })),
     exerciseResources: rewrite(
       'exerciseResources',
       (r) => `${r.exerciseId}:${r.filename}`,

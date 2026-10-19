@@ -29,6 +29,14 @@ export const dashboard: Translations['dashboard'] = {
         createFirst: 'Create first exam',
         importArchive: 'Or Import .bgproj Archive',
     },
+    exampleData: {
+        text: 'Want to try it first? Example data adds exercises, two exams and already graded sheets of invented students, some of them scanned. Nothing is shared, and you can delete it at any time.',
+        button: 'Add example data',
+        adding: 'Adding example data…',
+        failed: 'The example data could not be added: {message}',
+        unavailable: 'The example data is not available on this installation.',
+        reportName: 'Example data',
+    },
     filterBar: {
         searchPlaceholder: 'Search exams by title, class, subject, topic…',
         allTestarts: 'All exam types ({count})',
@@ -48,6 +56,7 @@ export const dashboard: Translations['dashboard'] = {
         noExercises: 'No exercises assigned.',
         loadingExercises: 'Loading exercises…',
         untitledExercise: 'Untitled exercise',
+        duplicateHint: 'Create a copy with the same exercises and settings, without students or results',
     },
     retentionModal: {
         title: 'GDPR Retention Warning (Art. 5)',
@@ -63,6 +72,7 @@ export const dashboard: Translations['dashboard'] = {
     importStatus: 'Status: {stage} ({current}%)',
     importFailed: 'Import failed: {message}',
     deleteFailed: 'Delete failed: {message}',
+    duplicateFailed: 'Duplicating failed: {message}',
     deleteModal: {
         title: 'Delete exam: {title}',
         warningTitle: 'Warning: exam contains submissions',

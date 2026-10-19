@@ -77,6 +77,11 @@ export const auth = {
         submit: 'Bestätigungslink senden',
         sending: 'Wird gesendet…',
         sent: 'Falls diese Adresse registriert werden kann, ist ein Bestätigungslink unterwegs.',
+        sentTitle: 'Bitte prüfen Sie jetzt Ihr E-Mail-Postfach',
+        nextSteps: 'So geht es weiter:',
+        step1: 'Öffnen Sie die E-Mail von Examance an {email}. Sie kommt meist innerhalb weniger Minuten; sehen Sie auch im Spam- oder Junk-Ordner nach.',
+        step2: 'Klicken Sie auf den Link in der E-Mail und legen Sie ein Passwort fest. Erst damit ist Ihre Adresse bestätigt.',
+        step3: 'Gehört Ihre Schule nicht zu den freigeschalteten Domains, gibt danach die Administration Ihr Konto frei. Sie erhalten dann eine weitere E-Mail und können sich anmelden.',
         sentHint: 'Der Link ist nur begrenzt gültig. Haben Sie bereits ein Konto, nutzen Sie stattdessen „Passwort vergessen?“ auf der Anmeldeseite.',
         backToSignIn: 'Zurück zur Anmeldung',
         errors: {

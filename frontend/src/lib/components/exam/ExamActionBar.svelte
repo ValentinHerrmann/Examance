@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from "#lib/i18n";
-  import { faFileZipper } from "@fortawesome/free-solid-svg-icons";
+  import { faCopy, faFileZipper } from "@fortawesome/free-solid-svg-icons";
   import { Button } from "#lib/components/ui";
 
   interface Props {
@@ -13,6 +13,8 @@
     onGrade: () => void;
     onStats: () => void;
     onDeleteAllSubmissions: () => void;
+    onDuplicate: () => void;
+    isDuplicating?: boolean;
   }
 
   let {
@@ -24,7 +26,9 @@
     onScan,
     onGrade,
     onStats,
-    onDeleteAllSubmissions
+    onDeleteAllSubmissions,
+    onDuplicate,
+    isDuplicating = false
   }: Props = $props();
 </script>
 
@@ -48,6 +52,17 @@
     </Button>
     <Button size="sm" variant="outlined" severity="secondary" icon={faFileZipper} onClick={onRawExport}>
       {$t("export.button")}
+    </Button>
+    <Button
+      size="sm"
+      variant="outlined"
+      severity="secondary"
+      icon={faCopy}
+      loading={isDuplicating}
+      title={$t("dashboard.examList.duplicateHint")}
+      onClick={onDuplicate}
+    >
+      {$t("common.duplicate")}
     </Button>
   </div>
 

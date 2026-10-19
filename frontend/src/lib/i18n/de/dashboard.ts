@@ -27,6 +27,14 @@ export const dashboard = {
         createFirst: 'Erste Prüfung erstellen',
         importArchive: 'Oder .bgproj-Archiv importieren',
     },
+    exampleData: {
+        text: 'Erst einmal ausprobieren? Beispieldaten legen Aufgaben, zwei Prüfungen und bereits korrigierte, teils gescannte Bögen erfundener Schülerinnen und Schüler an. Sie sind nicht geteilt und lassen sich jederzeit wieder löschen.',
+        button: 'Beispieldaten hinzufügen',
+        adding: 'Beispieldaten werden angelegt…',
+        failed: 'Die Beispieldaten konnten nicht angelegt werden: {message}',
+        unavailable: 'Die Beispieldaten sind in dieser Installation nicht verfügbar.',
+        reportName: 'Beispieldaten',
+    },
     filterBar: {
         searchPlaceholder: 'Prüfungen nach Titel, Klasse, Fach, Thema suchen…',
         allTestarts: 'Alle Prüfungstypen ({count})',
@@ -46,6 +54,7 @@ export const dashboard = {
         noExercises: 'Keine Aufgaben zugeordnet.',
         loadingExercises: 'Aufgaben werden geladen…',
         untitledExercise: 'Unbenannte Aufgabe',
+        duplicateHint: 'Kopie mit denselben Aufgaben und Einstellungen anlegen, ohne Schüler und Ergebnisse',
     },
     retentionModal: {
         title: 'DSGVO-Aufbewahrungswarnung (Art. 5)',
@@ -61,6 +70,7 @@ export const dashboard = {
     importStatus: 'Status: {stage} ({current}%)',
     importFailed: 'Import fehlgeschlagen: {message}',
     deleteFailed: 'Löschen fehlgeschlagen: {message}',
+    duplicateFailed: 'Duplizieren fehlgeschlagen: {message}',
     deleteModal: {
         title: 'Prüfung löschen: {title}',
         warningTitle: 'Warnung: Prüfung enthält Abgaben',

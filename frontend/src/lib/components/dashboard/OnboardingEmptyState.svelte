@@ -1,9 +1,18 @@
 <script lang="ts">
   import { t } from "#lib/i18n";
-  import { faArrowRight, faCircleQuestion } from "@fortawesome/free-solid-svg-icons";
+  import { faArrowRight, faCircleQuestion, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
   import { openHelp } from "#lib/stores/helpStore";
   import HelpButton from "#lib/components/help/HelpButton.svelte";
-  import { Button, Card, EmptyState, Icon } from "#lib/components/ui";
+  import { Alert, Button, Card, EmptyState, Icon } from "#lib/components/ui";
+
+  interface Props {
+    /** Adds the bundled example data (issue #120); the dashboard reloads afterwards. */
+    onAddExampleData: () => void;
+    addingExampleData?: boolean;
+    exampleDataError?: string;
+  }
+
+  let { onAddExampleData, addingExampleData = false, exampleDataError = "" }: Props = $props();
 
   const steps = [
     { n: 1, title: "dashboard.onboarding.step1Title", text: "dashboard.onboarding.step1Text", topic: "examCreation" },
@@ -44,6 +53,22 @@
         </li>
       {/each}
     </ol>
+
+    <div class="mb-4 flex w-full flex-col gap-2 rounded-md border border-line bg-surface-sunken p-4 text-left @xl:flex-row @xl:items-center @xl:gap-4">
+      <p class="m-0 min-w-0 flex-1 text-sm text-muted">{$t("dashboard.exampleData.text")}</p>
+      <Button
+        variant="outlined"
+        severity="primary"
+        icon={faWandMagicSparkles}
+        loading={addingExampleData}
+        onClick={onAddExampleData}
+      >
+        {addingExampleData ? $t("dashboard.exampleData.adding") : $t("dashboard.exampleData.button")}
+      </Button>
+    </div>
+    {#if exampleDataError}
+      <Alert severity="danger" class="mb-4 w-full text-left">{exampleDataError}</Alert>
+    {/if}
 
     {#snippet actions()}
       <Button href="/exam/new">{$t("dashboard.onboarding.createFirst")}</Button>

@@ -553,6 +553,32 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     return created(exerciseResponse(variant));
   }
 
+  /** `duplicate_own_group`: the current row of every variant into a new group, no provenance (issue #121). */
+  function duplicateExercise(id: string): FakeResponse {
+    const source = state.exercises.get(id);
+    if (!source) return notFound('Exercise not found');
+    const origin = source.exercise_group_id ? state.groups.get(source.exercise_group_id) : undefined;
+    const sources = source.exercise_group_id
+      ? [...state.exercises.values()].filter((e) => e.exercise_group_id === source.exercise_group_id && e.is_current)
+      : [source];
+    const base = origin ?? source;
+    const group = resolveGroup(undefined, { ...base, name: `${base.name || 'Untitled Group'} (Kopie)` });
+    const rows = sources.map((src) => {
+      const row = addExercise(group, {
+        latex_body: src.latex_body,
+        max_points: src.max_points,
+        variant_key: src.variant_key,
+        question_type: src.question_type,
+        correct_answers: structuredClone(src.correct_answers),
+        penalty: src.penalty,
+        code_withheld: src.code_withheld ?? false,
+      });
+      copyResources(src.id, row.id);
+      return row;
+    });
+    return created({ group_id: group.id, exercises: rows.map(exerciseResponse) });
+  }
+
   function updateGroup(id: string, body: any): FakeResponse {
     const group = state.groups.get(id);
     if (!group) return notFound('Exercise group not found');
@@ -691,6 +717,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     }
     if (sub === 'new-version' && method === 'POST') return newVersion(id, body);
     if (sub === 'new-variant' && method === 'POST') return newVariant(id, body);
+    if (sub === 'duplicate' && method === 'POST') return duplicateExercise(id);
     if (sub === 'usage' && method === 'GET') return usage(id);
     if (sub === 'resources') {
       if (!state.exercises.has(id)) return method === 'DELETE' ? noContent() : notFound('Exercise not found');
@@ -863,6 +890,36 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     // Unlike the other fields, null or blank clears the topic and only an absent key keeps it.
     if ('topic' in fields) exam.topic = normalizeTopic(fields.topic);
     return ok(examResponse(exam));
+  }
+
+  /** `duplicate_exam`: header, MC groups (new ids) and links; never results (issue #121). */
+  function duplicateExam(id: string, body: any): FakeResponse {
+    const source = state.exams.get(id)!;
+    const copyId = uuid();
+    const groupMap = new Map<string, string>();
+    const groups = (state.mcGroups.get(id) ?? []).map((group) => {
+      const next = { ...group, id: uuid() };
+      groupMap.set(group.id, next.id);
+      return next;
+    });
+    state.mcGroups.set(copyId, groups);
+    state.links.set(
+      copyId,
+      (state.links.get(id) ?? []).map((link) => ({
+        ...link,
+        mc_group_id: link.mc_group_id ? (groupMap.get(link.mc_group_id) ?? null) : null,
+      })),
+    );
+    state.exams.set(copyId, {
+      ...structuredClone(source),
+      id: copyId,
+      title: `${source.title} (Kopie)`,
+      page_breaks: source.page_breaks?.map((item: string) => groupMap.get(item) ?? item) ?? null,
+      retention_until: body?.retention_until ?? source.retention_until,
+      compilation_status: 'pending',
+      created_at: now(),
+    });
+    return created(examResponse(state.exams.get(copyId)));
   }
 
   function deleteExam(id: string): FakeResponse {
@@ -1077,6 +1134,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       return undefined;
     }
     if (sub === 'exercises' && method === 'GET') return ok(examResponse(exam).exercises);
+    if (sub === 'duplicate' && method === 'POST') return duplicateExam(id, body);
     if (sub === 'logo' && rest.length === 0) {
       // The account has no logo, so an exam that follows it prints none (issue #46).
       if (method === 'GET') return ok({ ...NO_LOGO, mode: 'account' });

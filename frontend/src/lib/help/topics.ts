@@ -59,7 +59,12 @@ export const HELP_TOPICS: HelpTopic[] = [
     sections: [
       {
         headingKey: "help.topics.gettingStarted.s1.h",
-        bodyKeys: ["help.topics.gettingStarted.s1.p1", "help.topics.gettingStarted.s1.p2"],
+        bodyKeys: [
+          "help.topics.gettingStarted.s1.p1",
+          "help.topics.gettingStarted.s1.p2",
+          "help.topics.gettingStarted.s1.p3",
+          "help.topics.gettingStarted.s1.p4",
+        ],
       },
       {
         headingKey: "help.topics.gettingStarted.s2.h",
@@ -120,7 +125,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       },
       {
         headingKey: "help.topics.exercises.s2.h",
-        bodyKeys: ["help.topics.exercises.s2.p1", "help.topics.exercises.s2.p2"],
+        bodyKeys: ["help.topics.exercises.s2.p1", "help.topics.exercises.s2.p2", "help.topics.exercises.s2.p3"],
       },
       {
         headingKey: "help.topics.exercises.s3.h",
@@ -165,7 +170,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       },
       {
         headingKey: "help.topics.examCreation.s2.h",
-        bodyKeys: ["help.topics.examCreation.s2.p1"],
+        bodyKeys: ["help.topics.examCreation.s2.p1", "help.topics.examCreation.s2.p2"],
       },
       {
         headingKey: "help.topics.examCreation.s3.h",

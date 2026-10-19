@@ -201,6 +201,14 @@ class ExamCreate(BaseModel):
     _check_page_breaks = field_validator("page_breaks")(check_page_breaks)
 
 
+class ExamDuplicate(BaseModel):
+    """A duplicate gets its own retention window, like a new exam (issue #121)."""
+
+    retention_until: date
+
+    _check_retention = field_validator("retention_until")(validate_retention_until)
+
+
 class ExamUpdate(BaseModel):
     title: str | None = Field(default=None, max_length=500)
     latex_template: str | None = None

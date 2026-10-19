@@ -125,6 +125,15 @@ export const exerciseRepository = {
     }
   },
 
+  /** Copies an own group (current version of each variant) into a new private group. Online-only:
+   * a queued duplicate could replay into another workspace. */
+  async duplicate(id: string): Promise<{ groupId: string; exercises: ExerciseRecord[] }> {
+    const res = await api.post<{ group_id: string; exercises: any[] }>(`/exercises/${id}/duplicate`, undefined, {
+      silentError: true,
+    });
+    return { groupId: res.group_id, exercises: res.exercises.map(mapApiToExerciseRecord) };
+  },
+
   async delete(id: string): Promise<void> {
     invalidateOwner('exercise', id);
     try {
