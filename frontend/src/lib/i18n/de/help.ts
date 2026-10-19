@@ -336,7 +336,7 @@ export const help = {
             },
             s8: {
                 h: 'Konto beantragen',
-                p1: 'Über „Konto beantragen“ auf der Anmeldeseite geben Sie Ihre E-Mail-Adresse an und erhalten einen Bestätigungslink. Über diesen Link legen Sie Ihr Passwort fest; erst dann entsteht das Konto. Ob es für eine Adresse bereits ein Konto gibt, verrät die Seite bewusst nicht.',
+                p1: 'Über „Konto beantragen“ auf der Anmeldeseite geben Sie Ihre E-Mail-Adresse an und erhalten einen Bestätigungslink. Über diesen Link legen Sie Ihr Passwort fest; erst dann entsteht das Konto. Ob es für eine Adresse bereits ein Konto gibt, verrät die Seite bewusst nicht. Kommt die E-Mail nicht an, sehen Sie im Spam- oder Junk-Ordner nach.',
                 p2: 'Stammt Ihre Adresse von einer Domain, die die Administration freigeschaltet hat, ist das Konto sofort aktiv. Andernfalls wartet es auf Freigabe; bis dahin meldet die Anmeldung nur „wartet auf Freigabe“, und Sie erhalten eine E-Mail, sobald es freigeschaltet ist. Den zweiten Anmeldefaktor richten Sie bei der ersten Anmeldung ein.',
             },
             s9: {

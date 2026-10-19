@@ -336,7 +336,7 @@ export const help: Translations['help'] = {
             },
             s8: {
                 h: 'Requesting an account',
-                p1: 'With "Request an account" on the sign-in page you enter your email address and receive a confirmation link. Through that link you choose your password; only then is the account created. The page deliberately does not reveal whether an address already has an account.',
+                p1: 'With "Request an account" on the sign-in page you enter your email address and receive a confirmation link. Through that link you choose your password; only then is the account created. The page deliberately does not reveal whether an address already has an account. If the email does not arrive, look in your spam or junk folder.',
                 p2: 'If your address belongs to a domain your administrator has allowed, the account is active right away. Otherwise it waits for approval; until then signing in only reports "awaiting approval", and you get an email once it is approved. You set up your second sign-in factor on your first sign-in.',
             },
             s9: {

@@ -79,6 +79,11 @@ export const auth: Translations['auth'] = {
         submit: 'Send confirmation link',
         sending: 'Sending…',
         sent: 'If this address can be registered, a confirmation link is on its way.',
+        sentTitle: 'Please check your email inbox now',
+        nextSteps: 'What happens next:',
+        step1: 'Open the email from Examance sent to {email}. It usually arrives within a few minutes; also look in your spam or junk folder.',
+        step2: 'Click the link in the email and choose a password. Only then is your address confirmed.',
+        step3: 'If your school is not one of the allowed domains, an administrator then approves your account. You will receive another email and can sign in.',
         sentHint: 'The link is valid for a limited time. If you already have an account, use "Forgot password?" on the sign-in page instead.',
         backToSignIn: 'Back to sign-in',
         errors: {

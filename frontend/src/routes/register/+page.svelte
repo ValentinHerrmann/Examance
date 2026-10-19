@@ -15,6 +15,7 @@
   let isSubmitting = $state(false);
   let errorMsg = $state("");
   let sent = $state(false);
+  let sentTo = $state("");
 
   async function handleRegister() {
     errorMsg = "";
@@ -39,6 +40,7 @@
     try {
       await requestRegistration(normalizedEmail);
       backendStore.saveSuccessfulBackendUrl(trimmedBackendUrl);
+      sentTo = normalizedEmail;
       sent = true;
     } catch (err: unknown) {
       backendStore.restoreSavedUrl();
@@ -56,7 +58,14 @@
 <AuthCard title={$t("auth.register.title")} subtitle={$t("auth.register.subtitle")}>
 
   {#if sent}
-    <Alert severity="success" class="mb-3">{$t("auth.register.sent")}</Alert>
+    <!-- Neutral wording (no account-existence oracle), but explicit about the mail and the approval (issue #122). -->
+    <Alert severity="success" title={$t("auth.register.sentTitle")} class="mb-4">{$t("auth.register.sent")}</Alert>
+    <p class="m-0 mb-2 text-sm font-semibold text-content">{$t("auth.register.nextSteps")}</p>
+    <ol class="m-0 mb-4 flex flex-col gap-2 pl-5 text-sm text-content">
+      <li>{$t("auth.register.step1", { email: sentTo })}</li>
+      <li>{$t("auth.register.step2")}</li>
+      <li>{$t("auth.register.step3")}</li>
+    </ol>
     <p class="m-0 mb-2 text-sm text-muted">{$t("auth.register.sentHint")}</p>
   {:else}
     {#if errorMsg}
