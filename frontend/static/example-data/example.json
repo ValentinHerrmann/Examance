@@ -1,0 +1,6535 @@
+{
+ "payloadVersion": 4,
+ "codeWithheld": false,
+ "exams": [
+  {
+   "id": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "title": "Beispiel: Stegreifaufgabe Informatik 9c",
+   "testart": "Stegreifaufgabe",
+   "grade": "9",
+   "klasse": "c",
+   "datum": "24.09.2026 (30 Minuten)",
+   "nr": "1",
+   "fach": "Informatik",
+   "lehrernachname": "Berger",
+   "infoText": "\\begin{itemize}\n    \\item Die Arbeit wird anonymisiert korrigiert. Trage deine Initialen ins QR-Code-Feld ein.\n    \\item Mit Bleistift oder rot/rosa Geschriebenes kann \\textbf{nicht} gewertet werden!\n\\end{itemize}",
+   "gradingKey": {
+    "preset": "linear_50",
+    "cutoffs": [
+     {
+      "grade": "1",
+      "label": "Sehr gut",
+      "minPercentage": 87.5
+     },
+     {
+      "grade": "2",
+      "label": "Gut",
+      "minPercentage": 75
+     },
+     {
+      "grade": "3",
+      "label": "Befriedigend",
+      "minPercentage": 62.5
+     },
+     {
+      "grade": "4",
+      "label": "Ausreichend",
+      "minPercentage": 50
+     },
+     {
+      "grade": "5",
+      "label": "Mangelhaft",
+      "minPercentage": 25
+     },
+     {
+      "grade": "6",
+      "label": "Ungenügend",
+      "minPercentage": 0
+     }
+    ]
+   },
+   "latexPackages": null,
+   "pageBreaks": null,
+   "numVersions": 1,
+   "retentionUntil": "2027-10-19",
+   "compilationStatus": "pending",
+   "createdAt": "2026-10-19T17:56:26.433370Z"
+  },
+  {
+   "id": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "title": "Beispiel: Leistungsnachweis Informatik 10b",
+   "testart": "Kurzarbeit",
+   "grade": "10",
+   "klasse": "b",
+   "datum": "14.10.2026 (30 Minuten)",
+   "nr": "2",
+   "fach": "Informatik",
+   "lehrernachname": "Berger",
+   "infoText": "\\begin{itemize}\n    \\item Die Arbeit wird anonymisiert korrigiert. Trage deine Initialen ins QR-Code-Feld ein.\n    \\item Mit Bleistift oder rot/rosa Geschriebenes kann \\textbf{nicht} gewertet werden!\n\\end{itemize}",
+   "gradingKey": {
+    "preset": "linear_50",
+    "cutoffs": [
+     {
+      "grade": "1",
+      "label": "Sehr gut",
+      "minPercentage": 87.5
+     },
+     {
+      "grade": "2",
+      "label": "Gut",
+      "minPercentage": 75
+     },
+     {
+      "grade": "3",
+      "label": "Befriedigend",
+      "minPercentage": 62.5
+     },
+     {
+      "grade": "4",
+      "label": "Ausreichend",
+      "minPercentage": 50
+     },
+     {
+      "grade": "5",
+      "label": "Mangelhaft",
+      "minPercentage": 25
+     },
+     {
+      "grade": "6",
+      "label": "Ungenügend",
+      "minPercentage": 0
+     }
+    ]
+   },
+   "latexPackages": null,
+   "pageBreaks": null,
+   "numVersions": 1,
+   "retentionUntil": "2027-10-19",
+   "compilationStatus": "pending",
+   "createdAt": "2026-10-19T17:56:07.778853Z"
+  }
+ ],
+ "exercises": [
+  {
+   "id": "7c4a25ec-b5ac-4486-a3ea-f63ec5007fe3",
+   "orderIndex": 1,
+   "title": "Rekursive Fakultät",
+   "name": "Rekursive Fakultät",
+   "latexBody": "\\begin{Aufgabe}{Rekursion}\nImplementiere eine rekursive Methode \\texttt{fakultaet(n)} in Python oder Java. \\BE \\BE \\BE\n\n\\LoesungKaro{def fakultaet(n): return 1 if n <= 1 else n * fakultaet(n-1)}{8}\n\nGib die Aufruffolge für \\texttt{fakultaet(4)} an. \\BE \\BE\n\n\\LoesungKaro{f(4) -> f(3) -> f(2) -> f(1)}{4}\n\\end{Aufgabe}",
+   "codeWithheld": false,
+   "maxPoints": 5,
+   "topicTag": "Algorithmen",
+   "grade": "11",
+   "subject": "Informatik",
+   "version": 1,
+   "exerciseGroupId": "482ac918-96dc-4dc7-be8b-b0584a7904c9",
+   "isCurrent": true,
+   "questionType": "free_text",
+   "options": [],
+   "correctAnswers": [],
+   "penalty": 0
+  },
+  {
+   "id": "a5145bc4-1702-414b-badc-9f0de9e5e3d2",
+   "orderIndex": 1,
+   "title": "IPv4-Adressen",
+   "name": "IPv4-Adressen",
+   "latexBody": "\\begin{Aufgabe}{Netzwerke}\nGegeben ist die Adresse \\texttt{192.168.10.37/24}. Gib die Netzadresse und die Broadcast-Adresse an. \\BE \\BE\n\n\\LoesungLine{Netz 192.168.10.0, Broadcast 192.168.10.255}{2}\n\\end{Aufgabe}",
+   "codeWithheld": false,
+   "maxPoints": 2,
+   "topicTag": "Netzwerke",
+   "grade": "10",
+   "subject": "Informatik",
+   "version": 1,
+   "exerciseGroupId": "54a1f6c7-f598-4026-bab5-345ace2c7eb0",
+   "isCurrent": true,
+   "questionType": "free_text",
+   "options": [],
+   "correctAnswers": [],
+   "penalty": 0
+  },
+  {
+   "id": "e6544383-850b-4843-b945-ec7917bc1263",
+   "orderIndex": 1,
+   "title": "Caesar-Verschlüsselung",
+   "name": "Caesar-Verschlüsselung",
+   "latexBody": "\\begin{Aufgabe}{Kryptologie}\nVerschlüssele das Wort \\texttt{SCHULE} mit der Caesar-Verschiebung um 3. \\BE \\BE\n\n\\LoesungKaro{VFKXOH}{3}\n\nErläutere, warum die Caesar-Verschlüsselung heute als unsicher gilt. \\BE \\BE\n\n\\LoesungLine{Nur 25 mögliche Schlüssel; Brute Force oder Häufigkeitsanalyse genügt.}{3}\n\\end{Aufgabe}",
+   "codeWithheld": false,
+   "maxPoints": 4,
+   "topicTag": "Kryptologie",
+   "grade": "9",
+   "subject": "Informatik",
+   "version": 1,
+   "exerciseGroupId": "8c71bc7f-7d88-48a7-b600-c95c6a2e220b",
+   "isCurrent": true,
+   "questionType": "free_text",
+   "options": [],
+   "correctAnswers": [],
+   "penalty": 0
+  },
+  {
+   "id": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "orderIndex": 1,
+   "title": "Binärzahlen umrechnen",
+   "name": "Binärzahlen umrechnen",
+   "latexBody": "\\begin{Aufgabe}{Zahlensysteme}\nWandle die Dezimalzahl $45$ in eine Binärzahl um. Gib den Rechenweg an.\n\n\\LoesungKaro{$45 = 32+8+4+1$ \\BE \\\\ $= 101101_2$ \\BE}{6}\n\nWandle $1011\\,0110_2$ in eine Hexadezimalzahl um.\n\n\\LoesungKaro{$1011_2 = B,\\ 0110_2 = 6$ \\BE \\\\ $\\Rightarrow B6_{16}$ \\BE}{4}\n\\end{Aufgabe}",
+   "codeWithheld": false,
+   "maxPoints": 4,
+   "topicTag": "Zahlensysteme",
+   "grade": "9",
+   "subject": "Informatik",
+   "version": 1,
+   "exerciseGroupId": "84c87584-03a5-429f-87bd-b036043d0299",
+   "variantKey": "Gruppe A",
+   "isCurrent": true,
+   "questionType": "free_text",
+   "options": [],
+   "correctAnswers": [],
+   "penalty": 0
+  },
+  {
+   "id": "8fd2a821-09d9-4cc2-aea9-db6b8c8fff25",
+   "orderIndex": 1,
+   "title": "Binärzahlen umrechnen",
+   "name": "Binärzahlen umrechnen",
+   "latexBody": "\\begin{Aufgabe}{Zahlensysteme}\nWandle die Dezimalzahl $77$ in eine Binärzahl um. Gib den Rechenweg an.\n\n\\LoesungKaro{$77 = 64+8+4+1$ \\BE \\\\ $= 1001101_2$ \\BE}{6}\n\nWandle $1110\\,1001_2$ in eine Hexadezimalzahl um.\n\n\\LoesungKaro{$1110_2 = E,\\ 1001_2 = 9$ \\BE \\\\ $\\Rightarrow E9_{16}$ \\BE}{4}\n\\end{Aufgabe}",
+   "codeWithheld": false,
+   "maxPoints": 4,
+   "topicTag": "Zahlensysteme",
+   "grade": "9",
+   "subject": "Informatik",
+   "version": 1,
+   "exerciseGroupId": "84c87584-03a5-429f-87bd-b036043d0299",
+   "variantKey": "Gruppe B",
+   "isCurrent": true,
+   "questionType": "free_text",
+   "options": [],
+   "correctAnswers": [],
+   "penalty": 0
+  },
+  {
+   "id": "b9fb528e-2953-4cbc-a9a0-3bcfafa876d7",
+   "orderIndex": 1,
+   "title": "Bubblesort nachvollziehen",
+   "name": "Bubblesort nachvollziehen",
+   "latexBody": "\\begin{Aufgabe}{Sortieren}\nSortiere die Folge $7,\\ 3,\\ 9,\\ 1,\\ 5$ mit Bubblesort aufsteigend. Notiere die Folge nach jedem vollständigen Durchlauf.\n\n\\LoesungKaro{$3,7,1,5,9$ \\BE \\\\ $3,1,5,7,9$ \\BE \\\\ $1,3,5,7,9$ \\BE}{6}\n\nBegründe, warum Bubblesort im schlechtesten Fall quadratisch viele Vergleiche benötigt.\n\n\\LoesungLine{Jeder Durchlauf vergleicht bis zu $n-1$ Paare \\BE, es sind bis zu $n-1$ Durchläufe nötig \\hBE, also $(n-1)^2 \\in O(n^2)$ \\hBE.}{3}\n\\end{Aufgabe}",
+   "codeWithheld": false,
+   "maxPoints": 5,
+   "topicTag": "Algorithmen",
+   "grade": "9",
+   "subject": "Informatik",
+   "version": 1,
+   "exerciseGroupId": "79510436-97d1-4f80-9369-41a91fab5b50",
+   "isCurrent": true,
+   "questionType": "free_text",
+   "options": [],
+   "correctAnswers": [],
+   "penalty": 0
+  },
+  {
+   "id": "3e65d316-4797-47a7-9416-d6ac7f7bee69",
+   "orderIndex": 1,
+   "title": "SQL-Abfrage formulieren",
+   "name": "SQL-Abfrage formulieren",
+   "latexBody": "\\begin{Aufgabe}{Datenbanken}\nGegeben ist die Tabelle \\texttt{Schueler(id, name, klasse, geburtsjahr)}.\n\nFormuliere eine SQL-Abfrage, die die Namen aller Schülerinnen und Schüler der Klasse 10b alphabetisch sortiert ausgibt.\n\n\\LoesungLine{\\texttt{SELECT name FROM Schueler} \\BE \\\\ \\texttt{WHERE klasse = '10b'} \\BE \\\\ \\texttt{ORDER BY name;} \\BE}{3}\n\\end{Aufgabe}",
+   "codeWithheld": false,
+   "maxPoints": 3,
+   "topicTag": "Datenbanken",
+   "grade": "10",
+   "subject": "Informatik",
+   "version": 1,
+   "exerciseGroupId": "96e651b1-3d07-4b40-b169-37db6937c69a",
+   "isCurrent": true,
+   "questionType": "free_text",
+   "options": [],
+   "correctAnswers": [],
+   "penalty": 0
+  },
+  {
+   "id": "85264662-1de1-484b-94d3-80c260d68524",
+   "orderIndex": 1,
+   "title": "Personenbezogene Daten",
+   "name": "Personenbezogene Daten",
+   "latexBody": "Welche der folgenden Angaben sind personenbezogene Daten im Sinne der DSGVO?\n\n\\LoesungMulti[4]{\n  \\Lmulti{Die E-Mail-Adresse einer Schülerin}\n  \\multi{Die durchschnittliche Note einer ganzen Jahrgangsstufe}\n  \\Lmulti{Das Foto eines Schülers auf der Schulhomepage}\n  \\multi{Die Anzahl der Computer im Informatikraum}\n}",
+   "codeWithheld": false,
+   "maxPoints": 2,
+   "topicTag": "Datenschutz",
+   "grade": "10",
+   "subject": "Informatik",
+   "version": 1,
+   "exerciseGroupId": "6c3bb49f-f9fe-42b5-9220-2fa56d6fa556",
+   "isCurrent": true,
+   "questionType": "mc",
+   "options": [
+    "Die E-Mail-Adresse einer Schülerin",
+    "Die durchschnittliche Note einer ganzen Jahrgangsstufe",
+    "Das Foto eines Schülers auf der Schulhomepage",
+    "Die Anzahl der Computer im Informatikraum"
+   ],
+   "correctAnswers": [
+    0,
+    2
+   ],
+   "penalty": 0.5
+  },
+  {
+   "id": "d5315364-d380-4fd7-beae-5a94b1c4ffac",
+   "orderIndex": 1,
+   "title": "Laufzeit von Schleifen",
+   "name": "Laufzeit von Schleifen",
+   "latexBody": "Wie oft wird der Rumpf zweier ineinander geschachtelter Schleifen, die jeweils von 1 bis n laufen, ausgeführt?\n\n\\LoesungMulti[4]{\n  \\multi{n-mal}\n  \\multi{2n-mal}\n  \\Lmulti{n²-mal}\n  \\multi{log(n)-mal}\n}",
+   "codeWithheld": false,
+   "maxPoints": 1,
+   "topicTag": "Algorithmen",
+   "grade": "10",
+   "subject": "Informatik",
+   "version": 1,
+   "exerciseGroupId": "7192abf0-e8a2-4d1f-9b6e-be0dd41fdc37",
+   "isCurrent": true,
+   "questionType": "mc",
+   "options": [
+    "n-mal",
+    "2n-mal",
+    "n²-mal",
+    "log(n)-mal"
+   ],
+   "correctAnswers": [
+    2
+   ],
+   "penalty": 0.5
+  },
+  {
+   "id": "05db4154-611f-4fc3-a0f4-bd854a7ac79c",
+   "orderIndex": 1,
+   "title": "Hexadezimalziffern",
+   "name": "Hexadezimalziffern",
+   "latexBody": "Welchen Dezimalwert hat die Hexadezimalziffer F?\n\n\\LoesungMulti[4]{\n  \\Lmulti{15}\n  \\multi{16}\n  \\multi{14}\n  \\multi{F hat keinen Dezimalwert}\n}",
+   "codeWithheld": false,
+   "maxPoints": 1,
+   "topicTag": "Zahlensysteme",
+   "grade": "9",
+   "subject": "Informatik",
+   "version": 1,
+   "exerciseGroupId": "c7d132e5-3423-47ab-8385-6082ad8e79c1",
+   "isCurrent": true,
+   "questionType": "mc",
+   "options": [
+    "15",
+    "16",
+    "14",
+    "F hat keinen Dezimalwert"
+   ],
+   "correctAnswers": [
+    0
+   ],
+   "penalty": 0.5
+  },
+  {
+   "id": "d026b964-7725-4273-b953-6b661a883e1b",
+   "orderIndex": 1,
+   "title": "Klassendiagramm Bibliothek",
+   "name": "Klassendiagramm Bibliothek",
+   "latexBody": "\\begin{Aufgabe}{Modellierung}\nEine Schulbibliothek verwaltet Bücher und Ausleihen. Jedes Buch hat einen Titel und eine ISBN; eine Ausleihe gehört zu genau einem Buch und hat ein Rückgabedatum.\n\nZeichne ein Klassendiagramm mit beiden Klassen, ihren Attributen und der Beziehung inklusive Multiplizitäten. \\BE \\BE \\BE \\BE\n\n\\LoesungKaro{Buch (titel, isbn) 1 --- 0..* Ausleihe (rueckgabe)}{12}\n\\end{Aufgabe}",
+   "codeWithheld": false,
+   "maxPoints": 4,
+   "topicTag": "Objektorientierung",
+   "grade": "10",
+   "subject": "Informatik",
+   "version": 1,
+   "exerciseGroupId": "bf01d230-2fe3-4c04-ad24-6c36d7f39f2e",
+   "isCurrent": true,
+   "questionType": "free_text",
+   "options": [],
+   "correctAnswers": [],
+   "penalty": 0
+  }
+ ],
+ "students": [
+  {
+   "pseudonymId": "4879b9c8315d1a44452aa3b0007839fa79daf7a65f7f1a7ab79f76142c78a282",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Albrecht, Ben",
+   "studentNumber": "9300"
+  },
+  {
+   "pseudonymId": "bcaf0efb61068d2e3a2a176e4c83681c336068ee8b07728716498ff09e9e2769",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Bauer, Mia",
+   "studentNumber": "9301"
+  },
+  {
+   "pseudonymId": "73baae64892d1fd994fe6831614df22b6933f64a060208effa87b5c706154a55",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Celik, Anna",
+   "studentNumber": "9302"
+  },
+  {
+   "pseudonymId": "194bdb904f64582325b9608f5e6e9ee9ccba98252b33d8c35153c30133412e56",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Demir, Greta",
+   "studentNumber": "9303"
+  },
+  {
+   "pseudonymId": "65cd90bf5161765b29a041993fced0d8407c63f2b6eb4c455c3b6b8f153e2318",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Engel, Elias",
+   "studentNumber": "9304"
+  },
+  {
+   "pseudonymId": "d51609c92d2d7aa8216dcc3bd04f7a80f7fe56806c18a7d2a19c18914e48a044",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Fischer, Jakob",
+   "studentNumber": "9305"
+  },
+  {
+   "pseudonymId": "dd9f846f7e47bbf8c79bc90ee8164b2c359fd3d16ae8a4d194c93aac57a682b5",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Graf, Marie",
+   "studentNumber": "9306"
+  },
+  {
+   "pseudonymId": "7573339ac7b10afc350f523f9e66c030637ee20326d8b47b435db0d423a9c41a",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Huber, Hannah",
+   "studentNumber": "9307"
+  },
+  {
+   "pseudonymId": "8208cce69758d018d4b0e9ade0546e97a3c78f4453edc0343775cb794e0c1ded",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Ivanova, Emil",
+   "studentNumber": "9308"
+  },
+  {
+   "pseudonymId": "15d5e096fc59514cc82b46fba56c92acce910496c1910f1b9eaf2be431a4fe14",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Jung, Luis",
+   "studentNumber": "9309"
+  },
+  {
+   "pseudonymId": "ab8cb368e3427538161f18b38e42941d2a87a405ccf9cf35a35b83e6b4a3784e",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Keller, Ida",
+   "studentNumber": "9310"
+  },
+  {
+   "pseudonymId": "2c35c0fb00a92b1906fc17dc1000437c4b3ca0a821f10c7e6e28a427dcc71eb2",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Lang, Lina",
+   "studentNumber": "9311"
+  },
+  {
+   "pseudonymId": "a9531f5ac03e69d7a47de8662616d0a95a6293d323c3c5ade60566fc3db1124a",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Meyer, Jonas",
+   "studentNumber": "9312"
+  },
+  {
+   "pseudonymId": "2c9b5803baa93470575feb1fb54f21bf544f049313643e4f3c1827b84ef1bf88",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Nowak, Noah",
+   "studentNumber": "9313"
+  },
+  {
+   "pseudonymId": "e034a7d4825c9ee4492f205912072e354ac24c3e6384dc5149fe6bec234344ca",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Ott, Finn",
+   "studentNumber": "9314"
+  },
+  {
+   "pseudonymId": "d9934376f2d7054bdf2749ad0dfec35f6c53b7c148f867180bd6086e1155401c",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Peters, Leon",
+   "studentNumber": "9315"
+  },
+  {
+   "pseudonymId": "cbe11c0e48b93a7e8defdf15b2bf8bcef4a47f76271da3721aa3cec5c797b0be",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Yilmaz, Clara",
+   "studentNumber": "9323"
+  },
+  {
+   "pseudonymId": "d2ef50f5d72f7343990920fada17baa7860f97b639d8a07e8cd49ed9ff5c17f5",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Quandt, Sophie",
+   "studentNumber": "9316"
+  },
+  {
+   "pseudonymId": "ad0df1b6f26b4978fd9714f70a0a7062fe62df8de0c5da0cc280055a9ede2589",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Roth, Lena",
+   "studentNumber": "9317"
+  },
+  {
+   "pseudonymId": "9bc8521ad08273a16cda456e3af72a1a6ce98f7474be89c374fdc1d8d8c51ba1",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Schulz, Paul",
+   "studentNumber": "9318"
+  },
+  {
+   "pseudonymId": "5c3430d2b47f971304e381d3a763c77f20b9fa6a5117f4e3800bd9e3f02179ce",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Thiel, Emma",
+   "studentNumber": "9319"
+  },
+  {
+   "pseudonymId": "ec5d0845a2fcf2c21cf0234fa91284b75149ed5639a7214555ca92c41a652686",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Urban, Lea",
+   "studentNumber": "9320"
+  },
+  {
+   "pseudonymId": "a2d8881a8edb8ce4dc20e10478e5ab31f6545308d71f6376a1ec0deca40021a6",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Vogel, Felix",
+   "studentNumber": "9321"
+  },
+  {
+   "pseudonymId": "a1a635c78888e9b1788d5fc55107046b9692b0e6f9f8001ab0f2ad0ea56332ab",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "studentName": "Weiß, Moritz",
+   "studentNumber": "9322"
+  },
+  {
+   "pseudonymId": "183b4f94d539a1261d1c51dc3828d09a4bbdc87214119f5dbae766ffaea3b915",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "fallbackCode": "MN5RMV"
+  },
+  {
+   "pseudonymId": "b3fdb25324f2431c3b00967ff727c472e13fdc0eabeedeb674afddc2cb0799ef",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "fallbackCode": "8ZSQQ8"
+  },
+  {
+   "pseudonymId": "7a0aaefa9242c4f2e89586968adc4ef633928079cc23634febdc8f4ec6b8179a",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "fallbackCode": "9HTZET"
+  },
+  {
+   "pseudonymId": "4cef82aa63ceb7efab0e685a8551a3ed8eccf333c7c03b2cceb683d2aeb5c2b1",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "fallbackCode": "FGDNJY"
+  },
+  {
+   "pseudonymId": "8267ae48e30c3dc92d552aa999873595c5dd2c756431dd1fe14202bc65569c6b",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "fallbackCode": "XVMPWS"
+  },
+  {
+   "pseudonymId": "c7d129b1840ea5cd883df2260918f6e3133a5e786a2ce09165cd382906340308",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "fallbackCode": "DCD5VF"
+  },
+  {
+   "pseudonymId": "34d74882865b6d3e38ea296b4541ad095c6eb40ddd1a8c0363782e61985d8360",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "fallbackCode": "WVKWK8"
+  },
+  {
+   "pseudonymId": "be6e7b656a55466f8927eeca1f26eb86859827db7bd4b5b22832b6cf7f62b8b1",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "piiCt": {
+    "$b64": ""
+   },
+   "piiIv": {
+    "$b64": "AAAAAAAAAAAAAAAA"
+   },
+   "fallbackCode": "7NP54W"
+  }
+ ],
+ "submissions": [
+  {
+   "id": "c815d355-ad34-4ab8-9576-850887ace418",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "pseudonymHash": "4cef82aa63ceb7efab0e685a8551a3ed8eccf333c7c03b2cceb683d2aeb5c2b1",
+   "totalScore": 10.5,
+   "createdAt": "2026-10-19T18:05:05.284684Z",
+   "hasScan": true,
+   "hasAnnotations": true,
+   "annotationBytes": {
+    "$b64": "W3sidG9vbCI6ImNoZWNrX2Z1bGwiLCJwb2ludHMiOlt7IngiOjQxMS4wNTc4NDYzNTEwMjE2LCJ5Ijo0MjcuOTg3MjQzMTY0MTEzNn1dLCJjb2xvciI6IiNlZjQ0NDQiLCJleGVyY2lzZUlkIjoiNzQ1ZDM4MTgtNDk0OC00M2I3LTg3ODUtNTRjNzQ2NmIxMWE1IiwicGFnZU51bWJlciI6MX0seyJ0b29sIjoiY2hlY2tfZnVsbCIsInBvaW50cyI6W3sieCI6MjIzLjM0NjgwNjk4OTg3MDEyLCJ5Ijo1MjkuMzUyNjQyODYwODc3M31dLCJjb2xvciI6IiNlZjQ0NDQiLCJleGVyY2lzZUlkIjoiNzQ1ZDM4MTgtNDk0OC00M2I3LTg3ODUtNTRjNzQ2NmIxMWE1IiwicGFnZU51bWJlciI6MX0seyJ0b29sIjoiY2hlY2tfZnVsbCIsInBvaW50cyI6W3sieCI6MTg5LjU1ODgxOTkwNDg2Mjg0LCJ5Ijo4MzkuMDgwMjUzMDQ1NDMzMn1dLCJjb2xvciI6IiNlZjQ0NDQiLCJleGVyY2lzZUlkIjoiYjlmYjUyOGUtMjk1My00Y2JjLWE5YTAtM2JjZmFmYTg3NmQ3IiwicGFnZU51bWJlciI6MX0seyJ0b29sIjoiY2hlY2tfZnVsbCIsInBvaW50cyI6W3sieCI6MTg5LjU1ODgxOTkwNDg2Mjg0LCJ5Ijo4NzYuNjIyOTkzNjczODY0Mn1dLCJjb2xvciI6IiNlZjQ0NDQiLCJleGVyY2lzZUlkIjoiYjlmYjUyOGUtMjk1My00Y2JjLWE5YTAtM2JjZmFmYTg3NmQ3IiwicGFnZU51bWJlciI6MX0seyJ0b29sIjoibWlzc2luZyIsInBvaW50cyI6W3sieCI6MTc2LjQxOTA0NzE0OTU4MjI0LCJ5Ijo5MTQuMTY1NzM0MzAyMjk1Mn1dLCJjb2xvciI6IiNlZjQ0NDQiLCJleGVyY2lzZUlkIjoiYjlmYjUyOGUtMjk1My00Y2JjLWE5YTAtM2JjZmFmYTg3NmQ3IiwicGFnZU51bWJlciI6MX0seyJ0b29sIjoid3JvbmciLCJwb2ludHMiOlt7IngiOjQ2Ny4zNzExNTgxNTkzNjcwNCwieSI6MTA1OC43MDUyODU3MjE3NTQ1fV0sImNvbG9yIjoiI2VmNDQ0NCIsImV4ZXJjaXNlSWQiOiJiOWZiNTI4ZS0yOTUzLTRjYmMtYTlhMC0zYmNmYWZhODc2ZDciLCJwYWdlTnVtYmVyIjoxfV0="
+   },
+   "scanFile": "scans/01.pdf"
+  },
+  {
+   "id": "6560e66e-f753-4921-802c-b3a8c9e3fc88",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "pseudonymHash": "34d74882865b6d3e38ea296b4541ad095c6eb40ddd1a8c0363782e61985d8360",
+   "totalScore": 7,
+   "createdAt": "2026-10-19T18:05:07.178247Z",
+   "hasScan": true,
+   "hasAnnotations": false,
+   "scanFile": "scans/02.pdf"
+  },
+  {
+   "id": "3f3cafee-1607-4e3f-855e-0833f0aeb4f8",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "pseudonymHash": "8267ae48e30c3dc92d552aa999873595c5dd2c756431dd1fe14202bc65569c6b",
+   "totalScore": 9,
+   "createdAt": "2026-10-19T18:05:06.118544Z",
+   "hasScan": true,
+   "hasAnnotations": false,
+   "scanFile": "scans/03.pdf"
+  },
+  {
+   "id": "aa190399-2840-4c5d-a11d-7a4f63b41f92",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "pseudonymHash": "c7d129b1840ea5cd883df2260918f6e3133a5e786a2ce09165cd382906340308",
+   "totalScore": 9.5,
+   "createdAt": "2026-10-19T18:05:06.653278Z",
+   "hasScan": true,
+   "hasAnnotations": false,
+   "scanFile": "scans/04.pdf"
+  },
+  {
+   "id": "7f511511-3b8e-45d1-83e4-d1ac95fdd03d",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "pseudonymHash": "183b4f94d539a1261d1c51dc3828d09a4bbdc87214119f5dbae766ffaea3b915",
+   "totalScore": 11,
+   "createdAt": "2026-10-19T18:05:04.381809Z",
+   "hasScan": true,
+   "hasAnnotations": false,
+   "scanFile": "scans/05.pdf"
+  },
+  {
+   "id": "ffdaf5f0-5cd1-4924-b71f-487acea70174",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "pseudonymHash": "7a0aaefa9242c4f2e89586968adc4ef633928079cc23634febdc8f4ec6b8179a",
+   "totalScore": 12,
+   "createdAt": "2026-10-19T18:05:05.149118Z",
+   "hasScan": true,
+   "hasAnnotations": false,
+   "scanFile": "scans/06.pdf"
+  },
+  {
+   "id": "cd3b3a02-d3c5-4296-9481-b754bd187635",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "pseudonymHash": "be6e7b656a55466f8927eeca1f26eb86859827db7bd4b5b22832b6cf7f62b8b1",
+   "totalScore": 12,
+   "createdAt": "2026-10-19T18:05:07.521985Z",
+   "hasScan": true,
+   "hasAnnotations": false,
+   "scanFile": "scans/07.pdf"
+  },
+  {
+   "id": "6e58a325-9e76-4858-a5c7-347bdf2c508b",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "pseudonymHash": "b3fdb25324f2431c3b00967ff727c472e13fdc0eabeedeb674afddc2cb0799ef",
+   "totalScore": 13.5,
+   "createdAt": "2026-10-19T18:05:04.702603Z",
+   "hasScan": true,
+   "hasAnnotations": false,
+   "scanFile": "scans/08.pdf"
+  },
+  {
+   "id": "e26ee936-5eb7-460d-8a38-db8d4e04dbf3",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "4879b9c8315d1a44452aa3b0007839fa79daf7a65f7f1a7ab79f76142c78a282",
+   "totalScore": 5,
+   "createdAt": "2026-10-19T18:07:53.761598Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "14bf2e34-eebc-40ed-ac4b-3acffab689ef",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "bcaf0efb61068d2e3a2a176e4c83681c336068ee8b07728716498ff09e9e2769",
+   "totalScore": 4.5,
+   "createdAt": "2026-10-19T18:07:53.863376Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "1ab34696-6d20-4369-a5d2-903147720ebc",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "73baae64892d1fd994fe6831614df22b6933f64a060208effa87b5c706154a55",
+   "totalScore": 2.5,
+   "createdAt": "2026-10-19T18:07:53.951067Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "1760d5a5-d3d7-4f13-a30f-f8ebbd923c28",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "194bdb904f64582325b9608f5e6e9ee9ccba98252b33d8c35153c30133412e56",
+   "totalScore": 8,
+   "createdAt": "2026-10-19T18:07:54.057378Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "9ed979b6-24e4-4ef9-aa2b-ea4242966f14",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "65cd90bf5161765b29a041993fced0d8407c63f2b6eb4c455c3b6b8f153e2318",
+   "totalScore": 6,
+   "createdAt": "2026-10-19T18:07:54.148200Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "1e88bdc0-773e-4ac8-8570-90a1bf84c4f1",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "d51609c92d2d7aa8216dcc3bd04f7a80f7fe56806c18a7d2a19c18914e48a044",
+   "totalScore": 5,
+   "createdAt": "2026-10-19T18:07:54.226290Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "21a23701-c72a-44ea-8d6c-7f2f04b1c47b",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "dd9f846f7e47bbf8c79bc90ee8164b2c359fd3d16ae8a4d194c93aac57a682b5",
+   "totalScore": 5,
+   "createdAt": "2026-10-19T18:07:54.304318Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "ed6af17c-13ec-4335-b527-9cb52a53c750",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "7573339ac7b10afc350f523f9e66c030637ee20326d8b47b435db0d423a9c41a",
+   "totalScore": 5.5,
+   "createdAt": "2026-10-19T18:07:54.389558Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "1b72ce9b-81e6-46fc-960d-d3b96d0ad348",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "8208cce69758d018d4b0e9ade0546e97a3c78f4453edc0343775cb794e0c1ded",
+   "totalScore": 7,
+   "createdAt": "2026-10-19T18:07:54.477543Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "15852ac2-4da0-4c56-8924-eeb0ef7230a1",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "15d5e096fc59514cc82b46fba56c92acce910496c1910f1b9eaf2be431a4fe14",
+   "totalScore": 4.5,
+   "createdAt": "2026-10-19T18:07:54.554570Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "f7a7b7b3-6d1d-47c7-b0cc-24cc5c6590b9",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "ab8cb368e3427538161f18b38e42941d2a87a405ccf9cf35a35b83e6b4a3784e",
+   "totalScore": 6.5,
+   "createdAt": "2026-10-19T18:07:54.646502Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "54c071a9-0535-4ec1-85c1-4b672878ce8a",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "2c35c0fb00a92b1906fc17dc1000437c4b3ca0a821f10c7e6e28a427dcc71eb2",
+   "totalScore": 5,
+   "createdAt": "2026-10-19T18:07:54.726759Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "c95baf22-18f9-489e-8082-02d188d2eca0",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "a9531f5ac03e69d7a47de8662616d0a95a6293d323c3c5ade60566fc3db1124a",
+   "totalScore": 6,
+   "createdAt": "2026-10-19T18:07:54.807797Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "4ea37271-b07f-439f-946f-241d453ff1dd",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "ec5d0845a2fcf2c21cf0234fa91284b75149ed5639a7214555ca92c41a652686",
+   "totalScore": 4,
+   "createdAt": "2026-10-19T18:07:55.558366Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "d5273f9b-fee4-4ef6-be47-d06267c57150",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "2c9b5803baa93470575feb1fb54f21bf544f049313643e4f3c1827b84ef1bf88",
+   "totalScore": 6.5,
+   "createdAt": "2026-10-19T18:07:54.883334Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "3a3113e6-bcb1-46e1-b271-dde458b7e308",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "a2d8881a8edb8ce4dc20e10478e5ab31f6545308d71f6376a1ec0deca40021a6",
+   "totalScore": 4,
+   "createdAt": "2026-10-19T18:07:55.627416Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "fcb161bd-7168-495e-ab8d-62ead4a19d1a",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "e034a7d4825c9ee4492f205912072e354ac24c3e6384dc5149fe6bec234344ca",
+   "totalScore": 5.5,
+   "createdAt": "2026-10-19T18:07:54.956566Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "1dc25994-0266-4036-aecb-a0649d2ab109",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "a1a635c78888e9b1788d5fc55107046b9692b0e6f9f8001ab0f2ad0ea56332ab",
+   "totalScore": 3.5,
+   "createdAt": "2026-10-19T18:07:55.709311Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "1c101c59-66ae-43c4-b741-2af147bbb7fd",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "d9934376f2d7054bdf2749ad0dfec35f6c53b7c148f867180bd6086e1155401c",
+   "totalScore": 7,
+   "createdAt": "2026-10-19T18:07:55.071783Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "dcbdab20-33bf-49e2-9522-ee08b1d96696",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "cbe11c0e48b93a7e8defdf15b2bf8bcef4a47f76271da3721aa3cec5c797b0be",
+   "totalScore": 4.5,
+   "createdAt": "2026-10-19T18:07:55.798826Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "f61e8be0-32f7-4754-a8b9-5713083a88e6",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "d2ef50f5d72f7343990920fada17baa7860f97b639d8a07e8cd49ed9ff5c17f5",
+   "totalScore": 5.5,
+   "createdAt": "2026-10-19T18:07:55.221954Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "fb07e97d-0241-425c-9ae4-61e4b30e022a",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "ad0df1b6f26b4978fd9714f70a0a7062fe62df8de0c5da0cc280055a9ede2589",
+   "totalScore": 3.5,
+   "createdAt": "2026-10-19T18:07:55.304811Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "796fb4c0-a742-438d-ae7a-c1934530cbb2",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "9bc8521ad08273a16cda456e3af72a1a6ce98f7474be89c374fdc1d8d8c51ba1",
+   "totalScore": 6,
+   "createdAt": "2026-10-19T18:07:55.392891Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  },
+  {
+   "id": "f0f79715-7798-4fbf-8512-c03096813703",
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "pseudonymHash": "5c3430d2b47f971304e381d3a763c77f20b9fa6a5117f4e3800bd9e3f02179ce",
+   "totalScore": 6,
+   "createdAt": "2026-10-19T18:07:55.476253Z",
+   "hasScan": false,
+   "hasAnnotations": false
+  }
+ ],
+ "exerciseScores": [
+  {
+   "id": "2de33f9c-7d03-48ef-8baa-10ab44733bc9",
+   "submissionId": "e26ee936-5eb7-460d-8a38-db8d4e04dbf3",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 2.5
+  },
+  {
+   "id": "47f5dd5c-4224-410c-ae6d-08c7b44b2849",
+   "submissionId": "e26ee936-5eb7-460d-8a38-db8d4e04dbf3",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 2.5
+  },
+  {
+   "id": "1ff9b0c8-8611-4b3e-9c69-083fb8614d7d",
+   "submissionId": "14bf2e34-eebc-40ed-ac4b-3acffab689ef",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 1.5
+  },
+  {
+   "id": "1140c812-b2c6-45a5-bb8d-10f3ad5a630f",
+   "submissionId": "14bf2e34-eebc-40ed-ac4b-3acffab689ef",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 3
+  },
+  {
+   "id": "1aefea21-e1a6-4b4c-8348-6246c6a9a8d0",
+   "submissionId": "1ab34696-6d20-4369-a5d2-903147720ebc",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 1
+  },
+  {
+   "id": "3a39dfc0-fc95-4e7e-95e1-6cd7e85d8084",
+   "submissionId": "1ab34696-6d20-4369-a5d2-903147720ebc",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 1.5
+  },
+  {
+   "id": "38ef5db0-1951-49fd-95c9-4d80954696f3",
+   "submissionId": "1760d5a5-d3d7-4f13-a30f-f8ebbd923c28",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 4
+  },
+  {
+   "id": "08bf51be-260d-4f6a-8eed-16e9b88e5f12",
+   "submissionId": "1760d5a5-d3d7-4f13-a30f-f8ebbd923c28",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 4
+  },
+  {
+   "id": "9cb45528-1280-4af2-81cb-5d9bd813fcc3",
+   "submissionId": "9ed979b6-24e4-4ef9-aa2b-ea4242966f14",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 3.5
+  },
+  {
+   "id": "7ebb5ffe-e77b-4526-9e37-301802a50869",
+   "submissionId": "9ed979b6-24e4-4ef9-aa2b-ea4242966f14",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 2.5
+  },
+  {
+   "id": "8425cec0-5973-42f7-ba8d-0943c678be3b",
+   "submissionId": "1e88bdc0-773e-4ac8-8570-90a1bf84c4f1",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 2
+  },
+  {
+   "id": "bbf63478-a9f7-4ddc-bcae-f23bc067c9f9",
+   "submissionId": "1e88bdc0-773e-4ac8-8570-90a1bf84c4f1",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 3
+  },
+  {
+   "id": "67896690-db27-4bfb-8b78-dc962c77d9d7",
+   "submissionId": "21a23701-c72a-44ea-8d6c-7f2f04b1c47b",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 2
+  },
+  {
+   "id": "d6a3355a-e399-40b3-bc9d-f6dd09b870d5",
+   "submissionId": "21a23701-c72a-44ea-8d6c-7f2f04b1c47b",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 3
+  },
+  {
+   "id": "e11c306a-23fe-427f-97d4-e0b04c10313d",
+   "submissionId": "ed6af17c-13ec-4335-b527-9cb52a53c750",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 3
+  },
+  {
+   "id": "a936843e-ac9b-4292-8c6c-1dea084eb1d8",
+   "submissionId": "ed6af17c-13ec-4335-b527-9cb52a53c750",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 2.5
+  },
+  {
+   "id": "12af9fa5-0849-454c-9208-9d5c703fe07f",
+   "submissionId": "1b72ce9b-81e6-46fc-960d-d3b96d0ad348",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 4
+  },
+  {
+   "id": "0dfc0fac-5e7f-4220-a717-bd076022b08b",
+   "submissionId": "1b72ce9b-81e6-46fc-960d-d3b96d0ad348",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 3
+  },
+  {
+   "id": "c141a824-8d7c-43af-967b-4b49ddc3bb4c",
+   "submissionId": "15852ac2-4da0-4c56-8924-eeb0ef7230a1",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 3
+  },
+  {
+   "id": "215128cc-9236-4c5b-b01a-094bb494684b",
+   "submissionId": "15852ac2-4da0-4c56-8924-eeb0ef7230a1",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 1.5
+  },
+  {
+   "id": "859b230f-6843-47fb-b044-abd8bc9ae35d",
+   "submissionId": "f7a7b7b3-6d1d-47c7-b0cc-24cc5c6590b9",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 2.5
+  },
+  {
+   "id": "47f3491d-c718-4bdb-b0c8-75394feaf9c8",
+   "submissionId": "f7a7b7b3-6d1d-47c7-b0cc-24cc5c6590b9",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 4
+  },
+  {
+   "id": "fc0d2711-de30-4a08-b46b-83b7fe71879d",
+   "submissionId": "54c071a9-0535-4ec1-85c1-4b672878ce8a",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 3
+  },
+  {
+   "id": "b824c482-1116-46d6-9f60-39d28f19a5e3",
+   "submissionId": "54c071a9-0535-4ec1-85c1-4b672878ce8a",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 2
+  },
+  {
+   "id": "94350872-662a-4f92-987c-63604eb41929",
+   "submissionId": "c95baf22-18f9-489e-8082-02d188d2eca0",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 2.5
+  },
+  {
+   "id": "ef306979-8ee3-4789-a9d5-6d3be9f19611",
+   "submissionId": "c95baf22-18f9-489e-8082-02d188d2eca0",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 3.5
+  },
+  {
+   "id": "b6536fb2-220c-4cb6-b96f-10ec4c912c0e",
+   "submissionId": "4ea37271-b07f-439f-946f-241d453ff1dd",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 2
+  },
+  {
+   "id": "358cd374-0e1f-4e45-80d9-9625ef5f124e",
+   "submissionId": "4ea37271-b07f-439f-946f-241d453ff1dd",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 2
+  },
+  {
+   "id": "95920b7d-909d-433e-9d14-232d1064de40",
+   "submissionId": "d5273f9b-fee4-4ef6-be47-d06267c57150",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 3.5
+  },
+  {
+   "id": "d4d25af7-60b7-4131-8f91-355fa368b732",
+   "submissionId": "d5273f9b-fee4-4ef6-be47-d06267c57150",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 3
+  },
+  {
+   "id": "5a52d45d-6f40-4dd5-91b1-5821331ba8da",
+   "submissionId": "3a3113e6-bcb1-46e1-b271-dde458b7e308",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 1.5
+  },
+  {
+   "id": "e74e599f-28ba-4d77-8d22-9e7be2c7694a",
+   "submissionId": "3a3113e6-bcb1-46e1-b271-dde458b7e308",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 2.5
+  },
+  {
+   "id": "0c868291-5647-4e67-8999-32b4b2d89de3",
+   "submissionId": "fcb161bd-7168-495e-ab8d-62ead4a19d1a",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 2.5
+  },
+  {
+   "id": "916ad55a-8953-4f0e-b8ee-043cf9d189de",
+   "submissionId": "fcb161bd-7168-495e-ab8d-62ead4a19d1a",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 3
+  },
+  {
+   "id": "86d9ffe2-ee43-4e3b-83d2-caecc0c990d7",
+   "submissionId": "1dc25994-0266-4036-aecb-a0649d2ab109",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 1
+  },
+  {
+   "id": "d3fbcc73-6bd0-4094-b8aa-59f21383ca03",
+   "submissionId": "1dc25994-0266-4036-aecb-a0649d2ab109",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 2.5
+  },
+  {
+   "id": "a3d016c2-abf9-470c-9750-9db965774ca1",
+   "submissionId": "1c101c59-66ae-43c4-b741-2af147bbb7fd",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 4
+  },
+  {
+   "id": "fa33566e-3d0e-4292-9df3-abf4868eaf9a",
+   "submissionId": "1c101c59-66ae-43c4-b741-2af147bbb7fd",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 3
+  },
+  {
+   "id": "9509ef6c-e612-4b9a-bc10-291f87f75b63",
+   "submissionId": "dcbdab20-33bf-49e2-9522-ee08b1d96696",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 2
+  },
+  {
+   "id": "bc1e2814-a8c9-494f-822b-14798ebf6f9c",
+   "submissionId": "dcbdab20-33bf-49e2-9522-ee08b1d96696",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 2.5
+  },
+  {
+   "id": "4d27c13c-dbd4-41d3-9094-78eccbbb9b16",
+   "submissionId": "f61e8be0-32f7-4754-a8b9-5713083a88e6",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 2
+  },
+  {
+   "id": "1e23726b-3963-4c37-9355-3fd5b2b60aed",
+   "submissionId": "f61e8be0-32f7-4754-a8b9-5713083a88e6",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 3.5
+  },
+  {
+   "id": "715e3448-da59-4967-bbb2-4945e1a86c21",
+   "submissionId": "fb07e97d-0241-425c-9ae4-61e4b30e022a",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 2.5
+  },
+  {
+   "id": "9aac6900-b7a7-4c37-9ed8-1e4c6858c32b",
+   "submissionId": "fb07e97d-0241-425c-9ae4-61e4b30e022a",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 1
+  },
+  {
+   "id": "59678ef1-f967-4778-9e38-8c3d54daed4d",
+   "submissionId": "796fb4c0-a742-438d-ae7a-c1934530cbb2",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 3
+  },
+  {
+   "id": "63fee19e-6ac6-4db7-8ed5-60cfbe45b018",
+   "submissionId": "796fb4c0-a742-438d-ae7a-c1934530cbb2",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 3
+  },
+  {
+   "id": "7d415709-9866-45d5-8cd9-dffcd2bf8be3",
+   "submissionId": "f0f79715-7798-4fbf-8512-c03096813703",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "score": 3
+  },
+  {
+   "id": "818bc2e6-e539-4209-ac6b-444057aa9b3c",
+   "submissionId": "f0f79715-7798-4fbf-8512-c03096813703",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 3
+  },
+  {
+   "id": "4b7fff9c-a3eb-43a8-855f-ff4ed7d65265",
+   "submissionId": "6e58a325-9e76-4858-a5c7-347bdf2c508b",
+   "exerciseId": "05db4154-611f-4fc3-a0f4-bd854a7ac79c",
+   "score": 1,
+   "selectedOptions": [
+    0
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      0
+     ],
+     "score": 1
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 169,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.005914139460483108,
+     "ratioDiff": 0.0011317748879111598,
+     "angleDeg": 89.83693105613862
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "marked",
+       "rect": [
+        0.08741137830057215,
+        0.32262609698461403,
+        0.10902164965625684,
+        0.33790006593133354
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.266,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.871,
+        "strokeSpan": 0.935,
+        "strokeFrac": 0.266,
+        "redoNearFrac": 0,
+        "snapDx": -0.026,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.30738055026358335,
+        0.3213519984457981,
+        0.32897703857580474,
+        0.3366292438464835
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "blank",
+       "rect": [
+        0.5279979355463009,
+        0.3200773889468539,
+        0.5495806278498786,
+        0.33535791217924493
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7475862702846049,
+        0.31840620909134476,
+        0.7691551533910107,
+        0.33369001158415845
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "865afda7-3082-4252-a5ad-11d821f6ec13",
+   "submissionId": "6e58a325-9e76-4858-a5c7-347bdf2c508b",
+   "exerciseId": "d5315364-d380-4fd7-beae-5a94b1c4ffac",
+   "score": 1,
+   "selectedOptions": [
+    2
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      2
+     ],
+     "score": 1
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 169,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.005914139460483108,
+     "ratioDiff": 0.0011317748879111598,
+     "angleDeg": 89.83693105613862
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "blank",
+       "rect": [
+        0.0869132701564994,
+        0.25496701226861884,
+        0.10853355165000417,
+        0.27025630113113924
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.3064227721101428,
+        0.25367849956370797,
+        0.3280292579325284,
+        0.26897107128583825
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "marked",
+       "rect": [
+        0.5265805689173974,
+        0.2523894698761568,
+        0.5481732460855829,
+        0.2676853258396039
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.265,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.867,
+        "strokeSpan": 0.903,
+        "strokeFrac": 0.265,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7468298465066499,
+        0.2507038635853113,
+        0.768408701813991,
+        0.2660030052228611
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "8694cfec-82fc-4cab-9596-c21d804f171e",
+   "submissionId": "6e58a325-9e76-4858-a5c7-347bdf2c508b",
+   "exerciseId": "85264662-1de1-484b-94d3-80c260d68524",
+   "score": 1.5,
+   "selectedOptions": [
+    0,
+    1,
+    2
+   ],
+   "omrMeta": {
+    "confidence": "ambiguous",
+    "source": "omr",
+    "flaggedOptions": [
+     0,
+     1
+    ],
+    "original": {
+     "confidence": "ambiguous",
+     "selectedOptions": [
+      0,
+      1,
+      2
+     ],
+     "score": 1.5,
+     "flaggedOptions": [
+      0,
+      1
+     ]
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 169,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.005914139460483108,
+     "ratioDiff": 0.0011317748879111598,
+     "angleDeg": 89.83693105613862
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "ambiguous",
+       "rect": [
+        0.08540879895452022,
+        0.15878630122335058,
+        0.10704331048753517,
+        0.17409738122044488
+       ],
+       "detectedState": "ambiguous",
+       "fillRatio": 0.282,
+       "redoRatio": 0.02,
+       "shape": {
+        "minCellFill": 0.06,
+        "cellEvenness": 0.114,
+        "ringFill": 0.192,
+        "inkContrast": 0.887,
+        "strokeSpan": 1,
+        "strokeFrac": 0.25,
+        "redoNearFrac": 0.067,
+        "snapDx": 0,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.192
+       },
+       "reasons": [
+        "spill"
+       ],
+       "provisional": true,
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "ambiguous",
+       "rect": [
+        0.305621467247742,
+        0.1574772762192753,
+        0.3272421651489062,
+        0.17279164819503015
+       ],
+       "detectedState": "ambiguous",
+       "fillRatio": 0.04,
+       "redoRatio": 0.016,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0.179,
+        "inkContrast": 0.921,
+        "strokeSpan": 0.367,
+        "strokeFrac": 0.029,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.179
+       },
+       "reasons": [
+        "spill"
+       ],
+       "provisional": true,
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "marked",
+       "rect": [
+        0.5253620981846339,
+        0.1561677256531732,
+        0.546968969445392,
+        0.1714853909949483
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.245,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.851,
+        "strokeSpan": 0.903,
+        "strokeFrac": 0.245,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": -0.179
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7457545522558995,
+        0.15485762918926374,
+        0.7673475836438249,
+        0.1701785893356416
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": -0.179
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "8dea1cd0-94a8-4783-b1d2-27e995e3c5cd",
+   "submissionId": "ffdaf5f0-5cd1-4924-b71f-487acea70174",
+   "exerciseId": "05db4154-611f-4fc3-a0f4-bd854a7ac79c",
+   "score": 1,
+   "selectedOptions": [
+    0
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      0
+     ],
+     "score": 1
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 170,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006683699050346055,
+     "ratioDiff": 0.001064800035408658,
+     "angleDeg": 89.8114596343284
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "marked",
+       "rect": [
+        0.09223170403896869,
+        0.31705421625725777,
+        0.11376630604147658,
+        0.3323669027400181
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.262,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.849,
+        "strokeSpan": 1,
+        "strokeFrac": 0.262,
+        "redoNearFrac": 0,
+        "snapDx": -0.026,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.31218439688583327,
+        0.3186959578166114,
+        0.3337530085012397,
+        0.3340114675499497
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "blank",
+       "rect": [
+        0.5322209335075756,
+        0.3203383268643463,
+        0.5538235793582328,
+        0.33565666086455853
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.752344717031075,
+        0.3219813488665796,
+        0.7739814222806555,
+        0.3373025081936805
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "9a9235c7-3d34-417c-9c92-641c6946ae4b",
+   "submissionId": "ffdaf5f0-5cd1-4924-b71f-487acea70174",
+   "exerciseId": "85264662-1de1-484b-94d3-80c260d68524",
+   "score": 2,
+   "selectedOptions": [
+    0,
+    2
+   ],
+   "omrMeta": {
+    "confidence": "ambiguous",
+    "source": "omr",
+    "flaggedOptions": [
+     0
+    ],
+    "original": {
+     "confidence": "ambiguous",
+     "selectedOptions": [
+      0,
+      2
+     ],
+     "score": 2,
+     "flaggedOptions": [
+      0
+     ]
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 170,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006683699050346055,
+     "ratioDiff": 0.001064800035408658,
+     "angleDeg": 89.8114596343284
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "ambiguous",
+       "rect": [
+        0.09450092699590514,
+        0.15355828724728263,
+        0.11606298091715625,
+        0.16890638786479867
+       ],
+       "detectedState": "ambiguous",
+       "fillRatio": 0.082,
+       "redoRatio": 0.046,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0.183,
+        "inkContrast": 0.795,
+        "strokeSpan": 0.6,
+        "strokeFrac": 0.069,
+        "redoNearFrac": 0.257,
+        "snapDx": 0,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.183
+       },
+       "reasons": [
+        "spill"
+       ],
+       "provisional": true,
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.31473127871383527,
+        0.1547740837234077,
+        0.3363274283790429,
+        0.17012502100147542
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.206,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": -0.001
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "marked",
+       "rect": [
+        0.5344854644880789,
+        0.15638653665627839,
+        0.5561157346134827,
+        0.17174031161870254
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.239,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0.001,
+        "inkContrast": 0.866,
+        "strokeSpan": 1,
+        "strokeFrac": 0.239,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.206,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.001
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7548873400600914,
+        0.15839567104907068,
+        0.7765517559046775,
+        0.17375228476358567
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": -0.001
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "f8fe4184-6e9e-43fc-bc07-5d4069b70012",
+   "submissionId": "ffdaf5f0-5cd1-4924-b71f-487acea70174",
+   "exerciseId": "d5315364-d380-4fd7-beae-5a94b1c4ffac",
+   "score": 1,
+   "selectedOptions": [
+    2
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      2
+     ],
+     "score": 1
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 170,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006683699050346055,
+     "ratioDiff": 0.001064800035408658,
+     "angleDeg": 89.8114596343284
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "blank",
+       "rect": [
+        0.09349761140711381,
+        0.24977565764073476,
+        0.11504354883930991,
+        0.26510296248454324
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.31300473150993036,
+        0.25100902075463805,
+        0.33458471410719864,
+        0.2663391543813686
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "marked",
+       "rect": [
+        0.5331560079625679,
+        0.2526390465765283,
+        0.5547700603859997,
+        0.2679720100055731
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.252,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.901,
+        "strokeSpan": 0.968,
+        "strokeFrac": 0.252,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7533946216336439,
+        0.25426972077755966,
+        0.7750427690862399,
+        0.2696055150721164
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "0f684c88-78a7-42d1-aa23-e02934ff3bbe",
+   "submissionId": "3f3cafee-1607-4e3f-855e-0833f0aeb4f8",
+   "exerciseId": "d5315364-d380-4fd7-beae-5a94b1c4ffac",
+   "score": 0,
+   "selectedOptions": [
+    0
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      0
+     ],
+     "score": 0
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 170,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006217426521258649,
+     "ratioDiff": 0.0018467019506291436,
+     "angleDeg": 89.80198836457741
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "marked",
+       "rect": [
+        0.09198276410444746,
+        0.25042940553454485,
+        0.11344769133793636,
+        0.26571824288551993
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.242,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0.004,
+        "inkContrast": 0.862,
+        "strokeSpan": 0.935,
+        "strokeFrac": 0.242,
+        "redoNearFrac": 0,
+        "snapDx": -0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.004
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.31191318447359934,
+        0.25164986334309,
+        0.33341477021738575,
+        0.2669433979014854
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "blank",
+       "rect": [
+        0.5319794016233483,
+        0.2528710767329379,
+        0.5535176873378331,
+        0.26816931134887045
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7521848983871046,
+        0.25369702547689427,
+        0.7737599261502879,
+        0.2689999630749469
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "59784d1e-72eb-4e4d-86ee-5f3d0501875a",
+   "submissionId": "3f3cafee-1607-4e3f-855e-0833f0aeb4f8",
+   "exerciseId": "85264662-1de1-484b-94d3-80c260d68524",
+   "score": 2,
+   "selectedOptions": [
+    0,
+    2
+   ],
+   "omrMeta": {
+    "confidence": "ambiguous",
+    "source": "omr",
+    "flaggedOptions": [
+     0
+    ],
+    "original": {
+     "confidence": "ambiguous",
+     "selectedOptions": [
+      0,
+      2
+     ],
+     "score": 2,
+     "flaggedOptions": [
+      0
+     ]
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 170,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006217426521258649,
+     "ratioDiff": 0.0018467019506291436,
+     "angleDeg": 89.80198836457741
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "ambiguous",
+       "rect": [
+        0.09313308646250928,
+        0.1546082292526845,
+        0.11461250998784732,
+        0.169914590105166
+       ],
+       "detectedState": "ambiguous",
+       "fillRatio": 0.393,
+       "redoRatio": 0.26,
+       "shape": {
+        "minCellFill": 0.01,
+        "cellEvenness": 0.016,
+        "ringFill": 0.173,
+        "inkContrast": 0.855,
+        "strokeSpan": 1,
+        "strokeFrac": 0.393,
+        "redoNearFrac": 0.265,
+        "snapDx": 0,
+        "snapDy": -0.155,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.173
+       },
+       "reasons": [
+        "spill"
+       ],
+       "provisional": true,
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.31321104583168996,
+        0.15540330482352543,
+        0.3347271771850088,
+        0.17071437374532772
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": -0.002
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "marked",
+       "rect": [
+        0.5328647616562229,
+        0.15659515791535858,
+        0.5544176423817816,
+        0.1719109377666165
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.243,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0.002,
+        "inkContrast": 0.871,
+        "strokeSpan": 1,
+        "strokeFrac": 0.243,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.002
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7532181674665245,
+        0.1577877678360789,
+        0.77480783972709,
+        0.1731082615515718
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": -0.002
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "94f4a297-bb7e-4cb5-af64-4343d9ec3c6a",
+   "submissionId": "3f3cafee-1607-4e3f-855e-0833f0aeb4f8",
+   "exerciseId": "05db4154-611f-4fc3-a0f4-bd854a7ac79c",
+   "score": 0,
+   "selectedOptions": [
+    2
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      2
+     ],
+     "score": 0
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 170,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006217426521258649,
+     "ratioDiff": 0.0018467019506291436,
+     "angleDeg": 89.80198836457741
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "blank",
+       "rect": [
+        0.09156766824235874,
+        0.3181119687198156,
+        0.11302239834102329,
+        0.33338848526003095
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": -0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.31139430467928,
+        0.3193530429023048,
+        0.33288565861636754,
+        0.33463424901915356
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "marked",
+       "rect": [
+        0.5313566087050704,
+        0.32019884545798194,
+        0.5528846278820607,
+        0.33548474399454903
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.254,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0.002,
+        "inkContrast": 0.847,
+        "strokeSpan": 0.935,
+        "strokeFrac": 0.254,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.002
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7514580613822907,
+        0.3214414752981552,
+        0.7730227878176245,
+        0.3367320691718661
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "39f67919-c1ba-4833-91bf-40162ad77f83",
+   "submissionId": "aa190399-2840-4c5d-a11d-7a4f63b41f92",
+   "exerciseId": "85264662-1de1-484b-94d3-80c260d68524",
+   "score": 2,
+   "selectedOptions": [
+    0,
+    2
+   ],
+   "omrMeta": {
+    "confidence": "ambiguous",
+    "source": "omr",
+    "flaggedOptions": [
+     0
+    ],
+    "original": {
+     "confidence": "ambiguous",
+     "selectedOptions": [
+      0,
+      2
+     ],
+     "score": 2,
+     "flaggedOptions": [
+      0
+     ]
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 169,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006407298510458324,
+     "ratioDiff": 0.0016377357490830482,
+     "angleDeg": 89.79833148791651
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "ambiguous",
+       "rect": [
+        0.09433525783410641,
+        0.1536167090602476,
+        0.11588151734221208,
+        0.1689628574008924
+       ],
+       "detectedState": "ambiguous",
+       "fillRatio": 0.406,
+       "redoRatio": 0.237,
+       "shape": {
+        "minCellFill": 0.06,
+        "cellEvenness": 0.094,
+        "ringFill": 0.165,
+        "inkContrast": 0.922,
+        "strokeSpan": 1,
+        "strokeFrac": 0.406,
+        "redoNearFrac": 0.184,
+        "snapDx": 0,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.165
+       },
+       "reasons": [
+        "spill"
+       ],
+       "provisional": true,
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.31451858111590664,
+        0.15517365549399734,
+        0.33609619714994093,
+        0.17052201142997314
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "marked",
+       "rect": [
+        0.5342075524721039,
+        0.15633502935701757,
+        0.5558165430647257,
+        0.17168559350366328
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.251,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.925,
+        "strokeSpan": 0.968,
+        "strokeFrac": 0.251,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.206,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7545260076135091,
+        0.15828897347604176,
+        0.7761663912891242,
+        0.17364174648270297
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "79d92536-b89e-4d4a-9b3f-9ad3aa1bbc7f",
+   "submissionId": "aa190399-2840-4c5d-a11d-7a4f63b41f92",
+   "exerciseId": "d5315364-d380-4fd7-beae-5a94b1c4ffac",
+   "score": 1,
+   "selectedOptions": [
+    2
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      2
+     ],
+     "score": 1
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 169,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006407298510458324,
+     "ratioDiff": 0.0016377357490830482,
+     "angleDeg": 89.79833148791651
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "blank",
+       "rect": [
+        0.09284715267234463,
+        0.24946211434724327,
+        0.11437791678105956,
+        0.2647879164935741
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": -0.026,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.31287358981145696,
+        0.25103273903877726,
+        0.3344356656650024,
+        0.2663607427430426
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "marked",
+       "rect": [
+        0.5329658038764711,
+        0.25260383452167273,
+        0.5545592094687313,
+        0.2679340403965736
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.257,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.851,
+        "strokeSpan": 0.903,
+        "strokeFrac": 0.257,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7531271799338772,
+        0.25417542502143625,
+        0.7747519337497637,
+        0.2695078337135864
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "a96b8ae3-7d5d-4bc5-8a11-9ea2302df70e",
+   "submissionId": "aa190399-2840-4c5d-a11d-7a4f63b41f92",
+   "exerciseId": "05db4154-611f-4fc3-a0f4-bd854a7ac79c",
+   "score": 0,
+   "selectedOptions": [
+    3
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      3
+     ],
+     "score": 0
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 169,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006407298510458324,
+     "ratioDiff": 0.0016377357490830482,
+     "angleDeg": 89.79833148791651
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "blank",
+       "rect": [
+        0.09219449583200873,
+        0.31755285170453773,
+        0.11371436082534682,
+        0.3328643506998108
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": -0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.31211058188741786,
+        0.31873704520367035,
+        0.33366172714648107,
+        0.3340507415165574
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "blank",
+       "rect": [
+        0.5320923779210602,
+        0.3203177517341434,
+        0.5536748214124926,
+        0.33563364597549433
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "marked",
+       "rect": [
+        0.7521432672656101,
+        0.32189895606547536,
+        0.7737570274465766,
+        0.33721704887998694
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.267,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0.005,
+        "inkContrast": 0.903,
+        "strokeSpan": 1,
+        "strokeFrac": 0.267,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.005
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "5207c612-930f-4978-95d7-823d26088e51",
+   "submissionId": "6560e66e-f753-4921-802c-b3a8c9e3fc88",
+   "exerciseId": "85264662-1de1-484b-94d3-80c260d68524",
+   "score": 0.5,
+   "selectedOptions": [
+    0,
+    3
+   ],
+   "omrMeta": {
+    "confidence": "ambiguous",
+    "source": "omr",
+    "flaggedOptions": [
+     0
+    ],
+    "original": {
+     "confidence": "ambiguous",
+     "selectedOptions": [
+      0,
+      3
+     ],
+     "score": 0.5,
+     "flaggedOptions": [
+      0
+     ]
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 169,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.00727093670240268,
+     "ratioDiff": 0.0019143985269215512,
+     "angleDeg": 89.78609345634514
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "ambiguous",
+       "rect": [
+        0.09266779004669073,
+        0.15469542244710993,
+        0.11412212503258717,
+        0.16999381493795065
+       ],
+       "detectedState": "ambiguous",
+       "fillRatio": 0.188,
+       "redoRatio": 0.326,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0.206,
+        "inkContrast": 0.84,
+        "strokeSpan": 0.581,
+        "strokeFrac": 0.077,
+        "redoNearFrac": 0.288,
+        "snapDx": 0,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.206
+       },
+       "reasons": [
+        "spill"
+       ],
+       "provisional": true,
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": false
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.3128011775910232,
+        0.1556886045814156,
+        0.3342958557694468,
+        0.17099144236017383
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "blank",
+       "rect": [
+        0.5325030621756403,
+        0.15668236902651247,
+        0.5540381273827137,
+        0.17198965464209087
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "marked",
+       "rect": [
+        0.7528973647351432,
+        0.15767673149064015,
+        0.774472861481346,
+        0.17298846756214495
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.267,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.93,
+        "strokeSpan": 0.903,
+        "strokeFrac": 0.267,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "5fb88400-b3c1-406f-b142-f6ca718e4894",
+   "submissionId": "6560e66e-f753-4921-802c-b3a8c9e3fc88",
+   "exerciseId": "d5315364-d380-4fd7-beae-5a94b1c4ffac",
+   "score": 1,
+   "selectedOptions": [
+    2
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      2
+     ],
+     "score": 1
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 169,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.00727093670240268,
+     "ratioDiff": 0.0019143985269215512,
+     "angleDeg": 89.78609345634514
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "blank",
+       "rect": [
+        0.09171531077802049,
+        0.2509742780430758,
+        0.11315249885376522,
+        0.26625117369373813
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": -0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.3122339126215406,
+        0.2515991907258767,
+        0.33371137960722946,
+        0.266880519059668
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "marked",
+       "rect": [
+        0.531760581006746,
+        0.2526207411220919,
+        0.5532783706335367,
+        0.26790650467692334
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.257,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.914,
+        "strokeSpan": 0.968,
+        "strokeFrac": 0.257,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7519794580033783,
+        0.2536429057743468,
+        0.7735376146756189,
+        0.26893310715812746
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "2a055463-c103-43e0-bb55-428a4b6982d5",
+   "submissionId": "c815d355-ad34-4ab8-9576-850887ace418",
+   "exerciseId": "05db4154-611f-4fc3-a0f4-bd854a7ac79c",
+   "score": 0,
+   "selectedOptions": [
+    1
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      1
+     ],
+     "score": 0
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 170,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006537869708910188,
+     "ratioDiff": 0.0008373236419025863,
+     "angleDeg": 89.87501904992975
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "blank",
+       "rect": [
+        0.0893036158052569,
+        0.32071165951969327,
+        0.11074193357505853,
+        0.3358690608401556
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": -0.026,
+        "snapDy": -0.183,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "marked",
+       "rect": [
+        0.30905623279940014,
+        0.32008661824920814,
+        0.33049390142609536,
+        0.33525191517583947
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.253,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0.003,
+        "inkContrast": 0.855,
+        "strokeSpan": 0.968,
+        "strokeFrac": 0.253,
+        "redoNearFrac": 0,
+        "snapDx": 0,
+        "snapDy": -0.209,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.003
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "blank",
+       "rect": [
+        0.5290346475823096,
+        0.31985738066800046,
+        0.5504716541794393,
+        0.33503058137028313
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.209,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7492425666654101,
+        0.3200239429036477,
+        0.7706788982972846,
+        0.33520505568469044
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.183,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "a1b03061-2ba8-47fa-a013-f3e4e6ca0d51",
+   "submissionId": "c815d355-ad34-4ab8-9576-850887ace418",
+   "exerciseId": "d5315364-d380-4fd7-beae-5a94b1c4ffac",
+   "score": 1,
+   "selectedOptions": [
+    2
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      2
+     ],
+     "score": 1
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 170,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006537869708910188,
+     "ratioDiff": 0.0008373236419025863,
+     "angleDeg": 89.87501904992975
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "blank",
+       "rect": [
+        0.08889183043022553,
+        0.25311592009858813,
+        0.11034014192808589,
+        0.2682908304764643
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": -0.026,
+        "snapDy": -0.183,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.30930646937575024,
+        0.25285173699995883,
+        0.33075413114614294,
+        0.2680345611886323
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.183,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "marked",
+       "rect": [
+        0.5288266687653792,
+        0.252587281615497,
+        0.5502736679038693,
+        0.26777802781271715
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.27,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.842,
+        "strokeSpan": 1,
+        "strokeFrac": 0.27,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.749136809432706,
+        0.25232254947746163,
+        0.7705831329855457,
+        0.2675212260149418
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "aac94ed1-3a17-4948-9695-fb7b8a3b2fcb",
+   "submissionId": "c815d355-ad34-4ab8-9576-850887ace418",
+   "exerciseId": "85264662-1de1-484b-94d3-80c260d68524",
+   "score": 2,
+   "selectedOptions": [
+    0,
+    2
+   ],
+   "omrMeta": {
+    "confidence": "ambiguous",
+    "source": "omr",
+    "flaggedOptions": [
+     0
+    ],
+    "original": {
+     "confidence": "ambiguous",
+     "selectedOptions": [
+      0,
+      2
+     ],
+     "score": 2,
+     "flaggedOptions": [
+      0
+     ]
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 170,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006537869708910188,
+     "ratioDiff": 0.0008373236419025863,
+     "angleDeg": 89.87501904992975
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "ambiguous",
+       "rect": [
+        0.08886667294651389,
+        0.1570238659738952,
+        0.11032919125895399,
+        0.17222368343378536
+       ],
+       "detectedState": "ambiguous",
+       "fillRatio": 0.333,
+       "redoRatio": 0.057,
+       "shape": {
+        "minCellFill": 0.07,
+        "cellEvenness": 0.106,
+        "ringFill": 0.193,
+        "inkContrast": 0.896,
+        "strokeSpan": 1,
+        "strokeFrac": 0.311,
+        "redoNearFrac": 0.07,
+        "snapDx": 0,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.193
+       },
+       "reasons": [
+        "spill"
+       ],
+       "provisional": true,
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.3088658002911872,
+        0.1567096138477031,
+        0.33032766804502905,
+        0.17191737103819688
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "marked",
+       "rect": [
+        0.529091236144559,
+        0.15639503761509368,
+        0.5505524404097848,
+        0.1716107427742235
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.26,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.852,
+        "strokeSpan": 0.968,
+        "strokeFrac": 0.26,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.748986467901324,
+        0.1560801319609054,
+        0.7704469956984868,
+        0.17130379346114843
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "4d9340d3-9486-4e37-bbf4-407e29951f49",
+   "submissionId": "6e58a325-9e76-4858-a5c7-347bdf2c508b",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 3.5
+  },
+  {
+   "id": "d92f5086-e2d0-4ee9-bd5b-b00f1575af1a",
+   "submissionId": "6e58a325-9e76-4858-a5c7-347bdf2c508b",
+   "exerciseId": "b9fb528e-2953-4cbc-a9a0-3bcfafa876d7",
+   "score": 3.5
+  },
+  {
+   "id": "73a45cc6-3b13-4ff9-963f-9139d6f21338",
+   "submissionId": "6e58a325-9e76-4858-a5c7-347bdf2c508b",
+   "exerciseId": "3e65d316-4797-47a7-9416-d6ac7f7bee69",
+   "score": 3
+  },
+  {
+   "id": "0e5c8635-6901-412a-853c-2f42102fa5a7",
+   "submissionId": "cd3b3a02-d3c5-4296-9481-b754bd187635",
+   "exerciseId": "05db4154-611f-4fc3-a0f4-bd854a7ac79c",
+   "score": 1,
+   "selectedOptions": [
+    0
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      0
+     ],
+     "score": 1
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 169,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006142077032854022,
+     "ratioDiff": 0.0008343589236253303,
+     "angleDeg": 89.86688902149055
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "marked",
+       "rect": [
+        0.08781474904036661,
+        0.32180679774509624,
+        0.10937937899447259,
+        0.33705167952835535
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.251,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0.001,
+        "inkContrast": 0.859,
+        "strokeSpan": 0.933,
+        "strokeFrac": 0.251,
+        "redoNearFrac": 0,
+        "snapDx": -0.026,
+        "snapDy": -0.208,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.001
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.3083211002874799,
+        0.32118479890179913,
+        0.32987737235817727,
+        0.3364349315607634
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "blank",
+       "rect": [
+        0.5278525221634113,
+        0.32016608516666784,
+        0.5494004203443195,
+        0.3354214722770858
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7480931890819034,
+        0.3187506402883025,
+        0.769632697211992,
+        0.33401128550993314
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.208,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "25875bf4-2c93-4254-a078-f9bcf870bb62",
+   "submissionId": "cd3b3a02-d3c5-4296-9481-b754bd187635",
+   "exerciseId": "d5315364-d380-4fd7-beae-5a94b1c4ffac",
+   "score": 1,
+   "selectedOptions": [
+    2
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      2
+     ],
+     "score": 1
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 169,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006142077032854022,
+     "ratioDiff": 0.0008343589236253303,
+     "angleDeg": 89.86688902149055
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "blank",
+       "rect": [
+        0.08749907828685494,
+        0.25456101063420755,
+        0.10907375634261428,
+        0.2698221794776279
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.3075465430959371,
+        0.25351980487423775,
+        0.32911285556352743,
+        0.26878623565122645
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "marked",
+       "rect": [
+        0.5277396621734349,
+        0.2520818685312795,
+        0.5492975930242282,
+        0.2673535648287643
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.247,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.887,
+        "strokeSpan": 1,
+        "strokeFrac": 0.247,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7475217153307478,
+        0.25143530379532697,
+        0.7690712483812984,
+        0.26671226928443015
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "7ce6dc47-7aa2-4e10-aebf-57f074beb2a1",
+   "submissionId": "cd3b3a02-d3c5-4296-9481-b754bd187635",
+   "exerciseId": "85264662-1de1-484b-94d3-80c260d68524",
+   "score": 2,
+   "selectedOptions": [
+    0,
+    2
+   ],
+   "omrMeta": {
+    "confidence": "ambiguous",
+    "source": "omr",
+    "flaggedOptions": [
+     0
+    ],
+    "original": {
+     "confidence": "ambiguous",
+     "selectedOptions": [
+      0,
+      2
+     ],
+     "score": 2,
+     "flaggedOptions": [
+      0
+     ]
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 169,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006142077032854022,
+     "ratioDiff": 0.0008343589236253303,
+     "angleDeg": 89.86688902149055
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "ambiguous",
+       "rect": [
+        0.08681416308760789,
+        0.15840392082042165,
+        0.10840312524622157,
+        0.17368825744013985
+       ],
+       "detectedState": "ambiguous",
+       "fillRatio": 0.451,
+       "redoRatio": 0.149,
+       "shape": {
+        "minCellFill": 0.13,
+        "cellEvenness": 0.183,
+        "ringFill": 0.291,
+        "inkContrast": 0.81,
+        "strokeSpan": 1,
+        "strokeFrac": 0.451,
+        "redoNearFrac": 0.348,
+        "snapDx": 0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.291
+       },
+       "reasons": [
+        "spill"
+       ],
+       "provisional": true,
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.3064454612013156,
+        0.15732974509787978,
+        0.3280260468129128,
+        0.17261935939423492
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "marked",
+       "rect": [
+        0.5262226062570236,
+        0.15625485604152914,
+        0.5477947992613145,
+        0.17154975161737823
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.243,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.858,
+        "strokeSpan": 1,
+        "strokeFrac": 0.243,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7467093287422744,
+        0.1551792365021835,
+        0.7682731129239133,
+        0.17047941704484082
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.181,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "c681baf7-e8f6-45ca-ba24-570fcb5d1ca8",
+   "submissionId": "7f511511-3b8e-45d1-83e4-d1ac95fdd03d",
+   "exerciseId": "d5315364-d380-4fd7-beae-5a94b1c4ffac",
+   "score": 0,
+   "selectedOptions": [
+    0
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      0
+     ],
+     "score": 0
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 169,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006433316147043324,
+     "ratioDiff": 0.0013633065925670624,
+     "angleDeg": 89.81074794682037
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "marked",
+       "rect": [
+        0.09068651082246175,
+        0.25158929517869333,
+        0.11208250195516019,
+        0.266813970685471
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.252,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.879,
+        "strokeSpan": 0.968,
+        "strokeFrac": 0.252,
+        "redoNearFrac": 0,
+        "snapDx": -0.026,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.3106828480528269,
+        0.25218472515127627,
+        0.33211140494234714,
+        0.2674121341820732
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "blank",
+       "rect": [
+        0.5307579463311201,
+        0.2527803688629995,
+        0.5522190911696028,
+        0.26801051237826357
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7509152035960441,
+        0.25298019593008325,
+        0.7724089590916214,
+        0.2682130749325675
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.208,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "c883cb55-f9c8-4df9-8cdb-51d44e15f480",
+   "submissionId": "7f511511-3b8e-45d1-83e4-d1ac95fdd03d",
+   "exerciseId": "85264662-1de1-484b-94d3-80c260d68524",
+   "score": 1.5,
+   "selectedOptions": [
+    0,
+    1,
+    2
+   ],
+   "omrMeta": {
+    "confidence": "ambiguous",
+    "source": "omr",
+    "flaggedOptions": [
+     0,
+     1
+    ],
+    "original": {
+     "confidence": "ambiguous",
+     "selectedOptions": [
+      0,
+      1,
+      2
+     ],
+     "score": 1.5,
+     "flaggedOptions": [
+      0,
+      1
+     ]
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 169,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006433316147043324,
+     "ratioDiff": 0.0013633065925670624,
+     "angleDeg": 89.81074794682037
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "ambiguous",
+       "rect": [
+        0.0913421532683539,
+        0.15538694176886736,
+        0.1127534447163826,
+        0.1706316200680301
+       ],
+       "detectedState": "ambiguous",
+       "fillRatio": 0.383,
+       "redoRatio": 0.236,
+       "shape": {
+        "minCellFill": 0.1,
+        "cellEvenness": 0.139,
+        "ringFill": 0.164,
+        "inkContrast": 0.871,
+        "strokeSpan": 1,
+        "strokeFrac": 0.313,
+        "redoNearFrac": 0.264,
+        "snapDx": 0,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.164
+       },
+       "reasons": [
+        "spill"
+       ],
+       "provisional": true,
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "ambiguous",
+       "rect": [
+        0.3114953076547063,
+        0.15596515356214077,
+        0.33293921142384303,
+        0.17121257264042392
+       ],
+       "detectedState": "ambiguous",
+       "fillRatio": 0.181,
+       "redoRatio": 0.214,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0.213,
+        "inkContrast": 0.843,
+        "strokeSpan": 0.733,
+        "strokeFrac": 0.168,
+        "redoNearFrac": 0.371,
+        "snapDx": 0.026,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.213
+       },
+       "reasons": [
+        "spill"
+       ],
+       "provisional": true,
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": false
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "marked",
+       "rect": [
+        0.5311671128135734,
+        0.1565435730653262,
+        0.5526436511437534,
+        0.17179373388706956
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.252,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.897,
+        "strokeSpan": 0.935,
+        "strokeFrac": 0.252,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": -0.164
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7514814173554056,
+        0.15672616962819083,
+        0.7729906130033198,
+        0.1719790732001532
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.208,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": -0.164
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "fa314e41-4d6f-4df9-bf28-9a5eaf73e495",
+   "submissionId": "7f511511-3b8e-45d1-83e4-d1ac95fdd03d",
+   "exerciseId": "05db4154-611f-4fc3-a0f4-bd854a7ac79c",
+   "score": 0,
+   "selectedOptions": [
+    3
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      3
+     ],
+     "score": 0
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 169,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.006433316147043324,
+     "ratioDiff": 0.0013633065925670624,
+     "angleDeg": 89.81074794682037
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "blank",
+       "rect": [
+        0.09061939510095937,
+        0.31925645826418403,
+        0.11200462425281199,
+        0.33446707193878056
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": -0.026,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.31050542973121975,
+        0.31986398412646916,
+        0.3319231919072741,
+        0.3350773262293615
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0,
+        "snapDy": -0.182,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "blank",
+       "rect": [
+        0.5304701454035882,
+        0.320075688353973,
+        0.551920462762408,
+        0.3352917598428779
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.208,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "marked",
+       "rect": [
+        0.7505169383036826,
+        0.3206836595619757,
+        0.7719998335192867,
+        0.33590246143683544
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.24,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 0.909,
+        "strokeSpan": 1,
+        "strokeFrac": 0.24,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.208,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "4a37a9e6-4b5f-4131-a980-6b3ac74f5d12",
+   "submissionId": "7f511511-3b8e-45d1-83e4-d1ac95fdd03d",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 3
+  },
+  {
+   "id": "48cc83a2-8860-44d4-a66a-51795b650b7d",
+   "submissionId": "7f511511-3b8e-45d1-83e4-d1ac95fdd03d",
+   "exerciseId": "b9fb528e-2953-4cbc-a9a0-3bcfafa876d7",
+   "score": 4
+  },
+  {
+   "id": "4953fd1a-9b04-4b4a-9681-b7778841034d",
+   "submissionId": "7f511511-3b8e-45d1-83e4-d1ac95fdd03d",
+   "exerciseId": "3e65d316-4797-47a7-9416-d6ac7f7bee69",
+   "score": 2.5
+  },
+  {
+   "id": "6860839f-8277-47d9-81ae-76d6e466f06f",
+   "submissionId": "ffdaf5f0-5cd1-4924-b71f-487acea70174",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 2.5
+  },
+  {
+   "id": "753f26a3-5ccf-4670-b055-3c202c04d7e7",
+   "submissionId": "ffdaf5f0-5cd1-4924-b71f-487acea70174",
+   "exerciseId": "b9fb528e-2953-4cbc-a9a0-3bcfafa876d7",
+   "score": 3.5
+  },
+  {
+   "id": "531695a2-d51a-4463-a982-8e75fe7f25bc",
+   "submissionId": "ffdaf5f0-5cd1-4924-b71f-487acea70174",
+   "exerciseId": "3e65d316-4797-47a7-9416-d6ac7f7bee69",
+   "score": 2
+  },
+  {
+   "id": "03450658-68cc-4caf-bf4a-9bd04ea5c676",
+   "submissionId": "3f3cafee-1607-4e3f-855e-0833f0aeb4f8",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 2.5
+  },
+  {
+   "id": "3d056187-5eb2-4606-a429-4ebb99589ffd",
+   "submissionId": "3f3cafee-1607-4e3f-855e-0833f0aeb4f8",
+   "exerciseId": "b9fb528e-2953-4cbc-a9a0-3bcfafa876d7",
+   "score": 2.5
+  },
+  {
+   "id": "ddd152d6-3ff1-4dd6-a710-44923f0467ea",
+   "submissionId": "3f3cafee-1607-4e3f-855e-0833f0aeb4f8",
+   "exerciseId": "3e65d316-4797-47a7-9416-d6ac7f7bee69",
+   "score": 2
+  },
+  {
+   "id": "deab55f3-bb82-4faa-9873-bce003bb9e8b",
+   "submissionId": "aa190399-2840-4c5d-a11d-7a4f63b41f92",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 2
+  },
+  {
+   "id": "26e073c4-4605-49fe-8cbd-35acee3224d5",
+   "submissionId": "aa190399-2840-4c5d-a11d-7a4f63b41f92",
+   "exerciseId": "b9fb528e-2953-4cbc-a9a0-3bcfafa876d7",
+   "score": 2.5
+  },
+  {
+   "id": "2ee0dc6f-a9d3-4915-88c4-1397cce1558b",
+   "submissionId": "aa190399-2840-4c5d-a11d-7a4f63b41f92",
+   "exerciseId": "3e65d316-4797-47a7-9416-d6ac7f7bee69",
+   "score": 2
+  },
+  {
+   "id": "9ab0129d-43ab-44f8-b948-2499d0925c3c",
+   "submissionId": "6560e66e-f753-4921-802c-b3a8c9e3fc88",
+   "exerciseId": "05db4154-611f-4fc3-a0f4-bd854a7ac79c",
+   "score": 0,
+   "selectedOptions": [
+    2
+   ],
+   "omrMeta": {
+    "confidence": "high",
+    "source": "omr",
+    "original": {
+     "confidence": "high",
+     "selectedOptions": [
+      2
+     ],
+     "score": 0
+    },
+    "run": {
+     "runId": "e3d8352b-0970-41d8-b471-5dcc625aa465",
+     "detectedAt": "2026-10-19T18:04:48.245Z",
+     "trigger": "scan",
+     "algorithmVersion": 4,
+     "pipelineVersion": 4,
+     "settings": {
+      "source": "default",
+      "revision": 0
+     },
+     "params": {
+      "algorithm": 4,
+      "ambiguousLow": 0.15,
+      "markedHigh": 0.45,
+      "filledHigh": 0.75,
+      "redoMarkedHigh": 0.45,
+      "sampleInsetFraction": 0.12,
+      "quadrantFraction": 0.4,
+      "fiducialAreaMinRatio": 0.3,
+      "fiducialAreaMaxRatio": 3,
+      "fiducialMaxAspectRatio": 1.8,
+      "fiducialMaxDistFraction": 0.15,
+      "alignResidualFraction": 0.015,
+      "alignRatioTolerance": 0.05,
+      "alignAngleToleranceDeg": 5,
+      "scanScale": 3,
+      "shapeAnalysis": true,
+      "solidFillMin": 0.5,
+      "solidCellMin": 0.3,
+      "solidEvennessMin": 0.5,
+      "ringFraction": 0.35,
+      "spillExcessMax": 0.12,
+      "faintContrastMin": 0.3,
+      "localContrastFrac": 0.35,
+      "snapMaxFraction": 0.3,
+      "strokeSpanMin": 0.25,
+      "inkMinFill": 0.03,
+      "tickSpanMin": 0.45
+     },
+     "templateHash": "15c3fffcebb649fe6b7eea2ebb6f0d1ab549525dd6e96599029a9e6654e7e50c"
+    },
+    "pageStats": {
+     "otsuThreshold": 169,
+     "fiducialsFound": 4,
+     "fiducialCorners": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "residualFraction": 0.00727093670240268,
+     "ratioDiff": 0.0019143985269215512,
+     "angleDeg": 89.78609345634514
+    },
+    "detections": {
+     "pageIndex": 1,
+     "bubbles": [
+      {
+       "optionIndex": 0,
+       "state": "blank",
+       "rect": [
+        0.09143944359211413,
+        0.31828970241735116,
+        0.11286457256345546,
+        0.33355148855633554
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": -0.026,
+        "snapDy": -0.208,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 1,
+       "state": "blank",
+       "rect": [
+        0.31127473974511194,
+        0.3193301577561356,
+        0.3327401024481758,
+        0.3345963677274219
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0,
+        "snapDy": -0.208,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      },
+      {
+       "optionIndex": 2,
+       "state": "marked",
+       "rect": [
+        0.5312384055540869,
+        0.32037122228362025,
+        0.5527440456463115,
+        0.3356418586174093
+       ],
+       "detectedState": "marked",
+       "fillRatio": 0.253,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0.009,
+        "cellEvenness": 0.015,
+        "ringFill": 0.001,
+        "inkContrast": 0.904,
+        "strokeSpan": 0.903,
+        "strokeFrac": 0.253,
+        "redoNearFrac": 0,
+        "snapDx": 0.026,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0.001
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "ambiguous",
+        "provisional": true
+       }
+      },
+      {
+       "optionIndex": 3,
+       "state": "blank",
+       "rect": [
+        0.7513339087422902,
+        0.321412912454214,
+        0.7728798705534842,
+        0.3366879777505601
+       ],
+       "detectedState": "blank",
+       "fillRatio": 0,
+       "redoRatio": 0,
+       "shape": {
+        "minCellFill": 0,
+        "cellEvenness": 0,
+        "ringFill": 0,
+        "inkContrast": 1,
+        "strokeSpan": 0,
+        "strokeFrac": 0,
+        "redoNearFrac": 0,
+        "snapDx": 0.052,
+        "snapDy": -0.207,
+        "borderFound": true,
+        "bg": 248,
+        "spillExcess": 0
+       },
+       "alt": {
+        "algorithm": 2,
+        "state": "blank"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "62bc8278-964e-4d1b-859a-9961457b5012",
+   "submissionId": "6560e66e-f753-4921-802c-b3a8c9e3fc88",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 1.5
+  },
+  {
+   "id": "e7b4b7bb-d018-4103-a33e-de20afa5ed10",
+   "submissionId": "6560e66e-f753-4921-802c-b3a8c9e3fc88",
+   "exerciseId": "b9fb528e-2953-4cbc-a9a0-3bcfafa876d7",
+   "score": 2.5
+  },
+  {
+   "id": "24987960-f26b-4a19-95f7-3d5ea321e947",
+   "submissionId": "6560e66e-f753-4921-802c-b3a8c9e3fc88",
+   "exerciseId": "3e65d316-4797-47a7-9416-d6ac7f7bee69",
+   "score": 1.5
+  },
+  {
+   "id": "02b5d01f-2b5f-45e5-9868-91ae7235be32",
+   "submissionId": "cd3b3a02-d3c5-4296-9481-b754bd187635",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 2.5
+  },
+  {
+   "id": "b676701b-46fc-4252-9af7-103de7b20daf",
+   "submissionId": "cd3b3a02-d3c5-4296-9481-b754bd187635",
+   "exerciseId": "b9fb528e-2953-4cbc-a9a0-3bcfafa876d7",
+   "score": 3.5
+  },
+  {
+   "id": "2de6ae9c-1dca-495d-8498-758c3fc198cc",
+   "submissionId": "cd3b3a02-d3c5-4296-9481-b754bd187635",
+   "exerciseId": "3e65d316-4797-47a7-9416-d6ac7f7bee69",
+   "score": 2
+  },
+  {
+   "id": "1ce26203-7fe6-4f13-92d6-8f5990d3e544",
+   "submissionId": "c815d355-ad34-4ab8-9576-850887ace418",
+   "exerciseId": "b9fb528e-2953-4cbc-a9a0-3bcfafa876d7",
+   "score": 3
+  },
+  {
+   "id": "8aa57ead-8a03-4a98-a0b4-eb633adb8d7a",
+   "submissionId": "c815d355-ad34-4ab8-9576-850887ace418",
+   "exerciseId": "3e65d316-4797-47a7-9416-d6ac7f7bee69",
+   "score": 1.5
+  },
+  {
+   "id": "d1556215-7af1-4770-b1fb-40f36d7db59a",
+   "submissionId": "c815d355-ad34-4ab8-9576-850887ace418",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "score": 3
+  }
+ ],
+ "exerciseExams": [
+  {
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "exerciseId": "e6544383-850b-4843-b945-ec7917bc1263",
+   "orderIndex": 1
+  },
+  {
+   "examId": "245c0c32-e4dd-4182-a517-ddb13261369a",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "orderIndex": 2
+  },
+  {
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "exerciseId": "745d3818-4948-43b7-8785-54c7466b11a5",
+   "orderIndex": 1
+  },
+  {
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "exerciseId": "b9fb528e-2953-4cbc-a9a0-3bcfafa876d7",
+   "orderIndex": 2
+  },
+  {
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "exerciseId": "3e65d316-4797-47a7-9416-d6ac7f7bee69",
+   "orderIndex": 3
+  },
+  {
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "exerciseId": "85264662-1de1-484b-94d3-80c260d68524",
+   "orderIndex": 4,
+   "mcGroupId": "45f1f685-e40a-4917-bc7d-9675fe94541c",
+   "subIndex": 1
+  },
+  {
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "exerciseId": "d5315364-d380-4fd7-beae-5a94b1c4ffac",
+   "orderIndex": 4,
+   "mcGroupId": "45f1f685-e40a-4917-bc7d-9675fe94541c",
+   "subIndex": 2
+  },
+  {
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "exerciseId": "05db4154-611f-4fc3-a0f4-bd854a7ac79c",
+   "orderIndex": 4,
+   "mcGroupId": "45f1f685-e40a-4917-bc7d-9675fe94541c",
+   "subIndex": 3
+  }
+ ],
+ "examMcGroups": [
+  {
+   "id": "45f1f685-e40a-4917-bc7d-9675fe94541c",
+   "examId": "24dfc399-b959-47a9-a1f3-db45f5271b6c",
+   "title": "Grundwissen",
+   "scoringText": "Für jedes korrekte Kreuz 1BE; für jedes falsche Kreuz -0,5BE. Pro Teilaufgabe aber immer $\\geq$0BE",
+   "orderIndex": 4
+  }
+ ],
+ "exerciseResources": [],
+ "examLogos": []
+}

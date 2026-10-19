@@ -42,6 +42,17 @@ async function loadPayload(): Promise<Record<string, any>> {
   copy('exercise', raw.exercises);
   copy('mcGroup', raw.examMcGroups);
   const { payload } = applyResolutions(raw, decisions);
+  // Submission and score ids are global keys on the server, and `applyArchive` keeps them when it
+  // sees no exam id change (it cannot, the copy was made here).
+  const submissionIds = new Map<string, string>();
+  for (const sub of payload.submissions ?? []) {
+    submissionIds.set(sub.id, crypto.randomUUID());
+    sub.id = submissionIds.get(sub.id);
+  }
+  for (const score of payload.exerciseScores ?? []) {
+    score.submissionId = submissionIds.get(score.submissionId) ?? score.submissionId;
+    score.id = crypto.randomUUID();
+  }
 
   const retentionUntil = new Date(Date.now() + RETENTION_DAYS * 86400000).toISOString().slice(0, 10);
   const createdAt = new Date().toISOString();

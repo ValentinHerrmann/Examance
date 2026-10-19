@@ -68,18 +68,22 @@ for (const sub of submissions) {
 }
 
 const strip = ({ teacherId, isPublic, isShared, sharedAt, groupCopied, accountLatexPackages, payloadCt, payloadIv, ...rest }) => rest;
+// The demo account's ciphertexts are useless to anyone else: the importer re-seals from the plain fields.
+const plain = ({ payloadCt, payloadIv, ...rest }) => rest;
+const blankPii = { piiCt: { $b64: '' }, piiIv: { $b64: Buffer.alloc(12).toString('base64') } };
 const payload = {
   payloadVersion: all.payloadVersion,
   codeWithheld: false,
   exams: exams.map((e) => strip({ ...e, title: `Beispiel: ${e.title}` })),
   exercises: exercises.map(strip),
-  students,
-  submissions,
-  exerciseScores,
+  students: students.map((st) => ({ ...plain(st), ...blankPii })),
+  submissions: submissions.map(plain),
+  exerciseScores: exerciseScores.map(plain),
   exerciseExams: links,
   examMcGroups: all.examMcGroups.filter((g) => keepExamIds.has(g.examId)),
   exerciseResources: (all.exerciseResources ?? []).filter((r) => exerciseIds.has(r.exerciseId)),
-  examLogos: (all.examLogos ?? []).filter((l) => keepExamIds.has(l.examId)),
+  // Only exams with their own logo carry one; the rest follow the importing account's logo.
+  examLogos: (all.examLogos ?? []).filter((l) => keepExamIds.has(l.examId) && l.mode !== 'account'),
 };
 fs.writeFileSync(path.join(OUT, 'example.json'), JSON.stringify(payload, null, 1) + '\n');
 console.log(
