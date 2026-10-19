@@ -44,6 +44,8 @@ export const help = {
                 h: 'Was Examance macht',
                 p1: 'Examance begleitet eine Klausur über den gesamten Ablauf: Aufgaben sammeln, Klausur setzen, gescannte Bögen einlesen, anonym korrigieren und auswerten.',
                 p2: 'Alle sensiblen Daten werden im Browser verschlüsselt, bevor sie gespeichert werden. Der Schlüssel wird aus dem Passwort abgeleitet und verlässt das Gerät nicht.',
+                p3: 'Einen schnellen Überblick geben zwei Poster unter „Examance kennenlernen“ (auf der Anmeldeseite verlinkt): was Examance kann, wie die Oberfläche aussieht und wie Ihre Daten geschützt sind.',
+                p4: 'Zum Ausprobieren legt „Beispieldaten hinzufügen“ in der noch leeren Prüfungsübersicht Beispielaufgaben, zwei Beispielprüfungen und bereits korrigierte Bögen erfundener Schülerinnen und Schüler an, darunter gescannte. Sie werden nicht geteilt, wie Ihre eigenen Daten gespeichert und verschlüsselt und lassen sich wie jede Prüfung und Aufgabe wieder löschen.',
             },
             s2: {
                 h: 'Der typische Ablauf',
@@ -93,6 +95,7 @@ export const help = {
                 h: 'Varianten und Versionen',
                 p1: 'Varianten sind gleichwertige Fassungen derselben Aufgabe, etwa für die Gruppen A und B. Sie werden gemeinsam ausgewertet, erschweren aber das Abschreiben.',
                 p2: 'Versionen halten die Korrekturgeschichte fest: Eine überarbeitete Aufgabe ersetzt die alte, ohne dass die Auswertung vergangener Klausuren verloren geht.',
+                p3: '„Duplizieren“ legt eine eigene, nicht geteilte Kopie der Gruppe an — die aktuelle Version jeder Variante samt Dateien. So starten Sie eine ähnliche Aufgabe, ohne das Original zu verändern.',
             },
             s3: {
                 h: 'Multiple Choice',
@@ -142,6 +145,7 @@ export const help = {
             s2: {
                 h: 'Aufgaben zusammenstellen',
                 p1: 'Aufgaben werden aus der Bibliothek übernommen oder als Einzelstück direkt in der Klausur angelegt. Die Reihenfolge lässt sich per Drag-and-drop ändern, die Gesamtpunktzahl wird laufend mitgerechnet.',
+                p2: '„Duplizieren“ (in der Prüfungsübersicht und auf der Prüfungsseite) legt eine neue Prüfung mit denselben Kopfdaten, Aufgaben, MC-Gruppen, Notenschlüssel und Einstellungen an, etwa für die Parallelklasse oder das nächste Schuljahr. Schüler, Scans und Ergebnisse werden nie mitkopiert; die Kopie erhält eigene QR-Codes.',
             },
             s3: {
                 h: 'Notenschlüssel',

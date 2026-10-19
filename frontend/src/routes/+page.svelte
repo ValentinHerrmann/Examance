@@ -4,6 +4,8 @@
   import type { ExamRecord, ExerciseRecord } from '#lib/db/schema';
   import { saveExamEncrypted } from '#lib/db/dbEncryption';
   import { importArchiveInteractively } from '#lib/services/archiveService';
+  import { addExampleData } from '#lib/services/exampleData';
+  import { showArchiveReport } from '#lib/stores/archiveReport';
   import { checkRetention, type RetentionCheckResult } from '#lib/gdpr/retention';
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
@@ -36,6 +38,10 @@
 
   let exams: ExamRecord[] = $state.raw([]);
   let rawExportExamId: string | null = $state(null);
+  let duplicatingExamId: string | null = $state(null);
+  let addingExampleData = $state(false);
+  let exampleDataError = $state('');
+  let duplicateError = $state('');
   /** Set when the server refused the exam list, so the view can say so. */
   let examsLoadFailed = $state(false);
   let examStatsMap = $state.raw(new Map<string, { avgScore: number | null; count: number }>());
@@ -219,6 +225,35 @@
     },
   });
 
+  /** Imports the bundled example data (issue #120); the report opens only when something went wrong. */
+  async function handleAddExampleData() {
+    addingExampleData = true;
+    exampleDataError = '';
+    try {
+      const result = await addExampleData();
+      if (result.errors.length > 0 || result.report.problems.length > 0) await showArchiveReport(result.report);
+      await refreshExams();
+    } catch (err: any) {
+      exampleDataError = translate('dashboard.exampleData.failed', { message: err?.message ?? '' });
+    } finally {
+      addingExampleData = false;
+    }
+  }
+
+  /** Copies the exam without its results and opens the copy for editing (issue #121). */
+  async function handleDuplicateExam(exam: ExamRecord) {
+    duplicatingExamId = exam.id;
+    duplicateError = '';
+    try {
+      const copy = await examRepository.duplicate(exam.id);
+      await goto(`/exam/${copy.id}`);
+    } catch (err: any) {
+      duplicateError = translate('dashboard.duplicateFailed', { message: err?.message ?? '' });
+    } finally {
+      duplicatingExamId = null;
+    }
+  }
+
   function handleDeleteDashboardExam(id: string, title?: string) {
     deletingExam = { id, title, submissionCount: examStatsMap.get(id)?.count ?? 0 };
     deleteError = '';
@@ -284,12 +319,18 @@
       <RetentionModal {expiredExam} onExtend={handleExtendRetention} onDelete={handleDeleteExpiredExam} />
     {/if}
 
+    {#if duplicateError}
+      <Alert severity="danger" class="mb-6">{duplicateError}</Alert>
+    {/if}
+
     {#if examsLoadFailed}
       <Alert severity="danger" class="mb-6">{$t("dashboard.loadFailed")}</Alert>
     {/if}
 
     {#if exams.length === 0}
-      {#if !examsLoadFailed}<OnboardingEmptyState />{/if}
+      {#if !examsLoadFailed}
+        <OnboardingEmptyState onAddExampleData={handleAddExampleData} {addingExampleData} {exampleDataError} />
+      {/if}
     {:else}
       <FilterLayout
         title={$t('dashboard.header.filtersTitle')}
@@ -325,6 +366,8 @@
           onDelete={handleDeleteDashboardExam}
           onPreview={examPreview.open}
           onRawExport={(exam) => (rawExportExamId = exam.id)}
+          onDuplicate={handleDuplicateExam}
+          duplicatingId={duplicatingExamId}
         />
       </FilterLayout>
     {/if}

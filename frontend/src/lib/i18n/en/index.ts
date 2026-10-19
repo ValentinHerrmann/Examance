@@ -23,6 +23,7 @@ import { security } from './security';
 import { logo } from './logo';
 import { latexPackages } from './latexPackages';
 import { exportNs } from './export';
+import { about } from './about';
 
 export const en: Translations = {
     common,
@@ -49,4 +50,5 @@ export const en: Translations = {
     logo,
     latexPackages,
     export: exportNs,
+    about,
 };

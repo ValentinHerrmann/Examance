@@ -142,6 +142,9 @@ export const exercises: Translations['exercises'] = {
     },
     groupList: {
         exportTitle: 'Export the group with all variants and images as a ZIP',
+        duplicateTitle: 'Create a copy of the group (current version of each variant, with files) to start a similar exercise from',
+        duplicated: '"{name}" was duplicated. The copy is a separate, unshared group in your library.',
+        duplicateFailed: 'The exercise could not be duplicated.',
         loading: 'Loading exercise library...',
         empty: 'No exercises found matching your criteria.',
         createFirst: 'Create first exercise',

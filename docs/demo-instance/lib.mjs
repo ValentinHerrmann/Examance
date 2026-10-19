@@ -82,6 +82,12 @@ export async function login(page, who, { mode, formDone = false } = {}) {
   }
   const secrets = readState('totp.json', {});
   for (let i = 0; i < 12; i++) {
+    // Enrollment offers a passkey first; the demo accounts use TOTP.
+    const useTotp = page.getByRole('button', { name: /Authenticator-App verwenden|authenticator app instead/ });
+    if ((await useTotp.count()) && (await useTotp.first().isVisible())) {
+      await useTotp.first().click();
+      await page.waitForTimeout(2500);
+    }
     const secretEl = page.locator('code, .font-mono, [class*=mono]').filter({ hasText: /^[A-Z2-7]{16,}$/ });
     if (await secretEl.count()) { secrets[who] = { ...(secrets[who] ?? {}), secret: (await secretEl.first().innerText()).trim() }; writeState('totp.json', secrets); }
     const code = page.getByPlaceholder('000000');

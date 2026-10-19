@@ -160,6 +160,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // The info posters are bundled from the repo's docs (src/lib/about/posters.ts).
+    fs: { allow: ['.', '../docs/posters'] },
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

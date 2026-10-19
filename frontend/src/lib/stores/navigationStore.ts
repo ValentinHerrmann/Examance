@@ -46,7 +46,7 @@ export function isUnlockPath(pathname: string): boolean {
 /**
  * Paths that must render without an unlocked session: Impressum and Datenschutzerklärung (§ 5 DDG,
  * Art. 12 DSGVO; redirecting to /unlock would defeat them), password reset and self-registration
- * pages, and the manual (no data, most useful before signing in).
+ * pages, the manual and the info posters (no data, most useful before signing in).
  */
 export function isPublicPath(pathname: string): boolean {
   return (
@@ -57,7 +57,8 @@ export function isPublicPath(pathname: string): boolean {
     pathname.startsWith("/register") ||
     pathname.startsWith("/verify-email") ||
     pathname.startsWith("/delete-account") ||
-    pathname.startsWith("/help")
+    pathname.startsWith("/help") ||
+    pathname.startsWith("/about")
   );
 }
 

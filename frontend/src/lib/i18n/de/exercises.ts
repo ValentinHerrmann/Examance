@@ -140,6 +140,9 @@ export const exercises = {
     },
     groupList: {
         exportTitle: 'Gruppe mit allen Varianten und Bildern als ZIP exportieren',
+        duplicateTitle: 'Kopie der Gruppe (aktuelle Version jeder Variante, mit Dateien) als Ausgangspunkt für eine ähnliche Aufgabe anlegen',
+        duplicated: '„{name}“ wurde dupliziert. Die Kopie steht als eigene, nicht geteilte Gruppe in Ihrer Bibliothek.',
+        duplicateFailed: 'Die Aufgabe konnte nicht dupliziert werden.',
         loading: 'Aufgabenbibliothek wird geladen...',
         empty: 'Keine Aufgaben gefunden, die Ihren Kriterien entsprechen.',
         createFirst: 'Erste Aufgabe erstellen',

@@ -78,6 +78,7 @@
   let sharingNotice = $state("");
   let sharingError = $state("");
   let copyingGroupId = $state("");
+  let duplicatingGroupId = $state("");
   /** Groups being exported as ZIP: one group, or the whole library. */
   let exportTarget: { groups: ExerciseGroup[]; library: boolean } | null = $state.raw(null);
   let shareGroup: ExerciseGroup | null = $state.raw(null);
@@ -550,6 +551,22 @@
       sharingError = failText(err, "exercises.sharing.copyFailed");
     } finally {
       copyingGroupId = "";
+    }
+  }
+
+  /** Own group copied as a new private group to start a similar exercise from (issue #121). */
+  async function handleDuplicate(group: ExerciseGroup, rep: ExerciseRecord) {
+    duplicatingGroupId = group.groupId;
+    sharingNotice = "";
+    sharingError = "";
+    try {
+      await exerciseRepository.duplicate(rep.id);
+      sharingNotice = translate("exercises.groupList.duplicated", { name: group.name });
+      await loadExercises();
+    } catch (err) {
+      sharingError = failText(err, "exercises.groupList.duplicateFailed");
+    } finally {
+      duplicatingGroupId = "";
     }
   }
 
@@ -1196,6 +1213,8 @@
       {pendingByGroup}
       onOpenProposals={openProposalsFor}
       onExport={(group) => (exportTarget = { groups: [group], library: false })}
+      onDuplicate={handleDuplicate}
+      {duplicatingGroupId}
     />
   {/if}
   </FilterLayout>

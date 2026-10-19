@@ -98,5 +98,7 @@
 
   <div class="mt-6 text-center">
     <a href="/unlock" class="text-sm text-accent no-underline hover:underline">{$t("auth.register.backToSignIn")}</a>
+    <span class="mx-2 text-sm text-subtle" aria-hidden="true">·</span>
+    <a href="/about" class="text-sm text-accent no-underline hover:underline">{$t("about.headerLink")}</a>
   </div>
 </AuthCard>

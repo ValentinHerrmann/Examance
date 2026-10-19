@@ -1,6 +1,7 @@
 """Exams router — /api/v1/exams/*"""
 from __future__ import annotations
 
+import copy
 import re
 import uuid
 from datetime import UTC, date, datetime, timedelta
@@ -20,24 +21,27 @@ from app.models.exam import Exam
 from app.models.exam_exercise import ExamExercise
 from app.models.exam_mc_group import ExamMcGroup
 from app.models.exercise import Exercise
+from app.models.logo import ExamLogo
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
 from app.schemas.exam import (
     ExamCreate,
+    ExamDuplicate,
     ExamMcGroupResponse,
     ExamResponse,
     ExamUpdate,
     ExerciseResponse,
 )
 from app.schemas.latex_packages import LatexPackageEntry
+from app.services import audit as audit_svc
 from app.services.capabilities import require_server_latex
 from app.services.exercise_resource_store import load_resources_for_exercises
 from app.services.latex import CompilationError, compile_exam_latex
 from app.services.latex_packages import stored_entries
 from app.services.latex_resources import ResourceError
 from app.services.latex_score import parse_exercise_score
-from app.services.logo import resolve_logo
+from app.services.logo import get_exam_logo, resolve_logo
 
 router = APIRouter(prefix="/exams", tags=["exams"], dependencies=[Depends(get_teaching_teacher)])
 
@@ -447,6 +451,93 @@ async def create_exam(
     await db.flush()
     mc_groups = await _fetch_exam_mc_groups(exam.id, db)
     return _to_exam_response(exam, linked_exercises, mc_groups)
+
+
+@router.post(
+    "/{exam_id}/duplicate", response_model=ExamResponse, status_code=status.HTTP_201_CREATED
+)
+@limiter.limit("60/hour")
+async def duplicate_exam(
+    request: Request,
+    body: ExamDuplicate,
+    source: Exam = Depends(get_exam_for_teacher),
+    teacher: Teacher = Depends(get_current_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> ExamResponse:
+    """Copy an exam's header, settings, MC groups and exercise links into a new exam (issue #121).
+    Never copies results: students, submissions and scores belong to the source only."""
+    exam = Exam(
+        teacher_id=teacher.id,
+        title=f"{source.title} (Kopie)"[:500],
+        latex_template=source.latex_template,
+        retention_until=body.retention_until,
+        testart=source.testart,
+        grade=source.grade,
+        klasse=source.klasse,
+        datum=source.datum,
+        nr=source.nr,
+        fach=source.fach,
+        topic=source.topic,
+        lehrernachname=source.lehrernachname,
+        info_text=source.info_text,
+        grading_key=copy.deepcopy(source.grading_key),
+        latex_packages=copy.deepcopy(source.latex_packages),
+    )
+    db.add(exam)
+    await db.flush()
+
+    group_map: dict[uuid.UUID, uuid.UUID] = {}
+    for g in await _fetch_exam_mc_groups(source.id, db):
+        new_group = ExamMcGroup(
+            exam_id=exam.id, title=g.title, scoring_text=g.scoring_text, order_index=g.order_index
+        )
+        db.add(new_group)
+        await db.flush()
+        group_map[g.id] = new_group.id
+
+    for ex, order, gid, sidx in await _fetch_exam_exercises(source.id, db):
+        if ex.exam_id is not None:
+            # A legacy row belongs to its exam and dies with it: give the copy its own row.
+            ex = Exercise(
+                teacher_id=teacher.id,
+                name=ex.name,
+                topic_tag=ex.topic_tag,
+                latex_body=ex.latex_body,
+                code_withheld=ex.code_withheld,
+                max_points=ex.max_points,
+                version=1,
+                question_type=ex.question_type,
+                correct_answers=copy.deepcopy(ex.correct_answers),
+                penalty=ex.penalty,
+            )
+            db.add(ex)
+            await db.flush()
+        db.add(
+            ExamExercise(
+                exam_id=exam.id,
+                exercise_id=ex.id,
+                order_index=order,
+                mc_group_id=group_map.get(gid) if gid else None,
+                sub_index=sidx,
+            )
+        )
+
+    logo = await get_exam_logo(source.id, db)
+    if logo is not None:
+        db.add(
+            ExamLogo(
+                exam_id=exam.id,
+                mode=logo.mode,
+                mime_type=logo.mime_type,
+                byte_size=logo.byte_size,
+                content=logo.content,
+            )
+        )
+    await db.flush()
+    await audit_svc.log(db, request, teacher, "EXAM_DUPLICATED", exam.id)
+    exs = await _fetch_exam_exercises(exam.id, db)
+    groups = await _fetch_exam_mc_groups(exam.id, db)
+    return _to_exam_response(exam, exs, groups)
 
 
 @router.get("/{exam_id}", response_model=ExamResponse)

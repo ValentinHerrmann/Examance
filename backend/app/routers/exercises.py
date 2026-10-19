@@ -798,6 +798,23 @@ async def copy_shared_exercise(
     return CopyResponse(group_id=group.id, exercises=[_to_res(r) for r in rows])
 
 
+@router.post(
+    "/{exercise_id}/duplicate", response_model=CopyResponse, status_code=status.HTTP_201_CREATED
+)
+@limiter.limit("60/hour")
+async def duplicate_exercise(
+    request: Request,
+    ex: Exercise = Depends(get_exercise_for_teacher),
+    teacher: Teacher = Depends(get_current_teacher),
+    db: AsyncSession = Depends(get_db),
+) -> CopyResponse:
+    """Duplicate an own exercise group (current version of every variant) as a new private
+    group, e.g. as the starting point for a similar exercise (issue #121)."""
+    group, rows = await sharing.duplicate_own_group(ex, teacher, db)
+    await audit_svc.log(db, request, teacher, "EXERCISE_DUPLICATED", group.id)
+    return CopyResponse(group_id=group.id, exercises=[_to_res(r) for r in rows])
+
+
 @router.get("/groups/{group_id}/resync-preview", response_model=ResyncPreviewResponse)
 async def resync_preview(
     group_id: uuid.UUID,

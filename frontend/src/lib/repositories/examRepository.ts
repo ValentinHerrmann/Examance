@@ -167,6 +167,14 @@ export const examRepository = {
     }
   },
 
+  /** Copies an exam's header, settings and exercise links (never its results) into a new exam.
+   * Online-only like the create flow's server round trip; returns the new exam. */
+  async duplicate(id: string, retentionDays = 365): Promise<ExamRecord> {
+    const retentionUntil = new Date(Date.now() + retentionDays * 86400000).toISOString().slice(0, 10);
+    const raw = await api.post<any>(`/exams/${id}/duplicate`, { retention_until: retentionUntil }, { silentError: true });
+    return mapApiToExamRecord(raw);
+  },
+
     /** Removes every local table an exam owns. The single implementation for all exam deletions, so no owned table is missed. */
   async deleteLocalCascade(id: string): Promise<void> {
     if (!db.exams) return;

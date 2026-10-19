@@ -22,6 +22,8 @@ Results: *10b* (26 pupils, Gruppe A) and *10a* (25 pupils, Gruppe B, weaker on t
 2. Python with `pymupdf pillow qrcode numpy` for the scan generator (`DEMO_PYTHON=/path/to/python`).
 3. `./setup.sh` (about 40 minutes, mostly scan import and grading). `CHROMIUM_PATH` points Playwright at a browser if its own is not installed.
 
+4. Optional, for the in-app example data (issue #120): `node export-example.mjs` writes `frontend/static/example-data/` (plain archive payload `example.json` plus `scans/*.pdf`) from m.berger's library, a few booklets of *10b* (including the annotated showcase) and the paper class *9c*. Only *10b* and *9c* need results, so `seed-results.mjs` may skip *10a* for this. Commit the output; the dashboard's "Add example data" imports it like a `.bgproj` archive.
+
 `./setup.sh --keep` reuses the current database; each seeding step records its progress in `.state/progress.json` and skips what is done. `node capture.mjs grading results` retakes single screenshots; `python assets.py` re-crops them.
 
 The demo exercises put `\BE` inside their solutions (checkmark per scored part). The student sheet counts those only with the `\LSG` fix from PR #84; without it the score boxes read "/ 0".
@@ -38,6 +40,7 @@ The demo exercises put `\BE` inside their solutions (checkmark per scored part).
 | `seed-results.mjs` | Scan import, grading, showcase annotations, Excel paste |
 | `capture.mjs`, `assets.py` | Dark-theme screenshots and crops (`node capture.mjs tour-…` for the 1280 px UI tour set) |
 | `relatex.mjs "<name>[|<variant>]" …` | Pushes changed exercise LaTeX from `data/library.json` into an already seeded instance |
+| `export-example.mjs` | Writes the in-app example data (`frontend/static/example-data/`) from the seeded instance |
 | `showcase.mjs <raw> <hash>` | Swaps the MC showcase booklet (`showcase` in `data/classes.json`; `mkscans.py` prints both prefixes) into an already seeded instance |
 
 Never point these scripts at a real server: `reset.sh` drops the local database.

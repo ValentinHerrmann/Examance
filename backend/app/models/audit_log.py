@@ -72,6 +72,9 @@ class AuditLog(Base):
             "EXERCISE_UNSHARED",
             "EXERCISE_SHARING_PAUSED",
             "EXERCISE_SHARING_RESUMED",
+            # Own exercises and exams duplicated (issue #121, migration 0036).
+            "EXERCISE_DUPLICATED",
+            "EXAM_DUPLICATED",
             name="audit_action",
         ),
         nullable=False,

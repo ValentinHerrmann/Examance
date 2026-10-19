@@ -61,6 +61,10 @@
     onOpenProposals: (group: ExerciseGroup) => void;
     /** Raw ZIP export of the whole group. */
     onExport: (group: ExerciseGroup) => void;
+    /** Copy of the group as a new private group (issue #121). */
+    onDuplicate: (group: ExerciseGroup, rep: ExerciseRecord) => void;
+    /** Group id of a duplicate in progress. */
+    duplicatingGroupId?: string;
   }
 
   /** Other accounts' exercises (issue #65): preview and copy only. */
@@ -203,6 +207,16 @@
     title={$t("exercises.groupList.exportTitle")}
     onClick={() => o.onExport(group)}
   >{$t("export.button")}</Button>
+  <Button
+    variant="outlined"
+    severity="secondary"
+    size="sm"
+    icon={faCopy}
+    loading={o.duplicatingGroupId === group.groupId}
+    disabled={!!o.duplicatingGroupId}
+    title={$t("exercises.groupList.duplicateTitle")}
+    onClick={() => o.onDuplicate(group, rep)}
+  >{$t("common.duplicate")}</Button>
   {#if (sharingEnabled && !groupIsCopy(group)) || groupIsShared(group)}
     <Button
       variant="outlined"

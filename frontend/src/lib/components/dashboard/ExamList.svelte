@@ -5,7 +5,7 @@
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
   import { examNavItems } from "#lib/components/layout/examNavItems";
-  import { faEye, faFileZipper, faTrash } from "@fortawesome/free-solid-svg-icons";
+  import { faCopy, faEye, faFileZipper, faTrash } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, Card, EmptyState, ExpandableCard } from "#lib/components/ui";
   import LogoPreview from "#lib/components/logo/LogoPreview.svelte";
   import type { ExamLogoPreview, LogoSource } from "#lib/latex/logo";
@@ -24,6 +24,9 @@
     onDelete: (id: string, title?: string) => void;
     onPreview: (exam: ExamRecord) => void;
     onRawExport: (exam: ExamRecord) => void;
+    onDuplicate: (exam: ExamRecord) => void;
+    /** The exam currently being duplicated (its button shows a spinner). */
+    duplicatingId?: string | null;
   }
 
   let {
@@ -36,7 +39,9 @@
     onToggleExam,
     onDelete,
     onPreview,
-    onRawExport
+    onRawExport,
+    onDuplicate,
+    duplicatingId = null
   }: Props = $props();
 
   const SOURCE_LABEL = {
@@ -160,6 +165,16 @@
         {#snippet footer()}
           <Button variant="outlined" severity="secondary" size="sm" icon={faEye} onClick={() => onPreview(exam)}>{$t("common.preview")}</Button>
           <Button variant="outlined" severity="secondary" size="sm" icon={faFileZipper} onClick={() => onRawExport(exam)}>{$t("export.button")}</Button>
+          <Button
+            variant="outlined"
+            severity="secondary"
+            size="sm"
+            icon={faCopy}
+            loading={duplicatingId === exam.id}
+            disabled={!!duplicatingId}
+            title={$t("dashboard.examList.duplicateHint")}
+            onClick={() => onDuplicate(exam)}
+          >{$t("common.duplicate")}</Button>
           <Button href="/exam/{exam.id}" size="sm">{$t("dashboard.examList.openExam")}</Button>
           <Button
             variant="outlined"
