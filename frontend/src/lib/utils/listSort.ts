@@ -21,7 +21,7 @@ function byText<T>(pick: (item: T) => string | undefined | null, then: (a: T, b:
   return (a: T, b: T) => {
     const x = pick(a) ?? "";
     const y = pick(b) ?? "";
-    if (!x !== !y) return x ? -1 : 1;
+    if (Boolean(x) !== Boolean(y)) return x ? -1 : 1;
     return compareText(x, y) || then(a, b);
   };
 }

@@ -10,8 +10,9 @@
   import { parseExerciseScore } from '#lib/latex/scoreParser';
   import { mcSubLabel } from '#lib/grading/mcGroupLabels';
   import ExerciseLabel from '#lib/components/exam/ExerciseLabel.svelte';
+  import PageBreakDivider from '#lib/components/exam/PageBreakDivider.svelte';
   import { t } from '#lib/i18n';
-  import { faArrowUp, faArrowDown, faXmark, faFileLines } from '@fortawesome/free-solid-svg-icons';
+  import { faArrowUp, faArrowDown, faXmark } from '@fortawesome/free-solid-svg-icons';
   import { Badge, Button, Card } from '#lib/components/ui';
 
   interface McGroup {
@@ -165,33 +166,6 @@
   </div>
 {/snippet}
 
-<!-- Sits between two items and belongs to the item below it, so it follows that item when moved. -->
-{#snippet pageBreakDivider(itemId: string)}
-  {#if onTogglePageBreak}
-    <div class="col-span-3 flex items-center justify-center gap-2 sm:col-span-4">
-      {#if pageBreaks.includes(itemId)}
-        <div class="flex min-w-0 flex-1 items-center gap-2 text-xs text-muted">
-          <span class="flex-1 border-t border-dashed border-line-strong"></span>
-          <span class="shrink-0">{$t("exam.pageBreak.label")}</span>
-          <span class="flex-1 border-t border-dashed border-line-strong"></span>
-        </div>
-        <Button
-          size="sm" variant="text" severity="secondary" iconOnly icon={faXmark}
-          class="pointer-coarse:min-h-11"
-          ariaLabel={$t("exam.pageBreak.remove")}
-          onClick={() => onTogglePageBreak(itemId)}
-        />
-      {:else}
-        <Button
-          size="sm" variant="text" severity="secondary" icon={faFileLines}
-          class="text-xs pointer-coarse:min-h-11"
-          onClick={() => onTogglePageBreak(itemId)}
-        >{$t("exam.pageBreak.insert")}</Button>
-      {/if}
-    </div>
-  {/if}
-{/snippet}
-
 <Card title={$t("exam.exerciseList.heading", { count: totalItemCount })}>
   {#snippet actions()}
     {#if onAddExercises}
@@ -208,7 +182,9 @@
           {#if item.type === "exercise"}
             {@const exercise = exercises.find((e) => e.id === item.id) || libraryExercises.find((e) => e.id === item.id)}
             {#if exercise}
-              {#if idx > 0}{@render pageBreakDivider(item.id)}{/if}
+              {#if idx > 0 && onTogglePageBreak}
+                <PageBreakDivider active={pageBreaks.includes(item.id)} onToggle={() => onTogglePageBreak(item.id)} />
+              {/if}
               {@render exerciseRow(
                 exercise,
                 idx,
@@ -220,7 +196,9 @@
           {:else if item.type === "mc_group"}
             {@const group = mcGroups.find((g) => g.id === item.id)}
             {#if group}
-              {#if idx > 0}{@render pageBreakDivider(item.id)}{/if}
+              {#if idx > 0 && onTogglePageBreak}
+                <PageBreakDivider active={pageBreaks.includes(item.id)} onToggle={() => onTogglePageBreak(item.id)} />
+              {/if}
               {@render groupRow(group, idx)}
             {/if}
           {/if}

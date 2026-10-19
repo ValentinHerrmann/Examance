@@ -1,9 +1,9 @@
 <script lang="ts">
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
-  import { Button, Badge, Icon, Spinner, TableScroller } from "#lib/components/ui";
+  import { Button, Badge, Spinner, TableScroller } from "#lib/components/ui";
   import { compareText } from "#lib/utils/listSort";
-  import { faSort, faSortDown, faSortUp } from "@fortawesome/free-solid-svg-icons";
+  import SortHeaderCell from "#lib/components/scanning/SortHeaderCell.svelte";
   interface ScannedSubmissionItem {
     id: string;
     pseudonymHash: string;
@@ -62,31 +62,14 @@
     return [...scannedSubmissions].sort((a, b) => {
       const x = a[column] ?? "";
       const y = b[column] ?? "";
-      if (!x !== !y) return x ? -1 : 1;
-      return sign * (column === "createdAt" ? x.localeCompare(y) : compareText(x, y));
+      if (Boolean(x) !== Boolean(y)) return x ? -1 : 1;
+      const order = column === "createdAt" ? x.localeCompare(y) : compareText(x, y);
+      return sign * order;
     });
   });
 
-  const ariaSort = (column: SortColumn) =>
-    sort?.column === column ? (sort.dir === "asc" ? "ascending" : "descending") : "none";
+  const directionOf = (column: SortColumn) => (sort?.column === column ? sort.dir : null);
 </script>
-
-{#snippet sortHeader(column: SortColumn, label: string)}
-  <th scope="col" aria-sort={ariaSort(column)}>
-    <button
-      type="button"
-      class="inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 font-[inherit] text-inherit hover:text-accent"
-      title={$t("common.sort.label") + ": " + label}
-      onclick={() => toggleSort(column)}
-    >
-      {label}
-      <Icon
-        icon={sort?.column === column ? (sort.dir === "asc" ? faSortUp : faSortDown) : faSort}
-        class={sort?.column === column ? "text-accent" : "text-subtle"}
-      />
-    </button>
-  </th>
-{/snippet}
 
 <div class="mt-10 min-w-0 rounded-xl border border-line bg-surface-raised p-4 sm:p-6">
   <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -109,10 +92,10 @@
       <table class="data-table data-table-hover">
         <thead>
           <tr>
-            {@render sortHeader("studentName", $t("scanning.submissionsTable.colStudentName"))}
-            {@render sortHeader("studentNumber", $t("scanning.submissionsTable.colStudentId"))}
+            <SortHeaderCell label={$t("scanning.submissionsTable.colStudentName")} direction={directionOf("studentName")} onToggle={() => toggleSort("studentName")} />
+            <SortHeaderCell label={$t("scanning.submissionsTable.colStudentId")} direction={directionOf("studentNumber")} onToggle={() => toggleSort("studentNumber")} />
             <th scope="col">{$t("scanning.submissionsTable.colFallbackCode")}</th>
-            {@render sortHeader("createdAt", $t("scanning.submissionsTable.colDateIngested"))}
+            <SortHeaderCell label={$t("scanning.submissionsTable.colDateIngested")} direction={directionOf("createdAt")} onToggle={() => toggleSort("createdAt")} />
             <th scope="col">{$t("scanning.submissionsTable.colAction")}</th>
           </tr>
         </thead>
