@@ -1,7 +1,9 @@
 <script lang="ts">
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
-  import { Button, Badge, Spinner, TableScroller } from "#lib/components/ui";
+  import { Button, Badge, Icon, Spinner, TableScroller } from "#lib/components/ui";
+  import { compareText } from "#lib/utils/listSort";
+  import { faSort, faSortDown, faSortUp } from "@fortawesome/free-solid-svg-icons";
   interface ScannedSubmissionItem {
     id: string;
     pseudonymHash: string;
@@ -44,7 +46,47 @@
     onDelete,
     onDeleteAll
   }: Props = $props();
+
+  type SortColumn = "studentName" | "studentNumber" | "createdAt";
+  let sort = $state<{ column: SortColumn; dir: "asc" | "desc" } | null>(null);
+
+  function toggleSort(column: SortColumn) {
+    sort = { column, dir: sort?.column === column && sort.dir === "asc" ? "desc" : "asc" };
+  }
+
+  // Empty names/ids go last in either direction; the source order is the tiebreak (stable sort).
+  let rows = $derived.by(() => {
+    if (!sort) return scannedSubmissions;
+    const { column, dir } = sort;
+    const sign = dir === "asc" ? 1 : -1;
+    return [...scannedSubmissions].sort((a, b) => {
+      const x = a[column] ?? "";
+      const y = b[column] ?? "";
+      if (!x !== !y) return x ? -1 : 1;
+      return sign * (column === "createdAt" ? x.localeCompare(y) : compareText(x, y));
+    });
+  });
+
+  const ariaSort = (column: SortColumn) =>
+    sort?.column === column ? (sort.dir === "asc" ? "ascending" : "descending") : "none";
 </script>
+
+{#snippet sortHeader(column: SortColumn, label: string)}
+  <th scope="col" aria-sort={ariaSort(column)}>
+    <button
+      type="button"
+      class="inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 font-[inherit] text-inherit hover:text-accent"
+      title={$t("common.sort.label") + ": " + label}
+      onclick={() => toggleSort(column)}
+    >
+      {label}
+      <Icon
+        icon={sort?.column === column ? (sort.dir === "asc" ? faSortUp : faSortDown) : faSort}
+        class={sort?.column === column ? "text-accent" : "text-subtle"}
+      />
+    </button>
+  </th>
+{/snippet}
 
 <div class="mt-10 min-w-0 rounded-xl border border-line bg-surface-raised p-4 sm:p-6">
   <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -67,15 +109,15 @@
       <table class="data-table data-table-hover">
         <thead>
           <tr>
-            <th scope="col">{$t("scanning.submissionsTable.colStudentName")}</th>
-            <th scope="col">{$t("scanning.submissionsTable.colStudentId")}</th>
+            {@render sortHeader("studentName", $t("scanning.submissionsTable.colStudentName"))}
+            {@render sortHeader("studentNumber", $t("scanning.submissionsTable.colStudentId"))}
             <th scope="col">{$t("scanning.submissionsTable.colFallbackCode")}</th>
-            <th scope="col">{$t("scanning.submissionsTable.colDateIngested")}</th>
+            {@render sortHeader("createdAt", $t("scanning.submissionsTable.colDateIngested"))}
             <th scope="col">{$t("scanning.submissionsTable.colAction")}</th>
           </tr>
         </thead>
         <tbody>
-          {#each scannedSubmissions as item}
+          {#each rows as item}
             <tr>
               <td class="max-w-60 truncate font-semibold" title={$t("scanning.submissionsTable.submissionIdTitle", { id: item.id })}>
                 {item.studentName || $t("scanning.submissionsTable.unmatchedStudent")}

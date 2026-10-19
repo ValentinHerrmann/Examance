@@ -145,14 +145,6 @@ Frage hier eingeben... \\BE
     }
   }
 
-  let availableTopics = $derived(Array.from(
-    new Set(
-      libraryExercises
-        .map((e) => e.topicTag)
-        .filter((t): t is string => Boolean(t)),
-    ),
-  ).sort());
-
   let availableGrades = $derived(Array.from(
     new Set(
       libraryExercises
@@ -676,7 +668,6 @@ ${exerciseInputs}
           {totalVariantsCount}
           {availableGrades}
           {availableSubjects}
-          {availableTopics}
           bind:searchQuery
           bind:selectedGradeFilter
           bind:selectedSubjectFilter

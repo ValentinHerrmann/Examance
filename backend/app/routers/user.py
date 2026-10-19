@@ -328,6 +328,7 @@ async def export_own_data(
                 "logo": _exam_logo_export(exam_logos.get(exam.id)),
                 # Package entries on top of the account's; null follows the account.
                 "latex_packages": exam.latex_packages,
+                "page_breaks": exam.page_breaks,
             }
             for exam in exams
         ],

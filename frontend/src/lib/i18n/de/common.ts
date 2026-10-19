@@ -71,4 +71,17 @@ export const common = {
         topic: 'Thema',
         allTopics: 'Alle Themen',
     },
+    sort: {
+        label: 'Sortieren nach',
+        newest: 'Neueste zuerst',
+        oldest: 'Älteste zuerst',
+        title: 'Titel A–Z',
+        nameAsc: 'Name A–Z',
+        nameDesc: 'Name Z–A',
+        recent: 'Zuletzt geändert',
+        pointsDesc: 'Punkte absteigend',
+        pointsAsc: 'Punkte aufsteigend',
+        grade: 'Klasse',
+        subject: 'Fach',
+    },
 } as const;

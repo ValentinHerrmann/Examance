@@ -13,35 +13,43 @@ import { documentLayers, withPackages, type LatexPackageEntry } from "#lib/latex
 import { getAccountPackages } from "#lib/latex/packageSettings";
 import { translate } from "#lib/i18n";
 
-/** The LaTeX `\Aufgabe` blocks of an exam in item order (standalone exercises and MC groups). */
+/**
+ * The LaTeX `\Aufgabe` blocks of an exam in item order (standalone exercises and MC groups).
+ * `pageBreaks` lists item ids that start on a new page; the first emitted block never does.
+ */
 export function buildExerciseInputs(
   examItems: ExamItemRef[],
   exercises: ExerciseRecord[],
   libraryExercises: ExerciseRecord[],
-  mcGroups: McGroup[]
+  mcGroups: McGroup[],
+  pageBreaks?: readonly string[] | null
 ): string {
   let exerciseCount = 0;
-  return examItems
-    .map((item) => {
-      if (item.type === "exercise") {
-        const ex = exercises.find((e) => e.id === item.id);
-        if (!ex) return "";
-        exerciseCount++;
-        return formatExerciseLatex(ex.latexBody, ex.name || `Aufgabe ${exerciseCount}`, ex.id);
-      }
+  const breaks = new Set(pageBreaks ?? []);
+  const blocks: string[] = [];
+  for (const item of examItems) {
+    let latex = "";
+    if (item.type === "exercise") {
+      const ex = exercises.find((e) => e.id === item.id);
+      if (!ex) continue;
+      exerciseCount++;
+      latex = formatExerciseLatex(ex.latexBody, ex.name || `Aufgabe ${exerciseCount}`, ex.id);
+    } else {
       const group = mcGroups.find((g) => g.id === item.id);
-      if (!group) return "";
+      if (!group) continue;
       const members = group.memberIds
         .map((id) => libraryExercises.find((e) => e.id === id) || exercises.find((e) => e.id === id))
         .filter((e): e is ExerciseRecord => Boolean(e));
-      return formatMcGroupLatex(
+      latex = formatMcGroupLatex(
         members.map((m) => ({ id: m.id, latexBody: m.latexBody || "" })),
         group.title,
         group.scoringText
       );
-    })
-    .filter(Boolean)
-    .join("\n\n");
+    }
+    if (!latex) continue;
+    blocks.push(blocks.length > 0 && breaks.has(item.id) ? `\\newpage\n${latex}` : latex);
+  }
+  return blocks.join("\n\n");
 }
 
 /**
@@ -148,7 +156,7 @@ export async function prepareExamSources(
   const { exam, exercises, libraryExercises, mcGroups, examItems, key } = input;
   // Results-only imports have no LaTeX: compiling would produce empty exercise blocks.
   if (examHasWithheldCode(exercises)) throw new Error(translate("exam.resultsOnly.noCompile"));
-  const inputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups);
+  const inputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups, exam.pageBreaks);
   const collected = await collectExamResources(examItems, exercises, libraryExercises, mcGroups, key, needBytes);
   const accountPackages = await getAccountPackages();
   return {

@@ -5,7 +5,7 @@
   import { saveExamEncrypted } from '#lib/db/dbEncryption';
   import { importArchiveInteractively } from '#lib/services/archiveService';
   import { checkRetention, type RetentionCheckResult } from '#lib/gdpr/retention';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { get } from 'svelte/store';
 
   import { examRepository } from '#lib/repositories/examRepository';
@@ -18,7 +18,8 @@
   import { createExpandSet } from '#lib/utils/expandSet';
   import { createLazyMap } from '#lib/utils/lazyMap';
   import { loadExamLogoPreview, type ExamLogoPreview } from '#lib/latex/logo';
-  import { countActiveFilters, countOptions, matchesQuery, uniqueSorted } from '#lib/utils/listFilter';
+  import { countActiveFilters, facetOptions, matchesQuery, uniqueSorted } from '#lib/utils/listFilter';
+  import { EXAM_SORT_KEYS, SORT_STORAGE, loadSort, saveSort, sortExams } from '#lib/utils/listSort';
   import { faPlus, faUpload } from '@fortawesome/free-solid-svg-icons';
 
   import DashboardSessionState from '#lib/components/dashboard/DashboardSessionState.svelte';
@@ -49,6 +50,7 @@
   let selectedSubjectFilter = $state('ALL');
   let selectedTestartFilter = $state('ALL');
   let selectedTopicFilter = $state('ALL');
+  let sortKey = $state<string>(loadSort(SORT_STORAGE.exams, EXAM_SORT_KEYS, 'newest'));
 
   /** Exercises per expanded exam, fetched on first expand and dropped on refresh. */
   const exerciseMap = createLazyMap<ExerciseRecord[]>((examId) =>
@@ -84,18 +86,26 @@
   let availableGrades = $derived(uniqueSorted(exams, (e) => e.grade));
   let availableSubjects = $derived(uniqueSorted(exams, (e) => e.fach));
   let availableTopics = $derived(uniqueSorted(exams, (e) => e.topic));
-  let testartOptions = $derived(countOptions(exams, (e) => e.testart));
-
-  let filteredExams = $derived(exams.filter(
+  // Everything but the testart pills' own filter, so their counts follow the other filters.
+  let examsBeforeTestart = $derived(exams.filter(
     (e) =>
       (selectedGradeFilter === 'ALL' ||
         e.grade === selectedGradeFilter ||
         (!e.grade && e.klasse === selectedGradeFilter)) &&
       (selectedSubjectFilter === 'ALL' || e.fach === selectedSubjectFilter) &&
-      (selectedTestartFilter === 'ALL' || e.testart === selectedTestartFilter) &&
       (selectedTopicFilter === 'ALL' || e.topic === selectedTopicFilter) &&
       matchesQuery(searchQuery, e.title, e.grade, e.klasse, e.fach, e.testart, e.topic)
   ));
+  let testartOptions = $derived(facetOptions(examsBeforeTestart, (e) => e.testart, selectedTestartFilter));
+  let filteredExams = $derived(
+    sortExams(
+      selectedTestartFilter === 'ALL' ? examsBeforeTestart : examsBeforeTestart.filter((e) => e.testart === selectedTestartFilter),
+      sortKey
+    )
+  );
+  let sortOptions = $derived(
+    EXAM_SORT_KEYS.map((value) => ({ value, label: $t(`common.sort.${value}`) }))
+  );
 
   onMount(async () => {
     try {
@@ -240,6 +250,11 @@
       isDeleting = false;
     }
   }
+
+  $effect.pre(() => {
+    const key = sortKey;
+    untrack(() => saveSort(SORT_STORAGE.exams, key));
+  });
 </script>
 
 <PageShell width="fluid">
@@ -309,7 +324,9 @@
             topicOptions={availableTopics}
             pillOptions={testartOptions}
             pillSelected={selectedTestartFilter}
-            pillAllLabel={$t('dashboard.filterBar.allTestarts', { count: exams.length })}
+            pillAllLabel={$t('dashboard.filterBar.allTestarts', { count: examsBeforeTestart.length })}
+            {sortOptions}
+            bind:sortKey
             onPillSelect={(value) => (selectedTestartFilter = value)}
           />
         {/snippet}

@@ -1,11 +1,13 @@
 <script lang="ts">
-  import { type ExerciseGroup } from "#lib/exercise-library/groupExercises";
+  import { variantPoints, type ExerciseGroup } from "#lib/exercise-library/groupExercises";
   import type { ExerciseRecord } from "#lib/db/schema";
-  import { parseExerciseScore } from "#lib/latex/scoreParser";
+  import { facetOptions } from "#lib/utils/listFilter";
+  import { GROUP_SORT_KEYS, SORT_STORAGE, loadSort, saveSort, sortGroups } from "#lib/utils/listSort";
   import { isMcQuestion } from "#lib/grading/mcScore";
+  import { untrack } from "svelte";
   import { t } from "#lib/i18n";
   import { faPenToSquare, faEye, faCheck } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Badge, Checkbox, Icon, TextInput, Select } from "#lib/components/ui";
+  import { Button, Badge, Checkbox, FilterPills, Icon, TextInput, Select } from "#lib/components/ui";
   import ExerciseMetaBadges from "#lib/components/exercise/ExerciseMetaBadges.svelte";
 
   interface Props {
@@ -13,7 +15,6 @@
     totalVariantsCount: number;
     availableGrades: string[];
     availableSubjects: string[];
-    availableTopics: string[];
     searchQuery: string;
     selectedGradeFilter: string;
     selectedSubjectFilter: string;
@@ -36,7 +37,6 @@
     totalVariantsCount,
     availableGrades,
     availableSubjects,
-    availableTopics,
     searchQuery = $bindable(),
     selectedGradeFilter = $bindable(),
     selectedSubjectFilter = $bindable(),
@@ -61,11 +61,6 @@
     return isSelected ? $t("exercises.libraryPicker.checkboxRemoveMcStaging") : $t("exercises.libraryPicker.checkboxAddMcStaging");
   }
 
-  const pillBase =
-    "cursor-pointer rounded-xl border border-line bg-surface-base px-2.5 py-1 text-sm text-muted hover:border-line-strong";
-  const pillActive =
-    "cursor-pointer rounded-xl border border-accent bg-primary px-2.5 py-1 text-sm text-primary-contrast";
-
   const variantPillBase =
     "inline-flex cursor-pointer items-center gap-1 rounded-md border border-line bg-surface-raised px-2 py-0.5 text-xs font-medium text-muted hover:border-accent hover:text-content pointer-coarse:min-h-11";
   const variantPillHasSelected =
@@ -87,15 +82,25 @@
   const rowSelected =
     "flex flex-wrap items-start gap-3 rounded-xl border border-primary bg-primary/10 px-4 py-3 @3xl:flex-nowrap";
 
-  let displayedGroups = $derived(filteredGroups.filter((g) => {
-    if (selectedTopicFilter !== "ALL" && g.topicTag !== selectedTopicFilter) return false;
+  let sortKey = $state(loadSort(SORT_STORAGE.picker, GROUP_SORT_KEYS, "nameAsc"));
+
+  // Everything but the topic filter, so the topic pills and "All" count match what the list can show.
+  let groupsBeforeTopic = $derived(filteredGroups.filter((g) => {
     const activeVKey = activeVariantPerGroup[g.groupId] || Array.from(g.variants.keys())[0] || "_General";
-    const vMembers = g.variants.get(activeVKey) || [];
-    const activeEx = vMembers[0]?.ex;
+    const activeEx = (g.variants.get(activeVKey) || [])[0]?.ex;
     if (!activeEx) return false;
-    const isMc = isMcQuestion(activeEx);
-    return typeFilter === "mc" ? isMc : !isMc;
+    return typeFilter === "mc" ? isMcQuestion(activeEx) : !isMcQuestion(activeEx);
   }));
+  let topicPills = $derived(facetOptions(groupsBeforeTopic, (g) => g.topicTag, selectedTopicFilter));
+  let displayedGroups = $derived(sortGroups(
+    selectedTopicFilter === "ALL" ? groupsBeforeTopic : groupsBeforeTopic.filter((g) => g.topicTag === selectedTopicFilter),
+    sortKey
+  ));
+
+  $effect.pre(() => {
+    const key = sortKey;
+    untrack(() => saveSort(SORT_STORAGE.picker, key));
+  });
 </script>
 
 <div class="mb-4 flex flex-col gap-3">
@@ -111,6 +116,15 @@
   </div>
 
   <div class="flex flex-col flex-wrap items-stretch gap-x-4 gap-y-3 @3xl:flex-row @3xl:items-center">
+    <div class="flex w-full min-w-0 flex-auto items-center gap-2 text-sm text-muted @3xl:w-auto @3xl:flex-[0_1_15rem]">
+      <label for="picker-sort">{$t("common.sort.label")}:</label>
+      <Select id="picker-sort" size="sm" bind:value={sortKey}>
+        {#each GROUP_SORT_KEYS as key (key)}
+          <option value={key}>{$t(`common.sort.${key}`)}</option>
+        {/each}
+      </Select>
+    </div>
+
     {#if availableGrades.length > 0}
       <div class="flex w-full min-w-0 flex-auto items-center gap-2 text-sm text-muted @3xl:w-auto @3xl:flex-[0_1_15rem]">
         <label for="picker-grade">{$t("exercises.libraryPicker.gradeLabel")}</label>
@@ -136,25 +150,13 @@
     {/if}
   </div>
 
-  <div class="flex flex-wrap gap-1.5">
-    <button
-      type="button"
-      class={selectedTopicFilter === "ALL" ? pillActive : pillBase}
-      onclick={() => (selectedTopicFilter = "ALL")}
-    >
-      {$t("exercises.libraryPicker.allTopics", { count: filteredGroups.length })}
-    </button>
-    {#each availableTopics as topic}
-      {@const groupCount = filteredGroups.filter((g) => g.topicTag === topic).length}
-      <button
-        type="button"
-        class={selectedTopicFilter === topic ? pillActive : pillBase}
-        onclick={() => (selectedTopicFilter = topic)}
-      >
-        {topic} ({groupCount})
-      </button>
-    {/each}
-  </div>
+  <FilterPills
+    layout="wrap"
+    selected={selectedTopicFilter}
+    allLabel={$t("exercises.libraryPicker.allTopics", { count: groupsBeforeTopic.length })}
+    options={topicPills}
+    onSelect={(value) => (selectedTopicFilter = value)}
+  />
 </div>
 
 {#if displayedGroups.length === 0}
@@ -172,7 +174,7 @@
       {@const ownerGroup = isMc && activeEx ? mcGroupMembership[activeEx.id] : undefined}
       {@const isSelected = activeEx ? (isMc ? mcStagingIds.includes(activeEx.id) : selectedLibraryIds.includes(activeEx.id)) : false}
       {@const groupSelectedCount = group.allMembers.filter(m => selectedLibraryIds.includes(m.ex.id) || mcStagingIds.includes(m.ex.id)).length}
-      {@const score = activeEx ? (parseExerciseScore(activeEx.latexBody || "") || activeEx.maxPoints || 0) : 0}
+      {@const score = activeEx ? variantPoints(activeEx) : 0}
 
       <div class={groupSelectedCount > 0 ? rowSelected : rowBase}>
         <!-- Selection Checkbox -->
@@ -232,6 +234,9 @@
                     <Icon icon={faCheck} class="text-success-fg" />
                   {/if}
                   <span>{vKey}</span>
+                  {#if members[0]}
+                    <span class="font-normal opacity-80">· {$t("exercises.libraryPicker.pointsSingle", { score: variantPoints(members[0]) })}</span>
+                  {/if}
                 </button>
               {/each}
             </div>

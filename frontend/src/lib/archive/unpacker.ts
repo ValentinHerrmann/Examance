@@ -35,6 +35,7 @@ import { submissionServerPayload } from '#lib/repositories/submissionRepository'
 import type { AuditEntry, ExerciseScoreRecord, SubmissionRecord } from '#lib/db/schema';
 import { decodeBinary } from './binary';
 import { importPayloadToServer } from './serverImport';
+import { remapPageBreaks } from '#lib/exam/pageBreaks';
 import { addMissing, bump, newReport, type ArchiveReport } from './report';
 import { loadAccountLogoBytes, restoreExamLogo, type ArchivedExamLogo } from '#lib/latex/logo';
 
@@ -233,7 +234,8 @@ export async function applyArchive(
   // Mirror into IndexedDB so the local cache is warm before the first refresh.
   for (const exam of exams) {
     if (!result.createdExamIds.has(exam.id)) continue;
-    await db.exams.put(await encryptExam({ ...exam, id: remap(exam.id) }, activeKey));
+    const pageBreaks = remapPageBreaks(exam.pageBreaks, idMap, mcGroupIdMap);
+    await db.exams.put(await encryptExam({ ...exam, id: remap(exam.id), pageBreaks }, activeKey));
   }
   for (const ex of exercises) {
     if (!result.createdExerciseIds.has(ex.id)) continue;
