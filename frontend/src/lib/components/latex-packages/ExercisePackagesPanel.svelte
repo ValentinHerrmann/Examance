@@ -73,7 +73,7 @@
   }
 </script>
 
-<div class="flex min-w-0 flex-col gap-2 rounded-xl border border-line bg-surface-sunken p-3">
+<div class="flex min-w-0 flex-col gap-2 rounded-xl border border-line bg-surface-sunken px-3 py-2">
   <button type="button" class="flex w-full items-center justify-between gap-2 text-left" aria-expanded={open} onclick={toggle}>
     <span class="flex items-center gap-2">
       <span class="text-sm font-semibold text-content">{$t("latexPackages.exercise.heading")}</span>

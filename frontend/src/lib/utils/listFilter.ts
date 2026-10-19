@@ -16,6 +16,23 @@ export function countOptions<T>(
   return [...counts.keys()].sort().map((v) => ({ value: v, label: v, count: counts.get(v)! }));
 }
 
+/**
+ * Pill options counted over `items` that already passed every other filter, so a pill never shows (0).
+ * The selected value stays listed with 0 when nothing matches, or it could not be deselected.
+ */
+export function facetOptions<T>(
+  items: T[],
+  pick: (item: T) => string | undefined | null,
+  selected: string
+): { value: string; label: string; count: number }[] {
+  const options = countOptions(items, pick);
+  if (selected !== "ALL" && !options.some((o) => o.value === selected)) {
+    options.push({ value: selected, label: selected, count: 0 });
+    options.sort((a, b) => a.value.localeCompare(b.value));
+  }
+  return options;
+}
+
 /** Case-insensitive substring match of the trimmed query against any field; an empty query matches. */
 export function matchesQuery(query: string, ...fields: (string | undefined | null)[]): boolean {
   const q = query.trim().toLowerCase();

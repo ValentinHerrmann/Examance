@@ -15,6 +15,8 @@
     titleLoesung?: string | undefined;
     height?: string;
     placeholderText?: string | undefined;
+    /** Desktop: with every pane collapsed, shrink to the collapsed strips and give the rest of the row back. */
+    shrinkWhenCollapsed?: boolean;
   }
 
   let {
@@ -25,7 +27,8 @@
     titleAngabe = undefined,
     titleLoesung = undefined,
     height = "100%",
-    placeholderText = undefined
+    placeholderText = undefined,
+    shrinkWhenCollapsed = false
   }: Props = $props();
 
   let angabeTitle = $derived(titleAngabe ?? $t("editor.pdfPreview.titleAngabe"));
@@ -81,7 +84,10 @@
 </script>
 
 {#if $isDesktop}
-  <div class="flex w-full min-w-0 flex-1 gap-2 overflow-hidden" style="height: {height};">
+  <div
+    class="flex min-w-0 gap-2 overflow-hidden {shrinkWhenCollapsed && !showAngabePreview && !showLoesungPreview ? 'flex-none' : 'w-full flex-1'}"
+    style="height: {height};"
+  >
     {#each panes as pane (pane.id)}
       <div class="{paneShell} {pane.shown ? 'min-w-0 flex-1' : 'w-10 shrink-0'}">
         {#if pane.shown}

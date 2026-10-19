@@ -2,6 +2,8 @@
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
   import { Button, Badge, Spinner, TableScroller } from "#lib/components/ui";
+  import { compareText } from "#lib/utils/listSort";
+  import SortHeaderCell from "#lib/components/scanning/SortHeaderCell.svelte";
   interface ScannedSubmissionItem {
     id: string;
     pseudonymHash: string;
@@ -44,6 +46,29 @@
     onDelete,
     onDeleteAll
   }: Props = $props();
+
+  type SortColumn = "studentName" | "studentNumber" | "createdAt";
+  let sort = $state<{ column: SortColumn; dir: "asc" | "desc" } | null>(null);
+
+  function toggleSort(column: SortColumn) {
+    sort = { column, dir: sort?.column === column && sort.dir === "asc" ? "desc" : "asc" };
+  }
+
+  // Empty names/ids go last in either direction; the source order is the tiebreak (stable sort).
+  let rows = $derived.by(() => {
+    if (!sort) return scannedSubmissions;
+    const { column, dir } = sort;
+    const sign = dir === "asc" ? 1 : -1;
+    return [...scannedSubmissions].sort((a, b) => {
+      const x = a[column] ?? "";
+      const y = b[column] ?? "";
+      if (Boolean(x) !== Boolean(y)) return x ? -1 : 1;
+      const order = column === "createdAt" ? x.localeCompare(y) : compareText(x, y);
+      return sign * order;
+    });
+  });
+
+  const directionOf = (column: SortColumn) => (sort?.column === column ? sort.dir : null);
 </script>
 
 <div class="mt-10 min-w-0 rounded-xl border border-line bg-surface-raised p-4 sm:p-6">
@@ -67,15 +92,15 @@
       <table class="data-table data-table-hover">
         <thead>
           <tr>
-            <th scope="col">{$t("scanning.submissionsTable.colStudentName")}</th>
-            <th scope="col">{$t("scanning.submissionsTable.colStudentId")}</th>
+            <SortHeaderCell label={$t("scanning.submissionsTable.colStudentName")} direction={directionOf("studentName")} onToggle={() => toggleSort("studentName")} />
+            <SortHeaderCell label={$t("scanning.submissionsTable.colStudentId")} direction={directionOf("studentNumber")} onToggle={() => toggleSort("studentNumber")} />
             <th scope="col">{$t("scanning.submissionsTable.colFallbackCode")}</th>
-            <th scope="col">{$t("scanning.submissionsTable.colDateIngested")}</th>
+            <SortHeaderCell label={$t("scanning.submissionsTable.colDateIngested")} direction={directionOf("createdAt")} onToggle={() => toggleSort("createdAt")} />
             <th scope="col">{$t("scanning.submissionsTable.colAction")}</th>
           </tr>
         </thead>
         <tbody>
-          {#each scannedSubmissions as item}
+          {#each rows as item}
             <tr>
               <td class="max-w-60 truncate font-semibold" title={$t("scanning.submissionsTable.submissionIdTitle", { id: item.id })}>
                 {item.studentName || $t("scanning.submissionsTable.unmatchedStudent")}

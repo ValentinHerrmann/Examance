@@ -1,13 +1,15 @@
 <script lang="ts">
   /**
    * Filter pill row (Artemis): one "All" pill plus one per option with its count; wraps in a drawer,
-   * stacks in the desktop sidebar. `onSelect` receives "ALL" or an option value.
+   * stacks in the desktop sidebar (`layout="responsive"`) or always wraps (`"wrap"`, for a header row).
+   * `onSelect` receives "ALL" or an option value.
    */
   interface Props {
     selected: string;
     allLabel: string;
     options?: { value: string; label: string; count: number }[];
     onSelect: (value: string) => void;
+    layout?: "responsive" | "wrap";
   }
 
   let {
@@ -15,6 +17,7 @@
     allLabel,
     options = [],
     onSelect,
+    layout = "responsive",
   }: Props = $props();
 
   const pillBase =
@@ -23,7 +26,7 @@
     "box-border min-h-9 cursor-pointer rounded-xl border border-accent bg-primary px-3 py-1.5 text-left text-sm font-semibold text-primary-contrast";
 </script>
 
-<div class="flex w-full flex-row flex-wrap gap-1.5 lg:flex-col lg:flex-nowrap">
+<div class={layout === "wrap" ? "flex w-full flex-row flex-wrap gap-1.5" : "flex w-full flex-row flex-wrap gap-1.5 lg:flex-col lg:flex-nowrap"}>
   <button type="button" class={selected === "ALL" ? pillActive : pillBase} onclick={() => onSelect("ALL")}>
     {allLabel}
   </button>

@@ -24,6 +24,7 @@
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.1",
     "@codemirror/language": "^6.12.4",
+    "@codemirror/search": "^6.7.2",
     "@embedpdf/snippet": "^2.15.0",
     "@fortawesome/free-solid-svg-icons": "^7.3.1",
     "argon2-browser": "^1.18.0",

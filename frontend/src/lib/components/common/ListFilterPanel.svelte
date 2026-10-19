@@ -24,6 +24,9 @@
     pillSelected?: string;
     pillAllLabel: string;
     onPillSelect: (value: string) => void;
+    /** With options, a "Sort by" select shows above the filters; `sortKey` is the chosen value. */
+    sortOptions?: { value: string; label: string }[];
+    sortKey?: string;
   }
 
   let {
@@ -39,6 +42,8 @@
     pillSelected = "ALL",
     pillAllLabel,
     onPillSelect,
+    sortOptions = [],
+    sortKey = $bindable(""),
   }: Props = $props();
 
   const id = `list-filter-${nextId++}`;
@@ -53,6 +58,17 @@
 
 <div class="flex min-w-0 flex-col gap-4">
   <TextInput type="text" placeholder={searchPlaceholder} bind:value={searchQuery} />
+
+  {#if sortOptions.length > 0}
+    <div class="flex min-w-0 flex-col gap-1 text-sm text-content">
+      <label class="text-muted" for="{id}-sort">{$t("common.sort.label")}</label>
+      <Select id="{id}-sort" bind:value={sortKey}>
+        {#each sortOptions as option (option.value)}
+          <option value={option.value}>{option.label}</option>
+        {/each}
+      </Select>
+    </div>
+  {/if}
 
   <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
     {#if grades.length > 0}

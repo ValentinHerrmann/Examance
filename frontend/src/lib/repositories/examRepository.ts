@@ -14,6 +14,12 @@ function packagesField(value: unknown): LatexPackageEntry[] | null | undefined {
   return value === null ? null : storedEntries(value);
 }
 
+/** Undefined (unknown) stays undefined so a later save leaves the server's value alone. */
+function pageBreaksField(value: unknown): string[] | null | undefined {
+  if (value === undefined) return undefined;
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : null;
+}
+
 export function mapApiToExamRecord(raw: any): ExamRecord {
   return {
     id: raw.id,
@@ -30,6 +36,7 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     infoText: raw.info_text || raw.infoText,
     gradingKey: raw.grading_key || raw.gradingKey,
     latexPackages: packagesField(raw.latex_packages !== undefined ? raw.latex_packages : raw.latexPackages),
+    pageBreaks: pageBreaksField(raw.page_breaks !== undefined ? raw.page_breaks : raw.pageBreaks),
     latexPreamble: raw.latex_preamble || raw.latexPreamble,
     latexTemplate: raw.latex_template || raw.latexTemplate,
     numVersions: raw.num_versions || raw.numVersions || 1,
@@ -56,6 +63,8 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     grading_key: exam.gradingKey,
     // null clears the exam's package override, undefined leaves it alone.
     latex_packages: exam.latexPackages,
+    // Empty or null clears the breaks, undefined leaves them alone.
+    page_breaks: exam.pageBreaks,
     latex_preamble: exam.latexPreamble,
     latex_template: exam.latexTemplate,
     retention_until: exam.retentionUntil,

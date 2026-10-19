@@ -42,6 +42,13 @@
   import { EditorView, BlockType, keymap, drawSelection, lineNumbers } from "@codemirror/view";
   import { Annotation, EditorState, EditorSelection, Compartment } from "@codemirror/state";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+  import {
+    search,
+    searchKeymap,
+    highlightSelectionMatches,
+    openSearchPanel,
+    searchPanelOpen
+  } from "@codemirror/search";
   import { StreamLanguage, syntaxHighlighting } from "@codemirror/language";
   import {
     latexHighlightStyle,
@@ -176,6 +183,39 @@
   let handleScrollListener: (() => void) | null = null;
   const editableCompartment = new Compartment();
   const themeCompartment = new Compartment();
+  const phrasesCompartment = new Compartment();
+
+  // CodeMirror's search panel asks for English phrases; this maps them to the active locale.
+  let searchPhrases = $derived({
+    Find: $t("editor.search.find"),
+    Replace: $t("editor.search.replace"),
+    next: $t("editor.search.next"),
+    previous: $t("editor.search.previous"),
+    all: $t("editor.search.all"),
+    "match case": $t("editor.search.matchCase"),
+    regexp: $t("editor.search.regexp"),
+    "by word": $t("editor.search.byWord"),
+    replace: $t("editor.search.replaceOne"),
+    "replace all": $t("editor.search.replaceAll"),
+    close: $t("editor.search.close"),
+    "Go to line": $t("editor.search.gotoLine"),
+    go: $t("editor.search.go"),
+    "current match": $t("editor.search.currentMatch"),
+    "on line": $t("editor.search.onLine"),
+    "replaced $ matches": $t("editor.search.replacedMatches"),
+    "replaced match on line $": $t("editor.search.replacedMatchOnLine")
+  });
+
+  // Ctrl+H opens the panel straight on the replace field (not offered when read-only).
+  function openReplace(v: EditorView): boolean {
+    openSearchPanel(v);
+    if (!v.state.readOnly) {
+      requestAnimationFrame(() => {
+        v.dom.querySelector<HTMLInputElement>(".cm-search [name=replace]")?.focus();
+      });
+    }
+    return true;
+  }
 
   export function setScroll(scrollTop: number, scrollLeft: number) {
     if (!view || !view.scrollDOM) return;
@@ -265,7 +305,15 @@
         EditorView.lineWrapping,
         history(),
         drawSelection(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
+        search({ top: true }),
+        highlightSelectionMatches(),
+        keymap.of([
+          { key: "Mod-h", run: openReplace, preventDefault: true },
+          ...searchKeymap,
+          ...defaultKeymap,
+          ...historyKeymap
+        ]),
+        phrasesCompartment.of(EditorState.phrases.of(searchPhrases)),
         StreamLanguage.define({
           token(stream) {
             if (stream.match(/^%.*/)) return "comment";
@@ -282,7 +330,7 @@
         syntaxHighlighting(latexHighlightStyle),
         themeCompartment.of(createLatexTheme($theme === "dark")),
         diffDecorationsField,
-        editableCompartment.of(EditorView.editable.of(!readonly)),
+        editableCompartment.of([EditorView.editable.of(!readonly), EditorState.readOnly.of(readonly)]),
         EditorView.theme({
           "&": { minHeight },
           ".cm-scroller": { minHeight }
@@ -315,6 +363,21 @@
       });
     };
     scrollDOM.addEventListener("scroll", handleScrollListener, { passive: true });
+
+    // Escape closes the search panel first: the dialog around the editor must not also close.
+    // The capture pass sees the panel still open; the bubble pass (after the panel closed it) swallows the key.
+    let escapeClosedSearch = false;
+    view.dom.addEventListener(
+      "keydown",
+      (e) => {
+        escapeClosedSearch = e.key === "Escape" && !!view && searchPanelOpen(view.state);
+      },
+      true
+    );
+    view.dom.addEventListener("keydown", (e) => {
+      if (escapeClosedSearch && e.key === "Escape") e.stopPropagation();
+      escapeClosedSearch = false;
+    });
   });
 
   onDestroy(() => {
@@ -357,8 +420,17 @@
     if (!v) return;
     untrack(() => {
       v.dispatch({
-        effects: editableCompartment.reconfigure(EditorView.editable.of(!ro))
+        effects: editableCompartment.reconfigure([EditorView.editable.of(!ro), EditorState.readOnly.of(ro)])
       });
+    });
+  });
+
+  $effect.pre(() => {
+    const v = view;
+    const phrases = searchPhrases;
+    if (!v) return;
+    untrack(() => {
+      v.dispatch({ effects: phrasesCompartment.reconfigure(EditorState.phrases.of(phrases)) });
     });
   });
 
@@ -388,11 +460,12 @@
       <Icon icon={paletteOpen ? faChevronDown : faChevronRight} />
       {$t("editor.quickInsertToggle")}
     </button>
-    <div class="{paletteOpen ? 'flex' : 'hidden'} shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface-raised px-2 py-1.5">
-      {#each macroCategories as { category, macros } (category)}
+    <!-- Category wrappers are `contents`, so label and chips wrap as one flow and use the fewest rows. -->
+    <div class="{paletteOpen ? 'flex' : 'hidden'} shrink-0 flex-wrap items-center gap-1 border-b border-line bg-surface-raised px-2 py-1">
+      {#each macroCategories as { category, macros }, index (category)}
         {#if macros.length > 0}
-          <div class="flex flex-wrap items-center gap-1">
-            <span class="text-xs font-semibold text-muted">
+          <div class="contents">
+            <span class="text-xs font-semibold text-muted {index > 0 ? 'ml-2' : ''}">
               {categoryLabels[category]}
             </span>
             {#each macros as macro (macro.id)}

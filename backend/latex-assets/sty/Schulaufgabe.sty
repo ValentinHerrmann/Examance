@@ -387,14 +387,19 @@
 \newlength{\ScoreBoxRoom}
 
 % wrapfig hangs the score box about 1.5\baselineskip + 1.4ex - \intextsep above the task, into the gap after the
-% previous one. That room is taken before the minipage and given back inside it: no change mid-page, but at the top
-% of a page TeX drops the negative space, so the box lands below the header instead of in it (issue #106).
+% previous one. That room is taken by a negative \vspace and given back after an empty box (not discardable): no
+% change mid-page, but at the top of a page TeX drops the negative space, so the box clears the header (issue #106).
+% A task may break across pages (issue #113); \needspace only keeps the title with its first lines.
 \newenvironment{Aufgabe}[2][]
 {%
+\par
+% Fixed size for the box offsets: they used to follow the \LARGE that \Namenszeile leaks into exams, so the
+% exercise preview (no \Namenszeile) wrapped differently and part score boxes overlapped the text (issue #111).
+\LARGE
 \setlength{\ScoreBoxRoom}{\dimexpr 1.5\baselineskip + 1.4ex - \intextsep - \topskip\relax}%
 \ifdim\ScoreBoxRoom<\z@ \setlength{\ScoreBoxRoom}{\z@}\fi
+\needspace{\dimexpr\ScoreBoxRoom + 3cm\relax}%
 \vspace{-\ScoreBoxRoom}%
-\begin{minipage}[t]{\textwidth}
     \neverindent
     \gdef\TaskScore{0}% Reset task score accumulator for the new exercise
     \gdef\TaskFixedScore{}% \FestePunkte inside the body
@@ -410,8 +415,11 @@
         \def\PrintPkt{-}% UI Fallback for the very first compilation
     \fi
     % \aPunkte mapping removed (unused)
-    \vspace{\dimexpr\ScoreBoxRoom + .1mm\relax}%
-    \par\noindent
+    % An empty box gets the interline glue the former minipage line got and keeps the room below from being dropped.
+    \hbox{}\nobreak
+    \vskip\dimexpr\ScoreBoxRoom + .1mm\relax
+    \nointerlineskip
+    \noindent
 
     % Wrapfigure floats the score box right
     \begin{wrapfigure}{r}{3cm}
@@ -442,7 +450,6 @@
 
     % Add current score to global exam total
     \xdef\TotalScoreG{\fpeval{\TotalScoreG + \FinalScore}}%
-\end{minipage}
     \normalsize
 }
 

@@ -9,6 +9,7 @@ import { exerciseRepository } from '#lib/repositories/exerciseRepository';
 import { studentRepository } from '#lib/repositories/studentRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { storedEntries } from '#lib/latex/packages';
+import { remapPageBreaks } from '#lib/exam/pageBreaks';
 
 export type ConflictKind = 'exam' | 'exercise' | 'mcGroup' | 'student' | 'submission' | 'resource';
 export type ConflictChoice = 'keep-existing' | 'take-imported' | 'import-as-copy';
@@ -249,7 +250,8 @@ export function applyResolutions(
 
   const next: Row = {
     ...payload,
-    exams: rewrite('exams', (r) => r.id, (r) => ({ id: remap(r.id) })),
+    // Page breaks name exercises / MC groups, which a copy gives fresh ids.
+    exams: rewrite('exams', (r) => r.id, (r) => ({ id: remap(r.id), pageBreaks: remapPageBreaks(r.pageBreaks, idMap) })),
     exercises: rewrite('exercises', (r) => r.id, (r) => ({ id: remap(r.id), examId: remap(r.examId) })),
     examMcGroups: rewrite('examMcGroups', (r) => r.id, (r) => ({ id: remap(r.id), examId: remap(r.examId) })),
     students: rewrite('students', (r) => r.pseudonymId, (r) => ({ examId: remap(r.examId) })),

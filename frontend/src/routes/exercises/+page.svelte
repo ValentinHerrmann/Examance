@@ -11,7 +11,8 @@
   import { parseExerciseScore } from "#lib/latex/scoreParser";
   import { get } from "svelte/store";
   import { isServerBacked } from "#lib/utils/serverBacked";
-  import { countActiveFilters, matchesQuery, uniqueSorted } from "#lib/utils/listFilter";
+  import { countActiveFilters, facetOptions, matchesQuery, uniqueSorted } from "#lib/utils/listFilter";
+  import { GROUP_SORT_KEYS, SORT_STORAGE, loadSort, saveSort, sortGroups } from "#lib/utils/listSort";
   import { t, translate, type TranslationKey } from "#lib/i18n";
 
   import LatexEditor, { type DiffDecorationConfig, type DiffLineDecoration, type DiffLinePaddingDecoration, type DiffWordDecoration, type DiffGapDecoration } from "#lib/components/LatexEditor.svelte";
@@ -121,6 +122,7 @@
   let selectedGrade: string = $state("ALL");
   let selectedSubject: string = $state("ALL");
   let searchQuery: string = $state("");
+  let sortKey: string = $state(loadSort(SORT_STORAGE.exercises, GROUP_SORT_KEYS, "nameAsc"));
 
   // Badge on the mobile filter button, so an active filter is visible without
   // opening the drawer.
@@ -229,24 +231,26 @@
   let availableGrades = $derived(uniqueSorted(viewExercises, (e) => e.grade));
   let availableSubjects = $derived(uniqueSorted(viewExercises, (e) => e.subject));
 
-  let filteredExercises = $derived(viewExercises.filter(
+  // Groups passing every filter but the topic, so the topic pills and "All" count follow the other filters.
+  let groupsBeforeTopic = $derived(groupExercises(viewExercises.filter(
     (ex) =>
-      (selectedTopic === "ALL" || ex.topicTag === selectedTopic) &&
       (selectedGrade === "ALL" || ex.grade === selectedGrade) &&
       (selectedSubject === "ALL" || ex.subject === selectedSubject) &&
       matchesQuery(searchQuery, ex.name, ex.topicTag, ex.grade, ex.subject, ex.latexBody)
+  )));
+  let topicPillOptions = $derived(facetOptions(groupsBeforeTopic, (g) => g.topicTag, selectedTopic));
+  let filteredGroups = $derived(sortGroups(
+    selectedTopic === "ALL" ? groupsBeforeTopic : groupsBeforeTopic.filter((g) => g.topicTag === selectedTopic),
+    sortKey
   ));
+  let sortOptions = $derived(GROUP_SORT_KEYS.map((value) => ({
+    value,
+    label: $t(`common.sort.${value}`),
+  })));
 
   // Grouped view: filter then group
   let allGroups = $derived(groupExercises(exercises));
-  let viewGroups = $derived(activeView === "shared" ? groupExercises(sharedExercises) : allGroups);
-  // Topic pills count groups, not exercise rows.
-  let topicPillOptions = $derived(uniqueSorted(viewExercises, (e) => e.topicTag).map((topic) => ({
-    value: topic,
-    label: topic,
-    count: viewGroups.filter((g) => g.topicTag === topic).length,
-  })));
-  let filteredGroups = $derived(groupExercises(filteredExercises));
+
 
   onMount(() => {
     const requested = page.url.searchParams.get("view");
@@ -1071,6 +1075,11 @@
       });
     }
   });
+
+  $effect.pre(() => {
+    const key = sortKey;
+    untrack(() => saveSort(SORT_STORAGE.exercises, key));
+  });
 </script>
 
 <PageShell width="fluid">
@@ -1153,7 +1162,9 @@
         subjectOptions={availableSubjects}
         pillOptions={topicPillOptions}
         pillSelected={selectedTopic}
-        pillAllLabel={$t("exercises.filterSidebar.allTopics", { count: viewGroups.length })}
+        pillAllLabel={$t("exercises.filterSidebar.allTopics", { count: groupsBeforeTopic.length })}
+        {sortOptions}
+        bind:sortKey
         onPillSelect={(topic) => {
           selectedTopic = topic;
           close();

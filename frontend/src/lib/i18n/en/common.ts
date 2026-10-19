@@ -74,4 +74,17 @@ export const common: Translations['common'] = {
         topic: 'Topic',
         allTopics: 'All topics',
     },
+    sort: {
+        label: 'Sort by',
+        newest: 'Newest first',
+        oldest: 'Oldest first',
+        title: 'Title A–Z',
+        nameAsc: 'Name A–Z',
+        nameDesc: 'Name Z–A',
+        recent: 'Recently changed',
+        pointsDesc: 'Points high to low',
+        pointsAsc: 'Points low to high',
+        grade: 'Grade',
+        subject: 'Subject',
+    },
 };

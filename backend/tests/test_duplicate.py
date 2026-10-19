@@ -54,6 +54,7 @@ async def _exam(client: AsyncClient, exercise_id: str) -> dict[str, Any]:
             "title": "Klassenarbeit",
             "retention_until": RETENTION,
             "klasse": "7b",
+            "page_breaks": [group_id],
             "mc_groups": [{"id": group_id, "title": "MC", "order_index": 1}],
             "exercise_links": [
                 {"exercise_id": exercise_id, "order_index": 1, "mc_group_id": group_id,
@@ -109,6 +110,7 @@ async def test_duplicate_exam_relinks_without_results(setup) -> None:
     (group,) = dup["mc_groups"]
     assert group["id"] != source["mc_groups"][0]["id"]
     assert group["member_ids"] == [ex["id"]]
+    assert dup["page_breaks"] == [group["id"]]
     subs = await a.get(f"{EXAMS}/{dup['id']}/submissions")
     assert subs.status_code == 200 and subs.json() == []
 

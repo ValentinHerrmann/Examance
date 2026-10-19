@@ -2,7 +2,7 @@
   import type { ExerciseRecord } from "#lib/db/schema";
   import type { LazyEntry } from "#lib/utils/lazyMap";
   import { usageKey, type ExamUsageEntry } from "#lib/exercise-library/examUsage";
-  import { getGroupRepresentative, groupIsCopy, groupIsShared, type ExerciseGroup } from "#lib/exercise-library/groupExercises";
+  import { getGroupRepresentative, groupIsCopy, groupIsShared, variantPoints, type ExerciseGroup } from "#lib/exercise-library/groupExercises";
   import type { SyncStatus } from "#lib/api/exerciseSharing";
   import type { PendingForGroup } from "#lib/api/exerciseContributions";
   import { t } from "#lib/i18n";
@@ -320,6 +320,7 @@
             {@const latestVer = vMembers[0]?.version || 1}
             <span class={vKey !== '_General' ? variantPillHasVariant : variantPillBase}>
               {vKey} <strong>v{latestVer}</strong>
+              {#if vMembers[0]}· {$t("exercises.groupList.pointsSingle", { max: variantPoints(vMembers[0]) })}{/if}
             </span>
           {/each}
         {/snippet}
@@ -331,6 +332,9 @@
                 <span class={vKey !== '_General' ? variantLabelHasVariant : variantLabelBase}>
                   {vKey}
                 </span>
+                {#if vMembers[0]}
+                  <Badge severity="primary">{$t("exercises.groupList.pointsSingle", { max: variantPoints(vMembers[0]) })}</Badge>
+                {/if}
                 {#if own}{@render usageLine(group, vKey, own)}{/if}
               </div>
 

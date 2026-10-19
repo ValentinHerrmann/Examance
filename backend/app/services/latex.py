@@ -436,7 +436,8 @@ async def compile_exam_latex(
             solo_exercises.append((ex, order_idx or idx))
 
     # Collect all items (solo or mc_group) with their order_index for sorting
-    items_with_order: list[tuple[int, str, str]] = []  # (order_index, filename, latex)
+    # (order_index, filename, latex, item_id); the id is the exercise or MC group id
+    items_with_order: list[tuple[int, str, str, str]] = []
 
     for ex, order_idx in solo_exercises:
         filename = f"exercises/ex_{order_idx}.tex"
@@ -447,7 +448,7 @@ async def compile_exam_latex(
         )
         ex_id = ex.get("id") if isinstance(ex, dict) else getattr(ex, "id", None)
         ex_latex = format_exercise_latex(latex_body, title, ex_id)
-        items_with_order.append((order_idx, filename, ex_latex))
+        items_with_order.append((order_idx, filename, ex_latex, str(ex_id) if ex_id else ""))
 
     if mc_groups:
         for g in mc_groups:
@@ -476,12 +477,21 @@ async def compile_exam_latex(
             )
             filename = f"exercises/mc_group_{gid}.tex"
             items_with_order.append(
-                (g_order, filename, format_mc_group_latex(members_sorted, g_title, g_scoring))
+                (
+                    g_order,
+                    filename,
+                    format_mc_group_latex(members_sorted, g_title, g_scoring),
+                    str(gid),
+                )
             )
 
     items_with_order.sort(key=lambda t: t[0])
-    for _, filename, latex in items_with_order:
+    # A break goes before the listed item, never before the first one.
+    page_breaks = set(getattr(exam_model, "page_breaks", None) or [])
+    for pos, (_, filename, latex, item_id) in enumerate(items_with_order):
         extra_files[filename] = latex
+        if pos > 0 and item_id in page_breaks:
+            exercise_inputs.append("\\newpage")
         exercise_inputs.append(f"\\input{{{filename}}}")
 
     opts = ["sans", "punkte"]
@@ -504,7 +514,7 @@ async def compile_exam_latex(
 
     inputs_str = "\n\n".join(exercise_inputs)
     # The exercises are \input from extra files, so their package lines are collected from those.
-    exercise_latex = "\n".join(latex for _, _, latex in items_with_order)
+    exercise_latex = "\n".join(latex for _, _, latex, _ in items_with_order)
     package_layers = [
         PackageLayer("account", stored_entries(account_packages)),
         PackageLayer("exercise", exercise_entries(exercise_latex)),

@@ -47,6 +47,8 @@ class Exam(Base):
     grading_key: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     # Package entries on top of the account's (issue #108); null follows the account.
     latex_packages: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
+    # Item ids (exercise or MC group) that start on a new page; plaintext layout metadata.
+    page_breaks: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
     exercises: Mapped[list[Exercise]] = relationship(
         "Exercise", backref="exam", cascade="all, delete-orphan"
