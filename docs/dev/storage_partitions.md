@@ -59,6 +59,7 @@ The `backup` service in `deploy/docker-compose.deploy.yml` is opt-in: start it w
 - **Daily run.**
   1. `pg_dump -Fc` streams to `db/<date>.dump`; it is uploaded as `.partial` and renamed when complete.
   2. `rclone sync` mirrors the blob dir into `blobs/current/` and moves replaced or deleted files to `blobs/deleted/<date>/`. It runs only if the sentinel exists.
-  3. Dumps and `deleted/` sets older than `BACKUP_RETENTION_DAYS` (default 30) are removed.
-- **Erasure.** An erased record survives in backups for at most `BACKUP_RETENTION_DAYS`, plus the in-app grace period. This bound is documented in the Art. 30 record.
+  3. Dumps rotate. Every dump of the last `BACKUP_KEEP_DAILY_DAYS` (2) days is kept, plus the newest dump of each ISO week within `BACKUP_KEEP_WEEKLY_WEEKS` (2) weeks, and the newest of each month within `BACKUP_KEEP_MONTHLY_MONTHS` (2) × 31 days. With the defaults that is at most 6 dumps. Unfinished `.partial` uploads go after a day.
+  4. `deleted/` sets are kept for the whole monthly window: restoring an old dump needs every scan deleted since then, so they cannot be thinned like the dumps. Storage is therefore about the current scans, the scans deleted in the last ~2 months and up to 6 dumps.
+- **Erasure.** An erased record survives in backups for at most `BACKUP_KEEP_MONTHLY_MONTHS` × 31 days (62 by default), plus the in-app grace period. This bound is documented in the Art. 30 record.
 - **Restore.** Stop the stack. Run `rclone cat remote:db/<date>.dump | docker compose … exec -T db pg_restore --clean --if-exists -U <user> -d <db>`. Then `rclone sync remote:blobs/current <host blob dir>`, and start the stack again.

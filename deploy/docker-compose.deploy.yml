@@ -143,8 +143,8 @@ services:
         done
 
   # Opt-in daily backup (docs/dev/storage_partitions.md): `--profile backup`. BACKUP_REMOTE must be
-  # an rclone *crypt* remote: the dump holds plaintext tables. Dumps and deleted scans are kept
-  # BACKUP_RETENTION_DAYS (dated names), which bounds how long an erased record survives in backups.
+  # an rclone *crypt* remote: the dump holds plaintext tables. Dumps rotate daily/weekly/monthly;
+  # deleted scans stay as long as the oldest monthly dump, which bounds how long erased data survives.
   backup:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -156,7 +156,9 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       PGDATABASE: ${POSTGRES_DB:-blindgrade}
       BACKUP_REMOTE: ${BACKUP_REMOTE:-}
-      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_KEEP_DAILY_DAYS: ${BACKUP_KEEP_DAILY_DAYS:-2}
+      BACKUP_KEEP_WEEKLY_WEEKS: ${BACKUP_KEEP_WEEKLY_WEEKS:-2}
+      BACKUP_KEEP_MONTHLY_MONTHS: ${BACKUP_KEEP_MONTHLY_MONTHS:-2}
       RCLONE_CONFIG: /config/rclone.conf
     volumes:
       - ${BLOB_STORAGE_HOST_DIR:-blob_data}:/data/blobs:ro
@@ -171,10 +173,27 @@ services:
         [ -n "$$BACKUP_REMOTE" ] || { echo "BACKUP_REMOTE is not set" >&2; exit 1; }
         apk add --no-cache rclone >/dev/null || exit 1
         R="$$BACKUP_REMOTE"
-        prune() {  # $$1 = dir of <YYYY-MM-DD>* entries, $$2 = rclone command that removes one
-          cutoff=$$(date -u -d "@$$(( $$(date +%s) - BACKUP_RETENTION_DAYS * 86400 ))" +%Y-%m-%d)
-          rclone lsf "$$1" 2>/dev/null | while read -r entry; do
-            if expr "$${entry%%[./]*}" \< "$$cutoff" >/dev/null; then rclone "$$2" "$$1/$${entry%/}"; fi
+        D=$$BACKUP_KEEP_DAILY_DAYS W=$$BACKUP_KEEP_WEEKLY_WEEKS M=$$BACKUP_KEEP_MONTHLY_MONTHS
+        age() {  # whole days since <YYYY-MM-DD>; fails for names that are not dates
+          t=$$(date -u -d "$$1 00:00" +%s) || return 1; n=$$(date -u +%s)
+          echo $$((n / 86400 - t / 86400))
+        }
+        prune_dumps() {  # every dump of the last D days, the newest per ISO week / month in the window
+          weeks=" " months=" "
+          rclone lsf "$$R/db" 2>/dev/null | sort -r | while read -r f; do
+            d=$${f%%.*}; a=$$(age "$$d" 2>/dev/null) || continue
+            case "$$f" in *.partial) [ "$$a" -ge 1 ] && rclone deletefile "$$R/db/$$f"; continue;; esac
+            w=$$(date -u -d "$$d 00:00" +%G-%V) m=$${d%-*} keep=0
+            [ "$$a" -lt "$$D" ] && keep=1
+            case "$$weeks" in *" $$w "*) ;; *) weeks="$$weeks$$w "; [ "$$a" -lt $$((W * 7)) ] && keep=1;; esac
+            case "$$months" in *" $$m "*) ;; *) months="$$months$$m "; [ "$$a" -lt $$((M * 31)) ] && keep=1;; esac
+            [ "$$keep" = 1 ] || rclone deletefile "$$R/db/$$f"
+          done
+        }
+        prune_deleted() {  # an old dump needs every scan deleted since, so keep as long as monthly
+          rclone lsf --dirs-only "$$R/blobs/deleted" 2>/dev/null | while read -r dir; do
+            a=$$(age "$${dir%/}" 2>/dev/null) || continue
+            [ "$$a" -lt $$((M * 31)) ] || rclone purge "$$R/blobs/deleted/$${dir%/}"
           done
         }
         while true; do
@@ -190,8 +209,8 @@ services:
             rclone sync /data/blobs "$$R/blobs/current" --backup-dir "$$R/blobs/deleted/$$day" \
               || echo "blob sync failed" >&2
           fi
-          prune "$$R/db" deletefile
-          prune "$$R/blobs/deleted" purge
+          prune_dumps
+          prune_deleted
           sleep 86400
         done
 
