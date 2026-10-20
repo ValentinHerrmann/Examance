@@ -37,9 +37,10 @@ RUN uv pip install --system --no-cache -e "."
 # user, so a compiler bug or a future path-traversal cannot read the host as
 # root. TECTONIC_CACHE_DIR must be writable by it.
 ENV TECTONIC_CACHE_DIR=/var/cache/tectonic
+# /data/blobs: scan file partition (issue #114); a new named volume inherits this owner.
 RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin appuser \
- && mkdir -p "${TECTONIC_CACHE_DIR}" \
- && chown -R appuser:appuser /app "${TECTONIC_CACHE_DIR}"
+ && mkdir -p "${TECTONIC_CACHE_DIR}" /data/blobs \
+ && chown -R appuser:appuser /app "${TECTONIC_CACHE_DIR}" /data/blobs
 USER appuser
 
 # Warm Tectonic's cache once, so a fresh deployment's first preview does not time out while

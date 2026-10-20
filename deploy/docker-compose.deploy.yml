@@ -33,6 +33,12 @@ x-backend-env: &backend-env
   REGISTRATION_TOKEN_TTL_HOURS: ${REGISTRATION_TOKEN_TTL_HOURS:-24}
   REGISTRATION_RESEND_COOLDOWN_SECONDS: ${REGISTRATION_RESEND_COOLDOWN_SECONDS:-300}
   PENDING_ACCOUNT_RETENTION_DAYS: ${PENDING_ACCOUNT_RETENTION_DAYS:-90}
+  # Scan file partition (docs/dev/storage_partitions.md). Empty dir = scans stay in Postgres.
+  BLOB_STORAGE_BACKEND: ${BLOB_STORAGE_BACKEND:-db}
+  BLOB_STORAGE_DIR: ${BLOB_STORAGE_DIR:-}
+
+# Host dir (e.g. an rclone mount) or the named volume; mounted into every service touching scans.
+x-blob-volume: &blob-volume ${BLOB_STORAGE_HOST_DIR:-blob_data}:/data/blobs
 
 services:
   db:
@@ -71,6 +77,8 @@ services:
       db:
         condition: service_healthy
     command: ["alembic", "upgrade", "head"]
+    volumes:
+      - *blob-volume
     profiles:
       - tools
     restart: "no"
@@ -87,6 +95,7 @@ services:
     # 504/524 that browsers report as a CORS error). Public TeX files only, never exam content.
     volumes:
       - tectonic_cache:/var/cache/tectonic
+      - *blob-volume
     depends_on:
       db:
         condition: service_healthy
@@ -120,6 +129,8 @@ services:
     image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
     restart: unless-stopped
     environment: *backend-env
+    volumes:
+      - *blob-volume
     depends_on:
       db:
         condition: service_healthy
@@ -131,9 +142,63 @@ services:
           sleep 86400
         done
 
+  # Opt-in daily backup (docs/dev/storage_partitions.md): `--profile backup`. BACKUP_REMOTE must be
+  # an rclone *crypt* remote: the dump holds plaintext tables. Dumps and deleted scans are kept
+  # BACKUP_RETENTION_DAYS (dated names), which bounds how long an erased record survives in backups.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    profiles:
+      - backup
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-blindgrade}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      PGDATABASE: ${POSTGRES_DB:-blindgrade}
+      BACKUP_REMOTE: ${BACKUP_REMOTE:-}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      RCLONE_CONFIG: /config/rclone.conf
+    volumes:
+      - ${BLOB_STORAGE_HOST_DIR:-blob_data}:/data/blobs:ro
+      - ${BACKUP_RCLONE_CONFIG:-./rclone.conf}:/config/rclone.conf:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -u -o pipefail
+        [ -n "$$BACKUP_REMOTE" ] || { echo "BACKUP_REMOTE is not set" >&2; exit 1; }
+        apk add --no-cache rclone >/dev/null || exit 1
+        R="$$BACKUP_REMOTE"
+        prune() {  # $$1 = dir of <YYYY-MM-DD>* entries, $$2 = rclone command that removes one
+          cutoff=$$(date -u -d "@$$(( $$(date +%s) - BACKUP_RETENTION_DAYS * 86400 ))" +%Y-%m-%d)
+          rclone lsf "$$1" 2>/dev/null | while read -r entry; do
+            if expr "$${entry%%[./]*}" \< "$$cutoff" >/dev/null; then rclone "$$2" "$$1/$${entry%/}"; fi
+          done
+        }
+        while true; do
+          day=$$(date -u +%Y-%m-%d)
+          if pg_dump -Fc | rclone rcat "$$R/db/$$day.dump.partial" \
+              && rclone moveto "$$R/db/$$day.dump.partial" "$$R/db/$$day.dump"; then
+            echo "db dump $$day done"
+          else
+            echo "db dump failed" >&2
+          fi
+          # Never sync an unmarked dir: a dropped mount would look like "every scan deleted".
+          if [ -f /data/blobs/.examance-blobstore ]; then
+            rclone sync /data/blobs "$$R/blobs/current" --backup-dir "$$R/blobs/deleted/$$day" \
+              || echo "blob sync failed" >&2
+          fi
+          prune "$$R/db" deletefile
+          prune "$$R/blobs/deleted" purge
+          sleep 86400
+        done
+
 volumes:
   pg_data:
   tectonic_cache:
+  blob_data:
 
 
 networks:

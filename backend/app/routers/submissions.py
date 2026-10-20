@@ -20,6 +20,7 @@ from app.models.student_identity import StudentIdentity
 from app.schemas.binary import GCM_IV_BYTES, decode_b64
 from app.schemas.submission import SubmissionCreate, SubmissionResponse, SubmissionScoreUpdate
 from app.services.capabilities import require_server_results_writable
+from app.services.scan_storage import has_scan, load_scan, store_scan
 
 router = APIRouter(
     prefix="/exams/{exam_id}/submissions",
@@ -52,6 +53,7 @@ async def list_submissions(
         )
     )
     subs = result.scalars().all()
+    scans = {s.id: await load_scan(db, s) for s in subs} if include_scans else {}
     return [
         SubmissionResponse(
             id=s.id,
@@ -59,9 +61,7 @@ async def list_submissions(
             pseudonym_hmac=s.pseudonym_hmac,
             total_score=s.total_score,
             scan_ciphertext_b64=(
-                base64.b64encode(s.scan_ciphertext).decode()
-                if include_scans and s.scan_ciphertext
-                else None
+                base64.b64encode(scan).decode() if (scan := scans.get(s.id)) else None
             ),
             scan_iv_b64=(
                 base64.b64encode(s.scan_iv).decode()
@@ -77,7 +77,7 @@ async def list_submissions(
                 base64.b64encode(s.annotation_iv).decode() if s.annotation_iv else None
             ),
             created_at=s.created_at,
-            has_scan=bool(s.scan_ciphertext),
+            has_scan=has_scan(s),
             has_annotations=bool(s.annotation_ciphertext),
         )
         for s in subs
@@ -160,6 +160,7 @@ async def upload_submission(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Submission belongs to another exam.",
                 )
+            had_scan = has_scan(existing_sub)
             existing_sub.pseudonym_hmac = body.pseudonym_hmac
             # An upsert onto a soft-deleted submission makes it live again.
             existing_sub.deleted_at = None
@@ -167,7 +168,7 @@ async def upload_submission(
             if body.total_score is not None:
                 existing_sub.total_score = body.total_score
             if scan_bytes is not None:
-                existing_sub.scan_ciphertext = scan_bytes
+                await store_scan(db, existing_sub, exam.id, existing_sub.id, scan_bytes)
                 existing_sub.scan_iv = scan_iv
             if ann_bytes is not None:
                 existing_sub.annotation_ciphertext = ann_bytes
@@ -187,22 +188,21 @@ async def upload_submission(
                 annotation_ciphertext_b64=body.annotation_ciphertext_b64,
                 annotation_iv_b64=body.annotation_iv_b64,
                 created_at=existing_sub.created_at,
-                has_scan=bool(existing_sub.scan_ciphertext),
+                has_scan=had_scan or scan_bytes is not None,
                 has_annotations=bool(existing_sub.annotation_ciphertext),
             )
 
-    kwargs = {
-        "exam_id": exam.id,
-        "pseudonym_hmac": body.pseudonym_hmac,
-        "total_score": body.total_score,
-        "scan_ciphertext": scan_bytes,
-        "scan_iv": scan_iv,
-        "annotation_ciphertext": ann_bytes,
-        "annotation_iv": ann_iv,
-    }
-    if body.id:
-        kwargs["id"] = body.id
-    sub = ScanSubmission(**kwargs)
+    sub = ScanSubmission(
+        id=body.id or uuid.uuid4(),
+        exam_id=exam.id,
+        pseudonym_hmac=body.pseudonym_hmac,
+        total_score=body.total_score,
+        scan_iv=scan_iv,
+        annotation_ciphertext=ann_bytes,
+        annotation_iv=ann_iv,
+    )
+    if scan_bytes is not None:
+        await store_scan(db, sub, exam.id, sub.id, scan_bytes)
     db.add(sub)
     try:
         await db.flush()
@@ -223,7 +223,7 @@ async def upload_submission(
         annotation_ciphertext_b64=body.annotation_ciphertext_b64,
         annotation_iv_b64=body.annotation_iv_b64,
         created_at=sub.created_at,
-        has_scan=bool(sub.scan_ciphertext),
+        has_scan=scan_bytes is not None,
         has_annotations=bool(sub.annotation_ciphertext),
     )
 
@@ -246,14 +246,13 @@ async def get_submission(
     if sub is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found.")
 
+    scan = await load_scan(db, sub)
     return SubmissionResponse(
         id=sub.id,
         exam_id=sub.exam_id,
         pseudonym_hmac=sub.pseudonym_hmac,
         total_score=sub.total_score,
-        scan_ciphertext_b64=(
-            base64.b64encode(sub.scan_ciphertext).decode() if sub.scan_ciphertext else None
-        ),
+        scan_ciphertext_b64=base64.b64encode(scan).decode() if scan else None,
         scan_iv_b64=base64.b64encode(sub.scan_iv).decode(),
         annotation_ciphertext_b64=(
             base64.b64encode(sub.annotation_ciphertext).decode()
@@ -264,7 +263,7 @@ async def get_submission(
             base64.b64encode(sub.annotation_iv).decode() if sub.annotation_iv else None
         ),
         created_at=sub.created_at,
-        has_scan=bool(sub.scan_ciphertext),
+        has_scan=has_scan(sub),
         has_annotations=bool(sub.annotation_ciphertext),
     )
 
@@ -310,7 +309,7 @@ async def update_score(
             base64.b64encode(sub.annotation_iv).decode() if sub.annotation_iv else None
         ),
         created_at=sub.created_at,
-        has_scan=bool(sub.scan_ciphertext),
+        has_scan=has_scan(sub),
         has_annotations=bool(sub.annotation_ciphertext),
     )
 

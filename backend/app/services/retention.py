@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import and_, delete, func, or_, select, update
@@ -22,6 +23,9 @@ from app.models.registration_request import RegistrationRequest
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
+from app.services import blob_store
+
+logger = logging.getLogger(__name__)
 
 
 async def run(*, dry_run: bool = False) -> int:
@@ -168,6 +172,8 @@ async def run(*, dry_run: bool = False) -> int:
             await db.delete(student)
 
         for submission in expired_submissions:
+            if submission.scan_path is not None:
+                blob_store.delete_after_commit(db, submission.scan_path)
             await db.delete(submission)
 
         for entry in expired_audit:
@@ -223,5 +229,18 @@ async def run(*, dry_run: bool = False) -> int:
             ]
         )
         await db.commit()
+
+        # 9. Scan files no row references (cascaded deletes, crashes, replaced scans).
+        if blob_store.configured():
+            paths = await db.scalars(
+                select(ScanSubmission.scan_path).where(ScanSubmission.scan_path.isnot(None))
+            )
+            referenced = {path for path in paths if path is not None}
+            try:
+                swept = blob_store.sweep_sync("scans", referenced)
+            except blob_store.BlobStoreUnavailable as exc:
+                logger.error("scan sweep skipped: %s", exc.reason)
+            else:
+                total_affected += swept
 
     return total_affected

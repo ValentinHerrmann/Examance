@@ -39,6 +39,7 @@ authority. Do this first, before Phase 2 below.
   SELECT * FROM audit_logs WHERE created_at >= NOW() - INTERVAL '24 hours' ORDER BY created_at DESC;
   ```
 - [ ] **4. Isolate Infrastructure:** If server compromise is suspected, isolate the application container network while preserving database logs.
+- [ ] **5. Check the other storage locations (issue #114):** scan files can live outside the server (`BLOB_STORAGE_DIR`, for example an rclone mount), and backups go to `BACKUP_REMOTE`. If the server or the rclone config (`rclone.conf` holds the remote credentials and the crypt passwords) is compromised, rotate those credentials and review access logs at the storage providers. Scan files are client-side encrypted; database dumps are protected only by the rclone crypt remote. See `docs/dev/storage_partitions.md`.
 
 ---
 
