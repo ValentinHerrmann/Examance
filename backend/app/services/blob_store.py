@@ -39,6 +39,10 @@ class BlobStoreUnavailable(HTTPException):
         )
         self.reason = reason
 
+    def __str__(self) -> str:
+        # Clients see only the code; logs and CLI tracebacks also need the cause.
+        return f"ERR_BLOB_STORE_UNAVAILABLE: {self.reason}"
+
 
 def _identity() -> str:
     # Binds a directory to one stack: preview and production must never sweep each other.
@@ -85,7 +89,12 @@ def init(*, force: bool = False) -> Path:
         raise BlobStoreUnavailable(f"{base} does not exist (is the mount up?)")
     if any(base.iterdir()) and not force:
         raise BlobStoreUnavailable(f"{base} is not empty; pass --force if it is the right dir")
-    sentinel.write_text(json.dumps({"identity": _identity()}), encoding="utf-8")
+    try:
+        sentinel.write_text(json.dumps({"identity": _identity()}), encoding="utf-8")
+    except OSError as exc:
+        raise BlobStoreUnavailable(
+            f"cannot write {sentinel}: {exc.strerror} (the dir must be writable by uid 10001)"
+        ) from None
     return base
 
 

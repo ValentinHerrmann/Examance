@@ -25,7 +25,9 @@ def upgrade() -> None:
     if settings.BLOB_STORAGE_BACKEND != "fs":
         return
     with op.get_context().autocommit_block():
-        move_scans(op.get_bind(), "fs")
+        moved = move_scans(op.get_bind(), "fs")
+    # alembic.ini configures no logging; the deploy log should still show what moved.
+    print(f"0038: moved {moved} scan(s) into {settings.BLOB_STORAGE_DIR}")
 
 
 def downgrade() -> None:
@@ -35,4 +37,5 @@ def downgrade() -> None:
     ).first() is None:
         return
     with op.get_context().autocommit_block():
-        move_scans(op.get_bind(), "db")
+        moved = move_scans(op.get_bind(), "db")
+    print(f"0038 downgrade: moved {moved} scan(s) back into the database")

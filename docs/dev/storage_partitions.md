@@ -41,6 +41,8 @@ rclone mount pcloud:examance-prod /srv/examance-prod-blobs \
   --vfs-cache-mode writes --allow-other --uid 10001 --gid 10001 --umask 077
 ```
 
+The backend runs as uid 10001. A plain host directory (no rclone) therefore needs `chown 10001:10001`; for an rclone mount, the `--uid/--gid` flags above handle it.
+
 1. Put `BLOB_STORAGE_HOST_DIR=/srv/examance-prod-blobs`, `BLOB_STORAGE_DIR=/data/blobs` and `BLOB_STORAGE_BACKEND=fs` in the stack's `.env`.
 2. Mark the directory. The usual way is `docker compose … run --rm backend python -m app.cli init-blob-store`. Before the first deploy of a release containing 0038, that command does not exist in the running image yet. In that case write the sentinel by hand: `printf '{"identity": "%s"}' "<FRONTEND_URL without trailing slash>" > /srv/examance-prod-blobs/.examance-blobstore`.
 3. Deploy. The migration moves the existing scans.
