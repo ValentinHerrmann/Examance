@@ -193,7 +193,9 @@ services:
           else
             echo "blob snapshot skipped: /data/blobs is not a marked blob store" >&2
           fi
-          restic forget --quiet --group-by tags --prune \
+          # --keep-last: a deploy or restart snapshots at once; --keep-daily alone would then let a
+          # snapshot taken after a data loss push out the good one from earlier the same day.
+          restic forget --quiet --group-by tags --prune --keep-last 10 \
             --keep-daily "$$BACKUP_KEEP_DAILY_DAYS" --keep-weekly "$$BACKUP_KEEP_WEEKLY_WEEKS" \
             --keep-monthly "$$BACKUP_KEEP_MONTHLY_MONTHS" || echo "forget/prune failed" >&2
           restic check --quiet || echo "repository check failed" >&2

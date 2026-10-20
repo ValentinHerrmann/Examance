@@ -59,19 +59,21 @@ The `backup` service in `deploy/docker-compose.deploy.yml` uses [restic](https:/
 - **Daily run.**
   1. Snapshot tagged `db`: `pg_dump --no-owner` as plain SQL, streamed via `--stdin-from-command`, so a failing dump fails the snapshot. Plain on purpose: an already compressed dump would never deduplicate.
   2. Snapshot tagged `blobs` of `/data/blobs`. It runs only if the sentinel exists; otherwise the log says "blob snapshot skipped".
-  3. `restic forget --group-by tags --prune` keeps every snapshot of the last `BACKUP_KEEP_DAILY_DAYS` (7) days, the newest per week for `BACKUP_KEEP_WEEKLY_WEEKS` (4) and the newest per month for `BACKUP_KEEP_MONTHLY_MONTHS` (3).
+  3. `restic forget --group-by tags --prune` keeps the 10 most recent snapshots, the newest per day for `BACKUP_KEEP_DAILY_DAYS` (7) days, the newest per week for `BACKUP_KEEP_WEEKLY_WEEKS` (4) and the newest per month for `BACKUP_KEEP_MONTHLY_MONTHS` (3).
   4. `restic check` verifies the repository structure.
 - **Snapshots are complete.** restic stores content-addressed chunks; every snapshot references all chunks it needs, old or new. `forget` deletes snapshots, and `prune` deletes only chunks no remaining snapshot references, so every kept snapshot restores on its own. Storage is therefore about one copy of the DB plus its daily changes, one copy of the scans, and the scans deleted while an older snapshot still holds them.
 - **Fixed hostname.** The container's `hostname` is `examance-backup`. restic groups snapshots by host by default, and a random name per deploy would keep every old snapshot forever.
 - **Erasure.** An erased record survives in backups until the last snapshot holding it is forgotten: at most about `BACKUP_KEEP_MONTHLY_MONTHS` months (3 by default), plus the in-app grace period. This bound is documented in the Art. 30 record.
-- **Restore.** Run these in the backup container (`docker compose … exec backup sh`) or anywhere with the same `RESTIC_*`/`AWS_*` variables:
+- **Restore.** The deploy workflows put `restore-backup.sh` next to `.env` in each stack's directory (source: `deploy/restore-backup.sh`). Run it there as the deploy user:
   ```bash
-  restic snapshots                                    # pick the db and blobs snapshots of the same day
-  # Database: stop backend and retention-cron, then into a fresh database
-  psql -c 'DROP DATABASE <db>' -c 'CREATE DATABASE <db>' -d postgres
-  restic dump <db-snapshot-id> examance.sql | psql -q -d <db>
-  # Scans: into the blob dir (or --include /data/blobs/scans/<exam>/<file> for single files);
-  # the container's mount is read-only, so restore to a temp dir and copy over on the host
-  restic restore <blobs-snapshot-id> --target /tmp/restore
+  ./restore-backup.sh list                 # snapshots (UTC); pick the newest one from BEFORE the loss
+  ./restore-backup.sh db <id|latest>       # replace the whole database with that snapshot
+  ./restore-backup.sh undo                 # back to the state just before the last db restore
+  ./restore-backup.sh scans <id|latest>    # copy back scan files missing from the blob dir
   ```
+  - `db` stops backend, retention-cron and backup. It saves the current state as a restic snapshot tagged `pre-restore` (off-site, listed, restorable with `db <id>`, never picked by `latest`) and as `restore-safety/db-before-restore-<time>.sql` for `undo`. It then loads the snapshot, migrates to the running release and starts the stack. If loading fails, the saved state is put back at once.
+  - A database restore rolls back *everything* since the snapshot, for every account. Teachers can read restored data again because their key envelopes are part of the same snapshot.
+  - `scans` never overwrites or deletes a file, so it is safe to run with any snapshot. Files no row references are removed by the next retention run.
+  - `restore-safety/` holds plaintext dumps: delete them once the restore is confirmed.
+  - Every container start takes a snapshot at once, so after a data loss `latest` may already show the damaged state. `--keep-last 10` makes sure the earlier snapshots of the same day survive.
 - **Moving from the earlier rclone backup.** Point `BACKUP_RESTIC_REPOSITORY` at a new prefix, and delete the old rclone prefix once the first snapshots exist.
