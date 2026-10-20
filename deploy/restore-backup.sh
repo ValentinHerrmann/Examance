@@ -5,12 +5,17 @@
 #   ./restore-backup.sh list                 snapshots of the database and of the scan files
 #   ./restore-backup.sh db <id|latest>       replace the WHOLE database with that snapshot
 #   ./restore-backup.sh undo                 go back to the state just before the last `db` restore
-#   ./restore-backup.sh scans <id|latest>    copy back scan files missing from the blob dir
+#   ./restore-backup.sh scans                copy back the scan files the database needs but are missing,
+#                                            searching every backup snapshot
+#   ./restore-backup.sh scans <id|latest>    copy back every scan file of that snapshot missing on disk
+#
+# Scans deleted in the app lost their DATABASE ROWS; their files may still be on disk. `scans` cannot
+# bring those back, only `db` can (see docs/backup_and_restore.md).
 #
 # Before loading a snapshot, `db` saves the current state twice: as a restic snapshot tagged
 # `pre-restore` (off-site, listed by `list`, restorable with `db <id>`; never picked by `latest`)
-# and as a local file for `undo`. A failed restore puts
-# that state back at once. Add --yes to skip the confirmation prompt.
+# and as a local file for `undo`. A failed restore puts that state back at once.
+# Add --yes to skip the confirmation prompt.
 set -euo pipefail
 
 cd "$(dirname "$(readlink -f "$0")")"
@@ -104,34 +109,82 @@ cmd_undo() {
   echo "Done: back to the state of $safety."
 }
 
-cmd_scans() {
-  local snap host_dir
-  snap=$(resolve_snapshot "$1" blobs)
+# Runs inside the throwaway backup container. /target = the blob dir, /work/refs = scan_path of every
+# row; SNAP set = copy that snapshot's missing files, unset = find the missing referenced files.
+# File by file on purpose: busybox `cp -n` skips whole existing dirs. Existing files are never touched.
+SCANS_SH='
+cd /work; : > missing; : > copied; : > present
+while read -r ref; do [ -e "/target/$ref" ] || echo "$ref" >> missing; done < refs
+copy_tree() {  # $1 = snapshot id; copies what /tmp/r holds into /target
+  [ -d /tmp/r/data/blobs/scans ] || return 0
+  (cd /tmp/r/data/blobs && find scans -type f) | while read -r f; do
+    if [ -e "/target/$f" ]; then echo "$f" >> present; continue; fi
+    d=$(dirname "/target/$f")
+    [ -d "$d" ] || { mkdir -p "$d"; chown 10001:10001 "$d" 2>/dev/null || true; }
+    cp -a "/tmp/r/data/blobs/$f" "/target/$f" && echo "$f (from $1)" >> copied
+  done
+}
+recount_missing() { : > still; while read -r ref; do [ -e "/target/$ref" ] || echo "$ref" >> still; done < missing; mv still missing; }
+echo "$(wc -l < refs) scan file(s) referenced by the database, $(wc -l < missing) of them missing on disk."
+if [ -n "${SNAP:-}" ]; then
+  restic restore "$SNAP" --target /tmp/r --include /data/blobs/scans >/dev/null
+  total=$(find /tmp/r/data/blobs/scans -type f 2>/dev/null | wc -l)
+  copy_tree "$SNAP"
+  echo "Snapshot $SNAP holds $total scan file(s): $(wc -l < present) already on disk, $(wc -l < copied) copied back."
+  [ "$total" -gt 0 ] || echo "  It holds no scans at all: was the blob dir mounted when that backup ran?"
+  recount_missing
+else
+  for id in $(restic snapshots --tag blobs --json | grep -o "\"short_id\":\"[0-9a-f]*\"" | cut -d\" -f4 | sed "1!G;h;\$!d"); do
+    [ -s missing ] || break
+    set --; while read -r ref; do set -- "$@" --include "/data/blobs/$ref"; done < missing
+    rm -rf /tmp/r; restic restore "$id" --target /tmp/r "$@" >/dev/null
+    copy_tree "$id"; recount_missing
+  done
+  echo "Copied back: $(wc -l < copied)"
+fi
+sed "s/^/  restored /" copied
+if [ -s missing ]; then
+  echo "Still missing (no snapshot has them; the database rows exist, so the app shows an error for these):"
+  sed "s/^/  /" missing
+elif [ ! -s copied ]; then
+  echo "Every scan file the database references is on disk, so nothing needed restoring."
+  # A loop, not grep -vxFf: busybox treats an empty pattern file as "matches everything".
+  orphans=$(cd /target && find scans -type f 2>/dev/null | while read -r f; do grep -qxF "$f" /work/refs || echo; done | wc -l)
+  [ "$orphans" -eq 0 ] || echo "$orphans file(s) on disk belong to no database row: deleted in the app, not lost."
+  echo "Scans deleted in the app (e.g. \"delete all submissions\") lost their DATABASE ROWS; copying files"
+  echo "cannot bring them back. Use ./restore-backup.sh db <id> (affects every account), see"
+  echo "docs/backup_and_restore.md."
+fi
+'
+
+cmd_scans() {  # $1 = snapshot id, "latest" or empty
+  local snap="" host_dir
+  [ -n "$1" ] && snap=$(resolve_snapshot "$1" blobs)
   host_dir=$(envval BLOB_STORAGE_HOST_DIR)
   [ -n "$host_dir" ] && [ -f "$host_dir/.examance-blobstore" ] \
     || { echo "BLOB_STORAGE_HOST_DIR is unset or not a marked blob store (mount down?)." >&2; exit 1; }
-  confirm "This copies scan files from snapshot $snap into $host_dir. Existing files are never overwritten."
-  # Restored and copied inside the container, file by file (busybox cp -n skips whole existing
-  # dirs): existing files are never touched, new ones keep the snapshot's owner (uid 10001).
-  restic_sh -v "$host_dir:/target" backup -c "$RESTIC_PREP
-    restic restore $snap --target /tmp/r --include /data/blobs/scans >/dev/null
-    [ -d /tmp/r/data/blobs/scans ] || { echo 'Snapshot holds no scans.'; exit 0; }
-    cd /tmp/r/data/blobs/scans
-    find . -type f | while read -r f; do
-      [ -e \"/target/scans/\$f\" ] && continue
-      d=\$(dirname \"/target/scans/\$f\")
-      [ -d \"\$d\" ] || { mkdir -p \"\$d\"; chown 10001:10001 \"\$d\" 2>/dev/null || true; }
-      cp -a \"\$f\" \"/target/scans/\$f\" && echo copied
-    done | wc -l | sed 's/^/Done: /; s/\$/ scan file(s) copied back./'"
-  echo "Files no database row references are removed by the next retention run."
+  if [ -n "$snap" ]; then
+    confirm "This copies every scan file of snapshot $snap that is missing on disk into $host_dir. Existing files are never overwritten."
+  else
+    confirm "This copies the scan files the database references but are missing on disk into $host_dir, from whichever snapshot holds them. Existing files are never overwritten."
+  fi
+  work=$(mktemp -d "$PWD/restore-scans.XXXXXX")
+  trap 'rm -rf "${work:-}"' EXIT  # global on purpose: a function-local is gone when the trap runs
+  dc exec -T db sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB" -Atc "select scan_path from scan_submissions where scan_path is not null"' > "$work/refs"
+  restic_sh -v "$host_dir:/target" -v "$work:/work" -e "SNAP=$snap" backup -c "$RESTIC_PREP $SCANS_SH"
+  echo "Files no database row references are removed again by the next retention run."
 }
 
 case "${1:-}" in
   list) cmd_list ;;
   undo) [ "${2:-}" = --yes ] && YES=1; cmd_undo ;;
-  db|scans)
-    [ -n "${2:-}" ] || { echo "Usage: $0 $1 <snapshot-id|latest> [--yes]" >&2; exit 1; }
+  db)
+    [ -n "${2:-}" ] && [ "$2" != --yes ] || { echo "Usage: $0 db <snapshot-id|latest> [--yes]" >&2; exit 1; }
     [ "${3:-}" = --yes ] && YES=1
-    "cmd_$1" "$2" ;;
-  *) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+    cmd_db "$2" ;;
+  scans)
+    arg="${2:-}"; [ "$arg" = --yes ] && { YES=1; arg=""; }
+    [ "${3:-}" = --yes ] && YES=1
+    cmd_scans "$arg" ;;
+  *) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

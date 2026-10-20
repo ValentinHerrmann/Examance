@@ -39,7 +39,7 @@ authority. Do this first, before Phase 2 below.
   SELECT * FROM audit_logs WHERE created_at >= NOW() - INTERVAL '24 hours' ORDER BY created_at DESC;
   ```
 - [ ] **4. Isolate Infrastructure:** If server compromise is suspected, isolate the application container network while preserving database logs.
-- [ ] **5. Check the other storage locations (issue #114):** scan files can live outside the server (`BLOB_STORAGE_DIR`, for example an rclone mount), and backups go to the restic repository `BACKUP_RESTIC_REPOSITORY`. If the server or its `.env` is compromised, rotate the S3 key (`BACKUP_S3_*`) and the restic password (`restic key add`, then `restic key remove` the old key), and review access logs at the storage providers. Scan files are client-side encrypted; database dumps are protected only by the restic encryption. See `docs/dev/storage_partitions.md`.
+- [ ] **5. Check the other storage locations (issue #114):** scan files can live outside the server (`BLOB_STORAGE_DIR`, for example an rclone mount), and backups go to the restic repository `BACKUP_RESTIC_REPOSITORY`. If the server or its `.env` is compromised, rotate the S3 key (`BACKUP_S3_*`) and the restic password (`restic key add`, then `restic key remove` the old key), and review access logs at the storage providers. Scan files are client-side encrypted; database dumps are protected only by the restic encryption. Unencrypted dumps may also lie in `restore-safety/` in the stack directories (left by `restore-backup.sh db`): check for and delete them. See `docs/dev/storage_partitions.md`.
 
 ---
 

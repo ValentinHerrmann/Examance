@@ -69,11 +69,14 @@ The `backup` service in `deploy/docker-compose.deploy.yml` uses [restic](https:/
   ./restore-backup.sh list                 # snapshots (UTC); pick the newest one from BEFORE the loss
   ./restore-backup.sh db <id|latest>       # replace the whole database with that snapshot
   ./restore-backup.sh undo                 # back to the state just before the last db restore
-  ./restore-backup.sh scans <id|latest>    # copy back scan files missing from the blob dir
+  ./restore-backup.sh scans                # copy back the scan files database rows need but are missing
+  ./restore-backup.sh scans <id|latest>    # copy back every missing scan file of one snapshot
   ```
+  Operator guide with the situations and steps: `docs/backup_and_restore.md`.
   - `db` stops backend, retention-cron and backup. It saves the current state as a restic snapshot tagged `pre-restore` (off-site, listed, restorable with `db <id>`, never picked by `latest`) and as `restore-safety/db-before-restore-<time>.sql` for `undo`. It then loads the snapshot, migrates to the running release and starts the stack. If loading fails, the saved state is put back at once.
   - A database restore rolls back *everything* since the snapshot, for every account. Teachers can read restored data again because their key envelopes are part of the same snapshot.
-  - `scans` never overwrites or deletes a file, so it is safe to run with any snapshot. Files no row references are removed by the next retention run.
+  - `scans` without an id reads every `scan_path` from the database, searches all `blobs` snapshots newest first for the missing ones (files are immutable and uniquely named, so any snapshot holding one is right) and reports per file. With an id it copies that snapshot's missing files and reports held/present/copied. It never overwrites or deletes a file. Files no row references are removed by the next retention run.
+  - `scans` cannot undo a deletion in the app: that removes the database rows, while the files usually stay on disk. The script detects this and points to `db`.
   - `restore-safety/` holds plaintext dumps: delete them once the restore is confirmed.
   - Every container start takes a snapshot at once, so after a data loss `latest` may already show the damaged state. `--keep-last 10` makes sure the earlier snapshots of the same day survive.
 - **Moving from the earlier rclone backup.** Point `BACKUP_RESTIC_REPOSITORY` at a new prefix, and delete the old rclone prefix once the first snapshots exist.
