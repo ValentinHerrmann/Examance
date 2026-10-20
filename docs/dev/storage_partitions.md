@@ -7,7 +7,7 @@ Server data is split into partitions. Each one can have its own mount point, so 
 | `db` | Every row: accounts, exams, exercises, scores, annotations, resources, logos, audit | Postgres volume `pg_data` (server SSD) | Low latency, transactions |
 | `blobs` | Scan ciphertexts (`scan_submissions`) | `BLOB_STORAGE_DIR`, a local dir or an rclone mount (pCloud, …) | Large (up to ~50 MB each), written once, read on demand, already client-side encrypted |
 | `cache` | Tectonic cache, per-compile temp dirs | `tectonic_cache` volume, `/tmp` | Disposable, public files only |
-| `backups` | Daily `pg_dump` and a copy of `blobs` | rclone *crypt* remote (IONOS S3, …) | Off-site, bounded lifetime |
+| `backups` | Daily restic snapshots of the DB and of `blobs` | restic repository on S3 (IONOS, …) | Off-site, encrypted, deduplicated, bounded lifetime |
 
 Without configuration (`BLOB_STORAGE_BACKEND=db`, no `BLOB_STORAGE_DIR`), everything stays in Postgres, as it did before.
 
@@ -53,13 +53,25 @@ After the mount comes back, restart the backend. A container only sees a mount t
 
 ## Backups
 
-The `backup` service in `deploy/docker-compose.deploy.yml` is opt-in: start it with `--profile backup`.
+The `backup` service in `deploy/docker-compose.deploy.yml` uses [restic](https://restic.net) and is opt-in: `COMPOSE_PROFILES=backup` in `.env` starts it on every deploy.
 
-- **Remote.** `BACKUP_REMOTE` names an rclone **crypt** remote, for example one wrapping IONOS S3, defined in `BACKUP_RCLONE_CONFIG`. It has to be a crypt remote because the dump holds plaintext tables: exercises, logos, e-mail addresses, audit entries.
+- **Repository.** `BACKUP_RESTIC_REPOSITORY` (e.g. `s3:https://s3.eu-central-3.ionoscloud.com/<bucket>/examance-prod`) with `BACKUP_S3_ACCESS_KEY_ID` / `BACKUP_S3_SECRET_ACCESS_KEY` / `BACKUP_S3_REGION`. restic encrypts (AES-256) and compresses on the server before upload, so the provider sees only ciphertext, which matters because the dump holds plaintext tables (exercises, logos, e-mail addresses, audit entries). `BACKUP_RESTIC_PASSWORD` is the only way to decrypt: keep it in a password manager. Use one prefix and one password per stack. The service runs `restic init` on first start.
 - **Daily run.**
-  1. `pg_dump -Fc` streams to `db/<date>.dump`; it is uploaded as `.partial` and renamed when complete.
-  2. `rclone sync` mirrors the blob dir into `blobs/current/` and moves replaced or deleted files to `blobs/deleted/<date>/`. It runs only if the sentinel exists.
-  3. Dumps rotate. Every dump of the last `BACKUP_KEEP_DAILY_DAYS` (2) days is kept, plus the newest dump of each ISO week within `BACKUP_KEEP_WEEKLY_WEEKS` (2) weeks, and the newest of each month within `BACKUP_KEEP_MONTHLY_MONTHS` (2) × 31 days. With the defaults that is at most 6 dumps. Unfinished `.partial` uploads go after a day.
-  4. `deleted/` sets are kept for the whole monthly window: restoring an old dump needs every scan deleted since then, so they cannot be thinned like the dumps. Storage is therefore about the current scans, the scans deleted in the last ~2 months and up to 6 dumps.
-- **Erasure.** An erased record survives in backups for at most `BACKUP_KEEP_MONTHLY_MONTHS` × 31 days (62 by default), plus the in-app grace period. This bound is documented in the Art. 30 record.
-- **Restore.** Stop the stack. Run `rclone cat remote:db/<date>.dump | docker compose … exec -T db pg_restore --clean --if-exists -U <user> -d <db>`. Then `rclone sync remote:blobs/current <host blob dir>`, and start the stack again.
+  1. Snapshot tagged `db`: `pg_dump --no-owner` as plain SQL, streamed via `--stdin-from-command`, so a failing dump fails the snapshot. Plain on purpose: an already compressed dump would never deduplicate.
+  2. Snapshot tagged `blobs` of `/data/blobs`. It runs only if the sentinel exists; otherwise the log says "blob snapshot skipped".
+  3. `restic forget --group-by tags --prune` keeps every snapshot of the last `BACKUP_KEEP_DAILY_DAYS` (7) days, the newest per week for `BACKUP_KEEP_WEEKLY_WEEKS` (4) and the newest per month for `BACKUP_KEEP_MONTHLY_MONTHS` (3).
+  4. `restic check` verifies the repository structure.
+- **Snapshots are complete.** restic stores content-addressed chunks; every snapshot references all chunks it needs, old or new. `forget` deletes snapshots, and `prune` deletes only chunks no remaining snapshot references, so every kept snapshot restores on its own. Storage is therefore about one copy of the DB plus its daily changes, one copy of the scans, and the scans deleted while an older snapshot still holds them.
+- **Fixed hostname.** The container's `hostname` is `examance-backup`. restic groups snapshots by host by default, and a random name per deploy would keep every old snapshot forever.
+- **Erasure.** An erased record survives in backups until the last snapshot holding it is forgotten: at most about `BACKUP_KEEP_MONTHLY_MONTHS` months (3 by default), plus the in-app grace period. This bound is documented in the Art. 30 record.
+- **Restore.** Run these in the backup container (`docker compose … exec backup sh`) or anywhere with the same `RESTIC_*`/`AWS_*` variables:
+  ```bash
+  restic snapshots                                    # pick the db and blobs snapshots of the same day
+  # Database: stop backend and retention-cron, then into a fresh database
+  psql -c 'DROP DATABASE <db>' -c 'CREATE DATABASE <db>' -d postgres
+  restic dump <db-snapshot-id> examance.sql | psql -q -d <db>
+  # Scans: into the blob dir (or --include /data/blobs/scans/<exam>/<file> for single files);
+  # the container's mount is read-only, so restore to a temp dir and copy over on the host
+  restic restore <blobs-snapshot-id> --target /tmp/restore
+  ```
+- **Moving from the earlier rclone backup.** Point `BACKUP_RESTIC_REPOSITORY` at a new prefix, and delete the old rclone prefix once the first snapshots exist.
