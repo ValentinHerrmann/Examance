@@ -328,6 +328,47 @@ def run_retention(dry_run: bool) -> None:
         click.echo(f"Retention run complete: {count} record(s) affected.")
 
 
+@cli.command("init-blob-store")
+@click.option("--force", is_flag=True, default=False, help="Accept a non-empty directory.")
+def init_blob_store(force: bool) -> None:
+    """Mark BLOB_STORAGE_DIR as this stack's file partition (docs/dev/storage_partitions.md).
+
+    Run once, with the mount up. Without the marker every scan read/write fails instead of
+    silently landing on the local disk under a dropped mount."""
+    from app.services import blob_store
+
+    try:
+        path = blob_store.init(force=force)
+    except blob_store.BlobStoreUnavailable as exc:
+        raise click.ClickException(exc.reason) from None
+    click.echo(f"Blob store ready: {path}")
+
+
+@cli.command("move-blobs")
+@click.option("--to", "target", type=click.Choice(["fs", "db"]), required=True)
+def move_blobs(target: str) -> None:
+    """Move every scan into the file partition or back into the database; verified, resumable.
+
+    Set BLOB_STORAGE_BACKEND to the same target first, or new uploads land on the other side."""
+    from sqlalchemy import create_engine
+
+    from app.config import settings
+    from app.services import blob_store
+    from app.services.blob_migration import move_scans
+
+    if settings.BLOB_STORAGE_BACKEND != target:
+        click.echo(f"Warning: BLOB_STORAGE_BACKEND is {settings.BLOB_STORAGE_BACKEND!r}.", err=True)
+    engine = create_engine(settings.DATABASE_URL_SYNC, isolation_level="AUTOCOMMIT")
+    try:
+        with engine.connect() as conn:
+            moved = move_scans(conn, target)  # type: ignore[arg-type]
+    except blob_store.BlobStoreUnavailable as exc:
+        raise click.ClickException(exc.reason) from None
+    finally:
+        engine.dispose()
+    click.echo(f"Moved {moved} scan(s) to {target}.")
+
+
 @cli.command("training-export")
 @click.option(
     "--out",

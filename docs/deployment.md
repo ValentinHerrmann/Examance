@@ -16,7 +16,8 @@ There are two fully independent instances, **production** and **preview**.
 | Image tag | `ghcr.io/…/examance-backend:1.4.0` + `:latest` | `…:sha-<full-sha>` + `:preview` |
 | Compose project | `examance-prod` | `examance-preview` |
 | Loopback port | `8000` | `8001` |
-| Volumes | `examance-prod_pg_data`, `examance-prod_tectonic_cache` | `examance-preview_pg_data`, `examance-preview_tectonic_cache` |
+| Volumes | `examance-prod_pg_data`, `examance-prod_tectonic_cache`, `examance-prod_blob_data`, `examance-prod_restic_cache` | `examance-preview_pg_data`, `examance-preview_tectonic_cache`, `examance-preview_blob_data`, `examance-preview_restic_cache` |
+| Files CI writes | `docker-compose.deploy.yml`, `restore-backup.sh` (next to `.env`) | same |
 | Server env file | `$DEPLOY_APP_DIR/prod/.env` | `$DEPLOY_APP_DIR/preview/.env` |
 
 Publishing a GitHub Release is the **only** action needed to ship production. Nothing else is manual.
@@ -375,6 +376,8 @@ No proxy timeout tuning is needed. Caddy's `reverse_proxy` has no response timeo
 
 **Tectonic cache (issue #75).** With an empty cache, Tectonic downloads several hundred bundle files one by one and the first previews exceed `PREVIEW_TIMEOUT_SECONDS` (504). The backend image therefore compiles a synthetic warm-up document at build time (`backend/latex-warmup/`) into `TECTONIC_CACHE_DIR=/var/cache/tectonic`, and Docker seeds a new or empty `tectonic_cache` volume from it. A volume that already has content is never re-seeded, so both deploy workflows run the same `warmup.sh` in the backend container after the health check (bounded to 300 s, non-fatal; seconds when the cache is warm). To start over: stop the stack, `docker volume rm <project>_tectonic_cache`, and `up -d` again. The cache, image layer and volume hold only public TeX files, never exam content. An image build now needs `relay.fullyjustified.net` to be reachable.
 
+**Storage partitions and backups (issue #114).** By default every scan stays in Postgres. To keep scans on another disk or an rclone mount, and to enable the daily encrypted restic backup (`COMPOSE_PROFILES=backup`), follow `docs/dev/storage_partitions.md`. Each stack needs its own blob directory and its own backup repository prefix and password. The first deploy after switching to `fs` moves existing scans inside the migration step, so it takes longer the more scans there are. A `--profile …` on the command line replaces `COMPOSE_PROFILES` from `.env` for that command, so `… --profile tools down` leaves the backup container running; name both profiles or neither.
+
 `PROXY_ALLOWED_IPS` must name the actual proxy address — never `*`. With a wildcard, any client could spoof `X-Forwarded-For` to reset its own rate-limit bucket and poison the audit log's IP hashes.
 
 ---
@@ -394,7 +397,10 @@ docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env up 
 Two things to know before rolling back:
 
 - **Migrations run forward only.** `alembic upgrade head` runs on every deploy; reverting to an older image does **not** undo it. A schema change that an older backend cannot read has to be reverted deliberately with `alembic downgrade`, by hand, after taking a database dump. Automatic downgrade is deliberately never wired into CI.
+- Scans stored as files (`BLOB_STORAGE_BACKEND=fs`) are unreadable for releases before #114: move them back first (`docs/dev/storage_partitions.md`, "Moving scans").
 - Rolling the backend back **across a major version** leaves the frontend on the newer major, so the footer version goes red and the incompatibility banner appears until the frontend is rolled back too (re-point the `release` branch at the older commit).
+
+**Restore from backup** (restic; step-by-step guide per situation: `docs/backup_and_restore.md`): run `./restore-backup.sh` in the stack directory. `list` shows the snapshots, `db <id|latest>` replaces the whole database (the state before is kept for `undo`), and `scans <id|latest>` copies missing scan files back. A database restore rolls back every account, so use it for disasters, not for one teacher's mistake.
 
 **Logs**
 
@@ -409,7 +415,7 @@ curl -s https://api-examance.valentin-herrmann.com/api/health
 # {"status":"ok","version":"1.4.0"}
 ```
 
-**Reset the preview database** (safe — preview holds no production data):
+**Reset the preview database** (safe — preview holds no production data). The restic repository and a host blob directory (`BLOB_STORAGE_HOST_DIR`) are not touched; empty them separately if needed:
 
 ```bash
 cd ~/examance/preview
@@ -419,5 +425,5 @@ docker compose -p examance-preview -f docker-compose.deploy.yml --env-file .env 
 **Verify the two stacks are really isolated**
 
 ```bash
-docker volume ls | grep examance   # expect <project>_pg_data and <project>_tectonic_cache for prod and preview
+docker volume ls | grep examance   # expect <project>_pg_data, _tectonic_cache, _blob_data (and _restic_cache with backups) for prod and preview
 ```

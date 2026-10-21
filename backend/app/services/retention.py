@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
-from sqlalchemy import and_, delete, func, or_, select, update
+from sqlalchemy import ColumnElement, and_, delete, func, or_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import AsyncSessionLocal
@@ -22,6 +25,28 @@ from app.models.registration_request import RegistrationRequest
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
+from app.services import blob_store
+
+logger = logging.getLogger(__name__)
+
+
+async def _count(db: AsyncSession, model: type[Any], where: ColumnElement[bool]) -> int:
+    return await db.scalar(select(func.count()).select_from(model).where(where)) or 0
+
+
+async def _sweep_orphan_scans(db: AsyncSession) -> int:
+    """Delete scan files no row references (cascaded deletes, crashes, replaced scans)."""
+    if not blob_store.configured():
+        return 0
+    paths = await db.scalars(
+        select(ScanSubmission.scan_path).where(ScanSubmission.scan_path.isnot(None))
+    )
+    referenced = {path for path in paths if path is not None}
+    try:
+        return blob_store.sweep_sync("scans", referenced)
+    except blob_store.BlobStoreUnavailable as exc:
+        logger.exception("scan sweep skipped: %s", exc.reason)
+        return 0
 
 
 async def run(*, dry_run: bool = False) -> int:
@@ -74,25 +99,17 @@ async def run(*, dry_run: bool = False) -> int:
         # deleted by date below — never by an id list, which a backlog would push
         # past the driver's bind-parameter limit.
         expired_sample_filter = OmrTrainingSample.created_on < sample_cutoff
-        expired_sample_count = (
-            await db.scalar(
-                select(func.count()).select_from(OmrTrainingSample).where(expired_sample_filter)
-            )
-        ) or 0
+        expired_sample_count = await _count(db, OmrTrainingSample, expired_sample_filter)
 
         # 5. Registration links that expired unused.
         expired_requests_filter = RegistrationRequest.expires_at < now
-        expired_request_count = await db.scalar(
-            select(func.count()).select_from(RegistrationRequest).where(expired_requests_filter)
-        ) or 0
+        expired_request_count = await _count(db, RegistrationRequest, expired_requests_filter)
 
         # 7. Account-deletion links that expired unconfirmed.
         expired_deletions_filter = AccountDeletionRequest.expires_at < now
-        expired_deletion_count = await db.scalar(
-            select(func.count()).select_from(AccountDeletionRequest).where(
-                expired_deletions_filter
-            )
-        ) or 0
+        expired_deletion_count = await _count(
+            db, AccountDeletionRequest, expired_deletions_filter
+        )
 
         # 6. Pending accounts nobody approved, holding no data.
         stale_pending_res = await db.execute(
@@ -122,9 +139,7 @@ async def run(*, dry_run: bool = False) -> int:
                 ),
             ),
         )
-        expired_contribution_count = await db.scalar(
-            select(func.count()).select_from(ExerciseContribution).where(contribution_filter)
-        ) or 0
+        expired_contribution_count = await _count(db, ExerciseContribution, contribution_filter)
 
         total_affected = (
             len(expired_exams)
@@ -168,6 +183,8 @@ async def run(*, dry_run: bool = False) -> int:
             await db.delete(student)
 
         for submission in expired_submissions:
+            if submission.scan_path is not None:
+                blob_store.delete_after_commit(db, submission.scan_path)
             await db.delete(submission)
 
         for entry in expired_audit:
@@ -223,5 +240,8 @@ async def run(*, dry_run: bool = False) -> int:
             ]
         )
         await db.commit()
+
+        # 9. Scan files no row references.
+        total_affected += await _sweep_orphan_scans(db)
 
     return total_affected
