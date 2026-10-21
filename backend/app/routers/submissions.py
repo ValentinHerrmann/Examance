@@ -29,6 +29,10 @@ router = APIRouter(
 )
 
 
+def _b64(data: bytes | None) -> str | None:
+    return base64.b64encode(data).decode() if data else None
+
+
 @router.get("", response_model=list[SubmissionResponse])
 async def list_submissions(
     exam: Exam = Depends(get_exam_for_teacher),
@@ -60,9 +64,7 @@ async def list_submissions(
             exam_id=s.exam_id,
             pseudonym_hmac=s.pseudonym_hmac,
             total_score=s.total_score,
-            scan_ciphertext_b64=(
-                base64.b64encode(scan).decode() if (scan := scans.get(s.id)) else None
-            ),
+            scan_ciphertext_b64=_b64(scans.get(s.id)),
             scan_iv_b64=(
                 base64.b64encode(s.scan_iv).decode()
                 if include_scans and s.scan_iv

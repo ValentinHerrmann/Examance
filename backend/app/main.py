@@ -71,7 +71,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         try:
             logging.getLogger("app.main").info("Blob store at %s", blob_store.root())
         except blob_store.BlobStoreUnavailable as exc:
-            logging.getLogger("app.main").error(
+            logging.getLogger("app.main").exception(
                 "Blob store unavailable, scan reads and writes will fail: %s", exc.reason
             )
 

@@ -19,7 +19,7 @@
 set -euo pipefail
 
 cd "$(dirname "$(readlink -f "$0")")"
-[ -f .env ] && [ -f docker-compose.deploy.yml ] \
+[[ -f .env && -f docker-compose.deploy.yml ]] \
   || { echo "Run this next to .env and docker-compose.deploy.yml." >&2; exit 1; }
 
 case "$(basename "$PWD")" in
@@ -28,29 +28,30 @@ case "$(basename "$PWD")" in
   *) PROJECT="${EXAMANCE_PROJECT:?not in a prod/preview dir: set EXAMANCE_PROJECT}" ;;
 esac
 dc() { docker compose -p "$PROJECT" -f docker-compose.deploy.yml --env-file .env --profile backup "$@"; }
-envval() { sed -n "s/^$1=//p" .env | tail -n1 | sed 's/^"\(.*\)"$/\1/'; }
+envval() { local key="$1"; sed -n "s/^$key=//p" .env | tail -n1 | sed 's/^"\(.*\)"$/\1/'; }
 # restic runs in a throwaway copy of the backup service: same repository, password and mounts.
 restic_sh() { dc run --rm --no-deps -T --entrypoint sh "$@"; }
 # --retry-lock: the stack's backup service may be running its daily backup/prune right now.
 RESTIC_PREP='set -eu -o pipefail; apk add -q --no-cache restic >/dev/null;
   restic() { command restic --retry-lock 15m "$@"; };'
 
-[ -n "$(envval BACKUP_RESTIC_REPOSITORY)" ] || { echo "BACKUP_RESTIC_REPOSITORY is not set in .env." >&2; exit 1; }
+[[ -n "$(envval BACKUP_RESTIC_REPOSITORY)" ]] || { echo "BACKUP_RESTIC_REPOSITORY is not set in .env." >&2; exit 1; }
 
 resolve_snapshot() {  # $1 = id or "latest", $2 = tag; prints the concrete short id
-  local filter="$1"; [ "$1" = latest ] && filter="--latest 1 --tag $2"
+  local wanted="$1" tag="$2"
+  local filter="$wanted"; [[ "$wanted" = latest ]] && filter="--latest 1 --tag $tag"
   local id
   id=$(restic_sh backup -c "$RESTIC_PREP restic snapshots --json $filter" \
     | grep -o '"short_id":"[0-9a-f]*"' | tail -n1 | cut -d'"' -f4) || true
-  [ -n "$id" ] || { echo "No snapshot '$1' (tag $2) found; see ./restore-backup.sh list" >&2; exit 1; }
+  [[ -n "$id" ]] || { echo "No snapshot '$wanted' (tag $tag) found; see ./restore-backup.sh list" >&2; exit 1; }
   echo "$id"
 }
 
 confirm() {
-  [ "${YES:-}" = 1 ] && return 0
+  [[ "${YES:-}" = 1 ]] && return 0
   printf '%s\nType the project name (%s) to continue: ' "$1" "$PROJECT"
   read -r answer
-  [ "$answer" = "$PROJECT" ] || { echo "Aborted."; exit 1; }
+  [[ "$answer" = "$PROJECT" ]] || { echo "Aborted."; exit 1; }
 }
 
 cmd_list() {
@@ -59,7 +60,7 @@ cmd_list() {
 }
 
 recreate_db() { dc exec -T db sh -c 'dropdb -U "$POSTGRES_USER" "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'; }
-load_file() { dc exec -T db sh -c 'psql -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" "$POSTGRES_DB" >/dev/null' < "$1"; }
+load_file() { local file="$1"; dc exec -T db sh -c 'psql -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" "$POSTGRES_DB" >/dev/null' < "$file"; }
 finish() {  # the loaded state may be from an older release
   echo "4/5 Migrating the database to the running release"
   dc run --rm migrate
@@ -100,7 +101,7 @@ cmd_db() {
 cmd_undo() {
   local safety
   safety=$(ls -1 restore-safety/db-before-restore-*.sql 2>/dev/null | tail -n1)
-  [ -n "$safety" ] || { echo "No safety dump in restore-safety/." >&2; exit 1; }
+  [[ -n "$safety" ]] || { echo "No safety dump in restore-safety/." >&2; exit 1; }
   confirm "This replaces the WHOLE $PROJECT database with $safety (the state before the last restore)."
   dc stop backend retention-cron backup
   recreate_db
@@ -158,12 +159,12 @@ fi
 '
 
 cmd_scans() {  # $1 = snapshot id, "latest" or empty
-  local snap="" host_dir
-  [ -n "$1" ] && snap=$(resolve_snapshot "$1" blobs)
+  local wanted="$1" snap="" host_dir
+  [[ -n "$wanted" ]] && snap=$(resolve_snapshot "$wanted" blobs)
   host_dir=$(envval BLOB_STORAGE_HOST_DIR)
-  [ -n "$host_dir" ] && [ -f "$host_dir/.examance-blobstore" ] \
+  [[ -n "$host_dir" && -f "$host_dir/.examance-blobstore" ]] \
     || { echo "BLOB_STORAGE_HOST_DIR is unset or not a marked blob store (mount down?)." >&2; exit 1; }
-  if [ -n "$snap" ]; then
+  if [[ -n "$snap" ]]; then
     confirm "This copies every scan file of snapshot $snap that is missing on disk into $host_dir. Existing files are never overwritten."
   else
     confirm "This copies the scan files the database references but are missing on disk into $host_dir, from whichever snapshot holds them. Existing files are never overwritten."
@@ -177,14 +178,14 @@ cmd_scans() {  # $1 = snapshot id, "latest" or empty
 
 case "${1:-}" in
   list) cmd_list ;;
-  undo) [ "${2:-}" = --yes ] && YES=1; cmd_undo ;;
+  undo) [[ "${2:-}" = --yes ]] && YES=1; cmd_undo ;;
   db)
-    [ -n "${2:-}" ] && [ "$2" != --yes ] || { echo "Usage: $0 db <snapshot-id|latest> [--yes]" >&2; exit 1; }
-    [ "${3:-}" = --yes ] && YES=1
+    [[ -n "${2:-}" && "$2" != --yes ]] || { echo "Usage: $0 db <snapshot-id|latest> [--yes]" >&2; exit 1; }
+    [[ "${3:-}" = --yes ]] && YES=1
     cmd_db "$2" ;;
   scans)
-    arg="${2:-}"; [ "$arg" = --yes ] && { YES=1; arg=""; }
-    [ "${3:-}" = --yes ] && YES=1
+    arg="${2:-}"; [[ "$arg" = --yes ]] && { YES=1; arg=""; }
+    [[ "${3:-}" = --yes ]] && YES=1
     cmd_scans "$arg" ;;
   *) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

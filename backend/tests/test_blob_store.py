@@ -85,7 +85,8 @@ async def test_scan_round_trip_through_files(
     row = (
         await db.execute(select(ScanSubmission).where(ScanSubmission.id == uuid.UUID(sub_id)))
     ).scalar_one()
-    assert row.scan_path is not None and not row.scan_in_db
+    assert row.scan_path is not None
+    assert not row.scan_in_db
     # The replaced file was dropped after the commit.
     assert [ref for ref, _ in blob_store.iter_refs("scans")] == [row.scan_path]
 

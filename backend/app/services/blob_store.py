@@ -160,7 +160,7 @@ def sweep_sync(kind: str, referenced: set[str]) -> int:
     """Delete files no row references (crash leftovers, replaced or cascaded scans)."""
     cutoff = time.time() - SWEEP_MIN_AGE_SECONDS
     removed = 0
-    for ref, mtime in list(iter_refs(kind)):
+    for ref, mtime in iter_refs(kind):
         if ref not in referenced and mtime < cutoff:
             delete_sync(ref)
             removed += 1
