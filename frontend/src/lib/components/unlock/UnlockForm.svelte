@@ -3,7 +3,7 @@
   import BackendUrlInput from "#lib/components/common/BackendUrlInput.svelte";
   import { t } from "#lib/i18n";
   import { stripBackendProtocol } from "#lib/stores/backendStore";
-  import { faKey, faUserPlus } from "@fortawesome/free-solid-svg-icons";
+  import { faBookOpen, faKey, faLightbulb, faUserPlus } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Button, Card, Field, TextInput } from "#lib/components/ui";
 
   interface Props {
@@ -135,9 +135,14 @@
 </div>
 
 <!-- /help and /about are public paths, so both work while signed out. -->
-<p class="mx-auto mt-3 mb-0 flex w-full max-w-form flex-wrap justify-center gap-x-2 gap-y-1 text-sm text-muted">
-  <span>{$t("auth.unlock.cloud.newHere")}</span>
-  <a href="/help" class="text-accent no-underline hover:underline">{$t("help.ui.unlockLink")}</a>
-  <span aria-hidden="true">·</span>
-  <a href="/about" class="text-accent no-underline hover:underline">{$t("about.headerLink")}</a>
-</p>
+<div class="mx-auto mt-4 flex w-full max-w-form flex-col items-center gap-2">
+  <p class="m-0 text-base font-medium text-content">{$t("auth.unlock.cloud.newHere")}</p>
+  <div class="flex flex-wrap justify-center gap-2">
+    <Button href="/help" variant="outlined" severity="secondary" icon={faBookOpen}>
+      {$t("help.ui.unlockLink")}
+    </Button>
+    <Button href="/about" variant="outlined" severity="secondary" icon={faLightbulb}>
+      {$t("about.headerLink")}
+    </Button>
+  </div>
+</div>
