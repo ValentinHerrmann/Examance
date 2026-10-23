@@ -129,7 +129,7 @@ async def test_sign_in_paused_for_teachers_but_not_admins(
     teacher_secret = await enrol_totp(db, teacher)
     admin = await create_teacher(db, admin_email, role="admin")
     admin_secret = await enrol_totp(db, admin)
-    await _start(db, lead_seconds=30)  # inside the last minute: final
+    await _start(db, lead_seconds=9)  # inside the last 10 s of a short lead: final
     maintenance.invalidate()
 
     with pytest.raises(AssertionError):

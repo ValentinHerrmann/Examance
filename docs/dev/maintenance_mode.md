@@ -37,7 +37,7 @@ Both deploy workflows' `backend-deploy` job (see `docs/deployment.md`):
 
 1. `cli maintenance start --kind deployment --lead-seconds 300 --second-warning-seconds 60` through the **running** image (`docker compose exec backend python -m app.cli`), in parallel with the image build. Keep the CLI's names and options stable: CI always calls the previous release's CLI. No revision (first deploy of the feature, no stack): the deploy runs as before.
 2. Wait for the image build job, pull.
-3. `maintenance freeze --wait --revision N` (sleeps until `starts_at`, at most 15 min, then freezes), `maintenance wait-backup --revision N` (fails on `failed` or after 15 min): the deploy aborts before `migrate` on any failure.
+3. `maintenance freeze --wait --revision N` (sleeps until `starts_at`, at most 15 min, then freezes), `maintenance wait-backup --revision N` (fails on `failed` or after 15 min): the deploy aborts before `migrate` on any failure. If the running image's CLI fails, both steps are retried once with the new image's CLI (`migrate` service), so a CLI bug in one release cannot block every later deploy. Each CLI step is its own `asyncio.run`, so `_in_session` disposes the engine afterwards (pooled asyncpg connections are bound to their loop).
 4. migrate, `up -d`, health check (unchanged).
 5. `if: always()`: `maintenance stop --revision N`.
 

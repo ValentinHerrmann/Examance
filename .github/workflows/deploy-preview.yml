@@ -269,7 +269,7 @@ jobs:
       - name: Announce maintenance
         id: announce
         continue-on-error: true
-        uses: appleboy/ssh-action@v1.2.5
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         env:
           DEPLOY_APP_DIR: ${{ vars.DEPLOY_APP_DIR }}
         with:
@@ -326,7 +326,7 @@ jobs:
       - name: Pull image, back up, migrate and restart
         # v1 is a composite action (prebuilt binary); v0.1.x was Docker-based
         # and spent its first ~20s building a container image.
-        uses: appleboy/ssh-action@v1.2.5
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         env:
           BACKEND_IMAGE: ${{ steps.meta.outputs.image }}
           APP_VERSION: ${{ needs.version.outputs.version }}
@@ -386,10 +386,15 @@ jobs:
             if [ -n "${MAINTENANCE_REVISION:-}" ]; then
               # Waits for the announced start, stops teaching writes, then for the database
               # backup of the maintenance-backup service. Any failure aborts before migrating.
+              # The new image's CLI is the fallback when the running one fails (a CLI bug must not
+              # block every later deploy); a real failure fails again and still aborts.
+              NEW_CLI="$COMPOSE --profile tools run --rm --no-deps -T migrate python -m app.cli"
               $COMPOSE exec -T backend python -m app.cli maintenance freeze --wait \
-                --revision "$MAINTENANCE_REVISION"
+                --revision "$MAINTENANCE_REVISION" \
+                || $NEW_CLI maintenance freeze --wait --revision "$MAINTENANCE_REVISION"
               $COMPOSE exec -T backend python -m app.cli maintenance wait-backup \
-                --revision "$MAINTENANCE_REVISION" --timeout 900
+                --revision "$MAINTENANCE_REVISION" --timeout 900 \
+                || $NEW_CLI maintenance wait-backup --revision "$MAINTENANCE_REVISION" --timeout 900
             fi
             $COMPOSE --profile tools run --rm migrate
             $COMPOSE up -d --remove-orphans
@@ -425,7 +430,7 @@ jobs:
       # newer run is left alone.
       - name: End maintenance
         if: always() && steps.maint.outputs.revision != ''
-        uses: appleboy/ssh-action@v1.2.5
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         env:
           DEPLOY_APP_DIR: ${{ vars.DEPLOY_APP_DIR }}
           MAINTENANCE_REVISION: ${{ steps.maint.outputs.revision }}

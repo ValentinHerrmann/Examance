@@ -471,15 +471,19 @@ def maintenance_group() -> None:
 
 
 async def _in_session[T](action: Callable[[AsyncSession], Awaitable[T]]) -> T:
-    from app.database import AsyncSessionLocal
+    from app.database import AsyncSessionLocal, engine
 
-    async with AsyncSessionLocal() as db:
-        try:
-            result = await action(db)
-            await db.commit()
-            return result
-        except (OperationalError, ProgrammingError) as exc:
-            _raise_schema_hint(exc)
+    try:
+        async with AsyncSessionLocal() as db:
+            try:
+                result = await action(db)
+                await db.commit()
+                return result
+            except (OperationalError, ProgrammingError) as exc:
+                _raise_schema_hint(exc)
+    finally:
+        # Each command step is its own asyncio.run: pooled connections must not outlive their loop.
+        await engine.dispose()
 
 
 @maintenance_group.command("start")
