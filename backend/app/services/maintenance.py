@@ -25,6 +25,8 @@ DowntimeClass = Literal["very_short", "short", "long", "unspecific"]
 
 FIRST_WARNING_SECONDS = 300
 SECOND_WARNING_SECONDS = 60
+# A lead up to the 2nd offset would merge both reminders; the 2nd then comes this close.
+SHORT_LEAD_SECOND_WARNING_SECONDS = 10
 # Safety net for a cancelled or crashed deploy run: nobody stays locked out for good.
 DEPLOYMENT_AUTO_END = timedelta(minutes=15)
 # What a client is told to wait, by announced duration.
@@ -128,6 +130,14 @@ async def load(db: AsyncSession, *, fresh: bool = False) -> WindowState | None:
     return state
 
 
+def cached_revision() -> int | None:
+    """Open window's revision from this worker's fresh cache only (never a DB read)."""
+    if _cache is None or _cache[0] <= time.monotonic() or _cache[1] is None:
+        return None
+    state = _cache[1]
+    return state.revision if state.phase(now_utc()) != "none" else None
+
+
 async def current_phase(db: AsyncSession) -> tuple[WindowState | None, Phase]:
     state = await load(db)
     return state, state.phase(now_utc()) if state is not None else "none"
@@ -152,6 +162,8 @@ async def start(
     """Open a window, replacing any earlier one; the revision tells the two apart."""
     now = now_utc()
     starts_at = now + timedelta(seconds=max(lead_seconds, 0))
+    if lead_seconds <= second_warning_seconds:
+        second_warning_seconds = min(second_warning_seconds, SHORT_LEAD_SECOND_WARNING_SECONDS)
     row = await _row(db)
     if row is None:
         row = MaintenanceWindow(id=_WINDOW_ID, revision=0)

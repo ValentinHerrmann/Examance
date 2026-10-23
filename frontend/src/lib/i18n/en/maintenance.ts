@@ -68,7 +68,7 @@ export const maintenance: Translations['maintenance'] = {
         end: 'End maintenance',
         startTitle: 'Announce maintenance',
         leadLabel: 'Lead time in minutes',
-        leadHint: 'First reminder 5 minutes before the start (at once if the lead time is shorter), second 1 minute before; from the second one, sign-in is paused. 0 = now.',
+        leadHint: 'First reminder 5 minutes before the start (at once if the lead time is shorter), second 1 minute before (10 seconds before if the lead time is 1 minute or less); from the second one, sign-in is paused. 0 = now.',
         durationLabel: 'Expected duration',
         durationHint: 'Teachers read: "Examance is unavailable for {text}."',
         backupLabel: 'Back up the database when it starts',

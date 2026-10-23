@@ -16,6 +16,7 @@ from app.config import settings
 from app.middleware.body_limit import BodyLimitMiddleware
 from app.middleware.cors import add_cors_middleware, is_allowed_origin
 from app.middleware.csp import CSPMiddleware
+from app.middleware.maintenance_header import MaintenanceHeaderMiddleware
 from app.middleware.origin_guard import OriginGuardMiddleware
 from app.middleware.rate_limit import limiter
 from app.routers import (
@@ -251,6 +252,7 @@ def create_app() -> FastAPI:
         app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
     app.add_middleware(OriginGuardMiddleware)
     app.add_middleware(CSPMiddleware)
+    app.add_middleware(MaintenanceHeaderMiddleware)
     add_cors_middleware(app)  # Must be after BodyLimit so CORS headers appear on 413 too
 
     # Routers

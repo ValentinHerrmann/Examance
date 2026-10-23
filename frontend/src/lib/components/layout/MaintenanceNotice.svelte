@@ -79,7 +79,7 @@
   <Button onClick={confirmSaved}>{$t("maintenance.savedButton")}</Button>
 {/snippet}
 
-<svelte:window onfocus={refreshOnFocus} />
+<svelte:window onfocus={refreshOnFocus} ononline={refreshOnFocus} onpageshow={refreshOnFocus} />
 <svelte:document onvisibilitychange={refreshOnFocus} />
 
 {#if phase !== "none" && !(onUnlockPage && !signedIn)}

@@ -100,9 +100,23 @@ export function refreshMaintenance(): Promise<void> {
   return inFlight;
 }
 
+let lastHeaderRefresh = 0;
+
+/** API responses carry the open window's revision; refetch when it is news (absent header = unknown). */
+export function noteMaintenanceRevision(header: string | null): void {
+  const revision = header === null ? NaN : Number(header);
+  if (!Number.isInteger(revision)) return;
+  const { status } = get(maintenanceStore);
+  if (isOpen(status) && status?.revision === revision) return;
+  if (Date.now() - lastHeaderRefresh < 2_000) return;
+  lastHeaderRefresh = Date.now();
+  void refreshMaintenance();
+}
+
 function pollDelayMs(): number {
   const { status, reachable } = get(maintenanceStore);
-  if (!isOpen(status)) return 30_000;
+  // 15 s idle: a preview window lasts only 30 s, and background tabs are throttled anyway.
+  if (!isOpen(status)) return 15_000;
   if (status?.phase === 'down' || !reachable) return 5_000;
   return 10_000;
 }

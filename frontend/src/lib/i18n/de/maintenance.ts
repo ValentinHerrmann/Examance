@@ -66,7 +66,7 @@ export const maintenance = {
         end: 'Wartung beenden',
         startTitle: 'Wartung ankündigen',
         leadLabel: 'Vorlaufzeit in Minuten',
-        leadHint: 'Erste Erinnerung 5 Minuten vor Beginn (bei kürzerer Vorlaufzeit sofort), zweite 1 Minute vorher; ab der zweiten ist die Anmeldung pausiert. 0 = sofort.',
+        leadHint: 'Erste Erinnerung 5 Minuten vor Beginn (bei kürzerer Vorlaufzeit sofort), zweite 1 Minute vorher (bei höchstens 1 Minute Vorlauf 10 Sekunden vorher); ab der zweiten ist die Anmeldung pausiert. 0 = sofort.',
         durationLabel: 'Erwartete Dauer',
         durationHint: 'Lehrkräfte lesen: „Examance ist für {text} nicht erreichbar.“',
         backupLabel: 'Datenbank bei Beginn sichern',

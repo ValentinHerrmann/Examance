@@ -78,6 +78,19 @@ async def test_preview_offsets(db: AsyncSession) -> None:
     assert state.backup_wanted
 
 
+async def test_short_lead_keeps_two_reminders(db: AsyncSession) -> None:
+    state = await _start(db, lead_seconds=60)
+    assert state.phase(maintenance.now_utc()) == "warning"
+    assert (state.starts_at - state.second_warning_at).total_seconds() == pytest.approx(10)
+
+
+async def test_open_window_revision_header(client: AsyncClient, db: AsyncSession) -> None:
+    state = await _start(db, lead_seconds=600)
+    await maintenance.load(db, fresh=True)
+    response = await client.get("/api/v1/maintenance")
+    assert response.headers.get("maintenance-revision") == str(state.revision)
+
+
 async def test_deployment_waits_for_freeze_then_blocks_teaching(
     client: AsyncClient, db: AsyncSession
 ) -> None:

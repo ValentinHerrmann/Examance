@@ -10,7 +10,7 @@ import { translate, translateOptional } from '#lib/i18n';
 import { backendStore } from '#lib/stores/backendStore';
 import { httpErrorStore } from '#lib/stores/httpErrorStore';
 import { loginLockout } from '#lib/stores/loginLockout';
-import { refreshMaintenance } from '#lib/stores/maintenanceStore';
+import { noteMaintenanceRevision, refreshMaintenance } from '#lib/stores/maintenanceStore';
 
 // Every fetch() is bounded: a stalled connection would otherwise never resolve or reject,
 // leaving isLoading stuck with no error. Binary requests get a longer bound because
@@ -197,13 +197,15 @@ async function request<T>(
   const send = async (): Promise<Response> => {
     const { signal, cancel } = withTimeoutSignal(timeoutMs);
     try {
-      return await fetch(`${getBaseUrl()}${path}`, {
+      const response = await fetch(`${getBaseUrl()}${path}`, {
         method,
         headers,
         body: bodyInit,
         credentials: 'include', // Always include httpOnly cookies
         signal,
       });
+      noteMaintenanceRevision(response.headers.get('maintenance-revision'));
+      return response;
     } catch (err: any) {
       // fetch rejects when no usable response arrived: server unreachable, a response without the
       // CORS headers, or a timeout (AbortError, indistinguishable from a never-resolving stall).

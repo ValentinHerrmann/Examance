@@ -10,7 +10,7 @@ Warns signed-in teachers before backend downtime, pauses sign-in shortly before,
 |---|---|---|
 | `scheduled` | announcement | info banner ("at 14:00, for a few minutes") |
 | `warning` | `first_warning_at` = start − 5 min (or at once) | 1st reminder dialog: save your work; mentions the 2nd reminder |
-| `final` | `second_warning_at` = start − 1 min (preview: −10 s) | 2nd reminder dialog (shown even if the 1st was closed); new sessions refused (`ERR_MAINTENANCE_LOGIN_BLOCKED`), admins exempt |
+| `final` | `second_warning_at` = start − 1 min (preview, or a lead of at most 1 min: −10 s) | 2nd reminder dialog (shown even if the 1st was closed); new sessions refused (`ERR_MAINTENANCE_LOGIN_BLOCKED`), admins exempt |
 | `down` | manual: `starts_at`; deployment: `frozen_at` (set by CI) | teaching endpoints answer 503 `ERR_MAINTENANCE` (in `get_teaching_teacher`); blocking notice for teachers |
 | `none` | `ended_at`, or `auto_end_at` passed | normal |
 
@@ -20,6 +20,12 @@ Warns signed-in teachers before backend downtime, pauses sign-in shortly before,
 - The sign-in check sits in `advance_sign_in` right before a full session is minted, after a proven factor, so it reveals nothing about an address. `/auth/refresh` is untouched: open sessions survive.
 - 503 is on purpose: the offline queue (`isTransientError`) replays writes refused during `down`, so nothing a teacher saves then is lost. `lib/api/client.ts` never shows the HTTP error modal for the two maintenance codes; it refreshes the notice instead.
 - Phase lookups are cached ~3 s per worker (`_CACHE_SECONDS`); the backup waits 5 s after the freeze for that and for in-flight requests.
+
+## How clients learn of a window
+
+- Idle poll every 15 s (10 s while open, 5 s while down), plus a refetch on focus, visibility, `online` and `pageshow`: background tabs and phones throttle timers, and a preview window lasts only 30 s.
+- `MaintenanceHeaderMiddleware` adds `Maintenance-Revision: N` to `/api/*` responses while a window is open, read only from the worker's fresh phase cache (no DB access). `api/client.ts` refetches when the revision is new to it, so an active teacher sees the reminder with the next request. A missing header means "unknown", never "no window".
+- A device that first sees a window already `down` gets the blocking notice only; there is nothing left to save then.
 
 ## Presence counts
 
