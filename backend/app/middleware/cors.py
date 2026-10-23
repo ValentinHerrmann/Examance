@@ -47,6 +47,6 @@ def add_cors_middleware(app: FastAPI) -> None:
         # Routers send the error code as a response header (``code``); cross-origin it is unreadable
         # unless exposed here, which would hide errors.code.* localization and Retry-After from the
         # SPA.
-        expose_headers=["code", "Retry-After"],
+        expose_headers=["code", "Retry-After", "Maintenance-Revision"],
     )
 

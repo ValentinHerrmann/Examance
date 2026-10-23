@@ -16,6 +16,7 @@ from app.config import settings
 from app.middleware.body_limit import BodyLimitMiddleware
 from app.middleware.cors import add_cors_middleware, is_allowed_origin
 from app.middleware.csp import CSPMiddleware
+from app.middleware.maintenance_header import MaintenanceHeaderMiddleware
 from app.middleware.origin_guard import OriginGuardMiddleware
 from app.middleware.rate_limit import limiter
 from app.routers import (
@@ -30,6 +31,7 @@ from app.routers import (
     latex_assets,
     latex_packages,
     logos,
+    maintenance,
     mfa,
     privacy,
     students,
@@ -250,6 +252,7 @@ def create_app() -> FastAPI:
         app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
     app.add_middleware(OriginGuardMiddleware)
     app.add_middleware(CSPMiddleware)
+    app.add_middleware(MaintenanceHeaderMiddleware)
     add_cors_middleware(app)  # Must be after BodyLimit so CORS headers appear on 413 too
 
     # Routers
@@ -274,6 +277,7 @@ def create_app() -> FastAPI:
     app.include_router(webauthn.router, prefix=API_PREFIX)
     app.include_router(training.router, prefix=API_PREFIX)
     app.include_router(privacy.router, prefix=API_PREFIX)
+    app.include_router(maintenance.router, prefix=API_PREFIX)
 
     @app.get("/api/health", tags=["meta"])
     async def health() -> dict[str, str]:

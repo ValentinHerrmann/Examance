@@ -14,6 +14,7 @@ from app.models.exam import Exam
 from app.models.exercise import Exercise
 from app.models.scan_submission import ScanSubmission
 from app.models.teacher import Teacher
+from app.services import maintenance
 from app.services.exercise_sharing import readable_clause
 from app.services.jwt import decode_token
 
@@ -161,6 +162,7 @@ async def get_admin_teacher(
 
 async def get_teaching_teacher(
     teacher: Teacher = Depends(get_current_teacher),
+    db: AsyncSession = Depends(get_db),
 ) -> Teacher:
     """Require a teacher account: admins manage users and the server only (issue #58).
 
@@ -173,6 +175,8 @@ async def get_teaching_teacher(
             "teacher account.",
             headers={"code": "ERR_TEACHER_ROLE_REQUIRED"},
         )
+    # Maintenance (issue #130): teaching data stays still while it is backed up or migrated.
+    await maintenance.ensure_teaching_allowed(db)
     return teacher
 
 

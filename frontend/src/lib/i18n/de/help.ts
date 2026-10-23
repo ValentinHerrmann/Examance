@@ -276,6 +276,11 @@ export const help = {
                 p1: 'Oben links auf der ersten Seite jeder Klausur steht ein Logo, voreingestellt das MTG-Logo. Unter „Logo für Klausuren“ laden Sie ein eigenes hoch (PNG, JPEG oder PDF, höchstens 2 MB), wählen „Kein Logo“ oder setzen auf das Standardlogo zurück. Ohne Logo bleibt die Stelle frei; das Seitenlayout und die Lage der Ankreuzkästchen ändern sich dadurch nicht. In der Klausurübersicht zeigt jede aufgeklappte Klausur, welches Logo sie druckt.',
                 p2: 'In den Klausurdaten einer Klausur lässt sich das Logo überschreiben: das Logo aus den Einstellungen, kein Logo oder ein eigenes Logo nur für diese Klausur. Das Logo wird wie die Aufgaben auf dem Server gespeichert.',
             },
+            s8: {
+                h: 'Updates und Wartung',
+                p1: 'Vor einem Update oder einer Wartung erinnert Examance Sie zweimal (meist 5 Minuten und 1 Minute vorher), Ihre Arbeit zu speichern. Mit „Ich habe gespeichert“ sieht die Administration, dass Sie bereit sind. Ab der zweiten Erinnerung sind neue Anmeldungen kurz pausiert.',
+                p2: 'Lassen Sie den Tab während der Unterbrechung einfach offen: Gespeichertes ist danach wie gewohnt da, und Änderungen, die in dieser Zeit nicht ankommen, sendet die App anschließend automatisch.',
+            },
         },
         security: {
             title: 'Anmeldung & Sicherheit',
@@ -348,6 +353,11 @@ export const help = {
                 h: 'Für Administratoren: Einladungen und erlaubte Domains',
                 p1: 'Unter Benutzerverwaltung laden Sie Personen per E-Mail ein; das Konto ist sofort freigegeben, und die Person legt über den Link ihr Passwort fest. Offene Registrierungen geben Sie dort frei oder lehnen sie ab; eine Ablehnung löscht die Registrierung.',
                 p2: 'Registrierungen von „immer erlaubten“ Domains werden nach der E-Mail-Bestätigung automatisch freigegeben. Tragen Sie nur Domains ein, deren Postfächer Ihre Einrichtung selbst vergibt, nie öffentliche Anbieter.',
+            },
+            s11: {
+                h: 'Für Administratoren: Wartungsmodus',
+                p1: 'Unter Benutzerverwaltung → Wartung kündigen Sie eine Wartung mit Vorlaufzeit (auch 0 Minuten) und erwarteter Dauer an. Angemeldete Lehrkräfte werden 5 und 1 Minute vorher erinnert (bei höchstens 1 Minute Vorlauf sofort und 10 Sekunden vorher); ab der zweiten Erinnerung ist die Anmeldung für alle außer Administratoren pausiert, ab Beginn sind keine Änderungen an Prüfungsdaten mehr möglich, bis Sie die Wartung beenden. Auf Wunsch wird die Datenbank bei Beginn gesichert; beginnen Sie Ihre Arbeiten erst, wenn die Sicherung fertig ist.',
+                p2: 'Die Zähler zeigen, wie viele Lehrkräfte gerade online sind, wie viele die Ankündigung gesehen und wie viele bestätigt haben, dass sie gespeichert haben. Updates beim Deployment kündigen sich selbst an (5 Minuten Vorlauf) und sichern die Datenbank immer vorher.',
             },
         },
         privacy: {

@@ -142,9 +142,10 @@ services:
           sleep 86400
         done
 
-  # Opt-in daily backup with restic (docs/dev/storage_partitions.md): `COMPOSE_PROFILES=backup`.
-  # Snapshots are complete, deduplicated, compressed and encrypted client-side; retention via
-  # `forget`. An erased record survives until the last snapshot holding it is forgotten.
+  # Opt-in scheduled backup with restic (docs/backup_and_restore.md): `COMPOSE_PROFILES=backup`.
+  # Every night at 00:00 in BACKUP_TZ; weekly/monthly copies are kept from those by `forget`. Never on
+  # container start (a restart must not shift the schedule). Complete, deduplicated, compressed and
+  # encrypted client-side. An erased record survives until the last snapshot holding it is forgotten.
   backup:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -153,6 +154,7 @@ services:
     # Fixed: restic groups snapshots by host, and a random name per deploy would never expire.
     hostname: examance-backup
     environment:
+      TZ: ${BACKUP_TZ:-Europe/Berlin}
       PGHOST: db
       PGUSER: ${POSTGRES_USER:-blindgrade}
       PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
@@ -178,9 +180,15 @@ services:
         set -u
         [ -n "$$RESTIC_REPOSITORY" ] && [ -n "$$RESTIC_PASSWORD" ] \
           || { echo "BACKUP_RESTIC_REPOSITORY and BACKUP_RESTIC_PASSWORD must be set" >&2; exit 1; }
-        apk add --no-cache restic >/dev/null || exit 1
+        apk add --no-cache restic tzdata >/dev/null || exit 1
         restic cat config >/dev/null 2>&1 || restic init || exit 1
+        echo "backup service ready; next snapshot at 00:00 ($$TZ)"
+        last_run=$$(date +%F)
         while true; do
+          sleep 60
+          # Runs once per local date, right after midnight.
+          [ "$$(date +%F)" != "$$last_run" ] || continue
+          last_run=$$(date +%F)
           restic unlock >/dev/null 2>&1
           # Plain SQL (not -Fc): an already compressed dump would never deduplicate.
           restic backup --quiet --tag db --stdin-filename examance.sql \
@@ -193,13 +201,88 @@ services:
           else
             echo "blob snapshot skipped: /data/blobs is not a marked blob store" >&2
           fi
-          # --keep-last: a deploy or restart snapshots at once; --keep-daily alone would then let a
-          # snapshot taken after a data loss push out the good one from earlier the same day.
-          restic forget --quiet --group-by tags --prune --keep-last 10 \
+          # Exactly the configured retention for the scheduled snapshots. `maintenance` snapshots
+          # have their own (maintenance-backup service); `pre-restore` keeps the last ten as well.
+          restic forget --quiet --group-by tags --tag db --tag blobs \
             --keep-daily "$$BACKUP_KEEP_DAILY_DAYS" --keep-weekly "$$BACKUP_KEEP_WEEKLY_WEEKS" \
-            --keep-monthly "$$BACKUP_KEEP_MONTHLY_MONTHS" || echo "forget/prune failed" >&2
+            --keep-monthly "$$BACKUP_KEEP_MONTHLY_MONTHS" || echo "forget failed" >&2
+          restic forget --quiet --group-by tags --tag pre-restore --keep-last 10 \
+            --keep-daily "$$BACKUP_KEEP_DAILY_DAYS" --keep-weekly "$$BACKUP_KEEP_WEEKLY_WEEKS" \
+            --keep-monthly "$$BACKUP_KEEP_MONTHLY_MONTHS" || echo "forget failed" >&2
+          restic prune --quiet || echo "prune failed" >&2
           restic check --quiet || echo "repository check failed" >&2
-          sleep 86400
+        done
+
+  # Database backup before every update and, if the admin asks, before manual maintenance (issue
+  # #130). Independent of `backup`: no profile, restic optional (off-site copy only). It claims a due
+  # backup in maintenance_window (app/models/maintenance_window.py) once teaching writes stopped.
+  maintenance-backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-blindgrade}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      PGDATABASE: ${POSTGRES_DB:-blindgrade}
+      RESTIC_REPOSITORY: ${BACKUP_RESTIC_REPOSITORY:-}
+      RESTIC_PASSWORD: ${BACKUP_RESTIC_PASSWORD:-}
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${BACKUP_S3_REGION:-}
+      RESTIC_CACHE_DIR: /cache
+      BACKUP_KEEP_MAINTENANCE: ${BACKUP_KEEP_MAINTENANCE:-10}
+    volumes:
+      - ./maintenance-backups:/backups
+      - restic_cache:/cache
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -u
+        umask 077
+        offsite=no
+        if [ -n "$$RESTIC_REPOSITORY" ] && [ -n "$$RESTIC_PASSWORD" ]; then
+          apk add --no-cache restic >/dev/null && offsite=yes
+        fi
+        q() { psql -X -q -At -v ON_ERROR_STOP=1 -c "$$1"; }
+        echo "maintenance-backup ready (off-site copy: $$offsite)"
+        while true; do
+          sleep 5
+          # 5 s after the freeze: the backend's phase cache and in-flight requests are through.
+          rev=$$(q "UPDATE maintenance_window SET backup_state = 'running', updated_at = now()
+            WHERE id = 1 AND ended_at IS NULL AND backup_wanted AND backup_state IS NULL
+              AND (auto_end_at IS NULL OR auto_end_at > now())
+              AND ((kind = 'deployment' AND frozen_at <= now() - interval '5 seconds')
+                OR (kind = 'manual' AND starts_at <= now() - interval '5 seconds'))
+            RETURNING revision" 2>/dev/null) || continue
+          [ -n "$$rev" ] || continue
+          file="$$(date -u +%Y%m%dT%H%M%SZ)-rev$$rev.sql"
+          if pg_dump --no-owner > "/backups/$$file.part" && [ -s "/backups/$$file.part" ]; then
+            mv "/backups/$$file.part" "/backups/$$file"
+            next=skipped; [ "$$offsite" = yes ] && next=running
+            q "UPDATE maintenance_window SET backup_state = 'done', backup_file = '$$file',
+              backup_finished_at = now(), offsite_state = '$$next' WHERE id = 1 AND revision = $$rev"
+            echo "maintenance backup $$file done"
+            ls -1t /backups/*.sql | tail -n +"$$((BACKUP_KEEP_MAINTENANCE + 1))" | xargs -r rm -f
+            if [ "$$offsite" = yes ]; then
+              # After "done": the deploy already continues, so the upload costs no downtime.
+              (restic cat config >/dev/null 2>&1 || restic init >/dev/null) \
+                && restic --retry-lock 10m backup --quiet --tag maintenance \
+                  --stdin-filename examance.sql --stdin-from-command -- cat "/backups/$$file" \
+                && restic --retry-lock 10m forget --quiet --tag maintenance \
+                  --keep-last "$$BACKUP_KEEP_MAINTENANCE" --prune \
+                && state=done || state=failed
+              q "UPDATE maintenance_window SET offsite_state = '$$state'
+                WHERE id = 1 AND revision = $$rev" || true
+              echo "maintenance backup off-site copy: $$state"
+            fi
+          else
+            rm -f "/backups/$$file.part"
+            q "UPDATE maintenance_window SET backup_state = 'failed' WHERE id = 1 AND revision = $$rev" || true
+            echo "maintenance backup FAILED" >&2
+          fi
         done
 
 volumes:

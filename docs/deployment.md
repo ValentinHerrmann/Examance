@@ -118,12 +118,17 @@ sequenceDiagram
         GA->>R: force-push same commit without [skip ci]
         R->>CF: build (CF_PAGES_BRANCH=release)
         CF->>CF: vite define __APP_VERSION__ = "1.4.0"
-    and Backend
+    and Backend image
         GA->>GR: build --build-arg APP_VERSION=1.4.0<br/>push :1.4.0 and :latest
+    and Backend deploy
+        GA->>S: ssh — cli maintenance start (5 min warning)
+        GA->>GA: wait for the image build
         GA->>S: ssh — docker login, compose pull
+        S->>S: cli maintenance freeze --wait, wait-backup
         S->>S: compose run --rm migrate (alembic upgrade head)
         S->>S: compose up -d --remove-orphans
         GA->>S: poll /api/health until version == 1.4.0
+        GA->>S: ssh — cli maintenance stop
     end
 ```
 
@@ -132,6 +137,10 @@ The `[skip ci]`-then-amend step matters: the commit landing on `main` carries `[
 After pushing, both deploy workflows' `frontend` job waits for Cloudflare Pages to finish (`.github/scripts/wait-for-cloudflare-pages.sh`, polling the `Cloudflare Pages: <project>` check run Cloudflare posts on the pushed commit; 15 min timeout). A run is therefore green only once the frontend is live, and a failed Pages build fails the run. It uses the job's own `GITHUB_TOKEN` (`checks: read`) — no Cloudflare API token.
 
 Both halves consume the same resolved version, which is what guarantees frontend and backend always ship the same number together.
+
+### Maintenance window on every backend deploy (issue #130)
+
+The `backend-deploy` job starts together with the image build, not after it: its first step announces a deployment maintenance window through the running backend's CLI (production: 5 minutes, second reminder 1 minute before; preview: 30 seconds, second reminder 10 seconds before). Signed-in teachers are reminded to save their work while the image builds, sign-in pauses at the second reminder, and only the freeze, backup and restart are downtime. The job then waits for the "Build backend image" job (GitHub API, `actions: read`), pulls, and runs `maintenance freeze --wait` (waits out the warning, then stops teaching writes) and `maintenance wait-backup` (the `maintenance-backup` service dumps the database). A failed backup aborts the deploy **before** `migrate`. A final `if: always()` step ends the window by revision, so a cancelled preview run never ends the window of the run that replaced it; deployment windows also end by themselves 15 minutes after the freeze. Frontend-only deploys announce nothing. The deploy that introduces this feature runs without a window (the old image has no `maintenance` command). Details: `docs/dev/maintenance_mode.md`.
 
 ## 3. Preview flow
 
@@ -155,8 +164,9 @@ sequenceDiagram
         CF->>CF: __APP_VERSION__ = "1.4.0-PR#123 [18.08.2026 | 14:32]"
         GA->>CF: wait for the "Cloudflare Pages" check run
     and Backend (if changed)
+        GA->>S: ssh — cli maintenance start (30 s warning)
         GA->>GR: push :sha-<full> and :preview
-        GA->>S: ssh — pull, migrate, up -d (project examance-preview)
+        GA->>S: ssh — pull, freeze + backup, migrate, up -d (project examance-preview)
         GA->>S: poll /api/health until version matches
         GA->>GA: force-push PR head to marker branch preview-backend
     end
