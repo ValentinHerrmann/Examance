@@ -20,7 +20,7 @@ export const help = {
         onboardingLink: 'Handbuch öffnen',
         onboardingCta: 'Neu hier? So funktioniert Examance',
         onboardingHint: 'Ein kurzer Überblick über Speicherorte, Aufgaben, Scannen und Korrigieren.',
-        unlockLink: 'Neu hier? So funktioniert Examance',
+        unlockLink: 'Handbuch',
     },
     tips: {
         storageServer: 'Klausuren, Aufgaben und Ergebnisse liegen auf dem Server, aber verschlüsselt: Der Schlüssel bleibt im Browser, der Server kann die Inhalte nicht lesen. Unverschlüsselt sind nur der LaTeX-Quelltext von Aufgaben und Klausuren sowie die Gesamtpunktzahl.',
@@ -44,7 +44,7 @@ export const help = {
                 h: 'Was Examance macht',
                 p1: 'Examance begleitet eine Klausur über den gesamten Ablauf: Aufgaben sammeln, Klausur setzen, gescannte Bögen einlesen, anonym korrigieren und auswerten.',
                 p2: 'Alle sensiblen Daten werden im Browser verschlüsselt, bevor sie gespeichert werden. Der Schlüssel wird aus dem Passwort abgeleitet und verlässt das Gerät nicht.',
-                p3: 'Einen schnellen Überblick geben zwei Poster unter „Examance kennenlernen“ (auf der Anmeldeseite verlinkt): was Examance kann, wie die Oberfläche aussieht und wie Ihre Daten geschützt sind.',
+                p3: 'Einen schnellen Überblick geben zwei Poster unter „Poster: Funktionen & Datenschutz“ (auf der Anmeldeseite verlinkt): was Examance kann, wie die Oberfläche aussieht und wie Ihre Daten geschützt sind.',
                 p4: 'Zum Ausprobieren legt „Beispieldaten hinzufügen“ in der noch leeren Prüfungsübersicht Beispielaufgaben, zwei Beispielprüfungen und bereits korrigierte Bögen erfundener Schülerinnen und Schüler an, darunter gescannte. Sie werden nicht geteilt, wie Ihre eigenen Daten gespeichert und verschlüsselt und lassen sich wie jede Prüfung und Aufgabe wieder löschen.',
             },
             s2: {

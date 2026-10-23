@@ -18,11 +18,5 @@ export const about: Translations['about'] = {
     openPdf: 'Open in new tab',
     downloadPdf: 'Download PDF',
     backToSignIn: 'Back to sign-in',
-    teaser: {
-        title: 'Examance at a glance',
-        text: 'Examance grades exams under pseudonyms and stores results encrypted so that only you can read them.',
-        info: 'Features and privacy',
-        ui: 'Tour of the interface',
-    },
-    headerLink: 'Discover Examance',
+    headerLink: 'Posters: features & privacy',
 };

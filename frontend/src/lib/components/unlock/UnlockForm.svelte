@@ -1,15 +1,10 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import BackendUrlInput from "#lib/components/common/BackendUrlInput.svelte";
-  import PosterTeaser from "#lib/components/about/PosterTeaser.svelte";
   import { t } from "#lib/i18n";
-  import {
-    faArrowRight,
-    faCircleQuestion,
-    faCloud,
-    faLightbulb,
-    faKey,
-  } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Badge, Button, Card, Field, Icon, TextInput } from "#lib/components/ui";
+  import { stripBackendProtocol } from "#lib/stores/backendStore";
+  import { faKey, faUserPlus } from "@fortawesome/free-solid-svg-icons";
+  import { Alert, Button, Card, Field, TextInput } from "#lib/components/ui";
 
   interface Props {
     backendUrl: string;
@@ -34,63 +29,51 @@
     onUnlock,
     onPasskey,
   }: Props = $props();
+
+  // A remembered server is shown as one line so the page fits on one screen (issue #128).
+  let editServer = $state(untrack(() => !backendUrl.trim()));
 </script>
 
-<div class="mb-4 text-center sm:mb-5">
-  <img src="/favicon.png" alt="Examance logo" class="mx-auto mb-2 size-12 rounded-xl object-contain" />
+<div class="mb-3 text-center">
+  <img src="/favicon.png" alt="Examance logo" class="mx-auto mb-2 size-10 rounded-xl object-contain" />
   <h1 class="m-0 text-2xl font-normal text-content">{$t("auth.unlock.title")}</h1>
-  <p class="mt-2 mb-0 text-base text-muted">{$t("auth.unlock.subtitle")}</p>
-  <!-- The very first screen someone sees, and the one place where no workspace
-       exists yet to explain itself. /help is a public path, so this works while
-       locked. -->
-  <div class="mt-3 flex flex-wrap justify-center gap-2">
-    <Button
-      href="/help"
-      variant="outlined"
-      severity="primary"
-      size="sm"
-      icon={faCircleQuestion}
-      iconRight={faArrowRight}
-    >
-      {$t("help.ui.unlockLink")}
-    </Button>
-    <Button href="/about" variant="outlined" severity="secondary" size="sm" icon={faLightbulb}>
-      {$t("about.headerLink")}
-    </Button>
-  </div>
+  <p class="mt-1 mb-0 text-sm text-muted">{$t("auth.unlock.subtitle")}</p>
 </div>
 
 {#if errorMsg}
-  <Alert severity="danger" class="mb-5">{errorMsg}</Alert>
+  <Alert severity="danger" class="mx-auto mb-3 w-full max-w-form">{errorMsg}</Alert>
 {/if}
 {#if infoMsg}
-  <Alert severity="info" class="mb-5">{infoMsg}</Alert>
+  <Alert severity="info" class="mx-auto mb-3 w-full max-w-form">{infoMsg}</Alert>
 {/if}
 
 <div class="mx-auto w-full max-w-form">
-  <Card padded={false} class="relative flex flex-col p-5 sm:p-6">
-    <Badge severity="info" class="absolute top-3 right-3 sm:top-5 sm:right-5">
-      {$t("auth.unlock.cloud.schoolAccount")}
-    </Badge>
-    <div class="mb-2 flex items-center gap-3 pr-24">
-      <Icon icon={faCloud} class="shrink-0 text-3xl text-info-fg" />
-      <h2 class="m-0 text-xl font-medium text-content">{$t("auth.unlock.cloud.connectToServer")}</h2>
-    </div>
-    <p class="m-0 mb-3 text-sm leading-snug text-muted">
-      {$t("auth.unlock.cloud.description")}
-    </p>
-
+  <Card padded={false} class="flex flex-col p-5 sm:p-6">
     <form onsubmit={(e) => { e.preventDefault(); onUnlock(); }} class="flex flex-col gap-3">
-      <Field forId="backendUrl" label={$t("auth.unlock.cloud.backendUrl")}>
-        {#snippet children({ id })}
-          <BackendUrlInput
-            {id}
-            bind:value={backendUrl}
-            placeholder={$t("auth.unlock.cloud.backendUrlPlaceholder")}
-            required
-          />
-        {/snippet}
-      </Field>
+      {#if editServer}
+        <Field forId="backendUrl" label={$t("auth.unlock.cloud.backendUrl")}>
+          {#snippet children({ id })}
+            <BackendUrlInput
+              {id}
+              bind:value={backendUrl}
+              placeholder={$t("auth.unlock.cloud.backendUrlPlaceholder")}
+              required
+            />
+          {/snippet}
+        </Field>
+      {:else}
+        <p class="m-0 flex min-w-0 items-center gap-2 text-sm text-muted">
+          <span class="shrink-0">{$t("auth.unlock.cloud.serverSummary")}</span>
+          <span class="min-w-0 truncate font-mono text-content">{stripBackendProtocol(backendUrl)}</span>
+          <button
+            type="button"
+            class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-accent hover:underline pointer-coarse:min-h-11"
+            onclick={() => (editServer = true)}
+          >
+            {$t("auth.unlock.cloud.changeServer")}
+          </button>
+        </p>
+      {/if}
 
       <Field forId="email" label={$t("auth.unlock.cloud.email")}>
         {#snippet children({ id })}
@@ -139,12 +122,22 @@
         <p class="m-0 text-center text-xs text-muted">{$t("auth.unlock.cloud.passkeyHint")}</p>
       {/if}
 
-      <p class="m-0 text-center text-sm text-muted">
-        {$t("auth.unlock.cloud.noAccount")}
-        <a href="/register" class="text-accent no-underline hover:underline">{$t("auth.unlock.cloud.register")}</a>
-      </p>
     </form>
+
+    <!-- Registration is a first-class action, not a footnote (issue #128). -->
+    <div class="mt-4 flex flex-col gap-2 border-t border-line pt-4">
+      <p class="m-0 text-center text-sm text-muted">{$t("auth.unlock.cloud.noAccount")}</p>
+      <Button href="/register" variant="outlined" severity="primary" block icon={faUserPlus}>
+        {$t("auth.unlock.cloud.register")}
+      </Button>
+    </div>
   </Card>
 </div>
 
-<PosterTeaser class="mt-4" />
+<!-- /help and /about are public paths, so both work while signed out. -->
+<p class="mx-auto mt-3 mb-0 flex w-full max-w-form flex-wrap justify-center gap-x-2 gap-y-1 text-sm text-muted">
+  <span>{$t("auth.unlock.cloud.newHere")}</span>
+  <a href="/help" class="text-accent no-underline hover:underline">{$t("help.ui.unlockLink")}</a>
+  <span aria-hidden="true">·</span>
+  <a href="/about" class="text-accent no-underline hover:underline">{$t("about.headerLink")}</a>
+</p>
