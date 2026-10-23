@@ -15,9 +15,8 @@ export const auth = {
         enrolledEnterNextCode: 'Authenticator-App eingerichtet. Geben Sie den nächsten Code aus der App ein, um die Anmeldung abzuschließen.',
         approvalPending: 'Ihr Konto wartet noch auf die Freigabe durch die Administration. Sie erhalten eine E-Mail, sobald es freigeschaltet ist.',
         cloud: {
-            schoolAccount: 'Schulkonto',
-            connectToServer: 'Mit Cloud-Server verbinden',
-            description: 'Prüfungen geräteübergreifend synchronisieren und mit dem Backend-Server Ihrer Einrichtung verbinden.',
+            serverSummary: 'Server:',
+            changeServer: 'Ändern',
             backendUrl: 'Backend-Server-URL',
             backendUrlPlaceholder: 'localhost:8000',
             email: 'E-Mail',
@@ -31,6 +30,7 @@ export const auth = {
             or: 'oder',
             noAccount: 'Noch kein Konto?',
             register: 'Konto beantragen',
+            newHere: 'Neu hier?',
         },
     },
     forgotPassword: {

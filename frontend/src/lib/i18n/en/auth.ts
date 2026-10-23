@@ -17,9 +17,8 @@ export const auth: Translations['auth'] = {
         enrolledEnterNextCode: 'Authenticator set up. Enter the next code from the app to finish signing in.',
         approvalPending: 'Your account is waiting for an administrator to approve it. You will get an email as soon as it is approved.',
         cloud: {
-            schoolAccount: 'School Account',
-            connectToServer: 'Connect to Cloud Server',
-            description: "Sync exams across devices and connect with your institution's backend server.",
+            serverSummary: 'Server:',
+            changeServer: 'Change',
             backendUrl: 'Backend Server URL',
             backendUrlPlaceholder: 'localhost:8000',
             email: 'Email',
@@ -33,6 +32,7 @@ export const auth: Translations['auth'] = {
             or: 'or',
             noAccount: 'No account yet?',
             register: 'Request an account',
+            newHere: 'New here?',
         },
     },
     forgotPassword: {

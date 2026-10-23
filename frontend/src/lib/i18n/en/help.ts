@@ -20,7 +20,7 @@ export const help: Translations['help'] = {
         onboardingLink: 'Open the manual',
         onboardingCta: 'New here? How Examance works',
         onboardingHint: 'A short overview of storage, exercises, scanning and grading.',
-        unlockLink: 'New here? How Examance works',
+        unlockLink: 'User guide',
     },
     tips: {
         storageServer: 'Exams, exercises and results live on the server, but encrypted: the key stays in the browser, so the server cannot read the contents. Only the LaTeX source of exercises and exams and the total score are unencrypted.',
@@ -44,7 +44,7 @@ export const help: Translations['help'] = {
                 h: 'What Examance does',
                 p1: 'Examance covers an exam end to end: collect exercises, typeset the exam, import the scanned sheets, grade them anonymously, and analyse the results.',
                 p2: 'All sensitive data is encrypted in the browser before it is stored. The key is derived from your password and never leaves the device.',
-                p3: 'For a quick overview, two posters under "Discover Examance" (linked from the sign-in page) show what Examance does, what the interface looks like and how your data is protected.',
+                p3: 'For a quick overview, two posters under "Posters: features & privacy" (linked from the sign-in page) show what Examance does, what the interface looks like and how your data is protected.',
                 p4: 'To try things out, "Add example data" in the still empty exam overview creates example exercises, two example exams and already graded sheets of invented students, some of them scanned. They are not shared, are stored and encrypted like your own data, and can be deleted like any exam and exercise.',
             },
             s2: {

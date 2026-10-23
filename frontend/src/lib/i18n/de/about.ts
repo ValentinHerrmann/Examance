@@ -16,11 +16,5 @@ export const about = {
     openPdf: 'In neuem Tab öffnen',
     downloadPdf: 'PDF herunterladen',
     backToSignIn: 'Zur Anmeldung',
-    teaser: {
-        title: 'Examance auf einen Blick',
-        text: 'Examance korrigiert Prüfungen pseudonym und speichert Ergebnisse so verschlüsselt, dass nur Sie sie lesen können.',
-        info: 'Funktionen und Datenschutz',
-        ui: 'Rundgang durch die Oberfläche',
-    },
-    headerLink: 'Examance kennenlernen',
+    headerLink: 'Poster: Funktionen & Datenschutz',
 } as const;
