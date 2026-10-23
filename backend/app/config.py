@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from typing import Literal
 from urllib.parse import urlparse
 
 from pydantic import Field, field_validator, model_validator
@@ -117,6 +118,11 @@ class Settings(BaseSettings):
     # Up to 100 donated checkbox crops (3840 B raw, ~5.1 KB base64) plus features.
     BODY_LIMIT_TRAINING: int = 1 * 1024 * 1024      # 1 MB
     BODY_LIMIT_DEFAULT: int = 256 * 1024             # 256 KB
+
+    # Storage partitions (issue #114, docs/dev/storage_partitions.md). "db" keeps scans in Postgres;
+    # "fs" writes new ones under BLOB_STORAGE_DIR (local dir or rclone mount). Reads accept both.
+    BLOB_STORAGE_BACKEND: Literal["db", "fs"] = "db"
+    BLOB_STORAGE_DIR: str | None = None
 
     # Initial admin bootstrap credentials
     INITIAL_ADMIN_EMAIL: str | None = None
@@ -245,6 +251,12 @@ class Settings(BaseSettings):
                 "there. Point FRONTEND_URL at a custom domain (ideally sharing the registrable "
                 "domain of SMTP_FROM_EMAIL), or leave SMTP_HOST unset to disable email delivery."
             )
+        return self
+
+    @model_validator(mode="after")
+    def require_blob_dir(self) -> Settings:
+        if self.BLOB_STORAGE_BACKEND == "fs" and not self.BLOB_STORAGE_DIR:
+            raise ValueError("BLOB_STORAGE_BACKEND=fs needs BLOB_STORAGE_DIR.")
         return self
 
     @model_validator(mode="after")

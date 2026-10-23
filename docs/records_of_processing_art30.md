@@ -37,7 +37,8 @@ Fields in *[brackets]* must be completed. Technical fields are pre-filled from t
 - **Resilience and abuse resistance:** rate limiting on authentication endpoints (including the two registration endpoints, 20 per hour per IP) plus a per-address cooldown on verification mails, identical answers for known and unknown addresses so that registration is not an account-existence oracle, request body size limits, strict CORS allowlist, Origin checks on state-changing requests, sandboxed LaTeX compilation.
 - **Confidentiality of statistics:** class statistics are suppressed below k = 5.
 - **Accountability:** append-only audit trail of logins, exports and deletions, and of registrations, approvals, rejections, feature changes and allowed-domain changes, with IP addresses stored only as hashes.
-- **Availability:** *[describe backup and restore arrangements — the application does not provide them]*.
+- **Availability:** optional daily backups (`backup` service, `docs/dev/storage_partitions.md`): restic snapshots of the database and the scan files, encrypted before upload (AES-256) and kept daily, weekly and monthly (defaults: 7 days, 4 weeks, 3 months). An erased record therefore survives in backups for at most about `BACKUP_KEEP_MONTHLY_MONTHS` months (3 by default), plus the in-app grace period. *[name the backup provider and location, and confirm the restore procedure has been tested]*.
+- **Storage locations:** the database sits on the server. Scanned answer sheets (client-side encrypted) can be stored on a separate disk or a cloud store mounted via rclone (`BLOB_STORAGE_DIR`). *[name the provider and location if used]*.
 
 ---
 

@@ -33,6 +33,12 @@ x-backend-env: &backend-env
   REGISTRATION_TOKEN_TTL_HOURS: ${REGISTRATION_TOKEN_TTL_HOURS:-24}
   REGISTRATION_RESEND_COOLDOWN_SECONDS: ${REGISTRATION_RESEND_COOLDOWN_SECONDS:-300}
   PENDING_ACCOUNT_RETENTION_DAYS: ${PENDING_ACCOUNT_RETENTION_DAYS:-90}
+  # Scan file partition (docs/dev/storage_partitions.md). Empty dir = scans stay in Postgres.
+  BLOB_STORAGE_BACKEND: ${BLOB_STORAGE_BACKEND:-db}
+  BLOB_STORAGE_DIR: ${BLOB_STORAGE_DIR:-}
+
+# Host dir (e.g. an rclone mount) or the named volume; mounted into every service touching scans.
+x-blob-volume: &blob-volume ${BLOB_STORAGE_HOST_DIR:-blob_data}:/data/blobs
 
 services:
   db:
@@ -71,6 +77,8 @@ services:
       db:
         condition: service_healthy
     command: ["alembic", "upgrade", "head"]
+    volumes:
+      - *blob-volume
     profiles:
       - tools
     restart: "no"
@@ -87,6 +95,7 @@ services:
     # 504/524 that browsers report as a CORS error). Public TeX files only, never exam content.
     volumes:
       - tectonic_cache:/var/cache/tectonic
+      - *blob-volume
     depends_on:
       db:
         condition: service_healthy
@@ -120,6 +129,8 @@ services:
     image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
     restart: unless-stopped
     environment: *backend-env
+    volumes:
+      - *blob-volume
     depends_on:
       db:
         condition: service_healthy
@@ -131,9 +142,71 @@ services:
           sleep 86400
         done
 
+  # Opt-in daily backup with restic (docs/dev/storage_partitions.md): `COMPOSE_PROFILES=backup`.
+  # Snapshots are complete, deduplicated, compressed and encrypted client-side; retention via
+  # `forget`. An erased record survives until the last snapshot holding it is forgotten.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    profiles:
+      - backup
+    # Fixed: restic groups snapshots by host, and a random name per deploy would never expire.
+    hostname: examance-backup
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-blindgrade}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      PGDATABASE: ${POSTGRES_DB:-blindgrade}
+      RESTIC_REPOSITORY: ${BACKUP_RESTIC_REPOSITORY:-}
+      RESTIC_PASSWORD: ${BACKUP_RESTIC_PASSWORD:-}
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${BACKUP_S3_REGION:-}
+      RESTIC_CACHE_DIR: /cache
+      BACKUP_KEEP_DAILY_DAYS: ${BACKUP_KEEP_DAILY_DAYS:-7}
+      BACKUP_KEEP_WEEKLY_WEEKS: ${BACKUP_KEEP_WEEKLY_WEEKS:-4}
+      BACKUP_KEEP_MONTHLY_MONTHS: ${BACKUP_KEEP_MONTHLY_MONTHS:-3}
+    volumes:
+      - ${BLOB_STORAGE_HOST_DIR:-blob_data}:/data/blobs:ro
+      - restic_cache:/cache
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -u
+        [ -n "$$RESTIC_REPOSITORY" ] && [ -n "$$RESTIC_PASSWORD" ] \
+          || { echo "BACKUP_RESTIC_REPOSITORY and BACKUP_RESTIC_PASSWORD must be set" >&2; exit 1; }
+        apk add --no-cache restic >/dev/null || exit 1
+        restic cat config >/dev/null 2>&1 || restic init || exit 1
+        while true; do
+          restic unlock >/dev/null 2>&1
+          # Plain SQL (not -Fc): an already compressed dump would never deduplicate.
+          restic backup --quiet --tag db --stdin-filename examance.sql \
+            --stdin-from-command -- pg_dump --no-owner \
+            && echo "db snapshot done" || echo "db snapshot failed" >&2
+          # Never back up an unmarked dir: a dropped mount would look like "every scan deleted".
+          if [ -f /data/blobs/.examance-blobstore ]; then
+            restic backup --quiet --tag blobs /data/blobs \
+              && echo "blob snapshot done" || echo "blob snapshot failed" >&2
+          else
+            echo "blob snapshot skipped: /data/blobs is not a marked blob store" >&2
+          fi
+          # --keep-last: a deploy or restart snapshots at once; --keep-daily alone would then let a
+          # snapshot taken after a data loss push out the good one from earlier the same day.
+          restic forget --quiet --group-by tags --prune --keep-last 10 \
+            --keep-daily "$$BACKUP_KEEP_DAILY_DAYS" --keep-weekly "$$BACKUP_KEEP_WEEKLY_WEEKS" \
+            --keep-monthly "$$BACKUP_KEEP_MONTHLY_MONTHS" || echo "forget/prune failed" >&2
+          restic check --quiet || echo "repository check failed" >&2
+          sleep 86400
+        done
+
 volumes:
   pg_data:
   tectonic_cache:
+  blob_data:
+  restic_cache:
 
 
 networks:

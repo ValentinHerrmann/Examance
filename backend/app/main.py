@@ -38,6 +38,7 @@ from app.routers import (
     user,
     webauthn,
 )
+from app.services import blob_store
 
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
@@ -64,6 +65,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         else:
             logging.getLogger("app.main").info(
                 "SMTP_HOST is not set; running email service in development log-only mode."
+            )
+
+    if blob_store.configured():
+        try:
+            logging.getLogger("app.main").info("Blob store at %s", blob_store.root())
+        except blob_store.BlobStoreUnavailable as exc:
+            logging.getLogger("app.main").exception(
+                "Blob store unavailable, scan reads and writes will fail: %s", exc.reason
             )
 
     # The login throttle and the single-use pending tokens both live in this
@@ -270,7 +279,15 @@ def create_app() -> FastAPI:
     async def health() -> dict[str, str]:
         # `version` is deliberately public: the frontend uses it to detect an incompatible server
         # (differing major version). No auth, crypto or retention behaviour depends on it.
-        return {"status": "ok", "version": settings.APP_VERSION}
+        body = {"status": "ok", "version": settings.APP_VERSION}
+        if blob_store.configured():
+            # Reported, not fatal: everything except scan reads/writes keeps working.
+            try:
+                blob_store.root()
+                body["blob_store"] = "ok"
+            except blob_store.BlobStoreUnavailable:
+                body["blob_store"] = "unavailable"
+        return body
 
     return app
 
