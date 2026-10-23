@@ -1,0 +1,40 @@
+# Maintenance mode (issue #130)
+
+Warns signed-in teachers before backend downtime, pauses sign-in shortly before, freezes teaching writes while it runs, and backs up the database first. Operator view: `docs/deployment.md` (deploy flow), `docs/backup_and_restore.md` (restores).
+
+## One window, five phases
+
+`maintenance_window` holds at most one row (id 1); a new start replaces it and increments `revision`. The phase is decided only by `backend/app/services/maintenance.py` (`WindowState.phase`); the frontend mirrors it in `phaseAt` (`lib/stores/maintenanceStore.ts`) only to move the countdown between polls.
+
+| Phase | From | Effect |
+|---|---|---|
+| `scheduled` | announcement | info banner ("at 14:00, for a few minutes") |
+| `warning` | `first_warning_at` = start − 5 min (or at once) | 1st reminder dialog: save your work; mentions the 2nd reminder |
+| `final` | `second_warning_at` = start − 1 min (preview: −10 s) | 2nd reminder dialog (shown even if the 1st was closed); new sessions refused (`ERR_MAINTENANCE_LOGIN_BLOCKED`), admins exempt |
+| `down` | manual: `starts_at`; deployment: `frozen_at` (set by CI) | teaching endpoints answer 503 `ERR_MAINTENANCE` (in `get_teaching_teacher`); blocking notice for teachers |
+| `none` | `ended_at`, or `auto_end_at` passed | normal |
+
+- A deployment is `down` only once CI froze it, so a slow image build leaves teachers in `final` ("any moment now") instead of locking them out while nothing happens.
+- `auto_end_at` = freeze (or start) + 15 min for deployments: a cancelled or crashed run never leaves the app frozen. Manual windows end only by an admin.
+- `end(revision)` / `freeze(revision)` act only on that revision: a cancelled preview run must not end the window of the run that replaced it.
+- The sign-in check sits in `advance_sign_in` right before a full session is minted, after a proven factor, so it reveals nothing about an address. `/auth/refresh` is untouched: open sessions survive.
+- 503 is on purpose: the offline queue (`isTransientError`) replays writes refused during `down`, so nothing a teacher saves then is lost. `lib/api/client.ts` never shows the HTTP error modal for the two maintenance codes; it refreshes the notice instead.
+- Phase lookups are cached ~3 s per worker (`_CACHE_SECONDS`); the backup waits 5 s after the freeze for that and for in-flight requests.
+
+## Presence counts
+
+Signed-in teachers' polls of the public `GET /api/v1/maintenance` mark them online (90 s window) and, while a window is open, "warned" for its revision; "I've saved my work" (`POST /maintenance/ready`) marks "ready". Stored in Redis sorted sets (`ephemeral_store.mark_member` / `members_since`, in-memory fallback without Redis) under a SHA-256 of the account id, expiring after 2 h; only counts leave the server (`GET /admin/maintenance`). Redis configured but unreachable: counts are `null` and the UI says "unknown", never 0. Admin sessions are not counted. The rate limit is 600/min per IP because a school's teachers share one address.
+
+## Deploy integration
+
+Both deploy workflows' `backend-deploy` job (see `docs/deployment.md`):
+
+1. `cli maintenance start --kind deployment --lead-seconds 300 --second-warning-seconds 60` through the **running** image (`docker compose exec backend python -m app.cli`), in parallel with the image build. Keep the CLI's names and options stable: CI always calls the previous release's CLI. No revision (first deploy of the feature, no stack): the deploy runs as before.
+2. Wait for the image build job, pull.
+3. `maintenance freeze --wait --revision N` (sleeps until `starts_at`, at most 15 min, then freezes), `maintenance wait-backup --revision N` (fails on `failed` or after 15 min): the deploy aborts before `migrate` on any failure.
+4. migrate, `up -d`, health check (unchanged).
+5. `if: always()`: `maintenance stop --revision N`.
+
+## Maintenance backup
+
+The `maintenance-backup` compose service (no profile; independent of the nightly `backup` service) polls every 5 s and claims a due backup with one conditional `UPDATE ... RETURNING revision` (`backup_wanted`, `backup_state IS NULL`, frozen or manual start passed by 5 s). It writes `maintenance-backups/<UTC>-rev<N>.sql` (`pg_dump --no-owner`, `.part` then rename, umask 077), sets `backup_state` `done`/`failed`, keeps the newest `BACKUP_KEEP_MAINTENANCE` files, then (CI already continued) uploads the file to restic with tag `maintenance` when a repository is configured and records `offsite_state`. Its SQL is coupled to the table: rename a column and the service breaks. Deployments always back up; manual windows when the admin keeps "back up first" on. Restore: `./restore-backup.sh maintenance [latest|<file>|<id>]`.

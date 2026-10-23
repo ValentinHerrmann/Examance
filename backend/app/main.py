@@ -30,6 +30,7 @@ from app.routers import (
     latex_assets,
     latex_packages,
     logos,
+    maintenance,
     mfa,
     privacy,
     students,
@@ -274,6 +275,7 @@ def create_app() -> FastAPI:
     app.include_router(webauthn.router, prefix=API_PREFIX)
     app.include_router(training.router, prefix=API_PREFIX)
     app.include_router(privacy.router, prefix=API_PREFIX)
+    app.include_router(maintenance.router, prefix=API_PREFIX)
 
     @app.get("/api/health", tags=["meta"])
     async def health() -> dict[str, str]:

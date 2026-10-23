@@ -5,14 +5,20 @@ never by an in-process scheduler, which would duplicate work across workers."""
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import click
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.config import settings  # noqa: F401 — validates config at import
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.services.maintenance import WindowState
 
 
 @click.group()
@@ -455,6 +461,146 @@ def export_openapi(output: str) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(openapi_schema, indent=2) + "\n", encoding="utf-8")
     click.echo(f"Exported OpenAPI specification to {out_path}")
+
+
+# Deploy workflows call these through the *running* (previous) image: keep names and options
+# stable, or the next deploy runs without maintenance (docs/deployment.md).
+@cli.group("maintenance")
+def maintenance_group() -> None:
+    """Announce, freeze and end maintenance windows (issue #130)."""
+
+
+async def _in_session[T](action: Callable[[AsyncSession], Awaitable[T]]) -> T:
+    from app.database import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as db:
+        try:
+            result = await action(db)
+            await db.commit()
+            return result
+        except (OperationalError, ProgrammingError) as exc:
+            _raise_schema_hint(exc)
+
+
+@maintenance_group.command("start")
+@click.option("--kind", type=click.Choice(["deployment", "manual"]), default="deployment")
+@click.option("--lead-seconds", type=click.IntRange(min=0), default=300, show_default=True)
+@click.option("--second-warning-seconds", type=click.IntRange(min=0), default=60, show_default=True)
+@click.option(
+    "--class",
+    "downtime_class",
+    type=click.Choice(["very_short", "short", "long", "unspecific"]),
+    default="very_short",
+    show_default=True,
+)
+@click.option("--backup/--no-backup", default=True, help="Manual windows only; deployments always.")
+def maintenance_start(
+    kind: str, lead_seconds: int, second_warning_seconds: int, downtime_class: str, backup: bool
+) -> None:
+    """Announce a window; prints its revision (pass it to freeze/wait-backup/stop)."""
+    from app.services import maintenance
+
+    async def _start(db: AsyncSession) -> WindowState:
+        return await maintenance.start(
+            db,
+            kind=kind,  # type: ignore[arg-type]
+            downtime_class=downtime_class,  # type: ignore[arg-type]
+            lead_seconds=lead_seconds,
+            second_warning_seconds=second_warning_seconds,
+            backup=backup,
+        )
+
+    state = asyncio.run(_in_session(_start))
+    click.echo(state.revision)
+
+
+@maintenance_group.command("freeze")
+@click.option("--revision", type=int, required=True)
+@click.option("--wait", is_flag=True, help="First wait for the announced start (at most 15 min).")
+def maintenance_freeze(revision: int, wait: bool) -> None:
+    """Deployment: stop teaching writes, so the backup is consistent."""
+    import time
+
+    from app.services import maintenance
+
+    async def _load(db: AsyncSession) -> WindowState | None:
+        return await maintenance.load(db, fresh=True)
+
+    async def _freeze(db: AsyncSession) -> bool:
+        return await maintenance.freeze(db, revision)
+
+    if wait:
+        state = asyncio.run(_in_session(_load))
+        if state is not None and state.revision == revision:
+            remaining = (state.starts_at - maintenance.now_utc()).total_seconds()
+            if remaining > 0:
+                click.echo(f"Waiting {remaining:.0f}s for the announced start.")
+                time.sleep(min(remaining, 900))
+
+    if not asyncio.run(_in_session(_freeze)):
+        raise click.ClickException(f"Window {revision} is not open (ended, expired or replaced).")
+    click.echo(f"Window {revision} frozen.")
+
+
+@maintenance_group.command("wait-backup")
+@click.option("--revision", type=int, required=True)
+@click.option("--timeout", "timeout_seconds", type=click.IntRange(min=1), default=900)
+def maintenance_wait_backup(revision: int, timeout_seconds: int) -> None:
+    """Wait for the maintenance-backup service; fails on a failed backup or timeout."""
+    import time
+
+    from app.services import maintenance
+
+    async def _load(db: AsyncSession) -> WindowState | None:
+        return await maintenance.load(db, fresh=True)
+
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        state = asyncio.run(_in_session(_load))
+        if state is None or state.revision != revision:
+            raise click.ClickException(f"Window {revision} was replaced or never started.")
+        if state.backup_state == "done":
+            click.echo(f"Backup done: {state.backup_file}")
+            return
+        if state.backup_state == "failed":
+            raise click.ClickException("Maintenance backup failed; see the maintenance-backup log.")
+        if time.monotonic() > deadline:
+            raise click.ClickException(
+                "No maintenance backup in time. Is the maintenance-backup service running?"
+            )
+        time.sleep(2)
+
+
+@maintenance_group.command("stop")
+@click.option("--revision", type=int, default=None, help="Only end this window.")
+def maintenance_stop(revision: int | None) -> None:
+    """End the open window (no-op if it is already over or was replaced)."""
+    from app.services import maintenance
+
+    async def _end(db: AsyncSession) -> bool:
+        return await maintenance.end(db, revision)
+
+    ended = asyncio.run(_in_session(_end))
+    click.echo("Window ended." if ended else "No matching open window.")
+
+
+@maintenance_group.command("status")
+def maintenance_status() -> None:
+    """Show the current window and its phase."""
+    from app.services import maintenance
+
+    async def _load(db: AsyncSession) -> WindowState | None:
+        return await maintenance.load(db, fresh=True)
+
+    state = asyncio.run(_in_session(_load))
+    if state is None:
+        click.echo("No maintenance window.")
+        return
+    click.echo(
+        f"revision={state.revision} kind={state.kind} phase={state.phase(maintenance.now_utc())} "
+        f"starts_at={state.starts_at.isoformat()} backup={state.backup_state or '-'} "
+        f"offsite={state.offsite_state or '-'}"
+    )
 
 
 if __name__ == "__main__":

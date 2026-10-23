@@ -160,22 +160,87 @@ jobs:
             ${{ steps.meta.outputs.image }}
             ${{ steps.meta.outputs.latest }}
 
+  # Starts with `version`, not after the image build: the maintenance warning (issue #130) runs
+  # while the image builds, so only the restart itself is downtime. See docs/deployment.md.
   backend-deploy:
     name: Deploy backend (production)
-    needs: [version, backend-image]
+    needs: version
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     permissions:
       contents: read
       # Lets this job's own GITHUB_TOKEN pull from GHCR — each job mints its
       # own token, valid for that job's duration, so no long-lived PAT is
       # needed just to let the server authenticate during this run.
       packages: read
+      # Waits for the "Build backend image" job of this run.
+      actions: read
     environment:
       name: production
       url: ${{ vars.BACKEND_PUBLIC_URL || 'https://api-examance.valentin-herrmann.com/' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Compute image reference
+        id: meta
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Same reference the backend-image job pushes.
+          OWNER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          echo "image=ghcr.io/${OWNER}/${IMAGE_NAME}:${VERSION}" >> "$GITHUB_OUTPUT"
+
+      # Teachers get 5 minutes' warning (2nd reminder 1 minute before). Prints the window's
+      # revision; without one (first deploy of the feature, no stack yet) the deploy runs as before.
+      - name: Announce maintenance
+        id: announce
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          DEPLOY_APP_DIR: ${{ vars.DEPLOY_APP_DIR }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || '22' }}
+          envs: DEPLOY_APP_DIR
+          capture_stdout: true
+          script: |
+            set -eu
+            cd "${DEPLOY_APP_DIR:?}/prod" 2>/dev/null || { echo "No stack yet."; exit 0; }
+            COMPOSE="docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env"
+            REV=$($COMPOSE exec -T backend python -m app.cli maintenance start \
+              --kind deployment --lead-seconds 300 --second-warning-seconds 60 --class very_short \
+              | tail -n1) || REV=""
+            echo "MAINTENANCE_REVISION=${REV}"
+
+      - name: Read maintenance revision
+        id: maint
+        env:
+          STDOUT: ${{ steps.announce.outputs.stdout }}
+        run: |
+          REV=$(printf '%s\n' "$STDOUT" | sed -n 's/^MAINTENANCE_REVISION=\([0-9][0-9]*\)$/\1/p' | tail -n1)
+          echo "revision=${REV}" >> "$GITHUB_OUTPUT"
+          echo "Maintenance window: ${REV:-none}"
+
+      - name: Wait for the backend image build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 270); do
+            STATE=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/jobs" \
+              --jq '.jobs[] | select(.name == "Build backend image") | "\(.status) \(.conclusion)"' | head -n1)
+            case "$STATE" in
+              "completed success") echo "Image built."; exit 0 ;;
+              completed*) echo "ERROR: image build ended as '${STATE}'." >&2; exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "ERROR: image build did not finish within 45 minutes." >&2
+          exit 1
 
       # The compose file travels inside the SSH step (base64 in an env var)
       # instead of a separate scp-action step: one connection instead of two,
@@ -186,12 +251,12 @@ jobs:
           echo "b64=$(base64 -w0 deploy/docker-compose.deploy.yml)" >> "$GITHUB_OUTPUT"
           echo "restore_b64=$(base64 -w0 deploy/restore-backup.sh)" >> "$GITHUB_OUTPUT"
 
-      - name: Pull image, migrate and restart
+      - name: Pull image, back up, migrate and restart
         # v1 is a composite action (prebuilt binary); v0.1.x was Docker-based
         # and spent its first ~20s building a container image.
         uses: appleboy/ssh-action@v1.2.5
         env:
-          BACKEND_IMAGE: ${{ needs.backend-image.outputs.image }}
+          BACKEND_IMAGE: ${{ steps.meta.outputs.image }}
           APP_VERSION: ${{ needs.version.outputs.version }}
           DEPLOY_APP_DIR: ${{ vars.DEPLOY_APP_DIR }}
           REGISTRY_USER: ${{ github.actor }}
@@ -200,12 +265,15 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMPOSE_B64: ${{ steps.compose.outputs.b64 }}
           RESTORE_B64: ${{ steps.compose.outputs.restore_b64 }}
+          MAINTENANCE_REVISION: ${{ steps.maint.outputs.revision }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || '22' }}
-          envs: BACKEND_IMAGE,APP_VERSION,DEPLOY_APP_DIR,REGISTRY_USER,REGISTRY_TOKEN,COMPOSE_B64,RESTORE_B64
+          # Includes waiting out the announced warning and the maintenance backup.
+          command_timeout: 40m
+          envs: BACKEND_IMAGE,APP_VERSION,DEPLOY_APP_DIR,REGISTRY_USER,REGISTRY_TOKEN,COMPOSE_B64,RESTORE_B64,MAINTENANCE_REVISION
           script: |
             set -euo pipefail
 
@@ -245,6 +313,14 @@ jobs:
             COMPOSE="docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env"
 
             $COMPOSE pull
+            if [ -n "${MAINTENANCE_REVISION:-}" ]; then
+              # Waits for the announced start, stops teaching writes, then for the database
+              # backup of the maintenance-backup service. Any failure aborts before migrating.
+              $COMPOSE exec -T backend python -m app.cli maintenance freeze --wait \
+                --revision "$MAINTENANCE_REVISION"
+              $COMPOSE exec -T backend python -m app.cli maintenance wait-backup \
+                --revision "$MAINTENANCE_REVISION" --timeout 900
+            fi
             # Migrations run forward only. A rollback to an older image does NOT
             # undo them — see docs/deployment.md.
             $COMPOSE --profile tools run --rm migrate
@@ -270,3 +346,24 @@ jobs:
             echo "ERROR: backend did not report version ${APP_VERSION} within 60s (last: '${REPORTED:-none}')" >&2
             $COMPOSE logs --tail 200 backend >&2
             exit 1
+
+      # Also after a failure or cancellation; a window of a newer run is left alone.
+      - name: End maintenance
+        if: always() && steps.maint.outputs.revision != ''
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          DEPLOY_APP_DIR: ${{ vars.DEPLOY_APP_DIR }}
+          MAINTENANCE_REVISION: ${{ steps.maint.outputs.revision }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || '22' }}
+          envs: DEPLOY_APP_DIR,MAINTENANCE_REVISION
+          script: |
+            set -eu
+            cd "${DEPLOY_APP_DIR:?}/prod"
+            COMPOSE="docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env"
+            $COMPOSE exec -T backend python -m app.cli maintenance stop \
+              --revision "$MAINTENANCE_REVISION" \
+              || echo "WARNING: could not end maintenance; it ends by itself 15 minutes after the freeze." >&2

@@ -10,6 +10,7 @@ import { translate, translateOptional } from '#lib/i18n';
 import { backendStore } from '#lib/stores/backendStore';
 import { httpErrorStore } from '#lib/stores/httpErrorStore';
 import { loginLockout } from '#lib/stores/loginLockout';
+import { refreshMaintenance } from '#lib/stores/maintenanceStore';
 
 // Every fetch() is bounded: a stalled connection would otherwise never resolve or reject,
 // leaving isLoading stuck with no error. Binary requests get a longer bound because
@@ -148,6 +149,11 @@ async function handleNonOkResponse(resp: Response, silentError?: boolean): Promi
     // no `code` header, surfacing as ERR_UNKNOWN) is covered too. Set even for silent callers:
     // this is page state, not a dialog.
     loginLockout.start(err.retryAfterSeconds);
+  }
+  if (err.code === 'ERR_MAINTENANCE' || err.code === 'ERR_MAINTENANCE_LOGIN_BLOCKED') {
+    // Announced maintenance (issue #130): the maintenance notice explains it, not the error modal.
+    void refreshMaintenance();
+    throw err;
   }
   if (!silentError) {
     httpErrorStore.showError(err.status, err.message, err.code);

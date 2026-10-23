@@ -276,6 +276,11 @@ export const help: Translations['help'] = {
                 p1: 'A logo is printed at the top left of the first page of every exam; the MTG logo is the default. Under “Exam logo” you can upload your own (PNG, JPEG or PDF, at most 2 MB), choose “No logo”, or reset to the default. Without a logo the spot stays empty; the page layout and the position of the answer boxes do not change. In the exam overview, every expanded exam shows which logo it prints.',
                 p2: 'An exam’s details can override the logo: the logo from the settings, no logo, or an own logo for this exam only. Like the exercises, the logo is stored on the server.',
             },
+            s8: {
+                h: 'Updates and maintenance',
+                p1: 'Before an update or maintenance, Examance reminds you twice (usually 5 minutes and 1 minute before) to save your work. "I\'ve saved my work" tells the administrators you are ready. From the second reminder, new sign-ins are briefly paused.',
+                p2: 'Just keep the tab open during the interruption: what you saved is there as usual afterwards, and changes that do not get through in the meantime are sent automatically afterwards.',
+            },
         },
         security: {
             title: 'Sign-in & security',
@@ -348,6 +353,11 @@ export const help: Translations['help'] = {
                 h: 'For administrators: invitations and allowed domains',
                 p1: 'In User Management you invite people by email; the account is approved right away, and the person chooses their password through the link. Pending registrations are approved or rejected there; rejecting deletes the registration.',
                 p2: 'Registrations from "always-allowed" domains are approved automatically once the address is confirmed. Only list domains whose mailboxes your institution hands out itself, never public providers.',
+            },
+            s11: {
+                h: 'For administrators: maintenance mode',
+                p1: 'Under User Management → Maintenance you announce maintenance with a lead time (0 minutes too) and an expected duration. Signed-in teachers are reminded 5 minutes and 1 minute before; from the second reminder, sign-in is paused for everyone except administrators, and from the start no exam data can be changed until you end the maintenance. If you choose, the database is backed up when it starts; start your work only once the backup is done.',
+                p2: 'The counters show how many teachers are online right now, how many saw the announcement and how many confirmed they saved their work. Updates on deployment announce themselves (5 minutes ahead) and always back up the database first.',
             },
         },
         privacy: {

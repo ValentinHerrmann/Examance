@@ -50,6 +50,7 @@ from app.services import (
     account_mail,
     auth_policy,
     login_throttle,
+    maintenance,
     pending_token,
     registration,
 )
@@ -593,6 +594,10 @@ async def advance_sign_in(
             satisfied=amr,
             available=await auth_policy.remaining_factors(db, teacher, amr),
         )
+
+    # Maintenance (issue #130): no new session after the second reminder; only here, after a
+    # proven factor, so it reveals nothing about the address. Admins pass to end the window.
+    await maintenance.ensure_sign_in_allowed(db, teacher.role)
 
     access_token = create_access_token(
         teacher.id, teacher.email, teacher.role, scope="full", amr=amr

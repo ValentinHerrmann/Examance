@@ -10,6 +10,8 @@ export const errors: Translations['errors'] = {
         ERR_INVALID_TOKEN: 'Invalid or expired password reset link.',
         ERR_PASSWORD_NOT_SET: 'No password has been set for this account yet. Please use the link sent to your email.',
         ERR_INVALID_CREDENTIALS: 'Invalid credentials.',
+        ERR_MAINTENANCE: 'Examance is under maintenance right now. Your changes are sent automatically afterwards.',
+        ERR_MAINTENANCE_LOGIN_BLOCKED: 'Sign-in is briefly paused for maintenance. Please try again in a moment.',
         ERR_ACCOUNT_LOCKED: 'Too many failed attempts. Please wait a moment and try again.',
         ERR_TRAINING_QUOTA: 'Daily quota for donated training data reached.',
         ERR_COMPILE_TIMEOUT: 'Compilation timed out.',
