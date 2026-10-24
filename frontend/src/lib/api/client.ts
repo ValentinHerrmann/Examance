@@ -155,6 +155,8 @@ async function handleNonOkResponse(resp: Response, silentError?: boolean): Promi
     void refreshMaintenance();
     throw err;
   }
+  // Account changes paused by maintenance: the form shows why; the notice catches up too.
+  if (err.code === 'ERR_MAINTENANCE_ACCOUNT_PAUSED') void refreshMaintenance();
   if (!silentError) {
     httpErrorStore.showError(err.status, err.message, err.code);
   }

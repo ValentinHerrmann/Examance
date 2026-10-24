@@ -264,3 +264,19 @@ async def get_submission_for_teacher(
     if submission is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found.")
     return submission
+
+
+async def require_not_frozen(
+    access_token: str | None = Cookie(default=None),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Credential and account writes also stop while maintenance is down, so the maintenance
+    backup stays consistent (issue #130). The role claim only exempts admins; auth stays below."""
+    role = None
+    if access_token:
+        try:
+            role = decode_token(access_token).get("role")
+        except jwt.InvalidTokenError:
+            role = None
+    if role != "admin":
+        await maintenance.ensure_teaching_allowed(db, code="ERR_MAINTENANCE_ACCOUNT_PAUSED")

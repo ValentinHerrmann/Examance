@@ -10,7 +10,7 @@
     startMaintenance,
     type AdminMaintenance,
   } from "#lib/api/maintenance";
-  import { refreshMaintenance, type DowntimeClass } from "#lib/stores/maintenanceStore";
+  import { maintenanceStore, refreshMaintenance, type DowntimeClass } from "#lib/stores/maintenanceStore";
   import { maintenanceText } from "#lib/maintenance/text";
   import { t, translate } from "#lib/i18n";
   import { Alert, Button, Field, Select, Switch, TextInput } from "#lib/components/ui";
@@ -27,8 +27,11 @@
   let status = $derived(data?.status ?? null);
   let open = $derived(status !== null && status.phase !== "none");
   let leadValid = $derived(/^\d+$/.test(leadMinutes.trim()) && Number(leadMinutes) <= 1440);
+  // Server-adjusted like the teachers' notices, so both show the same countdown.
   let secondsLeft = $derived(
-    status?.starts_at ? Math.max(0, Math.ceil((Date.parse(status.starts_at) - now) / 1000)) : null,
+    status?.starts_at
+      ? Math.max(0, Math.ceil((Date.parse(status.starts_at) - (now + $maintenanceStore.offsetMs)) / 1000))
+      : null,
   );
 
   function phaseLabel(phase: string): string {

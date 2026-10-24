@@ -142,10 +142,8 @@ services:
           sleep 86400
         done
 
-  # Opt-in scheduled backup with restic (docs/backup_and_restore.md): `COMPOSE_PROFILES=backup`.
-  # Every night at 00:00 in BACKUP_TZ; weekly/monthly copies are kept from those by `forget`. Never on
-  # container start (a restart must not shift the schedule). Complete, deduplicated, compressed and
-  # encrypted client-side. An erased record survives until the last snapshot holding it is forgotten.
+  # Opt-in nightly restic backup (`COMPOSE_PROFILES=backup`): 00:00 in BACKUP_TZ, never on container
+  # start; retention from .env. Erased records survive until forgotten (docs/backup_and_restore.md).
   backup:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -250,7 +248,7 @@ services:
         echo "maintenance-backup ready (off-site copy: $$offsite)"
         while true; do
           sleep 5
-          # 5 s after the freeze: the backend's phase cache and in-flight requests are through.
+          # 5 s after the freeze: the backend's phase cache is through (in-flight writes: see docs).
           rev=$$(q "UPDATE maintenance_window SET backup_state = 'running', updated_at = now()
             WHERE id = 1 AND ended_at IS NULL AND backup_wanted AND backup_state IS NULL
               AND (auto_end_at IS NULL OR auto_end_at > now())

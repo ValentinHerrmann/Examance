@@ -594,15 +594,22 @@ async def start_maintenance(
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AdminMaintenanceResponse:
-    """Announce manual maintenance in `lead_minutes` (0 = now); replaces an open window."""
-    state = await maintenance_svc.start(
-        db,
-        kind="manual",
-        downtime_class=body.downtime_class,
-        lead_seconds=body.lead_minutes * 60,
-        backup=body.backup,
-        started_by=admin.id,
-    )
+    """Announce manual maintenance in `lead_minutes` (0 = now); replaces an open manual window."""
+    try:
+        state = await maintenance_svc.start(
+            db,
+            kind="manual",
+            downtime_class=body.downtime_class,
+            lead_seconds=body.lead_minutes * 60,
+            backup=body.backup,
+            started_by=admin.id,
+        )
+    except maintenance_svc.WindowBusyError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An update is being deployed right now; try again when it is done.",
+            headers={"code": "ERR_MAINTENANCE_DEPLOYMENT_RUNNING"},
+        ) from None
     await audit_svc.write(
         db,
         teacher_id=admin.id,

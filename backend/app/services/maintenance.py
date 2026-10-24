@@ -1,8 +1,7 @@
 """Maintenance and deployment windows (issue #130): the only place that decides the phase.
 
-Phases: none -> scheduled -> warning (1st reminder) -> final (2nd reminder, sign-in closed) -> down
-(teaching endpoints answer 503). A manual window is down from `starts_at`, a deployment only once
-CI froze it, so a slow image build never locks teachers out early (docs/deployment.md)."""
+Phases none -> scheduled -> warning -> final (sign-in closed) -> down (writes 503); a deployment is
+down only once CI froze it. Details: docs/dev/maintenance_mode.md."""
 from __future__ import annotations
 
 import hashlib
@@ -27,8 +26,10 @@ FIRST_WARNING_SECONDS = 300
 SECOND_WARNING_SECONDS = 60
 # A lead up to the 2nd offset would merge both reminders; the 2nd then comes this close.
 SHORT_LEAD_SECOND_WARNING_SECONDS = 10
-# Safety net for a cancelled or crashed deploy run: nobody stays locked out for good.
+# Safety nets for a cancelled or crashed deploy run: nobody stays locked out for good. After the
+# freeze it must outlast wait-backup (15 min) plus migrate and restart.
 DEPLOYMENT_AUTO_END = timedelta(minutes=15)
+DEPLOYMENT_AUTO_END_AFTER_FREEZE = timedelta(minutes=45)
 # What a client is told to wait, by announced duration.
 _RETRY_SECONDS: dict[str, int] = {"very_short": 30, "short": 120, "long": 600, "unspecific": 300}
 
@@ -143,6 +144,16 @@ async def current_phase(db: AsyncSession) -> tuple[WindowState | None, Phase]:
     return state, state.phase(now_utc()) if state is not None else "none"
 
 
+class WindowBusyError(Exception):
+    """A deployment must not replace an open manual window or a frozen deployment."""
+
+
+def blocks_deployment(state: WindowState | None, now: datetime) -> bool:
+    if state is None or state.phase(now) == "none":
+        return False
+    return state.kind == "manual" or state.frozen_at is not None
+
+
 def retry_after_seconds(state: WindowState, now: datetime) -> int:
     until_start = max(0, int((state.starts_at - now).total_seconds()))
     return max(1, until_start + _RETRY_SECONDS.get(state.downtime_class, 300))
@@ -159,8 +170,17 @@ async def start(
     backup: bool,
     started_by: uuid.UUID | None = None,
 ) -> WindowState:
-    """Open a window, replacing any earlier one; the revision tells the two apart."""
+    """Open a window, replacing any earlier one; the revision tells the two apart.
+
+    Raises WindowBusyError for a deployment over a manual or frozen window, and for a manual one
+    over a frozen deployment."""
     now = now_utc()
+    current = await load(db, fresh=True)
+    if (kind == "deployment" and blocks_deployment(current, now)) or (
+        kind == "manual" and current is not None and current.frozen_at is not None
+        and current.phase(now) != "none"
+    ):
+        raise WindowBusyError
     starts_at = now + timedelta(seconds=max(lead_seconds, 0))
     if lead_seconds <= second_warning_seconds:
         second_warning_seconds = min(second_warning_seconds, SHORT_LEAD_SECOND_WARNING_SECONDS)
@@ -197,7 +217,7 @@ async def freeze(db: AsyncSession, revision: int) -> bool:
     if _state(row).phase(now) == "none":
         return False
     row.frozen_at = now
-    row.auto_end_at = now + DEPLOYMENT_AUTO_END
+    row.auto_end_at = now + DEPLOYMENT_AUTO_END_AFTER_FREEZE
     await db.flush()
     invalidate()
     return True
@@ -217,7 +237,7 @@ async def end(db: AsyncSession, revision: int | None = None) -> bool:
     return True
 
 
-async def ensure_teaching_allowed(db: AsyncSession) -> None:
+async def ensure_teaching_allowed(db: AsyncSession, code: str = "ERR_MAINTENANCE") -> None:
     state, phase = await current_phase(db)
     if state is not None and phase == "down":
         raise HTTPException(
@@ -225,7 +245,7 @@ async def ensure_teaching_allowed(db: AsyncSession) -> None:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Maintenance in progress.",
             headers={
-                "code": "ERR_MAINTENANCE",
+                "code": code,
                 "Retry-After": str(_RETRY_SECONDS.get(state.downtime_class, 300)),
             },
         )

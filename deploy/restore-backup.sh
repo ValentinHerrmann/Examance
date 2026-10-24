@@ -45,6 +45,7 @@ need_restic() {
 
 resolve_snapshot() {  # $1 = id or "latest", $2 = tag; prints the concrete short id
   local wanted="$1" tag="$2"
+  [[ -n "$wanted" ]] || { echo "No snapshot given; see ./restore-backup.sh list" >&2; exit 1; }
   local filter="$wanted"; [[ "$wanted" = latest ]] && filter="--latest 1 --tag $tag"
   local id
   id=$(restic_sh backup -c "$RESTIC_PREP restic snapshots --json $filter" \
@@ -73,6 +74,8 @@ load_file() { local file="$1"; dc exec -T db sh -c 'psql -q -v ON_ERROR_STOP=1 -
 finish() {  # the loaded state may be from an older release
   echo "4/5 Migrating the database to the running release"
   dc run --rm migrate
+  # A maintenance backup holds its own open window; restored as is, it would lock everyone out.
+  dc exec -T db sh -c 'psql -q -U "$POSTGRES_USER" "$POSTGRES_DB" -c "UPDATE maintenance_window SET ended_at = now() WHERE ended_at IS NULL"' >/dev/null 2>&1 || true
   echo "5/5 Starting the stack"
   dc up -d
 }
@@ -127,7 +130,8 @@ cmd_maintenance() {
     file=$(ls -1t maintenance-backups/*.sql 2>/dev/null | head -n1) || true
     if [[ -z "$file" ]]; then
       need_restic
-      cmd_db "$(resolve_snapshot latest maintenance)"
+      local id; id=$(resolve_snapshot latest maintenance)
+      cmd_db "$id"
       return
     fi
   elif [[ -f "$wanted" ]]; then

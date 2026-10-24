@@ -190,15 +190,33 @@
         "summary": "Confirm Account Deletion",
         "description": "GDPR Art. 17: delete the account behind the mailed single-use link (last admin refused).\n\nNo session needed (the link proves the mailbox); exercises stay ownerless if the holder asked.\nCookies are left alone (they may belong to another account; this one's tokens die with it).",
         "operationId": "confirm_account_deletion_api_v1_auth_account_deletion_confirm_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AccountDeletionTokenRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -206,8 +224,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Confirm Account Deletion Api V1 Auth Account Deletion Confirm Post"
                 }
               }
@@ -6013,7 +6031,7 @@
           "admin"
         ],
         "summary": "Start Maintenance",
-        "description": "Announce manual maintenance in `lead_minutes` (0 = now); replaces an open window.",
+        "description": "Announce manual maintenance in `lead_minutes` (0 = now); replaces an open manual window.",
         "operationId": "start_maintenance_api_v1_admin_maintenance_post",
         "parameters": [
           {

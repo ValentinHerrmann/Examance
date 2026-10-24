@@ -7,7 +7,7 @@ What the two backups cover, how to check that it works, and what to do in each e
 There are two backups, fully independent of each other:
 
 1. **Scheduled** (the `backup` service, `COMPOSE_PROFILES=backup`): every night at 00:00 in `BACKUP_TZ` (default `Europe/Berlin`) it writes two restic snapshots to the S3 bucket. A container start or restart never takes one, so the schedule does not drift.
-2. **Maintenance backup** (the `maintenance-backup` service, always on): a database dump before every backend update and, if the admin chose it, when a manual maintenance starts (issue #130, `docs/dev/maintenance_mode.md`). Teaching writes are frozen while it runs, so it is exactly the state before the update. It lands in `maintenance-backups/` next to `.env` and, when `BACKUP_RESTIC_REPOSITORY` is set, also as a restic snapshot tagged `maintenance`.
+2. **Maintenance backup** (the `maintenance-backup` service, always on): a database dump before every backend update and, if the admin chose it, when a manual maintenance starts (issue #130, `docs/dev/maintenance_mode.md`). Teaching writes are frozen while it runs, so it is exactly the state before the update. It lands in `maintenance-backups/` next to `.env` and, when `BACKUP_RESTIC_REPOSITORY` is set, also as a restic snapshot tagged `maintenance`. A dump contains its own (open) maintenance window; every restore ends open windows after migrating, so the restored app is usable right away. A write that committed in the 5 s grace after the freeze (a long upload) can be missing from that one dump.
 
 
 | Snapshot tag | Contains | Restore with |

@@ -9,15 +9,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# A newer push supersedes an in-flight deploy. Runs that deploy nothing (draft or fork PRs) get
-# their own group, or they would cancel the real deploy and skip, leaving a frontend without its backend.
+# Newer pushes queue behind a running deploy (only the newest pending run is kept), so a deploy is
+# never cancelled mid-freeze or mid-migration. Runs that deploy nothing get their own group.
 concurrency:
   group: >-
     ${{ github.event_name == 'pull_request' &&
         (github.event.pull_request.draft ||
          github.event.pull_request.head.repo.full_name != github.repository) &&
         format('deploy-preview-skip-{0}', github.run_id) || 'deploy-preview' }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   IMAGE_NAME: examance-backend
@@ -235,7 +235,7 @@ jobs:
     needs: version
     if: needs.version.outputs.backend == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     permissions:
       # Moves the preview-backend marker after a healthy deploy.
       contents: write
@@ -264,11 +264,10 @@ jobs:
           OWNER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
           echo "image=ghcr.io/${OWNER}/${IMAGE_NAME}:sha-${HEAD_SHA}" >> "$GITHUB_OUTPUT"
 
-      # Preview: 30 seconds' warning, 2nd reminder 10 seconds before. Prints the window's revision;
-      # without one (first deploy of the feature, no stack yet) the deploy runs as before.
+      # Waits (25 min max) for an open manual or frozen window to end, then prints the revision;
+      # none (no CLI yet, no stack) deploys without a window. docs/dev/maintenance_mode.md
       - name: Announce maintenance
         id: announce
-        continue-on-error: true
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         env:
           DEPLOY_APP_DIR: ${{ vars.DEPLOY_APP_DIR }}
@@ -279,14 +278,20 @@ jobs:
           port: ${{ secrets.DEPLOY_PORT || '22' }}
           envs: DEPLOY_APP_DIR
           capture_stdout: true
+          command_timeout: 30m
           script: |
             set -eu
             cd "${DEPLOY_APP_DIR:?}/preview" 2>/dev/null || { echo "No stack yet."; exit 0; }
             COMPOSE="docker compose -p examance-preview -f docker-compose.deploy.yml --env-file .env"
-            REV=$($COMPOSE exec -T backend python -m app.cli maintenance start \
-              --kind deployment --lead-seconds 30 --second-warning-seconds 10 --class very_short \
-              | tail -n1) || REV=""
-            echo "MAINTENANCE_REVISION=${REV}"
+            START="$COMPOSE exec -T backend python -m app.cli maintenance start --kind deployment --lead-seconds 30 --second-warning-seconds 10 --class very_short"
+            RC=0; OUT=$($START --wait-free 1500 2>&1) || RC=$?
+            if [ "$RC" = 75 ]; then echo "$OUT" >&2; echo "MAINTENANCE_BUSY=1"; exit 1; fi
+            # A running image older than --wait-free: announce without waiting.
+            if [ "$RC" != 0 ] && echo "$OUT" | grep -q "No such option"; then
+              RC=0; OUT=$($START 2>&1) || RC=$?
+            fi
+            [ "$RC" = 0 ] || OUT=""
+            echo "MAINTENANCE_REVISION=$(printf '%s\n' "$OUT" | tail -n1)"
 
       - name: Read maintenance revision
         id: maint
@@ -301,17 +306,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
-          for i in $(seq 1 270); do
-            STATE=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/jobs" \
-              --jq '.jobs[] | select(.name == "Build backend image") | "\(.status) \(.conclusion)"' | head -n1)
+          set -eu
+          # filter=all: a "Re-run failed jobs" attempt still sees the earlier successful build.
+          for i in $(seq 1 90); do
+            STATE=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?filter=all&per_page=100" \
+              --jq '[.jobs[] | select(.name == "Build backend image")] | sort_by([.run_attempt, (.started_at // "")]) | last
+                | "\(.status) \(.conclusion)"' 2>/dev/null) || STATE=""
             case "$STATE" in
               "completed success") echo "Image built."; exit 0 ;;
-              completed*) echo "ERROR: image build ended as '${STATE}'." >&2; exit 1 ;;
+              "completed "*) echo "ERROR: image build ended as '${STATE}'." >&2; exit 1 ;;
             esac
             sleep 10
           done
-          echo "ERROR: image build did not finish within 45 minutes." >&2
+          echo "ERROR: image build did not finish within 15 minutes." >&2
           exit 1
 
       # The compose file travels inside the SSH step (base64 in an env var)
@@ -384,10 +391,8 @@ jobs:
 
             $COMPOSE pull
             if [ -n "${MAINTENANCE_REVISION:-}" ]; then
-              # Waits for the announced start, stops teaching writes, then for the database
-              # backup of the maintenance-backup service. Any failure aborts before migrating.
-              # The new image's CLI is the fallback when the running one fails (a CLI bug must not
-              # block every later deploy); a real failure fails again and still aborts.
+              # Freeze, then wait for the maintenance backup; any failure aborts before migrating.
+              # Fallback: the new image's CLI (docs/dev/maintenance_mode.md).
               NEW_CLI="$COMPOSE --profile tools run --rm --no-deps -T migrate python -m app.cli"
               $COMPOSE exec -T backend python -m app.cli maintenance freeze --wait \
                 --revision "$MAINTENANCE_REVISION" \

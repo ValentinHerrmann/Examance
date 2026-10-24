@@ -10,7 +10,15 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services import ephemeral_store, maintenance
-from tests.factors import complete_login, create_teacher, enrol_totp, sign_in, unique_email
+from tests.factors import (
+    DEFAULT_PASSWORD,
+    complete_login,
+    create_teacher,
+    current_code,
+    enrol_totp,
+    sign_in,
+    unique_email,
+)
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -136,6 +144,58 @@ async def test_sign_in_paused_for_teachers_but_not_admins(
         await complete_login(teacher_client, teacher_email, teacher_secret)
     await complete_login(admin_client, admin_email, admin_secret)
     assert (await admin_client.get("/api/v1/admin/maintenance")).status_code == 200
+
+
+async def test_paused_sign_in_keeps_the_pending_step(client: AsyncClient, db: AsyncSession) -> None:
+    email = unique_email("maint-step")
+    teacher = await create_teacher(db, email)
+    secret = await enrol_totp(db, teacher)
+    first = await client.post(
+        "/api/v1/auth/login", json={"email": email, "password": DEFAULT_PASSWORD}
+    )
+    client.cookies.update(first.cookies)
+    state = await _start(db, lead_seconds=9)
+    maintenance.invalidate()
+    refused = await client.post("/api/v1/auth/factor/totp", json={"code": current_code(secret)})
+    assert refused.headers["code"] == "ERR_MAINTENANCE_LOGIN_BLOCKED"
+    await maintenance.end(db, state.revision)
+    await db.commit()
+    maintenance.invalidate()
+    # Refused before the token was spent or the code checked: the same step now finishes.
+    finished = await client.post("/api/v1/auth/factor/totp", json={"code": current_code(secret)})
+    assert finished.status_code == 200, finished.text
+    assert finished.json()["status"] == "ok"
+
+
+async def test_credential_changes_frozen_while_down(client: AsyncClient, db: AsyncSession) -> None:
+    await sign_in(client, db, unique_email("maint-cred"))
+    await _start(db, lead_seconds=0)
+    maintenance.invalidate()
+    resp = await client.post(
+        "/api/v1/auth/change-password",
+        json={"current_password": DEFAULT_PASSWORD, "new_password": "x" * 20, "envelope": {}},
+    )
+    assert resp.status_code == 503
+    assert resp.headers["code"] == "ERR_MAINTENANCE_ACCOUNT_PAUSED"
+
+
+async def test_deployment_never_replaces_manual_or_frozen_window(db: AsyncSession) -> None:
+    await _start(db, lead_seconds=0)
+    with pytest.raises(maintenance.WindowBusyError):
+        await _start(db, kind="deployment")
+
+
+async def test_frozen_deployment_blocks_new_windows_and_lives_45_minutes(db: AsyncSession) -> None:
+    state = await _start(db, kind="deployment", lead_seconds=0)
+    assert await maintenance.freeze(db, state.revision)
+    await db.commit()
+    frozen = await maintenance.load(db, fresh=True)
+    assert frozen is not None and frozen.frozen_at is not None and frozen.auto_end_at is not None
+    assert frozen.auto_end_at - frozen.frozen_at == timedelta(minutes=45)
+    with pytest.raises(maintenance.WindowBusyError):
+        await _start(db, kind="deployment")
+    with pytest.raises(maintenance.WindowBusyError):
+        await _start(db)
 
 
 async def test_stale_revision_does_not_end_the_newer_window(db: AsyncSession) -> None:

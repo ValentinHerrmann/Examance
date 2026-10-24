@@ -140,7 +140,7 @@ Both halves consume the same resolved version, which is what guarantees frontend
 
 ### Maintenance window on every backend deploy (issue #130)
 
-The `backend-deploy` job starts together with the image build, not after it: its first step announces a deployment maintenance window through the running backend's CLI (production: 5 minutes, second reminder 1 minute before; preview: 30 seconds, second reminder 10 seconds before). Signed-in teachers are reminded to save their work while the image builds, sign-in pauses at the second reminder, and only the freeze, backup and restart are downtime. The job then waits for the "Build backend image" job (GitHub API, `actions: read`), pulls, and runs `maintenance freeze --wait` (waits out the warning, then stops teaching writes) and `maintenance wait-backup` (the `maintenance-backup` service dumps the database). A failed backup aborts the deploy **before** `migrate`. A final `if: always()` step ends the window by revision, so a cancelled preview run never ends the window of the run that replaced it; deployment windows also end by themselves 15 minutes after the freeze. Frontend-only deploys announce nothing. The deploy that introduces this feature runs without a window (the old image has no `maintenance` command). Details: `docs/dev/maintenance_mode.md`.
+The `backend-deploy` job starts together with the image build, not after it: its first step announces a deployment maintenance window through the running backend's CLI (production: 5 minutes, second reminder 1 minute before; preview: 30 seconds, second reminder 10 seconds before). Signed-in teachers are reminded to save their work while the image builds, sign-in pauses at the second reminder, and only the freeze, backup and restart are downtime. The job then waits for the "Build backend image" job (GitHub API, `actions: read`), pulls, and runs `maintenance freeze --wait` (waits out the warning, then stops teaching writes) and `maintenance wait-backup` (the `maintenance-backup` service dumps the database). A failed backup aborts the deploy **before** `migrate`. A final `if: always()` step ends the window by revision (also after a failed build); deployment windows also end by themselves 15 minutes after the announced start if never frozen, or 45 minutes after the freeze. The announcement never replaces an open manual maintenance or a frozen deploy: it waits up to 25 minutes for it to end, else the deploy fails before touching anything. Frontend-only deploys announce nothing. The deploy that introduces this feature runs without a window (the old image has no `maintenance` command). Details: `docs/dev/maintenance_mode.md`.
 
 ## 3. Preview flow
 
@@ -172,7 +172,7 @@ sequenceDiagram
     end
 ```
 
-There is exactly **one** preview instance, shared by all open PRs — the newest non-draft push wins. `concurrency: cancel-in-progress: true` collapses rapid pushes; production uses `cancel-in-progress: false` so a release deploy is never interrupted.
+There is exactly **one** preview instance, shared by all open PRs — the newest non-draft push wins. `concurrency: cancel-in-progress: false`: a newer push queues behind the running deploy (GitHub keeps only the newest pending run), so a deploy is never cancelled mid-freeze or mid-migration; production uses the same so a release deploy is never interrupted.
 
 **Selective deploys (pull requests only).** The `version` job's *Decide which sides to deploy* step skips a side when the stack already runs it from the same `<VERSION>-PR#<n>` and none of its inputs changed:
 

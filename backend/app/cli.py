@@ -5,6 +5,7 @@ never by an in-process scheduler, which would duplicate work across workers."""
 from __future__ import annotations
 
 import asyncio
+import sys
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, NoReturn
@@ -498,10 +499,23 @@ async def _in_session[T](action: Callable[[AsyncSession], Awaitable[T]]) -> T:
     show_default=True,
 )
 @click.option("--backup/--no-backup", default=True, help="Manual windows only; deployments always.")
+@click.option(
+    "--wait-free",
+    type=click.IntRange(min=0),
+    default=0,
+    help="Wait up to N s for an open manual or frozen window to end; then exit 75.",
+)
 def maintenance_start(
-    kind: str, lead_seconds: int, second_warning_seconds: int, downtime_class: str, backup: bool
+    kind: str,
+    lead_seconds: int,
+    second_warning_seconds: int,
+    downtime_class: str,
+    backup: bool,
+    wait_free: int,
 ) -> None:
     """Announce a window; prints its revision (pass it to freeze/wait-backup/stop)."""
+    import time
+
     from app.services import maintenance
 
     async def _start(db: AsyncSession) -> WindowState:
@@ -514,7 +528,18 @@ def maintenance_start(
             backup=backup,
         )
 
-    state = asyncio.run(_in_session(_start))
+    deadline = time.monotonic() + wait_free
+    while True:
+        try:
+            state = asyncio.run(_in_session(_start))
+            break
+        except maintenance.WindowBusyError:
+            if time.monotonic() >= deadline:
+                click.echo("Another maintenance window is still open; not announcing.", err=True)
+                # 75 (EX_TEMPFAIL): CI tells "busy" apart from "no CLI / no stack".
+                sys.exit(75)
+            click.echo("Waiting for the open maintenance window to end.", err=True)
+            time.sleep(10)
     click.echo(state.revision)
 
 
@@ -563,6 +588,8 @@ def maintenance_wait_backup(revision: int, timeout_seconds: int) -> None:
         state = asyncio.run(_in_session(_load))
         if state is None or state.revision != revision:
             raise click.ClickException(f"Window {revision} was replaced or never started.")
+        if state.phase(maintenance.now_utc()) != "down":
+            raise click.ClickException(f"Window {revision} is no longer frozen (ended or expired).")
         if state.backup_state == "done":
             click.echo(f"Backup done: {state.backup_file}")
             return
