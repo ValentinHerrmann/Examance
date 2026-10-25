@@ -559,12 +559,22 @@ def maintenance_freeze(revision: int, wait: bool) -> None:
         return await maintenance.freeze(db, revision)
 
     if wait:
-        state = asyncio.run(_in_session(_load))
-        if state is not None and state.revision == revision:
+        # Re-read the window while waiting: an admin may move the start forward (issue #149).
+        deadline = time.monotonic() + 900
+        announced = False
+        while time.monotonic() < deadline:
+            state = asyncio.run(_in_session(_load))
+            if state is None or state.revision != revision:
+                break
+            if state.phase(maintenance.now_utc()) == "none":
+                break
             remaining = (state.starts_at - maintenance.now_utc()).total_seconds()
-            if remaining > 0:
+            if remaining <= 0:
+                break
+            if not announced:
                 click.echo(f"Waiting {remaining:.0f}s for the announced start.")
-                time.sleep(min(remaining, 900))
+                announced = True
+            time.sleep(min(remaining, 5, max(0.0, deadline - time.monotonic())))
 
     if not asyncio.run(_in_session(_freeze)):
         raise click.ClickException(f"Window {revision} is not open (ended, expired or replaced).")

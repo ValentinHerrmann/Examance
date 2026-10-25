@@ -214,6 +214,38 @@ async def test_deployment_window_ends_itself(db: AsyncSession) -> None:
     assert state.phase(state.auto_end_at) == "none"
 
 
+async def test_start_now_keeps_revision_and_safety_net(db: AsyncSession) -> None:
+    manual = await _start(db)
+    started = await maintenance.start_now(db, manual.revision)
+    assert started is not None and started.revision == manual.revision
+    assert started.phase(maintenance.now_utc()) == "down"
+    assert await maintenance.start_now(db, manual.revision) is None  # already down
+
+    deployment = await _start(db, kind="deployment")
+    started = await maintenance.start_now(db, deployment.revision)
+    assert started is not None and started.auto_end_at == deployment.auto_end_at
+    # A deployment is down only once CI froze it.
+    assert started.phase(maintenance.now_utc()) == "final"
+    assert await maintenance.start_now(db, deployment.revision - 1) is None
+    assert await maintenance.freeze(db, deployment.revision)
+    assert await maintenance.start_now(db, deployment.revision) is None
+
+
+async def test_admin_start_now_endpoint(client: AsyncClient, db: AsyncSession) -> None:
+    admin_email = unique_email("maint-now")
+    admin = await create_teacher(db, admin_email, role="admin")
+    secret = await enrol_totp(db, admin)
+    await complete_login(client, admin_email, secret)
+    state = await _start(db)
+    url = "/api/v1/admin/maintenance/start-now"
+    ok = await client.post(url, json={"revision": state.revision})
+    assert ok.status_code == 200
+    assert ok.json()["status"]["phase"] == "down"
+    again = await client.post(url, json={"revision": state.revision})
+    assert again.status_code == 409
+    assert again.headers["code"] == "ERR_MAINTENANCE_NOT_PENDING"
+
+
 async def test_status_is_public_and_counts_presence(
     client: AsyncClient, db: AsyncSession
 ) -> None:

@@ -78,6 +78,8 @@ class AuditLog(Base):
             # Maintenance windows started/ended by an admin (issue #130, migration 0039).
             "MAINTENANCE_STARTED",
             "MAINTENANCE_ENDED",
+            # Countdown cut short by an admin (issue #149, migration 0042).
+            "MAINTENANCE_STARTED_EARLY",
             name="audit_action",
         ),
         nullable=False,

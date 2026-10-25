@@ -25,6 +25,10 @@ class MaintenanceReadyRequest(BaseModel):
     revision: int = Field(ge=1)
 
 
+class MaintenanceStartNowRequest(BaseModel):
+    revision: int = Field(ge=1)
+
+
 class MaintenanceStartRequest(BaseModel):
     lead_minutes: int = Field(ge=0, le=1440)
     downtime_class: DowntimeClass

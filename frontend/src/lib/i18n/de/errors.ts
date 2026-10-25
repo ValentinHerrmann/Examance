@@ -16,6 +16,7 @@ export const errors = {
         ERR_MAINTENANCE: 'Examance wird gerade gewartet. Ihre Änderungen werden danach automatisch gesendet.',
         ERR_MAINTENANCE_ACCOUNT_PAUSED: 'Während der Wartung können Passwort, Anmeldefaktoren und Kontoeinstellungen nicht geändert werden. Bitte versuchen Sie es danach erneut.',
         ERR_MAINTENANCE_DEPLOYMENT_RUNNING: 'Gerade wird ein Update eingespielt. Bitte starten Sie die Wartung, sobald es fertig ist.',
+        ERR_MAINTENANCE_NOT_PENDING: 'Die Wartung hat bereits begonnen oder ist beendet.',
         ERR_MAINTENANCE_LOGIN_BLOCKED: 'Die Anmeldung ist wegen einer Wartung kurz pausiert. Bitte versuchen Sie es gleich noch einmal.',
         ERR_ACCOUNT_LOCKED: 'Zu viele fehlgeschlagene Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.',
         ERR_LAYOUT_REPORT_QUOTA: 'Tageskontingent für Layout-Meldungen erreicht. Bitte versuchen Sie es morgen erneut.',

@@ -8,12 +8,13 @@
     endMaintenance,
     getMaintenance,
     startMaintenance,
+    startMaintenanceNow,
     type AdminMaintenance,
   } from "#lib/api/maintenance";
   import { maintenanceStore, refreshMaintenance, type DowntimeClass } from "#lib/stores/maintenanceStore";
   import { maintenanceText } from "#lib/maintenance/text";
   import { t, translate } from "#lib/i18n";
-  import { Alert, Button, Field, Select, Switch, TextInput } from "#lib/components/ui";
+  import { Alert, Button, ConfirmDialog, Field, Select, Switch, TextInput } from "#lib/components/ui";
 
   let data = $state.raw<AdminMaintenance | null>(null);
   let error = $state("");
@@ -23,6 +24,7 @@
   let leadMinutes = $state("5");
   let downtimeClass = $state<string>("short");
   let backup = $state(true);
+  let confirmStartNow = $state(false);
 
   let status = $derived(data?.status ?? null);
   let open = $derived(status !== null && status.phase !== "none");
@@ -75,7 +77,7 @@
     }
   }
 
-  async function act(failKey: "maintenance.admin.startFailed" | "maintenance.admin.endFailed", action: () => Promise<AdminMaintenance>) {
+  async function act(failKey: "maintenance.admin.startFailed" | "maintenance.admin.endFailed" | "maintenance.admin.startNowFailed", action: () => Promise<AdminMaintenance>) {
     busy = true;
     error = "";
     try {
@@ -93,6 +95,13 @@
     return act("maintenance.admin.startFailed", () =>
       startMaintenance({ lead_minutes: Number(leadMinutes), downtime_class: downtimeClass as DowntimeClass, backup }),
     );
+  }
+
+  function startNow() {
+    confirmStartNow = false;
+    const revision = status?.revision;
+    if (revision == null) return;
+    return act("maintenance.admin.startNowFailed", () => startMaintenanceNow(revision));
   }
 
   onMount(() => {
@@ -140,11 +149,15 @@
       </p>
       <p class="m-0 text-sm text-muted">{backupLabel(data)}</p>
       {#if offsiteLabel(data.offsite_state)}<p class="m-0 text-sm text-muted">{offsiteLabel(data.offsite_state)}</p>{/if}
-      <div>
+      <div class="flex flex-wrap gap-2">
+        {#if status.phase !== "down"}
+          <Button variant="outlined" loading={busy} onClick={() => (confirmStartNow = true)}>{$t("maintenance.admin.startNow")}</Button>
+        {/if}
         <Button severity="danger" variant="outlined" loading={busy} onClick={() => act("maintenance.admin.endFailed", endMaintenance)}>
           {$t("maintenance.admin.end")}
         </Button>
       </div>
+      {#if status.phase !== "down"}<p class="m-0 text-xs text-muted">{$t("maintenance.admin.startNowHint")}</p>{/if}
     {/if}
   </section>
 
@@ -174,3 +187,14 @@
     </div>
   </form>
 </div>
+
+<ConfirmDialog
+  open={confirmStartNow}
+  title={$t("maintenance.admin.startNowTitle")}
+  message={$t("maintenance.admin.startNowConfirm", { online: count(data?.counts.online), ready: count(data?.counts.ready) })}
+  confirmText={$t("maintenance.admin.startNow")}
+  cancelText={$t("common.cancel")}
+  {busy}
+  onConfirm={() => void startNow()}
+  onCancel={() => (confirmStartNow = false)}
+/>

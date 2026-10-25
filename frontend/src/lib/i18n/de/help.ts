@@ -360,7 +360,7 @@ export const help = {
             s11: {
                 h: 'Für Administratoren: Wartungsmodus',
                 p1: 'Unter Benutzerverwaltung → Wartung kündigen Sie eine Wartung mit Vorlaufzeit (auch 0 Minuten) und erwarteter Dauer an. Angemeldete Lehrkräfte werden 5 und 1 Minute vorher erinnert (bei höchstens 1 Minute Vorlauf sofort und 10 Sekunden vorher); ab der zweiten Erinnerung ist die Anmeldung für alle außer Administratoren pausiert, ab Beginn sind keine Änderungen an Prüfungsdaten mehr möglich, bis Sie die Wartung beenden. Auf Wunsch wird die Datenbank bei Beginn gesichert; beginnen Sie Ihre Arbeiten erst, wenn die Sicherung fertig ist.',
-                p2: 'Die Zähler zeigen, wie viele Lehrkräfte gerade online sind, wie viele die Ankündigung gesehen und wie viele bestätigt haben, dass sie gespeichert haben. Updates beim Deployment kündigen sich selbst an (5 Minuten Vorlauf) und sichern die Datenbank immer vorher.',
+                p2: 'Die Zähler zeigen, wie viele Lehrkräfte gerade online sind, wie viele die Ankündigung gesehen und wie viele bestätigt haben, dass sie gespeichert haben. Updates beim Deployment kündigen sich selbst an (5 Minuten Vorlauf) und sichern die Datenbank immer vorher. Ist niemand mehr angemeldet, verkürzt „Jetzt beginnen“ den Countdown einer Wartung oder eines Updates.',
             },
         },
         privacy: {

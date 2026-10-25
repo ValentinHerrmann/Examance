@@ -3,6 +3,7 @@
   import { t } from "#lib/i18n";
   import { Alert, Button } from "#lib/components/ui";
   import { frontendVersion, frontendVersionUrl, repoUrl } from "#lib/stores/versionStore";
+  import { maintenancePhase } from "#lib/stores/maintenanceStore";
   import { parseReleaseNotes, type Inline } from "#lib/utils/releaseNotes";
 
   // Last version this browser/installed app has shown; an installed (PWA) app can stay open for days.
@@ -16,6 +17,8 @@
 
   let showNotes = $state(false);
   let dismissedUpdate = $state(false);
+  // Issue #148: the new frontend may be live before the backend is; offer the reload only once the window is over.
+  const maintenanceBusy = $derived($maintenancePhase === "warning" || $maintenancePhase === "final" || $maintenancePhase === "down");
 
   function readSeen(): string | null {
     try { return localStorage.getItem(SEEN_KEY); } catch { return null; }
@@ -44,7 +47,7 @@
   {/each}
 {/snippet}
 
-{#if updated.current && !dismissedUpdate}
+{#if updated.current && !dismissedUpdate && !maintenanceBusy}
   <Alert severity="info" title={$t("statusBar.updateTitle")} class="mx-3 mt-2 sm:mx-4" onDismiss={() => (dismissedUpdate = true)}>
     {$t("statusBar.updateBody")}
     {#snippet actions()}

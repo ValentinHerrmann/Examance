@@ -38,6 +38,11 @@ export function startMaintenance(body: {
   return api.post<AdminMaintenance>('/admin/maintenance', body, { silentError: true });
 }
 
+/** Cut the countdown of the open window short (issue #149). */
+export function startMaintenanceNow(revision: number): Promise<AdminMaintenance> {
+  return api.post<AdminMaintenance>('/admin/maintenance/start-now', { revision }, { silentError: true });
+}
+
 export function endMaintenance(): Promise<AdminMaintenance> {
   return api.delete<AdminMaintenance>('/admin/maintenance', { silentError: true });
 }
