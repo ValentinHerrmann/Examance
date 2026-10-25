@@ -25,16 +25,17 @@
   import { awaitSessionReady, isUnlocked, sessionStore } from "#lib/stores/session";
   import { refreshCapabilities } from "#lib/db/workspace";
   import { t, translate, type TranslationKey } from "#lib/i18n";
-  import { faEnvelope, faGlobe, faUserCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
+  import { faEnvelope, faGlobe, faScrewdriverWrench, faUserCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Button, Card, Checkbox, ConfirmDialog, PageHeader, PageShell, Tabs } from "#lib/components/ui";
   import { safeLocalStorage } from "#lib/utils/storage";
   import PendingAccounts from "#lib/components/admin/PendingAccounts.svelte";
   import AccountList from "#lib/components/admin/AccountList.svelte";
   import InviteForm from "#lib/components/admin/InviteForm.svelte";
   import AllowedDomains from "#lib/components/admin/AllowedDomains.svelte";
+  import MaintenanceControl from "#lib/components/admin/MaintenanceControl.svelte";
 
   type Notice = { severity: "success" | "warning" | "danger"; text: string } | null;
-  type Section = "pending" | "accounts" | "invite" | "domains";
+  type Section = "pending" | "accounts" | "invite" | "domains" | "maintenance";
 
   let users = $state.raw<AdminUser[]>([]);
   let domains = $state.raw<AllowedDomain[]>([]);
@@ -45,14 +46,14 @@
   const busy = new SvelteSet<string>();
   const INVITE = "invite";
   const DOMAINS = "domains";
-  let notices = $state<Record<Section, Notice>>({ pending: null, accounts: null, invite: null, domains: null });
+  let notices = $state<Record<Section, Notice>>({ pending: null, accounts: null, invite: null, domains: null, maintenance: null });
   let rejecting = $state.raw<AdminUser | null>(null);
   let deleting = $state.raw<AdminUser | null>(null);
   let deleteKeepsExercises = $state(false);
 
   // One task per tab, so a phone shows one short screen at a time. The choice is remembered per browser.
   const TAB_KEY = "bg_admin_tab";
-  const TABS: readonly Section[] = ["pending", "accounts", "invite", "domains"];
+  const TABS: readonly Section[] = ["pending", "accounts", "invite", "domains", "maintenance"];
   const savedTab = safeLocalStorage.getItem(TAB_KEY) as Section | null;
   let tabChosen = savedTab !== null && TABS.includes(savedTab);
   let tab = $state<Section>(tabChosen && savedTab ? savedTab : "accounts");
@@ -256,6 +257,7 @@
           { id: "accounts", label: $t("admin.tabs.accounts"), icon: faUsers },
           { id: "invite", label: $t("admin.tabs.invite"), icon: faEnvelope },
           { id: "domains", label: $t("admin.tabs.domains"), icon: faGlobe },
+          { id: "maintenance", label: $t("admin.tabs.maintenance"), icon: faScrewdriverWrench },
         ]}
       />
 
@@ -300,6 +302,11 @@
             onInvite={handleInvite}
             onDirty={(dirty) => sessionStore.setDirty(dirty)}
           />
+        </Card>
+      {:else if tab === "maintenance"}
+        <Card class="min-w-0">
+          {@render heading("maintenance")}
+          <MaintenanceControl />
         </Card>
       {:else}
         <Card class="min-w-0">

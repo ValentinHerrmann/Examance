@@ -19,6 +19,9 @@ logger = logging.getLogger(__name__)
 
 # Fallback store: key -> (value, expiry as monotonic seconds).
 _memory: dict[str, tuple[int, float]] = {}
+# Fallback for timestamped sets: key -> member -> last seen (wall-clock seconds).
+# Presence fallback: key -> (members with last-seen time, key expiry as time.time()).
+_members: dict[str, tuple[dict[str, float], float]] = {}
 
 # Redis is a cache in front of a fallback that always works, so these are set to
 # "answer quickly or get out of the way" rather than to ride out a blip.
@@ -92,6 +95,30 @@ async def _call(operation: str, *args: Any) -> Any | None:
         return None
 
 
+async def _pipeline(*commands: tuple[Any, ...]) -> list[Any] | None:
+    """Run several commands in one round trip (no transaction); same fail-fast rules as _call."""
+    if not uses_redis() or _circuit_is_open():
+        return None
+    client = _get_client()
+    if client is None:
+        return None
+    try:
+        pipe = client.pipeline(transaction=False)
+        for operation, *args in commands:
+            getattr(pipe, operation)(*args)
+        result: list[Any] = await asyncio.wait_for(pipe.execute(), timeout=_DEADLINE_SECONDS)
+        return result
+    except Exception as exc:  # noqa: BLE001
+        # Degrade, never break the request.
+        _trip_circuit(exc)
+        return None
+
+
+def _prune_members(now: float) -> None:
+    for key in [k for k, (_, expires_at) in _members.items() if expires_at <= now]:
+        _members.pop(key, None)
+
+
 async def get(key: str) -> int | None:
     """The stored integer for *key*, or None when absent or expired."""
     raw = await _call("get", key)
@@ -142,10 +169,43 @@ async def take(key: str) -> bool:
     return entry is not None and entry[1] > time.monotonic()
 
 
+async def mark_member(key: str, member: str, ttl_seconds: int) -> None:
+    """Record *member* as seen now in the timestamped set *key* (presence, issue #130)."""
+    now = time.time()
+    if uses_redis():
+        await _pipeline(
+            ("zadd", key, {member: now}),
+            ("zremrangebyscore", key, "-inf", now - ttl_seconds),
+            ("expire", key, max(ttl_seconds, 1)),
+        )
+        return
+    _prune_members(now)
+    members = _members.setdefault(key, ({}, 0.0))[0]
+    members[member] = now
+    _members[key] = (members, now + ttl_seconds)
+    for stale in [m for m, seen in members.items() if seen <= now - ttl_seconds]:
+        members.pop(stale, None)
+
+
+async def members_since(key: str, since_seconds: int) -> list[str] | None:
+    """Members of *key* seen within the last *since_seconds*; None when Redis is configured but
+    unreachable, so a caller can say "unknown" instead of reporting nobody."""
+    cutoff = time.time() - since_seconds
+    if uses_redis():
+        raw = await _call("zrangebyscore", key, cutoff, "+inf")
+        if raw is None:
+            return None
+        return [m.decode() if isinstance(m, bytes) else str(m) for m in raw]
+    _prune_members(time.time())
+    members = _members.get(key, ({}, 0.0))[0]
+    return [m for m, seen in members.items() if seen > cutoff]
+
+
 def reset() -> None:
     """Drop the in-process fallback store and the circuit state. Test helper."""
     global _circuit_open_until
     _memory.clear()
+    _members.clear()
     _circuit_open_until = 0.0
 
 

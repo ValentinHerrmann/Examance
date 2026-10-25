@@ -25,6 +25,11 @@ export const admin = {
         accounts: 'Konten',
         invite: 'Einladen',
         domains: 'Domains',
+        maintenance: 'Wartung',
+    },
+    maintenance: {
+        title: 'Wartungsmodus',
+        intro: 'Kündigen Sie Wartungen an: Angemeldete Lehrkräfte werden 5 und 1 Minute vorher erinnert, ihre Arbeit zu speichern; ab der zweiten Erinnerung ist die Anmeldung pausiert. Updates kündigen sich beim Deployment selbst an.',
     },
     features: {
         heading: 'Funktionen',

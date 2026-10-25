@@ -60,6 +60,7 @@
   import { theme, applyTheme } from "#lib/stores/theme";
   import { Alert, Button, PageShell } from "#lib/components/ui";
   import UpdateNotice from "#lib/components/layout/UpdateNotice.svelte";
+  import MaintenanceNotice from "#lib/components/layout/MaintenanceNotice.svelte";
   import StoragePolicyModal from "#lib/components/StoragePolicyModal.svelte";
   import SessionTimeoutWarning from "#lib/components/SessionTimeoutWarning.svelte";
   import HttpCatModal from "#lib/components/HttpCatModal.svelte";
@@ -357,6 +358,7 @@
   {/if}
 
   <UpdateNotice />
+  <MaintenanceNotice />
 
   {#if $versionStatus === "incompatible"}
     <!-- A differing major version means frontend and backend disagree on the

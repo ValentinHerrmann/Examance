@@ -6,13 +6,14 @@ Registration needs a session; authentication does not (it is a first-position fa
 from __future__ import annotations
 
 import base64
+import uuid
 
 import jwt
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import PendingSession, get_pending_teacher
+from app.dependencies import PendingSession, get_pending_teacher, require_not_frozen
 from app.middleware.rate_limit import limiter
 from app.routers.auth import advance_sign_in
 from app.schemas.auth import AuthResponse
@@ -24,7 +25,7 @@ from app.schemas.webauthn import (
     RegistrationVerifyRequest,
 )
 from app.services import audit as audit_svc
-from app.services import auth_policy, pending_token
+from app.services import auth_policy, maintenance, pending_token
 from app.services import webauthn as webauthn_svc
 from app.services.jwt import decode_token
 
@@ -40,7 +41,10 @@ def _b64(value: bytes) -> str:
     return base64.urlsafe_b64encode(value).decode()
 
 
-@router.post("/register/options", response_model=CeremonyOptionsResponse)
+@router.post(
+    "/register/options",
+    dependencies=[Depends(require_not_frozen)],
+)
 @limiter.limit("20/hour")
 async def register_options(
     request: Request,
@@ -63,7 +67,10 @@ async def register_options(
     )
 
 
-@router.post("/register/verify", response_model=CredentialSummary)
+@router.post(
+    "/register/verify",
+    dependencies=[Depends(require_not_frozen)],
+)
 @limiter.limit("20/hour")
 async def register_verify(
     body: RegistrationVerifyRequest,
@@ -168,6 +175,15 @@ async def login_verify(
             headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
         )
 
+    if pending_subject and flow == "auth_pending":
+        # Before consuming, so a teacher refused for maintenance keeps the step (issue #130).
+        try:
+            pending_teacher = await auth_policy.teacher_by_id(db, uuid.UUID(pending_subject))
+        except ValueError:
+            pending_teacher = None
+        if pending_teacher is not None:
+            await maintenance.ensure_sign_in_allowed(db, pending_teacher.role)
+
     if pending_jti is not None and not await pending_token.consume(pending_jti):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -236,7 +252,11 @@ async def list_credentials(
     )
 
 
-@router.delete("/credentials/{credential_id_b64}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/credentials/{credential_id_b64}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_not_frozen)],
+)
 async def delete_credential(
     credential_id_b64: str,
     request: Request,

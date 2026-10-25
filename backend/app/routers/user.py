@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.dependencies import get_current_teacher, get_teaching_teacher
+from app.dependencies import get_current_teacher, get_teaching_teacher, require_not_frozen
 from app.middleware.rate_limit import limiter
 from app.models.audit_log import AuditLog
 from app.models.exam import Exam
@@ -54,7 +54,10 @@ async def get_capabilities(teacher: Teacher = Depends(get_current_teacher)) -> C
     return _capabilities_out(teacher)
 
 
-@router.put("/storage-mode", response_model=CapabilitiesOut)
+@router.put(
+    "/storage-mode",
+    dependencies=[Depends(require_not_frozen)],
+)
 async def set_storage_mode(
     body: StorageModeUpdate,
     teacher: Teacher = Depends(get_teaching_teacher),
@@ -83,7 +86,11 @@ async def set_storage_mode(
 
 
 
-@router.post("/purge-server-student-data", status_code=status.HTTP_200_OK)
+@router.post(
+    "/purge-server-student-data",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_not_frozen)],
+)
 async def purge_server_student_data(
     request: Request,
     teacher: Teacher = Depends(get_teaching_teacher),

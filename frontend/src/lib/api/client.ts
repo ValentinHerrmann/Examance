@@ -10,6 +10,7 @@ import { translate, translateOptional } from '#lib/i18n';
 import { backendStore } from '#lib/stores/backendStore';
 import { httpErrorStore } from '#lib/stores/httpErrorStore';
 import { loginLockout } from '#lib/stores/loginLockout';
+import { noteMaintenanceRevision, refreshMaintenance } from '#lib/stores/maintenanceStore';
 
 // Every fetch() is bounded: a stalled connection would otherwise never resolve or reject,
 // leaving isLoading stuck with no error. Binary requests get a longer bound because
@@ -149,6 +150,13 @@ async function handleNonOkResponse(resp: Response, silentError?: boolean): Promi
     // this is page state, not a dialog.
     loginLockout.start(err.retryAfterSeconds);
   }
+  if (err.code === 'ERR_MAINTENANCE' || err.code === 'ERR_MAINTENANCE_LOGIN_BLOCKED') {
+    // Announced maintenance (issue #130): the maintenance notice explains it, not the error modal.
+    void refreshMaintenance();
+    throw err;
+  }
+  // Account changes paused by maintenance: the form shows why; the notice catches up too.
+  if (err.code === 'ERR_MAINTENANCE_ACCOUNT_PAUSED') void refreshMaintenance();
   if (!silentError) {
     httpErrorStore.showError(err.status, err.message, err.code);
   }
@@ -191,14 +199,16 @@ async function request<T>(
   const send = async (): Promise<Response> => {
     const { signal, cancel } = withTimeoutSignal(timeoutMs);
     try {
-      return await fetch(`${getBaseUrl()}${path}`, {
+      const response = await fetch(`${getBaseUrl()}${path}`, {
         method,
         headers,
         body: bodyInit,
         credentials: 'include', // Always include httpOnly cookies
         signal,
       });
-    } catch (err: any) {
+      noteMaintenanceRevision(response.headers.get('maintenance-revision'));
+      return response;
+    } catch {
       // fetch rejects when no usable response arrived: server unreachable, a response without the
       // CORS headers, or a timeout (AbortError, indistinguishable from a never-resolving stall).
       const netErr = new ApiError(

@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.dependencies import PendingSession, get_pending_teacher
+from app.dependencies import PendingSession, get_pending_teacher, require_not_frozen
 from app.middleware.rate_limit import limiter
 from app.models.exam import Exam
 from app.models.exercise import Exercise
@@ -50,6 +50,7 @@ from app.services import (
     account_mail,
     auth_policy,
     login_throttle,
+    maintenance,
     pending_token,
     registration,
 )
@@ -268,7 +269,11 @@ async def preview_account_deletion(
     )
 
 
-@router.post("/account-deletion/confirm", status_code=status.HTTP_200_OK)
+@router.post(
+    "/account-deletion/confirm",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_not_frozen)],
+)
 @limiter.limit("20/hour")
 async def confirm_account_deletion(
     body: AccountDeletionTokenRequest,
@@ -349,7 +354,11 @@ async def start_reset(
     )
 
 
-@router.post("/reset-password", status_code=status.HTTP_200_OK)
+@router.post(
+    "/reset-password",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_not_frozen)],
+)
 @limiter.limit("5/hour")
 async def reset_password(
     body: ResetPasswordRequest,
@@ -415,7 +424,11 @@ async def reset_password(
     return {"message": "Password has been successfully set. You can now log in."}
 
 
-@router.post("/change-password", status_code=status.HTTP_200_OK)
+@router.post(
+    "/change-password",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_not_frozen)],
+)
 @limiter.limit("5/hour")
 async def change_password(
     body: ChangePasswordRequest,
@@ -594,6 +607,10 @@ async def advance_sign_in(
             available=await auth_policy.remaining_factors(db, teacher, amr),
         )
 
+    # Maintenance (issue #130): no new session after the second reminder; only here, after a
+    # proven factor, so it reveals nothing about the address. Admins pass to end the window.
+    await maintenance.ensure_sign_in_allowed(db, teacher.role)
+
     access_token = create_access_token(
         teacher.id, teacher.email, teacher.role, scope="full", amr=amr
     )
@@ -631,7 +648,9 @@ async def advance_sign_in(
     )
 
 
-async def _require_pending(session: PendingSession, *, allow_scopes: set[str]) -> None:
+async def _require_pending(
+    db: AsyncSession, session: PendingSession, *, allow_scopes: set[str]
+) -> None:
     """Reject a pending token that is the wrong kind, or already spent.
 
     Consuming the token makes it single-use, so it happens here, but only *after* the scope check.
@@ -642,6 +661,9 @@ async def _require_pending(session: PendingSession, *, allow_scopes: set[str]) -
             detail="Start the sign-in again.",
             headers={"code": "ERR_FACTOR_REQUIRED"},
         )
+    if session.scope == "auth_pending":
+        # Before consuming, so a teacher refused for maintenance keeps the step (issue #130).
+        await maintenance.ensure_sign_in_allowed(db, session.teacher.role)
     if not await pending_token.consume(session.jti):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -703,7 +725,7 @@ async def factor_password(
             detail="That factor has already been used for this sign-in.",
             headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
         )
-    await _require_pending(session, allow_scopes={"auth_pending"})
+    await _require_pending(db, session, allow_scopes={"auth_pending"})
 
     teacher = session.teacher
     await login_throttle.assert_not_locked(teacher.email, teacher)
@@ -755,7 +777,7 @@ async def factor_totp(
             detail="That factor has already been used for this sign-in.",
             headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
         )
-    await _require_pending(session, allow_scopes={"auth_pending", "reset_pending"})
+    await _require_pending(db, session, allow_scopes={"auth_pending", "reset_pending"})
 
     teacher = session.teacher
     await login_throttle.assert_not_locked(teacher.email, teacher)
@@ -817,7 +839,7 @@ async def factor_backup_code(
             detail="That factor has already been used for this sign-in.",
             headers={"code": "ERR_FACTOR_ALREADY_PRESENTED"},
         )
-    await _require_pending(session, allow_scopes={"auth_pending", "reset_pending"})
+    await _require_pending(db, session, allow_scopes={"auth_pending", "reset_pending"})
 
     teacher = session.teacher
     await login_throttle.assert_not_locked(teacher.email, teacher)
