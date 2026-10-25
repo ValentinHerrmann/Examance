@@ -186,10 +186,18 @@ async def download_layout_report_file(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Response:
     """One attached file; served like exercise resources (only PDF/PNG/JPEG inline)."""
-    file = await db.get(LayoutReportFile, file_id)
-    if file is None or file.report_id != report_id:
+    # `content` is deferred: a lazy load on the async session would fail, so select it explicitly.
+    row = (
+        await db.execute(
+            select(
+                LayoutReportFile.content, LayoutReportFile.mime_type, LayoutReportFile.filename
+            ).where(LayoutReportFile.id == file_id, LayoutReportFile.report_id == report_id)
+        )
+    ).first()
+    if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found.")
-    return resource_response(file.content, file.mime_type, file.filename)
+    content, mime_type, filename = row
+    return resource_response(content, mime_type, filename)
 
 
 @admin_router.post("/{report_id}/resolve", status_code=status.HTTP_204_NO_CONTENT)
