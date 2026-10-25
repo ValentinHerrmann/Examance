@@ -244,8 +244,12 @@
         \begin{minipage}[t]{15cm}
         \vspace{5pt} % Setzt die Grundlinie an die physische Oberkante
         \normalsize
-        \ifthenelse{\boolean{Namensfeld}}{\noindent\rule{0pt}{0.9cm}\large Name:~\hrulefill\normalsize\par\vspace{0.4cm}}{}% strut = room to write
+        % Name starts where the info bullets do; the strut is the room to write above the line.
+        \ifthenelse{\boolean{Namensfeld}}{\settowidth{\@tempdima}{\textbullet}\noindent\hspace*{\dimexpr\leftmargini-\labelsep-\@tempdima\relax}%
+            \rule{0pt}{1cm}{\large Name:}~\leaders\hrule height 0.5pt\hfill\null\par}{}%
         \Infotext
+        % Offsets the -0.7cm below, so a long info text pushes the rule down instead of crossing it.
+        \ifthenelse{\boolean{Namensfeld}}{\par\vspace{0.7cm}}{}%
         \end{minipage}
     }
     \normalsize
