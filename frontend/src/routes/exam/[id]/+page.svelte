@@ -31,6 +31,7 @@
   import {
     buildExamItems,
     computeOmrTemplateHash,
+    loadExamCompileContext,
     mapRemoteMcGroups,
     prepareOmrTemplate,
     type ExamItemRef,
@@ -524,6 +525,18 @@
     }
   }
 
+  /** Reloads exercises and MC groups: they may have been edited elsewhere (another tab, the library) since this
+   *  page loaded, and compiling the old copies would just hit the compile cache again (issue #135). */
+  async function refreshExamSources() {
+    if (!exam) return;
+    const ctx = await loadExamCompileContext(exam.id, get(sessionStore).sessionKey);
+    if (!ctx) return;
+    exam = ctx.exam;
+    exercises = ctx.exercises;
+    mcGroups = ctx.mcGroups;
+    libraryExercises = ctx.libraryExercises;
+  }
+
   async function handlePreviewExam() {
     if (!exam || (exercises.length === 0 && mcGroups.length === 0)) return;
     isPreviewLoading = true;
@@ -532,6 +545,8 @@
     let compileSucceeded = false;
 
     try {
+      await refreshExamSources();
+      if (!exam) return;
       const res = await compileExamPreview({
         exam,
         exercises,
@@ -1313,7 +1328,10 @@
                 size="sm"
                 variant="outlined"
                 severity="warning"
-                onClick={handlePrepareOmr}
+                onClick={async () => {
+                  await refreshExamSources();
+                  await handlePrepareOmr();
+                }}
                 disabled={isPreparingOmr}
               >
                 {isPreparingOmr ? $t("exam.page.omr.refreshing") : $t("exam.page.omr.refreshNow")}
