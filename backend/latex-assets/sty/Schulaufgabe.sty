@@ -257,16 +257,23 @@
     \IfFileExists{examance-logo.jpeg}{\ExamLogoFile{examance-logo.jpeg}}{%
     \rule{0pt}{9mm}}}}}}
 
+% The output routine typesets the header inside whatever group the page broke in, so a task's local
+% settings (e.g. \arraystretch) used to stretch the header (issue #137). Every header cell resets them.
+\newcommand{\SA@headreset}{%
+    \normalfont\normalsize\normalcolor
+    \renewcommand{\arraystretch}{1}\setlength{\extrarowheight}{0pt}\setlength{\tabcolsep}{6pt}%
+}
+
 % Setup headers and footers at document start
 \AtBeginDocument{
     \fancyheadoffset[L]{5mm}
     \fancyheadoffset[R]{5mm}
-    \lhead{\ifnum\thepage=1
+    \lhead{\SA@headreset\ifnum\thepage=1
     {\hspace{1cm}\ExamLogo}
     \else
     \hspace{1cm}\Nrtext. \Testarttesttext \ in \Fachtext%Name:
     \fi}
-    \rhead{
+    \rhead{\SA@headreset
     \ifnum\thepage=1
     {%
     \begin{tabular}[b]{@{}r@{}}
@@ -277,7 +284,7 @@
     \else
     \fi
     }
-    \chead{
+    \chead{\SA@headreset
     \ifnum\thepage=1
     {
     \Large
@@ -286,6 +293,7 @@
     \else
     \fi
     }
+    \cfoot{\SA@headreset\thepage}
 
     \ifthenelse
         {\isundefined{\LFarbe}}
@@ -389,10 +397,14 @@
 \newlength{\MiddleColWidth}
 \setlength{\MiddleColWidth}{\dimexpr\textwidth - \FirstColWidth - \LastColWidth - 5mm}
 \newlength{\ScoreBoxRoom}
+\newsavebox{\TaskBox}
+\newlength{\TaskBoxLift}
+\setlength{\TaskBoxLift}{4.9625pt}% the box sits exactly where the former wrapfigure put it
 
-% wrapfig hangs the score box about 1.5\baselineskip + 1.4ex - \intextsep above the task, into the gap after the
-% previous one. That room is taken by a negative \vspace and given back after an empty box (not discardable): no
-% change mid-page, but at the top of a page TeX drops the negative space, so the box clears the header (issue #106).
+% The score box hangs above the task, into the gap after the previous one. That room is taken by a negative
+% \vspace and given back after an empty box (not discardable): no change mid-page, but at the top of a page TeX
+% drops the negative space, so the box clears the header (issue #106). No wrapfigure: it left \linewidth 3cm short
+% for the whole first paragraph (issue #140) and wrapped the title line differently per document (issue #138).
 % A task may break across pages (issue #113); \needspace only keeps the title with its first lines.
 \newenvironment{Aufgabe}[2][]
 {%
@@ -400,7 +412,7 @@
 % Fixed size for the box offsets: they used to follow the \LARGE that \Namenszeile leaks into exams, so the
 % exercise preview (no \Namenszeile) wrapped differently and part score boxes overlapped the text (issue #111).
 \LARGE
-\setlength{\ScoreBoxRoom}{\dimexpr 1.5\baselineskip + 1.4ex - \intextsep - \topskip\relax}%
+\setlength{\ScoreBoxRoom}{\dimexpr 1.5\baselineskip + 1.4ex - 12pt - \topskip\relax}%
 \ifdim\ScoreBoxRoom<\z@ \setlength{\ScoreBoxRoom}{\z@}\fi
 \needspace{\dimexpr\ScoreBoxRoom + 3cm\relax}%
 \vspace{-\ScoreBoxRoom}%
@@ -423,16 +435,14 @@
     \hbox{}\nobreak
     \vskip\dimexpr\ScoreBoxRoom + .1mm\relax
     \nointerlineskip
+    % The box itself: zero height, right-aligned, just above the title line; \hangindent keeps line 1 clear of it.
+    \sbox\TaskBox{\Large\framebox[1.1\width]{ ~~~~~ / ~\PrintPkt~}}%
+    \vbox to\z@{\vss\hbox to\linewidth{\hfil\usebox\TaskBox}\kern\TaskBoxLift}%
+    \nobreak\nointerlineskip
     \noindent
 
-    % Wrapfigure floats the score box right
-    \begin{wrapfigure}{r}{3cm}
-        \vspace{-1.5\baselineskip}%
-        \raggedleft
-        \Large\framebox[1.1\width]{ ~~~~~ / ~\PrintPkt~}%
-    \end{wrapfigure}%
-
-    % Print title
+    % Print title (no \par between the shape and it, or TeX resets the shape)
+    \hangindent=-\dimexpr\wd\TaskBox+1em\relax \hangafter=-1
     \textbf{\Large (\thePunkte) #2} \quad
     \ignorespaces \normalsize
 }
