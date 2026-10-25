@@ -1,6 +1,6 @@
 ## What's Changed
-* Search & replace in the LaTeX editor (Ctrl+F / Ctrl+H); sort menus, and filter counts that follow grade/subject, in exam and exercise lists; points on every variant; roomier exercise editor; exercises can continue on the next page and you can insert page breaks between an exam's exercises; part score boxes no longer overlap text in the exercise preview (#110 #111 #112 #113 #115 #116 #117) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/118
-* Try Examance with one click of example data (exercises, exams, graded and scanned sheets), duplicate exercises and exams as a starting point, read the info posters on the sign-in page, and clearer next steps after requesting an account (#119, #120, #121, #122) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/123
+* Scanned exams can be kept on separate storage, such as a cloud drive, and the server makes an encrypted backup every day that administrators can restore (#114) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/124
+* Simpler sign-in page that fits on one screen, with a clearly visible "Request an account" button and one clear link each to the user guide and the posters (#128) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/129
+* Maintenance mode: users are warned 5 and 1 minute before updates or maintenance to save their work, sign-in pauses shortly before, every update (and optionally manual maintenance) first backs up the database, daily backups now run at midnight, and admins can schedule maintenance and see who is still online (#130) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/131
 
-
-**Full Changelog**: https://github.com/ValentinHerrmann/Examance/compare/0.3.0...0.3.1
+**Full Changelog**: https://github.com/ValentinHerrmann/Examance/compare/0.3.1...0.4.0
