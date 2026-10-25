@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import PendingSession, get_pending_teacher
+from app.dependencies import PendingSession, get_pending_teacher, require_not_frozen
 from app.middleware.rate_limit import limiter
 from app.models.key_envelope import KeyEnvelope
 from app.schemas.mfa import (
@@ -82,7 +82,10 @@ async def mfa_status(
     )
 
 
-@router.post("/totp/enroll", response_model=MfaEnrollResponse)
+@router.post(
+    "/totp/enroll",
+    dependencies=[Depends(require_not_frozen)],
+)
 @limiter.limit("10/hour")
 async def enroll_totp(
     request: Request,
@@ -106,7 +109,10 @@ async def enroll_totp(
     return MfaEnrollResponse(otpauth_uri=uri)
 
 
-@router.post("/totp/confirm", response_model=MfaBackupCodesResponse)
+@router.post(
+    "/totp/confirm",
+    dependencies=[Depends(require_not_frozen)],
+)
 @limiter.limit("20/hour")
 async def confirm_totp(
     body: TotpConfirmRequest,
@@ -141,7 +147,10 @@ async def confirm_totp(
     return MfaBackupCodesResponse(backup_codes=codes)
 
 
-@router.post("/backup-codes/regenerate", response_model=MfaBackupCodesResponse)
+@router.post(
+    "/backup-codes/regenerate",
+    dependencies=[Depends(require_not_frozen)],
+)
 @limiter.limit("10/hour")
 async def regenerate_backup_codes(
     request: Request,
@@ -159,7 +168,11 @@ async def regenerate_backup_codes(
     return MfaBackupCodesResponse(backup_codes=codes)
 
 
-@router.delete("/totp", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/totp",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_not_frozen)],
+)
 async def disable_totp(
     request: Request,
     session: PendingSession = Depends(get_pending_teacher),

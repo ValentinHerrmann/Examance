@@ -385,6 +385,9 @@ Two rules the endpoint enforces rather than trusts the client with:
 | `PATCH` | `/api/v1/admin/allowed-domains/{domain_id}` | Change Domain Features | Yes (Admin) | Same body as the account features update. |
 | `DELETE` | `/api/v1/admin/allowed-domains/{domain_id}` | Remove Allowed Domain | Yes (Admin) | `204`. |
 | `GET` | `/api/v1/admin/audit` | List Audit Logs | Yes (Admin) | Paginated audit log listing. |
+| `GET` | `/api/v1/admin/maintenance` | Maintenance State | Yes (Admin) | The current maintenance window (`status`, as the public endpoint), its backup (`backup_wanted`, `backup_state`, `backup_file`, `backup_finished_at`, `offsite_state`) and `counts` `{online, warned, ready}` (teachers online in the last 90 s, of them those who saw / confirmed the current window; `null` = unknown). Issue #130, `dev/maintenance_mode.md`. |
+| `POST` | `/api/v1/admin/maintenance` | Announce Maintenance | Yes (Admin) | `{"lead_minutes": 0-1440, "downtime_class": "very_short" \| "short" \| "long" \| "unspecific", "backup": true}`. Opens a manual window (replacing an open manual one; `409 ERR_MAINTENANCE_DEPLOYMENT_RUNNING` while a deployment is frozen): reminders 5 and 1 minute before (lead of at most 1 minute: at once and 10 s before), sign-in paused from the second, teaching endpoints `503 ERR_MAINTENANCE` and credential/account changes `503 ERR_MAINTENANCE_ACCOUNT_PAUSED` from the start until ended. Audited as `MAINTENANCE_STARTED`. |
+| `DELETE` | `/api/v1/admin/maintenance` | End Maintenance | Yes (Admin) | Ends the open window (manual or deployment). Audited as `MAINTENANCE_ENDED`. |
 
 #### Admin User Schemas
 - **`AccountFeatures`**: `{"server_results": true, "server_latex": true}`. `server_results`: the `all-server` storage mode is allowed (`hybrid` always is). `server_latex`: server-side LaTeX compilation is allowed. Exams and exercises always live on the server and have no switch. Both default to `true`, so accounts that existed before the switches keep everything. `AccountFeaturesUpdate` has the same fields, each optional.
@@ -423,6 +426,8 @@ Two rules the endpoint enforces rather than trusts the client with:
 |---|---|---|---|---|
 | `GET` | `/api/health` | Health Check | No | Returns `{"status": "ok", "version": "1.4.0"}`. The version is deliberately public — it is how the frontend detects an incompatible backend; see `deployment.md` §4. |
 | `GET` | `/api/v1/privacy/retention` | Retention Periods | No | The configured retention periods the privacy statement (`/legal/datenschutz`) shows: `{"grace_days", "audit_log_days", "registration_link_hours", "pending_account_days", "contribution_days", "contribution_pending_days", "training_sample_days"}`, read from the settings of the same names. Configuration only, no personal data. Rate limit 60/minute per IP. |
+| `GET` | `/api/v1/maintenance` | Maintenance Status | No | `{"phase": "none" \| "scheduled" \| "warning" \| "final" \| "down", "kind", "downtime_class", "revision", "first_warning_at", "second_warning_at", "starts_at", "server_time"}`, polled by every page (issue #130). A valid session cookie of a teacher marks the account as online for the admin's aggregate count (hashed id, 90 s; see `dev/maintenance_mode.md`). Rate limit 600/minute per IP. While a window is open, `/api/*` responses also carry `Maintenance-Revision: <revision>` (when the worker's cache knows it), so active clients refetch this endpoint at once. |
+| `POST` | `/api/v1/maintenance/ready` | Saved My Work | Yes | `{"revision"}`: the teacher confirmed they saved their work for that window (counted for the admin). `204`. |
 
 ---
 

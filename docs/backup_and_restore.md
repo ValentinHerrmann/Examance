@@ -1,22 +1,27 @@
 # Backup and restore guide (operators)
 
-What the daily backup covers, how to check that it works, and what to do in each emergency. Setup and design details: `docs/dev/storage_partitions.md`. Deployment: `docs/deployment.md`.
+What the two backups cover, how to check that it works, and what to do in each emergency. Setup and design details: `docs/dev/storage_partitions.md`. Deployment: `docs/deployment.md`.
 
 ## What is backed up
 
-Once a day, and at every start of the `backup` container (each deploy or restart), the backup service writes two restic snapshots to the S3 bucket:
+There are two backups, fully independent of each other:
+
+1. **Scheduled** (the `backup` service, `COMPOSE_PROFILES=backup`): every night at 00:00 in `BACKUP_TZ` (default `Europe/Berlin`) it writes two restic snapshots to the S3 bucket. A container start or restart never takes one, so the schedule does not drift.
+2. **Maintenance backup** (the `maintenance-backup` service, always on): a database dump before every backend update and, if the admin chose it, when a manual maintenance starts (issue #130, `docs/dev/maintenance_mode.md`). Teaching writes are frozen while it runs, so it is exactly the state before the update. It lands in `maintenance-backups/` next to `.env` and, when `BACKUP_RESTIC_REPOSITORY` is set, also as a restic snapshot tagged `maintenance`. A dump contains its own (open) maintenance window; every restore ends open windows after migrating, so the restored app is usable right away. A write that committed in the 5 s grace after the freeze (a long upload) can be missing from that one dump.
+
 
 | Snapshot tag | Contains | Restore with |
 |---|---|---|
 | `db` | The whole database: accounts, exams, exercises, students, submissions, scores, annotations, logos, audit log | `./restore-backup.sh db <id>` |
 | `blobs` | The scan files in the blob directory (only when scans are stored as files, `BLOB_STORAGE_BACKEND=fs`) | `./restore-backup.sh scans [<id>]` |
 | `pre-restore` | The database just before a `db` restore (made by the script) | `./restore-backup.sh db <id>` |
+| `maintenance` | The database right before an update or a manual maintenance (also as a local file in `maintenance-backups/`) | `./restore-backup.sh maintenance [latest\|<file>\|<id>]` |
 
 **Not backed up:**
 - `.env`. It holds the backup password, so keep `BACKUP_RESTIC_PASSWORD`, the S3 keys and the other secrets in a password manager.
 - Results of accounts in *hybrid* mode. They live only in the teacher's browser; the teacher's `.bgproj` export is the backup there.
 
-**Retention.** The 10 most recent snapshots are kept, plus the newest per day for 7 days, per week for 4 weeks and per month for 3 months (`BACKUP_KEEP_*` in `.env`). Anything older cannot be restored.
+**Retention.** Scheduled snapshots: the newest per day for 7 days, per week for 4 weeks and per month for 3 months (`BACKUP_KEEP_DAILY_DAYS` / `_WEEKLY_WEEKS` / `_MONTHLY_MONTHS` in `.env`). Maintenance backups: the newest `BACKUP_KEEP_MAINTENANCE` (10) local files and as many `maintenance` snapshots. `pre-restore`: the 10 most recent plus the daily/weekly/monthly ones. Anything older cannot be restored.
 
 ## The one thing to understand first: rows and files
 
@@ -36,6 +41,7 @@ A scan in the app consists of **two parts**: a database row (the submission, wit
 | The database is broken or empty, or a bad migration or operator mistake happened | Rows of every account | [C](#c-the-database-is-damaged) |
 | A restore was a mistake | — | [D](#d-undo-a-database-restore) |
 | The whole server is gone | Everything | [E](#e-the-whole-server-is-gone) |
+| Something broke right after an update | Rows since the update | [F](#f-an-update-broke-the-data) |
 
 All commands run in the stack directory (`~/examance/prod` or `~/examance/preview`). The script asks for the project name before it changes anything; `--yes` skips that.
 
@@ -104,13 +110,23 @@ This goes back to the state from just before the last `db` restore, using the ne
 
 Passkeys work again only under the same domain (`WEBAUTHN_RP_ID`), and TOTP only with the same `SECRET_KEY`. Restore both from the password manager.
 
+### F. An update broke the data
+
+```bash
+./restore-backup.sh list                   # also lists the local maintenance backups
+./restore-backup.sh maintenance latest     # newest local file (or newest `maintenance` snapshot)
+```
+
+The restore migrates the loaded database to the release that is running. If the update's own migration caused the damage, roll the backend image back first (`docs/deployment.md` §7), then restore. Like `db`, it saves the current state for `undo` first.
+
 ## Check that backups work
 
 Do this once after setup, then every few months:
 
 ```bash
 COMPOSE="docker compose -p examance-prod -f docker-compose.deploy.yml --env-file .env"
-$COMPOSE logs --tail 50 backup        # "db snapshot done", "blob snapshot done", no "failed"
+$COMPOSE logs --tail 50 backup        # "backup service ready", after midnight "db snapshot done", "blob snapshot done", no "failed"
+$COMPOSE logs --tail 20 maintenance-backup   # "maintenance backup ... done" after each update
 ./restore-backup.sh list              # recent db and blobs snapshots
 $COMPOSE exec backup sh -c 'psql -d postgres -c "CREATE DATABASE restore_test" && restic dump latest --tag db examance.sql | psql -q -d restore_test && psql -d restore_test -Atc "select count(*) from exams"; psql -d postgres -c "DROP DATABASE restore_test"'
 ```
@@ -122,4 +138,5 @@ $COMPOSE exec backup sh -c 'psql -d postgres -c "CREATE DATABASE restore_test" &
 - **Backups are encrypted** before upload. The restic password is the only key.
 - **Erased data survives in backups** until the last snapshot holding it expires, at most about `BACKUP_KEEP_MONTHLY_MONTHS` months.
 - **Restores bring erased data back.** Restoring a snapshot brings back data that was erased in the meantime, including data erased on request. After a database restore, re-run any erasure requests made after the snapshot time. The audit log records `DELETE` actions, but only with hashed ids.
+- **Maintenance backups** in `maintenance-backups/` are unencrypted dumps (mode 600, like `restore-safety/`); erased data survives in them until the newest `BACKUP_KEEP_MAINTENANCE` updates have pushed them out, and in the `maintenance` snapshots as long.
 - `restore-safety/` files are unencrypted. Delete them after the restore.

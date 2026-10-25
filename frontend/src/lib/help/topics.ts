@@ -289,6 +289,10 @@ export const HELP_TOPICS: HelpTopic[] = [
         headingKey: "help.topics.settings.s7.h",
         bodyKeys: ["help.topics.settings.s7.p1", "help.topics.settings.s7.p2"],
       },
+      {
+        headingKey: "help.topics.settings.s8.h",
+        bodyKeys: ["help.topics.settings.s8.p1", "help.topics.settings.s8.p2"],
+      },
     ],
   },
   {
@@ -331,6 +335,10 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         headingKey: "help.topics.accounts.s10.h",
         bodyKeys: ["help.topics.accounts.s10.p1", "help.topics.accounts.s10.p2"],
+      },
+      {
+        headingKey: "help.topics.accounts.s11.h",
+        bodyKeys: ["help.topics.accounts.s11.p1", "help.topics.accounts.s11.p2"],
       },
       {
         headingKey: "help.topics.accounts.s6.h",

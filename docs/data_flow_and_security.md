@@ -198,6 +198,10 @@ An account that has no password set answers exactly like a wrong password. The
 older, distinct response told an unauthenticated caller which addresses have
 accounts here.
 
+### Maintenance mode (issue #130)
+
+New sign-ins pause at the second maintenance reminder: the factor endpoints refuse a non-admin (`503 ERR_MAINTENANCE_LOGIN_BLOCKED`) before the pending token is spent, and `advance_sign_in` before a full session is minted; every check comes after a proven factor, so it reveals nothing about an address. Refresh tokens keep working, so open sessions survive. While a window is down, `get_teaching_teacher` answers `503 ERR_MAINTENANCE`, which freezes teaching writes for the maintenance backup (the client's offline queue replays them afterwards), and password, key-envelope, MFA, passkey and account changes answer `503 ERR_MAINTENANCE_ACCOUNT_PAUSED` (`require_not_frozen`, admins exempt), so a restore of that backup cannot silently revert them. **Presence**: the public status poll marks a signed-in teacher as online in the ephemeral store under a SHA-256 of the account id (90 s), plus "warned"/"ready" for the current window (2 h); admins see only counts. No IP, no timestamps per person beyond that window, nothing in the database. Maintenance backups (`maintenance-backups/`, restic tag `maintenance`) are plaintext dumps like `restore-safety/` and are rotated by `BACKUP_KEEP_MAINTENANCE`. Details: `docs/dev/maintenance_mode.md`.
+
 ### Account registration and approval
 
 Accounts come from an admin invitation, the CLI or bootstrap, or self-registration (issue #53, always available). The operator guide is `account_creation_and_management.md` §7; this is the security shape.

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Annotated, Literal, cast
+from typing import Annotated, Any, Literal, cast
 
 from fastapi import (
     APIRouter,
@@ -27,6 +27,7 @@ from app.models.key_envelope import KeyEnvelope
 from app.models.refresh_token import RefreshToken
 from app.models.registration_request import RegistrationRequest
 from app.models.teacher import Teacher
+from app.routers.maintenance import status_of as maintenance_status_of
 from app.schemas.admin import (
     AccountFeatures,
     AccountFeaturesUpdate,
@@ -40,8 +41,14 @@ from app.schemas.admin import (
     AllowedDomainResponse,
     AuditLogResponse,
 )
+from app.schemas.maintenance import (
+    AdminMaintenanceResponse,
+    MaintenanceStartRequest,
+    PresenceCountsResponse,
+)
 from app.services import account_mail, registration
 from app.services import audit as audit_svc
+from app.services import maintenance as maintenance_svc
 from app.services import mfa as mfa_svc
 from app.services import webauthn as webauthn_svc
 from app.services.account_deletion import delete_account, ensure_not_last_admin
@@ -548,3 +555,86 @@ async def list_audit_logs(
         )
         for log in logs
     ]
+
+
+# ── Maintenance (issue #130) ─────────────────────────────────────────────────
+
+
+async def _maintenance_out(db: AsyncSession) -> AdminMaintenanceResponse:
+    state = await maintenance_svc.load(db, fresh=True)
+    body = maintenance_status_of(state)
+    counts = await maintenance_svc.presence_counts(body.revision)
+    response = AdminMaintenanceResponse(
+        status=body,
+        counts=PresenceCountsResponse(
+            online=counts.online, warned=counts.warned, ready=counts.ready
+        ),
+    )
+    if state is not None and body.phase != "none":
+        response.backup_wanted = state.backup_wanted
+        response.backup_state = cast(Any, state.backup_state)
+        response.backup_file = state.backup_file
+        response.backup_finished_at = state.backup_finished_at
+        response.offsite_state = cast(Any, state.offsite_state)
+    return response
+
+
+@router.get("/maintenance")
+async def get_maintenance(
+    _admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> AdminMaintenanceResponse:
+    """The current window, its backup, and how many teachers are online / warned / ready."""
+    return await _maintenance_out(db)
+
+
+@router.post("/maintenance")
+async def start_maintenance(
+    body: MaintenanceStartRequest,
+    admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> AdminMaintenanceResponse:
+    """Announce manual maintenance in `lead_minutes` (0 = now); replaces an open manual window."""
+    try:
+        state = await maintenance_svc.start(
+            db,
+            kind="manual",
+            downtime_class=body.downtime_class,
+            lead_seconds=body.lead_minutes * 60,
+            backup=body.backup,
+            started_by=admin.id,
+        )
+    except maintenance_svc.WindowBusyError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An update is being deployed right now; try again when it is done.",
+            headers={"code": "ERR_MAINTENANCE_DEPLOYMENT_RUNNING"},
+        ) from None
+    await audit_svc.write(
+        db,
+        teacher_id=admin.id,
+        teacher_email=admin.email,
+        action="MAINTENANCE_STARTED",
+        target_id=f"maintenance:{state.revision}",
+    )
+    await db.flush()
+    return await _maintenance_out(db)
+
+
+@router.delete("/maintenance")
+async def end_maintenance(
+    admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> AdminMaintenanceResponse:
+    """End the open window (manual or deployment); teachers can work and sign in again."""
+    state = await maintenance_svc.load(db, fresh=True)
+    if await maintenance_svc.end(db):
+        await audit_svc.write(
+            db,
+            teacher_id=admin.id,
+            teacher_email=admin.email,
+            action="MAINTENANCE_ENDED",
+            target_id=f"maintenance:{state.revision if state else 0}",
+        )
+        await db.flush()
+    return await _maintenance_out(db)

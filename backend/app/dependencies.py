@@ -14,6 +14,7 @@ from app.models.exam import Exam
 from app.models.exercise import Exercise
 from app.models.scan_submission import ScanSubmission
 from app.models.teacher import Teacher
+from app.services import maintenance
 from app.services.exercise_sharing import readable_clause
 from app.services.jwt import decode_token
 
@@ -161,6 +162,7 @@ async def get_admin_teacher(
 
 async def get_teaching_teacher(
     teacher: Teacher = Depends(get_current_teacher),
+    db: AsyncSession = Depends(get_db),
 ) -> Teacher:
     """Require a teacher account: admins manage users and the server only (issue #58).
 
@@ -173,6 +175,8 @@ async def get_teaching_teacher(
             "teacher account.",
             headers={"code": "ERR_TEACHER_ROLE_REQUIRED"},
         )
+    # Maintenance (issue #130): teaching data stays still while it is backed up or migrated.
+    await maintenance.ensure_teaching_allowed(db)
     return teacher
 
 
@@ -260,3 +264,19 @@ async def get_submission_for_teacher(
     if submission is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found.")
     return submission
+
+
+async def require_not_frozen(
+    access_token: str | None = Cookie(default=None),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Credential and account writes also stop while maintenance is down, so the maintenance
+    backup stays consistent (issue #130). The role claim only exempts admins; auth stays below."""
+    role = None
+    if access_token:
+        try:
+            role = decode_token(access_token).get("role")
+        except jwt.InvalidTokenError:
+            role = None
+    if role != "admin":
+        await maintenance.ensure_teaching_allowed(db, code="ERR_MAINTENANCE_ACCOUNT_PAUSED")
