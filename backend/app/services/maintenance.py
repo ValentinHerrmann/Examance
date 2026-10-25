@@ -223,6 +223,23 @@ async def freeze(db: AsyncSession, revision: int) -> bool:
     return True
 
 
+async def start_now(db: AsyncSession, revision: int) -> WindowState | None:
+    """Admin: cut the countdown short (issue #149). Keeps the revision, so CI's --revision calls
+    still match, and auto_end_at, so a slow build keeps its safety net. None if not pending."""
+    row = await _row(db)
+    now = now_utc()
+    if row is None or row.revision != revision:
+        return None
+    if _state(row).phase(now) in ("none", "down"):
+        return None
+    row.starts_at = now
+    row.first_warning_at = min(_aware(row.first_warning_at) or now, now)
+    row.second_warning_at = min(_aware(row.second_warning_at) or now, now)
+    await db.flush()
+    invalidate()
+    return _state(row)
+
+
 async def end(db: AsyncSession, revision: int | None = None) -> bool:
     """Close the open window; with *revision*, only that one (a cancelled deploy run must not end
     the window of the run that replaced it)."""

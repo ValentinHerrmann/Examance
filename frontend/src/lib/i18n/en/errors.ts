@@ -13,6 +13,7 @@ export const errors: Translations['errors'] = {
         ERR_MAINTENANCE: 'Examance is under maintenance right now. Your changes are sent automatically afterwards.',
         ERR_MAINTENANCE_ACCOUNT_PAUSED: 'Your password, sign-in factors and account settings cannot be changed during maintenance. Please try again afterwards.',
         ERR_MAINTENANCE_DEPLOYMENT_RUNNING: 'An update is being installed right now. Please start the maintenance once it is done.',
+        ERR_MAINTENANCE_NOT_PENDING: 'The maintenance has already started or ended.',
         ERR_MAINTENANCE_LOGIN_BLOCKED: 'Sign-in is briefly paused for maintenance. Please try again in a moment.',
         ERR_ACCOUNT_LOCKED: 'Too many failed attempts. Please wait a moment and try again.',
         ERR_LAYOUT_REPORT_QUOTA: 'Daily quota for layout reports reached. Please try again tomorrow.',

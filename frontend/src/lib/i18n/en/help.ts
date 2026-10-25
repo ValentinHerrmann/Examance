@@ -360,7 +360,7 @@ export const help: Translations['help'] = {
             s11: {
                 h: 'For administrators: maintenance mode',
                 p1: 'Under User Management → Maintenance you announce maintenance with a lead time (0 minutes too) and an expected duration. Signed-in teachers are reminded 5 minutes and 1 minute before (with a lead time of 1 minute or less: at once and 10 seconds before); from the second reminder, sign-in is paused for everyone except administrators, and from the start no exam data can be changed until you end the maintenance. If you choose, the database is backed up when it starts; start your work only once the backup is done.',
-                p2: 'The counters show how many teachers are online right now, how many saw the announcement and how many confirmed they saved their work. Updates on deployment announce themselves (5 minutes ahead) and always back up the database first.',
+                p2: 'The counters show how many teachers are online right now, how many saw the announcement and how many confirmed they saved their work. Updates on deployment announce themselves (5 minutes ahead) and always back up the database first. When nobody is signed in any more, "Start now" cuts the countdown of a maintenance or an update short.',
             },
         },
         privacy: {

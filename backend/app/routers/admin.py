@@ -43,6 +43,7 @@ from app.schemas.admin import (
 )
 from app.schemas.maintenance import (
     AdminMaintenanceResponse,
+    MaintenanceStartNowRequest,
     MaintenanceStartRequest,
     PresenceCountsResponse,
 )
@@ -615,6 +616,31 @@ async def start_maintenance(
         teacher_id=admin.id,
         teacher_email=admin.email,
         action="MAINTENANCE_STARTED",
+        target_id=f"maintenance:{state.revision}",
+    )
+    await db.flush()
+    return await _maintenance_out(db)
+
+
+@router.post("/maintenance/start-now")
+async def start_maintenance_now(
+    body: MaintenanceStartNowRequest,
+    admin: Annotated[Teacher, Depends(get_admin_teacher)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> AdminMaintenanceResponse:
+    """Cut the countdown of the open window short, e.g. when nobody is online (issue #149)."""
+    state = await maintenance_svc.start_now(db, body.revision)
+    if state is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The maintenance has already started or ended.",
+            headers={"code": "ERR_MAINTENANCE_NOT_PENDING"},
+        )
+    await audit_svc.write(
+        db,
+        teacher_id=admin.id,
+        teacher_email=admin.email,
+        action="MAINTENANCE_STARTED_EARLY",
         target_id=f"maintenance:{state.revision}",
     )
     await db.flush()

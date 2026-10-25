@@ -543,11 +543,8 @@ def maintenance_start(
     click.echo(state.revision)
 
 
-@maintenance_group.command("freeze")
-@click.option("--revision", type=int, required=True)
-@click.option("--wait", is_flag=True, help="First wait for the announced start (at most 15 min).")
-def maintenance_freeze(revision: int, wait: bool) -> None:
-    """Deployment: stop teaching writes, so the backup is consistent."""
+def _wait_for_announced_start(revision: int) -> None:
+    """Sleep until the window's start, re-reading it: an admin may move it forward (issue #149)."""
     import time
 
     from app.services import maintenance
@@ -555,16 +552,34 @@ def maintenance_freeze(revision: int, wait: bool) -> None:
     async def _load(db: AsyncSession) -> WindowState | None:
         return await maintenance.load(db, fresh=True)
 
+    deadline = time.monotonic() + 900
+    announced = False
+    while time.monotonic() < deadline:
+        state = asyncio.run(_in_session(_load))
+        now = maintenance.now_utc()
+        if state is None or state.revision != revision or state.phase(now) == "none":
+            return
+        remaining = (state.starts_at - now).total_seconds()
+        if remaining <= 0:
+            return
+        if not announced:
+            click.echo(f"Waiting {remaining:.0f}s for the announced start.")
+            announced = True
+        time.sleep(min(remaining, 5, max(0.0, deadline - time.monotonic())))
+
+
+@maintenance_group.command("freeze")
+@click.option("--revision", type=int, required=True)
+@click.option("--wait", is_flag=True, help="First wait for the announced start (at most 15 min).")
+def maintenance_freeze(revision: int, wait: bool) -> None:
+    """Deployment: stop teaching writes, so the backup is consistent."""
+    from app.services import maintenance
+
     async def _freeze(db: AsyncSession) -> bool:
         return await maintenance.freeze(db, revision)
 
     if wait:
-        state = asyncio.run(_in_session(_load))
-        if state is not None and state.revision == revision:
-            remaining = (state.starts_at - maintenance.now_utc()).total_seconds()
-            if remaining > 0:
-                click.echo(f"Waiting {remaining:.0f}s for the announced start.")
-                time.sleep(min(remaining, 900))
+        _wait_for_announced_start(revision)
 
     if not asyncio.run(_in_session(_freeze)):
         raise click.ClickException(f"Window {revision} is not open (ended, expired or replaced).")
