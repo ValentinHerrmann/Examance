@@ -396,26 +396,23 @@
 \setlength{\LastColWidth}{15mm}
 \newlength{\MiddleColWidth}
 \setlength{\MiddleColWidth}{\dimexpr\textwidth - \FirstColWidth - \LastColWidth - 5mm}
-\newlength{\ScoreBoxRoom}
 \newsavebox{\TaskBox}
-\newlength{\TaskBoxLift}
-\setlength{\TaskBoxLift}{4.9625pt}% the box sits exactly where the former wrapfigure put it
 
-% The score box hangs above the task, into the gap after the previous one. That room is taken by a negative
-% \vspace and given back after an empty box (not discardable): no change mid-page, but at the top of a page TeX
-% drops the negative space, so the box clears the header (issue #106). No wrapfigure: it left \linewidth 3cm short
-% for the whole first paragraph (issue #140) and wrapped the title line differently per document (issue #138).
+% The score box sits at the right end of the title line like the Teilaufgabe box; \hangindent keeps the title line
+% clear of it. Never a wrapfigure: it left \linewidth 3cm short for the whole first paragraph (issue #140) and
+% wrapped the title line differently per document (issue #138); nor a band above the title, which wasted a line.
 % A task may break across pages (issue #113); \needspace only keeps the title with its first lines.
 \newenvironment{Aufgabe}[2][]
 {%
 \par
-% Fixed size for the box offsets: they used to follow the \LARGE that \Namenszeile leaks into exams, so the
-% exercise preview (no \Namenszeile) wrapped differently and part score boxes overlapped the text (issue #111).
+% Fixed size for \quad and \hangindent: they used to follow the \LARGE that \Namenszeile leaks into exams, so the
+% exercise preview (no \Namenszeile) wrapped differently (issue #111).
 \LARGE
-\setlength{\ScoreBoxRoom}{\dimexpr 1.5\baselineskip + 1.4ex - 12pt - \topskip\relax}%
-\ifdim\ScoreBoxRoom<\z@ \setlength{\ScoreBoxRoom}{\z@}\fi
-\needspace{\dimexpr\ScoreBoxRoom + 3cm\relax}%
-\vspace{-\ScoreBoxRoom}%
+\addvspace{\dimexpr 1ex + \topskip\relax}%
+\needspace{3cm}%
+% An invisible rule survives a page top, so the box stays 4pt below the header rule there (issue #106); the kern
+% takes back the \topskip that TeX puts before the rule at a page top, and \addvspace the same amount mid-page.
+\hrule\@height\z@\nobreak\kern\dimexpr 4pt - \topskip\relax
     \neverindent
     \gdef\TaskScore{0}% Reset task score accumulator for the new exercise
     \gdef\TaskFixedScore{}% \FestePunkte inside the body
@@ -431,18 +428,12 @@
         \def\PrintPkt{-}% UI Fallback for the very first compilation
     \fi
     % \aPunkte mapping removed (unused)
-    % An empty box gets the interline glue the former minipage line got and keeps the room below from being dropped.
-    \hbox{}\nobreak
-    \vskip\dimexpr\ScoreBoxRoom + .1mm\relax
-    \nointerlineskip
-    % The box itself: zero height, right-aligned, just above the title line; \hangindent keeps line 1 clear of it.
+    % Title line with the score box (no \par between the shape and the title, or TeX resets the shape)
     \sbox\TaskBox{\Large\framebox[1.1\width]{ ~~~~~ / ~\PrintPkt~}}%
-    \vbox to\z@{\vss\hbox to\linewidth{\hfil\usebox\TaskBox}\kern\TaskBoxLift}%
-    \nobreak\nointerlineskip
     \noindent
-
-    % Print title (no \par between the shape and it, or TeX resets the shape)
     \hangindent=-\dimexpr\wd\TaskBox+1em\relax \hangafter=-1
+    % Bottom on the baseline: hanging below it, the box ran into the second line, which \hangindent does not shorten.
+    \makebox[0pt][l]{\hspace{\linewidth}\llap{\raisebox{\dp\TaskBox}{\usebox\TaskBox}}}%
     \textbf{\Large (\thePunkte) #2} \quad
     \ignorespaces \normalsize
 }
