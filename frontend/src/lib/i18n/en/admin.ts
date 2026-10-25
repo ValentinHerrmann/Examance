@@ -29,6 +29,10 @@ export const admin: Translations['admin'] = {
         domains: 'Domains',
         maintenance: 'Maintenance',
     },
+    reports: {
+        title: 'Layout reports',
+        intro: 'Layout problems reported by teachers. The text under "For GitHub" contains no personal data and can be pasted directly into a new GitHub issue; then drag the PDFs into it.',
+    },
     maintenance: {
         title: 'Maintenance mode',
         intro: 'Announce maintenance: signed-in teachers are reminded 5 minutes and 1 minute before to save their work; from the second reminder, sign-in is paused. Updates announce themselves on deployment.',

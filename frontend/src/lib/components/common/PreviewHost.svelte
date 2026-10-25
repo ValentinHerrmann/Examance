@@ -4,13 +4,17 @@
   import type { PreviewFlow } from "#lib/stores/previewFlow";
   import PdfPreviewModal from "#lib/components/PdfPreviewModal.svelte";
   import { ConfirmDialog } from "#lib/components/ui";
+  import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
 
   interface Props {
     /** Renders a createPreviewFlow(): the "compile now?" prompt and the PDF modal. */
     flow: PreviewFlow<any>;
+    /** What the flow previews; needed for the layout report. */
+    kind: "exam" | "exercise";
   }
 
-  let { flow }: Props = $props();
+  let { flow, kind }: Props = $props();
+  let showReport = $derived(flow.reportable && !$flow.busy && !!($flow.angabeUrl || $flow.loesungUrl || $flow.error));
 
   onDestroy(() => flow.destroy());
 </script>
@@ -35,5 +39,16 @@
   loesungPending={$flow.loesungPending}
   notice={$flow.notice}
   error={$flow.error}
+  report={showReport ? layoutReport : undefined}
   onClose={() => flow.close()}
 />
+
+{#snippet layoutReport()}
+  <LayoutReportButton
+    {kind}
+    title={$flow.title}
+    compileError={$flow.error || null}
+    disabled={$flow.loesungPending}
+    collectFiles={() => flow.reportFiles()}
+  />
+{/snippet}

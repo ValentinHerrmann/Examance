@@ -1,7 +1,8 @@
-"""Account mails: set-password (reset / invite), registration, approval notices.
+"""Account mails: set-password (reset / invite), registration, approval and report notices.
 
 Rendering only; delivery is `app.services.email.send_email`. Every interpolated value is
-HTML-escaped in the HTML part, and nothing a registrant typed (the note) is ever put in a mail.
+HTML-escaped in the HTML part, and nothing a registrant typed (the note) is ever put in a mail;
+the only free text mailed is an admin's resolution note to a layout reporter.
 """
 from __future__ import annotations
 
@@ -108,6 +109,36 @@ def contribution_notice_mail(owner_email: str, pending: int) -> Mail:
         "Examance: proposed changes to your shared exercises",
         [f"{pending} proposal(s) for your shared exercises await your review."],
         link=("Review proposals", frontend_link("/exercises?view=proposals")),
+    )
+
+
+def layout_report_notice_mail(admin_email: str, open_count: int) -> Mail:
+    """Tells an admin that layout reports wait (issue #134). Carries no report content."""
+    return _compose(
+        admin_email,
+        "Examance: new layout problem report",
+        [f"{open_count} layout problem report(s) await your review."],
+        link=("Review reports", frontend_link("/admin/users?tab=reports")),
+    )
+
+
+def layout_report_resolved_mail(
+    reporter_email: str, kind: Literal["exam", "exercise"], created: str, note: str | None
+) -> Mail:
+    """Tells the reporter their layout report was resolved. Only the admin's note is quoted,
+    never the reported content or the exam/exercise title."""
+    subject_of = "an exam" if kind == "exam" else "an exercise"
+    paragraphs = [
+        f"The layout problem you reported on {created} for {subject_of} has been resolved "
+        "by an administrator."
+    ]
+    if note:
+        paragraphs.append(f"Note from the administrator: {note}")
+    return _compose(
+        reporter_email,
+        "Examance: your layout problem report was resolved",
+        paragraphs,
+        footer=["Thank you for helping to improve Examance."],
     )
 
 

@@ -12,3 +12,4 @@ class RetentionPeriods(BaseModel):
     contribution_days: int
     contribution_pending_days: int
     training_sample_days: int
+    layout_report_days: int

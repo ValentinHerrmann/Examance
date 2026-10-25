@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { t } from "#lib/i18n";
   import { isDesktop } from "#lib/stores/viewport";
   import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
@@ -17,6 +18,8 @@
     placeholderText?: string | undefined;
     /** Desktop: with every pane collapsed, shrink to the collapsed strips and give the rest of the row back. */
     shrinkWhenCollapsed?: boolean;
+    /** A slim bar right under the PDFs, for actions about them (e.g. the layout report). */
+    footer?: Snippet;
   }
 
   let {
@@ -28,7 +31,8 @@
     titleLoesung = undefined,
     height = "100%",
     placeholderText = undefined,
-    shrinkWhenCollapsed = false
+    shrinkWhenCollapsed = false,
+    footer,
   }: Props = $props();
 
   let angabeTitle = $derived(titleAngabe ?? $t("editor.pdfPreview.titleAngabe"));
@@ -79,98 +83,114 @@
     }
   }
 
+  let allCollapsed = $derived(!showAngabePreview && !showLoesungPreview);
+  // Both panes folded to strips leave no room for the bar.
+  let showFooter = $derived(!!footer && !(shrinkWhenCollapsed && allCollapsed));
+
   const paneShell =
     "flex flex-col overflow-hidden rounded-md border border-line bg-surface-viewer transition-all duration-200";
 </script>
 
+{#snippet footerBar()}
+  {#if showFooter}
+    <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">{@render footer?.()}</div>
+  {/if}
+{/snippet}
+
 {#if $isDesktop}
   <div
-    class="flex min-w-0 gap-2 overflow-hidden {shrinkWhenCollapsed && !showAngabePreview && !showLoesungPreview ? 'flex-none' : 'w-full flex-1'}"
+    class="flex min-w-0 flex-col gap-1.5 {shrinkWhenCollapsed && allCollapsed ? 'flex-none' : 'w-full flex-1'}"
     style="height: {height};"
   >
-    {#each panes as pane (pane.id)}
-      <div class="{paneShell} {pane.shown ? 'min-w-0 flex-1' : 'w-10 shrink-0'}">
-        {#if pane.shown}
-          <div class="flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-1.5 text-content">
-            <button
-              type="button"
-              class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 truncate border-0 bg-transparent p-0 text-left text-content"
-              onclick={pane.toggle}
-              title={$t("editor.pdfPreview.collapse", { title: pane.title })}
-            >
-              <Icon icon={pane.icon} class="text-muted" />
-              <span class="truncate text-sm font-medium">{pane.title}</span>
-            </button>
-            <div class="flex shrink-0 items-center gap-2">
-              {#if pane.url}
+    <div class="flex min-h-0 min-w-0 flex-1 gap-2 overflow-hidden">
+      {#each panes as pane (pane.id)}
+        <div class="{paneShell} {pane.shown ? 'min-w-0 flex-1' : 'w-10 shrink-0'}">
+          {#if pane.shown}
+            <div class="flex w-full items-center justify-between gap-2 border-b border-line bg-surface-raised px-3 py-1.5 text-content">
+              <button
+                type="button"
+                class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 truncate border-0 bg-transparent p-0 text-left text-content"
+                onclick={pane.toggle}
+                title={$t("editor.pdfPreview.collapse", { title: pane.title })}
+              >
+                <Icon icon={pane.icon} class="text-muted" />
+                <span class="truncate text-sm font-medium">{pane.title}</span>
+              </button>
+              <div class="flex shrink-0 items-center gap-2">
+                {#if pane.url}
+                  <Button
+                    variant="outlined"
+                    severity="secondary"
+                    size="sm"
+                    icon={faDownload}
+                    href={pane.url}
+                    download={`${pane.title}.pdf`}
+                    title={$t("common.download")}
+                  >
+                    {$t("common.download")}
+                  </Button>
+                {/if}
                 <Button
-                  variant="outlined"
+                  variant="text"
                   severity="secondary"
                   size="sm"
-                  icon={faDownload}
-                  href={pane.url}
-                  download={`${pane.title}.pdf`}
-                  title={$t("common.download")}
-                >
-                  {$t("common.download")}
-                </Button>
-              {/if}
-              <Button
-                variant="text"
-                severity="secondary"
-                size="sm"
-                iconOnly
-                icon={faChevronRight}
-                ariaLabel={$t("editor.pdfPreview.collapse", { title: pane.title })}
-                title={$t("editor.pdfPreview.collapse", { title: pane.title })}
-                onClick={pane.toggle}
-              />
-            </div>
-          </div>
-          <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: pane.title })}>
-            {#if pane.url}
-              <PdfEmbedViewer src={pane.url} />
-            {:else}
-              <div class="flex h-full items-center justify-center p-4 text-center text-sm text-muted">
-                {placeholder}
+                  iconOnly
+                  icon={faChevronRight}
+                  ariaLabel={$t("editor.pdfPreview.collapse", { title: pane.title })}
+                  title={$t("editor.pdfPreview.collapse", { title: pane.title })}
+                  onClick={pane.toggle}
+                />
               </div>
-            {/if}
-          </div>
-        {:else}
-          <button
-            type="button"
-            class="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 border-0 bg-surface-raised py-3 text-content hover:bg-surface-inset"
-            onclick={pane.toggle}
-            title={$t("editor.pdfPreview.expand", { title: pane.title })}
-          >
-            <Icon icon={faChevronLeft} class="text-muted" />
-            <Icon icon={pane.icon} />
-            <span class="text-xs [writing-mode:vertical-rl]">{pane.title} PDF</span>
-          </button>
-        {/if}
-      </div>
-    {/each}
+            </div>
+            <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: pane.title })}>
+              {#if pane.url}
+                <PdfEmbedViewer src={pane.url} />
+              {:else}
+                <div class="flex h-full items-center justify-center p-4 text-center text-sm text-muted">
+                  {placeholder}
+                </div>
+              {/if}
+            </div>
+          {:else}
+            <button
+              type="button"
+              class="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 border-0 bg-surface-raised py-3 text-content hover:bg-surface-inset"
+              onclick={pane.toggle}
+              title={$t("editor.pdfPreview.expand", { title: pane.title })}
+            >
+              <Icon icon={faChevronLeft} class="text-muted" />
+              <Icon icon={pane.icon} />
+              <span class="text-xs [writing-mode:vertical-rl]">{pane.title} PDF</span>
+            </button>
+          {/if}
+        </div>
+      {/each}
+    </div>
+    {@render footerBar()}
   </div>
 {:else}
-  <div
-    class="flex w-full min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-line bg-surface-viewer"
-    style="height: min(70dvh, {height}); min-height: 18rem;"
-  >
-    <Tabs
-      class="shrink-0 bg-surface-raised"
-      items={panes.map((p) => ({ id: p.id, label: p.title, icon: p.icon }))}
-      value={mobilePane}
-      onChange={(id) => selectMobilePane(id === "loesung" ? "loesung" : "angabe")}
-    />
+  <div class="flex w-full min-w-0 flex-1 flex-col gap-1.5">
+    <div
+      class="flex w-full min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-line bg-surface-viewer"
+      style="height: min(70dvh, {height}); min-height: 18rem;"
+    >
+      <Tabs
+        class="shrink-0 bg-surface-raised"
+        items={panes.map((p) => ({ id: p.id, label: p.title, icon: p.icon }))}
+        value={mobilePane}
+        onChange={(id) => selectMobilePane(id === "loesung" ? "loesung" : "angabe")}
+      />
 
-    <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: activePane.title })}>
-      {#if activePane.url}
-        <PdfEmbedViewer src={activePane.url} />
-      {:else}
-        <div class="flex h-full items-center justify-center p-4 text-center text-sm text-muted">
-          {placeholder}
-        </div>
-      {/if}
+      <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: activePane.title })}>
+        {#if activePane.url}
+          <PdfEmbedViewer src={activePane.url} />
+        {:else}
+          <div class="flex h-full items-center justify-center p-4 text-center text-sm text-muted">
+            {placeholder}
+          </div>
+        {/if}
+      </div>
     </div>
+    {@render footerBar()}
   </div>
 {/if}

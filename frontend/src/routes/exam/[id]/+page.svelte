@@ -57,6 +57,8 @@
   import { sessionStore, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
   import { get } from "svelte/store";
   import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
+  import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
+  import { examReportFiles } from "#lib/layout-report/collect";
   import { getPresetCutoffs } from "#lib/analytics/gradingKey";
   import type { GradingKeyConfig } from "#lib/db/schema";
   import { goto } from "$app/navigation";
@@ -1173,6 +1175,23 @@
   });
 </script>
 
+{#snippet layoutReport()}
+  {#if exam}
+    <LayoutReportButton
+      kind="exam"
+      title={exam.title ?? ""}
+      compileError={errorMsg || null}
+      disabled={isPreviewLoading}
+      collectFiles={() =>
+        examReportFiles(
+          { exam: exam!, exercises, libraryExercises, mcGroups, examItems, key: get(sessionStore).sessionKey },
+          previewPdfUrl,
+          previewSolutionPdfUrl
+        )}
+    />
+  {/if}
+{/snippet}
+
 <PageShell width="fluid">
   <PageHeader title={$t("exam.sidebar.setup")} />
 
@@ -1317,7 +1336,9 @@
               titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
               height="550px"
               placeholderText={$t("exam.page.pdfPreview.placeholder")}
-            />
+            >
+              {#snippet footer()}{@render layoutReport()}{/snippet}
+            </DualPdfPreview>
           </div>
         {/if}
 
@@ -1328,6 +1349,9 @@
           <Alert severity="danger" class="mt-4">
             <div class="max-h-72 overflow-auto font-mono break-all whitespace-pre-wrap">{errorMsg}</div>
           </Alert>
+        {/if}
+        {#if errorMsg && !previewPdfUrl && !previewSolutionPdfUrl}
+          <div class="mt-2 flex justify-end">{@render layoutReport()}</div>
         {/if}
       </Card>
 

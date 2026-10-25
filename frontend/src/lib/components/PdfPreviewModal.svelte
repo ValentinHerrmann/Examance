@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { t } from "#lib/i18n";
   import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
   import { Alert, Button, Modal, Spinner } from "#lib/components/ui";
@@ -14,6 +15,8 @@
     loesungPending?: boolean;
     notice?: string;
     error?: string;
+    /** Actions about the PDFs (layout report), in the bar under them. */
+    report?: Snippet;
     onClose: () => void;
   }
 
@@ -26,6 +29,7 @@
     loesungPending = false,
     notice = "",
     error = "",
+    report,
     onClose
   }: Props = $props();
 
@@ -54,6 +58,7 @@
       showAngabePreview={true}
       bind:showLoesungPreview={showLoesung}
       height="65dvh"
+      footer={report}
     />
   {/if}
   {#snippet footer()}

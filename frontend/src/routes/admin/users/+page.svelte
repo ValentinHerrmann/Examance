@@ -25,7 +25,7 @@
   import { awaitSessionReady, isUnlocked, sessionStore } from "#lib/stores/session";
   import { refreshCapabilities } from "#lib/db/workspace";
   import { t, translate, type TranslationKey } from "#lib/i18n";
-  import { faEnvelope, faGlobe, faScrewdriverWrench, faUserCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
+  import { faBug, faEnvelope, faGlobe, faScrewdriverWrench, faUserCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Button, Card, Checkbox, ConfirmDialog, PageHeader, PageShell, Tabs } from "#lib/components/ui";
   import { safeLocalStorage } from "#lib/utils/storage";
   import PendingAccounts from "#lib/components/admin/PendingAccounts.svelte";
@@ -33,9 +33,12 @@
   import InviteForm from "#lib/components/admin/InviteForm.svelte";
   import AllowedDomains from "#lib/components/admin/AllowedDomains.svelte";
   import MaintenanceControl from "#lib/components/admin/MaintenanceControl.svelte";
+  import LayoutReports from "#lib/components/admin/LayoutReports.svelte";
+  import { listLayoutReports } from "#lib/api/layoutReports";
+  import { page } from "$app/state";
 
   type Notice = { severity: "success" | "warning" | "danger"; text: string } | null;
-  type Section = "pending" | "accounts" | "invite" | "domains" | "maintenance";
+  type Section = "pending" | "accounts" | "invite" | "domains" | "maintenance" | "reports";
 
   let users = $state.raw<AdminUser[]>([]);
   let domains = $state.raw<AllowedDomain[]>([]);
@@ -46,15 +49,16 @@
   const busy = new SvelteSet<string>();
   const INVITE = "invite";
   const DOMAINS = "domains";
-  let notices = $state<Record<Section, Notice>>({ pending: null, accounts: null, invite: null, domains: null, maintenance: null });
+  let notices = $state<Record<Section, Notice>>({ pending: null, accounts: null, invite: null, domains: null, maintenance: null, reports: null });
   let rejecting = $state.raw<AdminUser | null>(null);
   let deleting = $state.raw<AdminUser | null>(null);
   let deleteKeepsExercises = $state(false);
 
   // One task per tab, so a phone shows one short screen at a time. The choice is remembered per browser.
   const TAB_KEY = "bg_admin_tab";
-  const TABS: readonly Section[] = ["pending", "accounts", "invite", "domains", "maintenance"];
-  const savedTab = safeLocalStorage.getItem(TAB_KEY) as Section | null;
+  const TABS: readonly Section[] = ["pending", "accounts", "invite", "domains", "reports", "maintenance"];
+  // The admin mail about new layout reports links here with ?tab=reports.
+  const savedTab = (page.url.searchParams.get("tab") ?? safeLocalStorage.getItem(TAB_KEY)) as Section | null;
   let tabChosen = savedTab !== null && TABS.includes(savedTab);
   let tab = $state<Section>(tabChosen && savedTab ? savedTab : "accounts");
   function selectTab(id: string) {
@@ -64,6 +68,7 @@
     safeLocalStorage.setItem(TAB_KEY, id);
   }
 
+  let openReports = $state(0);
   let isAdmin = $derived($isUnlocked && $sessionStore.role === "admin");
   let pending = $derived(users.filter((u) => u.approved_at === null));
   let approved = $derived(users.filter((u) => u.approved_at !== null));
@@ -81,6 +86,7 @@
     loadError = "";
     try {
       [users, domains] = await Promise.all([listUsers(), listAllowedDomains()]);
+      void listLayoutReports("open").then((r) => (openReports = r.open_count), () => {});
       if (!tabChosen && users.some((u) => u.approved_at === null)) tab = "pending";
     } catch (err) {
       loadError = apiErrorMessage(err, translate("admin.loadFailed"));
@@ -257,6 +263,7 @@
           { id: "accounts", label: $t("admin.tabs.accounts"), icon: faUsers },
           { id: "invite", label: $t("admin.tabs.invite"), icon: faEnvelope },
           { id: "domains", label: $t("admin.tabs.domains"), icon: faGlobe },
+          { id: "reports", label: $t("layoutReport.admin.tab"), icon: faBug, count: openReports },
           { id: "maintenance", label: $t("admin.tabs.maintenance"), icon: faScrewdriverWrench },
         ]}
       />
@@ -302,6 +309,11 @@
             onInvite={handleInvite}
             onDirty={(dirty) => sessionStore.setDirty(dirty)}
           />
+        </Card>
+      {:else if tab === "reports"}
+        <Card class="min-w-0">
+          {@render heading("reports")}
+          <LayoutReports onOpenCount={(n) => (openReports = n)} />
         </Card>
       {:else if tab === "maintenance"}
         <Card class="min-w-0">
