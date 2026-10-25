@@ -278,7 +278,7 @@ export const help: Translations['help'] = {
             },
             s8: {
                 h: 'Updates and maintenance',
-                p1: 'Before an update or maintenance, Examance reminds you twice (usually 5 minutes and 1 minute before) to save your work. "I\'ve saved my work" tells the administrators you are ready. From the second reminder, new sign-ins are briefly paused.',
+                p1: 'Before an update or maintenance, Examance reminds you twice (usually 5 minutes and 1 minute before) to save your work. "I\'ve saved my work" tells the administrators you are ready. From the second reminder, new sign-ins are briefly paused. If the maintenance is cancelled, Examance says so explicitly ("cancelled") and you can keep working as usual.',
                 p2: 'Just keep the tab open during the interruption: what you saved is there as usual afterwards, and changes that do not get through in the meantime are sent automatically afterwards.',
             },
         },

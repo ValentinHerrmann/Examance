@@ -29,6 +29,7 @@ Warns signed-in teachers before backend downtime, pauses sign-in shortly before,
 - Idle poll every 15 s (10 s while open, 5 s while down), plus a refetch on focus, visibility, `online` and `pageshow`: background tabs and phones throttle timers, and a preview window lasts only 30 s.
 - `MaintenanceHeaderMiddleware` adds `Maintenance-Revision: N` to `/api/*` responses while a window is open, read only from the worker's fresh phase cache (no DB access). `api/client.ts` refetches when the revision is new to it, so an active teacher sees the reminder with the next request. A missing header means "unknown", never "no window".
 - A device that first sees a window already `down` gets the blocking notice only; there is nothing left to save then.
+- When a window this tab knew about ends, `maintenanceEnded` (set in `refreshMaintenance`) shows a dismissible notice instead of letting the warning vanish: "cancelled" if it ended before the downtime, "finished" if it ended after. A freshly loaded tab has nothing to compare and shows none.
 
 ## Presence counts
 

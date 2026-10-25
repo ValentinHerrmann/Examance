@@ -278,7 +278,7 @@ export const help = {
             },
             s8: {
                 h: 'Updates und Wartung',
-                p1: 'Vor einem Update oder einer Wartung erinnert Examance Sie zweimal (meist 5 Minuten und 1 Minute vorher), Ihre Arbeit zu speichern. Mit „Ich habe gespeichert“ sieht die Administration, dass Sie bereit sind. Ab der zweiten Erinnerung sind neue Anmeldungen kurz pausiert.',
+                p1: 'Vor einem Update oder einer Wartung erinnert Examance Sie zweimal (meist 5 Minuten und 1 Minute vorher), Ihre Arbeit zu speichern. Mit „Ich habe gespeichert“ sieht die Administration, dass Sie bereit sind. Ab der zweiten Erinnerung sind neue Anmeldungen kurz pausiert. Wird die Wartung abgesagt, meldet Examance das ausdrücklich („abgesagt“), und Sie können normal weiterarbeiten.',
                 p2: 'Lassen Sie den Tab während der Unterbrechung einfach offen: Gespeichertes ist danach wie gewohnt da, und Änderungen, die in dieser Zeit nicht ankommen, sendet die App anschließend automatisch.',
             },
         },

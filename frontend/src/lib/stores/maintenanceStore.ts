@@ -30,6 +30,17 @@ interface MaintenanceState {
 
 export const maintenanceStore = writable<MaintenanceState>({ status: null, offsetMs: 0, reachable: true });
 
+/** A window this tab knew about just ended: cancelled before the downtime, or finished after it. */
+export interface MaintenanceEnded {
+  kind: MaintenanceStatus['kind'];
+  finished: boolean;
+}
+export const maintenanceEnded = writable<MaintenanceEnded | null>(null);
+
+export function dismissMaintenanceEnded(): void {
+  maintenanceEnded.set(null);
+}
+
 /** Server-adjusted "now", ticking once a second only while a window is open. */
 const clock = writable(Date.now());
 let ticker: ReturnType<typeof setInterval> | null = null;
@@ -89,7 +100,15 @@ export function refreshMaintenance(): Promise<void> {
       if (!response.ok) throw new Error(String(response.status));
       const status = (await response.json()) as MaintenanceStatus;
       const offsetMs = Date.parse(status.server_time) - (sentAt + Date.now()) / 2;
+      const before = get(maintenanceStore);
       maintenanceStore.set({ status, offsetMs: Number.isFinite(offsetMs) ? offsetMs : 0, reachable: true });
+      if (isOpen(status)) {
+        maintenanceEnded.set(null);
+      } else if (isOpen(before.status)) {
+        // Say so instead of letting the warning vanish silently (it would look like a bug).
+        const finished = phaseAt(before.status, Date.now() + before.offsetMs) === 'down';
+        maintenanceEnded.set({ kind: before.status?.kind ?? null, finished });
+      }
       syncTicker(status);
     } catch {
       maintenanceStore.update((m) => ({ ...m, reachable: false }));

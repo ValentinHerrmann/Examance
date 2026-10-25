@@ -6,12 +6,15 @@
   import { Alert, Button, Icon, Modal, Spinner } from "#lib/components/ui";
   import { isUnlocked, sessionStore } from "#lib/stores/session";
   import {
+    dismissMaintenanceEnded,
+    maintenanceEnded,
     maintenancePhase,
     maintenanceStore,
     refreshMaintenance,
     secondsToStart,
     startMaintenancePolling,
   } from "#lib/stores/maintenanceStore";
+  import type { MaintenanceStatus } from "#lib/stores/maintenanceStore";
   import { markReady } from "#lib/api/maintenance";
   import { maintenanceText } from "#lib/maintenance/text";
 
@@ -81,6 +84,20 @@
 
 <svelte:window onfocus={refreshOnFocus} ononline={refreshOnFocus} onpageshow={refreshOnFocus} />
 <svelte:document onvisibilitychange={refreshOnFocus} />
+
+{#if $maintenanceEnded && phase === "none" && !(onUnlockPage && !signedIn)}
+  {@const ended = $maintenanceEnded}
+  <Alert
+    severity={ended.finished ? "success" : "info"}
+    title={$t(ended.finished ? "maintenance.finishedTitle" : "maintenance.cancelledTitle", {
+      kind: $maintenanceText.kind({ kind: ended.kind } as MaintenanceStatus),
+    })}
+    onDismiss={dismissMaintenanceEnded}
+    class="mx-3 mt-2 sm:mx-4"
+  >
+    {$t(ended.finished ? "maintenance.finishedBody" : "maintenance.cancelledBody")}
+  </Alert>
+{/if}
 
 {#if phase !== "none" && !(onUnlockPage && !signedIn)}
   {#if signedIn && phase === "scheduled"}
