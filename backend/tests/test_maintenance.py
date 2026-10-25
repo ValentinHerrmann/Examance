@@ -214,16 +214,20 @@ async def test_deployment_window_ends_itself(db: AsyncSession) -> None:
     assert state.phase(state.auto_end_at) == "none"
 
 
-async def test_start_now_keeps_revision_and_safety_net(db: AsyncSession) -> None:
+async def test_start_now_starts_a_manual_window(db: AsyncSession) -> None:
     manual = await _start(db)
     started = await maintenance.start_now(db, manual.revision)
-    assert started is not None and started.revision == manual.revision
+    assert started is not None
+    assert started.revision == manual.revision
     assert started.phase(maintenance.now_utc()) == "down"
     assert await maintenance.start_now(db, manual.revision) is None  # already down
 
+
+async def test_start_now_on_a_deployment_waits_for_the_freeze(db: AsyncSession) -> None:
     deployment = await _start(db, kind="deployment")
     started = await maintenance.start_now(db, deployment.revision)
-    assert started is not None and started.auto_end_at == deployment.auto_end_at
+    assert started is not None
+    assert started.auto_end_at == deployment.auto_end_at
     # A deployment is down only once CI froze it.
     assert started.phase(maintenance.now_utc()) == "final"
     assert await maintenance.start_now(db, deployment.revision - 1) is None
