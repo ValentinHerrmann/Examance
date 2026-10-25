@@ -65,6 +65,7 @@ export const editor: Translations['editor'] = {
         enumerate: { label: 'Numbered list', description: 'A numbered list.' },
         'inline-math': { label: 'Inline math', description: 'Inline math.' },
         center: { label: 'Centered content', description: 'Centered content.' },
+        seitenumbruch: { label: 'Page break', description: 'Forces a page break here (student sheet and solution sheet).' },
     },
 
     confirmDialog: {

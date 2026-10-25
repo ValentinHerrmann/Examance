@@ -46,6 +46,24 @@ escapeinside={(*@}{@*)}
 %Befehl für ein Leerfeld mit fester höhe
 \newcommand{\Leer}[1]{\vspace{#1}}
 
+% Ends the paragraph before a solution field. A line just ended by \\ or \newline (\nobreak\hfil\break, older
+% kernels add \null) loses that ending first, or \par would add an empty line; \\[len] keeps its space.
+\def\LSG@trimskips{\ifnum\lastnodetype=11 \unskip\expandafter\LSG@trimskips\fi}
+\def\LSG@endpar{%
+	\ifvmode\else\ifinner\else
+		\LSG@trimskips
+		\setbox\z@\box\voidb@x
+		\ifnum\lastnodetype=1 \setbox\z@\lastbox
+			\ifdim\wd\z@=\z@\ifdim\ht\z@=\z@\ifdim\dp\z@=\z@ \setbox\z@\box\voidb@x \fi\fi\fi
+		\fi
+		\ifnum\lastpenalty=-\@M \ifvoid\z@ \unpenalty\LSG@trimskips\unpenalty \fi\fi
+		\ifvoid\z@\else\box\z@\fi
+		\par
+	\fi\fi
+}
+% A solution field is its own paragraph tied to the line before it, so it never starts a page (issue #139).
+\newcommand{\LSG@field}[1]{\LSG@endpar\nobreak\noindent#1\par}
+
 \newcommand{\Loesung}[1]{
 	\LSG{
 		#1
@@ -68,7 +86,7 @@ escapeinside={(*@}{@*)}
 	\LSG{
 		#1
 	}{
-		\Leer{#2}
+		\ifvmode\nobreak\fi\Leer{#2}
 	}
 }
 
@@ -94,7 +112,7 @@ escapeinside={(*@}{@*)}
 	\LSG{
 		#1
 	}{
-		\kariert{#2}
+		\LSG@field{\kariert{#2}}
 	}
 }
 
@@ -103,7 +121,7 @@ escapeinside={(*@}{@*)}
 	\LSG{
 		#1
 	}{
-		\liniert{#2}
+		\LSG@field{\liniert{#2}}
 	}
 }
 

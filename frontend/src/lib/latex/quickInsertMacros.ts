@@ -270,5 +270,12 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
     preview: "\\begin{center}...\\end{center}",
     args: [{ placeholder: "content" }],
     buildTemplate: (a) => templateJoin(["\\begin{center}\n  ", "\n\\end{center}"], a)
+  },
+  {
+    id: "seitenumbruch",
+    category: "generic",
+    preview: "\\Seitenumbruch",
+    args: [],
+    buildTemplate: () => ({ text: "\\Seitenumbruch\n", argOffsets: [] })
   }
 ];

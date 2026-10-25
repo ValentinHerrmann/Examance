@@ -257,16 +257,23 @@
     \IfFileExists{examance-logo.jpeg}{\ExamLogoFile{examance-logo.jpeg}}{%
     \rule{0pt}{9mm}}}}}}
 
+% The output routine typesets the header inside whatever group the page broke in, so a task's local
+% settings (e.g. \arraystretch) used to stretch the header (issue #137). Every header cell resets them.
+\newcommand{\SA@headreset}{%
+    \normalfont\normalsize\normalcolor
+    \renewcommand{\arraystretch}{1}\setlength{\extrarowheight}{0pt}\setlength{\tabcolsep}{6pt}%
+}
+
 % Setup headers and footers at document start
 \AtBeginDocument{
     \fancyheadoffset[L]{5mm}
     \fancyheadoffset[R]{5mm}
-    \lhead{\ifnum\thepage=1
+    \lhead{\SA@headreset\ifnum\thepage=1
     {\hspace{1cm}\ExamLogo}
     \else
     \hspace{1cm}\Nrtext. \Testarttesttext \ in \Fachtext%Name:
     \fi}
-    \rhead{
+    \rhead{\SA@headreset
     \ifnum\thepage=1
     {%
     \begin{tabular}[b]{@{}r@{}}
@@ -277,7 +284,7 @@
     \else
     \fi
     }
-    \chead{
+    \chead{\SA@headreset
     \ifnum\thepage=1
     {
     \Large
@@ -286,6 +293,7 @@
     \else
     \fi
     }
+    \cfoot{\SA@headreset\thepage}
 
     \ifthenelse
         {\isundefined{\LFarbe}}
@@ -388,27 +396,88 @@
 \setlength{\LastColWidth}{15mm}
 \newlength{\MiddleColWidth}
 \setlength{\MiddleColWidth}{\dimexpr\textwidth - \FirstColWidth - \LastColWidth - 5mm}
-\newlength{\ScoreBoxRoom}
+\newsavebox{\TaskBox}
 
-% wrapfig hangs the score box about 1.5\baselineskip + 1.4ex - \intextsep above the task, into the gap after the
-% previous one. That room is taken by a negative \vspace and given back after an empty box (not discardable): no
-% change mid-page, but at the top of a page TeX drops the negative space, so the box clears the header (issue #106).
-% A task may break across pages (issue #113); \needspace only keeps the title with its first lines.
+% Page-break blocks: a task is cut at the end of each Teilaufgabe (block 1 = title, stem and a); block n = what
+% follows the previous part through the next one) and at \Seitenumbruch. Each pass writes every block's height
+% to the .aux; the next pass moves a block that fits on a page but not in the space left (\needspace).
+\newif\ifSA@inblock
+\newcount\SA@blockno
+\newdimen\SA@h
+\def\SA@blockid{\thePunkte-\the\SA@blockno}
+\def\SA@bs#1#2#3{\expandafter\gdef\csname SA@bs@#1\endcsname{{#2}{#3}}}
+\def\SA@be#1#2#3{\expandafter\gdef\csname SA@be@#1\endcsname{{#2}{#3}}}
+% Deferred write: page and position are those of the shipped page.
+\def\SA@savepos#1{%
+    \pdfsavepos
+    \edef\SA@tmp{\write\@auxout{\string\SA@#1{\SA@blockid}{\noexpand\the\c@page}{\noexpand\the\pdflastypos}}}%
+    \SA@tmp
+}
+% \SA@h := height of block #1 from the previous pass (start page/y, end page/y in sp), -1sp if unknown.
+\def\SA@height#1{%
+    \SA@h=-1sp
+    \ifcsname SA@bs@#1\endcsname\ifcsname SA@be@#1\endcsname
+        \expandafter\expandafter\expandafter\SA@height@a\csname SA@bs@#1\endcsname{#1}%
+    \fi\fi
+}
+\def\SA@height@a#1#2#3{\expandafter\expandafter\expandafter\SA@height@b\csname SA@be@#3\endcsname{#1}{#2}}
+\def\SA@height@b#1#2#3#4{% end page, end y, start page, start y
+    \ifnum#1=#3\relax
+        \SA@h=\dimexpr#4sp-#2sp\relax
+    \else
+        \SA@h=\dimexpr\paperheight-1in-\voffset-\topmargin-\headheight-\headsep\relax % top of the text area
+        \SA@h=\dimexpr#4sp-(\SA@h-\textheight) + \textheight*(#1-#3-1) + \SA@h-#2sp\relax
+    \fi
+    \SA@h=\numexpr\SA@h/65536*65536\relax sp% whole pt, so passes settle
+}
+% #1 = space to keep in any case (the title's 3cm; a block taller than a page keeps only this).
+\def\SA@blockbegin#1{%
+    \par
+    \global\advance\SA@blockno\@ne
+    \SA@height{\SA@blockid}%
+    \ifdim\SA@h<\textheight\else\SA@h=-1sp\fi
+    \ifdim\SA@h<#1\SA@h=#1\fi
+    \ifdim\SA@h>\z@ \needspace{\SA@h}\fi
+    \global\SA@inblocktrue
+    \SA@savepos{bs}%
+}
+\def\SA@blockend{\par\ifSA@inblock \SA@savepos{be}\global\SA@inblockfalse\fi}
+% Teacher override: a page break exactly here; the blocks on both sides keep their rules.
+\newcommand{\Seitenumbruch}{\par\ifSA@inblock\SA@blockend\newpage\SA@blockbegin\z@\else\newpage\fi}
+
+% A picture never ends a page: it stays with the text after it.
+\def\SA@keepwithnext{\ifvmode\else\ifinner\else\vadjust{\penalty\@M}\fi\fi}
+\AtBeginDocument{%
+    \NewCommandCopy\SA@includegraphics\includegraphics
+    \RenewDocumentCommand\includegraphics{s o o m}{%
+        \IfBooleanTF{#1}%
+            {\IfNoValueTF{#2}{\SA@includegraphics*{#4}}{\IfNoValueTF{#3}{\SA@includegraphics*[#2]{#4}}{\SA@includegraphics*[#2][#3]{#4}}}}%
+            {\IfNoValueTF{#2}{\SA@includegraphics{#4}}{\IfNoValueTF{#3}{\SA@includegraphics[#2]{#4}}{\SA@includegraphics[#2][#3]{#4}}}}%
+        \SA@keepwithnext
+    }%
+}
+
+% The score box sits at the right end of the title line like the Teilaufgabe box; \hangindent keeps the title line
+% clear of it. Never a wrapfigure: it left \linewidth 3cm short for the whole first paragraph (issue #140) and
+% wrapped the title line differently per document (issue #138); nor a band above the title, which wasted a line.
+% Page breaks follow the blocks above; without a measured height the title keeps 3cm of its task (issue #113).
 \newenvironment{Aufgabe}[2][]
 {%
 \par
-% Fixed size for the box offsets: they used to follow the \LARGE that \Namenszeile leaks into exams, so the
-% exercise preview (no \Namenszeile) wrapped differently and part score boxes overlapped the text (issue #111).
+% Fixed size for \quad and \hangindent: they used to follow the \LARGE that \Namenszeile leaks into exams, so the
+% exercise preview (no \Namenszeile) wrapped differently (issue #111).
 \LARGE
-\setlength{\ScoreBoxRoom}{\dimexpr 1.5\baselineskip + 1.4ex - \intextsep - \topskip\relax}%
-\ifdim\ScoreBoxRoom<\z@ \setlength{\ScoreBoxRoom}{\z@}\fi
-\needspace{\dimexpr\ScoreBoxRoom + 3cm\relax}%
-\vspace{-\ScoreBoxRoom}%
+\addvspace{\dimexpr 1ex + \topskip\relax}%
+\stepcounter{Punkte}%
+\global\SA@blockno\z@
+\SA@blockbegin{3cm}%
+% An invisible rule survives a page top, so the box stays 4pt below the header rule there (issue #106); the kern
+% takes back the \topskip that TeX puts before the rule at a page top, and \addvspace the same amount mid-page.
+\hrule\@height\z@\nobreak\kern\dimexpr 4pt - \topskip\relax
     \neverindent
     \gdef\TaskScore{0}% Reset task score accumulator for the new exercise
     \gdef\TaskFixedScore{}% \FestePunkte inside the body
     \def\ManualScore{#1}% Store optional override
-    \stepcounter{Punkte}%
 
     % Read from .aux to populate the score box
     \ifcsname AufgabeScore\thePunkte\endcsname
@@ -419,25 +488,18 @@
         \def\PrintPkt{-}% UI Fallback for the very first compilation
     \fi
     % \aPunkte mapping removed (unused)
-    % An empty box gets the interline glue the former minipage line got and keeps the room below from being dropped.
-    \hbox{}\nobreak
-    \vskip\dimexpr\ScoreBoxRoom + .1mm\relax
-    \nointerlineskip
+    % Title line with the score box (no \par between the shape and the title, or TeX resets the shape)
+    \sbox\TaskBox{\Large\framebox[1.1\width]{ ~~~~~ / ~\PrintPkt~}}%
     \noindent
-
-    % Wrapfigure floats the score box right
-    \begin{wrapfigure}{r}{3cm}
-        \vspace{-1.5\baselineskip}%
-        \raggedleft
-        \Large\framebox[1.1\width]{ ~~~~~ / ~\PrintPkt~}%
-    \end{wrapfigure}%
-
-    % Print title
+    \hangindent=-\dimexpr\wd\TaskBox+1em\relax \hangafter=-1
+    % Bottom on the baseline: hanging below it, the box ran into the second line, which \hangindent does not shorten.
+    \makebox[0pt][l]{\hspace{\linewidth}\llap{\raisebox{\dp\TaskBox}{\usebox\TaskBox}}}%
     \textbf{\Large (\thePunkte) #2} \quad
     \ignorespaces \normalsize
 }
 {%
-    \par\vspace{1ex}%
+    \SA@blockend
+    \vspace{1ex}%
     % Determine final score: auto-calculated or manual override?
     \ifx\ManualScore\empty
         \ifx\TaskFixedScore\empty
@@ -496,6 +558,7 @@
         \xdef\TaskScore{\fpeval{\TaskScore - \PartScore + \PartFixedScore}}%
     \fi
     \immediate\write\@auxout{\string\expandafter\string\gdef\string\csname\space TeilScore\thePunkte\theTeilaufgabe\string\endcsname{\FinalPartScore}}%
+    \SA@blockend\SA@blockbegin\z@
 }
 
 % ==============================================================================
