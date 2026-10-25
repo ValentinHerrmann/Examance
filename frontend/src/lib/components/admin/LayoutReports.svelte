@@ -13,7 +13,7 @@
     type LayoutReportFileInfo,
     type LayoutReportSummary,
   } from "#lib/api/layoutReports";
-  import { layoutReportMarkdown, layoutReportTitle } from "#lib/layout-report/markdown";
+  import { layoutReportIssueUrl, layoutReportMarkdown } from "#lib/layout-report/markdown";
   import { repoUrl } from "#lib/stores/versionStore";
   import { t, translate } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
@@ -34,6 +34,7 @@
 
   let detail: LayoutReportDetail | null = $state.raw(null);
   let markdown = $state("");
+  let newIssueUrl = $state("");
   let pdfUrls: Record<string, string> = $state({});
   let shownPdfId: string | null = $state(null);
   let copied = $state(false);
@@ -85,6 +86,7 @@
       pdfUrls = urls;
       shownPdfId = report.files.find((f) => urls[f.id])?.id ?? null;
       markdown = layoutReportMarkdown(report, texFiles);
+      newIssueUrl = layoutReportIssueUrl(repoUrl, report, texFiles);
       detail = report;
     } catch (err) {
       error = translate("layoutReport.admin.actionFailed", { message: apiErrorMessage(err, "") });
@@ -122,10 +124,6 @@
     copied = true;
     setTimeout(() => (copied = false), 2000);
   }
-
-  let newIssueUrl = $derived(
-    detail ? `${repoUrl}/issues/new?title=${encodeURIComponent(layoutReportTitle(detail))}` : ""
-  );
 
   async function confirmResolve() {
     if (!detail) return;

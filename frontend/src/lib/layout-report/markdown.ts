@@ -51,3 +51,15 @@ export function layoutReportMarkdown(report: LayoutReportDetail, texFiles: Repor
   if (hasPdf) parts.push("_Compiled PDF attached below._");
   return parts.join("\n\n");
 }
+
+// GitHub rejects longer "new issue" URLs; the LaTeX then has to be pasted from the copy area.
+const MAX_ISSUE_URL = 8000;
+
+/** A prefilled "new issue" link: title and body, the body without LaTeX when that is too long. */
+export function layoutReportIssueUrl(repoUrl: string, report: LayoutReportDetail, texFiles: ReportTexFile[]): string {
+  const base = `${repoUrl}/issues/new?title=${encodeURIComponent(layoutReportTitle(report))}&body=`;
+  const full = base + encodeURIComponent(layoutReportMarkdown(report, texFiles));
+  if (full.length <= MAX_ISSUE_URL || texFiles.length === 0) return full;
+  const note = "\n\n_LaTeX source too long for the link: paste it from Examance._";
+  return base + encodeURIComponent(layoutReportMarkdown(report, []) + note);
+}
