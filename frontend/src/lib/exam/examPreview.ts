@@ -1,6 +1,6 @@
 import type { ExamRecord, ExerciseRecord } from "#lib/db/schema";
 import type { McGroup } from "#lib/db/dbEncryption";
-import { compileWithCache } from "#lib/latex/compileCache";
+import { compileWithCache, getCachedFor, getLatestForSlot, type CachedCompileEntry } from "#lib/latex/compileCache";
 import type { CompileResult } from "#lib/latex/compiler";
 import { formatExerciseLatex, formatMcGroupLatex } from "#lib/latex/scoreParser";
 import type { ExamItemRef } from "#lib/grading/omrTemplatePrep";
@@ -197,4 +197,23 @@ export async function compileExamPreview(input: ExamPreviewInput): Promise<ExamP
     loesung,
     missingGraphics: [...(angabe.missingGraphics ?? []), ...(loesung.missingGraphics ?? [])],
   };
+}
+
+/**
+ * The cached Angabe/Lösung if they were compiled from the exam's current sources; "stale" when this
+ * exam was compiled before but its exercises, order or header changed since (issue #135); null when never compiled.
+ */
+export async function getCurrentExamPreview(
+  input: Pick<ExamPreviewInput, "exam" | "exercises" | "libraryExercises" | "mcGroups" | "examItems" | "key">
+): Promise<{ angabe: CachedCompileEntry; loesung: CachedCompileEntry } | "stale" | null> {
+  const id = input.exam.id;
+  const hadAny =
+    getLatestForSlot({ kind: "exam", id, variant: "angabe" }) || getLatestForSlot({ kind: "exam", id, variant: "loesung" });
+  if (!hadAny) return null;
+  const useLocal = effectiveLatexCompilation() === "local";
+  const src = await prepareExamSources(input, useLocal);
+  const opts = { resources: src.resources, resourceExerciseIds: src.resourceExerciseIds, logo: src.logo };
+  const angabe = await getCachedFor({ kind: "exam", id, variant: "angabe" }, src.angabeTex, useLocal, opts);
+  const loesung = await getCachedFor({ kind: "exam", id, variant: "loesung" }, src.loesungTex, useLocal, opts);
+  return angabe && loesung ? { angabe, loesung } : "stale";
 }

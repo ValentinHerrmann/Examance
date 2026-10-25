@@ -27,8 +27,8 @@
     loadOmrTemplateEncrypted,
   } from "#lib/db/dbEncryption";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
-  import { loadExamMcExercises, resolveMcExercises, computeMcExercisesHash } from "#lib/grading/mcExerciseHash";
-  import { prepareOmrTemplate, loadExamCompileContext } from "#lib/grading/omrTemplatePrep";
+  import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
+  import { prepareOmrTemplate, loadExamCompileContext, computeOmrTemplateHash } from "#lib/grading/omrTemplatePrep";
   import { restoreOriginalDetection, type McQuestionType } from "#lib/grading/mcScore";
   import { decrypt } from "#lib/crypto/aesGcm";
   import type {
@@ -119,8 +119,7 @@
       if (!needsCompile) {
         compileCtx = await loadExamCompileContext(examId, key);
         if (compileCtx) {
-          const mcExercises = resolveMcExercises(compileCtx.exercises, compileCtx.libraryExercises, compileCtx.mcGroups);
-          const currentHash = await computeMcExercisesHash(mcExercises, compileCtx.mcGroups);
+          const currentHash = await computeOmrTemplateHash(compileCtx);
           if (templateResult!.record.exercisesHash !== currentHash) {
             needsCompile = true;
           }

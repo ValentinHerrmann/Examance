@@ -34,7 +34,7 @@
   import ExamExportModal from '#lib/components/exam/ExamExportModal.svelte';
   import PreviewHost from '#lib/components/common/PreviewHost.svelte';
   import { createPreviewFlow } from '#lib/stores/previewFlow';
-  import { compileExamPreview } from '#lib/exam/examPreview';
+  import { compileExamPreview, getCurrentExamPreview } from '#lib/exam/examPreview';
   import { buildExamItems, loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
 
   let exams: ExamRecord[] = $state.raw([]);
@@ -232,6 +232,12 @@
         onStatus,
         onAngabe,
       });
+    },
+    cached: async (exam) => {
+      const key = get(sessionStore).sessionKey;
+      const ctx = await loadExamCompileContext(exam.id, key);
+      if (!ctx) return null;
+      return getCurrentExamPreview({ ...ctx, examItems: buildExamItems(ctx.exercises, ctx.mcGroups), key });
     },
   });
 
