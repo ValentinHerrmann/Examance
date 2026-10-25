@@ -36,6 +36,8 @@
   import { exerciseTopicSuggestions, formatExamCourse } from "#lib/utils/examLabel";
   import { t, translate } from "#lib/i18n";
   import { PageShell, PageHeader, Alert, Button } from "#lib/components/ui";
+  import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
+  import { sourceReportFiles } from "#lib/layout-report/collect";
 
   // This is exam CONTENT written into the `datum` field and printed verbatim in the
   // German exam PDF (see \Datum in the LaTeX preamble below) — not UI copy, so it is
@@ -120,6 +122,10 @@ Frage hier eingeben... \\BE
   let showAngabePreview = $state(true);
   let showLoesungPreview = $state(false);
   let isPreviewLoading = $state(false);
+  /** The last live preview's failure and sources, sent with a layout report (issue #134). */
+  let previewError = $state("");
+  let reportSources: { angabeTex: string; loesungTex: string; owners: { id: string; label?: string }[] } | null =
+    $state.raw(null);
 
   onDestroy(() => {
     if (previewPdfUrl) {
@@ -342,6 +348,7 @@ Frage hier eingeben... \\BE
 
     isPreviewLoading = true;
     errorMsg = "";
+    previewError = "";
     try {
       let exerciseCount = 0;
       const exerciseInputs = examItems
@@ -407,13 +414,15 @@ ${exerciseInputs}
       // Resource files of every exercise in the draft exam (see
       // lib/latex/resources.ts for the flat-filename rules). The local engine
       // needs the bytes; the server loads its own rows from the exercise ids.
+      const owners = [
+        ...selectedExercises.map((ex) => ({ id: ex.id, label: ex.name })),
+        ...mcGroupExercises.flatMap(({ group, members }) =>
+          members.map((ex) => ({ id: ex.id, label: ex.name || group.title }))
+        ),
+      ];
+      reportSources = { angabeTex: fullTexAngabe, loesungTex: fullTexLoesung, owners };
       const collectedResources = await exerciseResourceRepository.collectForCompile(
-        [
-          ...selectedExercises.map((ex) => ({ id: ex.id, label: ex.name })),
-          ...mcGroupExercises.flatMap(({ group, members }) =>
-            members.map((ex) => ({ id: ex.id, label: ex.name || group.title }))
-          ),
-        ],
+        owners,
         get(sessionStore).sessionKey,
         useLocal
       );
@@ -458,9 +467,27 @@ ${exerciseInputs}
       errorMsg = ""; // clear loading message
     } catch (err: any) {
       errorMsg = err.message || translate("examCreation.errors.previewCompilationFailed");
+      previewError = errorMsg;
     } finally {
       isPreviewLoading = false;
     }
+  }
+
+  async function collectReportFiles() {
+    if (!reportSources) return [];
+    const key = get(sessionStore).sessionKey;
+    const collected = await exerciseResourceRepository.collectForCompile(reportSources.owners, key, true);
+    const logo = (await resolveCompileLogo(null, true))?.file;
+    return sourceReportFiles(
+      {
+        prefix: "exam",
+        angabeTex: reportSources.angabeTex,
+        loesungTex: reportSources.loesungTex,
+        resources: logo ? [...collected.inline, logo] : collected.inline,
+      },
+      previewPdfUrl,
+      previewSolutionPdfUrl
+    );
   }
 
   async function handleCreateExam() {
@@ -620,6 +647,16 @@ ${exerciseInputs}
   });
 </script>
 
+{#snippet layoutReport()}
+  <LayoutReportButton
+    kind="exam"
+    {title}
+    compileError={previewError || null}
+    disabled={isPreviewLoading}
+    collectFiles={collectReportFiles}
+  />
+{/snippet}
+
 <PageShell width="fluid">
   <PageHeader title={$t("examCreation.page.heading")} helpTopic="examCreation" />
 
@@ -627,6 +664,9 @@ ${exerciseInputs}
     <Alert severity="danger" class="mb-6">
       <div class="max-h-72 overflow-auto font-mono break-all whitespace-pre-wrap">{errorMsg}</div>
     </Alert>
+  {/if}
+  {#if previewError && reportSources && !previewPdfUrl && !previewSolutionPdfUrl}
+    <div class="-mt-4 mb-6 flex justify-end">{@render layoutReport()}</div>
   {/if}
 
   <form
@@ -707,6 +747,7 @@ ${exerciseInputs}
         <ExamLivePreviewPanel
           {previewPdfUrl}
           {previewSolutionPdfUrl}
+          report={reportSources ? layoutReport : undefined}
           bind:showAngabePreview
           bind:showLoesungPreview
         />

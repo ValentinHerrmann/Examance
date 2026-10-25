@@ -27,6 +27,7 @@
   import { createLazyMap } from "#lib/utils/lazyMap";
   import { exerciseRepository, mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
   import { compileExercisePreview } from "#lib/latex/exercisePreview";
+  import { exerciseReportFiles } from "#lib/layout-report/collect";
   import { faBook, faCodePullRequest, faPause, faPlay, faPlus, faShareNodes, faEyeSlash, faFileZipper } from "@fortawesome/free-solid-svg-icons";
   import ExerciseGroupList from "#lib/components/exercise-library/ExerciseGroupList.svelte";
   import ExerciseExportModal from "#lib/components/exercise-library/ExerciseExportModal.svelte";
@@ -199,6 +200,18 @@
         onStatus,
         onAngabe,
       }),
+    reportFiles: (ex, angabeUrl, loesungUrl) =>
+      exerciseReportFiles(
+        {
+          name: ex.name ?? "",
+          latexBody: ex.latexBody ?? "",
+          resourceOwnerId: ex.id!,
+          staged: false,
+          key: get(sessionStore).sessionKey,
+        },
+        angabeUrl,
+        loesungUrl
+      ),
   });
 
   let activeDiffGroupExercises = $derived(diffGroupExercises.map(
@@ -1231,7 +1244,7 @@
   </FilterLayout>
 </PageShell>
 
-<PreviewHost flow={exercisePreview} />
+<PreviewHost flow={exercisePreview} kind="exercise" />
 
 {#if exportTarget}
   <ExerciseExportModal groups={exportTarget.groups} library={exportTarget.library} onClose={() => (exportTarget = null)} />

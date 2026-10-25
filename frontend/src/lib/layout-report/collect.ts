@@ -38,22 +38,31 @@ async function pdfFiles(pdfs: { filename: string; url: string | null }[]): Promi
   return out;
 }
 
+/** Both documents, their resource files and the previewed PDFs, under `<prefix>.tex` / `<prefix>-solution.*`. */
+export async function sourceReportFiles(
+  src: { prefix: "exam" | "exercise"; angabeTex: string; loesungTex: string; resources: LatexResourceFile[] },
+  angabePdfUrl: string | null,
+  loesungPdfUrl: string | null
+): Promise<LayoutReportFileData[]> {
+  return [
+    texFile(`${src.prefix}.tex`, src.angabeTex),
+    texFile(`${src.prefix}-solution.tex`, src.loesungTex),
+    ...resourceFiles(src.resources),
+    ...(await pdfFiles([
+      { filename: `${src.prefix}.pdf`, url: angabePdfUrl },
+      { filename: `${src.prefix}-solution.pdf`, url: loesungPdfUrl },
+    ])),
+  ];
+}
+
 export async function examReportFiles(
   input: Pick<ExamPreviewInput, "exam" | "exercises" | "libraryExercises" | "mcGroups" | "examItems" | "key">,
   angabePdfUrl: string | null,
   loesungPdfUrl: string | null
 ): Promise<LayoutReportFileData[]> {
   const src = await prepareExamSources(input, true);
-  const files = [texFile("exam.tex", src.angabeTex), texFile("exam-solution.tex", src.loesungTex)];
-  files.push(...resourceFiles(src.resources));
-  if (src.logo?.file) files.push(...resourceFiles([src.logo.file]));
-  files.push(
-    ...(await pdfFiles([
-      { filename: "exam.pdf", url: angabePdfUrl },
-      { filename: "exam-solution.pdf", url: loesungPdfUrl },
-    ]))
-  );
-  return files;
+  const resources = src.logo?.file ? [...src.resources, src.logo.file] : src.resources;
+  return sourceReportFiles({ prefix: "exam", ...src, resources }, angabePdfUrl, loesungPdfUrl);
 }
 
 export async function exerciseReportFiles(
@@ -67,13 +76,5 @@ export async function exerciseReportFiles(
     input.key,
     true
   );
-  return [
-    texFile("exercise.tex", src.angabeTex),
-    texFile("exercise-solution.tex", src.loesungTex),
-    ...resourceFiles(collected.inline),
-    ...(await pdfFiles([
-      { filename: "exercise.pdf", url: angabePdfUrl },
-      { filename: "exercise-solution.pdf", url: loesungPdfUrl },
-    ])),
-  ];
+  return sourceReportFiles({ prefix: "exercise", ...src, resources: collected.inline }, angabePdfUrl, loesungPdfUrl);
 }

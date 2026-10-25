@@ -6,6 +6,7 @@
   import { effectiveLatexCompilation } from "#lib/stores/capabilities";
   import { frontendVersion } from "#lib/stores/versionStore";
   import { fetchRetentionPeriods } from "#lib/legal/retentionPeriods";
+  import { sessionStore } from "#lib/stores/session";
 
   /** "Report layout problem" (issue #134): button plus dialog. Consent is per report, never remembered. */
   interface Props {
@@ -110,6 +111,9 @@
   {:else}
     <div class="flex flex-col gap-4">
       <p class="m-0 text-muted">{$t("layoutReport.dialog.intro")}</p>
+      {#if compileError}
+        <Alert severity="info">{$t("layoutReport.dialog.consoleHint")}</Alert>
+      {/if}
       <Field label={$t("layoutReport.dialog.problemLabel")} required>
         {#snippet children({ id })}
           <Textarea {id} rows={3} maxlength={2000} bind:value={problem} placeholder={$t("layoutReport.dialog.problemPlaceholder")} />
@@ -129,6 +133,7 @@
           <Alert severity="danger">{collectError}</Alert>
         {:else}
           <ul class="m-0 list-disc pl-5 text-sm text-muted">
+            <li class="break-all">{$t("layoutReport.dialog.emailIncluded", { email: $sessionStore.email ?? "" })}</li>
             {#each files as file (file.filename)}
               <li class="break-all">{file.filename} ({formatSize(file.content.byteLength)})</li>
             {/each}

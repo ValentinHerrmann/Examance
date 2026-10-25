@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
   import { t } from "#lib/i18n";
   import { Card } from "#lib/components/ui";
@@ -8,13 +9,16 @@
     previewSolutionPdfUrl: string | null;
     showAngabePreview: boolean;
     showLoesungPreview: boolean;
+    /** The layout-report action, in the bar under the PDFs. */
+    report?: Snippet | undefined;
   }
 
   let {
     previewPdfUrl,
     previewSolutionPdfUrl,
     showAngabePreview = $bindable(),
-    showLoesungPreview = $bindable()
+    showLoesungPreview = $bindable(),
+    report = undefined
   }: Props = $props();
 </script>
 
@@ -29,6 +33,7 @@
       titleLoesung={$t("examCreation.livePreviewPanel.titleLoesung")}
       height="600px"
       placeholderText={$t("examCreation.livePreviewPanel.placeholderText")}
+      footer={report}
     />
   </Card>
 {/if}

@@ -35,6 +35,7 @@
   import PreviewHost from '#lib/components/common/PreviewHost.svelte';
   import { createPreviewFlow } from '#lib/stores/previewFlow';
   import { compileExamPreview } from '#lib/exam/examPreview';
+  import { examReportFiles } from '#lib/layout-report/collect';
   import { buildExamItems, loadExamCompileContext } from '#lib/grading/omrTemplatePrep';
 
   let exams: ExamRecord[] = $state.raw([]);
@@ -233,6 +234,12 @@
         onAngabe,
       });
     },
+    reportFiles: async (exam, angabeUrl, loesungUrl) => {
+      const key = get(sessionStore).sessionKey;
+      const ctx = await loadExamCompileContext(exam.id, key);
+      if (!ctx) throw new Error(translate('exam.page.examNotFoundOrDeleted'));
+      return examReportFiles({ ...ctx, examItems: buildExamItems(ctx.exercises, ctx.mcGroups), key }, angabeUrl, loesungUrl);
+    },
   });
 
   /** Imports the bundled example data (issue #120); the report opens only when something went wrong. */
@@ -391,7 +398,7 @@
   {/if}
 </PageShell>
 
-<PreviewHost flow={examPreview} />
+<PreviewHost flow={examPreview} kind="exam" />
 
 {#if rawExportExamId}
   <ExamExportModal examId={rawExportExamId} onClose={() => (rawExportExamId = null)} />
