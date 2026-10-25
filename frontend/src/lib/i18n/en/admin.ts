@@ -27,6 +27,11 @@ export const admin: Translations['admin'] = {
         accounts: 'Accounts',
         invite: 'Invite',
         domains: 'Domains',
+        maintenance: 'Maintenance',
+    },
+    maintenance: {
+        title: 'Maintenance mode',
+        intro: 'Announce maintenance: signed-in teachers are reminded 5 minutes and 1 minute before to save their work; from the second reminder, sign-in is paused. Updates announce themselves on deployment.',
     },
     features: {
         heading: 'Features',

@@ -1244,6 +1244,13 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
       case 'privacy':
         handled = privacy(verb, parts);
         break;
+      case 'maintenance':
+        // Polled by every page (issue #130): never a maintenance window here.
+        if (verb === 'GET' && parts.length === 1) {
+          handled = ok({ phase: 'none', kind: null, downtime_class: null, revision: null, first_warning_at: null, second_warning_at: null, starts_at: null, server_time: new Date().toISOString() });
+        }
+        if (verb === 'POST' && parts[1] === 'ready') handled = noContent();
+        break;
       case 'exams':
         handled = exams(verb, parts, url.searchParams, payload);
         break;

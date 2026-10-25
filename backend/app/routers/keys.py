@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import PendingSession, get_pending_teacher
+from app.dependencies import PendingSession, get_pending_teacher, require_not_frozen
 from app.models.key_envelope import KeyEnvelope
 from app.models.teacher import Teacher
 from app.schemas.key_envelope import (
@@ -88,7 +88,10 @@ async def list_envelopes(
     )
 
 
-@router.put("/envelopes", response_model=KeyEnvelopeListOut)
+@router.put(
+    "/envelopes",
+    dependencies=[Depends(require_not_frozen)],
+)
 async def replace_envelopes(
     body: KeyEnvelopeSetIn,
     request: Request,
@@ -117,7 +120,11 @@ async def replace_envelopes(
     )
 
 
-@router.delete("/envelopes/{envelope_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/envelopes/{envelope_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_not_frozen)],
+)
 async def delete_envelope(
     envelope_id: uuid.UUID,
     session: PendingSession = Depends(get_pending_teacher),

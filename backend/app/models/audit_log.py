@@ -75,6 +75,9 @@ class AuditLog(Base):
             # Own exercises and exams duplicated (issue #121, migration 0037).
             "EXERCISE_DUPLICATED",
             "EXAM_DUPLICATED",
+            # Maintenance windows started/ended by an admin (issue #130, migration 0039).
+            "MAINTENANCE_STARTED",
+            "MAINTENANCE_ENDED",
             name="audit_action",
         ),
         nullable=False,

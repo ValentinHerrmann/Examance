@@ -53,13 +53,13 @@ After the mount comes back, restart the backend. A container only sees a mount t
 
 ## Backups
 
-The `backup` service in `deploy/docker-compose.deploy.yml` uses [restic](https://restic.net) and is opt-in: `COMPOSE_PROFILES=backup` in `.env` starts it on every deploy.
+The `backup` service in `deploy/docker-compose.deploy.yml` uses [restic](https://restic.net) and is opt-in: `COMPOSE_PROFILES=backup` in `.env` starts it on every deploy. It runs at 00:00 in `BACKUP_TZ` only, never on container start. Independent of it, the `maintenance-backup` service dumps the database before every update (`docs/dev/maintenance_mode.md`).
 
 - **Repository.** `BACKUP_RESTIC_REPOSITORY` (e.g. `s3:https://s3.eu-central-3.ionoscloud.com/<bucket>/examance-prod`) with `BACKUP_S3_ACCESS_KEY_ID` / `BACKUP_S3_SECRET_ACCESS_KEY` / `BACKUP_S3_REGION`. restic encrypts (AES-256) and compresses on the server before upload, so the provider sees only ciphertext, which matters because the dump holds plaintext tables (exercises, logos, e-mail addresses, audit entries). `BACKUP_RESTIC_PASSWORD` is the only way to decrypt: keep it in a password manager. Use one prefix and one password per stack. The service runs `restic init` on first start.
-- **Daily run.**
+- **Nightly run** (00:00, `BACKUP_TZ`).
   1. Snapshot tagged `db`: `pg_dump --no-owner` as plain SQL, streamed via `--stdin-from-command`, so a failing dump fails the snapshot. Plain on purpose: an already compressed dump would never deduplicate.
   2. Snapshot tagged `blobs` of `/data/blobs`. It runs only if the sentinel exists; otherwise the log says "blob snapshot skipped".
-  3. `restic forget --group-by tags --prune` keeps the 10 most recent snapshots, the newest per day for `BACKUP_KEEP_DAILY_DAYS` (7) days, the newest per week for `BACKUP_KEEP_WEEKLY_WEEKS` (4) and the newest per month for `BACKUP_KEEP_MONTHLY_MONTHS` (3).
+  3. `restic forget --group-by tags --tag db --tag blobs` keeps the newest per day for `BACKUP_KEEP_DAILY_DAYS` (7) days, the newest per week for `BACKUP_KEEP_WEEKLY_WEEKS` (4) and the newest per month for `BACKUP_KEEP_MONTHLY_MONTHS` (3); `pre-restore` additionally keeps its 10 most recent. `maintenance` snapshots are pruned by the `maintenance-backup` service. Then `restic prune`.
   4. `restic check` verifies the repository structure.
 - **Snapshots are complete.** restic stores content-addressed chunks; every snapshot references all chunks it needs, old or new. `forget` deletes snapshots, and `prune` deletes only chunks no remaining snapshot references, so every kept snapshot restores on its own. Storage is therefore about one copy of the DB plus its daily changes, one copy of the scans, and the scans deleted while an older snapshot still holds them.
 - **Fixed hostname.** The container's `hostname` is `examance-backup`. restic groups snapshots by host by default, and a random name per deploy would keep every old snapshot forever.
@@ -71,6 +71,7 @@ The `backup` service in `deploy/docker-compose.deploy.yml` uses [restic](https:/
   ./restore-backup.sh undo                 # back to the state just before the last db restore
   ./restore-backup.sh scans                # copy back the scan files database rows need but are missing
   ./restore-backup.sh scans <id|latest>    # copy back every missing scan file of one snapshot
+  ./restore-backup.sh maintenance [latest|<file>|<id>]  # the database as it was before an update
   ```
   Operator guide with the situations and steps: `docs/backup_and_restore.md`.
   - `db` stops backend, retention-cron and backup. It saves the current state as a restic snapshot tagged `pre-restore` (off-site, listed, restorable with `db <id>`, never picked by `latest`) and as `restore-safety/db-before-restore-<time>.sql` for `undo`. It then loads the snapshot, migrates to the running release and starts the stack. If loading fails, the saved state is put back at once.

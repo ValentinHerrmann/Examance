@@ -50,6 +50,9 @@
   import { workspaceStatusStore } from "#lib/stores/workspaceState";
   import { ADMIN_HOME } from "#lib/stores/navigationStore";
   import WorkspaceBlocked from "#lib/components/storage/WorkspaceBlocked.svelte";
+  import MaintenanceSignInNotice from "#lib/components/unlock/MaintenanceSignInNotice.svelte";
+  import MaintenanceSignInPaused from "#lib/components/unlock/MaintenanceSignInPaused.svelte";
+  import { maintenancePhase } from "#lib/stores/maintenanceStore";
 
 
   let password = $state("");
@@ -60,6 +63,9 @@
   /** Shown above the factor chooser after the authenticator was just enrolled. */
   let factorNotice = $state("");
   let isLoading = $state(false);
+  // From the second maintenance reminder on, the server refuses new sessions (issue #130); admins may still sign in.
+  let signInPaused = $derived($maintenancePhase === "final" || $maintenancePhase === "down");
+  let adminSignIn = $state(false);
   /** Set when a login minted a new recovery code that must be shown once. */
   let pendingRecoveryCode: string | null = $state(null);
   /** Set when the password wrap is unusable (as after a password reset); holds what the recovery dialog needs. */
@@ -431,6 +437,10 @@
     if (err instanceof EnvelopeChangedError) {
       return translate("security.envelope.changedBody");
     }
+    // The factor was right; sign-in is paused for maintenance (issue #130).
+    if (err instanceof ApiError && err.code === "ERR_MAINTENANCE_LOGIN_BLOCKED") {
+      return translate("errors.code.ERR_MAINTENANCE_LOGIN_BLOCKED");
+    }
     return null;
   }
 
@@ -695,7 +705,10 @@
         onRecoveryCode={handleVaultRecovery}
       />
     </Card>
+  {:else if signInPaused && !adminSignIn}
+    <MaintenanceSignInPaused onAdminSignIn={() => (adminSignIn = true)} />
   {:else}
+    <MaintenanceSignInNotice />
     <UnlockForm
       bind:backendUrl
       bind:email

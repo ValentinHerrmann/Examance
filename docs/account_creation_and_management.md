@@ -279,6 +279,10 @@ Registrations that nobody completes and accounts that nobody approves do not sta
 
 `USER_REGISTERED`, `USER_APPROVED` (with the actor `system:allowed-domain` for an automatic approval), `USER_REJECTED`, `USER_FEATURES_CHANGED`, `DELETION_REQUESTED` (a self-deletion link was mailed), `DELETE` (account deletion; the actor is the account holder or the deleting admin), `ALLOWED_DOMAIN_ADDED`, `ALLOWED_DOMAIN_CHANGED` and `ALLOWED_DOMAIN_REMOVED`.
 
+### 7.7 Maintenance mode (Admin UI, `/admin/users` → Maintenance)
+
+An admin announces maintenance with a lead time in minutes (0 = now) and an expected duration (*up to a minute*, *a few minutes*, *up to one hour*, *unspecified*; the form shows how teachers will read it). Signed-in teachers are reminded 5 minutes and 1 minute before to save their work; from the second reminder, sign-in is paused for everyone except admins, and from the start teaching data cannot be changed (`503 ERR_MAINTENANCE`) until the admin ends the maintenance. With "Back up the database when it starts" (default on), the `maintenance-backup` service dumps the database as soon as writes stopped; the tab shows when it is done. The tab also counts teachers online right now, how many saw the announcement and how many confirmed they saved their work: once everyone is ready, 0 minutes is safe. Backend deployments announce themselves the same way (5 minutes, automatic backup) and end by themselves. Audit: `MAINTENANCE_STARTED`, `MAINTENANCE_ENDED`. Operators can do the same from the command line (`python -m app.cli maintenance start|stop|status`). Details: `docs/dev/maintenance_mode.md`.
+
 ---
 
 ## 8. Changing a Role (CLI)
