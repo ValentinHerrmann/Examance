@@ -483,6 +483,26 @@ teacher's consent; stopping the share withdraws it.
   rate-limited (60 per hour) and run in one transaction each; sharing, copying and resync are
   online-only in the client (never in the offline queue).
 
+### Layout reports (issue #134)
+
+"Report layout problem" (exam preview, exercise editor) is a deliberate plaintext disclosure to the
+admins, with a consent tick per report (never remembered). `POST /layout-reports` stores in
+`layout_reports` / `layout_report_files`: both LaTeX documents, the previewed PDFs, the resource and
+logo bytes, the compile error, the teacher's description, engine and app version, the exam/exercise
+title (admin-only) and the reporter's account id. No student data is collected. This is the one
+`/admin/*` surface that shows teaching content, and only what the teacher chose to send.
+
+- Unencrypted at rest (the admin must read it). Rows cascade with the reporter's account; retention
+  drops every report `LAYOUT_REPORT_RETENTION_DAYS` (90) after submission; admins can delete earlier.
+- Admin mail carries only a count and a link; the reporter's "resolved" mail carries only the date,
+  the kind and the admin's optional note, never content or title.
+- The admin page builds a GitHub Markdown text (`lib/layout-report/markdown.ts`) that excludes the
+  reporter, the title and resource file names; the LaTeX itself is not scrubbed, so the consent
+  text tells the teacher it may be published.
+- Files are served through `resource_response` (only PDF/PNG/JPEG inline, `nosniff`, sandbox CSP).
+  Quota: `LAYOUT_REPORTS_PER_TEACHER_PER_DAY` via a hashed key in `ephemeral_store`, 429 without
+  `Retry-After`; body limit `BODY_LIMIT_LAYOUT_REPORT` (30 MB).
+
 ---
 
 ## 4. DevTools Security & Session Hygiene Lifecycle

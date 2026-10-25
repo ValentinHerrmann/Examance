@@ -18,6 +18,7 @@ export const errors = {
         ERR_MAINTENANCE_DEPLOYMENT_RUNNING: 'Gerade wird ein Update eingespielt. Bitte starten Sie die Wartung, sobald es fertig ist.',
         ERR_MAINTENANCE_LOGIN_BLOCKED: 'Die Anmeldung ist wegen einer Wartung kurz pausiert. Bitte versuchen Sie es gleich noch einmal.',
         ERR_ACCOUNT_LOCKED: 'Zu viele fehlgeschlagene Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.',
+        ERR_LAYOUT_REPORT_QUOTA: 'Tageskontingent für Layout-Meldungen erreicht. Bitte versuchen Sie es morgen erneut.',
         ERR_TRAINING_QUOTA: 'Tageskontingent für gespendete Trainingsdaten erreicht.',
         ERR_COMPILE_TIMEOUT: 'Zeitüberschreitung bei der Kompilierung.',
         ERR_PAYLOAD_TOO_LARGE: 'Die Anfrage ist zu groß.',

@@ -24,4 +24,5 @@ async def retention_periods(request: Request) -> RetentionPeriods:  # request: r
         contribution_days=settings.CONTRIBUTION_RETENTION_DAYS,
         contribution_pending_days=settings.CONTRIBUTION_PENDING_MAX_DAYS,
         training_sample_days=settings.TRAINING_SAMPLE_RETENTION_DAYS,
+        layout_report_days=settings.LAYOUT_REPORT_RETENTION_DAYS,
     )

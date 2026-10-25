@@ -26,6 +26,7 @@ import { latexPackages } from './latexPackages';
 import { exportNs } from './export';
 import { about } from './about';
 import { maintenance } from './maintenance';
+import { layoutReport } from './layoutReport';
 
 export const de = {
     common,
@@ -54,4 +55,5 @@ export const de = {
     export: exportNs,
     about,
     maintenance,
+    layoutReport,
 } as const;

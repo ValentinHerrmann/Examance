@@ -15,6 +15,7 @@ export const errors: Translations['errors'] = {
         ERR_MAINTENANCE_DEPLOYMENT_RUNNING: 'An update is being installed right now. Please start the maintenance once it is done.',
         ERR_MAINTENANCE_LOGIN_BLOCKED: 'Sign-in is briefly paused for maintenance. Please try again in a moment.',
         ERR_ACCOUNT_LOCKED: 'Too many failed attempts. Please wait a moment and try again.',
+        ERR_LAYOUT_REPORT_QUOTA: 'Daily quota for layout reports reached. Please try again tomorrow.',
         ERR_TRAINING_QUOTA: 'Daily quota for donated training data reached.',
         ERR_COMPILE_TIMEOUT: 'Compilation timed out.',
         ERR_PAYLOAD_TOO_LARGE: 'Payload too large.',

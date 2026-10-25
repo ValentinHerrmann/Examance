@@ -51,6 +51,8 @@
   import { sessionStore, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
   import { get } from "svelte/store";
   import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
+  import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
+  import { examReportFiles } from "#lib/layout-report/collect";
   import { getPresetCutoffs } from "#lib/analytics/gradingKey";
   import type { GradingKeyConfig } from "#lib/db/schema";
   import { goto } from "$app/navigation";
@@ -1286,6 +1288,22 @@
           <Alert severity="danger" class="mt-4">
             <div class="max-h-72 overflow-auto font-mono break-all whitespace-pre-wrap">{errorMsg}</div>
           </Alert>
+        {/if}
+        {#if exam && (previewPdfUrl || previewSolutionPdfUrl || errorMsg)}
+          <div class="mt-3 flex justify-end">
+            <LayoutReportButton
+              kind="exam"
+              title={exam.title ?? ""}
+              compileError={errorMsg || null}
+              disabled={isPreviewLoading}
+              collectFiles={() =>
+                examReportFiles(
+                  { exam: exam!, exercises, libraryExercises, mcGroups, examItems, key: get(sessionStore).sessionKey },
+                  previewPdfUrl,
+                  previewSolutionPdfUrl
+                )}
+            />
+          </div>
         {/if}
       </Card>
 

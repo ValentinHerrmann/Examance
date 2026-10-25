@@ -117,6 +117,8 @@ class Settings(BaseSettings):
     BODY_LIMIT_STUDENTS: int = 1 * 1024 * 1024      # 1 MB
     # Up to 100 donated checkbox crops (3840 B raw, ~5.1 KB base64) plus features.
     BODY_LIMIT_TRAINING: int = 1 * 1024 * 1024      # 1 MB
+    # Layout report (issue #134): LaTeX sources, two PDFs and resources, base64-inflated.
+    BODY_LIMIT_LAYOUT_REPORT: int = 30 * 1024 * 1024  # 30 MB
     BODY_LIMIT_DEFAULT: int = 256 * 1024             # 256 KB
 
     # Storage partitions (issue #114, docs/dev/storage_partitions.md). "db" keeps scans in Postgres;
@@ -163,6 +165,10 @@ class Settings(BaseSettings):
     # this many days after the decision; undecided ones after the second limit.
     CONTRIBUTION_RETENTION_DAYS: int = 30
     CONTRIBUTION_PENDING_MAX_DAYS: int = 180
+    # Layout reports (issue #134): plaintext the teacher shared with the admins, dropped this many
+    # days after submission; one account may send this many per UTC day.
+    LAYOUT_REPORT_RETENTION_DAYS: int = 90
+    LAYOUT_REPORTS_PER_TEACHER_PER_DAY: int = 10
 
     # Per-account login throttling (`app.services.login_throttle`): slowapi limits per client IP and
     # misses a distributed guess at one account. Exponential cooloff, capped on purpose so the lock

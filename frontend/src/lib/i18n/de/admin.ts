@@ -27,6 +27,10 @@ export const admin = {
         domains: 'Domains',
         maintenance: 'Wartung',
     },
+    reports: {
+        title: 'Layout-Meldungen',
+        intro: 'Von Lehrkräften gemeldete Layout-Probleme. Der Text unter „Für GitHub“ enthält keine personenbezogenen Daten und kann direkt in ein neues GitHub-Issue kopiert werden; ziehen Sie die PDFs anschließend dort hinein.',
+    },
     maintenance: {
         title: 'Wartungsmodus',
         intro: 'Kündigen Sie Wartungen an: Angemeldete Lehrkräfte werden 5 und 1 Minute vorher erinnert, ihre Arbeit zu speichern; ab der zweiten Erinnerung ist die Anmeldung pausiert. Updates kündigen sich beim Deployment selbst an.',

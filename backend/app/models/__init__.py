@@ -11,6 +11,7 @@ from app.models.exercise_group import ExerciseGroup
 from app.models.exercise_resource import ExerciseResource
 from app.models.exercise_score import ExerciseScore
 from app.models.key_envelope import KeyEnvelope
+from app.models.layout_report import LayoutReport, LayoutReportFile
 from app.models.logo import ExamLogo, TeacherLogo
 from app.models.maintenance_window import MaintenanceWindow
 from app.models.mfa_credential import MfaBackupCode, MfaCredential
@@ -50,4 +51,6 @@ __all__ = [
     "WebAuthnCredential",
     "OmrTrainingSample",
     "MaintenanceWindow",
+    "LayoutReport",
+    "LayoutReportFile",
 ]

@@ -47,6 +47,10 @@
       <strong>{$t("legal.datenschutz.section5.donationLabel")}</strong>
       {$t("legal.datenschutz.section5.donationText")}
     </li>
+    <li>
+      <strong>{$t("legal.datenschutz.section5.layoutReportLabel")}</strong>
+      {$t("legal.datenschutz.section5.layoutReportText")}
+    </li>
   </ul>
 
   <h2>{$t("legal.datenschutz.section6.heading")}</h2>
@@ -78,6 +82,7 @@
         })}
       </li>
       <li>{$t("legal.datenschutz.section9.donation", { trainingSampleDays: periods.trainingSampleDays })}</li>
+      <li>{$t("legal.datenschutz.section9.layoutReports", { layoutReportDays: periods.layoutReportDays })}</li>
     {/if}
     <li>{$t("legal.datenschutz.section9.counters")}</li>
     <li>{$t("legal.datenschutz.section9.serverLog")}</li>

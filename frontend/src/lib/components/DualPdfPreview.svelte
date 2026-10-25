@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { t } from "#lib/i18n";
   import { isDesktop } from "#lib/stores/viewport";
   import PdfEmbedViewer from "#lib/components/PdfEmbedViewer.svelte";
@@ -17,6 +18,8 @@
     placeholderText?: string | undefined;
     /** Desktop: with every pane collapsed, shrink to the collapsed strips and give the rest of the row back. */
     shrinkWhenCollapsed?: boolean;
+    /** A slim bar right under the PDFs, for actions about them (e.g. the layout report). */
+    footer?: Snippet;
   }
 
   let {
@@ -28,7 +31,8 @@
     titleLoesung = undefined,
     height = "100%",
     placeholderText = undefined,
-    shrinkWhenCollapsed = false
+    shrinkWhenCollapsed = false,
+    footer,
   }: Props = $props();
 
   let angabeTitle = $derived(titleAngabe ?? $t("editor.pdfPreview.titleAngabe"));
@@ -79,15 +83,26 @@
     }
   }
 
+  let allCollapsed = $derived(!showAngabePreview && !showLoesungPreview);
+  // Both panes folded to strips leave no room for the bar.
+  let showFooter = $derived(!!footer && !(shrinkWhenCollapsed && allCollapsed));
+
   const paneShell =
     "flex flex-col overflow-hidden rounded-md border border-line bg-surface-viewer transition-all duration-200";
 </script>
 
+{#snippet footerBar()}
+  {#if showFooter}
+    <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">{@render footer?.()}</div>
+  {/if}
+{/snippet}
+
 {#if $isDesktop}
   <div
-    class="flex min-w-0 gap-2 overflow-hidden {shrinkWhenCollapsed && !showAngabePreview && !showLoesungPreview ? 'flex-none' : 'w-full flex-1'}"
+    class="flex min-w-0 flex-col gap-1.5 {shrinkWhenCollapsed && allCollapsed ? 'flex-none' : 'w-full flex-1'}"
     style="height: {height};"
   >
+  <div class="flex min-h-0 min-w-0 flex-1 gap-2 overflow-hidden">
     {#each panes as pane (pane.id)}
       <div class="{paneShell} {pane.shown ? 'min-w-0 flex-1' : 'w-10 shrink-0'}">
         {#if pane.shown}
@@ -151,7 +166,10 @@
       </div>
     {/each}
   </div>
+  {@render footerBar()}
+  </div>
 {:else}
+  <div class="flex w-full min-w-0 flex-1 flex-col gap-1.5">
   <div
     class="flex w-full min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-line bg-surface-viewer"
     style="height: min(70dvh, {height}); min-height: 18rem;"
@@ -172,5 +190,7 @@
         </div>
       {/if}
     </div>
+  </div>
+  {@render footerBar()}
   </div>
 {/if}

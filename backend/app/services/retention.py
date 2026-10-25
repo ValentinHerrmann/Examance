@@ -20,6 +20,7 @@ from app.models.exercise_contribution import (
     ExerciseContributionResource,
 )
 from app.models.key_envelope import KeyEnvelope
+from app.models.layout_report import LayoutReport, LayoutReportFile
 from app.models.omr_training_sample import OmrTrainingSample
 from app.models.registration_request import RegistrationRequest
 from app.models.scan_submission import ScanSubmission
@@ -141,6 +142,12 @@ async def run(*, dry_run: bool = False) -> int:
         )
         expired_contribution_count = await _count(db, ExerciseContribution, contribution_filter)
 
+        # 10. Layout reports (plaintext shared with the admins), resolved or not.
+        report_filter = LayoutReport.created_at < now - timedelta(
+            days=settings.LAYOUT_REPORT_RETENTION_DAYS
+        )
+        expired_report_count = await _count(db, LayoutReport, report_filter)
+
         total_affected = (
             len(expired_exams)
             + len(expired_students)
@@ -151,6 +158,7 @@ async def run(*, dry_run: bool = False) -> int:
             + len(stale_pending)
             + expired_deletion_count
             + expired_contribution_count
+            + expired_report_count
         )
 
         if dry_run:
@@ -212,6 +220,14 @@ async def run(*, dry_run: bool = False) -> int:
                 )
             )
             await db.execute(delete(ExerciseContribution).where(contribution_filter))
+
+        if expired_report_count:
+            await db.execute(
+                delete(LayoutReportFile).where(
+                    LayoutReportFile.report_id.in_(select(LayoutReport.id).where(report_filter))
+                )
+            )
+            await db.execute(delete(LayoutReport).where(report_filter))
 
         # Audit the exam expiries. Deliberately no entry per erased student
         # record: that would recreate, in the audit trail, the very identifiers

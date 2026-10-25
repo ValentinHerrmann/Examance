@@ -10,6 +10,7 @@ export interface RetentionPeriods {
   contributionDays: number;
   contributionPendingDays: number;
   trainingSampleDays: number;
+  layoutReportDays: number;
 }
 
 const FIELDS: Record<keyof RetentionPeriods, string> = {
@@ -20,6 +21,7 @@ const FIELDS: Record<keyof RetentionPeriods, string> = {
   contributionDays: 'contribution_days',
   contributionPendingDays: 'contribution_pending_days',
   trainingSampleDays: 'training_sample_days',
+  layoutReportDays: 'layout_report_days',
 };
 
 /**

@@ -80,13 +80,24 @@ export interface ExercisePreviewResult {
   missingGraphics: string[];
 }
 
+/** Both standalone documents of one exercise (preview compile, layout reports). */
+export async function prepareExerciseSources(
+  rawName: string,
+  latexBody: string
+): Promise<{ name: string; angabeTex: string; loesungTex: string }> {
+  const name = rawName || "Aufgabe";
+  const body = formatExerciseLatex(latexBody, name);
+  const accountPackages = await getAccountPackages();
+  return {
+    name,
+    angabeTex: buildExerciseDocument(body, { solution: false, accountPackages }),
+    loesungTex: buildExerciseDocument(body, { solution: true, accountPackages }),
+  };
+}
+
 /** Compiles the Angabe and Lösung PDFs of a single exercise into the compile cache. */
 export async function compileExercisePreview(input: ExercisePreviewInput): Promise<ExercisePreviewResult> {
-  const name = input.name || "Aufgabe";
-  const body = formatExerciseLatex(input.latexBody, name);
-  const accountPackages = await getAccountPackages();
-  const angabeTex = buildExerciseDocument(body, { solution: false, accountPackages });
-  const loesungTex = buildExerciseDocument(body, { solution: true, accountPackages });
+  const { name, angabeTex, loesungTex } = await prepareExerciseSources(input.name, input.latexBody);
 
   // Staged files are inlined: they may not exist on the server yet.
   const collected = await exerciseResourceRepository.collectForCompile(
