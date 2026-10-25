@@ -158,6 +158,7 @@ export const help = {
                 p1: 'Beim Setzen entsteht ein druckfertiges PDF mit QR-Code — je Klausur, Variante und Schülerplatz ein eigener Code. Setzen Sie im Browser, läuft der Satz vollständig auf dem Gerät.',
                 p2: 'Drucken Sie die Bögen so aus, wie sie gesetzt wurden. Der QR-Code muss lesbar bleiben, sonst kann der Scan später nicht automatisch zugeordnet werden.',
                 p3: 'In der Prüfungsübersicht öffnet „Vorschau“ im aufgeklappten Eintrag das zuletzt kompilierte PDF. Gibt es noch keines, werden Sie gefragt und die Prüfung wird direkt im Fenster kompiliert und angezeigt. Die Vorschau bleibt nur bis zum Neuladen der Seite erhalten.',
+                p4: 'Mit „Namenszeile neben dem QR-Code-Feld drucken“ (beim Anlegen oder unter den Prüfungsdaten) erhält die Titelseite zusätzlich eine Zeile für den Namen. Das QR-Code-Feld bleibt an derselben Stelle, Scannen und Zuordnen funktionieren unverändert; nur das Initialenfeld im QR-Code-Feld entfällt.',
             },
         },
         scanning: {

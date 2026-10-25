@@ -3,7 +3,7 @@
   import SuggestInput from "#lib/components/common/SuggestInput.svelte";
   import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from "#lib/utils/examLabel";
   import { t } from "#lib/i18n";
-  import { Card, Field, TextInput, Textarea, controlClass } from "#lib/components/ui";
+  import { Card, Checkbox, Field, TextInput, Textarea, controlClass } from "#lib/components/ui";
 
   interface Props {
     title: string;
@@ -18,6 +18,8 @@
     topicSuggestions?: string[];
     lehrernachname: string;
     infoText: string;
+    /** Name line next to the QR box (issue #127). */
+    nameLine?: boolean;
   }
 
   let {
@@ -31,7 +33,8 @@
     topic = $bindable(""),
     topicSuggestions = [],
     lehrernachname = $bindable(),
-    infoText = $bindable()
+    infoText = $bindable(),
+    nameLine = $bindable(false)
   }: Props = $props();
 
   let fullCoursePreview = $derived(formatExamCourse(grade, klasse));
@@ -178,5 +181,10 @@
   <Field label={$t("examCreation.metadataForm.infoLabel")} forId="info">
     <Textarea id="info" rows={2} bind:value={infoText} />
   </Field>
+
+  <div class="flex flex-col gap-1">
+    <Checkbox id="nameLine" bind:checked={nameLine} label={$t("examCreation.metadataForm.nameLineLabel")} />
+    <p class="m-0 text-sm text-muted">{$t("examCreation.metadataForm.nameLineHint")}</p>
+  </div>
   </div>
 </Card>
