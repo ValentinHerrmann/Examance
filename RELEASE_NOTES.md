@@ -1,6 +1,8 @@
 ## What's Changed
-* Scanned exams can be kept on separate storage, such as a cloud drive, and the server makes an encrypted backup every day that administrators can restore (#114) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/124
-* Simpler sign-in page that fits on one screen, with a clearly visible "Request an account" button and one clear link each to the user guide and the posters (#128) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/129
-* Maintenance mode: users are warned 5 and 1 minute before updates or maintenance to save their work, sign-in pauses shortly before, every update (and optionally manual maintenance) first backs up the database, daily backups now run at midnight, and admins can schedule maintenance and see who is still online (#130) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/131
+* Fix wrong total points in the score box when a task uses formulas in align or tables with X columns (#141) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/142
+* Fixed Latex bugs: header stays in place, answer grids span the full width and never start a page alone, and exams lay out the same as the exercise preview (#137, #138, #139, #140) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/144
+* Report LaTeX layout problems from the exam and exercise preview: sends the LaTeX, PDFs and your description to the admins, who get an e-mail and a ready-to-copy GitHub issue text; you get an e-mail when it is resolved (#134)" by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/146
+* Exams are recompiled after you change an exercise's content or the exercise order: the preview and the answer-sheet template for automatic multiple-choice grading no longer stay outdated (#135) by @ValentinHerrmann in https://github.com/ValentinHerrmann/Examance/pull/147
 
-**Full Changelog**: https://github.com/ValentinHerrmann/Examance/compare/0.3.1...0.4.0
+
+**Full Changelog**: https://github.com/ValentinHerrmann/Examance/compare/0.4.0...0.4.1
