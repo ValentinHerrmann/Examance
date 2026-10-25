@@ -19,10 +19,9 @@
     saveSubmissionEncrypted,
     decryptStudent,
     loadOmrTemplateEncrypted,
-    loadLocalMcGroups,
   } from "#lib/db/dbEncryption";
-  import { computeMcExercisesHash, loadExamMcExercises } from "#lib/grading/mcExerciseHash";
-  import { prepareOmrTemplate, loadExamCompileContext } from "#lib/grading/omrTemplatePrep";
+  import { loadExamMcExercises } from "#lib/grading/mcExerciseHash";
+  import { prepareOmrTemplate, loadExamCompileContext, computeOmrTemplateHash } from "#lib/grading/omrTemplatePrep";
   import { isMcQuestion } from "#lib/grading/mcScore";
   import { buildOmrScoreRecord } from "#lib/grading/omrResult";
   import { createOmrRun, type OmrPageStats } from "#lib/grading/omrSettings";
@@ -148,10 +147,11 @@
       }
       const existing = await loadOmrTemplateEncrypted(examId, key);
       let needsCompile = !existing || !existing.payload;
+      // The layout hash needs the exam itself, so the context is loaded for the check too.
+      const compileCtx = await loadExamCompileContext(examId, key);
 
-      if (!needsCompile) {
-        const mcGroups = await loadLocalMcGroups(examId).catch(() => []);
-        const currentHash = await computeMcExercisesHash(mcExercises, mcGroups);
+      if (!needsCompile && compileCtx) {
+        const currentHash = await computeOmrTemplateHash(compileCtx);
         if (existing!.record.exercisesHash !== currentHash) {
           needsCompile = true;
         }
@@ -159,7 +159,6 @@
 
       let pages: OmrPageTemplate[];
       if (needsCompile) {
-        const compileCtx = await loadExamCompileContext(examId, key);
         if (!compileCtx) {
           omrAvailable = false;
           omrBanner = translate("scanning.omrBanner.autoPrepareFailed", { message: translate("scanning.examContextNotFound") });

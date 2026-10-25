@@ -117,6 +117,31 @@ export async function loadExamCompileContext(examId: string, key: CryptoKey | nu
   return { exam, exercises, libraryExercises, mcGroups };
 }
 
+type OmrLayoutInput = ExamCompileContext & { examItems?: ExamItemRef[] };
+
+/** LaTeX of the blank answer sheet the OMR template is captured from (the printed Angabe). */
+export async function buildOmrBlankTex(ctx: OmrLayoutInput): Promise<string> {
+  const { exam, exercises, libraryExercises, mcGroups } = ctx;
+  const examItems = ctx.examItems ?? buildExamItems(exercises, mcGroups);
+  const exerciseInputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups, exam.pageBreaks);
+  return buildExamLatex(exam, exerciseInputs, "sans,punkte", await getAccountPackages());
+}
+
+async function hashOmrTemplate(mcExercises: ExerciseRecord[], mcGroups: McGroup[], blankTex: string): Promise<string> {
+  const data = new TextEncoder().encode(`${await computeMcExercisesHash(mcExercises, mcGroups)}\n${blankTex}`);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Identity of an OMR template: the MC answer key plus the whole blank sheet's LaTeX, so editing any exercise,
+ * reordering items or a page break marks it stale (bubbles move), not only answer-key edits (issue #135).
+ */
+export async function computeOmrTemplateHash(ctx: OmrLayoutInput): Promise<string> {
+  const mcExercises = resolveMcExercises(ctx.exercises, ctx.libraryExercises, ctx.mcGroups);
+  return hashOmrTemplate(mcExercises, ctx.mcGroups, await buildOmrBlankTex(ctx));
+}
+
 export interface PrepareOmrTemplateArgs {
   examId: string;
   exam: ExamRecord;
@@ -163,9 +188,7 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   onProgress?.(translate("exam.page.omr.compilingBlank"));
 
   const examItems = suppliedExamItems ?? buildExamItems(exercises, mcGroups);
-  const exerciseInputs = buildExerciseInputs(examItems, exercises, libraryExercises, mcGroups, exam.pageBreaks);
-
-  const fullTex = buildExamLatex(exam, exerciseInputs, "sans,punkte", await getAccountPackages());
+  const fullTex = await buildOmrBlankTex({ exam, exercises, libraryExercises, mcGroups, examItems });
 
   const omrExCount = (fullTex.match(/\\OmrExercise/g) || []).length;
   const multiCount = (fullTex.match(/\\multi/g) || []).length;
@@ -256,7 +279,7 @@ export async function prepareOmrTemplate(args: PrepareOmrTemplateArgs): Promise<
   console.log("[PrepareOMR] Pages extraction summary:", pages.map((p) => ({ page: p.pageIndex + 1, fiducials: p.fiducials.length, bubbles: p.bubbles.length })));
 
   const payload: OmrTemplatePayload = { pages };
-  const exercisesHash = await computeMcExercisesHash(mcExercises, mcGroups);
+  const exercisesHash = await hashOmrTemplate(mcExercises, mcGroups, fullTex);
   await saveOmrTemplateEncrypted(examId, exercisesHash, payload, key);
   
   const totalBubbles = pages.reduce((sum, p) => sum + p.bubbles.length, 0);

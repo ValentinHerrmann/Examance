@@ -27,14 +27,21 @@
     loadLocalMcGroups,
     type McGroup,
   } from "#lib/db/dbEncryption";
-  import { computeMcExercisesHash, resolveMcExercises } from "#lib/grading/mcExerciseHash";
-  import { buildExamItems, mapRemoteMcGroups, prepareOmrTemplate, type ExamItemRef } from "#lib/grading/omrTemplatePrep";
+  import { resolveMcExercises } from "#lib/grading/mcExerciseHash";
+  import {
+    buildExamItems,
+    computeOmrTemplateHash,
+    loadExamCompileContext,
+    mapRemoteMcGroups,
+    prepareOmrTemplate,
+    type ExamItemRef,
+  } from "#lib/grading/omrTemplatePrep";
   import { isMcQuestion } from "#lib/grading/mcScore";
   import { exportArchiveInteractively } from "#lib/services/archiveService";
-  import { getLatestForSlot, invalidateOwner } from "#lib/latex/compileCache";
+  import { invalidateOwner } from "#lib/latex/compileCache";
   import { prunePageBreaks, togglePageBreak } from "#lib/exam/pageBreaks";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
-  import { compileExamPreview } from "#lib/exam/examPreview";
+  import { compileExamPreview, getCurrentExamPreview } from "#lib/exam/examPreview";
   import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
   import { api } from "#lib/api/client";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
@@ -102,24 +109,57 @@
   let showAngabePreview = $state(true);
   let showLoesungPreview = $state(false);
 
-  function restoreCachedPreviews(id: string) {
-    if (!previewPdfUrl) {
-      const cachedAngabe = getLatestForSlot({ kind: "exam", id, variant: "angabe" });
-      if (cachedAngabe) {
-        const blobAngabe = new Blob([cachedAngabe.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
-        previewPdfUrl = URL.createObjectURL(blobAngabe);
-      }
+  /** Shows this session's last compile only if it matches the current sources; an outdated one is recompiled (issue #135). */
+  async function restoreCachedPreviews() {
+    if (!exam || (exercises.length === 0 && mcGroups.length === 0)) return;
+    let cached: Awaited<ReturnType<typeof getCurrentExamPreview>>;
+    try {
+      cached = await getCurrentExamPreview({
+        exam,
+        exercises,
+        libraryExercises,
+        mcGroups,
+        examItems: getEffectiveExamItems(),
+        key: get(sessionStore).sessionKey,
+      });
+    } catch {
+      return; // e.g. results-only import: nothing to preview
     }
-    if (!previewSolutionPdfUrl) {
-      const cachedLoesung = getLatestForSlot({ kind: "exam", id, variant: "loesung" });
-      if (cachedLoesung) {
-        const blobLoesung = new Blob([cachedLoesung.pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
-        previewSolutionPdfUrl = URL.createObjectURL(blobLoesung);
-      }
+    if (cached === null) {
+      // Never compiled in this session; also drops a preview left over from the previously open exam.
+      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+      if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
+      previewPdfUrl = previewSolutionPdfUrl = null;
+      return;
     }
+    if (cached === "stale") {
+      await handlePreviewExam();
+      return;
+    }
+    if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+    previewPdfUrl = pdfBytesToUrl(cached.angabe.pdfBytes);
+    if (previewSolutionPdfUrl) URL.revokeObjectURL(previewSolutionPdfUrl);
+    previewSolutionPdfUrl = pdfBytesToUrl(cached.loesung.pdfBytes);
+  }
+
+  let previewRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** After an edit that changes the printed exam: re-check the OMR template and recompile a shown preview (debounced). */
+  function afterLayoutChange() {
+    if (exam) void checkOmrTemplateStatus(exam.id);
+    if (!previewPdfUrl && !previewSolutionPdfUrl) return;
+    if (previewRefreshTimer) clearTimeout(previewRefreshTimer);
+    previewRefreshTimer = setTimeout(runPreviewRefresh, 1000);
+  }
+
+  function runPreviewRefresh() {
+    // A compile in flight used the old sources; try again once it is done.
+    previewRefreshTimer = isPreviewLoading ? setTimeout(runPreviewRefresh, 1000) : null;
+    if (!previewRefreshTimer) void handlePreviewExam();
   }
 
   onDestroy(() => {
+    if (previewRefreshTimer) clearTimeout(previewRefreshTimer);
     if (previewPdfUrl) {
       URL.revokeObjectURL(previewPdfUrl);
       previewPdfUrl = null;
@@ -246,6 +286,8 @@
       if (isStale()) return;
       submissions = loadedSubmissions;
       await checkOmrTemplateStatus(id);
+      if (isStale()) return;
+      await restoreCachedPreviews();
     } catch (err) {
       console.error("Failed to load exam from DB:", err);
     }
@@ -257,10 +299,11 @@
     return resolveMcExercises(exercises, libraryExercises, mcGroups);
   }
 
-  /** Answer-key hash shared with the scan-ingest check (mcExerciseHash.ts). Detects a stale OMR
-   *  template after an answer-key edit; never used to silently regenerate one. */
+  /** Template hash shared with the scan/verify checks (`computeOmrTemplateHash`): answer key plus the printed
+   *  layout. Detects a stale OMR template; on this page never used to silently regenerate one. */
   async function computeExercisesHash(): Promise<string> {
-    return computeMcExercisesHash(collectMcExercises(), mcGroups);
+    if (!exam) return "";
+    return computeOmrTemplateHash({ exam, exercises, libraryExercises, mcGroups, examItems: getEffectiveExamItems() });
   }
 
   async function checkOmrTemplateStatus(id: string) {
@@ -482,6 +525,18 @@
     }
   }
 
+  /** Reloads exercises and MC groups: they may have been edited elsewhere (another tab, the library) since this
+   *  page loaded, and compiling the old copies would just hit the compile cache again (issue #135). */
+  async function refreshExamSources() {
+    if (!exam) return;
+    const ctx = await loadExamCompileContext(exam.id, get(sessionStore).sessionKey);
+    if (!ctx) return;
+    exam = ctx.exam;
+    exercises = ctx.exercises;
+    mcGroups = ctx.mcGroups;
+    libraryExercises = ctx.libraryExercises;
+  }
+
   async function handlePreviewExam() {
     if (!exam || (exercises.length === 0 && mcGroups.length === 0)) return;
     isPreviewLoading = true;
@@ -490,6 +545,8 @@
     let compileSucceeded = false;
 
     try {
+      await refreshExamSources();
+      if (!exam) return;
       const res = await compileExamPreview({
         exam,
         exercises,
@@ -758,6 +815,7 @@
       }
 
       forceCancelMetadata();
+      afterLayoutChange();
       alert(translate("exam.page.metadata.saveSuccess"));
     } catch (err: any) {
       alert(translate("exam.page.metadata.saveFailed", { message: err.message }));
@@ -881,6 +939,7 @@
     try {
       await saveExamEncrypted(exam, get(sessionStore).sessionKey);
       errorMsg = "";
+      afterLayoutChange();
     } catch (err) {
       console.error("Failed to save page breaks:", err);
       errorMsg = translate("exam.page.exerciseLinks.saveFailed");
@@ -1042,6 +1101,7 @@
       console.error("Failed to sync exercise links to server:", err);
       errorMsg = translate("exam.page.exerciseLinks.saveFailed");
     }
+    afterLayoutChange();
   }
 
   function toggleLibrarySelection(id: string) {
@@ -1125,10 +1185,7 @@
   $effect.pre(() => {
     const id = examId;
     if (browser && id) {
-      untrack(() => {
-        loadExam(id);
-        restoreCachedPreviews(id);
-      });
+      untrack(() => loadExam(id));
     }
   });
 </script>
@@ -1271,7 +1328,10 @@
                 size="sm"
                 variant="outlined"
                 severity="warning"
-                onClick={handlePrepareOmr}
+                onClick={async () => {
+                  await refreshExamSources();
+                  await handlePrepareOmr();
+                }}
                 disabled={isPreparingOmr}
               >
                 {isPreparingOmr ? $t("exam.page.omr.refreshing") : $t("exam.page.omr.refreshNow")}

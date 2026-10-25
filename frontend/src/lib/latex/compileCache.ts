@@ -203,6 +203,30 @@ export function getCompileCacheStats(): { entryCount: number; totalBytes: number
   };
 }
 
+type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo };
+
+/** The one hash recipe for a compile, shared by `compileWithCache` and `getCachedFor`. */
+function hashFor(latexSource: string, useLocal: boolean, opts: CompileOpts): Promise<string> {
+  return computeCompileContentHash(
+    latexSource,
+    mergeResources(opts.resources ?? []),
+    opts.resourceExerciseIds ?? [],
+    useLocal ? 'local' : 'server',
+    opts.logo?.fingerprint
+  );
+}
+
+/** The cached entry for exactly these sources, or undefined when the slot is empty or outdated. */
+export async function getCachedFor(
+  key: CompileCacheKey,
+  latexSource: string,
+  useLocal: boolean,
+  opts: CompileOpts = {}
+): Promise<CachedCompileEntry | undefined> {
+  if (!cache.has(makeSlotKey(key))) return undefined;
+  return getCached(key, await hashFor(latexSource, useLocal, opts));
+}
+
 /** Compiles LaTeX with cache support: returns a hit for the key and content hash, else runs `compileLatex` and caches it. */
 export async function compileWithCache(
   key: CompileCacheKey,
@@ -210,18 +234,9 @@ export async function compileWithCache(
   useLocal = false,
   onStatus?: (status: string) => void,
   promptFallback = true,
-  opts: { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo } = {}
+  opts: CompileOpts = {}
 ): Promise<CompileResult> {
-  const engine: 'local' | 'server' = useLocal ? 'local' : 'server';
-  const resources = mergeResources(opts.resources ?? []);
-  const hash = await computeCompileContentHash(
-    latexSource,
-    resources,
-    opts.resourceExerciseIds ?? [],
-    engine,
-    opts.logo?.fingerprint
-  );
-
+  const hash = await hashFor(latexSource, useLocal, opts);
   const hit = getCached(key, hash);
   if (hit) {
     return {
