@@ -398,10 +398,69 @@
 \setlength{\MiddleColWidth}{\dimexpr\textwidth - \FirstColWidth - \LastColWidth - 5mm}
 \newsavebox{\TaskBox}
 
+% Page-break blocks: a task is cut at the end of each Teilaufgabe (block 1 = title, stem and a); block n = what
+% follows the previous part through the next one) and at \Seitenumbruch. Each pass writes every block's height
+% to the .aux; the next pass moves a block that fits on a page but not in the space left (\needspace).
+\newif\ifSA@inblock
+\newcount\SA@blockno
+\newdimen\SA@h
+\def\SA@blockid{\thePunkte-\the\SA@blockno}
+\def\SA@bs#1#2#3{\expandafter\gdef\csname SA@bs@#1\endcsname{{#2}{#3}}}
+\def\SA@be#1#2#3{\expandafter\gdef\csname SA@be@#1\endcsname{{#2}{#3}}}
+% Deferred write: page and position are those of the shipped page.
+\def\SA@savepos#1{%
+    \pdfsavepos
+    \edef\SA@tmp{\write\@auxout{\string\SA@#1{\SA@blockid}{\noexpand\the\c@page}{\noexpand\the\pdflastypos}}}%
+    \SA@tmp
+}
+% \SA@h := height of block #1 from the previous pass (start page/y, end page/y in sp), -1sp if unknown.
+\def\SA@height#1{%
+    \SA@h=-1sp
+    \ifcsname SA@bs@#1\endcsname\ifcsname SA@be@#1\endcsname
+        \expandafter\expandafter\expandafter\SA@height@a\csname SA@bs@#1\endcsname{#1}%
+    \fi\fi
+}
+\def\SA@height@a#1#2#3{\expandafter\expandafter\expandafter\SA@height@b\csname SA@be@#3\endcsname{#1}{#2}}
+\def\SA@height@b#1#2#3#4{% end page, end y, start page, start y
+    \ifnum#1=#3\relax
+        \SA@h=\dimexpr#4sp-#2sp\relax
+    \else
+        \SA@h=\dimexpr\paperheight-1in-\voffset-\topmargin-\headheight-\headsep\relax % top of the text area
+        \SA@h=\dimexpr#4sp-(\SA@h-\textheight) + \textheight*(#1-#3-1) + \SA@h-#2sp\relax
+    \fi
+    \SA@h=\numexpr\SA@h/65536*65536\relax sp% whole pt, so passes settle
+}
+% #1 = space to keep in any case (the title's 3cm; a block taller than a page keeps only this).
+\def\SA@blockbegin#1{%
+    \par
+    \global\advance\SA@blockno\@ne
+    \SA@height{\SA@blockid}%
+    \ifdim\SA@h<\textheight\else\SA@h=-1sp\fi
+    \ifdim\SA@h<#1\SA@h=#1\fi
+    \ifdim\SA@h>\z@ \needspace{\SA@h}\fi
+    \global\SA@inblocktrue
+    \SA@savepos{bs}%
+}
+\def\SA@blockend{\par\ifSA@inblock \SA@savepos{be}\global\SA@inblockfalse\fi}
+% Teacher override: a page break exactly here; the blocks on both sides keep their rules.
+\newcommand{\Seitenumbruch}{\par\ifSA@inblock\SA@blockend\newpage\SA@blockbegin\z@\else\newpage\fi}
+
+% A picture never ends a page: it stays with the text after it.
+\def\SA@keepwithnext{\ifvmode\else\ifinner\else\vadjust{\penalty\@M}\fi\fi}
+\AtBeginDocument{%
+    \NewCommandCopy\SA@includegraphics\includegraphics
+    \RenewDocumentCommand\includegraphics{s o o m}{%
+        \IfBooleanTF{#1}%
+            {\IfNoValueTF{#2}{\SA@includegraphics*{#4}}{\IfNoValueTF{#3}{\SA@includegraphics*[#2]{#4}}{\SA@includegraphics*[#2][#3]{#4}}}}%
+            {\IfNoValueTF{#2}{\SA@includegraphics{#4}}{\IfNoValueTF{#3}{\SA@includegraphics[#2]{#4}}{\SA@includegraphics[#2][#3]{#4}}}}%
+        \SA@keepwithnext
+    }%
+}
+
 % The score box sits at the right end of the title line like the Teilaufgabe box; \hangindent keeps the title line
 % clear of it. Never a wrapfigure: it left \linewidth 3cm short for the whole first paragraph (issue #140) and
 % wrapped the title line differently per document (issue #138); nor a band above the title, which wasted a line.
-% A task may break across pages (issue #113); \needspace only keeps the title with its first lines.
+% Page breaks follow the blocks above; without a measured height the title keeps 3cm of its task (issue #113).
 \newenvironment{Aufgabe}[2][]
 {%
 \par
@@ -409,7 +468,9 @@
 % exercise preview (no \Namenszeile) wrapped differently (issue #111).
 \LARGE
 \addvspace{\dimexpr 1ex + \topskip\relax}%
-\needspace{3cm}%
+\stepcounter{Punkte}%
+\global\SA@blockno\z@
+\SA@blockbegin{3cm}%
 % An invisible rule survives a page top, so the box stays 4pt below the header rule there (issue #106); the kern
 % takes back the \topskip that TeX puts before the rule at a page top, and \addvspace the same amount mid-page.
 \hrule\@height\z@\nobreak\kern\dimexpr 4pt - \topskip\relax
@@ -417,7 +478,6 @@
     \gdef\TaskScore{0}% Reset task score accumulator for the new exercise
     \gdef\TaskFixedScore{}% \FestePunkte inside the body
     \def\ManualScore{#1}% Store optional override
-    \stepcounter{Punkte}%
 
     % Read from .aux to populate the score box
     \ifcsname AufgabeScore\thePunkte\endcsname
@@ -438,7 +498,8 @@
     \ignorespaces \normalsize
 }
 {%
-    \par\vspace{1ex}%
+    \SA@blockend
+    \vspace{1ex}%
     % Determine final score: auto-calculated or manual override?
     \ifx\ManualScore\empty
         \ifx\TaskFixedScore\empty
@@ -497,6 +558,7 @@
         \xdef\TaskScore{\fpeval{\TaskScore - \PartScore + \PartFixedScore}}%
     \fi
     \immediate\write\@auxout{\string\expandafter\string\gdef\string\csname\space TeilScore\thePunkte\theTeilaufgabe\string\endcsname{\FinalPartScore}}%
+    \SA@blockend\SA@blockbegin\z@
 }
 
 % ==============================================================================

@@ -132,6 +132,7 @@ export const help: Translations['help'] = {
                 p1: String.raw`An exercise’s score comes from the scoring units in its source: \BE counts one point, \hBE half a point, \qBE a quarter, and in multiple-choice questions every correct option counts one. Place them where the solution earns the point; the solution sheet shows them as ticks. The “Score & structure” section in the editor shows how the score is made up and lets you fix it to a set value.`,
                 p2: '“Add part” splits an exercise into a), b), c), each with its own subtitle and score box. The parts add up to the exercise’s score, and a single part’s score can be fixed as well. Grading still happens per exercise.',
                 p3: String.raw`Requirement level (AFB I reproduction, II reorganisation and transfer, III reflection and problem solving) and competencies can be set for the whole exercise or per part. They are stored as \AFB{…} and \Kompetenz{…} in the source, appear only on the solution sheet, and travel with the exercise into variants, copies and archives.`,
+                p4: String.raw`Page breaks: an exercise’s title, introduction and pictures stay on one page with part a), and a part is never split as long as it fits on a page. Pages break between parts; a picture stays with the text after it. Where that doesn’t suit, \Seitenumbruch forces a new page at that spot (“Generic” palette).`,
             },
         },
         examCreation: {

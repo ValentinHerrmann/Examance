@@ -70,6 +70,10 @@ export const editor = {
         enumerate: { label: 'Nummerierte Liste', description: 'Eine nummerierte Liste.' },
         'inline-math': { label: 'Formel im Text', description: 'Mathematische Formel im Fließtext.' },
         center: { label: 'Zentrierter Inhalt', description: 'Zentrierter Inhalt.' },
+        seitenumbruch: {
+            label: 'Seitenumbruch',
+            description: 'Erzwingt hier einen Seitenumbruch (Schülerfassung und Erwartungshorizont).',
+        },
     },
 
     /** Generic unsaved-changes dialog (ConfirmDialog defaults). */
