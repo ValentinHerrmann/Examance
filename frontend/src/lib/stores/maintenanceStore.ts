@@ -104,7 +104,7 @@ let lastHeaderRefresh = 0;
 
 /** API responses carry the open window's revision; refetch when it is news (absent header = unknown). */
 export function noteMaintenanceRevision(header: string | null): void {
-  const revision = header === null ? NaN : Number(header);
+  const revision = header === null ? Number.NaN : Number(header);
   if (!Number.isInteger(revision)) return;
   const { status } = get(maintenanceStore);
   if (isOpen(status) && status?.revision === revision) return;

@@ -108,7 +108,8 @@ async def _pipeline(*commands: tuple[Any, ...]) -> list[Any] | None:
             getattr(pipe, operation)(*args)
         result: list[Any] = await asyncio.wait_for(pipe.execute(), timeout=_DEADLINE_SECONDS)
         return result
-    except Exception as exc:  # noqa: BLE001 - degrade, never break the request
+    except Exception as exc:  # noqa: BLE001
+        # Degrade, never break the request.
         _trip_circuit(exc)
         return None
 

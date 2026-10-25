@@ -579,7 +579,7 @@ async def _maintenance_out(db: AsyncSession) -> AdminMaintenanceResponse:
     return response
 
 
-@router.get("/maintenance", response_model=AdminMaintenanceResponse)
+@router.get("/maintenance")
 async def get_maintenance(
     _admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -588,7 +588,7 @@ async def get_maintenance(
     return await _maintenance_out(db)
 
 
-@router.post("/maintenance", response_model=AdminMaintenanceResponse)
+@router.post("/maintenance")
 async def start_maintenance(
     body: MaintenanceStartRequest,
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
@@ -621,7 +621,7 @@ async def start_maintenance(
     return await _maintenance_out(db)
 
 
-@router.delete("/maintenance", response_model=AdminMaintenanceResponse)
+@router.delete("/maintenance")
 async def end_maintenance(
     admin: Annotated[Teacher, Depends(get_admin_teacher)],
     db: Annotated[AsyncSession, Depends(get_db)],

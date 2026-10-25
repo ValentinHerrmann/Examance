@@ -90,7 +90,6 @@ async def list_envelopes(
 
 @router.put(
     "/envelopes",
-    response_model=KeyEnvelopeListOut,
     dependencies=[Depends(require_not_frozen)],
 )
 async def replace_envelopes(

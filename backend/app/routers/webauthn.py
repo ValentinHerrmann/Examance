@@ -43,7 +43,6 @@ def _b64(value: bytes) -> str:
 
 @router.post(
     "/register/options",
-    response_model=CeremonyOptionsResponse,
     dependencies=[Depends(require_not_frozen)],
 )
 @limiter.limit("20/hour")
@@ -70,7 +69,6 @@ async def register_options(
 
 @router.post(
     "/register/verify",
-    response_model=CredentialSummary,
     dependencies=[Depends(require_not_frozen)],
 )
 @limiter.limit("20/hour")

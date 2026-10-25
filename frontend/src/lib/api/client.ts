@@ -208,7 +208,7 @@ async function request<T>(
       });
       noteMaintenanceRevision(response.headers.get('maintenance-revision'));
       return response;
-    } catch (err: any) {
+    } catch {
       // fetch rejects when no usable response arrived: server unreachable, a response without the
       // CORS headers, or a timeout (AbortError, indistinguishable from a never-resolving stall).
       const netErr = new ApiError(

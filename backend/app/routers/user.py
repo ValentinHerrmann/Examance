@@ -56,7 +56,6 @@ async def get_capabilities(teacher: Teacher = Depends(get_current_teacher)) -> C
 
 @router.put(
     "/storage-mode",
-    response_model=CapabilitiesOut,
     dependencies=[Depends(require_not_frozen)],
 )
 async def set_storage_mode(

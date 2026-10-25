@@ -57,7 +57,7 @@ def _signed_in_teacher_id(access_token: str | None) -> str | None:
 async def maintenance_status(
     request: Request,  # required by slowapi
     db: Annotated[AsyncSession, Depends(get_db)],
-    access_token: str | None = Cookie(default=None),
+    access_token: Annotated[str | None, Cookie()] = None,
 ) -> MaintenanceStatus:
     """Public: whether maintenance is announced or running. Signed-in teachers count as online."""
     state = await maintenance.load(db)

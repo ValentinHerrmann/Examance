@@ -84,7 +84,6 @@ async def mfa_status(
 
 @router.post(
     "/totp/enroll",
-    response_model=MfaEnrollResponse,
     dependencies=[Depends(require_not_frozen)],
 )
 @limiter.limit("10/hour")
@@ -112,7 +111,6 @@ async def enroll_totp(
 
 @router.post(
     "/totp/confirm",
-    response_model=MfaBackupCodesResponse,
     dependencies=[Depends(require_not_frozen)],
 )
 @limiter.limit("20/hour")
@@ -151,7 +149,6 @@ async def confirm_totp(
 
 @router.post(
     "/backup-codes/regenerate",
-    response_model=MfaBackupCodesResponse,
     dependencies=[Depends(require_not_frozen)],
 )
 @limiter.limit("10/hour")

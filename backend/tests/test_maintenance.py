@@ -190,7 +190,9 @@ async def test_frozen_deployment_blocks_new_windows_and_lives_45_minutes(db: Asy
     assert await maintenance.freeze(db, state.revision)
     await db.commit()
     frozen = await maintenance.load(db, fresh=True)
-    assert frozen is not None and frozen.frozen_at is not None and frozen.auto_end_at is not None
+    assert frozen is not None
+    assert frozen.frozen_at is not None
+    assert frozen.auto_end_at is not None
     assert frozen.auto_end_at - frozen.frozen_at == timedelta(minutes=45)
     with pytest.raises(maintenance.WindowBusyError):
         await _start(db, kind="deployment")
