@@ -31,6 +31,8 @@
   import { recordValue } from "#lib/utils/recentValues";
   import { t, translate } from "#lib/i18n";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
+  import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
+  import { exerciseReportFiles } from "#lib/layout-report/collect";
   import { ConfirmDialog, Alert, Badge, Button, Checkbox, Icon, Modal, Select, TextInput, controlClass, controlSmClass } from "#lib/components/ui";
   import { faBook, faChevronDown, faChevronLeft, faChevronRight, faCode, faPlus, faTag, faXmark } from "@fortawesome/free-solid-svg-icons";
 
@@ -119,6 +121,8 @@
   let hasAnyPreview = $derived(showAngabePreview || showLoesungPreview);
   let isSaving = $state(false);
   let errorMsg = $state("");
+  /** The last preview's failure (not save errors), sent with a layout report. */
+  let previewError = $state("");
 
   // Move the staged files onto the just-written exercise. Upload failures never fail the save:
   // the exercise is already stored and the files stay staged locally.
@@ -369,6 +373,7 @@
   async function handlePreviewExercise() {
     isPreviewLoading = true;
     errorMsg = "";
+    previewError = "";
     let angabeShown = false;
     try {
       const res = await compileExercisePreview({
@@ -405,6 +410,7 @@
     } catch (err: any) {
       console.error("Exercise preview failed:", err);
       errorMsg = translate("exercises.editor.previewFailed", { message: err.message || translate("exercises.editor.previewFailedUnknown") });
+      previewError = errorMsg;
     } finally {
       isPreviewLoading = false;
     }
@@ -615,6 +621,27 @@
     });
   });
 </script>
+
+{#snippet layoutReport()}
+  <LayoutReportButton
+    kind="exercise"
+    title={editorName}
+    compileError={previewError || null}
+    disabled={isPreviewLoading}
+    collectFiles={() =>
+      exerciseReportFiles(
+        {
+          name: editorName,
+          latexBody: editorLatexBody,
+          resourceOwnerId: resourceStagingId,
+          staged: true,
+          key: get(sessionStore).sessionKey,
+        },
+        previewPdfUrl,
+        previewSolutionPdfUrl
+      )}
+  />
+{/snippet}
 
 {#if isOpen}
   <Modal open={isOpen} size="full" tall bare onClose={requestClose} labelledBy="exercise-editor-title">
@@ -959,6 +986,7 @@
           titleLoesung={$t("exercises.editor.previewLoesungTitle")}
           placeholderText={$t("exercises.editor.previewPlaceholder")}
           shrinkWhenCollapsed={showLatexPanel}
+          footer={previewPdfUrl || previewSolutionPdfUrl || previewError ? layoutReport : undefined}
         />
       </div>
     </div>

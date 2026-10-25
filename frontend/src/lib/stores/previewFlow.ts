@@ -3,6 +3,7 @@ import type { CompileKind } from "#lib/latex/compileCache";
 import type { CompileResult } from "#lib/latex/compiler";
 import { getCachedPreview, pdfBytesToUrl } from "#lib/latex/pdfPreview";
 import { translate } from "#lib/i18n";
+import type { LayoutReportFileData } from "#lib/api/layoutReports";
 
 export interface PreviewState {
   /** `ask`: nothing cached, waiting for the compile confirmation; `open`: modal visible. */
@@ -25,6 +26,10 @@ export interface PreviewFlow<T> extends Readable<PreviewState> {
   close(): void;
   /** Revokes the object URLs; call when the owning component is destroyed. */
   destroy(): void;
+  /** Whether the modal offers the layout report (issue #134). */
+  readonly reportable: boolean;
+  /** The layout-report files of the shown item and PDFs. */
+  reportFiles(): Promise<LayoutReportFileData[]>;
 }
 
 interface PreviewFlowOptions<T> {
@@ -36,6 +41,8 @@ interface PreviewFlowOptions<T> {
     onStatus: (status: string) => void,
     onAngabe: (angabe: CompileResult) => void
   ) => Promise<{ angabe: CompileResult; loesung: CompileResult; missingGraphics: string[] }>;
+  /** Builds the layout-report files from the shown PDFs; without it the modal offers no report. */
+  reportFiles?: (item: T, angabeUrl: string | null, loesungUrl: string | null) => Promise<LayoutReportFileData[]>;
 }
 
 const idle: PreviewState = {
@@ -142,5 +149,11 @@ export function createPreviewFlow<T>(options: PreviewFlowOptions<T>): PreviewFlo
     cancel: reset,
     close: reset,
     destroy: reset,
+
+    reportable: options.reportFiles !== undefined,
+    async reportFiles() {
+      if (current === null || !options.reportFiles) return [];
+      return options.reportFiles(current, state.angabeUrl, state.loesungUrl);
+    },
   };
 }
