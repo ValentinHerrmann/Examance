@@ -24,6 +24,7 @@
   let problem = $state("");
   let expected = $state("");
   let consent = $state(false);
+  let allowPublication = $state(true);
   let files: LayoutReportFileData[] = $state.raw([]);
   let collecting = $state(false);
   let collectError = $state("");
@@ -48,6 +49,7 @@
     sent = false;
     error = "";
     consent = false;
+    allowPublication = true;
     engine = effectiveLatexCompilation() === "server" ? "server" : "browser";
     collecting = true;
     collectError = "";
@@ -86,6 +88,7 @@
         problem: problem.trim(),
         expected: expected.trim(),
         compileError: compileError || null,
+        allowPublication,
         files,
       });
       sent = true;
@@ -140,10 +143,14 @@
         {/if}
       </div>
 
-      <Checkbox bind:checked={consent} label={$t("layoutReport.dialog.consent")} />
-      {#if retentionDays !== null}
-        <p class="m-0 text-sm text-muted">{$t("layoutReport.dialog.retention", { days: retentionDays })}</p>
-      {/if}
+      <div class="flex flex-col gap-2">
+        <Checkbox bind:checked={consent} required label={$t("layoutReport.dialog.consent")} />
+        <Checkbox bind:checked={allowPublication} label={$t("layoutReport.dialog.publication")} />
+      </div>
+      <p class="m-0 text-xs text-subtle">
+        {$t("layoutReport.dialog.noStudentData")}
+        {#if retentionDays !== null}{$t("layoutReport.dialog.retention", { days: retentionDays })}{/if}
+      </p>
     </div>
   {/if}
 

@@ -1,9 +1,9 @@
 import type { Translations } from '../types';
 
 export const layoutReport: Translations['layoutReport'] = {
-    button: 'Report layout problem',
+    button: 'Report LaTeX layout problem',
     dialog: {
-        title: 'Report a layout problem',
+        title: 'Report a LaTeX layout problem',
         intro: 'Does the PDF look wrong or does it fail to compile? Briefly describe what is wrong. The administrators review the report and you get an e-mail once the problem is resolved.',
         problemLabel: 'What is wrong?',
         problemPlaceholder: 'e.g. "The image in task 2 runs past the margin."',
@@ -16,7 +16,9 @@ export const layoutReport: Translations['layoutReport'] = {
         contextIncluded: 'Compile engine ({engine}) and app version {version}',
         engineServer: 'server',
         engineBrowser: 'browser',
-        consent: 'I agree that this LaTeX code, the PDFs and files are sent unencrypted to the administrators. The content may be published without my name as a public GitHub issue to fix the problem. It contains no student data; I do not enter personal data in the description.',
+        consent: 'I agree that the LaTeX code, the PDFs and files are sent unencrypted to the administrators.',
+        publication: 'The administrators may publish the report without my name and e-mail address as a public GitHub issue so the problem can be fixed (optional).',
+        noStudentData: 'No student data is sent. Please do not enter personal data in the description.',
         retention: 'Reports are deleted automatically after {days} days.',
         submit: 'Send report',
         sending: 'Sending …',
@@ -44,6 +46,8 @@ export const layoutReport: Translations['layoutReport'] = {
         downloadFile: 'Download',
         pdfPreview: 'PDF preview',
         githubTitle: 'For GitHub',
+        publicationDenied: 'The teacher did not agree to publication. This report must not appear as a public GitHub issue.',
+        privateBadge: 'Do not publish',
         copy: 'Copy',
         copied: 'Copied',
         openIssue: 'Open a new GitHub issue',

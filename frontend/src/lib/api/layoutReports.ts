@@ -22,6 +22,8 @@ export interface LayoutReportInput {
   problem: string;
   expected: string;
   compileError: string | null;
+  /** Optional consent to an anonymized public GitHub issue; independent of sending. */
+  allowPublication: boolean;
   files: LayoutReportFileData[];
 }
 
@@ -36,6 +38,7 @@ export async function submitLayoutReport(input: LayoutReportInput): Promise<void
       problem: input.problem,
       expected: input.expected,
       compile_error: input.compileError ? input.compileError.slice(0, 20000) : null,
+      allow_publication: input.allowPublication,
       files: input.files.map((f) => ({
         filename: f.filename,
         mime_type: f.mimeType,
@@ -52,6 +55,7 @@ export interface LayoutReportSummary {
   source_kind: LayoutReportKind;
   source_title: string;
   status: 'open' | 'done';
+  allow_publication: boolean;
   problem: string;
   created_at: string;
   resolved_at: string | null;

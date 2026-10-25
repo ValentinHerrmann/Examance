@@ -29,6 +29,7 @@ def upgrade() -> None:
         sa.Column("problem", sa.Text(), nullable=False),
         sa.Column("expected", sa.Text(), nullable=False),
         sa.Column("compile_error", sa.Text(), nullable=True),
+        sa.Column("allow_publication", sa.Boolean(), nullable=False),
         sa.Column("status", sa.String(length=16), nullable=False),
         sa.Column("resolution_note", sa.String(length=1000), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),

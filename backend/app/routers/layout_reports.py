@@ -70,6 +70,7 @@ async def create_layout_report(
         problem=body.problem.strip(),
         expected=body.expected.strip(),
         compile_error=body.compile_error,
+        allow_publication=body.allow_publication,
         status="open",
         created_at=now,
     )
@@ -101,6 +102,7 @@ def _summary(report: LayoutReport, email: str) -> LayoutReportSummary:
         source_kind=cast(Literal["exam", "exercise"], report.source_kind),
         source_title=report.source_title,
         status=cast(Literal["open", "done"], report.status),
+        allow_publication=report.allow_publication,
         problem=report.problem,
         created_at=report.created_at,
         resolved_at=report.resolved_at,

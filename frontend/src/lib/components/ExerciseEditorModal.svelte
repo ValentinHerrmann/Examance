@@ -622,6 +622,27 @@
   });
 </script>
 
+{#snippet layoutReport()}
+  <LayoutReportButton
+    kind="exercise"
+    title={editorName}
+    compileError={previewError || null}
+    disabled={isPreviewLoading}
+    collectFiles={() =>
+      exerciseReportFiles(
+        {
+          name: editorName,
+          latexBody: editorLatexBody,
+          resourceOwnerId: resourceStagingId,
+          staged: true,
+          key: get(sessionStore).sessionKey,
+        },
+        previewPdfUrl,
+        previewSolutionPdfUrl
+      )}
+  />
+{/snippet}
+
 {#if isOpen}
   <Modal open={isOpen} size="full" tall bare onClose={requestClose} labelledBy="exercise-editor-title">
     {#snippet header()}
@@ -965,33 +986,12 @@
           titleLoesung={$t("exercises.editor.previewLoesungTitle")}
           placeholderText={$t("exercises.editor.previewPlaceholder")}
           shrinkWhenCollapsed={showLatexPanel}
+          footer={previewPdfUrl || previewSolutionPdfUrl || previewError ? layoutReport : undefined}
         />
       </div>
     </div>
 
     {#snippet footer()}
-      {#if previewPdfUrl || previewSolutionPdfUrl || previewError}
-        <div class="mr-auto">
-          <LayoutReportButton
-            kind="exercise"
-            title={editorName}
-            compileError={previewError || null}
-            disabled={isPreviewLoading}
-            collectFiles={() =>
-              exerciseReportFiles(
-                {
-                  name: editorName,
-                  latexBody: editorLatexBody,
-                  resourceOwnerId: resourceStagingId,
-                  staged: true,
-                  key: get(sessionStore).sessionKey,
-                },
-                previewPdfUrl,
-                previewSolutionPdfUrl
-              )}
-          />
-        </div>
-      {/if}
       <Button variant="outlined" severity="secondary" onClick={requestClose}>{$t("common.cancel")}</Button>
       <Button onClick={handleSaveExercise} disabled={isSaving || !!editingExercise?.codeWithheld || (needsShareConsent && !shareConfirmed)}>
         {isSaving

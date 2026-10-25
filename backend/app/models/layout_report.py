@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import Mapped, deferred, mapped_column
 
 from app.database import Base
@@ -32,6 +32,8 @@ class LayoutReport(Base):
     problem: Mapped[str] = mapped_column(Text, nullable=False)
     expected: Mapped[str] = mapped_column(Text, nullable=False)
     compile_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Separate, optional consent: may the admins publish it (without the reporter) on GitHub?
+    allow_publication: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="open", index=True)
     resolution_note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

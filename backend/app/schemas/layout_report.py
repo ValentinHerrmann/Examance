@@ -24,6 +24,7 @@ class LayoutReportCreate(BaseModel):
     problem: str = Field(min_length=1, max_length=2000)
     expected: str = Field(min_length=1, max_length=2000)
     compile_error: str | None = Field(default=None, max_length=20000)
+    allow_publication: bool = False
     files: list[LayoutReportFileIn] = Field(default_factory=list, max_length=MAX_REPORT_FILES)
 
 
@@ -40,6 +41,7 @@ class LayoutReportSummary(BaseModel):
     source_kind: Literal["exam", "exercise"]
     source_title: str
     status: Literal["open", "done"]
+    allow_publication: bool
     problem: str
     created_at: datetime
     resolved_at: datetime | None

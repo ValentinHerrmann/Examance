@@ -1133,6 +1133,23 @@
   });
 </script>
 
+{#snippet layoutReport()}
+  {#if exam}
+    <LayoutReportButton
+      kind="exam"
+      title={exam.title ?? ""}
+      compileError={errorMsg || null}
+      disabled={isPreviewLoading}
+      collectFiles={() =>
+        examReportFiles(
+          { exam: exam!, exercises, libraryExercises, mcGroups, examItems, key: get(sessionStore).sessionKey },
+          previewPdfUrl,
+          previewSolutionPdfUrl
+        )}
+    />
+  {/if}
+{/snippet}
+
 <PageShell width="fluid">
   <PageHeader title={$t("exam.sidebar.setup")} />
 
@@ -1277,7 +1294,9 @@
               titleLoesung={$t("exam.page.pdfPreview.titleLoesung")}
               height="550px"
               placeholderText={$t("exam.page.pdfPreview.placeholder")}
-            />
+            >
+              {#snippet footer()}{@render layoutReport()}{/snippet}
+            </DualPdfPreview>
           </div>
         {/if}
 
@@ -1289,21 +1308,8 @@
             <div class="max-h-72 overflow-auto font-mono break-all whitespace-pre-wrap">{errorMsg}</div>
           </Alert>
         {/if}
-        {#if exam && (previewPdfUrl || previewSolutionPdfUrl || errorMsg)}
-          <div class="mt-3 flex justify-end">
-            <LayoutReportButton
-              kind="exam"
-              title={exam.title ?? ""}
-              compileError={errorMsg || null}
-              disabled={isPreviewLoading}
-              collectFiles={() =>
-                examReportFiles(
-                  { exam: exam!, exercises, libraryExercises, mcGroups, examItems, key: get(sessionStore).sessionKey },
-                  previewPdfUrl,
-                  previewSolutionPdfUrl
-                )}
-            />
-          </div>
+        {#if errorMsg && !previewPdfUrl && !previewSolutionPdfUrl}
+          <div class="mt-2 flex justify-end">{@render layoutReport()}</div>
         {/if}
       </Card>
 

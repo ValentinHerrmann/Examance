@@ -236,20 +236,24 @@
       {/if}
     </div>
 
-    <div class="flex min-w-0 flex-col gap-2">
-      <div class="flex flex-wrap items-center gap-2">
-        <h3 class="m-0 text-sm font-semibold">{$t("layoutReport.admin.githubTitle")}</h3>
-        <div class="ml-auto flex flex-wrap gap-2">
-          <Button size="sm" variant="outlined" icon={copied ? faCheck : faCopy} onClick={copyMarkdown}>
-            {copied ? $t("layoutReport.admin.copied") : $t("layoutReport.admin.copy")}
-          </Button>
-          <Button size="sm" variant="outlined" icon={faUpRightFromSquare} href={newIssueUrl} target="_blank" rel="noopener noreferrer">
-            {$t("layoutReport.admin.openIssue")}
-          </Button>
+    {#if detail.allow_publication}
+      <div class="flex min-w-0 flex-col gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="m-0 text-sm font-semibold">{$t("layoutReport.admin.githubTitle")}</h3>
+          <div class="ml-auto flex flex-wrap gap-2">
+            <Button size="sm" variant="outlined" icon={copied ? faCheck : faCopy} onClick={copyMarkdown}>
+              {copied ? $t("layoutReport.admin.copied") : $t("layoutReport.admin.copy")}
+            </Button>
+            <Button size="sm" variant="outlined" icon={faUpRightFromSquare} href={newIssueUrl} target="_blank" rel="noopener noreferrer">
+              {$t("layoutReport.admin.openIssue")}
+            </Button>
+          </div>
         </div>
+        <Textarea value={markdown} rows={14} readonly class="font-mono text-xs" />
       </div>
-      <Textarea value={markdown} rows={14} readonly class="font-mono text-xs" />
-    </div>
+    {:else}
+      <Alert severity="warning">{$t("layoutReport.admin.publicationDenied")}</Alert>
+    {/if}
   </div>
 {:else}
   <div class="mb-3 flex gap-2">
@@ -269,6 +273,7 @@
               <td class="whitespace-nowrap">{$fmt.date(item.created_at)}</td>
               <td>
                 <Badge>{item.source_kind === "exam" ? $t("layoutReport.admin.kindExam") : $t("layoutReport.admin.kindExercise")}</Badge>
+                {#if !item.allow_publication}<Badge severity="warning">{$t("layoutReport.admin.privateBadge")}</Badge>{/if}
               </td>
               <td class="min-w-0 break-words">{item.problem.split("\n")[0]}</td>
               <td class="break-all text-muted">{item.reporter_email}</td>
