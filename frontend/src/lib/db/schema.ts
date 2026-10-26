@@ -42,6 +42,8 @@ export interface ExamRecord extends MaybeUndecryptable {
   latexPackages?: LatexPackageEntry[] | null;
   /** Ids of the exercises / MC groups that start on a new page (a break goes before each); layout only. */
   pageBreaks?: string[] | null;
+  /** Prints a handwritten name line next to the QR sticker box (issue #127); layout only. */
+  nameLine?: boolean;
   retentionUntil: string;  // ISO date string
   compilationStatus: 'pending' | 'compiled' | 'failed';
   createdAt: string;

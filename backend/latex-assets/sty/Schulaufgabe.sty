@@ -19,6 +19,10 @@
 \newboolean{Pkt}
 \setboolean{Pkt}{false}
 
+% Handwritten name line next to the QR box (issue #127)
+\newboolean{Namensfeld}
+\setboolean{Namensfeld}{false}
+
 \newcounter{Punkte}
 \setcounter{Punkte}{0}
 
@@ -198,6 +202,11 @@
     \setboolean{Pkt}{true}%
 }
 
+% Name line next to the QR box; the box keeps its size so the layout stays put
+\DeclareOption{namenszeile}{%
+    \setboolean{Namensfeld}{true}%
+}
+
 % Global indentation option
 \newif\if@neverindent\@neverindentfalse
 \DeclareOption{neverindent}{%
@@ -224,16 +233,23 @@
         \textcolor{gray}{
             \dashbox{0.2}(3.5,3.5){
                 \parbox{3.5cm}{
-                    \centering QR Code \\
+                    \centering QR Code
+                    \ifthenelse{\boolean{Namensfeld}}{}{\\
                     \normalsize \vspace{0.8cm}\LoesungLuecke{}{2.5cm}\\$\uparrow$~Deine Initialen~$\uparrow$\\
-                    (falls QR-Code abfällt)
+                    (falls QR-Code abfällt)}
                 }
             }
         }
         \end{minipage}% <-- Ein % hier verhindert einen ungewollten Zeilenumbruch/Abstand
         \begin{minipage}[t]{15cm}
         \vspace{5pt} % Setzt die Grundlinie an die physische Oberkante
-        \normalsize\Infotext
+        \normalsize
+        % Name starts where the info bullets do; the strut is the room to write above the line.
+        \ifthenelse{\boolean{Namensfeld}}{\settowidth{\@tempdima}{\textbullet}\noindent\hspace*{\dimexpr\leftmargini-\labelsep-\@tempdima\relax}%
+            \rule{0pt}{1cm}{\large Name:}~\leaders\hrule height 0.5pt\hfill\null\par}{}%
+        \Infotext
+        % Offsets the -0.7cm below, so a long info text pushes the rule down instead of crossing it.
+        \ifthenelse{\boolean{Namensfeld}}{\par\vspace{0.7cm}}{}%
         \end{minipage}
     }
     \normalsize

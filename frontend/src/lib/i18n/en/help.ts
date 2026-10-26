@@ -158,6 +158,7 @@ export const help: Translations['help'] = {
                 p1: 'The run produces a print-ready PDF with QR codes — one per exam, variant and student slot. If you typeset in the browser, it happens entirely on the device.',
                 p2: 'Print the sheets exactly as typeset. The QR code has to stay readable, otherwise the scan cannot be assigned automatically later.',
                 p3: 'In the exam overview, “Preview” in an expanded entry opens the last compiled PDF. If there is none, you are asked and the exam is compiled and shown right in the window. The preview is kept only until the page is reloaded.',
+                p4: 'With “Print a name line next to the QR code box” (when creating the exam or in the exam data) the title page also gets a line for the student\'s name. The QR code box stays where it is, so scanning and assignment work as before; only the initials field inside the box is dropped.',
             },
         },
         scanning: {

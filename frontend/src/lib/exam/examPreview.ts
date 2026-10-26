@@ -87,6 +87,7 @@ export async function collectExamResources(
 /**
  * Full exam document. `options` are the Schulaufgabe.sty options (`sans,punkte[,antworten]`); `accountPackages` is
  * the account's package list (`getAccountPackages()`), merged with the exam's and the exercises' own.
+ * The exam's own layout options (`namenszeile`) are added here.
  */
 export function buildExamLatex(
   exam: ExamRecord,
@@ -95,7 +96,7 @@ export function buildExamLatex(
   accountPackages: readonly LatexPackageEntry[]
 ): string {
   const doc = `\\documentclass[a4paper]{article}
-\\usepackage[${options}]{sty/Schulaufgabe}
+\\usepackage[${withExamOptions(options, exam.nameLine)}]{sty/Schulaufgabe}
 \\Info{${exam.infoText || ""}}
 \\Fach{${exam.fach || "Informatik"}}
 \\Lehrernachname{${exam.lehrernachname || ""}}
@@ -114,6 +115,11 @@ ${exerciseInputs}
 
 \\end{document}`;
   return withPackages(doc, documentLayers(accountPackages, exerciseInputs, exam.latexPackages));
+}
+
+/** Adds the exam's layout switches to the Schulaufgabe.sty options; mirrors `compile_exam_latex`. */
+export function withExamOptions(options: string, nameLine: boolean | undefined): string {
+  return nameLine ? `${options},namenszeile` : options;
 }
 
 export interface ExamPreviewInput {

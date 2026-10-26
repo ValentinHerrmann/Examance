@@ -116,6 +116,8 @@ export const exam: Translations['exam'] = {
         lehrernachname: "Teacher's Last Name",
         retentionUntil: 'Retention Until',
         infoText: 'Info Text (LaTeX list)',
+        nameLine: 'Print a name line next to the QR code box',
+        nameLineHint: 'Students write their name on the title page. The QR code box stays; its initials field is dropped.',
     },
     libraryModal: {
         header: 'Link Exercises from Library',

@@ -497,6 +497,8 @@ async def compile_exam_latex(
     opts = ["sans", "punkte"]
     if show_answers:
         opts.append("antworten")
+    if getattr(exam_model, "name_line", False):
+        opts.append("namenszeile")
     opts_str = ",".join(opts)
 
     # Plain-text metadata -- escaped before interpolation into LaTeX macro
