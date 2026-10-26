@@ -494,11 +494,13 @@
           {@render chips(macros)}
         </div>
       {/each}
+      <!-- Full-width break: the subject tabs and their chips start on a line of their own. -->
+      <span class="basis-full" aria-hidden="true"></span>
       <div class="contents" role="group" aria-label={$t("editor.subjectLabel")}>
-        {#each SUBJECT_CATEGORIES as option, index (option)}
+        {#each SUBJECT_CATEGORIES as option (option)}
           <button
             type="button"
-            class="border-0 border-b-2 bg-transparent px-0.5 text-xs font-semibold pointer-coarse:min-h-11 {index === 0 ? 'ml-2' : ''} {option === subject
+            class="border-0 border-b-2 bg-transparent px-0.5 text-xs font-semibold pointer-coarse:min-h-11 {option === subject
               ? 'border-primary text-content'
               : 'border-transparent text-muted hover:text-accent'}"
             aria-pressed={option === subject}

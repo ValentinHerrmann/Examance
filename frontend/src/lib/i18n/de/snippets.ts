@@ -46,6 +46,7 @@ export const snippets = {
     'cs-graph': { label: 'Graph', description: 'Gewichteter Graph mit vier Knoten.' },
     'cs-binary-tree': { label: 'Binärbaum', description: 'Binärer Suchbaum mit drei Ebenen.' },
     'cs-automaton': { label: 'Automat', description: 'Ein endlicher Automat mit zwei Zuständen.' },
+    'cs-logic-gates': { label: 'Logikgatter', description: 'Schaltnetz aus UND-, NICHT- und ODER-Gatter: Y = (A ∧ B) ∨ ¬C.' },
     'phys-unit': { label: 'Größe mit Einheit', description: 'Ein Zahlenwert mit Einheit.' },
     'phys-lens': { label: 'Sammellinse', description: 'Bildkonstruktion mit den drei Hauptstrahlen.' },
     'phys-circuit': { label: 'Schaltplan', description: 'Batterie, Schalter, Widerstand und Lampe in Reihe (fügt circuitikz hinzu).' },

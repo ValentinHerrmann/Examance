@@ -284,6 +284,12 @@ public class Schueler extends Mensch {
   \path (q0) edge node {`, "a", String.raw`} (q1)
         (q1) edge[loop above] node {b} (q1);
 \end{tikzpicture}`),
+  cs("cs-logic-gates", String.raw`\begin{circuitikz}
+  \draw (0,0) node[and port] (g1) {} (0,-2) node[not port] (g2) {} (3,-1) node[or port] (g3) {};
+  \draw (g1.out) -- ++(0.4,0) |- (g3.in 1) (g2.out) -- ++(0.4,0) |- (g3.in 2);
+  \draw (g1.in 1) node[left] {$A$} (g1.in 2) node[left] {$B$} (g2.in) node[left] {$C$};
+  \draw (g3.out) node[right] {$`, "Y", String.raw`$};
+\end{circuitikz}`),
 
   // --- Physik ---
   physics("phys-unit", "$", "9{,}81", String.raw`\,\mathrm{m/s^2}$`),

@@ -47,6 +47,7 @@ export const snippets: Translations['snippets'] = {
     'cs-graph': { label: 'Graph', description: 'Weighted graph with four nodes.' },
     'cs-binary-tree': { label: 'Binary tree', description: 'Binary search tree with three levels.' },
     'cs-automaton': { label: 'Automaton', description: 'A finite automaton with two states.' },
+    'cs-logic-gates': { label: 'Logic gates', description: 'Circuit of AND, NOT and OR gates: Y = (A ∧ B) ∨ ¬C.' },
     'phys-unit': { label: 'Quantity with unit', description: 'A value with its unit.' },
     'phys-lens': { label: 'Converging lens', description: 'Image construction with the three principal rays.' },
     'phys-circuit': { label: 'Circuit diagram', description: 'Battery, switch, resistor and lamp in series (adds circuitikz).' },
