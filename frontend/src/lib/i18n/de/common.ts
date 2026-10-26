@@ -34,6 +34,7 @@ export const common = {
     export: 'Exportieren',
     import: 'Importieren',
     open: 'Öffnen',
+    openInNewTab: 'In neuem Tab öffnen',
     create: 'Erstellen',
     refresh: 'Aktualisieren',
     copy: 'Kopieren',

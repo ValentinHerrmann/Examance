@@ -46,6 +46,7 @@ export const help: Translations['help'] = {
                 p2: 'All sensitive data is encrypted in the browser before it is stored. The key is derived from your password and never leaves the device.',
                 p3: 'For a quick overview, two posters under "Posters: features & privacy" (linked from the sign-in page) show what Examance does, what the interface looks like and how your data is protected.',
                 p4: 'To try things out, "Add example data" in the still empty exam overview creates example exercises, two example exams and already graded sheets of invented students, some of them scanned. They are not shared, are stored and encrypted like your own data, and can be deleted like any exam and exercise.',
+                p5: 'Names of exercises, exams and submissions marked with ↗ open the linked item in a new tab, for example an exercise straight in the editor or a submission in grading. Unsaved work in the current tab stays where it is.',
             },
             s2: {
                 h: 'The usual workflow',
@@ -89,7 +90,7 @@ export const help: Translations['help'] = {
                 h: 'Collect instead of copy',
                 p1: 'Exercises live in a shared library, tagged by grade, subject and topic. Each one is a LaTeX fragment with a live preview; its score is read from the source automatically and shown on every variant. In the source editor, Ctrl + F opens search and Ctrl + H search and replace (⌘ on a Mac).',
                 p2: 'Use the filters at the top to narrow the library by grade, subject and topic and reuse an exercise in a new exam. The numbers on the topics only count what matches the other filters; topics without matches are hidden. “Sort by” orders the list by name, last change, points, grade or subject; this browser remembers your choice.',
-                p3: 'Expand an entry to see, per variant, which exams use the exercise (click to open the exam). “Preview” shows the last compiled PDF; if there is none yet, Examance asks whether to compile it now.',
+                p3: 'Expand an entry to see, per variant, which exams use the exercise (click to open the exam in a new tab). “Preview” shows the last compiled PDF; if there is none yet, Examance asks whether to compile it now.',
             },
             s2: {
                 h: 'Variants and versions',

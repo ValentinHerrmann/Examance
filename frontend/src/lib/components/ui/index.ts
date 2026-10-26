@@ -3,6 +3,7 @@ export { default as Badge } from "./Badge.svelte";
 export { default as Button } from "./Button.svelte";
 export { default as Card } from "./Card.svelte";
 export { default as Checkbox } from "./Checkbox.svelte";
+export { default as CrossLink } from "./CrossLink.svelte";
 export { default as ConfirmDeleteModal } from "./ConfirmDeleteModal.svelte";
 export { default as ConfirmDialog } from "./ConfirmDialog.svelte";
 export { default as EmptyState } from "./EmptyState.svelte";
