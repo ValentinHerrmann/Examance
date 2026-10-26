@@ -36,7 +36,7 @@ export const workspace: Translations['workspace'] = {
         countsImported: 'Imported',
         countsExported: 'Included in the archive',
         kindHeading: 'Kind',
-        outcomeHint: '"Linked": an exercise already available to you on the server (your own or shared) was reused instead of copied.',
+        outcomeHint: '"Linked": an exercise already available to you on the server (your own only; other teachers’ shared exercises are never linked) was reused instead of copied.',
         nothing: 'Nothing was transferred.',
         missingHeadingImport: 'Linked but missing',
         missingHeadingExport: 'Not in the archive',
@@ -73,6 +73,7 @@ export const workspace: Translations['workspace'] = {
             scanUnreadable: 'Scan unreadable',
             examNotImported: 'Results without an imported exam',
             logoUnavailable: 'Exam logo not transferred',
+            resourceUnavailable: 'Image or resource file could not be read',
         },
         withheldItem: {
             exerciseCode: 'LaTeX code of the exercises',

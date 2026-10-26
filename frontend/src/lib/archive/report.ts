@@ -61,18 +61,19 @@ export const REPORT_OUTCOMES: readonly ReportOutcome[] = [
 /**
  * What an exam refers to that is not there: `exerciseUnavailable` (neither in the archive nor available to the account),
  * `scoresWithoutExercise`, `scanUnreadable` (not decryptable/openable), `examNotImported` (its results had nowhere to
- * go), `logoUnavailable`.
+ * go), `logoUnavailable`, `resourceUnavailable` (an exercise file that could not be read, or was empty).
  */
 export type MissingReason =
   | 'exerciseUnavailable'
   | 'scoresWithoutExercise'
   | 'scanUnreadable'
   | 'examNotImported'
-  | 'logoUnavailable';
+  | 'logoUnavailable'
+  | 'resourceUnavailable';
 
 export interface MissingItem {
   reason: MissingReason;
-  /** Exam title (or id) the item belongs to. */
+  /** Exam title (or id) the item belongs to; the exercise name for `resourceUnavailable`. */
   exam: string;
   /** Exercise name/id or submission id, where it applies. */
   item?: string;

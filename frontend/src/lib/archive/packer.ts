@@ -27,9 +27,11 @@ import {
   loadStudentsEncrypted,
   loadSubmissionsEncrypted,
   decryptAuditEntry,
-  decryptResourceBytes,
 } from '#lib/db/dbEncryption';
-import type { ExerciseRecord, SubmissionRecord } from '#lib/db/schema';
+import type { ExerciseRecord, ExerciseResourceRecord, SubmissionRecord } from '#lib/db/schema';
+import { exerciseResourceRepository } from '#lib/repositories/exerciseResourceRepository';
+import { studentRepository } from '#lib/repositories/studentRepository';
+import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { encodeBinary } from './binary';
 import { api } from '#lib/api/client';
 import { mapApiToExerciseRecord } from '#lib/repositories/exerciseRepository';
@@ -51,6 +53,76 @@ export interface PackOptions {
    * results with another teacher without handing over the exercises.
    */
   includeExerciseCode?: boolean;
+  /** Only these exams with their linked exercises and results (the exam page export); default: the whole workspace. */
+  examIds?: string[];
+}
+
+/** Runs `fn` over `items` with at most `width` calls in flight; results keep the input order. */
+async function mapPool<T, R>(items: T[], width: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(width, items.length) }, worker));
+  return out;
+}
+
+/**
+ * Resource files of the exported exercises, from the cache or the server (the cache alone lost
+ * every figure in all-server mode, issue #145). An unreadable or empty file is reported, never packed.
+ */
+async function collectResources(
+  exercises: ExerciseRecord[],
+  key: CryptoKey | null,
+  report: ArchiveReport,
+  onProgress?: ProgressCallback
+) {
+  let done = 0;
+  const perExercise = await mapPool(exercises, 4, async (ex) => {
+    const label = ex.name || ex.title || ex.id;
+    const files = [];
+    let rows: ExerciseResourceRecord[] = [];
+    try {
+      rows = await exerciseResourceRepository.listForExport(ex.id);
+    } catch {
+      addMissing(report, { reason: 'resourceUnavailable', exam: label });
+    }
+    for (const r of rows) {
+      let bytes: Uint8Array | null = null;
+      try {
+        bytes = await exerciseResourceRepository.getBytes(r, key);
+      } catch {
+        bytes = null;
+      }
+      if (!bytes || bytes.length === 0) {
+        addMissing(report, { reason: 'resourceUnavailable', exam: label, item: r.filename });
+        continue;
+      }
+      // Base64 because JSON can't carry raw bytes; the archive envelope protects them.
+      files.push({
+        id: r.id,
+        exerciseId: ex.id,
+        filename: r.filename,
+        mimeType: r.mimeType,
+        byteSize: bytes.length,
+        createdAt: r.createdAt,
+        dataB64: uint8ArrayToBase64(bytes),
+      });
+    }
+    done += 1;
+    onProgress?.({
+      phase: 'encrypting',
+      current: 10 + Math.round((20 * done) / exercises.length),
+      total: 100,
+      message: 'Collecting exercise files...',
+    });
+    return files;
+  });
+  return perExercise.flat();
 }
 
 /**
@@ -102,8 +174,9 @@ function withoutCode(ex: ExerciseRecord): ExerciseRecord {
 export async function packProject(
   password: string,
   onProgress?: ProgressCallback,
-  { includeExerciseCode = true }: PackOptions = {}
+  { includeExerciseCode = true, examIds }: PackOptions = {}
 ): Promise<PackResult> {
+  const onlyExams = examIds ? new Set(examIds) : null;
   const report = newReport('export');
   report.codeWithheld = !includeExerciseCode;
   onProgress?.({
@@ -123,18 +196,33 @@ export async function packProject(
 
   // 3. Collect records from IDB
   const key = get(sessionStore).sessionKey;
-  const exams = await loadExamsEncrypted(key);
-  const library = await loadExercisesEncrypted(key);
-  const students = await loadStudentsEncrypted(key);
+  const allExams = await loadExamsEncrypted(key);
+  const exams = onlyExams ? allExams.filter((e) => onlyExams.has(e.id)) : allExams;
+  // A single-exam archive carries only the exercises that exam links, not the library.
+  const library = onlyExams ? [] : await loadExercisesEncrypted(key);
   // The archive is the export/import bridge — it must carry every scan, not
   // just presence flags, so this is the one caller that opts into the heavy
-  // list response.
-  const submissions = await loadSubmissionsEncrypted(key, { includeScans: true });
+  // list response. A single-exam export loads only that exam's results.
+  const students = onlyExams
+    ? (await Promise.all(exams.map((e) => studentRepository.getByExamId(e.id, key)))).flat()
+    : await loadStudentsEncrypted(key);
+  const submissions = onlyExams
+    ? (await Promise.all(exams.map((e) => submissionRepository.getByExamId(e.id, key, { includeScans: true })))).flat()
+    : await loadSubmissionsEncrypted(key, { includeScans: true });
   // Through the repository, not Dexie directly — in all-server mode the local
   // cache can be empty (e.g. right after a lock).
   const exerciseScores = await scoreRepository.getAll(exams.map((e) => e.id), key);
   // Decrypted like everything else: the importer re-seals them under its own key.
-  const auditLogs = await Promise.all((await db.auditLog.toArray()).map((a) => decryptAuditEntry(a, key)));
+  // A single-exam archive keeps only entries about that exam, its students or its submissions.
+  const auditTargets = new Set<string>([
+    ...exams.map((e) => e.id),
+    ...students.map((s) => s.pseudonymId),
+    ...submissions.map((s) => s.id),
+  ]);
+  const auditRows = (await db.auditLog.toArray()).filter(
+    (a) => !onlyExams || (!!a.targetId && auditTargets.has(a.targetId))
+  );
+  const auditLogs = await Promise.all(auditRows.map((a) => decryptAuditEntry(a, key)));
 
   // Exercise links and MC groups, per exam, through the repository for the
   // same reason: the local Dexie tables can be empty in server-backed modes.
@@ -167,19 +255,7 @@ export async function packProject(
     ? [...linked, ...library.filter((ex) => !linkedSet.has(ex.id))]
     : linked.map(withoutCode);
 
-    // Resource files are decrypted with the session key and base64'd (JSON can't carry raw bytes);
-    // the archive envelope protects them, and the importer re-encrypts under its own key.
-  const exerciseResources = !includeExerciseCode ? [] : await Promise.all(
-    (await db.exerciseResources.toArray()).map(async r => ({
-      id: r.id,
-      exerciseId: r.exerciseId,
-      filename: r.filename,
-      mimeType: r.mimeType,
-      byteSize: r.byteSize,
-      createdAt: r.createdAt,
-      dataB64: uint8ArrayToBase64(await decryptResourceBytes(r, key)),
-    }))
-  );
+  const exerciseResources = !includeExerciseCode ? [] : await collectResources(exercises, key, report, onProgress);
 
   // The header logo is part of the exam, so it travels in every archive, results-only included.
   // The bytes are what the exam printed, so the importer's own account logo cannot change it.

@@ -25,7 +25,6 @@ const KIND_TO_REPORT: Record<ConflictKind, ReportKind> = {
   mcGroup: "mcGroups",
   student: "students",
   submission: "submissions",
-  resource: "resources",
 };
 
 /** HTTP errors a batch run collected instead of showing, as report details. */
@@ -53,21 +52,16 @@ export async function openBgprojArchive(
     const scan = await detectConflicts(payload, key);
     const decisions = scan.conflicts.length > 0 ? await resolve(scan.conflicts, scan.identicalCount) : new Map();
 
-    // The teacher's decisions and the identical records, as report counts.
+    // Identical and kept records are counted here; copies and replacements where they are written, so each counts once.
     for (const r of scan.identical) bump(report, KIND_TO_REPORT[r.kind], "alreadyPresent");
-    const takeImportedIds = new Set<string>();
+    const { payload: resolved, idMap } = applyResolutions(payload, decisions, scan.identical);
+    const decided = new Map<string, "copied" | "replaced">();
     for (const d of (decisions as DecisionMap).values()) {
-      const kind = KIND_TO_REPORT[d.kind];
-      if (d.choice === "keep-existing") bump(report, kind, "keptExisting");
-      if (d.choice === "import-as-copy") bump(report, kind, "copied");
-      if (d.choice === "take-imported") {
-        bump(report, kind, "replaced");
-        takeImportedIds.add(d.id);
-      }
+      if (d.choice === "keep-existing") bump(report, KIND_TO_REPORT[d.kind], "keptExisting");
+      if (d.choice === "import-as-copy") decided.set(idMap.get(d.id) ?? d.id, "copied");
+      if (d.choice === "take-imported") decided.set(d.id, "replaced");
     }
-
-    const resolved = applyResolutions(payload, decisions, scan.identical).payload;
-    return applyArchive(resolved, undefined, { report, ownExamIds: scan.ownExamIds, takeImportedIds });
+    return applyArchive(resolved, undefined, { report, ownExamIds: scan.ownExamIds, decided });
   });
   report.problems.push(...describeHttpErrors(errors));
   return result;

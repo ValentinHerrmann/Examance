@@ -1,6 +1,7 @@
 /**
- * Import conflict detection and resolution before anything is written: keep existing, take the
- * archive's, or import as a copy. No copies for students/submissions (duplicate pseudonym = data-protection problem).
+ * Import conflict detection and resolution before anything is written: keep existing, import as a copy, or (results only)
+ * take the archive's. No copies for students/submissions (duplicate pseudonym = data-protection problem); no "take" for
+ * exams, exercises and MC groups, whose create-only POST turned it into a hidden duplicate (issue #145).
  */
 
 import { db } from '#lib/db/db';
@@ -11,7 +12,7 @@ import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { storedEntries } from '#lib/latex/packages';
 import { remapPageBreaks } from '#lib/exam/pageBreaks';
 
-export type ConflictKind = 'exam' | 'exercise' | 'mcGroup' | 'student' | 'submission' | 'resource';
+export type ConflictKind = 'exam' | 'exercise' | 'mcGroup' | 'student' | 'submission';
 export type ConflictChoice = 'keep-existing' | 'take-imported' | 'import-as-copy';
 
 export interface ConflictField {
@@ -30,6 +31,8 @@ export interface ArchiveConflict {
   /** A long text worth showing in full (LaTeX body, preamble). */
   textDiff?: { existing: string; imported: string };
   allowCopy: boolean;
+  /** Whether the archive's version can overwrite in place (results upsert by id; exams and exercises cannot). */
+  allowTake: boolean;
 }
 
 export interface ConflictDecision {
@@ -55,6 +58,7 @@ interface KindSpec {
   fields: Accessors;
   text?: (row: Row) => string;
   allowCopy: boolean;
+  allowTake: boolean;
   /** What the target store already holds, for the rows the archive brings. */
   existing: (rows: Row[], key: CryptoKey | null, ownExamIds: Set<string>) => Promise<Row[]>;
 }
@@ -92,6 +96,7 @@ const SPECS: KindSpec[] = [
     },
     text: (r) => r.latexPreamble ?? '',
     allowCopy: true,
+    allowTake: false,
     existing: (_rows, key) => examRepository.getAll(key),
   },
   {
@@ -105,6 +110,7 @@ const SPECS: KindSpec[] = [
     ),
     text: (r) => r.latexBody ?? '',
     allowCopy: true,
+    allowTake: false,
     existing: (_rows, key) => exerciseRepository.getAll(key),
   },
   {
@@ -114,6 +120,7 @@ const SPECS: KindSpec[] = [
     title: (r) => r.title || r.id,
     fields: props('title', 'scoringText'),
     allowCopy: true,
+    allowTake: false,
     existing: () => db.examMcGroups.toArray(),
   },
   {
@@ -123,6 +130,7 @@ const SPECS: KindSpec[] = [
     title: (r) => r.studentName || r.fallbackCode || r.pseudonymId,
     fields: props('studentName', 'studentNumber', 'fallbackCode'),
     allowCopy: false,
+    allowTake: true,
     existing: (rows, key, own) => perExam(rows, own, (id) => studentRepository.getByExamId(id, key)),
   },
   {
@@ -139,16 +147,8 @@ const SPECS: KindSpec[] = [
       hasAnnotations: (r) => Boolean(r.annotationCt) || Boolean(r.annotationBytes) || Boolean(r.hasAnnotations),
     },
     allowCopy: false,
+    allowTake: true,
     existing: (rows, key, own) => perExam(rows, own, (id) => submissionRepository.getByExamId(id, key)),
-  },
-  {
-    kind: 'resource',
-    payloadKey: 'exerciseResources',
-    id: (r) => `${r.exerciseId}:${r.filename}`,
-    title: (r) => r.filename,
-    fields: props('byteSize'),
-    allowCopy: true,
-    existing: () => db.exerciseResources.toArray(),
   },
 ];
 
@@ -176,6 +176,7 @@ function compare(spec: KindSpec, current: Row, incoming: Row): ArchiveConflict |
     fields,
     textDiff,
     allowCopy: spec.allowCopy,
+    allowTake: spec.allowTake,
   };
 }
 
@@ -213,7 +214,7 @@ export async function detectConflicts(payload: Row, key: CryptoKey | null): Prom
   return { conflicts, identicalCount: identical.length, identical, ownExamIds };
 }
 
-/** Every conflict gets `choice`; a copy falls back to keep where not allowed. */
+/** Every conflict gets `choice`; a copy or take falls back to keep where that kind does not allow it. */
 export function applyToAll(
   conflicts: ArchiveConflict[],
   choice: ConflictChoice,
@@ -221,7 +222,9 @@ export function applyToAll(
 ): DecisionMap {
   const decisions = new Map(existing);
   for (const c of conflicts) {
-    const effective = choice === 'import-as-copy' && !c.allowCopy ? 'keep-existing' : choice;
+    const allowed =
+      choice === 'keep-existing' || (choice === 'import-as-copy' ? c.allowCopy : c.allowTake);
+    const effective = allowed ? choice : 'keep-existing';
     decisions.set(c.id, { id: c.id, kind: c.kind, choice: effective });
   }
   return decisions;
@@ -272,11 +275,8 @@ export function applyResolutions(
       examId: remap(r.examId),
       annotationBytes: remapStrokeExercises(r.annotationBytes, idMap),
     })),
-    exerciseResources: rewrite(
-      'exerciseResources',
-      (r) => `${r.exerciseId}:${r.filename}`,
-      (r) => ({ exerciseId: remap(r.exerciseId) })
-    ),
+    // Files follow their exercise: a kept or identical one keeps its own, a copy takes the archived ones.
+    exerciseResources: rewrite('exerciseResources', (r) => r.exerciseId, (r) => ({ exerciseId: remap(r.exerciseId) })),
     // The logo is part of its exam: a kept exam keeps its own, a copy takes the archived one.
     examLogos: rewrite('examLogos', (r) => r.examId, (r) => ({ examId: remap(r.examId) })),
     // A kept exam keeps its own links. A kept exercise is still linked: the importer reuses the

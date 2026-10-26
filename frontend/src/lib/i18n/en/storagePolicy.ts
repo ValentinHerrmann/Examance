@@ -118,6 +118,7 @@ export const storagePolicy: Translations['storagePolicy'] = {
         choiceTakeImported: 'Take archive version',
         choiceImportAsCopy: 'Import as a copy',
         copyNotAllowed: 'Student data and submissions cannot be copied — duplicate pseudonyms are not permissible under data protection rules.',
+        takeNotAllowed: 'Exams and exercises are never overwritten: keep the existing version or import the archive version as a copy (with its image files).',
         applyToAll: 'Apply to all',
         apply: 'Start import',
         cancel: 'Cancel import',
@@ -131,7 +132,6 @@ export const storagePolicy: Translations['storagePolicy'] = {
             mcGroup: 'MC group',
             student: 'Student',
             submission: 'Submission',
-            resource: 'File',
         },
         field: {
             title: 'Title',

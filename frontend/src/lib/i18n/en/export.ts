@@ -85,5 +85,6 @@ export const exportNs: Translations['export'] = {
         compiling: 'Compiling "{name}" …',
         pdfFailed: 'PDFs of "{name}" could not be created: {error}',
         missingGraphics: 'Missing graphics in "{name}": {files}',
+        unreadableResources: 'Files of "{name}" could not be read and are missing from the ZIP: {files}',
     },
 };

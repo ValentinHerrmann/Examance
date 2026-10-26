@@ -34,7 +34,7 @@ export const workspace = {
         countsImported: 'Übernommen',
         countsExported: 'Im Archiv enthalten',
         kindHeading: 'Art',
-        outcomeHint: '„Verknüpft“: eine Aufgabe, die auf dem Server bereits für Sie verfügbar war (eigene oder geteilte), wurde wiederverwendet statt kopiert.',
+        outcomeHint: '„Verknüpft“: eine Aufgabe, die auf dem Server bereits für Sie verfügbar war (nur eigene; geteilte Aufgaben anderer werden nie verknüpft), wurde wiederverwendet statt kopiert.',
         nothing: 'Es wurde nichts übertragen.',
         missingHeadingImport: 'Verknüpft, aber fehlend',
         missingHeadingExport: 'Nicht im Archiv',
@@ -71,6 +71,7 @@ export const workspace = {
             scanUnreadable: 'Scan nicht lesbar',
             examNotImported: 'Ergebnisse ohne übernommene Prüfung',
             logoUnavailable: 'Logo der Prüfung nicht übernommen',
+            resourceUnavailable: 'Bild- bzw. Ressourcendatei konnte nicht gelesen werden',
         },
         withheldItem: {
             exerciseCode: 'LaTeX-Code der Aufgaben',

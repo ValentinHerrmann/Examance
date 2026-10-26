@@ -483,7 +483,8 @@
   async function handleExportArchive() {
     isExporting = true;
     try {
-      exportSuccess = await exportArchiveInteractively(`${exam?.title || "exam"}.bgproj`);
+      // Only this exam, its linked exercises with their files, and its results; not the whole workspace.
+      exportSuccess = await exportArchiveInteractively(`${exam?.title || "exam"}.bgproj`, { examIds: [examId] });
     } finally {
       isExporting = false;
     }

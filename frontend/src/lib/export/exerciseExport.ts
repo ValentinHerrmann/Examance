@@ -108,7 +108,9 @@ async function exportExercise(ctx: ExportContext, { ex, version }: GroupMember, 
   ctx.progress(translate('export.exercises.exporting', { name }), ctx.done, ctx.total);
 
   zip.add(`${dir}/exercise.tex`, body);
-  const { inline } = await exerciseResourceRepository.collectForCompile([{ id: ex.id, label: name }], ctx.key, true);
+  const { inline, unreadable } = await exerciseResourceRepository.collectForCompile([{ id: ex.id, label: name }], ctx.key, true);
+  // Reported even without PDFs, where no compile would notice the gap (issue #145).
+  if (unreadable.length) ctx.warnings.push(translate('export.exercises.unreadableResources', { name, files: unreadable.join(', ') }));
   const resources = inline.map((file) => zip.add(`${dir}/${file.filename}`, file.content).slice(dir.length + 1));
   const pdfFiles = ctx.pdfs ? await compileExercisePdfs(ctx, ex, name, body, dir) : [];
 

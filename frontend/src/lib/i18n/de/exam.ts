@@ -17,7 +17,7 @@ export const exam = {
             failed: 'Löschen fehlgeschlagen: {message}',
         },
         export: {
-            successBanner: '.bgproj-Archiv erfolgreich gepackt und heruntergeladen.',
+            successBanner: 'Prüfungsarchiv (.bgproj) mit Aufgaben, Bilddateien, Scans und Bewertungen heruntergeladen.',
         },
         omr: {
             checkingExercises: 'MC-Aufgaben werden geprüft…',
@@ -84,7 +84,7 @@ export const exam = {
         stats: 'Statistik',
         edit: 'Bearbeiten',
         deleteSubmissions: 'Abgaben löschen',
-        export: 'Verschlüsselt archivieren (.bgproj)',
+        export: 'Diese Prüfung verschlüsselt archivieren (.bgproj)',
         delete: 'Löschen',
     },
     metadata: {

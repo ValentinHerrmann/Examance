@@ -84,5 +84,6 @@ export const exportNs = {
         compiling: 'Kompiliere "{name}" …',
         pdfFailed: 'PDFs von "{name}" konnten nicht erstellt werden: {error}',
         missingGraphics: 'Fehlende Grafiken in "{name}": {files}',
+        unreadableResources: 'Dateien von „{name}“ konnten nicht gelesen werden und fehlen im ZIP: {files}',
     },
 } as const;

@@ -19,14 +19,13 @@ import {
 import { deriveKey } from '#lib/crypto/keyDerivation';
 import { deriveSessionKey } from '#lib/crypto/sessionKey';
 import { api } from '#lib/api/client';
-import { base64ToUint8Array, decrypt, encrypt, toArrayBuffer } from '#lib/crypto/aesGcm';
+import { decrypt, encrypt, toArrayBuffer } from '#lib/crypto/aesGcm';
 import {
   saveStudentEncrypted,
   saveSubmissionEncrypted,
   encryptAuditEntry,
   encryptExam,
   encryptExercise,
-  encryptResource,
   encryptScore,
 } from '#lib/db/dbEncryption';
 import { scoreRepository, toApi as scoreToApi } from '#lib/repositories/scoreRepository';
@@ -102,8 +101,8 @@ export interface ApplyOptions {
   report?: ArchiveReport;
   /** Exams this account owns already (from `detectConflicts`): results of kept exams go there. */
   ownExamIds?: Set<string>;
-  /** Exercises the user chose to take from the archive over an existing one. */
-  takeImportedIds?: Set<string>;
+  /** Conflict decisions by payload id (a copy's new id), so each record is counted once, as what it became. */
+  decided?: Map<string, 'copied' | 'replaced'>;
 }
 
 /** Opens the archive envelope and returns its payload. Read-only; the archive key never leaves this function. */
@@ -188,7 +187,7 @@ export async function decryptArchive(
 export async function applyArchive(
   payload: Record<string, any>,
   onProgress?: (event: ProgressEvent) => void,
-  { report = newReport('import'), ownExamIds = new Set(), takeImportedIds }: ApplyOptions = {}
+  { report = newReport('import'), ownExamIds = new Set(), decided = new Map() }: ApplyOptions = {}
 ): Promise<ImportResult> {
   // Always the live session key, never the archive's — records arrive already
   // decrypted and only need re-sealing under this vault's key.
@@ -226,7 +225,7 @@ export async function applyArchive(
     }
   }
 
-  const result = await importPayloadToServer(payload, { report, takeImportedIds });
+  const result = await importPayloadToServer(payload, { report, decided });
   idMap = result.idMap;
   mcGroupIdMap = result.mcGroupIdMap;
   errors.push(...result.errors);
@@ -303,7 +302,7 @@ export async function applyArchive(
           await api.post(`/exams/${student.examId}/students`, await studentServerPayload(student, activeKey), {
             silentError: true,
           });
-        bump(report, 'students', 'created');
+        bump(report, 'students', decided.get(item.pseudonymId) ?? 'created');
       } catch (err) {
         errors.push(`Student of exam ${labelOf(item.examId)}: ${describe(err)}`);
         bump(report, 'students', 'failed');
@@ -326,7 +325,7 @@ export async function applyArchive(
           await api.post(`/exams/${sub.examId}/submissions`, await submissionServerPayload(sub), {
             silentError: true,
           });
-        bump(report, 'submissions', 'created');
+        bump(report, 'submissions', decided.get(item.id) ?? 'created');
         if (sub.scanCt) bump(report, 'scans', 'created');
         if (sub.annotationCt) bump(report, 'annotations', 'created');
       } catch (err) {
@@ -427,27 +426,8 @@ export async function applyArchive(
     );
   }
 
-  if (Array.isArray(payload.exerciseResources) && payload.exerciseResources.length > 0) {
-    // The packer stored plaintext bytes as base64; re-encrypt them under this
-    // session's key and follow the exercise id remapping, so a re-imported
-    // exercise keeps its figures.
-    for (const r of payload.exerciseResources) {
-      const bytes = base64ToUint8Array(r.dataB64 ?? '');
-      const record = await encryptResource(
-        {
-          id: r.id,
-          exerciseId: remap(r.exerciseId) ?? r.exerciseId,
-          filename: r.filename,
-          mimeType: r.mimeType ?? 'application/octet-stream',
-          byteSize: bytes.length,
-          createdAt: r.createdAt,
-        },
-        bytes,
-        activeKey
-      );
-      await db.exerciseResources.put(record);
-    }
-  }
+  // Resource files live on the server only (uploaded by `importPayloadToServer`). A local copy would
+  // hide the server's set, since resource reads are local-first (issue #145).
 
   if (Array.isArray(payload.auditLogs) && payload.auditLogs.length > 0) {
     // Current archives carry the entries decrypted; re-seal them under this account's key. Entries

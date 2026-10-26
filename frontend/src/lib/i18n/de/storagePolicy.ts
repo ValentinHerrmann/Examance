@@ -116,6 +116,7 @@ export const storagePolicy = {
         choiceTakeImported: 'Archivfassung übernehmen',
         choiceImportAsCopy: 'Als Kopie importieren',
         copyNotAllowed: 'Für Schülerdaten und Abgaben ist keine Kopie möglich — doppelte Pseudonyme sind datenschutzrechtlich nicht zulässig.',
+        takeNotAllowed: 'Prüfungen und Aufgaben werden nie überschrieben: Behalten Sie die vorhandene Fassung oder importieren Sie die Archivfassung als Kopie (mit ihren Bilddateien).',
         applyToAll: 'Für alle übernehmen',
         apply: 'Import starten',
         cancel: 'Import abbrechen',
@@ -129,7 +130,6 @@ export const storagePolicy = {
             mcGroup: 'MC-Gruppe',
             student: 'Schüler',
             submission: 'Abgabe',
-            resource: 'Datei',
         },
         field: {
             title: 'Titel',

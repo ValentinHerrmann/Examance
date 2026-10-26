@@ -27,6 +27,11 @@
   let decidedCount = $derived(conflicts.filter((c) => decisions.has(c.id)).length);
   let textDiffers = $derived(!!active?.textDiff && active.textDiff.existing !== active.textDiff.imported);
 
+  const allows = (c: ArchiveConflict, choice: ConflictChoice) =>
+    choice === 'keep-existing' || (choice === 'import-as-copy' ? c.allowCopy : c.allowTake);
+  // "Apply to all" offers a choice only when at least one conflict accepts it; the rest fall back to keep.
+  const offeredForAll = (choice: ConflictChoice) => conflicts.some((c) => allows(c, choice));
+
   const kindLabel = (kind: string) => $tOptional(`storagePolicy.conflict.kind.${kind}`) ?? kind;
   const fieldLabel = (key: string) => $tOptional(`storagePolicy.conflict.field.${key}`) ?? key;
 
@@ -59,7 +64,7 @@
 
   <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
     <span class="text-muted">{$t('storagePolicy.conflict.applyToAll')}:</span>
-    {#each CHOICES.slice(0, 2) as { choice, label }}
+    {#each CHOICES.filter((c) => offeredForAll(c.choice)) as { choice, label }}
       <Button size="sm" variant="outlined" severity="secondary" onClick={() => (decisions = applyToAll(conflicts, choice, decisions))}>
         {$t(label)}
       </Button>
@@ -129,7 +134,7 @@
 
         <div class="mt-4 flex flex-wrap gap-2">
           {#each CHOICES as { choice, label }}
-            {#if choice !== 'import-as-copy' || active.allowCopy}
+            {#if allows(active, choice)}
               <Button
                 severity={decisions.get(active.id)?.choice === choice ? 'primary' : 'secondary'}
                 onClick={() => active && choose(active, choice)}
@@ -141,6 +146,9 @@
         </div>
         {#if !active.allowCopy}
           <p class="mt-2 text-xs text-muted">{$t('storagePolicy.conflict.copyNotAllowed')}</p>
+        {/if}
+        {#if !active.allowTake}
+          <p class="mt-2 text-xs text-muted">{$t('storagePolicy.conflict.takeNotAllowed')}</p>
         {/if}
       </div>
     {/if}

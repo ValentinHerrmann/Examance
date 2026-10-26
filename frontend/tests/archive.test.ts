@@ -52,6 +52,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     await db.submissions.clear();
     await db.exerciseScores.clear();
     await db.auditLog.clear();
+    await db.exerciseResources.clear();
     storagePolicyStore.setPolicy({ storageMode: 'hybrid', latexCompilation: 'local' });
 
     const rawKey = new Uint8Array(32).fill(7);
@@ -277,6 +278,54 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     expect(count(report, 'students', 'included')).toBe(1);
     expect(report.withheld).toEqual(expect.arrayContaining(['exerciseCode', 'resourceFiles']));
     expect(report.missing).toEqual([]);
+  });
+
+  it('carries resource files that only the server holds (issue #145)', async () => {
+    // All-server mode or another browser: the local cache has no rows, yet the figure must travel.
+    await saveExerciseEncrypted({ id: 'ex-fig', name: 'Figure', maxPoints: 1, questionType: 'free_text', penalty: 0 }, testKey);
+    fakeServer.state.resources.push({
+      id: 'res-fig',
+      exercise_id: 'ex-fig',
+      filename: 'fig.png',
+      mime_type: 'image/png',
+      byte_size: 3,
+      content_b64: btoa('png'),
+      created_at: new Date().toISOString(),
+    });
+    expect(await db.exerciseResources.count()).toBe(0);
+
+    const { blob, report: exportReport } = await packProject(testPassword);
+    expect(count(exportReport, 'resources', 'included')).toBe(1);
+    expect(exportReport.missing).toEqual([]);
+
+    fakeServer.reset();
+    const { report } = await unpackProject(blob, testPassword);
+    expect(count(report, 'resources', 'created')).toBe(1);
+    const uploaded = fakeServer.state.resources.filter((r) => r.exercise_id === 'ex-fig');
+    expect(uploaded.map((r) => [r.filename, atob(r.content_b64)])).toEqual([['fig.png', 'png']]);
+    // The server is the only home of resource files; a local copy would hide its set.
+    expect(await db.exerciseResources.count()).toBe(0);
+  });
+
+  it('packs only the chosen exam with its exercises and results', async () => {
+    await saveExamEncrypted(exam('exam-a', 'A'), testKey);
+    await saveExamEncrypted(exam('exam-b', 'B'), testKey);
+    await saveExerciseEncrypted({ id: 'ex-a', name: 'A1', maxPoints: 1, questionType: 'free_text', penalty: 0 }, testKey);
+    await saveExerciseEncrypted({ id: 'ex-b', name: 'B1', maxPoints: 1, questionType: 'free_text', penalty: 0 }, testKey);
+    fakeServer.state.links.set('exam-a', [{ exercise_id: 'ex-a', order_index: 1 }]);
+    fakeServer.state.links.set('exam-b', [{ exercise_id: 'ex-b', order_index: 1 }]);
+    await saveStudentEncrypted({ pseudonymId: 'stu-a', examId: 'exam-a', fallbackCode: 'A-1', piiCt: new Uint8Array([1]), piiIv: new Uint8Array(12) }, testKey);
+    await saveStudentEncrypted({ pseudonymId: 'stu-b', examId: 'exam-b', fallbackCode: 'B-1', piiCt: new Uint8Array([1]), piiIv: new Uint8Array(12) }, testKey);
+
+    const { blob, report } = await packProject(testPassword, undefined, { examIds: ['exam-a'] });
+    expect(count(report, 'exams', 'included')).toBe(1);
+    expect(count(report, 'exercises', 'included')).toBe(1);
+    expect(count(report, 'students', 'included')).toBe(1);
+
+    const payload = await decryptArchive(new Uint8Array(await blob.arrayBuffer()), testPassword);
+    expect(payload.exams.map((e: any) => e.id)).toEqual(['exam-a']);
+    expect(payload.exercises.map((e: any) => e.id)).toEqual(['ex-a']);
+    expect(payload.students.map((s: any) => s.pseudonymId)).toEqual(['stu-a']);
   });
 
   it('links an exercise the account already owns on the server instead of copying it', async () => {
