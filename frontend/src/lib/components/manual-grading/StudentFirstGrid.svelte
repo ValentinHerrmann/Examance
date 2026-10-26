@@ -19,8 +19,8 @@
     SubmissionRecord,
   } from "#lib/db/schema";
   import { t } from "#lib/i18n";
-  import { exerciseHref, gradeHref } from "#lib/utils/links";
-  import ExercisePreviewDrawer from "#lib/components/exercise-library/ExercisePreviewDrawer.svelte";
+  import { gradeHref } from "#lib/utils/links";
+  import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
 
   interface Props {
     exam?: ExamRecord | null;
@@ -44,7 +44,7 @@
     onOpenRoster = () => {},
   }: Props = $props();
 
-  let previewEx: ExerciseRecord | null = $state.raw(null);
+  let editEx: ExerciseRecord | null = $state.raw(null);
   let currentStudentIndex = $state(0);
   let inputElements: (HTMLInputElement | null)[] = $state([]);
 
@@ -350,7 +350,7 @@
               {@const isInvalid = rawVal !== "" && (isNaN(numVal) || numVal < 0 || numVal > ex.maxPoints)}
               <tr>
                 <td>{idx + 1}</td>
-                <td><strong><LinkButton onClick={() => (previewEx = ex)} class="text-content!">{ex.name}</LinkButton></strong></td>
+                <td><strong><LinkButton onClick={() => (editEx = ex)} class="text-content!">{ex.name}</LinkButton></strong></td>
                 <td>{$t("grading.manual.studentFirst.pointsSuffix", { points: ex.maxPoints })}</td>
                 <td class="whitespace-nowrap">
                   <input
@@ -401,6 +401,6 @@
   {/if}
 </div>
 
-{#if previewEx}
-  <ExercisePreviewDrawer previewModalEx={previewEx} newTabHref={exerciseHref(previewEx.id)} onClose={() => (previewEx = null)} />
+{#if editEx}
+  <ExerciseEditorModal isOpen editingExercise={editEx} onClose={() => (editEx = null)} onSave={() => onScoresChanged()} />
 {/if}

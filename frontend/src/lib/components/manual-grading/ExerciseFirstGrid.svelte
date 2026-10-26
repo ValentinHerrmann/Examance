@@ -12,8 +12,8 @@
   import { buildSubmissionMap } from "#lib/utils/studentLookup";
   import type { ExerciseRecord, StudentRecord, SubmissionRecord } from "#lib/db/schema";
   import { t } from "#lib/i18n";
-  import { exerciseHref, gradeHref } from "#lib/utils/links";
-  import ExercisePreviewDrawer from "#lib/components/exercise-library/ExercisePreviewDrawer.svelte";
+  import { gradeHref } from "#lib/utils/links";
+  import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
 
   interface Props {
     examId: string;
@@ -38,7 +38,7 @@
   let activeExerciseId: string = $state(untrack(() => exercises[0]?.id || ""));
   let inputElements: (HTMLInputElement | null)[] = $state([]);
 
-  let previewEx: ExerciseRecord | null = $state.raw(null);
+  let editEx: ExerciseRecord | null = $state.raw(null);
   let activeExercise = $derived(exercises.find((e) => e.id === activeExerciseId));
   // Raw: holds the parent's submission objects, which handleScoreChange mutates and persists.
   let submissionMap = $state.raw(new Map<string, SubmissionRecord>());
@@ -263,7 +263,7 @@
 
       {#if activeExercise}
         <div class="flex min-w-0 items-center gap-3">
-          <h3 class="m-0 min-w-0 text-lg font-semibold text-content"><LinkButton onClick={() => (previewEx = activeExercise)} class="text-content!">{activeExercise.name}</LinkButton></h3>
+          <h3 class="m-0 min-w-0 text-lg font-semibold text-content"><LinkButton onClick={() => (editEx = activeExercise)} class="text-content!">{activeExercise.name}</LinkButton></h3>
           <Badge>{$t("grading.manual.exerciseFirst.maxPointsLabel")} <strong class="ml-1">{activeExercise.maxPoints}</strong></Badge>
         </div>
       {/if}
@@ -346,6 +346,6 @@
   {/if}
 </div>
 
-{#if previewEx}
-  <ExercisePreviewDrawer previewModalEx={previewEx} newTabHref={exerciseHref(previewEx.id)} onClose={() => (previewEx = null)} />
+{#if editEx}
+  <ExerciseEditorModal isOpen editingExercise={editEx} onClose={() => (editEx = null)} onSave={() => onScoresChanged()} />
 {/if}

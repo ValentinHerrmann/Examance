@@ -2,16 +2,17 @@
   import type { ExerciseRecord } from "#lib/db/schema";
   import { gradingStore } from "#lib/grading/gradingStore";
   import { t } from "#lib/i18n";
-  import { exerciseHref } from "#lib/utils/links";
-  import ExercisePreviewDrawer from "#lib/components/exercise-library/ExercisePreviewDrawer.svelte";
+  import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import { faBullseye, faXmark } from "@fortawesome/free-solid-svg-icons";
   import { Button, Icon, LinkButton, controlClass, controlSmClass } from "#lib/components/ui";
 
   interface Props {
     exercises: ExerciseRecord[];
+    /** An exercise was edited from its label (points may have changed). */
+    onExerciseSaved?: () => void;
   }
 
-  let { exercises }: Props = $props();
+  let { exercises, onExerciseSaved }: Props = $props();
 
   function selectExercise(id: string) {
     gradingStore.setActiveExerciseId(id);
@@ -40,7 +41,7 @@
   const itemActive =
     "flex cursor-pointer items-center justify-between gap-2 rounded-md border border-primary bg-highlight px-2 py-1.5 shadow-sm transition-colors pointer-coarse:min-h-11";
 
-  let previewEx: ExerciseRecord | null = $state.raw(null);
+  let editEx: ExerciseRecord | null = $state.raw(null);
 </script>
 
 <div class="shrink-0 border-b border-line bg-surface-raised px-3 py-2.5">
@@ -58,7 +59,7 @@
       onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectExercise(ex.id); }}
     >
       <div class="flex items-center gap-1">
-        <LinkButton onClick={() => (previewEx = ex)} class="text-xs font-bold text-content!">Q{ex.orderIndex}{#if ex.subIndex}&nbsp;{String.fromCharCode(96 + ex.subIndex)}){/if}</LinkButton>
+        <LinkButton onClick={() => (editEx = ex)} class="text-xs font-bold text-content!">Q{ex.orderIndex}{#if ex.subIndex}&nbsp;{String.fromCharCode(96 + ex.subIndex)}){/if}</LinkButton>
         {#if ex.id === $gradingStore.activeExerciseId}
           <Icon icon={faBullseye} class="text-xs text-accent" label={$t("grading.scoreEntry.stampTarget")} />
         {/if}
@@ -96,6 +97,6 @@
   {/each}
 </div>
 
-{#if previewEx}
-  <ExercisePreviewDrawer previewModalEx={previewEx} newTabHref={exerciseHref(previewEx.id)} onClose={() => (previewEx = null)} />
+{#if editEx}
+  <ExerciseEditorModal isOpen editingExercise={editEx} onClose={() => (editEx = null)} onSave={() => onExerciseSaved?.()} />
 {/if}

@@ -36,6 +36,7 @@
     onPrev: () => void;
     onNext: () => void;
     onStayOnLastSub: () => void;
+    onExerciseSaved?: () => void;
   }
 
   let {
@@ -56,7 +57,8 @@
     onSave,
     onPrev,
     onNext,
-    onStayOnLastSub
+    onStayOnLastSub,
+    onExerciseSaved
   }: Props = $props();
 
   let viewerRef: ReturnType<typeof ScanCanvasViewer> | undefined = $state();
@@ -133,7 +135,7 @@
         ? ''
         : 'hidden'} lg:flex"
     >
-      <ScoreEntry {exercises} />
+      <ScoreEntry {exercises} {onExerciseSaved} />
 
       {#if activeExercise && isMcQuestion(activeExercise)}
         <McAnswerReview exercise={activeExercise} />

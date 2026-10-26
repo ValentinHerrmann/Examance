@@ -12,8 +12,7 @@
   import { matchBoxesToOptions } from "#lib/grading/mcBoxOptions";
   import { renderMcCrop } from "#lib/grading/mcCropRender";
   import { t, translate } from "#lib/i18n";
-  import { exerciseHref } from "#lib/utils/links";
-  import ExercisePreviewDrawer from "#lib/components/exercise-library/ExercisePreviewDrawer.svelte";
+  import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import { isMcReviewed, type McQueueCategory } from "#lib/grading/mcVerification";
   import { faArrowUpRightFromSquare, faCheck, faCircle } from "@fortawesome/free-solid-svg-icons";
   import { ConfirmDialog, Alert, Badge, Button, Icon, LinkButton, Switch } from "#lib/components/ui";
@@ -76,7 +75,7 @@
     onNavigateToItem = () => {}
   }: Props = $props();
 
-  let previewEx: ExerciseRecord | null = $state.raw(null);
+  let editEx: ExerciseRecord | null = $state.raw(null);
 
   let isLastItem = $derived(currentIndex >= totalItems - 1);
 
@@ -408,7 +407,7 @@
       </div>
       <div class="mt-0.5 flex flex-wrap items-center gap-2">
         <h1 class="m-0 text-xl font-semibold text-content">
-          <LinkButton onClick={() => (previewEx = exercise)} class="text-content!">{exerciseLabel || exercise.name || exercise.title || $t("scanning.itemCard.defaultExerciseName")}</LinkButton>
+          <LinkButton onClick={() => (editEx = exercise)} class="text-content!">{exerciseLabel || exercise.name || exercise.title || $t("scanning.itemCard.defaultExerciseName")}</LinkButton>
         </h1>
         <Badge
           severity={reviewStatus === "confirmedUnchanged" ? "success" : reviewStatus === "manuallyCorrected" ? "warning" : "secondary"}
@@ -673,8 +672,8 @@
   onCancel={handleCancelAdvance}
 />
 
-{#if previewEx}
-  <ExercisePreviewDrawer previewModalEx={previewEx} newTabHref={exerciseHref(previewEx.id)} onClose={() => (previewEx = null)} />
+{#if editEx}
+  <ExerciseEditorModal isOpen editingExercise={editEx} onClose={() => (editEx = null)} onSave={() => {}} />
 {/if}
 
 <style>

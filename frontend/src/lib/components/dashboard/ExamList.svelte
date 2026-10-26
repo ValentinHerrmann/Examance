@@ -2,13 +2,12 @@
   import type { ExamRecord, ExerciseRecord } from "#lib/db/schema";
   import type { LazyEntry } from "#lib/utils/lazyMap";
   import { t } from "#lib/i18n";
-  import { exerciseHref } from "#lib/utils/links";
   import { fmt } from "#lib/utils/format";
   import { examNavItems } from "#lib/components/layout/examNavItems";
   import { faCopy, faEye, faFileZipper, faTrash } from "@fortawesome/free-solid-svg-icons";
   import { Button, Card, EmptyState, ExpandableCard } from "#lib/components/ui";
   import ExamSummary from "#lib/components/exam/ExamSummary.svelte";
-  import ExercisePreviewDrawer from "#lib/components/exercise-library/ExercisePreviewDrawer.svelte";
+  import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import type { ExamLogoPreview } from "#lib/latex/logo";
 
   interface Props {
@@ -25,6 +24,8 @@
     onPreview: (exam: ExamRecord) => void;
     onRawExport: (exam: ExamRecord) => void;
     onDuplicate: (exam: ExamRecord) => void;
+    /** An exercise was edited from its name; the expanded lists reload. */
+    onExerciseSaved?: () => void;
     /** The exam currently being duplicated (its button shows a spinner). */
     duplicatingId?: string | null;
   }
@@ -41,11 +42,12 @@
     onPreview,
     onRawExport,
     onDuplicate,
+    onExerciseSaved,
     duplicatingId = null
   }: Props = $props();
 
   const previewPill = "rounded-xl border border-line bg-surface-sunken px-2.5 py-1 text-xs text-muted";
-  let previewEx = $state.raw<ExerciseRecord | null>(null);
+  let editEx = $state.raw<ExerciseRecord | null>(null);
 </script>
 
 {#if isLoading}
@@ -79,7 +81,7 @@
             {exam}
             exercises={exerciseMap.get(exam.id)}
             logo={logoMap.get(exam.id)}
-            onOpenExercise={(ex) => (previewEx = ex)}
+            onOpenExercise={(ex) => (editEx = ex)}
           >
             {#snippet actions()}
               {#each examNavItems(exam.id, "") as item (item.step)}
@@ -118,6 +120,6 @@
   </div>
 {/if}
 
-{#if previewEx}
-  <ExercisePreviewDrawer previewModalEx={previewEx} newTabHref={exerciseHref(previewEx.id)} onClose={() => (previewEx = null)} />
+{#if editEx}
+  <ExerciseEditorModal isOpen editingExercise={editEx} onClose={() => (editEx = null)} onSave={() => onExerciseSaved?.()} />
 {/if}

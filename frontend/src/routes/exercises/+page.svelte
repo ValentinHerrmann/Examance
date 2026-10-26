@@ -270,15 +270,11 @@
   onMount(() => {
     const requested = page.url.searchParams.get("view");
     const groupParam = page.url.searchParams.get("group");
-    const editParam = page.url.searchParams.get("edit");
     if (requested === "proposals" || requested === "shared") view = requested;
     // Loaded once the library is in: only then is it known whether the view is available.
-    loadExercises().then(async () => {
-      const editEx = editParam ? exercises.find((ex) => ex.id === editParam) : undefined;
-      const groupId = editEx?.exerciseGroupId ?? groupParam;
-      if (groupId) await openGroupInLibrary(groupId);
+    loadExercises().then(() => {
+      if (groupParam) openGroupInLibrary(groupParam);
       else loadActiveView();
-      if (editEx) openEditModal(editEx);
     });
   });
 
