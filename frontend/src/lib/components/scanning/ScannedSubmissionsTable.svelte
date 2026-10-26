@@ -1,7 +1,8 @@
 <script lang="ts">
   import { t } from "#lib/i18n";
   import { fmt } from "#lib/utils/format";
-  import { Button, Badge, Spinner, TableScroller } from "#lib/components/ui";
+  import { gradeHref } from "#lib/utils/links";
+  import { Button, Badge, CrossLink, Spinner, TableScroller } from "#lib/components/ui";
   import { compareText } from "#lib/utils/listSort";
   import SortHeaderCell from "#lib/components/scanning/SortHeaderCell.svelte";
   interface ScannedSubmissionItem {
@@ -19,13 +20,13 @@
   }
 
   interface Props {
+    examId: string;
     scannedSubmissions?: ScannedSubmissionItem[];
     /** True while the submissions list is still loading — suppresses the empty state so a slow fetch cannot look like "nothing here yet". */
     loading?: boolean;
     exportingId?: string | null;
     isGraded: (item: ScannedSubmissionItem) => boolean;
     onPreview: (item: ScannedSubmissionItem) => void;
-    onGoToGrading: (item: ScannedSubmissionItem) => void;
     onExportPdf: (item: ScannedSubmissionItem) => void;
     onSplit: (item: ScannedSubmissionItem) => void;
     onDeleteGrading: (item: ScannedSubmissionItem) => void;
@@ -34,12 +35,12 @@
   }
 
   let {
+    examId,
     scannedSubmissions = [],
     loading = false,
     exportingId = null,
     isGraded,
     onPreview,
-    onGoToGrading,
     onExportPdf,
     onSplit,
     onDeleteGrading,
@@ -103,7 +104,7 @@
           {#each rows as item}
             <tr>
               <td class="max-w-60 truncate font-semibold" title={$t("scanning.submissionsTable.submissionIdTitle", { id: item.id })}>
-                {item.studentName || $t("scanning.submissionsTable.unmatchedStudent")}
+                <CrossLink href={gradeHref(examId, { submissionId: item.id })} class="text-content">{item.studentName || $t("scanning.submissionsTable.unmatchedStudent")}</CrossLink>
               </td>
               <td class="font-mono font-semibold text-accent" title={$t("scanning.submissionsTable.pseudonymTitle", { hash: item.pseudonymHash })}>
                 {item.studentNumber || "—"}
@@ -117,7 +118,7 @@
               <td>
                 <div class="flex min-w-72 flex-wrap items-center gap-2">
                   <Button size="sm" variant="outlined" onClick={() => onPreview(item)}>{$t("scanning.submissionsTable.preview")}</Button>
-                  <Button size="sm" onClick={() => onGoToGrading(item)}>{$t("scanning.submissionsTable.goToGrading")}</Button>
+                  <Button size="sm" href={gradeHref(examId, { submissionId: item.id })}>{$t("scanning.submissionsTable.goToGrading")}</Button>
                   <Button size="sm" variant="outlined" severity="success" disabled={exportingId === item.id} onClick={() => onExportPdf(item)}>
                     {exportingId === item.id ? $t("scanning.submissionsTable.exporting") : $t("scanning.submissionsTable.exportPdf")}
                   </Button>

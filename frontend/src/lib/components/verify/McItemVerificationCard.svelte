@@ -12,9 +12,10 @@
   import { matchBoxesToOptions } from "#lib/grading/mcBoxOptions";
   import { renderMcCrop } from "#lib/grading/mcCropRender";
   import { t, translate } from "#lib/i18n";
+  import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import { isMcReviewed, type McQueueCategory } from "#lib/grading/mcVerification";
   import { faArrowUpRightFromSquare, faCheck, faCircle } from "@fortawesome/free-solid-svg-icons";
-  import { ConfirmDialog, Alert, Badge, Button, Icon, Switch } from "#lib/components/ui";
+  import { ConfirmDialog, Alert, Badge, Button, Icon, LinkButton, Switch } from "#lib/components/ui";
   import { safeLocalStorage } from "#lib/utils/storage";
 
   interface StudentQueueItem {
@@ -73,6 +74,8 @@
     onOpenGrading,
     onNavigateToItem = () => {}
   }: Props = $props();
+
+  let editEx: ExerciseRecord | null = $state.raw(null);
 
   let isLastItem = $derived(currentIndex >= totalItems - 1);
 
@@ -404,7 +407,7 @@
       </div>
       <div class="mt-0.5 flex flex-wrap items-center gap-2">
         <h1 class="m-0 text-xl font-semibold text-content">
-          {exerciseLabel || exercise.name || exercise.title || $t("scanning.itemCard.defaultExerciseName")}
+          <LinkButton onClick={() => (editEx = exercise)} class="text-content!">{exerciseLabel || exercise.name || exercise.title || $t("scanning.itemCard.defaultExerciseName")}</LinkButton>
         </h1>
         <Badge
           severity={reviewStatus === "confirmedUnchanged" ? "success" : reviewStatus === "manuallyCorrected" ? "warning" : "secondary"}
@@ -668,6 +671,10 @@
   onConfirm={handleConfirmAdvance}
   onCancel={handleCancelAdvance}
 />
+
+{#if editEx}
+  <ExerciseEditorModal isOpen editingExercise={editEx} onClose={() => (editEx = null)} onSave={() => {}} />
+{/if}
 
 <style>
   @keyframes restore-pulse {

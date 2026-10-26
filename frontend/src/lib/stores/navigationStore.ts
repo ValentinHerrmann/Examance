@@ -10,6 +10,9 @@ export function registerNavigationGuard(): void {
     if (session.isDirty) {
       if (!confirm(translate("common.unsavedChangesConfirm"))) {
         cancel();
+      } else {
+        // The user chose to discard the changes: don't ask again on every later navigation.
+        sessionStore.setDirty(false);
       }
     }
   });

@@ -46,6 +46,7 @@ export const help: Translations['help'] = {
                 p2: 'All sensitive data is encrypted in the browser before it is stored. The key is derived from your password and never leaves the device.',
                 p3: 'For a quick overview, two posters under "Posters: features & privacy" (linked from the sign-in page) show what Examance does, what the interface looks like and how your data is protected.',
                 p4: 'To try things out, "Add example data" in the still empty exam overview creates example exercises, two example exams and already graded sheets of invented students, some of them scanned. They are not shared, are stored and encrypted like your own data, and can be deleted like any exam and exercise.',
+                p5: 'Many names are clickable: exercises open straight in the editor everywhere, for example on the exam page, while grading and in analytics; exams in the library open as an overview with “Open in new tab”. Names marked with ↗, such as students, open grading straight in a new tab, so unsaved work in the current tab stays where it is.',
             },
             s2: {
                 h: 'The usual workflow',
@@ -89,7 +90,7 @@ export const help: Translations['help'] = {
                 h: 'Collect instead of copy',
                 p1: 'Exercises live in a shared library, tagged by grade, subject and topic. Each one is a LaTeX fragment with a live preview; its score is read from the source automatically and shown on every variant. In the source editor, Ctrl + F opens search and Ctrl + H search and replace (⌘ on a Mac).',
                 p2: 'Use the filters at the top to narrow the library by grade, subject and topic and reuse an exercise in a new exam. The numbers on the topics only count what matches the other filters; topics without matches are hidden. “Sort by” orders the list by name, last change, points, grade or subject; this browser remembers your choice.',
-                p3: 'Expand an entry to see, per variant, which exams use the exercise (click to open the exam). “Preview” shows the last compiled PDF; if there is none yet, Examance asks whether to compile it now.',
+                p3: 'Expand an entry to see, per variant, which exams use the exercise (click for an overview of the exam, which you can open in a new tab from there). “Preview” shows the last compiled PDF; if there is none yet, Examance asks whether to compile it now.',
             },
             s2: {
                 h: 'Variants and versions',
@@ -130,7 +131,7 @@ export const help: Translations['help'] = {
             },
             s8: {
                 h: 'Scores, part exercises and requirement levels',
-                p1: String.raw`An exercise’s score comes from the scoring units in its source: \BE counts one point, \hBE half a point, \qBE a quarter, and in multiple-choice questions every correct option counts one. Place them where the solution earns the point; the solution sheet shows them as ticks. The “Score & structure” section in the editor shows how the score is made up and lets you fix it to a set value.`,
+                p1: String.raw`An exercise’s score comes from the scoring units in its source: \BE counts one point, \hBE half a point, \qBE a quarter, and in multiple-choice questions every correct option counts one. Place them where the solution earns the point; the solution sheet shows them as ticks. The “Score & structure” button above the source in the editor (it shows the current score) opens a dialog that shows how the score is made up and lets you fix it to a set value.`,
                 p2: '“Add part” splits an exercise into a), b), c), each with its own subtitle and score box. The parts add up to the exercise’s score, and a single part’s score can be fixed as well. Grading still happens per exercise.',
                 p3: String.raw`Requirement level (AFB I reproduction, II reorganisation and transfer, III reflection and problem solving) and competencies can be set for the whole exercise or per part. They are stored as \AFB{…} and \Kompetenz{…} in the source, appear only on the solution sheet, and travel with the exercise into variants, copies and archives.`,
                 p4: String.raw`Page breaks: an exercise’s title, introduction and pictures stay on one page with part a), and a part is never split as long as it fits on a page. Pages break between parts; a picture stays with the text after it. Where that doesn’t suit, \Seitenumbruch forces a new page at that spot (“Generic” palette).`,

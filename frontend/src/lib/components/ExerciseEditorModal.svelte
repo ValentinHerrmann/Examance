@@ -22,7 +22,8 @@
   import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import ExerciseResourcePanel from "#lib/components/exercise/ExerciseResourcePanel.svelte";
-  import ExerciseStructurePanel from "#lib/components/exercise/ExerciseStructurePanel.svelte";
+  import ExerciseStructureModal from "#lib/components/exercise/ExerciseStructureModal.svelte";
+  import { fmt } from "#lib/utils/format";
   import { parseExerciseStructure, setCompetencies, setRequirementLevel } from "#lib/latex/exerciseStructure";
   import ExercisePackagesPanel from "#lib/components/latex-packages/ExercisePackagesPanel.svelte";
   import LatexEditor from "./LatexEditor.svelte";
@@ -116,6 +117,7 @@
   let showAngabePreview = $state(false);
   let showLoesungPreview = $state(false);
   let showLatexPanel = $state(true);
+  let structureOpen = $state(false);
   /** Phones: the metadata fields fold into a one-line summary so the code editor gets the screen. */
   let showMetaFields = $state(false);
   let hasAnyPreview = $derived(showAngabePreview || showLoesungPreview);
@@ -820,14 +822,18 @@
                 title={$t("exercises.editor.collapseLatexTitle")}
               >
                 <span class="whitespace-nowrap text-sm font-semibold text-content">{$t("exercises.editor.latexSourceCodeLabel")}</span>
-                <!-- Phones show the score in the structure panel; here it ran under the preview button. -->
-                <span class="hidden @3xl:inline-flex">
-                  <Badge severity="primary" size="xs">
-                    {$t("exercises.editor.autoScoreLabel", { score: parseExerciseScore(editorLatexBody) })}
-                  </Badge>
-                </span>
                 <Icon icon={faChevronRight} class="shrink-0 text-muted group-hover:text-accent" />
               </button>
+              <Button
+                size="sm"
+                variant="outlined"
+                severity="secondary"
+                onClick={() => (structureOpen = true)}
+                title={$t("exercises.structure.openTitle")}
+              >
+                <span class="hidden @3xl:inline">{$t("exercises.structure.title")}</span>
+                <Badge severity="primary" size="xs">{$t("exercises.structure.scoreBadge", { score: $fmt.number(parseExerciseScore(editorLatexBody)) })}</Badge>
+              </Button>
               <Button
                 size="sm"
                 onClick={handlePreviewExercise}
@@ -837,13 +843,6 @@
             </div>
 
             <div class="flex flex-col gap-1.5 p-2 @3xl:min-h-0 @3xl:flex-1 @3xl:overflow-y-auto">
-              <div class="shrink-0">
-                <ExerciseStructurePanel
-                  latex={editorLatexBody}
-                  isMc={editorQuestionType !== "free_text"}
-                  onChange={handleStructureChange}
-                />
-              </div>
               {#if editorQuestionType !== "free_text"}
                 <div class="flex shrink-0 flex-col gap-3 rounded-md border border-line bg-surface-raised p-3 text-xs">
                   <div class="flex flex-wrap items-center justify-between gap-x-3">
@@ -1002,6 +1001,15 @@
       </Button>
     {/snippet}
   </Modal>
+{/if}
+
+{#if structureOpen}
+  <ExerciseStructureModal
+    latex={editorLatexBody}
+    isMc={editorQuestionType !== "free_text"}
+    onChange={handleStructureChange}
+    onClose={() => (structureOpen = false)}
+  />
 {/if}
 
 <ConfirmDialog

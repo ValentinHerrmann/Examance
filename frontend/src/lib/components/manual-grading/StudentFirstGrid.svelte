@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { faArrowLeft, faArrowRight, faCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Button, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
+  import { Alert, Button, CrossLink, EmptyState, LinkButton, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
   import { storagePolicyStore } from "#lib/stores/storagePolicy";
@@ -19,6 +19,8 @@
     SubmissionRecord,
   } from "#lib/db/schema";
   import { t } from "#lib/i18n";
+  import { gradeHref } from "#lib/utils/links";
+  import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
 
   interface Props {
     exam?: ExamRecord | null;
@@ -42,6 +44,7 @@
     onOpenRoster = () => {},
   }: Props = $props();
 
+  let editEx: ExerciseRecord | null = $state.raw(null);
   let currentStudentIndex = $state(0);
   let inputElements: (HTMLInputElement | null)[] = $state([]);
 
@@ -56,6 +59,9 @@
 
   // Editable buffer for the current student (exerciseIndex -> input string), bound by the inputs.
   let rawInputs: Record<number, string> = $state({});
+  // What the last rebuild put in, and for which submission: a refresh keeps fields edited since then.
+  let loadedRaw: Record<number, string> = {};
+  let loadedRawFor = "";
   let saveError = $state("");
 
   let totalMaxPoints = $derived(exercises.reduce((sum, ex) => sum + (ex.maxPoints || 0), 0));
@@ -183,18 +189,17 @@
     onScoresChanged();
   }
 
+  // Target computed before the save's await (issue #85 rule): the save triggers a data refresh.
   async function prevStudent() {
+    const target = Math.max(0, currentStudentIndex - 1);
     if (!(await handleSaveCurrentStudent())) return;
-    if (currentStudentIndex > 0) {
-      currentStudentIndex -= 1;
-    }
+    currentStudentIndex = target;
   }
 
   async function nextStudent() {
+    const target = Math.min(students.length - 1, currentStudentIndex + 1);
     if (!(await handleSaveCurrentStudent())) return;
-    if (currentStudentIndex < students.length - 1) {
-      currentStudentIndex += 1;
-    }
+    currentStudentIndex = target;
   }
 
   $effect.pre(() => {
@@ -221,7 +226,17 @@
           newRaw[idx] = val !== null && val !== undefined ? String(val) : "";
         });
       }
-      rawInputs = newRaw;
+      const subId = sub?.id ?? "";
+      const merged = { ...newRaw };
+      if (subId && subId === loadedRawFor) {
+        for (const k of Object.keys(merged)) {
+          const idx = Number(k);
+          if (rawInputs[idx] !== undefined && rawInputs[idx] !== loadedRaw[idx]) merged[idx] = rawInputs[idx];
+        }
+      }
+      loadedRaw = newRaw;
+      loadedRawFor = subId;
+      rawInputs = merged;
     });
   });
 </script>
@@ -290,7 +305,13 @@
     {#if currentStudent}
       <div class="flex flex-wrap items-center justify-between gap-4 rounded-md border border-line bg-surface-raised px-5 py-4">
         <div class="min-w-0">
-          <h3 class="m-0 mb-1 text-lg font-semibold text-content">{currentStudent.studentName || $t("grading.manual.studentFirst.unnamedStudent")}</h3>
+          <h3 class="m-0 mb-1 text-lg font-semibold text-content">
+            {#if currentSub}
+              <CrossLink href={gradeHref(examId, { submissionId: currentSub.id })} class="text-content">{currentStudent.studentName || $t("grading.manual.studentFirst.unnamedStudent")}</CrossLink>
+            {:else}
+              {currentStudent.studentName || $t("grading.manual.studentFirst.unnamedStudent")}
+            {/if}
+          </h3>
           <p class="m-0 text-sm text-muted">{$t("grading.manual.studentFirst.studentInfo", { number: currentStudent.studentNumber || "-", code: currentStudent.fallbackCode || currentStudent.pseudonymId.slice(0, 8) })}</p>
         </div>
 
@@ -329,7 +350,7 @@
               {@const isInvalid = rawVal !== "" && (isNaN(numVal) || numVal < 0 || numVal > ex.maxPoints)}
               <tr>
                 <td>{idx + 1}</td>
-                <td><strong>{ex.name}</strong></td>
+                <td><strong><LinkButton onClick={() => (editEx = ex)} class="text-content!">{ex.name}</LinkButton></strong></td>
                 <td>{$t("grading.manual.studentFirst.pointsSuffix", { points: ex.maxPoints })}</td>
                 <td class="whitespace-nowrap">
                   <input
@@ -379,3 +400,7 @@
     {/if}
   {/if}
 </div>
+
+{#if editEx}
+  <ExerciseEditorModal isOpen editingExercise={editEx} onClose={() => (editEx = null)} onSave={() => onScoresChanged()} />
+{/if}

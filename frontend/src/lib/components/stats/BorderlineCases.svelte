@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t } from '#lib/i18n';
   import { fmt } from '#lib/utils/format';
+  import { gradeHref } from '#lib/utils/links';
   import { gradeColorVar, type BorderlineCase } from '#lib/analytics/gradingKey';
   import { Card } from '#lib/components/ui';
 
@@ -60,7 +61,9 @@
               {@const index = indexOf.get(c.submissionId) ?? 0}
               <li>
                 <a
-                  href={`/exam/${examId}/grade?submissionId=${encodeURIComponent(c.submissionId)}`}
+                  href={gradeHref(examId, { submissionId: c.submissionId })}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   class="{ROW} rounded-md border border-line px-2 py-1.5 text-xs tabular-nums sm:px-3 sm:text-sm hover:border-line-strong hover:bg-surface-sunken"
                   title={$fmt.percent(c.percentage / 100, 1)}
                   aria-label={$t('stats.borderline.openAria', { index })}

@@ -350,6 +350,7 @@
       onPrev={prevStudent}
       onNext={nextStudent}
       onStayOnLastSub={stayOnLastSub}
+      onExerciseSaved={async () => (exercises = await loadExamExercisesEncrypted(examId, get(sessionStore).sessionKey))}
     />
   {/if}
 </div>

@@ -36,6 +36,7 @@ export const common: Translations['common'] = {
     export: 'Export',
     import: 'Import',
     open: 'Open',
+    openInNewTab: 'Open in new tab',
     create: 'Create',
     refresh: 'Refresh',
     copy: 'Copy',

@@ -397,6 +397,7 @@
           onPreview={examPreview.open}
           onRawExport={(exam) => (rawExportExamId = exam.id)}
           onDuplicate={handleDuplicateExam}
+          onExerciseSaved={() => expandedExams.ids().forEach((id) => exerciseMap.reload(id))}
           duplicatingId={duplicatingExamId}
         />
       </FilterLayout>

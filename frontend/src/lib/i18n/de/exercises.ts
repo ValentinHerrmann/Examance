@@ -81,6 +81,7 @@ export const exercises = {
     /** Score & structure section of the exercise editor (issues #77-#79). */
     structure: {
         title: 'Punkte & Aufbau',
+        openTitle: 'Punkte, Anforderungsbereich, Kompetenzen und Teilaufgaben bearbeiten',
         scoreBadge: '{score} BE',
         fixedBadge: 'fest',
         levelBadge: 'AFB {level}',

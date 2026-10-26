@@ -46,6 +46,7 @@ export const help = {
                 p2: 'Alle sensiblen Daten werden im Browser verschlüsselt, bevor sie gespeichert werden. Der Schlüssel wird aus dem Passwort abgeleitet und verlässt das Gerät nicht.',
                 p3: 'Einen schnellen Überblick geben zwei Poster unter „Poster: Funktionen & Datenschutz“ (auf der Anmeldeseite verlinkt): was Examance kann, wie die Oberfläche aussieht und wie Ihre Daten geschützt sind.',
                 p4: 'Zum Ausprobieren legt „Beispieldaten hinzufügen“ in der noch leeren Prüfungsübersicht Beispielaufgaben, zwei Beispielprüfungen und bereits korrigierte Bögen erfundener Schülerinnen und Schüler an, darunter gescannte. Sie werden nicht geteilt, wie Ihre eigenen Daten gespeichert und verschlüsselt und lassen sich wie jede Prüfung und Aufgabe wieder löschen.',
+                p5: 'Viele Namen sind anklickbar: Aufgaben öffnen sich überall direkt im Editor, etwa in der Klausur, beim Korrigieren und in der Auswertung; Klausuren in der Bibliothek als Übersicht mit „In neuem Tab öffnen“. Namen mit dem Symbol ↗, etwa Schülerinnen und Schüler, öffnen die Korrektur gleich in einem neuen Tab, damit ungespeicherte Arbeit im aktuellen Tab erhalten bleibt.',
             },
             s2: {
                 h: 'Der typische Ablauf',
@@ -89,7 +90,7 @@ export const help = {
                 h: 'Sammeln statt kopieren',
                 p1: 'Aufgaben liegen in einer gemeinsamen Bibliothek und werden nach Jahrgang, Fach und Thema verschlagwortet. Jede Aufgabe ist ein LaTeX-Fragment mit Live-Vorschau; die Punktzahl wird automatisch aus dem Quelltext gelesen und an jeder Variante angezeigt. Im Quelltext-Editor öffnet Strg + F die Suche, Strg + H Suchen und Ersetzen (auf dem Mac ⌘).',
                 p2: 'Über die Filter oben lassen sich Aufgaben nach Jahrgang, Fach und Thema eingrenzen und für eine neue Klausur wiederverwenden. Die Zahlen an den Themen zählen nur, was zu den übrigen Filtern passt; Themen ohne Treffer werden ausgeblendet. „Sortieren nach“ ordnet die Liste nach Name, letzter Änderung, Punkten, Jahrgang oder Fach; die Wahl merkt sich dieser Browser.',
-                p3: 'Im aufgeklappten Eintrag sehen Sie je Variante, in welchen Klausuren die Aufgabe verwendet wird (Klick öffnet die Klausur). „Vorschau“ zeigt das zuletzt kompilierte PDF; gibt es noch keines, fragt Examance, ob es jetzt kompiliert werden soll.',
+                p3: 'Im aufgeklappten Eintrag sehen Sie je Variante, in welchen Klausuren die Aufgabe verwendet wird (Klick zeigt eine Übersicht der Klausur, von dort lässt sie sich in einem neuen Tab öffnen). „Vorschau“ zeigt das zuletzt kompilierte PDF; gibt es noch keines, fragt Examance, ob es jetzt kompiliert werden soll.',
             },
             s2: {
                 h: 'Varianten und Versionen',
@@ -130,7 +131,7 @@ export const help = {
             },
             s8: {
                 h: 'Punkte, Teilaufgaben und Anforderungsbereiche',
-                p1: String.raw`Die Punktzahl einer Aufgabe ergibt sich aus den Bewertungseinheiten im Quelltext: \BE zählt einen Punkt, \hBE einen halben, \qBE einen Viertelpunkt, bei Ankreuzaufgaben jede richtige Option einen. Setzen Sie sie an die Stelle der Lösung, an der der Punkt vergeben wird; im Erwartungshorizont erscheinen sie als Haken. Der Bereich „Punkte & Aufbau“ im Editor zeigt, wie die Punktzahl zustande kommt, und erlaubt, sie fest vorzugeben.`,
+                p1: String.raw`Die Punktzahl einer Aufgabe ergibt sich aus den Bewertungseinheiten im Quelltext: \BE zählt einen Punkt, \hBE einen halben, \qBE einen Viertelpunkt, bei Ankreuzaufgaben jede richtige Option einen. Setzen Sie sie an die Stelle der Lösung, an der der Punkt vergeben wird; im Erwartungshorizont erscheinen sie als Haken. Die Schaltfläche „Punkte & Aufbau“ über dem Quelltext im Editor (sie zeigt die aktuelle Punktzahl) öffnet einen Dialog, der zeigt, wie die Punktzahl zustande kommt, und erlaubt, sie fest vorzugeben.`,
                 p2: '„Teilaufgabe hinzufügen“ gliedert eine Aufgabe in a), b), c) mit eigener Unterüberschrift und eigenem Punktekästchen. Die Punkte der Teilaufgaben ergeben zusammen die Punktzahl der Aufgabe; auch für eine einzelne Teilaufgabe lässt sich die Punktzahl fest vorgeben. Bewertet wird weiterhin je Aufgabe.',
                 p3: String.raw`Anforderungsbereich (I Reproduktion, II Reorganisation und Transfer, III Reflexion und Problemlösen) und Kompetenzen lassen sich für die ganze Aufgabe oder je Teilaufgabe hinterlegen. Sie stehen als \AFB{…} und \Kompetenz{…} im Quelltext, erscheinen nur im Erwartungshorizont und reisen mit der Aufgabe in Varianten, Kopien und Archive.`,
                 p4: String.raw`Seitenumbrüche: Überschrift, Einleitung und Bilder einer Aufgabe bleiben mit der Teilaufgabe a) auf einer Seite, und eine Teilaufgabe wird nicht getrennt, solange sie auf eine Seite passt. Umbrochen wird zwischen den Teilaufgaben; ein Bild bleibt beim Text danach. Wo das nicht passt, erzwingt \Seitenumbruch an der gewünschten Stelle eine neue Seite (Palette „Allgemein“).`,

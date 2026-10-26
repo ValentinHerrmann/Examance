@@ -103,7 +103,7 @@
               <div class={rowClass}>
                 <div class={infoClass}>
                   <span class="font-semibold text-accent">(idx + 1)</span>
-                  <strong class="min-w-0 font-medium text-content"><ExerciseLabel exercise={ex} /></strong>
+                  <strong class="min-w-0 font-medium text-content"><ExerciseLabel exercise={ex} onOpen={() => onQuickEdit(ex)} /></strong>
                   {#if ex.topicTag}
                     <Badge size="xs">{ex.topicTag}</Badge>
                   {/if}
@@ -139,7 +139,7 @@
                 </div>
                 <ul class="m-0 pl-6 text-sm text-muted">
                   {#each memberExercises(group) as ex, i}
-                    <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} /></li>
+                    <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} onOpen={() => onQuickEdit(ex)} /></li>
                   {/each}
                 </ul>
               </div>
@@ -152,7 +152,7 @@
           <div class={rowClass}>
             <div class={infoClass}>
               <span class="font-semibold text-accent">(idx + 1)</span>
-              <strong class="min-w-0 font-medium text-content"><ExerciseLabel exercise={ex} /></strong>
+              <strong class="min-w-0 font-medium text-content"><ExerciseLabel exercise={ex} onOpen={() => onQuickEdit(ex)} /></strong>
               {#if ex.topicTag}
                 <Badge size="xs">{ex.topicTag}</Badge>
               {/if}
@@ -179,7 +179,7 @@
             </div>
             <ul class="m-0 pl-6 text-sm text-muted">
               {#each memberExercises(group) as ex, i}
-                <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} /></li>
+                <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} onOpen={() => onQuickEdit(ex)} /></li>
               {/each}
             </ul>
           </div>

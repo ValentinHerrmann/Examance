@@ -20,6 +20,7 @@
   import KpiSummaryBar from '#lib/components/analytics/KpiSummaryBar.svelte';
   import OverallScoreHistogram from '#lib/components/analytics/OverallScoreHistogram.svelte';
   import VariantFairnessTable from '#lib/components/analytics/VariantFairnessTable.svelte';
+  import ExerciseEditorModal from '#lib/components/ExerciseEditorModal.svelte';
   import ExerciseQualityTable from '#lib/components/analytics/ExerciseQualityTable.svelte';
   import { PageShell, PageHeader } from '#lib/components/ui';
 
@@ -27,6 +28,8 @@
   let activeLoadPromise: Promise<void> | null = null;
   let pendingReload = false;
   let exams: ExamRecord[] = $state.raw([]);
+  let exerciseRecords = new Map<string, ExerciseRecord>();
+  let editEx: ExerciseRecord | null = $state.raw(null);
   let exerciseStats: ExercisePerformance[] = $state.raw([]);
   let variantGroups: VariantGroupComparison[] = $state.raw([]);
   let overallAvgScore: number | null = $state(null);
@@ -101,6 +104,7 @@
       }
     });
     const allExercises = Array.from(exerciseMap.values());
+    exerciseRecords = exerciseMap;
 
     const allExamExercises = await db.examExercises.toArray();
     const allSubmissions = await submissionRepository.getAll(key, exams);
@@ -157,6 +161,7 @@
     // 1. Aggregate stats by exercise group key (group ID, name, or distinct ID)
     // Store {score, maxPoints} pairs so variants with different maxPoints are handled correctly
     const exGroupMap = new Map<string, {
+      groupId?: string;
       name: string;
       tag?: string;
       grade?: string;
@@ -171,6 +176,7 @@
 
       if (!exGroupMap.has(groupKey)) {
         exGroupMap.set(groupKey, {
+          ...(ex.exerciseGroupId ? { groupId: ex.exerciseGroupId } : {}),
           name: displayName,
           tag: ex.topicTag,
           grade: ex.grade,
@@ -222,6 +228,7 @@
 
       list.push({
         id: key,
+        ...(group.groupId ? { groupId: group.groupId } : {}),
         name: group.name,
         topicTag: group.tag,
         grade: group.grade,
@@ -242,6 +249,7 @@
 
     // 2. Build Variant Group Comparisons (for questions with multiple variants)
     const vGroupMap = new Map<string, {
+      realGroup: boolean;
       name: string;
       tag?: string;
       variants: Map<string, {
@@ -263,6 +271,7 @@
 
       if (!vGroupMap.has(gId)) {
         vGroupMap.set(gId, {
+          realGroup: !!ex.exerciseGroupId,
           name: displayName,
           tag: ex.topicTag,
           variants: new Map(),
@@ -340,6 +349,7 @@
 
       vList.push({
         groupId: gId,
+        groupIdIsReal: gData.realGroup,
         groupName: gData.name,
         topicTag: gData.tag,
         variants: variants.sort((a, b) => a.variantKey.localeCompare(b.variantKey)),
@@ -409,6 +419,7 @@
           {variantGroups}
           {displayedVariantGroups}
           bind:showAll={showAllExercises}
+          onOpenExercise={(id) => (editEx = exerciseRecords.get(id) ?? null)}
         />
       </div>
 
@@ -424,3 +435,7 @@
     </div>
   {/if}
 </PageShell>
+
+{#if editEx}
+  <ExerciseEditorModal isOpen editingExercise={editEx} onClose={() => (editEx = null)} onSave={() => loadAnalytics()} />
+{/if}
