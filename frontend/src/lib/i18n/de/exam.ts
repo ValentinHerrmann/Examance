@@ -116,11 +116,6 @@ export const exam = {
         infoText: 'Infotext (LaTeX-Liste)',
         nameLine: 'Namenszeile neben dem QR-Code-Feld drucken',
         nameLineHint: 'Die Schüler:innen schreiben ihren Namen auf die Titelseite. Das QR-Code-Feld bleibt, das Initialenfeld darin entfällt.',
-        extraNotes: 'Platz für weitere Lösungen am Ende drucken',
-        extraNotesHint: 'Ein Karo-Feld am Ende der Prüfung füllt den Rest der letzten Seite (ohne unnötige neue Seite), zwischen Mindest- und Maximalhöhe.',
-        extraNotesTitle: 'Überschrift (wird auf Deutsch gedruckt)',
-        extraNotesMin: 'Mindesthöhe (cm)',
-        extraNotesMax: 'Maximalhöhe (cm)',
     },
     libraryModal: {
         header: 'Aufgaben aus der Bibliothek verknüpfen',
@@ -157,6 +152,13 @@ export const exam = {
         editGroup: 'MC-Gruppe bearbeiten',
         editGroupButton: 'Bearbeiten',
         empty: 'Noch keine Aufgaben hinzugefügt.',
+    },
+    extraNotes: {
+        label: 'Platz für weitere Lösungen am Ende',
+        hint: 'Ein Karo-Feld am Ende der Prüfung füllt den Rest der letzten Seite zwischen Mindest- und Maximalhöhe und beginnt nur dann eine neue Seite, wenn die Mindesthöhe nicht mehr passt.',
+        title: 'Überschrift (wird auf Deutsch gedruckt)',
+        min: 'Mindesthöhe (cm)',
+        max: 'Maximalhöhe (cm)',
     },
     pageBreak: {
         insert: 'Seitenumbruch einfügen',

@@ -1,22 +1,24 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { Checkbox, Field, TextInput, controlClass } from "#lib/components/ui";
   import { DEFAULT_EXTRA_NOTES, type ExtraNotes } from "#lib/db/schema";
+  import { t } from "#lib/i18n";
 
-  /** Shared by the create form and the metadata editor: switch for the closing karo block (issue #156). */
+  /** Toggle for the karo block closing the exam (issue #156), below both exercise lists. */
   interface Props {
     value: ExtraNotes | null;
+    /** Fired on toggle and when a field is committed (change, not every keystroke). */
+    onChange: (next: ExtraNotes | null) => void;
     idPrefix: string;
-    label: string;
-    hint: string;
-    titleLabel: string;
-    minLabel: string;
-    maxLabel: string;
   }
 
-  let { value = $bindable(null), idPrefix, label, hint, titleLabel, minLabel, maxLabel }: Props = $props();
+  let { value, onChange, idPrefix }: Props = $props();
 
   const MIN_CM = 1;
   const MAX_CM = 25;
+
+  // Local edit buffer; follows `value` whenever the owner stores a new one.
+  let draft = $state<ExtraNotes | null>(null);
 
   function clamp(v: unknown): number {
     const n = Number(v);
@@ -24,54 +26,63 @@
   }
 
   /** Keeps both heights within 1..25 cm and min <= max; `changed` is the field the user just edited. */
-  function normalize(changed: "min" | "max") {
-    if (!value) return;
-    let min = clamp(value.minHeightCm);
-    let max = clamp(value.maxHeightCm);
+  function commit(changed?: "min" | "max") {
+    if (!draft) return;
+    let min = clamp(draft.minHeightCm);
+    let max = clamp(draft.maxHeightCm);
     if (min > max) {
-      if (changed === "min") max = min;
-      else min = max;
+      if (changed === "max") min = max;
+      else max = min;
     }
-    value.minHeightCm = min;
-    value.maxHeightCm = max;
+    draft.minHeightCm = min;
+    draft.maxHeightCm = max;
+    onChange($state.snapshot(draft));
   }
 
   function toggle(on: boolean) {
-    value = on ? { ...DEFAULT_EXTRA_NOTES } : null;
+    draft = on ? { ...DEFAULT_EXTRA_NOTES } : null;
+    onChange(draft ? $state.snapshot(draft) : null);
   }
+
+  $effect.pre(() => {
+    const next = value;
+    untrack(() => {
+      draft = next ? { ...next } : null;
+    });
+  });
 </script>
 
 <div class="flex flex-col gap-2">
   <div class="flex flex-col gap-1">
-    <Checkbox id="{idPrefix}Enabled" checked={value !== null} onChange={toggle} {label} />
-    <p class="m-0 text-sm text-muted">{hint}</p>
+    <Checkbox id="{idPrefix}Enabled" checked={draft !== null} onChange={toggle} label={$t("exam.extraNotes.label")} />
+    <p class="m-0 text-sm text-muted">{$t("exam.extraNotes.hint")}</p>
   </div>
-  {#if value}
-    <Field label={titleLabel} forId="{idPrefix}Title">
-      <TextInput id="{idPrefix}Title" bind:value={value.title} maxlength={300} />
+  {#if draft}
+    <Field label={$t("exam.extraNotes.title")} forId="{idPrefix}Title">
+      <TextInput id="{idPrefix}Title" bind:value={draft.title} maxlength={300} onchange={() => commit()} />
     </Field>
     <div class="grid grid-cols-2 gap-3">
-      <Field label={minLabel} forId="{idPrefix}Min">
+      <Field label={$t("exam.extraNotes.min")} forId="{idPrefix}Min">
         <input
           id="{idPrefix}Min"
           type="number"
           min={MIN_CM}
           max={MAX_CM}
           step="0.5"
-          bind:value={value.minHeightCm}
-          onchange={() => normalize("min")}
+          bind:value={draft.minHeightCm}
+          onchange={() => commit("min")}
           class={controlClass}
         />
       </Field>
-      <Field label={maxLabel} forId="{idPrefix}Max">
+      <Field label={$t("exam.extraNotes.max")} forId="{idPrefix}Max">
         <input
           id="{idPrefix}Max"
           type="number"
           min={MIN_CM}
           max={MAX_CM}
           step="0.5"
-          bind:value={value.maxHeightCm}
-          onchange={() => normalize("max")}
+          bind:value={draft.maxHeightCm}
+          onchange={() => commit("max")}
           class={controlClass}
         />
       </Field>

@@ -484,7 +484,7 @@
     \ifdim\EN@fill>#3cm \EN@fill=#3cm \fi
     \ifdim\EN@fill<#2cm \EN@fill=#2cm \fi
     \EN@rows=\EN@fill
-    \divide\EN@rows by 0.5cm
+    \divide\EN@rows by \number\dimexpr0.5cm\relax
     \ifnum\EN@rows<\@ne \EN@rows=\@ne \fi
     \vspace{3mm}%
     \noindent\textbf{#1}\par\nobreak\vspace{2mm}%

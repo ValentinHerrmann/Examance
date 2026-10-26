@@ -706,7 +706,6 @@ ${extraNotesLatex(extraNotes)}
           bind:lehrernachname
           bind:infoText
           bind:nameLine
-          bind:extraNotes
         />
 
         <!-- Grading Key Section -->
@@ -758,6 +757,8 @@ ${extraNotesLatex(extraNotes)}
           onMoveExamItem={moveExamItem}
           onRemove={toggleLibrarySelection}
           onRemoveMcGroup={removeMcGroup}
+          {extraNotes}
+          onChangeExtraNotes={(next) => (extraNotes = next)}
           onEditMcGroup={editMcGroup}
         />
 

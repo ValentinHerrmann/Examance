@@ -612,8 +612,6 @@
   let editLehrernachname = $state("");
   let editInfoText = $state("");
   let editNameLine = $state(false);
-  let editExtraNotes = $state<ExtraNotes | null>(null);
-  let initialExtraNotes = $state("null");
   let editLogoChange: ExamLogoChange | null = $state.raw(null);
   let editLatexPackages: LatexPackageEntry[] | null = $state.raw(null);
   let initialLatexPackages = $state("null");
@@ -652,7 +650,6 @@
         editLehrernachname !== initialMetadata.lehrernachname ||
         editInfoText !== initialMetadata.infoText ||
         editNameLine !== initialMetadata.nameLine ||
-        JSON.stringify(editExtraNotes) !== initialExtraNotes ||
         editLogoChange !== null ||
         JSON.stringify(editLatexPackages) !== initialLatexPackages ||
         editRetentionUntil !== initialMetadata.retentionUntil),
@@ -734,8 +731,6 @@
     editLehrernachname = exam.lehrernachname || "";
     editInfoText = exam.infoText || "";
     editNameLine = exam.nameLine === true;
-    editExtraNotes = exam.extraNotes ? { ...exam.extraNotes } : null;
-    initialExtraNotes = JSON.stringify(editExtraNotes);
     editRetentionUntil = exam.retentionUntil || "";
     editGradingKey = exam.gradingKey || {
       preset: "linear_50",
@@ -802,7 +797,6 @@
           lehrernachname: editLehrernachname,
           info_text: editInfoText,
           name_line: editNameLine,
-          extra_notes: extraNotesToApi(editExtraNotes),
           grading_key: gradingKey,
           latex_packages: latexPackages,
           retention_until: editRetentionUntil,
@@ -822,7 +816,6 @@
         lehrernachname: editLehrernachname,
         infoText: editInfoText,
         nameLine: editNameLine,
-        extraNotes: $state.snapshot(editExtraNotes),
         retentionUntil: editRetentionUntil,
         gradingKey,
         latexPackages,
@@ -967,6 +960,19 @@
       afterLayoutChange();
     } catch (err) {
       console.error("Failed to save page breaks:", err);
+      errorMsg = translate("exam.page.exerciseLinks.saveFailed");
+    }
+  }
+
+  async function saveExtraNotes(next: ExtraNotes | null) {
+    if (!exam) return;
+    exam = { ...exam, extraNotes: next };
+    try {
+      await saveExamEncrypted(exam, get(sessionStore).sessionKey);
+      errorMsg = "";
+      afterLayoutChange();
+    } catch (err) {
+      console.error("Failed to save extra notes:", err);
       errorMsg = translate("exam.page.exerciseLinks.saveFailed");
     }
   }
@@ -1284,7 +1290,6 @@
       bind:editLehrernachname
       bind:editInfoText
       bind:editNameLine
-      bind:editExtraNotes
       bind:editRetentionUntil
       bind:editGradingKey
       examId={exam?.id}
@@ -1399,6 +1404,8 @@
         onEditMcGroup={editMcGroup}
         pageBreaks={exam.pageBreaks ?? []}
         onTogglePageBreak={toggleExamPageBreak}
+        extraNotes={exam.extraNotes ?? null}
+        onChangeExtraNotes={saveExtraNotes}
         onOpenExercise={(ex) => (quickEditEx = ex)}
       />
     </div>

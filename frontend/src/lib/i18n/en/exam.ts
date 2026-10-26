@@ -118,11 +118,6 @@ export const exam: Translations['exam'] = {
         infoText: 'Info Text (LaTeX list)',
         nameLine: 'Print a name line next to the QR code box',
         nameLineHint: 'Students write their name on the title page. The QR code box stays; its initials field is dropped.',
-        extraNotes: 'Print space for extra solutions at the end',
-        extraNotesHint: 'A grid area at the end of the exam fills the rest of the last page (without an unnecessary new page), between a minimum and a maximum height.',
-        extraNotesTitle: 'Heading (printed in German)',
-        extraNotesMin: 'Minimum height (cm)',
-        extraNotesMax: 'Maximum height (cm)',
     },
     libraryModal: {
         header: 'Link Exercises from Library',
@@ -159,6 +154,13 @@ export const exam: Translations['exam'] = {
         editGroup: 'Edit MC Group',
         editGroupButton: 'Edit',
         empty: 'No exercises added yet.',
+    },
+    extraNotes: {
+        label: 'Space for extra solutions at the end',
+        hint: 'A grid area at the end of the exam fills the rest of the last page between a minimum and a maximum height, and only starts a new page when even the minimum no longer fits.',
+        title: 'Heading (printed in German)',
+        min: 'Minimum height (cm)',
+        max: 'Maximum height (cm)',
     },
     pageBreak: {
         insert: 'Insert page break',
