@@ -43,6 +43,8 @@ export const examCreation = {
         topicPlaceholder: 'z. B. Rekursion',
         topicHint: 'Zur Organisation in der Übersicht (Filter und Suche). Wird nicht auf die Prüfung gedruckt.',
         infoLabel: 'Kopfzeilen-Hinweistext (\\Info)',
+        nameLineLabel: 'Namenszeile neben dem QR-Code-Feld drucken',
+        nameLineHint: 'Die Schüler:innen schreiben ihren Namen auf die Titelseite. Das QR-Code-Feld bleibt, das Initialenfeld darin entfällt.',
     },
     exerciseSelector: {
         heading: '2. Aufgaben auswählen',

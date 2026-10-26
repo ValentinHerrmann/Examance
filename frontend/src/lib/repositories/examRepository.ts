@@ -37,6 +37,7 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     gradingKey: raw.grading_key || raw.gradingKey,
     latexPackages: packagesField(raw.latex_packages !== undefined ? raw.latex_packages : raw.latexPackages),
     pageBreaks: pageBreaksField(raw.page_breaks !== undefined ? raw.page_breaks : raw.pageBreaks),
+    nameLine: (raw.name_line ?? raw.nameLine) === true,
     latexPreamble: raw.latex_preamble || raw.latexPreamble,
     latexTemplate: raw.latex_template || raw.latexTemplate,
     numVersions: raw.num_versions || raw.numVersions || 1,
@@ -65,6 +66,8 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     latex_packages: exam.latexPackages,
     // Empty or null clears the breaks, undefined leaves them alone.
     page_breaks: exam.pageBreaks,
+    // Undefined leaves the stored choice alone.
+    name_line: exam.nameLine,
     latex_preamble: exam.latexPreamble,
     latex_template: exam.latexTemplate,
     retention_until: exam.retentionUntil,

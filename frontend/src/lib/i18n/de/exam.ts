@@ -114,6 +114,8 @@ export const exam = {
         lehrernachname: 'Lehrernachname',
         retentionUntil: 'Aufbewahren bis',
         infoText: 'Infotext (LaTeX-Liste)',
+        nameLine: 'Namenszeile neben dem QR-Code-Feld drucken',
+        nameLineHint: 'Die Schüler:innen schreiben ihren Namen auf die Titelseite. Das QR-Code-Feld bleibt, das Initialenfeld darin entfällt.',
     },
     libraryModal: {
         header: 'Aufgaben aus der Bibliothek verknüpfen',

@@ -190,6 +190,7 @@ class ExamCreate(BaseModel):
     # Package entries on top of the account's (issue #108); null follows the account.
     latex_packages: list[LatexPackageEntry] | None = None
     page_breaks: list[str] | None = None
+    name_line: bool = False
     exercise_ids: list[uuid.UUID] = []
     exercise_links: list[ExerciseLinkCreate] = []
     exercises: list[ExerciseCreate] = []
@@ -228,6 +229,7 @@ class ExamUpdate(BaseModel):
     latex_packages: list[LatexPackageEntry] | None = None
     # Absent keeps the stored breaks; null or [] clears them.
     page_breaks: list[str] | None = None
+    name_line: bool | None = None
     exercise_ids: list[uuid.UUID] | None = None
     exercise_links: list[ExerciseLinkCreate] | None = None
     mc_groups: list[ExamMcGroupCreate] | None = None
@@ -258,6 +260,7 @@ class ExamResponse(BaseModel):
     grading_key: dict[str, Any] | None = None
     latex_packages: list[LatexPackageEntry] | None = None
     page_breaks: list[str] | None = None
+    name_line: bool = False
     exercises: list[ExerciseResponse] = []
     mc_groups: list[ExamMcGroupResponse] = []
 
