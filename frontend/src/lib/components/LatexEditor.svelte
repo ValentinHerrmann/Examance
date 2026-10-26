@@ -128,7 +128,7 @@
     if (!view) return;
     const sel = view.state.selection.main;
     const selectedText = view.state.doc.sliceString(sel.from, sel.to);
-    const result = computeQuickInsert(macro, selectedText, sel.from, sel.to);
+    const result = computeQuickInsert(macro, selectedText, sel.from, sel.to, macroText(macro, "label"));
     view.dispatch({
       changes: result.changes,
       selection: EditorSelection.range(result.selection.anchor, result.selection.head)

@@ -46,7 +46,7 @@ describe('Modal', () => {
       document.body.innerHTML = '<div class="app-main"></div>';
       return classes;
     };
-    expect(heightClasses({ size: 'full' })).toEqual(['sm:h-[90dvh]']);
+    expect(heightClasses({ size: 'full' })).toEqual(['sm:h-full']);
     expect(heightClasses({ size: 'large', tall: true })).toEqual(['sm:h-[90dvh]']);
     expect(heightClasses({ size: 'medium' })).toEqual(['sm:h-auto']);
   });

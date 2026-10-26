@@ -22,6 +22,11 @@ const MHCHEM = ["mhchem"];
 export const SUBJECT_SNIPPETS: QuickInsertMacro[] = [
   // --- Mathematik ---
   math("math-pythagoras", "$", "a^2 + b^2 = c^2", "$"),
+  math("math-set-n", String.raw`$\mathbb{`, "N", "}$"),
+  math("math-set-z", String.raw`$\mathbb{`, "Z", "}$"),
+  math("math-set-q", String.raw`$\mathbb{`, "Q", "}$"),
+  math("math-set-r", String.raw`$\mathbb{`, "R", "}$"),
+  math("math-set-c", String.raw`$\mathbb{`, "C", "}$"),
   math("math-fraction", String.raw`$\frac{`, "a", "}{b}$"),
   math("math-root", String.raw`$\sqrt{`, "x", "}$"),
   math("math-numberline", String.raw`\begin{tikzpicture}
