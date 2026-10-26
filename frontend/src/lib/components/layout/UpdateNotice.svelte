@@ -3,7 +3,7 @@
   import { t } from "#lib/i18n";
   import { Alert, Button } from "#lib/components/ui";
   import { frontendVersion, frontendVersionUrl, repoUrl } from "#lib/stores/versionStore";
-  import { maintenancePhase } from "#lib/stores/maintenanceStore";
+  import { maintenancePhase, maintenanceStore } from "#lib/stores/maintenanceStore";
   import { parseReleaseNotes, type Inline } from "#lib/utils/releaseNotes";
 
   // Last version this browser/installed app has shown; an installed (PWA) app can stay open for days.
@@ -19,6 +19,8 @@
   let dismissedUpdate = $state(false);
   // Issue #148: the new frontend may be live before the backend is; offer the reload only once the window is over.
   const maintenanceBusy = $derived($maintenancePhase === "warning" || $maintenancePhase === "final" || $maintenancePhase === "down");
+  // Issue #157: the notes never come before the reload prompt, so they wait for the same window (and the first poll).
+  const notesReady = $derived($maintenanceStore.checked && !maintenanceBusy);
 
   function readSeen(): string | null {
     try { return localStorage.getItem(SEEN_KEY); } catch { return null; }
@@ -28,10 +30,12 @@
   }
 
   $effect(() => {
+    if (!notesReady) return;
     if (isPreview) { showNotes = blocks.length > 0; return; }
     if (!isRelease) return;
     // A missing marker also counts as "not seen yet": browsers that last ran a build without this feature (or no
     // release build at all) have none, and releases published while the app was closed must still be announced.
+    // The marker is written only once the notes may show, otherwise a maintenance window would swallow them.
     const seen = readSeen();
     writeSeen(frontendVersion);
     if (seen !== frontendVersion && blocks.length > 0) showNotes = true;
@@ -56,7 +60,7 @@
   </Alert>
 {/if}
 
-{#if showNotes}
+{#if showNotes && notesReady}
   <Alert severity="success" title={$t("statusBar.releaseNotesTitle", { version: frontendVersion })} class="mx-3 mt-2 sm:mx-4" onDismiss={() => (showNotes = false)}>
     <div class="max-h-64 space-y-2 overflow-auto text-sm">
       {#each blocks as b}
