@@ -383,10 +383,6 @@
     }
   }
 
-  function openInGrading(item: McDetectionItem) {
-    goto(`/exam/${examId}/grade?submissionId=${item.submissionId}&exerciseId=${item.exerciseId}`);
-  }
-
   /** Against selection bias in the (future) training data: teachers mostly review flagged
    *  items, so confident readings rarely get checked. Opens a random unverified confident one. */
   function openRandomConfidentItem() {
@@ -497,21 +493,21 @@
       <McVerificationOverview {stats} />
 
       <McVerificationQueue
+        {examId}
         title={$t("scanning.verify.queueFailed")}
         items={failedItems}
         studentProgress={failedProgress}
         emptyMessage={$t("scanning.verify.emptyFailed")}
-        onVerifyItem={(item) => openVerifyItem(item, "failed")}
-        onOpenGrading={openInGrading}
+        queueTag="failed"
       />
 
       <McVerificationQueue
+        {examId}
         title={$t("scanning.verify.queueUnsure")}
         items={unsureItems}
         studentProgress={unsureProgress}
         emptyMessage={$t("scanning.verify.emptyUnsure")}
-        onVerifyItem={(item) => openVerifyItem(item, "unsure")}
-        onOpenGrading={openInGrading}
+        queueTag="unsure"
       />
 
       {#if otherItems.some((i) => !i.isReviewed)}
@@ -524,12 +520,12 @@
       {/if}
 
       <McVerificationQueue
+        {examId}
         title={$t("scanning.verify.queueOther")}
         items={otherItems}
         studentProgress={confidentProgress}
         emptyMessage={$t("scanning.verify.emptyOther")}
-        onVerifyItem={(item) => openVerifyItem(item, "confident")}
-        onOpenGrading={openInGrading}
+        queueTag="confident"
       />
     {/if}
   {/if}

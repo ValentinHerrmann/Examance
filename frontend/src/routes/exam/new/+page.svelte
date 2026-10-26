@@ -14,12 +14,13 @@
   import { resolveCompileLogo } from "#lib/latex/logo";
   import { documentLayers, withPackages } from "#lib/latex/packages";
   import { getAccountPackages } from "#lib/latex/packageSettings";
+  import { withExamOptions, extraNotesLatex } from "#lib/exam/examPreview";
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import { get } from "svelte/store";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import GradingKeyEditor from "#lib/components/GradingKeyEditor.svelte";
   import { getPresetCutoffs } from "#lib/analytics/gradingKey";
-  import type { GradingKeyConfig } from "#lib/db/schema";
+  import type { GradingKeyConfig, ExtraNotes } from "#lib/db/schema";
   import ExamMetadataForm from "#lib/components/exam-creation/ExamMetadataForm.svelte";
   import ExerciseSelector from "#lib/components/exam-creation/ExerciseSelector.svelte";
   import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
@@ -55,10 +56,14 @@
   // Organisational only (issue #57): not printed on the PDF, so not part of the LaTeX below.
   let topic = $state("");
   let lehrernachname = $state("");
-  let infoText = $state(`\\begin{itemize}
-    \\item Die Arbeit wird anonymisiert korrigiert. Trage deine Initialen ins QR-Code-Feld ein.
+  // Exam content, printed in the PDF: German on purpose. The default follows the name-line switch.
+  const defaultInfoText = (withNameLine: boolean) => `\\begin{itemize}
+    \\item ${withNameLine ? "Trage oben deinen Namen ein." : "Die Arbeit wird anonymisiert korrigiert. Trage deine Initialen ins QR-Code-Feld ein."}
     \\item Mit Bleistift oder rot/rosa Geschriebenes kann \\textbf{nicht} gewertet werden!
-\\end{itemize}`);
+\\end{itemize}`;
+  let nameLine = $state(false);
+  let extraNotes = $state<ExtraNotes | null>(null);
+  let infoText = $state(defaultInfoText(false));
   let retentionDays = 365;
 
   let gradingKey: GradingKeyConfig = $state({
@@ -380,7 +385,7 @@ Frage hier eingeben... \\BE
 
       const accountPackages = await getAccountPackages();
       const getPreamble = (options: string) => withPackages(`\\documentclass[a4paper]{article}
-\\usepackage[${options}]{sty/Schulaufgabe}
+\\usepackage[${withExamOptions(options, nameLine)}]{sty/Schulaufgabe}
 \\Info{${infoText}}
 \\Fach{${fach}}
 \\Lehrernachname{${lehrernachname}}
@@ -400,7 +405,7 @@ Frage hier eingeben... \\BE
 \\Nr{${nr}}
 
 ${exerciseInputs}
-
+${extraNotesLatex(extraNotes)}
 \\end{document}`, documentLayers(accountPackages, exerciseInputs));
 
       const fullTexAngabe = getPreamble("sans,punkte");
@@ -529,6 +534,8 @@ ${exerciseInputs}
         topic: topic.trim() || undefined,
         lehrernachname,
         infoText,
+        nameLine,
+        extraNotes: $state.snapshot(extraNotes),
         gradingKey: $state.snapshot(gradingKey),
         retentionUntil,
         compilationStatus: "pending",
@@ -638,6 +645,14 @@ ${exerciseInputs}
     });
   });
 
+  // Swap the default info text with the name-line switch; an edited text stays as written.
+  $effect.pre(() => {
+    const withNameLine = nameLine;
+    untrack(() => {
+      if (infoText === defaultInfoText(!withNameLine)) infoText = defaultInfoText(withNameLine);
+    });
+  });
+
   $effect.pre(() => {
     const currentTitle = title;
     const libraryIds = selectedLibraryIds;
@@ -690,6 +705,7 @@ ${exerciseInputs}
           {topicSuggestions}
           bind:lehrernachname
           bind:infoText
+          bind:nameLine
         />
 
         <!-- Grading Key Section -->
@@ -741,6 +757,8 @@ ${exerciseInputs}
           onMoveExamItem={moveExamItem}
           onRemove={toggleLibrarySelection}
           onRemoveMcGroup={removeMcGroup}
+          {extraNotes}
+          onChangeExtraNotes={(next) => (extraNotes = next)}
           onEditMcGroup={editMcGroup}
         />
 

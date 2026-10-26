@@ -266,7 +266,9 @@ async function compileOnServer(
         resource_exercise_ids: resourceExerciseIds,
         logo_exam_id: logo?.examId ?? null,
         account_logo: Boolean(logo && !logo.examId)
-      }
+      },
+      // A failed compile is an expected outcome: callers show the TeX diagnostics in place, not the HTTP error modal.
+      { silentError: true }
     );
     return {
       pdfBytes: new Uint8Array(pdfBuffer),

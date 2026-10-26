@@ -13,6 +13,12 @@ template. The rules live twice, in `frontend/src/lib/latex/packages.ts` and
 | Exercise | `\usepackage` / `\usetikzlibrary` / `\usepgfplotslibrary` lines in the exercise LaTeX | exercise editor, `ExercisePackagesPanel` (it rewrites only lines that hold nothing but package commands) |
 | Exam | `exams.latex_packages` (JSON, null follows the account) | "Prüfung bearbeiten" dialog (`ExamPackagesField` in `ExamMetadataEditor`) |
 
+The template preloads the packages the editor's subject snippets use (chemfig, circuitikz, mhchem; issue #154), so a
+snippet never needs a package line. The browser engine's TeX Live bundle lacks some of them; those are vendored
+unmodified in `backend/latex-assets/sty/` (mhchem, chemgreek, simplekv for chemfig, like bbding, pifont, struktex; the
+browser worker exposes `sty/*.sty` and `sty/*.tex` flat), while Tectonic takes flat names from its own TeX Live 2022
+bundle. Check a new template package in both engines: a dependency missing from the browser bundle breaks every compile.
+
 Exercise packages stay in the LaTeX on purpose: they then travel with sharing, copies, versions,
 variants, merges, archives and exports without a second field to keep in sync.
 

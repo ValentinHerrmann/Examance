@@ -64,6 +64,9 @@ Frage
   \item Symbol \ding{51}
 \end{itemize}
 \begin{framed}Kasten\end{framed}
+% Chemistry and circuit snippets (issue #154): packages.sty loads them, these lines warm what typesetting needs.
+\ce{2 H2 + O2 -> 2 H2O} \chemfig{H-\charge{90=\|}{O}-H}
+\begin{circuitikz}\draw (0,0) to[battery1] (0,2) to[R] (2,2) to[lamp] (2,0) -- (0,0);\end{circuitikz}
 \begin{tikzpicture}
   \node[draw, rectangle] (a) at (0,0) {Start};
   \node[draw, diamond] (b) at (3,0) {?};

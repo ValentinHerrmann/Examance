@@ -46,7 +46,7 @@
   import { api } from "#lib/api/client";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { studentRepository } from "#lib/repositories/studentRepository";
-  import { examRepository, mapApiToExamRecord } from "#lib/repositories/examRepository";
+  import { examRepository, mapApiToExamRecord, extraNotesToApi } from "#lib/repositories/examRepository";
   import { mapExerciseRecordToApi } from "#lib/repositories/exerciseRepository";
   import { uint8ArrayToBase64, decrypt } from "#lib/crypto/aesGcm";
   import { ensure64CharHex } from "#lib/crypto/hmac";
@@ -61,7 +61,7 @@
   import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
   import { examReportFiles } from "#lib/layout-report/collect";
   import { getPresetCutoffs } from "#lib/analytics/gradingKey";
-  import type { GradingKeyConfig } from "#lib/db/schema";
+  import type { GradingKeyConfig, ExtraNotes } from "#lib/db/schema";
   import { goto } from "$app/navigation";
   import ExamMetadata from "#lib/components/exam/ExamMetadata.svelte";
   import ExamActionBar from "#lib/components/exam/ExamActionBar.svelte";
@@ -70,6 +70,7 @@
   import ExamMetadataEditor from "#lib/components/exam/ExamMetadataEditor.svelte";
   import { setExamLogo, type ExamLogoChange } from "#lib/latex/logo";
   import { entriesError, type LatexPackageEntry } from "#lib/latex/packages";
+  import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import ExamLibraryModal from "#lib/components/exam/ExamLibraryModal.svelte";
   import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
   import {
@@ -293,6 +294,14 @@
     }
   }
 
+  // Quick exercise editor (opened from exercise names and the library picker).
+  let quickEditEx: ExerciseRecord | null = $state.raw(null);
+
+  /** Reload via loadExam so the junction fields (group, sub-index, order) stay intact. */
+  async function handleQuickEditSaved() {
+    await loadExam(examId);
+  }
+
   /** MC exercises in exam order from one merged lookup (`exercises` wins over `libraryExercises`), so the
    *  answer-key hash is stable across calls and no spurious "stale" banner appears. */
   function collectMcExercises(): ExerciseRecord[] {
@@ -371,6 +380,8 @@
         info_text: exam.infoText,
         latex_packages: exam.latexPackages,
         page_breaks: exam.pageBreaks,
+        name_line: exam.nameLine,
+        extra_notes: extraNotesToApi(exam.extraNotes ?? null),
         latex_template: exam.latexTemplate,
         retention_until:
           exam.retentionUntil ||
@@ -601,6 +612,7 @@
   let editTopic = $state("");
   let editLehrernachname = $state("");
   let editInfoText = $state("");
+  let editNameLine = $state(false);
   let editLogoChange: ExamLogoChange | null = $state.raw(null);
   let editLatexPackages: LatexPackageEntry[] | null = $state.raw(null);
   let initialLatexPackages = $state("null");
@@ -621,6 +633,7 @@
     topic: "",
     lehrernachname: "",
     infoText: "",
+    nameLine: false,
     retentionUntil: "",
   });
   let showMetadataConfirm = $state(false);
@@ -637,6 +650,7 @@
         editTopic !== initialMetadata.topic ||
         editLehrernachname !== initialMetadata.lehrernachname ||
         editInfoText !== initialMetadata.infoText ||
+        editNameLine !== initialMetadata.nameLine ||
         editLogoChange !== null ||
         JSON.stringify(editLatexPackages) !== initialLatexPackages ||
         editRetentionUntil !== initialMetadata.retentionUntil),
@@ -717,6 +731,7 @@
     editTopic = exam.topic || "";
     editLehrernachname = exam.lehrernachname || "";
     editInfoText = exam.infoText || "";
+    editNameLine = exam.nameLine === true;
     editRetentionUntil = exam.retentionUntil || "";
     editGradingKey = exam.gradingKey || {
       preset: "linear_50",
@@ -734,6 +749,7 @@
       topic: editTopic,
       lehrernachname: editLehrernachname,
       infoText: editInfoText,
+      nameLine: editNameLine,
       retentionUntil: editRetentionUntil,
     };
     editLogoChange = null;
@@ -781,6 +797,7 @@
           topic,
           lehrernachname: editLehrernachname,
           info_text: editInfoText,
+          name_line: editNameLine,
           grading_key: gradingKey,
           latex_packages: latexPackages,
           retention_until: editRetentionUntil,
@@ -799,6 +816,7 @@
         topic,
         lehrernachname: editLehrernachname,
         infoText: editInfoText,
+        nameLine: editNameLine,
         retentionUntil: editRetentionUntil,
         gradingKey,
         latexPackages,
@@ -943,6 +961,19 @@
       afterLayoutChange();
     } catch (err) {
       console.error("Failed to save page breaks:", err);
+      errorMsg = translate("exam.page.exerciseLinks.saveFailed");
+    }
+  }
+
+  async function saveExtraNotes(next: ExtraNotes | null) {
+    if (!exam) return;
+    exam = { ...exam, extraNotes: next };
+    try {
+      await saveExamEncrypted(exam, get(sessionStore).sessionKey);
+      errorMsg = "";
+      afterLayoutChange();
+    } catch (err) {
+      console.error("Failed to save extra notes:", err);
       errorMsg = translate("exam.page.exerciseLinks.saveFailed");
     }
   }
@@ -1127,18 +1158,6 @@
     isLibraryModalOpen = false;
   }
 
-  function handleScan() {
-    goto(`/exam/${examId}/scan`);
-  }
-
-  function handleGrade() {
-    goto(`/exam/${examId}/grade`);
-  }
-
-  function handleStats() {
-    goto(`/exam/${examId}/stats`);
-  }
-
   let isDeletingAllSubmissions = false;
 
   async function handleDeleteAllSubmissions() {
@@ -1253,9 +1272,6 @@
       onDelete={handleDeleteExam}
       onExport={handleExportArchive}
       onRawExport={() => (rawExportOpen = true)}
-      onScan={handleScan}
-      onGrade={handleGrade}
-      onStats={handleStats}
       onDeleteAllSubmissions={handleDeleteAllSubmissions}
       onDuplicate={handleDuplicateExam}
       {isDuplicating}
@@ -1274,6 +1290,7 @@
       topicSuggestions={exerciseTopicSuggestions(exercises)}
       bind:editLehrernachname
       bind:editInfoText
+      bind:editNameLine
       bind:editRetentionUntil
       bind:editGradingKey
       examId={exam?.id}
@@ -1388,6 +1405,9 @@
         onEditMcGroup={editMcGroup}
         pageBreaks={exam.pageBreaks ?? []}
         onTogglePageBreak={toggleExamPageBreak}
+        extraNotes={exam.extraNotes ?? null}
+        onChangeExtraNotes={saveExtraNotes}
+        onOpenExercise={(ex) => (quickEditEx = ex)}
       />
     </div>
   {/if}
@@ -1416,6 +1436,14 @@
   onSetGroupVariant={setGroupVariant}
   onApply={applyLibrarySelection}
   onRequestClose={requestCloseLibraryModal}
+  onQuickEdit={(ex) => (quickEditEx = ex)}
+/>
+
+<ExerciseEditorModal
+  isOpen={quickEditEx !== null}
+  editingExercise={quickEditEx}
+  onClose={() => (quickEditEx = null)}
+  onSave={handleQuickEditSaved}
 />
 
 <ConfirmDialog

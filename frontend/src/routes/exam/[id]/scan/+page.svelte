@@ -1,7 +1,6 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { loadPdfjs } from "#lib/pdf/pdfjs";
-  import { goto } from "$app/navigation";
   import { browser } from "$app/env";
   import {
     detectHardware,
@@ -1034,12 +1033,12 @@
   <UnmatchedResolver {unmatchedList} onUpdateFallbackCode={updateFallbackCode} />
 
   <ScannedSubmissionsTable
+    {examId}
     {scannedSubmissions}
     loading={isLoadingSubmissions}
     {exportingId}
     {isGraded}
     onPreview={openPreview}
-    onGoToGrading={(item) => goto(`/exam/${examId}/grade?submissionId=${item.id}`)}
     onExportPdf={handleExportPdf}
     onSplit={handleSplitSubmission}
     onDeleteGrading={handleDeleteGrading}

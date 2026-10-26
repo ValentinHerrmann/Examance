@@ -21,9 +21,11 @@
     /** MC questions score per correct option: no fixed score and no parts. */
     isMc?: boolean;
     onChange: (latex: string) => void;
+    /** Inside `ExerciseStructureModal`: no toggle row, body always shown. */
+    embedded?: boolean;
   }
 
-  let { latex, isMc = false, onChange }: Props = $props();
+  let { latex, isMc = false, onChange, embedded = false }: Props = $props();
 
   let structure = $derived(parseExerciseStructure(latex));
   let open = $state(false);
@@ -103,7 +105,8 @@
   </Select>
 {/snippet}
 
-<div class="flex shrink-0 flex-col rounded-md border border-line bg-surface-raised text-xs">
+<div class="flex shrink-0 flex-col text-xs {embedded ? '' : 'rounded-md border border-line bg-surface-raised'}">
+  {#if !embedded}
   <button
     type="button"
     class="flex w-full cursor-pointer flex-wrap items-center gap-2 border-0 bg-transparent px-3 py-2 text-left"
@@ -126,9 +129,10 @@
       <span class="text-warning-fg">{$t("exercises.structure.noScoreYet")}</span>
     {/if}
   </button>
+  {/if}
 
-  {#if open}
-    <div class="flex flex-col gap-3 border-t border-line p-3">
+  {#if open || embedded}
+    <div class="flex flex-col gap-3 {embedded ? '' : 'border-t border-line p-3'}">
       <!-- Score: counted from the BE macros unless fixed. -->
       <div class="flex flex-col gap-1">
         <div class="flex flex-wrap items-center gap-2">

@@ -160,14 +160,14 @@ async function initRunner(onStatus: (status: string) => void) {
 
 /**
  * The bundled LaTeX assets, posted once by the main thread (`compiler.ts`, which owns the
- * authenticated fetch) before any preload or compile. `sty/x.sty` is also exposed flat as `x.sty`.
+ * authenticated fetch) before any preload or compile. `sty/x.sty` and `sty/x.tex` are also exposed flat (`\input x.tex`).
  */
 let bundledAssets: { path: string; content: Uint8Array }[] | null = null;
 
 function loadAdditionalFiles(): { path: string; content: Uint8Array }[] {
   if (!bundledAssets) throw new Error('LaTeX assets were not provided to the compiler worker.');
   return bundledAssets.flatMap((file) =>
-    file.path.startsWith('sty/') && file.path.endsWith('.sty')
+    file.path.startsWith('sty/') && /\.(sty|tex)$/.test(file.path)
       ? [file, { path: file.path.replace('sty/', ''), content: file.content }]
       : [file]
   );
@@ -380,7 +380,9 @@ self.onmessage = (e: MessageEvent) => {
             "clearing package cache and retrying once in case the local copy is stale/corrupted."
         );
         await recoverFromPossiblyCorruptedCache();
-        result = await runCompile();
+        const retry = await runCompile();
+        // A retry on the freshly wiped cache fails with spurious misses (ulem.sty); the first error names the real one.
+        if (retry.success) result = retry;
       }
 
       if (!result.success) {

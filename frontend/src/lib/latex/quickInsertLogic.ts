@@ -13,14 +13,25 @@ export interface QuickInsertResult {
 /**
  * Document change and selection for inserting a macro at [from,to). Selected text wraps into the
  * `selectionArgIndex` argument (default 0); other arguments get placeholders, and the returned
- * selection spans the next placeholder to fill.
+ * selection spans the next placeholder to fill. A multi-line snippet gets `% comment` on the line above.
  */
 export function computeQuickInsert(
   macro: QuickInsertMacro,
   selectedText: string,
   from: number,
-  to: number
+  to: number,
+  comment?: string
 ): QuickInsertResult {
+  const result = insertMacro(macro, selectedText, from, to);
+  if (!comment || !result.changes.insert.trimEnd().includes("\n")) return result;
+  const prefix = `% ${comment}\n`;
+  return {
+    changes: { ...result.changes, insert: prefix + result.changes.insert },
+    selection: { anchor: result.selection.anchor + prefix.length, head: result.selection.head + prefix.length }
+  };
+}
+
+function insertMacro(macro: QuickInsertMacro, selectedText: string, from: number, to: number): QuickInsertResult {
   if (macro.args.length === 0) {
     const { text } = macro.buildTemplate([]);
     return {

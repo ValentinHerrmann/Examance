@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Badge, Button, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
+  import { Alert, Badge, Button, CrossLink, EmptyState, LinkButton, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
   import { storagePolicyStore } from "#lib/stores/storagePolicy";
@@ -12,6 +12,8 @@
   import { buildSubmissionMap } from "#lib/utils/studentLookup";
   import type { ExerciseRecord, StudentRecord, SubmissionRecord } from "#lib/db/schema";
   import { t } from "#lib/i18n";
+  import { gradeHref } from "#lib/utils/links";
+  import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
 
   interface Props {
     examId: string;
@@ -36,6 +38,7 @@
   let activeExerciseId: string = $state(untrack(() => exercises[0]?.id || ""));
   let inputElements: (HTMLInputElement | null)[] = $state([]);
 
+  let editEx: ExerciseRecord | null = $state.raw(null);
   let activeExercise = $derived(exercises.find((e) => e.id === activeExerciseId));
   // Raw: holds the parent's submission objects, which handleScoreChange mutates and persists.
   let submissionMap = $state.raw(new Map<string, SubmissionRecord>());
@@ -44,6 +47,9 @@
 
   // Editable buffer (studentIndex -> input string), bound by the inputs; reset when its sources change.
   let rawInputs: Record<number, string> = $state({});
+  // What the last rebuild put in, and for which exercise: a refresh keeps fields edited since then.
+  let loadedRaw: Record<number, string> = {};
+  let loadedRawFor = "";
   let saveError = $state("");
 
   function handleKeyDown(e: KeyboardEvent, index: number) {
@@ -216,7 +222,16 @@
           }
         });
       }
-      rawInputs = newRaw;
+      const merged = { ...newRaw };
+      if (exId === loadedRawFor) {
+        for (const k of Object.keys(merged)) {
+          const idx = Number(k);
+          if (rawInputs[idx] !== undefined && rawInputs[idx] !== loadedRaw[idx]) merged[idx] = rawInputs[idx];
+        }
+      }
+      loadedRaw = newRaw;
+      loadedRawFor = exId;
+      rawInputs = merged;
     });
   });
 </script>
@@ -248,7 +263,7 @@
 
       {#if activeExercise}
         <div class="flex min-w-0 items-center gap-3">
-          <h3 class="m-0 min-w-0 text-lg font-semibold text-content">{activeExercise.name}</h3>
+          <h3 class="m-0 min-w-0 text-lg font-semibold text-content"><LinkButton onClick={() => (editEx = activeExercise)} class="text-content!">{activeExercise.name}</LinkButton></h3>
           <Badge>{$t("grading.manual.exerciseFirst.maxPointsLabel")} <strong class="ml-1">{activeExercise.maxPoints}</strong></Badge>
         </div>
       {/if}
@@ -279,7 +294,13 @@
             {@const isInvalid = valStr !== "" && (isNaN(numVal) || numVal < 0 || (activeExercise && numVal > activeExercise.maxPoints))}
             <tr>
               <td>{i + 1}</td>
-              <td><strong>{st.studentName || $t("grading.manual.exerciseFirst.unnamed")}</strong></td>
+              <td>
+                {#if sub}
+                  <strong><CrossLink href={gradeHref(examId, { submissionId: sub.id })} class="text-content">{st.studentName || $t("grading.manual.exerciseFirst.unnamed")}</CrossLink></strong>
+                {:else}
+                  <strong>{st.studentName || $t("grading.manual.exerciseFirst.unnamed")}</strong>
+                {/if}
+              </td>
               <td>{st.studentNumber || "-"}</td>
               <td class="whitespace-nowrap">
                 <input
@@ -324,3 +345,7 @@
     </div>
   {/if}
 </div>
+
+{#if editEx}
+  <ExerciseEditorModal isOpen editingExercise={editEx} onClose={() => (editEx = null)} onSave={() => onScoresChanged()} />
+{/if}

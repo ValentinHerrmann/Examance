@@ -39,7 +39,7 @@ export class ResourceError extends Error {}
 
 /**
  * Names a user file must not take: `main.tex` and friends, the exam logo's names (`logo.ts`), and every bundled LaTeX asset (basenames
- * too, since the worker flattens `sty/x.sty`). Loaded from the server's asset index, cached;
+ * too, since the worker flattens `sty/x.sty` and `sty/x.tex`). Loaded from the server's asset index, cached;
  * failure degrades to the static base list rather than blocking an upload.
  */
 const BASE_RESERVED_NAMES = ['main.tex', 'main.log', 'main.aux', 'main.pdf', 'index.json', ...LOGO_FILENAMES];

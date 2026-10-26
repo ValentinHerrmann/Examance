@@ -1,8 +1,8 @@
-import type { ExamRecord, ExerciseRecord } from "#lib/db/schema";
+import type { ExamRecord, ExerciseRecord, ExtraNotes } from "#lib/db/schema";
 import type { McGroup } from "#lib/db/dbEncryption";
 import { compileWithCache, getCachedFor, getLatestForSlot, type CachedCompileEntry } from "#lib/latex/compileCache";
 import type { CompileResult } from "#lib/latex/compiler";
-import { formatExerciseLatex, formatMcGroupLatex } from "#lib/latex/scoreParser";
+import { escapeLatex, formatExerciseLatex, formatMcGroupLatex } from "#lib/latex/scoreParser";
 import type { ExamItemRef } from "#lib/grading/omrTemplatePrep";
 import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
 import { resolveCompileLogo, type CompileLogo } from "#lib/latex/logo";
@@ -87,6 +87,7 @@ export async function collectExamResources(
 /**
  * Full exam document. `options` are the Schulaufgabe.sty options (`sans,punkte[,antworten]`); `accountPackages` is
  * the account's package list (`getAccountPackages()`), merged with the exam's and the exercises' own.
+ * The exam's own layout options (`namenszeile`) are added here.
  */
 export function buildExamLatex(
   exam: ExamRecord,
@@ -95,7 +96,7 @@ export function buildExamLatex(
   accountPackages: readonly LatexPackageEntry[]
 ): string {
   const doc = `\\documentclass[a4paper]{article}
-\\usepackage[${options}]{sty/Schulaufgabe}
+\\usepackage[${withExamOptions(options, exam.nameLine)}]{sty/Schulaufgabe}
 \\Info{${exam.infoText || ""}}
 \\Fach{${exam.fach || "Informatik"}}
 \\Lehrernachname{${exam.lehrernachname || ""}}
@@ -111,9 +112,23 @@ export function buildExamLatex(
 \\Nr{${exam.nr || "1"}}
 
 ${exerciseInputs}
-
+${extraNotesLatex(exam.extraNotes)}
 \\end{document}`;
   return withPackages(doc, documentLayers(accountPackages, exerciseInputs, exam.latexPackages));
+}
+
+/** The closing `\ExamNotes` karo block (issue #156), or "" when off; mirrors `compile_exam_latex`. */
+export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
+  if (!notes) return "";
+  const clamp = (v: number) => (Number.isFinite(v) ? Math.min(25, Math.max(1, v)) : 1);
+  const min = clamp(notes.minHeightCm);
+  const max = Math.max(min, clamp(notes.maxHeightCm));
+  return `\n\\ExamNotes{${escapeLatex(notes.title)}}{${escapeLatex(notes.description ?? "")}}{${min}}{${max}}\n`;
+}
+
+/** Adds the exam's layout switches to the Schulaufgabe.sty options; mirrors `compile_exam_latex`. */
+export function withExamOptions(options: string, nameLine: boolean | undefined): string {
+  return nameLine ? `${options},namenszeile` : options;
 }
 
 export interface ExamPreviewInput {

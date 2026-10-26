@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, timedelta
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.config import settings
 from app.schemas.latex_packages import LatexPackageEntry, check_entry_list
@@ -38,6 +38,21 @@ def validate_retention_until(value: date | None) -> date | None:
 def normalize_topic(value: Any) -> Any:
     """Trim the optional exam topic; blank means none. Runs before max_length (padding is free)."""
     return (value.strip() or None) if isinstance(value, str) else value
+
+
+class ExtraNotes(BaseModel):
+    """Karo block at the end of the exam; heights in cm, the layout fills the page within them."""
+
+    title: str = Field(max_length=200)
+    description: str = Field(default="", max_length=500)
+    min_height_cm: float = Field(ge=1, le=25)
+    max_height_cm: float = Field(ge=1, le=25)
+
+    @model_validator(mode="after")
+    def _ordered(self) -> Self:
+        if self.min_height_cm > self.max_height_cm:
+            raise ValueError("min_height_cm must not exceed max_height_cm.")
+        return self
 
 
 _MAX_PAGE_BREAKS = 500
@@ -190,6 +205,8 @@ class ExamCreate(BaseModel):
     # Package entries on top of the account's (issue #108); null follows the account.
     latex_packages: list[LatexPackageEntry] | None = None
     page_breaks: list[str] | None = None
+    name_line: bool = False
+    extra_notes: ExtraNotes | None = None
     exercise_ids: list[uuid.UUID] = []
     exercise_links: list[ExerciseLinkCreate] = []
     exercises: list[ExerciseCreate] = []
@@ -228,6 +245,9 @@ class ExamUpdate(BaseModel):
     latex_packages: list[LatexPackageEntry] | None = None
     # Absent keeps the stored breaks; null or [] clears them.
     page_breaks: list[str] | None = None
+    name_line: bool | None = None
+    # Absent keeps the stored block; null switches it off.
+    extra_notes: ExtraNotes | None = None
     exercise_ids: list[uuid.UUID] | None = None
     exercise_links: list[ExerciseLinkCreate] | None = None
     mc_groups: list[ExamMcGroupCreate] | None = None
@@ -258,6 +278,8 @@ class ExamResponse(BaseModel):
     grading_key: dict[str, Any] | None = None
     latex_packages: list[LatexPackageEntry] | None = None
     page_breaks: list[str] | None = None
+    name_line: bool = False
+    extra_notes: ExtraNotes | None = None
     exercises: list[ExerciseResponse] = []
     mc_groups: list[ExamMcGroupResponse] = []
 

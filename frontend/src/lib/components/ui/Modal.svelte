@@ -14,7 +14,7 @@
 
   /**
    * The single dialog shell (Artemis spec): backdrop, z-index, focus, scroll lock, Escape and the phone sheet are decided once.
-   * Widths: small 32rem, medium 48rem, large 72rem, full 90dvw x 90dvh; below `sm` all but `small` become a full-height sheet.
+   * Widths: small 32rem, medium 48rem, large 72rem, full = viewport minus a 1rem frame; below `sm` all but `small` become a full-height sheet.
    * The panel is a size container: use `@md:`/`@xl:` container variants inside, never viewport `sm:`/`lg:`.
    */
   type Size = "small" | "medium" | "large" | "full";
@@ -63,7 +63,7 @@
     small: "max-w-lg",
     medium: "sm:max-w-3xl",
     large: "sm:max-w-6xl",
-    full: "sm:max-w-none sm:w-[90dvw]",
+    full: "sm:max-w-none",
   };
 
   const id = Symbol("modal");
@@ -154,9 +154,10 @@
   let isSheet = $derived(size !== "small");
   // One height class only: with both, Tailwind lets sm:h-auto beat sm:h-[90dvh] and the
   // panel's h-full children collapse (blank PDF viewers, issue #93).
-  let fixedHeight = $derived(size === "full" || tall);
+  // `full` fills the overlay up to its 1rem padding, so the backdrop stays visible as a thin frame.
+  let sheetHeight = $derived(size === "full" ? "sm:h-full sm:max-h-full" : `${tall ? "sm:h-[90dvh]" : "sm:h-auto"} sm:max-h-[90dvh]`);
   let panelShape = $derived(isSheet
-    ? `h-dvh ${fixedHeight ? "sm:h-[90dvh]" : "sm:h-auto"} sm:max-h-[90dvh] sm:rounded-xl sm:border sm:border-line sm:shadow-xl`
+    ? `h-dvh ${sheetHeight} sm:rounded-xl sm:border sm:border-line sm:shadow-xl`
     : `max-h-[90dvh] rounded-xl border border-line shadow-xl ${tall ? "sm:h-[90dvh]" : ""}`);
   let overlayShape = $derived(isSheet ? "items-stretch sm:items-center sm:p-4" : "items-center p-4");
 

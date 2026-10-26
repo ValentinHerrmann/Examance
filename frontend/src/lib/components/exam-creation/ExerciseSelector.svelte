@@ -161,6 +161,7 @@
             onRemove={onToggleMcStaging}
             onReorder={onReorderMcStaging}
             onFinalize={onFinalizeMcGroup}
+            onOpenExercise={onQuickEdit}
           />
         </div>
       {/if}

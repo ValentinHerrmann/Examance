@@ -161,7 +161,7 @@ export async function createExercise(
 
   if (spec.mc) {
     await editor.getByRole('button', { name: await l(page, 'exercises.editor.mcButton') }).click();
-    // First editor = question text; the second one is the assembled LaTeX.
+    // The question text is the only inline editor; the assembled LaTeX opens in its own dialog.
     await setCodeMirror(page, editor, spec.mc.question, 0);
 
     // The structured editor starts with a default option set; make it match.

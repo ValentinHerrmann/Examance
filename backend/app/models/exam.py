@@ -49,6 +49,10 @@ class Exam(Base):
     latex_packages: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     # Item ids (exercise or MC group) that start on a new page; plaintext layout metadata.
     page_breaks: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    # Adds a handwritten name line next to the QR sticker box (issue #127).
+    name_line: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
+    # Karo block at the end (issue #156): {title, min/max_height_cm}; null = off.
+    extra_notes: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     exercises: Mapped[list[Exercise]] = relationship(
         "Exercise", backref="exam", cascade="all, delete-orphan"
