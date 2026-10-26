@@ -26,9 +26,11 @@ interface MaintenanceState {
   /** Server clock minus local clock, so countdowns do not depend on the device's time. */
   offsetMs: number;
   reachable: boolean;
+  /** True once one poll has been answered; before that "no window" only means "not asked yet". */
+  checked: boolean;
 }
 
-export const maintenanceStore = writable<MaintenanceState>({ status: null, offsetMs: 0, reachable: true });
+export const maintenanceStore = writable<MaintenanceState>({ status: null, offsetMs: 0, reachable: true, checked: false });
 
 /** A window this tab knew about just ended: cancelled before the downtime, or finished after it. */
 export interface MaintenanceEnded {
@@ -93,7 +95,7 @@ export function refreshMaintenance(): Promise<void> {
       const response = await fetch(`${origin}/api/v1/maintenance`, { credentials: 'include' });
       if (response.status === 404) {
         // A backend older than this feature: no maintenance announcements.
-        maintenanceStore.set({ status: null, offsetMs: 0, reachable: true });
+        maintenanceStore.set({ status: null, offsetMs: 0, reachable: true, checked: true });
         syncTicker(null);
         return;
       }
@@ -101,7 +103,7 @@ export function refreshMaintenance(): Promise<void> {
       const status = (await response.json()) as MaintenanceStatus;
       const offsetMs = Date.parse(status.server_time) - (sentAt + Date.now()) / 2;
       const before = get(maintenanceStore);
-      maintenanceStore.set({ status, offsetMs: Number.isFinite(offsetMs) ? offsetMs : 0, reachable: true });
+      maintenanceStore.set({ status, offsetMs: Number.isFinite(offsetMs) ? offsetMs : 0, reachable: true, checked: true });
       if (isOpen(status)) {
         maintenanceEnded.set(null);
       } else if (isOpen(before.status)) {
