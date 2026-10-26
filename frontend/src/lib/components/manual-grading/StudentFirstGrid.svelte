@@ -57,6 +57,9 @@
 
   // Editable buffer for the current student (exerciseIndex -> input string), bound by the inputs.
   let rawInputs: Record<number, string> = $state({});
+  // What the last rebuild put in, and for which submission: a refresh keeps fields edited since then.
+  let loadedRaw: Record<number, string> = {};
+  let loadedRawFor = "";
   let saveError = $state("");
 
   let totalMaxPoints = $derived(exercises.reduce((sum, ex) => sum + (ex.maxPoints || 0), 0));
@@ -184,18 +187,17 @@
     onScoresChanged();
   }
 
+  // Target computed before the save's await (issue #85 rule): the save triggers a data refresh.
   async function prevStudent() {
+    const target = Math.max(0, currentStudentIndex - 1);
     if (!(await handleSaveCurrentStudent())) return;
-    if (currentStudentIndex > 0) {
-      currentStudentIndex -= 1;
-    }
+    currentStudentIndex = target;
   }
 
   async function nextStudent() {
+    const target = Math.min(students.length - 1, currentStudentIndex + 1);
     if (!(await handleSaveCurrentStudent())) return;
-    if (currentStudentIndex < students.length - 1) {
-      currentStudentIndex += 1;
-    }
+    currentStudentIndex = target;
   }
 
   $effect.pre(() => {
@@ -222,7 +224,17 @@
           newRaw[idx] = val !== null && val !== undefined ? String(val) : "";
         });
       }
-      rawInputs = newRaw;
+      const subId = sub?.id ?? "";
+      const merged = { ...newRaw };
+      if (subId && subId === loadedRawFor) {
+        for (const k of Object.keys(merged)) {
+          const idx = Number(k);
+          if (rawInputs[idx] !== undefined && rawInputs[idx] !== loadedRaw[idx]) merged[idx] = rawInputs[idx];
+        }
+      }
+      loadedRaw = newRaw;
+      loadedRawFor = subId;
+      rawInputs = merged;
     });
   });
 </script>

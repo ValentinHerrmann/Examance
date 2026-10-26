@@ -45,6 +45,9 @@
 
   // Editable buffer (studentIndex -> input string), bound by the inputs; reset when its sources change.
   let rawInputs: Record<number, string> = $state({});
+  // What the last rebuild put in, and for which exercise: a refresh keeps fields edited since then.
+  let loadedRaw: Record<number, string> = {};
+  let loadedRawFor = "";
   let saveError = $state("");
 
   function handleKeyDown(e: KeyboardEvent, index: number) {
@@ -217,7 +220,16 @@
           }
         });
       }
-      rawInputs = newRaw;
+      const merged = { ...newRaw };
+      if (exId === loadedRawFor) {
+        for (const k of Object.keys(merged)) {
+          const idx = Number(k);
+          if (rawInputs[idx] !== undefined && rawInputs[idx] !== loadedRaw[idx]) merged[idx] = rawInputs[idx];
+        }
+      }
+      loadedRaw = newRaw;
+      loadedRawFor = exId;
+      rawInputs = merged;
     });
   });
 </script>

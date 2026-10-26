@@ -46,16 +46,21 @@
     await refreshAllData();
   });
 
+  // Loading state only on the first load: hiding the grid on a refresh remounts it and resets its tab/student.
+  let loaded = false;
+  // Blur and change both save, so refreshes overlap; only the newest may write.
+  let refreshSeq = 0;
+
   async function refreshAllData() {
-    loading = true;
-    loadError = "";
+    const seq = ++refreshSeq;
+    if (!loaded) loading = true;
     const key = get(sessionStore).sessionKey;
     try {
-      exam = (await loadExamEncrypted(examId, key)) || null;
+      const nextExam = (await loadExamEncrypted(examId, key)) || null;
       const exList = await loadExamExercisesEncrypted(examId, key);
-      exercises = exList.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-      students = await studentRepository.getByExamId(examId, key);
-      submissions = await submissionRepository.getByExamId(examId, key);
+      const nextExercises = exList.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+      const nextStudents = await studentRepository.getByExamId(examId, key);
+      const nextSubmissions = await submissionRepository.getByExamId(examId, key);
 
       // One request for the whole exam instead of one per submission, to
       // avoid an N+1 over the network in server mode.
@@ -68,9 +73,9 @@
       }
 
       const newScoresMap = new Map<string, Record<string, number | null>>();
-      for (const sub of submissions) {
+      for (const sub of nextSubmissions) {
         const mapForSub: Record<string, number | null> = {};
-        for (const ex of exercises) {
+        for (const ex of nextExercises) {
           mapForSub[ex.id] = null;
         }
         for (const s of scoresBySubmission.get(sub.id) ?? []) {
@@ -80,12 +85,20 @@
         }
         newScoresMap.set(sub.id, mapForSub);
       }
+      if (seq !== refreshSeq) return;
+      exam = nextExam;
+      exercises = nextExercises;
+      students = nextStudents;
+      submissions = nextSubmissions;
       scoresMap = newScoresMap;
+      loadError = "";
+      loaded = true;
     } catch (err) {
+      if (seq !== refreshSeq) return;
       console.error("Failed to load manual grading data:", err);
       loadError = err instanceof Error ? err.message : String(err);
     } finally {
-      loading = false;
+      if (seq === refreshSeq) loading = false;
     }
   }
 
