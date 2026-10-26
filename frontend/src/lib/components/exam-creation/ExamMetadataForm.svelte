@@ -3,6 +3,8 @@
   import SuggestInput from "#lib/components/common/SuggestInput.svelte";
   import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from "#lib/utils/examLabel";
   import { t } from "#lib/i18n";
+  import ExtraNotesField from "#lib/components/exam/ExtraNotesField.svelte";
+  import type { ExtraNotes } from "#lib/db/schema";
   import { Card, Checkbox, Field, TextInput, Textarea, controlClass } from "#lib/components/ui";
 
   interface Props {
@@ -20,6 +22,8 @@
     infoText: string;
     /** Name line next to the QR box (issue #127). */
     nameLine?: boolean;
+    /** Karo block for extra solutions at the end (issue #156); null = off. */
+    extraNotes?: ExtraNotes | null;
   }
 
   let {
@@ -34,7 +38,8 @@
     topicSuggestions = [],
     lehrernachname = $bindable(),
     infoText = $bindable(),
-    nameLine = $bindable(false)
+    nameLine = $bindable(false),
+    extraNotes = $bindable(null)
   }: Props = $props();
 
   let fullCoursePreview = $derived(formatExamCourse(grade, klasse));
@@ -186,5 +191,15 @@
     <Checkbox id="nameLine" bind:checked={nameLine} label={$t("examCreation.metadataForm.nameLineLabel")} />
     <p class="m-0 text-sm text-muted">{$t("examCreation.metadataForm.nameLineHint")}</p>
   </div>
+
+  <ExtraNotesField
+    bind:value={extraNotes}
+    idPrefix="extraNotes"
+    label={$t("examCreation.metadataForm.extraNotesLabel")}
+    hint={$t("examCreation.metadataForm.extraNotesHint")}
+    titleLabel={$t("examCreation.metadataForm.extraNotesTitle")}
+    minLabel={$t("examCreation.metadataForm.extraNotesMin")}
+    maxLabel={$t("examCreation.metadataForm.extraNotesMax")}
+  />
   </div>
 </Card>

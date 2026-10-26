@@ -46,7 +46,7 @@
   import { api } from "#lib/api/client";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { studentRepository } from "#lib/repositories/studentRepository";
-  import { examRepository, mapApiToExamRecord } from "#lib/repositories/examRepository";
+  import { examRepository, mapApiToExamRecord, extraNotesToApi } from "#lib/repositories/examRepository";
   import { mapExerciseRecordToApi } from "#lib/repositories/exerciseRepository";
   import { uint8ArrayToBase64, decrypt } from "#lib/crypto/aesGcm";
   import { ensure64CharHex } from "#lib/crypto/hmac";
@@ -61,7 +61,7 @@
   import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
   import { examReportFiles } from "#lib/layout-report/collect";
   import { getPresetCutoffs } from "#lib/analytics/gradingKey";
-  import type { GradingKeyConfig } from "#lib/db/schema";
+  import type { GradingKeyConfig, ExtraNotes } from "#lib/db/schema";
   import { goto } from "$app/navigation";
   import ExamMetadata from "#lib/components/exam/ExamMetadata.svelte";
   import ExamActionBar from "#lib/components/exam/ExamActionBar.svelte";
@@ -381,6 +381,7 @@
         latex_packages: exam.latexPackages,
         page_breaks: exam.pageBreaks,
         name_line: exam.nameLine,
+        extra_notes: extraNotesToApi(exam.extraNotes ?? null),
         latex_template: exam.latexTemplate,
         retention_until:
           exam.retentionUntil ||
@@ -611,6 +612,8 @@
   let editLehrernachname = $state("");
   let editInfoText = $state("");
   let editNameLine = $state(false);
+  let editExtraNotes = $state<ExtraNotes | null>(null);
+  let initialExtraNotes = $state("null");
   let editLogoChange: ExamLogoChange | null = $state.raw(null);
   let editLatexPackages: LatexPackageEntry[] | null = $state.raw(null);
   let initialLatexPackages = $state("null");
@@ -649,6 +652,7 @@
         editLehrernachname !== initialMetadata.lehrernachname ||
         editInfoText !== initialMetadata.infoText ||
         editNameLine !== initialMetadata.nameLine ||
+        JSON.stringify(editExtraNotes) !== initialExtraNotes ||
         editLogoChange !== null ||
         JSON.stringify(editLatexPackages) !== initialLatexPackages ||
         editRetentionUntil !== initialMetadata.retentionUntil),
@@ -730,6 +734,8 @@
     editLehrernachname = exam.lehrernachname || "";
     editInfoText = exam.infoText || "";
     editNameLine = exam.nameLine === true;
+    editExtraNotes = exam.extraNotes ? { ...exam.extraNotes } : null;
+    initialExtraNotes = JSON.stringify(editExtraNotes);
     editRetentionUntil = exam.retentionUntil || "";
     editGradingKey = exam.gradingKey || {
       preset: "linear_50",
@@ -796,6 +802,7 @@
           lehrernachname: editLehrernachname,
           info_text: editInfoText,
           name_line: editNameLine,
+          extra_notes: extraNotesToApi(editExtraNotes),
           grading_key: gradingKey,
           latex_packages: latexPackages,
           retention_until: editRetentionUntil,
@@ -815,6 +822,7 @@
         lehrernachname: editLehrernachname,
         infoText: editInfoText,
         nameLine: editNameLine,
+        extraNotes: $state.snapshot(editExtraNotes),
         retentionUntil: editRetentionUntil,
         gradingKey,
         latexPackages,
@@ -1276,6 +1284,7 @@
       bind:editLehrernachname
       bind:editInfoText
       bind:editNameLine
+      bind:editExtraNotes
       bind:editRetentionUntil
       bind:editGradingKey
       examId={exam?.id}

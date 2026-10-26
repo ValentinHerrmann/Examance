@@ -20,6 +20,19 @@ export interface GradingKeyConfig {
   cutoffs: GradeCutoff[];
 }
 
+/** Optional karo block at the end of an exam (issue #156); the printed title stays German. */
+export interface ExtraNotes {
+  title: string;
+  minHeightCm: number;
+  maxHeightCm: number;
+}
+
+export const DEFAULT_EXTRA_NOTES: ExtraNotes = {
+  title: 'Platz für weitere Lösungen. Zugehörigkeit zu einer Aufgabe bitte deutlich darstellen.',
+  minHeightCm: 4,
+  maxHeightCm: 12,
+};
+
 export interface ExamRecord extends MaybeUndecryptable {
   id: string;            // UUID
   teacherId: string;
@@ -44,6 +57,8 @@ export interface ExamRecord extends MaybeUndecryptable {
   pageBreaks?: string[] | null;
   /** Prints a handwritten name line next to the QR sticker box (issue #127); layout only. */
   nameLine?: boolean;
+  /** Karo block for extra solutions at the end of the exam (issue #156); null/absent = off; layout only. */
+  extraNotes?: ExtraNotes | null;
   retentionUntil: string;  // ISO date string
   compilationStatus: 'pending' | 'compiled' | 'failed';
   createdAt: string;

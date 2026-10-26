@@ -14,13 +14,13 @@
   import { resolveCompileLogo } from "#lib/latex/logo";
   import { documentLayers, withPackages } from "#lib/latex/packages";
   import { getAccountPackages } from "#lib/latex/packageSettings";
-  import { withExamOptions } from "#lib/exam/examPreview";
+  import { withExamOptions, extraNotesLatex } from "#lib/exam/examPreview";
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import { get } from "svelte/store";
   import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import GradingKeyEditor from "#lib/components/GradingKeyEditor.svelte";
   import { getPresetCutoffs } from "#lib/analytics/gradingKey";
-  import type { GradingKeyConfig } from "#lib/db/schema";
+  import type { GradingKeyConfig, ExtraNotes } from "#lib/db/schema";
   import ExamMetadataForm from "#lib/components/exam-creation/ExamMetadataForm.svelte";
   import ExerciseSelector from "#lib/components/exam-creation/ExerciseSelector.svelte";
   import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
@@ -62,6 +62,7 @@
     \\item Mit Bleistift oder rot/rosa Geschriebenes kann \\textbf{nicht} gewertet werden!
 \\end{itemize}`;
   let nameLine = $state(false);
+  let extraNotes = $state<ExtraNotes | null>(null);
   let infoText = $state(defaultInfoText(false));
   let retentionDays = 365;
 
@@ -404,7 +405,7 @@ Frage hier eingeben... \\BE
 \\Nr{${nr}}
 
 ${exerciseInputs}
-
+${extraNotesLatex(extraNotes)}
 \\end{document}`, documentLayers(accountPackages, exerciseInputs));
 
       const fullTexAngabe = getPreamble("sans,punkte");
@@ -534,6 +535,7 @@ ${exerciseInputs}
         lehrernachname,
         infoText,
         nameLine,
+        extraNotes: $state.snapshot(extraNotes),
         gradingKey: $state.snapshot(gradingKey),
         retentionUntil,
         compilationStatus: "pending",
@@ -704,6 +706,7 @@ ${exerciseInputs}
           bind:lehrernachname
           bind:infoText
           bind:nameLine
+          bind:extraNotes
         />
 
         <!-- Grading Key Section -->

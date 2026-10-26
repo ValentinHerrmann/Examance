@@ -32,6 +32,7 @@ from app.schemas.exam import (
     ExamResponse,
     ExamUpdate,
     ExerciseResponse,
+    ExtraNotes,
 )
 from app.schemas.latex_packages import LatexPackageEntry
 from app.services import audit as audit_svc
@@ -124,6 +125,7 @@ def _to_exam_response(
         latex_packages=_stored_packages(e.latex_packages),
         page_breaks=e.page_breaks,
         name_line=e.name_line,
+        extra_notes=ExtraNotes.model_validate(e.extra_notes) if e.extra_notes else None,
         exercises=[_to_exercise_response(ex, idx, gid, sidx) for ex, idx, gid, sidx in exercises],
         mc_groups=[
             ExamMcGroupResponse(
@@ -365,6 +367,7 @@ async def create_exam(
         "latex_packages": _packages_column(body.latex_packages),
         "page_breaks": body.page_breaks,
         "name_line": body.name_line,
+        "extra_notes": body.extra_notes.model_dump() if body.extra_notes else None,
     }
     if body.id:
         kwargs["id"] = body.id
@@ -486,6 +489,7 @@ async def duplicate_exam(
         info_text=source.info_text,
         grading_key=copy.deepcopy(source.grading_key),
         name_line=source.name_line,
+        extra_notes=source.extra_notes,
         latex_packages=copy.deepcopy(source.latex_packages),
     )
     db.add(exam)
@@ -614,6 +618,8 @@ async def update_exam(
         exam.page_breaks = body.page_breaks or None
     if body.name_line is not None:
         exam.name_line = body.name_line
+    if "extra_notes" in body.model_fields_set:
+        exam.extra_notes = body.extra_notes.model_dump() if body.extra_notes else None
 
     if body.mc_groups is not None:
         # Detach the links before dropping the groups. exam_exercises.mc_group_id

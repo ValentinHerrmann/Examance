@@ -47,6 +47,11 @@ export const examCreation: Translations['examCreation'] = {
         infoLabel: 'Header Info Instructions (\\Info)',
         nameLineLabel: 'Print a name line next to the QR code box',
         nameLineHint: 'Students write their name on the title page. The QR code box stays; its initials field is dropped.',
+        extraNotesLabel: 'Print space for extra solutions at the end',
+        extraNotesHint: 'A grid area at the end of the exam fills the rest of the last page (without an unnecessary new page), between a minimum and a maximum height.',
+        extraNotesTitle: 'Heading (printed in German)',
+        extraNotesMin: 'Minimum height (cm)',
+        extraNotesMax: 'Maximum height (cm)',
     },
     exerciseSelector: {
         heading: '2. Select Exercises',

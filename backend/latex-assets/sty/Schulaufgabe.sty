@@ -461,6 +461,37 @@
 % Teacher override: a page break exactly here; the blocks on both sides keep their rules.
 \newcommand{\Seitenumbruch}{\par\ifSA@inblock\SA@blockend\newpage\SA@blockbegin\z@\else\newpage\fi}
 
+% Karo block for extra solutions as the last item of the exam (issue #156). #1 title, #2/#3 min/max height in cm.
+% It fills the space left on the page (minus the points table, which \AtEndDocument sets at the bottom) within
+% min..max and only moves to a new page when even min does not fit. Call it in vertical mode at a block boundary.
+\newdimen\EN@avail
+\newdimen\EN@title
+\newdimen\EN@fill
+\newcount\EN@rows
+\newcommand{\ExamNotes}[3]{%
+    \par
+    \begingroup
+    \setbox\z@\vbox{\hsize\textwidth\noindent\textbf{#1}\par}%
+    \EN@title=\dimexpr\ht\z@+\dp\z@+5mm\relax
+    \ifdim\pagegoal=\maxdimen \EN@avail=\textheight \else \EN@avail=\dimexpr\pagegoal-\pagetotal\relax \fi
+    \ifthenelse{\boolean{Pkt}}{\advance\EN@avail by -36mm}{}%
+    \EN@fill=\dimexpr\EN@avail-\EN@title\relax
+    \ifdim\EN@fill<#2cm
+        \newpage
+        \EN@fill=\dimexpr\textheight-\EN@title\relax
+        \ifthenelse{\boolean{Pkt}}{\advance\EN@fill by -36mm}{}%
+    \fi
+    \ifdim\EN@fill>#3cm \EN@fill=#3cm \fi
+    \ifdim\EN@fill<#2cm \EN@fill=#2cm \fi
+    \EN@rows=\EN@fill
+    \divide\EN@rows by 0.5cm
+    \ifnum\EN@rows<\@ne \EN@rows=\@ne \fi
+    \vspace{3mm}%
+    \noindent\textbf{#1}\par\nobreak\vspace{2mm}%
+    \noindent\kariert[0.5cm]{\the\EN@rows}\par
+    \endgroup
+}
+
 % A picture never ends a page: it stays with the text after it.
 \def\SA@keepwithnext{\ifvmode\else\ifinner\else\vadjust{\penalty\@M}\fi\fi}
 \AtBeginDocument{%

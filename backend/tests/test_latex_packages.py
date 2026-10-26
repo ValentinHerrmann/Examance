@@ -191,3 +191,25 @@ async def test_exam_compile_writes_all_levels_before_documentclass() -> None:
     assert "\\PassOptionsToPackage{table}{xcolor}" in head
     assert "\\PassOptionsToPackage{locale=DE}{siunitx}" in head
     assert "\\usetikzlibrary{mindmap}%" in head
+
+
+@pytest.mark.asyncio
+async def test_exam_compile_appends_extra_notes_block_last() -> None:
+    exam = SimpleNamespace(
+        testart="Kurzarbeit",
+        klasse="10a",
+        datum="",
+        nr="1",
+        fach="Informatik",
+        lehrernachname="",
+        info_text="",
+        extra_notes={"title": "Platz & mehr", "min_height_cm": 4, "max_height_cm": 99},
+    )
+    exercise = SimpleNamespace(id="ex-1", name="A", latex_body="Text \\BE")
+    fake_compile = AsyncMock(return_value=b"%PDF")
+    with patch("app.services.latex.compile_latex", fake_compile):
+        await compile_exam_latex(exam, [(exercise, 1, None, None)])
+    main_tex = fake_compile.call_args.args[0]
+    notes = "\\ExamNotes{Platz \\& mehr}{4.0}{25.0}"
+    assert notes in main_tex
+    assert main_tex.index("\\input{") < main_tex.index(notes) < main_tex.index("\\end{document}")

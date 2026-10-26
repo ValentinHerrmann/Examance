@@ -118,6 +118,11 @@ export const exam: Translations['exam'] = {
         infoText: 'Info Text (LaTeX list)',
         nameLine: 'Print a name line next to the QR code box',
         nameLineHint: 'Students write their name on the title page. The QR code box stays; its initials field is dropped.',
+        extraNotes: 'Print space for extra solutions at the end',
+        extraNotesHint: 'A grid area at the end of the exam fills the rest of the last page (without an unnecessary new page), between a minimum and a maximum height.',
+        extraNotesTitle: 'Heading (printed in German)',
+        extraNotesMin: 'Minimum height (cm)',
+        extraNotesMax: 'Maximum height (cm)',
     },
     libraryModal: {
         header: 'Link Exercises from Library',

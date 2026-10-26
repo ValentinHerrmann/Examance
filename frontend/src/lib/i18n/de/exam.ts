@@ -116,6 +116,11 @@ export const exam = {
         infoText: 'Infotext (LaTeX-Liste)',
         nameLine: 'Namenszeile neben dem QR-Code-Feld drucken',
         nameLineHint: 'Die Schüler:innen schreiben ihren Namen auf die Titelseite. Das QR-Code-Feld bleibt, das Initialenfeld darin entfällt.',
+        extraNotes: 'Platz für weitere Lösungen am Ende drucken',
+        extraNotesHint: 'Ein Karo-Feld am Ende der Prüfung füllt den Rest der letzten Seite (ohne unnötige neue Seite), zwischen Mindest- und Maximalhöhe.',
+        extraNotesTitle: 'Überschrift (wird auf Deutsch gedruckt)',
+        extraNotesMin: 'Mindesthöhe (cm)',
+        extraNotesMax: 'Maximalhöhe (cm)',
     },
     libraryModal: {
         header: 'Aufgaben aus der Bibliothek verknüpfen',

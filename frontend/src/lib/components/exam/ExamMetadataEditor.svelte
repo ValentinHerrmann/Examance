@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import type { GradingKeyConfig } from '#lib/db/schema';
+  import type { GradingKeyConfig, ExtraNotes } from '#lib/db/schema';
+  import ExtraNotesField from '#lib/components/exam/ExtraNotesField.svelte';
   import GradingKeyEditor from '#lib/components/GradingKeyEditor.svelte';
   import LatexEditor from '#lib/components/LatexEditor.svelte';
   import SuggestInput from '#lib/components/common/SuggestInput.svelte';
@@ -29,6 +30,8 @@
     editInfoText: string;
     /** Name line next to the QR box (issue #127). */
     editNameLine?: boolean;
+    /** Karo block for extra solutions at the end (issue #156); null = off. */
+    editExtraNotes?: ExtraNotes | null;
     editRetentionUntil: string;
     editGradingKey: GradingKeyConfig;
     /** Exam whose logo choice is edited; the staged choice lands in `logoChange`. */
@@ -56,6 +59,7 @@
     editLehrernachname = $bindable(),
     editInfoText = $bindable(),
     editNameLine = $bindable(false),
+    editExtraNotes = $bindable(null),
     editRetentionUntil = $bindable(),
     editGradingKey = $bindable(),
     examId = undefined,
@@ -168,6 +172,18 @@
   <div class="mb-4 flex flex-col gap-1">
     <Checkbox id="editNameLine" bind:checked={editNameLine} label={$t("exam.metadataEditor.nameLine")} />
     <p class="m-0 text-sm text-muted">{$t("exam.metadataEditor.nameLineHint")}</p>
+  </div>
+
+  <div class="mb-4">
+    <ExtraNotesField
+      bind:value={editExtraNotes}
+      idPrefix="editExtraNotes"
+      label={$t("exam.metadataEditor.extraNotes")}
+      hint={$t("exam.metadataEditor.extraNotesHint")}
+      titleLabel={$t("exam.metadataEditor.extraNotesTitle")}
+      minLabel={$t("exam.metadataEditor.extraNotesMin")}
+      maxLabel={$t("exam.metadataEditor.extraNotesMax")}
+    />
   </div>
 
   {#if examId && isOpen}

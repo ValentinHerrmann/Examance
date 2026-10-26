@@ -185,7 +185,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       },
       {
         headingKey: "help.topics.examCreation.s4.h",
-        bodyKeys: ["help.topics.examCreation.s4.p1", "help.topics.examCreation.s4.p2", "help.topics.examCreation.s4.p3", "help.topics.examCreation.s4.p4"],
+        bodyKeys: ["help.topics.examCreation.s4.p1", "help.topics.examCreation.s4.p2", "help.topics.examCreation.s4.p3", "help.topics.examCreation.s4.p4", "help.topics.examCreation.s4.p5"],
       },
     ],
   },
