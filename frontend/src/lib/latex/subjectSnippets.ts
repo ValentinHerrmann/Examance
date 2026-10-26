@@ -45,13 +45,17 @@ export const SUBJECT_SNIPPETS: QuickInsertMacro[] = [
   \foreach \n in {1,...,6} \node[below] at ({\n-0.5},0) {\n};
   \foreach \y in {2,4,6,8} \node[left] at (0,\y) {\y};
 \end{tikzpicture}`),
-  math("math-boxplot", String.raw`\begin{tikzpicture}
-  \draw[->] (-0.3,0) -- (10.5,0);
-  \foreach \x in {0,...,10} \draw (\x,0.1) -- (\x,-0.1) node[below] {\x};
-  \draw (`, "1", String.raw`,0.8) -- +(0,0.4) +(0,0.2) -- (3,1);
-  \draw (3,0.6) rectangle (7,1.4);
-  \draw (5,0.6) -- (5,1.4);
-  \draw (7,1) -- (9,1) +(0,-0.2) -- +(0,0.2);
+  math("math-boxplot", String.raw`\begin{tikzpicture}[yscale=0.5]
+  \draw[->] (0,0) -- (0,10.8);
+  \foreach \y in {0,2,...,10} \draw (0.1,\y) -- (-0.1,\y) node[left] {\y};
+  \draw (0,0) -- (3.5,0);
+  \foreach \x/\l/\mn/\qa/\me/\qb/\mx in {`, "1/Klasse A/1/3/5/7/9, 2.5/Klasse B/2/4/5/6/8", String.raw`} {
+    \draw (\x,\mn) -- (\x,\qa) (\x,\qb) -- (\x,\mx);
+    \draw (\x-0.2,\mn) -- (\x+0.2,\mn) (\x-0.2,\mx) -- (\x+0.2,\mx);
+    \draw[fill=gray!20] (\x-0.4,\qa) rectangle (\x+0.4,\qb);
+    \draw[thick] (\x-0.4,\me) -- (\x+0.4,\me);
+    \node[below] at (\x,0) {\l};
+  }
 \end{tikzpicture}`),
   math("math-system", String.raw`\begin{align*}
   `, "2x + 3y &= 7", String.raw` \\
@@ -168,15 +172,15 @@ export const SUBJECT_SNIPPETS: QuickInsertMacro[] = [
 \end{tabular}`),
   cs("cs-dfd", String.raw`\begin{tikzpicture}[data/.style={draw, minimum width=1.6cm, minimum height=0.8cm},
     func/.style={draw, ellipse, minimum width=2.4cm}]
-  \node[data] (a) at (0,1) {12};
-  \node[data] (b) at (0,-1) {5};
-  \node[func] (f) at (3,0) {`, "SUMME", String.raw`};
-  \node[data] (r) at (6,0) {17};
+  \node[data] (a) at (-1.2,3) {12};
+  \node[data] (b) at (1.2,3) {5};
+  \node[func] (f) at (0,1.5) {`, "SUMME", String.raw`};
+  \node[data] (r) at (0,0) {17};
   \draw[->] (a) -- (f);
   \draw[->] (b) -- (f);
   \draw[->] (f) -- (r);
 \end{tikzpicture}`),
-  cs("cs-schema", String.raw`\texttt{`, "Schueler", String.raw`}(\underline{id : int}, name : String, $\overline{\mbox{klasse\_id : int}}$)`),
+  cs("cs-schema", String.raw`\texttt{`, "Schueler", String.raw`}(\underline{id : int}, name : String, \dotuline{klasse\_id : int})`),
   cs("cs-db-table", String.raw`\begin{tabular}{c | c | c}
 `, "id & name & alter", String.raw` \\ \hline\hline
 1 & "Lia" & 15 \\ \hline
@@ -197,7 +201,7 @@ export const SUBJECT_SNIPPETS: QuickInsertMacro[] = [
   \end{class}
   \unidirectionalAssociation{Schule}{schueler}{n}{Schueler}{}{}
 \end{tikzpicture}`),
-  cs("cs-object-diagram", String.raw`\begin{tikzpicture}[object/.style={draw, rectangle split, rectangle split parts=2, text width=4cm}]
+  cs("cs-object-diagram", String.raw`\begin{tikzpicture}[object/.style={draw, rounded corners, rectangle split, rectangle split parts=2, text width=4cm}]
   \node[object] (s) at (0,0) {\underline{`, "schueler1", String.raw` : Schueler} \nodepart{two} name = "Lia" \\ alter = 15};
   \node[object] (k) at (7,0) {\underline{klasse9a : Klasse} \nodepart{two} bezeichnung = "9a"};
   \draw[->] (k) -- node[above] {schueler} (s);
@@ -216,7 +220,9 @@ public class `, "Schueler", String.raw` {
   cs("cs-gap-code", String.raw`\begin{framed}
 \begin{lstlisting}
 public class Schueler {
+
     private (*@\LoesungLuecke{`, "int", String.raw`}{3cm}@*) alter;
+
     private (*@\LoesungLuecke{String}{3cm}@*) name;
 }
 \end{lstlisting}
