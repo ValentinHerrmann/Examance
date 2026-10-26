@@ -20,13 +20,15 @@
   interface Props {
     /** Staging id (not the exercise id), so files can be attached before the exercise exists; committed on save. */
     exerciseId: string;
+    /** False while the staging area is still being filled; the list loads once it turns true. */
+    seeded?: boolean;
     /** Called with the LaTeX snippet that references the clicked file. */
     onInsert?: (snippet: string) => void;
     /** Called after any change, so the parent can refresh a preview. */
     onChange?: () => void;
   }
 
-  let { exerciseId, onInsert = () => {}, onChange = () => {} }: Props = $props();
+  let { exerciseId, seeded = true, onInsert = () => {}, onChange = () => {} }: Props = $props();
 
   // Folded by default: the files are rarely needed and the code editor gets the space.
   let open = $state(false);
@@ -159,7 +161,8 @@
 
   $effect.pre(() => {
     const id = exerciseId;
-    if (id && id !== loadedFor) {
+    const ready = seeded;
+    if (id && ready && id !== loadedFor) {
       loadedFor = id;
       untrack(() => void load());
     }

@@ -96,6 +96,9 @@
   // Committed onto the real exercise on save; closing without saving discards the staged set.
   let resourceStagingId = $state("");
   let resourcesCommitted = false;
+  // The staging area is filled asynchronously; the panel loads and commit runs only after it.
+  let resourceSeed: Promise<void> = Promise.resolve();
+  let resourcesSeeded = $state(false);
 
   // Preview state
   let isPreviewLoading = $state(false);
@@ -121,6 +124,7 @@
   // Move the staged files onto the just-written exercise. Upload failures never fail the save:
   // the exercise is already stored and the files stay staged locally.
   async function commitStagedResources(exerciseId: string, key: CryptoKey | null) {
+    await resourceSeed;
     try {
       const { errors } = await exerciseResourceRepository.commit(
         resourceStagingId,
@@ -200,15 +204,18 @@
     // Seed the staging area from whichever exercise is being edited or
     // versioned; a new version therefore starts with the base version's
     // figures without ever writing back to it.
-    resourceStagingId = crypto.randomUUID();
+    const stagingId = crypto.randomUUID();
+    resourceStagingId = stagingId;
     resourcesCommitted = false;
-    if (source?.id) {
-      void exerciseResourceRepository.seedStaging(
-        source.id,
-        resourceStagingId,
-        get(sessionStore).sessionKey
-      );
-    }
+    resourcesSeeded = false;
+    resourceSeed = source?.id
+      ? exerciseResourceRepository
+          .seedStaging(source.id, stagingId, get(sessionStore).sessionKey)
+          .catch(() => {})
+      : Promise.resolve();
+    void resourceSeed.then(() => {
+      if (resourceStagingId === stagingId) resourcesSeeded = true;
+    });
     showAngabePreview = false;
     showLoesungPreview = false;
     showConfirmClose = false;
@@ -735,6 +742,7 @@
               <div class="grid shrink-0 items-start gap-2 @3xl:grid-cols-2">
                 <ExerciseResourcePanel
                   exerciseId={resourceStagingId}
+                  seeded={resourcesSeeded}
                   onInsert={insertResourceSnippet}
                 />
                 <ExercisePackagesPanel
