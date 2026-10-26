@@ -20,6 +20,7 @@
   import { PendingWritesError } from '#lib/services/storageModeSwitch';
   import { flushOfflineQueue, pendingWritesCount } from '#lib/services/offlineQueue';
   import { exportArchiveInteractively } from '#lib/services/archiveService';
+  import { WORKSPACE_ARCHIVE_EXT } from '#lib/archive/format';
 
   interface Props {
     open?: boolean;
@@ -107,7 +108,7 @@
   }
 
   async function handleBackup() {
-    const filename = `examance-${new Date().toISOString().slice(0, 10)}.bgproj`;
+    const filename = `examance-${new Date().toISOString().slice(0, 10)}${WORKSPACE_ARCHIVE_EXT}`;
     if (await exportArchiveInteractively(filename)) backupDone = true;
   }
 

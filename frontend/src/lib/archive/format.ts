@@ -9,6 +9,12 @@ export const MAGIC_BYTES = new Uint8Array([0x42, 0x47, 0x50, 0x4a]);
 export const FORMAT_VERSION = 0x01;
 export const ARCHIVE_SECRET_PURPOSE = 'bgproj-link';
 
+/** File names (issue #145): the whole workspace and a single exam differ only in scope, not in format. */
+export const WORKSPACE_ARCHIVE_EXT = '.examance';
+export const EXAM_ARCHIVE_EXT = '.examance-exam';
+/** What the import picker accepts: both archive kinds, old `.bgproj` backups and re-importable ZIP exports. */
+export const IMPORT_ACCEPT = '.examance,.examance-exam,.bgproj,.zip';
+
 export const HEADER_SIZE = 41;
 export const SALT_OFFSET = 7;
 export const NONCE_OFFSET = 23;

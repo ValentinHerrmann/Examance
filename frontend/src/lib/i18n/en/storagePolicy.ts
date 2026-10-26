@@ -33,7 +33,7 @@ export const storagePolicy: Translations['storagePolicy'] = {
         nothingToMove: 'There are no results to transfer.',
         hybridResultsElsewhere: 'This browser holds no results. In hybrid mode they live in the browser where they were recorded. Best switch there, or transfer them later from there via the "Transfer to server" notice.',
         otherTabsNote: 'Other open tabs of this app are blocked during the transfer and reloaded afterwards.',
-        backupButton: 'Download backup (.bgproj)',
+        backupButton: 'Download backup (.examance)',
         backupOptional: 'Optional, but recommended.',
         backupDone: 'Backup saved.',
         moveButton: 'Transfer now',
@@ -76,7 +76,7 @@ export const storagePolicy: Translations['storagePolicy'] = {
         ownerLabel: 'Data in this browser belongs to',
         blocked: {
             resetConfirm: 'I understand that the data in this browser will be deleted irreversibly.',
-            resultsLoss: 'Caution: this browser holds results (hybrid mode) that are stored nowhere else. Without an archive (.bgproj) they are lost afterwards.',
+            resultsLoss: 'Caution: this browser holds results (hybrid mode) that are stored nowhere else. Without an archive (.examance) they are lost afterwards.',
             legacyLocal: {
                 title: 'Local mode is no longer supported',
                 body: 'This browser holds data from the discontinued "All Local" mode. It cannot be opened with your account and is not carried over.',
@@ -95,7 +95,7 @@ export const storagePolicy: Translations['storagePolicy'] = {
                 title: 'This data cannot be opened',
                 body: 'The data in this browser was encrypted with a different key, probably by another account.',
                 primary: 'Sign out',
-                reset: 'If you have no access to that account, you can reset the data in this browser. Without an archive (.bgproj) it is lost then.',
+                reset: 'If you have no access to that account, you can reset the data in this browser. Without an archive (.examance) it is lost then.',
                 resetButton: 'Delete data in this browser and start over',
             },
             pendingWrites: {
@@ -118,6 +118,7 @@ export const storagePolicy: Translations['storagePolicy'] = {
         choiceTakeImported: 'Take archive version',
         choiceImportAsCopy: 'Import as a copy',
         copyNotAllowed: 'Student data and submissions cannot be copied — duplicate pseudonyms are not permissible under data protection rules.',
+        takeNotAllowed: 'Exams and exercises are never overwritten: keep the existing version or import the archive version as a copy (with its image files).',
         applyToAll: 'Apply to all',
         apply: 'Start import',
         cancel: 'Cancel import',
@@ -131,7 +132,6 @@ export const storagePolicy: Translations['storagePolicy'] = {
             mcGroup: 'MC group',
             student: 'Student',
             submission: 'Submission',
-            resource: 'File',
         },
         field: {
             title: 'Title',
@@ -146,6 +146,9 @@ export const storagePolicy: Translations['storagePolicy'] = {
             retentionUntil: 'Retention until',
             gradingKey: 'Grading key',
             latexPackages: 'LaTeX packages',
+            nameLine: 'Name line',
+            extraNotes: 'Space for extra solutions',
+            pageBreaks: 'Page breaks (count)',
             name: 'Name',
             version: 'Version',
             variantKey: 'Variant',

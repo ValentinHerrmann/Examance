@@ -11,6 +11,8 @@ import { packProject } from '../src/lib/archive/packer';
 import { applyArchive, decryptArchive, unpackProject } from '../src/lib/archive/unpacker';
 import { applyResolutions, detectConflicts } from '../src/lib/archive/conflicts';
 import { count, newReport } from '../src/lib/archive/report';
+import { readZipExport } from '../src/lib/archive/zipImport';
+import { strToU8, zipSync } from 'fflate';
 import { db } from '../src/lib/db/db';
 import {
   saveExamEncrypted,
@@ -52,6 +54,7 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     await db.submissions.clear();
     await db.exerciseScores.clear();
     await db.auditLog.clear();
+    await db.exerciseResources.clear();
     storagePolicyStore.setPolicy({ storageMode: 'hybrid', latexCompilation: 'local' });
 
     const rawKey = new Uint8Array(32).fill(7);
@@ -279,6 +282,54 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     expect(report.missing).toEqual([]);
   });
 
+  it('carries resource files that only the server holds (issue #145)', async () => {
+    // All-server mode or another browser: the local cache has no rows, yet the figure must travel.
+    await saveExerciseEncrypted({ id: 'ex-fig', name: 'Figure', maxPoints: 1, questionType: 'free_text', penalty: 0 }, testKey);
+    fakeServer.state.resources.push({
+      id: 'res-fig',
+      exercise_id: 'ex-fig',
+      filename: 'fig.png',
+      mime_type: 'image/png',
+      byte_size: 3,
+      content_b64: btoa('png'),
+      created_at: new Date().toISOString(),
+    });
+    expect(await db.exerciseResources.count()).toBe(0);
+
+    const { blob, report: exportReport } = await packProject(testPassword);
+    expect(count(exportReport, 'resources', 'included')).toBe(1);
+    expect(exportReport.missing).toEqual([]);
+
+    fakeServer.reset();
+    const { report } = await unpackProject(blob, testPassword);
+    expect(count(report, 'resources', 'created')).toBe(1);
+    const uploaded = fakeServer.state.resources.filter((r) => r.exercise_id === 'ex-fig');
+    expect(uploaded.map((r) => [r.filename, atob(r.content_b64)])).toEqual([['fig.png', 'png']]);
+    // The server is the only home of resource files; a local copy would hide its set.
+    expect(await db.exerciseResources.count()).toBe(0);
+  });
+
+  it('packs only the chosen exam with its exercises and results', async () => {
+    await saveExamEncrypted(exam('exam-a', 'A'), testKey);
+    await saveExamEncrypted(exam('exam-b', 'B'), testKey);
+    await saveExerciseEncrypted({ id: 'ex-a', name: 'A1', maxPoints: 1, questionType: 'free_text', penalty: 0 }, testKey);
+    await saveExerciseEncrypted({ id: 'ex-b', name: 'B1', maxPoints: 1, questionType: 'free_text', penalty: 0 }, testKey);
+    fakeServer.state.links.set('exam-a', [{ exercise_id: 'ex-a', order_index: 1 }]);
+    fakeServer.state.links.set('exam-b', [{ exercise_id: 'ex-b', order_index: 1 }]);
+    await saveStudentEncrypted({ pseudonymId: 'stu-a', examId: 'exam-a', fallbackCode: 'A-1', piiCt: new Uint8Array([1]), piiIv: new Uint8Array(12) }, testKey);
+    await saveStudentEncrypted({ pseudonymId: 'stu-b', examId: 'exam-b', fallbackCode: 'B-1', piiCt: new Uint8Array([1]), piiIv: new Uint8Array(12) }, testKey);
+
+    const { blob, report } = await packProject(testPassword, undefined, { examIds: ['exam-a'] });
+    expect(count(report, 'exams', 'included')).toBe(1);
+    expect(count(report, 'exercises', 'included')).toBe(1);
+    expect(count(report, 'students', 'included')).toBe(1);
+
+    const payload = await decryptArchive(new Uint8Array(await blob.arrayBuffer()), testPassword);
+    expect(payload.exams.map((e: any) => e.id)).toEqual(['exam-a']);
+    expect(payload.exercises.map((e: any) => e.id)).toEqual(['ex-a']);
+    expect(payload.students.map((s: any) => s.pseudonymId)).toEqual(['stu-a']);
+  });
+
   it('links an exercise the account already owns on the server instead of copying it', async () => {
     // Only own rows are linked; another account's exercise, shared or not, is copied (issue #65).
     const examId = 'exam-linking';
@@ -333,6 +384,81 @@ describe('.bgproj Archive Packer and Unpacker', () => {
 
     expect(scan.ownExamIds.has('foreign-exam')).toBe(false);
     expect(fakeServer.state.requests.filter((r) => r.includes('/exams/foreign-exam/'))).toEqual([]);
+  });
+
+  it('carries the extra-notes block of an exam through the archive (issue #156)', async () => {
+    const extraNotes = { title: 'Platz für weitere Lösungen', description: 'Aufgabe angeben.', minHeightCm: 5, maxHeightCm: 10 };
+    await saveExamEncrypted({ ...exam('exam-notes', 'Notes Exam'), nameLine: true, extraNotes }, testKey);
+    const packed = await packBlob(testPassword);
+
+    fakeServer.reset();
+    await db.exams.clear();
+    await unpackProject(packed, testPassword);
+
+    const [restored] = await loadExamsEncrypted(get(sessionStore).sessionKey!);
+    expect(restored.extraNotes).toEqual(extraNotes);
+    expect(restored.nameLine).toBe(true);
+  });
+
+  it('treats an exam that differs only in its extra-notes block as a conflict, not as identical', async () => {
+    await saveExamEncrypted(exam('exam-layout', 'Layout Exam'), testKey);
+    const payload = await decryptArchive(await packBlob(testPassword), testPassword);
+    payload.exams[0].extraNotes = { title: 'Mehr Platz', description: '', minHeightCm: 4, maxHeightCm: 12 };
+
+    const scan = await detectConflicts(payload, testKey);
+    expect(scan.identical.map((i) => i.id)).not.toContain('exam-layout');
+    const conflict = scan.conflicts.find((c) => c.id === 'exam-layout');
+    expect(conflict?.fields.find((f) => f.key === 'extraNotes')).toMatchObject({ existing: null, differs: true });
+  });
+
+  it('treats an exam whose page breaks moved as a conflict', async () => {
+    await saveExamEncrypted({ ...exam('exam-breaks', 'Breaks Exam'), pageBreaks: ['ex-a'] }, testKey);
+    const payload = await decryptArchive(await packBlob(testPassword), testPassword);
+    payload.exams[0].pageBreaks = ['ex-b'];
+
+    const scan = await detectConflicts(payload, testKey);
+    const field = scan.conflicts.find((c) => c.id === 'exam-breaks')?.fields.find((f) => f.key === 'pageBreaks');
+    // Same count, different place: shown as the count, compared by the ids.
+    expect(field).toMatchObject({ existing: '1', imported: '1', differs: true });
+  });
+
+  it('imports an exam ZIP with its exercise and file, and finds a second import identical', async () => {
+    const manifest = {
+      generator: 'Examance',
+      kind: 'exam',
+      formatVersion: 1,
+      exportedAt: new Date().toISOString(),
+      exam: { id: 'exam-zip', title: 'ZIP Exam', numVersions: 1, nameLine: false, extraNotes: null, pageBreaks: null, latexPackages: null },
+      exercises: [{
+        id: 'ex-zip', exerciseGroupId: null, variantKey: null, name: 'Zip', topic: null, grade: null, subject: null,
+        questionType: 'free_text', options: [], correctAnswers: [], penalty: 0, maxPoints: 2, version: 1,
+        path: 'exercises/Zip', texFile: 'exercises/Zip/exercise.tex', resources: ['fig.png'], pdfs: [],
+      }],
+      links: [{ exerciseId: 'ex-zip', orderIndex: 1, mcGroupId: null, subIndex: null }],
+      mcGroups: [],
+    };
+    const bytes = zipSync({
+      'manifest.json': strToU8(JSON.stringify(manifest)),
+      'exercises/Zip/exercise.tex': strToU8('Text'),
+      'exercises/Zip/fig.png': new Uint8Array([1, 2, 3]),
+    });
+
+    const first = readZipExport(bytes);
+    const firstScan = await detectConflicts(first, testKey);
+    const { report } = await applyArchive(applyResolutions(first, new Map(), firstScan.identical).payload, undefined, {
+      report: newReport('import'),
+      ownExamIds: firstScan.ownExamIds,
+    });
+    expect(count(report, 'exams', 'created')).toBe(1);
+    expect(count(report, 'exercises', 'created')).toBe(1);
+    expect(count(report, 'resources', 'created')).toBe(1);
+    expect(fakeServer.state.links.get('exam-zip')?.map((l) => l.exercise_id)).toEqual(['ex-zip']);
+    // No retention in the ZIP: the import gave the exam a new exam's default.
+    expect(fakeServer.state.exams.get('exam-zip')?.retention_until).toBeTruthy();
+
+    const again = await detectConflicts(readZipExport(bytes), testKey);
+    expect(again.conflicts.filter((c) => c.kind === 'exam')).toEqual([]);
+    expect(again.identical.map((i) => i.id)).toContain('exam-zip');
   });
 
   it('skips identical records and reports them as already present', async () => {

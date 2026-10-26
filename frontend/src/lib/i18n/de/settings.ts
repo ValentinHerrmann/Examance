@@ -210,7 +210,7 @@ export const settings = {
     },
     alerts: {
         serverStorageNeedsAuth: 'Serverbasierte Speichermodi erfordern eine authentifizierte Sitzung. Bitte melden Sie sich an.',
-        storageModeConfirm: 'Ein Wechsel des Speichermodus setzt den aktuellen Sitzungszustand zurück. Stellen Sie sicher, dass Sie zuvor ein .bgproj-Backup exportiert haben!\n\nMöchten Sie fortfahren und den Speichermodus wechseln?',
+        storageModeConfirm: 'Ein Wechsel des Speichermodus setzt den aktuellen Sitzungszustand zurück. Stellen Sie sicher, dass Sie zuvor ein .examance-Backup exportiert haben!\n\nMöchten Sie fortfahren und den Speichermodus wechseln?',
         eraseStudentConfirm: 'Möchten Sie diese Schüleridentität und alle zugehörigen Abgaben wirklich dauerhaft löschen?',
         eraseFailed: 'Löschen fehlgeschlagen: {message}',
     },

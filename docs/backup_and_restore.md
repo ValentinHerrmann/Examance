@@ -19,7 +19,7 @@ There are two backups, fully independent of each other:
 
 **Not backed up:**
 - `.env`. It holds the backup password, so keep `BACKUP_RESTIC_PASSWORD`, the S3 keys and the other secrets in a password manager.
-- Results of accounts in *hybrid* mode. They live only in the teacher's browser; the teacher's `.bgproj` export is the backup there.
+- Results of accounts in *hybrid* mode. They live only in the teacher's browser; the teacher's `.examance` workspace archive (older backups: `.bgproj`) is the backup there.
 
 **Retention.** Scheduled snapshots: the newest per day for 7 days, per week for 4 weeks and per month for 3 months (`BACKUP_KEEP_DAILY_DAYS` / `_WEEKLY_WEEKS` / `_MONTHLY_MONTHS` in `.env`). Maintenance backups: the newest `BACKUP_KEEP_MAINTENANCE` (10) local files and as many `maintenance` snapshots. `pre-restore`: the 10 most recent plus the daily/weekly/monthly ones. Anything older cannot be restored.
 

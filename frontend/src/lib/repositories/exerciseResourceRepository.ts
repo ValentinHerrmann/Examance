@@ -204,13 +204,20 @@ export const exerciseResourceRepository = {
      * Resource files for a compilation. `inline` = bytes the server can't look up (staged files); `exerciseIds` = saved exercises whose files the server loads itself (smaller request).
      * `needBytes` forces everything inline: the WASM engine runs in the browser with no database.
      */
+  /** The files to export for a saved exercise: local rows when the cache has them, else the server's list. */
+  async listForExport(exerciseId: string): Promise<ExerciseResourceRecord[]> {
+    const local = await this.listLocal(exerciseId);
+    return local.length > 0 ? local : sortByName(await listOnServer(exerciseId));
+  },
+
   async collectForCompile(
     owners: { id: string; label?: string; staged?: boolean }[],
     key: CryptoKey | null,
     needBytes: boolean
-  ): Promise<{ inline: LatexResourceFile[]; exerciseIds: string[] }> {
+  ): Promise<{ inline: LatexResourceFile[]; exerciseIds: string[]; unreadable: string[] }> {
     const inline: LatexResourceFile[] = [];
     const exerciseIds: string[] = [];
+    const unreadable: string[] = [];
 
     for (const owner of owners) {
       const serverResolvable = !owner.staged;
@@ -233,10 +240,11 @@ export const exerciseResourceRepository = {
         } catch {
           // Unreadable file (locked vault, deleted on the server): the compile
           // still runs and the missing-graphics check reports the gap.
+          unreadable.push(row.filename);
         }
       }
     }
 
-    return { inline, exerciseIds };
+    return { inline, exerciseIds, unreadable };
   }
 };

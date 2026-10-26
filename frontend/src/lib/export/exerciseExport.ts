@@ -6,13 +6,13 @@ import type { ExerciseGroup } from '#lib/exercise-library/groupExercises';
 import { buildExerciseDocument, compileExercisePreview, wrapExerciseReference } from '#lib/latex/exercisePreview';
 import type { LatexPackageEntry } from '#lib/latex/packages';
 import { getAccountPackages } from '#lib/latex/packageSettings';
-import { parseExerciseScore } from '#lib/latex/scoreParser';
 import { exerciseResourceRepository } from '#lib/repositories/exerciseResourceRepository';
 import { effectiveLatexCompilation } from '#lib/stores/capabilities';
 import { sessionStore } from '#lib/stores/session';
 import { addLatexProjectFiles } from './latexAssets';
 import { paceServerCompile, type ExportProgress, type ExportResult } from './progress';
 import { ZipBuilder, exportDateStamp, firstFree, slug } from './zip';
+import { exerciseEntry, manifestHeader, ZIP_MANIFEST, type ExerciseZipManifest } from './zipManifest';
 
 export interface ExerciseExportOptions {
   /** Bundled .sty/img files, so the group documents compile as they are. */
@@ -81,23 +81,20 @@ async function compileExercisePdfs(ctx: ExportContext, ex: ExerciseRecord, name:
   }
 }
 
-function manifestEntry(ex: ExerciseRecord, body: string, version: GroupMember['version'], dir: string, name: string, resources: string[], pdfFiles: string[]) {
-  return {
-    name,
-    topic: ex.topicTag ?? null,
-    grade: ex.grade ?? null,
-    subject: ex.subject ?? null,
-    questionType: ex.questionType,
-    options: ex.options ?? [],
-    correctAnswers: ex.correctAnswers ?? [],
-    penalty: ex.penalty,
-    maxPoints: parseExerciseScore(body) || ex.maxPoints || 0,
-    version,
-    path: dir,
-    texFile: `${dir}/exercise.tex`,
-    resources,
-    pdfs: pdfFiles,
-  };
+/** Writes `exercise.tex` and the exercise's files into `dir`; returns the file names (shared with the exam ZIP). */
+export async function addExerciseFolder(
+  zip: ZipBuilder,
+  ex: ExerciseRecord,
+  name: string,
+  dir: string,
+  key: CryptoKey | null,
+  warnings: string[]
+): Promise<string[]> {
+  zip.add(`${dir}/exercise.tex`, ex.latexBody ?? '');
+  const { inline, unreadable } = await exerciseResourceRepository.collectForCompile([{ id: ex.id, label: name }], key, true);
+  // Reported even without PDFs, where no compile would notice the gap (issue #145).
+  if (unreadable.length) warnings.push(translate('export.exercises.unreadableResources', { name, files: unreadable.join(', ') }));
+  return inline.map((file) => zip.add(`${dir}/${file.filename}`, file.content).slice(dir.length + 1));
 }
 
 async function exportExercise(ctx: ExportContext, { ex, version }: GroupMember, variantDir: string) {
@@ -107,13 +104,11 @@ async function exportExercise(ctx: ExportContext, { ex, version }: GroupMember, 
   const dir = claim(ctx.taken, `${variantDir}/${slug(name)}`);
   ctx.progress(translate('export.exercises.exporting', { name }), ctx.done, ctx.total);
 
-  zip.add(`${dir}/exercise.tex`, body);
-  const { inline } = await exerciseResourceRepository.collectForCompile([{ id: ex.id, label: name }], ctx.key, true);
-  const resources = inline.map((file) => zip.add(`${dir}/${file.filename}`, file.content).slice(dir.length + 1));
+  const resources = await addExerciseFolder(zip, ex, name, dir, ctx.key, ctx.warnings);
   const pdfFiles = ctx.pdfs ? await compileExercisePdfs(ctx, ex, name, body, dir) : [];
 
   ctx.done++;
-  return { part: { body, name, dir } satisfies DocumentPart, entry: manifestEntry(ex, body, version, dir, name, resources, pdfFiles) };
+  return { part: { body, name, dir } satisfies DocumentPart, entry: { ...exerciseEntry(ex, name, dir, resources, pdfFiles), version } };
 }
 
 /** Writes `<group>.tex`, which inputs every exercise of the group; returns its path. */
@@ -174,7 +169,8 @@ export async function exportExerciseGroups(
   }
 
   if (globalAssets) await addLatexProjectFiles(ctx.zip, '');
-  ctx.zip.add('manifest.json', JSON.stringify({ generator: 'Examance', exportedAt: new Date().toISOString(), groups: manifestGroups }, null, 2));
+  const manifest: ExerciseZipManifest = { ...manifestHeader(), kind: 'exercises', groups: manifestGroups };
+  ctx.zip.add(ZIP_MANIFEST, JSON.stringify(manifest, null, 2));
 
   const base = groups.length === 1 ? slug(groups[0].name) : 'exercise-library';
   return { zip: ctx.zip, fileName: `${base}_${exportDateStamp()}.zip`, warnings: ctx.warnings };

@@ -19,7 +19,7 @@ export const exam: Translations['exam'] = {
             failed: 'Delete failed: {message}',
         },
         export: {
-            successBanner: '.bgproj archive successfully packed and downloaded.',
+            successBanner: 'Exam archive (.examance-exam) with exercises, image files, scans and grades downloaded.',
         },
         omr: {
             checkingExercises: 'Checking MC exercises…',
@@ -86,7 +86,7 @@ export const exam: Translations['exam'] = {
         stats: 'Statistics',
         edit: 'Edit',
         deleteSubmissions: 'Delete Submissions',
-        export: 'Encrypted archive (.bgproj)',
+        export: 'Encrypted archive of this exam (.examance-exam)',
         delete: 'Delete',
     },
     metadata: {

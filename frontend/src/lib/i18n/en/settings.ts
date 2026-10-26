@@ -214,7 +214,7 @@ export const settings: Translations['settings'] = {
     },
     alerts: {
         serverStorageNeedsAuth: 'Server storage modes require an authenticated session. Please log in.',
-        storageModeConfirm: 'Changing storage mode requires clearing the current active session state. Please make sure you have exported a .bgproj backup first!\n\nDo you want to proceed and switch storage mode?',
+        storageModeConfirm: 'Changing storage mode requires clearing the current active session state. Please make sure you have exported a .examance backup first!\n\nDo you want to proceed and switch storage mode?',
         eraseStudentConfirm: 'Are you sure you want to permanently erase this student identity and all submissions?',
         eraseFailed: 'Erasure failed: {message}',
     },

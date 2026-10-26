@@ -5,6 +5,7 @@ export const exercises: Translations['exercises'] = {
     page: {
         title: 'Exercise Library',
         subtitle: 'Reusable LaTeX exercise collection, live-linked to your exams.',
+        importButton: 'Import',
         exportLibraryButton: 'Export library',
         createButton: 'Create new exercise',
         filtersTitle: 'Filters',

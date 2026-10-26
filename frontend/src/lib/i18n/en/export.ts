@@ -23,7 +23,7 @@ export const exportNs: Translations['export'] = {
             graded: 'Graded scans (PDF)',
             gradedHint: 'With annotations burned in, including partly graded submissions (file name with _partial, ungraded ones with _ungraded).',
             latex: 'LaTeX source',
-            latexHint: 'A separate ZIP with the exam (main.tex) and solution (solution.tex), their files and logo: upload it to Overleaf as is (compiler XeLaTeX).',
+            latexHint: 'A separate ZIP with the exam (main.tex) and solution (solution.tex), their files and logo: upload it to Overleaf as is (compiler XeLaTeX). Also adds the exam’s exercises and settings in importable form: only with this option can the ZIP be imported again later, e.g. into another Examance instance (without results).',
             pdf: 'Compiled exam and solution (PDF)',
             pdfHint: 'Compiling may take a while.',
             summary: 'Summary (PDF)',
@@ -76,7 +76,7 @@ export const exportNs: Translations['export'] = {
     exercises: {
         groupTitle: 'Export exercise group: {name}',
         libraryTitle: 'Export exercise library',
-        libraryNotice: 'All groups with variants, image files and the bundled LaTeX packages. PDFs are not included.',
+        libraryNotice: 'All groups with variants, image files and the bundled LaTeX packages. PDFs are not included. The ZIP can be imported again, also into another Examance instance.',
         globalAssets: 'Include bundled LaTeX files',
         globalAssetsHint: 'Packages and images (sty/, img/) so the group document compiles as it is.',
         pdfs: 'Include compiled PDFs',
@@ -85,5 +85,6 @@ export const exportNs: Translations['export'] = {
         compiling: 'Compiling "{name}" …',
         pdfFailed: 'PDFs of "{name}" could not be created: {error}',
         missingGraphics: 'Missing graphics in "{name}": {files}',
+        unreadableResources: 'Files of "{name}" could not be read and are missing from the ZIP: {files}',
     },
 };

@@ -30,9 +30,12 @@ export interface ServerImportResult {
 
 export interface ServerImportOptions {
   report: ArchiveReport;
-  /** Exercises the user chose to take from the archive over the existing one: always created. */
-  takeImportedIds?: Set<string>;
+  /** Conflict decisions by payload id; a copy is counted as `copied`, not `created`. */
+  decided?: Map<string, 'copied' | 'replaced'>;
 }
+
+/** Retention of an imported exam that carries none (ZIP import), like the new-exam page's default. */
+const DEFAULT_RETENTION_DAYS = 365;
 
 function describeError(err: any): string {
   const status = err?.status ? `HTTP ${err.status}` : 'error';
@@ -78,7 +81,7 @@ async function exerciseOwned(id: string): Promise<boolean> {
 
 export async function importPayloadToServer(
   payload: any,
-  { report, takeImportedIds = new Set() }: ServerImportOptions
+  { report, decided = new Map() }: ServerImportOptions
 ): Promise<ServerImportResult> {
   const idMap = new Map<string, string>();
   const errors: string[] = [];
@@ -106,7 +109,8 @@ export async function importPayloadToServer(
     const label = ex.title || ex.name || ex.id;
 
     // Already on the server and owned by this account: link it.
-    if (ex.id && !takeImportedIds.has(ex.id) && (await exerciseOwned(ex.id))) {
+    // Sequential on purpose: later members of a group reuse the group id the first one created.
+    if (ex.id && (await exerciseOwned(ex.id))) { // NOSONAR: see above
       reusedExerciseIds.add(ex.id);
       bump(report, 'exercises', 'linked');
       continue;
@@ -135,7 +139,7 @@ export async function importPayloadToServer(
       createdExerciseIds.add(ex.id);
       if (created.id !== ex.id) idMap.set(ex.id, created.id);
     }
-    bump(report, 'exercises', ex.id && created.id !== ex.id ? 'newId' : 'created');
+    bump(report, 'exercises', decided.get(ex.id) ?? (ex.id && created.id !== ex.id ? 'newId' : 'created'));
   }
 
   // 1b. Resource files of those exercises. They follow the same id remapping;
@@ -144,6 +148,15 @@ export async function importPayloadToServer(
   for (const res of resources) {
     if (!res?.exerciseId || !createdExerciseIds.has(res.exerciseId)) continue;
     const exerciseId = idMap.get(res.exerciseId) ?? res.exerciseId;
+    // Older archives packed unread cache rows as empty files, which the server refuses.
+    if (!res.dataB64) {
+      addMissing(report, {
+        reason: 'resourceUnavailable',
+        exam: exerciseName.get(res.exerciseId) ?? res.exerciseId,
+        item: res.filename,
+      });
+      continue;
+    }
     try {
       await api.post(
         `/exercises/${exerciseId}/resources`,
@@ -215,6 +228,11 @@ export async function importPayloadToServer(
     // Breaks name exercises and MC groups, whose ids may have changed above.
     const page_breaks = remapPageBreaks(exam.pageBreaks, idMap, mcGroupIdMap);
     const body = { ...mapExamRecordToApi(exam), page_breaks, exercise_links, mc_groups };
+    // ZIP exports carry no retention date; a fresh exam gets a new exam's default.
+    if (!body.retention_until) {
+      body.retention_until = new Date(Date.now() + DEFAULT_RETENTION_DAYS * 86_400_000).toISOString().slice(0, 10);
+      exam.retentionUntil = body.retention_until; // the local mirror (`applyArchive`) writes the same date
+    }
     const { created, error } = await createWithIdFallback('/exams', body);
     if (!created?.id) {
       errors.push(`Exam "${label}": ${error}`);
@@ -226,8 +244,8 @@ export async function importPayloadToServer(
       if (created.id !== exam.id) idMap.set(exam.id, created.id);
       linkedExercisesByExam.set(exam.id, new Set(examLinks.filter((j) => linkable(j.exerciseId)).map((j) => j.exerciseId)));
     }
-    bump(report, 'exams', exam.id && created.id !== exam.id ? 'newId' : 'created');
-    bump(report, 'mcGroups', 'created', mc_groups.length);
+    bump(report, 'exams', decided.get(exam.id) ?? (exam.id && created.id !== exam.id ? 'newId' : 'created'));
+    for (const g of mcGroups.filter((g) => g.examId === exam.id)) bump(report, 'mcGroups', decided.get(g.id) ?? 'created');
   }
 
   return { idMap, mcGroupIdMap, errors, createdExamIds, createdExerciseIds, linkedExercisesByExam };

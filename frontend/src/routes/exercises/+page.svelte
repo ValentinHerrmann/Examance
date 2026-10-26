@@ -28,7 +28,9 @@
   import { exerciseRepository, mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
   import { compileExercisePreview } from "#lib/latex/exercisePreview";
   import { exerciseReportFiles } from "#lib/layout-report/collect";
-  import { faBook, faCodePullRequest, faPause, faPlay, faPlus, faShareNodes, faEyeSlash, faFileZipper } from "@fortawesome/free-solid-svg-icons";
+  import { faBook, faCodePullRequest, faPause, faPlay, faPlus, faShareNodes, faEyeSlash, faFileZipper, faFileImport } from "@fortawesome/free-solid-svg-icons";
+  import { importArchiveInteractively } from "#lib/services/archiveService";
+  import { IMPORT_ACCEPT } from "#lib/archive/format";
   import ExerciseGroupList from "#lib/components/exercise-library/ExerciseGroupList.svelte";
   import ExamSummaryModal from "#lib/components/exam/ExamSummaryModal.svelte";
   import ExerciseExportModal from "#lib/components/exercise-library/ExerciseExportModal.svelte";
@@ -279,6 +281,23 @@
   });
 
   /** Overlapping calls coalesce into one more run, so a slow earlier fetch can't overwrite newer data. */
+  let importInput: HTMLInputElement | undefined = $state();
+  let isImporting = $state(false);
+
+  /** Library and exam ZIP exports (and archives) import here too; the library reloads afterwards. */
+  async function handleImportFile(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    isImporting = true;
+    try {
+      if (await importArchiveInteractively(file)) await loadExercises();
+    } finally {
+      isImporting = false;
+    }
+  }
+
   async function loadExercises() {
     if (isLoading) {
       loadAgain = true;
@@ -1114,6 +1133,11 @@
             </MenuItem>
           {/snippet}
         </Menu>
+      {/if}
+      {#if activeView === "own"}
+        <Button variant="outlined" severity="secondary" icon={faFileImport} disabled={isImporting} onClick={() => importInput?.click()}
+        >{$t("exercises.page.importButton")}</Button>
+        <input bind:this={importInput} type="file" accept={IMPORT_ACCEPT} onchange={handleImportFile} hidden />
       {/if}
       {#if activeView === "own" && allGroups.length > 0}
         <Button variant="outlined" severity="secondary" icon={faFileZipper} onClick={() => (exportTarget = { groups: allGroups, library: true })}

@@ -1,6 +1,7 @@
 /**
- * Import conflict detection and resolution before anything is written: keep existing, take the
- * archive's, or import as a copy. No copies for students/submissions (duplicate pseudonym = data-protection problem).
+ * Import conflict detection and resolution before anything is written: keep existing, import as a copy, or (results only)
+ * take the archive's. No copies for students/submissions (duplicate pseudonym = data-protection problem); no "take" for
+ * exams, exercises and MC groups, whose create-only POST turned it into a hidden duplicate (issue #145).
  */
 
 import { db } from '#lib/db/db';
@@ -11,7 +12,7 @@ import { submissionRepository } from '#lib/repositories/submissionRepository';
 import { storedEntries } from '#lib/latex/packages';
 import { remapPageBreaks } from '#lib/exam/pageBreaks';
 
-export type ConflictKind = 'exam' | 'exercise' | 'mcGroup' | 'student' | 'submission' | 'resource';
+export type ConflictKind = 'exam' | 'exercise' | 'mcGroup' | 'student' | 'submission';
 export type ConflictChoice = 'keep-existing' | 'take-imported' | 'import-as-copy';
 
 export interface ConflictField {
@@ -30,6 +31,8 @@ export interface ArchiveConflict {
   /** A long text worth showing in full (LaTeX body, preamble). */
   textDiff?: { existing: string; imported: string };
   allowCopy: boolean;
+  /** Whether the archive's version can overwrite in place (results upsert by id; exams and exercises cannot). */
+  allowTake: boolean;
 }
 
 export interface ConflictDecision {
@@ -54,7 +57,10 @@ interface KindSpec {
   title: (row: Row) => string;
   fields: Accessors;
   text?: (row: Row) => string;
+  /** Fields an import file may leave out (ZIP exports carry no retention date); absent there is no difference. */
+  optional?: string[];
   allowCopy: boolean;
+  allowTake: boolean;
   /** What the target store already holds, for the rows the archive brings. */
   existing: (rows: Row[], key: CryptoKey | null, ownExamIds: Set<string>) => Promise<Row[]>;
 }
@@ -79,6 +85,19 @@ const packageSummary = (entries: unknown) =>
     .map((e) => (e.disabled ? '-' : '') + e.name + (e.options ? `[${e.options}]` : ''))
     .join(', ');
 
+/** The extra-notes block (issue #156) as one comparable line; null when off. */
+function extraNotesSummary(notes: Row | null | undefined): string | null {
+  if (!notes) return null;
+  const line = `${notes.title} · ${notes.minHeightCm}–${notes.maxHeightCm} cm`;
+  return notes.description ? `${line} · ${notes.description}` : line;
+}
+
+/** Page breaks compared as a set of ids, shown as their count; null when there are none. */
+const pageBreaksSummary = (breaks: unknown): Keyed => {
+  const ids = Array.isArray(breaks) ? breaks.map(String).sort((a, b) => a.localeCompare(b)) : [];
+  return { shown: ids.length ? String(ids.length) : null, key: ids.join(',') };
+};
+
 const SPECS: KindSpec[] = [
   {
     kind: 'exam',
@@ -89,9 +108,15 @@ const SPECS: KindSpec[] = [
       ...props('title', 'testart', 'fach', 'topic', 'grade', 'klasse', 'datum', 'nr', 'numVersions', 'retentionUntil'),
       gradingKey: (r) => r.gradingKey?.preset,
       latexPackages: (r) => packageSummary(r.latexPackages),
+      // Layout switches travel with the exam; without them a layout-only change counted as "identical" and was dropped.
+      nameLine: (r) => r.nameLine === true,
+      extraNotes: (r) => extraNotesSummary(r.extraNotes),
+      pageBreaks: (r) => pageBreaksSummary(r.pageBreaks),
     },
     text: (r) => r.latexPreamble ?? '',
+    optional: ['retentionUntil'],
     allowCopy: true,
+    allowTake: false,
     existing: (_rows, key) => examRepository.getAll(key),
   },
   {
@@ -105,6 +130,7 @@ const SPECS: KindSpec[] = [
     ),
     text: (r) => r.latexBody ?? '',
     allowCopy: true,
+    allowTake: false,
     existing: (_rows, key) => exerciseRepository.getAll(key),
   },
   {
@@ -114,6 +140,7 @@ const SPECS: KindSpec[] = [
     title: (r) => r.title || r.id,
     fields: props('title', 'scoringText'),
     allowCopy: true,
+    allowTake: false,
     existing: () => db.examMcGroups.toArray(),
   },
   {
@@ -123,6 +150,7 @@ const SPECS: KindSpec[] = [
     title: (r) => r.studentName || r.fallbackCode || r.pseudonymId,
     fields: props('studentName', 'studentNumber', 'fallbackCode'),
     allowCopy: false,
+    allowTake: true,
     existing: (rows, key, own) => perExam(rows, own, (id) => studentRepository.getByExamId(id, key)),
   },
   {
@@ -139,18 +167,17 @@ const SPECS: KindSpec[] = [
       hasAnnotations: (r) => Boolean(r.annotationCt) || Boolean(r.annotationBytes) || Boolean(r.hasAnnotations),
     },
     allowCopy: false,
+    allowTake: true,
     existing: (rows, key, own) => perExam(rows, own, (id) => submissionRepository.getByExamId(id, key)),
   },
-  {
-    kind: 'resource',
-    payloadKey: 'exerciseResources',
-    id: (r) => `${r.exerciseId}:${r.filename}`,
-    title: (r) => r.filename,
-    fields: props('byteSize'),
-    allowCopy: true,
-    existing: () => db.exerciseResources.toArray(),
-  },
 ];
+
+/** A field shown one way but compared by `key`: page break ids mean nothing to a teacher, their count does. */
+interface Keyed {
+  shown: string | null;
+  key: string;
+}
+const isKeyed = (v: unknown): v is Keyed => typeof v === 'object' && v !== null && 'key' in v && 'shown' in v;
 
 function display(value: unknown): string | null {
   if (value === null || value === undefined || value === '') return null;
@@ -161,9 +188,12 @@ function display(value: unknown): string | null {
 
 function compare(spec: KindSpec, current: Row, incoming: Row): ArchiveConflict | null {
   const fields = Object.entries(spec.fields).map(([key, read]) => {
-    const existing = display(read(current));
-    const imported = display(read(incoming));
-    return { key, existing, imported, differs: existing !== imported };
+    const [a, b] = [read(current), read(incoming)];
+    const existing = isKeyed(a) ? a.shown : display(a);
+    const imported = isKeyed(b) ? b.shown : display(b);
+    const differs =
+      isKeyed(a) && isKeyed(b) ? a.key !== b.key : existing !== imported && !(imported === null && spec.optional?.includes(key));
+    return { key, existing, imported, differs };
   });
   const textDiff = spec.text && { existing: spec.text(current), imported: spec.text(incoming) };
   const identical =
@@ -176,6 +206,7 @@ function compare(spec: KindSpec, current: Row, incoming: Row): ArchiveConflict |
     fields,
     textDiff,
     allowCopy: spec.allowCopy,
+    allowTake: spec.allowTake,
   };
 }
 
@@ -213,7 +244,7 @@ export async function detectConflicts(payload: Row, key: CryptoKey | null): Prom
   return { conflicts, identicalCount: identical.length, identical, ownExamIds };
 }
 
-/** Every conflict gets `choice`; a copy falls back to keep where not allowed. */
+/** Every conflict gets `choice`; a copy or take falls back to keep where that kind does not allow it. */
 export function applyToAll(
   conflicts: ArchiveConflict[],
   choice: ConflictChoice,
@@ -221,7 +252,9 @@ export function applyToAll(
 ): DecisionMap {
   const decisions = new Map(existing);
   for (const c of conflicts) {
-    const effective = choice === 'import-as-copy' && !c.allowCopy ? 'keep-existing' : choice;
+    const allowed =
+      choice === 'keep-existing' || (choice === 'import-as-copy' ? c.allowCopy : c.allowTake);
+    const effective = allowed ? choice : 'keep-existing';
     decisions.set(c.id, { id: c.id, kind: c.kind, choice: effective });
   }
   return decisions;
@@ -272,11 +305,8 @@ export function applyResolutions(
       examId: remap(r.examId),
       annotationBytes: remapStrokeExercises(r.annotationBytes, idMap),
     })),
-    exerciseResources: rewrite(
-      'exerciseResources',
-      (r) => `${r.exerciseId}:${r.filename}`,
-      (r) => ({ exerciseId: remap(r.exerciseId) })
-    ),
+    // Files follow their exercise: a kept or identical one keeps its own, a copy takes the archived ones.
+    exerciseResources: rewrite('exerciseResources', (r) => r.exerciseId, (r) => ({ exerciseId: remap(r.exerciseId) })),
     // The logo is part of its exam: a kept exam keeps its own, a copy takes the archived one.
     examLogos: rewrite('examLogos', (r) => r.examId, (r) => ({ examId: remap(r.examId) })),
     // A kept exam keeps its own links. A kept exercise is still linked: the importer reuses the

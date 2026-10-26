@@ -9,13 +9,15 @@ import {
 const conflict = (
   kind: ArchiveConflict['kind'],
   id: string,
-  allowCopy = true
+  allowCopy = true,
+  allowTake = false
 ): ArchiveConflict => ({
   kind,
   id,
   title: id,
   fields: [],
   allowCopy,
+  allowTake,
 });
 
 const payload = () => ({
@@ -41,6 +43,16 @@ describe('applyToAll', () => {
     expect(decisions.get('exam-1')?.choice).toBe('import-as-copy');
     expect(decisions.get('stu-1')?.choice).toBe('keep-existing');
   });
+
+  it('takes the archive version only where it overwrites in place (results), never for exams', () => {
+    // An exam POST is create-only, so "take" used to end as a hidden duplicate (issue #145).
+    const decisions = applyToAll(
+      [conflict('exam', 'exam-1'), conflict('submission', 'sub-1', false, true)],
+      'take-imported'
+    );
+    expect(decisions.get('exam-1')?.choice).toBe('keep-existing');
+    expect(decisions.get('sub-1')?.choice).toBe('take-imported');
+  });
 });
 
 describe('applyResolutions', () => {
@@ -55,13 +67,13 @@ describe('applyResolutions', () => {
     expect(next.exerciseExams).toHaveLength(0);
   });
 
-  it('takes the imported version without changing ids', () => {
+  it('takes the imported submission without changing ids', () => {
     const decisions: DecisionMap = new Map([
-      ['exam-1', { id: 'exam-1', kind: 'exam', choice: 'take-imported' }],
+      ['sub-1', { id: 'sub-1', kind: 'submission', choice: 'take-imported' }],
     ]);
     const { payload: next, idMap } = applyResolutions(payload(), decisions);
 
-    expect(next.exams[0].id).toBe('exam-1');
+    expect(next.submissions[0].id).toBe('sub-1');
     expect(idMap.size).toBe(0);
   });
 
@@ -96,12 +108,21 @@ describe('applyResolutions', () => {
     expect(next.exerciseScores).toHaveLength(0);
   });
 
-  it('matches resources on exercise and filename, not on id', () => {
+  it('drops the files of a kept exercise', () => {
     const decisions: DecisionMap = new Map([
-      ['ex-1:fig.png', { id: 'ex-1:fig.png', kind: 'resource', choice: 'keep-existing' }],
+      ['ex-1', { id: 'ex-1', kind: 'exercise', choice: 'keep-existing' }],
     ]);
     const { payload: next } = applyResolutions(payload(), decisions);
     expect(next.exerciseResources).toHaveLength(0);
+  });
+
+  it('moves the files of a copied exercise onto the copy', () => {
+    const decisions: DecisionMap = new Map([
+      ['ex-1', { id: 'ex-1', kind: 'exercise', choice: 'import-as-copy' }],
+    ]);
+    const { payload: next, idMap } = applyResolutions(payload(), decisions);
+    expect(next.exerciseResources).toHaveLength(1);
+    expect(next.exerciseResources[0].exerciseId).toBe(idMap.get('ex-1'));
   });
 
   it('passes everything through untouched when there are no decisions', () => {

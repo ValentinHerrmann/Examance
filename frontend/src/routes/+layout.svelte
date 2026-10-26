@@ -35,6 +35,7 @@
     isAdminPath,
     ADMIN_HOME,
   } from "#lib/stores/navigationStore";
+  import { IMPORT_ACCEPT, WORKSPACE_ARCHIVE_EXT } from "#lib/archive/format";
   import {
     importArchiveInteractively,
     exportArchiveInteractively,
@@ -318,7 +319,7 @@
 
 <input
   type="file"
-  accept=".bgproj"
+  accept={IMPORT_ACCEPT}
   style="display: none"
   bind:this={fileInput}
   onchange={handleFileSelected}
@@ -349,7 +350,7 @@
       onOpenArchive={triggerOpenBgproj}
       onExportArchive={() => exportArchiveInteractively()}
       onShareResults={() =>
-        exportArchiveInteractively(`examance-results-${new Date().toISOString().slice(0, 10)}.bgproj`, {
+        exportArchiveInteractively(`examance-results-${new Date().toISOString().slice(0, 10)}${WORKSPACE_ARCHIVE_EXT}`, {
           includeExerciseCode: false,
         })}
       onClearWorkspace={handleCloseWorkspace}
