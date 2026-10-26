@@ -15,9 +15,9 @@ const base = { id: 'e1', teacherId: 't', retentionUntil: '2030-01-01', compilati
 
 describe('buildExamLatex extra notes', () => {
   it('ends the body with \\ExamNotes, after the exercises', () => {
-    const exam = { ...base, extraNotes: { title: 'Platz & mehr_', minHeightCm: 4, maxHeightCm: 12 } };
+    const exam = { ...base, extraNotes: { title: 'Platz & mehr_', description: 'Hinweis', minHeightCm: 4, maxHeightCm: 12 } };
     const tex = buildExamLatex(exam, '\\Aufgabe{X}', 'sans,punkte', []);
-    const macro = '\\ExamNotes{Platz \\& mehr\\_}{4}{12}';
+    const macro = '\\ExamNotes{Platz \\& mehr\\_}{Hinweis}{4}{12}';
     expect(tex).toContain(macro);
     expect(tex.indexOf(macro)).toBeGreaterThan(tex.indexOf('\\Aufgabe{X}'));
     expect(tex.slice(tex.indexOf(macro) + macro.length).trim()).toBe('\\end{document}');

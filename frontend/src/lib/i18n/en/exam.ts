@@ -157,8 +157,9 @@ export const exam: Translations['exam'] = {
     },
     extraNotes: {
         label: 'Space for extra solutions at the end',
-        hint: 'A grid area at the end of the exam fills the rest of the last page between a minimum and a maximum height, and only starts a new page when even the minimum no longer fits.',
+        hint: 'A grid area at the end of the student sheet (not in the solution) fills the rest of the last page between a minimum and a maximum height, and only starts a new page when even the minimum no longer fits.',
         title: 'Heading (printed in German)',
+        description: 'Note below it (optional, printed in German)',
         min: 'Minimum height (cm)',
         max: 'Maximum height (cm)',
     },

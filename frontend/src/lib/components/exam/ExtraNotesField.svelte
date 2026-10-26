@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { Checkbox, Field, TextInput, controlClass } from "#lib/components/ui";
+  import { Checkbox, Field, TextInput, Textarea, controlClass } from "#lib/components/ui";
   import { DEFAULT_EXTRA_NOTES, type ExtraNotes } from "#lib/db/schema";
   import { t } from "#lib/i18n";
 
@@ -59,7 +59,10 @@
   </div>
   {#if draft}
     <Field label={$t("exam.extraNotes.title")} forId="{idPrefix}Title">
-      <TextInput id="{idPrefix}Title" bind:value={draft.title} maxlength={300} onchange={() => commit()} />
+      <TextInput id="{idPrefix}Title" bind:value={draft.title} maxlength={200} onchange={() => commit()} />
+    </Field>
+    <Field label={$t("exam.extraNotes.description")} forId="{idPrefix}Description">
+      <Textarea id="{idPrefix}Description" rows={2} bind:value={draft.description} maxlength={500} onchange={() => commit()} />
     </Field>
     <div class="grid grid-cols-2 gap-3">
       <Field label={$t("exam.extraNotes.min")} forId="{idPrefix}Min">

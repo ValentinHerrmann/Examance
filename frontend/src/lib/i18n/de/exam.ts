@@ -155,8 +155,9 @@ export const exam = {
     },
     extraNotes: {
         label: 'Platz für weitere Lösungen am Ende',
-        hint: 'Ein Karo-Feld am Ende der Prüfung füllt den Rest der letzten Seite zwischen Mindest- und Maximalhöhe und beginnt nur dann eine neue Seite, wenn die Mindesthöhe nicht mehr passt.',
+        hint: 'Ein Karo-Feld am Ende des Angabeblatts (nicht in der Lösung) füllt den Rest der letzten Seite zwischen Mindest- und Maximalhöhe und beginnt nur dann eine neue Seite, wenn die Mindesthöhe nicht mehr passt.',
         title: 'Überschrift (wird auf Deutsch gedruckt)',
+        description: 'Hinweis darunter (optional, wird auf Deutsch gedruckt)',
         min: 'Mindesthöhe (cm)',
         max: 'Maximalhöhe (cm)',
     },

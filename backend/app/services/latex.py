@@ -528,7 +528,8 @@ async def compile_exam_latex(
         title = escape_tex(str(extra_notes.get("title", "")))
         low = _cm_arg(extra_notes.get("min_height_cm"), 4.0)
         high = _cm_arg(extra_notes.get("max_height_cm"), 12.0)
-        exercise_inputs.append(f"\\ExamNotes{{{title}}}{{{low}}}{{{high}}}")
+        description = escape_tex(str(extra_notes.get("description", "")))
+        exercise_inputs.append(f"\\ExamNotes{{{title}}}{{{description}}}{{{low}}}{{{high}}}")
     inputs_str = "\n\n".join(exercise_inputs)
     # The exercises are \input from extra files, so their package lines are collected from those.
     exercise_latex = "\n".join(latex for _, _, latex, _ in items_with_order)

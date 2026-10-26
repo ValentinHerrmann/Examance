@@ -43,7 +43,8 @@ def normalize_topic(value: Any) -> Any:
 class ExtraNotes(BaseModel):
     """Karo block at the end of the exam; heights in cm, the layout fills the page within them."""
 
-    title: str = Field(max_length=300)
+    title: str = Field(max_length=200)
+    description: str = Field(default="", max_length=500)
     min_height_cm: float = Field(ge=1, le=25)
     max_height_cm: float = Field(ge=1, le=25)
 

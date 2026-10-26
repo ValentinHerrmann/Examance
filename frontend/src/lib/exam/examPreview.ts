@@ -123,7 +123,7 @@ export function extraNotesLatex(notes: ExtraNotes | null | undefined): string {
   const clamp = (v: number) => (Number.isFinite(v) ? Math.min(25, Math.max(1, v)) : 1);
   const min = clamp(notes.minHeightCm);
   const max = Math.max(min, clamp(notes.maxHeightCm));
-  return `\n\\ExamNotes{${escapeLatex(notes.title)}}{${min}}{${max}}\n`;
+  return `\n\\ExamNotes{${escapeLatex(notes.title)}}{${escapeLatex(notes.description ?? "")}}{${min}}{${max}}\n`;
 }
 
 /** Adds the exam's layout switches to the Schulaufgabe.sty options; mirrors `compile_exam_latex`. */

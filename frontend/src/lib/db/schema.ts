@@ -23,12 +23,15 @@ export interface GradingKeyConfig {
 /** Optional karo block at the end of an exam (issue #156); the printed title stays German. */
 export interface ExtraNotes {
   title: string;
+  /** Printed below the title, smaller; may be empty. */
+  description: string;
   minHeightCm: number;
   maxHeightCm: number;
 }
 
 export const DEFAULT_EXTRA_NOTES: ExtraNotes = {
-  title: 'Platz für weitere Lösungen. Zugehörigkeit zu einer Aufgabe bitte deutlich darstellen.',
+  title: 'Platz für weitere Lösungen',
+  description: 'Zugehörigkeit zu einer Aufgabe bitte deutlich darstellen.',
   minHeightCm: 4,
   maxHeightCm: 12,
 };

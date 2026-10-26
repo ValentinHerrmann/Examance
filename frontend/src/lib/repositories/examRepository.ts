@@ -26,13 +26,16 @@ function extraNotesField(value: any): ExtraNotes | null | undefined {
   if (!value || typeof value !== 'object') return null;
   return {
     title: String(value.title ?? ''),
+    description: String(value.description ?? ''),
     minHeightCm: Number(value.min_height_cm ?? value.minHeightCm),
     maxHeightCm: Number(value.max_height_cm ?? value.maxHeightCm),
   };
 }
 
-export function extraNotesToApi(value: ExtraNotes | null): { title: string; min_height_cm: number; max_height_cm: number } | null {
-  return value ? { title: value.title, min_height_cm: value.minHeightCm, max_height_cm: value.maxHeightCm } : null;
+export function extraNotesToApi(
+  value: ExtraNotes | null,
+): { title: string; description: string; min_height_cm: number; max_height_cm: number } | null {
+  return value ? { title: value.title, description: value.description ?? '', min_height_cm: value.minHeightCm, max_height_cm: value.maxHeightCm } : null;
 }
 
 export function mapApiToExamRecord(raw: any): ExamRecord {
