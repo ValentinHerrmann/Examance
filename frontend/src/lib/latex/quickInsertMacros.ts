@@ -39,8 +39,6 @@ export interface QuickInsertMacro {
   buildTemplate: (args: string[]) => QuickInsertTemplate;
     /** Argument that receives a wrapped selection (default 0); set where the content argument isn't first, e.g. \textcolor. */
   selectionArgIndex?: number;
-  /** Packages the template doesn't load; the editor adds a `\usepackage` line for each missing one. */
-  packages?: string[];
 }
 
 /**
@@ -66,13 +64,11 @@ export function oneArgMacro(
   before: string,
   placeholder: string,
   after = "}",
-  category: QuickInsertMacro["category"] = "scoring",
-  packages?: string[]
+  category: QuickInsertMacro["category"] = "scoring"
 ): QuickInsertMacro {
   return {
     id,
     category,
-    packages,
     preview: `${before}${placeholder}${after}`,
     args: [{ placeholder }],
     buildTemplate: (a) => templateJoin([before, after], a)

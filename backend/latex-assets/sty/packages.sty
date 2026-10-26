@@ -36,6 +36,11 @@
   decorations.pathreplacing, patterns, intersections, angles, quotes}
 \RequirePackage{listings}
 \RequirePackage{svg}
+% Subject snippets of the editor palette rely on these (issue #154). mhchem, chemgreek and simplekv (for chemfig) are
+% vendored in sty/ for the browser engine, whose TeX Live bundle lacks them; Tectonic resolves flat names from its own.
+\RequirePackage{chemfig}
+\RequirePackage{circuitikz}
+\RequirePackage[version=4]{mhchem}
 
 \RequirePackage{sty/tikz-uml}
 \RequirePackage{sty/custom-pgf-umlcd}

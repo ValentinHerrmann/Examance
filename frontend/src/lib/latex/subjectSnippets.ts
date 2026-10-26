@@ -1,14 +1,13 @@
 /**
- * Subject snippets for the quick-insert palette, one tab per subject, chips roughly in grade order (Bavarian
- * LehrplanPLUS Gymnasium for the MINT subjects). Labels live in the `snippets` i18n namespace, keyed by id.
- * Never use `${` inside these String.raw templates: it interpolates.
+ * Subject snippets of the palette (one tab per subject, MINT topics from LehrplanPLUS Gymnasium); labels in the `snippets`
+ * i18n namespace. packages.sty preloads every package they use. Never write `${` in these String.raw templates.
  */
 import { oneArgMacro, type QuickInsertMacro, type SubjectCategory } from "./quickInsertMacros";
 
 const snippet =
   (category: SubjectCategory) =>
-  (id: string, before: string, placeholder: string, after = "", packages?: string[]): QuickInsertMacro =>
-    oneArgMacro(id, before, placeholder, after, category, packages);
+  (id: string, before: string, placeholder: string, after = ""): QuickInsertMacro =>
+    oneArgMacro(id, before, placeholder, after, category);
 
 const math = snippet("math");
 const cs = snippet("cs");
@@ -16,8 +15,6 @@ const physics = snippet("physics");
 const chemistry = snippet("chemistry");
 const biology = snippet("biology");
 const humanities = snippet("humanities");
-const CHEMFIG = ["chemfig"];
-const MHCHEM = ["mhchem"];
 
 export const SUBJECT_SNIPPETS: QuickInsertMacro[] = [
   // --- Mathematik ---
@@ -69,7 +66,7 @@ export const SUBJECT_SNIPPETS: QuickInsertMacro[] = [
   \pic[draw, "$\beta$", angle eccentricity=1.5] {angle = C--B--A};
   \pic[draw, "$\gamma$", angle eccentricity=1.5] {angle = A--C--B};
 \end{tikzpicture}`),
-  math("math-tree", String.raw`\begin{tikzpicture}[grow=right, level distance=2.5cm, level 1/.style={sibling distance=2.4cm},
+  math("math-tree", String.raw`\begin{tikzpicture}[grow'=right, level distance=2.5cm, level 1/.style={sibling distance=2.4cm},
     level 2/.style={sibling distance=1.2cm}, prob/.style={fill=white, inner sep=1pt, font=\footnotesize}]
   \node[circle, fill, inner sep=1pt] {}
     child {node {$A$}
@@ -179,7 +176,7 @@ export const SUBJECT_SNIPPETS: QuickInsertMacro[] = [
   \draw[->] (b) -- (f);
   \draw[->] (f) -- (r);
 \end{tikzpicture}`),
-  cs("cs-schema", String.raw`\texttt{`, "Schueler", String.raw`}(\underline{id : int}, name : String, \overline{klasse\_id : int})`),
+  cs("cs-schema", String.raw`\texttt{`, "Schueler", String.raw`}(\underline{id : int}, name : String, $\overline{\mbox{klasse\_id : int}}$)`),
   cs("cs-db-table", String.raw`\begin{tabular}{c | c | c}
 `, "id & name & alter", String.raw` \\ \hline\hline
 1 & "Lia" & 15 \\ \hline
@@ -306,7 +303,7 @@ public class Schueler extends Mensch {
         to[switch] (3,3)
         to[R, l=$`, "R", String.raw`$] (6,3)
         to[lamp] (6,0) -- (0,0);
-\end{circuitikz}`, ["circuitikz"]),
+\end{circuitikz}`),
   physics("phys-incline", String.raw`\begin{tikzpicture}
   \draw (0,0) -- (6,0) -- (6,3) -- cycle;
   \begin{scope}[shift={(3.6,1.8)}, rotate=26.57]
@@ -373,7 +370,7 @@ public class Schueler extends Mensch {
   \draw[<->] (1,0) -- node[right] {$\hat y$} (1,1);
   \draw[<->] (1,1.3) -- node[above] {$`, "T", String.raw`$} (5,1.3);
 \end{tikzpicture}`),
-  physics("phys-decay-equation", String.raw`\ce{`, "^{238}_{92}U -> ^{234}_{90}Th + ^{4}_{2}He", "}", MHCHEM),
+  physics("phys-decay-equation", String.raw`\ce{`, "^{238}_{92}U -> ^{234}_{90}Th + ^{4}_{2}He", "}"),
   physics("phys-decay-curve", String.raw`\begin{tikzpicture}
   \draw[->] (0,0) -- (8.5,0) node[right] {$t$ in a};
   \draw[->] (0,0) -- (0,4.5) node[above] {$N$};
@@ -386,8 +383,8 @@ public class Schueler extends Mensch {
 
   // --- Chemie ---
   chemistry("chem-formula", "", String.raw`H$_2$O`),
-  chemistry("chem-reaction", String.raw`\ce{`, "2 H2 + O2 -> 2 H2O", "}", MHCHEM),
-  chemistry("chem-gap-reaction", String.raw`\ce{Zn + 2 HCl ->} \LoesungLuecke{`, String.raw`\ce{ZnCl2 + H2}`, "}{4cm}", MHCHEM),
+  chemistry("chem-reaction", String.raw`\ce{`, "2 H2 + O2 -> 2 H2O", "}"),
+  chemistry("chem-gap-reaction", String.raw`\ce{Zn + 2 HCl ->} \LoesungLuecke{`, String.raw`\ce{ZnCl2 + H2}`, "}{4cm}"),
   chemistry("chem-energy-diagram", String.raw`\begin{tikzpicture}
   \draw[->] (0,0) -- (8,0) node[below left] {Reaktionsverlauf};
   \draw[->] (0,0) -- (0,5) node[above] {$E$};
@@ -415,14 +412,14 @@ public class Schueler extends Mensch {
   `, "Li & Be & B & C & N & O & F & Ne", String.raw` \\ \hline
   Na & Mg & Al & Si & P & S & Cl & Ar \\ \hline
 \end{tabular}`),
-  chemistry("chem-ions", String.raw`\ce{`, "Ag+ + Cl- -> AgCl v", "}", MHCHEM),
-  chemistry("chem-structure", String.raw`\chemfig{`, "H-C(-[2]H)(-[6]H)-C(-[2]H)(-[6]H)-O-H", "}", CHEMFIG),
-  chemistry("chem-lewis", String.raw`\chemfig{`, String.raw`H-\lewis{2:6:,O}-H`, "}", CHEMFIG),
+  chemistry("chem-ions", String.raw`\ce{`, "Ag+ + Cl- -> AgCl v", "}"),
+  chemistry("chem-structure", String.raw`\chemfig{`, "H-C(-[2]H)(-[6]H)-C(-[2]H)(-[6]H)-O-H", "}"),
+  chemistry("chem-lewis", String.raw`\chemfig{`, String.raw`H-\charge{90=\|,270=\|}{O}-H`, "}"),
   chemistry("chem-redox", String.raw`\begin{align*}
   \text{Oxidation:}\quad & \overset{0}{\ce{`, "Cu", String.raw`}} \ce{->} \overset{+\mathrm{II}}{\ce{Cu^2+}} + 2\,\ce{e-} \\
   \text{Reduktion:}\quad & \overset{+\mathrm{I}}{\ce{Ag+}} + \ce{e-} \ce{->} \overset{0}{\ce{Ag}}
-\end{align*}`, MHCHEM),
-  chemistry("chem-equilibrium", String.raw`\ce{`, "N2 + 3 H2 <=> 2 NH3", "}", MHCHEM),
+\end{align*}`),
+  chemistry("chem-equilibrium", String.raw`\ce{`, "N2 + 3 H2 <=> 2 NH3", "}"),
   chemistry("chem-titration", String.raw`\begin{tikzpicture}[scale=0.4]
   \draw[->] (0,0) -- (21,0) node[right] {$V$ in mL};
   \draw[->] (0,0) -- (0,14.5) node[above] {pH};
@@ -431,8 +428,8 @@ public class Schueler extends Mensch {
   \draw[dashed] (10,0) -- (10,7) -- (0,7);
   \fill (10,7) circle (2pt) node[right] {`, "Äquivalenzpunkt", String.raw`};
 \end{tikzpicture}`),
-  chemistry("chem-benzene", String.raw`\chemfig{`, "*6(=-=-=-)", "}", CHEMFIG),
-  chemistry("chem-fischer", String.raw`\chemfig{`, "CHO-[6]C(-[4]H)(-[0]OH)-[6]CH_2OH", "}", CHEMFIG),
+  chemistry("chem-benzene", String.raw`\chemfig{`, "*6(=-=-=-)", "}"),
+  chemistry("chem-fischer", String.raw`\chemfig{`, "CHO-[6]C(-[4]H)(-[0]OH)-[6]CH_2OH", "}"),
 
   // --- Biologie ---
   biology("bio-sketch", String.raw`\begin{tikzpicture}
@@ -477,11 +474,11 @@ public class Schueler extends Mensch {
   mRNA: & \LoesungLuecke{\texttt{AUG CCU AAG}}{4cm} \\
   Aminosäuren: & \LoesungLuecke{Met -- Pro -- Lys}{4cm}
 \end{tabular}`),
-  biology("bio-punnett", String.raw`\begin{tabular}{c|c|c}
+  biology("bio-punnett", String.raw`{\renewcommand{\arraystretch}{1.6}\begin{tabular}{c|>{\centering\arraybackslash}p{1.5cm}|>{\centering\arraybackslash}p{1.5cm}}
    & $`, "A", String.raw`$ & $a$ \\ \hline
-  $A$ & \LoesungLuecke{$AA$}{1.5cm} & \LoesungLuecke{$Aa$}{1.5cm} \\ \hline
-  $a$ & \LoesungLuecke{$Aa$}{1.5cm} & \LoesungLuecke{$aa$}{1.5cm}
-\end{tabular}`),
+  $A$ & \LoesungLeer{$AA$}{0pt} & \LoesungLeer{$Aa$}{0pt} \\ \hline
+  $a$ & \LoesungLeer{$Aa$}{0pt} & \LoesungLeer{$aa$}{0pt}
+\end{tabular}}`),
   biology("bio-pedigree", String.raw`\begin{tikzpicture}[male/.style={draw, minimum size=6mm}, female/.style={draw, circle, minimum size=6mm},
     affected/.style={fill=gray!70}]
   \node at (-1.5,0) {`, "I", String.raw`};
@@ -547,22 +544,22 @@ public class Schueler extends Mensch {
   3 & Begriff & C & Erklärung
 \end{tabular}
 
-\begin{tabular}{|c|c|c|}
+{\renewcommand{\arraystretch}{1.6}\begin{tabular}{|*{3}{>{\centering\arraybackslash}p{1cm}|}}
   \hline
   1 & 2 & 3 \\ \hline
-  \LoesungLuecke{B}{1cm} & \LoesungLuecke{C}{1cm} & \LoesungLuecke{A}{1cm} \\ \hline
-\end{tabular}`),
-  humanities("lang-vocabulary", String.raw`\begin{tabular}{|l|l|}
+  \LoesungLeer{B}{0pt} & \LoesungLeer{C}{0pt} & \LoesungLeer{A}{0pt} \\ \hline
+\end{tabular}}`),
+  humanities("lang-vocabulary", String.raw`{\renewcommand{\arraystretch}{1.6}\begin{tabular}{|l|p{5cm}|}
   \hline
   \textbf{Deutsch} & \textbf{Englisch} \\ \hline
-  `, "der Hund", String.raw` & \LoesungLuecke{the dog}{3cm} \\ \hline
-  die Katze & \LoesungLuecke{the cat}{3cm} \\ \hline
-\end{tabular}`),
-  humanities("lang-gap-table", String.raw`\begin{tabular}{|l|l|}
+  `, "der Hund", String.raw` & \LoesungLeer{the dog}{0pt} \\ \hline
+  die Katze & \LoesungLeer{the cat}{0pt} \\ \hline
+\end{tabular}}`),
+  humanities("lang-gap-table", String.raw`{\renewcommand{\arraystretch}{1.6}\begin{tabular}{|l|p{6cm}|}
   \hline
-  `, "Begriff", String.raw` & \LoesungLuecke{Antwort}{4cm} \\ \hline
-  Begriff & \LoesungLuecke{Antwort}{4cm} \\ \hline
-\end{tabular}`),
+  `, "Begriff", String.raw` & \LoesungLeer{Antwort}{0pt} \\ \hline
+  Begriff & \LoesungLeer{Antwort}{0pt} \\ \hline
+\end{tabular}}`),
   humanities("lang-timeline", String.raw`\begin{tikzpicture}
   \draw[->, thick] (0,0) -- (12,0);
   \foreach \x/\j/\e in {`, String.raw`1/1789/Französische Revolution, 5/1871/Reichsgründung, 9/1918/Ende des 1.\ Weltkriegs`, String.raw`} {

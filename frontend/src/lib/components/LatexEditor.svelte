@@ -64,7 +64,6 @@
     type SubjectCategory
   } from "#lib/latex/quickInsertMacros";
   import { SUBJECT_SNIPPETS } from "#lib/latex/subjectSnippets";
-  import { exerciseEntries, formatPackageLine } from "#lib/latex/packages";
   import { computeQuickInsert } from "#lib/latex/quickInsertLogic";
   import { t, type TranslationKey } from "#lib/i18n";
   import { theme } from "#lib/stores/theme";
@@ -133,13 +132,6 @@
       changes: result.changes,
       selection: EditorSelection.range(result.selection.anchor, result.selection.head)
     });
-    // Packages the template lacks go on top as exercise package lines, where the packages panel keeps them.
-    const present = new Set(exerciseEntries(view.state.doc.toString()).map((e) => e.name));
-    const missing = (macro.packages ?? []).filter((name) => !present.has(name));
-    if (missing.length) {
-      const lines = missing.map((name) => `${formatPackageLine({ kind: "package", name, options: "" })}\n`).join("");
-      view.dispatch({ changes: { from: 0, insert: lines } });
-    }
     view.focus();
   }
 

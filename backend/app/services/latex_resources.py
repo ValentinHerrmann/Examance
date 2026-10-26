@@ -59,7 +59,7 @@ def _bundled_asset_names() -> set[str]:
     """
     Names a user file must not take: bundled assets own them in the compile working directory.
     ``compile_latex`` copies every top-level ``latex-assets`` entry and the WASM worker flattens
-    ``sty/x.sty`` to ``x.sty`` (compiler.worker.ts); both are reserved, as are the logo names.
+    ``sty/x.sty`` and ``sty/x.tex`` (compiler.worker.ts); both are reserved, as are the logo names.
     """
     reserved = {"main.tex", "main.log", "main.aux", "main.pdf", "index.json", *LOGO_FILENAMES}
     if ASSETS_DIR.exists():
