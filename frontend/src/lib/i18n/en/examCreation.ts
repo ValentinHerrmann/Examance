@@ -45,6 +45,8 @@ export const examCreation: Translations['examCreation'] = {
         topicPlaceholder: 'e.g. Recursion',
         topicHint: 'For organising your exams in the overview (filter and search). Not printed on the exam.',
         infoLabel: 'Header Info Instructions (\\Info)',
+        nameLineLabel: 'Print a name line next to the QR code box',
+        nameLineHint: 'Students write their name on the title page. The QR code box stays; its initials field is dropped.',
     },
     exerciseSelector: {
         heading: '2. Select Exercises',

@@ -380,6 +380,7 @@
         info_text: exam.infoText,
         latex_packages: exam.latexPackages,
         page_breaks: exam.pageBreaks,
+        name_line: exam.nameLine,
         latex_template: exam.latexTemplate,
         retention_until:
           exam.retentionUntil ||
@@ -609,6 +610,7 @@
   let editTopic = $state("");
   let editLehrernachname = $state("");
   let editInfoText = $state("");
+  let editNameLine = $state(false);
   let editLogoChange: ExamLogoChange | null = $state.raw(null);
   let editLatexPackages: LatexPackageEntry[] | null = $state.raw(null);
   let initialLatexPackages = $state("null");
@@ -629,6 +631,7 @@
     topic: "",
     lehrernachname: "",
     infoText: "",
+    nameLine: false,
     retentionUntil: "",
   });
   let showMetadataConfirm = $state(false);
@@ -645,6 +648,7 @@
         editTopic !== initialMetadata.topic ||
         editLehrernachname !== initialMetadata.lehrernachname ||
         editInfoText !== initialMetadata.infoText ||
+        editNameLine !== initialMetadata.nameLine ||
         editLogoChange !== null ||
         JSON.stringify(editLatexPackages) !== initialLatexPackages ||
         editRetentionUntil !== initialMetadata.retentionUntil),
@@ -725,6 +729,7 @@
     editTopic = exam.topic || "";
     editLehrernachname = exam.lehrernachname || "";
     editInfoText = exam.infoText || "";
+    editNameLine = exam.nameLine === true;
     editRetentionUntil = exam.retentionUntil || "";
     editGradingKey = exam.gradingKey || {
       preset: "linear_50",
@@ -742,6 +747,7 @@
       topic: editTopic,
       lehrernachname: editLehrernachname,
       infoText: editInfoText,
+      nameLine: editNameLine,
       retentionUntil: editRetentionUntil,
     };
     editLogoChange = null;
@@ -789,6 +795,7 @@
           topic,
           lehrernachname: editLehrernachname,
           info_text: editInfoText,
+          name_line: editNameLine,
           grading_key: gradingKey,
           latex_packages: latexPackages,
           retention_until: editRetentionUntil,
@@ -807,6 +814,7 @@
         topic,
         lehrernachname: editLehrernachname,
         infoText: editInfoText,
+        nameLine: editNameLine,
         retentionUntil: editRetentionUntil,
         gradingKey,
         latexPackages,
@@ -1267,6 +1275,7 @@
       topicSuggestions={exerciseTopicSuggestions(exercises)}
       bind:editLehrernachname
       bind:editInfoText
+      bind:editNameLine
       bind:editRetentionUntil
       bind:editGradingKey
       examId={exam?.id}

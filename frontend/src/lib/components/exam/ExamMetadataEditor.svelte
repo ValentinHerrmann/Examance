@@ -7,7 +7,7 @@
   import { recordValue } from '#lib/utils/recentValues';
   import { formatExamCourse, parseDatumAndDauer, formatDatumAndDauer } from '#lib/utils/examLabel';
   import { t } from '#lib/i18n';
-  import { Modal, Button, controlClass } from '#lib/components/ui';
+  import { Modal, Button, Checkbox, controlClass } from '#lib/components/ui';
   import ExamLogoField from '#lib/components/logo/ExamLogoField.svelte';
   import ExamPackagesField from '#lib/components/latex-packages/ExamPackagesField.svelte';
   import type { LatexPackageEntry } from '#lib/latex/packages';
@@ -27,6 +27,8 @@
     topicSuggestions?: string[];
     editLehrernachname: string;
     editInfoText: string;
+    /** Name line next to the QR box (issue #127). */
+    editNameLine?: boolean;
     editRetentionUntil: string;
     editGradingKey: GradingKeyConfig;
     /** Exam whose logo choice is edited; the staged choice lands in `logoChange`. */
@@ -53,6 +55,7 @@
     topicSuggestions = [],
     editLehrernachname = $bindable(),
     editInfoText = $bindable(),
+    editNameLine = $bindable(false),
     editRetentionUntil = $bindable(),
     editGradingKey = $bindable(),
     examId = undefined,
@@ -160,6 +163,11 @@
   <div class="mb-4 flex flex-col gap-1">
     <span class="text-sm font-medium text-content">{$t("exam.metadataEditor.infoText")}</span>
     <LatexEditor bind:value={editInfoText} rows={4} />
+  </div>
+
+  <div class="mb-4 flex flex-col gap-1">
+    <Checkbox id="editNameLine" bind:checked={editNameLine} label={$t("exam.metadataEditor.nameLine")} />
+    <p class="m-0 text-sm text-muted">{$t("exam.metadataEditor.nameLineHint")}</p>
   </div>
 
   {#if examId && isOpen}
