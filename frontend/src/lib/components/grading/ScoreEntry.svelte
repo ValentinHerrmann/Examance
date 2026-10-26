@@ -3,8 +3,9 @@
   import { gradingStore } from "#lib/grading/gradingStore";
   import { t } from "#lib/i18n";
   import { exerciseHref } from "#lib/utils/links";
+  import ExercisePreviewDrawer from "#lib/components/exercise-library/ExercisePreviewDrawer.svelte";
   import { faBullseye, faXmark } from "@fortawesome/free-solid-svg-icons";
-  import { Button, CrossLink, Icon, controlClass, controlSmClass } from "#lib/components/ui";
+  import { Button, Icon, LinkButton, controlClass, controlSmClass } from "#lib/components/ui";
 
   interface Props {
     exercises: ExerciseRecord[];
@@ -38,6 +39,8 @@
     "flex cursor-pointer items-center justify-between gap-2 rounded-md border border-line bg-surface-raised px-2 py-1.5 transition-colors hover:border-line-strong hover:bg-surface-inset pointer-coarse:min-h-11";
   const itemActive =
     "flex cursor-pointer items-center justify-between gap-2 rounded-md border border-primary bg-highlight px-2 py-1.5 shadow-sm transition-colors pointer-coarse:min-h-11";
+
+  let previewEx: ExerciseRecord | null = $state.raw(null);
 </script>
 
 <div class="shrink-0 border-b border-line bg-surface-raised px-3 py-2.5">
@@ -55,7 +58,7 @@
       onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectExercise(ex.id); }}
     >
       <div class="flex items-center gap-1">
-        <CrossLink href={exerciseHref(ex.id)} class="text-xs font-bold text-content">Q{ex.orderIndex}{#if ex.subIndex}&nbsp;{String.fromCharCode(96 + ex.subIndex)}){/if}</CrossLink>
+        <LinkButton onClick={() => (previewEx = ex)} class="text-xs font-bold text-content!">Q{ex.orderIndex}{#if ex.subIndex}&nbsp;{String.fromCharCode(96 + ex.subIndex)}){/if}</LinkButton>
         {#if ex.id === $gradingStore.activeExerciseId}
           <Icon icon={faBullseye} class="text-xs text-accent" label={$t("grading.scoreEntry.stampTarget")} />
         {/if}
@@ -92,3 +95,7 @@
     </div>
   {/each}
 </div>
+
+{#if previewEx}
+  <ExercisePreviewDrawer previewModalEx={previewEx} newTabHref={exerciseHref(previewEx.id)} onClose={() => (previewEx = null)} />
+{/if}

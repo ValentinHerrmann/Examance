@@ -11,7 +11,6 @@
   import { mcSubLabel } from '#lib/grading/mcGroupLabels';
   import ExerciseLabel from '#lib/components/exam/ExerciseLabel.svelte';
   import PageBreakDivider from '#lib/components/exam/PageBreakDivider.svelte';
-  import { exerciseHref } from "#lib/utils/links";
   import { t } from '#lib/i18n';
   import { faArrowUp, faArrowDown, faXmark } from '@fortawesome/free-solid-svg-icons';
   import { Badge, Button, Card } from '#lib/components/ui';
@@ -38,6 +37,8 @@
     /** Ids of the items that start on a new page (a break goes before each). */
     pageBreaks?: string[];
     onTogglePageBreak?: ((itemId: string) => void) | undefined;
+    /** Opens an exercise name in place (editor modal). */
+    onOpenExercise?: ((ex: ExerciseRecord) => void) | undefined;
   }
 
   let {
@@ -53,7 +54,8 @@
     onRemoveMcGroup = undefined,
     onEditMcGroup = undefined,
     pageBreaks = [],
-    onTogglePageBreak = undefined
+    onTogglePageBreak = undefined,
+    onOpenExercise = undefined
   }: Props = $props();
 
   function memberExercises(group: McGroup): ExerciseRecord[] {
@@ -89,7 +91,7 @@
   <div class={rowClass}>
     <span class={numberClass}>{idx + 1}.</span>
     <div class={titleClass}>
-      <ExerciseLabel {exercise} href={exerciseHref(exercise.id)} />
+      <ExerciseLabel {exercise} onOpen={onOpenExercise ? () => onOpenExercise(exercise) : undefined} />
       {#if exercise.topicTag}
         <Badge severity="secondary">{exercise.topicTag}</Badge>
       {/if}
@@ -131,7 +133,7 @@
     <span class={pointsClass}>{groupPoints(group)} {$t("exam.exerciseList.points")}</span>
     <ul class={subItemsClass}>
       {#each memberExercises(group) as ex, i}
-        <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} href={exerciseHref(ex.id)} /></li>
+        <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} onOpen={onOpenExercise ? () => onOpenExercise(ex) : undefined} /></li>
       {/each}
     </ul>
     <div class={actionsClass}>

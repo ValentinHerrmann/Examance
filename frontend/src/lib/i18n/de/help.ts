@@ -46,7 +46,7 @@ export const help = {
                 p2: 'Alle sensiblen Daten werden im Browser verschlüsselt, bevor sie gespeichert werden. Der Schlüssel wird aus dem Passwort abgeleitet und verlässt das Gerät nicht.',
                 p3: 'Einen schnellen Überblick geben zwei Poster unter „Poster: Funktionen & Datenschutz“ (auf der Anmeldeseite verlinkt): was Examance kann, wie die Oberfläche aussieht und wie Ihre Daten geschützt sind.',
                 p4: 'Zum Ausprobieren legt „Beispieldaten hinzufügen“ in der noch leeren Prüfungsübersicht Beispielaufgaben, zwei Beispielprüfungen und bereits korrigierte Bögen erfundener Schülerinnen und Schüler an, darunter gescannte. Sie werden nicht geteilt, wie Ihre eigenen Daten gespeichert und verschlüsselt und lassen sich wie jede Prüfung und Aufgabe wieder löschen.',
-                p5: 'Namen von Aufgaben, Klausuren und Abgaben mit dem Symbol ↗ öffnen das Verknüpfte in einem neuen Tab, etwa eine Aufgabe direkt im Editor oder eine Abgabe in der Korrektur. Ungespeicherte Arbeit im aktuellen Tab bleibt so erhalten.',
+                p5: 'Viele Namen sind anklickbar: Aufgaben öffnen sich in der Klausur direkt im Editor, beim Korrigieren und in der Auswertung als Vorschau, Klausuren in der Bibliothek als Übersicht. Vorschau und Übersicht haben oben „In neuem Tab öffnen“. Namen mit dem Symbol ↗, etwa Schülerinnen und Schüler, öffnen die Korrektur gleich in einem neuen Tab, damit ungespeicherte Arbeit im aktuellen Tab erhalten bleibt.',
             },
             s2: {
                 h: 'Der typische Ablauf',
@@ -90,7 +90,7 @@ export const help = {
                 h: 'Sammeln statt kopieren',
                 p1: 'Aufgaben liegen in einer gemeinsamen Bibliothek und werden nach Jahrgang, Fach und Thema verschlagwortet. Jede Aufgabe ist ein LaTeX-Fragment mit Live-Vorschau; die Punktzahl wird automatisch aus dem Quelltext gelesen und an jeder Variante angezeigt. Im Quelltext-Editor öffnet Strg + F die Suche, Strg + H Suchen und Ersetzen (auf dem Mac ⌘).',
                 p2: 'Über die Filter oben lassen sich Aufgaben nach Jahrgang, Fach und Thema eingrenzen und für eine neue Klausur wiederverwenden. Die Zahlen an den Themen zählen nur, was zu den übrigen Filtern passt; Themen ohne Treffer werden ausgeblendet. „Sortieren nach“ ordnet die Liste nach Name, letzter Änderung, Punkten, Jahrgang oder Fach; die Wahl merkt sich dieser Browser.',
-                p3: 'Im aufgeklappten Eintrag sehen Sie je Variante, in welchen Klausuren die Aufgabe verwendet wird (Klick öffnet die Klausur in einem neuen Tab). „Vorschau“ zeigt das zuletzt kompilierte PDF; gibt es noch keines, fragt Examance, ob es jetzt kompiliert werden soll.',
+                p3: 'Im aufgeklappten Eintrag sehen Sie je Variante, in welchen Klausuren die Aufgabe verwendet wird (Klick zeigt eine Übersicht der Klausur, von dort lässt sie sich in einem neuen Tab öffnen). „Vorschau“ zeigt das zuletzt kompilierte PDF; gibt es noch keines, fragt Examance, ob es jetzt kompiliert werden soll.',
             },
             s2: {
                 h: 'Varianten und Versionen',

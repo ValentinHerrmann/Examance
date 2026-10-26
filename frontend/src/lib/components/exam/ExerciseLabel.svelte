@@ -1,16 +1,16 @@
 <script lang="ts">
   import type { ExerciseRecord } from "#lib/db/schema";
   import { t } from "#lib/i18n";
-  import { Badge, CrossLink } from "#lib/components/ui";
+  import { Badge, LinkButton } from "#lib/components/ui";
 
   interface Props {
     /** Name plus variant/version, since several variants of one exercise can share a name in an exam or MC group. */
     exercise: Pick<ExerciseRecord, "name" | "variantKey" | "version">;
-    /** Makes the name a new-tab cross-link (e.g. `exerciseHref`). */
-    href?: string | undefined;
+    /** Makes the name a link that opens the exercise in a modal (editor or preview). */
+    onOpen?: (() => void) | undefined;
   }
 
-  let { exercise, href = undefined }: Props = $props();
+  let { exercise, onOpen = undefined }: Props = $props();
 
   // "_General" is the picker's bucket for exercises without a variant key.
   let variant = $derived(exercise.variantKey && exercise.variantKey !== "_General" ? exercise.variantKey : null);
@@ -18,8 +18,8 @@
 </script>
 
 <span class="inline-flex min-w-0 flex-wrap items-center gap-1.5">
-  {#if href}
-    <CrossLink {href}>{exercise.name || $t("exam.exerciseLabel.untitled")}</CrossLink>
+  {#if onOpen}
+    <LinkButton onClick={onOpen}>{exercise.name || $t("exam.exerciseLabel.untitled")}</LinkButton>
   {:else}
     <span class="min-w-0 truncate">{exercise.name || $t("exam.exerciseLabel.untitled")}</span>
   {/if}

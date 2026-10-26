@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { faArrowLeft, faArrowRight, faCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Button, CrossLink, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
+  import { Alert, Button, CrossLink, EmptyState, LinkButton, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
   import { storagePolicyStore } from "#lib/stores/storagePolicy";
@@ -20,6 +20,7 @@
   } from "#lib/db/schema";
   import { t } from "#lib/i18n";
   import { exerciseHref, gradeHref } from "#lib/utils/links";
+  import ExercisePreviewDrawer from "#lib/components/exercise-library/ExercisePreviewDrawer.svelte";
 
   interface Props {
     exam?: ExamRecord | null;
@@ -43,6 +44,7 @@
     onOpenRoster = () => {},
   }: Props = $props();
 
+  let previewEx: ExerciseRecord | null = $state.raw(null);
   let currentStudentIndex = $state(0);
   let inputElements: (HTMLInputElement | null)[] = $state([]);
 
@@ -348,7 +350,7 @@
               {@const isInvalid = rawVal !== "" && (isNaN(numVal) || numVal < 0 || numVal > ex.maxPoints)}
               <tr>
                 <td>{idx + 1}</td>
-                <td><strong><CrossLink href={exerciseHref(ex.id)} class="text-content">{ex.name}</CrossLink></strong></td>
+                <td><strong><LinkButton onClick={() => (previewEx = ex)} class="text-content!">{ex.name}</LinkButton></strong></td>
                 <td>{$t("grading.manual.studentFirst.pointsSuffix", { points: ex.maxPoints })}</td>
                 <td class="whitespace-nowrap">
                   <input
@@ -398,3 +400,7 @@
     {/if}
   {/if}
 </div>
+
+{#if previewEx}
+  <ExercisePreviewDrawer previewModalEx={previewEx} newTabHref={exerciseHref(previewEx.id)} onClose={() => (previewEx = null)} />
+{/if}

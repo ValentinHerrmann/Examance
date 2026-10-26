@@ -13,6 +13,7 @@ export { default as FilterDrawer } from "./FilterDrawer.svelte";
 export { default as FilterLayout } from "./FilterLayout.svelte";
 export { default as FilterPills } from "./FilterPills.svelte";
 export { default as Icon } from "./Icon.svelte";
+export { default as LinkButton } from "./LinkButton.svelte";
 export { default as Menu } from "./Menu.svelte";
 export { default as MenuItem } from "./MenuItem.svelte";
 export { default as Modal } from "./Modal.svelte";

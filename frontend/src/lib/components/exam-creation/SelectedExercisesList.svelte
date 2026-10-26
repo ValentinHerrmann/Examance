@@ -10,7 +10,6 @@
   import { parseExerciseScore } from "#lib/latex/scoreParser";
   import { mcSubLabel } from "#lib/grading/mcGroupLabels";
   import ExerciseLabel from "#lib/components/exam/ExerciseLabel.svelte";
-  import { exerciseHref } from "#lib/utils/links";
   import { t } from "#lib/i18n";
   import { faPen, faArrowUp, faArrowDown, faXmark } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, Card } from "#lib/components/ui";
@@ -104,7 +103,7 @@
               <div class={rowClass}>
                 <div class={infoClass}>
                   <span class="font-semibold text-accent">(idx + 1)</span>
-                  <strong class="min-w-0 font-medium text-content"><ExerciseLabel exercise={ex} href={exerciseHref(ex.id)} /></strong>
+                  <strong class="min-w-0 font-medium text-content"><ExerciseLabel exercise={ex} onOpen={() => onQuickEdit(ex)} /></strong>
                   {#if ex.topicTag}
                     <Badge size="xs">{ex.topicTag}</Badge>
                   {/if}
@@ -140,7 +139,7 @@
                 </div>
                 <ul class="m-0 pl-6 text-sm text-muted">
                   {#each memberExercises(group) as ex, i}
-                    <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} href={exerciseHref(ex.id)} /></li>
+                    <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} onOpen={() => onQuickEdit(ex)} /></li>
                   {/each}
                 </ul>
               </div>
@@ -153,7 +152,7 @@
           <div class={rowClass}>
             <div class={infoClass}>
               <span class="font-semibold text-accent">(idx + 1)</span>
-              <strong class="min-w-0 font-medium text-content"><ExerciseLabel exercise={ex} href={exerciseHref(ex.id)} /></strong>
+              <strong class="min-w-0 font-medium text-content"><ExerciseLabel exercise={ex} onOpen={() => onQuickEdit(ex)} /></strong>
               {#if ex.topicTag}
                 <Badge size="xs">{ex.topicTag}</Badge>
               {/if}
@@ -180,7 +179,7 @@
             </div>
             <ul class="m-0 pl-6 text-sm text-muted">
               {#each memberExercises(group) as ex, i}
-                <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} href={exerciseHref(ex.id)} /></li>
+                <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} onOpen={() => onQuickEdit(ex)} /></li>
               {/each}
             </ul>
           </div>

@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { McDetectionItem } from "#lib/grading/mcVerification";
   import { t } from "#lib/i18n";
-  import { exerciseHref, gradeHref, verifyItemHref } from "#lib/utils/links";
+  import { gradeHref, verifyItemHref } from "#lib/utils/links";
   import { faChevronDown, faChevronRight, faCheck, faCircle } from "@fortawesome/free-solid-svg-icons";
   import { Badge, Button, CrossLink, Icon } from "#lib/components/ui";
 
@@ -65,7 +65,7 @@
                     </Badge>
                   {/if}
                   <span class="text-xs text-muted mx-1.5">•</span>
-                  <CrossLink href={exerciseHref(item.exerciseId)} class="text-xs text-content">{item.exerciseLabel}</CrossLink>
+                  <span class="text-xs text-content">{item.exerciseLabel}</span>
                 </div>
 
                 {#if item.flaggedOptions.length > 0}

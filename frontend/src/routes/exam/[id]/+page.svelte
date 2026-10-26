@@ -70,6 +70,7 @@
   import ExamMetadataEditor from "#lib/components/exam/ExamMetadataEditor.svelte";
   import { setExamLogo, type ExamLogoChange } from "#lib/latex/logo";
   import { entriesError, type LatexPackageEntry } from "#lib/latex/packages";
+  import ExerciseEditorModal from "#lib/components/ExerciseEditorModal.svelte";
   import ExamLibraryModal from "#lib/components/exam/ExamLibraryModal.svelte";
   import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
   import {
@@ -291,6 +292,14 @@
     } catch (err) {
       console.error("Failed to load exam from DB:", err);
     }
+  }
+
+  // Quick exercise editor (opened from exercise names and the library picker).
+  let quickEditEx: ExerciseRecord | null = $state.raw(null);
+
+  /** Reload via loadExam so the junction fields (group, sub-index, order) stay intact. */
+  async function handleQuickEditSaved() {
+    await loadExam(examId);
   }
 
   /** MC exercises in exam order from one merged lookup (`exercises` wins over `libraryExercises`), so the
@@ -1372,6 +1381,7 @@
         onEditMcGroup={editMcGroup}
         pageBreaks={exam.pageBreaks ?? []}
         onTogglePageBreak={toggleExamPageBreak}
+        onOpenExercise={(ex) => (quickEditEx = ex)}
       />
     </div>
   {/if}
@@ -1400,6 +1410,14 @@
   onSetGroupVariant={setGroupVariant}
   onApply={applyLibrarySelection}
   onRequestClose={requestCloseLibraryModal}
+  onQuickEdit={(ex) => (quickEditEx = ex)}
+/>
+
+<ExerciseEditorModal
+  isOpen={quickEditEx !== null}
+  editingExercise={quickEditEx}
+  onClose={() => (quickEditEx = null)}
+  onSave={handleQuickEditSaved}
 />
 
 <ConfirmDialog

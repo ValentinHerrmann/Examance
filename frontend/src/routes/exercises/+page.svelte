@@ -30,6 +30,7 @@
   import { exerciseReportFiles } from "#lib/layout-report/collect";
   import { faBook, faCodePullRequest, faPause, faPlay, faPlus, faShareNodes, faEyeSlash, faFileZipper } from "@fortawesome/free-solid-svg-icons";
   import ExerciseGroupList from "#lib/components/exercise-library/ExerciseGroupList.svelte";
+  import ExamSummaryModal from "#lib/components/exam/ExamSummaryModal.svelte";
   import ExerciseExportModal from "#lib/components/exercise-library/ExerciseExportModal.svelte";
   import GroupEditModal from "#lib/components/exercise-library/GroupEditModal.svelte";
   import RegroupModal from "#lib/components/exercise-library/RegroupModal.svelte";
@@ -82,6 +83,7 @@
   let copyingGroupId = $state("");
   let duplicatingGroupId = $state("");
   /** Groups being exported as ZIP: one group, or the whole library. */
+  let summaryExamId = $state<string | null>(null);
   let exportTarget: { groups: ExerciseGroup[]; library: boolean } | null = $state.raw(null);
   let shareGroup: ExerciseGroup | null = $state.raw(null);
   let isSharing = $state(false);
@@ -1231,6 +1233,7 @@
       onPreview={exercisePreview.open}
       usageMap={$usage}
       onOpenVariant={openVariantModal}
+      onOpenExam={(examId) => (summaryExamId = examId)}
       onCreateFirst={openCreateModal}
       {sharingEnabled}
       {syncStatus}
@@ -1405,3 +1408,7 @@
   onForceCloseConfirm={forceCloseDiffModal}
   onCancelConfirmClose={() => (showDiffConfirmClose = false)}
 />
+
+{#if summaryExamId}
+  <ExamSummaryModal examId={summaryExamId} onClose={() => (summaryExamId = null)} />
+{/if}

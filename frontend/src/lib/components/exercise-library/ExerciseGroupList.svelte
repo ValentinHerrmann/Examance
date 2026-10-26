@@ -6,7 +6,6 @@
   import type { SyncStatus } from "#lib/api/exerciseSharing";
   import type { PendingForGroup } from "#lib/api/exerciseContributions";
   import { t } from "#lib/i18n";
-  import { examHref } from "#lib/utils/links";
   import {
     faPenToSquare,
     faFileCirclePlus,
@@ -47,6 +46,8 @@
     /** Keyed `${groupId}|${variantKey}`; absent = not requested yet. */
     usageMap?: Map<string, LazyEntry<ExamUsageEntry[]>>;
     onOpenVariant: (ex: ExerciseRecord) => void;
+    /** A "used in exams" chip: opens the exam summary in place. */
+    onOpenExam: (examId: string) => void;
     onCreateFirst: () => void;
     /** The account may share and copy (capability `exercise_sharing`). */
     sharingEnabled?: boolean;
@@ -142,13 +143,14 @@
       <span>{$t("exercises.groupList.notUsed")}</span>
     {:else}
       {#each used.value as exam (exam.id)}
-        <a
-          href={examHref(exam.id)}
-          target="_blank"
-          rel="noopener noreferrer"
-          onclick={(e) => e.stopPropagation()}
-          class="min-w-0 break-words rounded-md border border-line bg-surface-sunken px-1.5 py-0.5 text-accent hover:bg-highlight"
-        >{exam.title}{exam.datum ? ` (${exam.datum})` : ""}</a>
+        <button
+          type="button"
+          onclick={(e) => {
+            e.stopPropagation();
+            o.onOpenExam(exam.id);
+          }}
+          class="min-w-0 cursor-pointer break-words rounded-md border border-line bg-surface-sunken px-1.5 py-0.5 text-left text-accent hover:bg-highlight"
+        >{exam.title}{exam.datum ? ` (${exam.datum})` : ""}</button>
       {/each}
     {/if}
   </div>

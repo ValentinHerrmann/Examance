@@ -20,6 +20,8 @@
   import KpiSummaryBar from '#lib/components/analytics/KpiSummaryBar.svelte';
   import OverallScoreHistogram from '#lib/components/analytics/OverallScoreHistogram.svelte';
   import VariantFairnessTable from '#lib/components/analytics/VariantFairnessTable.svelte';
+  import ExercisePreviewDrawer from '#lib/components/exercise-library/ExercisePreviewDrawer.svelte';
+  import { exerciseHref } from '#lib/utils/links';
   import ExerciseQualityTable from '#lib/components/analytics/ExerciseQualityTable.svelte';
   import { PageShell, PageHeader } from '#lib/components/ui';
 
@@ -27,6 +29,8 @@
   let activeLoadPromise: Promise<void> | null = null;
   let pendingReload = false;
   let exams: ExamRecord[] = $state.raw([]);
+  let exerciseRecords = new Map<string, ExerciseRecord>();
+  let previewEx: ExerciseRecord | null = $state.raw(null);
   let exerciseStats: ExercisePerformance[] = $state.raw([]);
   let variantGroups: VariantGroupComparison[] = $state.raw([]);
   let overallAvgScore: number | null = $state(null);
@@ -101,6 +105,7 @@
       }
     });
     const allExercises = Array.from(exerciseMap.values());
+    exerciseRecords = exerciseMap;
 
     const allExamExercises = await db.examExercises.toArray();
     const allSubmissions = await submissionRepository.getAll(key, exams);
@@ -415,6 +420,7 @@
           {variantGroups}
           {displayedVariantGroups}
           bind:showAll={showAllExercises}
+          onOpenExercise={(id) => (previewEx = exerciseRecords.get(id) ?? null)}
         />
       </div>
 
@@ -430,3 +436,7 @@
     </div>
   {/if}
 </PageShell>
+
+{#if previewEx}
+  <ExercisePreviewDrawer previewModalEx={previewEx} newTabHref={exerciseHref(previewEx.id)} onClose={() => (previewEx = null)} />
+{/if}

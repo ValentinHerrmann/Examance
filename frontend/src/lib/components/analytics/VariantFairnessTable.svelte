@@ -1,18 +1,19 @@
 <script lang="ts">
   import { faShuffle } from '@fortawesome/free-solid-svg-icons';
-  import { Badge, Button, Card, CrossLink, EmptyState, TableScroller } from "#lib/components/ui";
+  import { Badge, Button, Card, CrossLink, EmptyState, LinkButton, TableScroller } from "#lib/components/ui";
   import { t } from '#lib/i18n';
   import { fmt } from '#lib/utils/format';
-  import { exerciseGroupHref, exerciseHref } from '#lib/utils/links';
+  import { exerciseGroupHref } from '#lib/utils/links';
   import type { VariantGroupComparison } from '#lib/analytics/analyticsTypes';
 
   interface Props {
     variantGroups: VariantGroupComparison[];
     displayedVariantGroups: VariantGroupComparison[];
     showAll: boolean;
+    onOpenExercise: (exerciseId: string) => void;
   }
 
-  let { variantGroups, displayedVariantGroups, showAll = $bindable() }: Props = $props();
+  let { variantGroups, displayedVariantGroups, showAll = $bindable(), onOpenExercise }: Props = $props();
 </script>
 
 <Card class="mb-6">
@@ -87,7 +88,7 @@
               <tbody>
                 {#each vGroup.variants as v}
                   <tr>
-                    <td class="w-32"><Badge severity="primary" size="xs"><CrossLink href={exerciseHref(v.exerciseId)}>{v.variantKey}</CrossLink></Badge></td>
+                    <td class="w-32"><Badge severity="primary" size="xs"><LinkButton onClick={() => onOpenExercise(v.exerciseId)} class="text-inherit!">{v.variantKey}</LinkButton></Badge></td>
                     <td>{$t('stats.variantFairness.maxPointsSuffix', { points: $fmt.number(v.maxPoints) })}</td>
                     <td>
                       {#if v.avgScorePercent !== null}
