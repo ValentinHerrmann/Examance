@@ -336,6 +336,8 @@ async def export_own_data(
                 # Package entries on top of the account's; null follows the account.
                 "latex_packages": exam.latex_packages,
                 "page_breaks": exam.page_breaks,
+                "name_line": exam.name_line,
+                "extra_notes": exam.extra_notes,
             }
             for exam in exams
         ],

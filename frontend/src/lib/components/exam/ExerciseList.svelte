@@ -6,11 +6,12 @@
 </script>
 
 <script lang="ts">
-  import type { ExerciseRecord } from '#lib/db/schema';
+  import type { ExerciseRecord, ExtraNotes } from '#lib/db/schema';
   import { parseExerciseScore } from '#lib/latex/scoreParser';
   import { mcSubLabel } from '#lib/grading/mcGroupLabels';
   import ExerciseLabel from '#lib/components/exam/ExerciseLabel.svelte';
   import PageBreakDivider from '#lib/components/exam/PageBreakDivider.svelte';
+  import ExtraNotesField from '#lib/components/exam/ExtraNotesField.svelte';
   import { t } from '#lib/i18n';
   import { faArrowUp, faArrowDown, faXmark } from '@fortawesome/free-solid-svg-icons';
   import { Badge, Button, Card } from '#lib/components/ui';
@@ -39,6 +40,9 @@
     onTogglePageBreak?: ((itemId: string) => void) | undefined;
     /** Opens an exercise name in place (editor modal). */
     onOpenExercise?: ((ex: ExerciseRecord) => void) | undefined;
+    /** Karo block closing the exam (issue #156); the toggle shows only with the callback. */
+    extraNotes?: ExtraNotes | null;
+    onChangeExtraNotes?: ((next: ExtraNotes | null) => void) | undefined;
   }
 
   let {
@@ -55,7 +59,9 @@
     onEditMcGroup = undefined,
     pageBreaks = [],
     onTogglePageBreak = undefined,
-    onOpenExercise = undefined
+    onOpenExercise = undefined,
+    extraNotes = null,
+    onChangeExtraNotes = undefined
   }: Props = $props();
 
   function memberExercises(group: McGroup): ExerciseRecord[] {
@@ -220,6 +226,11 @@
           {@render groupRow(group, null)}
         {/each}
       {/if}
+    </div>
+  {/if}
+  {#if onChangeExtraNotes}
+    <div class="mt-3 border-t border-dashed border-line-strong pt-3">
+      <ExtraNotesField value={extraNotes} onChange={onChangeExtraNotes} idPrefix="examExtraNotes" />
     </div>
   {/if}
 </Card>

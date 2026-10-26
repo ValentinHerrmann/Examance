@@ -116,6 +116,15 @@ def format_exam_course(grade: str | None, klasse: str | None) -> str:
     return g or k or ""
 
 
+def _cm_arg(value: object, default: float) -> str:
+    """A bounded plain number for a LaTeX length argument; never raw user text."""
+    try:
+        number = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        number = default
+    return f"{min(max(number, 1.0), 25.0):.1f}"
+
+
 def escape_tex(text: str | None) -> str:
     """
     Escape LaTeX special characters in plain user text before interpolating it into a command
@@ -514,6 +523,13 @@ async def compile_exam_latex(
     lehrernachname = escape_tex(exam_model.lehrernachname or "")
     info_text = exam_model.info_text or ""
 
+    extra_notes = getattr(exam_model, "extra_notes", None)
+    if extra_notes:
+        title = escape_tex(str(extra_notes.get("title", "")))
+        low = _cm_arg(extra_notes.get("min_height_cm"), 4.0)
+        high = _cm_arg(extra_notes.get("max_height_cm"), 12.0)
+        description = escape_tex(str(extra_notes.get("description", "")))
+        exercise_inputs.append(f"\\ExamNotes{{{title}}}{{{description}}}{{{low}}}{{{high}}}")
     inputs_str = "\n\n".join(exercise_inputs)
     # The exercises are \input from extra files, so their package lines are collected from those.
     exercise_latex = "\n".join(latex for _, _, latex, _ in items_with_order)

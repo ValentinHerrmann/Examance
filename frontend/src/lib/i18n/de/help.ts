@@ -160,6 +160,7 @@ export const help = {
                 p2: 'Drucken Sie die Bögen so aus, wie sie gesetzt wurden. Der QR-Code muss lesbar bleiben, sonst kann der Scan später nicht automatisch zugeordnet werden.',
                 p3: 'In der Prüfungsübersicht öffnet „Vorschau“ im aufgeklappten Eintrag das zuletzt kompilierte PDF. Gibt es noch keines, werden Sie gefragt und die Prüfung wird direkt im Fenster kompiliert und angezeigt. Die Vorschau bleibt nur bis zum Neuladen der Seite erhalten.',
                 p4: 'Mit „Namenszeile neben dem QR-Code-Feld drucken“ (beim Anlegen oder unter den Prüfungsdaten) erhält die Titelseite zusätzlich eine Zeile für den Namen. Das QR-Code-Feld bleibt an derselben Stelle, Scannen und Zuordnen funktionieren unverändert; nur das Initialenfeld im QR-Code-Feld entfällt.',
+                p5: 'Mit „Platz für weitere Lösungen am Ende“ (unter der Aufgabenliste) endet die Prüfung mit einem Karo-Feld, in dem Schüler:innen zusätzliche Lösungen notieren können. Sie legen eine Überschrift und einen kleineren Hinweis darunter (Standardtexte vorbelegt, werden auf Deutsch gedruckt) sowie Mindest- und Maximalhöhe in cm fest: Das Feld füllt den Rest der letzten Seite, ohne eine neue Seite zu beginnen, und rutscht nur dann auf eine neue Seite, wenn die Mindesthöhe nicht mehr passt. Die Lösung enthält das Feld nicht.',
             },
         },
         scanning: {

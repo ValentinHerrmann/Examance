@@ -46,7 +46,7 @@
   import { api } from "#lib/api/client";
   import { submissionRepository } from "#lib/repositories/submissionRepository";
   import { studentRepository } from "#lib/repositories/studentRepository";
-  import { examRepository, mapApiToExamRecord } from "#lib/repositories/examRepository";
+  import { examRepository, mapApiToExamRecord, extraNotesToApi } from "#lib/repositories/examRepository";
   import { mapExerciseRecordToApi } from "#lib/repositories/exerciseRepository";
   import { uint8ArrayToBase64, decrypt } from "#lib/crypto/aesGcm";
   import { ensure64CharHex } from "#lib/crypto/hmac";
@@ -61,7 +61,7 @@
   import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
   import { examReportFiles } from "#lib/layout-report/collect";
   import { getPresetCutoffs } from "#lib/analytics/gradingKey";
-  import type { GradingKeyConfig } from "#lib/db/schema";
+  import type { GradingKeyConfig, ExtraNotes } from "#lib/db/schema";
   import { goto } from "$app/navigation";
   import ExamMetadata from "#lib/components/exam/ExamMetadata.svelte";
   import ExamActionBar from "#lib/components/exam/ExamActionBar.svelte";
@@ -381,6 +381,7 @@
         latex_packages: exam.latexPackages,
         page_breaks: exam.pageBreaks,
         name_line: exam.nameLine,
+        extra_notes: extraNotesToApi(exam.extraNotes ?? null),
         latex_template: exam.latexTemplate,
         retention_until:
           exam.retentionUntil ||
@@ -963,6 +964,19 @@
     }
   }
 
+  async function saveExtraNotes(next: ExtraNotes | null) {
+    if (!exam) return;
+    exam = { ...exam, extraNotes: next };
+    try {
+      await saveExamEncrypted(exam, get(sessionStore).sessionKey);
+      errorMsg = "";
+      afterLayoutChange();
+    } catch (err) {
+      console.error("Failed to save extra notes:", err);
+      errorMsg = translate("exam.page.exerciseLinks.saveFailed");
+    }
+  }
+
   async function moveExerciseOrder(index: number, direction: "up" | "down") {
     await moveExamItem(index, direction);
   }
@@ -1390,6 +1404,8 @@
         onEditMcGroup={editMcGroup}
         pageBreaks={exam.pageBreaks ?? []}
         onTogglePageBreak={toggleExamPageBreak}
+        extraNotes={exam.extraNotes ?? null}
+        onChangeExtraNotes={saveExtraNotes}
         onOpenExercise={(ex) => (quickEditEx = ex)}
       />
     </div>

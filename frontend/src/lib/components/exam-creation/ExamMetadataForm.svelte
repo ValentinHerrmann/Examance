@@ -186,5 +186,6 @@
     <Checkbox id="nameLine" bind:checked={nameLine} label={$t("examCreation.metadataForm.nameLineLabel")} />
     <p class="m-0 text-sm text-muted">{$t("examCreation.metadataForm.nameLineHint")}</p>
   </div>
+
   </div>
 </Card>

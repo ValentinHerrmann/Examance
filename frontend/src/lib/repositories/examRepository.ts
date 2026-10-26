@@ -4,7 +4,7 @@ import { db } from '#lib/db/db';
 import { storagePolicyStore } from '#lib/stores/storagePolicy';
 import { decryptExam } from '#lib/db/dbEncryption';
 import { enqueueOrThrow } from '#lib/services/offlineQueue';
-import type { ExamRecord, ExamExerciseRecord, ExamMcGroupRecord } from '#lib/db/schema';
+import type { ExamRecord, ExamExerciseRecord, ExamMcGroupRecord, ExtraNotes } from '#lib/db/schema';
 import { invalidateOwner } from '#lib/latex/compileCache';
 import { storedEntries, type LatexPackageEntry } from '#lib/latex/packages';
 
@@ -18,6 +18,24 @@ function packagesField(value: unknown): LatexPackageEntry[] | null | undefined {
 function pageBreaksField(value: unknown): string[] | null | undefined {
   if (value === undefined) return undefined;
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : null;
+}
+
+/** Accepts the API (snake_case) and the local (camelCase) shape; undefined stays undefined. */
+function extraNotesField(value: any): ExtraNotes | null | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== 'object') return null;
+  return {
+    title: String(value.title ?? ''),
+    description: String(value.description ?? ''),
+    minHeightCm: Number(value.min_height_cm ?? value.minHeightCm),
+    maxHeightCm: Number(value.max_height_cm ?? value.maxHeightCm),
+  };
+}
+
+export function extraNotesToApi(
+  value: ExtraNotes | null,
+): { title: string; description: string; min_height_cm: number; max_height_cm: number } | null {
+  return value ? { title: value.title, description: value.description ?? '', min_height_cm: value.minHeightCm, max_height_cm: value.maxHeightCm } : null;
 }
 
 export function mapApiToExamRecord(raw: any): ExamRecord {
@@ -38,6 +56,7 @@ export function mapApiToExamRecord(raw: any): ExamRecord {
     latexPackages: packagesField(raw.latex_packages !== undefined ? raw.latex_packages : raw.latexPackages),
     pageBreaks: pageBreaksField(raw.page_breaks !== undefined ? raw.page_breaks : raw.pageBreaks),
     nameLine: (raw.name_line ?? raw.nameLine) === true,
+    extraNotes: extraNotesField(raw.extra_notes !== undefined ? raw.extra_notes : raw.extraNotes),
     latexPreamble: raw.latex_preamble || raw.latexPreamble,
     latexTemplate: raw.latex_template || raw.latexTemplate,
     numVersions: raw.num_versions || raw.numVersions || 1,
@@ -68,6 +87,8 @@ export function mapExamRecordToApi(exam: ExamRecord): any {
     page_breaks: exam.pageBreaks,
     // Undefined leaves the stored choice alone.
     name_line: exam.nameLine,
+    // null switches the block off, undefined leaves it alone.
+    extra_notes: exam.extraNotes === undefined ? undefined : extraNotesToApi(exam.extraNotes),
     latex_preamble: exam.latexPreamble,
     latex_template: exam.latexTemplate,
     retention_until: exam.retentionUntil,
