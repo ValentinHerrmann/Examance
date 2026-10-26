@@ -83,6 +83,12 @@ const packageSummary = (entries: unknown) =>
     .map((e) => (e.disabled ? '-' : '') + e.name + (e.options ? `[${e.options}]` : ''))
     .join(', ');
 
+/** The extra-notes block (issue #156) as one comparable line; null when off. */
+const extraNotesSummary = (notes: Row | null | undefined) =>
+  notes
+    ? `${notes.title} · ${notes.minHeightCm}–${notes.maxHeightCm} cm` + (notes.description ? ` · ${notes.description}` : '')
+    : null;
+
 const SPECS: KindSpec[] = [
   {
     kind: 'exam',
@@ -93,6 +99,9 @@ const SPECS: KindSpec[] = [
       ...props('title', 'testart', 'fach', 'topic', 'grade', 'klasse', 'datum', 'nr', 'numVersions', 'retentionUntil'),
       gradingKey: (r) => r.gradingKey?.preset,
       latexPackages: (r) => packageSummary(r.latexPackages),
+      // Layout switches travel with the exam; without them a layout-only change counted as "identical" and was dropped.
+      nameLine: (r) => r.nameLine === true,
+      extraNotes: (r) => extraNotesSummary(r.extraNotes),
     },
     text: (r) => r.latexPreamble ?? '',
     allowCopy: true,

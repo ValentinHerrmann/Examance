@@ -384,6 +384,31 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     expect(fakeServer.state.requests.filter((r) => r.includes('/exams/foreign-exam/'))).toEqual([]);
   });
 
+  it('carries the extra-notes block of an exam through the archive (issue #156)', async () => {
+    const extraNotes = { title: 'Platz für weitere Lösungen', description: 'Aufgabe angeben.', minHeightCm: 5, maxHeightCm: 10 };
+    await saveExamEncrypted({ ...exam('exam-notes', 'Notes Exam'), nameLine: true, extraNotes }, testKey);
+    const packed = await packBlob(testPassword);
+
+    fakeServer.reset();
+    await db.exams.clear();
+    await unpackProject(packed, testPassword);
+
+    const [restored] = await loadExamsEncrypted(get(sessionStore).sessionKey!);
+    expect(restored.extraNotes).toEqual(extraNotes);
+    expect(restored.nameLine).toBe(true);
+  });
+
+  it('treats an exam that differs only in its extra-notes block as a conflict, not as identical', async () => {
+    await saveExamEncrypted(exam('exam-layout', 'Layout Exam'), testKey);
+    const payload = await decryptArchive(await packBlob(testPassword), testPassword);
+    payload.exams[0].extraNotes = { title: 'Mehr Platz', description: '', minHeightCm: 4, maxHeightCm: 12 };
+
+    const scan = await detectConflicts(payload, testKey);
+    expect(scan.identical.map((i) => i.id)).not.toContain('exam-layout');
+    const conflict = scan.conflicts.find((c) => c.id === 'exam-layout');
+    expect(conflict?.fields.find((f) => f.key === 'extraNotes')).toMatchObject({ existing: null, differs: true });
+  });
+
   it('skips identical records and reports them as already present', async () => {
     await saveExamEncrypted(exam('exam-same', 'Same Exam'), testKey);
     await saveExerciseEncrypted({ id: 'ex-same', name: 'Same', maxPoints: 2, questionType: 'free_text', penalty: 0 }, testKey);

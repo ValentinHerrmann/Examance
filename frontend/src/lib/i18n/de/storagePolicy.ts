@@ -144,6 +144,8 @@ export const storagePolicy = {
             retentionUntil: 'Aufbewahrung bis',
             gradingKey: 'Bewertungsmaßstab',
             latexPackages: 'LaTeX-Pakete',
+            nameLine: 'Namenszeile',
+            extraNotes: 'Platz für weitere Lösungen',
             name: 'Name',
             version: 'Version',
             variantKey: 'Variante',
