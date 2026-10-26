@@ -109,7 +109,8 @@ export async function importPayloadToServer(
     const label = ex.title || ex.name || ex.id;
 
     // Already on the server and owned by this account: link it.
-    if (ex.id && (await exerciseOwned(ex.id))) {
+    // Sequential on purpose: later members of a group reuse the group id the first one created.
+    if (ex.id && (await exerciseOwned(ex.id))) { // NOSONAR: see above
       reusedExerciseIds.add(ex.id);
       bump(report, 'exercises', 'linked');
       continue;

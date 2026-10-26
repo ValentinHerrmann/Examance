@@ -103,14 +103,17 @@ async function addReimportData(zip: ZipBuilder, input: CompileInput): Promise<st
   const { exam, exercises, key } = input;
   const warnings: string[] = [];
   const structure = await examRepository.getStructure(exam.id);
+  // Folders are claimed first (in order), then the exercises' files load together.
   const taken = new Set<string>();
-  const entries = [];
-  for (const ex of exercises) {
+  const folders = exercises.map((ex) => {
     const name = ex.name || ex.title || translate('exercises.untitled');
     const dir = firstFree(`exercises/${slug(name)}`, (p) => taken.has(p));
     taken.add(dir);
-    entries.push(exerciseEntry(ex, name, dir, await addExerciseFolder(zip, ex, name, dir, key, warnings), []));
-  }
+    return { ex, name, dir };
+  });
+  const entries = await Promise.all(
+    folders.map(async ({ ex, name, dir }) => exerciseEntry(ex, name, dir, await addExerciseFolder(zip, ex, name, dir, key, warnings), []))
+  );
   const accountPackages = exam.latexPackages == null ? await getAccountPackages() : [];
   const manifest: ExamZipManifest = {
     ...manifestHeader(),

@@ -86,14 +86,15 @@ const packageSummary = (entries: unknown) =>
     .join(', ');
 
 /** The extra-notes block (issue #156) as one comparable line; null when off. */
-const extraNotesSummary = (notes: Row | null | undefined) =>
-  notes
-    ? `${notes.title} · ${notes.minHeightCm}–${notes.maxHeightCm} cm` + (notes.description ? ` · ${notes.description}` : '')
-    : null;
+function extraNotesSummary(notes: Row | null | undefined): string | null {
+  if (!notes) return null;
+  const line = `${notes.title} · ${notes.minHeightCm}–${notes.maxHeightCm} cm`;
+  return notes.description ? `${line} · ${notes.description}` : line;
+}
 
 /** Page breaks compared as a set of ids, shown as their count; null when there are none. */
 const pageBreaksSummary = (breaks: unknown): Keyed => {
-  const ids = Array.isArray(breaks) ? [...breaks].map(String).sort() : [];
+  const ids = Array.isArray(breaks) ? breaks.map(String).sort((a, b) => a.localeCompare(b)) : [];
   return { shown: ids.length ? String(ids.length) : null, key: ids.join(',') };
 };
 
