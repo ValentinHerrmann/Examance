@@ -2,8 +2,9 @@
   import type { ExerciseRecord } from "#lib/db/schema";
   import { gradingStore } from "#lib/grading/gradingStore";
   import { t } from "#lib/i18n";
+  import { exerciseHref } from "#lib/utils/links";
   import { faBullseye, faXmark } from "@fortawesome/free-solid-svg-icons";
-  import { Button, Icon, controlClass, controlSmClass } from "#lib/components/ui";
+  import { Button, CrossLink, Icon, controlClass, controlSmClass } from "#lib/components/ui";
 
   interface Props {
     exercises: ExerciseRecord[];
@@ -54,7 +55,7 @@
       onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectExercise(ex.id); }}
     >
       <div class="flex items-center gap-1">
-        <span class="text-xs font-bold text-content">Q{ex.orderIndex}{#if ex.subIndex}&nbsp;{String.fromCharCode(96 + ex.subIndex)}){/if}</span>
+        <CrossLink href={exerciseHref(ex.id)} class="text-xs font-bold text-content">Q{ex.orderIndex}{#if ex.subIndex}&nbsp;{String.fromCharCode(96 + ex.subIndex)}){/if}</CrossLink>
         {#if ex.id === $gradingStore.activeExerciseId}
           <Icon icon={faBullseye} class="text-xs text-accent" label={$t("grading.scoreEntry.stampTarget")} />
         {/if}

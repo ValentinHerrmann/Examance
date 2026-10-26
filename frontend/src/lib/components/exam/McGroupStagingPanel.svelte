@@ -8,6 +8,7 @@
   import ExerciseLabel from "#lib/components/exam/ExerciseLabel.svelte";
   import { faArrowUp, faArrowDown } from "@fortawesome/free-solid-svg-icons";
   import { Alert, Button, Field, TextInput } from "#lib/components/ui";
+  import { exerciseHref } from "#lib/utils/links";
   import { t } from "#lib/i18n";
 
   interface Props {
@@ -86,7 +87,7 @@
     <ul class="m-0 flex list-none flex-col gap-1.5 p-0">
       {#each stagedExercises as ex, i (ex.id)}
         <li class="flex items-center justify-between gap-2 rounded-md border border-line bg-surface-sunken px-2.5 py-1.5 text-sm text-content">
-          <span class="flex min-w-0 items-center gap-1"><span class="shrink-0">{mcSubLabel(i, count)})</span> <ExerciseLabel exercise={ex} /></span>
+          <span class="flex min-w-0 items-center gap-1"><span class="shrink-0">{mcSubLabel(i, count)})</span> <ExerciseLabel exercise={ex} href={exerciseHref(ex.id)} /></span>
           <div class="flex shrink-0 items-center gap-1.5">
             <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowUp} ariaLabel={$t("exam.mcStagingPanel.moveUp")} title={$t("exam.mcStagingPanel.moveUp")} disabled={i === 0} onClick={() => onReorder(i, "up")} />
             <Button size="sm" variant="text" severity="secondary" iconOnly icon={faArrowDown} ariaLabel={$t("exam.mcStagingPanel.moveDown")} title={$t("exam.mcStagingPanel.moveDown")} disabled={i === count - 1} onClick={() => onReorder(i, "down")} />

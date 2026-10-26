@@ -1,8 +1,9 @@
 <script lang="ts">
   import { faChartColumn } from '@fortawesome/free-solid-svg-icons';
-  import { Badge, Button, Card, EmptyState, TableScroller } from "#lib/components/ui";
+  import { Badge, Button, Card, CrossLink, EmptyState, TableScroller } from "#lib/components/ui";
   import { t } from '#lib/i18n';
   import { fmt } from '#lib/utils/format';
+  import { exerciseGroupHref } from '#lib/utils/links';
   import type { ExercisePerformance } from '#lib/analytics/analyticsTypes';
 
   interface Props {
@@ -65,7 +66,13 @@
         <tbody>
           {#each displayedExerciseStats as ex}
             <tr class={ex.flaggedProblematic ? 'bg-danger/5' : ''}>
-              <td class="font-semibold">{ex.name}</td>
+              <td class="font-semibold">
+                {#if ex.groupId}
+                  <CrossLink href={exerciseGroupHref(ex.groupId)} class="text-content">{ex.name}</CrossLink>
+                {:else}
+                  {ex.name}
+                {/if}
+              </td>
               <td><Badge size="xs">{ex.topicTag || $t('stats.exerciseQuality.generalTag')}</Badge></td>
               <td>{$t('stats.exerciseQuality.examsCountSuffix', { count: $fmt.number(ex.totalAppeared) })}</td>
               <td>

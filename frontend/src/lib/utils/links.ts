@@ -18,3 +18,9 @@ export function gradeHref(examId: string, opts: { submissionId?: string; exercis
 /** Opens the exercise's editor in the library (`routes/exercises/+page.svelte`). */
 export const exerciseHref = (exerciseId: string) => `/exercises?edit=${q(exerciseId)}`;
 export const exerciseGroupHref = (groupId: string) => `/exercises?group=${q(groupId)}`;
+
+/** Read by `routes/exam/[id]/verify-item/+page.svelte`. */
+export function verifyItemHref(examId: string, submissionId: string, exerciseId: string, queue: string): string {
+  const params = new URLSearchParams({ submissionId, exerciseId, queue });
+  return `/exam/${q(examId)}/verify-item?${params.toString()}`;
+}

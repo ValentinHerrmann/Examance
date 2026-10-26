@@ -157,6 +157,7 @@
     // 1. Aggregate stats by exercise group key (group ID, name, or distinct ID)
     // Store {score, maxPoints} pairs so variants with different maxPoints are handled correctly
     const exGroupMap = new Map<string, {
+      groupId?: string;
       name: string;
       tag?: string;
       grade?: string;
@@ -171,6 +172,7 @@
 
       if (!exGroupMap.has(groupKey)) {
         exGroupMap.set(groupKey, {
+          ...(ex.exerciseGroupId ? { groupId: ex.exerciseGroupId } : {}),
           name: displayName,
           tag: ex.topicTag,
           grade: ex.grade,
@@ -222,6 +224,7 @@
 
       list.push({
         id: key,
+        ...(group.groupId ? { groupId: group.groupId } : {}),
         name: group.name,
         topicTag: group.tag,
         grade: group.grade,
@@ -242,6 +245,7 @@
 
     // 2. Build Variant Group Comparisons (for questions with multiple variants)
     const vGroupMap = new Map<string, {
+      realGroup: boolean;
       name: string;
       tag?: string;
       variants: Map<string, {
@@ -263,6 +267,7 @@
 
       if (!vGroupMap.has(gId)) {
         vGroupMap.set(gId, {
+          realGroup: !!ex.exerciseGroupId,
           name: displayName,
           tag: ex.topicTag,
           variants: new Map(),
@@ -340,6 +345,7 @@
 
       vList.push({
         groupId: gId,
+        groupIdIsReal: gData.realGroup,
         groupName: gData.name,
         topicTag: gData.tag,
         variants: variants.sort((a, b) => a.variantKey.localeCompare(b.variantKey)),

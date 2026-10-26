@@ -12,9 +12,10 @@
   import { matchBoxesToOptions } from "#lib/grading/mcBoxOptions";
   import { renderMcCrop } from "#lib/grading/mcCropRender";
   import { t, translate } from "#lib/i18n";
+  import { exerciseHref } from "#lib/utils/links";
   import { isMcReviewed, type McQueueCategory } from "#lib/grading/mcVerification";
   import { faArrowUpRightFromSquare, faCheck, faCircle } from "@fortawesome/free-solid-svg-icons";
-  import { ConfirmDialog, Alert, Badge, Button, Icon, Switch } from "#lib/components/ui";
+  import { ConfirmDialog, Alert, Badge, Button, CrossLink, Icon, Switch } from "#lib/components/ui";
   import { safeLocalStorage } from "#lib/utils/storage";
 
   interface StudentQueueItem {
@@ -404,7 +405,7 @@
       </div>
       <div class="mt-0.5 flex flex-wrap items-center gap-2">
         <h1 class="m-0 text-xl font-semibold text-content">
-          {exerciseLabel || exercise.name || exercise.title || $t("scanning.itemCard.defaultExerciseName")}
+          <CrossLink href={exerciseHref(exercise.id)} class="text-content">{exerciseLabel || exercise.name || exercise.title || $t("scanning.itemCard.defaultExerciseName")}</CrossLink>
         </h1>
         <Badge
           severity={reviewStatus === "confirmedUnchanged" ? "success" : reviewStatus === "manuallyCorrected" ? "warning" : "secondary"}

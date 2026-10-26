@@ -11,6 +11,7 @@
   import { mcSubLabel } from '#lib/grading/mcGroupLabels';
   import ExerciseLabel from '#lib/components/exam/ExerciseLabel.svelte';
   import PageBreakDivider from '#lib/components/exam/PageBreakDivider.svelte';
+  import { exerciseHref } from "#lib/utils/links";
   import { t } from '#lib/i18n';
   import { faArrowUp, faArrowDown, faXmark } from '@fortawesome/free-solid-svg-icons';
   import { Badge, Button, Card } from '#lib/components/ui';
@@ -88,7 +89,7 @@
   <div class={rowClass}>
     <span class={numberClass}>{idx + 1}.</span>
     <div class={titleClass}>
-      <ExerciseLabel {exercise} />
+      <ExerciseLabel {exercise} href={exerciseHref(exercise.id)} />
       {#if exercise.topicTag}
         <Badge severity="secondary">{exercise.topicTag}</Badge>
       {/if}
@@ -130,7 +131,7 @@
     <span class={pointsClass}>{groupPoints(group)} {$t("exam.exerciseList.points")}</span>
     <ul class={subItemsClass}>
       {#each memberExercises(group) as ex, i}
-        <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} /></li>
+        <li>{mcSubLabel(i, group.memberIds.length)}) <ExerciseLabel exercise={ex} href={exerciseHref(ex.id)} /></li>
       {/each}
     </ul>
     <div class={actionsClass}>

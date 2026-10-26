@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { faArrowLeft, faArrowRight, faCheck, faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Button, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
+  import { Alert, Button, CrossLink, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
   import { storagePolicyStore } from "#lib/stores/storagePolicy";
@@ -19,6 +19,7 @@
     SubmissionRecord,
   } from "#lib/db/schema";
   import { t } from "#lib/i18n";
+  import { exerciseHref, gradeHref } from "#lib/utils/links";
 
   interface Props {
     exam?: ExamRecord | null;
@@ -290,7 +291,13 @@
     {#if currentStudent}
       <div class="flex flex-wrap items-center justify-between gap-4 rounded-md border border-line bg-surface-raised px-5 py-4">
         <div class="min-w-0">
-          <h3 class="m-0 mb-1 text-lg font-semibold text-content">{currentStudent.studentName || $t("grading.manual.studentFirst.unnamedStudent")}</h3>
+          <h3 class="m-0 mb-1 text-lg font-semibold text-content">
+            {#if currentSub}
+              <CrossLink href={gradeHref(examId, { submissionId: currentSub.id })} class="text-content">{currentStudent.studentName || $t("grading.manual.studentFirst.unnamedStudent")}</CrossLink>
+            {:else}
+              {currentStudent.studentName || $t("grading.manual.studentFirst.unnamedStudent")}
+            {/if}
+          </h3>
           <p class="m-0 text-sm text-muted">{$t("grading.manual.studentFirst.studentInfo", { number: currentStudent.studentNumber || "-", code: currentStudent.fallbackCode || currentStudent.pseudonymId.slice(0, 8) })}</p>
         </div>
 
@@ -329,7 +336,7 @@
               {@const isInvalid = rawVal !== "" && (isNaN(numVal) || numVal < 0 || numVal > ex.maxPoints)}
               <tr>
                 <td>{idx + 1}</td>
-                <td><strong>{ex.name}</strong></td>
+                <td><strong><CrossLink href={exerciseHref(ex.id)} class="text-content">{ex.name}</CrossLink></strong></td>
                 <td>{$t("grading.manual.studentFirst.pointsSuffix", { points: ex.maxPoints })}</td>
                 <td class="whitespace-nowrap">
                   <input

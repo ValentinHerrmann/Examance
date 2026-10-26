@@ -1,8 +1,9 @@
 <script lang="ts">
   import { faShuffle } from '@fortawesome/free-solid-svg-icons';
-  import { Badge, Button, Card, EmptyState, TableScroller } from "#lib/components/ui";
+  import { Badge, Button, Card, CrossLink, EmptyState, TableScroller } from "#lib/components/ui";
   import { t } from '#lib/i18n';
   import { fmt } from '#lib/utils/format';
+  import { exerciseGroupHref, exerciseHref } from '#lib/utils/links';
   import type { VariantGroupComparison } from '#lib/analytics/analyticsTypes';
 
   interface Props {
@@ -49,7 +50,13 @@
         <section class="min-w-0 border-t pt-4 {vGroup.flaggedFairnessIssue ? 'border-warning' : 'border-line'}">
           <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <h4 class="m-0 text-base font-semibold text-content">{vGroup.groupName}</h4>
+              <h4 class="m-0 min-w-0 text-base font-semibold text-content">
+                {#if vGroup.groupIdIsReal}
+                  <CrossLink href={exerciseGroupHref(vGroup.groupId)} class="text-content">{vGroup.groupName}</CrossLink>
+                {:else}
+                  {vGroup.groupName}
+                {/if}
+              </h4>
               {#if vGroup.topicTag}
                 <Badge size="xs">{vGroup.topicTag}</Badge>
               {/if}
@@ -80,7 +87,7 @@
               <tbody>
                 {#each vGroup.variants as v}
                   <tr>
-                    <td class="w-32"><Badge severity="primary" size="xs">{v.variantKey}</Badge></td>
+                    <td class="w-32"><Badge severity="primary" size="xs"><CrossLink href={exerciseHref(v.exerciseId)}>{v.variantKey}</CrossLink></Badge></td>
                     <td>{$t('stats.variantFairness.maxPointsSuffix', { points: $fmt.number(v.maxPoints) })}</td>
                     <td>
                       {#if v.avgScorePercent !== null}

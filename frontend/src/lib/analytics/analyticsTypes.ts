@@ -1,5 +1,7 @@
 export interface ExercisePerformance {
   id: string;
+  /** Only a real exerciseGroupId (not the name/id fallback key), so it is safe to link. */
+  groupId?: string;
   name: string;
   topicTag?: string;
   grade?: string;
@@ -20,6 +22,8 @@ export interface VariantDetail {
 
 export interface VariantGroupComparison {
   groupId: string;
+  /** True when groupId is a real exerciseGroupId (not the name fallback), so it is safe to link. */
+  groupIdIsReal?: boolean;
   groupName: string;
   topicTag?: string;
   variants: VariantDetail[];

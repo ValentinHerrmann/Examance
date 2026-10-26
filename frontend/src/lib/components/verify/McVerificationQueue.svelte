@@ -1,25 +1,27 @@
 <script lang="ts">
   import type { McDetectionItem } from "#lib/grading/mcVerification";
   import { t } from "#lib/i18n";
+  import { exerciseHref, gradeHref, verifyItemHref } from "#lib/utils/links";
   import { faChevronDown, faChevronRight, faCheck, faCircle } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, Icon } from "#lib/components/ui";
+  import { Badge, Button, CrossLink, Icon } from "#lib/components/ui";
 
   interface Props {
+    examId: string;
     title: string;
     items?: McDetectionItem[];
     studentProgress?: Map<string, { total: number; reviewed: number }>;
     emptyMessage: string;
-    onVerifyItem: (item: McDetectionItem) => void;
-    onOpenGrading: (item: McDetectionItem) => void;
+    /** Queue tag passed on to the item view so Next/Prev stay inside this queue. */
+    queueTag: string;
   }
 
   let {
+    examId,
     title,
     items = [],
     studentProgress = new Map(),
     emptyMessage,
-    onVerifyItem,
-    onOpenGrading
+    queueTag
   }: Props = $props();
 
   let isOpen = $state(true);
@@ -56,14 +58,14 @@
                 {/if}
 
                 <div>
-                  <span class="text-xs font-medium text-content">{item.studentLabel}</span>
+                  <CrossLink href={gradeHref(examId, { submissionId: item.submissionId })} class="text-xs font-medium text-content">{item.studentLabel}</CrossLink>
                   {#if progress && progress.total > 1}
                     <Badge size="xs" class="ml-1 font-mono" title={$t("scanning.queue.studentProgressTooltip")}>
                       {progress.reviewed}/{progress.total}
                     </Badge>
                   {/if}
                   <span class="text-xs text-muted mx-1.5">•</span>
-                  <span class="text-xs text-content">{item.exerciseLabel}</span>
+                  <CrossLink href={exerciseHref(item.exerciseId)} class="text-xs text-content">{item.exerciseLabel}</CrossLink>
                 </div>
 
                 {#if item.flaggedOptions.length > 0}
@@ -78,8 +80,8 @@
               </div>
 
               <div class="flex items-center gap-2 self-start sm:self-auto">
-                <Button size="sm" onClick={() => onVerifyItem(item)}>{$t("scanning.queue.verifyItem")}</Button>
-                <Button size="sm" variant="outlined" severity="secondary" title={$t("scanning.queue.openGrading")} onClick={() => onOpenGrading(item)}>
+                <Button size="sm" href={verifyItemHref(examId, item.submissionId, item.exerciseId, queueTag)}>{$t("scanning.queue.verifyItem")}</Button>
+                <Button size="sm" variant="outlined" severity="secondary" title={$t("scanning.queue.openGrading")} href={gradeHref(examId, { submissionId: item.submissionId, exerciseId: item.exerciseId })}>
                   {$t("scanning.queue.canvas")}
                 </Button>
               </div>

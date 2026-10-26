@@ -6,6 +6,7 @@
   import type { SyncStatus } from "#lib/api/exerciseSharing";
   import type { PendingForGroup } from "#lib/api/exerciseContributions";
   import { t } from "#lib/i18n";
+  import { examHref } from "#lib/utils/links";
   import {
     faPenToSquare,
     faFileCirclePlus,
@@ -142,7 +143,10 @@
     {:else}
       {#each used.value as exam (exam.id)}
         <a
-          href="/exam/{exam.id}"
+          href={examHref(exam.id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          onclick={(e) => e.stopPropagation()}
           class="min-w-0 break-words rounded-md border border-line bg-surface-sunken px-1.5 py-0.5 text-accent hover:bg-highlight"
         >{exam.title}{exam.datum ? ` (${exam.datum})` : ""}</a>
       {/each}

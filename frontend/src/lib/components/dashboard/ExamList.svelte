@@ -3,10 +3,11 @@
   import type { LazyEntry } from "#lib/utils/lazyMap";
   import { formatExamCourse } from "#lib/utils/examLabel";
   import { t } from "#lib/i18n";
+  import { exerciseHref } from "#lib/utils/links";
   import { fmt } from "#lib/utils/format";
   import { examNavItems } from "#lib/components/layout/examNavItems";
   import { faCopy, faEye, faFileZipper, faTrash } from "@fortawesome/free-solid-svg-icons";
-  import { Badge, Button, Card, EmptyState, ExpandableCard } from "#lib/components/ui";
+  import { Badge, Button, Card, CrossLink, EmptyState, ExpandableCard } from "#lib/components/ui";
   import LogoPreview from "#lib/components/logo/LogoPreview.svelte";
   import type { ExamLogoPreview, LogoSource } from "#lib/latex/logo";
   import type { TranslationKey } from "#lib/i18n";
@@ -142,7 +143,7 @@
                 {#each used.value as ex, i (ex.id)}
                   <li class="flex min-w-0 flex-wrap items-center gap-2 text-sm text-content">
                     <span class="w-6 shrink-0 text-right text-muted">{i + 1}.</span>
-                    <span class="min-w-0 break-words">{ex.title || ex.name || $t("dashboard.examList.untitledExercise")}</span>
+                    <CrossLink href={exerciseHref(ex.id)}>{ex.title || ex.name || $t("dashboard.examList.untitledExercise")}</CrossLink>
                     <Badge>v{ex.version ?? 1}</Badge>
                     {#if ex.variantKey && ex.variantKey !== "_General"}
                       <Badge severity="info">{ex.variantKey}</Badge>

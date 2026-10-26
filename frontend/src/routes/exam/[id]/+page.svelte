@@ -1126,18 +1126,6 @@
     isLibraryModalOpen = false;
   }
 
-  function handleScan() {
-    goto(`/exam/${examId}/scan`);
-  }
-
-  function handleGrade() {
-    goto(`/exam/${examId}/grade`);
-  }
-
-  function handleStats() {
-    goto(`/exam/${examId}/stats`);
-  }
-
   let isDeletingAllSubmissions = false;
 
   async function handleDeleteAllSubmissions() {
@@ -1252,9 +1240,6 @@
       onDelete={handleDeleteExam}
       onExport={handleExportArchive}
       onRawExport={() => (rawExportOpen = true)}
-      onScan={handleScan}
-      onGrade={handleGrade}
-      onStats={handleStats}
       onDeleteAllSubmissions={handleDeleteAllSubmissions}
       onDuplicate={handleDuplicateExam}
       {isDuplicating}

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { faUsers } from "@fortawesome/free-solid-svg-icons";
-  import { Alert, Badge, Button, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
+  import { Alert, Badge, Button, CrossLink, EmptyState, TableScroller, controlClass, controlSmClass } from "#lib/components/ui";
   import { get } from "svelte/store";
   import { sessionStore } from "#lib/stores/session";
   import { storagePolicyStore } from "#lib/stores/storagePolicy";
@@ -12,6 +12,7 @@
   import { buildSubmissionMap } from "#lib/utils/studentLookup";
   import type { ExerciseRecord, StudentRecord, SubmissionRecord } from "#lib/db/schema";
   import { t } from "#lib/i18n";
+  import { exerciseHref, gradeHref } from "#lib/utils/links";
 
   interface Props {
     examId: string;
@@ -248,7 +249,7 @@
 
       {#if activeExercise}
         <div class="flex min-w-0 items-center gap-3">
-          <h3 class="m-0 min-w-0 text-lg font-semibold text-content">{activeExercise.name}</h3>
+          <h3 class="m-0 min-w-0 text-lg font-semibold text-content"><CrossLink href={exerciseHref(activeExercise.id)} class="text-content">{activeExercise.name}</CrossLink></h3>
           <Badge>{$t("grading.manual.exerciseFirst.maxPointsLabel")} <strong class="ml-1">{activeExercise.maxPoints}</strong></Badge>
         </div>
       {/if}
@@ -279,7 +280,13 @@
             {@const isInvalid = valStr !== "" && (isNaN(numVal) || numVal < 0 || (activeExercise && numVal > activeExercise.maxPoints))}
             <tr>
               <td>{i + 1}</td>
-              <td><strong>{st.studentName || $t("grading.manual.exerciseFirst.unnamed")}</strong></td>
+              <td>
+                {#if sub}
+                  <strong><CrossLink href={gradeHref(examId, { submissionId: sub.id })} class="text-content">{st.studentName || $t("grading.manual.exerciseFirst.unnamed")}</CrossLink></strong>
+                {:else}
+                  <strong>{st.studentName || $t("grading.manual.exerciseFirst.unnamed")}</strong>
+                {/if}
+              </td>
               <td>{st.studentNumber || "-"}</td>
               <td class="whitespace-nowrap">
                 <input
