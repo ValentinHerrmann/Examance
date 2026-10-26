@@ -27,6 +27,7 @@ import { exportNs } from './export';
 import { about } from './about';
 import { maintenance } from './maintenance';
 import { layoutReport } from './layoutReport';
+import { snippets } from './snippets';
 
 export const de = {
     common,
@@ -56,4 +57,5 @@ export const de = {
     about,
     maintenance,
     layoutReport,
+    snippets,
 } as const;

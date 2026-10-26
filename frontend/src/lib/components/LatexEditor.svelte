@@ -63,10 +63,12 @@
     type QuickInsertMacro,
     type SubjectCategory
   } from "#lib/latex/quickInsertMacros";
+  import { SUBJECT_SNIPPETS } from "#lib/latex/subjectSnippets";
+  import { exerciseEntries, formatPackageLine } from "#lib/latex/packages";
   import { computeQuickInsert } from "#lib/latex/quickInsertLogic";
   import { t, type TranslationKey } from "#lib/i18n";
   import { theme } from "#lib/stores/theme";
-  import { Icon, Select } from "#lib/components/ui";
+  import { Icon } from "#lib/components/ui";
   import { safeLocalStorage } from "#lib/utils/storage";
   import { faChevronDown, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 
@@ -98,7 +100,8 @@
   // can otherwise collapse them to ~0px and CodeMirror paints into a collapsed box.
   let wrapperMinHeight = $derived(`${Math.max(rows, 3) * 1.5}rem`);
 
-  const macrosOf = (category: QuickInsertMacro["category"]) => QUICK_INSERT_MACROS.filter((m) => m.category === category);
+  const ALL_MACROS = [...QUICK_INSERT_MACROS, ...SUBJECT_SNIPPETS];
+  const macrosOf = (category: QuickInsertMacro["category"]) => ALL_MACROS.filter((m) => m.category === category);
   const macroCategories = GENERAL_CATEGORIES.map((category) => ({ category, macros: macrosOf(category) }));
 
   // One subject's snippets at a time keeps the palette short; the choice is remembered per browser.
@@ -107,14 +110,18 @@
   let subject: SubjectCategory = $state(savedSubject && SUBJECT_CATEGORIES.includes(savedSubject) ? savedSubject : "math");
   let subjectMacros = $derived(macrosOf(subject));
 
+  function selectSubject(next: SubjectCategory) {
+    subject = next;
+    safeLocalStorage.setItem(SUBJECT_KEY, next);
+  }
+
   // Palette text is keyed by macro id, so the key is only known at runtime and
   // has to be cast. A key missing from the catalogs renders as the key itself
   // rather than an empty button.
-  function macroLabel(macro: QuickInsertMacro) {
-    return $t(`editor.macros.${macro.id}.label` as TranslationKey);
-  }
-  function macroDescription(macro: QuickInsertMacro) {
-    return $t(`editor.macros.${macro.id}.description` as TranslationKey);
+  const isSubject = (macro: QuickInsertMacro) => (SUBJECT_CATEGORIES as readonly string[]).includes(macro.category);
+  function macroText(macro: QuickInsertMacro, field: "label" | "description") {
+    const ns = isSubject(macro) ? "snippets" : "editor.macros";
+    return $t(`${ns}.${macro.id}.${field}` as TranslationKey);
   }
 
   function insertMacro(macro: QuickInsertMacro) {
@@ -126,6 +133,13 @@
       changes: result.changes,
       selection: EditorSelection.range(result.selection.anchor, result.selection.head)
     });
+    // Packages the template lacks go on top as exercise package lines, where the packages panel keeps them.
+    const present = new Set(exerciseEntries(view.state.doc.toString()).map((e) => e.name));
+    const missing = (macro.packages ?? []).filter((name) => !present.has(name));
+    if (missing.length) {
+      const lines = missing.map((name) => `${formatPackageLine({ kind: "package", name, options: "" })}\n`).join("");
+      view.dispatch({ changes: { from: 0, insert: lines } });
+    }
     view.focus();
   }
 
@@ -476,7 +490,7 @@
             onfocus={(e) => scheduleTooltip(macro, e.currentTarget)}
             onblur={hideTooltip}
           >
-            {macroLabel(macro)}
+            {macroText(macro, "label")}
           </button>
         {/each}
       {/snippet}
@@ -488,16 +502,18 @@
           {@render chips(macros)}
         </div>
       {/each}
-      <Select
-        size="sm"
-        class="ml-2 w-auto"
-        aria-label={$t("editor.subjectLabel")}
-        bind:value={() => subject, (v) => { subject = v as SubjectCategory; safeLocalStorage.setItem(SUBJECT_KEY, v); }}
-      >
-        {#each SUBJECT_CATEGORIES as option (option)}
-          <option value={option}>{$t(`editor.categories.${option}`)}</option>
+      <div class="contents" role="group" aria-label={$t("editor.subjectLabel")}>
+        {#each SUBJECT_CATEGORIES as option, index (option)}
+          <button
+            type="button"
+            class="border-0 border-b-2 bg-transparent px-0.5 text-xs font-semibold pointer-coarse:min-h-11 {index === 0 ? 'ml-2' : ''} {option === subject
+              ? 'border-primary text-content'
+              : 'border-transparent text-muted hover:text-accent'}"
+            aria-pressed={option === subject}
+            onclick={() => selectSubject(option)}
+          >{$t(`editor.categories.${option}`)}</button>
         {/each}
-      </Select>
+      </div>
       {@render chips(subjectMacros)}
     </div>
   {/if}
@@ -513,7 +529,7 @@
     class="pointer-events-none fixed flex max-w-xs flex-col gap-1 rounded-md border border-line bg-surface-base px-2 py-1.5 text-xs shadow-md"
     style="left: {tooltipX}px; top: {tooltipY}px; z-index: var(--z-toast);"
   >
-    <span class="text-content">{macroDescription(hoveredMacro)}</span>
-    <code class="whitespace-pre-wrap rounded-md bg-surface-sunken px-1.5 py-1 font-mono text-accent">{hoveredMacro.preview}</code>
+    <span class="text-content">{macroText(hoveredMacro, "description")}</span>
+    <code class="max-h-48 overflow-hidden whitespace-pre-wrap rounded-md bg-surface-sunken px-1.5 py-1 font-mono text-accent">{hoveredMacro.preview}</code>
   </div>
 {/if}

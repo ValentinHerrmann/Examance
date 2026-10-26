@@ -26,6 +26,7 @@ import { exportNs } from './export';
 import { about } from './about';
 import { maintenance } from './maintenance';
 import { layoutReport } from './layoutReport';
+import { snippets } from './snippets';
 
 export const en: Translations = {
     common,
@@ -55,4 +56,5 @@ export const en: Translations = {
     about,
     maintenance,
     layoutReport,
+    snippets,
 };
