@@ -2,11 +2,15 @@ import type { Translations } from '../types';
 
 export const editor: Translations['editor'] = {
     quickInsertToggle: 'Insert LaTeX snippets',
+    subjectLabel: 'Subject snippets',
     categories: {
         solutions: 'Solutions',
         scoring: 'Scoring',
         formatting: 'Formatting',
         generic: 'Generic',
+        math: 'Math',
+        cs: 'Computer science',
+        science: 'Science & more',
     },
 
     macros: {
@@ -26,7 +30,6 @@ export const editor: Translations['editor'] = {
         },
         'loesung-karo': { label: 'Graph paper', description: 'Solution vs. rows of graph-paper squares.' },
         'loesung-line': { label: 'Ruled lines', description: 'Solution vs. ruled writing lines.' },
-        'loesung-form': { label: 'Fillable field', description: 'A fillable PDF form text field.' },
         kariert: {
             label: 'Graph paper (raw)',
             description: 'Rows of graph-paper squares, without an answer-key toggle.',
@@ -42,12 +45,6 @@ export const editor: Translations['editor'] = {
             label: 'Part exercise',
             description: 'Part a), b), … with a subtitle and its own score box.',
         },
-        'feste-punkte': {
-            label: 'Fixed score',
-            description: 'Fix the score of the exercise or part instead of counting scoring units.',
-        },
-        afb: { label: 'Requirement level', description: 'AFB I, II or III; shown only on the solution sheet.' },
-        kompetenz: { label: 'Competency', description: 'Competency assessed; shown only on the solution sheet.' },
         textbf: { label: 'Bold text', description: 'Bold text.' },
         textit: { label: 'Italic text', description: 'Italic text.' },
         textcolor: {
@@ -66,6 +63,29 @@ export const editor: Translations['editor'] = {
         'inline-math': { label: 'Inline math', description: 'Inline math.' },
         center: { label: 'Centered content', description: 'Centered content.' },
         seitenumbruch: { label: 'Page break', description: 'Forces a page break here (student sheet and solution sheet).' },
+        'math-pythagoras': { label: 'Formula', description: 'An inline formula, e.g. the Pythagorean theorem.' },
+        'math-fraction': { label: 'Fraction', description: 'A fraction.' },
+        'math-root': { label: 'Root', description: 'A square root.' },
+        'math-system': { label: 'Equation system', description: 'Equations aligned below each other.' },
+        'math-cases': { label: 'Piecewise function', description: 'A piecewise-defined function.' },
+        'math-matrix': { label: 'Matrix', description: 'A matrix in parentheses.' },
+        'math-integral': { label: 'Integral', description: 'A definite integral.' },
+        'math-sum': { label: 'Sum', description: 'A summation sign with bounds.' },
+        'math-plot': { label: 'Function graph', description: 'Coordinate system with the graph of a function.' },
+        'math-numberline': { label: 'Number line', description: 'A number line from 0 to 10.' },
+        'math-valuetable': { label: 'Value table', description: 'A table of values to fill in.' },
+        'cs-class-diagram': { label: 'Class diagram', description: 'Two classes with a 1:n association.' },
+        'cs-code': { label: 'Source code', description: 'A source code block; adjust the language (e.g. Python, Java).' },
+        'cs-struktogramm': { label: 'Structogram', description: 'A Nassi-Shneiderman diagram with an assignment and a loop.' },
+        'cs-automaton': { label: 'Automaton', description: 'A finite automaton with two states.' },
+        'cs-er-diagram': { label: 'ER diagram', description: 'Two entities with an n:m relationship.' },
+        'science-chemical': { label: 'Chemical formula', description: 'A molecular formula with subscripts.' },
+        'science-unit': { label: 'Quantity with unit', description: 'A value with its unit.' },
+        'science-sketch': { label: 'Labelled sketch', description: 'A simple sketch with a label arrow.' },
+        'science-cloze-table': {
+            label: 'Gap table',
+            description: 'A table with gaps that show the solution on the answer key.',
+        },
     },
 
     confirmDialog: {

@@ -2,40 +2,32 @@
   import { onDestroy, untrack } from "svelte";
   import { get } from "svelte/store";
   import type { ExerciseRecord } from "#lib/db/schema";
-  import { db } from "#lib/db/db";
   import { sessionStore, isAuthenticated } from "#lib/stores/session";
   import { effectiveLatexStore, featuresStore } from "#lib/stores/capabilities";
   import { setExerciseSharing } from "#lib/api/exerciseSharing";
   import { saveExerciseEncrypted, loadExercisesEncrypted } from "#lib/db/dbEncryption";
   import { api, apiErrorMessage } from "#lib/api/client";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
-  import {
-    parseMcOptions,
-    buildMcOptionsLatex,
-    MC_MAX_COLUMNS,
-    MC_MAX_OPTIONS,
-    MC_MIN_OPTIONS,
-    type McOption,
-  } from "#lib/latex/mcOptions";
+  import { parseMcOptions, buildMcOptionsLatex, MC_MIN_OPTIONS, type McOption } from "#lib/latex/mcOptions";
   import { getLatestForSlot } from "#lib/latex/compileCache";
   import { compileExercisePreview } from "#lib/latex/exercisePreview";
   import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import ExerciseResourcePanel from "#lib/components/exercise/ExerciseResourcePanel.svelte";
   import ExerciseStructureModal from "#lib/components/exercise/ExerciseStructureModal.svelte";
+  import ExerciseMetaFields from "#lib/components/exercise/ExerciseMetaFields.svelte";
+  import McOptionsEditor from "#lib/components/exercise/McOptionsEditor.svelte";
   import { fmt } from "#lib/utils/format";
   import { parseExerciseStructure, setCompetencies, setRequirementLevel } from "#lib/latex/exerciseStructure";
   import ExercisePackagesPanel from "#lib/components/latex-packages/ExercisePackagesPanel.svelte";
   import LatexEditor from "./LatexEditor.svelte";
   import DualPdfPreview from "./DualPdfPreview.svelte";
-  import SuggestInput from "#lib/components/common/SuggestInput.svelte";
   import { recordValue } from "#lib/utils/recentValues";
   import { t, translate } from "#lib/i18n";
-  import InfoTip from "#lib/components/help/InfoTip.svelte";
   import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
   import { exerciseReportFiles } from "#lib/layout-report/collect";
-  import { ConfirmDialog, Alert, Badge, Button, Checkbox, Icon, Modal, Select, TextInput, controlClass, controlSmClass } from "#lib/components/ui";
-  import { faBook, faChevronDown, faChevronLeft, faChevronRight, faCode, faPlus, faTag, faXmark } from "@fortawesome/free-solid-svg-icons";
+  import { ConfirmDialog, Alert, Badge, Button, Checkbox, Icon, Modal } from "#lib/components/ui";
+  import { faChevronDown, faChevronLeft, faChevronRight, faCode } from "@fortawesome/free-solid-svg-icons";
 
   interface Props {
     isOpen?: boolean;
@@ -75,8 +67,6 @@
   let mcOptions: McOption[] = $state.raw([]);
   /** Column layout of the options: "auto" (one per option) or an explicit count, as a <select> value. */
   let mcColumns = $state("auto");
-  const MC_COLUMN_CHOICES = Array.from({ length: MC_MAX_COLUMNS }, (_, i) => String(i + 1));
-  let mcOptionsError = "";
   /** Points deducted per wrongly-crossed MC option (right-minus-wrong scoring). Matches the printed scoring text convention. */
   let editorPenalty = $state(0.5);
 
@@ -118,6 +108,8 @@
   let showLoesungPreview = $state(false);
   let showLatexPanel = $state(true);
   let structureOpen = $state(false);
+  /** MC: the composed LaTeX repeats question and options, so it opens on demand instead of inline. */
+  let latexSourceOpen = $state(false);
   /** Phones: the metadata fields fold into a one-line summary so the code editor gets the screen. */
   let showMetaFields = $state(false);
   let hasAnyPreview = $derived(showAngabePreview || showLoesungPreview);
@@ -145,7 +137,7 @@
   }
 
   function insertResourceSnippet(snippet: string) {
-    if (editorQuestionType === "free_text" || mcBlockMalformed) {
+    if (!isMc || mcBlockMalformed) {
       editorLatexBody = `${editorLatexBody}\n${snippet}\n`;
       if (mcBlockMalformed) syncMcStateFromLatex();
       return;
@@ -159,28 +151,30 @@
     showLatexPanel = !showLatexPanel;
   }
 
+  let title = $derived.by(() => {
+    if (isCreatingVersion) return $t("exercises.editor.titleNewVersion", { name: editorName });
+    return editingExercise ? $t("exercises.editor.titleEdit", { name: editorName }) : $t("exercises.editor.titleCreate");
+  });
+  let saveLabel = $derived.by(() => {
+    if (isSaving) return $t("exercises.editor.saveButtonSaving");
+    return isCreatingVersion ? $t("exercises.editor.saveButtonNewVersion") : $t("exercises.editor.saveButton");
+  });
+  let isMc = $derived(editorQuestionType !== "free_text");
+
   // Track initialization on isOpen or exercise props change
   let lastOpenState = $state(false);
 
   function initForm() {
-    if (isCreatingVersion && versionBaseEx) {
-      editorName = versionBaseEx.name || translate("exercises.untitled");
-      editorTopicTag = versionBaseEx.topicTag || "_General";
-      editorGrade = versionBaseEx.grade || "";
-      editorSubject = versionBaseEx.subject || "";
-      editorVariantKey = versionBaseEx.variantKey || "";
-      editorLatexBody = versionBaseEx.latexBody || "";
-      editorQuestionType = versionBaseEx.questionType === "mc" ? "mc" : "free_text";
-      editorPenalty = versionBaseEx.penalty || 0.5;
-    } else if (editingExercise) {
-      editorName = editingExercise.name || translate("exercises.untitled");
-      editorTopicTag = editingExercise.topicTag || "_General";
-      editorGrade = editingExercise.grade || "";
-      editorSubject = editingExercise.subject || "";
-      editorVariantKey = editingExercise.variantKey || "";
-      editorLatexBody = editingExercise.latexBody || "";
-      editorQuestionType = editingExercise.questionType === "mc" ? "mc" : "free_text";
-      editorPenalty = editingExercise.penalty || 0.5;
+    const source = baseRecord;
+    if (source) {
+      editorName = source.name || translate("exercises.untitled");
+      editorTopicTag = source.topicTag || "_General";
+      editorGrade = source.grade || "";
+      editorSubject = source.subject || "";
+      editorVariantKey = source.variantKey || "";
+      editorLatexBody = source.latexBody || "";
+      editorQuestionType = source.questionType === "mc" ? "mc" : "free_text";
+      editorPenalty = source.penalty || 0.5;
     } else {
       editorName = "New_Exercise";
       editorTopicTag = "_General";
@@ -200,7 +194,7 @@
     initialLatexBody = editorLatexBody;
     initialQuestionType = editorQuestionType;
     initialPenalty = editorPenalty;
-    editorShared = !!(isCreatingVersion ? versionBaseEx?.isShared : editingExercise?.isShared);
+    editorShared = !!source?.isShared;
     initialShared = editorShared;
     shareConfirmed = false;
     // Seed the staging area from whichever exercise is being edited or
@@ -208,10 +202,9 @@
     // figures without ever writing back to it.
     resourceStagingId = crypto.randomUUID();
     resourcesCommitted = false;
-    const resourceSourceId = isCreatingVersion ? versionBaseEx?.id : editingExercise?.id;
-    if (resourceSourceId) {
+    if (source?.id) {
       void exerciseResourceRepository.seedStaging(
-        resourceSourceId,
+        source.id,
         resourceStagingId,
         get(sessionStore).sessionKey
       );
@@ -219,8 +212,8 @@
     showAngabePreview = false;
     showLoesungPreview = false;
     showConfirmClose = false;
+    latexSourceOpen = false;
     errorMsg = "";
-    mcOptionsError = "";
     syncMcStateFromLatex();
 
     cleanupPreview();
@@ -272,11 +265,12 @@
 
   function handleStructureChange(latex: string) {
     editorLatexBody = latex;
-    if (editorQuestionType !== "free_text") syncMcStateFromLatex();
+    if (isMc) syncMcStateFromLatex();
   }
 
-  function handleQuestionTypeChange() {
-    if (editorQuestionType !== "free_text" && mcOptions.length === 0) {
+  function handleQuestionTypeChange(type: "free_text" | "mc") {
+    editorQuestionType = type;
+    if (isMc && mcOptions.length === 0) {
       mcQuestionText = mcQuestionText.trim() || "Frage hier eingeben...";
       mcOptions = [
         { text: "", correct: false },
@@ -286,30 +280,8 @@
     }
   }
 
-  function updateMcQuestionText(text: string) {
-    mcQuestionText = text;
-    regenerateMcLatex();
-  }
-
-  function updateOptionText(index: number, text: string) {
-    mcOptions = mcOptions.map((o, i) => (i === index ? { ...o, text } : o));
-    regenerateMcLatex();
-  }
-
-  function toggleOptionCorrect(index: number) {
-    mcOptions = mcOptions.map((o, i) => (i === index ? { ...o, correct: !o.correct } : o));
-    regenerateMcLatex();
-  }
-
-  function addMcOption() {
-    if (mcOptions.length >= MC_MAX_OPTIONS) return;
-    mcOptions = [...mcOptions, { text: "", correct: false }];
-    regenerateMcLatex();
-  }
-
-  function removeMcOption(index: number) {
-    if (mcOptions.length <= MC_MIN_OPTIONS) return;
-    mcOptions = mcOptions.filter((_, i) => i !== index);
+  function setMcOptions(options: McOption[]) {
+    mcOptions = options;
     regenerateMcLatex();
   }
 
@@ -338,7 +310,7 @@
     editorVariantKey !== initialVariantKey ||
     editorLatexBody !== initialLatexBody ||
     editorQuestionType !== initialQuestionType ||
-    (editorQuestionType !== "free_text" && editorPenalty !== initialPenalty) ||
+    (isMc && editorPenalty !== initialPenalty) ||
     editorShared !== initialShared
   );
 
@@ -409,9 +381,10 @@
       if (res.missingGraphics.length > 0) {
         errorMsg = `Preview rendered, but a graphic could not be loaded: ${res.missingGraphics[0]}`;
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Exercise preview failed:", err);
-      errorMsg = translate("exercises.editor.previewFailed", { message: err.message || translate("exercises.editor.previewFailedUnknown") });
+      const message = err instanceof Error && err.message ? err.message : translate("exercises.editor.previewFailedUnknown");
+      errorMsg = translate("exercises.editor.previewFailed", { message });
       previewError = errorMsg;
     } finally {
       isPreviewLoading = false;
@@ -430,7 +403,7 @@
       return;
     }
 
-    if (editorQuestionType !== "free_text") {
+    if (isMc) {
       // The LaTeX is what gets saved: read the options from it rather than rebuilding it.
       syncMcStateFromLatex();
       if (mcOptions.length < MC_MIN_OPTIONS) {
@@ -451,8 +424,8 @@
     errorMsg = "";
     const key = get(sessionStore).sessionKey;
 
-    const optionsArray = editorQuestionType !== "free_text" ? mcOptions.map((o) => o.text) : undefined;
-    const correctIndices = editorQuestionType !== "free_text" ? mcOptions.flatMap((o, i) => (o.correct ? [i] : [])) : undefined;
+    const optionsArray = isMc ? mcOptions.map((o) => o.text) : undefined;
+    const correctIndices = isMc ? mcOptions.flatMap((o, i) => (o.correct ? [i] : [])) : undefined;
 
     try {
       if (isCreatingVersion && versionBaseEx) {
@@ -465,7 +438,7 @@
             subject: editorSubject.trim() || null,
             latex_body: editorLatexBody,
             question_type: editorQuestionType,
-            correct_answers: editorQuestionType !== "free_text" ? { options: optionsArray, correct: correctIndices } : null,
+            correct_answers: isMc ? { options: optionsArray, correct: correctIndices } : null,
           })) as any;
 
           savedEx = {
@@ -542,7 +515,7 @@
         questionType: editorQuestionType,
         options: optionsArray,
         correctAnswers: correctIndices,
-        penalty: editorQuestionType !== "free_text" ? editorPenalty : editingExercise?.penalty || 0,
+        penalty: isMc ? editorPenalty : editingExercise?.penalty || 0,
         exerciseGroupId: editingExercise?.exerciseGroupId,
         variantKey: editorVariantKey.trim() || undefined,
         isCurrent: editingExercise?.isCurrent ?? true,
@@ -581,7 +554,7 @@
             latex_body: record.latexBody,
             variant_key: record.variantKey || null,
             question_type: record.questionType || "free_text",
-            correct_answers: editorQuestionType !== "free_text" ? { options: optionsArray, correct: correctIndices } : null,
+            correct_answers: isMc ? { options: optionsArray, correct: correctIndices } : null,
             penalty: record.penalty || 0,
           };
           await api.patch(`/exercises/${id}`, payload);
@@ -594,8 +567,8 @@
       const sharingError = await applySharing(record.id);
       onSave?.({ exercise: record, isNewVersion: false, sharingError });
       forceClose();
-    } catch (err: any) {
-      errorMsg = translate("exercises.editor.saveFailed", { message: err.message });
+    } catch (err) {
+      errorMsg = translate("exercises.editor.saveFailed", { message: err instanceof Error ? err.message : String(err) });
     } finally {
       isSaving = false;
     }
@@ -648,22 +621,14 @@
 {#if isOpen}
   <Modal open={isOpen} size="full" tall bare onClose={requestClose} labelledBy="exercise-editor-title">
     {#snippet header()}
-      <div class="flex min-w-0 items-center gap-2">
-        <h2 id="exercise-editor-title" class="m-0 truncate text-xl font-semibold text-content">
-          {isCreatingVersion
-            ? $t("exercises.editor.titleNewVersion", { name: editorName })
-            : editingExercise
-              ? $t("exercises.editor.titleEdit", { name: editorName })
-              : $t("exercises.editor.titleCreate")}
-        </h2>
-        {#if isCreatingVersion}
-          <Badge severity="primary">v{(versionBaseEx?.version || 1) + 1}</Badge>
-        {/if}
-      </div>
-    {/snippet}
-
-    <div class="flex h-full max-h-full w-full flex-col overflow-hidden">
-      <div class="shrink-0 border-b border-line px-4 pb-3 @3xl:pb-2">
+      <!-- Metadata sits in the header: beside the title from @6xl, below it down to @3xl, folded on phones. -->
+      <div class="flex min-w-0 flex-col gap-2 @6xl:flex-row @6xl:items-center @6xl:gap-4">
+        <div class="flex min-w-0 items-center gap-2 @6xl:max-w-sm @6xl:shrink-0">
+          <h2 id="exercise-editor-title" class="m-0 truncate text-xl font-semibold text-content">{title}</h2>
+          {#if isCreatingVersion}
+            <Badge severity="primary">v{(versionBaseEx?.version || 1) + 1}</Badge>
+          {/if}
+        </div>
         <button
           type="button"
           class="flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md border border-line bg-surface-sunken px-3 py-2 text-left text-sm @3xl:hidden"
@@ -677,125 +642,24 @@
           </span>
           <span class="shrink-0 text-xs text-accent">{$t("exercises.editor.metaToggle")}</span>
         </button>
-        <div class="{showMetaFields ? 'flex' : 'hidden'} mt-2 flex-wrap items-center gap-3 rounded-md border border-line bg-surface-sunken px-3 py-2 @3xl:mt-0 @3xl:flex @3xl:py-1.5">
-          {#if editingExercise || isCreatingVersion}
-            <div class="flex flex-wrap items-center gap-2 text-sm">
-              <span class="text-xs text-muted">{$t("exercises.editor.groupLabel")}</span>
-              <strong class="font-semibold text-content">{editorName}</strong>
-              <Badge icon={faTag}>{editorTopicTag}</Badge>
-              {#if editorGrade}
-                <Badge>{$t("exercises.editor.gradeBadge", { grade: editorGrade })}</Badge>
-              {/if}
-              {#if editorSubject}
-                <Badge icon={faBook}>{editorSubject}</Badge>
-              {/if}
-            </div>
-
-            <div class="flex items-center gap-1.5 text-xs">
-              <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.variantKeyLabel")}</label>
-              <TextInput
-                id="editorVariantKey"
-                size="sm"
-                bind:value={editorVariantKey} maxlength={100}
-                placeholder={$t("exercises.editor.variantKeyPlaceholder")}
-              />
-            </div>
-          {:else}
-            <!-- From @3xl a single grid row with the labels above their fields; type and share sit in the last cell. -->
-            <div class="flex w-full flex-wrap items-center gap-3 @3xl:grid @3xl:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] @3xl:items-end @3xl:gap-x-2 @3xl:gap-y-1">
-              <div class="flex items-center gap-1.5 text-xs @3xl:min-w-0 @3xl:flex-col @3xl:items-stretch @3xl:gap-0.5">
-                <label for="editorName" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.nameLabel")}</label>
-                <TextInput
-                  id="editorName"
-                  size="sm"
-                  bind:value={editorName} maxlength={200}
-                  required
-                  placeholder={$t("exercises.editor.namePlaceholder")}
-                />
-              </div>
-
-              <div class="flex items-center gap-1.5 text-xs @3xl:min-w-0 @3xl:flex-col @3xl:items-stretch @3xl:gap-0.5">
-                <label for="editorTopic" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.topicLabel")}</label>
-                <SuggestInput
-                  id="editorTopic"
-                  storageKey="exercise.topic"
-                  bind:value={editorTopicTag} maxlength={200}
-                  placeholder="_Vererbung"
-                  required
-                  class="{controlClass} {controlSmClass}"
-                />
-              </div>
-
-              <div class="flex items-center gap-1.5 text-xs @3xl:min-w-0 @3xl:flex-col @3xl:items-stretch @3xl:gap-0.5">
-                <label for="editorGrade" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.gradeLabel")}</label>
-                <SuggestInput
-                  id="editorGrade"
-                  storageKey="exercise.grade"
-                  bind:value={editorGrade} maxlength={50}
-                  placeholder={$t("exercises.editor.gradePlaceholder")}
-                  class="{controlClass} {controlSmClass}"
-                />
-              </div>
-
-              <div class="flex items-center gap-1.5 text-xs @3xl:min-w-0 @3xl:flex-col @3xl:items-stretch @3xl:gap-0.5">
-                <label for="editorSubject" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.subjectLabel")}</label>
-                <SuggestInput
-                  id="editorSubject"
-                  storageKey="exercise.subject"
-                  bind:value={editorSubject} maxlength={100}
-                  placeholder={$t("exercises.editor.subjectPlaceholder")}
-                  class="{controlClass} {controlSmClass}"
-                />
-              </div>
-
-              <div class="flex items-center gap-1.5 text-xs @3xl:min-w-0 @3xl:flex-col @3xl:items-stretch @3xl:gap-0.5">
-                <label for="editorVariantKey" class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.variantKeyLabelPlain")}</label>
-                <TextInput
-                  id="editorVariantKey"
-                  size="sm"
-                  bind:value={editorVariantKey} maxlength={100}
-                  placeholder={$t("exercises.editor.variantKeyPlaceholderPlain")}
-                />
-              </div>
-
-              <div class="contents @3xl:flex @3xl:items-end @3xl:gap-3">
-              <div class="flex items-center gap-1.5 text-xs @3xl:flex-col @3xl:items-stretch @3xl:gap-0.5">
-                <span class="whitespace-nowrap font-semibold text-muted">{$t("exercises.editor.exerciseTypeLabel")}</span>
-                <div class="inline-flex gap-1 rounded-md border border-line bg-surface-sunken p-0.5">
-                  <Button
-                    size="sm"
-                    variant={editorQuestionType === "free_text" ? "solid" : "text"}
-                    severity={editorQuestionType === "free_text" ? "primary" : "secondary"}
-                    pressed={editorQuestionType === "free_text"}
-                    onClick={() => {
-                      editorQuestionType = "free_text";
-                      handleQuestionTypeChange();
-                    }}
-                  >{$t("exercises.editor.freeTextButton")}</Button>
-                  <Button
-                    size="sm"
-                    variant={editorQuestionType === "mc" ? "solid" : "text"}
-                    severity={editorQuestionType === "mc" ? "primary" : "secondary"}
-                    pressed={editorQuestionType === "mc"}
-                    onClick={() => {
-                      editorQuestionType = "mc";
-                      handleQuestionTypeChange();
-                    }}
-                  >{$t("exercises.editor.mcButton")}</Button>
-                </div>
-              </div>
-
-              {#if shareAllowed}
-                <div class="flex min-w-0 items-center gap-1.5 text-xs @3xl:pb-1.5">
-                  <Checkbox bind:checked={editorShared} label={$t("exercises.sharing.editorShare")} />
-                </div>
-              {/if}
-              </div>
-            </div>
-          {/if}
+        <div class="{showMetaFields ? 'block' : 'hidden'} min-w-0 @3xl:block @6xl:flex-1">
+          <ExerciseMetaFields
+            bind:name={editorName}
+            bind:topicTag={editorTopicTag}
+            bind:grade={editorGrade}
+            bind:subject={editorSubject}
+            bind:variantKey={editorVariantKey}
+            bind:shared={editorShared}
+            questionType={editorQuestionType}
+            existing={!!(editingExercise || isCreatingVersion)}
+            {shareAllowed}
+            onQuestionTypeChange={handleQuestionTypeChange}
+          />
         </div>
       </div>
+    {/snippet}
 
+    <div class="flex h-full max-h-full w-full flex-col overflow-hidden border-t border-line">
       {#if needsShareConsent}
         <Alert severity="warning" class="mx-4 mt-3 shrink-0">
           <p class="m-0 mb-2">{$t("exercises.sharing.editorShareNotice", { email: $sessionStore.email ?? "" })}</p>
@@ -821,9 +685,16 @@
                 onclick={handleToggleLatex}
                 title={$t("exercises.editor.collapseLatexTitle")}
               >
-                <span class="whitespace-nowrap text-sm font-semibold text-content">{$t("exercises.editor.latexSourceCodeLabel")}</span>
+                <span class="truncate text-sm font-semibold text-content">
+                  {isMc ? $t("exercises.editor.mcButton") : $t("exercises.editor.latexSourceCodeLabel")}
+                </span>
                 <Icon icon={faChevronRight} class="shrink-0 text-muted group-hover:text-accent" />
               </button>
+              {#if isMc}
+                <Button size="sm" variant="outlined" severity="secondary" icon={faCode} onClick={() => (latexSourceOpen = true)} title={$t("exercises.editor.showLatexButton")}>
+                  <span class="hidden @3xl:inline">{$t("exercises.editor.showLatexButton")}</span>
+                </Button>
+              {/if}
               <Button
                 size="sm"
                 variant="outlined"
@@ -842,114 +713,26 @@
               >{isPreviewLoading ? $t("exercises.editor.previewButtonLoading") : $t("exercises.editor.previewButton")}</Button>
             </div>
 
-            <div class="flex flex-col gap-1.5 p-2 @3xl:min-h-0 @3xl:flex-1 @3xl:overflow-y-auto">
-              {#if editorQuestionType !== "free_text"}
-                <div class="flex shrink-0 flex-col gap-3 rounded-md border border-line bg-surface-raised p-3 text-xs">
-                  <div class="flex flex-wrap items-center justify-between gap-x-3">
-                    <h3 class="m-0 text-sm font-semibold text-content">
-                      {$t("exercises.editor.mcEditorTitle")}
-                    </h3>
-                    <span class="text-xs text-muted">
-                      {$t("exercises.editor.mcEditorHint")}
-                    </span>
-                  </div>
-
-                  {#if mcBlockMalformed}
-                    <Alert severity="warning">{$t("exercises.editor.mcBlockMalformed")}</Alert>
-                  {/if}
-
-                  <div class="flex flex-col gap-1">
-                    <span class="font-semibold text-content">{$t("exercises.editor.mcQuestionTextLabel")}</span>
-                    <LatexEditor
-                      bind:value={mcQuestionText}
-                      rows={4}
-                      showQuickInsert
-                      onChange={regenerateMcLatex}
-                    />
-                  </div>
-
-                  <div class="flex flex-col gap-1">
-                    <label class="flex items-center gap-1.5 font-semibold text-content" for="mc-penalty">
-                      {$t("exercises.editor.mcPenaltyLabel")}
-                      <InfoTip text={$t("help.tips.mcPenalty")} topic="exercises" />
-                    </label>
-                    <input
-                      id="mc-penalty"
-                      type="number"
-                      step="0.25"
-                      min="0"
-                      bind:value={editorPenalty}
-                      class="{controlClass} {controlSmClass} w-24"
-                    />
-                  </div>
-
-                  <div class="flex flex-col gap-1">
-                    <label class="font-semibold text-content" for="mc-columns">{$t("exercises.editor.mcColumnsLabel")}</label>
-                    <Select id="mc-columns" size="sm" class="w-full @xl:w-72" bind:value={mcColumns} onchange={regenerateMcLatex}>
-                      <option value="auto">{$t("exercises.editor.mcColumnsAuto", { max: MC_MAX_COLUMNS })}</option>
-                      {#each MC_COLUMN_CHOICES as choice}
-                        <option value={choice}>{choice}</option>
-                      {/each}
-                    </Select>
-                  </div>
-
-                  <div class="flex flex-col gap-2">
-                    <div class="flex items-center justify-between font-semibold text-content">
-                      <span>{$t("exercises.editor.mcOptionsLabel", { count: mcOptions.length })}</span>
-                      <Button
-                        size="sm"
-                        icon={faPlus}
-                        onClick={addMcOption}
-                        disabled={mcOptions.length >= MC_MAX_OPTIONS}
-                      >{$t("exercises.editor.mcAddOptionButton")}</Button>
-                    </div>
-
-                    {#each mcOptions as option, index}
-                      <div class="flex items-center gap-2 rounded-md border border-line bg-surface-sunken p-2">
-                        <Checkbox
-                          checked={option.correct}
-                          onChange={() => toggleOptionCorrect(index)}
-                          title={$t("exercises.editor.mcOptionCorrectTitle")}
-                          aria-label={$t("exercises.editor.mcOptionCorrectTitle")}
-                        />
-
-                        <input
-                          type="text"
-                          value={option.text}
-                          oninput={(e) => updateOptionText(index, e.currentTarget.value)}
-                          placeholder={$t("exercises.editor.mcOptionPlaceholder", { number: index + 1 })}
-                          class="{controlClass} {controlSmClass} flex-1"
-                        />
-
-                        <Badge size="xs" severity={option.correct ? "success" : "secondary"}>
-                          {option.correct ? $t("exercises.editor.mcOptionCorrect") : $t("exercises.editor.mcOptionIncorrect")}
-                        </Badge>
-
-                        <Button
-                          variant="text"
-                          severity="secondary"
-                          size="sm"
-                          iconOnly
-                          icon={faXmark}
-                          onClick={() => removeMcOption(index)}
-                          disabled={mcOptions.length <= MC_MIN_OPTIONS}
-                          title={$t("exercises.editor.mcOptionRemoveTitle")}
-                          ariaLabel={$t("exercises.editor.mcOptionRemoveTitle")}
-                        />
-                      </div>
-                    {/each}
-                  </div>
+            <div class="flex flex-col gap-2 p-2 @3xl:min-h-0 @3xl:flex-1 @3xl:overflow-y-auto">
+              {#if isMc}
+                <McOptionsEditor
+                  bind:questionText={mcQuestionText}
+                  bind:columns={mcColumns}
+                  bind:penalty={editorPenalty}
+                  options={mcOptions}
+                  malformed={mcBlockMalformed}
+                  onChange={regenerateMcLatex}
+                  onOptionsChange={setMcOptions}
+                  onShowLatex={() => (latexSourceOpen = true)}
+                />
+              {:else}
+                <!-- Phones: natural height. From @3xl the code area absorbs all free space, so folding any panel enlarges it. -->
+                <div class="flex flex-col @3xl:min-h-[18rem] @3xl:flex-1">
+                  <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert onChange={handleLatexBodyEdit} />
                 </div>
               {/if}
-              <div class="flex shrink-0 items-center justify-between px-1 text-xs">
-                <span class="font-semibold text-content">{$t("exercises.editor.latexPreviewLabel")}</span>
-              </div>
-              <!-- Phones: natural height (shrink-0). From @3xl the code area absorbs all free space, so folding any panel enlarges it. -->
-              <div class="flex shrink-0 flex-col @3xl:min-h-[18rem] @3xl:flex-1 @3xl:shrink">
-                <LatexEditor bind:value={editorLatexBody} rows={12} showQuickInsert onChange={handleLatexBodyEdit} />
-              </div>
 
-              <div class="grid shrink-0 items-start gap-1.5 @3xl:grid-cols-2">
+              <div class="grid shrink-0 items-start gap-2 @3xl:grid-cols-2">
                 <ExerciseResourcePanel
                   exerciseId={resourceStagingId}
                   onInsert={insertResourceSnippet}
@@ -993,12 +776,19 @@
     {#snippet footer()}
       <Button variant="outlined" severity="secondary" onClick={requestClose}>{$t("common.cancel")}</Button>
       <Button onClick={handleSaveExercise} disabled={isSaving || !!editingExercise?.codeWithheld || (needsShareConsent && !shareConfirmed)}>
-        {isSaving
-          ? $t("exercises.editor.saveButtonSaving")
-          : isCreatingVersion
-            ? $t("exercises.editor.saveButtonNewVersion")
-            : $t("exercises.editor.saveButton")}
+        {saveLabel}
       </Button>
+    {/snippet}
+  </Modal>
+{/if}
+
+{#if latexSourceOpen}
+  <Modal open size="large" tall title={$t("exercises.editor.latexSourceCodeLabel")} onClose={() => (latexSourceOpen = false)}>
+    <div class="flex h-full flex-col">
+      <LatexEditor bind:value={editorLatexBody} rows={16} showQuickInsert onChange={handleLatexBodyEdit} />
+    </div>
+    {#snippet footer()}
+      <Button variant="text" severity="secondary" onClick={() => (latexSourceOpen = false)}>{$t("common.close")}</Button>
     {/snippet}
   </Modal>
 {/if}
@@ -1006,7 +796,7 @@
 {#if structureOpen}
   <ExerciseStructureModal
     latex={editorLatexBody}
-    isMc={editorQuestionType !== "free_text"}
+    {isMc}
     onChange={handleStructureChange}
     onClose={() => (structureOpen = false)}
   />

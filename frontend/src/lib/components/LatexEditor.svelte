@@ -56,11 +56,17 @@
     diffDecorationsField,
     applyDiffDecorations
   } from "./LatexEditor";
-  import { QUICK_INSERT_MACROS, type QuickInsertMacro } from "#lib/latex/quickInsertMacros";
+  import {
+    GENERAL_CATEGORIES,
+    QUICK_INSERT_MACROS,
+    SUBJECT_CATEGORIES,
+    type QuickInsertMacro,
+    type SubjectCategory
+  } from "#lib/latex/quickInsertMacros";
   import { computeQuickInsert } from "#lib/latex/quickInsertLogic";
   import { t, type TranslationKey } from "#lib/i18n";
   import { theme } from "#lib/stores/theme";
-  import { Icon } from "#lib/components/ui";
+  import { Icon, Select } from "#lib/components/ui";
   import { safeLocalStorage } from "#lib/utils/storage";
   import { faChevronDown, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 
@@ -92,16 +98,14 @@
   // can otherwise collapse them to ~0px and CodeMirror paints into a collapsed box.
   let wrapperMinHeight = $derived(`${Math.max(rows, 3) * 1.5}rem`);
 
-  let macroCategories = $derived((["solutions", "scoring", "formatting", "generic"] as const).map((category) => ({
-    category,
-    macros: QUICK_INSERT_MACROS.filter((m) => m.category === category)
-  })));
-  let categoryLabels = $derived({
-    solutions: $t("editor.categories.solutions"),
-    scoring: $t("editor.categories.scoring"),
-    formatting: $t("editor.categories.formatting"),
-    generic: $t("editor.categories.generic")
-  } satisfies Record<QuickInsertMacro["category"], string>);
+  const macrosOf = (category: QuickInsertMacro["category"]) => QUICK_INSERT_MACROS.filter((m) => m.category === category);
+  const macroCategories = GENERAL_CATEGORIES.map((category) => ({ category, macros: macrosOf(category) }));
+
+  // One subject's snippets at a time keeps the palette short; the choice is remembered per browser.
+  const SUBJECT_KEY = "bg_latex_subject";
+  const savedSubject = safeLocalStorage.getItem(SUBJECT_KEY) as SubjectCategory | null;
+  let subject: SubjectCategory = $state(savedSubject && SUBJECT_CATEGORIES.includes(savedSubject) ? savedSubject : "math");
+  let subjectMacros = $derived(macrosOf(subject));
 
   // Palette text is keyed by macro id, so the key is only known at runtime and
   // has to be cast. A key missing from the catalogs renders as the key itself
@@ -446,10 +450,9 @@
   });
 </script>
 
-<div
-  class="flex w-full h-full flex-1 min-h-0 flex-col overflow-hidden"
-  style="min-height: {wrapperMinHeight}"
->
+<!-- No overflow-hidden/min-h-0 here: the wrapper's minimum must include the palette, or flex parents
+     squeeze it and the editor's last lines end up clipped under whatever follows. -->
+<div class="flex w-full h-full flex-1 flex-col">
   {#if showQuickInsert && !readonly}
     <button
       type="button"
@@ -462,28 +465,40 @@
     </button>
     <!-- Category wrappers are `contents`, so label and chips wrap as one flow and use the fewest rows. -->
     <div class="{paletteOpen ? 'flex' : 'hidden'} shrink-0 flex-wrap items-center gap-1 border-b border-line bg-surface-raised px-2 py-1">
+      {#snippet chips(macros: QuickInsertMacro[])}
+        {#each macros as macro (macro.id)}
+          <button
+            type="button"
+            class="rounded-md border border-line bg-surface-sunken px-2 py-0.5 text-xs text-accent hover:border-primary hover:bg-surface-raised"
+            onclick={() => insertMacro(macro)}
+            onmouseenter={(e) => scheduleTooltip(macro, e.currentTarget)}
+            onmouseleave={hideTooltip}
+            onfocus={(e) => scheduleTooltip(macro, e.currentTarget)}
+            onblur={hideTooltip}
+          >
+            {macroLabel(macro)}
+          </button>
+        {/each}
+      {/snippet}
       {#each macroCategories as { category, macros }, index (category)}
-        {#if macros.length > 0}
-          <div class="contents">
-            <span class="text-xs font-semibold text-muted {index > 0 ? 'ml-2' : ''}">
-              {categoryLabels[category]}
-            </span>
-            {#each macros as macro (macro.id)}
-              <button
-                type="button"
-                class="rounded-md border border-line bg-surface-sunken px-2 py-0.5 text-xs text-accent hover:border-primary hover:bg-surface-raised"
-                onclick={() => insertMacro(macro)}
-                onmouseenter={(e) => scheduleTooltip(macro, e.currentTarget)}
-                onmouseleave={hideTooltip}
-                onfocus={(e) => scheduleTooltip(macro, e.currentTarget)}
-                onblur={hideTooltip}
-              >
-                {macroLabel(macro)}
-              </button>
-            {/each}
-          </div>
-        {/if}
+        <div class="contents">
+          <span class="text-xs font-semibold text-muted {index > 0 ? 'ml-2' : ''}">
+            {$t(`editor.categories.${category}`)}
+          </span>
+          {@render chips(macros)}
+        </div>
       {/each}
+      <Select
+        size="sm"
+        class="ml-2 w-auto"
+        aria-label={$t("editor.subjectLabel")}
+        bind:value={() => subject, (v) => { subject = v as SubjectCategory; safeLocalStorage.setItem(SUBJECT_KEY, v); }}
+      >
+        {#each SUBJECT_CATEGORIES as option (option)}
+          <option value={option}>{$t(`editor.categories.${option}`)}</option>
+        {/each}
+      </Select>
+      {@render chips(subjectMacros)}
     </div>
   {/if}
   <div
@@ -499,6 +514,6 @@
     style="left: {tooltipX}px; top: {tooltipY}px; z-index: var(--z-toast);"
   >
     <span class="text-content">{macroDescription(hoveredMacro)}</span>
-    <code class="rounded-md bg-surface-sunken px-1.5 py-1 font-mono text-accent">{hoveredMacro.preview}</code>
+    <code class="whitespace-pre-wrap rounded-md bg-surface-sunken px-1.5 py-1 font-mono text-accent">{hoveredMacro.preview}</code>
   </div>
 {/if}

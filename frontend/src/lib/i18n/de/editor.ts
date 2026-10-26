@@ -1,12 +1,17 @@
 export const editor = {
     /** Button that folds/unfolds the quick-insert palette. */
     quickInsertToggle: 'LaTeX-Bausteine einfügen',
-    /** Quick-insert palette category headings. */
+    /** Select that picks which subject's snippets the palette shows. */
+    subjectLabel: 'Fach-Bausteine',
+    /** Quick-insert palette category headings; the last three are subjects. */
     categories: {
         solutions: 'Lösungen',
         scoring: 'Punkte',
         formatting: 'Formatierung',
         generic: 'Allgemein',
+        math: 'Mathematik',
+        cs: 'Informatik',
+        science: 'Naturwissenschaften & mehr',
     },
 
     /**
@@ -31,7 +36,6 @@ export const editor = {
         },
         'loesung-karo': { label: 'Karopapier', description: 'Lösung statt Reihen von Karokästchen.' },
         'loesung-line': { label: 'Linierte Zeilen', description: 'Lösung statt linierter Schreibzeilen.' },
-        'loesung-form': { label: 'Ausfüllbares Feld', description: 'Ein ausfüllbares PDF-Formularfeld.' },
         kariert: {
             label: 'Karopapier (ohne Lösung)',
             description: 'Reihen von Karokästchen, ohne Umschaltung für den Erwartungshorizont.',
@@ -47,12 +51,6 @@ export const editor = {
             label: 'Teilaufgabe',
             description: 'Teilaufgabe a), b), … mit Unterüberschrift und eigenem Punktekästchen.',
         },
-        'feste-punkte': {
-            label: 'Feste Punktzahl',
-            description: 'Punktzahl der Aufgabe bzw. Teilaufgabe fest vorgeben, statt Bewertungseinheiten zu zählen.',
-        },
-        afb: { label: 'Anforderungsbereich', description: 'AFB I, II oder III; nur im Erwartungshorizont sichtbar.' },
-        kompetenz: { label: 'Kompetenz', description: 'Geprüfte Kompetenz; nur im Erwartungshorizont sichtbar.' },
         textbf: { label: 'Fetter Text', description: 'Fetter Text.' },
         textit: { label: 'Kursiver Text', description: 'Kursiver Text.' },
         textcolor: {
@@ -73,6 +71,29 @@ export const editor = {
         seitenumbruch: {
             label: 'Seitenumbruch',
             description: 'Erzwingt hier einen Seitenumbruch (Schülerfassung und Erwartungshorizont).',
+        },
+        'math-pythagoras': { label: 'Formel', description: 'Eine Formel im Text, z. B. der Satz des Pythagoras.' },
+        'math-fraction': { label: 'Bruch', description: 'Ein Bruch.' },
+        'math-root': { label: 'Wurzel', description: 'Eine Quadratwurzel.' },
+        'math-system': { label: 'Gleichungssystem', description: 'Untereinander ausgerichtete Gleichungen.' },
+        'math-cases': { label: 'Fallunterscheidung', description: 'Eine abschnittsweise definierte Funktion.' },
+        'math-matrix': { label: 'Matrix', description: 'Eine Matrix in runden Klammern.' },
+        'math-integral': { label: 'Integral', description: 'Ein bestimmtes Integral.' },
+        'math-sum': { label: 'Summe', description: 'Ein Summenzeichen mit Grenzen.' },
+        'math-plot': { label: 'Funktionsgraph', description: 'Koordinatensystem mit dem Graphen einer Funktion.' },
+        'math-numberline': { label: 'Zahlenstrahl', description: 'Ein Zahlenstrahl von 0 bis 10.' },
+        'math-valuetable': { label: 'Wertetabelle', description: 'Eine Wertetabelle zum Ausfüllen.' },
+        'cs-class-diagram': { label: 'Klassendiagramm', description: 'Zwei Klassen mit einer 1:n-Assoziation.' },
+        'cs-code': { label: 'Quellcode', description: 'Ein Quelltext-Block; Sprache anpassen (z. B. Python, Java).' },
+        'cs-struktogramm': { label: 'Struktogramm', description: 'Ein Struktogramm mit Zuweisung und Schleife.' },
+        'cs-automaton': { label: 'Automat', description: 'Ein endlicher Automat mit zwei Zuständen.' },
+        'cs-er-diagram': { label: 'ER-Diagramm', description: 'Zwei Entitäten mit einer n:m-Beziehung.' },
+        'science-chemical': { label: 'Chemische Formel', description: 'Eine Summenformel mit tiefgestellten Zahlen.' },
+        'science-unit': { label: 'Größe mit Einheit', description: 'Ein Zahlenwert mit Einheit.' },
+        'science-sketch': { label: 'Beschriftete Skizze', description: 'Eine einfache Skizze mit Beschriftungspfeil.' },
+        'science-cloze-table': {
+            label: 'Lückentabelle',
+            description: 'Tabelle mit Lücken, die im Erwartungshorizont die Lösung zeigen.',
         },
     },
 

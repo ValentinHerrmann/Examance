@@ -221,7 +221,7 @@ async function expectDialogFits(page: Page, dialog: Locator, size: keyof typeof 
   const vw = viewportWidth(page);
   const box = (await dialog.boundingBox())!;
   // From sm (640px) the overlay has 1rem padding on each side; phones get a full-width sheet except for small dialogs.
-  const expected = size === 'full' ? (vw >= 640 ? vw * 0.9 : vw) : Math.min(SIZE_PX[size], vw - (vw >= 640 || size === 'small' ? 32 : 0));
+  const expected = size === 'full' ? (vw >= 640 ? vw - 32 : vw) : Math.min(SIZE_PX[size], vw - (vw >= 640 || size === 'small' ? 32 : 0));
   expect.soft(box.width, `${what}: dialog narrower than its size token (${size})`).toBeGreaterThanOrEqual(expected - 2);
   expect.soft(box.x, `${what}: dialog starts off-screen`).toBeGreaterThanOrEqual(-1);
   expect.soft(box.x + box.width, `${what}: dialog ends off-screen`).toBeLessThanOrEqual(vw + 1);
