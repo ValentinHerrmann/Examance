@@ -57,6 +57,8 @@ interface KindSpec {
   title: (row: Row) => string;
   fields: Accessors;
   text?: (row: Row) => string;
+  /** Fields an import file may leave out (ZIP exports carry no retention date); absent there is no difference. */
+  optional?: string[];
   allowCopy: boolean;
   allowTake: boolean;
   /** What the target store already holds, for the rows the archive brings. */
@@ -89,6 +91,12 @@ const extraNotesSummary = (notes: Row | null | undefined) =>
     ? `${notes.title} · ${notes.minHeightCm}–${notes.maxHeightCm} cm` + (notes.description ? ` · ${notes.description}` : '')
     : null;
 
+/** Page breaks compared as a set of ids, shown as their count; null when there are none. */
+const pageBreaksSummary = (breaks: unknown): Keyed => {
+  const ids = Array.isArray(breaks) ? [...breaks].map(String).sort() : [];
+  return { shown: ids.length ? String(ids.length) : null, key: ids.join(',') };
+};
+
 const SPECS: KindSpec[] = [
   {
     kind: 'exam',
@@ -102,8 +110,10 @@ const SPECS: KindSpec[] = [
       // Layout switches travel with the exam; without them a layout-only change counted as "identical" and was dropped.
       nameLine: (r) => r.nameLine === true,
       extraNotes: (r) => extraNotesSummary(r.extraNotes),
+      pageBreaks: (r) => pageBreaksSummary(r.pageBreaks),
     },
     text: (r) => r.latexPreamble ?? '',
+    optional: ['retentionUntil'],
     allowCopy: true,
     allowTake: false,
     existing: (_rows, key) => examRepository.getAll(key),
@@ -161,6 +171,13 @@ const SPECS: KindSpec[] = [
   },
 ];
 
+/** A field shown one way but compared by `key`: page break ids mean nothing to a teacher, their count does. */
+interface Keyed {
+  shown: string | null;
+  key: string;
+}
+const isKeyed = (v: unknown): v is Keyed => typeof v === 'object' && v !== null && 'key' in v && 'shown' in v;
+
 function display(value: unknown): string | null {
   if (value === null || value === undefined || value === '') return null;
   if (Array.isArray(value)) return value.join(', ');
@@ -170,9 +187,12 @@ function display(value: unknown): string | null {
 
 function compare(spec: KindSpec, current: Row, incoming: Row): ArchiveConflict | null {
   const fields = Object.entries(spec.fields).map(([key, read]) => {
-    const existing = display(read(current));
-    const imported = display(read(incoming));
-    return { key, existing, imported, differs: existing !== imported };
+    const [a, b] = [read(current), read(incoming)];
+    const existing = isKeyed(a) ? a.shown : display(a);
+    const imported = isKeyed(b) ? b.shown : display(b);
+    const differs =
+      isKeyed(a) && isKeyed(b) ? a.key !== b.key : existing !== imported && !(imported === null && spec.optional?.includes(key));
+    return { key, existing, imported, differs };
   });
   const textDiff = spec.text && { existing: spec.text(current), imported: spec.text(incoming) };
   const identical =

@@ -2,8 +2,8 @@ import type { Translations } from '../types';
 
 export const workspace: Translations['workspace'] = {
     menu: {
-        open: 'Open .bgproj',
-        export: 'Export .bgproj',
+        open: 'Import (.examance, ZIP)',
+        export: 'Back up workspace (.examance)',
         shareResults: 'Share results (without exercise texts)',
         clear: 'Clear Workspace',
     },
@@ -14,8 +14,8 @@ export const workspace: Translations['workspace'] = {
         lock: 'Lock',
     },
     archive: {
-        promptImportPassword: 'Enter password for this .bgproj archive:',
-        promptExportPassword: 'Enter password to encrypt .bgproj archive:',
+        promptImportPassword: 'Enter the password for this archive:',
+        promptExportPassword: 'Enter a password to encrypt the archive:',
         importFailed: 'Failed to import archive: {message}',
         exportFailed: 'Export failed: {message}',
         clearFailed: 'Failed to clear workspace: {message}',
@@ -23,6 +23,12 @@ export const workspace: Translations['workspace'] = {
         confirmClear: 'Are you sure you want to close this project and clear all local workspace data? Unsaved changes will be lost.',
         lockedCannotImport: 'Unlock the session first — an import writes into your encrypted workspace.',
         importCancelled: 'Import cancelled — nothing was changed.',
+    },
+    zipImport: {
+        unreadable: 'The file is not a readable ZIP file.',
+        noManifest: 'This ZIP contains no importable data (manifest.json is missing). Export the exam again with the “LaTeX source” option, or the exercises via “Export (ZIP)” in the library.',
+        newer: 'This ZIP comes from a newer Examance version. Please reload the page and try again.',
+        missingFile: 'The file {file} is missing from the ZIP.',
     },
     archiveReport: {
         importTitle: 'Import finished',

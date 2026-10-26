@@ -31,7 +31,7 @@ export const storagePolicy = {
         nothingToMove: 'Es gibt keine Ergebnisse zu übertragen.',
         hybridResultsElsewhere: 'Dieser Browser enthält keine Ergebnisse. Im Hybrid-Modus liegen sie in dem Browser, in dem sie erfasst wurden. Wechseln Sie am besten dort — oder übertragen Sie sie später dort über den Hinweis „Auf den Server übertragen“.',
         otherTabsNote: 'Andere geöffnete Tabs dieser App werden während der Übertragung gesperrt und danach neu geladen.',
-        backupButton: 'Sicherung herunterladen (.bgproj)',
+        backupButton: 'Sicherung herunterladen (.examance)',
         backupOptional: 'Optional, aber empfohlen.',
         backupDone: 'Sicherung gespeichert.',
         moveButton: 'Jetzt übertragen',
@@ -74,7 +74,7 @@ export const storagePolicy = {
         ownerLabel: 'Daten in diesem Browser gehören zu',
         blocked: {
             resetConfirm: 'Ich verstehe, dass die Daten in diesem Browser dabei unwiderruflich gelöscht werden.',
-            resultsLoss: 'Achtung: Dieser Browser enthält Ergebnisse (Hybrid-Modus), die nirgends sonst gespeichert sind. Ohne Archiv (.bgproj) sind sie danach verloren.',
+            resultsLoss: 'Achtung: Dieser Browser enthält Ergebnisse (Hybrid-Modus), die nirgends sonst gespeichert sind. Ohne Archiv (.examance) sind sie danach verloren.',
             legacyLocal: {
                 title: 'Der lokale Modus wird nicht mehr unterstützt',
                 body: 'Dieser Browser enthält Daten aus dem eingestellten Modus „Alles lokal“. Sie lassen sich mit Ihrem Konto nicht öffnen und werden nicht übernommen.',
@@ -93,7 +93,7 @@ export const storagePolicy = {
                 title: 'Diese Daten lassen sich nicht öffnen',
                 body: 'Die Daten in diesem Browser wurden mit einem anderen Schlüssel verschlüsselt, vermutlich von einem anderen Konto.',
                 primary: 'Abmelden',
-                reset: 'Wenn Sie keinen Zugang zu diesem Konto haben, können Sie die Daten in diesem Browser zurücksetzen. Ohne Archiv (.bgproj) sind sie dann verloren.',
+                reset: 'Wenn Sie keinen Zugang zu diesem Konto haben, können Sie die Daten in diesem Browser zurücksetzen. Ohne Archiv (.examance) sind sie dann verloren.',
                 resetButton: 'Daten in diesem Browser löschen und neu beginnen',
             },
             pendingWrites: {
@@ -146,6 +146,7 @@ export const storagePolicy = {
             latexPackages: 'LaTeX-Pakete',
             nameLine: 'Namenszeile',
             extraNotes: 'Platz für weitere Lösungen',
+            pageBreaks: 'Seitenumbrüche (Anzahl)',
             name: 'Name',
             version: 'Version',
             variantKey: 'Variante',

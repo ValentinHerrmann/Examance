@@ -1,7 +1,7 @@
 export const workspace = {
     menu: {
-        open: '.bgproj öffnen',
-        export: '.bgproj exportieren',
+        open: 'Importieren (.examance, ZIP)',
+        export: 'Arbeitsbereich sichern (.examance)',
         shareResults: 'Ergebnisse teilen (ohne Aufgabentexte)',
         clear: 'Arbeitsbereich leeren',
     },
@@ -12,8 +12,8 @@ export const workspace = {
         lock: 'Sperren',
     },
     archive: {
-        promptImportPassword: 'Passwort für dieses .bgproj-Archiv eingeben:',
-        promptExportPassword: 'Passwort zum Verschlüsseln des .bgproj-Archivs eingeben:',
+        promptImportPassword: 'Passwort für dieses Archiv eingeben:',
+        promptExportPassword: 'Passwort zum Verschlüsseln des Archivs eingeben:',
         importFailed: 'Import des Archivs fehlgeschlagen: {message}',
         exportFailed: 'Export fehlgeschlagen: {message}',
         clearFailed: 'Arbeitsbereich konnte nicht geleert werden: {message}',
@@ -21,6 +21,12 @@ export const workspace = {
         confirmClear: 'Möchten Sie dieses Projekt wirklich schließen und alle lokalen Arbeitsbereichsdaten löschen? Nicht gespeicherte Änderungen gehen verloren.',
         lockedCannotImport: 'Bitte entsperren Sie zuerst die Sitzung — ein Import schreibt in Ihren verschlüsselten Arbeitsbereich.',
         importCancelled: 'Import abgebrochen — es wurde nichts geändert.',
+    },
+    zipImport: {
+        unreadable: 'Die Datei ist keine lesbare ZIP-Datei.',
+        noManifest: 'Diese ZIP enthält keine importierbaren Daten (manifest.json fehlt). Exportieren Sie die Prüfung erneut mit der Option „LaTeX-Quelltext“ oder die Aufgaben über „Exportieren (ZIP)“ in der Bibliothek.',
+        newer: 'Diese ZIP stammt aus einer neueren Examance-Version. Bitte aktualisieren Sie die Seite und versuchen Sie es erneut.',
+        missingFile: 'In der ZIP fehlt die Datei {file}.',
     },
     archiveReport: {
         importTitle: 'Import abgeschlossen',

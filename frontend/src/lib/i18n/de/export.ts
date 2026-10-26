@@ -22,7 +22,7 @@ export const exportNs = {
             graded: 'Korrigierte Scans (PDF)',
             gradedHint: 'Mit eingebrannten Anmerkungen, auch teilweise korrigierte Abgaben (Dateiname mit _partial, unkorrigierte mit _ungraded).',
             latex: 'LaTeX-Quelltext',
-            latexHint: 'Eigene ZIP mit Angabe (main.tex) und Lösung (solution.tex) samt Dateien und Logo: direkt bei Overleaf hochladen (Compiler XeLaTeX).',
+            latexHint: 'Eigene ZIP mit Angabe (main.tex) und Lösung (solution.tex) samt Dateien und Logo: direkt bei Overleaf hochladen (Compiler XeLaTeX). Dazu kommen die Aufgaben und Einstellungen der Prüfung in importierbarer Form: Nur mit dieser Option lässt sich die ZIP später wieder importieren, z. B. in einer anderen Examance-Instanz (ohne Ergebnisse).',
             pdf: 'Kompilierte Angabe und Lösung (PDF)',
             pdfHint: 'Das Kompilieren kann etwas dauern.',
             summary: 'Zusammenfassung (PDF)',
@@ -75,7 +75,7 @@ export const exportNs = {
     exercises: {
         groupTitle: 'Aufgabengruppe exportieren: {name}',
         libraryTitle: 'Aufgabenbibliothek exportieren',
-        libraryNotice: 'Alle Gruppen mit Varianten, Bilddateien und den mitgelieferten LaTeX-Paketen. PDFs sind nicht enthalten.',
+        libraryNotice: 'Alle Gruppen mit Varianten, Bilddateien und den mitgelieferten LaTeX-Paketen. PDFs sind nicht enthalten. Die ZIP lässt sich wieder importieren, auch in einer anderen Examance-Instanz.',
         globalAssets: 'Mitgelieferte LaTeX-Dateien einschließen',
         globalAssetsHint: 'Pakete und Bilder (sty/, img/), damit die Gruppendatei direkt kompiliert.',
         pdfs: 'Kompilierte PDFs einschließen',

@@ -3,6 +3,7 @@ export const exercises = {
     page: {
         title: 'Aufgabenbibliothek',
         subtitle: 'Wiederverwendbare LaTeX-Aufgabensammlung, live verknüpft mit Ihren Prüfungen.',
+        importButton: 'Importieren',
         exportLibraryButton: 'Bibliothek exportieren',
         createButton: 'Neue Aufgabe erstellen',
         filtersTitle: 'Filter',

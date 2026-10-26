@@ -15,7 +15,11 @@ import { renderGradedPdf } from './gradedPdf';
 import { addLatexProjectFiles } from './latexAssets';
 import type { ExportProgress, ExportResult } from './progress';
 import { renderSummaryPdf } from './summaryPdf';
-import { exportDateStamp, slug, ZipBuilder } from './zip';
+import { exportDateStamp, firstFree, slug, ZipBuilder } from './zip';
+import { addExerciseFolder } from './exerciseExport';
+import { exerciseEntry, manifestHeader, ZIP_MANIFEST, type ExamZipManifest } from './zipManifest';
+import { examRepository } from '#lib/repositories/examRepository';
+import { getAccountPackages } from '#lib/latex/packageSettings';
 
 export type ExamExportPart = 'graded' | 'latex' | 'pdf' | 'summary' | 'csv';
 
@@ -59,6 +63,8 @@ export async function runExamExport(
     await part('export.exam.options.latex', async () => {
       progress(translate('export.exam.steps.latex'));
       zip.add(`${examSlug}_latex.zip`, await buildLatexZip(compileInput));
+      // The exam and its exercises in importable form: this ZIP can be imported again (issue #145).
+      warnings.push(...(await addReimportData(zip, compileInput)));
     });
   }
   if (has('pdf')) {
@@ -87,6 +93,61 @@ export async function runExamExport(
   }
 
   return { zip, fileName: `${examSlug}_${exportDateStamp()}.zip`, warnings };
+}
+
+/**
+ * `manifest.json` plus one `exercises/<name>/` folder per linked exercise, read back by `archive/zipImport.ts`.
+ * Settings only: results, scans and the logo never go into a re-importable ZIP.
+ */
+async function addReimportData(zip: ZipBuilder, input: CompileInput): Promise<string[]> {
+  const { exam, exercises, key } = input;
+  const warnings: string[] = [];
+  const structure = await examRepository.getStructure(exam.id);
+  const taken = new Set<string>();
+  const entries = [];
+  for (const ex of exercises) {
+    const name = ex.name || ex.title || translate('exercises.untitled');
+    const dir = firstFree(`exercises/${slug(name)}`, (p) => taken.has(p));
+    taken.add(dir);
+    entries.push(exerciseEntry(ex, name, dir, await addExerciseFolder(zip, ex, name, dir, key, warnings), []));
+  }
+  const accountPackages = exam.latexPackages == null ? await getAccountPackages() : [];
+  const manifest: ExamZipManifest = {
+    ...manifestHeader(),
+    kind: 'exam',
+    exam: {
+      id: exam.id,
+      title: exam.title,
+      testart: exam.testart,
+      grade: exam.grade,
+      klasse: exam.klasse,
+      datum: exam.datum,
+      nr: exam.nr,
+      fach: exam.fach,
+      topic: exam.topic,
+      lehrernachname: exam.lehrernachname,
+      infoText: exam.infoText,
+      latexPreamble: exam.latexPreamble,
+      latexTemplate: exam.latexTemplate,
+      numVersions: exam.numVersions,
+      gradingKey: exam.gradingKey,
+      latexPackages: exam.latexPackages ?? null,
+      ...(accountPackages.length ? { accountLatexPackages: [...accountPackages] } : {}),
+      pageBreaks: exam.pageBreaks ?? null,
+      nameLine: exam.nameLine ?? false,
+      extraNotes: exam.extraNotes ?? null,
+    },
+    exercises: entries,
+    links: structure.links.map((l) => ({
+      exerciseId: l.exerciseId,
+      orderIndex: l.orderIndex ?? 1,
+      mcGroupId: l.mcGroupId ?? null,
+      subIndex: l.subIndex ?? null,
+    })),
+    mcGroups: structure.mcGroups.map((g) => ({ id: g.id, title: g.title, scoringText: g.scoringText, orderIndex: g.orderIndex })),
+  };
+  zip.add(ZIP_MANIFEST, JSON.stringify(manifest, null, 2));
+  return warnings;
 }
 
 /** The LaTeX sources as their own ZIP, `main.tex` at its root, so Overleaf takes it in one upload. */

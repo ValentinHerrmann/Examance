@@ -11,6 +11,8 @@ import { packProject } from '../src/lib/archive/packer';
 import { applyArchive, decryptArchive, unpackProject } from '../src/lib/archive/unpacker';
 import { applyResolutions, detectConflicts } from '../src/lib/archive/conflicts';
 import { count, newReport } from '../src/lib/archive/report';
+import { readZipExport } from '../src/lib/archive/zipImport';
+import { strToU8, zipSync } from 'fflate';
 import { db } from '../src/lib/db/db';
 import {
   saveExamEncrypted,
@@ -407,6 +409,56 @@ describe('.bgproj Archive Packer and Unpacker', () => {
     expect(scan.identical.map((i) => i.id)).not.toContain('exam-layout');
     const conflict = scan.conflicts.find((c) => c.id === 'exam-layout');
     expect(conflict?.fields.find((f) => f.key === 'extraNotes')).toMatchObject({ existing: null, differs: true });
+  });
+
+  it('treats an exam whose page breaks moved as a conflict', async () => {
+    await saveExamEncrypted({ ...exam('exam-breaks', 'Breaks Exam'), pageBreaks: ['ex-a'] }, testKey);
+    const payload = await decryptArchive(await packBlob(testPassword), testPassword);
+    payload.exams[0].pageBreaks = ['ex-b'];
+
+    const scan = await detectConflicts(payload, testKey);
+    const field = scan.conflicts.find((c) => c.id === 'exam-breaks')?.fields.find((f) => f.key === 'pageBreaks');
+    // Same count, different place: shown as the count, compared by the ids.
+    expect(field).toMatchObject({ existing: '1', imported: '1', differs: true });
+  });
+
+  it('imports an exam ZIP with its exercise and file, and finds a second import identical', async () => {
+    const manifest = {
+      generator: 'Examance',
+      kind: 'exam',
+      formatVersion: 1,
+      exportedAt: new Date().toISOString(),
+      exam: { id: 'exam-zip', title: 'ZIP Exam', numVersions: 1, nameLine: false, extraNotes: null, pageBreaks: null, latexPackages: null },
+      exercises: [{
+        id: 'ex-zip', exerciseGroupId: null, variantKey: null, name: 'Zip', topic: null, grade: null, subject: null,
+        questionType: 'free_text', options: [], correctAnswers: [], penalty: 0, maxPoints: 2, version: 1,
+        path: 'exercises/Zip', texFile: 'exercises/Zip/exercise.tex', resources: ['fig.png'], pdfs: [],
+      }],
+      links: [{ exerciseId: 'ex-zip', orderIndex: 1, mcGroupId: null, subIndex: null }],
+      mcGroups: [],
+    };
+    const bytes = zipSync({
+      'manifest.json': strToU8(JSON.stringify(manifest)),
+      'exercises/Zip/exercise.tex': strToU8('Text'),
+      'exercises/Zip/fig.png': new Uint8Array([1, 2, 3]),
+    });
+
+    const first = readZipExport(bytes);
+    const firstScan = await detectConflicts(first, testKey);
+    const { report } = await applyArchive(applyResolutions(first, new Map(), firstScan.identical).payload, undefined, {
+      report: newReport('import'),
+      ownExamIds: firstScan.ownExamIds,
+    });
+    expect(count(report, 'exams', 'created')).toBe(1);
+    expect(count(report, 'exercises', 'created')).toBe(1);
+    expect(count(report, 'resources', 'created')).toBe(1);
+    expect(fakeServer.state.links.get('exam-zip')?.map((l) => l.exercise_id)).toEqual(['ex-zip']);
+    // No retention in the ZIP: the import gave the exam a new exam's default.
+    expect(fakeServer.state.exams.get('exam-zip')?.retention_until).toBeTruthy();
+
+    const again = await detectConflicts(readZipExport(bytes), testKey);
+    expect(again.conflicts.filter((c) => c.kind === 'exam')).toEqual([]);
+    expect(again.identical.map((i) => i.id)).toContain('exam-zip');
   });
 
   it('skips identical records and reports them as already present', async () => {

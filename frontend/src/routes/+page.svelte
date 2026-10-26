@@ -4,6 +4,7 @@
   import type { ExamRecord, ExerciseRecord } from '#lib/db/schema';
   import { saveExamEncrypted } from '#lib/db/dbEncryption';
   import { importArchiveInteractively } from '#lib/services/archiveService';
+  import { IMPORT_ACCEPT } from '#lib/archive/format';
   import { addExampleData } from '#lib/services/exampleData';
   import { showArchiveReport } from '#lib/stores/archiveReport';
   import { checkRetention, type RetentionCheckResult } from '#lib/gdpr/retention';
@@ -330,7 +331,7 @@
           bind:this={fileInput}
           type="file"
           id="importFile"
-          accept=".bgproj"
+          accept={IMPORT_ACCEPT}
           onchange={handleImportArchive}
           disabled={isImporting}
           hidden

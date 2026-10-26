@@ -629,14 +629,21 @@ it and continue. There is no migration, and the former sign-in adoption exceptio
 (`adoptServerStorageIfPristine`) no longer applies because the mode comes from the
 account.
 
-### Archives (`.bgproj`)
+### Archives (`.examance`, `.examance-exam`; formerly `.bgproj`)
 
 The archive is a password envelope (Argon2id + AES-GCM). Binaries are
 base64-encoded; earlier, scans and annotations were lost on export. Scans and
 annotations now travel **decrypted inside the envelope**, as names, scores and
 resources already did, and are re-sealed under the importer's key on import. The
 archive is therefore only as strong as its password, and archives can be shared
-between teachers and accounts. Treat an archive as student data.
+between teachers and accounts. Treat an archive as student data. The two
+extensions name the scope (whole workspace or one exam); the format is the same,
+and old `.bgproj` files still import.
+
+The plaintext ZIP exports (exam, exercise library) can be imported again
+(issue #145). Their `manifest.json` and exercise folders hold exam settings and
+exercises only; the importer never reads students, scans, scores or the logo
+from a ZIP, even when the exam ZIP also contains graded PDFs.
 
 *Share results (without exercise texts)* (workspace menu) exports exams, students,
 scans, annotations, scores, exercise names, points and MC answer keys, but no

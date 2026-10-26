@@ -34,6 +34,9 @@ export interface ServerImportOptions {
   decided?: Map<string, 'copied' | 'replaced'>;
 }
 
+/** Retention of an imported exam that carries none (ZIP import), like the new-exam page's default. */
+const DEFAULT_RETENTION_DAYS = 365;
+
 function describeError(err: any): string {
   const status = err?.status ? `HTTP ${err.status}` : 'error';
   const detail = err?.message ? String(err.message) : 'Unknown server error';
@@ -224,6 +227,11 @@ export async function importPayloadToServer(
     // Breaks name exercises and MC groups, whose ids may have changed above.
     const page_breaks = remapPageBreaks(exam.pageBreaks, idMap, mcGroupIdMap);
     const body = { ...mapExamRecordToApi(exam), page_breaks, exercise_links, mc_groups };
+    // ZIP exports carry no retention date; a fresh exam gets a new exam's default.
+    if (!body.retention_until) {
+      body.retention_until = new Date(Date.now() + DEFAULT_RETENTION_DAYS * 86_400_000).toISOString().slice(0, 10);
+      exam.retentionUntil = body.retention_until; // the local mirror (`applyArchive`) writes the same date
+    }
     const { created, error } = await createWithIdFallback('/exams', body);
     if (!created?.id) {
       errors.push(`Exam "${label}": ${error}`);

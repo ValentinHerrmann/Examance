@@ -38,6 +38,7 @@
   } from "#lib/grading/omrTemplatePrep";
   import { isMcQuestion } from "#lib/grading/mcScore";
   import { exportArchiveInteractively } from "#lib/services/archiveService";
+  import { EXAM_ARCHIVE_EXT } from "#lib/archive/format";
   import { invalidateOwner } from "#lib/latex/compileCache";
   import { prunePageBreaks, togglePageBreak } from "#lib/exam/pageBreaks";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
@@ -495,7 +496,7 @@
     isExporting = true;
     try {
       // Only this exam, its linked exercises with their files, and its results; not the whole workspace.
-      exportSuccess = await exportArchiveInteractively(`${exam?.title || "exam"}.bgproj`, { examIds: [examId] });
+      exportSuccess = await exportArchiveInteractively(`${exam?.title || "exam"}${EXAM_ARCHIVE_EXT}`, { examIds: [examId] });
     } finally {
       isExporting = false;
     }
