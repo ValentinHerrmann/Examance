@@ -83,6 +83,7 @@ export const exercises: Translations['exercises'] = {
     /** Score & structure section of the exercise editor (issues #77-#79). */
     structure: {
         title: 'Score & structure',
+        openTitle: 'Edit score, requirement level, competencies and parts',
         scoreBadge: '{score} pts',
         fixedBadge: 'fixed',
         levelBadge: 'AFB {level}',

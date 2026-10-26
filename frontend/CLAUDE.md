@@ -69,7 +69,7 @@ UI text lives in typed catalogs under `src/lib/i18n/`; language toggle in `AppNa
 
 ## Exercise structure (issues #77-#79)
 
-Part exercises (`\begin{Teilaufgabe}[fixed]{subtitle}`, a/b/c with own score box), fixed scores (`\FestePunkte{N}` or the `[N]` option), requirement level (`\AFB{I|II|III}`) and competencies (`\Kompetenz{…}`) are LaTeX macros in `Schulaufgabe.sty`; there are no DB columns, so they travel with variants, copies, sharing and archives. The editor reads and writes them only through `lib/latex/exerciseStructure.ts` (`parseExerciseScore` delegates to it; its counting must match the `.sty`). Grading stays per exercise. MC bodies are rebuilt from question + options, so the editor strips and re-applies the AFB/competency tags around `buildMcOptionsLatex`.
+Part exercises (`\begin{Teilaufgabe}[fixed]{subtitle}`, a/b/c with own score box), fixed scores (`\FestePunkte{N}` or the `[N]` option), requirement level (`\AFB{I|II|III}`) and competencies (`\Kompetenz{…}`) are LaTeX macros in `Schulaufgabe.sty`; there are no DB columns, so they travel with variants, copies, sharing and archives. The editor reads and writes them only through `lib/latex/exerciseStructure.ts` (`parseExerciseScore` delegates to it; its counting must match the `.sty`). Grading stays per exercise. MC bodies are rebuilt from question + options, so the editor strips and re-applies the AFB/competency tags around `buildMcOptionsLatex`. The editor's controls for them are `ExerciseStructurePanel`, shown in `ExerciseStructureModal` from the score button in the LaTeX header row (not inline, to keep the code editor in the first screen).
 
 ## LaTeX resource files
 
