@@ -1,10 +1,10 @@
 /** Subject snippets of the LaTeX palette, keyed by id in `#lib/latex/subjectSnippets.ts`. */
 export const snippets = {
     'math-pythagoras': { label: 'Formel', description: 'Eine Formel im Text, z. B. der Satz des Pythagoras.' },
-    'math-set-n': { label: 'ℕ natürliche Zahlen', description: 'Natürliche Zahlen; mit Null als ℕ₀ (\\mathbb{N}_0).' },
+    'math-set-n': { label: 'ℕ natürliche Zahlen', description: String.raw`Natürliche Zahlen; mit Null als ℕ₀ (\mathbb{N}_0).` },
     'math-set-z': { label: 'ℤ ganze Zahlen', description: 'Ganze Zahlen.' },
-    'math-set-q': { label: 'ℚ rationale Zahlen', description: 'Rationale Zahlen; positive als ℚ⁺ (\\mathbb{Q}^+).' },
-    'math-set-r': { label: 'ℝ reelle Zahlen', description: 'Reelle Zahlen; z. B. ℝ \\ {0} als \\mathbb{R}\\setminus\\{0\\}.' },
+    'math-set-q': { label: 'ℚ rationale Zahlen', description: String.raw`Rationale Zahlen; positive als ℚ⁺ (\mathbb{Q}^+).` },
+    'math-set-r': { label: 'ℝ reelle Zahlen', description: String.raw`Reelle Zahlen; z. B. ℝ \ {0} als \mathbb{R}\setminus\{0\}.` },
     'math-set-c': { label: 'ℂ komplexe Zahlen', description: 'Komplexe Zahlen a + bi mit der imaginären Einheit i.' },
     'math-fraction': { label: 'Bruch', description: 'Ein Bruch.' },
     'math-root': { label: 'Wurzel', description: 'Eine Quadratwurzel.' },

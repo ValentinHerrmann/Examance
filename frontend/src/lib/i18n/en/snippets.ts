@@ -2,10 +2,10 @@ import type { Translations } from '../types';
 
 export const snippets: Translations['snippets'] = {
     'math-pythagoras': { label: 'Formula', description: 'An inline formula, e.g. the Pythagorean theorem.' },
-    'math-set-n': { label: 'ℕ natural numbers', description: 'Natural numbers; with zero as ℕ₀ (\\mathbb{N}_0).' },
+    'math-set-n': { label: 'ℕ natural numbers', description: String.raw`Natural numbers; with zero as ℕ₀ (\mathbb{N}_0).` },
     'math-set-z': { label: 'ℤ integers', description: 'Integers.' },
-    'math-set-q': { label: 'ℚ rational numbers', description: 'Rational numbers; positive ones as ℚ⁺ (\\mathbb{Q}^+).' },
-    'math-set-r': { label: 'ℝ real numbers', description: 'Real numbers; e.g. ℝ \\ {0} as \\mathbb{R}\\setminus\\{0\\}.' },
+    'math-set-q': { label: 'ℚ rational numbers', description: String.raw`Rational numbers; positive ones as ℚ⁺ (\mathbb{Q}^+).` },
+    'math-set-r': { label: 'ℝ real numbers', description: String.raw`Real numbers; e.g. ℝ \ {0} as \mathbb{R}\setminus\{0\}.` },
     'math-set-c': { label: 'ℂ complex numbers', description: 'Complex numbers a + bi with the imaginary unit i.' },
     'math-fraction': { label: 'Fraction', description: 'A fraction.' },
     'math-root': { label: 'Root', description: 'A square root.' },

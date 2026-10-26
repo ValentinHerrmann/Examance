@@ -394,7 +394,7 @@ public class Schueler extends Mensch {
 \end{tikzpicture}`),
 
   // --- Chemie ---
-  chemistry("chem-formula", "", String.raw`H$_2$O`),
+  chemistry("chem-formula", "", "H$_2$O"),
   chemistry("chem-reaction", String.raw`\ce{`, "2 H2 + O2 -> 2 H2O", "}"),
   chemistry("chem-gap-reaction", String.raw`\ce{Zn + 2 HCl ->} \LoesungLuecke{`, String.raw`\ce{ZnCl2 + H2}`, "}{4cm}"),
   chemistry("chem-energy-diagram", String.raw`\begin{tikzpicture}
