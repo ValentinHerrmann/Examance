@@ -88,7 +88,7 @@ export const help: Translations['help'] = {
             summary: 'Create, tag and maintain exercises, with variants and versions, and share them with others.',
             s1: {
                 h: 'Collect instead of copy',
-                p1: 'Exercises live in a shared library, tagged by grade, subject and topic. Each one is a LaTeX fragment with a live preview; its score is read from the source automatically and shown on every variant. In the source editor, Ctrl + F opens search and Ctrl + H search and replace (⌘ on a Mac).',
+                p1: 'Exercises live in a shared library, tagged by grade, subject and topic. Each one is a LaTeX fragment with a live preview; its score is read from the source automatically and shown on every variant. In the source editor, Ctrl + F opens search and Ctrl + H search and replace (⌘ on a Mac). “Insert LaTeX snippets” above the source offers solution, scoring and formatting snippets; the subject tabs (math, computer science, physics, chemistry, biology, languages & humanities) add matching snippets such as tree diagrams, class diagrams, circuits, structural formulas or Punnett squares. The template already loads the packages they need (such as chemfig, mhchem and circuitikz), so nothing has to be added. Name, topic, grade and subject sit in the header of the editor.',
                 p2: 'Use the filters at the top to narrow the library by grade, subject and topic and reuse an exercise in a new exam. The numbers on the topics only count what matches the other filters; topics without matches are hidden. “Sort by” orders the list by name, last change, points, grade or subject; this browser remembers your choice.',
                 p3: 'Expand an entry to see, per variant, which exams use the exercise (click for an overview of the exam, which you can open in a new tab from there). “Preview” shows the last compiled PDF; if there is none yet, Examance asks whether to compile it now.',
             },
@@ -100,7 +100,7 @@ export const help: Translations['help'] = {
             },
             s3: {
                 h: 'Multiple choice',
-                p1: 'An exercise can be free text, single choice or multiple choice. Tick-box exercises store their options, the correct answers and an optional penalty. Up to 26 options per question; “Answer option columns” sets how many columns (1–10) they are printed in.',
+                p1: 'An exercise can be free text, single choice or multiple choice. Tick-box exercises store their options, the correct answers and an optional penalty. Up to 26 options per question; “Answer option columns” sets how many columns (1–10) they are printed in. “LaTeX code” opens the generated LaTeX for editing when needed.',
                 p2: 'Several tick-box exercises can be combined into an MC group — already while creating the exam (“MC Groups” tab) or later on the exam page. An exam can hold any number of groups of any size; each question belongs to at most one group. That is layout information for the printout only — grading and statistics stay strictly per question.',
             },
             s4: {

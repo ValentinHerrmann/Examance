@@ -1,12 +1,20 @@
 export const editor = {
     /** Button that folds/unfolds the quick-insert palette. */
     quickInsertToggle: 'LaTeX-Bausteine einfügen',
-    /** Quick-insert palette category headings. */
+    /** Select that picks which subject's snippets the palette shows. */
+    subjectLabel: 'Fach-Bausteine',
+    /** Quick-insert palette category headings; the last three are subjects. */
     categories: {
         solutions: 'Lösungen',
         scoring: 'Punkte',
         formatting: 'Formatierung',
         generic: 'Allgemein',
+        math: 'Mathematik',
+        cs: 'Informatik',
+        physics: 'Physik',
+        chemistry: 'Chemie',
+        biology: 'Biologie',
+        humanities: 'Sprachen & Gesellschaft',
     },
 
     /**
@@ -31,7 +39,6 @@ export const editor = {
         },
         'loesung-karo': { label: 'Karopapier', description: 'Lösung statt Reihen von Karokästchen.' },
         'loesung-line': { label: 'Linierte Zeilen', description: 'Lösung statt linierter Schreibzeilen.' },
-        'loesung-form': { label: 'Ausfüllbares Feld', description: 'Ein ausfüllbares PDF-Formularfeld.' },
         kariert: {
             label: 'Karopapier (ohne Lösung)',
             description: 'Reihen von Karokästchen, ohne Umschaltung für den Erwartungshorizont.',
@@ -47,12 +54,6 @@ export const editor = {
             label: 'Teilaufgabe',
             description: 'Teilaufgabe a), b), … mit Unterüberschrift und eigenem Punktekästchen.',
         },
-        'feste-punkte': {
-            label: 'Feste Punktzahl',
-            description: 'Punktzahl der Aufgabe bzw. Teilaufgabe fest vorgeben, statt Bewertungseinheiten zu zählen.',
-        },
-        afb: { label: 'Anforderungsbereich', description: 'AFB I, II oder III; nur im Erwartungshorizont sichtbar.' },
-        kompetenz: { label: 'Kompetenz', description: 'Geprüfte Kompetenz; nur im Erwartungshorizont sichtbar.' },
         textbf: { label: 'Fetter Text', description: 'Fetter Text.' },
         textit: { label: 'Kursiver Text', description: 'Kursiver Text.' },
         textcolor: {

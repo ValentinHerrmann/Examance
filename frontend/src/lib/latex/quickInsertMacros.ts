@@ -1,6 +1,7 @@
 /**
  * Catalog of LaTeX snippets for the quick-insert toolbar in LatexEditor.svelte: answer-key macros
- * (Loesung.sty), scoring macros (Schulaufgabe.sty) and a few generic constructs, all in backend/latex-assets/sty/.
+ * (Loesung.sty), scoring macros (Schulaufgabe.sty) and generic constructs; subject snippets live in subjectSnippets.ts.
+ * Metadata the editor sets through its UI (AFB, competencies, fixed scores) has no snippet; the macros still work.
  */
 
 export interface QuickInsertArg {
@@ -18,6 +19,12 @@ export interface QuickInsertTemplate {
   argOffsets: ArgOffset[];
 }
 
+export const GENERAL_CATEGORIES = ["solutions", "scoring", "formatting", "generic"] as const;
+/** Shown one at a time, chosen in the palette's subject select. */
+export const SUBJECT_CATEGORIES = ["math", "cs", "physics", "chemistry", "biology", "humanities"] as const;
+export type GeneralCategory = (typeof GENERAL_CATEGORIES)[number];
+export type SubjectCategory = (typeof SUBJECT_CATEGORIES)[number];
+
 /**
  * Palette entry for the LaTeX quick-insert bar. The visible button text and
  * tooltip live in the i18n catalogs under `editor.macros.<id>`, keyed by `id`,
@@ -25,7 +32,7 @@ export interface QuickInsertTemplate {
  */
 export interface QuickInsertMacro {
   id: string;
-  category: "solutions" | "scoring" | "formatting" | "generic";
+  category: GeneralCategory | SubjectCategory;
   /** Literal LaTeX skeleton, shown as a code preview in the tooltip. */
   preview: string;
   args: QuickInsertArg[];
@@ -51,11 +58,17 @@ export function templateJoin(literalParts: string[], args: string[]): QuickInser
   return { text, argOffsets };
 }
 
-/** Scoring-palette entry wrapping one argument: `${before}${placeholder}${after}`. */
-function oneArgMacro(id: string, before: string, placeholder: string, after = "}"): QuickInsertMacro {
+/** Entry wrapping one argument: `${before}${placeholder}${after}`. */
+export function oneArgMacro(
+  id: string,
+  before: string,
+  placeholder: string,
+  after = "}",
+  category: QuickInsertMacro["category"] = "scoring"
+): QuickInsertMacro {
   return {
     id,
-    category: "scoring",
+    category,
     preview: `${before}${placeholder}${after}`,
     args: [{ placeholder }],
     buildTemplate: (a) => templateJoin([before, after], a)
@@ -114,13 +127,6 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
     buildTemplate: (a) => templateJoin(["\\LoesungLine{", "}{", "}"], a)
   },
   {
-    id: "loesung-form",
-    category: "solutions",
-    preview: "\\LoesungForm{width}{multiline}",
-    args: [{ placeholder: "5cm" }, { placeholder: "false" }],
-    buildTemplate: (a) => templateJoin(["\\LoesungForm{", "}{", "}"], a)
-  },
-  {
     id: "kariert",
     category: "solutions",
     preview: "\\kariert[cellSize]{rows}",
@@ -160,9 +166,6 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
     buildTemplate: () => ({ text: "\\qBE", argOffsets: [] })
   },
   oneArgMacro("teilaufgabe", String.raw`\begin{Teilaufgabe}{`, "Teilaufgabe", "}\n\n" + String.raw`\end{Teilaufgabe}`),
-  oneArgMacro("feste-punkte", String.raw`\FestePunkte{`, "2"),
-  oneArgMacro("afb", String.raw`\AFB{`, "II"),
-  oneArgMacro("kompetenz", String.raw`\Kompetenz{`, "Kompetenz"),
 
   // --- formatting ---
   {

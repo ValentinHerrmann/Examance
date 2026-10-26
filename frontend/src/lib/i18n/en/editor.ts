@@ -2,11 +2,18 @@ import type { Translations } from '../types';
 
 export const editor: Translations['editor'] = {
     quickInsertToggle: 'Insert LaTeX snippets',
+    subjectLabel: 'Subject snippets',
     categories: {
         solutions: 'Solutions',
         scoring: 'Scoring',
         formatting: 'Formatting',
         generic: 'Generic',
+        math: 'Math',
+        cs: 'Computer science',
+        physics: 'Physics',
+        chemistry: 'Chemistry',
+        biology: 'Biology',
+        humanities: 'Languages & humanities',
     },
 
     macros: {
@@ -26,7 +33,6 @@ export const editor: Translations['editor'] = {
         },
         'loesung-karo': { label: 'Graph paper', description: 'Solution vs. rows of graph-paper squares.' },
         'loesung-line': { label: 'Ruled lines', description: 'Solution vs. ruled writing lines.' },
-        'loesung-form': { label: 'Fillable field', description: 'A fillable PDF form text field.' },
         kariert: {
             label: 'Graph paper (raw)',
             description: 'Rows of graph-paper squares, without an answer-key toggle.',
@@ -42,12 +48,6 @@ export const editor: Translations['editor'] = {
             label: 'Part exercise',
             description: 'Part a), b), … with a subtitle and its own score box.',
         },
-        'feste-punkte': {
-            label: 'Fixed score',
-            description: 'Fix the score of the exercise or part instead of counting scoring units.',
-        },
-        afb: { label: 'Requirement level', description: 'AFB I, II or III; shown only on the solution sheet.' },
-        kompetenz: { label: 'Competency', description: 'Competency assessed; shown only on the solution sheet.' },
         textbf: { label: 'Bold text', description: 'Bold text.' },
         textit: { label: 'Italic text', description: 'Italic text.' },
         textcolor: {

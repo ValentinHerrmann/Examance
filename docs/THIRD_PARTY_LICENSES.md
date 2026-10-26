@@ -13,6 +13,7 @@ This document details the third-party software components and licenses used in E
 | **argon2-browser** | 1.18.0 | MIT | `sha256-PLACEHOLDER_FILL_AFTER_VENDORING` |
 | **zxing-wasm** | 1.2.3 | MIT | `sha256-PLACEHOLDER_FILL_AFTER_VENDORING` |
 | **texlyre-busytex** (Tectonic/XeLaTeX via WASM, local-compile path) | 1.2.3 | MIT | not tracked in `sri-manifest.json` |
+| **mhchem**, **chemgreek**, **simplekv** (LaTeX, `backend/latex-assets/sty/`, unmodified from CTAN; the browser TeX Live bundle lacks them) | mhchem 4.10, chemgreek 1.1a, simplekv 2025/06/15 | LPPL 1.3c | served with the other LaTeX assets (manifest SHA-256) |
 
 *Integrity verification is scaffolded but not wired in.* `fetchAndVerifyWasm()` exists in `#lib/crypto/sri.ts` but is not called from any loader; `static/sri-manifest.json` declares `"enforced": false` with every hash still a placeholder. The Argon2 module that derives every encryption key is therefore loaded unverified today. `opencv.js`, previously listed here, is not a dependency of the current codebase (zero references under `frontend/src`) and has been removed from this table.
 
