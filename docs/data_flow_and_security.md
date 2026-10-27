@@ -354,6 +354,9 @@ resource files to `POST /compile/latex`; it is compiled in a temp directory that
 is deleted afterwards, and neither persisted nor logged. Student data is never part
 of a compile request. It requires a sign-in and the `server_latex` capability of the account (§5; the server answers `403 ERR_FEATURE_NOT_ALLOWED` without it), and
 enabling it asks for consent once (`storagePolicy.serverCompileConsent`). The choice is a per-browser preference, independent of the storage mode.
+A failed compile answers `422 ERR_COMPILE_FAILED` with the full TeX log (`log`, temp-dir path
+replaced by `./`, capped at 256 KB) to the requesting teacher only, so it can be shown in the UI
+(issue #166); server logs keep only the short `!` diagnostic, never the log.
 
 ### Exercise resource files on the server
 

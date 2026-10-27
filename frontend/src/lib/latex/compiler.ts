@@ -12,6 +12,8 @@ import { uint8ArrayToBase64 } from '#lib/crypto/aesGcm';
 import { mergeResources, type LatexResourceFile } from './resources';
 import { loadLatexAssets } from './assets';
 import type { CompileLogo } from './logo';
+import { LatexCompileError, withSourceLocations } from './compileError';
+import { extractSourceMap } from './sourceMap';
 import { latexDownloadProgress, type LatexDownloadProgress } from './downloadProgress';
 
 export interface CompileResult {
@@ -173,7 +175,7 @@ async function compileLocalWasm(
             })
           );
         } else {
-          settle(() => reject(new Error(e.data.error || 'Local compilation failed')));
+          settle(() => reject(new LatexCompileError(e.data.error || 'Local compilation failed', e.data.log ?? '', 'local')));
         }
       };
 
@@ -220,6 +222,22 @@ export async function compileLatex(
   onStatus?: (status: string) => void,
   promptFallback = true,
   opts: { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo } = {}
+): Promise<CompileResult> {
+  // Builders mark each exercise body (sourceMap.ts); the engines get the unmarked document.
+  const map = extractSourceMap(latexSource);
+  try {
+    return await compileMapped(map.tex, useLocal, onStatus, promptFallback, opts);
+  } catch (err) {
+    throw err instanceof LatexCompileError ? withSourceLocations(err, map) : err;
+  }
+}
+
+async function compileMapped(
+  latexSource: string,
+  useLocal: boolean,
+  onStatus: ((status: string) => void) | undefined,
+  promptFallback: boolean,
+  opts: { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo }
 ): Promise<CompileResult> {
   // Throws on a real filename conflict between two exercises — surfacing that
   // beats compiling a document where one figure silently wins.
@@ -285,7 +303,13 @@ async function compileOnServer(
           'or running a different version of the API than this app.'
       );
     }
-    throw new Error(`LaTeX Compilation failed: ${err.message || 'Unknown error'}`);
+    const message = `LaTeX Compilation failed: ${err.message || 'Unknown error'}`;
+    const log = typeof err?.body?.log === 'string' ? err.body.log : '';
+    if (log) {
+      console.error('Server compilation LOG error:', log);
+      throw new LatexCompileError(message, log, 'server');
+    }
+    throw new Error(message);
   }
 }
 

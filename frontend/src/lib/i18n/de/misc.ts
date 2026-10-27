@@ -33,6 +33,15 @@ export const misc = {
         prepare: 'Wird entpackt…',
         prepareStep: 'Paket {step} von {steps} wird entpackt…',
         localFailedTryServer: 'Die lokale LaTeX-Kompilierung ist fehlgeschlagen. Möchten Sie stattdessen auf dem Server kompilieren?',
+        locationExercise: 'Aufgabe „{label}“, Zeile {line}',
+        locationGenerated: 'Vom Programm erzeugter Rahmen (Kopf, Präambel), Zeile {line}',
+        showLog: 'Vollständiges LaTeX-Log',
+        logTitle: 'LaTeX-Log',
+        logHint: 'Das vollständige Protokoll des LaTeX-Compilers. Zeilenangaben „l.<n>“ beziehen sich auf das intern zusammengesetzte Dokument; wo möglich steht dahinter in Klammern die Aufgabe und die Zeile im Aufgaben-Editor.',
+        logCopy: 'Kopieren',
+        logCopied: 'Kopiert',
+        logDownload: 'Als .log herunterladen',
+        logClose: 'Schließen',
     },
 
     rejectedWrites: {

@@ -14,7 +14,7 @@ from app.models.teacher import Teacher
 from app.schemas.latex import LaTeXRequest
 from app.services.capabilities import require_server_latex
 from app.services.exercise_resource_store import load_resources_for_exercises
-from app.services.latex import CompilationError, compile_latex
+from app.services.latex import CompilationError, compilation_failed_response, compile_latex
 from app.services.latex_resources import ResourceError
 from app.services.logo import resolve_logo_for_compile
 
@@ -38,7 +38,8 @@ async def compile_latex_endpoint(
     """Compile LaTeX source to PDF via Tectonic (body limit: BODY_LIMIT_COMPILE).
 
     Extra files come from `resource_exercise_ids` (stored on the server) and `resources` (unsaved
-    or local-only exercises). LaTeX source is NEVER logged; 422 detail is TeX diagnostics only."""
+    or local-only exercises). LaTeX source is NEVER logged; a 422 carries the TeX diagnostic as
+    `detail` and the sanitized full log as `log`, for this caller only."""
     try:
         binary_files = await load_resources_for_exercises(
             body.resource_exercise_ids, teacher, db
@@ -69,11 +70,7 @@ async def compile_latex_endpoint(
         ) from None
     except CompilationError as exc:
         logger.info("LaTeX preview compilation failed: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(exc),
-            headers={"code": "ERR_COMPILE_FAILED"},
-        ) from exc
+        return compilation_failed_response(exc)
     except OSError as exc:
         # A missing tectonic binary, a full disk, an unwritable temp dir. Not
         # the document's fault, and not something the caller can fix by editing

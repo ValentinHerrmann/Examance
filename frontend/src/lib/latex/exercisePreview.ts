@@ -86,7 +86,7 @@ export async function prepareExerciseSources(
   latexBody: string
 ): Promise<{ name: string; angabeTex: string; loesungTex: string }> {
   const name = rawName || "Aufgabe";
-  const body = formatExerciseLatex(latexBody, name);
+  const body = formatExerciseLatex(latexBody, name, undefined, name);
   const accountPackages = await getAccountPackages();
   return {
     name,

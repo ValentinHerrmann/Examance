@@ -21,6 +21,7 @@ import { computeMcExercisesHash, resolveMcExercises } from "#lib/grading/mcExerc
 import { compileWithCache } from "#lib/latex/compileCache";
 import { buildExamLatex, buildExerciseInputs, collectExamResources } from "#lib/exam/examPreview";
 import { getAccountPackages } from "#lib/latex/packageSettings";
+import { stripSourceMarkers } from "#lib/latex/sourceMap";
 import { resolveCompileLogo } from "#lib/latex/logo";
 import { mapApiToExerciseRecord } from "#lib/repositories/exerciseRepository";
 import { api } from "#lib/api/client";
@@ -128,7 +129,8 @@ export async function buildOmrBlankTex(ctx: OmrLayoutInput): Promise<string> {
 }
 
 async function hashOmrTemplate(mcExercises: ExerciseRecord[], mcGroups: McGroup[], blankTex: string): Promise<string> {
-  const data = new TextEncoder().encode(`${await computeMcExercisesHash(mcExercises, mcGroups)}\n${blankTex}`);
+  // Unmarked, so stored hashes stay valid and only real document changes mark the template stale.
+  const data = new TextEncoder().encode(`${await computeMcExercisesHash(mcExercises, mcGroups)}\n${stripSourceMarkers(blankTex)}`);
   const digest = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }

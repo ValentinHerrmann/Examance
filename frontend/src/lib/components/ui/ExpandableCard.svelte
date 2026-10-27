@@ -35,6 +35,7 @@
   }: Props = $props();
 
   const bodyId = `expandable-card-${nextId++}`;
+  let showPreview = $derived(!expanded && !!preview);
 </script>
 
 <div class="rounded-xl border border-line bg-surface-raised">
@@ -43,9 +44,10 @@
     role="presentation"
     onclick={onToggle}
   >
-    <!-- Preview stacks below the title on narrow screens; beside it, its pills squeezed the title under them (issue #165). -->
+    <!-- Preview stacks below the title on narrow screens (issue #165). Beside it, the title column keeps its
+         natural width (at most half) and the pills take the rest, else they squeeze the title to one letter. -->
     <div class="flex min-w-0 flex-1 flex-col gap-2 md:flex-row md:items-start md:gap-4">
-      <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+      <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3 {showPreview ? 'md:max-w-1/2 md:flex-none' : ''}">
         <h3 class="m-0 min-w-0 max-w-full text-lg font-semibold wrap-anywhere text-content">
           <button
             type="button"
@@ -67,8 +69,8 @@
           {/if}
         </div>
       </div>
-      {#if !expanded && preview}
-        <div class="flex min-w-0 flex-wrap gap-2 md:mt-2">
+      {#if showPreview}
+        <div class="flex min-w-0 flex-wrap gap-2 md:mt-2 md:flex-1">
           {@render preview?.()}
         </div>
       {/if}

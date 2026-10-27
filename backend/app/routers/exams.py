@@ -38,7 +38,7 @@ from app.schemas.latex_packages import LatexPackageEntry
 from app.services import audit as audit_svc
 from app.services.capabilities import require_server_latex
 from app.services.exercise_resource_store import load_resources_for_exercises
-from app.services.latex import CompilationError, compile_exam_latex
+from app.services.latex import CompilationError, compilation_failed_response, compile_exam_latex
 from app.services.latex_packages import stored_entries
 from app.services.latex_resources import ResourceError
 from app.services.latex_score import parse_exercise_score
@@ -741,11 +741,7 @@ async def compile_exam_endpoint(
     except CompilationError as exc:
         exam.compilation_status = "failed"
         await db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(exc),
-            headers={"code": "ERR_COMPILE_FAILED"},
-        ) from exc
+        return compilation_failed_response(exc)
     except OSError as exc:
         exam.compilation_status = "failed"
         await db.commit()

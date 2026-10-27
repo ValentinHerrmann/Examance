@@ -7,6 +7,7 @@ import { buildExamItems, loadExamCompileContext } from '#lib/grading/omrTemplate
 import { compileExamPreview, prepareExamSources } from '#lib/exam/examPreview';
 import { translate, type TranslationKey } from '#lib/i18n';
 import { mergeResources } from '#lib/latex/resources';
+import { stripSourceMarkers } from '#lib/latex/sourceMap';
 import { scoreRepository } from '#lib/repositories/scoreRepository';
 import { studentRepository } from '#lib/repositories/studentRepository';
 import { submissionRepository } from '#lib/repositories/submissionRepository';
@@ -157,8 +158,8 @@ async function addReimportData(zip: ZipBuilder, input: CompileInput): Promise<st
 async function buildLatexZip(input: CompileInput): Promise<Uint8Array> {
   const src = await prepareExamSources(input, true);
   const latex = new ZipBuilder();
-  latex.add('main.tex', src.angabeTex);
-  latex.add('solution.tex', src.loesungTex);
+  latex.add('main.tex', stripSourceMarkers(src.angabeTex));
+  latex.add('solution.tex', stripSourceMarkers(src.loesungTex));
   for (const file of mergeResources(src.resources)) latex.add(file.filename, file.content);
   if (src.logo?.file) latex.add(src.logo.file.filename, src.logo.file.content);
   await addLatexProjectFiles(latex, '');

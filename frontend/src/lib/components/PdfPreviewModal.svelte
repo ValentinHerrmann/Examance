@@ -2,6 +2,7 @@
   import type { Snippet } from "svelte";
   import { t } from "#lib/i18n";
   import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
+  import CompileLogButton from "#lib/components/latex/CompileLogButton.svelte";
   import { Alert, Button, Modal, Spinner } from "#lib/components/ui";
 
   interface Props {
@@ -15,6 +16,8 @@
     loesungPending?: boolean;
     notice?: string;
     error?: string;
+    /** The full LaTeX log behind `error` (issue #166). */
+    errorLog?: string | null;
     /** Actions about the PDFs (layout report), in the bar under them. */
     report?: Snippet;
     onClose: () => void;
@@ -29,6 +32,7 @@
     loesungPending = false,
     notice = "",
     error = "",
+    errorLog = null,
     report,
     onClose
   }: Props = $props();
@@ -38,7 +42,12 @@
 
 <Modal {open} size="large" {title} {onClose} closeOnBackdrop>
   {#if error}
-    <div class="mb-3"><Alert severity="danger">{error}</Alert></div>
+    <div class="mb-3">
+      <Alert severity="danger">
+        <div class="max-h-52 overflow-auto font-mono break-all whitespace-pre-wrap">{error}</div>
+        {#if errorLog}<CompileLogButton log={errorLog} class="mt-2" />{/if}
+      </Alert>
+    </div>
   {/if}
   {#if busy}
     <div class="flex items-center gap-3 p-8 text-muted">
