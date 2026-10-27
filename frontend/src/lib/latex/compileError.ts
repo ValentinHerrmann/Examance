@@ -7,7 +7,9 @@ export class LatexCompileError extends Error {
   constructor(
     message: string,
     public log: string,
-    public engine: 'local' | 'server'
+    public engine: 'local' | 'server',
+    /** The unmarked document that failed (never marked LaTeX); feeds the AI prompt (issue #168). */
+    public source?: string
   ) {
     super(message);
     this.name = 'LatexCompileError';
@@ -27,7 +29,7 @@ export function describeLocation(loc: SourceLocation): string {
  */
 export function withSourceLocations(err: LatexCompileError, map: SourceMap): LatexCompileError {
   const blocks = extractTexErrors(err.log);
-  if (blocks.length === 0) return err;
+  if (blocks.length === 0) return new LatexCompileError(err.message, err.log, err.engine, map.tex);
   const summary = blocks
     .map((block) => {
       const ctx = /^l\.(\d+) (.*)$/m.exec(block);
@@ -35,10 +37,14 @@ export function withSourceLocations(err: LatexCompileError, map: SourceMap): Lat
       return loc ? `${describeLocation(loc)}:\n${block}` : block;
     })
     .join('\n\n');
-  return new LatexCompileError(summary, annotateLog(err.log, map, describeLocation), err.engine);
+  return new LatexCompileError(summary, annotateLog(err.log, map, describeLocation), err.engine, map.tex);
 }
 
-/** The full log of a compile error, if it carries one. */
-export function compileErrorLog(err: unknown): string | null {
-  return err instanceof LatexCompileError && err.log ? err.log : null;
+/** What the log dialog needs from a failed compile: log, the unmarked source and the engine. */
+export type CompileFailure = { log: string; source: string | null; engine: 'local' | 'server' };
+
+export function compileFailure(err: unknown): CompileFailure | null {
+  return err instanceof LatexCompileError && err.log
+    ? { log: err.log, source: err.source ?? null, engine: err.engine }
+    : null;
 }

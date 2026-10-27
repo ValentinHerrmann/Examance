@@ -3,6 +3,7 @@
   import { t } from "#lib/i18n";
   import DualPdfPreview from "#lib/components/DualPdfPreview.svelte";
   import CompileLogButton from "#lib/components/latex/CompileLogButton.svelte";
+  import type { CompileFailure } from "#lib/latex/compileError";
   import { Alert, Button, Modal, Spinner } from "#lib/components/ui";
 
   interface Props {
@@ -17,7 +18,7 @@
     notice?: string;
     error?: string;
     /** The full LaTeX log behind `error` (issue #166). */
-    errorLog?: string | null;
+    errorLog?: CompileFailure | null;
     /** Actions about the PDFs (layout report), in the bar under them. */
     report?: Snippet;
     onClose: () => void;
@@ -45,7 +46,7 @@
     <div class="mb-3">
       <Alert severity="danger">
         <div class="max-h-52 overflow-auto font-mono break-all whitespace-pre-wrap">{error}</div>
-        {#if errorLog}<CompileLogButton log={errorLog} class="mt-2" />{/if}
+        {#if errorLog}<CompileLogButton failure={errorLog} class="mt-2" />{/if}
       </Alert>
     </div>
   {/if}

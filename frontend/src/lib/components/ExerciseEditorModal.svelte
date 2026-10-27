@@ -12,7 +12,7 @@
   import { getLatestForSlot } from "#lib/latex/compileCache";
   import { compileExercisePreview } from "#lib/latex/exercisePreview";
   import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
-  import { compileErrorLog } from "#lib/latex/compileError";
+  import { compileFailure, type CompileFailure } from "#lib/latex/compileError";
   import CompileLogButton from "#lib/components/latex/CompileLogButton.svelte";
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import ExerciseResourcePanel from "#lib/components/exercise/ExerciseResourcePanel.svelte";
@@ -122,7 +122,7 @@
   let errorMsg = $state("");
   /** The last preview's failure (not save errors), sent with a layout report. */
   let previewError = $state("");
-  let previewLog = $state<string | null>(null);
+  let previewLog = $state<CompileFailure | null>(null);
 
   // Move the staged files onto the just-written exercise. Upload failures never fail the save:
   // the exercise is already stored and the files stay staged locally.
@@ -397,7 +397,7 @@
       const message = err instanceof Error && err.message ? err.message : translate("exercises.editor.previewFailedUnknown");
       errorMsg = translate("exercises.editor.previewFailed", { message });
       previewError = errorMsg;
-      previewLog = compileErrorLog(err);
+      previewLog = compileFailure(err);
     } finally {
       isPreviewLoading = false;
     }
@@ -683,7 +683,7 @@
       {#if errorMsg}
         <Alert severity="danger" class="mx-4 mt-3 shrink-0">
           <div class="max-h-52 overflow-y-auto whitespace-pre-wrap break-all font-mono">{errorMsg}</div>
-          {#if previewLog && errorMsg === previewError}<CompileLogButton log={previewLog} class="mt-2" />{/if}
+          {#if previewLog && errorMsg === previewError}<CompileLogButton failure={previewLog} class="mt-2" />{/if}
         </Alert>
       {/if}
 
