@@ -15,7 +15,10 @@ export function gradeHref(examId: string, opts: { submissionId?: string; exercis
   return `/exam/${q(examId)}/grade${s ? `?${s}` : ""}`;
 }
 
-export const exerciseGroupHref = (groupId: string) => `/exercises?group=${q(groupId)}`;
+/** Public showcase of every palette snippet as student sheet and answer key (linked from the LaTeX palette header). */
+export const SNIPPET_DEMO_URL = "https://valentin-herrmann.com/examance/#interactive-showcase-one-source-two-sheets";
+
+export const exerciseGroupHref =(groupId: string) => `/exercises?group=${q(groupId)}`;
 
 /** Read by `routes/exam/[id]/verify-item/+page.svelte`. */
 export function verifyItemHref(examId: string, submissionId: string, exerciseId: string, queue: string): string {

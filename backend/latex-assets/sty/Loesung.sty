@@ -72,6 +72,20 @@ escapeinside={(*@}{@*)}
 	}
 }
 
+% Code solutions (issue #163): an environment, so lstlisting and unbalanced braces work (an argument cannot hold them).
+% Student version typesets into the discarded box like \LSG instead of `comment`, so a (*@\BE@*) inside still counts.
+\newenvironment{LoesungCode}{%
+	\ifthenelse{\boolean{Antworten}}{%
+		\def\LSG@codeend{}%
+		\color{\LFarbe}%
+		\renewcommand{\umltextcolor}{\LFarbe}%
+		\renewcommand{\umldrawcolor}{\LFarbe}%
+	}{%
+		\def\LSG@codeend{\end{minipage}\end{lrbox}}%
+		\begin{lrbox}{\LSG@discard}\begin{minipage}{\linewidth}%
+	}%
+}{\LSG@codeend}
+
 % Loesung, die normalen Text ersetzt
 \newcommand{\LoesungReplace}[2]{%
 	\LSG{

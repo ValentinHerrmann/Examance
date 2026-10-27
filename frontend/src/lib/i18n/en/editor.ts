@@ -2,6 +2,7 @@ import type { Translations } from '../types';
 
 export const editor: Translations['editor'] = {
     quickInsertToggle: 'Insert LaTeX snippets',
+    snippetDemo: 'Demo of all snippets',
     subjectLabel: 'Subject snippets',
     categories: {
         solutions: 'Solutions',
@@ -33,6 +34,10 @@ export const editor: Translations['editor'] = {
         },
         'loesung-karo': { label: 'Graph paper', description: 'Solution vs. rows of graph-paper squares.' },
         'loesung-line': { label: 'Ruled lines', description: 'Solution vs. ruled writing lines.' },
+        'loesung-code': {
+            label: 'Code solution',
+            description: 'Code listing (lstlisting) shown only in the answer key. \\Loesung{…} cannot hold an lstlisting.',
+        },
         kariert: {
             label: 'Graph paper (raw)',
             description: 'Rows of graph-paper squares, without an answer-key toggle.',

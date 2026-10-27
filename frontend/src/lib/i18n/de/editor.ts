@@ -1,6 +1,7 @@
 export const editor = {
     /** Button that folds/unfolds the quick-insert palette. */
     quickInsertToggle: 'LaTeX-Bausteine einfügen',
+    snippetDemo: 'Demo aller Bausteine',
     /** Select that picks which subject's snippets the palette shows. */
     subjectLabel: 'Fach-Bausteine',
     /** Quick-insert palette category headings; the last three are subjects. */
@@ -39,6 +40,11 @@ export const editor = {
         },
         'loesung-karo': { label: 'Karopapier', description: 'Lösung statt Reihen von Karokästchen.' },
         'loesung-line': { label: 'Linierte Zeilen', description: 'Lösung statt linierter Schreibzeilen.' },
+        'loesung-code': {
+            label: 'Lösungscode',
+            description:
+                'Code-Listing (lstlisting) nur im Erwartungshorizont. \\Loesung{…} kann kein lstlisting enthalten.',
+        },
         kariert: {
             label: 'Karopapier (ohne Lösung)',
             description: 'Reihen von Karokästchen, ohne Umschaltung für den Erwartungshorizont.',
