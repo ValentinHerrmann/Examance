@@ -43,9 +43,10 @@
     role="presentation"
     onclick={onToggle}
   >
-    <div class="flex min-w-0 flex-1 items-start gap-4">
+    <!-- Preview stacks below the title on narrow screens; beside it, its pills squeezed the title under them (issue #165). -->
+    <div class="flex min-w-0 flex-1 flex-col gap-2 md:flex-row md:items-start md:gap-4">
       <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-        <h3 class="m-0 text-lg font-semibold break-words text-content">
+        <h3 class="m-0 min-w-0 max-w-full text-lg font-semibold wrap-anywhere text-content">
           <button
             type="button"
             class="cursor-pointer rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
@@ -67,7 +68,7 @@
         </div>
       </div>
       {#if !expanded && preview}
-        <div class="mt-2 flex flex-wrap gap-2">
+        <div class="flex min-w-0 flex-wrap gap-2 md:mt-2">
           {@render preview?.()}
         </div>
       {/if}
