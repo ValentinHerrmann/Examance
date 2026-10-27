@@ -37,7 +37,7 @@
     type ExamItemRef,
   } from "#lib/grading/omrTemplatePrep";
   import { compileFailure, type CompileFailure } from "#lib/latex/compileError";
-  import CompileLogButton from "#lib/components/latex/CompileLogButton.svelte";
+  import CompileErrorHelp from "#lib/components/latex/CompileErrorHelp.svelte";
   import { isMcQuestion } from "#lib/grading/mcScore";
   import { exportArchiveInteractively } from "#lib/services/archiveService";
   import { EXAM_ARCHIVE_EXT } from "#lib/archive/format";
@@ -1395,7 +1395,7 @@
         {#if errorMsg}
           <Alert severity="danger" class="mt-4">
             <div class="max-h-72 overflow-auto font-mono break-all whitespace-pre-wrap">{errorMsg}</div>
-            {#if compileLog && compileLog.message === errorMsg}<CompileLogButton failure={compileLog.failure} class="mt-2" />{/if}
+            {#if compileLog && compileLog.message === errorMsg}<CompileErrorHelp failure={compileLog.failure} class="mt-2" />{/if}
           </Alert>
         {/if}
         {#if errorMsg && !previewPdfUrl && !previewSolutionPdfUrl}

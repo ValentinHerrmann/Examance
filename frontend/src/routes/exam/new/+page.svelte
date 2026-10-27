@@ -2,7 +2,7 @@
   import { type ExerciseGroup, groupExercises } from "#lib/exercise-library/groupExercises";
   import { onMount, onDestroy, untrack } from "svelte";
   import { compileFailure, type CompileFailure } from "#lib/latex/compileError";
-  import CompileLogButton from "#lib/components/latex/CompileLogButton.svelte";
+  import CompileErrorHelp from "#lib/components/latex/CompileErrorHelp.svelte";
   import { db } from "#lib/db/db";
   import { sessionStore, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
   import { effectiveLatexStore } from "#lib/stores/capabilities";
@@ -680,7 +680,7 @@ ${extraNotesLatex(extraNotes)}
   {#if errorMsg}
     <Alert severity="danger" class="mb-6">
       <div class="max-h-72 overflow-auto font-mono break-all whitespace-pre-wrap">{errorMsg}</div>
-      {#if previewLog && errorMsg === previewError}<CompileLogButton failure={previewLog} class="mt-2" />{/if}
+      {#if previewLog && errorMsg === previewError}<CompileErrorHelp failure={previewLog} class="mt-2" />{/if}
     </Alert>
   {/if}
   {#if previewError && reportSources && !previewPdfUrl && !previewSolutionPdfUrl}

@@ -510,11 +510,12 @@ title (admin-only) and the reporter's account id. No student data is collected. 
 
 ### LaTeX error help (issue #168)
 
-The compile-log dialog explains typical TeX errors locally and can copy a prompt for an external AI
-chat to the clipboard. The app makes no network call for it (only the authenticated bundled-asset
-fetch it already uses). The prompt holds error lines, the log tail and macro names of our templates;
-the exercise/exam LaTeX only after an explicit opt-in tick (off by default), never student data.
-Pasting it into a third-party AI is the teacher's own disclosure; the dialog says so.
+Below every compile error the app explains typical TeX errors locally and offers a prompt for an
+external AI chat, which the teacher copies to the clipboard. The app makes no network call for it (only
+the authenticated bundled-asset fetch it already uses). The prompt holds the error lines, the log tail,
+the preamble package lines and template definitions; the affected exercise's LaTeX only after an
+explicit opt-in tick (off by default). Header fields (teacher name, class, date) and student data are
+never included. Pasting it into a third-party AI is the teacher's own disclosure; the dialog says so.
 
 ---
 

@@ -13,7 +13,7 @@
   import { compileExercisePreview } from "#lib/latex/exercisePreview";
   import { pdfBytesToUrl } from "#lib/latex/pdfPreview";
   import { compileFailure, type CompileFailure } from "#lib/latex/compileError";
-  import CompileLogButton from "#lib/components/latex/CompileLogButton.svelte";
+  import CompileErrorHelp from "#lib/components/latex/CompileErrorHelp.svelte";
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import ExerciseResourcePanel from "#lib/components/exercise/ExerciseResourcePanel.svelte";
   import ExerciseStructureModal from "#lib/components/exercise/ExerciseStructureModal.svelte";
@@ -683,7 +683,7 @@
       {#if errorMsg}
         <Alert severity="danger" class="mx-4 mt-3 shrink-0">
           <div class="max-h-52 overflow-y-auto whitespace-pre-wrap break-all font-mono">{errorMsg}</div>
-          {#if previewLog && errorMsg === previewError}<CompileLogButton failure={previewLog} class="mt-2" />{/if}
+          {#if previewLog && errorMsg === previewError}<CompileErrorHelp failure={previewLog} class="mt-2" />{/if}
         </Alert>
       {/if}
 
