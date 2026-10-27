@@ -77,6 +77,22 @@ export const exercises: Translations['exercises'] = {
         discardMessage: 'You have changed fields of this exercise. Discarding will lose your unsaved changes.',
     },
     /** Score & structure section of the exercise editor (issues #77-#79). */
+    aiPrompt: {
+        button: 'AI prompt',
+        buttonTitle: 'Create a prompt for an AI chat that writes or changes this exercise',
+        title: 'Write the exercise with an AI chat',
+        intro: 'Describe what the AI chat should do. The prompt below tells the chat how Examance builds exercises, which template commands and packages exist, and contains your request. Copy it into an AI chat of your choice (such as ChatGPT, Claude or Gemini).',
+        taskLabel: 'What should the AI do?',
+        taskPlaceholder: 'e.g. “Create a variant with different numbers”, “Add a part c) about the slope”, “Turn this into a multiple-choice question with 4 options” or “Write a new exercise on quadratic equations for grade 9”',
+        includeCode: 'Include the current exercise code',
+        notice: 'Examance sends nothing. The prompt contains exercise content, package names and file names, never student data; whatever you paste into an AI chat goes to its provider.',
+        pasteHint: 'Then paste the LaTeX code from the answer into the code editor and check it with the preview.',
+        pasteHintMc: 'Then paste the LaTeX code from the answer into the “LaTeX code” dialog and check it with the preview.',
+        preview: 'Prompt',
+        copy: 'Copy prompt',
+        copied: 'Copied',
+        copyFailed: 'Could not copy (clipboard access was refused). Select the prompt and copy it by hand.',
+    },
     structure: {
         title: 'Score & structure',
         openTitle: 'Edit score, requirement level, competencies and parts',

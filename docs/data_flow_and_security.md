@@ -517,6 +517,10 @@ the preamble package lines and template definitions; the affected exercise's LaT
 explicit opt-in tick (off by default). Header fields (teacher name, class, date) and student data are
 never included. Pasting it into a third-party AI is the teacher's own disclosure; the dialog says so.
 
+The exercise editor's "AI prompt" works the same way: it combines the teacher's request with the
+template commands, package names, attached file names and (ticked by default, can be unticked) the
+current exercise code, for the clipboard only. It holds exercise content, never student data.
+
 ---
 
 ## 4. DevTools Security & Session Hygiene Lifecycle

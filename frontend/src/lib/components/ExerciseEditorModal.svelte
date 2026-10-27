@@ -19,6 +19,7 @@
   import ExerciseStructureModal from "#lib/components/exercise/ExerciseStructureModal.svelte";
   import ExerciseMetaFields from "#lib/components/exercise/ExerciseMetaFields.svelte";
   import McOptionsEditor from "#lib/components/exercise/McOptionsEditor.svelte";
+  import ExercisePromptDialog from "#lib/components/exercise/ExercisePromptDialog.svelte";
   import { fmt } from "#lib/utils/format";
   import { parseExerciseStructure, setCompetencies, setRequirementLevel } from "#lib/latex/exerciseStructure";
   import ExercisePackagesPanel from "#lib/components/latex-packages/ExercisePackagesPanel.svelte";
@@ -29,7 +30,7 @@
   import LayoutReportButton from "#lib/components/layout-report/LayoutReportButton.svelte";
   import { exerciseReportFiles } from "#lib/layout-report/collect";
   import { ConfirmDialog, Alert, Badge, Button, Checkbox, Icon, Modal } from "#lib/components/ui";
-  import { faChevronDown, faChevronLeft, faChevronRight, faCode } from "@fortawesome/free-solid-svg-icons";
+  import { faChevronDown, faChevronLeft, faChevronRight, faCode, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
 
   interface Props {
     isOpen?: boolean;
@@ -113,6 +114,9 @@
   let showLoesungPreview = $state(false);
   let showLatexPanel = $state(true);
   let structureOpen = $state(false);
+  // AI-chat prompt (issue #168); the request survives closing the dialog while the editor stays open.
+  let aiPromptOpen = $state(false);
+  let aiPromptTask = $state("");
   /** MC: the composed LaTeX repeats question and options, so it opens on demand instead of inline. */
   let latexSourceOpen = $state(false);
   /** Phones: the metadata fields fold into a one-line summary so the code editor gets the screen. */
@@ -173,6 +177,8 @@
 
   function initForm() {
     const source = baseRecord;
+    aiPromptTask = "";
+    aiPromptOpen = false;
     if (source) {
       editorName = source.name || translate("exercises.untitled");
       editorTopicTag = source.topicTag || "_General";
@@ -720,6 +726,16 @@
               </Button>
               <Button
                 size="sm"
+                variant="outlined"
+                severity="secondary"
+                icon={faWandMagicSparkles}
+                onClick={() => (aiPromptOpen = true)}
+                title={$t("exercises.aiPrompt.buttonTitle")}
+              >
+                <span class="hidden @3xl:inline">{$t("exercises.aiPrompt.button")}</span>
+              </Button>
+              <Button
+                size="sm"
                 onClick={handlePreviewExercise}
                 disabled={isPreviewLoading}
                 title={$t("exercises.editor.previewButtonTitle")}
@@ -805,6 +821,17 @@
       <Button variant="text" severity="secondary" onClick={() => (latexSourceOpen = false)}>{$t("common.close")}</Button>
     {/snippet}
   </Modal>
+{/if}
+
+{#if aiPromptOpen}
+  <ExercisePromptDialog
+    latexBody={editorLatexBody}
+    meta={{ name: editorName, subject: editorSubject, grade: editorGrade, topic: editorTopicTag }}
+    questionType={editorQuestionType}
+    resourceStagingId={resourceStagingId}
+    bind:task={aiPromptTask}
+    onClose={() => (aiPromptOpen = false)}
+  />
 {/if}
 
 {#if structureOpen}

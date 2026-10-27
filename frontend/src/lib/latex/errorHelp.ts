@@ -4,6 +4,7 @@
  * Examance, so it explains the document frame; it is English (machine-facing) and asks for a reply in the UI language.
  */
 import type { LatexAsset } from './assets';
+import { BACKSLASH, documentSetup, fence, LANGUAGES, preloadedPackages, section, TEMPLATE_COMMANDS } from './llmContext';
 import { mapLine, type SourceMap, type SourceRange } from './sourceMap';
 import { extractTexErrors } from './texLog';
 
@@ -60,30 +61,10 @@ function undefinedMacro(log: string): string | null {
 
 // --- Prompt ---------------------------------------------------------------------------------------------------------
 
-/** Teacher-facing commands of Schulaufgabe.sty / Loesung.sty; keep in sync with the .sty files. */
-const TEMPLATE_COMMANDS: { name: string; usage: string }[] = [
-  { name: 'Aufgabe', usage: String.raw`\begin{Aufgabe}[fixed points]{title} … \end{Aufgabe}: one exercise with a score box. The app wraps every exercise body in it unless the body contains \begin{Aufgabe} itself.` },
-  { name: 'Teilaufgabe', usage: String.raw`\begin{Teilaufgabe}[fixed points]{subtitle} … \end{Teilaufgabe}: part a), b), … with its own score box.` },
-  { name: 'BE', usage: String.raw`\BE, \hBE, \qBE: one, a half, a quarter point, placed in the solution where it is earned (a check mark on the solution sheet).` },
-  { name: 'FestePunkte', usage: String.raw`\FestePunkte{n}: fixed score for the enclosing Teilaufgabe or Aufgabe instead of the counted points.` },
-  { name: 'AFB', usage: String.raw`\AFB{I|II|III}, \Kompetenz{text}: metadata tags, printed only on the solution sheet.` },
-  { name: 'Loesung', usage: String.raw`\Loesung{solution}: solution text, only on the solution sheet.` },
-  { name: 'LoesungReplace', usage: String.raw`\LoesungReplace{solution}{student text}: the solution on the solution sheet, other text on the student sheet.` },
-  { name: 'LoesungLeer', usage: String.raw`\LoesungLeer{solution}{height}: the solution, or empty space of that height (e.g. 3cm) on the student sheet.` },
-  { name: 'LoesungLuecke', usage: String.raw`\LoesungLuecke{solution}{width}: fill-in gap: the solution, or a rule of that width.` },
-  { name: 'LoesungKaro', usage: String.raw`\LoesungKaro{solution}{rows}: the solution, or a squared grid with that many 0.5 cm rows.` },
-  { name: 'LoesungLine', usage: String.raw`\LoesungLine{solution}{rows}: the solution, or that many ruled lines.` },
-  { name: 'LoesungImg', usage: String.raw`\LoesungImg{solution image}{student image}{width}: a different image file per sheet.` },
-  { name: 'LoesungCode', usage: String.raw`\begin{LoesungCode} … \end{LoesungCode}: code solution; the only solution command that may contain lstlisting (escape to LaTeX inside a listing with (*@ … @*), e.g. (*@\BE@*)).` },
-  { name: 'LoesungMulti', usage: String.raw`\LoesungMulti[columns]{options}: multiple-choice options as a description list; each option starts with \multi (wrong) or \Lmulti (correct). \multi and \Lmulti are \item commands and only work inside \LoesungMulti.` },
-  { name: 'kariert', usage: String.raw`\kariert[size]{rows}, \liniert[spacing]{rows}, \Leer{height}: squared grid, ruled lines, empty space.` },
-  { name: 'Seitenumbruch', usage: String.raw`\Seitenumbruch: page break between blocks of an exercise.` },
-];
-
-const BACKSLASH = String.fromCodePoint(92);
+const LINE_NUMBERS =
+  '- Line numbers: "l.<n>" in the log counts lines of the whole generated document. Where the app could map it, it appends the exercise and the line in the exercise editor in square brackets; the code below is numbered like the editor.';
 const OWN_STYLES = ['sty/Schulaufgabe.sty', 'sty/Loesung.sty'];
 const DEFINERS = [String.raw`\newcommand`, String.raw`\renewcommand`, String.raw`\providecommand`, String.raw`\newenvironment`, String.raw`\def`];
-const LANGUAGES: Record<string, string> = { de: 'German', en: 'English' };
 
 const LOG_TAIL_LINES = 40;
 const LOG_TAIL_CHARS = 3000;
@@ -112,7 +93,7 @@ export function buildAiPrompt(input: AiPromptInput): string {
   const sources = new Map((input.assets ?? []).map((a) => [a.path, new TextDecoder().decode(a.content)]));
   const parts = [
     intro(LANGUAGES[input.locale] ?? 'English'),
-    section('How the document is built', setup(input.engine)),
+    section('How the document is built', `${documentSetup(input.engine)}\n${LINE_NUMBERS}`),
     section('Template commands (Schulaufgabe.sty, Loesung.sty)', TEMPLATE_COMMANDS.map((c) => `- ${c.usage}`).join('\n')),
     packagesSection(input.source, sources.get('sty/packages.sty')),
     ...logSections(input.log, blocks),
@@ -149,35 +130,17 @@ function intro(language: string): string {
   ].join('\n');
 }
 
-function setup(engine: AiPromptInput['engine']): string {
-  const compiler =
-    engine === 'local'
-      ? 'XeLaTeX in the browser (busytex, a reduced TeX Live 2026)'
-      : 'XeLaTeX on the server (Tectonic with TeX Live 2022; packages newer than 2022 are missing)';
-  return [
-    `- Engine: ${compiler}. Input is UTF-8 with fontspec; inputenc/fontenc are not used.`,
-    String.raw`- Class article with the template package Schulaufgabe.sty, which loads Loesung.sty and packages.sty. Each exercise body sits inside \begin{Aufgabe}{title} … \end{Aufgabe}.`,
-    String.raw`- Every exam and exercise is compiled twice: the student sheet and the solution sheet (package option "antworten"). On the student sheet the solution arguments are still typeset into a discarded box, so they must compile there too. Solution arguments are macro arguments: verbatim material (\verb, lstlisting) is only allowed in the LoesungCode environment.`,
-    String.raw`- Extra packages: a line containing only \usepackage[options]{name} in the exercise code (the app moves it into the preamble) or the app's LaTeX package settings. A \usepackage elsewhere in the body fails.`,
-    '- Line numbers: "l.<n>" in the log counts lines of the whole generated document. Where the app could map it, it appends the exercise and the line in the exercise editor in square brackets; the code below is numbered like the editor.',
-  ].join('\n');
-}
-
 /** Preloaded packages and the document's own preamble lines (no header fields such as the teacher's name). */
 function packagesSection(source: string | null | undefined, packagesSty: string | undefined): string {
   const lines: string[] = [];
   if (packagesSty) {
-    const loaded = [...packagesSty.matchAll(/\\RequirePackage(?:\[[^\]]*\])?\{([^}]*)\}/g)]
-      .map((m) => m[1].replace(/^sty\//, ''))
-      .filter((name) => !PDFTEX_ONLY.has(name));
-    lines.push(`packages.sty preloads: ${loaded.join(', ')}.`);
+    lines.push(`packages.sty preloads: ${preloadedPackages(packagesSty).join(', ')}.`);
   }
   const preamble = source ? preambleLines(source) : [];
   if (preamble.length > 0) lines.push('Preamble of this document:', fence(preamble.join('\n')));
   return lines.length > 0 ? section('Packages', lines.join('\n')) : '';
 }
 
-const PDFTEX_ONLY = new Set(['iftex', 'inputenc', 'fontenc']);
 const HEADER_FIELDS = ['Info', 'Fach', 'Lehrer', 'Testart', 'Klasse', 'Datum', 'Nr', 'ExamLogoFile'].map((n) => BACKSLASH + n);
 
 /** Header fields (teacher, class, date) never go into a prompt. */
@@ -290,14 +253,6 @@ function frameExcerpt(lines: string[], line: number): string {
   const from = Math.max(1, line - CONTEXT_LINES);
   const to = Math.min(lines.length, line + CONTEXT_LINES);
   return `Generated document around line ${line} (not editable directly, shown for context):\n${fence(numbered(lines, from - 1, to - 1, from))}`;
-}
-
-function section(heading: string, body: string): string {
-  return `## ${heading}\n${body}`;
-}
-
-function fence(text: string): string {
-  return '```\n' + text.replaceAll('```', "'''") + '\n```';
 }
 
 function logTail(log: string): string {
