@@ -33,6 +33,14 @@ export const editor: Translations['editor'] = {
         },
         'loesung-karo': { label: 'Graph paper', description: 'Solution vs. rows of graph-paper squares.' },
         'loesung-line': { label: 'Ruled lines', description: 'Solution vs. ruled writing lines.' },
+        'loesung-code': {
+            label: 'Code solution',
+            description: 'Code listing (lstlisting) shown only in the answer key. \\Loesung{…} cannot hold an lstlisting.',
+        },
+        'lstlisting-escape': {
+            label: 'Command in code',
+            description: 'LaTeX command (e.g. \\BE) inside an lstlisting code block.',
+        },
         kariert: {
             label: 'Graph paper (raw)',
             description: 'Rows of graph-paper squares, without an answer-key toggle.',

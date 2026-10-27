@@ -127,6 +127,32 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
     buildTemplate: (a) => templateJoin(["\\LoesungLine{", "}{", "}"], a)
   },
   {
+    // An environment, not \Loesung{...}: verbatim lstlisting cannot be a macro argument (issue #163).
+    id: "loesung-code",
+    category: "solutions",
+    preview: "\\begin{LoesungCode}\n\\begin{lstlisting}...\\end{lstlisting}\n\\end{LoesungCode}",
+    args: [{ placeholder: "%   TODO: insert solution code here" }],
+    buildTemplate: (a) =>
+      templateJoin(
+        [
+          "% LoesungCode for displaying lstlisting as solution (breaks in other Loesung commands)\n" +
+            "\\begin{LoesungCode}\n\\begin{lstlisting}[language=Java]\n",
+          "\n\\end{lstlisting}\n\\end{LoesungCode}\n" +
+            "% TODO: Uncomment placeholder for exercise mode if needed (they display nothing in solution mode)\n" +
+            "%   \\LoesungKaro{}{10}\n%   \\LoesungLine{}{3}\n%   \\LoesungLeer{}{5cm}\n"
+        ],
+        a
+      )
+  },
+  {
+    // Loesung.sty sets escapeinside={(*@}{@*)} for listings (issue #162).
+    id: "lstlisting-escape",
+    category: "solutions",
+    preview: "(*@ \\Command @*)",
+    args: [{ placeholder: "\\BE" }],
+    buildTemplate: (a) => templateJoin(["(*@ ", " @*)"], a)
+  },
+  {
     id: "kariert",
     category: "solutions",
     preview: "\\kariert[cellSize]{rows}",

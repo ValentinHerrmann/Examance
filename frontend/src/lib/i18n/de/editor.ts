@@ -39,6 +39,15 @@ export const editor = {
         },
         'loesung-karo': { label: 'Karopapier', description: 'Lösung statt Reihen von Karokästchen.' },
         'loesung-line': { label: 'Linierte Zeilen', description: 'Lösung statt linierter Schreibzeilen.' },
+        'loesung-code': {
+            label: 'Lösungscode',
+            description:
+                'Code-Listing (lstlisting) nur im Erwartungshorizont. \\Loesung{…} kann kein lstlisting enthalten.',
+        },
+        'lstlisting-escape': {
+            label: 'Befehl im Code',
+            description: 'LaTeX-Befehl (z. B. \\BE) innerhalb eines lstlisting-Code-Blocks.',
+        },
         kariert: {
             label: 'Karopapier (ohne Lösung)',
             description: 'Reihen von Karokästchen, ohne Umschaltung für den Erwartungshorizont.',
