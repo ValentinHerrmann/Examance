@@ -7,6 +7,7 @@ import type { LayoutReportFileData } from "#lib/api/layoutReports";
 import { prepareExamSources, type ExamPreviewInput } from "#lib/exam/examPreview";
 import { prepareExerciseSources } from "#lib/latex/exercisePreview";
 import type { LatexResourceFile } from "#lib/latex/resources";
+import { stripSourceMarkers } from "#lib/latex/sourceMap";
 import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
 
 const encoder = new TextEncoder();
@@ -45,8 +46,8 @@ export async function sourceReportFiles(
   loesungPdfUrl: string | null
 ): Promise<LayoutReportFileData[]> {
   return [
-    texFile(`${src.prefix}.tex`, src.angabeTex),
-    texFile(`${src.prefix}-solution.tex`, src.loesungTex),
+    texFile(`${src.prefix}.tex`, stripSourceMarkers(src.angabeTex)),
+    texFile(`${src.prefix}-solution.tex`, stripSourceMarkers(src.loesungTex)),
     ...resourceFiles(src.resources),
     ...(await pdfFiles([
       { filename: `${src.prefix}.pdf`, url: angabePdfUrl },

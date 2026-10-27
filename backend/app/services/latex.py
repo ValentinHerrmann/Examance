@@ -15,6 +15,8 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
+from fastapi.responses import JSONResponse
+
 from app.config import settings
 from app.services.latex_packages import (
     PackageLayer,
@@ -73,7 +75,21 @@ def forbid_environ_reads() -> None:
 
 
 class CompilationError(Exception):
-    """Raised when Tectonic exits non-zero or the process fails."""
+    """Raised when Tectonic exits non-zero or the process fails. *log* is the sanitized TeX log
+    (``_read_tex_log``), returned only to the requesting teacher and never logged (issue #166)."""
+
+    def __init__(self, message: str, log: str | None = None) -> None:
+        super().__init__(message)
+        self.log = log
+
+
+def compilation_failed_response(exc: CompilationError) -> JSONResponse:
+    """422 ``ERR_COMPILE_FAILED``: the TeX diagnostic as ``detail``, the full log as ``log``."""
+    return JSONResponse(
+        status_code=422,
+        content={"detail": str(exc), "code": "ERR_COMPILE_FAILED", "log": exc.log},
+        headers={"code": "ERR_COMPILE_FAILED"},
+    )
 
 
 # Process-wide cap on concurrent Tectonic runs; the rate limits alone still allow a burst per IP.
@@ -173,10 +189,32 @@ _MAX_ERROR_LINES = 5
 _MAX_ERROR_LINE_CHARS = 200
 
 
+_MAX_LOG_CHARS = 256 * 1024
+
+
+def _read_tex_log(tmpdir: Path, stderr: bytes) -> str:
+    """
+    The full TeX log (stderr if main.log is missing) for the requesting teacher only: the temp-dir
+    path is replaced by "./" and the size capped, keeping the tail. Never write it to server logs.
+    """
+    log_file = tmpdir / "main.log"
+    try:
+        text = log_file.read_text(encoding="utf-8", errors="replace") if log_file.exists() else ""
+    except OSError:
+        text = ""
+    if not text.strip():
+        text = stderr.decode("utf-8", errors="replace")
+    for prefix in {str(tmpdir), str(tmpdir.resolve())}:
+        text = text.replace(prefix + os.sep, "./").replace(prefix, ".")
+    if len(text) > _MAX_LOG_CHARS:
+        text = "[... log truncated ...]\n" + text[-_MAX_LOG_CHARS:]
+    return text
+
+
 def _extract_tex_error(tmpdir: Path) -> str:
     """
-    Extract only TeX's own error lines (starting with "!") from main.log. The rest of the log
-    echoes source context, including pulled-in files, so forwarding it would disclose files.
+    TeX's own error lines (starting with "!") from main.log: the short ``detail`` that may also be
+    written to server logs. The full log only goes back to the caller (``_read_tex_log``).
     """
     log_file = tmpdir / "main.log"
     error_lines: list[str] = []
@@ -294,7 +332,7 @@ async def compile_latex(
                 )
 
                 try:
-                    _stdout, _stderr = await asyncio.wait_for(
+                    _stdout, stderr = await asyncio.wait_for(
                         proc.communicate(), timeout=timeout
                     )
                 except TimeoutError:
@@ -309,7 +347,8 @@ async def compile_latex(
                 if proc.returncode != 0:
                     err_snippet = _extract_tex_error(tmpdir)
                     raise CompilationError(
-                        f"LaTeX compilation failed on pass {pass_idx + 1}: {err_snippet}"
+                        f"LaTeX compilation failed on pass {pass_idx + 1}: {err_snippet}",
+                        log=_read_tex_log(tmpdir, stderr),
                     )
 
         pdf_path = tmpdir / "main.pdf"

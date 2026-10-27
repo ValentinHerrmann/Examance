@@ -31,6 +31,15 @@ export const misc: Translations['misc'] = {
         prepare: 'Unpacking…',
         prepareStep: 'Unpacking package {step} of {steps}…',
         localFailedTryServer: 'Local LaTeX compilation failed. Do you want to try compiling on the server?',
+        locationExercise: 'Exercise “{label}”, line {line}',
+        locationGenerated: 'Generated frame (header, preamble), line {line}',
+        showLog: 'Full LaTeX log',
+        logTitle: 'LaTeX log',
+        logHint: 'The complete output of the LaTeX compiler. Line numbers “l.<n>” refer to the internally assembled document; where possible, the exercise and its line in the exercise editor follow in brackets.',
+        logCopy: 'Copy',
+        logCopied: 'Copied',
+        logDownload: 'Download as .log',
+        logClose: 'Close',
     },
 
     rejectedWrites: {

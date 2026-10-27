@@ -33,7 +33,8 @@ export function buildExerciseInputs(
       const ex = exercises.find((e) => e.id === item.id);
       if (!ex) continue;
       exerciseCount++;
-      latex = formatExerciseLatex(ex.latexBody, ex.name || `Aufgabe ${exerciseCount}`, ex.id);
+      const title = ex.name || `Aufgabe ${exerciseCount}`;
+      latex = formatExerciseLatex(ex.latexBody, title, ex.id, title);
     } else {
       const group = mcGroups.find((g) => g.id === item.id);
       if (!group) continue;
@@ -41,7 +42,7 @@ export function buildExerciseInputs(
         .map((id) => libraryExercises.find((e) => e.id === id) || exercises.find((e) => e.id === id))
         .filter((e): e is ExerciseRecord => Boolean(e));
       latex = formatMcGroupLatex(
-        members.map((m) => ({ id: m.id, latexBody: m.latexBody || "" })),
+        members.map((m) => ({ id: m.id, latexBody: m.latexBody || "", sourceLabel: m.name || group.title })),
         group.title,
         group.scoringText
       );

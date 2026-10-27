@@ -6,6 +6,7 @@
 
 import { usesAlphaLabels } from "#lib/grading/mcGroupLabels";
 import { parseExerciseStructure } from "#lib/latex/exerciseStructure";
+import { markSource } from "#lib/latex/sourceMap";
 
 export function parseExerciseScore(latex: string): number {
   if (!latex) return 0;
@@ -52,23 +53,26 @@ export function unescapeLatex(text: string | undefined | null): string {
  * Ensures LaTeX content is wrapped in \begin{Aufgabe}{<title>} ... \end{Aufgabe}, adding whichever is missing. With
  * `exerciseId`, an inert `\OmrExercise{<id>}` call (see Loesung.sty) is injected before the body so OMR template capture can
  * map bubbles back to exerciseId without changing the stored latexBody (see mcOptions.ts).
+ * With `sourceLabel`, the body is wrapped in source markers so compile errors name it (sourceMap.ts).
  */
 export function formatExerciseLatex(
   latexBody: string | undefined | null,
   title: string,
-  exerciseId?: string
+  exerciseId?: string,
+  sourceLabel?: string
 ): string {
-  let body = latexBody || "";
+  const raw = latexBody || "";
+  let body = sourceLabel === undefined ? raw : markSource(raw, sourceLabel);
   if (exerciseId) {
     body = `\\OmrExercise{${exerciseId}}\n${body}`;
   }
   let prefix = "";
   let suffix = "";
 
-  if (!body.includes("\\begin{Aufgabe}")) {
+  if (!raw.includes("\\begin{Aufgabe}")) {
     prefix = `\\begin{Aufgabe}{${escapeLatex(title)}}\n`;
   }
-  if (!body.includes("\\end{Aufgabe}")) {
+  if (!raw.includes("\\end{Aufgabe}")) {
     if (body.length > 0 && !body.endsWith("\n")) {
       suffix = "\n\\end{Aufgabe}";
     } else {
@@ -82,6 +86,8 @@ export function formatExerciseLatex(
 export interface McGroupMember {
   id: string;
   latexBody: string;
+  /** Names the member in compile errors (see formatExerciseLatex). */
+  sourceLabel?: string;
 }
 
 /**
@@ -95,7 +101,7 @@ export function formatMcGroupLatex(
   scoringText: string
 ): string {
   const items = members
-    .map((m) => `\\item \\OmrExercise{${m.id}}\n${m.latexBody}`)
+    .map((m) => `\\item \\OmrExercise{${m.id}}\n${m.sourceLabel === undefined ? m.latexBody : markSource(m.latexBody, m.sourceLabel)}`)
     .join("\n");
   return (
     `\\begin{Aufgabe}{${escapeLatex(groupTitle)}}` +

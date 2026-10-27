@@ -39,6 +39,7 @@
   loesungPending={$flow.loesungPending}
   notice={$flow.notice}
   error={$flow.error}
+  errorLog={$flow.errorLog}
   report={showReport ? layoutReport : undefined}
   onClose={() => flow.close()}
 />

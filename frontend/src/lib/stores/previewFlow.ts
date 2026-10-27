@@ -3,6 +3,7 @@ import { getLatestForSlot, type CompileKind } from "#lib/latex/compileCache";
 import type { CompileResult } from "#lib/latex/compiler";
 import { getCachedPreview, pdfBytesToUrl } from "#lib/latex/pdfPreview";
 import { translate } from "#lib/i18n";
+import { compileErrorLog } from "#lib/latex/compileError";
 import type { LayoutReportFileData } from "#lib/api/layoutReports";
 
 export interface PreviewState {
@@ -16,6 +17,8 @@ export interface PreviewState {
   loesungPending: boolean;
   notice: string;
   error: string;
+  /** The full LaTeX log behind `error`, when the compile failed with one. */
+  errorLog: string | null;
 }
 
 export interface PreviewFlow<T> extends Readable<PreviewState> {
@@ -57,6 +60,7 @@ const idle: PreviewState = {
   loesungPending: false,
   notice: "",
   error: "",
+  errorLog: null,
 };
 
 /**
@@ -93,7 +97,7 @@ export function createPreviewFlow<T>(options: PreviewFlowOptions<T>): PreviewFlo
     const item = current;
     if (item === null) return;
     const mine = ++token;
-    set({ phase: "open", busy: true, notice: "", error: "" });
+    set({ phase: "open", busy: true, notice: "", error: "", errorLog: null });
     // The Angabe is shown as soon as it exists; the Lösung compile (a second full run) follows behind it.
     let angabeShown = false;
     try {
@@ -128,7 +132,7 @@ export function createPreviewFlow<T>(options: PreviewFlowOptions<T>): PreviewFlo
       });
     } catch (err: any) {
       if (mine !== token) return;
-      set({ error: translate("common.previewFailed", { message: err?.message || "" }) });
+      set({ error: translate("common.previewFailed", { message: err?.message || "" }), errorLog: compileErrorLog(err) });
     } finally {
       if (mine === token) set({ busy: false, loesungPending: false, notice: "" });
     }

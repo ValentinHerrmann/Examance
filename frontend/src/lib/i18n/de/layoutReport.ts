@@ -9,7 +9,7 @@ export const layoutReport = {
         expectedPlaceholder: 'z. B. „Das Bild sollte neben dem Text in die Spalte passen.“',
         attachmentsTitle: 'Was mitgeschickt wird',
         emailIncluded: 'Ihre E-Mail-Adresse ({email}), damit die Administration nachfragen und Sie benachrichtigen kann',
-        consoleHint: 'Tipp: Beim Kompilieren im Browser (lokal) steht das vollständige LaTeX-Protokoll in der Browser-Konsole (F12 → Konsole). Schauen Sie dort bitte zuerst nach; oft steht dort die genaue Zeile. Kompilieren Sie auf dem Server, stellen Sie dafür in den Einstellungen auf lokales Kompilieren um.',
+        consoleHint: 'Tipp: Schlägt das Kompilieren fehl, öffnet „Vollständiges LaTeX-Log“ unter der Fehlermeldung das gesamte Protokoll (lokal und auf dem Server). Schauen Sie dort bitte zuerst nach; die Fehlermeldung nennt wo möglich die Aufgabe und die Zeile im Aufgaben-Editor.',
         attachmentsLoading: 'Dateien werden zusammengestellt …',
         attachmentsFailed: 'Die Dateien konnten nicht zusammengestellt werden: {message}',
         compileErrorIncluded: 'Fehlermeldung der Kompilierung',

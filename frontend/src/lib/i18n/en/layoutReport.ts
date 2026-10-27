@@ -11,7 +11,7 @@ export const layoutReport: Translations['layoutReport'] = {
         expectedPlaceholder: 'e.g. "The image should fit in the column next to the text."',
         attachmentsTitle: 'What is sent',
         emailIncluded: 'Your e-mail address ({email}), so the administrators can ask questions and notify you',
-        consoleHint: 'Tip: when compiling in the browser (locally), the full LaTeX log is in the browser console (F12 → Console). Please check it first; it often names the exact line. If you compile on the server, switch to local compilation in the settings to see it.',
+        consoleHint: 'Tip: when compiling fails, “Full LaTeX log” below the error message opens the whole log (local and server compilation). Please check it first; where possible, the error message names the exercise and its line in the exercise editor.',
         attachmentsLoading: 'Collecting files …',
         attachmentsFailed: 'The files could not be collected: {message}',
         compileErrorIncluded: 'Compile error message',

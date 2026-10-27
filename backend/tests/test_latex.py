@@ -154,6 +154,25 @@ def test_tex_error_extraction_does_not_leak_log_context() -> None:
     assert "root:x:0:0" not in msg
 
 
+def test_read_tex_log_hides_tmpdir_and_caps_size() -> None:
+    import tempfile
+    from pathlib import Path
+
+    from app.services import latex as latex_svc
+
+    tmpdir = Path(tempfile.mkdtemp())
+    (tmpdir / "main.log").write_text("(" + str(tmpdir) + "/main.tex\n! Boom.\n", encoding="utf-8")
+    log = latex_svc._read_tex_log(tmpdir, b"")
+    assert str(tmpdir) not in log
+    assert "(./main.tex" in log and "! Boom." in log
+
+    (tmpdir / "main.log").unlink()
+    assert latex_svc._read_tex_log(tmpdir, b"error: stderr only") == "error: stderr only"
+
+    (tmpdir / "main.log").write_text("x" * (latex_svc._MAX_LOG_CHARS + 10), encoding="utf-8")
+    assert len(latex_svc._read_tex_log(tmpdir, b"")) < latex_svc._MAX_LOG_CHARS + 100
+
+
 def test_parse_exercise_score_lmulti_and_be() -> None:
     from app.services.latex_score import parse_exercise_score
 

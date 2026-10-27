@@ -36,6 +36,8 @@
     prepareOmrTemplate,
     type ExamItemRef,
   } from "#lib/grading/omrTemplatePrep";
+  import { compileErrorLog } from "#lib/latex/compileError";
+  import CompileLogButton from "#lib/components/latex/CompileLogButton.svelte";
   import { isMcQuestion } from "#lib/grading/mcScore";
   import { exportArchiveInteractively } from "#lib/services/archiveService";
   import { EXAM_ARCHIVE_EXT } from "#lib/archive/format";
@@ -101,6 +103,12 @@
   let isPreviewLoading = $state(false);
   let compileNotice = $state("");
   let errorMsg = $state("");
+  // The full LaTeX log of the compile that produced `message` (shown only while errorMsg is that message).
+  let compileLog = $state<{ message: string; log: string } | null>(null);
+  function rememberCompileLog(message: string, err: unknown) {
+    const log = compileErrorLog(err);
+    compileLog = log ? { message, log } : null;
+  }
 
   let isPreparingOmr = $state(false);
   let omrPrepareMessage = $state("");
@@ -532,6 +540,7 @@
       }
     } catch (err: any) {
       errorMsg = err.message || translate("exam.page.omr.failedGeneric");
+      rememberCompileLog(errorMsg, err);
       omrPrepareMessage = "";
     } finally {
       isPreparingOmr = false;
@@ -591,6 +600,7 @@
       errorMsg = translate("exam.page.preview.failed", {
         message: err.message || translate("exam.page.preview.unknownError"),
       });
+      rememberCompileLog(errorMsg, err);
     } finally {
       isPreviewLoading = false;
     }
@@ -1385,6 +1395,7 @@
         {#if errorMsg}
           <Alert severity="danger" class="mt-4">
             <div class="max-h-72 overflow-auto font-mono break-all whitespace-pre-wrap">{errorMsg}</div>
+            {#if compileLog && compileLog.message === errorMsg}<CompileLogButton log={compileLog.log} class="mt-2" />{/if}
           </Alert>
         {/if}
         {#if errorMsg && !previewPdfUrl && !previewSolutionPdfUrl}

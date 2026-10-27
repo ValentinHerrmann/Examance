@@ -1,6 +1,8 @@
 <script lang="ts">
   import { type ExerciseGroup, groupExercises } from "#lib/exercise-library/groupExercises";
   import { onMount, onDestroy, untrack } from "svelte";
+  import { compileErrorLog } from "#lib/latex/compileError";
+  import CompileLogButton from "#lib/components/latex/CompileLogButton.svelte";
   import { db } from "#lib/db/db";
   import { sessionStore, isAuthenticated, awaitSessionReady } from "#lib/stores/session";
   import { effectiveLatexStore } from "#lib/stores/capabilities";
@@ -129,6 +131,7 @@ Frage hier eingeben... \\BE
   let isPreviewLoading = $state(false);
   /** The last live preview's failure and sources, sent with a layout report (issue #134). */
   let previewError = $state("");
+  let previewLog = $state<string | null>(null);
   let reportSources: { angabeTex: string; loesungTex: string; owners: { id: string; label?: string }[] } | null =
     $state.raw(null);
 
@@ -354,6 +357,7 @@ Frage hier eingeben... \\BE
     isPreviewLoading = true;
     errorMsg = "";
     previewError = "";
+    previewLog = null;
     try {
       let exerciseCount = 0;
       const exerciseInputs = examItems
@@ -362,11 +366,8 @@ Frage hier eingeben... \\BE
             const ex = selectedExercises.find((e) => e.id === item.id);
             if (!ex) return "";
             exerciseCount++;
-            return formatExerciseLatex(
-              ex.latexBody,
-              ex.name || `Aufgabe ${exerciseCount}`,
-              ex.id,
-            );
+            const title = ex.name || `Aufgabe ${exerciseCount}`;
+            return formatExerciseLatex(ex.latexBody, title, ex.id, title);
           } else {
             const group = mcGroups.find((g) => g.id === item.id);
             if (!group) return "";
@@ -374,7 +375,7 @@ Frage hier eingeben... \\BE
               .map((id) => libraryExercises.find((e) => e.id === id))
               .filter((e): e is ExerciseRecord => Boolean(e));
             return formatMcGroupLatex(
-              members.map((m) => ({ id: m.id, latexBody: m.latexBody || "" })),
+              members.map((m) => ({ id: m.id, latexBody: m.latexBody || "", sourceLabel: m.name || group.title })),
               group.title,
               group.scoringText,
             );
@@ -473,6 +474,7 @@ ${extraNotesLatex(extraNotes)}
     } catch (err: any) {
       errorMsg = err.message || translate("examCreation.errors.previewCompilationFailed");
       previewError = errorMsg;
+      previewLog = compileErrorLog(err);
     } finally {
       isPreviewLoading = false;
     }
@@ -678,6 +680,7 @@ ${extraNotesLatex(extraNotes)}
   {#if errorMsg}
     <Alert severity="danger" class="mb-6">
       <div class="max-h-72 overflow-auto font-mono break-all whitespace-pre-wrap">{errorMsg}</div>
+      {#if previewLog && errorMsg === previewError}<CompileLogButton log={previewLog} class="mt-2" />{/if}
     </Alert>
   {/if}
   {#if previewError && reportSources && !previewPdfUrl && !previewSolutionPdfUrl}

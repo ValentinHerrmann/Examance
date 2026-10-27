@@ -2,6 +2,7 @@ import './fetchInterceptor';
 
 import { BusyTexRunner, XeLatex, isPackageCached, clearAllPackageCache } from 'texlyre-busytex';
 import type { LogEntry } from 'texlyre-busytex';
+import { extractTexErrors } from './texLog';
 
 let runner: BusyTexRunner | null = null;
 let xelatex: XeLatex | null = null;
@@ -247,28 +248,7 @@ export function extractMissingGraphics(log: string | undefined | null): string[]
 // this fatal while the real error sits in the XeTeX step's log (`result.logs`).
 export const XDV_OPEN_FATAL_PATTERN = /xdvipdfmx:fatal: Could not open specified DVI \(or XDV\) file/i;
 
-/** TeX "!" errors, each through its `l.<n>` context line and the line after it. */
-export function extractTexErrors(text: string | undefined | null, maxBlocks = 5): string[] {
-  if (!text) return [];
-  const lines = text.split('\n');
-  const blocks: string[] = [];
-  for (let i = 0; i < lines.length && blocks.length < maxBlocks; i++) {
-    if (!lines[i].startsWith('!')) continue;
-    const limit = Math.min(lines.length, i + 12);
-    let j = i + 1;
-    while (j < limit && !/^l\.\d+/.test(lines[j])) j++;
-    const stop = j < limit ? j + 2 : limit;
-    blocks.push(
-      lines
-        .slice(i, stop)
-        .map((line) => line.trimEnd())
-        .filter(Boolean)
-        .join('\n')
-    );
-    i = stop - 1;
-  }
-  return blocks;
-}
+export { extractTexErrors };
 
 type CompileStep = Partial<Pick<LogEntry, 'cmd' | 'log' | 'stdout' | 'stderr' | 'exit_code'>>;
 
@@ -288,6 +268,15 @@ export function describeCompileFailure(result: {
     if (blocks.length > 0) return blocks.join('\n\n');
   }
   return full;
+}
+
+/** The full log for the UI; with the follow-up xdvipdfmx fatal it is preceded by the XeTeX step's own log. */
+export function compileLogForUser(result: { log?: string | null; logs?: readonly CompileStep[] | null }): string {
+  const full = result.log || '';
+  if (!XDV_OPEN_FATAL_PATTERN.test(full)) return full;
+  const xetex = (result.logs ?? []).find((step) => /xetex/i.test(step.cmd ?? '') && !/xdvipdfmx/i.test(step.cmd ?? ''));
+  const own = [xetex?.log, xetex?.stdout, xetex?.stderr].filter(Boolean).join('\n');
+  return own ? `${own}\n\n${full}` : full;
 }
 
 async function recoverFromPossiblyCorruptedCache(): Promise<void> {
@@ -413,7 +402,7 @@ self.onmessage = (e: MessageEvent) => {
       } else {
         // Not reset here — an ordinary compile error (e.g. a LaTeX typo)
         // shouldn't force a full engine reboot on the next attempt.
-        self.postMessage({ id, success: false, error: describeCompileFailure(result) });
+        self.postMessage({ id, success: false, error: describeCompileFailure(result), log: compileLogForUser(result) });
       }
     } catch (error: any) {
       // A thrown error is different: the engine itself is in an unknown state, so reset. Required for

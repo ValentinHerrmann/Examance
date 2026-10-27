@@ -38,7 +38,9 @@ export class ApiError extends Error {
     public code: string,
     message: string,
     /** Seconds until retry, from `Retry-After`. Only set on a 429 (login cooloff lasts one minute to an hour). */
-    public retryAfterSeconds: number | null = null
+    public retryAfterSeconds: number | null = null,
+    /** The parsed JSON error body, for endpoints that send more than `detail` (compile log). */
+    public body: Record<string, unknown> | null = null
   ) {
     super(message);
     this.name = 'ApiError';
@@ -83,6 +85,7 @@ async function parseError(response: Response): Promise<ApiError> {
       code,
       translateOptional(`errors.code.${code}`) ?? detailStr,
       parseRetryAfter(response),
+      body && typeof body === 'object' ? body : null,
     );
   } catch {
     // No JSON body (or unparseable) — the header may still carry the code.
