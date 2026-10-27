@@ -159,7 +159,7 @@ function setup(engine: AiPromptInput['engine']): string {
     String.raw`- Class article with the template package Schulaufgabe.sty, which loads Loesung.sty and packages.sty. Each exercise body sits inside \begin{Aufgabe}{title} … \end{Aufgabe}.`,
     String.raw`- Every exam and exercise is compiled twice: the student sheet and the solution sheet (package option "antworten"). On the student sheet the solution arguments are still typeset into a discarded box, so they must compile there too. Solution arguments are macro arguments: verbatim material (\verb, lstlisting) is only allowed in the LoesungCode environment.`,
     String.raw`- Extra packages: a line containing only \usepackage[options]{name} in the exercise code (the app moves it into the preamble) or the app's LaTeX package settings. A \usepackage elsewhere in the body fails.`,
-    String.raw`- Line numbers: "l.<n>" in the log counts lines of the whole generated document. Where the app could map it, it appends the exercise and the line in the exercise editor in square brackets; the code below is numbered like the editor.`,
+    '- Line numbers: "l.<n>" in the log counts lines of the whole generated document. Where the app could map it, it appends the exercise and the line in the exercise editor in square brackets; the code below is numbered like the editor.',
   ].join('\n');
 }
 
