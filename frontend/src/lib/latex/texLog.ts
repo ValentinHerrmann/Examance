@@ -5,8 +5,12 @@ export function extractTexErrors(text: string | undefined | null, maxBlocks = 5)
   if (!text) return [];
   const lines = text.split('\n');
   const blocks: string[] = [];
-  for (let i = 0; i < lines.length && blocks.length < maxBlocks; i++) {
-    if (!lines[i].startsWith('!')) continue;
+  let i = 0;
+  while (i < lines.length && blocks.length < maxBlocks) {
+    if (!lines[i].startsWith('!')) {
+      i++;
+      continue;
+    }
     const limit = Math.min(lines.length, i + 12);
     let j = i + 1;
     while (j < limit && !/^l\.\d+/.test(lines[j])) j++;
@@ -18,7 +22,7 @@ export function extractTexErrors(text: string | undefined | null, maxBlocks = 5)
         .filter(Boolean)
         .join('\n')
     );
-    i = stop - 1;
+    i = stop;
   }
   return blocks;
 }

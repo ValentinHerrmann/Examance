@@ -27,32 +27,37 @@ export interface SourceLocation {
 }
 
 /**
- * `body` between marker lines. Must start at the beginning of a line; an empty body stays unmarked
- * because the marked form would leave a blank line (a paragraph break) once stripped.
+ * `body` between markers; `extractSourceMap` removes exactly the inserted `BEGIN…\n` and `\nEND`,
+ * whatever surrounds them. Must start at the beginning of a line.
  */
 export function markSource(body: string, label: string): string {
-  if (!body) return body;
   const clean = label.replace(/\s+/g, " ").trim() || "?";
-  return `${BEGIN}${clean}\n${body}${body.endsWith("\n") ? "" : "\n"}${END}`;
+  return `${BEGIN}${clean}\n${body}\n${END}`;
 }
 
-/** Removes the marker lines and records where each marked body ended up. */
+const MARKER = /^%%@examance-src:([^\n]*)\n|\n%%@examance-end/gm;
+
+/** Removes the markers and records where each marked body ended up. */
 export function extractSourceMap(marked: string): SourceMap {
   if (!marked.includes(BEGIN)) return { tex: marked, ranges: [] };
-  const out: string[] = [];
+  let tex = "";
+  let lines = 1;
+  let last = 0;
   const ranges: SourceRange[] = [];
   let open: { label: string; start: number } | null = null;
-  for (const line of marked.split("\n")) {
-    if (line.startsWith(BEGIN)) {
-      open = { label: line.slice(BEGIN.length), start: out.length + 1 };
-    } else if (line === END) {
-      if (open) ranges.push({ ...open, end: out.length });
+  for (const m of marked.matchAll(MARKER)) {
+    const slice = marked.slice(last, m.index);
+    tex += slice;
+    lines += slice.split("\n").length - 1;
+    last = m.index + m[0].length;
+    if (m[1] === undefined) {
+      if (open) ranges.push({ ...open, end: lines });
       open = null;
     } else {
-      out.push(line);
+      open = { label: m[1], start: lines };
     }
   }
-  return { tex: out.join("\n"), ranges };
+  return { tex: tex + marked.slice(last), ranges };
 }
 
 /** The document without markers (exports, layout reports). */

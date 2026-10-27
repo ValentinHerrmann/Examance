@@ -164,7 +164,8 @@ def test_read_tex_log_hides_tmpdir_and_caps_size() -> None:
     (tmpdir / "main.log").write_text("(" + str(tmpdir) + "/main.tex\n! Boom.\n", encoding="utf-8")
     log = latex_svc._read_tex_log(tmpdir, b"")
     assert str(tmpdir) not in log
-    assert "(./main.tex" in log and "! Boom." in log
+    assert "(./main.tex" in log
+    assert "! Boom." in log
 
     (tmpdir / "main.log").unlink()
     assert latex_svc._read_tex_log(tmpdir, b"error: stderr only") == "error: stderr only"

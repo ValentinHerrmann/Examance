@@ -62,18 +62,18 @@ export function formatExerciseLatex(
   sourceLabel?: string
 ): string {
   const raw = latexBody || "";
-  let body = sourceLabel === undefined ? raw : markSource(raw, sourceLabel);
-  if (exerciseId) {
-    body = `\\OmrExercise{${exerciseId}}\n${body}`;
-  }
+  const omr = exerciseId ? `\\OmrExercise{${exerciseId}}\n` : "";
+  // The suffix follows the unmarked body, so the stripped document equals the unmarked one.
+  const plain = omr + raw;
+  const body = sourceLabel === undefined ? plain : omr + markSource(raw, sourceLabel);
   let prefix = "";
   let suffix = "";
 
-  if (!raw.includes("\\begin{Aufgabe}")) {
+  if (!raw.includes(String.raw`\begin{Aufgabe}`)) {
     prefix = `\\begin{Aufgabe}{${escapeLatex(title)}}\n`;
   }
-  if (!raw.includes("\\end{Aufgabe}")) {
-    if (body.length > 0 && !body.endsWith("\n")) {
+  if (!raw.includes(String.raw`\end{Aufgabe}`)) {
+    if (plain.length > 0 && !plain.endsWith("\n")) {
       suffix = "\n\\end{Aufgabe}";
     } else {
       suffix = "\\end{Aufgabe}";
