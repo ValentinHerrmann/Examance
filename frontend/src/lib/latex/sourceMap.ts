@@ -35,7 +35,7 @@ export function markSource(body: string, label: string): string {
   return `${BEGIN}${clean}\n${body}\n${END}`;
 }
 
-const MARKER = /^%%@examance-src:([^\n]*)\n|\n%%@examance-end/gm;
+const MARKER = /(?:^%%@examance-src:([^\n]*)\n)|(?:\n%%@examance-end)/gm;
 
 /** Removes the markers and records where each marked body ended up. */
 export function extractSourceMap(marked: string): SourceMap {
