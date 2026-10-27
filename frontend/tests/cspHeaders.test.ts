@@ -16,7 +16,8 @@ const srcDir = fileURLToPath(new URL('../src', import.meta.url));
  * contacting a third party, except `http.cat`: the one intentional third party (issue #59), allowed by img-src in
  * static/_headers and named as a recipient in the Art. 30 record and the privacy policy.
  */
-const ALLOWED_HOSTS = new Set(['www.w3.org', 'localhost', 'api.example.org', 'http.cat']);
+// valentin-herrmann.com: outbound link only (snippet demo, new tab); the app never fetches from it.
+const ALLOWED_HOSTS = new Set(['www.w3.org', 'localhost', 'api.example.org', 'http.cat', 'valentin-herrmann.com']);
 
 function sourceFiles(dir: string): string[] {
   const found: string[] = [];

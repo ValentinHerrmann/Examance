@@ -67,7 +67,8 @@
   import { computeQuickInsert } from "#lib/latex/quickInsertLogic";
   import { t, type TranslationKey } from "#lib/i18n";
   import { theme } from "#lib/stores/theme";
-  import { Icon } from "#lib/components/ui";
+  import { CrossLink, Icon } from "#lib/components/ui";
+  import { SNIPPET_DEMO_URL } from "#lib/utils/links";
   import { safeLocalStorage } from "#lib/utils/storage";
   import { faChevronDown, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 
@@ -460,15 +461,20 @@
      squeeze it and the editor's last lines end up clipped under whatever follows. -->
 <div class="flex w-full h-full flex-1 flex-col">
   {#if showQuickInsert && !readonly}
-    <button
-      type="button"
-      class="flex w-full shrink-0 cursor-pointer items-center gap-1.5 border-0 border-b border-line bg-surface-raised px-2 py-1.5 text-left text-xs font-semibold text-accent pointer-coarse:min-h-11"
-      aria-expanded={paletteOpen}
-      onclick={togglePalette}
-    >
-      <Icon icon={paletteOpen ? faChevronDown : faChevronRight} />
-      {$t("editor.quickInsertToggle")}
-    </button>
+    <div class="flex shrink-0 items-center border-b border-line bg-surface-raised">
+      <button
+        type="button"
+        class="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 border-0 bg-transparent px-2 py-1.5 text-left text-xs font-semibold text-accent pointer-coarse:min-h-11"
+        aria-expanded={paletteOpen}
+        onclick={togglePalette}
+      >
+        <Icon icon={paletteOpen ? faChevronDown : faChevronRight} />
+        {$t("editor.quickInsertToggle")}
+      </button>
+      <CrossLink href={SNIPPET_DEMO_URL} class="shrink-0 px-2 text-xs pointer-coarse:min-h-11">
+        {$t("editor.snippetDemo")}
+      </CrossLink>
+    </div>
     <!-- Category wrappers are `contents`, so label and chips wrap as one flow and use the fewest rows. -->
     <div class="{paletteOpen ? 'flex' : 'hidden'} shrink-0 flex-wrap items-center gap-1 border-b border-line bg-surface-raised px-2 py-1">
       {#snippet chips(macros: QuickInsertMacro[])}

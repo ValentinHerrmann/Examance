@@ -269,7 +269,9 @@ public class `, "Schueler", String.raw` {
 }
 \end{lstlisting}
 \end{framed}`),
-  cs("cs-gap-code", String.raw`\begin{framed}
+  // Loesung.sty sets escapeinside={(*@}{@*)} for listings (issue #162).
+  cs("cs-code-escape", "(*@ ", String.raw`\BE`, " @*)"),
+  cs("cs-gap-code",String.raw`\begin{framed}
 \begin{lstlisting}
 public class Schueler {
 

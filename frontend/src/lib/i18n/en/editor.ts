@@ -2,6 +2,7 @@ import type { Translations } from '../types';
 
 export const editor: Translations['editor'] = {
     quickInsertToggle: 'Insert LaTeX snippets',
+    snippetDemo: 'Demo of all snippets',
     subjectLabel: 'Subject snippets',
     categories: {
         solutions: 'Solutions',
@@ -36,10 +37,6 @@ export const editor: Translations['editor'] = {
         'loesung-code': {
             label: 'Code solution',
             description: 'Code listing (lstlisting) shown only in the answer key. \\Loesung{…} cannot hold an lstlisting.',
-        },
-        'lstlisting-escape': {
-            label: 'Command in code',
-            description: 'LaTeX command (e.g. \\BE) inside an lstlisting code block.',
         },
         kariert: {
             label: 'Graph paper (raw)',

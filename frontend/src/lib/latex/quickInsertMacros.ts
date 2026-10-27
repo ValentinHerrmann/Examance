@@ -145,14 +145,6 @@ export const QUICK_INSERT_MACROS: QuickInsertMacro[] = [
       )
   },
   {
-    // Loesung.sty sets escapeinside={(*@}{@*)} for listings (issue #162).
-    id: "lstlisting-escape",
-    category: "solutions",
-    preview: "(*@ \\Command @*)",
-    args: [{ placeholder: "\\BE" }],
-    buildTemplate: (a) => templateJoin(["(*@ ", " @*)"], a)
-  },
-  {
     id: "kariert",
     category: "solutions",
     preview: "\\kariert[cellSize]{rows}",

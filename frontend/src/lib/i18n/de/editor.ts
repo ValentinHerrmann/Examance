@@ -1,6 +1,7 @@
 export const editor = {
     /** Button that folds/unfolds the quick-insert palette. */
     quickInsertToggle: 'LaTeX-Bausteine einfügen',
+    snippetDemo: 'Demo aller Bausteine',
     /** Select that picks which subject's snippets the palette shows. */
     subjectLabel: 'Fach-Bausteine',
     /** Quick-insert palette category headings; the last three are subjects. */
@@ -43,10 +44,6 @@ export const editor = {
             label: 'Lösungscode',
             description:
                 'Code-Listing (lstlisting) nur im Erwartungshorizont. \\Loesung{…} kann kein lstlisting enthalten.',
-        },
-        'lstlisting-escape': {
-            label: 'Befehl im Code',
-            description: 'LaTeX-Befehl (z. B. \\BE) innerhalb eines lstlisting-Code-Blocks.',
         },
         kariert: {
             label: 'Karopapier (ohne Lösung)',
