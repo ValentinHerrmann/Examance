@@ -29,7 +29,11 @@ Non-blank lines over `git ls-files`, binaries excluded:
 | Lockfiles | 8,261 | 2 |
 | Dev and operator docs / legal / pitch / demo scripts | 1,990 / 331 / 1,191 / 1,465 | |
 
-Target: about −3,900 lines of hand-written code, partly offset by about +700 for the fixes. The net is about −3,200 (≈4.5 %). Separately, the generated `example.json` drops by −6.5k lines.
+Target:
+- Refactors and merges remove about 3,900 lines of hand-written code; the fixes add about 700 back.
+- Phase 9 (one-line comments) removes about 3,500 more, about 3,300 of them in app code and tests.
+- Net: about −6,700 lines (≈ −9.6 %).
+- Separately, the generated `example.json` drops by 6.5k lines.
 
 ## Phase 1: backend security
 - [ ] **S1 LaTeX file read.**
@@ -266,6 +270,36 @@ Target: about −3,900 lines of hand-written code, partly offset by about +700 f
 - [ ] `docs/dev/storage_modes.md`: per-exam mover deletion and the Dexie-backed offline queue.
 - [ ] `backend/CLAUDE.md` and `frontend/CLAUDE.md`: new module paths (router packages, `scoreService`, `ScoreGrid`, `HeroDialog`, `FeatureMatrix`), and removals (`/exam/new`, `ConfirmDeleteModal`, the server exam compile).
 - [ ] In-app help (`lib/help/topics.ts`, `i18n/*/help.ts`): exam creation, export dialog, storage settings.
+
+## Phase 9: one-line comments (run last, so it does not conflict with the refactors)
+Rule (user decision): when a comment or docstring spans several lines and its information matters, write it as **one line** and let the editor soft-wrap it. Only comments change; code does not.
+
+Measured baseline (multi-line comment blocks, lines saved if each becomes one line):
+
+| Area | Blocks | Saved |
+|---|---:|---:|
+| Frontend (`.ts`, `.svelte`) | 786 | ≈1,840 |
+| Backend (`backend/app`) | 421 | ≈1,020 |
+| Tests (frontend and backend) | 180 | ≈470 |
+
+- [ ] **Lint first.** Backend ruff selects `E`, so `E501` (line-length 100) would fail on one-line comments.
+  - Add `"E501"` to `[tool.ruff.lint] ignore` in `backend/pyproject.toml`, with a one-line reason.
+  - Code lines keep the 100-character convention by hand; there is no formatter.
+  - The frontend has no `max-len` and no prettier, so nothing to change there.
+- [ ] **Forms.**
+  - TS/JS: `/** text */` (JSDoc hover keeps working) or `// text`.
+  - Python: `"""Text."""`.
+  - Svelte markup: `<!-- text -->`.
+  - Consecutive `//` or `#` lines become one line.
+- [ ] **Keep multi-line** where the line breaks carry structure:
+  - lists of items or cases, tables, ASCII diagrams, code or LaTeX examples;
+  - `ruff`/`eslint`/`noqa`/`type: ignore`/`svelte-ignore` directives;
+  - separate comments that annotate different statements.
+- [ ] **While joining,** drop comments that only restate the next line (≈150–300 lines; for example "Append immutable audit log entry", "Non-fatal if offline"). Keep every "why", invariant, "never" rule and issue reference.
+- [ ] **Exclude** `backend/alembic/versions/` (never edit a migration the preview stack ran), generated files and vendored code.
+- [ ] **Rollout.** Delegate it file by file to cheaper subagents with a script-assisted first pass (join consecutive comment lines, then a manual review for the keep rules).
+  - Verify with `make lint`, `npx svelte-check --threshold error`, and a whitespace-insensitive diff of the code with comments stripped, which must be empty.
+- [ ] **Docs.** Update the root `CLAUDE.md` comment rule from "at most 2-3 lines" to: "Comments and docstrings: one line each (the editor wraps); say why, not what; longer explanations go to `docs/dev/` or the nearest `CLAUDE.md`." Also update `backend/CLAUDE.md` for the `E501` change.
 
 ## Verification checklist (for the human tester; put it in each PR body)
 - [ ] `make lint`, `npx svelte-check --threshold error` and `cd backend && python -c "import app.main"` are clean.
