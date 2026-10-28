@@ -12,28 +12,30 @@
   import { getAccountPackages } from "#lib/latex/packageSettings";
   import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import { effectiveLatexStore } from "#lib/stores/capabilities";
-  import { onMount } from "svelte";
+  import { createCopyState } from "#lib/utils/copyState.svelte";
+  import { onMount, untrack } from "svelte";
   import PromptPreview from "#lib/components/latex/PromptPreview.svelte";
 
   interface Props {
     latexBody: string;
     meta: ExercisePromptInput["meta"];
     questionType: ExercisePromptInput["questionType"];
-    /** The editor's resource staging id; only file names are read. */
+    /** The editor's resource staging id; only file names are read, once `seeded`. */
     resourceStagingId: string;
+    seeded: boolean;
     /** Kept by the editor, so the request survives closing the dialog. */
     task?: string;
     onClose: () => void;
   }
 
-  let { latexBody, meta, questionType, resourceStagingId, task = $bindable(""), onClose }: Props = $props();
+  let { latexBody, meta, questionType, resourceStagingId, seeded, task = $bindable(""), onClose }: Props = $props();
 
   let includeCode = $state(true);
   let preloaded = $state.raw<string[]>([]);
   let accountPackages = $state.raw<LatexPackageEntry[]>([]);
-  let resourceNames = $state.raw<string[]>([]);
-  let copied = $state(false);
-  let copyFailed = $state(false);
+  // null until the editor's staging area is seeded: an early empty list would claim "no files attached".
+  let resourceNames = $state.raw<string[] | null>(null);
+  const clipboard = createCopyState();
 
   const hasCode = $derived(latexBody.trim().length > 0);
   const prompt = $derived(
@@ -58,21 +60,19 @@
       if (sty) preloaded = preloadedPackages(new TextDecoder().decode(sty.content));
     }, () => {});
     getAccountPackages().then((entries) => (accountPackages = entries), () => {});
-    if (resourceStagingId) {
-      exerciseResourceRepository.listLocal(resourceStagingId).then((rows) => (resourceNames = rows.map((r) => r.filename)), () => {});
-    }
   });
 
-  async function copy() {
-    copyFailed = false;
-    try {
-      await navigator.clipboard.writeText(prompt);
-      copied = true;
-      setTimeout(() => (copied = false), 2000);
-    } catch {
-      copyFailed = true;
-    }
-  }
+  $effect.pre(() => {
+    const ready = seeded;
+    const stagingId = resourceStagingId;
+    if (!ready || !stagingId) return;
+    untrack(() => {
+      exerciseResourceRepository.listLocal(stagingId).then(
+        (rows) => (resourceNames = rows.map((r) => r.filename)),
+        () => {}
+      );
+    });
+  });
 </script>
 
 <Modal open={true} size="large" tall title={$t("exercises.aiPrompt.title")} {onClose}>
@@ -88,14 +88,14 @@
     <p class="m-0 text-sm text-muted">
       {questionType === "mc" ? $t("exercises.aiPrompt.pasteHintMc") : $t("exercises.aiPrompt.pasteHint")}
     </p>
-    {#if copyFailed}
+    {#if clipboard.failed}
       <p class="m-0 text-sm text-danger-fg">{$t("exercises.aiPrompt.copyFailed")}</p>
     {/if}
     <h3 class="m-0 text-sm font-semibold">{$t("exercises.aiPrompt.preview")}</h3>
     <PromptPreview text={prompt} class="min-h-32 flex-1" />
   </div>
   {#snippet footer()}
-    <Button onClick={copy} disabled={!task.trim()}>{copied ? $t("exercises.aiPrompt.copied") : $t("exercises.aiPrompt.copy")}</Button>
+    <Button onClick={() => clipboard.copy(prompt)} disabled={!task.trim()}>{clipboard.copied ? $t("exercises.aiPrompt.copied") : $t("exercises.aiPrompt.copy")}</Button>
     <Button severity="secondary" onClick={onClose}>{$t("misc.compiler.logClose")}</Button>
   {/snippet}
 </Modal>

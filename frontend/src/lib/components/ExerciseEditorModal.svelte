@@ -829,6 +829,7 @@
     meta={{ name: editorName, subject: editorSubject, grade: editorGrade, topic: editorTopicTag }}
     questionType={editorQuestionType}
     resourceStagingId={resourceStagingId}
+    seeded={resourcesSeeded}
     bind:task={aiPromptTask}
     onClose={() => (aiPromptOpen = false)}
   />

@@ -74,11 +74,10 @@ export const exercises = {
         discardTitle: 'Aufgabenänderungen verwerfen?',
         discardMessage: 'Sie haben Felder dieser Aufgabe geändert. Beim Verwerfen gehen Ihre ungespeicherten Änderungen verloren.',
     },
-    /** Score & structure section of the exercise editor (issues #77-#79). */
     aiPrompt: {
-        button: 'KI-Prompt',
+        button: 'KI-Prompt erstellen',
         buttonTitle: 'Prompt für einen KI-Chat erstellen, der diese Aufgabe schreibt oder ändert',
-        title: 'Aufgabe mit einem KI-Chat schreiben',
+        title: 'Prompt für einen KI-Chat: Aufgabe schreiben oder ändern',
         intro: 'Beschreiben Sie, was der KI-Chat tun soll. Der Prompt darunter erklärt dem Chat, wie Examance Aufgaben aufbaut, welche Vorlagenbefehle und Pakete es gibt, und enthält Ihre Anfrage. Kopieren Sie ihn in einen KI-Chat Ihrer Wahl (etwa ByLKI, ChatGPT, Claude oder Gemini).',
         taskLabel: 'Was soll die KI tun?',
         taskPlaceholder: 'z. B. „Erstelle eine Variante mit anderen Zahlen“, „Ergänze eine Teilaufgabe c) zur Steigung“, „Mache daraus eine Ankreuzaufgabe mit 4 Optionen“ oder „Schreibe eine neue Aufgabe zu quadratischen Gleichungen für Klasse 9“',
@@ -91,6 +90,7 @@ export const exercises = {
         copied: 'Kopiert',
         copyFailed: 'Kopieren nicht möglich (Zugriff auf die Zwischenablage verweigert). Markieren Sie den Prompt und kopieren Sie ihn von Hand.',
     },
+    /** Score & structure section of the exercise editor (issues #77-#79). */
     structure: {
         title: 'Punkte & Aufbau',
         openTitle: 'Punkte, Anforderungsbereich, Kompetenzen und Teilaufgaben bearbeiten',

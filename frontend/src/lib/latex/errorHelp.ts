@@ -4,7 +4,7 @@
  * Examance, so it explains the document frame; it is English (machine-facing) and asks for a reply in the UI language.
  */
 import type { LatexAsset } from './assets';
-import { BACKSLASH, code, documentSetup, fence, LANGUAGES, preloadedPackages, section, TEMPLATE_NAMES, templateCommandsSection } from './llmContext';
+import { attachedFiles, BACKSLASH, code, documentSetup, fence, LANGUAGES, preloadedPackages, section, TEMPLATE_NAMES, templateCommandsSection } from './llmContext';
 import { mapLine, type SourceMap, type SourceRange } from './sourceMap';
 import { extractTexErrors } from './texLog';
 
@@ -84,18 +84,22 @@ export interface AiPromptInput {
   assets?: LatexAsset[] | null;
   /** UI locale; the AI is asked to answer in it. */
   locale: string;
+  /** Names of the files attached to the compiled exercises; null or absent while not resolved. */
+  resourceNames?: readonly string[] | null;
 }
 
 /** A self-contained prompt for an AI chat that has no other context. */
 export function buildAiPrompt(input: AiPromptInput): string {
-  const blocks = extractTexErrors(input.log);
+  const log = redactHeaderFields(input.log, input.source ?? null);
+  const blocks = extractTexErrors(log);
   const sources = new Map((input.assets ?? []).map((a) => [a.path, new TextDecoder().decode(a.content)]));
   const parts = [
     intro(LANGUAGES[input.locale] ?? 'English'),
     section('How the document is built', `${documentSetup(input.engine)}\n${LINE_NUMBERS}`),
     templateCommandsSection(),
     packagesSection(input.source, sources.get('sty/packages.sty')),
-    ...logSections(input.log, blocks),
+    input.resourceNames ? section('Attached files', attachedFiles(input.resourceNames)) : '',
+    ...logSections(log, blocks),
     definitionsSection(blocks, sources),
     input.includeSource && input.source
       ? section('Code', codeExcerpts(input.source, input.ranges ?? [], blocks))
@@ -141,11 +145,51 @@ function packagesSection(source: string | null | undefined, packagesSty: string 
   return lines.length > 0 ? section('Packages', lines.join('\n')) : '';
 }
 
-const HEADER_FIELDS = ['Info', 'Fach', 'Lehrer', 'Testart', 'Klasse', 'Datum', 'Nr', 'ExamLogoFile'].map((n) => BACKSLASH + n);
+const HEADER_FIELDS = ['Info', 'Fach', 'Lehrer', 'Testart', 'Klasse', 'Datum', 'Nr', 'ExamLogoFile', 'ExamNotes'].map((n) => BACKSLASH + n);
+// Values redacted wherever they appear; not Fach/Testart/Nr, whose values ("Schulaufgabe", "1") are also template words.
+const PERSONAL_FIELDS = ['Info', 'Lehrer', 'Klasse', 'Datum', 'ExamNotes'].map((n) => BACKSLASH + n);
+const OMITTED = '[omitted]';
 
-/** Header fields (teacher, class, date) never go into a prompt. */
+/** Header fields (teacher, class, date, exam notes) never go into a prompt. */
 function isHeaderField(line: string): boolean {
   return HEADER_FIELDS.some((field) => line.trimStart().startsWith(field));
+}
+
+/**
+ * The log without header-field content: their values anywhere (TeX wraps and echoes arguments), the rest of any
+ * line naming a header macro, and the echo of an `l.<n>` that points at a header line.
+ */
+export function redactHeaderFields(log: string, source: string | null): string {
+  const sourceLines = source ? source.split('\n') : [];
+  const headerLines = new Set(sourceLines.flatMap((line, i) => (isHeaderField(line) ? [i + 1] : [])));
+  let out = log;
+  const personal = sourceLines.filter((line) => PERSONAL_FIELDS.some((field) => line.trimStart().startsWith(field)));
+  for (const value of headerValues(personal)) out = out.replaceAll(value, OMITTED);
+  const lines = out.split('\n').map(redactMacroLine);
+  for (let i = 0; i < lines.length; i++) {
+    const ctx = /^l\.(\d+)/.exec(lines[i]);
+    if (!ctx || !headerLines.has(Number(ctx[1]))) continue;
+    lines[i] = `${ctx[0]} ${OMITTED}`;
+    // TeX prints the rest of the source line indented on the next line.
+    if (i + 1 < lines.length && /^\s+\S/.test(lines[i + 1])) lines[i + 1] = OMITTED;
+  }
+  return lines.join('\n');
+}
+
+/** Argument texts of personal header lines, longest first; single characters would blank unrelated log text. */
+function headerValues(lines: string[]): string[] {
+  const values = lines.flatMap((line) => {
+    const args = line.slice(line.indexOf('{') + 1, line.lastIndexOf('}'));
+    return args.split('}{').map((v) => v.trim());
+  });
+  return [...new Set(values.filter((v) => v.length >= 2))].sort((a, b) => b.length - a.length);
+}
+
+function redactMacroLine(line: string): string {
+  const at = Math.min(...HEADER_FIELDS.map((f) => line.indexOf(f)).filter((i) => i >= 0));
+  if (!Number.isFinite(at)) return line;
+  const end = line.indexOf('{', at);
+  return end < 0 ? line : `${line.slice(0, end)} ${OMITTED}`;
 }
 
 function preambleLines(source: string): string[] {
@@ -186,27 +230,48 @@ function mentions(text: string, name: string): boolean {
 
 function braceDelta(line: string): number {
   let delta = 0;
-  for (const c of line.replaceAll(String.raw`\{`, '').replaceAll(String.raw`\}`, '').split('%')[0]) {
+  const plain = line.replaceAll(String.raw`\{`, '').replaceAll(String.raw`\}`, '').replaceAll(String.raw`\%`, '');
+  for (const c of plain.split('%')[0]) {
     if (c === '{') delta++;
     else if (c === '}') delta--;
   }
   return delta;
 }
 
-/** The definition starting at the line that defines `name`, until its braces balance. */
+/** Whether `line` defines `name` itself (`\newcommand{\name}`, `\def\name`, `\newenvironment{name}`), not just uses it. */
+function definesName(line: string, name: string): boolean {
+  const trimmed = line.trimStart();
+  const definer = DEFINERS.find((d) => trimmed.startsWith(d));
+  if (!definer) return false;
+  let rest = trimmed.slice(definer.length);
+  if (rest.startsWith('*')) rest = rest.slice(1);
+  rest = rest.trimStart();
+  if (rest.startsWith('{')) rest = rest.slice(1);
+  const target = definer.endsWith('environment') ? name : BACKSLASH + name;
+  return rest.startsWith(target) && !/[A-Za-z@]/.test(rest.charAt(target.length));
+}
+
+/** The definition starting at the line that defines `name`: until its braces balance and no `{`/`[` group follows. */
 function definitionOf(text: string | undefined, name: string): string | null {
   if (!text) return null;
   const lines = text.split('\n');
-  const start = lines.findIndex((l) => DEFINERS.some((d) => l.trimStart().startsWith(d)) && mentions(l, name));
+  const start = lines.findIndex((l) => definesName(l, name));
   if (start < 0) return null;
   const out: string[] = [];
   let depth = 0;
-  for (const line of lines.slice(start)) {
-    out.push(line);
-    depth += braceDelta(line);
-    if (depth <= 0 || out.join('\n').length > DEFINITION_CHARS) break;
+  for (let i = start; i < lines.length; i++) {
+    out.push(lines[i]);
+    depth += braceDelta(lines[i]);
+    if (out.join('\n').length > DEFINITION_CHARS) return out.join('\n').slice(0, DEFINITION_CHARS) + '\n% […]';
+    if (depth <= 0 && !continuesDefinition(lines[i + 1])) break;
   }
-  return out.join('\n').slice(0, DEFINITION_CHARS);
+  return out.join('\n');
+}
+
+/** A body or argument group starting on the next line (`\newenvironment{X}[2][]` then `{% …`). */
+function continuesDefinition(next: string | undefined): boolean {
+  const trimmed = next?.trimStart() ?? '';
+  return trimmed.startsWith('{') || trimmed.startsWith('[');
 }
 
 /** Each exercise an error points at, numbered like the editor; errors in the frame get a few lines around them. */
@@ -228,7 +293,10 @@ function excerptFor(block: string, lines: string[], map: SourceMap): { key: stri
   const loc = ctx ? mapLine(map, ctx.line, ctx.echoed) : null;
   if (!ctx || !loc) return null;
   const range = loc.label === null ? undefined : map.ranges.find((r) => ctx.line >= r.start && ctx.line <= r.end);
-  if (range) return { key: `exercise:${range.start}`, text: exerciseExcerpt(lines, range, loc.line) };
+  if (range) {
+    const window = exerciseWindow(range, loc.line);
+    return { key: `exercise:${range.start}:${window.from}`, text: exerciseExcerpt(lines, range, loc.line, window) };
+  }
   return { key: `frame:${ctx.line}`, text: frameExcerpt(lines, ctx.line) };
 }
 
@@ -240,11 +308,14 @@ function numbered(lines: string[], from: number, to: number, first: number): str
     .join('\n');
 }
 
-function exerciseExcerpt(lines: string[], range: SourceRange, errorLine: number): string {
+/** Editor lines to show: the whole exercise when it fits, else the lines around the error. */
+function exerciseWindow(range: SourceRange, errorLine: number): { from: number; to: number } {
   const size = range.end - range.start + 1;
-  // Whole exercise when it fits, else the lines around the error (editor numbering).
-  const from = size <= EXERCISE_LINES ? 1 : Math.max(1, errorLine - CONTEXT_LINES);
-  const to = size <= EXERCISE_LINES ? size : Math.min(size, errorLine + CONTEXT_LINES);
+  if (size <= EXERCISE_LINES) return { from: 1, to: size };
+  return { from: Math.max(1, errorLine - CONTEXT_LINES), to: Math.min(size, errorLine + CONTEXT_LINES) };
+}
+
+function exerciseExcerpt(lines: string[], range: SourceRange, errorLine: number, { from, to }: { from: number; to: number }): string {
   const body = numbered(lines, range.start - 1 + from - 1, range.start - 1 + to - 1, from);
   return `Exercise "${range.label}", error at line ${errorLine}:\n${fence(body, 'latex')}`;
 }

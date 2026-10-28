@@ -87,6 +87,12 @@ export function documentSetup(engine: 'local' | 'server' | null): string {
   ].join('\n');
 }
 
+/** The files attached to the exercises (callers add the label), which LaTeX finds by their flat name. */
+export function attachedFiles(names: readonly string[]): string {
+  if (names.length === 0) return 'None; the exercises have no attached files.';
+  return `${names.map(code).join(', ')}, usable by this flat name in ${cs('includegraphics')} or ${cs('input')}.`;
+}
+
 /** Package names `packages.sty` loads, without the pdfTeX-only ones and the `sty/` prefix. */
 export function preloadedPackages(packagesSty: string): string[] {
   return [...packagesSty.matchAll(/\\RequirePackage(?:\[[^\]]*\])?\{([^}]*)\}/g)]
