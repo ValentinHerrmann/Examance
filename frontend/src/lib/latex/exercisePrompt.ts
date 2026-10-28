@@ -2,7 +2,7 @@
  * A prompt for an external AI chat that writes or changes an exercise (issue #168). Clipboard only; a later BYOK
  * integration builds on it. Token-lean: no logs or definitions, comma lists, an example only for new exercises.
  */
-import { code, cs, documentSetup, fence, LANGUAGES, section, templateCommandsSection } from './llmContext';
+import { attachedFiles, code, cs, documentSetup, fence, LANGUAGES, section, templateCommandsSection } from './llmContext';
 import type { LatexPackageEntry } from './packages';
 
 export interface ExercisePromptInput {
@@ -60,7 +60,7 @@ function context(input: ExercisePromptInput): string {
   ].filter(Boolean);
   const lines = ['Examance is a web app teachers use to typeset school exams with LaTeX.', `This exercise: ${meta.join(', ')}.`];
   if (input.resourceNames && input.resourceNames.length > 0) {
-    lines.push(`Attached files (for ${cs('includegraphics')} or ${cs('input')}): ${input.resourceNames.map(code).join(', ')}.`);
+    lines.push(`Attached files: ${attachedFiles(input.resourceNames)}`);
   }
   return lines.join('\n');
 }

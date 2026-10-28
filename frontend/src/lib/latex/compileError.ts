@@ -15,6 +15,9 @@ export class LatexCompileError extends Error {
     super(message);
     this.name = 'LatexCompileError';
   }
+
+  /** Attached files of the compile, for the AI prompt: inline names, plus exercises whose files the server loaded. */
+  files: CompileFiles = { names: [], exerciseIds: [] };
 }
 
 /** "Exercise “X”, line n" or "generated document, line n". */
@@ -42,11 +45,13 @@ export function withSourceLocations(err: LatexCompileError, map: SourceMap): Lat
   return new LatexCompileError(summary, annotateLog(err.log, map, describeLocation), err.engine, map.tex, map.ranges);
 }
 
+export type CompileFiles = { names: string[]; exerciseIds: string[] };
+
 /** What the error help needs from a failed compile: log, the unmarked source with its exercise ranges, the engine. */
-export type CompileFailure = { log: string; source: string | null; ranges: SourceRange[]; engine: 'local' | 'server' };
+export type CompileFailure = { log: string; source: string | null; ranges: SourceRange[]; engine: 'local' | 'server'; files: CompileFiles };
 
 export function compileFailure(err: unknown): CompileFailure | null {
   return err instanceof LatexCompileError && err.log
-    ? { log: err.log, source: err.source ?? null, ranges: err.ranges, engine: err.engine }
+    ? { log: err.log, source: err.source ?? null, ranges: err.ranges, engine: err.engine, files: err.files }
     : null;
 }

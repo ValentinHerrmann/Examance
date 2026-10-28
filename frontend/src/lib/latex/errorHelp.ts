@@ -4,7 +4,7 @@
  * Examance, so it explains the document frame; it is English (machine-facing) and asks for a reply in the UI language.
  */
 import type { LatexAsset } from './assets';
-import { BACKSLASH, code, documentSetup, fence, LANGUAGES, preloadedPackages, section, TEMPLATE_NAMES, templateCommandsSection } from './llmContext';
+import { attachedFiles, BACKSLASH, code, documentSetup, fence, LANGUAGES, preloadedPackages, section, TEMPLATE_NAMES, templateCommandsSection } from './llmContext';
 import { mapLine, type SourceMap, type SourceRange } from './sourceMap';
 import { extractTexErrors } from './texLog';
 
@@ -84,6 +84,8 @@ export interface AiPromptInput {
   assets?: LatexAsset[] | null;
   /** UI locale; the AI is asked to answer in it. */
   locale: string;
+  /** Names of the files attached to the compiled exercises; null or absent while not resolved. */
+  resourceNames?: readonly string[] | null;
 }
 
 /** A self-contained prompt for an AI chat that has no other context. */
@@ -96,6 +98,7 @@ export function buildAiPrompt(input: AiPromptInput): string {
     section('How the document is built', `${documentSetup(input.engine)}\n${LINE_NUMBERS}`),
     templateCommandsSection(),
     packagesSection(input.source, sources.get('sty/packages.sty')),
+    input.resourceNames ? section('Attached files', attachedFiles(input.resourceNames)) : '',
     ...logSections(log, blocks),
     definitionsSection(blocks, sources),
     input.includeSource && input.source

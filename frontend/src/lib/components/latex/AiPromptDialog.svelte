@@ -8,6 +8,7 @@
   import { loadLatexAssets, type LatexAsset } from "#lib/latex/assets";
   import type { CompileFailure } from "#lib/latex/compileError";
   import { buildAiPrompt } from "#lib/latex/errorHelp";
+  import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
   import { createCopyState } from "#lib/utils/copyState.svelte";
   import { onMount } from "svelte";
   import PromptPreview from "./PromptPreview.svelte";
@@ -21,6 +22,7 @@
 
   let includeSource = $state(false);
   let assets = $state.raw<LatexAsset[] | null>(null);
+  let resourceNames = $state.raw<string[] | null>(null);
   const clipboard = createCopyState();
 
   const prompt = $derived(
@@ -32,6 +34,7 @@
       includeSource,
       assets,
       locale: $locale,
+      resourceNames,
     })
   );
 
@@ -40,6 +43,12 @@
     loadLatexAssets().then(
       (loaded) => (assets = loaded),
       () => {}
+    );
+    // Files the server loaded itself are known by exercise id only; their names come from the repository.
+    const { names, exerciseIds } = failure.files;
+    Promise.all(exerciseIds.map((id) => exerciseResourceRepository.listNames(id))).then(
+      (lists) => (resourceNames = [...new Set([...names, ...lists.flat()])].sort((a, b) => a.localeCompare(b))),
+      () => (resourceNames = [...names])
     );
   });
 </script>

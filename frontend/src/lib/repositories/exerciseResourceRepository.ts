@@ -78,6 +78,13 @@ export const exerciseResourceRepository = {
     }
   },
 
+  /** File names attached to *exerciseId*: the local rows, else the server's metadata; [] when neither is reachable. */
+  async listNames(exerciseId: string): Promise<string[]> {
+    let rows = await this.listLocal(exerciseId);
+    if (rows.length === 0) rows = await listOnServer(exerciseId).catch(() => []);
+    return rows.map((r) => r.filename);
+  },
+
   /** Raw bytes: the local copy if there is one, otherwise a download. */
   async getBytes(resource: ExerciseResourceRecord, key: CryptoKey | null): Promise<Uint8Array> {
     if (resource.dataCt || resource.data) {

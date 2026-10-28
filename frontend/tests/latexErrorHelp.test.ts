@@ -121,3 +121,16 @@ describe('buildAiPrompt privacy and context', () => {
     expect(prompt).toContain('row 180');
   });
 });
+
+describe('buildAiPrompt attached files', () => {
+  const log = '! LaTeX Error: File `plot.png\' not found.\n';
+  it('lists the attached files once resolved, says so when there are none, and omits the section while unknown', () => {
+    const listed = buildAiPrompt({ log, engine: 'server', includeSource: false, locale: 'en', resourceNames: ['graph.png', 'data.tex'] });
+    expect(listed).toContain('## Attached files');
+    expect(listed).toContain('`graph.png`, `data.tex`');
+    const none = buildAiPrompt({ log, engine: 'server', includeSource: false, locale: 'en', resourceNames: [] });
+    expect(none).toContain('None; the exercises have no attached files.');
+    const unknown = buildAiPrompt({ log, engine: 'server', includeSource: false, locale: 'en', resourceNames: null });
+    expect(unknown).not.toContain('## Attached files');
+  });
+});

@@ -228,7 +228,10 @@ export async function compileLatex(
   try {
     return await compileMapped(map.tex, useLocal, onStatus, promptFallback, opts);
   } catch (err) {
-    throw err instanceof LatexCompileError ? withSourceLocations(err, map) : err;
+    if (!(err instanceof LatexCompileError)) throw err;
+    const located = withSourceLocations(err, map);
+    located.files = { names: (opts.resources ?? []).map((r) => r.filename), exerciseIds: opts.resourceExerciseIds ?? [] };
+    throw located;
   }
 }
 

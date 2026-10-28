@@ -513,7 +513,7 @@ title (admin-only) and the reporter's account id. No student data is collected. 
 Below every compile error the app explains typical TeX errors locally and offers a prompt for an
 external AI chat, which the teacher copies to the clipboard. The app makes no network call for it (only
 the authenticated bundled-asset fetch it already uses). The prompt holds the error lines, the log tail,
-the preamble package lines and template definitions; the affected exercise's LaTeX only after an
+the preamble package lines, template definitions and the names of the attached files; the affected exercise's LaTeX only after an
 explicit opt-in tick (off by default). Header fields (teacher name, class, date, info text, exam notes)
 and student data are never included: they are left out of preamble and code excerpts, and redacted in the
 log too (their values wherever they appear, and the rest of any log line naming a header macro). Pasting it into a third-party AI is the teacher's own disclosure; the dialog says so.
