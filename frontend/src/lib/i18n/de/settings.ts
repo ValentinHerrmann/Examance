@@ -15,6 +15,13 @@ export const settings = {
         description: 'Farbschema der Oberfläche auswählen:',
         hint: '„Wie System“ folgt der Einstellung Ihres Betriebssystems und wechselt automatisch mit.',
     },
+    backend: {
+        heading: 'Serveradresse',
+        description: 'Eigene API-Serveradresse dieses Browsers (z. B. ein lokaler Backend-Server). Anmeldung und Sitzung laufen über diese Adresse.',
+        empty: 'Bitte geben Sie eine Serveradresse ein.',
+        invalid: 'Diese Serveradresse ist nicht gültig.',
+        updated: 'Serveradresse aktualisiert auf: {url}',
+    },
     storage: {
         heading: 'Globale Speicherstrategie',
         description: 'Legen Sie fest, wo Prüfungen, Aufgaben, Schüleridentitäten und Ergebnisse gespeichert werden:',

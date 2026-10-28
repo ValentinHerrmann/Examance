@@ -45,7 +45,7 @@
   import ImportConflictModal from "#lib/components/storage/ImportConflictModal.svelte";
   import ArchiveReportModal from "#lib/components/storage/ArchiveReportModal.svelte";
   import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
-  import { pendingSwitchStore, switchOwnedHere } from "#lib/services/storageModeSwitch";
+  import { pendingSwitchStore, switchOwnedHere, requestedModeSwitch } from "#lib/services/storageModeSwitch";
   import { loadWorkspace, localResultCount, openWorkspace, refreshCapabilities } from "#lib/db/workspace";
   import type { StorageMode } from "#lib/stores/storagePolicy";
   import { workspaceStatusStore } from "#lib/stores/workspaceState";
@@ -62,7 +62,7 @@
   import { Alert, Button, PageShell } from "#lib/components/ui";
   import UpdateNotice from "#lib/components/layout/UpdateNotice.svelte";
   import MaintenanceNotice from "#lib/components/layout/MaintenanceNotice.svelte";
-  import StoragePolicyModal from "#lib/components/StoragePolicyModal.svelte";
+  import StorageChoiceModal from "#lib/components/storage/StorageChoiceModal.svelte";
   import SessionTimeoutWarning from "#lib/components/SessionTimeoutWarning.svelte";
   import HttpCatModal from "#lib/components/HttpCatModal.svelte";
   import PreviewBanner from "#lib/components/layout/PreviewBanner.svelte";
@@ -78,13 +78,10 @@
   let { children }: Props = $props();
 
   let fileInput: HTMLInputElement | undefined = $state();
-  let isSettingsModalOpen = $state(false);
   let isInitializing = $state(true);
   let showFocusNav = false;
 
   // The storage-mode move dialog, opened from the banners below (interrupted move, stray results).
-  let switchWizardOpen = $state(false);
-  let switchTarget: StorageMode | null = $state(null);
   let resumeBannerDismissed = $state(false);
   // A move a reload or crash interrupted: running it again is safe (every step is an upsert).
   let interruptedSwitch = $derived($pendingSwitchStore && !$switchOwnedHere ? $pendingSwitchStore : null);
@@ -103,8 +100,7 @@
   );
 
   function openSwitch(target: StorageMode) {
-    switchTarget = target;
-    switchWizardOpen = true;
+    requestedModeSwitch.set(target);
   }
 
   async function refreshLocalResults() {
@@ -132,7 +128,7 @@
 
   function handleFooterClick() {
     if (get(isUnlocked)) {
-      isSettingsModalOpen = true;
+      void goto("/settings#backend");
     } else {
       window.location.href = "/unlock";
     }
@@ -345,7 +341,6 @@
       latexCompilation={$effectiveLatexStore}
       versionStatus={$versionStatus}
       helpUnseen={!$helpSeen}
-      onStorageClick={handleFooterClick}
       onHelpClick={() => openHelp()}
       onOpenArchive={triggerOpenBgproj}
       onExportArchive={() => exportArchiveInteractively()}
@@ -474,12 +469,7 @@
 
   <HelpModal />
 
-  <StoragePolicyModal
-    isOpen={isSettingsModalOpen || mustChooseMode}
-    teaching={!isAdmin}
-    mustChoose={mustChooseMode}
-    onClose={() => (isSettingsModalOpen = false)}
-  />
+  <StorageChoiceModal isOpen={mustChooseMode} />
 </div>
 
 {#if $switchRunningElsewhere}
@@ -498,13 +488,11 @@
   </div>
 {/if}
 
+<!-- The one move dialog: the storage card in /settings and the first-sign-in choice request it. -->
 <StorageModeSwitchWizard
-  open={switchWizardOpen}
-  target={switchTarget}
-  onClose={() => {
-    switchWizardOpen = false;
-    switchTarget = null;
-  }}
+  open={$requestedModeSwitch !== null}
+  target={$requestedModeSwitch}
+  onClose={() => requestedModeSwitch.set(null)}
 />
 
 <ImportConflictModal />

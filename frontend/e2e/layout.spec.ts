@@ -6,7 +6,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './helpers/guards';
 import { label } from './helpers/i18n';
-import { chooseTheme, header, openHelp, openStoragePolicy, openWorkspaceMenu } from './helpers/nav';
+import { chooseTheme, header, openHelp, openWorkspaceMenu } from './helpers/nav';
 import { exerciseEditor, signInFirstTime } from './helpers/flows';
 import { THEMES, mainRoutes, pinTheme, seedWorkspace, visit } from './helpers/seed';
 
@@ -253,12 +253,6 @@ test('[layout] main dialogs are as wide as their size token and have no nested s
   await expectDialogFits(page, help, 'large', 'help');
   await page.keyboard.press('Escape');
   await expect(help).toBeHidden();
-
-  // Storage policy (medium).
-  const storage = await openStoragePolicy(page);
-  await expectDialogFits(page, storage, 'medium', 'storage policy');
-  await page.keyboard.press('Escape');
-  await expect(storage).toBeHidden();
 
   // Exercise editor (full).
   await visit(page, '/exercises');

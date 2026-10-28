@@ -37,7 +37,8 @@
   import SecuritySection from "#lib/components/security/SecuritySection.svelte";
   import SettingsGroupHeading from "#lib/components/settings/SettingsGroupHeading.svelte";
   import DeleteAccountCard from "#lib/components/settings/DeleteAccountCard.svelte";
-  import StorageModeSwitchWizard from "#lib/components/storage/StorageModeSwitchWizard.svelte";
+  import BackendUrlCard from "#lib/components/settings/BackendUrlCard.svelte";
+  import { requestedModeSwitch } from "#lib/services/storageModeSwitch";
   import { currentManifest, refreshCapabilities } from "#lib/db/workspace";
   import { allowedStorageModes, effectiveLatexStore, featuresStore } from "#lib/stores/capabilities";
 
@@ -63,7 +64,6 @@
   let studentExams: { id: string; title: string }[] = $state.raw([]);
   let isErasing = $state(false);
   let statusMsg = $state("");
-  let isSwitchWizardOpen = $state(false);
   // Who this browser's workspace is bound to (lib/db/workspace.ts); shown under the storage settings.
   let workspaceOwnerLabel = $state("");
 
@@ -76,7 +76,6 @@
           server: extractHostname(owner.backendOrigin ?? ""),
         });
   }
-  let switchTarget: StorageMode | null = $state(null);
   let donationAvailable = $state(false);
   // Admins hold no exams or results (issue #58): only language, theme, security and account deletion apply.
   let isAdmin = $derived($sessionStore.role === "admin");
@@ -114,16 +113,10 @@
     statusMsg = translate("settings.status.latexSet", { mode: val });
   }
 
-  /** Same move dialog as the quick-config modal. */
+  /** The root layout's move dialog carries the results over before the mode changes. */
   function handleStorageModeChange(val: StorageMode) {
     if (val === $storagePolicyStore.storageMode || !$allowedStorageModes.includes(val)) return;
-    switchTarget = val;
-    isSwitchWizardOpen = true;
-  }
-
-  function handleSwitchWizardClosed() {
-    isSwitchWizardOpen = false;
-    switchTarget = null;
+    requestedModeSwitch.set(val);
   }
 
   function handleLocaleChange(val: Locale) {
@@ -167,6 +160,7 @@
     { id: "group-general", label: $t("settings.groups.general"), group: true },
     { id: "language", label: $t("settings.language.heading") },
     { id: "theme", label: $t("settings.theme.heading") },
+    { id: "backend", label: $t("settings.backend.heading") },
     { id: "group-account", label: $t("settings.groups.account"), group: true },
     ...($isAuthenticated ? [{ id: "security", label: $t("security.page.title") }] : []),
     ...(isAdmin ? [] : [
@@ -260,6 +254,8 @@
           serverLatexEnabled={$featuresStore.server_latex === true}
         />
 
+        <BackendUrlCard />
+
         <SettingsGroupHeading id="group-account" title={$t("settings.groups.account")} />
 
         {#if $isAuthenticated}
@@ -295,9 +291,3 @@
     </div>
   </PageShell>
 {/if}
-
-<StorageModeSwitchWizard
-  open={isSwitchWizardOpen}
-  target={switchTarget}
-  onClose={handleSwitchWizardClosed}
-/>

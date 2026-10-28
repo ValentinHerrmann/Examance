@@ -320,17 +320,16 @@ export async function openHelpWithKeyboard(page: Page): Promise<Locator> {
   return dialog;
 }
 
-/**
- * Open the storage & privacy dialog from the navbar's storage-mode button (from `sm`), or from
- * the footer's server button on phones, which opens the same dialog.
- */
-export async function openStoragePolicy(page: Page): Promise<Locator> {
+/** Open the storage card in /settings from the navbar's storage-mode link (from `sm`; directly on phones). */
+export async function openStorageSettings(page: Page): Promise<Locator> {
   const locale = await currentLocale(page);
-  const pill = header(page).getByRole('button', { name: label('nav.storageMode', undefined, locale) });
-  await ((await pill.isVisible()) ? pill : statusBar(page).getByRole('button')).click();
-  const dialog = page.getByRole('dialog', { name: label('misc.storageModal.heading', undefined, locale) });
-  await expect(dialog).toBeVisible();
-  return dialog;
+  const pill = header(page).getByRole('link', { name: label('nav.storageMode', undefined, locale) });
+  if (await pill.isVisible()) await pill.click();
+  else await page.goto('/settings#storage-policy');
+  await page.waitForURL((url) => url.pathname === '/settings');
+  const card = page.locator('#storage-policy');
+  await expect(card).toBeVisible();
+  return card;
 }
 
 /* -------------------------------------------------------------------------- */

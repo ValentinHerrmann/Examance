@@ -35,7 +35,7 @@ import {
   lockApp,
   openHelp,
   openHelpWithKeyboard,
-  openStoragePolicy,
+  openStorageSettings,
   switchLocale,
 } from './helpers/nav';
 
@@ -91,13 +91,12 @@ test.describe('auth, first storage choice', () => {
       await expect(choice.getByRole('button', { name: labelExact('common.close') })).toHaveCount(0);
 
       // Picking a mode opens the move dialog; with nothing to move it just records the choice.
-      const title = mode === 'all-server' ? 'misc.storageModal.allServerTitle' : 'misc.storageModal.hybridTitle';
+      const title = mode === 'all-server' ? 'settings.storage.allServerTitle' : 'settings.storage.hybridTitle';
       await choice.getByRole('radio', { name: await t(page, title) }).click();
       const wizard = page.getByRole('dialog', { name: await t(page, 'storagePolicy.switch.title', { to: '' }) });
       await expect(wizard).toBeVisible();
-      await wizard
-        .getByRole('button', { name: await t(page, 'storagePolicy.switch.chooseButton', { to: '' }) })
-        .click();
+      // The primary action names the chosen mode ("Use …"); it is the dialog's last button.
+      await wizard.getByRole('button').last().click();
       await expect.poll(() => backend.state.storageMode).toBe(mode);
 
       await wizard.getByRole('button', { name: await t(page, 'storagePolicy.switch.finish') }).click();
@@ -472,21 +471,11 @@ test.describe('help', () => {
     await expect(await helpDialog(page)).toBeHidden();
   });
 
-  test('[help] the storage and privacy dialog opens and closes', async ({ page }) => {
+  test('[help] the navbar storage link opens the storage settings', async ({ page }) => {
     await signInFirstTime(page);
-    const dialog = await openStoragePolicy(page);
-
-    // The mocked account stores everything on the server; LaTeX compiles locally by default.
-    await expect(dialog.getByRole('radio', { name: await t(page, 'misc.storageModal.allServerTitle') })).toBeChecked();
-    await expect(dialog.getByRole('radio', { name: await t(page, 'misc.storageModal.latexLocalTitle') })).toBeChecked();
-
-    // The dialog has a close icon and a footer button; either closes it.
-    await dialog.getByRole('button', { name: labelExact('common.close') }).first().click();
-    await expect(dialog).toBeHidden();
-
-    await openStoragePolicy(page);
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog', { name: await t(page, 'misc.storageModal.heading') })).toBeHidden();
+    const card = await openStorageSettings(page);
+    // The mocked account stores everything on the server.
+    await expect(card.getByRole('radio', { name: await t(page, 'settings.storage.allServerTitle') })).toBeChecked();
   });
 });
 

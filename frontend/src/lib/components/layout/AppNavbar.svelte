@@ -44,7 +44,6 @@
     latexCompilation?: "local" | "server";
     versionStatus?: VersionStatus;
     helpUnseen?: boolean;
-    onStorageClick?: () => void;
     onHelpClick?: () => void;
     onOpenArchive?: () => void;
     onExportArchive?: () => void;
@@ -63,7 +62,6 @@
     latexCompilation = "local",
     versionStatus = "no-server",
     helpUnseen = false,
-    onStorageClick = () => {},
     onHelpClick = () => {},
     onOpenArchive = () => {},
     onExportArchive = () => {},
@@ -197,30 +195,28 @@
       {#if !isAdmin}
       <!-- Data + LaTeX from sm (mark + state icon); on phones they do not fit and live in the drawer, the version in the footer. -->
       <div class="hidden items-center sm:flex sm:gap-1">
-        <button
-          type="button"
+        <a
           class="{control} gap-1 px-1.5 sm:gap-2 sm:px-2.5"
           title="{$t('nav.dataLabel')}: {dataLabel} – {dataTitle}"
           aria-label={$t("nav.storageMode", { mode: dataLabel })}
-          onclick={onStorageClick}
+          href="/settings#storage-policy"
         >
           <Icon icon={faDatabase} class="text-xs opacity-70" />
           {#if storageMode}
             <Icon icon={dataPlaceIcons[storageMode]} />
           {/if}
           <span class="hidden truncate xl:inline">{$t("nav.dataLabel")}: {dataLabel}</span>
-        </button>
-        <button
-          type="button"
+        </a>
+        <a
           class="{control} gap-1 px-1.5 sm:gap-2 sm:px-2.5"
           title="{$t('nav.latexLabel')}: {latexLabel} – {latexTitle}"
           aria-label={$t("nav.latexMode", { mode: latexLabel })}
-          onclick={onStorageClick}
+          href="/settings#latex"
         >
           <span class="font-serif text-xs font-bold tracking-tight opacity-70" aria-hidden="true">TeX</span>
           <Icon icon={latexPlaceIcons[latexCompilation]} />
           <span class="hidden truncate xl:inline">{$t("nav.latexLabel")}: {latexLabel}</span>
-        </button>
+        </a>
       </div>
 
       {#if $smUp}

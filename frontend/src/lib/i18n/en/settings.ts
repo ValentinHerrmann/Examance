@@ -17,6 +17,13 @@ export const settings: Translations['settings'] = {
         description: 'Select the color scheme of the user interface:',
         hint: '“Match system” follows your operating system setting and switches along with it.',
     },
+    backend: {
+        heading: 'Server address',
+        description: 'This browser\'s API server address (e.g. a local backend server). Sign-in and the session use this address.',
+        empty: 'Please enter a backend server address.',
+        invalid: 'That backend server address is not valid.',
+        updated: 'Backend server address updated to: {url}',
+    },
     storage: {
         heading: 'Global Data Storage Strategy',
         description: 'Select where your exams, exercises, student identities, and results are stored:',

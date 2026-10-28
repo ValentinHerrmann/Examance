@@ -35,6 +35,9 @@ function readPending(): PendingModeSwitch | null {
   }
 }
 
+/** The mode the move dialog should switch to; the root layout hosts the one dialog (M3). */
+export const requestedModeSwitch = writable<StorageMode | null>(null);
+
 export const pendingSwitchStore = writable<PendingModeSwitch | null>(readPending());
 pendingSwitchStore.subscribe((value) => {
   if (value) safeLocalStorage.setItem(PENDING_KEY, JSON.stringify(value));
