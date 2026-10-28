@@ -368,3 +368,20 @@ export interface WorkspaceManifestRecord {
   explicit?: boolean;
   createdAt: string;
 }
+
+/** A server write waiting for the connection (`services/offlineQueue.ts`); kept out of `vaultTables()`. */
+export interface QueuedRequest {
+  id: string;
+  url: string;
+  /** PUT serves the per-exercise score endpoint, keyed by (submission, exercise): idempotent, hence safe to replay from the queue. */
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  body?: any;
+  /** Strictly increasing per tab: the replay order. */
+  timestamp: number;
+  /**
+   * The workspace (`lib/db/workspace.ts`) whose data this write belongs to. Replayed only into that
+   * workspace: after a mode switch or under another account the write is meaningless or harmful.
+   * Missing on entries from before the manifest; `stampUnboundQueueEntries` adopts those once.
+   */
+  workspaceId?: string;
+}

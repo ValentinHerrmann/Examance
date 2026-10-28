@@ -172,11 +172,19 @@
 
     const key = get(sessionStore).sessionKey;
     if ((!sub.scanCt || !sub.scanIv || !sub.annotationCt) && key) {
-      const fullSub = await submissionRepository.getById(examId, sub.id, key);
-      if (seq !== loadSeq) return;
-      if (fullSub && fullSub.scanCt && fullSub.scanIv) {
-        sub = fullSub;
-        onSubmissionHydrated(fullSub);
+      try {
+        const fullSub = await submissionRepository.getById(examId, sub.id, key);
+        if (seq !== loadSeq) return;
+        if (fullSub && fullSub.scanCt && fullSub.scanIv) {
+          sub = fullSub;
+          onSubmissionHydrated(fullSub);
+        }
+      } catch (err) {
+        // strokesSubmissionId stays null, so a save leaves this submission's annotations untouched.
+        console.error("Failed to load scan for grading:", err);
+        if (seq !== loadSeq) return;
+        await showMessage(translate("grading.canvas.scanLoadFailed"), cssVar("--color-danger-fg", "#a61b29"), 80);
+        return;
       }
     }
 

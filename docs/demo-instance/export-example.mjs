@@ -85,7 +85,7 @@ const payload = {
   // Only exams with their own logo carry one; the rest follow the importing account's logo.
   examLogos: (all.examLogos ?? []).filter((l) => keepExamIds.has(l.examId) && l.mode !== 'account'),
 };
-fs.writeFileSync(path.join(OUT, 'example.json'), JSON.stringify(payload, null, 1) + '\n');
+fs.writeFileSync(path.join(OUT, 'example.json'), JSON.stringify(payload) + '\n');
 console.log(
   `example data: ${payload.exams.length} exams, ${payload.exercises.length} exercises, ${students.length} students, ` +
     `${submissions.length} submissions (${n} scanned), ${exerciseScores.length} scores -> ${path.relative(ROOT, OUT)}`

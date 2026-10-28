@@ -1,6 +1,6 @@
-import { writable, derived, get } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import { safeLocalStorage } from '#lib/utils/storage';
-import { t, translate } from '#lib/i18n';
+import { translate } from '#lib/i18n';
 
 /**
  * Where an account keeps its grading results (docs/dev/storage_modes.md). Exams and exercises always
@@ -56,19 +56,6 @@ export const DEFAULT_POLICY: StoragePolicy = {
     latexCompilation: 'server',
 };
 
-function modeLabel(mode: StorageMode | null): string {
-    if (mode === 'all-server') return translate('storagePolicy.allServer');
-    if (mode === 'hybrid') return translate('storagePolicy.hybrid');
-    return translate('storagePolicy.notChosen');
-}
-
-export function getStoragePolicyLabel(policy: StoragePolicy): string {
-    const latexLabel = policy.latexCompilation === 'server'
-        ? translate('storagePolicy.latexServer')
-        : translate('storagePolicy.latexLocal');
-    return `${modeLabel(policy.storageMode)} | ${latexLabel}`;
-}
-
 export function getStoragePolicyBadge(policy: StoragePolicy): { text: string; title: string } {
     if (policy.storageMode === 'all-server') {
         return {
@@ -98,7 +85,6 @@ function parseLatex(value: unknown): 'server' | 'local' | null {
  */
 export function legacyCachedMode(): StorageMode | 'all-local' {
     const saved = safeLocalStorage.getItem(LEGACY_MODE_KEY);
-    safeLocalStorage.removeItem(LEGACY_MODE_KEY);
     if (!saved) return 'all-local';
     try {
         const parsed = JSON.parse(saved);
@@ -110,6 +96,11 @@ export function legacyCachedMode(): StorageMode | 'all-local' {
         // Unreadable: treat like the old default.
     }
     return 'all-local';
+}
+
+/** Drops the pre-manifest cache; only once the manifest that carries it has been committed (F17). */
+export function forgetLegacyCachedMode(): void {
+    safeLocalStorage.removeItem(LEGACY_MODE_KEY);
 }
 
 function getInitialPolicy(): StoragePolicy {
@@ -170,15 +161,3 @@ export const storagePolicyStore = createStoragePolicyStore();
 export function resultsAreLocal(): boolean {
     return get(storagePolicyStore).storageMode === 'hybrid';
 }
-
-// `t` is a dependency so switching language re-renders these labels; the
-// translated text itself is read imperatively inside the getters.
-export const storagePolicyLabelStore = derived(
-    [storagePolicyStore, t],
-    ([$policy]) => getStoragePolicyLabel($policy)
-);
-
-export const storagePolicyBadgeStore = derived(
-    [storagePolicyStore, t],
-    ([$policy]) => getStoragePolicyBadge($policy)
-);

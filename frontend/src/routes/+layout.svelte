@@ -14,7 +14,7 @@
   } from "#lib/stores/session";
   import { vaultIntegrityStore } from "#lib/stores/vaultIntegrity";
   import { rejectedWritesStore } from "#lib/services/offlineQueue";
-  import { refreshSession } from "#lib/api/client";
+  import { ApiError, refreshSession } from "#lib/api/client";
   import {
     storagePolicyStore,
   } from "#lib/stores/storagePolicy";
@@ -121,7 +121,9 @@
   // session's role is known, so an admin never renders one or calls its (refusing) endpoints.
   let isAdmin = $derived($isUnlocked && $sessionStore.role === "admin");
   let roleKnown = $derived(!isInitializing || $workspaceStatusStore.state !== "unchecked");
-  let holdRoute = $derived(!isAdminPath(page.url.pathname) && (!roleKnown || isAdmin));
+  // Also while an unlocked tab has not yet proven it owns this browser's workspace (openWorkspace pending).
+  let ownerPending = $derived($isUnlocked && $workspaceStatusStore.state === "unchecked" && !isPublicPath(page.url.pathname));
+  let holdRoute = $derived(ownerPending || (!isAdminPath(page.url.pathname) && (!roleKnown || isAdmin)));
 
   let showFullNav = $derived($isUnlocked && page.url.pathname !== "/unlock");
   let showExamSidebar = $derived(
@@ -202,10 +204,13 @@
       if (mode === "hybrid" || mode === "authenticated") {
         try {
           await refreshSession();
-        } catch {
-          await lockSession();
-          isInitializing = false;
-          return;
+        } catch (err) {
+          // Only a refused session locks; offline (ERR_NETWORK) keeps working on the local keys.
+          if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+            await lockSession();
+            isInitializing = false;
+            return;
+          }
         }
       }
     } else if (!get(isUnlocked) && !isPublicPath(page.url.pathname)) {
@@ -217,11 +222,6 @@
     // the session came back unlocked — routes check `isUnlocked` themselves.
     markSessionReady();
   });
-
-  async function handleLock() {
-    await lockSession();
-    window.location.href = "/unlock";
-  }
 
   function triggerOpenBgproj() {
     fileInput?.click();
@@ -354,7 +354,7 @@
           includeExerciseCode: false,
         })}
       onClearWorkspace={handleCloseWorkspace}
-      onLock={handleLock}
+      onLock={lockSession}
     />
   {/if}
 
@@ -424,7 +424,7 @@
         kinds: $vaultIntegrityStore.kinds.join(", "),
       })}
       {#snippet actions()}
-        <Button variant="outlined" severity="danger" size="sm" onClick={handleLock}>
+        <Button variant="outlined" severity="danger" size="sm" onClick={lockSession}>
           {$t("misc.vaultIntegrity.action")}
         </Button>
         <Button variant="text" severity="secondary" size="sm" onClick={() => vaultIntegrityStore.reset()}>

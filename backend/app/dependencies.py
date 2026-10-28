@@ -67,7 +67,7 @@ async def _decode_session(
 
 async def get_current_teacher(
     access_token: str | None = Cookie(default=None),
-    x_expected_account: str | None = Header(default=None),
+    x_expected_account: str | None = Header(default=None, include_in_schema=False),
     db: AsyncSession = Depends(get_db),
 ) -> Teacher:
     """The signed-in Teacher of a full session, else 401/403."""
@@ -105,7 +105,7 @@ class PendingSession:
 
 async def get_pending_teacher(
     access_token: str | None = Cookie(default=None),
-    x_expected_account: str | None = Header(default=None),
+    x_expected_account: str | None = Header(default=None, include_in_schema=False),
     db: AsyncSession = Depends(get_db),
 ) -> PendingSession:
     """Accept a half-finished sign-in (factor, enrollment and key-recovery endpoints only).

@@ -4,6 +4,7 @@ The only code that reads or writes those two columns; moves between them: `blob_
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterable
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,6 +44,13 @@ async def store_scan(
         sub.scan_path, sub.scan_ciphertext = None, data
     if old_path is not None:
         blob_store.delete_after_commit(db, old_path)
+
+
+def forget_scans(db: AsyncSession, subs: Iterable[ScanSubmission]) -> None:
+    """For deleting single rows (directly or by a DB cascade): drop their files after the commit."""
+    for sub in subs:
+        if sub.scan_path is not None:
+            blob_store.delete_after_commit(db, sub.scan_path)
 
 
 def forget_scans_of_exams(db: AsyncSession, exam_ids: list[uuid.UUID]) -> None:

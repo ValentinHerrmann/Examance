@@ -10,6 +10,7 @@
   import { submissionRepository } from '#lib/repositories/submissionRepository';
   import { studentRepository } from '#lib/repositories/studentRepository';
   import { sessionStore, awaitSessionReady } from '#lib/stores/session';
+  import { translate } from '#lib/i18n';
   import type { ExamStats } from '#lib/analytics/stats';
   import { buildGradeRows, computeExamResults } from '#lib/analytics/examResults';
   import { exportGradesToCsv } from '#lib/analytics/csvExport';
@@ -24,6 +25,8 @@
   let showConfirmModal = $state(false);
   let totalMaxPoints: number | null = $state(null);
   let stats: ExamStats | null = $state.raw(null);
+  // Set when a read failed: the page shows it instead of the "nothing graded yet" text.
+  let loadError = $state('');
 
   // Once per exam id: the reactive block and onMount can both fire on one visit.
   let loadedExamId = '';
@@ -41,14 +44,22 @@
     const key = get(sessionStore).sessionKey;
     if (!key) return;
 
-    exam = (await loadExamEncrypted(id, key)) || null;
-    exercises = await loadExamExercisesEncrypted(id, key);
-    submissions = await submissionRepository.getByExamId(id, key);
-    students = await studentRepository.getByExamId(id, key);
+    loadError = '';
+    try {
+      exam = (await loadExamEncrypted(id, key)) || null;
+      exercises = await loadExamExercisesEncrypted(id, key);
+      submissions = await submissionRepository.getByExamId(id, key);
+      students = await studentRepository.getByExamId(id, key);
 
-    const computed = computeExamResults(exam, exercises, submissions, await scoreRepository.getByExamId(id, key));
-    totalMaxPoints = computed.totalMaxPoints;
-    stats = computed.stats;
+      const computed = computeExamResults(exam, exercises, submissions, await scoreRepository.getByExamId(id, key));
+      totalMaxPoints = computed.totalMaxPoints;
+      stats = computed.stats;
+    } catch (err) {
+      console.error('Failed to load exam statistics:', err);
+      stats = null;
+      submissions = [];
+      loadError = translate('stats.page.loadFailed', { message: err instanceof Error ? err.message : String(err) });
+    }
   }
 
   async function confirmAndExport() {
@@ -67,6 +78,7 @@
 <StatsPage
   {exam}
   {stats}
+  {loadError}
   {totalMaxPoints}
   submissionCount={submissions.length}
   submissionIds={submissions.map((s) => s.id)}

@@ -1,0 +1,9 @@
+{
+  "maxEntries": 50,
+  "maxOptionsLength": 300,
+  "namePattern": "[A-Za-z0-9][A-Za-z0-9._-]{0,63}",
+  "forbidden": { "inputenc": "xetex", "fontenc": "xetex", "paralist": "enumitem" },
+  "locked": { "geometry": "layout", "hyperref": "omr", "eso-pic": "omr" },
+  "aliases": { "enumerate": ["enumitem", "shortlabels"] },
+  "afterHyperref": ["cleveref", "bookmark", "hypcap", "glossaries", "glossaries-extra"]
+}

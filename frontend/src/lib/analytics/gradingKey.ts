@@ -114,19 +114,6 @@ export function calculateGradeFromPercentage(
   return cutoff ? { grade: cutoff.grade, label: cutoff.label } : null;
 }
 
-export function calculateGrade(
-  score: number,
-  maxPoints: number,
-  keyConfig?: GradingKeyConfig,
-): { grade: string; label: string } | null {
-  if (!keyConfig?.cutoffs || keyConfig.cutoffs.length === 0 || maxPoints <= 0) {
-    return null;
-  }
-
-  const percentage = (score / maxPoints) * 100;
-  return calculateGradeFromPercentage(percentage, keyConfig);
-}
-
 export interface GradeDetail {
   grade: string;
   label: string;

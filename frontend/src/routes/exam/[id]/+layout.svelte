@@ -40,6 +40,8 @@
       submissionCount = subs.length;
     } catch (e) {
       console.error(e);
+      // The count is only a sidebar badge: hide it (never a stale or zero count); each page reports its own failed reads.
+      submissionCount = 0;
     }
   }
 

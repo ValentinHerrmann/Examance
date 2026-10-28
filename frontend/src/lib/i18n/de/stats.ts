@@ -5,6 +5,7 @@ export const stats = {
         partialIndicator: '({partial} teilweise korrigiert, {full} vollständig)',
         pendingIndicator: '({pending} noch nicht begonnen)',
         emptyStats: 'Noch keine Aufgaben korrigiert. Die Statistiken erscheinen hier, sobald du mit der Korrektur beginnst.',
+        loadFailed: 'Die Ergebnisse dieser Prüfung konnten nicht geladen werden: {message}',
         exportButton: 'Noten als CSV exportieren (Excel-kompatibel)',
     },
     cards: {
@@ -107,6 +108,7 @@ export const stats = {
     analyticsPage: {
         heading: 'Globale prüfungsübergreifende Analyse',
         subtitle: 'Leistungsverfolgung über mehrere Prüfungen, Aufgabenqualitätskennzahlen & Variantenvergleich',
+        loadFailed: 'Die Analyse konnte nicht geladen werden: {message}',
     },
     analyticsBanner: {
         loading: 'Analysedaten für alle Prüfungen werden geladen…',

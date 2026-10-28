@@ -1,8 +1,9 @@
 # LaTeX packages (issue #108)
 
 Teachers add LaTeX packages and TikZ/pgfplots libraries to the exam template without touching the
-template. The rules live twice, in `frontend/src/lib/latex/packages.ts` and
-`backend/app/services/latex_packages.py`; keep the two in sync (same constants, same output).
+template. The rule tables (limits, name pattern, forbidden, locked, aliases, after-hyperref) live once in
+`backend/app/services/latex_package_rules.json`, read by both `frontend/src/lib/latex/packages.ts` (Vite JSON import)
+and `backend/app/services/latex_packages.py`; the merge logic exists on both sides and must give the same output.
 
 ## Levels
 

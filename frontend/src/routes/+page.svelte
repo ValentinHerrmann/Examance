@@ -47,6 +47,8 @@
   let duplicateError = $state('');
   /** Set when the server refused the exam list, so the view can say so. */
   let examsLoadFailed = $state(false);
+  // The submission read failed: the per-exam figures are unknown, which is not "no submissions".
+  let statsLoadFailed = $state(false);
   let examStatsMap = $state.raw(new Map<string, { avgScore: number | null; count: number }>());
   let isImporting = $state(false);
   let importStatus = $state('');
@@ -159,8 +161,11 @@
       // /exams a second time on every dashboard render.
       const allSubmissions = await submissionRepository.getAll(key, exams);
       examStatsMap = computeExamStats(allSubmissions);
+      statsLoadFailed = false;
     } catch (e) {
       console.warn('Could not load submission stats for dashboard:', e);
+      examStatsMap = new Map();
+      statsLoadFailed = true;
     }
 
     for (const exam of exams) {
@@ -354,6 +359,10 @@
 
     {#if examsLoadFailed}
       <Alert severity="danger" class="mb-6">{$t("dashboard.loadFailed")}</Alert>
+    {/if}
+
+    {#if statsLoadFailed}
+      <Alert severity="danger" class="mb-6">{$t("dashboard.statsLoadFailed")}</Alert>
     {/if}
 
     {#if exams.length === 0}

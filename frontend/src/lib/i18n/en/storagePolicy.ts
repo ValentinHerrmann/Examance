@@ -98,6 +98,12 @@ export const storagePolicy: Translations['storagePolicy'] = {
                 reset: 'If you have no access to that account, you can reset the data in this browser. Without an archive (.examance) it is lost then.',
                 resetButton: 'Delete data in this browser and start over',
             },
+            error: {
+                title: "This browser's data could not be opened",
+                body: 'Reading the local database or asking the server failed. Nothing was changed; try again in a moment.',
+                retry: 'Try again',
+                signOut: 'Sign out',
+            },
             pendingWrites: {
                 title: 'Unsent changes of {owner}',
                 body: 'Changes made by account {owner} in this browser are still waiting for the server. Sign in with that account so they are sent.',

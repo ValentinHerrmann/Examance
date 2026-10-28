@@ -15,6 +15,7 @@ import type {
   ExerciseResourceRecord,
   ExerciseScoreRecord,
   OmrTemplateRecord,
+  QueuedRequest,
   StudentRecord,
   SubmissionRecord,
   WorkspaceManifestRecord,
@@ -32,6 +33,7 @@ export class BlindGradeDB extends Dexie {
   auditLog!: Table<AuditEntry>;
   omrTemplates!: Table<OmrTemplateRecord>;
   workspace!: Table<WorkspaceManifestRecord>;
+  offlineQueue!: Table<QueuedRequest>;
 
   constructor() {
     super('BlindGrade');
@@ -158,6 +160,11 @@ export class BlindGradeDB extends Dexie {
     this.version(10).stores({
       workspace: 'id',
     });
+
+    // v11: the offline write queue, formerly in localStorage, whose quota scan uploads exceeded (F4).
+    this.version(11).stores({
+      offlineQueue: 'id, timestamp, workspaceId',
+    });
   }
 }
 
@@ -216,12 +223,12 @@ export function vaultTables(): Table[] {
  * @throws when IndexedDB refuses: a silently half-cleared database is how server rows used to leak into
  * an all-local workspace, so callers must see the failure.
  */
-export async function clearAllTables(): Promise<void> {
+export async function clearAllTables(keep: Table[] = []): Promise<void> {
   if (typeof indexedDB === 'undefined') return;
   if (!db.isOpen()) {
     await db.open();
   }
-  const tables = vaultTables();
+  const tables = vaultTables().filter((t) => !keep.includes(t));
   await db.transaction('rw', tables, async () => {
     await Promise.all(tables.map((t) => t.clear()));
   });

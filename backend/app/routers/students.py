@@ -10,10 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_exam_for_teacher, get_teaching_teacher
 from app.models.exam import Exam
+from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.schemas.binary import ARGON2_SALT_BYTES, GCM_IV_BYTES, decode_b64
 from app.schemas.student import StudentIdentityCreate, StudentIdentityResponse
 from app.services import audit as audit_svc
+from app.services import scan_storage
 from app.services.capabilities import require_server_results_writable
 
 router = APIRouter(
@@ -111,7 +113,18 @@ async def erase_student_identity(
             status_code=status.HTTP_404_NOT_FOUND, detail="Student identity not found."
         )
 
-    # Hard delete student identity (cascade deletes submissions due to FK constraint)
+    # The FK cascade removes the submissions' rows but never their scan files.
+    submissions = (
+        await db.execute(
+            select(ScanSubmission).where(
+                ScanSubmission.pseudonym_hmac == pseudonym_hmac,
+                ScanSubmission.exam_id == exam.id,
+            )
+        )
+    ).scalars().all()
+    scan_storage.forget_scans(db, submissions)
+    for submission in submissions:
+        await db.delete(submission)
     await db.delete(identity)
 
     # Record AuditLog entry with snapshot of teacher email

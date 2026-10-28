@@ -62,6 +62,7 @@ export const exam: Translations['exam'] = {
             confirmDeleteAll: 'Are you sure you want to delete all {count} submission(s) for this exam? This cannot be undone.',
             allDeleted: 'All submissions deleted.',
             deleteFailed: 'Failed to delete submissions: {message}',
+            loadFailed: 'The submissions of this exam could not be loaded: {message}. The figures above are missing; reload the page.',
         },
         compileSection: {
             heading: 'LaTeX Exam Compilation & Download',

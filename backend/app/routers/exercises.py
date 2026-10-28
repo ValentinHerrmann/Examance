@@ -123,15 +123,14 @@ async def _owner_emails(rows: list[Exercise], db: AsyncSession) -> dict[uuid.UUI
 
 
 async def _require_own_group(
-    group_id: uuid.UUID, teacher_id: uuid.UUID, db: AsyncSession
+    group_id: uuid.UUID, teacher_id: uuid.UUID, db: AsyncSession, *, lock: bool = False
 ) -> ExerciseGroup:
-    """Return the group only if *teacher_id* owns it, else 404."""
-    res = await db.execute(
-        select(ExerciseGroup).where(
-            ExerciseGroup.id == group_id,
-            ExerciseGroup.teacher_id == teacher_id,
-        )
+    """Return the group only if *teacher_id* owns it, else 404. *lock* serializes group writers."""
+    query = select(ExerciseGroup).where(
+        ExerciseGroup.id == group_id,
+        ExerciseGroup.teacher_id == teacher_id,
     )
+    res = await db.execute(query.with_for_update() if lock else query)
     group = res.scalar_one_or_none()
     if group is None:
         raise HTTPException(
@@ -154,6 +153,23 @@ async def _group_of(ex: Exercise, teacher: Teacher, db: AsyncSession) -> Exercis
     db.add(group)
     await db.flush()
     ex.exercise_group_id = group.id
+    return group
+
+
+async def _lock_current(ex: Exercise, teacher: Teacher, db: AsyncSession) -> ExerciseGroup:
+    """The group of *ex* under its row lock, with *ex* re-read inside it: of two concurrent
+    writers only the first still finds *ex* current, so a variant never gets two current rows."""
+    if ex.exercise_group_id is not None:
+        group = await _require_own_group(ex.exercise_group_id, teacher.id, db, lock=True)
+        await db.refresh(ex)
+    else:
+        group = await _group_of(ex, teacher, db)
+    if not ex.is_current:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only the current version of an exercise can be extended.",
+            headers={"code": "ERR_EXERCISE_NOT_CURRENT"},
+        )
     return group
 
 
@@ -510,7 +526,7 @@ async def create_new_version(
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseResponse:
     """Create a new corrected version of an existing exercise (archives previous version)."""
-    group = await _group_of(old_ex, teacher, db)
+    group = await _lock_current(old_ex, teacher, db)
     new_latex = body.latex_body if body.latex_body is not None else old_ex.latex_body
     computed_score = parse_exercise_score(new_latex) if new_latex else old_ex.max_points
     # Absent fields keep the old version's value; an explicit null clears the answer key.
@@ -553,7 +569,7 @@ async def create_new_variant(
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseResponse:
     """Create a new parallel variant (e.g. Möbel/Fahrzeug/Wildtier) under the same group."""
-    group = await _group_of(base_ex, teacher, db)
+    group = await _lock_current(base_ex, teacher, db)
     computed_score = parse_exercise_score(body.latex_body) if body.latex_body else body.max_points
     # New work: it joins the group's share state but has no copy provenance.
     variant_ex = sharing.new_variant_row(
@@ -616,6 +632,30 @@ async def get_exercise_usage(
     return ExerciseUsageResponse(exam_count=len(usage_items), exams=usage_items)
 
 
+async def _previous_version(
+    ex: Exercise, teacher: Teacher, db: AsyncSession
+) -> Exercise | None:
+    """The newest older version of *ex*'s variant, unless the variant already has another
+    current row (then nothing needs promoting)."""
+    rows = (
+        await db.execute(
+            select(Exercise)
+            .where(
+                Exercise.teacher_id == teacher.id,
+                Exercise.exercise_group_id == ex.exercise_group_id,
+                Exercise.variant_key.is_(None)
+                if ex.variant_key is None
+                else Exercise.variant_key == ex.variant_key,
+                Exercise.id != ex.id,
+            )
+            .order_by(Exercise.version.desc())
+        )
+    ).scalars().all()
+    if any(r.is_current for r in rows):
+        return None
+    return rows[0] if rows else None
+
+
 @router.delete("/{exercise_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_exercise(
     exercise_id: uuid.UUID,
@@ -634,8 +674,15 @@ async def delete_exercise(
         )
     )
     ex = result.scalar_one_or_none()
-    if ex is not None:
-        await db.delete(ex)
+    if ex is None:
+        return
+    if ex.exercise_group_id is not None and ex.is_current:
+        # Under the group lock, so a concurrent new version cannot leave two current rows.
+        await _require_own_group(ex.exercise_group_id, teacher.id, db, lock=True)
+        previous = await _previous_version(ex, teacher, db)
+        if previous is not None:
+            previous.is_current = True
+    await db.delete(ex)
 
 
 

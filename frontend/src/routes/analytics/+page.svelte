@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from '#lib/i18n';
+  import { t, translate } from '#lib/i18n';
   import { onMount, untrack } from 'svelte';
   import { browser } from '$app/env';
   import { afterNavigate, goto } from '$app/navigation';
@@ -22,9 +22,11 @@
   import VariantFairnessTable from '#lib/components/analytics/VariantFairnessTable.svelte';
   import ExerciseEditorModal from '#lib/components/ExerciseEditorModal.svelte';
   import ExerciseQualityTable from '#lib/components/analytics/ExerciseQualityTable.svelte';
-  import { PageShell, PageHeader } from '#lib/components/ui';
+  import { Alert, PageShell, PageHeader } from '#lib/components/ui';
 
   let isInitializing = $state(true);
+  // A failed read must not render as "no data": the page shows only this instead of zeroed charts.
+  let loadError = $state('');
   let activeLoadPromise: Promise<void> | null = null;
   let pendingReload = false;
   let exams: ExamRecord[] = $state.raw([]);
@@ -88,6 +90,7 @@
   }
 
   async function loadAnalytics() {
+    loadError = '';
     try {
       const key = get(sessionStore).sessionKey;
       exams = await loadExamsEncrypted(key);
@@ -363,6 +366,7 @@
     scoreDistribution = await loadScoreDistribution(allSubmissions, key);
   } catch (err) {
     console.error('Failed to load analytics:', err);
+    loadError = translate('stats.analyticsPage.loadFailed', { message: err instanceof Error ? err.message : String(err) });
   }
 }
 
@@ -400,6 +404,8 @@
     <AnalyticsStateBanner variant="loading" />
   {:else if !$isUnlocked}
     <AnalyticsStateBanner variant="locked" />
+  {:else if loadError}
+    <Alert severity="danger">{loadError}</Alert>
   {:else}
     <!-- KPI Overview Row -->
     <KpiSummaryBar

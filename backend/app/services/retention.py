@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
 from sqlalchemy import ColumnElement, and_, delete, func, or_, select, update
@@ -22,11 +22,13 @@ from app.models.exercise_contribution import (
 from app.models.key_envelope import KeyEnvelope
 from app.models.layout_report import LayoutReport, LayoutReportFile
 from app.models.omr_training_sample import OmrTrainingSample
+from app.models.password_reset_token import PasswordResetToken
+from app.models.refresh_token import RefreshToken
 from app.models.registration_request import RegistrationRequest
 from app.models.scan_submission import ScanSubmission
 from app.models.student_identity import StudentIdentity
 from app.models.teacher import Teacher
-from app.services import blob_store
+from app.services import blob_store, scan_storage
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +55,8 @@ async def _sweep_orphan_scans(db: AsyncSession) -> int:
 async def run(*, dry_run: bool = False) -> int:
     """Apply the retention policy and return the number of affected rows. Idempotent.
 
-    Steps are numbered inline. Step 1 must cascade a grace deadline onto the exam's student data:
-    nothing hard-deletes an Exam, so soft-deleting it alone would keep personal data forever."""
+    Steps are numbered inline. Step 1 must cascade a grace deadline onto the exam's student data;
+    step 11 hard-deletes the exam itself once that grace period has passed."""
     today = date.today()
     now = datetime.now(tz=UTC)
     grace_deadline = today + timedelta(days=settings.RETENTION_GRACE_DAYS)
@@ -90,11 +92,9 @@ async def run(*, dry_run: bool = False) -> int:
         )
         expired_submissions = list(expired_submissions_res.scalars().all())
 
-        # 3. Audit entries past their own retention period.
-        expired_audit_res = await db.execute(
-            select(AuditLog).where(AuditLog.created_at < audit_cutoff)
-        )
-        expired_audit = list(expired_audit_res.scalars().all())
+        # 3. Audit entries past their own retention period (counted, deleted in bulk below).
+        expired_audit_filter = AuditLog.created_at < audit_cutoff
+        expired_audit_count = await _count(db, AuditLog, expired_audit_filter)
 
         # 4. Anonymous training samples past their retention period. Counted, then
         # deleted by date below — never by an id list, which a backlog would push
@@ -148,17 +148,37 @@ async def run(*, dry_run: bool = False) -> int:
         )
         expired_report_count = await _count(db, LayoutReport, report_filter)
 
+        # 11. Soft-deleted exams whose grace period is over, by the same day rule as their
+        # students (`retention_until < today`), whichever path soft-deleted them.
+        purge_before = datetime.combine(
+            today - timedelta(days=settings.RETENTION_GRACE_DAYS), time.min, tzinfo=UTC
+        )
+        purge_exam_filter = and_(Exam.deleted_at.isnot(None), Exam.deleted_at < purge_before)
+        purge_exam_ids = list(await db.scalars(select(Exam.id).where(purge_exam_filter)))
+
+        # 12. Session and reset tokens that can no longer be presented: expired refresh tokens
+        # (the JWT fails first), and expired or spent reset tokens (both read as "invalid").
+        stale_refresh_filter = RefreshToken.expires_at < now
+        stale_refresh_count = await _count(db, RefreshToken, stale_refresh_filter)
+        stale_reset_filter = or_(
+            PasswordResetToken.expires_at < now, PasswordResetToken.used_at.isnot(None)
+        )
+        stale_reset_count = await _count(db, PasswordResetToken, stale_reset_filter)
+
         total_affected = (
             len(expired_exams)
             + len(expired_students)
             + len(expired_submissions)
-            + len(expired_audit)
+            + expired_audit_count
             + expired_sample_count
             + expired_request_count
             + len(stale_pending)
             + expired_deletion_count
             + expired_contribution_count
             + expired_report_count
+            + len(purge_exam_ids)
+            + stale_refresh_count
+            + stale_reset_count
         )
 
         if dry_run:
@@ -190,13 +210,12 @@ async def run(*, dry_run: bool = False) -> int:
         for student in expired_students:
             await db.delete(student)
 
+        scan_storage.forget_scans(db, expired_submissions)
         for submission in expired_submissions:
-            if submission.scan_path is not None:
-                blob_store.delete_after_commit(db, submission.scan_path)
             await db.delete(submission)
 
-        for entry in expired_audit:
-            await db.delete(entry)
+        if expired_audit_count:
+            await db.execute(delete(AuditLog).where(expired_audit_filter))
 
         if expired_sample_count:
             await db.execute(delete(OmrTrainingSample).where(expired_sample_filter))
@@ -228,6 +247,22 @@ async def run(*, dry_run: bool = False) -> int:
                 )
             )
             await db.execute(delete(LayoutReport).where(report_filter))
+
+        if purge_exam_ids:
+            # The exam's rows cascade in the DB, so its scan files are dropped explicitly. Legacy
+            # exercises still name their exam (`exercises.exam_id`, ON DELETE CASCADE) and may be
+            # linked into other exams: detach them first, they stay in the library.
+            scan_storage.forget_scans_of_exams(db, purge_exam_ids)
+            await db.execute(
+                update(Exercise).where(Exercise.exam_id.in_(purge_exam_ids)).values(exam_id=None)
+            )
+            await db.execute(delete(Exam).where(purge_exam_filter))
+
+        if stale_refresh_count:
+            await db.execute(delete(RefreshToken).where(stale_refresh_filter))
+
+        if stale_reset_count:
+            await db.execute(delete(PasswordResetToken).where(stale_reset_filter))
 
         # Audit the exam expiries. Deliberately no entry per erased student
         # record: that would recreate, in the audit trail, the very identifiers

@@ -22,6 +22,15 @@ from app.schemas.submission import SubmissionCreate, SubmissionResponse, Submiss
 from app.services.capabilities import require_server_results_writable
 from app.services.scan_storage import has_scan, load_scan, store_scan
 
+
+def _upload_conflict() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="A submission with this id already exists, or a parallel upload won the race.",
+        headers={"code": "ERR_SUBMISSION_CONFLICT"},
+    )
+
+
 router = APIRouter(
     prefix="/exams/{exam_id}/submissions",
     tags=["submissions"],
@@ -109,16 +118,21 @@ async def upload_submission(
     )
     existing_identity = student_res.scalar_one_or_none()
     if existing_identity is None:
-        db.add(
-            StudentIdentity(
-                pseudonym_hmac=body.pseudonym_hmac,
-                exam_id=exam.id,
-                pii_ciphertext=b"\x00",
-                iv=b"\x00" * 12,
-                encryption_salt=b"\x00" * 16,
-            )
-        )
-        await db.flush()
+        # In a savepoint: a parallel upload for the same new pseudonym may insert the placeholder
+        # first, and then this upload simply links to it (a 409 would make the queue drop it).
+        try:
+            async with db.begin_nested():
+                db.add(
+                    StudentIdentity(
+                        pseudonym_hmac=body.pseudonym_hmac,
+                        exam_id=exam.id,
+                        pii_ciphertext=b"\x00",
+                        iv=b"\x00" * 12,
+                        encryption_salt=b"\x00" * 16,
+                    )
+                )
+        except IntegrityError:
+            pass
     elif existing_identity.deleted_at is not None:
         # Its erasure would cascade to this submission. It comes back as the placeholder, as if
         # already erased: only a student upload brings deleted PII back.
@@ -210,10 +224,7 @@ async def upload_submission(
         await db.flush()
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A submission with this id already exists.",
-        ) from None
+        raise _upload_conflict() from None
 
     return SubmissionResponse(
         id=sub.id,

@@ -1,4 +1,4 @@
-import { readable, derived, type Readable } from "svelte/store";
+import { readable, type Readable } from "svelte/store";
 import { browser } from "$app/env";
 
 /**
@@ -37,34 +37,6 @@ export function minWidth(bp: Breakpoint, initial = false): Readable<boolean> {
   return mediaQuery(`(min-width: ${breakpoints[bp]}px)`, initial);
 }
 
-/** Phone-sized: narrower than `md` (768px). */
-export const isPhone = derived(minWidth("md", true), ($md) => !$md);
-
-/** Tablet / small laptop: at least `md`, narrower than `lg` (1024px). */
-export const isTablet = derived(
-  [minWidth("md", true), minWidth("lg", true)],
-  ([$md, $lg]) => $md && !$lg,
-);
-
 /** `lg` and up — where the multi-column desktop layouts apply. */
 export const isDesktop = minWidth("lg", true);
 
-/** Coarse pointer (touch). Used to widen hit areas and enable pinch-zoom. */
-export const isTouch = mediaQuery("(pointer: coarse)", false);
-
-/** Live viewport width, updated on resize (for chart wrappers that otherwise measure `window.innerWidth` once on mount). */
-export const viewportWidth = readable(1280, (set) => {
-  if (!browser) {
-    return;
-  }
-
-  const update = () => set(window.innerWidth);
-  update();
-
-  window.addEventListener("resize", update, { passive: true });
-  window.addEventListener("orientationchange", update);
-  return () => {
-    window.removeEventListener("resize", update);
-    window.removeEventListener("orientationchange", update);
-  };
-});

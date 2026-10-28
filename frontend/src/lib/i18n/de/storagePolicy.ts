@@ -96,6 +96,12 @@ export const storagePolicy = {
                 reset: 'Wenn Sie keinen Zugang zu diesem Konto haben, können Sie die Daten in diesem Browser zurücksetzen. Ohne Archiv (.examance) sind sie dann verloren.',
                 resetButton: 'Daten in diesem Browser löschen und neu beginnen',
             },
+            error: {
+                title: 'Die Daten dieses Browsers konnten nicht geöffnet werden',
+                body: 'Das Lesen der lokalen Datenbank oder die Anfrage an den Server ist fehlgeschlagen. Es wurde nichts verändert; versuchen Sie es gleich noch einmal.',
+                retry: 'Erneut versuchen',
+                signOut: 'Abmelden',
+            },
             pendingWrites: {
                 title: 'Unübertragene Änderungen von {owner}',
                 body: 'In diesem Browser warten noch Änderungen des Kontos {owner} auf den Server. Melden Sie sich mit diesem Konto an, damit sie übertragen werden.',

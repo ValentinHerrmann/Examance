@@ -104,6 +104,7 @@ export const admin: Translations['admin'] = {
     gdprErasureTable: {
         title: 'GDPR Art. 15 & 17 — Student Identities, Access & Erasure',
         empty: 'No student identity records stored in current session.',
+        loadFailed: 'The student identities could not be loaded: {message}',
         columnPseudonymId: 'Pseudonym ID',
         columnFallbackCode: 'Fallback Code',
         columnActions: 'Actions',

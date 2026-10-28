@@ -84,11 +84,6 @@ export async function saveEnvelopes(set: EnvelopeSet): Promise<void> {
   );
 }
 
-/** Remove one wrap — used when a passkey is deregistered. */
-export async function deleteEnvelope(id: string): Promise<void> {
-  await api.delete(`/keys/envelopes/${id}`, { silentError: true });
-}
-
 /**
  * Wire shape of a whole envelope set. Exported because a password reset sends it inside the
  * reset request: new password and matching key copy are written in one transaction.

@@ -19,18 +19,6 @@ export function isSupported(): boolean {
   return typeof window !== 'undefined' && 'PublicKeyCredential' in window;
 }
 
-/** Whether this browser can offer a platform authenticator; feature-detecting `PublicKeyCredential` alone isn't enough. */
-export async function hasPlatformAuthenticator(): Promise<boolean> {
-  if (!isSupported()) {
-    return false;
-  }
-  try {
-    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-  } catch {
-    return false;
-  }
-}
-
 interface ServerOptions {
   handle: string;
   challenge_b64: string;

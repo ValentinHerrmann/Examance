@@ -2,42 +2,30 @@
  * LaTeX packages chosen in Examance: account, exam and exercise levels (issue #108). `resolvePackages` merges them
  * into one set without option clashes and `withPackages` writes it before `\documentclass` (packages.sty loads it
  * before hyperref). Rules: docs/dev/latex_packages.md. Mirrors backend/app/services/latex_packages.py; keep in sync.
+ * The rule tables come from one file both sides read (`backend/app/services/latex_package_rules.json`).
  */
+import RULES from '../../../../backend/app/services/latex_package_rules.json';
 
 export type PackageKind = "package" | "tikzlibrary" | "pgfplotslibrary";
 export type LayerSource = "account" | "exam" | "exercise" | "auto";
 export const PACKAGE_KINDS: readonly PackageKind[] = ["package", "tikzlibrary", "pgfplotslibrary"];
 
-export const MAX_ENTRIES = 50;
-export const MAX_OPTIONS_LENGTH = 300;
-const NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+export const MAX_ENTRIES = RULES.maxEntries;
+export const MAX_OPTIONS_LENGTH = RULES.maxOptionsLength;
+const NAME_PATTERN = new RegExp(`^${RULES.namePattern}$`);
 /** Options typed in the settings stay declarative: no commands, comments, parameters or brackets. */
 const FORBIDDEN_OPTION_CHARS = /[\\%#[\]\n\r]/;
 
 /** Packages that cannot work with the template, by reason code (`latexPackages.reason.*`). */
-export const FORBIDDEN_PACKAGES: ReadonlyMap<string, string> = new Map([
-  ["inputenc", "xetex"],
-  ["fontenc", "xetex"],
-  ["paralist", "enumitem"],
-]);
+export const FORBIDDEN_PACKAGES: ReadonlyMap<string, string> = new Map(Object.entries(RULES.forbidden));
 /** Template packages whose options would move the page layout or break the OMR links. */
-export const LOCKED_PACKAGES: ReadonlyMap<string, string> = new Map([
-  ["geometry", "layout"],
-  ["hyperref", "omr"],
-  ["eso-pic", "omr"],
-]);
+export const LOCKED_PACKAGES: ReadonlyMap<string, string> = new Map(Object.entries(RULES.locked));
 /** Packages replaced by an option of a template package. */
-export const PACKAGE_ALIASES: ReadonlyMap<string, readonly [string, string]> = new Map([
-  ["enumerate", ["enumitem", "shortlabels"] as const],
-]);
+export const PACKAGE_ALIASES: ReadonlyMap<string, readonly [string, string]> = new Map(
+  Object.entries(RULES.aliases).map(([name, [target, option]]) => [name, [target, option] as const]),
+);
 /** Packages that have to load after hyperref. */
-export const AFTER_HYPERREF: ReadonlySet<string> = new Set([
-  "cleveref",
-  "bookmark",
-  "hypcap",
-  "glossaries",
-  "glossaries-extra",
-]);
+export const AFTER_HYPERREF: ReadonlySet<string> = new Set(RULES.afterHyperref);
 
 export interface LatexPackageEntry {
   kind: PackageKind;

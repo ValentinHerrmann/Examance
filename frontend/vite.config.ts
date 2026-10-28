@@ -160,8 +160,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    // The info posters are bundled from the repo's docs (src/lib/about/posters.ts).
-    fs: { allow: ['.', '../docs/posters'] },
+    // The info posters are bundled from the repo's docs (src/lib/about/posters.ts), the LaTeX package rules from the backend.
+    fs: { allow: ['.', '../docs/posters', '../backend/app/services/latex_package_rules.json'] },
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

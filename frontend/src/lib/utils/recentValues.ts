@@ -74,10 +74,3 @@ export function removeValue(fieldKey: string, value: string): string[] {
   return updated;
 }
 
-/**
- * Clears stored recent values for a specific field key.
- */
-export function clearRecentValues(fieldKey: string): void {
-  if (!fieldKey) return;
-  safeLocalStorage.removeItem(PREFIX + fieldKey);
-}

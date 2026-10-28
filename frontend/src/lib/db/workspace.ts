@@ -13,6 +13,7 @@ import { hasLegacyLocalVault, removeLegacyLocalVault, sessionStore } from '#lib/
 import {
   armStorageModeSwitch,
   disarmStorageModeSwitch,
+  forgetLegacyCachedMode,
   legacyCachedMode,
   storagePolicyStore,
   type StorageMode,
@@ -98,6 +99,7 @@ export async function loadWorkspace(): Promise<WorkspaceManifestRecord> {
     await db.workspace.put(fresh);
     return fresh;
   });
+  forgetLegacyCachedMode();
   publishId(manifest);
   return manifest;
 }
@@ -298,7 +300,11 @@ function lockForeignSession(): WorkspaceStatus {
  * Only a changed answer re-runs `openWorkspace()`, which asks for a new mode if the current one is no longer allowed.
  * Offline, nothing changes.
  */
-export async function refreshCapabilities(): Promise<void> {
+export function refreshCapabilities(): Promise<void> {
+  return serialized(refreshCapabilitiesNow);
+}
+
+async function refreshCapabilitiesNow(): Promise<void> {
   const state = get(workspaceStatusStore).state;
   if (!get(sessionStore).sessionKey || (state !== 'ok' && state !== 'needs-choice' && state !== 'admin')) return;
   const before = cachedCapabilities();
@@ -312,20 +318,33 @@ export async function refreshCapabilities(): Promise<void> {
   const changed =
     caps.storageMode !== before?.storageMode ||
     allowedModesFrom(caps).join() !== (before ? allowedModesFrom(before).join() : '');
-  if (changed) await openWorkspace();
+  if (changed) await openWorkspaceNow();
+}
+
+/** One workspace decision at a time: a refocus refresh racing an unlock could publish a stale status (F17). */
+let queue: Promise<unknown> = Promise.resolve();
+function serialized<T>(run: () => Promise<T>): Promise<T> {
+  const next = queue.then(run, run);
+  queue = next.catch(() => {});
+  return next;
 }
 
 /**
  * Checks that the unlocked session owns this browser's workspace, loads the account's storage mode and
  * publishes the result. Call after every unlock and before routes touch the vault.
  */
-export async function openWorkspace(): Promise<WorkspaceStatus> {
+export function openWorkspace(): Promise<WorkspaceStatus> {
+  return serialized(openWorkspaceNow);
+}
+
+async function openWorkspaceNow(): Promise<WorkspaceStatus> {
   let status: WorkspaceStatus;
   try {
     status = await decide();
   } catch (err) {
+    // Not proof of a foreign owner (that is decided in checkOwner): offer a retry, never the reset.
     console.error('[workspace] opening the workspace failed', err);
-    status = { state: 'blocked', reason: 'foreign-key' };
+    status = { state: 'blocked', reason: 'error' };
   }
   workspaceStatusStore.set(status);
   return status;
@@ -347,11 +366,13 @@ async function discardLegacyLocalWorkspace(): Promise<void> {
  * The blocked screen's last resort: drop this browser's data and claim an empty workspace for the
  * current session, then load the account's mode again. Destroys data the session cannot use anyway.
  */
-export async function resetWorkspaceForCurrentSession(): Promise<void> {
-  const manifest = await loadWorkspace();
-  if (isLegacyLocal(manifest) || hasLegacyLocalVault()) await discardLegacyLocalWorkspace();
-  else await replaceWorkspace(null);
-  await openWorkspace();
+export function resetWorkspaceForCurrentSession(): Promise<void> {
+  return serialized(async () => {
+    const manifest = await loadWorkspace();
+    if (isLegacyLocal(manifest) || hasLegacyLocalVault()) await discardLegacyLocalWorkspace();
+    else await replaceWorkspace(null);
+    await openWorkspaceNow();
+  });
 }
 
 /** What a blocked screen may say about this browser's workspace (the manifest holds no secrets). */

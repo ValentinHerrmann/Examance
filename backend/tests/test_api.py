@@ -9,9 +9,12 @@ from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
+from app.models.scan_submission import ScanSubmission
+from app.models.student_identity import StudentIdentity
 
 from .factors import sign_in
 
@@ -125,6 +128,40 @@ async def test_student_and_submission_upload(client: AsyncClient, db: AsyncSessi
     # GDPR Student Erasure
     erase_resp = await client.delete(f"/api/v1/exams/{exam_id}/students/{pseudonym_hmac}")
     assert erase_resp.status_code == 204
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model", [StudentIdentity, ScanSubmission])
+async def test_parallel_submission_insert_is_linked_or_answers_409(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch, model: type
+) -> None:
+    await _create_teacher_and_login(client, db, f"race-{model.__name__}@example.com".lower())
+    exam = await client.post(
+        "/api/v1/exams",
+        json={
+            "title": "Race exam",
+            "retention_until": (date.today() + timedelta(days=30)).isoformat(),
+        },
+    )
+    real_flush = AsyncSession.flush
+
+    async def lose_the_race(self: AsyncSession, objects: object = None) -> None:
+        # What a parallel upload inserting the same key first looks like to this request.
+        if any(isinstance(row, model) for row in self.sync_session.new):
+            raise IntegrityError("INSERT", {}, Exception("duplicate key"))
+        await real_flush(self, objects)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(AsyncSession, "flush", lose_the_race)
+    resp = await client.post(
+        f"/api/v1/exams/{exam.json()['id']}/submissions",
+        json={"pseudonym_hmac": "f" * 64, "total_score": 1.0},
+    )
+    if model is StudentIdentity:
+        # The placeholder race is absorbed: the upload links to the identity the other request made.
+        assert resp.status_code == 201, resp.text
+    else:
+        assert resp.status_code == 409, resp.text
+        assert resp.headers["code"] == "ERR_SUBMISSION_CONFLICT"
 
 
 @pytest.mark.asyncio
@@ -331,7 +368,7 @@ async def test_exercise_versions_and_variants(client: AsyncClient, db: AsyncSess
 
     # Create parallel variant (Fahrzeug)
     var_res = await client.post(
-        f"/api/v1/exercises/{ex1_id}/new-variant",
+        f"/api/v1/exercises/{ex1_v2['id']}/new-variant",
         json={
             "name": "Typ1_Fahrzeug",
             "topic_tag": "_Vererbung",
@@ -374,6 +411,62 @@ async def test_exercise_versions_and_variants(client: AsyncClient, db: AsyncSess
     # Get exercise should return 404
     get_res = await client.get(f"/api/v1/exercises/{ex1_id}")
     assert get_res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_new_version_and_variant_start_only_from_the_current_row(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await _create_teacher_and_login(client, db, "currentrow@example.com")
+    v1 = (await client.post("/api/v1/exercises", json={"name": "Q", "latex_body": "\\BE"})).json()
+    v2 = await client.post(f"/api/v1/exercises/{v1['id']}/new-version", json={"latex_body": "\\BE x"})
+    assert v2.status_code == 201
+
+    # A superseded row would fork the history (two current versions) or seed a stale answer key.
+    for path, body in (("new-version", {}), ("new-variant", {"variant_key": "B"})):
+        stale = await client.post(f"/api/v1/exercises/{v1['id']}/{path}", json=body)
+        assert stale.status_code == 409, stale.text
+        assert stale.headers["code"] == "ERR_EXERCISE_NOT_CURRENT"
+
+    current = await client.get("/api/v1/exercises", params={"group_id": v1["exercise_group_id"]})
+    assert [e["id"] for e in current.json()] == [v2.json()["id"]]
+    ok = await client.post(
+        f"/api/v1/exercises/{v2.json()['id']}/new-variant", json={"variant_key": "B"}
+    )
+    assert ok.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_deleting_the_current_version_restores_the_previous_one(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await _create_teacher_and_login(client, db, "promote@example.com")
+    v1 = (
+        await client.post(
+            "/api/v1/exercises", json={"name": "Q", "latex_body": "\\BE", "variant_key": "A"}
+        )
+    ).json()
+    v2 = (await client.post(f"/api/v1/exercises/{v1['id']}/new-version", json={})).json()
+    v3 = (await client.post(f"/api/v1/exercises/{v2['id']}/new-version", json={})).json()
+    other = (
+        await client.post(
+            f"/api/v1/exercises/{v3['id']}/new-variant",
+            json={"latex_body": "\\BE", "variant_key": "B"},
+        )
+    ).json()
+    group = v1["exercise_group_id"]
+
+    async def current_ids() -> set[str]:
+        res = await client.get("/api/v1/exercises", params={"group_id": group})
+        return {e["id"] for e in res.json()}
+
+    # Deleting an archived version changes nothing; deleting the current one promotes the next
+    # newest of the same variant only, so the library never loses the variant's row.
+    assert (await client.delete(f"/api/v1/exercises/{v1['id']}")).status_code == 204
+    assert await current_ids() == {v3["id"], other["id"]}
+    assert (await client.delete(f"/api/v1/exercises/{v3['id']}")).status_code == 204
+    assert await current_ids() == {v2["id"], other["id"]}
+    assert (await client.get(f"/api/v1/exercises/{v2['id']}")).json()["is_current"] is True
 
 
 @pytest.mark.asyncio

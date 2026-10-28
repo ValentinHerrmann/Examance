@@ -4,6 +4,7 @@ export const grading = {
         saveSuccess: 'Note und Anmerkungen erfolgreich gespeichert!',
         saveFailed: 'Speichern der Note fehlgeschlagen: {message}',
         scoresLoadFailed: 'Die gespeicherten Punkte dieser Abgabe konnten nicht geladen werden ({message}). Speichern ist gesperrt, bis sie geladen sind, damit keine Bewertung verloren geht.',
+        submissionsLoadFailed: 'Die Abgaben dieser Prüfung konnten nicht geladen werden: {message}. Laden Sie die Seite neu.',
         scoresNotLoaded: 'Die Punkte dieser Abgabe werden noch geladen. Bitte gleich noch einmal speichern.',
         unsavedNext: 'Es gibt ungespeicherte Anmerkungen für diesen Schüler. Trotzdem zum nächsten Schüler wechseln?',
         unsavedPrev: 'Es gibt ungespeicherte Anmerkungen für diesen Schüler. Trotzdem zum vorherigen Schüler wechseln?',
@@ -115,6 +116,7 @@ export const grading = {
         loading: 'Scan wird geladen …',
         scanMissing: '[ Scan-Bild fehlt / unverschlüsselt ]',
         scanDecryptFailed: '[ Entschlüsselung des Scans fehlgeschlagen — Schlüssel stimmt nicht überein oder Daten beschädigt ]',
+        scanLoadFailed: '[ Scan konnte nicht geladen werden — bitte Seite neu laden ]',
     },
     manual: {
         container: {

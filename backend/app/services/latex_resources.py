@@ -6,7 +6,9 @@ Resources are written flat next to ``main.tex``, hence the name sanitising and r
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import Response
 
@@ -45,6 +47,8 @@ INLINE_SAFE_MIME_TYPES = frozenset({"image/png", "image/jpeg", "application/pdf"
 
 _ALLOWED_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 _REPEATED_DOTS = re.compile(r"\.{2,}")
+# Printable ASCII without the quote and the backslash: safe inside a quoted header value.
+_HEADER_SAFE_NAME = re.compile(r"[ !#-\[\]-~]*")
 
 
 class ResourceError(ValueError):
@@ -137,6 +141,16 @@ def resolve_content_disposition(mime_type: str | None) -> tuple[str, str]:
     return "application/octet-stream", "attachment"
 
 
+def content_disposition(disposition: str, filename: str) -> str:
+    """A name outside printable ASCII (the header is latin-1) goes out as RFC 5987 `filename*`,
+    next to a sanitized ASCII `filename=` for clients that ignore it."""
+    if _HEADER_SAFE_NAME.fullmatch(filename):
+        return f'{disposition}; filename="{filename}"'
+    ascii_name = unicodedata.normalize("NFKD", filename).encode("ascii", "ignore").decode()
+    fallback = re.sub(r"[^A-Za-z0-9._ -]", "_", ascii_name).strip() or "download"
+    return f"{disposition}; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename, safe='')}"
+
+
 def resource_response(content: bytes, mime_type: str | None, filename: str) -> Response:
     """A stored resource as a response. The type is never taken at face value and sniffing is
     off: a text/html file served inline from the API origin would be stored XSS."""
@@ -145,7 +159,7 @@ def resource_response(content: bytes, mime_type: str | None, filename: str) -> R
         content=content,
         media_type=media_type,
         headers={
-            "Content-Disposition": f'{disposition}; filename="{filename}"',
+            "Content-Disposition": content_disposition(disposition, filename),
             "X-Content-Type-Options": "nosniff",
             "Content-Security-Policy": "sandbox; default-src 'none'",
         },

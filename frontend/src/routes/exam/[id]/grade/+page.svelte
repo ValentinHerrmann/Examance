@@ -80,7 +80,15 @@
     if (exercises.length > 0 && !get(gradingStore).activeExerciseId) {
       gradingStore.setActiveExerciseId(exercises[0].id);
     }
-    submissions = await submissionRepository.getByExamId(examId, key);
+    try {
+      submissions = await submissionRepository.getByExamId(examId, key);
+    } catch (err) {
+      // An empty list would read as "no submissions for this exam".
+      submissionsLoadError = translate("grading.page.submissionsLoadFailed", {
+        message: err instanceof Error ? err.message : String(err),
+      });
+      return;
+    }
     const targetId = page.url.searchParams.get('submissionId');
     if (targetId) {
       const idx = submissions.findIndex((s) => s.id === targetId);
@@ -157,6 +165,8 @@
   let loadSeq = 0;
   /** Set when the current submission's scores failed to load; saving is refused meanwhile. */
   let scoresLoadError = $state("");
+  /** Set when the submission list failed to load: shown instead of the "no submissions" text. */
+  let submissionsLoadError = $state("");
 
   async function loadStrokesFor(sub: SubmissionRecord): Promise<VectorStroke[]> {
     const { sessionKey, fallbackSessionKey } = get(sessionStore);
@@ -318,7 +328,9 @@
 </script>
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-base text-content">
-  {#if submissions.length === 0}
+  {#if submissionsLoadError}
+    <Alert severity="danger" class="m-3 shrink-0">{submissionsLoadError}</Alert>
+  {:else if submissions.length === 0}
     <EmptyState level="h1" title={$t("grading.page.empty")} class="py-16" />
   {:else}
     {#if scoresLoadError}

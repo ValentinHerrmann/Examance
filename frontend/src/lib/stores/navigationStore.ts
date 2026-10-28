@@ -27,15 +27,6 @@ export function redirectToUnlock(): void {
   }
 }
 
-/**
- * Navigates to the home page with a hard redirect.
- */
-export function redirectToHome(): void {
-  if (typeof window !== "undefined") {
-    window.location.href = "/";
-  }
-}
-
 /** True if the pathname is the grading view (/grade within an exam). */
 export function isGradeActivePath(pathname: string): boolean {
   return pathname.includes("/exam/") && pathname.endsWith("/grade");

@@ -4,38 +4,41 @@ Every level is a list of entries; ``resolve_packages`` merges them into one set 
 clashes and ``with_packages`` writes it before ``\\documentclass`` (packages.sty loads it before
 hyperref).
 Rules: docs/dev/latex_packages.md. Mirrors frontend/src/lib/latex/packages.ts; keep the two in sync.
+The rule tables come from latex_package_rules.json, which the frontend imports too.
 """
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Literal, cast
 
 PackageKind = Literal["package", "tikzlibrary", "pgfplotslibrary"]
 LayerSource = Literal["account", "exam", "exercise", "auto"]
 PACKAGE_KINDS: tuple[PackageKind, ...] = ("package", "tikzlibrary", "pgfplotslibrary")
 
-MAX_ENTRIES = 50
-MAX_OPTIONS_LENGTH = 300
-NAME_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
+_RULES = json.loads(
+    (Path(__file__).parent / "latex_package_rules.json").read_text(encoding="utf-8")
+)
+
+MAX_ENTRIES: int = _RULES["maxEntries"]
+MAX_OPTIONS_LENGTH: int = _RULES["maxOptionsLength"]
+NAME_PATTERN = re.compile(_RULES["namePattern"])
 # Options typed in the settings stay declarative: no commands, comments, parameters or brackets.
 _FORBIDDEN_OPTION_CHARS = re.compile(r"[\\%#\[\]\n\r]")
 
 # Packages that cannot work with the template, by reason code (the UI explains each).
-FORBIDDEN_PACKAGES: dict[str, str] = {
-    "inputenc": "xetex",
-    "fontenc": "xetex",
-    "paralist": "enumitem",
-}
+FORBIDDEN_PACKAGES: dict[str, str] = _RULES["forbidden"]
 # Template packages whose options would move the page layout or break the OMR links.
-LOCKED_PACKAGES: dict[str, str] = {"geometry": "layout", "hyperref": "omr", "eso-pic": "omr"}
+LOCKED_PACKAGES: dict[str, str] = _RULES["locked"]
 # Packages replaced by an option of a template package.
-PACKAGE_ALIASES: dict[str, tuple[str, str]] = {"enumerate": ("enumitem", "shortlabels")}
+PACKAGE_ALIASES: dict[str, tuple[str, str]] = {
+    name: (target, option) for name, (target, option) in _RULES["aliases"].items()
+}
 # Packages that have to load after hyperref.
-AFTER_HYPERREF: frozenset[str] = frozenset(
-    {"cleveref", "bookmark", "hypcap", "glossaries", "glossaries-extra"}
-)
+AFTER_HYPERREF: frozenset[str] = frozenset(_RULES["afterHyperref"])
 
 
 @dataclass(frozen=True)

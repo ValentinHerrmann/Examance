@@ -19,6 +19,7 @@ from app.dependencies import (
 )
 from app.models.exam import Exam
 from app.models.exam_exercise import ExamExercise
+from app.models.exercise import Exercise
 from app.models.exercise_score import ExerciseScore
 from app.models.scan_submission import ScanSubmission
 from app.schemas.binary import GCM_IV_BYTES, decode_b64
@@ -95,12 +96,15 @@ async def put_scores(
     """
     requested = {s.exercise_id for s in body.scores}
     if requested:
-        linked = await db.execute(
-            select(ExamExercise.exercise_id).where(
-                ExamExercise.exam_id == exam.id, ExamExercise.exercise_id.in_(requested)
+        linked = set(
+            await db.scalars(
+                select(ExamExercise.exercise_id).where(ExamExercise.exam_id == exam.id)
             )
         )
-        if requested - set(linked.scalars()):
+        if not linked:
+            # Legacy exams link via exercise.exam_id, like the exam fetch does.
+            linked = set(await db.scalars(select(Exercise.id).where(Exercise.exam_id == exam.id)))
+        if requested - linked:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="One or more exercises are not part of this exam.",

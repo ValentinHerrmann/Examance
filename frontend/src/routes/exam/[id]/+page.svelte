@@ -95,6 +95,8 @@
   let mcGroups: McGroup[] = $state.raw([]);
   let examItems: ExamItemRef[] = $state.raw([]);
   let submissions: SubmissionRecord[] = $state.raw([]);
+  // Set when the submission read failed: counts show "–" and "delete all" is off, never "no submissions".
+  let submissionsLoadError = $state("");
 
   let isExporting = false;
   let exportSuccess = $state(false);
@@ -292,9 +294,18 @@
           libraryExercises = await loadExercisesEncrypted(key);
         } catch {}
       }
-      const loadedSubmissions = await submissionRepository.getByExamId(id, key);
-      if (isStale()) return;
-      submissions = loadedSubmissions;
+      try {
+        const loadedSubmissions = await submissionRepository.getByExamId(id, key);
+        if (isStale()) return;
+        submissions = loadedSubmissions;
+        submissionsLoadError = "";
+      } catch (err) {
+        if (isStale()) return;
+        submissions = [];
+        submissionsLoadError = translate("exam.page.submissions.loadFailed", {
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
       await checkOmrTemplateStatus(id);
       if (isStale()) return;
       await restoreCachedPreviews();
@@ -1172,7 +1183,7 @@
   let isDeletingAllSubmissions = false;
 
   async function handleDeleteAllSubmissions() {
-    if (!exam) return;
+    if (!exam || submissionsLoadError) return;
     if (submissions.length === 0) {
       alert(translate("exam.page.submissions.noneToDelete"));
       return;
@@ -1266,15 +1277,19 @@
     </Alert>
   {/if}
 
+  {#if submissionsLoadError}
+    <Alert severity="danger" class="mb-6">{submissionsLoadError}</Alert>
+  {/if}
+
   {#if !exam}
     <div class="text-muted">{$t("exam.page.loading")}</div>
   {:else}
     <ExamMetadata
       {exam}
       {totalPoints}
-      {submissionsCount}
-      {studentsCount}
-      {gradedCount}
+      submissionsCount={submissionsLoadError ? null : submissionsCount}
+      studentsCount={submissionsLoadError ? null : studentsCount}
+      gradedCount={submissionsLoadError ? null : gradedCount}
     />
 
     <ExamActionBar
