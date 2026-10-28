@@ -3,13 +3,12 @@
   import { fmt } from '#lib/utils/format';
   import type { ExamRecord } from '#lib/db/schema';
   import type { ExamStats } from '#lib/analytics/stats';
-  import { Alert, PageShell, PageHeader, Button, Card } from '#lib/components/ui';
+  import { Alert, PageShell, PageHeader, Button, Card, ConfirmDialog } from '#lib/components/ui';
   import StatsCards from './StatsCards.svelte';
   import BorderlineCases from './BorderlineCases.svelte';
   import ChartCard from './ChartCard.svelte';
   import { binColumns, gradeColumns } from './chartColumns';
   import { buildGradeChartModel } from '#lib/analytics/gradeChartModel';
-  import StatsExportModal from './StatsExportModal.svelte';
 
   interface Props {
     exam: ExamRecord | null;
@@ -149,6 +148,13 @@
   {/if}
 </PageShell>
 
-{#if showConfirmModal}
-  <StatsExportModal onConfirm={onConfirmExport} onCancel={onCancelExport} />
-{/if}
+<ConfirmDialog
+  open={showConfirmModal}
+  role="dialog"
+  title={$t('stats.exportModal.title')}
+  message={$t('stats.exportModal.body')}
+  confirmText={$t('stats.exportModal.confirmButton')}
+  cancelText={$t('common.cancel')}
+  onConfirm={onConfirmExport}
+  onCancel={onCancelExport}
+/>

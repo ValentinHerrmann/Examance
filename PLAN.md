@@ -252,7 +252,8 @@ Target:
   - Optional: a `FactorCard` shell for the Totp, Recovery and Password factor cards and `PasskeyManager`.
   - Estimate: −120 lines.
 - [ ] **V2 `useSecondFactor()`** (`lib/webauthn/secondFactor.svelte.ts`). It holds the passkey ceremony (`loginOptions` → `authenticate` → `verifyLogin` → `passkeyUnwrap`), TOTP and backup-code submit, and the error mapping. Shared by `routes/unlock` and `routes/reset-password`; each page keeps its own state machine. Auth: call out in the PR. Estimate: −100 lines.
-- [ ] **V3 Dialog primitives.**
+- [x] **V3 Dialog primitives.**
+  - Done: no hand-rolled dialogs were left; the `role="dialog"` hits are `ConfirmDialog` calls whose role the e2e tests rely on.
   - `ui/ConfirmDialog` gains `error`, `confirmDisabled` and a cancel that is disabled while busy.
   - Delete `ConfirmDeleteModal`; `common/DeleteWithUsageModal` uses `ConfirmDialog`. Update `frontend/CLAUDE.md`, which names `ConfirmDeleteModal`.
   - `StatsExportModal` becomes a `ConfirmDialog` call.

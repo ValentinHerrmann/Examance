@@ -9,13 +9,12 @@
   import AnnotationToolbar from "./AnnotationToolbar.svelte";
   import ScoreEntry from "./ScoreEntry.svelte";
   import McAnswerReview from "./McAnswerReview.svelte";
-  import ClearAnnotationsModal from "./ClearAnnotationsModal.svelte";
-  import LastSubmissionModal from "./LastSubmissionModal.svelte";
   import GradingActions from "./GradingActions.svelte";
   import ScanCanvasViewer from "./ScanCanvasViewer.svelte";
   import { t } from "#lib/i18n";
-  import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
-  import { Button } from "#lib/components/ui";
+  import { faChevronDown, faChevronUp, faFlagCheckered, faTrashCan } from "@fortawesome/free-solid-svg-icons";
+  import { Button, HeroDialog } from "#lib/components/ui";
+  import { examHref } from "#lib/utils/links";
 
   interface Props {
     examId: string;
@@ -158,12 +157,29 @@
   </div>
 </div>
 
-<LastSubmissionModal {examId} onStay={onStayOnLastSub} />
+<HeroDialog
+  open={$gradingStore.showLastSubModal}
+  icon={faFlagCheckered}
+  tone="info"
+  title={$t("grading.lastSubmission.title")}
+  body={$t("grading.lastSubmission.body")}
+  primary={{ label: $t("grading.lastSubmission.backToOverview"), href: examHref(examId) }}
+  secondary={{ label: $t("grading.lastSubmission.stayHere"), onClick: onStayOnLastSub }}
+/>
 
-<ClearAnnotationsModal
-  onConfirm={async () => {
-    await viewerRef?.clearAnnotations();
-    gradingStore.setShowClearConfirmModal(false);
+<!-- Destructive: the clearing waits for this explicit confirmation. -->
+<HeroDialog
+  open={$gradingStore.showClearConfirmModal}
+  icon={faTrashCan}
+  tone="danger"
+  title={$t("grading.clearModal.title")}
+  body={$t("grading.clearModal.body")}
+  primary={{
+    label: $t("grading.clearModal.confirm"),
+    onClick: async () => {
+      await viewerRef?.clearAnnotations();
+      gradingStore.setShowClearConfirmModal(false);
+    },
   }}
-  onCancel={cancelClearAnnotations}
+  secondary={{ label: $t("common.cancel"), onClick: cancelClearAnnotations }}
 />
